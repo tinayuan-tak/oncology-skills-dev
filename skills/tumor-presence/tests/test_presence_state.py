@@ -101,3 +101,30 @@ def test_projection_is_verdict_inert_ignores_presence_verdict():
     a = _hl(**kw)
     b = _hl(**kw); b["presence_verdict"] = "something_totally_different"
     assert derive_presence_state(a) == derive_presence_state(b)
+
+
+# ── obs-3: a THIN cell-line-only protein leg must not mint a protein_only_rna_absent conflict ─────
+def test_thin_contradicted_cellline_only_protein_does_not_mint_rna_absent_conflict():
+    """MLANA case: RNA absent, protein 'confirmed' only by a bottom-decile Gygi cell-line read that is
+    ORTHOGONALLY CONTRADICTED (abundance floor low AND HPA-IHC ihc_not_detected). Too thin to mint a
+    protein_only_rna_absent CONFLICT → present='no'."""
+    hl = _hl(A="absent", pcs="confirmed_cell_line_only", floor="present_low_abundance")
+    hl["hpa_ihc_protein_presence_class"] = "ihc_not_detected"
+    st = derive_presence_state(hl)
+    assert st["present"] == "no" and st["conflict"] is False
+
+
+def test_uncontradicted_cellline_only_still_mints_conflict():
+    """Guard the demotion is NARROW: an RNA-absent target whose cell-line-only protein is NOT contradicted
+    (IHC detected, or floor not low) still mints the protein_only_rna_absent conflict — and a full/tumor
+    `confirmed` always does."""
+    # IHC detected → not contradicted
+    hl = _hl(A="absent", pcs="confirmed_cell_line_only", floor="present_low_abundance")
+    hl["hpa_ihc_protein_presence_class"] = "ihc_detected_high"
+    assert derive_presence_state(hl)["present"] == "protein_only_rna_absent"
+    # floor not low → not contradicted
+    hl2 = _hl(A="absent", pcs="confirmed_cell_line_only", floor="adequate_abundance")
+    hl2["hpa_ihc_protein_presence_class"] = "ihc_not_detected"
+    assert derive_presence_state(hl2)["present"] == "protein_only_rna_absent"
+    # full (tumor) confirmation → always mints
+    assert derive_presence_state(_hl(A="absent", pcs="confirmed"))["present"] == "protein_only_rna_absent"

@@ -236,3 +236,33 @@ def test_presence_positive_predicate_matches_partition():
     assert all(tp._is_presence_positive(v) for _, v in pos)
     assert all(not tp._is_presence_positive(v) for _, v in neg)
     assert all(not tp._is_presence_positive(v) for _, v in gap)
+
+
+# ── obs-1: WITHIN-bucket buried measured-negative ────────────────────────────────────────────────
+def _fr(rule_id, card_id):
+    return {"rule_id": rule_id, "card_id": card_id, "field": "x", "value": "y", "signals": {}}
+
+
+def test_conflict_surfaces_within_bucket_buried_negative():
+    """Obs-1 (KRAS shape): a measured presence-NEGATIVE that fired in the SAME bucket as a stronger
+    co-fired positive is out-ranked WITHIN the bucket, so per_modality (winner-only) hides it and the
+    cross-bucket scan never sees it. `tumor-rna-vs-adjacent` modestly_downregulated + `tumor-rna-
+    distribution` broadly-high both live in bulk_rna/tumor. Passing `fired` must surface the buried
+    negative on presence_headline_conflict."""
+    fired = [_fr("tumor-expression-broadly-high-supportive", "tumor-rna-distribution"),
+             _fr("expression-modest-downregulation-opposing", "tumor-rna-vs-adjacent")]
+    pm = tp._per_modality_verdicts(fired)
+    # the bucket winner is the positive (no cross-bucket negative anywhere)
+    assert tp._is_presence_positive(pm[tp._ctx_key("bulk_rna", "tumor")]["verdict"])
+    conflict, note, buried = tp._headline_conflict("tumor_broadly_expressed", pm, fired)
+    assert conflict is True
+    assert any("tumor-rna-vs-adjacent" in b and "modestly_downregulated_in_tumor" in b for b in buried)
+    # backward-compat: without `fired` the within-bucket scan can't run → no conflict here
+    assert tp._headline_conflict("tumor_broadly_expressed", pm)[0] is False
+
+
+def test_within_bucket_scan_silent_when_no_co_fired_positive():
+    """A bucket with ONLY a measured-negative (no co-fired positive) is a real bucket-negative the
+    cross-bucket scan already handles — the within-bucket helper must NOT double-report it."""
+    fired = [_fr("expression-modest-downregulation-opposing", "tumor-rna-vs-adjacent")]
+    assert tp._within_bucket_buried_negatives(fired) == []

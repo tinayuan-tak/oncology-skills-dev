@@ -157,3 +157,25 @@ def test_protein_absence_rids_resolve_to_live_contract_rules():
     missing = sorted(set(tp._PROTEIN_ABSENCE_RIDS) - live)
     assert not missing, \
         f"_PROTEIN_ABSENCE_RIDS reference rules not defined in intracellular-intrinsic.rules.yaml: {missing}"
+
+
+def test_present_rna_only_protein_absent_demotion_fires_behaviorally():
+    """Behavioral coverage of the single-rung protein-absence demotion (no live panel target hits it —
+    the CTAs tried are cell-line broadly_moderate, not broadly_low): an RNA positive + the cell-line
+    `protein-abundance-broadly-low-degrader-killer` + NO protein-positive collapses to
+    present_rna_only_protein_absent."""
+    fired = [_fr("expression-broadly-high-supportive", "cellline-rna-distribution"),
+             _fr("tumor-expression-broadly-high-supportive", "tumor-rna-distribution"),
+             _fr("protein-abundance-broadly-low-degrader-killer", "cellline-protein-abundance")]
+    v, _drv = tp._verdict(fired)
+    assert v == tp.PRESENT_RNA_ONLY_PROTEIN_ABSENT
+
+
+def test_protein_absence_demotion_suppressed_by_any_protein_positive():
+    """Guard the demotion's precondition: if ANY protein-positive fired, the broadly_low killer does NOT
+    demote (the target IS protein-present somewhere) — the RNA positive stands."""
+    fired = [_fr("expression-broadly-high-supportive", "cellline-rna-distribution"),
+             _fr("protein-abundance-broadly-low-degrader-killer", "cellline-protein-abundance"),
+             _fr("protein-strongly-up-supportive", "tumor-protein-abundance-cptac")]
+    v, _drv = tp._verdict(fired)
+    assert v != tp.PRESENT_RNA_ONLY_PROTEIN_ABSENT

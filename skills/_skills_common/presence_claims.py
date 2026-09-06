@@ -446,11 +446,20 @@ def derive_presence_state(headline: dict) -> dict:
     # confirmation for the coarse present-state (keeps present='yes' → no phrase/label cascade); the
     # cell-line-only qualifier is carried by the protein_confirmation_state facet itself (INV-8).
     _confirmed = pcs in ("confirmed", "confirmed_cell_line_only")
+    # A cell-line-ONLY protein confirmation that is orthogonally CONTRADICTED — bottom-decile abundance
+    # floor AND HPA-IHC `ihc_not_detected` — is too thin to mint a `protein_only_rna_absent` CONFLICT
+    # against an RNA-absent target (the MLANA case: a bottom-~0.3-percentile Gygi read, IHC not-detected,
+    # sc broadly_low). A tumor/full `confirmed` still counts; only the cell-line-only-AND-contradicted
+    # combination is demoted, and ONLY in the RNA-absent branch (surgical — the RNA-present branch is
+    # untouched, so no present='yes' target changes). VERDICT-INERT projection.
+    _thin_cellline_only = (pcs == "confirmed_cell_line_only"
+                           and floor == "present_low_abundance"
+                           and headline.get("hpa_ihc_protein_presence_class") == "ihc_not_detected")
     if A in _PS_POS_SIG:
         present = ("yes" if _confirmed else
                    "rna_only_protein_absent" if pcs == "measured_absent" else "rna_only")
     elif A in ("absent", "negative"):
-        present = "protein_only_rna_absent" if _confirmed else "no"
+        present = "protein_only_rna_absent" if (_confirmed and not _thin_cellline_only) else "no"
     else:                                                     # abundance unmeasured
         present = "protein_only" if _confirmed else "untested"
 

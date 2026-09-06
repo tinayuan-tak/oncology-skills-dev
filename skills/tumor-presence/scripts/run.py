@@ -849,8 +849,16 @@ def _per_modality_verdicts(fired: list[dict], cards: list[dict] | None = None) -
                             "evidence_state": "data_unavailable"}
         elif group:
             v, drv = _rank_verdict(group, _MEASUREMENT_RANK.get(measurement))
+            # A group of ONLY data-unavailable rungs resolves to `data_unavailable` — that bucket carries
+            # no measured read, so stamping evidence_state=`measured` contradicts the verdict and misleads
+            # a consumer that reads evidence_state alone (the coverage-thin-indication case, e.g. SKCM
+            # bulk_protein_ms/tumor + sc_rna/tumor). Only a non-`data_unavailable` resolved verdict is a
+            # genuine measured read. `not_informative` STAYS measured (it is a measured-but-flat result,
+            # not a coverage gap). The _MEASURED_UNRULED_PRESENT rescue below still lifts a genuine
+            # unruled-present read back to `measured`.
+            state = "data_unavailable" if v == "data_unavailable" else "measured"
             out[key] = {"measurement": measurement, "sample_context": sample_context,
-                        "verdict": v, "driving_rule_id": drv, "evidence_state": "measured"}
+                        "verdict": v, "driving_rule_id": drv, "evidence_state": state}
         else:
             out[key] = {"measurement": measurement, "sample_context": sample_context,
                         "verdict": "data_unavailable", "driving_rule_id": None,
@@ -970,26 +978,63 @@ def _presence_signal_strength(driving_rule_id: str | None, verdict: str | None) 
     return "other"
 
 
-def _headline_conflict(collapsed_verdict, per_modality):
+def _within_bucket_buried_negatives(fired) -> list[str]:
+    """VERDICT-INERT: measured presence-NEGATIVES that fired in the SAME bucket as a co-fired presence-
+    POSITIVE and were out-ranked WITHIN that bucket. `_per_modality_verdicts` reports only each bucket's
+    winning rung, and `_headline_conflict`'s cross-bucket scan sees only those winners — so a genuine
+    measured negative sharing a bucket with a stronger positive (e.g. `tumor-rna-vs-adjacent`
+    modestly_downregulated co-bucketed under `bulk_rna/tumor` with a `tumor-rna-distribution` broadly-high
+    positive) is invisible in BOTH the one-word verdict and the per-modality matrix. This surfaces it.
+    Returns sorted 'measurement/sample_context(card_id:verdict)' descriptors."""
+    if not fired:
+        return []
+    by_bucket: dict[tuple, list[dict]] = {}
+    for r in fired:
+        ctx = CARD_CONTEXT.get(r.get("card_id"))
+        if ctx:
+            by_bucket.setdefault(ctx, []).append(r)
+    out: list[str] = []
+    for (measurement, sample_context), group in by_bucket.items():
+        if (measurement, sample_context) in _COMPARATOR_BUCKETS:
+            continue                                   # comparators are never presence rungs
+        rid_to_verdict = {rid: verd for rid, verd in (_MEASUREMENT_RANK.get(measurement) or [])}
+        verdicts = {rid_to_verdict.get(r.get("rule_id")) for r in group}
+        has_positive = any(_is_presence_positive(v) for v in verdicts if v)
+        if not has_positive:
+            continue                                   # the bucket winner isn't a positive → not buried
+        for r in group:
+            verd = rid_to_verdict.get(r.get("rule_id"))
+            if verd in _MEASURED_NEGATIVE_VERDICTS:
+                out.append(f"{_ctx_key(measurement, sample_context)}({r.get('card_id')}:{verd})")
+    return sorted(set(out))
+
+
+def _headline_conflict(collapsed_verdict, per_modality, fired=None):
     """VERDICT-INERT safety guard (Principle 1): the collapsed headline reads PRESENT (a measured
-    positive) while another modality carries a MEASURED presence-NEGATIVE (e.g. RNA broadly_high but
-    CPTAC protein `not_detected`). The collapse intentionally ranks measured positives over measured
-    negatives to protect antigens that de-differentiate in 2D culture; that same rule can bury a
-    measured protein-absence under an RNA positive in the one-word headline. This flag makes the buried
-    killer legible without moving the spine. Returns (conflict_bool, note_or_None, [bucket_keys])."""
+    positive) while a MEASURED presence-NEGATIVE was recorded elsewhere. Two scopes, both surfaced:
+      • CROSS-bucket — another modality's WINNING verdict is a measured negative (e.g. RNA broadly_high
+        but CPTAC protein `not_detected`).
+      • WITHIN-bucket — a measured negative fired in the SAME bucket as a stronger co-fired positive and
+        was out-ranked (needs `fired`; invisible in per_modality, which reports only bucket winners).
+    The collapse intentionally ranks measured positives over measured negatives (protects antigens that
+    de-differentiate in 2D culture); that same rule buries these negatives in the one-word headline. This
+    flag makes both legible without moving the spine. Returns (conflict_bool, note_or_None, [descriptors])."""
     if not _is_presence_positive(collapsed_verdict):
         return False, None, []
-    killers = sorted(k for k, b in (per_modality or {}).items()
-                     if isinstance(b, dict) and b.get("evidence_state") == "measured"
-                     and b.get("verdict") in _MEASURED_NEGATIVE_VERDICTS)
-    if not killers:
+    cross = sorted(k for k, b in (per_modality or {}).items()
+                   if isinstance(b, dict) and b.get("evidence_state") == "measured"
+                   and b.get("verdict") in _MEASURED_NEGATIVE_VERDICTS)
+    within = _within_bucket_buried_negatives(fired)
+    buried = sorted(set(cross) | set(within))
+    if not buried:
         return False, None, []
     note = (f"presence_verdict reads present ({collapsed_verdict}) but a MEASURED presence-negative was "
-            f"recorded in: {', '.join(killers)}. The collapse ranks measured positives over measured "
+            f"recorded in: {', '.join(buried)}. The collapse ranks measured positives over measured "
             f"negatives (protects de-differentiating antigens), so this killer is not in the one-word "
-            f"headline — confirm the target is present in the negative modality before any read that "
-            f"depends on it (e.g. a protein `not_detected` undercuts an ADC/degrader/TCE call).")
-    return True, note, killers
+            f"headline — confirm the target is present in the negative modality/lens before any read that "
+            f"depends on it (e.g. a protein `not_detected` undercuts an ADC/degrader/TCE call; a tumor-vs-"
+            f"adjacent downregulation co-bucketed with a distribution positive is a real depletion signal).")
+    return True, note, buried
 
 
 # Abundance-LEVEL anchors: the allgene percentile of the target's expression/abundance LEVEL. The
@@ -1444,7 +1489,7 @@ def _headline(cards, fired, verdict_pair, target=None, indication=None):
     # Robustness facets (verdict-inert): a measured presence-negative buried under the positive headline
     # (Principle 1), and a presence-positive whose absolute abundance level reads bottom-decile
     # (Principle 2). Both are additive legibility guards; neither touches v / drv / per_modality.
-    _hl_conflict, _hl_conflict_note, _hl_conflict_buckets = _headline_conflict(v, per_modality)
+    _hl_conflict, _hl_conflict_note, _hl_conflict_buckets = _headline_conflict(v, per_modality, fired)
     _abundance_floor_flag, _abundance_low_lenses = _abundance_floor(cards, v, is_surface=_is_surface)
     # RNA→protein proxy quality: prefer the tumor arm (the disease-context proxy), fall back to cell-line.
     _rna_biomarker = get_card_field(cards, "cellline-rna-protein-concordance", "rna_as_biomarker")

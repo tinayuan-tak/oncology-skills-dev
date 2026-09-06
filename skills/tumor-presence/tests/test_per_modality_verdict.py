@@ -819,3 +819,40 @@ def test_headline_summarizes_normal_essential_flags_to_top_n():
     assert len(top) == 8 and top[0]["cell_type"] == "cell_type_0"       # ranked by detection desc
     assert top[0]["detection_fraction"] >= top[-1]["detection_fraction"]
     assert h["sc_normal_safety_essential_flags"] == flags               # full dict retained
+
+
+# ── obs-2: evidence_state must not contradict a data_unavailable verdict ─────────────────────────
+def test_data_unavailable_only_bucket_is_not_stamped_measured():
+    """A bucket whose ONLY fired rungs are data-unavailable resolves to verdict=data_unavailable; its
+    evidence_state must be `data_unavailable`, NOT `measured` (the self-contradictory pair seen on
+    coverage-thin indications like SKCM: bulk_protein_ms/tumor + sc_rna/tumor)."""
+    pm = tp._per_modality_verdicts([_fr("protein-data-unavailable-insufficient", "tumor-protein-abundance-cptac")])
+    b = pm[tp._ctx_key("bulk_protein_ms", "tumor")]
+    assert b["verdict"] == "data_unavailable"
+    assert b["evidence_state"] == "data_unavailable"
+
+
+def test_not_informative_stays_measured_not_demoted():
+    """`not_informative` is a MEASURED-but-flat read (data present, effect flat), NOT a coverage gap — it
+    must keep evidence_state=`measured` (only literal data_unavailable is demoted by obs-2)."""
+    pm = tp._per_modality_verdicts([_fr("expression-call-not-informative-degrader-killer", "tumor-rna-vs-adjacent")])
+    b = pm[tp._ctx_key("bulk_rna", "tumor")]
+    assert b["verdict"] == "not_informative" and b["evidence_state"] == "measured"
+
+
+def test_evidence_state_measured_never_pairs_with_data_unavailable_verdict():
+    """Obs-2 invariant guard — the strict skill_report/decision schema does NOT catch this pair (pins
+    allow any verdict string alongside any evidence_state enum), so pin it here: across a spread of
+    synthetic fired-sets, no bucket may carry evidence_state=`measured` with verdict=`data_unavailable`."""
+    firesets = [
+        [_fr("protein-data-unavailable-insufficient", "tumor-protein-abundance-cptac")],
+        [_fr("sc-expression-data-unavailable-insufficient", "tumor-scrna-celltype-expression")],
+        [_fr("expression-broadly-high-supportive", "cellline-rna-distribution")],
+        [_fr("expression-strong-upregulation-supportive", "tumor-rna-vs-adjacent"),
+         _fr("protein-data-unavailable-insufficient", "tumor-protein-abundance-cptac")],
+        [],
+    ]
+    for fired in firesets:
+        for key, b in tp._per_modality_verdicts(fired).items():
+            if b.get("evidence_state") == "measured":
+                assert b.get("verdict") != "data_unavailable", (key, b)
