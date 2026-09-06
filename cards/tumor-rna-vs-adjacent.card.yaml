@@ -105,6 +105,13 @@ outputs:
 thresholds:
   expression_p95_min: 1.0       # TPM; iter-1 conservative default — see A2 calibration disclosure
   paired_normals_min: 8         # DESeq2 minimum-fit heuristic
+  # expression_call_class log2_fc cuts — promoted from the summary_fields_vocabulary comments (lines
+  # 77-81) to named, single-sourced thresholds so the interpretation-encoding distance_to_cut ruler
+  # (SALIENCE_SPECS[tumor_vs_adjacent_expression]) references them instead of re-hardcoding the cut. The
+  # method's expression_call_class banding is UNCHANGED; these only expose the same cuts declaratively.
+  modest_upregulation_log2fc: 0.5   # |log2_fc| >= 0.5 (with q < call_significance_q): the elevated-call boundary
+  strong_upregulation_log2fc: 1.5   # log2_fc >= 1.5 (with q < call_significance_q): strong upregulation
+  call_significance_q: 0.05         # q-value gate for a directional (up/down) call
   # all-gene percentile-class cutoffs (method bins allgene_percentile → allgene_percentile_class)
   allgene_top_1_percentile: 99.0
   allgene_top_decile: 90.0
