@@ -88,6 +88,16 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: us-east-1
 
+      # Framework-review SK1 — BREADTH live smoke. The per-skill re-freezes below cover 4 skills'
+      # fixtures; this runs the full in-process fan-out for a canonical target across ALL ~15 wired
+      # sub-skills and FAILS on any `_live_read_error` (a reader that blew up on real data → the
+      # sub-verdict silently degrades to insufficient with PR CI green). data_unavailable is INFO, not
+      # a failure. Exits 1 on any hard read-error → reds the nightly so the breakage is not ignored.
+      - name: Live-reader breadth smoke (all sub-skills, KRAS/COADREAD)
+        if: env.HAVE_AWS == 'true'
+        working-directory: rnd-computational-biology-oncology-claude-oncology-skills
+        run: pixi run python eval/live_reader_smoke.py --target KRAS --indication COADREAD
+
       - name: Re-freeze fixtures against live S3
         if: env.HAVE_AWS == 'true'
         working-directory: rnd-computational-biology-oncology-claude-oncology-skills
