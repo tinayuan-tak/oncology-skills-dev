@@ -132,6 +132,11 @@ SYNTHESIS_NOTE = "synthesis_note"      # a routed LLM argument/tension surfaced 
 EVIDENCE_FINGERPRINT = "evidence_fingerprint"  # per-question heatmap: cards × signal/confidence + a literature dot
 CARD_CHAIN = "card_chain"              # per-card dataset→data→rule→verdict chains, grouped by measurement layer
 LITERATURE_AXES = "literature_axes"    # per-axis literature agreement + assertion + citations + blind spots
+# composed at-a-glance block (P6 consumer): the COMPOSED analog of EVIDENCE_FINGERPRINT — reads the
+# target_report.evidence_graph INDEX (verdict node + skills[] + typed edges, composed_evidence_graph.v1)
+# and renders the whole decision as a lens-grouped skill grid. Leads the Decision lens. See
+# docs/COMPOSED_EVIDENCE_GRAPH_ROLLUP.md §2 (the composed index) — this is its first renderer.
+COMPOSED_FINGERPRINT = "composed_fingerprint"  # composed skill×lens grid + verdict + dissent, from the index
 
 BLOCK_KINDS: frozenset = frozenset({
     REPORT_HEADER, SKILL_HEADER, CONFIDENCE, TENSION, CLAIM_CHIPS, QUESTION_TABLE,
@@ -139,7 +144,7 @@ BLOCK_KINDS: frozenset = frozenset({
     SYNTHESIS, COHERENCE, MODALITY_MATRIX, LITERATURE_RISK, DECIDING_AXIS,
     FLIP_CONDITIONS, SUBTYPE, BIOMARKER,
     SIGNALS_SCATTER, SUBGROUP_BANDS, CROSS_CUTTING_QUESTIONS, SYNTHESIS_BANNER, SYNTHESIS_NOTE,
-    EVIDENCE_FINGERPRINT, CARD_CHAIN, LITERATURE_AXES,
+    EVIDENCE_FINGERPRINT, CARD_CHAIN, LITERATURE_AXES, COMPOSED_FINGERPRINT,
 })
 
 # min level int at which each block kind is shown.
@@ -173,6 +178,7 @@ TIER: dict[str, int] = {
     EVIDENCE_FINGERPRINT: 2,   # per-question fingerprint — leads the RICH embedded view (evidence depth)
     LITERATURE_AXES: 2,        # per-axis literature panel — evidence depth
     CARD_CHAIN: 3,             # per-card dataset→data→rule→verdict chains — deepest detail
+    COMPOSED_FINGERPRINT: 1,   # composed at-a-glance grid — summary depth (leads the Decision lens)
 }
 
 # how many claim chips to show per skill at each level (None = all).
@@ -210,6 +216,7 @@ BLOCK_LENS: dict[str, str] = {
     SIGNALS_OVERVIEW: LENS_SIGNALS,
     SIGNALS_SCATTER: LENS_SIGNALS,            # the report-level 15-skill scatter
     CROSS_CUTTING_QUESTIONS: LENS_SIGNALS,
+    COMPOSED_FINGERPRINT: LENS_DECISION,     # the composed at-a-glance grid leads the Decision lens
     SYNTHESIS: LENS_DECISION,
     DECIDING_AXIS: LENS_DECISION,
     FLIP_CONDITIONS: LENS_DECISION,
@@ -332,7 +339,7 @@ __all__ = [
     "LENS_DECISION", "LENS_SIGNALS", "LENS_MODALITY", "LENS_RISK", "LENS_BIOLOGY",
     "LENS_ORDER", "LENS_TITLE", "BLOCK_LENS", "SKILL_TOPICAL_LENS",
     "SIGNALS_SCATTER", "SUBGROUP_BANDS", "CROSS_CUTTING_QUESTIONS", "SYNTHESIS_BANNER", "SYNTHESIS_NOTE",
-    "EVIDENCE_FINGERPRINT", "CARD_CHAIN", "LITERATURE_AXES",
+    "EVIDENCE_FINGERPRINT", "CARD_CHAIN", "LITERATURE_AXES", "COMPOSED_FINGERPRINT",
     "REPORT_HEADER", "SKILL_HEADER", "CONFIDENCE", "TENSION", "CLAIM_CHIPS", "QUESTION_TABLE",
     "PHASE_METRICS", "FIGURE", "PROVENANCE", "UNMEASURED", "ABOUT",
     "SIGNALS_OVERVIEW", "RISK_6DIM", "SYNTHESIS", "COHERENCE", "MODALITY_MATRIX",

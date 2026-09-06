@@ -211,6 +211,22 @@ details.pklayer[open] > summary::before { content:"▾ "; }
 .ccinline { color:var(--muted); font-size:11.5px; white-space:nowrap; }
 .cite-pill { display:inline-block; font-size:11px; color:var(--ink2); background:var(--page); border:1px solid var(--border);
              border-radius:5px; padding:0 5px; margin:0 2px 2px 0; }
+/* composed at-a-glance grid (COMPOSED_FINGERPRINT): the composed_evidence_graph index as a lens-grouped skill grid */
+.cfp-verdict { font-size:13px; color:var(--ink2); margin:2px 0 13px; }
+.cfp-verdict .rec { font-weight:750; color:var(--ink); text-transform:uppercase; letter-spacing:.02em; }
+.cfp { display:flex; flex-direction:column; gap:9px; }
+.cfp-lane { display:grid; grid-template-columns:92px 1fr; gap:10px; align-items:start; }
+.cfp-lens { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); padding-top:6px; }
+.cfp-chips { display:flex; flex-wrap:wrap; gap:6px; }
+.cfp-chip { display:inline-flex; align-items:center; gap:6px; border:1px solid var(--border); border-radius:8px;
+            background:var(--surface); padding:3px 9px; font-size:12px; color:var(--ink2); }
+.cfp-chip .ct { font-weight:640; color:var(--ink); }
+.cfp-chip .cc { color:var(--muted); font-size:11px; }
+.cfp-chip.deciding { border-color:var(--ink2); box-shadow:0 0 0 1px var(--ink2); }
+.cfp-chip .clit { width:8px; height:8px; border-radius:50%; display:inline-block; border:1px solid var(--border); }
+.cfp-dissent { margin-top:11px; font-size:12px; color:var(--ink2); }
+.cfp-dissent .dhead { color:var(--serious); font-weight:700; }
+.cfp-dissent b { color:var(--ink); }
 """.strip()
 
 
@@ -250,6 +266,7 @@ class HtmlBackend:
             vocab.EVIDENCE_FINGERPRINT: self._evidence_fingerprint,
             vocab.CARD_CHAIN: self._card_chain,
             vocab.LITERATURE_AXES: self._literature_axes,
+            vocab.COMPOSED_FINGERPRINT: self._composed_fingerprint,
         }
 
     def handled_kinds(self) -> set:
@@ -869,6 +886,67 @@ class HtmlBackend:
         return ["<h2>Evidence fingerprint <span class='so-foot'>— per question: one cell per contributing "
                 "card (colour = signal, opacity = confidence); literature dot colour = agreement</span></h2>"
                 f"<div class='eg-inner'><div class='hm'>{''.join(groups)}</div>{note}</div>"]
+
+    _CFP_LIT_COLOR = {"consistent": "var(--supportive)", "corroborates": "var(--supportive)",
+                      "agree": "var(--supportive)", "mixed": "var(--warning)",
+                      "inconsistent": "var(--killer)", "contradicts": "var(--killer)"}
+
+    def _composed_fingerprint(self, p: dict) -> list:
+        """The composed at-a-glance grid: every subskill's verdict as a chip, grouped by lens, with the
+        deciding axis outlined and a literature-agreement dot. Reads the COMPOSED_FINGERPRINT block (built
+        from the target_report.evidence_graph index) — the composed analog of the per-question fingerprint."""
+        lanes = p.get("lanes") or []
+        if not lanes:
+            return []
+        v = p.get("verdict") or {}
+        vbits = []
+        if v.get("recommendation"):
+            vbits.append(f"<span class='rec'>{_esc(_humanize(v['recommendation']))}</span>")
+        if v.get("confidence"):
+            vbits.append(f"confidence {_esc(_humanize(v['confidence']))}")
+        deciding = v.get("deciding_shorts") or []
+        if deciding:
+            vbits.append("deciding: " + _esc(", ".join(vocab.skill_title(s) for s in deciding)))
+        verdict_line = f"<div class='cfp-verdict'>Call → {' · '.join(vbits)}</div>" if vbits else ""
+        lanehtml = []
+        for lane in lanes:
+            chips = []
+            for s in (lane.get("skills") or []):
+                pol = s.get("polarity")
+                gcls = self._EG_POL_CLS.get(pol, "g-neu")
+                call = _humanize(s.get("call")) or vocab.polarity_label(pol)
+                lc = s.get("literature_consistency")
+                litdot = ""
+                if lc:
+                    lcol = self._CFP_LIT_COLOR.get(str(lc), "var(--neutral)")
+                    litdot = f"<span class='clit' style='background:{lcol}'></span>"
+                dec = " deciding" if s.get("deciding") else ""
+                tip = f"{s.get('short')} · {call}"
+                if s.get("confidence"):
+                    tip += f" · confidence {s.get('confidence')}"
+                if lc:
+                    tip += f" · literature {lc}"
+                inner = (f"<span class='{gcls}'>{_esc(vocab.polarity_glyph(pol))}</span>"
+                         f"<span class='ct'>{_esc(s.get('title'))}</span>")
+                if call:
+                    inner += f"<span class='cc'>{_esc(call)}</span>"
+                chips.append(f"<span class='cfp-chip{dec}' title='{_esc(tip)}'>{inner}{litdot}</span>")
+            lanehtml.append(f"<div class='cfp-lane'><div class='cfp-lens'>{_esc(lane.get('title'))}</div>"
+                            f"<div class='cfp-chips'>{''.join(chips)}</div></div>")
+        dissent = p.get("dissent") or []
+        dhtml = ""
+        if dissent:
+            rows = []
+            for d in dissent:
+                src = vocab.skill_title(d["source"]) if d.get("source") else "a signal"
+                note = _esc(d.get("note")) if d.get("note") else "dissents from the call"
+                rt = (f" → resolved to <b>{_esc(_humanize(d.get('resolved_to')))}</b>"
+                      if d.get("resolved_to") else "")
+                rows.append(f"<div><b>{_esc(src)}</b>: {note}{rt}</div>")
+            dhtml = (f"<div class='cfp-dissent'><span class='dhead'>⚠ Dissent</span>{''.join(rows)}</div>")
+        return ["<h2>At a glance <span class='so-foot'>— every subskill's verdict, grouped by lens; the "
+                "deciding axis is outlined, the dot shows literature agreement</span></h2>"
+                f"{verdict_line}<div class='cfp'>{''.join(lanehtml)}</div>{dhtml}"]
 
     def _gauge(self, c: dict) -> str:
         """Visual reference-frame ruler for a card's interpretation[0] — a track with floor/cut/ceiling

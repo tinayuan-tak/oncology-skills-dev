@@ -989,6 +989,64 @@ def _signals_scatter_block(selected, deciding_short) -> Optional[Block]:
     })
 
 
+def _composed_fingerprint_block(tr: dict) -> Optional[Block]:
+    """The composed at-a-glance grid — the FIRST renderer of the composed_evidence_graph index
+    (target_report.evidence_graph, #1068). A PURE PROJECTION of that index: the whole decision as a
+    lens-grouped skill grid (each skill's call/polarity/confidence + a deciding badge + a literature-
+    consistency dot), the verdict node, and the honest dissent counterpoint. Leads the Decision lens so
+    one glance shows where the call is carried and where the tension lives — the composed analog of the
+    per-subskill EVIDENCE_FINGERPRINT.
+
+    Reads ONLY the index (recomputes nothing) so it is display-only/verdict-inert; returns None when the
+    index is absent (an old nomination or a run before #1068), keeping standalone + pre-index reports
+    byte-stable. The per-lens modality/risk/subtype edges are deliberately NOT re-rendered here — those
+    stay in their own lens blocks (MODALITY_MATRIX / RISK_6DIM / SUBTYPE); this block owns the skill×lens
+    map + dissent."""
+    eg = tr.get("evidence_graph")
+    if not isinstance(eg, dict) or eg.get("schema") != "composed_evidence_graph.v1":
+        return None
+    skills = [s for s in (eg.get("skills") or []) if isinstance(s, dict) and s.get("short")]
+    if not skills:
+        return None
+
+    # group each skill node under its topical lens, then emit lanes in canonical LENS_ORDER (unknown-lens
+    # nodes trail in a stable bucket). Within a lane: deciding axis first, then alpha by short.
+    by_lens: dict = {}
+    for s in skills:
+        by_lens.setdefault(s.get("lens") or "_other", []).append({
+            "short": s.get("short"),
+            "title": vocab.skill_title(s.get("short")),
+            "call": s.get("call"),
+            "polarity": s.get("polarity"),
+            "confidence": s.get("confidence"),
+            "deciding": bool(s.get("deciding")),
+            "literature_consistency": s.get("literature_consistency"),
+        })
+    lanes = []
+    for lens in list(vocab.LENS_ORDER) + [l for l in sorted(by_lens) if l not in vocab.LENS_ORDER]:
+        rows = by_lens.get(lens)
+        if not rows:
+            continue
+        rows.sort(key=lambda r: (not r["deciding"], r["short"] or ""))
+        lanes.append({"lens": lens,
+                      "title": vocab.LENS_TITLE.get(lens, str(lens).replace("_", " ").title()),
+                      "skills": rows})
+
+    verdict = eg.get("verdict") if isinstance(eg.get("verdict"), dict) else {}
+    conf = verdict.get("confidence") if isinstance(verdict.get("confidence"), dict) else {}
+    dissent = [{"source": e.get("from"), "note": e.get("note"), "resolved_to": e.get("resolved_to")}
+               for e in (eg.get("edges") or [])
+               if isinstance(e, dict) and e.get("type") == "dissent"]
+    return Block(vocab.COMPOSED_FINGERPRINT, {
+        "verdict": {"recommendation": verdict.get("recommendation"),
+                    "confidence": conf.get("level"),
+                    "deciding_shorts": verdict.get("deciding_shorts") or []},
+        "lanes": lanes,
+        "dissent": dissent,
+        "n_skills": len(skills),
+    })
+
+
 def _subgroup_scatter_block(subgroup_signals: dict) -> Optional[Block]:
     """Per-skill signal × confidence scatter over the hierarchy sub-groups (the embedded-view analog of the
     report-level scatter). x = confidence, y = signal tier; a conflicted sub-group is flagged."""
@@ -1286,6 +1344,10 @@ def build_ir(nomination: dict, spec: ReportSpec,
     # thesis primary (target_coherence) → reconcile a thesis-EXPECTED negative in the diverging strip
     # (e.g. dependency non-signal under a surface-antigen thesis). Reuses the header's `_thesis_obj`;
     # None on a run without a coherence thesis leaves the strip's raw polarities untouched.
+    # composed at-a-glance grid from the target_report.evidence_graph index (#1068) — added first so it
+    # leads the Decision lens (lens grouping preserves insertion order within a lens). None → not added
+    # (pre-index nominations stay byte-stable).
+    _add(vocab.COMPOSED_FINGERPRINT, _composed_fingerprint_block(tr))
     _add(vocab.SIGNALS_SCATTER, _signals_scatter_block(selected, deciding_short))   # leads the Signals lens
     _add(vocab.SIGNALS_OVERVIEW, _signals_overview_block(selected, deciding_short, _thesis_primary))
     _add(vocab.CROSS_CUTTING_QUESTIONS, _cross_cutting_block(nomination, skill_reports))

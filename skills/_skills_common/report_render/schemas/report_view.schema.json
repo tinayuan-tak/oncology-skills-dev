@@ -71,7 +71,7 @@
                    "literature_risk", "deciding_axis", "flip_conditions", "subtype", "biomarker",
                    "signals_scatter", "subgroup_bands", "cross_cutting_questions",
                    "synthesis_banner", "synthesis_note",
-                   "evidence_fingerprint", "card_chain", "literature_axes"]
+                   "evidence_fingerprint", "card_chain", "literature_axes", "composed_fingerprint"]
         }
       }
     }

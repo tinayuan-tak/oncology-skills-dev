@@ -45,6 +45,7 @@ class TextBackend:
             vocab.EVIDENCE_FINGERPRINT: self._evidence_fingerprint,
             vocab.CARD_CHAIN: self._card_chain,
             vocab.LITERATURE_AXES: self._literature_axes,
+            vocab.COMPOSED_FINGERPRINT: self._composed_fingerprint,
         }
 
     def handled_kinds(self) -> set:
@@ -458,6 +459,44 @@ class TextBackend:
             return []
         table = [[r.get("question"), r.get("owner"), _humanize(r.get("informs"))] for r in rows]
         return self._h2("Cross-cutting questions") + self._table(["question", "measured by", "informs"], table)
+
+    def _composed_fingerprint(self, p: dict) -> list:
+        """Composed at-a-glance grid (from the target_report.evidence_graph index) linearized to a
+        lens × subskill verdict table + the verdict line + dissent bullets."""
+        lanes = p.get("lanes") or []
+        if not lanes:
+            return []
+        out = self._h2("At a glance")
+        v = p.get("verdict") or {}
+        vbits = []
+        if v.get("recommendation"):
+            vbits.append(f"{self._b('Call')}: {_humanize(v['recommendation'])}")
+        if v.get("confidence"):
+            vbits.append(f"confidence {_humanize(v['confidence'])}")
+        deciding = v.get("deciding_shorts") or []
+        if deciding:
+            vbits.append("deciding: " + ", ".join(vocab.skill_title(s) for s in deciding))
+        if vbits:
+            out.append(" · ".join(vbits))
+        rows = []
+        for lane in lanes:
+            for s in (lane.get("skills") or []):
+                g = vocab.polarity_glyph(s.get("polarity"))
+                call = _humanize(s.get("call")) or vocab.polarity_label(s.get("polarity")) or ""
+                rows.append([lane.get("title"), f"{g} {s.get('title')}", call,
+                             _humanize(s.get("confidence")) or "—",
+                             "deciding" if s.get("deciding") else "",
+                             _humanize(s.get("literature_consistency")) or "—"])
+        out += self._table(["lens", "subskill", "verdict", "confidence", "role", "literature"], rows)
+        dissent = p.get("dissent") or []
+        if dissent:
+            out.append(f"{self._b('Dissent')}:")
+            for d in dissent:
+                src = vocab.skill_title(d["source"]) if d.get("source") else "a signal"
+                note = d.get("note") or "dissents from the call"
+                rt = f" → resolved to {_humanize(d.get('resolved_to'))}" if d.get("resolved_to") else ""
+                out.append(self._bullet(f"{src}: {note}{rt}", indent=1))
+        return out
 
     # -- evidence-graph blocks (P3): degraded tables of the RICH embedded view -------------------
     def _evidence_fingerprint(self, p: dict) -> list:
