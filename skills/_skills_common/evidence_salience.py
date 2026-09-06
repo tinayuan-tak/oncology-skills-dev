@@ -117,7 +117,17 @@ SALIENCE_SPECS: dict = {
         "categorical": ["sc_expression_class", "stromal_confound_class", "caf_vs_malignant_class", "tce_antigen_escape_class"]},
     "tumor_vs_adjacent_expression": {
         "effect_field": "log2_fc", "significance_field": "q_value", "direction": "higher_is_stronger",
-        "categorical": ["expression_call_class"]},
+        "categorical": ["expression_call_class"],
+        # STAGE-2 PILOT ruler #3 (first distance_to_cut consumer): tumor-vs-adjacent log2FC gauged against
+        # the elevated-call cut (modest_upregulation_log2fc = 0.5, the flat→elevated boundary — mirrors the
+        # crispr pilot gauging the PRIMARY call threshold). value NAMES log2_fc; the band
+        # (expression_call_class) is READ VERBATIM as the position so the ordinal never contradicts the
+        # marker; the cut single-sources from the card thresholds (contracts-first: b47f5d4).
+        "reference_frame": {
+            "kind": "distance_to_cut", "value_field": "log2_fc", "scale": "log2FC",
+            "position_field": "expression_call_class",
+            "cut": {"card_id": "tumor-rna-vs-adjacent", "threshold": "modest_upregulation_log2fc",
+                    "label": "elevated_cut"}}},
     "tumor_protein_abundance": {
         "effect_field": "protein_effect_size", "significance_field": "protein_bh_q_value", "direction": "higher_is_stronger",
         "categorical": ["protein_expression_class"]},

@@ -70,11 +70,46 @@ def test_genomic_comparator_delta_ruler():
     assert gv["frame"]["kind"] == "comparator_delta"
 
 
+# ── tumor-presence distance_to_cut (pilot #3; first distance_to_cut consumer) ────────────────────────
+def _tumor_vs_adjacent_summary():
+    # real MET-COADREAD values (tumor-presence run 2026-09-03)
+    return {"log2_fc": 1.7318034419423631, "q_value": 2.555898149424007e-72,
+            "expression_call_class": "strong_upregulation"}
+
+
+def test_tumor_vs_adjacent_distance_to_cut_ruler():
+    from _skills_common import display_gloss as dg
+    from _skills_common.evidence_salience import contract_threshold
+
+    interp = build_interpretation({}, _tumor_vs_adjacent_summary(),
+                                  SALIENCE_SPECS["tumor_vs_adjacent_expression"],
+                                  card_id="tumor-rna-vs-adjacent")
+    assert len(interp) == 1
+    gv = interp[0]
+    assert gv["metric"] == "log2_fc" and gv["value"] == 1.732 and gv["scale"] == "log2FC"
+    assert gv["direction"] == "higher_is_stronger"
+    assert gv["position"] == "strong_upregulation"                    # band READ VERBATIM
+    assert gv["position_source"] == "expression_call_class"
+    assert gv["frame"]["kind"] == "distance_to_cut"
+    words = dg.gauge_string(gv)
+    assert words.startswith("strong upregulation — ")                 # leads with the banded call
+    # the cut single-sources from the card thresholds:; assert it only when the (contracts-first) key
+    # resolves, so this stays green through the cross-repo lockstep window.
+    cut = contract_threshold("tumor-rna-vs-adjacent", "modest_upregulation_log2fc")
+    if cut is not None:
+        assert cut == 0.5
+        roles = {a["role"]: a["value"] for a in gv["frame"]["anchors"]}
+        assert roles.get("cut") == 0.5
+        assert "past the 0.5 cut" in words                            # 1.732 >= 0.5 → past (higher_is_stronger)
+
+
 # ── invariants ───────────────────────────────────────────────────────────────────────────────────────
 def test_no_bare_number_scale_present_whenever_value_is():
-    for mt in ("crispr_lof_dependency", "mutation_stratified_dependency"):
-        summ = _crispr_summary() if mt.startswith("crispr") else _genomic_summary()
-        for gv in build_interpretation({}, summ, SALIENCE_SPECS[mt]):
+    summaries = {"crispr_lof_dependency": _crispr_summary(),
+                 "mutation_stratified_dependency": _genomic_summary(),
+                 "tumor_vs_adjacent_expression": _tumor_vs_adjacent_summary()}
+    for mt, summ in summaries.items():
+        for gv in build_interpretation({}, summ, SALIENCE_SPECS[mt], card_id="tumor-rna-vs-adjacent"):
             if gv.get("value") is not None:
                 assert gv.get("scale"), f"{mt}: value emitted without a scale (bare number)"
 

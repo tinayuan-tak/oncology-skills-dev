@@ -281,7 +281,8 @@ def gauge_string(gv: dict) -> str:
         ps = _past_or_short(value, cut.get("value"), direction)
         if ps and cut.get("value") is not None:
             seg += f", {ps} the {_fmt_num(cut['value'])} cut"
-        return seg
+        pos = gv.get("position")   # lead with the banded call when present (mirrors floor_cut_ceiling)
+        return f"{humanize(pos).lower()} — {seg}" if pos else seg
 
     if kind == "percentile":
         return f"{_fmt_num(value)}th percentile ({label})" if label else f"{_fmt_num(value)}th percentile"
