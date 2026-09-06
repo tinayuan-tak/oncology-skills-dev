@@ -111,6 +111,14 @@ def emitted_verdicts_by_gate(resolvers_dir: Path) -> dict[str, set[str]]:
         default = spec.get("default")
         if default is not None:
             verdicts.add(default)
+        # POST-RESOLVER python-clamp verdicts (optional `clamp_verdicts:` block) — verdicts a sub-skill's
+        # Python post-pass mints AFTER the resolver (e.g. selectivity's normal-breadth / stromal-confound
+        # veto in _skills_common/selectivity_veto.py). They are real emitted verdicts of this gate but can
+        # never appear in `resolve[].verdict`; folding them in lets a nomination-gate entry for a clamp KILL
+        # be validated CASE-EXACT instead of wrongly rejected as "never emitted".
+        for v in spec.get("clamp_verdicts", []) or []:
+            if v is not None:
+                verdicts.add(v)
         out[gate] = verdicts
     return out
 

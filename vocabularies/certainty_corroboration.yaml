@@ -72,8 +72,10 @@ corroboration_by_gate:
 #       card set here; the validator uses it in lieu of a resolver scan (instead of erroring).
 verdict_precedence_augment:
   selectivity:
-    - modality-therapeutic-window     # (a) Python normal-breadth veto (therapeutic-window arm)
+    - modality-therapeutic-window     # (a) Python normal-breadth veto (therapeutic-window + full-normal arms)
     - sc-normal-celltype-expression   # (a) Python normal-breadth veto (sc-normal critical-organ arm)
+    - normal-tissue-protein-abundance-tphp   # (a) Python normal-breadth veto (broad-abundant normal-PROTEIN arm)
+    - tumor-scrna-celltype-expression        # (a) Python INT-axis stromal-confound veto (v1.17.0)
   tumor_presence:                   # (b) NO-RESOLVER inline-verdict skill — its FULL verdict-precedence
     - cellline-rna-distribution     #     (the 7 verdict-bearing presence cards; the ladder is in-skill,
     - tumor-rna-vs-adjacent         #     _VERDICT_RANK collapse, not a resolvers/*.yaml).

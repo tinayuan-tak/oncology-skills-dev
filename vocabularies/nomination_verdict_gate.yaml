@@ -26,7 +26,8 @@
 # Adding a modality-scoped killer here would regress that golden.
 
 enum_id: nomination_verdict_gate
-version: 1.9.0   # 1.9.0 (2026-09-04, #979): + surface_modality adc_preferred_tce_patient_variable / tce_patient_variable
+version: 1.10.0  # 1.10.0 (2026-09-06): + selectivity POST-RESOLVER clamp KILLs (selective_but_broadly_normal, selective_but_stromal_confound) as contradictions in kill_capable_verdicts + positive_contradictions, so a composed selectivity KILL blocks `strong` (was display-only — advisory→silent-degradation gap). Backed by selectivity.resolver.yaml clamp_verdicts (folded into emitted_verdicts_by_gate). selective_with_normal_liability is preserving → NOT a contradiction.
+                 # 1.9.0 (2026-09-04, #979): + surface_modality adc_preferred_tce_patient_variable / tce_patient_variable
                  #   to positive_signals_modality_scoped (TCE arm dominant→supportive temper; escape-insensitive arms
                  #   stay dominant) + to biology_axis_scoped_veto_downgrade.when_surface_verdict_in (favorable-surface
                  #   veto downgrade preserved). The MIDDLE antigen-escape band: tempers, does not foreclose, the TCE arm.
@@ -246,6 +247,12 @@ kill_capable_verdicts:
   selectivity:
     - {verdict: not_selective,                    disposition: contradiction}
     - {verdict: discordant_across_comparators,    disposition: contradiction}
+    # POST-RESOLVER Python-clamp KILLs (selectivity_veto.py; declared in selectivity.resolver.yaml
+    # clamp_verdicts). MEASURED opposing signals on the selectivity axis → contradictions (block `strong`):
+    - {verdict: selective_but_broadly_normal,     disposition: contradiction}   # housekeeping / no normal window (GAPDH/TROP2)
+    - {verdict: selective_but_stromal_confound,   disposition: contradiction}   # axis-A signal is in stroma/CAF, not malignant cells
+    # NOTE: selective_with_normal_liability is selectivity-PRESERVING (a named-organ liability, not a
+    # contradiction) → deliberately NOT listed; it does not block `strong`.
   surface_modality:
     - {verdict: neither_viable,                   disposition: excluded_modality_scoped}
     - {verdict: adc_preferred_tce_unsafe,         disposition: excluded_modality_scoped}
@@ -542,6 +549,9 @@ positive_signals_modality_scoped:
 positive_contradictions:
   - {sub_skill: selectivity,     verdict: not_selective}
   - {sub_skill: selectivity,     verdict: discordant_across_comparators}
+  # selectivity Python-clamp KILLs (measured opposing signals; see kill_capable_verdicts.selectivity):
+  - {sub_skill: selectivity,     verdict: selective_but_broadly_normal}
+  - {sub_skill: selectivity,     verdict: selective_but_stromal_confound}
   - {sub_skill: dependency,      verdict: discordant}
   - {sub_skill: dependency,      verdict: broadly_dependent}
   - {sub_skill: tractability_sm, verdict: discordant}

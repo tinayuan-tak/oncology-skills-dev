@@ -18,6 +18,12 @@
       "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
     },
     "description": {"type": "string"},
+    "clamp_verdicts": {
+      "type": "array",
+      "description": "OPTIONAL. Verdicts a sub-skill's POST-RESOLVER Python clamp can mint that this ladder's rungs never emit (e.g. selectivity's normal-breadth / stromal-confound veto in _skills_common/selectivity_veto.py downgrades a selective axis-A verdict AFTER resolution). Declared here so the resolver lists the COMPLETE emitted enum and the emitted-set tooling (validate_verdict_tokens.py, test_kill_capable_completeness) folds them in — otherwise a nomination-gate entry for a clamp verdict is wrongly rejected as 'never emitted'. Kept in lockstep with the skill's clamp constant by a skills-side guard test.",
+      "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+      "uniqueItems": true
+    },
     "resolve": {
       "type": "array",
       "description": "ORDERED precedence ladder — first matching rung wins (the precedence, now visible). Each rung fires a verdict when its fired-set predicate matches.",

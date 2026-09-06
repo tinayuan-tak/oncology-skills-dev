@@ -29,3 +29,17 @@ resolve:
     priority: 6
 default: insufficient
 evaluation: match_all_reduce
+
+# POST-RESOLVER PYTHON CLAMP verdicts — minted by skills/_skills_common/selectivity_veto.py
+# (apply_normal_breadth_veto + the stromal-confound arm), NOT by any rung above. They DOWNGRADE a
+# selective axis-A verdict AFTER this resolver runs, so they can never appear in `resolve[].verdict`
+# — but they ARE real emitted selectivity verdicts. Declared here so (1) a reviewer reading this
+# resolver sees the COMPLETE emitted enum (8 rung/default + these 3 = 11), and (2) the tooling that
+# derives "what this gate can emit" (validators/validate_verdict_tokens.py::emitted_verdicts_by_gate,
+# and thus test_kill_capable_completeness) folds them in — so a nomination-gate entry for a clamp KILL
+# is no longer wrongly rejected as "the resolver never emits it". Kept in lockstep with
+# selectivity_veto._VETO_OUTCOMES by a skills-side guard test.
+clamp_verdicts:
+  - selective_but_broadly_normal       # SAFE-axis KILL: no therapeutic / full-normal window (housekeeping, GAPDH/TROP2)
+  - selective_with_normal_liability    # selectivity-PRESERVING: sc-normal critical-organ OR broad-abundant normal protein
+  - selective_but_stromal_confound     # INT-axis KILL: the axis-A signal is in stromal/CAF cells, not malignant
