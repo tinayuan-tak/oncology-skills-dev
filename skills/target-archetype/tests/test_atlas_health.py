@@ -11,6 +11,20 @@ from _skills_common.archetype_core import Atlas, vocabulary_drift, claim_feature
 
 ATLAS = Path(__file__).resolve().parents[1] / "atlas" / "atlas.json"
 HEALTH = Path(__file__).resolve().parents[1] / "scripts" / "atlas_health.py"
+FIXTURE = Path(__file__).resolve().parent / "fixtures" / "mini_evidence_package"
+
+
+def _known_short_claim(atlas):
+    """A (short, claim) pair guaranteed present in the frozen feature_order."""
+    parts = atlas.feature_order[0].split("::")   # e.g. ['cis_coherence','claim','CIS_DOSAGE','signal']
+    return parts[0], parts[2]
+
+
+def _write_evidence_package(tmp_path, claim_vectors: dict):
+    """Write a CURRENT-layout run dir: evidence_package.json → synthesis.claim_vectors[short].claim_vector."""
+    body = {"synthesis": {"claim_vectors": {s: {"claim_vector": cv} for s, cv in claim_vectors.items()}}}
+    (tmp_path / "evidence_package.json").write_text(json.dumps(body))
+    return tmp_path
 
 
 def _mod():
@@ -80,3 +94,58 @@ def test_check_passes_on_nonempty_harvest_of_known_claims(tmp_path):
     vd = [r for r in results if r["check"] == "vocabulary_drift"]
     assert vd and vd[0]["status"] == "PASS", vd
     assert "covered" in vd[0]["detail"]
+
+
+def test_reads_current_evidence_package_layout(tmp_path):
+    """Repoint regression: a CURRENT-layout run (evidence_package.json → synthesis.claim_vectors) whose
+    claims are all known must harvest non-empty and PASS. Pre-repoint the guard globbed ONLY the legacy
+    subskills/*/package.json layout, so a current run harvested {} → could not see live drift."""
+    m = _mod()
+    atlas = Atlas.load(ATLAS)
+    short, claim = _known_short_claim(atlas)
+    run = _write_evidence_package(tmp_path, {short: {claim: {"signal": "strong", "corroboration": "high"}}})
+    results, _ok = m.check(atlas, package_dir=run)
+    vd = [r for r in results if r["check"] == "vocabulary_drift"][0]
+    assert vd["status"] == "PASS", vd
+    assert "covered" in vd["detail"]
+
+
+def test_committed_fixture_passes_and_exercises_allowlist():
+    """The CI fixture (current layout, known claims + one excluded-by-decision axis) PASSES, and the
+    excluded key is filtered rather than flagged as drift — this is exactly the CI vocab-drift step."""
+    m = _mod()
+    results, _ok = m.check(Atlas.load(ATLAS), package_dir=FIXTURE)
+    vd = [r for r in results if r["check"] == "vocabulary_drift"][0]
+    assert vd["status"] == "PASS", vd
+    assert "excluded-by-decision" in vd["detail"], vd
+
+
+def test_excluded_namespace_key_is_not_drift(tmp_path):
+    """A live key under an atlas_excluded_namespaces prefix (e.g. literature_context) is GREEN-by-decision,
+    not a re-freeze trigger — it must be filtered out of the drift set."""
+    m = _mod()
+    atlas = Atlas.load(ATLAS)
+    short, claim = _known_short_claim(atlas)
+    run = _write_evidence_package(tmp_path, {
+        short: {claim: {"signal": "strong", "corroboration": "high"}},
+        "literature_context": {"VOLUME": {"signal": "strong", "corroboration": "moderate"}}})
+    results, _ok = m.check(atlas, package_dir=run)
+    vd = [r for r in results if r["check"] == "vocabulary_drift"][0]
+    assert vd["status"] == "PASS", vd
+    assert "excluded-by-decision" in vd["detail"], vd
+
+
+def test_genuine_non_excluded_new_key_still_fails(tmp_path):
+    """The allowlist must NOT over-suppress: a NEW claim on a MODELLED axis (not an excluded prefix) is
+    real drift → FAIL → re-freeze trigger. Guards the allowlist from masking genuine substrate movement."""
+    m = _mod()
+    atlas = Atlas.load(ATLAS)
+    short, claim = _known_short_claim(atlas)
+    run = _write_evidence_package(tmp_path, {
+        short: {claim: {"signal": "strong", "corroboration": "high"},
+                "A_BRAND_NEW_MODELLED_CLAIM": {"signal": "strong", "corroboration": "high"}}})
+    results, ok = m.check(atlas, package_dir=run)
+    vd = [r for r in results if r["check"] == "vocabulary_drift"][0]
+    assert vd["status"] == "FAIL", vd
+    assert "re-freeze" in vd["detail"]
+    assert not ok

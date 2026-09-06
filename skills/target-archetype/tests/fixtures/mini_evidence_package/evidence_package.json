@@ -1,0 +1,12 @@
+{
+  "_fixture_note": "Minimal CURRENT-layout run for the CI vocab-drift step. Claim vectors use only frozen atlas claims (SNV/DEP/WIN/A) so the drift check PASSES, PLUS one excluded-by-decision axis (literature_context::VOLUME) so the CI path also exercises the atlas_excluded_namespaces allowlist (must be filtered, not flagged as drift). Credential-less: no S3.",
+  "synthesis": {
+    "claim_vectors": {
+      "genomic_alteration": {"claim_vector": {"SNV": {"signal": "strong", "corroboration": "high"}}},
+      "dependency":         {"claim_vector": {"DEP": {"signal": "moderate", "corroboration": "moderate"}}},
+      "selectivity":        {"claim_vector": {"WIN": {"signal": "strong", "corroboration": "moderate"}}},
+      "expression":         {"claim_vector": {"A": {"signal": "moderate", "corroboration": "moderate"}}},
+      "literature_context": {"claim_vector": {"VOLUME": {"signal": "strong", "corroboration": "moderate"}}}
+    }
+  }
+}

@@ -20,29 +20,39 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import glob
-import json
-import os
 import sys
 from pathlib import Path
 
 SKILLS_DIR = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(SKILLS_DIR))
+sys.path.insert(0, str(Path(__file__).resolve().parent))    # for the sibling corpus_io module
 from _skills_common.archetype_core import Atlas, vocabulary_drift  # noqa: E402
+from corpus_io import claim_vectors_for_run  # noqa: E402
 
 _DEFAULT_ATLAS = Path(__file__).resolve().parents[1] / "atlas" / "atlas.json"
 _PROV_FIELDS = ("corpus", "build_date", "build_git_sha", "emb_dim", "n_targets")
 
+# Claim-key PREFIXES excluded from the atlas vocabulary BY DECISION (not drift): axes/claims deliberately
+# NOT modelled — maturity/study-depth-confounded (literature_context, translational_readiness,
+# safety PHARMACOVIGILANCE) or single-gene/constant (genomic SPL = METex14). See the atlas data-package
+# lockdown. A live key under one of these is GREEN-by-decision, not a re-freeze trigger. The allowlist
+# rides on atlas.meta["atlas_excluded_namespaces"] once the model re-freezes with it; this is the default
+# until then, so the guard is not silently BLIND to those axes (the alternative — dropping them from the
+# emitted vector — would hide them from every other consumer too).
+_DEFAULT_EXCLUDED_NAMESPACES = (
+    "literature_context::",
+    "translational_readiness::",
+    "safety::claim::PHARMACOVIGILANCE::",
+    "genomic_alteration::claim::SPL::",
+)
+
 
 def _read_claim_vectors(pkg_dir: Path) -> dict:
-    cvs: dict = {}
-    for pkg in glob.glob(str(pkg_dir / "subskills" / "*" / "package.json")):
-        d = json.loads(Path(pkg).read_text())
-        short = d.get("sub_skill") or os.path.basename(os.path.dirname(pkg))
-        cv = d.get("claim_vector")
-        if isinstance(cv, dict) and cv:
-            cvs[short] = cv
-    return cvs
+    """Layout-tolerant harvest of {short: claim_vector} for one run dir — current evidence_package
+    layout first, legacy subskills/*/package.json fallback. Single source of the on-disk shape:
+    corpus_io. (Repointed 2026-09-06: the old glob read ONLY the legacy layout, so a current run
+    harvested nothing → the guard could not see live drift.)"""
+    return claim_vectors_for_run(pkg_dir)
 
 
 def check(atlas: Atlas, package_dir: Path | None = None, tol: float = 1e-3) -> tuple[list, bool]:
@@ -79,15 +89,22 @@ def check(atlas: Atlas, package_dir: Path | None = None, tol: float = 1e-3) -> t
         drift = vocabulary_drift(atlas, _read_claim_vectors(package_dir))
         if drift["n_live"] == 0:
             results.append({"check": "vocabulary_drift", "status": "FAIL",
-                            "detail": (f"empty harvest: no claim vectors under "
-                                       f"{package_dir}/subskills/*/package.json — the vocab-drift "
-                                       f"guard cannot run (package-layout drift?); refusing to "
-                                       f"vacuously PASS")})
+                            "detail": (f"empty harvest: no claim vectors under {package_dir} "
+                                       f"(evidence_package.json → synthesis.claim_vectors, or legacy "
+                                       f"subskills/*/package.json) — the vocab-drift guard cannot run "
+                                       f"(package-layout drift?); refusing to vacuously PASS")})
         else:
-            results.append({"check": "vocabulary_drift", "status": "PASS" if drift["covered"] else "FAIL",
-                            "detail": (f"{drift['n_live']} live keys all covered" if drift["covered"]
-                                       else f"{len(drift['missing_keys'])} live keys absent from atlas "
-                                            f"(axes: {drift['missing_axes']}) → re-freeze")})
+            # Subtract keys excluded from the atlas vocabulary BY DECISION → they are not drift.
+            excluded = tuple(atlas.meta.get("atlas_excluded_namespaces") or _DEFAULT_EXCLUDED_NAMESPACES)
+            missing = [k for k in drift["missing_keys"] if not k.startswith(excluded)]
+            n_excluded = len(drift["missing_keys"]) - len(missing)
+            covered = not missing
+            axes = sorted({k.split("::", 1)[0] for k in missing})
+            excl_note = f" ({n_excluded} excluded-by-decision)" if n_excluded else ""
+            results.append({"check": "vocabulary_drift", "status": "PASS" if covered else "FAIL",
+                            "detail": (f"{drift['n_live']} live keys all covered{excl_note}" if covered
+                                       else f"{len(missing)} live keys absent from atlas (axes: {axes}) "
+                                            f"→ re-freeze{excl_note}")})
 
     ok = all(r["status"] == "PASS" for r in results)
     return results, ok
