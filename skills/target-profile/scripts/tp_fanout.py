@@ -629,8 +629,7 @@ SUB_SKILL_CARDS = {
         # genomic resolver rung → verdict byte-stable; composing them restores the genomic claim_vector.
         "cross-consortium-dependency",
         "dependency-predictability",
-        "tumor-splice-dysregulation",        # splice-form facet (verdict-inert display)
-        "tumor-splice-expression",           # splice-form facet (verdict-inert display)
+        "tumor-splice-dysregulation",        # splice-form facet (verdict-inert display; tumor-splice-expression dedup'd 2026-09-06)
         "mutation-type-counts",
         "mutation-stratified-dependency",
         "mutation-hotspot-frequency",

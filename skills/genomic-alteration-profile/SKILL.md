@@ -35,9 +35,9 @@ composition:
   data_mode: derived_read
   phase: [A, E]
   cards_used:
-    # SPLICE-FORM facets (2) — VERDICT-INERT display (R10 homing); fire no rule, genomic verdict spine byte-stable
+    # SPLICE-FORM facet (1) — VERDICT-INERT display (R10 homing); fires no rule, genomic verdict spine byte-stable
+    # (tumor-splice-expression was a duplicate — same product/method/fields/vocab — collapsed in 2026-09-06)
     - tumor-splice-dysregulation
-    - tumor-splice-expression
     # VERDICT-DRIVING — these cards' rules enter the genomic_alteration resolver (see rules_scope):
     - mutation-type-counts                   # SNV/indel variant-class landscape
     - mutation-stratified-dependency         # are mutant cell lines Chronos-more-dependent?
@@ -84,9 +84,8 @@ composition:
   # target-contracts/vocabularies/measurement_types.yaml, and test_genomic_measurement_types.py
   # enforces parity with cards_used so this list cannot silently drift.
   measurement_types_pulled:
-    # verdict-inert splice-form facets (R10)
+    # verdict-inert splice-form facet (R10)
     - tumor_splice_dysregulation
-    - tumor_splice_expression
     # verdict-driving axes
     - mutation_variant_class_spectrum        # mutation-type-counts
     - mutation_stratified_dependency         # mutation-stratified-dependency

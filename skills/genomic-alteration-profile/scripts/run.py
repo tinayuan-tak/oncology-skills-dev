@@ -141,13 +141,13 @@ CARDS = [
                                        # (predictability_lineage_collapsed directly flags the pan-cancer-vs-
                                        # indication scope-leak the biomarker rungs are gated against)
 
-    # ── SPLICE-form facets (2) — VERDICT-INERT display (2026-08-20) ────────────────────
+    # ── SPLICE-form facet (1) — VERDICT-INERT display (2026-08-20) ─────────────────────
     # Aberrant splicing as a transcript-form alteration signal, homed alongside the SNV/CN/fusion
-    # classes as DISPLAY facets (fire NO rule → the multi-class genomic verdict spine is byte-stable;
-    # graduating splice to a verdict-driving class is a later rules+resolver stage). Previously
-    # orphaned (consumed by no skill). TCGA SpliceSeq PSI (indication-gated).
+    # classes as a DISPLAY facet (fires NO rule → the multi-class genomic verdict spine is byte-stable;
+    # graduating splice to a verdict-driving class is a later rules+resolver stage). TCGA SpliceSeq PSI
+    # (indication-gated). (tumor-splice-expression was a duplicate of this card — same product/method/
+    # fields/vocab, only card_id differed — and was collapsed into it, 2026-09-06.)
     "tumor-splice-dysregulation",      # splice-dysregulation event(s) at the target (PSI shift vs normal)
-    "tumor-splice-expression",         # per-splice-form expression (patient-tumor arm)
 ]
 
 # The subtype panorama is DELIBERATELY kept off the CARDS spine. Its card is a panorama

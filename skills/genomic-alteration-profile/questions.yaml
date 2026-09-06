@@ -82,7 +82,7 @@ questions:
   seq: 5
   text: "Splice-form context: is {target.symbol} alternatively spliced / splice-dysregulated in {indication.label} tumours? (display-only — NOT the exon-skip driver call)"
   role: display_only
-  measurement_types: [tumor_splice_dysregulation, tumor_splice_expression]
+  measurement_types: [tumor_splice_dysregulation]
 - id: alteration_conferred_dependency
   seq: 6
   text: Is the alteration-conferred dependency corroborated (cross-consortium · predictability · model-matched)?

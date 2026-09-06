@@ -276,12 +276,6 @@
       "input_manifest_ids": [
         "tcga-spliceseq-psi-per-gene-v1"
       ]
-    },
-    {
-      "card_id": "tumor-splice-expression",
-      "input_manifest_ids": [
-        "tcga-spliceseq-psi-per-gene-v1"
-      ]
     }
   ],
   "headline": {
@@ -1022,36 +1016,6 @@
           ],
           "data_quality_flags": null
         },
-        "tumor-splice-expression": {
-          "card_id": "tumor-splice-expression",
-          "measurement_type": "tumor_splice_expression",
-          "tier": "indication",
-          "evidence_state": "measured",
-          "class": "tumor_shifted",
-          "numeric_anchors": [
-            {
-              "metric": "median_event_psi_std",
-              "value": 0.021
-            }
-          ],
-          "categorical_anchors": null,
-          "n_basis": {
-            "median_event_psi_std": 0.02098330716596074,
-            "n_normal_samples": 51,
-            "n_splice_events": 7
-          },
-          "_complete": true,
-          "top_k_strata": null,
-          "conflict_pairs": null,
-          "sibling_caveats": null,
-          "provenance_keys": [
-            {
-              "key": "_data_source",
-              "value": "tcga-spliceseq"
-            }
-          ],
-          "data_quality_flags": null
-        },
         "variant-effect-mave-mavedb": {
           "card_id": "variant-effect-mave-mavedb",
           "measurement_type": "variant_functional_effect_mave",
@@ -1179,10 +1143,6 @@
         },
         {
           "card_id": "tumor-splice-dysregulation",
-          "status": "full"
-        },
-        {
-          "card_id": "tumor-splice-expression",
           "status": "full"
         },
         {

@@ -99,7 +99,7 @@ DIMENSION_CARDS: dict[str, frozenset[str]] = {
         # 2026-08-20 facet-parity: mirror SUB_SKILL_CARDS[genomic-alteration-profile] which regained
         # these two dependency-confidence cards (lifted by genomic _HEADLINE_FIELDS/_lift_field).
         "cross-consortium-dependency", "dependency-predictability",
-        "tumor-splice-dysregulation", "tumor-splice-expression"}),   # +R10 splice-form facets; mirrors SUB_SKILL_CARDS[genomic-alteration-profile]
+        "tumor-splice-dysregulation"}),   # +R10 splice-form facet; mirrors SUB_SKILL_CARDS[genomic-alteration-profile] (tumor-splice-expression dedup'd 2026-09-06)
     "mechanism": frozenset({
         "pathway-activity-context", "phospho-pathway-activity", "signaling-network-mechanism",
         "tahoe-drug-perturbation",

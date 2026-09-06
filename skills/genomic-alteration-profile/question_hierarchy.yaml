@@ -34,7 +34,6 @@ sub_groups:
     - fusion_stratified_dependency
     - splice_exon_skip
     - tumor_splice_dysregulation
-    - tumor_splice_expression
 - id: DEP
   questions:
   - id: dep_read

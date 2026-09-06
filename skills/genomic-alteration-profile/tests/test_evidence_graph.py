@@ -9,7 +9,7 @@ invariants (referential integrity, additivity, determinism, fail-soft, no-orphan
 skills/conftest.py and skills/tests/test_evidence_graph_invariants.py; this file keeps ONLY what is
 specific to genomic-alteration-profile's graph.
 
-Cards partition 11 verdict-bearing / 13 display-only, and the SNV/CN/FUS/SPL/DEP literature axis→question
+Cards partition 11 verdict-bearing / 12 display-only, and the SNV/CN/FUS/SPL/DEP literature axis→question
 crosswalk resolves. VERDICT-INERT: nothing here touches the genomic_alteration_profile spine.
 """
 from __future__ import annotations
@@ -73,7 +73,8 @@ def test_role_partition(eg_graph):
     vb = {c["id"] for c in eg_graph["cards"] if c["role"] == "verdict_bearing"}
     do = {c["id"] for c in eg_graph["cards"] if c["role"] == "display_only"}
     assert vb == VERDICT_BEARING
-    assert len(vb) == 11 and len(do) == 13 and len(eg_graph["cards"]) == 24
+    # 12 display-only (was 13; tumor-splice-expression dedup'd into tumor-splice-dysregulation 2026-09-06)
+    assert len(vb) == 11 and len(do) == 12 and len(eg_graph["cards"]) == 23
 
 
 # ── reconstruction: questions → cards (per-alteration-class), no orphans ────────────────────────────
@@ -87,8 +88,8 @@ def test_reconstruct_questions_and_cards(eg_graph):
     # the DRIVER question anchors ONLY the exon-skip card; the splice-FORM cards route to the display_only
     # dysregulation question so "no driver" is not conflated with "dysregulation present".
     assert set(qs["splice_driver"]["card_ids"]) == {"splice-exon-skip-landscape"}
-    assert set(qs["splice_dysregulation"]["card_ids"]) == {
-        "tumor-splice-dysregulation", "tumor-splice-expression"}
+    # tumor-splice-expression was a duplicate collapsed into tumor-splice-dysregulation (2026-09-06)
+    assert set(qs["splice_dysregulation"]["card_ids"]) == {"tumor-splice-dysregulation"}
     assert set(qs["alteration_conferred_dependency"]["card_ids"]) == {
         "cross-consortium-dependency", "dependency-predictability", "genomic-event-model-match"}
     # the SNV question anchors the driving mutation-stratified-dependency card + the mutation facets
