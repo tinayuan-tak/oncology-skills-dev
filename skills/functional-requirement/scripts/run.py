@@ -24,7 +24,7 @@ sys.path.insert(0, str(SKILLS_DIR))
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common import get_card_field, resolve_cards, _summary_is_unavailable
 from _skills_common.resolver import resolve_or_raise
-from _skills_common.claim_record import assemble_claim_record
+from _skills_common.claim_record import assemble_claim_record, magnitude_for_card
 from _skills_common.narrator_engine import make_synthesize_fn
 from _skills_common.narrator_lenses import FUNCTIONAL_REQUIREMENT as _FR_LENS
 from _skills_common.literature_synthesis import make_literature_fn
@@ -573,12 +573,18 @@ def _claim_record(cards, fired=None, verdict_pair=None) -> dict:
         certainty = _strength_certainty(cards, fired=fired, verdict_pair=verdict_pair)["certainty"]
     except Exception:  # noqa: BLE001 — reference hook reads cards via get_card_field (raises if absent)
         certainty = {"level": "low", "coverage": "low", "corroboration": "unmeasured", "unknown_mass": 1.0}
+    # magnitude converges to the crispr dependency ruler (key_evidence.interpretation) — value =
+    # median_chronos_panel between the non-essential floor / pan-essential ceiling, distance to the -0.5
+    # cut — so the factored record and the display gauge speak one vocabulary. level-only if the driving
+    # crispr summary is absent (stripped fixture / un-measured).
     return assemble_claim_record(
         axis="dependency",
         state=(v or "insufficient"),
         direction=_dep_direction(v),
         availability=_dep_availability(v),
-        magnitude={"level": _DEP_STRENGTH_TO_LEVEL.get(_dependency_strength(v), "none")},
+        magnitude=magnitude_for_card(cards, "pan-cancer-crispr-dependency-distribution",
+                                     "crispr_lof_dependency",
+                                     _DEP_STRENGTH_TO_LEVEL.get(_dependency_strength(v), "none")),
         modality_scope=_dep_modality_scope(cards),
         certainty=certainty,
         fired=fired,

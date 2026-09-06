@@ -17,7 +17,12 @@ fr = load_run_py(Path(__file__).resolve().parent.parent, "fr_run_shadow")
 def _cards(n=40, cc="concordant_dependent"):
     return [
         {"card_id": "pan-cancer-crispr-dependency-distribution",
-         "summary": {"n_cell_lines_evaluated": n, "fraction_strongly_dependent": 0.4}},
+         # carry the crispr floor_cut_ceiling ruler fields so the claim_record magnitude converges to the
+         # display key_evidence.interpretation (Stage-3 one-vocabulary check)
+         "summary": {"n_cell_lines_evaluated": n, "fraction_strongly_dependent": 0.4,
+                     "median_chronos_panel": -0.4574, "dep_control_non_essential_floor": -0.038,
+                     "dep_control_pan_essential_ceiling": -1.499,
+                     "dep_control_position_class": "between_controls"}},
         {"card_id": "cross-consortium-dependency", "summary": {"cross_consortium_class": cc}},
     ]
 
@@ -35,6 +40,26 @@ def test_concordant_dependent_supports_strong_measured_positive():
     assert rec["finding"]["magnitude"]["level"] == "strong"
     assert rec["certainty"]["corroboration"] == "high"          # concordant cross-consortium
     assert rec["provenance"]["fired_rule_ids"] == ["crispr-strong-dependent", "cross-consortium-concordant"]
+
+
+def test_magnitude_converges_to_the_crispr_display_ruler():
+    # Stage-3 convergence: the factored record's magnitude carries the SAME value/scale/distance_to_cut
+    # as the display key_evidence.interpretation floor_cut_ceiling ruler (median_chronos_panel vs the
+    # -0.5 dependency cut), not just an ordinal level.
+    mag = fr._claim_record(_cards(), fired=_fired("crispr-strong-dependent"),
+                           verdict_pair=("concordant_dependent", "crispr-strong-dependent"))["finding"]["magnitude"]
+    assert mag["level"] == "strong"
+    assert mag["value"] == -0.4574 and mag["scale"] == "chronos"
+    assert mag["distance_to_cut"] == 0.0426            # value - cut = -0.4574 - (-0.5)
+
+
+def test_magnitude_stays_level_only_when_driving_summary_stripped():
+    # a stripped driving-card summary (no ruler fields) -> level-only, no bare number, byte-stable
+    cards = [{"card_id": "pan-cancer-crispr-dependency-distribution", "summary": {"n_cell_lines_evaluated": 40}},
+             {"card_id": "cross-consortium-dependency", "summary": {"cross_consortium_class": "concordant_dependent"}}]
+    mag = fr._claim_record(cards, fired=_fired("crispr-strong-dependent"),
+                           verdict_pair=("concordant_dependent", "crispr-strong-dependent"))["finding"]["magnitude"]
+    assert mag["level"] == "strong" and mag["value"] is None and mag["scale"] is None
 
 
 def test_pan_essential_is_a_genuine_dependency_supports():

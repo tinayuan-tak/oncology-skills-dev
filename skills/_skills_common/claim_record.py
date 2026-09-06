@@ -123,6 +123,56 @@ def assemble_claim_record(
     return rec
 
 
+def magnitude_from_interpretation(gv: Optional[dict]) -> dict:
+    """Map a key_evidence.interpretation gauged_value → the claim_record.magnitude COORDINATE fields
+    (value / scale / distance_to_cut) so the factored record and the display ruler speak ONE vocabulary
+    (the interpretation-encoding Stage-3 convergence). Returns {} when the ruler carries no value/scale
+    (level stays the sole coordinate). distance_to_cut PREFERS the ruler's own surfaced delta; only when
+    that is absent does it fall back to value-minus-cut (both pinned) — mirroring tumor-selectivity's
+    proven `max_log2fc - cut`."""
+    if not isinstance(gv, dict):
+        return {}
+    out: dict = {}
+    val, scale = gv.get("value"), gv.get("scale")
+    if val is not None and scale:                       # no bare number (assemble_claim_record re-checks)
+        out["value"] = val
+        out["scale"] = scale
+    dtc = gv.get("distance_to_cut")
+    if dtc is None and isinstance(val, (int, float)) and not isinstance(val, bool):
+        cut = next((a.get("value") for a in ((gv.get("frame") or {}).get("anchors") or [])
+                    if isinstance(a, dict) and a.get("role") == "cut"), None)
+        if isinstance(cut, (int, float)) and not isinstance(cut, bool):
+            dtc = round(val - cut, 4)
+    if dtc is not None:
+        out["distance_to_cut"] = dtc
+    return out
+
+
+def magnitude_for_card(cards, card_id: str, measurement_type: str, level: str,
+                       contracts_repo: Optional[str] = None) -> dict:
+    """A claim_record magnitude {level, [value, scale, distance_to_cut]} for a single-value axis whose
+    strength is carried by ONE card's reference-frame ruler. Builds that card's interpretation ruler from
+    the SAME SALIENCE_SPEC + summary the display graph uses (evidence_salience.build_interpretation), so
+    the factored record converges to the display reading. level-only when: level is 'none', the card is
+    absent, the type has no reference_frame, or the summary lacks the ruler value (e.g. a stripped fixture
+    / an un-measured signal). ONLY for a clean axis↔card mapping — a MULTI-CLASS axis (genomic_alteration,
+    mechanism, ...) has no single continuous value matching its ordinal level, so it stays level-only and
+    converges per-CARD in the display ruler instead."""
+    mag = {"level": level}
+    if level == "none" or not card_id:
+        return mag
+    c = next((x for x in (cards or []) if isinstance(x, dict) and x.get("card_id") == card_id), None)
+    summary = (c or {}).get("summary") or {}
+    try:
+        from _skills_common.evidence_salience import build_interpretation, spec_for
+        interp = build_interpretation({}, summary, spec_for(measurement_type), card_id, contracts_repo)
+    except Exception:  # noqa: BLE001 — shadow record; never break the run over a ruler
+        interp = []
+    if interp:
+        mag.update(magnitude_from_interpretation(interp[0]))
+    return mag
+
+
 def render_verdict(record: dict) -> str:
     """rho(record) -> the legacy verdict TOKEN (M2 render-equivalence).
 
