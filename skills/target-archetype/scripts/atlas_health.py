@@ -68,13 +68,26 @@ def check(atlas: Atlas, package_dir: Path | None = None, tol: float = 1e-3) -> t
                     "detail": ("all present: " + ", ".join(_PROV_FIELDS)) if not missing_prov
                     else f"missing meta fields: {missing_prov}"})
 
-    # 3. vocabulary drift (optional)
+    # 3. vocabulary drift (optional) — FAIL-CLOSED on an empty harvest. vocabulary_drift computes
+    # missing = live_keys - frozen_keys and covered = (not missing); so an EMPTY live set yields
+    # missing == {} and a VACUOUS covered=True. A caller that passed --package-dir asked the guard to
+    # actually compare live claim keys against the frozen atlas, so harvesting NOTHING (no
+    # subskills/*/package.json, or a package-layout change that silently breaks _read_claim_vectors'
+    # glob) must be a FAIL, not a free PASS — otherwise a layout drift disables the staleness guard
+    # invisibly (the exact fail-open this check exists to prevent).
     if package_dir is not None:
         drift = vocabulary_drift(atlas, _read_claim_vectors(package_dir))
-        results.append({"check": "vocabulary_drift", "status": "PASS" if drift["covered"] else "FAIL",
-                        "detail": (f"{drift['n_live']} live keys all covered" if drift["covered"]
-                                   else f"{len(drift['missing_keys'])} live keys absent from atlas "
-                                        f"(axes: {drift['missing_axes']}) → re-freeze")})
+        if drift["n_live"] == 0:
+            results.append({"check": "vocabulary_drift", "status": "FAIL",
+                            "detail": (f"empty harvest: no claim vectors under "
+                                       f"{package_dir}/subskills/*/package.json — the vocab-drift "
+                                       f"guard cannot run (package-layout drift?); refusing to "
+                                       f"vacuously PASS")})
+        else:
+            results.append({"check": "vocabulary_drift", "status": "PASS" if drift["covered"] else "FAIL",
+                            "detail": (f"{drift['n_live']} live keys all covered" if drift["covered"]
+                                       else f"{len(drift['missing_keys'])} live keys absent from atlas "
+                                            f"(axes: {drift['missing_axes']}) → re-freeze")})
 
     ok = all(r["status"] == "PASS" for r in results)
     return results, ok
