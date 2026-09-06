@@ -29,6 +29,8 @@ sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common import card_summary
 from _skills_common.dispatcher import run_wired_skill
+from _skills_common.headline_core import build_headline, HeadlineSpec
+from _skills_common.skill_report import build_skill_report, ROLE_DESCRIPTIVE
 from _skills_common.narrator_engine import make_synthesize_fn
 from _skills_common.narrator_lenses import COMBINATORIAL_DEPENDENCY as _LENS
 from _skills_common.literature_synthesis import make_literature_fn
@@ -247,6 +249,54 @@ def _combinatorial_dependency_provenance(hl: dict, target=None, indication=None)
     }
 
 
+# ── Canonical HEADLINE block (verdict + confidence + top-tension) for the DESCRIPTIVE spine ──────────
+# combinatorial-dependency has NO claim_vector machinery (single-card self-contained verdict), so — like
+# synthetic-lethal-partners — it declares a thin HeadlineSpec + a verdict→phrase/certainty map: the phrase
+# is the verdict label, and confidence rides the CERTAINTY sidecar (derive_confidence honours it) so the
+# block carries a MEANINGFUL confidence rather than the coverage-based "insufficient" a null claim_vector
+# would yield. VERDICT-INERT projection over the already-emitted headline fields; never moves the verdict.
+_COMBO_HEADLINE_SPEC = HeadlineSpec(
+    gate="combinatorial_dependency",
+    axis_labels={"CODEP": "paralog co-dependency (dual-KO GI)", "CONTEXT": "constitutive vs context"},
+    axis_keys=("CODEP", "CONTEXT"),
+    critical_axes=("CODEP",),
+    verdict_label=lambda v: {
+        "constitutive_combinatorial_dependency": "Constitutive paralog co-dependency (broad co-targeting rationale)",
+        "context_combinatorial_dependency": "Context-conditional combinatorial dependency (genotype/lineage-selected)",
+        "suppressive_combinatorial_interaction": "Suppressive combinatorial interaction (co-loss less lethal)",
+        "no_combinatorial_dependency": "No combinatorial (paralog) dependency (measured negative)",
+        "combinatorial_dependency_insufficient": "Insufficient evidence for a combinatorial-dependency call",
+    }.get(v, str(v).replace("_", " ").strip().capitalize()),
+)
+# Weakest-link certainty by verdict: a measured DepMap ParalogV2 GI is a HYPOTHESIS (KO ≠ inhibition, SL
+# reproducibility problem — see the confidence caveats), so even a constitutive call floors at moderate; a
+# context-conditional / suppressive / measured-negative read is weak (ParalogV2 under-calls buffered pairs);
+# the coverage-gap / read-failure collapse is honestly insufficient.
+_COMBO_CERTAINTY_BY_VERDICT = {
+    "constitutive_combinatorial_dependency": "moderate",
+    "context_combinatorial_dependency": "weak",
+    "suppressive_combinatorial_interaction": "weak",
+    "no_combinatorial_dependency": "weak",
+    "combinatorial_dependency_insufficient": "insufficient",
+}
+
+
+def _build_headline_block(hl: dict) -> dict:
+    """Descriptive headline (verdict + certainty-sidecar confidence + top-tension). The measured-GI
+    confidence caveat, when present, is the top tension. Never moves the self-contained verdict."""
+    v = hl.get("combinatorial_dependency_verdict")
+    hb = build_headline(
+        hl, hl.get("claim_vector"), hl.get("key_signals"),
+        spec=_COMBO_HEADLINE_SPEC, verdict_token=v,
+        driving_rule_id=hl.get("driving_rule_id"),
+        certainty={"level": _COMBO_CERTAINTY_BY_VERDICT.get(v, "insufficient")},
+    )
+    caveat = hl.get("combinatorial_dependency_confidence_caveat")
+    if isinstance(caveat, dict) and caveat.get("detail") and not hb.get("top_tension"):
+        hb["top_tension"] = {"text": caveat["detail"], "source": "combinatorial_dependency_confidence_caveat"}
+    return hb
+
+
 def _headline(cards, fired, verdict_pair, target=None, indication=None):
     def _summary(cid):
         return card_summary(cards, cid)  # shared helper (_skills_common)
@@ -277,6 +327,32 @@ def _headline(cards, fired, verdict_pair, target=None, indication=None):
         except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the verdict spine
             hl.setdefault("_enrichment_errors", {})[_fld] = f"{type(exc).__name__}: {exc}"
             hl[_fld] = None
+    # Canonical headline block (verdict + confidence + top tension) — the descriptive projection the
+    # unified spine reads honest_phrase + confidence off. Best-effort + verdict-INERT.
+    try:
+        hl["headline_block"] = _build_headline_block(hl)
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the verdict spine
+        hl.setdefault("_enrichment_errors", {})["headline_block"] = f"{type(exc).__name__}: {exc}"
+        hl["headline_block"] = None
+    # Unified skill_report envelope (data-product lock): verdict-INERT normalizer — role DESCRIPTIVE
+    # (self-contained verdict skill, NOT wired into the target-profile gate ladder → polarity not_scored),
+    # call = the combinatorial_dependency_verdict. Best-effort: a fault degrades (never aborts the spine).
+    try:
+        _used = [c["card_id"] for c in (cards or []) if not c.get("_missing")]
+        hl["skill_report"] = build_skill_report(
+            role=ROLE_DESCRIPTIVE,
+            verdict=hl.get("combinatorial_dependency_verdict"),
+            driving_rule_id=hl.get("driving_rule_id"),
+            headline_block=hl.get("headline_block"),
+            claim_vector=hl.get("claim_vector"),
+            question_table=hl.get("question_table"),
+            fired_rule_ids=[f.get("rule_id") for f in (fired or [])],
+            cards_used=_used or CARDS,
+            cards_missing=[c["card_id"] for c in (cards or []) if c.get("_missing")],
+        )
+    except Exception as exc:  # noqa: BLE001 — verdict-inert normalizer; never abort the spine
+        hl.setdefault("_enrichment_errors", {})["skill_report"] = f"{type(exc).__name__}: {exc}"
+        hl["skill_report"] = None
     return hl
 
 

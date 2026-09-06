@@ -1,0 +1,95 @@
+"""Emitted data-product contract guard for combinatorial-dependency (AUXILIARY / non-fan-out lock).
+
+Pins the emitted shape against the SELF-CONTAINED generated schema
+`target-contracts/schemas/skills/combinatorial-dependency.decision.schema.json`. Shared helpers in
+`_skills_common.data_product_contract`.
+
+PINNED descriptive-SCALAR skill: it carries a real self-contained verdict
+(`headline.combinatorial_dependency_verdict`) but is DESCRIPTIVE (a paralog dual-KO co-dependency read,
+NOT wired into the target-profile gate ladder) → `skill_report.role: descriptive`, `polarity: not_scored`,
+and `skill_report.call == combinatorial_dependency_verdict` (∈ the 5-member enum).
+
+No replay harness for this skill → the load-bearing conformance target is a FROZEN FULL emit
+`fixtures/combinatorial_dependency_full_emit.json` (a real SMARCA4·LUAD run — the canonical
+constitutive SMARCA4↔SMARCA2 paralog synthetic lethality, `call=constitutive_combinatorial_dependency`).
+CI-liveness: schema unresolvable → SKIP locally, FAIL in CI.
+"""
+from __future__ import annotations
+
+import json
+import os
+import sys
+from pathlib import Path
+
+import pytest
+
+SKILL = "combinatorial-dependency"
+SKILL_DIR = Path(__file__).resolve().parent.parent
+SKILLS_ROOT = SKILL_DIR.parent
+FULL_GOLDEN = SKILL_DIR / "tests" / "fixtures" / "combinatorial_dependency_full_emit.json"
+
+if str(SKILLS_ROOT) not in sys.path:
+    sys.path.insert(0, str(SKILLS_ROOT))
+from _skills_common.data_product_contract import (  # noqa: E402
+    conformance_errors, is_full_decision, load_schema, schema_path)
+
+_VERDICT_ENUM = {
+    "constitutive_combinatorial_dependency",
+    "context_combinatorial_dependency",
+    "suppressive_combinatorial_interaction",
+    "no_combinatorial_dependency",
+    "combinatorial_dependency_insufficient",
+}
+
+
+def _schema_or_gate() -> dict:
+    schema = load_schema(SKILL)
+    if schema is not None:
+        return schema
+    reason = (f"data-product schema not found at {schema_path(SKILL)} — set TARGET_CONTRACTS_ROOT / "
+              f"land the contracts schema PR first")
+    if os.environ.get("CI"):
+        pytest.fail(reason + " [CI: the ratchet must be live, not skipped]")
+    pytest.skip(reason)
+
+
+def _decision() -> dict:
+    assert FULL_GOLDEN.exists(), f"missing full-emit conformance fixture {FULL_GOLDEN}"
+    d = json.loads(FULL_GOLDEN.read_text())
+    assert is_full_decision(d), "fixture is not a full decision — refreeze from a real run.py emit"
+    return d
+
+
+def test_schema_is_wellformed():
+    jsonschema = pytest.importorskip("jsonschema")
+    schema = _schema_or_gate()
+    jsonschema.Draft202012Validator.check_schema(schema)
+    assert schema.get("version"), "data-product schema must carry a contract `version`"
+
+
+def test_full_emit_conforms():
+    """The frozen FULL emit (a real SMARCA4·LUAD run) must validate — the load-bearing conformance
+    target (no replay harness). Confirms the descriptive-scalar shape end-to-end."""
+    schema = _schema_or_gate()
+    decision = _decision()
+    errors = conformance_errors(schema, decision)
+    assert not errors, "full emit violates the data-product schema:\n  " + "\n  ".join(
+        f"{list(e.path)}: {e.message}" for e in errors[:15])
+
+
+def test_descriptive_scalar_spine():
+    """The pinned descriptive-scalar spine: a real verdict field, but role=descriptive / polarity=
+    not_scored, and skill_report.call MIRRORS the headline verdict (never a divergent second call)."""
+    _schema_or_gate()  # gate on schema liveness in CI
+    decision = _decision()
+    headline = decision.get("headline") or {}
+    verdict = headline.get("combinatorial_dependency_verdict")
+    assert verdict in _VERDICT_ENUM, f"combinatorial_dependency_verdict={verdict!r} not in the pinned enum"
+
+    sr = headline.get("skill_report")
+    assert isinstance(sr, dict), "a healthy run must emit headline.skill_report (degrade-not-abort only on fault)"
+    assert sr.get("role") == "descriptive", f"skill_report.role={sr.get('role')!r}, expected 'descriptive'"
+    assert sr.get("polarity") == "not_scored", f"skill_report.polarity={sr.get('polarity')!r}, expected 'not_scored'"
+    assert sr.get("call") == verdict, (
+        f"skill_report.call={sr.get('call')!r} must mirror combinatorial_dependency_verdict={verdict!r}")
+    assert sr.get("call") in _VERDICT_ENUM, "skill_report.call must be a pinned verdict enum member (non-null here)"
