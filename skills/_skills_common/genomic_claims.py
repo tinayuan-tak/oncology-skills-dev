@@ -44,9 +44,20 @@ _FUS_SIGNAL = {"recurrent_fusion_driver": "strong", "sporadic_fusion": "weak",
                # driver → WEAK (never absent: the rearrangement is real; never strong: it is a passenger).
                "promiscuous_amplicon_fusion": "weak",
                "no_recurrent_fusion": "absent", "data_unavailable": "unmeasured"}
-# splice_exon_skip_class (splice-exon-skip-landscape) — curated oncogenic exon-skip DRIVER (METex14)
-_SPLICE_SIGNAL = {"recurrent_splice_driver": "strong", "no_exon_skip": "absent",
-                  "data_unavailable": "unmeasured"}
+# splice_exon_skip_class (splice-exon-skip-landscape) — curated oncogenic exon-skip DRIVER (METex14).
+# Card vocab: recurrent_splice_driver | splice_event_off_indication | no_registered_event | data_unavailable.
+# A registered event OFF its curated oncogenic indication, and the common no-curated-event case, both read as a
+# measured floor (`absent`) for "is this a splice-exon-skip driver HERE"; only a missing/failed read is `unmeasured`.
+# (Prior map keyed a dead `no_exon_skip` class the card never emits; the real classes fell through the else-branch.)
+_SPLICE_SIGNAL = {"recurrent_splice_driver": "strong", "splice_event_off_indication": "absent",
+                  "no_registered_event": "absent", "data_unavailable": "unmeasured"}
+
+
+def _spl_tier(cls):
+    """Single source for the SPL signal tier. Unknown/None → `unmeasured` (a gap, per gap≠absent); a recognized
+    non-driver class → its mapped floor. Shared by `_spl_signal` and `_spl_corroboration` so the two can never
+    disagree on what counts as measured (the historical signal=absent / corrob=? asymmetry)."""
+    return _SPLICE_SIGNAL.get(cls, "unmeasured" if cls in (None, "data_unavailable") else "absent")
 # the four stratified-dependency classes → "does the ALTERATION-positive subgroup selectively depend?"
 # POSITIVE (alteration-positive dependent) vs NEGATIVE (WT/neutral dependent = alteration doesn't confer)
 _STRAT_SIGNAL = {
@@ -181,14 +192,18 @@ def _fus_signal(h, c):
 def _spl_signal(h, c):
     bc = _by_class(h).get("splice") or {}
     cls = bc.get("verdict")   # splice_exon_skip_class
-    sig = _SPLICE_SIGNAL.get(cls, "unmeasured" if cls in (None, "data_unavailable") else "absent")
+    sig = _spl_tier(cls)
     ev = f"splice exon-skip: {cls or 'data_unavailable'}" + (f" ({bc.get('event_id')})" if bc.get("event_id") else "")
     return sig, ev, None
 
 
 def _spl_corroboration(h, c):
     bc = _by_class(h).get("splice") or {}
-    if _SPLICE_SIGNAL.get(bc.get("verdict"), "unmeasured") == "unmeasured":
+    # Corroboration is only meaningful for a POSITIVE signal — a gap (`unmeasured`) or a measured floor
+    # (`absent`/`negative`) carries none (mirrors `_dep_corroboration`). Keying off the SHARED `_spl_tier`
+    # keeps signal and corroboration in lock-step (fixes the old signal=absent / corrob=unmeasured asymmetry
+    # that arose from `_spl_signal` and `_spl_corroboration` applying different fallbacks to the same class).
+    if _spl_tier(bc.get("verdict")) in ("unmeasured", "absent", "negative"):
         return "unmeasured"
     # a curated oncogenic exon-skip driver with live DepMap carrier confirmation is well-corroborated
     n = bc.get("n_depmap_carriers")

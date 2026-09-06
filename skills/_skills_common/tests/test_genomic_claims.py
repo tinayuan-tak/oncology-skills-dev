@@ -17,6 +17,9 @@ if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
 
 from _skills_common.genomic_claims import genomic_claim_vector, genomic_key_signals  # noqa: E402
+from _skills_common.genomic_claims import (  # noqa: E402
+    _SPLICE_SIGNAL, _spl_tier, _spl_signal, _spl_corroboration,
+)
 
 
 def _by_class(snv_landscape=None, snv_rec=None, cn=None, amp_expr=None, cn_strat=None,
@@ -197,3 +200,51 @@ def test_genomic_atoms_absent_without_cards():
     vec = genomic_claim_vector(_kras_headline(), [])
     for ax in ("SNV", "CN", "FUS", "DEP"):
         assert "evidence_atom" not in vec[ax], f"{ax} gained an atom with no source card"
+
+
+# ── SPL (splice-exon-skip) signal/corroboration co-movement ──────────────────────────────────────
+# Regression for the latent asymmetry: `_spl_signal` and `_spl_corroboration` once applied DIFFERENT
+# fallbacks to the same class (signal→`absent` via an else-branch, corrob→`unmeasured`), and the map
+# keyed a dead `no_exon_skip` class the splice card never emits (real vocab: recurrent_splice_driver /
+# splice_event_off_indication / no_registered_event / data_unavailable). Both now key off `_spl_tier`.
+def _spl_h(cls, n=None):
+    d = {"verdict": cls}
+    if n is not None:
+        d["n_depmap_carriers"] = n
+    return {"genomic_alteration_by_class": {"splice": d}}
+
+
+def test_spl_dead_class_key_removed():
+    # the card never emits `no_exon_skip`; keying it was dead. Real non-driver classes ARE mapped.
+    assert "no_exon_skip" not in _SPLICE_SIGNAL
+    assert _SPLICE_SIGNAL["splice_event_off_indication"] == "absent"
+    assert _SPLICE_SIGNAL["no_registered_event"] == "absent"
+
+
+def test_spl_driver_is_corroborated():
+    # a curated driver with a live DepMap carrier → strong + high; without carriers → strong + moderate
+    assert _spl_signal(_spl_h("recurrent_splice_driver", n=3), None)[0] == "strong"
+    assert _spl_corroboration(_spl_h("recurrent_splice_driver", n=3), None) == "high"
+    assert _spl_corroboration(_spl_h("recurrent_splice_driver"), None) == "moderate"
+
+
+def test_spl_signal_corroboration_comove_over_full_vocab():
+    """The invariant the fix guarantees: corroboration is `unmeasured` for every non-positive signal
+    (a measured floor `absent` or a gap `unmeasured`) — never a measured corroboration without a signal.
+    Only a positive (driver) signal earns a measured corroboration tier."""
+    for cls in list(_SPLICE_SIGNAL) + ["no_exon_skip", None, "some_future_class"]:
+        sig = _spl_signal(_spl_h(cls), None)[0]
+        corr = _spl_corroboration(_spl_h(cls), None)
+        if sig in ("absent", "unmeasured", "negative"):
+            assert corr == "unmeasured", f"{cls!r}: signal={sig} but corrob={corr} (asymmetry)"
+        else:
+            assert corr in ("moderate", "high"), f"{cls!r}: positive signal={sig} lost corroboration"
+
+
+def test_spl_common_cases_are_absent_not_unmeasured():
+    # the common no-curated-event case and an off-indication event are a measured floor, not a gap
+    assert _spl_signal(_spl_h("no_registered_event"), None)[0] == "absent"
+    assert _spl_signal(_spl_h("splice_event_off_indication"), None)[0] == "absent"
+    # a missing/failed read stays a gap
+    assert _spl_signal(_spl_h(None), None)[0] == "unmeasured"
+    assert _spl_signal(_spl_h("data_unavailable"), None)[0] == "unmeasured"
