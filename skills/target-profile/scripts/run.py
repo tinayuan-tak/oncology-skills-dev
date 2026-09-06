@@ -171,6 +171,35 @@ def _preflight_data_access() -> "tuple[bool, str]":
 from _skills_common.run_log import install_run_log as _install_run_log, restore_run_log as _restore_run_log
 
 
+def _synthesize_or_degrade(system_prompt: str, user_prompt: str, tool_schema: dict) -> dict:
+    """FAIL-CLOSED wrapper around the ADVISORY Tier-3 Bedrock synthesis.
+
+    The Tier-3 narration is advisory over the deterministic verdict spine (sub-verdicts,
+    recommendation gate, positive tier, scorecard) computed independently in main(). A Bedrock
+    outage — BedrockAuthError (SSO/IAM), ImportError (no anthropic[bedrock]), or RuntimeError
+    (model didn't use the tool) — must therefore NOT abort the run and lose the auditable
+    nomination/evidence-package main() writes downstream. On ANY such failure we degrade to the
+    SAME stub the --no-synthesis path uses (known-good for the downstream gate-clamp + renderers),
+    tagged `_synthesis_error` so main()'s guard skips anchor-validation and the renderers surface a
+    "synthesis unavailable" note. Mirrors the per-skill dispatcher's fail-soft synthesis. NEVER
+    raises. VERDICT-INERT: the emitted deterministic spine is byte-identical to the --no-synthesis path.
+    """
+    try:
+        return synthesize_structured(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            tool_name="target_profile_synthesis",
+            tool_schema=tool_schema,
+        )
+    except Exception as e:  # noqa: BLE001 — advisory synthesis; never break the deterministic spine
+        out = _skipped_synthesis_output()
+        out["_synthesis_error"] = f"{type(e).__name__}: {e}"
+        print(f"[target-profile] WARNING: Bedrock synthesis failed ({type(e).__name__}: {e}); "
+              "emitting the deterministic verdict spine WITHOUT narration (fail-closed). "
+              "The nomination/verdict is unaffected.", file=sys.stderr)
+        return out
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--target", required=True)
@@ -713,12 +742,10 @@ def main() -> int:
             narrative_by_axis=narrative_by_axis,
             risk_6dim=risk_6dim_for_synthesis,
         )
-        llm_output = synthesize_structured(
-            system_prompt=_SYSTEM_PROMPT,
-            user_prompt=user_prompt,
-            tool_name="target_profile_synthesis",
-            tool_schema=tool_schema,
-        )
+        # FAIL-CLOSED: synthesis is ADVISORY narration over the deterministic spine, so a Bedrock
+        # outage must NOT abort the run and lose the auditable nomination written below. Degrades to
+        # the same stub the --no-synthesis path uses (see _synthesize_or_degrade).
+        llm_output = _synthesize_or_degrade(_SYSTEM_PROMPT, user_prompt, tool_schema)
         # Attach the deterministic cross-cutting metric legend (sibling key) so a non-computational
         # reader has an accurate reference for the quantities cited across lenses — independent of the
         # LLM's inline glosses. On a successful narration only (a degraded/error dict stays minimal).

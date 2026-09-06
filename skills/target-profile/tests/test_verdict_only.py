@@ -70,3 +70,38 @@ def test_gate_clamps_into_skipped_stub_like_a_real_synthesis():
 # 2026-09-03 — it asserted the md renderer degrades to a "synthesis skipped" note in verdict-only mode.
 # report_render renders the skipped stub now; the MODE itself (_skipped_synthesis_output) is still
 # guarded by the stub tests above.)
+
+
+def test_synthesize_or_degrade_fail_closed_on_bedrock_error(monkeypatch):
+    """FAIL-CLOSED: a raised Bedrock/import/tool error must NOT propagate out of the synthesis
+    wrapper (which would crash main() before the nomination/evidence-package is written). It
+    degrades to the --no-synthesis stub tagged _synthesis_error, so the deterministic spine below
+    is still emitted. Regression for the unwrapped synthesize_structured call at run.py."""
+    class _BedrockDown(RuntimeError):
+        pass
+
+    def _boom(*a, **k):
+        raise _BedrockDown("no bedrock creds / model didn't use the tool")
+
+    monkeypatch.setattr(tp, "synthesize_structured", _boom)
+    out = tp._synthesize_or_degrade("sys", "user", {"type": "object"})  # must NOT raise
+    # Degrades to the known-good stub shape the gate-clamp + renderers rely on...
+    assert out["_synthesis_skipped"] is True
+    assert isinstance(out["overall_recommendation"], dict) and "value" in out["overall_recommendation"]
+    assert isinstance(out["confidence"], dict) and "value" in out["confidence"]
+    # ...tagged as the ERROR path (not a clean skip) so main()'s guard skips anchor-validation and
+    # the renderers show a "synthesis unavailable" note. The message preserves the exception type.
+    assert "_synthesis_error" in out and "_BedrockDown" in out["_synthesis_error"]
+
+
+def test_gate_clamps_into_degraded_error_stub():
+    """The deterministic recommendation gate clamps a forced recommendation INTO the degraded
+    error stub exactly as for a real synthesis — so a Bedrock outage still yields the auditable
+    forced verdict rather than losing the whole run."""
+    stub = tp._skipped_synthesis_output()
+    stub["_synthesis_error"] = "BedrockAuthError: expired SSO"
+    gate_action, _hits, _sup = tp._gate_recommendation(
+        _sub("dependency", "pan_essential_killer", "pan-essential-killer"))
+    assert gate_action == "veto"
+    stub["overall_recommendation"]["value"] = gate_action
+    assert stub["overall_recommendation"]["value"] == "veto"
