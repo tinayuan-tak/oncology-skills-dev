@@ -28,6 +28,8 @@ import json
 from pathlib import Path
 from typing import Optional
 
+from _skills_common.figure_palette import esc as _esc
+
 # ---------------------------------------------------------------------------
 # Layout: measurement layers (rows, RNA backbone first) × sample contexts (columns).
 # The columns are split into a PRESENCE group (cell_line, tumor) and a WINDOW group
@@ -187,10 +189,6 @@ def _short_verdict(verdict: Optional[str]) -> str:
     if v.endswith("_expression"):
         v = v[: -len("_expression")]
     return v.replace("_", " ")
-
-
-def _esc(s: str) -> str:
-    return (str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
 
 
 def _wrap_two_lines(text: str, max_chars: int) -> list[str]:

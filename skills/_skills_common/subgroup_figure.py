@@ -10,14 +10,12 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from _skills_common.figure_palette import esc as _esc
+
 _TIER = {"strong": 3, "moderate": 2, "weak": 1, "absent": 0, "unmeasured": None}
 _FILL = {3: "#184f95", 2: "#2a78d6", 1: "#f0a030", 0: "#c9ccd1", None: "#c9ccd1"}
 _AGREE, _CONFLICT, _INK, _MUT = "#2a78d6", "#d03b3b", "#1a1a19", "#8a8d91"
 _RANK = {"strong": 3, "moderate": 2, "weak": 1, "absent": 0, "unmeasured": -1}
-
-
-def _esc(s):
-    return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
 def _rad(n):

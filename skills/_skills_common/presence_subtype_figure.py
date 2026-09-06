@@ -14,12 +14,10 @@ import json
 from pathlib import Path
 from typing import Optional
 
+from _skills_common.figure_palette import esc as _esc
+
 _TIER = {"strong": 3, "moderate": 2, "weak": 1, "absent": 0, "unmeasured": None}
 _FILL = {3: "#184f95", 2: "#2a78d6", 1: "#f0a030", 0: "#d03b3b", None: "#c9ccd1"}
-
-
-def _esc(s):
-    return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
 def _bar(sig, x, y, w=88):

@@ -33,6 +33,7 @@ from typing import Optional
 # downgradable); the hero reads it so the "window open" tile can never drift from the clamp's view.
 from _skills_common.selectivity_veto import (_AXIS_A_SELECTIVE, _VETO_VERDICT, _LIABILITY_VERDICT,
                                              _STROMAL_CONFOUND_VERDICT)
+from _skills_common.figure_palette import esc as _esc
 
 # --- verdict → banner status (the resolved selectivity_class) --------------------------------------
 # Green tiers = a supported tumor-over-normal window; red = window CLOSED by the normal-breadth veto;
@@ -216,10 +217,6 @@ def build_selectivity_axes(headline: dict) -> dict:
             "n/a axes are coverage gaps, not evidence against selectivity. The normal-tissue WINDOW "
             "axis DISPLAYS the normal-breadth veto outcome (owned by the resolver/clamp)."),
     }
-
-
-def _esc(s) -> str:
-    return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
 # --- SVG geometry (dashboard hero tile) ------------------------------------------------------------

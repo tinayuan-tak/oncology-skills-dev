@@ -12,14 +12,10 @@ import json
 from pathlib import Path
 from typing import Optional
 
+from _skills_common.figure_palette import (esc as _esc, SIG_TIER as _SIG_TIER,
+                                           TIER_FILL as _TIER_FILL, REL_DOTS as _REL_DOTS)
+
 _CLAIM = [("A", "abundance"), ("B", "tumor-elevation"), ("C", "malignant-intrinsic"), ("D", "generality")]
-_SIG_TIER = {"strong": 3, "moderate": 2, "weak": 1, "absent": 0, "negative": 0, "unmeasured": None}
-_TIER_FILL = {3: "#184f95", 2: "#2a78d6", 1: "#f0a030", 0: "#d03b3b", None: "#c9ccd1"}
-_REL_DOTS = {"high": 3, "moderate": 2, "low": 1, "insufficient": 0, "unmeasured": 0}
-
-
-def _esc(s):
-    return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
 def render_claim_vector_svg(claim_vector: dict, target: str, indication: str) -> str:

@@ -12,6 +12,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from _skills_common.figure_palette import esc as _esc
+
 # card_id -> (claim, primary field, role). role: signal | reliability | comparator.
 _SPEC = [
     ("tumor-rna-distribution", "A", "tumor_expression_class", "signal"),
@@ -79,10 +81,6 @@ def _reliability(cid, s, h):
         n = s.get("n_tumor_samples")
         return "high" if isinstance(n, int) and n >= 100 else "moderate" if isinstance(n, int) and n >= 30 else "low"
     return "moderate"
-
-
-def _esc(s):
-    return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
 def render_card_board_svg(cards: list, headline: dict, target: str, indication: str) -> str:
