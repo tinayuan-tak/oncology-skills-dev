@@ -281,7 +281,7 @@ conditioner_axes:
         product: depmap-isoform-expression-per-gene-v1
         home_skill: tumor-presence
       - piece: tumor_splice
-        card: tumor-splice-expression            # NEW (plan 6.3): promoted from a sub-call facet
+        card: tumor-splice-dysregulation         # (tumor-splice-expression was a duplicate, collapsed 2026-09-06)
         promoted_from: "sub-call inside tumor-rna-distribution (splicing_dysregulation_class)"
         method: tcga-spliceseq-psi
         product: tcga-spliceseq-psi-per-gene-v1
@@ -459,7 +459,7 @@ skill_objectives:
       - {q: "Clonal / biallelic state of the alteration?", answered_by: [target-clonality, functional-gene-state]}
       - {q: "Cohort genome context (instability, signatures, pathways)?", answered_by: [genomic-instability-state, mutational-signature-context, ddr-deficiency-context, oncogenic-pathway-alteration]}
       - {q: "Patient ↔ model genomic-event match?", answered_by: [genomic-event-model-match]}
-      - {q: "Splice-form dysregulation (aberrant splicing at the target)?", answered_by: [tumor-splice-dysregulation, tumor-splice-expression]}   # R10: transcript-form alteration, display-inert
+      - {q: "Splice-form dysregulation (aberrant splicing at the target)?", answered_by: [tumor-splice-dysregulation]}   # R10: transcript-form alteration, display-inert
   - skill: mechanism-and-pharmacology
     objective: "What is the target's network position / MoA hook / PD marker?"
     primary_axis: mechanism
@@ -871,7 +871,6 @@ question_hierarchies:
         - fusion_stratified_dependency
         - splice_exon_skip
         - tumor_splice_dysregulation
-        - tumor_splice_expression
     - id: DEP
       questions:
       - id: dep_read

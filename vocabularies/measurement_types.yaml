@@ -1959,17 +1959,6 @@ measurement_types:
     providers:
       - {kind: dataset, source: depmap-isoform-expression-per-gene-v1, method: depmap_isoform_expression, evidence_tier: measured}   # DOMINANT — DepMap 26Q1 per-transcript TPM (dominant-isoform fraction per gene)
 
-  tumor_splice_expression:
-    claim: "Is {target}'s splicing dysregulated in patient tumours (tumour-shifted / highly-variable PSI)?"
-    # MOLECULAR-FORM (splicing) facet, PATIENT arm (2026-08-19; conditioner axis molecular_form). Verdict-inert:
-    # which SPLICE EVENTS shift (not how MUCH). Refines expression + selectivity (tumour-specific splice = a
-    # selectivity signal). Also emitted as a sub-call inside tumor-rna-distribution (additive).
-    entity_grains: [target_indication]
-    cards: [tumor-splice-expression]
-    multi_provider_policy: tier_dominant
-    providers:
-      - {kind: dataset, source: tcga-spliceseq-psi-per-gene-v1, method: tcga_spliceseq_psi, evidence_tier: measured}   # DOMINANT — TCGA SpliceSeq per-(gene, event) PSI, tumour + matched normal
-
   sc_normal_celltype_expression:
     claim: "Single-cell RNA expression in normal tissue by cell type (pseudobulk, donor-replicate) — on-target-off-tumor safety substrate at cell-type resolution"
     entity_grains: [target]

@@ -44,5 +44,5 @@ outputs:
       - data_unavailable
 caveats:
   - "Verdict-inert molecular-form facet: flags single-transcript (modality/epitope simplicity) vs isoform-diverse (druggable isoform must be specified); it fires no interpretation rule and moves no verdict."
-  - "MODEL arm (DepMap cell lines). The patient-tumour complement is tumor-splice-expression (TCGA SpliceSeq PSI); a cell-line dominant isoform need not match the patient-tumour isoform."
+  - "MODEL arm (DepMap cell lines). The patient-tumour complement is tumor-splice-dysregulation (TCGA SpliceSeq PSI); a cell-line dominant isoform need not match the patient-tumour isoform."
 schema_version: 1
