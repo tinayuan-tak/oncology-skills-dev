@@ -42,6 +42,15 @@ from jsonschema import Draft202012Validator
 
 
 SCHEMA_PATH = Path(__file__).resolve().parent.parent / 'schemas' / 'card.schema.json'
+PRODUCTS_PATH = Path(__file__).resolve().parent.parent / 'vocabularies' / 'products.yaml'
+# Sibling data-catalog checkout, for the required_inputs[].product_id referential-integrity check.
+# A product_id resolves against EITHER a data-catalog manifest id OR a registered products.yaml
+# product id (the two legitimate namespaces). Located via env, defaulting to the sibling path;
+# graceful-skip when absent (e.g. the checkout-only contracts-validate runner) — mirrors the
+# _SKILLS_REPO figure-emission sibling pattern so the check never false-fails in isolated CI.
+_DATA_CATALOG_REPO = Path(os.environ.get(
+    "DATA_CATALOG_ROOT",
+    "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"))
 
 # Recognized CEL-subset operators and reserved tokens (B1 § compose-dashboard subsection 2)
 RECOGNIZED_OPERATORS = {'==', '!=', '>=', '<=', '>', '<', '&&', '||', '!', 'in'}
@@ -525,6 +534,64 @@ def _summary_field_names(spec: dict) -> set[str]:
     return names
 
 
+@functools.lru_cache(maxsize=1)
+def _data_catalog_manifest_ids() -> Optional[set[str]]:
+    """The set of manifest ids in the sibling data-catalog (source + derived). A manifest id is the
+    yaml filename stem (== its `id:` field). Returns None if the sibling checkout is absent (→ the
+    product_id check graceful-skips; a checkout-only CI runner has no data-catalog)."""
+    manifests = _DATA_CATALOG_REPO / 'manifests'
+    if not manifests.is_dir():
+        return None
+    return {p.name[:-len('.yaml')] for p in manifests.glob('*/*.yaml')}
+
+
+@functools.lru_cache(maxsize=1)
+def _registered_product_ids() -> set[str]:
+    """The product ids registered in vocabularies/products.yaml (the ~25-entry dimension-product
+    registry). Empty set if the file is absent/malformed."""
+    if not PRODUCTS_PATH.exists():
+        return set()
+    try:
+        with PRODUCTS_PATH.open() as f:
+            doc = yaml.safe_load(f) or {}
+    except yaml.YAMLError:
+        return set()
+    products = doc.get('products') if isinstance(doc, dict) else None
+    if not isinstance(products, list):
+        return set()
+    return {p['id'] for p in products if isinstance(p, dict) and 'id' in p}
+
+
+def _required_inputs_product_id_check(spec: dict, report: ValidationReport) -> None:
+    """Referential integrity for required_inputs[].product_id (2026-09-06).
+
+    A product_id must resolve to EITHER a data-catalog manifest id OR a registered products.yaml
+    product id — the two legitimate namespaces. Template placeholders (containing '{') are skipped.
+    WARNING (not error): a typo'd / renamed / truncated manifest ref (e.g. `depmap-predictability`
+    for the real `depmap-predictability-26q1-v2`) or a reference to an un-materialized product is
+    otherwise silently undetectable in-repo — downstream the reader returns _live_read_error and the
+    verdict degrades to `insufficient` with no failing check. GRACEFUL-SKIP when the sibling
+    data-catalog is absent (checkout-only CI): without the manifest list a valid manifest id can't be
+    distinguished from a typo, so the check runs at preland / on a siblings-present runner and never
+    false-fails in isolation."""
+    manifest_ids = _data_catalog_manifest_ids()
+    if manifest_ids is None:
+        return  # data-catalog sibling absent → cannot resolve manifest ids; skip (never false-fail)
+    known = manifest_ids | _registered_product_ids()
+    for i, ri in enumerate(spec.get('required_inputs', []) or []):
+        if not isinstance(ri, dict):
+            continue
+        pid = ri.get('product_id')
+        if not isinstance(pid, str) or not pid or '{' in pid:
+            continue  # missing/templated product_ids are handled by structural + compose-time checks
+        if pid not in known:
+            report.add_warning(
+                f'PRODUCT_ID_UNRESOLVED [required_inputs[{i}]]: product_id {pid!r} matches no '
+                f'data-catalog manifest id and no vocabularies/products.yaml product id — a '
+                f'typo/renamed/truncated manifest ref or an un-materialized product. A reader will '
+                f'return _live_read_error and the verdict will silently degrade to insufficient.')
+
+
 def _composed_card_semantics_check(spec: dict, report: ValidationReport) -> None:
     """Layer 2d (arch A1 enforcement, 2026-07-08): required_inputs may be
     empty ONLY when the card is COMPOSED (declares derived_from upstream
@@ -948,6 +1015,7 @@ def validate_card_file(path: str | Path, schema: dict | None = None) -> Validati
         _shallow_predicate_check(spec, report)
         _interpretation_summary_field_check(spec, report)
         _composed_card_semantics_check(spec, report)
+        _required_inputs_product_id_check(spec, report)
         _grain_and_tier_check(spec, report)
         _blocked_subtype_status_check(spec, report)
         _figure_emission_check(spec, report)

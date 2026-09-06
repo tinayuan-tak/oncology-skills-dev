@@ -213,7 +213,7 @@
         "properties": {
           "product_id": {
             "type": "string",
-            "description": "Registered product identifier (matches a product_id in target-contracts/vocabularies/products.yaml)."
+            "description": "Product identifier the card consumes. Resolves against EITHER a data-catalog manifest id (the primary namespace; e.g. depmap-gygi-protein-abundance-per-protein-v1) OR a registered product_id in target-contracts/vocabularies/products.yaml. validate_cards.py checks this referentially against the sibling data-catalog + products.yaml (WARNING on an unresolved id; graceful-skip when data-catalog is absent)."
           },
           "indication": {
             "type": "string",
