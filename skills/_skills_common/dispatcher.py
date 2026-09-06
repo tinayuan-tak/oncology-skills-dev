@@ -401,6 +401,8 @@ def run_wired_skill(
     synthesize_fn: Optional[SynthesizeFn] = None,
     literature_fn: Optional[Callable[[dict, Optional[str]], dict]] = None,
     subtype_panorama_fn: Optional["SubtypePanoramaFn"] = None,
+    subtype_merge_fn: Optional[Callable[[dict, dict], None]] = None,
+    claim_record_fn: Optional[Callable[[list, list, Optional[tuple]], dict]] = None,
     extra_axes: Optional[list[str]] = None,
     verdict_cards: Optional[list[str]] = None,
     skill_figures_fn: Optional[Callable[[dict, Path], list]] = None,
@@ -440,6 +442,16 @@ def run_wired_skill(
             emitted package + its panorama block merged into the headline, but they never enter
             `fired` — the verdict spine is byte-identical with or without --subtypes. When None
             (every existing caller), --subtypes is inert: a complete no-op.
+        subtype_merge_fn: OPTIONAL (headline, subtype_result) -> None hook that REPLACES the generic
+            flat subtype-panorama merge when a skill needs a bespoke merge the flat one can't express
+            (e.g. genomic-alteration writes a NESTED headline['genomic_alteration_by_scope']['subtype']
+            block). Invoked in place of the generic merge ONLY when set AND a subtype_result exists.
+            Default None => the generic flat merge (byte-identical for every existing caller).
+        claim_record_fn: OPTIONAL (cards, fired, verdict_pair) -> dict hook whose result is attached
+            as decision['claim_record_shadow'] (VERDICT-INERT M1 factored-record shadow). Best-effort:
+            a fault degrades to {'_shadow_error': ...} and never breaks the spine. Default None =>
+            no standalone shadow (every existing caller — the shadow is otherwise assembled only by
+            the composed target-profile fan-out).
         verdict_cards: OPTIONAL subset of `cards` that can MOVE the verdict — the resolver's
             referenced cards, from reachability.verdict_relevant_cards(gate). When --verdict-only is
             passed AND this is a non-empty SUBSET of `cards`, ONLY these cards are read: the verdict
@@ -666,6 +678,12 @@ def run_wired_skill(
                 _hf_kwargs["target"] = args.target
             if "indication" in _hf_params:
                 _hf_kwargs["indication"] = args.indication
+            # A headline_fn may OPTIONALLY declare `preprocess_provenance` to receive the per-gate
+            # card-preprocessor provenance (preprocess_gate above) — e.g. genomic-alteration threads
+            # the family-wise-FDR + amplicon-fusion-demotion provenance into its headline. Signature-
+            # gated like target/indication, so every existing headline_fn is called byte-identically.
+            if "preprocess_provenance" in _hf_params:
+                _hf_kwargs["preprocess_provenance"] = preprocess_provenance
         except (ValueError, TypeError):  # unintrospectable callable → 3-arg call (byte-identical)
             _hf_kwargs = {}
         headline = headline_fn(_headline_cards, fired, verdict_pair, **_hf_kwargs)
@@ -733,10 +751,19 @@ def run_wired_skill(
     # panorama_fn returns a dict with a "scope_subtypes" list + one panorama block keyed by axis
     # name; surface both for the LLM/render. Never present unless --subtypes was passed.
     if subtype_result is not None:
-        headline["subtype_scope"] = subtype_result.get("scope_subtypes")
-        for k, v in subtype_result.items():
-            if k not in ("cards", "scope_subtypes"):   # the panorama block(s) + any error note
-                headline[k] = v
+        if subtype_merge_fn is not None:
+            # A skill with a bespoke merge (e.g. genomic's nested genomic_alteration_by_scope['subtype']
+            # block, which the flat key-hoist below cannot express) owns the ENTIRE merge, including
+            # subtype_scope. Best-effort: a merge fault must not break the spine (descriptive/verdict-inert).
+            try:
+                subtype_merge_fn(headline, subtype_result)
+            except Exception as e:  # noqa: BLE001 — subtype panorama is a display facet; never load-bearing
+                headline.setdefault("_enrichment_errors", {})["subtype_merge"] = f"{type(e).__name__}: {e}"
+        else:
+            headline["subtype_scope"] = subtype_result.get("scope_subtypes")
+            for k, v in subtype_result.items():
+                if k not in ("cards", "scope_subtypes"):   # the panorama block(s) + any error note
+                    headline[k] = v
 
     # 7. Optional modality lens
     lenses = None
@@ -803,6 +830,18 @@ def run_wired_skill(
         "compute_secs": round(time.perf_counter() - _compute_start, 4),
         # total is stamped at the very end (below) so it includes synthesis + write.
     }
+
+    # 8a-i. OPT-IN FACTORED-RECORD SHADOW (M1) — a skill may supply claim_record_fn to attach its
+    # factored claim record beside the legacy verdict spine as decision['claim_record_shadow'].
+    # VERDICT-INERT / consumed-by-nothing standalone (the composed target-profile fan-out otherwise
+    # assembles the shadow from each sub-skill's _claim_record). Whole-cohort cards/fired drive it (the
+    # subtype panorama is descriptive). Best-effort: a builder fault degrades to a sibling error note
+    # and never breaks the run (the spine is already composed above). Default (no fn) => absent.
+    if claim_record_fn is not None:
+        try:
+            decision["claim_record_shadow"] = claim_record_fn(card_outputs, fired, verdict_pair)
+        except Exception as e:  # noqa: BLE001 — shadow is non-authoritative; never break the spine
+            decision["claim_record_shadow"] = {"_shadow_error": f"{type(e).__name__}: {e}"}
 
     # 8a-ii. CONSOLIDATION FIDELITY (2026-08-14): does the single collapsed verdict mask a polarity
     # conflict among the fired rules? Sibling key, verdict-inert (never touches the spine). Lets any

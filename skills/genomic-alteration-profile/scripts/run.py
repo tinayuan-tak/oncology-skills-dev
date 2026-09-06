@@ -20,18 +20,13 @@ Structure:
 
 from __future__ import annotations
 
-import argparse
-import json
 import sys
 from pathlib import Path
 
 SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
-from _skills_common import (
-    resolve_cards, fired_rules, modality_lens,
-    make_decision_json, write_package, card_summary,
-)
+from _skills_common import resolve_cards, card_summary
 from _skills_common.resolver import resolve_or_raise
 from _skills_common.claim_record import assemble_claim_record
 # The family-wise FDR across the stratified-dependency classes is single-sourced in
@@ -45,11 +40,12 @@ from _skills_common.card_preprocessors import (  # noqa: F401
 from _skills_common.genomic_claims import genomic_claim_vector, genomic_key_signals
 from _skills_common.genomic_question_table import genomic_question_table
 from _skills_common.subgroup_derivation import make_value_classifier, subgroup_signals_for
-from _skills_common.narrator_engine import narrate as _narrate
+from _skills_common.narrator_engine import make_synthesize_fn, narrate as _narrate
 from _skills_common.narrator_lenses import GENOMIC_ALTERATION as _LENS
+from _skills_common.dispatcher import run_wired_skill
 # OPTIONAL (--literature) verdict-INERT LLM literature lane, reusing the shared fleet module (the same
-# make_literature_fn wired into tumor-presence #965 / tumor-selectivity #968). This skill HAND-ROLLS
-# main() (no run_wired_skill), so it attaches the lane itself in main() — mirroring the dispatcher seam.
+# make_literature_fn wired into tumor-presence #965 / tumor-selectivity #968). Passed to
+# run_wired_skill as literature_fn, which attaches the lane after the spine (the shared dispatcher seam).
 # Grounded in Europe PMC (PubTator3 fallback via default_retrieve; genomic-alteration lens query terms
 # live in literature_retrieval._LENS_QUERY_TERMS) + PMID-verified via verify_citations. The lens's
 # SNV/CN/FUS/DEP axis_labels match the genomic claim_vector, so the prompt is grounded on the right axes.
@@ -59,8 +55,10 @@ from _skills_common.literature_retrieval import default_retrieve, verify_citatio
 _LITERATURE_FN = make_literature_fn(_LENS, retrieve_fn=default_retrieve, verify_fn=verify_citations)
 
 # ─── Signals-first sub-group reader (verdict-INERT) ──────────────────────────────────────────────
-# This skill hand-rolls main() (no run_wired_skill), so it wires the fleet sub-group derivation itself
-# (see _headline). The fleet-default heuristic is lens-blind — it tags this lens's POSITIVE signals
+# _build_headline wires the fleet sub-group derivation itself (with this tuned classifier) rather than
+# leaving it to run_wired_skill's generic post-headline wiring — so the subgroup_signals key keeps its
+# in-headline position (the dispatcher's generic wiring then setdefault-no-ops on the already-set key).
+# The fleet-default heuristic is lens-blind — it tags this lens's POSITIVE signals
 # (direct_driver_gof, likely_oncogenic, predominantly_clonal, concordant_dependent, top_1pct recurrence)
 # as `absent`. _GENOMIC_VALUE_TIERS states the tier for the alteration vocabulary (signal = strength of
 # evidence that the target IS genomically altered / the class drives). default_classify is the fallback.
@@ -91,10 +89,9 @@ _GENOMIC_VALUE_TIERS = {
 }
 from _skills_common.headline_core import build_headline, HeadlineSpec
 from _skills_common.skill_report import build_skill_report, ROLE_GATING
-from _skills_common.headline_hero import emit_headline_hero
 
 SKILL_NAME = "genomic-alteration-profile"
-SKILL_VERSION = "2.16.0"   # 2.16.0 (2026-09-04, #983): COPY-NUMBER GATE completing the fusion over-read fix — a moderate_promiscuous recurrent_fusion_driver at a recurrently focally-AMPLIFIED locus (copy-number-distribution.patient_focal_cn_class == recurrent_focal_amplification) is demoted (card preprocessor, all paths) to promiscuous_amplicon_fusion → fires NO driver rung + drops out of the multi-class framing (amplicon passenger, ERBB2/STAD-class), while not-amplified promiscuous kinase fusions (ROS1/NTRK1/FGFR2) are SPARED. The v2.15.0 claim-vector downgrade now covers the not-focally-amplified half (MET/LUAD). VERDICT-MOVING only for the amplified amplicon-passenger subset (amplification-driver rung already carries their verdict).   # +SPLICE as a first-class alteration member of the signals-first layer: genomic_alteration_by_class['splice'], a SPL claim-vector axis (genomic_claims), a question-table row, key_signals driver-naming, and the GENOMIC_ALTERATION lens axis_labels — so a splice_exon_skip_driver (METex14) verdict is NAMED by the decomposition/narrator (was invisible → the layer led with SNV/fusion). + VERDICT-INERT confidence-aware FUS downgrade: a recurrent_fusion_driver flagged fusion_recurrence_confidence==moderate_promiscuous downgrades strong->weak in the claim vector (MET/LUAD promiscuous n=3, contradicted by literature) so the signals-first headline stops over-reading it — resolver rung untouched (#983). HeadlineSpec hero (SNV/CN/FUS/DEP) deliberately unchanged → headline_block/confidence byte-stable. Surfaced by the KRAS-vs-MET literature-benchmark review.   # 2.14.0: +OPTIONAL --literature lane (verdict-INERT LLM literature synthesis, Europe-PMC-grounded + PMID-verified, scoped to SNV/CN/FUS/DEP; reuses _skills_common.literature_synthesis) wired in the hand-rolled main(), mirroring tumor-presence #965 / tumor-selectivity #968. + VERDICT-INERT claim-vector enrichment: CIViC therapy-resistance actionability (variant-level-interpretation.civic_resistance_variants) folded into the DEP claim's rendered evidence + LensConfig thesis, so the narrator surfaces a negative-predictive-biomarker allele (e.g. KRAS→anti-EGFR in COADREAD) it previously missed (capsule projection never surfaced resistance_variants). Verdict spine byte-stable.   # 2.13.0: +splice-exon-skip-landscape (CASE-002): curated exon-skip DRIVER (METex14) oncogenic in-indication + live DepMap carriers fires splice_exon_skip_driver (genomic resolver 1.8.0), so MET/LUAD reads a splice-skipping driver not a neutral missense_dominant_pattern (signal-vector fidelity; veto already resolved).   # 2.12.0: +reconcile_genomic_verdict: EMITTED-verdict alignment with the signal package (biomarker-dependency demotes to biomarker_dependency_unconfirmed when BOTH KO-dependency confidence cards contradict). Verdict-INERT to nomination (gate reads raw ladder). Mirrors tumor-presence #860.   # 2.11.0: +recurrent_snv_subclonal_uncertain (backtest-gated subclonal-recurrence demotion; contracts genomic_alteration 1.7.0)   # 2.10.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 2.9.0 (2026-08-27): wire signals-first sub-group signals (hand-rolled main bypassed
+SKILL_VERSION = "2.17.0"   # 2.17.0 (2026-09-06): MIGRATED off the hand-rolled main() onto the shared run_wired_skill dispatcher (the last hand-rolled fan-out main) via 3 additive dispatcher hooks — preprocess_provenance→headline_fn, subtype_merge_fn, claim_record_fn. Verdict spine + headline byte-IDENTICAL on the whole-cohort path. Fleet-alignment deltas (all verdict-INERT): run_health adopts the fleet shape (+read/compute/total_secs, provenance_warnings, cards_skipped_a4) + a `consolidation` key is added; the headline-hero figure is now --figures-gated (fleet convention); on --subtypes the panorama cards get whole-cohort capsules (fleet convention) so their evidence_graph nodes render at base detail (panorama block itself byte-identical).   # 2.16.0 (2026-09-04, #983): COPY-NUMBER GATE completing the fusion over-read fix — a moderate_promiscuous recurrent_fusion_driver at a recurrently focally-AMPLIFIED locus (copy-number-distribution.patient_focal_cn_class == recurrent_focal_amplification) is demoted (card preprocessor, all paths) to promiscuous_amplicon_fusion → fires NO driver rung + drops out of the multi-class framing (amplicon passenger, ERBB2/STAD-class), while not-amplified promiscuous kinase fusions (ROS1/NTRK1/FGFR2) are SPARED. The v2.15.0 claim-vector downgrade now covers the not-focally-amplified half (MET/LUAD). VERDICT-MOVING only for the amplified amplicon-passenger subset (amplification-driver rung already carries their verdict).   # +SPLICE as a first-class alteration member of the signals-first layer: genomic_alteration_by_class['splice'], a SPL claim-vector axis (genomic_claims), a question-table row, key_signals driver-naming, and the GENOMIC_ALTERATION lens axis_labels — so a splice_exon_skip_driver (METex14) verdict is NAMED by the decomposition/narrator (was invisible → the layer led with SNV/fusion). + VERDICT-INERT confidence-aware FUS downgrade: a recurrent_fusion_driver flagged fusion_recurrence_confidence==moderate_promiscuous downgrades strong->weak in the claim vector (MET/LUAD promiscuous n=3, contradicted by literature) so the signals-first headline stops over-reading it — resolver rung untouched (#983). HeadlineSpec hero (SNV/CN/FUS/DEP) deliberately unchanged → headline_block/confidence byte-stable. Surfaced by the KRAS-vs-MET literature-benchmark review.   # 2.14.0: +OPTIONAL --literature lane (verdict-INERT LLM literature synthesis, Europe-PMC-grounded + PMID-verified, scoped to SNV/CN/FUS/DEP; reuses _skills_common.literature_synthesis) wired in the hand-rolled main(), mirroring tumor-presence #965 / tumor-selectivity #968. + VERDICT-INERT claim-vector enrichment: CIViC therapy-resistance actionability (variant-level-interpretation.civic_resistance_variants) folded into the DEP claim's rendered evidence + LensConfig thesis, so the narrator surfaces a negative-predictive-biomarker allele (e.g. KRAS→anti-EGFR in COADREAD) it previously missed (capsule projection never surfaced resistance_variants). Verdict spine byte-stable.   # 2.13.0: +splice-exon-skip-landscape (CASE-002): curated exon-skip DRIVER (METex14) oncogenic in-indication + live DepMap carriers fires splice_exon_skip_driver (genomic resolver 1.8.0), so MET/LUAD reads a splice-skipping driver not a neutral missense_dominant_pattern (signal-vector fidelity; veto already resolved).   # 2.12.0: +reconcile_genomic_verdict: EMITTED-verdict alignment with the signal package (biomarker-dependency demotes to biomarker_dependency_unconfirmed when BOTH KO-dependency confidence cards contradict). Verdict-INERT to nomination (gate reads raw ladder). Mirrors tumor-presence #860.   # 2.11.0: +recurrent_snv_subclonal_uncertain (backtest-gated subclonal-recurrence demotion; contracts genomic_alteration 1.7.0)   # 2.10.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 2.9.0 (2026-08-27): wire signals-first sub-group signals (hand-rolled main bypassed
                           #        the fleet wiring) + tuned alteration value→tier map. Verdict-INERT.
 
 # Whole-cohort cards read on every run. The verdict is driven by the resolver (see _verdict);
@@ -766,9 +763,9 @@ def _build_headline(cards: list[dict], verdict: str, driving_rule: str | None,
     except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
         headline.setdefault("_enrichment_errors", {})["question_table"] = f"{type(exc).__name__}: {exc}"
         headline["question_table"] = None
-    # Hierarchy-derived sub-group signals (signals-first). Wired HERE because this skill hand-rolls
-    # main() and so bypasses the run_wired_skill fleet subgroup wiring; the tuned value→tier map gives
-    # the alteration vocabulary correct polarity. Verdict-INERT, best-effort (never abort the spine).
+    # Hierarchy-derived sub-group signals (signals-first). Wired HERE (rather than via run_wired_skill's
+    # generic post-headline wiring) so the key keeps its in-headline position; the tuned value→tier map
+    # gives the alteration vocabulary correct polarity. Verdict-INERT, best-effort (never abort the spine).
     try:
         _sg = subgroup_signals_for(Path(__file__).resolve().parent.parent, cards,
                                    classify=make_value_classifier(_GENOMIC_VALUE_TIERS),
@@ -807,8 +804,8 @@ def _build_headline(cards: list[dict], verdict: str, driving_rule: str | None,
 # (mirrors tumor-presence + functional-requirement). Lifts genomic-alteration's claim_vector (the
 # SNV/CN/FUS driver + DEP alteration-confers-dependency SIGNAL decomposition) + key_signals to the
 # composed synthesis, closing an arch-review gap (claim_vector was BUILT here but never surfaced to the
-# cross-lens layer). This skill hand-rolls main() (no run_wired_skill), so the facet reconstructs the
-# headline from the fan-out-resolved verdict_pair via _build_headline. VERDICT-INERT: nothing here
+# cross-lens layer). The fan-out does not run this skill's main()/run_wired_skill, so the facet
+# reconstructs the headline from the fan-out-resolved verdict_pair via _build_headline. VERDICT-INERT: nothing here
 # enters `fired`/the resolver; the fan-out treats an absent/failed facet as no-facet.
 _SYNTHESIS_FACET_KEYS = (
     "genomic_alteration_profile", "driving_rule_id",
@@ -1006,228 +1003,76 @@ def _llm_synthesis(cards, fired, verdict_pair, target, indication,
     return _narrate(decision, _LENS, model_id)
 
 
-def main() -> int:
-    # PERF DEFAULT (2026-08-24): this skill HAND-ROLLS main() (it does not go through
-    # run_wired_skill), so it never received the process-read-pool default that dispatcher.py sets
-    # at the run_wired_skill entrypoint (see dispatcher.py: os.environ.setdefault("SKILLS_READ_POOL",
-    # "process")). A standalone genomic-alteration CLI run reaches its 22 cards through resolve_cards
-    # on the MAIN thread of a single-threaded process, where the forked read pool is both safe and the
-    # fastest path (bypasses the GIL on the readers' pandas assembly — warm ERBB2/BRCA ~52s->~28s,
-    # byte-identical output). Opt this entrypoint in unless the caller/env already chose a pool; scoped
-    # HERE (not in resolve_cards) so the composed target-profile fan-out — which reads cards from
-    # ThreadPoolExecutor worker threads — keeps the conservative thread default and never forks
-    # unexpectedly. _read_cards_process still forks ONLY from a single-threaded main thread and degrades
-    # to threads otherwise, so this is safe even here; escape hatch: SKILLS_READ_POOL=thread.
-    import os
-    os.environ.setdefault("SKILLS_READ_POOL", "process")
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--target", required=True)
-    ap.add_argument("--indication", required=True)
-    ap.add_argument("--out", required=True, type=Path)
-    ap.add_argument("--modality", default=None,
-                    help="OPTIONAL post-hoc modality lens.")
-    ap.add_argument("--subtypes", default=None,
-                    help="OPTIONAL comma-separated molecular subtype/stratum ids "
-                         "(e.g. 'MSI,MSS'). When set, resolves the DESCRIPTIVE "
-                         "subgroup-stratified-mutation-frequency panorama across those strata. "
-                         "Does NOT affect the whole-cohort verdict (byte-stable regardless).")
-    ap.add_argument("--synthesize", action="store_true",
-                    help="OPT-IN: attach an LLM narration of the deterministic verdict + alteration "
-                         "mix + role + recurrence under decision['llm_synthesis']. NEVER alters the "
-                         "verdict spine (the decision is byte-identical without this flag).")
-    ap.add_argument("--synthesis-model", default=None,
-                    help="Override the Bedrock synthesis model id (default: framework Opus).")
-    ap.add_argument("--literature", action="store_true",
-                    help="OPT-IN: attach a verdict-INERT LLM LITERATURE lane (published-literature read "
-                         "of the SNV/CN/FUS/DEP genomic axes, Europe-PMC-grounded + PMID-verified) under "
-                         "decision['literature_synthesis'], AND feed it to the --synthesize narrator as a "
-                         "corroboration/contradiction lane. NEVER alters the verdict spine.")
-    ap.add_argument("--literature-model", default=None,
-                    help="Override the Bedrock model id for the --literature lane (default: framework Opus).")
-    # Data-provenance posture (mirrors the shared dispatcher's run_wired_skill argparse) so this
-    # hand-rolled main() emits the same run-level provenance block as dispatcher skills.
-    ap.add_argument("--data-mode", default="live",
-                    help="Data-provenance posture carried into the emitted provenance block.")
-    ap.add_argument("--release-pin", default=None,
-                    help="Optional catalog release pin carried into the emitted provenance block.")
-    args = ap.parse_args()
 
-    cards = resolve_cards(CARDS, args.target, args.indication)
-    # Correct the stratified-dependency family for multiplicity BEFORE firing rules. Mutates demoted
-    # cards in place; no-op when <2 classes fire (so single-class calls stay byte-stable).
-    fdr_provenance = _apply_family_wise_fdr(cards)
-    # #983 copy-number gate: demote a moderate_promiscuous fusion at a focally-amplified locus to an
-    # amplicon PASSENGER (promiscuous_amplicon_fusion) BEFORE rules fire, so it fires no driver rung and
-    # drops out of the multi-class framing. Idempotent + mirrors the registry composite the composed paths
-    # apply (compose_core / tp_fanout) → standalone == composed. Spares not-amplified kinase fusions.
-    amplicon_fusion_provenance = _apply_amplicon_fusion_demotion(cards)
-    fired = fired_rules(cards, axis="intracellular_intrinsic",
-                        card_id_filter=CARDS)
-    verdict, driving_rule = _verdict(fired)
+def _headline_fn(cards, fired, verdict_pair, preprocess_provenance=None):
+    """Dispatcher headline contract -> _build_headline. Unpacks verdict_pair + the per-gate card-
+    preprocessor provenance (preprocess_gate="genomic_alteration" returns {family_wise_fdr,
+    amplicon_fusion_demotion} -- the same two dicts the former hand-rolled main() computed inline)."""
+    verdict, driving_rule = verdict_pair if verdict_pair else (None, None)
+    _pp = preprocess_provenance or {}
+    return _build_headline(cards, verdict, driving_rule, _pp.get("family_wise_fdr") or {},
+                           fired=fired,
+                           amplicon_fusion_provenance=_pp.get("amplicon_fusion_demotion") or {})
 
-    # Optional subtype panorama (DESCRIPTIVE, --subtypes-gated) — separate from the verdict spine.
-    subtypes = [s.strip() for s in args.subtypes.split(",") if s.strip()] if args.subtypes else []
-    subtype_result = _resolve_subtype_panorama(args.target, args.indication, subtypes) if subtypes else None
 
-    headline = _build_headline(cards, verdict, driving_rule, fdr_provenance, fired=fired,
-                               amplicon_fusion_provenance=amplicon_fusion_provenance)
-
-    # Subtype panorama (only present when --subtypes was passed): surfaced for the LLM/render, but
-    # not a verdict input (spine byte-stable).
-    if subtype_result is not None:
-        headline["subtype_scope"] = subtype_result["scope_subtypes"]
-        # One headline block per subtype axis (SNV / CN / fusion) — display-only, verdict-inert.
-        axes = subtype_result["axes"]
-        for axis_key, projection in axes.items():
-            headline[axis_key] = projection
-        # Reflect the subtype panoramas in the by-scope breakdown (still verdict-inert: descriptive, no
-        # rung; the whole-cohort verdict is byte-stable regardless). evidence_present if ANY axis has data.
-        _snv = axes.get("subtype_axis") or {}
-        _any_data = any((ax.get("n_subgroups_with_data") or 0) >= 1 and not ax.get("_missing")
-                        for ax in axes.values())
-        headline["genomic_alteration_by_scope"]["subtype"] = {
-            "evidence_present":               bool(_any_data),
-            "subtype_mutation_pattern":       _snv.get("subtype_mutation_pattern"),
-            "subtype_cn_pattern":             (axes.get("subtype_cn_axis") or {}).get("subtype_cn_pattern"),
-            "subtype_fusion_pattern":         (axes.get("subtype_fusion_axis") or {}).get("subtype_fusion_pattern"),
-            "n_subgroups_with_data":          _snv.get("n_subgroups_with_data"),
-            "cross_subgroup_delta_frequency": _snv.get("cross_subgroup_delta_frequency"),
-            "scope_subtypes":                 subtype_result["scope_subtypes"],
-        }
-
-    lenses = None
-    invoked_lenses: dict = {}
-    if args.modality:
-        lenses = {args.modality: modality_lens(fired, args.modality)}
-        invoked_lenses["modality"] = args.modality
-
-    # The whole-cohort cards drive the verdict; the subtype panorama cards (if any) are appended to
-    # the emitted package + LLM, but are NOT in `fired` — they touch no rung.
-    emitted_cards = cards + (subtype_result["cards"] if subtype_result is not None else [])
-    if subtype_result is not None:
-        invoked_lenses["subtypes"] = subtype_result["scope_subtypes"]
-
-    # CENTRAL evidence-capsule wiring (mirrors dispatcher.py: headline["evidence_capsules"] =
-    # emit_capsules(card_outputs, indication)). This skill hand-rolls main() (no run_wired_skill), so it
-    # never received the dispatcher's capsule seam — WITHOUT it every capsule's measurement_type is
-    # absent and the downstream evidence_graph card↔question join has nothing to key on (all cards
-    # collapse to a single "Other" layer). Built from emitted_cards (whole-cohort + any subtype panorama)
-    # so the subtype-tier disambiguation has both tiers. VERDICT-INERT, best-effort (never break the
-    # spine); attached before make_decision_json so it flows to the narrator + literature lanes too.
-    try:
-        from _skills_common.evidence_capsule import emit_capsules
-        headline["evidence_capsules"] = emit_capsules(emitted_cards, args.indication)
-    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never break the spine
-        headline.setdefault("_enrichment_errors", {})["evidence_capsules"] = f"{type(exc).__name__}: {exc}"
-
-    # Run-level provenance + run_health — this skill hand-rolls main() (no run_wired_skill), so it must
-    # build the reproducibility block + health record the shared dispatcher injects, or the emitted
-    # decision.json is missing the envelope-required top-level `provenance` + `run_health` keys (the
-    # finalized data-product contract requires both). Best-effort provenance (never raises).
-    from _skills_common.envelope import build_subskill_provenance
-    from _skills_common.gitmeta import skills_repo_sha
-    _identity = next((c for c in emitted_cards if c.get("card_id") == "target-identity-summary"), None)
-    _resolver_pin = (_identity.get("summary") or {}).get("resolver_release_pin") if _identity else None
-    provenance = build_subskill_provenance(
-        emitted_cards, args.data_mode, args.release_pin, skills_repo_sha(),
-        resolver_release_pin=_resolver_pin,
-    )
-    decision = make_decision_json(
-        skill_name=SKILL_NAME,
-        target=args.target, indication=args.indication,
-        question=QUESTION.format(target=args.target, indication=args.indication),
-        card_outputs=emitted_cards, fired=fired,
-        headline=headline, modality_lenses=lenses, provenance=provenance,
-    )
-    # Per-subskill RUN-HEALTH record (observability; sibling key, never touches the verdict spine).
-    _cards_missing = sorted(c["card_id"] for c in emitted_cards if c.get("_missing"))
-    _cards_fired_ids = sorted({f.get("card_id") for f in fired if f.get("card_id")})
-    decision["run_health"] = {
-        "skill_name": SKILL_NAME,
-        "skill_version": SKILL_VERSION,
-        "status": "degraded" if _cards_missing else "ok",
-        "n_cards_consumed": len(emitted_cards),
-        "n_cards_resolved": sum(1 for c in emitted_cards if not c.get("_missing")),
-        "n_cards_fired": len(_cards_fired_ids),
-        "cards_fired": _cards_fired_ids,
-        "cards_missing": _cards_missing,
+def _subtype_merge_fn(headline: dict, subtype_result: dict) -> None:
+    """Bespoke subtype-panorama merge (run_wired_skill subtype_merge_fn) -- the dispatcher's generic
+    flat key-hoist cannot write the NESTED genomic_alteration_by_scope['subtype'] block. Mirrors the
+    former hand-rolled main() merge exactly: hoist each per-axis projection to a top-level headline key
+    + build the by-scope subtype sub-block. DESCRIPTIVE / verdict-INERT (touches no rung)."""
+    headline["subtype_scope"] = subtype_result["scope_subtypes"]
+    axes = subtype_result.get("axes")
+    if not axes:                       # panorama resolver degraded (no axes) -> nothing more to merge
+        return
+    for axis_key, projection in axes.items():
+        headline[axis_key] = projection
+    _snv = axes.get("subtype_axis") or {}
+    _any_data = any((ax.get("n_subgroups_with_data") or 0) >= 1 and not ax.get("_missing")
+                    for ax in axes.values())
+    headline["genomic_alteration_by_scope"]["subtype"] = {
+        "evidence_present":               bool(_any_data),
+        "subtype_mutation_pattern":       _snv.get("subtype_mutation_pattern"),
+        "subtype_cn_pattern":             (axes.get("subtype_cn_axis") or {}).get("subtype_cn_pattern"),
+        "subtype_fusion_pattern":         (axes.get("subtype_fusion_axis") or {}).get("subtype_fusion_pattern"),
+        "n_subgroups_with_data":          _snv.get("n_subgroups_with_data"),
+        "cross_subgroup_delta_frequency": _snv.get("cross_subgroup_delta_frequency"),
+        "scope_subtypes":                 subtype_result["scope_subtypes"],
     }
 
-    # FACTORED-RECORD SHADOW (M1) — additive, verdict-INERT: emit the factored claim record beside
-    # the legacy verdict spine, consumed by NOTHING. best-effort so a builder fault never breaks the
-    # run (the decision.json verdict is already composed above). Whole-cohort cards drive the verdict,
-    # so the shadow's provenance mirrors the whole-cohort `fired`/`cards` (not the subtype panorama).
-    try:
-        decision["claim_record_shadow"] = {"genomic_alteration": _claim_record(
-            cards, fired=fired, verdict_pair=(verdict, driving_rule))}
-    except Exception as e:  # noqa: BLE001 — shadow is non-authoritative; never break the spine
-        decision["claim_record_shadow"] = {"_shadow_error": f"{type(e).__name__}: {e}"}
 
-    # OPT-IN LLM LITERATURE lane (verdict-INERT). Attached as a SIBLING key
-    # decision['literature_synthesis'] AFTER the deterministic decision is composed and BEFORE the
-    # --synthesize narrator below, so the narrator can CITE it as a corroboration/contradiction lane
-    # (narrator_engine._render_literature ingests it). Mirrors the dispatcher seam (dispatcher.py 8a-iii);
-    # this skill hand-rolls main(), so it wires _LITERATURE_FN itself. Best-effort: a network/Bedrock
-    # failure degrades to a note and can never break the deterministic spine (attached after it).
-    if args.literature:
-        try:
-            decision["literature_synthesis"] = _LITERATURE_FN(
-                decision, args.literature_model)
-        except Exception as e:  # noqa: BLE001 — the literature lane is optional; never break the spine
-            decision["literature_synthesis"] = {
-                "_literature_error": f"{type(e).__name__}: {e}",
-                "_note": "LLM literature synthesis unavailable; the deterministic verdict above is unaffected.",
-            }
+def _claim_record_fn(cards, fired, verdict_pair) -> dict:
+    """run_wired_skill claim_record_fn -> decision['claim_record_shadow']. VERDICT-INERT M1 factored
+    record keyed by axis, mirroring the former hand-rolled main() shadow. Whole-cohort cards/fired."""
+    return {"genomic_alteration": _claim_record(cards, fired=fired, verdict_pair=verdict_pair)}
 
-    # OPT-IN LLM synthesis. This skill hand-rolls main() (it does not use run_wired_skill), so it
-    # narrates through the genomic-alteration lens here. Attached as a sibling key AFTER the
-    # deterministic decision is composed, so it structurally cannot alter the verdict spine; a
-    # synthesis failure (Bedrock auth/network) degrades to a note and never breaks the run.
-    if args.synthesize:
-        try:
-            decision["llm_synthesis"] = _narrate(decision, _LENS, args.synthesis_model)
-        except Exception as e:  # noqa: BLE001 — synthesis is optional; never break the spine
-            decision["llm_synthesis"] = {
-                "_synthesis_error": f"{type(e).__name__}: {e}",
-                "_note": "LLM synthesis unavailable; the deterministic verdict above is unaffected.",
-            }
 
-    # CENTRAL claim-graph projection (decision.headline.evidence_graph) — the additive, DISPLAY-ONLY
-    # projection the standalone evidence_graph_dashboard renders. This skill hand-rolls main() (no
-    # run_wired_skill), so it wires the graph itself, mirroring the dispatcher seam (dispatcher.py 8d) —
-    # AFTER the literature/llm_synthesis lanes above so their crosswalk + narrative anchoring are carried.
-    # Reads the canonical questions.yaml registry (DEP/SNV/CN/FUS/SPL). VERDICT-INERT, best-effort.
-    from _skills_common.evidence_graph import attach_evidence_graph
-    _eg_skill_dir = Path(__file__).resolve().parent.parent
-    # Shared seam (identical to the dispatcher + tp_fanout): builds the graph incl. per-card key_evidence,
-    # self-checks referential integrity, fail-soft (logs to headline['_enrichment_errors'], never raises).
-    attach_evidence_graph(decision, _eg_skill_dir)
-
-    # Canonical HEADLINE hero figure (figure_headline_hero.{svg,png,json}) — the one hero every skill
-    # emits, rendered offline from decision['headline']['headline_block']. This skill hand-rolls main()
-    # (no run_wired_skill / --figures gate); write_package COLLECTS whatever already exists under
-    # figures/, so emit into args.out/figures BEFORE write_package. Best-effort: a render fault must
-    # never break the run (the verdict spine + decision.json are already composed above).
-    try:
-        emit_headline_hero(decision, Path(args.out) / "figures")
-    except Exception as e:  # noqa: BLE001 — display-only figure; never break the spine
-        print(f"  (headline hero figure skipped: {type(e).__name__}: {e})")
-
-    written = write_package(
-        out_dir=args.out,
-        decision=decision,
-        card_outputs=emitted_cards,
-        target=args.target,
-        indication=args.indication,
+def main() -> int:
+    """genomic-alteration-profile runs through the shared run_wired_skill dispatcher (was a hand-rolled
+    main()). The dispatcher owns: the SKILLS_READ_POOL default, argparse (incl --subtypes / --modality /
+    --synthesize / --literature / --data-mode / --release-pin / --figures), resolve_cards, the family-wise-
+    FDR + copy-number-gated amplicon-fusion card preprocessors (preprocess_gate), fired_rules, the verdict,
+    evidence_capsules, provenance + run_health, the evidence_graph projection, and write_package. This skill
+    supplies verdict_fn/_headline_fn (the latter receives the preprocessor provenance via the dispatcher's
+    signature-introspected preprocess_provenance kwarg), the --subtypes panorama (+ its bespoke nested
+    by-scope merge), the GENOMIC_ALTERATION synthesis + literature lanes, and the M1 claim-record shadow.
+    The in-headline subgroup-signals wiring stays in _build_headline (the dispatcher's generic fleet wiring
+    then setdefault-no-ops on it), preserving the emitted headline key order."""
+    return run_wired_skill(
         skill_name=SKILL_NAME,
         skill_version=SKILL_VERSION,
-        invoked_lenses=invoked_lenses,
+        cards=CARDS,
+        axis="intracellular_intrinsic",
+        question=QUESTION,
+        verdict_fn=_verdict,
+        headline_fn=_headline_fn,
+        preprocess_gate="genomic_alteration",
+        subtype_panorama_fn=_resolve_subtype_panorama,
+        subtype_merge_fn=_subtype_merge_fn,
+        claim_record_fn=_claim_record_fn,
+        synthesize_fn=make_synthesize_fn(_LENS),
+        literature_fn=_LITERATURE_FN,
     )
-    print(f"wrote data-package to {args.out}")
-    print(f"  tables: {len(written['tables'])}  figures: {len(written['figures'])}")
-    print()
-    print(json.dumps(headline, indent=2, default=str))
-    return 0
+
 
 
 if __name__ == "__main__":

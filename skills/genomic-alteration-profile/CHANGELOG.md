@@ -4,6 +4,26 @@ Development history for the skill. The `SKILL.md` header describes the CURRENT
 contract only; dated design decisions and reclassification notes live here so the
 contract stays readable.
 
+## 2026-09-06 (v2.17.0)
+MIGRATED off the hand-rolled `main()` onto the shared `run_wired_skill` dispatcher — genomic-alteration-profile
+was the last hand-rolled fan-out `main()`, so every fan-out skill now shares one dispatcher path. Enabled by 3
+ADDITIVE, None/signature-gated dispatcher hooks (byte-stable for the other 14 skills):
+- `preprocess_provenance` is threaded into `headline_fn` via signature introspection, so `_build_headline`
+  receives the family-wise-FDR + copy-number-gated amplicon-fusion provenance the `preprocess_gate=
+  "genomic_alteration"` preprocessor computes (the same two functions the old `main()` called inline);
+- `subtype_merge_fn` — a bespoke `--subtypes` merge hook (the dispatcher's generic flat merge cannot write
+  genomic's NESTED `genomic_alteration_by_scope['subtype']` block);
+- `claim_record_fn` — attaches the M1 `claim_record_shadow` (genomic is the only skill that emits it standalone).
+
+The deterministic verdict spine + the entire headline are byte-IDENTICAL on the whole-cohort path.
+Fleet-alignment deltas (all verdict-INERT, no test/schema pinned them):
+- `run_health` adopts the fleet-standard shape (adds `read_secs`/`compute_secs`/`total_secs`,
+  `provenance_warnings`, `cards_skipped_a4`); core status/counts unchanged.
+- a `consolidation` sibling key is now emitted (fleet-standard).
+- the headline-hero figure is now `--figures`-gated (was emitted unconditionally); matches every other skill.
+- on `--subtypes`, the 3 panorama cards now receive whole-cohort `evidence_capsules` (fleet capsule source),
+  so their `evidence_graph` nodes render at base detail — the panorama block itself is byte-identical.
+
 ## 2026-09-03 (v2.15.0)
 Verdict-INERT signals-first fidelity fixes surfaced by the KRAS/COADREAD-vs-MET/LUAD literature-benchmark
 review (follow-up to v2.14.0 #982). The multi-class resolver spine is byte-stable throughout.
