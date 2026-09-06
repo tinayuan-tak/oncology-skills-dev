@@ -220,12 +220,6 @@ def _build_headline_block(headline: dict) -> dict:
                                          or _surface_verdict_by_modality(headline.get("surface_modality_verdict"))))
 
 
-def _emit_skill_figures(decision, figures_root):
-    """--figures emitter: the canonical headline hero (verdict · confidence · top tension). Additive /
-    display-only; best-effort (returns [] when the decision predates the headline block)."""
-    return emit_headline_hero(decision, figures_root)
-
-
 SKILL_NAME = "surface-modality-fit"
 SKILL_VERSION = "1.9.0"   # 1.9.0 (2026-09-04) Phase-6 VERDICT-MOVING: consume the TC surface_annotation_only_unconfirmed verdict (resolver v1.7.0). Cross-card surface_confirmation_state derived by the NEW surface_modality card preprocessor (registered + run_wired_skill preprocess_gate); _compose_adc_tce_fit emits biologics_precedented (widened ADC/TCE/CAR crosswalk). A positive fit_class resting on family/predicted-topology annotation w/o confirmed protein or clinical precedent → NON-NOMINATING caveat. DLL3/CEACAM5 spared (clinically_precedented). Depends TC #631.   # 1.8.0 (2026-09-04): --literature lane + VERDICT-INERT surfacing (surface_confirmation_caveat = surfaceome-family/RNA/predicted-topology annotation-INFLATION flag when a positive fit_class lacks confirmed cell-surface protein; endocytosis-unmeasured ADC sub-note; shed_caveat soluble-antigen-sink arm; SURFACE_MODALITY_FIT thesis + polarity_note). Spine byte-stable (resolver keys only on fit_class + safety/density/shed rungs).   # 1.7.0 (2026-09-04, #979): consume the MIDDLE antigen-escape band (escape_risk_patient_variable) — VERDICT-MOVING: two positive-caveated verdicts (adc_preferred_tce_patient_variable / tce_patient_variable) temper the TCE arm without foreclosing it.   # 1.6.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.5.0 (2026-08-27): tuned signals-first sub-group reader (surface-modality vocab). Verdict-INERT.
                           # 1.4.0 (2026-08-21): emit existing per-question question_table into the headline; 1.3.0 +sc-surface-normal-safety +sc-surface-rna-protein-concordance
@@ -1058,7 +1052,7 @@ if __name__ == "__main__":
         literature_fn=make_literature_fn(_LENS, retrieve_fn=default_retrieve, verify_fn=verify_citations),
         # Skill-level graphics (opt-in --figures): the canonical headline hero (verdict · confidence ·
         # top tension). Additive / display-only.
-        skill_figures_fn=_emit_skill_figures,
+        skill_figures_fn=emit_headline_hero,
         # Signals-first: tuned sub-group reader for the surface-modality vocabulary. Verdict-INERT.
         subgroup_classify=make_value_classifier(_SURFACE_VALUE_TIERS),
         # Phase-6 (2026-09-04, VERDICT-MOVING): opt the standalone wired path into the surface_modality card

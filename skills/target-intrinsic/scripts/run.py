@@ -590,13 +590,6 @@ def _synthesis_facet(cards, fired, verdict_pair=None, target=None, indication=No
     return facet
 
 
-def _emit_skill_figures(decision, figures_root):
-    """Skill-level graphics (opt-in --figures): the canonical headline hero (descriptive dominant-signal
-    phrase · confidence · top tension). Additive / display-only; offline (reads only
-    decision['headline']['headline_block'])."""
-    return emit_headline_hero(decision, figures_root)
-
-
 if __name__ == "__main__":
     sys.exit(run_wired_skill(
         skill_name=SKILL_NAME,
@@ -622,7 +615,7 @@ if __name__ == "__main__":
         literature_fn=make_literature_fn(_LENS, retrieve_fn=default_retrieve, verify_fn=verify_citations),
         # Skill-level graphics (opt-in --figures): the canonical headline hero (descriptive mode).
         # Additive / display-only; the descriptive dossier is byte-stable without it.
-        skill_figures_fn=_emit_skill_figures,
+        skill_figures_fn=emit_headline_hero,
         # Signals-first: tuned sub-group reader for the target-intrinsic vocabulary. Verdict-INERT.
         subgroup_classify=make_value_classifier(_TARGET_INTRINSIC_VALUE_TIERS),
     ))

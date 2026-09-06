@@ -211,12 +211,6 @@ def _build_headline_block(headline: dict) -> dict:
                           verdict_polarity=_cis_coherence_verdict_polarity(v))
 
 
-def _emit_skill_figures(decision, figures_root):
-    """--figures emitter: the canonical headline hero (verdict · confidence · top tension). Additive /
-    display-only, offline, best-effort (missing block → [], spine unaffected)."""
-    return emit_headline_hero(decision, figures_root)
-
-
 def _slope_ratio(protein_slope, mrna_slope):
     """mRNA-vs-protein dosage-buffering ratio = protein_slope / mrna_slope (VERDICT-INERT fingerprint).
 
@@ -618,7 +612,7 @@ if __name__ == "__main__":
         # decision['literature_synthesis']; never moves the fixed cis_coherence_verdict.
         literature_fn=make_literature_fn(_LENS, retrieve_fn=default_retrieve, verify_fn=verify_citations),
         # Skill-level graphics (opt-in --figures): the canonical headline hero. Additive / display-only.
-        skill_figures_fn=_emit_skill_figures,
+        skill_figures_fn=emit_headline_hero,
         # Signals-first: tuned sub-group reader for the cis-coherence vocabulary. Verdict-INERT.
         subgroup_classify=make_value_classifier(_CIS_VALUE_TIERS),
     ))

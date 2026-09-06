@@ -210,12 +210,6 @@ def _build_headline_block(headline: dict) -> dict:
                           verdict_polarity=pol)
 
 
-def _emit_skill_figures(decision, figures_root):
-    """--figures emitter: the canonical headline hero (verdict · confidence · top tension). Additive /
-    display-only, offline, best-effort (missing block → [], spine unaffected)."""
-    return emit_headline_hero(decision, figures_root)
-
-
 # ── VERDICT-INERT enrichment: the bulk-CIBERSORT-CD8-fraction annotation-INFLATION surface ────────────
 # The immune-context analog of surface-modality-fit's surface_confirmation_caveat and mechanism's
 # mechanism_confirmation_caveat. A bulk CIBERSORT LM22 CD8 FRACTION over-calls actual SPATIAL T-cell
@@ -532,7 +526,7 @@ if __name__ == "__main__":
         # NET-NEW capsule-driven narrator (generic engine + this lens's LensConfig).
         synthesize_fn=make_synthesize_fn(_LENS),
         # Skill-level graphics (opt-in --figures): the canonical headline hero. Additive / display-only.
-        skill_figures_fn=_emit_skill_figures,
+        skill_figures_fn=emit_headline_hero,
         # Signals-first: tuned sub-group reader for the immune-context vocabulary. Verdict-INERT.
         subgroup_classify=make_value_classifier(_IMMUNE_VALUE_TIERS),
         # Opt-in --literature: a VERDICT-INERT literature corroboration/contradiction lane (mirrors surface

@@ -68,12 +68,6 @@ _TRACT_VALUE_TIERS = {
 }
 
 
-def _emit_skill_figures(decision, figures_root):
-    """Skill-level graphics (opt-in --figures): the canonical headline hero (verdict · confidence · top
-    tension). Additive / display-only, offline, best-effort — mirrors tumor-presence."""
-    return emit_headline_hero(decision, figures_root)
-
-
 # ── canonical HEADLINE block (verdict + confidence + top tension) ─────────────────────────────────
 # The tractability-small-molecule declaration for the shared headline_core builder: the 5 POSITIVE-valence
 # claim axes (POTENCY / ACTIVITY / STRUCT / DRUG / DEGRADER), the druggability_snapshot vocabulary → human
@@ -736,7 +730,7 @@ if __name__ == "__main__":
         headline_fn=_headline,
         # Skill-level graphics (opt-in --figures): the canonical headline hero (verdict · confidence ·
         # top tension). Additive / display-only; mirrors tumor-presence.
-        skill_figures_fn=_emit_skill_figures,
+        skill_figures_fn=emit_headline_hero,
         # Opt-in --synthesize narrates through the SMALL-MOLECULE tractability lens — its own tool schema
         # + prompt, foregrounding ON-TARGET-chemical vs FORWARD-structural vs neither (a discordant read
         # ARGUES AGAINST), plus the additive degrader read. Two-slot / verdict-inert: the dispatcher

@@ -1136,12 +1136,6 @@ _SYNTHESIS_FACET_KEYS = (
 )
 
 
-def _emit_skill_figures(decision, figures_root):
-    """Skill-level graphics (opt-in --figures): the canonical headline hero (verdict · confidence · top
-    tension). Additive / display-only; offline (reads only decision['headline']['headline_block'])."""
-    return emit_headline_hero(decision, figures_root)
-
-
 def _synthesis_facet(cards, fired, verdict_pair):
     """Compact, VERDICT-INERT dependency facet for the composed target-profile synthesis prompt.
     Reuses `_headline` (single source of truth) and returns the reconciliation-relevant subset.
@@ -1246,7 +1240,7 @@ if __name__ == "__main__":
         # resolver rung, so the dependency verdict is byte-identical without --subtypes.
         subtype_panorama_fn=_resolve_dependency_subtype_panorama,
         # Skill-level graphics (opt-in --figures): the canonical headline hero. Additive / display-only.
-        skill_figures_fn=_emit_skill_figures,
+        skill_figures_fn=emit_headline_hero,
         # Signals-first: tuned sub-group reader for the dependency vocabulary (correct polarity +
         # paralog-buffering as confidence-only). Verdict-INERT — feeds subgroup_signals / the narrator.
         subgroup_reader_spec=_FR_SUBGROUP_READER,

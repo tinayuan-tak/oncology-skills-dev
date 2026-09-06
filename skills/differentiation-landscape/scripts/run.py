@@ -490,12 +490,6 @@ def _build_headline_block(headline: dict) -> dict:
                           verdict_polarity=_differentiation_verdict_polarity(v))
 
 
-def _emit_skill_figures(decision, figures_root):
-    """--figures emitter: the canonical headline hero (verdict · confidence · top tension). Additive /
-    display-only, offline, best-effort (missing block → [], spine unaffected)."""
-    return emit_headline_hero(decision, figures_root)
-
-
 # ── (strength, certainty) SIDECAR — CERTAINTY_MODEL.md. ADDITIVE + verdict-INERT. Differentiation is a
 #    NON-GATING descriptive axis; certainty is coverage + unknown_mass only here — corroboration reads
 #    `unmeasured` because the only verdict-DISJOINT corroborator (TCGA<->GENIE per-source direction
@@ -789,7 +783,7 @@ if __name__ == "__main__":
         # TMB-MSI / patient-selection / combination trap. Spine byte-stable (the lane cannot touch the verdict).
         literature_fn=make_literature_fn(_LENS, retrieve_fn=default_retrieve, verify_fn=verify_citations),
         # Skill-level graphics (opt-in --figures): the canonical headline hero. Additive / display-only.
-        skill_figures_fn=_emit_skill_figures,
+        skill_figures_fn=emit_headline_hero,
         partial_status_note=PARTIAL_STATUS_NOTE,
         # Signals-first: tuned sub-group reader for the differentiation vocabulary. Verdict-INERT.
         subgroup_classify=make_value_classifier(_DIFFERENTIATION_VALUE_TIERS),

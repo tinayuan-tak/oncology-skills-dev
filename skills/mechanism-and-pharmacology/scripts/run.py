@@ -422,12 +422,6 @@ def _build_headline_block(headline: dict) -> dict:
                           verdict_polarity=_mechanism_verdict_polarity(v))
 
 
-def _emit_skill_figures(decision, figures_root):
-    """--figures emitter: the canonical headline hero (verdict · confidence · top tension). Additive /
-    display-only, offline, best-effort (missing block → [], spine unaffected)."""
-    return emit_headline_hero(decision, figures_root)
-
-
 def _headline(cards, fired, verdict_pair, target=None):
     """Skill-specific headline: SIGNOR-network descriptive fields + verdict-inert facets.
 
@@ -635,7 +629,7 @@ if __name__ == "__main__":
         literature_fn=make_literature_fn(_LENS, retrieve_fn=default_retrieve, verify_fn=verify_citations),
         isoform_check_target=True,          # warn on p95HER2 / AR-V7 / etc.
         # Skill-level graphics (opt-in --figures): the canonical headline hero. Additive / display-only.
-        skill_figures_fn=_emit_skill_figures,
+        skill_figures_fn=emit_headline_hero,
         # Signals-first: tuned sub-group reader for the mechanism vocabulary. Verdict-INERT.
         subgroup_classify=make_value_classifier(_MECHANISM_VALUE_TIERS),
     ))

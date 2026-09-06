@@ -307,12 +307,6 @@ def _build_headline_block(headline: dict) -> dict:
                           verdict_polarity=_safety_verdict_polarity(v))
 
 
-def _emit_skill_figures(decision, figures_root):
-    """--figures emitter: the canonical headline hero (verdict · confidence · top tension). Additive /
-    display-only, offline, best-effort (missing block → [], spine unaffected)."""
-    return emit_headline_hero(decision, figures_root)
-
-
 # ── FACTORED-RECORD SHADOW (M1) — the SAFETY per-axis builder, and the axis that best exercises the
 #    record's `modality_scope` coordinate (VERDICT_REPRESENTATION §8): a WT-loss safety concern is
 #    modality-CONDITIONAL, not a scalar. It opposes an engages-WT biologic (degrader/RNA), is only
@@ -620,7 +614,7 @@ if __name__ == "__main__":
         verdict_fn=_verdict,
         headline_fn=_headline,
         # Skill-level graphics (opt-in --figures): the canonical headline hero. Additive / display-only.
-        skill_figures_fn=_emit_skill_figures,
+        skill_figures_fn=emit_headline_hero,
         partial_status_note=PARTIAL_STATUS_NOTE,
         # Signals-first: tuned sub-group reader for the safety-LIABILITY vocabulary (note the polarity
         # inversion vs the dependency lens). Verdict-INERT.
