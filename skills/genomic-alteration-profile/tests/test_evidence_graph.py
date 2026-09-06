@@ -50,17 +50,22 @@ def test_fixture_capsules_carry_measurement_type(eg_decision):
 
 
 # ── Phase 0 registry sanity ──────────────────────────────────────────────────────────────────────
-def test_questions_registry_loads_five(eg_questions):
+def test_questions_registry_loads_six(eg_questions):
     ids = [q["id"] for q in eg_questions]
+    # splice is TWO questions: the exon-skip DRIVER (verdict) + a display_only splice-form DYSREGULATION
+    # context question (no axis_id) so dysregulation cards don't read as evidence against "no driver".
     assert ids == ["snv_indel_class", "copy_number_driver", "fusion_driver", "splice_driver",
-                   "alteration_conferred_dependency"]
+                   "splice_dysregulation", "alteration_conferred_dependency"]
     axes = {q["axis_id"] for q in eg_questions if q.get("axis_id")}
-    assert axes == {"SNV", "CN", "FUS", "SPL", "DEP"}
-    # class questions mirror the emitted genomic_question_table ids; the DEP question has no class row
+    assert axes == {"SNV", "CN", "FUS", "SPL", "DEP"}   # splice_dysregulation has NO axis_id
+    roles = {q["id"]: q.get("role") for q in eg_questions}
+    assert roles["splice_driver"] == "verdict_bearing" and roles["splice_dysregulation"] == "display_only"
+    assert next(q for q in eg_questions if q["id"] == "splice_dysregulation").get("axis_id") is None
+    # class questions mirror the emitted genomic_question_table ids; DEP + splice_dysregulation have no class row
     legacy = {q["id"]: q.get("legacy_id") for q in eg_questions}
     assert legacy["snv_indel_class"] == "SNV" and legacy["copy_number_driver"] == "CN"
     assert legacy["fusion_driver"] == "Fusion" and legacy["splice_driver"] == "Splice"
-    assert legacy["alteration_conferred_dependency"] is None
+    assert legacy["alteration_conferred_dependency"] is None and legacy.get("splice_dysregulation") is None
 
 
 # ── role partition ─────────────────────────────────────────────────────────────────────────────────
@@ -74,13 +79,16 @@ def test_role_partition(eg_graph):
 # ── reconstruction: questions → cards (per-alteration-class), no orphans ────────────────────────────
 def test_reconstruct_questions_and_cards(eg_graph):
     qs = {q["id"]: q for q in eg_graph["questions"]}
-    assert len(qs) == 5
+    assert len(qs) == 6
     assert set(qs["copy_number_driver"]["card_ids"]) == {
         "copy-number-distribution", "copy-number-stratified-dependency", "amp-expr-stratified-dependency"}
     assert set(qs["fusion_driver"]["card_ids"]) == {
         "fusion-rearrangement-landscape", "fusion-stratified-dependency"}
-    assert set(qs["splice_driver"]["card_ids"]) == {
-        "splice-exon-skip-landscape", "tumor-splice-dysregulation", "tumor-splice-expression"}
+    # the DRIVER question anchors ONLY the exon-skip card; the splice-FORM cards route to the display_only
+    # dysregulation question so "no driver" is not conflated with "dysregulation present".
+    assert set(qs["splice_driver"]["card_ids"]) == {"splice-exon-skip-landscape"}
+    assert set(qs["splice_dysregulation"]["card_ids"]) == {
+        "tumor-splice-dysregulation", "tumor-splice-expression"}
     assert set(qs["alteration_conferred_dependency"]["card_ids"]) == {
         "cross-consortium-dependency", "dependency-predictability", "genomic-event-model-match"}
     # the SNV question anchors the driving mutation-stratified-dependency card + the mutation facets

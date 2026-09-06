@@ -27,6 +27,13 @@
 #   => SNV->[snv_indel_class]  CN->[copy_number_driver]  FUS->[fusion_driver]
 #      SPL->[splice_driver]    DEP->[alteration_conferred_dependency]
 #
+# DRIVER vs DYSREGULATION (why splice is TWO questions): the SPL claim/literature axis is the exon-skip
+# DRIVER call (genomic_claims._spl_signal reads only the splice-exon-skip verdict). The TCGA-SpliceSeq
+# splice-FORM cards (tumor-splice-dysregulation / -expression) are VERDICT-INERT display context — they
+# fire no rule and must NOT read as evidence for/against the driver. So they live under a SEPARATE
+# display_only `splice_dysregulation` question with NO axis_id (deliberately excluded from the SPL
+# literature crosswalk, which stays SPL->[splice_driver]); `splice_driver` keeps ONLY splice_exon_skip.
+#
 # NOTE (no subtype question): the by-subtype panorama cards (subgroup-stratified-mutation-frequency /
 # -copy-number / -fusion, tier=subtype) are --subtypes-gated and ABSENT from standard runs. A
 # subtype:true question would, in a standard run where their measurement_types are NOT ambiguous,
@@ -70,9 +77,14 @@ questions:
   text: Recurrent exon-skipping driver (e.g. METex14)?
   axis_id: SPL
   role: verdict_bearing
-  measurement_types: [splice_exon_skip, tumor_splice_dysregulation, tumor_splice_expression]
-- id: alteration_conferred_dependency
+  measurement_types: [splice_exon_skip]
+- id: splice_dysregulation
   seq: 5
+  text: "Splice-form context: is {target.symbol} alternatively spliced / splice-dysregulated in {indication.label} tumours? (display-only — NOT the exon-skip driver call)"
+  role: display_only
+  measurement_types: [tumor_splice_dysregulation, tumor_splice_expression]
+- id: alteration_conferred_dependency
+  seq: 6
   text: Is the alteration-conferred dependency corroborated (cross-consortium · predictability · model-matched)?
   axis_id: DEP
   role: verdict_bearing
