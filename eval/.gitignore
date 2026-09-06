@@ -1,3 +1,7 @@
 scorecard.json
 known_target_panel_report.json
 known-target-packages/
+# Live harvest artifacts — non-reproducible Opus lane output + derived ledgers.
+# Snapshots are pinned corpora produced on demand (harvest_literature.py), not source.
+literature-snapshots/
+discordance_ledger.json

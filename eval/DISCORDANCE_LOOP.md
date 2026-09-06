@@ -47,15 +47,25 @@ verified citation — mirrors `literature-risk-assessment/scripts/risk_rollup.py
 (`engine_literature_discordance`, escalate-only). Concordant (`agree`/`extends`) axes yield no
 row.
 
-## Component 2 — the harvest (live, gated on go-ahead)
+## Component 2 — the harvest (`harvest_literature.py`, live)
 
-Extends `run_known_target_panel.py` (or a sibling `harvest_literature.py`): run the
-calibration-set targets with the lane ON, **snapshot** each `literature_synthesis` into a pinned
-corpus (mirror `eval/known-target-packages/`), then feed Component 1. Because the lane is NOT
-bit-reproducible (Opus, model-default temperature), the ledger is computed once over a frozen
-snapshot and reviewed — never re-rolled live. Env: `AWS_PROFILE=cbg` (emit) +
-`BEDROCK_AWS_PROFILE=cmp-dev` (Opus lane). Cost is bounded to the ~dozens of calibration targets
-(NOT a blind 15×213 sweep — see the plan §5 for the staged expansion).
+Runs the fan-out (`_run_sub_skills`) with the `--literature` lane ON for a set of
+(target, indication) pairs, **snapshots** each `literature_synthesis` (joined with its
+sub-verdict + claim_vector) into a pinned corpus dir, then optionally feeds Component 1.
+Because the lane is NOT bit-reproducible (Opus, model-default temperature), the ledger is
+computed once over the frozen snapshot and reviewed — never re-rolled live. Snapshots and the
+derived ledger are gitignored (run artifacts, not source).
+
+```bash
+AWS_PROFILE=cbg BEDROCK_AWS_PROFILE=cmp-dev pixi run python eval/harvest_literature.py \
+    --use-calibration-pairs --literature-scope gating \
+    --calibration-set ../rnd-computational-biology-oncology-target-contracts/vocabularies/known_target_calibration_set.yaml \
+    --snapshot-dir eval/literature-snapshots --build-ledger
+```
+
+`--literature-scope gating` bounds Bedrock spend to the gating axes. Keep the pair list to the
+calibration set (dozens), NOT a blind 15×213 fleet sweep — see the plan §5 for the staged
+expansion. Env: `AWS_PROFILE=cbg` (live readers) + `BEDROCK_AWS_PROFILE=cmp-dev` (Opus lane).
 
 ## Component 3 — triage + fix (propose-only)
 
