@@ -20,19 +20,17 @@ name: contracts-validate
 # check runs fully from this repo alone.
 #
 # Plain `python` invocation (no pixi in this repo) — mirrors framework-health.yml.
+#
+# Runs on EVERY pull_request (no `paths:` filter): the validators re-check the whole
+# contract set from the repo, so this passes cheaply (~1.5 min) on PRs that don't touch
+# contracts and fails on any that break them. This is a prerequisite for making
+# `contracts-validate` a REQUIRED status check — a required check whose workflow is
+# path-filtered sits "Expected — waiting" forever on a PR that doesn't match the paths,
+# deadlocking it. Running unconditionally makes the check always report so it can be
+# required safely. (The push trigger stays path-scoped — it only gates main-branch pushes.)
 
 on:
   pull_request:
-    paths:
-      - "cards/**"
-      - "interpretation-rules/**"
-      - "resolvers/**"
-      - "dashboards/**"
-      - "schemas/**"
-      - "vocabularies/**"
-      - "validators/**"
-      - "tests/**"
-      - ".github/workflows/contracts-validate.yml"
   push:
     branches: [main]
     paths:
