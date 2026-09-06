@@ -56,6 +56,64 @@ def test_prompt_is_grounded_in_omics_axes():
     assert "not elevated vs adjacent normal" in p   # the omics caveat is carried in
 
 
+def test_prompt_tags_axis_measured_state():
+    """Every axis line is tagged [MEASURED] / [NO-OMICS-DATA] so the model can't confuse a measured floor
+    (signal=absent) with a genuine coverage gap. _decision()'s axes A/B/C/D are all measured (B=absent is a
+    MEASURED floor); flipping D to `unmeasured` must surface a NO-OMICS-DATA tag."""
+    # `]:` isolates AXIS-LINE tags from the header prose (which also mentions both tokens).
+    p = lit.build_literature_prompt(_decision(), LENS)
+    assert "[MEASURED]:" in p and "[NO-OMICS-DATA]:" not in p   # absent (axis B) is a MEASURED floor, not a gap
+    d = _decision()
+    d["headline"]["claim_vector"]["D"] = {"signal": "unmeasured", "corroboration": "unmeasured", "evidence": ""}
+    assert "[NO-OMICS-DATA]:" in lit.build_literature_prompt(d, LENS)
+
+
+def test_axis_measured_state_signal_tiers():
+    st = lit.axis_measured_state(_decision(), LENS)
+    assert st["A"]["measured"] and st["B"]["measured"]        # strong + absent (a measured floor) are MEASURED
+    d = _decision()
+    d["headline"]["claim_vector"]["B"] = {"signal": "negative", "corroboration": "low", "evidence": "wrong dir"}
+    d["headline"]["claim_vector"]["D"] = {"signal": "unmeasured", "corroboration": "unmeasured", "evidence": ""}
+    st = lit.axis_measured_state(d, LENS)
+    assert st["B"]["measured"]                                 # negative (measured, wrong direction) is MEASURED
+    assert not st["D"]["measured"]                             # unmeasured is a GAP
+    # an atom-less axis the claim vector leaves ambiguous is UPGRADED by a measured capsule (cross-check)
+    d["headline"]["claim_vector"]["D"] = {"evidence_atom": {"cite": {"card_id": "some-card"}}}
+    d["headline"]["evidence_capsules"] = {"capsules": {"some-card": {"evidence_state": "measured", "class": "hi"}}}
+    st = lit.axis_measured_state(d, LENS)
+    assert st["D"]["measured"] and st["D"]["class"] == "hi"
+
+
+def test_reground_agreement_rewrites_measured_unavailable():
+    """The deterministic guard: a MEASURED axis wrongly tagged omics_unavailable/omics_blind is rewritten to
+    `extends` (+ audit breadcrumb); a genuine NO-OMICS-DATA axis and any already-valid read are untouched."""
+    states = {"A": {"measured": True}, "B": {"measured": True}, "D": {"measured": False}}
+    result = {"axes": [
+        {"axis_key": "A", "agreement_vs_omics": "omics_unavailable"},   # measured → rewrite
+        {"axis_key": "B", "agreement_vs_omics": "omics_blind"},         # measured → rewrite
+        {"axis_key": "D", "agreement_vs_omics": "omics_unavailable"},   # NO-OMICS-DATA → keep
+        {"axis_key": "C", "agreement_vs_omics": "contradicts"},         # already valid → keep (C absent from states)
+    ]}
+    lit._reground_agreement(result, states)
+    by = {a["axis_key"]: a for a in result["axes"]}
+    assert by["A"]["agreement_vs_omics"] == "extends" and by["A"]["agreement_regrounded"] is True
+    assert by["B"]["agreement_vs_omics"] == "extends"
+    assert by["D"]["agreement_vs_omics"] == "omics_unavailable" and "agreement_regrounded" not in by["D"]
+    assert by["C"]["agreement_vs_omics"] == "contradicts"
+
+
+def test_synthesize_regrounds_measured_axis(monkeypatch):
+    """End-to-end: a stubbed model tags the MEASURED axis B (signal=absent) omics_unavailable; the lane's
+    post-pass corrects it to extends before returning."""
+    canned = {"axes": [{"axis_key": "B", "literature_read": "supports", "assertion": "adjacent EpCAM-high",
+                        "agreement_vs_omics": "omics_unavailable", "confidence": "high", "citations": []}],
+              "blind_spots": [], "overall_consistency": "concordant", "key_divergence": "none"}
+    monkeypatch.setattr("_skills_common.llm.synthesize_structured", lambda **k: canned)
+    out = lit.synthesize_literature(_decision(), LENS, model_id="stub")
+    assert out["axes"][0]["agreement_vs_omics"] == "extends"
+    assert out["axes"][0]["agreement_regrounded"] is True
+
+
 def test_make_literature_fn_returns_synth_output(monkeypatch):
     canned = {"axes": [{"axis_key": "B", "literature_read": "supports", "assertion": "adjacent colon is EpCAM-high",
                         "agreement_vs_omics": "agree", "confidence": "high", "citations": []}],

@@ -17,6 +17,11 @@ HONESTY DISCIPLINE (this lane brings EXTERNAL knowledge, so it is NOT evidence-o
   * the model must set ``citation.verified=false`` UNLESS it is certain of the PMID/DOI;
   * it must prefer ``literature_read='not_addressed'`` over speculation;
   * it must ground ``agreement_vs_omics`` in the omics signals shown to it, never restate them as literature.
+GROUNDING: each axis is tagged ``[MEASURED]`` / ``[NO-OMICS-DATA]`` in the prompt (from the claim-vector
+``signal`` tier via ``SIGNAL_ORD`` — a measured floor ``absent`` / wrong-direction ``negative`` counts as
+MEASURED), the system prompt reserves ``omics_unavailable`` / ``omics_blind`` for ``[NO-OMICS-DATA]`` axes,
+and a deterministic post-pass (``_reground_agreement``) rewrites any measured axis the model still tagged
+unavailable/blind to ``extends`` — so a MEASURED axis can NEVER be reported as unmeasured.
 A live retrieval + PMID-verification backend (Europe PMC / NCBI) is a documented FOLLOW-ON, wired via the
 optional ``retrieve_fn`` hook: when provided, its abstracts are injected to GROUND the synthesis (and only
 then may citations be marked verified); without it, the model uses internal knowledge and every citation
@@ -27,6 +32,11 @@ from typing import Callable, Optional
 
 # Reuse the fleet lens contract so the literature lane and the narrator share axes/thesis/scope.
 from _skills_common.narrator_engine import LensConfig
+# SIGNAL_ORD is the fleet's canonical measured-vs-gap contract: a measured tier (strong/moderate/weak/
+# absent/negative) maps to an int, while `unmeasured` (a GAP) maps to None. We ground the agreement lane
+# on it so a MEASURED axis — including a measured floor (`absent`) or a wrong-direction result
+# (`negative`) — can never be mislabeled omics_unavailable.
+from _skills_common.claim_vector_core import SIGNAL_ORD
 
 _LIT_READ = ("strongly_supports", "supports", "mixed", "contradicts", "not_addressed")
 _AGREE = ("agree", "extends", "contradicts", "omics_blind", "omics_unavailable")
@@ -94,6 +104,10 @@ def _system(lens: LensConfig) -> str:
          f"{lens.thesis}",
          "You never invent facts and never change the deterministic, rule-computed verdict (FIXED upstream).",
          "Ground every `agreement_vs_omics` in the OMICS signals shown — do not restate the omics as literature.",
+         "Each axis is tagged [MEASURED] or [NO-OMICS-DATA]. Reserve `omics_unavailable` / `omics_blind` for a "
+         "[NO-OMICS-DATA] axis ONLY. A [MEASURED] axis always has an omics result to compare against — even a "
+         "measured floor (signal=absent) or a wrong-direction result (signal=negative) — so classify it "
+         "agree / extends / contradicts, NEVER unavailable/blind.",
          "Flag signals the OMICS CANNOT measure (protein localization, invasive-front antigen loss, "
          "clinical / functional outcome) under `blind_spots`."]
     if lens.polarity_note:
@@ -104,21 +118,58 @@ def _system(lens: LensConfig) -> str:
     return " ".join(s) + _LIT_HONESTY
 
 
+def axis_measured_state(decision: dict, lens: LensConfig) -> dict:
+    """Per-axis grounding truth: {axis_key: {"measured": bool, "class": <str|None>}}.
+
+    PRIMARY source is the claim-vector `signal` tier via SIGNAL_ORD — a measured tier (incl. the measured
+    floor `absent` and wrong-direction `negative`) → measured; `unmeasured` / a missing atom → a gap.
+    This is authoritative: the fleet's `gap ≠ absent` discipline means a deliberate `unmeasured` is a real
+    coverage gap, so we never override it. As an OPPORTUNISTIC cross-check we resolve the axis's citable
+    atom (`evidence_atom.cite.card_id`) to its evidence capsule; a capsule with `evidence_state=='measured'`
+    can only UPGRADE an axis the claim vector left ambiguous (signal missing because the axis carries no
+    atom), never downgrade a measured signal. `class` (the capsule's primary class) is surfaced when the
+    capsule is present, purely to enrich the prompt. Capsules are frequently absent in real run-dirs, so the
+    signal tier — never the capsule — is the load-bearing measured flag."""
+    h = decision.get("headline") or {}
+    cv = h.get("claim_vector") or {}
+    caps = ((h.get("evidence_capsules") or {}).get("capsules")) or {}
+    out: dict = {}
+    for k in (lens.axis_labels or {}):
+        cl = cv.get(k) if isinstance(cv.get(k), dict) else {}
+        measured = SIGNAL_ORD.get(cl.get("signal")) is not None
+        cap = {}
+        cid = ((cl.get("evidence_atom") or {}).get("cite") or {}).get("card_id")
+        if cid and isinstance(caps.get(cid), dict):
+            cap = caps[cid]
+            if not measured and cap.get("evidence_state") == "measured":
+                measured = True   # atom-less axis the vector left ambiguous, but its source card WAS measured
+        out[k] = {"measured": measured, "class": cap.get("class")}
+    return out
+
+
 def build_literature_prompt(decision: dict, lens: LensConfig) -> str:
     h = decision.get("headline", {}) or {}
     target, indication = decision.get("target"), decision.get("indication")
     cv = h.get("claim_vector") or {}
+    states = axis_measured_state(decision, lens)
     lines = [f"TARGET: {target}    INDICATION: {indication}    LENS: {lens.name}",
              f"THESIS: {lens.thesis}",
              "",
-             "OMICS SIGNALS ALREADY COMPUTED (ground your agreement_vs_omics in these):"]
+             "OMICS SIGNALS ALREADY COMPUTED (ground your agreement_vs_omics in these). Each axis is tagged",
+             "[MEASURED] (there IS an omics result to judge against — INCLUDING a measured floor signal=absent",
+             "or a wrong-direction signal=negative) or [NO-OMICS-DATA] (a genuine coverage gap). Use",
+             "agreement_vs_omics=omics_unavailable / omics_blind ONLY for a [NO-OMICS-DATA] axis; for a",
+             "[MEASURED] axis classify agree / extends / contradicts against the shown result:"]
     for k, label in (lens.axis_labels or {}).items():
         cl = cv.get(k) or {}
         if not isinstance(cl, dict):
             continue
+        st = states.get(k) or {}
+        tag = "MEASURED" if st.get("measured") else "NO-OMICS-DATA"
+        cls = f", class={st['class']}" if st.get("class") else ""
         conflict = f"; CONFLICT: {cl.get('conflict')}" if cl.get("conflict") else ""
-        lines.append(f"  · axis {k} ({label}): signal={cl.get('signal')} corrob={cl.get('corroboration')} "
-                     f"— {cl.get('evidence', '')}{conflict}")
+        lines.append(f"  · axis {k} ({label}) [{tag}{cls}]: signal={cl.get('signal')} "
+                     f"corrob={cl.get('corroboration')} — {cl.get('evidence', '')}{conflict}")
     ks = h.get("key_signals") or {}
     if ks.get("caveat"):
         lines.append(f"  omics caveat: {ks['caveat']}")
@@ -176,6 +227,31 @@ def _coerce_shapes(result: dict) -> dict:
     return result
 
 
+def _reground_agreement(result: dict, states: dict) -> dict:
+    """Deterministic honesty guard (in place): a MEASURED axis can NEVER carry agreement_vs_omics =
+    `omics_unavailable` / `omics_blind`. `states` = axis_measured_state(decision, lens). For any axis the
+    model wrongly tagged unavailable/blind while its omics was measured, rewrite to `extends` — the
+    least-committal of {agree, extends, contradicts}: it asserts the literature adds a read ALONGSIDE the
+    (present) omics without fabricating a concordance/discordance direction we cannot derive here. This is
+    the value the model itself already picks for a measured-but-absent axis (observed: PHARMACOVIGILANCE
+    signal=absent → extends). We DO NOT touch a [NO-OMICS-DATA] axis (unavailable/blind is correct there),
+    and we never change a value that was already agree/extends/contradicts. Each rewrite drops an audit
+    breadcrumb (`agreement_regrounded=True`) on the axis. Best-effort: a malformed result is returned as-is."""
+    if not isinstance(result, dict):
+        return result
+    axes = result.get("axes")
+    if not isinstance(axes, list):
+        return result
+    for ax in axes:
+        if not isinstance(ax, dict):
+            continue
+        if ax.get("agreement_vs_omics") in ("omics_unavailable", "omics_blind") \
+                and (states.get(ax.get("axis_key")) or {}).get("measured"):
+            ax["agreement_vs_omics"] = "extends"
+            ax["agreement_regrounded"] = True
+    return result
+
+
 def synthesize_literature(decision: dict, lens: LensConfig, model_id: Optional[str] = None,
                           retrieve_fn: Optional[RetrieveFn] = None,
                           verify_fn: Optional[Callable[[dict], dict]] = None) -> dict:
@@ -200,6 +276,7 @@ def synthesize_literature(decision: dict, lens: LensConfig, model_id: Optional[s
     result = synthesize_structured(system_prompt=_system(lens), user_prompt=user,
                                    tool_name=tool_name, tool_schema=tool_schema, model_id=model_id)
     _coerce_shapes(result)
+    _reground_agreement(result, axis_measured_state(decision, lens))
     if verify_fn is not None and isinstance(result, dict):
         try:
             result = verify_fn(result)
