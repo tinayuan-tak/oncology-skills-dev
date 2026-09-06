@@ -23,7 +23,11 @@ from pathlib import Path
 SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
-from _skills_common import make_decision_json, write_package
+from _skills_common import make_decision_json, write_package, card_input_manifest_ids
+from _skills_common.headline_core import build_headline, HeadlineSpec
+from _skills_common.skill_report import build_skill_report, ROLE_DESCRIPTIVE
+from _skills_common.envelope import build_subskill_provenance
+from _skills_common.gitmeta import skills_repo_sha
 
 SKILL_NAME = "surfaceome-cohort-ranking"
 SKILL_VERSION = "1.1.0"
@@ -139,6 +143,65 @@ QUESTION = ("Where does {target} rank among all surface proteins in "
             "RNA signal agree with the CPTAC protein signal?")
 
 
+# ── Descriptive headline block + unified skill_report spine (finalized data-product lock) ────────────
+# surfaceome-cohort-ranking is a GATELESS, DESCRIPTIVE ranking SCAN (∉ target-profile _SHORT_TO_GATE):
+# it emits NO verdict/call — the `cohort_rank_class` facet is a percentile READOUT, not a nomination
+# gate. So the unified skill_report carries call=None / role=descriptive / polarity=not_scored. The
+# spine still needs a non-null honest_phrase + confidence, so we build a THIN descriptive headline_block
+# (the scan has no multi-axis claim_vector; confidence rides a data-availability certainty sidecar).
+# VERDICT-INERT — nothing here enters `fired` or any resolver.
+_RANK_CLASS_PHRASE = {
+    "top_1_percent":    "top 1%",
+    "top_5":            "top 5%",
+    "top_25":           "top 25%",
+    "below_25_percent": "below the top 25%",
+    "data_unavailable": "unavailable tier",
+}
+_SCR_HEADLINE_SPEC = HeadlineSpec(
+    gate="surfaceome_cohort_ranking",
+    axis_labels={},
+    axis_keys=(),   # a cohort scan has no claim_vector axes; confidence rides the certainty sidecar
+)
+
+
+def _scr_headline_block(headline: dict) -> dict:
+    """Descriptive headline (phrase + data-availability confidence, NO gate verdict). The phrase reports
+    WHERE the target ranks (or the whole-cohort scan summary); confidence is a certainty sidecar keyed on
+    whether the ranking resolved (moderate when the live product answered, insufficient when unavailable).
+    A projection over the already-built headline — moves no verdict (there is none)."""
+    ind = headline.get("indication")
+    tgt = headline.get("target")
+    n_ranked = headline.get("n_ranked") or 0
+    tctx = headline.get("target_context") or {}
+    rank_class = headline.get("cohort_rank_class")
+
+    if n_ranked == 0:
+        phrase = f"Surfaceome cohort ranking unavailable for {ind}"
+        level = "insufficient"
+    elif tgt and rank_class:
+        rank = tctx.get("tissue_rank")
+        conc = tctx.get("rna_protein_concordance")
+        rank_bit = f" (rank {rank} of {n_ranked})" if rank else ""
+        conc_bit = f"; RNA↔protein {conc}" if conc else ""
+        phrase = (f"{tgt} ranks in the {_RANK_CLASS_PHRASE.get(rank_class, rank_class)} of the "
+                  f"{ind} tumor-up surfaceome{rank_bit}{conc_bit}")
+        level = "moderate"
+    elif tgt:
+        phrase = (f"{tgt} is not tumor-up-significant in the {ind} surfaceome ranking "
+                  f"(n={n_ranked} ranked surface proteins)")
+        level = "moderate"
+    else:
+        phrase = (f"Ranked {n_ranked} surface proteins in {ind} by tumor-vs-normal effect size "
+                  f"(whole-cohort scan)")
+        level = "moderate"
+
+    return build_headline(
+        headline, claim_vector=None, key_signals=None,
+        spec=_SCR_HEADLINE_SPEC, verdict_token=None,
+        descriptive_phrase=phrase, certainty={"level": level},
+    )
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--indication", required=True,
@@ -179,7 +242,41 @@ def main() -> int:
         "_missing": _unavailable,
         "_missing_reason": "cohort_ranking_data_unavailable (derived product "
                            "not yet on S3)" if _unavailable else None,
+        # DECLARED input manifest ids (card_spec.required_inputs) — mirrors resolve_cards' per-card
+        # provenance stamp so build_subskill_provenance names the real product in the run-level block.
+        "provenance": {"input_manifest_ids": list(
+            card_input_manifest_ids("surfaceome-cohort-ranking"))},
     }]
+
+    # Canonical descriptive headline block + unified skill_report spine (finalized data-product lock).
+    # Both are VERDICT-INERT projections (call=None, role=descriptive, polarity=not_scored); best-effort,
+    # so a projection fault degrades to None and never aborts the scan.
+    try:
+        headline["headline_block"] = _scr_headline_block(headline)
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
+        headline.setdefault("_enrichment_errors", {})["headline_block"] = f"{type(exc).__name__}: {exc}"
+        headline["headline_block"] = None
+    try:
+        headline["skill_report"] = build_skill_report(
+            role=ROLE_DESCRIPTIVE,
+            verdict=None,   # gateless descriptive scan — no call
+            headline_block=headline.get("headline_block"),
+            fired_rule_ids=[],
+            cards_used=[c["card_id"] for c in card_outputs if not c.get("_missing")],
+            cards_missing=[c["card_id"] for c in card_outputs if c.get("_missing")],
+        )
+    except Exception as exc:  # noqa: BLE001 — verdict-inert normalizer; never abort the spine
+        headline.setdefault("_enrichment_errors", {})["skill_report"] = f"{type(exc).__name__}: {exc}"
+        headline["skill_report"] = None
+
+    # Run-level provenance — this skill hand-rolls main() (no run_wired_skill), so it builds the
+    # reproducibility block the shared dispatcher injects; without it the emitted decision.json is
+    # missing the envelope-required top-level `provenance` key (the finalized data-product contract
+    # requires it). Best-effort (build_subskill_provenance never raises). data_mode="live": the reader
+    # streams the derived product live from S3 (no release pin).
+    provenance = build_subskill_provenance(
+        card_outputs, "live", None, skills_repo_sha(),
+    )
 
     decision = make_decision_json(
         skill_name=SKILL_NAME,
@@ -189,7 +286,23 @@ def main() -> int:
                                  indication=args.indication),
         card_outputs=card_outputs, fired=[],
         headline=headline, modality_lenses=None,
+        provenance=provenance,
     )
+
+    # Per-subskill RUN-HEALTH record — the other envelope-required top-level key the shared dispatcher
+    # injects (observability; a sibling key that never touches the verdict spine). No rules fire for
+    # this scan (fired=[]), so cards_fired is always empty.
+    _cards_missing = sorted(c["card_id"] for c in card_outputs if c.get("_missing"))
+    decision["run_health"] = {
+        "skill_name": SKILL_NAME,
+        "skill_version": SKILL_VERSION,
+        "status": "degraded" if _cards_missing else "ok",
+        "n_cards_consumed": len(card_outputs),
+        "n_cards_resolved": sum(1 for c in card_outputs if not c.get("_missing")),
+        "n_cards_fired": 0,
+        "cards_fired": [],
+        "cards_missing": _cards_missing,
+    }
 
     written = write_package(
         out_dir=args.out,
