@@ -208,9 +208,17 @@ def build_ledger(corpus_path: str | Path, calibration_targets: set[str] | None =
     }
 
 
+# The ground-truth sections whose entries are KEYED BY TARGET SYMBOL. A `contradicts` on any of
+# these is a candidate against a curated outcome → calibration_gap. `known_gap_watchlist` is the
+# most valuable source: documented false-negatives the framework is expected to miss today.
+_CALIBRATION_SECTIONS = ("reference_profiles", "known_gap_watchlist", "positive_controls",
+                         "abstention_cases", "selectivity_cases")
+
+
 def _load_calibration_targets(path: str | Path | None) -> set[str]:
-    """Optional: pull target symbols from known_target_calibration_set.yaml's reference_profiles.
-    Best-effort + dependency-light (PyYAML if present, else a tolerant line scan)."""
+    """Pull target symbols from the ground-truth sections of known_target_calibration_set.yaml.
+    Those sections are DICTS keyed by target symbol (not lists of {target: ...}), so the symbol is
+    the KEY. Best-effort; never raises."""
     if not path:
         return set()
     p = Path(path)
@@ -219,18 +227,20 @@ def _load_calibration_targets(path: str | Path | None) -> set[str]:
     try:
         import yaml  # type: ignore
         doc = yaml.safe_load(p.read_text()) or {}
-        out: set[str] = set()
-        profiles = doc.get("reference_profiles") or doc.get("targets") or []
-        if isinstance(profiles, dict):
-            profiles = list(profiles.values())
-        for entry in profiles:
-            if isinstance(entry, dict):
-                t = entry.get("target") or entry.get("gene") or entry.get("symbol")
-                if t:
-                    out.add(str(t))
-        return out
     except Exception:  # noqa: BLE001 — never let ground-truth loading break the ledger
         return set()
+    out: set[str] = set()
+    for section in _CALIBRATION_SECTIONS:
+        sec = doc.get(section)
+        if isinstance(sec, dict):
+            out.update(str(k) for k in sec)                       # keyed-by-target (the real schema)
+        elif isinstance(sec, list):                               # tolerate a list-of-dicts variant
+            for entry in sec:
+                if isinstance(entry, dict):
+                    t = entry.get("target") or entry.get("gene") or entry.get("symbol")
+                    if t:
+                        out.add(str(t))
+    return out
 
 
 def main(argv: list[str] | None = None) -> int:

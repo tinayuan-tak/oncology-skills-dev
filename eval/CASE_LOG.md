@@ -112,6 +112,41 @@ Curated labels drift; the collapsed word hides modality-conditioning; verify aga
   data-catalog + target-contracts), NOT a nomination-gate change. Detail in the 08-26 issue doc.
 - **Status:** veto RESOLVED. Residual genomic-fidelity fix QUEUED as a real (non-false-alarm) build.
 
+### CASE-007 — MET-LUAD differentiation co-occurrence reads `strong_cooccurring` vs literature MUTUAL-EXCLUSIVITY — TRIAGED (literature-discordance loop, 2026-09-07)
+- **Surfaced by:** the literature↔deterministic discordance loop (`eval/harvest_literature.py` →
+  `eval/build_discordance_ledger.py`, MET/LUAD, scope=gating). Top row = **calibration_gap** (MET is
+  a `known_gap_watchlist` target): `differentiation-landscape` verdict `strong_cooccurring`
+  (`driving_rule_id: cooccurrence-strong-supportive`), lane `agreement_vs_omics: contradicts`, **2/2
+  verified citations** (PMID 42650153, 42442843). NOTE this is a NEW axis, distinct from CASE-002 —
+  the METex14 genomic fix has landed (`genomic_alteration → splice_exon_skip_driver`).
+- **Literature claim (verified):** de-novo MET drivers (exon-14 skipping, MET amplification) in LUAD
+  are canonically **mutually exclusive** with EGFR/KRAS/ALK/ROS1 at diagnosis; MET co-occurrence is
+  chiefly an **acquired EGFR-TKI bypass** (secondary MET amplification), i.e. a treatment-context /
+  temporal association, not a same-clone co-driver interaction.
+- **Root cause (candidate, real):** `cooccurrence_fisher_pancohort` (differentiation-landscape's
+  co-mutation method) pools cross-sectional TCGA MC3 + GENIE samples and cannot separate (a) de-novo
+  same-clone co-mutation from (b) acquired/treatment-context bypass co-occurrence. For MET/LUAD the
+  pooled Fisher reads `strong_cooccurring` where the de-novo biology is mutual-exclusivity — a temporal
+  / lineage-subtype confound, not a wrong count. Same *family* as the pooled-signal caveat that already
+  restricts pooled Fisher to the panel-intersect gene set, but the confound here is TEMPORAL, not panel.
+- **Classification:** REAL substrate-fidelity gap (not lane noise): verified, mechanistically grounded,
+  and it mis-states the co-mutation *interpretation*. Does NOT flip the MET nomination (differentiation
+  is a landscape/hypothesis axis, not a gate) — like CASE-002 it is a signal-vector fidelity defect.
+- **Proposed fix (propose-only; cross-repo, NOT in this PR):**
+  1. *method* (analysis-methods `cooccurrence_fisher`): a treatment-naive / diagnosis-only stratum
+     (restrict the pooled cohort to treatment-naive samples where annotation exists), and/or
+  2. *card annotation* (target-contracts differentiation card): a verdict-INERT
+     `cooccurrence_temporal_context_caveat` that flags a co-occurrence as candidate **acquired-bypass**
+     when the partner is a known first-line-TKI target (EGFR/ALK/ROS1) and the target is a known bypass
+     (MET-amp) — mirroring the existing 3-tier confidence-caveat pattern. Precedence/resolver UNCHANGED
+     (the interpreter only orders fired rule-IDs; this is a label/method concern).
+- **Proposed ratchet (for the target-contracts owner):** add a `differentiation` expectation to the
+  MET `known_gap_watchlist` entry (co-occurrence should read mutually-exclusive / bypass-context, not
+  `strong_cooccurring`) so the fix is regression-locked by `run_scorecard.py`. Cannot be set from this
+  eval/-scoped PR (different repo) — flagged here.
+- **Status:** TRIAGED / CONFIRMED real. Method+card fix QUEUED (cross-repo). This entry is the
+  propose-only output of the discordance loop's first triage; no gate/verdict change.
+
 ### CASE-006 — CNDP2-COADREAD neomorphic-GoF silent-FN — CONFIRMED (full-panel, 2026-09-02)
 - Full-panel sweep flagged the one genuine fresh miss: `CNDP2/COADREAD [small_molecule] → veto`
   (`dependency:non_dependent`). CNDP2 is an `active` program; its deciding axis is a **neomorphic

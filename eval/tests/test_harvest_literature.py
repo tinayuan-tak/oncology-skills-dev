@@ -95,3 +95,17 @@ def test_harvested_records_feed_the_aggregator(monkeypatch, tmp_path):
     ledger = bdl.build_ledger(tmp_path, calibration_targets={"MET"})
     assert ledger["n_rows"] == 1
     assert ledger["rows"][0]["gap_class"] == bdl.GAP_CALIBRATION
+
+
+def test_pairs_from_calibration_dict_keyed(tmp_path):
+    """(target,indication) pairs come from dict-keyed sections; composites + `multi` skipped."""
+    cal = tmp_path / "cal.yaml"
+    cal.write_text(
+        "reference_profiles:\n  PARP1:\n    indication: OV\n  CDK4_6:\n    indication: BRCA\n"
+        "  ADAR1:\n    indication: multi\n"
+        "known_gap_watchlist:\n  MET:\n    indication: LUAD\n")
+    pairs = hl._pairs_from_calibration(cal)
+    assert ("PARP1", "OV") in pairs
+    assert ("MET", "LUAD") in pairs
+    assert not any(t == "CDK4_6" for t, _ in pairs)     # composite skipped
+    assert not any(i == "multi" for _, i in pairs)      # non-specific indication skipped

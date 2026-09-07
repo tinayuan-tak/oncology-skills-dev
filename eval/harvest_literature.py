@@ -97,24 +97,37 @@ def _parse_pairs(spec: str) -> list[tuple[str, str]]:
     return out
 
 
+# Ground-truth sections keyed BY TARGET SYMBOL; each value carries `indication`. Composite/multi
+# targets (e.g. CDK4_6, EGFR_cMET_VEGF) and `multi` indications are skipped — they are not a
+# single (gene, indication) the fan-out can run.
+_PAIR_SECTIONS = ("reference_profiles", "known_gap_watchlist", "positive_controls")
+
+
 def _pairs_from_calibration(path: str | Path) -> list[tuple[str, str]]:
-    """Best-effort (target, indication) pairs from known_target_calibration_set.yaml."""
+    """(target, indication) pairs from known_target_calibration_set.yaml. The sections are DICTS
+    keyed by target symbol (the symbol is the KEY, not a `target:` field). Skips composite targets
+    and non-specific `multi` indications; de-dupes."""
     try:
         import yaml  # type: ignore
         doc = yaml.safe_load(Path(path).read_text()) or {}
     except Exception:  # noqa: BLE001
         return []
-    profiles = doc.get("reference_profiles") or doc.get("targets") or []
-    if isinstance(profiles, dict):
-        profiles = list(profiles.values())
+    seen: set[tuple[str, str]] = set()
     out: list[tuple[str, str]] = []
-    for e in profiles:
-        if not isinstance(e, dict):
+    for section in _PAIR_SECTIONS:
+        sec = doc.get(section)
+        if not isinstance(sec, dict):
             continue
-        t = e.get("target") or e.get("gene") or e.get("symbol")
-        ind = e.get("indication") or e.get("cohort") or e.get("disease")
-        if t and ind:
-            out.append((str(t), str(ind)))
+        for target, v in sec.items():
+            if "_" in target or "." in target:            # composite / fusion pseudo-target — skip
+                continue
+            ind = v.get("indication") if isinstance(v, dict) else None
+            if not ind or ind == "multi":
+                continue
+            pair = (str(target), str(ind))
+            if pair not in seen:
+                seen.add(pair)
+                out.append(pair)
     return out
 
 

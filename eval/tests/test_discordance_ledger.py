@@ -126,3 +126,14 @@ def test_build_ledger_ranks_and_summarizes(tmp_path):
     assert ledger["summary"]["by_gap_class"][bdl.GAP_CALIBRATION] == 1
     assert set(ledger["summary"]["by_skill"]) == {"functional-requirement", "on-target-safety-liability"}
     assert ledger["corpus_fingerprint"]  # deterministic content hash present
+
+
+def test_load_calibration_targets_dict_keyed(tmp_path):
+    """Ground-truth sections are DICTS keyed by target symbol (incl. known_gap_watchlist)."""
+    cal = tmp_path / "cal.yaml"
+    cal.write_text(
+        "reference_profiles:\n  PARP1:\n    indication: OV\n  DLL3:\n    indication: SCLC\n"
+        "known_gap_watchlist:\n  MET:\n    indication: LUAD\n  SMARCA2:\n    indication: LUAD\n"
+        "positive_controls:\n  KRAS:\n    indication: COADREAD\n")
+    got = bdl._load_calibration_targets(cal)
+    assert {"PARP1", "DLL3", "MET", "SMARCA2", "KRAS"} <= got
