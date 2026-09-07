@@ -146,7 +146,7 @@ def build_selectivity_axes(headline: dict) -> dict:
     elif liability:
         organ = h.get("sc_normal_max_detection_cell_type")
         add("window", "Normal-tissue window", "warn", "open · critical-organ liability",
-            f"a real tumor-vs-normal window, but expressed in a non-origin critical organ"
+            "a real tumor-vs-normal window, but expressed in a non-origin critical organ"
             + (f" ({organ})" if organ else "")
             + " — a safety/therapeutic-index liability (owned by on-target-safety), not loss of selectivity")
     elif cls in _AXIS_A_SELECTIVE:

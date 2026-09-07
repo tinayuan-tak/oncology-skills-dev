@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import os
 import sys
-from pathlib import Path
 
 # analysis-methods holds the single source of truth (methods/cited_literature_evidence/). Put its repo
 # root on sys.path (repo convention: ANALYSIS_METHODS_ROOT, mirrors _skills_common/_live_readers.py) so

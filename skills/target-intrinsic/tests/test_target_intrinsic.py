@@ -5,7 +5,6 @@ S3-free — parses the run.py CARDS literal + the SKILL.md composition + the car
 from __future__ import annotations
 
 import ast
-import sys
 from pathlib import Path
 
 import yaml

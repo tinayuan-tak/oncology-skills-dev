@@ -8,7 +8,7 @@ from __future__ import annotations
 from pathlib import Path  # noqa: F401 — type hints (stringized by future-annotations)
 from ._common import (  # shared emitter helpers/constants
     _ensure_methods_path, _has_live_read_error, _plotly_from, _dge_cell_contrasts,
-    _DGE_SENSITIVITY_CELLS, TARGET_CONTRACTS, METHODS_REPO,
+    TARGET_CONTRACTS,
 )
 
 

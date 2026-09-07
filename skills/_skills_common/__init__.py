@@ -33,7 +33,6 @@ Design principles:
 
 from __future__ import annotations
 
-import json
 import os
 import sys
 from datetime import datetime, timezone
@@ -48,17 +47,12 @@ from .rules_loader import (
     load_interpretation_rules,
     filter_rules_by_card_ids,
 )
-from .write_package import write_package
+from .write_package import write_package  # noqa: F401 — public re-export
 from .resolver import resolve_verdict, resolve_verdict_for_gate, resolve_or_raise, load_resolver  # noqa: F401
-from .composition_schema import (
-    Composition,
-    CompositionError,
-    validate as validate_composition,
-    validate_skill_md,
-)
-from .llm import synthesize_structured, EVIDENCE_ONLY_DIRECTIVE
-from .placeholder import emit_placeholder
-from .composite_panel import render_composite_panel
+from .composition_schema import Composition, CompositionError, validate as validate_composition, validate_skill_md  # noqa: F401 — public re-export
+from .llm import synthesize_structured, EVIDENCE_ONLY_DIRECTIVE  # noqa: F401 — public re-export
+from .placeholder import emit_placeholder  # noqa: F401 — public re-export
+from .composite_panel import render_composite_panel  # noqa: F401 — public re-export
 
 
 # --- environment discovery -------------------------------------------------

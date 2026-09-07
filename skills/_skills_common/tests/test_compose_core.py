@@ -174,7 +174,6 @@ def test_subskill_composition_does_not_reresolve():
 # (compose-dashboard / target-profile --emit) — previously the clamp lived only in the standalone
 # skill's _verdict, so this engine resolved raw and a broadly-normal gene read strong_tumor_selective.
 
-import pytest  # noqa: E402
 import _skills_common as _skc  # noqa: E402
 from _skills_common.selectivity_veto import apply_normal_breadth_veto  # noqa: E402
 

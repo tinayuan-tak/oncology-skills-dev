@@ -5,18 +5,10 @@ and cross-gate shared-evidence, plus the composed target_report builder family (
 build_target_rollup / build_target_call / build_target_coherence / build_composed_evidence_graph)."""
 from __future__ import annotations
 
-import argparse
-import concurrent.futures
 import functools
-import importlib.util
-import json
-import os
-import re
 import sys
-import time
-from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
 
 import yaml
 
@@ -27,7 +19,7 @@ if _SCRIPTS_DIR not in sys.path:
 from _skills_common import ordinal_view
 from _skills_common.flip_analysis import flip_analysis
 from _skills_common.narrative import build_narrative
-from tp_common import _CONTRACTS_REPO, _first_card_summary_field
+from tp_common import _CONTRACTS_REPO
 from tp_fanout import SUBTYPE_SHORT, _SHORT_TO_GATE
 from tp_gates import _COVERAGE_RANK, _load_gate_coverage, _load_gate_verdicts, _load_positive_signals, _run_coverage_for_short, _sub_result_has_signal
 from tp_facets_biomarker import (  # re-export the split-out biomarker cluster
@@ -35,7 +27,7 @@ from tp_facets_biomarker import (  # re-export the split-out biomarker cluster
     _biomarker_quantitative, _classify_biomarker_best_roles, _biomarker_facet,
 )
 from tp_facets_subtype import (  # re-export the split-out subtype/subgroup cluster
-    _SUBTYPE_INPUTS, _first_card_per_subgroup, _subtype_rows, _backfill_subtype_spine,
+    _SUBTYPE_INPUTS, _first_card_per_subgroup, _backfill_subtype_spine,
     _subtype_stratum_key, _load_subtype_crosswalk, _subtype_facet, _subgroup_flip_view,
     _rollup_subtype_block,
 )

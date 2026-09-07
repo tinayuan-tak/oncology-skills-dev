@@ -11,7 +11,7 @@ if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
 
 from _skills_common.report_render._fixtures import make_decision_json, make_nomination
-from _skills_common.report_render import build_ir, build_ir_for_skill, render_report, resolve_spec, vocab
+from _skills_common.report_render import build_ir, render_report, resolve_spec, vocab
 
 
 def _section(ir, short):

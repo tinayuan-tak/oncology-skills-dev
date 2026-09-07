@@ -1,19 +1,11 @@
 """target-profile — --emit evidence-package writer + card-figure emission + governance validation."""
 from __future__ import annotations
 
-import argparse
-import concurrent.futures
-import importlib.util
 import json
-import os
-import re
 import sys
-import time
-from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
 
-import yaml
 
 _SCRIPTS_DIR = str(Path(__file__).resolve().parent)
 if _SCRIPTS_DIR not in sys.path:

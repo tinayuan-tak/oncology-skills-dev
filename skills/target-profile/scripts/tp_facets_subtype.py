@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import yaml
 
 from tp_common import _CONTRACTS_REPO
 from tp_fanout import SUBTYPE_SHORT

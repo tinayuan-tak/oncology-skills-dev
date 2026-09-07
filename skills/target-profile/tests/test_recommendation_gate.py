@@ -430,7 +430,6 @@ def test_f1_kill_short_circuits_positive_tier_in_main_flow():
 def test_confidence_floor_is_a_max_never_lowers():
     """The tier sets a FLOOR: it may raise confidence, never lower it. A moderate
     tier (medium floor) must not drag an LLM 'high' down to medium."""
-    from copy import deepcopy
     llm_conf_high = {"value": "high", "_source": "llm_synthesized"}
     tier = "moderate"  # → medium floor
     floor = tp._TIER_TO_CONFIDENCE[tier]

@@ -35,7 +35,7 @@ import pytest
 SKILLS_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
-from _skills_common.composition_schema import validate_skill_md, STATUSES
+from _skills_common.composition_schema import validate_skill_md
 
 
 # Skills to verify. Excludes non-compositional legacy skills that predate

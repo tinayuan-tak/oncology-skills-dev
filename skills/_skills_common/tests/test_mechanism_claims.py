@@ -10,7 +10,7 @@ SKILLS = Path(__file__).resolve().parents[2]
 if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
 
-from _skills_common.mechanism_claims import mechanism_claim_vector, mechanism_key_signals  # noqa: E402
+from _skills_common.mechanism_claims import mechanism_claim_vector  # noqa: E402
 
 
 def _cards():

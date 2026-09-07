@@ -10,7 +10,6 @@ decision['headline']['claim_vector'] — deterministic and cheap.
 from __future__ import annotations
 import json
 from pathlib import Path
-from typing import Optional
 
 from _skills_common.figure_palette import (esc as _esc, SIG_TIER as _SIG_TIER,
                                            TIER_FILL as _TIER_FILL, REL_DOTS as _REL_DOTS)

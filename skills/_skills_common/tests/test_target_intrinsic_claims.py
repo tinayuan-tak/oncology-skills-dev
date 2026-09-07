@@ -11,7 +11,7 @@ if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
 
 from _skills_common.target_intrinsic_claims import (  # noqa: E402
-    target_intrinsic_claim_vector, target_intrinsic_key_signals)
+    target_intrinsic_claim_vector)
 
 
 def _cards():

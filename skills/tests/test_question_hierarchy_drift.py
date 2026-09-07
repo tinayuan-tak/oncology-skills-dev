@@ -7,7 +7,6 @@ mirror diverges from the governed source — so the hierarchy is edited in ONE p
 silently drift. skipif target-contracts absent (the source lives there)."""
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import pytest

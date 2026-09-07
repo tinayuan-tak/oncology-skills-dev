@@ -11,10 +11,8 @@ if target-contracts is unavailable (no measurement_type lookup), returns {} (spi
 """
 from __future__ import annotations
 import functools
-import os
 import re
-from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable
 
 from _skills_common.paths import target_contracts_root
 

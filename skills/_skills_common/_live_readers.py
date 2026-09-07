@@ -43,7 +43,6 @@ def _load_internalizing_antigens() -> frozenset:
     (approved/late-clinical ADC precedent). Read-only, lru-cached, never raises — an unreadable
     vocab yields an EMPTY set (→ every target stays endocytosis 'unmeasured', the honest degrade).
     Positive-only: presence upgrades to a measured-internalizing signal; absence is unchanged."""
-    import functools
     return _load_internalizing_antigens_cached(str(_TARGET_CONTRACTS_ROOT))
 
 

@@ -6,7 +6,6 @@ discounted; subtype tokens traceable; retrieve-don't-recall + absence-discipline
 mode; byte/schema sanity."""
 from __future__ import annotations
 
-import copy
 import json
 import sys
 from pathlib import Path

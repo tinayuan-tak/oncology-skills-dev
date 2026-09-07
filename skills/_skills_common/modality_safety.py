@@ -25,7 +25,6 @@ consumed by target-profile's tp_gates.py + tp_evidence_package.py.
 """
 from __future__ import annotations
 import functools
-import os
 from pathlib import Path
 
 import yaml

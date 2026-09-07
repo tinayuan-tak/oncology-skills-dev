@@ -11,7 +11,7 @@ if str(SKILLS) not in sys.path:
 
 from _skills_common.report_render._fixtures import make_decision_json, make_nomination
 from _skills_common.report_render import (build_ir_auto, build_ir_for_skill, render_skill_report,
-                                          resolve_spec, string_backend_names, vocab)
+                                          resolve_spec, string_backend_names)
 
 
 def test_build_ir_for_skill_makes_one_section_with_resolved_title():

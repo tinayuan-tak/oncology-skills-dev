@@ -36,8 +36,7 @@ from _skills_common.narrator_lenses import COMBINATORIAL_DEPENDENCY as _LENS
 from _skills_common.literature_synthesis import make_literature_fn
 from _skills_common.literature_retrieval import default_retrieve, verify_citations
 from _skills_common.sl_crosswalks import (
-    validated_paralog_sl, is_pan_essential, norm_ind as _norm_ind,
-    VALIDATED_PARALOG_SL, SCAFFOLD_UNDRUGGABLE_PARTNERS)
+    validated_paralog_sl, is_pan_essential, VALIDATED_PARALOG_SL, SCAFFOLD_UNDRUGGABLE_PARTNERS)
 
 
 SKILL_NAME = "combinatorial-dependency"

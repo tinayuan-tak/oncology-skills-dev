@@ -66,7 +66,7 @@ def test_veto_axis_without_lettered_gate_does_not_render_gate_none():
     # names the axis via its gate name (or the short as last resort), never a None id.
     gname = da["deciding_axis"].get("gate_name")
     if not da["deciding_axis"].get("gate"):
-        assert (f"the {gname} gate" in routing) if gname else (f"the safety gate" in routing)
+        assert (f"the {gname} gate" in routing) if gname else ("the safety gate" in routing)
 
 
 # ---------- basis 2: a positive tier → strongest positive dimension is load-bearing ----------

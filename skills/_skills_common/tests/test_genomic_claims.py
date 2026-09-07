@@ -18,7 +18,7 @@ if str(SKILLS) not in sys.path:
 
 from _skills_common.genomic_claims import genomic_claim_vector, genomic_key_signals  # noqa: E402
 from _skills_common.genomic_claims import (  # noqa: E402
-    _SPLICE_SIGNAL, _spl_tier, _spl_signal, _spl_corroboration,
+    _SPLICE_SIGNAL, _spl_signal, _spl_corroboration,
 )
 
 

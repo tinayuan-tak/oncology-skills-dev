@@ -25,7 +25,6 @@ must be a subset of what the skill declares); the shipped guard test enforces th
 from __future__ import annotations
 
 import functools
-import os
 from pathlib import Path
 
 import yaml

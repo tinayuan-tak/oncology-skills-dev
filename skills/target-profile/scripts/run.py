@@ -23,16 +23,13 @@ dependency completeness guard in tests/ enforces this).
 from __future__ import annotations
 
 import argparse
-import concurrent.futures
-import importlib.util
 import json
 import os
-import re
 import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
 
 import yaml
 
@@ -49,7 +46,7 @@ if _SCRIPTS_DIR not in sys.path:
 # modules and is re-exported here so the module's public surface — and every test that
 # reaches into it (run._biomarker_facet, run.SUB_SKILL_CARDS, ...) — is byte-identical.
 from tp_common import *              # noqa: F401,F403
-from tp_common import SKILL_NAME, SKILL_VERSION, SKILLS_DIR, _framework_model_version
+from tp_common import SKILL_NAME, SKILL_VERSION, _framework_model_version
 from tp_fanout import *              # noqa: F401,F403
 from tp_fanout import SUB_SKILLS, _run_sub_skills, _skipped_synthesis_output
 from tp_gates import *               # noqa: F401,F403
@@ -79,20 +76,19 @@ from tp_synthesis_prompt import (_SYSTEM_PROMPT, _METRIC_LEGEND, _build_synthesi
 from _skills_common.risk_projection import _risk_rows_from_rollup  # noqa: F401
 from tp_evidence_package import *    # noqa: F401,F403
 from tp_evidence_package import (
-    _emit_card_figures, _validation_summary_from_sub_results,
+    _validation_summary_from_sub_results,
     _write_evidence_package,
 )
 from tp_figures import *             # noqa: F401,F403
-from tp_figures import emit_figures, resolve_figures_root, FigureManifest
+from tp_figures import emit_figures, resolve_figures_root
 from tp_emit import *                # noqa: F401,F403
-from tp_emit import write_artifact, assert_write_set, expected_artifacts, run_mode
+from tp_emit import write_artifact, assert_write_set
 from tp_manifest import *            # noqa: F401,F403
 from tp_manifest import write_full_package
 
 # _skills_common symbols invoked directly by main() (modality_lens preserved from the
 # pre-split import surface).
-from _skills_common import modality_lens, synthesize_structured, render_composite_panel
-from _skills_common import ordinal_view
+from _skills_common import synthesize_structured
 from _skills_common.envelope import build_governance
 
 

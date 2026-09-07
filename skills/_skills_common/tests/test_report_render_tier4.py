@@ -2,7 +2,6 @@
 matrix cleanup (drop all-off rows + inline glyph legend + cell shading + collapsed caveat), internal
 confidence-vocab gloss, and snake_case call humanized in skill headers."""
 import sys
-import json
 from pathlib import Path
 
 SKILLS = Path(__file__).resolve().parents[2]  # skills/

@@ -27,7 +27,6 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from typing import Optional
 
 import click
 
@@ -455,7 +454,7 @@ def _render_card_panel(card: dict) -> list[str]:
     if card.get("excluded_by_applies_when"):
         sections.append(f"### ⏸️ `{card_id}` — excluded")
         sections.append("")
-        sections.append(f"_Excluded by `applies_when` at compose time._")
+        sections.append("_Excluded by `applies_when` at compose time._")
         sections.append("")
         sections.append(f"**Reason**: {card.get('exclusion_reason', '(no reason provided)')}")
         sections.append("")
@@ -758,7 +757,7 @@ def main(ep_path: Path, out: Path) -> int:
     target = ep.get("context", {}).get("target", {}).get("symbol", "?")
     indication = ep.get("context", {}).get("indication", {}).get("oncotree_code", "?")
     n_cards = len(ep.get("cards", []))
-    click.echo(f"=== render_markdown ===")
+    click.echo("=== render_markdown ===")
     click.echo(f"  evidence_package: {ep_path}")
     click.echo(f"  target/indication: {target} / {indication}")
     click.echo(f"  cards rendered:    {n_cards}")

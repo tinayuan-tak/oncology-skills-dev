@@ -7,7 +7,6 @@ tests inject a stub synthesize_fn. Package fixtures are edited copies of evidenc
 """
 from __future__ import annotations
 
-import copy
 import json
 import sys
 from pathlib import Path

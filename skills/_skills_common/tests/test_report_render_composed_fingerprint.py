@@ -15,7 +15,6 @@ if str(SKILLS) not in sys.path:
 from _skills_common.report_render._fixtures import make_decision_json, make_nomination
 from _skills_common.report_render import (build_ir, build_ir_for_skill, render_report,
                                           resolve_spec, vocab)
-from _skills_common.report_render.backends import render as render_ir
 
 
 def _make_index() -> dict:

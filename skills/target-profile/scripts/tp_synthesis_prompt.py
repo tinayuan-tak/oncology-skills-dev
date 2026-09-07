@@ -2,25 +2,18 @@
 and the deterministic user-prompt builder (card summaries + ordinal matrix slice)."""
 from __future__ import annotations
 
-import argparse
-import concurrent.futures
-import importlib.util
 import json
-import os
 import re
 import sys
-import time
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
-import yaml
 
 _SCRIPTS_DIR = str(Path(__file__).resolve().parent)
 if _SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, _SCRIPTS_DIR)
 
-from _skills_common import EVIDENCE_ONLY_DIRECTIVE as _EVIDENCE_ONLY_DIRECTIVE, resolve_cards, fired_rules, ordinal_view
+from _skills_common import EVIDENCE_ONLY_DIRECTIVE as _EVIDENCE_ONLY_DIRECTIVE, ordinal_view
 from _skills_common.signals_first import render_signal_summary
 
 

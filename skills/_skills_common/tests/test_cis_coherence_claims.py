@@ -12,7 +12,7 @@ if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
 
 from _skills_common.cis_coherence_claims import (  # noqa: E402
-    cis_coherence_claim_vector, cis_coherence_key_signals)
+    cis_coherence_claim_vector)
 
 
 def _cards():

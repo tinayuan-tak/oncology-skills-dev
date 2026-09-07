@@ -9,7 +9,6 @@ error vs clean_uninstrumented, and the committed rollup stays fresh + self-consi
 from __future__ import annotations
 
 import json
-import os
 import sys
 from pathlib import Path
 

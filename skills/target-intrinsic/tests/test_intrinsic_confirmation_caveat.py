@@ -8,7 +8,6 @@ and carry the two new fields — the facet dict is target-intrinsic's fan-out ca
 """
 from __future__ import annotations
 
-import ast
 import inspect
 from pathlib import Path
 
