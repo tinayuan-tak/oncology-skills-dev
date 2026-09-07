@@ -109,3 +109,46 @@ partners:
         partner_conditional_moderately_dependent. Makes VHL a conditioning variable so an EPAS1 profile
         in VHL-null context (e.g. ccRCC) reads the conditional dependency instead of a pooled
         non_dependent (which the gate would veto). Rescues the CASE-014 known-gap false-negative.
+
+  # ── WNT/β-catenin: APC-loss → CTNNB1 addiction (lof_mutation arm, 2026-09-07, conditional-dependency
+  # discovery sweep) ────────────────────────────────────────────────────────────────────────────────
+  # APC loss-of-function (the dominant CRC initiating lesion) removes the β-catenin destruction complex,
+  # so APC-null cells become selectively CTNNB1/β-catenin-ADDICTED — the marquee WNT dependency (tankyrase
+  # inhibitors, β-catenin/WNT-pathway degrader programs). Curated AFTER a live DepMap 26q1 probe over the
+  # APC-LoF stratum (WRN×MSI / NFE2L2×KEAP1 discipline):
+  #   CTNNB1: delta -0.881, mann-whitney q 3.2e-37, rank-biserial 0.76, n=100 APC-LoF / 1438 neutral
+  #           (median Chronos -1.004 in APC-LoF vs -0.123 neutral) → partner_conditional_strongly_dependent.
+  CTNNB1:
+    - partner: APC
+      deficiency_type: lof_mutation
+      note: >
+        APC-LoF → β-catenin (CTNNB1) stabilization → WNT/β-catenin addiction (marquee APC-mutant CRC
+        dependency). Live DepMap 26q1 probe over the APC-LoF stratum: delta -0.881 Chronos, mann-whitney
+        q 3.2e-37, rank-biserial 0.76, n=100 APC-LoF / 1438 neutral (median -1.004 vs -0.123) →
+        partner_conditional_strongly_dependent. Makes APC a conditioning variable so a CTNNB1 profile in
+        APC-null context (CRC) reads the strong conditional dependency instead of a pooled non_dependent.
+
+  # ── Hippo/TEAD: NF2-loss → YAP/TAZ-TEAD addiction (lof_mutation arm, 2026-09-07, discovery sweep) ────
+  # NF2 (merlin) loss releases the Hippo brake, driving YAP/TAZ-TEAD transcriptional addiction — the
+  # NF2-mutant mesothelioma vulnerability that TEAD-palmitoylation inhibitors (VT3989, IK-930) target.
+  # Live DepMap 26q1 probe over the NF2-LoF stratum (n=36 NF2-LoF / 1502 neutral):
+  #   TEAD1:  delta -0.247, q 2.3e-4, rank-biserial 0.34 → partner_conditional_moderately_dependent
+  #   WWTR1:  delta -0.251, q 4.4e-4, rank-biserial 0.32 → partner_conditional_moderately_dependent
+  # NOT curated: YAP1×NF2 (delta -0.158, q 0.013, rb 0.22 → not_partner_stratified) — the YAP1 arm is
+  # paralog-buffered by WWTR1/TAZ (biologically correct; the signal lives on TAZ + the shared TEAD node).
+  TEAD1:
+    - partner: NF2
+      deficiency_type: lof_mutation
+      note: >
+        NF2-LoF → Hippo de-repression → YAP/TAZ-TEAD addiction (NF2-mutant mesothelioma; the druggable
+        Hippo node, TEAD-palmitoylation inhibitors VT3989/IK-930). Live DepMap 26q1 probe over the
+        NF2-LoF stratum: delta -0.247 Chronos, mann-whitney q 2.3e-4, rank-biserial 0.34, n=36 NF2-LoF /
+        1502 neutral → partner_conditional_moderately_dependent. NF2 is the conditioning variable.
+  WWTR1:
+    - partner: NF2
+      deficiency_type: lof_mutation
+      note: >
+        NF2-LoF → TAZ (WWTR1) addiction, the Hippo effector arm (paired with TEAD1; carries the signal
+        the paralog-buffered YAP1 arm does not). Live DepMap 26q1 probe over the NF2-LoF stratum: delta
+        -0.251 Chronos, mann-whitney q 4.4e-4, rank-biserial 0.32, n=36 NF2-LoF / 1502 neutral →
+        partner_conditional_moderately_dependent.

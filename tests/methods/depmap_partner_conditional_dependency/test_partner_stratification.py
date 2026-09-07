@@ -123,6 +123,18 @@ def test_partner_map_carries_keap1_nfe2l2_lof_entry():
     assert any(e["partner"] == "KEAP1" and e["deficiency_type"] == "lof_mutation" for e in pm["NFE2L2"])
 
 
+def test_partner_map_carries_wnt_hippo_sweep_entries():
+    """Conditional-dependency discovery sweep (2026-09-07): APC-loss→CTNNB1 (WNT), NF2-loss→TEAD1/WWTR1
+    (Hippo). Live DepMap 26q1 probes: CTNNB1×APC delta -0.881/q 3.2e-37/rb 0.76 (strong); TEAD1×NF2
+    delta -0.247/q 2.3e-4/rb 0.34 and WWTR1×NF2 delta -0.251/q 4.4e-4/rb 0.32 (moderate). YAP1×NF2 was
+    NOT curated (paralog-buffered, not_partner_stratified)."""
+    pm = load_partner_map()
+    for tgt, partner in (("CTNNB1", "APC"), ("TEAD1", "NF2"), ("WWTR1", "NF2")):
+        assert tgt in pm, f"{tgt}/{partner} partner-conditional entry missing"
+        assert any(e["partner"] == partner and e["deficiency_type"] == "lof_mutation" for e in pm[tgt])
+    assert "YAP1" not in pm, "YAP1×NF2 is a paralog-buffered honest miss — must NOT be curated"
+
+
 def test_partner_map_carries_vhl_epas1_lof_entry():
     """Discordance-loop CASE-014: VHL-loss → HIF-2α (EPAS1) addiction (belzutifan-validated ccRCC). VHL is
     a conditioning variable via the lof_mutation arm; EPAS1 is the curated target (live DepMap 26q1 probe:
