@@ -173,3 +173,48 @@ def test_unspecced_type_emits_no_interpretation_byte_stable():
     ke = _build_key_evidence({"measurement_type": "rnai_lof_dependency"},
                              {"rnai_median_dep_score": -0.8})
     assert not (ke or {}).get("interpretation")
+
+
+# ── selectivity + surface distance_to_cut rulers (meter rollout; existing named card thresholds) ──────
+def test_selectivity_log2fc_distance_to_cut_ruler():
+    from _skills_common.evidence_salience import contract_threshold
+    interp = build_interpretation({}, {"log2fc_cell_a": 2.1, "q_value_cell_a": 1e-5,
+                                        "selectivity_class": "strongly_selective"},
+                                  SALIENCE_SPECS["tumor_vs_normal_selectivity"],
+                                  card_id="tumor-vs-normal-selectivity")
+    assert len(interp) == 1
+    gv = interp[0]
+    assert gv["metric"] == "log2fc_cell_a" and gv["value"] == 2.1 and gv["scale"] == "log2FC"
+    assert gv["direction"] == "higher_is_stronger"
+    assert gv["position"] == "strongly_selective" and gv["position_source"] == "selectivity_class"
+    assert gv["frame"]["kind"] == "distance_to_cut"
+    if contract_threshold("tumor-vs-normal-selectivity", "modest_selectivity_log2fc") is not None:
+        assert {a["role"]: a["value"] for a in gv["frame"]["anchors"]}.get("cut") == 0.5
+
+
+def test_surface_density_copies_per_cell_distance_to_cut_ruler():
+    from _skills_common.evidence_salience import contract_threshold
+    interp = build_interpretation({}, {"absolute_copies_per_cell": 5000,
+                                        "surface_density_class": "tce_viable"},
+                                  SALIENCE_SPECS["surface_density"], card_id="surface-abundance-density")
+    assert len(interp) == 1
+    gv = interp[0]
+    assert gv["metric"] == "absolute_copies_per_cell" and gv["value"] == 5000 and gv["scale"] == "copies_per_cell"
+    assert gv["position"] == "tce_viable" and gv["position_source"] == "surface_density_class"
+    if contract_threshold("surface-abundance-density", "tce_viability_copies_per_cell") is not None:
+        assert {a["role"]: a["value"] for a in gv["frame"]["anchors"]}.get("cut") == 1000
+    # SPARSE field → absent value yields NO bare frame
+    assert build_interpretation({}, {}, SALIENCE_SPECS["surface_density"]) == []
+
+
+def test_percentile_crossing_fraction_distance_to_cut_ruler_no_position():
+    from _skills_common.evidence_salience import contract_threshold
+    interp = build_interpretation({}, {"fraction_tumor_above_normal_p95": 0.72},
+                                  SALIENCE_SPECS["tumor_vs_normal_percentile_crossing"],
+                                  card_id="tumor-vs-normal-percentile-crossing")
+    assert len(interp) == 1
+    gv = interp[0]
+    assert gv["metric"] == "fraction_tumor_above_normal_p95" and gv["value"] == 0.72 and gv["scale"] == "fraction"
+    assert "position" not in gv                                       # this spec has no categorical
+    if contract_threshold("tumor-vs-normal-percentile-crossing", "strong_frac_p95") is not None:
+        assert {a["role"]: a["value"] for a in gv["frame"]["anchors"]}.get("cut") == 0.5

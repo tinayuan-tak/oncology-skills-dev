@@ -113,13 +113,36 @@ SALIENCE_SPECS: dict = {
     "tumor_vs_normal_selectivity": {
         "effect_field": "log2fc_cell_a", "significance_field": "q_value_cell_a", "direction": "higher_is_stronger",
         "categorical": ["selectivity_class", "comparator_concordance"],
-        "extra_scalars": ["selectivity_allgene_percentile", "sig_all_cells"]},
+        "extra_scalars": ["selectivity_allgene_percentile", "sig_all_cells"],
+        # STAGE-2 ruler: distance_to_cut on the tumor-vs-normal window (HIGHER log2FC = more selective).
+        # position = selectivity_class READ VERBATIM; cut single-sourced from the card's existing
+        # modest_selectivity_log2fc threshold (0.5, the selective/not boundary). DISPLAY-ONLY / verdict-INERT.
+        "reference_frame": {
+            "kind": "distance_to_cut", "value_field": "log2fc_cell_a", "scale": "log2FC",
+            "position_field": "selectivity_class",
+            "cut": {"card_id": "tumor-vs-normal-selectivity", "threshold": "modest_selectivity_log2fc",
+                    "label": "selective_cut"}}},
     "surface_density": {
         "effect_field": "absolute_copies_per_cell", "direction": "higher_is_stronger",
-        "categorical": ["surface_density_class", "density_floor_verdict", "is_tce_viable", "is_adc_high_payload_viable"]},
+        "categorical": ["surface_density_class", "density_floor_verdict", "is_tce_viable", "is_adc_high_payload_viable"],
+        # STAGE-2 ruler: distance_to_cut on absolute surface density (HIGHER copies/cell = more modality-viable).
+        # position = surface_density_class READ VERBATIM; cut = the card's tce_viability_copies_per_cell floor
+        # (1000/cell, Slaga 2018). SPARSE field (grade-E often null) → the ruler simply omits when absent.
+        "reference_frame": {
+            "kind": "distance_to_cut", "value_field": "absolute_copies_per_cell", "scale": "copies_per_cell",
+            "position_field": "surface_density_class",
+            "cut": {"card_id": "surface-abundance-density", "threshold": "tce_viability_copies_per_cell",
+                    "label": "tce_viability_floor"}}},
     "tumor_vs_normal_percentile_crossing": {
         "effect_field": "fraction_tumor_above_normal_p95", "direction": "higher_is_stronger",
-        "extra_scalars": ["normal_p95_log2tpm", "distribution_overlap_tumor_normal"]},
+        "extra_scalars": ["normal_p95_log2tpm", "distribution_overlap_tumor_normal"],
+        # STAGE-2 ruler: distance_to_cut on the population-separation fraction (HIGHER = more tumors clear the
+        # normal p95). No categorical on this spec → value+cut only (still gaugeable via direction). Cut =
+        # the card's strong_frac_p95 threshold (0.5). DISPLAY-ONLY / verdict-INERT.
+        "reference_frame": {
+            "kind": "distance_to_cut", "value_field": "fraction_tumor_above_normal_p95", "scale": "fraction",
+            "cut": {"card_id": "tumor-vs-normal-percentile-crossing", "threshold": "strong_frac_p95",
+                    "label": "population_crossing_cut"}}},
 
     # tumor-presence (§3.4)
     "sc_tumor_celltype_expression": {
