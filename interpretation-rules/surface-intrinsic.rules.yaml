@@ -1932,24 +1932,30 @@ rules:
   - rule_id: sc-normal-high-liability-bite-killer
     when:
       card_id: sc-normal-celltype-expression
-      field: sc_normal_expression_class
-      equals: HIGH_LIABILITY
+      field: sc_normal_safety_essential_class
+      equals: critical_organ_liability
     signals:
       bite_tce: killer
     dominant: true
     killer_message: |
-      Single-cell RNA profiling shows HIGH normal-tissue expression (median detection
-      >50% of cells, >70% of donors) in >=1 normal cell type. BiTE/TCE have no payload
-      buffer and no binding-consequence gating — high normal-cell-type expression is a
-      first-order on-target-off-tumor safety liability. Not viable for BiTE/TCE without
-      a mitigation strategy (conditional activation, dual-antigen gating, restricted
-      delivery). Check max_detection_cell_type for the offending cell type.
+      Single-cell RNA profiling shows HIGH expression in an ESSENTIAL cell type of a
+      NON-origin critical organ (heart/liver/kidney/marrow/neuron). BiTE/TCE have no
+      payload buffer and no binding-consequence gating — essential-cell expression in a
+      non-origin critical organ is a first-order on-target-off-tumor safety liability.
+      Not viable for BiTE/TCE without a mitigation strategy (conditional activation,
+      dual-antigen gating, restricted delivery). Check the named essential-cell driver.
     rationale: |
       The strict-modality no-buffer safety killer (cell-type-resolved RNA layer, mirrors
-      HPA-essential-tissue killer in F4). HIGH_LIABILITY threshold: median_det > 0.50
-      AND expressing_donor_fraction > 0.70 in >=1 normal cell type — both consistency
-      and magnitude required; neither alone is sufficient. Same BiTE/TCE-only killer
-      logic as F4: ADC + antibody receive opposing (not killer) on the same signal.
+      the HPA-essential-tissue killer in F4). Keys on the ORGAN-AWARE
+      sc_normal_safety_essential_class == critical_organ_liability (essential cell type,
+      NON-origin critical organ) — NOT the blunt sc_normal_expression_class == HIGH_LIABILITY,
+      which the method author flags as "too blunt to veto a validated ADC target" (it fires
+      on ANY high normal cell type incl. tissue-of-origin epithelium + non-essential cells).
+      Repointed 2026-09-07 to match the refined field the sibling tumor-selectivity gate
+      (tvn-sc-normal-critical-organ-veto) already consumes — closing a cross-skill desync that
+      false-TCE-vetoed origin-tissue / non-essential-only antigens. origin_tissue_liability is
+      window-arbitrated (NOT a hard veto), per the method's design intent. Same BiTE/TCE-only
+      killer logic as F4: ADC + antibody receive opposing (not killer) on the same signal.
 
   - rule_id: sc-normal-high-liability-adc-antibody-opposing
     when:

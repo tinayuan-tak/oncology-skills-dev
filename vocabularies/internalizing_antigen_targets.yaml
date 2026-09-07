@@ -10,13 +10,26 @@
 #   endocytosis signal (endocytosis_motif_count_high_confidence). That field is
 #   NOT MEASURED by the current topology product (it is hardcoded null;
 #   _ptm_coverage: data_unavailable). B1 Rank-1 correctly stopped that UNMEASURED
-#   field from vetoing the ADC branch (an absent read must not act as a
-#   negative) — so ADC_preferred is now reachable on topology, flagged
-#   endocytosis_confidence='unmeasured'. This vocabulary is B1 Rank-2: it supplies
-#   a MEASURED-POSITIVE internalization signal for the antigens where
+#   field from vetoing the ADC branch (an absent read must not act as a negative) —
+#   restoring the ADC arm so BOTH_VIABLE is reachable. This vocabulary is B1 Rank-2:
+#   it supplies a MEASURED-POSITIVE internalization signal for antigens where
 #   internalization is clinically established, upgrading them from 'unmeasured' to
 #   a curated positive. A target NOT in this list stays 'unmeasured' — never
 #   fabricated as internalizing.
+#
+#   DATA-GAP CAVEAT (2026-09-07, corrects the earlier "ADC_preferred is now reachable"
+#   claim): a CLEAN fit_class == ADC_preferred remains structurally UNREACHABLE on live
+#   data. adc_favorable requires ECD >= 200, which strictly CONTAINS tce_favorable's
+#   ECD >= 100, and TCE's only independent disqualifier (n_ubiquitination_sites > 3, a
+#   turnover proxy) reads a datum the topology product hardcodes null — so
+#   adc_favorable ⟹ tce_favorable always → BOTH_VIABLE, never ADC_preferred. This
+#   curated internalization signal is POSITIVE-FOR-ADC only; it does NOT disqualify TCE
+#   (internalization ≠ TCE-incompatible: ERBB2/DLL3 are internalizing AND good TCE
+#   targets), so it cannot mint a clean ADC_preferred. A genuine ADC-only preference
+#   needs a proteome-wide protein-TURNOVER / internalization-RATE dataset — none exists
+#   in the data-catalog today (a future data-acquisition workstream). Until then
+#   BOTH_VIABLE is the HONEST read, and ADC-yes/TCE-unsafe is fully captured by the
+#   compound adc_preferred_tce_unsafe verdict.
 #
 # WHY A CURATED CLINICAL-PRECEDENT CROSSWALK, NOT A PREDICTION (mirrors
 # shed_antigen_targets.yaml / isoform_selective_targets.yaml):
