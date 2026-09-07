@@ -268,6 +268,19 @@ def _safe_signal(h, c):
         sig = "negative"
         conflict = conflict or ("no therapeutic window vs the worst critical/full normal — "
                                 "normal-breadth window veto (the housekeeping / broadly-normal KILL)")
+    # 4th normal-breadth arm (quantitative normal-PROTEIN abundance, TPHP DIA-MS): a broad_and_abundant
+    # normal-protein read is a MEASURED normal-side liability the single-cell-RNA side can miss, so the SAFE
+    # claim must not read a clean signal against it — floor at `negative` (a strong liability, same tier as
+    # critical_organ_liability). This is the SELECTIVITY-PRESERVING arm (selectivity_veto
+    # _TPHP_NORMAL_PROTEIN_VETO_RULE → selective_with_normal_liability), NOT the housekeeping KILL, so it
+    # carries its own named-liability note rather than the window-veto KILL text. Read from cards_by_id
+    # (the class is not in the headline). Was invisible to the SAFE claim (_window_veto_fired ignored it).
+    if (c.get("normal-tissue-protein-abundance-tphp") or {}).get("tphp_normal_protein_liability_class") == "broad_and_abundant" \
+            and sig != "negative":
+        sig = "negative"
+        conflict = conflict or ("broad + abundant normal-tissue protein (TPHP DIA-MS) — a named "
+                                "normal-protein liability the single-cell-RNA side can miss "
+                                "(selectivity-preserving; safety verdict owned by on-target-safety-liability)")
     ev = (f"normal-tissue: {cls or 'data_unavailable'}, sc_normal={h.get('sc_normal_expression_class')}, "
           f"{h.get('sc_normal_n_cell_types_above_20pct')} normal cell-types >20%"
           + (f", therapeutic_window={h.get('therapeutic_window_class')}"
