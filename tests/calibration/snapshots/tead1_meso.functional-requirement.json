@@ -1,0 +1,17 @@
+{
+  "skill": "functional-requirement",
+  "target": "TEAD1",
+  "indication": "MESO",
+  "generated_at": "2026-09-07",
+  "headline": {
+    "dependency_verdict": "lineage_selective",
+    "driving_rule_id": "lineage-selective-supportive",
+    "crispr_call": "non_dependent",
+    "rnai_call": "non_dependent",
+    "concordance_call": "moderately_concordant_non_dependent",
+    "lineage_selectivity": "lineage_selective",
+    "cards_available": 13,
+    "cards_missing": ["abundance-dependency", "recommended-models"]
+  },
+  "_snapshot_note": "Captured live 2026-09-07 (depmap-26q1, cbg, py3.12). Pooled crispr/rnai read non_dependent; rescued to lineage_selective by lineage-selectivity (mesothelioma). The NF2-conditional partner-conditional lane (analysis-methods #584, partner_conditional_moderately_dependent, delta -0.247/q 2.3e-4/n=36 NF2-LoF) fires and CORROBORATES (does not drive; lineage-selective outranks). Positive control: must_not_veto."
+}

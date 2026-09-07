@@ -89,6 +89,44 @@ positive_controls:
     expected_verdict_not_in: [non_dependent, pan_essential_killer]
     note: "The canonical false-negative risk: mutant lines under-sampled → pooled non_dependent. Biomarker-rescue (v1.2.0) is the intended guard."
 
+  # ── Conditional-dependency discovery sweep (2026-09-07, analysis-methods #584) — positive controls.
+  # These read NON-VETO already (via lineage-selectivity / paralog-buffering); the curated partner-conditional
+  # lanes CORROBORATE but do NOT drive the verdict (unlike EPAS1/CASE-014, which the partner-conditional lane
+  # genuinely rescued from a hard non_dependent). Anchored as must_not_veto to regression-lock non-veto.
+  CTNNB1:
+    indication: COADREAD
+    modality: small_molecule            # WNT/β-catenin programs (tankyrase, β-catenin degraders)
+    outcome: advanced
+    dependency_mode: biomarker_conditional   # APC-LoF → β-catenin addiction (also a genuine selective dep here)
+    biomarker: APC_loss
+    assertion_type: must_not_veto
+    measured: true
+    snapshot: ctnnb1_coadread.functional-requirement.json
+    expected_verdict_not_in: [non_dependent, pan_essential_killer]
+    note: "Genuine selective dependency (crispr+rnai strongly_selective → lineage_selective). APC-conditional partner-conditional lane (partner_conditional_strongly_dependent, delta -0.881/q 3.2e-37/n=100) corroborates, does not drive."
+  TEAD1:
+    indication: MESO
+    modality: small_molecule            # TEAD-palmitoylation inhibitors VT3989 / IK-930
+    outcome: advanced
+    dependency_mode: biomarker_conditional   # NF2-LoF → Hippo/YAP-TAZ-TEAD addiction
+    biomarker: NF2_loss
+    assertion_type: must_not_veto
+    measured: true
+    snapshot: tead1_meso.functional-requirement.json
+    expected_verdict_not_in: [non_dependent, pan_essential_killer]
+    note: "Pooled crispr/rnai non_dependent → rescued to lineage_selective (mesothelioma). NF2-conditional partner-conditional lane (partner_conditional_moderately_dependent, delta -0.247/q 2.3e-4/n=36) corroborates, does not drive."
+  WWTR1:
+    indication: MESO
+    modality: small_molecule            # Hippo/TEAD effector arm (paired with TEAD1)
+    outcome: advanced
+    dependency_mode: biomarker_conditional   # NF2-LoF → TAZ addiction (paralog-buffered by YAP1)
+    biomarker: NF2_loss
+    assertion_type: must_not_veto
+    measured: true
+    snapshot: wwtr1_meso.functional-requirement.json
+    expected_verdict_not_in: [non_dependent, pan_essential_killer]
+    note: "Pooled crispr/rnai non_dependent → rescued to non_dependent_paralog_buffered (YAP1 buffers TAZ; degrader-preferred, non-veto). NF2-conditional partner-conditional lane (partner_conditional_moderately_dependent, delta -0.251/q 4.4e-4/n=36) corroborates."
+
 # ---------------------------------------------------------------------------
 # KNOWN-GAP WATCH-LIST — ADVANCED Takeda programs the framework CURRENTLY
 # false-negatives at gate C (measured). These are the Phase-2 (context-SL) targets:
