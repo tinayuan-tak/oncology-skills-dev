@@ -56,7 +56,8 @@ from _skills_common.narrative import build_narrative
 
 
 SKILL_NAME = "on-target-safety-liability"
-SKILL_VERSION = "1.17.0"   # 1.17.0 (2026-09-04): +OPTIONAL --literature lane (verdict-INERT LLM literature synthesis, Europe-PMC-grounded + PMID-verified via the shared _skills_common.literature_synthesis; run_wired_skill one-liner) mirroring genomic #982 / FR #987 / TP #965 / TS #968. + VERDICT-INERT signal-surfacing of the rich safety sub-fields the capsule projection ignored: a new PHARMACOVIGILANCE claim axis (on-target FDA warnings + toxicity classes of target-engaging drugs — OT drug-warning ⋈ MoA + OnSIDES boxed ADEs; confounded CONTEXT, corroboration capped, orients-not-holds), MOUSE_KO claim evidence += affected organ systems (organ_classes), CLINVAR claim evidence += confident germline-pathogenic variant count. PHARMACOVIGILANCE is LEFT OUT of the safety HeadlineSpec.axis_keys so headline_block/confidence/hero + the golden-oracle resolver + test_safety_replay verdict fixtures stay BYTE-STABLE. Verdict spine untouched.   # 1.16.0 (2026-08-28): + shet-lof-intolerance (continuous GeneBayes s_het, VERDICT-INERT complement to gnomAD constraint).   # 1.15.0: NET-NEW capsule-driven narrator (had none). Verdict-INERT.   # 1.14.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.  # 1.13.0 (2026-08-26): emit per-verdict `narrative` (movers/dissenters/
+SKILL_VERSION = "1.18.0"   # 1.18.0 (2026-09-07, CASE-009 literature-discordance loop): +VERDICT-INERT pharmacovigilance_scope_caveat — clarifies drug_warning_class='no_warning' = no OT-registered FDA warning among engaging drugs, NOT absence of on-target toxicity (mechanism-based dose-limiting tox — TLS/cytopenias/neuropathy — often not boxed). Fires only on the measured-negative no_warning state; verdict/resolver/golden/replay byte-stable.
+                          # 1.17.0 (2026-09-04): +OPTIONAL --literature lane (verdict-INERT LLM literature synthesis, Europe-PMC-grounded + PMID-verified via the shared _skills_common.literature_synthesis; run_wired_skill one-liner) mirroring genomic #982 / FR #987 / TP #965 / TS #968. + VERDICT-INERT signal-surfacing of the rich safety sub-fields the capsule projection ignored: a new PHARMACOVIGILANCE claim axis (on-target FDA warnings + toxicity classes of target-engaging drugs — OT drug-warning ⋈ MoA + OnSIDES boxed ADEs; confounded CONTEXT, corroboration capped, orients-not-holds), MOUSE_KO claim evidence += affected organ systems (organ_classes), CLINVAR claim evidence += confident germline-pathogenic variant count. PHARMACOVIGILANCE is LEFT OUT of the safety HeadlineSpec.axis_keys so headline_block/confidence/hero + the golden-oracle resolver + test_safety_replay verdict fixtures stay BYTE-STABLE. Verdict spine untouched.   # 1.16.0 (2026-08-28): + shet-lof-intolerance (continuous GeneBayes s_het, VERDICT-INERT complement to gnomAD constraint).   # 1.15.0: NET-NEW capsule-driven narrator (had none). Verdict-INERT.   # 1.14.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.  # 1.13.0 (2026-08-26): emit per-verdict `narrative` (movers/dissenters/
                           # flip_conditions/rule_sentences) in the headline — VERDICT-INERT, best-effort
                           # (Stage B of the interpretability workstream; safety pilot). Verdict byte-stable.
                           # 1.12.0 (2026-08-25): compose onsides-adverse-event-safety (OnSIDES
@@ -408,6 +409,28 @@ def _claim_record(cards, fired=None, verdict_pair=None) -> dict:
     )
 
 
+def _pharmacovigilance_scope_caveat(hl: dict) -> str | None:
+    """VERDICT-INERT scope clarifier for the PHARMACOVIGILANCE context axis. drug_warning_class ==
+    'no_warning' means target-engaging drugs were assessed but NONE carry an OT-registered FDA warning
+    (black-box / withdrawn / other) — it does NOT establish absence of on-target toxicity. Mechanism-based,
+    dose-limiting clinical liabilities (tumor-lysis syndrome, cytopenias, peripheral neuropathy) are common
+    for approved on-target agents yet are frequently NOT boxed warnings, so they lie outside this axis's
+    coarse OT drug-warning + OnSIDES-boxed scope. Fires ONLY on the measured-negative 'no_warning' state
+    (engaging drugs assessed); None for no_targeted_drug (coverage gap), any warned class, insufficient, or
+    absent → byte-stable. Never enters the resolver (the safety verdict is already independent of this
+    context axis). Surfaced by the literature↔deterministic discordance loop (eval/CASE_LOG.md CASE-009)."""
+    if hl.get("drug_warning_class") != "no_warning":
+        return None
+    return ("PHARMACOVIGILANCE SCOPE: drug_warning_class='no_warning' means target-engaging drugs were "
+            "assessed and none carry an OT-registered FDA warning (black-box / withdrawn / other) — it does "
+            "NOT establish absence of on-target toxicity. Mechanism-based, dose-limiting clinical "
+            "liabilities (e.g. tumor-lysis syndrome, cytopenias, peripheral neuropathy) are common for "
+            "approved on-target agents yet are frequently not boxed warnings, so they fall outside this "
+            "axis's coarse OT drug-warning + OnSIDES-boxed scope. This axis ORIENTS, never HOLDs — consult "
+            "toxicity_classes / OnSIDES ADE terms and the literature lane (--literature) for the full "
+            "on-target adverse-effect profile.")
+
+
 def _headline(cards, fired, verdict_pair):
     v, drv = verdict_pair or ("insufficient", None)
     # Mechanism-conditioning context: when the verdict is the mutant-selective downgrade, surface WHY
@@ -498,6 +521,11 @@ def _headline(cards, fired, verdict_pair):
     # cross-evidence agent via _synthesis_facet. Never feeds the safety verdict.
     hl["claim_vector"] = safety_claim_vector(hl, cards)
     hl["key_signals"] = safety_key_signals(hl, cards)
+    # VERDICT-INERT scope clarifier (CASE-009): 'no_warning' = no OT-registered FDA warning among engaging
+    # drugs, NOT absence of on-target toxicity (mechanism-based dose-limiting tox — TLS, cytopenias,
+    # neuropathy — is often not a boxed warning). Fires only on the measured-negative no_warning state;
+    # None otherwise → byte-stable. Never feeds the resolver (pharmacovigilance is verdict-inert context).
+    hl["pharmacovigilance_scope_caveat"] = _pharmacovigilance_scope_caveat(hl)
     # PER-MODALITY safety verdict (VERDICT_REPRESENTATION.md Layer-2b, ADDITIVE/verdict-INERT).
     # Crosses the WT-loss safety concerns (wt_loss_safety_conditioning.yaml) against each modality's
     # wt_engagement (modality.enum.yaml): engages_wt (degrader/RNA) -> hold; conditional (small_molecule)
@@ -575,6 +603,8 @@ _SYNTHESIS_FACET_KEYS = (
     "mouse_ko_phenotype_class", "mouse_ko_organ_systems",
     "dependency_class", "pan_essential_score", "essential_tissue_flag", "normal_tissue_breadth_class",
     "drug_warning_class", "drug_warning_has_black_box", "drug_warning_toxicity_classes",
+    # CASE-009: scope clarifier — 'no_warning' ≠ no on-target toxicity (verdict-INERT)
+    "pharmacovigilance_scope_caveat",
     "human_ko_observed_class", "germline_inheritance_mode", "alteration_functional_direction",
     "claim_vector", "key_signals",
     # the per-question (data·signal·confidence) rows — rendered as the leading table by target-profile too

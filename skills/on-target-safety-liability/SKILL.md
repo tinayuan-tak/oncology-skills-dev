@@ -28,7 +28,7 @@ description: |
   because two axes remain placeholder (see status note).
 
 metadata:
-  version: 1.17.0    # 1.17.0 (2026-09-04): +OPTIONAL --literature lane (verdict-INERT LLM literature
+  version: 1.18.0    # 1.18.0 (2026-09-07, CASE-009): +VERDICT-INERT pharmacovigilance_scope_caveat (drug_warning_class='no_warning' = no OT-registered FDA warning among engaging drugs, NOT absence of on-target toxicity — mechanism-based dose-limiting tox often not boxed; byte-stable). # 1.17.0 (2026-09-04): +OPTIONAL --literature lane (verdict-INERT LLM literature
                      # synthesis, Europe-PMC-grounded + PMID-verified via _skills_common.literature_synthesis;
                      # run_wired_skill one-liner) mirroring genomic #982 / FR #987 / TP #965 / TS #968.
                      # + VERDICT-INERT signal-surfacing of rich safety sub-fields the capsule projection

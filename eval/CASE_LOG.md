@@ -147,6 +147,34 @@ Curated labels drift; the collapsed word hides modality-conditioning; verify aga
 - **Status:** TRIAGED / CONFIRMED real. Method+card fix QUEUED (cross-repo). This entry is the
   propose-only output of the discordance loop's first triage; no gate/verdict change.
 
+### CASE-009 — on-target-safety PHARMACOVIGILANCE `no_warning` vs literature on-target toxicity — MOSTLY SCOPE-MISMATCH; scope caveat added (full-sweep, 2026-09-07)
+- **Surfaced by:** the full 37-pair sweep — the on-target-safety-liability calibration_gap cluster (4):
+  BCL2/CLL_AML, PSMB5/MM, XPO1/MM, PARP1/OV. Each: PHARMACOVIGILANCE axis `drug_warning_class=no_warning`
+  (signal=absent), literature `agreement=contradicts` (≥2–3 verified cites) documenting real on-target
+  dose-limiting toxicity (venetoclax→TLS; PARPi→cytopenias/MDS; bortezomib→neuropathy; selinexor→cytopenias).
+- **Triage — NOT a framework error (unlike CASE-007/008):**
+  - The OVERALL verdict for all 4 is already `highly_constrained_safety_concern` (the strongest safety call,
+    from gnomAD WT-constraint) — the framework is NOT missing the safety risk; it is maximally conservative.
+  - The flagged axis (PHARMACOVIGILANCE) is BY DESIGN a coarse FDA black-box/withdrawn detector (OT
+    drug-warning ⋈ MoA + OnSIDES-BOXED), explicitly verdict-INERT context that "orients, never HOLDs" and is
+    left out of the HeadlineSpec.axis_keys. `no_warning` vocab = "engaging drugs exist but none warned
+    (measured-negative)" — distinct from `no_targeted_drug` (coverage gap).
+  - So the literature "contradiction" is a SCOPE mismatch: dominant mechanism-based dose-limiting toxicities
+    (TLS, cytopenias, neuropathy) are frequently NOT boxed warnings, so they lie outside this axis's scope.
+    The axis is honest within its declared scope; the verdict is correct + conservative. → the 4 rows are
+    DISMISSED as bugs.
+- **The one real (target-agnostic) honesty improvement — LANDED:** `_pharmacovigilance_scope_caveat`
+  (on-target-safety-liability v1.18.0) fires ONLY on `drug_warning_class=no_warning`, clarifying that this
+  means "no OT-registered FDA warning among engaging drugs," NOT absence of on-target toxicity — so a reader
+  cannot misread the measured-negative as "safe." No curated list (fires on the axis state itself, unlike the
+  CASE-007/008 crosswalks); verdict/resolver/golden/replay byte-stable (safety golden 2/2; 3 new tests + 25
+  sibling tests green). Added to `_SYNTHESIS_FACET_KEYS`.
+- **Meta:** demonstrates the loop's triage DISCIPLINE — a verified-literature calibration_gap that is a
+  scope/annotation clarification, not a verdict bug. Not every discordance is a defect.
+- **Status:** TRIAGED → mostly scope-mismatch (dismissed as bugs) + one verdict-INERT scope caveat landed.
+  Deeper (deferred): a broader on-target-toxicity signal beyond OT boxed-warnings would need a new data
+  source (e.g. per-drug ADE severity ⋈ target) — out of scope for this axis's coarse OT feed.
+
 ### CASE-008 — tractability-small-molecule credits SM tractability from a BIOLOGICS approval — FIXED verdict-INERT (full-sweep, 2026-09-07)
 - **Surfaced by:** the FULL 37-pair calibration sweep (`eval/harvest_literature.py` →
   `build_discordance_ledger.py`; ledger `~/dev/discordance_full_sweep_ledger_2026-09-07.json`). The
