@@ -41,6 +41,11 @@ CONTRACTS = Path(
 RULES_DIR = CONTRACTS / "interpretation-rules"
 
 # Sub-skills whose run.py has a _verdict/_snapshot referencing rule_ids.
+# NOTE: these skills key off rule-ids via Pattern A (`"x" in fired_by_id`) / Pattern B (a
+# `("rule-id","verdict")` precedence tuple). immune-context is DELIBERATELY not in this list: it keys
+# off a `_RULE_TO_VERDICT` DICT LITERAL, a form Patterns A/B don't capture, and it also contains an
+# unrelated `("positive","negative")` polarity tuple that Pattern B would mis-read as a dangling
+# rule-id. It gets its own precise, runtime-dict guard below (test_immune_context_rule_map_ids_exist).
 _VERDICT_SKILLS = [
     "tumor-presence", "tumor-selectivity", "functional-requirement",
     "mechanism-and-pharmacology", "genomic-alteration-profile",
@@ -139,3 +144,23 @@ def test_subtype_short_only_appears_when_scoped():
     tp = _load_target_profile()
     sub_shorts = {short for _, short in tp.SUB_SKILLS}
     assert "subtype_fit" not in sub_shorts  # added conditionally, not in the static list
+
+
+def test_immune_context_rule_map_ids_exist():
+    """immune-context keys its inline _verdict off a `_RULE_TO_VERDICT` DICT LITERAL
+    (rule-id -> immune_hot/intermediate/cold) — a reference form the generic Pattern A/B
+    scan above does NOT capture, so a contract rename of e.g.
+    `immune-context-hot-tce-supportive` in surface-intrinsic.rules.yaml would SILENTLY
+    degrade every immune_hot call to insufficient with no failing test (the exact drift
+    family this module kills). Guard it precisely by reading the ACTUAL runtime dict (not
+    a text pattern, which mis-fires on the skill's unrelated ("positive","negative")
+    polarity tuple): every key must be a real rule-id."""
+    ic = load_run_py(SKILLS_DIR / "immune-context", "ic_run_guard")
+    known = _all_rule_ids()
+    assert known, "no rule_ids loaded — rules dir path wrong?"
+    mapped = set(ic._RULE_TO_VERDICT)
+    assert mapped, "immune-context _RULE_TO_VERDICT is empty — reader drift?"
+    dangling = mapped - known
+    assert not dangling, (
+        "immune-context _RULE_TO_VERDICT references rule_ids not in any rules file "
+        f"(silent immune_hot/cold -> insufficient drift): {sorted(dangling)}")

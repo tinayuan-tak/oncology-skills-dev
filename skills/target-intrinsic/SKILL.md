@@ -140,11 +140,14 @@ per indication.
 
 Composition into target-profile: target-intrinsic is in target-profile's sub-skill
 fan-out (`SUB_SKILLS` / `SUB_SKILL_CARDS` in target-profile/scripts/tp_fanout.py) as
-a GATELESS descriptive peer. The fan-out reads only its target-intrinsic-EXCLUSIVE
+a GATELESS descriptive peer. The fan-out reads its 7 target-intrinsic-EXCLUSIVE
 cards (target-identity-summary, target-development-level, protein-domains-class,
 domain-modality-relevance, ppi-interactome, gene-ontology-annotation,
-reactome-pathway-membership); its other cards are already composed under the
-indication-scoped sub-skills and read there (no double-read). This is CARD-level
+reactome-pathway-membership) plus 1 BORROWED card (measured-potency-tractability —
+also homed under tractability-small-molecule) = 8 composed cards; its other 12 cards
+are already composed under the indication-scoped sub-skills and read there (no
+double-read). A card may legitimately compose under >1 lens, so measured-potency is
+read here AND under tractability — byte-stable, both lenses share the same live reader. This is CARD-level
 composition — the same live readers / CARD_DISPATCHERS back both this skill and the
 composed sub-skills, so there is no computation drift. Bundle-level compute-once
 reuse remains a tracked future optimization.

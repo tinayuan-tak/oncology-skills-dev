@@ -20,7 +20,7 @@ from _skills_common import ordinal_view
 from _skills_common.flip_analysis import flip_analysis
 from _skills_common.narrative import build_narrative
 from tp_common import _CONTRACTS_REPO
-from tp_fanout import SUBTYPE_SHORT, _SHORT_TO_GATE
+from tp_fanout import SUBTYPE_SHORT, _SHORT_TO_GATE, _CONFIDENCE_AXIS_TO_GATE
 from tp_gates import _COVERAGE_RANK, _load_gate_coverage, _load_gate_verdicts, _load_positive_signals, _run_coverage_for_short, _sub_result_has_signal
 from tp_facets_biomarker import (  # re-export the split-out biomarker cluster
     _BIOMARKER_INPUTS, _BIOMARKER_QUANT,
@@ -749,7 +749,11 @@ def _fragility_facet(sub_results: dict, subtypes: Optional[list[str]] = None,
             continue  # a decision-relevant axis not present this run (e.g. subtype_fit w/o --subtypes)
         has_signal = _sub_result_has_signal(r)
         coverage = _run_coverage_for_short(short, r, baseline)
-        gate = _SHORT_TO_GATE.get(short)
+        # Gating axes resolve via _SHORT_TO_GATE; a resolver-backed CONFIDENCE axis (cis_coherence) is
+        # flip-scanned via _CONFIDENCE_AXIS_TO_GATE so its call-fragility folds into target_index. It has
+        # no `gates` action, so _decision_role never returns "kill:" for it → it can never contribute a
+        # recommendation flip (contested stays untouched); this only widens call-fragility coverage.
+        gate = _SHORT_TO_GATE.get(short) or _CONFIDENCE_AXIS_TO_GATE.get(short)
 
         if not has_signal:
             # An un-evidenced axis is an EVIDENCE GAP, not a fragile verdict (measured-vs-null

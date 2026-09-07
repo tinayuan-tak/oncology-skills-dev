@@ -522,8 +522,10 @@ def _headline(cards, fired, verdict_pair, target=None, indication=None):
 
 def _synthesis_facet(cards, fired, verdict_pair=None, target=None, indication=None):
     """Compact, VERDICT-INERT target-intrinsic facet for the composed synthesis. SELF-CONTAINED — reads
-    ONLY the target-intrinsic-EXCLUSIVE composer cards (domain-modality-relevance, target-development-level,
-    + measured-potency / GO / interactome the caveat reads), and does NOT call _headline (whose _HEADLINE_SPEC
+    ONLY this entry's 8 composer cards (the 7 target-intrinsic-EXCLUSIVE cards + the 1 BORROWED
+    measured-potency-tractability, also homed under tractability-small-molecule; e.g. domain-modality-
+    relevance, target-development-level, measured-potency / GO / interactome the caveat reads), and does
+    NOT call _headline (whose _HEADLINE_SPEC
     reads cards HOME'd under other subskills, absent from this entry by design). Carries the descriptive
     claim_vector + its citable atoms + the two class fields + the verdict-INERT intrinsic_confirmation_caveat
     / intrinsic_provenance. target-intrinsic is gateless (verdict_fn=None) — this never moves a verdict.

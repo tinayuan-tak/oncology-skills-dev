@@ -1,0 +1,63 @@
+# Canonical question + axis registry for the literature-context dashboard (evidence_graph layer).
+# Single source of truth for the 3 consumer-facing cited-literature questions and the unified axis_id
+# vocabulary {VOLUME, RECENCY, RELATION} — the SAME axis letters the literature-context narrator lens
+# uses (narrator_lenses.py LITERATURE_CONTEXT.axis_labels: VOLUME co-occurrence volume / RECENCY recent
+# activity / RELATION typed relation direction), so the literature axis->question crosswalk resolves.
+#
+# Consumed by _skills_common/evidence_graph.py (build_evidence_graph / load_questions). VERDICT-INERT and
+# display-only: nothing here feeds a rule, resolver, or gate. It is joined onto the already-emitted
+# headline.question_table (matched by `legacy_id` = the positional Q1..Q3 the
+# literature_context_question_table builder emits) — the emitted question_table itself is NOT modified
+# (byte-stable). Until this file existed literature-context was the ONLY wired sub-skill of 15 without a
+# questions.yaml; load_questions() fell soft to [] so the graph carried no question nodes for it.
+#
+# GATELESS / DESCRIPTIVE / CONTEXT-tier skill (verdict_fn=None): literature-context emits NO nomination
+# verdict — co-occurrence VOLUME + RECENCY + typed RELATION direction are citation CONTEXT that inform the
+# literature picture, not a good/bad push on the nomination (VOLUME != VALIDATION; a BioREx typed edge is
+# automated/context-free). So the graph's verdict node carries id=None and every question polarity is
+# `informs`, never supports/opposes. Accordingly the editorial question `role` here is `context` (NOT
+# verdict_bearing — there is no verdict to bear); `context` is a non-corroboration role, so the literature
+# axis->question crosswalk still resolves all three lens axes.
+#
+# Per-question fields (identical contract to skills/translational-readiness/questions.yaml):
+#   id              stable semantic slug (the join key every graph edge references; NOT "Q1")
+#   legacy_id       the positional id literature_context_question_table emits (Q1..Q3)
+#   seq             1-based display order
+#   text            human question text (mirrors the emitted question_table row)
+#   axis_id         unified claim/literature axis (VOLUME|RECENCY|RELATION)
+#   role            context (descriptive) — non-corroboration, so it owns its axis in the crosswalk
+#   measurement_types  the card-join key: a card joins this question when its measurement_type is in this
+#                   list. The sole composed card (cited-literature-evidence) carries
+#                   measurement_type=cited_literature_evidence, so all three questions share it (VOLUME/
+#                   RECENCY/RELATION are three axes OF that one co-occurrence + PubTator3 card).
+#
+# The literature axis->question crosswalk is DERIVED, not stored:
+#   question_ids(axis) = [q.id for q where q.axis_id == axis and q.role != "corroboration"]
+#   => VOLUME->[cooccurrence_volume]  RECENCY->[literature_recency]  RELATION->[typed_relation_direction]
+skill: literature-context
+axis_vocabulary:
+  VOLUME: co-occurrence volume
+  RECENCY: recent activity
+  RELATION: typed relation direction
+questions:
+- id: cooccurrence_volume
+  legacy_id: Q1
+  seq: 1
+  text: How much is written about this gene × indication (co-occurrence volume)?
+  axis_id: VOLUME
+  role: context
+  measurement_types: [cited_literature_evidence]
+- id: literature_recency
+  legacy_id: Q2
+  seq: 2
+  text: Is the cited literature recent / currently active?
+  axis_id: RECENCY
+  role: context
+  measurement_types: [cited_literature_evidence]
+- id: typed_relation_direction
+  legacy_id: Q3
+  seq: 3
+  text: What typed mechanistic relations are reported (PubTator3 associate/cause/inhibit/…)?
+  axis_id: RELATION
+  role: context
+  measurement_types: [cited_literature_evidence]

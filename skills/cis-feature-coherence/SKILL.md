@@ -24,11 +24,16 @@ description: |
   "is MYC over-expression copy-number-driven or trans-regulated?", "is this target's
   dependency explained by its own lesion, or is it a passenger?"
 
-  VERDICT-INERT at the composed target-profile layer: cis_coherence is a DEDICATED,
-  self-contained axis (like combinatorial_dependency / resistance_emergence) — kept OUT
-  of the shared nomination ladder, never a nomination gate. It feeds confidence +
-  tension_analysis framing. Graduation to a gate (coherent → supportive; incoherent →
-  contradiction) is a later, CALIBRATED stage.
+  VERDICT-INERT for overall_recommendation: cis_coherence is a DEDICATED, self-contained
+  axis (like combinatorial_dependency / resistance_emergence) with no `gates` action, so it
+  can NEVER cross the kill boundary or move the Go/No-Go. GRADUATED at gate v1.6.0 (2026-08-20)
+  to a CONFIDENCE-tier axis in nomination_verdict_gate.yaml: coherent_cis_driver → positive_signal
+  (supportive), expressed_cis_coupled_inert → positive_contradiction (blocks `strong`), grouped
+  with genomic_alteration (correlated_dimension_groups) to avoid double-counting the shared
+  amplification signal. It is DELIBERATELY kept OUT of target-profile's `_SHORT_TO_GATE` (the
+  kill/hold gating-axis map → ROLE_GATING + polarity scored) so it stays role=inert / not_scored;
+  its flip-stability is scanned via `_CONFIDENCE_AXIS_TO_GATE` (folds into fragility target_index
+  only, never recommendation_fragility_index / contested).
 
 metadata:
   version: 1.4.0

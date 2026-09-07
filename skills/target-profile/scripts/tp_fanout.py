@@ -310,8 +310,17 @@ SUB_SKILLS = [
                                                                # amplification-driven cis-driver from a passenger / an expressed-but-
                                                                # inert target / a trans-driven dependency — a cross-axis integrator
                                                                # over its own new leg + reused expression-dependency + amp-expr cards.
-                                                               # Graduation to a positive_signal/positive_contradiction gate is a
-                                                               # later CALIBRATED stage (would then enter _SHORT_TO_GATE + full suite).
+                                                               # GRADUATED (gate v1.6.0, 2026-08-20): cis_coherence is now a
+                                                               # CONFIDENCE-tier axis in nomination_verdict_gate.yaml — positive_signal
+                                                               # (coherent_cis_driver, supportive), positive_contradiction
+                                                               # (expressed_cis_coupled_inert, blocks `strong`), correlated_dimension
+                                                               # group [genomic_alteration, cis_coherence]. It is VERDICT-INERT for
+                                                               # overall_recommendation ONLY (no `gates` action → can NEVER cross the
+                                                               # kill boundary) — it moves CONFIDENCE, not Go/No-Go. It is DELIBERATELY
+                                                               # kept OUT of _SHORT_TO_GATE (that map == the kill/hold gating axes,
+                                                               # ROLE_GATING + polarity scored) so it stays role=inert / not_scored; its
+                                                               # flip-stability is scanned via _CONFIDENCE_AXIS_TO_GATE (feeds
+                                                               # target_index only, never recommendation_fragility_index/contested).
     ("combination-and-vulnerability",  "combination_vulnerability"),  # CONSOLIDATED relational (gene×gene) annex
                                                                # (skill wired 2026-08-20). Canonical axis
                                                                # combination_vulnerability (target_profiling_axes.yaml). GATELESS
@@ -374,6 +383,18 @@ _SHORT_TO_GATE = {
     "tractability_sm": "tractability_small_molecule",
     "surface_modality": "surface_modality",
     "safety": "safety",
+}
+
+# CONFIDENCE-tier axes that are resolver-backed and DECISION-RELEVANT (read by the positive_signal /
+# positive_contradiction vocab) but are NOT gating axes — deliberately absent from _SHORT_TO_GATE, so
+# they keep role=inert / polarity=not_scored and can NEVER cross the kill boundary (no `gates` action →
+# they move CONFIDENCE, not overall_recommendation). The fragility facet uses this map ONLY to resolve a
+# gate name for the flip scan, so their flip-stability folds into `target_index` (call-fragility) while
+# it can never touch `recommendation_fragility_index` / `contested`. Keeping it separate from
+# _SHORT_TO_GATE is what preserves the "8 gating shorts" invariant (skill_report ROLE_GATING mirror,
+# report_render vocab, the "six gateless" count) — membership here is NOT gating membership.
+_CONFIDENCE_AXIS_TO_GATE = {
+    "cis_coherence": "cis_coherence",   # graduated to a confidence positive+contradiction axis at gate v1.6.0
 }
 
 
@@ -575,10 +596,13 @@ SUB_SKILL_CARDS = {
         "combo-crispr-screen",           # combination co-targets under inhibition (COMBO axis)
         "combo-chemical-synergy",        # chemical drug×drug synergy (SYNERGY axis; Sanger 2022 Bliss)
         "resistance-emergence-signature",  # resistance mediators that rescue (RESISTANCE liability axis)
-                                         # All four are ALSO composed under their standalone entries above —
-                                         # same cards, relational lens (like copy-number-distribution's dual
-                                         # home). Matches the skill's SKILL.md cards_used. GATELESS → the four
-                                         # relational claim_vector axes read these; byte-stable on the spine.
+                                         # These FIVE source cards are composed ONLY here (each appears exactly
+                                         # once in the composer — NOT multi-homed; unlike copy-number-distribution
+                                         # which genuinely composes under >1 lens). The standalone SL /
+                                         # combinatorial-dependency / combo-crispr source SKILLS are separate skill
+                                         # dirs, NOT fan-out members — there are no "standalone entries above".
+                                         # Matches the skill's SKILL.md cards_used. GATELESS → the relational
+                                         # claim_vector axes read these; byte-stable on the spine.
     ],
     "cis-feature-coherence": [
         "cis-feature-expression-coherence",  # GoF leg-1: CN -> own-expression cis-dosage (amplification, mRNA)
