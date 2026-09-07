@@ -15,6 +15,7 @@ descriptive; this never feeds a resolver).
 from __future__ import annotations
 
 from _skills_common.claim_vector_core import (ClaimSpec, build_claim_vector, build_key_signals,
+                                              bump_corroboration, cap_corroboration,
                                               corr as _corr, signal_from_class as _sig)
 
 # co-occurrence: a significant pattern (either direction) is a signal; direction carried in the atom.
@@ -56,6 +57,24 @@ def _mk_atom(card, field, keys):
 _C_COMUT, _C_SURV = "co-mutation-and-mutual-exclusivity", "expression-clinical-association"
 _C_PROG, _C_NODE = "precog-prognostic-association", "pathway-node-leverage"
 
+_SURV_WORSE, _SURV_BETTER = "expression_high_worse_survival", "expression_high_better_survival"
+
+
+def _survival_corr(h, c):
+    """SURVIVAL corroboration: the per-indication KM/log-rank association (expression-clinical-association,
+    the signal source) is ONE cohort read → base corroboration. PRECOG (pan-cancer META-ANALYTIC
+    expression→survival, already in the headline) is a genuinely INDEPENDENT second arm — different cohorts
+    AND method: a same-direction PRECOG association bumps corroboration, an OPPOSITE-direction one caps it.
+    Was the single-source _corr proxy (dead-constant moderate). Verdict-INERT."""
+    surv = (c.get(_C_SURV) or {}).get("survival_association_class")
+    base = "moderate" if _SURVIVAL_SIGNAL.get(surv, "unmeasured") != "unmeasured" else "unmeasured"
+    if base == "unmeasured":
+        return "unmeasured"
+    precog = h.get("precog_prognostic_class")
+    if precog in (_SURV_WORSE, _SURV_BETTER) and surv in (_SURV_WORSE, _SURV_BETTER):
+        return bump_corroboration(base, True) if precog == surv else cap_corroboration(base, "low")
+    return base                                    # PRECOG no-association / data_unavailable → single-source base
+
 DIFFERENTIATION_CLAIM_SPEC = [
     ClaimSpec("COMUT", "co-mutation landscape", _sig(_C_COMUT, "cooccurrence_class", _COMUT_SIGNAL),
               _corr(_C_COMUT, "cooccurrence_class", _COMUT_SIGNAL), _INFORMS["COMUT"],
@@ -63,7 +82,7 @@ DIFFERENTIATION_CLAIM_SPEC = [
                        ("cooccurrence_class", "n_significant_cooccurring", "n_significant_mutually_exclusive",
                         "top_cooccurring", "top_mutually_exclusive", "n_pairs_panel_intersect_eligible"))),
     ClaimSpec("SURVIVAL", "expression↔survival", _sig(_C_SURV, "survival_association_class", _SURVIVAL_SIGNAL),
-              _corr(_C_SURV, "survival_association_class", _SURVIVAL_SIGNAL), _INFORMS["SURVIVAL"],
+              _survival_corr, _INFORMS["SURVIVAL"],
               _mk_atom(_C_SURV, "survival_association_class",
                        ("survival_association_class", "logrank_p", "n_patients", "n_events", "n_high_expr", "n_low_expr"))),
     ClaimSpec("PROGNOSIS", "PRECOG prognostic", _sig(_C_PROG, "prognostic_class", _PROGNOSIS_SIGNAL),
