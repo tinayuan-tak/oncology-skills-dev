@@ -218,3 +218,39 @@ def test_percentile_crossing_fraction_distance_to_cut_ruler_no_position():
     assert "position" not in gv                                       # this spec has no categorical
     if contract_threshold("tumor-vs-normal-percentile-crossing", "strong_frac_p95") is not None:
         assert {a["role"]: a["value"] for a in gv["frame"]["anchors"]}.get("cut") == 0.5
+
+
+# ── sc-tumor malignant detection + measured-potency (cross-repo cut) distance_to_cut rulers ───────────
+def test_sc_tumor_malignant_detection_distance_to_cut_ruler():
+    from _skills_common.evidence_salience import contract_threshold
+    interp = build_interpretation({}, {"malignant_detection_fraction": 0.68,
+                                        "sc_expression_class": "malignant_expressed"},
+                                  SALIENCE_SPECS["sc_tumor_celltype_expression"],
+                                  card_id="tumor-scrna-celltype-expression")
+    assert len(interp) == 1
+    gv = interp[0]
+    assert gv["metric"] == "malignant_detection_fraction" and gv["value"] == 0.68
+    assert gv["scale"] == "detection_fraction" and gv["direction"] == "higher_is_stronger"
+    assert gv["position"] == "malignant_expressed" and gv["position_source"] == "sc_expression_class"
+    # cut already NAMED on main (malignant_broadly_detected_min=0.5) → resolves
+    if contract_threshold("tumor-scrna-celltype-expression", "malignant_broadly_detected_min") is not None:
+        assert {a["role"]: a["value"] for a in gv["frame"]["anchors"]}.get("cut") == 0.5
+
+
+def test_measured_potency_distance_to_cut_ruler():
+    from _skills_common.evidence_salience import contract_threshold
+    interp = build_interpretation({}, {"best_measured_potency_neglog_m": 7.2,
+                                        "measured_bioactivity_class": "potent_measured_ligand"},
+                                  SALIENCE_SPECS["measured_potency_tractability"],
+                                  card_id="measured-potency-tractability")
+    assert len(interp) == 1
+    gv = interp[0]
+    assert gv["metric"] == "best_measured_potency_neglog_m" and gv["value"] == 7.2 and gv["scale"] == "neglog_M"
+    assert gv["position"] == "potent_measured_ligand" and gv["position_source"] == "measured_bioactivity_class"
+    assert gv["frame"]["kind"] == "distance_to_cut"
+    # cut single-sources from the card's potent_neglog_m (contracts #666); assert only once it resolves
+    # (green through the cross-repo lockstep window until #666 lands to main)
+    cut = contract_threshold("measured-potency-tractability", "potent_neglog_m")
+    if cut is not None:
+        assert cut == 6.0
+        assert {a["role"]: a["value"] for a in gv["frame"]["anchors"]}.get("cut") == 6.0

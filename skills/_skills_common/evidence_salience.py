@@ -147,7 +147,15 @@ SALIENCE_SPECS: dict = {
     # tumor-presence (§3.4)
     "sc_tumor_celltype_expression": {
         "effect_field": "malignant_detection_fraction", "direction": "higher_is_stronger",
-        "categorical": ["sc_expression_class", "stromal_confound_class", "caf_vs_malignant_class", "tce_antigen_escape_class"]},
+        "categorical": ["sc_expression_class", "stromal_confound_class", "caf_vs_malignant_class", "tce_antigen_escape_class"],
+        # STAGE-2 ruler: distance_to_cut on malignant-compartment detection (HIGHER = more malignant-intrinsic
+        # presence). position = sc_expression_class READ VERBATIM; cut = the card's malignant_broadly_detected_min
+        # (0.5 = detected in >=50% of malignant cells). DISPLAY-ONLY / verdict-INERT.
+        "reference_frame": {
+            "kind": "distance_to_cut", "value_field": "malignant_detection_fraction", "scale": "detection_fraction",
+            "position_field": "sc_expression_class",
+            "cut": {"card_id": "tumor-scrna-celltype-expression", "threshold": "malignant_broadly_detected_min",
+                    "label": "broadly_detected_cut"}}},
     "tumor_vs_adjacent_expression": {
         "effect_field": "log2_fc", "significance_field": "q_value", "direction": "higher_is_stronger",
         "categorical": ["expression_call_class"],
@@ -179,7 +187,15 @@ SALIENCE_SPECS: dict = {
     "measured_potency_tractability": {
         "effect_field": "chembl_best_pchembl", "direction": "higher_is_stronger",
         "categorical": ["measured_bioactivity_class", "chembl_clinical_phase_class"],
-        "extra_scalars": ["best_measured_potency_neglog_m"]},
+        "extra_scalars": ["best_measured_potency_neglog_m"],
+        # STAGE-2 ruler (cross-repo): distance_to_cut on the CROSS-SOURCE max potency (best_measured_potency_neglog_m,
+        # -log10 M; HIGHER = more potent), gauged against the potent_neglog_m cut (6.0 = <=1 uM) NAMED on the card
+        # (contracts #666). position = measured_bioactivity_class READ VERBATIM. DISPLAY-ONLY / verdict-INERT.
+        "reference_frame": {
+            "kind": "distance_to_cut", "value_field": "best_measured_potency_neglog_m", "scale": "neglog_M",
+            "position_field": "measured_bioactivity_class",
+            "cut": {"card_id": "measured-potency-tractability", "threshold": "potent_neglog_m",
+                    "label": "potent_cut"}}},
     "structure_druggability": {
         "categorical": ["structural_ligandability_class", "hotspot_pocket_adjacency_call", "alphafold_confidence_class"],
         "extra_scalars": ["alphafold_plddt_mean"]},
