@@ -21,9 +21,10 @@ history live in SKILL.md / run.py; this file is the data-product spec.
 
 ---
 
-## 1. Inputs — wired data (27 cards)
+## 1. Inputs — wired data (26 cards)
 
-24 whole-cohort spine cards + 3 `--subtypes`-gated panorama cards. **All 27 products LIVE** (concrete
+23 whole-cohort spine cards + 3 `--subtypes`-gated panorama cards (was 24+3 before the 2026-09-06
+tumor-splice-expression collapse, #1126). **All 26 products LIVE** (concrete
 `md5`+`size`, or materialized source prefix); no placeholders, no stale refs, no stale-metadata. `run.py`
 has no `CARD_CONTEXT` map. Full card→manifest→S3 table is in the wiring trace; grouped here by role:
 

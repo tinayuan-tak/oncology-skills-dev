@@ -8,14 +8,17 @@ description: |
   carries the signal, rather than implying "not a driver" for an amplification-
   or fusion-driven target (ERBB2, MYC, MET).
 
-  Consumes 18 cards: 9 verdict-driving (mutation-type-counts, mutation-stratified-
-  dependency, copy-number-distribution, the 3 stratified-dependency siblings
+  Consumes 26 cards (23 whole-cohort + 3 --subtypes-gated panorama): 11 verdict-
+  driving (mutation-type-counts, mutation-stratified-dependency, mutation-hotspot-
+  frequency, copy-number-distribution, the 3 stratified-dependency siblings
   [cn/fusion/amp-expr], alteration-role, fusion-rearrangement-landscape [LIVE,
-  tcga-fusion-consensus-v1], and mutation-drug-response), the mutation-hotspot-
-  frequency recurrence facet, and 8 additive signal-only layers (variant-level,
-  clonality, functional-gene-state, patient↔model match, + 4 indication-level
-  cohort-context facets). Emits a data-package output tree with a multi-class
-  genomic-alteration verdict.
+  tcga-fusion-consensus-v1], splice-exon-skip-landscape [curated exon-skip driver,
+  e.g. METex14], and mutation-drug-response [STRONG-sensitivity only]); and 12 additive
+  signal-only / confidence layers (variant-level [CIViC], variant-effect [MAVE], clonality,
+  functional-gene-state, patient↔model match, cross-consortium + predictability confidence,
+  tumor-splice-dysregulation, + 4 indication-level cohort-context facets [instability,
+  mutational-signature, DDR, oncogenic-pathway]). Emits a data-package output tree with a
+  multi-class genomic-alteration verdict. See DATA_PRODUCT.md for the canonical breakdown.
 
   Use for questions like "is KRAS a recurrent driver in COADREAD?", "is ERBB2
   amplification-driven in this indication?", "does BRAF-mutant CRC show a
