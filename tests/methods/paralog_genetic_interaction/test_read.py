@@ -10,6 +10,7 @@ The reader is AUTHORITATIVE over classification: it re-thresholds each partner f
 (frac_lines_strong_gi >= 0.4), not merely a small mean shift — see test_frac_strong_gate_* and the
 real-data regression at the bottom.
 """
+
 from __future__ import annotations
 
 import sys
@@ -30,13 +31,19 @@ def _pair(partner, mean_gi, frac_strong=0.05, min_gi=None, iclass=None, **kw):
     NOT trust it (except as a fallback when mean_gi is absent); it exists so tests can assert the
     reclassification. min_gi defaults to mean_gi (no per-line spread) to isolate the frac gate."""
     base = {
-        "target_gene": "GENEA", "partner_gene": partner, "pair_id": f"GENEA_{partner}",
-        "n_lines": 278, "mean_gi": mean_gi, "median_gi": mean_gi,
+        "target_gene": "GENEA",
+        "partner_gene": partner,
+        "pair_id": f"GENEA_{partner}",
+        "n_lines": 278,
+        "mean_gi": mean_gi,
+        "median_gi": mean_gi,
         "gi_ttest_pvalue": 1e-10,
         "frac_lines_strong_gi": frac_strong,
         "min_gi": mean_gi if min_gi is None else min_gi,
-        "min_gi_model_id": "ACH-000001", "min_gi_lineage": "Lung",
-        "n_lineages_strong": 3, "interaction_class": iclass,
+        "min_gi_model_id": "ACH-000001",
+        "min_gi_lineage": "Lung",
+        "n_lineages_strong": 3,
+        "interaction_class": iclass,
     }
     base.update(kw)
     return base
@@ -44,9 +51,9 @@ def _pair(partner, mean_gi, frac_strong=0.05, min_gi=None, iclass=None, **kw):
 
 def test_constitutive_wins_precedence():
     rows = (
-        _pair("P1", -0.10, frac_strong=0.12),          # context
-        _pair("P2", -0.60, frac_strong=0.50),          # constitutive (mean<=-0.25 AND frac>=0.4)
-        _pair("P3", 0.30, frac_strong=0.02),           # suppressive
+        _pair("P1", -0.10, frac_strong=0.12),  # context
+        _pair("P2", -0.60, frac_strong=0.50),  # constitutive (mean<=-0.25 AND frac>=0.4)
+        _pair("P3", 0.30, frac_strong=0.02),  # suppressive
     )
     r = combinatorial_dependency_for_gene("GENEA", summary_rows=rows)
     assert r["combinatorial_dependency_class"] == "strong_synthetic_lethal"
@@ -88,6 +95,7 @@ def test_read_failure_is_data_unavailable_not_negative(monkeypatch):
     # read failure now RE-RAISES instead of masking — see test_absence_discipline.py. summary_rows=None
     # means "read live", so monkeypatch the reader to the genuine-absence result to stay hermetic.
     import methods.paralog_genetic_interaction.read as _m
+
     monkeypatch.setattr(_m, "_read_summary_rows", lambda target: None)
     r = combinatorial_dependency_for_gene("SOMEGENE", summary_rows=None)
     assert r["combinatorial_dependency_class"] == "data_unavailable"
@@ -105,6 +113,7 @@ def test_partner_ranking_ascending_by_mean_gi():
 
 
 # --- frac_strong constitutive gate (the D2 fix) --------------------------------------------------
+
 
 def test_frac_strong_gate_demotes_weak_mean_only_constitutive():
     """A partner with a qualifying mean_gi but only a MINORITY of strong lines is NOT constitutive —
@@ -128,9 +137,16 @@ def test_frac_strong_gate_keeps_broad_constitutive():
 
 def test_falls_back_to_baked_label_when_raw_fields_absent():
     """Older product build without raw effect fields: trust the baked interaction_class."""
-    row = {"target_gene": "GENEA", "partner_gene": "OLD", "pair_id": "GENEA_OLD",
-           "n_lines": 200, "mean_gi": None, "frac_lines_strong_gi": None, "min_gi": None,
-           "interaction_class": "constitutive_buffering"}
+    row = {
+        "target_gene": "GENEA",
+        "partner_gene": "OLD",
+        "pair_id": "GENEA_OLD",
+        "n_lines": 200,
+        "mean_gi": None,
+        "frac_lines_strong_gi": None,
+        "min_gi": None,
+        "interaction_class": "constitutive_buffering",
+    }
     r = combinatorial_dependency_for_gene("GENEA", summary_rows=(row,))
     assert r["combinatorial_dependency_class"] == "strong_synthetic_lethal"
 
@@ -142,6 +158,7 @@ def test_falls_back_to_baked_label_when_raw_fields_absent():
 # `constitutive_combinatorial_dependency` by the baked column on weak family-wide GI against
 # non-paralog partners (ZAP70 for both ERBB targets; a flat RTK plateau for FLT3) — they must demote
 # to context.
+
 
 def test_regression_MARK2_stays_constitutive():
     rows = (

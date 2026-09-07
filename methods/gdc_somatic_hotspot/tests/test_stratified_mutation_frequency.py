@@ -29,14 +29,28 @@ def _build_synthetic_maf(maf_cache: Path, indication: str) -> set[str]:
     samples = [f"TCGA-XX-{i:04d}" for i in range(20)]
     for i, sid in enumerate(samples):
         # Every sample has a background mutation so it's in the cohort denominator.
-        rows.append({"gene_symbol": "BACKGROUND", "protein_change": "p.X1Y",
-                     "sample_id": sid, "patient_id": sid, "source_native_id": sid,
-                     "effect": "Missense_Mutation"})
+        rows.append(
+            {
+                "gene_symbol": "BACKGROUND",
+                "protein_change": "p.X1Y",
+                "sample_id": sid,
+                "patient_id": sid,
+                "source_native_id": sid,
+                "effect": "Missense_Mutation",
+            }
+        )
         if i < 10:  # first 10 carry TESTGENE
             change = "p.G12D" if i < 6 else "p.G12C"
-            rows.append({"gene_symbol": "TESTGENE", "protein_change": change,
-                         "sample_id": sid, "patient_id": sid, "source_native_id": sid,
-                         "effect": "Missense_Mutation"})
+            rows.append(
+                {
+                    "gene_symbol": "TESTGENE",
+                    "protein_change": change,
+                    "sample_id": sid,
+                    "patient_id": sid,
+                    "source_native_id": sid,
+                    "effect": "Missense_Mutation",
+                }
+            )
     pd.DataFrame(rows).to_parquet(maf_cache / f"{indication.lower()}-mc3.parquet")
     return set(samples)
 
@@ -58,16 +72,25 @@ def _build_synthetic_assignments(assign_cache: Path, manifest_id: str) -> None:
                 is_member = i < 8
             else:
                 is_member = i >= 10
-            rows.append({"sample_id": sid, "patient_id": sid, "source_native_id": sid,
-                         "stratum_id": stratum, "is_member": is_member,
-                         "derivation_source": "synthetic", "derivation_value": "",
-                         "evaluated_at_release": "test"})
+            rows.append(
+                {
+                    "sample_id": sid,
+                    "patient_id": sid,
+                    "source_native_id": sid,
+                    "stratum_id": stratum,
+                    "is_member": is_member,
+                    "derivation_source": "synthetic",
+                    "derivation_value": "",
+                    "evaluated_at_release": "test",
+                }
+            )
     pd.DataFrame(rows).to_parquet(d / "assignments.parquet")
 
 
 @pytest.fixture
 def synthetic_env(tmp_path, monkeypatch):
     from methods.subgroup_common import loaders
+
     maf_cache = tmp_path / "maf"
     assign_cache = tmp_path / "assignments"
     _build_synthetic_maf(maf_cache, "COADREAD")
@@ -81,8 +104,8 @@ def synthetic_env(tmp_path, monkeypatch):
 def test_scalar_path_whole_cohort(synthetic_env):
     """No subgroups → whole-cohort frequency (10/20 = 0.5)."""
     from methods.gdc_somatic_hotspot.read import read_stratified_mutation_frequency
-    rec = read_stratified_mutation_frequency(
-        "TESTGENE", "COADREAD", maf_cache=synthetic_env["maf_cache"])
+
+    rec = read_stratified_mutation_frequency("TESTGENE", "COADREAD", maf_cache=synthetic_env["maf_cache"])
     assert rec["subgroup_n"] == 20
     assert rec["overall_mutation_frequency"] == 0.5
     assert rec["mutation_class"] == "recurrently_mutated"
@@ -92,8 +115,10 @@ def test_scalar_path_whole_cohort(synthetic_env):
 def test_stratified_recomputes_within_member_set(synthetic_env):
     """Frequency is recomputed within each stratum denominator, not sliced from a global."""
     from methods.gdc_somatic_hotspot.read import build_mutation_frequency_panorama
+
     pan = build_mutation_frequency_panorama(
-        "TESTGENE", "COADREAD",
+        "TESTGENE",
+        "COADREAD",
         subgroups=["MUT_HI", "MUT_LO"],
         subgroup_assignments_manifest=synthetic_env["manifest_id"],
         hotspot_changes=("p.G12D", "p.G12C"),
@@ -119,8 +144,10 @@ def test_stratified_recomputes_within_member_set(synthetic_env):
 def test_hotspot_frequencies_within_stratum(synthetic_env):
     """Per-hotspot frequency also uses the stratum denominator."""
     from methods.gdc_somatic_hotspot.read import build_mutation_frequency_panorama
+
     pan = build_mutation_frequency_panorama(
-        "TESTGENE", "COADREAD",
+        "TESTGENE",
+        "COADREAD",
         subgroups=["MUT_HI"],
         subgroup_assignments_manifest=synthetic_env["manifest_id"],
         hotspot_changes=("p.G12D", "p.G12C"),
@@ -128,8 +155,8 @@ def test_hotspot_frequencies_within_stratum(synthetic_env):
     )
     hs = {h["protein_change"]: h for h in pan["per_subgroup_metrics"][0]["hotspot_frequencies"]}
     # s00..s05 = G12D (6), s06..s07 = G12C (2) within MUT_HI (n=8)
-    assert hs["p.G12D"]["frequency"] == 0.75   # 6/8
-    assert hs["p.G12C"]["frequency"] == 0.25   # 2/8
+    assert hs["p.G12D"]["frequency"] == 0.75  # 6/8
+    assert hs["p.G12C"]["frequency"] == 0.25  # 2/8
 
 
 def test_evidence_state_trichotomy(synthetic_env):
@@ -140,9 +167,11 @@ def test_evidence_state_trichotomy(synthetic_env):
     'we can't tell'.
     """
     from methods.gdc_somatic_hotspot.read import build_mutation_frequency_panorama
+
     # BACKGROUND gene is present in every sample; TESTGENE absent from MUT_LO.
     pan = build_mutation_frequency_panorama(
-        "TESTGENE", "COADREAD",
+        "TESTGENE",
+        "COADREAD",
         subgroups=["MUT_HI", "MUT_LO", "NONEXISTENT_STRATUM"],
         subgroup_assignments_manifest=synthetic_env["manifest_id"],
         maf_cache=synthetic_env["maf_cache"],
@@ -160,29 +189,47 @@ def test_floor_flag_true_for_large_stratum(synthetic_env, tmp_path, monkeypatch)
     """subgroup_n_floor_met flips True once a stratum clears SUBGROUP_N_FLOOR."""
     from methods.subgroup_common import loaders
     from methods.gdc_somatic_hotspot import read as gsh_read
+
     # Build a 40-sample cohort, all in one stratum.
     maf_cache = tmp_path / "maf2"
     maf_cache.mkdir()
     rows = []
     for i in range(40):
         sid = f"TCGA-YY-{i:04d}"
-        rows.append({"gene_symbol": "TESTGENE", "protein_change": "p.G12D",
-                     "sample_id": sid, "patient_id": sid, "source_native_id": sid,
-                     "effect": "Missense_Mutation"})
+        rows.append(
+            {
+                "gene_symbol": "TESTGENE",
+                "protein_change": "p.G12D",
+                "sample_id": sid,
+                "patient_id": sid,
+                "source_native_id": sid,
+                "effect": "Missense_Mutation",
+            }
+        )
     pd.DataFrame(rows).to_parquet(maf_cache / "coadread-mc3.parquet")
     assign = tmp_path / "assign2"
-    d = assign / "big-v1"; d.mkdir(parents=True)
-    pd.DataFrame([
-        {"sample_id": f"TCGA-YY-{i:04d}", "patient_id": f"TCGA-YY-{i:04d}",
-         "source_native_id": f"TCGA-YY-{i:04d}", "stratum_id": "BIG", "is_member": True,
-         "derivation_source": "synthetic", "derivation_value": "", "evaluated_at_release": "test"}
-        for i in range(40)
-    ]).to_parquet(d / "assignments.parquet")
+    d = assign / "big-v1"
+    d.mkdir(parents=True)
+    pd.DataFrame(
+        [
+            {
+                "sample_id": f"TCGA-YY-{i:04d}",
+                "patient_id": f"TCGA-YY-{i:04d}",
+                "source_native_id": f"TCGA-YY-{i:04d}",
+                "stratum_id": "BIG",
+                "is_member": True,
+                "derivation_source": "synthetic",
+                "derivation_value": "",
+                "evaluated_at_release": "test",
+            }
+            for i in range(40)
+        ]
+    ).to_parquet(d / "assignments.parquet")
     monkeypatch.setattr(loaders, "CACHE_ASSIGNMENTS", assign)
     loaders.clear_all_caches()
     pan = gsh_read.build_mutation_frequency_panorama(
-        "TESTGENE", "COADREAD", subgroups=["BIG"],
-        subgroup_assignments_manifest="big-v1", maf_cache=maf_cache)
+        "TESTGENE", "COADREAD", subgroups=["BIG"], subgroup_assignments_manifest="big-v1", maf_cache=maf_cache
+    )
     rec = pan["per_subgroup_metrics"][0]
     assert rec["subgroup_n"] == 40
     assert rec["subgroup_n_floor_met"] is True

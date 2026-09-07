@@ -9,5 +9,7 @@ window flag, NOT an isoform-identity call. Per-exon coverage quantiles are blind
 membership, so this CANNOT confirm a specific isoform (can't resolve CLDN18.2 from CLDN18.1);
 exon_heterogeneity_flag = "worth junction-level follow-up". Scores exon INCLUSION not SKIPPING.
 """
+
 from .read import read_exon_window  # noqa: F401
+
 METHOD_VERSION = "1.1.0"

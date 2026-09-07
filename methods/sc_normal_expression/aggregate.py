@@ -33,6 +33,7 @@ Usage:
 S3 auth: DuckDB httpfs does not reliably pick up boto3 SSO credential chain; injected via
 CREATE SECRET (same pattern as methods/tcga_tpm_precompute/resort_long.py).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -46,18 +47,23 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 
 S3_BUCKET = "onc-compbio"
 # Tier-2 product path template (output of data-catalog aggregate_sc_pseudobulk.py --normal-mode)
-TIER2_PRODUCT_TEMPLATE = "s3://onc-compbio/data-catalog/derived/sc-pseudobulk-normal-celltype-{tissue}-v1/sc_pseudobulk.parquet"
+TIER2_PRODUCT_TEMPLATE = (
+    "s3://onc-compbio/data-catalog/derived/sc-pseudobulk-normal-celltype-{tissue}-v1/sc_pseudobulk.parquet"
+)
 # Tier-1 output path template
-TIER1_PRODUCT_TEMPLATE = "s3://onc-compbio/data-catalog/derived/sc-normal-celltype-expression-{tissue}-v1/sc_normal_expression.parquet"
+TIER1_PRODUCT_TEMPLATE = (
+    "s3://onc-compbio/data-catalog/derived/sc-normal-celltype-expression-{tissue}-v1/sc_normal_expression.parquet"
+)
 
-MIN_CELLS_PER_GROUP = 10    # donor-cell_type groups below this are excluded (unreliable detection)
-ROW_GROUP_SIZE = 50_000     # matches Tier-2 row-group size and the query_optimization block
-MEMORY_LIMIT = "150GB"      # 512 GB instance; 150 GB headroom for DuckDB sort windows
+MIN_CELLS_PER_GROUP = 10  # donor-cell_type groups below this are excluded (unreliable detection)
+ROW_GROUP_SIZE = 50_000  # matches Tier-2 row-group size and the query_optimization block
+MEMORY_LIMIT = "150GB"  # 512 GB instance; 150 GB headroom for DuckDB sort windows
 
 
 def _inject_s3_creds(con, profile: str = "cbg") -> None:
     """Inject SSO credentials as a named DuckDB S3 secret — httpfs boto3 chain is unreliable."""
     import boto3
+
     session = boto3.Session(profile_name=profile)
     creds = session.get_credentials().get_frozen_credentials()
     con.execute(f"""
@@ -121,10 +127,13 @@ ORDER BY gene_symbol, tissue, cell_type
 """.strip()
 
 
-def run_aggregation(tissue: str, no_upload: bool = False,
-                    out_override: Path | None = None,
-                    merge_temp_dir: Path | None = None,
-                    aws_profile: str = "cbg") -> dict:
+def run_aggregation(
+    tissue: str,
+    no_upload: bool = False,
+    out_override: Path | None = None,
+    merge_temp_dir: Path | None = None,
+    aws_profile: str = "cbg",
+) -> dict:
     """Execute Tier-2 → Tier-1 cross-donor aggregation for one tissue shard.
 
     Returns a dict with n_rows, size_bytes, output_uri, elapsed_seconds.
@@ -160,7 +169,8 @@ def run_aggregation(tissue: str, no_upload: bool = False,
     t0 = time.monotonic()
     sql = TIER1_SQL.format(min_cells=MIN_CELLS_PER_GROUP)
     log.info("[aggregate] running Tier-1 SQL (single DuckDB pass)...")
-    con.execute(f"""
+    con.execute(
+        f"""
         COPY (
             {sql}
         ) TO '{local_out}' (
@@ -168,7 +178,9 @@ def run_aggregation(tissue: str, no_upload: bool = False,
             COMPRESSION SNAPPY,
             ROW_GROUP_SIZE {ROW_GROUP_SIZE}
         )
-    """, {"tier2_uri": tier2_uri})
+    """,
+        {"tier2_uri": tier2_uri},
+    )
     elapsed = time.monotonic() - t0
     size = local_out.stat().st_size
     row_count = con.execute(f"SELECT COUNT(*) FROM read_parquet('{local_out}')").fetchone()[0]
@@ -186,6 +198,7 @@ def run_aggregation(tissue: str, no_upload: bool = False,
     output_uri = str(local_out)
     if not no_upload:
         import boto3
+
         s3 = boto3.Session(profile_name=aws_profile).client("s3", region_name="us-east-1")
         key = TIER1_PRODUCT_TEMPLATE.format(tissue=slug).removeprefix(f"s3://{S3_BUCKET}/")
         log.info(f"[aggregate] uploading to s3://{S3_BUCKET}/{key} ...")
@@ -205,16 +218,23 @@ def run_aggregation(tissue: str, no_upload: bool = False,
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="Tier-2 → Tier-1 sc_normal_expression aggregation.")
-    ap.add_argument("--tissue", required=True,
-                    help="Tissue shard to aggregate (e.g. colon, lung)")
-    ap.add_argument("--no-upload", action="store_true",
-                    help="Skip S3 upload — write local parquet only (dry-run / testing)")
-    ap.add_argument("--out", type=Path, default=None,
-                    help="Override local output path (default: /tmp/sc_normal_expression_{tissue}.parquet)")
-    ap.add_argument("--merge-temp-dir", type=Path, default=None,
-                    help="DuckDB sort spill directory (default: system temp). Use EFS for large tissues.")
-    ap.add_argument("--aws-profile", default="cbg",
-                    help="AWS profile for S3 credentials (default: cbg)")
+    ap.add_argument("--tissue", required=True, help="Tissue shard to aggregate (e.g. colon, lung)")
+    ap.add_argument(
+        "--no-upload", action="store_true", help="Skip S3 upload — write local parquet only (dry-run / testing)"
+    )
+    ap.add_argument(
+        "--out",
+        type=Path,
+        default=None,
+        help="Override local output path (default: /tmp/sc_normal_expression_{tissue}.parquet)",
+    )
+    ap.add_argument(
+        "--merge-temp-dir",
+        type=Path,
+        default=None,
+        help="DuckDB sort spill directory (default: system temp). Use EFS for large tissues.",
+    )
+    ap.add_argument("--aws-profile", default="cbg", help="AWS profile for S3 credentials (default: cbg)")
     args = ap.parse_args(argv)
 
     result = run_aggregation(
@@ -225,6 +245,7 @@ def main(argv=None) -> int:
         aws_profile=args.aws_profile,
     )
     import json
+
     print(json.dumps(result, indent=2))
     return 0
 

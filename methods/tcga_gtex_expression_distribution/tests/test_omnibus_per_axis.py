@@ -6,6 +6,7 @@ OVERLAP — the same sample sits in one arm per axis. Feeding all strata into ON
 invalidating ε²). `kruskal_epsilon_squared_by_axis` groups strata by axis and runs one omnibus
 per axis, so N is never inflated and the effect-size class is computed on a valid single-axis test.
 """
+
 from __future__ import annotations
 
 from methods.tcga_gtex_expression_distribution.stats import (
@@ -19,15 +20,16 @@ def _two_axis_vectors():
       MSI axis  — MSI_H (samples 0-19, HIGH) vs MSS (20-39, LOW): strong separation.
       CMS axis  — CMS1 (even idx) vs CMS2 (odd idx): interleaved → no separation.
     The SAME 40 samples appear in BOTH axes' arms (overlapping membership)."""
-    high = [5.0 + (i % 5) * 0.1 for i in range(20)]   # samples 0-19
-    low = [1.0 + (i % 5) * 0.1 for i in range(20)]    # samples 20-39
+    high = [5.0 + (i % 5) * 0.1 for i in range(20)]  # samples 0-19
+    low = [1.0 + (i % 5) * 0.1 for i in range(20)]  # samples 20-39
     msi_h, mss = high, low
-    all_vals = high + low                              # index i -> sample i's value
+    all_vals = high + low  # index i -> sample i's value
     cms1 = [all_vals[i] for i in range(40) if i % 2 == 0]
     cms2 = [all_vals[i] for i in range(40) if i % 2 == 1]
     vectors = {"MSI_H": msi_h, "MSS": mss, "CMS1": cms1, "CMS2": cms2}
     member_sets = {
-        "MSI_H": set(range(0, 20)), "MSS": set(range(20, 40)),
+        "MSI_H": set(range(0, 20)),
+        "MSS": set(range(20, 40)),
         "CMS1": {i for i in range(40) if i % 2 == 0},
         "CMS2": {i for i in range(40) if i % 2 == 1},
     }
@@ -66,14 +68,13 @@ def test_per_axis_drops_within_axis_overlapping_composite():
         "stage_II": [3.0, 3.1, 3.2, 3.3],
         "stage_resectable": [1.0, 1.1, 1.2, 1.3, 3.0, 3.1, 3.2, 3.3],  # = I ∪ II
     }
-    member_sets = {"stage_I": {1, 2, 3, 4}, "stage_II": {5, 6, 7, 8},
-                   "stage_resectable": set(range(1, 9))}
+    member_sets = {"stage_I": {1, 2, 3, 4}, "stage_II": {5, 6, 7, 8}, "stage_resectable": set(range(1, 9))}
     out = kruskal_epsilon_squared_by_axis(vectors, member_sets)
     assert out["n_axes_tested"] == 1
     stage = out["subtype_omnibus_by_axis"][0]
     assert stage["axis"] == "stage"
-    assert stage["strata"] == ["stage_I", "stage_II"]   # resectable dropped
-    assert stage["n_samples_tested"] == 8               # not 16
+    assert stage["strata"] == ["stage_I", "stage_II"]  # resectable dropped
+    assert stage["n_samples_tested"] == 8  # not 16
 
 
 def test_empty_and_singleton_axis_safe():

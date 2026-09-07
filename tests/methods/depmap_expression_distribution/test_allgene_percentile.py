@@ -4,6 +4,7 @@ Offline — monkeypatches load_expression_files (so no DepMap matrix read) + the
 depmap_allgene_percentile accessor (so no S3), and asserts read_expression_distribution
 merges the allgene_* fields WITHOUT disturbing expression_class (one-directional).
 """
+
 from __future__ import annotations
 
 import sys
@@ -29,20 +30,21 @@ def _fake_load(release_pin, target_symbol):
 def test_read_merges_allgene_percentile(monkeypatch):
     monkeypatch.setattr(C, "load_expression_files", _fake_load)
     import methods.allgene_percentile_precompute.lookup as _lk
+
     monkeypatch.setattr(_lk, "_depmap_row", lambda sym: (99.9, 17, 19215, 11.9))
     out = R.read_expression_distribution("GAPDH")
     assert out["allgene_percentile"] == pytest.approx(99.9)
     assert out["allgene_percentile_class"] == "top_1pct"
     assert "allgene-depmap-rank-26q1-v1" in out["allgene_percentile_context"]
     # core panel summary still present + unperturbed
-    assert out["expression_class"] in {"broadly_high", "broadly_moderate", "lineage_restricted",
-                                       "broadly_low"}
+    assert out["expression_class"] in {"broadly_high", "broadly_moderate", "lineage_restricted", "broadly_low"}
     assert "median_log2tpm_panel" in out
 
 
 def test_read_allgene_absent_gene_data_unavailable(monkeypatch):
     monkeypatch.setattr(C, "load_expression_files", _fake_load)
     import methods.allgene_percentile_precompute.lookup as _lk
+
     monkeypatch.setattr(_lk, "_depmap_row", lambda sym: None)
     out = R.read_expression_distribution("MADE_UP")
     assert out["allgene_percentile"] is None

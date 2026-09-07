@@ -13,6 +13,7 @@ data_unavailable}. Additive / verdict-inert DISPLAY facet for the modality skill
 
 METHOD_VERSION 0.1.0.
 """
+
 from __future__ import annotations
 
 METHOD_VERSION = "0.1.0"

@@ -51,6 +51,7 @@ def _get_s3fs():
         with _S3FS_LOCK:
             if _S3FS is None:
                 import pyarrow.fs as fs
+
                 _S3FS = fs.S3FileSystem(region="us-east-1")
     return _S3FS
 
@@ -66,13 +67,13 @@ def _read_gene_rows(target: str, parquet_path=None):
     seam) streams a local file instead of S3. Errors propagate to the caller's boundary."""
     import pyarrow.dataset as ds
     import pyarrow.compute as pc
+
     want = target.strip().upper()
     expr = pc.equal(pc.utf8_upper(pc.field(PUSHDOWN_KEY)), want)
     if parquet_path is not None:
         dset = ds.dataset(str(parquet_path), format="parquet")
     else:
-        dset = ds.dataset(f"{S3_BUCKET}/{DERIVED_KEY}", filesystem=_get_s3fs(),
-                          format="parquet")
+        dset = ds.dataset(f"{S3_BUCKET}/{DERIVED_KEY}", filesystem=_get_s3fs(), format="parquet")
     return dset.to_table(filter=expr).to_pandas()
 
 
@@ -103,8 +104,7 @@ def _summary(row) -> dict:
     }
 
 
-def read_target_summary(target: str, indication: Optional[str] = None,
-                        parquet_path: Optional[str] = None) -> dict:
+def read_target_summary(target: str, indication: Optional[str] = None, parquet_path: Optional[str] = None) -> dict:
     """SL-partner annotation for a target. Gene-level (SL pairs are gene-gene) —
     `indication` accepted for the dispatcher contract but NOT consumed."""
     try:
@@ -118,19 +118,24 @@ def read_target_summary(target: str, indication: Optional[str] = None,
         # is the distinct `no_curated_sl_partner` path below, not this handler.
         return {
             "_live_read_error": "synlethdb_partners_read_failed",
-            "_remediation": (f"Could not read SL-partners derived product "
-                             f"(s3://{S3_BUCKET}/{DERIVED_KEY}) for {target}: {e}"),
+            "_remediation": (
+                f"Could not read SL-partners derived product (s3://{S3_BUCKET}/{DERIVED_KEY}) for {target}: {e}"
+            ),
             "sl_partner_class": "data_unavailable",
-            "sl_partner_count": 0, "has_experimental_partner": False,
+            "sl_partner_count": 0,
+            "has_experimental_partner": False,
             "method_version": METHOD_VERSION,
         }
     if not len(hit):
         # a real read: this gene has no curated SL partner (NOT data_unavailable)
         return {
             "sl_partner_class": "no_curated_sl_partner",
-            "sl_partner_count": 0, "n_experimental_partners": 0,
-            "has_experimental_partner": False, "best_evidence_tier": None,
-            "sl_partner_symbols": [], "top_partners": [],
+            "sl_partner_count": 0,
+            "n_experimental_partners": 0,
+            "has_experimental_partner": False,
+            "best_evidence_tier": None,
+            "sl_partner_symbols": [],
+            "top_partners": [],
             "method_version": METHOD_VERSION,
         }
     return _summary(hit.iloc[0])

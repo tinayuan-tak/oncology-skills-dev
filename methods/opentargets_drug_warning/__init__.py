@@ -6,6 +6,7 @@ warning is a confounded on-target signal). Closes the P5 drug_warning placeholde
 
 METHOD_VERSION 0.1.0.
 """
+
 from __future__ import annotations
 
 METHOD_VERSION = "0.1.0"

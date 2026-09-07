@@ -18,6 +18,7 @@ sidecar; single lookup per call. Same discipline as reactome_pathway_context (pa
 
 License: GO + GOA are CC-BY-4.0 (cite the GO Consortium).
 """
+
 from __future__ import annotations
 
 import gzip
@@ -33,7 +34,7 @@ GO_SOURCE_MANIFEST_ID = "gene-ontology-release-2026-05-19"
 # bucket + source-dir prefix resolved from the manifest (single source of truth);
 # every key below (GAF, OBO, resolver sidecar) rides off this one prefix.
 S3_BUCKET, _PREFIX = bucket_prefix_for(GO_SOURCE_MANIFEST_ID)
-_PREFIX = _PREFIX.rstrip("/")   # keep the existing f"{_PREFIX}/file" idiom byte-identical
+_PREFIX = _PREFIX.rstrip("/")  # keep the existing f"{_PREFIX}/file" idiom byte-identical
 GAF_S3_KEY = f"{_PREFIX}/goa_human.gaf.gz"
 OBO_S3_KEY = f"{_PREFIX}/go-basic.obo"
 SIDECAR_S3_KEY = f"{_PREFIX}/goa_human.gaf.gz.target_resolution.parquet"
@@ -79,7 +80,7 @@ def _load_gaf(gaf_path: Optional[str] = None) -> dict:
     else:
         ensure_aws_profile()
         raw = _boto3_client().get_object(Bucket=S3_BUCKET, Key=GAF_S3_KEY)["Body"].read()
-    by_ac: dict[str, dict] = {}   # ac -> {(go_id, ns): evidence}
+    by_ac: dict[str, dict] = {}  # ac -> {(go_id, ns): evidence}
     with gzip.open(io.BytesIO(raw), "rt", encoding="utf-8", errors="replace") as fh:
         for line in fh:
             if line.startswith("!"):
@@ -111,10 +112,11 @@ def _load_symbol_to_ac(sidecar_path: Optional[str] = None) -> dict:
     empty crosswalk would silently fail EVERY target (data_unavailable framework-wide). The live-read
     seam turns a raise into an honest per-card _live_read_error."""
     from methods.target_id_sidecar import read_resolver_sidecar_map
+
     ensure_aws_profile()
     return read_resolver_sidecar_map(
-        S3_BUCKET, SIDECAR_S3_KEY, "hgnc_primary_symbol_at_resolution", "native_row_key",
-        local_path=sidecar_path)
+        S3_BUCKET, SIDECAR_S3_KEY, "hgnc_primary_symbol_at_resolution", "native_row_key", local_path=sidecar_path
+    )
 
 
 _DERIVED_PRODUCT_ID = "go-annotation-per-uniprot-v1"
@@ -133,6 +135,7 @@ def _load_annotation_from_product(ac: str, product_path=None):
     cols = ["uniprot_ac", "go_id", "namespace", "evidence", "go_name"]
     if product_path is not None:
         import pandas as pd
+
         try:
             df = pd.read_parquet(product_path, columns=cols, filters=[("uniprot_ac", "=", ac)])
         except (FileNotFoundError, OSError):
@@ -141,30 +144,40 @@ def _load_annotation_from_product(ac: str, product_path=None):
     else:
         try:
             from methods.catalog_query.read import s3_uri_for
+
             uri = s3_uri_for(_DERIVED_PRODUCT_ID)
         except Exception:  # absence-discipline: exempt -- resolves a LOCAL data-catalog manifest (not an S3 read); an unregistered/unreadable manifest => product not available => live GAF+OBO fallback, which enforces its own read discipline.
             return None
         try:
             import pyarrow.fs as fs
             import pyarrow.parquet as pq
+
             ensure_aws_profile()
-            tbl = pq.read_table(uri.replace("s3://", "", 1), filesystem=fs.S3FileSystem(),
-                                columns=["go_id", "namespace", "evidence", "go_name"],
-                                filters=[("uniprot_ac", "=", ac)])
+            tbl = pq.read_table(
+                uri.replace("s3://", "", 1),
+                filesystem=fs.S3FileSystem(),
+                columns=["go_id", "namespace", "evidence", "go_name"],
+                filters=[("uniprot_ac", "=", ac)],
+            )
         except Exception as e:  # noqa: BLE001
             from methods.target_id_sidecar import is_definitively_absent
+
             if isinstance(e, FileNotFoundError) or is_definitively_absent(e):
-                return None                              # object genuinely absent → live fallback
-            raise                                        # transient/creds → honest _live_read_error
+                return None  # object genuinely absent → live fallback
+            raise  # transient/creds → honest _live_read_error
         recs = tbl.to_pylist()
     terms = [{"go_id": r["go_id"], "namespace": r["namespace"], "evidence": r["evidence"]} for r in recs]
     names = {r["go_id"]: r["go_name"] for r in recs}
     return terms, names
 
 
-def read_target_summary(target: str, indication: str = None,
-                        gaf_path: Optional[str] = None, obo_path: Optional[str] = None,
-                        sidecar_path: Optional[str] = None) -> dict:
+def read_target_summary(
+    target: str,
+    indication: str = None,
+    gaf_path: Optional[str] = None,
+    obo_path: Optional[str] = None,
+    sidecar_path: Optional[str] = None,
+) -> dict:
     """Per-target GO annotation summary (BP / MF / CC). `indication` unused (GO is target-intrinsic;
     accepted for dispatcher signature consistency)."""
     sym_to_ac = _load_symbol_to_ac(sidecar_path)
@@ -176,11 +189,11 @@ def read_target_summary(target: str, indication: str = None,
         # the fixture-path test seam (gaf_path/obo_path) forces the live GAF+OBO path.
         prod = _load_annotation_from_product(ac) if (gaf_path is None and obo_path is None) else None
         if prod is not None:
-            terms, names = prod                          # terms + {go_id: name}, name-join baked in
+            terms, names = prod  # terms + {go_id: name}, name-join baked in
         else:
             gaf = _load_gaf(gaf_path)
             terms = gaf.get(ac, [])
-            names = None                                 # loaded lazily below (only if terms exist)
+            names = None  # loaded lazily below (only if terms exist)
         if not terms:
             return _empty("target_not_in_goa_human")
         if names is None:
@@ -192,15 +205,16 @@ def read_target_summary(target: str, indication: str = None,
         def _top(ns_terms, k=8):
             # experimental-evidence terms first, then by go_id for determinism
             ranked = sorted(ns_terms, key=lambda t: (t["evidence"] not in _EXPERIMENTAL_EVIDENCE, t["go_id"]))
-            return [{"go_id": t["go_id"], "name": names.get(t["go_id"], t["go_id"]),
-                     "evidence": t["evidence"]} for t in ranked[:k]]
+            return [
+                {"go_id": t["go_id"], "name": names.get(t["go_id"], t["go_id"]), "evidence": t["evidence"]}
+                for t in ranked[:k]
+            ]
 
         n_total = len(terms)
         n_experimental = sum(1 for t in terms if t["evidence"] in _EXPERIMENTAL_EVIDENCE)
-        annotation_class = ("well_annotated" if n_total >= 20 else
-                            "partial" if n_total >= 5 else "sparse")
+        annotation_class = "well_annotated" if n_total >= 20 else "partial" if n_total >= 5 else "sparse"
         return {
-            "annotation_class": annotation_class,   # PRIMARY
+            "annotation_class": annotation_class,  # PRIMARY
             "n_go_terms_total": n_total,
             "n_go_terms_experimental": n_experimental,
             "n_biological_process": len(by_ns["biological_process"]),
@@ -220,9 +234,16 @@ def read_target_summary(target: str, indication: str = None,
 def _empty(note: str) -> dict:
     return {
         "annotation_class": "data_unavailable",
-        "n_go_terms_total": 0, "n_go_terms_experimental": 0,
-        "n_biological_process": 0, "n_molecular_function": 0, "n_cellular_component": 0,
-        "top_biological_process": [], "top_molecular_function": [], "top_cellular_component": [],
-        "uniprot_ac_resolved": None, "method_version": METHOD_VERSION,
-        "_data_source": GO_SOURCE_MANIFEST_ID, "_data_note": note,
+        "n_go_terms_total": 0,
+        "n_go_terms_experimental": 0,
+        "n_biological_process": 0,
+        "n_molecular_function": 0,
+        "n_cellular_component": 0,
+        "top_biological_process": [],
+        "top_molecular_function": [],
+        "top_cellular_component": [],
+        "uniprot_ac_resolved": None,
+        "method_version": METHOD_VERSION,
+        "_data_source": GO_SOURCE_MANIFEST_ID,
+        "_data_note": note,
     }

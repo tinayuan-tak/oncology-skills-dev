@@ -11,6 +11,7 @@ Companion:
 Consumer: paralog-buffering evidence card (Phase C-adjacent) via
 functional-requirement skill extension.
 """
+
 METHOD_VERSION = "0.1.0"
 
 # Re-export the public API so dispatchers using __import__(...) find

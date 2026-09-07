@@ -19,6 +19,7 @@ MAXIMAL liability and kill a good pair. So normal_max_both is computed ONLY over
 If NO group meets the floor the result is `normal_selectivity_class: under_powered` — NOT "clear":
 absence of a measurable normal liability under thin coverage is not evidence of safety.
 """
+
 from __future__ import annotations
 
 from functools import lru_cache
@@ -36,13 +37,20 @@ MIN_CELLS_NORMAL = 10
 # Columns the reader actually consumes (projection pushdown) — drops fraction_a / fraction_b /
 # either_fraction, which no downstream computation touches. Keep in step with parquet_schema.
 _USED_COLUMNS = [
-    "gene_a", "gene_b", "tissue", "cell_type", "dataset_id", "donor_id",
-    "n_cells", "both_fraction", "enrichment_vs_independence",
+    "gene_a",
+    "gene_b",
+    "tissue",
+    "cell_type",
+    "dataset_id",
+    "donor_id",
+    "n_cells",
+    "both_fraction",
+    "enrichment_vs_independence",
 ]
 
 # normal_max_both bands for the selectivity call (RNA co-positivity, a lower bound under dropout).
-_LIABILITY_MIN = 0.10   # >= → a real normal cell type co-expresses both (selectivity liability)
-_CLEAR_MAX = 0.02       # <= → no normal co-positivity in any well-powered cell type (selectivity-clean)
+_LIABILITY_MIN = 0.10  # >= → a real normal cell type co-expresses both (selectivity liability)
+_CLEAR_MAX = 0.02  # <= → no normal co-positivity in any well-powered cell type (selectivity-clean)
 
 
 @lru_cache(maxsize=64)
@@ -63,12 +71,14 @@ def _read_normal_cube(genes: tuple = None, manifest_id: str = NORMAL_SAMECELL_MA
         # manifest not registered (FileNotFoundError from load_manifest) → cube not landed
         # (data_unavailable). Re-raise broken-env / transient so it isn't a silent dead axis.
         from methods.target_id_sidecar import is_definitively_absent
+
         if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
             return None
         raise
     try:
         import pyarrow.fs as fs
         import pyarrow.parquet as pq
+
         s3fs = fs.S3FileSystem(region="us-east-1")
         # order-insensitive pushdown: rows where either pair-member position is in `genes`.
         filters = None
@@ -76,14 +86,17 @@ def _read_normal_cube(genes: tuple = None, manifest_id: str = NORMAL_SAMECELL_MA
             gene_list = list(genes)
             filters = [[("gene_a", "in", gene_list)], [("gene_b", "in", gene_list)]]
         return pq.read_table(
-            uri.replace("s3://", ""), filesystem=s3fs,
-            columns=_USED_COLUMNS, filters=filters,
+            uri.replace("s3://", ""),
+            filesystem=s3fs,
+            columns=_USED_COLUMNS,
+            filters=filters,
         ).to_pandas()
     except Exception as e:  # noqa: BLE001
         # absence discipline: genuine absence (cube not landed) → None (data_unavailable);
         # broken-env / transient / creds → re-raise (honest live-read error, not a silent
         # selectivity dead-axis). See tests/test_reader_absence_discipline.py.
         from methods.target_id_sidecar import is_definitively_absent
+
         if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
             return None
         raise
@@ -93,9 +106,9 @@ def _selectivity_class(normal_max_both) -> str:
     if normal_max_both is None:
         return "under_powered"
     if normal_max_both >= _LIABILITY_MIN:
-        return "normal_liability"          # a well-powered normal cell type co-expresses both
+        return "normal_liability"  # a well-powered normal cell type co-expresses both
     if normal_max_both <= _CLEAR_MAX:
-        return "selectivity_clean"         # no normal co-positivity anywhere well-powered
+        return "selectivity_clean"  # no normal co-positivity anywhere well-powered
     return "normal_borderline"
 
 
@@ -103,6 +116,7 @@ def _floored_groups(m):
     """Per (tissue, cell_type) group passing the support floor → list of dicts with the cross-donor
     median both_fraction. Pure — operates on a matched-pair DataFrame."""
     import numpy as np
+
     recs = []
     for (tissue, cell_type), g in m.groupby(["tissue", "cell_type"]):
         n_donors = int(g[["dataset_id", "donor_id"]].drop_duplicates().shape[0])
@@ -110,14 +124,16 @@ def _floored_groups(m):
         if n_donors < MIN_DONORS_NORMAL or n_cells < MIN_CELLS_NORMAL:
             continue
         enr = g["enrichment_vs_independence"].dropna()
-        recs.append({
-            "tissue": str(tissue),
-            "cell_type": str(cell_type),
-            "both_fraction_median": round(float(np.median(g["both_fraction"])), 4),
-            "enrichment_median": round(float(np.median(enr)), 3) if len(enr) else None,
-            "n_donors": n_donors,
-            "n_cells": n_cells,
-        })
+        recs.append(
+            {
+                "tissue": str(tissue),
+                "cell_type": str(cell_type),
+                "both_fraction_median": round(float(np.median(g["both_fraction"])), 4),
+                "enrichment_median": round(float(np.median(enr)), 3) if len(enr) else None,
+                "n_donors": n_donors,
+                "n_cells": n_cells,
+            }
+        )
     return recs
 
 
@@ -147,9 +163,11 @@ def normal_max_both(target: str, partner: str) -> dict:
             "n_groups_evaluated": n_eval,
             "n_groups_passed_floor": 0,
             "support_floor": {"min_donors": MIN_DONORS_NORMAL, "min_cells": MIN_CELLS_NORMAL},
-            "_data_note": (f"no (tissue,cell_type) group met the support floor "
-                           f"(>={MIN_DONORS_NORMAL} donors & >={MIN_CELLS_NORMAL} cells) — "
-                           f"normal liability under-powered, NOT evidence of selectivity"),
+            "_data_note": (
+                f"no (tissue,cell_type) group met the support floor "
+                f"(>={MIN_DONORS_NORMAL} donors & >={MIN_CELLS_NORMAL} cells) — "
+                f"normal liability under-powered, NOT evidence of selectivity"
+            ),
             "_evidence_tier": "single_cell_measured",
         }
     locus = max(groups, key=lambda d: d["both_fraction_median"])
@@ -187,23 +205,40 @@ def read_target_normal_selectivity(target: str) -> dict:
     a = target.upper().strip()
     df = _read_normal_cube((a,))
     if df is None:
-        return {"target": target, "normal_selectivity_class": "data_unavailable",
-                "n_partners_tested": 0, "worst_partner": None, "worst_normal_max_both": None,
-                "partners": [], "_data_note": "normal same-cell cube not landed / unreadable"}
+        return {
+            "target": target,
+            "normal_selectivity_class": "data_unavailable",
+            "n_partners_tested": 0,
+            "worst_partner": None,
+            "worst_normal_max_both": None,
+            "partners": [],
+            "_data_note": "normal same-cell cube not landed / unreadable",
+        }
     import numpy as np
+
     m = df[(df["gene_a"] == a) | (df["gene_b"] == a)]
     if m.empty:
-        return {"target": target, "normal_selectivity_class": "data_unavailable",
-                "n_partners_tested": 0, "worst_partner": None, "worst_normal_max_both": None,
-                "partners": [], "_data_note": f"{a} not scanned in the normal cube"}
+        return {
+            "target": target,
+            "normal_selectivity_class": "data_unavailable",
+            "n_partners_tested": 0,
+            "worst_partner": None,
+            "worst_normal_max_both": None,
+            "partners": [],
+            "_data_note": f"{a} not scanned in the normal cube",
+        }
     partner_arr = np.where(m["gene_a"].to_numpy() == a, m["gene_b"], m["gene_a"])
     partners = []
     for p in sorted(set(partner_arr)):
         res = normal_max_both(a, str(p))
-        partners.append({"partner": str(p),
-                         "normal_selectivity_class": res["normal_selectivity_class"],
-                         "normal_max_both_fraction": res["normal_max_both_fraction"],
-                         "normal_liability_locus": res["normal_liability_locus"]})
+        partners.append(
+            {
+                "partner": str(p),
+                "normal_selectivity_class": res["normal_selectivity_class"],
+                "normal_max_both_fraction": res["normal_max_both_fraction"],
+                "normal_liability_locus": res["normal_liability_locus"],
+            }
+        )
     # headline = worst (highest normal_max_both; None sorts last so a measured liability wins)
     scored = [p for p in partners if p["normal_max_both_fraction"] is not None]
     worst = max(scored, key=lambda d: d["normal_max_both_fraction"]) if scored else None

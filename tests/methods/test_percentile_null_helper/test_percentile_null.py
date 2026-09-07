@@ -3,6 +3,7 @@
 Imports the helper by file path to avoid any package-name shadowing between this
 test dir and methods/percentile_null/.
 """
+
 import importlib.util
 from pathlib import Path
 
@@ -40,13 +41,20 @@ def test_percentile_rank_drops_nonfinite_from_null():
     assert pn.percentile_rank(2, null) == pytest.approx(50.0)
 
 
-@pytest.mark.parametrize("pct,expected", [
-    (99.5, "top_1pct"), (99.0, "top_1pct"),
-    (95.0, "top_decile"), (90.0, "top_decile"),
-    (50.0, "mid"), (11.0, "mid"),
-    (10.0, "bottom_decile"), (2.0, "bottom_decile"),
-    (None, "data_unavailable"),
-])
+@pytest.mark.parametrize(
+    "pct,expected",
+    [
+        (99.5, "top_1pct"),
+        (99.0, "top_1pct"),
+        (95.0, "top_decile"),
+        (90.0, "top_decile"),
+        (50.0, "mid"),
+        (11.0, "mid"),
+        (10.0, "bottom_decile"),
+        (2.0, "bottom_decile"),
+        (None, "data_unavailable"),
+    ],
+)
 def test_classify_percentile_boundaries(pct, expected):
     assert pn.classify_percentile(pct) == expected
 

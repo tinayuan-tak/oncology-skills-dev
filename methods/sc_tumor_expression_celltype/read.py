@@ -13,6 +13,7 @@ data-catalog emit step; this method reads the already-pseudobulked parquet.
 Credential discipline: boto3 Session(profile_name="cbg") — the default SSO role (Developer-Dev) lacks
 GetObject on onc-compbio (see methods/collectri_tf_regulon/read.py); cbg is the read-capable profile.
 """
+
 from __future__ import annotations
 
 from typing import Optional
@@ -57,18 +58,18 @@ S3_BUCKET = "onc-compbio"
 # PTPRC immune 0.73). Same pattern as the NSCLC→LuCA repoint. Superseded: coadread-v2 (Census, 749 donors
 # but inferred malignant compartment) — retained in the catalog, no longer read here.
 INDICATION_TO_PRODUCT = {
-    "COADREAD": "sc-pseudobulk-tumor-crc-coadread-v1",   # CRC core atlas (Marteau 2025): explicit 'Cancer cell' malignant call
+    "COADREAD": "sc-pseudobulk-tumor-crc-coadread-v1",  # CRC core atlas (Marteau 2025): explicit 'Cancer cell' malignant call
     "COAD": "sc-pseudobulk-tumor-crc-coadread-v1",
     "READ": "sc-pseudobulk-tumor-crc-coadread-v1",
-    "NSCLC": "sc-pseudobulk-tumor-luca-nsclc-v1",      # LuCA (Salcher 2022): 193 tumor pts / 21 datasets (upgrade from Census nsclc-v1)
+    "NSCLC": "sc-pseudobulk-tumor-luca-nsclc-v1",  # LuCA (Salcher 2022): 193 tumor pts / 21 datasets (upgrade from Census nsclc-v1)
     "LUAD": "sc-pseudobulk-tumor-luca-nsclc-v1",
-    "LUSC": "sc-pseudobulk-donor-celltype-lusc-v1",    # dedicated squamous cube (was: nsclc umbrella)
-    "PAAD": "sc-pseudobulk-tumor-3ca-pancreas-v1",     # 3CA PDAC — 6 studies / 344K cells (inferCNV malignant)
-    "HNSC": "sc-pseudobulk-tumor-3ca-hnsc-v1",         # 3CA HNSCC — Kürten+Puram+Cillo; 0 Census HNSC malignant cells
-    "KIRC": "sc-pseudobulk-tumor-3ca-kidney-v1",       # 3CA Kidney — 5 studies / 125 donors / 74 malignant (pan-renal pooled)
-    "OV": "sc-pseudobulk-tumor-3ca-ovarian-v1",        # 3CA Ovarian — 11 studies / 115 donors / 106 malignant (pan-gynecologic pooled)
-    "STAD": "sc-pseudobulk-tumor-stad-golim-v1",       # Go/Lim gastric atlas (2026, data-catalog #425/#433) — 95 donors / malignant in 88; malignant=Epithelial∩Phenotype==GC (adenocarcinoma proxy, no inferCNV). CLDN18/EPCAM/MUC1/TACSTD2 malignant-enriched (CLDN18 1.23 vs 0.06). Fills the previously-excluded gastric gap (Census 'unknown' tumor label + no 3CA bucket).
-    "BRCA": "sc-pseudobulk-tumor-brca-wu-v1",          # Wu/Swarbrick breast atlas (GSE176078; Nat Genet 2021) — 26 primary tumours (11 ER+ / 5 HER2+ / 10 TNBC); malignant='Cancer Epithelial' author annotation (curated), 20/26 donors with malignant cells. ERBB2 malignant 0.28 / TACSTD2 0.76 / EPCAM 0.74. Fills the previously-empty breast tumour scRNA gap. (data-catalog sc-pseudobulk-tumor-brca-wu-v1)
+    "LUSC": "sc-pseudobulk-donor-celltype-lusc-v1",  # dedicated squamous cube (was: nsclc umbrella)
+    "PAAD": "sc-pseudobulk-tumor-3ca-pancreas-v1",  # 3CA PDAC — 6 studies / 344K cells (inferCNV malignant)
+    "HNSC": "sc-pseudobulk-tumor-3ca-hnsc-v1",  # 3CA HNSCC — Kürten+Puram+Cillo; 0 Census HNSC malignant cells
+    "KIRC": "sc-pseudobulk-tumor-3ca-kidney-v1",  # 3CA Kidney — 5 studies / 125 donors / 74 malignant (pan-renal pooled)
+    "OV": "sc-pseudobulk-tumor-3ca-ovarian-v1",  # 3CA Ovarian — 11 studies / 115 donors / 106 malignant (pan-gynecologic pooled)
+    "STAD": "sc-pseudobulk-tumor-stad-golim-v1",  # Go/Lim gastric atlas (2026, data-catalog #425/#433) — 95 donors / malignant in 88; malignant=Epithelial∩Phenotype==GC (adenocarcinoma proxy, no inferCNV). CLDN18/EPCAM/MUC1/TACSTD2 malignant-enriched (CLDN18 1.23 vs 0.06). Fills the previously-excluded gastric gap (Census 'unknown' tumor label + no 3CA bucket).
+    "BRCA": "sc-pseudobulk-tumor-brca-wu-v1",  # Wu/Swarbrick breast atlas (GSE176078; Nat Genet 2021) — 26 primary tumours (11 ER+ / 5 HER2+ / 10 TNBC); malignant='Cancer Epithelial' author annotation (curated), 20/26 donors with malignant cells. ERBB2 malignant 0.28 / TACSTD2 0.76 / EPCAM 0.74. Fills the previously-empty breast tumour scRNA gap. (data-catalog sc-pseudobulk-tumor-brca-wu-v1)
 }
 
 # Per-product malignant-annotation PROVENANCE (review G11): HOW the malignant compartment was called,
@@ -84,13 +85,13 @@ INDICATION_TO_PRODUCT = {
 #     unspecified     — the product's method is not documented here (never asserted)
 _PRODUCT_ANNOTATION_METHOD = {
     "sc-pseudobulk-tumor-crc-coadread-v1": "curated",
-    "sc-pseudobulk-tumor-luca-nsclc-v1":   "curated",
+    "sc-pseudobulk-tumor-luca-nsclc-v1": "curated",
     "sc-pseudobulk-tumor-3ca-pancreas-v1": "infercnv",
-    "sc-pseudobulk-tumor-3ca-hnsc-v1":     "infercnv",
-    "sc-pseudobulk-tumor-3ca-kidney-v1":   "infercnv",
-    "sc-pseudobulk-tumor-3ca-ovarian-v1":  "infercnv",
-    "sc-pseudobulk-tumor-stad-golim-v1":   "phenotype_proxy",
-    "sc-pseudobulk-tumor-brca-wu-v1":      "curated",         # Wu atlas ships an explicit author 'Cancer Epithelial' malignant label (verbatim), like CRC/LuCA — not inferCNV, not a phenotype heuristic.
+    "sc-pseudobulk-tumor-3ca-hnsc-v1": "infercnv",
+    "sc-pseudobulk-tumor-3ca-kidney-v1": "infercnv",
+    "sc-pseudobulk-tumor-3ca-ovarian-v1": "infercnv",
+    "sc-pseudobulk-tumor-stad-golim-v1": "phenotype_proxy",
+    "sc-pseudobulk-tumor-brca-wu-v1": "curated",  # Wu atlas ships an explicit author 'Cancer Epithelial' malignant label (verbatim), like CRC/LuCA — not inferCNV, not a phenotype heuristic.
     # sc-pseudobulk-donor-celltype-lusc-v1 (LUSC): malignant-call method not documented → unspecified.
 }
 # Indications whose malignant compartment is POOLED across a broader entity than the query (so the call
@@ -105,13 +106,23 @@ def _malignant_annotation_provenance(indication: str) -> dict:
     product = INDICATION_TO_PRODUCT.get(ind)
     return {
         "malignant_annotation_method": _PRODUCT_ANNOTATION_METHOD.get(product, "unspecified"),
-        "entity_purity": ("multi_entity_pooled" if ind in _MULTI_ENTITY_POOLED_INDICATIONS
-                          else ("entity_specific" if product else "unspecified")),
+        "entity_purity": (
+            "multi_entity_pooled"
+            if ind in _MULTI_ENTITY_POOLED_INDICATIONS
+            else ("entity_specific" if product else "unspecified")
+        ),
     }
 
 
-_PARQUET_COLS = ["gene_symbol", "dataset_id", "donor_id", "compartment",
-                 "n_cells", "detection_fraction", "abundance_log1p_cp10k"]
+_PARQUET_COLS = [
+    "gene_symbol",
+    "dataset_id",
+    "donor_id",
+    "compartment",
+    "n_cells",
+    "detection_fraction",
+    "abundance_log1p_cp10k",
+]
 
 
 def _product_key(indication: str) -> Optional[str]:
@@ -133,12 +144,12 @@ def read_gene_compartment_rows(target: str, indication: str):
         return None
     import pyarrow.fs as fs
     import pyarrow.parquet as pq
-    s3fs = fs.S3FileSystem(region="us-east-1")   # default cred chain honors AWS_PROFILE=cbg
+
+    s3fs = fs.S3FileSystem(region="us-east-1")  # default cred chain honors AWS_PROFILE=cbg
     # predicate-pushdown on the physical sort key (gene_symbol) — touches few row-groups.
     filters = [("gene_symbol", "==", str(target).upper().strip())]
     try:
-        tbl = pq.read_table(f"{S3_BUCKET}/{key}", filesystem=s3fs,
-                            filters=filters, columns=_PARQUET_COLS)
+        tbl = pq.read_table(f"{S3_BUCKET}/{key}", filesystem=s3fs, filters=filters, columns=_PARQUET_COLS)
     except FileNotFoundError:
         return None
     return tbl.to_pandas()
@@ -152,33 +163,44 @@ def read_sc_expression_presence(target: str, indication: str) -> dict:
     "no landed product for this indication" and "gene absent from the product"."""
     rows = read_gene_compartment_rows(target, indication)
     if rows is None:
-        return _data_unavailable(target, indication,
-                                 note=f"No single-cell pseudobulk product landed for indication "
-                                      f"{indication}; sc_rna presence is a named capability gap here.")
+        return _data_unavailable(
+            target,
+            indication,
+            note=f"No single-cell pseudobulk product landed for indication "
+            f"{indication}; sc_rna presence is a named capability gap here.",
+        )
     if rows.empty:
-        return _data_unavailable(target, indication,
-                                 note=f"{target} absent from the single-cell pseudobulk product for "
-                                      f"{indication} (not measured in the contributing atlases).")
+        return _data_unavailable(
+            target,
+            indication,
+            note=f"{target} absent from the single-cell pseudobulk product for "
+            f"{indication} (not measured in the contributing atlases).",
+        )
 
     comp_summary = _stats.compartment_summary(rows)
     classed = _stats.classify_sc_expression(comp_summary)
     n_donor_groups = rows[["dataset_id", "donor_id"]].drop_duplicates().shape[0]
     out = {
         "sc_expression_class": classed["sc_expression_class"],
-        "tce_homogeneity_class": classed["tce_homogeneity_class"],   # Phase 3.2 biologics-homogeneity lens
+        "tce_homogeneity_class": classed["tce_homogeneity_class"],  # Phase 3.2 biologics-homogeneity lens
         "malignant_detection_fraction": classed["malignant_detection_fraction"],
         "malignant_abundance_log1p_cp10k": classed["malignant_abundance_log1p_cp10k"],
         "malignant_compartment_available": classed["malignant_compartment_available"],
-        "malignant_n_donors": classed["malignant_n_donors"],   # L1: donors backing the malignant call (reliability floor = MIN_RELIABLE_DONORS)
-        "malignant_n_cells": classed["malignant_n_cells"],     # G3: total malignant cells over reliable donors (floor = MIN_MALIGNANT_CELLS_TOTAL)
-        "ambient_contamination_risk": classed["ambient_contamination_risk"],  # G8: soup-leakage risk on a malignant-subset call (verdict-inert heuristic)
+        "malignant_n_donors": classed[
+            "malignant_n_donors"
+        ],  # L1: donors backing the malignant call (reliability floor = MIN_RELIABLE_DONORS)
+        "malignant_n_cells": classed[
+            "malignant_n_cells"
+        ],  # G3: total malignant cells over reliable donors (floor = MIN_MALIGNANT_CELLS_TOTAL)
+        "ambient_contamination_risk": classed[
+            "ambient_contamination_risk"
+        ],  # G8: soup-leakage risk on a malignant-subset call (verdict-inert heuristic)
         "top_microenvironment_compartment": classed["top_microenvironment_compartment"],
         "top_microenvironment_detection_fraction": classed["top_microenvironment_detection_fraction"],
         "n_compartments_measured": classed["n_compartments_measured"],
         "n_donor_groups": int(n_donor_groups),
         "n_datasets": int(rows["dataset_id"].nunique()),
-        "compartment_detection": {c: comp_summary[c]["median_detection_fraction"]
-                                  for c in comp_summary},
+        "compartment_detection": {c: comp_summary[c]["median_detection_fraction"] for c in comp_summary},
         # v1 sc-presence depth (additive; presence ladder above untouched): the FULL per-compartment
         # vector + an explicit CAF/stromal readout (the deck's tumor-vs-CAF dual-target axis).
         "per_compartment": _stats.per_compartment_vector(comp_summary),
@@ -195,16 +217,28 @@ def read_sc_expression_presence(target: str, indication: str) -> dict:
     # trustworthy (curated/inferCNV, entity-specific) cube can fire the verdict-moving veto. Verdict-inert
     # here; wired to the veto via target-contracts + the shared selectivity_veto clamp.
     out["stromal_confound_class"] = _stats.classify_stromal_confound(
-        out["sc_expression_class"], out["caf_vs_malignant_class"],
+        out["sc_expression_class"],
+        out["caf_vs_malignant_class"],
         out["top_microenvironment_compartment"],
-        out["malignant_annotation_method"], out["entity_purity"])
+        out["malignant_annotation_method"],
+        out["entity_purity"],
+    )
     # Two-axis TCE antigen-escape readout (2026-08-20): within-tumour coverage + INTER-donor consistency,
     # the honest heterogeneity call that supersedes the single-number tce_homogeneity_class (kept above
     # for back-compat). Merge only the NEW keys (malignant_detection_fraction / n_donors already present).
     _het = _stats.malignant_heterogeneity_readout(comp_summary)
-    out.update({k: _het[k] for k in (
-        "within_tumor_coverage_class", "inter_donor_consistency_class", "tce_antigen_escape_class",
-        "malignant_detection_donor_iqr", "fraction_donors_broadly_detecting")})
+    out.update(
+        {
+            k: _het[k]
+            for k in (
+                "within_tumor_coverage_class",
+                "inter_donor_consistency_class",
+                "tce_antigen_escape_class",
+                "malignant_detection_donor_iqr",
+                "fraction_donors_broadly_detecting",
+            )
+        }
+    )
     return out
 
 
@@ -223,6 +257,7 @@ def read_two_antigen_samecell(target: str, partner: str, indication: str) -> dic
       data_unavailable            — cube/pair not landed (honest gap).
     """
     from methods.pair_selectivity_gate.samecell import confirm_pair_samecell
+
     r = confirm_pair_samecell(target, partner, indication)
     # presence-framed alias on the same underlying call (keep the raw fields for provenance)
     r = dict(r)
@@ -264,6 +299,6 @@ def _data_unavailable(target: str, indication: str, note: str) -> dict:
         "fraction_donors_broadly_detecting": None,
         "indication": str(indication).upper().strip(),
         "product_id": INDICATION_TO_PRODUCT.get(str(indication).upper().strip()),
-        **_malignant_annotation_provenance(indication),   # G11 (present even on the coverage-gap path)
+        **_malignant_annotation_provenance(indication),  # G11 (present even on the coverage-gap path)
         "_data_note": note,
     }

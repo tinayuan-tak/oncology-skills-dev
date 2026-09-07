@@ -19,6 +19,7 @@ Capabilities:
 Absence-safe (NOT failure-safe): a genuinely-absent entity/target reads as empty; a transient/
 creds/broken-env failure PROPAGATES (surfaces as an honest _live_read_error, never a silent gap).
 """
+
 from __future__ import annotations
 
 import threading
@@ -31,7 +32,7 @@ from methods.catalog_query.read import bucket_prefix_for
 # every OT entity key + the resolver sidecar ride off this one prefix.
 OT_SOURCE_MANIFEST_ID = "opentargets-26-06"
 S3_BUCKET, OT_PREFIX = bucket_prefix_for(OT_SOURCE_MANIFEST_ID)
-OT_PREFIX = OT_PREFIX.rstrip("/")   # keep the existing f"{OT_PREFIX}/..." idiom byte-identical
+OT_PREFIX = OT_PREFIX.rstrip("/")  # keep the existing f"{OT_PREFIX}/..." idiom byte-identical
 DEFAULT_AWS_PROFILE = "cbg"
 
 # The target-entity resolver sidecar: native_row_key (ENSG) + hgnc_primary_symbol_at_resolution.
@@ -53,6 +54,7 @@ def _get_s3fs():
         with _S3FS_LOCK:
             if _S3FS is None:
                 import pyarrow.fs as fs
+
                 _S3FS = fs.S3FileSystem(region="us-east-1")
     return _S3FS
 
@@ -62,8 +64,7 @@ def _entity_prefix(entity: str) -> str:
     return f"{OT_PREFIX}/{entity}"
 
 
-def read_entity(entity: str, columns: Optional[list] = None,
-                filter_col: Optional[str] = None, filter_val=None):
+def read_entity(entity: str, columns: Optional[list] = None, filter_col: Optional[str] = None, filter_val=None):
     """STREAM an OT entity's parquet part-files from S3 as one DataFrame (empty on genuine absence).
 
     Column-projected when `columns` is given (the parts are wide — project to what the card needs).
@@ -78,15 +79,15 @@ def read_entity(entity: str, columns: Optional[list] = None,
     (an honest _live_read_error at the card's live-read seam, never a silent data_unavailable).
     """
     import pandas as pd
+
     empty = pd.DataFrame(columns=columns or [])
     if _ENTITY_STATUS.get(entity) is False:
         return empty
     try:
         import pyarrow.dataset as ds
-        dataset = ds.dataset(f"{S3_BUCKET}/{_entity_prefix(entity)}",
-                             filesystem=_get_s3fs(), format="parquet")
-        filt = (ds.field(filter_col) == filter_val
-                if (filter_col and filter_val is not None) else None)
+
+        dataset = ds.dataset(f"{S3_BUCKET}/{_entity_prefix(entity)}", filesystem=_get_s3fs(), format="parquet")
+        filt = ds.field(filter_col) == filter_val if (filter_col and filter_val is not None) else None
         table = dataset.to_table(columns=columns, filter=filt)
         _ENTITY_STATUS[entity] = True
         return table.to_pandas()
@@ -94,6 +95,7 @@ def read_entity(entity: str, columns: Optional[list] = None,
         raise  # broken env (pyarrow missing) — never mask as an empty read (silent data_unavailable)
     except Exception as e:  # noqa: BLE001
         from methods.target_id_sidecar import is_definitively_absent
+
         # ONLY a genuinely-absent entity (404/NoSuchKey, or pyarrow's FileNotFoundError for a
         # missing prefix) latches absent -> empty; transient/creds/env re-raise (honest gap, not silent).
         if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
@@ -116,14 +118,16 @@ def _sidecar_maps():
     per-card _live_read_error via the live-read seam (never a fake honest-negative).
     """
     import pyarrow.parquet as pq  # ImportError == broken env -> propagates
+
     # STREAM the two resolver columns straight from S3 (column pushdown) — no whole-file download.
     # No broad except: any read failure PROPAGATES (see docstring — an empty crosswalk = dead axis).
-    sc = pq.read_table(f"{S3_BUCKET}/{SIDECAR_KEY}", filesystem=_get_s3fs(),
-                       columns=["native_row_key",
-                                "hgnc_primary_symbol_at_resolution"]).to_pandas()
+    sc = pq.read_table(
+        f"{S3_BUCKET}/{SIDECAR_KEY}",
+        filesystem=_get_s3fs(),
+        columns=["native_row_key", "hgnc_primary_symbol_at_resolution"],
+    ).to_pandas()
     s2e, e2s = {}, {}
-    for ensg, sym in zip(sc["native_row_key"].values,
-                         sc["hgnc_primary_symbol_at_resolution"].values):
+    for ensg, sym in zip(sc["native_row_key"].values, sc["hgnc_primary_symbol_at_resolution"].values):
         if isinstance(sym, str) and isinstance(ensg, str) and sym and ensg:
             s2e[sym.strip().upper()] = ensg.strip()
             e2s[ensg.strip()] = sym.strip()
@@ -155,6 +159,7 @@ def ot_cli_main(read_fn, description: str, argv=None) -> None:
     """
     import argparse
     import json
+
     ap = argparse.ArgumentParser(description=description)
     ap.add_argument("--target", required=True)
     ap.add_argument("--indication", default=None)

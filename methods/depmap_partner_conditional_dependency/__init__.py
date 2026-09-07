@@ -26,4 +26,5 @@ MODERATE (delta <= -0.2), NOT STRONG — WRN×MSI (a celebrated real SL) is a -0
 conditional SL effect sizes are structurally smaller than oncogene addiction, so a STRONG-only rung
 would rescue nothing real (empirically established 2026-08-09).
 """
+
 from .read import read_partner_conditional_dependency, METHOD_VERSION  # noqa: F401

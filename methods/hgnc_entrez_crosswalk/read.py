@@ -4,6 +4,7 @@ Some cBioPortal exports (notably MSK-CHORD mutations.jsonl) carry `entrezGeneId`
 symbol; this maps NCBI entrez id → the current HGNC approved symbol so those variants join the
 framework's symbol-keyed products. Reads the hgnc source (data-catalog). Small, cached module.
 """
+
 from __future__ import annotations
 
 import io
@@ -28,8 +29,10 @@ def load_entrez_to_symbol() -> dict:
     """
     import pandas as pd
     from methods.target_id_sidecar import is_definitively_absent
+
     ensure_aws_profile()
     import boto3
+
     s3 = boto3.Session(profile_name=os.environ.get("AWS_PROFILE", DEFAULT_AWS_PROFILE)).client("s3")
     try:
         body = s3.get_object(Bucket=S3_BUCKET, Key=HGNC_KEY)["Body"].read()
@@ -37,8 +40,9 @@ def load_entrez_to_symbol() -> dict:
         if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
             return {}
         raise
-    df = pd.read_csv(io.BytesIO(body), sep="\t", usecols=["symbol", "entrez_id"],
-                     dtype=str, low_memory=False).dropna(subset=["symbol", "entrez_id"])
+    df = pd.read_csv(io.BytesIO(body), sep="\t", usecols=["symbol", "entrez_id"], dtype=str, low_memory=False).dropna(
+        subset=["symbol", "entrez_id"]
+    )
     out: dict[int, str] = {}
     for sym, ez in zip(df["symbol"], df["entrez_id"]):
         try:
@@ -49,5 +53,6 @@ def load_entrez_to_symbol() -> dict:
         raise ValueError(
             f"HGNC entrez→symbol crosswalk s3://{S3_BUCKET}/{HGNC_KEY} produced an EMPTY map "
             "(well-formed read, no usable entrez_id→symbol pairs) — a broken/empty product, NOT a "
-            "data gap; returning {} here would silently drop every entrez-only variant.")
+            "data gap; returning {} here would silently drop every entrez-only variant."
+        )
     return out

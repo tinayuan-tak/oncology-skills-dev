@@ -31,13 +31,13 @@ def _panel() -> tuple[dict, dict]:
 @pytest.fixture
 def offline_panel(monkeypatch):
     tpm, meta = _panel()
-    monkeypatch.setattr(r._cli, "load_expression_files",
-                        lambda release_pin, target_symbol: (tpm, meta, []))
+    monkeypatch.setattr(r._cli, "load_expression_files", lambda release_pin, target_symbol: (tpm, meta, []))
     return tpm, meta
 
 
 def test_plot_data_written_when_requested(offline_panel, tmp_path):
     import pandas as pd
+
     tpm, _ = offline_panel
     summary = r.read_expression_distribution("MYGENE", plot_data_out=tmp_path)
     assert summary["expression_class"]  # core summary still produced
@@ -45,7 +45,7 @@ def test_plot_data_written_when_requested(offline_panel, tmp_path):
     pq = tmp_path / "plot_data_expression.parquet"
     assert pq.exists(), "plot_data_out must persist plot_data_expression.parquet"
     df = pd.read_parquet(pq)
-    assert len(df) == len(tpm)                    # one row per model
+    assert len(df) == len(tpm)  # one row per model
     assert set(df["model_id"]) == set(tpm)
     assert {"model_id", "lineage", "log2tpm", "is_expressed"} <= set(df.columns)
 

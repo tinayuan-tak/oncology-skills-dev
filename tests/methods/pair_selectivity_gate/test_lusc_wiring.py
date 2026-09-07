@@ -11,6 +11,7 @@ and pins the invariant that LUAD/NSCLC stay on the umbrella (no LUAD-specific cu
 The value assertions need no catalog/S3 (pure dict lookups). The resolution assertions read the
 local data-catalog manifest YAML (no network — mirrors depmap_common/test_release_pin_guard.py).
 """
+
 from __future__ import annotations
 
 import sys
@@ -25,6 +26,7 @@ from methods.sc_tumor_expression_celltype import read as TSC  # noqa: E402
 
 
 # ── value invariants (no catalog / no S3) ───────────────────────────────────
+
 
 def test_lusc_pseudobulk_map_points_to_dedicated_cube():
     assert TSC.INDICATION_TO_PRODUCT["LUSC"] == "sc-pseudobulk-donor-celltype-lusc-v1"
@@ -62,17 +64,22 @@ def test_sc_maps_agree_on_every_indication():
 
 def test_crc_coadread_products_resolve_to_catalog_s3_uris():
     from methods.catalog_query.read import s3_uri_for
+
     assert s3_uri_for("sc-pseudobulk-tumor-crc-coadread-v1").endswith(
-        "sc-pseudobulk-tumor-crc-coadread-v1/sc_pseudobulk.parquet")
+        "sc-pseudobulk-tumor-crc-coadread-v1/sc_pseudobulk.parquet"
+    )
     assert s3_uri_for("sc-samecell-coexpr-crc-coadread-v1").endswith(
-        "sc-samecell-coexpr-crc-coadread-v1/sc_samecell_coexpr.parquet")
+        "sc-samecell-coexpr-crc-coadread-v1/sc_samecell_coexpr.parquet"
+    )
 
 
 # ── resolution smoke (reads local catalog YAML, no network) ──────────────────
 
+
 def test_lusc_products_resolve_to_catalog_s3_uris():
     from methods.catalog_query.read import s3_uri_for
+
     assert s3_uri_for("sc-pseudobulk-donor-celltype-lusc-v1").endswith(
-        "sc-pseudobulk-donor-celltype-lusc-v1/sc_pseudobulk.parquet")
-    assert s3_uri_for("sc-samecell-coexpr-lusc-v1").endswith(
-        "sc-samecell-coexpr-lusc-v1/sc_samecell_coexpr.parquet")
+        "sc-pseudobulk-donor-celltype-lusc-v1/sc_pseudobulk.parquet"
+    )
+    assert s3_uri_for("sc-samecell-coexpr-lusc-v1").endswith("sc-samecell-coexpr-lusc-v1/sc_samecell_coexpr.parquet")

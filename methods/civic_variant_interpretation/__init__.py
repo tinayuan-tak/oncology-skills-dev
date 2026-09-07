@@ -27,6 +27,7 @@ METHOD_VERSION 0.1.0.
 Positional driver signals from IntOGen driver-cluster residues (a variant at/near a
 significant residue) are not incorporated; only CIViC-curated variants are attributed.
 """
+
 from __future__ import annotations
 
 METHOD_VERSION = "0.1.0"

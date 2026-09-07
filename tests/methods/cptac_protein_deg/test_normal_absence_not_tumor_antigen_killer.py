@@ -9,6 +9,7 @@ fires the surface `ihc-not-detected-killer` rung → the composed modality verdi
 
 No S3: `load_and_classify` is monkeypatched to a synthetic HPA summary.
 """
+
 from methods.cptac_protein_deg import read as r
 
 

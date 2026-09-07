@@ -39,6 +39,7 @@ We normalize H+h to a single H count for `n_tm_alpha_helices` and B+b to B
 (format=3 preserves the directed segments; downstream target-eval doesn't
 usually need direction, but it's recoverable from all_h_segments if needed).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -164,12 +165,13 @@ def summarize(header, residues, model_version):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("--pred", required=True, type=Path,
-                    help="TMbed --out-format=3 prediction file.")
+    ap.add_argument("--pred", required=True, type=Path, help="TMbed --out-format=3 prediction file.")
     ap.add_argument("--out-parquet", required=True, type=Path)
-    ap.add_argument("--model-version", default="1.0.2",
-                    help="TMbed model version tag written into every row "
-                         "(x-amz-meta-tmbed-version equivalent).")
+    ap.add_argument(
+        "--model-version",
+        default="1.0.2",
+        help="TMbed model version tag written into every row (x-amz-meta-tmbed-version equivalent).",
+    )
     args = ap.parse_args()
 
     rows = []
@@ -181,8 +183,7 @@ def main():
     df = pd.DataFrame(rows)
     args.out_parquet.parent.mkdir(parents=True, exist_ok=True)
     df.to_parquet(args.out_parquet, index=False)
-    print(f"[reduce_predictions] wrote {len(df)} rows -> {args.out_parquet}",
-          file=sys.stderr)
+    print(f"[reduce_predictions] wrote {len(df)} rows -> {args.out_parquet}", file=sys.stderr)
 
 
 if __name__ == "__main__":

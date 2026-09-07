@@ -1,4 +1,5 @@
 """subtype_survival_association (Q2-subtype) — omnibus log-rank + classifier + monkeypatched e2e. No S3."""
+
 from __future__ import annotations
 
 import sys
@@ -11,7 +12,9 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from methods.subtype_survival_association.read import (  # noqa: E402
-    classify_subtype_survival_association, multivariate_logrank, MIN_EVENTS,
+    classify_subtype_survival_association,
+    multivariate_logrank,
+    MIN_EVENTS,
 )
 from methods.subtype_survival_association import read as _R  # noqa: E402
 from methods.expression_clinical_association import read as _eca  # noqa: E402
@@ -31,9 +34,9 @@ def test_multivariate_reduces_to_two_group():
 
 
 def test_three_separated_groups_significant():
-    a = (np.arange(1, 9, dtype=float), np.ones(8, int))       # early
-    b = (np.arange(30, 38, dtype=float), np.ones(8, int))     # mid
-    c = (np.arange(80, 88, dtype=float), np.ones(8, int))     # late
+    a = (np.arange(1, 9, dtype=float), np.ones(8, int))  # early
+    b = (np.arange(30, 38, dtype=float), np.ones(8, int))  # mid
+    c = (np.arange(80, 88, dtype=float), np.ones(8, int))  # late
     chi2, p, df = multivariate_logrank([a, b, c])
     assert df == 2 and p < 0.01
 
@@ -65,11 +68,13 @@ def test_too_few_events_insufficient():
 # ── monkeypatched end-to-end (synthetic assignment shard + CDR) ───────────────
 def _assignments(strata_members):
     import pandas as pd
+
     rows = []
     for sid, ids in strata_members.items():
         for pid in ids:
-            rows.append({"sample_id": pid, "patient_id": pid, "source_native_id": pid,
-                         "stratum_id": sid, "is_member": True})
+            rows.append(
+                {"sample_id": pid, "patient_id": pid, "source_native_id": pid, "stratum_id": sid, "is_member": True}
+            )
     return pd.DataFrame(rows)
 
 
@@ -78,8 +83,9 @@ def test_end_to_end_subtype_stratifies(monkeypatch):
     A = [f"TCGA-A{i:03d}-01" for i in range(20)]
     B = [f"TCGA-B{i:03d}-01" for i in range(20)]
     C = [f"TCGA-C{i:03d}-01" for i in range(20)]
-    monkeypatch.setattr(_R, "load_assignments", lambda m, data_catalog_repo=None: _assignments(
-        {"CMS1": A, "CMS2": B, "CMS4": C}))
+    monkeypatch.setattr(
+        _R, "load_assignments", lambda m, data_catalog_repo=None: _assignments({"CMS1": A, "CMS2": B, "CMS4": C})
+    )
     cdr = {}
     for i, p in enumerate(A):
         cdr[_eca._tcga_case(p)] = (1, 100.0 + i)
@@ -97,8 +103,9 @@ def test_end_to_end_underpowered_strata_dropped(monkeypatch):
     # only one stratum clears the per-arm floor → insufficient (small strata reported, not claimed)
     big = [f"TCGA-D{i:03d}-01" for i in range(20)]
     tiny = [f"TCGA-E{i:03d}-01" for i in range(3)]
-    monkeypatch.setattr(_R, "load_assignments", lambda m, data_catalog_repo=None: _assignments(
-        {"CMS2": big, "CMS3": tiny}))
+    monkeypatch.setattr(
+        _R, "load_assignments", lambda m, data_catalog_repo=None: _assignments({"CMS2": big, "CMS3": tiny})
+    )
     cdr = {_eca._tcga_case(p): (1, 100.0 + i) for i, p in enumerate(big + tiny)}
     monkeypatch.setattr(_eca, "_load_cdr", lambda: cdr)
     out = _R.read_subtype_survival_association("COADREAD", "tcga-maf-subgroup-assignments-coadread-v1")
@@ -110,18 +117,19 @@ def test_end_to_end_underpowered_strata_dropped(monkeypatch):
 # ── indication → shard resolution (2026-08-20 follow-up: card passes only {indication}) ──
 def test_indication_resolves_shard_when_manifest_omitted(monkeypatch):
     import pandas as pd
+
     captured = {}
 
     def fake_load(m, data_catalog_repo=None):
         captured["m"] = m
-        return pd.DataFrame(columns=["sample_id", "patient_id", "source_native_id",
-                                     "stratum_id", "is_member"])
+        return pd.DataFrame(columns=["sample_id", "patient_id", "source_native_id", "stratum_id", "is_member"])
+
     monkeypatch.setattr(_R, "load_assignments", fake_load)
-    _R.read_subtype_survival_association("COADREAD")           # no manifest passed
+    _R.read_subtype_survival_association("COADREAD")  # no manifest passed
     assert captured["m"] == "tcga-subgroup-assignments-coadread-v1"
 
 
 def test_unmapped_indication_is_data_unavailable():
-    out = _R.read_subtype_survival_association("GLIOMA")       # no registered TCGA subtype shard
+    out = _R.read_subtype_survival_association("GLIOMA")  # no registered TCGA subtype shard
     assert out["subtype_survival_association_class"] == "data_unavailable"
     assert "no TCGA subtype" in out["_data_note"]

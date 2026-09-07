@@ -7,6 +7,7 @@ a self-consistency artifact, not a resistance mediator).
 
 The S3 read is monkeypatched at the pyarrow boundary — no live creds needed (live S3 not exercised).
 """
+
 from __future__ import annotations
 
 import sys
@@ -40,17 +41,23 @@ class _FakeS3FS:
 
 def _row(rescuer, klass, mean_shift, nsig=5, nm=5):
     return {
-        "inhibited_target": "KRAS", "rescuer_gene": rescuer, "anchor_drug": "MRTX1133",
-        "mechanism": "KRAS-G12D inhibitor", "n_models": nm, "mean_effect_shift": mean_shift,
-        "max_effect_shift": mean_shift + 0.1, "n_models_significant": nsig,
-        "frac_models_significant": nsig / nm, "resistance_class": klass,
+        "inhibited_target": "KRAS",
+        "rescuer_gene": rescuer,
+        "anchor_drug": "MRTX1133",
+        "mechanism": "KRAS-G12D inhibitor",
+        "n_models": nm,
+        "mean_effect_shift": mean_shift,
+        "max_effect_shift": mean_shift + 0.1,
+        "n_models_significant": nsig,
+        "frac_models_significant": nsig / nm,
+        "resistance_class": klass,
     }
 
 
 _GOOD_ROWS = [
     _row("NF1", "robust_resistance_mediator", 0.84),
     _row("KEAP1", "robust_resistance_mediator", 0.59),
-    _row("KRAS", "robust_resistance_mediator", 0.64),   # self-target — must be dropped
+    _row("KRAS", "robust_resistance_mediator", 0.64),  # self-target — must be dropped
 ]
 
 
@@ -87,7 +94,7 @@ def test_transient_failure_not_permanently_cached(monkeypatch):
     monkeypatch.setattr(pq, "read_table", _flaky)
     first = r.resistance_mediators_for_gene("KRAS", include_tahoe_adaptation=False)
     assert first["resistance_emergence_class"] == "data_unavailable"
-    second = r.resistance_mediators_for_gene("KRAS", include_tahoe_adaptation=False)   # retry after recovery
+    second = r.resistance_mediators_for_gene("KRAS", include_tahoe_adaptation=False)  # retry after recovery
     assert second["resistance_emergence_class"] == "strong_resistance_signal"
     assert second["strongest_mediator"] == "NF1"
     assert calls["n"] == 2
@@ -96,15 +103,16 @@ def test_transient_failure_not_permanently_cached(monkeypatch):
 def test_self_target_row_is_dropped(monkeypatch):
     """KRAS (rescuer==inhibited_target) must be dropped; NF1/KEAP1 remain, and the KRAS self-row
     must never surface as the strongest mediator."""
+
     def _read(path, filesystem=None, filters=None):
         return _FakeTable(_GOOD_ROWS)
 
     monkeypatch.setattr(pq, "read_table", _read)
     out = r.resistance_mediators_for_gene("KRAS", include_tahoe_adaptation=False)
     genes = [m["rescuer_gene"] for m in out["top_resistance_mediators"]]
-    assert "KRAS" not in genes                      # self-target dropped
-    assert out["n_resistance_mediators"] == 2       # NF1 + KEAP1 only
-    assert out["strongest_mediator"] == "NF1"       # most-positive shift among non-self
+    assert "KRAS" not in genes  # self-target dropped
+    assert out["n_resistance_mediators"] == 2  # NF1 + KEAP1 only
+    assert out["strongest_mediator"] == "NF1"  # most-positive shift among non-self
     assert out["resistance_emergence_class"] == "strong_resistance_signal"
 
 
@@ -140,6 +148,7 @@ def test_all_self_target_becomes_no_resistance_signal(monkeypatch):
     """If the ONLY row is the self-target, dropping it leaves an anchor-screened-but-empty set =>
     no_resistance_signal (a REAL negative), NOT no_anchor_screen (a coverage gap). This is the
     distinction _classify preserves by taking both raw rows and post-self mediators."""
+
     def _only_self(path, filesystem=None, filters=None):
         return _FakeTable([_row("KRAS", "robust_resistance_mediator", 0.64)])
 
@@ -147,7 +156,7 @@ def test_all_self_target_becomes_no_resistance_signal(monkeypatch):
     out = r.resistance_mediators_for_gene("KRAS", include_tahoe_adaptation=False)
     assert out["resistance_emergence_class"] == "no_resistance_signal"
     assert out["n_resistance_mediators"] == 0
-    assert out["anchor_drug"] == "MRTX1133"     # anchor metadata still surfaced from raw row
+    assert out["anchor_drug"] == "MRTX1133"  # anchor metadata still surfaced from raw row
 
 
 # ── min-cell-line power floor (thin-panel artifact guard) ────────────────────────────────────────

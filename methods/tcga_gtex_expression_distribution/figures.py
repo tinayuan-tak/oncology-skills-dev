@@ -35,9 +35,15 @@ def _reconstruct_vectors(plot_data: "Union[str, Path, object]") -> tuple[list, l
     return tumor, normal, tissue
 
 
-def render_from_plot_data(plot_data: "Union[str, Path, object]", summary: dict, out_dir: "Union[str, Path]",
-                          target: str, indication: Optional[str] = None, *,
-                          target_contracts_dir: "Optional[Union[str, Path]]" = None) -> list[dict]:
+def render_from_plot_data(
+    plot_data: "Union[str, Path, object]",
+    summary: dict,
+    out_dir: "Union[str, Path]",
+    target: str,
+    indication: Optional[str] = None,
+    *,
+    target_contracts_dir: "Optional[Union[str, Path]]" = None,
+) -> list[dict]:
     """Render the tumor-rna-distribution per-sample figure OFFLINE from persisted plot_data. NO live
     read — replays the persisted tumor/normal vectors into the vector-driven cli.emit_svg /
     emit_plotly_specs (p95 reference line etc. come from the passed `summary`)."""
@@ -49,13 +55,16 @@ def render_from_plot_data(plot_data: "Union[str, Path, object]", summary: dict, 
     _cli.emit_svg(target, indication, summary, out_dir, tcd, presampled=(tumor, normal, tissue))
 
     static = [
-        {"id": "expression_distribution_per_sample", "path": "figure_expression_distribution.svg",
-         "type": "per_sample_tumor_normal_distribution", "primary": True},
+        {
+            "id": "expression_distribution_per_sample",
+            "path": "figure_expression_distribution.svg",
+            "type": "per_sample_tumor_normal_distribution",
+            "primary": True,
+        },
     ]
     dynamic: list[dict] = []
     try:
-        specs = _cli.emit_plotly_specs(target, indication, out_dir, tcd,
-                                       presampled=(tumor, normal, tissue)) or []
+        specs = _cli.emit_plotly_specs(target, indication, out_dir, tcd, presampled=(tumor, normal, tissue)) or []
         dynamic = [{**s, "dynamic": True} for s in specs]
     except Exception:  # noqa: BLE001 — additive interactive twin; the SVG is the contract
         pass
@@ -66,10 +75,15 @@ def render_from_plot_data(plot_data: "Union[str, Path, object]", summary: dict, 
 _LIABILITY_COLUMNS = ("tissue", "log2_tpm")
 
 
-def render_liability_from_plot_data(plot_data: "Union[str, Path, object]", summary: dict,
-                                    out_dir: "Union[str, Path]", target: str,
-                                    indication: "Optional[str]" = None, *,
-                                    target_contracts_dir: "Optional[Union[str, Path]]" = None) -> list[dict]:
+def render_liability_from_plot_data(
+    plot_data: "Union[str, Path, object]",
+    summary: dict,
+    out_dir: "Union[str, Path]",
+    target: str,
+    indication: "Optional[str]" = None,
+    *,
+    target_contracts_dir: "Optional[Union[str, Path]]" = None,
+) -> list[dict]:
     """Render the normal-tissue-liability atlas OFFLINE from persisted plot_data
     (plot_data_normal_tissue_atlas.parquet: tissue, log2_tpm). Reconstructs the atlas
     {tissue: [values]} and replays it into the vector-driven cli.emit_liability_svg. NO live read."""
@@ -87,8 +101,12 @@ def render_liability_from_plot_data(plot_data: "Union[str, Path, object]", summa
 
     _cli.emit_liability_svg(target, out_dir, tcd, presampled=atlas)
     static = [
-        {"id": "normal_tissue_liability_atlas", "path": "figure_normal_tissue_liability.svg",
-         "type": "normal_tissue_atlas_bar", "primary": True},
+        {
+            "id": "normal_tissue_liability_atlas",
+            "path": "figure_normal_tissue_liability.svg",
+            "type": "normal_tissue_atlas_bar",
+            "primary": True,
+        },
     ]
     dynamic: list[dict] = []
     try:
@@ -104,10 +122,15 @@ _SUBTYPE_COLUMNS = ("stratum_id", "log2_tpm")
 _POOLED_STRATUM = "__POOLED__"
 
 
-def render_subtype_from_plot_data(plot_data: "Union[str, Path, object]", summary: dict,
-                                  out_dir: "Union[str, Path]", target: str,
-                                  indication: "Optional[str]" = None, *,
-                                  target_contracts_dir: "Optional[Union[str, Path]]" = None) -> list[dict]:
+def render_subtype_from_plot_data(
+    plot_data: "Union[str, Path, object]",
+    summary: dict,
+    out_dir: "Union[str, Path]",
+    target: str,
+    indication: "Optional[str]" = None,
+    *,
+    target_contracts_dir: "Optional[Union[str, Path]]" = None,
+) -> list[dict]:
     """Render the per-subtype panel OFFLINE from persisted plot_data (plot_data_subtype.parquet:
     stratum_id, subtype_signal, log2_tpm; the pooled distribution stored under stratum_id
     '__POOLED__'). Reconstructs the read_tumor_subtype_values() dict and replays it into the
@@ -131,17 +154,24 @@ def render_subtype_from_plot_data(plot_data: "Union[str, Path, object]", summary
         vals = [float(v) for v in sub["log2_tpm"]]
         sig = str(sub["subtype_signal"].iloc[0]) if "subtype_signal" in sub.columns and not sub.empty else None
         strata.append({"stratum_id": str(sid), "values": vals, "subtype_signal": sig, "n": len(vals)})
-    strata.sort(key=lambda s: (median(s["values"]) if s["values"] else 0.0))
-    data = {"available": True, "strata": strata,
-            "pooled_values": pooled_values,
-            "pooled_median": (float(median(pooled_values)) if pooled_values else None)}
+    strata.sort(key=lambda s: median(s["values"]) if s["values"] else 0.0)
+    data = {
+        "available": True,
+        "strata": strata,
+        "pooled_values": pooled_values,
+        "pooled_median": (float(median(pooled_values)) if pooled_values else None),
+    }
 
     svg = _cli.emit_subtype_svg(target, indication, out_dir, tcd, presampled=data)
     if svg is None:
         return []
     static = [
-        {"id": "expression_distribution_subtype_panel", "path": "figure_expression_distribution_subtype.svg",
-         "type": "per_subtype_distribution_panel", "primary": True},
+        {
+            "id": "expression_distribution_subtype_panel",
+            "path": "figure_expression_distribution_subtype.svg",
+            "type": "per_subtype_distribution_panel",
+            "primary": True,
+        },
     ]
     dynamic: list[dict] = []
     try:

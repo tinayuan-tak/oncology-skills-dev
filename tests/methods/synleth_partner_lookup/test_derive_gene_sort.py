@@ -5,6 +5,7 @@ predicate-pushdown prune to ~1 row-group per gene. It was written in dict-insert
 This test builds the product from a synthetic SynLethDB TSV and asserts the on-disk gene_symbol
 column is sorted ascending.
 """
+
 from __future__ import annotations
 
 import importlib

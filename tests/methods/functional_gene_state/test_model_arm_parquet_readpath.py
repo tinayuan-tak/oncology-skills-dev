@@ -12,6 +12,7 @@ Invariants:
   3. CN THRESHOLD ROBUSTNESS: a float32 CN value near a _depmap_cn_class boundary classifies the
      same as its float64 form (the float32/float64 subtlety the live equivalence check surfaced).
 """
+
 from __future__ import annotations
 
 import sys
@@ -30,21 +31,18 @@ from methods.functional_gene_state import read as fgs  # noqa: E402
 
 def test_mut_matrix_prefers_parquet_column(monkeypatch):
     """A parquet DataFrame [ModelID, '<gene> (entrez)'] → {ModelID: bool}, no CSV read."""
-    df = pd.DataFrame({"ModelID": ["ACH-1", "ACH-2", "ACH-3"],
-                       "KRAS (3845)": [1.0, 0.0, None]})
+    df = pd.DataFrame({"ModelID": ["ACH-1", "ACH-2", "ACH-3"], "KRAS (3845)": [1.0, 0.0, None]})
     monkeypatch.setattr(fgs, "_read_depmap_matrix_column", lambda matrix, target: df)
     # if the CSV path were hit, this would raise (no S3) — proving preference
-    monkeypatch.setattr(fgs, "_s3_read_bytes",
-                        lambda *a, **k: (_ for _ in ()).throw(AssertionError("CSV path hit")))
+    monkeypatch.setattr(fgs, "_s3_read_bytes", lambda *a, **k: (_ for _ in ()).throw(AssertionError("CSV path hit")))
     out = fgs._read_depmap_mut_matrix("OmicsSomaticMutationsMatrixDamaging.csv", "KRAS")
-    assert out == {"ACH-1": True, "ACH-2": False}   # None dropped
+    assert out == {"ACH-1": True, "ACH-2": False}  # None dropped
 
 
 def test_cn_prefers_parquet_column(monkeypatch):
     df = pd.DataFrame({"ModelID": ["ACH-1", "ACH-2"], "PTEN (5728)": [0.05, 1.10]})
     monkeypatch.setattr(fgs, "_read_depmap_matrix_column", lambda matrix, target: df)
-    monkeypatch.setattr(fgs, "_s3_read_bytes",
-                        lambda *a, **k: (_ for _ in ()).throw(AssertionError("CSV path hit")))
+    monkeypatch.setattr(fgs, "_s3_read_bytes", lambda *a, **k: (_ for _ in ()).throw(AssertionError("CSV path hit")))
     out = fgs._read_depmap_cn("PTEN")
     assert out == {"ACH-1": 0.05, "ACH-2": 1.10}
 
@@ -66,13 +64,18 @@ def test_absent_gene_in_parquet_returns_empty(monkeypatch):
     assert fgs._read_depmap_mut_matrix("OmicsSomaticMutationsMatrixHotspot.csv", "KRAS") == {}
 
 
-@pytest.mark.parametrize("rel_cn,expected", [
-    (0.20, "homdel"),          # boundary: <= 0.20
-    (0.2000001, "loss"),       # just above homdel
-    (0.75, "loss"),            # boundary: <= 0.75
-    (0.7500001, "neutral"),    # just above loss
-    (0.10, "homdel"), (0.50, "loss"), (1.00, "neutral"),   # interior points (dtype-stable)
-])
+@pytest.mark.parametrize(
+    "rel_cn,expected",
+    [
+        (0.20, "homdel"),  # boundary: <= 0.20
+        (0.2000001, "loss"),  # just above homdel
+        (0.75, "loss"),  # boundary: <= 0.75
+        (0.7500001, "neutral"),  # just above loss
+        (0.10, "homdel"),
+        (0.50, "loss"),
+        (1.00, "neutral"),  # interior points (dtype-stable)
+    ],
+)
 def test_cn_class_thresholds(rel_cn, expected):
     """The CN→class thresholds (<=0.20 homdel, <=0.75 loss). float64 form is the classifier's
     contract; interior points are dtype-stable (see the boundary caveat test below)."""
@@ -85,6 +88,7 @@ def test_cn_class_dtype_stable_away_from_boundaries(rel_cn):
     identically — the invariant the live parquet-vs-CSV equivalence check confirmed for 2678
     models across KRAS/TP53/PTEN/SMAD4 (0 state diffs). Interior values have ample float32 margin."""
     import numpy as np
+
     assert fgs._depmap_cn_class(rel_cn) == fgs._depmap_cn_class(float(np.float32(rel_cn)))
 
 
@@ -95,5 +99,6 @@ def test_cn_class_exact_boundary_is_a_known_float32_caveat():
     here so a future reader knows the parquet(float32) path can differ ONLY at the exact boundary —
     if this ever matters, make _depmap_cn_class compare at a rounded precision."""
     import numpy as np
+
     assert fgs._depmap_cn_class(0.20) == "homdel"
-    assert fgs._depmap_cn_class(float(np.float32(0.20))) == "loss"   # the exact-boundary artifact
+    assert fgs._depmap_cn_class(float(np.float32(0.20))) == "loss"  # the exact-boundary artifact

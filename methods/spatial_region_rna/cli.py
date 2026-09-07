@@ -4,6 +4,7 @@
 (_live_readers.py::CARD_DISPATCHERS["spatial-region-rna-expression"]) invokes. Deterministic
 (target, indication) -> summary with a primary `spatial_rna_class` + data_unavailable-safe branch.
 """
+
 from __future__ import annotations
 
 import argparse

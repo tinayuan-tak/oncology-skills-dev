@@ -7,6 +7,7 @@ classifier returns the set of samples carrying a registered exon-skip event.
 Deterministic, no I/O — unit-testable against fixed rows. Live/build loaders (read.py)
 adapt a specific MAF into VariantObs and delegate here.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -18,9 +19,9 @@ from .events import EXON_SKIP_EVENTS, ExonSkipEvent
 @dataclass(frozen=True)
 class VariantObs:
     sample_id: str
-    chrom: str                 # "chr7" or "7" — normalized on ingest
-    pos: Optional[int]         # 1-based genomic start; None => cannot be windowed
-    classification: str        # variant classification / consequence token (any case)
+    chrom: str  # "chr7" or "7" — normalized on ingest
+    pos: Optional[int]  # 1-based genomic start; None => cannot be windowed
+    classification: str  # variant classification / consequence token (any case)
 
 
 def _norm_chrom(c: str) -> str:

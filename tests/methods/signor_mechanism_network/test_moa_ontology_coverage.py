@@ -36,6 +36,7 @@ against the next release). To refresh against a new SIGNOR release, re-run (with
         t[(ms,"downstream")] += 1; t[(ms,"upstream")] += 1
     # dump {n_edges_total, tally:[[mech,direction,count],...]} sorted by (mech,direction)
 """
+
 from __future__ import annotations
 
 import json
@@ -48,7 +49,7 @@ sys.path.insert(0, str(REPO))
 from methods.signor_mechanism_network.moa_ontology import classify_edge  # noqa: E402
 
 _FIXTURE = Path(__file__).resolve().parent / "signor_mechanism_tally_jul2026.json"
-_MAX_UNMAPPED_FRACTION = 0.05   # the documented ontology-coverage ceiling (moa_ontology.py discipline #2)
+_MAX_UNMAPPED_FRACTION = 0.05  # the documented ontology-coverage ceiling (moa_ontology.py discipline #2)
 
 
 def _load_tally() -> dict:
@@ -65,7 +66,8 @@ def test_moa_ontology_edge_weighted_unmapped_fraction_under_ceiling():
     assert frac < _MAX_UNMAPPED_FRACTION, (
         f"MoA-ontology unmapped fraction {frac:.4f} exceeds the documented {_MAX_UNMAPPED_FRACTION:.0%} "
         f"ceiling ({unmapped}/{total} edges). The ontology table regressed coverage — add the newly-unmapped "
-        f"mechanism strings to methods/signor_mechanism_network/moa_ontology.py.")
+        f"mechanism strings to methods/signor_mechanism_network/moa_ontology.py."
+    )
 
 
 def test_fixture_edge_total_matches_declared():

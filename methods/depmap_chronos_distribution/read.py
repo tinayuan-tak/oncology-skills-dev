@@ -19,10 +19,13 @@ from typing import Optional
 from . import cli as _cli
 
 
-def read_pan_cancer_distribution(target: str, indication: Optional[str] = None,
-                                   strong_threshold: float = -1.0,
-                                   moderate_threshold: float = -0.5,
-                                   plot_data_out: Optional[Path] = None) -> Optional[dict]:
+def read_pan_cancer_distribution(
+    target: str,
+    indication: Optional[str] = None,
+    strong_threshold: float = -1.0,
+    moderate_threshold: float = -0.5,
+    plot_data_out: Optional[Path] = None,
+) -> Optional[dict]:
     """Compute the pan-cancer dependency distribution for target. Returns the
     summary dict matching the pan-cancer-crispr-dependency-distribution card's
     outputs.summary_fields. The `indication` parameter is intentionally ignored
@@ -34,9 +37,7 @@ def read_pan_cancer_distribution(target: str, indication: Optional[str] = None,
     runtime decides whether the live-reader scalar path is sufficient or whether to
     invoke the CLI for full artifacts.
     """
-    chronos_by_model, model_metadata, load_errors = _cli.load_depmap_files(
-        release_pin="26q1", target_symbol=target
-    )
+    chronos_by_model, model_metadata, load_errors = _cli.load_depmap_files(release_pin="26q1", target_symbol=target)
     if load_errors:
         return {
             "_live_read_error": load_errors[0].get("_live_read_error", "unknown"),
@@ -62,7 +63,8 @@ def read_pan_cancer_distribution(target: str, indication: Optional[str] = None,
     _curated = _cli._load_curated_common_essentials("26q1")
     curated_common_essential = (target in _curated) if _curated is not None else None
     summary = _cli.compute_summary_stats(
-        chronos_by_model, model_metadata,
+        chronos_by_model,
+        model_metadata,
         strong_threshold=strong_threshold,
         moderate_threshold=moderate_threshold,
         curated_common_essential=curated_common_essential,
@@ -76,6 +78,7 @@ def read_pan_cancer_distribution(target: str, indication: Optional[str] = None,
     # breaks the primary distribution summary (degrades to data_unavailable).
     try:
         from methods.dependency_controls import control_position_dependency
+
         summary.update(control_position_dependency(target, release_pin="26q1"))
     except Exception as e:  # noqa: BLE001 — the control axis is a display facet, never load-bearing
         summary.setdefault("dep_control_position_class", "data_unavailable")

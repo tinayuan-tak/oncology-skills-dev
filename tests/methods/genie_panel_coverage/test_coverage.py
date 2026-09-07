@@ -5,6 +5,7 @@ G-not-on-the-sample's-panel. These tests pin the honest denominator — a sample
 toward gene G's denominator ONLY if its panel covers G — using injected sample→panel +
 panel→gene maps (no S3).
 """
+
 from __future__ import annotations
 
 import sys
@@ -27,9 +28,9 @@ _SAMPLE_PANEL = {"s1": "BIG", "s2": "BIG", "s3": "SMALL", "s4": "SMALL"}
 
 def test_covered_respects_panel_membership():
     assert cov.covered("s1", "KRAS", _SAMPLE_PANEL, _PANEL_GENES) is True
-    assert cov.covered("s3", "KRAS", _SAMPLE_PANEL, _PANEL_GENES) is False   # SMALL lacks KRAS
+    assert cov.covered("s3", "KRAS", _SAMPLE_PANEL, _PANEL_GENES) is False  # SMALL lacks KRAS
     assert cov.covered("s3", "TP53", _SAMPLE_PANEL, _PANEL_GENES) is True
-    assert cov.covered("s5", "TP53", _SAMPLE_PANEL, _PANEL_GENES) is False   # not in map → no coverage
+    assert cov.covered("s5", "TP53", _SAMPLE_PANEL, _PANEL_GENES) is False  # not in map → no coverage
 
 
 def test_denominator_excludes_uncovered_samples():

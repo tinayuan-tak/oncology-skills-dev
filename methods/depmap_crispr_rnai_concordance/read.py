@@ -8,8 +8,9 @@ from typing import Optional
 from . import cli as _cli
 
 
-def read_crispr_rnai_concordance(target: str, indication: Optional[str] = None,
-                                 plot_data_out: Optional[Path] = None) -> Optional[dict]:
+def read_crispr_rnai_concordance(
+    target: str, indication: Optional[str] = None, plot_data_out: Optional[Path] = None
+) -> Optional[dict]:
     """Compute CRISPR-RNAi concordance for target. Returns summary dict matching
     the crispr-rnai-dependency-concordance card's outputs.summary_fields."""
     chronos_by, demeter_by, model_meta, load_errors = _cli.load_concordance_inputs(target, "26q1")

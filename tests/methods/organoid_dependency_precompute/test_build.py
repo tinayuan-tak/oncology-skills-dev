@@ -3,14 +3,14 @@
 Validates per-gene dependency counts, fractions, central-tendency, and the organoid-cohort
 dependency percentile orientation (more-negative median → higher percentile).
 """
+
 import importlib.util
 from pathlib import Path
 
 import pandas as pd
 import pytest
 
-BUILD = (Path(__file__).resolve().parents[3] / "methods"
-         / "organoid_dependency_precompute" / "build.py")
+BUILD = Path(__file__).resolve().parents[3] / "methods" / "organoid_dependency_precompute" / "build.py"
 
 
 def _load():
@@ -25,12 +25,14 @@ def _synthetic_matrix(tmp_path):
     #   ESS  : essential everywhere (all < -1.0)      → pan-essential, most dependent
     #   SEL  : dependent in 2/4, one strongly         → selective
     #   NEUT : never dependent (near 0), one NaN      → not dependent, least dependent
-    df = pd.DataFrame({
-        "ModelID": ["ACH-1", "ACH-2", "ACH-3", "ACH-4"],
-        "ESS (100)": [-1.5, -1.2, -1.8, -1.1],
-        "SEL (200)": [-0.9, -0.2, -1.2, -0.1],
-        "NEUT (300)": [0.05, -0.1, 0.0, None],
-    }).set_index("ModelID")
+    df = pd.DataFrame(
+        {
+            "ModelID": ["ACH-1", "ACH-2", "ACH-3", "ACH-4"],
+            "ESS (100)": [-1.5, -1.2, -1.8, -1.1],
+            "SEL (200)": [-0.9, -0.2, -1.2, -0.1],
+            "NEUT (300)": [0.05, -0.1, 0.0, None],
+        }
+    ).set_index("ModelID")
     p = tmp_path / "OrganoidGeneEffect.csv"
     df.to_csv(p)
     return p
@@ -77,7 +79,17 @@ def test_write_roundtrip_schema(tmp_path):
     assert meta["n_rows"] == 3 and meta["size_bytes"] > 0 and len(meta["md5"]) == 32
     rt = pd.read_parquet(out)
     assert list(rt.columns) == [
-        "gene_symbol", "entrez_gene_id", "n_models_screened", "n_dependent",
-        "n_strongly_dependent", "frac_dependent", "frac_strongly_dependent", "mean_gene_effect",
-        "median_gene_effect", "min_gene_effect", "organoid_dependency_percentile",
-        "n_models_total", "n_genes"]
+        "gene_symbol",
+        "entrez_gene_id",
+        "n_models_screened",
+        "n_dependent",
+        "n_strongly_dependent",
+        "frac_dependent",
+        "frac_strongly_dependent",
+        "mean_gene_effect",
+        "median_gene_effect",
+        "min_gene_effect",
+        "organoid_dependency_percentile",
+        "n_models_total",
+        "n_genes",
+    ]

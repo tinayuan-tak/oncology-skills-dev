@@ -19,9 +19,11 @@ from methods.depmap_demeter_distribution import read as r
 def _panel() -> tuple[dict, dict]:
     demeter, meta = {}, {}
     i = 1
-    for lin, vals in {"Bowel": [-0.9, -1.0, -0.7, -0.8, -0.85],
-                      "Lung": [-0.3, -0.35, -0.28, -0.4, -0.32],
-                      "Breast": [0.02, -0.05, 0.05, 0.0, -0.02]}.items():
+    for lin, vals in {
+        "Bowel": [-0.9, -1.0, -0.7, -0.8, -0.85],
+        "Lung": [-0.3, -0.35, -0.28, -0.4, -0.32],
+        "Breast": [0.02, -0.05, 0.05, 0.0, -0.02],
+    }.items():
         for v in vals:
             mid = f"ACH-{i:06d}"
             demeter[mid] = float(v)
@@ -36,8 +38,7 @@ def _svg_ok(p: Path) -> bool:
 
 def test_plot_data_persisted_on_read(tmp_path, monkeypatch):
     demeter, meta = _panel()
-    monkeypatch.setattr(r._cli, "load_rnai_files",
-                        lambda release_pin, target_symbol: (demeter, meta, [], None))
+    monkeypatch.setattr(r._cli, "load_rnai_files", lambda release_pin, target_symbol: (demeter, meta, [], None))
     summary = r.read_pan_cancer_rnai_distribution("MYGENE", plot_data_out=tmp_path)
     assert summary.get("rnai_dependency_class") or summary.get("dependency_class")
     assert (tmp_path / "plot_data_rnai.parquet").exists()
@@ -50,12 +51,14 @@ def test_plot_data_persisted_on_read(tmp_path, monkeypatch):
 def test_renders_offline_from_persisted_parquet(tmp_path, monkeypatch):
     demeter, meta = _panel()
     summary = c.compute_summary_stats(demeter, meta)
-    src = tmp_path / "src"; src.mkdir()
+    src = tmp_path / "src"
+    src.mkdir()
     c.emit_plot_data(demeter, meta, -0.5, src)
     assert (src / "plot_data_rnai.parquet").exists()
 
-    monkeypatch.setattr(c, "load_rnai_files",
-                        lambda *a, **k: (_ for _ in ()).throw(AssertionError("live read in offline render")))
+    monkeypatch.setattr(
+        c, "load_rnai_files", lambda *a, **k: (_ for _ in ()).throw(AssertionError("live read in offline render"))
+    )
     out = tmp_path / "out"
     descs = f.render_from_plot_data(src / "plot_data_rnai.parquet", summary, out, "MYGENE")
 
@@ -68,6 +71,7 @@ def test_renders_offline_from_persisted_parquet(tmp_path, monkeypatch):
 
 def test_missing_columns_raises(tmp_path):
     import pandas as pd
+
     df = pd.DataFrame({"model_id": ["ACH-1"]})  # no demeter2_score
     try:
         f.render_from_plot_data(df, {}, tmp_path / "out", "MYGENE")
@@ -82,12 +86,15 @@ def test_returns_plotly_descriptors_with_dynamic_flag(tmp_path, monkeypatch):
     just the SVGs — so it is an exact drop-in for the registry emitter (which appends them today)."""
     demeter, meta = _panel()
     summary = c.compute_summary_stats(demeter, meta)
-    src = tmp_path / "src"; src.mkdir()
+    src = tmp_path / "src"
+    src.mkdir()
     c.emit_plot_data(demeter, meta, -0.5, src)
 
-    monkeypatch.setattr(c, "emit_plotly_specs",
-                        lambda *a, **k: [{"id": "waterfall_rnai",
-                                          "path": "figure_waterfall_rnai.plotly.json", "type": "plotly"}])
+    monkeypatch.setattr(
+        c,
+        "emit_plotly_specs",
+        lambda *a, **k: [{"id": "waterfall_rnai", "path": "figure_waterfall_rnai.plotly.json", "type": "plotly"}],
+    )
     descs = f.render_from_plot_data(src / "plot_data_rnai.parquet", summary, tmp_path / "out", "MYGENE")
     dyn = [d for d in descs if d.get("dynamic")]
     assert dyn and dyn[0]["path"].endswith(".plotly.json") and dyn[0]["dynamic"] is True

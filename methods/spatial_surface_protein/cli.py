@@ -4,6 +4,7 @@
 (_live_readers.py::CARD_DISPATCHERS["spatial-surface-protein-abundance"]) invokes. Deterministic
 (target, indication) -> summary with a primary `spatial_protein_class` + data_unavailable-safe branch.
 """
+
 from __future__ import annotations
 
 import argparse

@@ -6,5 +6,7 @@ precedent prior (the antigen class delivered approved biologics), orthogonal to 
 axes surface-modality-fit scores. Supportive-only: not_cd_antigen is NOT a negative (most solid-tumor
 ADC/TCE antigens — CEACAM5/FOLR1/TROP2/MSLN — are not CD molecules).
 """
+
 from .read import read_cd_antigen_backbone  # noqa: F401
+
 METHOD_VERSION = "1.0.0"

@@ -3,18 +3,25 @@
 Monkeypatch the two upstream readers (confirm_pair_samecell, normal_max_both) with canned payloads
 and assert the verdict truth table + margin. No S3."""
 
-
 import methods.pair_selectivity_gate.window as W
 
 
 def _tumor(both, call="same_cell_coordinated", n_donors=50):
-    return {"samecell_avidity_call": call, "samecell_both_fraction_median": both,
-            "samecell_enrichment_median": 1.4, "n_donors": n_donors}
+    return {
+        "samecell_avidity_call": call,
+        "samecell_both_fraction_median": both,
+        "samecell_enrichment_median": 1.4,
+        "n_donors": n_donors,
+    }
 
 
 def _normal(cls, nmb, locus=None):
-    return {"normal_selectivity_class": cls, "normal_max_both_fraction": nmb,
-            "normal_liability_locus": locus, "support_floor": {"min_donors": 3, "min_cells": 10}}
+    return {
+        "normal_selectivity_class": cls,
+        "normal_max_both_fraction": nmb,
+        "normal_liability_locus": locus,
+        "support_floor": {"min_donors": 3, "min_cells": 10},
+    }
 
 
 def _patch(monkeypatch, tumor, normal):
@@ -41,7 +48,7 @@ def test_no_window_normal_liability(monkeypatch):
 def test_selectivity_unproven_when_normal_under_powered(monkeypatch):
     _patch(monkeypatch, _tumor(0.60), _normal("under_powered", None))
     r = W.pair_selectivity_window("FOLR1", "MSLN", "OV")
-    assert r["window_verdict"] == "selectivity_unproven"   # NOT window_open, NOT no_window
+    assert r["window_verdict"] == "selectivity_unproven"  # NOT window_open, NOT no_window
     assert r["selectivity_margin"] is None
 
 
@@ -69,8 +76,7 @@ def test_saturation_pair_attributes_failure_to_normal_not_tumor(monkeypatch):
     # enrichment ~1.0 (independent), AND a well-powered normal wall (colon BEST4+ colonocyte @ 1.0).
     # Under Option A the failure attributes to the NORMAL gate (no_window), NOT the tumor side.
     locus = {"tissue": "colon", "cell_type": "BEST4+ colonocyte", "both_fraction_median": 1.0}
-    _patch(monkeypatch, _tumor(0.71, call="same_cell_independent"),
-           _normal("normal_liability", 1.0, locus))
+    _patch(monkeypatch, _tumor(0.71, call="same_cell_independent"), _normal("normal_liability", 1.0, locus))
     r = W.pair_selectivity_window("EPCAM", "CEACAM5", "COADREAD")
     assert r["window_verdict"] == "no_window"
     assert r["tumor_coordinated"] is False
@@ -97,28 +103,55 @@ def test_tau_boundary_inclusive(monkeypatch):
 
 
 def test_tumor_data_unavailable(monkeypatch):
-    _patch(monkeypatch, {"samecell_avidity_call": "data_unavailable", "samecell_both_fraction_median": None},
-           _normal("selectivity_clean", 0.0))
+    _patch(
+        monkeypatch,
+        {"samecell_avidity_call": "data_unavailable", "samecell_both_fraction_median": None},
+        _normal("selectivity_clean", 0.0),
+    )
     assert W.pair_selectivity_window("FOLR1", "MSLN", "OV")["window_verdict"] == "data_unavailable"
 
 
 def test_normal_data_unavailable_when_tumor_engages(monkeypatch):
-    _patch(monkeypatch, _tumor(0.60), {"normal_selectivity_class": "data_unavailable",
-                                       "normal_max_both_fraction": None, "normal_liability_locus": None})
+    _patch(
+        monkeypatch,
+        _tumor(0.60),
+        {
+            "normal_selectivity_class": "data_unavailable",
+            "normal_max_both_fraction": None,
+            "normal_liability_locus": None,
+        },
+    )
     assert W.pair_selectivity_window("FOLR1", "MSLN", "OV")["window_verdict"] == "data_unavailable"
 
 
 def test_target_centric_best_partner(monkeypatch):
     # FOLR1: MSLN window_open (margin .59), MUC16 no_window. Headline = window_open / MSLN.
-    monkeypatch.setattr(W, "read_target_samecell_avidity",
-                        lambda t, i: {"partners": [{"partner": "MSLN"}, {"partner": "MUC16"}]},
-                        raising=False)
+    monkeypatch.setattr(
+        W,
+        "read_target_samecell_avidity",
+        lambda t, i: {"partners": [{"partner": "MSLN"}, {"partner": "MUC16"}]},
+        raising=False,
+    )
+
     def fake_window(target, partner, indication):
         if partner == "MSLN":
-            return {"partner": "MSLN", "window_verdict": "window_open", "selectivity_margin": 0.59,
-                    "tumor_both_fraction": 0.6, "normal_max_both_fraction": 0.01, "normal_liability_locus": None}
-        return {"partner": "MUC16", "window_verdict": "no_window", "selectivity_margin": 0.2,
-                "tumor_both_fraction": 0.6, "normal_max_both_fraction": 0.4, "normal_liability_locus": {"tissue": "ovary"}}
+            return {
+                "partner": "MSLN",
+                "window_verdict": "window_open",
+                "selectivity_margin": 0.59,
+                "tumor_both_fraction": 0.6,
+                "normal_max_both_fraction": 0.01,
+                "normal_liability_locus": None,
+            }
+        return {
+            "partner": "MUC16",
+            "window_verdict": "no_window",
+            "selectivity_margin": 0.2,
+            "tumor_both_fraction": 0.6,
+            "normal_max_both_fraction": 0.4,
+            "normal_liability_locus": {"tissue": "ovary"},
+        }
+
     monkeypatch.setattr(W, "pair_selectivity_window", fake_window)
     r = W.read_target_selectivity_window("FOLR1", "OV")
     assert r["n_partners_tested"] == 2

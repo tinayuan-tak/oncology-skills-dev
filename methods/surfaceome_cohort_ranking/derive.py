@@ -34,6 +34,7 @@ call -> rna_protein_concordance; tissue_percentile_protein ranks the CPTAC-cover
 protein_effect_size. No CPTAC cohort / no coverage -> 'no_protein', percentile NaN (data-unavailable,
 NOT a negative signal).
 """
+
 from __future__ import annotations
 
 import math
@@ -49,10 +50,13 @@ METHOD_VERSION = "0.1.0"
 # rna_protein_concordance='no_protein'.
 CPTAC_COHORT_MAP = {
     "BRCA": "BRCA",
-    "COAD": "COAD", "COADREAD": "COAD", "READ": "COAD",
+    "COAD": "COAD",
+    "COADREAD": "COAD",
+    "READ": "COAD",
     "GBM": "GBM",
     "HNSC": "HNSCC",
-    "LUAD": "LUAD", "LUSC": "LSCC",
+    "LUAD": "LUAD",
+    "LUSC": "LSCC",
     "OV": "OV",
     "PAAD": "PDAC",
     "UCEC": "UCEC",
@@ -63,10 +67,20 @@ _PADJ_FLOOR = 1e-300
 _SIG_Q = 0.05
 
 OUTPUT_COLUMNS = [
-    "indication", "gene_symbol", "uniprot_ac", "surface_protein_family",
-    "cells_ran", "cells_supporting", "max_abs_log2fc", "ranking_score",
-    "tissue_rank", "tissue_percentile_rna", "tissue_percentile_protein",
-    "rna_protein_concordance", "cohort_rank_class", "method_version",
+    "indication",
+    "gene_symbol",
+    "uniprot_ac",
+    "surface_protein_family",
+    "cells_ran",
+    "cells_supporting",
+    "max_abs_log2fc",
+    "ranking_score",
+    "tissue_rank",
+    "tissue_percentile_rna",
+    "tissue_percentile_protein",
+    "rna_protein_concordance",
+    "cohort_rank_class",
+    "method_version",
 ]
 
 
@@ -75,7 +89,7 @@ def _cell_pairs(columns) -> list[tuple[str, str]]:
     pairs = []
     for c in columns:
         if c.startswith("log2fc_"):
-            suffix = c[len("log2fc_"):]
+            suffix = c[len("log2fc_") :]
             padj = f"padj_{suffix}"
             if padj in columns:
                 pairs.append((c, padj))
@@ -197,7 +211,7 @@ def rank_indication(
                     return "no_protein"
                 d = _protein_direction(expr.get(g))
                 if d == "up":
-                    return "agreement"       # RNA up (all candidates) + protein up
+                    return "agreement"  # RNA up (all candidates) + protein up
                 if d == "down":
                     return "disagreement"
                 if d == "ns":
@@ -211,9 +225,7 @@ def rank_indication(
                 # rank covered candidates by protein effect size (desc) -> percentile
                 order = sub.rank(method="min", ascending=True)  # 1=lowest
                 m = covered.sum()
-                df.loc[covered, "tissue_percentile_protein"] = (
-                    100.0 * (order - 1) / max(m - 1, 1)
-                )
+                df.loc[covered, "tissue_percentile_protein"] = 100.0 * (order - 1) / max(m - 1, 1)
 
     return df[OUTPUT_COLUMNS].copy()
 

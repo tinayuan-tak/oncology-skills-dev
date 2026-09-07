@@ -5,6 +5,7 @@ the curated approved set); (3) NON-CD-NAMED backbone antigen resolves (PDCD1=CD2
 path misses these); (4) not_cd_antigen is NOT a negative (CEACAM5 — a real ADC target that's not a CD
 molecule); (5) uniprot/ensembl fallback keys; (6) unreadable roster → data_unavailable (distinct from
 not_cd_antigen)."""
+
 from __future__ import annotations
 
 import json
@@ -13,17 +14,23 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO))
-from methods.cd_antigen_backbone import classify as c   # noqa: E402
-from methods.cd_antigen_backbone import read as r        # noqa: E402
+from methods.cd_antigen_backbone import classify as c  # noqa: E402
+from methods.cd_antigen_backbone import read as r  # noqa: E402
 
 
 def _roster():
     # UPPER(symbol) -> record, as read._load_roster builds it
     recs = {
-        "CD19":   {"symbol": "CD19", "cd": "CD19", "uniprot_ids": ["P15391"], "ensembl_gene_id": "ENSG00000177455", "gene_group": ["CD molecules"]},
-        "MS4A1":  {"symbol": "MS4A1", "cd": "CD20", "uniprot_ids": ["P11836"], "gene_group": ["CD molecules"]},
-        "PDCD1":  {"symbol": "PDCD1", "cd": "CD279", "uniprot_ids": ["Q15116"], "gene_group": ["CD molecules"]},
-        "CD70":   {"symbol": "CD70", "cd": "CD70", "uniprot_ids": ["P32970"], "gene_group": ["CD molecules"]},
+        "CD19": {
+            "symbol": "CD19",
+            "cd": "CD19",
+            "uniprot_ids": ["P15391"],
+            "ensembl_gene_id": "ENSG00000177455",
+            "gene_group": ["CD molecules"],
+        },
+        "MS4A1": {"symbol": "MS4A1", "cd": "CD20", "uniprot_ids": ["P11836"], "gene_group": ["CD molecules"]},
+        "PDCD1": {"symbol": "PDCD1", "cd": "CD279", "uniprot_ids": ["Q15116"], "gene_group": ["CD molecules"]},
+        "CD70": {"symbol": "CD70", "cd": "CD70", "uniprot_ids": ["P32970"], "gene_group": ["CD molecules"]},
     }
     d = dict(recs)
     for rec in recs.values():
@@ -59,7 +66,7 @@ def test_non_cd_named_checkpoint_resolves_on_roster():
 
 
 def test_on_roster_but_not_approved_is_cd_antigen():
-    out = c.classify_cd_backbone("CD70", _roster())   # CD70: clinical but not in the conservative approved set
+    out = c.classify_cd_backbone("CD70", _roster())  # CD70: clinical but not in the conservative approved set
     assert out["cd_antigen_backbone_class"] == "cd_antigen"
 
 
@@ -81,7 +88,13 @@ def test_uniprot_fallback_key(tmp_path):
 def test_read_from_local_members_json(tmp_path):
     # end-to-end read path with a local members.json (bare-list container)
     members = [
-        {"symbol": "CD19", "cd": "CD19", "uniprot_ids": ["P15391"], "ensembl_gene_id": "ENSG00000177455", "gene_group": ["CD molecules"]},
+        {
+            "symbol": "CD19",
+            "cd": "CD19",
+            "uniprot_ids": ["P15391"],
+            "ensembl_gene_id": "ENSG00000177455",
+            "gene_group": ["CD molecules"],
+        },
         {"symbol": "PDCD1", "cd": "CD279", "uniprot_ids": ["Q15116"], "gene_group": ["CD molecules"]},
     ]
     p = tmp_path / "members.json"
@@ -103,6 +116,13 @@ def test_unreadable_roster_is_data_unavailable():
 
 def test_contract_fields_present():
     out = c.classify_cd_backbone("CD19", _roster())
-    for f in ("cd_antigen_backbone_class", "on_cd_roster", "cd_number", "cd_roster_uniprot",
-              "cd_gene_groups", "established_io_precedent", "method_version"):
+    for f in (
+        "cd_antigen_backbone_class",
+        "on_cd_roster",
+        "cd_number",
+        "cd_roster_uniprot",
+        "cd_gene_groups",
+        "established_io_precedent",
+        "method_version",
+    ):
         assert f in out

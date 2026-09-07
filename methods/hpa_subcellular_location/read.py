@@ -16,6 +16,7 @@ Measured-vs-null: intracellular_only is a MEASURED non-surface call (a weak oppo
 biologics modality); location_unavailable is a coverage gap that NEVER opposes. NB distinct from the
 HPA IHC normal-tissue BREADTH consumed by normal-tissue-liability (a different HPA column).
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -29,17 +30,23 @@ def _read_hpa_row(target: str) -> Optional[dict]:
     """Pushdown-read the per-gene HPA subcellular-location rollup for one gene symbol. None if absent."""
     try:
         import sys as _sys
+
         _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
         from methods.catalog_query.read import bucket_key_for
         import pyarrow.parquet as pq
         import pyarrow.fs as fs
+
         bucket, key = bucket_key_for(PRODUCT_MANIFEST_ID)
-        tbl = pq.read_table(f"{bucket}/{key}", filesystem=fs.S3FileSystem(),
-                            filters=[("gene_symbol", "=", (target or "").strip().upper())])
+        tbl = pq.read_table(
+            f"{bucket}/{key}",
+            filesystem=fs.S3FileSystem(),
+            filters=[("gene_symbol", "=", (target or "").strip().upper())],
+        )
     except Exception as e:  # noqa: BLE001
         # Genuine product-absence (FileNotFoundError / NoSuchKey / 404) → None (location_unavailable).
         # A transient/creds/broken-env error must NOT be masked as "gene absent" — re-raise it.
         from methods.target_id_sidecar import is_definitively_absent
+
         if not (isinstance(e, FileNotFoundError) or is_definitively_absent(e)):
             raise
         return None

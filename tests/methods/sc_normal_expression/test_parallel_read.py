@@ -8,6 +8,7 @@ over a bounded ThreadPoolExecutor. This test mocks the S3 layer (no network) so 
 order-preserving concatenation + the found_any_product / gene-absent contract that downstream
 classification depends on.
 """
+
 from __future__ import annotations
 
 import pandas as pd
@@ -34,15 +35,21 @@ def fake_s3(monkeypatch):
     def fake_read_table(path, filesystem=None, filters=None, columns=None):
         # path == "<bucket>/data-catalog/derived/sc-normal-celltype-expression-<tissue>-v1/..."
         tissue_slug = path.split("sc-normal-celltype-expression-")[1].split("-v1/")[0]
-        return _FakeTable(pd.DataFrame([{"gene_symbol": "CEACAM5", "tissue": tissue_slug,
-                                         "cell_type": "epithelial", "median_det": 0.5}]))
+        return _FakeTable(
+            pd.DataFrame(
+                [{"gene_symbol": "CEACAM5", "tissue": tissue_slug, "cell_type": "epithelial", "median_det": 0.5}]
+            )
+        )
 
     monkeypatch.setattr(r.pq, "read_table", fake_read_table)
     return None
 
 
 class _FakeCreds:
-    access_key = "AK"; secret_key = "SK"; token = "TK"
+    access_key = "AK"
+    secret_key = "SK"
+    token = "TK"
+
     def get_frozen_credentials(self):
         return self
 
@@ -55,7 +62,7 @@ class _FakeSession:
 def test_parallel_read_preserves_tissue_order(fake_s3):
     tissues = ["colon", "heart", "liver", "kidney"]
     df = r.read_gene_celltype_rows("CEACAM5", tissues)
-    assert list(df["tissue"]) == tissues            # submission-order, not completion-order
+    assert list(df["tissue"]) == tissues  # submission-order, not completion-order
     assert len(df) == len(tissues)
 
 
@@ -67,7 +74,6 @@ def test_no_product_returns_none(fake_s3, monkeypatch):
 
 def test_gene_absent_returns_empty_frame(fake_s3, monkeypatch):
     # products exist, but the pushdown yields no rows for the gene -> empty DataFrame (not None)
-    monkeypatch.setattr(r.pq, "read_table",
-                        lambda *a, **k: _FakeTable(pd.DataFrame(columns=["gene_symbol", "tissue"])))
+    monkeypatch.setattr(r.pq, "read_table", lambda *a, **k: _FakeTable(pd.DataFrame(columns=["gene_symbol", "tissue"])))
     out = r.read_gene_celltype_rows("NOPE", ["colon", "heart"])
     assert out is not None and out.empty

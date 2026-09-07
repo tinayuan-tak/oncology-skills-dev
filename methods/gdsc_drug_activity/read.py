@@ -12,6 +12,7 @@ crashing the compose path. `no_compounds_found` from load_and_classify (the symb
 putative-target token) is a REAL measured weak-negative — DISTINCT from `data_unavailable` (the SOURCE
 couldn't be read, an infra failure); both surface a class, the key disambiguates for provenance.
 """
+
 from __future__ import annotations
 
 from typing import Optional
@@ -32,8 +33,7 @@ def read_target_summary(target: str, indication: Optional[str] = None) -> dict:
             src = _cli.DERIVED_PRODUCT_MANIFEST_ID
         return {
             "_live_read_error": "gdsc_drug_activity_read_failed",
-            "_remediation": (
-                f"Could not read GDSC per-gene drug-activity ({src}) for {target}: {e}"),
+            "_remediation": (f"Could not read GDSC per-gene drug-activity ({src}) for {target}: {e}"),
             "gdsc_activity_class": _cli.CLASS_DATA_UNAVAILABLE,
             "n_drugs": 0,
             "n_cell_lines_tested": 0,

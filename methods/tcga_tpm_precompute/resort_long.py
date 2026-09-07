@@ -51,9 +51,9 @@ OUTPUT_S3_KEY = "data-catalog/derived/tcga-tumor-tpm-recount3-long-v1/tcga_tpm_l
 
 # Validation: (gene_symbol, study) — per-gene per-study median should be unchanged.
 CORRECTNESS_CHECKS = [
-    ("KRAS",  "COAD"),
+    ("KRAS", "COAD"),
     ("EPCAM", "COAD"),
-    ("GFAP",  "GBM"),
+    ("GFAP", "GBM"),
 ]
 
 
@@ -98,6 +98,7 @@ def resort(in_uri: str, out_path: Path, row_group_size: int) -> tuple[int, dict]
         # Inject SSO credentials explicitly — DuckDB httpfs does not always pick up the
         # boto3 SSO credential chain reliably; injecting via CREATE SECRET is the safe path.
         import boto3
+
         session = boto3.Session(profile_name=os.environ.get("AWS_PROFILE", "cbg"))
         creds = session.get_credentials().get_frozen_credentials()
         con.execute(f"""
@@ -115,10 +116,8 @@ def resort(in_uri: str, out_path: Path, row_group_size: int) -> tuple[int, dict]
     # Row count + distinct-gene sanity check before sorting
     _log(f"[resort_long] counting input rows in {in_uri} ...")
     t0 = time.monotonic()
-    row_count, gene_count = con.execute(
-        f"SELECT COUNT(*), COUNT(DISTINCT ensembl_gene_id) FROM {in_ref}"
-    ).fetchone()
-    _log(f"  {row_count:,} rows, {gene_count:,} distinct ensembl_gene_ids ({time.monotonic()-t0:.0f}s)")
+    row_count, gene_count = con.execute(f"SELECT COUNT(*), COUNT(DISTINCT ensembl_gene_id) FROM {in_ref}").fetchone()
+    _log(f"  {row_count:,} rows, {gene_count:,} distinct ensembl_gene_ids ({time.monotonic() - t0:.0f}s)")
 
     _log(f"[resort_long] sorting -> {out_path}  (row_group_size={row_group_size})")
     t0 = time.monotonic()
@@ -136,11 +135,11 @@ def resort(in_uri: str, out_path: Path, row_group_size: int) -> tuple[int, dict]
     _log(f"[resort_long] wrote {out_path} ({size_bytes / 1e9:.2f} GB) in {elapsed:.0f}s")
 
     import shutil
+
     if tmp_dir.exists():
         shutil.rmtree(tmp_dir, ignore_errors=True)
 
-    stats = {"n_rows_in": row_count, "n_genes": gene_count,
-             "size_bytes": size_bytes, "elapsed_s": elapsed}
+    stats = {"n_rows_in": row_count, "n_genes": gene_count, "size_bytes": size_bytes, "elapsed_s": elapsed}
     return size_bytes, stats
 
 
@@ -177,8 +176,10 @@ def verify_sort(out_path: Path, n_sample: int = 500) -> None:
             f"ensembl_gene_id ranges in first {n_sample} row-groups. "
             "The output is not globally sorted."
         )
-    _log(f"  Sort verification OK — 0 overlapping ensembl_gene_id ranges in "
-         f"{min(n_sample, md.num_row_groups)} sampled row-groups.")
+    _log(
+        f"  Sort verification OK — 0 overlapping ensembl_gene_id ranges in "
+        f"{min(n_sample, md.num_row_groups)} sampled row-groups."
+    )
 
 
 def correctness_check(in_uri: str, out_path: Path) -> None:
@@ -191,6 +192,7 @@ def correctness_check(in_uri: str, out_path: Path) -> None:
         con.execute("INSTALL httpfs; LOAD httpfs;")
         con.execute("SET s3_region='us-east-1';")
         import boto3
+
         session = boto3.Session(profile_name=os.environ.get("AWS_PROFILE", "cbg"))
         creds = session.get_credentials().get_frozen_credentials()
         con.execute(f"""
@@ -204,11 +206,11 @@ def correctness_check(in_uri: str, out_path: Path) -> None:
         """)
 
     out_ref = f"read_parquet('{out_path}')"
-    in_ref  = f"read_parquet('{in_uri}')"
+    in_ref = f"read_parquet('{in_uri}')"
 
     all_ok = True
     for gene, study in CORRECTNESS_CHECKS:
-        med_in  = con.execute(
+        med_in = con.execute(
             f"SELECT median(log2_tpm) FROM {in_ref}  WHERE gene_symbol='{gene}' AND study='{study}'"
         ).fetchone()[0]
         med_out = con.execute(
@@ -216,8 +218,9 @@ def correctness_check(in_uri: str, out_path: Path) -> None:
         ).fetchone()[0]
         diff = abs((med_in or 0.0) - (med_out or 0.0))
         ok = diff < 1e-4
-        _log(f"  {gene:6s}/{study:5s}  in={med_in:.4f}  out={med_out:.4f}  diff={diff:.6f}  "
-             f"{'OK' if ok else 'MISMATCH'}")
+        _log(
+            f"  {gene:6s}/{study:5s}  in={med_in:.4f}  out={med_out:.4f}  diff={diff:.6f}  {'OK' if ok else 'MISMATCH'}"
+        )
         if not ok:
             all_ok = False
 
@@ -227,18 +230,22 @@ def correctness_check(in_uri: str, out_path: Path) -> None:
 
 
 @click.command()
-@click.option("--in", "in_uri", required=True,
-              help="Input long parquet (local path or s3:// URI).")
-@click.option("--out", type=click.Path(dir_okay=False, path_type=Path), required=True,
-              help="Local output path for the re-sorted parquet.")
-@click.option("--row-group-size", type=int, default=8192,
-              help="Rows per output row-group (default 8192 — each gene spans ~2-3 groups).")
-@click.option("--no-upload", is_flag=True,
-              help="Skip S3 upload; write locally only.")
-@click.option("--skip-correctness-check", is_flag=True,
-              help="Skip per-gene median assertions.")
-def main(in_uri: str, out: Path, row_group_size: int,
-         no_upload: bool, skip_correctness_check: bool) -> None:
+@click.option("--in", "in_uri", required=True, help="Input long parquet (local path or s3:// URI).")
+@click.option(
+    "--out",
+    type=click.Path(dir_okay=False, path_type=Path),
+    required=True,
+    help="Local output path for the re-sorted parquet.",
+)
+@click.option(
+    "--row-group-size",
+    type=int,
+    default=8192,
+    help="Rows per output row-group (default 8192 — each gene spans ~2-3 groups).",
+)
+@click.option("--no-upload", is_flag=True, help="Skip S3 upload; write locally only.")
+@click.option("--skip-correctness-check", is_flag=True, help="Skip per-gene median assertions.")
+def main(in_uri: str, out: Path, row_group_size: int, no_upload: bool, skip_correctness_check: bool) -> None:
     """Globally re-sort the TCGA long TPM parquet by ensembl_gene_id for fast per-gene reads."""
     import boto3
 
@@ -258,8 +265,9 @@ def main(in_uri: str, out: Path, row_group_size: int,
     if not no_upload:
         s3 = boto3.client("s3")
         _log(f"[resort_long] uploading to s3://{S3_BUCKET}/{OUTPUT_S3_KEY}")
-        s3.upload_file(str(out), S3_BUCKET, OUTPUT_S3_KEY,
-                       ExtraArgs={"Metadata": {"md5": md5, "sort_key": "ensembl_gene_id"}})
+        s3.upload_file(
+            str(out), S3_BUCKET, OUTPUT_S3_KEY, ExtraArgs={"Metadata": {"md5": md5, "sort_key": "ensembl_gene_id"}}
+        )
         _log("[resort_long] upload complete.")
 
     _log(f"[resort_long] done. size={size_bytes:,} md5={md5}")

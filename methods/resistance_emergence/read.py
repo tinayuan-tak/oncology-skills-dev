@@ -22,6 +22,7 @@ mirroring combo_drug_anchor's no_anchor_screen).
 License: DepMap Consortium Member Data Use Agreement — Takeda institutional access.
 Companion: data-catalog:manifests/derived/depmap-drug-anchor-resistance-per-target-v1.yaml
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -55,15 +56,17 @@ def _read_rows(target: str) -> Optional[tuple]:
         return _ROWS_CACHE[sym]
     try:
         import sys as _sys
+
         _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
         from methods.catalog_query.read import bucket_key_for
         import pyarrow.parquet as pq
         import pyarrow.fs as fs
+
         bucket, key = bucket_key_for(PRODUCT_MANIFEST_ID)
-        tbl = pq.read_table(f"{bucket}/{key}", filesystem=fs.S3FileSystem(),
-                            filters=[("inhibited_target", "=", sym)])
+        tbl = pq.read_table(f"{bucket}/{key}", filesystem=fs.S3FileSystem(), filters=[("inhibited_target", "=", sym)])
     except Exception as e:  # noqa: BLE001
         from methods.target_id_sidecar import is_definitively_absent
+
         # A GENUINELY absent product object (NoSuchKey/404 or pyarrow FileNotFoundError) -> None (NOT
         # cached) -> caller emits data_unavailable with its generic read-failed breadcrumb (unchanged).
         # A transient/creds/broken-env failure is NOT absence -> re-raise so the live-read seam records
@@ -90,8 +93,11 @@ def _drop_self_target(rows: tuple) -> tuple:
 # Mirror of combo_drug_anchor.MIN_POWERED_MODELS; kept byte-identical. Empirically only XPO1 moves.
 MIN_POWERED_MODELS = 3
 
-_POSITIVE_RESISTANCE_CLASSES = ("robust_resistance_mediator", "supported_resistance_mediator",
-                               "context_resistance_mediator")
+_POSITIVE_RESISTANCE_CLASSES = (
+    "robust_resistance_mediator",
+    "supported_resistance_mediator",
+    "context_resistance_mediator",
+)
 
 
 def _classify(raw_rows: Optional[tuple], mediators: tuple, min_models: int = 0) -> str:
@@ -116,7 +122,7 @@ def _classify(raw_rows: Optional[tuple], mediators: tuple, min_models: int = 0) 
     if len(raw_rows) == 0:
         return "no_anchor_screen"
     if len(mediators) == 0:
-        return "no_resistance_signal"          # screened, but only the self-target (now dropped)
+        return "no_resistance_signal"  # screened, but only the self-target (now dropped)
     powered = [r for r in mediators if int(r.get("n_models") or 0) >= min_models]
     classes = {r.get("resistance_class") for r in powered}
     if "robust_resistance_mediator" in classes:
@@ -134,27 +140,30 @@ def _classify(raw_rows: Optional[tuple], mediators: tuple, min_models: int = 0) 
 
 def _rank(rows: tuple, top_n: int = 20) -> list:
     # strongest rescue = most POSITIVE mean_effect_shift (mirror of combo's most-negative sort)
-    ordered = sorted(rows, key=lambda r: (r.get("mean_effect_shift")
-                                          if r.get("mean_effect_shift") is not None else 0.0),
-                     reverse=True)
+    ordered = sorted(
+        rows, key=lambda r: r.get("mean_effect_shift") if r.get("mean_effect_shift") is not None else 0.0, reverse=True
+    )
     out = []
     for r in ordered[:top_n]:
-        out.append({
-            "rescuer_gene": r.get("rescuer_gene"),
-            "anchor_drug": r.get("anchor_drug"),
-            "mechanism": r.get("mechanism"),
-            "n_models": int(r.get("n_models") or 0),
-            "mean_effect_shift": r.get("mean_effect_shift"),
-            "max_effect_shift": r.get("max_effect_shift"),
-            "n_models_significant": int(r.get("n_models_significant") or 0),
-            "frac_models_significant": r.get("frac_models_significant"),
-            "resistance_class": r.get("resistance_class"),
-        })
+        out.append(
+            {
+                "rescuer_gene": r.get("rescuer_gene"),
+                "anchor_drug": r.get("anchor_drug"),
+                "mechanism": r.get("mechanism"),
+                "n_models": int(r.get("n_models") or 0),
+                "mean_effect_shift": r.get("mean_effect_shift"),
+                "max_effect_shift": r.get("max_effect_shift"),
+                "n_models_significant": int(r.get("n_models_significant") or 0),
+                "frac_models_significant": r.get("frac_models_significant"),
+                "resistance_class": r.get("resistance_class"),
+            }
+        )
     return out
 
 
-def resistance_mediators_for_gene(target: str, rows: Optional[tuple] = None,
-                                  include_tahoe_adaptation: bool = True) -> dict:
+def resistance_mediators_for_gene(
+    target: str, rows: Optional[tuple] = None, include_tahoe_adaptation: bool = True
+) -> dict:
     """Per-target drug-anchored resistance-mediator summary. rows injectable for tests.
 
     The PRIMARY signal is the DepMap causal genetic-rescue (drives resistance_emergence_class /
@@ -168,7 +177,7 @@ def resistance_mediators_for_gene(target: str, rows: Optional[tuple] = None,
         raw = rows
     else:
         try:
-            raw = _read_rows(sym)   # None = genuine no-object (NoSuchKey/404); raises on transient
+            raw = _read_rows(sym)  # None = genuine no-object (NoSuchKey/404); raises on transient
         except Exception as e:  # noqa: BLE001 — graceful boundary: never propagate a read blip
             # This reader ALREADY owns the honest "read failure -> data_unavailable + breadcrumb"
             # contract; propagating a transient S3/creds/broken-env exception past the public boundary
@@ -178,20 +187,20 @@ def resistance_mediators_for_gene(target: str, rows: Optional[tuple] = None,
             read_error = f"resistance_emergence transient/creds/broken-env read failure: {e}"
     non_self = _drop_self_target(raw) if raw else raw
     non_self_t = non_self or tuple()
-    klass_prefloor = _classify(raw, non_self_t)                          # RAW (audit) — no power floor
-    klass = _classify(raw, non_self_t, min_models=MIN_POWERED_MODELS)    # POWERED (the reported class)
+    klass_prefloor = _classify(raw, non_self_t)  # RAW (audit) — no power floor
+    klass = _classify(raw, non_self_t, min_models=MIN_POWERED_MODELS)  # POWERED (the reported class)
     n_models_max = max((int(r.get("n_models") or 0) for r in non_self_t), default=0)
-    underpowered = (klass != klass_prefloor)                            # the floor demoted the call
+    underpowered = klass != klass_prefloor  # the floor demoted the call
     mediators = _rank(non_self, top_n=20) if non_self else []
     strongest = mediators[0] if mediators else None
     # anchor metadata comes from raw rows (present even in the all-self / no-mediator case)
-    anchor = (raw[0].get("anchor_drug") if raw else None)
-    mechanism = (raw[0].get("mechanism") if raw else None)
+    anchor = raw[0].get("anchor_drug") if raw else None
+    mechanism = raw[0].get("mechanism") if raw else None
     out = {
         "resistance_emergence_class": klass,
         "resistance_emergence_class_prefloor": klass_prefloor,  # raw pre-power-floor call (audit)
-        "drug_anchor_n_models_max": n_models_max,               # widest cell-line panel behind the call
-        "drug_anchor_underpowered": underpowered,               # True iff the power floor demoted it
+        "drug_anchor_n_models_max": n_models_max,  # widest cell-line panel behind the call
+        "drug_anchor_underpowered": underpowered,  # True iff the power floor demoted it
         "anchor_drug": anchor,
         "anchor_mechanism": mechanism,
         "n_resistance_mediators": len(non_self) if non_self else 0,
@@ -208,7 +217,8 @@ def resistance_mediators_for_gene(target: str, rows: Optional[tuple] = None,
     # combo_drug_anchor). NOT cached upstream, so a later call retries.
     if klass == "data_unavailable":
         out["_live_read_error"] = read_error or (
-            "resistance_emergence genuine no-object (NoSuchKey/404): resistance product absent")
+            "resistance_emergence genuine no-object (NoSuchKey/404): resistance product absent"
+        )
 
     # ORTHOGONAL VERDICT-INERT sub-signal: Tahoe transcriptional-adaptation (which resistance
     # programs the anchor drug INDUCES). Attached as facet fields; NEVER alters resistance_emergence_
@@ -217,6 +227,7 @@ def resistance_mediators_for_gene(target: str, rows: Optional[tuple] = None,
     if include_tahoe_adaptation:
         try:
             from methods.resistance_emergence.tahoe_adaptation import tahoe_adaptation_for_target
+
             ta = tahoe_adaptation_for_target(sym)
         except Exception:  # noqa: BLE001
             ta = {"tahoe_adaptation_class": "data_unavailable", "induced_programs": []}
@@ -226,37 +237,59 @@ def resistance_mediators_for_gene(target: str, rows: Optional[tuple] = None,
     return out
 
 
-def _context(sym: str, klass: str, strongest: Optional[dict], anchor: Optional[str],
-             underpowered: bool = False, n_models_max: int = 0) -> Optional[str]:
+def _context(
+    sym: str,
+    klass: str,
+    strongest: Optional[dict],
+    anchor: Optional[str],
+    underpowered: bool = False,
+    n_models_max: int = 0,
+) -> Optional[str]:
     if underpowered and klass == "context_resistance_signal":
         s = strongest or {}
         rg, shift = s.get("rescuer_gene"), s.get("mean_effect_shift")
         raw_cls = (s.get("resistance_class") or "").replace("_", " ")
         shift_txt = f" (mean shift +{shift:.2f})" if isinstance(shift, (int, float)) else ""
-        return (f"{sym} inhibition ({anchor}): UNDERPOWERED resistance signal — KO of {rg} rescues"
-                f"{shift_txt} and reads {raw_cls}, but the anchor was screened in only {n_models_max} "
-                f"cell line(s) (< {MIN_POWERED_MODELS}), so replication is uninterpretable; capped at a "
-                f"context-conditional escape hypothesis pending a wider panel.")
+        return (
+            f"{sym} inhibition ({anchor}): UNDERPOWERED resistance signal — KO of {rg} rescues"
+            f"{shift_txt} and reads {raw_cls}, but the anchor was screened in only {n_models_max} "
+            f"cell line(s) (< {MIN_POWERED_MODELS}), so replication is uninterpretable; capped at a "
+            f"context-conditional escape hypothesis pending a wider panel."
+        )
     if klass == "no_anchor_screen":
-        return (f"{sym}: no drug-anchor CRISPR screen (no anchor inhibitor of {sym} in the DepMap "
-                f"26Q1 drug-anchor panel — covers KRAS/KIT/XPO1 only). A coverage gap, NOT evidence "
-                f"of no resistance mechanism.")
+        return (
+            f"{sym}: no drug-anchor CRISPR screen (no anchor inhibitor of {sym} in the DepMap "
+            f"26Q1 drug-anchor panel — covers KRAS/KIT/XPO1 only). A coverage gap, NOT evidence "
+            f"of no resistance mechanism."
+        )
     if klass == "data_unavailable":
         return f"{sym}: drug-anchor resistance product unavailable (read error)."
     if klass == "no_resistance_signal":
-        return (f"{sym}: anchor screen present ({anchor}) but no rescuer gene passed the resistance "
-                f"threshold (after dropping the self-target).")
+        return (
+            f"{sym}: anchor screen present ({anchor}) but no rescuer gene passed the resistance "
+            f"threshold (after dropping the self-target)."
+        )
     s = strongest or {}
-    rg, shift, nsig, nm = (s.get("rescuer_gene"), s.get("mean_effect_shift"),
-                           s.get("n_models_significant"), s.get("n_models"))
+    rg, shift, nsig, nm = (
+        s.get("rescuer_gene"),
+        s.get("mean_effect_shift"),
+        s.get("n_models_significant"),
+        s.get("n_models"),
+    )
     if klass == "strong_resistance_signal":
-        return (f"{sym} inhibition ({anchor}): ROBUST resistance-mediator signal — KO of {rg} RESCUES "
-                f"the cell under inhibition (mean shift +{shift:.2f}, significant in {nsig}/{nm} "
-                f"models), so {rg} loss is a candidate resistance route to monitor.")
+        return (
+            f"{sym} inhibition ({anchor}): ROBUST resistance-mediator signal — KO of {rg} RESCUES "
+            f"the cell under inhibition (mean shift +{shift:.2f}, significant in {nsig}/{nm} "
+            f"models), so {rg} loss is a candidate resistance route to monitor."
+        )
     if klass == "resistance_signal":
-        return (f"{sym} inhibition ({anchor}): resistance-mediator signal — KO of {rg} rescues under "
-                f"inhibition (mean shift +{shift:.2f}, significant in {nsig}/{nm} models).")
+        return (
+            f"{sym} inhibition ({anchor}): resistance-mediator signal — KO of {rg} rescues under "
+            f"inhibition (mean shift +{shift:.2f}, significant in {nsig}/{nm} models)."
+        )
     if klass == "context_resistance_signal":
-        return (f"{sym} inhibition ({anchor}): CONTEXT-specific resistance mediator — a single model "
-                f"shows a strong rescue by {rg} KO; treat as a conditional hypothesis.")
+        return (
+            f"{sym} inhibition ({anchor}): CONTEXT-specific resistance mediator — a single model "
+            f"shows a strong rescue by {rg} KO; treat as a conditional hypothesis."
+        )
     return None

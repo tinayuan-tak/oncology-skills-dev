@@ -24,25 +24,28 @@ HONEST FRAMING (load-bearing): this is a CLASS-level clinical-precedent prior. "
 does NOT mean THIS target is validated; "not_cd_antigen" does NOT count against a target (the
 best solid-tumor ADC/TCE antigens are not CD molecules). It's a supportive-only enrichment prior.
 """
+
 from __future__ import annotations
 
 # Curated approved / advanced-clinical IO-backbone antigens (mAb / ADC / TCE / CAR-T precedent).
 # HGNC symbols. Deliberately conservative — approved or late-stage clinical only. The point is a
 # HIGH-precision "this class delivered drugs" prior, not a comprehensive IO list.
-ESTABLISHED_IO_BACKBONE = frozenset({
-    "MS4A1",     # CD20 — rituximab/obinutuzumab (mAb), mosunetuzumab (TCE)
-    "CD19",      # blinatumomab (TCE), tisagenlecleucel (CAR-T), loncastuximab (ADC)
-    "CD22",      # inotuzumab ozogamicin (ADC), moxetumomab
-    "CD38",      # daratumumab / isatuximab (mAb)
-    "CD30",      # TNFRSF8 — brentuximab vedotin (ADC)
-    "TNFRSF8",   # CD30 (HGNC symbol)
-    "CD33",      # gemtuzumab ozogamicin (ADC)
-    "CD79B",     # polatuzumab vedotin (ADC)
-    "TNFRSF17",  # BCMA — belantamab (ADC), teclistamab (TCE), ide-cel/cilta-cel (CAR-T)
-    "SLAMF7",    # CD319 — elotuzumab (mAb)
-    "CD52",      # alemtuzumab (mAb)
-    "CD3E",      # the TCE effector arm (CD3) — backbone of every T-cell engager
-})
+ESTABLISHED_IO_BACKBONE = frozenset(
+    {
+        "MS4A1",  # CD20 — rituximab/obinutuzumab (mAb), mosunetuzumab (TCE)
+        "CD19",  # blinatumomab (TCE), tisagenlecleucel (CAR-T), loncastuximab (ADC)
+        "CD22",  # inotuzumab ozogamicin (ADC), moxetumomab
+        "CD38",  # daratumumab / isatuximab (mAb)
+        "CD30",  # TNFRSF8 — brentuximab vedotin (ADC)
+        "TNFRSF8",  # CD30 (HGNC symbol)
+        "CD33",  # gemtuzumab ozogamicin (ADC)
+        "CD79B",  # polatuzumab vedotin (ADC)
+        "TNFRSF17",  # BCMA — belantamab (ADC), teclistamab (TCE), ide-cel/cilta-cel (CAR-T)
+        "SLAMF7",  # CD319 — elotuzumab (mAb)
+        "CD52",  # alemtuzumab (mAb)
+        "CD3E",  # the TCE effector arm (CD3) — backbone of every T-cell engager
+    }
+)
 
 METHOD_VERSION = "1.0.0"
 
@@ -76,7 +79,11 @@ def classify_cd_backbone(target: str, roster: dict) -> dict:
 def empty(note: str) -> dict:
     return {
         "cd_antigen_backbone_class": "data_unavailable",
-        "on_cd_roster": None, "cd_number": None, "cd_roster_uniprot": None,
-        "cd_gene_groups": None, "established_io_precedent": None,
-        "method_version": METHOD_VERSION, "_data_note": note,
+        "on_cd_roster": None,
+        "cd_number": None,
+        "cd_roster_uniprot": None,
+        "cd_gene_groups": None,
+        "established_io_precedent": None,
+        "method_version": METHOD_VERSION,
+        "_data_note": note,
     }

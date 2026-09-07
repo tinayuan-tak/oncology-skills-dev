@@ -36,6 +36,7 @@ Writes:
     <work_dir>/<cohort>_msstats_input.feather
     <work_dir>/<cohort>_meta.json  (n_tumor, n_normal, n_genes, n_plexes)
 """
+
 from __future__ import annotations
 
 import argparse
@@ -54,16 +55,16 @@ S3_BUCKET = "onc-compbio"
 CPTAC_PREFIX = "data-catalog/sources/pdc/cptac-snapshot-2026-07-01"
 
 CPTAC_STUDIES = {
-    "BRCA":  ("PDC000120", "CPTAC2_Breast_Prospective_Collection_BI_Proteome"),
-    "COAD":  ("PDC000116", "CPTAC2_Prospective_Colon_PNNL_Proteome"),
-    "OV":    ("PDC000110", "TCGA_Ovarian_JHU_Proteome"),
+    "BRCA": ("PDC000120", "CPTAC2_Breast_Prospective_Collection_BI_Proteome"),
+    "COAD": ("PDC000116", "CPTAC2_Prospective_Colon_PNNL_Proteome"),
+    "OV": ("PDC000110", "TCGA_Ovarian_JHU_Proteome"),
     "CCRCC": ("PDC000127", "CPTAC_CCRCC_Proteome"),
-    "GBM":   ("PDC000204", "CPTAC3_Glioblastoma_Multiforme_Proteome"),
+    "GBM": ("PDC000204", "CPTAC3_Glioblastoma_Multiforme_Proteome"),
     "HNSCC": ("PDC000221", "CPTAC3_Head_and_Neck_Squamous_Cell_Carcinoma_Proteome"),
-    "LUAD":  ("PDC000153", "CPTAC3_Lung_Adenocarcinoma_Proteome"),
-    "LSCC":  ("PDC000234", "CPTAC3_Lung_Squamous_Cell_Carcinoma_Proteome"),
-    "UCEC":  ("PDC000125", "CPTAC3_Uterine_Corpus_Endometrial_Carcinoma_Proteome"),
-    "PDAC":  ("PDC000270", "CPTAC3_Pancreatic_Ductal_Adenocarcinoma_Proteome"),
+    "LUAD": ("PDC000153", "CPTAC3_Lung_Adenocarcinoma_Proteome"),
+    "LSCC": ("PDC000234", "CPTAC3_Lung_Squamous_Cell_Carcinoma_Proteome"),
+    "UCEC": ("PDC000125", "CPTAC3_Uterine_Corpus_Endometrial_Carcinoma_Proteome"),
+    "PDAC": ("PDC000270", "CPTAC3_Pancreatic_Ductal_Adenocarcinoma_Proteome"),
 }
 
 TMT_CHANNELS = ["126", "127N", "127C", "128N", "128C", "129N", "129C", "130N", "130C", "131"]
@@ -134,11 +135,13 @@ def parse_sample_txt(sample_path: Path) -> pd.DataFrame:
             if not aid or aid.upper() == "POOL" or "NULL" in aid.upper() or aid == "nan":
                 continue
             # Drop optional _D# suffix comparison for join stability; keep raw for now
-            long_rows.append({
-                "aliquot_submitter_id": aid,
-                "Run": plex,
-                "Channel": ch,
-            })
+            long_rows.append(
+                {
+                    "aliquot_submitter_id": aid,
+                    "Run": plex,
+                    "Channel": ch,
+                }
+            )
     return pd.DataFrame(long_rows)
 
 
@@ -174,18 +177,22 @@ def prep_cohort(cohort: str, work_dir: Path, annotations_dir: Path) -> dict:
     # Build join key: sample.txt aliquot IDs may or may not match PDC exactly
     # (both are `<hex>_D#` short-forms). Join on exact match.
     sample_map["sample_type"] = sample_map["aliquot_submitter_id"].map(ann_map)
-    sample_map["Condition"] = sample_map["sample_type"].map({
-        "Primary Tumor": "Tumor",
-        "Metastatic": "Tumor",
-        "Recurrent Tumor": "Tumor",
-        "Solid Tissue Normal": "Normal",
-        "Blood Derived Normal": "Normal",
-    })
+    sample_map["Condition"] = sample_map["sample_type"].map(
+        {
+            "Primary Tumor": "Tumor",
+            "Metastatic": "Tumor",
+            "Recurrent Tumor": "Tumor",
+            "Solid Tissue Normal": "Normal",
+            "Blood Derived Normal": "Normal",
+        }
+    )
     # Aliquots without a PDC annotation (usually plex-reference pools) → drop
     n_before = len(sample_map)
     sample_map = sample_map.dropna(subset=["Condition"]).copy()
-    print(f"[01_prep {cohort}] sample.txt: {n_before} channels, "
-          f"{len(sample_map)} with valid Tumor/Normal annotation", file=sys.stderr)
+    print(
+        f"[01_prep {cohort}] sample.txt: {n_before} channels, {len(sample_map)} with valid Tumor/Normal annotation",
+        file=sys.stderr,
+    )
 
     # Load tmt10.tsv; keep only "Log Ratio" columns (drop "Unshared" for power)
     print(f"[01_prep {cohort}] parsing tmt10.tsv...", file=sys.stderr)
@@ -193,15 +200,16 @@ def prep_cohort(cohort: str, work_dir: Path, annotations_dir: Path) -> dict:
     # First col is Gene; skip Mean/Median/StdDev header rows
     tmt = tmt[~tmt["Gene"].isin(["Mean", "Median", "StdDev", "NumRatios"])]
 
-    log_ratio_cols = [c for c in tmt.columns if c.endswith(" Log Ratio")
-                      and not c.endswith("Unshared Log Ratio")]
+    log_ratio_cols = [c for c in tmt.columns if c.endswith(" Log Ratio") and not c.endswith("Unshared Log Ratio")]
     aliquot_by_col = {c: canonical_aliquot(c) for c in log_ratio_cols}
 
     # Only keep columns whose aliquot has a valid Condition
     valid_aliquots = set(sample_map["aliquot_submitter_id"])
     kept_cols = [c for c in log_ratio_cols if aliquot_by_col[c] in valid_aliquots]
-    print(f"[01_prep {cohort}] tmt10 cols: {len(log_ratio_cols)} log-ratio; "
-          f"{len(kept_cols)} kept after annotation join", file=sys.stderr)
+    print(
+        f"[01_prep {cohort}] tmt10 cols: {len(log_ratio_cols)} log-ratio; {len(kept_cols)} kept after annotation join",
+        file=sys.stderr,
+    )
 
     # Reshape to long form
     keep = ["Gene"] + kept_cols
@@ -214,31 +222,33 @@ def prep_cohort(cohort: str, work_dir: Path, annotations_dir: Path) -> dict:
     tmt = tmt.dropna(subset=["LogRatio"])
 
     # Merge with sample_map for Run/Channel/Condition
-    long = tmt.merge(sample_map[["aliquot_submitter_id", "Run", "Channel", "Condition"]],
-                      on="aliquot_submitter_id", how="inner")
+    long = tmt.merge(
+        sample_map[["aliquot_submitter_id", "Run", "Channel", "Condition"]], on="aliquot_submitter_id", how="inner"
+    )
 
     # Build MSstatsTMT input frame
-    out = pd.DataFrame({
-        "ProteinName": long["Gene"],
-        "PeptideSequence": long["Gene"],  # dummy at gene level
-        "Charge": 2,
-        "PSM": long["Gene"] + "_PSM1",
-        "Channel": long["Channel"].astype(str),
-        "Condition": long["Condition"],
-        "BioReplicate": long["aliquot_submitter_id"],
-        "Run": long["Run"],
-        "Mixture": long["Run"],
-        "TechRepMixture": 1,
-        # MSstatsTMT expects linear intensity; undo log2
-        "Intensity": (2.0 ** long["LogRatio"].astype(float)),
-    })
+    out = pd.DataFrame(
+        {
+            "ProteinName": long["Gene"],
+            "PeptideSequence": long["Gene"],  # dummy at gene level
+            "Charge": 2,
+            "PSM": long["Gene"] + "_PSM1",
+            "Channel": long["Channel"].astype(str),
+            "Condition": long["Condition"],
+            "BioReplicate": long["aliquot_submitter_id"],
+            "Run": long["Run"],
+            "Mixture": long["Run"],
+            "TechRepMixture": 1,
+            # MSstatsTMT expects linear intensity; undo log2
+            "Intensity": (2.0 ** long["LogRatio"].astype(float)),
+        }
+    )
 
     # Sanity: drop non-finite intensities (log ratio = NaN etc.)
     out = out[out["Intensity"].apply(lambda x: pd.notna(x) and x > 0)]
 
     out_path = work_dir / f"{cohort}_msstats_input.feather"
-    feather.write_feather(pa.Table.from_pandas(out, preserve_index=False),
-                          out_path, compression="zstd")
+    feather.write_feather(pa.Table.from_pandas(out, preserve_index=False), out_path, compression="zstd")
 
     meta = {
         "cohort": cohort,
@@ -251,11 +261,13 @@ def prep_cohort(cohort: str, work_dir: Path, annotations_dir: Path) -> dict:
         "seconds_elapsed": round(time.time() - t0, 1),
     }
     (work_dir / f"{cohort}_meta.json").write_text(json.dumps(meta, indent=2))
-    print(f"[01_prep {cohort}] DONE: {meta['n_rows_msstats']:,} rows, "
-          f"{meta['n_proteins']} proteins, "
-          f"{meta['n_tumor_aliquots']}T/{meta['n_normal_aliquots']}N, "
-          f"{meta['n_plexes']} plexes, {meta['seconds_elapsed']}s -> {out_path.name}",
-          file=sys.stderr)
+    print(
+        f"[01_prep {cohort}] DONE: {meta['n_rows_msstats']:,} rows, "
+        f"{meta['n_proteins']} proteins, "
+        f"{meta['n_tumor_aliquots']}T/{meta['n_normal_aliquots']}N, "
+        f"{meta['n_plexes']} plexes, {meta['seconds_elapsed']}s -> {out_path.name}",
+        file=sys.stderr,
+    )
     return meta
 
 

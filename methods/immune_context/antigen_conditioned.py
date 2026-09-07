@@ -18,6 +18,7 @@ WITH the coverage number — never a correlation computed on a handful of accide
 Pure stat (antigen_conditioned_summary) is unit-testable on synthetic per-patient frames; the S3 join
 (read_antigen_conditioned) is live-smoked.
 """
+
 from __future__ import annotations
 
 
@@ -29,7 +30,7 @@ ANTIGEN_HIGH_QUANTILE = 2 / 3
 # barcode, else the join is untrustworthy (barcode-vs-UUID trap) → data_unavailable.
 MIN_JOIN_FRACTION = 0.5
 # the effector gap that matters: antigen-high patients meaningfully colder than antigen-low.
-COLD_IN_HIGH_DELTA = 0.02   # absolute CD8-fraction drop (high vs low) flagged as an effector-escape risk
+COLD_IN_HIGH_DELTA = 0.02  # absolute CD8-fraction drop (high vs low) flagged as an effector-escape risk
 
 
 def antigen_conditioned_summary(per_patient: list) -> dict:
@@ -41,29 +42,40 @@ def antigen_conditioned_summary(per_patient: list) -> dict:
     (reusing the v1 pan-cancer-anchored classifier), and an antigen_conditioned_call. Empty → gap."""
     import numpy as np
     import pandas as pd
+
     df = per_patient if isinstance(per_patient, pd.DataFrame) else pd.DataFrame(per_patient)
     if df.empty or "antigen_tpm" not in df.columns or "cd8_fraction" not in df.columns:
-        return {"antigen_conditioned_call": "data_unavailable", "n_patients_joined": 0,
-                "cd8_fraction_antigen_high": None, "cd8_fraction_antigen_low": None,
-                "cd8_high_minus_low": None, "antigen_high_immune_context_class": "data_unavailable"}
+        return {
+            "antigen_conditioned_call": "data_unavailable",
+            "n_patients_joined": 0,
+            "cd8_fraction_antigen_high": None,
+            "cd8_fraction_antigen_low": None,
+            "cd8_high_minus_low": None,
+            "antigen_high_immune_context_class": "data_unavailable",
+        }
     df = df.dropna(subset=["antigen_tpm", "cd8_fraction"])
     n = len(df)
-    if n < 10:   # too few joined patients to tertile-split meaningfully
-        return {"antigen_conditioned_call": "data_unavailable", "n_patients_joined": n,
-                "cd8_fraction_antigen_high": None, "cd8_fraction_antigen_low": None,
-                "cd8_high_minus_low": None, "antigen_high_immune_context_class": "data_unavailable"}
+    if n < 10:  # too few joined patients to tertile-split meaningfully
+        return {
+            "antigen_conditioned_call": "data_unavailable",
+            "n_patients_joined": n,
+            "cd8_fraction_antigen_high": None,
+            "cd8_fraction_antigen_low": None,
+            "cd8_high_minus_low": None,
+            "antigen_high_immune_context_class": "data_unavailable",
+        }
     thr = float(df["antigen_tpm"].quantile(ANTIGEN_HIGH_QUANTILE))
     high = df[df["antigen_tpm"] >= thr]
     low = df[df["antigen_tpm"] < thr]
     cd8_high = float(np.median(high["cd8_fraction"])) if len(high) else None
     cd8_low = float(np.median(low["cd8_fraction"])) if len(low) else None
     delta = (cd8_high - cd8_low) if (cd8_high is not None and cd8_low is not None) else None
-    high_class = _classify.classify_immune_context(cd8_high)   # reuse pan-cancer-anchored bands
+    high_class = _classify.classify_immune_context(cd8_high)  # reuse pan-cancer-anchored bands
     # the call: the antigen-high subset's own hot/cold, plus a flag if it's colder than antigen-low
     if delta is not None and delta <= -COLD_IN_HIGH_DELTA:
-        call = "antigen_high_is_colder"        # effector-escape risk: the targetable patients are T-cell-poorer
+        call = "antigen_high_is_colder"  # effector-escape risk: the targetable patients are T-cell-poorer
     elif high_class == "immune_hot":
-        call = "antigen_high_immune_hot"       # the ideal: targetable AND inflamed
+        call = "antigen_high_immune_hot"  # the ideal: targetable AND inflamed
     elif high_class == "immune_cold":
         call = "antigen_high_immune_cold"
     else:
@@ -80,11 +92,13 @@ def antigen_conditioned_summary(per_patient: list) -> dict:
 
 # ---- S3 join (bridges CIBERSORT barcode × recount3 UUID→barcode antigen TPM) ----
 
+
 def _cibersort_cd8_by_barcode(indication: str):
     """{tcga_case_barcode: cd8_fraction} for the indication's TCGA studies, from the immune_context
     CIBERSORT frame. Keyed on the CASE-level barcode (first 3 barcode fields, e.g. TCGA-OR-A5JG) so it
     joins to recount3 submitter_id (which is case-level). None if unreadable."""
     from . import read as _ic
+
     studies = _ic.INDICATION_TO_TCGA_STUDIES.get(str(indication).upper().strip())
     if not studies:
         return None
@@ -97,10 +111,12 @@ def _cibersort_cd8_by_barcode(indication: str):
     if sub.empty:
         return {}
     sub = sub.copy()
+
     # sample_id like TCGA.OR.A5JG.01A... → case barcode TCGA-OR-A5JG (dots→dashes, first 3 fields)
     def _case(sid: str) -> str:
         parts = str(sid).replace("-", ".").split(".")
         return "-".join(parts[:3]).upper()
+
     sub["case"] = sub["sample_id"].map(_case)
     # a case can have multiple samples; take the max CD8 (tumor-dominant) per case
     return sub.groupby("case")["T.cells.CD8"].max().to_dict()
@@ -113,21 +129,33 @@ def read_antigen_conditioned(target: str, indication: str) -> dict:
     ind = str(indication).upper().strip()
     cd8_by_case = _cibersort_cd8_by_barcode(ind)
     if cd8_by_case is None:
-        return {**antigen_conditioned_summary([]), "target": target, "indication": ind,
-                "_data_note": "CIBERSORT unreadable or indication unmapped"}
+        return {
+            **antigen_conditioned_summary([]),
+            "target": target,
+            "indication": ind,
+            "_data_note": "CIBERSORT unreadable or indication unmapped",
+        }
     try:
         per_patient, join_frac, n_tpm = _join_antigen_tpm(target, ind, cd8_by_case)
     except Exception as e:  # noqa: BLE001
-        return {**antigen_conditioned_summary([]), "target": target, "indication": ind,
-                "_data_note": f"antigen-TPM join failed: {type(e).__name__}: {e}"}
+        return {
+            **antigen_conditioned_summary([]),
+            "target": target,
+            "indication": ind,
+            "_data_note": f"antigen-TPM join failed: {type(e).__name__}: {e}",
+        }
     if join_frac < MIN_JOIN_FRACTION:
-        return {**antigen_conditioned_summary([]), "target": target, "indication": ind,
-                "join_fraction": round(join_frac, 3), "n_tpm_samples": n_tpm,
-                "_data_note": f"barcode↔UUID join coverage {join_frac:.0%} < {MIN_JOIN_FRACTION:.0%} floor "
-                              f"— untrustworthy (barcode-vs-UUID trap); not scored"}
+        return {
+            **antigen_conditioned_summary([]),
+            "target": target,
+            "indication": ind,
+            "join_fraction": round(join_frac, 3),
+            "n_tpm_samples": n_tpm,
+            "_data_note": f"barcode↔UUID join coverage {join_frac:.0%} < {MIN_JOIN_FRACTION:.0%} floor "
+            f"— untrustworthy (barcode-vs-UUID trap); not scored",
+        }
     out = antigen_conditioned_summary(per_patient)
-    out.update({"target": target, "indication": ind, "join_fraction": round(join_frac, 3),
-                "n_tpm_samples": n_tpm})
+    out.update({"target": target, "indication": ind, "join_fraction": round(join_frac, 3), "n_tpm_samples": n_tpm})
     return out
 
 
@@ -136,20 +164,25 @@ def _antigen_tpm_by_uuid_study(target: str):
     (gene-filtered predicate-pushdown). Self-contained (does not depend on other methods' internals).
     The long product carries log2(TPM+1) per (gene_symbol, sample_id=UUID, study)."""
     from methods.catalog_query.read import s3_uri_for
+
     try:
         uri = s3_uri_for("tcga-tumor-tpm-recount3-long-v1")
     except Exception:  # noqa: BLE001
         return None
     import pyarrow.parquet as pq
     import pyarrow.fs as fs
+
     s3fs = fs.S3FileSystem(region="us-east-1")
-    tbl = pq.read_table(uri.replace("s3://", ""), filesystem=s3fs,
-                        filters=[("gene_symbol", "==", target.upper().strip())],
-                        columns=["sample_id", "study", "log2_tpm"])
+    tbl = pq.read_table(
+        uri.replace("s3://", ""),
+        filesystem=s3fs,
+        filters=[("gene_symbol", "==", target.upper().strip())],
+        columns=["sample_id", "study", "log2_tpm"],
+    )
     df = tbl.to_pandas()
     out: dict = {}
     for sid, study, val in zip(df["sample_id"], df["study"], df["log2_tpm"]):
-        out.setdefault(str(study), {})[str(sid)] = float(2 ** float(val) - 1)   # log2(TPM+1) → linear
+        out.setdefault(str(study), {})[str(sid)] = float(2 ** float(val) - 1)  # log2(TPM+1) → linear
     return out
 
 
@@ -159,7 +192,7 @@ def _join_antigen_tpm(target: str, indication: str, cd8_by_case: dict):
     from methods.dge_deseq2.read import _fetch_recount3_metadata, INDICATION_TO_TCGA_STUDIES
 
     studies = INDICATION_TO_TCGA_STUDIES.get(indication) or []
-    tpm_by_study = _antigen_tpm_by_uuid_study(target)   # {study: {uuid: tpm}}
+    tpm_by_study = _antigen_tpm_by_uuid_study(target)  # {study: {uuid: tpm}}
     if not tpm_by_study:
         return [], 0.0, 0
     rows, matched, total = [], 0, 0

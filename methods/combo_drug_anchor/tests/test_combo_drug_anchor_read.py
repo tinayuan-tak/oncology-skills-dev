@@ -8,6 +8,7 @@ surfaces data_unavailable + a _live_read_error breadcrumb (never a benign covera
 
 The S3 read is monkeypatched at the pyarrow boundary — no live creds needed (noted: live S3 not
 exercised)."""
+
 from __future__ import annotations
 
 import sys
@@ -39,12 +40,20 @@ class _FakeS3FS:
         pass
 
 
-_GOOD_ROWS = [{
-    "inhibited_target": "KRAS", "co_target_gene": "PTPN11", "anchor_drug": "MRTX1133",
-    "mechanism": "KRAS-G12D inhibitor", "n_models": 8, "mean_effect_shift": -0.4,
-    "min_effect_shift": -0.7, "n_models_significant": 6, "frac_models_significant": 0.75,
-    "combination_class": "robust_combination",
-}]
+_GOOD_ROWS = [
+    {
+        "inhibited_target": "KRAS",
+        "co_target_gene": "PTPN11",
+        "anchor_drug": "MRTX1133",
+        "mechanism": "KRAS-G12D inhibitor",
+        "n_models": 8,
+        "mean_effect_shift": -0.4,
+        "min_effect_shift": -0.7,
+        "n_models_significant": 6,
+        "frac_models_significant": 0.75,
+        "combination_class": "robust_combination",
+    }
+]
 
 
 @pytest.fixture(autouse=True)
@@ -82,10 +91,10 @@ def test_transient_failure_not_permanently_cached(monkeypatch):
     monkeypatch.setattr(pq, "read_table", _flaky)
     first = r.combination_opportunities_for_gene("KRAS")
     assert first["combination_opportunity_class"] == "data_unavailable"
-    second = r.combination_opportunities_for_gene("KRAS")   # retry after recovery
+    second = r.combination_opportunities_for_gene("KRAS")  # retry after recovery
     assert second["combination_opportunity_class"] == "strong_combination_opportunity"
     assert second["strongest_co_target"] == "PTPN11"
-    assert calls["n"] == 2                                  # genuinely re-attempted
+    assert calls["n"] == 2  # genuinely re-attempted
 
 
 def test_successful_read_is_cached(monkeypatch):
@@ -115,16 +124,24 @@ def test_empty_absence_is_cached_and_no_anchor_screen(monkeypatch):
     assert out["combination_opportunity_class"] == "no_anchor_screen"
     assert "_live_read_error" not in out
     r.combination_opportunities_for_gene("NOSCREEN")
-    assert calls["n"] == 1                                  # empty absence cached (definitive)
+    assert calls["n"] == 1  # empty absence cached (definitive)
 
 
 # ── min-cell-line power floor (thin-panel artifact guard) ────────────────────────────────────────
 def _row(co, klass, n_models, shift=-0.6, nsig=None):
     nsig = nsig if nsig is not None else max(1, round(0.6 * n_models))
-    return {"inhibited_target": "XPO1", "co_target_gene": co, "anchor_drug": "Eltanexor",
-            "mechanism": "XPO1 inhibitor", "n_models": n_models, "mean_effect_shift": shift,
-            "min_effect_shift": shift - 0.2, "n_models_significant": nsig,
-            "frac_models_significant": nsig / n_models, "combination_class": klass}
+    return {
+        "inhibited_target": "XPO1",
+        "co_target_gene": co,
+        "anchor_drug": "Eltanexor",
+        "mechanism": "XPO1 inhibitor",
+        "n_models": n_models,
+        "mean_effect_shift": shift,
+        "min_effect_shift": shift - 0.2,
+        "n_models_significant": nsig,
+        "frac_models_significant": nsig / n_models,
+        "combination_class": klass,
+    }
 
 
 def test_underpowered_robust_is_capped_at_context_with_prefloor_audit():

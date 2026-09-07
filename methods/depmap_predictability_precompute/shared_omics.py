@@ -38,6 +38,7 @@ import pandas as pd
 @dataclass
 class _SharedArraySpec:
     """Descriptor for one ndarray backed by SharedMemory."""
+
     shm_name: str
     shape: tuple
     dtype: str  # np.dtype.str, e.g. '<f4'
@@ -46,9 +47,10 @@ class _SharedArraySpec:
 @dataclass
 class _SharedFrameSpec:
     """Descriptor for one DataFrame: array spec + index + columns."""
-    values: _SharedArraySpec       # 2D ndarray (n_rows, n_cols)
-    index_pickle: bytes            # small (row labels)
-    columns_pickle: bytes          # small (column labels)
+
+    values: _SharedArraySpec  # 2D ndarray (n_rows, n_cols)
+    index_pickle: bytes  # small (row labels)
+    columns_pickle: bytes  # small (column labels)
 
 
 @dataclass
@@ -59,8 +61,9 @@ class SharedOmicsHandle:
     only the SHM names + shapes/dtypes + pickled index/column labels; workers
     attach to the SHM segments themselves.
     """
+
     frames: dict[str, _SharedFrameSpec] = field(default_factory=dict)
-    extras_pickle: bytes = b""     # pickled dict of small non-array items (Model.csv)
+    extras_pickle: bytes = b""  # pickled dict of small non-array items (Model.csv)
 
     def unlink_all(self) -> None:
         """Coordinator calls this after workers exit to free SHM segments.
@@ -86,6 +89,7 @@ def _safe_unlink_shm(name: str) -> None:
 # Coordinator side — publish an omics dict to SHM
 # ---------------------------------------------------------------------------
 
+
 def publish_omics_to_shm(omics: dict) -> SharedOmicsHandle:
     """Copy each DataFrame's values into shared memory; return a small handle.
 
@@ -107,8 +111,7 @@ def publish_omics_to_shm(omics: dict) -> SharedOmicsHandle:
         # Numeric DataFrame: publish values to SHM, keep labels in-handle
         values = np.ascontiguousarray(obj.values)
         shm_name = f"e5omics_{uuid.uuid4().hex[:12]}_{name}"
-        shm = shared_memory.SharedMemory(create=True, size=values.nbytes,
-                                             name=shm_name)
+        shm = shared_memory.SharedMemory(create=True, size=values.nbytes, name=shm_name)
         # Copy values into the SHM buffer, viewed as the same dtype/shape
         buf = np.ndarray(values.shape, dtype=values.dtype, buffer=shm.buf)
         buf[:] = values

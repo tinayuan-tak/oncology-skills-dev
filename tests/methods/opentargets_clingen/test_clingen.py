@@ -1,4 +1,5 @@
 """opentargets_clingen — P5 Slice 3 dosage-sensitivity classifier (pure, dict-fixture tested)."""
+
 from __future__ import annotations
 
 import importlib
@@ -15,15 +16,18 @@ r = importlib.import_module("methods.opentargets_clingen.read")
 
 
 def _row(confidence, ar, disease="D"):
-    return {"confidence": confidence, "allelicRequirements": ar, "diseaseFromSource": disease,
-            "score": 1.0}
+    return {"confidence": confidence, "allelicRequirements": ar, "diseaseFromSource": disease, "score": 1.0}
 
 
 def test_any_high_confidence_AD_is_dominant_loss():
     # the BRCA1/MLH1 case: mixed AD+AR, AD present -> dominant_loss (haploinsufficiency safety)
-    out = r.classify_dosage([_row("Definitive", ["AR"], "Fanconi"),
-                             _row("Definitive", ["AD"], "Cancer predisp"),
-                             _row("Definitive", ["AR"], "Fanconi")])
+    out = r.classify_dosage(
+        [
+            _row("Definitive", ["AR"], "Fanconi"),
+            _row("Definitive", ["AD"], "Cancer predisp"),
+            _row("Definitive", ["AR"], "Fanconi"),
+        ]
+    )
     assert out["dosage_sensitivity_class"] == "autosomal_dominant_loss"
     assert out["n_autosomal_dominant"] == 1 and out["n_autosomal_recessive"] == 2
     assert out["top_disease"] == "Cancer predisp"
@@ -37,7 +41,7 @@ def test_only_recessive_is_dosage_sufficient():
 def test_disputed_AD_does_not_fire():
     # a Disputed dominant claim must NOT trigger the dominant-loss safety concern
     out = r.classify_dosage([_row("Disputed", ["AD"]), _row("Refuted", ["AD"])])
-    assert out["dosage_sensitivity_class"] == "unresolved"   # rows exist, none high-confidence
+    assert out["dosage_sensitivity_class"] == "unresolved"  # rows exist, none high-confidence
     assert out["n_high_confidence"] == 0
 
 
@@ -80,6 +84,7 @@ def test_end_to_end_via_monkeypatch(monkeypatch):
 
 # ---- germline_inheritance_mode facet (recessive-reassurance-aware complement to dosage) ----
 
+
 def test_inheritance_recessive_only_is_reassurance():
     # exclusively AR high-confidence → recessive_only (carriers healthy = full-KO reassurance).
     out = r.classify_inheritance_mode([_row("Definitive", ["AR"], "Fanconi"), _row("Strong", ["AR"])])
@@ -94,8 +99,7 @@ def test_inheritance_dominant():
 
 def test_inheritance_both_ad_and_ar():
     # BRCA1-like: AD (cancer predisposition) + AR (Fanconi) → dominant_and_recessive.
-    out = r.classify_inheritance_mode([_row("Definitive", ["AD"], "cancer"),
-                                       _row("Definitive", ["AR"], "fanconi")])
+    out = r.classify_inheritance_mode([_row("Definitive", ["AD"], "cancer"), _row("Definitive", ["AR"], "fanconi")])
     assert out["germline_inheritance_mode"] == "dominant_and_recessive"
 
 

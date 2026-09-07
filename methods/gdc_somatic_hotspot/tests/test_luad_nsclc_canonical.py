@@ -7,6 +7,7 @@ reached these readers with a code that has no partition → the pushdown matched
 `data_unavailable` (EGFR/LUAD looked un-mutated). These pin the LUAD/LUSC -> NSCLC canonicalization at the
 cohort-read entry, before path resolution and the pushdown filter. Mirrors test_paad_canonical_key.py.
 """
+
 from __future__ import annotations
 
 import sys
@@ -16,7 +17,7 @@ REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO))
 
 from methods.indication_aliases import to_cohort_canonical  # noqa: E402
-from methods.gdc_somatic_hotspot import read as R           # noqa: E402
+from methods.gdc_somatic_hotspot import read as R  # noqa: E402
 
 
 def test_alias_maps_lung_subcodes_to_nsclc():

@@ -90,7 +90,7 @@ PRECOMPUTE_TARGETS = [
         "source_key": f"{DEPMAP_SOURCE_PREFIX_RNAI}/D2_combined_gene_dep_scores.csv",
         "output_name": "D2_combined_gene_dep_scores.parquet",
         "orientation": "transposed_wide",
-        "index_col_name": None,   # gene labels in row 0
+        "index_col_name": None,  # gene labels in row 0
         "notes": "DEMETER2 combined; TRANSPOSED (gene rows × cell-line cols). Write AS-IS keeping orientation; readers know shape.",
     },
     {
@@ -126,7 +126,7 @@ def _sha256_bytes(b: bytes, chunk_size: int = 8_388_608) -> str:
     h = hashlib.sha256()
     view = memoryview(b)
     for i in range(0, len(view), chunk_size):
-        h.update(view[i:i + chunk_size])
+        h.update(view[i : i + chunk_size])
     return h.hexdigest()
 
 
@@ -151,6 +151,7 @@ def _convert_wide_matrix(body: bytes, index_col_name: Optional[str]) -> "pyarrow
     """
     import pandas as pd
     import pyarrow as pa
+
     df = pd.read_csv(BytesIO(body))
     # Canonicalize the unnamed row-index column (pandas defaults to 'Unnamed: 0').
     # CRISPRGeneEffect has this shape: first column is unnamed and contains ModelIDs.
@@ -173,6 +174,7 @@ def _convert_wide_matrix(body: bytes, index_col_name: Optional[str]) -> "pyarrow
     # NOT object) is still recognized as metadata and preserved — the prior `!= object` test tried to
     # float-cast such an id column (e.g. the Sanger 'SC-002730.CD02' ModelID) and raised.
     import pandas.api.types as _ptypes
+
     for c in df.columns:
         if _ptypes.is_numeric_dtype(df[c]):
             df[c] = df[c].astype("float32")
@@ -188,15 +190,16 @@ def _convert_transposed_wide_matrix(body: bytes) -> "pyarrow.Table":
     """
     import pandas as pd
     import pyarrow as pa
+
     df = pd.read_csv(BytesIO(body), index_col=0, na_values=["NA", ""])
     # Extract gene symbol from index format "SYMBOL (entrez_id)"
     import re
-    _re = re.compile(r'^([A-Za-z0-9._-]+)\s*\(\d+\)$')
+
+    _re = re.compile(r"^([A-Za-z0-9._-]+)\s*\(\d+\)$")
     df.reset_index(inplace=True)
     df.rename(columns={df.columns[0]: "gene_label"}, inplace=True)
     df["gene_symbol"] = df["gene_label"].apply(
-        lambda x: (_re.match(str(x).strip('"')).group(1)
-                    if _re.match(str(x).strip('"')) else None)
+        lambda x: _re.match(str(x).strip('"')).group(1) if _re.match(str(x).strip('"')) else None
     )
     # Cast all cell-line columns to float32
     for c in df.columns:
@@ -214,11 +217,18 @@ def _convert_maf(body: bytes) -> "pyarrow.Table":
     """
     import pandas as pd
     import pyarrow as pa
+
     # Read only the columns downstream methods use — MAF is 738 MB but E4 + E3-strat
     # only need these 7 columns.
     keep_cols = [
-        "ModelID", "ModelConditionID", "IsDefaultEntryForModel", "IsDefaultEntryForMC",
-        "HugoSymbol", "VariantType", "VariantInfo", "ProteinChange",
+        "ModelID",
+        "ModelConditionID",
+        "IsDefaultEntryForModel",
+        "IsDefaultEntryForMC",
+        "HugoSymbol",
+        "VariantType",
+        "VariantInfo",
+        "ProteinChange",
     ]
     df = pd.read_csv(BytesIO(body), usecols=keep_cols)
     # Sort by HugoSymbol for row-group pushdown
@@ -233,6 +243,7 @@ def _write_parquet_local(table, local_path: Path) -> int:
     """Write pyarrow.Table to a local parquet file with snappy compression.
     Returns file size in bytes."""
     import pyarrow.parquet as pq
+
     local_path.parent.mkdir(parents=True, exist_ok=True)
     pq.write_table(table, str(local_path), compression="snappy")
     return local_path.stat().st_size
@@ -240,13 +251,14 @@ def _write_parquet_local(table, local_path: Path) -> int:
 
 def _upload_to_s3(s3, local_path: Path, s3_key: str) -> None:
     """Upload a local file to S3."""
-    _log(f"  Uploading {local_path.name} ({local_path.stat().st_size / 1e6:.1f} MB) -> s3://{DEPMAP_S3_BUCKET}/{s3_key}")
+    _log(
+        f"  Uploading {local_path.name} ({local_path.stat().st_size / 1e6:.1f} MB) -> s3://{DEPMAP_S3_BUCKET}/{s3_key}"
+    )
     with open(local_path, "rb") as f:
         s3.upload_fileobj(f, DEPMAP_S3_BUCKET, s3_key)
 
 
-def precompute_one(s3, target_spec: dict, local_dir: Path, output_prefix: str,
-                    upload: bool = True) -> dict:
+def precompute_one(s3, target_spec: dict, local_dir: Path, output_prefix: str, upload: bool = True) -> dict:
     """Precompute one file: fetch CSV → convert to parquet → write locally → upload."""
     source_key = target_spec["source_key"]
     output_name = target_spec["output_name"]
@@ -266,8 +278,7 @@ def precompute_one(s3, target_spec: dict, local_dir: Path, output_prefix: str,
 
     local_path = local_dir / output_name
     parquet_size = _write_parquet_local(table, local_path)
-    _log(f"    wrote {local_path} ({parquet_size / 1e6:.1f} MB) "
-         f"[compression ratio: {csv_size / parquet_size:.1f}x]")
+    _log(f"    wrote {local_path} ({parquet_size / 1e6:.1f} MB) [compression ratio: {csv_size / parquet_size:.1f}x]")
 
     s3_key = f"{output_prefix.rstrip('/')}/{output_name}"
     if upload:
@@ -288,10 +299,10 @@ def precompute_one(s3, target_spec: dict, local_dir: Path, output_prefix: str,
     }
 
 
-def write_manifest(entries: list[dict], local_dir: Path, output_prefix: str,
-                    s3, upload: bool = True) -> Path:
+def write_manifest(entries: list[dict], local_dir: Path, output_prefix: str, s3, upload: bool = True) -> Path:
     """Write manifest.yaml documenting the derived-product state."""
     import yaml
+
     manifest = {
         "derived_product_id": "depmap-26q1-parquet-v1",
         "release_pin": "26q1",
@@ -318,26 +329,29 @@ def write_manifest(entries: list[dict], local_dir: Path, output_prefix: str,
 
 @click.command()
 @click.option("--release-pin", default="26q1")
-@click.option("--output-prefix", default=DEFAULT_OUTPUT_PREFIX,
-              help="S3 prefix (relative to bucket) where parquets get written.")
-@click.option("--local-dir", type=click.Path(file_okay=False, writable=True, path_type=Path),
-              default=Path.home() / "dev" / "framework-runs" / "depmap-parquet-precompute-local",
-              help="Local staging dir where parquets are written before S3 upload.")
-@click.option("--targets", multiple=True,
-              help="Optional subset of source filenames to precompute. If omitted, all.")
-@click.option("--no-upload", is_flag=True,
-              help="Skip S3 upload; write local parquets only. Useful for testing.")
-def main(release_pin: str, output_prefix: str, local_dir: Path,
-         targets: tuple[str, ...], no_upload: bool) -> None:
+@click.option(
+    "--output-prefix", default=DEFAULT_OUTPUT_PREFIX, help="S3 prefix (relative to bucket) where parquets get written."
+)
+@click.option(
+    "--local-dir",
+    type=click.Path(file_okay=False, writable=True, path_type=Path),
+    default=Path.home() / "dev" / "framework-runs" / "depmap-parquet-precompute-local",
+    help="Local staging dir where parquets are written before S3 upload.",
+)
+@click.option("--targets", multiple=True, help="Optional subset of source filenames to precompute. If omitted, all.")
+@click.option("--no-upload", is_flag=True, help="Skip S3 upload; write local parquets only. Useful for testing.")
+def main(release_pin: str, output_prefix: str, local_dir: Path, targets: tuple[str, ...], no_upload: bool) -> None:
     """CLI entry point: fetch DepMap CSVs → convert to parquet → upload to S3."""
     import boto3
+
     s3 = boto3.client("s3")
 
     # Filter to selected targets if specified
     if targets:
         wanted = set(targets)
-        to_process = [t for t in PRECOMPUTE_TARGETS
-                      if any(w in t["source_key"] or w in t["output_name"] for w in wanted)]
+        to_process = [
+            t for t in PRECOMPUTE_TARGETS if any(w in t["source_key"] or w in t["output_name"] for w in wanted)
+        ]
         if not to_process:
             click.echo(f"No matching targets for --targets {targets}", err=True)
             sys.exit(1)
@@ -361,8 +375,10 @@ def main(release_pin: str, output_prefix: str, local_dir: Path,
     _log(f"  {len(entries)} files precomputed")
     _log(f"  manifest: {manifest_path}")
     for e in entries:
-        _log(f"  {e['output_name']}: {e['n_rows']} rows × {e['n_columns']} cols, "
-             f"{e['parquet_size_bytes'] / 1e6:.1f} MB ({e['compression_ratio']:.1f}x compression)")
+        _log(
+            f"  {e['output_name']}: {e['n_rows']} rows × {e['n_columns']} cols, "
+            f"{e['parquet_size_bytes'] / 1e6:.1f} MB ({e['compression_ratio']:.1f}x compression)"
+        )
 
 
 if __name__ == "__main__":

@@ -13,6 +13,7 @@ on log2(TPM+1) rather than DESeq2 on counts. These tests pin three things:
      → strong_tumor_selective; a flat gene → not_informative. This guards the
      cell-C-only `tvn_gtex_only` regime end-to-end.
 """
+
 from __future__ import annotations
 
 import sys
@@ -45,7 +46,7 @@ def test_welch_kernel_identical_to_sibling():
 
 def test_welch_degenerate_cases():
     assert cli._welch_deg(np.array([1.0]), np.array([1.0, 2.0])) == (0.0, 1.0)  # <2 on a side
-    lfc, p = cli._welch_deg(np.array([2.0, 2.0]), np.array([1.0, 1.0]))          # zero variance both
+    lfc, p = cli._welch_deg(np.array([2.0, 2.0]), np.array([1.0, 1.0]))  # zero variance both
     assert lfc == pytest.approx(1.0) and p == 1.0
 
 
@@ -71,12 +72,16 @@ def _fixture_frames():
     """
     genes = [("ENSG_DLL3", "DLL3"), ("ENSG_GAPDH", "GAPDH"), ("ENSG_XIST", "XIST")]
     tumor_rows, gtex_rows = [], []
-    tumor_expr = {"ENSG_DLL3": [6.0, 6.2, 5.8, 6.1, 5.9],   # high in tumor
-                  "ENSG_GAPDH": [10.0, 10.1, 9.9, 10.0, 10.2],
-                  "ENSG_XIST": [0.1, 0.0, 0.2, 0.1, 0.0]}    # off in tumor
-    gtex_expr = {"ENSG_DLL3": [0.5, 0.4, 0.6, 0.5, 0.3, 0.5],  # low in lung
-                 "ENSG_GAPDH": [10.0, 9.9, 10.1, 10.0, 10.2, 9.8],
-                 "ENSG_XIST": [3.0, 3.1, 2.9, 3.0, 3.2, 2.8]}   # higher in normal
+    tumor_expr = {
+        "ENSG_DLL3": [6.0, 6.2, 5.8, 6.1, 5.9],  # high in tumor
+        "ENSG_GAPDH": [10.0, 10.1, 9.9, 10.0, 10.2],
+        "ENSG_XIST": [0.1, 0.0, 0.2, 0.1, 0.0],
+    }  # off in tumor
+    gtex_expr = {
+        "ENSG_DLL3": [0.5, 0.4, 0.6, 0.5, 0.3, 0.5],  # low in lung
+        "ENSG_GAPDH": [10.0, 9.9, 10.1, 10.0, 10.2, 9.8],
+        "ENSG_XIST": [3.0, 3.1, 2.9, 3.0, 3.2, 2.8],
+    }  # higher in normal
     for ens, sym in genes:
         for i, v in enumerate(tumor_expr[ens]):
             tumor_rows.append((sym, ens, f"T{i}", "SCLC", v))
@@ -100,9 +105,21 @@ def test_compute_cell_c_schema_and_biology(monkeypatch):
     df, prov = cli.compute_cell_c(s3fs=None)
 
     # schema: OV sensitivity columns present, A/B all NaN, C populated
-    for col in ("gene_symbol", "cells_ran", "cells_supporting", "dominant_direction",
-                "sig_all_cells", "discordant", "log2fc_A", "padj_A", "log2fc_B",
-                "padj_B", "log2fc_C", "padj_C", "max_abs_log2fc"):
+    for col in (
+        "gene_symbol",
+        "cells_ran",
+        "cells_supporting",
+        "dominant_direction",
+        "sig_all_cells",
+        "discordant",
+        "log2fc_A",
+        "padj_A",
+        "log2fc_B",
+        "padj_B",
+        "log2fc_C",
+        "padj_C",
+        "max_abs_log2fc",
+    ):
         assert col in df.columns
     assert df["log2fc_A"].isna().all() and df["log2fc_B"].isna().all()
     assert df["padj_A"].isna().all() and df["padj_B"].isna().all()
@@ -129,8 +146,7 @@ def test_compute_cell_c_drops_unmapped_symbols(monkeypatch):
     gtex.loc[gtex["ensembl_gene_id"] == "ENSG_XIST", "gene_symbol"] = None
 
     def fake_read(manifest_id, s3fs, group_col, group_val):
-        return (tumor.copy(), "s3://fake") if manifest_id == cli.TUMOR_PRODUCT \
-            else (gtex.copy(), "s3://fake")
+        return (tumor.copy(), "s3://fake") if manifest_id == cli.TUMOR_PRODUCT else (gtex.copy(), "s3://fake")
 
     monkeypatch.setattr(cli, "_read_long_tpm", fake_read)
     df, _ = cli.compute_cell_c(s3fs=None)
@@ -148,8 +164,7 @@ def test_emitted_rows_classify_downstream(monkeypatch):
     tumor, gtex = _fixture_frames()
 
     def fake_read(manifest_id, s3fs, group_col, group_val):
-        return (tumor.copy(), "s3://fake") if manifest_id == cli.TUMOR_PRODUCT \
-            else (gtex.copy(), "s3://fake")
+        return (tumor.copy(), "s3://fake") if manifest_id == cli.TUMOR_PRODUCT else (gtex.copy(), "s3://fake")
 
     monkeypatch.setattr(cli, "_read_long_tpm", fake_read)
     df, _ = cli.compute_cell_c(s3fs=None)
@@ -165,9 +180,12 @@ def test_emitted_rows_classify_downstream(monkeypatch):
             "sig_all_cells": r["sig_all_cells"],
             "discordant": r["discordant"],
             "max_abs_log2fc": r["max_abs_log2fc"],
-            "log2fc_cell_a": r["log2fc_A"], "q_value_cell_a": r["padj_A"],
-            "log2fc_cell_b": r["log2fc_B"], "q_value_cell_b": r["padj_B"],
-            "log2fc_cell_c": r["log2fc_C"], "q_value_cell_c": r["padj_C"],
+            "log2fc_cell_a": r["log2fc_A"],
+            "q_value_cell_a": r["padj_A"],
+            "log2fc_cell_b": r["log2fc_B"],
+            "q_value_cell_b": r["padj_B"],
+            "log2fc_cell_c": r["log2fc_C"],
+            "q_value_cell_c": r["padj_C"],
         }
 
     assert read._classify_selectivity_from_sensitivity(to_reader_row("DLL3")) == "strong_tumor_selective"

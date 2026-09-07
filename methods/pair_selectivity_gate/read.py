@@ -14,6 +14,7 @@ partner set and states the cost; it is NOT wired into the per-target profile.
 
 Credential discipline: AWS_PROFILE=cbg. Manifest IDs → S3 URIs via catalog_query.
 """
+
 from __future__ import annotations
 
 from functools import lru_cache
@@ -33,8 +34,10 @@ except Exception:  # noqa: BLE001
     # LUSC is a first-class indication there (own single-study cohort), so the same-cell/pseudobulk
     # LUSC cubes are reachable; mirror that here so a degraded import doesn't silently drop LUSC.
     INDICATION_TO_TCGA_STUDIES = {
-        "COADREAD": ["COAD", "READ"], "NSCLC": ["LUAD", "LUSC"],
-        "LUAD": ["LUAD"], "LUSC": ["LUSC"],
+        "COADREAD": ["COAD", "READ"],
+        "NSCLC": ["LUAD", "LUSC"],
+        "LUAD": ["LUAD"],
+        "LUSC": ["LUSC"],
     }
 
 _POS = _gates.GATE_POSITIVE_THRESHOLD_TPM
@@ -43,6 +46,7 @@ _VETO = _gates.NOT_GATE_VETO_ABSENT_TPM
 
 def _con():
     import duckdb
+
     con = duckdb.connect()
     con.execute("INSTALL httpfs; LOAD httpfs; SET s3_region='us-east-1';")
     try:
@@ -58,7 +62,7 @@ def _gate_expr(gate: str) -> str:
         return f"(a_tpm >= {_POS} AND b_tpm >= {_POS})"
     if gate == "OR":
         return f"(a_tpm >= {_POS} OR b_tpm >= {_POS})"
-    return f"(a_tpm >= {_POS} AND b_tpm < {_VETO})"   # NOT: A present, veto B truly absent
+    return f"(a_tpm >= {_POS} AND b_tpm < {_VETO})"  # NOT: A present, veto B truly absent
 
 
 @lru_cache(maxsize=128)
@@ -73,6 +77,7 @@ def _frac_by_group(gene_a: str, gene_b: str, gate: str, source: str) -> Optional
         uri = s3_uri_for(manifest)
     except Exception as e:  # noqa: BLE001
         from methods.target_id_sidecar import is_definitively_absent
+
         # Genuine NoSuchKey/404 (or FileNotFoundError) resolving the product URI -> None (caller emits
         # data_unavailable, unchanged). A transient/creds/broken-env/config-resolution failure is NOT
         # absence -> re-raise so the live-read seam surfaces an honest _live_read_error.
@@ -96,13 +101,13 @@ def _frac_by_group(gene_a: str, gene_b: str, gate: str, source: str) -> Optional
         df = _con().execute(sql).df()
     except Exception as e:  # noqa: BLE001
         from methods.target_id_sidecar import is_definitively_absent
+
         # DuckDB httpfs surfaces a GENUINELY missing S3 parquet as an IO error whose message carries
         # "NoSuchKey"/"404" (not a botocore ClientError) — treat that as genuine absence -> None
         # (data_unavailable, unchanged). A creds error (403/AccessDenied), throttle, broken-env, or a
         # SQL fault is NOT absence -> re-raise so the seam records an honest _live_read_error.
         msg = str(e)
-        if (is_definitively_absent(e) or isinstance(e, FileNotFoundError)
-                or "NoSuchKey" in msg or "404" in msg):
+        if is_definitively_absent(e) or isinstance(e, FileNotFoundError) or "NoSuchKey" in msg or "404" in msg:
             return None
         raise
     return {str(r.grp): float(r.pos_frac) for r in df.itertuples()}
@@ -113,15 +118,21 @@ def scan_pair(target: str, partner: str, indication: str, gate: str = "AND") -> 
     Reports the indication's most-selective TCGA study. Carries the avidity caveat."""
     studies = INDICATION_TO_TCGA_STUDIES.get(str(indication).upper().strip())
     if not studies:
-        return _unavailable(target, partner, indication, gate,
-                            f"indication {indication} has no TCGA study mapping (scan is TCGA-cohort-based)")
+        return _unavailable(
+            target,
+            partner,
+            indication,
+            gate,
+            f"indication {indication} has no TCGA study mapping (scan is TCGA-cohort-based)",
+        )
     tumor_frac = _frac_by_group(target, partner, gate, "tumor")
     normal_frac = _frac_by_group(target, partner, gate, "normal")
     if tumor_frac is None or normal_frac is None:
         return _unavailable(target, partner, indication, gate, "per-sample TPM product unreadable")
     if not tumor_frac:
-        return _unavailable(target, partner, indication, gate,
-                            f"{target}/{partner} pair absent from the tumor TPM product")
+        return _unavailable(
+            target, partner, indication, gate, f"{target}/{partner} pair absent from the tumor TPM product"
+        )
     best = None
     for study in studies:
         r = _gates.reduce_gate(gate, tumor_frac, normal_frac, study)
@@ -130,10 +141,15 @@ def scan_pair(target: str, partner: str, indication: str, gate: str = "AND") -> 
         if best is None or (r["selectivity"] or -1) > (best["selectivity"] or -1):
             best = r
     if best is None:
-        return _unavailable(target, partner, indication, gate,
-                            f"no tumor samples for {indication} studies {studies}")
-    best.update({"target": target, "partner": partner, "indication": str(indication).upper().strip(),
-                 "_avidity_caveat": _gates.AVIDITY_CAVEAT})
+        return _unavailable(target, partner, indication, gate, f"no tumor samples for {indication} studies {studies}")
+    best.update(
+        {
+            "target": target,
+            "partner": partner,
+            "indication": str(indication).upper().strip(),
+            "_avidity_caveat": _gates.AVIDITY_CAVEAT,
+        }
+    )
     return best
 
 
@@ -156,11 +172,18 @@ def scan_partner_set(target: str, partners: list, indication: str, gate: str = "
 
 def _unavailable(target, partner, indication, gate, note) -> dict:
     return {
-        "gate": gate, "target": target, "partner": partner,
-        "indication": str(indication).upper().strip(), "tumor_study": None,
-        "tumor_fraction": None, "max_essential_normal_fraction": None,
-        "max_essential_normal_tissue": None, "max_any_normal_fraction": None,
-        "max_any_normal_tissue": None, "selectivity": None,
-        "call": "data_unavailable", "_data_note": note,
+        "gate": gate,
+        "target": target,
+        "partner": partner,
+        "indication": str(indication).upper().strip(),
+        "tumor_study": None,
+        "tumor_fraction": None,
+        "max_essential_normal_fraction": None,
+        "max_essential_normal_tissue": None,
+        "max_any_normal_fraction": None,
+        "max_any_normal_tissue": None,
+        "selectivity": None,
+        "call": "data_unavailable",
+        "_data_note": note,
         "_avidity_caveat": _gates.AVIDITY_CAVEAT,
     }

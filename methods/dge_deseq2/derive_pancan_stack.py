@@ -32,6 +32,7 @@ This is pure metadata assembly over already-published DESeq2 outputs — no DESe
 values byte-identical to each per-indication emit. UCEC's missing cell-B columns are
 NaN-filled by the concat (union schema), which is honest: cell B was not run there.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -50,24 +51,51 @@ DEFAULT_AWS_PROFILE = "cbg"
 # exceptions are listed explicitly. Keep this in sync if new indications land on a new vintage.
 _COMBAT_TSS = "combat_seq_tcga_tss"
 _INDICATION_CELL_B_SEMANTICS = {
-    "COADREAD": "design_comparison_unspecified",   # deef28a 2026-07-06
-    "UCEC": "cell_b_skipped",                       # 927a556 2026-07-16 (SKIP_CELL_B=1)
+    "COADREAD": "design_comparison_unspecified",  # deef28a 2026-07-06
+    "UCEC": "cell_b_skipped",  # 927a556 2026-07-16 (SKIP_CELL_B=1)
     # all others → combat_seq_tcga_tss (acb0179 2026-07-15)
-    "ACC": _COMBAT_TSS, "BLCA": _COMBAT_TSS, "BRCA": _COMBAT_TSS, "CESC": _COMBAT_TSS,
-    "COAD": _COMBAT_TSS, "ESCA": _COMBAT_TSS, "GBM": _COMBAT_TSS, "HNSC": _COMBAT_TSS,
-    "KICH": _COMBAT_TSS, "KIRC": _COMBAT_TSS, "KIRP": _COMBAT_TSS, "LGG": _COMBAT_TSS,
-    "LIHC": _COMBAT_TSS, "LUAD": _COMBAT_TSS, "LUSC": _COMBAT_TSS, "OV": _COMBAT_TSS,
-    "PAAD": _COMBAT_TSS, "PCPG": _COMBAT_TSS, "PRAD": _COMBAT_TSS, "READ": _COMBAT_TSS,
-    "SKCM": _COMBAT_TSS, "STAD": _COMBAT_TSS, "TGCT": _COMBAT_TSS, "THCA": _COMBAT_TSS,
+    "ACC": _COMBAT_TSS,
+    "BLCA": _COMBAT_TSS,
+    "BRCA": _COMBAT_TSS,
+    "CESC": _COMBAT_TSS,
+    "COAD": _COMBAT_TSS,
+    "ESCA": _COMBAT_TSS,
+    "GBM": _COMBAT_TSS,
+    "HNSC": _COMBAT_TSS,
+    "KICH": _COMBAT_TSS,
+    "KIRC": _COMBAT_TSS,
+    "KIRP": _COMBAT_TSS,
+    "LGG": _COMBAT_TSS,
+    "LIHC": _COMBAT_TSS,
+    "LUAD": _COMBAT_TSS,
+    "LUSC": _COMBAT_TSS,
+    "OV": _COMBAT_TSS,
+    "PAAD": _COMBAT_TSS,
+    "PCPG": _COMBAT_TSS,
+    "PRAD": _COMBAT_TSS,
+    "READ": _COMBAT_TSS,
+    "SKCM": _COMBAT_TSS,
+    "STAD": _COMBAT_TSS,
+    "TGCT": _COMBAT_TSS,
+    "THCA": _COMBAT_TSS,
     "UCS": _COMBAT_TSS,
 }
 
 # The union of columns any per-indication sensitivity parquet carries. UCEC lacks
 # log2fc_B/padj_B; the concat fills them NaN. Order is stable for the stacked schema.
 _UNION_COLUMNS = [
-    "gene_symbol", "cells_ran", "cells_supporting", "dominant_direction",
-    "sig_all_cells", "discordant",
-    "log2fc_A", "padj_A", "log2fc_B", "padj_B", "log2fc_C", "padj_C",
+    "gene_symbol",
+    "cells_ran",
+    "cells_supporting",
+    "dominant_direction",
+    "sig_all_cells",
+    "discordant",
+    "log2fc_A",
+    "padj_A",
+    "log2fc_B",
+    "padj_B",
+    "log2fc_C",
+    "padj_C",
     "max_abs_log2fc",
 ]
 
@@ -84,7 +112,7 @@ _UNION_COLUMNS = [
 # appear). Add a new entry here if a merged-parent indication ever lands alongside its children.
 _COMPOSITE_INDICATIONS = {
     "COADREAD": {"COAD", "READ"},
-    "NSCLC": {"LUAD", "LUSC"},   # pooled NSCLC; drop from breadth roll-up when LUAD+LUSC present
+    "NSCLC": {"LUAD", "LUSC"},  # pooled NSCLC; drop from breadth roll-up when LUAD+LUSC present
 }
 
 
@@ -96,10 +124,7 @@ def _dedupe_overlapping_indications(rows: list) -> list:
     stack. If neither child is present the composite is KEPT (it is then the only colorectal
     signal available). Rows for non-composite indications pass through untouched. Idempotent."""
     present = {str(r.get("indication")).upper() for r in rows}
-    drop = {
-        parent for parent, children in _COMPOSITE_INDICATIONS.items()
-        if parent in present and (children & present)
-    }
+    drop = {parent for parent, children in _COMPOSITE_INDICATIONS.items() if parent in present and (children & present)}
     if not drop:
         return rows
     return [r for r in rows if str(r.get("indication")).upper() not in drop]
@@ -109,8 +134,10 @@ from methods.target_id_sidecar import ensure_aws_profile
 
 
 def _sensitivity_s3_uri(indication: str) -> str:
-    return (f"s3://{S3_BUCKET}/data-catalog/derived/"
-            f"{indication.lower()}-dge-tumor-vs-normal-sensitivity-v1/sensitivity.parquet")
+    return (
+        f"s3://{S3_BUCKET}/data-catalog/derived/"
+        f"{indication.lower()}-dge-tumor-vs-normal-sensitivity-v1/sensitivity.parquet"
+    )
 
 
 def all_indications() -> list[str]:
@@ -155,7 +182,7 @@ def assert_roster_matches_published(published: set[str] | None = None, s3fs=None
     if published is None:
         published = list_published_sensitivity_indications(s3fs=s3fs)
     declared = set(_INDICATION_CELL_B_SEMANTICS)
-    unmapped = published - declared    # published on S3 but missing from the vintage map
+    unmapped = published - declared  # published on S3 but missing from the vintage map
     unpublished = declared - published  # in the vintage map but no published product
     if unmapped or unpublished:
         raise RuntimeError(
@@ -221,6 +248,7 @@ def write_stack(out_path: Path, indications: list[str] | None = None) -> dict:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     import pyarrow as pa
     import pyarrow.parquet as pq
+
     tbl = pa.Table.from_pandas(stacked, preserve_index=False)
     pq.write_table(tbl, out_path, compression="snappy", row_group_size=64)
     raw = out_path.read_bytes()
@@ -268,7 +296,7 @@ def write_stack(out_path: Path, indications: list[str] | None = None) -> dict:
 # CD70/DLL3/...) unchanged — 0 dangerous false-negatives. The `max_abs_log2fc` column is retained in
 # the stacked product (secondary magnitude signal for forest plots); breadth just no longer gates on it.
 
-_RNA_STACKED_S3_URI = (f"s3://{S3_BUCKET}/{STACKED_PARQUET_KEY}")
+_RNA_STACKED_S3_URI = f"s3://{S3_BUCKET}/{STACKED_PARQUET_KEY}"
 # The RNA "tumor-elevated in this indication" bar. NOTE (M4 — cross-modality bar asymmetry): this RNA
 # magnitude bar (|log2fc| >= 1.0, supported by >=2 concordant cells, no separate q-gate on magnitude)
 # is INTENTIONALLY DIFFERENT from the PROTEIN elevated bar in cptac_protein_deg/read.py (q < 0.05 AND
@@ -338,18 +366,20 @@ def read_rna_tumor_elevation_breadth(target: str) -> dict:
     ensure_aws_profile()
     empty = {
         "rna_tumor_elevation_breadth_class": "data_unavailable",
-        "n_indications_tested": 0, "n_indications_elevated": 0,
-        "fraction_elevated": None, "median_max_log2fc_across_elevated": None,
-        "most_elevated_indications": [], "indications_tested": [],
+        "n_indications_tested": 0,
+        "n_indications_elevated": 0,
+        "fraction_elevated": None,
+        "median_max_log2fc_across_elevated": None,
+        "most_elevated_indications": [],
+        "indications_tested": [],
     }
     # pyarrow's S3FileSystem path is BUCKET-qualified (onc-compbio/data-catalog/...), NOT the
     # bare key — passing the key alone makes pyarrow read the first segment as the bucket (301).
     # Mirrors the sibling readers' _s3_uri_to_path (strips only the s3:// prefix, keeps bucket).
-    read_path = _RNA_STACKED_S3_URI[len("s3://"):]
+    read_path = _RNA_STACKED_S3_URI[len("s3://") :]
     try:
         s3 = pafs.S3FileSystem()
-        table = pq.read_table(read_path, filesystem=s3,
-                              filters=[("gene_symbol", "=", target)])
+        table = pq.read_table(read_path, filesystem=s3, filters=[("gene_symbol", "=", target)])
     except Exception:
         return empty
     if table.num_rows == 0:
@@ -383,11 +413,18 @@ def read_rna_tumor_elevation_breadth(target: str) -> dict:
         cls = "not_tumor_elevated"
 
     most_elevated = sorted(
-        ({"indication": r.get("indication"),
-          "max_abs_log2fc": r.get("max_abs_log2fc"),
-          "cells_supporting": r.get("cells_supporting"),
-          "dominant_direction": r.get("dominant_direction")} for r in elevated),
-        key=lambda x: (x["max_abs_log2fc"] or 0.0), reverse=True)
+        (
+            {
+                "indication": r.get("indication"),
+                "max_abs_log2fc": r.get("max_abs_log2fc"),
+                "cells_supporting": r.get("cells_supporting"),
+                "dominant_direction": r.get("dominant_direction"),
+            }
+            for r in elevated
+        ),
+        key=lambda x: x["max_abs_log2fc"] or 0.0,
+        reverse=True,
+    )
 
     return {
         "rna_tumor_elevation_breadth_class": cls,
@@ -406,8 +443,7 @@ if __name__ == "__main__":
 
     ap = argparse.ArgumentParser(description="Build pancan-dge-tumor-vs-normal-v1 stacked product.")
     ap.add_argument("--out", required=True, help="local output parquet path")
-    ap.add_argument("--indications", nargs="*", default=None,
-                    help="subset of indications (default: all 27)")
+    ap.add_argument("--indications", nargs="*", default=None, help="subset of indications (default: all 27)")
     args = ap.parse_args()
     summary = write_stack(Path(args.out), indications=args.indications)
     print(json.dumps(summary, indent=2))

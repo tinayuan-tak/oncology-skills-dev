@@ -29,6 +29,7 @@ Absence discipline (mirrors cptac_protein_deg + tphp_normal_protein): a GENUINE 
 `data_unavailable`. A transient / credential / broken-env error is RE-RAISED (never masked as an empty
 protein footprint) so the live-read seam surfaces `_live_read_error` instead of a silent dead facet.
 """
+
 from __future__ import annotations
 
 import math
@@ -122,6 +123,7 @@ def _get_s3fs():
         with _S3FS_LOCK:
             if _S3FS is None:
                 import pyarrow.fs as pafs
+
                 _S3FS = pafs.S3FileSystem(region="us-east-1")
     return _S3FS
 
@@ -133,6 +135,7 @@ def _read_rows_from_derived(gene: str, product_path=None) -> list[dict]:
     (offline test seam): a local parquet bypasses S3. Raises on transient/creds/broken-env failure
     (NOT swallowed — the caller's boundary classifies a genuine 404/absence into data_unavailable)."""
     import pyarrow.parquet as pq
+
     filters = [("gene_symbol", "=", gene)]
     if product_path is not None:
         tbl = pq.read_table(str(product_path), filters=filters)
@@ -146,7 +149,7 @@ def _row_to_summary(row: dict, matched_cohort: str) -> dict:
     """Map ONE product row → the CPTAC-ALIGNED card summary contract (verdict-inert)."""
     return {
         "cohort": matched_cohort,
-        "tissue": row.get("tissue"),                        # matched adjacent-normal comparator tissue (TPHP-specific)
+        "tissue": row.get("tissue"),  # matched adjacent-normal comparator tissue (TPHP-specific)
         # PRIMARY categorical — the product's `effect` (strong_up/modest_up/unchanged/modest_down/strong_down).
         "protein_expression_class": row.get("effect", "unchanged"),
         # RAW log2 tumor-vs-normal effect (median_log2_tumor - median_log2_normal). CPTAC-aligned name.
@@ -154,7 +157,7 @@ def _row_to_summary(row: dict, matched_cohort: str) -> dict:
         "protein_median_log2_tumor": row.get("median_log2_tumor"),
         "protein_median_log2_normal": row.get("median_log2_normal"),
         "protein_p_value": row.get("p_value"),
-        "protein_bh_q_value": row.get("q_value"),           # BH within-cohort. CPTAC-aligned name.
+        "protein_bh_q_value": row.get("q_value"),  # BH within-cohort. CPTAC-aligned name.
         "n_tumor_samples": row.get("n_tumor"),
         "n_normal_samples": row.get("n_normal"),
         "uniprot_ac": row.get("uniprot_ac"),
@@ -209,13 +212,14 @@ def read_target_summary(target: str, indication: str = None, product_path=None) 
         # transient/creds/broken-env fault must NOT be masked as an empty protein footprint — re-raise
         # so the live-read seam surfaces _live_read_error (absence discipline; mirrors tphp_normal_protein).
         from methods.target_id_sidecar import is_definitively_absent
+
         if not (isinstance(e, FileNotFoundError) or is_definitively_absent(e)):
             raise
         out = _empty("tphp_tvn_read_failed")
         out["_live_read_error"] = "tphp_tumor_vs_normal_protein_read_failed"
         out["_remediation"] = (
-            f"Could not read the TPHP tumor-vs-normal protein product ({DERIVED_MANIFEST_ID}) "
-            f"for {target}: {e}")
+            f"Could not read the TPHP tumor-vs-normal protein product ({DERIVED_MANIFEST_ID}) for {target}: {e}"
+        )
         return out
 
     if not rows:
@@ -258,14 +262,19 @@ def read_all_cohorts(target: str, product_path=None) -> list[dict]:
 def _main(argv=None):
     import argparse
     import json
-    ap = argparse.ArgumentParser(
-        description="TPHP tumor-vs-adjacent-normal protein differential for a target.")
+
+    ap = argparse.ArgumentParser(description="TPHP tumor-vs-adjacent-normal protein differential for a target.")
     ap.add_argument("--target", required=True)
     ap.add_argument("--indication", default=None)
     ap.add_argument("--product-path", default=None, help="offline: local parquet path (bypasses S3)")
     args = ap.parse_args(argv)
-    print(json.dumps(read_target_summary(args.target, indication=args.indication,
-                                         product_path=args.product_path), indent=2, default=str))
+    print(
+        json.dumps(
+            read_target_summary(args.target, indication=args.indication, product_path=args.product_path),
+            indent=2,
+            default=str,
+        )
+    )
 
 
 if __name__ == "__main__":

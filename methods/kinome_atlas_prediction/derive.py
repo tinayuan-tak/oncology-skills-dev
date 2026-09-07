@@ -46,6 +46,7 @@ Design choices:
     Iter-1 keeps the atlas-native name in kinase_symbol; a follow-up can
     add HGNC crosswalk.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -107,25 +108,15 @@ def _melt_wide_atlas(
     percentile>=threshold. Returns a DataFrame with the target schema.
     """
     t0 = time.perf_counter()
-    print(
-        f"[{kinome_label}] reading {xlsx_path.name!r} sheet {sheet_name!r} "
-        f"(calamine engine)..."
-    )
+    print(f"[{kinome_label}] reading {xlsx_path.name!r} sheet {sheet_name!r} (calamine engine)...")
     df = pd.read_excel(xlsx_path, engine="calamine", sheet_name=sheet_name)
-    print(
-        f"[{kinome_label}] wide-format: {df.shape[0]:,} rows × {df.shape[1]} cols "
-        f"({time.perf_counter() - t0:.1f}s)"
-    )
+    print(f"[{kinome_label}] wide-format: {df.shape[0]:,} rows × {df.shape[1]} cols ({time.perf_counter() - t0:.1f}s)")
 
     # Identify kinase percentile cols
-    kinase_percentile_cols = [
-        c for c in df.columns
-        if _kinase_from_percentile_col(c) is not None
-    ]
+    kinase_percentile_cols = [c for c in df.columns if _kinase_from_percentile_col(c) is not None]
     if not kinase_percentile_cols:
         raise RuntimeError(
-            f"[{kinome_label}] no `{{KINASE}}_percentile` columns found in "
-            f"sheet {sheet_name!r} — schema drift?"
+            f"[{kinome_label}] no `{{KINASE}}_percentile` columns found in sheet {sheet_name!r} — schema drift?"
         )
     print(f"[{kinome_label}] {len(kinase_percentile_cols)} kinase columns detected")
 
@@ -143,13 +134,8 @@ def _melt_wide_atlas(
         var_name="_kinase_pct_col",
         value_name="percentile",
     )
-    print(
-        f"[{kinome_label}] melted percentile: {long_pct.shape[0]:,} rows "
-        f"({time.perf_counter() - t0:.1f}s)"
-    )
-    long_pct["kinase_symbol"] = long_pct["_kinase_pct_col"].map(
-        _kinase_from_percentile_col
-    )
+    print(f"[{kinome_label}] melted percentile: {long_pct.shape[0]:,} rows ({time.perf_counter() - t0:.1f}s)")
+    long_pct["kinase_symbol"] = long_pct["_kinase_pct_col"].map(_kinase_from_percentile_col)
     long_pct = long_pct.drop(columns=["_kinase_pct_col"])
 
     # Apply percentile threshold. This is the big memory drop.
@@ -165,8 +151,7 @@ def _melt_wide_atlas(
     # Only rank columns whose kinase survived the percentile filter matter,
     # but a simple full melt+join is bounded now (post-filter).
     rank_cols = [
-        c for c in df.columns if c.endswith("_rank")
-        and _kinase_from_percentile_col(c.replace("_rank", "_percentile"))
+        c for c in df.columns if c.endswith("_rank") and _kinase_from_percentile_col(c.replace("_rank", "_percentile"))
     ]
     if rank_cols:
         t0 = time.perf_counter()
@@ -186,10 +171,7 @@ def _melt_wide_atlas(
         join_keys = [c for c in ("Uniprot Primary Accession", "Phosphosite") if c in id_cols]
         join_keys.append("kinase_symbol")
         long_out = long_pct.merge(long_rank[join_keys + ["rank"]], on=join_keys, how="left")
-        print(
-            f"[{kinome_label}] joined rank: {len(long_out):,} rows "
-            f"({time.perf_counter() - t0:.1f}s)"
-        )
+        print(f"[{kinome_label}] joined rank: {len(long_out):,} rows ({time.perf_counter() - t0:.1f}s)")
     else:
         long_out = long_pct
         long_out["rank"] = pd.NA
@@ -199,14 +181,10 @@ def _melt_wide_atlas(
         {
             "kinase_symbol": long_out["kinase_symbol"].astype("string"),
             "substrate_gene": long_out.get("Gene", pd.Series(dtype="string")).astype("string"),
-            "substrate_ac": long_out.get(
-                "Uniprot Primary Accession", pd.Series(dtype="string")
-            ).astype("string"),
+            "substrate_ac": long_out.get("Uniprot Primary Accession", pd.Series(dtype="string")).astype("string"),
             "phosphosite": long_out.get("Phosphosite", pd.Series(dtype="string")).astype("string"),
             "phos_res": long_out.get("phos_res", pd.Series(dtype="string")).astype("string"),
-            "motif_15mer": long_out.get(
-                "SITE_+/-7_AA", pd.Series(dtype="string")
-            ).astype("string"),
+            "motif_15mer": long_out.get("SITE_+/-7_AA", pd.Series(dtype="string")).astype("string"),
             "kinome": kinome_label,
             "percentile": pd.to_numeric(long_out["percentile"], errors="coerce"),
             "rank": pd.to_numeric(long_out["rank"], errors="coerce").astype("Int64"),
@@ -262,14 +240,13 @@ def derive_kinome_atlas_long(
 
     print()
     combined = pd.concat(frames, ignore_index=True)
-    print(f"=== Combined: {len(combined):,} edges "
-          f"({combined.memory_usage(deep=True).sum() / 1e6:.0f}MB in-memory) ===")
+    print(f"=== Combined: {len(combined):,} edges ({combined.memory_usage(deep=True).sum() / 1e6:.0f}MB in-memory) ===")
     print()
     print(f"  kinase count: {combined['kinase_symbol'].nunique()}")
     print(f"  substrate count: {combined['substrate_gene'].nunique()}")
     print(f"  by kinome: {combined['kinome'].value_counts().to_dict()}")
     print("  percentile distribution:")
-    print(combined['percentile'].describe().to_string())
+    print(combined["percentile"].describe().to_string())
     print()
 
     # Sort by percentile DESCENDING before write so the runtime reader's
@@ -277,9 +254,7 @@ def derive_kinome_atlas_long(
     # unsorted product every row-group spans the full [90,100] range and pyarrow must
     # scan them all. Descending order clusters the high-percentile edges into the first
     # row-groups, so the >=95 predicate skips the tail. (kind='mergesort' = stable.)
-    combined = combined.sort_values(
-        "percentile", ascending=False, kind="mergesort"
-    ).reset_index(drop=True)
+    combined = combined.sort_values("percentile", ascending=False, kind="mergesort").reset_index(drop=True)
 
     out_parquet.parent.mkdir(parents=True, exist_ok=True)
     t0 = time.perf_counter()
@@ -289,11 +264,7 @@ def derive_kinome_atlas_long(
         compression="snappy",
         index=False,
     )
-    print(
-        f"Wrote {out_parquet} "
-        f"({out_parquet.stat().st_size / 1e6:.1f}MB, "
-        f"{time.perf_counter() - t0:.1f}s to write)"
-    )
+    print(f"Wrote {out_parquet} ({out_parquet.stat().st_size / 1e6:.1f}MB, {time.perf_counter() - t0:.1f}s to write)")
 
 
 def _main(argv: Iterable[str] | None = None) -> int:

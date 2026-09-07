@@ -18,6 +18,7 @@ WT protein the burden signal is about) — wired in the resolver, not here.
 Significance from the p-value (pValueMantissa × 10^pValueExponent); `beta` is frequently null so it
 is corroborating only, not the gate. data_unavailable-safe.
 """
+
 from __future__ import annotations
 
 from typing import Optional
@@ -31,8 +32,17 @@ METHOD_VERSION = "0.1.0"
 # is a floor that excludes only the weakest — the direction call rests on the SIGNIFICANT rows).
 _PVALUE_CUTOFF = 1e-6
 
-_FIELDS = ["targetId", "directionOnTrait", "pValueMantissa", "pValueExponent", "beta",
-           "diseaseFromSource", "oddsRatio", "ancestry", "statisticalMethod"]
+_FIELDS = [
+    "targetId",
+    "directionOnTrait",
+    "pValueMantissa",
+    "pValueExponent",
+    "beta",
+    "diseaseFromSource",
+    "oddsRatio",
+    "ancestry",
+    "statisticalMethod",
+]
 
 
 def _pvalue(mantissa, exponent) -> Optional[float]:
@@ -61,9 +71,15 @@ def classify_burden(rows: list) -> dict:
         if pv is not None and pv < _PVALUE_CUTOFF:
             sig.append((r.get("directionOnTrait"), pv, r))
     if not sig:
-        return {"burden_safety_class": "no_burden_signal", "n_significant": 0,
-                "n_total_rows": len(rows), "min_pvalue": None, "directions": [],
-                "top_disease": None, "direction_on_target": "LoF"}
+        return {
+            "burden_safety_class": "no_burden_signal",
+            "n_significant": 0,
+            "n_total_rows": len(rows),
+            "min_pvalue": None,
+            "directions": [],
+            "top_disease": None,
+            "direction_on_target": "LoF",
+        }
 
     risk = [s for s in sig if s[0] == "risk"]
     protect = [s for s in sig if s[0] == "protect"]
@@ -74,11 +90,11 @@ def classify_burden(rows: list) -> dict:
     elif protect:
         cls = "protective"
     else:
-        cls = "direction_unresolved"   # significant rows but all null-direction
+        cls = "direction_unresolved"  # significant rows but all null-direction
 
     # representative row = the most-significant one of the WINNING direction (for the disease label).
     pool = risk if cls == "lof_risk_phenotype" else protect if cls == "protective" else sig
-    pool_sorted = sorted(pool, key=lambda s: s[1])   # ascending p-value
+    pool_sorted = sorted(pool, key=lambda s: s[1])  # ascending p-value
     top = pool_sorted[0] if pool_sorted else sig[0]
     top_row = top[2] if len(top) > 2 else {}
 
@@ -109,20 +125,31 @@ def read_gene_burden(target: str, indication: Optional[str] = None) -> dict:
     top_disease field surfaces which trait drove the call.
     """
     ensg = symbol_to_ensembl(target)
-    base = {"target": target, "ensembl_gene_id": ensg, "method_version": METHOD_VERSION,
-            "source": "opentargets-26-06/evidence_gene_burden", "pvalue_cutoff": _PVALUE_CUTOFF}
+    base = {
+        "target": target,
+        "ensembl_gene_id": ensg,
+        "method_version": METHOD_VERSION,
+        "source": "opentargets-26-06/evidence_gene_burden",
+        "pvalue_cutoff": _PVALUE_CUTOFF,
+    }
     if ensg is None:
-        return {**base, "burden_safety_class": "insufficient",
-                "_note": "target not resolvable to an Ensembl gene id via the OT resolver sidecar"}
+        return {
+            **base,
+            "burden_safety_class": "insufficient",
+            "_note": "target not resolvable to an Ensembl gene id via the OT resolver sidecar",
+        }
 
     df = read_entity("evidence_gene_burden", columns=_FIELDS, filter_col="targetId", filter_val=ensg)
     if df.empty:
-        return {**base, "burden_safety_class": "insufficient",
-                "_note": "evidence_gene_burden entity not available"}
+        return {**base, "burden_safety_class": "insufficient", "_note": "evidence_gene_burden entity not available"}
     hit = df[df["targetId"] == ensg]
     if hit.empty:
-        return {**base, "burden_safety_class": "no_burden_signal",
-                "n_total_rows": 0, "_note": f"{ensg} has no rare-variant burden rows in OT 26.06"}
+        return {
+            **base,
+            "burden_safety_class": "no_burden_signal",
+            "n_total_rows": 0,
+            "_note": f"{ensg} has no rare-variant burden rows in OT 26.06",
+        }
 
     result = classify_burden(hit.to_dict("records"))
     return {**base, **result}

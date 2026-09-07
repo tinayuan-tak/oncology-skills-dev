@@ -8,6 +8,7 @@ Usage:
     python -m methods.paralog_genetic_interaction.cli --target CDK4
     python -m methods.paralog_genetic_interaction.cli --target SMARCA2 --partner SMARCA4 --lineage
 """
+
 from __future__ import annotations
 
 import json

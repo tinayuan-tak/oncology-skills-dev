@@ -16,6 +16,7 @@ Invocation:
       --mc3-maf ~/.cache/framework-tcga-mc3-public/mc3.v0.2.8.PUBLIC.maf.gz \\
       --out /path/to/output-dir/
 """
+
 from __future__ import annotations
 
 import json
@@ -36,27 +37,38 @@ METHOD_VERSION = "0.1.0"
 
 
 @click.command()
-@click.option("--mc3-maf", required=True, type=click.Path(exists=True, dir_okay=False, path_type=Path),
-              help="MC3 MAF (mc3.v0.2.8.PUBLIC.maf.gz).")
+@click.option(
+    "--mc3-maf",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    help="MC3 MAF (mc3.v0.2.8.PUBLIC.maf.gz).",
+)
 @click.option("--out", required=True, type=click.Path(file_okay=False, path_type=Path))
-@click.option("--exome-mb", default=DEFAULT_EXOME_MB, show_default=True,
-              help="Exome-covered Mb for the TMB denominator.")
-@click.option("--high-threshold", default=DEFAULT_TMB_HIGH_THRESHOLD, show_default=True,
-              help="mut/Mb threshold for tmb_bucket == 'high'.")
+@click.option(
+    "--exome-mb", default=DEFAULT_EXOME_MB, show_default=True, help="Exome-covered Mb for the TMB denominator."
+)
+@click.option(
+    "--high-threshold",
+    default=DEFAULT_TMB_HIGH_THRESHOLD,
+    show_default=True,
+    help="mut/Mb threshold for tmb_bucket == 'high'.",
+)
 def main(mc3_maf: Path, out: Path, exome_mb: float, high_threshold: float) -> int:
     out.mkdir(parents=True, exist_ok=True)
     click.echo(f"=== tcga_tmb v{METHOD_VERSION} ===")
     click.echo(f"  reading MC3 MAF: {mc3_maf}")
-    maf = pd.read_csv(mc3_maf, sep="\t",
-                      usecols=["Variant_Classification", "Tumor_Sample_Barcode"],
-                      low_memory=False,
-                      compression="gzip" if str(mc3_maf).endswith(".gz") else None)
+    maf = pd.read_csv(
+        mc3_maf,
+        sep="\t",
+        usecols=["Variant_Classification", "Tumor_Sample_Barcode"],
+        low_memory=False,
+        compression="gzip" if str(mc3_maf).endswith(".gz") else None,
+    )
     click.echo(f"    {len(maf):,} MAF rows")
 
     tmb = compute_tmb(maf, exome_mb=exome_mb, high_threshold=high_threshold)
     n_high = int((tmb["tmb_bucket"] == "high").sum())
-    click.echo(f"  {len(tmb):,} samples | TMB-high (>= {high_threshold} mut/Mb): "
-               f"{n_high:,} ({n_high / len(tmb):.1%})")
+    click.echo(f"  {len(tmb):,} samples | TMB-high (>= {high_threshold} mut/Mb): {n_high:,} ({n_high / len(tmb):.1%})")
 
     tmb_path = out / "tmb_per_sample.parquet"
     tmb.to_parquet(tmb_path, index=False)

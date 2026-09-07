@@ -28,6 +28,7 @@ Usage:
         --no-upload   # omit to upload to
                       # s3://onc-compbio/data-catalog/derived/cptac-protein-tumor-vs-normal-per-sample-v1/
 """
+
 from __future__ import annotations
 
 import argparse
@@ -45,16 +46,14 @@ _STEPS = Path(__file__).resolve().parent / "steps"
 
 def _load_stage01():
     """Import the stage-01 module (filename starts with '01_', not a normal import name)."""
-    spec = importlib.util.spec_from_file_location(
-        "cptac_stage01", _STEPS / "01_prepare_msstats_input.py")
+    spec = importlib.util.spec_from_file_location("cptac_stage01", _STEPS / "01_prepare_msstats_input.py")
     m = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(m)
     return m
 
 
 def _load_stage00():
-    spec = importlib.util.spec_from_file_location(
-        "cptac_stage00", _STEPS / "00_pull_annotations.py")
+    spec = importlib.util.spec_from_file_location("cptac_stage00", _STEPS / "00_pull_annotations.py")
     m = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(m)
     return m
@@ -83,8 +82,7 @@ def _dedup_replicates(tmt):
     (gene, aliquot) — the honest replicate summarization, matching how MSstatsTMT re-summarizes
     replicate channels in the per-cohort product. Input columns: Gene, aliquot_submitter_id,
     log2_ratio. Returns the same columns with one row per (Gene, aliquot)."""
-    return (tmt.groupby(["Gene", "aliquot_submitter_id"], as_index=False, sort=False)["log2_ratio"]
-               .mean())
+    return tmt.groupby(["Gene", "aliquot_submitter_id"], as_index=False, sort=False)["log2_ratio"].mean()
 
 
 def per_sample_cohort(s01, cohort: str, work_dir: Path, annotations_dir: Path):
@@ -96,8 +94,7 @@ def per_sample_cohort(s01, cohort: str, work_dir: Path, annotations_dir: Path):
 
     pdc_id, _stem = s01.CPTAC_STUDIES[cohort]
     keys = s01.list_proteome_keys(pdc_id)
-    tmt10_key = (s01.find_key(keys, ".tmt10.tsv") or s01.find_key(keys, ".tmt11.tsv")
-                 or s01.find_key(keys, ".itraq.tsv"))
+    tmt10_key = s01.find_key(keys, ".tmt10.tsv") or s01.find_key(keys, ".tmt11.tsv") or s01.find_key(keys, ".itraq.tsv")
     sample_key = s01.find_key(keys, ".sample.txt")
     if not tmt10_key or not sample_key:
         raise FileNotFoundError(f"[{cohort}] missing tmt10.tsv or sample.txt")
@@ -117,10 +114,15 @@ def per_sample_cohort(s01, cohort: str, work_dir: Path, annotations_dir: Path):
 
     sample_map = s01.parse_sample_txt(sample_local)
     sample_map["sample_type"] = sample_map["aliquot_submitter_id"].map(ann_map)
-    sample_map["condition"] = sample_map["sample_type"].map({
-        "Primary Tumor": "Tumor", "Metastatic": "Tumor", "Recurrent Tumor": "Tumor",
-        "Solid Tissue Normal": "Normal", "Blood Derived Normal": "Normal",
-    })
+    sample_map["condition"] = sample_map["sample_type"].map(
+        {
+            "Primary Tumor": "Tumor",
+            "Metastatic": "Tumor",
+            "Recurrent Tumor": "Tumor",
+            "Solid Tissue Normal": "Normal",
+            "Blood Derived Normal": "Normal",
+        }
+    )
     sample_map = sample_map.dropna(subset=["condition"]).copy()
     # An aliquot can appear on MULTIPLE TMT channels/plexes → multiple sample_map rows for one
     # aliquot_submitter_id. The (gene, aliquot) merge below is inner-join, so duplicate sample_map
@@ -131,8 +133,7 @@ def per_sample_cohort(s01, cohort: str, work_dir: Path, annotations_dir: Path):
 
     tmt = pd.read_csv(tmt10_local, sep="\t", low_memory=False)
     tmt = tmt[~tmt["Gene"].isin(["Mean", "Median", "StdDev", "NumRatios"])]
-    log_ratio_cols = [c for c in tmt.columns if c.endswith(" Log Ratio")
-                      and not c.endswith("Unshared Log Ratio")]
+    log_ratio_cols = [c for c in tmt.columns if c.endswith(" Log Ratio") and not c.endswith("Unshared Log Ratio")]
     aliquot_by_col = {c: s01.canonical_aliquot(c) for c in log_ratio_cols}
     valid_aliquots = set(sample_map["aliquot_submitter_id"])
     kept_cols = [c for c in log_ratio_cols if aliquot_by_col[c] in valid_aliquots]
@@ -146,26 +147,28 @@ def per_sample_cohort(s01, cohort: str, work_dir: Path, annotations_dir: Path):
     tmt = _dedup_replicates(tmt)
 
     long = tmt.merge(
-        sample_map[["aliquot_submitter_id", "sample_type", "condition"]],
-        on="aliquot_submitter_id", how="inner")
+        sample_map[["aliquot_submitter_id", "sample_type", "condition"]], on="aliquot_submitter_id", how="inner"
+    )
     long = long.rename(columns={"Gene": "gene_symbol"})
     long["cohort"] = cohort
     long["log2_ratio"] = long["log2_ratio"].astype("float32")
-    out = long[["gene_symbol", "cohort", "aliquot_submitter_id",
-                "sample_type", "condition", "log2_ratio"]]
+    out = long[["gene_symbol", "cohort", "aliquot_submitter_id", "sample_type", "condition", "log2_ratio"]]
     n_t = int((sample_map["condition"] == "Tumor").sum())
     n_n = int((sample_map["condition"] == "Normal").sum())
-    _log(f"  [{cohort}] {len(out):,} rows | {out['gene_symbol'].nunique()} genes | "
-         f"{n_t} tumor + {n_n} normal aliquots")
+    _log(f"  [{cohort}] {len(out):,} rows | {out['gene_symbol'].nunique()} genes | {n_t} tumor + {n_n} normal aliquots")
     return out
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--work-dir", type=Path, required=True)
-    ap.add_argument("--annotations-dir", type=Path, default=None,
-                    help="Dir with <cohort>_aliquot_annotations.tsv (stage 00). "
-                         "Default: <work-dir>/annotations (run stage 00 if absent).")
+    ap.add_argument(
+        "--annotations-dir",
+        type=Path,
+        default=None,
+        help="Dir with <cohort>_aliquot_annotations.tsv (stage 00). "
+        "Default: <work-dir>/annotations (run stage 00 if absent).",
+    )
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--cohorts", default=None, help="Comma-separated subset (default: all 10).")
     ap.add_argument("--row-group-size", type=int, default=16384)
@@ -179,8 +182,7 @@ def main() -> int:
     args.work_dir.mkdir(parents=True, exist_ok=True)
     ann_dir = args.annotations_dir or (args.work_dir / "annotations")
     s01 = _load_stage01()
-    cohorts = ([c.strip().upper() for c in args.cohorts.split(",")]
-               if args.cohorts else list(s01.CPTAC_STUDIES.keys()))
+    cohorts = [c.strip().upper() for c in args.cohorts.split(",")] if args.cohorts else list(s01.CPTAC_STUDIES.keys())
 
     # Stage 00 (PDC annotations) if not already present.
     if not ann_dir.exists() or not any(ann_dir.glob("*_aliquot_annotations.tsv")):
@@ -208,29 +210,42 @@ def main() -> int:
 
     allrows = pd.concat(frames, ignore_index=True)
     allrows = allrows.sort_values(["gene_symbol", "cohort"]).reset_index(drop=True)
-    _log(f"[per-sample] concatenated: {len(allrows):,} rows across {len(frames)} cohorts "
-         f"({time.monotonic()-t0:.0f}s)" + (f" (skipped: {', '.join(skipped)})" if skipped else ""))
+    _log(
+        f"[per-sample] concatenated: {len(allrows):,} rows across {len(frames)} cohorts "
+        f"({time.monotonic() - t0:.0f}s)" + (f" (skipped: {', '.join(skipped)})" if skipped else "")
+    )
 
-    schema = pa.schema([
-        pa.field("gene_symbol", pa.string()), pa.field("cohort", pa.string()),
-        pa.field("aliquot_submitter_id", pa.string()), pa.field("sample_type", pa.string()),
-        pa.field("condition", pa.string()), pa.field("log2_ratio", pa.float32()),
-    ])
+    schema = pa.schema(
+        [
+            pa.field("gene_symbol", pa.string()),
+            pa.field("cohort", pa.string()),
+            pa.field("aliquot_submitter_id", pa.string()),
+            pa.field("sample_type", pa.string()),
+            pa.field("condition", pa.string()),
+            pa.field("log2_ratio", pa.float32()),
+        ]
+    )
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    pq.write_table(pa.Table.from_pandas(allrows, schema=schema, preserve_index=False),
-                   str(args.out), compression="snappy", row_group_size=args.row_group_size)
+    pq.write_table(
+        pa.Table.from_pandas(allrows, schema=schema, preserve_index=False),
+        str(args.out),
+        compression="snappy",
+        row_group_size=args.row_group_size,
+    )
     size_bytes = args.out.stat().st_size
     md5 = _md5_hex(args.out)
-    _log(f"[per-sample] wrote {args.out} ({size_bytes/1e6:.1f} MB) md5={md5}")
-    _log(f"[per-sample] n_rows={len(allrows)} n_genes={allrows['gene_symbol'].nunique()} "
-         f"n_cohorts={allrows['cohort'].nunique()} n_aliquots={allrows['aliquot_submitter_id'].nunique()}")
+    _log(f"[per-sample] wrote {args.out} ({size_bytes / 1e6:.1f} MB) md5={md5}")
+    _log(
+        f"[per-sample] n_rows={len(allrows)} n_genes={allrows['gene_symbol'].nunique()} "
+        f"n_cohorts={allrows['cohort'].nunique()} n_aliquots={allrows['aliquot_submitter_id'].nunique()}"
+    )
 
     if not args.no_upload:
         import boto3
+
         key = f"{OUTPUT_S3_PREFIX}/{args.out.name}"
         _log(f"[per-sample] uploading -> s3://{DEPMAP_S3_BUCKET}/{key}")
-        boto3.client("s3").upload_file(str(args.out), DEPMAP_S3_BUCKET, key,
-                                       ExtraArgs={"Metadata": {"md5": md5}})
+        boto3.client("s3").upload_file(str(args.out), DEPMAP_S3_BUCKET, key, ExtraArgs={"Metadata": {"md5": md5}})
     _log("[per-sample] done.")
     return 0
 

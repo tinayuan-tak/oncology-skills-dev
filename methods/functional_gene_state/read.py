@@ -15,6 +15,7 @@ the bounded live read is cheap enough to ship.
 
 data_unavailable-safe: any arm that cannot read returns a structured absence, never raises.
 """
+
 from __future__ import annotations
 
 import io
@@ -57,24 +58,50 @@ HM450_PROMOTER_S3_URI = s3_uri_for("tcga-sesame-promoter-methylation-v1")
 # framework indication → TCGA project code(s) used in merged_sample_quality_annotations `cancer type`
 # (mirrors gdc_somatic_hotspot's INDICATION_TO_PROJECTS, minus the "TCGA-" prefix which this table omits).
 INDICATION_TO_TCGA = {
-    "COADREAD": ("COAD", "READ"), "COAD": ("COAD",), "READ": ("READ",),
-    "LUAD": ("LUAD",), "LUSC": ("LUSC",), "NSCLC": ("LUAD", "LUSC"),
-    "BRCA": ("BRCA",), "PAAD": ("PAAD",), "PDAC": ("PAAD",),
-    "SKCM": ("SKCM",), "STAD": ("STAD",), "GC": ("STAD",), "PRAD": ("PRAD",), "OV": ("OV",),
-    "KIRC": ("KIRC",), "GBM": ("GBM",), "HNSC": ("HNSC",), "HNSCC": ("HNSC",),
-    "BLCA": ("BLCA",), "LIHC": ("LIHC",), "ESCA": ("ESCA",), "UCEC": ("UCEC",),
+    "COADREAD": ("COAD", "READ"),
+    "COAD": ("COAD",),
+    "READ": ("READ",),
+    "LUAD": ("LUAD",),
+    "LUSC": ("LUSC",),
+    "NSCLC": ("LUAD", "LUSC"),
+    "BRCA": ("BRCA",),
+    "PAAD": ("PAAD",),
+    "PDAC": ("PAAD",),
+    "SKCM": ("SKCM",),
+    "STAD": ("STAD",),
+    "GC": ("STAD",),
+    "PRAD": ("PRAD",),
+    "OV": ("OV",),
+    "KIRC": ("KIRC",),
+    "GBM": ("GBM",),
+    "HNSC": ("HNSC",),
+    "HNSCC": ("HNSC",),
+    "BLCA": ("BLCA",),
+    "LIHC": ("LIHC",),
+    "ESCA": ("ESCA",),
+    "UCEC": ("UCEC",),
 }
 
 # MC3 Variant_Classification values that count as a somatic hit for the gene (non-synonymous).
 _NONSYN = {
-    "Missense_Mutation", "Nonsense_Mutation", "Frame_Shift_Del", "Frame_Shift_Ins",
-    "In_Frame_Del", "In_Frame_Ins", "Splice_Site", "Nonstop_Mutation",
+    "Missense_Mutation",
+    "Nonsense_Mutation",
+    "Frame_Shift_Del",
+    "Frame_Shift_Ins",
+    "In_Frame_Del",
+    "In_Frame_Ins",
+    "Splice_Site",
+    "Nonstop_Mutation",
     "Translation_Start_Site",
 }
 # ...of which these are clear loss-of-function classes (used to break the copy-neutral tie).
 _LOF_CLASSES = {
-    "Nonsense_Mutation", "Frame_Shift_Del", "Frame_Shift_Ins", "Splice_Site",
-    "Nonstop_Mutation", "Translation_Start_Site",
+    "Nonsense_Mutation",
+    "Frame_Shift_Del",
+    "Frame_Shift_Ins",
+    "Splice_Site",
+    "Nonstop_Mutation",
+    "Translation_Start_Site",
 }
 
 # GISTIC discrete thresholded value → cn_class.
@@ -82,12 +109,13 @@ _GISTIC_TO_CLASS = {-2: "homdel", -1: "loss", 0: "neutral", 1: "gain", 2: "gain"
 
 # DepMap relative per-gene CN thresholds (OmicsCNGeneWGS is a ratio, not integer). Conservative:
 # near-zero → homozygous deletion; clearly-below-one → single-copy loss; else neutral/gain.
-_DEPMAP_HOMDEL_MAX = 0.20     # relative CN <= 0.20 → both copies effectively lost
-_DEPMAP_LOSS_MAX = 0.75       # 0.20 < CN <= 0.75 → single-copy loss (hemizygous)
+_DEPMAP_HOMDEL_MAX = 0.20  # relative CN <= 0.20 → both copies effectively lost
+_DEPMAP_LOSS_MAX = 0.75  # 0.20 < CN <= 0.75 → single-copy loss (hemizygous)
 
 
 def _boto3():
     import boto3
+
     return boto3.Session().client("s3")
 
 
@@ -102,15 +130,16 @@ def _s3_read_bytes(key: str) -> bytes:
 def _load_sample_cancer_types() -> dict:
     """{patient_barcode: cancer_type} from merged_sample_quality_annotations. Empty on failure."""
     import pandas as pd
+
     try:
         raw = _s3_read_bytes(SAMPLE_ANNOT_KEY)
-        df = pd.read_csv(io.BytesIO(raw), sep="\t", usecols=["patient_barcode", "cancer type"],
-                         dtype=str)
+        df = pd.read_csv(io.BytesIO(raw), sep="\t", usecols=["patient_barcode", "cancer type"], dtype=str)
         df = df.dropna(subset=["patient_barcode", "cancer type"])
         # one cancer type per patient (they're consistent within patient); last wins is fine.
         return dict(zip(df["patient_barcode"], df["cancer type"]))
     except Exception as e:  # noqa: BLE001
         from methods.target_id_sidecar import is_definitively_absent
+
         if not is_definitively_absent(e):
             raise
         return {}
@@ -128,19 +157,20 @@ def _patient_barcode(tumor_sample_barcode: str) -> str:
 def _read_mc3_gene(target: str):
     """MC3 rows for ONE gene (bounded): [Tumor_Sample_Barcode, Variant_Classification]. DataFrame."""
     import pandas as pd
+
     try:
         raw = _s3_read_bytes(MC3_KEY)
         # gzip MAF; read only the columns we need, then filter to the gene + non-synonymous.
-        cols = ["Hugo_Symbol", "Variant_Classification", "Tumor_Sample_Barcode",
-                "Chromosome", "Start_Position"]
-        df = pd.read_csv(io.BytesIO(raw), sep="\t", compression="gzip", usecols=cols,
-                         dtype=str, low_memory=False, comment=None)
-        g = df[(df["Hugo_Symbol"] == target) &
-               (df["Variant_Classification"].isin(_NONSYN))].copy()
+        cols = ["Hugo_Symbol", "Variant_Classification", "Tumor_Sample_Barcode", "Chromosome", "Start_Position"]
+        df = pd.read_csv(
+            io.BytesIO(raw), sep="\t", compression="gzip", usecols=cols, dtype=str, low_memory=False, comment=None
+        )
+        g = df[(df["Hugo_Symbol"] == target) & (df["Variant_Classification"].isin(_NONSYN))].copy()
         g["Start_Position"] = pd.to_numeric(g["Start_Position"], errors="coerce")
         return g
     except Exception as e:  # noqa: BLE001
         from methods.target_id_sidecar import is_definitively_absent
+
         if not is_definitively_absent(e):
             raise
         return None
@@ -150,16 +180,18 @@ def _read_absolute_segments():
     """ABSOLUTE segtabs (all samples): [Sample, Chromosome, Start, End, LOH, Homozygous_deletion].
     Cached (one 253 MB read per process); the per-mutation lookup is an in-memory filter."""
     import pandas as pd
+
     try:
         raw = _s3_read_bytes(ABS_SEGTABS_KEY)
-        df = pd.read_csv(io.BytesIO(raw), sep="\t",
-                         usecols=["Sample", "Chromosome", "Start", "End", "LOH",
-                                  "Homozygous_deletion"])
+        df = pd.read_csv(
+            io.BytesIO(raw), sep="\t", usecols=["Sample", "Chromosome", "Start", "End", "LOH", "Homozygous_deletion"]
+        )
         for c in ("Chromosome", "Start", "End", "LOH", "Homozygous_deletion"):
             df[c] = pd.to_numeric(df[c], errors="coerce")
         return df
     except Exception as e:  # noqa: BLE001
         from methods.target_id_sidecar import is_definitively_absent
+
         if not is_definitively_absent(e):
             raise
         return None
@@ -173,6 +205,7 @@ def _absolute_segments_cached():
 def _read_gistic_gene(target: str) -> dict:
     """GISTIC per-gene discrete CN for ONE gene: {aliquot_barcode: int_value}. Empty on failure."""
     import pandas as pd
+
     try:
         raw = _s3_read_bytes(GISTIC_KEY)
         df = pd.read_csv(io.BytesIO(raw), sep="\t", low_memory=False)
@@ -181,10 +214,10 @@ def _read_gistic_gene(target: str) -> dict:
             return {}
         meta = {"Gene Symbol", "Locus ID", "Cytoband"}
         vals = row.iloc[0].drop(labels=[c for c in meta if c in row.columns])
-        return {str(k): int(v) for k, v in vals.items()
-                if str(v) not in ("nan", "") and str(v).lstrip("-").isdigit()}
+        return {str(k): int(v) for k, v in vals.items() if str(v) not in ("nan", "") and str(v).lstrip("-").isdigit()}
     except Exception as e:  # noqa: BLE001
         from methods.target_id_sidecar import is_definitively_absent
+
         if not is_definitively_absent(e):
             raise
         return {}
@@ -194,10 +227,10 @@ def _loh_homdel_at_locus(segs, sample: str, chrom: float, pos: float):
     """Point-in-interval lookup: for a mutation at (chrom, pos) in `sample`, return the covering
     ABSOLUTE segment's (loh_bool, homdel_bool). (None, None) if no covering segment."""
     import pandas as pd
+
     if segs is None or chrom is None or pos is None:
         return (None, None)
-    m = segs[(segs["Sample"] == sample) & (segs["Chromosome"] == chrom) &
-             (segs["Start"] <= pos) & (segs["End"] >= pos)]
+    m = segs[(segs["Sample"] == sample) & (segs["Chromosome"] == chrom) & (segs["Start"] <= pos) & (segs["End"] >= pos)]
     if m.empty:
         return (None, None)
     r = m.iloc[0]
@@ -224,10 +257,10 @@ def _read_two_hit_evidence(target: str):
     try:
         import pyarrow.fs as fs
         import pyarrow.parquet as pq
+
         path = TWO_HIT_PRODUCT_S3_URI.replace("s3://", "", 1)
         s3 = fs.S3FileSystem()
-        table = pq.read_table(path, filesystem=s3,
-                              filters=[("gene_symbol", "=", target.upper())])
+        table = pq.read_table(path, filesystem=s3, filters=[("gene_symbol", "=", target.upper())])
         return tuple(table.to_pylist())
     except Exception as e:  # noqa: BLE001
         # Product GENUINELY absent (not built / NoSuchKey → FileNotFoundError or 404) → None so the
@@ -236,13 +269,13 @@ def _read_two_hit_evidence(target: str):
         # it (the live fallback would likely hit the same infra issue, and its own readers now enforce
         # the same discipline, so an honest _live_read_error is correct).
         from methods.target_id_sidecar import is_definitively_absent
+
         if not (isinstance(e, FileNotFoundError) or is_definitively_absent(e)):
             raise
         return None
 
 
-def _reconstruct_patient_arm(target: str, indication: str, cancer_types, ind_patients: set,
-                             rows) -> dict:
+def _reconstruct_patient_arm(target: str, indication: str, cancer_types, ind_patients: set, rows) -> dict:
     """Reconstruct the patient-arm summary from the product's altered rows + the indication's patient
     set (absent row → wt), applying the SAME classifier + methylation upgrade + roll-up as the live
     path. Byte-identical to _read_patient_arm_live for the genetic-state fields."""
@@ -256,14 +289,14 @@ def _reconstruct_patient_arm(target: str, indication: str, cancer_types, ind_pat
     for patient in sorted(ind_patients):
         row = by_patient.get(patient)
         if row is None:
-            ev = SampleEvidence(has_mutation=False, cn_class=None, loh_at_locus=None,
-                                mutation_is_lof=None)
+            ev = SampleEvidence(has_mutation=False, cn_class=None, loh_at_locus=None, mutation_is_lof=None)
         else:
             ev = SampleEvidence(
                 has_mutation=bool(row["has_mutation"]),
-                cn_class=row.get("cn_class"),                 # None or homdel/loss/neutral/gain
-                loh_at_locus=row.get("loh_at_locus"),         # None / True / False
-                mutation_is_lof=row.get("mutation_is_lof"))   # None / True / False
+                cn_class=row.get("cn_class"),  # None or homdel/loss/neutral/gain
+                loh_at_locus=row.get("loh_at_locus"),  # None / True / False
+                mutation_is_lof=row.get("mutation_is_lof"),
+            )  # None / True / False
         genetic_state = classify_functional_state(ev)
 
         is_methylated: Optional[bool] = methylation.get(patient)
@@ -281,14 +314,19 @@ def _reconstruct_patient_arm(target: str, indication: str, cancer_types, ind_pat
     summ = summarize_states(states)
     n_ind = len(ind_patients)
     n_mutated = sum(1 for r in by_patient.values() if r.get("has_mutation"))
-    summ.update({"_arm": "patient", "indication": indication,
-                 "n_mutated": n_mutated,
-                 "fraction_mutated": (n_mutated / n_ind) if n_ind else None,
-                 "tcga_projects": list(cancer_types),
-                 "loh_source": "pancanatlas_absolute_point_in_interval",
-                 "cn_source": "gistic_thresholded_per_gene",
-                 "methylation_source": "pancanatlas_hm450_promoter_v1" if methylation else None,
-                 "_read_path": "two_hit_product_v1"})
+    summ.update(
+        {
+            "_arm": "patient",
+            "indication": indication,
+            "n_mutated": n_mutated,
+            "fraction_mutated": (n_mutated / n_ind) if n_ind else None,
+            "tcga_projects": list(cancer_types),
+            "loh_source": "pancanatlas_absolute_point_in_interval",
+            "cn_source": "gistic_thresholded_per_gene",
+            "methylation_source": "pancanatlas_hm450_promoter_v1" if methylation else None,
+            "_read_path": "two_hit_product_v1",
+        }
+    )
     return summ
 
 
@@ -298,12 +336,14 @@ def _read_patient_arm(target: str, indication: str) -> dict:
     cancer_types = INDICATION_TO_TCGA.get(indication.upper().strip())
     sample_ct = _load_sample_cancer_types()
     if not sample_ct or not cancer_types:
-        return {"_arm": "patient", "state": "data_unavailable",
-                "_note": "no sample→cancer-type map or unmapped indication"}
+        return {
+            "_arm": "patient",
+            "state": "data_unavailable",
+            "_note": "no sample→cancer-type map or unmapped indication",
+        }
     ind_patients = {pb for pb, ct in sample_ct.items() if ct in cancer_types}
     if not ind_patients:
-        return {"_arm": "patient", "state": "data_unavailable",
-                "_note": f"no TCGA samples for indication {indication}"}
+        return {"_arm": "patient", "state": "data_unavailable", "_note": f"no TCGA samples for indication {indication}"}
 
     rows = _read_two_hit_evidence(target)
     if rows is not None:
@@ -312,8 +352,7 @@ def _read_patient_arm(target: str, indication: str) -> dict:
     return _read_patient_arm_live(target, indication, cancer_types, sample_ct, ind_patients)
 
 
-def _read_patient_arm_live(target: str, indication: str, cancer_types, sample_ct,
-                           ind_patients: set) -> dict:
+def _read_patient_arm_live(target: str, indication: str, cancer_types, sample_ct, ind_patients: set) -> dict:
     """The original live full-object read (fallback). Reads one gene's MC3 rows, the cached ABSOLUTE
     segments, and one gene's GISTIC row, then classifies + rolls up."""
     mc3 = _read_mc3_gene(target)
@@ -360,8 +399,7 @@ def _read_patient_arm_live(target: str, indication: str, cancer_types, sample_ct
             for _, mr in rows.iterrows():
                 samp = mr["Tumor_Sample_Barcode"]
                 chrom = _chrom_to_num(mr["Chromosome"])
-                l, h = _loh_homdel_at_locus(segs, _abs_sample_key(samp, segs), chrom,
-                                            mr["Start_Position"])
+                l, h = _loh_homdel_at_locus(segs, _abs_sample_key(samp, segs), chrom, mr["Start_Position"])
                 if h:
                     homdel_any = True
                 if l is True:
@@ -372,8 +410,7 @@ def _read_patient_arm_live(target: str, indication: str, cancer_types, sample_ct
                 cn_class = "homdel"
             loh = loh_any
 
-        ev = SampleEvidence(has_mutation=has_mut, cn_class=cn_class,
-                            loh_at_locus=loh, mutation_is_lof=mut_is_lof)
+        ev = SampleEvidence(has_mutation=has_mut, cn_class=cn_class, loh_at_locus=loh, mutation_is_lof=mut_is_lof)
         genetic_state = classify_functional_state(ev)
 
         # Methylation upgrade: same rules as model side.
@@ -397,14 +434,19 @@ def _read_patient_arm_live(target: str, indication: str, cancer_types, sample_ct
     # the raw mutation prevalence so a consumer can match on mutation presence for GoF targets.
     n_ind = len(ind_patients)
     n_mutated = len(mutated_patients & ind_patients)
-    summ.update({"_arm": "patient", "indication": indication,
-                 "n_mutated": n_mutated,
-                 "fraction_mutated": (n_mutated / n_ind) if n_ind else None,
-                 "tcga_projects": list(cancer_types),
-                 "loh_source": "pancanatlas_absolute_point_in_interval",
-                 "cn_source": "gistic_thresholded_per_gene",
-                 "methylation_source": "pancanatlas_hm450_promoter_v1" if methylation else None,
-                 "_read_path": "live_full_object"})
+    summ.update(
+        {
+            "_arm": "patient",
+            "indication": indication,
+            "n_mutated": n_mutated,
+            "fraction_mutated": (n_mutated / n_ind) if n_ind else None,
+            "tcga_projects": list(cancer_types),
+            "loh_source": "pancanatlas_absolute_point_in_interval",
+            "cn_source": "gistic_thresholded_per_gene",
+            "methylation_source": "pancanatlas_hm450_promoter_v1" if methylation else None,
+            "_read_path": "live_full_object",
+        }
+    )
     return summ
 
 
@@ -445,6 +487,7 @@ def _load_ccle_colname_to_model_id() -> dict:
     biallelic/epigenetic. Returns empty dict on GENUINE absence (data_unavailable-safe).
     """
     import pandas as pd
+
     try:
         raw = _s3_read_bytes(DEPMAP_MODEL_KEY)
         hdr = pd.read_csv(io.BytesIO(raw), nrows=0)
@@ -470,6 +513,7 @@ def _load_ccle_colname_to_model_id() -> dict:
         # transient/creds/broken-env error must NOT be masked as an empty bridge (would silently
         # unmap every cell line) — re-raise (lru_cache never memoizes the raise, so it is retried).
         from methods.target_id_sidecar import is_definitively_absent
+
         if not is_definitively_absent(e):
             raise
         return {}
@@ -493,16 +537,17 @@ def _read_model_methylation_product(target: str):
     try:
         import pyarrow.fs as fs
         import pyarrow.parquet as pq
+
         path = uri.replace("s3://", "", 1)
         s3 = fs.S3FileSystem()
-        df = pq.read_table(path, filesystem=s3,
-                           filters=[("gene_symbol", "==", target.upper())]).to_pandas()
+        df = pq.read_table(path, filesystem=s3, filters=[("gene_symbol", "==", target.upper())]).to_pandas()
         return {str(r.model_id): bool(r.is_methylated) for r in df.itertuples(index=False)}
     except Exception as e:  # noqa: BLE001
         from methods.target_id_sidecar import is_definitively_absent
+
         if not (isinstance(e, FileNotFoundError) or is_definitively_absent(e)):
             raise
-        return None   # product object genuinely absent → live gzip fallback
+        return None  # product object genuinely absent → live gzip fallback
 
 
 @lru_cache(maxsize=64)
@@ -552,6 +597,7 @@ def _read_model_methylation(target: str) -> dict:
         # Genuine 404/NoSuchKey → honest empty (no RRBS methylation for this target). A transient/
         # creds/broken-env error must NOT be masked as "no methylation" — re-raise it.
         from methods.target_id_sidecar import is_definitively_absent
+
         if not is_definitively_absent(e):
             raise
         return {}
@@ -575,8 +621,7 @@ def _read_model_methylation(target: str) -> dict:
         # (the correct bridge — mirrors depmap_demeter_distribution), then fall back to the stripped
         # alnum name (col.split('_')[0]) against StrippedCellLineName. The prior code used ONLY the
         # split-fragment against the punctuated display name, which never matched punctuated lines.
-        model_id = (col_to_model.get(col.upper())
-                    or col_to_model.get(col.split("_")[0].upper()))
+        model_id = col_to_model.get(col.upper()) or col_to_model.get(col.split("_")[0].upper())
         if model_id:
             out[model_id] = bool(val > _RRBS_METH_THRESHOLD)
     return out
@@ -603,18 +648,18 @@ def _read_patient_methylation(target: str, indication: str) -> dict:
         # is_promoter_methylated-notna filter + the same {patient_barcode: bool} projection as before.
         import pyarrow.fs as fs
         import pyarrow.parquet as pq
+
         path = HM450_PROMOTER_S3_URI.replace("s3://", "", 1)
         s3 = fs.S3FileSystem()
-        df = pq.read_table(path, filesystem=s3,
-                           filters=[("gene_symbol", "==", target.upper())]).to_pandas()
+        df = pq.read_table(path, filesystem=s3, filters=[("gene_symbol", "==", target.upper())]).to_pandas()
         sub = df[df["is_promoter_methylated"].notna()]
-        return {str(row.patient_barcode): bool(row.is_promoter_methylated)
-                for row in sub.itertuples(index=False)}
+        return {str(row.patient_barcode): bool(row.is_promoter_methylated) for row in sub.itertuples(index=False)}
     except Exception as e:  # noqa: BLE001
         # HM450 product genuinely absent (not yet landed → NoSuchKey/404 → FileNotFoundError) → honest {}
         # so the patient arm degrades to genetic-only. A transient/creds/broken-env error must NOT be
         # masked as "no methylation" (would silently drop epigenetic upgrades) — re-raise it.
         from methods.target_id_sidecar import is_definitively_absent
+
         if not (isinstance(e, FileNotFoundError) or is_definitively_absent(e)):
             raise
         return {}
@@ -639,6 +684,7 @@ def _read_depmap_matrix_column(matrix_filename: str, target: str):
         return None
     try:
         from methods.depmap_common import parquet as _dp
+
         df = _dp.get_matrix_column_by_model_id(parquet_name, target)
         return df  # None if the gene is absent from the matrix (a real "no data" answer)
     except Exception as e:  # noqa: BLE001
@@ -647,6 +693,7 @@ def _read_depmap_matrix_column(matrix_filename: str, target: str):
         # creds/broken-env error must NOT masquerade as "product unreachable" — re-raise it (the CSV
         # fallback reads the same backend and its own reader now enforces the same discipline).
         from methods.target_id_sidecar import is_definitively_absent
+
         if not (isinstance(e, FileNotFoundError) or is_definitively_absent(e)):
             raise
         return None  # product genuinely absent → live CSV fallback
@@ -657,6 +704,7 @@ def _read_depmap_mut_matrix(matrix_filename: str, target: str) -> dict:
     Prefers the parquet product (column projection); falls back to the raw CSV full-object read.
     Columns are 'SYMBOL (entrez)'; the raw CSV's first 5 cols are ID metadata."""
     import pandas as pd
+
     # fast path: parquet column projection
     pq_df = _read_depmap_matrix_column(matrix_filename, target)
     if pq_df is not None:
@@ -669,14 +717,14 @@ def _read_depmap_mut_matrix(matrix_filename: str, target: str) -> dict:
     try:
         raw = _s3_read_bytes(key)
         hdr = pd.read_csv(io.BytesIO(raw), nrows=0)
-        gene_col = next((c for c in hdr.columns
-                         if c == target or c.split(" (")[0] == target), None)
+        gene_col = next((c for c in hdr.columns if c == target or c.split(" (")[0] == target), None)
         if gene_col is None:
             return {}
         df = pd.read_csv(io.BytesIO(raw), usecols=["ModelID", gene_col])
         return {str(m): bool(v) for m, v in zip(df["ModelID"], df[gene_col]) if pd.notna(v)}
     except Exception as e:  # noqa: BLE001
         from methods.target_id_sidecar import is_definitively_absent
+
         if not is_definitively_absent(e):
             raise
         return {}
@@ -686,6 +734,7 @@ def _read_depmap_cn(target: str) -> dict:
     """{ModelID: relative_cn} for `target` from OmicsCNGeneWGS. Empty on failure.
     Prefers the parquet product (column projection); falls back to the raw CSV full-object read."""
     import pandas as pd
+
     pq_df = _read_depmap_matrix_column("OmicsCNGeneWGS.csv", target)
     if pq_df is not None:
         gene_col = next((c for c in pq_df.columns if c != "ModelID"), None)
@@ -696,14 +745,14 @@ def _read_depmap_cn(target: str) -> dict:
     try:
         raw = _s3_read_bytes(key)
         hdr = pd.read_csv(io.BytesIO(raw), nrows=0)
-        gene_col = next((c for c in hdr.columns
-                         if c == target or c.split(" (")[0] == target), None)
+        gene_col = next((c for c in hdr.columns if c == target or c.split(" (")[0] == target), None)
         if gene_col is None:
             return {}
         df = pd.read_csv(io.BytesIO(raw), usecols=["ModelID", gene_col])
         return {str(m): float(v) for m, v in zip(df["ModelID"], df[gene_col]) if pd.notna(v)}
     except Exception as e:  # noqa: BLE001
         from methods.target_id_sidecar import is_definitively_absent
+
         if not is_definitively_absent(e):
             raise
         return {}
@@ -747,8 +796,7 @@ def read_model_states_per_model(target: str) -> dict:
         cn_class = _depmap_cn_class(cn.get(m))
         is_methylated: Optional[bool] = methylation.get(m)  # None if not in RRBS
 
-        ev = SampleEvidence(has_mutation=has_mut, cn_class=cn_class,
-                            loh_at_locus=None, mutation_is_lof=mut_is_lof)
+        ev = SampleEvidence(has_mutation=has_mut, cn_class=cn_class, loh_at_locus=None, mutation_is_lof=mut_is_lof)
         genetic_state = classify_functional_state(ev)
 
         # Methylation upgrade: epigenetic silencing as a second-hit modality.
@@ -760,9 +808,13 @@ def read_model_states_per_model(target: str) -> dict:
         else:
             state = genetic_state
 
-        out[m] = {"state": state, "cn_class": cn_class,
-                  "has_mutation": has_mut, "mutation_is_lof": mut_is_lof,
-                  "is_methylated": is_methylated}
+        out[m] = {
+            "state": state,
+            "cn_class": cn_class,
+            "has_mutation": has_mut,
+            "mutation_is_lof": mut_is_lof,
+            "is_methylated": is_methylated,
+        }
     return out
 
 
@@ -772,13 +824,17 @@ def _read_model_arm(target: str) -> dict:
     → copy-neutral mutations resolve `uncertain` rather than a false biallelic (documented caveat)."""
     per_model = read_model_states_per_model(target)
     if not per_model:
-        return {"_arm": "model", "state": "data_unavailable",
-                "_note": "target absent from DepMap mutation matrices + CN"}
+        return {
+            "_arm": "model",
+            "state": "data_unavailable",
+            "_note": "target absent from DepMap mutation matrices + CN",
+        }
     # sorted() preserves the former iteration order → byte-identical summary to the pre-refactor arm.
     states = [per_model[m]["state"] for m in sorted(per_model)]
     summ = summarize_states(states)
-    summ.update({"_arm": "model", "cn_source": "depmap_omicscngenewgs_relative",
-                 "loh_note": "genome_wide_only_not_per_gene"})
+    summ.update(
+        {"_arm": "model", "cn_source": "depmap_omicscngenewgs_relative", "loh_note": "genome_wide_only_not_per_gene"}
+    )
     return summ
 
 
@@ -799,6 +855,7 @@ def read_functional_gene_state(target: str, indication: str) -> dict:
     # network waits — folding the card's wall clock from patient+model to ~max(patient, model). Result is
     # byte-identical: each arm returns its own summary dict, assigned to the same names as the serial path.
     from concurrent.futures import ThreadPoolExecutor
+
     with ThreadPoolExecutor(max_workers=2) as ex:
         f_patient = ex.submit(_read_patient_arm, sym, indication)
         f_model = ex.submit(_read_model_arm, sym)

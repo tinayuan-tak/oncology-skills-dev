@@ -21,6 +21,7 @@ BioGRID physical-interaction detail is a documented v2 enrichment (180MB tab3, n
 Runtime: STRING info map is lru-cached (small); the 83MB links file is STREAM-FILTERED for the target's
 ENSP edges only (not fully loaded); CORUM maps lru-cached. License: STRING CC-BY-4.0; CORUM CC-BY-NC-4.0.
 """
+
 from __future__ import annotations
 
 import gzip
@@ -30,7 +31,7 @@ from typing import Optional
 
 from methods.catalog_query.read import bucket_key_for, bucket_prefix_for, sidecar_bucket_key_for
 
-METHOD_VERSION = "1.1.0"   # + BioGRID experimental-physical leg
+METHOD_VERSION = "1.1.0"  # + BioGRID experimental-physical leg
 DEFAULT_AWS_PROFILE = "cbg"
 S3_BUCKET = "onc-compbio"
 STRING_MANIFEST_ID = "string-v12-human-snapshot-2026-06-30"
@@ -50,7 +51,7 @@ CORUM_COMPLETE_KEY = f"{_CORUM_PREFIX}/corum_complete.txt"
 _UNIPROT_SIDECAR_SOURCE_MANIFEST_ID = "reactome-v96"
 _, UNIPROT_SIDECAR_KEY = sidecar_bucket_key_for(_UNIPROT_SIDECAR_SOURCE_MANIFEST_ID)
 
-STRING_HIGH_CONFIDENCE = 700   # STRING's canonical "high confidence" combined_score cutoff (0-999)
+STRING_HIGH_CONFIDENCE = 700  # STRING's canonical "high confidence" combined_score cutoff (0-999)
 
 # Gene-sorted derived product (perf): pre-resolved symbol-keyed high-confidence edges,
 # physically sorted by gene_symbol so a pushdown read fetches one gene's row-group(s) instead of
@@ -62,7 +63,7 @@ _, STRING_HC_PRODUCT_KEY = bucket_key_for(STRING_HC_PRODUCT_MANIFEST_ID)
 # with per-pair distinct-publication counts. The complement to STRING's functional score — direct
 # experimental physical evidence, ranked by literature depth. Symbol-keyed pushdown on gene_symbol.
 _, BIOGRID_PHYSICAL_PRODUCT_KEY = bucket_key_for(BIOGRID_MANIFEST_ID)
-BIOGRID_HUB_DEGREE = 50   # >= this many physical partners → physical hub (mirrors STRING's hub cut)
+BIOGRID_HUB_DEGREE = 50  # >= this many physical partners → physical hub (mirrors STRING's hub cut)
 
 
 from methods.target_id_sidecar import s3_client as _boto3_client, ensure_aws_profile
@@ -102,21 +103,27 @@ def _string_edges_from_product(symbol: str, product_path: Optional[str] = None) 
     row-group(s) — dropping the ~6.6s full-links stream to sub-second. Output is byte-identical to the
     stream path's (same partners, same scores)."""
     import pyarrow.parquet as pq
+
     try:
         if product_path is not None:
-            tbl = pq.read_table(product_path, filters=[("gene_symbol", "==", symbol)],
-                                columns=["partner_symbol", "combined_score"])
+            tbl = pq.read_table(
+                product_path, filters=[("gene_symbol", "==", symbol)], columns=["partner_symbol", "combined_score"]
+            )
         else:
             import pyarrow.fs as fs
-            tbl = pq.read_table(f"{S3_BUCKET}/{STRING_HC_PRODUCT_KEY}",
-                                filesystem=fs.S3FileSystem(region="us-east-1"),
-                                filters=[("gene_symbol", "==", symbol)],
-                                columns=["partner_symbol", "combined_score"])
+
+            tbl = pq.read_table(
+                f"{S3_BUCKET}/{STRING_HC_PRODUCT_KEY}",
+                filesystem=fs.S3FileSystem(region="us-east-1"),
+                filters=[("gene_symbol", "==", symbol)],
+                columns=["partner_symbol", "combined_score"],
+            )
     except Exception:  # absence-discipline: exempt -- product missing/unreadable → benign fallback to the STRING full-links stream path (byte-identical output), not a dead axis
         return None
     d = tbl.to_pandas()
-    return [{"partner": p, "combined_score": int(s)}
-            for p, s in zip(d["partner_symbol"].values, d["combined_score"].values)]
+    return [
+        {"partner": p, "combined_score": int(s)} for p, s in zip(d["partner_symbol"].values, d["combined_score"].values)
+    ]
 
 
 def _biogrid_physical_for(symbol: str, product_path: Optional[str] = None) -> Optional[list]:
@@ -124,18 +131,26 @@ def _biogrid_physical_for(symbol: str, product_path: Optional[str] = None) -> Op
     [{"partner", "n_publications", "n_experiments"}] ranked by publication evidence, or None if the
     product is unavailable (the BioGRID leg is then simply absent — the other legs still report)."""
     import pyarrow.parquet as pq
+
     try:
         if product_path is not None:
-            tbl = pq.read_table(product_path, filters=[("gene_symbol", "==", symbol)],
-                                columns=["partner_symbol", "n_publications", "n_experiments"])
+            tbl = pq.read_table(
+                product_path,
+                filters=[("gene_symbol", "==", symbol)],
+                columns=["partner_symbol", "n_publications", "n_experiments"],
+            )
         else:
             import pyarrow.fs as fs
-            tbl = pq.read_table(f"{S3_BUCKET}/{BIOGRID_PHYSICAL_PRODUCT_KEY}",
-                                filesystem=fs.S3FileSystem(region="us-east-1"),
-                                filters=[("gene_symbol", "==", symbol)],
-                                columns=["partner_symbol", "n_publications", "n_experiments"])
+
+            tbl = pq.read_table(
+                f"{S3_BUCKET}/{BIOGRID_PHYSICAL_PRODUCT_KEY}",
+                filesystem=fs.S3FileSystem(region="us-east-1"),
+                filters=[("gene_symbol", "==", symbol)],
+                columns=["partner_symbol", "n_publications", "n_experiments"],
+            )
     except Exception as e:  # noqa: BLE001
         from methods.target_id_sidecar import is_definitively_absent
+
         # GENUINE absence (NoSuchKey/404 or pyarrow FileNotFoundError on a missing local/S3 object)
         # -> None -> the BioGRID leg is simply absent (the other PPI legs still report). A transient/
         # creds/broken-env failure is NOT absence -> re-raise so the live-read seam surfaces an honest
@@ -144,9 +159,10 @@ def _biogrid_physical_for(symbol: str, product_path: Optional[str] = None) -> Op
             raise
         return None
     d = tbl.to_pandas()
-    out = [{"partner": p, "n_publications": int(npub), "n_experiments": int(nexp)}
-           for p, npub, nexp in zip(d["partner_symbol"].values, d["n_publications"].values,
-                                    d["n_experiments"].values)]
+    out = [
+        {"partner": p, "n_publications": int(npub), "n_experiments": int(nexp)}
+        for p, npub, nexp in zip(d["partner_symbol"].values, d["n_publications"].values, d["n_experiments"].values)
+    ]
     out.sort(key=lambda e: (-e["n_publications"], -e["n_experiments"]))
     return out
 
@@ -219,16 +235,27 @@ def _load_uniprot_sidecar(sidecar_path: Optional[str] = None) -> dict:
     silently fail every CORUM lookup); the caller's CORUM block records a non-fatal note on failure so
     the STRING + BioGRID signals are unaffected."""
     from methods.target_id_sidecar import read_resolver_sidecar_map
+
     ensure_aws_profile()
     return read_resolver_sidecar_map(
-        S3_BUCKET, UNIPROT_SIDECAR_KEY, "hgnc_primary_symbol_at_resolution", "uniprot_canonical",
-        local_path=sidecar_path)
+        S3_BUCKET,
+        UNIPROT_SIDECAR_KEY,
+        "hgnc_primary_symbol_at_resolution",
+        "uniprot_canonical",
+        local_path=sidecar_path,
+    )
 
 
-def read_target_summary(target: str, indication: str = None,
-                        info_path: Optional[str] = None, links_path: Optional[str] = None,
-                        corum_uniprot_path: Optional[str] = None, corum_complete_path: Optional[str] = None,
-                        sidecar_path: Optional[str] = None, biogrid_path: Optional[str] = None) -> dict:
+def read_target_summary(
+    target: str,
+    indication: str = None,
+    info_path: Optional[str] = None,
+    links_path: Optional[str] = None,
+    corum_uniprot_path: Optional[str] = None,
+    corum_complete_path: Optional[str] = None,
+    sidecar_path: Optional[str] = None,
+    biogrid_path: Optional[str] = None,
+) -> dict:
     """Per-target PPI summary — THREE distinct signals (multi_provider_policy surface_discordance:
     reported alongside, never merged): STRING functional network + CORUM complex membership +
     BioGRID experimental-PHYSICAL interactions. `indication` unused (interactome is target-intrinsic)."""
@@ -239,7 +266,7 @@ def read_target_summary(target: str, indication: str = None,
     # no info-map load, no 83MB stream. Falls back to the legacy info-map + links-stream path ONLY when
     # the product is unavailable OR a links_path override is passed (test fixtures). Output identical.
     n_hc, top_interactors = 0, []
-    string_id = None   # provenance (ENSP) only set on the legacy stream path; None on the product path
+    string_id = None  # provenance (ENSP) only set on the legacy stream path; None on the product path
     product_edges = None if links_path is not None else _string_edges_from_product(sym)
     string_resolved = product_edges is not None  # product covers the STRING side even if this gene has 0 edges
     if product_edges is not None:
@@ -256,8 +283,7 @@ def read_target_summary(target: str, indication: str = None,
                 edges = _string_edges_for(string_id, links_path)
                 edges.sort(key=lambda e: -e[1])
                 n_hc = len(edges)
-                top_interactors = [{"partner": id_to_sym.get(pid, pid), "combined_score": s}
-                                   for pid, s in edges[:15]]
+                top_interactors = [{"partner": id_to_sym.get(pid, pid), "combined_score": s} for pid, s in edges[:15]]
         except Exception:  # noqa: BLE001
             string_resolved = False
 
@@ -280,8 +306,8 @@ def read_target_summary(target: str, indication: str = None,
     # --- BioGRID experimental-physical interactions (a THIRD, distinct signal) ---
     n_physical, top_physical = 0, []
     biogrid_edges = _biogrid_physical_for(sym, biogrid_path)
-    biogrid_product_readable = biogrid_edges is not None   # product reachable this run
-    biogrid_has_edges = bool(biogrid_edges)                # gene actually has >=1 physical partner
+    biogrid_product_readable = biogrid_edges is not None  # product reachable this run
+    biogrid_has_edges = bool(biogrid_edges)  # gene actually has >=1 physical partner
     if biogrid_edges:
         n_physical = len(biogrid_edges)
         top_physical = biogrid_edges[:15]
@@ -311,22 +337,22 @@ def read_target_summary(target: str, indication: str = None,
     elif n_physical >= 1:
         physical_interactome_class = "physically_sparse"
     elif biogrid_product_readable:
-        physical_interactome_class = "no_physical_interactors"   # product read, gene has 0 physical edges
+        physical_interactome_class = "no_physical_interactors"  # product read, gene has 0 physical edges
     else:
-        physical_interactome_class = "data_unavailable"          # product unreachable this run
+        physical_interactome_class = "data_unavailable"  # product unreachable this run
 
     return {
-        "interactome_class": interactome_class,            # PRIMARY (STRING functional degree)
-        "n_high_confidence_interactors": n_hc,             # STRING combined_score >= 700
-        "top_interactors": top_interactors,                # [{partner, combined_score}]
+        "interactome_class": interactome_class,  # PRIMARY (STRING functional degree)
+        "n_high_confidence_interactors": n_hc,  # STRING combined_score >= 700
+        "top_interactors": top_interactors,  # [{partner, combined_score}]
         "n_corum_complexes": len(complexes),
-        "corum_complexes": complexes[:15],                 # [{corum_id, complex_name}]
+        "corum_complexes": complexes[:15],  # [{corum_id, complex_name}]
         "in_protein_complex": len(complexes) > 0,
         **({"corum_note": corum_note} if corum_note else {}),  # honest degradation flag (non-silent)
         # BioGRID experimental-PHYSICAL leg (distinct signal; direct evidence + literature depth)
         "physical_interactome_class": physical_interactome_class,
-        "n_physical_interactors": n_physical,              # BioGRID distinct physical partners
-        "top_physical_partners": top_physical,             # [{partner, n_publications, n_experiments}]
+        "n_physical_interactors": n_physical,  # BioGRID distinct physical partners
+        "top_physical_partners": top_physical,  # [{partner, n_publications, n_experiments}]
         "string_protein_id": string_id,
         "method_version": METHOD_VERSION,
         "_data_source": f"{STRING_MANIFEST_ID}+{CORUM_MANIFEST_ID}+{BIOGRID_MANIFEST_ID}",
@@ -336,10 +362,16 @@ def read_target_summary(target: str, indication: str = None,
 def _empty(note: str) -> dict:
     return {
         "interactome_class": "data_unavailable",
-        "n_high_confidence_interactors": 0, "top_interactors": [],
-        "n_corum_complexes": 0, "corum_complexes": [], "in_protein_complex": False,
+        "n_high_confidence_interactors": 0,
+        "top_interactors": [],
+        "n_corum_complexes": 0,
+        "corum_complexes": [],
+        "in_protein_complex": False,
         "physical_interactome_class": "data_unavailable",
-        "n_physical_interactors": 0, "top_physical_partners": [],
-        "string_protein_id": None, "method_version": METHOD_VERSION,
-        "_data_source": f"{STRING_MANIFEST_ID}+{CORUM_MANIFEST_ID}+{BIOGRID_MANIFEST_ID}", "_data_note": note,
+        "n_physical_interactors": 0,
+        "top_physical_partners": [],
+        "string_protein_id": None,
+        "method_version": METHOD_VERSION,
+        "_data_source": f"{STRING_MANIFEST_ID}+{CORUM_MANIFEST_ID}+{BIOGRID_MANIFEST_ID}",
+        "_data_note": note,
     }

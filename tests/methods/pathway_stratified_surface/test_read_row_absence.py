@@ -2,6 +2,7 @@
 (-> None -> not_in_product coverage gap, unchanged) from a transient/broken-env failure (-> re-raise
 -> _live_read_error).
 """
+
 from __future__ import annotations
 
 import sys
@@ -26,6 +27,7 @@ def _nosuchkey():
 def _raise(exc):
     def f(*a, **k):
         raise exc
+
     return f
 
 

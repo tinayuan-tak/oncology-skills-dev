@@ -9,6 +9,7 @@ SINGLE partner appearing co-occurring in one cancer and mutually-exclusive in an
     requires TWO DISTINCT partners.
 Tests monkeypatch `_read_target_rows` — no S3.
 """
+
 from __future__ import annotations
 
 import importlib
@@ -62,7 +63,7 @@ def test_same_partner_opposite_signs_two_cohorts_not_both_patterns(monkeypatch):
 def test_two_distinct_partners_do_yield_both_patterns(monkeypatch):
     """Legitimate both_patterns_present: DIFFERENT partners drive cooc vs mutex in-scope."""
     rows = [
-        _row("APC", "Colorectal Cancer", "genie_v19", log2_or=1.6, bh_q=1e-40),   # co-occurring
+        _row("APC", "Colorectal Cancer", "genie_v19", log2_or=1.6, bh_q=1e-40),  # co-occurring
         _row("BRAF", "Colorectal Cancer", "genie_v19", log2_or=-3.0, bh_q=1e-40),  # mutually exclusive
     ]
     _patch(monkeypatch, rows)
@@ -74,7 +75,7 @@ def test_two_distinct_partners_do_yield_both_patterns(monkeypatch):
 def test_out_of_scope_cohorts_excluded_from_verdict(monkeypatch):
     """A strong mutex partner living ONLY in an out-of-indication cohort must not leak in."""
     rows = [
-        _row("APC", "Colorectal Cancer", "genie_v19", log2_or=1.6, bh_q=1e-40),      # in COADREAD
+        _row("APC", "Colorectal Cancer", "genie_v19", log2_or=1.6, bh_q=1e-40),  # in COADREAD
         _row("EGFR", "Non-Small Cell Lung Cancer", "genie_v19", log2_or=-3.0, bh_q=1e-40),  # NSCLC only
     ]
     _patch(monkeypatch, rows)
@@ -141,10 +142,13 @@ def test_tcga_wes_only_passenger_demoted_to_ns(monkeypatch):
     significant pair — is a large/passenger gene whose per-source co-occurrence is a TMB/gene-length
     artifact (live: PCLO/COADREAD read strong_cooccurring off 3961 tcga_mc3-only pairs). The verdict is
     demoted to `ns`; the raw call is preserved in cooccurrence_class_prefloor."""
-    _patch(monkeypatch, [
-        _row("DNAH5", "Colorectal Cancer", "tcga_mc3", log2_or=2.9, bh_q=1e-190, pooled_eligible=False),
-        _row("LRP1B", "Colorectal Cancer", "tcga_mc3", log2_or=2.7, bh_q=1e-180, pooled_eligible=False),
-    ])
+    _patch(
+        monkeypatch,
+        [
+            _row("DNAH5", "Colorectal Cancer", "tcga_mc3", log2_or=2.9, bh_q=1e-190, pooled_eligible=False),
+            _row("LRP1B", "Colorectal Cancer", "tcga_mc3", log2_or=2.7, bh_q=1e-180, pooled_eligible=False),
+        ],
+    )
     d = r.read_target_summary("PCLO", "COADREAD")
     assert d["cooccurrence_class"] == "ns", "TCGA-WES-only passenger must be demoted"
     assert d["cooccurrence_class_prefloor"] == "strong_cooccurring", "prefloor audit must keep the raw call"
@@ -155,10 +159,13 @@ def test_off_intersect_but_genie_present_driver_not_demoted(monkeypatch):
     """A real driver OFF the restrictive 166-gene panel-intersect (pooled_eligible=False) but sequenced
     on GENIE panels (a GENIE-source significant pair) — e.g. KEAP1/LUAD — must NOT be demoted: GENIE
     presence, not panel-INTERSECT membership, is the gate. Class == prefloor (byte-identical)."""
-    _patch(monkeypatch, [
-        _row("STK11", "Colorectal Cancer", "genie_v19", log2_or=1.8, bh_q=1e-40, pooled_eligible=False),
-        _row("EGFR", "Colorectal Cancer", "genie_v19", log2_or=-2.8, bh_q=1e-40, pooled_eligible=False),
-    ])
+    _patch(
+        monkeypatch,
+        [
+            _row("STK11", "Colorectal Cancer", "genie_v19", log2_or=1.8, bh_q=1e-40, pooled_eligible=False),
+            _row("EGFR", "Colorectal Cancer", "genie_v19", log2_or=-2.8, bh_q=1e-40, pooled_eligible=False),
+        ],
+    )
     d = r.read_target_summary("KEAP1", "COADREAD")
     assert d["cooccurrence_class"] == "both_patterns_present", "GENIE-present off-intersect driver must be spared"
     assert d["cooccurrence_class_prefloor"] == d["cooccurrence_class"]
@@ -166,10 +173,13 @@ def test_off_intersect_but_genie_present_driver_not_demoted(monkeypatch):
 
 def test_panel_eligible_target_byte_identical_prefloor(monkeypatch):
     """A panel-eligible target (pooled_eligible=True) is untouched by the floor: class == prefloor."""
-    _patch(monkeypatch, [
-        _row("APC", "Colorectal Cancer", "genie_v19", log2_or=1.6, bh_q=1e-40, pooled_eligible=True),
-        _row("BRAF", "Colorectal Cancer", "genie_v19", log2_or=-3.0, bh_q=1e-40, pooled_eligible=True),
-    ])
+    _patch(
+        monkeypatch,
+        [
+            _row("APC", "Colorectal Cancer", "genie_v19", log2_or=1.6, bh_q=1e-40, pooled_eligible=True),
+            _row("BRAF", "Colorectal Cancer", "genie_v19", log2_or=-3.0, bh_q=1e-40, pooled_eligible=True),
+        ],
+    )
     d = r.read_target_summary("KRAS", "COADREAD")
     assert d["cooccurrence_class"] == "both_patterns_present"
     assert d["cooccurrence_class_prefloor"] == "both_patterns_present"

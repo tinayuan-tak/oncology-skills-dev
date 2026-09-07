@@ -7,6 +7,7 @@ and records evidence_scope + lineage_context_divergent + the pan audit class.
 
 Pure-dict (no S3): synthetic chronos + hotspot/damaging + model_metadata (OncotreeLineage).
 """
+
 from __future__ import annotations
 
 import sys
@@ -31,11 +32,11 @@ IND = "COADREAD"
 LIN = "Bowel"
 
 
-def _build(n_lin_mut, n_lin_wt, n_off_mut, n_off_wt,
-           lin_mut_chr, lin_wt_chr, off_mut_chr, off_wt_chr):
+def _build(n_lin_mut, n_lin_wt, n_off_mut, n_off_wt, lin_mut_chr, lin_wt_chr, off_mut_chr, off_wt_chr):
     """Build chronos/hotspot/damaging/metadata dicts across an in-lineage (Bowel) group and an
     off-lineage (Skin) group, each split mut/WT. Mutants are hotspot-mutant."""
     import random
+
     rng = random.Random(0)
     chronos, hot, dam, meta = {}, {}, {}, {}
     i = 0
@@ -86,8 +87,7 @@ def test_within_indication_mut_vs_pan_wt_when_wt_underpowered():
     chronos, hot, dam, meta = _build(8, 10, 5, 300, -1.3, -0.05, -0.05, -0.02)
     cc = CC(chronos, hot, dam, model_metadata=meta, indication=IND)
     assert cc["evidence_scope"] == "within_indication_mut_vs_pan_wt"
-    assert cc["mutation_stratification_class"] in (
-        "mutant_strongly_dependent", "mutant_moderately_dependent")
+    assert cc["mutation_stratification_class"] in ("mutant_strongly_dependent", "mutant_moderately_dependent")
 
 
 def test_pan_fallback_caps_strong_to_moderate_when_lineage_mut_underpowered():
@@ -126,7 +126,9 @@ def test_divergent_true_on_opposing_directions():
     assert cc["evidence_scope"] == "within_indication"
     assert cc["mutation_stratification_class"] == "wt_strongly_dependent"
     assert cc["pan_lineage_mutation_stratification_class"] in (
-        "mutant_strongly_dependent", "mutant_moderately_dependent")
+        "mutant_strongly_dependent",
+        "mutant_moderately_dependent",
+    )
     assert cc["lineage_context_divergent"] is True
 
 

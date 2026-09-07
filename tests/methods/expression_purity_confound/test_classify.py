@@ -1,4 +1,5 @@
 """expression_purity_confound (Q9) pure classifier — no S3."""
+
 from __future__ import annotations
 
 import sys
@@ -9,7 +10,10 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from methods.expression_purity_confound.read import (  # noqa: E402
-    classify_purity_confound, MIN_PAIRED_SAMPLES, INTRINSIC_R, CONFOUND_R,
+    classify_purity_confound,
+    MIN_PAIRED_SAMPLES,
+    INTRINSIC_R,
+    CONFOUND_R,
 )
 
 

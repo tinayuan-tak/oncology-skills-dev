@@ -25,6 +25,7 @@ published for only a small minority of score sets — so we surface the pooled r
 summary (score_min/median/max), NOT a thresholded functional-abnormal call (documented in the
 product manifest, not a gap).
 """
+
 from __future__ import annotations
 
 import threading
@@ -37,7 +38,7 @@ METHOD_VERSION = "0.1.0"
 
 # mave_evidence_class thresholds on the count of distinct MAVE score sets assaying the gene (only
 # HGNC-mapped rows count — the clean human-gene universe the product manifest steers toward).
-WELL_CHARACTERIZED_SCORE_SETS = 2   # >=2 independent MAVE score sets → mave_well_characterized
+WELL_CHARACTERIZED_SCORE_SETS = 2  # >=2 independent MAVE score sets → mave_well_characterized
 
 
 # ── streamed pushdown read (pyarrow S3FileSystem; no whole-file download) ─────────────────────
@@ -54,6 +55,7 @@ def _get_s3fs():
         with _S3FS_LOCK:
             if _S3FS is None:
                 import pyarrow.fs as pafs
+
                 _S3FS = pafs.S3FileSystem(region="us-east-1")
     return _S3FS
 
@@ -65,6 +67,7 @@ def _read_rows_from_derived(gene: str, product_path=None) -> list[dict]:
     `product_path` (offline test seam): a local parquet bypasses S3. Raises on transient/creds/
     broken-env failure (NOT swallowed — the caller's boundary classifies a genuine 404/absence)."""
     import pyarrow.parquet as pq
+
     filters = [("gene_symbol", "=", gene)]
     if product_path is not None:
         tbl = pq.read_table(str(product_path), filters=filters)
@@ -76,6 +79,7 @@ def _read_rows_from_derived(gene: str, product_path=None) -> list[dict]:
 
 def _is_num(x) -> bool:
     import math
+
     return isinstance(x, (int, float)) and not (isinstance(x, float) and math.isnan(x))
 
 
@@ -96,7 +100,7 @@ def _evidence_class(has_hgnc_mapping: bool, n_score_sets: int) -> str:
     weak-negative on the clean-universe axis that STILL reports the assay counts (never silently a
     'not_assayed' on a gene that plainly was assayed)."""
     if not has_hgnc_mapping:
-        return "mave_unmapped_target"     # a raw non-HGNC MAVEdb target-name row (out of the clean universe)
+        return "mave_unmapped_target"  # a raw non-HGNC MAVEdb target-name row (out of the clean universe)
     if n_score_sets >= WELL_CHARACTERIZED_SCORE_SETS:
         return "mave_well_characterized"
     if n_score_sets >= 1:
@@ -139,7 +143,7 @@ def compute_summary(gene: str, rows: list[dict]) -> dict:
     if not rows:
         return _not_assayed_summary()
 
-    r = rows[0]   # grain = one row per gene_symbol; pushdown returns at most one
+    r = rows[0]  # grain = one row per gene_symbol; pushdown returns at most one
     has_map = bool(r.get("has_hgnc_mapping"))
     n_score_sets = _int_or_zero(r.get("n_score_sets"))
     n_assayed = _int_or_zero(r.get("n_variants_assayed"))
@@ -149,12 +153,16 @@ def compute_summary(gene: str, rows: list[dict]) -> dict:
     if cls == "mave_unmapped_target":
         # A row matched but it is out-of-HGNC-universe (raw MAVEdb target name) — surface the raw
         # assay counts for transparency, but flag it as not a clean human-gene HGNC mapping.
-        context = (f"MAVEdb row present for '{gene}' ({n_score_sets} score set(s), {n_scored} variants "
-                   f"scored) but NOT HGNC-mapped — out-of-universe raw target name, not counted as "
-                   f"clean human-gene MAVE evidence")
+        context = (
+            f"MAVEdb row present for '{gene}' ({n_score_sets} score set(s), {n_scored} variants "
+            f"scored) but NOT HGNC-mapped — out-of-universe raw target name, not counted as "
+            f"clean human-gene MAVE evidence"
+        )
     else:
-        context = (f"{n_score_sets} MAVE score set(s) assaying {gene}: "
-                   f"{n_scored} of {n_assayed} variants scored (pooled per-assay functional scores)")
+        context = (
+            f"{n_score_sets} MAVE score set(s) assaying {gene}: "
+            f"{n_scored} of {n_assayed} variants scored (pooled per-assay functional scores)"
+        )
 
     return {
         "mave_evidence_class": cls,
@@ -202,25 +210,26 @@ def read_target_summary(target: str, indication: Optional[str] = None, product_p
         # footprint — re-raise so the live-read seam surfaces _live_read_error instead of a silent
         # dead comparator (mirrors tphp_normal_protein.read).
         from methods.target_id_sidecar import is_definitively_absent
+
         if not (isinstance(e, FileNotFoundError) or is_definitively_absent(e)):
             raise
         out = _unavailable_summary()
         out["_live_read_error"] = "mavedb_variant_effect_read_failed"
         out["_remediation"] = (
-            f"Could not read the MAVEdb variant-effect product ({DERIVED_MANIFEST_ID}) "
-            f"for {target}: {e}")
+            f"Could not read the MAVEdb variant-effect product ({DERIVED_MANIFEST_ID}) for {target}: {e}"
+        )
         return out
 
 
 def _main(argv=None):
     import argparse
     import json
+
     ap = argparse.ArgumentParser(description="MAVEdb measured variant-effect summary for a target.")
     ap.add_argument("--target", required=True)
     ap.add_argument("--product-path", default=None, help="offline: local parquet path (bypasses S3)")
     args = ap.parse_args(argv)
-    print(json.dumps(read_target_summary(args.target, product_path=args.product_path),
-                     indent=2, default=str))
+    print(json.dumps(read_target_summary(args.target, product_path=args.product_path), indent=2, default=str))
 
 
 if __name__ == "__main__":

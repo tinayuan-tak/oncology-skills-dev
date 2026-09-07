@@ -6,6 +6,7 @@ env" failure class). A genuine 0-row absence still maps to `not_in_product`. And
 failure is not permanently latched: raise-once-then-succeed returns data on the retry.
 
 The S3 read (_read_row) is monkeypatched — no live creds needed (noted: live S3 not exercised)."""
+
 from __future__ import annotations
 
 import sys
@@ -19,6 +20,7 @@ from methods.mutation_stratified_surface import read as r  # noqa: E402
 
 def test_read_failure_is_data_unavailable_not_coverage_gap(monkeypatch):
     """A read exception -> data_unavailable + _live_read_error, NEVER not_in_product."""
+
     def _boom(target, driver, indication):
         return r._ReadError("OSError: expired STS credentials")
 
@@ -44,8 +46,12 @@ def test_transient_failure_not_permanently_latched(monkeypatch):
     calls = {"n": 0}
     good_row = {
         "mutant_stratified_surface_class": "mutant_up_surface",
-        "driver_gene": "KRAS", "indication": "NSCLC",
-        "delta_log2": 1.2, "q_value": 0.01, "n_mutant": 40, "n_wt": 60,
+        "driver_gene": "KRAS",
+        "indication": "NSCLC",
+        "delta_log2": 1.2,
+        "q_value": 0.01,
+        "n_mutant": 40,
+        "n_wt": 60,
     }
 
     def _flaky(target, driver, indication):
@@ -66,8 +72,12 @@ def test_injected_row_success_path_unchanged():
     """The success path (row injected) is unchanged — verdict class flows from the record."""
     row = {
         "mutant_stratified_surface_class": "mutant_up_surface",
-        "driver_gene": "KRAS", "indication": "NSCLC",
-        "delta_log2": 0.9, "q_value": 0.02, "n_mutant": 30, "n_wt": 50,
+        "driver_gene": "KRAS",
+        "indication": "NSCLC",
+        "delta_log2": 0.9,
+        "q_value": 0.02,
+        "n_mutant": 30,
+        "n_wt": 50,
     }
     out = r.read_mutation_stratified_surface("ANTIGEN", row=row)
     assert out["mutant_stratified_surface_class"] == "mutant_up_surface"

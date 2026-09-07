@@ -17,6 +17,7 @@ published per-sample table.
 BUILD: score all single-study TCGA indications together, pan-cancer min-max once, roll up to
 per-(indication) median + quartiles + a stemness class relative to the pan-cancer distribution.
 """
+
 from __future__ import annotations
 
 import io
@@ -38,25 +39,56 @@ EXPR_MANIFEST_ID = "tcga-tumor-tpm-recount3-long-v1"
 
 def _resolve_sig_uri() -> str:
     from methods.catalog_query.read import s3_uri_for
+
     base = s3_uri_for(SIG_SOURCE_MANIFEST_ID)
     return base + _SIG_FILE if base.endswith("/") else f"{base}/{_SIG_FILE}"
 
 
 def _resolve_expr_uri() -> str:
     from methods.catalog_query.read import s3_uri_for
+
     return s3_uri_for(EXPR_MANIFEST_ID)
+
 
 # indication → single TCGA study (composites pooled at read time), mirror the other methods.
 INDICATION_TO_STUDIES = {
-    "ACC": ["ACC"], "BLCA": ["BLCA"], "BRCA": ["BRCA"], "CESC": ["CESC"], "CHOL": ["CHOL"],
-    "COAD": ["COAD"], "READ": ["READ"], "DLBC": ["DLBC"], "ESCA": ["ESCA"], "GBM": ["GBM"],
-    "HNSC": ["HNSC"], "KICH": ["KICH"], "KIRC": ["KIRC"], "KIRP": ["KIRP"], "LGG": ["LGG"],
-    "LIHC": ["LIHC"], "LUAD": ["LUAD"], "LUSC": ["LUSC"], "MESO": ["MESO"], "OV": ["OV"],
-    "PAAD": ["PAAD"], "PCPG": ["PCPG"], "PRAD": ["PRAD"], "SARC": ["SARC"], "SKCM": ["SKCM"],
-    "STAD": ["STAD"], "TGCT": ["TGCT"], "THCA": ["THCA"], "THYM": ["THYM"], "UCEC": ["UCEC"],
-    "UCS": ["UCS"], "UVM": ["UVM"],
+    "ACC": ["ACC"],
+    "BLCA": ["BLCA"],
+    "BRCA": ["BRCA"],
+    "CESC": ["CESC"],
+    "CHOL": ["CHOL"],
+    "COAD": ["COAD"],
+    "READ": ["READ"],
+    "DLBC": ["DLBC"],
+    "ESCA": ["ESCA"],
+    "GBM": ["GBM"],
+    "HNSC": ["HNSC"],
+    "KICH": ["KICH"],
+    "KIRC": ["KIRC"],
+    "KIRP": ["KIRP"],
+    "LGG": ["LGG"],
+    "LIHC": ["LIHC"],
+    "LUAD": ["LUAD"],
+    "LUSC": ["LUSC"],
+    "MESO": ["MESO"],
+    "OV": ["OV"],
+    "PAAD": ["PAAD"],
+    "PCPG": ["PCPG"],
+    "PRAD": ["PRAD"],
+    "SARC": ["SARC"],
+    "SKCM": ["SKCM"],
+    "STAD": ["STAD"],
+    "TGCT": ["TGCT"],
+    "THCA": ["THCA"],
+    "THYM": ["THYM"],
+    "UCEC": ["UCEC"],
+    "UCS": ["UCS"],
+    "UVM": ["UVM"],
     # composites resolved at READ time
-    "COADREAD": ["COAD", "READ"], "NSCLC": ["LUAD", "LUSC"], "GC": ["STAD"], "PDAC": ["PAAD"],
+    "COADREAD": ["COAD", "READ"],
+    "NSCLC": ["LUAD", "LUSC"],
+    "GC": ["STAD"],
+    "PDAC": ["PAAD"],
 }
 _BUILD_INDICATIONS = [k for k, v in INDICATION_TO_STUDIES.items() if len(v) == 1]
 MIN_COHORT_N = 15
@@ -74,6 +106,7 @@ def _load_mrnasi_signature() -> pd.Series:
 
 def _duck():
     import duckdb
+
     con = duckdb.connect()
     con.execute("INSTALL httpfs;LOAD httpfs;")
     con.execute("CREATE SECRET s (TYPE s3, PROVIDER credential_chain, REGION 'us-east-1');")
@@ -86,6 +119,7 @@ def build_per_indication_table() -> pd.DataFrame:
     Returns [indication, n_samples, median_mrnasi, p25_mrnasi, p75_mrnasi, stemness_class].
     """
     from scipy.stats import spearmanr
+
     w = _load_mrnasi_signature()
     genes = sorted(w.index.unique())
     con = _duck()
@@ -93,8 +127,10 @@ def build_per_indication_table() -> pd.DataFrame:
     studies = [INDICATION_TO_STUDIES[i][0] for i in _BUILD_INDICATIONS]
     sl = "','".join(studies)
     expr_uri = _resolve_expr_uri()
-    q = (f"SELECT study, gene_symbol, sample_id, log2_tpm FROM read_parquet('{expr_uri}') "
-         f"WHERE study IN ('{sl}') AND gene_symbol IN ('{gl}')")
+    q = (
+        f"SELECT study, gene_symbol, sample_id, log2_tpm FROM read_parquet('{expr_uri}') "
+        f"WHERE study IN ('{sl}') AND gene_symbol IN ('{gl}')"
+    )
     expr = con.execute(q).df()
     # per-sample Spearman corr(expression, weight) over shared genes
     per_sample = []  # (study, sample_id, raw_corr)
@@ -118,15 +154,19 @@ def build_per_indication_table() -> pd.DataFrame:
         if len(g) < MIN_COHORT_N:
             continue
         med = float(g["mrnasi"].median())
-        rows.append({
-            "indication": study, "n_samples": int(len(g)),
-            "median_mrnasi": round(med, 4),
-            "p25_mrnasi": round(float(g["mrnasi"].quantile(0.25)), 4),
-            "p75_mrnasi": round(float(g["mrnasi"].quantile(0.75)), 4),
-            # class RELATIVE to the pan-cancer distribution (cross-cohort meaningful)
-            "stemness_class": ("stem_high" if med >= pan_q3
-                               else "stem_low" if med < pan_median else "stem_intermediate"),
-        })
+        rows.append(
+            {
+                "indication": study,
+                "n_samples": int(len(g)),
+                "median_mrnasi": round(med, 4),
+                "p25_mrnasi": round(float(g["mrnasi"].quantile(0.25)), 4),
+                "p75_mrnasi": round(float(g["mrnasi"].quantile(0.75)), 4),
+                # class RELATIVE to the pan-cancer distribution (cross-cohort meaningful)
+                "stemness_class": (
+                    "stem_high" if med >= pan_q3 else "stem_low" if med < pan_median else "stem_intermediate"
+                ),
+            }
+        )
     df = pd.DataFrame(rows)
     df["pan_cancer_median_mrnasi"] = round(float(pan_median), 4)
     df["pan_cancer_q3_mrnasi"] = round(float(pan_q3), 4)

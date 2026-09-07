@@ -22,23 +22,38 @@ sufficient for same-CELL co-expression, which is what an AND-gate bispecific act
 (avidity). Same-cell confirmation needs single-cell / spatial (CELLxGENE Census) — a documented gap.
 This scorer is candidate GENERATION: it nominates pairs to confirm, it does not confirm avidity.
 """
+
 from __future__ import annotations
 
 from typing import Optional
 
 # --- thresholds (linear TPM), ported from the biologics ScoringConfig ---
-GATE_POSITIVE_THRESHOLD_TPM = 10.0     # a sample counts as antigen-positive at/above this (linear TPM)
-NOT_GATE_VETO_ABSENT_TPM = 5.0         # stricter "truly off" bar for the NOT veto arm
-AND_GATE_MIN_COFRACTION = 0.30         # AND/NOT pairs below this tumor coverage are low-value (score 0)
-ESSENTIAL_FRACTION_RESOLUTION_FLOOR = 0.01   # 1/n_min statistical-resolution floor → caps selectivity ~100x
+GATE_POSITIVE_THRESHOLD_TPM = 10.0  # a sample counts as antigen-positive at/above this (linear TPM)
+NOT_GATE_VETO_ABSENT_TPM = 5.0  # stricter "truly off" bar for the NOT veto arm
+AND_GATE_MIN_COFRACTION = 0.30  # AND/NOT pairs below this tumor coverage are low-value (score 0)
+ESSENTIAL_FRACTION_RESOLUTION_FLOOR = 0.01  # 1/n_min statistical-resolution floor → caps selectivity ~100x
 
 # Essential normal GTEx tissues (life-critical). Shared intent with the window arc's essential set;
 # GTEx `tissue` labels in the long product.
-ESSENTIAL_GTEX_TISSUES = frozenset({
-    "ADRENAL_GLAND", "BLOOD", "BLOOD_VESSEL", "BONE_MARROW", "BRAIN", "HEART",
-    "KIDNEY", "LIVER", "LUNG", "MUSCLE", "NERVE", "PANCREAS", "PITUITARY",
-    "SPLEEN", "THYROID",
-})
+ESSENTIAL_GTEX_TISSUES = frozenset(
+    {
+        "ADRENAL_GLAND",
+        "BLOOD",
+        "BLOOD_VESSEL",
+        "BONE_MARROW",
+        "BRAIN",
+        "HEART",
+        "KIDNEY",
+        "LIVER",
+        "LUNG",
+        "MUSCLE",
+        "NERVE",
+        "PANCREAS",
+        "PITUITARY",
+        "SPLEEN",
+        "THYROID",
+    }
+)
 
 _GATES = ("AND", "OR", "NOT")
 
@@ -81,8 +96,7 @@ def _iter_aligned(a_by_group: dict, b_by_group: dict):
             yield group, pairs
 
 
-def reduce_gate(gate: str, tumor_frac_by_study: dict, normal_frac_by_tissue: dict,
-                tumor_study: str) -> dict:
+def reduce_gate(gate: str, tumor_frac_by_study: dict, normal_frac_by_tissue: dict, tumor_study: str) -> dict:
     """Reduce per-group positive-fractions to a GateScanResult-shaped dict for one tumor study.
 
     Mirrors the biologics coexpression_scan._reduce_pair_from_fractions: tumor_fraction / max-essential-
@@ -90,14 +104,15 @@ def reduce_gate(gate: str, tumor_frac_by_study: dict, normal_frac_by_tissue: dic
     BOTH essential + any-normal maxima (Theme-1)."""
     tumor_fraction = tumor_frac_by_study.get(tumor_study)
     ess = {t: f for t, f in normal_frac_by_tissue.items() if t in ESSENTIAL_GTEX_TISSUES}
-    max_ess_organ, max_ess_frac = (max(ess.items(), key=lambda kv: kv[1]) if ess else ("none", 0.0))
-    max_any_organ, max_any_frac = (max(normal_frac_by_tissue.items(), key=lambda kv: kv[1])
-                                    if normal_frac_by_tissue else ("none", 0.0))
+    max_ess_organ, max_ess_frac = max(ess.items(), key=lambda kv: kv[1]) if ess else ("none", 0.0)
+    max_any_organ, max_any_frac = (
+        max(normal_frac_by_tissue.items(), key=lambda kv: kv[1]) if normal_frac_by_tissue else ("none", 0.0)
+    )
 
     if tumor_fraction is None:
         selectivity = None
     elif gate in ("AND", "NOT") and tumor_fraction < AND_GATE_MIN_COFRACTION:
-        selectivity = 0.0     # coverage gate — a rare-in-tumor gate is low-value regardless of ratio
+        selectivity = 0.0  # coverage gate — a rare-in-tumor gate is low-value regardless of ratio
     else:
         ess_denom = max(max_ess_frac, ESSENTIAL_FRACTION_RESOLUTION_FLOOR)
         selectivity = tumor_fraction / ess_denom
@@ -108,15 +123,16 @@ def reduce_gate(gate: str, tumor_frac_by_study: dict, normal_frac_by_tissue: dic
         "tumor_fraction": round(tumor_fraction, 4) if tumor_fraction is not None else None,
         "max_essential_normal_fraction": round(max_ess_frac, 4),
         "max_essential_normal_tissue": max_ess_organ,
-        "max_any_normal_fraction": round(max_any_frac, 4),      # THEME-1: full-normal panel
+        "max_any_normal_fraction": round(max_any_frac, 4),  # THEME-1: full-normal panel
         "max_any_normal_tissue": max_any_organ,
         "selectivity": round(selectivity, 2) if selectivity is not None else None,
         "call": _call(gate, tumor_fraction, max_ess_frac, max_any_frac, selectivity),
     }
 
 
-def classify_and_selectivity(tumor_frac: Optional[float], max_ess_frac: float,
-                             max_any_frac: float, selectivity: Optional[float]) -> str:
+def classify_and_selectivity(
+    tumor_frac: Optional[float], max_ess_frac: float, max_any_frac: float, selectivity: Optional[float]
+) -> str:
     """Categorical companion to the free-text AND-gate `call` (2026-08-24 druggability audit).
 
     best_and_call is a human-readable string, so the categorical-only rules engine could not key on
@@ -140,8 +156,9 @@ def classify_and_selectivity(tumor_frac: Optional[float], max_ess_frac: float,
     return "selective_and_pair"
 
 
-def _call(gate: str, tumor_frac: Optional[float], max_ess_frac: float,
-          max_any_frac: float, selectivity: Optional[float]) -> str:
+def _call(
+    gate: str, tumor_frac: Optional[float], max_ess_frac: float, max_any_frac: float, selectivity: Optional[float]
+) -> str:
     if tumor_frac is None:
         return "no tumor samples for this study — cannot evaluate"
     if gate == "AND":

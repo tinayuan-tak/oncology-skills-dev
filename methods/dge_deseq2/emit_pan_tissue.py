@@ -38,9 +38,25 @@ from typing import Optional
 # INDICATION_TO_TCGA_STUDIES + INDICATION_TO_GTEX_TISSUE in read.py).
 # The set below is limited to the 18 indications the batch produced.
 PAN_TISSUE_INDICATIONS = [
-    "COAD", "READ", "COADREAD", "LUAD", "LUSC", "BRCA", "PAAD",
-    "SKCM", "STAD", "PRAD", "OV", "KIRC", "GBM", "LGG",
-    "BLCA", "LIHC", "CESC", "ESCA", "HNSC",
+    "COAD",
+    "READ",
+    "COADREAD",
+    "LUAD",
+    "LUSC",
+    "BRCA",
+    "PAAD",
+    "SKCM",
+    "STAD",
+    "PRAD",
+    "OV",
+    "KIRC",
+    "GBM",
+    "LGG",
+    "BLCA",
+    "LIHC",
+    "CESC",
+    "ESCA",
+    "HNSC",
 ]
 
 # Local batch output root (for dev-mode reads when S3 isn't populated yet).
@@ -48,7 +64,8 @@ LOCAL_BATCH_ROOT = Path.home() / "dev" / "framework-runs" / "tvn-batch-2026-07-0
 
 
 def _find_sensitivity_row(
-    indication: str, target: str,
+    indication: str,
+    target: str,
 ) -> Optional[dict]:
     """Load one gene's sensitivity row from the batch-produced parquet.
 
@@ -69,6 +86,7 @@ def _find_sensitivity_row(
         try:
             import pyarrow.fs as fs
             import pyarrow.parquet as pq
+
             os.environ.setdefault("AWS_PROFILE", "cbg")
             s3fs = fs.S3FileSystem()
             s3_path = (
@@ -76,8 +94,7 @@ def _find_sensitivity_row(
                 f"{indication.lower()}-dge-tumor-vs-normal-sensitivity-v1/"
                 f"sensitivity.parquet"
             )
-            table = pq.read_table(s3_path, filesystem=s3fs,
-                                  filters=[("gene_symbol", "=", target)])
+            table = pq.read_table(s3_path, filesystem=s3fs, filters=[("gene_symbol", "=", target)])
             df = table.to_pandas() if table.num_rows > 0 else None
         except Exception:
             df = None
@@ -114,6 +131,7 @@ def render_pan_tissue_landscape(
         PNG path.
     """
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import numpy as np
@@ -144,32 +162,31 @@ def render_pan_tissue_landscape(
         adj_vals, adj_unit = _log2tpm_or_cpm(expr.get("adjacent_samples", []))
         gtex_vals, gtex_unit = _log2tpm_or_cpm(expr.get("gtex_samples", []))
 
-        rows_data.append({
-            "indication": ind,
-            "tumor_vals": tumor_vals,
-            "adjacent_vals": adj_vals,
-            "gtex_vals": gtex_vals,
-            "n_tumor": len(tumor_vals),
-            "n_adj": len(adj_vals),
-            "n_gtex": len(gtex_vals),
-            "log2fc_A": (sens or {}).get("log2fc_A"),
-            "padj_A":   (sens or {}).get("padj_A"),
-            "log2fc_C": (sens or {}).get("log2fc_C"),
-            "padj_C":   (sens or {}).get("padj_C"),
-            "discordant": (sens or {}).get("discordant"),
-            "cells_supporting": (sens or {}).get("cells_supporting"),
-            "unit": tumor_unit if tumor_vals else "log2_cpm",
-        })
+        rows_data.append(
+            {
+                "indication": ind,
+                "tumor_vals": tumor_vals,
+                "adjacent_vals": adj_vals,
+                "gtex_vals": gtex_vals,
+                "n_tumor": len(tumor_vals),
+                "n_adj": len(adj_vals),
+                "n_gtex": len(gtex_vals),
+                "log2fc_A": (sens or {}).get("log2fc_A"),
+                "padj_A": (sens or {}).get("padj_A"),
+                "log2fc_C": (sens or {}).get("log2fc_C"),
+                "padj_C": (sens or {}).get("padj_C"),
+                "discordant": (sens or {}).get("discordant"),
+                "cells_supporting": (sens or {}).get("cells_supporting"),
+                "unit": tumor_unit if tumor_vals else "log2_cpm",
+            }
+        )
 
     if not rows_data:
-        raise RuntimeError(
-            f"No expression data found for {target!r} across any indication in "
-            f"{indications}"
-        )
+        raise RuntimeError(f"No expression data found for {target!r} across any indication in {indications}")
 
     # Sort by median tumor value (descending — highest expression first)
     rows_data.sort(
-        key=lambda r: (np.median(r["tumor_vals"]) if r["tumor_vals"] else -np.inf),
+        key=lambda r: np.median(r["tumor_vals"]) if r["tumor_vals"] else -np.inf,
         reverse=True,
     )
 
@@ -181,8 +198,11 @@ def render_pan_tissue_landscape(
     # text block spanning the row.
     fig_height = max(4.5, 0.55 * n_rows + 0.8)
     fig, axes = plt.subplots(
-        n_rows, 1, figsize=(9.5, fig_height),
-        sharex=True, gridspec_kw={"hspace": 0.15, "left": 0.13, "right": 0.93},
+        n_rows,
+        1,
+        figsize=(9.5, fig_height),
+        sharex=True,
+        gridspec_kw={"hspace": 0.15, "left": 0.13, "right": 0.93},
     )
     if n_rows == 1:
         axes = np.array([axes])
@@ -205,9 +225,12 @@ def render_pan_tissue_landscape(
     def _sig_stars(q):
         if q is None or q != q:
             return ""
-        if q < 1e-10: return "***"
-        if q < 1e-4:  return "**"
-        if q < 0.05:  return "*"
+        if q < 1e-10:
+            return "***"
+        if q < 1e-4:
+            return "**"
+        if q < 0.05:
+            return "*"
         return "ns"
 
     # Y positions within each row (3 boxes stacked top → bottom)
@@ -231,30 +254,46 @@ def render_pan_tissue_landscape(
 
         # Draw each of the three boxes at its y-position
         for vals, color, y_pos, sig_q in [
-            (row["tumor_vals"],    tumor_color, Y_TUMOR, None),
-            (row["adjacent_vals"], adj_color,   Y_ADJ,   row["padj_A"]),
-            (row["gtex_vals"],     gtex_color,  Y_GTEX,  row["padj_C"]),
+            (row["tumor_vals"], tumor_color, Y_TUMOR, None),
+            (row["adjacent_vals"], adj_color, Y_ADJ, row["padj_A"]),
+            (row["gtex_vals"], gtex_color, Y_GTEX, row["padj_C"]),
         ]:
             if not vals:
                 from matplotlib.transforms import blended_transform_factory
+
                 trans = blended_transform_factory(ax.transAxes, ax.transData)
-                ax.text(0.50, y_pos, "n/a", transform=trans,
-                        ha="center", va="center",
-                        fontsize=6, color="#bbb", style="italic")
+                ax.text(
+                    0.50,
+                    y_pos,
+                    "n/a",
+                    transform=trans,
+                    ha="center",
+                    va="center",
+                    fontsize=6,
+                    color="#bbb",
+                    style="italic",
+                )
                 continue
 
             bp = ax.boxplot(
-                vals, vert=False, positions=[y_pos], widths=0.55,
-                patch_artist=True, showfliers=False,
+                vals,
+                vert=False,
+                positions=[y_pos],
+                widths=0.55,
+                patch_artist=True,
+                showfliers=False,
                 medianprops={"color": "#222", "linewidth": 1.0},
             )
             for patch in bp["boxes"]:
-                patch.set_facecolor(color); patch.set_alpha(0.32)
+                patch.set_facecolor(color)
+                patch.set_alpha(0.32)
                 patch.set_edgecolor(color)
             for whisker in bp["whiskers"]:
-                whisker.set_color("#666"); whisker.set_linewidth(0.7)
+                whisker.set_color("#666")
+                whisker.set_linewidth(0.7)
             for cap in bp["caps"]:
-                cap.set_color("#666"); cap.set_linewidth(0.7)
+                cap.set_color("#666")
+                cap.set_linewidth(0.7)
 
             # Jittered strip
             rng = np.random.default_rng(seed=42 + i * 3 + y_pos)
@@ -266,12 +305,18 @@ def render_pan_tissue_landscape(
             # (axes-x, data-y) so it aligns with the box's y-position
             # regardless of ylim + never collides with box contents.
             from matplotlib.transforms import blended_transform_factory
+
             trans = blended_transform_factory(ax.transAxes, ax.transData)
             ax.text(
-                1.015, y_pos, f"n={len(vals)}",
+                1.015,
+                y_pos,
+                f"n={len(vals)}",
                 transform=trans,
-                ha="left", va="center",
-                fontsize=6, color="#666", family="monospace",
+                ha="left",
+                va="center",
+                fontsize=6,
+                color="#666",
+                family="monospace",
                 clip_on=False,
             )
 
@@ -282,10 +327,15 @@ def render_pan_tissue_landscape(
                 if stars:
                     color_star = "#0a2540" if stars in ("*", "**", "***") else "#888"
                     ax.text(
-                        0.985, y_pos, stars,
+                        0.985,
+                        y_pos,
+                        stars,
                         transform=trans,
-                        ha="right", va="center",
-                        fontsize=8, color=color_star, weight="bold",
+                        ha="right",
+                        va="center",
+                        fontsize=8,
+                        color=color_star,
+                        weight="bold",
                     )
 
         # Row label — placed in the LEFT MARGIN of the axis (not as
@@ -317,12 +367,18 @@ def render_pan_tissue_landscape(
 
         # Place at left margin, centered vertically on the row
         from matplotlib.transforms import blended_transform_factory
+
         trans_left = blended_transform_factory(fig.transFigure, ax.transAxes)
         ax.text(
-            0.12, 0.5, title_str,
+            0.12,
+            0.5,
+            title_str,
             transform=trans_left,
-            ha="right", va="center",
-            fontsize=8, weight="bold", color="#222",
+            ha="right",
+            va="center",
+            fontsize=8,
+            weight="bold",
+            color="#222",
             clip_on=False,
         )
 
@@ -352,21 +408,29 @@ def render_pan_tissue_landscape(
     # overlapping the first row's Tumor box. Bottom stays tight.
     fig.suptitle(
         f"{target} — pan-tissue expression landscape",
-        fontsize=11, weight="bold", y=0.995,
+        fontsize=11,
+        weight="bold",
+        y=0.995,
     )
     from matplotlib.lines import Line2D
+
     legend_handles = [
-        Line2D([0], [0], marker="s", color=tumor_color, lw=0,
-                markerfacecolor=tumor_color, markersize=9, label="Tumor"),
-        Line2D([0], [0], marker="s", color=adj_color, lw=0,
-                markerfacecolor=adj_color, markersize=9, label="TCGA Adjacent"),
-        Line2D([0], [0], marker="s", color=gtex_color, lw=0,
-                markerfacecolor=gtex_color, markersize=9, label="GTEx Normal"),
+        Line2D([0], [0], marker="s", color=tumor_color, lw=0, markerfacecolor=tumor_color, markersize=9, label="Tumor"),
+        Line2D(
+            [0], [0], marker="s", color=adj_color, lw=0, markerfacecolor=adj_color, markersize=9, label="TCGA Adjacent"
+        ),
+        Line2D(
+            [0], [0], marker="s", color=gtex_color, lw=0, markerfacecolor=gtex_color, markersize=9, label="GTEx Normal"
+        ),
     ]
     fig.legend(
         handles=legend_handles,
-        loc="upper center", bbox_to_anchor=(0.5, 0.955),
-        ncol=3, frameon=False, fontsize=8, handletextpad=0.4,
+        loc="upper center",
+        bbox_to_anchor=(0.5, 0.955),
+        ncol=3,
+        frameon=False,
+        fontsize=8,
+        handletextpad=0.4,
         columnspacing=1.8,
     )
 
@@ -375,10 +439,14 @@ def render_pan_tissue_landscape(
     # sub-row at y=0.005 with fig.subplots_adjust bottom=0.06 to reserve
     # space.
     fig.text(
-        0.5, 0.005,
+        0.5,
+        0.005,
         "Sorted by median tumor expression. Sig stars: * q<0.05, ** q<1e-4, "
         "*** q<1e-10 (cells A + C). • = discordant. X clipped at q99.",
-        ha="center", fontsize=6, color="#666", style="italic",
+        ha="center",
+        fontsize=6,
+        color="#666",
+        style="italic",
     )
 
     # Reserve top=0.93 (title + legend fit above without overlapping row 1),

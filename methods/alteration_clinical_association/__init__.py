@@ -9,11 +9,11 @@ log-rank engine from expression_clinical_association; cohort/altered from tcga-m
 Modules:
     read — read_alteration_clinical_association(target, indication) + classify_alteration_survival_association.
 """
+
 from __future__ import annotations
 
 from .read import read_alteration_clinical_association, classify_alteration_survival_association
 
 METHOD_VERSION = "0.1.0"
 
-__all__ = ["read_alteration_clinical_association", "classify_alteration_survival_association",
-           "METHOD_VERSION"]
+__all__ = ["read_alteration_clinical_association", "classify_alteration_survival_association", "METHOD_VERSION"]

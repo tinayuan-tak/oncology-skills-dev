@@ -21,4 +21,5 @@ Emits cis_dosage_class ∈ {cn_dosage_coupled_strong, cn_dosage_coupled_moderate
 cn_invariant_panel, data_unavailable}. Verdict path (target-contracts): the coupled/uncoupled classes
 fire cis-dosage-* rules → cis_coherence.resolver (a VERDICT-INERT, dedicated self-contained axis).
 """
+
 from .read import read_cis_dosage, METHOD_VERSION  # noqa: F401

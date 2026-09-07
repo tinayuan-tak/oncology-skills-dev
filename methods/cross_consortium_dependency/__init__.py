@@ -7,4 +7,5 @@ than the existing CRISPR×RNAi (both Broad). Both matrices already in the DepMap
 {concordant_dependent, concordant_non_dependent, discordant, single_consortium_only, data_unavailable}.
 Raises C-confidence, never a killer.
 """
+
 from .read import read_cross_consortium_dependency, METHOD_VERSION  # noqa: F401

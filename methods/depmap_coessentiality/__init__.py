@@ -19,6 +19,7 @@ producing the full 18,531² Pearson matrix in ~4.5 s. NaN imputed to gene mean
 
 METHOD_VERSION: "0.1.0"
 """
+
 from __future__ import annotations
 
 METHOD_VERSION = "0.1.0"

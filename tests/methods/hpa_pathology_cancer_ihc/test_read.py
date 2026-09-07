@@ -1,4 +1,5 @@
 """hpa_pathology_cancer_ihc.read — mapping + absence discipline (hermetic; no S3 for the guards)."""
+
 from __future__ import annotations
 
 import sys
@@ -9,7 +10,8 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from methods.hpa_pathology_cancer_ihc.read import (  # noqa: E402
-    read_target_summary, INDICATION_TO_HPA_CANCER,
+    read_target_summary,
+    INDICATION_TO_HPA_CANCER,
 )
 
 
@@ -36,7 +38,7 @@ def test_key_indications_are_mapped():
     """Pin the crosswalk for the framework's core indications (coarse HPA types)."""
     assert INDICATION_TO_HPA_CANCER["BRCA"] == "breast cancer"
     assert INDICATION_TO_HPA_CANCER["COADREAD"] == "colorectal cancer"
-    assert INDICATION_TO_HPA_CANCER["LUAD"] == "lung cancer"      # coarse: no LUAD/LUSC split
+    assert INDICATION_TO_HPA_CANCER["LUAD"] == "lung cancer"  # coarse: no LUAD/LUSC split
     assert INDICATION_TO_HPA_CANCER["LUSC"] == "lung cancer"
     assert INDICATION_TO_HPA_CANCER["PAAD"] == "pancreatic cancer"
     assert INDICATION_TO_HPA_CANCER["GBM"] == "glioma"

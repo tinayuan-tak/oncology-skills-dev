@@ -6,11 +6,12 @@ summary + a primary `spatial_rna_class`. abundance_lcpm is a normalized log-scal
 level), so the decision-relevant readout is the COMPARTMENT DIFFERENTIAL (tumour vs microenvironment),
 not an absolute cutoff.
 """
+
 from __future__ import annotations
 
 _TUMOUR = "TUMOUR"
 _TME = "TME"
-_ENRICHED_DELTA = 0.5        # log-scale margin: |tumour - TME| >= => compartment-enriched
+_ENRICHED_DELTA = 0.5  # log-scale margin: |tumour - TME| >= => compartment-enriched
 
 
 def _median(xs):
@@ -45,9 +46,15 @@ def classify_region_rna(summ: dict, rows) -> dict:
     """Primary spatial_rna_class from the tumour-vs-TME compartment differential."""
     rows = list(rows)
     if not summ:
-        return {"spatial_rna_class": "data_unavailable", "tumour_abundance_lcpm": None,
-                "tme_abundance_lcpm": None, "tumour_vs_tme_delta": None, "detected_tumour": None,
-                "n_donors": 0, "n_datasets": 0}
+        return {
+            "spatial_rna_class": "data_unavailable",
+            "tumour_abundance_lcpm": None,
+            "tme_abundance_lcpm": None,
+            "tumour_vs_tme_delta": None,
+            "detected_tumour": None,
+            "n_donors": 0,
+            "n_datasets": 0,
+        }
     ca = summ["compartment_abundance"]
     tum = ca.get(_TUMOUR)
     tme = ca.get(_TME)
@@ -57,9 +64,9 @@ def classify_region_rna(summ: dict, rows) -> dict:
     elif delta is None:
         cls = "tumour_present_no_compartment_preference"
     elif delta >= _ENRICHED_DELTA:
-        cls = "tumour_enriched_rna"                # RNA concentrated in the tumour compartment
+        cls = "tumour_enriched_rna"  # RNA concentrated in the tumour compartment
     elif delta <= -_ENRICHED_DELTA:
-        cls = "tme_enriched_rna"                   # RNA concentrated in the microenvironment (specificity caveat)
+        cls = "tme_enriched_rna"  # RNA concentrated in the microenvironment (specificity caveat)
     else:
         cls = "tumour_present_no_compartment_preference"
     return {
@@ -69,5 +76,5 @@ def classify_region_rna(summ: dict, rows) -> dict:
         "tumour_vs_tme_delta": delta,
         "detected_tumour": bool(summ.get("detected")),
         "n_donors": summ.get("n_donors", 0),
-        "n_datasets": 1 if rows else 0,   # single GeoMx WTA dataset per indication (region-RNA)
+        "n_datasets": 1 if rows else 0,  # single GeoMx WTA dataset per indication (region-RNA)
     }

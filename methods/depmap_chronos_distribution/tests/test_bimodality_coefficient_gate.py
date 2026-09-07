@@ -10,6 +10,7 @@ bimodal target whose off-mode dragged the median just below -0.5. BC gates on re
 The Hartigan dip test was evaluated and REJECTED (too conservative on continuous heavy-tailed
 dependency vectors — fails to reject unimodality even for KRAS). BC flags KRAS/EGFR, rejects impostors.
 """
+
 from __future__ import annotations
 
 import importlib.util

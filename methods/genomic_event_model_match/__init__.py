@@ -28,6 +28,7 @@ event_matched_not_dependent / no_event_match / data_unavailable}. data_unavailab
 Modules:
     read — read_genomic_event_model_match(target, indication): the join + rollup.
 """
+
 from __future__ import annotations
 
 from .read import read_genomic_event_model_match

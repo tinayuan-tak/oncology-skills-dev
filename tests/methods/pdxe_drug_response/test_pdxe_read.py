@@ -4,6 +4,7 @@ Monkeypatches the S3 read (`_read_gene_row`) so the summariser + absence discipl
 logic run offline. VERDICT-INERT display reader; pins the per-gene PDX-response shape, the
 responder-fraction-driven class, the indication-ignored target-grain, and the data_unavailable paths.
 """
+
 from __future__ import annotations
 
 import sys
@@ -18,10 +19,18 @@ if str(REPO) not in sys.path:
 from methods.pdxe_drug_response import read as R  # noqa: E402
 
 
-_COLS = ["gene_symbol", "n_treatments", "n_models_tested", "n_response_records",
-         "median_best_avg_response", "min_best_avg_response", "responder_fraction",
-         "most_active_treatment", "most_active_treatment_median_best_avg_response",
-         "treatment_types"]
+_COLS = [
+    "gene_symbol",
+    "n_treatments",
+    "n_models_tested",
+    "n_response_records",
+    "median_best_avg_response",
+    "min_best_avg_response",
+    "responder_fraction",
+    "most_active_treatment",
+    "most_active_treatment_median_best_avg_response",
+    "treatment_types",
+]
 
 
 def _df(rows):
@@ -30,8 +39,7 @@ def _df(rows):
 
 def _braf_like():
     # BRAF-like: an active in-vivo signal (median shrinkage, some objective responders).
-    return _df([["BRAF", 6, 40, 88, -11.1, -55.2, 0.34,
-                 "LEE011 + encorafenib", -22.4, "single|combo"]])
+    return _df([["BRAF", 6, 40, 88, -11.1, -55.2, 0.34, "LEE011 + encorafenib", -22.4, "single|combo"]])
 
 
 def test_summary_shape_and_responders_class(monkeypatch):
@@ -50,17 +58,25 @@ def test_summary_shape_and_responders_class(monkeypatch):
     assert out["source"] == R.SOURCE
     # the substantive (non-underscore) emit set is EXACTLY the card's summary_fields set
     assert {k for k in out if not k.startswith("_")} == {
-        "pdx_drug_response_class", "n_treatments", "n_models_tested", "n_response_records",
-        "median_best_avg_response", "min_best_avg_response", "responder_fraction",
-        "most_active_treatment", "most_active_treatment_median_best_avg_response",
-        "treatment_types", "source"}
+        "pdx_drug_response_class",
+        "n_treatments",
+        "n_models_tested",
+        "n_response_records",
+        "median_best_avg_response",
+        "min_best_avg_response",
+        "responder_fraction",
+        "most_active_treatment",
+        "most_active_treatment_median_best_avg_response",
+        "treatment_types",
+        "source",
+    }
 
 
 def test_no_objective_response_class(monkeypatch):
     # measured, but zero mRECIST CR/PR responders -> the honest 'measured, no objective response' class.
     df = _df([["MDM2", 2, 20, 30, 28.8, 5.1, 0.0, "HDM201", 24.0, "single"]])
     monkeypatch.setattr(R, "_read_gene_row", lambda target: df)
-    out = R.read_target_summary("MDM2")   # indication omitted (target-grain)
+    out = R.read_target_summary("MDM2")  # indication omitted (target-grain)
     assert out["pdx_drug_response_class"] == "pdx_no_objective_response"
     assert out["responder_fraction"] == 0.0
 

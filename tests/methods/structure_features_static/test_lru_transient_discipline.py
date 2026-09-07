@@ -5,6 +5,7 @@ S3 blip memoized an empty index for the whole process. The transient path must n
 lru does not memoize the empty), while a genuine object-absence (404/NoSuchKey) still degrades to
 an empty index → honest data_unavailable / insufficient_evidence.
 """
+
 from __future__ import annotations
 
 import sys
@@ -23,6 +24,7 @@ from methods.structure_features_static import read as R  # noqa: E402
 
 class _FlakyClient:
     """download_file raises `exc` on the first call; on later calls writes `df` to the destination."""
+
     def __init__(self, exc, df):
         self._exc = exc
         self._df = df
@@ -55,9 +57,16 @@ def _reset(monkeypatch, tmp_path):
 
 def test_structure_transient_raises_not_cached(monkeypatch, tmp_path):
     _reset(monkeypatch, tmp_path)
-    df = pd.DataFrame([{"gene_symbol": "KRAS", "uniprot_ac": "P01116",
-                        "hotspot_pocket_adjacency_call": "adjacent",
-                        "mutation_hotspot_in_druggable_pocket": True}])
+    df = pd.DataFrame(
+        [
+            {
+                "gene_symbol": "KRAS",
+                "uniprot_ac": "P01116",
+                "hotspot_pocket_adjacency_call": "adjacent",
+                "mutation_hotspot_in_druggable_pocket": True,
+            }
+        ]
+    )
     client = _FlakyClient(RuntimeError("transient S3 throttle"), df)
     monkeypatch.setattr(R, "_boto3_client", lambda: client)
 
@@ -71,16 +80,25 @@ def test_structure_transient_raises_not_cached(monkeypatch, tmp_path):
 def test_structure_genuine_absence_empty(monkeypatch, tmp_path):
     _reset(monkeypatch, tmp_path)
     from botocore.exceptions import ClientError
-    monkeypatch.setattr(R, "_boto3_client",
-                        lambda: _AbsentClient(ClientError({"Error": {"Code": "NoSuchKey"}}, "GetObject")))
+
+    monkeypatch.setattr(
+        R, "_boto3_client", lambda: _AbsentClient(ClientError({"Error": {"Code": "NoSuchKey"}}, "GetObject"))
+    )
     assert R._load_structure_indexed() == {}
 
 
 def test_ligandability_transient_raises_not_cached(monkeypatch, tmp_path):
     _reset(monkeypatch, tmp_path)
-    df = pd.DataFrame([{"gene_symbol": "KRAS", "uniprot_id": "P01116",
-                        "structural_ligandability_class": "experimental_ligandable",
-                        "n_ligandability_axes": 2}])
+    df = pd.DataFrame(
+        [
+            {
+                "gene_symbol": "KRAS",
+                "uniprot_id": "P01116",
+                "structural_ligandability_class": "experimental_ligandable",
+                "n_ligandability_axes": 2,
+            }
+        ]
+    )
     client = _FlakyClient(RuntimeError("transient S3 throttle"), df)
     monkeypatch.setattr(R, "_boto3_client", lambda: client)
 
@@ -93,8 +111,10 @@ def test_ligandability_transient_raises_not_cached(monkeypatch, tmp_path):
 def test_ligandability_genuine_absence_insufficient(monkeypatch, tmp_path):
     _reset(monkeypatch, tmp_path)
     from botocore.exceptions import ClientError
-    monkeypatch.setattr(R, "_boto3_client",
-                        lambda: _AbsentClient(ClientError({"Error": {"Code": "NoSuchKey"}}, "GetObject")))
+
+    monkeypatch.setattr(
+        R, "_boto3_client", lambda: _AbsentClient(ClientError({"Error": {"Code": "NoSuchKey"}}, "GetObject"))
+    )
     assert R._load_ligandability_indexed() == {}
     fields = R._ligandability_fields("KRAS")
     assert fields["structural_ligandability_class"] == "insufficient_evidence"
@@ -104,7 +124,6 @@ def test_read_target_summary_propagates_transient(monkeypatch, tmp_path):
     """The public reader must let a transient surface (→ _live_read_error at the seam), NOT mask it
     as a false no_structure / insufficient_evidence."""
     _reset(monkeypatch, tmp_path)
-    monkeypatch.setattr(R, "_boto3_client",
-                        lambda: _AbsentClient(RuntimeError("transient S3 throttle")))
+    monkeypatch.setattr(R, "_boto3_client", lambda: _AbsentClient(RuntimeError("transient S3 throttle")))
     with pytest.raises(RuntimeError):
         R.read_target_summary("KRAS")

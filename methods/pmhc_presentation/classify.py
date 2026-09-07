@@ -23,6 +23,7 @@ tumor-restricted CANDIDATE, not a confirmed non-presenter.
 
 Thresholds anchored to the atlas n_tissues distribution (15,262 proteins; [Q1, median, Q3] = [3, 8, 19]).
 """
+
 from __future__ import annotations
 
 from typing import Optional
@@ -33,11 +34,13 @@ from typing import Optional
 # update. Pinned to the live product by test_quartile_provenance_matches_atlas (requires_data): if the
 # atlas is ever refreshed and these quartiles move, that drift-guard fails and forces a recompute here
 # rather than silently classifying against stale cutpoints.
-_ATLAS_N_TISSUES_QUARTILES = (3, 8, 19)   # (Q1, median, Q3) — recompute on any atlas-release change.
+_ATLAS_N_TISSUES_QUARTILES = (3, 8, 19)  # (Q1, median, Q3) — recompute on any atlas-release change.
 
 # n_tissues (distinct normal tissues presenting the protein's peptides) — atlas-anchored bands.
-RESTRICTED_MAX_TISSUES = _ATLAS_N_TISSUES_QUARTILES[0]   # <= atlas Q1 → restricted normal presentation (TCE-favorable / clean)
-BROAD_MIN_TISSUES = _ATLAS_N_TISSUES_QUARTILES[2]        # >= atlas Q3 → broadly presented on normal tissue (safety liability)
+RESTRICTED_MAX_TISSUES = _ATLAS_N_TISSUES_QUARTILES[
+    0
+]  # <= atlas Q1 → restricted normal presentation (TCE-favorable / clean)
+BROAD_MIN_TISSUES = _ATLAS_N_TISSUES_QUARTILES[2]  # >= atlas Q3 → broadly presented on normal tissue (safety liability)
 
 
 def classify_pmhc_presentation(n_peptides: Optional[int], n_tissues: Optional[int]) -> str:
@@ -78,8 +81,8 @@ def summarize_pmhc(row: Optional[dict]) -> dict:
             "n_strong_binder_peptides": 0,
             "n_weak_binder_peptides": 0,
             "_note": "not in the HLA Ligand Atlas benign immunopeptidome — a WEAK-negative "
-                     "(MS tracks abundance×turnover; absence is not confirmed non-presentation) and "
-                     "thus a tumor-restricted peptide-centric CANDIDATE to confirm on a tumor atlas.",
+            "(MS tracks abundance×turnover; absence is not confirmed non-presentation) and "
+            "thus a tumor-restricted peptide-centric CANDIDATE to confirm on a tumor atlas.",
         }
     n_pep = _to_int(row.get("n_peptides"))
     n_tis = _to_int(row.get("n_tissues"))

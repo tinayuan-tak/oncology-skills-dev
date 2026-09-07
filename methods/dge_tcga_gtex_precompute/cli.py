@@ -27,8 +27,9 @@ import click
 
 DEPMAP_S3_BUCKET = "onc-compbio"
 RECOUNT3_S3_PREFIX = "data-catalog/sources/recount3/tcga-gtex-2023-01-04"
-ENSEMBL_ID_MAP_S3 = ("data-catalog/sources/ensembl-id-mapping/"
-                     "release-116-snapshot-2026-06-18/hsapiens_gene_id_map_release-116.tsv")
+ENSEMBL_ID_MAP_S3 = (
+    "data-catalog/sources/ensembl-id-mapping/release-116-snapshot-2026-06-18/hsapiens_gene_id_map_release-116.tsv"
+)
 
 # Indication → TCGA study codes (may be multi-study for combined indications)
 INDICATION_TO_TCGA_STUDIES = {
@@ -60,25 +61,25 @@ INDICATION_TO_TCGA_STUDIES = {
 # sublocations). Best-effort canonical mapping.
 INDICATION_TO_GTEX_TISSUE = {
     "COADREAD": "COLON",
-    "COAD":     "COLON",
-    "READ":     "COLON",
-    "LUAD":     "LUNG",
-    "LUSC":     "LUNG",
-    "BRCA":     "BREAST",
-    "PAAD":     "PANCREAS",
-    "PDAC":     "PANCREAS",
-    "SKCM":     "SKIN",
-    "STAD":     "STOMACH",
-    "PRAD":     "PROSTATE",
-    "OV":       "OVARY",
-    "KIRC":     "KIDNEY",
-    "GBM":      "BRAIN",
-    "LGG":      "BRAIN",
-    "HNSC":     None,   # no clean GTEx match; head/neck is a mosaic of tissues
-    "BLCA":     "BLADDER",
-    "LIHC":     "LIVER",
-    "CESC":     "CERVIX_UTERI",
-    "ESCA":     "ESOPHAGUS",
+    "COAD": "COLON",
+    "READ": "COLON",
+    "LUAD": "LUNG",
+    "LUSC": "LUNG",
+    "BRCA": "BREAST",
+    "PAAD": "PANCREAS",
+    "PDAC": "PANCREAS",
+    "SKCM": "SKIN",
+    "STAD": "STOMACH",
+    "PRAD": "PROSTATE",
+    "OV": "OVARY",
+    "KIRC": "KIDNEY",
+    "GBM": "BRAIN",
+    "LGG": "BRAIN",
+    "HNSC": None,  # no clean GTEx match; head/neck is a mosaic of tissues
+    "BLCA": "BLADDER",
+    "LIHC": "LIVER",
+    "CESC": "CERVIX_UTERI",
+    "ESCA": "ESOPHAGUS",
 }
 
 
@@ -95,6 +96,7 @@ def _sha256(b: bytes) -> str:
 def _load_ensembl_hgnc_map(s3) -> dict[str, str]:
     """Fetch Ensembl-116 ID map → {ENSG_stem: HGNC symbol}."""
     import pandas as pd
+
     body = s3.get_object(Bucket=DEPMAP_S3_BUCKET, Key=ENSEMBL_ID_MAP_S3)["Body"].read()
     df = pd.read_csv(io.BytesIO(body), sep="\t")
     df = df.dropna(subset=["Gene stable ID", "HGNC symbol"])
@@ -107,13 +109,14 @@ def _fetch_counts_matrix(s3, cohort: str, tissue_or_study: str) -> "pd.DataFrame
     cohort ∈ {'tcga', 'gtex'}. tissue_or_study is 'COAD' etc for TCGA or 'COLON' for GTEx.
     """
     import pandas as pd
+
     key = f"{RECOUNT3_S3_PREFIX}/{cohort}/{tissue_or_study}/gene_sums/{cohort}.gene_sums.{tissue_or_study}.G026.gz"
     _log(f"    Fetching s3://{DEPMAP_S3_BUCKET}/{key}")
     body = s3.get_object(Bucket=DEPMAP_S3_BUCKET, Key=key)["Body"].read()
     # Parse comment-header lines then table
     text_io = io.TextIOWrapper(io.BufferedReader(gzip.GzipFile(fileobj=io.BytesIO(body))))
     df = pd.read_csv(text_io, sep="\t", comment="#", dtype={"gene_id": str})
-    _log(f"    Loaded {df.shape[0]:,} genes × {df.shape[1]-1:,} samples")
+    _log(f"    Loaded {df.shape[0]:,} genes × {df.shape[1] - 1:,} samples")
     return df
 
 
@@ -122,6 +125,7 @@ def _fetch_metadata(s3, cohort: str, tissue_or_study: str) -> "pd.DataFrame":
     Returns DataFrame with columns useful for group classification.
     """
     import pandas as pd
+
     key = f"{RECOUNT3_S3_PREFIX}/{cohort}/{tissue_or_study}/metadata/{cohort}.{cohort}.{tissue_or_study}.MD.gz"
     _log(f"    Fetching s3://{DEPMAP_S3_BUCKET}/{key}")
     body = s3.get_object(Bucket=DEPMAP_S3_BUCKET, Key=key)["Body"].read()
@@ -131,8 +135,7 @@ def _fetch_metadata(s3, cohort: str, tissue_or_study: str) -> "pd.DataFrame":
 
 def _tcga_tumor_sample_ids(metadata: "pd.DataFrame") -> set[str]:
     """Return the set of gdc_file_id values for Primary-Tumor samples in a TCGA metadata frame."""
-    return set(metadata.loc[metadata["gdc_cases.samples.sample_type"] == "Primary Tumor",
-                             "gdc_file_id"].astype(str))
+    return set(metadata.loc[metadata["gdc_cases.samples.sample_type"] == "Primary Tumor", "gdc_file_id"].astype(str))
 
 
 def _gtex_sample_ids(metadata: "pd.DataFrame") -> set[str]:
@@ -148,6 +151,7 @@ def _log2cpm(counts_df: "pd.DataFrame", sample_cols: list[str]) -> "pd.DataFrame
     in sample_cols. gene_id column is preserved as-is.
     """
     import numpy as np
+
     lib_sizes = counts_df[sample_cols].sum(axis=0)
     # CPM = count / lib_size × 1e6; log2(CPM+1)
     cpm = counts_df[sample_cols].div(lib_sizes, axis=1) * 1e6
@@ -167,6 +171,7 @@ def _welch_deg(log2cpm_a: "np.ndarray", log2cpm_b: "np.ndarray") -> tuple[float,
     """
     import numpy as np
     from scipy import stats
+
     a = log2cpm_a[~np.isnan(log2cpm_a)]
     b = log2cpm_b[~np.isnan(log2cpm_b)]
     if len(a) < 2 or len(b) < 2:
@@ -179,7 +184,7 @@ def _welch_deg(log2cpm_a: "np.ndarray", log2cpm_b: "np.ndarray") -> tuple[float,
         return lfc, 1.0
     try:
         _tstat, p = stats.ttest_ind(a, b, equal_var=False, nan_policy="omit")
-        p = float(p) if p == p else 1.0   # guard against NaN
+        p = float(p) if p == p else 1.0  # guard against NaN
     except Exception:
         p = 1.0
     return lfc, p
@@ -188,6 +193,7 @@ def _welch_deg(log2cpm_a: "np.ndarray", log2cpm_b: "np.ndarray") -> tuple[float,
 def _bh_correct(pvals: "np.ndarray") -> "np.ndarray":
     """Benjamini-Hochberg FDR correction. Returns q-values same shape as input."""
     import numpy as np
+
     n = len(pvals)
     order = np.argsort(pvals)
     ranked = pvals[order]
@@ -230,7 +236,7 @@ def compute_dge_tumor_vs_gtex(
     tcga_counts = tcga_counts_frames[0]
     for other in tcga_counts_frames[1:]:
         tcga_counts = tcga_counts.merge(other, on="gene_id", how="outer")
-    _log(f"  TCGA merged: {tcga_counts.shape[0]:,} genes × {tcga_counts.shape[1]-1:,} tumor samples")
+    _log(f"  TCGA merged: {tcga_counts.shape[0]:,} genes × {tcga_counts.shape[1] - 1:,} tumor samples")
 
     # 2. GTEx side
     gtex_counts = _fetch_counts_matrix(s3, "gtex", gtex_tissue)
@@ -238,7 +244,7 @@ def compute_dge_tumor_vs_gtex(
     gtex_samples = _gtex_sample_ids(gtex_md)
     gtex_keep = [c for c in gtex_counts.columns if c == "gene_id" or c in gtex_samples]
     gtex_counts = gtex_counts[gtex_keep]
-    _log(f"  GTEx {gtex_tissue}: {gtex_counts.shape[0]:,} genes × {gtex_counts.shape[1]-1:,} samples")
+    _log(f"  GTEx {gtex_tissue}: {gtex_counts.shape[0]:,} genes × {gtex_counts.shape[1] - 1:,} samples")
 
     # 3. Join TCGA + GTEx on gene_id (INNER — drop genes not in both)
     tcga_sample_cols = [c for c in tcga_counts.columns if c != "gene_id"]
@@ -252,7 +258,9 @@ def compute_dge_tumor_vs_gtex(
     gtex_log2cpm = _log2cpm(joined[["gene_id"] + gtex_sample_cols], gtex_sample_cols)
 
     # 5. Map Ensembl versioned → HGNC symbol; drop rows without an HGNC mapping
-    def _stem(gid): return str(gid).split(".")[0]
+    def _stem(gid):
+        return str(gid).split(".")[0]
+
     joined["gene_stem"] = joined["gene_id"].map(_stem)
     joined["gene_symbol"] = joined["gene_stem"].map(ensembl_to_hgnc)
     hgnc_mask = joined["gene_symbol"].notna()
@@ -272,19 +280,21 @@ def compute_dge_tumor_vs_gtex(
         q_vals[hgnc_mask] = _bh_correct(p_vals[hgnc_mask])
 
     # 7. Assemble output frame
-    result = pd.DataFrame({
-        "gene_symbol": joined["gene_symbol"].values,
-        "gene_id_ensembl": joined["gene_stem"].values,
-        "log2_fc": log2_fcs,
-        "p_value": p_vals,
-        "q_value": q_vals,
-        "n_tumor": len(tcga_sample_cols),
-        "n_gtex_normal": len(gtex_sample_cols),
-        "mean_log2cpm_tumor": tcga_arr.mean(axis=1),
-        "mean_log2cpm_gtex_normal": gtex_arr.mean(axis=1),
-    })
+    result = pd.DataFrame(
+        {
+            "gene_symbol": joined["gene_symbol"].values,
+            "gene_id_ensembl": joined["gene_stem"].values,
+            "log2_fc": log2_fcs,
+            "p_value": p_vals,
+            "q_value": q_vals,
+            "n_tumor": len(tcga_sample_cols),
+            "n_gtex_normal": len(gtex_sample_cols),
+            "mean_log2cpm_tumor": tcga_arr.mean(axis=1),
+            "mean_log2cpm_gtex_normal": gtex_arr.mean(axis=1),
+        }
+    )
     # Provider-call flags — mirror the coadread-dge-df06320 schema
-    result["is_significant"] = (result["q_value"] < 0.05)
+    result["is_significant"] = result["q_value"] < 0.05
     result["is_upregulated_provider_call"] = (result["log2_fc"] > 0) & result["is_significant"]
     # Drop genes without HGNC mapping (they don't participate in target-eval)
     result = result[result["gene_symbol"].notna()].reset_index(drop=True)
@@ -297,19 +307,22 @@ def write_parquet(df: "pd.DataFrame", local_path: Path) -> int:
     """Write DEG DataFrame to parquet. Sorts by gene_symbol for predicate pushdown."""
     import pyarrow as pa
     import pyarrow.parquet as pq
-    schema = pa.schema([
-        pa.field("gene_symbol", pa.string()),
-        pa.field("gene_id_ensembl", pa.string()),
-        pa.field("log2_fc", pa.float32()),
-        pa.field("p_value", pa.float64()),
-        pa.field("q_value", pa.float64()),
-        pa.field("n_tumor", pa.int32()),
-        pa.field("n_gtex_normal", pa.int32()),
-        pa.field("mean_log2cpm_tumor", pa.float32()),
-        pa.field("mean_log2cpm_gtex_normal", pa.float32()),
-        pa.field("is_significant", pa.bool_()),
-        pa.field("is_upregulated_provider_call", pa.bool_()),
-    ])
+
+    schema = pa.schema(
+        [
+            pa.field("gene_symbol", pa.string()),
+            pa.field("gene_id_ensembl", pa.string()),
+            pa.field("log2_fc", pa.float32()),
+            pa.field("p_value", pa.float64()),
+            pa.field("q_value", pa.float64()),
+            pa.field("n_tumor", pa.int32()),
+            pa.field("n_gtex_normal", pa.int32()),
+            pa.field("mean_log2cpm_tumor", pa.float32()),
+            pa.field("mean_log2cpm_gtex_normal", pa.float32()),
+            pa.field("is_significant", pa.bool_()),
+            pa.field("is_upregulated_provider_call", pa.bool_()),
+        ]
+    )
     table = pa.Table.from_pydict({c.name: df[c.name].tolist() for c in schema}, schema=schema)
     table = table.sort_by("gene_symbol")
     local_path.parent.mkdir(parents=True, exist_ok=True)
@@ -318,11 +331,18 @@ def write_parquet(df: "pd.DataFrame", local_path: Path) -> int:
 
 
 def write_manifest(
-    indication: str, tcga_studies: list[str], gtex_tissue: str,
-    parquet_size: int, n_genes: int, local_dir: Path, s3_prefix: str,
-    s3, upload: bool = True,
+    indication: str,
+    tcga_studies: list[str],
+    gtex_tissue: str,
+    parquet_size: int,
+    n_genes: int,
+    local_dir: Path,
+    s3_prefix: str,
+    s3,
+    upload: bool = True,
 ) -> Path:
     import yaml
+
     manifest = {
         "derived_product_id": f"{indication.lower()}-dge-tumor-vs-gtex-v1",
         "derived_product_version": "0.1.0",
@@ -376,16 +396,25 @@ def write_manifest(
 
 
 @click.command()
-@click.option("--indication", required=True, type=str,
-              help="Framework indication (e.g. COADREAD). Must be in INDICATION_TO_TCGA_STUDIES.")
-@click.option("--local-dir", type=click.Path(file_okay=False, writable=True, path_type=Path),
-              default=Path.home() / "dev" / "framework-runs" / "dge-tcga-gtex-precompute-local",
-              help="Local staging directory.")
-@click.option("--no-upload", is_flag=True,
-              help="Skip S3 upload; write parquet locally only. Useful for dry-run / testing.")
+@click.option(
+    "--indication",
+    required=True,
+    type=str,
+    help="Framework indication (e.g. COADREAD). Must be in INDICATION_TO_TCGA_STUDIES.",
+)
+@click.option(
+    "--local-dir",
+    type=click.Path(file_okay=False, writable=True, path_type=Path),
+    default=Path.home() / "dev" / "framework-runs" / "dge-tcga-gtex-precompute-local",
+    help="Local staging directory.",
+)
+@click.option(
+    "--no-upload", is_flag=True, help="Skip S3 upload; write parquet locally only. Useful for dry-run / testing."
+)
 def main(indication: str, local_dir: Path, no_upload: bool) -> None:
     """Batch precompute TCGA-tumor-vs-GTEx-normal DEG for one indication."""
     import boto3
+
     s3 = boto3.client("s3")
 
     tcga_studies = INDICATION_TO_TCGA_STUDIES.get(indication.upper())
@@ -423,8 +452,9 @@ def main(indication: str, local_dir: Path, no_upload: bool) -> None:
         with open(parquet_path, "rb") as f:
             s3.upload_fileobj(f, DEPMAP_S3_BUCKET, s3_key)
 
-    write_manifest(indication, tcga_studies, gtex_tissue, parquet_size, len(dge_df),
-                    local_dir, s3_prefix, s3, upload=not no_upload)
+    write_manifest(
+        indication, tcga_studies, gtex_tissue, parquet_size, len(dge_df), local_dir, s3_prefix, s3, upload=not no_upload
+    )
 
     _log(f"\n=== Precompute complete for {indication} ===")
 

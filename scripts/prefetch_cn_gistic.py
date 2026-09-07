@@ -19,6 +19,7 @@ Invocation:
   python -m scripts.prefetch_cn_gistic --indication HNSC --genes CCND1
   DRY_RUN=1 python -m scripts.prefetch_cn_gistic --indication HNSC --genes CCND1
 """
+
 from __future__ import annotations
 
 import os
@@ -29,8 +30,7 @@ from pathlib import Path
 import click
 
 S3_BUCKET = "onc-compbio"
-GISTIC_S3 = ("data-catalog/sources/gdc-pancanatlas/2018-snapshot-2026-06-27/"
-             "all_thresholded.by_genes_whitelisted.tsv")
+GISTIC_S3 = "data-catalog/sources/gdc-pancanatlas/2018-snapshot-2026-06-27/all_thresholded.by_genes_whitelisted.tsv"
 # High-level amplification threshold (GISTIC +2). Low-level gain (+1) is NOT an
 # amp call — matches the catalog's focal-amplification intent (CCND1/ERBB2).
 AMP_THRESHOLD = 2
@@ -54,8 +54,9 @@ def _s3_download(key: str, dest: Path, dry_run: bool) -> None:
         _log(f"DRY_RUN: would download s3://{S3_BUCKET}/{key} → {dest}")
         return
     _log(f"downloading s3://{S3_BUCKET}/{key} → {dest} (589 MB)")
-    r = subprocess.run(["aws", "s3", "cp", f"s3://{S3_BUCKET}/{key}", str(dest), "--no-progress"],
-                       capture_output=True, text=True)
+    r = subprocess.run(
+        ["aws", "s3", "cp", f"s3://{S3_BUCKET}/{key}", str(dest), "--no-progress"], capture_output=True, text=True
+    )
     if r.returncode != 0:
         _log(f"download FAILED: {r.stderr}")
         sys.exit(r.returncode)
@@ -65,6 +66,7 @@ def _patient_list(indication: str) -> set | None:
     """Restrict to the indication's marker-paper patients (else the product is
     pan-TCGA). Returns None if the marker-paper file is absent (keep all)."""
     import pandas as pd
+
     mp = _cache_root() / "framework-tcga-marker-paper" / indication.lower() / "subtypes.csv"
     if not mp.exists():
         _log(f"WARNING: no marker-paper patient list at {mp}; keeping all samples.")
@@ -115,17 +117,15 @@ def main(indication: str, genes: str) -> int:
 
     # Collapse aliquot duplicates per (patient, gene): take the MAX gistic value
     # (most-amplified call wins — conservative for amp detection).
-    agg = (long.groupby(["patient_key", "gene_symbol"])["gistic_value"]
-           .max().reset_index())
-    agg["amp_call"] = agg["gistic_value"].apply(
-        lambda v: "amplified" if v >= AMP_THRESHOLD else "not_amplified")
+    agg = long.groupby(["patient_key", "gene_symbol"])["gistic_value"].max().reset_index()
+    agg["amp_call"] = agg["gistic_value"].apply(lambda v: "amplified" if v >= AMP_THRESHOLD else "not_amplified")
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     agg.to_parquet(out_path, index=False)
     for g in gene_list:
         sub = agg[agg["gene_symbol"] == g]
         n_amp = int((sub["amp_call"] == "amplified").sum())
-        _log(f"  {g}: {n_amp}/{len(sub)} amplified ({100*n_amp/len(sub):.1f}%)" if len(sub) else f"  {g}: absent")
+        _log(f"  {g}: {n_amp}/{len(sub)} amplified ({100 * n_amp / len(sub):.1f}%)" if len(sub) else f"  {g}: absent")
     _log(f"wrote {out_path}: {len(agg)} (patient, gene) rows")
     return 0
 

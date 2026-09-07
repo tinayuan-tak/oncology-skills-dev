@@ -69,8 +69,10 @@ def _parse_s3_uri(uri: str) -> tuple[str, str]:
 def fetch_concordance_row(parquet_uri: str, gene: str) -> Optional[dict]:
     """Pyarrow predicate-pushdown read for ONE gene row. Returns dict or None."""
     import pyarrow.parquet as pq
+
     if parquet_uri.startswith("s3://"):
         import pyarrow.fs as pafs
+
         bucket, key = _parse_s3_uri(parquet_uri)
         fs = pafs.S3FileSystem()
         path = f"{bucket}/{key}"
@@ -96,9 +98,11 @@ def compute_summary(row: Optional[dict], target: str) -> dict:
     if row is None:
         return {
             "crispr_prism_concordance_class": CONCORDANCE_DATA_UNAVAILABLE,
-            "_data_note": (f"Target {target!r} has no PRISM-annotated compounds. "
-                           "No concordance analysis possible; distinct from a real "
-                           "'discordant' call — this is a first-in-class gap."),
+            "_data_note": (
+                f"Target {target!r} has no PRISM-annotated compounds. "
+                "No concordance analysis possible; distinct from a real "
+                "'discordant' call — this is a first-in-class gap."
+            ),
             "n_compounds_evaluated": 0,
             "per_compound_concordance": [],
             "best_spearman_r_crispr": None,
@@ -115,10 +119,8 @@ def compute_summary(row: Optional[dict], target: str) -> dict:
         e = dict(c)
         e["drug_name"] = cid_to_name.get(c["compound_id"], c["compound_id"])
         enriched.append(e)
-    crispr_rhos = [c["spearman_r_crispr"] for c in enriched
-                   if c.get("spearman_r_crispr") is not None]
-    rnai_rhos = [c["spearman_r_rnai"] for c in enriched
-                 if c.get("spearman_r_rnai") is not None]
+    crispr_rhos = [c["spearman_r_crispr"] for c in enriched if c.get("spearman_r_crispr") is not None]
+    rnai_rhos = [c["spearman_r_rnai"] for c in enriched if c.get("spearman_r_rnai") is not None]
     dual = row.get("dual_responders") or []
     return {
         "crispr_prism_concordance_class": row.get("crispr_prism_concordance_class"),
@@ -133,31 +135,44 @@ def compute_summary(row: Optional[dict], target: str) -> dict:
 
 def _load_takeda_palette(target_contracts_dir: Path):
     import matplotlib.pyplot as plt
+
     style_path = target_contracts_dir / "plot_styles" / "takeda_oncology.mplstyle"
     if style_path.exists():
         plt.style.use(str(style_path))
     sys.path.insert(0, str(target_contracts_dir / "plot_styles"))
     import takeda_palette
+
     return takeda_palette
 
 
 def _placeholder_svg(msg_lines: list[str], out_path: Path, pal) -> Path:
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+
     fig, ax = plt.subplots(figsize=pal.FIGSIZE_DOUBLE_COLUMN)
     y = 0.7
     for line in msg_lines:
-        ax.text(0.5, y, line, transform=ax.transAxes, ha="center",
-                 fontsize=10 if y == 0.7 else 8, color="#444" if y == 0.7 else "#777")
+        ax.text(
+            0.5,
+            y,
+            line,
+            transform=ax.transAxes,
+            ha="center",
+            fontsize=10 if y == 0.7 else 8,
+            color="#444" if y == 0.7 else "#777",
+        )
         y -= 0.1
     ax.set_axis_off()
-    fig.savefig(out_path); plt.close(fig)
+    fig.savefig(out_path)
+    plt.close(fig)
     return out_path
 
 
-def emit_concordance_scatter(summary: dict, target: str, out_dir: Path,
-                                target_contracts_dir: Path = DEFAULT_TARGET_CONTRACTS) -> Path:
+def emit_concordance_scatter(
+    summary: dict, target: str, out_dir: Path, target_contracts_dir: Path = DEFAULT_TARGET_CONTRACTS
+) -> Path:
     """2D scatter: rho_crispr on x, rho_rnai on y. One point per compound.
 
     Quadrant coloring:
@@ -170,6 +185,7 @@ def emit_concordance_scatter(summary: dict, target: str, out_dir: Path,
     Named point labels for top-K compounds by |rho|.
     """
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
@@ -178,19 +194,21 @@ def emit_concordance_scatter(summary: dict, target: str, out_dir: Path,
 
     per_compound = summary.get("per_compound_concordance") or []
     if not per_compound:
-        return _placeholder_svg([
-            f"{target} — no concordance data",
-            "(no compounds cleared the intersection minimum, or gene absent from CRISPR/RNAi)"
-        ], out_path, pal)
+        return _placeholder_svg(
+            [
+                f"{target} — no concordance data",
+                "(no compounds cleared the intersection minimum, or gene absent from CRISPR/RNAi)",
+            ],
+            out_path,
+            pal,
+        )
 
     # Points
-    points = [c for c in per_compound
-              if c.get("spearman_r_crispr") is not None or c.get("spearman_r_rnai") is not None]
+    points = [c for c in per_compound if c.get("spearman_r_crispr") is not None or c.get("spearman_r_rnai") is not None]
     if not points:
-        return _placeholder_svg([
-            f"{target} — thin evidence",
-            "insufficient cell-line intersections for correlation"
-        ], out_path, pal)
+        return _placeholder_svg(
+            [f"{target} — thin evidence", "insufficient cell-line intersections for correlation"], out_path, pal
+        )
 
     xs = [c.get("spearman_r_crispr") if c.get("spearman_r_crispr") is not None else 0.0 for c in points]
     ys = [c.get("spearman_r_rnai") if c.get("spearman_r_rnai") is not None else 0.0 for c in points]
@@ -199,21 +217,22 @@ def emit_concordance_scatter(summary: dict, target: str, out_dir: Path,
         s = CONCORDANCE_STRONG_SPEARMAN
         w = CONCORDANCE_WEAK_SPEARMAN
         if x >= s and y >= s:
-            return "#0a2540"   # triangulated (navy)
+            return "#0a2540"  # triangulated (navy)
         if x >= s:
-            return "#7fa7c0"   # CRISPR-confirmed (light blue)
+            return "#7fa7c0"  # CRISPR-confirmed (light blue)
         if y >= s:
-            return "#7fbb99"   # RNAi-confirmed (light green)
+            return "#7fbb99"  # RNAi-confirmed (light green)
         if x >= w or y >= w:
-            return "#f0a020"   # mixed (ochre)
-        return "#bbbbbb"       # discordant (gray)
+            return "#f0a020"  # mixed (ochre)
+        return "#bbbbbb"  # discordant (gray)
 
     colors = [_color(x, y) for x, y in zip(xs, ys)]
 
     fig, ax = plt.subplots(figsize=pal.FIGSIZE_DOUBLE_COLUMN)
     # Shade triangulated quadrant lightly
-    ax.axhspan(CONCORDANCE_STRONG_SPEARMAN, 1.0, xmin=(CONCORDANCE_STRONG_SPEARMAN + 1) / 2,
-                alpha=0.06, color="#0a2540")
+    ax.axhspan(
+        CONCORDANCE_STRONG_SPEARMAN, 1.0, xmin=(CONCORDANCE_STRONG_SPEARMAN + 1) / 2, alpha=0.06, color="#0a2540"
+    )
     # Reference lines
     for thresh in [CONCORDANCE_WEAK_SPEARMAN, CONCORDANCE_STRONG_SPEARMAN]:
         ax.axvline(thresh, color="#888", linestyle="--", linewidth=0.5)
@@ -224,11 +243,9 @@ def emit_concordance_scatter(summary: dict, target: str, out_dir: Path,
 
     ax.scatter(xs, ys, c=colors, s=48, edgecolor="white", linewidth=0.6, zorder=3)
     # Label top compounds by |rho_crispr + rho_rnai|
-    for c, x, y in sorted(zip(points, xs, ys),
-                          key=lambda t: -(abs(t[1]) + abs(t[2])))[:8]:
+    for c, x, y in sorted(zip(points, xs, ys), key=lambda t: -(abs(t[1]) + abs(t[2])))[:8]:
         drug = c.get("drug_name") or c.get("compound_id")
-        ax.annotate(drug, (x, y), xytext=(4, 4), textcoords="offset points",
-                     fontsize=7, color="#333")
+        ax.annotate(drug, (x, y), xytext=(4, 4), textcoords="offset points", fontsize=7, color="#333")
 
     ax.set_xlim(-0.5, 1.0)
     ax.set_ylim(-0.5, 1.0)
@@ -246,16 +263,16 @@ def emit_concordance_scatter(summary: dict, target: str, out_dir: Path,
 
     cls = summary.get("crispr_prism_concordance_class") or "unknown"
     n = summary.get("n_compounds_evaluated", 0)
-    ax.set_title(f"{target} — chemical-genetic concordance ({n} compounds · {cls.replace('_', ' ')})",
-                    fontsize=9)
+    ax.set_title(f"{target} — chemical-genetic concordance ({n} compounds · {cls.replace('_', ' ')})", fontsize=9)
     fig.tight_layout()
-    fig.savefig(out_path); plt.close(fig)
+    fig.savefig(out_path)
+    plt.close(fig)
     return out_path
 
 
-def emit_dual_responders_bar(summary: dict, target: str, out_dir: Path,
-                                target_contracts_dir: Path = DEFAULT_TARGET_CONTRACTS,
-                                top_k: int = 15) -> Path:
+def emit_dual_responders_bar(
+    summary: dict, target: str, out_dir: Path, target_contracts_dir: Path = DEFAULT_TARGET_CONTRACTS, top_k: int = 15
+) -> Path:
     """Horizontal paired bars: for each dual-responder cell line, Chronos-dep
     (left, red-ish) and best-compound-LFC (right, navy). Sorted by CRISPR-dep
     magnitude descending.
@@ -263,6 +280,7 @@ def emit_dual_responders_bar(summary: dict, target: str, out_dir: Path,
     Placeholder when no dual responders.
     """
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
@@ -271,43 +289,60 @@ def emit_dual_responders_bar(summary: dict, target: str, out_dir: Path,
 
     dual = summary.get("dual_responders") or []
     if not dual:
-        return _placeholder_svg([
-            f"{target} — no dual-responder cell lines",
-            "no line is both CRISPR-dependent AND compound-responsive above thresholds"
-        ], out_path, pal)
+        return _placeholder_svg(
+            [
+                f"{target} — no dual-responder cell lines",
+                "no line is both CRISPR-dependent AND compound-responsive above thresholds",
+            ],
+            out_path,
+            pal,
+        )
 
     top = dual[:top_k]
     labels = [f"{d['model_id']} ({d.get('lineage', 'Unknown')})" for d in top]
-    chronos = [-d["chronos_dep"] for d in top]           # bar length = |Chronos| (larger = more dep)
-    lfcs = [-d["best_compound_lfc"] for d in top]        # bar length = |LFC| (larger = more killed)
+    chronos = [-d["chronos_dep"] for d in top]  # bar length = |Chronos| (larger = more dep)
+    lfcs = [-d["best_compound_lfc"] for d in top]  # bar length = |LFC| (larger = more killed)
     compounds = [d.get("best_compound_id") or "" for d in top]
 
     fig, ax = plt.subplots(figsize=pal.FIGSIZE_DOUBLE_COLUMN)
     y = list(range(len(labels)))
-    ax.barh([yy + 0.20 for yy in y], chronos, height=0.35, color="#cf2828",
-             label="CRISPR |Chronos| (KO dependency)", edgecolor="white")
-    ax.barh([yy - 0.20 for yy in y], lfcs, height=0.35, color="#0a2540",
-             label="Best compound |LFC| (chemical kill)", edgecolor="white")
+    ax.barh(
+        [yy + 0.20 for yy in y],
+        chronos,
+        height=0.35,
+        color="#cf2828",
+        label="CRISPR |Chronos| (KO dependency)",
+        edgecolor="white",
+    )
+    ax.barh(
+        [yy - 0.20 for yy in y],
+        lfcs,
+        height=0.35,
+        color="#0a2540",
+        label="Best compound |LFC| (chemical kill)",
+        edgecolor="white",
+    )
     for i, cid in enumerate(compounds):
-        ax.text(max(max(lfcs), max(chronos)) * 0.02, i - 0.20, f" via {cid}",
-                 va="center", fontsize=6, color="#666")
+        ax.text(max(max(lfcs), max(chronos)) * 0.02, i - 0.20, f" via {cid}", va="center", fontsize=6, color="#666")
     ax.set_yticks(y)
     ax.set_yticklabels(labels, fontsize=7)
     ax.invert_yaxis()
     ax.set_xlabel("Magnitude (larger = more dependent / more killed)")
     ax.legend(loc="lower right", fontsize=7, framealpha=0.9)
 
-    ax.set_title(f"{target} — dual-validated responder cell lines  (top {len(top)} of {len(dual)})",
-                    fontsize=9)
+    ax.set_title(f"{target} — dual-validated responder cell lines  (top {len(top)} of {len(dual)})", fontsize=9)
     fig.tight_layout()
-    fig.savefig(out_path); plt.close(fig)
+    fig.savefig(out_path)
+    plt.close(fig)
     return out_path
 
 
-def emit_concordance_vocabulary_panel(summary: dict, target: str, out_dir: Path,
-                                          target_contracts_dir: Path = DEFAULT_TARGET_CONTRACTS) -> Path:
+def emit_concordance_vocabulary_panel(
+    summary: dict, target: str, out_dir: Path, target_contracts_dir: Path = DEFAULT_TARGET_CONTRACTS
+) -> Path:
     """Text summary: class + best rhos + n_dual_responders + top-3 dual responders."""
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
@@ -321,7 +356,8 @@ def emit_concordance_vocabulary_panel(summary: dict, target: str, out_dir: Path,
     n_dual = summary.get("n_dual_responders", 0)
     dual = summary.get("dual_responders") or []
 
-    def _fmt(v): return f"{v:+.2f}" if isinstance(v, (int, float)) else "NA"
+    def _fmt(v):
+        return f"{v:+.2f}" if isinstance(v, (int, float)) else "NA"
 
     lines = [
         f"{target}  ·  chemical-genetic concordance",
@@ -333,7 +369,9 @@ def emit_concordance_vocabulary_panel(summary: dict, target: str, out_dir: Path,
         f"dual responders:     {n_dual}",
     ]
     for d in dual[:3]:
-        lines.append(f"  {d['model_id']} ({d.get('lineage','?')})  chronos={d['chronos_dep']:.2f}  LFC={d['best_compound_lfc']:.2f}")
+        lines.append(
+            f"  {d['model_id']} ({d.get('lineage', '?')})  chronos={d['chronos_dep']:.2f}  LFC={d['best_compound_lfc']:.2f}"
+        )
 
     color = {
         CONCORDANCE_TRIANGULATED: "#0a2540",
@@ -350,19 +388,28 @@ def emit_concordance_vocabulary_panel(summary: dict, target: str, out_dir: Path,
     for i, line in enumerate(lines):
         weight = "bold" if i == 0 else "normal"
         size = 11 if i == 0 else 9
-        ax.text(0.05, y, line, transform=ax.transAxes, ha="left",
-                 fontsize=size, weight=weight,
-                 color=color if i == 0 else "#333",
-                 family="monospace" if i > 0 else "sans-serif")
+        ax.text(
+            0.05,
+            y,
+            line,
+            transform=ax.transAxes,
+            ha="left",
+            fontsize=size,
+            weight=weight,
+            color=color if i == 0 else "#333",
+            family="monospace" if i > 0 else "sans-serif",
+        )
         y -= 0.09
     ax.set_axis_off()
     fig.tight_layout()
-    fig.savefig(out_path); plt.close(fig)
+    fig.savefig(out_path)
+    plt.close(fig)
     return out_path
 
 
-def emit_plotly_specs(summary: dict, target: str, out_path: Path,
-                      contracts_root: Path = DEFAULT_TARGET_CONTRACTS) -> list:
+def emit_plotly_specs(
+    summary: dict, target: str, out_path: Path, contracts_root: Path = DEFAULT_TARGET_CONTRACTS
+) -> list:
     """Emit interactive Plotly spec SIBLING to the concordance-scatter SVG (Gate-C plotly debt, 2026-07-21).
 
     Interactive twin of emit_concordance_scatter: per-compound Spearman ρ vs CRISPR (x) vs RNAi (y),
@@ -378,10 +425,9 @@ def emit_plotly_specs(summary: dict, target: str, out_path: Path,
         return []
 
     per_compound = summary.get("per_compound_concordance") or []
-    points = [c for c in per_compound
-              if c.get("spearman_r_crispr") is not None or c.get("spearman_r_rnai") is not None]
+    points = [c for c in per_compound if c.get("spearman_r_crispr") is not None or c.get("spearman_r_rnai") is not None]
     if not points:
-        return []   # thin evidence / no data — SVG placeholder already covers this state
+        return []  # thin evidence / no data — SVG placeholder already covers this state
 
     written = []
     try:
@@ -389,26 +435,29 @@ def emit_plotly_specs(summary: dict, target: str, out_path: Path,
 
         def _color(x, y):
             if x >= s and y >= s:
-                return "#0a2540"   # triangulated (navy)
+                return "#0a2540"  # triangulated (navy)
             if x >= s:
-                return "#7fa7c0"   # CRISPR-confirmed
+                return "#7fa7c0"  # CRISPR-confirmed
             if y >= s:
-                return "#7fbb99"   # RNAi-confirmed
+                return "#7fbb99"  # RNAi-confirmed
             if x >= w or y >= w:
-                return "#f0a020"   # mixed
-            return "#bbbbbb"       # discordant
+                return "#f0a020"  # mixed
+            return "#bbbbbb"  # discordant
 
-        xs = [c.get("spearman_r_crispr") if c.get("spearman_r_crispr") is not None else 0.0
-              for c in points]
-        ys = [c.get("spearman_r_rnai") if c.get("spearman_r_rnai") is not None else 0.0
-              for c in points]
+        xs = [c.get("spearman_r_crispr") if c.get("spearman_r_crispr") is not None else 0.0 for c in points]
+        ys = [c.get("spearman_r_rnai") if c.get("spearman_r_rnai") is not None else 0.0 for c in points]
         colors = [_color(x, y) for x, y in zip(xs, ys)]
         drugs = [c.get("drug_name") or c.get("compound_id") or "?" for c in points]
-        fig = go.Figure(go.Scatter(
-            x=xs, y=ys, mode="markers",
-            marker=dict(color=colors, size=10, line=dict(width=0.6, color="white")),
-            customdata=drugs,
-            hovertemplate="%{customdata}<br>ρ CRISPR %{x:.2f} / ρ RNAi %{y:.2f}<extra></extra>"))
+        fig = go.Figure(
+            go.Scatter(
+                x=xs,
+                y=ys,
+                mode="markers",
+                marker=dict(color=colors, size=10, line=dict(width=0.6, color="white")),
+                customdata=drugs,
+                hovertemplate="%{customdata}<br>ρ CRISPR %{x:.2f} / ρ RNAi %{y:.2f}<extra></extra>",
+            )
+        )
         # threshold + zero reflines mirror the SVG (0.10 weak, 0.30 strong, on both axes; 0 axes).
         for t in (w, s):
             fig.add_vline(x=t, line=dict(color="#888888", dash="dash", width=1))
@@ -419,21 +468,27 @@ def emit_plotly_specs(summary: dict, target: str, out_path: Path,
         n = summary.get("n_compounds_evaluated", len(points))
         fig.update_layout(
             title=f"{target} — chemical-genetic concordance ({n} compounds · {cls})",
-            xaxis_title="Spearman ρ vs CRISPR Chronos", yaxis_title="Spearman ρ vs RNAi DEMETER2",
-            xaxis=dict(range=[-0.5, 1.0]), yaxis=dict(range=[-0.5, 1.0]),
-            template="plotly_white", showlegend=False, margin=dict(l=60, r=20, t=50, b=50))
+            xaxis_title="Spearman ρ vs CRISPR Chronos",
+            yaxis_title="Spearman ρ vs RNAi DEMETER2",
+            xaxis=dict(range=[-0.5, 1.0]),
+            yaxis=dict(range=[-0.5, 1.0]),
+            template="plotly_white",
+            showlegend=False,
+            margin=dict(l=60, r=20, t=50, b=50),
+        )
         (out_path / "figure_concordance_scatter.plotly.json").write_text(fig.to_json())
-        written.append({"id": "concordance_scatter",
-                        "path": "figure_concordance_scatter.plotly.json", "type": "plotly"})
+        written.append(
+            {"id": "concordance_scatter", "path": "figure_concordance_scatter.plotly.json", "type": "plotly"}
+        )
     except Exception as e:  # noqa: BLE001
         print(f"[prism-crispr-concordance] scatter plotly skipped: {e}", file=sys.stderr)
 
     return written
 
 
-def emit_manifest(target: str, release_pin: str, summary: dict,
-                    out_dir: Path, parquet_uri: str) -> Path:
+def emit_manifest(target: str, release_pin: str, summary: dict, out_dir: Path, parquet_uri: str) -> Path:
     import yaml
+
     manifest = {
         "method_id": "depmap-prism-crispr-concordance",
         "method_version": METHOD_VERSION,
@@ -456,10 +511,13 @@ def emit_manifest(target: str, release_pin: str, summary: dict,
 
 @click.command()
 @click.option("--target", required=True, help="HGNC symbol")
-@click.option("--release-pin", default="prism-activity-v4", show_default=True,
-              type=click.Choice(list(RELEASE_PIN_TO_PARQUET.keys())))
-@click.option("--parquet-uri", default=None,
-              help="Override the parquet URI (for testing / local fixture).")
+@click.option(
+    "--release-pin",
+    default="prism-activity-v4",
+    show_default=True,
+    type=click.Choice(list(RELEASE_PIN_TO_PARQUET.keys())),
+)
+@click.option("--parquet-uri", default=None, help="Override the parquet URI (for testing / local fixture).")
 @click.option("--out", required=True, type=click.Path(file_okay=False, writable=True, path_type=Path))
 def main(target, release_pin, parquet_uri, out):
     out.mkdir(parents=True, exist_ok=True)

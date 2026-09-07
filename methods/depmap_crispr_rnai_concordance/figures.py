@@ -17,9 +17,15 @@ from . import cli as _cli
 _REQUIRED_COLUMNS = ("chronos", "demeter2")
 
 
-def render_from_plot_data(plot_data: "Union[str, Path, object]", summary: dict, out_dir: "Union[str, Path]",
-                          target: str, indication: Optional[str] = None, *,
-                          target_contracts_dir: "Optional[Union[str, Path]]" = None) -> list[dict]:
+def render_from_plot_data(
+    plot_data: "Union[str, Path, object]",
+    summary: dict,
+    out_dir: "Union[str, Path]",
+    target: str,
+    indication: Optional[str] = None,
+    *,
+    target_contracts_dir: "Optional[Union[str, Path]]" = None,
+) -> list[dict]:
     """Render the crispr-rnai-dependency-concordance figures OFFLINE from persisted plot_data. NO live
     read. The partition-bar uses the passed `summary` (the card's compute_concordance output); the
     other panels replay the persisted per-line frame."""
@@ -42,12 +48,24 @@ def render_from_plot_data(plot_data: "Union[str, Path, object]", summary: dict, 
     _cli.emit_partition_bar(summary, target, out_dir, tcd)
 
     static = [
-        {"id": "concordance_overlay_density", "path": "figure_concordance_overlay_density.svg",
-         "type": "overlay_kde_with_rug", "primary": True},
-        {"id": "concordance_partition_bar", "path": "figure_concordance_partition_bar.svg",
-         "type": "stacked_bar", "primary": False},
-        {"id": "concordance_scatter", "path": "figure_concordance_scatter.svg",
-         "type": "scatter_with_quadrants", "primary": False},
+        {
+            "id": "concordance_overlay_density",
+            "path": "figure_concordance_overlay_density.svg",
+            "type": "overlay_kde_with_rug",
+            "primary": True,
+        },
+        {
+            "id": "concordance_partition_bar",
+            "path": "figure_concordance_partition_bar.svg",
+            "type": "stacked_bar",
+            "primary": False,
+        },
+        {
+            "id": "concordance_scatter",
+            "path": "figure_concordance_scatter.svg",
+            "type": "scatter_with_quadrants",
+            "primary": False,
+        },
     ]
     dynamic: list[dict] = []
     try:

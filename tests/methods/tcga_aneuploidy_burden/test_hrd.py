@@ -4,6 +4,7 @@ Unit-tests each scar component (HRD-LOH / LST / ntAI) against hand-constructed s
 known counts, then the per-indication cohort roll-up with the S3 loaders mocked (no network).
 Chromosome 1 (hg19: len 249.25 Mb, centromere 125 Mb) is used throughout so the geometry is explicit.
 """
+
 from __future__ import annotations
 
 import sys
@@ -23,12 +24,19 @@ MB = 1_000_000
 
 
 def _seg(chrom, start, end, hscn1, hscn2, loh):
-    return {"Chromosome": float(chrom), "Start": float(start), "End": float(end),
-            "Length": float(end - start), "Modal_HSCN_1": hscn1, "Modal_HSCN_2": hscn2,
-            "LOH": float(loh)}
+    return {
+        "Chromosome": float(chrom),
+        "Start": float(start),
+        "End": float(end),
+        "Length": float(end - start),
+        "Modal_HSCN_1": hscn1,
+        "Modal_HSCN_2": hscn2,
+        "LOH": float(loh),
+    }
 
 
 # ---------------- HRD-LOH ----------------
+
 
 def test_hrd_loh_counts_large_non_whole_chrom_loh():
     # A 20 Mb LOH region on chr1 p-arm (10-30 Mb): > 15 Mb, not whole-chromosome → counts 1.
@@ -53,6 +61,7 @@ def test_hrd_loh_excludes_small_loh():
 
 # ---------------- ntAI (telomeric allelic imbalance) ----------------
 
+
 def test_ntai_counts_telomeric_imbalance():
     # AI segment (hscn 2 vs 1) touching the p-telomere (start ~0), not crossing centromere → 1.
     segs = [_seg(1, 0, 40 * MB, 2, 1, loh=0)]
@@ -76,10 +85,11 @@ def test_ntai_excludes_balanced_segment():
 
 # ---------------- LST (large-scale state transitions) ----------------
 
+
 def test_lst_counts_transition_between_large_segments():
     # Two adjacent >=10 Mb segments on the p-arm (both retained after 3 Mb smoothing) → 1 transition.
     segs = [
-        _seg(1, 0, 60 * MB, 2, 2, loh=0),      # 60 Mb, p-arm
+        _seg(1, 0, 60 * MB, 2, 2, loh=0),  # 60 Mb, p-arm
         _seg(1, 60 * MB, 120 * MB, 1, 1, loh=0),  # 60 Mb, p-arm (adjacent)
     ]
     out = h.hrd_scars_for_sample(segs)
@@ -91,7 +101,7 @@ def test_lst_smoothing_drops_small_segments():
     # adjacent → still 1 transition (not 2).
     segs = [
         _seg(1, 0, 60 * MB, 2, 2, loh=0),
-        _seg(1, 60 * MB, 62 * MB, 3, 3, loh=0),   # 2 Mb — smoothed away
+        _seg(1, 60 * MB, 62 * MB, 3, 3, loh=0),  # 2 Mb — smoothed away
         _seg(1, 62 * MB, 120 * MB, 1, 1, loh=0),
     ]
     out = h.hrd_scars_for_sample(segs)
@@ -101,8 +111,8 @@ def test_lst_smoothing_drops_small_segments():
 def test_lst_not_counted_across_centromere():
     # A large p-arm segment and a large q-arm segment are on different arms — no cross-centromere LST.
     segs = [
-        _seg(1, 0, 120 * MB, 2, 2, loh=0),          # p-arm (ends before centromere 125 Mb)
-        _seg(1, 130 * MB, CHR1_LEN, 1, 1, loh=0),   # q-arm
+        _seg(1, 0, 120 * MB, 2, 2, loh=0),  # p-arm (ends before centromere 125 Mb)
+        _seg(1, 130 * MB, CHR1_LEN, 1, 1, loh=0),  # q-arm
     ]
     out = h.hrd_scars_for_sample(segs)
     assert out["lst"] == 0
@@ -110,11 +120,12 @@ def test_lst_not_counted_across_centromere():
 
 # ---------------- score sum + X exclusion ----------------
 
+
 def test_hrd_score_is_sum_of_three():
     segs = [
-        _seg(1, 10 * MB, 30 * MB, 1, 0, loh=1),      # HRD-LOH +1 (also AI+telomeric? start 10Mb > slack → no ntAI)
-        _seg(1, 0, 60 * MB, 2, 1, loh=0),            # ntAI +1 (telomeric AI)
-        _seg(1, 60 * MB, 120 * MB, 1, 1, loh=0),     # + prior → LST +1
+        _seg(1, 10 * MB, 30 * MB, 1, 0, loh=1),  # HRD-LOH +1 (also AI+telomeric? start 10Mb > slack → no ntAI)
+        _seg(1, 0, 60 * MB, 2, 1, loh=0),  # ntAI +1 (telomeric AI)
+        _seg(1, 60 * MB, 120 * MB, 1, 1, loh=0),  # + prior → LST +1
     ]
     out = h.hrd_scars_for_sample(segs)
     assert out["hrd_score"] == out["hrd_loh"] + out["lst"] + out["ntai"]
@@ -129,6 +140,7 @@ def test_x_chromosome_excluded():
 
 
 # ---------------- cohort roll-up (S3 mocked) ----------------
+
 
 def _mock_segtabs(monkeypatch, seg_rows, cancer_map):
     # Force the LIVE segtabs computation: hrd_score_for_indication tries the per-indication product
@@ -154,8 +166,8 @@ def test_indication_rollup_scopes_and_classifies(monkeypatch):
     cancer = {"TCGA-A6-0001": "COAD", "TCGA-A6-0002": "COAD", "TCGA-05-9999": "LUAD"}
     _mock_segtabs(monkeypatch, rows, cancer)
     out = r.hrd_score_for_indication("COADREAD")
-    assert out["n_samples"] == 2            # LUAD excluded
-    assert out["n_hrd_high"] == 1           # only sample A clears 42
+    assert out["n_samples"] == 2  # LUAD excluded
+    assert out["n_hrd_high"] == 1  # only sample A clears 42
     assert out["hrd_class"] in ("hrd_enriched", "hrd_intermediate")
 
 
@@ -167,7 +179,7 @@ def test_indication_unavailable_no_mapping(monkeypatch):
 
 
 def test_indication_unavailable_empty_segtabs(monkeypatch):
-    monkeypatch.setattr(r, "_hrd_from_product", lambda *a, **k: None)   # force live path (see _mock_segtabs)
+    monkeypatch.setattr(r, "_hrd_from_product", lambda *a, **k: None)  # force live path (see _mock_segtabs)
     r._load_absolute_segtabs.cache_clear()
     r._load_sample_cancer_types.cache_clear()
     monkeypatch.setattr(r, "_load_absolute_segtabs", lambda: pd.DataFrame())

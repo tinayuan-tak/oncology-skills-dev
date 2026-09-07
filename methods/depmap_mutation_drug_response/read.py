@@ -14,6 +14,7 @@ lower Chronos = more dependent).
 
 PRISM Log2AUC scale: (-inf, 0]; active drug typically -0.3..-1.0; near-flat > -0.05.
 """
+
 from __future__ import annotations
 
 import io
@@ -57,6 +58,7 @@ def _release_cfg(release_pin: str) -> dict:
 def _read_csv_s3(key: str, **kwargs):
     import boto3
     import pandas as pd
+
     ensure_aws_profile()
     s3 = boto3.client("s3")
     obj = s3.get_object(Bucket=_BUCKET, Key=key)
@@ -98,16 +100,17 @@ def load_on_target_compounds(release_pin: str, target_symbol: str) -> tuple[list
         if sid in seen:
             continue
         seen.add(sid)
-        records.append({
-            "sample_id": sid,
-            "name": str(row.get(name_col, "")),
-            "target_or_mechanism": str(row.get(moa_col, "")),
-        })
+        records.append(
+            {
+                "sample_id": sid,
+                "name": str(row.get(name_col, "")),
+                "target_or_mechanism": str(row.get(moa_col, "")),
+            }
+        )
     return [r["sample_id"] for r in records], records
 
 
-def load_drug_response_by_model(release_pin: str, sample_ids: list,
-                                 aggregate: str = "best") -> tuple[dict, list]:
+def load_drug_response_by_model(release_pin: str, sample_ids: list, aggregate: str = "best") -> tuple[dict, list]:
     """Build {ModelID → Log2AUC} over the on-target compounds.
 
     aggregate:
@@ -139,8 +142,9 @@ def load_drug_response_by_model(release_pin: str, sample_ids: list,
     return out, []
 
 
-def read_mutation_drug_response(target: str, indication: Optional[str] = None,
-                                release_pin: str = "26q1", aggregate: str = "best") -> dict:
+def read_mutation_drug_response(
+    target: str, indication: Optional[str] = None, release_pin: str = "26q1", aggregate: str = "best"
+) -> dict:
     """Card entry point: genotype × PRISM drug-response biomarker for target.
 
     Selects on-target PRISM compounds (GeneSymbolOfTargets == target), builds the per-ModelID
@@ -155,33 +159,48 @@ def read_mutation_drug_response(target: str, indication: Optional[str] = None,
     sample_ids, compound_records = load_on_target_compounds(release_pin, target)
     load_err = [r for r in compound_records if isinstance(r, dict) and r.get("_live_read_error")]
     if load_err:
-        return {"drug_response_stratification_class": "data_unavailable",
-                "_live_read_error": load_err[0]["_live_read_error"],
-                "n_on_target_compounds": 0, "on_target_compounds": []}
+        return {
+            "drug_response_stratification_class": "data_unavailable",
+            "_live_read_error": load_err[0]["_live_read_error"],
+            "n_on_target_compounds": 0,
+            "on_target_compounds": [],
+        }
     if not sample_ids:
-        return {"drug_response_stratification_class": "no_on_target_compound",
-                "n_on_target_compounds": 0, "on_target_compounds": [],
-                "_note": "no PRISM compound targets this gene"}
+        return {
+            "drug_response_stratification_class": "no_on_target_compound",
+            "n_on_target_compounds": 0,
+            "on_target_compounds": [],
+            "_note": "no PRISM compound targets this gene",
+        }
 
     drug_response_by_model, dr_errs = load_drug_response_by_model(release_pin, sample_ids, aggregate)
     if dr_errs or not drug_response_by_model:
-        return {"drug_response_stratification_class": "no_on_target_compound",
-                "n_on_target_compounds": len(sample_ids), "on_target_compounds": [],
-                "_note": str(dr_errs[:1]) if dr_errs else "no measured on-target drug response"}
+        return {
+            "drug_response_stratification_class": "no_on_target_compound",
+            "n_on_target_compounds": len(sample_ids),
+            "on_target_compounds": [],
+            "_note": str(dr_errs[:1]) if dr_errs else "no measured on-target drug response",
+        }
 
     # reuse the dependency method's mutation loader verbatim
     METHODS_REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     import sys
+
     if METHODS_REPO not in sys.path:
         sys.path.insert(0, METHODS_REPO)
     from methods.depmap_mutation_dependency.cli import load_mutation_data
+
     hotspot, damaging, mut_errs = load_mutation_data(release_pin, target)
     if mut_errs:
-        return {"drug_response_stratification_class": "data_unavailable",
-                "_live_read_error": mut_errs[0].get("_live_read_error", "mutation_read_failed"),
-                "n_on_target_compounds": len(sample_ids), "on_target_compounds": []}
+        return {
+            "drug_response_stratification_class": "data_unavailable",
+            "_live_read_error": mut_errs[0].get("_live_read_error", "mutation_read_failed"),
+            "n_on_target_compounds": len(sample_ids),
+            "on_target_compounds": [],
+        }
 
     summary = compute_drug_response_stratification(
-        drug_response_by_model, hotspot, damaging, compound_records=compound_records)
+        drug_response_by_model, hotspot, damaging, compound_records=compound_records
+    )
     summary["aggregate_metric"] = aggregate
     return summary

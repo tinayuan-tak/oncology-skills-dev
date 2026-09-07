@@ -67,7 +67,9 @@ def _render_describe(d: dict) -> str:
         L.append(f"  parquet_schema: {cols}")
     if d.get("query_optimization"):
         qo = d["query_optimization"]
-        L.append(f"  query_optimization: sort={qo.get('sort_columns')} primary_filter={qo.get('primary_filter_column')}")
+        L.append(
+            f"  query_optimization: sort={qo.get('sort_columns')} primary_filter={qo.get('primary_filter_column')}"
+        )
     if d.get("derived_from"):
         L.append(f"  derived_from:  {', '.join(d['derived_from'])}")
     if d.get("cited_by"):
@@ -126,14 +128,18 @@ def _render_audit(a: dict, sections: set[str]) -> str:
     )
     if "coverage-gaps" in sections:
         gaps = a["dge_coverage_gaps"]
-        L.append(f"\nDGE tumor-vs-normal coverage gaps ({len(gaps)} indication-configs lack a "
-                 f"*-dge-tumor-vs-normal-sensitivity-v* product):")
+        L.append(
+            f"\nDGE tumor-vs-normal coverage gaps ({len(gaps)} indication-configs lack a "
+            f"*-dge-tumor-vs-normal-sensitivity-v* product):"
+        )
         L.append("  " + (", ".join(gaps) if gaps else "(none — all configured indications covered)"))
     if "uncited" in sections:
         u = a["uncited_sources"]
-        L.append(f"\nUncited source-releases ({len(u)} — no derived_from / product / subgroup-catalog "
-                 f"citation). NOTE: not 'unused' — reference/annotation data is often read by direct "
-                 f"S3 path. Citation-hygiene candidates, not dead data:")
+        L.append(
+            f"\nUncited source-releases ({len(u)} — no derived_from / product / subgroup-catalog "
+            f"citation). NOTE: not 'unused' — reference/annotation data is often read by direct "
+            f"S3 path. Citation-hygiene candidates, not dead data:"
+        )
         L.append("  " + (", ".join(u) if u else "(none)"))
     if "stale" in sections:
         s = a["superseded_still_present"]
@@ -153,10 +159,18 @@ def build_parser() -> argparse.ArgumentParser:
     # top-level-only --json would silently fail on `describe <id> --json`).
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--json", action="store_true", help="machine-readable JSON output")
-    common.add_argument("--catalog-root", type=Path, default=DATA_CATALOG,
-                        help="path to the data-catalog repo (default: the standard checkout)")
-    common.add_argument("--contracts-root", type=Path, default=TARGET_CONTRACTS,
-                        help="path to target-contracts (for products.yaml consumer map)")
+    common.add_argument(
+        "--catalog-root",
+        type=Path,
+        default=DATA_CATALOG,
+        help="path to the data-catalog repo (default: the standard checkout)",
+    )
+    common.add_argument(
+        "--contracts-root",
+        type=Path,
+        default=TARGET_CONTRACTS,
+        help="path to target-contracts (for products.yaml consumer map)",
+    )
 
     # Flags live ONLY on the subparsers (git-style: `catalog_query describe X --json`).
     # Putting them on the top-level parser too would let the subparser's default
@@ -196,8 +210,12 @@ def main(argv=None) -> int:
 
     if args.command == "search":
         recs = idx.search(
-            args.query, provider=args.provider, data_subject=args.data_subject,
-            type=args.type, category=args.category, license=args.license,
+            args.query,
+            provider=args.provider,
+            data_subject=args.data_subject,
+            type=args.type,
+            category=args.category,
+            license=args.license,
             system_of_record=args.sor,
         )
         if args.json:
@@ -209,8 +227,11 @@ def main(argv=None) -> int:
         try:
             d = idx.describe(args.manifest_id)
         except KeyError:
-            print(f"error: manifest {args.manifest_id!r} not found in the catalog.\n"
-                  f"try:  catalog_query search {args.manifest_id.split('-')[0]!r}", file=sys.stderr)
+            print(
+                f"error: manifest {args.manifest_id!r} not found in the catalog.\n"
+                f"try:  catalog_query search {args.manifest_id.split('-')[0]!r}",
+                file=sys.stderr,
+            )
             return 2
         print(json.dumps(d, indent=2, default=str) if args.json else _render_describe(d))
 
@@ -228,9 +249,11 @@ def main(argv=None) -> int:
             print(json.dumps(a, indent=2, default=str))
         else:
             # default: show everything if no section flag was passed
-            sections = {k for k, on in
-                        [("coverage-gaps", args.coverage_gaps), ("uncited", args.uncited),
-                         ("stale", args.stale)] if on} or {"coverage-gaps", "uncited", "stale"}
+            sections = {
+                k
+                for k, on in [("coverage-gaps", args.coverage_gaps), ("uncited", args.uncited), ("stale", args.stale)]
+                if on
+            } or {"coverage-gaps", "uncited", "stale"}
             print(_render_audit(a, sections))
 
     return 0

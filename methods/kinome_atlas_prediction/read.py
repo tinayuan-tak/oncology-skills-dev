@@ -30,6 +30,7 @@ distinguish from curated SIGNOR/CollecTri/Reactome edges and weight
 accordingly. confidence_bucket is derived from the paper's percentile-rank
 of the PWM log-odds score.
 """
+
 from __future__ import annotations
 
 import os
@@ -49,9 +50,7 @@ S3_BUCKET, DERIVED_S3_KEY = bucket_key_for(DERIVED_MANIFEST_ID)
 # top-decile-of-top-decile PWM matches (~1.4M rows). Tunable if a future
 # consumer wants finer or coarser filtering — override via env var
 # KINOME_ATLAS_PERCENTILE_THRESHOLD.
-RUNTIME_PERCENTILE_THRESHOLD = float(
-    os.environ.get("KINOME_ATLAS_PERCENTILE_THRESHOLD", "95")
-)
+RUNTIME_PERCENTILE_THRESHOLD = float(os.environ.get("KINOME_ATLAS_PERCENTILE_THRESHOLD", "95"))
 
 
 _S3FS = None
@@ -67,6 +66,7 @@ def _get_s3fs():
         with _S3FS_LOCK:
             if _S3FS is None:
                 import pyarrow.fs as fs
+
                 _S3FS = fs.S3FileSystem(region="us-east-1")
     return _S3FS
 
@@ -85,6 +85,7 @@ def _read_atlas_df():
     so the live-read seam surfaces a real error instead of a silent data_unavailable.
     """
     import pandas as pd
+
     try:
         df = pd.read_parquet(
             f"{S3_BUCKET}/{DERIVED_S3_KEY}",
@@ -92,10 +93,11 @@ def _read_atlas_df():
             # Read-time predicate pushdown: only pull rows above threshold.
             # Parquet on S3 has percentile>=90 edges (~2.9M); this drops to
             # ~1.4M at threshold=95, ~300K at threshold=99.
-            filters=[('percentile', '>=', RUNTIME_PERCENTILE_THRESHOLD)],
+            filters=[("percentile", ">=", RUNTIME_PERCENTILE_THRESHOLD)],
         )
     except Exception as e:  # noqa: BLE001
         from methods.target_id_sidecar import is_definitively_absent
+
         # A GENUINELY absent product object (NoSuchKey/404 or a pyarrow FileNotFoundError) is honest
         # absence -> empty frame (the caller's lru_cache never latches it as a poisoned negative).
         # A CORRUPT parquet / broken-env / creds / transient failure is NOT absence -> re-raise so
@@ -133,8 +135,8 @@ def _load_atlas_indexed():
     kinase_index: dict[str, list[int]] = {}
     substrate_index: dict[str, list[int]] = {}
 
-    kinase_col = df['kinase_symbol'].values
-    substrate_col = df['substrate_gene'].values
+    kinase_col = df["kinase_symbol"].values
+    substrate_col = df["substrate_gene"].values
     n_rows = len(df)
     for idx in range(n_rows):
         k = kinase_col[idx]
@@ -237,12 +239,10 @@ def read_target_summary(target: str, indication: str = None) -> dict:
     up_indices = substrate_idx.get(sym, [])
 
     downstream_effectors = (
-        [_edge_to_downstream(rec) for rec in df.iloc[dn_indices].to_dict(orient="records")]
-        if dn_indices else []
+        [_edge_to_downstream(rec) for rec in df.iloc[dn_indices].to_dict(orient="records")] if dn_indices else []
     )
     upstream_regulators = (
-        [_edge_to_upstream(rec) for rec in df.iloc[up_indices].to_dict(orient="records")]
-        if up_indices else []
+        [_edge_to_upstream(rec) for rec in df.iloc[up_indices].to_dict(orient="records")] if up_indices else []
     )
 
     n_up = len(upstream_regulators)

@@ -15,6 +15,7 @@ read (read.py): per-gene predicate-pushdown reader over the gene-SORTED per-gene
                 in-vivo-response shape (pyarrow/pandas/boto3 only). Absence-disciplined: 404 / no
                 product -> data_unavailable; transient S3 faults propagate.
 """
+
 from .read import read_target_summary
 
 __all__ = ["read_target_summary"]

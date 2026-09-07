@@ -6,6 +6,7 @@ Two contracts:
   - read_cited_literature_evidence: the FLATTENED card entrypoint (top-level summary_fields the
     target-contracts card declares + retained nested detail).
 """
+
 from __future__ import annotations
 import sys
 from pathlib import Path
@@ -15,34 +16,51 @@ if str(AM) not in sys.path:
     sys.path.insert(0, str(AM))
 
 from methods.cited_literature_evidence.read import (  # noqa: E402
-    build_cited_evidence_card, read_cited_literature_evidence, _flatten_for_card,
+    build_cited_evidence_card,
+    read_cited_literature_evidence,
+    _flatten_for_card,
 )
 
 
 def _epmc(status="ok", n=3):
-    return {"status": status, "source": "opentargets-europepmc-evidence-per-target-v1",
-            "europepmc_scope": "indication", "total_papers": 42, "n_papers_recent": 9,
-            "earliest_year": 2005, "latest_year": 2026, "n_diseases": 2,
-            "top_papers": [{"pmid": str(i), "cooccur": 100 - i, "section": "abstract",
-                            "sentence": f"s{i}"} for i in range(n)]}
+    return {
+        "status": status,
+        "source": "opentargets-europepmc-evidence-per-target-v1",
+        "europepmc_scope": "indication",
+        "total_papers": 42,
+        "n_papers_recent": 9,
+        "earliest_year": 2005,
+        "latest_year": 2026,
+        "n_diseases": 2,
+        "top_papers": [
+            {"pmid": str(i), "cooccur": 100 - i, "section": "abstract", "sentence": f"s{i}"} for i in range(n)
+        ],
+    }
 
 
 def _rel(status="ok"):
-    return {"status": status, "source": "pubtator3-gene-disease-relations-per-gene-v1",
-            "relation_scope": "indication", "mesh_id_source": "crosswalk_mesh_ids",
-            "total_publications": 55,
-            "relations": [{"relation_type": "associate", "n_publications": 50, "pmids": ["1"]},
-                          {"relation_type": "stimulate", "n_publications": 5, "pmids": ["2"]}]}
+    return {
+        "status": status,
+        "source": "pubtator3-gene-disease-relations-per-gene-v1",
+        "relation_scope": "indication",
+        "mesh_id_source": "crosswalk_mesh_ids",
+        "total_publications": 55,
+        "relations": [
+            {"relation_type": "associate", "n_publications": 50, "pmids": ["1"]},
+            {"relation_type": "stimulate", "n_publications": 5, "pmids": ["2"]},
+        ],
+    }
 
 
 # --- NESTED card contract (inherited verbatim) -----------------------------------------------------
+
 
 def test_both_lanes_present_verdict_inert():
     card = build_cited_evidence_card("KRAS", "COADREAD", _epmc(), _rel())
     assert card["verdict"] is None and card["verdict_inert"] is True
     assert "verdict_key" not in card and "gate" not in card
     assert card["status"] == "ok"
-    assert card["literature_evidence"]["paper_disease_mentions"] == 42   # summed mentions, relabeled
+    assert card["literature_evidence"]["paper_disease_mentions"] == 42  # summed mentions, relabeled
     assert card["literature_evidence"]["indication_scope"] == "indication"
     assert card["relation_direction"]["relations"][0]["relation_type"] == "associate"
     assert card["relation_direction"]["mesh_id_source"] == "crosswalk_mesh_ids"
@@ -57,19 +75,21 @@ def test_top_cited_trim():
 def test_pubtator_absent_lane_is_none_with_note():
     card = build_cited_evidence_card("KRAS", "COADREAD", _epmc(), None)
     assert card["relation_direction"] is None
-    assert card["literature_evidence"] is not None       # other lane still emitted
+    assert card["literature_evidence"] is not None  # other lane still emitted
     assert any("pubtator" in n for n in card["notes"])
-    assert card["status"] == "ok"                          # one lane present -> ok
+    assert card["status"] == "ok"  # one lane present -> ok
 
 
 def test_english_preferred_in_top_cited():
     e = _epmc(n=0)
-    e["top_papers"] = [{"pmid": "1", "cooccur": 99, "sentence": "分子靶向治疗 c-MET NSCLC"},
-                       {"pmid": "2", "cooccur": 50, "sentence": "MET amplification drives resistance in lung cancer"},
-                       {"pmid": "3", "cooccur": 10, "sentence": "c-MET exon 14 skipping is oncogenic"}]
+    e["top_papers"] = [
+        {"pmid": "1", "cooccur": 99, "sentence": "分子靶向治疗 c-MET NSCLC"},
+        {"pmid": "2", "cooccur": 50, "sentence": "MET amplification drives resistance in lung cancer"},
+        {"pmid": "3", "cooccur": 10, "sentence": "c-MET exon 14 skipping is oncogenic"},
+    ]
     card = build_cited_evidence_card("MET", "LUAD", e, None, top_cited=2)
     tops = card["literature_evidence"]["top_cited"]
-    assert [t["pmid"] for t in tops] == ["2", "3"]     # English surfaces first
+    assert [t["pmid"] for t in tops] == ["2", "3"]  # English surfaces first
 
 
 def test_bad_symbol_is_insufficient_not_no_evidence():
@@ -95,9 +115,16 @@ def test_both_none_never_raises():
 # every declared summary_field on cards/cited-literature-evidence.card.yaml — the emission guard
 # requires each to be an emitted top-level key. Keep in sync with the card.
 _DECLARED_SUMMARY_FIELDS = [
-    "cited_evidence_status", "literature_scope", "paper_disease_mentions", "recent_mentions",
-    "n_diseases", "earliest_year", "latest_year", "top_cited",
-    "relation_types", "total_relation_publications",
+    "cited_evidence_status",
+    "literature_scope",
+    "paper_disease_mentions",
+    "recent_mentions",
+    "n_diseases",
+    "earliest_year",
+    "latest_year",
+    "top_cited",
+    "relation_types",
+    "total_relation_publications",
 ]
 
 
@@ -119,9 +146,12 @@ def test_reader_emits_every_declared_summary_field_top_level(monkeypatch):
     stay verdict-inert, and never raise when a lane is unavailable — exercised by monkeypatching the
     two underlying readers so the test is hermetic (no S3)."""
     import methods.cited_literature_evidence.read as R
-    monkeypatch.setattr(R, "_compose_nested",
-                        lambda t, i, top_cited=8: build_cited_evidence_card(t, i, _epmc(), _rel(),
-                                                                            top_cited=top_cited))
+
+    monkeypatch.setattr(
+        R,
+        "_compose_nested",
+        lambda t, i, top_cited=8: build_cited_evidence_card(t, i, _epmc(), _rel(), top_cited=top_cited),
+    )
     out = read_cited_literature_evidence("KRAS", "COADREAD")
     assert out["verdict"] is None and out["verdict_inert"] is True
     for f in _DECLARED_SUMMARY_FIELDS:
@@ -134,8 +164,8 @@ def test_reader_emits_every_declared_summary_field_top_level(monkeypatch):
 
 def test_reader_absent_lanes_still_shape_stable(monkeypatch):
     import methods.cited_literature_evidence.read as R
-    monkeypatch.setattr(R, "_compose_nested",
-                        lambda t, i, top_cited=8: build_cited_evidence_card(t, i, None, None))
+
+    monkeypatch.setattr(R, "_compose_nested", lambda t, i, top_cited=8: build_cited_evidence_card(t, i, None, None))
     out = read_cited_literature_evidence("X", "Y")
     assert out["cited_evidence_status"] == "no_evidence"
     assert out["top_cited"] == [] and out["relation_types"] == []

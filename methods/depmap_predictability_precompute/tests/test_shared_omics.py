@@ -4,6 +4,7 @@ Verifies the round-trip publish → attach reconstruction gives DataFrames
 that are numerically equivalent to the input, that Model.csv metadata goes
 through the extras pickle path, and that unlink cleans up all SHM segments.
 """
+
 from __future__ import annotations
 
 import sys
@@ -23,22 +24,18 @@ def _make_test_omics():
     mids = [f"ACH-{i:06d}" for i in range(20)]
     genes = [f"GENE_{i}" for i in range(15)]
     return {
-        "chronos": pd.DataFrame(
-            rng.normal(0, 1, (20, 15)).astype(np.float32),
-            index=mids, columns=genes),
-        "expression": pd.DataFrame(
-            rng.normal(3, 1, (20, 15)).astype(np.float32),
-            index=mids, columns=genes),
-        "mut_hotspot": pd.DataFrame(
-            rng.integers(0, 2, (20, 15)).astype(np.int8),
-            index=mids, columns=genes),
+        "chronos": pd.DataFrame(rng.normal(0, 1, (20, 15)).astype(np.float32), index=mids, columns=genes),
+        "expression": pd.DataFrame(rng.normal(3, 1, (20, 15)).astype(np.float32), index=mids, columns=genes),
+        "mut_hotspot": pd.DataFrame(rng.integers(0, 2, (20, 15)).astype(np.int8), index=mids, columns=genes),
         "lineage_one_hot": pd.DataFrame(
-            rng.integers(0, 2, (20, 5)).astype(np.int8),
-            index=mids, columns=[f"lineage_{n}" for n in "ABCDE"]),
-        "model_df": pd.DataFrame({
-            "ModelID": mids,
-            "OncotreeLineage": ["A"] * 10 + ["B"] * 10,
-        }),
+            rng.integers(0, 2, (20, 5)).astype(np.int8), index=mids, columns=[f"lineage_{n}" for n in "ABCDE"]
+        ),
+        "model_df": pd.DataFrame(
+            {
+                "ModelID": mids,
+                "OncotreeLineage": ["A"] * 10 + ["B"] * 10,
+            }
+        ),
     }
 
 
@@ -68,9 +65,9 @@ def test_handle_size_is_small():
     try:
         # Handle should be a few KB (index/column labels + Model.csv), NOT
         # containing the numeric data. Enforce < 100 KB for this tiny test set.
-        total_bytes = (len(handle.extras_pickle)
-                        + sum(len(f.index_pickle) + len(f.columns_pickle)
-                              for f in handle.frames.values()))
+        total_bytes = len(handle.extras_pickle) + sum(
+            len(f.index_pickle) + len(f.columns_pickle) for f in handle.frames.values()
+        )
         assert total_bytes < 100_000
     finally:
         handle.unlink_all()

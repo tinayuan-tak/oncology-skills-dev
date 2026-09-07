@@ -25,6 +25,7 @@ Modules:
     read — CatalogIndex + load_catalog + manifest primitives
     cli  — argparse front end (search / describe / lineage / audit)
 """
+
 METHOD_VERSION = "0.1.0"
 
 from .read import (  # noqa: F401,E402

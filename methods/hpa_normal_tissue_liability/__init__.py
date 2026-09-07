@@ -11,6 +11,7 @@ Modules:
     cli  — HPA TSV loader + breadth classifier + essential-tissue parser + CLI
     read — read_target_summary: the live-mode dispatcher entry
 """
+
 METHOD_VERSION = "0.1.0"
 
 from .read import read_target_summary  # noqa: E402,F401

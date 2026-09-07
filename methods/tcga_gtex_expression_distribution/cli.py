@@ -11,6 +11,7 @@ Usage:
     python -m methods.tcga_gtex_expression_distribution.cli \\
         --target KRAS --indication COADREAD --out ~/dev/framework-runs/kras-coadread-exprdist
 """
+
 from __future__ import annotations
 import os
 
@@ -23,7 +24,9 @@ from . import read as _read
 from . import stats as _stats
 
 METHOD_VERSION = "0.1.0"
-DEFAULT_TARGET_CONTRACTS = os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+DEFAULT_TARGET_CONTRACTS = os.environ.get(
+    "TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
+)
 
 _TUMOR_FILL, _TUMOR_LINE = "#1f4e79", "#0a2540"
 _NORMAL_FILL, _NORMAL_LINE = "#a9c5db", "#5b7f99"
@@ -31,11 +34,11 @@ _NORMAL_FILL, _NORMAL_LINE = "#a9c5db", "#5b7f99"
 # Per-stratum subtype_signal → (fill, line). Diverging: enriched warm, depleted cool,
 # uniform neutral, restricted a distinct accent; underpowered/None = muted grey.
 _SIGNAL_COLORS = {
-    "subtype_enriched":   ("#c0603a", "#8f3f22"),   # warm — elevated vs pooled
-    "subtype_restricted": ("#7b5ea7", "#553f7a"),   # accent — present here, absent pooled
-    "subtype_depleted":   ("#4a7fa5", "#2f5670"),   # cool — reduced vs pooled
-    "subtype_uniform":    ("#b8bcc0", "#7d8288"),   # neutral — no stratum signal
-    None:                 ("#d9dbdd", "#a9adb1"),   # muted — underpowered (no call)
+    "subtype_enriched": ("#c0603a", "#8f3f22"),  # warm — elevated vs pooled
+    "subtype_restricted": ("#7b5ea7", "#553f7a"),  # accent — present here, absent pooled
+    "subtype_depleted": ("#4a7fa5", "#2f5670"),  # cool — reduced vs pooled
+    "subtype_uniform": ("#b8bcc0", "#7d8288"),  # neutral — no stratum signal
+    None: ("#d9dbdd", "#a9adb1"),  # muted — underpowered (no call)
 }
 
 
@@ -63,16 +66,26 @@ def build_summary(target: str, indication: str, plot_data_out=None) -> dict:
     # all 11 strata into the pooled card overflows the synthesis prompt's per-card char cap and the
     # tail strata get truncated (measured end-to-end). Grain-split: pooled = rollup, subtype = panorama.
     land = _read.read_tumor_expression_subtype_landscape(target, indication)
-    for k in ("subtype_axis_available", "spotlight_subtype", "n_subtypes_measured",
-              "n_subtypes_enriched", "assignment_manifest", "_subtype_note"):
+    for k in (
+        "subtype_axis_available",
+        "spotlight_subtype",
+        "n_subtypes_measured",
+        "n_subtypes_enriched",
+        "assignment_manifest",
+        "_subtype_note",
+    ):
         if k in land:
             summary[k] = land[k]
     # a compact digest: only the strata with a non-uniform signal (enriched/restricted/depleted) —
     # the actionable few, bounded, so the pooled card names the subtype story without the full table.
     lscape = land.get("subtype_landscape") or []
     summary["subtype_signals_nonuniform"] = [
-        {"stratum_id": r["stratum_id"], "subtype_signal": r["subtype_signal"],
-         "median_log2tpm": r.get("median_log2tpm"), "n_tumor_samples": r["n_tumor_samples"]}
+        {
+            "stratum_id": r["stratum_id"],
+            "subtype_signal": r["subtype_signal"],
+            "median_log2tpm": r.get("median_log2tpm"),
+            "n_tumor_samples": r["n_tumor_samples"],
+        }
         for r in lscape
         if r.get("subtype_signal") and r["subtype_signal"] != "subtype_uniform"
     ]
@@ -91,7 +104,8 @@ def build_subtype_panorama(target: str, indication: str, plot_data_out=None) -> 
     per-sample values behind the panel) persists during resolution → the subtype figure renders offline."""
     land = _read.read_tumor_expression_subtype_landscape(target, indication, plot_data_out=plot_data_out)
     return {
-        "target": target, "indication": indication,
+        "target": target,
+        "indication": indication,
         "subtype_axis_available": land.get("subtype_axis_available", False),
         # subtype_axis_quality (powered|underpowered|empty|unavailable) is the HONEST capability grade the
         # card contract declares and the reader computes, but build_subtype_panorama previously dropped it
@@ -100,7 +114,7 @@ def build_subtype_panorama(target: str, indication: str, plot_data_out=None) -> 
         # confounder the card also declares) so subtype_axis_available:true no longer masks an underpowered
         # axis. Verdict-inert (display-only honesty grade).
         "subtype_axis_quality": land.get("subtype_axis_quality"),
-        "purity_source": land.get("purity_source"),   # card-declared; computed in `land` but was not lifted here
+        "purity_source": land.get("purity_source"),  # card-declared; computed in `land` but was not lifted here
         "subtype_purity_spread": land.get("subtype_purity_spread"),
         "spotlight_subtype": land.get("spotlight_subtype"),
         "assignment_manifest": land.get("assignment_manifest"),
@@ -164,26 +178,33 @@ def build_selectivity_crossing_subtype_panorama(target: str, indication: str) ->
         frac95 = rec.get("fraction_tumor_above_normal_p95")
         crossing_class = (
             _read._classify_percentile_crossing(
-                frac95, rec.get("fraction_tumor_above_normal_p99"),
-                rec.get("distribution_overlap_tumor_normal"))
+                frac95, rec.get("fraction_tumor_above_normal_p99"), rec.get("distribution_overlap_tumor_normal")
+            )
             if rec.get("evidence_state") == "measured" and frac95 is not None
-            else "data_unavailable")
-        per_subgroup.append({
-            "stratum_id": rec.get("stratum_id"),
-            "evidence_state": rec.get("evidence_state"),
-            "n_tumor_samples": rec.get("n_tumor_samples"),
-            "percentile_crossing_class": crossing_class,
-            "fraction_tumor_above_normal_p95": frac95,
-            "fraction_tumor_above_normal_p99": rec.get("fraction_tumor_above_normal_p99"),
-            "distribution_overlap_tumor_normal": rec.get("distribution_overlap_tumor_normal"),
-        })
+            else "data_unavailable"
+        )
+        per_subgroup.append(
+            {
+                "stratum_id": rec.get("stratum_id"),
+                "evidence_state": rec.get("evidence_state"),
+                "n_tumor_samples": rec.get("n_tumor_samples"),
+                "percentile_crossing_class": crossing_class,
+                "fraction_tumor_above_normal_p95": frac95,
+                "fraction_tumor_above_normal_p99": rec.get("fraction_tumor_above_normal_p99"),
+                "distribution_overlap_tumor_normal": rec.get("distribution_overlap_tumor_normal"),
+            }
+        )
     # cross-stratum rollup: is crossing-selectivity a subtype-specific (patient-selection) signal?
-    measured = [m for m in per_subgroup if m["evidence_state"] == "measured"
-                and m["fraction_tumor_above_normal_p95"] is not None]
+    measured = [
+        m
+        for m in per_subgroup
+        if m["evidence_state"] == "measured" and m["fraction_tumor_above_normal_p95"] is not None
+    ]
     fracs = [m["fraction_tumor_above_normal_p95"] for m in measured]
     n_strong = sum(1 for m in measured if m["percentile_crossing_class"] == "strongly_tumor_enriched")
     return {
-        "target": target, "indication": indication,
+        "target": target,
+        "indication": indication,
         "subtype_axis_available": land.get("subtype_axis_available", False),
         "assignment_manifest": land.get("assignment_manifest") or land.get("_assignment_manifest"),
         "matched_normal_tissue": land.get("matched_normal_tissue"),
@@ -217,15 +238,17 @@ def emit_plot_data(target: str, indication: str, out_dir: Path, *, presampled=No
     presampled (figure Stage 6): OPT-IN (tumor, normal, tissue) already-loaded vectors — pass them to
     persist WITHOUT a second read (the resolver already loaded tumor). None = read live (legacy)."""
     import pandas as pd
+
     if presampled is not None:
         tumor, normal, tissue = presampled
     else:
         tumor = _read.read_tumor_samples(target, indication)
         normal, tissue = _read.read_normal_samples(target, indication)
-    rows = ([{"group": "tumor", "source": "TCGA", "log2_tpm": v} for v in tumor]
-            + [{"group": "normal", "source": f"GTEx:{tissue}", "log2_tpm": v} for v in normal])
+    rows = [{"group": "tumor", "source": "TCGA", "log2_tpm": v} for v in tumor] + [
+        {"group": "normal", "source": f"GTEx:{tissue}", "log2_tpm": v} for v in normal
+    ]
     out_dir = Path(out_dir)
-    out_dir.mkdir(parents=True, exist_ok=True)   # per-card dir (plot_data_root/cards/<id>) may not exist yet
+    out_dir.mkdir(parents=True, exist_ok=True)  # per-card dir (plot_data_root/cards/<id>) may not exist yet
     out = out_dir / "plot_data_expression_distribution.parquet"
     pd.DataFrame(rows, columns=["group", "source", "log2_tpm"]).to_parquet(out, index=False)
     return out
@@ -234,6 +257,7 @@ def emit_plot_data(target: str, indication: str, out_dir: Path, *, presampled=No
 def _load_style(contracts_dir):
     try:
         import matplotlib.pyplot as plt
+
         style = Path(contracts_dir) / "plot_styles" / "takeda_oncology.mplstyle"
         if style.exists():
             plt.style.use(str(style))
@@ -247,10 +271,12 @@ def _pal(contracts_dir):
     _load_style(contracts_dir)
     try:
         import sys as _sys
+
         p = str(Path(contracts_dir) / "plot_styles")
         if p not in _sys.path:
             _sys.path.insert(0, p)
         import takeda_palette  # type: ignore
+
         return takeda_palette
     except Exception:  # noqa: BLE001
         return None
@@ -258,22 +284,34 @@ def _pal(contracts_dir):
 
 # tumor_expression_class -> plain-English phrase for the title (no machine tokens on the figure).
 _TUMOR_CLASS_PHRASE = {
-    "broadly_high":      "RNA is highly expressed across tumors",
-    "broadly_detected":  "RNA is detected across tumors",
-    "subset_high":       "RNA is high in a tumor subset",
-    "broadly_moderate":  "RNA is moderately expressed across tumors",
-    "low_or_absent":     "RNA is low or absent in tumors",
-    "data_unavailable":  "tumor RNA expression",
+    "broadly_high": "RNA is highly expressed across tumors",
+    "broadly_detected": "RNA is detected across tumors",
+    "subset_high": "RNA is high in a tumor subset",
+    "broadly_moderate": "RNA is moderately expressed across tumors",
+    "low_or_absent": "RNA is low or absent in tumors",
+    "data_unavailable": "tumor RNA expression",
 }
 # fallback signal when fired_rules aren't threaded in (keeps the badge honest, not a fabricated call).
 _TUMOR_CLASS_SIGNAL = {
-    "broadly_high": "supportive", "broadly_detected": "supportive", "subset_high": "supportive",
-    "broadly_moderate": "neutral", "low_or_absent": "opposing", "data_unavailable": "insufficient",
+    "broadly_high": "supportive",
+    "broadly_detected": "supportive",
+    "subset_high": "supportive",
+    "broadly_moderate": "neutral",
+    "low_or_absent": "opposing",
+    "data_unavailable": "insufficient",
 }
 
 
-def emit_svg(target: str, indication: str, summary: dict, out_dir: Path,
-             contracts_dir=DEFAULT_TARGET_CONTRACTS, *, presampled=None, status=None) -> Path:
+def emit_svg(
+    target: str,
+    indication: str,
+    summary: dict,
+    out_dir: Path,
+    contracts_dir=DEFAULT_TARGET_CONTRACTS,
+    *,
+    presampled=None,
+    status=None,
+) -> Path:
     """Tier-3 SVG: tumor vs matched-normal per-sample distribution (box + strip), in the shared
     figure grammar — plain-English title, source subtitle, reserved verdict BADGE (top-right),
     a data-derived one-line takeaway, normal-p95 as a NEUTRAL orientation line.
@@ -283,9 +321,11 @@ def emit_svg(target: str, indication: str, summary: dict, out_dir: Path,
             the badge == the narrative verdict. When None, a fallback signal is derived from the
             card's tumor_expression_class (honest, but the fired-rule route is preferred)."""
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import numpy as np
+
     pal = _pal(contracts_dir)
     out_path = Path(out_dir) / "figure_expression_distribution.svg"
 
@@ -296,38 +336,67 @@ def emit_svg(target: str, indication: str, summary: dict, out_dir: Path,
         normal, tissue = _read.read_normal_samples(target, indication)
     if not tumor:
         fig, ax = plt.subplots(figsize=(6, 4))
-        ax.text(0.5, 0.5, f"{target} — no TCGA tumor samples for {indication}", ha="center",
-                va="center", fontsize=10, color="#777"); ax.set_axis_off()
-        fig.savefig(out_path); plt.close(fig); return out_path
+        ax.text(
+            0.5,
+            0.5,
+            f"{target} — no TCGA tumor samples for {indication}",
+            ha="center",
+            va="center",
+            fontsize=10,
+            color="#777",
+        )
+        ax.set_axis_off()
+        fig.savefig(out_path)
+        plt.close(fig)
+        return out_path
 
-    if pal is None:                       # palette/frame unavailable → minimal honest fallback
+    if pal is None:  # palette/frame unavailable → minimal honest fallback
         fig, ax = plt.subplots(figsize=(7.0, 3.5))
         ax.boxplot([normal, tumor] if normal else [tumor], orientation="horizontal", showfliers=False)
         ax.set_xlabel("Expression — log2(TPM + 1)")
-        fig.savefig(out_path); plt.close(fig); return out_path
+        fig.savefig(out_path)
+        plt.close(fig)
+        return out_path
 
     tfill, tline = pal.TUMOR_FILL, pal.TUMOR_LINE
     nfill, nline = pal.NORMAL_FILL, pal.NORMAL_LINE
     # tumor on top, normal below → the eye reads the tumor shift against normal.
     groups, labels, colors = [], [], []
     if normal:
-        groups.append(normal); labels.append(f"Normal\n({tissue.title()})"); colors.append((nfill, nline))
-    groups.append(tumor); labels.append("Tumor"); colors.append((tfill, tline))
+        groups.append(normal)
+        labels.append(f"Normal\n({tissue.title()})")
+        colors.append((nfill, nline))
+    groups.append(tumor)
+    labels.append("Tumor")
+    colors.append((tfill, tline))
 
     p95 = summary.get("normal_p95_log2tpm")
     fa95 = summary.get("fraction_tumor_above_normal_p95")
-    take = (f"{fa95*100:.0f}% of {indication} tumors express {target} above the normal 95th percentile."
-            if (fa95 is not None and p95 is not None) else None)
+    take = (
+        f"{fa95 * 100:.0f}% of {indication} tumors express {target} above the normal 95th percentile."
+        if (fa95 is not None and p95 is not None)
+        else None
+    )
 
     # figure_frame owns figsize/margins/title/provenance/takeaway + save; the emitter only draws data.
     with pal.figure_frame(
-        target, indication, "tumor vs. normal expression", out_path=out_path, kind="single",
+        target,
+        indication,
+        "tumor vs. normal expression",
+        out_path=out_path,
+        kind="single",
         provenance=f"TCGA {indication} tumor  ·  GTEx {tissue.title()} normal  ·  recount3 / GENCODE v26",
         takeaway=take,
     ) as F:
         ax = F.ax
-        bp = ax.boxplot(groups, orientation="horizontal", widths=0.55, patch_artist=True,
-                        showfliers=False, medianprops={"color": "#222", "linewidth": 1.4})
+        bp = ax.boxplot(
+            groups,
+            orientation="horizontal",
+            widths=0.55,
+            patch_artist=True,
+            showfliers=False,
+            medianprops={"color": "#222", "linewidth": 1.4},
+        )
         for patch, (fill, line) in zip(bp["boxes"], colors):
             patch.set(facecolor=fill, edgecolor=line, alpha=0.55, linewidth=1.0)
         for element in ("whiskers", "caps"):
@@ -340,19 +409,30 @@ def emit_svg(target: str, indication: str, summary: dict, out_dir: Path,
         # normal p95 = a NEUTRAL orientation marker (its meaning is carried by the takeaway).
         if p95 is not None:
             ax.axvline(p95, zorder=1, **pal.REFLINE_NEUTRAL)
-            ax.annotate("normal p95", xy=(p95, 0.5), xycoords=("data", "axes fraction"),
-                        fontsize=7, color="#666666", ha="center", va="bottom",
-                        xytext=(0, 2), textcoords="offset points")
-        ax.set_yticks(range(1, len(labels) + 1)); ax.set_yticklabels(labels, fontsize=8.5)
+            ax.annotate(
+                "normal p95",
+                xy=(p95, 0.5),
+                xycoords=("data", "axes fraction"),
+                fontsize=7,
+                color="#666666",
+                ha="center",
+                va="bottom",
+                xytext=(0, 2),
+                textcoords="offset points",
+            )
+        ax.set_yticks(range(1, len(labels) + 1))
+        ax.set_yticklabels(labels, fontsize=8.5)
         ax.set_ylim(0.4, len(labels) + 0.6)
-        ax.grid(axis="x", alpha=0.25, linewidth=0.4); ax.grid(axis="y", visible=False)
+        ax.grid(axis="x", alpha=0.25, linewidth=0.4)
+        ax.grid(axis="y", visible=False)
         F.axis_label("x", "Expression", "log2(TPM + 1), per RNA-seq sample")
-        F.n_on_boxes([len(g) for g in groups])       # per-sample distribution → n on the boxes
+        F.n_on_boxes([len(g) for g in groups])  # per-sample distribution → n on the boxes
     return out_path
 
 
-def emit_plotly_specs(target: str, indication: str, out_dir: Path,
-                      contracts_dir=DEFAULT_TARGET_CONTRACTS, *, presampled=None) -> list:
+def emit_plotly_specs(
+    target: str, indication: str, out_dir: Path, contracts_dir=DEFAULT_TARGET_CONTRACTS, *, presampled=None
+) -> list:
     """Interactive twin — same per-sample values as the SVG (no drift). Best-effort.
 
     presampled (figure Stage 6): OPT-IN (tumor, normal, tissue) vectors → no live re-read."""
@@ -369,30 +449,63 @@ def emit_plotly_specs(target: str, indication: str, out_dir: Path,
     if not tumor:
         return []
     fig = go.Figure()
-    fig.add_trace(go.Box(x=tumor, name=f"TCGA tumor (n={len(tumor)})", orientation="h",
-                         marker_color=_TUMOR_LINE, fillcolor=_TUMOR_FILL, line=dict(width=1),
-                         boxpoints="all", jitter=0.4, pointpos=0, marker=dict(size=3, opacity=0.4)))
+    fig.add_trace(
+        go.Box(
+            x=tumor,
+            name=f"TCGA tumor (n={len(tumor)})",
+            orientation="h",
+            marker_color=_TUMOR_LINE,
+            fillcolor=_TUMOR_FILL,
+            line=dict(width=1),
+            boxpoints="all",
+            jitter=0.4,
+            pointpos=0,
+            marker=dict(size=3, opacity=0.4),
+        )
+    )
     if normal:
-        fig.add_trace(go.Box(x=normal, name=f"GTEx {tissue} (n={len(normal)})", orientation="h",
-                             marker_color=_NORMAL_LINE, fillcolor=_NORMAL_FILL, line=dict(width=1),
-                             boxpoints="all", jitter=0.4, pointpos=0, marker=dict(size=3, opacity=0.4)))
-    fig.update_layout(title=f"{target} in {indication} — per-sample expression distribution",
-                      xaxis_title="log2(TPM + 1) — recount3 / GENCODE v26",
-                      template="plotly_white", margin=dict(l=120, r=40, t=50, b=50))
+        fig.add_trace(
+            go.Box(
+                x=normal,
+                name=f"GTEx {tissue} (n={len(normal)})",
+                orientation="h",
+                marker_color=_NORMAL_LINE,
+                fillcolor=_NORMAL_FILL,
+                line=dict(width=1),
+                boxpoints="all",
+                jitter=0.4,
+                pointpos=0,
+                marker=dict(size=3, opacity=0.4),
+            )
+        )
+    fig.update_layout(
+        title=f"{target} in {indication} — per-sample expression distribution",
+        xaxis_title="log2(TPM + 1) — recount3 / GENCODE v26",
+        template="plotly_white",
+        margin=dict(l=120, r=40, t=50, b=50),
+    )
     (Path(out_dir) / "figure_expression_distribution.plotly.json").write_text(fig.to_json())
-    return [{"id": "expression_distribution_per_sample",
-             "path": "figure_expression_distribution.plotly.json", "type": "plotly"}]
+    return [
+        {
+            "id": "expression_distribution_per_sample",
+            "path": "figure_expression_distribution.plotly.json",
+            "type": "plotly",
+        }
+    ]
 
 
-def emit_subtype_svg(target: str, indication: str, out_dir: Path,
-                     contracts_dir=DEFAULT_TARGET_CONTRACTS, *, presampled=None) -> Optional[Path]:
+def emit_subtype_svg(
+    target: str, indication: str, out_dir: Path, contracts_dir=DEFAULT_TARGET_CONTRACTS, *, presampled=None
+) -> Optional[Path]:
     """Tier-3 SVG for the SUBTYPE card: one box+strip row per molecular subtype, ordered by
     median, colored by subtype_signal (enriched/depleted/restricted/uniform), with the pooled
     median as a dashed reference line. Returns None if the subtype axis is unavailable."""
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import numpy as np
+
     _load_style(contracts_dir)
     data = presampled if presampled is not None else _read.read_tumor_subtype_values(target, indication)
     out_path = Path(out_dir) / "figure_expression_distribution_subtype.svg"
@@ -403,8 +516,14 @@ def emit_subtype_svg(target: str, indication: str, out_dir: Path,
         return None
     fig, ax = plt.subplots(figsize=(7.6, max(3.0, 0.5 * len(strata) + 1.2)))
     groups = [s["values"] for s in strata]
-    bp = ax.boxplot(groups, orientation="horizontal", widths=0.6, patch_artist=True,
-                    showfliers=False, medianprops={"color": "#222", "linewidth": 1.2})
+    bp = ax.boxplot(
+        groups,
+        orientation="horizontal",
+        widths=0.6,
+        patch_artist=True,
+        showfliers=False,
+        medianprops={"color": "#222", "linewidth": 1.2},
+    )
     rng = np.random.default_rng(seed=42)
     labels = []
     for i, s in enumerate(strata):
@@ -417,18 +536,21 @@ def emit_subtype_svg(target: str, indication: str, out_dir: Path,
     pm = data.get("pooled_median")
     if pm is not None:
         ax.axvline(pm, color="#444", linewidth=1.0, linestyle="--", zorder=1)
-        ax.text(pm, len(strata) + 0.5, f"pooled median {pm:.1f}", color="#444",
-                fontsize=7, ha="center", va="bottom")
-    ax.set_yticks(range(1, len(labels) + 1)); ax.set_yticklabels(labels, fontsize=7)
+        ax.text(pm, len(strata) + 0.5, f"pooled median {pm:.1f}", color="#444", fontsize=7, ha="center", va="bottom")
+    ax.set_yticks(range(1, len(labels) + 1))
+    ax.set_yticklabels(labels, fontsize=7)
     ax.set_xlabel("log2(TPM + 1) — recount3 / GENCODE v26 (per sample)")
     ax.set_title(f"{target} in {indication} — expression by molecular subtype")
     ax.grid(axis="x", alpha=0.25, linewidth=0.4)
-    fig.tight_layout(); fig.savefig(out_path); plt.close(fig)
+    fig.tight_layout()
+    fig.savefig(out_path)
+    plt.close(fig)
     return out_path
 
 
-def emit_subtype_plotly_specs(target: str, indication: str, out_dir: Path,
-                              contracts_dir=DEFAULT_TARGET_CONTRACTS, *, presampled=None) -> list:
+def emit_subtype_plotly_specs(
+    target: str, indication: str, out_dir: Path, contracts_dir=DEFAULT_TARGET_CONTRACTS, *, presampled=None
+) -> list:
     """Interactive twin of the subtype panel — same per-stratum values (no drift). Best-effort.
 
     presampled (figure Stage 6): OPT-IN read_tumor_subtype_values() dict → no live re-read."""
@@ -445,40 +567,60 @@ def emit_subtype_plotly_specs(target: str, indication: str, out_dir: Path,
     for s in strata:
         fill, line = _SIGNAL_COLORS.get(s["subtype_signal"], _SIGNAL_COLORS[None])
         sig = (s["subtype_signal"] or "underpowered").replace("subtype_", "")
-        fig.add_trace(go.Box(x=s["values"], name=f"{s['stratum_id']} (n={s['n']}, {sig})",
-                             orientation="h", marker_color=line, fillcolor=fill,
-                             line=dict(width=1), boxpoints="all", jitter=0.4, pointpos=0,
-                             marker=dict(size=3, opacity=0.35)))
+        fig.add_trace(
+            go.Box(
+                x=s["values"],
+                name=f"{s['stratum_id']} (n={s['n']}, {sig})",
+                orientation="h",
+                marker_color=line,
+                fillcolor=fill,
+                line=dict(width=1),
+                boxpoints="all",
+                jitter=0.4,
+                pointpos=0,
+                marker=dict(size=3, opacity=0.35),
+            )
+        )
     pm = data.get("pooled_median")
     if pm is not None:
-        fig.add_vline(x=pm, line_dash="dash", line_color="#444",
-                      annotation_text=f"pooled median {pm:.1f}")
-    fig.update_layout(title=f"{target} in {indication} — expression by molecular subtype",
-                      xaxis_title="log2(TPM + 1) — recount3 / GENCODE v26",
-                      template="plotly_white", showlegend=False,
-                      margin=dict(l=150, r=40, t=50, b=50))
+        fig.add_vline(x=pm, line_dash="dash", line_color="#444", annotation_text=f"pooled median {pm:.1f}")
+    fig.update_layout(
+        title=f"{target} in {indication} — expression by molecular subtype",
+        xaxis_title="log2(TPM + 1) — recount3 / GENCODE v26",
+        template="plotly_white",
+        showlegend=False,
+        margin=dict(l=150, r=40, t=50, b=50),
+    )
     (Path(out_dir) / "figure_expression_distribution_subtype.plotly.json").write_text(fig.to_json())
-    return [{"id": "expression_distribution_subtype_panel",
-             "path": "figure_expression_distribution_subtype.plotly.json", "type": "plotly"}]
+    return [
+        {
+            "id": "expression_distribution_subtype_panel",
+            "path": "figure_expression_distribution_subtype.plotly.json",
+            "type": "plotly",
+        }
+    ]
 
 
 # ---- Q3 normal-tissue-liability atlas figure ----
-_CRITICAL_FILL, _CRITICAL_LINE = "#cf2828", "#8f1a1a"   # critical organs — red (liability)
-_NONCRIT_FILL, _NONCRIT_LINE = "#a9c5db", "#5b7f99"      # non-critical — muted blue
+_CRITICAL_FILL, _CRITICAL_LINE = "#cf2828", "#8f1a1a"  # critical organs — red (liability)
+_NONCRIT_FILL, _NONCRIT_LINE = "#a9c5db", "#5b7f99"  # non-critical — muted blue
 
 
-def emit_liability_svg(target: str, out_dir: Path, contracts_dir=DEFAULT_TARGET_CONTRACTS,
-                       *, presampled=None) -> Optional[Path]:
+def emit_liability_svg(
+    target: str, out_dir: Path, contracts_dir=DEFAULT_TARGET_CONTRACTS, *, presampled=None
+) -> Optional[Path]:
     """Tier-3 SVG for the Q3 liability card: per-GTEx-tissue median expression bar (ranked),
     critical organs highlighted red, the HIGH cutoff marked. None if the target is absent.
 
     presampled (figure Stage 6): OPT-IN atlas {tissue: [values]} from persisted plot_data → draw
     OFFLINE with no live re-read. None = read live (legacy)."""
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import numpy as np
     from . import stats as _st
+
     _load_style(contracts_dir)
     atlas = presampled if presampled is not None else _read.read_all_normal_tissues(target)
     out_path = Path(out_dir) / "figure_normal_tissue_liability.svg"
@@ -486,30 +628,36 @@ def emit_liability_svg(target: str, out_dir: Path, contracts_dir=DEFAULT_TARGET_
         return None
     rows = []
     for tissue, vals in atlas.items():
-        arr = np.asarray(vals, dtype=float); arr = arr[~np.isnan(arr)]
+        arr = np.asarray(vals, dtype=float)
+        arr = arr[~np.isnan(arr)]
         if arr.size:
             rows.append((str(tissue).upper(), float(np.median(arr))))
     if not rows:
         return None
     rows.sort(key=lambda r: r[1])
     crit = set(_st.CRITICAL_NORMAL_TISSUES)
-    labels = [r[0] for r in rows]; vals = [r[1] for r in rows]
+    labels = [r[0] for r in rows]
+    vals = [r[1] for r in rows]
     colors = [(_CRITICAL_FILL if t in crit else _NONCRIT_FILL) for t in labels]
     edges = [(_CRITICAL_LINE if t in crit else _NONCRIT_LINE) for t in labels]
     fig, ax = plt.subplots(figsize=(7.2, max(3.5, 0.26 * len(rows) + 1.0)))
     ax.barh(range(len(rows)), vals, color=colors, edgecolor=edges, linewidth=0.8, alpha=0.85)
     ax.axvline(_st.HIGH_LOG2TPM, color="#444", linewidth=1.0, linestyle="--", zorder=3)
     ax.text(_st.HIGH_LOG2TPM, len(rows) - 0.3, " high cutoff", color="#444", fontsize=7, va="top")
-    ax.set_yticks(range(len(rows))); ax.set_yticklabels(labels, fontsize=6.5)
+    ax.set_yticks(range(len(rows)))
+    ax.set_yticklabels(labels, fontsize=6.5)
     ax.set_xlabel("median log2(TPM + 1) — GTEx normal (recount3 / GENCODE v26)")
     ax.set_title(f"{target} — normal-tissue expression atlas (critical organs in red)")
     ax.grid(axis="x", alpha=0.25, linewidth=0.4)
-    fig.tight_layout(); fig.savefig(out_path); plt.close(fig)
+    fig.tight_layout()
+    fig.savefig(out_path)
+    plt.close(fig)
     return out_path
 
 
-def emit_liability_plotly_specs(target: str, out_dir: Path,
-                                contracts_dir=DEFAULT_TARGET_CONTRACTS, *, presampled=None) -> list:
+def emit_liability_plotly_specs(
+    target: str, out_dir: Path, contracts_dir=DEFAULT_TARGET_CONTRACTS, *, presampled=None
+) -> list:
     """Interactive twin of the liability atlas bar (same per-tissue medians). Best-effort.
 
     presampled (figure Stage 6): OPT-IN atlas {tissue: [values]} → no live re-read."""
@@ -520,40 +668,55 @@ def emit_liability_plotly_specs(target: str, out_dir: Path,
         return []
     import numpy as np
     from . import stats as _st
+
     atlas = presampled if presampled is not None else _read.read_all_normal_tissues(target)
     rows = []
     for tissue, vals in (atlas or {}).items():
-        arr = np.asarray(vals, dtype=float); arr = arr[~np.isnan(arr)]
+        arr = np.asarray(vals, dtype=float)
+        arr = arr[~np.isnan(arr)]
         if arr.size:
             rows.append((str(tissue).upper(), float(np.median(arr))))
     if not rows:
         return []
     rows.sort(key=lambda r: r[1])
     crit = set(_st.CRITICAL_NORMAL_TISSUES)
-    fig = go.Figure(go.Bar(
-        x=[r[1] for r in rows], y=[r[0] for r in rows], orientation="h",
-        marker_color=[(_CRITICAL_FILL if r[0] in crit else _NONCRIT_FILL) for r in rows]))
-    fig.add_vline(x=_st.HIGH_LOG2TPM, line_dash="dash", line_color="#444",
-                  annotation_text="high cutoff")
-    fig.update_layout(title=f"{target} — normal-tissue expression atlas (critical organs red)",
-                      xaxis_title="median log2(TPM + 1) — GTEx normal",
-                      template="plotly_white", margin=dict(l=110, r=40, t=50, b=50))
+    fig = go.Figure(
+        go.Bar(
+            x=[r[1] for r in rows],
+            y=[r[0] for r in rows],
+            orientation="h",
+            marker_color=[(_CRITICAL_FILL if r[0] in crit else _NONCRIT_FILL) for r in rows],
+        )
+    )
+    fig.add_vline(x=_st.HIGH_LOG2TPM, line_dash="dash", line_color="#444", annotation_text="high cutoff")
+    fig.update_layout(
+        title=f"{target} — normal-tissue expression atlas (critical organs red)",
+        xaxis_title="median log2(TPM + 1) — GTEx normal",
+        template="plotly_white",
+        margin=dict(l=110, r=40, t=50, b=50),
+    )
     (Path(out_dir) / "figure_normal_tissue_liability.plotly.json").write_text(fig.to_json())
-    return [{"id": "normal_tissue_liability_atlas",
-             "path": "figure_normal_tissue_liability.plotly.json", "type": "plotly"}]
+    return [
+        {"id": "normal_tissue_liability_atlas", "path": "figure_normal_tissue_liability.plotly.json", "type": "plotly"}
+    ]
 
 
-def emit_manifest(target: str, indication: str, summary: dict, out_dir: Path,
-                  plotly_specs: Optional[list] = None) -> Path:
+def emit_manifest(
+    target: str, indication: str, summary: dict, out_dir: Path, plotly_specs: Optional[list] = None
+) -> Path:
     """Tier-describing manifest with the plotly_figures slot (matches the expression bar)."""
     manifest = {
-        "method": "tcga_gtex_expression_distribution", "method_version": METHOD_VERSION,
-        "target": target, "indication": indication,
+        "method": "tcga_gtex_expression_distribution",
+        "method_version": METHOD_VERSION,
+        "target": target,
+        "indication": indication,
         "tumor_expression_class": summary.get("tumor_expression_class"),
         "n_tumor_samples": summary.get("n_tumor_samples"),
-        "artifacts": {"summary": "summary.json",
-                      "plot_data": "plot_data_expression_distribution.parquet",
-                      "svg": "figure_expression_distribution.svg"},
+        "artifacts": {
+            "summary": "summary.json",
+            "plot_data": "plot_data_expression_distribution.parquet",
+            "svg": "figure_expression_distribution.svg",
+        },
         "plotly_figures": plotly_specs or [],
     }
     out = Path(out_dir) / "manifest.json"
@@ -563,6 +726,7 @@ def emit_manifest(target: str, indication: str, summary: dict, out_dir: Path,
 
 def main() -> int:
     import argparse
+
     ap = argparse.ArgumentParser()
     ap.add_argument("--target", required=True)
     ap.add_argument("--indication", required=True)
@@ -577,9 +741,11 @@ def main() -> int:
     emit_svg(args.target, args.indication, summary, args.out, args.target_contracts)
     specs = emit_plotly_specs(args.target, args.indication, args.out, args.target_contracts)
     emit_manifest(args.target, args.indication, summary, args.out, specs)
-    _log(f"[expr-dist] {args.target}/{args.indication}: "
-         f"{summary.get('tumor_expression_class')} "
-         f"n={summary.get('n_tumor_samples')} -> {args.out} (plotly {len(specs)})")
+    _log(
+        f"[expr-dist] {args.target}/{args.indication}: "
+        f"{summary.get('tumor_expression_class')} "
+        f"n={summary.get('n_tumor_samples')} -> {args.out} (plotly {len(specs)})"
+    )
     return 0
 
 

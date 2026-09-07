@@ -8,6 +8,7 @@ keeping the biology here means the two-hit logic is testable with dict fixtures,
 The classifier is SIDE-agnostic: patient and model arms populate the same `SampleEvidence` fields
 (from different sources), so the two-hit rules live in exactly one place and cannot drift between arms.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -42,6 +43,7 @@ class SampleEvidence:
                           (surfaced to rules + reserved for future refinement); NOT a
                           decision input — the current two-hit call does not branch on it.
     """
+
     has_mutation: bool
     cn_class: Optional[str] = None
     loh_at_locus: Optional[bool] = None

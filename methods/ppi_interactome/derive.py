@@ -19,6 +19,7 @@ unresolvable ENSP partner is dropped — it can't be surfaced as a named interac
 
 Usage: python -m methods.ppi_interactome.derive --out /tmp/string_hc.parquet
 """
+
 from __future__ import annotations
 
 import argparse
@@ -41,6 +42,7 @@ def _boto3():
     if "AWS_PROFILE" not in os.environ:
         os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
     import boto3
+
     return boto3.client("s3")
 
 
@@ -60,11 +62,12 @@ def _load_id_to_symbol() -> dict:
 def build_payload(links_local: Optional[str] = None, info_local: Optional[str] = None):
     """Return the gene-sorted high-confidence edge DataFrame (gene_symbol, partner_symbol, combined_score)."""
     import pandas as pd
-    id_to_sym = ({} if info_local is None else None)
+
+    id_to_sym = {} if info_local is None else None
     if info_local is not None:
         # test path: parse local info
         id_to_sym = {}
-        with (gzip.open(info_local, "rt") if str(info_local).endswith(".gz") else open(info_local)) as fh:
+        with gzip.open(info_local, "rt") if str(info_local).endswith(".gz") else open(info_local) as fh:
             for line in fh:
                 if line.startswith("#"):
                     continue
@@ -109,10 +112,12 @@ def main(argv=None) -> int:
     # row_group_size tuned so a gene's edges land in 1-2 groups; sorted key → pushdown prunes.
     import pyarrow as pa
     import pyarrow.parquet as pq
-    pq.write_table(pa.Table.from_pandas(df, preserve_index=False), args.out,
-                   compression="snappy", row_group_size=50000)
-    print(f"[ppi_string_derive] {len(df):,} HC edges, {df['gene_symbol'].nunique():,} source genes -> {args.out}",
-          file=sys.stderr)
+
+    pq.write_table(pa.Table.from_pandas(df, preserve_index=False), args.out, compression="snappy", row_group_size=50000)
+    print(
+        f"[ppi_string_derive] {len(df):,} HC edges, {df['gene_symbol'].nunique():,} source genes -> {args.out}",
+        file=sys.stderr,
+    )
     return 0
 
 

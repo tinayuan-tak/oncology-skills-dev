@@ -18,6 +18,7 @@ with pathways in v96).
 
 License: Reactome CC0-1.0 (public domain).
 """
+
 from __future__ import annotations
 
 from functools import lru_cache
@@ -64,8 +65,11 @@ def _load_uniprot_to_reactome(uniprot2reactome_path: Optional[str] = None) -> di
 
     `uniprot2reactome_path` (test fixture / warm cache) is read directly instead of S3.
     """
-    path = (Path(uniprot2reactome_path) if uniprot2reactome_path
-            else _ensure_cached(UNIPROT_TO_REACTOME_S3_KEY, "UniProt2Reactome_All_Levels.txt"))
+    path = (
+        Path(uniprot2reactome_path)
+        if uniprot2reactome_path
+        else _ensure_cached(UNIPROT_TO_REACTOME_S3_KEY, "UniProt2Reactome_All_Levels.txt")
+    )
     result: dict[str, list[dict]] = {}
     with path.open("r", encoding="utf-8") as f:
         for raw in f:
@@ -75,18 +79,21 @@ def _load_uniprot_to_reactome(uniprot2reactome_path: Optional[str] = None) -> di
             uac, pid, url, pname, evidence, organism = parts[:6]
             if organism.strip() != "Homo sapiens":
                 continue
-            result.setdefault(uac.strip(), []).append({
-                "pathway_id": pid.strip(),
-                "pathway_name": pname.strip(),
-                "evidence_code": evidence.strip(),
-                "url": url.strip(),
-            })
+            result.setdefault(uac.strip(), []).append(
+                {
+                    "pathway_id": pid.strip(),
+                    "pathway_name": pname.strip(),
+                    "evidence_code": evidence.strip(),
+                    "url": url.strip(),
+                }
+            )
     return result
 
 
 @lru_cache(maxsize=1)
-def _load_pathway_hierarchy(pathways_path: Optional[str] = None,
-                            relations_path: Optional[str] = None) -> tuple[dict, dict]:
+def _load_pathway_hierarchy(
+    pathways_path: Optional[str] = None, relations_path: Optional[str] = None
+) -> tuple[dict, dict]:
     """Return (pathway_id → name map, child → parent map).
 
     ReactomePathways.txt format (tab-separated):
@@ -96,8 +103,7 @@ def _load_pathway_hierarchy(pathways_path: Optional[str] = None,
 
     `pathways_path` / `relations_path` (test fixture / warm cache) are read directly instead of S3.
     """
-    pathways_path = (Path(pathways_path) if pathways_path
-                     else _ensure_cached(PATHWAYS_S3_KEY, "ReactomePathways.txt"))
+    pathways_path = Path(pathways_path) if pathways_path else _ensure_cached(PATHWAYS_S3_KEY, "ReactomePathways.txt")
     id_to_name: dict[str, str] = {}
     with pathways_path.open("r", encoding="utf-8") as f:
         for raw in f:
@@ -108,8 +114,11 @@ def _load_pathway_hierarchy(pathways_path: Optional[str] = None,
             if organism.strip() == "Homo sapiens":
                 id_to_name[pid.strip()] = name.strip()
 
-    relations_path = (Path(relations_path) if relations_path
-                      else _ensure_cached(PATHWAYS_RELATION_S3_KEY, "ReactomePathwaysRelation.txt"))
+    relations_path = (
+        Path(relations_path)
+        if relations_path
+        else _ensure_cached(PATHWAYS_RELATION_S3_KEY, "ReactomePathwaysRelation.txt")
+    )
     child_to_parent: dict[str, str] = {}
     with relations_path.open("r", encoding="utf-8") as f:
         for raw in f:
@@ -170,10 +179,14 @@ def _load_hgnc_uniprot_crosswalk(sidecar_path: Optional[str] = None) -> dict:
     EVERY target (data_unavailable framework-wide). The live-read seam turns a raise into an honest
     per-card _live_read_error. `sidecar_path` (test fixture / warm cache) is read directly."""
     from methods.target_id_sidecar import read_resolver_sidecar_map
+
     return read_resolver_sidecar_map(
-        S3_BUCKET, REACTOME_RESOLVER_SIDECAR_S3_KEY,
-        "hgnc_primary_symbol_at_resolution", "native_row_key",
-        local_path=sidecar_path)
+        S3_BUCKET,
+        REACTOME_RESOLVER_SIDECAR_S3_KEY,
+        "hgnc_primary_symbol_at_resolution",
+        "native_row_key",
+        local_path=sidecar_path,
+    )
 
 
 def _hgnc_symbol_to_uniprot_ac_cached(symbol: str, sidecar_path: Optional[str] = None) -> Optional[str]:
@@ -194,10 +207,10 @@ def _load_pathways_from_product(uac: str, product_path=None):
     Empty result (AC absent) returns ([], set()) so the caller emits target_not_in_reactome_human,
     mirroring the live uniprot_map.get(uac, []) miss. `product_path` overrides S3 (tests).
     """
-    cols = ["uniprot_ac", "row_order", "pathway_id", "pathway_name", "evidence_code", "url",
-            "top_level_pathway_name"]
+    cols = ["uniprot_ac", "row_order", "pathway_id", "pathway_name", "evidence_code", "url", "top_level_pathway_name"]
     if product_path is not None:
         import pandas as pd
+
         try:
             df = pd.read_parquet(product_path, columns=cols, filters=[("uniprot_ac", "=", uac)])
         except (FileNotFoundError, OSError):
@@ -206,35 +219,51 @@ def _load_pathways_from_product(uac: str, product_path=None):
     else:
         try:
             from methods.catalog_query.read import s3_uri_for
+
             uri = s3_uri_for(_DERIVED_PRODUCT_ID)
         except Exception:  # absence-discipline: exempt -- resolves a LOCAL data-catalog manifest (not an S3 read); an unregistered/unreadable manifest => product not available => live UniProt2Reactome fallback, which enforces its own read discipline.
             return None
         try:
             import pyarrow.fs as fs
             import pyarrow.parquet as pq
+
             ensure_aws_profile()
-            tbl = pq.read_table(uri.replace("s3://", "", 1), filesystem=fs.S3FileSystem(),
-                                columns=["row_order", "pathway_id", "pathway_name", "evidence_code",
-                                         "url", "top_level_pathway_name"],
-                                filters=[("uniprot_ac", "=", uac)])
+            tbl = pq.read_table(
+                uri.replace("s3://", "", 1),
+                filesystem=fs.S3FileSystem(),
+                columns=["row_order", "pathway_id", "pathway_name", "evidence_code", "url", "top_level_pathway_name"],
+                filters=[("uniprot_ac", "=", uac)],
+            )
         except Exception as e:  # noqa: BLE001
             from methods.target_id_sidecar import is_definitively_absent
+
             if isinstance(e, FileNotFoundError) or is_definitively_absent(e):
-                return None                              # object genuinely absent → live fallback
-            raise                                        # transient/creds → honest _live_read_error
+                return None  # object genuinely absent → live fallback
+            raise  # transient/creds → honest _live_read_error
         recs = tbl.to_pylist()
-    recs.sort(key=lambda r: r["row_order"])              # restore source order for specific_pathways[:20]
-    pathways = [{"pathway_id": r["pathway_id"], "pathway_name": r["pathway_name"],
-                 "evidence_code": r["evidence_code"], "url": r["url"]} for r in recs]
+    recs.sort(key=lambda r: r["row_order"])  # restore source order for specific_pathways[:20]
+    pathways = [
+        {
+            "pathway_id": r["pathway_id"],
+            "pathway_name": r["pathway_name"],
+            "evidence_code": r["evidence_code"],
+            "url": r["url"],
+        }
+        for r in recs
+    ]
     top_level_names = {r["top_level_pathway_name"] for r in recs}
     return pathways, top_level_names
 
 
-def read_target_summary(target: str, indication: str = None, *,
-                        uniprot2reactome_path: Optional[str] = None,
-                        pathways_path: Optional[str] = None,
-                        relations_path: Optional[str] = None,
-                        sidecar_path: Optional[str] = None) -> dict:
+def read_target_summary(
+    target: str,
+    indication: str = None,
+    *,
+    uniprot2reactome_path: Optional[str] = None,
+    pathways_path: Optional[str] = None,
+    relations_path: Optional[str] = None,
+    sidecar_path: Optional[str] = None,
+) -> dict:
     """Per-target Reactome pathway-context summary.
 
     Args:
@@ -260,34 +289,30 @@ def read_target_summary(target: str, indication: str = None, *,
     try:
         # Prefer the precomputed per-AC product (pushdown, ~kB — no whole 117 MB UniProt2Reactome +
         # hierarchy cold-start read); the fixture-path test seam forces the live path.
-        _fixture = (uniprot2reactome_path is not None or pathways_path is not None
-                    or relations_path is not None)
+        _fixture = uniprot2reactome_path is not None or pathways_path is not None or relations_path is not None
         prod = _load_pathways_from_product(uac) if not _fixture else None
         if prod is not None:
-            pathways, top_level_names = prod             # ordered pathways + top-level name set (baked)
+            pathways, top_level_names = prod  # ordered pathways + top-level name set (baked)
         else:
             uniprot_map = _load_uniprot_to_reactome(uniprot2reactome_path)
             pathways = uniprot_map.get(uac, [])
             if not pathways:
                 return _empty_result("target_not_in_reactome_human")
             id_to_name, child_to_parent = _load_pathway_hierarchy(pathways_path, relations_path)
-            top_level_names = {                          # top-level rollup per pathway (walk to root)
-                id_to_name.get(_walk_to_top(p["pathway_id"], child_to_parent),
-                               _walk_to_top(p["pathway_id"], child_to_parent))
+            top_level_names = {  # top-level rollup per pathway (walk to root)
+                id_to_name.get(
+                    _walk_to_top(p["pathway_id"], child_to_parent), _walk_to_top(p["pathway_id"], child_to_parent)
+                )
                 for p in pathways
             }
         if not pathways:
             return _empty_result("target_not_in_reactome_human")
 
-        top_level_classified = sorted({
-            n.strip() for n in top_level_names
-        })
+        top_level_classified = sorted({n.strip() for n in top_level_names})
 
         # Signaling flag: does any top-level pathway contain "Signal
         # Transduction" or "Signaling"?
-        is_signaling = any(
-            "signal" in n.lower() for n in top_level_names
-        )
+        is_signaling = any("signal" in n.lower() for n in top_level_names)
 
         # Classification
         n_pathways = len(pathways)
@@ -302,9 +327,7 @@ def read_target_summary(target: str, indication: str = None, *,
 
         # Top 10 specific pathways for the emitted summary
         specific_pathways = [
-            {"pathway_id": p["pathway_id"],
-             "pathway_name": p["pathway_name"],
-             "evidence_code": p["evidence_code"]}
+            {"pathway_id": p["pathway_id"], "pathway_name": p["pathway_name"], "evidence_code": p["evidence_code"]}
             for p in pathways[:20]
         ]
 

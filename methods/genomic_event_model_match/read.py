@@ -20,6 +20,7 @@ event_correspondence_class rollup. Mirrors patient_model_expression_corresponden
 one-for-one, swapping the match axis from expression-similarity to functional-genotype-identity.
 data_unavailable-safe throughout.
 """
+
 from __future__ import annotations
 
 from typing import Optional
@@ -38,9 +39,9 @@ NOT_DEPENDENT_CHRONOS = -0.2
 _DOMINANT_EVENT_MIN_FRACTION = 0.10
 
 
-def _patient_dominant_event(patient_arm: dict,
-                            functional_direction: Optional[str] = None
-                            ) -> tuple[Optional[str], Optional[float], str]:
+def _patient_dominant_event(
+    patient_arm: dict, functional_direction: Optional[str] = None
+) -> tuple[Optional[str], Optional[float], str]:
     """The tumor cohort's characterizing genomic event to match + its fraction + the MATCH MODE.
 
     Returns (event_key, fraction, match_mode) where match_mode is:
@@ -80,9 +81,9 @@ def _patient_dominant_event(patient_arm: dict,
 
 def _screen_role(chronos: Optional[float]) -> str:
     """Screen role from Chronos dependency (genotype-match framing):
-      positive_model   — DEPENDENT (Chronos <= -0.5): the on-target, genotype-matched screen line
-      resistance_model — NOT dependent (Chronos >= -0.2): matched genotype yet resistant
-      indeterminate    — intermediate dependency, or Chronos missing"""
+    positive_model   — DEPENDENT (Chronos <= -0.5): the on-target, genotype-matched screen line
+    resistance_model — NOT dependent (Chronos >= -0.2): matched genotype yet resistant
+    indeterminate    — intermediate dependency, or Chronos missing"""
     if chronos is None:
         return "indeterminate"
     if chronos <= DEPENDENT_CHRONOS:
@@ -92,8 +93,7 @@ def _screen_role(chronos: Optional[float]) -> str:
     return "indeterminate"
 
 
-def read_genomic_event_model_match(target: str, indication: str, release_pin: str = "26q1",
-                                   top_n: int = 15) -> dict:
+def read_genomic_event_model_match(target: str, indication: str, release_pin: str = "26q1", top_n: int = 15) -> dict:
     """Genotype-match assembler — genotype-matched DepMap models for a (target, indication). Returns the
     ranked matched-models table + rollup. data_unavailable-safe.
 
@@ -104,19 +104,20 @@ def read_genomic_event_model_match(target: str, indication: str, release_pin: st
 
     sym = target.upper().strip()
     target_lineage = INDICATION_TO_DEPMAP_LINEAGE.get(indication.upper().strip())
-    base = {"target": target, "indication": indication, "depmap_lineage": target_lineage,
-            "release_pin": release_pin}
+    base = {"target": target, "indication": indication, "depmap_lineage": target_lineage, "release_pin": release_pin}
 
     # 0) driver DIRECTION (cheap OncoKB × IntOGen join — no big files) selects the match MODE:
     #    activating driver → match on mutation presence; else → allele-count matching. data-safe.
     functional_direction = None
     try:
         from methods.driver_role_overlay.read import read_alteration_role
+
         functional_direction = (read_alteration_role(sym, indication) or {}).get("functional_direction")
     except Exception as e:  # noqa: BLE001
         # Genuine absence of the driver-role product → no direction hint (default match mode). A
         # transient/creds/broken-env error must NOT be masked into a silent mode-flip — re-raise.
         from methods.target_id_sidecar import is_definitively_absent
+
         if not is_definitively_absent(e):
             raise
         functional_direction = None
@@ -125,36 +126,55 @@ def read_genomic_event_model_match(target: str, indication: str, release_pin: st
     fgs = read_functional_gene_state(sym, indication)
     patient_arm = fgs.get("patient") or {}
     event, event_frac, match_mode = _patient_dominant_event(patient_arm, functional_direction)
-    base.update({
-        "patient_event_state": event,
-        "patient_event_fraction": event_frac,
-        "match_mode": match_mode,                       # allele_count | mutation_presence | none
-        "functional_direction": functional_direction,
-        "patient_functional_state_class": fgs.get("functional_state_class"),
-        "n_patient_samples": patient_arm.get("n_samples"),
-    })
+    base.update(
+        {
+            "patient_event_state": event,
+            "patient_event_fraction": event_frac,
+            "match_mode": match_mode,  # allele_count | mutation_presence | none
+            "functional_direction": functional_direction,
+            "patient_functional_state_class": fgs.get("functional_state_class"),
+            "n_patient_samples": patient_arm.get("n_samples"),
+        }
+    )
     if event is None:
-        base.update({"event_correspondence_class": ("no_target_event"
-                     if patient_arm.get("state_counts") else "data_unavailable"),
-                     "matched_models": [], "n_models_considered": 0,
-                     "n_event_matched": 0, "n_matched_dependent": 0,
-                     "_data_note": ("tumors rarely altered — no recurrent genotype to match"
-                                    if patient_arm.get("state_counts")
-                                    else "no patient functional-state distribution")})
+        base.update(
+            {
+                "event_correspondence_class": (
+                    "no_target_event" if patient_arm.get("state_counts") else "data_unavailable"
+                ),
+                "matched_models": [],
+                "n_models_considered": 0,
+                "n_event_matched": 0,
+                "n_matched_dependent": 0,
+                "_data_note": (
+                    "tumors rarely altered — no recurrent genotype to match"
+                    if patient_arm.get("state_counts")
+                    else "no patient functional-state distribution"
+                ),
+            }
+        )
         return base
 
     # 2) per-model genotypes (functional_gene_state model accessor)
     per_model = read_model_states_per_model(sym)
     if not per_model:
-        base.update({"event_correspondence_class": "data_unavailable", "matched_models": [],
-                     "n_models_considered": 0, "n_event_matched": 0, "n_matched_dependent": 0,
-                     "_data_note": "target absent from DepMap model substrate"})
+        base.update(
+            {
+                "event_correspondence_class": "data_unavailable",
+                "matched_models": [],
+                "n_models_considered": 0,
+                "n_event_matched": 0,
+                "n_matched_dependent": 0,
+                "_data_note": "target absent from DepMap model substrate",
+            }
+        )
         return base
 
     # 3) Chronos + lineage metadata (reuse the expression-join loader)
     try:
         chronos_by_model, _tpm, meta, errs = _dep.load_depmap_files_for_card4(
-            release_pin=release_pin, target_symbol=sym)
+            release_pin=release_pin, target_symbol=sym
+        )
     except Exception as e:  # noqa: BLE001
         chronos_by_model, meta, errs = {}, {}, [{"_live_read_error": type(e).__name__}]
     if errs:
@@ -172,42 +192,47 @@ def read_genomic_event_model_match(target: str, indication: str, release_pin: st
         if match_mode == "mutation_presence":
             event_match = bool(mstate.get("has_mutation"))
         else:
-            event_match = (state == event)
-        rows.append({
-            "model_id": model_id,
-            "cell_line": mm.get("StrippedCellLineName") or mm.get("CellLineName") or model_id,
-            "lineage": lineage,
-            "lineage_match": bool(target_lineage) and (lineage == target_lineage),
-            "model_state": state,
-            "event_match": event_match,
-            "cn_class": mstate.get("cn_class"),
-            "chronos": (round(float(chronos), 4) if chronos is not None else None),
-            "screen_role": _screen_role(chronos),
-        })
+            event_match = state == event
+        rows.append(
+            {
+                "model_id": model_id,
+                "cell_line": mm.get("StrippedCellLineName") or mm.get("CellLineName") or model_id,
+                "lineage": lineage,
+                "lineage_match": bool(target_lineage) and (lineage == target_lineage),
+                "model_state": state,
+                "event_match": event_match,
+                "cn_class": mstate.get("cn_class"),
+                "chronos": (round(float(chronos), 4) if chronos is not None else None),
+                "screen_role": _screen_role(chronos),
+            }
+        )
 
     # rank: event-matched first, then lineage-matched, then dependency strength (more negative first)
-    rows.sort(key=lambda r: (not r["event_match"], not r["lineage_match"],
-                             r["chronos"] if r["chronos"] is not None else 0.0))
+    rows.sort(
+        key=lambda r: (not r["event_match"], not r["lineage_match"], r["chronos"] if r["chronos"] is not None else 0.0)
+    )
 
     matched = [r for r in rows if r["event_match"]]
     matched_dependent = [r for r in matched if r["screen_role"] == "positive_model"]
     matched_dep_lineage = [r for r in matched_dependent if r["lineage_match"]]
-    base.update({
-        "matched_models": [r for r in rows if r["event_match"]][:top_n],
-        "n_models_considered": len(rows),
-        "n_event_matched": len(matched),
-        "n_event_matched_in_lineage": sum(1 for r in matched if r["lineage_match"]),
-        "n_matched_dependent": len(matched_dependent),
-        "n_matched_dependent_in_lineage": len(matched_dep_lineage),
-        "event_correspondence_class": _classify_event_correspondence(
-            len(matched), len(matched_dependent), len(matched_dep_lineage), bool(target_lineage)),
-        "dependency_available": not bool(errs),
-    })
+    base.update(
+        {
+            "matched_models": [r for r in rows if r["event_match"]][:top_n],
+            "n_models_considered": len(rows),
+            "n_event_matched": len(matched),
+            "n_event_matched_in_lineage": sum(1 for r in matched if r["lineage_match"]),
+            "n_matched_dependent": len(matched_dependent),
+            "n_matched_dependent_in_lineage": len(matched_dep_lineage),
+            "event_correspondence_class": _classify_event_correspondence(
+                len(matched), len(matched_dependent), len(matched_dep_lineage), bool(target_lineage)
+            ),
+            "dependency_available": not bool(errs),
+        }
+    )
     return base
 
 
-def _classify_event_correspondence(n_matched, n_matched_dependent, n_matched_dep_lineage,
-                                   has_lineage) -> str:
+def _classify_event_correspondence(n_matched, n_matched_dependent, n_matched_dep_lineage, has_lineage) -> str:
     """Categorical for the card/rules (mirrors the expression join's _classify_correspondence, on
     genotype-match + dependency):
       event_matched_dependent_in_lineage  — ≥1 genotype-matched + DEPENDENT model IN the lineage

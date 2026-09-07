@@ -6,6 +6,7 @@ axis + ONE log2(TPM+1) unit. Tests build two tiny synthetic long products, run t
 aggregation, and pin: the stacked source axis; the quantiles match numpy on the known input; the
 sort key + dtypes; that the ensembl_gene_id axis is shared across sources.
 """
+
 from __future__ import annotations
 
 import importlib
@@ -37,14 +38,17 @@ def _make_products(tmp: Path):
     coad_vals = [1.0, 2.0, 3.0, 4.0, 5.0]
     gbm_vals = [8.0, 9.0, 10.0]
     colon_vals = [0.5, 1.5, 2.5, 3.5]
-    tcga_rows = (
-        [{"gene_symbol": "GENEA", "ensembl_gene_id": "ENSG1", "sample_id": f"t{i}",
-          "study": "COAD", "log2_tpm": v} for i, v in enumerate(coad_vals)]
-        + [{"gene_symbol": "GENEA", "ensembl_gene_id": "ENSG1", "sample_id": f"g{i}",
-            "study": "GBM", "log2_tpm": v} for i, v in enumerate(gbm_vals)]
-    )
-    gtex_rows = [{"gene_symbol": "GENEA", "ensembl_gene_id": "ENSG1", "sample_id": f"n{i}",
-                  "tissue": "COLON", "log2_tpm": v} for i, v in enumerate(colon_vals)]
+    tcga_rows = [
+        {"gene_symbol": "GENEA", "ensembl_gene_id": "ENSG1", "sample_id": f"t{i}", "study": "COAD", "log2_tpm": v}
+        for i, v in enumerate(coad_vals)
+    ] + [
+        {"gene_symbol": "GENEA", "ensembl_gene_id": "ENSG1", "sample_id": f"g{i}", "study": "GBM", "log2_tpm": v}
+        for i, v in enumerate(gbm_vals)
+    ]
+    gtex_rows = [
+        {"gene_symbol": "GENEA", "ensembl_gene_id": "ENSG1", "sample_id": f"n{i}", "tissue": "COLON", "log2_tpm": v}
+        for i, v in enumerate(colon_vals)
+    ]
     tcga_p = tmp / "tcga_long.parquet"
     gtex_p = tmp / "gtex_long.parquet"
     _write_long(tcga_p, "study", tcga_rows)
@@ -92,13 +96,21 @@ def test_sorted_and_dtypes(tmp_path):
 
 def test_null_log2tpm_excluded(tmp_path):
     # a NaN log2_tpm row must not inflate n or perturb the quantile
-    tcga_rows = [{"gene_symbol": "GENEB", "ensembl_gene_id": "ENSG2", "sample_id": "a",
-                  "study": "COAD", "log2_tpm": 5.0},
-                 {"gene_symbol": "GENEB", "ensembl_gene_id": "ENSG2", "sample_id": "b",
-                  "study": "COAD", "log2_tpm": float("nan")}]
-    gtex_rows = [{"gene_symbol": "GENEB", "ensembl_gene_id": "ENSG2", "sample_id": "c",
-                  "tissue": "COLON", "log2_tpm": 1.0}]
-    tcga_p = tmp_path / "t.parquet"; gtex_p = tmp_path / "g.parquet"
+    tcga_rows = [
+        {"gene_symbol": "GENEB", "ensembl_gene_id": "ENSG2", "sample_id": "a", "study": "COAD", "log2_tpm": 5.0},
+        {
+            "gene_symbol": "GENEB",
+            "ensembl_gene_id": "ENSG2",
+            "sample_id": "b",
+            "study": "COAD",
+            "log2_tpm": float("nan"),
+        },
+    ]
+    gtex_rows = [
+        {"gene_symbol": "GENEB", "ensembl_gene_id": "ENSG2", "sample_id": "c", "tissue": "COLON", "log2_tpm": 1.0}
+    ]
+    tcga_p = tmp_path / "t.parquet"
+    gtex_p = tmp_path / "g.parquet"
     _write_long(tcga_p, "study", tcga_rows)
     _write_long(gtex_p, "tissue", gtex_rows)
     df = cli.build(str(tcga_p), str(gtex_p))

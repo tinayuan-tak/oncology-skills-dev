@@ -11,10 +11,11 @@ verdict-BEARING). This reader is the TUMOR-vs-normal CONTRAST (sample_context=tu
 
 Companion: data-catalog:manifests/derived/tphp-tumor-vs-normal-protein-per-cohort-v1.yaml
 """
+
 METHOD_VERSION = "0.1.0"
 
 # Re-export the public API so dispatchers using __import__(...) find read_target_summary at package
 # level (the generic dispatcher imports the PACKAGE, then getattr's the entrypoint — mirrors
 # tphp_normal_protein / cptac_protein_deg / collectri_tf_regulon).
 from .read import read_target_summary  # noqa: F401,E402
-from .read import read_all_cohorts     # noqa: F401,E402
+from .read import read_all_cohorts  # noqa: F401,E402

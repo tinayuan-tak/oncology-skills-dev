@@ -5,6 +5,7 @@ ship a product with no record of which cohorts are present. The gate now trips u
 len(cohorts), naming the failed cohorts. stage_02_cohort (the subprocess runner) is stubbed so the
 test needs no R / MSstatsTMT / S3.
 """
+
 from __future__ import annotations
 
 import importlib
@@ -22,8 +23,10 @@ derive = importlib.import_module("methods.cptac_protein_deg.derive")
 
 def _stub_outcomes(monkeypatch, ok_map):
     """Patch stage_02_cohort to return a deterministic (cohort, secs, ok) per ok_map[cohort]."""
+
     def _fake(cohort, work_dir, min_normal):
         return (cohort, 0.1, ok_map[cohort])
+
     monkeypatch.setattr(derive, "stage_02_cohort", _fake)
 
 

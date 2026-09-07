@@ -55,15 +55,18 @@ def _err(reason: str, remediation: str) -> dict:
         "_live_read_error": reason,
         "_remediation": remediation,
         "topology_class": "data_unavailable",
-        "ecd_engineerability_class": "data_unavailable",   # keep the categorical present on error paths
+        "ecd_engineerability_class": "data_unavailable",  # keep the categorical present on error paths
         "tmbed_model_version": None,
         "method_version": METHOD_VERSION,
     }
 
 
-def read_target_summary(target: str, indication: Optional[str] = None,
-                        parquet_path: Optional[str] = None,
-                        sidecar_path: Optional[str] = None) -> dict:
+def read_target_summary(
+    target: str,
+    indication: Optional[str] = None,
+    parquet_path: Optional[str] = None,
+    sidecar_path: Optional[str] = None,
+) -> dict:
     """Surface topology + epitope-viability for a target. Protein-intrinsic —
     `indication` accepted for the dispatcher contract but NOT consumed (topology is
     a property of the protein). parquet_path/sidecar_path override S3 for tests.
@@ -74,25 +77,26 @@ def read_target_summary(target: str, indication: Optional[str] = None,
     """
     ensure_aws_profile()
     try:
-        accession = _classify.resolve_uniprot(target, sidecar_path=sidecar_path,
-                                              bucket=S3_BUCKET, sidecar_key=SIDECAR_KEY)
+        accession = _classify.resolve_uniprot(
+            target, sidecar_path=sidecar_path, bucket=S3_BUCKET, sidecar_key=SIDECAR_KEY
+        )
     except Exception as e:  # noqa: BLE001
-        return _err("topology_sidecar_read_failed",
-                    f"Could not resolve {target}→UniProt via sidecar: {e}")
+        return _err("topology_sidecar_read_failed", f"Could not resolve {target}→UniProt via sidecar: {e}")
     if accession is None:
         # sidecar read OK but target not resolvable → indeterminate-ish; honest data_unavailable
-        return {**_err("target_not_in_resolver",
-                       f"{target} not resolved to a UniProt accession in the topology sidecar"),
-                "topology_class": "data_unavailable"}
+        return {
+            **_err("target_not_in_resolver", f"{target} not resolved to a UniProt accession in the topology sidecar"),
+            "topology_class": "data_unavailable",
+        }
     try:
-        row = _classify.load_topology_row(accession, parquet_path=parquet_path,
-                                          bucket=S3_BUCKET, parquet_key=PARQUET_KEY)
+        row = _classify.load_topology_row(
+            accession, parquet_path=parquet_path, bucket=S3_BUCKET, parquet_key=PARQUET_KEY
+        )
     except Exception as e:  # noqa: BLE001
-        return _err("topology_parquet_read_failed",
-                    f"Could not read topology parquet for {target}/{accession}: {e}")
+        return _err("topology_parquet_read_failed", f"Could not read topology parquet for {target}/{accession}: {e}")
     if row is None:
-        return {**_err("accession_not_in_topology_table",
-                       f"{target}/{accession} absent from TMbed topology product"),
-                "topology_class": "data_unavailable"}
-    return _classify.compute_summary(row, ptm_fields=_UNAVAILABLE_PTM_FIELDS,
-                                     method_version=METHOD_VERSION)
+        return {
+            **_err("accession_not_in_topology_table", f"{target}/{accession} absent from TMbed topology product"),
+            "topology_class": "data_unavailable",
+        }
+    return _classify.compute_summary(row, ptm_fields=_UNAVAILABLE_PTM_FIELDS, method_version=METHOD_VERSION)

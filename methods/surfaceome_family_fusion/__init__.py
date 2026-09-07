@@ -17,6 +17,7 @@ Companion:
 Consumer: surfaceome-family-classification evidence card (Phase F) via the
 tractability-and-modality skill.
 """
+
 METHOD_VERSION = "0.1.0"
 
 from .read import read_target_summary  # noqa: F401,E402

@@ -138,9 +138,11 @@ def load_mutation_data(release_pin: str, target_symbol: str) -> tuple[list, dict
         load_errors: list of structured errors (empty on success)
     """
     import pandas as pd
+
     load_errors = []
     # Shared cached Model.csv loader
     from methods.depmap_common import load_model_csv
+
     try:
         model_df = load_model_csv(release_pin)
     except FileNotFoundError as e:
@@ -150,11 +152,11 @@ def load_mutation_data(release_pin: str, target_symbol: str) -> tuple[list, dict
     # === TIER-2 PATH: parquet with HugoSymbol filter pushdown (738 MB CSV → <1 MB) ===
     try:
         from methods.depmap_common.parquet import get_maf_gene_rows, get_maf_n_cell_lines_total
+
         target_df = get_maf_gene_rows(target_symbol, release_pin)
         n_cell_lines_total = get_maf_n_cell_lines_total(release_pin)
         # Filter to default entries only (match CSV path semantics)
-        target_df = target_df[target_df["IsDefaultEntryForModel"].isin(
-            [True, "Yes", "yes", "true", "TRUE"])]
+        target_df = target_df[target_df["IsDefaultEntryForModel"].isin([True, "Yes", "yes", "true", "TRUE"])]
         target_rows = target_df.to_dict(orient="records")
         # Model metadata via shared cache
         model_metadata = {}
@@ -167,14 +169,14 @@ def load_mutation_data(release_pin: str, target_symbol: str) -> tuple[list, dict
     # === LEGACY CSV PATH ===
     try:
         import boto3
+
         s3 = boto3.client("s3")
 
         click.echo(f"  Fetching s3://{DEPMAP_S3_BUCKET}/{DEPMAP_S3_PREFIX}/OmicsSomaticMutations.csv", err=True)
         maf_obj = s3.get_object(Bucket=DEPMAP_S3_BUCKET, Key=f"{DEPMAP_S3_PREFIX}/OmicsSomaticMutations.csv")
         maf_df = pd.read_csv(
             BytesIO(maf_obj["Body"].read()),
-            usecols=["ModelID", "HugoSymbol", "VariantType", "VariantInfo", "ProteinChange",
-                     "IsDefaultEntryForModel"],
+            usecols=["ModelID", "HugoSymbol", "VariantType", "VariantInfo", "ProteinChange", "IsDefaultEntryForModel"],
         )
     except ImportError as e:
         load_errors.append({"_live_read_error": "boto3_not_available", "detail": str(e)})
@@ -201,15 +203,26 @@ def load_mutation_data(release_pin: str, target_symbol: str) -> tuple[list, dict
     return target_rows, model_metadata, n_cell_lines_total, load_errors
 
 
-def compute_summary_stats(target_rows: list, model_metadata: dict, n_cell_lines_total: int,
-                            min_mutated: int = 5,
-                            missense_dominant_fraction: float = 0.70,
-                            lof_dominant_fraction: float = 0.50) -> dict:
+def compute_summary_stats(
+    target_rows: list,
+    model_metadata: dict,
+    n_cell_lines_total: int,
+    min_mutated: int = 5,
+    missense_dominant_fraction: float = 0.70,
+    lof_dominant_fraction: float = 0.50,
+) -> dict:
     """Compute per-class mutation counts + landscape-class label."""
 
     # Aggregate counts per framework category
-    counts = {"missense": 0, "nonsense": 0, "frameshift": 0, "splice": 0,
-               "inframe_indel": 0, "synonymous": 0, "other": 0}
+    counts = {
+        "missense": 0,
+        "nonsense": 0,
+        "frameshift": 0,
+        "splice": 0,
+        "inframe_indel": 0,
+        "synonymous": 0,
+        "other": 0,
+    }
 
     mutated_cell_lines = set()
     for row in target_rows:
@@ -223,7 +236,9 @@ def compute_summary_stats(target_rows: list, model_metadata: dict, n_cell_lines_
     mutation_rate = n_mutated / n_cell_lines_total if n_cell_lines_total > 0 else 0.0
 
     # Coding-variant subtotal (excludes synonymous + other for fraction calculations)
-    coding_total = counts["missense"] + counts["nonsense"] + counts["frameshift"] + counts["splice"] + counts["inframe_indel"]
+    coding_total = (
+        counts["missense"] + counts["nonsense"] + counts["frameshift"] + counts["splice"] + counts["inframe_indel"]
+    )
     lof_total = counts["nonsense"] + counts["frameshift"] + counts["splice"]
 
     fraction_missense = (counts["missense"] / coding_total) if coding_total > 0 else 0.0
@@ -270,12 +285,14 @@ def compute_summary_stats(target_rows: list, model_metadata: dict, n_cell_lines_
             cat = _category_for_class(vc)
             lineage_stats[lin]["by_class"][cat] = lineage_stats[lin]["by_class"].get(cat, 0) + 1
         for lin, stats in lineage_stats.items():
-            top_lineages.append({
-                "lineage": lin,
-                "n_mutated_lines": len(stats["n_mutated_lines"]),
-                "n_observations": stats["n_observations"],
-                "by_class": stats["by_class"],
-            })
+            top_lineages.append(
+                {
+                    "lineage": lin,
+                    "n_mutated_lines": len(stats["n_mutated_lines"]),
+                    "n_observations": stats["n_observations"],
+                    "by_class": stats["by_class"],
+                }
+            )
         top_lineages.sort(key=lambda x: x["n_mutated_lines"], reverse=True)
 
     summary = {
@@ -303,37 +320,38 @@ def compute_summary_stats(target_rows: list, model_metadata: dict, n_cell_lines_
 
 def _load_takeda_style(target_contracts_dir: Path):
     import matplotlib.pyplot as plt
+
     style_path = target_contracts_dir / "plot_styles" / "takeda_oncology.mplstyle"
     if style_path.exists():
         plt.style.use(str(style_path))
     sys.path.insert(0, str(target_contracts_dir / "plot_styles"))
     import takeda_palette  # type: ignore
+
     return takeda_palette
 
 
 # Color palette for variant classes — keeps a consistent visual language across cards
 VARIANT_CLASS_COLORS = {
-    "missense": "#0a2540",      # Takeda navy — oncogene-pattern marker
-    "nonsense": "#cf2828",      # red — LOF
-    "frameshift": "#f0a020",    # orange — LOF
-    "splice": "#9b3192",        # purple — LOF (splice disruption)
-    "inframe_indel": "#7fa7c0", # light blue
-    "synonymous": "#aaaaaa",    # gray
-    "other": "#dddddd",         # light gray
+    "missense": "#0a2540",  # Takeda navy — oncogene-pattern marker
+    "nonsense": "#cf2828",  # red — LOF
+    "frameshift": "#f0a020",  # orange — LOF
+    "splice": "#9b3192",  # purple — LOF (splice disruption)
+    "inframe_indel": "#7fa7c0",  # light blue
+    "synonymous": "#aaaaaa",  # gray
+    "other": "#dddddd",  # light gray
 }
 
 
-def emit_mutation_class_bar(summary: dict, target_symbol: str,
-                              out_dir: Path, target_contracts_dir: Path) -> Path:
+def emit_mutation_class_bar(summary: dict, target_symbol: str, out_dir: Path, target_contracts_dir: Path) -> Path:
     """Emit horizontal stacked bar of variant-class counts — PRIMARY figure."""
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
     pal = _load_takeda_style(target_contracts_dir)
 
-    class_order = ["missense", "nonsense", "frameshift", "splice",
-                    "inframe_indel", "synonymous", "other"]
+    class_order = ["missense", "nonsense", "frameshift", "splice", "inframe_indel", "synonymous", "other"]
     counts_dict = {entry["variant_class"]: entry["n"] for entry in summary.get("mut_per_class_counts", [])}
     counts = [counts_dict.get(c, 0) for c in class_order]
     colors = [VARIANT_CLASS_COLORS[c] for c in class_order]
@@ -342,8 +360,7 @@ def emit_mutation_class_bar(summary: dict, target_symbol: str,
     ax.barh(range(len(class_order)), counts, color=colors, edgecolor="white")
     for i, c in enumerate(counts):
         if c > 0:
-            ax.text(c + max(counts) * 0.01, i, str(c),
-                    va="center", fontsize=8, color="#222222")
+            ax.text(c + max(counts) * 0.01, i, str(c), va="center", fontsize=8, color="#222222")
     ax.set_yticks(range(len(class_order)))
     ax.set_yticklabels([c.replace("_", " ") for c in class_order], fontsize=8)
     ax.invert_yaxis()
@@ -360,10 +377,10 @@ def emit_mutation_class_bar(summary: dict, target_symbol: str,
     return out_path
 
 
-def emit_lineage_class_bar(summary: dict, target_symbol: str,
-                             out_dir: Path, target_contracts_dir: Path) -> Path:
+def emit_lineage_class_bar(summary: dict, target_symbol: str, out_dir: Path, target_contracts_dir: Path) -> Path:
     """Per-lineage stacked bar — top 10 lineages by mutation count."""
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import numpy as np
@@ -373,23 +390,29 @@ def emit_lineage_class_bar(summary: dict, target_symbol: str,
     top_lineages = summary.get("mut_top_mutated_lineages", [])[:10]
     if not top_lineages:
         fig, ax = plt.subplots(figsize=pal.FIGSIZE_DOUBLE_COLUMN)
-        ax.text(0.5, 0.5, "No per-lineage mutation data",
-                transform=ax.transAxes, ha="center", fontsize=10, color="#666666")
+        ax.text(
+            0.5, 0.5, "No per-lineage mutation data", transform=ax.transAxes, ha="center", fontsize=10, color="#666666"
+        )
         out_path = out_dir / "figure_mutation_lineage_bar.svg"
-        fig.savefig(out_path); plt.close(fig)
+        fig.savefig(out_path)
+        plt.close(fig)
         return out_path
 
-    class_order = ["missense", "nonsense", "frameshift", "splice",
-                    "inframe_indel", "synonymous", "other"]
+    class_order = ["missense", "nonsense", "frameshift", "splice", "inframe_indel", "synonymous", "other"]
     lineages = [t["lineage"] for t in top_lineages]
     matrix = np.array([[t["by_class"].get(c, 0) for c in class_order] for t in top_lineages])
 
     fig, ax = plt.subplots(figsize=pal.FIGSIZE_DOUBLE_COLUMN)
     left = np.zeros(len(lineages))
     for j, cls in enumerate(class_order):
-        ax.barh(range(len(lineages)), matrix[:, j], left=left,
-                color=VARIANT_CLASS_COLORS[cls], edgecolor="white",
-                label=cls.replace("_", " "))
+        ax.barh(
+            range(len(lineages)),
+            matrix[:, j],
+            left=left,
+            color=VARIANT_CLASS_COLORS[cls],
+            edgecolor="white",
+            label=cls.replace("_", " "),
+        )
         left += matrix[:, j]
     ax.set_yticks(range(len(lineages)))
     ax.set_yticklabels(lineages, fontsize=8)
@@ -407,29 +430,32 @@ def emit_lineage_class_bar(summary: dict, target_symbol: str,
 def emit_plot_data(target_rows: list, model_metadata: dict, out_path: Path) -> Path:
     """Emit per-cell-line per-class Parquet."""
     import pandas as pd
+
     records = []
     for row in target_rows:
         mid = row.get("ModelID")
         meta = model_metadata.get(mid, {})
         vc = _resolve_dominant_variant_class(row.get("VariantInfo", ""))
         cat = _category_for_class(vc)
-        records.append({
-            "model_id": mid,
-            "ccle_name": meta.get("CCLEName"),
-            "lineage": meta.get("OncotreeLineage"),
-            "variant_class": vc,
-            "category": cat,
-            "protein_change": row.get("ProteinChange"),
-        })
+        records.append(
+            {
+                "model_id": mid,
+                "ccle_name": meta.get("CCLEName"),
+                "lineage": meta.get("OncotreeLineage"),
+                "variant_class": vc,
+                "category": cat,
+                "protein_change": row.get("ProteinChange"),
+            }
+        )
     df = pd.DataFrame(records)
     out_file = out_path / "plot_data_mutation_types.parquet"
     df.to_parquet(out_file, index=False)
     return out_file
 
 
-def emit_manifest(target_symbol: str, release_pin: str, summary: dict,
-                   out_dir: Path, load_errors: list) -> Path:
+def emit_manifest(target_symbol: str, release_pin: str, summary: dict, out_dir: Path, load_errors: list) -> Path:
     import yaml
+
     manifest = {
         "method_id": "depmap-mutation-type-counts",
         "method_version": METHOD_VERSION,

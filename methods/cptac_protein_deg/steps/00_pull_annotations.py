@@ -15,6 +15,7 @@ Idempotent: writes only if missing OR --force is passed.
 Reads: PDC GraphQL (open, no auth); 10 study IDs from CPTAC_STUDIES.
 Writes: <annotations_dir>/<cohort>_aliquot_annotations.tsv (cohort, aliquot_submitter_id, sample_type, case_submitter_id).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -29,16 +30,16 @@ from pathlib import Path
 PDC_GRAPHQL = "https://pdc.cancer.gov/graphql"
 
 CPTAC_STUDIES = {
-    "BRCA":  "PDC000120",
-    "COAD":  "PDC000116",
-    "OV":    "PDC000110",
+    "BRCA": "PDC000120",
+    "COAD": "PDC000116",
+    "OV": "PDC000110",
     "CCRCC": "PDC000127",
-    "GBM":   "PDC000204",
+    "GBM": "PDC000204",
     "HNSCC": "PDC000221",
-    "LUAD":  "PDC000153",
-    "LSCC":  "PDC000234",
-    "UCEC":  "PDC000125",
-    "PDAC":  "PDC000270",
+    "LUAD": "PDC000153",
+    "LSCC": "PDC000234",
+    "UCEC": "PDC000125",
+    "PDAC": "PDC000270",
 }
 
 
@@ -101,10 +102,8 @@ def write_tsv(cohort: str, rows: list[dict], out_path: Path) -> tuple[int, int]:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--annotations-dir", required=True, type=Path)
-    ap.add_argument("--cohort", default=None,
-                    help="Optional single-cohort filter (default: all 10).")
-    ap.add_argument("--force", action="store_true",
-                    help="Re-query even if TSV already exists.")
+    ap.add_argument("--cohort", default=None, help="Optional single-cohort filter (default: all 10).")
+    ap.add_argument("--force", action="store_true", help="Re-query even if TSV already exists.")
     args = ap.parse_args()
 
     args.annotations_dir.mkdir(parents=True, exist_ok=True)
@@ -124,9 +123,12 @@ def main() -> int:
         t0 = time.time()
         rows = query_study(cohort, pdc_id)
         n_tumor, n_normal = write_tsv(cohort, rows, out_path)
-        print(f"[00_pull_annotations] {cohort} ({pdc_id}): "
-              f"{n_tumor} tumor + {n_normal} normal aliquots "
-              f"({time.time()-t0:.1f}s) -> {out_path.name}", file=sys.stderr)
+        print(
+            f"[00_pull_annotations] {cohort} ({pdc_id}): "
+            f"{n_tumor} tumor + {n_normal} normal aliquots "
+            f"({time.time() - t0:.1f}s) -> {out_path.name}",
+            file=sys.stderr,
+        )
 
     return 0
 

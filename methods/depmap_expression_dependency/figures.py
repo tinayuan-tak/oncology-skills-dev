@@ -17,9 +17,15 @@ from . import cli as _cli
 _REQUIRED_COLUMNS = ("chronos", "tpm_logp1")
 
 
-def render_from_plot_data(plot_data: "Union[str, Path, object]", summary: dict, out_dir: "Union[str, Path]",
-                          target: str, indication: Optional[str] = None, *,
-                          target_contracts_dir: "Optional[Union[str, Path]]" = None) -> list[dict]:
+def render_from_plot_data(
+    plot_data: "Union[str, Path, object]",
+    summary: dict,
+    out_dir: "Union[str, Path]",
+    target: str,
+    indication: Optional[str] = None,
+    *,
+    target_contracts_dir: "Optional[Union[str, Path]]" = None,
+) -> list[dict]:
     """Render the expression-dependency-correlation figures OFFLINE from persisted plot_data. NO live
     read — replays the persisted merged frame into the same cli.emit_* draw functions a live run uses.
     Reference lines/stats come from the passed `summary` (the card's compute_correlation_summary)."""
@@ -41,8 +47,16 @@ def render_from_plot_data(plot_data: "Union[str, Path, object]", summary: dict, 
     # Descriptor shape mirrors the registry emitter (_emit_card4_expression_dependency_correlation);
     # card4 has no plotly twin.
     return [
-        {"id": "scatter_with_regression", "path": "figure_scatter_with_regression.svg",
-         "type": "expression_chronos_scatter", "primary": True},
-        {"id": "lineage_stratified_scatter", "path": "figure_lineage_stratified_scatter.svg",
-         "type": "lineage_stratified_scatter", "primary": False},
+        {
+            "id": "scatter_with_regression",
+            "path": "figure_scatter_with_regression.svg",
+            "type": "expression_chronos_scatter",
+            "primary": True,
+        },
+        {
+            "id": "lineage_stratified_scatter",
+            "path": "figure_lineage_stratified_scatter.svg",
+            "type": "lineage_stratified_scatter",
+            "primary": False,
+        },
     ]

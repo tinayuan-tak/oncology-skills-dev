@@ -41,9 +41,15 @@ def _reconstruct_frame(plot_data: "Union[str, Path, object]") -> tuple[dict, dic
     return chronos_by_model, model_metadata
 
 
-def render_from_plot_data(plot_data: "Union[str, Path, object]", summary: dict, out_dir: "Union[str, Path]",
-                          target: str, indication: Optional[str] = None, *,
-                          target_contracts_dir: "Optional[Union[str, Path]]" = None) -> list[dict]:
+def render_from_plot_data(
+    plot_data: "Union[str, Path, object]",
+    summary: dict,
+    out_dir: "Union[str, Path]",
+    target: str,
+    indication: Optional[str] = None,
+    *,
+    target_contracts_dir: "Optional[Union[str, Path]]" = None,
+) -> list[dict]:
     """Render the pan-cancer-crispr-dependency-distribution figures OFFLINE from persisted plot_data +
     summary. NO live read — delegates to the same cli.emit_* draw functions a live run uses."""
     out_dir = Path(out_dir)
@@ -59,8 +65,12 @@ def render_from_plot_data(plot_data: "Union[str, Path, object]", summary: dict, 
     # distribution) with types canonicalized to the FIGURE_CATALOG closed enum (Stage 5).
     static = [
         {"id": "waterfall", "path": "figure_waterfall.svg", "type": "ranked_waterfall", "primary": True},
-        {"id": "histogram_kde", "path": "figure_histogram_kde.svg", "type": "density_histogram_with_kde",
-         "primary": False},
+        {
+            "id": "histogram_kde",
+            "path": "figure_histogram_kde.svg",
+            "type": "density_histogram_with_kde",
+            "primary": False,
+        },
     ]
     # Interactive plotly twins from the SAME reconstructed frame (static + interactive can't drift).
     # We RETURN their descriptors (dynamic: True) too — mirroring the skills _plotly_from wrapping — so
@@ -69,8 +79,7 @@ def render_from_plot_data(plot_data: "Union[str, Path, object]", summary: dict, 
     # no dynamic descriptors; the SVGs remain the guaranteed contract.
     dynamic: list[dict] = []
     try:
-        specs = _cli.emit_plotly_specs(chronos_by_model, model_metadata, target, summary,
-                                       out_dir, tcd) or []
+        specs = _cli.emit_plotly_specs(chronos_by_model, model_metadata, target, summary, out_dir, tcd) or []
         dynamic = [{**s, "dynamic": True} for s in specs]
     except Exception:  # noqa: BLE001 — additive interactive twin; SVGs are the contract
         pass

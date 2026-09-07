@@ -21,6 +21,7 @@ heuristic. Distinct exon/isoform oncogenic events arise by distinct mechanisms (
 a genomic exon 2-7 DELETION; AR-V7 is cryptic-exon splicing) and must each be curated with
 their own window + evidence — do not fold them under one predicate.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -31,10 +32,10 @@ class ExonSkipEvent:
     event_id: str
     gene: str
     genome_build: str
-    chrom: str                         # normalized "chr7"
-    window_start: int                  # inclusive; covers intron-(N-1) acceptor/branch + exon N + intron-N donor
-    window_end: int                    # inclusive
-    exon_start: int                    # canonical skipped-exon bounds (provenance / tightening)
+    chrom: str  # normalized "chr7"
+    window_start: int  # inclusive; covers intron-(N-1) acceptor/branch + exon N + intron-N donor
+    window_end: int  # inclusive
+    exon_start: int  # canonical skipped-exon bounds (provenance / tightening)
     exon_end: int
     exon_number: int
     # variant classifications (lower-cased) that count as splice-disrupting for this event.
@@ -50,7 +51,7 @@ class ExonSkipEvent:
     # CURATED oncogenic scope: indications where this exon-skip event is an established DRIVER
     # (OncoTree/framework codes). Drives the genomic-alteration splice-driver characterization.
     oncogenic_indications: frozenset = field(default_factory=frozenset)
-    driver_direction: str = ""         # activating | loss_of_function (METex14 = activating/GoF)
+    driver_direction: str = ""  # activating | loss_of_function (METex14 = activating/GoF)
     note: str = ""
 
 
@@ -72,10 +73,15 @@ METEX14 = ExonSkipEvent(
     exon_start=116_771_849,
     exon_end=116_771_989,
     exon_number=14,
-    splice_classifications=frozenset({
-        "splice_site", "splice_region",                          # MAF title-case (lower-cased)
-        "splice_donor_variant", "splice_acceptor_variant", "splice_region_variant",  # VEP
-    }),
+    splice_classifications=frozenset(
+        {
+            "splice_site",
+            "splice_region",  # MAF title-case (lower-cased)
+            "splice_donor_variant",
+            "splice_acceptor_variant",
+            "splice_region_variant",  # VEP
+        }
+    ),
     canonical_positive_samples=frozenset({"ACH-000616", "ACH-000628"}),  # EBC-1, Hs746T
     # hg19 window (TCGA MC3 / GENIE public are GRCh37): exon 14 ≈ chr7:116,411,850-116,411,990;
     # cluster empirically observed in MC3 at 116,411,551 (intron-13 acceptor side) + 116,412,042-045
@@ -83,10 +89,10 @@ METEX14 = ExonSkipEvent(
     # (116,397,691 / 116,403,323 / 116,422,041 / 116,423,356 / 116,435,707).
     window_start_hg19=116_411_500,
     window_end_hg19=116_412_100,
-    oncogenic_indications=frozenset({"LUAD", "LUSC", "NSCLC"}),   # curated METex14 driver scope
+    oncogenic_indications=frozenset({"LUAD", "LUSC", "NSCLC"}),  # curated METex14 driver scope
     driver_direction="activating",
     note="MET exon-14 skipping — FDA companion-Dx biomarker for capmatinib/tepotinib; "
-         "removes the CBL degron (GAIN-of-function stabilization, not loss).",
+    "removes the CBL degron (GAIN-of-function stabilization, not loss).",
 )
 
 

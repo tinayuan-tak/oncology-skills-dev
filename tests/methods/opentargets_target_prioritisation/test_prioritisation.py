@@ -5,6 +5,7 @@ values so the band arithmetic + data_unavailable paths are pinned deterministica
 the card presents OT-normalized scores as CONTEXT (bands + raw), never as raw facts, and is
 data_unavailable-safe on both an unresolvable symbol and an absent entity.
 """
+
 from __future__ import annotations
 
 import importlib
@@ -33,8 +34,7 @@ def _row(ensg, **scores):
 
 
 def test_scored_bands_and_raw_scores(monkeypatch):
-    df = _row("ENSG_KRAS", geneticConstraint=-0.9, mouseKOScore=-0.98, hasSafetyEvent=None,
-              isInMembrane=0.0)
+    df = _row("ENSG_KRAS", geneticConstraint=-0.9, mouseKOScore=-0.98, hasSafetyEvent=None, isInMembrane=0.0)
     _patch(monkeypatch, ensg="ENSG_KRAS", df=df)
     out = r.read_target_prioritisation("KRAS", "COADREAD")
     assert out["prioritisation_status"] == "scored"
@@ -53,9 +53,9 @@ def test_favorable_and_intermediate_bands(monkeypatch):
     df = _row("ENSG_X", geneticConstraint=0.7, mouseKOScore=0.1, hasSafetyEvent=-1.0)
     _patch(monkeypatch, ensg="ENSG_X", df=df)
     out = r.read_target_prioritisation("X")
-    assert out["genetic_constraint_band"] == "favorable"      # >= 0.5
-    assert out["mouse_ko_score_band"] == "intermediate"       # -0.5 < v < 0.5
-    assert out["has_safety_event_band"] == "unfavorable"      # <= -0.5
+    assert out["genetic_constraint_band"] == "favorable"  # >= 0.5
+    assert out["mouse_ko_score_band"] == "intermediate"  # -0.5 < v < 0.5
+    assert out["has_safety_event_band"] == "unfavorable"  # <= -0.5
 
 
 def test_unresolvable_symbol_is_data_unavailable(monkeypatch):

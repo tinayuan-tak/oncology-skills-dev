@@ -7,6 +7,7 @@ specs are built from the SAME in-memory per_sample_data + contrasts the matplotl
 they cannot drift from the static figure. No S3, no R — synthetic per_sample_data. Plotly is
 optional at emit time; if unavailable the method still emits SVGs.
 """
+
 from __future__ import annotations
 
 import base64
@@ -28,16 +29,16 @@ def _decode(v):
     plain float list so the no-drift check compares values, not serialization form."""
     if isinstance(v, dict) and "bdata" in v:
         import numpy as np
-        return np.frombuffer(base64.b64decode(v["bdata"]),
-                             dtype={"f8": "<f8", "f4": "<f4"}[v["dtype"]]).tolist()
+
+        return np.frombuffer(base64.b64decode(v["bdata"]), dtype={"f8": "<f8", "f4": "<f4"}[v["dtype"]]).tolist()
     return list(v)
 
 
 def _fixture():
     per_sample = {
-        "tumor_samples":    [{"sample_id": f"T{i}", "log2_cpm": 6.0 + i * 0.1} for i in range(40)],
+        "tumor_samples": [{"sample_id": f"T{i}", "log2_cpm": 6.0 + i * 0.1} for i in range(40)],
         "adjacent_samples": [{"sample_id": f"A{i}", "log2_cpm": 3.0 + i * 0.1} for i in range(20)],
-        "gtex_samples":     [{"sample_id": f"G{i}", "log2_cpm": 2.5 + i * 0.05} for i in range(30)],
+        "gtex_samples": [{"sample_id": f"G{i}", "log2_cpm": 2.5 + i * 0.05} for i in range(30)],
         "gene_ensembl_id": "ENSG00000133703",
         "gtex_tissue": "Colon",
     }
@@ -105,8 +106,10 @@ def test_basename_keys_the_output_so_call_sites_dont_collide():
     per_sample, contrasts = _fixture()
     with tempfile.TemporaryDirectory() as d:
         out = Path(d)
-        written = emit.emit_plotly_specs(per_sample, contrasts[:1], "KRAS", "COADREAD", out,
-                                         CONTRACTS, basename="tumor_vs_adjacent")
+        written = emit.emit_plotly_specs(
+            per_sample, contrasts[:1], "KRAS", "COADREAD", out, CONTRACTS, basename="tumor_vs_adjacent"
+        )
         assert {w["path"] for w in written} == {
             "figure_tumor_vs_adjacent_groups.plotly.json",
-            "figure_tumor_vs_adjacent_contrasts.plotly.json"}
+            "figure_tumor_vs_adjacent_contrasts.plotly.json",
+        }

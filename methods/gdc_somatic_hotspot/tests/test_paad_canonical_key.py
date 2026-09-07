@@ -7,6 +7,7 @@ aggregate/per-sample producers short-circuited to an EMPTY product — a silent
 indication-vocabulary-fragmentation failure. Both codes are now dual-keyed (mirrors
 dge_deseq2). These pin that both resolve to the same projects, so neither spelling n/a's.
 """
+
 from __future__ import annotations
 
 import sys

@@ -2,6 +2,7 @@
 
 No S3: the patient reader + the DepMap card4 loader are monkeypatched.
 """
+
 from __future__ import annotations
 
 import sys
@@ -18,24 +19,27 @@ from methods.patient_model_expression_correspondence import read as R  # noqa: E
 
 def _wire(monkeypatch, patient_vals, chronos, tpm, meta, errs=None):
     import methods.tcga_gtex_expression_distribution.read as pt
+
     monkeypatch.setattr(pt, "read_tumor_samples", lambda t, i: patient_vals)
     import methods.depmap_expression_dependency.cli as c4
-    monkeypatch.setattr(c4, "load_depmap_files_for_card4",
-                        lambda release_pin, target_symbol: (chronos, tpm, meta, errs or []))
+
+    monkeypatch.setattr(
+        c4, "load_depmap_files_for_card4", lambda release_pin, target_symbol: (chronos, tpm, meta, errs or [])
+    )
 
 
 def test_role_classification():
-    assert R._classify_model_role(5.0, -1.5) == "positive_model"       # expressed + dependent
-    assert R._classify_model_role(5.0, 0.1) == "resistance_model"      # expressed + not-dependent
-    assert R._classify_model_role(0.3, -2.0) == "negative_control"     # not expressed (even if low chronos)
-    assert R._classify_model_role(5.0, None) == "indeterminate"        # expressed, no chronos
-    assert R._classify_model_role(5.0, -0.35) == "indeterminate"       # expressed, intermediate
+    assert R._classify_model_role(5.0, -1.5) == "positive_model"  # expressed + dependent
+    assert R._classify_model_role(5.0, 0.1) == "resistance_model"  # expressed + not-dependent
+    assert R._classify_model_role(0.3, -2.0) == "negative_control"  # not expressed (even if low chronos)
+    assert R._classify_model_role(5.0, None) == "indeterminate"  # expressed, no chronos
+    assert R._classify_model_role(5.0, -0.35) == "indeterminate"  # expressed, intermediate
 
 
 def test_representativeness_band():
-    assert R._representativeness(4.0, 3.5, 4.5) == 1.0                  # inside IQR
-    assert R._representativeness(6.0, 3.5, 4.5) < 1.0                   # above IQR decays
-    assert R._representativeness(None, 3.5, 4.5) == 0.0                 # gap
+    assert R._representativeness(4.0, 3.5, 4.5) == 1.0  # inside IQR
+    assert R._representativeness(6.0, 3.5, 4.5) < 1.0  # above IQR decays
+    assert R._representativeness(None, 3.5, 4.5) == 0.0  # gap
 
 
 def test_recommended_models_ranks_lineage_positive_first(monkeypatch):
@@ -58,37 +62,52 @@ def test_recommended_models_ranks_lineage_positive_first(monkeypatch):
     assert top["lineage_match"] is True
     # roles resolved across the panel
     roles = {r["model_id"]: r["screen_role"] for r in res["recommended_models"]}
-    assert roles["M_bowel_neg"] == "resistance_model"     # Bowel, expressed, not dependent
-    assert roles["M_offtarget"] == "negative_control"     # not expressed
+    assert roles["M_bowel_neg"] == "resistance_model"  # Bowel, expressed, not dependent
+    assert roles["M_offtarget"] == "negative_control"  # not expressed
 
 
 def test_off_lineage_positive_only(monkeypatch):
     # positive models exist but none in the indication's lineage → well_modeled_off_lineage
-    _wire(monkeypatch, [4.0] * 20,
-          {"M1": -2.0}, {"M1": 4.0},
-          {"M1": {"OncotreeLineage": "Lung", "StrippedCellLineName": "L1"}})
-    res = R.read_recommended_models("KRAS", "COADREAD")   # COADREAD → Bowel, M1 is Lung
+    _wire(
+        monkeypatch,
+        [4.0] * 20,
+        {"M1": -2.0},
+        {"M1": 4.0},
+        {"M1": {"OncotreeLineage": "Lung", "StrippedCellLineName": "L1"}},
+    )
+    res = R.read_recommended_models("KRAS", "COADREAD")  # COADREAD → Bowel, M1 is Lung
     assert res["correspondence_class"] == "well_modeled_off_lineage"
     assert res["n_positive_models"] == 1 and res["n_positive_models_in_lineage"] == 0
 
 
 def test_poorly_modeled(monkeypatch):
     # no expressed+dependent model anywhere
-    _wire(monkeypatch, [4.0] * 20,
-          {"M1": 0.1}, {"M1": 4.0},
-          {"M1": {"OncotreeLineage": "Bowel", "StrippedCellLineName": "B1"}})
+    _wire(
+        monkeypatch,
+        [4.0] * 20,
+        {"M1": 0.1},
+        {"M1": 4.0},
+        {"M1": {"OncotreeLineage": "Bowel", "StrippedCellLineName": "B1"}},
+    )
     res = R.read_recommended_models("KRAS", "COADREAD")
     assert res["correspondence_class"] == "poorly_modeled"
 
 
 def test_cli_build_and_figure(tmp_path, monkeypatch):
     import importlib
+
     pytest.importorskip("matplotlib")
     cli = importlib.import_module("methods.patient_model_expression_correspondence.cli")
-    _wire(monkeypatch, [4.0] * 20,
-          {"M1": -2.0, "M2": 0.2}, {"M1": 4.1, "M2": 4.0},
-          {"M1": {"OncotreeLineage": "Bowel", "StrippedCellLineName": "B1"},
-           "M2": {"OncotreeLineage": "Bowel", "StrippedCellLineName": "B2"}})
+    _wire(
+        monkeypatch,
+        [4.0] * 20,
+        {"M1": -2.0, "M2": 0.2},
+        {"M1": 4.1, "M2": 4.0},
+        {
+            "M1": {"OncotreeLineage": "Bowel", "StrippedCellLineName": "B1"},
+            "M2": {"OncotreeLineage": "Bowel", "StrippedCellLineName": "B2"},
+        },
+    )
     s = cli.build_summary("KRAS", "COADREAD")
     assert s["correspondence_class"] == "well_modeled_in_lineage" and "method_version" in s
     svg = cli.emit_svg("KRAS", "COADREAD", s, tmp_path)

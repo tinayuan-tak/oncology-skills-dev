@@ -12,4 +12,5 @@ per-sample table (carried as an explicit caveat).
 Per-indication rollup (median mRNAsi + stemness_class relative to the pan-cancer distribution). Emits
 stemness_class ∈ {stem_high, stem_intermediate, stem_low, data_unavailable}. VERDICT-INERT.
 """
+
 from .read import read_stemness_index, METHOD_VERSION  # noqa: F401

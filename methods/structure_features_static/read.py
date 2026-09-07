@@ -19,6 +19,7 @@ as SIGNOR/CollecTri/Reactome.
 Companion:
   data-catalog:manifests/derived/pdb-alphafold-structure-features-per-uniprot-v1.yaml
 """
+
 from __future__ import annotations
 
 from functools import lru_cache
@@ -33,10 +34,7 @@ METHOD_VERSION = "0.2.0"
 DEFAULT_AWS_PROFILE = "cbg"
 S3_BUCKET = "onc-compbio"
 DERIVED_MANIFEST_ID = "pdb-alphafold-structure-features-per-uniprot-v1"
-DERIVED_S3_KEY = (
-    "data-catalog/derived/pdb-alphafold-structure-features-per-uniprot-v1/"
-    "structure_features.parquet"
-)
+DERIVED_S3_KEY = "data-catalog/derived/pdb-alphafold-structure-features-per-uniprot-v1/structure_features.parquet"
 
 # Composite small-molecule structural-LIGANDABILITY product (data-catalog derived).
 # This is a LIVE structure signal: it fuses 6 shipped per-UniProt products (HOTPocket
@@ -49,8 +47,7 @@ DERIVED_S3_KEY = (
 # druggable pocket -> 'no_hotspots_annotated'. Both legs feed the E8 SM-ligandability rules.
 LIGAND_MANIFEST_ID = "structure-ligandability-per-protein-v1"
 LIGAND_S3_KEY = (
-    "data-catalog/derived/structure-ligandability-per-protein-v1/"
-    "structure_ligandability_per_protein.parquet"
+    "data-catalog/derived/structure-ligandability-per-protein-v1/structure_ligandability_per_protein.parquet"
 )
 
 CACHE_DIR = Path.home() / ".cache" / "framework-structure-features"
@@ -58,7 +55,7 @@ CACHE_PARQUET = CACHE_DIR / "structure_features.parquet"
 CACHE_LIGAND_PARQUET = CACHE_DIR / "structure_ligandability_per_protein.parquet"
 
 _DERIVED_STATUS: Optional[bool] = None  # negative cache (hotspot-adjacency product)
-_LIGAND_STATUS: Optional[bool] = None   # negative cache (ligandability product)
+_LIGAND_STATUS: Optional[bool] = None  # negative cache (ligandability product)
 
 
 from methods.target_id_sidecar import s3_client as _boto3_client
@@ -89,9 +86,11 @@ def _ensure_derived_cached() -> Optional[Path]:
             # (403/AccessDenied dropped from "definitive" — it is almost always transient.)
             resp = getattr(e, "response", None)
             code = resp.get("Error", {}).get("Code") if isinstance(resp, dict) else None
-            definitive = (code in ("404", "NoSuchKey")
-                          or e.__class__.__name__ in ("NoSuchKey", "404")
-                          or isinstance(e, FileNotFoundError))
+            definitive = (
+                code in ("404", "NoSuchKey")
+                or e.__class__.__name__ in ("NoSuchKey", "404")
+                or isinstance(e, FileNotFoundError)
+            )
             if definitive:
                 _DERIVED_STATUS = False
                 return None
@@ -108,9 +107,10 @@ def _index_by_symbol_and_ac(path, ac_col: str) -> dict:
         return {}
     try:
         import pandas as pd
+
         df = pd.read_parquet(path)
     except FileNotFoundError:
-        return {}          # cache file vanished between the exists() check and the read (race) — absent
+        return {}  # cache file vanished between the exists() check and the read (race) — absent
     except Exception:
         # A broken env (missing pandas/pyarrow) or a corrupt/partial cache is NOT data absence —
         # PROPAGATE (honest _live_read_error at the live-read seam; @lru_cache does not memoize the
@@ -162,9 +162,11 @@ def _ensure_ligand_cached() -> Optional[Path]:
             # blip (would poison the SM-ligandability call process-wide). 403 is NOT definitive.
             resp = getattr(e, "response", None)
             code = resp.get("Error", {}).get("Code") if isinstance(resp, dict) else None
-            definitive = (code in ("404", "NoSuchKey")
-                          or e.__class__.__name__ in ("NoSuchKey", "404")
-                          or isinstance(e, FileNotFoundError))
+            definitive = (
+                code in ("404", "NoSuchKey")
+                or e.__class__.__name__ in ("NoSuchKey", "404")
+                or isinstance(e, FileNotFoundError)
+            )
             if definitive:
                 _LIGAND_STATUS = False
                 return None
@@ -250,8 +252,7 @@ def read_target_summary(target: str, indication: str = None) -> dict:
     else:
         target_up = target.upper().strip()
         row = idx.get(target_up) or idx.get(target.strip())
-        base = _empty_result("target_not_in_structure_features") if row is None \
-            else _hotspot_summary(row)
+        base = _empty_result("target_not_in_structure_features") if row is None else _hotspot_summary(row)
     # LIVE ligandability leg (always merged; independent of the hotspot product).
     base.update(_ligandability_fields(target))
     return base

@@ -8,6 +8,7 @@ promoter-methylation-v1 joined via the sample-id crosswalk) is a separate, later
 Returns the cellline-methylation-expression-coherence card's summary_fields, or a dict with
 _live_read_error + methylation_silencing_class=data_unavailable when data is unreachable.
 """
+
 from __future__ import annotations
 
 import gzip
@@ -59,6 +60,7 @@ def _load_ccle_methylation_for_gene(target: str, stripped_to_model: dict) -> tup
     ~400 MB uncompressed matrix is never fully materialized.
     """
     from methods.catalog_query.read import bucket_prefix_for
+
     try:
         import boto3
     except ImportError as e:
@@ -71,6 +73,7 @@ def _load_ccle_methylation_for_gene(target: str, stripped_to_model: dict) -> tup
     # Fall back to the default client (e.g. CI with instance creds / no cbg profile configured).
     try:
         import botocore  # noqa: F401
+
         try:
             s3 = boto3.Session(profile_name=DEFAULT_AWS_PROFILE).client("s3")
         except Exception:
@@ -100,7 +103,7 @@ def _load_ccle_methylation_for_gene(target: str, stripped_to_model: dict) -> tup
         if locus_id.rsplit("_", 3)[0] != target:
             continue
         n_rows += 1
-        for i, v in enumerate(parts[3:3 + len(cell_cols)]):
+        for i, v in enumerate(parts[3 : 3 + len(cell_cols)]):
             # CCLE RRBS pads values fixed-width, so missing cells are "    NaN" (leading spaces) and
             # float() would silently parse them to nan — poisoning the correlation. Parse then reject
             # non-finite explicitly (NaN != NaN).
@@ -111,7 +114,7 @@ def _load_ccle_methylation_for_gene(target: str, stripped_to_model: dict) -> tup
                 fv = float(s)
             except ValueError:
                 continue
-            if fv != fv:            # NaN guard (handles any residual non-finite parse)
+            if fv != fv:  # NaN guard (handles any residual non-finite parse)
                 continue
             sums[i] += fv
             counts[i] += 1
@@ -149,37 +152,43 @@ def _load_methylation_from_product(target: str, stripped_to_model: dict, product
     cols = ["gene_symbol", "ccle_column", "col_index", "mean_beta"]
     if product_path is not None:
         import pandas as pd
+
         try:
-            df = pd.read_parquet(product_path, columns=cols,
-                                 filters=[("gene_symbol", "=", target.upper())])
+            df = pd.read_parquet(product_path, columns=cols, filters=[("gene_symbol", "=", target.upper())])
         except (FileNotFoundError, OSError):
             return None
         rows = df.to_dict("records")
     else:
         try:
             from methods.catalog_query.read import s3_uri_for
+
             uri = s3_uri_for(_DERIVED_PRODUCT_ID)
         except Exception:  # absence-discipline: exempt -- resolves a LOCAL data-catalog manifest (not an S3 read); an unregistered/unreadable manifest => product not available => live whole-gzip fallback, which enforces its own read discipline.
             return None
         try:
             import pyarrow.fs as fs
             import pyarrow.parquet as pq
+
             path = uri.replace("s3://", "", 1)
-            tbl = pq.read_table(path, filesystem=fs.S3FileSystem(),
-                                columns=["ccle_column", "col_index", "mean_beta"],
-                                filters=[("gene_symbol", "=", target.upper())])
+            tbl = pq.read_table(
+                path,
+                filesystem=fs.S3FileSystem(),
+                columns=["ccle_column", "col_index", "mean_beta"],
+                filters=[("gene_symbol", "=", target.upper())],
+            )
         except Exception as e:  # noqa: BLE001
             # Product object genuinely absent → None (live fallback). A transient/creds/broken-env
             # error must NOT masquerade as "product absent" (the live read would hit the same infra)
             # — re-raise so the caller records an honest _live_read_error.
             from methods.target_id_sidecar import is_definitively_absent
+
             if isinstance(e, FileNotFoundError) or is_definitively_absent(e):
                 return None
             raise
         rows = tbl.to_pylist()
     if not rows:
-        return {}, "gene_not_in_ccle_rrbs"           # reachable, gene absent (live n_rows == 0)
-    rows.sort(key=lambda r: r["col_index"])          # original CCLE-column order → last-wins on map
+        return {}, "gene_not_in_ccle_rrbs"  # reachable, gene absent (live n_rows == 0)
+    rows.sort(key=lambda r: r["col_index"])  # original CCLE-column order → last-wins on map
     methyl_by_model: dict = {}
     for r in rows:
         model_id = stripped_to_model.get(_ccle_col_to_stripped(r["ccle_column"]))
@@ -201,8 +210,7 @@ def _methylation_for_gene(target: str, stripped_to_model: dict):
     return _load_ccle_methylation_for_gene(target, stripped_to_model)
 
 
-def read_methylation_silencing(target: str, indication: Optional[str] = None,
-                               release_pin: str = "26q1") -> dict:
+def read_methylation_silencing(target: str, indication: Optional[str] = None, release_pin: str = "26q1") -> dict:
     """Compute promoter-methylation → own-expression silencing for target across the DepMap panel.
 
     `indication` accepted for dispatcher-signature back-compat but NOT consumed (pan-panel, target-only;
@@ -214,12 +222,16 @@ def read_methylation_silencing(target: str, indication: Optional[str] = None,
         sys.path.insert(0, str(METHODS_REPO))
 
     def _unavailable(err: str) -> dict:
-        return {"_live_read_error": err, "methylation_silencing_class": "data_unavailable",
-                "evidence_scope": "pan_no_indication"}
+        return {
+            "_live_read_error": err,
+            "methylation_silencing_class": "data_unavailable",
+            "evidence_scope": "pan_no_indication",
+        }
 
     # 1. Model.csv → CCLE→ModelID bridge
     try:
         from methods.depmap_common.loaders import load_model_csv
+
         model_df = load_model_csv(release_pin)
     except Exception as e:
         return _unavailable(f"model_csv_read_failed: {e}")
@@ -235,13 +247,13 @@ def read_methylation_silencing(target: str, indication: Optional[str] = None,
 
     # 3. log2TPM expression (reuse the shared loader; ModelID-keyed)
     from methods.depmap_expression_distribution import cli as excli
-    tpm_by_model, _tpm_meta, tpm_errs = excli.load_expression_files(
-        release_pin=release_pin, target_symbol=target
-    )
+
+    tpm_by_model, _tpm_meta, tpm_errs = excli.load_expression_files(release_pin=release_pin, target_symbol=target)
     if tpm_errs or not tpm_by_model:
-        return _unavailable(tpm_errs[0].get("_live_read_error", "expression_read_failed")
-                            if tpm_errs else "no_expression_for_target")
+        return _unavailable(
+            tpm_errs[0].get("_live_read_error", "expression_read_failed") if tpm_errs else "no_expression_for_target"
+        )
 
     summary = _cli.compute_methylation_silencing(methyl_by_model, tpm_by_model)
-    summary["evidence_scope"] = "pan_no_indication"   # pan-panel; within-lineage deferred
+    summary["evidence_scope"] = "pan_no_indication"  # pan-panel; within-lineage deferred
     return summary

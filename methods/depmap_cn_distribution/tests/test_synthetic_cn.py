@@ -52,19 +52,20 @@ def _synth(lineages_with_cn: dict) -> tuple[dict, dict]:
         for v in values:
             mid = f"ACH-{next_id:06d}"
             cn[mid] = float(v)
-            meta[mid] = {"ModelID": mid, "OncotreeLineage": lineage,
-                          "CCLEName": f"CL{next_id}_{lineage.upper()}"}
+            meta[mid] = {"ModelID": mid, "OncotreeLineage": lineage, "CCLEName": f"CL{next_id}_{lineage.upper()}"}
             next_id += 1
     return cn, meta
 
 
 def test_broadly_neutral_kras_like():
     """KRAS-like: mutation-driven, mostly diploid. broadly_neutral is the CORRECT call."""
-    cn, meta = _synth({
-        "Lung": [1.0, 1.02, 0.98, 1.05, 1.01, 0.99, 1.03, 1.04, 0.97, 1.0],
-        "Bowel": [1.01, 0.99, 1.0, 1.02, 0.98, 1.03, 1.0, 0.99, 1.01, 1.02],
-        "Breast": [0.96, 1.0, 1.04, 1.0, 1.02, 0.98, 1.0, 1.01, 1.03, 0.97],
-    })
+    cn, meta = _synth(
+        {
+            "Lung": [1.0, 1.02, 0.98, 1.05, 1.01, 0.99, 1.03, 1.04, 0.97, 1.0],
+            "Bowel": [1.01, 0.99, 1.0, 1.02, 0.98, 1.03, 1.0, 0.99, 1.01, 1.02],
+            "Breast": [0.96, 1.0, 1.04, 1.0, 1.02, 0.98, 1.0, 1.01, 1.03, 0.97],
+        }
+    )
     s = c.compute_summary_stats(cn, meta, assay_used="wes")
     assert s["copy_number_class"] == "broadly_neutral"
     assert s["cn_assay_used"] == "wes"
@@ -75,11 +76,13 @@ def test_broadly_neutral_kras_like():
 
 def test_recurrently_amplified_myc_like():
     """MYC-like: focal amp in 30%+ of lines; recurrently_amplified."""
-    cn, meta = _synth({
-        "Liver": [2.5, 3.0, 2.2, 1.8, 5.0, 1.9, 2.4, 6.0, 2.1, 3.5],
-        "Breast": [2.0, 1.7, 2.3, 2.5, 1.6, 1.9, 2.1, 1.8, 2.0, 2.4],
-        "Other": [1.0, 1.1, 0.95, 1.0, 1.05, 1.0, 0.98, 1.02, 1.0, 1.0],
-    })
+    cn, meta = _synth(
+        {
+            "Liver": [2.5, 3.0, 2.2, 1.8, 5.0, 1.9, 2.4, 6.0, 2.1, 3.5],
+            "Breast": [2.0, 1.7, 2.3, 2.5, 1.6, 1.9, 2.1, 1.8, 2.0, 2.4],
+            "Other": [1.0, 1.1, 0.95, 1.0, 1.05, 1.0, 0.98, 1.02, 1.0, 1.0],
+        }
+    )
     s = c.compute_summary_stats(cn, meta, assay_used="wes")
     assert s["copy_number_class"] == "recurrently_amplified"
     assert s["cn_recurrent_amplification_score"] >= 0.20
@@ -87,11 +90,13 @@ def test_recurrently_amplified_myc_like():
 
 def test_recurrently_deleted_cdkn2a_like():
     """CDKN2A-like: deep deletion in 30%+ of lines; recurrently_deleted."""
-    cn, meta = _synth({
-        "Pleura": [0.3, 0.4, 0.2, 0.5, 0.0, 0.3, 0.4, 0.5, 0.2, 0.3],
-        "Lung": [0.7, 0.85, 0.9, 0.75, 0.8, 0.88, 0.9, 0.85, 0.78, 0.82],
-        "Other": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
-    })
+    cn, meta = _synth(
+        {
+            "Pleura": [0.3, 0.4, 0.2, 0.5, 0.0, 0.3, 0.4, 0.5, 0.2, 0.3],
+            "Lung": [0.7, 0.85, 0.9, 0.75, 0.8, 0.88, 0.9, 0.85, 0.78, 0.82],
+            "Other": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+        }
+    )
     s = c.compute_summary_stats(cn, meta, assay_used="wes")
     assert s["copy_number_class"] == "recurrently_deleted"
     assert s["cn_recurrent_deletion_score"] >= 0.20
@@ -99,12 +104,14 @@ def test_recurrently_deleted_cdkn2a_like():
 
 def test_mixed_both_recurrent_balanced():
     """Both amp and del recurrent (different lineages), balanced ratio → mixed."""
-    cn, meta = _synth({
-        "AmpLineage1": [3.0, 4.0, 5.0, 3.5, 2.8, 6.0, 4.5, 3.2, 5.5, 4.0],
-        "AmpLineage2": [3.0, 2.5, 4.0, 5.0, 3.5, 2.8, 4.5, 3.0, 5.0, 3.5],
-        "DelLineage1": [0.4, 0.3, 0.5, 0.6, 0.4, 0.3, 0.5, 0.4, 0.3, 0.5],
-        "DelLineage2": [0.7, 0.8, 0.6, 0.5, 0.85, 0.7, 0.75, 0.9, 0.8, 0.7],
-    })
+    cn, meta = _synth(
+        {
+            "AmpLineage1": [3.0, 4.0, 5.0, 3.5, 2.8, 6.0, 4.5, 3.2, 5.5, 4.0],
+            "AmpLineage2": [3.0, 2.5, 4.0, 5.0, 3.5, 2.8, 4.5, 3.0, 5.0, 3.5],
+            "DelLineage1": [0.4, 0.3, 0.5, 0.6, 0.4, 0.3, 0.5, 0.4, 0.3, 0.5],
+            "DelLineage2": [0.7, 0.8, 0.6, 0.5, 0.85, 0.7, 0.75, 0.9, 0.8, 0.7],
+        }
+    )
     s = c.compute_summary_stats(cn, meta, assay_used="wes")
     # Both should be recurrent; balanced ratio (50% amp + 50% del across 40 lines = 0.5/0.5)
     # So neither beats the other by 2x → 'mixed'
@@ -153,6 +160,7 @@ def test_modelid_bridge_via_modelcondition_not_model():
     # in cli.py: load_cn_files fetches BOTH Model.csv AND ModelCondition.csv, and
     # builds mc_to_model from ModelCondition.csv (not Model.csv).
     import inspect
+
     src = inspect.getsource(c.load_cn_files)
     assert "ModelCondition.csv" in src, "load_cn_files must fetch ModelCondition.csv as the MC-ID bridge"
     assert "mc_to_model" in src, "load_cn_files must build mc_to_model dict for the bridge"

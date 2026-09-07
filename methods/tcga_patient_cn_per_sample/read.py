@@ -10,6 +10,7 @@ Absence discipline mirrors tcga_patient_cn.read: a gene genuinely absent from GI
 slice) or a NoSuchKey/404 on the product -> {}; a transient/creds/broken-env failure re-raises
 so the live-read seam surfaces an honest error instead of a silent empty join.
 """
+
 from __future__ import annotations
 
 from functools import lru_cache
@@ -20,11 +21,24 @@ DEFAULT_AWS_PROFILE = "cbg"
 
 # indication -> TCGA `cancer type` code(s); mirrors tcga_patient_cn.read.INDICATION_TO_TCGA.
 INDICATION_TO_TCGA = {
-    "COADREAD": ("COAD", "READ"), "COAD": ("COAD",), "READ": ("READ",),
-    "NSCLC": ("LUAD", "LUSC"), "LUAD": ("LUAD",), "LUSC": ("LUSC",),
-    "PAAD": ("PAAD",), "PDAC": ("PAAD",), "GC": ("STAD",), "STAD": ("STAD",),
-    "BRCA": ("BRCA",), "HNSC": ("HNSC",), "HNSCC": ("HNSC",), "ESCA": ("ESCA",),
-    "OV": ("OV",), "PRAD": ("PRAD",), "SKCM": ("SKCM",), "UCEC": ("UCEC",),
+    "COADREAD": ("COAD", "READ"),
+    "COAD": ("COAD",),
+    "READ": ("READ",),
+    "NSCLC": ("LUAD", "LUSC"),
+    "LUAD": ("LUAD",),
+    "LUSC": ("LUSC",),
+    "PAAD": ("PAAD",),
+    "PDAC": ("PAAD",),
+    "GC": ("STAD",),
+    "STAD": ("STAD",),
+    "BRCA": ("BRCA",),
+    "HNSC": ("HNSC",),
+    "HNSCC": ("HNSC",),
+    "ESCA": ("ESCA",),
+    "OV": ("OV",),
+    "PRAD": ("PRAD",),
+    "SKCM": ("SKCM",),
+    "UCEC": ("UCEC",),
 }
 
 
@@ -38,6 +52,7 @@ def _get_s3fs():
     if _S3FS is None:
         import pyarrow.fs as fs
         from methods.target_id_sidecar import ensure_aws_profile
+
         ensure_aws_profile()
         _S3FS = fs.S3FileSystem(region="us-east-1")
     return _S3FS
@@ -50,18 +65,23 @@ def _read_gene(target: str):
     cancer_type). Empty tuple only on genuine absence."""
     import pyarrow.parquet as pq
     from methods.target_id_sidecar import is_definitively_absent
+
     try:
         tbl = pq.read_table(
-            f"{S3_BUCKET}/{PRODUCT_KEY}", filesystem=_get_s3fs(),
+            f"{S3_BUCKET}/{PRODUCT_KEY}",
+            filesystem=_get_s3fs(),
             columns=["gene_symbol", "case_barcode", "gistic_call", "cancer_type"],
-            filters=[("gene_symbol", "==", target.upper().strip())])
+            filters=[("gene_symbol", "==", target.upper().strip())],
+        )
         df = tbl.to_pandas()
         if df.empty:
             return tuple()
         import pandas as pd
-        return tuple((str(r.case_barcode), int(r.gistic_call),
-                      (str(r.cancer_type) if pd.notna(r.cancer_type) else None))
-                     for r in df.itertuples(index=False))
+
+        return tuple(
+            (str(r.case_barcode), int(r.gistic_call), (str(r.cancer_type) if pd.notna(r.cancer_type) else None))
+            for r in df.itertuples(index=False)
+        )
     except Exception as e:  # noqa: BLE001
         if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
             return tuple()

@@ -10,6 +10,7 @@ Usage:
     # add --upload to push to s3://onc-compbio/data-catalog/derived/pooled-snv-recurrence-v1/recurrence.parquet
     DRY_RUN=1 ... --upload   # prints the S3 key + md5 without uploading
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -28,6 +29,7 @@ def build(indications: list[str]):
     """Concatenate per-indication pooled tables into one pan-indication pyarrow Table, sorted by
     (indication, gene_symbol). Indications with no rankable pooled gene contribute nothing (logged)."""
     import pyarrow as pa
+
     tables = []
     for ind in indications:
         tbl = build_pooled_recurrence_table(ind)
@@ -37,22 +39,23 @@ def build(indications: list[str]):
     if not tables:
         return pa.Table.from_pylist([], schema=_schema())
     combined = pa.concat_tables(tables)
-    order = pa.compute.sort_indices(combined, sort_keys=[("indication", "ascending"),
-                                                         ("gene_symbol", "ascending")])
+    order = pa.compute.sort_indices(combined, sort_keys=[("indication", "ascending"), ("gene_symbol", "ascending")])
     return combined.take(order)
 
 
 def main(argv=None) -> int:
     import argparse
+
     ap = argparse.ArgumentParser(description="Materialize pooled-snv-recurrence-v1.")
-    ap.add_argument("--indications", default=",".join(DEFAULT_INDICATIONS),
-                    help="comma-separated framework indication codes")
+    ap.add_argument(
+        "--indications", default=",".join(DEFAULT_INDICATIONS), help="comma-separated framework indication codes"
+    )
     ap.add_argument("--out", required=True, type=Path, help="local parquet output path")
-    ap.add_argument("--upload", action="store_true",
-                    help="upload to the derived-product S3 URI (respects DRY_RUN=1)")
+    ap.add_argument("--upload", action="store_true", help="upload to the derived-product S3 URI (respects DRY_RUN=1)")
     args = ap.parse_args(argv)
 
     import pyarrow.parquet as pq
+
     indications = [s.strip() for s in args.indications.split(",") if s.strip()]
     print(f"building pooled recurrence for: {indications}", file=sys.stderr)
     tbl = build(indications)
@@ -66,10 +69,13 @@ def main(argv=None) -> int:
             print(f"[DRY_RUN] would upload {args.out} -> {target}  (md5 {md5})")
             return 0
         import boto3
+
         s3 = boto3.Session(profile_name=os.environ.get("AWS_PROFILE", "cbg")).client("s3")
         s3.upload_file(str(args.out), S3_BUCKET, S3_KEY, ExtraArgs={"Metadata": {"md5": md5}})
-        print(f"uploaded -> {target}  (md5 {md5}). Hand-author manifests/derived/pooled-snv-recurrence-v1.yaml "
-              f"with this md5 + size_bytes {args.out.stat().st_size} + cohort.n_rows {tbl.num_rows}.")
+        print(
+            f"uploaded -> {target}  (md5 {md5}). Hand-author manifests/derived/pooled-snv-recurrence-v1.yaml "
+            f"with this md5 + size_bytes {args.out.stat().st_size} + cohort.n_rows {tbl.num_rows}."
+        )
     return 0
 
 

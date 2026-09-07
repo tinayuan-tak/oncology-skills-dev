@@ -9,6 +9,7 @@ Pins the two loader-specific guarantees the compute test can't see:
      is honored.
 Also checks '(entrez)' symbol stripping and the read failure → data_unavailable path.
 """
+
 from __future__ import annotations
 
 import sys
@@ -36,18 +37,21 @@ class _FakeS3:
 
 def _install_fake_s3(monkeypatch, df: pd.DataFrame):
     import boto3
+
     monkeypatch.setattr(boto3, "client", lambda *a, **k: _FakeS3(df))
 
 
 def test_symbol_union_both_orientations(monkeypatch):
     """Target as LeftGene (line1) and as RightGene (line2) both → fusion-positive.
     A line whose fusion involves neither → negative. All 3 are in the profiled universe."""
-    df = pd.DataFrame({
-        "ModelID": ["ACH-1", "ACH-2", "ACH-3"],
-        "LeftGene": ["FLI1 (2313)", "EWSR1 (2130)", "BCR (613)"],
-        "RightGene": ["EWSR1 (2130)", "FLI1 (2313)", "ABL1 (25)"],
-        "IsDefaultEntryForModel": [True, True, True],
-    })
+    df = pd.DataFrame(
+        {
+            "ModelID": ["ACH-1", "ACH-2", "ACH-3"],
+            "LeftGene": ["FLI1 (2313)", "EWSR1 (2130)", "BCR (613)"],
+            "RightGene": ["EWSR1 (2130)", "FLI1 (2313)", "ABL1 (25)"],
+            "IsDefaultEntryForModel": [True, True, True],
+        }
+    )
     _install_fake_s3(monkeypatch, df)
     fbm, errs = fread._load_fusion_involvement("FLI1")
     assert errs == []
@@ -57,31 +61,35 @@ def test_symbol_union_both_orientations(monkeypatch):
 def test_profiled_universe_only(monkeypatch):
     """fusion_by_model keys are exactly the fusion-PROFILED lines. A Chronos-screened line NOT in
     the fusion table simply never appears here (abstain), so the compute-side intersection excludes it."""
-    df = pd.DataFrame({
-        "ModelID": ["ACH-1", "ACH-2"],
-        "LeftGene": ["ALK", "TPM3"],
-        "RightGene": ["EML4", "ALK"],
-        "IsDefaultEntryForModel": [True, True],
-    })
+    df = pd.DataFrame(
+        {
+            "ModelID": ["ACH-1", "ACH-2"],
+            "LeftGene": ["ALK", "TPM3"],
+            "RightGene": ["EML4", "ALK"],
+            "IsDefaultEntryForModel": [True, True],
+        }
+    )
     _install_fake_s3(monkeypatch, df)
     fbm, errs = fread._load_fusion_involvement("ALK")
     assert errs == []
-    assert set(fbm.keys()) == {"ACH-1", "ACH-2"}       # profiled universe only
-    assert fbm == {"ACH-1": True, "ACH-2": True}        # ALK on both (Left then Right)
+    assert set(fbm.keys()) == {"ACH-1", "ACH-2"}  # profiled universe only
+    assert fbm == {"ACH-1": True, "ACH-2": True}  # ALK on both (Left then Right)
 
 
 def test_default_entry_filter(monkeypatch):
     """Non-default rows are dropped before the universe is built."""
-    df = pd.DataFrame({
-        "ModelID": ["ACH-1", "ACH-2", "ACH-3"],
-        "LeftGene": ["FLI1", "FLI1", "MYC"],
-        "RightGene": ["EWSR1", "EWSR1", "PVT1"],
-        "IsDefaultEntryForModel": [True, False, True],
-    })
+    df = pd.DataFrame(
+        {
+            "ModelID": ["ACH-1", "ACH-2", "ACH-3"],
+            "LeftGene": ["FLI1", "FLI1", "MYC"],
+            "RightGene": ["EWSR1", "EWSR1", "PVT1"],
+            "IsDefaultEntryForModel": [True, False, True],
+        }
+    )
     _install_fake_s3(monkeypatch, df)
     fbm, errs = fread._load_fusion_involvement("FLI1")
     assert errs == []
-    assert set(fbm.keys()) == {"ACH-1", "ACH-3"}   # ACH-2 non-default → excluded
+    assert set(fbm.keys()) == {"ACH-1", "ACH-3"}  # ACH-2 non-default → excluded
     assert fbm == {"ACH-1": True, "ACH-3": False}
 
 

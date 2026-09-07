@@ -11,6 +11,7 @@ detection_rate) is read via the `product_path` offline seam. Pins:
   * a genuine 404-class fault → data_unavailable + _live_read_error (never crashes the compose path);
   * a transient/creds error is RE-RAISED (never masked as an empty normal footprint).
 """
+
 from __future__ import annotations
 
 import importlib
@@ -29,21 +30,46 @@ read = importlib.import_module("methods.tphp_normal_protein.read")
 # The fields the normal-tissue-protein-abundance-tphp card declares in outputs.summary_fields — the
 # reader MUST emit all of them (the drift guard). Kept explicit so a card/reader divergence fails HERE.
 _CARD_SUMMARY_FIELDS = {
-    "normal_protein_breadth_class", "tphp_normal_protein_liability_class",
-    "n_adult_tissues_above_abundance_floor", "abundance_floor_log2",
-    "n_tissues_detected", "n_adult_tissues_detected",
-    "n_fetal_groups_detected", "n_adult_tissues_total", "n_fetal_groups_total",
-    "max_median_log2_abundance", "median_across_tissues_log2_abundance", "highest_abundance_tissue",
-    "highest_abundance_tissue_class", "fetal_vs_adult_flag", "max_detection_rate", "uniprot_ac",
-    "per_tissue_abundance", "method_version",
+    "normal_protein_breadth_class",
+    "tphp_normal_protein_liability_class",
+    "n_adult_tissues_above_abundance_floor",
+    "abundance_floor_log2",
+    "n_tissues_detected",
+    "n_adult_tissues_detected",
+    "n_fetal_groups_detected",
+    "n_adult_tissues_total",
+    "n_fetal_groups_total",
+    "max_median_log2_abundance",
+    "median_across_tissues_log2_abundance",
+    "highest_abundance_tissue",
+    "highest_abundance_tissue_class",
+    "fetal_vs_adult_flag",
+    "max_detection_rate",
+    "uniprot_ac",
+    "per_tissue_abundance",
+    "method_version",
 }
-_BREADTH_VOCAB = {"broad_normal_protein", "moderate_normal_protein", "restricted_normal_protein",
-                  "not_detected_in_normal_protein", "data_unavailable"}
+_BREADTH_VOCAB = {
+    "broad_normal_protein",
+    "moderate_normal_protein",
+    "restricted_normal_protein",
+    "not_detected_in_normal_protein",
+    "data_unavailable",
+}
 _LIABILITY_VOCAB = {"broad_and_abundant", "detected_not_abundant", "restricted", "data_unavailable"}
 _FETAL_VOCAB = {"adult_and_fetal", "adult_only", "fetal_only", "none", "data_unavailable"}
 
-_COLS = ["gene_symbol", "uniprot_ac", "tissue", "tissue_class", "median_log2_abundance",
-         "median_intensity", "n_samples", "n_detected", "detection_rate"]
+_COLS = [
+    "gene_symbol",
+    "uniprot_ac",
+    "tissue",
+    "tissue_class",
+    "median_log2_abundance",
+    "median_intensity",
+    "n_samples",
+    "n_detected",
+    "detection_rate",
+]
 
 
 def _write_product(tmp_path, rows) -> Path:
@@ -55,15 +81,23 @@ def _write_product(tmp_path, rows) -> Path:
 
 
 def _row(gene, tissue, tclass, log2, det_rate=1.0, n_samples=5, n_detected=5, uac="P00533"):
-    return {"gene_symbol": gene, "uniprot_ac": uac, "tissue": tissue, "tissue_class": tclass,
-            "median_log2_abundance": log2, "median_intensity": 2.0 ** log2,
-            "n_samples": n_samples, "n_detected": n_detected, "detection_rate": det_rate}
+    return {
+        "gene_symbol": gene,
+        "uniprot_ac": uac,
+        "tissue": tissue,
+        "tissue_class": tclass,
+        "median_log2_abundance": log2,
+        "median_intensity": 2.0**log2,
+        "n_samples": n_samples,
+        "n_detected": n_detected,
+        "detection_rate": det_rate,
+    }
 
 
 def test_summary_shape_matches_card_and_aggregates(tmp_path):
     # EGFR detected in 12 adult tissues (moderate) + 1 fetal group; highest = liver at 9.0.
     rows = [_row("EGFR", f"adult_tissue_{i:02d}", "adult_normal", 3.0 + 0.1 * i) for i in range(12)]
-    rows.append(_row("EGFR", "liver", "adult_normal", 9.0))          # the top adult tissue
+    rows.append(_row("EGFR", "liver", "adult_normal", 9.0))  # the top adult tissue
     rows.append(_row("EGFR", "ectoderm", "fetal", 4.0, det_rate=0.5))
     # a background gene so the pushdown must actually filter on gene_symbol
     rows += [_row("BRAF", f"adult_tissue_{i:02d}", "adult_normal", 1.0) for i in range(3)]
@@ -135,8 +169,10 @@ def test_gene_absent_is_data_unavailable(tmp_path):
 
 def test_definitive_absence_degrades_not_crashes(monkeypatch):
     """A genuine 404-class fault → data_unavailable + _live_read_error (honest degrade)."""
+
     def _boom(*a, **k):
         raise FileNotFoundError("no such key")
+
     monkeypatch.setattr(read, "load_and_classify", _boom)
     out = read.read_target_summary("EGFR", indication="COADREAD")
     assert out["_live_read_error"] == "tphp_normal_protein_read_failed"
@@ -147,8 +183,10 @@ def test_definitive_absence_degrades_not_crashes(monkeypatch):
 def test_transient_fault_is_reraised(monkeypatch):
     """A transient / non-definitive error must NOT be masked as an empty normal footprint — re-raise
     so the live-read seam surfaces the infra failure (absence discipline)."""
+
     def _boom(*a, **k):
         raise RuntimeError("connection reset")
+
     monkeypatch.setattr(read, "load_and_classify", _boom)
     with pytest.raises(RuntimeError):
         read.read_target_summary("EGFR")
@@ -181,8 +219,10 @@ def test_broadly_detected_but_not_abundant_is_detected_not_abundant(tmp_path):
     and the reason CEACAM5 does not flip to the normal-liability veto."""
     detected = 63
     n_above = 5
-    rows = [_row("CEACAM5", f"adult_{i:02d}", "adult_normal",
-                 (_FLOOR + 4.0) if i < n_above else (_FLOOR - 1.0)) for i in range(detected)]
+    rows = [
+        _row("CEACAM5", f"adult_{i:02d}", "adult_normal", (_FLOOR + 4.0) if i < n_above else (_FLOOR - 1.0))
+        for i in range(detected)
+    ]
     prod = _write_product(tmp_path, rows)
     out = read.read_target_summary("CEACAM5", product_path=prod)
     assert out["n_adult_tissues_detected"] == detected
@@ -212,8 +252,9 @@ def test_liability_data_unavailable(tmp_path):
 def test_compute_abundance_floor_recalibration(tmp_path):
     """compute_abundance_floor recomputes the global per-tissue percentile from the product's own
     distribution (adult tissues only; fetal excluded). The p50 of 1..99 is 50."""
-    rows = ([_row("G", f"t{i:03d}", "adult_normal", float(v)) for i, v in enumerate(range(1, 100))]
-            + [_row("G", "fetal_x", "fetal", 999.0)])   # fetal ignored by the floor computation
+    rows = [_row("G", f"t{i:03d}", "adult_normal", float(v)) for i, v in enumerate(range(1, 100))] + [
+        _row("G", "fetal_x", "fetal", 999.0)
+    ]  # fetal ignored by the floor computation
     prod = _write_product(tmp_path, rows)
     assert read.compute_abundance_floor(product_path=prod, percentile=50) == pytest.approx(50.0, abs=1.0)
     assert read.compute_abundance_floor(product_path=prod, percentile=75) == pytest.approx(75.0, abs=1.0)

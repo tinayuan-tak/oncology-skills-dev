@@ -20,6 +20,7 @@ Downstream consumers should:
   2. Weight/discount kinome-atlas edges vs curated edges in Tier-3 synthesis.
   3. Consult the confidence-rank percentile field for per-edge weighting.
 """
+
 METHOD_VERSION = "0.1.0"
 
 # Re-export the public API so dispatchers using __import__(...) find

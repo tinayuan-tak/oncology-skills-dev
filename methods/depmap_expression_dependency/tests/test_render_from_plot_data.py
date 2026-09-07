@@ -18,9 +18,11 @@ from methods.depmap_expression_dependency import read as r
 def _panel() -> tuple[dict, dict, dict]:
     chronos, tpm, meta = {}, {}, {}
     i = 1
-    for lin, rows in {"Bowel": [(-1.3, 6.0), (-1.1, 5.6), (-0.9, 5.0), (-1.2, 6.2), (-0.8, 4.8)],
-                      "Lung": [(-0.4, 2.1), (-0.2, 1.8), (-0.5, 2.4), (-0.1, 1.2), (-0.3, 2.0)],
-                      "Breast": [(0.05, 0.4), (-0.05, 0.6), (0.1, 0.3), (0.0, 0.5), (-0.02, 0.45)]}.items():
+    for lin, rows in {
+        "Bowel": [(-1.3, 6.0), (-1.1, 5.6), (-0.9, 5.0), (-1.2, 6.2), (-0.8, 4.8)],
+        "Lung": [(-0.4, 2.1), (-0.2, 1.8), (-0.5, 2.4), (-0.1, 1.2), (-0.3, 2.0)],
+        "Breast": [(0.05, 0.4), (-0.05, 0.6), (0.1, 0.3), (0.0, 0.5), (-0.02, 0.45)],
+    }.items():
         for chr_v, tpm_v in rows:
             mid = f"ACH-{i:06d}"
             chronos[mid] = float(chr_v)
@@ -36,25 +38,31 @@ def _svg_ok(p: Path) -> bool:
 
 def test_plot_data_persisted_on_read(tmp_path, monkeypatch):
     chronos, tpm, meta = _panel()
-    monkeypatch.setattr(r._cli, "load_depmap_files_for_card4",
-                        lambda release_pin, target_symbol: (chronos, tpm, meta, []))
+    monkeypatch.setattr(
+        r._cli, "load_depmap_files_for_card4", lambda release_pin, target_symbol: (chronos, tpm, meta, [])
+    )
     summary = r.read_expression_dependency("MYGENE", "COADREAD", plot_data_out=tmp_path)
     assert summary.get("correlation_class")
     assert (tmp_path / "plot_data.parquet").exists()
-    assert r.read_expression_dependency("MYGENE", "COADREAD") == \
-        r.read_expression_dependency("MYGENE", "COADREAD", plot_data_out=tmp_path / "again")
+    assert r.read_expression_dependency("MYGENE", "COADREAD") == r.read_expression_dependency(
+        "MYGENE", "COADREAD", plot_data_out=tmp_path / "again"
+    )
 
 
 def test_renders_offline_from_persisted_parquet(tmp_path, monkeypatch):
     chronos, tpm, meta = _panel()
     summary = c.compute_correlation_summary(chronos, tpm, meta, indication="COADREAD")
     merged = c.build_merged_data(chronos, tpm, meta, "Bowel")
-    src = tmp_path / "src"; src.mkdir()
+    src = tmp_path / "src"
+    src.mkdir()
     c.emit_plot_data(merged, src)
     assert (src / "plot_data.parquet").exists()
 
-    monkeypatch.setattr(c, "load_depmap_files_for_card4",
-                        lambda *a, **k: (_ for _ in ()).throw(AssertionError("live read in offline render")))
+    monkeypatch.setattr(
+        c,
+        "load_depmap_files_for_card4",
+        lambda *a, **k: (_ for _ in ()).throw(AssertionError("live read in offline render")),
+    )
     out = tmp_path / "out"
     descs = f.render_from_plot_data(src / "plot_data.parquet", summary, out, "MYGENE", "COADREAD")
     assert _svg_ok(out / "figure_scatter_with_regression.svg")
@@ -65,6 +73,7 @@ def test_renders_offline_from_persisted_parquet(tmp_path, monkeypatch):
 
 def test_missing_columns_raises(tmp_path):
     import pandas as pd
+
     df = pd.DataFrame({"chronos": [0.1]})  # no tpm_logp1
     try:
         f.render_from_plot_data(df, {}, tmp_path / "out", "MYGENE", "COADREAD")

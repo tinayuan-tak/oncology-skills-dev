@@ -1,5 +1,6 @@
 """Hermetic tests for pancan_mutation_ccf.read — synthetic per-indication clonality parquet,
 no S3. Guards the read-side contract + the graceful data_unavailable floor."""
+
 from __future__ import annotations
 
 
@@ -10,14 +11,28 @@ from methods.pancan_mutation_ccf.read import read_clonality  # noqa: E402
 
 
 def _fixture(tmp_path) -> str:
-    df = pd.DataFrame([
-        {"indication": "COADREAD", "gene_symbol": "APC", "n_mutant_samples": 395,
-         "clonal_fraction": 0.9291, "median_ccf": 1.1842, "clonality_class": "predominantly_clonal",
-         "evidence_tier": "inferred_diploid"},
-        {"indication": "COADREAD", "gene_symbol": "BRCA2", "n_mutant_samples": 38,
-         "clonal_fraction": 0.5263, "median_ccf": 0.8487, "clonality_class": "mixed_clonality",
-         "evidence_tier": "inferred_diploid"},
-    ])
+    df = pd.DataFrame(
+        [
+            {
+                "indication": "COADREAD",
+                "gene_symbol": "APC",
+                "n_mutant_samples": 395,
+                "clonal_fraction": 0.9291,
+                "median_ccf": 1.1842,
+                "clonality_class": "predominantly_clonal",
+                "evidence_tier": "inferred_diploid",
+            },
+            {
+                "indication": "COADREAD",
+                "gene_symbol": "BRCA2",
+                "n_mutant_samples": 38,
+                "clonal_fraction": 0.5263,
+                "median_ccf": 0.8487,
+                "clonality_class": "mixed_clonality",
+                "evidence_tier": "inferred_diploid",
+            },
+        ]
+    )
     p = tmp_path / "COADREAD-clonality.parquet"
     df.to_parquet(p)
     return str(p)

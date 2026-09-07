@@ -60,6 +60,7 @@ cooccurrence/mutex signs before opening the PR:
     pixi run python -m methods.cooccurrence_fisher_pancohort.derive \\
         --out /tmp/cooccurrence_fisher.parquet
 """
+
 from __future__ import annotations
 
 import argparse
@@ -89,10 +90,7 @@ def _run_r_stage(stage_script: Path, work_dir: Path, extra_args: list[str] | Non
     result = subprocess.run(cmd, check=False, capture_output=False)
     elapsed = time.perf_counter() - t0
     if result.returncode != 0:
-        raise RuntimeError(
-            f"Stage {stage_script.name} failed with exit {result.returncode} "
-            f"after {elapsed:.0f}s"
-        )
+        raise RuntimeError(f"Stage {stage_script.name} failed with exit {result.returncode} after {elapsed:.0f}s")
     print(f"[derive]   -> ok ({elapsed:.0f}s)", file=sys.stderr)
 
 
@@ -104,10 +102,7 @@ def _run_python_stage(stage_script: Path, work_dir: Path) -> None:
     result = subprocess.run(cmd, check=False, capture_output=False)
     elapsed = time.perf_counter() - t0
     if result.returncode != 0:
-        raise RuntimeError(
-            f"Stage {stage_script.name} failed with exit {result.returncode} "
-            f"after {elapsed:.0f}s"
-        )
+        raise RuntimeError(f"Stage {stage_script.name} failed with exit {result.returncode} after {elapsed:.0f}s")
     print(f"[derive]   -> ok ({elapsed:.0f}s)", file=sys.stderr)
 
 
@@ -133,7 +128,7 @@ def derive_cooccurrence_fisher(out_parquet: Path, work_dir: Path) -> None:
     )
 
     print(
-        f"[derive] pipeline complete in {time.perf_counter()-total_t0:.0f}s",
+        f"[derive] pipeline complete in {time.perf_counter() - total_t0:.0f}s",
         file=sys.stderr,
     )
     print(f"[derive] output parquet: {out_parquet}", file=sys.stderr)
@@ -157,7 +152,8 @@ def _main(argv: list[str] | None = None) -> int:
 
     # TODO(fresh-session): remove this guard once stage scripts exist.
     missing_stages = [
-        p.name for p in [
+        p.name
+        for p in [
             STEPS_DIR / "00_load_mc3.R",
             STEPS_DIR / "01_panel_intersect.py",
             STEPS_DIR / "02_build_matrices.R",
@@ -165,12 +161,12 @@ def _main(argv: list[str] | None = None) -> int:
             STEPS_DIR / "04_discover.R",
             STEPS_DIR / "05_select.R",
             STEPS_DIR / "06_pool_and_write.R",
-        ] if not p.exists()
+        ]
+        if not p.exists()
     ]
     if missing_stages:
         print(
-            "[derive] ERROR: pipeline stages not yet written. Missing:\n"
-            "  " + "\n  ".join(missing_stages),
+            "[derive] ERROR: pipeline stages not yet written. Missing:\n  " + "\n  ".join(missing_stages),
             file=sys.stderr,
         )
         print(

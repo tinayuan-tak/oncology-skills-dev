@@ -29,8 +29,8 @@ from typing import Optional
 from methods.catalog_query.read import bucket_prefix_for
 from methods.normal_tissue_safety_common import HPA_ESSENTIAL_TISSUES
 
-METHOD_VERSION = "0.2.0"   # 2026-08-24: essential_tissue_flag trichotomy (present/unknown/absent) —
-                           # fix broad-gene killer under-firing + `absent` data-gap overloading
+METHOD_VERSION = "0.2.0"  # 2026-08-24: essential_tissue_flag trichotomy (present/unknown/absent) —
+# fix broad-gene killer under-firing + `absent` data-gap overloading
 
 SOURCE_MANIFEST_ID = "hpa-v25-1"
 # bucket + key resolved from the data-catalog manifest (single source of truth).
@@ -52,11 +52,11 @@ HPA_INTENSITY_COL = "Protein tissue specific Intensity"
 
 # HPA `Protein tissue distribution` → normal_tissue_breadth_class.
 _DIST_TO_CLASS = {
-    "detected in all":    "broad_normal_expression",
-    "detected in many":   "broad_normal_expression",
-    "detected in some":   "moderate_normal_expression",
+    "detected in all": "broad_normal_expression",
+    "detected in many": "broad_normal_expression",
+    "detected in some": "moderate_normal_expression",
     "detected in single": "restricted_normal_expression",
-    "not detected":       "not_detected_in_normal",
+    "not detected": "not_detected_in_normal",
 }
 
 # Essential-tissue set (exact membership over HPA's closed 16-name vocabulary): life-critical
@@ -82,6 +82,7 @@ def _ensure_hpa_cached() -> Path:
         return HPA_CACHE_ZIP
     ensure_aws_profile()
     import boto3
+
     print(f"[hpa] downloading s3://{S3_BUCKET}/{HPA_KEY} -> {HPA_CACHE_ZIP}", file=sys.stderr)
     boto3.client("s3").download_file(S3_BUCKET, HPA_KEY, str(HPA_CACHE_ZIP))
     return HPA_CACHE_ZIP
@@ -89,6 +90,7 @@ def _ensure_hpa_cached() -> Path:
 
 def _read_zip_cols(zip_path, cols):
     import pandas as pd
+
     z = zipfile.ZipFile(zip_path)
     with z.open(z.namelist()[0]) as f:
         return pd.read_csv(f, sep="\t", usecols=cols, dtype=str)
@@ -104,6 +106,7 @@ def _read_hpa_cached_default():
 
 def _read_hpa(hpa_path=None):
     import pandas as pd
+
     cols = [HPA_GENE_COL, HPA_DIST_COL, HPA_SPEC_COL, HPA_INTENSITY_COL]
     if hpa_path is not None:
         # explicit override (tests / local file) — NOT cached (callers may vary the path)
@@ -147,7 +150,7 @@ def compute_summary(gene: str, row: Optional[dict]) -> dict:
     if row is None:
         return {
             "normal_tissue_breadth_class": "data_unavailable",
-            "essential_tissue_flag": "unknown",   # gene absent from HPA → no data (NOT a measured `absent`)
+            "essential_tissue_flag": "unknown",  # gene absent from HPA → no data (NOT a measured `absent`)
             "hpa_tissue_distribution": None,
             "hpa_tissue_specificity": None,
             "n_essential_tissues_with_expression": 0,
@@ -190,7 +193,7 @@ def compute_summary(gene: str, row: Optional[dict]) -> dict:
     flags = []
     if essential:
         flags.append("essential_tissue")
-    elif essential_flag == "present":            # present via broad `Detected in all` detection
+    elif essential_flag == "present":  # present via broad `Detected in all` detection
         flags.append("essential_from_broad_detection")
     if gi:
         flags.append("gi_tract")
@@ -228,11 +231,13 @@ def _load_takeda_style(target_contracts_dir):
     import sys as _sys
     import matplotlib.pyplot as plt
     from pathlib import Path as _Path
+
     style_path = _Path(target_contracts_dir) / "plot_styles" / "takeda_oncology.mplstyle"
     if style_path.exists():
         plt.style.use(str(style_path))
     _sys.path.insert(0, str(_Path(target_contracts_dir) / "plot_styles"))
     import takeda_palette  # type: ignore
+
     return takeda_palette
 
 
@@ -241,23 +246,24 @@ def _load_takeda_style(target_contracts_dir):
 # normal tissues = more on-target-off-tumor liability), with the target's cell marked, and hang the
 # enriched-tissue detail + safety flags off it.
 _BREADTH_LADDER = [
-    ("not_detected_in_normal",    "Not detected"),
+    ("not_detected_in_normal", "Not detected"),
     ("restricted_normal_expression", "Single tissue"),
-    ("moderate_normal_expression",   "Some tissues"),
-    ("broad_normal_expression",      "Many / all tissues"),
+    ("moderate_normal_expression", "Some tissues"),
+    ("broad_normal_expression", "Many / all tissues"),
 ]
 # breadth -> fallback badge signal (a safety axis: broad normal footprint argues AGAINST a clean
 # therapeutic window; a narrow/absent footprint supports one). An essential-organ hit escalates to
 # killer below.
 _BREADTH_SIGNAL = {
-    "broad_normal_expression": "opposing", "moderate_normal_expression": "neutral",
-    "restricted_normal_expression": "supportive", "not_detected_in_normal": "supportive",
+    "broad_normal_expression": "opposing",
+    "moderate_normal_expression": "neutral",
+    "restricted_normal_expression": "supportive",
+    "not_detected_in_normal": "supportive",
     "data_unavailable": "insufficient",
 }
 
 
-def emit_normal_tissue_bar(summary: dict, target_symbol: str, out_dir, target_contracts_dir,
-                           *, status=None):
+def emit_normal_tissue_bar(summary: dict, target_symbol: str, out_dir, target_contracts_dir, *, status=None):
     """Emit the normal-tissue-liability figure in the shared grammar.
 
     Hero = a 4-step breadth LADDER (Not detected → Single → Some → Many/all) with the target's IHC
@@ -268,6 +274,7 @@ def emit_normal_tissue_bar(summary: dict, target_symbol: str, out_dir, target_co
     status: OPT-IN status dict (takeda_palette.status_for_card over the run's fired_rules); when None,
             a fallback signal is derived from the breadth class (+ essential-organ escalation)."""
     import matplotlib
+
     matplotlib.use("Agg")
     from matplotlib.patches import FancyBboxPatch
     from pathlib import Path as _Path
@@ -283,8 +290,11 @@ def emit_normal_tissue_bar(summary: dict, target_symbol: str, out_dir, target_co
     gi_set = {"intestine", "stomach"}
     flags = summary.get("safety_tissue_flags") or []
 
-    rows = sorted([(t.get("tissue"), t.get("intensity")) for t in specific
-                   if t.get("intensity") is not None], key=lambda r: r[1], reverse=True)
+    rows = sorted(
+        [(t.get("tissue"), t.get("intensity")) for t in specific if t.get("intensity") is not None],
+        key=lambda r: r[1],
+        reverse=True,
+    )
 
     # takeaway (verdict itself is a REPORT-layer badge, not on the figure); computed before the frame.
     take = None
@@ -294,17 +304,27 @@ def emit_normal_tissue_bar(summary: dict, target_symbol: str, out_dir, target_co
     elif breadth == "not_detected_in_normal":
         take = f"{target_symbol} protein is not detected in normal tissue — a favorable window."
     elif essential_set:
-        take = (f"{target_symbol} is expressed in essential organ(s): "
-                f"{', '.join(sorted(essential_set))} — a strict-modality safety veto.")
+        take = (
+            f"{target_symbol} is expressed in essential organ(s): "
+            f"{', '.join(sorted(essential_set))} — a strict-modality safety veto."
+        )
 
     # multi-panel → frame makes only the styled fig (make_ax=False) + owns title/provenance/takeaway
     # + save on exit; the emitter adds the 2-row gridspec (ladder over enriched-tissue bars).
-    with pal.figure_frame(target_symbol, None, "normal-tissue protein footprint", out_path=out_path,
-                          kind="tall", make_ax=False,
-                          provenance="HPA v25  ·  IHC (pathologist-scored)", takeaway=take) as F:
+    with pal.figure_frame(
+        target_symbol,
+        None,
+        "normal-tissue protein footprint",
+        out_path=out_path,
+        kind="tall",
+        make_ax=False,
+        provenance="HPA v25  ·  IHC (pathologist-scored)",
+        takeaway=take,
+    ) as F:
         fig = F.fig
         gs = fig.add_gridspec(2, 1, height_ratios=[1.0, max(1.4, 0.4 * len(rows) + 0.6)], hspace=0.6)
-        ax_l = fig.add_subplot(gs[0]); ax_b = fig.add_subplot(gs[1])
+        ax_l = fig.add_subplot(gs[0])
+        ax_b = fig.add_subplot(gs[1])
 
         # ---- breadth ladder (sequential DATA ramp: more tissues = darker; target cell bold-bordered) ----
         active_idx = next((i for i, (c, _) in enumerate(_BREADTH_LADDER) if c == breadth), None)
@@ -312,21 +332,37 @@ def emit_normal_tissue_bar(summary: dict, target_symbol: str, out_dir, target_co
             on = active_idx is not None and i <= active_idx
             is_target = i == active_idx
             base = ["#E7ECEF", "#CBD8DE", "#9DB6C2", "#5B7F99"][i]
-            rect = FancyBboxPatch((i, 0), 0.92, 1, boxstyle="round,pad=0.02,rounding_size=0.06",
-                                  facecolor=base if on else "#F2F4F6",
-                                  edgecolor=("#33383D" if is_target else "#C9CED3"),
-                                  linewidth=1.8 if is_target else 0.6, transform=ax_l.transData)
+            rect = FancyBboxPatch(
+                (i, 0),
+                0.92,
+                1,
+                boxstyle="round,pad=0.02,rounding_size=0.06",
+                facecolor=base if on else "#F2F4F6",
+                edgecolor=("#33383D" if is_target else "#C9CED3"),
+                linewidth=1.8 if is_target else 0.6,
+                transform=ax_l.transData,
+            )
             ax_l.add_patch(rect)
-            ax_l.text(i + 0.46, 0.5, lab, ha="center", va="center", fontsize=7.5,
-                      color=("#FFFFFF" if (on and i >= 3) else "#33383D"),
-                      weight="bold" if is_target else "normal")
-        ax_l.set_xlim(-0.1, len(_BREADTH_LADDER)); ax_l.set_ylim(-0.15, 1.15); ax_l.axis("off")
+            ax_l.text(
+                i + 0.46,
+                0.5,
+                lab,
+                ha="center",
+                va="center",
+                fontsize=7.5,
+                color=("#FFFFFF" if (on and i >= 3) else "#33383D"),
+                weight="bold" if is_target else "normal",
+            )
+        ax_l.set_xlim(-0.1, len(_BREADTH_LADDER))
+        ax_l.set_ylim(-0.15, 1.15)
+        ax_l.axis("off")
         ax_l.text(0, 1.35, "IHC breadth across normal tissues (HPA) →", fontsize=7.5, color="#5A626A")
         # note 3: show the DATA that decides the highlighted category — HPA's pathologist IHC
         # distribution call (+ specificity), not a computed threshold.
-        dist = summary.get("hpa_tissue_distribution"); spec = summary.get("hpa_tissue_specificity")
+        dist = summary.get("hpa_tissue_distribution")
+        spec = summary.get("hpa_tissue_specificity")
         n_spec = summary.get("n_specific_tissues")
-        decided = (f"decided by HPA IHC call: “{dist}”" if dist else "HPA IHC call unavailable")
+        decided = f"decided by HPA IHC call: “{dist}”" if dist else "HPA IHC call unavailable"
         if spec:
             decided += f"   ·   specificity: {spec}"
         if n_spec is not None:
@@ -335,28 +371,49 @@ def emit_normal_tissue_bar(summary: dict, target_symbol: str, out_dir, target_co
 
         # ---- enriched-tissue bars ----
         if rows:
-            labels = [r[0] for r in rows]; vals = [r[1] / 1e6 for r in rows]   # ×10⁶ → drop 1e7 offset
+            labels = [r[0] for r in rows]
+            vals = [r[1] / 1e6 for r in rows]  # ×10⁶ → drop 1e7 offset
+
             def _col(lab):
-                if lab in essential_set: return pal.REFLINE_KILLER["color"]     # essential organ = red
-                if lab in gi_set:        return "#E08214"                       # GI tract = amber
+                if lab in essential_set:
+                    return pal.REFLINE_KILLER["color"]  # essential organ = red
+                if lab in gi_set:
+                    return "#E08214"  # GI tract = amber
                 return pal.TUMOR_LINE
+
             ypos = list(range(len(labels)))
-            ax_b.barh(ypos, vals, color=[_col(l) for l in labels], height=0.62,
-                      edgecolor="#FFFFFF", linewidth=0.6)
-            ax_b.set_yticks(ypos); ax_b.set_yticklabels([l.title() for l in labels], fontsize=8)
+            ax_b.barh(ypos, vals, color=[_col(l) for l in labels], height=0.62, edgecolor="#FFFFFF", linewidth=0.6)
+            ax_b.set_yticks(ypos)
+            ax_b.set_yticklabels([l.title() for l in labels], fontsize=8)
             ax_b.invert_yaxis()
             # note 4: HPA gives a RELATIVE tissue-enrichment score here (no absolute High/Med/Low per
             # tissue). Make that explicit + carry HPA's own qualitative call (specificity) as the level.
             pal.axis_label(ax_b, "x", "Tissue-enrichment", "HPA relative IHC score (×10⁶) — no absolute H/M/L")
             spec = summary.get("hpa_tissue_specificity")
             if spec:
-                ax_b.annotate(f"HPA specificity: {spec}", xy=(0.99, 1.02), xycoords="axes fraction",
-                              ha="right", va="bottom", fontsize=7, color=pal.INK_MUTED, clip_on=False)
-            ax_b.grid(axis="x", alpha=0.25, linewidth=0.4); ax_b.grid(axis="y", visible=False)
+                ax_b.annotate(
+                    f"HPA specificity: {spec}",
+                    xy=(0.99, 1.02),
+                    xycoords="axes fraction",
+                    ha="right",
+                    va="bottom",
+                    fontsize=7,
+                    color=pal.INK_MUTED,
+                    clip_on=False,
+                )
+            ax_b.grid(axis="x", alpha=0.25, linewidth=0.4)
+            ax_b.grid(axis="y", visible=False)
             if len(rows) == 1:
-                ax_b.set_title("only 1 tissue is IHC-enriched — breadth (above) carries the signal",
-                               fontsize=7, color="#8A8F94", style="italic", loc="left", pad=3)
+                ax_b.set_title(
+                    "only 1 tissue is IHC-enriched — breadth (above) carries the signal",
+                    fontsize=7,
+                    color="#8A8F94",
+                    style="italic",
+                    loc="left",
+                    pad=3,
+                )
             from matplotlib.patches import Patch
+
             leg = []
             if any(l in essential_set for l in labels):
                 leg.append(Patch(facecolor=pal.REFLINE_KILLER["color"], label="essential organ"))
@@ -366,15 +423,17 @@ def emit_normal_tissue_bar(summary: dict, target_symbol: str, out_dir, target_co
                 ax_b.legend(handles=leg, loc="lower right", fontsize=7, frameon=False)
         else:
             ax_b.axis("off")
-            note = {"broad_normal_expression": "broadly expressed; no single tissue is IHC-enriched",
-                    "not_detected_in_normal": "not detected in normal tissue — favorable window",
-                    }.get(breadth, f"breadth: {breadth.replace('_', ' ')}")
+            note = {
+                "broad_normal_expression": "broadly expressed; no single tissue is IHC-enriched",
+                "not_detected_in_normal": "not detected in normal tissue — favorable window",
+            }.get(breadth, f"breadth: {breadth.replace('_', ' ')}")
             ax_b.text(0.5, 0.6, note, ha="center", va="center", fontsize=9, color="#5A626A")
     return out_path
 
 
 def _main(argv=None):
     import argparse, json
+
     ap = argparse.ArgumentParser(description="HPA normal-tissue liability for a target.")
     ap.add_argument("--gene", required=True)
     ap.add_argument("--hpa-path", default=None)

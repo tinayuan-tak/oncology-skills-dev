@@ -15,6 +15,7 @@ against the mRNA slope. A target absent from the Gygi MS panel → cis_protein_d
 Returns the cis-feature-protein-coherence card's summary_fields, or a dict with _live_read_error +
 cis_protein_dosage_class=data_unavailable when the underlying DepMap data is unreachable.
 """
+
 from __future__ import annotations
 
 import sys
@@ -29,8 +30,7 @@ DEFAULT_AWS_PROFILE = "cbg"
 from methods.target_id_sidecar import ensure_aws_profile
 
 
-def read_cis_protein_dosage(target: str, indication: Optional[str] = None,
-                            release_pin: str = "26q1") -> dict:
+def read_cis_protein_dosage(target: str, indication: Optional[str] = None, release_pin: str = "26q1") -> dict:
     """Compute protein cis-dosage (own-CN → own-protein) coupling for target across the DepMap panel.
 
     `indication` is accepted for dispatcher-signature back-compat but NOT consumed (target-only,
@@ -44,8 +44,9 @@ def read_cis_protein_dosage(target: str, indication: Optional[str] = None,
 
     from methods.depmap_cn_distribution import cli as cncli
 
-    def _unavailable(err: str, errors: list | None = None, remediation: str | None = None,
-                     note: str | None = None) -> dict:
+    def _unavailable(
+        err: str, errors: list | None = None, remediation: str | None = None, note: str | None = None
+    ) -> dict:
         out = {
             "_live_read_error": err,
             "cis_protein_dosage_class": "data_unavailable",
@@ -61,9 +62,7 @@ def read_cis_protein_dosage(target: str, indication: Optional[str] = None,
         return out
 
     # 1. Relative CN (bridged ModelConditionID -> ModelID by load_cn_files)
-    cn_by_model, cn_meta, assay_used, cn_errs = cncli.load_cn_files(
-        release_pin=release_pin, target_symbol=target
-    )
+    cn_by_model, cn_meta, assay_used, cn_errs = cncli.load_cn_files(release_pin=release_pin, target_symbol=target)
     if cn_errs or not cn_by_model:
         return _unavailable(
             cn_errs[0].get("_live_read_error", "cn_read_failed") if cn_errs else "no_cn_for_target",
@@ -77,17 +76,21 @@ def read_cis_protein_dosage(target: str, indication: Optional[str] = None,
     sym = target.upper().strip()
     try:
         from methods.depmap_protein_abundance import cli as protcli
+
         accession = protcli.resolve_accession(sym)
-        prot_by_model, panel_size = (protcli.load_abundance_column(accession)
-                                     if accession else (None, 0))
+        prot_by_model, panel_size = protcli.load_abundance_column(accession) if accession else (None, 0)
     except Exception as e:  # noqa: BLE001 — returns a populated dict (not empty); honest _live_read_error
-        return _unavailable(f"protein_load_failed:{type(e).__name__}", errors=[{"_live_read_error": str(e)}],
-                            remediation="Method cannot reach the Gygi MS protein product; verify credentials.")
+        return _unavailable(
+            f"protein_load_failed:{type(e).__name__}",
+            errors=[{"_live_read_error": str(e)}],
+            remediation="Method cannot reach the Gygi MS protein product; verify credentials.",
+        )
     if not prot_by_model:
         # Genuine Gygi miss (target undetected in the MS panel) → honest data_unavailable. NO Olink
         # fallback here (different scale would corrupt the CN↔abundance slope).
-        return _unavailable("target_absent_from_gygi_ms",
-                            note=f"{sym} undetected in the Gygi MS protein panel (n_panel={panel_size}).")
+        return _unavailable(
+            "target_absent_from_gygi_ms", note=f"{sym} undetected in the Gygi MS protein panel (n_panel={panel_size})."
+        )
 
     summary = _cli.compute_cis_protein_dosage(cn_by_model, prot_by_model)
     # Pan-panel correlation → the honest scope is pan_no_indication (within-lineage cis-dosage is a
@@ -96,7 +99,7 @@ def read_cis_protein_dosage(target: str, indication: Optional[str] = None,
     summary["abundance_layer"] = "protein_gygi_ms"
     summary["n_protein_detected_models"] = len(prot_by_model)
     summary["protein_panel_size"] = panel_size
-    summary["_cn_assay_used"] = assay_used   # WES (primary) or WGS (fallback), provenance
+    summary["_cn_assay_used"] = assay_used  # WES (primary) or WGS (fallback), provenance
     # Comparison hook: the mRNA arm lives on cis-feature-expression-coherence; the skill's _headline
     # divides this leg's slope by that leg's cn_expr_slope_log2tpm_per_cn to get the dosage-buffering ratio.
     summary["mrna_arm_card"] = "cis-feature-expression-coherence"

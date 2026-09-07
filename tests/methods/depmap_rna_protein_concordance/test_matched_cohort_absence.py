@@ -3,6 +3,7 @@ transient/broken-env failure (honest _live_read_error) instead of returning a si
 (which would read as "no matched tumors" and dead-axe the concordance verdict). A GENUINE missing
 object (NoSuchKey/404, or FileNotFoundError) still yields the empty frame, unchanged.
 """
+
 from __future__ import annotations
 
 import sys
@@ -29,6 +30,7 @@ def _fake_s3fs(monkeypatch):
 def test_transient_reraises(monkeypatch):
     _fake_s3fs(monkeypatch)
     import pyarrow.parquet as pq
+
     monkeypatch.setattr(pq, "read_table", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("SlowDown")))
     with pytest.raises(RuntimeError):
         conc._read_matched_cohort("coad")
@@ -37,6 +39,7 @@ def test_transient_reraises(monkeypatch):
 def test_genuine_absence_returns_empty_frame(monkeypatch):
     _fake_s3fs(monkeypatch)
     import pyarrow.parquet as pq
+
     monkeypatch.setattr(pq, "read_table", lambda *a, **k: (_ for _ in ()).throw(FileNotFoundError("missing")))
     df = conc._read_matched_cohort("coad")
     assert df.empty
@@ -46,8 +49,10 @@ def test_genuine_absence_returns_empty_frame(monkeypatch):
 def test_nosuchkey_returns_empty_frame(monkeypatch):
     _fake_s3fs(monkeypatch)
     from botocore.exceptions import ClientError
+
     err = ClientError({"Error": {"Code": "NoSuchKey"}}, "GetObject")
     import pyarrow.parquet as pq
+
     monkeypatch.setattr(pq, "read_table", lambda *a, **k: (_ for _ in ()).throw(err))
     df = conc._read_matched_cohort("coad")
     assert df.empty and list(df.columns) == _COLS

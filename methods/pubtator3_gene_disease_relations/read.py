@@ -25,6 +25,7 @@ gene × disease × relation_type with PMID support).
 
 data_unavailable-safe. Absence = coverage gap, never a silent fake-negative.
 """
+
 from __future__ import annotations
 
 import os
@@ -37,8 +38,9 @@ RELATIONS_MANIFEST = "pubtator3-gene-disease-relations-per-gene-v1"
 METHOD_VERSION = "0.1.0"
 DEFAULT_TOP_N = 20
 
-TARGET_CONTRACTS = Path(os.environ.get(
-    "TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
+TARGET_CONTRACTS = Path(
+    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+)
 
 INDICATION_ALIAS = {"LUAD": "NSCLC", "LUSC": "NSCLC", "DLBCL": "DLBC", "LAML": "AML"}
 
@@ -75,15 +77,19 @@ def _read_target_rows(ensembl_gene_id: str) -> list:
     """Pushdown-read the relations product for one ENSG. Empty on genuine absence; re-raise env faults."""
     try:
         import sys as _sys
+
         _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
         from methods.catalog_query.read import bucket_key_for
         import pyarrow.parquet as pq
         import pyarrow.fs as fs
+
         bucket, key = bucket_key_for(RELATIONS_MANIFEST)
-        return pq.read_table(f"{bucket}/{key}", filesystem=fs.S3FileSystem(),
-                             filters=[("ensembl_gene_id", "=", ensembl_gene_id)]).to_pylist()
+        return pq.read_table(
+            f"{bucket}/{key}", filesystem=fs.S3FileSystem(), filters=[("ensembl_gene_id", "=", ensembl_gene_id)]
+        ).to_pylist()
     except Exception as e:  # noqa: BLE001
         from methods.target_id_sidecar import is_definitively_absent
+
         if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
             return []
         raise
@@ -116,20 +122,18 @@ def aggregate_relations(rows: list, mesh_ids, *, top_n: int = DEFAULT_TOP_N) -> 
         rt = r.get("relation_type")
         d = by_type.setdefault(rt, {"n_publications": 0, "pmids": []})
         d["n_publications"] += int(r.get("n_publications") or 0)
-        for p in (r.get("pmids") or []):
+        for p in r.get("pmids") or []:
             ps = str(p)
             if ps not in d["pmids"]:
                 d["pmids"].append(ps)
     for d in by_type.values():
         d["pmids"] = d["pmids"][:top_n]
 
-    relations = sorted(
-        [{"relation_type": rt, **d} for rt, d in by_type.items()],
-        key=lambda x: -x["n_publications"])
+    relations = sorted([{"relation_type": rt, **d} for rt, d in by_type.items()], key=lambda x: -x["n_publications"])
 
     return {
         "indication_scope": scope,
-        "relation_scope": relation_scope,   # 'indication' | 'target_level' | 'target_level_fallback'
+        "relation_scope": relation_scope,  # 'indication' | 'target_level' | 'target_level_fallback'
         "n_relation_types": len(relations),
         "total_publications": sum(x["n_publications"] for x in relations),
         "relations": relations,
@@ -137,24 +141,47 @@ def aggregate_relations(rows: list, mesh_ids, *, top_n: int = DEFAULT_TOP_N) -> 
     }
 
 
-def read_gene_disease_relations(target: str, indication: str, modality: Optional[str] = None,
-                                release_pin: Optional[str] = None, *, top_n: int = DEFAULT_TOP_N) -> dict:
+def read_gene_disease_relations(
+    target: str,
+    indication: str,
+    modality: Optional[str] = None,
+    release_pin: Optional[str] = None,
+    *,
+    top_n: int = DEFAULT_TOP_N,
+) -> dict:
     """Typed gene×indication literature relations (direction/polarity) for a (target, indication)."""
     from methods.opentargets_common import symbol_to_ensembl
     from methods.opentargets_disease_xref.read import mesh_ids_for_efo
-    base = {"target": target, "indication": indication, "method_version": METHOD_VERSION,
-            "source": RELATIONS_MANIFEST, "as_of_pubtator_snapshot": "2026-08-17"}
+
+    base = {
+        "target": target,
+        "indication": indication,
+        "method_version": METHOD_VERSION,
+        "source": RELATIONS_MANIFEST,
+        "as_of_pubtator_snapshot": "2026-08-17",
+    }
 
     ensg = symbol_to_ensembl(target)
     if not ensg:
-        return {**base, "status": "insufficient", "total_publications": 0, "relations": [],
-                "_note": f"{target}: could not resolve to an Ensembl gene id (OT resolver)"}
+        return {
+            **base,
+            "status": "insufficient",
+            "total_publications": 0,
+            "relations": [],
+            "_note": f"{target}: could not resolve to an Ensembl gene id (OT resolver)",
+        }
 
     rows = _read_target_rows(ensg)
     if not rows:
-        return {**base, "ensembl_gene_id": ensg, "status": "no_relations",
-                "indication_scope": "target_level", "total_publications": 0, "relations": [],
-                "_note": f"{target} ({ensg}): no rows in {RELATIONS_MANIFEST} (no typed relations or coverage gap)"}
+        return {
+            **base,
+            "ensembl_gene_id": ensg,
+            "status": "no_relations",
+            "indication_scope": "target_level",
+            "total_publications": 0,
+            "relations": [],
+            "_note": f"{target} ({ensg}): no rows in {RELATIONS_MANIFEST} (no typed relations or coverage gap)",
+        }
 
     efo_ids = _indication_efo_ids(indication)
     # PRIMARY: the curated indication_crosswalk mesh_ids lane (reliable). FALLBACK: the OT-disease
@@ -165,24 +192,35 @@ def read_gene_disease_relations(target: str, indication: str, modality: Optional
         mesh_ids = sorted(mesh_ids_for_efo(efo_ids))
         mesh_source = "ot_dbxref_bridge" if mesh_ids else None
     agg = aggregate_relations(rows, mesh_ids, top_n=top_n)
-    out = {**base, "ensembl_gene_id": ensg, "efo_ids": efo_ids,
-           "mesh_ids": sorted(mesh_ids), "mesh_id_source": mesh_source, "status": "ok", **agg}
+    out = {
+        **base,
+        "ensembl_gene_id": ensg,
+        "efo_ids": efo_ids,
+        "mesh_ids": sorted(mesh_ids),
+        "mesh_id_source": mesh_source,
+        "status": "ok",
+        **agg,
+    }
     if not mesh_ids:
-        out["_note"] = (f"no MESH mapping for indication {indication!r} (no crosswalk mesh_ids lane "
-                        f"and no dbXRef bridge; efo_ids={efo_ids or 'none'}) — reporting TARGET-LEVEL "
-                        f"relations (not disease-scoped)")
+        out["_note"] = (
+            f"no MESH mapping for indication {indication!r} (no crosswalk mesh_ids lane "
+            f"and no dbXRef bridge; efo_ids={efo_ids or 'none'}) — reporting TARGET-LEVEL "
+            f"relations (not disease-scoped)"
+        )
     return out
 
 
 def _main(argv=None):
     import argparse, json
+
     ap = argparse.ArgumentParser(description="Typed gene×indication literature relations from PubTator3.")
     ap.add_argument("--target", required=True)
     ap.add_argument("--indication", required=True)
     ap.add_argument("--top-n", type=int, default=DEFAULT_TOP_N)
     args = ap.parse_args(argv)
-    print(json.dumps(read_gene_disease_relations(args.target, args.indication, top_n=args.top_n),
-                     indent=2, default=str))
+    print(
+        json.dumps(read_gene_disease_relations(args.target, args.indication, top_n=args.top_n), indent=2, default=str)
+    )
 
 
 if __name__ == "__main__":

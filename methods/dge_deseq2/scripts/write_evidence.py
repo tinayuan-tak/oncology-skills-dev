@@ -61,6 +61,7 @@ def fetch_gene_row(parquet_uri: str, gene: str, profile: str) -> dict:
     """
     if parquet_uri.startswith("s3://"):
         import pyarrow.fs as pafs
+
         bucket, key = parse_s3_uri(parquet_uri)
         # pyarrow.fs.S3FileSystem picks up credentials from the AWS env
         # (AWS_PROFILE / SSO cache / ~/.aws/config) — no kwargs needed.
@@ -81,8 +82,7 @@ def fetch_gene_row(parquet_uri: str, gene: str, profile: str) -> dict:
         raise SystemExit(f"Gene {gene!r} not found in {parquet_uri}")
     if table.num_rows > 1:
         raise SystemExit(
-            f"Multiple rows for {gene!r} ({table.num_rows}) — "
-            "DGE Parquet should be one row per gene_symbol."
+            f"Multiple rows for {gene!r} ({table.num_rows}) — DGE Parquet should be one row per gene_symbol."
         )
     row = {col: table[col][0].as_py() for col in table.column_names}
     return row
@@ -154,7 +154,7 @@ def build_evidence(
         confidence = "HIGH"
     elif (padj is not None and padj < 0.05) and n_tumor >= 10:
         confidence = "MODERATE"
-    elif (pvalue is not None and pvalue < 0.05):
+    elif pvalue is not None and pvalue < 0.05:
         confidence = "EMERGING"
     else:
         confidence = "NOT_ASSESSED"
@@ -177,9 +177,7 @@ def build_evidence(
                 f"via {provenance_yaml.get('source', {}).get('manifest_id', 'tcga-gdc-dr45-0')}"
             ),
             "release": str(provenance_yaml.get("source", {}).get("release") or "DR45.0"),
-            "method": provenance_yaml.get("method", {}).get(
-                "name", "DESeq2 + lfcShrink(apeglm), Wald test, BH-FDR"
-            ),
+            "method": provenance_yaml.get("method", {}).get("name", "DESeq2 + lfcShrink(apeglm), Wald test, BH-FDR"),
             "git_commit": git_sha,
             "parameter_hash": provenance_yaml.get("parameter_hash", ""),
             "catalog_refs": catalog_refs,
@@ -205,10 +203,7 @@ def validate_or_die(artifact: dict) -> None:
     schema = json.loads(SCHEMA_PATH.read_text())
     errors = list(Draft202012Validator(schema).iter_errors(artifact))
     if errors:
-        msgs = [
-            f"{'/'.join(str(x) for x in e.absolute_path) or '(root)'}: {e.message}"
-            for e in errors
-        ]
+        msgs = [f"{'/'.join(str(x) for x in e.absolute_path) or '(root)'}: {e.message}" for e in errors]
         sys.exit("Schema validation failed:\n  - " + "\n  - ".join(msgs))
 
 
@@ -234,7 +229,9 @@ def upload_artifact(
 
     s3 = boto3.Session(profile_name=profile).client("s3")
     s3.put_object(
-        Bucket=BUCKET, Key=evidence_key, Body=body,
+        Bucket=BUCKET,
+        Key=evidence_key,
+        Body=body,
         ContentType="application/json",
     )
     print(f"[ok] PUT s3://{BUCKET}/{evidence_key}  ({len(body)} bytes)")
@@ -242,7 +239,8 @@ def upload_artifact(
     if provenance_yaml_path:
         prov_key = f"{key_dir}/provenance.yaml"
         s3.put_object(
-            Bucket=BUCKET, Key=prov_key,
+            Bucket=BUCKET,
+            Key=prov_key,
             Body=provenance_yaml_path.read_bytes(),
             ContentType="application/yaml",
         )
@@ -254,26 +252,23 @@ def upload_artifact(
 def main() -> int:
     p = argparse.ArgumentParser()
     p.add_argument("--gene", required=True)
-    p.add_argument("--indication", required=True,
-                   help="OncoTree code (uppercase), e.g. COADREAD")
+    p.add_argument("--indication", required=True, help="OncoTree code (uppercase), e.g. COADREAD")
     p.add_argument("--subtype", default="all")
-    p.add_argument("--dimension", default="expression-rna",
-                   choices=["expression-rna"])
-    p.add_argument("--parquet-uri", required=True,
-                   help="DGE Parquet from 04_write_parquet.R (s3:// or local)")
-    p.add_argument("--provenance-yaml", required=True,
-                   help="provenance.yaml from 05_provenance.R")
-    p.add_argument("--derived-manifest-id", required=True,
-                   help="data-catalog derived manifest id, e.g. COADREAD-dge-abc1234")
+    p.add_argument("--dimension", default="expression-rna", choices=["expression-rna"])
+    p.add_argument("--parquet-uri", required=True, help="DGE Parquet from 04_write_parquet.R (s3:// or local)")
+    p.add_argument("--provenance-yaml", required=True, help="provenance.yaml from 05_provenance.R")
+    p.add_argument(
+        "--derived-manifest-id", required=True, help="data-catalog derived manifest id, e.g. COADREAD-dge-abc1234"
+    )
     p.add_argument("--git-sha", required=True)
-    p.add_argument("--label", default="pre-specified",
-                   choices=["pre-specified", "exploratory"])
+    p.add_argument("--label", default="pre-specified", choices=["pre-specified", "exploratory"])
     p.add_argument("--profile", default="cbg")
-    p.add_argument("--dry-run", action="store_true",
-                   help="Build + validate the artifact; print without uploading.")
-    p.add_argument("--out-json", default=None,
-                   help="Optional: write the artifact to this local path too "
-                        "(useful with --dry-run for inspection).")
+    p.add_argument("--dry-run", action="store_true", help="Build + validate the artifact; print without uploading.")
+    p.add_argument(
+        "--out-json",
+        default=None,
+        help="Optional: write the artifact to this local path too (useful with --dry-run for inspection).",
+    )
     args = p.parse_args()
 
     provenance = yaml.safe_load(Path(args.provenance_yaml).read_text())
@@ -297,7 +292,11 @@ def main() -> int:
         print(f"[ok] wrote local copy to {args.out_json}")
 
     upload_artifact(
-        artifact, args.indication, args.subtype, args.gene, args.dimension,
+        artifact,
+        args.indication,
+        args.subtype,
+        args.gene,
+        args.dimension,
         profile=args.profile,
         provenance_yaml_path=Path(args.provenance_yaml),
         dry_run=args.dry_run,

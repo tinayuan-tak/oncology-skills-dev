@@ -59,6 +59,7 @@ The DEFERRED ``cooccurrence_fisher_pancohort`` module is called out separately i
 ``_DEFERRED_ALLOWLIST`` because its fix is blocked on an active registry collision
 (``derive-cooccurrence-fisher-pancohort-v1-1``), not merely un-prioritised.
 """
+
 from __future__ import annotations
 
 import ast
@@ -74,20 +75,51 @@ import pytest
 
 # The enclosing `try` must touch one of these to be considered an S3 / object-read path. Keeps
 # the lint off unrelated broad-excepts (optional-Plotly render blocks, pure in-memory parsing).
-_S3_READ_MARKERS = frozenset({
-    "get_object", "read_table", "read_parquet", "read_csv", "read_json", "read_feather",
-    "S3FileSystem", "s3_client", "download_file", "download_fileobj", "get_bucket",
-    "bucket_key_for", "bucket_prefix_for", "s3_uri_for", "sidecar_bucket_key_for",
-    "read_resolver_sidecar_map", "open_input_stream", "ParquetDataset", "ParquetFile",
-    "list_objects", "list_objects_v2", "head_object",
-})
+_S3_READ_MARKERS = frozenset(
+    {
+        "get_object",
+        "read_table",
+        "read_parquet",
+        "read_csv",
+        "read_json",
+        "read_feather",
+        "S3FileSystem",
+        "s3_client",
+        "download_file",
+        "download_fileobj",
+        "get_bucket",
+        "bucket_key_for",
+        "bucket_prefix_for",
+        "s3_uri_for",
+        "sidecar_bucket_key_for",
+        "read_resolver_sidecar_map",
+        "open_input_stream",
+        "ParquetDataset",
+        "ParquetFile",
+        "list_objects",
+        "list_objects_v2",
+        "head_object",
+    }
+)
 
 # Names/attrs whose presence in a handler proves it DISCRIMINATES definitive vs transient.
-_DISCRIMINATION_NAMES = frozenset({
-    "is_definitively_absent", "NoSuchKey", "NoSuchBucket", "AccessDenied", "FileNotFoundError",
-    "ClientError", "BotoCoreError", "EndpointConnectionError", "ConnectTimeoutError",
-    "ReadTimeoutError", "response", "errno", "__class__",
-})
+_DISCRIMINATION_NAMES = frozenset(
+    {
+        "is_definitively_absent",
+        "NoSuchKey",
+        "NoSuchBucket",
+        "AccessDenied",
+        "FileNotFoundError",
+        "ClientError",
+        "BotoCoreError",
+        "EndpointConnectionError",
+        "ConnectTimeoutError",
+        "ReadTimeoutError",
+        "response",
+        "errno",
+        "__class__",
+    }
+)
 # String literals that likewise prove discrimination (error-code / boto Error["Code"] checks).
 _DISCRIMINATION_STRINGS = frozenset({"404", "403", "NoSuchKey", "AccessDenied", "Code", "Error"})
 
@@ -104,34 +136,34 @@ def _methods_root() -> Path:
 
 def _is_broad_handler(handler: ast.ExceptHandler) -> bool:
     t = handler.type
-    if t is None:                                   # bare `except:`
+    if t is None:  # bare `except:`
         return True
     if isinstance(t, ast.Name):
         return t.id in ("Exception", "BaseException")
-    if isinstance(t, ast.Tuple):                    # `except (Exception, ...):`
-        return any(isinstance(e, ast.Name) and e.id in ("Exception", "BaseException")
-                   for e in t.elts)
+    if isinstance(t, ast.Tuple):  # `except (Exception, ...):`
+        return any(isinstance(e, ast.Name) and e.id in ("Exception", "BaseException") for e in t.elts)
     return False
 
 
 def _is_empty_atom(v: ast.AST | None) -> bool:
-    if v is None:                                                   # bare `return`
+    if v is None:  # bare `return`
         return True
-    if isinstance(v, ast.Constant) and v.value is None:            # `return None`
+    if isinstance(v, ast.Constant) and v.value is None:  # `return None`
         return True
-    if isinstance(v, ast.Dict) and not v.keys:                     # `return {}`
+    if isinstance(v, ast.Dict) and not v.keys:  # `return {}`
         return True
-    if isinstance(v, (ast.List, ast.Set)) and not v.elts:          # `return []`
+    if isinstance(v, (ast.List, ast.Set)) and not v.elts:  # `return []`
         return True
-    if isinstance(v, ast.Tuple) and not v.elts:                    # `return ()`
+    if isinstance(v, ast.Tuple) and not v.elts:  # `return ()`
         return True
     if isinstance(v, ast.Call):
         f = v.func
         name = f.attr if isinstance(f, ast.Attribute) else (f.id if isinstance(f, ast.Name) else "")
-        if name in ("dict", "list", "tuple", "set", "frozenset", "OrderedDict") \
-                and not v.args and not v.keywords:                 # `return dict()` / `tuple()`
+        if (
+            name in ("dict", "list", "tuple", "set", "frozenset", "OrderedDict") and not v.args and not v.keywords
+        ):  # `return dict()` / `tuple()`
             return True
-        if name.endswith("DataFrame") or name == "Series":         # `return pd.DataFrame(...)`
+        if name.endswith("DataFrame") or name == "Series":  # `return pd.DataFrame(...)`
             return True
     return False
 
@@ -158,8 +190,7 @@ def _names_and_attrs(node: ast.AST) -> set[str]:
 
 
 def _string_constants(node: ast.AST) -> set[str]:
-    return {n.value for n in ast.walk(node)
-            if isinstance(n, ast.Constant) and isinstance(n.value, str)}
+    return {n.value for n in ast.walk(node) if isinstance(n, ast.Constant) and isinstance(n.value, str)}
 
 
 def _try_reads_s3(try_node: ast.Try) -> bool:
@@ -186,8 +217,7 @@ def _handler_discriminates(handler: ast.ExceptHandler) -> bool:
 
 
 def _handler_returns_empty(handler: ast.ExceptHandler) -> bool:
-    return any(isinstance(n, ast.Return) and _is_empty_return_value(n.value)
-               for n in ast.walk(handler))
+    return any(isinstance(n, ast.Return) and _is_empty_return_value(n.value) for n in ast.walk(handler))
 
 
 def _qualname_by_node_id(tree: ast.AST) -> dict[int, str]:
@@ -242,7 +272,7 @@ def find_violations() -> list[str]:
                 if _handler_reraises(handler) or _handler_discriminates(handler):
                     continue
                 span = "\n".join(_handler_span_lines(handler, source_lines))
-                if _EXEMPT_MARKER in span:                     # inline escape hatch
+                if _EXEMPT_MARKER in span:  # inline escape hatch
                     continue
                 fn = qmap.get(id(handler), "<module>")
                 violations.append(f"{relkey}::{fn}")
@@ -292,18 +322,14 @@ _BASELINE_RESIDUALS: dict[str, str] = {
     # (fix/allgene-lookup-read-error-vs-absent): both now raise a typed _RankReadError on a READ
     # failure and return None/() ONLY for genuine absence, so the accessors distinguish "rank read
     # failed" from "target absent". No longer masking handlers → removed from the residual allowlist.
-    "immune_context/antigen_conditioned.py::_antigen_tpm_by_uuid_study":
-        "broad except masks catalog RESOLUTION (s3_uri_for) → None; the pq.read itself is "
-        "unguarded (propagates). Low danger (resolution only), but a transient catalog read is "
-        "masked; burndown follow-up.",
-    "resistance_emergence/tahoe_adaptation.py::_fetch_program_rows":
-        "broad except over an S3 pushdown read of the Tahoe resistance-program product returns "
-        "None. RD-class residual; burndown follow-up.",
-    "structure_features_static/pull.py::_load_domains":
-        "DEFERRED — structure_features_static/ is in the scope of active PR #364 "
-        "(fix/sweep2-lru-of-failure); fix there to avoid a collision, not in this glob-widening PR.",
-    "structure_features_static/pull.py::_load_hotspots":
-        "DEFERRED — see _load_domains: fix under active PR #364, not here.",
+    "immune_context/antigen_conditioned.py::_antigen_tpm_by_uuid_study": "broad except masks catalog RESOLUTION (s3_uri_for) → None; the pq.read itself is "
+    "unguarded (propagates). Low danger (resolution only), but a transient catalog read is "
+    "masked; burndown follow-up.",
+    "resistance_emergence/tahoe_adaptation.py::_fetch_program_rows": "broad except over an S3 pushdown read of the Tahoe resistance-program product returns "
+    "None. RD-class residual; burndown follow-up.",
+    "structure_features_static/pull.py::_load_domains": "DEFERRED — structure_features_static/ is in the scope of active PR #364 "
+    "(fix/sweep2-lru-of-failure); fix there to avoid a collision, not in this glob-widening PR.",
+    "structure_features_static/pull.py::_load_hotspots": "DEFERRED — see _load_domains: fix under active PR #364, not here.",
 }
 
 _ALLOWLIST: dict[str, str] = {**_DEFERRED_ALLOWLIST, **_BASELINE_RESIDUALS}
@@ -312,6 +338,7 @@ _ALLOWLIST: dict[str, str] = {**_DEFERRED_ALLOWLIST, **_BASELINE_RESIDUALS}
 # --------------------------------------------------------------------------------------------
 # Tests
 # --------------------------------------------------------------------------------------------
+
 
 def test_no_new_reader_absence_violations():
     """RATCHET: no reader may introduce a NEW absence-masking handler.
@@ -329,8 +356,7 @@ def test_no_new_reader_absence_violations():
         "empty without distinguishing genuine absence (404/NoSuchKey) from a transient/creds/"
         "broken-env failure. Route through methods.target_id_sidecar.is_definitively_absent "
         "(swallow only definitive absence; re-raise the rest), or add "
-        "`# absence-discipline: exempt -- <reason>` on the except line if benign:\n  "
-        + "\n  ".join(new)
+        "`# absence-discipline: exempt -- <reason>` on the except line if benign:\n  " + "\n  ".join(new)
     )
 
 
@@ -354,18 +380,24 @@ def test_allowlist_entries_have_reasons():
     assert not missing, f"Allowlist entries missing a reason: {missing}"
 
 
-@pytest.mark.parametrize("case", [
-    # (source, expect_violation)
-    # 1. Naive masking over an S3 read -> VIOLATION.
-    ("""
+@pytest.mark.parametrize(
+    "case",
+    [
+        # (source, expect_violation)
+        # 1. Naive masking over an S3 read -> VIOLATION.
+        (
+            """
 def r():
     try:
         return s3_client().get_object(Bucket=b, Key=k)
     except Exception:
         return {}
-""", True),
-    # 2. is_definitively_absent + raise -> OK.
-    ("""
+""",
+            True,
+        ),
+        # 2. is_definitively_absent + raise -> OK.
+        (
+            """
 def r():
     try:
         return s3_client().get_object(Bucket=b, Key=k)
@@ -373,9 +405,12 @@ def r():
         if not is_definitively_absent(e):
             raise
         return {}
-""", False),
-    # 3. Inline definitive-vs-transient latch (no is_definitively_absent, no raise) -> OK.
-    ("""
+""",
+            False,
+        ),
+        # 3. Inline definitive-vs-transient latch (no is_definitively_absent, no raise) -> OK.
+        (
+            """
 def r():
     try:
         return s3_client().get_object(Bucket=b, Key=k)
@@ -384,41 +419,56 @@ def r():
         if code in ("404", "NoSuchKey"):
             return None
         return None
-""", False),
-    # 4. Broad except that does NOT read S3 (optional Plotly) -> not in scope.
-    ("""
+""",
+            False,
+        ),
+        # 4. Broad except that does NOT read S3 (optional Plotly) -> not in scope.
+        (
+            """
 def r():
     try:
         import plotly
         return plotly.render(fig)
     except Exception:
         return None
-""", False),
-    # 5. Narrow except -> never flagged.
-    ("""
+""",
+            False,
+        ),
+        # 5. Narrow except -> never flagged.
+        (
+            """
 def r():
     try:
         return read_parquet(path)
     except (ValueError, TypeError):
         return {}
-""", False),
-    # 6. Tuple-of-empties return -> VIOLATION.
-    ("""
+""",
+            False,
+        ),
+        # 6. Tuple-of-empties return -> VIOLATION.
+        (
+            """
 def r():
     try:
         return read_parquet(path)
     except Exception:
         return pd.DataFrame(), {}
-""", True),
-    # 7. Inline escape-hatch marker -> suppressed.
-    ("""
+""",
+            True,
+        ),
+        # 7. Inline escape-hatch marker -> suppressed.
+        (
+            """
 def r():
     try:
         return read_parquet(path)
     except Exception:  # absence-discipline: exempt -- benign optional enrichment layer
         return {}
-""", False),
-])
+""",
+            False,
+        ),
+    ],
+)
 def test_detector_semantics(case):
     """Guard the detector itself against regressions (fixtures, not the live tree)."""
     source, expect = case

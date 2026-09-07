@@ -87,26 +87,31 @@ def _atomic_predicate(atom: str):
     if m:
         col = _extract_column_name(m.group(1))
         target = m.group(2)
+
         def _pred(row):
             v = row.get(col)
             if pd.isna(v):
                 return None
             return v == target
+
         return _pred
     m = _ATOMIC_IN.match(atom)
     if m:
         col = _extract_column_name(m.group(1))
         values = [v.strip().strip("'\"") for v in m.group(2).split(",")]
+
         def _pred(row):
             v = row.get(col)
             if pd.isna(v):
                 return None
             return v in values
+
         return _pred
     m = _ATOMIC_INT_EQ.match(atom)
     if m:
         col = _extract_column_name(m.group(1))
         target = int(m.group(2))
+
         def _pred(row):
             v = row.get(col)
             if pd.isna(v):
@@ -115,11 +120,13 @@ def _atomic_predicate(atom: str):
                 return int(v) == target
             except (ValueError, TypeError):
                 return False
+
         return _pred
     m = _ATOMIC_GTE.match(atom)
     if m:
         col = _extract_column_name(m.group(1))
         target = float(m.group(2))
+
         def _pred(row):
             v = row.get(col)
             if pd.isna(v):
@@ -128,6 +135,7 @@ def _atomic_predicate(atom: str):
                 return float(v) >= target
             except (ValueError, TypeError):
                 return False
+
         return _pred
     raise ValueError(f"Unsupported atomic predicate: {atom!r}")
 
@@ -138,11 +146,11 @@ def _split_top_level(expr: str, sep: str) -> list[str]:
     i = 0
     while i < len(expr):
         c = expr[i]
-        if c == '[':
+        if c == "[":
             depth += 1
-        elif c == ']':
+        elif c == "]":
             depth -= 1
-        elif depth == 0 and expr[i:i+len(sep)] == sep:
+        elif depth == 0 and expr[i : i + len(sep)] == sep:
             parts.append("".join(cur).strip())
             cur = []
             i += len(sep)
@@ -164,9 +172,11 @@ def compile_rule(rule: str):
     # Negation wrapper: `!(...)`
     if rule.startswith("!(") and rule.endswith(")"):
         inner = compile_rule(rule[2:-1])
+
         def _neg(row):
             r = inner(row)
             return None if r is None else (not r)
+
         return _neg
 
     # Conjunction: `a && b && c`
@@ -174,6 +184,7 @@ def compile_rule(rule: str):
         parts = _split_top_level(rule, "&&")
         if len(parts) > 1:
             compiled = [compile_rule(p) for p in parts]
+
             def _conj(row):
                 for p in compiled:
                     r = p(row)
@@ -182,6 +193,7 @@ def compile_rule(rule: str):
                     if not r:
                         return False
                 return True
+
             return _conj
 
     # Disjunction: `a || b`
@@ -189,6 +201,7 @@ def compile_rule(rule: str):
         parts = _split_top_level(rule, "||")
         if len(parts) > 1:
             compiled = [compile_rule(p) for p in parts]
+
             def _disj(row):
                 any_none = False
                 for p in compiled:
@@ -199,6 +212,7 @@ def compile_rule(rule: str):
                     if r:
                         return True
                 return None if any_none else False
+
             return _disj
 
     # Fallback: atomic predicate
@@ -206,6 +220,7 @@ def compile_rule(rule: str):
 
 
 # ---------- Source-data loaders --------------------------------------------
+
 
 def _load_tcga_maf(catalog_repo: Path, indication: str) -> pd.DataFrame:
     """Load TCGA MAF for the indication.
@@ -281,8 +296,7 @@ def _load_depmap_somatic_mutations(catalog_repo: Path, indication: str | None = 
     """
     # Prefer prefetched, lineage-filtered, column-normalized parquet
     if indication:
-        prefetched = (cache_root() / "framework-depmap-26q1"
-                      / f"{indication.lower()}-depmap-maf.parquet")
+        prefetched = cache_root() / "framework-depmap-26q1" / f"{indication.lower()}-depmap-maf.parquet"
         if prefetched.exists():
             return pd.read_parquet(prefetched)
 
@@ -290,8 +304,12 @@ def _load_depmap_somatic_mutations(catalog_repo: Path, indication: str | None = 
     if fallback.exists():
         df = pd.read_csv(fallback)
         # Raw CSV needs column normalization (prefetch parquet already has it)
-        rename = {"Hugo_Symbol": "gene_symbol", "Protein_Change": "protein_change",
-                  "Variant_Classification": "effect", "ModelID": "sample_id"}
+        rename = {
+            "Hugo_Symbol": "gene_symbol",
+            "Protein_Change": "protein_change",
+            "Variant_Classification": "effect",
+            "ModelID": "sample_id",
+        }
         df = df.rename(columns={k: v for k, v in rename.items() if k in df.columns})
         if "sample_id" in df.columns:
             df["source_native_id"] = df["sample_id"]
@@ -313,17 +331,20 @@ def _cohort_samples_path(data_source: str, indication: str) -> Path | None:
     (a `sample_id` column, optionally source_native_id / patient_id for the full cohort
     INCLUDING fully-WT tumors), we use it as the WT/negation-stratum denominator. Convention:
     `{indication}-cohort-samples.parquet` in the same cache dir as the MAF."""
-    dir_slug = {"tcga": "framework-gdc-pancohort-somatic",
-                "genie": "framework-genie-public-v19",
-                "depmap": "framework-depmap-26q1"}.get(data_source)
+    dir_slug = {
+        "tcga": "framework-gdc-pancohort-somatic",
+        "genie": "framework-genie-public-v19",
+        "depmap": "framework-depmap-26q1",
+    }.get(data_source)
     if not dir_slug:
         return None
     p = cache_root() / dir_slug / f"{indication.lower()}-cohort-samples.parquet"
     return p if p.exists() else None
 
 
-def _load_cohort_samples(data_source: str, indication: str, sample_id_col: str,
-                         native_id_col: str, patient_id_col: str | None):
+def _load_cohort_samples(
+    data_source: str, indication: str, sample_id_col: str, native_id_col: str, patient_id_col: str | None
+):
     """Full-cohort sample frame (INCLUDING zero-mutation tumors) from the companion file, or None.
 
     Returns a DataFrame with [sample_id_col, native_id_col, (patient_id_col)] deduped on
@@ -352,6 +373,7 @@ def _load_cohort_samples(data_source: str, indication: str, sample_id_col: str,
 
 
 # ---------- Stratum evaluation ---------------------------------------------
+
 
 def _evaluate_stratum_maf(
     stratum: dict,
@@ -395,10 +417,16 @@ def _evaluate_stratum_maf(
     maf_df["_hit"] = maf_df.apply(predicate, axis=1)
 
     hits = maf_df[maf_df["_hit"] == True]
-    hit_samples = hits.groupby(sample_id_col).agg(
-        _first_native=(native_id_col, "first"),
-        _first_hit=("protein_change", "first") if "protein_change" in maf_df.columns else (sample_id_col, "first"),
-    ).reset_index() if len(hits) > 0 else pd.DataFrame(columns=[sample_id_col, "_first_native", "_first_hit"])
+    hit_samples = (
+        hits.groupby(sample_id_col)
+        .agg(
+            _first_native=(native_id_col, "first"),
+            _first_hit=("protein_change", "first") if "protein_change" in maf_df.columns else (sample_id_col, "first"),
+        )
+        .reset_index()
+        if len(hits) > 0
+        else pd.DataFrame(columns=[sample_id_col, "_first_native", "_first_hit"])
+    )
 
     # For every sample in `all_samples`, produce an assignment row
     out_rows = []
@@ -415,15 +443,17 @@ def _evaluate_stratum_maf(
         # derivation_value only carries the matched variant for positive (hit)
         # strata; a WT member has no matching variant to report.
         deriv_value = hit_lookup.get(sid, {}).get("_first_hit", "") if (is_member and not is_sample_negation) else ""
-        out_rows.append({
-            "sample_id": sid,
-            "patient_id": pid,
-            "source_native_id": native,
-            "stratum_id": stratum["id"],
-            "is_member": is_member,
-            "derivation_source": stratum["derivation_source"],
-            "derivation_value": deriv_value,
-        })
+        out_rows.append(
+            {
+                "sample_id": sid,
+                "patient_id": pid,
+                "source_native_id": native,
+                "stratum_id": stratum["id"],
+                "is_member": is_member,
+                "derivation_source": stratum["derivation_source"],
+                "derivation_value": deriv_value,
+            }
+        )
     return pd.DataFrame(out_rows)
 
 
@@ -437,21 +467,39 @@ def _evaluate_stratum_maf(
 
 # ---------- CLI ------------------------------------------------------------
 
+
 @click.command()
-@click.option("--subgroup-catalog", required=True, type=click.Path(exists=True, dir_okay=False, path_type=Path),
-              help="Path to the subgroup_catalog YAML.")
-@click.option("--data-source", required=True, type=click.Choice(["tcga", "depmap", "genie"]),
-              help="Which data source's MAF to assign against.")
+@click.option(
+    "--subgroup-catalog",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    help="Path to the subgroup_catalog YAML.",
+)
+@click.option(
+    "--data-source",
+    required=True,
+    type=click.Choice(["tcga", "depmap", "genie"]),
+    help="Which data source's MAF to assign against.",
+)
 @click.option("--release-pin", required=True, help="Catalog release_pin identifier (e.g., 2026-Q2).")
-@click.option("--catalog-repo", type=click.Path(file_okay=False, path_type=Path),
-              default=Path(os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")),
-              help="Path to the data-catalog repo for input-manifest resolution.")
-@click.option("--out", required=True, type=click.Path(file_okay=False, path_type=Path),
-              help="Output directory; assignments.parquet + manifest.yaml land here.")
-@click.option("--dry-run", is_flag=True,
-              help="Parse the catalog, print the plan, do not produce assignments.")
-def main(subgroup_catalog: Path, data_source: str, release_pin: str,
-         catalog_repo: Path, out: Path, dry_run: bool) -> int:
+@click.option(
+    "--catalog-repo",
+    type=click.Path(file_okay=False, path_type=Path),
+    default=Path(
+        os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
+    ),
+    help="Path to the data-catalog repo for input-manifest resolution.",
+)
+@click.option(
+    "--out",
+    required=True,
+    type=click.Path(file_okay=False, path_type=Path),
+    help="Output directory; assignments.parquet + manifest.yaml land here.",
+)
+@click.option("--dry-run", is_flag=True, help="Parse the catalog, print the plan, do not produce assignments.")
+def main(
+    subgroup_catalog: Path, data_source: str, release_pin: str, catalog_repo: Path, out: Path, dry_run: bool
+) -> int:
     """Generate per-sample subgroup assignments from MAF-filter predicates."""
     with subgroup_catalog.open() as f:
         catalog = yaml.safe_load(f)
@@ -503,8 +551,8 @@ def main(subgroup_catalog: Path, data_source: str, release_pin: str,
         native_id_col = "source_native_id"
     elif data_source == "genie":
         maf = _load_genie_maf(catalog_repo, indication)
-        sample_id_col = "sample_id"       # already normalized in the prefetch step
-        patient_id_col = None             # GENIE has PATIENT_ID but is not carried in the CRC-scoped subset
+        sample_id_col = "sample_id"  # already normalized in the prefetch step
+        patient_id_col = None  # GENIE has PATIENT_ID but is not carried in the CRC-scoped subset
         native_id_col = "source_native_id"
     else:
         maf = _load_depmap_somatic_mutations(catalog_repo, indication)
@@ -547,7 +595,8 @@ def main(subgroup_catalog: Path, data_source: str, release_pin: str,
             f"{indication.lower()}-cohort-samples.parquet found). Fully-WT tumors (zero MAF rows) are "
             "under-counted in WT/negation strata → mutant fractions may be inflated. Emit the "
             "companion cohort-samples file from the prefetch step for an exact denominator.",
-            err=True)
+            err=True,
+        )
 
     # ============ Evaluate strata ============
     per_stratum_dfs = []
@@ -576,8 +625,11 @@ def main(subgroup_catalog: Path, data_source: str, release_pin: str,
     click.echo(f"  wrote {parquet_path} ({len(assignments):,} rows)")
 
     emit_assignment_manifest(
-        out_dir=out, catalog=catalog, catalog_path=subgroup_catalog,
-        data_source=data_source, release_pin=release_pin,
+        out_dir=out,
+        catalog=catalog,
+        catalog_path=subgroup_catalog,
+        data_source=data_source,
+        release_pin=release_pin,
         assignments=assignments,
         assigner_method="subgroup_assigner_maf_filter",
         variant="maf",

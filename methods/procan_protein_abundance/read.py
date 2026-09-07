@@ -14,6 +14,7 @@ ProCan panel, or symbol unresolvable) is a real coverage-gap signal; `_live_read
 SOURCE couldn't be read (infra failure) — both surface as data_unavailable class, the key disambiguates
 for provenance.
 """
+
 from __future__ import annotations
 
 from typing import Optional
@@ -34,8 +35,7 @@ def read_target_summary(target: str, indication: Optional[str] = None) -> dict:
             src = _cli.DERIVED_PRODUCT_MANIFEST_ID
         return {
             "_live_read_error": "procan_protein_abundance_read_failed",
-            "_remediation": (
-                f"Could not read ProCan DIA/SWATH cell-line proteome ({src}) for {target}: {e}"),
+            "_remediation": (f"Could not read ProCan DIA/SWATH cell-line proteome ({src}) for {target}: {e}"),
             "protein_expression_class": "data_unavailable",
             "protein_abundance_source": "data_unavailable",
             "n_cell_lines_evaluated": 0,

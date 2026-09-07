@@ -1,6 +1,7 @@
 """Regression (burndown P2): genie_sv_recurrence._load_sv splits genuine NoSuchKey/404 (-> None ->
 data_unavailable, unchanged) from transient/broken-env failure (-> re-raise -> _live_read_error).
 """
+
 from __future__ import annotations
 
 import sys

@@ -4,6 +4,7 @@ Interactive twin of emit_forest_plot: per-lineage median Chronos + p25–p75 IQR
 highlighted (red diamond), reflines at 0 / -0.5 / -1.0. Built from the SAME per_lineage_records the
 SVG + plot_data.parquet use — no drift. No S3 (synthetic records). Plotly optional.
 """
+
 from __future__ import annotations
 
 import base64
@@ -36,8 +37,8 @@ cli = _load()
 def _decode(v):
     if isinstance(v, dict) and "bdata" in v:
         import numpy as np
-        return np.frombuffer(base64.b64decode(v["bdata"]),
-                             dtype={"f8": "<f8", "f4": "<f4"}[v["dtype"]]).tolist()
+
+        return np.frombuffer(base64.b64decode(v["bdata"]), dtype={"f8": "<f8", "f4": "<f4"}[v["dtype"]]).tolist()
     return list(v)
 
 
@@ -75,8 +76,7 @@ def test_reference_lines_at_chronos_thresholds():
         out = Path(d)
         cli.emit_plotly_specs(_records(), "Bowel", "KRAS", "COADREAD", {}, out, CONTRACTS)
         obj = json.loads((out / "figure_forest_plot.plotly.json").read_text())
-        xvals = {round(s.get("x0", -99), 2) for s in obj["layout"].get("shapes", [])
-                 if s.get("x0") == s.get("x1")}
+        xvals = {round(s.get("x0", -99), 2) for s in obj["layout"].get("shapes", []) if s.get("x0") == s.get("x1")}
         assert {0.0, -0.5, -1.0} <= xvals, f"missing Chronos reflines; got {xvals}"
 
 

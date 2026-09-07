@@ -4,6 +4,7 @@ Single entry point: read_coessential_partners(target, top_n, ...).
 Reads the gene-sorted parquet with predicate pushdown — only the row-groups
 for the queried gene are loaded (< 1 s per call on a cold parquet, < 200 ms warm).
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -22,6 +23,7 @@ _CACHED_PATH = _CACHE_DIR / "coessentiality_edges.parquet"
 def _resolve_s3_uri() -> str:
     """Resolve the manifest-authoritative S3 URI at call time (not at import)."""
     from methods.catalog_query.read import s3_uri_for
+
     return s3_uri_for(MANIFEST_ID)
 
 
@@ -162,9 +164,14 @@ def read_coessential_module_summary(
     raw = read_coessential_partners(target, top_n=25, parquet_path=parquet_path, aws_profile=aws_profile)
     base = {
         "coessential_module_class": "data_unavailable",
-        "n_partners": 0, "n_strong_partners": 0, "n_coessential": 0, "n_anti_correlated": 0,
-        "strongest_partner_symbol": None, "strongest_partner_r": None,
-        "strong_r_threshold": strong_r, "top_partners": [],
+        "n_partners": 0,
+        "n_strong_partners": 0,
+        "n_coessential": 0,
+        "n_anti_correlated": 0,
+        "strongest_partner_symbol": None,
+        "strongest_partner_r": None,
+        "strong_r_threshold": strong_r,
+        "top_partners": [],
         "n_cell_lines": raw.get("n_cell_lines"),
         "method_version": METHOD_VERSION,
         "_data_source": MANIFEST_ID,
@@ -184,7 +191,7 @@ def read_coessential_module_summary(
         cls = "sparse_module"
     else:
         cls = "isolated_dependency"
-    strongest = partners[0] if partners else None   # partners are abs_rank-sorted (strongest first)
+    strongest = partners[0] if partners else None  # partners are abs_rank-sorted (strongest first)
     base.update(
         coessential_module_class=cls,
         n_partners=n_partners,
@@ -193,7 +200,9 @@ def read_coessential_module_summary(
         n_anti_correlated=sum(1 for p in partners if p.get("pearson_r", 0.0) < 0),
         strongest_partner_symbol=(strongest or {}).get("symbol"),
         strongest_partner_r=(strongest or {}).get("pearson_r"),
-        top_partners=[{"symbol": p.get("symbol"), "pearson_r": p.get("pearson_r"),
-                       "direction": p.get("direction")} for p in partners[:5]],
+        top_partners=[
+            {"symbol": p.get("symbol"), "pearson_r": p.get("pearson_r"), "direction": p.get("direction")}
+            for p in partners[:5]
+        ],
     )
     return base

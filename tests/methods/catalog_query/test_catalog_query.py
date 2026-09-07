@@ -59,85 +59,130 @@ def catalog(tmp_path: Path) -> tuple[Path, Path]:
     tc = tmp_path / "target-contracts"
 
     # --- source-releases ---
-    _write(dc / "manifests" / "sources" / "raw-source.yaml", {
-        "id": "raw-source", "type": "source-release", "provider": "acme",
-        "dataset": "widgets", "version": "1", "s3_uri": "s3://onc-compbio/data-catalog/sources/acme/1/",
-        "description": "A raw source about phospho widgets in tumor tissue.",
-        "data_subject": "tumor", "license": "CC-BY-4.0",
-        # system_of_record omitted on purpose -> must default TRUE
-        "total_size_bytes": 100,
-        "files": [
-            {"path": "a.parquet", "category": "expression"},
-            {"path": "b.parquet", "category": "mutation"},
-            {"path": "c.parquet", "category": "expression"},  # dup category
-        ],
-    })
-    _write(dc / "manifests" / "sources" / "lonely-source.yaml", {
-        "id": "lonely-source", "type": "source-release", "provider": "hgnc",
-        "dataset": "ref", "version": "q2", "s3_uri": "s3://onc-compbio/data-catalog/sources/hgnc/q2/",
-        "description": "A reference annotation nothing cites (read by direct path).",
-        "data_subject": "reference-data", "system_of_record": False,
-        "total_size_bytes": 5, "files": [],
-    })
+    _write(
+        dc / "manifests" / "sources" / "raw-source.yaml",
+        {
+            "id": "raw-source",
+            "type": "source-release",
+            "provider": "acme",
+            "dataset": "widgets",
+            "version": "1",
+            "s3_uri": "s3://onc-compbio/data-catalog/sources/acme/1/",
+            "description": "A raw source about phospho widgets in tumor tissue.",
+            "data_subject": "tumor",
+            "license": "CC-BY-4.0",
+            # system_of_record omitted on purpose -> must default TRUE
+            "total_size_bytes": 100,
+            "files": [
+                {"path": "a.parquet", "category": "expression"},
+                {"path": "b.parquet", "category": "mutation"},
+                {"path": "c.parquet", "category": "expression"},  # dup category
+            ],
+        },
+    )
+    _write(
+        dc / "manifests" / "sources" / "lonely-source.yaml",
+        {
+            "id": "lonely-source",
+            "type": "source-release",
+            "provider": "hgnc",
+            "dataset": "ref",
+            "version": "q2",
+            "s3_uri": "s3://onc-compbio/data-catalog/sources/hgnc/q2/",
+            "description": "A reference annotation nothing cites (read by direct path).",
+            "data_subject": "reference-data",
+            "system_of_record": False,
+            "total_size_bytes": 5,
+            "files": [],
+        },
+    )
 
     # --- derived ---
-    _write(dc / "manifests" / "derived" / "derived-product.yaml", {
-        "id": "derived-product", "type": "derived",
-        "transformation": "Aggregate raw-source into a per-gene phospho product for querying.",
-        "notebook": "scripts/derive.py",
-        "s3_uri": "s3://onc-compbio/data-catalog/derived/derived-product/out.parquet",
-        "derived_from": ["raw-source"], "data_subject": "tumor",
-        "created_date": "2026-01-01", "created_by": "tester", "format": "parquet",
-        "size_bytes": 42, "supersedes": "old-product",
-        "parquet_schema": [
-            {"name": "gene_symbol", "type": "string"},
-            {"name": "value", "type": "double"},
-        ],
-        "query_optimization": {"sort_columns": ["gene_symbol"], "primary_filter_column": "gene_symbol"},
-        "parameters": {"sort_key": "gene_symbol"},
-        "target_resolution": {
-            "sidecar_s3_uri": "s3://onc-compbio/data-catalog/derived/derived-product/out.target_resolution.parquet",
-            "sidecar_md5": "0" * 32,
+    _write(
+        dc / "manifests" / "derived" / "derived-product.yaml",
+        {
+            "id": "derived-product",
+            "type": "derived",
+            "transformation": "Aggregate raw-source into a per-gene phospho product for querying.",
+            "notebook": "scripts/derive.py",
+            "s3_uri": "s3://onc-compbio/data-catalog/derived/derived-product/out.parquet",
+            "derived_from": ["raw-source"],
+            "data_subject": "tumor",
+            "created_date": "2026-01-01",
+            "created_by": "tester",
+            "format": "parquet",
+            "size_bytes": 42,
+            "supersedes": "old-product",
+            "parquet_schema": [
+                {"name": "gene_symbol", "type": "string"},
+                {"name": "value", "type": "double"},
+            ],
+            "query_optimization": {"sort_columns": ["gene_symbol"], "primary_filter_column": "gene_symbol"},
+            "parameters": {"sort_key": "gene_symbol"},
+            "target_resolution": {
+                "sidecar_s3_uri": "s3://onc-compbio/data-catalog/derived/derived-product/out.target_resolution.parquet",
+                "sidecar_md5": "0" * 32,
+            },
         },
-    })
-    _write(dc / "manifests" / "derived" / "old-product.yaml", {
-        "id": "old-product", "type": "derived",
-        "transformation": "The superseded predecessor of derived-product, still present.",
-        "notebook": "scripts/derive_old.py",
-        "s3_uri": "s3://onc-compbio/data-catalog/derived/old-product/out.parquet",
-        "derived_from": ["raw-source"], "created_date": "2025-01-01", "created_by": "tester",
-        "format": "parquet",
-    })
+    )
+    _write(
+        dc / "manifests" / "derived" / "old-product.yaml",
+        {
+            "id": "old-product",
+            "type": "derived",
+            "transformation": "The superseded predecessor of derived-product, still present.",
+            "notebook": "scripts/derive_old.py",
+            "s3_uri": "s3://onc-compbio/data-catalog/derived/old-product/out.parquet",
+            "derived_from": ["raw-source"],
+            "created_date": "2025-01-01",
+            "created_by": "tester",
+            "format": "parquet",
+        },
+    )
     # a DGE sensitivity product for LUAD (covered) but NOT for the other config
-    _write(dc / "manifests" / "derived" / "luad-dge-tumor-vs-normal-sensitivity-v1.yaml", {
-        "id": "luad-dge-tumor-vs-normal-sensitivity-v1", "type": "derived",
-        "transformation": "DESeq2 tumor-vs-normal sensitivity DEG for LUAD.",
-        "notebook": "batch/dge.R",
-        "s3_uri": "s3://onc-compbio/data-catalog/derived/luad-dge-tumor-vs-normal-sensitivity-v1/x.parquet",
-        "derived_from": ["raw-source"], "created_date": "2026-01-01", "created_by": "tester",
-        "format": "parquet",
-    })
+    _write(
+        dc / "manifests" / "derived" / "luad-dge-tumor-vs-normal-sensitivity-v1.yaml",
+        {
+            "id": "luad-dge-tumor-vs-normal-sensitivity-v1",
+            "type": "derived",
+            "transformation": "DESeq2 tumor-vs-normal sensitivity DEG for LUAD.",
+            "notebook": "batch/dge.R",
+            "s3_uri": "s3://onc-compbio/data-catalog/derived/luad-dge-tumor-vs-normal-sensitivity-v1/x.parquet",
+            "derived_from": ["raw-source"],
+            "created_date": "2026-01-01",
+            "created_by": "tester",
+            "format": "parquet",
+        },
+    )
 
     # --- subgroup-catalog citing raw-source (downstream lineage + not-uncited) ---
-    _write(dc / "subgroup-catalogs" / "LUAD" / "2026-Q3.yaml", {
-        "id": "luad-subgroups-2026-q3", "manifest_kind": "subgroup_catalog", "indication": "LUAD",
-        "atomic_strata": [
-            {"name": "s1", "data_source": {"manifest_id": "raw-source"}},
-            {"name": "s2", "data_source": {"manifest_id": "raw-source"}},  # dedup
-        ],
-    })
+    _write(
+        dc / "subgroup-catalogs" / "LUAD" / "2026-Q3.yaml",
+        {
+            "id": "luad-subgroups-2026-q3",
+            "manifest_kind": "subgroup_catalog",
+            "indication": "LUAD",
+            "atomic_strata": [
+                {"name": "s1", "data_source": {"manifest_id": "raw-source"}},
+                {"name": "s2", "data_source": {"manifest_id": "raw-source"}},  # dedup
+            ],
+        },
+    )
 
     # --- indication configs: LUAD (covered) + PAAD (gap) ---
     _write(dc / "indication-configs" / "LUAD.yaml", {"indication": "LUAD"})
     _write(dc / "indication-configs" / "PAAD.yaml", {"indication": "PAAD"})
 
     # --- products.yaml consumer map ---
-    _write(tc / "vocabularies" / "products.yaml", {
-        "schema_version": "1.0.0",
-        "products": [
-            {"id": "phospho-product", "dimension": "phospho", "sources": ["raw-source"]},
-        ],
-    })
+    _write(
+        tc / "vocabularies" / "products.yaml",
+        {
+            "schema_version": "1.0.0",
+            "products": [
+                {"id": "phospho-product", "dimension": "phospho", "sources": ["raw-source"]},
+            ],
+        },
+    )
     return dc, tc
 
 
@@ -178,7 +223,7 @@ def test_bucket_prefix_for_preserves_trailing_slash(catalog):
     bucket, prefix = bucket_prefix_for("raw-source", root=dc)
     assert bucket == "onc-compbio"
     assert prefix == "data-catalog/sources/acme/1/"
-    assert prefix.endswith("/")                       # faithful to the manifest dir
+    assert prefix.endswith("/")  # faithful to the manifest dir
     # reader idiom: f"{PREFIX}{filename}" needs NO manual separator
     assert f"{prefix}Model.csv" == "data-catalog/sources/acme/1/Model.csv"
     # reassembles to the authoritative s3_uri + filename
@@ -235,7 +280,7 @@ def test_search_system_of_record_defaults_true(catalog):
     # raw-source omits system_of_record -> defaults TRUE -> included
     sor = {r.id for r in idx.search(system_of_record=True)}
     assert "raw-source" in sor
-    assert "lonely-source" not in sor          # explicitly False
+    assert "lonely-source" not in sor  # explicitly False
     not_sor = {r.id for r in idx.search(system_of_record=False)}
     assert not_sor == {"lonely-source"}
 
@@ -288,9 +333,10 @@ def test_lineage_downstream_folds_manifest_and_subgroup_citations(catalog):
     dn = idx.lineage("raw-source", direction="downstream")["downstream"]
     kids = {c["id"] for c in dn["children"]}
     assert kids == {
-        "derived-product", "old-product",
+        "derived-product",
+        "old-product",
         "luad-dge-tumor-vs-normal-sensitivity-v1",
-        "luad-subgroups-2026-q3",   # from the subgroup-catalog, folded in
+        "luad-subgroups-2026-q3",  # from the subgroup-catalog, folded in
     }
 
 
@@ -317,16 +363,15 @@ def test_audit_dge_coverage_gap(catalog):
     dc, tc = catalog
     idx = load_catalog(root=dc, contracts_root=tc)
     a = idx.audit()
-    assert "paad" in a["dge_coverage_gaps"]      # no PAAD dge product
-    assert "luad" not in a["dge_coverage_gaps"]   # LUAD covered
+    assert "paad" in a["dge_coverage_gaps"]  # no PAAD dge product
+    assert "luad" not in a["dge_coverage_gaps"]  # LUAD covered
 
 
 def test_audit_superseded_still_present(catalog):
     dc, tc = catalog
     idx = load_catalog(root=dc, contracts_root=tc)
     a = idx.audit()
-    assert any("old-product" in s and "derived-product" in s
-               for s in a["superseded_still_present"])
+    assert any("old-product" in s and "derived-product" in s for s in a["superseded_still_present"])
 
 
 def test_audit_uncited_sources(catalog):
@@ -366,8 +411,7 @@ def test_module_has_no_write_or_network_ops():
         text = py.read_text()
         # strip comment-only lines (prose) AND lines carrying the sanctioned index-cache-write marker
         code = "\n".join(
-            ln for ln in text.splitlines()
-            if not ln.lstrip().startswith("#") and _CACHE_WRITE_MARKER not in ln
+            ln for ln in text.splitlines() if not ln.lstrip().startswith("#") and _CACHE_WRITE_MARKER not in ln
         )
         assert not re.search(r"open\([^)]*,\s*['\"][wax]", code), f"unmarked write-mode open in {py.name}"
         assert "import boto3" not in code, f"boto3 imported in {py.name}"

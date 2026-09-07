@@ -40,6 +40,7 @@ Usage:
     python -m methods.cptac_protein_deg.cli \\
         --cohort BRCA --out /tmp/cptac_brca_deg.parquet
 """
+
 from __future__ import annotations
 
 import os
@@ -58,16 +59,27 @@ CPTAC_SOURCE_MANIFEST_ID = "cptac-pdc-snapshot-2026-07-01"
 S3_BUCKET, CPTAC_S3_PREFIX = bucket_prefix_for(CPTAC_SOURCE_MANIFEST_ID)
 
 CPTAC_COHORTS = [
-    "BRCA", "CCRCC", "COAD", "GBM", "HNSCC",
-    "LSCC", "LUAD", "OV", "PDAC", "UCEC",
+    "BRCA",
+    "CCRCC",
+    "COAD",
+    "GBM",
+    "HNSCC",
+    "LSCC",
+    "LUAD",
+    "OV",
+    "PDAC",
+    "UCEC",
 ]
 
 
 @click.command()
-@click.option("--cohort", type=click.Choice(CPTAC_COHORTS + ["all"]), default="all",
-              help="CPTAC cohort code. 'all' iterates over all 10 cohorts.")
-@click.option("--out", required=True, type=click.Path(path_type=Path),
-              help="Output parquet path.")
+@click.option(
+    "--cohort",
+    type=click.Choice(CPTAC_COHORTS + ["all"]),
+    default="all",
+    help="CPTAC cohort code. 'all' iterates over all 10 cohorts.",
+)
+@click.option("--out", required=True, type=click.Path(path_type=Path), help="Output parquet path.")
 def main(cohort: str, out: Path):
     """CPTAC protein tumor-vs-normal DEG scanner.
 
@@ -101,14 +113,24 @@ def main(cohort: str, out: Path):
         "signal.",
     ]
 
-    df = pd.DataFrame(columns=[
-        "cohort", "gene_symbol", "uniprot_ac",
-        "n_tumor_samples", "n_normal_samples",
-        "protein_median_log2_tumor", "protein_median_log2_normal",
-        "protein_effect_size", "protein_effect_size_pooled_sd",
-        "protein_p_value", "protein_bh_q_value",
-        "protein_expression_class", "stat_test_used", "method_version",
-    ])
+    df = pd.DataFrame(
+        columns=[
+            "cohort",
+            "gene_symbol",
+            "uniprot_ac",
+            "n_tumor_samples",
+            "n_normal_samples",
+            "protein_median_log2_tumor",
+            "protein_median_log2_normal",
+            "protein_effect_size",
+            "protein_effect_size_pooled_sd",
+            "protein_p_value",
+            "protein_bh_q_value",
+            "protein_expression_class",
+            "stat_test_used",
+            "method_version",
+        ]
+    )
 
     out.parent.mkdir(parents=True, exist_ok=True)
     df.to_parquet(out, index=False)

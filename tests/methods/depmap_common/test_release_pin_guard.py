@@ -11,6 +11,7 @@ History:
 
 These tests need no S3 — resolution + the guard short-circuit happen before any download.
 """
+
 from __future__ import annotations
 
 import sys
@@ -52,13 +53,15 @@ def test_served_release_resolves_to_catalog_prefix():
 def test_unregistered_release_raises_before_any_fetch(monkeypatch):
     """A release with no catalog manifest must raise (FileNotFoundError from bucket_prefix_for) —
     the loud failure that replaces #283's ValueError stopgap. It must raise BEFORE any S3 fetch."""
+
     def _boom(*a, **k):
         raise AssertionError("boto3/download must NOT be reached for an unregistered release")
+
     # if resolution ever fell through, this would catch a stray download attempt
     monkeypatch.setattr(P, "_local_cached", lambda *a, **k: Path("/nonexistent/should-not-be-used"))
     P._release_prefix.cache_clear()
     with pytest.raises(FileNotFoundError):
-        P._release_prefix("26q99")   # not a registered manifest id
+        P._release_prefix("26q99")  # not a registered manifest id
 
 
 @pytest.mark.parametrize("fn_name,args", _LOADERS)
@@ -66,8 +69,7 @@ def test_loader_raises_on_unregistered_release_before_fetch(fn_name, args, monke
     """Each loader, called with an unregistered release_pin, raises before any S3 download
     (we explode _fetch_parquet's downloader path to prove no fetch is attempted)."""
     # Make any actual download attempt fail loudly so a silent wrong-release read can't pass.
-    monkeypatch.setattr(P, "_local_cached",
-                        lambda *a, **k: Path("/nonexistent/must-not-download"))
+    monkeypatch.setattr(P, "_local_cached", lambda *a, **k: Path("/nonexistent/must-not-download"))
     P._release_prefix.cache_clear()
     fn = getattr(P, fn_name)
     with pytest.raises(FileNotFoundError):

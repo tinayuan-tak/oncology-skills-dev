@@ -9,6 +9,7 @@ All tests are synthetic (no S3, no large parquet). The key invariants:
 4. build_edges_dataframe() end-to-end: planted correlation recovers correctly,
    >50%-NaN columns dropped, entrez-suffix stripped.
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -36,6 +37,7 @@ compute = _load()
 # ---------------------------------------------------------------------------
 # standardize()
 # ---------------------------------------------------------------------------
+
 
 class TestStandardize:
     def test_zero_mean_unit_std(self):
@@ -66,6 +68,7 @@ class TestStandardize:
 # ---------------------------------------------------------------------------
 # pearson_matrix()
 # ---------------------------------------------------------------------------
+
 
 class TestPearsonMatrix:
     def test_diagonal_is_one(self):
@@ -102,6 +105,7 @@ class TestPearsonMatrix:
 # top_k_neighbors()
 # ---------------------------------------------------------------------------
 
+
 class TestTopKNeighbors:
     def _make_identity_corr(self, n: int) -> np.ndarray:
         """Correlation matrix with off-diagonal 0 (no neighbours above floor)."""
@@ -125,7 +129,7 @@ class TestTopKNeighbors:
         corr = np.array([[1.0, 0.7, 0.5], [0.7, 1.0, 0.3], [0.5, 0.3, 1.0]], dtype=np.float32)
         rows = compute.top_k_neighbors(corr, ["A", "B", "C"], k=5, min_abs_r=0.0)
         a_rows = sorted([(r, rank) for g, p, r, rank in rows if g == "A"], key=lambda x: x[1])
-        assert a_rows[0][1] == 1          # rank 1 is the strongest
+        assert a_rows[0][1] == 1  # rank 1 is the strongest
         assert abs(a_rows[0][0]) >= abs(a_rows[1][0])  # monotone decreasing |r|
 
     def test_sign_preserved(self):
@@ -154,6 +158,7 @@ class TestTopKNeighbors:
 # build_edges_dataframe() — end-to-end
 # ---------------------------------------------------------------------------
 
+
 class TestBuildEdgesDataframe:
     def _planted_df(self) -> pd.DataFrame:
         """Three correlated + one anti-correlated gene planted in noise."""
@@ -164,12 +169,17 @@ class TestBuildEdgesDataframe:
         G_A = shared + noise()
         G_B = shared + noise()
         G_C = shared + noise()
-        G_D = -shared + noise()   # anti-correlated
-        G_E = rng.standard_normal(n_cells)   # independent
-        return pd.DataFrame({
-            "GENE_A (1)": G_A, "GENE_B (2)": G_B, "GENE_C (3)": G_C,
-            "GENE_D (4)": G_D, "GENE_E (5)": G_E,
-        })
+        G_D = -shared + noise()  # anti-correlated
+        G_E = rng.standard_normal(n_cells)  # independent
+        return pd.DataFrame(
+            {
+                "GENE_A (1)": G_A,
+                "GENE_B (2)": G_B,
+                "GENE_C (3)": G_C,
+                "GENE_D (4)": G_D,
+                "GENE_E (5)": G_E,
+            }
+        )
 
     def test_entrez_suffix_stripped(self):
         df = self._planted_df()
@@ -196,9 +206,7 @@ class TestBuildEdgesDataframe:
     def test_high_nan_column_dropped(self):
         df = self._planted_df()
         # Poison one column with >50% NaN
-        df["GENE_Z (99)"] = np.where(
-            np.arange(len(df)) < len(df) * 0.6, np.nan, 1.0
-        )
+        df["GENE_Z (99)"] = np.where(np.arange(len(df)) < len(df) * 0.6, np.nan, 1.0)
         edges = compute.build_edges_dataframe(df, k=4, min_abs_r=0.0)
         assert "GENE_Z" not in edges["gene_symbol"].values
 

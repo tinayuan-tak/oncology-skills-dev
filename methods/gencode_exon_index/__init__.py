@@ -18,4 +18,5 @@ Modules:
     loader  — S3-catalogued read of the derived parquet with md5
               verification (mirrors gene_lengths.load_gene_lengths shape)
 """
+
 METHOD_VERSION = "0.1.0"

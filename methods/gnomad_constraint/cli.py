@@ -43,12 +43,12 @@ DEFAULT_AWS_PROFILE = "cbg"
 # --- product column names (gnomad-constraint-per-gene-v1 parquet schema) ---
 COL_GENE = "gene_symbol"
 COL_PLI = "pli"
-COL_LOEUF = "loeuf"          # LOEUF (lof.oe_ci.upper distilled from the v4.1.1 source)
+COL_LOEUF = "loeuf"  # LOEUF (lof.oe_ci.upper distilled from the v4.1.1 source)
 COL_MIS_Z = "mis_z"
 COL_SYN_Z = "syn_z"
 COL_OBS_LOF = "obs_lof"
 COL_EXP_LOF = "exp_lof"
-COL_OBS_HOM_LOF = "obs_hom_lof"   # v2.1.1 observed homozygous-LoF count (natural human KOs)
+COL_OBS_HOM_LOF = "obs_hom_lof"  # v2.1.1 observed homozygous-LoF count (natural human KOs)
 COL_EXP_HOM_LOF = "exp_hom_lof"
 
 # --- card thresholds (target-contracts/cards/gnomad-lof-constraint.card.yaml) ---
@@ -81,8 +81,7 @@ def classify_constraint(pli: Optional[float], loeuf: Optional[float]) -> str:
     return "tolerant"
 
 
-def classify_human_ko_observed(obs_hom_lof: Optional[float], pli: Optional[float],
-                               loeuf: Optional[float]) -> str:
+def classify_human_ko_observed(obs_hom_lof: Optional[float], pli: Optional[float], loeuf: Optional[float]) -> str:
     """Map (obs_hom_lof, pLI, LOEUF) → human_ko_observed_class (the DIRECT-observation
     complement to the probabilistic constraint class).
 
@@ -104,8 +103,7 @@ def classify_human_ko_observed(obs_hom_lof: Optional[float], pli: Optional[float
         return "data_unavailable"
     if obs_hom_lof >= 1:
         return "natural_ko_observed"
-    highly_constrained = (pli is not None and pli >= HIGH_PLI) or \
-                         (loeuf is not None and loeuf <= HIGH_LOEUF)
+    highly_constrained = (pli is not None and pli >= HIGH_PLI) or (loeuf is not None and loeuf <= HIGH_LOEUF)
     return "constrained_no_ko" if highly_constrained else "no_natural_ko"
 
 
@@ -135,6 +133,7 @@ def _local_cache_path() -> str:
 def _download_source(dest: str) -> None:
     """S3 read-through: download the per-gene constraint parquet to the local cache if absent."""
     import boto3  # local import — framework runtime shouldn't require boto3 unless a live read happens
+
     ensure_aws_profile()
     boto3.client("s3").download_file(S3_BUCKET, S3_KEY, dest)
 
@@ -151,6 +150,7 @@ def load_constraint_row(gene_symbol: str, parquet_path: Optional[str] = None) ->
     """
     import pyarrow.parquet as pq
     import pyarrow.compute as pc
+
     path = parquet_path or _local_cache_path()
     if parquet_path is None and not os.path.exists(path):
         _download_source(path)
@@ -165,11 +165,16 @@ def compute_summary(row: Optional[dict], gene_symbol: str) -> dict:
     if row is None:
         return {
             "constraint_class": "indeterminate",
-            "pli_score": None, "loeuf_score": None,
-            "mis_z_score": None, "syn_z_score": None,
-            "obs_lof_count": None, "exp_lof_count": None, "gene_length_bp": None,
+            "pli_score": None,
+            "loeuf_score": None,
+            "mis_z_score": None,
+            "syn_z_score": None,
+            "obs_lof_count": None,
+            "exp_lof_count": None,
+            "gene_length_bp": None,
             "human_ko_observed_class": "data_unavailable",
-            "obs_hom_lof_count": None, "exp_hom_lof_count": None,
+            "obs_hom_lof_count": None,
+            "exp_hom_lof_count": None,
             "human_ko_context": None,
             "method_version": METHOD_VERSION,
             "_note": f"{gene_symbol} not in gnomAD v4.1.1 constraint table (indeterminate).",
@@ -177,8 +182,7 @@ def compute_summary(row: Optional[dict], gene_symbol: str) -> dict:
     pli = _to_float(row.get(COL_PLI))
     loeuf = _to_float(row.get(COL_LOEUF))
     obs_hom = _to_int(row.get(COL_OBS_HOM_LOF))
-    ko_class = classify_human_ko_observed(
-        _to_float(row.get(COL_OBS_HOM_LOF)), pli, loeuf)
+    ko_class = classify_human_ko_observed(_to_float(row.get(COL_OBS_HOM_LOF)), pli, loeuf)
     return {
         "constraint_class": classify_constraint(pli, loeuf),
         "pli_score": pli,
@@ -200,16 +204,22 @@ def compute_summary(row: Optional[dict], gene_symbol: str) -> dict:
 def _human_ko_context(gene_symbol: str, ko_class: str, obs_hom: Optional[int]) -> Optional[str]:
     """Human-readable one-liner for the observed-KO facet (audit / LLM context)."""
     if ko_class == "natural_ko_observed":
-        return (f"{gene_symbol}: {obs_hom} healthy individual(s) homozygous for a predicted-LoF "
-                f"variant in gnomAD v2.1.1 (natural human knockout) — full loss is tolerated in "
-                f"the population; on-target safety reassurance for a full-KO modality.")
+        return (
+            f"{gene_symbol}: {obs_hom} healthy individual(s) homozygous for a predicted-LoF "
+            f"variant in gnomAD v2.1.1 (natural human knockout) — full loss is tolerated in "
+            f"the population; on-target safety reassurance for a full-KO modality."
+        )
     if ko_class == "constrained_no_ko":
-        return (f"{gene_symbol}: no observed homozygous LoF in gnomAD v2.1.1 AND the gene is "
-                f"LoF-constrained — consistent with essentiality (the signal is the constraint, "
-                f"not the zero count).")
+        return (
+            f"{gene_symbol}: no observed homozygous LoF in gnomAD v2.1.1 AND the gene is "
+            f"LoF-constrained — consistent with essentiality (the signal is the constraint, "
+            f"not the zero count)."
+        )
     if ko_class == "no_natural_ko":
-        return (f"{gene_symbol}: no observed homozygous LoF in gnomAD v2.1.1 — uninformative in a "
-                f"~125k cohort (hom-LoF is rare even for tolerant genes); defer to the constraint class.")
+        return (
+            f"{gene_symbol}: no observed homozygous LoF in gnomAD v2.1.1 — uninformative in a "
+            f"~125k cohort (hom-LoF is rare even for tolerant genes); defer to the constraint class."
+        )
     return None
 
 
@@ -218,11 +228,13 @@ def _load_takeda_style(target_contracts_dir):
     import sys as _sys
     import matplotlib.pyplot as plt
     from pathlib import Path as _Path
+
     style_path = _Path(target_contracts_dir) / "plot_styles" / "takeda_oncology.mplstyle"
     if style_path.exists():
         plt.style.use(str(style_path))
     _sys.path.insert(0, str(_Path(target_contracts_dir) / "plot_styles"))
     import takeda_palette  # type: ignore
+
     return takeda_palette
 
 
@@ -236,6 +248,7 @@ def emit_constraint_gauge(summary: dict, target_symbol: str, out_dir, target_con
     placeholder panel explaining the gap (so the dashboard shows a cell, not nothing).
     """
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     from pathlib import Path as _Path
@@ -256,39 +269,63 @@ def emit_constraint_gauge(summary: dict, target_symbol: str, out_dir, target_con
     if pli is None and loeuf is None:
         for ax in axes:
             ax.axis("off")
-        axes[0].text(0.5, 0.5, f"{target_symbol}: no gnomAD constraint scores\n"
-                     f"(constraint_class = {klass})", ha="center", va="center", fontsize=10)
-        fig.tight_layout(); fig.savefig(out_path); plt.close(fig)
+        axes[0].text(
+            0.5,
+            0.5,
+            f"{target_symbol}: no gnomAD constraint scores\n(constraint_class = {klass})",
+            ha="center",
+            va="center",
+            fontsize=10,
+        )
+        fig.tight_layout()
+        fig.savefig(out_path)
+        plt.close(fig)
         return out_path
 
     # pLI gauge (0-1; >=0.9 = constrained)
     ax = axes[0]
     ax.barh([0], [pli if pli is not None else 0], color=bar_color, height=0.5)
-    ax.axvline(HIGH_PLI, color=pal.REFLINE_KILLER["color"], linestyle="--", linewidth=1,
-               label=f"high-constraint (pLI≥{HIGH_PLI})")
-    ax.set_xlim(0, 1); ax.set_yticks([]); ax.set_xlabel("pLI (prob. LoF-intolerant)")
+    ax.axvline(
+        HIGH_PLI,
+        color=pal.REFLINE_KILLER["color"],
+        linestyle="--",
+        linewidth=1,
+        label=f"high-constraint (pLI≥{HIGH_PLI})",
+    )
+    ax.set_xlim(0, 1)
+    ax.set_yticks([])
+    ax.set_xlabel("pLI (prob. LoF-intolerant)")
     ax.set_title(f"{target_symbol} — gnomAD LoF constraint  [{klass}]")
     ax.legend(loc="lower right", fontsize=7)
 
     # LOEUF gauge (0-2; <=HIGH_LOEUF = constrained — LOWER is more constrained)
     ax = axes[1]
     ax.barh([0], [loeuf if loeuf is not None else 0], color=bar_color, height=0.5)
-    ax.axvline(HIGH_LOEUF, color=pal.REFLINE_KILLER["color"], linestyle="--", linewidth=1,
-               label=f"high-constraint (LOEUF≤{HIGH_LOEUF})")
-    ax.set_xlim(0, 2); ax.set_yticks([]); ax.set_xlabel("LOEUF (obs/exp LoF upper CI)")
+    ax.axvline(
+        HIGH_LOEUF,
+        color=pal.REFLINE_KILLER["color"],
+        linestyle="--",
+        linewidth=1,
+        label=f"high-constraint (LOEUF≤{HIGH_LOEUF})",
+    )
+    ax.set_xlim(0, 2)
+    ax.set_yticks([])
+    ax.set_xlabel("LOEUF (obs/exp LoF upper CI)")
     ax.legend(loc="lower right", fontsize=7)
 
-    fig.tight_layout(); fig.savefig(out_path); plt.close(fig)
+    fig.tight_layout()
+    fig.savefig(out_path)
+    plt.close(fig)
     return out_path
 
 
 if __name__ == "__main__":
     import argparse
     import json
+
     ap = argparse.ArgumentParser(description="gnomAD LoF-constraint lookup for a gene.")
     ap.add_argument("--target", required=True)
-    ap.add_argument("--parquet", default=None,
-                    help="local per-gene parquet override (tests); default reads S3 cache")
+    ap.add_argument("--parquet", default=None, help="local per-gene parquet override (tests); default reads S3 cache")
     args = ap.parse_args()
     row = load_constraint_row(args.target, parquet_path=args.parquet)
     print(json.dumps(compute_summary(row, args.target), indent=2))

@@ -14,6 +14,7 @@ of NFE2L2 target genes" downstream reasoning that SIGNOR alone cannot support.
 
 Companion: data-catalog:manifests/sources/collectri-snapshot-2026-06-30.yaml
 """
+
 METHOD_VERSION = "0.1.0"
 
 # Re-export the public API so dispatchers using __import__(...) find

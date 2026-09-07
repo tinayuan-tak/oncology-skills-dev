@@ -20,6 +20,7 @@ scales from single-cell indications (OV) to 3-cell products without dropping any
 (This supersedes the original scaffold's fixed 4-cell / cells_supporting>=3 assumption, which
 returned zero rows against the real products.) Compute lives in derive.py (unit-tested, S3-free).
 """
+
 METHOD_VERSION = "0.1.0"
 
 from .read import read_target_summary  # noqa: F401,E402

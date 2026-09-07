@@ -45,11 +45,13 @@ def test_broadly_moderate():
 
 def test_lineage_restricted():
     """One lineage expressed, two not -> lineage_restricted."""
-    tpm, meta = _panel({
-        "Lung": [5.0] * 20,   # expressed
-        "Breast": [0.2] * 20, # not expressed
-        "Bowel": [0.1] * 20,  # not expressed
-    })
+    tpm, meta = _panel(
+        {
+            "Lung": [5.0] * 20,  # expressed
+            "Breast": [0.2] * 20,  # not expressed
+            "Bowel": [0.1] * 20,  # not expressed
+        }
+    )
     s = c.compute_summary_stats(tpm, meta)
     assert s["expression_class"] == "lineage_restricted"
     assert s["fraction_expressed"] >= 0.10
@@ -71,17 +73,20 @@ def test_modelid_column_lookup_when_metadata_columns_precede_it():
     Loader must look up 'ModelID' explicitly. This test confirms that the load path
     selects 'ModelID' over columns[0] when both exist."""
     import pandas as pd
+
     # Build a synthetic TPM frame matching 26Q1's layout
-    df = pd.DataFrame({
-        'SequencingID': ['SEQ-001', 'SEQ-002', 'SEQ-003'],
-        'ModelConditionID': ['MC-001', 'MC-002', 'MC-003'],
-        'ModelID': ['ACH-000001', 'ACH-000002', 'ACH-000003'],
-        'IsDefaultEntryForModel': ['Yes', 'Yes', 'Yes'],
-        'KRAS (3845)': [5.0, 4.5, 3.8],
-    })
+    df = pd.DataFrame(
+        {
+            "SequencingID": ["SEQ-001", "SEQ-002", "SEQ-003"],
+            "ModelConditionID": ["MC-001", "MC-002", "MC-003"],
+            "ModelID": ["ACH-000001", "ACH-000002", "ACH-000003"],
+            "IsDefaultEntryForModel": ["Yes", "Yes", "Yes"],
+            "KRAS (3845)": [5.0, 4.5, 3.8],
+        }
+    )
     # Confirm columns[0] is the WRONG candidate; ModelID is the correct one
-    assert df.columns[0] == 'SequencingID', "TPM matrix should have SequencingID first per 26Q1 layout"
-    assert 'ModelID' in df.columns, "ModelID is the canonical cell-line ID and must be present"
+    assert df.columns[0] == "SequencingID", "TPM matrix should have SequencingID first per 26Q1 layout"
+    assert "ModelID" in df.columns, "ModelID is the canonical cell-line ID and must be present"
     # If a future load were keyed on columns[0], it would key by 'SEQ-001' — would fail metadata lookup.
     # The loader's `if "ModelID" in tpm_df.columns` branch protects against this.
 
@@ -93,4 +98,4 @@ def test_per_lineage_stats_present():
     lineages = {row["lineage"] for row in s["per_lineage_stats"]}
     assert "Lung" in lineages
     assert "Bowel" in lineages
-    assert "Breast" not in lineages   # only n=3, below min_lineage_size
+    assert "Breast" not in lineages  # only n=3, below min_lineage_size

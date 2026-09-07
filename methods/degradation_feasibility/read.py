@@ -27,6 +27,7 @@ degradability_feasibility_class (first match):
 Additive DISPLAY facet that ALSO feeds the degrader lens (via degrader-channel-only interpretation
 rules on the card); the small-molecule verdict spine is untouched.
 """
+
 from __future__ import annotations
 
 import os
@@ -35,8 +36,8 @@ from pathlib import Path
 from typing import Optional
 
 DEFAULT_TARGET_CONTRACTS = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT",
-                   "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
+    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+)
 PRECEDENT_VOCAB_RELPATH = "vocabularies/degrader_precedent_targets.yaml"
 PRODUCT_MANIFEST_ID = "ubibrowser-e3-substrate-per-gene-v1"
 METHOD_VERSION = "0.1.0"
@@ -55,8 +56,15 @@ METHOD_VERSION = "0.1.0"
 # The REAL surfaceome family_class values that denote surface residency (i.e. cytoplasmic-E3-
 # unreachable). Any of these → location_excluded when falling back to the string (no boolean given).
 _SURFACE_FAMILY_CLASSES = {
-    "kinase_surface", "enzyme_surface", "transporter", "cd_molecule", "adhesion", "gpcr",
-    "growth_factor_receptor", "immune_receptor", "other_surface",
+    "kinase_surface",
+    "enzyme_surface",
+    "transporter",
+    "cd_molecule",
+    "adhesion",
+    "gpcr",
+    "growth_factor_receptor",
+    "immune_receptor",
+    "other_surface",
 }
 # Retained for back-compat with any caller/test still passing the pre-fix literal vocab.
 _SURFACE_SECRETED = {"surface", "cell_surface", "secreted", "membrane", "plasma_membrane"}
@@ -66,6 +74,7 @@ _SURFACE_SECRETED = {"surface", "cell_surface", "secreted", "membrane", "plasma_
 def _load_precedent(target_contracts_dir: str = None) -> dict:
     """Curated degrader-precedent vocab (entries keyed by HGNC symbol). {} on failure."""
     import yaml
+
     path = Path(target_contracts_dir or DEFAULT_TARGET_CONTRACTS) / PRECEDENT_VOCAB_RELPATH
     try:
         return (yaml.safe_load(path.read_text()) or {}).get("entries", {}) or {}
@@ -77,15 +86,21 @@ def _read_e3_substrate(target: str) -> Optional[dict]:
     """Pushdown-read the UbiBrowser per-substrate-gene product for one gene. None if unresolvable."""
     try:
         import sys as _sys
+
         _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
         from methods.catalog_query.read import bucket_key_for
         import pyarrow.parquet as pq
         import pyarrow.fs as fs
+
         bucket, key = bucket_key_for(PRODUCT_MANIFEST_ID)
-        tbl = pq.read_table(f"{bucket}/{key}", filesystem=fs.S3FileSystem(),
-                            filters=[("gene_symbol", "=", (target or "").strip().upper())])
+        tbl = pq.read_table(
+            f"{bucket}/{key}",
+            filesystem=fs.S3FileSystem(),
+            filters=[("gene_symbol", "=", (target or "").strip().upper())],
+        )
     except Exception as e:  # noqa: BLE001
         from methods.target_id_sidecar import is_definitively_absent
+
         # GENUINE absence (NoSuchKey/404 or pyarrow FileNotFoundError, or 0 rows below) is NEUTRAL for
         # degradability — a target simply not in UbiBrowser is NOT disqualifying -> None. But a
         # TRANSIENT/creds/broken-env failure must NOT be swallowed: silently dropping the e3-substrate
@@ -99,11 +114,14 @@ def _read_e3_substrate(target: str) -> Optional[dict]:
     return tbl.to_pylist()[0]
 
 
-def degradation_feasibility_for_gene(target: str, surface_family_class: Optional[str] = None,
-                                     is_surface_protein: Optional[bool] = None,
-                                     target_contracts_dir: Optional[str] = None,
-                                     e3_row: Optional[dict] = None,
-                                     precedent: Optional[dict] = None) -> dict:
+def degradation_feasibility_for_gene(
+    target: str,
+    surface_family_class: Optional[str] = None,
+    is_surface_protein: Optional[bool] = None,
+    target_contracts_dir: Optional[str] = None,
+    e3_row: Optional[dict] = None,
+    precedent: Optional[dict] = None,
+) -> dict:
     """Per-target degradability feasibility. Precedence: unfavorable_location > precedented_degradable
     > ubiquitination_substrate > plausible_untested > data_unavailable.
 
@@ -157,8 +175,8 @@ def degradation_feasibility_for_gene(target: str, surface_family_class: Optional
     # PROTAC vs molecular-glue: surface the curated modality + recruited E3 (previously DISCARDED).
     # A PROTAC needs a ligandable handle ON the target; a molecular glue does not (it reshapes an E3
     # surface for a neo-substrate). Recording which lets the degrader lens distinguish the two.
-    degrader_modality = (curated.get("modality") if curated else None)
-    recruited_e3 = (curated.get("recruited_e3") if curated else None)
+    degrader_modality = curated.get("modality") if curated else None
+    recruited_e3 = curated.get("recruited_e3") if curated else None
 
     return {
         "degradability_feasibility_class": klass,
@@ -169,33 +187,43 @@ def degradation_feasibility_for_gene(target: str, surface_family_class: Optional
         "n_e3_predicted_confident": n_pred_conf,
         "degrader_precedent": bool(curated),
         "degrader_precedent_examples": (list(curated.get("examples", [])) if curated else []),
-        "degrader_precedent_modality": degrader_modality,     # PROTAC | molecular_glue (curated) | None
-        "degrader_recruited_e3": recruited_e3,                 # CRBN | VHL | ... (curated) | None
+        "degrader_precedent_modality": degrader_modality,  # PROTAC | molecular_glue (curated) | None
+        "degrader_recruited_e3": recruited_e3,  # CRBN | VHL | ... (curated) | None
         "surface_location_excluded": location_excluded,
-        "degradability_context": _context(sym, klass, curated, n_lit, e3_ligases, loc,
-                                          degrader_modality, recruited_e3),
+        "degradability_context": _context(sym, klass, curated, n_lit, e3_ligases, loc, degrader_modality, recruited_e3),
         "method_version": METHOD_VERSION,
         "_data_source": "ubibrowser-v3-human + curated-precedent",
     }
 
 
-def _context(sym, klass, curated, n_lit, e3_ligases, loc,
-             degrader_modality=None, recruited_e3=None) -> Optional[str]:
+def _context(sym, klass, curated, n_lit, e3_ligases, loc, degrader_modality=None, recruited_e3=None) -> Optional[str]:
     if klass == "unfavorable_location":
         loc_label = loc or "cell-surface"
-        return (f"{sym}: {loc_label} protein — outside cytoplasmic-E3 reach, so a classic intracellular "
-                f"PROTAC/molecular-glue cannot engage it (an ADC/TCE surface modality applies instead; "
-                f"an extracellular-degrader modality such as LYTAC/AbTAC is the exception).")
+        return (
+            f"{sym}: {loc_label} protein — outside cytoplasmic-E3 reach, so a classic intracellular "
+            f"PROTAC/molecular-glue cannot engage it (an ADC/TCE surface modality applies instead; "
+            f"an extracellular-degrader modality such as LYTAC/AbTAC is the exception)."
+        )
     if klass == "precedented_degradable":
         ex = ", ".join(curated.get("examples", [])[:2]) if curated else ""
-        mod = f" [{degrader_modality}" + (f", recruits {recruited_e3}" if recruited_e3 else "") + "]" if degrader_modality else ""
-        return (f"{sym}: documented targeted-degrader precedent"
-                f"{' ('+ex+')' if ex else ''}{mod} — degradation feasibility demonstrated.")
+        mod = (
+            f" [{degrader_modality}" + (f", recruits {recruited_e3}" if recruited_e3 else "") + "]"
+            if degrader_modality
+            else ""
+        )
+        return (
+            f"{sym}: documented targeted-degrader precedent"
+            f"{' (' + ex + ')' if ex else ''}{mod} — degradation feasibility demonstrated."
+        )
     if klass == "ubiquitination_substrate":
-        return (f"{sym}: natural E3 substrate ({n_lit} curated E3s: {', '.join(e3_ligases[:4])}) — "
-                f"ubiquitination-competent; a positive degradability prior (no drug precedent yet).")
+        return (
+            f"{sym}: natural E3 substrate ({n_lit} curated E3s: {', '.join(e3_ligases[:4])}) — "
+            f"ubiquitination-competent; a positive degradability prior (no drug precedent yet)."
+        )
     if klass == "plausible_untested":
-        return (f"{sym}: intracellular, no curated degrader precedent and no literature E3 substrate; "
-                f"degradation is plausible but unproven (absence of natural-substrate evidence is NOT "
-                f"disqualifying — PROTACs recruit E3s de novo).")
+        return (
+            f"{sym}: intracellular, no curated degrader precedent and no literature E3 substrate; "
+            f"degradation is plausible but unproven (absence of natural-substrate evidence is NOT "
+            f"disqualifying — PROTACs recruit E3s de novo)."
+        )
     return None

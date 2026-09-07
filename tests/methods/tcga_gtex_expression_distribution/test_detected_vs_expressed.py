@@ -12,6 +12,7 @@ Fix: `broadly_detected` now also requires the target to reach a MODERATE level (
 tier-2 NEUTRAL `tumor_moderately_expressed` rung — present, but not a top-tier positive). A legacy
 caller passing moderate_fraction=None keeps the historical detection-only label.
 """
+
 from __future__ import annotations
 
 import sys
@@ -33,15 +34,17 @@ _MIN = R.BROADLY_DETECTED_MODERATE_FRACTION_MIN
 def test_detected_but_background_level_is_broadly_moderate_not_expressed():
     # TPM≈1 background: detected in 80% of tumors but almost never reaches TPM≈10 → broadly_moderate,
     # NOT broadly_detected (would have inherited tumor_broadly_expressed).
-    cls = R._classify_tumor_expression(detectable_fraction=0.80, high_fraction=0.0,
-                                       pattern="unimodal", moderate_fraction=0.05)
+    cls = R._classify_tumor_expression(
+        detectable_fraction=0.80, high_fraction=0.0, pattern="unimodal", moderate_fraction=0.05
+    )
     assert cls == "broadly_moderate"
 
 
 def test_detected_and_moderately_expressed_is_broadly_detected():
     # detected broadly AND reaches TPM≈10 in a real share of tumors → the genuine broadly_detected.
-    cls = R._classify_tumor_expression(detectable_fraction=0.80, high_fraction=0.0,
-                                       pattern="unimodal", moderate_fraction=0.70)
+    cls = R._classify_tumor_expression(
+        detectable_fraction=0.80, high_fraction=0.0, pattern="unimodal", moderate_fraction=0.70
+    )
     assert cls == "broadly_detected"
 
 

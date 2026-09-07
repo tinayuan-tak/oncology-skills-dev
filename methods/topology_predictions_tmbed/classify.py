@@ -16,8 +16,9 @@ from functools import lru_cache
 from typing import Optional
 
 
-def classify_topology(n_tm_alpha: Optional[int], n_tm_beta: Optional[int],
-                      signal_peptide: Optional[bool], ecd_orientation: Optional[str]) -> str:
+def classify_topology(
+    n_tm_alpha: Optional[int], n_tm_beta: Optional[int], signal_peptide: Optional[bool], ecd_orientation: Optional[str]
+) -> str:
     """Derive topology_class from raw TMbed fields.
 
     Rules (from the card's vocabulary comments):
@@ -49,12 +50,13 @@ def classify_topology(n_tm_alpha: Optional[int], n_tm_beta: Optional[int],
 # The engineerability floor (30 AA) is the biologics-target-discovery TopologyECDProvider bar:
 # a membrane-anchored protein needs an extracellular run long enough to raise a binder against;
 # below it there is effectively no bindable ectodomain regardless of surface residency.
-ECD_ENGINEERABLE_FLOOR = 30      # AA — below this the ECD is too small to engineer a binder against
-ECD_AMPLE_EPITOPE_AREA = 200     # AA — ample epitope area (matches card min_ecd_length_adc_favorable)
+ECD_ENGINEERABLE_FLOOR = 30  # AA — below this the ECD is too small to engineer a binder against
+ECD_AMPLE_EPITOPE_AREA = 200  # AA — ample epitope area (matches card min_ecd_length_adc_favorable)
 
 
-def classify_ecd_engineerability(topology_class: str, extracellular_residue_count: Optional[int],
-                                 ecd_orientation: Optional[str]) -> str:
+def classify_ecd_engineerability(
+    topology_class: str, extracellular_residue_count: Optional[int], ecd_orientation: Optional[str]
+) -> str:
     """Derive the ECD-engineerability categorical from fields already computed by TMbed.
 
     This makes the extracellular-domain SIZE a first-class biologics-substrate signal — not
@@ -78,14 +80,14 @@ def classify_ecd_engineerability(topology_class: str, extracellular_residue_coun
     if topology_class == "no_transmembrane":
         return "no_extracellular_domain"
     if extracellular_residue_count is None:
-        return "data_unavailable"          # ECD length not measured — abstain, do not call zero
+        return "data_unavailable"  # ECD length not measured — abstain, do not call zero
     if (ecd_orientation or "").lower() != "outside":
-        return "no_extracellular_domain"   # ECD faces the cytoplasm / orientation not extracellular
+        return "no_extracellular_domain"  # ECD faces the cytoplasm / orientation not extracellular
     if extracellular_residue_count < ECD_ENGINEERABLE_FLOOR:
-        return "minimal_ecd"               # too small to raise a binder against
+        return "minimal_ecd"  # too small to raise a binder against
     if extracellular_residue_count < ECD_AMPLE_EPITOPE_AREA:
-        return "moderate_ecd"              # engineerable; epitope area constrained for ADC
-    return "large_ecd"                     # ample epitope area — strong ADC + TCE substrate
+        return "moderate_ecd"  # engineerable; epitope area constrained for ADC
+    return "large_ecd"  # ample epitope area — strong ADC + TCE substrate
 
 
 def _to_bool(v) -> Optional[bool]:
@@ -137,11 +139,13 @@ def compute_summary(row: dict, ptm_fields: dict, method_version: str) -> dict:
 
 # --- loaders (S3 read-through; parquet_path/sidecar_path override for tests) ---
 
+
 def _read_parquet(path_or_none, bucket, key):
     """Read a parquet from a local path if given, else stream from S3 (cached per (bucket, key))."""
     import pandas as pd
+
     if path_or_none is not None:
-        return pd.read_parquet(path_or_none)   # test override — never cached
+        return pd.read_parquet(path_or_none)  # test override — never cached
     return _read_parquet_s3(bucket, key)
 
 
@@ -157,6 +161,7 @@ def _read_parquet_s3(bucket, key):
     import io
     import boto3
     import pandas as pd
+
     body = boto3.client("s3").get_object(Bucket=bucket, Key=key)["Body"].read()
     return pd.read_parquet(io.BytesIO(body))
 

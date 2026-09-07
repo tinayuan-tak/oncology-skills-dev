@@ -6,6 +6,7 @@ per-gene median-Chronos read, so the INVERTED classification (pan-essential ceil
 non-essential floor) + the data-driven bands + the assembly logic are tested
 deterministically offline. Live Chronos reads are exercised end-to-end elsewhere.
 """
+
 from __future__ import annotations
 
 import sys
@@ -26,7 +27,8 @@ def contracts(tmp_path):
     """A minimal target-contracts dir with the dependency_controls vocab."""
     voc = tmp_path / "vocabularies"
     voc.mkdir()
-    (voc / "dependency_controls.yaml").write_text(textwrap.dedent("""
+    (voc / "dependency_controls.yaml").write_text(
+        textwrap.dedent("""
         version: 9.9.9
         chronos_source: {release_pin: 26q1, metric: pan_panel_median_chronos}
         positive_controls:
@@ -35,25 +37,30 @@ def contracts(tmp_path):
         negative_controls:
           NONESS_A: {role: non_essential, applies: universal, empirical_median_chronos_26q1: 0.02}
           NONESS_B: {role: non_essential, applies: universal, empirical_median_chronos_26q1: -0.05}
-    """))
+    """)
+    )
     DC._load_controls.cache_clear()
     return str(tmp_path)
 
 
 # Median Chronos each control gene should return under the mock (matches the fixture).
 _CONTROL_MEDIANS = {
-    "PANESS_DEEP": -2.8, "PANESS_SHALLOW": -1.5,
-    "NONESS_A": 0.02, "NONESS_B": -0.05,
+    "PANESS_DEEP": -2.8,
+    "PANESS_SHALLOW": -1.5,
+    "NONESS_A": 0.02,
+    "NONESS_B": -0.05,
 }
 
 
 def _mock_median(target_value):
     """Return a _median_chronos replacement: controls resolve to their fixture value,
     the target resolves to `target_value` (None to simulate an absent target)."""
+
     def _inner(symbol, release_pin):
         if symbol in _CONTROL_MEDIANS:
             return _CONTROL_MEDIANS[symbol]
         return target_value
+
     return _inner
 
 
@@ -64,8 +71,8 @@ def test_pan_essential_target_flagged_as_tox_liability(contracts, monkeypatch):
     monkeypatch.setattr(DC, "_median_chronos", _mock_median(-2.0))
     r = DC.control_position_dependency("PANESS_TARGET", contracts_dir=contracts)
     assert r["dep_control_position_class"] == "as_essential_as_pan_essential"
-    assert r["dep_control_pan_essential_ceiling"] == -1.5   # least-negative positive
-    assert r["dep_control_non_essential_floor"] == -0.05    # most-negative negative
+    assert r["dep_control_pan_essential_ceiling"] == -1.5  # least-negative positive
+    assert r["dep_control_non_essential_floor"] == -0.05  # most-negative negative
 
 
 def test_selective_dependency_between_controls(contracts, monkeypatch):

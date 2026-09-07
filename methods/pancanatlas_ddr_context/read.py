@@ -8,6 +8,7 @@ LIVE build_per_indication_table() only if the derived parquet is unreachable (de
 Target-INDEPENDENT (tier: indication): the DDR/HRD context is a cohort property; a target maps in
 only as "which indication am I in". Verdict-INERT: no resolver rung.
 """
+
 from __future__ import annotations
 
 from typing import Optional
@@ -27,12 +28,18 @@ def _resolve_derived_uri() -> str:
     never a parallel hand-typed copy that can drift on a re-emit.
     """
     from methods.catalog_query.read import s3_uri_for
+
     return s3_uri_for(DERIVED_MANIFEST_ID)
+
 
 # Map common indication aliases to the TCGA disease codes used in the DDR resource.
 _INDICATION_ALIASES = {
-    "COADREAD": ["COAD", "READ"], "NSCLC": ["LUAD", "LUSC"],
-    "GC": ["STAD"], "PDAC": ["PAAD"], "MELANOMA": ["SKCM"], "CRC": ["COAD", "READ"],
+    "COADREAD": ["COAD", "READ"],
+    "NSCLC": ["LUAD", "LUSC"],
+    "GC": ["STAD"],
+    "PDAC": ["PAAD"],
+    "MELANOMA": ["SKCM"],
+    "CRC": ["COAD", "READ"],
 }
 
 
@@ -42,6 +49,7 @@ from methods.target_id_sidecar import ensure_aws_profile
 def _load_product():
     """Load the materialized per-indication product (S3), else live-build fallback."""
     from methods.derived_product import load_materialized_product
+
     ensure_aws_profile()
     # dev fallback: recompute live from source (slower; ~6s) if the product is unreachable
     return load_materialized_product(_resolve_derived_uri(), dev_build=_cli.build_per_indication_table)
@@ -71,23 +79,28 @@ def _combine_rows(rows) -> dict:
     }
 
 
-def read_ddr_deficiency_context(target: Optional[str] = None,
-                                indication: Optional[str] = None) -> dict:
+def read_ddr_deficiency_context(target: Optional[str] = None, indication: Optional[str] = None) -> dict:
     """Return the ddr-deficiency-context card's summary_fields for the indication.
 
     `target` accepted for the dispatcher signature but NOT consumed (cohort-level, target-independent).
     Returns data_unavailable when the indication is not in the DDR resource.
     """
     if not indication:
-        return {"ddr_context_class": "data_unavailable",
-                "_note": "indication required (DDR context is a per-indication cohort facet)."}
+        return {
+            "ddr_context_class": "data_unavailable",
+            "_note": "indication required (DDR context is a per-indication cohort facet).",
+        }
     df = _load_product()
     codes = _INDICATION_ALIASES.get(indication.upper(), [indication.upper()])
-    rows = [r._asdict() if hasattr(r, "_asdict") else dict(r)
-            for r in (df[df["indication"].isin(codes)]).to_dict("records")]
+    rows = [
+        r._asdict() if hasattr(r, "_asdict") else dict(r) for r in (df[df["indication"].isin(codes)]).to_dict("records")
+    ]
     if not rows:
-        return {"ddr_context_class": "data_unavailable", "indication": indication,
-                "_note": f"{indication} (codes {codes}) not in the PanCanAtlas DDR resource."}
+        return {
+            "ddr_context_class": "data_unavailable",
+            "indication": indication,
+            "_note": f"{indication} (codes {codes}) not in the PanCanAtlas DDR resource.",
+        }
     if len(rows) == 1:
         out = dict(rows[0])
     else:

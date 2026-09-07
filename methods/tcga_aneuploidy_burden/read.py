@@ -5,6 +5,7 @@ scopes to an indication's TCGA project(s) via merged_sample_quality_annotations 
 cancer type — the SAME join functional_gene_state uses), and summarizes the cohort's aneuploidy
 burden distribution + a coarse cohort class. Indication-level (aneuploidy is genome-wide, not per-gene).
 """
+
 from __future__ import annotations
 
 import io
@@ -20,8 +21,17 @@ from methods.catalog_query.read import s3_uri_for
 # the genomic-instability-state card's HRD arm). Resolved lazily (not a module-level constant) so import
 # never breaks before the manifest is registered.
 _HRD_PRODUCT_ID = "tcga-hrd-scar-per-indication-v1"
-_HRD_PRODUCT_FIELDS = ("hrd_class", "hrd_high_fraction", "n_hrd_high", "median_hrd_score",
-                       "p75_hrd_score", "n_samples", "hrd_context", "method_version", "_data_source")
+_HRD_PRODUCT_FIELDS = (
+    "hrd_class",
+    "hrd_high_fraction",
+    "n_hrd_high",
+    "median_hrd_score",
+    "p75_hrd_score",
+    "n_samples",
+    "hrd_context",
+    "method_version",
+    "_data_source",
+)
 
 DEFAULT_AWS_PROFILE = "cbg"
 S3_BUCKET = "onc-compbio"
@@ -45,11 +55,23 @@ _WGD_LOW_FRACTION = 0.20
 # framework indication → TCGA `cancer type` code(s) in merged_sample_quality_annotations
 # (mirrors functional_gene_state.INDICATION_TO_TCGA; kept local to avoid cross-method coupling).
 INDICATION_TO_TCGA = {
-    "COADREAD": ("COAD", "READ"), "COAD": ("COAD",), "READ": ("READ",),
-    "NSCLC": ("LUAD", "LUSC"), "LUAD": ("LUAD",), "LUSC": ("LUSC",),
-    "PAAD": ("PAAD",), "PDAC": ("PAAD",), "GC": ("STAD",), "STAD": ("STAD",),
-    "BRCA": ("BRCA",), "HNSC": ("HNSC",), "HNSCC": ("HNSC",), "ESCA": ("ESCA",),
-    "OV": ("OV",), "PRAD": ("PRAD",), "SKCM": ("SKCM",),
+    "COADREAD": ("COAD", "READ"),
+    "COAD": ("COAD",),
+    "READ": ("READ",),
+    "NSCLC": ("LUAD", "LUSC"),
+    "LUAD": ("LUAD",),
+    "LUSC": ("LUSC",),
+    "PAAD": ("PAAD",),
+    "PDAC": ("PAAD",),
+    "GC": ("STAD",),
+    "STAD": ("STAD",),
+    "BRCA": ("BRCA",),
+    "HNSC": ("HNSC",),
+    "HNSCC": ("HNSC",),
+    "ESCA": ("ESCA",),
+    "OV": ("OV",),
+    "PRAD": ("PRAD",),
+    "SKCM": ("SKCM",),
 }
 # Cohort aneuploidy-burden class cutoffs on MEDIAN frac_altered (fraction of genome CN-altered).
 # Anchored to the pan-cancer spread (Taylor 2018: quiet genomes ~<0.1, highly aneuploid >~0.4).
@@ -89,12 +111,22 @@ _MODEL_MSI_HIGH_SCORE = 20.0
 # "Esophagus/Stomach" and Ovary into "Ovary/Fallopian Tube", so STAD/GC map to the merged lineage
 # (broader than gastric alone — includes esophageal, mirroring the GENIE Esophagogastric breadth note).
 INDICATION_TO_DEPMAP_LINEAGE = {
-    "COADREAD": ("Bowel",), "COAD": ("Bowel",), "READ": ("Bowel",),
-    "NSCLC": ("Lung",), "LUAD": ("Lung",), "LUSC": ("Lung",), "SCLC": ("Lung",),
-    "PAAD": ("Pancreas",), "PDAC": ("Pancreas",),
-    "GC": ("Esophagus/Stomach",), "STAD": ("Esophagus/Stomach",), "ESCA": ("Esophagus/Stomach",),
-    "HNSC": ("Head and Neck",), "HNSCC": ("Head and Neck",),
-    "OV": ("Ovary/Fallopian Tube",), "UCEC": ("Uterus",),
+    "COADREAD": ("Bowel",),
+    "COAD": ("Bowel",),
+    "READ": ("Bowel",),
+    "NSCLC": ("Lung",),
+    "LUAD": ("Lung",),
+    "LUSC": ("Lung",),
+    "SCLC": ("Lung",),
+    "PAAD": ("Pancreas",),
+    "PDAC": ("Pancreas",),
+    "GC": ("Esophagus/Stomach",),
+    "STAD": ("Esophagus/Stomach",),
+    "ESCA": ("Esophagus/Stomach",),
+    "HNSC": ("Head and Neck",),
+    "HNSCC": ("Head and Neck",),
+    "OV": ("Ovary/Fallopian Tube",),
+    "UCEC": ("Uterus",),
 }
 
 # MODEL-side mutational-SIGNATURE arm (DepMap OmicsMolecularSignatureMatrix, SBS exposure COUNTS per
@@ -108,15 +140,15 @@ INDICATION_TO_DEPMAP_LINEAGE = {
 DEPMAP_SIGNATURE_MATRIX_KEY = f"{DEPMAP_PREFIX}/OmicsMolecularSignatureMatrix.csv"
 # COSMIC SBS → etiology groups (from MolecularSignatureEtiologies.csv; the actionable subset).
 _MMR_SIGNATURES = ("SBS6", "SBS14", "SBS15", "SBS20", "SBS21", "SBS26", "SBS44")  # mismatch-repair-deficiency
-_HRD_SIGNATURE = "SBS3"                                                            # defective homologous recombination
+_HRD_SIGNATURE = "SBS3"  # defective homologous recombination
 # A cell line is "MMR-signature-high" when MMR signatures make up >= 20% of its SBS burden (a
 # dominant MMR spectrum); the cohort class is the FRACTION of lines that clear it (mirrors MSI —
 # MMR-deficiency is a subset phenomenon, so the median is uninformative; the tail carries the signal).
-_MMR_SIG_HIGH_FRACTION = 0.20        # per-model: MMR-signature fraction >= this = MMR-sig-high line
-_MMR_COHORT_HIGH = 0.15              # cohort: >= this fraction of lines MMR-sig-high → mmr_signature_enriched
-_MMR_COHORT_LOW = 0.05               # cohort: <= this → mmr_signature_rare
+_MMR_SIG_HIGH_FRACTION = 0.20  # per-model: MMR-signature fraction >= this = MMR-sig-high line
+_MMR_COHORT_HIGH = 0.15  # cohort: >= this fraction of lines MMR-sig-high → mmr_signature_enriched
+_MMR_COHORT_LOW = 0.05  # cohort: <= this → mmr_signature_rare
 # HRD (SBS3) presence: LOW per-model threshold (SBS3 rarely dominates), reported as a weak proxy only.
-_HRD_SIG_PRESENT_FRACTION = 0.10     # per-model: SBS3 >= 10% of burden = "HRD-signature-present" (weak)
+_HRD_SIG_PRESENT_FRACTION = 0.10  # per-model: SBS3 >= 10% of burden = "HRD-signature-present" (weak)
 
 
 from methods.target_id_sidecar import ensure_aws_profile
@@ -124,6 +156,7 @@ from methods.target_id_sidecar import ensure_aws_profile
 
 def _s3_read_bytes(key: str) -> bytes:
     import boto3
+
     ensure_aws_profile()
     s3 = boto3.Session(profile_name=os.environ.get("AWS_PROFILE", DEFAULT_AWS_PROFILE)).client("s3")
     return s3.get_object(Bucket=S3_BUCKET, Key=key)["Body"].read()
@@ -151,6 +184,7 @@ def _load_sample_cancer_types() -> dict:
     """
     import pandas as pd
     from methods.target_id_sidecar import is_definitively_absent
+
     try:
         raw = _s3_read_bytes(SAMPLE_ANNOT_KEY)
         df = pd.read_csv(io.BytesIO(raw), sep="\t", usecols=["patient_barcode", "cancer type"], dtype=str)
@@ -164,7 +198,8 @@ def _load_sample_cancer_types() -> dict:
         raise ValueError(
             f"sample→cancer-type crosswalk s3://{S3_BUCKET}/{SAMPLE_ANNOT_KEY} produced an EMPTY map "
             "(well-formed read, no usable barcode→cancer-type pairs) — a broken/empty product, NOT a "
-            "data gap; returning {} here would silently collapse every indication join.")
+            "data gap; returning {} here would silently collapse every indication join."
+        )
     return out
 
 
@@ -172,14 +207,16 @@ def _load_sample_cancer_types() -> dict:
 def _load_seg_scores():
     """seg_based_scores.tsv → DataFrame (Sample, frac_altered, n_segs, n_extrema). Empty on failure."""
     import pandas as pd
+
     try:
         raw = _s3_read_bytes(SEG_SCORES_KEY)
         return pd.read_csv(io.BytesIO(raw), sep="\t")
     except Exception as e:  # noqa: BLE001
         from methods.target_id_sidecar import is_definitively_absent
+
         if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
-            return pd.DataFrame()   # genuine object-absence → honest empty (verdict-inert)
-        raise                       # broken-env / transient / creds → honest _live_read_error
+            return pd.DataFrame()  # genuine object-absence → honest empty (verdict-inert)
+        raise  # broken-env / transient / creds → honest _live_read_error
 
 
 @lru_cache(maxsize=1)
@@ -187,14 +224,16 @@ def _load_absolute():
     """ABSOLUTE abs_tables → DataFrame (array=sample barcode, purity, ploidy, Genome doublings, …).
     The WGD/ploidy source. Empty on failure."""
     import pandas as pd
+
     try:
         raw = _s3_read_bytes(ABSOLUTE_KEY)
         return pd.read_csv(io.BytesIO(raw), sep="\t")
     except Exception as e:  # noqa: BLE001
         from methods.target_id_sidecar import is_definitively_absent
+
         if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
-            return pd.DataFrame()   # genuine object-absence → honest empty (verdict-inert)
-        raise                       # broken-env / transient / creds → honest _live_read_error
+            return pd.DataFrame()  # genuine object-absence → honest empty (verdict-inert)
+        raise  # broken-env / transient / creds → honest _live_read_error
 
 
 @lru_cache(maxsize=1)
@@ -203,18 +242,20 @@ def _load_absolute_segtabs():
     Modal_HSCN_1, Modal_HSCN_2, LOH, …). The HRD genomic-scar substrate (~1.9M rows). Empty on
     failure. Only the columns HRD scoring needs are read (keeps the ~130 MB file lean)."""
     import pandas as pd
+
     try:
         raw = _s3_read_bytes(ABSOLUTE_SEGTABS_KEY)
         return pd.read_csv(
-            io.BytesIO(raw), sep="\t",
-            usecols=["Sample", "Chromosome", "Start", "End", "Length",
-                     "Modal_HSCN_1", "Modal_HSCN_2", "LOH"],
+            io.BytesIO(raw),
+            sep="\t",
+            usecols=["Sample", "Chromosome", "Start", "End", "Length", "Modal_HSCN_1", "Modal_HSCN_2", "LOH"],
         )
     except Exception as e:  # noqa: BLE001
         from methods.target_id_sidecar import is_definitively_absent
+
         if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
-            return pd.DataFrame()   # genuine object-absence → honest empty (verdict-inert)
-        raise                       # broken-env / transient / creds → honest _live_read_error
+            return pd.DataFrame()  # genuine object-absence → honest empty (verdict-inert)
+        raise  # broken-env / transient / creds → honest _live_read_error
 
 
 def _hrd_from_product(indication: str):
@@ -232,15 +273,18 @@ def _hrd_from_product(indication: str):
         import pandas as pd
         import pyarrow.fs as fs
         import pyarrow.parquet as pq
+
         path = uri.replace("s3://", "", 1)
-        df = pq.read_table(path, filesystem=fs.S3FileSystem(),
-                           filters=[("indication", "=", str(indication or "").upper().strip())]).to_pandas()
+        df = pq.read_table(
+            path, filesystem=fs.S3FileSystem(), filters=[("indication", "=", str(indication or "").upper().strip())]
+        ).to_pandas()
         if df.empty:
-            return None   # indication not in the product → live fallback
+            return None  # indication not in the product → live fallback
         row = df.iloc[0]
 
         def _num(v, cast):
             return None if pd.isna(v) else cast(v)
+
         # Reconstruct the EXACT python types _hrd_score_for_indication_live returns (parquet round-trips
         # numpy types) so the emitted card summary is byte-identical to the live path.
         return {
@@ -256,9 +300,10 @@ def _hrd_from_product(indication: str):
         }
     except Exception as e:  # noqa: BLE001
         from methods.target_id_sidecar import is_definitively_absent
+
         if not (isinstance(e, FileNotFoundError) or is_definitively_absent(e)):
             raise
-        return None   # product object genuinely absent → live segtabs fallback
+        return None  # product object genuinely absent → live segtabs fallback
 
 
 def hrd_score_for_indication(indication: str) -> dict:
@@ -330,9 +375,15 @@ def _hrd_score_for_indication_live(indication: str) -> dict:
 
 def _hrd_unavailable(note: str) -> dict:
     return {
-        "hrd_class": "data_unavailable", "hrd_high_fraction": None, "n_hrd_high": 0,
-        "median_hrd_score": None, "p75_hrd_score": None, "n_samples": 0,
-        "hrd_context": None, "method_version": "0.3.0", "_data_note": note,
+        "hrd_class": "data_unavailable",
+        "hrd_high_fraction": None,
+        "n_hrd_high": 0,
+        "median_hrd_score": None,
+        "p75_hrd_score": None,
+        "n_samples": 0,
+        "hrd_context": None,
+        "method_version": "0.3.0",
+        "_data_note": note,
     }
 
 
@@ -353,6 +404,7 @@ def wgd_summary_for_indication(indication: str) -> dict:
     the WGD fraction (samples with >=1 genome doubling), median ploidy + purity, n_samples.
     data_unavailable when the file/indication is unresolvable."""
     import numpy as np
+
     codes = INDICATION_TO_TCGA.get(str(indication or "").upper().strip())
     if not codes:
         return _wgd_unavailable(f"no TCGA project mapping for indication={indication!r}")
@@ -394,9 +446,15 @@ def wgd_summary_for_indication(indication: str) -> dict:
 
 def _wgd_unavailable(note: str) -> dict:
     return {
-        "wgd_class": "data_unavailable", "wgd_fraction": None, "n_wgd_samples": 0,
-        "median_ploidy": None, "median_purity": None, "n_samples": 0,
-        "wgd_context": None, "method_version": "0.2.0", "_data_note": note,
+        "wgd_class": "data_unavailable",
+        "wgd_fraction": None,
+        "n_wgd_samples": 0,
+        "median_ploidy": None,
+        "median_purity": None,
+        "n_samples": 0,
+        "wgd_context": None,
+        "method_version": "0.2.0",
+        "_data_note": note,
     }
 
 
@@ -405,6 +463,7 @@ def _load_msi_labels(key: str, column: str) -> tuple:
     """(MSI-status, ...) values from a marker-paper subtype CSV. Cached per (file, column).
     Returns a tuple of raw status strings (MSI-H / MSI-L / MSS / …). Empty on failure."""
     import pandas as pd
+
     try:
         raw = _s3_read_bytes(key)
         df = pd.read_csv(io.BytesIO(raw))
@@ -413,9 +472,10 @@ def _load_msi_labels(key: str, column: str) -> tuple:
         return tuple(df[column].dropna().astype(str))
     except Exception as e:  # noqa: BLE001
         from methods.target_id_sidecar import is_definitively_absent
+
         if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
-            return tuple()          # genuine object-absence → honest empty (verdict-inert)
-        raise                       # broken-env / transient / creds → honest _live_read_error
+            return tuple()  # genuine object-absence → honest empty (verdict-inert)
+        raise  # broken-env / transient / creds → honest _live_read_error
 
 
 def _classify_msi(msi_high_fraction: Optional[float]) -> str:
@@ -439,7 +499,8 @@ def msi_summary_for_indication(indication: str) -> dict:
     src = MSI_LABEL_SOURCE.get(ind)
     if src is None:
         return _msi_unavailable(
-            f"no patient-side MSI labels for {indication!r} (CRC + STAD only in TCGA marker papers)")
+            f"no patient-side MSI labels for {indication!r} (CRC + STAD only in TCGA marker papers)"
+        )
     key, column = src
     labels = _load_msi_labels(key, column)
     if not labels:
@@ -455,6 +516,7 @@ def msi_summary_for_indication(indication: str) -> dict:
         if u in ("MSS",):
             return "MSS"
         return None
+
     normed = [n for n in (_norm(v) for v in labels) if n is not None]
     n = len(normed)
     if n == 0:
@@ -466,7 +528,9 @@ def msi_summary_for_indication(indication: str) -> dict:
     return {
         "msi_class": _classify_msi(frac),
         "msi_high_fraction": frac,
-        "n_msi_high": n_high, "n_msi_low": n_low, "n_mss": n_mss,
+        "n_msi_high": n_high,
+        "n_msi_low": n_low,
+        "n_mss": n_mss,
         "n_samples": n,
         "msi_context": (
             f"{indication}: {frac:.0%} MSI-high ({n_high}/{n} evaluable TCGA marker-paper samples; "
@@ -480,9 +544,15 @@ def msi_summary_for_indication(indication: str) -> dict:
 
 def _msi_unavailable(note: str) -> dict:
     return {
-        "msi_class": "data_unavailable", "msi_high_fraction": None,
-        "n_msi_high": 0, "n_msi_low": 0, "n_mss": 0, "n_samples": 0,
-        "msi_context": None, "method_version": "0.2.0", "_data_note": note,
+        "msi_class": "data_unavailable",
+        "msi_high_fraction": None,
+        "n_msi_high": 0,
+        "n_msi_low": 0,
+        "n_mss": 0,
+        "n_samples": 0,
+        "msi_context": None,
+        "method_version": "0.2.0",
+        "_data_note": note,
     }
 
 
@@ -491,15 +561,16 @@ def _load_model_msi_by_lineage():
     """{OncotreeLineage: [MSIScore, ...]} from DepMap OmicsGlobalSignatures joined to Model.csv,
     deduped to one row per ModelID. Empty on failure. The model-side MSI substrate (all lineages)."""
     import pandas as pd
+
     try:
         sig = pd.read_csv(io.BytesIO(_s3_read_bytes(DEPMAP_GLOBAL_SIGNATURES_KEY)))
-        model = pd.read_csv(io.BytesIO(_s3_read_bytes(DEPMAP_MODEL_KEY)),
-                            usecols=["ModelID", "OncotreeLineage"])
+        model = pd.read_csv(io.BytesIO(_s3_read_bytes(DEPMAP_MODEL_KEY)), usecols=["ModelID", "OncotreeLineage"])
     except Exception as e:  # noqa: BLE001
         from methods.target_id_sidecar import is_definitively_absent
+
         if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
-            return {}               # genuine object-absence → honest empty (verdict-inert)
-        raise                       # broken-env / transient / creds → honest _live_read_error
+            return {}  # genuine object-absence → honest empty (verdict-inert)
+        raise  # broken-env / transient / creds → honest _live_read_error
     if "MSIScore" not in sig.columns or "ModelID" not in sig.columns:
         return {}
     sig = sig.dropna(subset=["MSIScore"]).drop_duplicates(subset=["ModelID"])  # one row per model
@@ -532,7 +603,7 @@ def model_msi_summary_for_indication(indication: str) -> dict:
     n_high = sum(1 for s in scores if s >= _MODEL_MSI_HIGH_SCORE)
     frac = n_high / n
     return {
-        "model_msi_class": _classify_msi(frac),   # reuse the same 0.15/0.05 fraction cutoffs
+        "model_msi_class": _classify_msi(frac),  # reuse the same 0.15/0.05 fraction cutoffs
         "model_msi_high_fraction": frac,
         "n_model_msi_high": n_high,
         "n_model_lines": n,
@@ -548,9 +619,13 @@ def model_msi_summary_for_indication(indication: str) -> dict:
 
 def _model_msi_unavailable(note: str) -> dict:
     return {
-        "model_msi_class": "data_unavailable", "model_msi_high_fraction": None,
-        "n_model_msi_high": 0, "n_model_lines": 0,
-        "model_msi_context": None, "method_version": "0.2.0", "_data_note": note,
+        "model_msi_class": "data_unavailable",
+        "model_msi_high_fraction": None,
+        "n_model_msi_high": 0,
+        "n_model_lines": 0,
+        "model_msi_context": None,
+        "method_version": "0.2.0",
+        "_data_note": note,
     }
 
 
@@ -561,15 +636,16 @@ def _load_model_signatures_by_lineage():
     that model's total SBS burden) so a hypermutator doesn't dominate. Deduped per ModelID. Empty
     on failure. Returns a dict of lineage → list of (mmr_frac, hrd_frac) tuples."""
     import pandas as pd, numpy as np
+
     try:
         sig = pd.read_csv(io.BytesIO(_s3_read_bytes(DEPMAP_SIGNATURE_MATRIX_KEY)))
-        model = pd.read_csv(io.BytesIO(_s3_read_bytes(DEPMAP_MODEL_KEY)),
-                            usecols=["ModelID", "OncotreeLineage"])
+        model = pd.read_csv(io.BytesIO(_s3_read_bytes(DEPMAP_MODEL_KEY)), usecols=["ModelID", "OncotreeLineage"])
     except Exception as e:  # noqa: BLE001
         from methods.target_id_sidecar import is_definitively_absent
+
         if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
-            return {}               # genuine object-absence → honest empty (verdict-inert)
-        raise                       # broken-env / transient / creds → honest _live_read_error
+            return {}  # genuine object-absence → honest empty (verdict-inert)
+        raise  # broken-env / transient / creds → honest _live_read_error
     sbs = [c for c in sig.columns if c.startswith("SBS")]
     if not sbs or "ModelID" not in sig.columns:
         return {}
@@ -638,10 +714,15 @@ def model_signature_summary_for_indication(indication: str) -> dict:
 
 def _model_signature_unavailable(note: str) -> dict:
     return {
-        "model_mmr_signature_class": "data_unavailable", "model_mmr_signature_high_fraction": None,
-        "n_model_mmr_signature_high": 0, "model_hrd_signature_present_fraction": None,
-        "n_model_hrd_signature_present": 0, "n_model_signature_lines": 0,
-        "model_signature_context": None, "method_version": "0.2.0", "_data_note": note,
+        "model_mmr_signature_class": "data_unavailable",
+        "model_mmr_signature_high_fraction": None,
+        "n_model_mmr_signature_high": 0,
+        "model_hrd_signature_present_fraction": None,
+        "n_model_hrd_signature_present": 0,
+        "n_model_signature_lines": 0,
+        "model_signature_context": None,
+        "method_version": "0.2.0",
+        "_data_note": note,
     }
 
 
@@ -663,6 +744,7 @@ def aneuploidy_burden_for_indication(indication: str) -> dict:
     Indication-level (genome-wide phenotype); target-independent context. data_unavailable when the
     file/indication is unresolvable."""
     import numpy as np
+
     codes = INDICATION_TO_TCGA.get(str(indication or "").upper().strip())
     if not codes:
         return _unavailable(f"no TCGA project mapping for indication={indication!r}")
@@ -744,10 +826,15 @@ def prewarm(indication: Optional[str] = None) -> None:
     # NOTE: _load_absolute_segtabs (the ~253 MB HRD substrate) is intentionally NOT prewarmed — HRD now
     # reads the per-indication product (_hrd_from_product), so warming the segtabs would download 253 MB
     # for nothing. It is loaded ONLY on the live fallback (product unreachable), which warms it itself.
-    argless = (_load_sample_cancer_types, _load_seg_scores, _load_absolute,
-               _load_model_msi_by_lineage, _load_model_signatures_by_lineage)
+    argless = (
+        _load_sample_cancer_types,
+        _load_seg_scores,
+        _load_absolute,
+        _load_model_msi_by_lineage,
+        _load_model_signatures_by_lineage,
+    )
     ind = str(indication or "").upper().strip()
-    src = MSI_LABEL_SOURCE.get(ind)   # (key, column) for CRC/STAD; None otherwise → no MSI read
+    src = MSI_LABEL_SOURCE.get(ind)  # (key, column) for CRC/STAD; None otherwise → no MSI read
 
     with ThreadPoolExecutor(max_workers=len(argless) + 1) as ex:
         futs = [ex.submit(_safe_prewarm, fn) for fn in argless]

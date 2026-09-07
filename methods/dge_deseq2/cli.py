@@ -65,17 +65,14 @@ def resolve_config(indication: str, catalog_repo: Path | None) -> Path:
     for c in candidates:
         if c.exists():
             return c
-    raise click.ClickException(
-        f"No config found for indication={indication}. Searched: {[str(c) for c in candidates]}"
-    )
+    raise click.ClickException(f"No config found for indication={indication}. Searched: {[str(c) for c in candidates]}")
 
 
 def compute_git_sha(repo_path: Path) -> str:
     """Get the git HEAD sha of the repo (for provenance)."""
     try:
         result = subprocess.run(
-            ["git", "-C", str(repo_path), "rev-parse", "HEAD"],
-            capture_output=True, text=True, check=True
+            ["git", "-C", str(repo_path), "rev-parse", "HEAD"], capture_output=True, text=True, check=True
         )
         return result.stdout.strip()
     except (subprocess.CalledProcessError, FileNotFoundError):
@@ -84,42 +81,76 @@ def compute_git_sha(repo_path: Path) -> str:
 
 @click.command()
 @click.option("--indication", required=True, help="OncoTree code (e.g., COADREAD).")
-@click.option("--contrast", default="tumor_vs_adjacent",
-              type=click.Choice(["tumor_vs_adjacent", "four_cell_sensitivity",
-                                  "tumor_vs_gtex", "subtype_stratified"]),
-              help="DGE contrast. tumor_vs_adjacent = legacy GDC-STAR chain; "
-                   "four_cell_sensitivity = recount3 four-cell discipline "
-                   "(cells A/B/C/D + sensitivity.parquet).")
-@click.option("--gtex-tissue", default=None,
-              help="Override recount3 GTEx tissue code (four_cell_sensitivity only).")
+@click.option(
+    "--contrast",
+    default="tumor_vs_adjacent",
+    type=click.Choice(["tumor_vs_adjacent", "four_cell_sensitivity", "tumor_vs_gtex", "subtype_stratified"]),
+    help="DGE contrast. tumor_vs_adjacent = legacy GDC-STAR chain; "
+    "four_cell_sensitivity = recount3 four-cell discipline "
+    "(cells A/B/C/D + sensitivity.parquet).",
+)
+@click.option("--gtex-tissue", default=None, help="Override recount3 GTEx tissue code (four_cell_sensitivity only).")
 @click.option("--release-pin", required=True, help="Catalog release_pin (e.g., 2026-Q2).")
-@click.option("--catalog-repo", type=click.Path(file_okay=False, path_type=Path),
-              default=Path(os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")),
-              help="Path to the data-catalog repo for config resolution.")
-@click.option("--out", required=True, type=click.Path(file_okay=False, path_type=Path),
-              help="Output directory for intermediate .rds + final parquet + provenance.")
-@click.option("--parquet-uri", default=None,
-              help="Final Parquet destination URI (s3:// or local). Defaults to {out}/result.parquet.")
+@click.option(
+    "--catalog-repo",
+    type=click.Path(file_okay=False, path_type=Path),
+    default=Path(
+        os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
+    ),
+    help="Path to the data-catalog repo for config resolution.",
+)
+@click.option(
+    "--out",
+    required=True,
+    type=click.Path(file_okay=False, path_type=Path),
+    help="Output directory for intermediate .rds + final parquet + provenance.",
+)
+@click.option(
+    "--parquet-uri",
+    default=None,
+    help="Final Parquet destination URI (s3:// or local). Defaults to {out}/result.parquet.",
+)
 @click.option("--threads", type=int, default=4)
-@click.option("--stratify-by", default=None,
-              help="Subgroup axis label (e.g. msi_status). When set with a four_cell_sensitivity "
-                   "contrast, runs the per-subgroup DESeq2 driver (07). Requires "
-                   "--subgroup-assignments-manifest + --strata.")
-@click.option("--subgroup-assignments-manifest", default=None,
-              help="data-catalog derived-manifest id for the subgroup_assignments.parquet "
-                   "(e.g. tcga-subgroup-assignments-coadread-v1). Resolved to a local parquet "
-                   "via subgroup_common.load_assignments (cached).")
-@click.option("--strata", default=None,
-              help="Comma-separated stratum_ids to emit (e.g. MSI_H,MSS).")
-@click.option("--min-subgroup-tumor", type=int, default=10,
-              help="Minimum tumor members for a stratum to be emitted (07 only).")
-@click.option("--gtex-tissue-override", "gtex_tissue", default=None,
-              help="Override recount3 GTEx tissue code (four_cell_sensitivity only).")
+@click.option(
+    "--stratify-by",
+    default=None,
+    help="Subgroup axis label (e.g. msi_status). When set with a four_cell_sensitivity "
+    "contrast, runs the per-subgroup DESeq2 driver (07). Requires "
+    "--subgroup-assignments-manifest + --strata.",
+)
+@click.option(
+    "--subgroup-assignments-manifest",
+    default=None,
+    help="data-catalog derived-manifest id for the subgroup_assignments.parquet "
+    "(e.g. tcga-subgroup-assignments-coadread-v1). Resolved to a local parquet "
+    "via subgroup_common.load_assignments (cached).",
+)
+@click.option("--strata", default=None, help="Comma-separated stratum_ids to emit (e.g. MSI_H,MSS).")
+@click.option(
+    "--min-subgroup-tumor", type=int, default=10, help="Minimum tumor members for a stratum to be emitted (07 only)."
+)
+@click.option(
+    "--gtex-tissue-override",
+    "gtex_tissue",
+    default=None,
+    help="Override recount3 GTEx tissue code (four_cell_sensitivity only).",
+)
 @click.option("--dry-run", is_flag=True, help="Print the Rscript invocation without running it.")
-def main(indication: str, contrast: str, release_pin: str, catalog_repo: Path,
-         out: Path, parquet_uri: str | None, threads: int, stratify_by: str | None,
-         subgroup_assignments_manifest: str | None, strata: str | None,
-         min_subgroup_tumor: int, gtex_tissue: str | None, dry_run: bool) -> int:
+def main(
+    indication: str,
+    contrast: str,
+    release_pin: str,
+    catalog_repo: Path,
+    out: Path,
+    parquet_uri: str | None,
+    threads: int,
+    stratify_by: str | None,
+    subgroup_assignments_manifest: str | None,
+    strata: str | None,
+    min_subgroup_tumor: int,
+    gtex_tissue: str | None,
+    dry_run: bool,
+) -> int:
     """Invoke the DGE DESeq2 R pipeline for an indication × contrast."""
 
     if contrast in ("tumor_vs_gtex", "subtype_stratified"):
@@ -147,6 +178,7 @@ def main(indication: str, contrast: str, release_pin: str, catalog_repo: Path,
         # cache path it writes so the R driver reads the SAME product the read
         # layer will. This keeps the emit-side and read-side member sets identical.
         from methods.subgroup_common.loaders import load_assignments, CACHE_ASSIGNMENTS
+
         load_assignments(subgroup_assignments_manifest, data_catalog_repo=catalog_repo)
         subgroup_parquet = str(CACHE_ASSIGNMENTS / subgroup_assignments_manifest / "assignments.parquet")
         if not Path(subgroup_parquet).exists():
@@ -164,7 +196,8 @@ def main(indication: str, contrast: str, release_pin: str, catalog_repo: Path,
     git_sha = compute_git_sha(METHOD_DIR.parent.parent)
 
     cmd = [
-        "Rscript", str(RUN_PIPELINE),
+        "Rscript",
+        str(RUN_PIPELINE),
         f"--config={config_path}",
         f"--catalog-repo={catalog_repo}",
         f"--git-sha={git_sha}",

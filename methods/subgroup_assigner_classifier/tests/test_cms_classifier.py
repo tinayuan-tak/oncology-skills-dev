@@ -1,6 +1,7 @@
 """cms_classifier (Phase 2) — hermetic: _parse_entrez + _run_cms_classifier reshape with a MOCKED
 Rscript (no R, no DepMap). Validates the tall (sample × CMS stratum, is_member) shape + the
 unclassifiable (NA CMS) path. The real CMScaller NTP run is a compute-session integration (Phase 4)."""
+
 from __future__ import annotations
 
 import subprocess
@@ -26,17 +27,20 @@ def test_parse_entrez():
 
 def _fake_rscript(canned_rows):
     """A subprocess.run stand-in that writes the canned NTP output to the --out parquet."""
+
     def _run(cmd, check=False, **kwargs):
         out = cmd[cmd.index("--out") + 1]
         pd.DataFrame(canned_rows).to_parquet(out, index=False)
+
         class _R:  # noqa: D401 - minimal CompletedProcess stand-in
             returncode = 0
+
         return _R()
+
     return _run
 
 
-_STRATUM_MAP = {"CMS1": "CMS1_depmap", "CMS2": "CMS2_depmap",
-                "CMS3": "CMS3_depmap", "CMS4": "CMS4_depmap"}
+_STRATUM_MAP = {"CMS1": "CMS1_depmap", "CMS2": "CMS2_depmap", "CMS3": "CMS3_depmap", "CMS4": "CMS4_depmap"}
 
 
 def test_cms_reshape_winner_and_unclassifiable(tmp_path, monkeypatch):

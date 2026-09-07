@@ -7,6 +7,7 @@ Precedent semantics: a drug that ENGAGES the target counts (directional filter),
 
 METHOD_VERSION 0.1.0.
 """
+
 from __future__ import annotations
 
 METHOD_VERSION = "0.1.0"

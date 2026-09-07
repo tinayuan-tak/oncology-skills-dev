@@ -7,6 +7,7 @@ case (essential flag absent is NOT reassurance — breadth carries liability);
 (5) data_unavailable (gene absent / no call) vs graceful read failure; (6) card
 contract fields. Classifier + parser are pure; the lookup uses a tiny synthetic TSV.
 """
+
 from __future__ import annotations
 
 import sys
@@ -19,6 +20,7 @@ from methods.hpa_normal_tissue_liability import read as hc_read  # noqa: E402
 
 
 # --- breadth classifier (pure) --------------------------------------------
+
 
 def test_breadth_classifier_bands():
     assert hc.classify_breadth("Detected in all") == "broad_normal_expression"
@@ -36,6 +38,7 @@ def test_breadth_classifier_case_insensitive():
 
 # --- specific-intensity parsing (pure) ------------------------------------
 
+
 def test_parse_multi_tissue_intensity():
     parsed = hc.parse_specific_tissues("intestine: 2.3e5;lymphoid tissue: 1.1e4")
     names = {p["tissue"] for p in parsed}
@@ -52,6 +55,7 @@ def test_parse_empty_and_malformed():
 
 
 # --- essential-tissue flagging (synthetic row) ----------------------------
+
 
 def _row(dist, intensity, spec="Tissue enriched"):
     return {hc.HPA_DIST_COL: dist, hc.HPA_SPEC_COL: spec, hc.HPA_INTENSITY_COL: intensity}
@@ -87,7 +91,7 @@ def test_essential_tissue_flag_trichotomy_2026_08_24():
 def test_gi_flag_separate_from_essential():
     s = hc.compute_summary("X", _row("Detected in some", "intestine: 5e5;stomach: 2e5"))
     assert "gi_tract" in s["safety_tissue_flags"]
-    assert s["n_essential_tissues_with_expression"] == 0   # GI not in essential set
+    assert s["n_essential_tissues_with_expression"] == 0  # GI not in essential set
 
 
 def test_broad_gene_empty_specific_list_still_broad():
@@ -97,8 +101,8 @@ def test_broad_gene_empty_specific_list_still_broad():
     verdict, not just into a narrative flag."""
     s = hc.compute_summary("X", _row("Detected in all", None))
     assert s["normal_tissue_breadth_class"] == "broad_normal_expression"
-    assert s["n_essential_tissues_with_expression"] == 0     # enrichment count (unchanged)
-    assert s["essential_tissue_flag"] == "present"           # but the flag now fires (fix)
+    assert s["n_essential_tissues_with_expression"] == 0  # enrichment count (unchanged)
+    assert s["essential_tissue_flag"] == "present"  # but the flag now fires (fix)
     assert "broad" in s["safety_tissue_flags"]
 
 
@@ -109,6 +113,7 @@ def test_non_essential_named_tissue_no_essential_flag():
 
 
 # --- data_unavailable + lookup --------------------------------------------
+
 
 def _write_hpa_tsv(tmp_path):
     p = tmp_path / "hpa_mini.tsv"
@@ -132,7 +137,7 @@ def test_lookup_broad_gene(tmp_path):
 
 def test_lookup_essential_tissue_gene(tmp_path):
     s = hc.load_and_classify("TACSTD2", hpa_path=_write_hpa_tsv(tmp_path))
-    assert "lung" in s["essential_tissues_flagged"]     # TROP2 essential-tissue liability
+    assert "lung" in s["essential_tissues_flagged"]  # TROP2 essential-tissue liability
     assert s["normal_tissue_breadth_class"] == "broad_normal_expression"
 
 
@@ -143,18 +148,27 @@ def test_gene_absent_is_data_unavailable(tmp_path):
 
 def test_card_contract_fields_present(tmp_path):
     s = hc.load_and_classify("MLANA", hpa_path=_write_hpa_tsv(tmp_path))
-    for f in ("normal_tissue_breadth_class", "hpa_tissue_distribution",
-              "hpa_tissue_specificity", "n_essential_tissues_with_expression",
-              "essential_tissues_flagged", "n_specific_tissues", "specific_tissues",
-              "safety_tissue_flags", "method_version"):
+    for f in (
+        "normal_tissue_breadth_class",
+        "hpa_tissue_distribution",
+        "hpa_tissue_specificity",
+        "n_essential_tissues_with_expression",
+        "essential_tissues_flagged",
+        "n_specific_tissues",
+        "specific_tissues",
+        "safety_tissue_flags",
+        "method_version",
+    ):
         assert f in s, f"missing card-contract field: {f}"
 
 
 # --- graceful degradation --------------------------------------------------
 
+
 def test_read_target_summary_graceful_on_failure(monkeypatch):
     def _boom(*a, **k):
         raise RuntimeError("s3 down")
+
     monkeypatch.setattr(hc, "load_and_classify", _boom)
     out = hc_read.read_target_summary(target="EGFR")
     assert out["normal_tissue_breadth_class"] == "data_unavailable"
@@ -166,20 +180,30 @@ def test_read_target_summary_graceful_on_failure(monkeypatch):
 
 # --- figure emission (viz-coverage backfill 2026-07-20) ------------------
 
+
 def test_emit_normal_tissue_bar_writes_svg(tmp_path):
     """The bar emitter writes an SVG from a summary dict. Covers the with-tissues
     path + the empty-specific-list (broad / not-detected) placeholder path."""
     import pytest
+
     pytest.importorskip("matplotlib")
     TC = "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
-    summ = {"normal_tissue_breadth_class": "broad_normal_expression",
-            "specific_tissues": [{"tissue": "lung", "intensity": 2.2e7},
-                                 {"tissue": "salivary gland", "intensity": 2.4e6}],
-            "essential_tissues_flagged": ["lung"]}
+    summ = {
+        "normal_tissue_breadth_class": "broad_normal_expression",
+        "specific_tissues": [{"tissue": "lung", "intensity": 2.2e7}, {"tissue": "salivary gland", "intensity": 2.4e6}],
+        "essential_tissues_flagged": ["lung"],
+    }
     p = hc.emit_normal_tissue_bar(summ, "TACSTD2", tmp_path / "trop2", TC)
     assert p.exists() and p.stat().st_size > 0
     # empty specific list → informative breadth panel, still an SVG
-    p2 = hc.emit_normal_tissue_bar({"normal_tissue_breadth_class": "not_detected_in_normal",
-                                    "specific_tissues": [], "essential_tissues_flagged": []},
-                                   "MLANA", tmp_path / "mlana", TC)
+    p2 = hc.emit_normal_tissue_bar(
+        {
+            "normal_tissue_breadth_class": "not_detected_in_normal",
+            "specific_tissues": [],
+            "essential_tissues_flagged": [],
+        },
+        "MLANA",
+        tmp_path / "mlana",
+        TC,
+    )
     assert p2.exists()

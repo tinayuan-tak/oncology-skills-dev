@@ -3,6 +3,7 @@
 Pure-logic tests of the grading (no S3): build a synthetic landscape and assert the class. The strong
 class (subtype_restricted_with_window) can't be reached by the broadly-expressed live test targets, so
 it's pinned here. Imports the REAL classifier (no mirror) so there is zero drift risk."""
+
 from __future__ import annotations
 
 import sys
@@ -13,7 +14,8 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from methods.tcga_gtex_expression_distribution.read import (  # noqa: E402
-    classify_subtype_stratification as _classify)
+    classify_subtype_stratification as _classify,
+)
 
 
 def _rec(signal, state="measured", frac_norm=None, proxy_frac=None):
@@ -36,7 +38,7 @@ def test_restricted_with_proxy_window_also_qualifies():
 
 
 def test_restricted_without_window_is_plain_restricted():
-    ls = [_rec("subtype_restricted", frac_norm=0.2)]           # restricted but doesn't clear window
+    ls = [_rec("subtype_restricted", frac_norm=0.2)]  # restricted but doesn't clear window
     assert _classify(ls) == "subtype_restricted"
 
 

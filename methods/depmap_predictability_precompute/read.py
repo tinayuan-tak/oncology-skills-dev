@@ -12,12 +12,11 @@ from __future__ import annotations
 from typing import Optional
 
 
-
 def read_predictability_precompute(target: str, indication: Optional[str] = None) -> dict:
     return {
         "_live_read_error": "no_live_mode",
         "_remediation": "This is a precompute method. Read the derived product "
-                          "via the depmap-predictability card / "
-                          "methods/depmap_predictability/read.py.",
+        "via the depmap-predictability card / "
+        "methods/depmap_predictability/read.py.",
         "predictability_class": "data_unavailable",
     }

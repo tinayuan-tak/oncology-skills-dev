@@ -14,6 +14,7 @@ effect) is read via the `product_path` offline seam. Pins:
   * a genuine 404-class fault → data_unavailable + _live_read_error (never crashes the compose path);
   * a transient/creds error is RE-RAISED (never masked as an empty protein footprint).
 """
+
 from __future__ import annotations
 
 import importlib
@@ -32,25 +33,55 @@ read = importlib.import_module("methods.tphp_tumor_vs_normal_protein.read")
 # The fields the tumor-vs-normal-protein-abundance-tphp card declares in outputs.summary_fields — the
 # reader MUST emit all of them (the drift guard). Kept explicit so a card/reader divergence fails HERE.
 _CARD_SUMMARY_FIELDS = {
-    "cohort", "tissue", "protein_expression_class", "protein_effect_size",
-    "protein_median_log2_tumor", "protein_median_log2_normal", "protein_p_value",
-    "protein_bh_q_value", "n_tumor_samples", "n_normal_samples", "uniprot_ac",
-    "stat_test_used", "method_version",
+    "cohort",
+    "tissue",
+    "protein_expression_class",
+    "protein_effect_size",
+    "protein_median_log2_tumor",
+    "protein_median_log2_normal",
+    "protein_p_value",
+    "protein_bh_q_value",
+    "n_tumor_samples",
+    "n_normal_samples",
+    "uniprot_ac",
+    "stat_test_used",
+    "method_version",
 }
 _EFFECT_VOCAB = {"strong_up", "modest_up", "unchanged", "modest_down", "strong_down", "data_unavailable"}
 
-_COLS = ["gene_symbol", "uniprot_ac", "cohort", "tissue", "n_tumor", "n_normal",
-         "median_log2_tumor", "median_log2_normal", "log2_fc", "p_value", "q_value", "effect"]
+_COLS = [
+    "gene_symbol",
+    "uniprot_ac",
+    "cohort",
+    "tissue",
+    "n_tumor",
+    "n_normal",
+    "median_log2_tumor",
+    "median_log2_normal",
+    "log2_fc",
+    "p_value",
+    "q_value",
+    "effect",
+]
 
 
-def _row(gene, cohort, tissue, log2_fc, effect, q=0.001, n_tumor=40, n_normal=6,
-         med_t=None, med_n=None, uac="P40199"):
+def _row(gene, cohort, tissue, log2_fc, effect, q=0.001, n_tumor=40, n_normal=6, med_t=None, med_n=None, uac="P40199"):
     med_n = 5.0 if med_n is None else med_n
     med_t = (med_n + log2_fc) if med_t is None else med_t
-    return {"gene_symbol": gene, "uniprot_ac": uac, "cohort": cohort, "tissue": tissue,
-            "n_tumor": n_tumor, "n_normal": n_normal, "median_log2_tumor": med_t,
-            "median_log2_normal": med_n, "log2_fc": log2_fc, "p_value": q / 2.0,
-            "q_value": q, "effect": effect}
+    return {
+        "gene_symbol": gene,
+        "uniprot_ac": uac,
+        "cohort": cohort,
+        "tissue": tissue,
+        "n_tumor": n_tumor,
+        "n_normal": n_normal,
+        "median_log2_tumor": med_t,
+        "median_log2_normal": med_n,
+        "log2_fc": log2_fc,
+        "p_value": q / 2.0,
+        "q_value": q,
+        "effect": effect,
+    }
 
 
 def _write_product(tmp_path, rows) -> Path:
@@ -122,7 +153,7 @@ def test_no_indication_returns_best_effect_cohort(tmp_path):
     """Target-only / pan-cancer query (no indication) → the largest-|effect_size| cohort row."""
     prod = _fixture(tmp_path)
     out = read.read_target_summary("CEACAM5", product_path=prod)
-    assert out["cohort"] == "Colon carcinoma"        # |3.0| is the max across the three cohorts
+    assert out["cohort"] == "Colon carcinoma"  # |3.0| is the max across the three cohorts
     assert out["protein_effect_size"] == 3.0
 
 
@@ -154,12 +185,27 @@ def test_indication_map_values_are_verbatim_cohorts():
     """Every mapped cohort string must be one of the product's real cohort names (guards a typo in the
     free-text map — enumerated from S3 2026-08-25)."""
     real_cohorts = {
-        "Breast carcinoma (Luminal A)", "Breast carcinoma (Luminal B, HER2-)", "Breast carcinoma (TNBC)",
-        "Cervical carcinoma", "Colon carcinoma", "Diffused large B-cell carcinoma",
-        "Endometrial carcinoma", "Esophageal carcinoma", "Fallopian tube carcinoma",
-        "Gallbladder carcinoma", "Gastric carcinoma", "Gastrointestinal stromal tumors", "Glioblastoma",
-        "Hepatocellular carcinoma", "Laryngocarcinoma", "Lung carcinoma", "Pancreas carcinoma",
-        "Rectum carcinoma", "Renal carcinoma", "Testis carcinoma", "Thymoma and thymic carcinoma",
+        "Breast carcinoma (Luminal A)",
+        "Breast carcinoma (Luminal B, HER2-)",
+        "Breast carcinoma (TNBC)",
+        "Cervical carcinoma",
+        "Colon carcinoma",
+        "Diffused large B-cell carcinoma",
+        "Endometrial carcinoma",
+        "Esophageal carcinoma",
+        "Fallopian tube carcinoma",
+        "Gallbladder carcinoma",
+        "Gastric carcinoma",
+        "Gastrointestinal stromal tumors",
+        "Glioblastoma",
+        "Hepatocellular carcinoma",
+        "Laryngocarcinoma",
+        "Lung carcinoma",
+        "Pancreas carcinoma",
+        "Rectum carcinoma",
+        "Renal carcinoma",
+        "Testis carcinoma",
+        "Thymoma and thymic carcinoma",
         "Tongue carcinoma",
     }
     unknown = set(read.INDICATION_TO_TPHP_COHORT.values()) - real_cohorts
@@ -168,8 +214,10 @@ def test_indication_map_values_are_verbatim_cohorts():
 
 def test_definitive_absence_degrades_not_crashes(monkeypatch):
     """A genuine 404-class fault → data_unavailable + _live_read_error (honest degrade)."""
+
     def _boom(*a, **k):
         raise FileNotFoundError("no such key")
+
     monkeypatch.setattr(read, "_read_rows_from_derived", _boom)
     out = read.read_target_summary("CEACAM5", indication="COADREAD")
     assert out["_live_read_error"] == "tphp_tumor_vs_normal_protein_read_failed"
@@ -180,8 +228,10 @@ def test_definitive_absence_degrades_not_crashes(monkeypatch):
 def test_transient_fault_is_reraised(monkeypatch):
     """A transient / non-definitive error must NOT be masked as an empty protein footprint — re-raise
     so the live-read seam surfaces the infra failure (absence discipline)."""
+
     def _boom(*a, **k):
         raise RuntimeError("connection reset")
+
     monkeypatch.setattr(read, "_read_rows_from_derived", _boom)
     with pytest.raises(RuntimeError):
         read.read_target_summary("CEACAM5", indication="COADREAD")

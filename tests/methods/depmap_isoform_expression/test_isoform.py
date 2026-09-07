@@ -5,6 +5,7 @@ mocked ENST→gene map, pinning: the log1p→linear expm1 recovery, per-model do
 the expressed-TPM floor, the _MIN_MODELS gate, and the class cutoffs. isoform_summary_for_gene is
 tested via a forced product-read.
 """
+
 from __future__ import annotations
 
 import math
@@ -44,6 +45,7 @@ def test_single_isoform_dominant(monkeypatch):
     monkeypatch.setattr(r, "_MIN_MODELS", 20)
     rows = [{"ENST1.1": 100.0, "ENST2.1": 0.5} for _ in range(25)]  # ENST2 below expressed floor
     import tempfile
+
     d = tempfile.mkdtemp()
     path = _write_csv(Path(d), ["ENST1.1", "ENST2.1"], rows)
     tbl = r.build_isoform_table(local_csv=path)
@@ -60,6 +62,7 @@ def test_isoform_diverse(monkeypatch):
     _setup_map(monkeypatch, {"ENST3": "GENEB", "ENST4": "GENEB", "ENST5": "GENEB"})
     monkeypatch.setattr(r, "_MIN_MODELS", 20)
     import tempfile
+
     d = tempfile.mkdtemp()
     rows = [{"ENST3.1": 30.0, "ENST4.1": 30.0, "ENST5.1": 30.0} for _ in range(22)]
     path = _write_csv(Path(d), ["ENST3.1", "ENST4.1", "ENST5.1"], rows)
@@ -75,6 +78,7 @@ def test_expressed_tpm_floor_excludes_noise(monkeypatch):
     _setup_map(monkeypatch, {"ENST6": "GENEC", "ENST7": "GENEC"})
     monkeypatch.setattr(r, "_MIN_MODELS", 5)
     import tempfile
+
     d = tempfile.mkdtemp()
     rows = [{"ENST6.1": 50.0, "ENST7.1": 0.2} for _ in range(6)]  # ENST7 below floor
     path = _write_csv(Path(d), ["ENST6.1", "ENST7.1"], rows)
@@ -87,6 +91,7 @@ def test_min_models_gate(monkeypatch):
     _setup_map(monkeypatch, {"ENST8": "RAREGENE"})
     monkeypatch.setattr(r, "_MIN_MODELS", 20)
     import tempfile
+
     d = tempfile.mkdtemp()
     rows = [{"ENST8.1": 40.0} for _ in range(5)]  # only 5 models
     path = _write_csv(Path(d), ["ENST8.1"], rows)
@@ -96,14 +101,15 @@ def test_min_models_gate(monkeypatch):
 
 def test_unmapped_transcript_ignored(monkeypatch):
     # a transcript column with no gene map entry is skipped (no crash, no phantom gene).
-    _setup_map(monkeypatch, {"ENST9": "GENED"})   # ENST10 unmapped
+    _setup_map(monkeypatch, {"ENST9": "GENED"})  # ENST10 unmapped
     monkeypatch.setattr(r, "_MIN_MODELS", 5)
     import tempfile
+
     d = tempfile.mkdtemp()
     rows = [{"ENST9.1": 20.0, "ENST10.1": 100.0} for _ in range(6)]
     path = _write_csv(Path(d), ["ENST9.1", "ENST10.1"], rows)
     df = r.build_isoform_table(local_csv=path).to_pandas()
-    assert set(df.gene_symbol) == {"GENED"}       # ENST10 (unmapped) contributes nothing
+    assert set(df.gene_symbol) == {"GENED"}  # ENST10 (unmapped) contributes nothing
     assert df.iloc[0]["dominant_isoform_fraction"] == 1.0
 
 

@@ -18,6 +18,7 @@ evidence, distinct from mRNA/protein abundance and from PREDICTED binding.
 VERDICT-INERT: this classifier feeds a DISPLAY card only. It maps no rule and moves no verdict — the
 surface_modality fit_class resolves off adc-tce-modality-fit; this card adds narrative pMHC context.
 """
+
 from __future__ import annotations
 
 from typing import Optional
@@ -67,13 +68,14 @@ def summarize_epitope(row: Optional[dict]) -> dict:
             "has_cancer_context": False,
             "example_hla_alleles": None,
             "_note": "no human source-protein epitope in IEDB (iedb-epitope-mhc-per-protein-v1) — a "
-                     "WEAK-negative (a positive assay is strong evidence; absence is not confirmed "
-                     "non-epitope) and thus a peptide-centric CANDIDATE not yet experimentally characterised.",
+            "WEAK-negative (a positive assay is strong evidence; absence is not confirmed "
+            "non-epitope) and thus a peptide-centric CANDIDATE not yet experimentally characterised.",
         }
     n_epi = _to_int(row.get("n_epitopes"))
     return {
         "epitope_evidence_class": classify_epitope_evidence(
-            n_epi, row.get("has_tcell_positive"), row.get("has_mhc_ligand_positive")),
+            n_epi, row.get("has_tcell_positive"), row.get("has_mhc_ligand_positive")
+        ),
         "n_epitopes": n_epi,
         "n_mhc_class_i_epitopes": _to_int(row.get("n_mhc_class_i_epitopes")),
         "n_mhc_class_ii_epitopes": _to_int(row.get("n_mhc_class_ii_epitopes")),
@@ -97,7 +99,7 @@ def _to_bool(v) -> Optional[bool]:
     if v is None:
         return None
     try:
-        if v != v:   # NaN
+        if v != v:  # NaN
             return None
     except (TypeError, ValueError):
         pass

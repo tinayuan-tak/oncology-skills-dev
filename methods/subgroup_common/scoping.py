@@ -67,6 +67,7 @@ class JoinCoverage:
       id_convention_warning: True when match_rate is suspiciously low given a
                           non-empty member set — the signature of an id mismatch
     """
+
     subgroup_id: str
     n_members: int
     n_matched: int
@@ -98,10 +99,12 @@ def compute_join_coverage(
     id-convention mismatch surfaces instead of masquerading as an empty stratum.
     """
     assignments = load_assignments(assignments_manifest_id, data_catalog_repo=data_catalog_repo)
-    members = set(assignments.loc[
-        (assignments["stratum_id"] == subgroup_id) & (assignments["is_member"] == True),
-        "sample_id",
-    ])
+    members = set(
+        assignments.loc[
+            (assignments["stratum_id"] == subgroup_id) & (assignments["is_member"] == True),
+            "sample_id",
+        ]
+    )
     data_ids = set(df[sample_id_col].dropna())
     matched = members & data_ids
     n_members = len(members)
@@ -170,8 +173,7 @@ def filter_samples_by_subgroup(
     ]
     member_set = set(members)
     # Guard the join: warns on the id-convention-mismatch signature (Finding 5).
-    compute_join_coverage(df, sample_id_col, subgroup_id, assignments_manifest_id,
-                          data_catalog_repo=data_catalog_repo)
+    compute_join_coverage(df, sample_id_col, subgroup_id, assignments_manifest_id, data_catalog_repo=data_catalog_repo)
     return df[df[sample_id_col].isin(member_set)].copy()
 
 

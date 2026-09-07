@@ -6,6 +6,7 @@ VERDICT-SAFE invariant pinned here: the UNION of the two new labels == the old `
 is an elevated class — so the breadth/coverage rollups (which key on {strong_up, modest_up} /
 data_unavailable, never on the literal `ns`) are unchanged.
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -16,8 +17,7 @@ import pytest
 pytest.importorskip("pandas")
 import numpy as np  # noqa: E402
 
-_STEP = (Path(__file__).resolve().parents[3]
-         / "methods" / "cptac_protein_deg" / "steps" / "03_pool_and_write.py")
+_STEP = Path(__file__).resolve().parents[3] / "methods" / "cptac_protein_deg" / "steps" / "03_pool_and_write.py"
 
 
 def _load():
@@ -32,7 +32,7 @@ _m = _load()
 
 def test_not_significant_when_q_high():
     assert _m.classify(0.1, 0.9) == "not_significant"
-    assert _m.classify(3.0, 0.20) == "not_significant"   # large fc but q>=0.05 → still not significant
+    assert _m.classify(3.0, 0.20) == "not_significant"  # large fc but q>=0.05 → still not significant
 
 
 def test_not_significant_when_stats_missing():
@@ -41,7 +41,7 @@ def test_not_significant_when_stats_missing():
 
 
 def test_small_effect_when_significant_but_small():
-    assert _m.classify(0.5, 1e-4) == "small_effect"      # q<0.05, |logfc|<=0.5
+    assert _m.classify(0.5, 1e-4) == "small_effect"  # q<0.05, |logfc|<=0.5
     assert _m.classify(-0.5, 1e-3) == "small_effect"
     assert _m.classify(0.0, 1e-6) == "small_effect"
 
@@ -70,7 +70,7 @@ def test_variance_aware_real_effect_keeps_up_class_G7():
 
 def test_variance_aware_falls_back_to_raw_bands_when_se_missing_G7():
     """SE / n unavailable (older upstream rows) → fall back to the raw-logFC bands (no downgrade)."""
-    assert _m.classify(2.0, 1e-4) == "strong_up"                       # no se/n
+    assert _m.classify(2.0, 1e-4) == "strong_up"  # no se/n
     assert _m.classify(2.0, 1e-4, se=None, n_tumor=900, n_normal=900) == "strong_up"
     assert _m.classify(2.0, 1e-4, se=float("nan"), n_tumor=9, n_normal=9) == "strong_up"
 
@@ -102,4 +102,4 @@ def test_old_ns_union_preserved_and_not_elevated():
     old_ns_cases = [(0.1, 0.9), (3.0, 0.20), (np.nan, 0.01), (0.5, 1e-4), (0.0, 1e-6)]
     labels = {_m.classify(fc, q) for fc, q in old_ns_cases}
     assert labels <= {"not_significant", "small_effect"}
-    assert labels.isdisjoint({"strong_up", "modest_up"})   # never elevated
+    assert labels.isdisjoint({"strong_up", "modest_up"})  # never elevated

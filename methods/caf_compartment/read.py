@@ -13,6 +13,7 @@ VERDICT-INERT: a stromal-lens display/context reader (immune-context CAF lane). 
 `caf_expression_class` PRIMARY categorical for provenance/availability accounting, but NO
 interpretation rule consumes it — it moves no gate verdict.
 """
+
 from __future__ import annotations
 
 from typing import Optional
@@ -22,13 +23,12 @@ from methods.catalog_query.read import bucket_key_for
 MANIFEST_ID = "sc-pseudobulk-caf-luo-pancancer-v1"
 S3_BUCKET = "onc-compbio"
 
-_PARQUET_COLS = ["gene_symbol", "caf_subtype", "cancer_type",
-                 "n_cells", "detection_fraction", "abundance_log1p_cp10k"]
+_PARQUET_COLS = ["gene_symbol", "caf_subtype", "cancer_type", "n_cells", "detection_fraction", "abundance_log1p_cp10k"]
 
 # Dropout-aware detection cutoffs (mirror the sibling sc reader; below bulk TPM-fraction cutoffs).
-_BROADLY_DETECTED_MIN = 0.5     # a CAF state expressing in >= 50% of its cells
-_SUBSET_DETECTED_MIN = 0.10     # a real expressing CAF-cell subset
-_EXPRESSING_MIN = 0.25          # a (subtype, cancer) group counts as "expressing" this gene
+_BROADLY_DETECTED_MIN = 0.5  # a CAF state expressing in >= 50% of its cells
+_SUBSET_DETECTED_MIN = 0.10  # a real expressing CAF-cell subset
+_EXPRESSING_MIN = 0.25  # a (subtype, cancer) group counts as "expressing" this gene
 
 
 def _summarize(rows) -> dict:
@@ -72,11 +72,11 @@ def _read_gene_rows(target: str):
         return None
     import pyarrow.fs as fs
     import pyarrow.parquet as pq
-    s3fs = fs.S3FileSystem(region="us-east-1")   # default cred chain honours AWS_PROFILE=cbg
+
+    s3fs = fs.S3FileSystem(region="us-east-1")  # default cred chain honours AWS_PROFILE=cbg
     filters = [("gene_symbol", "==", str(target).upper().strip())]
     try:
-        tbl = pq.read_table(f"{S3_BUCKET}/{key}", filesystem=s3fs,
-                            filters=filters, columns=_PARQUET_COLS)
+        tbl = pq.read_table(f"{S3_BUCKET}/{key}", filesystem=s3fs, filters=filters, columns=_PARQUET_COLS)
     except FileNotFoundError:
         return None
     return tbl.to_pandas()
@@ -95,9 +95,9 @@ def read_target_summary(target: str, indication: Optional[str] = None) -> dict:
     if rows is None:
         return _data_unavailable(ind, note=f"No landed sc-pseudobulk CAF product ({MANIFEST_ID}).")
     if rows.empty:
-        return _data_unavailable(ind,
-                                 note=f"{str(target).upper().strip()} absent from {MANIFEST_ID} "
-                                      f"(not measured in the Luo CAF atlas).")
+        return _data_unavailable(
+            ind, note=f"{str(target).upper().strip()} absent from {MANIFEST_ID} (not measured in the Luo CAF atlas)."
+        )
     out = _summarize(rows)
     out["indication"] = ind
     out["product_id"] = MANIFEST_ID

@@ -48,9 +48,15 @@ def _reconstruct_frame(plot_data: "Union[str, Path, object]") -> tuple[dict, dic
     return tpm_by_model, model_metadata
 
 
-def render_from_plot_data(plot_data: "Union[str, Path, object]", summary: dict, out_dir: "Union[str, Path]",
-                          target: str, indication: Optional[str] = None, *,
-                          target_contracts_dir: "Optional[Union[str, Path]]" = None) -> list[dict]:
+def render_from_plot_data(
+    plot_data: "Union[str, Path, object]",
+    summary: dict,
+    out_dir: "Union[str, Path]",
+    target: str,
+    indication: Optional[str] = None,
+    *,
+    target_contracts_dir: "Optional[Union[str, Path]]" = None,
+) -> list[dict]:
     """Render the cellline-rna-distribution figures OFFLINE from persisted plot_data + summary.
 
     plot_data: a DataFrame OR a path to plot_data_expression.parquet.
@@ -67,10 +73,18 @@ def render_from_plot_data(plot_data: "Union[str, Path, object]", summary: dict, 
     _cli.emit_lineage_strip(tpm_by_model, model_metadata, target, summary, out_dir, tcd)
 
     static = [
-        {"id": "density_expression", "path": "figure_density_expression.svg",
-         "type": "density_histogram_with_kde", "primary": True},
-        {"id": "lineage_strip_expression", "path": "figure_lineage_strip_expression.svg",
-         "type": "per_lineage_strip_plot", "primary": False},
+        {
+            "id": "density_expression",
+            "path": "figure_density_expression.svg",
+            "type": "density_histogram_with_kde",
+            "primary": True,
+        },
+        {
+            "id": "lineage_strip_expression",
+            "path": "figure_lineage_strip_expression.svg",
+            "type": "per_lineage_strip_plot",
+            "primary": False,
+        },
     ]
     # Interactive plotly twins from the SAME reconstructed frame (static + interactive can't drift).
     # We RETURN their descriptors (dynamic: True) too — mirroring the skills _plotly_from wrapping — so
@@ -79,8 +93,7 @@ def render_from_plot_data(plot_data: "Union[str, Path, object]", summary: dict, 
     # contributes no dynamic descriptors; the SVGs remain the guaranteed contract.
     dynamic: list[dict] = []
     try:
-        specs = _cli.emit_plotly_specs(tpm_by_model, model_metadata, target, summary, out_dir, tcd,
-                                       indication) or []
+        specs = _cli.emit_plotly_specs(tpm_by_model, model_metadata, target, summary, out_dir, tcd, indication) or []
         dynamic = [{**s, "dynamic": True} for s in specs]
     except Exception:  # noqa: BLE001 — additive interactive twin; SVGs are the contract
         pass

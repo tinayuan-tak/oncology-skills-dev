@@ -17,6 +17,7 @@ derived/cspa-surface-confirmation-per-uniprot-v1/:
 
 Runtime: S3 get → in-process cache via lru_cache on the built index; single lookup per call.
 """
+
 from __future__ import annotations
 
 import io
@@ -39,6 +40,7 @@ from methods.target_id_sidecar import ensure_aws_profile
 
 def _read_parquet(path_or_none, bucket, key):
     import pandas as pd
+
     if path_or_none is not None:
         return pd.read_parquet(path_or_none)
     ensure_aws_profile()
@@ -46,6 +48,7 @@ def _read_parquet(path_or_none, bucket, key):
     # batch reads). A bare boto3.client("s3") had NO retry backoff (mirrors uniprot_gpi_anchor /
     # uniprot_protein_features).
     from methods.target_id_sidecar import s3_client
+
     body = s3_client().get_object(Bucket=bucket, Key=key)["Body"].read()
     return pd.read_parquet(io.BytesIO(body))
 
@@ -65,6 +68,7 @@ def _load_indexed(payload_path: Optional[str] = None, sidecar_path: Optional[str
         # the None — poison the whole process on one blip. Re-raise it; lru_cache never memoizes a
         # raise, so a subsequent call retries (mirrors uniprot_gpi_anchor).
         from methods.target_id_sidecar import is_definitively_absent
+
         if not (is_definitively_absent(e) or isinstance(e, FileNotFoundError)):
             raise
         return None
@@ -85,15 +89,19 @@ def _load_indexed(payload_path: Optional[str] = None, sidecar_path: Optional[str
         # A transient/creds/broken-env failure must NOT be masked (would drop symbol→AC for the whole
         # batch AND poison the lru with a partial index) — re-raise; only genuine absence is swallowed.
         from methods.target_id_sidecar import is_definitively_absent
+
         if not (is_definitively_absent(e) or isinstance(e, FileNotFoundError)):
             raise
     return payload_by_ac, symbol_to_ac
 
 
-def read_surface_confirmation(target: str, indication: Optional[str] = None,
-                              payload_path: Optional[str] = None,
-                              sidecar_path: Optional[str] = None,
-                              hpa_if: Optional[dict] = None) -> dict:
+def read_surface_confirmation(
+    target: str,
+    indication: Optional[str] = None,
+    payload_path: Optional[str] = None,
+    sidecar_path: Optional[str] = None,
+    hpa_if: Optional[dict] = None,
+) -> dict:
     """CSPA surface-confirmation summary for `target` (HGNC symbol or UniProt AC).
 
     A target absent from the CSPA high-confidence master is an HONEST measured negative in the CSPA
@@ -126,7 +134,7 @@ def read_surface_confirmation(target: str, indication: Optional[str] = None,
             "method_version": METHOD_VERSION,
             "_data_source": DERIVED_MANIFEST_ID,
             "_data_note": f"{target!r} not in the CSPA high-confidence surfaceome master "
-                          f"(measured-absent in the 41-cell-line panel, not a coverage gap)",
+            f"(measured-absent in the 41-cell-line panel, not a coverage gap)",
         }
         out.update(_hpa_corroboration(target, "not_surface", hpa_if))
         return out
@@ -158,8 +166,10 @@ def _hpa_corroboration(target: str, cspa_class: str, hpa_if: Optional[dict]) -> 
     if hpa_if is None:
         try:
             import sys as _sys
+
             _sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parent.parent))
             from methods.hpa_subcellular_location.read import read_surface_if_location
+
             hpa_if = read_surface_if_location(target)
         except Exception:  # noqa: BLE001 — HPA leg is corroboration; its absence must not break CSPA
             hpa_if = None
@@ -169,10 +179,10 @@ def _hpa_corroboration(target: str, cspa_class: str, hpa_if: Optional[dict]) -> 
     # CSPA product emits confirmed_high / confirmed / not_surface (VERIFIED against the live parquet —
     # NOT the doc's 'cell_surface_confirmed'; keying on the emitted values avoids the field-drift trap).
     cspa_surface = cspa_class in ("confirmed_high", "confirmed", "cell_surface_confirmed")
-    cspa_neg = (cspa_class == "not_surface")
+    cspa_neg = cspa_class == "not_surface"
     hpa_surface = hpa_pm
-    hpa_neg = (hpa_class == "intracellular_only")
-    hpa_gap = (hpa_class == "location_unavailable" or hpa_if is None)
+    hpa_neg = hpa_class == "intracellular_only"
+    hpa_gap = hpa_class == "location_unavailable" or hpa_if is None
 
     if cspa_surface and hpa_surface:
         support = "corroborated_surface"

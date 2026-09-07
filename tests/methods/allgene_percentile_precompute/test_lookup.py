@@ -5,13 +5,13 @@ Loads the lookup module and monkeypatches its S3-reading inner functions
 logic is tested deterministically offline. The pushdown read itself is exercised
 by the live smoke in the PR description, not here (unit tests stay S3-free).
 """
+
 import importlib.util
 from pathlib import Path
 
 import pytest
 
-LOOKUP = (Path(__file__).resolve().parents[3] / "methods"
-          / "allgene_percentile_precompute" / "lookup.py")
+LOOKUP = Path(__file__).resolve().parents[3] / "methods" / "allgene_percentile_precompute" / "lookup.py"
 
 
 def _load():
@@ -22,6 +22,7 @@ def _load():
 
 
 # ---- DepMap panel-median accessor ----------------------------------------
+
 
 def test_depmap_percentile_classifies_and_audits(monkeypatch):
     lk = _load()
@@ -52,11 +53,13 @@ def test_depmap_percentile_absent_gene_is_data_unavailable(monkeypatch):
 
 # ---- Tumor per-study accessor --------------------------------------------
 
+
 def test_tumor_percentile_averages_over_studies(monkeypatch):
     lk = _load()
     # rows = (group, allgene_percentile, allgene_rank, n_genes_in_group, median)
-    monkeypatch.setattr(lk, "_tumor_rows", lambda ids, source: (
-        ("COAD", 99.9, 5, 41000, 10.9), ("READ", 99.92, 4, 40000, 11.0)))
+    monkeypatch.setattr(
+        lk, "_tumor_rows", lambda ids, source: (("COAD", 99.9, 5, 41000, 10.9), ("READ", 99.92, 4, 40000, 11.0))
+    )
     out = lk.tumor_allgene_percentile(["ENSG1"], ["COAD", "READ"])
     assert out["allgene_percentile"] == pytest.approx((99.9 + 99.92) / 2)
     assert out["allgene_percentile_class"] == "top_1pct"
@@ -69,9 +72,15 @@ def test_tumor_percentile_averages_over_studies(monkeypatch):
 def test_tumor_percentile_filters_to_requested_studies(monkeypatch):
     lk = _load()
     # product returns extra studies; the accessor must keep only the indication's.
-    monkeypatch.setattr(lk, "_tumor_rows", lambda ids, source: (
-        ("COAD", 84.97, 100, 41000, 3.9), ("READ", 83.95, 110, 40000, 3.8),
-        ("LUAD", 50.0, 200, 41000, 2.0)))
+    monkeypatch.setattr(
+        lk,
+        "_tumor_rows",
+        lambda ids, source: (
+            ("COAD", 84.97, 100, 41000, 3.9),
+            ("READ", 83.95, 110, 40000, 3.8),
+            ("LUAD", 50.0, 200, 41000, 2.0),
+        ),
+    )
     out = lk.tumor_allgene_percentile(["ENSG1"], ["COAD", "READ"])
     assert set(out["allgene_percentile_by_study"]) == {"COAD", "READ"}  # LUAD excluded
     assert out["allgene_percentile"] == pytest.approx((84.97 + 83.95) / 2)
@@ -103,5 +112,4 @@ def test_custom_cutoffs_override_defaults(monkeypatch):
     # default: 92 >= 90 → top_decile
     assert lk.depmap_allgene_percentile("X")["allgene_percentile_class"] == "top_decile"
     # raised top_decile cutoff to 95 → 92 now merely mid
-    assert lk.depmap_allgene_percentile(
-        "X", cutoffs={"top_decile": 95.0})["allgene_percentile_class"] == "mid"
+    assert lk.depmap_allgene_percentile("X", cutoffs={"top_decile": 95.0})["allgene_percentile_class"] == "mid"

@@ -17,6 +17,7 @@ Modules:
            compose-dashboard dispatcher imports this — it was missing, so the
            surface-topology card resolved unavailable)
 """
+
 METHOD_VERSION = "0.1.0"
 
 from .read import read_target_summary  # noqa: E402,F401

@@ -4,6 +4,7 @@ an empty frame — while a GENUINE absent product (S3 404 latched upstream -> pa
 data_unavailable, unchanged. Also guards that the raise propagates through the callers
 (read_target_summary / read_all_cohorts) rather than being re-swallowed.
 """
+
 from __future__ import annotations
 
 import sys
@@ -27,7 +28,7 @@ def _clear_lru():
 
 def _point_at_local_cache(monkeypatch, tmp_path):
     fake = tmp_path / "cptac.parquet"
-    fake.write_bytes(b"not-a-real-parquet")            # present-but-corrupt local cache
+    fake.write_bytes(b"not-a-real-parquet")  # present-but-corrupt local cache
     monkeypatch.setattr(cptac, "_ensure_derived_cached", lambda: fake)
 
 
@@ -46,6 +47,7 @@ def test_load_indexed_reraises_corrupt_local_cache(monkeypatch, tmp_path):
 def test_read_target_summary_propagates_broken_env(monkeypatch, tmp_path):
     _point_at_local_cache(monkeypatch, tmp_path)
     import pandas as pd
+
     monkeypatch.setattr(pd, "read_parquet", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom")))
     with pytest.raises(RuntimeError):
         cptac.read_target_summary("EGFR", "COADREAD")
@@ -54,6 +56,7 @@ def test_read_target_summary_propagates_broken_env(monkeypatch, tmp_path):
 def test_read_all_cohorts_propagates_broken_env(monkeypatch, tmp_path):
     _point_at_local_cache(monkeypatch, tmp_path)
     import pandas as pd
+
     monkeypatch.setattr(pd, "read_parquet", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom")))
     with pytest.raises(RuntimeError):
         cptac.read_all_cohorts("EGFR")

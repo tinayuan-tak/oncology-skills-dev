@@ -4,6 +4,7 @@ Uses synthetic long-form DataFrames — no file I/O, no S3.
 Exercises: caller aggregation, outer-join merge, n_events NaN→0 fill,
 callers_supporting list, caller_count, tissue majority-vote.
 """
+
 from __future__ import annotations
 
 import sys
@@ -17,18 +18,33 @@ from tcga_fusion_consensus.cli import build_consensus  # noqa: E402
 
 
 CANONICAL_COLS = [
-    "sample_key", "gene_symbol", "tissue", "caller_count", "callers_supporting",
-    "partners_tumorfusions", "partners_gao_2018", "partners_cbioportal",
-    "frame_preds_tumorfusions", "frame_preds_gao_2018", "frame_preds_cbioportal",
-    "n_events_tumorfusions", "n_events_gao_2018", "n_events_cbioportal",
+    "sample_key",
+    "gene_symbol",
+    "tissue",
+    "caller_count",
+    "callers_supporting",
+    "partners_tumorfusions",
+    "partners_gao_2018",
+    "partners_cbioportal",
+    "frame_preds_tumorfusions",
+    "frame_preds_gao_2018",
+    "frame_preds_cbioportal",
+    "n_events_tumorfusions",
+    "n_events_gao_2018",
+    "n_events_cbioportal",
 ]
 
 
 def _long_row(sample_key, gene, partner, side, tissue, frame, caller, eid):
     return {
-        "sample_key": sample_key, "gene_symbol": gene, "partner_gene": partner,
-        "partner_side": side, "tissue": tissue, "frame_pred": frame,
-        "caller": caller, "event_id": eid,
+        "sample_key": sample_key,
+        "gene_symbol": gene,
+        "partner_gene": partner,
+        "partner_side": side,
+        "tissue": tissue,
+        "frame_pred": frame,
+        "caller": caller,
+        "event_id": eid,
     }
 
 
@@ -37,6 +53,7 @@ def _mk(*rows):
 
 
 # ---------- three-caller unanimous case -----------------------------------
+
 
 def test_three_caller_alk():
     """ALK in sample S1: all three callers agree → caller_count == 3."""
@@ -60,6 +77,7 @@ def test_three_caller_alk():
 
 # ---------- single-caller case (caller_count == 1) ------------------------
 
+
 def test_single_caller_fills_zeros():
     """A (sample, gene) seen only in tumorfusions: other callers get n_events==0,
     partners/frame_preds == [], callers_supporting length == 1."""
@@ -82,6 +100,7 @@ def test_single_caller_fills_zeros():
 
 # ---------- two-caller case (caller_count == 2) ---------------------------
 
+
 def test_two_caller_ros1():
     rows = [
         _long_row("TCGA-BB-0002-01", "ROS1", "CD74", "3prime", "LUAD", "In-frame", "tumorfusions", "r1"),
@@ -98,12 +117,13 @@ def test_two_caller_ros1():
 
 # ---------- multiple events, distinct partners deduplication ---------------
 
+
 def test_distinct_partners_deduplicated():
     """Two rows from the same caller with SAME partner → partners list has length 1."""
     rows = [
         _long_row("TCGA-CC-0003-01", "ALK", "EML4", "3prime", "LUAD", "In-frame", "tumorfusions", "t1"),
         _long_row("TCGA-CC-0003-01", "ALK", "EML4", "3prime", "LUAD", "In-frame", "tumorfusions", "t2"),
-        _long_row("TCGA-CC-0003-01", "ALK", "EML4", "3prime", "LUAD", None,       "gao_2018",     "g1"),
+        _long_row("TCGA-CC-0003-01", "ALK", "EML4", "3prime", "LUAD", None, "gao_2018", "g1"),
     ]
     df = build_consensus(_mk(*rows))
     row = df.iloc[0]
@@ -125,12 +145,13 @@ def test_multiple_distinct_partners():
 
 # ---------- tissue majority-vote ------------------------------------------
 
+
 def test_tissue_majority_vote():
     """Two callers say LUAD, one says None → majority is LUAD."""
     rows = [
         _long_row("TCGA-EE-0005-01", "ALK", "EML4", "3prime", "LUAD", None, "tumorfusions", "t1"),
-        _long_row("TCGA-EE-0005-01", "ALK", "EML4", "3prime", None,   None, "gao_2018",     "g1"),
-        _long_row("TCGA-EE-0005-01", "ALK", "EML4", "3prime", "LUAD", None, "cbioportal",   "c1"),
+        _long_row("TCGA-EE-0005-01", "ALK", "EML4", "3prime", None, None, "gao_2018", "g1"),
+        _long_row("TCGA-EE-0005-01", "ALK", "EML4", "3prime", "LUAD", None, "cbioportal", "c1"),
     ]
     df = build_consensus(_mk(*rows))
     assert df.iloc[0]["tissue"] == "LUAD"
@@ -138,10 +159,11 @@ def test_tissue_majority_vote():
 
 # ---------- multiple samples, multiple genes --------------------------------
 
+
 def test_multiple_samples_sorted():
     rows = [
         _long_row("TCGA-ZZ-9999-01", "FGFR3", "TACC3", "5prime", "LUSC", "In-frame", "tumorfusions", "t1"),
-        _long_row("TCGA-AA-0001-01", "RET",   "KIF5B", "3prime", "LUAD", "In-frame", "gao_2018",     "g1"),
+        _long_row("TCGA-AA-0001-01", "RET", "KIF5B", "3prime", "LUAD", "In-frame", "gao_2018", "g1"),
     ]
     df = build_consensus(_mk(*rows))
     assert len(df) == 2
@@ -152,17 +174,27 @@ def test_multiple_samples_sorted():
 
 # ---------- empty input edge case -----------------------------------------
 
+
 def test_empty_input():
-    empty = pd.DataFrame(columns=[
-        "sample_key", "gene_symbol", "partner_gene", "partner_side",
-        "tissue", "frame_pred", "caller", "event_id",
-    ])
+    empty = pd.DataFrame(
+        columns=[
+            "sample_key",
+            "gene_symbol",
+            "partner_gene",
+            "partner_side",
+            "tissue",
+            "frame_pred",
+            "caller",
+            "event_id",
+        ]
+    )
     df = build_consensus(empty)
     assert list(df.columns) == CANONICAL_COLS
     assert len(df) == 0
 
 
 # ---------- frame_preds deduplication -------------------------------------
+
 
 def test_frame_preds_deduplicated():
     rows = [

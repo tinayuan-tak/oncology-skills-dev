@@ -4,6 +4,7 @@ Interactive twin of emit_mut_vs_wt_strip_plot: Chronos box+strip grouped by muta
 (hotspot mut/WT + damaging mut/WT), reflines at 0 / -1.0. Built from the SAME chronos_by_model +
 hotspot/damaging membership the SVG + plot_data.parquet use — no drift. No S3 (synthetic). Plotly optional.
 """
+
 from __future__ import annotations
 
 import base64
@@ -36,17 +37,20 @@ cli = _load()
 def _decode(v):
     if isinstance(v, dict) and "bdata" in v:
         import numpy as np
-        return np.frombuffer(base64.b64decode(v["bdata"]),
-                             dtype={"f8": "<f8", "f4": "<f4"}[v["dtype"]]).tolist()
+
+        return np.frombuffer(base64.b64decode(v["bdata"]), dtype={"f8": "<f8", "f4": "<f4"}[v["dtype"]]).tolist()
     return list(v)
 
 
 def _fixture():
     chronos = {f"ACH-{i:03d}": (-1.5 + i * 0.06) for i in range(40)}
-    hotspot = {m: (i % 4 == 0) for i, m in enumerate(chronos)}   # 25% hotspot-mutant
+    hotspot = {m: (i % 4 == 0) for i, m in enumerate(chronos)}  # 25% hotspot-mutant
     damaging = {m: (i % 5 == 0) for i, m in enumerate(chronos)}  # 20% damaging
-    summary = {"mutation_stratification_class": "mutant_strongly_dependent",
-               "hotspot_mannwhitney_q": 1e-4, "damaging_mannwhitney_q": 0.03}
+    summary = {
+        "mutation_stratification_class": "mutant_strongly_dependent",
+        "hotspot_mannwhitney_q": 1e-4,
+        "damaging_mannwhitney_q": 0.03,
+    }
     return chronos, hotspot, damaging, summary
 
 
@@ -81,8 +85,7 @@ def test_reference_lines_at_chronos_thresholds():
         out = Path(d)
         cli.emit_plotly_specs(chronos, hot, dam, "KRAS", summary, out, CONTRACTS)
         obj = json.loads((out / "figure_mut_vs_wt_strip.plotly.json").read_text())
-        yvals = {round(s.get("y0", -99), 2) for s in obj["layout"].get("shapes", [])
-                 if s.get("y0") == s.get("y1")}
+        yvals = {round(s.get("y0", -99), 2) for s in obj["layout"].get("shapes", []) if s.get("y0") == s.get("y1")}
         assert {0.0, -1.0} <= yvals, f"missing reflines; got {yvals}"
 
 

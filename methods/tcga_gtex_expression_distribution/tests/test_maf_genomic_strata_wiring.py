@@ -7,6 +7,7 @@ base -v1 shards. This pins (a) the -maf map covers exactly the indications with 
 powered -maf shard, (b) every -maf indication is also a base indication (a genomic-only indication
 would have no pooled distribution to stratify), and (c) the union helper's shape. S3-free (parses the
 module literals + the helper's no-fetch branches; the live union is exercised by the module smoke test)."""
+
 from __future__ import annotations
 
 import sys

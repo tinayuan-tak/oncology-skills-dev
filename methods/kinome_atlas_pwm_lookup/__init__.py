@@ -32,4 +32,5 @@ Modules:
     loader  — S3-first with md5-verify caching; mirrors
               methods/dge_deseq2/gene_lengths.load_gene_lengths shape.
 """
+
 METHOD_VERSION = "0.1.0"

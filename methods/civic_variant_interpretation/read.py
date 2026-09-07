@@ -8,6 +8,7 @@ Fuses three CIViC snapshot TSVs (all on a single molecular_profile_id join axis)
 Emits per-(gene) the set of interpreted variants with an oncogenicity class + resistance class,
 plus gene-level rollups (has_oncogenic_variant, resistance_variant_count, …). DISPLAY facet.
 """
+
 from __future__ import annotations
 
 import io
@@ -23,7 +24,7 @@ _ASSERTION_KEY = f"{CIVIC_PREFIX}/nightly-AssertionSummaries.tsv"
 _ASSERTION_ONCOGENICITY = {
     "Oncogenic": "oncogenic",
     "Likely Oncogenic": "likely_oncogenic",
-    "Pathogenic": "oncogenic",           # germline-cancer-predisposing curated as pathogenic
+    "Pathogenic": "oncogenic",  # germline-cancer-predisposing curated as pathogenic
     "Likely Pathogenic": "likely_oncogenic",
     "Benign": "benign",
     "Likely Benign": "benign",
@@ -54,9 +55,11 @@ from methods.target_id_sidecar import ensure_aws_profile
 
 def _read_tsv(key: str):
     import pandas as pd
+
     ensure_aws_profile()
     import boto3
-    s3 = boto3.client("s3")   # ensure_aws_profile() has set AWS_PROFILE in the environment
+
+    s3 = boto3.client("s3")  # ensure_aws_profile() has set AWS_PROFILE in the environment
     body = s3.get_object(Bucket=S3_BUCKET, Key=key)["Body"].read()
     return pd.read_csv(io.BytesIO(body), sep="\t", dtype=str)
 
@@ -68,8 +71,9 @@ def _mp_to_gene_variant() -> dict:
     excluded — their evidence is combination biology, not a single gene's per-variant call."""
     vs = _read_tsv(_VARIANT_KEY)
     out = {}
-    for mpid, gene, variant in zip(vs.get("single_variant_molecular_profile_id", []),
-                                   vs.get("gene", []), vs.get("variant", [])):
+    for mpid, gene, variant in zip(
+        vs.get("single_variant_molecular_profile_id", []), vs.get("gene", []), vs.get("variant", [])
+    ):
         if mpid and isinstance(mpid, str) and gene and isinstance(gene, str):
             out[mpid] = (gene, variant if isinstance(variant, str) else "")
     return out
@@ -95,20 +99,29 @@ def _load() -> dict:
             return None
         gene, variant = gv
         g = acc.setdefault(gene, {})
-        return g.setdefault(variant, {
-            "variant": variant, "oncogenicity_class": "data_unavailable",
-            "resistance_class": "no_resistance_annotation", "resistance_therapies": set(),
-            "n_evidence": 0, "n_oncogenic_evidence": 0, "n_functional_evidence": 0,
-            "n_resistance_evidence": 0, "n_sensitivity_evidence": 0,
-        })
+        return g.setdefault(
+            variant,
+            {
+                "variant": variant,
+                "oncogenicity_class": "data_unavailable",
+                "resistance_class": "no_resistance_annotation",
+                "resistance_therapies": set(),
+                "n_evidence": 0,
+                "n_oncogenic_evidence": 0,
+                "n_functional_evidence": 0,
+                "n_resistance_evidence": 0,
+                "n_sensitivity_evidence": 0,
+            },
+        )
 
     def _bump_oncogenicity(slot, cls):
         if _ONCOGENICITY_RANK.get(cls, 0) > _ONCOGENICITY_RANK.get(slot["oncogenicity_class"], 0):
             slot["oncogenicity_class"] = cls
 
     # ---- Assertions first (graded, authoritative) ----
-    for mpid, atype, sig in zip(asrt.get("molecular_profile_id", []),
-                                asrt.get("assertion_type", []), asrt.get("significance", [])):
+    for mpid, atype, sig in zip(
+        asrt.get("molecular_profile_id", []), asrt.get("assertion_type", []), asrt.get("significance", [])
+    ):
         slot = _slot(mpid)
         if slot is None:
             continue
@@ -123,11 +136,13 @@ def _load() -> dict:
         if slot is None:
             continue
         slot["n_evidence"] += 1
-        etype = r.get("evidence_type"); edir = r.get("evidence_direction"); sig = r.get("significance")
+        etype = r.get("evidence_type")
+        edir = r.get("evidence_direction")
+        sig = r.get("significance")
         if etype == "Oncogenic":
             slot["n_oncogenic_evidence"] += 1
             if edir == "Supports":
-                _bump_oncogenicity(slot, "likely_oncogenic")   # supported-oncogenic w/o graded assertion
+                _bump_oncogenicity(slot, "likely_oncogenic")  # supported-oncogenic w/o graded assertion
             elif edir == "Does Not Support":
                 _bump_oncogenicity(slot, "vus")
         elif etype == "Functional":
@@ -176,18 +191,21 @@ def civic_interpretation_for_gene(target: str) -> dict:
     if not gene_variants:
         return {
             "civic_variant_class": "data_unavailable",
-            "has_oncogenic_variant": None, "strongest_oncogenicity_class": "data_unavailable",
-            "n_interpreted_variants": 0, "resistance_variant_count": 0,
-            "resistance_variants": [], "oncogenic_variants": [],
+            "has_oncogenic_variant": None,
+            "strongest_oncogenicity_class": "data_unavailable",
+            "n_interpreted_variants": 0,
+            "resistance_variant_count": 0,
+            "resistance_variants": [],
+            "oncogenic_variants": [],
             "civic_interpretation_context": f"no single-variant CIViC evidence for {sym}",
         }
     variants = list(gene_variants.values())
     onc = [v for v in variants if v["oncogenicity_class"] in ("oncogenic", "likely_oncogenic")]
     res = [v for v in variants if v["resistance_class"] != "no_resistance_annotation"]
-    strongest = max((v["oncogenicity_class"] for v in variants),
-                    key=lambda c: _ONCOGENICITY_RANK.get(c, 0))
-    onc_sorted = sorted(variants, key=lambda v: (-_ONCOGENICITY_RANK.get(v["oncogenicity_class"], 0),
-                                                 -v["n_evidence"], v["variant"]))
+    strongest = max((v["oncogenicity_class"] for v in variants), key=lambda c: _ONCOGENICITY_RANK.get(c, 0))
+    onc_sorted = sorted(
+        variants, key=lambda v: (-_ONCOGENICITY_RANK.get(v["oncogenicity_class"], 0), -v["n_evidence"], v["variant"])
+    )
     res_sorted = sorted(res, key=lambda v: (-v["n_resistance_evidence"], v["variant"]))
     return {
         # a compact gene-level headline class: the strongest oncogenicity, or resistance-only note.
@@ -197,16 +215,23 @@ def civic_interpretation_for_gene(target: str) -> dict:
         "n_interpreted_variants": len(variants),
         "resistance_variant_count": len(res),
         "resistance_variants": [
-            {"variant": v["variant"], "resistance_class": v["resistance_class"],
-             "therapies": v["resistance_therapies"], "n_evidence": v["n_resistance_evidence"]}
-            for v in res_sorted[:10]],
+            {
+                "variant": v["variant"],
+                "resistance_class": v["resistance_class"],
+                "therapies": v["resistance_therapies"],
+                "n_evidence": v["n_resistance_evidence"],
+            }
+            for v in res_sorted[:10]
+        ],
         "oncogenic_variants": [
-            {"variant": v["variant"], "oncogenicity_class": v["oncogenicity_class"],
-             "n_evidence": v["n_evidence"]}
-            for v in onc_sorted if v["oncogenicity_class"] in ("oncogenic", "likely_oncogenic")][:10],
+            {"variant": v["variant"], "oncogenicity_class": v["oncogenicity_class"], "n_evidence": v["n_evidence"]}
+            for v in onc_sorted
+            if v["oncogenicity_class"] in ("oncogenic", "likely_oncogenic")
+        ][:10],
         "civic_interpretation_context": (
             f"{len(variants)} single-variant CIViC profiles for {sym}: "
-            f"{len(onc)} oncogenic/likely, {len(res)} with resistance annotation"),
+            f"{len(onc)} oncogenic/likely, {len(res)} with resistance annotation"
+        ),
     }
 
 
@@ -214,34 +239,42 @@ def build_civic_interpretation_table():
     """Materialize the per-gene CIViC interpretation table (one row per gene with evidence).
     Gene-sorted for the gene-keyed product invariant."""
     import pyarrow as pa
+
     idx = _load()
     rows = []
     for gene in sorted(idx):
         g = civic_interpretation_for_gene(gene)
-        rows.append({
-            "gene_symbol": gene,
-            "civic_variant_class": g["strongest_oncogenicity_class"],
-            "has_oncogenic_variant": bool(g["has_oncogenic_variant"]),
-            "n_interpreted_variants": g["n_interpreted_variants"],
-            "resistance_variant_count": g["resistance_variant_count"],
-            # top oncogenic + resistance variants as compact strings (parquet-friendly)
-            "oncogenic_variants": "; ".join(
-                f"{v['variant']}:{v['oncogenicity_class']}" for v in g["oncogenic_variants"]),
-            "resistance_variants": "; ".join(
-                f"{v['variant']}:{v['resistance_class']}({'/'.join(v['therapies'][:3])})"
-                for v in g["resistance_variants"]),
-        })
+        rows.append(
+            {
+                "gene_symbol": gene,
+                "civic_variant_class": g["strongest_oncogenicity_class"],
+                "has_oncogenic_variant": bool(g["has_oncogenic_variant"]),
+                "n_interpreted_variants": g["n_interpreted_variants"],
+                "resistance_variant_count": g["resistance_variant_count"],
+                # top oncogenic + resistance variants as compact strings (parquet-friendly)
+                "oncogenic_variants": "; ".join(
+                    f"{v['variant']}:{v['oncogenicity_class']}" for v in g["oncogenic_variants"]
+                ),
+                "resistance_variants": "; ".join(
+                    f"{v['variant']}:{v['resistance_class']}({'/'.join(v['therapies'][:3])})"
+                    for v in g["resistance_variants"]
+                ),
+            }
+        )
     return pa.Table.from_pylist(rows, schema=_schema())
 
 
 def _schema():
     import pyarrow as pa
-    return pa.schema([
-        pa.field("gene_symbol", pa.string()),
-        pa.field("civic_variant_class", pa.string()),
-        pa.field("has_oncogenic_variant", pa.bool_()),
-        pa.field("n_interpreted_variants", pa.int64()),
-        pa.field("resistance_variant_count", pa.int64()),
-        pa.field("oncogenic_variants", pa.string()),
-        pa.field("resistance_variants", pa.string()),
-    ])
+
+    return pa.schema(
+        [
+            pa.field("gene_symbol", pa.string()),
+            pa.field("civic_variant_class", pa.string()),
+            pa.field("has_oncogenic_variant", pa.bool_()),
+            pa.field("n_interpreted_variants", pa.int64()),
+            pa.field("resistance_variant_count", pa.int64()),
+            pa.field("oncogenic_variants", pa.string()),
+            pa.field("resistance_variants", pa.string()),
+        ]
+    )

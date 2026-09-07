@@ -7,6 +7,7 @@ SoupX/DecontX step in the pseudobulk build); it is a verdict-INERT flag that fir
 malignant_subset_detected call's detection sits within the plausible-soup fraction of a much-more-detected
 non-malignant compartment, so a consumer treats the tumor-cell-intrinsic attribution with caution.
 """
+
 from __future__ import annotations
 
 import sys
@@ -19,11 +20,21 @@ from methods.sc_tumor_expression_celltype import stats as S  # noqa: E402
 
 
 def _cs(mal_det, immune_det, n_cells=1000):
-    cs = {"malignant": {"n_donors": 6, "n_cells_total": n_cells,
-                        "median_detection_fraction": mal_det, "median_abundance_log1p_cp10k": 1.0}}
+    cs = {
+        "malignant": {
+            "n_donors": 6,
+            "n_cells_total": n_cells,
+            "median_detection_fraction": mal_det,
+            "median_abundance_log1p_cp10k": 1.0,
+        }
+    }
     if immune_det is not None:
-        cs["immune"] = {"n_donors": 8, "n_cells_total": 5000,
-                        "median_detection_fraction": immune_det, "median_abundance_log1p_cp10k": 2.0}
+        cs["immune"] = {
+            "n_donors": 8,
+            "n_cells_total": 5000,
+            "median_detection_fraction": immune_det,
+            "median_abundance_log1p_cp10k": 2.0,
+        }
     return cs
 
 

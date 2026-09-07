@@ -17,4 +17,5 @@ Micro-benchmark (COADREAD, 2026-08-10): 669 samples x 14 pathways scored in ~28s
 Emits pathway_activity_class + relatively_high/low_pathways + target_pathway_membership. VERDICT-INERT:
 no resolver rung — sibling of phospho-pathway-activity / signaling-network-mechanism in the Mechanism space.
 """
+
 from .read import read_progeny_pathway_activity, METHOD_VERSION  # noqa: F401

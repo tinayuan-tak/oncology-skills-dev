@@ -69,6 +69,7 @@ def _log(msg: str) -> None:
     """Emit a fetch-progress line to stderr."""
     try:
         import click
+
         click.echo(msg, err=True)
     except ImportError:
         print(msg, file=sys.stderr)
@@ -84,6 +85,7 @@ def clear_all_caches() -> None:
 
 
 # ---------- Source-data loaders (source-side; Phase 2a.1-3 consumers) ------
+
 
 @lru_cache(maxsize=32)
 def load_tcga_marker_paper_subtypes(indication: str) -> pd.DataFrame:
@@ -173,8 +175,7 @@ def load_depmap_somatic_mutations() -> pd.DataFrame:
             _log(f"[subgroup_common] loaded DepMap somatic mutations from {path}")
             return pd.read_csv(path)
     raise FileNotFoundError(
-        f"DepMap OmicsSomaticMutations.csv not found in cache. "
-        f"Expected at {CACHE_DEPMAP} or {LEGACY_DEPMAP}."
+        f"DepMap OmicsSomaticMutations.csv not found in cache. Expected at {CACHE_DEPMAP} or {LEGACY_DEPMAP}."
     )
 
 
@@ -201,12 +202,12 @@ def _load_depmap_expression_full() -> pd.DataFrame:
             _log(f"[subgroup_common] loaded DepMap expression matrix from {path}")
             return pd.read_csv(path, index_col=0)
     raise FileNotFoundError(
-        f"DepMap expression matrix not found in cache. "
-        f"Expected at {CACHE_DEPMAP} or {LEGACY_DEPMAP}."
+        f"DepMap expression matrix not found in cache. Expected at {CACHE_DEPMAP} or {LEGACY_DEPMAP}."
     )
 
 
 # ---------- Assignment-product loader (Phase-3 Path B consumer) ------------
+
 
 @lru_cache(maxsize=64)
 def load_assignments(manifest_id: str, data_catalog_repo: Path | None = None) -> pd.DataFrame:
@@ -226,7 +227,9 @@ def load_assignments(manifest_id: str, data_catalog_repo: Path | None = None) ->
       derivation_source, derivation_value, evaluated_at_release.
     """
     if data_catalog_repo is None:
-        data_catalog_repo = Path(os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"))
+        data_catalog_repo = Path(
+            os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
+        )
 
     # Resolution order mirrors the source loaders above: session cache first,
     # then the data-catalog derived manifest's S3 pointer (Phase 2b/c). The
@@ -250,6 +253,7 @@ def load_assignments(manifest_id: str, data_catalog_repo: Path | None = None) ->
         )
 
     import yaml
+
     manifest = yaml.safe_load(manifest_path.read_text())
     s3_uri = manifest.get("s3_uri")
     if not s3_uri:
@@ -262,8 +266,8 @@ def load_assignments(manifest_id: str, data_catalog_repo: Path | None = None) ->
     parquet_local.parent.mkdir(parents=True, exist_ok=True)
     _log(f"[subgroup_common] fetching assignments for {manifest_id} from {s3_uri}")
     import subprocess
-    r = subprocess.run(["aws", "s3", "cp", s3_uri, str(parquet_local), "--no-progress"],
-                       capture_output=True, text=True)
+
+    r = subprocess.run(["aws", "s3", "cp", s3_uri, str(parquet_local), "--no-progress"], capture_output=True, text=True)
     if r.returncode != 0 or not parquet_local.exists():
         raise FileNotFoundError(
             f"S3 fetch of {manifest_id} failed ({s3_uri}): {r.stderr.strip()[:200]}. "

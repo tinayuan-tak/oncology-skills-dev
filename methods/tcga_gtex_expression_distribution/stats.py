@@ -12,21 +12,23 @@ Cutoff convention (plan-decided, DUAL — routed by metric type):
     cutoffs, target-specific, tied to the therapeutic-window framing.
 All cutoffs are parameters here and are surfaced in the card's `thresholds:` block (reviewable).
 """
+
 from __future__ import annotations
 
 from methods.normal_tissue_safety_common import GTEX_ESSENTIAL_TISSUES
 
 # log2(TPM+1) absolute cutoffs anchored to DepMap's convention (detectable/high match
 # depmap_expression_distribution; moderate added for the spec's detectable/moderate/high tiers).
-DETECTABLE_LOG2TPM = 1.0      # TPM ≈ 1
-MODERATE_LOG2TPM = 3.4594     # log2(11) ≈ TPM 10
-HIGH_LOG2TPM = 5.6724         # log2(51) ≈ TPM 50
+DETECTABLE_LOG2TPM = 1.0  # TPM ≈ 1
+MODERATE_LOG2TPM = 3.4594  # log2(11) ≈ TPM 10
+HIGH_LOG2TPM = 5.6724  # log2(51) ≈ TPM 50
 
 
 def five_number(values) -> dict:
     """min/q1/median/q3/max + p5/p95/p99 + mean/sd/n for a per-sample log2(TPM+1) vector.
     Empty input → all-None with n=0 (honest coverage gap, never a fabricated zero)."""
     import numpy as np
+
     a = np.asarray(values, dtype=float)
     a = a[~np.isnan(a)]
     if a.size == 0:
@@ -34,11 +36,16 @@ def five_number(values) -> dict:
         return {k: (0 if k == "n" else None) for k in keys}
     return {
         "n": int(a.size),
-        "min": float(np.min(a)), "p5": float(np.percentile(a, 5)),
-        "q1": float(np.percentile(a, 25)), "median": float(np.median(a)),
-        "q3": float(np.percentile(a, 75)), "p95": float(np.percentile(a, 95)),
-        "p99": float(np.percentile(a, 99)), "max": float(np.max(a)),
-        "mean": float(np.mean(a)), "sd": float(np.std(a)),
+        "min": float(np.min(a)),
+        "p5": float(np.percentile(a, 5)),
+        "q1": float(np.percentile(a, 25)),
+        "median": float(np.median(a)),
+        "q3": float(np.percentile(a, 75)),
+        "p95": float(np.percentile(a, 95)),
+        "p99": float(np.percentile(a, 99)),
+        "max": float(np.max(a)),
+        "mean": float(np.mean(a)),
+        "sd": float(np.std(a)),
     }
 
 
@@ -46,6 +53,7 @@ def coefficient_of_variation(log2tpm_values) -> float:
     """CoV (sd/mean) on LINEAR TPM (undo log2(TPM+1) first — CoV on log values is meaningless).
     Divide-by-zero-safe: returns 0.0 when the linear mean is ~0 (all-unexpressed)."""
     import numpy as np
+
     a = np.asarray(log2tpm_values, dtype=float)
     a = a[~np.isnan(a)]
     if a.size == 0:
@@ -57,13 +65,13 @@ def coefficient_of_variation(log2tpm_values) -> float:
     return float(np.std(lin) / mean)
 
 
-def expression_fractions(log2tpm_values,
-                         detectable=DETECTABLE_LOG2TPM,
-                         moderate=MODERATE_LOG2TPM,
-                         high=HIGH_LOG2TPM) -> dict:
+def expression_fractions(
+    log2tpm_values, detectable=DETECTABLE_LOG2TPM, moderate=MODERATE_LOG2TPM, high=HIGH_LOG2TPM
+) -> dict:
     """Fraction of samples that are detectable / moderate+ / high+ (ABSOLUTE TPM-anchored cutoffs).
     The spec emphasizes the FRACTION above a biologically meaningful threshold over the median."""
     import numpy as np
+
     a = np.asarray(log2tpm_values, dtype=float)
     a = a[~np.isnan(a)]
     if a.size == 0:
@@ -82,6 +90,7 @@ def distribution_pattern(log2tpm_values, detectable=DETECTABLE_LOG2TPM, high=HIG
     high/-low split for patient selection); long_tail = rare high minority on a mostly-off panel;
     else continuous. n<8 → continuous (too few to call)."""
     import numpy as np
+
     a = np.asarray(log2tpm_values, dtype=float)
     a = a[~np.isnan(a)]
     if a.size < 8:
@@ -104,17 +113,26 @@ def fraction_above_normal_percentile(tumor_log2tpm, normal_log2tpm, percentile=9
     Returns {normal_pN, fraction_tumor_above, n_tumor, n_normal} for the given percentile.
     None when either arm is empty (coverage gap)."""
     import numpy as np
-    t = np.asarray(tumor_log2tpm, dtype=float); t = t[~np.isnan(t)]
-    nrm = np.asarray(normal_log2tpm, dtype=float); nrm = nrm[~np.isnan(nrm)]
+
+    t = np.asarray(tumor_log2tpm, dtype=float)
+    t = t[~np.isnan(t)]
+    nrm = np.asarray(normal_log2tpm, dtype=float)
+    nrm = nrm[~np.isnan(nrm)]
     if t.size == 0 or nrm.size == 0:
-        return {"percentile": percentile, "normal_pN": None,
-                "fraction_tumor_above": None, "n_tumor": int(t.size), "n_normal": int(nrm.size)}
+        return {
+            "percentile": percentile,
+            "normal_pN": None,
+            "fraction_tumor_above": None,
+            "n_tumor": int(t.size),
+            "n_normal": int(nrm.size),
+        }
     cutoff = float(np.percentile(nrm, percentile))
     return {
         "percentile": percentile,
         "normal_pN": cutoff,
         "fraction_tumor_above": float(np.mean(t > cutoff)),
-        "n_tumor": int(t.size), "n_normal": int(nrm.size),
+        "n_tumor": int(t.size),
+        "n_normal": int(nrm.size),
     }
 
 
@@ -128,8 +146,7 @@ def fraction_above_normal_percentile(tumor_log2tpm, normal_log2tpm, percentile=9
 CRITICAL_NORMAL_TISSUES = GTEX_ESSENTIAL_TISSUES
 
 
-def normal_tissue_liability(tissue_to_values: dict, high=HIGH_LOG2TPM,
-                            critical=CRITICAL_NORMAL_TISSUES) -> dict:
+def normal_tissue_liability(tissue_to_values: dict, high=HIGH_LOG2TPM, critical=CRITICAL_NORMAL_TISSUES) -> dict:
     """Q3 normal-tissue-liability summary over the GTEx atlas (per-tissue log2(TPM+1) vectors).
 
     The therapeutic-window question: WHERE is the target expressed in normal tissue, and does
@@ -144,17 +161,25 @@ def normal_tissue_liability(tissue_to_values: dict, high=HIGH_LOG2TPM,
       tissue_breadth_fraction                      — n_detectable / n_tested (0..1; breadth of normal expression)
     data-gap-safe: empty atlas → all-None."""
     import numpy as np
+
     rows = []
     for tissue, vals in (tissue_to_values or {}).items():
-        arr = np.asarray(vals, dtype=float); arr = arr[~np.isnan(arr)]
+        arr = np.asarray(vals, dtype=float)
+        arr = arr[~np.isnan(arr)]
         if arr.size == 0:
             continue
         rows.append((str(tissue).upper(), float(np.median(arr)), int(arr.size)))
     if not rows:
-        return {"highest_tissue": None, "highest_tissue_median": None,
-                "critical_organ_max": None, "critical_organ_argmax": None,
-                "n_tissues_high": None, "n_tissues_detectable": None,
-                "n_tissues_tested": 0, "tissue_breadth_fraction": None}
+        return {
+            "highest_tissue": None,
+            "highest_tissue_median": None,
+            "critical_organ_max": None,
+            "critical_organ_argmax": None,
+            "n_tissues_high": None,
+            "n_tissues_detectable": None,
+            "n_tissues_tested": 0,
+            "tissue_breadth_fraction": None,
+        }
     rows.sort(key=lambda r: r[1], reverse=True)
     top_tissue, top_med, _ = rows[0]
     crit = [(t, m) for t, m, _ in rows if t in set(critical)]
@@ -162,10 +187,12 @@ def normal_tissue_liability(tissue_to_values: dict, high=HIGH_LOG2TPM,
     n_high = sum(1 for _, m, _ in rows if m >= high)
     n_detect = sum(1 for _, m, _ in rows if m >= DETECTABLE_LOG2TPM)
     return {
-        "highest_tissue": top_tissue, "highest_tissue_median": round(top_med, 4),
+        "highest_tissue": top_tissue,
+        "highest_tissue_median": round(top_med, 4),
         "critical_organ_max": (round(crit_max[1], 4) if crit_max else None),
         "critical_organ_argmax": (crit_max[0] if crit_max else None),
-        "n_tissues_high": n_high, "n_tissues_detectable": n_detect,
+        "n_tissues_high": n_high,
+        "n_tissues_detectable": n_detect,
         "n_tissues_tested": len(rows),
         "tissue_breadth_fraction": round(n_detect / len(rows), 4),
     }
@@ -176,11 +203,15 @@ def distribution_overlap(tumor_log2tpm, normal_log2tpm, bins=50) -> float:
     separated (clean therapeutic window), 1 = identical. Complements the percentile-crossing metric
     (which is one-sided). None when either arm is empty."""
     import numpy as np
-    t = np.asarray(tumor_log2tpm, dtype=float); t = t[~np.isnan(t)]
-    nrm = np.asarray(normal_log2tpm, dtype=float); nrm = nrm[~np.isnan(nrm)]
+
+    t = np.asarray(tumor_log2tpm, dtype=float)
+    t = t[~np.isnan(t)]
+    nrm = np.asarray(normal_log2tpm, dtype=float)
+    nrm = nrm[~np.isnan(nrm)]
     if t.size == 0 or nrm.size == 0:
         return None
-    lo = float(min(t.min(), nrm.min())); hi = float(max(t.max(), nrm.max()))
+    lo = float(min(t.min(), nrm.min()))
+    hi = float(max(t.max(), nrm.max()))
     if hi <= lo:
         return 1.0
     edges = np.linspace(lo, hi, bins + 1)
@@ -198,8 +229,7 @@ EPSILON_SQUARED_LARGE = 0.14
 EPSILON_SQUARED_MODERATE = 0.06
 
 
-def kruskal_epsilon_squared(subtype_vectors: dict, min_group_n: int = 2,
-                            min_groups: int = 2) -> dict:
+def kruskal_epsilon_squared(subtype_vectors: dict, min_group_n: int = 2, min_groups: int = 2) -> dict:
     """Across-subtype omnibus test: is expression DIFFERENT across molecular subtypes, and
     HOW MUCH of the total expression variance does subtype explain?
 
@@ -230,12 +260,15 @@ def kruskal_epsilon_squared(subtype_vectors: dict, min_group_n: int = 2,
             groups.append((sid, a))
             medians[sid] = float(np.median(a))
 
-    base = {"subtype_omnibus_kruskal_h": None, "subtype_omnibus_p": None,
-            "subtype_variance_explained": None,
-            "subtype_effect_size_class": "data_unavailable",
-            "which_subtypes_separate": None,
-            "n_subtypes_tested": len(groups),
-            "n_samples_tested": int(sum(a.size for _sid, a in groups))}
+    base = {
+        "subtype_omnibus_kruskal_h": None,
+        "subtype_omnibus_p": None,
+        "subtype_variance_explained": None,
+        "subtype_effect_size_class": "data_unavailable",
+        "which_subtypes_separate": None,
+        "n_subtypes_tested": len(groups),
+        "n_samples_tested": int(sum(a.size for _sid, a in groups)),
+    }
     if len(groups) < min_groups:
         return base
 
@@ -246,7 +279,7 @@ def kruskal_epsilon_squared(subtype_vectors: dict, min_group_n: int = 2,
     # split ranks back per group (concatenation order preserved)
     idx, rank_sums, tie_term = 0, [], 0.0
     for _sid, a in groups:
-        r = ranks[idx:idx + a.size]
+        r = ranks[idx : idx + a.size]
         rank_sums.append((r.sum(), a.size))
         idx += a.size
     H = (12.0 / (N * (N + 1))) * sum((rs * rs) / n for rs, n in rank_sums) - 3.0 * (N + 1)
@@ -254,14 +287,14 @@ def kruskal_epsilon_squared(subtype_vectors: dict, min_group_n: int = 2,
     _, counts = np.unique(all_vals, return_counts=True)
     ties = counts[counts > 1]
     if ties.size:
-        tie_term = float(np.sum(ties ** 3 - ties)) / (N ** 3 - N)
+        tie_term = float(np.sum(ties**3 - ties)) / (N**3 - N)
     if tie_term and tie_term < 1.0:
         H = H / (1.0 - tie_term)
     k = len(groups)
 
     # epsilon-squared: ε² = (H - k + 1) / (N - k). Bounded to [0,1] (H below its df floor
     # → tiny negative from noise; clamp to 0). The variance-explained effect size.
-    denom = (N - k)
+    denom = N - k
     eps2 = (H - k + 1) / denom if denom > 0 else None
     if eps2 is not None:
         eps2 = float(min(1.0, max(0.0, eps2)))
@@ -272,18 +305,21 @@ def kruskal_epsilon_squared(subtype_vectors: dict, min_group_n: int = 2,
 
     hi = max(medians, key=medians.get)
     lo = min(medians, key=medians.get)
-    base.update({
-        "subtype_omnibus_kruskal_h": float(H),
-        "subtype_omnibus_p": (float(p) if p is not None else None),
-        "subtype_variance_explained": eps2,
-        "subtype_effect_size_class": _classify_effect_size(eps2),
-        "which_subtypes_separate": {"highest": hi, "lowest": lo},
-    })
+    base.update(
+        {
+            "subtype_omnibus_kruskal_h": float(H),
+            "subtype_omnibus_p": (float(p) if p is not None else None),
+            "subtype_variance_explained": eps2,
+            "subtype_effect_size_class": _classify_effect_size(eps2),
+            "which_subtypes_separate": {"highest": hi, "lowest": lo},
+        }
+    )
     return base
 
 
-def kruskal_epsilon_squared_by_axis(subtype_vectors: dict, member_sets: dict | None = None,
-                                    min_group_n: int = 2, min_groups: int = 2) -> dict:
+def kruskal_epsilon_squared_by_axis(
+    subtype_vectors: dict, member_sets: dict | None = None, min_group_n: int = 2, min_groups: int = 2
+) -> dict:
     """PER-AXIS across-subtype omnibus — the double-count-safe form of the KW/ε² omnibus.
 
     A molecular-subtype shard packs strata from SEVERAL orthogonal axes (COADREAD: MSI,
@@ -324,28 +360,35 @@ def kruskal_epsilon_squared_by_axis(subtype_vectors: dict, member_sets: dict | N
         if res["n_subtypes_tested"] >= min_groups:
             by_axis.append({"axis": axis, "strata": kept, **res})
 
-    out = {"subtype_omnibus_by_axis": by_axis, "n_axes_tested": len(by_axis),
-           "driving_axis": None,
-           "subtype_omnibus_kruskal_h": None, "subtype_omnibus_p": None,
-           "subtype_variance_explained": None,
-           "subtype_effect_size_class": "data_unavailable",
-           "which_subtypes_separate": None,
-           "n_subtypes_tested": 0, "n_samples_tested": 0}
+    out = {
+        "subtype_omnibus_by_axis": by_axis,
+        "n_axes_tested": len(by_axis),
+        "driving_axis": None,
+        "subtype_omnibus_kruskal_h": None,
+        "subtype_omnibus_p": None,
+        "subtype_variance_explained": None,
+        "subtype_effect_size_class": "data_unavailable",
+        "which_subtypes_separate": None,
+        "n_subtypes_tested": 0,
+        "n_samples_tested": 0,
+    }
     if not by_axis:
         return out
     # Representative = the axis explaining the most variance (largest ε²). This is the
     # decision-relevant "is subtype a patient-selection axis, and how strong" summary.
-    driving = max(by_axis, key=lambda a: (a["subtype_variance_explained"] or -1.0))
-    out.update({
-        "driving_axis": driving["axis"],
-        "subtype_omnibus_kruskal_h": driving["subtype_omnibus_kruskal_h"],
-        "subtype_omnibus_p": driving["subtype_omnibus_p"],
-        "subtype_variance_explained": driving["subtype_variance_explained"],
-        "subtype_effect_size_class": driving["subtype_effect_size_class"],
-        "which_subtypes_separate": driving["which_subtypes_separate"],
-        "n_subtypes_tested": driving["n_subtypes_tested"],
-        "n_samples_tested": driving["n_samples_tested"],
-    })
+    driving = max(by_axis, key=lambda a: a["subtype_variance_explained"] or -1.0)
+    out.update(
+        {
+            "driving_axis": driving["axis"],
+            "subtype_omnibus_kruskal_h": driving["subtype_omnibus_kruskal_h"],
+            "subtype_omnibus_p": driving["subtype_omnibus_p"],
+            "subtype_variance_explained": driving["subtype_variance_explained"],
+            "subtype_effect_size_class": driving["subtype_effect_size_class"],
+            "which_subtypes_separate": driving["which_subtypes_separate"],
+            "n_subtypes_tested": driving["n_subtypes_tested"],
+            "n_samples_tested": driving["n_samples_tested"],
+        }
+    )
     return out
 
 
@@ -353,6 +396,7 @@ def _average_ranks(values):
     """1-based average (mid) ranks of `values` (ties share the mean of their rank span) —
     the Kruskal-Wallis ranking convention. Pure numpy."""
     import numpy as np
+
     a = np.asarray(values, dtype=float)
     order = a.argsort(kind="mergesort")
     ranks = np.empty(a.size, dtype=float)
@@ -362,8 +406,8 @@ def _average_ranks(values):
         j = i
         while j + 1 < a.size and sorted_a[j + 1] == sorted_a[i]:
             j += 1
-        avg = (i + j) / 2.0 + 1.0   # 1-based average rank over the tie span [i, j]
-        ranks[order[i:j + 1]] = avg
+        avg = (i + j) / 2.0 + 1.0  # 1-based average rank over the tie span [i, j]
+        ranks[order[i : j + 1]] = avg
         i = j + 1
     return ranks
 
@@ -384,6 +428,7 @@ def _chisq_sf(x, df):
     regularized upper incomplete gamma via math.gamma-free series (math.lgamma) so it needs
     no scipy at runtime (scipy is the TEST oracle only). Returns None on degenerate df."""
     import math
+
     if x is None or df is None or df < 1 or x < 0:
         return None
     if x == 0:

@@ -16,6 +16,7 @@ Fix: the lineage-concentration check runs BEFORE the low-detection floor. In the
 `broadly_low`, so unit-test / no-model-table behavior is unchanged); below MIN the panel is too sparse
 to assert restriction and stays `broadly_low`.
 """
+
 from __future__ import annotations
 
 import importlib
@@ -33,38 +34,52 @@ def test_low_band_concentrated_is_lineage_restricted_not_broadly_low():
     # ~18% detected (below the 0.30 low-detection floor) but CONCENTRATED in 2 lineages
     # (stomach + lung, the CLDN18 footprint) → lineage_restricted, NOT broadly_low.
     per_lineage = [{"lineage": "Stomach", "n": 12}, {"lineage": "Lung", "n": 8}]
-    assert cli.classify_protein_abundance(
-        fraction_detected=0.18, median_abundance=0.4, per_lineage=per_lineage,
-        high_cutoff=1.0) == "lineage_restricted"
+    assert (
+        cli.classify_protein_abundance(
+            fraction_detected=0.18, median_abundance=0.4, per_lineage=per_lineage, high_cutoff=1.0
+        )
+        == "lineage_restricted"
+    )
 
 
 def test_low_band_one_lineage_dominates_is_lineage_restricted():
     # nominally several lineages but one holds >= 50% of detected lines → concentrated → restricted.
     per_lineage = [{"lineage": "Stomach", "n": 20}] + [{"lineage": f"L{i}", "n": 3} for i in range(1, 6)]
-    assert cli.classify_protein_abundance(
-        fraction_detected=0.22, median_abundance=0.3, per_lineage=per_lineage,
-        high_cutoff=1.0) == "lineage_restricted"
+    assert (
+        cli.classify_protein_abundance(
+            fraction_detected=0.22, median_abundance=0.3, per_lineage=per_lineage, high_cutoff=1.0
+        )
+        == "lineage_restricted"
+    )
 
 
 def test_low_band_spread_across_many_lineages_stays_broadly_low():
     # low detection genuinely spread across many lineages with no dominant one → still broadly_low
     # (this is real MS-absence / housekeeping-floor, not lineage restriction).
     per_lineage = [{"lineage": f"L{i}", "n": 2} for i in range(10)]  # 10 lineages, top share 0.10
-    assert cli.classify_protein_abundance(
-        fraction_detected=0.20, median_abundance=0.1, per_lineage=per_lineage,
-        high_cutoff=1.0) == "broadly_low"
+    assert (
+        cli.classify_protein_abundance(
+            fraction_detected=0.20, median_abundance=0.1, per_lineage=per_lineage, high_cutoff=1.0
+        )
+        == "broadly_low"
+    )
 
 
 def test_low_band_no_lineage_evidence_stays_broadly_low():
     # low detection with NO per-lineage breakdown → broadly_low (unchanged; cannot assert restriction
     # without lineage evidence — preserves test_broadly_low_when_detection_sparse).
-    assert cli.classify_protein_abundance(
-        fraction_detected=0.20, median_abundance=0.5, per_lineage=[], high_cutoff=0.4) == "broadly_low"
+    assert (
+        cli.classify_protein_abundance(fraction_detected=0.20, median_abundance=0.5, per_lineage=[], high_cutoff=0.4)
+        == "broadly_low"
+    )
 
 
 def test_very_sparse_below_min_stays_broadly_low_even_if_concentrated():
     # below LINEAGE_RESTRICTED_MIN (0.10): too sparse to call restriction even if concentrated.
     per_lineage = [{"lineage": "Stomach", "n": 4}, {"lineage": "Lung", "n": 3}]
-    assert cli.classify_protein_abundance(
-        fraction_detected=0.05, median_abundance=0.4, per_lineage=per_lineage,
-        high_cutoff=1.0) == "broadly_low"
+    assert (
+        cli.classify_protein_abundance(
+            fraction_detected=0.05, median_abundance=0.4, per_lineage=per_lineage, high_cutoff=1.0
+        )
+        == "broadly_low"
+    )

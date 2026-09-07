@@ -19,6 +19,7 @@ CORROBORATING, not competing: this fires the SAME human_genetics_safety_concern 
 clingen/mouse (joins the resolver's when_any_fired set) — a fourth germline leg, mechanism-conditioned
 by the mutant-selective downgrade like the others. data_unavailable-safe.
 """
+
 from __future__ import annotations
 
 from typing import Optional
@@ -29,14 +30,24 @@ METHOD_VERSION = "0.1.0"
 
 _PATHOGENIC = {"pathogenic", "likely_pathogenic", "likely pathogenic"}
 # germline-origin tokens (a somatic-only variant is a cancer-driver signal, not germline safety).
-_GERMLINE_ORIGINS = {"germline", "inherited", "de_novo", "de novo", "maternal", "paternal",
-                     "biparental", "uniparental"}
+_GERMLINE_ORIGINS = {"germline", "inherited", "de_novo", "de novo", "maternal", "paternal", "biparental", "uniparental"}
 # review-status strings that are too weak to count (ClinVar 0-star / conflicting).
-_WEAK_REVIEW = {"no assertion criteria provided", "no classification provided",
-                "conflicting classifications", "conflicting classifications of pathogenicity"}
+_WEAK_REVIEW = {
+    "no assertion criteria provided",
+    "no classification provided",
+    "conflicting classifications",
+    "conflicting classifications of pathogenicity",
+}
 
-_FIELDS = ["targetId", "clinicalSignificances", "alleleOrigins", "confidence",
-           "variantFunctionalConsequenceId", "diseaseFromSource", "variantRsId"]
+_FIELDS = [
+    "targetId",
+    "clinicalSignificances",
+    "alleleOrigins",
+    "confidence",
+    "variantFunctionalConsequenceId",
+    "diseaseFromSource",
+    "variantRsId",
+]
 
 
 def _norm_list(v) -> set:
@@ -67,12 +78,17 @@ def classify_clinvar(rows: list) -> dict:
       5. rows exist, no pathogenic → no_pathogenic_signal. no rows → no_clinvar_entry.
     """
     if not rows:
-        return {"clinvar_pathogenic_class": "no_clinvar_entry", "n_rows": 0,
-                "n_pathogenic_germline": 0, "n_pathogenic_somatic": 0, "top_disease": None}
+        return {
+            "clinvar_pathogenic_class": "no_clinvar_entry",
+            "n_rows": 0,
+            "n_pathogenic_germline": 0,
+            "n_pathogenic_somatic": 0,
+            "top_disease": None,
+        }
 
-    conf_germ_path = []       # confident (non-weak-review) germline-pathogenic
-    weak_germ_path = []       # germline-pathogenic but weak review status
-    somatic_path = 0          # pathogenic but NOT germline (somatic) — the guardrail-excluded set
+    conf_germ_path = []  # confident (non-weak-review) germline-pathogenic
+    weak_germ_path = []  # germline-pathogenic but weak review status
+    somatic_path = 0  # pathogenic but NOT germline (somatic) — the guardrail-excluded set
     for r in rows:
         sigs = _norm_list(r.get("clinicalSignificances"))
         if not _is_pathogenic(sigs):
@@ -121,20 +137,30 @@ def read_clinvar_pathogenic(target: str, indication: Optional[str] = None) -> di
     per-gene across many diseases; top_disease surfaces the driving one.
     """
     ensg = symbol_to_ensembl(target)
-    base = {"target": target, "ensembl_gene_id": ensg, "method_version": METHOD_VERSION,
-            "source": "opentargets-26-06/evidence_eva"}
+    base = {
+        "target": target,
+        "ensembl_gene_id": ensg,
+        "method_version": METHOD_VERSION,
+        "source": "opentargets-26-06/evidence_eva",
+    }
     if ensg is None:
-        return {**base, "clinvar_pathogenic_class": "insufficient",
-                "_note": "target not resolvable to an Ensembl gene id via the OT resolver sidecar"}
+        return {
+            **base,
+            "clinvar_pathogenic_class": "insufficient",
+            "_note": "target not resolvable to an Ensembl gene id via the OT resolver sidecar",
+        }
 
     df = read_entity("evidence_eva", columns=_FIELDS, filter_col="targetId", filter_val=ensg)
     if df.empty:
-        return {**base, "clinvar_pathogenic_class": "insufficient",
-                "_note": "evidence_eva entity not available"}
+        return {**base, "clinvar_pathogenic_class": "insufficient", "_note": "evidence_eva entity not available"}
     hit = df[df["targetId"] == ensg]
     if hit.empty:
-        return {**base, "clinvar_pathogenic_class": "no_clinvar_entry",
-                "n_rows": 0, "_note": f"{ensg} has no ClinVar variant rows in OT 26.06"}
+        return {
+            **base,
+            "clinvar_pathogenic_class": "no_clinvar_entry",
+            "n_rows": 0,
+            "_note": f"{ensg} has no ClinVar variant rows in OT 26.06",
+        }
 
     return {**base, **classify_clinvar(hit.to_dict("records"))}
 

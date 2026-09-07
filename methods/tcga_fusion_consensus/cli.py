@@ -53,8 +53,11 @@ import click
 import pandas as pd
 
 from methods.tcga_fusion_consensus.read import (
-    load_tumorfusions, load_gao_2018, load_cbioportal_all,
-    tumorfusions_assayed_samples, gao_2018_assayed_samples,
+    load_tumorfusions,
+    load_gao_2018,
+    load_cbioportal_all,
+    tumorfusions_assayed_samples,
+    gao_2018_assayed_samples,
     cbioportal_assayed_samples,
 )
 
@@ -85,74 +88,122 @@ def _distinct_non_null(vs) -> list:
 def build_consensus(events: pd.DataFrame) -> pd.DataFrame:
     """Aggregate long-form per-caller events to per-(sample_key, gene_symbol) rows."""
     # Per-caller sub-aggregations, then merged.
-    agg = (events
-           .groupby(["sample_key", "gene_symbol", "caller"], dropna=False)
-           .agg(partners=("partner_gene", list),
-                frames=("frame_pred", list),
-                tissues=("tissue", list),
-                n_events=("event_id", "count"))
-           .reset_index())
+    agg = (
+        events.groupby(["sample_key", "gene_symbol", "caller"], dropna=False)
+        .agg(
+            partners=("partner_gene", list),
+            frames=("frame_pred", list),
+            tissues=("tissue", list),
+            n_events=("event_id", "count"),
+        )
+        .reset_index()
+    )
+
     # Pivot to per-(sample_key, gene) with per-caller columns.
     def _pivot(caller: str) -> pd.DataFrame:
         sub = agg[agg["caller"] == caller].copy()
         sub[f"partners_{caller}"] = sub["partners"].map(_distinct_non_null)
         sub[f"frame_preds_{caller}"] = sub["frames"].map(_distinct_non_null)
-        sub = sub.rename(columns={"n_events": f"n_events_{caller}",
-                                   "tissues": f"_tissues_{caller}"})
-        return sub[["sample_key", "gene_symbol",
-                     f"partners_{caller}", f"frame_preds_{caller}",
-                     f"n_events_{caller}", f"_tissues_{caller}"]]
+        sub = sub.rename(columns={"n_events": f"n_events_{caller}", "tissues": f"_tissues_{caller}"})
+        return sub[
+            [
+                "sample_key",
+                "gene_symbol",
+                f"partners_{caller}",
+                f"frame_preds_{caller}",
+                f"n_events_{caller}",
+                f"_tissues_{caller}",
+            ]
+        ]
+
     tf = _pivot("tumorfusions")
     gao = _pivot("gao_2018")
     cb = _pivot("cbioportal")
-    m = tf.merge(gao, on=["sample_key", "gene_symbol"], how="outer") \
-          .merge(cb, on=["sample_key", "gene_symbol"], how="outer")
+    m = tf.merge(gao, on=["sample_key", "gene_symbol"], how="outer").merge(
+        cb, on=["sample_key", "gene_symbol"], how="outer"
+    )
     # Fill n_events NaN with 0; empty lists for absent partners/frames.
     for c in ["tumorfusions", "gao_2018", "cbioportal"]:
         m[f"n_events_{c}"] = m[f"n_events_{c}"].fillna(0).astype(int)
         m[f"partners_{c}"] = m[f"partners_{c}"].apply(lambda v: v if isinstance(v, list) else [])
         m[f"frame_preds_{c}"] = m[f"frame_preds_{c}"].apply(lambda v: v if isinstance(v, list) else [])
+
     # Consensus columns.
     def _support(row) -> list:
         s = []
-        if row["n_events_tumorfusions"] > 0: s.append("tumorfusions")
-        if row["n_events_gao_2018"] > 0: s.append("gao_2018")
-        if row["n_events_cbioportal"] > 0: s.append("cbioportal")
+        if row["n_events_tumorfusions"] > 0:
+            s.append("tumorfusions")
+        if row["n_events_gao_2018"] > 0:
+            s.append("gao_2018")
+        if row["n_events_cbioportal"] > 0:
+            s.append("cbioportal")
         return s
+
     m["callers_supporting"] = m.apply(_support, axis=1)
     m["caller_count"] = m["callers_supporting"].map(len)
+
     # Tissue: majority across callers that reported this (sample, gene).
     def _tissue_row(row) -> str | None:
         vs = []
         for c in ["tumorfusions", "gao_2018", "cbioportal"]:
             v = row.get(f"_tissues_{c}")
-            if isinstance(v, list): vs.extend([x for x in v if x])
+            if isinstance(v, list):
+                vs.extend([x for x in v if x])
         return _majority_tissue(vs)
+
     m["tissue"] = m.apply(_tissue_row, axis=1)
     # Drop the private _tissues_* columns.
     m = m.drop(columns=[c for c in m.columns if c.startswith("_tissues_")])
     # Final column order.
-    cols = ["sample_key", "gene_symbol", "tissue", "caller_count", "callers_supporting",
-            "partners_tumorfusions", "partners_gao_2018", "partners_cbioportal",
-            "frame_preds_tumorfusions", "frame_preds_gao_2018", "frame_preds_cbioportal",
-            "n_events_tumorfusions", "n_events_gao_2018", "n_events_cbioportal"]
+    cols = [
+        "sample_key",
+        "gene_symbol",
+        "tissue",
+        "caller_count",
+        "callers_supporting",
+        "partners_tumorfusions",
+        "partners_gao_2018",
+        "partners_cbioportal",
+        "frame_preds_tumorfusions",
+        "frame_preds_gao_2018",
+        "frame_preds_cbioportal",
+        "n_events_tumorfusions",
+        "n_events_gao_2018",
+        "n_events_cbioportal",
+    ]
     return m[cols].sort_values(["sample_key", "gene_symbol"]).reset_index(drop=True)
 
 
 @click.command()
 @click.option("--tumorfusions-xlsx", required=True, type=click.Path(exists=True, dir_okay=False, path_type=Path))
-@click.option("--tumorfusions-samples-xlsx", required=True, type=click.Path(exists=True, dir_okay=False, path_type=Path),
-              help="File006 sample-manifest for the assayed-samples denominator.")
+@click.option(
+    "--tumorfusions-samples-xlsx",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    help="File006 sample-manifest for the assayed-samples denominator.",
+)
 @click.option("--gao-2018-xlsx", required=True, type=click.Path(exists=True, dir_okay=False, path_type=Path))
-@click.option("--cbioportal-dir", required=True, type=click.Path(exists=True, file_okay=False, path_type=Path),
-              help="Local root under which each study is a subdir with structural_variants.jsonl.gz + samples.jsonl.gz.")
+@click.option(
+    "--cbioportal-dir",
+    required=True,
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
+    help="Local root under which each study is a subdir with structural_variants.jsonl.gz + samples.jsonl.gz.",
+)
 @click.option("--out", required=True, type=click.Path(file_okay=False, path_type=Path))
-@click.option("--tissue-filter", default=None,
-              help="Optional comma-separated TCGA disease codes (e.g. 'LUAD,LUSC') to subset. "
-                   "If omitted, all 33 pan-TCGA tissues are emitted.")
-def main(tumorfusions_xlsx: Path, tumorfusions_samples_xlsx: Path,
-         gao_2018_xlsx: Path, cbioportal_dir: Path, out: Path,
-         tissue_filter: str | None) -> int:
+@click.option(
+    "--tissue-filter",
+    default=None,
+    help="Optional comma-separated TCGA disease codes (e.g. 'LUAD,LUSC') to subset. "
+    "If omitted, all 33 pan-TCGA tissues are emitted.",
+)
+def main(
+    tumorfusions_xlsx: Path,
+    tumorfusions_samples_xlsx: Path,
+    gao_2018_xlsx: Path,
+    cbioportal_dir: Path,
+    out: Path,
+    tissue_filter: str | None,
+) -> int:
     out.mkdir(parents=True, exist_ok=True)
     click.echo(f"=== tcga_fusion_consensus v{METHOD_VERSION} ===")
     filt = [t.strip() for t in tissue_filter.split(",")] if tissue_filter else None
@@ -181,12 +232,15 @@ def main(tumorfusions_xlsx: Path, tumorfusions_samples_xlsx: Path,
     tf_samps = tumorfusions_assayed_samples(tumorfusions_samples_xlsx)
     gao_samps = gao_2018_assayed_samples(gao_2018_xlsx)
     cb_samps = cbioportal_assayed_samples(cbioportal_dir)
-    coverage = pd.concat([tf_samps, gao_samps, cb_samps], ignore_index=True) \
-                 .drop_duplicates(subset=["sample_key", "caller"])
+    coverage = pd.concat([tf_samps, gao_samps, cb_samps], ignore_index=True).drop_duplicates(
+        subset=["sample_key", "caller"]
+    )
     if filt:
         coverage = coverage[coverage["tissue"].isin(filt)]
-    click.echo(f"    {len(coverage):,} (sample, caller) rows | "
-               f"{coverage['sample_key'].nunique()} distinct samples across all callers")
+    click.echo(
+        f"    {len(coverage):,} (sample, caller) rows | "
+        f"{coverage['sample_key'].nunique()} distinct samples across all callers"
+    )
 
     consensus_path = out / "fusion_consensus_per_sample_gene.parquet"
     coverage_path = out / "sample_coverage.parquet"
@@ -209,8 +263,9 @@ def main(tumorfusions_xlsx: Path, tumorfusions_samples_xlsx: Path,
         "tissue_filter": filt,
         "rows_consensus": len(consensus),
         "rows_coverage": len(coverage),
-        "caller_count_distribution": {int(k): int(v) for k, v in
-                                       consensus["caller_count"].value_counts().to_dict().items()},
+        "caller_count_distribution": {
+            int(k): int(v) for k, v in consensus["caller_count"].value_counts().to_dict().items()
+        },
     }
     (out / "_provenance.json").write_text(json.dumps(prov, indent=2))
     click.echo("  wrote _provenance.json")

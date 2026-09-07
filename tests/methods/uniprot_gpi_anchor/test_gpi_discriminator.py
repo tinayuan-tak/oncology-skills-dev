@@ -2,6 +2,7 @@
 subcellular phrase), NOT bare lipid-anchor. Pins that a synthetic NRAS-like block (cytoplasmic
 S-farnesyl lipid-anchor, NO GPI) is NOT called GPI, while an MSLN-like block (GPI-anchor amidated
 serine) IS. S3-free — build_payload reads a local DAT-format fixture."""
+
 from __future__ import annotations
 
 import gzip

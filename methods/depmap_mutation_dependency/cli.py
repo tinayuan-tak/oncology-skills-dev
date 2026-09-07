@@ -35,7 +35,9 @@ from methods.catalog_query.read import bucket_prefix_for, s3_uri_for
 METHOD_DIR = Path(__file__).resolve().parent
 METHOD_VERSION = "0.1.0"
 
-DEFAULT_TARGET_CONTRACTS = Path(os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
+DEFAULT_TARGET_CONTRACTS = Path(
+    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+)
 DEPMAP_SOURCE_MANIFEST_ID = "depmap-consortium-26q1"
 # Resolved from the data-catalog manifest (single source of truth). DEPMAP_S3_PREFIX (s3://-form)
 # feeds echo/provenance; _DEPMAP_KEY_PREFIX (bucket-relative) builds the get_object read keys below.
@@ -49,13 +51,15 @@ DEPMAP_LOCAL_FALLBACK_DIRS = [
 
 # 5-column metadata prefix common to OmicsExpressionTPM*, OmicsSomaticMutationsMatrix*
 MUT_METADATA_COLUMNS = (
-    "SequencingID", "ModelConditionID", "ModelID",
-    "IsDefaultEntryForMC", "IsDefaultEntryForModel",
+    "SequencingID",
+    "ModelConditionID",
+    "ModelID",
+    "IsDefaultEntryForMC",
+    "IsDefaultEntryForModel",
 )
 
 
-def _read_mutation_matrix_for_target(release_pin: str, matrix_filename: str,
-                                       target_symbol: str) -> tuple[dict, list]:
+def _read_mutation_matrix_for_target(release_pin: str, matrix_filename: str, target_symbol: str) -> tuple[dict, list]:
     """Load ONE mutation matrix (hotspot or damaging), filter to default-entries, return
     {ModelID → bool} for the target gene + load_errors list.
 
@@ -77,8 +81,10 @@ def _read_mutation_matrix_for_target(release_pin: str, matrix_filename: str,
     if mut_path is None:
         try:
             from methods.depmap_common.parquet import (
-                get_hotspot_mutation_column, get_damaging_mutation_column,
+                get_hotspot_mutation_column,
+                get_damaging_mutation_column,
             )
+
             if "Hotspot" in matrix_filename:
                 target_df = get_hotspot_mutation_column(target_symbol, release_pin)
             elif "Damaging" in matrix_filename:
@@ -87,16 +93,18 @@ def _read_mutation_matrix_for_target(release_pin: str, matrix_filename: str,
                 target_df = None
             if target_df is not None:
                 target_col = next(
-                    (c for c in target_df.columns
-                     if c not in ("ModelID", "IsDefaultEntryForModel", "IsDefaultEntryForMC")),
+                    (
+                        c
+                        for c in target_df.columns
+                        if c not in ("ModelID", "IsDefaultEntryForModel", "IsDefaultEntryForMC")
+                    ),
                     None,
                 )
                 if target_col is not None:
                     # IsDefaultEntryForModel filter (matches CSV path semantics)
                     filt = target_df
                     if "IsDefaultEntryForModel" in filt.columns:
-                        filt = filt[filt["IsDefaultEntryForModel"].isin(
-                            [True, "Yes", "yes", "true", "TRUE"])]
+                        filt = filt[filt["IsDefaultEntryForModel"].isin([True, "Yes", "yes", "true", "TRUE"])]
                         if filt.empty:
                             filt = target_df  # defensive fallback
                     id_col = "ModelID" if "ModelID" in filt.columns else filt.columns[0]
@@ -114,10 +122,12 @@ def _read_mutation_matrix_for_target(release_pin: str, matrix_filename: str,
                         mut_by_model[row[id_col]] = is_mut
                     return mut_by_model, load_errors
                 else:
-                    load_errors.append({
-                        "_live_read_error": "target_not_in_mutation_matrix",
-                        "detail": f"Target {target_symbol} not in {matrix_filename} (parquet)",
-                    })
+                    load_errors.append(
+                        {
+                            "_live_read_error": "target_not_in_mutation_matrix",
+                            "detail": f"Target {target_symbol} not in {matrix_filename} (parquet)",
+                        }
+                    )
                     return {}, load_errors
         except (FileNotFoundError, ImportError):
             pass  # fall through to CSV path
@@ -126,19 +136,21 @@ def _read_mutation_matrix_for_target(release_pin: str, matrix_filename: str,
     if mut_path is None:
         try:
             import boto3
+
             s3 = boto3.client("s3")
             bucket = "onc-compbio"
             key = f"{_DEPMAP_KEY_PREFIX}/{matrix_filename}"
             click.echo(f"  Fetching s3://{bucket}/{key}", err=True)
             obj = s3.get_object(Bucket=bucket, Key=key)
             header_df = pd.read_csv(BytesIO(obj["Body"].read(8192)), nrows=0)
-            target_cols = [c for c in header_df.columns
-                            if c == target_symbol or c.split(" ")[0] == target_symbol]
+            target_cols = [c for c in header_df.columns if c == target_symbol or c.split(" ")[0] == target_symbol]
             if not target_cols:
-                load_errors.append({
-                    "_live_read_error": "target_not_in_mutation_matrix",
-                    "detail": f"Target {target_symbol} not in {matrix_filename}",
-                })
+                load_errors.append(
+                    {
+                        "_live_read_error": "target_not_in_mutation_matrix",
+                        "detail": f"Target {target_symbol} not in {matrix_filename}",
+                    }
+                )
                 return {}, load_errors
             usecols = [c for c in MUT_METADATA_COLUMNS if c in header_df.columns] + [target_cols[0]]
             obj_full = s3.get_object(Bucket=bucket, Key=key)
@@ -148,16 +160,18 @@ def _read_mutation_matrix_for_target(release_pin: str, matrix_filename: str,
             load_errors.append({"_live_read_error": "boto3_not_available", "detail": str(e)})
             return {}, load_errors
         except Exception as e:
-            load_errors.append({"_live_read_error": "s3_read_failed",
-                                 "detail": str(e), "file": matrix_filename})
+            load_errors.append({"_live_read_error": "s3_read_failed", "detail": str(e), "file": matrix_filename})
             return {}, load_errors
     else:
         header_df = pd.read_csv(mut_path, nrows=0)
-        target_cols = [c for c in header_df.columns
-                        if c == target_symbol or c.split(" ")[0] == target_symbol]
+        target_cols = [c for c in header_df.columns if c == target_symbol or c.split(" ")[0] == target_symbol]
         if not target_cols:
-            load_errors.append({"_live_read_error": "target_not_in_mutation_matrix",
-                                 "detail": f"Target {target_symbol} not in {matrix_filename}"})
+            load_errors.append(
+                {
+                    "_live_read_error": "target_not_in_mutation_matrix",
+                    "detail": f"Target {target_symbol} not in {matrix_filename}",
+                }
+            )
             return {}, load_errors
         usecols = [c for c in MUT_METADATA_COLUMNS if c in header_df.columns] + [target_cols[0]]
         df = pd.read_csv(mut_path, usecols=usecols)
@@ -210,8 +224,9 @@ def load_mutation_data(release_pin: str, target_symbol: str) -> tuple[dict, dict
     return hotspot, damaging, combined_errs
 
 
-def _mannwhitney_stratification(chronos_by_model: dict, mut_by_model: dict,
-                                  min_mutant: int = 5, min_wildtype: int = 30) -> dict:
+def _mannwhitney_stratification(
+    chronos_by_model: dict, mut_by_model: dict, min_mutant: int = 5, min_wildtype: int = 30
+) -> dict:
     """Run Mann-Whitney U for a single mut vector, testing BOTH directions.
 
     The FORWARD test (alternative="less": altered group more dependent / lower Chronos)
@@ -247,7 +262,7 @@ def _mannwhitney_stratification(chronos_by_model: dict, mut_by_model: dict,
             "delta_mut_vs_wt": None,
             "p_value": None,
             "p_value_reverse": None,
-            "q_value": None,                  # filled by caller's BH step (will stay None)
+            "q_value": None,  # filled by caller's BH step (will stay None)
             "effect_size": None,
             "_insufficient_data": True,
         }
@@ -314,9 +329,9 @@ def _mannwhitney_stratification(chronos_by_model: dict, mut_by_model: dict,
     # dependency biomarker is not automatically an inhibitor/clinical biomarker — same guardrail the
     # BEST-role _note carries). Reported only when both classes are populated.
     DEPENDENT_THRESHOLD = -0.5
-    tp = int(np.sum(mut_arr <= DEPENDENT_THRESHOLD))          # biomarker+ & dependent
-    n_dep_wt = int(np.sum(wt_arr <= DEPENDENT_THRESHOLD))      # biomarker- & dependent (FN)
-    tn = n_wt - n_dep_wt                                       # biomarker- & not dependent
+    tp = int(np.sum(mut_arr <= DEPENDENT_THRESHOLD))  # biomarker+ & dependent
+    n_dep_wt = int(np.sum(wt_arr <= DEPENDENT_THRESHOLD))  # biomarker- & dependent (FN)
+    tn = n_wt - n_dep_wt  # biomarker- & not dependent
     n_dependent = tp + n_dep_wt
     n_total = n_mut + n_wt
     dependency_ppv = (tp / n_mut) if n_mut else None
@@ -324,8 +339,9 @@ def _mannwhitney_stratification(chronos_by_model: dict, mut_by_model: dict,
     dependency_specificity = (tn / (n_total - n_dependent)) if (n_total - n_dependent) else None
     dependency_base_rate = (n_dependent / n_total) if n_total else None
     # PPV LIFT over the base rate: does knowing the biomarker improve the dependency prior?
-    dependency_ppv_lift = ((dependency_ppv / dependency_base_rate)
-                           if (dependency_ppv is not None and dependency_base_rate) else None)
+    dependency_ppv_lift = (
+        (dependency_ppv / dependency_base_rate) if (dependency_ppv is not None and dependency_base_rate) else None
+    )
 
     return {
         "n_mutant": int(n_mut),
@@ -335,8 +351,8 @@ def _mannwhitney_stratification(chronos_by_model: dict, mut_by_model: dict,
         "delta_mut_vs_wt": float(delta),
         "p_value": float(p_one_sided),
         "p_value_reverse": p_reverse,
-        "q_value": None,                      # filled by caller (forward BH)
-        "q_value_reverse": None,              # filled by caller (reverse BH)
+        "q_value": None,  # filled by caller (forward BH)
+        "q_value_reverse": None,  # filled by caller (reverse BH)
         "effect_size": float(effect),
         "_uncomputable": uncomputable,
         # dependency-classification performance — DepMap dependency ground truth only
@@ -357,12 +373,14 @@ _STRONG_TO_MODERATE_CAP = {
 }
 
 
-def compute_mutation_stratification(chronos_by_model: dict,
-                                      hotspot_by_model: dict,
-                                      damaging_by_model: dict,
-                                      strong_effect_delta: float = -0.5,
-                                      moderate_effect_delta: float = -0.2,
-                                      stratification_alpha: float = 0.05) -> dict:
+def compute_mutation_stratification(
+    chronos_by_model: dict,
+    hotspot_by_model: dict,
+    damaging_by_model: dict,
+    strong_effect_delta: float = -0.5,
+    moderate_effect_delta: float = -0.2,
+    stratification_alpha: float = 0.05,
+) -> dict:
     """Compute Card 3 summary fields — PAN-DepMap core (no lineage conditioning).
 
     Three tier Mann-Whitney tests: hotspot, damaging, combined-any. BH correction
@@ -386,9 +404,7 @@ def compute_mutation_stratification(chronos_by_model: dict,
     # forward `q_value` is byte-identical to before (same p-set, same math). The reverse
     # `q_value_reverse` is the second-pass family.
     def _bh_across_tiers(pkey: str, qkey: str):
-        pvs = [(tk, td[pkey])
-               for tk, td in [("hot", hot), ("dam", dam), ("any", any_)]
-               if td.get(pkey) is not None]
+        pvs = [(tk, td[pkey]) for tk, td in [("hot", hot), ("dam", dam), ("any", any_)] if td.get(pkey) is not None]
         if not pvs:
             return
         p_array = np.array([p for _, p in pvs])
@@ -396,16 +412,14 @@ def compute_mutation_stratification(chronos_by_model: dict,
         order = np.argsort(p_array)
         ranks = np.empty_like(order)
         ranks[order] = np.arange(1, m + 1)
-        q_unord = np.minimum.accumulate(
-            (p_array[order] * m / ranks[order])[::-1]
-        )[::-1]
+        q_unord = np.minimum.accumulate((p_array[order] * m / ranks[order])[::-1])[::-1]
         q_back = np.empty_like(q_unord)
         q_back[order] = q_unord
         tier_map = {"hot": hot, "dam": dam, "any": any_}
         for i, (tk, _) in enumerate(pvs):
             tier_map[tk][qkey] = float(min(1.0, q_back[i]))
 
-    _bh_across_tiers("p_value", "q_value")            # forward (unchanged)
+    _bh_across_tiers("p_value", "q_value")  # forward (unchanged)
     _bh_across_tiers("p_value_reverse", "q_value_reverse")  # second-pass reverse
 
     # === Classification ===
@@ -422,9 +436,11 @@ def compute_mutation_stratification(chronos_by_model: dict,
         # REVERSE (second pass): WT/comparator more dependent — significant REVERSE q AND a
         # positive delta of meaningful size. This is now reachable (was a dead branch under
         # the forward-only test). Verdict-inert (neutral rule only).
-        if (tier.get("q_value_reverse") is not None
-                and tier["q_value_reverse"] < stratification_alpha
-                and tier["delta_mut_vs_wt"] >= -strong_effect_delta):  # >= +0.5, mirrors forward "strong"
+        if (
+            tier.get("q_value_reverse") is not None
+            and tier["q_value_reverse"] < stratification_alpha
+            and tier["delta_mut_vs_wt"] >= -strong_effect_delta
+        ):  # >= +0.5, mirrors forward "strong"
             return "wt_strongly_dependent"
         return None
 
@@ -442,15 +458,16 @@ def compute_mutation_stratification(chronos_by_model: dict,
     pooled_cls = _classify(dam) or _classify(any_)
     hotspot_gated_note = None
     if hot_cls is not None:
-        cls = hot_cls                                    # hotspot tier is authoritative when present
+        cls = hot_cls  # hotspot tier is authoritative when present
     elif pooled_cls in _ONCOGENE_ADDICTION:
         # directional call exists ONLY in the pooled tier → do NOT credit oncogene-addiction.
         cls = "not_mutation_stratified"
         hotspot_gated_note = (
             f"pooled-tier {pooled_cls} not credited: no hotspot-tier signal (mixed activating/LoF/VUS "
-            "pool cannot establish oncogene-addiction; T2.1 hotspot-gate)")
+            "pool cannot establish oncogene-addiction; T2.1 hotspot-gate)"
+        )
     else:
-        cls = pooled_cls                                 # wt_strongly_dependent / None pass through
+        cls = pooled_cls  # wt_strongly_dependent / None pass through
     if cls is None:
         # Check sample-size gating
         if hot.get("_insufficient_data") and dam.get("_insufficient_data"):
@@ -458,8 +475,7 @@ def compute_mutation_stratification(chronos_by_model: dict,
         else:
             cls = "not_mutation_stratified"
 
-    n_evaluated = len(set(chronos_by_model.keys())
-                       & (set(hotspot_by_model.keys()) | set(damaging_by_model.keys())))
+    n_evaluated = len(set(chronos_by_model.keys()) & (set(hotspot_by_model.keys()) | set(damaging_by_model.keys())))
 
     return {
         # === Panel coverage ===
@@ -499,18 +515,21 @@ def compute_mutation_stratification(chronos_by_model: dict,
         "any_mannwhitney_q_reverse": any_.get("q_value_reverse"),
         # === Second-pass / uncomputable diagnostics ===
         "stratification_direction": (
-            "reverse_wt_dependent" if cls == "wt_strongly_dependent"
-            else "forward_mutant_dependent" if cls in _ONCOGENE_ADDICTION
-            else "none"),
+            "reverse_wt_dependent"
+            if cls == "wt_strongly_dependent"
+            else "forward_mutant_dependent"
+            if cls in _ONCOGENE_ADDICTION
+            else "none"
+        ),
         "_uncomputable_tiers": [
-            k for k, td in (("hotspot", hot), ("damaging", dam), ("any", any_))
-            if td.get("_uncomputable")],
+            k for k, td in (("hotspot", hot), ("damaging", dam), ("any", any_)) if td.get("_uncomputable")
+        ],
         # === Per-hotspot breakdown: reserved, currently always empty (no per-hotspot loader is
         #     wired). The per-hotspot Chronos plot therefore renders its <3-hotspots placeholder. ===
         "per_hotspot_stats": [],
         # === Categorical ===
         "mutation_stratification_class": cls,
-        "hotspot_gate_note": hotspot_gated_note,   # set when a pooled-tier oncogene-addiction call was NOT credited
+        "hotspot_gate_note": hotspot_gated_note,  # set when a pooled-tier oncogene-addiction call was NOT credited
         # === Internal for figure emitters ===
         "_hotspot_by_model": hotspot_by_model,
         "_damaging_by_model": damaging_by_model,
@@ -533,21 +552,21 @@ def _models_in_lineage(model_metadata: dict, lineage: str) -> set:
     """ModelIDs whose OncotreeLineage matches (the lineage universe for conditioning)."""
     if not model_metadata or not lineage:
         return set()
-    return {mid for mid, meta in model_metadata.items()
-            if (meta or {}).get("OncotreeLineage") == lineage}
+    return {mid for mid, meta in model_metadata.items() if (meta or {}).get("OncotreeLineage") == lineage}
 
 
 def compute_mutation_stratification_conditioned(
-        chronos_by_model: dict,
-        hotspot_by_model: dict,
-        damaging_by_model: dict,
-        model_metadata: dict = None,
-        indication: str = None,
-        min_mutant: int = 5,
-        min_wildtype: int = 30,
-        strong_effect_delta: float = -0.5,
-        moderate_effect_delta: float = -0.2,
-        stratification_alpha: float = 0.05) -> dict:
+    chronos_by_model: dict,
+    hotspot_by_model: dict,
+    damaging_by_model: dict,
+    model_metadata: dict = None,
+    indication: str = None,
+    min_mutant: int = 5,
+    min_wildtype: int = 30,
+    strong_effect_delta: float = -0.5,
+    moderate_effect_delta: float = -0.2,
+    stratification_alpha: float = 0.05,
+) -> dict:
     """Lineage-conditioned mutation-stratified dependency.
 
     Oncogenic hotspots are lineage-enriched (BRAF-V600E → melanoma/thyroid/CRC), so a
@@ -569,8 +588,13 @@ def compute_mutation_stratification_conditioned(
     the pan result verbatim (byte-identical to `compute_mutation_stratification`)."""
     # Pan-DepMap baseline (always computed — the audit anchor + the fallback).
     pan = compute_mutation_stratification(
-        chronos_by_model, hotspot_by_model, damaging_by_model,
-        strong_effect_delta, moderate_effect_delta, stratification_alpha)
+        chronos_by_model,
+        hotspot_by_model,
+        damaging_by_model,
+        strong_effect_delta,
+        moderate_effect_delta,
+        stratification_alpha,
+    )
     pan_class = pan["mutation_stratification_class"]
 
     lineage = _resolve_indication_lineage(indication)
@@ -585,7 +609,7 @@ def compute_mutation_stratification_conditioned(
         if within_class is not None:
             within_dir = _dir(within_class)
             pan_dir = _dir(pan_class)
-            div = (within_dir is not None and pan_dir is not None and within_dir != pan_dir)
+            div = within_dir is not None and pan_dir is not None and within_dir != pan_dir
         result["lineage_context_divergent"] = bool(div)
         return result
 
@@ -604,16 +628,14 @@ def compute_mutation_stratification_conditioned(
     chronos_lin = {m: c for m, c in chronos_by_model.items() if m in lineage_models}
     hot_lin = {m: v for m, v in hotspot_by_model.items() if m in lineage_models}
     dam_lin = {m: v for m, v in damaging_by_model.items() if m in lineage_models}
-    n_mut_lin = sum(1 for m in chronos_lin
-                    if hot_lin.get(m) or dam_lin.get(m))
-    n_wt_lin = sum(1 for m in chronos_lin
-                   if not (hot_lin.get(m) or dam_lin.get(m)))
+    n_mut_lin = sum(1 for m in chronos_lin if hot_lin.get(m) or dam_lin.get(m))
+    n_wt_lin = sum(1 for m in chronos_lin if not (hot_lin.get(m) or dam_lin.get(m)))
 
     # within_indication: both arms powered inside the lineage.
     if n_mut_lin >= min_mutant and n_wt_lin >= min_wildtype:
         within = compute_mutation_stratification(
-            chronos_lin, hot_lin, dam_lin,
-            strong_effect_delta, moderate_effect_delta, stratification_alpha)
+            chronos_lin, hot_lin, dam_lin, strong_effect_delta, moderate_effect_delta, stratification_alpha
+        )
         return _finish(within, "within_indication", within["mutation_stratification_class"])
 
     # within_indication_mut_vs_pan_wt: lineage mutants vs the pan-WT comparator (broadens the
@@ -622,15 +644,14 @@ def compute_mutation_stratification_conditioned(
         lin_mut_ids = {m for m in chronos_lin if hot_lin.get(m) or dam_lin.get(m)}
         # chronos over: lineage mutants + ALL pan WT; hotspot/damaging True only for lineage mutants.
         chronos_mix = dict(chronos_lin)  # lineage mutants (+ any lineage WT, harmless — reclassified below)
-        pan_wt_ids = {m for m in chronos_by_model
-                      if not (hotspot_by_model.get(m) or damaging_by_model.get(m))}
+        pan_wt_ids = {m for m in chronos_by_model if not (hotspot_by_model.get(m) or damaging_by_model.get(m))}
         for m in pan_wt_ids:
             chronos_mix[m] = chronos_by_model[m]
         hot_mix = {m: (m in lin_mut_ids and bool(hotspot_by_model.get(m))) for m in chronos_mix}
         dam_mix = {m: (m in lin_mut_ids and bool(damaging_by_model.get(m))) for m in chronos_mix}
         mix = compute_mutation_stratification(
-            chronos_mix, hot_mix, dam_mix,
-            strong_effect_delta, moderate_effect_delta, stratification_alpha)
+            chronos_mix, hot_mix, dam_mix, strong_effect_delta, moderate_effect_delta, stratification_alpha
+        )
         return _finish(mix, "within_indication_mut_vs_pan_wt", mix["mutation_stratification_class"])
 
     # pan_lineage_evidence_only: lineage mutant arm underpowered → pan-DepMap, but CAP a strong
@@ -642,10 +663,15 @@ def compute_mutation_stratification_conditioned(
     return _finish(capped, "pan_lineage_evidence_only")
 
 
-def emit_mut_vs_wt_strip_plot(chronos_by_model: dict, hotspot_by_model: dict,
-                                damaging_by_model: dict, target_symbol: str,
-                                summary: dict, out_path: Path,
-                                contracts_root: Path) -> None:
+def emit_mut_vs_wt_strip_plot(
+    chronos_by_model: dict,
+    hotspot_by_model: dict,
+    damaging_by_model: dict,
+    target_symbol: str,
+    summary: dict,
+    out_path: Path,
+    contracts_root: Path,
+) -> None:
     """Primary figure: Chronos strip plot grouped by mutation status (hotspot + damaging
     tiers side-by-side, each split mut vs WT). Annotated with q-values."""
     import matplotlib.pyplot as plt
@@ -656,15 +682,16 @@ def emit_mut_vs_wt_strip_plot(chronos_by_model: dict, hotspot_by_model: dict,
         plt.style.use(str(style_path))
     sys.path.insert(0, str(contracts_root / "plot_styles"))
     from takeda_palette import (  # type: ignore
-        REFLINE_NOMINAL, REFLINE_KILLER,
-        FIGSIZE_DOUBLE_COLUMN, CHRONOS_STRONG_DEPENDENCY,
+        REFLINE_NOMINAL,
+        REFLINE_KILLER,
+        FIGSIZE_DOUBLE_COLUMN,
+        CHRONOS_STRONG_DEPENDENCY,
     )
 
     fig, ax = plt.subplots(figsize=FIGSIZE_DOUBLE_COLUMN)
 
     if not chronos_by_model:
-        ax.text(0.5, 0.5, "No data", ha="center", va="center",
-                transform=ax.transAxes, color="#666666")
+        ax.text(0.5, 0.5, "No data", ha="center", va="center", transform=ax.transAxes, color="#666666")
         fig.savefig(out_path / "figure_mut_vs_wt_strip.svg", bbox_inches="tight")
         plt.close(fig)
         return
@@ -674,35 +701,45 @@ def emit_mut_vs_wt_strip_plot(chronos_by_model: dict, hotspot_by_model: dict,
     # Four columns: hotspot_mut, hotspot_wt, damaging_mut, damaging_wt
     groups = []
     if hotspot_by_model:
-        groups.append(("hotspot\nmutant",
-                       [chronos_by_model[m] for m in chronos_by_model
-                        if m in hotspot_by_model and hotspot_by_model[m]],
-                       "#B22222"))
-        groups.append(("hotspot\nWT",
-                       [chronos_by_model[m] for m in chronos_by_model
-                        if m in hotspot_by_model and not hotspot_by_model[m]],
-                       "#888888"))
+        groups.append(
+            (
+                "hotspot\nmutant",
+                [chronos_by_model[m] for m in chronos_by_model if m in hotspot_by_model and hotspot_by_model[m]],
+                "#B22222",
+            )
+        )
+        groups.append(
+            (
+                "hotspot\nWT",
+                [chronos_by_model[m] for m in chronos_by_model if m in hotspot_by_model and not hotspot_by_model[m]],
+                "#888888",
+            )
+        )
     if damaging_by_model:
-        groups.append(("damaging\nmutant",
-                       [chronos_by_model[m] for m in chronos_by_model
-                        if m in damaging_by_model and damaging_by_model[m]],
-                       "#E69F00"))
-        groups.append(("damaging\nWT",
-                       [chronos_by_model[m] for m in chronos_by_model
-                        if m in damaging_by_model and not damaging_by_model[m]],
-                       "#888888"))
+        groups.append(
+            (
+                "damaging\nmutant",
+                [chronos_by_model[m] for m in chronos_by_model if m in damaging_by_model and damaging_by_model[m]],
+                "#E69F00",
+            )
+        )
+        groups.append(
+            (
+                "damaging\nWT",
+                [chronos_by_model[m] for m in chronos_by_model if m in damaging_by_model and not damaging_by_model[m]],
+                "#888888",
+            )
+        )
 
     for i, (label, scores, color) in enumerate(groups):
         if not scores:
             continue
         scores_arr = np.array(scores)
         xs = i + rng.uniform(-0.25, 0.25, size=len(scores_arr))
-        ax.scatter(xs, scores_arr, s=14, alpha=0.55,
-                    color=color, edgecolor="white", linewidth=0.3, zorder=2)
+        ax.scatter(xs, scores_arr, s=14, alpha=0.55, color=color, edgecolor="white", linewidth=0.3, zorder=2)
         # Median tick
         med = float(np.median(scores_arr))
-        ax.plot([i - 0.35, i + 0.35], [med, med],
-                color="#222222", linewidth=1.5, zorder=3)
+        ax.plot([i - 0.35, i + 0.35], [med, med], color="#222222", linewidth=1.5, zorder=3)
 
     # Reference lines
     ax.axhline(y=0, **REFLINE_NOMINAL, zorder=1)
@@ -717,11 +754,18 @@ def emit_mut_vs_wt_strip_plot(chronos_by_model: dict, hotspot_by_model: dict,
     if dam_q is not None:
         parts.append(f"damaging q = {dam_q:.2e}")
     if parts:
-        ax.text(0.02, 0.98, "  ·  ".join(parts), transform=ax.transAxes,
-                ha="left", va="top", fontsize=9, family="monospace",
-                bbox=dict(facecolor="white", edgecolor="#888888",
-                            alpha=0.92, pad=4, boxstyle="round,pad=0.4"),
-                zorder=5)
+        ax.text(
+            0.02,
+            0.98,
+            "  ·  ".join(parts),
+            transform=ax.transAxes,
+            ha="left",
+            va="top",
+            fontsize=9,
+            family="monospace",
+            bbox=dict(facecolor="white", edgecolor="#888888", alpha=0.92, pad=4, boxstyle="round,pad=0.4"),
+            zorder=5,
+        )
 
     ax.set_xticks(range(len(groups)))
     ax.set_xticklabels([label for label, _, _ in groups], fontsize=9)
@@ -734,9 +778,9 @@ def emit_mut_vs_wt_strip_plot(chronos_by_model: dict, hotspot_by_model: dict,
     plt.close(fig)
 
 
-def emit_per_hotspot_chronos_plot(chronos_by_model: dict, per_hotspot_records: list,
-                                    target_symbol: str, out_path: Path,
-                                    contracts_root: Path) -> None:
+def emit_per_hotspot_chronos_plot(
+    chronos_by_model: dict, per_hotspot_records: list, target_symbol: str, out_path: Path, contracts_root: Path
+) -> None:
     """Alternate figure: per-hotspot Chronos strip plot (one column per recurrent
     protein change). Skipped placeholder when fewer than 3 hotspots detected."""
     import matplotlib.pyplot as plt
@@ -751,10 +795,16 @@ def emit_per_hotspot_chronos_plot(chronos_by_model: dict, per_hotspot_records: l
     fig, ax = plt.subplots(figsize=FIGSIZE_DOUBLE_COLUMN)
 
     if not per_hotspot_records or len(per_hotspot_records) < 3:
-        ax.text(0.5, 0.5,
-                "Per-hotspot breakdown unavailable\n(fewer than 3 recurrent hotspots detected)",
-                ha="center", va="center", transform=ax.transAxes,
-                color="#666666", fontsize=10)
+        ax.text(
+            0.5,
+            0.5,
+            "Per-hotspot breakdown unavailable\n(fewer than 3 recurrent hotspots detected)",
+            ha="center",
+            va="center",
+            transform=ax.transAxes,
+            color="#666666",
+            fontsize=10,
+        )
         ax.axis("off")
         fig.savefig(out_path / "figure_per_hotspot_chronos.svg", bbox_inches="tight")
         plt.close(fig)
@@ -768,8 +818,7 @@ def emit_per_hotspot_chronos_plot(chronos_by_model: dict, per_hotspot_records: l
         if not scores:
             continue
         xs = i + rng.uniform(-0.25, 0.25, size=len(scores))
-        ax.scatter(xs, scores, s=18, alpha=0.7, color="#B22222",
-                    edgecolor="white", linewidth=0.3, zorder=2)
+        ax.scatter(xs, scores, s=18, alpha=0.7, color="#B22222", edgecolor="white", linewidth=0.3, zorder=2)
         med = float(np.median(scores))
         ax.plot([i - 0.35, i + 0.35], [med, med], color="#222222", linewidth=1.5, zorder=3)
 
@@ -784,9 +833,15 @@ def emit_per_hotspot_chronos_plot(chronos_by_model: dict, per_hotspot_records: l
     plt.close(fig)
 
 
-def emit_plotly_specs(chronos_by_model: dict, hotspot_by_model: dict,
-                      damaging_by_model: dict, target_symbol: str, summary: dict,
-                      out_path: Path, contracts_root: Path) -> list:
+def emit_plotly_specs(
+    chronos_by_model: dict,
+    hotspot_by_model: dict,
+    damaging_by_model: dict,
+    target_symbol: str,
+    summary: dict,
+    out_path: Path,
+    contracts_root: Path,
+) -> list:
     """Emit interactive Plotly spec SIBLING to the mut-vs-WT strip SVG.
 
     Interactive twin of emit_mut_vs_wt_strip_plot: Chronos box+strip grouped by mutation status
@@ -796,6 +851,7 @@ def emit_plotly_specs(chronos_by_model: dict, hotspot_by_model: dict,
     figure_mut_vs_wt_strip.plotly.json. Best-effort (Plotly optional → SVG guaranteed)."""
     try:
         import plotly.graph_objects as go
+
         sys.path.insert(0, str(contracts_root / "plot_styles"))
         from takeda_palette import CHRONOS_STRONG_DEPENDENCY  # type: ignore
     except Exception as e:  # noqa: BLE001 — Plotly optional; never block the SVG artifact
@@ -809,24 +865,60 @@ def emit_plotly_specs(chronos_by_model: dict, hotspot_by_model: dict,
         # SAME 4 groups + colors as the SVG (hotspot-mut red, damaging-mut amber, WT grey).
         groups = []
         if hotspot_by_model:
-            groups.append(("hotspot mutant", [chronos_by_model[m] for m in chronos_by_model
-                           if m in hotspot_by_model and hotspot_by_model[m]], "#B22222"))
-            groups.append(("hotspot WT", [chronos_by_model[m] for m in chronos_by_model
-                           if m in hotspot_by_model and not hotspot_by_model[m]], "#888888"))
+            groups.append(
+                (
+                    "hotspot mutant",
+                    [chronos_by_model[m] for m in chronos_by_model if m in hotspot_by_model and hotspot_by_model[m]],
+                    "#B22222",
+                )
+            )
+            groups.append(
+                (
+                    "hotspot WT",
+                    [
+                        chronos_by_model[m]
+                        for m in chronos_by_model
+                        if m in hotspot_by_model and not hotspot_by_model[m]
+                    ],
+                    "#888888",
+                )
+            )
         if damaging_by_model:
-            groups.append(("damaging mutant", [chronos_by_model[m] for m in chronos_by_model
-                           if m in damaging_by_model and damaging_by_model[m]], "#E69F00"))
-            groups.append(("damaging WT", [chronos_by_model[m] for m in chronos_by_model
-                           if m in damaging_by_model and not damaging_by_model[m]], "#888888"))
+            groups.append(
+                (
+                    "damaging mutant",
+                    [chronos_by_model[m] for m in chronos_by_model if m in damaging_by_model and damaging_by_model[m]],
+                    "#E69F00",
+                )
+            )
+            groups.append(
+                (
+                    "damaging WT",
+                    [
+                        chronos_by_model[m]
+                        for m in chronos_by_model
+                        if m in damaging_by_model and not damaging_by_model[m]
+                    ],
+                    "#888888",
+                )
+            )
 
         fig = go.Figure()
         for label, scores, color in groups:
             if not scores:
                 continue
-            fig.add_trace(go.Box(
-                y=scores, name=label, marker_color=color, boxpoints="all", jitter=0.5,
-                pointpos=0, marker=dict(size=4, opacity=0.55),
-                hovertemplate=f"{label}<br>Chronos %{{y:.2f}}<extra></extra>"))
+            fig.add_trace(
+                go.Box(
+                    y=scores,
+                    name=label,
+                    marker_color=color,
+                    boxpoints="all",
+                    jitter=0.5,
+                    pointpos=0,
+                    marker=dict(size=4, opacity=0.55),
+                    hovertemplate=f"{label}<br>Chronos %{{y:.2f}}<extra></extra>",
+                )
+            )
         for yv, col, dash in [(0.0, "#999999", "solid"), (CHRONOS_STRONG_DEPENDENCY, "#B22222", "dash")]:
             fig.add_hline(y=yv, line=dict(color=col, dash=dash, width=1.5))
         hot_q, dam_q = summary.get("hotspot_mannwhitney_q"), summary.get("damaging_mannwhitney_q")
@@ -840,45 +932,51 @@ def emit_plotly_specs(chronos_by_model: dict, hotspot_by_model: dict,
         fig.update_layout(
             title=f"{target_symbol}: dependency stratified by mutation status ({cls}){qstr}",
             yaxis_title="Chronos score (more dependent ↓)",
-            template="plotly_white", showlegend=False, margin=dict(l=60, r=20, t=50, b=50))
+            template="plotly_white",
+            showlegend=False,
+            margin=dict(l=60, r=20, t=50, b=50),
+        )
         (out_path / "figure_mut_vs_wt_strip.plotly.json").write_text(fig.to_json())
-        written.append({"id": "mut_vs_wt_strip", "path": "figure_mut_vs_wt_strip.plotly.json",
-                        "type": "plotly"})
+        written.append({"id": "mut_vs_wt_strip", "path": "figure_mut_vs_wt_strip.plotly.json", "type": "plotly"})
     except Exception as e:  # noqa: BLE001
         print(f"[depmap_mutation_dependency] strip plotly skipped: {e}", file=sys.stderr)
 
     return written
 
 
-def emit_plot_data(chronos_by_model: dict, hotspot_by_model: dict,
-                     damaging_by_model: dict, model_metadata: dict,
-                     out_path: Path) -> None:
+def emit_plot_data(
+    chronos_by_model: dict, hotspot_by_model: dict, damaging_by_model: dict, model_metadata: dict, out_path: Path
+) -> None:
     """Emit per-cell-line long-format plot_data.parquet."""
     import pandas as pd
 
     rows = []
     for mid, c in chronos_by_model.items():
         meta = model_metadata.get(mid, {}) if model_metadata else {}
-        rows.append({
-            "cell_line_id": mid,
-            "cell_line_name": meta.get("CellLineName", mid),
-            "chronos_score": float(c),
-            "lineage": meta.get("OncotreeLineage") or "unknown",
-            "is_hotspot_mutant": bool(hotspot_by_model.get(mid, False)),
-            "is_damaging_mutant": bool(damaging_by_model.get(mid, False)),
-            "is_any_mutant": bool(hotspot_by_model.get(mid, False) or damaging_by_model.get(mid, False)),
-        })
+        rows.append(
+            {
+                "cell_line_id": mid,
+                "cell_line_name": meta.get("CellLineName", mid),
+                "chronos_score": float(c),
+                "lineage": meta.get("OncotreeLineage") or "unknown",
+                "is_hotspot_mutant": bool(hotspot_by_model.get(mid, False)),
+                "is_damaging_mutant": bool(damaging_by_model.get(mid, False)),
+                "is_any_mutant": bool(hotspot_by_model.get(mid, False) or damaging_by_model.get(mid, False)),
+            }
+        )
     pd.DataFrame(rows).to_parquet(out_path / "plot_data.parquet", index=False)
 
 
-def emit_manifest(target: str, indication: str, release_pin: str,
-                    summary: dict, out_path: Path, load_errors: list) -> None:
+def emit_manifest(
+    target: str, indication: str, release_pin: str, summary: dict, out_path: Path, load_errors: list
+) -> None:
     import yaml
+
     manifest = {
         "method": "depmap-mutation-stratified",
         "method_version": METHOD_VERSION,
         "target": target,
-        "indication": indication,                # run-context only
+        "indication": indication,  # run-context only
         "release_pin": release_pin,
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "input_manifest": "depmap-consortium-26q1",
@@ -899,12 +997,10 @@ def emit_manifest(target: str, indication: str, release_pin: str,
 
 @click.command()
 @click.option("--target", required=True)
-@click.option("--indication", required=True,
-              type=click.Choice(["COADREAD", "PDAC", "NSCLC", "SCLC", "GC", "MELANOMA"]))
+@click.option("--indication", required=True, type=click.Choice(["COADREAD", "PDAC", "NSCLC", "SCLC", "GC", "MELANOMA"]))
 @click.option("--release-pin", default="26q1")
 @click.option("--out", required=True, type=click.Path(file_okay=False, path_type=Path))
-@click.option("--contracts-root", type=click.Path(file_okay=False, path_type=Path),
-              default=DEFAULT_TARGET_CONTRACTS)
+@click.option("--contracts-root", type=click.Path(file_okay=False, path_type=Path), default=DEFAULT_TARGET_CONTRACTS)
 @click.option("--dry-run", is_flag=True)
 def main(target, indication, release_pin, out, contracts_root, dry_run) -> int:
     out.mkdir(parents=True, exist_ok=True)
@@ -918,12 +1014,16 @@ def main(target, indication, release_pin, out, contracts_root, dry_run) -> int:
     # Reuse Card 1's loader for Chronos
     sys.path.insert(0, str(METHOD_DIR.parent.parent))
     from methods.depmap_chronos_distribution import cli as c1cli
+
     chronos_by_model, model_metadata, chronos_errs = c1cli.load_depmap_files(release_pin, target)
     if chronos_errs:
         click.echo(f"  CHRONOS LOAD FAILED: {chronos_errs}", err=True)
         with (out / "summary.json").open("w") as f:
-            json.dump({"_live_read_error": True, "errors": chronos_errs,
-                       "mutation_stratification_class": "data_unavailable"}, f, indent=2)
+            json.dump(
+                {"_live_read_error": True, "errors": chronos_errs, "mutation_stratification_class": "data_unavailable"},
+                f,
+                indent=2,
+            )
         emit_manifest(target, indication, release_pin, {}, out, chronos_errs)
         return 2
 
@@ -931,34 +1031,44 @@ def main(target, indication, release_pin, out, contracts_root, dry_run) -> int:
     if mut_errs:
         click.echo(f"  MUTATION LOAD FAILED: {mut_errs}", err=True)
         with (out / "summary.json").open("w") as f:
-            json.dump({"_live_read_error": True, "errors": mut_errs,
-                       "mutation_stratification_class": "data_unavailable"}, f, indent=2)
+            json.dump(
+                {"_live_read_error": True, "errors": mut_errs, "mutation_stratification_class": "data_unavailable"},
+                f,
+                indent=2,
+            )
         emit_manifest(target, indication, release_pin, {}, out, mut_errs)
         return 2
 
     summary = compute_mutation_stratification_conditioned(
-        chronos_by_model, hotspot_by_model, damaging_by_model,
-        model_metadata=model_metadata, indication=indication,
+        chronos_by_model,
+        hotspot_by_model,
+        damaging_by_model,
+        model_metadata=model_metadata,
+        indication=indication,
     )
 
     with (out / "summary.json").open("w") as f:
         # Strip the _hotspot_by_model / _damaging_by_model internal payload before writing
-        json.dump({k: v for k, v in summary.items()
-                   if not (k.startswith("_") and isinstance(v, dict))},
-                  f, indent=2, default=str)
+        json.dump(
+            {k: v for k, v in summary.items() if not (k.startswith("_") and isinstance(v, dict))},
+            f,
+            indent=2,
+            default=str,
+        )
 
-    emit_plot_data(chronos_by_model, hotspot_by_model, damaging_by_model,
-                    model_metadata, out)
-    emit_mut_vs_wt_strip_plot(chronos_by_model, hotspot_by_model, damaging_by_model,
-                                target, summary, out, contracts_root)
-    emit_per_hotspot_chronos_plot(chronos_by_model, summary.get("per_hotspot_stats", []),
-                                    target, out, contracts_root)
+    emit_plot_data(chronos_by_model, hotspot_by_model, damaging_by_model, model_metadata, out)
+    emit_mut_vs_wt_strip_plot(
+        chronos_by_model, hotspot_by_model, damaging_by_model, target, summary, out, contracts_root
+    )
+    emit_per_hotspot_chronos_plot(chronos_by_model, summary.get("per_hotspot_stats", []), target, out, contracts_root)
     emit_manifest(target, indication, release_pin, summary, out, [])
 
     click.echo(f"  mutation_stratification_class: {summary['mutation_stratification_class']}")
-    click.echo(f"  hotspot mut/wt: {summary['n_hotspot_mutant']}/{summary['n_hotspot_wildtype']}  "
-                f"delta = {summary.get('delta_chronos_hotspot_mut_vs_wt')}, "
-                f"q = {summary.get('hotspot_mannwhitney_q')}")
+    click.echo(
+        f"  hotspot mut/wt: {summary['n_hotspot_mutant']}/{summary['n_hotspot_wildtype']}  "
+        f"delta = {summary.get('delta_chronos_hotspot_mut_vs_wt')}, "
+        f"q = {summary.get('hotspot_mannwhitney_q')}"
+    )
     return 0
 
 

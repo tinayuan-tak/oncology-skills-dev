@@ -5,6 +5,7 @@ to the matplotlib SVGs, built from the SAME in-memory demeter_by_model — so th
 the static figure or plot_data.parquet. DEMETER2 scale: reflines at -0.25 / -0.5 (not the Chronos
 0 / -0.5 / -1.0). No S3 — synthetic input. Plotly optional at emit time.
 """
+
 from __future__ import annotations
 
 import base64
@@ -37,19 +38,23 @@ cli = _load()
 def _decode(v):
     if isinstance(v, dict) and "bdata" in v:
         import numpy as np
-        return np.frombuffer(base64.b64decode(v["bdata"]),
-                             dtype={"f8": "<f8", "f4": "<f4"}[v["dtype"]]).tolist()
+
+        return np.frombuffer(base64.b64decode(v["bdata"]), dtype={"f8": "<f8", "f4": "<f4"}[v["dtype"]]).tolist()
     return list(v)
 
 
 def _fixture():
     demeter = {f"ACH-{i:03d}": (-1.5 + i * 0.03) for i in range(60)}
-    meta = {f"ACH-{i:03d}": {"CellLineName": f"CL{i}",
-                             "OncotreeLineage": ["Bowel", "Lung", "Pancreas", "Skin"][i % 4]}
-            for i in range(60)}
-    summary = {"rnai_n_cell_lines_evaluated": 60, "rnai_median_dep_score": -0.3,
-               "rnai_distribution_shape": "bimodal_selective",
-               "rnai_fraction_strongly_dependent": 0.2}
+    meta = {
+        f"ACH-{i:03d}": {"CellLineName": f"CL{i}", "OncotreeLineage": ["Bowel", "Lung", "Pancreas", "Skin"][i % 4]}
+        for i in range(60)
+    }
+    summary = {
+        "rnai_n_cell_lines_evaluated": 60,
+        "rnai_median_dep_score": -0.3,
+        "rnai_distribution_shape": "bimodal_selective",
+        "rnai_fraction_strongly_dependent": 0.2,
+    }
     return demeter, meta, summary
 
 

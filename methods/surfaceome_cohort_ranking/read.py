@@ -20,6 +20,7 @@ Wiring approach:
 
 Runtime discipline: per-target row cache; definitive-absence latch.
 """
+
 from __future__ import annotations
 
 from typing import Optional
@@ -30,10 +31,19 @@ DERIVED_MANIFEST_ID = "surfaceome-cohort-ranking-per-indication-v1"
 # Columns consumed downstream (_row_to_summary + the by-indication / best-percentile lookup).
 # Projecting them keeps the streamed read to just what the summary needs.
 _COLUMNS = [
-    "indication", "gene_symbol", "cohort_rank_class", "tissue_rank",
-    "tissue_percentile_rna", "tissue_percentile_protein", "rna_protein_concordance",
-    "ranking_score", "cells_supporting", "cells_ran", "max_abs_log2fc",
-    "surface_protein_family", "uniprot_ac",
+    "indication",
+    "gene_symbol",
+    "cohort_rank_class",
+    "tissue_rank",
+    "tissue_percentile_rna",
+    "tissue_percentile_protein",
+    "rna_protein_concordance",
+    "ranking_score",
+    "cells_supporting",
+    "cells_ran",
+    "max_abs_log2fc",
+    "surface_protein_family",
+    "uniprot_ac",
 ]
 
 # Per-target row cache (keyed by UPPER(gene_symbol)); caches ONLY successful reads. A transient
@@ -62,6 +72,7 @@ def _read_gene_rows(target: str) -> Optional[list]:
         from methods.catalog_query.read import bucket_key_for
         import pyarrow.parquet as pq
         import pyarrow.fs as fs
+
         bucket, key = bucket_key_for(DERIVED_MANIFEST_ID)
         tbl = pq.read_table(
             f"{bucket}/{key}",
@@ -71,6 +82,7 @@ def _read_gene_rows(target: str) -> Optional[list]:
         )
     except Exception as e:  # noqa: BLE001
         from methods.target_id_sidecar import is_definitively_absent
+
         # GENUINE absence (NoSuchKey/404 or a pyarrow FileNotFoundError) -> latch + None (honest
         # data_unavailable). A transient / creds / broken-env failure is NOT absence -> re-raise so
         # the caller's boundary records the real cause; not cached, so a later call still retries.
@@ -101,6 +113,7 @@ def load_indication_ranking(indication: str) -> Optional[list]:
         from methods.catalog_query.read import bucket_key_for
         import pyarrow.parquet as pq
         import pyarrow.fs as fs
+
         bucket, key = bucket_key_for(DERIVED_MANIFEST_ID)
         tbl = pq.read_table(
             f"{bucket}/{key}",
@@ -110,6 +123,7 @@ def load_indication_ranking(indication: str) -> Optional[list]:
         )
     except Exception as e:  # noqa: BLE001
         from methods.target_id_sidecar import is_definitively_absent
+
         if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
             _PRODUCT_ABSENT = True
             return None

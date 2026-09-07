@@ -83,8 +83,7 @@ def subgroup_iterable(wrapped: Callable) -> Callable:
     """
 
     @functools.wraps(wrapped)
-    def _wrapper(*args, subgroups=None, subgroup_assignments_manifest=None,
-                 subgroup_catalog_repo=None, **kwargs):
+    def _wrapper(*args, subgroups=None, subgroup_assignments_manifest=None, subgroup_catalog_repo=None, **kwargs):
         # Backward-compat path: no subgroup fan-out requested
         if not subgroups:
             return wrapped(*args, **kwargs)
@@ -105,7 +104,8 @@ def subgroup_iterable(wrapped: Callable) -> Callable:
         results: dict[str, Any] = {}
         for subgroup_id in subgroups:
             member_ids = resolve_subgroup_cohort(
-                subgroup_assignments_manifest, subgroup_id,
+                subgroup_assignments_manifest,
+                subgroup_id,
                 data_catalog_repo=subgroup_catalog_repo,
             )
             # Inject _sample_id_filter kwarg — methods opt in by declaring it

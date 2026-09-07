@@ -13,4 +13,5 @@ gene->pathway map: KRAS/EGFR->RTK-RAS, CTNNB1->WNT, TP53->TP53.
 Emits oncogenic_pathway_class + frequently_altered_pathways + target_pathway_membership +
 target_pathway_alteration. VERDICT-INERT — routes into Mechanism (D) + Altered (E) as advisory context.
 """
+
 from .read import read_oncogenic_pathway_alteration, METHOD_VERSION  # noqa: F401

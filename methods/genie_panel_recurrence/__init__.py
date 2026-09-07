@@ -15,6 +15,7 @@ so the whole-exome-breadth (MC3) and higher-N-panel (GENIE) comparators coexist.
 
 METHOD_VERSION 0.1.0.
 """
+
 from __future__ import annotations
 
 METHOD_VERSION = "0.1.0"

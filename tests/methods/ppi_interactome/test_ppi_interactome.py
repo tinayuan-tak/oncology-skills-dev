@@ -1,6 +1,7 @@
 """PPI interactome method: STRING high-confidence degree + CORUM complex membership.
 
 S3-free unit test (fixture STRING info/links + CORUM + sidecar) + a live smoke (skips without S3)."""
+
 from __future__ import annotations
 
 import gzip
@@ -18,6 +19,7 @@ from methods.ppi_interactome import read as _ppi  # noqa: E402
 
 def _fixtures(tmp_path):
     import pandas as pd
+
     info = tmp_path / "info.txt.gz"
     with gzip.open(info, "wt") as fh:
         fh.write("#string_protein_id\tpreferred_name\n")
@@ -25,8 +27,8 @@ def _fixtures(tmp_path):
     links = tmp_path / "links.txt.gz"
     with gzip.open(links, "wt") as fh:
         fh.write("protein1 protein2 combined_score\n")
-        fh.write("9606.ENSP_TGT 9606.ENSP_A 900\n")   # high-confidence
-        fh.write("9606.ENSP_TGT 9606.ENSP_B 300\n")   # below threshold -> excluded
+        fh.write("9606.ENSP_TGT 9606.ENSP_A 900\n")  # high-confidence
+        fh.write("9606.ENSP_TGT 9606.ENSP_B 300\n")  # below threshold -> excluded
     corum_u = tmp_path / "corum_uniprot.txt"
     corum_u.write_text("UniProtKB_accession_number\tcorum_id\nP99999\t42\n")
     corum_c = tmp_path / "corum_complete.txt"
@@ -35,14 +37,22 @@ def _fixtures(tmp_path):
     pd.DataFrame([{"hgnc_primary_symbol_at_resolution": "TGT", "uniprot_canonical": "P99999"}]).to_parquet(sc)
     # BioGRID physical-edge product fixture: TGT physically binds PARTNERA (7 papers) + PARTNERC (2).
     bg = tmp_path / "biogrid.parquet"
-    pd.DataFrame([
-        {"gene_symbol": "TGT", "partner_symbol": "PARTNERA", "n_publications": 7, "n_experiments": 12},
-        {"gene_symbol": "TGT", "partner_symbol": "PARTNERC", "n_publications": 2, "n_experiments": 2},
-    ]).to_parquet(bg)
+    pd.DataFrame(
+        [
+            {"gene_symbol": "TGT", "partner_symbol": "PARTNERA", "n_publications": 7, "n_experiments": 12},
+            {"gene_symbol": "TGT", "partner_symbol": "PARTNERC", "n_publications": 2, "n_experiments": 2},
+        ]
+    ).to_parquet(bg)
     for fn in (_ppi._load_string_info, _ppi._load_corum, _ppi._load_uniprot_sidecar):
         fn.cache_clear()
-    return dict(info_path=str(info), links_path=str(links), corum_uniprot_path=str(corum_u),
-                corum_complete_path=str(corum_c), sidecar_path=str(sc), biogrid_path=str(bg))
+    return dict(
+        info_path=str(info),
+        links_path=str(links),
+        corum_uniprot_path=str(corum_u),
+        corum_complete_path=str(corum_c),
+        sidecar_path=str(sc),
+        biogrid_path=str(bg),
+    )
 
 
 def test_string_threshold_and_corum_membership(tmp_path):
@@ -60,7 +70,7 @@ def test_biogrid_physical_leg(tmp_path):
     # BioGRID leg: distinct signal, partners ranked by publication evidence, reported ALONGSIDE STRING.
     s = _ppi.read_target_summary("TGT", **_fixtures(tmp_path))
     assert s["n_physical_interactors"] == 2
-    assert s["physical_interactome_class"] == "physically_sparse"   # 2 physical partners (1..9)
+    assert s["physical_interactome_class"] == "physically_sparse"  # 2 physical partners (1..9)
     assert s["top_physical_partners"][0] == {"partner": "PARTNERA", "n_publications": 7, "n_experiments": 12}
     # STRING + BioGRID are DISTINCT (not merged): STRING sees 1 HC edge, BioGRID sees 2 physical.
     assert s["n_high_confidence_interactors"] == 1
@@ -71,14 +81,17 @@ def test_biogrid_only_target_still_resolves(tmp_path):
     # a target absent from STRING+CORUM but present in BioGRID must NOT be data_unavailable.
     fx = _fixtures(tmp_path)
     import pandas as pd
+
     bg = Path(fx["biogrid_path"]).with_name("biogrid_only.parquet")
-    pd.DataFrame([{"gene_symbol": "ORPHAN", "partner_symbol": "X", "n_publications": 3, "n_experiments": 4}]).to_parquet(bg)
+    pd.DataFrame(
+        [{"gene_symbol": "ORPHAN", "partner_symbol": "X", "n_publications": 3, "n_experiments": 4}]
+    ).to_parquet(bg)
     fx["biogrid_path"] = str(bg)
     s = _ppi.read_target_summary("ORPHAN", **fx)
     # STRING/CORUM don't know ORPHAN, but BioGRID does → NOT the data_unavailable empty path.
     assert s["n_physical_interactors"] == 1
     assert s["physical_interactome_class"] == "physically_sparse"
-    assert s.get("_data_note") is None   # resolved via BioGRID, not _empty()
+    assert s.get("_data_note") is None  # resolved via BioGRID, not _empty()
 
 
 def test_unknown_target_data_unavailable(tmp_path):
@@ -105,20 +118,24 @@ def test_string_edges_from_product_pushdown(tmp_path):
     pushdown filter, returning symbol-resolved HC edges (no info-map, no stream). S3-free fixture."""
     import pandas as pd
     from methods.ppi_interactome import read as _ppi
+
     prod = tmp_path / "string_hc.parquet"
-    pd.DataFrame([
-        {"gene_symbol": "TGT", "partner_symbol": "PARTNERA", "combined_score": 900},
-        {"gene_symbol": "TGT", "partner_symbol": "PARTNERB", "combined_score": 800},
-        {"gene_symbol": "OTHER", "partner_symbol": "ZZZ", "combined_score": 950},
-    ]).to_parquet(prod)
+    pd.DataFrame(
+        [
+            {"gene_symbol": "TGT", "partner_symbol": "PARTNERA", "combined_score": 900},
+            {"gene_symbol": "TGT", "partner_symbol": "PARTNERB", "combined_score": 800},
+            {"gene_symbol": "OTHER", "partner_symbol": "ZZZ", "combined_score": 950},
+        ]
+    ).to_parquet(prod)
     edges = _ppi._string_edges_from_product("TGT", product_path=str(prod))
     assert edges is not None
     partners = {e["partner"] for e in edges}
-    assert partners == {"PARTNERA", "PARTNERB"}   # only TGT's edges, not OTHER's
+    assert partners == {"PARTNERA", "PARTNERB"}  # only TGT's edges, not OTHER's
     assert all(e["combined_score"] >= 700 for e in edges)
 
 
 def test_string_product_missing_returns_none(tmp_path):
     """Product unreadable → None (signals the reader to fall back to the legacy stream)."""
     from methods.ppi_interactome import read as _ppi
+
     assert _ppi._string_edges_from_product("TGT", product_path=str(tmp_path / "nope.parquet")) is None

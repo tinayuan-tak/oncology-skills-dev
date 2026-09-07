@@ -16,6 +16,7 @@ Reuses:
 Sample→panel is read from the clinical GENE_PANEL column (the 50k source ships no gene-panel MATRIX file;
 the clinical carries the assay per sample). The numerator MAF is msk-impact-50k-per-sample-maf-v1.
 """
+
 from __future__ import annotations
 
 import io
@@ -27,7 +28,7 @@ from pathlib import Path
 DEFAULT_AWS_PROFILE = "cbg"
 S3_BUCKET = "onc-compbio"
 MSK_PREFIX = "data-catalog/sources/cbioportal/msk_impact_50k_2026"
-MSK_CLINICAL_KEY = f"{MSK_PREFIX}/data_clinical_sample.txt"   # carries SAMPLE_ID + CANCER_TYPE + GENE_PANEL
+MSK_CLINICAL_KEY = f"{MSK_PREFIX}/data_clinical_sample.txt"  # carries SAMPLE_ID + CANCER_TYPE + GENE_PANEL
 MSK_MAF_MANIFEST = "msk-impact-50k-per-sample-maf-v1"
 MSK_MAF_LOCAL = Path.home() / ".cache" / "framework-msk-impact-50k"  # {ind}-msk-maf.parquet
 _MIN_COVERED = 20
@@ -35,12 +36,18 @@ _MIN_COVERED = 20
 # Framework indication → MSK-IMPACT-50k CANCER_TYPE (OncoTree broad label). The 50k cohort is PAN-CANCER,
 # so — unlike CHORD — GC (Esophagogastric Cancer) IS carried, giving GC an MSK arm in the pool.
 MSK_CANCER_TYPE = {
-    "COADREAD": "Colorectal Cancer", "COAD": "Colorectal Cancer", "READ": "Colorectal Cancer",
-    "NSCLC": "Non-Small Cell Lung Cancer", "LUAD": "Non-Small Cell Lung Cancer",
+    "COADREAD": "Colorectal Cancer",
+    "COAD": "Colorectal Cancer",
+    "READ": "Colorectal Cancer",
+    "NSCLC": "Non-Small Cell Lung Cancer",
+    "LUAD": "Non-Small Cell Lung Cancer",
     "LUSC": "Non-Small Cell Lung Cancer",
-    "PAAD": "Pancreatic Cancer", "PDAC": "Pancreatic Cancer",
-    "GC": "Esophagogastric Cancer", "STAD": "Esophagogastric Cancer",
-    "BRCA": "Breast Cancer", "PRAD": "Prostate Cancer",
+    "PAAD": "Pancreatic Cancer",
+    "PDAC": "Pancreatic Cancer",
+    "GC": "Esophagogastric Cancer",
+    "STAD": "Esophagogastric Cancer",
+    "BRCA": "Breast Cancer",
+    "PRAD": "Prostate Cancer",
 }
 
 from methods.target_id_sidecar import ensure_aws_profile
@@ -48,6 +55,7 @@ from methods.target_id_sidecar import ensure_aws_profile
 
 def _s3():
     import boto3
+
     ensure_aws_profile()
     return boto3.Session(profile_name=os.environ.get("AWS_PROFILE", DEFAULT_AWS_PROFILE)).client("s3")
 
@@ -67,6 +75,7 @@ def load_msk_sample_panel_map() -> dict:
     gene-panel matrix; the per-sample assay is on the clinical). Blank = not panel-assigned → excluded.
     Panel ids normalized (bare IMPACT468 → MSK-IMPACT468 to match the GENIE gene-list filenames)."""
     import pandas as pd
+
     body = _s3().get_object(Bucket=S3_BUCKET, Key=MSK_CLINICAL_KEY)["Body"].read()
     df = pd.read_csv(io.BytesIO(body), sep="\t", comment="#", dtype=str)  # cBioPortal 4 '#' lines then header
     if "SAMPLE_ID" not in df.columns or "GENE_PANEL" not in df.columns:
@@ -84,6 +93,7 @@ def msk_indication_cohort(indication: str) -> tuple:
     """FULL MSK-IMPACT-50k sample cohort (mutated + wild-type) for an indication, from data_clinical_sample.txt
     filtered to the indication's CANCER_TYPE. The denominator universe (NOT the mutated-only MAF)."""
     import pandas as pd
+
     cancer_type = MSK_CANCER_TYPE.get(str(indication).upper())
     if cancer_type is None:
         return tuple()
@@ -100,12 +110,14 @@ def _load_msk_maf(indication: str):
     """MSK-IMPACT-50k per-sample MAF for one indication (sample_id, gene_symbol). Local-cache-first then the
     registered product (indication filter). Returns a DataFrame or None (data_unavailable)."""
     import pandas as pd
+
     ensure_aws_profile()
     local = MSK_MAF_LOCAL / f"{indication.lower()}-msk-maf.parquet"
     if local.exists():
         return pd.read_parquet(local, columns=["sample_id", "gene_symbol"])
     from methods.catalog_query.read import bucket_key_for
     from methods.target_id_sidecar import is_definitively_absent
+
     try:
         bucket, key = bucket_key_for(MSK_MAF_MANIFEST)
     except Exception as e:  # noqa: BLE001
@@ -114,10 +126,14 @@ def _load_msk_maf(indication: str):
         raise
     import pyarrow.parquet as pq
     import pyarrow.fs as fs
+
     try:
-        tbl = pq.read_table(f"{bucket}/{key}", filesystem=fs.S3FileSystem(),
-                            filters=[("indication", "=", indication)],
-                            columns=["sample_id", "gene_symbol"])
+        tbl = pq.read_table(
+            f"{bucket}/{key}",
+            filesystem=fs.S3FileSystem(),
+            filters=[("indication", "=", indication)],
+            columns=["sample_id", "gene_symbol"],
+        )
         return tbl.to_pandas()
     except Exception as e:  # noqa: BLE001
         code = str(getattr(e, "response", {}).get("Error", {}).get("Code", "")) if hasattr(e, "response") else ""
@@ -136,6 +152,7 @@ def msk_covered_gene_frequencies(indication: str) -> tuple:
     if df is None or len(df) == 0:
         return tuple()
     from methods.genie_panel_coverage.read import load_panel_gene_sets
+
     sp = load_msk_sample_panel_map()
     pg = load_panel_gene_sets()
     cohort = [s for s in msk_indication_cohort(indication) if s in sp]

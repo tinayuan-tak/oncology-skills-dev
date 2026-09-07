@@ -18,6 +18,7 @@ Modules:
     cli  — loaders (matrix + sidecar + Model.csv) + distribution classifier + CLI
     read — read_target_summary: the live-mode dispatcher entry
 """
+
 METHOD_VERSION = "0.1.0"
 
 from .read import read_target_summary  # noqa: E402,F401

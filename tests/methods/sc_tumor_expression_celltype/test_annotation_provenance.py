@@ -9,12 +9,13 @@ this. Now `malignant_annotation_method` + `entity_purity` are emitted as structu
 from the atlas provenance documented in INDICATION_TO_PRODUCT — not guessed (LUSC's undocumented method
 is honestly `unspecified`).
 """
+
 from __future__ import annotations
 
 import sys
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[3]   # the repo root of THIS checkout (worktree-safe)
+REPO = Path(__file__).resolve().parents[3]  # the repo root of THIS checkout (worktree-safe)
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 from methods.sc_tumor_expression_celltype import read as R  # noqa: E402

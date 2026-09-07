@@ -4,6 +4,7 @@ data_unavailable, unchanged) from transient/broken-env failure (-> re-raise -> _
 DuckDB httpfs surfaces a missing object as an IO error whose message carries NoSuchKey/404 (not a
 botocore ClientError), which is treated as genuine absence.
 """
+
 from __future__ import annotations
 
 import sys
@@ -26,6 +27,7 @@ def _nosuchkey():
 def _raise(exc):
     def f(*a, **k):
         raise exc
+
     return f
 
 

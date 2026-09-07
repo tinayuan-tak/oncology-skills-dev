@@ -36,7 +36,9 @@ def test_resolve_dominant_variant_class_compound():
 def test_resolve_dominant_variant_class_handles_unknowns():
     assert c._resolve_dominant_variant_class("") is None
     assert c._resolve_dominant_variant_class(None) is None
-    assert c._resolve_dominant_variant_class("unknown_vep_term") == "unknown_vep_term"  # still returns the only candidate
+    assert (
+        c._resolve_dominant_variant_class("unknown_vep_term") == "unknown_vep_term"
+    )  # still returns the only candidate
 
 
 def test_category_mapping_canonical():
@@ -55,10 +57,10 @@ def test_category_mapping_canonical():
 
 def _build_mutation_rows(rows: list[dict]) -> list:
     """Helper: each row should have keys ModelID + VariantInfo (+ optional ProteinChange)."""
-    return [{"ModelID": r["model"],
-              "HugoSymbol": "TEST",
-              "VariantInfo": r["vep"],
-              "ProteinChange": r.get("protein", "p.X")} for r in rows]
+    return [
+        {"ModelID": r["model"], "HugoSymbol": "TEST", "VariantInfo": r["vep"], "ProteinChange": r.get("protein", "p.X")}
+        for r in rows
+    ]
 
 
 def test_missense_dominant_kras_like():
@@ -106,11 +108,13 @@ def test_mixed_tp53_like():
 
 def test_no_mutations_below_threshold():
     """Only 3 mutated cell lines → no_mutations call."""
-    rows = _build_mutation_rows([
-        {"model": "ACH-000001", "vep": "missense_variant"},
-        {"model": "ACH-000002", "vep": "missense_variant"},
-        {"model": "ACH-000003", "vep": "missense_variant"},
-    ])
+    rows = _build_mutation_rows(
+        [
+            {"model": "ACH-000001", "vep": "missense_variant"},
+            {"model": "ACH-000002", "vep": "missense_variant"},
+            {"model": "ACH-000003", "vep": "missense_variant"},
+        ]
+    )
     meta = {f"ACH-{i:06d}": {"ModelID": f"ACH-{i:06d}", "OncotreeLineage": "Lung"} for i in range(1, 4)}
     s = c.compute_summary_stats(rows, meta, n_cell_lines_total=1500)
     assert s["mutation_landscape_class"] == "no_mutations"
@@ -126,15 +130,17 @@ def test_empty_rows_returns_no_mutations():
 
 def test_per_lineage_aggregation():
     """Verify lineage aggregation counts distinct cell lines per lineage."""
-    rows = _build_mutation_rows([
-        {"model": "ACH-000001", "vep": "missense_variant"},
-        {"model": "ACH-000002", "vep": "missense_variant"},
-        {"model": "ACH-000003", "vep": "missense_variant"},
-        {"model": "ACH-000001", "vep": "stop_gained"},   # second mutation in same line
-        {"model": "ACH-000004", "vep": "frameshift_variant"},
-        {"model": "ACH-000005", "vep": "missense_variant"},
-        {"model": "ACH-000006", "vep": "missense_variant"},
-    ])
+    rows = _build_mutation_rows(
+        [
+            {"model": "ACH-000001", "vep": "missense_variant"},
+            {"model": "ACH-000002", "vep": "missense_variant"},
+            {"model": "ACH-000003", "vep": "missense_variant"},
+            {"model": "ACH-000001", "vep": "stop_gained"},  # second mutation in same line
+            {"model": "ACH-000004", "vep": "frameshift_variant"},
+            {"model": "ACH-000005", "vep": "missense_variant"},
+            {"model": "ACH-000006", "vep": "missense_variant"},
+        ]
+    )
     meta = {
         "ACH-000001": {"OncotreeLineage": "Lung"},
         "ACH-000002": {"OncotreeLineage": "Lung"},
@@ -148,5 +154,5 @@ def test_per_lineage_aggregation():
     bowel = next((l for l in s["mut_top_mutated_lineages"] if l["lineage"] == "Bowel"), None)
     assert lung is not None and bowel is not None
     assert lung["n_mutated_lines"] == 3  # 3 distinct lines despite ACH-000001 mutated twice
-    assert lung["n_observations"] == 4   # 4 observations
+    assert lung["n_observations"] == 4  # 4 observations
     assert bowel["n_mutated_lines"] == 3

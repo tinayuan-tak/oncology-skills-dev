@@ -6,6 +6,7 @@ can copy an AUTHORITATIVE `git_commit` instead of inferring it from whatever
 the checkout happens to point at when someone later reads it. Provenance
 capture must never fail the precompute — it degrades to None on any git error.
 """
+
 from __future__ import annotations
 
 import subprocess
@@ -23,6 +24,7 @@ def cli():
     # load it as a package rather than via spec_from_file_location.
     sys.path.insert(0, str(REPO))
     from methods.depmap_predictability_precompute import cli as _cli
+
     return _cli
 
 
@@ -31,7 +33,8 @@ def test_git_provenance_returns_current_head(cli):
     prov = cli._git_provenance()
     expected = subprocess.run(
         ["git", "-C", str(REPO), "rev-parse", "HEAD"],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     ).stdout.strip()
     assert prov["commit"] == expected
     assert prov["commit"] is not None and len(prov["commit"]) == 40
@@ -42,6 +45,7 @@ def test_git_provenance_returns_current_head(cli):
 def test_git_provenance_degrades_when_git_unavailable(cli, monkeypatch):
     """A git failure (e.g. git not installed / not a checkout) must yield
     None fields, not an exception."""
+
     def _boom(*args, **kwargs):
         raise FileNotFoundError("git not found")
 

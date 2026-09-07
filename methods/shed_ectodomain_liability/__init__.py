@@ -30,6 +30,7 @@ Modules:
     media — the MEASURED Olink conditioned-media leg (measured_shed_class facet)
     read  — read_target_summary: the live-mode dispatcher entry
 """
+
 METHOD_VERSION = "0.2.0"
 
 from .read import read_target_summary  # noqa: E402,F401

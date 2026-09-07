@@ -4,6 +4,7 @@ compute_summary is pure over an injected DataFrame (no S3), so the aggregation +
 tested hermetically. The DUSP6/trametinib pattern (strong suppression by a MEK inhibitor) is the
 worked example from the Pilot-2 backtest.
 """
+
 from __future__ import annotations
 
 import sys
@@ -17,10 +18,19 @@ from methods.tahoe_drug_perturbation import cli as C  # noqa: E402
 
 
 def _df(rows):
-    return pd.DataFrame(rows, columns=[
-        "gene_name", "drug", "Cell_ID_DepMap", "concentration",
-        "log2FoldChange", "padj", "stat", "baseMean",
-    ])
+    return pd.DataFrame(
+        rows,
+        columns=[
+            "gene_name",
+            "drug",
+            "Cell_ID_DepMap",
+            "concentration",
+            "log2FoldChange",
+            "padj",
+            "stat",
+            "baseMean",
+        ],
+    )
 
 
 def _rows_dusp6():
@@ -81,7 +91,8 @@ def test_weakly_perturbed_when_no_strong_mover():
 
 def test_read_layer_passes_through(monkeypatch):
     from methods.tahoe_drug_perturbation import read as R
+
     monkeypatch.setattr(C, "fetch_gene_rows", lambda t: _df(_rows_dusp6()))
-    out = R.read_tahoe_drug_perturbation("DUSP6", "PAAD")   # indication ignored
+    out = R.read_tahoe_drug_perturbation("DUSP6", "PAAD")  # indication ignored
     assert out["tahoe_perturbation_class"] == "bidirectionally_perturbed"
     assert out["_data_source"] == "tahoe-drug-perturbation-per-gene-v1"

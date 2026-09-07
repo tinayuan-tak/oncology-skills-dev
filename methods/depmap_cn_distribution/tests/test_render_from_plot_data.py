@@ -19,9 +19,11 @@ from methods.depmap_cn_distribution import read as r
 def _panel() -> tuple[dict, dict]:
     cn, meta = {}, {}
     i = 1
-    for lin, vals in {"Breast": [3.2, 2.8, 3.5, 2.9, 3.0],   # amplified
-                      "Lung": [1.0, 1.1, 0.95, 1.05, 1.0],   # neutral
-                      "Bowel": [0.4, 0.35, 0.5, 0.42, 0.38]}.items():  # deleted
+    for lin, vals in {
+        "Breast": [3.2, 2.8, 3.5, 2.9, 3.0],  # amplified
+        "Lung": [1.0, 1.1, 0.95, 1.05, 1.0],  # neutral
+        "Bowel": [0.4, 0.35, 0.5, 0.42, 0.38],
+    }.items():  # deleted
         for v in vals:
             mid = f"ACH-{i:06d}"
             cn[mid] = float(v)
@@ -36,8 +38,7 @@ def _svg_ok(p: Path) -> bool:
 
 def test_plot_data_persisted_on_read(tmp_path, monkeypatch):
     cn, meta = _panel()
-    monkeypatch.setattr(r._cli, "load_cn_files",
-                        lambda release_pin, target_symbol: (cn, meta, "wes", []))
+    monkeypatch.setattr(r._cli, "load_cn_files", lambda release_pin, target_symbol: (cn, meta, "wes", []))
     summary = r.read_cn_distribution("MYGENE", plot_data_out=tmp_path)
     assert summary.get("copy_number_class")
     assert (tmp_path / "plot_data_cn.parquet").exists()
@@ -49,12 +50,14 @@ def test_plot_data_persisted_on_read(tmp_path, monkeypatch):
 def test_renders_offline_from_persisted_parquet(tmp_path, monkeypatch):
     cn, meta = _panel()
     summary = c.compute_summary_stats(cn, meta, assay_used="wes")
-    src = tmp_path / "src"; src.mkdir()
+    src = tmp_path / "src"
+    src.mkdir()
     c.emit_plot_data(cn, meta, src)
     assert (src / "plot_data_cn.parquet").exists()
 
-    monkeypatch.setattr(c, "load_cn_files",
-                        lambda *a, **k: (_ for _ in ()).throw(AssertionError("live read in offline render")))
+    monkeypatch.setattr(
+        c, "load_cn_files", lambda *a, **k: (_ for _ in ()).throw(AssertionError("live read in offline render"))
+    )
     out = tmp_path / "out"
     descs = f.render_from_plot_data(src / "plot_data_cn.parquet", summary, out, "MYGENE")
 
@@ -68,6 +71,7 @@ def test_renders_offline_from_persisted_parquet(tmp_path, monkeypatch):
 
 def test_missing_columns_raises(tmp_path):
     import pandas as pd
+
     df = pd.DataFrame({"model_id": ["ACH-1"]})  # no relative_cn
     try:
         f.render_from_plot_data(df, {}, tmp_path / "out", "MYGENE")
@@ -83,12 +87,15 @@ def test_returns_plotly_descriptors_with_dynamic_flag(tmp_path, monkeypatch):
     (was the FIGURE_CATALOG parity gap). Env-independent via a deterministic plotly stub."""
     cn, meta = _panel()
     summary = c.compute_summary_stats(cn, meta, assay_used="wes")
-    src = tmp_path / "src"; src.mkdir()
+    src = tmp_path / "src"
+    src.mkdir()
     c.emit_plot_data(cn, meta, src)
 
-    monkeypatch.setattr(c, "emit_plotly_specs",
-                        lambda *a, **k: [{"id": "density_cn",
-                                          "path": "figure_density_cn.plotly.json", "type": "plotly"}])
+    monkeypatch.setattr(
+        c,
+        "emit_plotly_specs",
+        lambda *a, **k: [{"id": "density_cn", "path": "figure_density_cn.plotly.json", "type": "plotly"}],
+    )
     descs = f.render_from_plot_data(src / "plot_data_cn.parquet", summary, tmp_path / "out", "MYGENE")
     dyn = [d for d in descs if d.get("dynamic")]
     assert dyn and dyn[0]["path"].endswith(".plotly.json") and dyn[0]["dynamic"] is True
@@ -98,13 +105,17 @@ def test_cn_plotly_twin_writes_json(tmp_path):
     """The new copy-number plotly twin actually renders three .plotly.json specs from the in-memory
     frame (density / waterfall / per-lineage box). Skipped where plotly is unavailable."""
     import importlib.util
+
     if importlib.util.find_spec("plotly") is None:
         import pytest
+
         pytest.skip("plotly not installed")
     cn, meta = _panel()
     summary = c.compute_summary_stats(cn, meta, assay_used="wes")
-    out = tmp_path / "out"; out.mkdir()
+    out = tmp_path / "out"
+    out.mkdir()
     from methods.depmap_cn_distribution.cli import DEFAULT_TARGET_CONTRACTS
+
     written = c.emit_plotly_specs(cn, meta, "MYGENE", summary, out, DEFAULT_TARGET_CONTRACTS)
     ids = {w["id"] for w in written}
     assert ids == {"density_cn", "waterfall_cn", "lineage_strip_cn"}

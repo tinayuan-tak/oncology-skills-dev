@@ -13,6 +13,7 @@ logic stays in events.py + classify.py.
 
 CLI:  python -m methods.exon_skip_carrier.build --upload    # build from raw MAF, upload, pin md5
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -46,12 +47,16 @@ def splice_rows_from_maf(rows: Iterable[list]) -> list:
     it = iter(rows)
     header = next(it)
     ix = {name: i for i, name in enumerate(header)}
-    gi, ci, si, ei, vi = (ix.get("Hugo_Symbol"), ix.get("Chromosome"), ix.get("Start_Position"),
-                          ix.get("End_Position"), ix.get("Variant_Classification"))
+    gi, ci, si, ei, vi = (
+        ix.get("Hugo_Symbol"),
+        ix.get("Chromosome"),
+        ix.get("Start_Position"),
+        ix.get("End_Position"),
+        ix.get("Variant_Classification"),
+    )
     mi = ix.get("ModelID")
     vti = ix.get("VariantType", ix.get("Variant_Type"))
-    required = {"Hugo_Symbol": gi, "Chromosome": ci, "Start_Position": si,
-                "Variant_Classification": vi, "ModelID": mi}
+    required = {"Hugo_Symbol": gi, "Chromosome": ci, "Start_Position": si, "Variant_Classification": vi, "ModelID": mi}
     missing = [n for n, i in required.items() if i is None]
     if missing:
         raise ValueError(f"raw MAF missing required columns: {missing}")
@@ -71,44 +76,52 @@ def splice_rows_from_maf(rows: Iterable[list]) -> list:
             end = int(r[ei]) if ei is not None and r[ei] not in ("", None) else start
         except (ValueError, TypeError):
             end = start
-        out.append({
-            "gene_symbol": (r[gi] or "").strip().upper(),
-            "model_id": r[mi],
-            "chrom": _norm_chrom(r[ci]),
-            "start_position": start,
-            "end_position": end,
-            "variant_classification": vc,
-            "variant_type": (r[vti] if vti is not None and len(r) > vti else None),
-        })
+        out.append(
+            {
+                "gene_symbol": (r[gi] or "").strip().upper(),
+                "model_id": r[mi],
+                "chrom": _norm_chrom(r[ci]),
+                "start_position": start,
+                "end_position": end,
+                "variant_classification": vc,
+                "variant_type": (r[vti] if vti is not None and len(r) > vti else None),
+            }
+        )
     out.sort(key=lambda d: (d["gene_symbol"], d["chrom"], d["start_position"], d["model_id"]))
     return out
 
 
 def _schema():
     import pyarrow as pa
-    return pa.schema([
-        pa.field("gene_symbol", pa.string()),
-        pa.field("model_id", pa.string()),
-        pa.field("chrom", pa.string()),
-        pa.field("start_position", pa.int64()),
-        pa.field("end_position", pa.int64()),
-        pa.field("variant_classification", pa.string()),
-        pa.field("variant_type", pa.string()),
-    ])
+
+    return pa.schema(
+        [
+            pa.field("gene_symbol", pa.string()),
+            pa.field("model_id", pa.string()),
+            pa.field("chrom", pa.string()),
+            pa.field("start_position", pa.int64()),
+            pa.field("end_position", pa.int64()),
+            pa.field("variant_classification", pa.string()),
+            pa.field("variant_type", pa.string()),
+        ]
+    )
 
 
 def build_table(rows: Iterable[list]):
     import pyarrow as pa
+
     return pa.Table.from_pylist(splice_rows_from_maf(rows), schema=_schema())
 
 
 def _boto3():
     import boto3
+
     return boto3.Session(profile_name=os.environ.get("AWS_PROFILE", DEFAULT_AWS_PROFILE)).client("s3")
 
 
 def _stream_raw_maf() -> Iterable[list]:
     from methods.catalog_query.read import bucket_prefix_for
+
     bucket, prefix = bucket_prefix_for(DEPMAP_SOURCE_MANIFEST_ID)
     key = f"{prefix.rstrip('/')}/{_MAF_FILENAME}"
     body = _boto3().get_object(Bucket=bucket, Key=key)["Body"]
@@ -126,6 +139,7 @@ def build_and_upload(upload: bool = False, out_dir: Optional[str] = None) -> dic
     """Build the product from the live raw MAF; write parquet locally; optionally upload to S3.
     Returns {rows, n_genes, md5, size_bytes, s3_uri, local_path}."""
     import pyarrow.parquet as pq
+
     tbl = build_table(_stream_raw_maf())
     out_dir = out_dir or os.path.join(os.path.expanduser("~"), ".cache", "framework-exon-skip")
     os.makedirs(out_dir, exist_ok=True)
@@ -153,6 +167,7 @@ def build_and_upload(upload: bool = False, out_dir: Optional[str] = None) -> dic
 if __name__ == "__main__":
     import argparse
     import json
+
     ap = argparse.ArgumentParser(description="Build depmap-somatic-splice-variants-v1")
     ap.add_argument("--upload", action="store_true", help="upload the parquet to S3")
     ap.add_argument("--out-dir", default=None)

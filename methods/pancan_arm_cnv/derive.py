@@ -5,6 +5,7 @@ per-(arm,indication) frequency companion (pure logic in read.py), and write both
 Run (materialization; needs onc-compbio read+write via the cbg profile):
   AWS_PROFILE=cbg python -m methods.pancan_arm_cnv.derive --out-dir /tmp/armcnv --upload
 """
+
 from __future__ import annotations
 
 import argparse
@@ -24,12 +25,17 @@ OUT_PREFIX = "data-catalog/derived/pancan-arm-cnv-per-sample-v1"
 DEFAULT_AWS_PROFILE = "cbg"
 
 # candidate (barcode_col, indication_col) pairs in merged_sample_quality_annotations.tsv
-_ANNOT_CANDIDATES = [("patient_barcode", "cancer type"), ("patient_barcode", "cancer_type"),
-                     ("aliquot_barcode", "cancer type"), ("bcr_patient_barcode", "type")]
+_ANNOT_CANDIDATES = [
+    ("patient_barcode", "cancer type"),
+    ("patient_barcode", "cancer_type"),
+    ("aliquot_barcode", "cancer type"),
+    ("bcr_patient_barcode", "type"),
+]
 
 
 def _s3():
     import boto3
+
     return boto3.Session(profile_name=os.environ.get("AWS_PROFILE", DEFAULT_AWS_PROFILE)).client("s3")
 
 
@@ -64,9 +70,13 @@ def build_and_write(out_dir: Path, upload: bool = False, threshold: float = 0.5)
     freq_path = out_dir / "pancan_arm_cnv_indication_frequency.parquet"
     arm_calls.to_parquet(calls_path, index=False)
     freq.to_parquet(freq_path, index=False)
-    written = {"per_sample": str(calls_path), "indication_frequency": str(freq_path),
-               "n_sample_arm_rows": len(arm_calls), "n_arm_indication_rows": len(freq),
-               "threshold": threshold}
+    written = {
+        "per_sample": str(calls_path),
+        "indication_frequency": str(freq_path),
+        "n_sample_arm_rows": len(arm_calls),
+        "n_arm_indication_rows": len(freq),
+        "threshold": threshold,
+    }
     if upload:
         # Only the per-sample table is the catalogued product; the per-(arm,indication) frequency is a
         # trivial GROUP-BY the SL find-mode scan computes on the fly, so it is NOT uploaded/manifested

@@ -5,6 +5,7 @@ as the ORACLE (scipy is a test-only dependency; the method stays numpy-only). ε
 checked against its closed form, the effect-size class against the cutoffs, and the
 "class tracks EFFECT not p" property is pinned explicitly (the plan's risk #3).
 """
+
 from __future__ import annotations
 
 import sys
@@ -25,9 +26,7 @@ from methods.tcga_gtex_expression_distribution import stats as S  # noqa: E402
 def test_kruskal_h_and_p_match_scipy():
     sp = pytest.importorskip("scipy.stats")
     rng = np.random.default_rng(0)
-    groups = {"a": list(rng.normal(2, 1, 60)),
-              "b": list(rng.normal(5, 1, 55)),
-              "c": list(rng.normal(8, 1, 70))}
+    groups = {"a": list(rng.normal(2, 1, 60)), "b": list(rng.normal(5, 1, 55)), "c": list(rng.normal(8, 1, 70))}
     out = S.kruskal_epsilon_squared(groups)
     H_sp, p_sp = sp.kruskal(*[np.asarray(v, float) for v in groups.values()])
     assert out["subtype_omnibus_kruskal_h"] == pytest.approx(H_sp, rel=1e-9)
@@ -52,9 +51,10 @@ def test_epsilon_squared_closed_form_and_class():
     groups = {"a": list(rng.normal(2, 1, 50)), "b": list(rng.normal(8, 1, 50))}
     out = S.kruskal_epsilon_squared(groups)
     H = out["subtype_omnibus_kruskal_h"]
-    N = 100; k = 2
+    N = 100
+    k = 2
     assert out["subtype_variance_explained"] == pytest.approx((H - k + 1) / (N - k), rel=1e-9)
-    assert out["subtype_effect_size_class"] == "large"     # well-separated → ε² >> 0.14
+    assert out["subtype_effect_size_class"] == "large"  # well-separated → ε² >> 0.14
     assert out["which_subtypes_separate"] == {"highest": "b", "lowest": "a"}
 
 
@@ -80,11 +80,14 @@ def test_epsilon_squared_clamped_nonnegative():
 
 
 # ---- degenerate / data_unavailable safety ----
-@pytest.mark.parametrize("groups", [
-    {},                                   # no strata
-    {"a": [1, 2, 3]},                     # one stratum
-    {"a": [1, 2, 3], "b": [4]},           # second stratum below min_group_n
-])
+@pytest.mark.parametrize(
+    "groups",
+    [
+        {},  # no strata
+        {"a": [1, 2, 3]},  # one stratum
+        {"a": [1, 2, 3], "b": [4]},  # second stratum below min_group_n
+    ],
+)
 def test_data_unavailable_when_under_two_powered_strata(groups):
     out = S.kruskal_epsilon_squared(groups)
     assert out["subtype_effect_size_class"] == "data_unavailable"
@@ -95,8 +98,7 @@ def test_data_unavailable_when_under_two_powered_strata(groups):
 def test_non_finite_dropped_before_test():
     """inf/NaN must be dropped (they'd poison ranking) — a group left with <min_group_n
     finite values falls out of the test."""
-    out = S.kruskal_epsilon_squared({"a": [1.0, 2.0, float("inf"), 3.0, float("nan")],
-                                     "b": [5.0, 6.0, 7.0]})
+    out = S.kruskal_epsilon_squared({"a": [1.0, 2.0, float("inf"), 3.0, float("nan")], "b": [5.0, 6.0, 7.0]})
     # both groups still have >=2 finite → test runs; the inf/nan simply excluded
     assert out["n_subtypes_tested"] == 2
     assert out["subtype_omnibus_kruskal_h"] is not None

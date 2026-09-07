@@ -5,6 +5,7 @@
 tcga_gtex_expression_distribution/cli.py contract: a deterministic (target, indication) -> summary
 dict with a primary `*_class` categorical and a data_unavailable-safe branch.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -41,28 +42,35 @@ def emit_compartment_bar(summary: dict, target: str, out_dir, target_contracts=N
         return
     # Normalize to a list of per-compartment records (detection + optional abundance/CAF).
     if per_comp:
-        recs = [{"compartment": r.get("compartment"),
-                 "det": r.get("median_detection_fraction") or 0.0,
-                 "abund": r.get("median_abundance_log1p_cp10k"),
-                 "is_caf": bool(r.get("is_caf"))} for r in per_comp]
+        recs = [
+            {
+                "compartment": r.get("compartment"),
+                "det": r.get("median_detection_fraction") or 0.0,
+                "abund": r.get("median_abundance_log1p_cp10k"),
+                "is_caf": bool(r.get("is_caf")),
+            }
+            for r in per_comp
+        ]
     else:
-        recs = [{"compartment": c, "det": comp_det[c] or 0.0, "abund": None, "is_caf": c == "stromal"}
-                for c in comp_det]
+        recs = [
+            {"compartment": c, "det": comp_det[c] or 0.0, "abund": None, "is_caf": c == "stromal"} for c in comp_det
+        ]
     # malignant first, then remaining compartments by detection (descending).
     recs.sort(key=lambda r: (r["compartment"] != "malignant", -(r["det"] or 0.0)))
 
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     from pathlib import Path as _Path
+
     out_dir = _Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     labels = [r["compartment"] for r in recs]
     vals = [r["det"] for r in recs]
     # malignant = signal (red); CAF/stromal = confounder (orange); other microenvironment = blue.
-    colors = ["#b2182b" if r["compartment"] == "malignant"
-              else "#e08214" if r["is_caf"] else "#4393c3" for r in recs]
+    colors = ["#b2182b" if r["compartment"] == "malignant" else "#e08214" if r["is_caf"] else "#4393c3" for r in recs]
     fig, ax = plt.subplots(figsize=(5.8, 3.3))
     bars = ax.bar(range(len(recs)), vals, color=colors)
     ax.set_xticks(range(len(recs)))
@@ -72,8 +80,15 @@ def emit_compartment_bar(summary: dict, target: str, out_dir, target_contracts=N
     # annotate abundance (log1p CP10K) above each bar when available — the intensity behind detection.
     for bar, r in zip(bars, recs):
         if r["abund"] is not None:
-            ax.text(bar.get_x() + bar.get_width() / 2, min(r["det"] + 0.03, 0.97),
-                    f"{r['abund']:.1f}", ha="center", va="bottom", fontsize=6.5, color="#555555")
+            ax.text(
+                bar.get_x() + bar.get_width() / 2,
+                min(r["det"] + 0.03, 0.97),
+                f"{r['abund']:.1f}",
+                ha="center",
+                va="bottom",
+                fontsize=6.5,
+                color="#555555",
+            )
     hom = (summary or {}).get("tce_homogeneity_class")
     mal = (summary or {}).get("malignant_detection_fraction")
     sub = []
@@ -82,14 +97,22 @@ def emit_compartment_bar(summary: dict, target: str, out_dir, target_contracts=N
     if hom and hom != "data_unavailable":
         sub.append(hom.replace("_", " "))
     subtitle = ("\n" + " · ".join(sub)) if sub else ""
-    ax.set_title(f"{target} — single-cell presence by compartment "
-                 f"({summary.get('indication','')}){subtitle}", fontsize=8.5)
+    ax.set_title(
+        f"{target} — single-cell presence by compartment ({summary.get('indication', '')}){subtitle}", fontsize=8.5
+    )
     # legend clarifies the CAF/stromal confounder color (annotation, not color-alone).
     from matplotlib.patches import Patch
-    ax.legend(handles=[Patch(color="#b2182b", label="malignant (signal)"),
-                       Patch(color="#e08214", label="CAF / stromal (confounder)"),
-                       Patch(color="#4393c3", label="other microenvironment")],
-              fontsize=6.5, loc="upper right", frameon=False)
+
+    ax.legend(
+        handles=[
+            Patch(color="#b2182b", label="malignant (signal)"),
+            Patch(color="#e08214", label="CAF / stromal (confounder)"),
+            Patch(color="#4393c3", label="other microenvironment"),
+        ],
+        fontsize=6.5,
+        loc="upper right",
+        frameon=False,
+    )
     fig.tight_layout()
     fig.subplots_adjust(bottom=0.30)
     fig.text(0.02, 0.02, "bar labels = median abundance (log1p CP10K)", fontsize=6, color="#888888")

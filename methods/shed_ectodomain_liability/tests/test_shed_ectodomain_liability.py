@@ -10,6 +10,7 @@ distinction; (4) the card-contract field set; (5) opposing-not-killer discipline
 opposing rules key on). Classifier + curated lookup are pure — most assertions need
 no file. The HPA tier uses a tiny synthetic TSV.
 """
+
 from __future__ import annotations
 
 import sys
@@ -22,6 +23,7 @@ from methods.shed_ectodomain_liability import read as sc_read  # noqa: E402
 
 
 # --- classifier (pure) ----------------------------------------------------
+
 
 def test_classify_clinical_beats_everything():
     # a curated entry present → clinically_shed regardless of HPA
@@ -50,6 +52,7 @@ def test_classify_indeterminate_when_no_evidence_either_way():
 
 # --- curated tier lookup (pure; against the real vocab) --------------------
 
+
 def test_curated_tier_covers_canonical_shed_antigens():
     """MUC16/MUC1/MSLN/ERBB2/CEACAM5 must all be in the curated clinical tier."""
     v = sc.load_shed_vocab()  # reads target-contracts/vocabularies/shed_antigen_targets.yaml
@@ -68,6 +71,7 @@ def test_curated_lookup_is_case_insensitive_and_misses_gracefully():
 
 # --- the FALSE-NEGATIVE-PREVENTION test (the reason two tiers exist) -------
 
+
 def test_curated_tier_rescues_shed_receptors_hpa_misses(tmp_path):
     """ERBB2 + CEACAM5 have NO HPA secretome annotation (verified live 2026-07-19),
     yet are clinically shed. A single-source (HPA-only) reader would call them
@@ -76,21 +80,23 @@ def test_curated_tier_rescues_shed_receptors_hpa_misses(tmp_path):
     for g in ("ERBB2", "CEACAM5"):
         out = sc.load_and_classify(g, hpa_path=hpa_tsv)
         assert out["shed_liability_class"] == "clinically_shed", (
-            f"{g} is clinically shed but HPA has no secretome value — curated tier must rescue it")
+            f"{g} is clinically shed but HPA has no secretome value — curated tier must rescue it"
+        )
         assert out["shed_evidence_tier"] == "clinical"
 
 
 # --- HPA proxy tier (synthetic TSV) ---------------------------------------
 
+
 def _write_hpa_tsv(tmp_path):
     p = tmp_path / "proteinatlas_mini.tsv"
     cols = [sc.HPA_GENE_COL, sc.HPA_UNIPROT_COL, sc.HPA_SECRETOME_COL]
     rows = [
-        ["MUC13", "Q9H3R2", "Secreted to digestive system"],   # uncurated, HPA-secreted → proxy
-        ["ERBB2", "P04626", ""],                                 # curated shed RTK, HPA blank
-        ["CEACAM5", "P06731", ""],                               # curated shed, HPA blank
-        ["KRAS", "P01116", ""],                                  # non-shed, HPA has it blank
-        ["SFTPB", "P07988", "Secreted to blood"],                # uncurated blood-secreted → proxy
+        ["MUC13", "Q9H3R2", "Secreted to digestive system"],  # uncurated, HPA-secreted → proxy
+        ["ERBB2", "P04626", ""],  # curated shed RTK, HPA blank
+        ["CEACAM5", "P06731", ""],  # curated shed, HPA blank
+        ["KRAS", "P01116", ""],  # non-shed, HPA has it blank
+        ["SFTPB", "P07988", "Secreted to blood"],  # uncurated blood-secreted → proxy
     ]
     with open(p, "w") as fh:
         fh.write("\t".join(cols) + "\n")
@@ -118,17 +124,26 @@ def test_gene_absent_from_hpa_and_vocab_is_indeterminate(tmp_path):
     hpa = _write_hpa_tsv(tmp_path)
     out = sc.load_and_classify("ZZZ_NOT_A_GENE", hpa_path=hpa)
     assert out["shed_liability_class"] == "indeterminate", (
-        "absent from both tiers = coverage gap, NOT a determination of not-shed")
+        "absent from both tiers = coverage gap, NOT a determination of not-shed"
+    )
 
 
 # --- card-contract fields --------------------------------------------------
 
+
 def test_card_contract_fields_present(tmp_path):
     hpa = _write_hpa_tsv(tmp_path)
     out = sc.load_and_classify("MUC13", hpa_path=hpa)
-    for f in ("shed_liability_class", "shed_evidence_tier", "serum_marker",
-              "shed_product", "shedding_protease", "hpa_secretome_location",
-              "source_citation", "method_version"):
+    for f in (
+        "shed_liability_class",
+        "shed_evidence_tier",
+        "serum_marker",
+        "shed_product",
+        "shedding_protease",
+        "hpa_secretome_location",
+        "source_citation",
+        "method_version",
+    ):
         assert f in out, f"card-contract field missing: {f}"
 
 
@@ -142,12 +157,15 @@ def test_emitted_class_is_in_card_vocabulary(tmp_path):
 
 # --- graceful degradation (the dispatcher entry) --------------------------
 
+
 def test_read_target_summary_graceful_on_unreadable_source(monkeypatch):
     """If the sources can't be loaded, read_target_summary must return
     data_unavailable + _live_read_error — NOT raise. Distinct from indeterminate
     (a successful read of an absent gene)."""
+
     def _boom(*a, **k):
         raise RuntimeError("s3 unreachable")
+
     monkeypatch.setattr(sc, "load_and_classify", _boom)
     out = sc_read.read_target_summary(target="MUC16", indication="OV")
     assert out["shed_liability_class"] == "data_unavailable"

@@ -23,6 +23,7 @@ CONSUMES the DERIVED products (payload + resolver sidecar), NOT the raw sources.
 symbol->AC via each product's sidecar (same discipline as the GPI / CSPA readers). Absent-from-both is
 data_unavailable (coverage gap), NEVER a false negative.
 """
+
 from __future__ import annotations
 
 import io
@@ -31,17 +32,17 @@ from typing import Optional
 
 from methods.catalog_query.read import bucket_key_for, sidecar_bucket_key_for
 
-METHOD_VERSION = "0.3.0"   # 2026-09-04: + chembl_approved_engagement_class (directness-gated approved signal, shared DGIdb-directional metric)     # 2026-08-24: + chembl_clinical_phase_class (rule-matchable real-phase categorical)
+METHOD_VERSION = "0.3.0"  # 2026-09-04: + chembl_approved_engagement_class (directness-gated approved signal, shared DGIdb-directional metric)     # 2026-08-24: + chembl_clinical_phase_class (rule-matchable real-phase categorical)
 CHEMBL_MANIFEST_ID = "chembl-bioactivity-per-protein-v1"
 BINDINGDB_MANIFEST_ID = "bindingdb-affinity-per-protein-v1"
-POTENT_PCHEMBL = 6.0   # -log10(M); pchembl/p_affinity >= 6 == <= 1 uM (the per-activity potent bar)
+POTENT_PCHEMBL = 6.0  # -log10(M); pchembl/p_affinity >= 6 == <= 1 uM (the per-activity potent bar)
 # CALIBRATION (verified against the live product): best_pchembl>=6 fires for 3,753/5,720 proteins (66%)
 # — a SINGLE potent activity is near-universal for any studied gene, a weak discriminator. The real
 # gradient is the NUMBER of potent ligands (a chemotype SAR series vs one reported binder): n_potent
 # median 2, 75th pct 31, and >=10 => 1,859 proteins. So `potent_measured_ligand` (the STRONG signal)
 # requires a potent-ligand SERIES; a handful of potent hits is `weak_measured_ligand`. This avoids the
 # over-call the review flagged for predicted_ligandable (71% of proteome on a single weak axis).
-POTENT_SERIES_MIN = 10   # >= this many potent (<=1 uM) ligands = a real chemotype series
+POTENT_SERIES_MIN = 10  # >= this many potent (<=1 uM) ligands = a real chemotype series
 DEFAULT_AWS_PROFILE = "cbg"
 
 
@@ -50,12 +51,14 @@ from methods.target_id_sidecar import ensure_aws_profile
 
 def _read_parquet(path_or_none, bucket, key):
     import pandas as pd
+
     if path_or_none is not None:
         return pd.read_parquet(path_or_none)
     ensure_aws_profile()
     # shared client: AWS_PROFILE=cbg + adaptive-retry Config (absorbs transient S3 throttling on
     # batch reads — the failure mode that silently dropped cards on full dossier runs).
     from methods.target_id_sidecar import s3_client
+
     body = s3_client().get_object(Bucket=bucket, Key=key)["Body"].read()
     return pd.read_parquet(io.BytesIO(body))
 
@@ -73,6 +76,7 @@ def _index_product(manifest_id: str, payload_path=None, sidecar_path=None):
         payload = _read_parquet(payload_path, bucket, pkey)
     except Exception as e:  # noqa: BLE001
         from methods.target_id_sidecar import is_definitively_absent
+
         if not is_definitively_absent(e):
             raise
         return None
@@ -93,6 +97,7 @@ def _index_product(manifest_id: str, payload_path=None, sidecar_path=None):
         # A transient/creds/broken-env failure must NOT be masked (would silently drop symbol→AC
         # for the whole batch AND poison the lru_cache with a partial index) — re-raise it.
         from methods.target_id_sidecar import is_definitively_absent
+
         if not is_definitively_absent(e):
             raise
     return row_by_ac, symbol_to_ac
@@ -100,8 +105,10 @@ def _index_product(manifest_id: str, payload_path=None, sidecar_path=None):
 
 @lru_cache(maxsize=1)
 def _load_indexed(chembl_payload=None, chembl_sidecar=None, bdb_payload=None, bdb_sidecar=None):
-    return (_index_product(CHEMBL_MANIFEST_ID, chembl_payload, chembl_sidecar),
-            _index_product(BINDINGDB_MANIFEST_ID, bdb_payload, bdb_sidecar))
+    return (
+        _index_product(CHEMBL_MANIFEST_ID, chembl_payload, chembl_sidecar),
+        _index_product(BINDINGDB_MANIFEST_ID, bdb_payload, bdb_sidecar),
+    )
 
 
 def _lookup(idx, target):
@@ -119,6 +126,7 @@ def _finite(x) -> bool:
     treats NaN as a real measurement (cards review 2026-08-17, S2 — GPR151 falsely read
     weak_measured_ligand with a NaN potency leaking into the output field)."""
     import math
+
     return x is not None and not (isinstance(x, float) and math.isnan(x))
 
 
@@ -143,10 +151,11 @@ def classify_measured_bioactivity(chembl_row: Optional[dict], bdb_row: Optional[
         return "potent_measured_ligand"
 
     # WEAK: some measured potency exists (a potent hit or two, or sub-potent activity) but not a series.
-    chembl_any_potent = (_finite(best_pchembl) and best_pchembl >= POTENT_PCHEMBL)
-    bdb_any_potent = bool((bdb_row or {}).get("has_sub_micromolar_binder")) or \
-        (_finite(best_p_aff) and best_p_aff >= POTENT_PCHEMBL)
-    has_measured = _finite(best_pchembl) or _finite(best_p_aff)   # NaN != a real measurement
+    chembl_any_potent = _finite(best_pchembl) and best_pchembl >= POTENT_PCHEMBL
+    bdb_any_potent = bool((bdb_row or {}).get("has_sub_micromolar_binder")) or (
+        _finite(best_p_aff) and best_p_aff >= POTENT_PCHEMBL
+    )
+    has_measured = _finite(best_pchembl) or _finite(best_p_aff)  # NaN != a real measurement
     if chembl_any_potent or bdb_any_potent or has_measured:
         return "weak_measured_ligand"
     return "no_measured_activity"
@@ -189,16 +198,22 @@ def classify_chembl_approved_engagement(phase_class: str, n_direct: Optional[int
     if phase_class != "approved":
         return "not_chembl_approved"
     from methods.dgidb_drug_gene.read import DIRECT_ENGAGEMENT_MIN
+
     if n_direct is None or n_direct >= DIRECT_ENGAGEMENT_MIN:
         return "approved_direct"
     return "approved_indirect_only"
 
 
-def measured_potency_for_gene(target: str,
-                              chembl_row: Optional[dict] = None, bdb_row: Optional[dict] = None,
-                              chembl_payload=None, chembl_sidecar=None,
-                              bdb_payload=None, bdb_sidecar=None,
-                              directional_direct_count: Optional[int] = None) -> dict:
+def measured_potency_for_gene(
+    target: str,
+    chembl_row: Optional[dict] = None,
+    bdb_row: Optional[dict] = None,
+    chembl_payload=None,
+    chembl_sidecar=None,
+    bdb_payload=None,
+    bdb_sidecar=None,
+    directional_direct_count: Optional[int] = None,
+) -> dict:
     """Per-target measured-potency summary_fields. rows may be injected for tests.
     directional_direct_count may be injected for tests; None triggers a live directional read UNLESS
     chembl_row was injected (hermetic unit-test path → directness left unmeasured)."""
@@ -214,6 +229,7 @@ def measured_potency_for_gene(target: str,
     # read only when nothing was injected; a transient failure leaves directness unmeasured (fail-safe).
     if directional_direct_count is None and live:
         from methods.dgidb_drug_gene.read import _read_directional_rows, _count_direct
+
         directional_direct_count = _count_direct(_read_directional_rows(target))
     chembl_approved_engagement = classify_chembl_approved_engagement(phase_class, directional_direct_count)
     best_pchembl = (chembl_row or {}).get("best_pchembl")
@@ -222,11 +238,11 @@ def measured_potency_for_gene(target: str,
     best_measured = max([v for v in (best_pchembl, best_p_aff) if _finite(v)], default=None)
     return {
         "measured_bioactivity_class": klass,
-        "best_measured_potency_neglog_m": best_measured,          # -log10(M); >=6 == <=1 uM
+        "best_measured_potency_neglog_m": best_measured,  # -log10(M); >=6 == <=1 uM
         "chembl_best_pchembl": best_pchembl,
         "chembl_n_potent_ligands": (chembl_row or {}).get("n_potent_ligands"),
         "chembl_max_clinical_phase": (chembl_row or {}).get("max_clinical_phase"),
-        "chembl_clinical_phase_class": phase_class,                                  # rule-matchable (2026-08-24)
+        "chembl_clinical_phase_class": phase_class,  # rule-matchable (2026-08-24)
         # DIRECTNESS-gated approved signal (2026-09-04): the ChEMBL-approved rung keys on THIS, not the raw
         # phase class, so an approved-phase compound annotated against an undruggable TF (indirect) does not
         # inflate to chemically_active. n_direct from dgidb-drug-target-directional-v1 (shared metric).
@@ -243,13 +259,19 @@ def measured_potency_for_gene(target: str,
 def _context(sym, klass, best_measured) -> Optional[str]:
     if klass == "potent_measured_ligand":
         pot = f" (best {best_measured:.1f} -log10 M, <= 1 uM)" if best_measured is not None else ""
-        return (f"{sym}: a POTENT measured small-molecule ligand exists{pot} (ChEMBL/BindingDB). A real "
-                f"sub-micromolar chemical start point — stronger than a predicted pocket or a bare drug "
-                f"catalogue entry.")
+        return (
+            f"{sym}: a POTENT measured small-molecule ligand exists{pot} (ChEMBL/BindingDB). A real "
+            f"sub-micromolar chemical start point — stronger than a predicted pocket or a bare drug "
+            f"catalogue entry."
+        )
     if klass == "weak_measured_ligand":
-        return (f"{sym}: measured small-molecule activity exists but is WEAK (best affinity above the "
-                f"1 uM potent bar). A starting point that needs optimization.")
+        return (
+            f"{sym}: measured small-molecule activity exists but is WEAK (best affinity above the "
+            f"1 uM potent bar). A starting point that needs optimization."
+        )
     if klass == "no_measured_activity":
-        return (f"{sym}: present in a bioactivity source but no measured potency value — chemical matter "
-                f"is annotated but unquantified.")
+        return (
+            f"{sym}: present in a bioactivity source but no measured potency value — chemical matter "
+            f"is annotated but unquantified."
+        )
     return None

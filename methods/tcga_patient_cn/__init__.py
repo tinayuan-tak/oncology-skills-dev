@@ -15,6 +15,7 @@ cell-line call; rewiring the verdict to prefer patient CN is a separate, explici
 
 METHOD_VERSION 0.1.0.
 """
+
 from __future__ import annotations
 
 METHOD_VERSION = "0.1.0"

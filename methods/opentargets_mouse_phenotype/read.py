@@ -20,6 +20,7 @@ the card must NOT fire a measured-strength killer; its warning is inferred-tier 
 
 data_unavailable-safe.
 """
+
 from __future__ import annotations
 
 from typing import Optional
@@ -29,17 +30,33 @@ from ..opentargets_common import read_entity, symbol_to_ensembl, ot_cli_main
 METHOD_VERSION = "0.1.0"
 
 # Developmental-stage tokens: lethality AT or BEFORE weaning reflects development, not adult essentiality.
-_DEVELOPMENTAL_TOKENS = ("prenatal", "embryonic", "fetal", "perinatal", "neonatal", "preweaning",
-                         "implantation", "somite", "organogenesis", "tooth bud")
+_DEVELOPMENTAL_TOKENS = (
+    "prenatal",
+    "embryonic",
+    "fetal",
+    "perinatal",
+    "neonatal",
+    "preweaning",
+    "implantation",
+    "somite",
+    "organogenesis",
+    "tooth bud",
+)
 # Adult tokens: lethality AFTER birth/weaning that is NOT qualified as pre-weaning → adult-essential.
 _ADULT_LETHAL_TOKENS = ("postnatal", "postweaning")
 
 # Severe adult-organ phenotype classes (MGI top-level system phenotypes) — a non-lethal but serious
 # safety signal when the KO survives to adulthood with major organ dysfunction.
 _SEVERE_ORGAN_CLASSES = {
-    "cardiovascular system phenotype", "nervous system phenotype", "hematopoietic system phenotype",
-    "immune system phenotype", "liver/biliary system phenotype", "renal/urinary system phenotype",
-    "respiratory system phenotype", "digestive/alimentary phenotype", "endocrine/exocrine gland phenotype",
+    "cardiovascular system phenotype",
+    "nervous system phenotype",
+    "hematopoietic system phenotype",
+    "immune system phenotype",
+    "liver/biliary system phenotype",
+    "renal/urinary system phenotype",
+    "respiratory system phenotype",
+    "digestive/alimentary phenotype",
+    "endocrine/exocrine gland phenotype",
 }
 
 _FIELDS = ["targetFromSourceId", "modelPhenotypeLabel", "modelPhenotypeClasses"]
@@ -56,7 +73,7 @@ def _lethal_stage(label: str) -> str:
         return "developmental"
     if any(tok in low for tok in _ADULT_LETHAL_TOKENS):
         return "adult"
-    return "unspecified"   # bare "lethality" with no stage → conservatively NOT an adult killer
+    return "unspecified"  # bare "lethality" with no stage → conservatively NOT an adult killer
 
 
 def _class_labels(model_phenotype_classes) -> set:
@@ -84,18 +101,27 @@ def classify_ko_phenotype(rows: list) -> dict:
       5. no rows                                        → no_phenotype (KO tolerated / not modeled).
     """
     if not rows:
-        return {"ko_phenotype_class": "no_phenotype", "n_rows": 0, "n_lethal": 0,
-                "lethal_stages": [], "top_lethal_label": None, "organ_classes": []}
+        return {
+            "ko_phenotype_class": "no_phenotype",
+            "n_rows": 0,
+            "n_lethal": 0,
+            "lethal_stages": [],
+            "top_lethal_label": None,
+            "organ_classes": [],
+        }
 
-    lethal = [(r.get("modelPhenotypeLabel", ""), _lethal_stage(r.get("modelPhenotypeLabel", "")))
-              for r in rows if _is_lethal(r.get("modelPhenotypeLabel", ""))]
+    lethal = [
+        (r.get("modelPhenotypeLabel", ""), _lethal_stage(r.get("modelPhenotypeLabel", "")))
+        for r in rows
+        if _is_lethal(r.get("modelPhenotypeLabel", ""))
+    ]
     adult_lethal = [l for l in lethal if l[1] == "adult"]
     dev_lethal = [l for l in lethal if l[1] == "developmental"]
     unspec_lethal = [l for l in lethal if l[1] == "unspecified"]
 
     organ = set()
     for r in rows:
-        organ |= (_class_labels(r.get("modelPhenotypeClasses")) & _SEVERE_ORGAN_CLASSES)
+        organ |= _class_labels(r.get("modelPhenotypeClasses")) & _SEVERE_ORGAN_CLASSES
 
     if adult_lethal:
         cls = "lethal_ko"
@@ -129,20 +155,31 @@ def read_mouse_ko_phenotype(target: str, indication: Optional[str] = None) -> di
     `indication` accepted for signature-uniformity but NOT used — mouse-KO phenotype is per-gene.
     """
     ensg = symbol_to_ensembl(target)
-    base = {"target": target, "ensembl_gene_id": ensg, "method_version": METHOD_VERSION,
-            "source": "opentargets-26-06/mouse_phenotype", "evidence_tier": "inferred"}
+    base = {
+        "target": target,
+        "ensembl_gene_id": ensg,
+        "method_version": METHOD_VERSION,
+        "source": "opentargets-26-06/mouse_phenotype",
+        "evidence_tier": "inferred",
+    }
     if ensg is None:
-        return {**base, "ko_phenotype_class": "insufficient",
-                "_note": "target not resolvable to an Ensembl gene id via the OT resolver sidecar"}
+        return {
+            **base,
+            "ko_phenotype_class": "insufficient",
+            "_note": "target not resolvable to an Ensembl gene id via the OT resolver sidecar",
+        }
 
     df = read_entity("mouse_phenotype", columns=_FIELDS, filter_col="targetFromSourceId", filter_val=ensg)
     if df.empty:
-        return {**base, "ko_phenotype_class": "insufficient",
-                "_note": "mouse_phenotype entity not available"}
+        return {**base, "ko_phenotype_class": "insufficient", "_note": "mouse_phenotype entity not available"}
     hit = df[df["targetFromSourceId"] == ensg]
     if hit.empty:
-        return {**base, "ko_phenotype_class": "no_phenotype",
-                "n_rows": 0, "_note": f"{ensg} has no mouse-KO phenotype rows (KO not modeled / tolerated)"}
+        return {
+            **base,
+            "ko_phenotype_class": "no_phenotype",
+            "n_rows": 0,
+            "_note": f"{ensg} has no mouse-KO phenotype rows (KO not modeled / tolerated)",
+        }
 
     return {**base, **classify_ko_phenotype(hit.to_dict("records"))}
 

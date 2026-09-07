@@ -33,11 +33,13 @@ def _seed_assignments(tmp_path, monkeypatch) -> Path:
     # 4 samples across 2 strata; note null (insufficient) case
     parquet_dir = tmp_path / "cache" / "assignments" / "tcga-subgroup-assignments-coadread-v1"
     parquet_dir.mkdir(parents=True)
-    df = pd.DataFrame({
-        "sample_id":   ["S1", "S2", "S3", "S4", "S1", "S2", "S3", "S4"],
-        "stratum_id":  ["MSI_H"] * 4 + ["MSS"] * 4,
-        "is_member":   [True, True, False, None,  False, False, True, True],
-    })
+    df = pd.DataFrame(
+        {
+            "sample_id": ["S1", "S2", "S3", "S4", "S1", "S2", "S3", "S4"],
+            "stratum_id": ["MSI_H"] * 4 + ["MSS"] * 4,
+            "is_member": [True, True, False, None, False, False, True, True],
+        }
+    )
     df.to_parquet(parquet_dir / "assignments.parquet", index=False)
     return fake_catalog
 
@@ -45,12 +47,15 @@ def _seed_assignments(tmp_path, monkeypatch) -> Path:
 def test_filter_samples_by_subgroup_msi_h(tmp_path, monkeypatch):
     """filter_samples_by_subgroup returns only True members (excludes False + null)."""
     fake_catalog = _seed_assignments(tmp_path, monkeypatch)
-    source_df = pd.DataFrame({
-        "Tumor_Sample_Barcode": ["S1", "S2", "S3", "S4", "S5"],  # S5 not in assignments
-        "gene_expression": [1.0, 2.0, 3.0, 4.0, 5.0],
-    })
+    source_df = pd.DataFrame(
+        {
+            "Tumor_Sample_Barcode": ["S1", "S2", "S3", "S4", "S5"],  # S5 not in assignments
+            "gene_expression": [1.0, 2.0, 3.0, 4.0, 5.0],
+        }
+    )
     result = scoping.filter_samples_by_subgroup(
-        source_df, sample_id_col="Tumor_Sample_Barcode",
+        source_df,
+        sample_id_col="Tumor_Sample_Barcode",
         subgroup_id="MSI_H",
         assignments_manifest_id="tcga-subgroup-assignments-coadread-v1",
         data_catalog_repo=fake_catalog,
@@ -62,12 +67,15 @@ def test_filter_samples_by_subgroup_msi_h(tmp_path, monkeypatch):
 def test_filter_samples_by_subgroup_mss(tmp_path, monkeypatch):
     """MSS stratum: S3 + S4 are True; S1 + S2 are False; S5 not in assignments."""
     fake_catalog = _seed_assignments(tmp_path, monkeypatch)
-    source_df = pd.DataFrame({
-        "Tumor_Sample_Barcode": ["S1", "S2", "S3", "S4", "S5"],
-        "value": range(5),
-    })
+    source_df = pd.DataFrame(
+        {
+            "Tumor_Sample_Barcode": ["S1", "S2", "S3", "S4", "S5"],
+            "value": range(5),
+        }
+    )
     result = scoping.filter_samples_by_subgroup(
-        source_df, sample_id_col="Tumor_Sample_Barcode",
+        source_df,
+        sample_id_col="Tumor_Sample_Barcode",
         subgroup_id="MSS",
         assignments_manifest_id="tcga-subgroup-assignments-coadread-v1",
         data_catalog_repo=fake_catalog,
@@ -78,12 +86,15 @@ def test_filter_samples_by_subgroup_mss(tmp_path, monkeypatch):
 def test_null_and_missing_samples_excluded(tmp_path, monkeypatch):
     """S4 has is_member=null for MSI_H (insufficient); S5 not in assignments; both excluded."""
     fake_catalog = _seed_assignments(tmp_path, monkeypatch)
-    source_df = pd.DataFrame({
-        "Tumor_Sample_Barcode": ["S4", "S5"],
-        "value": [1.0, 2.0],
-    })
+    source_df = pd.DataFrame(
+        {
+            "Tumor_Sample_Barcode": ["S4", "S5"],
+            "value": [1.0, 2.0],
+        }
+    )
     result = scoping.filter_samples_by_subgroup(
-        source_df, sample_id_col="Tumor_Sample_Barcode",
+        source_df,
+        sample_id_col="Tumor_Sample_Barcode",
         subgroup_id="MSI_H",
         assignments_manifest_id="tcga-subgroup-assignments-coadread-v1",
         data_catalog_repo=fake_catalog,
@@ -96,7 +107,8 @@ def test_resolve_subgroup_cohort(tmp_path, monkeypatch):
     """resolve_subgroup_cohort returns set of member sample_ids."""
     fake_catalog = _seed_assignments(tmp_path, monkeypatch)
     cohort = scoping.resolve_subgroup_cohort(
-        "tcga-subgroup-assignments-coadread-v1", "MSI_H",
+        "tcga-subgroup-assignments-coadread-v1",
+        "MSI_H",
         data_catalog_repo=fake_catalog,
     )
     assert cohort == {"S1", "S2"}
@@ -105,26 +117,39 @@ def test_resolve_subgroup_cohort(tmp_path, monkeypatch):
 def test_cohort_size(tmp_path, monkeypatch):
     """cohort_size returns integer for subgroup-n-floor discipline."""
     fake_catalog = _seed_assignments(tmp_path, monkeypatch)
-    assert scoping.cohort_size(
-        "tcga-subgroup-assignments-coadread-v1", "MSI_H",
-        data_catalog_repo=fake_catalog,
-    ) == 2
-    assert scoping.cohort_size(
-        "tcga-subgroup-assignments-coadread-v1", "MSS",
-        data_catalog_repo=fake_catalog,
-    ) == 2
+    assert (
+        scoping.cohort_size(
+            "tcga-subgroup-assignments-coadread-v1",
+            "MSI_H",
+            data_catalog_repo=fake_catalog,
+        )
+        == 2
+    )
+    assert (
+        scoping.cohort_size(
+            "tcga-subgroup-assignments-coadread-v1",
+            "MSS",
+            data_catalog_repo=fake_catalog,
+        )
+        == 2
+    )
 
 
 def test_join_coverage_healthy(tmp_path, monkeypatch):
     """compute_join_coverage reports matched/assignment-only + no warning on a good join."""
     import warnings
+
     fake_catalog = _seed_assignments(tmp_path, monkeypatch)
     source_df = pd.DataFrame({"Tumor_Sample_Barcode": ["S1", "S2", "S3", "S4"]})
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
         cov = scoping.compute_join_coverage(
-            source_df, "Tumor_Sample_Barcode", "MSI_H",
-            "tcga-subgroup-assignments-coadread-v1", data_catalog_repo=fake_catalog)
+            source_df,
+            "Tumor_Sample_Barcode",
+            "MSI_H",
+            "tcga-subgroup-assignments-coadread-v1",
+            data_catalog_repo=fake_catalog,
+        )
     # MSI_H members = {S1, S2}; both present in source → 100% match, no warning
     assert cov.n_members == 2
     assert cov.n_matched == 2
@@ -137,16 +162,19 @@ def test_join_coverage_detects_id_mismatch(tmp_path, monkeypatch):
     """The load-bearing guard (Finding 5): a full-aliquot key against patient-level
     assignments matches 0 members → id_convention_warning True + UserWarning raised."""
     import warnings
+
     fake_catalog = _seed_assignments(tmp_path, monkeypatch)
     # Method data keyed on a mismatched convention (nothing overlaps S1..S4)
-    source_df = pd.DataFrame({
-        "aliquot": ["S1-01A-01D", "S2-01A-01D", "S3-01A-01D", "S4-01A-01D"],
-    })
+    source_df = pd.DataFrame(
+        {
+            "aliquot": ["S1-01A-01D", "S2-01A-01D", "S3-01A-01D", "S4-01A-01D"],
+        }
+    )
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
         cov = scoping.compute_join_coverage(
-            source_df, "aliquot", "MSI_H",
-            "tcga-subgroup-assignments-coadread-v1", data_catalog_repo=fake_catalog)
+            source_df, "aliquot", "MSI_H", "tcga-subgroup-assignments-coadread-v1", data_catalog_repo=fake_catalog
+        )
     assert cov.n_members == 2
     assert cov.n_matched == 0
     assert cov.match_rate == 0.0
@@ -157,16 +185,21 @@ def test_join_coverage_detects_id_mismatch(tmp_path, monkeypatch):
 def test_join_coverage_suppress_warning(tmp_path, monkeypatch):
     """warn=False computes the diagnostic without raising (for batch/coverage-matrix use)."""
     import warnings
+
     fake_catalog = _seed_assignments(tmp_path, monkeypatch)
     source_df = pd.DataFrame({"aliquot": ["X", "Y"]})
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
         cov = scoping.compute_join_coverage(
-            source_df, "aliquot", "MSI_H",
+            source_df,
+            "aliquot",
+            "MSI_H",
             "tcga-subgroup-assignments-coadread-v1",
-            data_catalog_repo=fake_catalog, warn=False)
-    assert cov.id_convention_warning is True   # still flagged in the struct
-    assert len(w) == 0                          # but no warning emitted
+            data_catalog_repo=fake_catalog,
+            warn=False,
+        )
+    assert cov.id_convention_warning is True  # still flagged in the struct
+    assert len(w) == 0  # but no warning emitted
 
 
 def test_path_b_amortization_across_multiple_subgroups(tmp_path, monkeypatch):
@@ -177,15 +210,21 @@ def test_path_b_amortization_across_multiple_subgroups(tmp_path, monkeypatch):
 
     # First call: load_assignments cache miss
     _ = scoping.filter_samples_by_subgroup(
-        source_df, "Tumor_Sample_Barcode", "MSI_H",
-        "tcga-subgroup-assignments-coadread-v1", data_catalog_repo=fake_catalog,
+        source_df,
+        "Tumor_Sample_Barcode",
+        "MSI_H",
+        "tcga-subgroup-assignments-coadread-v1",
+        data_catalog_repo=fake_catalog,
     )
     info_after_first = loaders.load_assignments.cache_info()
 
     # Second call: MSS stratum, same manifest → SHOULD hit cache
     _ = scoping.filter_samples_by_subgroup(
-        source_df, "Tumor_Sample_Barcode", "MSS",
-        "tcga-subgroup-assignments-coadread-v1", data_catalog_repo=fake_catalog,
+        source_df,
+        "Tumor_Sample_Barcode",
+        "MSS",
+        "tcga-subgroup-assignments-coadread-v1",
+        data_catalog_repo=fake_catalog,
     )
     info_after_second = loaders.load_assignments.cache_info()
 

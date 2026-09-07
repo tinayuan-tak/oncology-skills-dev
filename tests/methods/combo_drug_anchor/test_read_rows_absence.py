@@ -4,6 +4,7 @@ transient exception propagate (that would crash the whole skill run on an S3 bli
 the breadcrumb REASON now distinguishes transient/creds/broken-env from a genuine NoSuchKey/404, and
 a transient failure is NOT permanently cached (a later call retries).
 """
+
 from __future__ import annotations
 
 import sys
@@ -27,6 +28,7 @@ def _nosuchkey():
 def _raise(exc):
     def f(*a, **k):
         raise exc
+
     return f
 
 
@@ -42,12 +44,12 @@ def test_transient_failure_is_data_unavailable_with_breadcrumb(monkeypatch):
     combo._ROWS_CACHE.clear()
     monkeypatch.setattr(cqr, "bucket_key_for", lambda mid: ("b", "k"))
     monkeypatch.setattr(pq, "read_table", _raise(RuntimeError("throttle / connection reset")))
-    out = combo.combination_opportunities_for_gene("KRAS")   # rows=None -> live read
+    out = combo.combination_opportunities_for_gene("KRAS")  # rows=None -> live read
     # A transient blip degrades GRACEFULLY (no uncaught raise) to data_unavailable + a breadcrumb
     # that names the true (transient) cause — NOT the generic no-object message.
     assert out["combination_opportunity_class"] == "data_unavailable"
     assert "transient" in out["_live_read_error"].lower()
-    assert "KRAS" not in combo._ROWS_CACHE          # transient must NOT poison the cache
+    assert "KRAS" not in combo._ROWS_CACHE  # transient must NOT poison the cache
     combo._ROWS_CACHE.clear()
 
 
@@ -72,5 +74,5 @@ def test_genuine_absence_is_data_unavailable_with_no_object_breadcrumb(monkeypat
     monkeypatch.setattr(pq, "read_table", _raise(_nosuchkey()))
     out = combo.combination_opportunities_for_gene("KRAS")
     assert out["combination_opportunity_class"] == "data_unavailable"
-    assert "no-object" in out["_live_read_error"].lower()   # genuine-absence breadcrumb, not transient
+    assert "no-object" in out["_live_read_error"].lower()  # genuine-absence breadcrumb, not transient
     combo._ROWS_CACHE.clear()

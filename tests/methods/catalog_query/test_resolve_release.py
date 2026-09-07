@@ -6,6 +6,7 @@ flowed only into ID strings — 'pinned' and 'exploratory' resolved the SAME dat
 turns (family, data_mode, release_pin) into a concrete manifest_id via the existing catalog +
 supersedes graph. These tests run against the REAL catalog (families with coexisting siblings).
 """
+
 from __future__ import annotations
 
 import sys
@@ -17,7 +18,10 @@ _METHODS = Path(__file__).resolve().parents[3] / "methods"
 sys.path.insert(0, str(_METHODS))
 
 from catalog_query.read import (  # noqa: E402
-    resolve_release, _family_of, load_catalog, ReleaseResolutionError,
+    resolve_release,
+    _family_of,
+    load_catalog,
+    ReleaseResolutionError,
 )
 
 # A family known to carry multiple coexisting siblings in the catalog.
@@ -55,7 +59,7 @@ def test_pinned_selects_specific_sibling(multi_members):
     """pinned resolves to the sibling matching the pin — including an OLDER one (real selection)."""
     oldest = multi_members[0]
     # derive the pin token from the oldest member id (its release suffix)
-    pin = oldest[len(_MULTI_FAMILY) + 1:]
+    pin = oldest[len(_MULTI_FAMILY) + 1 :]
     assert resolve_release(_MULTI_FAMILY, "pinned", pin) == oldest
 
 
@@ -71,7 +75,7 @@ def test_pinned_unknown_pin_fails_loud(multi_members):
 
 def test_exploratory_pin_takes_precedence_else_head(multi_members):
     oldest = multi_members[0]
-    pin = oldest[len(_MULTI_FAMILY) + 1:]
+    pin = oldest[len(_MULTI_FAMILY) + 1 :]
     # with a resolvable pin, exploratory honors it
     assert resolve_release(_MULTI_FAMILY, "exploratory", pin) == oldest
     # with no pin, exploratory falls to head (same as latest_approved)
@@ -100,11 +104,14 @@ def test_concrete_id_as_family_is_accepted():
 # Drift-guard for the tumor-presence provenance warning:
 # input_manifest_ids=['expression-rna-tumor-vs-adjacent'] used to raise ReleaseResolutionError.
 
+
 def _output_manifests_for(idx, pid: str) -> list[str]:
     """Manifests whose OWN product_id field == pid (the product's output manifests)."""
+
     def _declares(rec):
         v = rec.raw.get("product_id")
         return v == pid or (isinstance(v, list) and pid in v)
+
     return sorted(m for m, rec in idx.manifests.items() if _declares(rec))
 
 
@@ -115,7 +122,7 @@ def _a_product_id_with_output_manifest() -> tuple[str, list[str]]:
     seen: dict[str, list[str]] = {}
     for mid, rec in idx.manifests.items():
         v = rec.raw.get("product_id")
-        for pid in ([v] if isinstance(v, str) else (v or [])):
+        for pid in [v] if isinstance(v, str) else (v or []):
             seen.setdefault(pid, []).append(mid)
     for pid in sorted(seen):
         members = [m for m in idx.manifests if _family_of(m) == pid]
@@ -130,7 +137,8 @@ def test_product_id_resolves_to_its_output_manifest():
     pid, output_manifests = _a_product_id_with_output_manifest()
     resolved = resolve_release(pid, "latest_approved")
     assert resolved in output_manifests, (
-        f"product_id {pid!r} resolved to {resolved!r}, not among its OUTPUT manifests {output_manifests}")
+        f"product_id {pid!r} resolved to {resolved!r}, not among its OUTPUT manifests {output_manifests}"
+    )
 
 
 def test_expression_rna_tumor_vs_adjacent_resolves_to_dge_output_not_source():
@@ -147,7 +155,8 @@ def test_expression_rna_tumor_vs_adjacent_resolves_to_dge_output_not_source():
     assert resolved in outputs, f"expected a DGE output manifest {outputs}, got {resolved!r}"
     assert not resolved.startswith("tcga-gdc-"), (
         f"resolved to an upstream SOURCE {resolved!r}, not the product output — regression of the "
-        f"idx.consumers (input-sources) bug.")
+        f"idx.consumers (input-sources) bug."
+    )
 
 
 def test_unknown_string_still_fails_loud():

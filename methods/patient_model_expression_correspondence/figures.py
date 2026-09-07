@@ -15,11 +15,13 @@ from . import cli as _cli
 _REQUIRED_COLUMNS = ("target_log2tpm", "chronos")
 
 
-def render_from_plot_data(plot_data, summary: dict, out_dir, target: str,
-                          indication: "Optional[str]" = None, *, target_contracts_dir=None) -> list:
+def render_from_plot_data(
+    plot_data, summary: dict, out_dir, target: str, indication: "Optional[str]" = None, *, target_contracts_dir=None
+) -> list:
     import pandas as pd
 
-    out_dir = Path(out_dir); out_dir.mkdir(parents=True, exist_ok=True)
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
     tcd = target_contracts_dir or _cli.DEFAULT_TARGET_CONTRACTS
     df = plot_data if hasattr(plot_data, "columns") else pd.read_parquet(Path(plot_data))
     missing = [c for c in _REQUIRED_COLUMNS if c not in df.columns]
@@ -31,8 +33,14 @@ def render_from_plot_data(plot_data, summary: dict, out_dir, target: str,
     svg = _cli.emit_svg(target, indication, summary, out_dir, tcd, presampled=models)
     if svg is None:
         return []
-    static = [{"id": "recommended_models_scatter", "path": "figure_recommended_models.svg",
-               "type": "patient_model_correspondence_scatter", "primary": True}]
+    static = [
+        {
+            "id": "recommended_models_scatter",
+            "path": "figure_recommended_models.svg",
+            "type": "patient_model_correspondence_scatter",
+            "primary": True,
+        }
+    ]
     dynamic = []
     try:
         specs = _cli.emit_plotly_specs(target, indication, out_dir, tcd, summary=summary) or []

@@ -15,17 +15,22 @@ the emitted fields are unchanged.
 
 Run with --upload to materialize to S3.
 """
+
 from __future__ import annotations
 
 import argparse
 from pathlib import Path
 
 from methods.reactome_pathway_context.read import (
-    _load_uniprot_to_reactome, _load_pathway_hierarchy, _walk_to_top, DEFAULT_AWS_PROFILE,
+    _load_uniprot_to_reactome,
+    _load_pathway_hierarchy,
+    _walk_to_top,
+    DEFAULT_AWS_PROFILE,
 )
 
-_DERIVED_S3_URI = ("s3://onc-compbio/data-catalog/derived/"
-                   "reactome-pathway-per-uniprot-v1/reactome_pathway_per_uniprot.parquet")
+_DERIVED_S3_URI = (
+    "s3://onc-compbio/data-catalog/derived/reactome-pathway-per-uniprot-v1/reactome_pathway_per_uniprot.parquet"
+)
 
 
 def build_table():
@@ -33,10 +38,11 @@ def build_table():
     top_level_pathway_name], sorted by (uniprot_ac, row_order)."""
     import pandas as pd
     from methods.target_id_sidecar import ensure_aws_profile
+
     ensure_aws_profile()
-    uniprot_map = _load_uniprot_to_reactome()          # {AC: [{pathway_id, pathway_name, evidence_code, url}]}
+    uniprot_map = _load_uniprot_to_reactome()  # {AC: [{pathway_id, pathway_name, evidence_code, url}]}
     id_to_name, child_to_parent = _load_pathway_hierarchy()
-    top_cache: dict[str, str] = {}                     # pathway_id -> top-level pathway NAME (memoized)
+    top_cache: dict[str, str] = {}  # pathway_id -> top-level pathway NAME (memoized)
 
     def _top_name(pid: str) -> str:
         if pid not in top_cache:
@@ -46,11 +52,22 @@ def build_table():
 
     rows = []
     for ac, pathways in uniprot_map.items():
-        for i, p in enumerate(pathways):               # preserve source order for specific_pathways[:20]
-            rows.append((ac, i, p["pathway_id"], p["pathway_name"], p["evidence_code"],
-                         p["url"], _top_name(p["pathway_id"])))
-    df = pd.DataFrame(rows, columns=["uniprot_ac", "row_order", "pathway_id", "pathway_name",
-                                     "evidence_code", "url", "top_level_pathway_name"])
+        for i, p in enumerate(pathways):  # preserve source order for specific_pathways[:20]
+            rows.append(
+                (ac, i, p["pathway_id"], p["pathway_name"], p["evidence_code"], p["url"], _top_name(p["pathway_id"]))
+            )
+    df = pd.DataFrame(
+        rows,
+        columns=[
+            "uniprot_ac",
+            "row_order",
+            "pathway_id",
+            "pathway_name",
+            "evidence_code",
+            "url",
+            "top_level_pathway_name",
+        ],
+    )
     df["row_order"] = df["row_order"].astype("int32")
     df = df.sort_values(["uniprot_ac", "row_order"], kind="stable").reset_index(drop=True)
     return df
@@ -64,14 +81,17 @@ def main():
 
     import pyarrow as pa
     import pyarrow.parquet as pq
+
     df = build_table()
-    pq.write_table(pa.Table.from_pandas(df, preserve_index=False), args.out,
-                   compression="snappy", row_group_size=200_000)
+    pq.write_table(
+        pa.Table.from_pandas(df, preserve_index=False), args.out, compression="snappy", row_group_size=200_000
+    )
     print(f"wrote {args.out}: {len(df):,} rows / {df['uniprot_ac'].nunique():,} accessions")
 
     if args.upload:
         import boto3
         import hashlib
+
         path = _DERIVED_S3_URI.replace("s3://", "", 1)
         bucket, _, key = path.partition("/")
         try:

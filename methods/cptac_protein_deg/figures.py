@@ -16,9 +16,24 @@ from typing import Optional, Union
 from . import read as _read
 
 # stat columns persisted alongside the raw-array list-columns (one row per cohort)
-_STAT_COLUMNS = ("cohort", "n_tumor", "n_normal", "tumor_min", "tumor_q1", "tumor_median",
-                 "tumor_q3", "tumor_max", "normal_min", "normal_q1", "normal_median",
-                 "normal_q3", "normal_max", "delta_median", "welch_p", "mwu_p")
+_STAT_COLUMNS = (
+    "cohort",
+    "n_tumor",
+    "n_normal",
+    "tumor_min",
+    "tumor_q1",
+    "tumor_median",
+    "tumor_q3",
+    "tumor_max",
+    "normal_min",
+    "normal_q1",
+    "normal_median",
+    "normal_q3",
+    "normal_max",
+    "delta_median",
+    "welch_p",
+    "mwu_p",
+)
 _REQUIRED_COLUMNS = ("cohort", "delta_median", "tumor_values", "normal_values")
 
 
@@ -43,10 +58,15 @@ def _reconstruct_stats(plot_data: "Union[str, Path, object]") -> list[dict]:
     return stats
 
 
-def render_from_plot_data(plot_data: "Union[str, Path, object]", summary: dict,
-                          out_dir: "Union[str, Path]", target: str,
-                          indication: "Optional[str]" = None, *,
-                          target_contracts_dir: "Optional[Union[str, Path]]" = None) -> list[dict]:
+def render_from_plot_data(
+    plot_data: "Union[str, Path, object]",
+    summary: dict,
+    out_dir: "Union[str, Path]",
+    target: str,
+    indication: "Optional[str]" = None,
+    *,
+    target_contracts_dir: "Optional[Union[str, Path]]" = None,
+) -> list[dict]:
     """Render the CPTAC per-cohort tumor-vs-normal boxplot OFFLINE from persisted plot_data
     (plot_data_protein_per_cohort.parquet). Reconstructs the per-cohort stats (with raw arrays) and
     replays them into the presampled-aware read.emit_per_cohort_panel / emit_plotly_specs. NO live
@@ -58,13 +78,16 @@ def render_from_plot_data(plot_data: "Union[str, Path, object]", summary: dict,
 
     stats = _reconstruct_stats(plot_data)
     if not stats:
-        return []                                    # target absent from every CPTAC cohort
+        return []  # target absent from every CPTAC cohort
 
     _read.emit_per_cohort_panel(target, out_dir, presampled=stats, **kw)
     static = [
-        {"id": "protein_per_cohort_tumor_vs_normal",
-         "path": "figure_protein_per_cohort_tumor_vs_normal.svg",
-         "type": "per_cohort_distribution_tumor_vs_normal", "primary": True},
+        {
+            "id": "protein_per_cohort_tumor_vs_normal",
+            "path": "figure_protein_per_cohort_tumor_vs_normal.svg",
+            "type": "per_cohort_distribution_tumor_vs_normal",
+            "primary": True,
+        },
     ]
     dynamic: list[dict] = []
     try:

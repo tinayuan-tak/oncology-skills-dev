@@ -6,6 +6,7 @@ arm-CN assignment logic, OncoKB driver-flag builder, feature-matrix assembly,
 per-fold RF+optional-XGB training, bootstrap CI, classification, and parquet
 schema.
 """
+
 from __future__ import annotations
 
 import sys
@@ -24,47 +25,58 @@ from depmap_predictability_precompute import features as feat  # noqa: E402
 
 # ---------- Symbol extraction --------------------------------------------
 
-@pytest.mark.parametrize("col, expected", [
-    ("KRAS", "KRAS"),
-    ("KRAS (3845)", "KRAS"),
-    ('"KRAS (3845)"', "KRAS"),
-    ("BRCA1 (672)", "BRCA1"),
-    ("AC10.4 (1234)", "AC10.4"),
-    ("HLA-A (3105)", "HLA-A"),
-    ("", None),
-    ("   ", None),
-    (None, None),
-])
+
+@pytest.mark.parametrize(
+    "col, expected",
+    [
+        ("KRAS", "KRAS"),
+        ("KRAS (3845)", "KRAS"),
+        ('"KRAS (3845)"', "KRAS"),
+        ("BRCA1 (672)", "BRCA1"),
+        ("AC10.4 (1234)", "AC10.4"),
+        ("HLA-A (3105)", "HLA-A"),
+        ("", None),
+        ("   ", None),
+        (None, None),
+    ],
+)
 def test_extract_symbol(col, expected):
     assert feat.extract_symbol(col) == expected
 
 
 # ---------- Feature-class mapping -----------------------------------------
 
-@pytest.mark.parametrize("fname, expected", [
-    ("own_expression", "own_expression"),
-    ("own_copy_number", "own_copy_number"),
-    ("own_mut_hotspot", "own_mut_hotspot"),
-    ("own_mut_damaging", "own_mut_damaging"),
-    ("expr_TP53", "cross_gene_expression"),
-    ("cn_MYC", "cross_gene_copy_number"),
-    ("arm_chr12p", "arm_level_cn"),
-    ("driver_KRAS_GoF", "oncokb_gof"),
-    ("driver_TP53_LoF", "oncokb_lof"),
-    ("lineage_Bowel", "lineage"),
-    ("something_else", "other"),
-])
+
+@pytest.mark.parametrize(
+    "fname, expected",
+    [
+        ("own_expression", "own_expression"),
+        ("own_copy_number", "own_copy_number"),
+        ("own_mut_hotspot", "own_mut_hotspot"),
+        ("own_mut_damaging", "own_mut_damaging"),
+        ("expr_TP53", "cross_gene_expression"),
+        ("cn_MYC", "cross_gene_copy_number"),
+        ("arm_chr12p", "arm_level_cn"),
+        ("driver_KRAS_GoF", "oncokb_gof"),
+        ("driver_TP53_LoF", "oncokb_lof"),
+        ("lineage_Bowel", "lineage"),
+        ("something_else", "other"),
+    ],
+)
 def test_feature_class_of(fname, expected):
     assert feat.feature_class_of(fname) == expected
 
 
 # ---------- Lineage one-hot with sub-min collapse -------------------------
 
+
 def test_lineage_one_hot_collapse_small_lineages():
-    model = pd.DataFrame({
-        "ModelID": [f"ACH-{i:06d}" for i in range(10)],
-        "OncotreeLineage": (["X"] * 6) + (["Y"] * 4),
-    })
+    model = pd.DataFrame(
+        {
+            "ModelID": [f"ACH-{i:06d}" for i in range(10)],
+            "OncotreeLineage": (["X"] * 6) + (["Y"] * 4),
+        }
+    )
     oh = feat.build_lineage_one_hot(model, min_lines_per_lineage=5)
     assert "lineage_X" in oh.columns
     assert "lineage_OTHER" in oh.columns
@@ -74,44 +86,58 @@ def test_lineage_one_hot_collapse_small_lineages():
 
 # ---------- Arm assignment logic (cytoband + coords) ----------------------
 
+
 def test_assign_genes_to_arms_basic():
-    coords = pd.DataFrame({
-        "hgnc_symbol": ["KRAS", "MYC", "TP53"],
-        "chrom_name": ["12", "8", "17"],
-        "gene_start": [25358180, 127735434, 7668421],
-        "gene_end": [25403854, 127741434, 7687490],
-    })
-    cytoband = pd.DataFrame({
-        "chrom":      ["chr12", "chr12", "chr8", "chr17"],
-        "chromStart": [0,       35000000, 100000000, 0],
-        "chromEnd":   [35000000, 133275309, 145138636, 30000000],
-        "name":       ["p13.33", "q11.21", "q24.13", "p13.3"],
-        "gieStain":   ["gneg", "gneg", "gpos25", "gneg"],
-    })
+    coords = pd.DataFrame(
+        {
+            "hgnc_symbol": ["KRAS", "MYC", "TP53"],
+            "chrom_name": ["12", "8", "17"],
+            "gene_start": [25358180, 127735434, 7668421],
+            "gene_end": [25403854, 127741434, 7687490],
+        }
+    )
+    cytoband = pd.DataFrame(
+        {
+            "chrom": ["chr12", "chr12", "chr8", "chr17"],
+            "chromStart": [0, 35000000, 100000000, 0],
+            "chromEnd": [35000000, 133275309, 145138636, 30000000],
+            "name": ["p13.33", "q11.21", "q24.13", "p13.3"],
+            "gieStain": ["gneg", "gneg", "gpos25", "gneg"],
+        }
+    )
     gene_to_arm = feat.assign_genes_to_arms(coords, cytoband)
-    assert gene_to_arm["KRAS"] == "chr12p"   # position on p-arm of chr12
-    assert gene_to_arm["MYC"] == "chr8q"     # q-arm of chr8
-    assert gene_to_arm["TP53"] == "chr17p"   # p-arm of chr17
+    assert gene_to_arm["KRAS"] == "chr12p"  # position on p-arm of chr12
+    assert gene_to_arm["MYC"] == "chr8q"  # q-arm of chr8
+    assert gene_to_arm["TP53"] == "chr17p"  # p-arm of chr17
 
 
 # ---------- OncoKB driver flag builder ------------------------------------
 
+
 def test_compute_oncokb_driver_flags_maps_correctly():
-    oncokb = pd.DataFrame({
-        "hugoSymbol": ["KRAS", "TP53", "MYC"],
-        "geneType": ["ONCOGENE", "TSG", "ONCOGENE"],
-    })
+    oncokb = pd.DataFrame(
+        {
+            "hugoSymbol": ["KRAS", "TP53", "MYC"],
+            "geneType": ["ONCOGENE", "TSG", "ONCOGENE"],
+        }
+    )
     lines = [f"ACH-{i:06d}" for i in range(5)]
-    hotspot = pd.DataFrame({
-        "KRAS": [1, 0, 1, 0, 0],
-        "MYC":  [0, 0, 0, 0, 0],
-        "TP53": [0, 0, 0, 1, 0],
-    }, index=pd.Index(lines, name="ModelID")).astype("int8")
-    damaging = pd.DataFrame({
-        "KRAS": [0, 0, 0, 0, 0],
-        "TP53": [0, 1, 1, 0, 1],
-        "MYC":  [0, 0, 0, 0, 0],
-    }, index=pd.Index(lines, name="ModelID")).astype("int8")
+    hotspot = pd.DataFrame(
+        {
+            "KRAS": [1, 0, 1, 0, 0],
+            "MYC": [0, 0, 0, 0, 0],
+            "TP53": [0, 0, 0, 1, 0],
+        },
+        index=pd.Index(lines, name="ModelID"),
+    ).astype("int8")
+    damaging = pd.DataFrame(
+        {
+            "KRAS": [0, 0, 0, 0, 0],
+            "TP53": [0, 1, 1, 0, 1],
+            "MYC": [0, 0, 0, 0, 0],
+        },
+        index=pd.Index(lines, name="ModelID"),
+    ).astype("int8")
     flags = feat.compute_oncokb_driver_flags(oncokb, hotspot, damaging)
     # KRAS oncogene → GoF column from hotspot
     assert "driver_KRAS_GoF" in flags.columns
@@ -129,6 +155,7 @@ def test_compute_oncokb_driver_flags_maps_correctly():
 
 # ---------- build_gene_feature_matrix (integration) -----------------------
 
+
 def _make_omics_bundle(n_lines=200, gene_of_interest="KRAS"):
     """Build a minimal omics bundle with 3 genes (KRAS, TP53, MYC) and one
     chronos target correlated with own_expression."""
@@ -143,36 +170,53 @@ def _make_omics_bundle(n_lines=200, gene_of_interest="KRAS"):
     y = -2.0 + 0.5 * expr_kras + rng.normal(0, 0.1, n_lines).astype(np.float32)
     idx = pd.Index(model_ids, name="ModelID")
 
-    chronos = pd.DataFrame({
-        gene_of_interest: y,
-        "TP53": rng.normal(-0.3, 0.3, n_lines).astype(np.float32),
-        "MYC": rng.normal(-0.5, 0.4, n_lines).astype(np.float32),
-    }, index=idx)
-    expression = pd.DataFrame({
-        gene_of_interest: expr_kras,
-        "TP53": rng.normal(4, 1, n_lines).astype(np.float32),
-        "MYC": rng.normal(5, 1, n_lines).astype(np.float32),
-    }, index=idx)
-    cn = pd.DataFrame({
-        gene_of_interest: rng.normal(1.0, 0.1, n_lines).astype(np.float32),
-        "TP53": rng.normal(1.0, 0.1, n_lines).astype(np.float32),
-        "MYC": rng.normal(1.0, 0.1, n_lines).astype(np.float32),
-    }, index=idx)
-    mh = pd.DataFrame({
-        gene_of_interest: np.zeros(n_lines, dtype="int8"),
-        "TP53": np.zeros(n_lines, dtype="int8"),
-        "MYC": np.zeros(n_lines, dtype="int8"),
-    }, index=idx)
+    chronos = pd.DataFrame(
+        {
+            gene_of_interest: y,
+            "TP53": rng.normal(-0.3, 0.3, n_lines).astype(np.float32),
+            "MYC": rng.normal(-0.5, 0.4, n_lines).astype(np.float32),
+        },
+        index=idx,
+    )
+    expression = pd.DataFrame(
+        {
+            gene_of_interest: expr_kras,
+            "TP53": rng.normal(4, 1, n_lines).astype(np.float32),
+            "MYC": rng.normal(5, 1, n_lines).astype(np.float32),
+        },
+        index=idx,
+    )
+    cn = pd.DataFrame(
+        {
+            gene_of_interest: rng.normal(1.0, 0.1, n_lines).astype(np.float32),
+            "TP53": rng.normal(1.0, 0.1, n_lines).astype(np.float32),
+            "MYC": rng.normal(1.0, 0.1, n_lines).astype(np.float32),
+        },
+        index=idx,
+    )
+    mh = pd.DataFrame(
+        {
+            gene_of_interest: np.zeros(n_lines, dtype="int8"),
+            "TP53": np.zeros(n_lines, dtype="int8"),
+            "MYC": np.zeros(n_lines, dtype="int8"),
+        },
+        index=idx,
+    )
     md = mh.copy()
     lineage_oh = feat.build_lineage_one_hot(model_df, min_lines_per_lineage=5)
     # Empty derived matrices
     arm_cn = pd.DataFrame(index=idx)
     driver_flags = pd.DataFrame(index=idx)
     return {
-        "chronos": chronos, "expression": expression, "copy_number": cn,
-        "mut_hotspot": mh, "mut_damaging": md,
-        "lineage_one_hot": lineage_oh, "arm_level_cn": arm_cn,
-        "driver_flags": driver_flags, "model_df": model_df,
+        "chronos": chronos,
+        "expression": expression,
+        "copy_number": cn,
+        "mut_hotspot": mh,
+        "mut_damaging": md,
+        "lineage_one_hot": lineage_oh,
+        "arm_level_cn": arm_cn,
+        "driver_flags": driver_flags,
+        "model_df": model_df,
     }
 
 
@@ -198,6 +242,7 @@ def test_build_gene_feature_matrix_missing_target_returns_none():
 
 # ---------- Bootstrap CI on r² --------------------------------------------
 
+
 def test_bootstrap_r2_ci_returns_reasonable_bounds():
     rng = np.random.default_rng(0)
     n = 500
@@ -208,11 +253,12 @@ def test_bootstrap_r2_ci_returns_reasonable_bounds():
     assert 0 <= lo <= hi <= 1
     # Point r² should be ~0.5; CI should span it
     r_point = e5cli._pearson_r(y_oof, y_true)
-    r2_point = r_point ** 2
+    r2_point = r_point**2
     assert lo - 0.15 <= r2_point <= hi + 0.15
 
 
 # ---------- QuantileKFold split invariants --------------------------------
+
 
 def test_quantile_kfold_partitions_exclusively_and_stratifies():
     rng = np.random.default_rng(0)
@@ -229,22 +275,27 @@ def test_quantile_kfold_partitions_exclusively_and_stratifies():
 
 # ---------- Classifier boundaries ----------------------------------------
 
-@pytest.mark.parametrize("r2_rf, r2_ci_lo, top_class, expected", [
-    (0.5,  0.4,  "own_expression",         "own_omics_driven"),
-    (0.45, 0.35, "own_mut_hotspot",        "own_omics_driven"),
-    (0.55, 0.4,  "lineage",                "context_or_driver_dependent"),
-    (0.55, 0.4,  "arm_level_cn",           "context_or_driver_dependent"),
-    (0.55, 0.4,  "oncokb_gof",             "context_or_driver_dependent"),
-    (0.3,  0.15, "own_expression",         "weakly_predictable"),
-    (0.2,  0.05, "cross_gene_expression",  "weakly_predictable"),
-    (0.1,  0.02, "own_expression",         "unpredictable"),
-])
+
+@pytest.mark.parametrize(
+    "r2_rf, r2_ci_lo, top_class, expected",
+    [
+        (0.5, 0.4, "own_expression", "own_omics_driven"),
+        (0.45, 0.35, "own_mut_hotspot", "own_omics_driven"),
+        (0.55, 0.4, "lineage", "context_or_driver_dependent"),
+        (0.55, 0.4, "arm_level_cn", "context_or_driver_dependent"),
+        (0.55, 0.4, "oncokb_gof", "context_or_driver_dependent"),
+        (0.3, 0.15, "own_expression", "weakly_predictable"),
+        (0.2, 0.05, "cross_gene_expression", "weakly_predictable"),
+        (0.1, 0.02, "own_expression", "unpredictable"),
+    ],
+)
 def test_classify_boundaries(r2_rf, r2_ci_lo, top_class, expected):
     pred, _ = e5cli._classify(r2_rf, r2_ci_lo, top_class)
     assert pred == expected
 
 
 # ---------- train_gene end-to-end (with real RF, small feature-space) ----
+
 
 def test_train_gene_recovers_own_omics_signal():
     omics = _make_omics_bundle(n_lines=300)
@@ -258,6 +309,7 @@ def test_train_gene_recovers_own_omics_signal():
 
 
 # ---------- Parquet schema (v2) --------------------------------------------
+
 
 def test_write_parquet_v2_schema(tmp_path):
     rec = {
@@ -274,18 +326,25 @@ def test_write_parquet_v2_schema(tmp_path):
         "model_agreement": "concordant",
         "delta_r2": -0.04,
         "top_features_rf_shap": [
-            {"feature": "own_mut_hotspot", "feature_class": "own_mut_hotspot",
-             "importance": 0.15, "rf_importance": 0.12},
+            {
+                "feature": "own_mut_hotspot",
+                "feature_class": "own_mut_hotspot",
+                "importance": 0.15,
+                "rf_importance": 0.12,
+            },
         ],
         "top_features_xgb_shap": [
-            {"feature": "own_mut_hotspot", "feature_class": "own_mut_hotspot",
-             "importance": 0.18, "rf_importance": 0.0},
+            {
+                "feature": "own_mut_hotspot",
+                "feature_class": "own_mut_hotspot",
+                "importance": 0.18,
+                "rf_importance": 0.0,
+            },
         ],
         "dominant_feature_class": "own_mut_hotspot",
         "predictability_class": "own_omics_driven",
         "per_lineage_predictability": [
-            {"lineage": "Bowel", "n_cell_lines": 80, "r2": 0.55,
-             "top_feature": "own_mut_hotspot"},
+            {"lineage": "Bowel", "n_cell_lines": 80, "r2": 0.55, "top_feature": "own_mut_hotspot"},
         ],
     }
     out = tmp_path / "predictability_per_gene.parquet"

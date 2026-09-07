@@ -5,6 +5,7 @@ flagged INDUCED when its genes clear the induction floor (the MEK-inhibitor HMOX
 from the live check), an unmapped target returns not_in_tahoe, and the sub-signal is verdict-inert
 (it never appears in the primary resistance class).
 """
+
 from __future__ import annotations
 
 import sys
@@ -33,7 +34,7 @@ def _induced_rows():
 
 
 def test_unmapped_target_is_not_in_tahoe():
-    out = TA.tahoe_adaptation_for_target("EGFR")   # not in TARGET_TO_TAHOE_DRUGS
+    out = TA.tahoe_adaptation_for_target("EGFR")  # not in TARGET_TO_TAHOE_DRUGS
     assert out["tahoe_adaptation_class"] == "not_in_tahoe"
     assert out["induced_programs"] == []
 
@@ -41,7 +42,7 @@ def test_unmapped_target_is_not_in_tahoe():
 def test_data_unavailable_on_fetch_failure(monkeypatch):
     """A read failure in _fetch_program_rows (returns None) → data_unavailable + breadcrumb."""
     monkeypatch.setattr(TA, "_fetch_program_rows", lambda drugs: None)
-    out = TA.tahoe_adaptation_for_target("KRAS")   # mapped target, but fetch fails
+    out = TA.tahoe_adaptation_for_target("KRAS")  # mapped target, but fetch fails
     assert out["tahoe_adaptation_class"] == "data_unavailable"
     assert out["_live_read_error"] == "tahoe_adaptation_read_failed"
 
@@ -72,23 +73,43 @@ def test_verdict_inert_integration(monkeypatch):
     import pyarrow.parquet as pq
 
     class _T:
-        def __init__(self, rows): self._rows = rows
+        def __init__(self, rows):
+            self._rows = rows
+
         @property
-        def num_rows(self): return len(self._rows)
-        def to_pylist(self): return self._rows
+        def num_rows(self):
+            return len(self._rows)
+
+        def to_pylist(self):
+            return self._rows
 
     monkeypatch.setattr(fs, "S3FileSystem", lambda *a, **k: None)
     R._ROWS_CACHE.clear()
-    good = [{"inhibited_target": "KRAS", "rescuer_gene": "NF1", "anchor_drug": "MRTX1133",
-             "mechanism": "KRAS-G12D inhibitor", "n_models": 5, "mean_effect_shift": 0.84,
-             "max_effect_shift": 0.9, "n_models_significant": 5, "frac_models_significant": 1.0,
-             "resistance_class": "robust_resistance_mediator"}]
+    good = [
+        {
+            "inhibited_target": "KRAS",
+            "rescuer_gene": "NF1",
+            "anchor_drug": "MRTX1133",
+            "mechanism": "KRAS-G12D inhibitor",
+            "n_models": 5,
+            "mean_effect_shift": 0.84,
+            "max_effect_shift": 0.9,
+            "n_models_significant": 5,
+            "frac_models_significant": 1.0,
+            "resistance_class": "robust_resistance_mediator",
+        }
+    ]
     monkeypatch.setattr(pq, "read_table", lambda *a, **k: _T(good))
     # force the Tahoe sub-signal to a known value (avoid live S3)
-    monkeypatch.setattr(TA, "tahoe_adaptation_for_target",
-                        lambda sym: {"tahoe_adaptation_class": "induced_resistance_programs",
-                                     "induced_programs": [{"program": "efflux", "max_induction": 0.9}],
-                                     "tahoe_adaptation_note": "test"})
+    monkeypatch.setattr(
+        TA,
+        "tahoe_adaptation_for_target",
+        lambda sym: {
+            "tahoe_adaptation_class": "induced_resistance_programs",
+            "induced_programs": [{"program": "efflux", "max_induction": 0.9}],
+            "tahoe_adaptation_note": "test",
+        },
+    )
     out = R.resistance_mediators_for_gene("KRAS", include_tahoe_adaptation=True)
     # primary class from DepMap genetic rescue — UNCHANGED by the Tahoe sub-signal
     assert out["resistance_emergence_class"] == "strong_resistance_signal"

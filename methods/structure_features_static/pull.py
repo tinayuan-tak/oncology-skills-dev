@@ -24,6 +24,7 @@ Mirrors the InterPro API-sweep precedent (data-catalog/scripts/pull_interpro.py)
 API-derived product is the endpoint + snapshot date (no large corpus mirror) — the source manifests pin
 "AlphaFold DB API" + "PDBe API" at the snapshot date; only the small derived parquet lands in S3.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -40,7 +41,7 @@ PDBE_BEST_URL = "https://www.ebi.ac.uk/pdbe/api/mappings/best_structures/{ac}"
 _HTTP_TIMEOUT = 30
 _MAX_RETRIES = 3
 _BACKOFF_BASE = 2.0
-_POLITE_DELAY = 0.1   # seconds between ACs — courtesy throttle for the public EBI endpoints
+_POLITE_DELAY = 0.1  # seconds between ACs — courtesy throttle for the public EBI endpoints
 
 
 def _http_get(url: str, *, want_json: bool):
@@ -48,6 +49,7 @@ def _http_get(url: str, *, want_json: bool):
     A 404 is returned as (404, None) — a VALID 'no data' outcome, not retried. Transient errors
     (timeout, 5xx, connection) retry up to _MAX_RETRIES, then return (None, None)."""
     import requests
+
     last_status = None
     for attempt in range(_MAX_RETRIES):
         try:
@@ -60,7 +62,7 @@ def _http_get(url: str, *, want_json: bool):
             # 429 / 5xx → retry
         except Exception:  # noqa: BLE001 — network/parse blip → retry
             pass
-        time.sleep(_BACKOFF_BASE ** attempt)
+        time.sleep(_BACKOFF_BASE**attempt)
     return last_status, None
 
 
@@ -70,15 +72,20 @@ def fetch_alphafold(ac: str) -> dict:
      has_alphafold: bool}. Empty/absent model → has_alphafold False, plddt []."""
     status, data = _http_get(AF_PREDICTION_URL.format(ac=ac), want_json=True)
     if status != 200 or not data:
-        return {"has_alphafold": False, "plddt": [], "alphafold_prediction_id": None,
-                "alphafold_model_version": None, "alphafold_plddt_summary_mean": None}
+        return {
+            "has_alphafold": False,
+            "plddt": [],
+            "alphafold_prediction_id": None,
+            "alphafold_model_version": None,
+            "alphafold_plddt_summary_mean": None,
+        }
     rec = data[0] if isinstance(data, list) and data else {}
     cif_url = rec.get("cifUrl")
     plddt: list = []
     if cif_url:
         c_status, cif_text = _http_get(cif_url, want_json=False)
         if c_status == 200 and cif_text:
-            plddt = compute.parse_cif_plddt(cif_text)   # per-residue; CIF discarded after parse
+            plddt = compute.parse_cif_plddt(cif_text)  # per-residue; CIF discarded after parse
     return {
         "has_alphafold": True,
         "plddt": plddt,
@@ -99,11 +106,13 @@ def fetch_pdb_entries(ac: str) -> list:
         if not isinstance(r, dict) or not r.get("pdb_id"):
             continue
         res = r.get("resolution")
-        out.append({
-            "pdb_id": r.get("pdb_id"),
-            "resolution_angstrom": float(res) if isinstance(res, (int, float)) else None,
-            "method": r.get("experimental_method") or "unknown",
-        })
+        out.append(
+            {
+                "pdb_id": r.get("pdb_id"),
+                "resolution_angstrom": float(res) if isinstance(res, (int, float)) else None,
+                "method": r.get("experimental_method") or "unknown",
+            }
+        )
     return out
 
 
@@ -115,8 +124,12 @@ def build_ac_row(ac: str, gene_symbol: str, *, domains: list, hotspot_hgvsp: lis
     pdb_entries = fetch_pdb_entries(ac)
     has_structure = af["has_alphafold"] or bool(pdb_entries)
     row = compute.build_row(
-        ac, gene_symbol,
-        plddt=af["plddt"], domains=domains, pdb_entries=pdb_entries, hotspot_hgvsp=hotspot_hgvsp,
+        ac,
+        gene_symbol,
+        plddt=af["plddt"],
+        domains=domains,
+        pdb_entries=pdb_entries,
+        hotspot_hgvsp=hotspot_hgvsp,
         alphafold_prediction_id=af["alphafold_prediction_id"],
         alphafold_model_version=af["alphafold_model_version"],
         has_structure=has_structure,
@@ -146,10 +159,14 @@ def _load_checkpoint(path: Path) -> dict:
     return done
 
 
-def run_sweep(ac_gene: list, *, checkpoint: Path,
-              domains_by_ac: Optional[dict] = None,
-              hotspots_by_gene: Optional[dict] = None,
-              limit: Optional[int] = None) -> list:
+def run_sweep(
+    ac_gene: list,
+    *,
+    checkpoint: Path,
+    domains_by_ac: Optional[dict] = None,
+    hotspots_by_gene: Optional[dict] = None,
+    limit: Optional[int] = None,
+) -> list:
     """Sweep (ac, gene_symbol) pairs → rows, appending to a JSONL checkpoint (resumable). Returns all rows
     (checkpoint + newly fetched). domains_by_ac / hotspots_by_gene are pre-loaded lookups (loaded ONCE)."""
     domains_by_ac = domains_by_ac or {}
@@ -162,9 +179,12 @@ def run_sweep(ac_gene: list, *, checkpoint: Path,
     n = len(todo)
     with checkpoint.open("a") as ck:
         for i, (ac, gene) in enumerate(todo, 1):
-            row = build_ac_row(ac, gene,
-                               domains=domains_by_ac.get(ac, []),
-                               hotspot_hgvsp=hotspots_by_gene.get((gene or "").upper(), []))
+            row = build_ac_row(
+                ac,
+                gene,
+                domains=domains_by_ac.get(ac, []),
+                hotspot_hgvsp=hotspots_by_gene.get((gene or "").upper(), []),
+            )
             ck.write(json.dumps(row, default=str) + "\n")
             ck.flush()
             done[ac] = row
@@ -176,8 +196,11 @@ def run_sweep(ac_gene: list, *, checkpoint: Path,
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description="PDB+AlphaFold per-UniProt structure-features sweep.")
-    ap.add_argument("--ac-list", type=Path, help="TSV/CSV with columns uniprot_ac,gene_symbol. "
-                    "If omitted, loads the TMbed product's accessions from S3.")
+    ap.add_argument(
+        "--ac-list",
+        type=Path,
+        help="TSV/CSV with columns uniprot_ac,gene_symbol. If omitted, loads the TMbed product's accessions from S3.",
+    )
     ap.add_argument("--checkpoint", type=Path, required=True, help="Resumable JSONL checkpoint path.")
     ap.add_argument("--out", type=Path, required=True, help="Output parquet path.")
     ap.add_argument("--limit", type=int, default=None, help="Cap ACs (pilot runs).")
@@ -191,17 +214,35 @@ def main(argv=None):
     else:
         ac_gene = _load_ac_substrate()
 
-    domains_by_ac = _load_domains(ac_gene)          # InterPro per-AC (bulk, once)
-    hotspots_by_gene = _load_hotspots()             # MC3 4-indication hotspots (bulk, once)
-    rows = run_sweep(ac_gene, checkpoint=args.checkpoint,
-                     domains_by_ac=domains_by_ac, hotspots_by_gene=hotspots_by_gene, limit=args.limit)
-    df = pd.DataFrame(rows, columns=[
-        "uniprot_ac", "gene_symbol", "pdb_ids_available", "pdb_best_resolution_angstrom",
-        "pdb_best_method", "alphafold_prediction_id", "alphafold_model_version",
-        "alphafold_plddt_mean", "alphafold_plddt_min", "alphafold_plddt_min_domain",
-        "n_domains_low_plddt", "mutation_hotspot_in_druggable_pocket",
-        "hotspot_pocket_adjacency_call", "disordered_fraction", "method_version",
-    ])
+    domains_by_ac = _load_domains(ac_gene)  # InterPro per-AC (bulk, once)
+    hotspots_by_gene = _load_hotspots()  # MC3 4-indication hotspots (bulk, once)
+    rows = run_sweep(
+        ac_gene,
+        checkpoint=args.checkpoint,
+        domains_by_ac=domains_by_ac,
+        hotspots_by_gene=hotspots_by_gene,
+        limit=args.limit,
+    )
+    df = pd.DataFrame(
+        rows,
+        columns=[
+            "uniprot_ac",
+            "gene_symbol",
+            "pdb_ids_available",
+            "pdb_best_resolution_angstrom",
+            "pdb_best_method",
+            "alphafold_prediction_id",
+            "alphafold_model_version",
+            "alphafold_plddt_mean",
+            "alphafold_plddt_min",
+            "alphafold_plddt_min_domain",
+            "n_domains_low_plddt",
+            "mutation_hotspot_in_druggable_pocket",
+            "hotspot_pocket_adjacency_call",
+            "disordered_fraction",
+            "method_version",
+        ],
+    )
     args.out.parent.mkdir(parents=True, exist_ok=True)
     df.to_parquet(args.out, index=False)
     print(f"[structure_pull] wrote {len(df)} rows -> {args.out}", file=sys.stderr)
@@ -210,12 +251,16 @@ def main(argv=None):
 def _load_ac_substrate() -> list:
     """The reviewed-human-SwissProt AC substrate = the TMbed derived product's (accession, gene_symbol)."""
     import os
+
     os.environ.setdefault("AWS_PROFILE", "cbg")
     import pyarrow.parquet as pq
     import pyarrow.fs as pafs
+
     t = pq.read_table(
         "onc-compbio/data-catalog/derived/topology-predictions-tmbed-v1/topology_predictions_tmbed_v1.parquet",
-        columns=["accession", "gene_symbol"], filesystem=pafs.S3FileSystem(region="us-east-1"))
+        columns=["accession", "gene_symbol"],
+        filesystem=pafs.S3FileSystem(region="us-east-1"),
+    )
     d = t.to_pandas()
     return list(zip(d["accession"], d["gene_symbol"].fillna("")))
 
@@ -225,15 +270,20 @@ def _load_domains(ac_gene: list) -> dict:
     (per-domain pLDDT then simply unavailable — the row still carries whole-protein pLDDT + PDB)."""
     try:
         import os
+
         os.environ.setdefault("AWS_PROFILE", "cbg")
         import pyarrow.parquet as pq
         import pyarrow.fs as pafs
+
         # InterPro product key resolved the same way uniprot_protein_features does.
         from methods.uniprot_protein_features.read import INTERPRO_KEY, S3_BUCKET  # type: ignore
-        t = pq.read_table(f"{S3_BUCKET}/{INTERPRO_KEY}",
-                          columns=["uniprot_accession", "interpro_type", "start", "end"],
-                          filters=[("interpro_type", "==", "domain")],
-                          filesystem=pafs.S3FileSystem(region="us-east-1"))
+
+        t = pq.read_table(
+            f"{S3_BUCKET}/{INTERPRO_KEY}",
+            columns=["uniprot_accession", "interpro_type", "start", "end"],
+            filters=[("interpro_type", "==", "domain")],
+            filesystem=pafs.S3FileSystem(region="us-east-1"),
+        )
         d = t.to_pandas()
         out: dict = {}
         for _, r in d.iterrows():
@@ -262,16 +312,22 @@ def _load_hotspots() -> dict:
     disorder-dominated guard in compute.pocket_adjacency)."""
     try:
         import os
+
         os.environ.setdefault("AWS_PROFILE", "cbg")
         import pyarrow.parquet as pq
         import pyarrow.fs as pafs
+
         sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
         from methods.gdc_somatic_hotspot import read as hs  # type: ignore
+
         key = hs._manifest_s3_path(hs._HOTSPOT_FREQUENCY_MANIFEST)  # type: ignore
         if not key:
             return {}
-        t = pq.read_table(key, columns=["gene_symbol", "hotspot_protein_change", "hotspot_n_samples"],
-                          filesystem=pafs.S3FileSystem(region="us-east-1"))
+        t = pq.read_table(
+            key,
+            columns=["gene_symbol", "hotspot_protein_change", "hotspot_n_samples"],
+            filesystem=pafs.S3FileSystem(region="us-east-1"),
+        )
         d = t.to_pandas().dropna(subset=["hotspot_protein_change"])
         d = d[d["hotspot_n_samples"].fillna(0) >= _HOTSPOT_MIN_SAMPLES]
         out: dict = {}
@@ -279,8 +335,10 @@ def _load_hotspots() -> dict:
             out.setdefault(str(r["gene_symbol"]).upper(), set()).add(str(r["hotspot_protein_change"]))
         return {g: sorted(v) for g, v in out.items()}
     except Exception as exc:  # noqa: BLE001
-        print(f"[structure_pull] hotspot load skipped ({exc}); pocket calls will be no_hotspots_annotated",
-              file=sys.stderr)
+        print(
+            f"[structure_pull] hotspot load skipped ({exc}); pocket calls will be no_hotspots_annotated",
+            file=sys.stderr,
+        )
         return {}
 
 

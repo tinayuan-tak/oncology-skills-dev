@@ -19,6 +19,7 @@ OT-MGI leg owns those. EVIDENCE TIER = inferred (mouse is a MODEL).
 
 data_unavailable-safe. Absence = coverage gap (measured-vs-null discipline), never evidence-against.
 """
+
 from __future__ import annotations
 
 import json
@@ -40,15 +41,21 @@ def _read_impc_row(target: str) -> Optional[dict]:
     """Pushdown-read the per-human-gene IMPC rollup for one symbol. None if unresolvable/absent."""
     try:
         import sys as _sys
+
         _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
         from methods.catalog_query.read import bucket_key_for
         import pyarrow.parquet as pq
         import pyarrow.fs as fs
+
         bucket, key = bucket_key_for(PRODUCT_MANIFEST_ID)
-        tbl = pq.read_table(f"{bucket}/{key}", filesystem=fs.S3FileSystem(),
-                            filters=[("human_gene_symbol", "=", (target or "").strip().upper())])
+        tbl = pq.read_table(
+            f"{bucket}/{key}",
+            filesystem=fs.S3FileSystem(),
+            filters=[("human_gene_symbol", "=", (target or "").strip().upper())],
+        )
     except Exception as e:  # noqa: BLE001
         from methods.target_id_sidecar import is_definitively_absent
+
         # A GENUINELY absent object (NoSuchKey/404 / FileNotFoundError) means IMPC has no row for this
         # gene -> None -> no_phenotype (honest coverage gap: IMPC has not phenotyped it). A
         # transient/creds/env failure is NOT absence -> re-raise so the live-read seam surfaces an
@@ -71,10 +78,11 @@ def _rows_for_classifier(impc_row: dict) -> list:
             # field (e.g. "immune system phenotype,hematopoietic system phenotype") — split so each
             # matches the shared classifier's exact _SEVERE_ORGAN_CLASSES membership set.
             classes = []
-            for c in (r.get("classes") or []):
+            for c in r.get("classes") or []:
                 classes.extend(part.strip() for part in str(c).split(",") if part.strip())
-            rows.append({"modelPhenotypeLabel": r.get("label", ""),
-                         "modelPhenotypeClasses": [{"label": c} for c in classes]})
+            rows.append(
+                {"modelPhenotypeLabel": r.get("label", ""), "modelPhenotypeClasses": [{"label": c} for c in classes]}
+            )
     except (ValueError, TypeError):
         pass
     lbl = _VIABILITY_LETHAL_LABEL.get(impc_row.get("impc_viability_class"))
@@ -91,18 +99,28 @@ def read_impc_mouse_ko_phenotype(target: str, indication: Optional[str] = None) 
     plus IMPC-specific viability + provenance fields, so the safety skill can corroborate directly.
     """
     sym = (target or "").strip().upper()
-    base = {"target": target, "method_version": METHOD_VERSION,
-            "source": "impc-release-24-0 (impc-ko-phenotype-per-gene-v1)", "evidence_tier": "inferred"}
+    base = {
+        "target": target,
+        "method_version": METHOD_VERSION,
+        "source": "impc-release-24-0 (impc-ko-phenotype-per-gene-v1)",
+        "evidence_tier": "inferred",
+    }
     row = _read_impc_row(sym)
     if row is None:
         # coverage gap: IMPC has not phenotyped this gene (embryonic-lethals + un-phenotyped genes)
-        return {**base, "ko_phenotype_class": "no_phenotype", "impc_viability_class": "unmeasured",
-                "n_phenotype_hits": 0, "n_rows": 0,
-                "_note": f"{sym} absent from impc-ko-phenotype-per-gene-v1 (IMPC has not phenotyped it — "
-                         f"covered by the OT-MGI leg)"}
+        return {
+            **base,
+            "ko_phenotype_class": "no_phenotype",
+            "impc_viability_class": "unmeasured",
+            "n_phenotype_hits": 0,
+            "n_rows": 0,
+            "_note": f"{sym} absent from impc-ko-phenotype-per-gene-v1 (IMPC has not phenotyped it — "
+            f"covered by the OT-MGI leg)",
+        }
 
     # reuse the SHARED classifier (single taxonomy source of truth)
     from methods.opentargets_mouse_phenotype.read import classify_ko_phenotype
+
     classified = classify_ko_phenotype(_rows_for_classifier(row))
     return {
         **base,
@@ -120,6 +138,7 @@ def read_impc_mouse_ko_phenotype(target: str, indication: Optional[str] = None) 
 
 def _main(argv=None):
     import argparse
+
     ap = argparse.ArgumentParser(description="IMPC-direct mouse-KO safety corroboration for a target.")
     ap.add_argument("--target", required=True)
     ap.add_argument("--indication", default=None)

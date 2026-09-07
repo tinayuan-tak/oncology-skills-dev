@@ -18,8 +18,7 @@ from methods.depmap_protein_abundance import figures as f
 def _panel() -> tuple[dict, dict]:
     ab, lin = {}, {}
     i = 1
-    for lineage, vals in {"Lung": [6.0, 6.4, 5.8], "Breast": [5.2, 5.0, 4.9],
-                          "Bowel": [3.1, 2.8, 3.4]}.items():
+    for lineage, vals in {"Lung": [6.0, 6.4, 5.8], "Breast": [5.2, 5.0, 4.9], "Bowel": [3.1, 2.8, 3.4]}.items():
         for v in vals:
             mid = f"ACH-{i:06d}"
             ab[mid] = float(v)
@@ -53,13 +52,15 @@ def test_plot_data_persisted_on_load_and_classify(tmp_path, monkeypatch):
 
 def test_renders_offline_from_persisted_parquet(tmp_path, monkeypatch):
     ab, lin = _panel()
-    src = tmp_path / "src"; src.mkdir()
+    src = tmp_path / "src"
+    src.mkdir()
     c.emit_plot_data_protein(ab, lin, src)
     assert (src / "plot_data_protein_abundance.parquet").exists()
 
     # NO live read on the offline render path
-    monkeypatch.setattr(c, "load_abundance_column",
-                        lambda *a, **k: (_ for _ in ()).throw(AssertionError("live read in offline render")))
+    monkeypatch.setattr(
+        c, "load_abundance_column", lambda *a, **k: (_ for _ in ()).throw(AssertionError("live read in offline render"))
+    )
     out = tmp_path / "out"
     descs = f.render_from_plot_data(src / "plot_data_protein_abundance.parquet", {}, out, "MYGENE")
 
@@ -72,6 +73,7 @@ def test_renders_offline_from_persisted_parquet(tmp_path, monkeypatch):
 
 def test_missing_columns_raises(tmp_path):
     import pandas as pd
+
     df = pd.DataFrame({"model_id": ["ACH-1"]})  # no log2_abundance
     try:
         f.render_from_plot_data(df, {}, tmp_path / "out", "MYGENE")
@@ -85,13 +87,21 @@ def test_returns_plotly_descriptors_with_dynamic_flag(tmp_path, monkeypatch):
     """Stage-3 parity: render_from_plot_data RETURNS the plotly-twin descriptors (dynamic:True), not
     just the SVGs — so it is an exact drop-in for the registry emitter (which appends them today)."""
     ab, lin = _panel()
-    src = tmp_path / "src"; src.mkdir()
+    src = tmp_path / "src"
+    src.mkdir()
     c.emit_plot_data_protein(ab, lin, src)
 
-    monkeypatch.setattr(c, "emit_plotly_specs",
-                        lambda *a, **k: [{"id": "density_protein_abundance",
-                                          "path": "figure_density_protein_abundance.plotly.json",
-                                          "type": "plotly"}])
+    monkeypatch.setattr(
+        c,
+        "emit_plotly_specs",
+        lambda *a, **k: [
+            {
+                "id": "density_protein_abundance",
+                "path": "figure_density_protein_abundance.plotly.json",
+                "type": "plotly",
+            }
+        ],
+    )
     descs = f.render_from_plot_data(src / "plot_data_protein_abundance.parquet", {}, tmp_path / "out", "MYGENE")
     dyn = [d for d in descs if d.get("dynamic")]
     assert dyn and dyn[0]["path"].endswith(".plotly.json") and dyn[0]["dynamic"] is True

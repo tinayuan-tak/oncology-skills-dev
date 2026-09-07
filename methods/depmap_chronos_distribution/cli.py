@@ -45,8 +45,8 @@ from methods.catalog_query.read import bucket_prefix_for, s3_uri_for
 
 
 METHOD_DIR = Path(__file__).resolve().parent
-METHOD_VERSION = "0.2.0"   # 2026-08-08: bimodal_selective now gated on Sarle's bimodality coefficient
-                           # (BC > 0.555) over the in-memory score vector, replacing the median>-0.5 proxy.
+METHOD_VERSION = "0.2.0"  # 2026-08-08: bimodal_selective now gated on Sarle's bimodality coefficient
+# (BC > 0.555) over the in-memory score vector, replacing the median>-0.5 proxy.
 
 # Sarle's bimodality coefficient threshold. BC = (skew²+1)/(kurtosis_excess + 3(n-1)²/((n-2)(n-3))).
 # The uniform distribution gives BC = 5/9 ≈ 0.5556; values ABOVE indicate a bimodal/multimodal shape,
@@ -91,13 +91,17 @@ def _load_curated_common_essentials(release_pin: str = "26q1"):
     """
     try:
         from methods.depmap_common.loaders import _fetch_csv, DEPMAP_S3_PREFIX_CRISPR
-        df = _fetch_csv(f"{DEPMAP_S3_PREFIX_CRISPR}/AchillesCommonEssentialControls.csv",
-                        "AchillesCommonEssentialControls.csv", release_pin)
+
+        df = _fetch_csv(
+            f"{DEPMAP_S3_PREFIX_CRISPR}/AchillesCommonEssentialControls.csv",
+            "AchillesCommonEssentialControls.csv",
+            release_pin,
+        )
     except Exception:  # noqa: BLE001 — additive anchor: an unreachable list must degrade, never crash the method
         return None
     if df is None or df.empty:
         return None
-    col = df.columns[0]   # "Gene"; values are "SYMBOL (entrez_id)"
+    col = df.columns[0]  # "Gene"; values are "SYMBOL (entrez_id)"
     symbols = {str(v).split(" (")[0].strip() for v in df[col].dropna()}
     symbols.discard("")
     return frozenset(symbols) or None
@@ -138,14 +142,17 @@ def load_depmap_files(release_pin: str, target_symbol: str) -> tuple[dict, dict,
         model_df = pd.read_csv(model_path)
     else:
         from methods.depmap_common import load_model_csv
+
         try:
             model_df = load_model_csv(release_pin)
         except FileNotFoundError as e:
-            load_errors.append({
-                "_live_read_error": "s3_read_failed",
-                "detail": str(e),
-                "remediation": "Ensure AWS credentials are set and bucket onc-compbio is accessible.",
-            })
+            load_errors.append(
+                {
+                    "_live_read_error": "s3_read_failed",
+                    "detail": str(e),
+                    "remediation": "Ensure AWS credentials are set and bucket onc-compbio is accessible.",
+                }
+            )
             return {}, {}, load_errors
 
     # === TIER-2 PATH: try parquet derived product first (100-500× faster than CSV) ===
@@ -156,6 +163,7 @@ def load_depmap_files(release_pin: str, target_symbol: str) -> tuple[dict, dict,
     if crispr_path is None:
         try:
             from methods.depmap_common.parquet import get_chronos_column
+
             target_df = get_chronos_column(target_symbol, release_pin)
             if target_df is not None:
                 # Identify target column (should be "SYMBOL (entrez_id)" format) + ID column
@@ -167,8 +175,7 @@ def load_depmap_files(release_pin: str, target_symbol: str) -> tuple[dict, dict,
                         if pd.notna(val):
                             chronos_by_model_id[row["ModelID"]] = float(val)
                     model_id_col = "ModelID" if "ModelID" in model_df.columns else model_df.columns[0]
-                    model_metadata_by_id = {row[model_id_col]: row.to_dict()
-                                             for _, row in model_df.iterrows()}
+                    model_metadata_by_id = {row[model_id_col]: row.to_dict() for _, row in model_df.iterrows()}
                     return chronos_by_model_id, model_metadata_by_id, load_errors
             # target absent from parquet → fall through to CSV path (or emit error below)
         except (FileNotFoundError, ImportError):
@@ -179,6 +186,7 @@ def load_depmap_files(release_pin: str, target_symbol: str) -> tuple[dict, dict,
     if crispr_path is None:
         try:
             import boto3
+
             s3 = boto3.client("s3")
             bucket = "onc-compbio"
             crispr_key = f"{_DEPMAP_KEY_PREFIX}/CRISPRGeneEffect.csv"
@@ -186,33 +194,38 @@ def load_depmap_files(release_pin: str, target_symbol: str) -> tuple[dict, dict,
             crispr_obj = s3.get_object(Bucket=bucket, Key=crispr_key)
             crispr_df = pd.read_csv(BytesIO(crispr_obj["Body"].read()))
         except (ImportError,) as e:
-            load_errors.append({
-                "_live_read_error": "boto3_not_available",
-                "detail": str(e),
-                "remediation": "Install boto3 or provide local DepMap cache at one of "
-                               f"{[str(d) for d in DEPMAP_LOCAL_FALLBACK_DIRS]}",
-            })
+            load_errors.append(
+                {
+                    "_live_read_error": "boto3_not_available",
+                    "detail": str(e),
+                    "remediation": "Install boto3 or provide local DepMap cache at one of "
+                    f"{[str(d) for d in DEPMAP_LOCAL_FALLBACK_DIRS]}",
+                }
+            )
             return {}, {}, load_errors
         except Exception as e:
-            load_errors.append({
-                "_live_read_error": "s3_read_failed",
-                "detail": str(e),
-                "remediation": f"Ensure AWS credentials are set and bucket {DEPMAP_S3_PREFIX} is accessible.",
-            })
+            load_errors.append(
+                {
+                    "_live_read_error": "s3_read_failed",
+                    "detail": str(e),
+                    "remediation": f"Ensure AWS credentials are set and bucket {DEPMAP_S3_PREFIX} is accessible.",
+                }
+            )
             return {}, {}, load_errors
     else:
         # Local read
         crispr_df = pd.read_csv(crispr_path)
 
     # Extract target column from CRISPRGeneEffect
-    target_columns = [c for c in crispr_df.columns
-                      if c == target_symbol or c.split(" ")[0] == target_symbol]
+    target_columns = [c for c in crispr_df.columns if c == target_symbol or c.split(" ")[0] == target_symbol]
     if not target_columns:
-        load_errors.append({
-            "_live_read_error": "target_not_in_crispr_panel",
-            "detail": f"Target {target_symbol} not found as a column in CRISPRGeneEffect.csv",
-            "remediation": "Confirm HGNC symbol spelling; check whether target was screened in 26Q1.",
-        })
+        load_errors.append(
+            {
+                "_live_read_error": "target_not_in_crispr_panel",
+                "detail": f"Target {target_symbol} not found as a column in CRISPRGeneEffect.csv",
+                "remediation": "Confirm HGNC symbol spelling; check whether target was screened in 26Q1.",
+            }
+        )
         return {}, {}, load_errors
 
     target_col = target_columns[0]
@@ -239,26 +252,30 @@ def _bimodality_coefficient(scores) -> Optional[float]:
     median-shift routing. Uses scipy for skew/kurtosis (already a method dependency)."""
     import numpy as np
     from scipy.stats import skew, kurtosis
+
     x = np.asarray(scores, dtype=float)
     x = x[~np.isnan(x)]
     n = x.size
     if n < 4 or float(np.std(x)) == 0.0:
         return None
     g1 = float(skew(x, bias=True))
-    g2 = float(kurtosis(x, fisher=True, bias=True))   # excess kurtosis
+    g2 = float(kurtosis(x, fisher=True, bias=True))  # excess kurtosis
     denom = g2 + 3.0 * (n - 1) ** 2 / ((n - 2) * (n - 3))
     if denom <= 0:
         return None
     return (g1 * g1 + 1.0) / denom
 
 
-def compute_summary_stats(chronos_by_model: dict, model_metadata: dict,
-                             strong_threshold: float = -1.0,
-                             moderate_threshold: float = -0.5,
-                             pan_essential_fraction: float = 0.85,
-                             selective_min: float = 0.05,
-                             selective_max: float = 0.60,
-                             curated_common_essential: bool | None = None) -> dict:
+def compute_summary_stats(
+    chronos_by_model: dict,
+    model_metadata: dict,
+    strong_threshold: float = -1.0,
+    moderate_threshold: float = -0.5,
+    pan_essential_fraction: float = 0.85,
+    selective_min: float = 0.05,
+    selective_max: float = 0.60,
+    curated_common_essential: bool | None = None,
+) -> dict:
     """Compute the decision-grade summary scalars defined in the card_spec.
 
     `curated_common_essential` (T3): is the target in DepMap's curated core-essential control set? Anchors
@@ -348,28 +365,28 @@ def compute_summary_stats(chronos_by_model: dict, model_metadata: dict,
     for model_id, chronos in chronos_by_model.items():
         meta = model_metadata.get(model_id, {})
         # DepMap Model.csv uses OncotreeLineage typically; fall back to other columns
-        lineage = (meta.get("OncotreeLineage")
-                   or meta.get("lineage")
-                   or meta.get("PrimaryDisease")
-                   or "unknown")
+        lineage = meta.get("OncotreeLineage") or meta.get("lineage") or meta.get("PrimaryDisease") or "unknown"
         lineage_records.append({"model_id": model_id, "lineage": lineage, "chronos": chronos})
 
     lineage_df = pd.DataFrame(lineage_records)
     # Per-lineage stats: median chronos, fraction strongly dependent, n
     top_lineages = []
     for lineage_name, subset in lineage_df.groupby("lineage"):
-        if len(subset) < 5:   # require min 5 cell lines per lineage for stable estimate
+        if len(subset) < 5:  # require min 5 cell lines per lineage for stable estimate
             continue
         frac_strong_in_lineage = float((subset["chronos"] <= strong_threshold).mean())
-        top_lineages.append({
-            "lineage": lineage_name,
-            "n_in_lineage": int(len(subset)),
-            "fraction_strongly_dependent": frac_strong_in_lineage,
-            "median_chronos": float(subset["chronos"].median()),
-            "fraction_of_dependent_tail": float(
-                (subset["chronos"] <= strong_threshold).sum() / max(1, (lineage_df["chronos"] <= strong_threshold).sum())
-            ),
-        })
+        top_lineages.append(
+            {
+                "lineage": lineage_name,
+                "n_in_lineage": int(len(subset)),
+                "fraction_strongly_dependent": frac_strong_in_lineage,
+                "median_chronos": float(subset["chronos"].median()),
+                "fraction_of_dependent_tail": float(
+                    (subset["chronos"] <= strong_threshold).sum()
+                    / max(1, (lineage_df["chronos"] <= strong_threshold).sum())
+                ),
+            }
+        )
     # Sort by fraction_strongly_dependent descending, take top 5
     top_lineages.sort(key=lambda x: x["fraction_strongly_dependent"], reverse=True)
     summary["top_dependent_lineages"] = top_lineages[:5]
@@ -394,15 +411,14 @@ def compute_summary_stats(chronos_by_model: dict, model_metadata: dict,
     # fraction-only class (`pan_essential_fraction_call`, the audit/ladder field = prior behavior) so the
     # re-anchoring is fully auditable, plus the anchor input itself (`depmap_curated_common_essential`).
     summary["depmap_curated_common_essential"] = curated_common_essential
-    summary["pan_essential_fraction_call"] = _classify_dependency(**_classify_kwargs,
-                                                                   curated_common_essential=None)
+    summary["pan_essential_fraction_call"] = _classify_dependency(**_classify_kwargs, curated_common_essential=None)
     # OFFLINE-FALLBACK FIX (2026-09-01): when the curated anchor is unavailable (None), the real
     # dependency_class routes a >=85% call to common_essential_underpowered (insufficient, no killer)
     # rather than a fraction-only common_essential veto — the CD19-safe direction. The audit ladder
     # field above intentionally keeps the raw fraction-only call for provenance.
-    summary["dependency_class"] = _classify_dependency(**_classify_kwargs,
-                                                        curated_common_essential=curated_common_essential,
-                                                        treat_missing_anchor_as_underpowered=True)
+    summary["dependency_class"] = _classify_dependency(
+        **_classify_kwargs, curated_common_essential=curated_common_essential, treat_missing_anchor_as_underpowered=True
+    )
 
     return summary
 
@@ -415,8 +431,8 @@ def compute_summary_stats(chronos_by_model: dict, model_metadata: dict,
 # a handful of relevant lines diluted across ~1500), the pooled `non_dependent` is
 # UNDERPOWERED, not a negative. We emit a distinct class so the gate treats it as
 # `insufficient` (measured-vs-null discipline) rather than firing a false-negative veto.
-LINEAGE_CONCENTRATED_DEP_FRACTION = 0.30   # a lineage with >=30% strongly-dependent lines...
-LINEAGE_MIN_N_FOR_ADMISSIBILITY = 5        # ...and >=5 lines (already the top_lineages floor)
+LINEAGE_CONCENTRATED_DEP_FRACTION = 0.30  # a lineage with >=30% strongly-dependent lines...
+LINEAGE_MIN_N_FOR_ADMISSIBILITY = 5  # ...and >=5 lines (already the top_lineages floor)
 # Panel-coverage floor for a TRUSTWORTHY pan-essential VETO (H fix, 2026-07-20). DepMap
 # Chronos panels are typically ~1000-1500 lines; a `common_essential` call on a tiny panel
 # is an underpowered artifact, not a trusted pan-essential. Below this floor, a >=85%
@@ -425,16 +441,18 @@ LINEAGE_MIN_N_FOR_ADMISSIBILITY = 5        # ...and >=5 lines (already the top_l
 PAN_ESSENTIAL_MIN_PANEL_N = 300
 
 
-def _classify_dependency(fraction_strongly_dependent: float,
-                          median_chronos_panel: float,
-                          distribution_shape: str,
-                          top_dependent_lineages: list | None = None,
-                          n_cell_lines_evaluated: int | None = None,
-                          pan_essential_fraction: float = 0.85,
-                          selective_min: float = 0.05,
-                          selective_max: float = 0.60,
-                          curated_common_essential: bool | None = None,
-                          treat_missing_anchor_as_underpowered: bool = False) -> str:
+def _classify_dependency(
+    fraction_strongly_dependent: float,
+    median_chronos_panel: float,
+    distribution_shape: str,
+    top_dependent_lineages: list | None = None,
+    n_cell_lines_evaluated: int | None = None,
+    pan_essential_fraction: float = 0.85,
+    selective_min: float = 0.05,
+    selective_max: float = 0.60,
+    curated_common_essential: bool | None = None,
+    treat_missing_anchor_as_underpowered: bool = False,
+) -> str:
     """Map summary stats to a DepMap-convention dependency_class categorical.
 
     Returns one of: common_essential | common_essential_underpowered |
@@ -465,8 +483,7 @@ def _classify_dependency(fraction_strongly_dependent: float,
     fraction-only call. Default False keeps every caller's prior behavior byte-for-byte.
     """
     if fraction_strongly_dependent >= pan_essential_fraction:
-        if (n_cell_lines_evaluated is not None
-                and n_cell_lines_evaluated < PAN_ESSENTIAL_MIN_PANEL_N):
+        if n_cell_lines_evaluated is not None and n_cell_lines_evaluated < PAN_ESSENTIAL_MIN_PANEL_N:
             return "common_essential_underpowered"
         # T3 RE-ANCHOR (2026-08-31): the eyeballed 0.85 fraction alone no longer FIRES the pan-essential
         # KILLER (a broad-toxicity SAFETY veto). Co-require corroboration by DepMap's curated core-essential
@@ -491,16 +508,16 @@ def _classify_dependency(fraction_strongly_dependent: float,
         # Below the pooled floor. Admissibility check: is there a well-sampled lineage
         # that IS concentrated-dependent? If so the pooled negative is underpowered
         # (diluted), not trusted — flag it so the gate treats it as insufficient.
-        for lin in (top_dependent_lineages or []):
-            if (lin.get("n_in_lineage", 0) >= LINEAGE_MIN_N_FOR_ADMISSIBILITY
-                    and lin.get("fraction_strongly_dependent", 0.0)
-                    >= LINEAGE_CONCENTRATED_DEP_FRACTION):
+        for lin in top_dependent_lineages or []:
+            if (
+                lin.get("n_in_lineage", 0) >= LINEAGE_MIN_N_FOR_ADMISSIBILITY
+                and lin.get("fraction_strongly_dependent", 0.0) >= LINEAGE_CONCENTRATED_DEP_FRACTION
+            ):
                 return "non_dependent_underpowered"
         return "non_dependent"
     if distribution_shape == "bimodal_selective":
         return "strongly_selective"
-    if (selective_min <= fraction_strongly_dependent <= selective_max
-            and median_chronos_panel <= -0.5):
+    if selective_min <= fraction_strongly_dependent <= selective_max and median_chronos_panel <= -0.5:
         return "broadly_dependent"
     if distribution_shape == "shifted_dependent":
         # KNOWN LIMITATION (finding #2, 2026-08-13 review): a gene strongly-dependent in 60-84% of ALL
@@ -528,10 +545,14 @@ def _classify_dependency(fraction_strongly_dependent: float,
     return "non_dependent"
 
 
-def emit_waterfall_plot(chronos_by_model: dict, model_metadata: dict,
-                          target_symbol: str, summary: dict,
-                          out_path: Path,
-                          contracts_root: Path) -> None:
+def emit_waterfall_plot(
+    chronos_by_model: dict,
+    model_metadata: dict,
+    target_symbol: str,
+    summary: dict,
+    out_path: Path,
+    contracts_root: Path,
+) -> None:
     """Emit the ranked waterfall figure to {out_path}/figure_waterfall.svg.
 
     Per-cell-line Chronos sorted ascending, lineage-colored, reference lines at
@@ -545,16 +566,19 @@ def emit_waterfall_plot(chronos_by_model: dict, model_metadata: dict,
         plt.style.use(str(style_path))
     sys.path.insert(0, str(contracts_root / "plot_styles"))
     from takeda_palette import (  # type: ignore
-        get_lineage_color, REFLINE_NEUTRAL, REFLINE_KILLER, REFLINE_NOMINAL,
-        FIGSIZE_DOUBLE_COLUMN, CHRONOS_STRONG_DEPENDENCY,
+        get_lineage_color,
+        REFLINE_NEUTRAL,
+        REFLINE_KILLER,
+        REFLINE_NOMINAL,
+        FIGSIZE_DOUBLE_COLUMN,
+        CHRONOS_STRONG_DEPENDENCY,
     )
 
     # Build sorted list
     rows = []
     for mid, c in chronos_by_model.items():
         meta = model_metadata.get(mid, {})
-        lineage = (meta.get("OncotreeLineage") or meta.get("lineage")
-                   or meta.get("PrimaryDisease") or "unknown")
+        lineage = meta.get("OncotreeLineage") or meta.get("lineage") or meta.get("PrimaryDisease") or "unknown"
         rows.append((mid, c, lineage))
     rows.sort(key=lambda r: r[1])
 
@@ -565,11 +589,11 @@ def emit_waterfall_plot(chronos_by_model: dict, model_metadata: dict,
 
     # Identify top-5 lineages (most cells in dependent tail) for distinct colors
     from collections import Counter
+
     dependent_tail_lineages = [r[2] for r in rows if r[1] <= CHRONOS_STRONG_DEPENDENCY]
     top_lineages_in_tail = [name for name, _ in Counter(dependent_tail_lineages).most_common(5)]
 
-    colors = [get_lineage_color(lg) if lg in top_lineages_in_tail else "#CCCCCC"
-              for lg in lineage_arr]
+    colors = [get_lineage_color(lg) if lg in top_lineages_in_tail else "#CCCCCC" for lg in lineage_arr]
 
     x = np.arange(len(rows))
     ax.bar(x, chronos_arr, width=1.0, color=colors, edgecolor="none")
@@ -584,15 +608,42 @@ def emit_waterfall_plot(chronos_by_model: dict, model_metadata: dict,
     # (b) the lineage legend (which sits in the lower-right corner). White background
     # box keeps the label readable when reference lines pass through them.
     _label_bbox = dict(facecolor="white", edgecolor="none", alpha=0.85, pad=1.5)
-    ax.text(0.005, 0.04, "no dependency", fontsize=8, color="#666666",
-             ha="left", va="bottom", transform=ax.get_yaxis_transform(),
-             bbox=_label_bbox, zorder=4)
-    ax.text(0.005, -0.5, "moderate", fontsize=8, color="#666666",
-             ha="left", va="bottom", transform=ax.get_yaxis_transform(),
-             bbox=_label_bbox, zorder=4)
-    ax.text(0.005, CHRONOS_STRONG_DEPENDENCY, "strong", fontsize=8, color="#B22222",
-             ha="left", va="bottom", transform=ax.get_yaxis_transform(),
-             bbox=_label_bbox, zorder=4)
+    ax.text(
+        0.005,
+        0.04,
+        "no dependency",
+        fontsize=8,
+        color="#666666",
+        ha="left",
+        va="bottom",
+        transform=ax.get_yaxis_transform(),
+        bbox=_label_bbox,
+        zorder=4,
+    )
+    ax.text(
+        0.005,
+        -0.5,
+        "moderate",
+        fontsize=8,
+        color="#666666",
+        ha="left",
+        va="bottom",
+        transform=ax.get_yaxis_transform(),
+        bbox=_label_bbox,
+        zorder=4,
+    )
+    ax.text(
+        0.005,
+        CHRONOS_STRONG_DEPENDENCY,
+        "strong",
+        fontsize=8,
+        color="#B22222",
+        ha="left",
+        va="bottom",
+        transform=ax.get_yaxis_transform(),
+        bbox=_label_bbox,
+        zorder=4,
+    )
 
     # Labels + title
     ax.set_xlabel("Cell line (sorted by dependency)")
@@ -604,8 +655,10 @@ def emit_waterfall_plot(chronos_by_model: dict, model_metadata: dict,
     # Lineage legend (top dependent lineages)
     if top_lineages_in_tail:
         from matplotlib.patches import Patch
-        legend_handles = [Patch(color=get_lineage_color(lg), label=lg.replace("_", " ").title())
-                          for lg in top_lineages_in_tail]
+
+        legend_handles = [
+            Patch(color=get_lineage_color(lg), label=lg.replace("_", " ").title()) for lg in top_lineages_in_tail
+        ]
         legend_handles.append(Patch(color="#CCCCCC", label="other lineages"))
         ax.legend(handles=legend_handles, loc="lower right", framealpha=0.9, fontsize=8)
 
@@ -616,9 +669,9 @@ def emit_waterfall_plot(chronos_by_model: dict, model_metadata: dict,
     plt.close(fig)
 
 
-def emit_histogram_kde_plot(chronos_by_model: dict, target_symbol: str,
-                               summary: dict, out_path: Path,
-                               contracts_root: Path) -> None:
+def emit_histogram_kde_plot(
+    chronos_by_model: dict, target_symbol: str, summary: dict, out_path: Path, contracts_root: Path
+) -> None:
     """Emit the density histogram + KDE figure to {out_path}/figure_histogram_kde.svg."""
     import matplotlib.pyplot as plt
     import numpy as np
@@ -628,12 +681,16 @@ def emit_histogram_kde_plot(chronos_by_model: dict, target_symbol: str,
         plt.style.use(str(style_path))
     sys.path.insert(0, str(contracts_root / "plot_styles"))
     from takeda_palette import (  # type: ignore
-        REFLINE_NEUTRAL, REFLINE_KILLER, REFLINE_NOMINAL,
-        FIGSIZE_SINGLE_COLUMN_TALL, CHRONOS_STRONG_DEPENDENCY,
+        REFLINE_NEUTRAL,
+        REFLINE_KILLER,
+        REFLINE_NOMINAL,
+        FIGSIZE_SINGLE_COLUMN_TALL,
+        CHRONOS_STRONG_DEPENDENCY,
     )
 
     try:
         import seaborn as sns
+
         have_seaborn = True
     except ImportError:
         have_seaborn = False
@@ -643,12 +700,19 @@ def emit_histogram_kde_plot(chronos_by_model: dict, target_symbol: str,
 
     # Histogram with KDE overlay (seaborn if available; matplotlib fallback)
     if have_seaborn:
-        sns.histplot(scores, kde=True, ax=ax, color="#0072B2",
-                     edgecolor="white", linewidth=0.5, alpha=0.7,
-                     stat="density", bins=40)
+        sns.histplot(
+            scores,
+            kde=True,
+            ax=ax,
+            color="#0072B2",
+            edgecolor="white",
+            linewidth=0.5,
+            alpha=0.7,
+            stat="density",
+            bins=40,
+        )
     else:
-        ax.hist(scores, bins=40, density=True, color="#0072B2",
-                edgecolor="white", linewidth=0.5, alpha=0.7)
+        ax.hist(scores, bins=40, density=True, color="#0072B2", edgecolor="white", linewidth=0.5, alpha=0.7)
 
     # Reference lines
     ax.axvline(x=0.0, **REFLINE_NOMINAL, zorder=2)
@@ -656,16 +720,21 @@ def emit_histogram_kde_plot(chronos_by_model: dict, target_symbol: str,
     ax.axvline(x=CHRONOS_STRONG_DEPENDENCY, **REFLINE_KILLER, zorder=2)
 
     # Shaded region: strongly dependent
-    ax.axvspan(scores.min() - 0.1, CHRONOS_STRONG_DEPENDENCY,
-               alpha=0.10, color="#B22222", zorder=0)
+    ax.axvspan(scores.min() - 0.1, CHRONOS_STRONG_DEPENDENCY, alpha=0.10, color="#B22222", zorder=0)
 
     # Annotations: median + IQR + fraction_strongly_dependent
     median = summary.get("median_chronos_panel", float(np.median(scores)))
     frac_strong = summary.get("fraction_strongly_dependent", 0)
     text = f"median = {median:.2f}\nIQR = {summary.get('chronos_iqr', 0):.2f}\nfrac. strongly dep. = {frac_strong:.1%}"
-    ax.text(0.05, 0.95, text, transform=ax.transAxes, fontsize=8,
-            verticalalignment="top", bbox=dict(boxstyle="round,pad=0.4",
-                                                facecolor="white", edgecolor="#CCCCCC", alpha=0.9))
+    ax.text(
+        0.05,
+        0.95,
+        text,
+        transform=ax.transAxes,
+        fontsize=8,
+        verticalalignment="top",
+        bbox=dict(boxstyle="round,pad=0.4", facecolor="white", edgecolor="#CCCCCC", alpha=0.9),
+    )
 
     n = summary.get("n_cell_lines_evaluated", "?")
     shape = summary.get("distribution_shape", "?").upper().replace("_", " ")
@@ -677,9 +746,14 @@ def emit_histogram_kde_plot(chronos_by_model: dict, target_symbol: str,
     plt.close(fig)
 
 
-def emit_plotly_specs(chronos_by_model: dict, model_metadata: dict,
-                      target_symbol: str, summary: dict, out_path: Path,
-                      contracts_root: Path) -> list:
+def emit_plotly_specs(
+    chronos_by_model: dict,
+    model_metadata: dict,
+    target_symbol: str,
+    summary: dict,
+    out_path: Path,
+    contracts_root: Path,
+) -> list:
     """Emit interactive Plotly figure specs SIBLING to the matplotlib SVGs (dynamic-dashboard
     Phase A). Built from the SAME in-memory chronos_by_model the SVGs use — so the interactive
     chart can NOT drift from the static figure or the plot_data.parquet (one data source, three
@@ -693,6 +767,7 @@ def emit_plotly_specs(chronos_by_model: dict, model_metadata: dict,
     try:
         import numpy as np
         import plotly.graph_objects as go
+
         sys.path.insert(0, str(contracts_root / "plot_styles"))
         from takeda_palette import get_lineage_color, CHRONOS_STRONG_DEPENDENCY  # type: ignore
     except Exception as e:  # noqa: BLE001 — Plotly optional; never block the SVG artifacts
@@ -701,40 +776,63 @@ def emit_plotly_specs(chronos_by_model: dict, model_metadata: dict,
 
     # matplotlib linestyle → Plotly dash; reflines mirror the SVGs exactly (0 / -0.5 / -1.0).
     STRONG = CHRONOS_STRONG_DEPENDENCY
-    reflines = [(0.0, "#999999", "solid", "no dependency"),
-                (-0.5, "#666666", "dash", "moderate"),
-                (STRONG, "#B22222", "dash", "strong")]
+    reflines = [
+        (0.0, "#999999", "solid", "no dependency"),
+        (-0.5, "#666666", "dash", "moderate"),
+        (STRONG, "#B22222", "dash", "strong"),
+    ]
     written = []
 
     # --- Waterfall: sorted bars, top-5 dependent-tail lineages colored, else grey (mirrors SVG) ---
     try:
         rows = sorted(
-            ((mid, c, (model_metadata.get(mid, {}).get("OncotreeLineage")
-                       or model_metadata.get(mid, {}).get("lineage")
-                       or model_metadata.get(mid, {}).get("PrimaryDisease") or "unknown"))
-             for mid, c in chronos_by_model.items()),
-            key=lambda r: r[1])
+            (
+                (
+                    mid,
+                    c,
+                    (
+                        model_metadata.get(mid, {}).get("OncotreeLineage")
+                        or model_metadata.get(mid, {}).get("lineage")
+                        or model_metadata.get(mid, {}).get("PrimaryDisease")
+                        or "unknown"
+                    ),
+                )
+                for mid, c in chronos_by_model.items()
+            ),
+            key=lambda r: r[1],
+        )
         from collections import Counter
+
         tail = [lg for _, c, lg in rows if c <= STRONG]
         top_lineages = [n for n, _ in Counter(tail).most_common(5)]
         names = [model_metadata.get(mid, {}).get("CellLineName", mid) for mid, _, _ in rows]
         vals = [c for _, c, _ in rows]
         colors = [get_lineage_color(lg) if lg in top_lineages else "#CCCCCC" for _, _, lg in rows]
         lineages = [lg for _, _, lg in rows]
-        fig = go.Figure(go.Bar(
-            x=list(range(len(rows))), y=vals, marker_color=colors,
-            customdata=list(zip(names, lineages)),
-            hovertemplate="%{customdata[0]}<br>%{customdata[1]}<br>Chronos %{y:.2f}<extra></extra>"))
+        fig = go.Figure(
+            go.Bar(
+                x=list(range(len(rows))),
+                y=vals,
+                marker_color=colors,
+                customdata=list(zip(names, lineages)),
+                hovertemplate="%{customdata[0]}<br>%{customdata[1]}<br>Chronos %{y:.2f}<extra></extra>",
+            )
+        )
         for yv, col, dash, lab in reflines:
-            fig.add_hline(y=yv, line=dict(color=col, dash=dash, width=1.5),
-                          annotation_text=lab, annotation_position="top left")
+            fig.add_hline(
+                y=yv, line=dict(color=col, dash=dash, width=1.5), annotation_text=lab, annotation_position="top left"
+            )
         n = summary.get("n_cell_lines_evaluated", "?")
         shape = str(summary.get("distribution_shape", "?")).upper().replace("_", " ")
         fig.update_layout(
             title=f"{target_symbol} pan-cancer Chronos distribution (n={n}, {shape})",
             xaxis_title="Cell line (sorted by dependency)",
             yaxis_title="Chronos score (more dependent ↓)",
-            template="plotly_white", showlegend=False, bargap=0, margin=dict(l=60, r=20, t=50, b=50))
+            template="plotly_white",
+            showlegend=False,
+            bargap=0,
+            margin=dict(l=60, r=20, t=50, b=50),
+        )
         (out_path / "figure_waterfall.plotly.json").write_text(fig.to_json())
         written.append({"id": "waterfall", "path": "figure_waterfall.plotly.json", "type": "plotly"})
     except Exception as e:  # noqa: BLE001
@@ -743,21 +841,33 @@ def emit_plotly_specs(chronos_by_model: dict, model_metadata: dict,
     # --- Histogram (density): mirrors the SVG (blue bars + reflines + strong-dep shade) ---
     try:
         scores = np.array(list(chronos_by_model.values()), dtype=float)
-        fig = go.Figure(go.Histogram(
-            x=scores, histnorm="probability density", nbinsx=40,
-            marker_color="#0072B2", marker_line_color="white", marker_line_width=0.5, opacity=0.75,
-            hovertemplate="Chronos %{x:.2f}<br>density %{y:.3f}<extra></extra>"))
-        fig.add_vrect(x0=float(scores.min()) - 0.1, x1=STRONG, fillcolor="#B22222",
-                      opacity=0.10, line_width=0)
+        fig = go.Figure(
+            go.Histogram(
+                x=scores,
+                histnorm="probability density",
+                nbinsx=40,
+                marker_color="#0072B2",
+                marker_line_color="white",
+                marker_line_width=0.5,
+                opacity=0.75,
+                hovertemplate="Chronos %{x:.2f}<br>density %{y:.3f}<extra></extra>",
+            )
+        )
+        fig.add_vrect(x0=float(scores.min()) - 0.1, x1=STRONG, fillcolor="#B22222", opacity=0.10, line_width=0)
         for xv, col, dash, lab in reflines:
-            fig.add_vline(x=xv, line=dict(color=col, dash=dash, width=1.5),
-                          annotation_text=lab, annotation_position="top")
+            fig.add_vline(
+                x=xv, line=dict(color=col, dash=dash, width=1.5), annotation_text=lab, annotation_position="top"
+            )
         n = summary.get("n_cell_lines_evaluated", "?")
         med = summary.get("median_chronos_panel", float(np.median(scores)))
         fig.update_layout(
             title=f"{target_symbol} Chronos density (n={n}, median {med:.2f})",
-            xaxis_title="Chronos score", yaxis_title="Density",
-            template="plotly_white", showlegend=False, margin=dict(l=60, r=20, t=50, b=50))
+            xaxis_title="Chronos score",
+            yaxis_title="Density",
+            template="plotly_white",
+            showlegend=False,
+            margin=dict(l=60, r=20, t=50, b=50),
+        )
         (out_path / "figure_histogram_kde.plotly.json").write_text(fig.to_json())
         written.append({"id": "histogram_kde", "path": "figure_histogram_kde.plotly.json", "type": "plotly"})
     except Exception as e:  # noqa: BLE001
@@ -766,8 +876,7 @@ def emit_plotly_specs(chronos_by_model: dict, model_metadata: dict,
     return written
 
 
-def emit_plot_data(chronos_by_model: dict, model_metadata: dict,
-                     strong_threshold: float, out_path: Path) -> None:
+def emit_plot_data(chronos_by_model: dict, model_metadata: dict, strong_threshold: float, out_path: Path) -> None:
     """Emit plot_data.parquet — one row per cell line."""
     import pandas as pd
 
@@ -775,30 +884,39 @@ def emit_plot_data(chronos_by_model: dict, model_metadata: dict,
     sorted_items = sorted(chronos_by_model.items(), key=lambda x: x[1])
     for rank, (mid, c) in enumerate(sorted_items, start=1):
         meta = model_metadata.get(mid, {})
-        rows.append({
-            "cell_line_id": mid,
-            "cell_line_name": meta.get("CellLineName", meta.get("ModelID", mid)),
-            "chronos_score": float(c),
-            "lineage": (meta.get("OncotreeLineage")
-                        or meta.get("lineage")
-                        or meta.get("PrimaryDisease") or "unknown"),
-            "sub_lineage": meta.get("OncotreeSubtype") or meta.get("Subtype") or "",
-            "primary_disease": meta.get("PrimaryDisease") or meta.get("primary_disease") or "",
-            "is_strongly_dependent": bool(c <= strong_threshold),
-            "rank_in_panel": rank,
-        })
+        rows.append(
+            {
+                "cell_line_id": mid,
+                "cell_line_name": meta.get("CellLineName", meta.get("ModelID", mid)),
+                "chronos_score": float(c),
+                "lineage": (
+                    meta.get("OncotreeLineage") or meta.get("lineage") or meta.get("PrimaryDisease") or "unknown"
+                ),
+                "sub_lineage": meta.get("OncotreeSubtype") or meta.get("Subtype") or "",
+                "primary_disease": meta.get("PrimaryDisease") or meta.get("primary_disease") or "",
+                "is_strongly_dependent": bool(c <= strong_threshold),
+                "rank_in_panel": rank,
+            }
+        )
 
     df = pd.DataFrame(rows)
     # Quartile
-    df["quartile"] = pd.qcut(df["chronos_score"], q=4,
-                              labels=["Q1_most_dependent", "Q2", "Q3", "Q4_least_dependent"]).astype(str)
+    df["quartile"] = pd.qcut(
+        df["chronos_score"], q=4, labels=["Q1_most_dependent", "Q2", "Q3", "Q4_least_dependent"]
+    ).astype(str)
 
     df.to_parquet(out_path / "plot_data.parquet", index=False)
 
 
-def emit_manifest(target_symbol: str, release_pin: str, summary: dict,
-                    chronos_by_model: dict, out_path: Path,
-                    load_errors: list, plotly_specs: Optional[list] = None) -> None:
+def emit_manifest(
+    target_symbol: str,
+    release_pin: str,
+    summary: dict,
+    chronos_by_model: dict,
+    out_path: Path,
+    load_errors: list,
+    plotly_specs: Optional[list] = None,
+) -> None:
     """Emit manifest.yaml — provenance for this card emission."""
     import yaml
 
@@ -815,7 +933,7 @@ def emit_manifest(target_symbol: str, release_pin: str, summary: dict,
         "cell_lines_list_sample": cell_line_ids[:10] if cell_line_ids else [],
         "cell_lines_total_count": len(cell_line_ids),
         "load_errors": load_errors,
-        "plotly_figures": plotly_specs or [],   # interactive figure specs (Phase A); [] if unavailable
+        "plotly_figures": plotly_specs or [],  # interactive figure specs (Phase A); [] if unavailable
     }
     with (out_path / "manifest.yaml").open("w") as f:
         yaml.safe_dump(manifest, f, sort_keys=False)
@@ -824,19 +942,32 @@ def emit_manifest(target_symbol: str, release_pin: str, summary: dict,
 @click.command()
 @click.option("--target", required=True, help="HGNC symbol (e.g., KRAS, MYC, BCL2).")
 @click.option("--release-pin", default="26q1", help="DepMap release pin.")
-@click.option("--strong-dependency-threshold", type=float, default=-1.0,
-              help="Chronos threshold for 'strongly dependent' classification.")
+@click.option(
+    "--strong-dependency-threshold",
+    type=float,
+    default=-1.0,
+    help="Chronos threshold for 'strongly dependent' classification.",
+)
 @click.option("--moderate-dependency-threshold", type=float, default=-0.5)
-@click.option("--catalog-repo", type=click.Path(file_okay=False, path_type=Path),
-              default=DEFAULT_CATALOG_REPO)
-@click.option("--contracts-root", type=click.Path(file_okay=False, path_type=Path),
-              default=DEFAULT_TARGET_CONTRACTS)
-@click.option("--out", required=True, type=click.Path(file_okay=False, path_type=Path),
-              help="Output directory; summary.json + figures + plot_data land here.")
+@click.option("--catalog-repo", type=click.Path(file_okay=False, path_type=Path), default=DEFAULT_CATALOG_REPO)
+@click.option("--contracts-root", type=click.Path(file_okay=False, path_type=Path), default=DEFAULT_TARGET_CONTRACTS)
+@click.option(
+    "--out",
+    required=True,
+    type=click.Path(file_okay=False, path_type=Path),
+    help="Output directory; summary.json + figures + plot_data land here.",
+)
 @click.option("--dry-run", is_flag=True, help="Print the plan; don't actually load DepMap.")
-def main(target: str, release_pin: str, strong_dependency_threshold: float,
-         moderate_dependency_threshold: float, catalog_repo: Path,
-         contracts_root: Path, out: Path, dry_run: bool) -> int:
+def main(
+    target: str,
+    release_pin: str,
+    strong_dependency_threshold: float,
+    moderate_dependency_threshold: float,
+    catalog_repo: Path,
+    contracts_root: Path,
+    out: Path,
+    dry_run: bool,
+) -> int:
     """Pan-cancer Chronos distribution analysis for a target."""
     out.mkdir(parents=True, exist_ok=True)
 
@@ -859,8 +990,11 @@ def main(target: str, release_pin: str, strong_dependency_threshold: float,
             click.echo(f"    {e}", err=True)
         # Emit a structured-error summary so callers can detect failure
         with (out / "summary.json").open("w") as f:
-            json.dump({"_live_read_error": True, "errors": load_errors,
-                       "target": target, "release_pin": release_pin}, f, indent=2)
+            json.dump(
+                {"_live_read_error": True, "errors": load_errors, "target": target, "release_pin": release_pin},
+                f,
+                indent=2,
+            )
         emit_manifest(target, release_pin, {}, {}, out, load_errors)
         return 2
 
@@ -875,7 +1009,8 @@ def main(target: str, release_pin: str, strong_dependency_threshold: float,
     _curated = _load_curated_common_essentials(release_pin)
     curated_common_essential = (target in _curated) if _curated is not None else None
     summary = compute_summary_stats(
-        chronos_by_model, model_metadata,
+        chronos_by_model,
+        model_metadata,
         strong_threshold=strong_dependency_threshold,
         moderate_threshold=moderate_dependency_threshold,
         curated_common_essential=curated_common_essential,

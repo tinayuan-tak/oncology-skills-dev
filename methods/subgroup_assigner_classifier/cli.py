@@ -57,6 +57,7 @@ SUPPORTED_CLASSIFIER_METHODS = {"single_gene_zscore_threshold", "napy_zscore_cla
 
 # ---------- Classifier config ----------------------------------------------
 
+
 def _load_classifier_config(config_path: Path) -> dict:
     """Load the classifier config YAML.
 
@@ -88,10 +89,7 @@ def _load_classifier_config(config_path: Path) -> dict:
         config = yaml.safe_load(f)
     m = config.get("classifier_method")
     if m not in SUPPORTED_CLASSIFIER_METHODS:
-        raise ValueError(
-            f"classifier_method={m!r} not supported. "
-            f"iter-1 supports: {SUPPORTED_CLASSIFIER_METHODS}"
-        )
+        raise ValueError(f"classifier_method={m!r} not supported. iter-1 supports: {SUPPORTED_CLASSIFIER_METHODS}")
     return config
 
 
@@ -155,8 +153,7 @@ def _load_depmap_expression(gene_symbols: list[str], reference_cohort: str | Non
             df = df[df.index.isin(cohort_ids)]
             if df.empty:
                 raise ValueError(
-                    f"No models found for OncotreeCode={oncotree_code!r} "
-                    f"after cohort filtering. Check Model.csv."
+                    f"No models found for OncotreeCode={oncotree_code!r} after cohort filtering. Check Model.csv."
                 )
         else:
             click.echo(
@@ -184,6 +181,7 @@ def _load_tcga_expression(gene_symbols: list[str], indication: str) -> pd.DataFr
 
 
 # ---------- Classifier core ------------------------------------------------
+
 
 def _zscore(series: pd.Series) -> pd.Series:
     """Compute z-score for a pandas Series (mean 0, std 1). NaN-safe."""
@@ -215,10 +213,7 @@ def _run_napy_classifier(expression_df: pd.DataFrame, config: dict) -> pd.DataFr
     min_margin = config.get("min_margin", 0.0)
 
     # Z-score each marker gene across the cohort
-    z = pd.DataFrame({
-        stratum_id: _zscore(expression_df[gene])
-        for stratum_id, gene in marker_genes.items()
-    })
+    z = pd.DataFrame({stratum_id: _zscore(expression_df[gene]) for stratum_id, gene in marker_genes.items()})
 
     # For each sample: argmax stratum (the "winner") + the runner-up gap (the assignment MARGIN)
     winners = z.idxmax(axis=1)
@@ -251,12 +246,14 @@ def _run_napy_classifier(expression_df: pd.DataFrame, config: dict) -> pd.DataFr
                 dval = f"unclassifiable:{reason}"
             else:
                 dval = ""
-            out_rows.append({
-                "sample_id": sample_id,
-                "stratum_id": stratum_id,
-                "is_member": is_member,
-                "derivation_value": dval,
-            })
+            out_rows.append(
+                {
+                    "sample_id": sample_id,
+                    "stratum_id": stratum_id,
+                    "is_member": is_member,
+                    "derivation_value": dval,
+                }
+            )
     return pd.DataFrame(out_rows)
 
 
@@ -279,12 +276,14 @@ def _run_single_gene_threshold(expression_df: pd.DataFrame, config: dict) -> pd.
         else:
             is_member = bool(z_val >= threshold)
         deriv = f"{gene}_z={z_val:.2f}" if is_member else ""
-        out_rows.append({
-            "sample_id": sample_id,
-            "stratum_id": label,
-            "is_member": is_member,
-            "derivation_value": deriv,
-        })
+        out_rows.append(
+            {
+                "sample_id": sample_id,
+                "stratum_id": label,
+                "is_member": is_member,
+                "derivation_value": deriv,
+            }
+        )
     return pd.DataFrame(out_rows)
 
 
@@ -298,6 +297,7 @@ _REFERENCE_COHORT_ONCOTREE_LINEAGE = {"depmap_bowel": "Bowel"}
 def _parse_entrez(gene_col: str):
     """Extract the Entrez id from a DepMap 'SYMBOL (Entrez)' column name, or None."""
     import re
+
     m = re.search(r"\((\d+)\)\s*$", str(gene_col))
     return m.group(1) if m else None
 
@@ -332,11 +332,13 @@ def _load_depmap_expression_full(reference_cohort_lineage: str | None = None) ->
             cohort_ids = set(model[model["OncotreeLineage"] == lineage]["ModelID"])
             df = df[df.index.isin(cohort_ids)]
             if df.empty:
-                raise ValueError(
-                    f"No models for OncotreeLineage={lineage!r} after cohort filtering. Check Model.csv.")
+                raise ValueError(f"No models for OncotreeLineage={lineage!r} after cohort filtering. Check Model.csv.")
         else:
-            click.echo(f"  WARNING: Model.csv not found at {model_path}; lineage filter "
-                       f"({reference_cohort_lineage!r}) skipped", err=True)
+            click.echo(
+                f"  WARNING: Model.csv not found at {model_path}; lineage filter "
+                f"({reference_cohort_lineage!r}) skipped",
+                err=True,
+            )
     return df
 
 
@@ -357,7 +359,7 @@ def _run_cms_classifier(expression_df: pd.DataFrame, config: dict, run_dir: Path
     rnaseq = bool(config.get("rnaseq", True))
 
     # build the entrez-rownamed matrix (genes × samples) run_cms.R expects
-    emat = expression_df.T.copy()                       # genes (index='SYMBOL (Entrez)') × samples
+    emat = expression_df.T.copy()  # genes (index='SYMBOL (Entrez)') × samples
     emat.insert(0, "entrez_id", [_parse_entrez(g) for g in emat.index])
     emat = emat.dropna(subset=["entrez_id"])
     emat = emat[~emat["entrez_id"].duplicated(keep="first")]  # NTP wants unique gene rows
@@ -368,27 +370,38 @@ def _run_cms_classifier(expression_df: pd.DataFrame, config: dict, run_dir: Path
 
     r_script = Path(__file__).resolve().parent / "steps" / "run_cms.R"
     subprocess.run(
-        ["Rscript", str(r_script), "--emat", str(emat_path), "--out", str(out_path),
-         "--fdr", str(fdr), "--rnaseq", "TRUE" if rnaseq else "FALSE"],
+        [
+            "Rscript",
+            str(r_script),
+            "--emat",
+            str(emat_path),
+            "--out",
+            str(out_path),
+            "--fdr",
+            str(fdr),
+            "--rnaseq",
+            "TRUE" if rnaseq else "FALSE",
+        ],
         check=True,
     )
-    ntp = pd.read_parquet(out_path)   # columns: sample_id, CMS (nullable), p_value, FDR
+    ntp = pd.read_parquet(out_path)  # columns: sample_id, CMS (nullable), p_value, FDR
 
     strata_ids = list(stratum_map.values())
     rows = []
     for _, r in ntp.iterrows():
-        winner_label = r["CMS"]                                  # e.g. 'CMS2' or NA (unclassifiable)
+        winner_label = r["CMS"]  # e.g. 'CMS2' or NA (unclassifiable)
         winner_sid = stratum_map.get(winner_label) if pd.notna(winner_label) else None
         for sid in strata_ids:
             is_member = (winner_sid is not None) and (sid == winner_sid)
             if is_member:
                 dval = f"{winner_label}_FDR={float(r['FDR']):.3g}"
             elif winner_sid is None and sid == strata_ids[0]:
-                dval = "unclassifiable:below_fdr_floor"          # tag once (on the first stratum row)
+                dval = "unclassifiable:below_fdr_floor"  # tag once (on the first stratum row)
             else:
                 dval = ""
-            rows.append({"sample_id": r["sample_id"], "stratum_id": sid,
-                         "is_member": bool(is_member), "derivation_value": dval})
+            rows.append(
+                {"sample_id": r["sample_id"], "stratum_id": sid, "is_member": bool(is_member), "derivation_value": dval}
+            )
     return pd.DataFrame(rows)
 
 
@@ -403,23 +416,46 @@ def _run_cms_classifier(expression_df: pd.DataFrame, config: dict, run_dir: Path
 
 # ---------- CLI ------------------------------------------------------------
 
+
 @click.command()
-@click.option("--subgroup-catalog", required=True, type=click.Path(exists=True, dir_okay=False, path_type=Path),
-              help="Path to the subgroup_catalog YAML.")
-@click.option("--classifier-config", required=True, type=click.Path(exists=True, dir_okay=False, path_type=Path),
-              help="Path to the classifier config YAML (companion file).")
-@click.option("--data-source", required=True, type=click.Choice(["tcga", "depmap"]),
-              help="Which data source's expression matrix to classify against.")
+@click.option(
+    "--subgroup-catalog",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    help="Path to the subgroup_catalog YAML.",
+)
+@click.option(
+    "--classifier-config",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    help="Path to the classifier config YAML (companion file).",
+)
+@click.option(
+    "--data-source",
+    required=True,
+    type=click.Choice(["tcga", "depmap"]),
+    help="Which data source's expression matrix to classify against.",
+)
 @click.option("--release-pin", required=True, help="Catalog release_pin identifier.")
-@click.option("--catalog-repo", type=click.Path(file_okay=False, path_type=Path),
-              default=Path(os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")),
-              help="Path to the data-catalog repo.")
-@click.option("--out", required=True, type=click.Path(file_okay=False, path_type=Path),
-              help="Output directory.")
-@click.option("--dry-run", is_flag=True,
-              help="Parse catalog + config, print the plan, do not classify.")
-def main(subgroup_catalog: Path, classifier_config: Path, data_source: str,
-         release_pin: str, catalog_repo: Path, out: Path, dry_run: bool) -> int:
+@click.option(
+    "--catalog-repo",
+    type=click.Path(file_okay=False, path_type=Path),
+    default=Path(
+        os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
+    ),
+    help="Path to the data-catalog repo.",
+)
+@click.option("--out", required=True, type=click.Path(file_okay=False, path_type=Path), help="Output directory.")
+@click.option("--dry-run", is_flag=True, help="Parse catalog + config, print the plan, do not classify.")
+def main(
+    subgroup_catalog: Path,
+    classifier_config: Path,
+    data_source: str,
+    release_pin: str,
+    catalog_repo: Path,
+    out: Path,
+    dry_run: bool,
+) -> int:
     """Generate per-sample subgroup assignments from signature-score classifiers."""
     with subgroup_catalog.open() as f:
         catalog = yaml.safe_load(f)
@@ -462,7 +498,10 @@ def main(subgroup_catalog: Path, classifier_config: Path, data_source: str,
             click.echo(f"    - {sid:<20} ({reason})")
 
     if not applicable:
-        click.echo(f"WARNING: no applicable classifier-run strata for data_source={data_source} / method={config_method}", err=True)
+        click.echo(
+            f"WARNING: no applicable classifier-run strata for data_source={data_source} / method={config_method}",
+            err=True,
+        )
         return 0
 
     if dry_run:
@@ -501,18 +540,27 @@ def main(subgroup_catalog: Path, classifier_config: Path, data_source: str,
     assignments["derivation_source"] = "classifier_run"
     assignments["evaluated_at_release"] = release_pin
     # Reorder columns per resolver-product design
-    assignments = assignments[[
-        "sample_id", "patient_id", "source_native_id", "stratum_id",
-        "is_member", "derivation_source", "derivation_value", "evaluated_at_release",
-    ]]
+    assignments = assignments[
+        [
+            "sample_id",
+            "patient_id",
+            "source_native_id",
+            "stratum_id",
+            "is_member",
+            "derivation_source",
+            "derivation_value",
+            "evaluated_at_release",
+        ]
+    ]
 
     # Filter to strata that appear in the catalog (be safe if classifier config has extras)
     applicable_ids = {s["id"] for s in applicable}
     n_before = len(assignments)
     assignments = assignments[assignments["stratum_id"].isin(applicable_ids)]
     if n_before != len(assignments):
-        click.echo(f"  filtered classifier output: {n_before} → {len(assignments)} "
-                   f"rows (dropped strata not in catalog)")
+        click.echo(
+            f"  filtered classifier output: {n_before} → {len(assignments)} rows (dropped strata not in catalog)"
+        )
 
     for sid in applicable_ids:
         rows_for_stratum = assignments[assignments["stratum_id"] == sid]
@@ -528,8 +576,11 @@ def main(subgroup_catalog: Path, classifier_config: Path, data_source: str,
     click.echo(f"  wrote {parquet_path} ({len(assignments):,} rows)")
 
     emit_assignment_manifest(
-        out_dir=out, catalog=catalog, catalog_path=subgroup_catalog,
-        data_source=data_source, release_pin=release_pin,
+        out_dir=out,
+        catalog=catalog,
+        catalog_path=subgroup_catalog,
+        data_source=data_source,
+        release_pin=release_pin,
         assignments=assignments,
         assigner_method="subgroup_assigner_classifier",
         variant="classifier",

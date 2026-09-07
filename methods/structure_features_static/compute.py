@@ -11,6 +11,7 @@ hotspot in a low-pLDDT / intrinsically-disordered region is NOT. Real solvent-ac
 cavity detection (fpocket / canSAR) is the documented upgrade (see the card caveats).
 The card's own caveat prescribes exactly this pLDDT-heuristic.
 """
+
 from __future__ import annotations
 
 import re
@@ -71,14 +72,15 @@ def parse_cif_plddt(cif_text: str) -> list:
                     continue
     return plddt
 
+
 # pLDDT bands (AlphaFold convention; matches the card thresholds + read.py classifier).
-PLDDT_DISORDERED_MAX = 50.0     # residues below this are treated as disordered/very-low-confidence
-PLDDT_LOW_DOMAIN_MAX = 70.0     # a domain whose min pLDDT is below this is "low-confidence" (n_domains_low_plddt)
-PLDDT_POCKET_MIN = 70.0         # a hotspot in a region at/above this confidence is a candidate structured pocket
+PLDDT_DISORDERED_MAX = 50.0  # residues below this are treated as disordered/very-low-confidence
+PLDDT_LOW_DOMAIN_MAX = 70.0  # a domain whose min pLDDT is below this is "low-confidence" (n_domains_low_plddt)
+PLDDT_POCKET_MIN = 70.0  # a hotspot in a region at/above this confidence is a candidate structured pocket
 
 # HGVSp short form, optionally 'p.'-prefixed: <ref-aa><pos><alt-aa|Ter|fs|*|=|del|dup|ins...>.
 # We only need the integer residue POSITION. Accepts 'G12C', 'p.G12C', 'p.Arg175His' (3-letter), etc.
-_HGVSP_POS_RE = re.compile(r'^p?\.?[A-Za-z]{1,3}(\d+)')
+_HGVSP_POS_RE = re.compile(r"^p?\.?[A-Za-z]{1,3}(\d+)")
 
 
 def parse_hgvsp_residue(hgvsp) -> Optional[int]:
@@ -123,13 +125,14 @@ def per_domain_plddt(plddt: list, domains: list) -> dict:
     doesn't have, or coordinates outside the array, is skipped safely. No domains / no pLDDT → None / 0."""
     vals = [float(v) if v is not None else None for v in (plddt or [])]
     domain_mins: list[float] = []
-    for d in (domains or []):
+    for d in domains or []:
         start, end = d.get("start"), d.get("end")
         if start is None or end is None:
             continue
         # 1-indexed inclusive → python slice; clamp to the array bounds.
-        lo = max(1, int(start)); hi = min(len(vals), int(end))
-        window = [v for v in vals[lo - 1:hi] if v is not None]
+        lo = max(1, int(start))
+        hi = min(len(vals), int(end))
+        window = [v for v in vals[lo - 1 : hi] if v is not None]
         if window:
             domain_mins.append(min(window))
     if not domain_mins:
@@ -152,12 +155,17 @@ def pdb_coverage(pdb_entries: list) -> dict:
     with_res = [e for e in entries if isinstance(e.get("resolution_angstrom"), (int, float))]
     if with_res:
         best = min(with_res, key=lambda e: e["resolution_angstrom"])
-        return {"pdb_ids_available": ids,
-                "pdb_best_resolution_angstrom": round(float(best["resolution_angstrom"]), 2),
-                "pdb_best_method": str(best.get("method") or "unknown")}
+        return {
+            "pdb_ids_available": ids,
+            "pdb_best_resolution_angstrom": round(float(best["resolution_angstrom"]), 2),
+            "pdb_best_method": str(best.get("method") or "unknown"),
+        }
     # entries exist but none report resolution (e.g. NMR / cryo-EM without a resolution field)
-    return {"pdb_ids_available": ids, "pdb_best_resolution_angstrom": None,
-            "pdb_best_method": str(entries[0].get("method") or "unknown")}
+    return {
+        "pdb_ids_available": ids,
+        "pdb_best_resolution_angstrom": None,
+        "pdb_best_method": str(entries[0].get("method") or "unknown"),
+    }
 
 
 # Disorder-dominated guard: a protein whose structure is mostly low-confidence is not a credible
@@ -167,8 +175,7 @@ def pdb_coverage(pdb_entries: list) -> dict:
 DISORDER_DOMINATED_FRACTION = 0.50
 
 
-def pocket_adjacency(hotspot_residues: list, plddt: list, domains: list,
-                     has_structure: bool) -> dict:
+def pocket_adjacency(hotspot_residues: list, plddt: list, domains: list, has_structure: bool) -> dict:
     """v1 pLDDT+domain HEURISTIC pocket-adjacency call.
 
     Returns mutation_hotspot_in_druggable_pocket (bool) + hotspot_pocket_adjacency_call (the 4-value
@@ -192,39 +199,40 @@ def pocket_adjacency(hotspot_residues: list, plddt: list, domains: list,
     vals = [float(v) if v is not None else None for v in (plddt or [])]
     structured = has_structure and any(v is not None for v in vals)
     if not structured:
-        return {"mutation_hotspot_in_druggable_pocket": False,
-                "hotspot_pocket_adjacency_call": "no_structure"}
+        return {"mutation_hotspot_in_druggable_pocket": False, "hotspot_pocket_adjacency_call": "no_structure"}
 
     residues = [r for r in (hotspot_residues or []) if isinstance(r, int) and r > 0]
     if not residues:
-        return {"mutation_hotspot_in_druggable_pocket": False,
-                "hotspot_pocket_adjacency_call": "no_hotspots_annotated"}
+        return {"mutation_hotspot_in_druggable_pocket": False, "hotspot_pocket_adjacency_call": "no_hotspots_annotated"}
 
     # Disorder-dominated proteins are not a credible SM-pocket scaffold — call distant regardless of
     # where the hotspot lands (the key discrimination).
     present = [v for v in vals if v is not None]
-    disordered_fraction = (sum(1 for v in present if v < PLDDT_DISORDERED_MAX) / len(present)
-                           if present else 1.0)
+    disordered_fraction = sum(1 for v in present if v < PLDDT_DISORDERED_MAX) / len(present) if present else 1.0
     if disordered_fraction >= DISORDER_DOMINATED_FRACTION:
-        return {"mutation_hotspot_in_druggable_pocket": False,
-                "hotspot_pocket_adjacency_call": "distant"}
+        return {"mutation_hotspot_in_druggable_pocket": False, "hotspot_pocket_adjacency_call": "distant"}
 
     for res in residues:
         if 1 <= res <= len(vals):
             v = vals[res - 1]
             if v is not None and v >= PLDDT_POCKET_MIN:
-                return {"mutation_hotspot_in_druggable_pocket": True,
-                        "hotspot_pocket_adjacency_call": "adjacent"}
+                return {"mutation_hotspot_in_druggable_pocket": True, "hotspot_pocket_adjacency_call": "adjacent"}
     # recurrent hotspots exist, protein is ordered, but none land in a high-confidence residue
-    return {"mutation_hotspot_in_druggable_pocket": False,
-            "hotspot_pocket_adjacency_call": "distant"}
+    return {"mutation_hotspot_in_druggable_pocket": False, "hotspot_pocket_adjacency_call": "distant"}
 
 
-def build_row(uniprot_ac: str, gene_symbol: str, *,
-              plddt: list, domains: list, pdb_entries: list, hotspot_hgvsp: list,
-              alphafold_prediction_id: Optional[str] = None,
-              alphafold_model_version: Optional[str] = None,
-              has_structure: bool = True) -> dict:
+def build_row(
+    uniprot_ac: str,
+    gene_symbol: str,
+    *,
+    plddt: list,
+    domains: list,
+    pdb_entries: list,
+    hotspot_hgvsp: list,
+    alphafold_prediction_id: Optional[str] = None,
+    alphafold_model_version: Optional[str] = None,
+    has_structure: bool = True,
+) -> dict:
     """Assemble ONE derived-parquet row from already-loaded inputs. Pure — no I/O. The 15-column schema
     matches cli.py's documented columns + read.py's consumed keys. `has_structure` lets the caller signal
     'no PDB and no AlphaFold model' independent of an empty pLDDT array."""

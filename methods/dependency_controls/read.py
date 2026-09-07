@@ -17,6 +17,7 @@ read DIRECTLY from the CRISPR matrix (cheap lru-cached column reads).
 data_unavailable-safe: vocab/Chronos read failure → dep_control_position_class of
 data_unavailable, never a raise (so this can land before the vocab is merged).
 """
+
 from __future__ import annotations
 
 import os
@@ -27,14 +28,15 @@ from typing import Optional
 METHOD_VERSION = "0.1.0"
 
 DEFAULT_TARGET_CONTRACTS = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT",
-                   "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
+    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+)
 CONTROLS_VOCAB_RELPATH = "vocabularies/dependency_controls.yaml"
 
 
 @lru_cache(maxsize=4)
 def _load_controls(contracts_dir: str) -> dict:
     import yaml
+
     path = Path(contracts_dir) / CONTROLS_VOCAB_RELPATH
     return yaml.safe_load(path.read_text())
 
@@ -44,6 +46,7 @@ def _median_chronos(symbol: str, release_pin: str) -> Optional[float]:
     Returns None if the gene is absent from the panel or the read fails."""
     try:
         from methods.depmap_common.parquet import get_chronos_column
+
         df = get_chronos_column(symbol, release_pin)
     except Exception:  # noqa: BLE001 — never break the render path on a read failure
         return None
@@ -54,6 +57,7 @@ def _median_chronos(symbol: str, release_pin: str) -> Optional[float]:
         return None
     try:
         import pandas as pd  # noqa: F401
+
         series = df[cols[0]].dropna()
         if len(series) == 0:
             return None
@@ -62,8 +66,7 @@ def _median_chronos(symbol: str, release_pin: str) -> Optional[float]:
         return None
 
 
-def _classify_dep_control_position(target_med: Optional[float],
-                                   pos_meds: dict, neg_meds: dict) -> str:
+def _classify_dep_control_position(target_med: Optional[float], pos_meds: dict, neg_meds: dict) -> str:
     """Where does the target's median Chronos sit relative to the control bands?
 
     Bands are DATA-DRIVEN from the control genes themselves (not hardcoded thresholds):
@@ -100,9 +103,9 @@ def _classify_dep_control_position(target_med: Optional[float],
     return "between_controls"
 
 
-def control_position_dependency(target: str,
-                                release_pin: str = "26q1",
-                                contracts_dir: str = str(DEFAULT_TARGET_CONTRACTS)) -> dict:
+def control_position_dependency(
+    target: str, release_pin: str = "26q1", contracts_dir: str = str(DEFAULT_TARGET_CONTRACTS)
+) -> dict:
     """Control-benchmark position for the pan-cancer-crispr-dependency-distribution card.
 
     Reads the target's + each control gene's pan-panel median Chronos DIRECTLY (no
@@ -112,15 +115,15 @@ def control_position_dependency(target: str,
     try:
         controls = _load_controls(contracts_dir)
     except Exception as e:  # noqa: BLE001 — vocab may not be merged yet; degrade gracefully
-        return {"dep_control_position_class": "data_unavailable",
-                "_dep_control_note": f"controls vocab unavailable: {type(e).__name__}",
-                "dep_control_method_version": METHOD_VERSION}
+        return {
+            "dep_control_position_class": "data_unavailable",
+            "_dep_control_note": f"controls vocab unavailable: {type(e).__name__}",
+            "dep_control_method_version": METHOD_VERSION,
+        }
 
     target_med = _median_chronos(target, release_pin)
-    pos_meds = {sym: _median_chronos(sym, release_pin)
-                for sym in (controls.get("positive_controls") or {})}
-    neg_meds = {sym: _median_chronos(sym, release_pin)
-                for sym in (controls.get("negative_controls") or {})}
+    pos_meds = {sym: _median_chronos(sym, release_pin) for sym in (controls.get("positive_controls") or {})}
+    neg_meds = {sym: _median_chronos(sym, release_pin) for sym in (controls.get("negative_controls") or {})}
 
     klass = _classify_dep_control_position(target_med, pos_meds, neg_meds)
 
@@ -130,10 +133,12 @@ def control_position_dependency(target: str,
     neg_present = [m for m in neg_meds.values() if m is not None]
     n_pos = len(pos_present)
     n_neg = len(neg_present)
-    n_pos_more_essential = (sum(1 for m in pos_present if target_med is not None and target_med <= m)
-                            if target_med is not None else 0)
-    n_neg_more_essential = (sum(1 for m in neg_present if target_med is not None and target_med < m)
-                            if target_med is not None else 0)
+    n_pos_more_essential = (
+        sum(1 for m in pos_present if target_med is not None and target_med <= m) if target_med is not None else 0
+    )
+    n_neg_more_essential = (
+        sum(1 for m in neg_present if target_med is not None and target_med < m) if target_med is not None else 0
+    )
     parts = []
     if n_pos:
         parts.append(f"as/more essential than {n_pos_more_essential}/{n_pos} pan-essential control(s)")
@@ -143,11 +148,13 @@ def control_position_dependency(target: str,
 
     ceiling = max(pos_present) if pos_present else None
     floor = min(neg_present) if neg_present else None
-    ctx = (f"DepMap {release_pin} pan-panel median Chronos vs curated dependency controls "
-           f"(dependency_controls v{controls.get('version')}; "
-           f"pan_essential_ceiling={_round(ceiling)}; non_essential_floor={_round(floor)}). "
-           f"INVERTED: at/below the ceiling = pan-essential tox liability; between = selective "
-           f"dependency window; at/above the floor = non-dependent.")
+    ctx = (
+        f"DepMap {release_pin} pan-panel median Chronos vs curated dependency controls "
+        f"(dependency_controls v{controls.get('version')}; "
+        f"pan_essential_ceiling={_round(ceiling)}; non_essential_floor={_round(floor)}). "
+        f"INVERTED: at/below the ceiling = pan-essential tox liability; between = selective "
+        f"dependency window; at/above the floor = non-dependent."
+    )
 
     return {
         "dep_control_position_class": klass,

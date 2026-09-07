@@ -10,6 +10,7 @@ stubbed (pyarrow monkeypatched to synthetic per-indication tables):
   - cell_b_semantics is stamped per the vintage map (skipped/design-comparison/combat);
   - one row per (indication, gene); deterministic ordering.
 """
+
 from __future__ import annotations
 
 import importlib
@@ -37,11 +38,19 @@ def _clear_breadth_cache():
 
 
 def _full_cols(gene, run_b=True):
-    row = {"gene_symbol": gene, "cells_ran": 3.0 if run_b else 2.0,
-           "cells_supporting": 3.0 if run_b else 2.0, "dominant_direction": "up",
-           "sig_all_cells": True, "discordant": False,
-           "log2fc_A": 2.0, "padj_A": 1e-6, "log2fc_C": 1.8, "padj_C": 1e-5,
-           "max_abs_log2fc": 2.0}
+    row = {
+        "gene_symbol": gene,
+        "cells_ran": 3.0 if run_b else 2.0,
+        "cells_supporting": 3.0 if run_b else 2.0,
+        "dominant_direction": "up",
+        "sig_all_cells": True,
+        "discordant": False,
+        "log2fc_A": 2.0,
+        "padj_A": 1e-6,
+        "log2fc_C": 1.8,
+        "padj_C": 1e-5,
+        "max_abs_log2fc": 2.0,
+    }
     if run_b:
         row["log2fc_B"] = 1.9
         row["padj_B"] = 1e-5
@@ -57,8 +66,11 @@ _SYNTH = {
 
 
 class _FakeTable:
-    def __init__(self, df): self._df = df
-    def to_pandas(self): return self._df.copy()
+    def __init__(self, df):
+        self._df = df
+
+    def to_pandas(self):
+        return self._df.copy()
 
 
 def _patch(monkeypatch):
@@ -73,7 +85,8 @@ def _patch(monkeypatch):
 
     class _FakeFs:
         class S3FileSystem:  # noqa: N801
-            def __init__(self, *a, **k): pass
+            def __init__(self, *a, **k):
+                pass
 
     # Patch the real module ATTRIBUTES, not sys.modules. The reader does `import pyarrow.parquet
     # as pq`, and `import a.b as c` binds via getattr(a, "b") once the submodule is imported — so a
@@ -81,6 +94,7 @@ def _patch(monkeypatch):
     # first (order-dependent: green locally, red in CI). setattr on the real modules intercepts every time.
     import pyarrow.parquet as _pq
     import pyarrow.fs as _fs
+
     monkeypatch.setattr(_pq, "read_table", _FakePq.read_table)
     monkeypatch.setattr(_fs, "S3FileSystem", _FakeFs.S3FileSystem)
 
@@ -130,22 +144,38 @@ def test_leading_columns_order(monkeypatch):
 
 # --- RNA tumor-elevation breadth reader (Slice C-3) -------------------------------------------
 
-def _stacked_row(ind, gene, direction="up", supporting=3.0, max_lfc=2.0, discordant=False,
-                 cells_ran=3.0):
-    return {"indication": ind, "gene_symbol": gene, "cells_ran": cells_ran,
-            "cells_supporting": supporting, "dominant_direction": direction,
-            "sig_all_cells": True, "discordant": discordant,
-            "log2fc_A": max_lfc, "padj_A": 1e-6, "log2fc_B": max_lfc, "padj_B": 1e-6,
-            "log2fc_C": max_lfc, "padj_C": 1e-6, "max_abs_log2fc": max_lfc,
-            "cell_b_semantics": "combat_seq_tcga_tss"}
+
+def _stacked_row(ind, gene, direction="up", supporting=3.0, max_lfc=2.0, discordant=False, cells_ran=3.0):
+    return {
+        "indication": ind,
+        "gene_symbol": gene,
+        "cells_ran": cells_ran,
+        "cells_supporting": supporting,
+        "dominant_direction": direction,
+        "sig_all_cells": True,
+        "discordant": discordant,
+        "log2fc_A": max_lfc,
+        "padj_A": 1e-6,
+        "log2fc_B": max_lfc,
+        "padj_B": 1e-6,
+        "log2fc_C": max_lfc,
+        "padj_C": 1e-6,
+        "max_abs_log2fc": max_lfc,
+        "cell_b_semantics": "combat_seq_tcga_tss",
+    }
 
 
 def _patch_reader(monkeypatch, rows):
     class _T:
-        def __init__(self, rows): self._rows = rows
+        def __init__(self, rows):
+            self._rows = rows
+
         @property
-        def num_rows(self): return len(self._rows)
-        def to_pandas(self): return pd.DataFrame(self._rows)
+        def num_rows(self):
+            return len(self._rows)
+
+        def to_pandas(self):
+            return pd.DataFrame(self._rows)
 
     class _FakePq:
         @staticmethod
@@ -155,7 +185,8 @@ def _patch_reader(monkeypatch, rows):
 
     class _FakeFs:
         class S3FileSystem:  # noqa: N801
-            def __init__(self, *a, **k): pass
+            def __init__(self, *a, **k):
+                pass
 
     # Patch the real module ATTRIBUTES, not sys.modules. The reader does `import pyarrow.parquet
     # as pq`, and `import a.b as c` binds via getattr(a, "b") once the submodule is imported — so a
@@ -163,14 +194,18 @@ def _patch_reader(monkeypatch, rows):
     # first (order-dependent: green locally, red in CI). setattr on the real modules intercepts every time.
     import pyarrow.parquet as _pq
     import pyarrow.fs as _fs
+
     monkeypatch.setattr(_pq, "read_table", _FakePq.read_table)
     monkeypatch.setattr(_fs, "S3FileSystem", _FakeFs.S3FileSystem)
 
 
 def test_rna_breadth_broadly_elevated(monkeypatch):
-    rows = [_stacked_row("BRCA", "EPCAM"), _stacked_row("LUAD", "EPCAM"),
-            _stacked_row("COAD", "EPCAM", max_lfc=1.2),
-            _stacked_row("OV", "EPCAM", direction="none", supporting=0.0)]
+    rows = [
+        _stacked_row("BRCA", "EPCAM"),
+        _stacked_row("LUAD", "EPCAM"),
+        _stacked_row("COAD", "EPCAM", max_lfc=1.2),
+        _stacked_row("OV", "EPCAM", direction="none", supporting=0.0),
+    ]
     _patch_reader(monkeypatch, rows)
     b = d.read_rna_tumor_elevation_breadth("EPCAM")
     assert b["rna_tumor_elevation_breadth_class"] == "broadly_tumor_elevated"
@@ -183,7 +218,8 @@ def test_rna_breadth_ignores_cell_b_vintage(monkeypatch):
     """The vintage-stable guarantee: a UCEC-style row with NO cell B (NaN log2fc_B) that is
     up-dominant + supported still counts as elevated — the predicate never touches cell B."""
     row = _stacked_row("UCEC", "KRAS", supporting=2.0, cells_ran=2.0)
-    row["log2fc_B"] = float("nan"); row["padj_B"] = float("nan")
+    row["log2fc_B"] = float("nan")
+    row["padj_B"] = float("nan")
     row["cell_b_semantics"] = "cell_b_skipped"
     _patch_reader(monkeypatch, [row])
     b = d.read_rna_tumor_elevation_breadth("KRAS")
@@ -192,8 +228,7 @@ def test_rna_breadth_ignores_cell_b_vintage(monkeypatch):
 
 
 def test_rna_breadth_discordant_not_elevated(monkeypatch):
-    rows = [_stacked_row("BRCA", "TP53", discordant=True),
-            _stacked_row("LUAD", "TP53", direction="down")]
+    rows = [_stacked_row("BRCA", "TP53", discordant=True), _stacked_row("LUAD", "TP53", direction="down")]
     _patch_reader(monkeypatch, rows)
     b = d.read_rna_tumor_elevation_breadth("TP53")
     assert b["rna_tumor_elevation_breadth_class"] == "not_tumor_elevated"
@@ -210,17 +245,28 @@ def test_rna_breadth_absent_target_data_unavailable(monkeypatch):
 
 # --- M2 FIX: breadth magnitude gates on cells A/C ONLY, never the cell-B-inflated max_abs_log2fc ---
 
+
 def _ac_split_row(ind, gene, a, c, b, *, supporting=3.0, cells_ran=3.0):
     """A stacked row with independent A/B/C log2fc, and max_abs_log2fc set the way the R producer
     builds it: max(|A|,|B|,|C|) over ALL ran cells (INCLUDING cell B). Lets a test drive the case
     where cell B inflates max_abs_log2fc above the bar while cells A/C are below it."""
-    return {"indication": ind, "gene_symbol": gene, "cells_ran": cells_ran,
-            "cells_supporting": supporting, "dominant_direction": "up",
-            "sig_all_cells": True, "discordant": False,
-            "log2fc_A": a, "padj_A": 1e-6, "log2fc_B": b, "padj_B": 1e-6,
-            "log2fc_C": c, "padj_C": 1e-6,
-            "max_abs_log2fc": max(abs(a), abs(b), abs(c)),
-            "cell_b_semantics": "combat_seq_tcga_tss"}
+    return {
+        "indication": ind,
+        "gene_symbol": gene,
+        "cells_ran": cells_ran,
+        "cells_supporting": supporting,
+        "dominant_direction": "up",
+        "sig_all_cells": True,
+        "discordant": False,
+        "log2fc_A": a,
+        "padj_A": 1e-6,
+        "log2fc_B": b,
+        "padj_B": 1e-6,
+        "log2fc_C": c,
+        "padj_C": 1e-6,
+        "max_abs_log2fc": max(abs(a), abs(b), abs(c)),
+        "cell_b_semantics": "combat_seq_tcga_tss",
+    }
 
 
 def test_ac_max_log2fc_ignores_cell_b():
@@ -237,9 +283,11 @@ def test_rna_breadth_gene_elevated_only_via_cell_b_is_not_counted(monkeypatch):
     """REGRESSION (M2): a passenger elevated ONLY through an inflated ComBat cell B (A/C both < 1.0,
     B >> 1.0) must NOT count toward breadth. Pre-fix it did (max_abs_log2fc read cell B); post-fix
     the A/C-only magnitude gate drops it. Three such indications flip broadly -> not-elevated here."""
-    rows = [_ac_split_row("ESCA", "PPIA", a=0.79, c=0.47, b=4.66),   # A/C < 1.0, B inflated
-            _ac_split_row("KIRC", "PPIA", a=0.40, c=0.16, b=1.07),
-            _ac_split_row("PRAD", "PPIA", a=0.53, c=0.81, b=1.09)]
+    rows = [
+        _ac_split_row("ESCA", "PPIA", a=0.79, c=0.47, b=4.66),  # A/C < 1.0, B inflated
+        _ac_split_row("KIRC", "PPIA", a=0.40, c=0.16, b=1.07),
+        _ac_split_row("PRAD", "PPIA", a=0.53, c=0.81, b=1.09),
+    ]
     _patch_reader(monkeypatch, rows)
     b = d.read_rna_tumor_elevation_breadth("PPIA")
     assert b["n_indications_tested"] == 3
@@ -250,9 +298,11 @@ def test_rna_breadth_gene_elevated_only_via_cell_b_is_not_counted(monkeypatch):
 def test_rna_breadth_ac_elevated_gene_still_counted(monkeypatch):
     """A gene genuinely elevated on cells A and/or C (>= 1.0) stays counted — the fix only strips
     cell-B-only elevation, it must not introduce false-negatives on real A/C-elevated antigens."""
-    rows = [_ac_split_row("BRCA", "EPCAM", a=2.4, c=2.1, b=0.1),     # strong on A/C, B flat
-            _ac_split_row("LUAD", "EPCAM", a=0.2, c=1.6, b=0.3),     # C carries it
-            _ac_split_row("OV",   "EPCAM", a=1.3, c=0.4, b=0.0)]     # A carries it
+    rows = [
+        _ac_split_row("BRCA", "EPCAM", a=2.4, c=2.1, b=0.1),  # strong on A/C, B flat
+        _ac_split_row("LUAD", "EPCAM", a=0.2, c=1.6, b=0.3),  # C carries it
+        _ac_split_row("OV", "EPCAM", a=1.3, c=0.4, b=0.0),
+    ]  # A carries it
     _patch_reader(monkeypatch, rows)
     b = d.read_rna_tumor_elevation_breadth("EPCAM")
     assert b["n_indications_elevated"] == 3
@@ -268,23 +318,27 @@ def test_rna_breadth_ac_elevated_gene_still_counted(monkeypatch):
 
 
 class _FakeInfo:
-    def __init__(self, base_name): self.base_name = base_name
+    def __init__(self, base_name):
+        self.base_name = base_name
 
 
 def _fake_s3fs(dir_names):
     class _FS:
         def get_file_info(self, selector):
             return [_FakeInfo(n) for n in dir_names]
+
     return _FS()
 
 
 def test_list_published_extracts_sensitivity_indications():
-    fs = _fake_s3fs([
-        "coadread-dge-tumor-vs-normal-sensitivity-v1",
-        "luad-dge-tumor-vs-normal-sensitivity-v1",
-        "some-other-derived-product-v1",            # ignored (wrong suffix)
-        "kinome-atlas-long-edges-v1",               # ignored
-    ])
+    fs = _fake_s3fs(
+        [
+            "coadread-dge-tumor-vs-normal-sensitivity-v1",
+            "luad-dge-tumor-vs-normal-sensitivity-v1",
+            "some-other-derived-product-v1",  # ignored (wrong suffix)
+            "kinome-atlas-long-edges-v1",  # ignored
+        ]
+    )
     inds = d.list_published_sensitivity_indications(s3fs=fs)
     assert inds == {"COADREAD", "LUAD"}
 
@@ -316,7 +370,6 @@ def test_build_stack_with_explicit_subset_skips_drift_check(monkeypatch):
     trigger the S3-listing drift check (only the full-roster build does)."""
     _patch(monkeypatch)
     called = {"n": 0}
-    monkeypatch.setattr(d, "assert_roster_matches_published",
-                        lambda *a, **k: called.__setitem__("n", called["n"] + 1))
+    monkeypatch.setattr(d, "assert_roster_matches_published", lambda *a, **k: called.__setitem__("n", called["n"] + 1))
     d.build_stack(["COADREAD", "LUAD"])
     assert called["n"] == 0

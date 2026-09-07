@@ -1,4 +1,5 @@
 """phospho_pathway_activity (Q8) pure classifier — no cptac package / network."""
+
 from __future__ import annotations
 
 import sys
@@ -9,7 +10,9 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from methods.phospho_pathway_activity.read import (  # noqa: E402
-    classify_phospho_activity, DETECTED_FRACTION_ACTIVE, MIN_TUMORS,
+    classify_phospho_activity,
+    DETECTED_FRACTION_ACTIVE,
+    MIN_TUMORS,
 )
 
 

@@ -26,22 +26,39 @@ is unit-testable with a synthetic frame. Modality tiers ported verbatim from
 target-contracts/cards/normal-tissue-liability.card.yaml (strict 1.0 / moderate 5.0 /
 pathway_dependent 10.0) — the SAME thresholds the framework already governs by.
 """
+
 from __future__ import annotations
 
 from typing import Optional
 
-METHOD_VERSION = "1.1.0"   # modality therapeutic-window scorer; emitted as the card's method_version
+METHOD_VERSION = "1.1.0"  # modality therapeutic-window scorer; emitted as the card's method_version
 
 # Indication -> TCGA study code(s). Reuses the canonical map from dge_deseq2 (do NOT invent a 7th
 # indication map — see the framework's indication-vocabulary-fragmentation lesson). Imported lazily
 # in the reader entry; duplicated minimally here only for the pure path's default.
 INDICATION_TO_TCGA_STUDIES = {
-    "COADREAD": ["COAD", "READ"], "COAD": ["COAD"], "READ": ["READ"],
-    "NSCLC": ["LUAD", "LUSC"], "LUAD": ["LUAD"], "LUSC": ["LUSC"],
-    "PAAD": ["PAAD"], "BRCA": ["BRCA"], "OV": ["OV"], "STAD": ["STAD"],
-    "HNSC": ["HNSC"], "HNSCC": ["HNSC"], "LIHC": ["LIHC"], "PRAD": ["PRAD"],
-    "BLCA": ["BLCA"], "KIRC": ["KIRC"], "GBM": ["GBM"], "SKCM": ["SKCM"],
-    "UCEC": ["UCEC"], "ESCA": ["ESCA"], "CESC": ["CESC"], "THCA": ["THCA"],
+    "COADREAD": ["COAD", "READ"],
+    "COAD": ["COAD"],
+    "READ": ["READ"],
+    "NSCLC": ["LUAD", "LUSC"],
+    "LUAD": ["LUAD"],
+    "LUSC": ["LUSC"],
+    "PAAD": ["PAAD"],
+    "BRCA": ["BRCA"],
+    "OV": ["OV"],
+    "STAD": ["STAD"],
+    "HNSC": ["HNSC"],
+    "HNSCC": ["HNSC"],
+    "LIHC": ["LIHC"],
+    "PRAD": ["PRAD"],
+    "BLCA": ["BLCA"],
+    "KIRC": ["KIRC"],
+    "GBM": ["GBM"],
+    "SKCM": ["SKCM"],
+    "UCEC": ["UCEC"],
+    "ESCA": ["ESCA"],
+    "CESC": ["CESC"],
+    "THCA": ["THCA"],
 }
 
 # Essential normal organs (life-critical; on-target-off-tumor toxicity catastrophic). GTEx `group`
@@ -55,30 +72,44 @@ INDICATION_TO_TCGA_STUDIES = {
 # arbitrated by the therapeutic window", deferring the origin call HERE. An antigen highly expressed in
 # its own normal origin organ IS a real ADC/TCE toxicity concern (you cannot spare the origin organ),
 # so counting the origin toward the window is the correct conservative stance, not a false veto.
-ESSENTIAL_GTEX_TISSUES = frozenset({
-    "ADRENAL_GLAND", "BLOOD", "BLOOD_VESSEL", "BONE_MARROW", "BRAIN", "HEART",
-    "KIDNEY", "LIVER", "LUNG", "MUSCLE", "NERVE", "PANCREAS", "PITUITARY",
-    "SPLEEN", "THYROID",
-})
+ESSENTIAL_GTEX_TISSUES = frozenset(
+    {
+        "ADRENAL_GLAND",
+        "BLOOD",
+        "BLOOD_VESSEL",
+        "BONE_MARROW",
+        "BRAIN",
+        "HEART",
+        "KIDNEY",
+        "LIVER",
+        "LUNG",
+        "MUSCLE",
+        "NERVE",
+        "PANCREAS",
+        "PITUITARY",
+        "SPLEEN",
+        "THYROID",
+    }
+)
 
 # Modality-tiered essential-tissue thresholds, LINEAR TPM (ported from normal-tissue-liability.card.yaml).
 MODALITY_TIER_THRESHOLD = {
-    "bite_tce": 1.0,        # strict — no bystander payload; low-level essential expression is a killer
-    "cell_therapy": 1.0,    # strict
-    "adc": 5.0,             # moderate — bystander payload buffers some normal expression
-    "antibody": 10.0,       # pathway_dependent
+    "bite_tce": 1.0,  # strict — no bystander payload; low-level essential expression is a killer
+    "cell_therapy": 1.0,  # strict
+    "adc": 5.0,  # moderate — bystander payload buffers some normal expression
+    "antibody": 10.0,  # pathway_dependent
 }
-TUMOR_EXPRESSION_FLOOR_TPM = 1.0     # below this the tumor is effectively not-expressed (cohort-honesty)
-CLEAN_WINDOW_RATIO = 4.0             # window ratio at/above which the tumor:normal separation is "clean"
-_PSEUDOCOUNT = 1.0                   # linear-TPM pseudocount (window = (tumor+1)/(normal+1))
+TUMOR_EXPRESSION_FLOOR_TPM = 1.0  # below this the tumor is effectively not-expressed (cohort-honesty)
+CLEAN_WINDOW_RATIO = 4.0  # window ratio at/above which the tumor:normal separation is "clean"
+_PSEUDOCOUNT = 1.0  # linear-TPM pseudocount (window = (tumor+1)/(normal+1))
 # therapeutic_window_class tiers (2026-08-07, selectivity-conjunction INC-1/2) — a PURELY RATIO-BASED
 # re-tiering of the tumor÷worst-essential-normal window, ADDITIVE to the legacy window_class (which
 # keys off an ABSOLUTE essential-organ tier and collapsed high-window genes like CEACAM5 558x into the
 # same essential_tissue_liability bucket as housekeeping genes at 0.5x). Empirically (30-gene backtest)
 # housekeeping genes sit <1.0 (tumor BELOW worst critical normal = no window) while validated antigens
 # are >1 (CEACAM5 558, NECTIN4 17, MSLN 8, EPCAM 4.8, MET 2.6). Thresholds are the user-set 2026-08-07.
-THERAPEUTIC_WINDOW_CLEAN_RATIO = 5.0   # >= 5x worst critical-normal → comfortable window
-THERAPEUTIC_WINDOW_MIN_RATIO = 1.0     # 1-5x → narrow (real but modest); < 1 → NO window (the veto)
+THERAPEUTIC_WINDOW_CLEAN_RATIO = 5.0  # >= 5x worst critical-normal → comfortable window
+THERAPEUTIC_WINDOW_MIN_RATIO = 1.0  # 1-5x → narrow (real but modest); < 1 → NO window (the veto)
 
 
 def _log2tpm_to_linear(x: Optional[float]) -> Optional[float]:
@@ -91,8 +122,9 @@ def _log2tpm_to_linear(x: Optional[float]) -> Optional[float]:
         return None
 
 
-def compute_window_from_rows(rows, indication: str,
-                             tier_threshold_tpm: float = MODALITY_TIER_THRESHOLD["bite_tce"]) -> dict:
+def compute_window_from_rows(
+    rows, indication: str, tier_threshold_tpm: float = MODALITY_TIER_THRESHOLD["bite_tce"]
+) -> dict:
     """Therapeutic-window summary for one gene in one indication, from quantile rows.
 
     `rows`: the read_pan_cancer_by_tissue(target) DataFrame (columns source, group, median, ...).
@@ -107,6 +139,7 @@ def compute_window_from_rows(rows, indication: str,
       data_unavailable        — no tumor rows for the indication's studies, or product empty
     """
     import pandas as pd
+
     if rows is None or (hasattr(rows, "empty") and rows.empty):
         return _empty("no TPM quantile rows for target (absent from product or product unavailable)")
 
@@ -142,7 +175,7 @@ def compute_window_from_rows(rows, indication: str,
 
     result = {
         "window_class": None,
-        "full_normal_window_class": None,   # set below (axis-B pan-normal companion; additive)
+        "full_normal_window_class": None,  # set below (axis-B pan-normal companion; additive)
         "tumor_tpm": round(tumor_tpm, 2),
         "max_essential_normal_tpm": round(max_ess_tpm, 2),
         "max_essential_normal_organ": max_ess_organ,
@@ -164,8 +197,8 @@ def compute_window_from_rows(rows, indication: str,
     elif window_essential >= THERAPEUTIC_WINDOW_MIN_RATIO:
         result["therapeutic_window_class"] = "narrow_window"
     else:
-        result["therapeutic_window_class"] = "no_therapeutic_window"   # ratio < 1: tumor BELOW worst
-                                                                       # critical normal → the veto
+        result["therapeutic_window_class"] = "no_therapeutic_window"  # ratio < 1: tumor BELOW worst
+        # critical normal → the veto
 
     # full_normal_window_class (2026-08-08, selectivity review axis-B companion) — the SAME ratio
     # tiering as therapeutic_window_class but keyed on window_full_normal (tumor ÷ worst of the
@@ -183,8 +216,8 @@ def compute_window_from_rows(rows, indication: str,
     elif window_full_normal >= THERAPEUTIC_WINDOW_MIN_RATIO:
         result["full_normal_window_class"] = "narrow_full_normal_window"
     else:
-        result["full_normal_window_class"] = "no_full_normal_window"   # broad across the atlas
-                                                                       # (incl. non-essential) → veto candidate
+        result["full_normal_window_class"] = "no_full_normal_window"  # broad across the atlas
+        # (incl. non-essential) → veto candidate
 
     # cohort-honesty gate first (legacy window_class — UNCHANGED tiering, its 3 surface rules stay byte-stable)
     if tumor_tpm < TUMOR_EXPRESSION_FLOOR_TPM:
@@ -205,27 +238,33 @@ def _empty(note: str) -> dict:
         "window_class": "data_unavailable",
         "therapeutic_window_class": "data_unavailable",
         "full_normal_window_class": "data_unavailable",
-        "tumor_tpm": None, "max_essential_normal_tpm": None, "max_essential_normal_organ": None,
-        "max_full_normal_tpm": None, "max_full_normal_organ": None,
-        "window_ratio_essential": None, "window_ratio_full_normal": None,
-        "modality_tier_threshold_tpm": None, "tumor_studies": None, "n_gtex_tissues": 0,
+        "tumor_tpm": None,
+        "max_essential_normal_tpm": None,
+        "max_essential_normal_organ": None,
+        "max_full_normal_tpm": None,
+        "max_full_normal_organ": None,
+        "window_ratio_essential": None,
+        "window_ratio_full_normal": None,
+        "modality_tier_threshold_tpm": None,
+        "tumor_studies": None,
+        "n_gtex_tissues": 0,
         "_data_note": note,
     }
 
 
-def read_modality_window(target: str, indication: str,
-                         modality: str = "bite_tce") -> dict:
+def read_modality_window(target: str, indication: str, modality: str = "bite_tce") -> dict:
     """Reader entry the card dispatcher calls: fetch quantile rows for the gene, reduce to the
     therapeutic-window summary for the indication at the modality's essential-tissue tier.
 
     modality selects the tier threshold (bite_tce=strict 1.0 / adc=moderate 5.0 / antibody=10.0);
     default strict (the conservative BiTE/TCE tier), matching the source repo's default."""
     from .read import read_pan_cancer_by_tissue
+
     tier = MODALITY_TIER_THRESHOLD.get(str(modality).lower(), MODALITY_TIER_THRESHOLD["bite_tce"])
     rows = read_pan_cancer_by_tissue(target)
     out = compute_window_from_rows(rows, indication, tier_threshold_tpm=tier)
     out["modality"] = str(modality).lower()
     out["target"] = target
     out["indication"] = str(indication).upper().strip()
-    out["method_version"] = METHOD_VERSION       # card-declared summary_field (was never emitted)
+    out["method_version"] = METHOD_VERSION  # card-declared summary_field (was never emitted)
     return out

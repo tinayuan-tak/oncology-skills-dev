@@ -9,6 +9,7 @@ Reports the MEASURED, spatially-resolved RNA expression of a target in the TUMOU
 — region-level (ROI = a segmented tissue region), NOT single-cell. A distinct claim from the region
 PROTEIN product (antibody signal) and from the dissociated scRNA products (no tissue architecture).
 """
+
 from __future__ import annotations
 
 from typing import Optional
@@ -25,12 +26,12 @@ S3_BUCKET = "onc-compbio"
 # = emit its spatial-region-rna product (data-catalog) + one line here.
 INDICATION_TO_REGION_RNA = {
     "HNSC": "spatial-region-rna-hnsc-v1",
-    "NSCLC": "spatial-region-rna-nsclc-v1",   # lung — GeoMx Cancer Transcriptome Atlas (GSE174743)
-    "LUAD": "spatial-region-rna-nsclc-v1",     # covered by the NSCLC product (both histologies)
+    "NSCLC": "spatial-region-rna-nsclc-v1",  # lung — GeoMx Cancer Transcriptome Atlas (GSE174743)
+    "LUAD": "spatial-region-rna-nsclc-v1",  # covered by the NSCLC product (both histologies)
     "LUSC": "spatial-region-rna-nsclc-v1",
-    "COADREAD": "spatial-region-rna-coadread-v1",   # colorectal — GeoMx WTA (GSE281413); PanCK/CD45/Vimentin segments
-    "PAAD": "spatial-region-rna-paad-v1",           # pancreatic — GeoMx WTA (GSE199102 Broad hPDAC); Epithelial/Immune/CAF segments
-    "BRCA": "spatial-region-rna-brca-v1",           # breast — GeoMx WTA (GSE327983 HER2+ metastatic); PanCK/CD45 segments, Q3-normalized
+    "COADREAD": "spatial-region-rna-coadread-v1",  # colorectal — GeoMx WTA (GSE281413); PanCK/CD45/Vimentin segments
+    "PAAD": "spatial-region-rna-paad-v1",  # pancreatic — GeoMx WTA (GSE199102 Broad hPDAC); Epithelial/Immune/CAF segments
+    "BRCA": "spatial-region-rna-brca-v1",  # breast — GeoMx WTA (GSE327983 HER2+ metastatic); PanCK/CD45 segments, Q3-normalized
 }
 
 _PARQUET_COLS = ["gene_symbol", "donor_id", "compartment", "abundance_lcpm", "detected"]
@@ -53,6 +54,7 @@ def read_target_rna_rows(target: str, indication: str):
         return None
     import pyarrow.fs as fs
     import pyarrow.parquet as pq
+
     s3fs = fs.S3FileSystem(region="us-east-1")
     filters = [("gene_symbol", "==", str(target).upper().strip())]
     try:
@@ -69,13 +71,18 @@ def read_spatial_region_rna(target: str, indication: str) -> dict:
     'no product for indication' and 'target gene not on the GeoMx panel'."""
     rows = read_target_rna_rows(target, indication)
     if rows is None:
-        return _data_unavailable(target, indication,
-                                 note=f"No spatial region-RNA product landed for indication "
-                                      f"{indication}; spatial_rna is a named capability gap here.")
+        return _data_unavailable(
+            target,
+            indication,
+            note=f"No spatial region-RNA product landed for indication "
+            f"{indication}; spatial_rna is a named capability gap here.",
+        )
     if rows.empty:
-        return _data_unavailable(target, indication,
-                                 note=f"{target} not on the GeoMx panel for {indication} "
-                                      f"(gene absent from the deposited matrix).")
+        return _data_unavailable(
+            target,
+            indication,
+            note=f"{target} not on the GeoMx panel for {indication} (gene absent from the deposited matrix).",
+        )
     recs = rows.to_dict("records")
     summ = _stats.summarize_rna(recs)
     classed = _stats.classify_region_rna(summ, recs)

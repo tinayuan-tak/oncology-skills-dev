@@ -25,6 +25,7 @@ rescue (one-directional). RUNG FIRES AT MODERATE (delta <= -0.2): WRN×MSI, a ce
 -0.41 effect — context-conditional SL effect sizes are structurally smaller than oncogene addiction,
 so a STRONG-only rung would rescue nothing real (empirically established 2026-08-09).
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -35,8 +36,8 @@ METHOD_VERSION = "0.1.0"
 
 # Classification thresholds — mirror depmap_cn_dependency / depmap_mutation_dependency exactly,
 # EXCEPT the rung that fires the rescue keys on MODERATE (see module docstring / card).
-STRONG_EFFECT_DELTA = -0.5      # partner-deficient median Chronos - neutral <= -0.5 → strongly dependent
-MODERATE_EFFECT_DELTA = -0.2    # median-delta path to MODERATE (WRN×MSI = -0.41 clears strong)
+STRONG_EFFECT_DELTA = -0.5  # partner-deficient median Chronos - neutral <= -0.5 → strongly dependent
+MODERATE_EFFECT_DELTA = -0.2  # median-delta path to MODERATE (WRN×MSI = -0.41 clears strong)
 # EFFECT-SIZE path to MODERATE (2026-08-24). The median-delta floors above were mirrored from the
 # oncogene mutant-vs-WT stratified paths, where addiction produces large Chronos deltas. Synthetic-
 # lethal / collateral-lethality effects (MTAP→PRMT5, SMARCA4→SMARCA2) are REAL but modest in raw
@@ -45,10 +46,10 @@ MODERATE_EFFECT_DELTA = -0.2    # median-delta path to MODERATE (WRN×MSI = -0.4
 # Rank-biserial is the distribution-shape-normalized, cross-context-comparable magnitude (already
 # computed), so a forward-significant contrast ALSO grades to MODERATE when its effect size clears
 # this floor. Additive — only ADMITS more; the oncogene paths (their own classifier) are untouched.
-MODERATE_EFFECT_RB = 0.3        # rank-biserial ≥ 0.30 (conventional "moderate") + forward-significant → moderate
+MODERATE_EFFECT_RB = 0.3  # rank-biserial ≥ 0.30 (conventional "moderate") + forward-significant → moderate
 STRATIFICATION_ALPHA = 0.05
-MIN_PARTNER_DEFICIENT_CELLS = 5     # mirror min_mutant
-MIN_NEUTRAL_CELLS = 30              # mirror min_wildtype
+MIN_PARTNER_DEFICIENT_CELLS = 5  # mirror min_mutant
+MIN_NEUTRAL_CELLS = 30  # mirror min_wildtype
 
 _MAP_PATH = Path(__file__).resolve().parent / "partner_map.yaml"
 
@@ -82,7 +83,7 @@ def _msi_high_by_model(release_pin: str) -> dict:
         if isinstance(msi, str):
             out[model_id] = msi.strip().upper() in ("MSI-H", "MSI_H", "MSI", "MSIH", "HIGH", "TRUE", "YES")
         else:
-            out[model_id] = bool(msi)   # 1/0 or True/False encoding
+            out[model_id] = bool(msi)  # 1/0 or True/False encoding
     return out
 
 
@@ -115,8 +116,9 @@ def _partner_cn_loss_by_model(release_pin: str, partner_gene: str) -> dict:
     cn_by_model, _meta, _assay, errs = load_cn_files(release_pin, partner_gene)
     if errs or not cn_by_model:
         return {}
-    return {m: (cn < _PARTNER_DEEP_DEL) for m, cn in cn_by_model.items()
-            if isinstance(cn, (int, float)) and cn == cn}   # skip NaN
+    return {
+        m: (cn < _PARTNER_DEEP_DEL) for m, cn in cn_by_model.items() if isinstance(cn, (int, float)) and cn == cn
+    }  # skip NaN
 
 
 def build_partner_deficiency_vector(release_pin: str, partner: str, deficiency_type: str) -> dict:
@@ -130,13 +132,16 @@ def build_partner_deficiency_vector(release_pin: str, partner: str, deficiency_t
     raise ValueError(f"unknown deficiency_type: {deficiency_type!r} (partner={partner})")
 
 
-def compute_partner_stratification(chronos_by_model: dict, partner_deficient_by_model: dict,
-                                   strong_effect_delta: float = STRONG_EFFECT_DELTA,
-                                   moderate_effect_delta: float = MODERATE_EFFECT_DELTA,
-                                   stratification_alpha: float = STRATIFICATION_ALPHA,
-                                   moderate_effect_rb: float = MODERATE_EFFECT_RB,
-                                   min_deficient: int = MIN_PARTNER_DEFICIENT_CELLS,
-                                   min_neutral: int = MIN_NEUTRAL_CELLS) -> dict:
+def compute_partner_stratification(
+    chronos_by_model: dict,
+    partner_deficient_by_model: dict,
+    strong_effect_delta: float = STRONG_EFFECT_DELTA,
+    moderate_effect_delta: float = MODERATE_EFFECT_DELTA,
+    stratification_alpha: float = STRATIFICATION_ALPHA,
+    moderate_effect_rb: float = MODERATE_EFFECT_RB,
+    min_deficient: int = MIN_PARTNER_DEFICIENT_CELLS,
+    min_neutral: int = MIN_NEUTRAL_CELLS,
+) -> dict:
     """Compute the partner-conditional-dependency summary_fields.
 
     Runs the SAME Mann-Whitney contrast the mutation/CN paths use (one-sided forward:
@@ -146,11 +151,13 @@ def compute_partner_stratification(chronos_by_model: dict, partner_deficient_by_
     from methods.depmap_common.boolean_stratification import mannwhitney_stratification
 
     res = mannwhitney_stratification(
-        chronos_by_model, partner_deficient_by_model,
-        min_positive=min_deficient, min_comparator=min_neutral,
+        chronos_by_model,
+        partner_deficient_by_model,
+        min_positive=min_deficient,
+        min_comparator=min_neutral,
     )
 
-    q = res.get("p_value")               # single test → q == p (no multi-tier BH)
+    q = res.get("p_value")  # single test → q == p (no multi-tier BH)
     q_reverse = res.get("p_value_reverse")
     delta = res.get("delta_mut_vs_wt")
     effect_size = res.get("effect_size")  # rank-biserial magnitude (forward direction within the q<alpha branch)
@@ -169,8 +176,7 @@ def compute_partner_stratification(chronos_by_model: dict, partner_deficient_by_
             if delta <= moderate_effect_delta or (effect_size is not None and effect_size >= moderate_effect_rb):
                 return "partner_conditional_moderately_dependent"
         # REVERSE second-pass: neutral lines more dependent (verdict-inert, mirrors A1a).
-        if (q_reverse is not None and q_reverse < stratification_alpha
-                and delta >= -strong_effect_delta):
+        if q_reverse is not None and q_reverse < stratification_alpha and delta >= -strong_effect_delta:
             return "partner_neutral_strongly_dependent"
         return "not_partner_stratified"
 
@@ -205,13 +211,12 @@ try:
         """Compute partner-conditional stratified dependency for TARGET."""
         from .read import read_partner_conditional_dependency
         import json
+
         summary = read_partner_conditional_dependency(target, indication, release_pin=release_pin)
         click.echo(json.dumps(summary, indent=2, default=str))
         if out:
             out.mkdir(parents=True, exist_ok=True)
-            (out / "partner_conditional_dependency_summary.json").write_text(
-                json.dumps(summary, indent=2, default=str)
-            )
+            (out / "partner_conditional_dependency_summary.json").write_text(json.dumps(summary, indent=2, default=str))
 
     if __name__ == "__main__":
         main()

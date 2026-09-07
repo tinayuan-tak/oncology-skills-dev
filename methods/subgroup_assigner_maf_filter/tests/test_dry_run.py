@@ -18,8 +18,9 @@ import yaml
 # Portable repo roots: were hardcoded to the author's /home/sagemaker-user checkout, so these
 # subprocess tests FileNotFoundError'd (cwd) the moment they ran anywhere else — including CI.
 METHODS_REPO = Path(__file__).resolve().parents[3]
-CATALOG_REPO = Path(os.environ.get("DATA_CATALOG_ROOT")
-                    or METHODS_REPO.parent / "rnd-computational-biology-oncology-data-catalog")
+CATALOG_REPO = Path(
+    os.environ.get("DATA_CATALOG_ROOT") or METHODS_REPO.parent / "rnd-computational-biology-oncology-data-catalog"
+)
 
 
 def test_dry_run_on_coadread_tcga():
@@ -27,15 +28,24 @@ def test_dry_run_on_coadread_tcga():
     catalog_path = CATALOG_REPO / "subgroup-catalogs" / "COADREAD" / "2026-Q2.yaml"
     result = subprocess.run(
         [
-            sys.executable, "-m", "methods.subgroup_assigner_maf_filter.cli",
-            "--subgroup-catalog", str(catalog_path),
-            "--data-source", "tcga",
-            "--release-pin", "2026-Q2",
-            "--catalog-repo", str(CATALOG_REPO),
-            "--out", "/tmp/saf_dryrun",
+            sys.executable,
+            "-m",
+            "methods.subgroup_assigner_maf_filter.cli",
+            "--subgroup-catalog",
+            str(catalog_path),
+            "--data-source",
+            "tcga",
+            "--release-pin",
+            "2026-Q2",
+            "--catalog-repo",
+            str(CATALOG_REPO),
+            "--out",
+            "/tmp/saf_dryrun",
             "--dry-run",
         ],
-        cwd=METHODS_REPO, capture_output=True, text=True,
+        cwd=METHODS_REPO,
+        capture_output=True,
+        text=True,
     )
     assert result.returncode == 0, f"CLI failed: {result.stderr}"
     assert "subgroup_assigner_maf_filter" in result.stdout
@@ -53,15 +63,24 @@ def test_dry_run_on_paad_tcga():
         pytest.skip(f"PAAD catalog not landed on this branch/main: {catalog_path}")
     result = subprocess.run(
         [
-            sys.executable, "-m", "methods.subgroup_assigner_maf_filter.cli",
-            "--subgroup-catalog", str(catalog_path),
-            "--data-source", "tcga",
-            "--release-pin", "2026-Q3",
-            "--catalog-repo", str(CATALOG_REPO),
-            "--out", "/tmp/saf_paad_dryrun",
+            sys.executable,
+            "-m",
+            "methods.subgroup_assigner_maf_filter.cli",
+            "--subgroup-catalog",
+            str(catalog_path),
+            "--data-source",
+            "tcga",
+            "--release-pin",
+            "2026-Q3",
+            "--catalog-repo",
+            str(CATALOG_REPO),
+            "--out",
+            "/tmp/saf_paad_dryrun",
             "--dry-run",
         ],
-        cwd=METHODS_REPO, capture_output=True, text=True,
+        cwd=METHODS_REPO,
+        capture_output=True,
+        text=True,
     )
     assert result.returncode == 0, f"CLI failed: {result.stderr}"
     assert "KRAS_G12D" in result.stdout
@@ -97,6 +116,7 @@ def test_rule_compiler_supported_forms():
 
     # NaN handling
     import numpy as np
+
     p = compile_rule("gene_symbol == 'KRAS' && protein_change == 'p.G12C'")
     # NaN in a required field → None (tri-value)
     assert p({"gene_symbol": np.nan, "protein_change": "p.G12C"}) is None
@@ -112,25 +132,28 @@ def test_sample_level_negation_wildtype():
 
     # 3 samples: S1 has KRAS G12D (mutant), S2 has only TP53 (KRAS-WT),
     # S3 has KRAS G12D + a TP53 row (mutant). Correct WT set = {S2}.
-    maf = pd.DataFrame({
-        "sample_id":      ["S1", "S2", "S3", "S3"],
-        "patient_id":     ["S1", "S2", "S3", "S3"],
-        "source_native_id":["S1", "S2", "S3", "S3"],
-        "gene_symbol":    ["KRAS", "TP53", "KRAS", "TP53"],
-        "protein_change": ["p.G12D", "p.R175H", "p.G12D", "p.R248Q"],
-    })
-    all_samples = pd.DataFrame({
-        "sample_id": ["S1", "S2", "S3"],
-        "patient_id": ["S1", "S2", "S3"],
-        "source_native_id": ["S1", "S2", "S3"],
-    })
+    maf = pd.DataFrame(
+        {
+            "sample_id": ["S1", "S2", "S3", "S3"],
+            "patient_id": ["S1", "S2", "S3", "S3"],
+            "source_native_id": ["S1", "S2", "S3", "S3"],
+            "gene_symbol": ["KRAS", "TP53", "KRAS", "TP53"],
+            "protein_change": ["p.G12D", "p.R175H", "p.G12D", "p.R248Q"],
+        }
+    )
+    all_samples = pd.DataFrame(
+        {
+            "sample_id": ["S1", "S2", "S3"],
+            "patient_id": ["S1", "S2", "S3"],
+            "source_native_id": ["S1", "S2", "S3"],
+        }
+    )
     stratum = {
         "id": "KRAS_WT",
         "rule": "!(gene_symbol == 'KRAS' && protein_change in ['p.G12C','p.G12D','p.G12V'])",
         "derivation_source": "maf_filter_per_rule",
     }
-    out = _evaluate_stratum_maf(stratum, maf, "sample_id", "patient_id",
-                                "source_native_id", all_samples)
+    out = _evaluate_stratum_maf(stratum, maf, "sample_id", "patient_id", "source_native_id", all_samples)
     members = set(out[out["is_member"] == True]["sample_id"])
     # Only S2 (no KRAS hotspot) is WT. NOT S1/S3 (they carry KRAS G12D).
     assert members == {"S2"}, f"expected {{S2}}, got {members}"
@@ -138,10 +161,12 @@ def test_sample_level_negation_wildtype():
     assert out[out["sample_id"] == "S2"].iloc[0]["derivation_value"] == ""
 
     # Sanity: the POSITIVE (non-negated) form gives the complement {S1, S3}.
-    pos = {**stratum, "id": "KRAS_mut",
-           "rule": "gene_symbol == 'KRAS' && protein_change in ['p.G12C','p.G12D','p.G12V']"}
-    out_pos = _evaluate_stratum_maf(pos, maf, "sample_id", "patient_id",
-                                    "source_native_id", all_samples)
+    pos = {
+        **stratum,
+        "id": "KRAS_mut",
+        "rule": "gene_symbol == 'KRAS' && protein_change in ['p.G12C','p.G12D','p.G12V']",
+    }
+    out_pos = _evaluate_stratum_maf(pos, maf, "sample_id", "patient_id", "source_native_id", all_samples)
     assert set(out_pos[out_pos["is_member"] == True]["sample_id"]) == {"S1", "S3"}
 
 
@@ -161,24 +186,87 @@ def test_real_execution_synthetic_tcga_maf(tmp_path):
     # - S5: BRAF V600K (not V600E)
     # - S6, S7, S8: no KRAS/BRAF hotspot mutations (should be KRAS_G12C=false)
     rows = [
-        {"sample_id": "TCGA-01", "patient_id": "TCGA-01", "source_native_id": "TCGA-01-01A",
-         "gene_symbol": "KRAS", "protein_change": "p.G12C", "effect": "missense", "exon": 2},
-        {"sample_id": "TCGA-01", "patient_id": "TCGA-01", "source_native_id": "TCGA-01-01A",
-         "gene_symbol": "TP53", "protein_change": "p.R175H", "effect": "missense", "exon": 5},
-        {"sample_id": "TCGA-02", "patient_id": "TCGA-02", "source_native_id": "TCGA-02-01A",
-         "gene_symbol": "KRAS", "protein_change": "p.G12C", "effect": "missense", "exon": 2},
-        {"sample_id": "TCGA-03", "patient_id": "TCGA-03", "source_native_id": "TCGA-03-01A",
-         "gene_symbol": "KRAS", "protein_change": "p.G12D", "effect": "missense", "exon": 2},
-        {"sample_id": "TCGA-04", "patient_id": "TCGA-04", "source_native_id": "TCGA-04-01A",
-         "gene_symbol": "BRAF", "protein_change": "p.V600E", "effect": "missense", "exon": 15},
-        {"sample_id": "TCGA-05", "patient_id": "TCGA-05", "source_native_id": "TCGA-05-01A",
-         "gene_symbol": "BRAF", "protein_change": "p.V600K", "effect": "missense", "exon": 15},
-        {"sample_id": "TCGA-06", "patient_id": "TCGA-06", "source_native_id": "TCGA-06-01A",
-         "gene_symbol": "APC", "protein_change": "p.R1450*", "effect": "nonsense", "exon": 15},
-        {"sample_id": "TCGA-07", "patient_id": "TCGA-07", "source_native_id": "TCGA-07-01A",
-         "gene_symbol": "TP53", "protein_change": "p.R248W", "effect": "missense", "exon": 7},
-        {"sample_id": "TCGA-08", "patient_id": "TCGA-08", "source_native_id": "TCGA-08-01A",
-         "gene_symbol": "APC", "protein_change": "p.T1493fs", "effect": "frameshift", "exon": 15},
+        {
+            "sample_id": "TCGA-01",
+            "patient_id": "TCGA-01",
+            "source_native_id": "TCGA-01-01A",
+            "gene_symbol": "KRAS",
+            "protein_change": "p.G12C",
+            "effect": "missense",
+            "exon": 2,
+        },
+        {
+            "sample_id": "TCGA-01",
+            "patient_id": "TCGA-01",
+            "source_native_id": "TCGA-01-01A",
+            "gene_symbol": "TP53",
+            "protein_change": "p.R175H",
+            "effect": "missense",
+            "exon": 5,
+        },
+        {
+            "sample_id": "TCGA-02",
+            "patient_id": "TCGA-02",
+            "source_native_id": "TCGA-02-01A",
+            "gene_symbol": "KRAS",
+            "protein_change": "p.G12C",
+            "effect": "missense",
+            "exon": 2,
+        },
+        {
+            "sample_id": "TCGA-03",
+            "patient_id": "TCGA-03",
+            "source_native_id": "TCGA-03-01A",
+            "gene_symbol": "KRAS",
+            "protein_change": "p.G12D",
+            "effect": "missense",
+            "exon": 2,
+        },
+        {
+            "sample_id": "TCGA-04",
+            "patient_id": "TCGA-04",
+            "source_native_id": "TCGA-04-01A",
+            "gene_symbol": "BRAF",
+            "protein_change": "p.V600E",
+            "effect": "missense",
+            "exon": 15,
+        },
+        {
+            "sample_id": "TCGA-05",
+            "patient_id": "TCGA-05",
+            "source_native_id": "TCGA-05-01A",
+            "gene_symbol": "BRAF",
+            "protein_change": "p.V600K",
+            "effect": "missense",
+            "exon": 15,
+        },
+        {
+            "sample_id": "TCGA-06",
+            "patient_id": "TCGA-06",
+            "source_native_id": "TCGA-06-01A",
+            "gene_symbol": "APC",
+            "protein_change": "p.R1450*",
+            "effect": "nonsense",
+            "exon": 15,
+        },
+        {
+            "sample_id": "TCGA-07",
+            "patient_id": "TCGA-07",
+            "source_native_id": "TCGA-07-01A",
+            "gene_symbol": "TP53",
+            "protein_change": "p.R248W",
+            "effect": "missense",
+            "exon": 7,
+        },
+        {
+            "sample_id": "TCGA-08",
+            "patient_id": "TCGA-08",
+            "source_native_id": "TCGA-08-01A",
+            "gene_symbol": "APC",
+            "protein_change": "p.T1493fs",
+            "effect": "frameshift",
+            "exon": 15,
+        },
     ]
     pd.DataFrame(rows).to_parquet(maf_path, index=False)
 
@@ -186,14 +274,23 @@ def test_real_execution_synthetic_tcga_maf(tmp_path):
     out_dir = tmp_path / "saf_out"
     result = subprocess.run(
         [
-            sys.executable, "-m", "methods.subgroup_assigner_maf_filter.cli",
-            "--subgroup-catalog", str(catalog_path),
-            "--data-source", "tcga",
-            "--release-pin", "2026-Q2",
-            "--catalog-repo", str(CATALOG_REPO),
-            "--out", str(out_dir),
+            sys.executable,
+            "-m",
+            "methods.subgroup_assigner_maf_filter.cli",
+            "--subgroup-catalog",
+            str(catalog_path),
+            "--data-source",
+            "tcga",
+            "--release-pin",
+            "2026-Q2",
+            "--catalog-repo",
+            str(CATALOG_REPO),
+            "--out",
+            str(out_dir),
         ],
-        cwd=METHODS_REPO, capture_output=True, text=True,
+        cwd=METHODS_REPO,
+        capture_output=True,
+        text=True,
         env={**os.environ, "FRAMEWORK_CACHE_ROOT": str(cache_root)},
     )
     assert result.returncode == 0, f"CLI failed: {result.stderr}\nstdout:\n{result.stdout}"

@@ -33,6 +33,7 @@ TWO SUPPRESSION LISTS (the distinction reviewers care about)
 ESCAPE HATCH: put ``# pushdown-discipline: exempt -- <reason>`` on the download_file line (or in its
 enclosing function) to suppress a finding inline, next to the code.
 """
+
 from __future__ import annotations
 
 import ast
@@ -79,8 +80,7 @@ _ALLOWLIST = {
 
 # --- pre-existing query-time whole-download readers, to CONVERT to streamed pushdown (burn-down) ---
 # Each is a real per-target/cohort reader that still downloads the whole product. Shrinks as converted.
-_BASELINE = {
-}
+_BASELINE = {}
 
 _MARKER = "pushdown-discipline: exempt"
 
@@ -126,8 +126,11 @@ def _scan():
         lines = src.splitlines()
         rel = str(py.relative_to(_METHODS))
         for node in ast.walk(tree):
-            if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) \
-                    and node.func.attr == "download_file":
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "download_file"
+            ):
                 fn = parent_fn.get(node, "<module>")
                 # inline exempt marker on the call line or anywhere in the enclosing function's span
                 exempt = False
@@ -150,8 +153,9 @@ def test_no_new_whole_download_readers():
         "(pyarrow read_table over S3FileSystem with filters=/columns=; see the parquet-storage-standard "
         "and methods/combo_drug_anchor/read.py). If legitimately whole-file (precompute/reference/batch/"
         "fallback), add it to _ALLOWLIST with a reason or mark the line "
-        f"'# {_MARKER} -- <reason>'. New sites:\n  " + "\n  ".join(
-            f"{k} ({found[k][0]}:{found[k][1]})" for k in violations))
+        f"'# {_MARKER} -- <reason>'. New sites:\n  "
+        + "\n  ".join(f"{k} ({found[k][0]}:{found[k][1]})" for k in violations)
+    )
 
 
 def test_baseline_and_allowlist_not_stale():
@@ -160,5 +164,5 @@ def test_baseline_and_allowlist_not_stale():
     found = set(_scan())
     stale = sorted((set(_BASELINE) | set(_ALLOWLIST)) - found)
     assert not stale, (
-        "Stale pushdown-discipline entries (no longer a download_file site — remove them):\n  "
-        + "\n  ".join(stale))
+        "Stale pushdown-discipline entries (no longer a download_file site — remove them):\n  " + "\n  ".join(stale)
+    )

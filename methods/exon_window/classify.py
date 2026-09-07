@@ -34,30 +34,61 @@ the dominant tumor isoform, i.e. what a binder actually engages. NOT the max-win
 live-smoke that gave CLDN18 negative heterogeneity). Reuses the gene-window's
 INDICATION_TO_TCGA_STUDIES + ESSENTIAL_GTEX_TISSUES + modality tiers verbatim (no new map).
 """
+
 from __future__ import annotations
 
 import math
 from typing import Optional
 
 INDICATION_TO_TCGA_STUDIES = {
-    "COADREAD": ["COAD", "READ"], "COAD": ["COAD"], "READ": ["READ"],
-    "NSCLC": ["LUAD", "LUSC"], "LUAD": ["LUAD"], "LUSC": ["LUSC"],
-    "PAAD": ["PAAD"], "BRCA": ["BRCA"], "OV": ["OV"], "STAD": ["STAD"],
-    "HNSC": ["HNSC"], "HNSCC": ["HNSC"], "LIHC": ["LIHC"], "PRAD": ["PRAD"],
-    "BLCA": ["BLCA"], "KIRC": ["KIRC"], "GBM": ["GBM"], "SKCM": ["SKCM"],
-    "UCEC": ["UCEC"], "ESCA": ["ESCA"], "CESC": ["CESC"], "THCA": ["THCA"],
+    "COADREAD": ["COAD", "READ"],
+    "COAD": ["COAD"],
+    "READ": ["READ"],
+    "NSCLC": ["LUAD", "LUSC"],
+    "LUAD": ["LUAD"],
+    "LUSC": ["LUSC"],
+    "PAAD": ["PAAD"],
+    "BRCA": ["BRCA"],
+    "OV": ["OV"],
+    "STAD": ["STAD"],
+    "HNSC": ["HNSC"],
+    "HNSCC": ["HNSC"],
+    "LIHC": ["LIHC"],
+    "PRAD": ["PRAD"],
+    "BLCA": ["BLCA"],
+    "KIRC": ["KIRC"],
+    "GBM": ["GBM"],
+    "SKCM": ["SKCM"],
+    "UCEC": ["UCEC"],
+    "ESCA": ["ESCA"],
+    "CESC": ["CESC"],
+    "THCA": ["THCA"],
 }
-ESSENTIAL_GTEX_TISSUES = frozenset({
-    "ADRENAL_GLAND", "BLOOD", "BLOOD_VESSEL", "BONE_MARROW", "BRAIN", "HEART",
-    "KIDNEY", "LIVER", "LUNG", "MUSCLE", "NERVE", "PANCREAS", "PITUITARY",
-    "SPLEEN", "THYROID",
-})
+ESSENTIAL_GTEX_TISSUES = frozenset(
+    {
+        "ADRENAL_GLAND",
+        "BLOOD",
+        "BLOOD_VESSEL",
+        "BONE_MARROW",
+        "BRAIN",
+        "HEART",
+        "KIDNEY",
+        "LIVER",
+        "LUNG",
+        "MUSCLE",
+        "NERVE",
+        "PANCREAS",
+        "PITUITARY",
+        "SPLEEN",
+        "THYROID",
+    }
+)
 MODALITY_TIER_THRESHOLD = {"bite_tce": 1.0, "cell_therapy": 1.0, "adc": 5.0, "antibody": 10.0}
 TUMOR_EXPRESSION_FLOOR_TPM = 1.0
 CLEAN_WINDOW_RATIO = 4.0
-EXON_HETEROGENEITY_LOG2 = 2.0    # tumor-dominant exon must exceed the gene's median exon by >= this (4x)
+EXON_HETEROGENEITY_LOG2 = 2.0  # tumor-dominant exon must exceed the gene's median exon by >= this (4x)
 _PSEUDOCOUNT = 1.0
-METHOD_VERSION = "1.1.0"   # 1.1.0: tumor-dominant best-exon (live-smoke fix) + honest exon_heterogeneity_flag naming
+METHOD_VERSION = "1.1.0"  # 1.1.0: tumor-dominant best-exon (live-smoke fix) + honest exon_heterogeneity_flag naming
 
 
 def _lin(x: Optional[float]) -> float:
@@ -69,10 +100,12 @@ def _lin(x: Optional[float]) -> float:
         return 0.0
 
 
-def compute_exon_window_from_rows(rows, indication: str,
-                                  tier_threshold_tpm: float = MODALITY_TIER_THRESHOLD["bite_tce"]) -> dict:
+def compute_exon_window_from_rows(
+    rows, indication: str, tier_threshold_tpm: float = MODALITY_TIER_THRESHOLD["bite_tce"]
+) -> dict:
     """Per-gene exon-window summary from exon-quantile rows (all exons of ONE gene). Pure — no S3."""
     import pandas as pd
+
     if rows is None or (hasattr(rows, "empty") and rows.empty):
         return _empty("not_in_product", "gene absent from surfaceome-scoped exon product")
     df = rows if isinstance(rows, pd.DataFrame) else pd.DataFrame(rows)
@@ -104,7 +137,7 @@ def compute_exon_window_from_rows(rows, indication: str,
     tumor_log2 = sorted(math.log2(d.get("tumor", 0.0) + 1.0) for d in per_exon.values())
     median_exon_log2 = tumor_log2[len(tumor_log2) // 2]
     best_exon_log2 = math.log2(best["tumor_tpm"] + 1.0)
-    heterogeneity = best_exon_log2 - median_exon_log2   # >= 0 by construction (best is the max-tumor exon)
+    heterogeneity = best_exon_log2 - median_exon_log2  # >= 0 by construction (best is the max-tumor exon)
 
     result = {
         "exon_window_class": None,
@@ -131,9 +164,15 @@ def compute_exon_window_from_rows(rows, indication: str,
 
 def _empty(cls: str, note: str) -> dict:
     return {
-        "exon_window_class": cls, "n_exons": 0, "best_exon_id": None,
-        "best_exon_tumor_tpm": None, "best_exon_max_essential_tpm": None,
-        "best_exon_window_ratio": None, "exon_heterogeneity_log2": None,
-        "median_exon_tumor_log2tpm": None, "modality_tier_threshold_tpm": None,
-        "tumor_studies": None, "_data_note": note,
+        "exon_window_class": cls,
+        "n_exons": 0,
+        "best_exon_id": None,
+        "best_exon_tumor_tpm": None,
+        "best_exon_max_essential_tpm": None,
+        "best_exon_window_ratio": None,
+        "exon_heterogeneity_log2": None,
+        "median_exon_tumor_log2tpm": None,
+        "modality_tier_threshold_tpm": None,
+        "tumor_studies": None,
+        "_data_note": note,
     }

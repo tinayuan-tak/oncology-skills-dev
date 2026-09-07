@@ -25,4 +25,5 @@ the kinase-retaining / in-frame / dependency-conferring partner — 5'/3' orient
 resolution (OmicsFusionFilteredSupplementary.csv) is a v2 upgrade. Failure mode is CONSERVATIVE: a
 bystander-partner fusion only dilutes toward the null (never a false positive) under the one-sided test.
 """
+
 from .read import read_fusion_stratified_dependency, METHOD_VERSION  # noqa: F401

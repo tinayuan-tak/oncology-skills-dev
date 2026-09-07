@@ -26,50 +26,70 @@ from depmap_prism_activity import read as e6read  # noqa: E402
 
 def _make_synthetic_parquet(out_path: Path):
     """Build a small aggregate parquet matching production v3 schema — KRAS + EGFR + weak gene."""
-    top_struct = pa.struct([
-        pa.field("compound_id", pa.string()),
-        pa.field("drug_name", pa.string()),
-        pa.field("moa", pa.string()),
-        pa.field("median_log2auc", pa.float32()),
-        pa.field("best_responder_lfc", pa.float32()),
-        pa.field("single_dose_lfc", pa.float32()),
-        pa.field("n_lines_screened", pa.int32()),
-        pa.field("polyselective", pa.bool_()),
-        pa.field("n_annotated_targets", pa.int32()),
-        pa.field("source_release", pa.string()),
-        pa.field("prioritized", pa.bool_()),
-        pa.field("metric_source", pa.string()),
-    ])
-    lineage_struct = pa.struct([
-        pa.field("lineage", pa.string()),
-        pa.field("n_lines_screened", pa.int32()),
-        pa.field("median_log2auc", pa.float32()),
-        pa.field("best_responder_lfc", pa.float32()),
-        pa.field("top_compound_in_lineage", pa.string()),
-        pa.field("n_compounds_evaluated", pa.int32()),
-    ])
-    schema = pa.schema([
-        pa.field("gene_symbol", pa.string()),
-        pa.field("n_compounds_targeting", pa.int32()),
-        pa.field("highest_clinical_phase", pa.string()),
-        pa.field("median_log2auc_across_compounds", pa.float32()),
-        pa.field("top_compounds", pa.list_(top_struct)),
-        pa.field("prism_activity_class", pa.string()),
-        pa.field("per_lineage_activity", pa.list_(lineage_struct)),
-        pa.field("prism_lineage_selectivity", pa.string()),
-    ])
+    top_struct = pa.struct(
+        [
+            pa.field("compound_id", pa.string()),
+            pa.field("drug_name", pa.string()),
+            pa.field("moa", pa.string()),
+            pa.field("median_log2auc", pa.float32()),
+            pa.field("best_responder_lfc", pa.float32()),
+            pa.field("single_dose_lfc", pa.float32()),
+            pa.field("n_lines_screened", pa.int32()),
+            pa.field("polyselective", pa.bool_()),
+            pa.field("n_annotated_targets", pa.int32()),
+            pa.field("source_release", pa.string()),
+            pa.field("prioritized", pa.bool_()),
+            pa.field("metric_source", pa.string()),
+        ]
+    )
+    lineage_struct = pa.struct(
+        [
+            pa.field("lineage", pa.string()),
+            pa.field("n_lines_screened", pa.int32()),
+            pa.field("median_log2auc", pa.float32()),
+            pa.field("best_responder_lfc", pa.float32()),
+            pa.field("top_compound_in_lineage", pa.string()),
+            pa.field("n_compounds_evaluated", pa.int32()),
+        ]
+    )
+    schema = pa.schema(
+        [
+            pa.field("gene_symbol", pa.string()),
+            pa.field("n_compounds_targeting", pa.int32()),
+            pa.field("highest_clinical_phase", pa.string()),
+            pa.field("median_log2auc_across_compounds", pa.float32()),
+            pa.field("top_compounds", pa.list_(top_struct)),
+            pa.field("prism_activity_class", pa.string()),
+            pa.field("per_lineage_activity", pa.list_(lineage_struct)),
+            pa.field("prism_lineage_selectivity", pa.string()),
+        ]
+    )
 
     def tc(cid, name, moa, log2auc, best_lfc, sd_lfc, n, poly, ntgt, rel, prio, metric):
-        return {"compound_id": cid, "drug_name": name, "moa": moa,
-                "median_log2auc": log2auc, "best_responder_lfc": best_lfc,
-                "single_dose_lfc": sd_lfc, "n_lines_screened": n,
-                "polyselective": poly, "n_annotated_targets": ntgt,
-                "source_release": rel, "prioritized": prio, "metric_source": metric}
+        return {
+            "compound_id": cid,
+            "drug_name": name,
+            "moa": moa,
+            "median_log2auc": log2auc,
+            "best_responder_lfc": best_lfc,
+            "single_dose_lfc": sd_lfc,
+            "n_lines_screened": n,
+            "polyselective": poly,
+            "n_annotated_targets": ntgt,
+            "source_release": rel,
+            "prioritized": prio,
+            "metric_source": metric,
+        }
 
     def ln(lineage, n, log2auc, best_lfc, top, ncmp):
-        return {"lineage": lineage, "n_lines_screened": n, "median_log2auc": log2auc,
-                "best_responder_lfc": best_lfc, "top_compound_in_lineage": top,
-                "n_compounds_evaluated": ncmp}
+        return {
+            "lineage": lineage,
+            "n_lines_screened": n,
+            "median_log2auc": log2auc,
+            "best_responder_lfc": best_lfc,
+            "top_compound_in_lineage": top,
+            "n_compounds_evaluated": ncmp,
+        }
 
     rows = {
         "gene_symbol": ["EGFR", "KRAS", "WEAKGENE"],
@@ -78,15 +98,80 @@ def _make_synthetic_parquet(out_path: Path):
         "median_log2auc_across_compounds": [-0.35, -0.16, -0.04],
         "top_compounds": [
             [
-                tc("PRC-EGFR-1", "ERLOTINIB", "EGFR TKI", -0.5, -6.8, None, 400, False, 1, "oncref-25q4", True, "log2auc"),
-                tc("PRC-EGFR-2", "OSIMERTINIB", "EGFR TKI T790M", -0.42, -9.3, None, 400, False, 1, "oncref-25q4", True, "log2auc"),
+                tc(
+                    "PRC-EGFR-1",
+                    "ERLOTINIB",
+                    "EGFR TKI",
+                    -0.5,
+                    -6.8,
+                    None,
+                    400,
+                    False,
+                    1,
+                    "oncref-25q4",
+                    True,
+                    "log2auc",
+                ),
+                tc(
+                    "PRC-EGFR-2",
+                    "OSIMERTINIB",
+                    "EGFR TKI T790M",
+                    -0.42,
+                    -9.3,
+                    None,
+                    400,
+                    False,
+                    1,
+                    "oncref-25q4",
+                    True,
+                    "log2auc",
+                ),
             ],
             [
-                tc("PRC-KRAS-1", "DARAXONRASIB", "pan-RAS", -0.43, -4.7, None, 380, False, 1, "oncref-25q4", True, "log2auc"),
-                tc("BRD-LON", "LONAFARNIB", "FTase inhibitor", None, None, -0.4, 500, True, 4, "repurposing-24q2", False, "single_dose_lfc"),
+                tc(
+                    "PRC-KRAS-1",
+                    "DARAXONRASIB",
+                    "pan-RAS",
+                    -0.43,
+                    -4.7,
+                    None,
+                    380,
+                    False,
+                    1,
+                    "oncref-25q4",
+                    True,
+                    "log2auc",
+                ),
+                tc(
+                    "BRD-LON",
+                    "LONAFARNIB",
+                    "FTase inhibitor",
+                    None,
+                    None,
+                    -0.4,
+                    500,
+                    True,
+                    4,
+                    "repurposing-24q2",
+                    False,
+                    "single_dose_lfc",
+                ),
             ],
             [
-                tc("BRD-WEAK", "TOOL-COMPOUND-X", "unknown", None, None, -0.3, 400, False, 1, "repurposing-24q2", False, "single_dose_lfc"),
+                tc(
+                    "BRD-WEAK",
+                    "TOOL-COMPOUND-X",
+                    "unknown",
+                    None,
+                    None,
+                    -0.3,
+                    400,
+                    False,
+                    1,
+                    "repurposing-24q2",
+                    False,
+                    "single_dose_lfc",
+                ),
             ],
         ],
         "prism_activity_class": ["clinically_active", "clinically_active", "tool_compound_only"],
@@ -118,6 +203,7 @@ def _make_synthetic_parquet(out_path: Path):
 # Parquet lookup
 # ---------------------------------------------------------------------------
 
+
 def test_fetch_prism_row_hit(tmp_path):
     p = tmp_path / "prism.parquet"
     _make_synthetic_parquet(p)
@@ -137,6 +223,7 @@ def test_fetch_prism_row_miss(tmp_path):
 # ---------------------------------------------------------------------------
 # Summary compute
 # ---------------------------------------------------------------------------
+
 
 def test_compute_summary_no_compounds_when_row_missing():
     s = e6cli.compute_summary(None, "GHOSTGENE")
@@ -199,6 +286,7 @@ def test_compute_summary_coerces_nan_median_to_none():
 # Figure emitters
 # ---------------------------------------------------------------------------
 
+
 def test_emit_top_compounds_bar_populated(tmp_path):
     p = tmp_path / "prism.parquet"
     _make_synthetic_parquet(p)
@@ -241,6 +329,7 @@ def test_emit_activity_vocabulary_panel(tmp_path):
 # ---------------------------------------------------------------------------
 # read.py shim
 # ---------------------------------------------------------------------------
+
 
 def test_read_prism_activity_bad_pin_returns_data_unavailable():
     out = e6read.read_prism_activity("KRAS", indication=None, release_pin="bogus")

@@ -45,7 +45,8 @@ METHOD_VERSION = "0.2.0"  # + MEASURED Olink conditioned-media shed facet (media
 
 # --- reliable tier: curated vocab in target-contracts ---
 DEFAULT_TARGET_CONTRACTS = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
+    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+)
 SHED_VOCAB_RELPATH = "vocabularies/shed_antigen_targets.yaml"
 
 # --- proxy tier: HPA v25-1 secretome (landed source hpa-v25-1) ---
@@ -84,6 +85,7 @@ from methods.target_id_sidecar import ensure_aws_profile
 # Reliable tier — curated serum-marker crosswalk
 # ---------------------------------------------------------------------------
 
+
 def load_shed_vocab(target_contracts_dir: Path = DEFAULT_TARGET_CONTRACTS) -> dict:
     """Load the curated shed-antigen vocabulary (entries keyed by HGNC symbol)."""
     path = Path(target_contracts_dir) / SHED_VOCAB_RELPATH
@@ -91,9 +93,9 @@ def load_shed_vocab(target_contracts_dir: Path = DEFAULT_TARGET_CONTRACTS) -> di
         return yaml.safe_load(f)
 
 
-def lookup_clinical_shed(gene_symbol: str,
-                         target_contracts_dir: Path = DEFAULT_TARGET_CONTRACTS,
-                         vocab: Optional[dict] = None) -> Optional[dict]:
+def lookup_clinical_shed(
+    gene_symbol: str, target_contracts_dir: Path = DEFAULT_TARGET_CONTRACTS, vocab: Optional[dict] = None
+) -> Optional[dict]:
     """Return the curated entry for a gene, or None. Vocab may be pre-loaded for tests."""
     v = vocab if vocab is not None else load_shed_vocab(target_contracts_dir)
     entries = (v or {}).get("entries", {}) or {}
@@ -110,41 +112,38 @@ def lookup_clinical_shed(gene_symbol: str,
 # Proxy tier — HPA secretome
 # ---------------------------------------------------------------------------
 
+
 def _read_hpa_secretome_df(hpa_path=None):
     """Load the HPA master TSV (Gene, Uniprot, Secretome location) — local path or S3."""
     import pandas as pd
+
     if hpa_path is not None:
         # local override: a .tsv, .tsv.zip, or parquet fixture for tests
         p = str(hpa_path)
         if p.endswith(".zip"):
             z = zipfile.ZipFile(p)
             with z.open(z.namelist()[0]) as f:
-                return pd.read_csv(f, sep="\t",
-                                   usecols=[HPA_GENE_COL, HPA_UNIPROT_COL, HPA_SECRETOME_COL],
-                                   dtype=str)
+                return pd.read_csv(f, sep="\t", usecols=[HPA_GENE_COL, HPA_UNIPROT_COL, HPA_SECRETOME_COL], dtype=str)
         if p.endswith(".parquet"):
             return pd.read_parquet(p)
-        return pd.read_csv(p, sep="\t",
-                           usecols=[HPA_GENE_COL, HPA_UNIPROT_COL, HPA_SECRETOME_COL],
-                           dtype=str)
+        return pd.read_csv(p, sep="\t", usecols=[HPA_GENE_COL, HPA_UNIPROT_COL, HPA_SECRETOME_COL], dtype=str)
     ensure_aws_profile()
     import boto3
+
     body = boto3.client("s3").get_object(Bucket=S3_BUCKET, Key=HPA_KEY)["Body"].read()
     z = zipfile.ZipFile(io.BytesIO(body))
     with z.open(z.namelist()[0]) as f:
-        return pd.read_csv(f, sep="\t",
-                           usecols=[HPA_GENE_COL, HPA_UNIPROT_COL, HPA_SECRETOME_COL],
-                           dtype=str)
+        return pd.read_csv(f, sep="\t", usecols=[HPA_GENE_COL, HPA_UNIPROT_COL, HPA_SECRETOME_COL], dtype=str)
 
 
 def lookup_hpa_secretome(gene_symbol: str, hpa_path=None) -> dict:
     """Return {found, secretome_location, uniprot, secreted_systemic} for a gene."""
     import pandas as pd
+
     df = _read_hpa_secretome_df(hpa_path)
     hit = df[df[HPA_GENE_COL].astype(str).str.upper() == gene_symbol.strip().upper()]
     if not len(hit):
-        return {"found": False, "secretome_location": None, "uniprot": None,
-                "secreted_systemic": False}
+        return {"found": False, "secretome_location": None, "uniprot": None, "secreted_systemic": False}
     row = hit.iloc[0]
     loc = row.get(HPA_SECRETOME_COL)
     loc = None if (loc is None or (isinstance(loc, float) and pd.isna(loc)) or str(loc) == "nan") else str(loc)
@@ -162,6 +161,7 @@ def lookup_hpa_secretome(gene_symbol: str, hpa_path=None) -> dict:
 # ---------------------------------------------------------------------------
 # Classifier + summary
 # ---------------------------------------------------------------------------
+
 
 def classify_shed(clinical_entry: Optional[dict], hpa: dict) -> str:
     """Map the two-tier evidence → shed_liability_class per the card vocabulary.
@@ -186,9 +186,7 @@ def classify_shed(clinical_entry: Optional[dict], hpa: dict) -> str:
     return "indeterminate"
 
 
-def compute_summary(gene_symbol: str,
-                    clinical_entry: Optional[dict],
-                    hpa: dict) -> dict:
+def compute_summary(gene_symbol: str, clinical_entry: Optional[dict], hpa: dict) -> dict:
     """Build the shed-ectodomain-liability card summary from the two tiers."""
     shed_class = classify_shed(clinical_entry, hpa)
     if clinical_entry is not None:
@@ -209,11 +207,15 @@ def compute_summary(gene_symbol: str,
     }
 
 
-def load_and_classify(gene_symbol: str,
-                      target_contracts_dir: Path = DEFAULT_TARGET_CONTRACTS,
-                      hpa_path=None, vocab: Optional[dict] = None,
-                      with_measured: bool = True,
-                      media_path=None, idmap_path=None) -> dict:
+def load_and_classify(
+    gene_symbol: str,
+    target_contracts_dir: Path = DEFAULT_TARGET_CONTRACTS,
+    hpa_path=None,
+    vocab: Optional[dict] = None,
+    with_measured: bool = True,
+    media_path=None,
+    idmap_path=None,
+) -> dict:
     """Full pipeline for one gene: curated lookup + HPA proxy → card summary, PLUS the
     MEASURED Olink conditioned-media facet.
 
@@ -228,14 +230,15 @@ def load_and_classify(gene_symbol: str,
     summary = compute_summary(gene_symbol, clinical, hpa)
     if with_measured:
         from . import media as _media
-        summary.update(_media.classify_measured_shed(
-            gene_symbol, media_path=media_path, idmap_path=idmap_path))
+
+        summary.update(_media.classify_measured_shed(gene_symbol, media_path=media_path, idmap_path=idmap_path))
     return summary
 
 
 def _main(argv=None):
     import argparse
     import json
+
     ap = argparse.ArgumentParser(description="Shed-ectodomain-liability lookup for a gene.")
     ap.add_argument("--gene", required=True)
     ap.add_argument("--target-contracts-dir", default=str(DEFAULT_TARGET_CONTRACTS))

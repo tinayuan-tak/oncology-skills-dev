@@ -20,14 +20,15 @@ for a patient cis-driver claim (skill Boundaries note); this arm supplies the pa
 
 Bridged entirely at the case barcode — the joinability tcga-sample-id-crosswalk-v1 guarantees.
 """
+
 from __future__ import annotations
 
 from methods.depmap_cis_dosage.cli import compute_cis_dosage
 from methods.tcga_cis_coherence_patient import read as _read
 
 # Methylation silencing thresholds.
-SILENCING_DELTA_LOG2TPM = 1.0   # methylated cases express >= 1 log2 unit (~2x) LOWER = silencing
-MIN_METHYLATED = 5              # need >= this many methylated AND unmethylated cases to call
+SILENCING_DELTA_LOG2TPM = 1.0  # methylated cases express >= 1 log2 unit (~2x) LOWER = silencing
+MIN_METHYLATED = 5  # need >= this many methylated AND unmethylated cases to call
 # GISTIC "any gain" (+1 or +2) is the "amplified" edge for the descriptive amp-vs-neutral expression
 # contrast. compute_cis_dosage counts amplified as cn > threshold, so the threshold is 0.0 → +1 and
 # +2 are amplified, {0,-1,-2} neutral (CIS-3: 1.0 wrongly excluded +1 gains despite the "any gain"
@@ -41,7 +42,8 @@ def _methylation_silencing(expr: dict[str, float], meth: dict[str, bool]) -> dic
     unmeth_vals = [expr[c] for c, m in meth.items() if (not m) and c in expr]
     n_m, n_u = len(meth_vals), len(unmeth_vals)
     out = {
-        "n_methylated": n_m, "n_unmethylated": n_u,
+        "n_methylated": n_m,
+        "n_unmethylated": n_u,
         "mean_log2tpm_methylated": (sum(meth_vals) / n_m) if n_m else None,
         "mean_log2tpm_unmethylated": (sum(unmeth_vals) / n_u) if n_u else None,
         "delta_log2tpm_methylated_vs_unmethylated": None,
@@ -52,15 +54,17 @@ def _methylation_silencing(expr: dict[str, float], meth: dict[str, bool]) -> dic
     delta = out["mean_log2tpm_methylated"] - out["mean_log2tpm_unmethylated"]
     out["delta_log2tpm_methylated_vs_unmethylated"] = float(delta)
     out["patient_methylation_silencing_class"] = (
-        "epigenetic_silencing" if delta <= -SILENCING_DELTA_LOG2TPM else "no_silencing_signal")
+        "epigenetic_silencing" if delta <= -SILENCING_DELTA_LOG2TPM else "no_silencing_signal"
+    )
     return out
 
 
 METHOD_VERSION = "0.1.0"
 
 
-def read_patient_cis_coherence(target: str, indication: str | None = None,
-                               release_pin: str = "pancanatlas-2018") -> dict:
+def read_patient_cis_coherence(
+    target: str, indication: str | None = None, release_pin: str = "pancanatlas-2018"
+) -> dict:
     """Card entrypoint (dispatcher convention: target, indication, release_pin).
 
     The patient arm is INDICATION-SCOPED (unlike the pan-panel cell-line depmap_cis_dosage): patient
@@ -70,20 +74,29 @@ def read_patient_cis_coherence(target: str, indication: str | None = None,
     honest data_unavailable (no pan-cancer patient CN↔expression pooling)."""
     if not indication:
         return {
-            "target": target, "indication": None, "evidence_scope": "patient_indication",
+            "target": target,
+            "indication": None,
+            "evidence_scope": "patient_indication",
             "patient_cis_dosage_class": "data_unavailable",
             "patient_methylation_silencing_class": "insufficient_methylation_data",
-            "cn_expr_spearman_r": None, "cn_expr_spearman_p": None,
-            "delta_log2tpm_amplified_vs_neutral": None, "n_amplified": 0,
-            "n_patients_cn_expr": 0, "delta_log2tpm_methylated_vs_unmethylated": None,
-            "n_methylated": 0, "n_unmethylated": 0,
-            "mean_log2tpm_methylated": None, "mean_log2tpm_unmethylated": None,
-            "n_cases_expression": 0, "n_cases_copy_number": 0, "n_cases_methylation": 0,
+            "cn_expr_spearman_r": None,
+            "cn_expr_spearman_p": None,
+            "delta_log2tpm_amplified_vs_neutral": None,
+            "n_amplified": 0,
+            "n_patients_cn_expr": 0,
+            "delta_log2tpm_methylated_vs_unmethylated": None,
+            "n_methylated": 0,
+            "n_unmethylated": 0,
+            "mean_log2tpm_methylated": None,
+            "mean_log2tpm_unmethylated": None,
+            "n_cases_expression": 0,
+            "n_cases_copy_number": 0,
+            "n_cases_methylation": 0,
             "method_version": METHOD_VERSION,
         }
     out = compute_patient_cis_coherence(target, indication)
     out["method_version"] = METHOD_VERSION
-    out.pop("_cis_dosage_full", None)   # internal provenance; not a card summary_field
+    out.pop("_cis_dosage_full", None)  # internal provenance; not a card summary_field
     return out
 
 
@@ -117,11 +130,17 @@ def compute_patient_cis_coherence(target: str, indication: str) -> dict:
         "n_amplified": cis["n_amplified"],
         "n_patients_cn_expr": len(cases),
         # methylation-silencing leg.
-        **{k: silencing[k] for k in (
-            "patient_methylation_silencing_class",
-            "delta_log2tpm_methylated_vs_unmethylated",
-            "n_methylated", "n_unmethylated",
-            "mean_log2tpm_methylated", "mean_log2tpm_unmethylated")},
+        **{
+            k: silencing[k]
+            for k in (
+                "patient_methylation_silencing_class",
+                "delta_log2tpm_methylated_vs_unmethylated",
+                "n_methylated",
+                "n_unmethylated",
+                "mean_log2tpm_methylated",
+                "mean_log2tpm_unmethylated",
+            )
+        },
         # join-coverage provenance (honest attrition surfacing).
         "n_cases_expression": len(expr),
         "n_cases_copy_number": len(cn),

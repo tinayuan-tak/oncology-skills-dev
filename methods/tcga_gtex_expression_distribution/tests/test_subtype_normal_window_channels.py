@@ -3,6 +3,7 @@
 A proxy normal (histological analogue, e.g. HNSC→esophagus) is WEAKER evidence than a true matched
 normal and must NEVER be reported in the matched channel. These are S3-free structural checks on the
 config maps + the mutual-exclusivity invariant."""
+
 from __future__ import annotations
 
 import sys
@@ -21,16 +22,17 @@ def test_proxy_map_only_covers_indications_without_a_true_normal():
     for ind in R.INDICATION_TO_PROXY_NORMAL_TISSUES:
         assert ind not in R.INDICATION_TO_GTEX_TISSUE, (
             f"{ind} has both a true normal AND a proxy set — the proxy would shadow the matched "
-            f"channel. Proxies are only for no-true-normal indications.")
+            f"channel. Proxies are only for no-true-normal indications."
+        )
 
 
 def test_hnsc_proxy_set_is_squamous_justified_and_ordered():
     """HNSC proxies are the documented squamous analogues, esophagus first (closest match)."""
     specs = R.INDICATION_TO_PROXY_NORMAL_TISSUES["HNSC"]
     tissues = [t for t, _rationale in specs]
-    assert tissues[0] == "ESOPHAGUS"                      # closest histological match, ranked first
+    assert tissues[0] == "ESOPHAGUS"  # closest histological match, ranked first
     assert set(tissues) == {"ESOPHAGUS", "SKIN", "SALIVARY_GLAND"}
-    assert all(rationale for _t, rationale in specs)       # every proxy carries a rationale string
+    assert all(rationale for _t, rationale in specs)  # every proxy carries a rationale string
 
 
 def test_hnsc_and_paad_are_subtype_enabled_but_differ_in_comparator():
@@ -47,9 +49,10 @@ def test_per_stratum_purity_annotation_is_present_and_guarded():
     subtype_purity_spread rollup — so a consumer can catch a stromal-confounded 'enrichment'. The
     purity loader MUST be guarded: a fetch failure degrades to None, never aborts the panorama."""
     import inspect
+
     src = inspect.getsource(R.read_tumor_expression_subtype_landscape)
     # per-stratum fields
-    assert '"median_purity"' in src or "rec[\"median_purity\"]" in src
+    assert '"median_purity"' in src or 'rec["median_purity"]' in src
     assert "n_purity_paired" in src
     # envelope rollup + provenance
     assert "subtype_purity_spread" in src
@@ -65,6 +68,7 @@ def test_proxy_rollup_is_per_tissue_and_matched_rollup_is_scalar():
     multi-valued. The two are mutually exclusive: matched → scalar set + proxy None; proxy → map set +
     matched None. This structural contract is what a consumer relies on to not conflate them."""
     import inspect
+
     src = inspect.getsource(R.read_tumor_expression_subtype_landscape)
     # matched rollup keyed on the matched fraction; proxy rollup keyed per proxy tissue
     assert "n_subtypes_clearing_normal_window" in src

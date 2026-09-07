@@ -16,4 +16,5 @@ read (read.py):   per-gene predicate-pushdown reader over the Tier-1 parquet (py
 stats (stats.py): pure cell-type roll-up + the normal-tissue liability classifier (numpy/pandas).
 aggregate.py:     Tier-2 → Tier-1 DuckDB cross-donor aggregation script (CLI, produces the product).
 """
+
 from .read import read_target_summary  # noqa: F401 — public re-export

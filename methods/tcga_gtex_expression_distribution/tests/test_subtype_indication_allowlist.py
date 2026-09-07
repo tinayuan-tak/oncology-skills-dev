@@ -5,6 +5,7 @@ Extending subtype-stratified presence to a new indication is a 2-layer change �
 (INDICATION_TO_TUMOR_ASSIGNMENT_MANIFEST) AND the card's applies_when — and they MUST agree, or the
 card fires for an indication the reader can't serve (or vice versa). This pins both. S3-free (parses
 the literals only)."""
+
 from __future__ import annotations
 
 import sys
@@ -49,12 +50,17 @@ def test_alias_indications_map_to_the_same_shard():
 def test_card_applies_when_matches_the_reader_allowlist():
     """Layer 4 (reader map) and layer 5 (card applies_when) must list the SAME indications — a
     cross-repo lockstep guard. Skips gracefully if target-contracts isn't checked out alongside."""
-    card = REPO.parent / "rnd-computational-biology-oncology-target-contracts" / "cards" / \
-        "tumor-rna-distribution-by-subtype.card.yaml"
+    card = (
+        REPO.parent
+        / "rnd-computational-biology-oncology-target-contracts"
+        / "cards"
+        / "tumor-rna-distribution-by-subtype.card.yaml"
+    )
     if not card.exists():
         pytest.skip("target-contracts not checked out alongside")
     text = card.read_text()
     for ind in MAP:
         assert f"'{ind}'" in text, (
             f"indication {ind!r} is in the reader allowlist but NOT in the card's applies_when — "
-            f"layers 4 and 5 are out of lockstep")
+            f"layers 4 and 5 are out of lockstep"
+        )

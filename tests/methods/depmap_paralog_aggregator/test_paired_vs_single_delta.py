@@ -10,6 +10,7 @@ buffering with baseline essentiality); moderate/weak matched no rule and the
 Hermetic: monkeypatches _ensure_paralog_cached to a synthetic CSV in tmp — the real
 ~/.cache is never touched (cache-pollution discipline).
 """
+
 from __future__ import annotations
 
 import sys
@@ -28,6 +29,7 @@ import methods.depmap_paralog_aggregator.read as R  # noqa: E402
 
 def _write_csv(tmp_path: Path, header: list[str], rows: list[list]) -> Path:
     import csv
+
     p = tmp_path / "ParalogGeneEffect.csv"
     with p.open("w", newline="") as f:
         w = csv.writer(f)
@@ -49,14 +51,22 @@ def reader(tmp_path, monkeypatch):
     """
     header = [
         "ModelID",
-        "GA", "GB", "GC", "GD", "GE", "GF",          # single-KO baselines (~0 = viable)
-        "GA_GB", "GC_GD", "GE_GF", "GG_GH",          # dual-KO pairs
-        "AAVS1_chr2",                                 # control — must be skipped
+        "GA",
+        "GB",
+        "GC",
+        "GD",
+        "GE",
+        "GF",  # single-KO baselines (~0 = viable)
+        "GA_GB",
+        "GC_GD",
+        "GE_GF",
+        "GG_GH",  # dual-KO pairs
+        "AAVS1_chr2",  # control — must be skipped
     ]
     rows = [
-        ["ACH-1", 0.0, 0.05, -0.02, 0.0, 0.01, 0.0,  -1.20, -0.34, 0.01, -1.4, -0.5],
-        ["ACH-2", 0.02, 0.0, 0.0, -0.03, 0.0, 0.02,  -1.25, -0.36, -0.01, -1.5, -0.6],
-        ["ACH-3", 0.0, 0.01, 0.01, 0.0, -0.01, 0.0,  -1.18, -0.35, 0.00, -1.3, -0.4],
+        ["ACH-1", 0.0, 0.05, -0.02, 0.0, 0.01, 0.0, -1.20, -0.34, 0.01, -1.4, -0.5],
+        ["ACH-2", 0.02, 0.0, 0.0, -0.03, 0.0, 0.02, -1.25, -0.36, -0.01, -1.5, -0.6],
+        ["ACH-3", 0.0, 0.01, 0.01, 0.0, -0.01, 0.0, -1.18, -0.35, 0.00, -1.3, -0.4],
     ]
     csv_path = _write_csv(tmp_path, header, rows)
     monkeypatch.setattr(R, "_ensure_paralog_cached", lambda: csv_path)
@@ -91,10 +101,11 @@ def test_delta_sign_convention(reader):
     than either single (Chronos: more-negative = more lethal)."""
     res = reader.read_target_summary("GA")
     fp = res["functional_paralogs"][0]
-    assert fp["median_dual_ko_effect"] < 0          # dual KO is lethal
+    assert fp["median_dual_ko_effect"] < 0  # dual KO is lethal
     assert fp["single_ko_effect"] > fp["median_dual_ko_effect"]  # single less lethal
     assert fp["dep_delta_paired_vs_max_single"] == pytest.approx(
-        fp["single_ko_effect"] - fp["median_dual_ko_effect"], abs=1e-6)
+        fp["single_ko_effect"] - fp["median_dual_ko_effect"], abs=1e-6
+    )
 
 
 def test_missing_single_ko_baseline_is_unmeasured_not_none(reader):
@@ -119,6 +130,7 @@ def test_class_vocab_matches_card_contract(reader):
 # The `reader` fixture forces this path (_derived_parquet_uri → None). The PRIMARY
 # product-read path (with real ohnolog) is covered in test_derived_product_path.py.
 
+
 def test_fallback_data_source_reports_raw_csv(reader):
     """On the raw-CSV FALLBACK, _data_source must say so (not claim the derived product). The
     derived product is named separately as the preferred/intended source — no misleading stamp."""
@@ -132,7 +144,7 @@ def test_fallback_data_source_reports_raw_csv(reader):
 def test_fallback_ohnolog_is_none_with_reason(reader):
     """On the fallback path the reader can't compute ohnolog (no Ensembl-Compara join), so it
     emits strongest_paralog_ohnolog=None WITH a documented reason — never omit or fabricate."""
-    res = reader.read_target_summary("GA")               # a measured (strong) target
+    res = reader.read_target_summary("GA")  # a measured (strong) target
     assert "strongest_paralog_ohnolog" in res
     assert res["strongest_paralog_ohnolog"] is None
     assert "ohnolog" in res["_paralog_ohnolog_note"].lower()

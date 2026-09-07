@@ -18,6 +18,7 @@ Reads: derived parquet at
     s3://onc-compbio/data-catalog/derived/cptac-protein-tumor-vs-normal-per-cohort-v1/
 Falls back to `data_unavailable` gracefully when derived product not on S3.
 """
+
 from __future__ import annotations
 import math
 import os
@@ -70,7 +71,7 @@ def _standardized_effect(effect_size, p_value, se, n_tumor, n_normal) -> dict:
         # clamp the inv_cdf ARGUMENT into the open (0,1) interval — a raw p of 0 floors 1-p/2 to exactly
         # 1.0 in float, which NormalDist.inv_cdf rejects; this caps |z| at ~7.94 (display-grade).
         arg = min(max(1.0 - p_value / 2.0, 1e-15), 1.0 - 1e-15)
-        z = _STD_NORMAL.inv_cdf(arg)                      # |z| for a two-sided p
+        z = _STD_NORMAL.inv_cdf(arg)  # |z| for a two-sided p
         t, method = math.copysign(z, effect_size), "pvalue_zscore_approx"
     if t is None:
         return out
@@ -82,6 +83,8 @@ def _standardized_effect(effect_size, p_value, se, n_tumor, n_normal) -> dict:
         out["protein_effect_cohens_d"] = round(d, 4)
         out["protein_effect_standardized_class"] = _cohens_d_class(d)
     return out
+
+
 from typing import Optional
 
 from methods.catalog_query.read import bucket_key_for
@@ -104,10 +107,19 @@ _DERIVED_STATUS: Optional[bool] = None
 
 # Indication → CPTAC cohort code mapping (some indications share codes)
 INDICATION_TO_CPTAC = {
-    "BRCA": "BRCA", "CCRCC": "CCRCC", "COAD": "COAD", "COADREAD": "COAD",
-    "GBM": "GBM", "HNSC": "HNSCC", "HNSCC": "HNSCC",
-    "LUSC": "LSCC", "LSCC": "LSCC",  # CPTAC uses LSCC for lung squamous
-    "LUAD": "LUAD", "OV": "OV", "PAAD": "PDAC", "PDAC": "PDAC",
+    "BRCA": "BRCA",
+    "CCRCC": "CCRCC",
+    "COAD": "COAD",
+    "COADREAD": "COAD",
+    "GBM": "GBM",
+    "HNSC": "HNSCC",
+    "HNSCC": "HNSCC",
+    "LUSC": "LSCC",
+    "LSCC": "LSCC",  # CPTAC uses LSCC for lung squamous
+    "LUAD": "LUAD",
+    "OV": "OV",
+    "PAAD": "PDAC",
+    "PDAC": "PDAC",
     "UCEC": "UCEC",
 }
 
@@ -132,6 +144,7 @@ def _get_s3fs():
         with _S3FS_LOCK:
             if _S3FS is None:
                 import pyarrow.fs as fs
+
                 _S3FS = fs.S3FileSystem(region="us-east-1")
     return _S3FS
 
@@ -163,6 +176,7 @@ def _ensure_derived_cached() -> Optional[str]:
     # the old download_file 404 path did. get_file_info returns a NotFound FileInfo (no raise) for a
     # missing key; only creds/transient failures raise here.
     import pyarrow.fs as pafs
+
     try:
         info = _get_s3fs().get_file_info(uri)
     except Exception as e:  # noqa: BLE001
@@ -171,6 +185,7 @@ def _ensure_derived_cached() -> Optional[str]:
         # botocore) leaves _DERIVED_STATUS None (later call retries) and PROPAGATES as an honest
         # _live_read_error, never a silent data_unavailable for the process lifetime.
         from methods.target_id_sidecar import is_definitively_absent
+
         if is_definitively_absent(e):
             _DERIVED_STATUS = False
             return None
@@ -196,9 +211,11 @@ def _load_indexed():
     path = _ensure_derived_cached()
     if path is None:
         import pandas as pd
+
         return pd.DataFrame(), {}, {}
 
     import pandas as pd
+
     # `path` is the remote "bucket/key" URI that _ensure_derived_cached resolved + existence-probed —
     # the S3 absence (404/NotFound) is latched THERE, returning path=None above (honest
     # data_unavailable). Here we STREAM the row-groups off S3 via the pyarrow S3FileSystem singleton
@@ -230,9 +247,9 @@ def _load_indexed():
     return df, cohort_gene_idx, gene_idx
 
 
-def _row_to_summary(row: dict, matched_cohort: str,
-                    allgene_percentile: float = None,
-                    allgene_percentile_class: str = "data_unavailable") -> dict:
+def _row_to_summary(
+    row: dict, matched_cohort: str, allgene_percentile: float = None, allgene_percentile_class: str = "data_unavailable"
+) -> dict:
     return {
         "cohort": matched_cohort,
         "protein_expression_class": row.get("protein_expression_class", "not_significant"),
@@ -241,8 +258,11 @@ def _row_to_summary(row: dict, matched_cohort: str,
         # target's protein_effect_size falls among ALL genes tested in THIS cohort.
         "allgene_percentile": allgene_percentile,
         "allgene_percentile_class": allgene_percentile_class,
-        "allgene_percentile_context": (f"cptac-protein-tumor-vs-normal cohort={matched_cohort} "
-                                       f"metric=protein_effect_size") if matched_cohort else None,
+        "allgene_percentile_context": (
+            f"cptac-protein-tumor-vs-normal cohort={matched_cohort} metric=protein_effect_size"
+        )
+        if matched_cohort
+        else None,
         "protein_bh_q_value": row.get("protein_bh_q_value"),
         "protein_p_value": row.get("protein_p_value"),
         "protein_median_log2_tumor": row.get("protein_median_log2_tumor"),
@@ -252,9 +272,13 @@ def _row_to_summary(row: dict, matched_cohort: str,
         # Variance-standardized companion to the raw log2 effect_size (the class thresholds on the raw
         # log2, blind to variance). Exact (logFC/SE) once the product is rebuilt with SE; p-value
         # approximation on the current product. Display-only / verdict-inert.
-        **_standardized_effect(row.get("protein_effect_size"), row.get("protein_p_value"),
-                               row.get("protein_effect_size_se"),
-                               row.get("n_tumor_samples"), row.get("n_normal_samples")),
+        **_standardized_effect(
+            row.get("protein_effect_size"),
+            row.get("protein_p_value"),
+            row.get("protein_effect_size_se"),
+            row.get("n_tumor_samples"),
+            row.get("n_normal_samples"),
+        ),
         "stat_test_used": row.get("stat_test_used", "msstatstmt_limma_ebayes_moderated"),
         "method_version": row.get("method_version", "1.0.0"),
         "_data_source": DERIVED_MANIFEST_ID,
@@ -305,6 +329,7 @@ def read_target_summary(target: str, indication: str = None) -> dict:
     # Resolve indication → CPTAC cohort(s). An umbrella indication (NSCLC) expands to its LEAF cohorts
     # (LUAD + LSCC) — CPTAC has no pooled NSCLC row. A leaf indication resolves to a single cohort.
     from methods.indication_aliases import indication_leaf_codes
+
     cohorts: list[str] = []
     if indication:
         for leaf in indication_leaf_codes(indication):
@@ -320,15 +345,15 @@ def read_target_summary(target: str, indication: str = None) -> dict:
         present = [(c, cohort_gene_idx[(c, sym)]) for c in cohorts if (c, sym) in cohort_gene_idx]
         if not present:
             return _empty(f"target_not_in_cptac_cohort_{'+'.join(cohorts)}")
-        best_c, best_idx = max(
-            present, key=lambda ci: abs(float(df.iloc[ci[1]].get("protein_effect_size", 0) or 0)))
+        best_c, best_idx = max(present, key=lambda ci: abs(float(df.iloc[ci[1]].get("protein_effect_size", 0) or 0)))
         row = df.iloc[best_idx].to_dict()
         pct, pct_class = _allgene_effect_percentile(df, best_c, row.get("protein_effect_size"))
-        summ = _row_to_summary(row, matched_cohort=best_c,
-                               allgene_percentile=pct, allgene_percentile_class=pct_class)
+        summ = _row_to_summary(row, matched_cohort=best_c, allgene_percentile=pct, allgene_percentile_class=pct_class)
         if len(cohorts) > 1:
-            summ["_data_note"] = (f"{indication.upper().strip()} umbrella → {'+'.join(cohorts)}; "
-                                  f"reporting {best_c} (largest |protein_effect_size|)")
+            summ["_data_note"] = (
+                f"{indication.upper().strip()} umbrella → {'+'.join(cohorts)}; "
+                f"reporting {best_c} (largest |protein_effect_size|)"
+            )
         return summ
 
     # A SUPPLIED but unmapped indication must NOT leak a different cohort's contrast. CPTAC is a
@@ -350,8 +375,9 @@ def read_target_summary(target: str, indication: str = None) -> dict:
     best_row = max(rows, key=lambda r: abs(float(r.get("protein_effect_size", 0) or 0)))
     best_cohort = str(best_row.get("cohort", "")).upper()
     pct, pct_class = _allgene_effect_percentile(df, best_cohort, best_row.get("protein_effect_size"))
-    return _row_to_summary(best_row, matched_cohort=best_cohort,
-                           allgene_percentile=pct, allgene_percentile_class=pct_class)
+    return _row_to_summary(
+        best_row, matched_cohort=best_cohort, allgene_percentile=pct, allgene_percentile_class=pct_class
+    )
 
 
 def _allgene_effect_percentile(df, cohort: str, effect_size):
@@ -360,6 +386,7 @@ def _allgene_effect_percentile(df, cohort: str, effect_size):
     Context-matched by construction: the null is the cohort's own slice of the resident
     df (no pooling across cohorts). Zero new I/O — df is already in the lru_cache."""
     from methods.percentile_null import percentile_rank, classify_percentile
+
     try:
         null_vals = df.loc[df["cohort"].str.upper() == cohort, "protein_effect_size"].tolist()
     except Exception:
@@ -383,9 +410,9 @@ def read_all_cohorts(target: str) -> list[dict]:
     indices = gene_idx.get(target.upper().strip(), [])
     if not indices:
         return []
-    rows = [_row_to_summary(df.iloc[i].to_dict(),
-                            matched_cohort=str(df.iloc[i]["cohort"]).strip().upper())
-            for i in indices]
+    rows = [
+        _row_to_summary(df.iloc[i].to_dict(), matched_cohort=str(df.iloc[i]["cohort"]).strip().upper()) for i in indices
+    ]
     rows.sort(key=lambda r: abs(float(r.get("protein_effect_size") or 0)), reverse=True)
     return rows
 
@@ -397,8 +424,7 @@ def read_all_cohorts(target: str) -> list[dict]:
 # themselves (Welch's t on the log-ratios + a nonparametric Mann-Whitney U), rather than trusting a
 # median dumbbell.
 
-_PER_SAMPLE_COLS = ["gene_symbol", "cohort", "aliquot_submitter_id",
-                    "sample_type", "condition", "log2_ratio"]
+_PER_SAMPLE_COLS = ["gene_symbol", "cohort", "aliquot_submitter_id", "sample_type", "condition", "log2_ratio"]
 
 
 def read_per_sample(target: str):
@@ -413,9 +439,9 @@ def read_per_sample(target: str):
     sym = target.upper().strip()
     try:
         import pyarrow.parquet as pq
+
         bucket, key = bucket_key_for(PER_SAMPLE_MANIFEST_ID)
-        tbl = pq.read_table(f"{bucket}/{key}", filesystem=_get_s3fs(),
-                            filters=[("gene_symbol", "=", sym)])
+        tbl = pq.read_table(f"{bucket}/{key}", filesystem=_get_s3fs(), filters=[("gene_symbol", "=", sym)])
         return tbl.to_pandas()
     except Exception as e:  # noqa: BLE001
         # Absence discipline: swallow ONLY a genuine no-object (S3 NoSuchKey/404 or pyarrow
@@ -423,9 +449,11 @@ def read_per_sample(target: str):
         # (AccessDenied) / broken-env (missing pyarrow) so the live-read seam surfaces a real
         # _live_read_error instead of a silent dead axis.
         from methods.target_id_sidecar import is_definitively_absent
+
         if not (is_definitively_absent(e) or isinstance(e, FileNotFoundError)):
             raise
         import pandas as pd
+
         return pd.DataFrame(columns=_PER_SAMPLE_COLS)
 
 
@@ -463,8 +491,13 @@ def per_cohort_distribution_stats(target: str) -> list[dict]:
         a = a[~np.isnan(a)]
         if a.size == 0:
             return (None, None, None, None, None)
-        return (float(np.min(a)), float(np.percentile(a, 25)), float(np.median(a)),
-                float(np.percentile(a, 75)), float(np.max(a)))
+        return (
+            float(np.min(a)),
+            float(np.percentile(a, 25)),
+            float(np.median(a)),
+            float(np.percentile(a, 75)),
+            float(np.max(a)),
+        )
 
     out = []
     for cohort, sub in df.groupby("cohort"):
@@ -480,27 +513,38 @@ def per_cohort_distribution_stats(target: str) -> list[dict]:
         if n_t >= 3 and n_n >= 3:
             try:
                 from scipy import stats as _st
+
                 welch_p = float(_st.ttest_ind(tvals, nvals, equal_var=False).pvalue)
                 mwu_p = float(_st.mannwhitneyu(tvals, nvals, alternative="two-sided").pvalue)
             except Exception:
                 welch_p = mwu_p = None
 
         delta = (t_med - n_med) if (t_med is not None and n_med is not None) else None
-        out.append({
-            "cohort": str(cohort).upper(),
-            "n_tumor": n_t, "n_normal": n_n,
-            "tumor_min": t_lo, "tumor_q1": t_q1, "tumor_median": t_med,
-            "tumor_q3": t_q3, "tumor_max": t_hi,
-            "normal_min": n_lo, "normal_q1": n_q1, "normal_median": n_med,
-            "normal_q3": n_q3, "normal_max": n_hi,
-            "delta_median": delta,
-            "welch_p": welch_p, "mwu_p": mwu_p,
-            # raw arrays for the boxplot (kept out of any parquet emit; used only in-memory)
-            "_tumor_values": tvals.tolist(), "_normal_values": nvals.tolist(),
-        })
+        out.append(
+            {
+                "cohort": str(cohort).upper(),
+                "n_tumor": n_t,
+                "n_normal": n_n,
+                "tumor_min": t_lo,
+                "tumor_q1": t_q1,
+                "tumor_median": t_med,
+                "tumor_q3": t_q3,
+                "tumor_max": t_hi,
+                "normal_min": n_lo,
+                "normal_q1": n_q1,
+                "normal_median": n_med,
+                "normal_q3": n_q3,
+                "normal_max": n_hi,
+                "delta_median": delta,
+                "welch_p": welch_p,
+                "mwu_p": mwu_p,
+                # raw arrays for the boxplot (kept out of any parquet emit; used only in-memory)
+                "_tumor_values": tvals.tolist(),
+                "_normal_values": nvals.tolist(),
+            }
+        )
 
-    out.sort(key=lambda r: (r["delta_median"] if r["delta_median"] is not None else -1e9),
-             reverse=True)
+    out.sort(key=lambda r: r["delta_median"] if r["delta_median"] is not None else -1e9, reverse=True)
     return out
 
 
@@ -596,17 +640,18 @@ def read_tumor_elevation_breadth(target: str) -> dict:
     # Legibility (G6, no silent cap): cohorts that WERE significance-gated-up but were stripped from the
     # elevated set because their standardized effect is negligible (a power artifact, not biology).
     n_sig_up_effect_negligible = sum(
-        1 for row in rows
+        1
+        for row in rows
         if row.get("protein_expression_class") in _ELEVATED_CLASSES
-        and row.get("protein_effect_standardized_class") == "negligible")
+        and row.get("protein_effect_standardized_class") == "negligible"
+    )
 
     # median effect over the ELEVATED cohorts only (None when none elevated)
     median_effect = None
     if elevated:
         effs = sorted(float(row.get("protein_effect_size") or 0.0) for row in elevated)
         m = len(effs)
-        median_effect = (effs[m // 2] if m % 2
-                         else (effs[m // 2 - 1] + effs[m // 2]) / 2.0)
+        median_effect = effs[m // 2] if m % 2 else (effs[m // 2 - 1] + effs[m // 2]) / 2.0
 
     if fraction >= 0.5 and n_elevated >= 3:
         cls = "broadly_tumor_elevated"
@@ -619,14 +664,16 @@ def read_tumor_elevation_breadth(target: str) -> dict:
 
     # read_all_cohorts already sorts by |effect| desc; elevated preserves that order.
     most_elevated = [
-        {"cohort": row.get("cohort"),
-         "protein_expression_class": row.get("protein_expression_class"),
-         "protein_effect_size": row.get("protein_effect_size"),
-         "protein_bh_q_value": row.get("protein_bh_q_value"),
-         # standardized effect + adjacent-normal n carried per cohort (G6 transparency): a reader can see
-         # the sample-size-independent effect band and the paired-normal power behind each elevated call.
-         "protein_effect_standardized_class": row.get("protein_effect_standardized_class"),
-         "n_normal_samples": row.get("n_normal_samples")}
+        {
+            "cohort": row.get("cohort"),
+            "protein_expression_class": row.get("protein_expression_class"),
+            "protein_effect_size": row.get("protein_effect_size"),
+            "protein_bh_q_value": row.get("protein_bh_q_value"),
+            # standardized effect + adjacent-normal n carried per cohort (G6 transparency): a reader can see
+            # the sample-size-independent effect band and the paired-normal power behind each elevated call.
+            "protein_effect_standardized_class": row.get("protein_effect_standardized_class"),
+            "n_normal_samples": row.get("n_normal_samples"),
+        }
         for row in elevated
     ]
 
@@ -634,7 +681,7 @@ def read_tumor_elevation_breadth(target: str) -> dict:
         "tumor_elevation_breadth_class": cls,
         "n_cohorts_tested": n_tested,
         "n_cohorts_elevated": n_elevated,
-        "n_cohorts_sig_up_effect_negligible": n_sig_up_effect_negligible,   # stripped power artifacts (G6)
+        "n_cohorts_sig_up_effect_negligible": n_sig_up_effect_negligible,  # stripped power artifacts (G6)
         "fraction_elevated": fraction,
         "median_effect_across_elevated": median_effect,
         "most_elevated_cohorts": most_elevated,
@@ -688,27 +735,46 @@ def read_tumor_elevation_breadth(target: str) -> dict:
 # Indication (OncoTree-ish code) → HPA normal tissue-of-origin name (closed 16-name enriched vocab
 # where possible; None when the tissue-of-origin is not in HPA's enriched list → breadth-only anchor).
 _INDICATION_TO_HPA_TISSUE = {
-    "COAD": "intestine", "COADREAD": "intestine", "READ": "intestine",
-    "STAD": "stomach", "ESCA": "stomach",
-    "PAAD": "pancreas", "PDAC": "pancreas",
-    "LIHC": "liver", "CHOL": "liver",
-    "LUAD": "lung", "LUSC": "lung", "LSCC": "lung", "NSCLC": "lung", "MESO": "lung",
-    "KIRC": "kidney", "CCRCC": "kidney", "KIRP": "kidney", "KICH": "kidney",
+    "COAD": "intestine",
+    "COADREAD": "intestine",
+    "READ": "intestine",
+    "STAD": "stomach",
+    "ESCA": "stomach",
+    "PAAD": "pancreas",
+    "PDAC": "pancreas",
+    "LIHC": "liver",
+    "CHOL": "liver",
+    "LUAD": "lung",
+    "LUSC": "lung",
+    "LSCC": "lung",
+    "NSCLC": "lung",
+    "MESO": "lung",
+    "KIRC": "kidney",
+    "CCRCC": "kidney",
+    "KIRP": "kidney",
+    "KICH": "kidney",
     "OV": "ovary",
-    "GBM": "cerebral cortex", "LGG": "cerebral cortex",
-    "DLBCL": "lymphoid tissue", "AML": "bone marrow",
+    "GBM": "cerebral cortex",
+    "LGG": "cerebral cortex",
+    "DLBCL": "lymphoid tissue",
+    "AML": "bone marrow",
     "SKCM": "skin",
     # tissue-of-origin NOT in HPA's enriched vocabulary → breadth-only anchor (wider band):
-    "BRCA": None, "UCEC": None, "HNSC": None, "HNSCC": None, "PRAD": None, "BLCA": None,
+    "BRCA": None,
+    "UCEC": None,
+    "HNSC": None,
+    "HNSCC": None,
+    "PRAD": None,
+    "BLCA": None,
 }
 
 # IHC intensity class → (copies_per_cell CENTER, multiplicative uncertainty factor).
 # CENTERs calibrated to HER2/EGFR-family surface-antigen flow-cytometry ranges (Nathanson 2018;
 # Slaga 2018 Sci Transl Med >1,000/cell TCE threshold). The factor sets lower=center/f, upper=center*f.
 _IHC_CLASS_CALIBRATION = {
-    "high":         (3.0e5, 12.0),
-    "medium":       (3.0e4, 12.0),
-    "low":          (3.0e3, 16.0),   # straddles the 1,000/cell TCE threshold (wide by design)
+    "high": (3.0e5, 12.0),
+    "medium": (3.0e4, 12.0),
+    "low": (3.0e3, 16.0),  # straddles the 1,000/cell TCE threshold (wide by design)
     "not_detected": (3.0e2, 10.0),
 }
 
@@ -736,13 +802,13 @@ _HPA_ENRICHED_P66 = 7.43e6
 # in the tumor too" kill belongs on the CPTAC-measured `protein_expression_class=not_detected` signal
 # (absence in BOTH tumor + normal arms), tracked separately (G8-S2-3).
 _BREADTH_TO_IHC_CLASS = {
-    "broad_normal_expression":      "medium",
-    "moderate_normal_expression":   "low",
+    "broad_normal_expression": "medium",
+    "moderate_normal_expression": "low",
     "restricted_normal_expression": "low",
     # "not_detected_in_normal": intentionally absent → abstains to "unmeasured" (see comment above).
 }
 
-_TCE_VIABILITY_COPIES = 1000.0        # Slaga 2018 Sci Transl Med
+_TCE_VIABILITY_COPIES = 1000.0  # Slaga 2018 Sci Transl Med
 _ADC_HIGH_PAYLOAD_COPIES = 10000.0
 
 _DENSITY_METHOD_VERSION = "0.1.0"
@@ -774,37 +840,38 @@ def _hpa_ihc_anchor(target: str, indication: Optional[str]) -> dict:
     """
     try:
         from methods.hpa_normal_tissue_liability import cli as _hpa
+
         summary = _hpa.load_and_classify(target)
     except Exception:
-        return {"hpa_ihc_intensity_class": "unmeasured",
-                "hpa_ihc_anchor_used": None, "anchor_strength": "unmeasured"}
+        return {"hpa_ihc_intensity_class": "unmeasured", "hpa_ihc_anchor_used": None, "anchor_strength": "unmeasured"}
 
     breadth = summary.get("normal_tissue_breadth_class")
     if breadth in (None, "data_unavailable"):
-        return {"hpa_ihc_intensity_class": "unmeasured",
-                "hpa_ihc_anchor_used": None, "anchor_strength": "unmeasured"}
+        return {"hpa_ihc_intensity_class": "unmeasured", "hpa_ihc_anchor_used": None, "anchor_strength": "unmeasured"}
 
     # Strong anchor: the tumor tissue-of-origin appears in HPA's enriched (numeric-intensity) list.
     tissue = _INDICATION_TO_HPA_TISSUE.get((indication or "").upper().strip())
     if tissue:
-        for t in (summary.get("specific_tissues") or []):
+        for t in summary.get("specific_tissues") or []:
             if t.get("tissue") == tissue and t.get("intensity") is not None:
                 v = float(t["intensity"])
-                cls = ("low" if v < _HPA_ENRICHED_P33
-                       else "medium" if v < _HPA_ENRICHED_P66 else "high")
-                return {"hpa_ihc_intensity_class": cls,
-                        "hpa_ihc_anchor_used": f"HPA enriched intensity in {tissue}",
-                        "anchor_strength": "tissue_specific"}
+                cls = "low" if v < _HPA_ENRICHED_P33 else "medium" if v < _HPA_ENRICHED_P66 else "high"
+                return {
+                    "hpa_ihc_intensity_class": cls,
+                    "hpa_ihc_anchor_used": f"HPA enriched intensity in {tissue}",
+                    "anchor_strength": "tissue_specific",
+                }
 
     # Weak anchor: no tissue-of-origin enriched value → fall back to the distribution breadth class.
     cls = _BREADTH_TO_IHC_CLASS.get(breadth, "unmeasured")
     if cls == "unmeasured":
-        return {"hpa_ihc_intensity_class": "unmeasured",
-                "hpa_ihc_anchor_used": None, "anchor_strength": "unmeasured"}
+        return {"hpa_ihc_intensity_class": "unmeasured", "hpa_ihc_anchor_used": None, "anchor_strength": "unmeasured"}
     label = tissue or "distribution breadth (no tissue-of-origin map)"
-    return {"hpa_ihc_intensity_class": cls,
-            "hpa_ihc_anchor_used": f"HPA {breadth} ({label})",
-            "anchor_strength": "breadth_only"}
+    return {
+        "hpa_ihc_intensity_class": cls,
+        "hpa_ihc_anchor_used": f"HPA {breadth} ({label})",
+        "anchor_strength": "breadth_only",
+    }
 
 
 def _empty_density(note: str) -> dict:
@@ -814,7 +881,7 @@ def _empty_density(note: str) -> dict:
     floor of the evidence model; never a fabricated copies/cell number)."""
     return {
         "surface_density_class": "unmeasured",
-        "density_evidence_level": "E",   # expression only; no density estimate
+        "density_evidence_level": "E",  # expression only; no density estimate
         "estimated_copies_per_cell_median": None,
         "estimated_copies_per_cell_lower": None,
         "estimated_copies_per_cell_upper": None,
@@ -844,12 +911,12 @@ def _ladder_measurement(target: str, indication: Optional[str]) -> Optional[dict
     if not m or m.get("density_evidence_level") in (None, "E") or m.get("value_best") is None:
         return None
 
-    density_class = m["absolute_density_class"]        # {high|moderate|low|very_low}
-    grade = m["density_evidence_level"]                 # A | A- | B | B-
+    density_class = m["absolute_density_class"]  # {high|moderate|low|very_low}
+    grade = m["density_evidence_level"]  # A | A- | B | B-
     # The grade-D HPA×CPTAC estimate is still computed + reported alongside (context, not the verdict).
     est = _hpa_cptac_estimate(target, indication)
     return {
-        "surface_density_class": density_class,         # PRIMARY — now from a MEASURED anchor
+        "surface_density_class": density_class,  # PRIMARY — now from a MEASURED anchor
         "density_evidence_level": grade,
         # measured absolute anchor (the promotion): value + unit + semantics + provenance
         "absolute_value_best": m["value_best"],
@@ -948,22 +1015,29 @@ def _surface_accessibility(target: str) -> dict:
     estimate retained, never suppressed). Never raises."""
     try:
         from methods.topology_predictions_tmbed.read import read_target_summary as _topo
+
         s = _topo(target)
     except Exception:
-        return {"surface_density_admissibility": "provisional",
-                "surface_accessibility_note": "topology_read_error_absence_not_negative_evidence",
-                "_topology_class": None}
+        return {
+            "surface_density_admissibility": "provisional",
+            "surface_accessibility_note": "topology_read_error_absence_not_negative_evidence",
+            "_topology_class": None,
+        }
     tclass = s.get("topology_class")
     if tclass in (None, "data_unavailable"):
-        return {"surface_density_admissibility": "provisional",
-                "surface_accessibility_note": "topology_unavailable_coverage_gap_not_negative",
-                "_topology_class": tclass}
+        return {
+            "surface_density_admissibility": "provisional",
+            "surface_accessibility_note": "topology_unavailable_coverage_gap_not_negative",
+            "_topology_class": tclass,
+        }
     ecd_outside = str(s.get("ecd_orientation") or "").lower() == "outside"
     # Membrane-spanning + extracellular orientation → the whole-cell number may be a surface density.
     if tclass in ("multi_pass", "single_pass_type_1", "single_pass_type_2") and ecd_outside:
-        return {"surface_density_admissibility": "admissible",
-                "surface_accessibility_note": f"extracellular_topology_{tclass}_ecd_outside",
-                "_topology_class": tclass}
+        return {
+            "surface_density_admissibility": "admissible",
+            "surface_accessibility_note": f"extracellular_topology_{tclass}_ecd_outside",
+            "_topology_class": tclass,
+        }
     # No membrane-spanning domain in TMbed's 1D topology. Before calling this not-a-surface-density,
     # check the GPI-ANCHOR RESCUE (P8.1 Slice 2): a GPI-anchored antigen (MSLN/FOLR1/CD59/ALPP) has NO
     # membrane-spanning segment — TMbed cannot see it — but IS displayed on the outer leaflet and IS a
@@ -973,23 +1047,34 @@ def _surface_accessibility(target: str) -> dict:
     if tclass == "no_transmembrane":
         try:
             from methods.uniprot_gpi_anchor.read import read_gpi_anchor
+
             gpi = read_gpi_anchor(target)
         except Exception:  # noqa: BLE001 — GPI enrichment is best-effort; absence never negative
             gpi = None
         if gpi and gpi.get("is_gpi_anchored") is True:
-            return {"surface_density_admissibility": "admissible",
-                    "surface_accessibility_note": ("gpi_anchored_external_"
-                                                   f"{(gpi.get('gpi_lipid_note') or 'gpi_anchor').replace(' ', '_')}"),
-                    "_topology_class": tclass, "_gpi_anchored": True}
+            return {
+                "surface_density_admissibility": "admissible",
+                "surface_accessibility_note": (
+                    f"gpi_anchored_external_{(gpi.get('gpi_lipid_note') or 'gpi_anchor').replace(' ', '_')}"
+                ),
+                "_topology_class": tclass,
+                "_gpi_anchored": True,
+            }
         # Not GPI (or GPI product unavailable) → genuinely no extracellular exposure (NRAS/GAPDH).
-        return {"surface_density_admissibility": "unsupported",
-                "surface_accessibility_note": ("no_transmembrane_domain_whole_cell_estimate_retained_"
-                                               "not_a_surface_density"),
-                "_topology_class": tclass, "_gpi_anchored": False}
+        return {
+            "surface_density_admissibility": "unsupported",
+            "surface_accessibility_note": (
+                "no_transmembrane_domain_whole_cell_estimate_retained_not_a_surface_density"
+            ),
+            "_topology_class": tclass,
+            "_gpi_anchored": False,
+        }
     # Membrane-spanning but orientation ambiguous (single_pass_type_other) or beta_barrel → provisional.
-    return {"surface_density_admissibility": "provisional",
-            "surface_accessibility_note": f"membrane_spanning_orientation_uncertain_{tclass}",
-            "_topology_class": tclass}
+    return {
+        "surface_density_admissibility": "provisional",
+        "surface_accessibility_note": f"membrane_spanning_orientation_uncertain_{tclass}",
+        "_topology_class": tclass,
+    }
 
 
 def _hpa_cptac_estimate(target: str, indication: Optional[str] = None) -> dict:
@@ -1025,9 +1110,9 @@ def _hpa_cptac_estimate(target: str, indication: Optional[str] = None) -> dict:
     # shift multiplier. Treat it as CPTAC-not-usable → anchor-only (shift=1) with the widened band, same
     # as the CPTAC-absent path. Guards STEAP1 (effect=inf → previously produced median=inf).
     import math
-    _log2fc_finite = (log2fc is not None and math.isfinite(float(log2fc)))
-    cptac_covered = (cptac.get("protein_expression_class") not in (None, "data_unavailable")
-                     and _log2fc_finite)
+
+    _log2fc_finite = log2fc is not None and math.isfinite(float(log2fc))
+    cptac_covered = cptac.get("protein_expression_class") not in (None, "data_unavailable") and _log2fc_finite
     shift = (2.0 ** float(log2fc)) if cptac_covered else 1.0
 
     median = center * shift
@@ -1076,7 +1161,7 @@ def _hpa_cptac_estimate(target: str, indication: Optional[str] = None) -> dict:
         **access,
         "method_version": _DENSITY_METHOD_VERSION,
         # provenance (leading underscore = not a card summary_field; for audit/debug only)
-        "_whole_cell_class": density_class,   # the raw class before the admissibility relabel
+        "_whole_cell_class": density_class,  # the raw class before the admissibility relabel
         "_cptac_covered": cptac_covered,
         "_cptac_log2fc": log2fc if cptac_covered else None,
         "_cptac_cohort": cptac.get("cohort") if cptac_covered else None,
@@ -1095,15 +1180,18 @@ def _hpa_cptac_estimate(target: str, indication: Optional[str] = None) -> dict:
 # The figure id + path + emitter function names are unchanged so the card decl + skill dispatcher
 # stay wired; only the content changed (dumbbell -> distribution).
 
+
 def _load_takeda_style(target_contracts_dir):
     import sys as _sys
     import matplotlib.pyplot as plt
+
     style_path = Path(target_contracts_dir) / "plot_styles" / "takeda_oncology.mplstyle"
     if style_path.exists():
         plt.style.use(str(style_path))
     _sys.path.insert(0, str(Path(target_contracts_dir) / "plot_styles"))
     try:
         import takeda_palette
+
         return takeda_palette
     except Exception:
         return None
@@ -1128,9 +1216,15 @@ _TUMOR_FILL, _TUMOR_LINE = "#1f4e79", "#0a2540"
 _NORMAL_FILL, _NORMAL_LINE = "#a9c5db", "#5b7f99"
 
 
-def emit_per_cohort_panel(target: str, out_dir: Path,
-                          target_contracts_dir=os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"),
-                          *, presampled=None) -> Path:
+def emit_per_cohort_panel(
+    target: str,
+    out_dir: Path,
+    target_contracts_dir=os.environ.get(
+        "TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
+    ),
+    *,
+    presampled=None,
+) -> Path:
     """Grouped tumor-vs-normal BOXPLOT per CPTAC cohort, drawn from the per-aliquot log-ratios
     (per-sample product), ordered by tumor-vs-normal median delta. Each cohort shows the true
     tumor + normal distributions side by side; the per-cohort Welch/Mann-Whitney significance
@@ -1141,6 +1235,7 @@ def emit_per_cohort_panel(target: str, out_dir: Path,
     arrays the boxes are drawn from) — to render from it with NO per-sample product re-read. When
     None the legacy live recompute (per_cohort_distribution_stats) is taken."""
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
@@ -1150,35 +1245,61 @@ def emit_per_cohort_panel(target: str, out_dir: Path,
     stats = presampled if presampled is not None else per_cohort_distribution_stats(target)
     if not stats or pal is None:
         fig, ax = plt.subplots(figsize=(6, 4))
-        ax.text(0.5, 0.5, f"{target} — not quantified in any CPTAC cohort", ha="center",
-                va="center", fontsize=10, color="#777"); ax.set_axis_off()
-        fig.savefig(out_path); plt.close(fig); return out_path
+        ax.text(
+            0.5,
+            0.5,
+            f"{target} — not quantified in any CPTAC cohort",
+            ha="center",
+            va="center",
+            fontsize=10,
+            color="#777",
+        )
+        ax.set_axis_off()
+        fig.savefig(out_path)
+        plt.close(fig)
+        return out_path
 
     tfill, tline = pal.TUMOR_FILL, pal.TUMOR_LINE
     nfill, nline = pal.NORMAL_FILL, pal.NORMAL_LINE
+
     # driving metric for the takeaway: how many cohorts are significantly tumor-elevated (MWU/Welch p<.05).
-    def _p(s): return s["mwu_p"] if s.get("mwu_p") is not None else s.get("welch_p")
+    def _p(s):
+        return s["mwu_p"] if s.get("mwu_p") is not None else s.get("welch_p")
+
     n_cohorts = len(stats)
     n_up = sum(1 for s in stats if (s.get("delta_median") or 0) > 0 and (_p(s) is not None and _p(s) < 0.05))
-    take = (f"{target} protein is significantly elevated in tumor vs normal in "
-            f"{n_up}/{n_cohorts} CPTAC cohort(s).")
+    take = f"{target} protein is significantly elevated in tumor vs normal in {n_up}/{n_cohorts} CPTAC cohort(s)."
 
-    stats = list(reversed(stats))   # most tumor-elevated (largest Δ) at TOP → reverse for bottom-up y
+    stats = list(reversed(stats))  # most tumor-elevated (largest Δ) at TOP → reverse for bottom-up y
     fig_h = min(max(3.6, n_cohorts * 0.62 + 1.2), 8.4)
-    ann_x = max([v for s in stats for v in (s["tumor_max"], s["normal_max"]) if v is not None]
-                or [0]) + 0.15
+    ann_x = max([v for s in stats for v in (s["tumor_max"], s["normal_max"]) if v is not None] or [0]) + 0.15
 
-    with pal.figure_frame(target, None, "tumor vs. normal protein", out_path=out_path,
-                          figsize=(7.4, fig_h), left=0.17, top=1 - 0.82 / fig_h, bottom=0.95 / fig_h,
-                          provenance=f"CPTAC TMT MS (whole-cell lysate)  ·  {n_cohorts} cohorts  ·  Δ = tumor − normal median",
-                          takeaway=take) as F:
+    with pal.figure_frame(
+        target,
+        None,
+        "tumor vs. normal protein",
+        out_path=out_path,
+        figsize=(7.4, fig_h),
+        left=0.17,
+        top=1 - 0.82 / fig_h,
+        bottom=0.95 / fig_h,
+        provenance=f"CPTAC TMT MS (whole-cell lysate)  ·  {n_cohorts} cohorts  ·  Δ = tumor − normal median",
+        takeaway=take,
+    ) as F:
         ax = F.ax
         yticks, ylabels = [], []
         for i, s in enumerate(stats):
             drew = False
             if s["_tumor_values"]:
-                bp = ax.boxplot([s["_tumor_values"]], positions=[i + 0.18], orientation="horizontal",
-                                widths=0.30, patch_artist=True, showfliers=False, manage_ticks=False)
+                bp = ax.boxplot(
+                    [s["_tumor_values"]],
+                    positions=[i + 0.18],
+                    orientation="horizontal",
+                    widths=0.30,
+                    patch_artist=True,
+                    showfliers=False,
+                    manage_ticks=False,
+                )
                 bp["boxes"][0].set(facecolor=tfill, edgecolor=tline, linewidth=1.1)
                 for w in bp["whiskers"] + bp["caps"]:
                     w.set(color=tline, linewidth=1.0)
@@ -1186,8 +1307,15 @@ def emit_per_cohort_panel(target: str, out_dir: Path,
                     m.set(color="white", linewidth=1.4)
                 drew = True
             if s["_normal_values"]:
-                bp = ax.boxplot([s["_normal_values"]], positions=[i - 0.18], orientation="horizontal",
-                                widths=0.30, patch_artist=True, showfliers=False, manage_ticks=False)
+                bp = ax.boxplot(
+                    [s["_normal_values"]],
+                    positions=[i - 0.18],
+                    orientation="horizontal",
+                    widths=0.30,
+                    patch_artist=True,
+                    showfliers=False,
+                    manage_ticks=False,
+                )
                 bp["boxes"][0].set(facecolor=nfill, edgecolor=nline, linewidth=1.1)
                 for w in bp["whiskers"] + bp["caps"]:
                     w.set(color=nline, linewidth=1.0)
@@ -1198,20 +1326,44 @@ def emit_per_cohort_panel(target: str, out_dir: Path,
                 continue
             yticks.append(i)
             ylabels.append(f"{s['cohort']}\n(T={s['n_tumor']} N={s['n_normal']})")
-            stars = _sig_stars(_p(s)); d = s["delta_median"]
-            ax.text(ann_x, i, (f"Δ{d:+.2f} {stars}" if d is not None else stars),
-                    va="center", fontsize=7, color=pal.INK_SECONDARY)
+            stars = _sig_stars(_p(s))
+            d = s["delta_median"]
+            ax.text(
+                ann_x,
+                i,
+                (f"Δ{d:+.2f} {stars}" if d is not None else stars),
+                va="center",
+                fontsize=7,
+                color=pal.INK_SECONDARY,
+            )
         ax.axvline(0.0, **pal.REFLINE_NEUTRAL)
         ax.set_xlim(right=ann_x + 0.9)
-        ax.set_yticks(yticks); ax.set_yticklabels(ylabels, fontsize=7)
+        ax.set_yticks(yticks)
+        ax.set_yticklabels(ylabels, fontsize=7)
         # DIRECT labels on the top cohort's pair (tumor = upper box, normal = lower) — the consistent
         # ordering makes this the key for every row; no legend box to collide with the Δ column/data.
         if yticks:
             top = max(yticks)
-            ax.annotate("tumor", xy=(0.008, top + 0.18), xycoords=("axes fraction", "data"),
-                        ha="left", va="center", fontsize=7.5, color=tline, weight="bold")
-            ax.annotate("normal", xy=(0.008, top - 0.18), xycoords=("axes fraction", "data"),
-                        ha="left", va="center", fontsize=7.5, color=nline, weight="bold")
+            ax.annotate(
+                "tumor",
+                xy=(0.008, top + 0.18),
+                xycoords=("axes fraction", "data"),
+                ha="left",
+                va="center",
+                fontsize=7.5,
+                color=tline,
+                weight="bold",
+            )
+            ax.annotate(
+                "normal",
+                xy=(0.008, top - 0.18),
+                xycoords=("axes fraction", "data"),
+                ha="left",
+                va="center",
+                fontsize=7.5,
+                color=nline,
+                weight="bold",
+            )
         F.axis_label("x", "Tumor vs. normal protein", "log2 ratio (CPTAC TMT MS, per aliquot)")
     return out_path
 
@@ -1224,6 +1376,7 @@ def emit_plot_data(target: str, out_dir: Path) -> Path:
     The `_`-prefixed in-memory keys are persisted under public column names (tumor_values/
     normal_values); figures.render_from_plot_data maps them back."""
     import pandas as pd
+
     stats = per_cohort_distribution_stats(target)
     rows = []
     for s in stats:
@@ -1237,9 +1390,15 @@ def emit_plot_data(target: str, out_dir: Path) -> Path:
     return out_file
 
 
-def emit_plotly_specs(target: str, out_dir: Path,
-                      target_contracts_dir=os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"),
-                      *, presampled=None) -> list:
+def emit_plotly_specs(
+    target: str,
+    out_dir: Path,
+    target_contracts_dir=os.environ.get(
+        "TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
+    ),
+    *,
+    presampled=None,
+) -> list:
     """Interactive grouped tumor-vs-normal boxplot per cohort, built from the SAME
     per_cohort_distribution_stats (and their raw per-aliquot arrays) the SVG uses — no drift.
     Best-effort (plotly optional). OFFLINE seam: pass `presampled` (the per-cohort stats list with
@@ -1262,14 +1421,34 @@ def emit_plotly_specs(target: str, out_dir: Path,
     # tumor + normal as two box traces; y = cohort label, x = per-aliquot log-ratio
     t_y, t_x, n_y, n_x = [], [], [], []
     for label, s in zip(cohorts, stats):
-        t_x.extend(s["_tumor_values"]);  t_y.extend([label] * len(s["_tumor_values"]))
-        n_x.extend(s["_normal_values"]); n_y.extend([label] * len(s["_normal_values"]))
-    fig.add_trace(go.Box(x=n_x, y=n_y, name="normal", orientation="h",
-                         marker_color=_NORMAL_LINE, fillcolor=_NORMAL_FILL,
-                         line=dict(width=1), boxpoints=False))
-    fig.add_trace(go.Box(x=t_x, y=t_y, name="tumor", orientation="h",
-                         marker_color=_TUMOR_LINE, fillcolor=_TUMOR_FILL,
-                         line=dict(width=1), boxpoints=False))
+        t_x.extend(s["_tumor_values"])
+        t_y.extend([label] * len(s["_tumor_values"]))
+        n_x.extend(s["_normal_values"])
+        n_y.extend([label] * len(s["_normal_values"]))
+    fig.add_trace(
+        go.Box(
+            x=n_x,
+            y=n_y,
+            name="normal",
+            orientation="h",
+            marker_color=_NORMAL_LINE,
+            fillcolor=_NORMAL_FILL,
+            line=dict(width=1),
+            boxpoints=False,
+        )
+    )
+    fig.add_trace(
+        go.Box(
+            x=t_x,
+            y=t_y,
+            name="tumor",
+            orientation="h",
+            marker_color=_TUMOR_LINE,
+            fillcolor=_TUMOR_FILL,
+            line=dict(width=1),
+            boxpoints=False,
+        )
+    )
     # significance annotations at the right
     xr = max([v for s in stats for v in (s["tumor_max"], s["normal_max"]) if v is not None] or [0])
     for label, s in zip(cohorts, stats):
@@ -1277,12 +1456,21 @@ def emit_plotly_specs(target: str, out_dir: Path,
         d = s["delta_median"]
         if d is None:
             continue
-        fig.add_annotation(x=xr + 0.2, y=label, text=f"Δ{d:+.2f} {_sig_stars(p)}",
-                           showarrow=False, font=dict(size=9), xanchor="left")
-    fig.update_layout(title=f"{target} — tumor vs normal protein distribution, per CPTAC cohort",
-                      xaxis_title="log2 tumor-vs-reference protein ratio (CPTAC TMT MS, per aliquot)",
-                      boxmode="group", template="plotly_white",
-                      margin=dict(l=140, r=70, t=50, b=50))
+        fig.add_annotation(
+            x=xr + 0.2, y=label, text=f"Δ{d:+.2f} {_sig_stars(p)}", showarrow=False, font=dict(size=9), xanchor="left"
+        )
+    fig.update_layout(
+        title=f"{target} — tumor vs normal protein distribution, per CPTAC cohort",
+        xaxis_title="log2 tumor-vs-reference protein ratio (CPTAC TMT MS, per aliquot)",
+        boxmode="group",
+        template="plotly_white",
+        margin=dict(l=140, r=70, t=50, b=50),
+    )
     (Path(out_dir) / "figure_protein_per_cohort_tumor_vs_normal.plotly.json").write_text(fig.to_json())
-    return [{"id": "protein_per_cohort_tumor_vs_normal",
-             "path": "figure_protein_per_cohort_tumor_vs_normal.plotly.json", "type": "plotly"}]
+    return [
+        {
+            "id": "protein_per_cohort_tumor_vs_normal",
+            "path": "figure_protein_per_cohort_tumor_vs_normal.plotly.json",
+            "type": "plotly",
+        }
+    ]

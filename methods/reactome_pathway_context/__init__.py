@@ -27,6 +27,7 @@ source in the framework. Cite Milacic et al. 2024 NAR.
 
 Companion: data-catalog:manifests/sources/reactome-v96.yaml
 """
+
 METHOD_VERSION = "0.1.0"
 
 # Re-export the public API so dispatchers using __import__(...) find

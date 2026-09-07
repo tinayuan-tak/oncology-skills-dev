@@ -108,6 +108,7 @@ def parse_rule(rule: str) -> tuple[str, str, list[str]]:
 
 # ---------- Source-data loaders --------------------------------------------
 
+
 def _load_tcga_marker_paper_labels(catalog_repo: Path, indication: str) -> pd.DataFrame:
     """Load TCGA marker-paper subtype labels for the indication.
 
@@ -184,10 +185,12 @@ def _load_tcga_marker_paper_labels(catalog_repo: Path, indication: str) -> pd.Da
             cms_df = pd.read_csv(cms_fallback, sep="\t")
             tcga_cms = cms_df[cms_df["dataset"] == "tcga"][
                 ["sample", "CMS_final_network_plus_RFclassifier_in_nonconsensus_samples"]
-            ].rename(columns={
-                "sample": "patient_id",
-                "CMS_final_network_plus_RFclassifier_in_nonconsensus_samples": "cms_label",
-            })
+            ].rename(
+                columns={
+                    "sample": "patient_id",
+                    "CMS_final_network_plus_RFclassifier_in_nonconsensus_samples": "cms_label",
+                }
+            )
             df = df.merge(tcga_cms, on="patient_id", how="outer")
             # Backfill sample_id + source_native_id for Guinney-only rows
             df["sample_id"] = df["sample_id"].fillna(df["patient_id"])
@@ -261,8 +264,11 @@ def _cdr_histology_label(hist_type: str, tcga_type: str) -> "str | None":
 
 # PAM50 label decode: curated Subtype_Selected 'BRCA.<PAM50>' → the catalog's bare pam50_subtype token.
 _BRCA_PAM50_DECODE = {
-    "BRCA.LumA": "LumA", "BRCA.LumB": "LumB", "BRCA.Her2": "Her2",
-    "BRCA.Basal": "Basal", "BRCA.Normal": "Normal",
+    "BRCA.LumA": "LumA",
+    "BRCA.LumB": "LumB",
+    "BRCA.Her2": "Her2",
+    "BRCA.Basal": "Basal",
+    "BRCA.Normal": "Normal",
 }
 
 
@@ -276,7 +282,7 @@ def _load_brca_pam50_from_curated() -> "pd.DataFrame | None":
     try:
         cur = pd.read_csv(fallback)
     except FileNotFoundError:
-        return None                        # race: file vanished after the exists() check → null-strata
+        return None  # race: file vanished after the exists() check → null-strata
     except Exception:  # noqa: BLE001
         # the curated CSV EXISTS (checked above) — a parse failure is corruption, not a data gap;
         # surface it rather than silently collapsing every BRCA patient to a null PAM50 stratum.
@@ -304,11 +310,9 @@ def _load_pancanatlas_clinical_histology() -> "pd.DataFrame | None":
     except Exception:  # noqa: BLE001
         return None
     lung = cdr[cdr["type"].isin(["LUAD", "LUSC"])].copy()
-    lung["histology"] = [
-        _cdr_histology_label(ht, tp) for ht, tp in zip(lung["histological_type"], lung["type"])]
+    lung["histology"] = [_cdr_histology_label(ht, tp) for ht, tp in zip(lung["histological_type"], lung["type"])]
     lung = lung.dropna(subset=["histology"])
-    return lung[["bcr_patient_barcode", "histology"]].rename(
-        columns={"bcr_patient_barcode": "patient_id"})
+    return lung[["bcr_patient_barcode", "histology"]].rename(columns={"bcr_patient_barcode": "patient_id"})
 
 
 # Per-indication cache-dir slug for the prefetched BPC LOT parquet — MUST match
@@ -392,25 +396,24 @@ def _fetch_derived_parquet(catalog_repo: Path, manifest_id: str, filename: str) 
     manifest = yaml.safe_load(manifest_path.read_text())
     payload_uri = manifest.get("s3_uri")
     if not payload_uri:
-        raise FileNotFoundError(
-            f"Derived manifest {manifest_id} declares no s3_uri to fetch from.")
+        raise FileNotFoundError(f"Derived manifest {manifest_id} declares no s3_uri to fetch from.")
     # Companion files share the payload's prefix; swap the basename.
     s3_uri = payload_uri.rsplit("/", 1)[0] + "/" + filename
     local.parent.mkdir(parents=True, exist_ok=True)
     import subprocess
-    r = subprocess.run(["aws", "s3", "cp", s3_uri, str(local), "--no-progress"],
-                       capture_output=True, text=True)
+
+    r = subprocess.run(["aws", "s3", "cp", s3_uri, str(local), "--no-progress"], capture_output=True, text=True)
     if r.returncode != 0 or not local.exists():
         raise FileNotFoundError(
             f"S3 fetch of {manifest_id}/{filename} failed ({s3_uri}): "
-            f"{r.stderr.strip()[:200]}. Check AWS_PROFILE (needs onc-compbio GetObject).")
+            f"{r.stderr.strip()[:200]}. Check AWS_PROFILE (needs onc-compbio GetObject)."
+        )
     return local
 
 
 def _load_fusion_consensus(catalog_repo: Path, manifest_id: str) -> pd.DataFrame:
     """Load the per-(sample_key, gene_symbol) fusion-consensus payload parquet."""
-    p = _fetch_derived_parquet(catalog_repo, manifest_id,
-                               "fusion_consensus_per_sample_gene.parquet")
+    p = _fetch_derived_parquet(catalog_repo, manifest_id, "fusion_consensus_per_sample_gene.parquet")
     return pd.read_parquet(p)
 
 
@@ -459,8 +462,8 @@ def _evaluate_fusion_stratum(
     lhs, op, values = parse_rule(stratum["rule"])
     if op != "eq" or len(values) != 1:
         raise ValueError(
-            f"Fusion stratum {stratum['id']} rule must be `fusion_gene == '<GENE>'`; "
-            f"got {stratum['rule']!r}.")
+            f"Fusion stratum {stratum['id']} rule must be `fusion_gene == '<GENE>'`; got {stratum['rule']!r}."
+        )
     target_gene = values[0]
     min_cc = int(stratum.get("data_source", {}).get("min_caller_count", 1))
 
@@ -499,18 +502,29 @@ def _evaluate_fusion_stratum(
     rows = []
     for k in all_keys:
         is_mem = _member(k)
-        rows.append({
-            "sample_id": k,
-            "patient_id": _fusion_participant_id(k),
-            "source_native_id": k,
-            "stratum_id": stratum["id"],
-            "is_member": is_mem,
-            "derivation_source": stratum["derivation_source"],
-            "derivation_value": target_gene if is_mem is True else "",
-        })
-    return pd.DataFrame(rows, columns=[
-        "sample_id", "patient_id", "source_native_id", "stratum_id",
-        "is_member", "derivation_source", "derivation_value"])
+        rows.append(
+            {
+                "sample_id": k,
+                "patient_id": _fusion_participant_id(k),
+                "source_native_id": k,
+                "stratum_id": stratum["id"],
+                "is_member": is_mem,
+                "derivation_source": stratum["derivation_source"],
+                "derivation_value": target_gene if is_mem is True else "",
+            }
+        )
+    return pd.DataFrame(
+        rows,
+        columns=[
+            "sample_id",
+            "patient_id",
+            "source_native_id",
+            "stratum_id",
+            "is_member",
+            "derivation_source",
+            "derivation_value",
+        ],
+    )
 
 
 # ---------- Per-sample label product path (TMB etc.) ----------
@@ -546,7 +560,8 @@ def _evaluate_sample_label_stratum(
     if field not in label_df.columns:
         raise ValueError(
             f"Sample-label stratum {stratum['id']} references field {field!r} "
-            f"not in the product columns {list(label_df.columns)}.")
+            f"not in the product columns {list(label_df.columns)}."
+        )
 
     df = label_df
     if tissue_filter_keys is not None:
@@ -560,18 +575,29 @@ def _evaluate_sample_label_stratum(
     rows = []
     for _, r in df.iterrows():
         is_mem = _member(r[field])
-        rows.append({
-            "sample_id": r["patient_key"],
-            "patient_id": r["patient_key"],
-            "source_native_id": r["patient_key"],
-            "stratum_id": stratum["id"],
-            "is_member": is_mem,
-            "derivation_source": stratum["derivation_source"],
-            "derivation_value": str(r[field]) if is_mem is True else "",
-        })
-    return pd.DataFrame(rows, columns=[
-        "sample_id", "patient_id", "source_native_id", "stratum_id",
-        "is_member", "derivation_source", "derivation_value"])
+        rows.append(
+            {
+                "sample_id": r["patient_key"],
+                "patient_id": r["patient_key"],
+                "source_native_id": r["patient_key"],
+                "stratum_id": stratum["id"],
+                "is_member": is_mem,
+                "derivation_source": stratum["derivation_source"],
+                "derivation_value": str(r[field]) if is_mem is True else "",
+            }
+        )
+    return pd.DataFrame(
+        rows,
+        columns=[
+            "sample_id",
+            "patient_id",
+            "source_native_id",
+            "stratum_id",
+            "is_member",
+            "derivation_source",
+            "derivation_value",
+        ],
+    )
 
 
 # ---------- Copy-number amplification path (CCND1 etc.) ----------
@@ -607,30 +633,50 @@ def _evaluate_cn_amp_stratum(stratum: dict, cn_df: pd.DataFrame | None) -> pd.Da
     if op != "eq" or len(values) != 1:
         raise ValueError(
             f"CN-amp stratum {stratum['id']} rule must be "
-            f"`copy_number.<GENE> == '<amp_call>'`; got {stratum['rule']!r}.")
+            f"`copy_number.<GENE> == '<amp_call>'`; got {stratum['rule']!r}."
+        )
     target_call = values[0]
 
     if cn_df is None:
-        return pd.DataFrame(columns=[
-            "sample_id", "patient_id", "source_native_id", "stratum_id",
-            "is_member", "derivation_source", "derivation_value"])
+        return pd.DataFrame(
+            columns=[
+                "sample_id",
+                "patient_id",
+                "source_native_id",
+                "stratum_id",
+                "is_member",
+                "derivation_source",
+                "derivation_value",
+            ]
+        )
 
     sub = cn_df[cn_df["gene_symbol"] == gene]
     rows = []
     for _, r in sub.iterrows():
-        is_mem = (r["amp_call"] == target_call)
-        rows.append({
-            "sample_id": r["patient_key"],
-            "patient_id": r["patient_key"],
-            "source_native_id": r["patient_key"],
-            "stratum_id": stratum["id"],
-            "is_member": bool(is_mem),
-            "derivation_source": stratum["derivation_source"],
-            "derivation_value": str(r["amp_call"]) if is_mem else "",
-        })
-    return pd.DataFrame(rows, columns=[
-        "sample_id", "patient_id", "source_native_id", "stratum_id",
-        "is_member", "derivation_source", "derivation_value"])
+        is_mem = r["amp_call"] == target_call
+        rows.append(
+            {
+                "sample_id": r["patient_key"],
+                "patient_id": r["patient_key"],
+                "source_native_id": r["patient_key"],
+                "stratum_id": stratum["id"],
+                "is_member": bool(is_mem),
+                "derivation_source": stratum["derivation_source"],
+                "derivation_value": str(r["amp_call"]) if is_mem else "",
+            }
+        )
+    return pd.DataFrame(
+        rows,
+        columns=[
+            "sample_id",
+            "patient_id",
+            "source_native_id",
+            "stratum_id",
+            "is_member",
+            "derivation_source",
+            "derivation_value",
+        ],
+    )
 
 
 # Indication → DepMap OncotreeLineage. Mirrors target-contracts
@@ -659,8 +705,8 @@ INDICATION_TO_DEPMAP_LINEAGE = {
 # esophageal (Esophageal*) models; the substring is matched case-insensitively
 # against OncotreeSubtype. Indications absent here use the lineage filter alone.
 INDICATION_TO_DEPMAP_ORGAN = {
-    "STAD": "stomach",       # Stomach Adenocarcinoma, Tubular/Diffuse/Signet-Ring Stomach, ...
-    "ESCA": "esophageal",    # Esophageal Adenocarcinoma, Esophageal Squamous Cell Carcinoma
+    "STAD": "stomach",  # Stomach Adenocarcinoma, Tubular/Diffuse/Signet-Ring Stomach, ...
+    "ESCA": "esophageal",  # Esophageal Adenocarcinoma, Esophageal Squamous Cell Carcinoma
 }
 
 # Indication → TCGA disease codes for filtering the pan-TCGA fusion-consensus
@@ -685,14 +731,14 @@ INDICATION_TO_TCGA_TISSUES = {
 # absent from the map (small-cell, large-cell, adenosquamous, hypopharynx,
 # NUT-midline, generic-HNSC) intentionally maps to NaN → tri-value null.
 _DEPMAP_ONCOTREE_TO_HISTOLOGY = {
-    "Lung Adenocarcinoma": "adenocarcinoma",             # NSCLC histology_Adeno
+    "Lung Adenocarcinoma": "adenocarcinoma",  # NSCLC histology_Adeno
     "Lung Squamous Cell Carcinoma": "squamous_cell_carcinoma",  # histology_SCC
-    "Esophageal Adenocarcinoma": "adenocarcinoma",       # ESCA histology_EAC
+    "Esophageal Adenocarcinoma": "adenocarcinoma",  # ESCA histology_EAC
     "Esophageal Squamous Cell Carcinoma": "squamous_cell_carcinoma",  # ESCA histology_ESCC
 }
 _DEPMAP_ONCOTREE_TO_SITE = {
-    "Oral Cavity Squamous Cell Carcinoma": "oral_cavity",   # HNSC site_oral_cavity
-    "Larynx Squamous Cell Carcinoma": "larynx",             # site_larynx
+    "Oral Cavity Squamous Cell Carcinoma": "oral_cavity",  # HNSC site_oral_cavity
+    "Larynx Squamous Cell Carcinoma": "larynx",  # site_larynx
     "Oropharynx Squamous Cell Carcinoma": "oropharyngeal",  # site_oropharyngeal
 }
 
@@ -768,10 +814,12 @@ def _load_depmap_inferred_subtypes(catalog_repo: Path, indication: str | None = 
     # Real-data validation (2026-07-15): 140 Colorectal cell lines →
     # 30 MSI-H, 106 MSS, 4 insufficient.
     if "MSI" in df.columns:
+
         def _msi_flag_to_status(v):
             if pd.isna(v):
                 return None
             return "MSI-H" if v else "MSS"
+
         df["MSI_status"] = df["MSI"].apply(_msi_flag_to_status)
 
     # DepMap has no anatomic_organ_subdivision equivalent (cell lines don't
@@ -803,6 +851,7 @@ def _load_depmap_inferred_subtypes(catalog_repo: Path, indication: str | None = 
 
 
 # ---------- Rule evaluation ------------------------------------------------
+
 
 def _extract_field_value(row: pd.Series, field_lhs: str) -> object:
     """Extract a namespaced field value from a row.
@@ -847,15 +896,17 @@ def _evaluate_stratum(
     # Do NOT crash the assigner. Example: DepMap has no `primary_site`
     # (sidedness) → all DepMap rows for that stratum emit `null`.
     if field not in df.columns:
-        out = pd.DataFrame({
-            "sample_id": df[sample_id_col],
-            "patient_id": df[patient_id_col] if patient_id_col else None,
-            "source_native_id": df[native_id_col],
-            "stratum_id": stratum["id"],
-            "is_member": None,
-            "derivation_source": stratum["derivation_source"],
-            "derivation_value": "",
-        })
+        out = pd.DataFrame(
+            {
+                "sample_id": df[sample_id_col],
+                "patient_id": df[patient_id_col] if patient_id_col else None,
+                "source_native_id": df[native_id_col],
+                "stratum_id": stratum["id"],
+                "is_member": None,
+                "derivation_source": stratum["derivation_source"],
+                "derivation_value": "",
+            }
+        )
         return out
 
     def _predicate(row):
@@ -868,15 +919,17 @@ def _evaluate_stratum(
 
     df["_is_member"] = df.apply(_predicate, axis=1)
 
-    out = pd.DataFrame({
-        "sample_id": df[sample_id_col],
-        "patient_id": df[patient_id_col] if patient_id_col else None,
-        "source_native_id": df[native_id_col],
-        "stratum_id": stratum["id"],
-        "is_member": df["_is_member"],
-        "derivation_source": stratum["derivation_source"],
-        "derivation_value": df[field].astype(str).where(df["_is_member"] == True, ""),
-    })
+    out = pd.DataFrame(
+        {
+            "sample_id": df[sample_id_col],
+            "patient_id": df[patient_id_col] if patient_id_col else None,
+            "source_native_id": df[native_id_col],
+            "stratum_id": stratum["id"],
+            "is_member": df["_is_member"],
+            "derivation_source": stratum["derivation_source"],
+            "derivation_value": df[field].astype(str).where(df["_is_member"] == True, ""),
+        }
+    )
     return out
 
 
@@ -888,21 +941,39 @@ def _evaluate_stratum(
 
 # ---------- CLI ------------------------------------------------------------
 
+
 @click.command()
-@click.option("--subgroup-catalog", required=True, type=click.Path(exists=True, dir_okay=False, path_type=Path),
-              help="Path to the subgroup_catalog YAML.")
-@click.option("--data-source", required=True, type=click.Choice(["tcga", "depmap", "genie_bpc"]),
-              help="Which data source to assign against.")
+@click.option(
+    "--subgroup-catalog",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    help="Path to the subgroup_catalog YAML.",
+)
+@click.option(
+    "--data-source",
+    required=True,
+    type=click.Choice(["tcga", "depmap", "genie_bpc"]),
+    help="Which data source to assign against.",
+)
 @click.option("--release-pin", required=True, help="Catalog release_pin identifier (e.g., 2026-Q2).")
-@click.option("--catalog-repo", type=click.Path(file_okay=False, path_type=Path),
-              default=Path(os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")),
-              help="Path to the data-catalog repo for input-manifest resolution.")
-@click.option("--out", required=True, type=click.Path(file_okay=False, path_type=Path),
-              help="Output directory; assignments.parquet + manifest.yaml land here.")
-@click.option("--dry-run", is_flag=True,
-              help="Parse the catalog, print the plan, do not produce assignments.")
-def main(subgroup_catalog: Path, data_source: str, release_pin: str,
-         catalog_repo: Path, out: Path, dry_run: bool) -> int:
+@click.option(
+    "--catalog-repo",
+    type=click.Path(file_okay=False, path_type=Path),
+    default=Path(
+        os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
+    ),
+    help="Path to the data-catalog repo for input-manifest resolution.",
+)
+@click.option(
+    "--out",
+    required=True,
+    type=click.Path(file_okay=False, path_type=Path),
+    help="Output directory; assignments.parquet + manifest.yaml land here.",
+)
+@click.option("--dry-run", is_flag=True, help="Parse the catalog, print the plan, do not produce assignments.")
+def main(
+    subgroup_catalog: Path, data_source: str, release_pin: str, catalog_repo: Path, out: Path, dry_run: bool
+) -> int:
     """Generate per-sample subgroup assignments from directly-tagged source fields."""
     with subgroup_catalog.open() as f:
         catalog = yaml.safe_load(f)
@@ -964,7 +1035,7 @@ def main(subgroup_catalog: Path, data_source: str, release_pin: str,
     if scalar_strata:
         if data_source == "tcga":
             source_df = _load_tcga_marker_paper_labels(catalog_repo, indication)
-            sample_id_col = "sample_id"      # produced by loader normalization
+            sample_id_col = "sample_id"  # produced by loader normalization
             patient_id_col = "patient_id"
             native_id_col = "source_native_id"
         elif data_source == "genie_bpc":
@@ -996,9 +1067,11 @@ def main(subgroup_catalog: Path, data_source: str, release_pin: str,
     # null (no fusion product for that source) — correct tri-value behavior.
     if fusion_strata:
         if data_source != "tcga":
-            click.echo(f"  fusion strata present but data_source={data_source} has no "
-                       f"fusion-consensus product → emitting null for "
-                       f"{[s['id'] for s in fusion_strata]}")
+            click.echo(
+                f"  fusion strata present but data_source={data_source} has no "
+                f"fusion-consensus product → emitting null for "
+                f"{[s['id'] for s in fusion_strata]}"
+            )
         else:
             tissue_filter = INDICATION_TO_TCGA_TISSUES.get((indication or "").upper())
             # Group fusion strata by their manifest_id so each distinct consensus
@@ -1014,10 +1087,14 @@ def main(subgroup_catalog: Path, data_source: str, release_pin: str,
             for manifest_id, strata in by_manifest.items():
                 fusion_df = _load_fusion_consensus(catalog_repo, manifest_id)
                 coverage_df = _load_fusion_coverage(catalog_repo, manifest_id)
-                cov_note = "with coverage (true false/null split)" if coverage_df is not None \
+                cov_note = (
+                    "with coverage (true false/null split)"
+                    if coverage_df is not None
                     else "NO coverage (non-members → null)"
-                click.echo(f"  loaded fusion consensus {manifest_id}: {len(fusion_df):,} "
-                           f"(sample,gene) rows, {cov_note}")
+                )
+                click.echo(
+                    f"  loaded fusion consensus {manifest_id}: {len(fusion_df):,} (sample,gene) rows, {cov_note}"
+                )
                 for stratum in strata:
                     try:
                         rows = _evaluate_fusion_stratum(stratum, fusion_df, coverage_df, tissue_filter)
@@ -1028,15 +1105,18 @@ def main(subgroup_catalog: Path, data_source: str, release_pin: str,
                     n_hit = int((rows["is_member"] == True).sum())
                     n_false = int((rows["is_member"] == False).sum())
                     n_null = int(rows["is_member"].isna().sum())
-                    click.echo(f"    {stratum['id']:<20} is_member=true: {n_hit:>5}, "
-                               f"false: {n_false:>5}, null: {n_null:>5}")
+                    click.echo(
+                        f"    {stratum['id']:<20} is_member=true: {n_hit:>5}, false: {n_false:>5}, null: {n_null:>5}"
+                    )
 
     # ============ Sample-label strata: per-sample derived product (TMB etc.) ==
     # Also TCGA-keyed; depmap/genie self-degrade (no product for that source).
     if label_strata:
         if data_source != "tcga":
-            click.echo(f"  sample-label strata present but data_source={data_source} has "
-                       f"no per-sample label product → skipping {[s['id'] for s in label_strata]}")
+            click.echo(
+                f"  sample-label strata present but data_source={data_source} has "
+                f"no per-sample label product → skipping {[s['id'] for s in label_strata]}"
+            )
         else:
             # Restrict the pan-TCGA label product to the indication's patients via
             # the marker-paper cohort (patient_key = participant barcode).
@@ -1055,8 +1135,10 @@ def main(subgroup_catalog: Path, data_source: str, release_pin: str,
                 by_manifest_lbl.setdefault(mid, []).append(s)
             for manifest_id, strata in by_manifest_lbl.items():
                 label_df = _load_sample_label_product(catalog_repo, manifest_id)
-                click.echo(f"  loaded sample-label product {manifest_id}: {len(label_df):,} samples"
-                           + (f", filtered to {len(tissue_keys)} {indication} patients" if tissue_keys else ""))
+                click.echo(
+                    f"  loaded sample-label product {manifest_id}: {len(label_df):,} samples"
+                    + (f", filtered to {len(tissue_keys)} {indication} patients" if tissue_keys else "")
+                )
                 for stratum in strata:
                     try:
                         rows = _evaluate_sample_label_stratum(stratum, label_df, tissue_keys)
@@ -1067,21 +1149,26 @@ def main(subgroup_catalog: Path, data_source: str, release_pin: str,
                     n_hit = int((rows["is_member"] == True).sum())
                     n_false = int((rows["is_member"] == False).sum())
                     n_null = int(rows["is_member"].isna().sum())
-                    click.echo(f"    {stratum['id']:<20} is_member=true: {n_hit:>5}, "
-                               f"false: {n_false:>5}, null: {n_null:>5}")
+                    click.echo(
+                        f"    {stratum['id']:<20} is_member=true: {n_hit:>5}, false: {n_false:>5}, null: {n_null:>5}"
+                    )
 
     # ============ CN-amp strata: per-(patient, gene) GISTIC product ==========
     # TCGA-only (GISTIC is a TCGA product); depmap/genie self-degrade.
     if cn_amp_strata:
         if data_source != "tcga":
-            click.echo(f"  CN-amp strata present but data_source={data_source} has no "
-                       f"GISTIC product → skipping {[s['id'] for s in cn_amp_strata]}")
+            click.echo(
+                f"  CN-amp strata present but data_source={data_source} has no "
+                f"GISTIC product → skipping {[s['id'] for s in cn_amp_strata]}"
+            )
         else:
             cn_df = _load_cn_gistic(indication)
             if cn_df is None:
-                click.echo(f"  CN-amp product not cached for {indication} "
-                           f"(run scripts/prefetch_cn_gistic.py) → strata emit null: "
-                           f"{[s['id'] for s in cn_amp_strata]}")
+                click.echo(
+                    f"  CN-amp product not cached for {indication} "
+                    f"(run scripts/prefetch_cn_gistic.py) → strata emit null: "
+                    f"{[s['id'] for s in cn_amp_strata]}"
+                )
             else:
                 click.echo(f"  loaded CN GISTIC product: {len(cn_df):,} (patient, gene) rows")
             for stratum in cn_amp_strata:

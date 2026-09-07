@@ -17,6 +17,7 @@ indication_crosswalk.yaml and EXCLUDE (flag lineage_conflict) any negative whose
 data_unavailable-safe: vocab/crosswalk load failure or absent percentiles → a
 control_position_class of data_unavailable, never a raise into the render path.
 """
+
 from __future__ import annotations
 import os
 
@@ -28,7 +29,8 @@ import yaml
 
 METHOD_VERSION = "0.1.0"
 DEFAULT_TARGET_CONTRACTS = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
+    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+)
 CONTROLS_VOCAB_RELPATH = "vocabularies/tumor_presence_controls.yaml"
 CROSSWALK_RELPATH = "vocabularies/indication_crosswalk.yaml"
 
@@ -59,9 +61,11 @@ def _load_crosswalk(contracts_dir: str) -> dict:
 # shared crosswalk (collision-prone; the readers' full migration to the crosswalk is a separate
 # workstream). Mirrors INDICATION_TO_TUMOR_ASSIGNMENT_MANIFEST's LUAD/LUSC->nsclc aliasing.
 _INDICATION_CANONICAL_ALIAS = {
-    "LUAD": "NSCLC", "LUSC": "NSCLC",
+    "LUAD": "NSCLC",
+    "LUSC": "NSCLC",
     "PDAC": "PAAD",
-    "COAD": "COADREAD", "READ": "COADREAD",
+    "COAD": "COADREAD",
+    "READ": "COADREAD",
 }
 
 
@@ -88,9 +92,12 @@ def _applicable_negatives(controls: dict, indication_tissue: Optional[str]) -> t
         role = spec.get("role")
         if role == "lineage_marker":
             lineage = spec.get("negative_except_lineage")
-            if (indication_tissue is not None and lineage is not None
-                    and str(lineage).strip().lower() == str(indication_tissue).strip().lower()):
-                excluded[sym] = spec           # lineage_conflict — this gene is a MARKER here
+            if (
+                indication_tissue is not None
+                and lineage is not None
+                and str(lineage).strip().lower() == str(indication_tissue).strip().lower()
+            ):
+                excluded[sym] = spec  # lineage_conflict — this gene is a MARKER here
                 continue
         applicable[sym] = spec
     return applicable, excluded
@@ -123,16 +130,13 @@ def _classify_control_position(target_pct, pos_pcts: dict, neg_pcts: dict) -> st
     return "above_negatives_below_positives"
 
 
-def _assemble(target_pct, target_class, pos_pcts, neg_detail, excluded, source_label,
-              context) -> dict:
+def _assemble(target_pct, target_class, pos_pcts, neg_detail, excluded, source_label, context) -> dict:
     """Build the control_position summary block (shared by both entry points)."""
     n_pos = sum(1 for p in pos_pcts.values() if p is not None)
-    n_pos_below = sum(1 for p in pos_pcts.values()
-                      if p is not None and target_pct is not None and target_pct >= p)
+    n_pos_below = sum(1 for p in pos_pcts.values() if p is not None and target_pct is not None and target_pct >= p)
     neg_pcts = {k: v["pct"] for k, v in neg_detail.items()}
     n_neg = sum(1 for p in neg_pcts.values() if p is not None)
-    n_neg_below = sum(1 for p in neg_pcts.values()
-                      if p is not None and target_pct is not None and target_pct >= p)
+    n_neg_below = sum(1 for p in neg_pcts.values() if p is not None and target_pct is not None and target_pct >= p)
     klass = _classify_control_position(target_pct, pos_pcts, neg_detail)
     # human-readable position summary
     parts = []
@@ -147,8 +151,7 @@ def _assemble(target_pct, target_class, pos_pcts, neg_detail, excluded, source_l
         "control_target_percentile": target_pct,
         "control_target_class": target_class,
         "control_positives": {k: round(v, 2) for k, v in pos_pcts.items() if v is not None},
-        "control_negatives": {k: round(v["pct"], 2) for k, v in neg_detail.items()
-                              if v["pct"] is not None},
+        "control_negatives": {k: round(v["pct"], 2) for k, v in neg_detail.items() if v["pct"] is not None},
         "control_negatives_excluded_lineage_conflict": sorted(excluded.keys()),
         "control_position_context": context,
         "control_percentile_source": source_label,
@@ -156,20 +159,20 @@ def _assemble(target_pct, target_class, pos_pcts, neg_detail, excluded, source_l
     }
 
 
-def control_position_tumor(target: str, indication: str,
-                           contracts_dir: str = str(DEFAULT_TARGET_CONTRACTS)) -> dict:
+def control_position_tumor(target: str, indication: str, contracts_dir: str = str(DEFAULT_TARGET_CONTRACTS)) -> dict:
     """Control-benchmark position for the tumor-rna-distribution card (per-study tumor
     median rank, allgene-tumor-rank-v1). Indication-matched negatives."""
-    from methods.tcga_gtex_expression_distribution.read import (
-        INDICATION_TO_TCGA_STUDIES, _symbol_to_ensembl_ids)
+    from methods.tcga_gtex_expression_distribution.read import INDICATION_TO_TCGA_STUDIES, _symbol_to_ensembl_ids
     from methods.allgene_percentile_precompute.lookup import tumor_allgene_percentile
 
     try:
         controls = _load_controls(contracts_dir)
     except Exception as e:  # noqa: BLE001
-        return {"control_position_class": "data_unavailable",
-                "_control_note": f"controls vocab unavailable: {type(e).__name__}",
-                "control_position_method_version": METHOD_VERSION}
+        return {
+            "control_position_class": "data_unavailable",
+            "_control_note": f"controls vocab unavailable: {type(e).__name__}",
+            "control_position_method_version": METHOD_VERSION,
+        }
 
     studies = INDICATION_TO_TCGA_STUDIES.get((indication or "").upper().strip(), [])
     tissue = _indication_normal_tissue(indication, contracts_dir)
@@ -184,29 +187,31 @@ def control_position_tumor(target: str, indication: str,
 
     pos_pcts = {sym: _pct(sym) for sym in (controls.get("positive_controls") or {})}
     applicable_neg, excluded = _applicable_negatives(controls, tissue)
-    neg_detail = {sym: {"pct": _pct(sym), "role": spec.get("role")}
-                  for sym, spec in applicable_neg.items()}
+    neg_detail = {sym: {"pct": _pct(sym), "role": spec.get("role")} for sym, spec in applicable_neg.items()}
 
-    ctx = (f"tumor:{','.join(studies) or '?'} vs curated controls "
-           f"(tumor_presence_controls v{controls.get('version')}; "
-           f"indication_normal_tissue={tissue}; allgene-tumor-rank-v1)")
-    return _assemble(target_pct, target_class, pos_pcts, neg_detail, excluded,
-                     "allgene-tumor-rank-v1", ctx)
+    ctx = (
+        f"tumor:{','.join(studies) or '?'} vs curated controls "
+        f"(tumor_presence_controls v{controls.get('version')}; "
+        f"indication_normal_tissue={tissue}; allgene-tumor-rank-v1)"
+    )
+    return _assemble(target_pct, target_class, pos_pcts, neg_detail, excluded, "allgene-tumor-rank-v1", ctx)
 
 
-def control_position_cellline(target: str,
-                              contracts_dir: str = str(DEFAULT_TARGET_CONTRACTS)) -> dict:
+def control_position_cellline(target: str, contracts_dir: str = str(DEFAULT_TARGET_CONTRACTS)) -> dict:
     """Control-benchmark position for the cellline-rna-distribution card (DepMap
     pan-cancer panel-median rank, allgene-depmap-rank-26q1-v1). The DepMap null is a
     single pan-cancer panel (no indication), so lineage-marker negatives stay applicable
     (there is no single indication tissue to conflict with) — they anchor the FLOOR."""
     from methods.allgene_percentile_precompute.lookup import depmap_allgene_percentile
+
     try:
         controls = _load_controls(contracts_dir)
     except Exception as e:  # noqa: BLE001
-        return {"control_position_class": "data_unavailable",
-                "_control_note": f"controls vocab unavailable: {type(e).__name__}",
-                "control_position_method_version": METHOD_VERSION}
+        return {
+            "control_position_class": "data_unavailable",
+            "_control_note": f"controls vocab unavailable: {type(e).__name__}",
+            "control_position_method_version": METHOD_VERSION,
+        }
 
     def _pct(sym):
         return depmap_allgene_percentile(sym).get("allgene_percentile")
@@ -218,10 +223,10 @@ def control_position_cellline(target: str,
     pos_pcts = {sym: _pct(sym) for sym in (controls.get("positive_controls") or {})}
     # pan-cancer panel: no indication tissue → no lineage_conflict exclusion (tissue=None).
     applicable_neg, excluded = _applicable_negatives(controls, None)
-    neg_detail = {sym: {"pct": _pct(sym), "role": spec.get("role")}
-                  for sym, spec in applicable_neg.items()}
+    neg_detail = {sym: {"pct": _pct(sym), "role": spec.get("role")} for sym, spec in applicable_neg.items()}
 
-    ctx = (f"DepMap pan-cancer panel vs curated controls "
-           f"(tumor_presence_controls v{controls.get('version')}; allgene-depmap-rank-26q1-v1)")
-    return _assemble(target_pct, target_class, pos_pcts, neg_detail, excluded,
-                     "allgene-depmap-rank-26q1-v1", ctx)
+    ctx = (
+        f"DepMap pan-cancer panel vs curated controls "
+        f"(tumor_presence_controls v{controls.get('version')}; allgene-depmap-rank-26q1-v1)"
+    )
+    return _assemble(target_pct, target_class, pos_pcts, neg_detail, excluded, "allgene-depmap-rank-26q1-v1", ctx)

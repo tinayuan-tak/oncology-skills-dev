@@ -34,6 +34,7 @@ read_target_summary aggregates to per-target categorical:
     has_actionable_moa, has_pd_marker (bool)
     moa_ontology_version, moa_ontology_unmapped_fraction
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -75,6 +76,7 @@ def _get_s3fs():
         with _S3FS_LOCK:
             if _S3FS is None:
                 import pyarrow.fs as pafs
+
                 _S3FS = pafs.S3FileSystem(region="us-east-1")
     return _S3FS
 
@@ -228,25 +230,29 @@ def _compute_edges_for_target(target: str) -> tuple[list[dict], int, int]:
             moa_class = cls.moa_class
             modality_relevance = cls.modality_relevance
 
-        edges.append({
-            "partner_uniprot_ac": partner_uniprot,
-            "partner_gene_symbol": partner_symbol,
-            "direction": direction,
-            "raw_mechanism": mechanism,
-            "raw_effect": effect,
-            "moa_class": moa_class,
-            "modality_relevance": list(modality_relevance),
-            "is_stimulation": is_stim,
-            "is_inhibition": is_inh,
-            "direct_flag": direct_flag,
-            "references": pmid,
-        })
+        edges.append(
+            {
+                "partner_uniprot_ac": partner_uniprot,
+                "partner_gene_symbol": partner_symbol,
+                "direction": direction,
+                "raw_mechanism": mechanism,
+                "raw_effect": effect,
+                "moa_class": moa_class,
+                "modality_relevance": list(modality_relevance),
+                "is_stimulation": is_stim,
+                "is_inhibition": is_inh,
+                "direct_flag": direct_flag,
+                "references": pmid,
+            }
+        )
 
     return edges, total, unmapped
 
 
 def _aggregate_edges_to_summary(
-    edges: list[dict], total: int, unmapped: int,
+    edges: list[dict],
+    total: int,
+    unmapped: int,
     data_source: str = SIGNOR_SOURCE_MANIFEST_ID,
 ) -> dict:
     """Aggregate per-edge records → per-target card summary dict.
@@ -309,12 +315,13 @@ def _read_from_derived_parquet(target: str) -> Optional[dict]:
         return None  # confirmed absent; skip S3 retry, use inline fallback
     try:
         import pyarrow.parquet as pq
+
         bucket, key = bucket_key_for(DERIVED_MANIFEST_ID)
-        table = pq.read_table(f"{bucket}/{key}", filesystem=_get_s3fs(),
-                              filters=[("target_gene_symbol", "=", target)])
+        table = pq.read_table(f"{bucket}/{key}", filesystem=_get_s3fs(), filters=[("target_gene_symbol", "=", target)])
         _DERIVED_PARQUET_STATUS = True
     except Exception as e:  # absence-discipline: exempt -- product-absent/transient → benign fallback to the inline SIGNOR-TSV compute (Path 2), never a dead axis
         from methods.target_id_sidecar import is_definitively_absent
+
         # A genuinely-absent product (no manifest yet / NoSuchKey / 404) latches so we stop probing;
         # a transient/creds error does NOT latch (retry next call). Either way, fall back to inline.
         if isinstance(e, FileNotFoundError) or is_definitively_absent(e):

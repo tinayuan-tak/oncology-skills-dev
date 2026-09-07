@@ -84,23 +84,28 @@ def load_expression_files(release_pin: str, target_symbol: str) -> tuple[dict, d
     else:
         try:
             from methods.depmap_common import load_model_csv
+
             model_df = load_model_csv(release_pin)
         except (FileNotFoundError, ImportError) as e:
-            load_errors.append({
-                "_live_read_error": "s3_read_failed",
-                "detail": str(e),
-            })
+            load_errors.append(
+                {
+                    "_live_read_error": "s3_read_failed",
+                    "detail": str(e),
+                }
+            )
             return {}, {}, load_errors
 
     # === TIER-2 PATH: parquet derived product (100-500× faster than CSV) ===
     if tpm_path is None:
         try:
             from methods.depmap_common.parquet import get_tpm_column
+
             target_df = get_tpm_column(target_symbol, release_pin)
             if target_df is not None:
                 # Identify target column (SYMBOL (entrez_id) format)
-                target_col = next((c for c in target_df.columns
-                                     if c not in ("ModelID", "IsDefaultEntryForModel")), None)
+                target_col = next(
+                    (c for c in target_df.columns if c not in ("ModelID", "IsDefaultEntryForModel")), None
+                )
                 if target_col:
                     # IsDefaultEntryForModel filter
                     if "IsDefaultEntryForModel" in target_df.columns:
@@ -112,8 +117,7 @@ def load_expression_files(release_pin: str, target_symbol: str) -> tuple[dict, d
                         if pd.notna(val):
                             tpm_by_model[row["ModelID"]] = float(val)
                     model_id_col = "ModelID" if "ModelID" in model_df.columns else model_df.columns[0]
-                    model_metadata = {row[model_id_col]: row.to_dict()
-                                       for _, row in model_df.iterrows()}
+                    model_metadata = {row[model_id_col]: row.to_dict() for _, row in model_df.iterrows()}
                     return tpm_by_model, model_metadata, load_errors
         except (FileNotFoundError, ImportError):
             pass  # fall through to CSV
@@ -122,6 +126,7 @@ def load_expression_files(release_pin: str, target_symbol: str) -> tuple[dict, d
     try:
         if tpm_path is None:
             import boto3
+
             s3 = boto3.client("s3")
             bucket = "onc-compbio"
             tpm_key = f"{_DEPMAP_KEY_PREFIX}/OmicsExpressionTPMLogp1HumanProteinCodingGenes.csv"
@@ -132,28 +137,33 @@ def load_expression_files(release_pin: str, target_symbol: str) -> tuple[dict, d
         else:
             tpm_df = pd.read_csv(tpm_path)
     except ImportError as e:
-        load_errors.append({
-            "_live_read_error": "boto3_not_available",
-            "detail": str(e),
-            "remediation": f"Install boto3 or provide local cache at {[str(d) for d in DEPMAP_LOCAL_FALLBACK_DIRS]}",
-        })
+        load_errors.append(
+            {
+                "_live_read_error": "boto3_not_available",
+                "detail": str(e),
+                "remediation": f"Install boto3 or provide local cache at {[str(d) for d in DEPMAP_LOCAL_FALLBACK_DIRS]}",
+            }
+        )
         return {}, {}, load_errors
     except Exception as e:
-        load_errors.append({
-            "_live_read_error": "s3_read_failed",
-            "detail": str(e),
-            "remediation": f"Ensure AWS credentials are set and {DEPMAP_S3_PREFIX} is accessible.",
-        })
+        load_errors.append(
+            {
+                "_live_read_error": "s3_read_failed",
+                "detail": str(e),
+                "remediation": f"Ensure AWS credentials are set and {DEPMAP_S3_PREFIX} is accessible.",
+            }
+        )
         return {}, {}, load_errors
 
     # Find target column in TPM matrix
-    target_cols = [c for c in tpm_df.columns
-                    if c == target_symbol or c.split(" ")[0] == target_symbol]
+    target_cols = [c for c in tpm_df.columns if c == target_symbol or c.split(" ")[0] == target_symbol]
     if not target_cols:
-        load_errors.append({
-            "_live_read_error": "target_not_in_expression_matrix",
-            "detail": f"Target {target_symbol} not in TPM matrix",
-        })
+        load_errors.append(
+            {
+                "_live_read_error": "target_not_in_expression_matrix",
+                "detail": f"Target {target_symbol} not in TPM matrix",
+            }
+        )
         return {}, {}, load_errors
 
     target_col = target_cols[0]
@@ -187,6 +197,7 @@ def _coefficient_of_variation(log2tpm_scores) -> float:
     to avoid a divide-by-zero blowup. High CoV = highly variable expression across cell lines (the
     spec's "is expression consistent or highly variable")."""
     import numpy as np
+
     lin = np.clip(np.power(2.0, np.asarray(log2tpm_scores, dtype=float)) - 1.0, 0.0, None)
     mean = float(np.mean(lin))
     if mean <= 1e-9:
@@ -194,8 +205,7 @@ def _coefficient_of_variation(log2tpm_scores) -> float:
     return float(np.std(lin) / mean)
 
 
-def _distribution_pattern(log2tpm_scores, expressed_threshold: float,
-                          highly_expressed_threshold: float) -> str:
+def _distribution_pattern(log2tpm_scores, expressed_threshold: float, highly_expressed_threshold: float) -> str:
     """Classify the expression distribution shape (Audit-B D1) → {continuous | bimodal | long_tail}.
 
     Dependency-light gap heuristic (mirrors depmap_chronos_distribution's _classify_shape approach —
@@ -209,6 +219,7 @@ def _distribution_pattern(log2tpm_scores, expressed_threshold: float,
       - continuous: a unimodal spread — neither a balanced two-mode split nor a rare-tail shape.
     n<8 returns 'continuous' (too few points to call a shape)."""
     import numpy as np
+
     s = np.asarray(log2tpm_scores, dtype=float)
     n = s.size
     if n < 8:
@@ -227,14 +238,17 @@ def _distribution_pattern(log2tpm_scores, expressed_threshold: float,
     return "continuous"
 
 
-def compute_summary_stats(tpm_by_model: dict, model_metadata: dict,
-                           expressed_threshold: float = 1.0,
-                           highly_expressed_threshold: float = 5.0,
-                           broadly_expressed_fraction: float = 0.70,
-                           broadly_high_fraction: float = 0.30,
-                           lineage_restricted_min_fraction: float = 0.10,
-                           lineage_restricted_max_fraction: float = 0.70,
-                           min_lineage_size: int = 5) -> dict:
+def compute_summary_stats(
+    tpm_by_model: dict,
+    model_metadata: dict,
+    expressed_threshold: float = 1.0,
+    highly_expressed_threshold: float = 5.0,
+    broadly_expressed_fraction: float = 0.70,
+    broadly_high_fraction: float = 0.30,
+    lineage_restricted_min_fraction: float = 0.10,
+    lineage_restricted_max_fraction: float = 0.70,
+    min_lineage_size: int = 5,
+) -> dict:
     """Compute decision-grade summary scalars for the cellline-rna-distribution card."""
     import numpy as np
     import pandas as pd
@@ -268,15 +282,13 @@ def compute_summary_stats(tpm_by_model: dict, model_metadata: dict,
     # heuristic the dependency side uses (depmap_chronos_distribution _classify_shape) rather than a
     # KDE/dip test — robust on small panels + auditable.
     summary["coefficient_of_variation"] = _coefficient_of_variation(scores)
-    summary["distribution_pattern"] = _distribution_pattern(
-        scores, expressed_threshold, highly_expressed_threshold)
+    summary["distribution_pattern"] = _distribution_pattern(scores, expressed_threshold, highly_expressed_threshold)
 
     # Per-lineage stats
     lineage_records = []
     for model_id, log2tpm in tpm_by_model.items():
         meta = model_metadata.get(model_id, {})
-        lineage = (meta.get("OncotreeLineage") or meta.get("lineage")
-                   or meta.get("PrimaryDisease") or "unknown")
+        lineage = meta.get("OncotreeLineage") or meta.get("lineage") or meta.get("PrimaryDisease") or "unknown"
         lineage_records.append({"model_id": model_id, "lineage": lineage, "log2tpm": log2tpm})
     lineage_df = pd.DataFrame(lineage_records)
 
@@ -286,12 +298,14 @@ def compute_summary_stats(tpm_by_model: dict, model_metadata: dict,
         if len(subset) < min_lineage_size:
             continue
         frac_expr_lin = float((subset["log2tpm"] >= expressed_threshold).mean())
-        per_lineage.append({
-            "lineage": lineage_name,
-            "n": int(len(subset)),
-            "median_log2tpm": float(subset["log2tpm"].median()),
-            "fraction_expressed": frac_expr_lin,
-        })
+        per_lineage.append(
+            {
+                "lineage": lineage_name,
+                "n": int(len(subset)),
+                "median_log2tpm": float(subset["log2tpm"].median()),
+                "fraction_expressed": frac_expr_lin,
+            }
+        )
         # Lineage-restricted-driver: lineage's expression frac is ≥0.4 ABOVE the panel
         # average. This handles the case where the panel itself is mid-range (e.g.
         # 33% expressed driven by ONE lineage) without requiring strict panel<30%.
@@ -317,12 +331,15 @@ def compute_summary_stats(tpm_by_model: dict, model_metadata: dict,
     return summary
 
 
-def _classify_expression(frac_expressed: float, frac_highly: float,
-                          n_lineage_restricted: int,
-                          broadly_expressed_fraction: float = 0.70,
-                          broadly_high_fraction: float = 0.30,
-                          lineage_restricted_min_fraction: float = 0.10,
-                          lineage_restricted_max_fraction: float = 0.70) -> str:
+def _classify_expression(
+    frac_expressed: float,
+    frac_highly: float,
+    n_lineage_restricted: int,
+    broadly_expressed_fraction: float = 0.70,
+    broadly_high_fraction: float = 0.30,
+    lineage_restricted_min_fraction: float = 0.10,
+    lineage_restricted_max_fraction: float = 0.70,
+) -> str:
     """Map distribution stats to expression_class vocabulary.
 
     Returns one of:
@@ -345,7 +362,7 @@ def _classify_expression(frac_expressed: float, frac_highly: float,
         return "broadly_moderate"
     if frac_expressed < lineage_restricted_min_fraction:
         return "broadly_low"
-    return "broadly_moderate"   # 70-90% range fallback
+    return "broadly_moderate"  # 70-90% range fallback
 
 
 def _load_takeda_style(target_contracts_dir: Path):
@@ -355,11 +372,13 @@ def _load_takeda_style(target_contracts_dir: Path):
     FIGSIZE_DOUBLE_COLUMN, REFLINE_NEUTRAL, REFLINE_KILLER.
     """
     import matplotlib.pyplot as plt
+
     style_path = target_contracts_dir / "plot_styles" / "takeda_oncology.mplstyle"
     if style_path.exists():
         plt.style.use(str(style_path))
     sys.path.insert(0, str(target_contracts_dir / "plot_styles"))
     import takeda_palette  # type: ignore
+
     return takeda_palette
 
 
@@ -378,11 +397,13 @@ def _cellline_take(target_symbol, summary):
     return p.format(T=target_symbol) if p else None
 
 
-def emit_density_plot(tpm_by_model: dict, target_symbol: str, summary: dict,
-                       out_dir: Path, target_contracts_dir: Path) -> Path:
+def emit_density_plot(
+    tpm_by_model: dict, target_symbol: str, summary: dict, out_dir: Path, target_contracts_dir: Path
+) -> Path:
     """Emit the pan-cancer histogram + KDE density (PRIMARY figure) in the shared grammar.
     Threshold reference lines at log2(TPM+1)=1 ('expressed') and =5 ('highly expressed')."""
     import matplotlib
+
     matplotlib.use("Agg")
     import numpy as np
     from scipy.stats import gaussian_kde
@@ -395,47 +416,82 @@ def emit_density_plot(tpm_by_model: dict, target_symbol: str, summary: dict,
     frac_high = summary.get("fraction_highly_expressed")
     med = summary.get("median_log2tpm_panel")
     out_path = out_dir / "figure_density_expression.svg"
-    with pal.figure_frame(target_symbol, None, "cell-line RNA expression", out_path=out_path,
-                          kind="scatter", provenance=f"DepMap 26Q1 RNA  ·  n={len(scores)} cancer cell lines",
-                          takeaway=_cellline_take(target_symbol, summary)) as F:
+    with pal.figure_frame(
+        target_symbol,
+        None,
+        "cell-line RNA expression",
+        out_path=out_path,
+        kind="scatter",
+        provenance=f"DepMap 26Q1 RNA  ·  n={len(scores)} cancer cell lines",
+        takeaway=_cellline_take(target_symbol, summary),
+    ) as F:
         ax = F.ax
         ax.hist(scores, bins=50, density=True, alpha=0.5, color=pal.TUMOR_FILL, edgecolor="white")
         if len(scores) >= 10:
             kde = gaussian_kde(scores)
             xs = np.linspace(scores.min() - 0.2, scores.max() + 0.2, 500)
             ax.plot(xs, kde(xs), color=pal.TUMOR_LINE, linewidth=2)
+
         # threshold lines annotated DIRECTLY (no legend), each carrying the % of cell lines above it —
         # the classify metric behind the takeaway. Median marker anchors "moderate levels".
         def _thresh(xv, label, frac):
             ax.axvline(xv, **pal.REFLINE_NEUTRAL)
-            txt = f"{label}: {frac*100:.0f}%" if frac is not None else label
-            ax.annotate(txt, xy=(xv, 0.99), xycoords=("data", "axes fraction"), ha="center", va="top",
-                        xytext=(0, -2), textcoords="offset points", fontsize=8, color=pal.INK_MUTED)
+            txt = f"{label}: {frac * 100:.0f}%" if frac is not None else label
+            ax.annotate(
+                txt,
+                xy=(xv, 0.99),
+                xycoords=("data", "axes fraction"),
+                ha="center",
+                va="top",
+                xytext=(0, -2),
+                textcoords="offset points",
+                fontsize=8,
+                color=pal.INK_MUTED,
+            )
+
         _thresh(1.0, "expressed ≥1", frac_exp)
         _thresh(5.0, "highly ≥5", frac_high)
         if med is not None:
             ax.axvline(med, color=pal.INK_SECONDARY, linewidth=1.4, zorder=5)
-            ax.annotate(f"median {med:.1f}", xy=(med, 0.5), xycoords=("data", "axes fraction"),
-                        ha="right", va="center", rotation=90, fontsize=8, color=pal.INK_SECONDARY,
-                        xytext=(-3, 0), textcoords="offset points")
+            ax.annotate(
+                f"median {med:.1f}",
+                xy=(med, 0.5),
+                xycoords=("data", "axes fraction"),
+                ha="right",
+                va="center",
+                rotation=90,
+                fontsize=8,
+                color=pal.INK_SECONDARY,
+                xytext=(-3, 0),
+                textcoords="offset points",
+            )
         F.axis_label("x", "RNA expression", "log2(TPM + 1), DepMap cell lines")
         F.axis_label("y", "Density")
     return out_path
 
 
-def emit_lineage_strip(tpm_by_model: dict, model_metadata: dict, target_symbol: str,
-                        summary: dict, out_dir: Path, target_contracts_dir: Path) -> Path:
+def emit_lineage_strip(
+    tpm_by_model: dict,
+    model_metadata: dict,
+    target_symbol: str,
+    summary: dict,
+    out_dir: Path,
+    target_contracts_dir: Path,
+) -> Path:
     """Emit per-lineage strip plot SVG. Lineages ordered by median expression desc,
     n>=5 only. Sized via FIGSIZE_SINGLE_COLUMN_TALL with vertical room scaled to
     n_lineages — most targets give 25-30 lineages, each ~0.2in vertical."""
     import matplotlib
+
     matplotlib.use("Agg")
     import numpy as np
     import pandas as pd
 
     pal = _load_takeda_style(target_contracts_dir)
-    records = [{"lineage": (model_metadata.get(mid, {}).get("OncotreeLineage") or "unknown"),
-                "log2tpm": v} for mid, v in tpm_by_model.items()]
+    records = [
+        {"lineage": (model_metadata.get(mid, {}).get("OncotreeLineage") or "unknown"), "log2tpm": v}
+        for mid, v in tpm_by_model.items()
+    ]
     df = pd.DataFrame(records)
     med = df.groupby("lineage")["log2tpm"].agg(["median", "count"])
     med = med[med["count"] >= 5].sort_values("median", ascending=False)
@@ -445,29 +501,45 @@ def emit_lineage_strip(tpm_by_model: dict, model_metadata: dict, target_symbol: 
     # takeaway by absolute inches for tall figs; margins passed as inch-derived fractions.
     fig_h = min(max(3.8, len(lineages_ordered) * 0.24 + 1.4), 7.6)
     out_path = out_dir / "figure_lineage_strip_expression.svg"
-    with pal.figure_frame(target_symbol, None, "cell-line RNA expression by lineage", out_path=out_path,
-                          figsize=(pal.FIGSIZE_DOUBLE_COLUMN[0], fig_h), left=0.24,
-                          top=1 - 0.72 / fig_h, bottom=0.95 / fig_h,
-                          provenance=f"DepMap 26Q1 RNA  ·  n={len(df)} cell lines  ·  lineages with n≥5",
-                          takeaway=_cellline_take(target_symbol, summary)) as F:
+    with pal.figure_frame(
+        target_symbol,
+        None,
+        "cell-line RNA expression by lineage",
+        out_path=out_path,
+        figsize=(pal.FIGSIZE_DOUBLE_COLUMN[0], fig_h),
+        left=0.24,
+        top=1 - 0.72 / fig_h,
+        bottom=0.95 / fig_h,
+        provenance=f"DepMap 26Q1 RNA  ·  n={len(df)} cell lines  ·  lineages with n≥5",
+        takeaway=_cellline_take(target_symbol, summary),
+    ) as F:
         ax = F.ax
         for i, lin in enumerate(lineages_ordered):
             scores = df[df["lineage"] == lin]["log2tpm"].values
             jitter = np.random.RandomState(42 + i).uniform(-0.15, 0.15, size=len(scores))
-            ax.scatter(scores, np.full(len(scores), i) + jitter, alpha=0.5, s=8,
-                       color=pal.get_lineage_color(lin))
+            ax.scatter(scores, np.full(len(scores), i) + jitter, alpha=0.5, s=8, color=pal.get_lineage_color(lin))
             ax.scatter([np.median(scores)], [i], color=pal.INK_SECONDARY, s=34, marker="|", zorder=5)
-        ax.axvline(1.0, **pal.REFLINE_NEUTRAL); ax.axvline(5.0, **pal.REFLINE_NEUTRAL)
-        ax.set_yticks(range(len(lineages_ordered))); ax.set_yticklabels(lineages_ordered, fontsize=7.5)
-        ax.set_ylim(-0.8, len(lineages_ordered) - 0.2); ax.invert_yaxis()
-        ax.grid(axis="x", alpha=0.25, linewidth=0.4); ax.grid(axis="y", visible=False)
+        ax.axvline(1.0, **pal.REFLINE_NEUTRAL)
+        ax.axvline(5.0, **pal.REFLINE_NEUTRAL)
+        ax.set_yticks(range(len(lineages_ordered)))
+        ax.set_yticklabels(lineages_ordered, fontsize=7.5)
+        ax.set_ylim(-0.8, len(lineages_ordered) - 0.2)
+        ax.invert_yaxis()
+        ax.grid(axis="x", alpha=0.25, linewidth=0.4)
+        ax.grid(axis="y", visible=False)
         F.axis_label("x", "Expression", "log2(TPM + 1)")
     return out_path
 
 
-def emit_plotly_specs(tpm_by_model: dict, model_metadata: dict, target_symbol: str,
-                      summary: dict, out_dir: Path, target_contracts_dir: Path,
-                      indication: str = None) -> list:
+def emit_plotly_specs(
+    tpm_by_model: dict,
+    model_metadata: dict,
+    target_symbol: str,
+    summary: dict,
+    out_dir: Path,
+    target_contracts_dir: Path,
+    indication: str = None,
+) -> list:
     """Emit interactive Plotly figure specs SIBLING to the matplotlib SVGs (dynamic-dashboard
     Phase A). Built from the SAME in-memory tpm_by_model the SVGs + plot_data_expression.parquet
     use → the interactive chart cannot drift (one data source, N renderings). Writes:
@@ -484,6 +556,7 @@ def emit_plotly_specs(tpm_by_model: dict, model_metadata: dict, target_symbol: s
     try:
         import numpy as np
         import plotly.graph_objects as go
+
         sys.path.insert(0, str(target_contracts_dir / "plot_styles"))
         from takeda_palette import get_lineage_color  # type: ignore  # noqa: F401
     except Exception as e:  # noqa: BLE001 — Plotly optional; never block the SVG artifacts
@@ -491,36 +564,57 @@ def emit_plotly_specs(tpm_by_model: dict, model_metadata: dict, target_symbol: s
         return []
 
     # log2(TPM+1) reflines mirror the SVGs (expressed ≥1.0 amber, highly ≥5.0 red).
-    reflines = [(1.0, "#f0a020", "dash", "expressed ≥1.0"),
-                (5.0, "#cf2828", "dash", "highly expressed ≥5.0")]
+    reflines = [(1.0, "#f0a020", "dash", "expressed ≥1.0"), (5.0, "#cf2828", "dash", "highly expressed ≥5.0")]
     written = []
 
     # --- Density histogram (mirrors emit_density_plot; navy bars + reflines + BUCKET regions) ---
     try:
         scores = np.array(list(tpm_by_model.values()), dtype=float)
         xmax = float(scores.max()) + 0.3
-        fig = go.Figure(go.Histogram(
-            x=scores, histnorm="probability density", nbinsx=50,
-            marker_color="#0a2540", marker_line_color="white", marker_line_width=0.5, opacity=0.6,
-            hovertemplate="log2(TPM+1) %{x:.2f}<br>density %{y:.3f}<extra></extra>"))
+        fig = go.Figure(
+            go.Histogram(
+                x=scores,
+                histnorm="probability density",
+                nbinsx=50,
+                marker_color="#0a2540",
+                marker_line_color="white",
+                marker_line_width=0.5,
+                opacity=0.6,
+                hovertemplate="log2(TPM+1) %{x:.2f}<br>density %{y:.3f}<extra></extra>",
+            )
+        )
         # Item 2: shade the three expression BUCKETS behind the histogram (not-expressed <1,
         # expressed 1–5, highly ≥5) so the reader sees which regime the mass sits in.
-        buckets = [(-0.3, 1.0, "rgba(150,160,170,0.10)", "not expressed"),
-                   (1.0, 5.0, "rgba(240,160,32,0.09)", "expressed"),
-                   (5.0, xmax, "rgba(207,40,40,0.09)", "highly expressed")]
+        buckets = [
+            (-0.3, 1.0, "rgba(150,160,170,0.10)", "not expressed"),
+            (1.0, 5.0, "rgba(240,160,32,0.09)", "expressed"),
+            (5.0, xmax, "rgba(207,40,40,0.09)", "highly expressed"),
+        ]
         for x0, x1, fill, lab in buckets:
             if x1 <= x0:
                 continue
-            fig.add_vrect(x0=x0, x1=x1, fillcolor=fill, line_width=0, layer="below",
-                          annotation_text=lab, annotation_position="top",
-                          annotation=dict(font_size=9, font_color="#8a94a0"))
+            fig.add_vrect(
+                x0=x0,
+                x1=x1,
+                fillcolor=fill,
+                line_width=0,
+                layer="below",
+                annotation_text=lab,
+                annotation_position="top",
+                annotation=dict(font_size=9, font_color="#8a94a0"),
+            )
         for xv, col, dash, lab in reflines:
             fig.add_vline(x=xv, line=dict(color=col, dash=dash, width=1.3))
         fig.update_layout(
             title=dict(text=f"{target_symbol} — pan-cancer expression (n={len(scores)})", font_size=13),
-            xaxis_title="log2(TPM+1)", yaxis_title="Density",
-            template="plotly_white", showlegend=False, height=300,
-            margin=dict(l=54, r=16, t=40, b=44), font=dict(size=11))
+            xaxis_title="log2(TPM+1)",
+            yaxis_title="Density",
+            template="plotly_white",
+            showlegend=False,
+            height=300,
+            margin=dict(l=54, r=16, t=40, b=44),
+            font=dict(size=11),
+        )
         (out_dir / "figure_density_expression.plotly.json").write_text(fig.to_json())
         written.append({"id": "density_expression", "path": "figure_density_expression.plotly.json", "type": "plotly"})
     except Exception as e:  # noqa: BLE001
@@ -540,23 +634,34 @@ def emit_plotly_specs(tpm_by_model: dict, model_metadata: dict, target_symbol: s
         target_lineage = INDICATION_LINEAGE.get((indication or "").upper().strip()) if indication else None
         fig = go.Figure()
         for lg, vals in lins:
-            is_target = (lg == target_lineage)
-            fig.add_trace(go.Box(
-                x=vals, name=lg, orientation="h", boxpoints="all", jitter=0.4, pointpos=0,
-                marker=dict(size=3, opacity=0.5,
-                            color="#cf2828" if is_target else "#0a2540"),
-                line=dict(color="#cf2828" if is_target else "#7fa7c0",
-                          width=2 if is_target else 1),
-                hovertemplate=f"{lg}<br>log2(TPM+1) %{{x:.2f}}<extra></extra>"))
+            is_target = lg == target_lineage
+            fig.add_trace(
+                go.Box(
+                    x=vals,
+                    name=lg,
+                    orientation="h",
+                    boxpoints="all",
+                    jitter=0.4,
+                    pointpos=0,
+                    marker=dict(size=3, opacity=0.5, color="#cf2828" if is_target else "#0a2540"),
+                    line=dict(color="#cf2828" if is_target else "#7fa7c0", width=2 if is_target else 1),
+                    hovertemplate=f"{lg}<br>log2(TPM+1) %{{x:.2f}}<extra></extra>",
+                )
+            )
         for xv, col, dash, lab in reflines:
             fig.add_vline(x=xv, line=dict(color=col, dash=dash, width=1.2))
         ttl = f"{target_symbol} — per-lineage expression (n≥5)"
         if target_lineage:
             ttl += f" · {target_lineage} highlighted"
         fig.update_layout(
-            title=dict(text=ttl, font_size=13), xaxis_title="log2(TPM+1)", template="plotly_white",
-            showlegend=False, margin=dict(l=130, r=16, t=40, b=40), font=dict(size=11),
-            height=max(260, 18 * len(lins) + 70))   # tighter rows (item 1)
+            title=dict(text=ttl, font_size=13),
+            xaxis_title="log2(TPM+1)",
+            template="plotly_white",
+            showlegend=False,
+            margin=dict(l=130, r=16, t=40, b=40),
+            font=dict(size=11),
+            height=max(260, 18 * len(lins) + 70),
+        )  # tighter rows (item 1)
         (out_dir / "figure_lineage_expression.plotly.json").write_text(fig.to_json())
         written.append({"id": "lineage_expression", "path": "figure_lineage_expression.plotly.json", "type": "plotly"})
     except Exception as e:  # noqa: BLE001
@@ -565,28 +670,37 @@ def emit_plotly_specs(tpm_by_model: dict, model_metadata: dict, target_symbol: s
     return written
 
 
-def emit_plot_data(tpm_by_model: dict, model_metadata: dict,
-                    expressed_threshold: float, out_path: Path) -> Path:
+def emit_plot_data(tpm_by_model: dict, model_metadata: dict, expressed_threshold: float, out_path: Path) -> Path:
     import pandas as pd
+
     records = []
     for model_id, log2tpm in tpm_by_model.items():
         meta = model_metadata.get(model_id, {})
-        records.append({
-            "model_id": model_id,
-            "ccle_name": meta.get("CCLEName"),
-            "lineage": meta.get("OncotreeLineage"),
-            "log2tpm": log2tpm,
-            "is_expressed": log2tpm >= expressed_threshold,
-        })
+        records.append(
+            {
+                "model_id": model_id,
+                "ccle_name": meta.get("CCLEName"),
+                "lineage": meta.get("OncotreeLineage"),
+                "log2tpm": log2tpm,
+                "is_expressed": log2tpm >= expressed_threshold,
+            }
+        )
     df = pd.DataFrame(records)
     out_file = out_path / "plot_data_expression.parquet"
     df.to_parquet(out_file, index=False)
     return out_file
 
 
-def emit_manifest(target_symbol: str, release_pin: str, summary: dict,
-                   out_dir: Path, load_errors: list, plotly_specs: Optional[list] = None) -> Path:
+def emit_manifest(
+    target_symbol: str,
+    release_pin: str,
+    summary: dict,
+    out_dir: Path,
+    load_errors: list,
+    plotly_specs: Optional[list] = None,
+) -> Path:
     import yaml
+
     manifest = {
         "method_id": "depmap-expression-distribution",
         "method_version": METHOD_VERSION,
@@ -601,7 +715,7 @@ def emit_manifest(target_symbol: str, release_pin: str, summary: dict,
         "n_cell_lines_evaluated": summary.get("n_cell_lines_evaluated", 0),
         "expression_class": summary.get("expression_class", "data_unavailable"),
         "load_errors": load_errors,
-        "plotly_figures": plotly_specs or [],   # interactive figure specs (Phase A); [] if unavailable
+        "plotly_figures": plotly_specs or [],  # interactive figure specs (Phase A); [] if unavailable
     }
     out_file = out_dir / "manifest.yaml"
     with open(out_file, "w") as f:

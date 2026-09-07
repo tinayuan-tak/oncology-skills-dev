@@ -8,6 +8,7 @@ the per-gene frequency aggregate and the per-(case, gene, protein_change) rows.
 
 Denominator = distinct TUMOR case_id in the program (dedups multi-aliquot cases to the patient).
 """
+
 from __future__ import annotations
 
 import gzip
@@ -25,8 +26,15 @@ DR45_S3_PREFIX = "data-catalog/sources/gdc/pancohort-somatic-dr45.0"
 
 # Same non-synonymous filter as gdc_somatic_hotspot (GDC MAF v2 Variant_Classification vocab).
 NON_SYNONYMOUS_CLASSES = {
-    "Missense_Mutation", "Nonsense_Mutation", "Frame_Shift_Ins", "Frame_Shift_Del",
-    "In_Frame_Ins", "In_Frame_Del", "Splice_Site", "Nonstop_Mutation", "Translation_Start_Site",
+    "Missense_Mutation",
+    "Nonsense_Mutation",
+    "Frame_Shift_Ins",
+    "Frame_Shift_Del",
+    "In_Frame_Ins",
+    "In_Frame_Del",
+    "Splice_Site",
+    "Nonstop_Mutation",
+    "Translation_Start_Site",
 }
 
 
@@ -35,6 +43,7 @@ from methods.target_id_sidecar import ensure_aws_profile
 
 def _boto3_client():
     import boto3
+
     return boto3.Session(profile_name=os.environ.get("AWS_PROFILE", DEFAULT_AWS_PROFILE)).client("s3")
 
 
@@ -42,8 +51,12 @@ def _load_manifest_files(program: str, data_catalog_repo: Optional[Path] = None)
     """Return the manifest file entries for a program's TUMOR MAFs (description names tumor).
     Manifest-driven: no barcode parsing — case_id/sample_id/project_id are pre-tagged."""
     import yaml
-    repo = Path(data_catalog_repo) if data_catalog_repo else \
-        Path.home() / "rnd-computational-biology-oncology-data-catalog"
+
+    repo = (
+        Path(data_catalog_repo)
+        if data_catalog_repo
+        else Path.home() / "rnd-computational-biology-oncology-data-catalog"
+    )
     mpath = repo / "manifests" / "sources" / f"{DR45_MANIFEST}.yaml"
     m = yaml.safe_load(mpath.read_text())
     out = []
@@ -51,7 +64,7 @@ def _load_manifest_files(program: str, data_catalog_repo: Optional[Path] = None)
         if f.get("project_id") != program:
             continue
         if "tumor" not in (f.get("description") or "").lower():
-            continue   # tumor samples only — normals/other are not a mutation denominator
+            continue  # tumor samples only — normals/other are not a mutation denominator
         out.append(f)
     return out
 
@@ -70,8 +83,7 @@ def _stream_maf_genes(s3, key: str) -> list[tuple[str, str, str]]:
         parts = line.split("\t")
         if hdr is None:
             try:
-                hdr = {c: parts.index(c) for c in
-                       ("Hugo_Symbol", "Variant_Classification", "HGVSp_Short")}
+                hdr = {c: parts.index(c) for c in ("Hugo_Symbol", "Variant_Classification", "HGVSp_Short")}
             except ValueError as e:
                 raise RuntimeError(f"DR45 MAF {key} missing column: {e}")
             continue
@@ -108,13 +120,15 @@ def _collect(program: str, data_catalog_repo: Optional[Path] = None, _max_files:
     return len(cases), gene_data
 
 
-def aggregate_program(program: str, data_catalog_repo: Optional[Path] = None,
-                      _max_files: Optional[int] = None) -> "object":
+def aggregate_program(
+    program: str, data_catalog_repo: Optional[Path] = None, _max_files: Optional[int] = None
+) -> "object":
     """Per-gene frequency + hotspot aggregate for a DR45 program, in the SAME schema as
     gdc_somatic_hotspot._output_schema (indication/gene_symbol/n_samples_in_indication/
     n_samples_mutated/overall_mutation_frequency/hotspot_protein_change/hotspot_n_samples/
     hotspot_frequency), so read_hotspot_summary can consume it unchanged."""
     import pyarrow as pa
+
     indication = _resolve_indication(program)
     n_total, gene_data = _collect(program, data_catalog_repo, _max_files)
     rows = []
@@ -122,41 +136,64 @@ def aggregate_program(program: str, data_catalog_repo: Optional[Path] = None,
         gd = gene_data[gene]
         n_mut = len(gd["mutated_cases"])
         freq = n_mut / n_total if n_total else 0.0
-        rows.append({"indication": indication, "gene_symbol": gene,
-                     "n_samples_in_indication": n_total, "n_samples_mutated": n_mut,
-                     "overall_mutation_frequency": freq,
-                     "hotspot_protein_change": None, "hotspot_n_samples": None,
-                     "hotspot_frequency": None})
+        rows.append(
+            {
+                "indication": indication,
+                "gene_symbol": gene,
+                "n_samples_in_indication": n_total,
+                "n_samples_mutated": n_mut,
+                "overall_mutation_frequency": freq,
+                "hotspot_protein_change": None,
+                "hotspot_n_samples": None,
+                "hotspot_frequency": None,
+            }
+        )
         for hs, hs_cases in gd["hotspots"].items():
             hn = len(hs_cases)
-            rows.append({"indication": indication, "gene_symbol": gene,
-                         "n_samples_in_indication": n_total, "n_samples_mutated": n_mut,
-                         "overall_mutation_frequency": freq,
-                         "hotspot_protein_change": hs, "hotspot_n_samples": hn,
-                         "hotspot_frequency": hn / n_total if n_total else 0.0})
+            rows.append(
+                {
+                    "indication": indication,
+                    "gene_symbol": gene,
+                    "n_samples_in_indication": n_total,
+                    "n_samples_mutated": n_mut,
+                    "overall_mutation_frequency": freq,
+                    "hotspot_protein_change": hs,
+                    "hotspot_n_samples": hn,
+                    "hotspot_frequency": hn / n_total if n_total else 0.0,
+                }
+            )
     rows.sort(key=lambda r: (r["gene_symbol"], -(r["hotspot_n_samples"] or 0)))
     return pa.Table.from_pylist(rows, schema=_agg_schema())
 
 
 def _resolve_indication(program: str) -> str:
     from methods.gdc_dr45_pancohort import PROGRAM_TO_INDICATION
+
     ind = PROGRAM_TO_INDICATION.get(program)
     if ind is None:
-        raise ValueError(f"program {program!r} has no PROGRAM_TO_INDICATION mapping "
-                         f"(only whole-program-single-disease programs are wired; "
-                         f"multi-disease programs like CPTAC-3 need a per-case disease join)")
+        raise ValueError(
+            f"program {program!r} has no PROGRAM_TO_INDICATION mapping "
+            f"(only whole-program-single-disease programs are wired; "
+            f"multi-disease programs like CPTAC-3 need a per-case disease join)"
+        )
     return ind
 
 
 def _agg_schema():
     import pyarrow as pa
-    return pa.schema([
-        pa.field("indication", pa.string()), pa.field("gene_symbol", pa.string()),
-        pa.field("n_samples_in_indication", pa.int64()), pa.field("n_samples_mutated", pa.int64()),
-        pa.field("overall_mutation_frequency", pa.float64()),
-        pa.field("hotspot_protein_change", pa.string()), pa.field("hotspot_n_samples", pa.int64()),
-        pa.field("hotspot_frequency", pa.float64()),
-    ])
+
+    return pa.schema(
+        [
+            pa.field("indication", pa.string()),
+            pa.field("gene_symbol", pa.string()),
+            pa.field("n_samples_in_indication", pa.int64()),
+            pa.field("n_samples_mutated", pa.int64()),
+            pa.field("overall_mutation_frequency", pa.float64()),
+            pa.field("hotspot_protein_change", pa.string()),
+            pa.field("hotspot_n_samples", pa.int64()),
+            pa.field("hotspot_frequency", pa.float64()),
+        ]
+    )
 
 
 @click.command()
@@ -165,6 +202,7 @@ def _agg_schema():
 @click.option("--max-files", default=None, type=int, help="cap files (smoke/testing).")
 def main(program: str, out: Path, max_files: Optional[int]) -> int:
     import pyarrow.parquet as pq
+
     table = aggregate_program(program, _max_files=max_files)
     out.parent.mkdir(parents=True, exist_ok=True)
     pq.write_table(table, out, compression="snappy", row_group_size=1024)
@@ -174,4 +212,5 @@ def main(program: str, out: Path, max_files: Optional[int]) -> int:
 
 if __name__ == "__main__":
     import sys
+
     sys.exit(main())

@@ -44,6 +44,7 @@ Wiring approach (data-layer hardening 2026-08-22 — streamed pushdown):
 Runtime discipline: process-wide S3FileSystem singleton + per-target read cache
 (+ a definitive-absence latch), so repeated targets don't re-hit S3.
 """
+
 from __future__ import annotations
 
 import threading
@@ -127,6 +128,7 @@ def _get_s3fs():
         with _S3FS_LOCK:
             if _S3FS is None:
                 import pyarrow.fs as fs
+
                 _S3FS = fs.S3FileSystem(region="us-east-1")
     return _S3FS
 
@@ -149,6 +151,7 @@ def _read_target_rows(sym: str) -> Optional[list]:
     try:
         from methods.catalog_query.read import bucket_key_for
         import pyarrow.parquet as pq
+
         bucket, key = bucket_key_for(DERIVED_MANIFEST_ID)
         tbl = pq.read_table(
             f"{bucket}/{key}",
@@ -157,6 +160,7 @@ def _read_target_rows(sym: str) -> Optional[list]:
         )
     except Exception as e:  # noqa: BLE001
         from methods.target_id_sidecar import is_definitively_absent
+
         # Only a GENUINE no-object (NoSuchKey/404 or pyarrow FileNotFoundError) is absence -> latch
         # _DERIVED_STATUS False (short-circuits later targets) and return None. A transient/creds/
         # broken-env failure is NOT absence -> re-raise (neither cached nor latched, so a later call
@@ -205,7 +209,7 @@ def _classify_partners(best_items, n_families: int) -> tuple[str, bool, bool]:
     strong_cooc = modest_cooc = strong_mutex = modest_mutex = False
     has_cooc_driver = has_mutex_driver = False
     for q, log2_or in best_items:
-        qc = min(1.0, q * n_families)   # Bonferroni across scoped (cohort, source) families
+        qc = min(1.0, q * n_families)  # Bonferroni across scoped (cohort, source) families
         if qc < 0.001:
             if log2_or > 1.0:
                 strong_cooc = True
@@ -281,10 +285,11 @@ def _scoped_signals(rows: list[dict]) -> tuple[str, bool, bool, str]:
 
     # TCGA-WES-only passenger gate: no panel-eligible pair AND no GENIE-source significant pair.
     any_eligible = any(bool(r.get("pooled_eligible", False)) for r in rows)
-    any_genie_sig = any("genie" in str(r.get("source", "")).lower()
-                        and float(r.get("bh_q_value") or 1.0) < 0.05 for r in rows)
+    any_genie_sig = any(
+        "genie" in str(r.get("source", "")).lower() and float(r.get("bh_q_value") or 1.0) < 0.05 for r in rows
+    )
     if not any_eligible and not any_genie_sig:
-        return ("ns", False, False, prefloor_cls)   # demote; audit keeps the raw call
+        return ("ns", False, False, prefloor_cls)  # demote; audit keeps the raw call
     return (prefloor_cls, has_cooc_driver, has_mutex_driver, prefloor_cls)
 
 
@@ -313,6 +318,7 @@ def read_target_summary(target: str, indication: str = None) -> dict:
         q = float(r.get("bh_q_value") or 1.0)
         log2_or = float(r.get("log2_odds_ratio") or 0.0)
         import math
+
         return -math.log10(max(q, 1e-300)) * (1 if log2_or > 0 else -1 if log2_or < 0 else 0)
 
     def _stripped(r: dict) -> dict:
@@ -333,21 +339,15 @@ def read_target_summary(target: str, indication: str = None) -> dict:
         if partner and partner not in seen:
             seen[partner] = r
 
-    top_cooc = sorted(
-        (v for v in seen.values() if float(v.get("log2_odds_ratio") or 0) > 0),
-        key=lambda r: -_rank(r)
-    )
-    top_mutex = sorted(
-        (v for v in seen.values() if float(v.get("log2_odds_ratio") or 0) < 0),
-        key=lambda r: _rank(r)
-    )
+    top_cooc = sorted((v for v in seen.values() if float(v.get("log2_odds_ratio") or 0) > 0), key=lambda r: -_rank(r))
+    top_mutex = sorted((v for v in seen.values() if float(v.get("log2_odds_ratio") or 0) < 0), key=lambda r: _rank(r))
 
-    n_sig_cooc = sum(1 for r in top_cooc
-                      if float(r.get("bh_q_value") or 1) < 0.05
-                      and float(r.get("log2_odds_ratio") or 0) > 0.5)
-    n_sig_mutex = sum(1 for r in top_mutex
-                       if float(r.get("bh_q_value") or 1) < 0.05
-                       and float(r.get("log2_odds_ratio") or 0) < -0.5)
+    n_sig_cooc = sum(
+        1 for r in top_cooc if float(r.get("bh_q_value") or 1) < 0.05 and float(r.get("log2_odds_ratio") or 0) > 0.5
+    )
+    n_sig_mutex = sum(
+        1 for r in top_mutex if float(r.get("bh_q_value") or 1) < 0.05 and float(r.get("log2_odds_ratio") or 0) < -0.5
+    )
 
     # ── VERDICT (indication-scoped) ──────────────────────────────────────────────
     # Scope the verdict-driving fields to the indication's cohort(s); pool NOTHING across
@@ -363,28 +363,27 @@ def read_target_summary(target: str, indication: str = None) -> dict:
         has_cooc_driver = has_mutex_driver = False
         scoped_cohorts: list[str] = []
     else:
-        (cooccurrence_class, has_cooc_driver, has_mutex_driver,
-         cooccurrence_class_prefloor) = _scoped_signals(scoped_rows)
+        (cooccurrence_class, has_cooc_driver, has_mutex_driver, cooccurrence_class_prefloor) = _scoped_signals(
+            scoped_rows
+        )
         cooccurrence_scope = scope_label
         scoped_cohorts = sorted({str(r.get("cohort", "")) for r in scoped_rows})
 
     return {
-        "cooccurrence_class": cooccurrence_class,            # VERDICT-DRIVING (indication-scoped, panel-floored)
+        "cooccurrence_class": cooccurrence_class,  # VERDICT-DRIVING (indication-scoped, panel-floored)
         # AUDIT: the raw pre-floor class (all partners incl. panel-absent per-source-only pairs). When it
         # DIFFERS from cooccurrence_class the target's pattern rested on panel-ineligible pairs (possible
         # TMB/gene-length artifact); verdict-inert (no rule keys on it).
         "cooccurrence_class_prefloor": cooccurrence_class_prefloor,
-        "cooccurrence_scope": cooccurrence_scope,            # indication | pan_cohort | unavailable
-        "scoped_cohorts": scoped_cohorts,                    # cohort label(s) the verdict used
-        "has_cooccurring_driver": has_cooc_driver,           # VERDICT-DRIVING (scoped)
-        "has_mutually_exclusive_driver": has_mutex_driver,   # scoped
+        "cooccurrence_scope": cooccurrence_scope,  # indication | pan_cohort | unavailable
+        "scoped_cohorts": scoped_cohorts,  # cohort label(s) the verdict used
+        "has_cooccurring_driver": has_cooc_driver,  # VERDICT-DRIVING (scoped)
+        "has_mutually_exclusive_driver": has_mutex_driver,  # scoped
         # ── pan-cohort DISPLAY landscape (verdict-inert) ──
         "n_significant_cooccurring": n_sig_cooc,
         "n_significant_mutually_exclusive": n_sig_mutex,
-        "n_pairs_panel_intersect_eligible": sum(1 for r in rows
-                                                  if bool(r.get("pooled_eligible", False))),
-        "n_pairs_per_source_only": sum(1 for r in rows
-                                         if not bool(r.get("pooled_eligible", False))),
+        "n_pairs_panel_intersect_eligible": sum(1 for r in rows if bool(r.get("pooled_eligible", False))),
+        "n_pairs_per_source_only": sum(1 for r in rows if not bool(r.get("pooled_eligible", False))),
         "top_cooccurring": [_stripped(r) for r in top_cooc[:10]],
         "top_mutually_exclusive": [_stripped(r) for r in top_mutex[:10]],
         "method_version": "0.1.0",

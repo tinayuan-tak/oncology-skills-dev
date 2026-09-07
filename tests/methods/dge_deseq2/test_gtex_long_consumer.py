@@ -33,16 +33,19 @@ def _median_log2tpm(records):
 # sidecar (COLON=822, LUNG=655, BRAIN=2931 per the manifest cohort block).
 CASES = [
     # (target, indication, gtex_tissue, expected_median, expected_n)
-    ("EPCAM", "COADREAD", "COLON",  3.1817,  822),
-    ("ACTB",  "COADREAD", "COLON", 12.3797,  822),
-    ("GFAP",  "GBM",      "BRAIN",  8.9259, 2931),
+    ("EPCAM", "COADREAD", "COLON", 3.1817, 822),
+    ("ACTB", "COADREAD", "COLON", 12.3797, 822),
+    ("GFAP", "GBM", "BRAIN", 8.9259, 2931),
 ]
 
 
-@pytest.mark.parametrize("target,indication,expected_tissue,expected_median,expected_n",
-                         CASES)
+@pytest.mark.parametrize("target,indication,expected_tissue,expected_median,expected_n", CASES)
 def test_gtex_branch_reads_from_long_product(
-    target, indication, expected_tissue, expected_median, expected_n,
+    target,
+    indication,
+    expected_tissue,
+    expected_median,
+    expected_n,
 ):
     from methods.dge_deseq2.read import read_per_sample_expression_all_three_groups
 
@@ -52,8 +55,7 @@ def test_gtex_branch_reads_from_long_product(
 
     gtex = res["gtex_samples"]
     assert len(gtex) == expected_n, (
-        f"n_gtex mismatch for {target}/{expected_tissue}: "
-        f"got {len(gtex)}, expected {expected_n}"
+        f"n_gtex mismatch for {target}/{expected_tissue}: got {len(gtex)}, expected {expected_n}"
     )
 
     # Record shape: preserve the fields the caller (emit_pan_tissue) expects.
@@ -63,8 +65,7 @@ def test_gtex_branch_reads_from_long_product(
     # Bit-identical to the long-product's emit-time correctness check.
     observed_median = _median_log2tpm(gtex)
     assert abs(observed_median - expected_median) < 1e-3, (
-        f"median mismatch for {target}/{expected_tissue}: "
-        f"expected {expected_median}, got {observed_median}"
+        f"median mismatch for {target}/{expected_tissue}: expected {expected_median}, got {observed_median}"
     )
 
 
@@ -80,8 +81,7 @@ def test_gtex_branch_returns_empty_for_indication_without_gtex_mapping():
     # Only run this branch if the mapping actually returns None here — otherwise
     # the assertion is moot on this checkout.
     if INDICATION_TO_GTEX_TISSUE.get("HNSC") is not None:
-        pytest.skip("INDICATION_TO_GTEX_TISSUE[HNSC] has been wired; test needs "
-                    "a different unmapped indication")
+        pytest.skip("INDICATION_TO_GTEX_TISSUE[HNSC] has been wired; test needs a different unmapped indication")
 
     res = read_per_sample_expression_all_three_groups("EPCAM", "HNSC")
     assert res is not None

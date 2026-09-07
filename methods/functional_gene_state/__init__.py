@@ -53,6 +53,7 @@ Modules:
                reads (single gene × single indication slices — never the full matrix on the read
                path); prefers a precomputed derived product when present (an accelerator).
 """
+
 from __future__ import annotations
 
 from .read import read_functional_gene_state, read_model_states_per_model
@@ -61,7 +62,9 @@ from .classify import (
     FUNCTIONAL_STATES,
 )
 
-METHOD_VERSION = "0.2.0"      # +read_model_states_per_model public accessor (for the model-match assembler); arm output byte-stable
+METHOD_VERSION = (
+    "0.2.0"  # +read_model_states_per_model public accessor (for the model-match assembler); arm output byte-stable
+)
 
 __all__ = [
     "read_functional_gene_state",

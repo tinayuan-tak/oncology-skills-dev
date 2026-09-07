@@ -9,6 +9,7 @@ MoA / pharmacodynamic-response facet (VERDICT-INERT; perturbation != dependency)
 Pushdown on gene_name (the product sort key) touches only matching row-groups — a per-target read is
 a few MB, never the 5.3 GB product. NO scanpy/anndata; pyarrow + the cbg S3 profile only.
 """
+
 from __future__ import annotations
 
 from typing import Optional
@@ -21,7 +22,7 @@ DEFAULT_AWS_PROFILE = "cbg"
 # Card-side thresholds. The product is pre-filtered to padj<0.25 (discovery FDR); the card applies a
 # stricter significance gate and an effect-size floor for the "strong mover" summary.
 PADJ_STRICT = 0.05
-STRONG_ABS_LFC = 1.0     # |log2FC| >= 1 (2-fold) = a strong transcriptional move
+STRONG_ABS_LFC = 1.0  # |log2FC| >= 1 (2-fold) = a strong transcriptional move
 TOP_N = 15
 
 
@@ -29,7 +30,7 @@ from methods.target_id_sidecar import ensure_aws_profile
 
 
 def _parse_s3_uri(uri: str) -> tuple[str, str]:
-    body = uri[len("s3://"):]
+    body = uri[len("s3://") :]
     bucket, _, key = body.partition("/")
     return bucket, key
 
@@ -39,14 +40,18 @@ def fetch_gene_rows(target: str):
     empty) or None on read failure."""
     import pyarrow.parquet as pq
     import pyarrow.fs as pafs
+
     try:
         import sys as _sys
         from pathlib import Path as _Path
+
         _sys.path.insert(0, str(_Path(__file__).resolve().parent.parent))
         from methods.catalog_query.read import bucket_key_for
+
         bucket, key = bucket_key_for(PRODUCT_MANIFEST_ID)
-        tbl = pq.read_table(f"{bucket}/{key}", filesystem=pafs.S3FileSystem(),
-                            filters=[("gene_name", "=", (target or "").strip())])
+        tbl = pq.read_table(
+            f"{bucket}/{key}", filesystem=pafs.S3FileSystem(), filters=[("gene_name", "=", (target or "").strip())]
+        )
     except Exception:  # absence-discipline: exempt -- None → compute_summary emits _live_read_error breadcrumb (tahoe_drug_perturbation_read_failed), not a silent dead axis
         return None
     return tbl.to_pandas()
@@ -73,10 +78,12 @@ def compute_summary(df, target: str) -> dict:
             "n_cancer_lines": 0,
             "top_suppressing_drugs": [],
             "top_inducing_drugs": [],
-            "perturbation_context": (f"{target}: not present in the Tahoe drug-perturbation product "
-                                     f"(no significant DE row at padj<0.25; may be an ncRNA/"
-                                     f"pseudogene absent from the resolved set, or genuinely "
-                                     f"unmoved). A coverage/measurement gap, not a mechanism claim."),
+            "perturbation_context": (
+                f"{target}: not present in the Tahoe drug-perturbation product "
+                f"(no significant DE row at padj<0.25; may be an ncRNA/"
+                f"pseudogene absent from the resolved set, or genuinely "
+                f"unmoved). A coverage/measurement gap, not a mechanism claim."
+            ),
             "method_version": METHOD_VERSION,
             "_data_source": PRODUCT_MANIFEST_ID,
         }
@@ -85,12 +92,16 @@ def compute_summary(df, target: str) -> dict:
     # how many are strictly significant.
     df = df.copy()
     df["_sig"] = df["padj"] < PADJ_STRICT
-    grp = df.groupby("drug").agg(
-        median_l2fc=("log2FoldChange", "median"),
-        n_obs=("log2FoldChange", "size"),
-        n_lines=("Cell_ID_DepMap", "nunique"),
-        n_sig=("_sig", "sum"),
-    ).reset_index()
+    grp = (
+        df.groupby("drug")
+        .agg(
+            median_l2fc=("log2FoldChange", "median"),
+            n_obs=("log2FoldChange", "size"),
+            n_lines=("Cell_ID_DepMap", "nunique"),
+            n_sig=("_sig", "sum"),
+        )
+        .reset_index()
+    )
 
     n_drugs = int(grp.shape[0])
     n_lines = int(df["Cell_ID_DepMap"].nunique())
@@ -98,14 +109,16 @@ def compute_summary(df, target: str) -> dict:
     def _records(sub, sign):
         out = []
         for _, r in sub.iterrows():
-            out.append({
-                "drug": r["drug"],
-                "median_log2FoldChange": round(float(r["median_l2fc"]), 4),
-                "n_observations": int(r["n_obs"]),
-                "n_cancer_lines": int(r["n_lines"]),
-                "n_significant_strict": int(r["n_sig"]),
-                "direction": "suppresses" if sign < 0 else "induces",
-            })
+            out.append(
+                {
+                    "drug": r["drug"],
+                    "median_log2FoldChange": round(float(r["median_l2fc"]), 4),
+                    "n_observations": int(r["n_obs"]),
+                    "n_cancer_lines": int(r["n_lines"]),
+                    "n_significant_strict": int(r["n_sig"]),
+                    "direction": "suppresses" if sign < 0 else "induces",
+                }
+            )
         return out
 
     suppressors = grp[grp["median_l2fc"] <= -STRONG_ABS_LFC].sort_values("median_l2fc").head(TOP_N)
@@ -113,7 +126,7 @@ def compute_summary(df, target: str) -> dict:
 
     n_strong = int(suppressors.shape[0] + inducers.shape[0])
     if n_strong == 0:
-        klass = "weakly_perturbed"        # measured, but no drug moves it >=2-fold (median)
+        klass = "weakly_perturbed"  # measured, but no drug moves it >=2-fold (median)
     elif suppressors.shape[0] and inducers.shape[0]:
         klass = "bidirectionally_perturbed"
     elif suppressors.shape[0]:
@@ -125,7 +138,7 @@ def compute_summary(df, target: str) -> dict:
     top_ind = _records(inducers, +1)
     strongest = None
     if top_supp or top_ind:
-        cand = (top_supp[:1] + top_ind[:1])
+        cand = top_supp[:1] + top_ind[:1]
         strongest = min(cand, key=lambda r: r["median_log2FoldChange"]) if top_supp else cand[0]
 
     ctx = _context(target, klass, strongest, n_drugs, n_lines, top_supp, top_ind)
@@ -146,18 +159,23 @@ def compute_summary(df, target: str) -> dict:
 
 def _context(target, klass, strongest, n_drugs, n_lines, top_supp, top_ind) -> str:
     if klass == "weakly_perturbed":
-        return (f"{target}: measured in Tahoe across {n_drugs} drugs / {n_lines} cancer lines, but no "
-                f"drug moves its expression >=2-fold (median). Transcriptionally stable under the "
-                f"screened perturbations.")
+        return (
+            f"{target}: measured in Tahoe across {n_drugs} drugs / {n_lines} cancer lines, but no "
+            f"drug moves its expression >=2-fold (median). Transcriptionally stable under the "
+            f"screened perturbations."
+        )
     head = f"{target}: perturbed by {n_drugs} drugs across {n_lines} cancer lines (Tahoe single-cell)."
     if top_supp:
         s = top_supp[0]
-        head += (f" Most SUPPRESSED by {s['drug']} (median log2FC {s['median_log2FoldChange']}, "
-                 f"{s['n_cancer_lines']} lines).")
+        head += (
+            f" Most SUPPRESSED by {s['drug']} (median log2FC {s['median_log2FoldChange']}, "
+            f"{s['n_cancer_lines']} lines)."
+        )
     if top_ind:
         i = top_ind[0]
-        head += (f" Most INDUCED by {i['drug']} (median log2FC {i['median_log2FoldChange']}, "
-                 f"{i['n_cancer_lines']} lines).")
+        head += (
+            f" Most INDUCED by {i['drug']} (median log2FC {i['median_log2FoldChange']}, {i['n_cancer_lines']} lines)."
+        )
     head += " MECHANISM / MoA facet (verdict-inert) — a transcriptional-response signal, NOT dependency."
     return head
 

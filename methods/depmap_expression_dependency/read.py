@@ -24,8 +24,9 @@ DEFAULT_AWS_PROFILE = "cbg"
 from methods.target_id_sidecar import ensure_aws_profile
 
 
-def read_expression_dependency(target: str, indication: Optional[str] = None,
-                                plot_data_out: Optional[Path] = None) -> dict:
+def read_expression_dependency(
+    target: str, indication: Optional[str] = None, plot_data_out: Optional[Path] = None
+) -> dict:
     """Compute expression-vs-Chronos correlation for target gene in indication.
 
     Args:
@@ -42,8 +43,8 @@ def read_expression_dependency(target: str, indication: Optional[str] = None,
     if indication is None:
         indication = ""
 
-    chronos_by_model, tpm_by_model, model_metadata, load_errors = (
-        _cli.load_depmap_files_for_card4(release_pin="26q1", target_symbol=target)
+    chronos_by_model, tpm_by_model, model_metadata, load_errors = _cli.load_depmap_files_for_card4(
+        release_pin="26q1", target_symbol=target
     )
 
     if load_errors:
@@ -75,5 +76,8 @@ def read_expression_dependency(target: str, indication: Optional[str] = None,
             pass
 
     return _cli.compute_correlation_summary(
-        chronos_by_model, tpm_by_model, model_metadata, indication=indication,
+        chronos_by_model,
+        tpm_by_model,
+        model_metadata,
+        indication=indication,
     )

@@ -3,6 +3,7 @@ shared barcode->cancer-type crosswalk twin of tcga_patient_cn. Same discipline: 
 transient/broken-env, return {} only on genuine NoSuchKey/404, and RAISE on an EMPTY map from a
 well-formed read (null-strata guard against a silent join-collapse to "no samples").
 """
+
 from __future__ import annotations
 
 import sys
@@ -25,6 +26,7 @@ def _nosuchkey():
 def _raise(exc):
     def f(*a, **k):
         raise exc
+
     return f
 
 

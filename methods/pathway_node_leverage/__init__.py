@@ -6,4 +6,5 @@ the differentiation axis. Corrections: common-essential exclusion, tractability-
 noise-separation; LINEAGE-SCOPED. See docs/design/PATHWAY_NODE_LEVERAGE_SPEC.md (target-contracts).
 tier: comparative.
 """
+
 from .read import read_node_leverage, METHOD_VERSION  # noqa: F401

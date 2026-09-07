@@ -68,8 +68,8 @@ def _yaml_load(fh):
 # tokenizes it) while harvesting each entry's `category` via regex. Byte-identical to
 # `_yaml_load(f)` + `raw.pop("files")` + the category set for every manifest — guarded by
 # tests/methods/catalog_query/test_lean_parse_equivalence.py.
-_FILES_KEY_RE = re.compile(r'^files:\s*(#.*)?$')
-_CATEGORY_RE = re.compile(r'^\s+(?:-\s+)?category:\s*(.+?)\s*(?:#.*)?$')
+_FILES_KEY_RE = re.compile(r"^files:\s*(#.*)?$")
+_CATEGORY_RE = re.compile(r"^\s+(?:-\s+)?category:\s*(.+?)\s*(?:#.*)?$")
 
 
 def _lean_load_manifest(path):
@@ -116,10 +116,12 @@ def _lean_load_manifest(path):
 # DATA_CATALOG_ROOT pattern). Overriding via env is what lets CI / a non-/home/sagemaker-user
 # checkout resolve manifests (the hardcoded default previously broke any environment — e.g. GitHub
 # Actions — where the sibling repos aren't at /home/sagemaker-user).
-DATA_CATALOG = Path(os.environ.get(
-    "DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"))
-TARGET_CONTRACTS = Path(os.environ.get(
-    "TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
+DATA_CATALOG = Path(
+    os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
+)
+TARGET_CONTRACTS = Path(
+    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+)
 
 # ---------------------------------------------------------------------------
 # Manifest primitives — the public generalization of dge_deseq2/read.py's
@@ -144,10 +146,7 @@ def load_manifest(manifest_id: str, root: Path = DATA_CATALOG) -> dict:
         if candidate.exists():
             with candidate.open() as f:
                 return _yaml_load(f)
-    raise FileNotFoundError(
-        f"Manifest {manifest_id!r} not found in "
-        f"{root}/manifests/{{sources,derived}}/"
-    )
+    raise FileNotFoundError(f"Manifest {manifest_id!r} not found in {root}/manifests/{{sources,derived}}/")
 
 
 def s3_uri_for(manifest_id: str, root: Path = DATA_CATALOG) -> str:
@@ -237,7 +236,7 @@ def _family_of(manifest_id: str) -> str:
     stripped. Convention in this catalog: `<family>-<release>-v<N>` or `<family>-v<N>` — new
     releases are new SIBLINGS (ids never renamed), so the family is the stable join key.
     Strips trailing `-v<N>` and a trailing release token if present (e.g. `-26q1`)."""
-    mid = re.sub(r"-v\d+$", "", manifest_id)                 # drop -v2
+    mid = re.sub(r"-v\d+$", "", manifest_id)  # drop -v2
     mid = re.sub(r"-\d{2}q\d+$", "", mid, flags=re.IGNORECASE)  # drop -26q1 / -26q10 release token
     return mid
 
@@ -293,6 +292,7 @@ def resolve_release(
         # family may already BE a concrete id (single-release product) — accept it as-is.
         if family in idx.manifests:
             return family
+
         # `family` may be a PRODUCT_ID (products.yaml registry id) rather than a manifest-id
         # family. A card that reads an indication-DISPATCHED product declares the stable
         # product_id (it cannot name one manifest statically — e.g. COADREAD reads the paired-
@@ -307,6 +307,7 @@ def resolve_release(
         def _declares_product(rec) -> bool:
             v = rec.raw.get("product_id")
             return v == family or (isinstance(v, list) and family in v)
+
         members = sorted(mid for mid, rec in idx.manifests.items() if _declares_product(rec))
         if not members:
             raise ReleaseResolutionError(
@@ -346,9 +347,9 @@ def resolve_release(
         # supersedes within a product's manifest set.
         _member_set = set(members)
         superseded = {
-            rec.supersedes for rec in idx.manifests.values()
-            if rec.supersedes and (_family_of(rec.supersedes) == family
-                                   or rec.supersedes in _member_set)
+            rec.supersedes
+            for rec in idx.manifests.values()
+            if rec.supersedes and (_family_of(rec.supersedes) == family or rec.supersedes in _member_set)
         }
         # Version-aware sort (NOT lexical): `-v10` must beat `-v9`, `26q10` must beat `26q2`.
         head = sorted((m for m in members if m not in superseded), key=_version_key)
@@ -357,9 +358,7 @@ def resolve_release(
             head = sorted(members, key=_version_key)
         return head[-1]
 
-    raise ReleaseResolutionError(
-        f"Unknown data_mode {data_mode!r} (expected latest_approved | pinned | exploratory)."
-    )
+    raise ReleaseResolutionError(f"Unknown data_mode {data_mode!r} (expected latest_approved | pinned | exploratory).")
 
 
 # ---------------------------------------------------------------------------
@@ -370,8 +369,9 @@ def resolve_release(
 @dataclass
 class ManifestRecord:
     """One normalized manifest, either source-release or derived."""
+
     id: str
-    type: str                                   # source-release | derived
+    type: str  # source-release | derived
     path: Path
     raw: dict = field(repr=False)
     # forward lineage (declared on the manifest itself)
@@ -445,6 +445,7 @@ class ManifestRecord:
 @dataclass
 class CatalogIndex:
     """The whole catalog loaded once: manifests keyed by id + a lineage graph."""
+
     manifests: dict[str, ManifestRecord]
     # manifest_id -> [product_id, ...] from target-contracts products.yaml
     consumers: dict[str, list[str]]
@@ -487,9 +488,7 @@ class CatalogIndex:
             if category and category not in rec.categories:
                 continue
             if q:
-                hay = " ".join(
-                    str(x) for x in (rec.id, rec.description, rec.dataset, rec.provider) if x
-                ).lower()
+                hay = " ".join(str(x) for x in (rec.id, rec.description, rec.dataset, rec.provider) if x).lower()
                 if q not in hay:
                     continue
             out.append(rec)
@@ -518,7 +517,7 @@ class CatalogIndex:
             "parquet_schema": rec.parquet_schema,
             "query_optimization": rec.query_optimization,
             "derived_from": rec.derived_from,
-            "cited_by": rec.computed_cited_by,          # the COMPUTED reverse graph
+            "cited_by": rec.computed_cited_by,  # the COMPUTED reverse graph
             "consumed_by_products": self.consumers.get(manifest_id, []),
             "cited_by_subgroup_catalogs": self.subgroup_citations.get(manifest_id, []),
             "manifest_path": str(rec.path),
@@ -529,7 +528,7 @@ class CatalogIndex:
         self,
         manifest_id: str,
         *,
-        direction: str = "both",       # upstream | downstream | both
+        direction: str = "both",  # upstream | downstream | both
         depth: Optional[int] = None,
     ) -> dict:
         """Walk the lineage graph from a manifest.
@@ -574,17 +573,11 @@ class CatalogIndex:
         release = new sibling, ids never renamed) not a collision signal.
         """
         # Superseded ids named by another manifest's `supersedes` field.
-        supersedes_map = {
-            rec.supersedes: rec.id
-            for rec in self.manifests.values()
-            if rec.supersedes
-        }
+        supersedes_map = {rec.supersedes: rec.id for rec in self.manifests.values() if rec.supersedes}
         # Superseded manifests STILL PRESENT in the catalog — the real stale
         # signal: a newer manifest declared it obsolete but it wasn't removed.
         superseded_still_present = sorted(
-            f"{old} (superseded by {new})"
-            for old, new in supersedes_map.items()
-            if old in self.manifests
+            f"{old} (superseded by {new})" for old, new in supersedes_map.items() if old in self.manifests
         )
 
         # Uncited source-releases: no manifest derives from them AND no product /
@@ -605,15 +598,9 @@ class CatalogIndex:
         # The batch shipped `{ind}-dge-tumor-vs-normal-sensitivity-v1` products;
         # flag configured indications missing theirs.
         dge_present = {
-            m.group(1)
-            for mid in self.manifests
-            if (m := re.match(r"^(.+)-dge-tumor-vs-normal-sensitivity-v\d+$", mid))
+            m.group(1) for mid in self.manifests if (m := re.match(r"^(.+)-dge-tumor-vs-normal-sensitivity-v\d+$", mid))
         }
-        dge_gaps = sorted(
-            code.lower()
-            for code in self.indication_configs
-            if code.lower() not in dge_present
-        )
+        dge_gaps = sorted(code.lower() for code in self.indication_configs if code.lower() not in dge_present)
 
         return {
             "uncited_sources": uncited_sources,
@@ -623,9 +610,7 @@ class CatalogIndex:
                 "sources": sum(1 for r in self.manifests.values() if r.type == "source-release"),
                 "derived": sum(1 for r in self.manifests.values() if r.type == "derived"),
                 "indication_configs": len(self.indication_configs),
-                "subgroup_catalogs": len({
-                    c for cats in self.subgroup_citations.values() for c in cats
-                }),
+                "subgroup_catalogs": len({c for cats in self.subgroup_citations.values() for c in cats}),
             },
         }
 

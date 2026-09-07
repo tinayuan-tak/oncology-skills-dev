@@ -6,6 +6,7 @@ the statistical heart of the tumor-vs-normal call. These are pure-function tests
 they pin the sign convention, the tiny-n / zero-variance guards, NaN handling, and BH correctness
 against an independent reference — the invariants a future edit could silently break.
 """
+
 from __future__ import annotations
 
 import sys
@@ -26,19 +27,19 @@ from methods.dge_tcga_gtex_precompute.cli import _welch_deg, _bh_correct  # noqa
 
 # ── sign convention: positive log2FC = arm A (tumor) higher ─────────────────
 def test_sign_positive_when_a_higher():
-    a = np.array([5.0, 5.2, 4.8, 5.1])   # tumor
-    b = np.array([1.0, 1.1, 0.9, 1.0])   # normal
+    a = np.array([5.0, 5.2, 4.8, 5.1])  # tumor
+    b = np.array([1.0, 1.1, 0.9, 1.0])  # normal
     lfc, p = _welch_deg(a, b)
-    assert lfc > 0                        # a > b → positive (up in tumor)
-    assert abs(lfc - (a.mean() - b.mean())) < 1e-9   # lfc == mean(a) - mean(b) exactly
-    assert p < 0.05                       # clearly separated → significant
+    assert lfc > 0  # a > b → positive (up in tumor)
+    assert abs(lfc - (a.mean() - b.mean())) < 1e-9  # lfc == mean(a) - mean(b) exactly
+    assert p < 0.05  # clearly separated → significant
 
 
 def test_sign_negative_when_a_lower():
     a = np.array([1.0, 1.1, 0.9])
     b = np.array([5.0, 5.2, 4.8])
     lfc, p = _welch_deg(a, b)
-    assert lfc < 0                        # down in tumor → negative, never sign-flipped
+    assert lfc < 0  # down in tumor → negative, never sign-flipped
 
 
 # ── tiny-n guard: <2 per arm → (0.0, 1.0), never a spurious call ────────────
@@ -51,8 +52,8 @@ def test_tiny_n_returns_null():
 # ── zero-variance both arms → lfc kept, p=1.0 (not a divide-by-zero call) ────
 def test_zero_variance_both_arms():
     lfc, p = _welch_deg(np.array([3.0, 3.0, 3.0]), np.array([1.0, 1.0, 1.0]))
-    assert lfc == 2.0        # mean diff preserved
-    assert p == 1.0          # no variance → cannot call significant
+    assert lfc == 2.0  # mean diff preserved
+    assert p == 1.0  # no variance → cannot call significant
 
 
 # ── NaN handling: NaNs dropped per-arm before the test, not propagated ──────
@@ -62,24 +63,27 @@ def test_nan_dropped_per_arm():
     lfc, p = _welch_deg(a, b)
     # means computed over the 3 non-NaN each; result finite, not NaN
     assert lfc == pytest.approx((5.0 + 5.2 + 4.8) / 3 - (1.0 + 1.1 + 0.9) / 3)
-    assert p == p and 0.0 <= p <= 1.0     # p is finite in [0,1]
+    assert p == p and 0.0 <= p <= 1.0  # p is finite in [0,1]
 
 
 def test_all_nan_one_arm_returns_null():
     a = np.array([np.nan, np.nan, np.nan])
     b = np.array([1.0, 2.0, 3.0])
-    assert _welch_deg(a, b) == (0.0, 1.0)   # <2 valid in arm a → guarded
+    assert _welch_deg(a, b) == (0.0, 1.0)  # <2 valid in arm a → guarded
 
 
 # ── BH correction: matches an independent reference implementation ──────────
 def _bh_reference(p):
     # textbook BH: q_i = min over k>=rank(i) of (p_(k) * n / k), clipped to 1
-    p = np.asarray(p, float); n = len(p)
-    order = np.argsort(p); ranked = p[order]
+    p = np.asarray(p, float)
+    n = len(p)
+    order = np.argsort(p)
+    ranked = p[order]
     q = ranked * n / (np.arange(n) + 1)
     q = np.minimum.accumulate(q[::-1])[::-1]
     q = np.clip(q, 0, 1)
-    out = np.empty_like(q); out[order] = q
+    out = np.empty_like(q)
+    out[order] = q
     return out
 
 
@@ -102,4 +106,4 @@ def test_bh_smallest_p_qvalue_is_p_times_n():
     p = np.array([0.001, 0.5, 0.6, 0.7])
     q = _bh_correct(p)
     assert q[0] == pytest.approx(min(0.001 * 4, q[0]))  # smallest gets the n/1 multiplier, clipped by monotone-min
-    assert q.argmin() == 0                              # smallest p → smallest q
+    assert q.argmin() == 0  # smallest p → smallest q

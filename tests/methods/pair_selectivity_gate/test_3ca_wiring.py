@@ -9,6 +9,7 @@ on one axis; the same guard catches the 2026-08-05 NSCLC drift class).
 Pattern mirrors test_lusc_wiring.py. Map tests need no catalog/S3 (pure dict lookups).
 Resolution tests read local manifest YAML (no network).
 """
+
 from __future__ import annotations
 
 import sys
@@ -23,6 +24,7 @@ from methods.sc_tumor_expression_celltype import read as TSC  # noqa: E402
 
 
 # ── value invariants (no catalog / no S3) ────────────────────────────────────
+
 
 def test_paad_pseudobulk_map_points_to_3ca_pancreas():
     assert TSC.INDICATION_TO_PRODUCT["PAAD"] == "sc-pseudobulk-tumor-3ca-pancreas-v1"
@@ -92,10 +94,11 @@ def test_npc_3ca_registered_but_intentionally_not_wired():
     # products). If someone wires NPC, the two asserts above flip and this guard fails — the prompt to
     # do the full indication vertical (or update this rationale) rather than a silent one-line map add.
     from methods.catalog_query.read import s3_uri_for
-    assert s3_uri_for("sc-pseudobulk-tumor-3ca-npc-v1").endswith(
-        "sc-pseudobulk-tumor-3ca-npc-v1/sc_pseudobulk.parquet")
+
+    assert s3_uri_for("sc-pseudobulk-tumor-3ca-npc-v1").endswith("sc-pseudobulk-tumor-3ca-npc-v1/sc_pseudobulk.parquet")
     assert s3_uri_for("sc-samecell-coexpr-3ca-npc-v1").endswith(
-        "sc-samecell-coexpr-3ca-npc-v1/sc_samecell_coexpr.parquet")
+        "sc-samecell-coexpr-3ca-npc-v1/sc_samecell_coexpr.parquet"
+    )
 
 
 def test_sc_maps_agree_on_all_indications():
@@ -106,21 +109,31 @@ def test_sc_maps_agree_on_all_indications():
 
 # ── resolution smoke (reads local catalog YAML, no network) ──────────────────
 
+
 def test_3ca_products_resolve_to_catalog_s3_uris():
     from methods.catalog_query.read import s3_uri_for
+
     assert s3_uri_for("sc-pseudobulk-tumor-3ca-pancreas-v1").endswith(
-        "sc-pseudobulk-tumor-3ca-pancreas-v1/sc_pseudobulk.parquet")
+        "sc-pseudobulk-tumor-3ca-pancreas-v1/sc_pseudobulk.parquet"
+    )
     assert s3_uri_for("sc-pseudobulk-tumor-3ca-hnsc-v1").endswith(
-        "sc-pseudobulk-tumor-3ca-hnsc-v1/sc_pseudobulk.parquet")
+        "sc-pseudobulk-tumor-3ca-hnsc-v1/sc_pseudobulk.parquet"
+    )
     assert s3_uri_for("sc-samecell-coexpr-3ca-pancreas-v1").endswith(
-        "sc-samecell-coexpr-3ca-pancreas-v1/sc_samecell_coexpr.parquet")
+        "sc-samecell-coexpr-3ca-pancreas-v1/sc_samecell_coexpr.parquet"
+    )
     assert s3_uri_for("sc-samecell-coexpr-3ca-hnsc-v1").endswith(
-        "sc-samecell-coexpr-3ca-hnsc-v1/sc_samecell_coexpr.parquet")
+        "sc-samecell-coexpr-3ca-hnsc-v1/sc_samecell_coexpr.parquet"
+    )
     assert s3_uri_for("sc-pseudobulk-tumor-3ca-kidney-v1").endswith(
-        "sc-pseudobulk-tumor-3ca-kidney-v1/sc_pseudobulk.parquet")
+        "sc-pseudobulk-tumor-3ca-kidney-v1/sc_pseudobulk.parquet"
+    )
     assert s3_uri_for("sc-samecell-coexpr-3ca-kidney-v1").endswith(
-        "sc-samecell-coexpr-3ca-kidney-v1/sc_samecell_coexpr.parquet")
+        "sc-samecell-coexpr-3ca-kidney-v1/sc_samecell_coexpr.parquet"
+    )
     assert s3_uri_for("sc-pseudobulk-tumor-3ca-ovarian-v1").endswith(
-        "sc-pseudobulk-tumor-3ca-ovarian-v1/sc_pseudobulk.parquet")
+        "sc-pseudobulk-tumor-3ca-ovarian-v1/sc_pseudobulk.parquet"
+    )
     assert s3_uri_for("sc-samecell-coexpr-3ca-ovarian-v1").endswith(
-        "sc-samecell-coexpr-3ca-ovarian-v1/sc_samecell_coexpr.parquet")
+        "sc-samecell-coexpr-3ca-ovarian-v1/sc_samecell_coexpr.parquet"
+    )

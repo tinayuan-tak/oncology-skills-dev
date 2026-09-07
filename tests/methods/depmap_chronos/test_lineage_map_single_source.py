@@ -8,6 +8,7 @@ four depmap display CLIs onto ONE canonical literal (depmap_chronos.cli.INDICATI
 re-exported as depmap_chronos.read.INDICATION_TO_DEPMAP_LINEAGE) and gave it full
 framework coverage. These guards keep it that way.
 """
+
 from __future__ import annotations
 
 import ast
@@ -27,21 +28,59 @@ from methods.depmap_chronos import cli as chronos_cli  # noqa: E402
 # The 34 non-null OncotreeLineage categories in DepMap 26Q1 Model.csv (frozen from a
 # live load 2026-08-16; the file also carries a "nan"/missing bucket which is not a
 # real lineage). Frozen so this guard runs offline; a live leg below re-confirms it.
-MODEL_CSV_26Q1_LINEAGES = frozenset({
-    "Adrenal Gland", "Ampulla of Vater", "Biliary Tract", "Bladder/Urinary Tract",
-    "Bone", "Bowel", "Breast", "CNS/Brain", "Cervix", "Embryonal", "Esophagus/Stomach",
-    "Eye", "Fibroblast", "Hair", "Head and Neck", "Kidney", "Liver", "Lung", "Lymphoid",
-    "Muscle", "Myeloid", "Normal", "Other", "Ovary/Fallopian Tube", "Pancreas",
-    "Peripheral Nervous System", "Pleura", "Prostate", "Skin", "Soft Tissue", "Testis",
-    "Thyroid", "Uterus", "Vulva/Vagina",
-})
+MODEL_CSV_26Q1_LINEAGES = frozenset(
+    {
+        "Adrenal Gland",
+        "Ampulla of Vater",
+        "Biliary Tract",
+        "Bladder/Urinary Tract",
+        "Bone",
+        "Bowel",
+        "Breast",
+        "CNS/Brain",
+        "Cervix",
+        "Embryonal",
+        "Esophagus/Stomach",
+        "Eye",
+        "Fibroblast",
+        "Hair",
+        "Head and Neck",
+        "Kidney",
+        "Liver",
+        "Lung",
+        "Lymphoid",
+        "Muscle",
+        "Myeloid",
+        "Normal",
+        "Other",
+        "Ovary/Fallopian Tube",
+        "Pancreas",
+        "Peripheral Nervous System",
+        "Pleura",
+        "Prostate",
+        "Skin",
+        "Soft Tissue",
+        "Testis",
+        "Thyroid",
+        "Uterus",
+        "Vulva/Vagina",
+    }
+)
 
 # The full framework indication vocabulary — target-contracts
 # vocabularies/indication_crosswalk.yaml `canonical_code` (CML is deferred_iter1b but
 # still a first-class code). EVERY one must resolve to a real lineage through the
 # single canonical map (no silent pan-lineage fallback for a supported indication).
 FRAMEWORK_INDICATION_CODES = (
-    "COADREAD", "NSCLC", "SCLC", "HNSC", "STAD", "ESCA", "PAAD", "AML", "CML",
+    "COADREAD",
+    "NSCLC",
+    "SCLC",
+    "HNSC",
+    "STAD",
+    "ESCA",
+    "PAAD",
+    "AML",
+    "CML",
 )
 
 # The four depmap method modules that were consolidated onto the canonical map.
@@ -63,7 +102,7 @@ _CANONICAL_LITERAL_FILE = "methods/depmap_chronos/cli.py"
 # either is ever reshaped to a plain scalar dict, fold it into the canonical instead.
 _DOCUMENTED_NONSCALAR_FORKS = {
     "methods/subgroup_assigner_directly_tagged/cli.py",  # + INDICATION_TO_DEPMAP_ORGAN sibling
-    "methods/tcga_aneuploidy_burden/read.py",            # tuple-valued (multi-lineage)
+    "methods/tcga_aneuploidy_burden/read.py",  # tuple-valued (multi-lineage)
 }
 
 _LINEAGE_MAP_NAMES = {"INDICATION_LINEAGE", "INDICATION_TO_DEPMAP_LINEAGE"}
@@ -71,10 +110,10 @@ _LINEAGE_MAP_NAMES = {"INDICATION_LINEAGE", "INDICATION_TO_DEPMAP_LINEAGE"}
 
 # ---- (a) every canonical value is a REAL Model.csv lineage --------------------------
 
+
 def test_every_canonical_value_is_a_real_model_csv_lineage():
     """Catches future wrong values like the STAD→"Stomach" latent bug."""
-    bad = {v for v in INDICATION_TO_DEPMAP_LINEAGE.values()
-           if v not in MODEL_CSV_26Q1_LINEAGES}
+    bad = {v for v in INDICATION_TO_DEPMAP_LINEAGE.values() if v not in MODEL_CSV_26Q1_LINEAGES}
     assert not bad, f"map values not in DepMap 26Q1 Model.csv lineage set: {sorted(bad)}"
     assert "Stomach" not in set(INDICATION_TO_DEPMAP_LINEAGE.values())
 
@@ -82,6 +121,7 @@ def test_every_canonical_value_is_a_real_model_csv_lineage():
 def test_frozen_lineage_set_matches_live_model_csv():
     """Opportunistic live leg: confirm the frozen 34-lineage set still equals Model.csv."""
     from methods.depmap_protein_abundance import cli as pa
+
     try:
         lin_by_model = pa.load_model_lineage()
     except Exception:  # noqa: BLE001 — no S3 / creds → skip
@@ -92,19 +132,24 @@ def test_frozen_lineage_set_matches_live_model_csv():
     assert live == set(MODEL_CSV_26Q1_LINEAGES), (
         "frozen Model.csv lineage set drifted from live; update MODEL_CSV_26Q1_LINEAGES. "
         f"only-live={sorted(live - MODEL_CSV_26Q1_LINEAGES)} "
-        f"only-frozen={sorted(set(MODEL_CSV_26Q1_LINEAGES) - live)}")
+        f"only-frozen={sorted(set(MODEL_CSV_26Q1_LINEAGES) - live)}"
+    )
 
 
 # ---- (b) single source of truth: one literal, everyone else aliases it --------------
+
 
 def test_all_consolidated_modules_share_one_map_object():
     from methods.depmap_expression_dependency.cli import INDICATION_LINEAGE as ed
     from methods.depmap_expression_distribution.cli import INDICATION_LINEAGE as edist
     from methods.depmap_protein_abundance.cli import INDICATION_LINEAGE as pa
-    for name, obj in (("depmap_chronos.cli", chronos_cli.INDICATION_LINEAGE),
-                      ("depmap_expression_dependency.cli", ed),
-                      ("depmap_expression_distribution.cli", edist),
-                      ("depmap_protein_abundance.cli", pa)):
+
+    for name, obj in (
+        ("depmap_chronos.cli", chronos_cli.INDICATION_LINEAGE),
+        ("depmap_expression_dependency.cli", ed),
+        ("depmap_expression_distribution.cli", edist),
+        ("depmap_protein_abundance.cli", pa),
+    ):
         assert obj is INDICATION_TO_DEPMAP_LINEAGE, f"{name} does not share the canonical object"
 
 
@@ -112,6 +157,7 @@ def test_pathway_node_leverage_inherits_canonical_transitively():
     # Read-only sanity: the WS3-owned method imports the stale name and must get the
     # FULL canonical map (so STAD/HNSC/ESCA/AML resolve within-indication), NOT a fork.
     from methods.pathway_node_leverage.cli import INDICATION_LINEAGE as nl
+
     assert nl is INDICATION_TO_DEPMAP_LINEAGE
 
 
@@ -145,21 +191,23 @@ def test_only_canonical_module_holds_a_scalar_literal():
     unexpected = hits - {_CANONICAL_LITERAL_FILE} - _DOCUMENTED_NONSCALAR_FORKS
     assert not unexpected, (
         "re-forked scalar indication→lineage literal(s) found — alias-import the canonical "
-        f"depmap_chronos.cli.INDICATION_LINEAGE instead: {sorted(unexpected)}")
-    assert _CANONICAL_LITERAL_FILE in hits, (
-        "canonical scalar literal missing from depmap_chronos/cli.py")
+        f"depmap_chronos.cli.INDICATION_LINEAGE instead: {sorted(unexpected)}"
+    )
+    assert _CANONICAL_LITERAL_FILE in hits, "canonical scalar literal missing from depmap_chronos/cli.py"
 
 
 # ---- (c) completeness: every framework indication resolves --------------------------
 
+
 def test_every_framework_indication_resolves_to_a_real_lineage():
-    unresolved = [c for c in FRAMEWORK_INDICATION_CODES
-                  if INDICATION_TO_DEPMAP_LINEAGE.get(c) not in MODEL_CSV_26Q1_LINEAGES]
-    assert not unresolved, (
-        f"framework indication codes with no / bogus lineage mapping: {unresolved}")
+    unresolved = [
+        c for c in FRAMEWORK_INDICATION_CODES if INDICATION_TO_DEPMAP_LINEAGE.get(c) not in MODEL_CSV_26Q1_LINEAGES
+    ]
+    assert not unresolved, f"framework indication codes with no / bogus lineage mapping: {unresolved}"
 
 
 # ---- (d) no silent pan-lineage fallback: evidence_scope is ALWAYS explicit ----------
+
 
 def test_lineage_ladder_always_stamps_an_explicit_evidence_scope():
     from methods.depmap_common.lineage_ladder import apply_lineage_ladder

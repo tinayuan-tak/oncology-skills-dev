@@ -27,6 +27,7 @@ Absence in DGIdb is a coverage gap, never evidence of undruggability (measured-v
 STALENESS: the underlying DGIdb data self-reports Dec-2023 / v5.0.11 (the source is tagged 2026-06b
 but repackaged). See the data-catalog source manifest dgidb-2026-06b.
 """
+
 from __future__ import annotations
 
 import os
@@ -43,17 +44,17 @@ PRODUCT_MANIFEST_ID = "dgidb-drug-gene-per-gene-v1"
 # target (BRAF 44, BTK 64, IDH1 10) from an undruggable TF/scaffold whose interactions are all indirect
 # (CTNNB1 1, MYC 0). Reading it is additive: `known_drug_tractability_class` is UNCHANGED (Design B2).
 DIRECTIONAL_MANIFEST_ID = "dgidb-drug-target-directional-v1"
-METHOD_VERSION = "0.3.0"   # 0.3.0 (2026-09-07, CASE-008 verdict-moving): + MODALITY signal
-                           # (approved_drug_modality) from the curated biologics_precedent_targets.yaml
-                           # crosswalk (via TARGET_CONTRACTS_ROOT). A BIOLOGICS-ONLY approved antigen
-                           # (no approved SM) now resolves approved_drug_engagement_class=approved_biologic_only
-                           # (new; takes precedence over approved_direct/indirect) so the resolver's
-                           # SM-supportive approved-drug rung can be gated on modality. known_drug_tractability_class
-                           # UNCHANGED. Dual-modality targets (EGFR/ERBB2/MET) carry NO biologics_only flag in the vocab and
-                           # are NOT demoted — the osimertinib guard.
-                           # 0.2.0 (2026-09-04): + directness metadata (n_direct_interactions,
-                           # direct_engagement_class, approved_drug_engagement_class) from the directional
-                           # product; known_drug_tractability_class UNCHANGED. Additive/verdict-inert here.
+METHOD_VERSION = "0.3.0"  # 0.3.0 (2026-09-07, CASE-008 verdict-moving): + MODALITY signal
+# (approved_drug_modality) from the curated biologics_precedent_targets.yaml
+# crosswalk (via TARGET_CONTRACTS_ROOT). A BIOLOGICS-ONLY approved antigen
+# (no approved SM) now resolves approved_drug_engagement_class=approved_biologic_only
+# (new; takes precedence over approved_direct/indirect) so the resolver's
+# SM-supportive approved-drug rung can be gated on modality. known_drug_tractability_class
+# UNCHANGED. Dual-modality targets (EGFR/ERBB2/MET) carry NO biologics_only flag in the vocab and
+# are NOT demoted — the osimertinib guard.
+# 0.2.0 (2026-09-04): + directness metadata (n_direct_interactions,
+# direct_engagement_class, approved_drug_engagement_class) from the directional
+# product; known_drug_tractability_class UNCHANGED. Additive/verdict-inert here.
 
 # ── MODALITY crosswalk (CASE-008) ────────────────────────────────────────────────────────────────
 # DGIdb's has_approved_drug is modality-BLIND — it tabulates an approved drug of ANY modality against the
@@ -66,8 +67,8 @@ METHOD_VERSION = "0.3.0"   # 0.3.0 (2026-09-07, CASE-008 verdict-moving): + MODA
 # unreadable/absent crosswalk → prior modality-blind behaviour (byte-stable). So this reader can land
 # BEFORE the vocab is flagged with zero behaviour change.
 DEFAULT_TARGET_CONTRACTS = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT",
-                   "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
+    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+)
 BIOLOGICS_PRECEDENT_VOCAB_RELPATH = "vocabularies/biologics_precedent_targets.yaml"
 
 # The DGIdb interaction_type tokens that denote a DIRECT small-molecule engaging mechanism (the compound
@@ -75,11 +76,25 @@ BIOLOGICS_PRECEDENT_VOCAB_RELPATH = "vocabularies/biologics_precedent_targets.ya
 # establish direct engagement — the inflation noise). Deliberately BROAD across binding MoAs (inhibitor,
 # antagonist, agonist, modulator, blocker, binder) so a target druggable via a non-inhibitor mechanism is
 # never false-demoted; narrowing only raises the risk of a false negative.
-DIRECT_SM_INTERACTION_TYPES = frozenset({
-    "inhibitor", "antagonist", "blocker", "binder", "agonist", "partial agonist", "inverse agonist",
-    "modulator", "negative modulator", "positive modulator", "allosteric modulator",
-    "inhibitory allosteric modulator", "activator", "suppressor", "cleavage",
-})
+DIRECT_SM_INTERACTION_TYPES = frozenset(
+    {
+        "inhibitor",
+        "antagonist",
+        "blocker",
+        "binder",
+        "agonist",
+        "partial agonist",
+        "inverse agonist",
+        "modulator",
+        "negative modulator",
+        "positive modulator",
+        "allosteric modulator",
+        "inhibitory allosteric modulator",
+        "activator",
+        "suppressor",
+        "cleavage",
+    }
+)
 # The count of DIRECT typed interactions at/above which the approved-drug signal is credited as DIRECT
 # engagement (approved_direct); below it, an approved drug rests on an indirect-inclusive roster
 # (approved_indirect_only). Calibrated LIVE on the reference panel (2026-09-04): the natural gap sits
@@ -95,6 +110,7 @@ def _load_biologics_precedent(target_contracts_dir: str = None) -> dict:
     `modality` + optional `biologics_only`). {} on any failure — an unreadable vocab must never break the
     DGIdb read (fail toward prior modality-blind behaviour)."""
     import yaml
+
     path = Path(target_contracts_dir or DEFAULT_TARGET_CONTRACTS) / BIOLOGICS_PRECEDENT_VOCAB_RELPATH
     try:
         return (yaml.safe_load(path.read_text()) or {}).get("entries", {}) or {}
@@ -129,15 +145,21 @@ def _read_dgidb_row(target: str) -> Optional[dict]:
     """Pushdown-read the per-gene DGIdb rollup for one gene symbol. None if unresolvable/absent."""
     try:
         import sys as _sys
+
         _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
         from methods.catalog_query.read import bucket_key_for
         import pyarrow.parquet as pq
         import pyarrow.fs as fs
+
         bucket, key = bucket_key_for(PRODUCT_MANIFEST_ID)
-        tbl = pq.read_table(f"{bucket}/{key}", filesystem=fs.S3FileSystem(),
-                            filters=[("gene_symbol", "=", (target or "").strip().upper())])
+        tbl = pq.read_table(
+            f"{bucket}/{key}",
+            filesystem=fs.S3FileSystem(),
+            filters=[("gene_symbol", "=", (target or "").strip().upper())],
+        )
     except Exception as e:  # noqa: BLE001
         from methods.target_id_sidecar import is_definitively_absent
+
         # A GENUINELY absent object (NoSuchKey/404, or pyarrow/s3fs FileNotFoundError) means the
         # DGIdb product truly has no row for this gene -> None -> _classify(None) ->
         # no_known_drug_evidence, the honest coverage-gap class (unchanged semantics; a gene absent
@@ -159,15 +181,21 @@ def _read_directional_rows(target: str) -> Optional[list]:
     transient/creds/broken-env failure so the caller leaves directness UNMEASURED rather than falsely 0."""
     try:
         import sys as _sys
+
         _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
         from methods.catalog_query.read import bucket_key_for
         import pyarrow.parquet as pq
         import pyarrow.fs as fs
+
         bucket, key = bucket_key_for(DIRECTIONAL_MANIFEST_ID)
-        tbl = pq.read_table(f"{bucket}/{key}", filesystem=fs.S3FileSystem(),
-                            filters=[("gene_symbol", "=", (target or "").strip().upper())])
+        tbl = pq.read_table(
+            f"{bucket}/{key}",
+            filesystem=fs.S3FileSystem(),
+            filters=[("gene_symbol", "=", (target or "").strip().upper())],
+        )
     except Exception as e:  # noqa: BLE001
         from methods.target_id_sidecar import is_definitively_absent
+
         if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
             return []
         raise
@@ -195,12 +223,11 @@ def _direct_engagement_class(n_direct: Optional[int]) -> str:
     if n_direct >= DIRECT_ENGAGEMENT_MIN:
         return "direct_typed"
     if n_direct >= 1:
-        return "sparse_direct"          # 1-4 typed-direct interactions — a weak/uncorroborated direct hit
-    return "indirect_or_untyped_only"   # zero typed-direct — interactions (if any) are indirect/untyped
+        return "sparse_direct"  # 1-4 typed-direct interactions — a weak/uncorroborated direct hit
+    return "indirect_or_untyped_only"  # zero typed-direct — interactions (if any) are indirect/untyped
 
 
-def _approved_drug_engagement_class(has_approved: bool, direct_class: str,
-                                    is_biologics_only: bool = False) -> str:
+def _approved_drug_engagement_class(has_approved: bool, direct_class: str, is_biologics_only: bool = False) -> str:
     """The RESOLVER-KEYED field (Design B2): fuse the approved-drug flag with directness + MODALITY so the
     resolver can gate the approved rung WITHOUT the reader touching known_drug_tractability_class.
       approved_biologic_only — has_approved AND the target is a BIOLOGICS-ONLY antigen (CASE-008): the
@@ -219,7 +246,7 @@ def _approved_drug_engagement_class(has_approved: bool, direct_class: str,
         return "approved_biologic_only"
     if direct_class in ("direct_typed", "unmeasured"):
         return "approved_direct"
-    return "approved_indirect_only"     # approved drug catalogued, but the roster is indirect/sparse
+    return "approved_indirect_only"  # approved drug catalogued, but the roster is indirect/sparse
 
 
 def _classify(row: Optional[dict]) -> str:
@@ -242,10 +269,13 @@ def _classify(row: Optional[dict]) -> str:
 _UNSET = object()
 
 
-def known_drug_tractability_for_gene(target: str, dgidb_row: Optional[dict] = None,
-                                     directional_rows: Optional[list] = None,
-                                     biologic_precedent=_UNSET,
-                                     target_contracts_dir: Optional[str] = None) -> dict:
+def known_drug_tractability_for_gene(
+    target: str,
+    dgidb_row: Optional[dict] = None,
+    directional_rows: Optional[list] = None,
+    biologic_precedent=_UNSET,
+    target_contracts_dir: Optional[str] = None,
+) -> dict:
     """Per-target known-drug / druggable-category tractability. dgidb_row / directional_rows may be
     injected for tests (directional_rows=None triggers a live directional read unless dgidb_row is
     injected, in which case the live read is skipped and directness is left UNMEASURED for unit tests
@@ -276,7 +306,7 @@ def known_drug_tractability_for_gene(target: str, dgidb_row: Optional[dict] = No
     approved_engagement = _approved_drug_engagement_class(has_approved, direct_class, is_biologics_only)
     return {
         "known_drug_tractability_class": klass,
-        "druggability_tier": (row or {}).get("druggability_tier"),      # DGIdb-native tier (passthrough)
+        "druggability_tier": (row or {}).get("druggability_tier"),  # DGIdb-native tier (passthrough)
         "is_druggable_genome": bool((row or {}).get("is_druggable_genome", False)),
         "is_clinically_actionable": bool((row or {}).get("is_clinically_actionable", False)),
         "has_approved_drug": has_approved,
@@ -285,11 +315,11 @@ def known_drug_tractability_for_gene(target: str, dgidb_row: Optional[dict] = No
         "n_antineoplastic_interactions": int((row or {}).get("n_antineoplastic_interactions") or 0),
         "gene_categories": (row or {}).get("gene_categories"),
         # ── DIRECTNESS metadata (additive; drives the resolver directness gate in target-contracts) ──
-        "n_direct_interactions": n_direct,                    # typed DIRECT-SM interactions (None=unmeasured)
-        "direct_engagement_class": direct_class,              # direct_typed / sparse_direct / indirect_or_untyped_only / unmeasured
+        "n_direct_interactions": n_direct,  # typed DIRECT-SM interactions (None=unmeasured)
+        "direct_engagement_class": direct_class,  # direct_typed / sparse_direct / indirect_or_untyped_only / unmeasured
         "approved_drug_engagement_class": approved_engagement,  # RESOLVER-KEYED: approved_biologic_only / approved_direct / approved_indirect_only / not_approved
         # ── MODALITY metadata (CASE-008; drives the resolver modality gate in target-contracts) ──
-        "approved_drug_modality": approved_modality,          # biologic / small_molecule_or_unknown / not_applicable
+        "approved_drug_modality": approved_modality,  # biologic / small_molecule_or_unknown / not_applicable
         "approved_drug_modality_tag": biologic_modality_tag,  # raw crosswalk tag (adc/tce/...) when biologic, else None
         "known_drug_context": _context(sym, klass, row),
         "directness_context": _directness_context(sym, klass, n_direct, approved_engagement),
@@ -303,10 +333,12 @@ def _modality_context(sym, approved_modality, tag) -> Optional[str]:
     """Human line explaining the MODALITY read — surfaces WHY a biologics-only antigen's approved-drug
     flag is NOT small-molecule tractability evidence (the CASE-008 modality mismatch)."""
     if approved_modality == "biologic":
-        return (f"{sym}: the approved/precedented agent is a BIOLOGIC (modality={tag} — antibody-drug "
-                "conjugate / T-cell engager / CAR), NOT a small molecule. DGIdb's has_approved_drug is "
-                "modality-blind, so this DRUG-axis signal is biologics-precedent, NOT evidence of "
-                "small-molecule druggability (biologics_precedent_targets.yaml, curated).")
+        return (
+            f"{sym}: the approved/precedented agent is a BIOLOGIC (modality={tag} — antibody-drug "
+            "conjugate / T-cell engager / CAR), NOT a small molecule. DGIdb's has_approved_drug is "
+            "modality-blind, so this DRUG-axis signal is biologics-precedent, NOT evidence of "
+            "small-molecule druggability (biologics_precedent_targets.yaml, curated)."
+        )
     return None
 
 
@@ -316,36 +348,48 @@ def _directness_context(sym, klass, n_direct, approved_engagement) -> Optional[s
     if n_direct is None:
         return f"{sym}: DGIdb directional product unread — directness UNMEASURED (not demoting)."
     if approved_engagement == "approved_indirect_only":
-        return (f"{sym}: an approved drug is catalogued, but only {n_direct} DIRECT typed small-molecule "
-                f"interaction(s) (< {DIRECT_ENGAGEMENT_MIN}) — the roster is dominated by INDIRECT / "
-                "pathway / untyped records, so approved-drug tractability is annotation-driven, not a "
-                "demonstrated direct binder. Confirm target-directness from the literature.")
+        return (
+            f"{sym}: an approved drug is catalogued, but only {n_direct} DIRECT typed small-molecule "
+            f"interaction(s) (< {DIRECT_ENGAGEMENT_MIN}) — the roster is dominated by INDIRECT / "
+            "pathway / untyped records, so approved-drug tractability is annotation-driven, not a "
+            "demonstrated direct binder. Confirm target-directness from the literature."
+        )
     if approved_engagement == "approved_direct":
-        return (f"{sym}: {n_direct} DIRECT typed small-molecule interaction(s) (>= {DIRECT_ENGAGEMENT_MIN}) "
-                "— an approved drug rests on demonstrated direct engagement.")
+        return (
+            f"{sym}: {n_direct} DIRECT typed small-molecule interaction(s) (>= {DIRECT_ENGAGEMENT_MIN}) "
+            "— an approved drug rests on demonstrated direct engagement."
+        )
     return f"{sym}: {n_direct} DIRECT typed small-molecule interaction(s); no approved-drug flag."
 
 
 def _context(sym: str, klass: str, row: Optional[dict]) -> Optional[str]:
     if klass == "no_known_drug_evidence":
-        return (f"{sym}: absent from DGIdb (no catalogued drug-gene interaction or druggable "
-                f"category). A coverage gap — NOT evidence of undruggability.")
+        return (
+            f"{sym}: absent from DGIdb (no catalogued drug-gene interaction or druggable "
+            f"category). A coverage gap — NOT evidence of undruggability."
+        )
     n_int = int((row or {}).get("n_drug_interactions") or 0)
     n_appr = int((row or {}).get("n_approved_drug_interactions") or 0)
     n_antineo = int((row or {}).get("n_antineoplastic_interactions") or 0)
     cats = (row or {}).get("gene_categories") or ""
     if klass == "approved_drug_tractable":
-        return (f"{sym}: {n_appr} approved-drug interaction(s) of {n_int} total "
-                f"({n_antineo} antineoplastic) in DGIdb — a drug against this target is approved "
-                f"(known-drug tractability demonstrated). Categories: {cats}.")
+        return (
+            f"{sym}: {n_appr} approved-drug interaction(s) of {n_int} total "
+            f"({n_antineo} antineoplastic) in DGIdb — a drug against this target is approved "
+            f"(known-drug tractability demonstrated). Categories: {cats}."
+        )
     if klass == "clinically_actionable":
-        return (f"{sym}: DGIdb CLINICALLY ACTIONABLE ({n_int} drug interactions, {n_antineo} "
-                f"antineoplastic) — a clinically-relevant drug exists. Categories: {cats}.")
+        return (
+            f"{sym}: DGIdb CLINICALLY ACTIONABLE ({n_int} drug interactions, {n_antineo} "
+            f"antineoplastic) — a clinically-relevant drug exists. Categories: {cats}."
+        )
     if klass == "druggable_genome":
-        return (f"{sym}: in the DGIdb DRUGGABLE GENOME category ({n_int} interactions) — a "
-                f"recognized druggable family, no approved/clinically-actionable flag yet. Categories: {cats}.")
+        return (
+            f"{sym}: in the DGIdb DRUGGABLE GENOME category ({n_int} interactions) — a "
+            f"recognized druggable family, no approved/clinically-actionable flag yet. Categories: {cats}."
+        )
     if klass == "interaction_only":
-        return (f"{sym}: {n_int} catalogued drug interaction(s) but no druggable-category membership.")
+        return f"{sym}: {n_int} catalogued drug interaction(s) but no druggable-category membership."
     if klass == "category_only":
-        return (f"{sym}: in a DGIdb family category ({cats}) but no catalogued drug interactions.")
+        return f"{sym}: in a DGIdb family category ({cats}) but no catalogued drug interactions."
     return None

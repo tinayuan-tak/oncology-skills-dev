@@ -49,6 +49,7 @@ Compute per-cohort panel-intersect using the actual cohort-to-panel
 membership from data_gene_matrix.txt. Requires cohort labeling
 (GENIE cancer types → TCGA study codes mapping). Not v1.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -83,6 +84,7 @@ WORKHORSE_PANELS = [
 
 def _boto3_client():
     import boto3
+
     return boto3.Session(profile_name=DEFAULT_AWS_PROFILE).client("s3")
 
 
@@ -151,9 +153,7 @@ def compute_intersection(panels: dict[str, list[str]]) -> tuple[set[str], dict[s
     return intersect, per_panel
 
 
-def write_panel_intersect_tsv(
-    intersect: set[str], per_panel: dict[str, set[str]], out_path: Path
-) -> None:
+def write_panel_intersect_tsv(intersect: set[str], per_panel: dict[str, set[str]], out_path: Path) -> None:
     """Write panel_intersect_by_cohort.tsv with per-panel membership booleans.
 
     v1: cohort column is 'PANCAN' for all rows.
@@ -171,16 +171,14 @@ def write_panel_intersect_tsv(
             f.write("\t".join(row) + "\n")
 
 
-def write_panel_membership_parquet(
-    per_panel: dict[str, set[str]], out_path: Path
-) -> None:
+def write_panel_membership_parquet(per_panel: dict[str, set[str]], out_path: Path) -> None:
     """Write panel_membership.parquet — full 166-panel × N-gene boolean matrix."""
     import pandas as pd
+
     all_genes = sorted(set().union(*per_panel.values()))
     all_panels = sorted(per_panel.keys())
     print(
-        f"[01_panel_intersect] building membership matrix: "
-        f"{len(all_genes):,} genes × {len(all_panels)} panels",
+        f"[01_panel_intersect] building membership matrix: {len(all_genes):,} genes × {len(all_panels)} panels",
         file=sys.stderr,
     )
     rows = []
@@ -207,16 +205,14 @@ def main(argv: list[str] | None = None) -> int:
 
     panels = _load_panel_genes(s3, keys)
     print(
-        f"[01_panel_intersect] loaded {len(panels)} panels "
-        f"({time.perf_counter()-t0:.1f}s)",
+        f"[01_panel_intersect] loaded {len(panels)} panels ({time.perf_counter() - t0:.1f}s)",
         file=sys.stderr,
     )
 
     intersect, per_panel = compute_intersection(panels)
     workhorse_present = [p for p in WORKHORSE_PANELS if p in per_panel]
     print(
-        f"[01_panel_intersect] intersection of {len(workhorse_present)} workhorse "
-        f"panels: {len(intersect):,} genes",
+        f"[01_panel_intersect] intersection of {len(workhorse_present)} workhorse panels: {len(intersect):,} genes",
         file=sys.stderr,
     )
     print(f"[01_panel_intersect]   workhorse panels used: {workhorse_present}", file=sys.stderr)
@@ -228,13 +224,12 @@ def main(argv: list[str] | None = None) -> int:
     out_parquet = args.work_dir / "panel_membership.parquet"
     write_panel_membership_parquet(per_panel, out_parquet)
     print(
-        f"[01_panel_intersect] wrote {out_parquet} "
-        f"({out_parquet.stat().st_size/1e6:.1f}MB)",
+        f"[01_panel_intersect] wrote {out_parquet} ({out_parquet.stat().st_size / 1e6:.1f}MB)",
         file=sys.stderr,
     )
 
     print(
-        f"[01_panel_intersect] DONE ({time.perf_counter()-t0:.1f}s total)",
+        f"[01_panel_intersect] DONE ({time.perf_counter() - t0:.1f}s total)",
         file=sys.stderr,
     )
     return 0

@@ -8,6 +8,7 @@ target_indication-grain summary that carries the winning target_pair inside, so 
 verdict spine (the same pattern surface-colocalization-avidity uses). data_unavailable-safe: any load /
 absence failure returns an honest empty summary, never raises.
 """
+
 from __future__ import annotations
 
 from typing import Optional
@@ -19,8 +20,7 @@ DERIVED_MANIFEST_ID = "bispecific-bulk-pair-selectivity-per-indication-v1"
 # Pushdown key = derived manifest's query_optimization.primary_filter_column.
 PUSHDOWN_KEY = "target"
 DERIVED_S3_KEY = (
-    "data-catalog/derived/bispecific-bulk-pair-selectivity-per-indication-v1/"
-    "bispecific_bulk_pair_selectivity.parquet"
+    "data-catalog/derived/bispecific-bulk-pair-selectivity-per-indication-v1/bispecific_bulk_pair_selectivity.parquet"
 )
 
 # False = the product object is DEFINITIVELY absent (NoSuchKey/404) — latched so we don't re-probe S3
@@ -43,11 +43,14 @@ def _read_target_rows(target: str) -> Optional[list]:
         from methods.catalog_query.read import bucket_key_for
         import pyarrow.parquet as pq
         import pyarrow.fs as fs
+
         bucket, key = bucket_key_for(DERIVED_MANIFEST_ID)
-        tbl = pq.read_table(f"{bucket}/{key}", filesystem=fs.S3FileSystem(region="us-east-1"),
-                            filters=[(PUSHDOWN_KEY, "=", tgt)])
+        tbl = pq.read_table(
+            f"{bucket}/{key}", filesystem=fs.S3FileSystem(region="us-east-1"), filters=[(PUSHDOWN_KEY, "=", tgt)]
+        )
     except Exception as e:  # noqa: BLE001
         from methods.target_id_sidecar import is_definitively_absent
+
         # Genuine no-object (NoSuchKey/404 or pyarrow FileNotFoundError) -> definitive absence: latch
         # and return None. A transient/creds/broken-env failure is NOT absence -> re-raise so the
         # caller's boundary surfaces the REAL cause; NOT latched, so a later call still retries.
@@ -66,7 +69,7 @@ def read_target_bulk_pair_selectivity(target: str, indication: str = None) -> di
     if not indication:
         return _empty(target, None, "indication_required (product is per-indication)")
     try:
-        target_rows = _read_target_rows(target)   # None = definitive absence; raises on transient
+        target_rows = _read_target_rows(target)  # None = definitive absence; raises on transient
     except Exception as e:  # noqa: BLE001 — graceful boundary: never propagate a read blip past the
         # public entrypoint (the card contract is "never raises"; degrade to data_unavailable + a
         # cause-accurate breadcrumb). The S3 read in _read_target_rows already discriminates definitive
@@ -87,11 +90,19 @@ def read_target_bulk_pair_selectivity(target: str, indication: str = None) -> di
 
 def _empty(target, indication, note) -> dict:
     return {
-        "target": target, "indication": indication, "n_partners_scanned": 0,
-        "best_and_partner": None, "best_and_selectivity": None, "best_and_call_class": "data_unavailable",
-        "best_not_partner": None, "best_not_selectivity": None,
-        "best_or_partner": None, "best_or_selectivity": None,
-        "_data_source": DERIVED_MANIFEST_ID, "_data_note": note, "_avidity_caveat": AVIDITY_CAVEAT,
+        "target": target,
+        "indication": indication,
+        "n_partners_scanned": 0,
+        "best_and_partner": None,
+        "best_and_selectivity": None,
+        "best_and_call_class": "data_unavailable",
+        "best_not_partner": None,
+        "best_not_selectivity": None,
+        "best_or_partner": None,
+        "best_or_selectivity": None,
+        "_data_source": DERIVED_MANIFEST_ID,
+        "_data_note": note,
+        "_avidity_caveat": AVIDITY_CAVEAT,
     }
 
 

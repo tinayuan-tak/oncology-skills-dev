@@ -6,6 +6,7 @@ fraction (the per-donor array it previously discarded), and malignant_heterogene
 WITHIN-tumour coverage axis (detection fraction) with an INTER-tumour consistency axis (donor dispersion)
 into an antigen-escape call. Pure stats — synthetic donor×compartment rows, no S3.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -19,8 +20,15 @@ from methods.sc_tumor_expression_celltype import stats as S
 def _rows(spec):
     """spec: list of (compartment, dataset_id, donor_id, n_cells, detection_fraction, abundance)."""
     return [
-        {"gene_symbol": "T", "compartment": c, "dataset_id": ds, "donor_id": d,
-         "n_cells": n, "detection_fraction": det, "abundance_log1p_cp10k": ab}
+        {
+            "gene_symbol": "T",
+            "compartment": c,
+            "dataset_id": ds,
+            "donor_id": d,
+            "n_cells": n,
+            "detection_fraction": det,
+            "abundance_log1p_cp10k": ab,
+        }
         for (c, ds, d, n, det, ab) in spec
     ]
 
@@ -94,8 +102,7 @@ def test_coverage_high_donor_underpowered_flagged_not_faked():
 
 
 def test_data_unavailable_when_no_malignant_compartment():
-    r = S.malignant_heterogeneity_readout(S.compartment_summary(
-        _rows([("stromal", "ds0", "dn0", 100, 0.4, 1.0)])))
+    r = S.malignant_heterogeneity_readout(S.compartment_summary(_rows([("stromal", "ds0", "dn0", 100, 0.4, 1.0)])))
     assert r["tce_antigen_escape_class"] == "data_unavailable"
     assert r["within_tumor_coverage_class"] == "data_unavailable"
 

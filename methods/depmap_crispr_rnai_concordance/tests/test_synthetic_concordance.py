@@ -24,10 +24,7 @@ def _meta_for(model_ids: list, lineages: dict = None) -> dict:
     """Build minimal model_metadata dict for tests."""
     lineages = lineages or {}
     return {
-        mid: {"ModelID": mid,
-               "OncotreeLineage": lineages.get(mid, "Lung"),
-               "CCLEName": f"CL{mid}"}
-        for mid in model_ids
+        mid: {"ModelID": mid, "OncotreeLineage": lineages.get(mid, "Lung"), "CCLEName": f"CL{mid}"} for mid in model_ids
     }
 
 

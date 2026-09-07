@@ -11,6 +11,7 @@ is reported as pan_no_indication accordingly).
 Returns the cis-feature-expression-coherence card's summary_fields, or a dict with _live_read_error +
 cis_dosage_class=data_unavailable when the underlying DepMap data is unreachable.
 """
+
 from __future__ import annotations
 
 import sys
@@ -25,8 +26,9 @@ DEFAULT_AWS_PROFILE = "cbg"
 from methods.target_id_sidecar import ensure_aws_profile
 
 
-def read_cis_dosage(target: str, indication: Optional[str] = None,
-                    release_pin: str = "26q1", plot_data_out: Optional[Path] = None) -> dict:
+def read_cis_dosage(
+    target: str, indication: Optional[str] = None, release_pin: str = "26q1", plot_data_out: Optional[Path] = None
+) -> dict:
     """Compute cis-dosage (own-CN → own-expression) coupling for target across the DepMap panel.
 
     `indication` is accepted for dispatcher-signature back-compat but NOT consumed (target-only,
@@ -54,9 +56,7 @@ def read_cis_dosage(target: str, indication: Optional[str] = None,
         return out
 
     # 1. Relative CN (bridged ModelConditionID -> ModelID by load_cn_files)
-    cn_by_model, cn_meta, assay_used, cn_errs = cncli.load_cn_files(
-        release_pin=release_pin, target_symbol=target
-    )
+    cn_by_model, cn_meta, assay_used, cn_errs = cncli.load_cn_files(release_pin=release_pin, target_symbol=target)
     if cn_errs or not cn_by_model:
         return _unavailable(
             cn_errs[0].get("_live_read_error", "cn_read_failed") if cn_errs else "no_cn_for_target",
@@ -65,9 +65,7 @@ def read_cis_dosage(target: str, indication: Optional[str] = None,
         )
 
     # 2. log2TPM expression
-    tpm_by_model, _tpm_meta, tpm_errs = excli.load_expression_files(
-        release_pin=release_pin, target_symbol=target
-    )
+    tpm_by_model, _tpm_meta, tpm_errs = excli.load_expression_files(release_pin=release_pin, target_symbol=target)
     if tpm_errs or not tpm_by_model:
         return _unavailable(
             tpm_errs[0].get("_live_read_error", "expression_read_failed") if tpm_errs else "no_expression_for_target",
@@ -79,13 +77,14 @@ def read_cis_dosage(target: str, indication: Optional[str] = None,
     # Pan-panel correlation → the honest scope is pan_no_indication (within-lineage cis-dosage is a
     # later refinement; the cis_coherence resolver does not gate on evidence_scope at Stage 0).
     summary["evidence_scope"] = "pan_no_indication"
-    summary["_cn_assay_used"] = assay_used   # WES (primary) or WGS (fallback), provenance
+    summary["_cn_assay_used"] = assay_used  # WES (primary) or WGS (fallback), provenance
 
     # Figure Stage 6: persist the merged CN×TPM frame during resolution so the figure renders offline
     # from it (no second CN+expression load at figure time). Best-effort, verdict-inert.
     if plot_data_out is not None:
         try:
             from . import figures as _figs
+
             merged = _figs.build_merged_data(cn_by_model, tpm_by_model, cn_meta)
             _figs.emit_plot_data(merged, plot_data_out)
         except Exception:  # noqa: BLE001 — persistence best-effort; never break the verdict read

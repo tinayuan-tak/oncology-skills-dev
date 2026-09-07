@@ -9,6 +9,7 @@ per_cohort_distribution_stats computes quartiles + p-values + delta and sorts by
 target absent from every cohort degrades gracefully; a cohort with <3 samples/side keeps its box but
 reports p=None.
 """
+
 from __future__ import annotations
 
 import importlib
@@ -33,13 +34,27 @@ def _per_sample_df(spec):
     recs = []
     for cohort, (tvals, nvals) in spec.items():
         for j, v in enumerate(tvals):
-            recs.append({"gene_symbol": "EGFR", "cohort": cohort,
-                         "aliquot_submitter_id": f"{cohort}-T{j}", "sample_type": "Primary Tumor",
-                         "condition": "Tumor", "log2_ratio": float(v)})
+            recs.append(
+                {
+                    "gene_symbol": "EGFR",
+                    "cohort": cohort,
+                    "aliquot_submitter_id": f"{cohort}-T{j}",
+                    "sample_type": "Primary Tumor",
+                    "condition": "Tumor",
+                    "log2_ratio": float(v),
+                }
+            )
         for j, v in enumerate(nvals):
-            recs.append({"gene_symbol": "EGFR", "cohort": cohort,
-                         "aliquot_submitter_id": f"{cohort}-N{j}", "sample_type": "Solid Tissue Normal",
-                         "condition": "Normal", "log2_ratio": float(v)})
+            recs.append(
+                {
+                    "gene_symbol": "EGFR",
+                    "cohort": cohort,
+                    "aliquot_submitter_id": f"{cohort}-N{j}",
+                    "sample_type": "Solid Tissue Normal",
+                    "condition": "Normal",
+                    "log2_ratio": float(v),
+                }
+            )
     return pd.DataFrame(recs)
 
 
@@ -52,8 +67,7 @@ _SPEC = {
 
 def _patch(monkeypatch, spec):
     df = _per_sample_df(spec)
-    monkeypatch.setattr(r, "read_per_sample",
-                        lambda target: df[df["gene_symbol"] == target.upper()].copy())
+    monkeypatch.setattr(r, "read_per_sample", lambda target: df[df["gene_symbol"] == target.upper()].copy())
     # per_cohort_distribution_stats is @lru_cache'd (retrieval-opt #5) — clear it between tests so a
     # prior test's patched data doesn't return a stale cached result for the same target.
     r.per_cohort_distribution_stats.cache_clear()
@@ -62,11 +76,11 @@ def _patch(monkeypatch, spec):
 def test_distribution_stats_sorted_by_delta_desc(monkeypatch):
     _patch(monkeypatch, _SPEC)
     stats = r.per_cohort_distribution_stats("EGFR")
-    assert [s["cohort"] for s in stats] == ["BRCA", "COAD"]      # delta desc: +2 before ~0
+    assert [s["cohort"] for s in stats] == ["BRCA", "COAD"]  # delta desc: +2 before ~0
     brca = stats[0]
     assert brca["n_tumor"] == 6 and brca["n_normal"] == 6
-    assert brca["delta_median"] > 1.5                            # clearly elevated
-    assert brca["mwu_p"] is not None and brca["mwu_p"] < 0.05    # significant
+    assert brca["delta_median"] > 1.5  # clearly elevated
+    assert brca["mwu_p"] is not None and brca["mwu_p"] < 0.05  # significant
     assert brca["welch_p"] is not None
     # COAD flat → not significant
     assert stats[1]["mwu_p"] is None or stats[1]["mwu_p"] > 0.05
@@ -106,7 +120,7 @@ def test_absent_target_degrades(monkeypatch):
     assert r.per_cohort_distribution_stats("GHOST") == []
     with tempfile.TemporaryDirectory() as d:
         out = Path(d)
-        p = r.emit_per_cohort_panel("GHOST", out)      # placeholder SVG, no crash
+        p = r.emit_per_cohort_panel("GHOST", out)  # placeholder SVG, no crash
         assert p.exists()
         assert r.emit_plotly_specs("GHOST", out) == []
 

@@ -57,7 +57,8 @@ def _s3_download(filename: str, dest: Path, dry_run: bool) -> None:
     _log(f"downloading s3://{S3_BUCKET}/{key} → {dest}")
     r = subprocess.run(
         ["aws", "s3", "cp", f"s3://{S3_BUCKET}/{key}", str(dest), "--no-progress"],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     if r.returncode != 0:
         _log(f"download FAILED: {r.stderr}")

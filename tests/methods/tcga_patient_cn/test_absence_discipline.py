@@ -5,6 +5,7 @@
 indication join; it additionally RAISES on an EMPTY map from a well-formed read (the null-strata
 guard) so a silent join-collapse to "no samples" can't happen.
 """
+
 from __future__ import annotations
 
 import sys
@@ -27,6 +28,7 @@ def _nosuchkey():
 def _raise(exc):
     def f(*a, **k):
         raise exc
+
     return f
 
 

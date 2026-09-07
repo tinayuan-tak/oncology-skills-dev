@@ -22,6 +22,7 @@ pancanatlas_ddr_context. Indications with no TCGA study (e.g. SCLC) return data_
 VERDICT-INERT: no resolver rung, no rescue. Surfaces the cohort mutagenic-process prior alongside
 the (separate) genomic-alteration verdict; it does NOT itself flip a verdict.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -46,7 +47,7 @@ HYPERMUTATOR_MIN_BURDEN = 300
 # Cohort class cuts on the fraction of samples that are process-high (mirrors ddr_context cut ladder).
 ENRICHED_FRAC = 0.30
 INTERMEDIATE_FRAC = 0.10
-MIN_COHORT_N = 15   # below → data_unavailable (underpowered cohort)
+MIN_COHORT_N = 15  # below → data_unavailable (underpowered cohort)
 
 # Barcode → TCGA study code (BRCA/LUAD/GBM/…) via the PanCanAtlas TCGA-CDR (Liu 2018), which is
 # already in the catalog. Authoritative per-patient cancer type — covers all 33 TCGA studies (10,216
@@ -98,7 +99,7 @@ def build_per_indication_table(activities_path: str, indmap_path: str | None = N
     bc2type = _load_barcode_to_type()
     act = pd.read_csv(activities_path, sep="\t", index_col=0)
     act.index = [str(s) for s in act.index]
-    burden = act.sum(axis=1)                        # per-sample total assigned SNV burden (for the gate)
+    burden = act.sum(axis=1)  # per-sample total assigned SNV burden (for the gate)
     # per-sample relative contribution of each PROCESS (sum of its signatures / total burden)
     proc_cols = {}
     for proc in INFORMATIVE_PROCESSES:
@@ -113,7 +114,8 @@ def build_per_indication_table(activities_path: str, indmap_path: str | None = N
             h = h & (burden >= HYPERMUTATOR_MIN_BURDEN)
         high[pr] = h
     high["indication"] = [_sample_to_cancer(s, bc2type) for s in high.index]  # TCGA study code
-    rel_ind = rel.copy(); rel_ind["indication"] = high["indication"]
+    rel_ind = rel.copy()
+    rel_ind["indication"] = high["indication"]
     high = high[high["indication"].notna()]
     rel_ind = rel_ind[rel_ind["indication"].notna()]
 
@@ -143,18 +145,25 @@ try:
     import click
 
     @click.command()
-    @click.option("--activities", required=True, type=click.Path(exists=True, path_type=Path),
-                  help="SigProfilerAssignment Activities.txt (samples × SBS signatures).")
-    @click.option("--out", required=True, type=click.Path(path_type=Path),
-                  help="Output parquet path for the per-indication signature-context product.")
+    @click.option(
+        "--activities",
+        required=True,
+        type=click.Path(exists=True, path_type=Path),
+        help="SigProfilerAssignment Activities.txt (samples × SBS signatures).",
+    )
+    @click.option(
+        "--out",
+        required=True,
+        type=click.Path(path_type=Path),
+        help="Output parquet path for the per-indication signature-context product.",
+    )
     def main(activities, out):
         """Build the per-indication mutational-signature context product (materialized rollup)."""
         tbl = build_per_indication_table(str(activities))
         out.parent.mkdir(parents=True, exist_ok=True)
         tbl.to_parquet(out, index=False)
         click.echo(f"wrote {len(tbl)} indications -> {out}")
-        click.echo(tbl[["indication", "n_samples", "dominant_process",
-                        "enriched_processes"]].to_string(index=False))
+        click.echo(tbl[["indication", "n_samples", "dominant_process", "enriched_processes"]].to_string(index=False))
 
     if __name__ == "__main__":
         main()

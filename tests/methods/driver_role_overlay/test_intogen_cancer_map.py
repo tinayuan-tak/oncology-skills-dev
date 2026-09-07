@@ -9,6 +9,7 @@ test_all_codes_are_real is the durable guard (runs live against the IntOGen sour
 available; skips cleanly otherwise). The pure-function tests below pin the specific regressions so
 they fail without S3 too.
 """
+
 from __future__ import annotations
 
 import sys
@@ -57,6 +58,7 @@ def test_all_codes_are_real():
     skips if S3/creds are unavailable (mirrors the other live readers' test discipline)."""
     boto3 = pytest.importorskip("boto3")
     import io, zipfile, csv
+
     try:
         s3 = boto3.Session().client("s3")
         key = "data-catalog/sources/intogen/v2024-09-20/IntOGen-Drivers-20240920.zip"

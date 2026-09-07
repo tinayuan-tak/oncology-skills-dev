@@ -6,6 +6,7 @@ percentile descending before write clusters the high-percentile edges into the l
 the >=95 predicate skips the tail. This test drives derive_kinome_atlas_long with synthetic melted
 frames (no Excel), writes a real parquet, and asserts the on-disk percentile column is non-increasing.
 """
+
 from __future__ import annotations
 
 import importlib
@@ -26,17 +27,19 @@ derive = importlib.import_module("methods.kinome_atlas_prediction.derive")
 
 def _synth_frame(kinome_label, percentiles):
     n = len(percentiles)
-    return pd.DataFrame({
-        "kinase_symbol": pd.Series([f"K{i}" for i in range(n)], dtype="string"),
-        "substrate_gene": pd.Series([f"G{i}" for i in range(n)], dtype="string"),
-        "substrate_ac": pd.Series([f"P{i}" for i in range(n)], dtype="string"),
-        "phosphosite": pd.Series([f"S{i}" for i in range(n)], dtype="string"),
-        "phos_res": pd.Series(["S"] * n, dtype="string"),
-        "motif_15mer": pd.Series(["AAAAAAA"] * n, dtype="string"),
-        "kinome": kinome_label,
-        "percentile": pd.to_numeric(percentiles),
-        "rank": pd.Series([1] * n, dtype="Int64"),
-    })
+    return pd.DataFrame(
+        {
+            "kinase_symbol": pd.Series([f"K{i}" for i in range(n)], dtype="string"),
+            "substrate_gene": pd.Series([f"G{i}" for i in range(n)], dtype="string"),
+            "substrate_ac": pd.Series([f"P{i}" for i in range(n)], dtype="string"),
+            "phosphosite": pd.Series([f"S{i}" for i in range(n)], dtype="string"),
+            "phos_res": pd.Series(["S"] * n, dtype="string"),
+            "motif_15mer": pd.Series(["AAAAAAA"] * n, dtype="string"),
+            "kinome": kinome_label,
+            "percentile": pd.to_numeric(percentiles),
+            "rank": pd.Series([1] * n, dtype="Int64"),
+        }
+    )
 
 
 def test_product_written_percentile_descending(monkeypatch, tmp_path):

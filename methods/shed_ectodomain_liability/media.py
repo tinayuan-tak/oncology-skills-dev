@@ -28,6 +28,7 @@ THRESHOLD — self-calibrating (relative-to-what, not a magic number):
   A target clears `media_shed_high` iff its mean media NPX >= that p75 AND it is detected in
   >= MIN_LINES_DETECTED cell lines (guards a high mean off 1-2 noisy wells).
 """
+
 from __future__ import annotations
 
 from functools import lru_cache
@@ -40,7 +41,7 @@ MEDIA_FILENAME = "harmonized_olink_media_26Q1_filtered.csv"
 IDMAP_FILENAME = "uniprot_hugo_entrez_id_mapping_26q1.csv"
 
 DEFAULT_AWS_PROFILE = "cbg"
-MIN_LINES_DETECTED = 3          # a high mean must rest on >= this many detected lines
+MIN_LINES_DETECTED = 3  # a high mean must rest on >= this many detected lines
 MEDIA_PANEL_HIGH_QUANTILE = 0.75  # panel per-protein mean-NPX quantile that defines "high"
 
 
@@ -57,10 +58,12 @@ def _read_csv_s3(filename: str):
     HPA leg in cli.py; avoids an s3fs dependency)."""
     import io
     import boto3
+
     ensure_aws_profile()
     bucket, key = _s3_bucket_key(filename)
     body = boto3.client("s3").get_object(Bucket=bucket, Key=key)["Body"].read()
     import pandas as pd
+
     return pd.read_csv(io.BytesIO(body), index_col=0, low_memory=False)
 
 
@@ -73,15 +76,18 @@ def _load_media(media_path: Optional[str] = None):
     mean_npx / n_detected. `media_path` overrides S3 for tests (a local CSV).
     """
     import pandas as pd
+
     if media_path is not None:
         df = pd.read_csv(media_path, index_col=0, low_memory=False)
     else:
         df = _read_csv_s3(MEDIA_FILENAME)
     df = df.apply(pd.to_numeric, errors="coerce")
-    per = pd.DataFrame({
-        "mean_npx": df.mean(axis=0, skipna=True),
-        "n_detected": df.notna().sum(axis=0),
-    })
+    per = pd.DataFrame(
+        {
+            "mean_npx": df.mean(axis=0, skipna=True),
+            "n_detected": df.notna().sum(axis=0),
+        }
+    )
     panel_high = float(per["mean_npx"].quantile(MEDIA_PANEL_HIGH_QUANTILE))
     return per, panel_high
 
@@ -91,11 +97,13 @@ def _load_idmap(idmap_path: Optional[str] = None) -> dict:
     """UPPER(HGNC symbol) -> UniProt accession, from the Olink-panel id map. {} if unreadable."""
     import io
     import pandas as pd
+
     try:
         if idmap_path is not None:
             idm = pd.read_csv(idmap_path)
         else:
             import boto3
+
             ensure_aws_profile()
             bucket, key = _s3_bucket_key(IDMAP_FILENAME)
             body = boto3.client("s3").get_object(Bucket=bucket, Key=key)["Body"].read()
@@ -106,6 +114,7 @@ def _load_idmap(idmap_path: Optional[str] = None) -> dict:
         # RE-RAISED — not masked as an empty map that @lru_cache would memoize process-wide (one blip
         # → every gene silently not_on_secreted_panel for the whole process). Raise → not memoized.
         from methods.target_id_sidecar import is_definitively_absent
+
         if not (is_definitively_absent(e) or isinstance(e, FileNotFoundError)):
             raise
         return {}
@@ -132,9 +141,9 @@ def _match_column(uniprot: str, per_index) -> Optional[str]:
     return None
 
 
-def classify_measured_shed(gene_symbol: str,
-                           media_path: Optional[str] = None,
-                           idmap_path: Optional[str] = None) -> dict:
+def classify_measured_shed(
+    gene_symbol: str, media_path: Optional[str] = None, idmap_path: Optional[str] = None
+) -> dict:
     """MEASURED shed facet for a gene from the Olink conditioned-media panel.
 
     Returns a dict of parallel-facet fields (never raises for an absent gene — that is a

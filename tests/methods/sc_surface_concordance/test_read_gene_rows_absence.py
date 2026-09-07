@@ -2,6 +2,7 @@
 (product not on S3 -> None -> coverage gap) and swallows a genuine NoSuchKey/404 (-> None), but
 re-raises a transient/broken-env failure (-> _live_read_error) instead of masking it as a gap.
 """
+
 from __future__ import annotations
 
 import sys
@@ -25,6 +26,7 @@ def _nosuchkey():
 def _raise(exc):
     def f(*a, **k):
         raise exc
+
     return f
 
 

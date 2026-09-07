@@ -68,17 +68,17 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 # The classifier assigner takes an additional --classifier-config arg;
 # handled in _invoke_assigner below.
 SOURCE_TO_ASSIGNER = {
-    "tcga_marker_paper":     ("subgroup_assigner_directly_tagged", "tcga"),
-    "tcga_maf":              ("subgroup_assigner_maf_filter",      "tcga"),
+    "tcga_marker_paper": ("subgroup_assigner_directly_tagged", "tcga"),
+    "tcga_maf": ("subgroup_assigner_maf_filter", "tcga"),
     "depmap_omics_inferred": ("subgroup_assigner_directly_tagged", "depmap"),
-    "depmap_somatic":        ("subgroup_assigner_maf_filter",      "depmap"),
-    "depmap_expression":     ("subgroup_assigner_classifier",      "depmap"),
+    "depmap_somatic": ("subgroup_assigner_maf_filter", "depmap"),
+    "depmap_expression": ("subgroup_assigner_classifier", "depmap"),
     # beataml_maf / target_aml_maf: data_source_arg is intentionally None — the
     # maf_filter CLI has no loader for these AML adjunct cohorts (see
     # _SOURCES_WITHOUT_DISTINCT_LOADER + _invoke_assigner). Routing them to "tcga"
     # would emit duplicate-identity manifests, so they fail loud before invocation.
-    "beataml_maf":           ("subgroup_assigner_maf_filter",      None),
-    "target_aml_maf":        ("subgroup_assigner_maf_filter",      None),
+    "beataml_maf": ("subgroup_assigner_maf_filter", None),
+    "target_aml_maf": ("subgroup_assigner_maf_filter", None),
 }
 
 # Sources declared in the shard matrix that DO NOT yet have a distinct, real MAF
@@ -91,15 +91,20 @@ SOURCE_TO_ASSIGNER = {
 _SOURCES_WITHOUT_DISTINCT_LOADER = frozenset({"beataml_maf", "target_aml_maf"})
 
 SourceKey = Literal[
-    "tcga_marker_paper", "tcga_maf",
-    "depmap_omics_inferred", "depmap_somatic", "depmap_expression",
-    "beataml_maf", "target_aml_maf",
+    "tcga_marker_paper",
+    "tcga_maf",
+    "depmap_omics_inferred",
+    "depmap_somatic",
+    "depmap_expression",
+    "beataml_maf",
+    "target_aml_maf",
 ]
 
 
 @dataclass(frozen=True)
 class ShardSpec:
     """Descriptor for one Phase 2b/c emission shard."""
+
     source: str
     indication: str
     release_pin: str
@@ -178,18 +183,23 @@ def _invoke_assigner(shard: ShardSpec, dry_run: bool) -> tuple[Path, Path]:
     shard.out_dir.mkdir(parents=True, exist_ok=True)
 
     cmd = [
-        sys.executable, "-m", f"methods.{method_module}.cli",
-        "--subgroup-catalog", str(shard.catalog_path),
-        "--data-source", data_source_arg,
-        "--release-pin", shard.release_pin,
-        "--catalog-repo", str(shard.catalog_repo),
-        "--out", str(shard.out_dir),
+        sys.executable,
+        "-m",
+        f"methods.{method_module}.cli",
+        "--subgroup-catalog",
+        str(shard.catalog_path),
+        "--data-source",
+        data_source_arg,
+        "--release-pin",
+        shard.release_pin,
+        "--catalog-repo",
+        str(shard.catalog_repo),
+        "--out",
+        str(shard.out_dir),
     ]
     if method_module == "subgroup_assigner_classifier":
         if shard.classifier_config is None:
-            raise ValueError(
-                f"Source {shard.source!r} requires --classifier-config; none provided."
-            )
+            raise ValueError(f"Source {shard.source!r} requires --classifier-config; none provided.")
         cmd.extend(["--classifier-config", str(shard.classifier_config)])
 
     _log(f"invoking: {' '.join(cmd)}")
@@ -229,8 +239,13 @@ def _upload_to_s3(local_path: Path, s3_uri: str, md5: str, dry_run: bool) -> Non
         _log(f"DRY_RUN=1 — would upload {local_path} → {s3_uri} (md5={md5})")
         return
     cmd = [
-        "aws", "s3", "cp", str(local_path), s3_uri,
-        "--metadata", f"md5={md5}",
+        "aws",
+        "s3",
+        "cp",
+        str(local_path),
+        s3_uri,
+        "--metadata",
+        f"md5={md5}",
         "--no-progress",
     ]
     _log(f"uploading: {local_path.name} → {s3_uri}")
@@ -241,8 +256,9 @@ def _upload_to_s3(local_path: Path, s3_uri: str, md5: str, dry_run: bool) -> Non
         sys.exit(result.returncode)
 
 
-def _emit_derived_manifest_stub(shard: ShardSpec, parquet_md5: str, manifest_md5: str,
-                                 parquet_n_rows: int, dry_run: bool) -> None:
+def _emit_derived_manifest_stub(
+    shard: ShardSpec, parquet_md5: str, manifest_md5: str, parquet_n_rows: int, dry_run: bool
+) -> None:
     """Emit a derived-manifest YAML stub in the data-catalog directory,
     ready for a one-branch-one-manifest PR.
 
@@ -269,7 +285,7 @@ def _emit_derived_manifest_stub(shard: ShardSpec, parquet_md5: str, manifest_md5
                 "md5": parquet_md5,
                 "n_rows": parquet_n_rows,
                 "description": "Tall per-(sample, stratum) assignment rows conforming to "
-                               "target-contracts/schemas/subgroup_assignment.schema.json.",
+                "target-contracts/schemas/subgroup_assignment.schema.json.",
             },
             {
                 "path": "manifest.yaml",
@@ -287,8 +303,7 @@ def _emit_derived_manifest_stub(shard: ShardSpec, parquet_md5: str, manifest_md5
         ),
     }
     if dry_run:
-        _log(f"DRY_RUN=1 — would write {shard.derived_manifest_path} "
-             f"(id={manifest_id}, n_rows={parquet_n_rows})")
+        _log(f"DRY_RUN=1 — would write {shard.derived_manifest_path} (id={manifest_id}, n_rows={parquet_n_rows})")
         return
     shard.derived_manifest_path.parent.mkdir(parents=True, exist_ok=True)
     shard.derived_manifest_path.write_text(yaml.safe_dump(manifest_yaml, sort_keys=False))
@@ -298,13 +313,13 @@ def _emit_derived_manifest_stub(shard: ShardSpec, parquet_md5: str, manifest_md5
 def _upstream_manifest_ids(source: str) -> list[str]:
     """Map a source key to the upstream source-manifest ids it consumes."""
     return {
-        "tcga_marker_paper":     ["tcga-marker-papers-subtypes-2018"],
-        "tcga_maf":              ["tcga-mc3-public-v0-2-8", "gdc-pancohort-somatic-dr45-0"],
+        "tcga_marker_paper": ["tcga-marker-papers-subtypes-2018"],
+        "tcga_maf": ["tcga-mc3-public-v0-2-8", "gdc-pancohort-somatic-dr45-0"],
         "depmap_omics_inferred": ["depmap-consortium-26q1"],
-        "depmap_somatic":        ["depmap-consortium-26q1"],
-        "depmap_expression":     ["depmap-consortium-26q1"],
-        "beataml_maf":           ["gdc-pancohort-somatic-dr45-0"],   # BeatAML1.0-COHORT via GDC
-        "target_aml_maf":        ["gdc-pancohort-somatic-dr45-0"],   # TARGET-AML via GDC
+        "depmap_somatic": ["depmap-consortium-26q1"],
+        "depmap_expression": ["depmap-consortium-26q1"],
+        "beataml_maf": ["gdc-pancohort-somatic-dr45-0"],  # BeatAML1.0-COHORT via GDC
+        "target_aml_maf": ["gdc-pancohort-somatic-dr45-0"],  # TARGET-AML via GDC
     }.get(source, [])
 
 
@@ -319,29 +334,46 @@ def _catalog_id_from_shard(shard: ShardSpec) -> str:
 
 
 @click.command()
-@click.option("--source", required=True, type=click.Choice(list(SOURCE_TO_ASSIGNER)),
-              help="Data source key.")
-@click.option("--indication", required=True,
-              type=click.Choice(["COADREAD", "NSCLC", "SCLC", "HNSC", "STAD", "ESCA", "PAAD", "AML"]),
-              help="iDAS canonical indication code.")
+@click.option("--source", required=True, type=click.Choice(list(SOURCE_TO_ASSIGNER)), help="Data source key.")
+@click.option(
+    "--indication",
+    required=True,
+    type=click.Choice(["COADREAD", "NSCLC", "SCLC", "HNSC", "STAD", "ESCA", "PAAD", "AML"]),
+    help="iDAS canonical indication code.",
+)
 @click.option("--release-pin", required=True, help="Catalog release-pin (e.g. 2026-Q2 or 2026-Q3).")
-@click.option("--catalog-repo", type=click.Path(file_okay=False, path_type=Path),
-              default=Path(os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")),
-              help="Path to data-catalog repo.")
-@click.option("--run-dir", type=click.Path(file_okay=False, path_type=Path),
-              default=Path.home() / "dev" / "framework-runs" / "subgroup-emit",
-              help="Local staging directory for compute artefacts.")
-@click.option("--classifier-config", type=click.Path(exists=True, dir_okay=False, path_type=Path),
-              default=None,
-              help="Classifier config YAML — REQUIRED when --source=depmap_expression.")
-def main(source: str, indication: str, release_pin: str, catalog_repo: Path,
-         run_dir: Path, classifier_config: Path | None) -> int:
+@click.option(
+    "--catalog-repo",
+    type=click.Path(file_okay=False, path_type=Path),
+    default=Path(
+        os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
+    ),
+    help="Path to data-catalog repo.",
+)
+@click.option(
+    "--run-dir",
+    type=click.Path(file_okay=False, path_type=Path),
+    default=Path.home() / "dev" / "framework-runs" / "subgroup-emit",
+    help="Local staging directory for compute artefacts.",
+)
+@click.option(
+    "--classifier-config",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=None,
+    help="Classifier config YAML — REQUIRED when --source=depmap_expression.",
+)
+def main(
+    source: str, indication: str, release_pin: str, catalog_repo: Path, run_dir: Path, classifier_config: Path | None
+) -> int:
     """Emit one (source × indication) shard of subgroup assignments."""
     dry_run = bool(os.environ.get("DRY_RUN"))
 
     shard = ShardSpec(
-        source=source, indication=indication, release_pin=release_pin,
-        catalog_repo=catalog_repo, run_dir=run_dir,
+        source=source,
+        indication=indication,
+        release_pin=release_pin,
+        catalog_repo=catalog_repo,
+        run_dir=run_dir,
         classifier_config=classifier_config,
     )
 
@@ -364,6 +396,7 @@ def main(source: str, indication: str, release_pin: str, catalog_repo: Path,
         n_rows = 0
     else:
         import pyarrow.parquet as pq
+
         parquet_md5 = _md5sum(assignments_path)
         manifest_md5 = _md5sum(manifest_path)
         n_rows = pq.read_metadata(assignments_path).num_rows
@@ -371,10 +404,8 @@ def main(source: str, indication: str, release_pin: str, catalog_repo: Path,
         _log(f"  manifest md5: {manifest_md5}")
 
     # 3. Upload to S3
-    _upload_to_s3(assignments_path, f"{shard.s3_uri_base}/assignments.parquet",
-                  parquet_md5, dry_run)
-    _upload_to_s3(manifest_path, f"{shard.s3_uri_base}/manifest.yaml",
-                  manifest_md5, dry_run)
+    _upload_to_s3(assignments_path, f"{shard.s3_uri_base}/assignments.parquet", parquet_md5, dry_run)
+    _upload_to_s3(manifest_path, f"{shard.s3_uri_base}/manifest.yaml", manifest_md5, dry_run)
 
     # 4. Emit derived-manifest stub for data-catalog PR
     _emit_derived_manifest_stub(shard, parquet_md5, manifest_md5, n_rows, dry_run)

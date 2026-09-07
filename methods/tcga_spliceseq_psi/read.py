@@ -20,6 +20,7 @@ complement. Additive / verdict-inert DISPLAY facet.
 Product-first reader (gene-sorted pushdown over the materialized per-(gene,indication) product)
 + a builder that streams the 33 per-tissue SpliceSeq files once (too big to live-read per query).
 """
+
 from __future__ import annotations
 
 import io
@@ -44,13 +45,34 @@ _MIN_EVENTS = 1
 # Framework-indication -> TCGA/SpliceSeq tissue codes (reused from tcga_fusion_consensus,
 # extended with AML->LAML which SpliceSeq serves). The builder ALSO emits per-tissue rows.
 _INDICATION_TISSUE = {
-    "COADREAD": {"COAD", "READ"}, "COAD": {"COAD"}, "READ": {"READ"},
-    "NSCLC": {"LUAD", "LUSC"}, "LUAD": {"LUAD"}, "LUSC": {"LUSC"},
-    "HNSC": {"HNSC"}, "HNSCC": {"HNSC"}, "BRCA": {"BRCA"}, "PRAD": {"PRAD"}, "PAAD": {"PAAD"},
-    "STAD": {"STAD"}, "OV": {"OV"}, "GBM": {"GBM"}, "LGG": {"LGG"}, "BLCA": {"BLCA"},
-    "KIRC": {"KIRC"}, "KIRP": {"KIRP"}, "KICH": {"KICH"}, "LIHC": {"LIHC"}, "SKCM": {"SKCM"},
-    "THCA": {"THCA"}, "UCEC": {"UCEC"}, "CESC": {"CESC"}, "ESCA": {"ESCA"}, "SARC": {"SARC"},
-    "AML": {"LAML"}, "LAML": {"LAML"},
+    "COADREAD": {"COAD", "READ"},
+    "COAD": {"COAD"},
+    "READ": {"READ"},
+    "NSCLC": {"LUAD", "LUSC"},
+    "LUAD": {"LUAD"},
+    "LUSC": {"LUSC"},
+    "HNSC": {"HNSC"},
+    "HNSCC": {"HNSC"},
+    "BRCA": {"BRCA"},
+    "PRAD": {"PRAD"},
+    "PAAD": {"PAAD"},
+    "STAD": {"STAD"},
+    "OV": {"OV"},
+    "GBM": {"GBM"},
+    "LGG": {"LGG"},
+    "BLCA": {"BLCA"},
+    "KIRC": {"KIRC"},
+    "KIRP": {"KIRP"},
+    "KICH": {"KICH"},
+    "LIHC": {"LIHC"},
+    "SKCM": {"SKCM"},
+    "THCA": {"THCA"},
+    "UCEC": {"UCEC"},
+    "CESC": {"CESC"},
+    "ESCA": {"ESCA"},
+    "SARC": {"SARC"},
+    "AML": {"LAML"},
+    "LAML": {"LAML"},
 }
 # Composite indications the builder should emit in ADDITION to per-tissue rows.
 _COMPOSITE_INDICATIONS = {"COADREAD": {"COAD", "READ"}, "NSCLC": {"LUAD", "LUSC"}, "AML": {"LAML"}}
@@ -61,6 +83,7 @@ from methods.target_id_sidecar import ensure_aws_profile
 
 def _boto3():
     import boto3
+
     return boto3.Session(profile_name=os.environ.get("AWS_PROFILE", DEFAULT_AWS_PROFILE)).client("s3")
 
 
@@ -81,19 +104,26 @@ def _read_from_product(target: str, indication: str) -> Optional[dict]:
     try:
         import sys as _sys
         from pathlib import Path as _P
+
         _sys.path.insert(0, str(_P(__file__).resolve().parent.parent))
         from methods.catalog_query.read import bucket_key_for
         import pyarrow.parquet as pq
         import pyarrow.fs as fs
+
         bucket, key = bucket_key_for(PRODUCT_MANIFEST_ID)
         tbl = pq.read_table(
-            f"{bucket}/{key}", filesystem=fs.S3FileSystem(),
-            filters=[("gene_symbol", "=", (target or "").strip().upper()),
-                     ("indication", "=", (indication or "").strip().upper())])
+            f"{bucket}/{key}",
+            filesystem=fs.S3FileSystem(),
+            filters=[
+                ("gene_symbol", "=", (target or "").strip().upper()),
+                ("indication", "=", (indication or "").strip().upper()),
+            ],
+        )
     except Exception as e:  # noqa: BLE001
         # genuine object-absence → None (data_unavailable; no live fallback for this display facet).
         # Broken-env/transient/creds must NOT be masked as a coverage gap — re-raise → _live_read_error.
         from methods.target_id_sidecar import is_definitively_absent
+
         if not (is_definitively_absent(e) or isinstance(e, FileNotFoundError)):
             raise
         return None
@@ -112,8 +142,7 @@ def spliceseq_summary_for_gene(target: str, indication: str) -> dict:
     if r is None:
         return _unavailable(f"{sym}/{ind} not in tcga-spliceseq-psi product")
     n_shift = r.get("n_tumor_shifted_events")
-    shift_txt = (f"; {n_shift} tumour-shifted vs matched normal" if n_shift not in (None,)
-                 else "; no matched normals")
+    shift_txt = f"; {n_shift} tumour-shifted vs matched normal" if n_shift not in (None,) else "; no matched normals"
     return {
         "splicing_dysregulation_class": r.get("splicing_dysregulation_class"),
         "n_splice_events": r.get("n_splice_events"),
@@ -129,7 +158,9 @@ def spliceseq_summary_for_gene(target: str, indication: str) -> dict:
             f"max PSI std {r.get('max_event_psi_std'):.2f} across {r.get('n_tumor_samples')} tumours "
             f"({r.get('n_variable_events')} variable{shift_txt}) — PATIENT alternative-splicing, "
             f"verdict-inert."
-            if r.get("max_event_psi_std") is not None else f"{sym}/{ind}: splicing summary present"),
+            if r.get("max_event_psi_std") is not None
+            else f"{sym}/{ind}: splicing summary present"
+        ),
         "method_version": "0.1.0",
         "_data_source": "tcga-spliceseq",
     }
@@ -138,14 +169,22 @@ def spliceseq_summary_for_gene(target: str, indication: str) -> dict:
 def _unavailable(note: str) -> dict:
     return {
         "splicing_dysregulation_class": "data_unavailable",
-        "n_splice_events": None, "max_event_psi_std": None, "median_event_psi_std": None,
-        "n_variable_events": None, "n_tumor_shifted_events": None,
-        "dominant_event_splice_type": None, "n_tumor_samples": 0, "n_normal_samples": 0,
-        "splicing_context": None, "method_version": "0.1.0", "_data_note": note,
+        "n_splice_events": None,
+        "max_event_psi_std": None,
+        "median_event_psi_std": None,
+        "n_variable_events": None,
+        "n_tumor_shifted_events": None,
+        "dominant_event_splice_type": None,
+        "n_tumor_samples": 0,
+        "n_normal_samples": 0,
+        "splicing_context": None,
+        "method_version": "0.1.0",
+        "_data_note": note,
     }
 
 
 # ------------------------------ builder ------------------------------
+
 
 def _iter_tissue_events(fh):
     """Yield (symbol, splice_type, tumor_psis[list[float]], normal_psis[list[float]]) per event row.
@@ -156,7 +195,7 @@ def _iter_tissue_events(fh):
     is_norm = [c.endswith("_Norm") for c in sample_cols]
     for line in fh:
         parts = line.rstrip("\n").split("\t")
-        if len(parts) < 11 or not parts[2].strip():   # col 2 = splice_type; empty => annotation row
+        if len(parts) < 11 or not parts[2].strip():  # col 2 = splice_type; empty => annotation row
             continue
         sym = parts[0].strip().upper()
         st = parts[2].strip()
@@ -188,7 +227,7 @@ def build_spliceseq_psi_table(local_dir: Optional[str] = None, tissues: Optional
 
     # per (tissue, gene) -> list of per-event dicts {st, tstd, shift(None if no normals)}
     by_tissue_gene: dict = defaultdict(lambda: defaultdict(list))
-    tissue_counts: dict = {}   # tissue -> (n_tumor, n_normal)
+    tissue_counts: dict = {}  # tissue -> (n_tumor, n_normal)
 
     for tissue in tissues:
         stream = _open_tissue(tissue, local_dir)
@@ -223,16 +262,17 @@ def build_spliceseq_psi_table(local_dir: Optional[str] = None, tissues: Optional
         for sym, events in merged_genes.items():
             rows.append(_summarize(sym, comp, events, n_tumor, n_normal))
 
-    rows.sort(key=lambda r: (r["gene_symbol"], r["indication"]))   # gene-keyed physical sort
+    rows.sort(key=lambda r: (r["gene_symbol"], r["indication"]))  # gene-keyed physical sort
     return pa.Table.from_pylist(rows, schema=_schema())
 
 
 def _summarize(sym: str, indication: str, events: list, n_tumor: int, n_normal: int) -> dict:
     import numpy as np
+
     stds = [e["tstd"] for e in events]
     shifts = [e["shift"] for e in events if e["shift"] is not None]
     n_variable = sum(1 for s in stds if s >= _STD_VARIABLE)
-    n_shifted = (sum(1 for s in shifts if s >= _SHIFT) if n_normal > 0 else None)
+    n_shifted = sum(1 for s in shifts if s >= _SHIFT) if n_normal > 0 else None
     dom = max(events, key=lambda e: e["tstd"]) if events else None
     return {
         "gene_symbol": sym,
@@ -253,6 +293,7 @@ def _open_tissue(tissue: str, local_dir: Optional[str]):
     """Return (text_stream, n_tumor_cols, n_normal_cols) for a tissue, or None if missing.
     Reads a local .zip/.txt if local_dir given, else the S3 snapshot zip."""
     import glob
+
     raw = None
     if local_dir:
         # accept PSI_download_<T>.zip or .txt
@@ -299,8 +340,10 @@ def _snapshot_dir() -> str:
     try:
         import sys as _sys
         from pathlib import Path as _P
+
         _sys.path.insert(0, str(_P(__file__).resolve().parent.parent))
         from methods.catalog_query.read import load_manifest
+
         m = load_manifest("tcga-spliceseq-v2")
         uri = m.get("s3_uri", "")
         # s3://bucket/.../tcga-spliceseq/<dir>/  -> <dir>
@@ -318,16 +361,19 @@ def _snapshot_dir() -> str:
 
 def _schema():
     import pyarrow as pa
-    return pa.schema([
-        pa.field("gene_symbol", pa.string()),
-        pa.field("indication", pa.string()),
-        pa.field("splicing_dysregulation_class", pa.string()),
-        pa.field("n_splice_events", pa.int64()),
-        pa.field("max_event_psi_std", pa.float64()),
-        pa.field("median_event_psi_std", pa.float64()),
-        pa.field("n_variable_events", pa.int64()),
-        pa.field("n_tumor_shifted_events", pa.int64()),
-        pa.field("dominant_event_splice_type", pa.string()),
-        pa.field("n_tumor_samples", pa.int64()),
-        pa.field("n_normal_samples", pa.int64()),
-    ])
+
+    return pa.schema(
+        [
+            pa.field("gene_symbol", pa.string()),
+            pa.field("indication", pa.string()),
+            pa.field("splicing_dysregulation_class", pa.string()),
+            pa.field("n_splice_events", pa.int64()),
+            pa.field("max_event_psi_std", pa.float64()),
+            pa.field("median_event_psi_std", pa.float64()),
+            pa.field("n_variable_events", pa.int64()),
+            pa.field("n_tumor_shifted_events", pa.int64()),
+            pa.field("dominant_event_splice_type", pa.string()),
+            pa.field("n_tumor_samples", pa.int64()),
+            pa.field("n_normal_samples", pa.int64()),
+        ]
+    )

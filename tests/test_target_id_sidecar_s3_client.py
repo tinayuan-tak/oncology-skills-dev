@@ -6,6 +6,7 @@ break: an unmocked live read in a non-`cbg` environment raised ProfileNotFound i
 ambient credential chain (first caught by skills compose-dashboard CI). s3_client must fall back to
 the default chain when the PREFERRED/DEFAULT profile is missing, but still honor an EXPLICIT profile.
 """
+
 from __future__ import annotations
 
 import pytest

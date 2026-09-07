@@ -17,23 +17,28 @@ it needs a per-sample antigen-expression join on TCGA barcode (a documented samp
 Thresholds are anchored to the PAN-CANCER across-study distribution (data-driven, not arbitrary):
 CD8-fraction study medians across 33 TCGA studies have quartiles ~[0.084, 0.097, 0.113].
 """
+
 from __future__ import annotations
 
 from typing import Optional
 
 # The LM22 columns that are T cells (CIBERSORT relative fractions of the leukocyte compartment).
 T_CELL_COLUMNS = (
-    "T.cells.CD8", "T.cells.CD4.naive", "T.cells.CD4.memory.resting",
-    "T.cells.CD4.memory.activated", "T.cells.follicular.helper",
-    "T.cells.regulatory..Tregs.", "T.cells.gamma.delta",
+    "T.cells.CD8",
+    "T.cells.CD4.naive",
+    "T.cells.CD4.memory.resting",
+    "T.cells.CD4.memory.activated",
+    "T.cells.follicular.helper",
+    "T.cells.regulatory..Tregs.",
+    "T.cells.gamma.delta",
 )
 CD8_COLUMN = "T.cells.CD8"
 
 # Pan-cancer across-study CD8-fraction quartiles (measured on the 33-study medians). A study at/above
 # the pan-cancer Q3 is immune-hot for its CD8 compartment; at/below Q1 is immune-cold; between is
 # intermediate. Anchored to the data so "hot"/"cold" means "relative to the pan-cancer landscape".
-CD8_FRACTION_HOT_MIN = 0.113     # >= pan-cancer Q3 → immune-hot
-CD8_FRACTION_COLD_MAX = 0.084    # <= pan-cancer Q1 → immune-cold
+CD8_FRACTION_HOT_MIN = 0.113  # >= pan-cancer Q3 → immune-hot
+CD8_FRACTION_COLD_MAX = 0.084  # <= pan-cancer Q1 → immune-cold
 
 
 def classify_immune_context(cd8_fraction: Optional[float]) -> str:
@@ -61,6 +66,7 @@ def summarize_immune_context(rows) -> dict:
     (honest — an indication with no CIBERSORT coverage is a gap, not a cold tumor)."""
     import numpy as np
     import pandas as pd
+
     df = rows if isinstance(rows, pd.DataFrame) else pd.DataFrame(rows)
     if df.empty or CD8_COLUMN not in df.columns:
         return {

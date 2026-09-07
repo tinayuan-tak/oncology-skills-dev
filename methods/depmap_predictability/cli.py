@@ -58,19 +58,19 @@ RELEASE_PIN_TO_PARQUET = {
 
 # Feature-class → SVG color map. Extended for v2 (arm + driver_gof/lof + cross-gene).
 FEATURE_CLASS_COLORS = {
-    "own_expression":            "#0a2540",  # Takeda navy — target-own transcriptome
-    "own_copy_number":           "#7fa7c0",  # light blue — target-own CN
-    "own_mut_hotspot":           "#cf2828",  # red — target-own hotspot
-    "own_mut_damaging":          "#f0a020",  # orange — target-own damaging
-    "cross_gene_expression":     "#2e5cb8",  # deeper blue — other-gene expression
-    "cross_gene_copy_number":    "#8fa8c8",  # slate — other-gene CN
-    "arm_level_cn":              "#9b3192",  # purple — arm-mean CN
-    "oncokb_gof":                "#e05a5a",  # coral — driver GoF flag
-    "oncokb_lof":                "#f4b360",  # ochre — driver LoF flag
-    "lineage":                   "#888888",  # gray — context, not target-intrinsic
-    "other":                     "#dddddd",
-    "unpredictable":             "#bbbbbb",
-    "data_unavailable":          "#bbbbbb",
+    "own_expression": "#0a2540",  # Takeda navy — target-own transcriptome
+    "own_copy_number": "#7fa7c0",  # light blue — target-own CN
+    "own_mut_hotspot": "#cf2828",  # red — target-own hotspot
+    "own_mut_damaging": "#f0a020",  # orange — target-own damaging
+    "cross_gene_expression": "#2e5cb8",  # deeper blue — other-gene expression
+    "cross_gene_copy_number": "#8fa8c8",  # slate — other-gene CN
+    "arm_level_cn": "#9b3192",  # purple — arm-mean CN
+    "oncokb_gof": "#e05a5a",  # coral — driver GoF flag
+    "oncokb_lof": "#f4b360",  # ochre — driver LoF flag
+    "lineage": "#888888",  # gray — context, not target-intrinsic
+    "other": "#dddddd",
+    "unpredictable": "#bbbbbb",
+    "data_unavailable": "#bbbbbb",
 }
 
 
@@ -84,16 +84,17 @@ def _parse_s3_uri(uri: str) -> tuple[str, str]:
 def fetch_predictability_row(parquet_uri: str, gene: str) -> Optional[dict]:
     """Pyarrow predicate-pushdown read for ONE gene row. Returns dict or None."""
     import pyarrow.parquet as pq
+
     if parquet_uri.startswith("s3://"):
         import pyarrow.fs as pafs
+
         bucket, key = _parse_s3_uri(parquet_uri)
         fs = pafs.S3FileSystem()
         path = f"{bucket}/{key}"
     else:
         fs = None
         path = parquet_uri
-    table = pq.read_table(path, filesystem=fs,
-                            filters=[("gene_symbol", "=", gene)])
+    table = pq.read_table(path, filesystem=fs, filters=[("gene_symbol", "=", gene)])
     if table.num_rows == 0:
         return None
     if table.num_rows > 1:
@@ -110,8 +111,7 @@ def compute_summary(row: Optional[dict], target: str) -> dict:
     if row is None:
         return {
             "_live_read_error": "target_not_in_derived_product",
-            "_remediation": "Target not in v2 medium-scope precompute. Will be re-"
-                              "evaluated in the genome-wide batch.",
+            "_remediation": "Target not in v2 medium-scope precompute. Will be re-evaluated in the genome-wide batch.",
             "pred_n_cell_lines_evaluated": 0,
             "pearson_r_rf": None,
             "pearson_r_squared_rf": None,
@@ -152,22 +152,25 @@ def compute_summary(row: Optional[dict], target: str) -> dict:
 
 def _load_takeda_palette(target_contracts_dir: Path):
     import matplotlib.pyplot as plt
+
     style_path = target_contracts_dir / "plot_styles" / "takeda_oncology.mplstyle"
     if style_path.exists():
         plt.style.use(str(style_path))
     sys.path.insert(0, str(target_contracts_dir / "plot_styles"))
     import takeda_palette
+
     return takeda_palette
 
 
-def emit_feature_importance_bar(summary: dict, target: str,
-                                   out_dir: Path,
-                                   target_contracts_dir: Path = DEFAULT_TARGET_CONTRACTS) -> Path:
+def emit_feature_importance_bar(
+    summary: dict, target: str, out_dir: Path, target_contracts_dir: Path = DEFAULT_TARGET_CONTRACTS
+) -> Path:
     """Multi-panel v2 figure: RF feature importance bar (primary) + optional
     XGBoost comparison + lineage-conditional r² tile. Falls back to a
     placeholder SVG when predictability_class is data_unavailable.
     """
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
@@ -176,21 +179,30 @@ def emit_feature_importance_bar(summary: dict, target: str,
 
     if summary.get("predictability_class") == "data_unavailable":
         fig, ax = plt.subplots(figsize=pal.FIGSIZE_DOUBLE_COLUMN)
-        ax.text(0.5, 0.55, f"{target} not in v2 predictability derived product",
-                  transform=ax.transAxes, ha="center", fontsize=10, color="#444")
-        ax.text(0.5, 0.45, summary.get("_remediation", ""),
-                  transform=ax.transAxes, ha="center", fontsize=8, color="#777")
+        ax.text(
+            0.5,
+            0.55,
+            f"{target} not in v2 predictability derived product",
+            transform=ax.transAxes,
+            ha="center",
+            fontsize=10,
+            color="#444",
+        )
+        ax.text(
+            0.5, 0.45, summary.get("_remediation", ""), transform=ax.transAxes, ha="center", fontsize=8, color="#777"
+        )
         ax.set_axis_off()
-        fig.savefig(out_path); plt.close(fig)
+        fig.savefig(out_path)
+        plt.close(fig)
         return out_path
 
     top = summary.get("pred_top_features_rf") or []
     if not top:
         fig, ax = plt.subplots(figsize=pal.FIGSIZE_DOUBLE_COLUMN)
-        ax.text(0.5, 0.5, "No feature-importance data",
-                  transform=ax.transAxes, ha="center", fontsize=10, color="#666")
+        ax.text(0.5, 0.5, "No feature-importance data", transform=ax.transAxes, ha="center", fontsize=10, color="#666")
         ax.set_axis_off()
-        fig.savefig(out_path); plt.close(fig)
+        fig.savefig(out_path)
+        plt.close(fig)
         return out_path
 
     # Top 10 importance-ranked (RF impurity; see module docstring on the _shap suffix)
@@ -202,8 +214,7 @@ def emit_feature_importance_bar(summary: dict, target: str,
     fig, ax = plt.subplots(figsize=pal.FIGSIZE_DOUBLE_COLUMN)
     ax.barh(range(len(names)), imps, color=colors, edgecolor="white")
     for i, imp in enumerate(imps):
-        ax.text(imp + max(imps) * 0.01, i, f"{imp:.3f}",
-                  va="center", fontsize=8, color="#222")
+        ax.text(imp + max(imps) * 0.01, i, f"{imp:.3f}", va="center", fontsize=8, color="#222")
     ax.set_yticks(range(len(names)))
     ax.set_yticklabels(names, fontsize=8)
     ax.invert_yaxis()
@@ -226,8 +237,7 @@ def emit_feature_importance_bar(summary: dict, target: str,
     if agreement == "divergent" and isinstance(delta, (int, float)):
         subtitle = f"  |  RF↔XGB divergent (Δr²={delta:+.2f})"
 
-    ax.set_title(f"{target} — predictability ({r2_txt}{r_txt}, {pred_class}){subtitle}",
-                    fontsize=9)
+    ax.set_title(f"{target} — predictability ({r2_txt}{r_txt}, {pred_class}){subtitle}", fontsize=9)
 
     # Legend (unique feature classes)
     seen = []
@@ -244,9 +254,9 @@ def emit_feature_importance_bar(summary: dict, target: str,
     return out_path
 
 
-def emit_lineage_conditional_panel(summary: dict, target: str,
-                                       out_dir: Path,
-                                       target_contracts_dir: Path = DEFAULT_TARGET_CONTRACTS) -> Path:
+def emit_lineage_conditional_panel(
+    summary: dict, target: str, out_dir: Path, target_contracts_dir: Path = DEFAULT_TARGET_CONTRACTS
+) -> Path:
     """Per-lineage r² horizontal bar. Complement to the main importance figure.
 
     Ordered by r² descending; annotated with top-feature name. Highlights
@@ -254,6 +264,7 @@ def emit_lineage_conditional_panel(summary: dict, target: str,
     Bowel/Pancreas.
     """
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
@@ -263,10 +274,10 @@ def emit_lineage_conditional_panel(summary: dict, target: str,
     lineage = summary.get("per_lineage_predictability") or []
     if not lineage:
         fig, ax = plt.subplots(figsize=pal.FIGSIZE_DOUBLE_COLUMN)
-        ax.text(0.5, 0.5, "No lineage-conditional data",
-                  transform=ax.transAxes, ha="center", fontsize=10, color="#666")
+        ax.text(0.5, 0.5, "No lineage-conditional data", transform=ax.transAxes, ha="center", fontsize=10, color="#666")
         ax.set_axis_off()
-        fig.savefig(out_path); plt.close(fig)
+        fig.savefig(out_path)
+        plt.close(fig)
         return out_path
 
     # Sort by r² descending
@@ -277,8 +288,7 @@ def emit_lineage_conditional_panel(summary: dict, target: str,
     fig, ax = plt.subplots(figsize=pal.FIGSIZE_DOUBLE_COLUMN)
     ax.barh(range(len(names)), r2s, color="#0a2540", edgecolor="white")
     for i, (r2, tf) in enumerate(zip(r2s, top_feats)):
-        ax.text(r2 + max(max(r2s), 0.01) * 0.02, i, f"{r2:.2f}  ({tf})",
-                  va="center", fontsize=7, color="#333")
+        ax.text(r2 + max(max(r2s), 0.01) * 0.02, i, f"{r2:.2f}  ({tf})", va="center", fontsize=7, color="#333")
     ax.set_yticks(range(len(names)))
     ax.set_yticklabels(names, fontsize=8)
     ax.invert_yaxis()
@@ -291,8 +301,9 @@ def emit_lineage_conditional_panel(summary: dict, target: str,
     return out_path
 
 
-def emit_plotly_specs(summary: dict, target: str, out_path: Path,
-                      contracts_root: Path = DEFAULT_TARGET_CONTRACTS) -> list:
+def emit_plotly_specs(
+    summary: dict, target: str, out_path: Path, contracts_root: Path = DEFAULT_TARGET_CONTRACTS
+) -> list:
     """Emit interactive Plotly spec SIBLING to the feature-importance SVG (Gate-C plotly debt, 2026-07-21).
 
     Interactive twin of emit_feature_importance_bar: horizontal bar of the top-10 importance-ranked RF
@@ -309,7 +320,7 @@ def emit_plotly_specs(summary: dict, target: str, out_path: Path,
 
     top = summary.get("pred_top_features_rf") or []
     if not top:
-        return []   # no feature-importance data — SVG placeholder covers this state
+        return []  # no feature-importance data — SVG placeholder covers this state
 
     written = []
     try:
@@ -319,15 +330,19 @@ def emit_plotly_specs(summary: dict, target: str, out_path: Path,
         imps = [t["importance"] for t in top10]
         classes = [t["feature_class"] for t in top10]
         colors = [FEATURE_CLASS_COLORS.get(c, "#bbbbbb") for c in classes]
-        fig = go.Figure(go.Bar(
-            x=imps, y=list(range(len(names))), orientation="h", marker_color=colors,
-            customdata=list(zip(names, classes)),
-            hovertemplate="%{customdata[0]}<br>%{customdata[1]}"
-                          "<br>feature importance %{x:.3f}<extra></extra>"))
+        fig = go.Figure(
+            go.Bar(
+                x=imps,
+                y=list(range(len(names))),
+                orientation="h",
+                marker_color=colors,
+                customdata=list(zip(names, classes)),
+                hovertemplate="%{customdata[0]}<br>%{customdata[1]}<br>feature importance %{x:.3f}<extra></extra>",
+            )
+        )
         r2_rf = summary.get("pearson_r_squared_rf")
-        ci_lo, ci_hi = (summary.get("pearson_r_squared_rf_ci_lo"),
-                        summary.get("pearson_r_squared_rf_ci_hi"))
-        r2_txt = (f"r²={r2_rf:.2f}" if isinstance(r2_rf, (int, float)) else "r²=NA")
+        ci_lo, ci_hi = (summary.get("pearson_r_squared_rf_ci_lo"), summary.get("pearson_r_squared_rf_ci_hi"))
+        r2_txt = f"r²={r2_rf:.2f}" if isinstance(r2_rf, (int, float)) else "r²=NA"
         if ci_lo is not None and ci_hi is not None:
             r2_txt += f" [95% CI {ci_lo:.2f}, {ci_hi:.2f}]"
         pred_class = (summary.get("predictability_class") or "unknown").replace("_", " ")
@@ -338,19 +353,23 @@ def emit_plotly_specs(summary: dict, target: str, out_path: Path,
             title=f"{target} — predictability ({r2_txt}, {pred_class}){subtitle}",
             xaxis_title="feature importance (RF impurity)",
             yaxis=dict(tickmode="array", tickvals=list(range(len(names))), ticktext=names),
-            template="plotly_white", showlegend=False, margin=dict(l=160, r=20, t=50, b=50))
+            template="plotly_white",
+            showlegend=False,
+            margin=dict(l=160, r=20, t=50, b=50),
+        )
         (out_path / "figure_feature_importance_bar.plotly.json").write_text(fig.to_json())
-        written.append({"id": "feature_importance_bar",
-                        "path": "figure_feature_importance_bar.plotly.json", "type": "plotly"})
+        written.append(
+            {"id": "feature_importance_bar", "path": "figure_feature_importance_bar.plotly.json", "type": "plotly"}
+        )
     except Exception as e:  # noqa: BLE001
         print(f"[depmap_predictability] feature-importance plotly skipped: {e}", file=sys.stderr)
 
     return written
 
 
-def emit_manifest(target: str, release_pin: str, summary: dict,
-                    out_dir: Path, parquet_uri: str) -> Path:
+def emit_manifest(target: str, release_pin: str, summary: dict, out_dir: Path, parquet_uri: str) -> Path:
     import yaml
+
     manifest = {
         "method_id": "depmap-predictability",
         "method_version": METHOD_VERSION,
@@ -377,10 +396,10 @@ def emit_manifest(target: str, release_pin: str, summary: dict,
 
 @click.command()
 @click.option("--target", required=True, help="HGNC symbol")
-@click.option("--release-pin", default="26q1-v3", show_default=True,
-              type=click.Choice(list(RELEASE_PIN_TO_PARQUET.keys())))
-@click.option("--parquet-uri", default=None,
-              help="Override the parquet URI (testing / local fixture).")
+@click.option(
+    "--release-pin", default="26q1-v3", show_default=True, type=click.Choice(list(RELEASE_PIN_TO_PARQUET.keys()))
+)
+@click.option("--parquet-uri", default=None, help="Override the parquet URI (testing / local fixture).")
 @click.option("--out", required=True, type=click.Path(file_okay=False, writable=True, path_type=Path))
 def main(target, release_pin, parquet_uri, out):
     out.mkdir(parents=True, exist_ok=True)

@@ -5,6 +5,7 @@ populations? is expression consistent or highly variable?" These were computable
 per-cell-line array but never emitted (only median/percentiles/fractions were). Tests pin the
 dependency-light gap heuristic (mirrors the dependency side, no KDE/dip test) + the CoV-on-linear-TPM.
 """
+
 from __future__ import annotations
 
 import sys

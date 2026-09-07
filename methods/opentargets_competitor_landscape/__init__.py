@@ -8,6 +8,7 @@ approved_agents, per-modality landscape). Reproducible against the OT release pi
 
 METHOD_VERSION 0.1.0.
 """
+
 from __future__ import annotations
 
 METHOD_VERSION = "0.1.0"

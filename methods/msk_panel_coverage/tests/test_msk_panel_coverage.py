@@ -1,4 +1,5 @@
 """Offline unit tests for MSK-CHORD panel-coverage helpers (scope-coherence Phase 2)."""
+
 from __future__ import annotations
 
 import methods.msk_panel_coverage.read as m
@@ -26,18 +27,26 @@ def test_covered_gene_frequencies_recomputes_within_cohort(monkeypatch):
     S3-backed inputs and confirm n_cov = cohort samples whose panel covers the gene, n_mut = distinct
     mutated samples."""
     import pandas as pd
+
     # 3 samples, all on IMPACT468 which covers {KRAS, TP53}; a 4th sample on a panel that lacks KRAS.
     monkeypatch.setattr(m, "msk_indication_cohort", lambda ind: ("S1", "S2", "S3", "S4"))
-    monkeypatch.setattr(m, "load_msk_sample_panel_map",
-                        lambda: {"S1": "MSK-IMPACT468", "S2": "MSK-IMPACT468",
-                                 "S3": "MSK-IMPACT468", "S4": "MSK-IMPACT341"})
+    monkeypatch.setattr(
+        m,
+        "load_msk_sample_panel_map",
+        lambda: {"S1": "MSK-IMPACT468", "S2": "MSK-IMPACT468", "S3": "MSK-IMPACT468", "S4": "MSK-IMPACT341"},
+    )
     import methods.genie_panel_coverage.read as gp
-    monkeypatch.setattr(gp, "load_panel_gene_sets",
-                        lambda: {"MSK-IMPACT468": frozenset({"KRAS", "TP53"}),
-                                 "MSK-IMPACT341": frozenset({"TP53"})})
-    monkeypatch.setattr(m, "_load_msk_maf",
-                        lambda ind: pd.DataFrame({"sample_id": ["S1", "S2", "S4"],
-                                                  "gene_symbol": ["KRAS", "KRAS", "TP53"]}))
+
+    monkeypatch.setattr(
+        gp,
+        "load_panel_gene_sets",
+        lambda: {"MSK-IMPACT468": frozenset({"KRAS", "TP53"}), "MSK-IMPACT341": frozenset({"TP53"})},
+    )
+    monkeypatch.setattr(
+        m,
+        "_load_msk_maf",
+        lambda ind: pd.DataFrame({"sample_id": ["S1", "S2", "S4"], "gene_symbol": ["KRAS", "KRAS", "TP53"]}),
+    )
     m.msk_covered_gene_frequencies.cache_clear()
     out = dict((g, (nm, nc)) for g, nm, nc in m.msk_covered_gene_frequencies("COADREAD"))
     # KRAS: mutated in S1,S2 (n_mut 2); covered by S1,S2,S3 (IMPACT468), NOT S4 → n_cov 3

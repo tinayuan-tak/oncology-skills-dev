@@ -26,6 +26,7 @@ Scope caveats (mirrored in the card): univariate, unadjusted for stage/age; stra
 floor are dropped from the omnibus test (reported); a subtype that is intrinsically small stays
 insufficient rather than forcing a claim.
 """
+
 from __future__ import annotations
 
 # Reuse the survival substrate + thresholds + barcode canonicalizer (single source of truth).
@@ -33,8 +34,8 @@ from methods.expression_clinical_association import read as _eca
 from methods.subgroup_common.loaders import load_assignments
 from methods.target_id_sidecar import ensure_aws_profile
 
-MIN_EVENTS = _eca.MIN_EVENTS          # minimum total deaths for a meaningful omnibus test
-MIN_PER_ARM = _eca.MIN_PER_ARM        # minimum patients per subtype arm to be admissible
+MIN_EVENTS = _eca.MIN_EVENTS  # minimum total deaths for a meaningful omnibus test
+MIN_PER_ARM = _eca.MIN_PER_ARM  # minimum patients per subtype arm to be admissible
 SIGNIFICANCE_ALPHA = _eca.SIGNIFICANCE_ALPHA
 
 # Indication → the TCGA-side SUBTYPE subgroup-assignment shard (patient-barcode-keyed) carrying the
@@ -81,7 +82,7 @@ def multivariate_logrank(arms: list[tuple]) -> tuple:
         n = at_risk.sum()
         if n <= 1:
             continue
-        d = int(((t_all == tj) & (e_all == 1)).sum())          # total deaths at tj
+        d = int(((t_all == tj) & (e_all == 1)).sum())  # total deaths at tj
         n_g = np.array([((grp == g) & at_risk).sum() for g in range(k)], float)
         d_g = np.array([((grp == g) & (t_all == tj) & (e_all == 1)).sum() for g in range(k)], float)
         O += d_g
@@ -93,7 +94,7 @@ def multivariate_logrank(arms: list[tuple]) -> tuple:
                 delta = 1.0 if g == h else 0.0
                 V[g, h] += factor * (n_g[g] / n) * (delta - n_g[h] / n)
 
-    z = (O - E)[:-1]                # drop the last group for a full-rank system
+    z = (O - E)[:-1]  # drop the last group for a full-rank system
     Vr = V[:-1, :-1]
     try:
         chi2 = float(z @ np.linalg.pinv(Vr) @ z)
@@ -115,8 +116,9 @@ def classify_subtype_survival_association(p, n_admissible_strata: int, n_events:
     return "no_subtype_survival_association"
 
 
-def read_subtype_survival_association(indication: str, subgroup_assignments_manifest: str | None = None,
-                                      data_catalog_repo=None) -> dict:
+def read_subtype_survival_association(
+    indication: str, subgroup_assignments_manifest: str | None = None, data_catalog_repo=None
+) -> dict:
     """Omnibus OS log-rank across {indication}'s molecular subtypes (from a TCGA-side assignment
     shard). data_unavailable-safe. Univariate/unadjusted. target-independent (indication-level).
 
@@ -126,48 +128,71 @@ def read_subtype_survival_association(indication: str, subgroup_assignments_mani
     ensure_aws_profile()
     if subgroup_assignments_manifest is None:
         subgroup_assignments_manifest = INDICATION_TO_TCGA_SUBTYPE_SHARD.get(str(indication).upper())
-    base = {"indication": indication, "endpoint": "OS", "survival_source": "pancanatlas_tcga_cdr",
-            "subgroup_assignments_manifest": subgroup_assignments_manifest}
+    base = {
+        "indication": indication,
+        "endpoint": "OS",
+        "survival_source": "pancanatlas_tcga_cdr",
+        "subgroup_assignments_manifest": subgroup_assignments_manifest,
+    }
     if not subgroup_assignments_manifest:
-        base.update({"subtype_survival_association_class": "data_unavailable",
-                     "_data_note": f"no TCGA subtype subgroup-assignment shard registered for {indication}"})
+        base.update(
+            {
+                "subtype_survival_association_class": "data_unavailable",
+                "_data_note": f"no TCGA subtype subgroup-assignment shard registered for {indication}",
+            }
+        )
         return base
 
     # 1) per-stratum member patients from the assignment shard
     try:
         asg = load_assignments(subgroup_assignments_manifest, data_catalog_repo=data_catalog_repo)
     except Exception as e:  # noqa: BLE001 — shard genuinely unresolvable → honest data_unavailable
-        base.update({"subtype_survival_association_class": "data_unavailable",
-                     "_data_note": f"assignment shard unresolvable: {type(e).__name__}"})
+        base.update(
+            {
+                "subtype_survival_association_class": "data_unavailable",
+                "_data_note": f"assignment shard unresolvable: {type(e).__name__}",
+            }
+        )
         return base
     if asg is None or len(asg) == 0:
-        base.update({"subtype_survival_association_class": "data_unavailable",
-                     "_data_note": f"no assignments in {subgroup_assignments_manifest}"})
+        base.update(
+            {
+                "subtype_survival_association_class": "data_unavailable",
+                "_data_note": f"no assignments in {subgroup_assignments_manifest}",
+            }
+        )
         return base
 
     members = asg[asg["is_member"] == True]  # noqa: E712
     # patient barcode: prefer patient_id, fall back to sample_id (both 3-segment for TCGA shards)
     id_col = "patient_id" if members["patient_id"].notna().any() else "sample_id"
-    strata = {sid: {_eca._tcga_case(x) for x in grp[id_col].dropna()}
-              for sid, grp in members.groupby("stratum_id")}
+    strata = {sid: {_eca._tcga_case(x) for x in grp[id_col].dropna()} for sid, grp in members.groupby("stratum_id")}
 
     # 2) CDR OS (broken-env ImportError surfaces distinctly, not a data gap)
     try:
         cdr = _eca._load_cdr()
     except ImportError:
-        base.update({"subtype_survival_association_class": "data_unavailable",
-                     "_data_note": (_eca._CDR_LOAD_ERROR or "survival read dependency missing (openpyxl)")})
+        base.update(
+            {
+                "subtype_survival_association_class": "data_unavailable",
+                "_data_note": (_eca._CDR_LOAD_ERROR or "survival read dependency missing (openpyxl)"),
+            }
+        )
         return base
     if not cdr:
-        base.update({"subtype_survival_association_class": "data_unavailable",
-                     "_data_note": _eca._CDR_LOAD_ERROR or "TCGA-CDR survival table unavailable"})
+        base.update(
+            {
+                "subtype_survival_association_class": "data_unavailable",
+                "_data_note": _eca._CDR_LOAD_ERROR or "TCGA-CDR survival table unavailable",
+            }
+        )
         return base
 
     # 3) build per-stratum arms over patients-with-OS; keep only strata clearing the per-arm floor
     import numpy as np
     from methods.subgroup_common.panorama import partition_axes, disjoint_arms
 
-    arm_data = {}                 # sid -> (times, events, members_set)
+    arm_data = {}  # sid -> (times, events, members_set)
     per_stratum, dropped = [], []
     for sid, ids in sorted(strata.items()):
         members = {c for c in ids if c in cdr}
@@ -176,8 +201,14 @@ def read_subtype_survival_association(indication: str, subgroup_assignments_mani
             times = np.array([t for _o, t in pairs], float)
             events = np.array([o for o, _t in pairs], int)
             arm_data[sid] = (times, events, members)
-            per_stratum.append({"stratum": sid, "n": len(pairs), "n_events": int(events.sum()),
-                                "median_ostime_days": round(float(np.median(times)), 1)})
+            per_stratum.append(
+                {
+                    "stratum": sid,
+                    "n": len(pairs),
+                    "n_events": int(events.sum()),
+                    "median_ostime_days": round(float(np.median(times)), 1),
+                }
+            )
         elif pairs:
             dropped.append({"stratum": sid, "n": len(pairs), "reason": "below_per_arm_floor"})
 
@@ -199,21 +230,26 @@ def read_subtype_survival_association(indication: str, subgroup_assignments_mani
     for axis, sids in partition_axes(arm_data.keys()).items():
         kept, dropped_overlap = disjoint_arms(sids, member_sets)
         for d in dropped_overlap:
-            overlap_dropped.append({"stratum": d, "axis": axis,
-                                    "reason": "overlaps_disjoint_arm_in_axis"})
+            overlap_dropped.append({"stratum": d, "axis": axis, "reason": "overlaps_disjoint_arm_in_axis"})
         if len(kept) < 2:
             continue
         arms = [(arm_data[s][0], arm_data[s][1]) for s in kept]
         ax_events = int(sum(int(arm_data[s][1].sum()) for s in kept))
         ax_patients = int(sum(len(arm_data[s][2]) for s in kept))
         chi2, p, df = multivariate_logrank(arms)
-        per_axis.append({
-            "axis": axis, "strata": kept, "n_strata": len(kept),
-            "subtype_survival_association_class":
-                classify_subtype_survival_association(p, len(kept), ax_events),
-            "logrank_p": float(f"{p:.3g}"), "logrank_chi2": round(float(chi2), 3),
-            "logrank_df": df, "n_events": ax_events, "n_patients": ax_patients,
-        })
+        per_axis.append(
+            {
+                "axis": axis,
+                "strata": kept,
+                "n_strata": len(kept),
+                "subtype_survival_association_class": classify_subtype_survival_association(p, len(kept), ax_events),
+                "logrank_p": float(f"{p:.3g}"),
+                "logrank_chi2": round(float(chi2), 3),
+                "logrank_df": df,
+                "n_events": ax_events,
+                "n_patients": ax_patients,
+            }
+        )
 
     if overlap_dropped:
         base["dropped_overlapping_strata"] = overlap_dropped
@@ -221,29 +257,38 @@ def read_subtype_survival_association(indication: str, subgroup_assignments_mani
     base["n_axes_tested"] = len(per_axis)
 
     if not per_axis:
-        base.update({"subtype_survival_association_class": "insufficient_survival_data",
-                     "_data_note": (f"no orthogonal subtype axis has >= 2 disjoint strata clearing "
-                                    f"the per-arm floor of {MIN_PER_ARM}")})
+        base.update(
+            {
+                "subtype_survival_association_class": "insufficient_survival_data",
+                "_data_note": (
+                    f"no orthogonal subtype axis has >= 2 disjoint strata clearing the per-arm floor of {MIN_PER_ARM}"
+                ),
+            }
+        )
         return base
 
     # Headline = the most significant axis (min p). subtype_stratifies_survival iff ANY axis is
     # significant; driving_axis names which. The flat logrank_* fields carry that axis (back-compat)
     # — a VALID single-axis test, not the old cross-axis pooled artefact.
-    best = min(per_axis, key=lambda a: (a["logrank_p"] if a["logrank_p"] is not None else 2.0))
-    any_sig = any(a["subtype_survival_association_class"] == "subtype_stratifies_survival"
-                  for a in per_axis)
-    base.update({
-        "subtype_survival_association_class":
-            "subtype_stratifies_survival" if any_sig else "no_subtype_survival_association",
-        "driving_axis": best["axis"],
-        "logrank_p": best["logrank_p"],
-        "logrank_chi2": best["logrank_chi2"],
-        "logrank_df": best["logrank_df"],
-        "n_events": best["n_events"],
-        "n_patients": best["n_patients"],
-        "_data_note": (f"per-axis omnibus across {len(per_axis)} orthogonal subtype axes "
-                       f"({', '.join(a['axis'] for a in per_axis)}); headline = driving axis "
-                       f"'{best['axis']}' (min p). Each axis tested at alpha={SIGNIFICANCE_ALPHA} "
-                       f"over disjoint arms (multiple axes untested for multiplicity)."),
-    })
+    best = min(per_axis, key=lambda a: a["logrank_p"] if a["logrank_p"] is not None else 2.0)
+    any_sig = any(a["subtype_survival_association_class"] == "subtype_stratifies_survival" for a in per_axis)
+    base.update(
+        {
+            "subtype_survival_association_class": "subtype_stratifies_survival"
+            if any_sig
+            else "no_subtype_survival_association",
+            "driving_axis": best["axis"],
+            "logrank_p": best["logrank_p"],
+            "logrank_chi2": best["logrank_chi2"],
+            "logrank_df": best["logrank_df"],
+            "n_events": best["n_events"],
+            "n_patients": best["n_patients"],
+            "_data_note": (
+                f"per-axis omnibus across {len(per_axis)} orthogonal subtype axes "
+                f"({', '.join(a['axis'] for a in per_axis)}); headline = driving axis "
+                f"'{best['axis']}' (min p). Each axis tested at alpha={SIGNIFICANCE_ALPHA} "
+                f"over disjoint arms (multiple axes untested for multiplicity)."
+            ),
+        }
+    )
     return base

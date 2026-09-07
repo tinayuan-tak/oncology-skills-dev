@@ -5,6 +5,7 @@
 sc_tumor_expression_celltype contract: a deterministic (target, indication) -> summary dict with a
 primary `spatial_coloc_class` categorical and a data_unavailable-safe branch.
 """
+
 from __future__ import annotations
 
 import argparse

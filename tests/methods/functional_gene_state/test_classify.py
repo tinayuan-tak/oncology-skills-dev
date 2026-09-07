@@ -1,4 +1,5 @@
 """functional_gene_state pure two-hit classifier — the biology truth table. No S3 (dict fixtures)."""
+
 from __future__ import annotations
 
 import sys
@@ -11,7 +12,10 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from methods.functional_gene_state.classify import (  # noqa: E402
-    SampleEvidence, classify_functional_state, summarize_states, FUNCTIONAL_STATES,
+    SampleEvidence,
+    classify_functional_state,
+    summarize_states,
+    FUNCTIONAL_STATES,
 )
 
 
@@ -71,10 +75,10 @@ def test_all_states_are_in_vocabulary():
 
 # ── summary rollup ───────────────────────────────────────────────────────────
 def test_summarize_biallelic_fraction_excludes_uncertain_from_denominator():
-    states = (["biallelic-genetic"] * 2 + ["monoallelic"] * 3 + ["wt"] * 4 + ["uncertain"] * 1)
+    states = ["biallelic-genetic"] * 2 + ["monoallelic"] * 3 + ["wt"] * 4 + ["uncertain"] * 1
     summ = summarize_states(states)
     assert summ["n_samples"] == 10
-    assert summ["n_determinable"] == 9           # 10 − 1 uncertain
+    assert summ["n_determinable"] == 9  # 10 − 1 uncertain
     assert summ["state_counts"]["biallelic-genetic"] == 2
     assert summ["fraction_biallelic"] == pytest.approx(2 / 9)
     # any-alteration = NOT-wt over ALL samples: 10 − 4 wt = 6 (the lone `uncertain` carries a hit)
@@ -121,9 +125,11 @@ def test_methylation_state_upgrade_logic():
         # ACH-A: has mutation + CN loss → biallelic-genetic (methylation is redundant)
         # ACH-B: wt genetic, but methylated → epigenetic
         # ACH-C: monoallelic (loss, no mutation) + methylated → biallelic+epigenetic
-        return {"ACH-A": 0.5,   # cn loss (between HOMDEL_MAX and LOSS_MAX)
-                "ACH-B": 0.9,   # neutral
-                "ACH-C": 0.5}   # cn loss
+        return {
+            "ACH-A": 0.5,  # cn loss (between HOMDEL_MAX and LOSS_MAX)
+            "ACH-B": 0.9,  # neutral
+            "ACH-C": 0.5,
+        }  # cn loss
 
     def _meth(_t):
         return {"ACH-A": True, "ACH-B": True, "ACH-C": True}
@@ -144,8 +150,8 @@ def test_methylation_state_upgrade_logic():
         fgs_read._read_depmap_cn = orig_cn
         fgs_read._read_model_methylation = orig_meth
 
-    assert result["ACH-A"]["state"] == "biallelic-genetic"    # genetic already biallelic; meth redundant
-    assert result["ACH-B"]["state"] == "epigenetic"            # wt genetic + methylated → epigenetic
+    assert result["ACH-A"]["state"] == "biallelic-genetic"  # genetic already biallelic; meth redundant
+    assert result["ACH-B"]["state"] == "epigenetic"  # wt genetic + methylated → epigenetic
     assert result["ACH-C"]["state"] == "biallelic+epigenetic"  # monoallelic + methylated → biallelic
     assert result["ACH-B"]["is_methylated"] is True
     assert result["ACH-A"]["is_methylated"] is True
@@ -164,17 +170,18 @@ def test_patient_methylation_upgrade_logic():
 
     def _mc3(_t):
         # No mutations — all patients classified by CN only
-        return pd.DataFrame(columns=["Hugo_Symbol", "Variant_Classification",
-                                     "Tumor_Sample_Barcode", "Chromosome", "Start_Position"])
+        return pd.DataFrame(
+            columns=["Hugo_Symbol", "Variant_Classification", "Tumor_Sample_Barcode", "Chromosome", "Start_Position"]
+        )
 
     def _gistic(_t):
         # P-A: neutral (GISTIC 0), P-B: loss (GISTIC -1), P-C: homdel (GISTIC -2), P-D: neutral
         # Keys are aliquot barcodes (truncated to patient in the arm)
         return {
-            "TCGA-01-AAAA-01": 0,   # P-A: neutral
+            "TCGA-01-AAAA-01": 0,  # P-A: neutral
             "TCGA-02-BBBB-01": -1,  # P-B: single-copy loss
             "TCGA-03-CCCC-01": -2,  # P-C: homozygous deletion
-            "TCGA-04-DDDD-01": 0,   # P-D: neutral
+            "TCGA-04-DDDD-01": 0,  # P-D: neutral
         }
 
     def _sample_ct():
@@ -191,9 +198,9 @@ def test_patient_methylation_upgrade_logic():
 
     def _meth(_t, _ind):
         return {
-            "TCGA-01-AAAA": True,   # P-A: methylated
-            "TCGA-02-BBBB": True,   # P-B: methylated
-            "TCGA-03-CCCC": True,   # P-C: methylated (but genetic already biallelic)
+            "TCGA-01-AAAA": True,  # P-A: methylated
+            "TCGA-02-BBBB": True,  # P-B: methylated
+            "TCGA-03-CCCC": True,  # P-C: methylated (but genetic already biallelic)
             # P-D deliberately absent → is_methylated = None → no upgrade
         }
 
@@ -229,10 +236,10 @@ def test_patient_methylation_upgrade_logic():
         fgs_read._absolute_segments_cached.cache_clear()
 
     counts = result["state_counts"]
-    assert counts["epigenetic"] == 1,          "P-A: wt + meth → epigenetic"
+    assert counts["epigenetic"] == 1, "P-A: wt + meth → epigenetic"
     assert counts["biallelic+epigenetic"] == 1, "P-B: monoallelic + meth → biallelic+epigenetic"
-    assert counts["biallelic-genetic"] == 1,    "P-C: homdel + meth → biallelic-genetic (genetic wins)"
-    assert counts["wt"] == 1,                   "P-D: neutral + no meth → wt"
+    assert counts["biallelic-genetic"] == 1, "P-C: homdel + meth → biallelic-genetic (genetic wins)"
+    assert counts["wt"] == 1, "P-D: neutral + no meth → wt"
     assert result["methylation_source"] == "pancanatlas_hm450_promoter_v1"
 
 
@@ -242,8 +249,9 @@ def test_patient_methylation_graceful_degradation():
     from methods.functional_gene_state import read as fgs_read
 
     def _mc3(_t):
-        return pd.DataFrame(columns=["Hugo_Symbol", "Variant_Classification",
-                                     "Tumor_Sample_Barcode", "Chromosome", "Start_Position"])
+        return pd.DataFrame(
+            columns=["Hugo_Symbol", "Variant_Classification", "Tumor_Sample_Barcode", "Chromosome", "Start_Position"]
+        )
 
     def _gistic(_t):
         return {"TCGA-01-AAAA-01": 0, "TCGA-02-BBBB-01": -1}
@@ -289,7 +297,7 @@ def test_patient_methylation_graceful_degradation():
     # No methylation data → pure genetic states, no epigenetic upgrades
     assert counts.get("epigenetic", 0) == 0
     assert counts.get("biallelic+epigenetic", 0) == 0
-    assert counts["wt"] == 1      # P-A: neutral, no mutation → wt
+    assert counts["wt"] == 1  # P-A: neutral, no mutation → wt
     assert counts["monoallelic"] == 1  # P-B: single-copy loss, no mutation → monoallelic
     assert result["methylation_source"] is None
 
@@ -308,8 +316,7 @@ _MODEL_CSV = (
     "ACH-000002,DMS 53,DMS53,DMS53_LUNG,Lung\n"
 )
 _RRBS_TSV = (
-    "locus_id\tCpG_sites_hg19\tavg_coverage\tNCIH2126_LUNG\tDMS53_LUNG\n"
-    "TP53_17_7571720_7572720\t12\t30\t0.85\t0.05\n"
+    "locus_id\tCpG_sites_hg19\tavg_coverage\tNCIH2126_LUNG\tDMS53_LUNG\nTP53_17_7571720_7572720\t12\t30\t0.85\t0.05\n"
 )
 
 

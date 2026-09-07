@@ -7,6 +7,7 @@ for indication Y to preclinically validate any target"), so only `indication` fi
 data_unavailable when the indication is not in the HCMI crosswalk (no mapped models) or the product is
 absent. Mirrors pancan_mutation_ccf.read's S3-resolve pattern (aws s3 cp -> pandas).
 """
+
 from __future__ import annotations
 
 import io
@@ -14,11 +15,14 @@ import subprocess
 from functools import lru_cache
 from typing import Optional
 
-_DERIVED_S3 = ("s3://onc-compbio/data-catalog/derived/"
-               "hcmi-model-availability-per-indication-v1/hcmi_model_availability_per_indication.parquet")
+_DERIVED_S3 = (
+    "s3://onc-compbio/data-catalog/derived/"
+    "hcmi-model-availability-per-indication-v1/hcmi_model_availability_per_indication.parquet"
+)
 
-_GENOTYPE_DERIVED_S3 = ("s3://onc-compbio/data-catalog/derived/"
-                        "hcmi-genotype-matched-model-per-gene-v1/hcmi_genotype_matched_model.parquet")
+_GENOTYPE_DERIVED_S3 = (
+    "s3://onc-compbio/data-catalog/derived/hcmi-genotype-matched-model-per-gene-v1/hcmi_genotype_matched_model.parquet"
+)
 
 _UNAVAILABLE = {
     "model_availability_class": "data_unavailable",
@@ -52,11 +56,13 @@ _GENOTYPE_UNAVAILABLE = dict(_GENOTYPE_NONE, genotype_matched_class="data_unavai
 # only UNAMBIGUOUS single-composite expansions; a genuinely composite/leaf code already matching a product
 # key (NSCLC, GC, COADREAD, …) passes through unchanged (the map is a no-op for it).
 _INDICATION_ALIAS = {
-    "LUAD": "NSCLC", "LUSC": "NSCLC",   # non-small-cell lung: pooled NSCLC (dge_deseq2/gdc_somatic_hotspot)
-    "STAD": "GC",                        # stomach adenocarcinoma → gastric (product tags gastric 'GC')
-    "ESCC": "ESCA",                      # esophageal (squamous) → esophageal-carcinoma product key
-    "COAD": "COADREAD", "READ": "COADREAD",  # colon / rectum → pooled colorectal
-    "PDAC": "PAAD",                      # pancreatic ductal adenocarcinoma
+    "LUAD": "NSCLC",
+    "LUSC": "NSCLC",  # non-small-cell lung: pooled NSCLC (dge_deseq2/gdc_somatic_hotspot)
+    "STAD": "GC",  # stomach adenocarcinoma → gastric (product tags gastric 'GC')
+    "ESCC": "ESCA",  # esophageal (squamous) → esophageal-carcinoma product key
+    "COAD": "COADREAD",
+    "READ": "COADREAD",  # colon / rectum → pooled colorectal
+    "PDAC": "PAAD",  # pancreatic ductal adenocarcinoma
 }
 
 
@@ -76,19 +82,21 @@ from methods.target_id_sidecar import ensure_aws_profile
 def _load_parquet(s3_uri: str, product_path: "Optional[str]" = None):
     """Load a derived parquet (local product_path override for tests, else `aws s3 cp` from s3_uri)."""
     import pandas as pd
+
     if product_path:
         from pathlib import Path
+
         return pd.read_parquet(product_path) if Path(product_path).exists() else None
     ensure_aws_profile()
     try:
-        raw = subprocess.run(["aws", "s3", "cp", s3_uri, "-"],
-                             capture_output=True, timeout=120).stdout
+        raw = subprocess.run(["aws", "s3", "cp", s3_uri, "-"], capture_output=True, timeout=120).stdout
         return pd.read_parquet(io.BytesIO(raw)) if raw else None
     except Exception as e:  # noqa: BLE001
         # descriptive-inert product. A genuine absence surfaces above as empty stdout (→ None); the
         # except only catches broken-env (missing pandas) / corrupt parquet / subprocess timeout —
         # those must surface, not be masked as data_unavailable. Re-raise.
         from methods.target_id_sidecar import is_definitively_absent
+
         if not (is_definitively_absent(e) or isinstance(e, FileNotFoundError)):
             raise
         return None
@@ -99,8 +107,9 @@ def _load_product(product_path: "Optional[str]" = None):
     return _load_parquet(_DERIVED_S3, product_path)
 
 
-def read_model_availability(indication: "Optional[str]" = None, product_path: "Optional[str]" = None,
-                            *, target: "Optional[str]" = None) -> dict:
+def read_model_availability(
+    indication: "Optional[str]" = None, product_path: "Optional[str]" = None, *, target: "Optional[str]" = None
+) -> dict:
     """Per-indication HCMI patient-derived model-availability summary. VERDICT-INERT translational signal.
 
     `target` is accepted (and IGNORED) to satisfy the compose-dashboard generic-dispatch contract
@@ -113,9 +122,11 @@ def read_model_availability(indication: "Optional[str]" = None, product_path: "O
     hit = df[df["indication"] == norm]
     if hit.empty:
         _via = f" (normalized {indication}→{norm})" if norm != indication else ""
-        return dict(_UNAVAILABLE,
-                    _missing_reason=f"{indication} not in the HCMI (primary_site, disease_type) crosswalk "
-                                    f"(no mapped patient-derived models){_via}")
+        return dict(
+            _UNAVAILABLE,
+            _missing_reason=f"{indication} not in the HCMI (primary_site, disease_type) crosswalk "
+            f"(no mapped patient-derived models){_via}",
+        )
     row = hit.iloc[0]
     return {
         "model_availability_class": row["model_availability_class"],
@@ -125,8 +136,9 @@ def read_model_availability(indication: "Optional[str]" = None, product_path: "O
     }
 
 
-def read_genotype_matched_model(target: "Optional[str]" = None, indication: "Optional[str]" = None,
-                                product_path: "Optional[str]" = None) -> dict:
+def read_genotype_matched_model(
+    target: "Optional[str]" = None, indication: "Optional[str]" = None, product_path: "Optional[str]" = None
+) -> dict:
     """Genotype-matched-model summary for (target gene, indication): do HCMI patient-derived models
     carry a COARSE (any functional coding) alteration in the target? VERDICT-INERT translational signal.
 
@@ -137,8 +149,9 @@ def read_genotype_matched_model(target: "Optional[str]" = None, indication: "Opt
     contract."""
     df = _load_parquet(_GENOTYPE_DERIVED_S3, product_path)
     if df is None or df.empty:
-        return dict(_GENOTYPE_UNAVAILABLE,
-                    _missing_reason="no HCMI genotype-matched-model product materialized/reachable")
+        return dict(
+            _GENOTYPE_UNAVAILABLE, _missing_reason="no HCMI genotype-matched-model product materialized/reachable"
+        )
     if not target:
         return dict(_GENOTYPE_UNAVAILABLE, _missing_reason="no target gene supplied")
     ind = normalize_indication(indication) or "ALL"
@@ -152,11 +165,14 @@ def read_genotype_matched_model(target: "Optional[str]" = None, indication: "Opt
     if hit.empty:
         if ind not in covered:
             _via = f" (normalized {indication}→{ind})" if ind != (indication or "ALL") else ""
-            return dict(_GENOTYPE_UNAVAILABLE,
-                        _missing_reason=f"{indication} not in the HCMI indication crosswalk"
-                                        f" — genotype-matched coverage unavailable{_via}")
-        return dict(_GENOTYPE_NONE,
-                    _missing_reason=f"no HCMI model with a functional alteration in {target} mapped to {ind}")
+            return dict(
+                _GENOTYPE_UNAVAILABLE,
+                _missing_reason=f"{indication} not in the HCMI indication crosswalk"
+                f" — genotype-matched coverage unavailable{_via}",
+            )
+        return dict(
+            _GENOTYPE_NONE, _missing_reason=f"no HCMI model with a functional alteration in {target} mapped to {ind}"
+        )
     row = hit.iloc[0]
     return {
         "genotype_matched_class": row["genotype_matched_class"],
@@ -164,7 +180,8 @@ def read_genotype_matched_model(target: "Optional[str]" = None, indication: "Opt
         # distinct models carrying a cohort-recurrent (>=2 models) HGVSp_Short in the gene; 0 if the
         # column is absent (pre-broaden product) so an older parquet still reads gracefully.
         "n_models_with_recurrent_hotspot": int(row["n_models_with_recurrent_hotspot"])
-        if "n_models_with_recurrent_hotspot" in row else 0,
+        if "n_models_with_recurrent_hotspot" in row
+        else 0,
         "n_models_in_indication": int(row["n_models_in_indication"]),
         "variant_classes_present": row["variant_classes_present"],
         "hgvsp_examples": row["hgvsp_examples"],

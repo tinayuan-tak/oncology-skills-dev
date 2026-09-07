@@ -47,6 +47,7 @@ Usage:
     python -m methods.structure_features_static.cli \\
         --out /tmp/structure_features_v1.parquet
 """
+
 from __future__ import annotations
 
 import os
@@ -62,8 +63,7 @@ HOTSPOT_S3_PREFIX = "data-catalog/derived/"  # gdc_somatic_hotspot output
 
 
 @click.command()
-@click.option("--out", required=True, type=click.Path(path_type=Path),
-              help="Output parquet path.")
+@click.option("--out", required=True, type=click.Path(path_type=Path), help="Output parquet path.")
 def main(out: Path):
     """Extract PDB + AlphaFold static structural features per UniProt-AC.
 
@@ -96,15 +96,25 @@ def main(out: Path):
         "refresh.",
     ]
 
-    df = pd.DataFrame(columns=[
-        "uniprot_ac", "gene_symbol", "pdb_ids_available",
-        "pdb_best_resolution_angstrom", "pdb_best_method",
-        "alphafold_prediction_id", "alphafold_model_version",
-        "alphafold_plddt_mean", "alphafold_plddt_min",
-        "alphafold_plddt_min_domain", "n_domains_low_plddt",
-        "mutation_hotspot_in_druggable_pocket",
-        "hotspot_pocket_adjacency_call", "disordered_fraction", "method_version",
-    ])
+    df = pd.DataFrame(
+        columns=[
+            "uniprot_ac",
+            "gene_symbol",
+            "pdb_ids_available",
+            "pdb_best_resolution_angstrom",
+            "pdb_best_method",
+            "alphafold_prediction_id",
+            "alphafold_model_version",
+            "alphafold_plddt_mean",
+            "alphafold_plddt_min",
+            "alphafold_plddt_min_domain",
+            "n_domains_low_plddt",
+            "mutation_hotspot_in_druggable_pocket",
+            "hotspot_pocket_adjacency_call",
+            "disordered_fraction",
+            "method_version",
+        ]
+    )
 
     out.parent.mkdir(parents=True, exist_ok=True)
     df.to_parquet(out, index=False)

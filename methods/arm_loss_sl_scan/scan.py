@@ -40,6 +40,7 @@ since the true SL anchor may be any co-lost gene). Both readings are recomputabl
 components; only the composite's direction is a choice. Callers who prefer Paradigm B should rank by
 `bystander_density` (or arm_loss_freq * selectivity * bystander_density) instead.
 """
+
 from __future__ import annotations
 
 import math
@@ -49,16 +50,30 @@ import pandas as pd
 
 METHOD_VERSION = "scan-0.2.0"
 
-_FOCALITY_CAP = 5.0   # cap focality_ratio so a rare-but-deep partner homdel cannot dominate ranking
+_FOCALITY_CAP = 5.0  # cap focality_ratio so a rare-but-deep partner homdel cannot dominate ranking
 
 # Output columns (stable; the eval-ledger row_from_scan reader keys on these).
 SCAN_COLUMNS = [
-    "target", "sl_partner", "partner_arm", "indication",
-    "arm_loss_freq", "arm_pancan_baseline", "selectivity", "n_samples", "n_arm_lost",
-    "binom_p", "q_value",
-    "partner_twohit_loss_freq", "focality_ratio", "bystander_density",
-    "discovery_value", "coloss_concordance",
-    "evidence_tier", "has_experimental", "rank", "method_version",
+    "target",
+    "sl_partner",
+    "partner_arm",
+    "indication",
+    "arm_loss_freq",
+    "arm_pancan_baseline",
+    "selectivity",
+    "n_samples",
+    "n_arm_lost",
+    "binom_p",
+    "q_value",
+    "partner_twohit_loss_freq",
+    "focality_ratio",
+    "bystander_density",
+    "discovery_value",
+    "coloss_concordance",
+    "evidence_tier",
+    "has_experimental",
+    "rank",
+    "method_version",
 ]
 
 
@@ -69,9 +84,11 @@ def _binom_greater_p(k: int, n: int, p0: float) -> float:
     p0 = min(max(p0, 1e-9), 1 - 1e-9)
     try:
         from scipy.stats import binomtest
+
         return float(binomtest(k, n, p0, alternative="greater").pvalue)
     except ImportError:  # pragma: no cover - legacy scipy
         from scipy.stats import binom_test
+
         return float(binom_test(k, n, p0, alternative="greater"))
 
 
@@ -81,6 +98,7 @@ def _bh_qvalues(pvals: list) -> list:
         return []
     try:
         from statsmodels.stats.multitest import multipletests
+
         return list(multipletests(pvals, method="fdr_bh")[1])
     except ImportError:  # pragma: no cover
         m = len(pvals)
@@ -94,8 +112,9 @@ def _bh_qvalues(pvals: list) -> list:
         return q
 
 
-def _discovery_value(loss_freq: float, selectivity: float,
-                     focality: Optional[float], bystander: Optional[float]) -> float:
+def _discovery_value(
+    loss_freq: float, selectivity: float, focality: Optional[float], bystander: Optional[float]
+) -> float:
     """Composite ranking score: arm_loss_freq * selectivity * focality_component / breadth_penalty.
 
     focality_component: min(focality_ratio, cap) when the partner has gene-level co-loss data (the
@@ -164,18 +183,26 @@ def sl_arm_scan(
             base = float(baseline) or 1e-9
             selectivity = round(loss_freq / base, 3)
             focality = round(float(tw) / loss_freq, 3) if (tw is not None and loss_freq > 0) else None
-            candidates.append({
-                "target": target, "sl_partner": partner, "partner_arm": arm, "indication": ind,
-                "arm_loss_freq": round(loss_freq, 4), "arm_pancan_baseline": round(float(baseline), 4),
-                "selectivity": selectivity,
-                "n_samples": n, "n_arm_lost": k, "binom_p": p,
-                "partner_twohit_loss_freq": tw,
-                "focality_ratio": focality,
-                "bystander_density": (round(float(bys), 1) if bys is not None else None),
-                "discovery_value": _discovery_value(loss_freq, selectivity, focality, bys),
-                "evidence_tier": pair.get("evidence_tier"),
-                "has_experimental": bool(pair.get("has_experimental", False)),
-            })
+            candidates.append(
+                {
+                    "target": target,
+                    "sl_partner": partner,
+                    "partner_arm": arm,
+                    "indication": ind,
+                    "arm_loss_freq": round(loss_freq, 4),
+                    "arm_pancan_baseline": round(float(baseline), 4),
+                    "selectivity": selectivity,
+                    "n_samples": n,
+                    "n_arm_lost": k,
+                    "binom_p": p,
+                    "partner_twohit_loss_freq": tw,
+                    "focality_ratio": focality,
+                    "bystander_density": (round(float(bys), 1) if bys is not None else None),
+                    "discovery_value": _discovery_value(loss_freq, selectivity, focality, bys),
+                    "evidence_tier": pair.get("evidence_tier"),
+                    "has_experimental": bool(pair.get("has_experimental", False)),
+                }
+            )
 
     if not candidates:
         return pd.DataFrame(columns=SCAN_COLUMNS)
@@ -217,11 +244,20 @@ def sl_arm_scan(
 # --- Paradigm-B BYSTANDER MAP --------------------------------------------------------------------
 
 BYSTANDER_MAP_COLUMNS = [
-    "chromosome_arm", "indication",
-    "arm_loss_freq", "arm_pancan_baseline", "selectivity", "bystander_density",
-    "n_samples", "q_value",
-    "n_sl_partners", "n_targets_nominated", "pb_discovery_value",
-    "sl_partners", "top_targets", "rank",
+    "chromosome_arm",
+    "indication",
+    "arm_loss_freq",
+    "arm_pancan_baseline",
+    "selectivity",
+    "bystander_density",
+    "n_samples",
+    "q_value",
+    "n_sl_partners",
+    "n_targets_nominated",
+    "pb_discovery_value",
+    "sl_partners",
+    "top_targets",
+    "rank",
 ]
 
 _MAP_TOP_TARGETS = 25
@@ -260,20 +296,23 @@ def bystander_map(hits: pd.DataFrame, *, top_targets: int = _MAP_TOP_TARGETS) ->
         pb = round(loss_freq * selectivity * bys, 4) if bys is not None else round(loss_freq * selectivity, 4)
         partners = sorted(g["sl_partner"].dropna().unique().tolist())
         targets = sorted(g["target"].dropna().unique().tolist())
-        rows.append({
-            "chromosome_arm": arm, "indication": ind,
-            "arm_loss_freq": round(loss_freq, 4),
-            "arm_pancan_baseline": round(float(first["arm_pancan_baseline"]), 4),
-            "selectivity": round(selectivity, 3),
-            "bystander_density": (round(bys, 1) if bys is not None else None),
-            "n_samples": int(first["n_samples"]),
-            "q_value": float(first["q_value"]),
-            "n_sl_partners": len(partners),
-            "n_targets_nominated": len(targets),
-            "pb_discovery_value": pb,
-            "sl_partners": partners,
-            "top_targets": targets[:top_targets],
-        })
+        rows.append(
+            {
+                "chromosome_arm": arm,
+                "indication": ind,
+                "arm_loss_freq": round(loss_freq, 4),
+                "arm_pancan_baseline": round(float(first["arm_pancan_baseline"]), 4),
+                "selectivity": round(selectivity, 3),
+                "bystander_density": (round(bys, 1) if bys is not None else None),
+                "n_samples": int(first["n_samples"]),
+                "q_value": float(first["q_value"]),
+                "n_sl_partners": len(partners),
+                "n_targets_nominated": len(targets),
+                "pb_discovery_value": pb,
+                "sl_partners": partners,
+                "top_targets": targets[:top_targets],
+            }
+        )
     out = pd.DataFrame(rows)
     out = out.sort_values(["pb_discovery_value", "q_value"], ascending=[False, True]).reset_index(drop=True)
     out["rank"] = out.index + 1

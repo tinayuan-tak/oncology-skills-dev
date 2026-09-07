@@ -6,6 +6,7 @@ per-domain min + low-confidence count, PDB best-resolution selection, and the v1
 heuristic in all 4 enum states (no_structure / no_hotspots_annotated / adjacent / distant) — including the
 conservative guarantee that a hotspot in a disordered region is NEVER called 'adjacent'.
 """
+
 from __future__ import annotations
 
 import sys
@@ -16,8 +17,13 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from methods.structure_features_static.compute import (  # noqa: E402
-    parse_hgvsp_residue, aggregate_plddt, per_domain_plddt, pdb_coverage,
-    pocket_adjacency, build_row, parse_cif_plddt,
+    parse_hgvsp_residue,
+    aggregate_plddt,
+    per_domain_plddt,
+    pdb_coverage,
+    pocket_adjacency,
+    build_row,
+    parse_cif_plddt,
 )
 
 
@@ -41,7 +47,7 @@ ATOM CA 3 40.0 3.0
 
 def test_parse_cif_plddt_ca_only_in_order():
     plddt = parse_cif_plddt(_MINI_CIF)
-    assert plddt == [85.0, 95.5, 40.0]   # 3 CA rows, in file order; the CB row ignored
+    assert plddt == [85.0, 95.5, 40.0]  # 3 CA rows, in file order; the CB row ignored
 
 
 def test_parse_cif_plddt_empty_and_malformed():
@@ -56,7 +62,7 @@ def test_parse_cif_plddt_feeds_kernels_end_to_end():
     plddt = parse_cif_plddt(_MINI_CIF)
     agg = aggregate_plddt(plddt)
     assert agg["alphafold_plddt_mean"] == round((85.0 + 95.5 + 40.0) / 3, 3)
-    assert agg["disordered_fraction"] == round(1 / 3, 4)   # residue 3 (40.0) < 50
+    assert agg["disordered_fraction"] == round(1 / 3, 4)  # residue 3 (40.0) < 50
     # residue 2 (95.5) is high-confidence → a hotspot there is 'adjacent'
     s = pocket_adjacency([2], plddt=plddt, domains=[], has_structure=True)
     assert s["hotspot_pocket_adjacency_call"] == "adjacent"
@@ -67,7 +73,7 @@ def test_parse_hgvsp_short_and_prefixed_and_threeletter():
     assert parse_hgvsp_residue("G12C") == 12
     assert parse_hgvsp_residue("p.G12C") == 12
     assert parse_hgvsp_residue("p.R175H") == 175
-    assert parse_hgvsp_residue("p.Arg175His") == 175   # 3-letter ref aa
+    assert parse_hgvsp_residue("p.Arg175His") == 175  # 3-letter ref aa
     assert parse_hgvsp_residue("V600E") == 600
 
 
@@ -82,7 +88,7 @@ def test_aggregate_plddt_mean_min_disordered():
     s = aggregate_plddt([95, 92, 88, 40, 30])
     assert s["alphafold_plddt_mean"] == 69.0
     assert s["alphafold_plddt_min"] == 30.0
-    assert s["disordered_fraction"] == 0.4     # 2/5 below 50
+    assert s["disordered_fraction"] == 0.4  # 2/5 below 50
 
 
 def test_aggregate_plddt_empty_is_none():
@@ -96,8 +102,8 @@ def test_per_domain_min_and_low_count():
     plddt = [95, 96, 94, 80, 80, 40, 45, 42, 80, 80]
     domains = [{"start": 1, "end": 3}, {"start": 6, "end": 8}]
     s = per_domain_plddt(plddt, domains)
-    assert s["alphafold_plddt_min_domain"] == 40.0     # lowest domain-min (domain B)
-    assert s["n_domains_low_plddt"] == 1               # only domain B < 70
+    assert s["alphafold_plddt_min_domain"] == 40.0  # lowest domain-min (domain B)
+    assert s["n_domains_low_plddt"] == 1  # only domain B < 70
 
 
 def test_per_domain_clamps_out_of_bounds_and_handles_no_domains():
@@ -116,8 +122,8 @@ def test_pdb_best_resolution_selected():
         {"pdb_id": "3ghi", "resolution_angstrom": 3.1, "method": "ELECTRON MICROSCOPY"},
     ]
     s = pdb_coverage(entries)
-    assert s["pdb_ids_available"] == ["1ABC", "2DEF", "3GHI"]   # deduped, upper, sorted
-    assert s["pdb_best_resolution_angstrom"] == 1.8            # finest resolution
+    assert s["pdb_ids_available"] == ["1ABC", "2DEF", "3GHI"]  # deduped, upper, sorted
+    assert s["pdb_best_resolution_angstrom"] == 1.8  # finest resolution
     assert s["pdb_best_method"] == "X-RAY DIFFRACTION"
 
 
@@ -154,7 +160,7 @@ def test_pocket_adjacent_when_hotspot_in_high_confidence_region():
 
 def test_pocket_distant_when_hotspot_in_disordered_region():
     """CONSERVATIVE GUARANTEE: a hotspot in a low-pLDDT/disordered region is NEVER 'adjacent'."""
-    plddt = [30] * 20   # all disordered
+    plddt = [30] * 20  # all disordered
     s = pocket_adjacency([12], plddt=plddt, domains=[], has_structure=True)
     assert s["hotspot_pocket_adjacency_call"] == "distant"
     assert s["mutation_hotspot_in_druggable_pocket"] is False
@@ -185,25 +191,36 @@ def test_pocket_adjacent_needs_only_one_structured_hotspot_in_ordered_protein():
 def test_build_row_full_schema_and_kras_like():
     plddt = [95] * 200
     row = build_row(
-        "P01116", "KRAS",
+        "P01116",
+        "KRAS",
         plddt=plddt,
         domains=[{"start": 1, "end": 166}],
         pdb_entries=[{"pdb_id": "6oim", "resolution_angstrom": 1.65, "method": "X-RAY DIFFRACTION"}],
-        hotspot_hgvsp=["G12C", "G12D", "unknown"],   # 'unknown' dropped
+        hotspot_hgvsp=["G12C", "G12D", "unknown"],  # 'unknown' dropped
         alphafold_prediction_id="AF-P01116-F1",
         alphafold_model_version="4",
         has_structure=True,
     )
     # all 15 documented columns present
     expected_cols = {
-        "uniprot_ac", "gene_symbol", "pdb_ids_available", "pdb_best_resolution_angstrom",
-        "pdb_best_method", "alphafold_prediction_id", "alphafold_model_version",
-        "alphafold_plddt_mean", "alphafold_plddt_min", "alphafold_plddt_min_domain",
-        "n_domains_low_plddt", "mutation_hotspot_in_druggable_pocket",
-        "hotspot_pocket_adjacency_call", "disordered_fraction", "method_version",
+        "uniprot_ac",
+        "gene_symbol",
+        "pdb_ids_available",
+        "pdb_best_resolution_angstrom",
+        "pdb_best_method",
+        "alphafold_prediction_id",
+        "alphafold_model_version",
+        "alphafold_plddt_mean",
+        "alphafold_plddt_min",
+        "alphafold_plddt_min_domain",
+        "n_domains_low_plddt",
+        "mutation_hotspot_in_druggable_pocket",
+        "hotspot_pocket_adjacency_call",
+        "disordered_fraction",
+        "method_version",
     }
     assert set(row) == expected_cols
-    assert row["hotspot_pocket_adjacency_call"] == "adjacent"    # G12 in a high-pLDDT structured domain
+    assert row["hotspot_pocket_adjacency_call"] == "adjacent"  # G12 in a high-pLDDT structured domain
     assert row["mutation_hotspot_in_druggable_pocket"] is True
     assert row["pdb_best_resolution_angstrom"] == 1.65
     assert row["alphafold_plddt_mean"] == 95.0
@@ -211,8 +228,12 @@ def test_build_row_full_schema_and_kras_like():
 
 def test_build_row_disordered_target_is_distant():
     row = build_row(
-        "Q00000", "DISPROT",
-        plddt=[20] * 100, domains=[], pdb_entries=[], hotspot_hgvsp=["S50P"],
+        "Q00000",
+        "DISPROT",
+        plddt=[20] * 100,
+        domains=[],
+        pdb_entries=[],
+        hotspot_hgvsp=["S50P"],
         has_structure=True,
     )
     assert row["hotspot_pocket_adjacency_call"] == "distant"
@@ -227,7 +248,8 @@ def test_coerce_id_list_handles_ndarray_list_str_none():
     This bug shipped in read.py (never hit until the derived product existed) — B0 publish caught it."""
     import numpy as np
     from methods.structure_features_static.read import _coerce_id_list
-    assert _coerce_id_list(np.array(["1ABC", "2DEF"])) == ["1ABC", "2DEF"]   # the failing case
+
+    assert _coerce_id_list(np.array(["1ABC", "2DEF"])) == ["1ABC", "2DEF"]  # the failing case
     assert _coerce_id_list(["1ABC", "2DEF"]) == ["1ABC", "2DEF"]
     assert _coerce_id_list(("1ABC",)) == ["1ABC"]
     assert _coerce_id_list("1ABC") == ["1ABC"]

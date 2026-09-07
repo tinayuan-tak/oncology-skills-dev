@@ -4,6 +4,7 @@ Interactive twin of emit_concordance_scatter: CRISPR Chronos (x) vs RNAi DEMETER
 assayed in BOTH, same quadrant thresholds (-0.5 CRISPR / -0.25 RNAi). Built from the SAME per_line
 concordance list the SVG + plot_data.parquet use — no drift. No S3 (synthetic per_line). Plotly optional.
 """
+
 from __future__ import annotations
 
 import base64
@@ -36,8 +37,8 @@ cli = _load()
 def _decode(v):
     if isinstance(v, dict) and "bdata" in v:
         import numpy as np
-        return np.frombuffer(base64.b64decode(v["bdata"]),
-                             dtype={"f8": "<f8", "f4": "<f4"}[v["dtype"]]).tolist()
+
+        return np.frombuffer(base64.b64decode(v["bdata"]), dtype={"f8": "<f8", "f4": "<f4"}[v["dtype"]]).tolist()
     return list(v)
 
 

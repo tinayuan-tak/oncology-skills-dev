@@ -4,6 +4,7 @@ S3-free: writes a small fixture parquet and passes it via the `parquet_path`
 override. The real predicate-pushdown read + dict-shaping logic runs; the live
 S3 read is exercised by the PR-description smoke, not here.
 """
+
 from __future__ import annotations
 
 import sys
@@ -23,6 +24,7 @@ def _load():
     # import resolves. Insert the repo root and import via the package path.
     sys.path.insert(0, str(REPO))
     import methods.depmap_coessentiality.read as read_mod  # noqa: WPS433
+
     return read_mod
 
 
@@ -43,13 +45,15 @@ def fixture_parquet(tmp_path) -> str:
     ]
     df = pd.DataFrame(rows, columns=["gene_symbol", "partner_symbol", "pearson_r", "abs_rank", "n_cell_lines"])
     df = df.sort_values("gene_symbol").reset_index(drop=True)
-    schema = pa.schema([
-        pa.field("gene_symbol", pa.string()),
-        pa.field("partner_symbol", pa.string()),
-        pa.field("pearson_r", pa.float32()),
-        pa.field("abs_rank", pa.int32()),
-        pa.field("n_cell_lines", pa.int32()),
-    ])
+    schema = pa.schema(
+        [
+            pa.field("gene_symbol", pa.string()),
+            pa.field("partner_symbol", pa.string()),
+            pa.field("pearson_r", pa.float32()),
+            pa.field("abs_rank", pa.int32()),
+            pa.field("n_cell_lines", pa.int32()),
+        ]
+    )
     path = tmp_path / "coessentiality_edges.parquet"
     pq.write_table(pa.Table.from_pandas(df, schema=schema, preserve_index=False), path)
     return str(path)
@@ -85,9 +89,7 @@ class TestReadCoessentialPartners:
 
     def test_read_time_min_abs_r_filter(self, fixture_parquet):
         # ZZZ3's only partner is r=0.21; a 0.25 floor should drop it
-        out = read_mod.read_coessential_partners(
-            "ZZZ3", top_n=10, min_abs_r=0.25, parquet_path=fixture_parquet
-        )
+        out = read_mod.read_coessential_partners("ZZZ3", top_n=10, min_abs_r=0.25, parquet_path=fixture_parquet)
         assert out["n_partners"] == 0
 
     def test_absent_gene_is_data_unavailable(self, fixture_parquet):
@@ -125,13 +127,15 @@ def module_fixture(tmp_path) -> str:
     ]
     df = pd.DataFrame(rows, columns=["gene_symbol", "partner_symbol", "pearson_r", "abs_rank", "n_cell_lines"])
     df = df.sort_values("gene_symbol").reset_index(drop=True)
-    schema = pa.schema([
-        pa.field("gene_symbol", pa.string()),
-        pa.field("partner_symbol", pa.string()),
-        pa.field("pearson_r", pa.float32()),
-        pa.field("abs_rank", pa.int32()),
-        pa.field("n_cell_lines", pa.int32()),
-    ])
+    schema = pa.schema(
+        [
+            pa.field("gene_symbol", pa.string()),
+            pa.field("partner_symbol", pa.string()),
+            pa.field("pearson_r", pa.float32()),
+            pa.field("abs_rank", pa.int32()),
+            pa.field("n_cell_lines", pa.int32()),
+        ]
+    )
     path = tmp_path / "coessentiality_edges.parquet"
     pq.write_table(pa.Table.from_pandas(df, schema=schema, preserve_index=False), path)
     return str(path)
@@ -142,8 +146,10 @@ class TestCoessentialModuleSummary:
         out = read_mod.read_coessential_module_summary("HUBGENE", parquet_path=module_fixture)
         assert out["coessential_module_class"] == "in_coherent_module"
         assert out["n_partners"] == 4 and out["n_strong_partners"] == 3
-        assert out["n_coessential"] == 3 and out["n_anti_correlated"] == 1   # PART3 is negative
-        assert out["strongest_partner_symbol"] == "PART1" and out["strongest_partner_r"] == pytest.approx(0.71, abs=1e-3)
+        assert out["n_coessential"] == 3 and out["n_anti_correlated"] == 1  # PART3 is negative
+        assert out["strongest_partner_symbol"] == "PART1" and out["strongest_partner_r"] == pytest.approx(
+            0.71, abs=1e-3
+        )
         assert len(out["top_partners"]) == 4
 
     def test_sparse_module(self, module_fixture):

@@ -101,15 +101,15 @@ def axis_quality(records: list[dict], *, min_powered_strata: int = 2) -> str:
 # composite `stage_resectable`, which is a superset of stage_I ∪ stage_II).
 
 _AXIS_RULES: list[tuple[str, "re.Pattern[str]"]] = [
-    ("MSI",           re.compile(r"^(MSI([_-]?[HL])?|MSS)$", re.IGNORECASE)),
-    ("CMS",           re.compile(r"^CMS[1-4](_depmap)?$", re.IGNORECASE)),
-    ("sidedness",     re.compile(r"^(left|right)_sided$", re.IGNORECASE)),
-    ("CIMP",          re.compile(r"^CIMP", re.IGNORECASE)),
-    ("stage",         re.compile(r"^stage", re.IGNORECASE)),
-    ("histology",     re.compile(r"^histology", re.IGNORECASE)),
-    ("HPV",           re.compile(r"^HPV[_-]", re.IGNORECASE)),
-    ("primary_site",  re.compile(r"^site_", re.IGNORECASE)),
-    ("PAM50",         re.compile(r"^PAM50", re.IGNORECASE)),
+    ("MSI", re.compile(r"^(MSI([_-]?[HL])?|MSS)$", re.IGNORECASE)),
+    ("CMS", re.compile(r"^CMS[1-4](_depmap)?$", re.IGNORECASE)),
+    ("sidedness", re.compile(r"^(left|right)_sided$", re.IGNORECASE)),
+    ("CIMP", re.compile(r"^CIMP", re.IGNORECASE)),
+    ("stage", re.compile(r"^stage", re.IGNORECASE)),
+    ("histology", re.compile(r"^histology", re.IGNORECASE)),
+    ("HPV", re.compile(r"^HPV[_-]", re.IGNORECASE)),
+    ("primary_site", re.compile(r"^site_", re.IGNORECASE)),
+    ("PAM50", re.compile(r"^PAM50", re.IGNORECASE)),
     ("molecular_subtype", re.compile(r"^subtype_", re.IGNORECASE)),
 ]
 
@@ -166,6 +166,7 @@ def disjoint_arms(axis_strata, member_sets: dict) -> tuple[list, list]:
 # A card picks one. Each takes the list of projected records + the metric key
 # and returns a dict of summary scalars merged into the panorama envelope.
 
+
 def delta_reducer(records: list[dict], metric_key: str, label: str = "frequency") -> dict:
     """max/min/delta across strata for a single numeric metric (freq, dependency…).
 
@@ -221,7 +222,8 @@ def build_panorama(
     Purely descriptive — no signals.
     """
     per_stratum = reader(
-        target, indication,
+        target,
+        indication,
         subgroups=subgroups,
         subgroup_assignments_manifest=subgroup_assignments_manifest,
         subgroup_catalog_repo=subgroup_catalog_repo,

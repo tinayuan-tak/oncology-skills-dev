@@ -18,6 +18,7 @@ plus a sibling `*.target_resolution.parquet` sidecar (native_key_type='uniprot_a
 Deterministic per (DAT snapshot, class-keyword map, resolver release). Usage:
     python -m methods.uniprot_protein_features.derive --out /tmp/pf.parquet [--resolver-release resolver_v1.0.0]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -30,11 +31,12 @@ from pathlib import Path
 from typing import Optional
 
 S3_BUCKET = "onc-compbio"
-SOURCE_S3_KEY = ("data-catalog/sources/uniprot-sprot-human/2026_02-snapshot-2026-06-18/"
-                 "uniprot_sprot_human.dat.gz")
+SOURCE_S3_KEY = "data-catalog/sources/uniprot-sprot-human/2026_02-snapshot-2026-06-18/uniprot_sprot_human.dat.gz"
 DEFAULT_AWS_PROFILE = "cbg"
 DEFAULT_RESOLVER_RELEASE = "resolver_v1.0.0"
-DATA_CATALOG = Path(os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"))
+DATA_CATALOG = Path(
+    os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
+)
 
 # UniProt KEYWORD → compact protein_class taxonomy. A keyword is a controlled-vocab term; several map
 # to one class. Only class-BEARING keywords (molecular function/type) are mapped — generic keywords
@@ -83,12 +85,14 @@ def _read_dat_bytes(local_path: Optional[str]) -> bytes:
     if "AWS_PROFILE" not in os.environ:
         os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
     import boto3
+
     return boto3.client("s3").get_object(Bucket=S3_BUCKET, Key=SOURCE_S3_KEY)["Body"].read()
 
 
 def build_payload(local_dat: Optional[str] = None):
     """Return the per-UniProt-AC domain-architecture + protein-class payload DataFrame."""
     import pandas as pd
+
     raw = _read_dat_bytes(local_dat)
     rows = []
     seen = set()
@@ -107,8 +111,7 @@ def build_payload(local_dat: Optional[str] = None):
             if ac in seen:
                 continue
             domains = [d for d in _DOMAIN_RE.findall(block) if d]
-            kws = [k.strip().rstrip(";.") for ln in _KW_RE.findall(block)
-                   for k in ln.split(";") if k.strip()]
+            kws = [k.strip().rstrip(";.") for ln in _KW_RE.findall(block) for k in ln.split(";") if k.strip()]
             kw_class = [k for k in kws if k in _KEYWORD_TO_CLASS]
             classes = []
             for k in kw_class:
@@ -116,23 +119,35 @@ def build_payload(local_dat: Optional[str] = None):
                 if c not in classes:
                     classes.append(c)
             if not domains and not classes:
-                continue   # nothing molecular-intrinsic to report for this entry
+                continue  # nothing molecular-intrinsic to report for this entry
             seen.add(ac)
-            rows.append({
-                "uniprot_ac": ac,
-                "n_domains": len(domains),
-                "domain_names": domains,
-                "domain_architecture": "; ".join(domains) if domains else None,
-                "protein_class": classes,
-                # primary = first class in UniProt's keyword order (a convenience field; the full
-                # `protein_class` list is authoritative — a protein legitimately has several, e.g. an
-                # adhesion-GPCR is both gpcr AND cell_adhesion). Consumers should read the list, not
-                # over-rely on primary.
-                "protein_class_primary": classes[0] if classes else None,
-                "uniprot_keywords_class": kw_class,
-            })
-    df = pd.DataFrame(rows, columns=["uniprot_ac", "n_domains", "domain_names", "domain_architecture",
-                                     "protein_class", "protein_class_primary", "uniprot_keywords_class"])
+            rows.append(
+                {
+                    "uniprot_ac": ac,
+                    "n_domains": len(domains),
+                    "domain_names": domains,
+                    "domain_architecture": "; ".join(domains) if domains else None,
+                    "protein_class": classes,
+                    # primary = first class in UniProt's keyword order (a convenience field; the full
+                    # `protein_class` list is authoritative — a protein legitimately has several, e.g. an
+                    # adhesion-GPCR is both gpcr AND cell_adhesion). Consumers should read the list, not
+                    # over-rely on primary.
+                    "protein_class_primary": classes[0] if classes else None,
+                    "uniprot_keywords_class": kw_class,
+                }
+            )
+    df = pd.DataFrame(
+        rows,
+        columns=[
+            "uniprot_ac",
+            "n_domains",
+            "domain_names",
+            "domain_architecture",
+            "protein_class",
+            "protein_class_primary",
+            "uniprot_keywords_class",
+        ],
+    )
     return df.sort_values("uniprot_ac").reset_index(drop=True)
 
 
@@ -142,6 +157,7 @@ def _emit_sidecar(payload_path: Path, resolver_release: str):
     if str(lib) not in sys.path:
         sys.path.insert(0, str(lib))
     from target_id_resolver.sidecar import emit_sidecar
+
     sidecar_path = Path(str(payload_path).replace(".parquet", ".target_resolution.parquet"))
     stats = emit_sidecar(
         payload_parquet_path=payload_path,
@@ -166,13 +182,17 @@ def main(argv=None) -> int:
     args.out.parent.mkdir(parents=True, exist_ok=True)
     df.to_parquet(args.out, engine="pyarrow", compression="snappy", index=False)
     print(f"[uniprot_protein_features] payload: {len(df)} ACs -> {args.out}", file=sys.stderr)
-    print("  with-domain:", int((df["n_domains"] > 0).sum()),
-          "| with-class:", int(df["protein_class_primary"].notna().sum()), file=sys.stderr)
+    print(
+        "  with-domain:",
+        int((df["n_domains"] > 0).sum()),
+        "| with-class:",
+        int(df["protein_class_primary"].notna().sum()),
+        file=sys.stderr,
+    )
 
     if not args.no_sidecar:
         sidecar_path, stats = _emit_sidecar(args.out, args.resolver_release)
-        print(f"[uniprot_protein_features] sidecar -> {sidecar_path}\n  resolver stats: {stats}",
-              file=sys.stderr)
+        print(f"[uniprot_protein_features] sidecar -> {sidecar_path}\n  resolver stats: {stats}", file=sys.stderr)
     return 0
 
 

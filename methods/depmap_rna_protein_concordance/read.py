@@ -1,6 +1,7 @@
 """Q5 RNA↔protein concordance assembler (cell-line). Joins per-ModelID target RNA vs protein,
 computes correlation + detection fractions + the rna_as_biomarker verdict. data_unavailable-safe.
 """
+
 from __future__ import annotations
 
 import math
@@ -10,9 +11,9 @@ from pathlib import Path
 from methods.catalog_query.read import bucket_key_for
 
 # concordance thresholds (Pearson r on paired per-model RNA vs protein).
-STRONG_CONCORDANCE_R = 0.7      # RNA is an adequate protein proxy
-MODERATE_CONCORDANCE_R = 0.4    # RNA is a partial proxy; interpret with caution
-MIN_PAIRED_MODELS = 20          # below this the correlation is underpowered
+STRONG_CONCORDANCE_R = 0.7  # RNA is an adequate protein proxy
+MODERATE_CONCORDANCE_R = 0.4  # RNA is a partial proxy; interpret with caution
+MIN_PAIRED_MODELS = 20  # below this the correlation is underpowered
 # RNA "expressed" / protein "detected" floors (log2 units; RNA matches stats.py detectable).
 DETECTABLE_LOG2TPM = 1.0
 
@@ -23,9 +24,9 @@ def _paired_rna_protein(target: str, release_pin: str = "26q1"):
     Returns (rna_by_model, protein_by_model, note) — note is a data-gap string or None."""
     from methods.depmap_expression_dependency import cli as _rna
     from methods.depmap_protein_abundance import cli as _prot
+
     try:
-        _ch, rna_by_model, _meta, errs = _rna.load_depmap_files_for_card4(
-            release_pin=release_pin, target_symbol=target)
+        _ch, rna_by_model, _meta, errs = _rna.load_depmap_files_for_card4(release_pin=release_pin, target_symbol=target)
     except Exception as e:  # noqa: BLE001
         return {}, {}, f"RNA load failed: {type(e).__name__}"
     if errs or not rna_by_model:
@@ -39,8 +40,9 @@ def _paired_rna_protein(target: str, release_pin: str = "26q1"):
     return rna_by_model, prot_by_model, None
 
 
-def read_rna_protein_concordance(target: str, release_pin: str = "26q1",
-                                 plot_data_out: "Optional[Path]" = None) -> dict:
+def read_rna_protein_concordance(
+    target: str, release_pin: str = "26q1", plot_data_out: "Optional[Path]" = None
+) -> dict:
     """Q5 assembler — cell-line RNA↔protein concordance for target. target-grain (no indication).
 
     Returns rna_protein_r (Pearson) + spearman + n_paired_models + detection fractions +
@@ -51,27 +53,41 @@ def read_rna_protein_concordance(target: str, release_pin: str = "26q1",
     if plot_data_out is not None:
         try:
             import pandas as _pd
+
             pts = (read_rna_protein_scatter(target, release_pin=release_pin).get("points")) or []
             if pts:
                 Path(plot_data_out).mkdir(parents=True, exist_ok=True)
                 _pd.DataFrame([{"rna": p["rna"], "protein": p["protein"]} for p in pts]).to_parquet(
-                    Path(plot_data_out) / "plot_data_rna_protein.parquet", index=False)
+                    Path(plot_data_out) / "plot_data_rna_protein.parquet", index=False
+                )
         except Exception:  # noqa: BLE001 — persistence best-effort; never break the verdict read
             pass
     rna_by_model, prot_by_model, note = _paired_rna_protein(target, release_pin=release_pin)
     base = {"target": target, "release_pin": release_pin}
     if not rna_by_model or not prot_by_model:
-        base.update({"rna_as_biomarker": "data_unavailable", "rna_protein_r": None,
-                     "n_paired_models": 0, "_data_note": note or "no paired RNA/protein"})
+        base.update(
+            {
+                "rna_as_biomarker": "data_unavailable",
+                "rna_protein_r": None,
+                "n_paired_models": 0,
+                "_data_note": note or "no paired RNA/protein",
+            }
+        )
         return base
 
     import numpy as np
+
     common = sorted(set(rna_by_model) & set(prot_by_model))
     n = len(common)
     if n < MIN_PAIRED_MODELS:
-        base.update({"rna_as_biomarker": "insufficient_paired_models", "rna_protein_r": None,
-                     "n_paired_models": n,
-                     "_data_note": f"only {n} models have BOTH RNA + protein (floor {MIN_PAIRED_MODELS})"})
+        base.update(
+            {
+                "rna_as_biomarker": "insufficient_paired_models",
+                "rna_protein_r": None,
+                "n_paired_models": n,
+                "_data_note": f"only {n} models have BOTH RNA + protein (floor {MIN_PAIRED_MODELS})",
+            }
+        )
         return base
 
     rna = np.array([rna_by_model[m] for m in common], dtype=float)
@@ -80,16 +96,24 @@ def read_rna_protein_concordance(target: str, release_pin: str = "26q1",
     # honest coverage gap rather than a NaN r (a target expressed identically across all lines, or a
     # single-value protein column, carries no concordance signal).
     if np.ptp(rna) == 0 or np.ptp(prot) == 0:
-        base.update({"rna_as_biomarker": "insufficient_paired_models", "rna_protein_r": None,
-                     "n_paired_models": n,
-                     "_data_note": "RNA or protein is constant across paired models (correlation undefined)"})
+        base.update(
+            {
+                "rna_as_biomarker": "insufficient_paired_models",
+                "rna_protein_r": None,
+                "n_paired_models": n,
+                "_data_note": "RNA or protein is constant across paired models (correlation undefined)",
+            }
+        )
         return base
     # Pearson + Spearman (best-effort on scipy; numpy fallback for Pearson).
     try:
         from scipy.stats import pearsonr, spearmanr
-        pear = float(pearsonr(rna, prot)[0]); spear = float(spearmanr(rna, prot)[0])
+
+        pear = float(pearsonr(rna, prot)[0])
+        spear = float(spearmanr(rna, prot)[0])
     except Exception:  # noqa: BLE001
-        pear = float(np.corrcoef(rna, prot)[0, 1]); spear = None
+        pear = float(np.corrcoef(rna, prot)[0, 1])
+        spear = None
 
     # protein detection fraction = models where protein was quantified over models where RNA expressed.
     rna_expressed = rna >= DETECTABLE_LOG2TPM
@@ -104,8 +128,9 @@ def read_rna_protein_concordance(target: str, release_pin: str = "26q1",
         "n_paired_models": n,
         "protein_detection_fraction": round(len(prot_by_model) / max(len(rna_by_model), 1), 4),
         "rna_expressed_fraction": round(n_rna_expressed / n, 4),
-        "rna_high_protein_low_fraction": (round(rna_high_protein_low / n_rna_expressed, 4)
-                                          if n_rna_expressed else None),
+        "rna_high_protein_low_fraction": (
+            round(rna_high_protein_low / n_rna_expressed, 4) if n_rna_expressed else None
+        ),
     }
     out.update(base)
     # Classify on Spearman (G10) — the consensus rank metric for the nonlinear mRNA↔protein relationship;
@@ -113,7 +138,7 @@ def read_rna_protein_concordance(target: str, release_pin: str = "26q1",
     _classify_r = spear if spear is not None else pear
     out["rna_as_biomarker"] = _classify_rna_biomarker(_classify_r, n)
     out["rna_proxy_classified_on"] = "spearman" if spear is not None else "pearson_fallback"
-    out.update(_proxy_boundary_ci(_classify_r, n))   # G10: Fisher-z CI + boundary-fragility flag
+    out.update(_proxy_boundary_ci(_classify_r, n))  # G10: Fisher-z CI + boundary-fragility flag
     return out
 
 
@@ -146,16 +171,22 @@ def _proxy_boundary_ci(r, n_paired) -> dict:
     can down-weight a boundary-fragile call). Returns rna_protein_r_ci95_low/high +
     rna_proxy_class_boundary_fragile (None when the CI can't be formed: r None, or n<=3)."""
     if r is None or n_paired is None or n_paired <= 3:
-        return {"rna_protein_r_ci95_low": None, "rna_protein_r_ci95_high": None,
-                "rna_proxy_class_boundary_fragile": None}
-    rc = max(min(float(r), 0.999999), -0.999999)   # atanh is undefined at |r|==1
+        return {
+            "rna_protein_r_ci95_low": None,
+            "rna_protein_r_ci95_high": None,
+            "rna_proxy_class_boundary_fragile": None,
+        }
+    rc = max(min(float(r), 0.999999), -0.999999)  # atanh is undefined at |r|==1
     z = math.atanh(rc)
-    se = 1.0 / math.sqrt(n_paired - 3)              # Fisher-z standard error
+    se = 1.0 / math.sqrt(n_paired - 3)  # Fisher-z standard error
     lo = math.tanh(z - 1.96 * se)
     hi = math.tanh(z + 1.96 * se)
     fragile = any(lo <= b <= hi for b in (MODERATE_CONCORDANCE_R, STRONG_CONCORDANCE_R))
-    return {"rna_protein_r_ci95_low": round(lo, 4), "rna_protein_r_ci95_high": round(hi, 4),
-            "rna_proxy_class_boundary_fragile": bool(fragile)}
+    return {
+        "rna_protein_r_ci95_low": round(lo, 4),
+        "rna_protein_r_ci95_high": round(hi, 4),
+        "rna_proxy_class_boundary_fragile": bool(fragile),
+    }
 
 
 # ---- TUMOR arm (CPTAC matched RNA+protein, cptac-rna-protein-matched-per-sample-v1) ------------
@@ -170,9 +201,22 @@ MIN_PAIRED_TUMORS = 20
 
 # indication → CPTAC cohort code (the 10 cohorts in the matched product).
 INDICATION_TO_CPTAC_COHORT = {
-    "BRCA": "brca", "KIRC": "ccrcc", "CCRCC": "ccrcc", "COADREAD": "coad", "COAD": "coad",
-    "READ": "coad", "GBM": "gbm", "HNSC": "hnscc", "HNSCC": "hnscc", "LUSC": "lscc", "LSCC": "lscc",
-    "LUAD": "luad", "OV": "ov", "PAAD": "pdac", "PDAC": "pdac", "UCEC": "ucec",
+    "BRCA": "brca",
+    "KIRC": "ccrcc",
+    "CCRCC": "ccrcc",
+    "COADREAD": "coad",
+    "COAD": "coad",
+    "READ": "coad",
+    "GBM": "gbm",
+    "HNSC": "hnscc",
+    "HNSCC": "hnscc",
+    "LUSC": "lscc",
+    "LSCC": "lscc",
+    "LUAD": "luad",
+    "OV": "ov",
+    "PAAD": "pdac",
+    "PDAC": "pdac",
+    "UCEC": "ucec",
 }
 
 
@@ -181,17 +225,20 @@ def _cptac_cohorts_for(indication: str) -> list[str]:
     LEAF cohorts (CPTAC has no pooled NSCLC row). Each member OncoTree code is mapped through
     INDICATION_TO_CPTAC_COHORT; unmapped members drop out. Single-element for a leaf indication."""
     from methods.indication_aliases import indication_leaf_codes
+
     seen, out = set(), []
     for leaf in indication_leaf_codes(indication):
         c = INDICATION_TO_CPTAC_COHORT.get(leaf.upper().strip())
         if c and c not in seen:
-            seen.add(c); out.append(c)
+            seen.add(c)
+            out.append(c)
     return out
 
 
 def _read_matched_cohorts(cohorts: list[str]):
     """Read + row-concat the matched CPTAC product across one or more leaf cohorts (pooled NSCLC)."""
     import pandas as pd
+
     frames = [_read_matched_cohort(c) for c in cohorts]
     frames = [f for f in frames if not f.empty]
     return pd.concat(frames, ignore_index=True) if frames else _read_matched_cohort(cohorts[0])
@@ -201,18 +248,20 @@ def _read_matched_cohort(cohort: str):
     """Read the matched CPTAC product for one cohort → DataFrame[patient_id, gene, rna_log2tpm,
     protein_log2abundance]. Empty on any read failure (data_unavailable-safe)."""
     import pandas as pd
+
     try:
         import pyarrow.parquet as pq
-        import pyarrow.fs as pafs   # was s3fs — the ONLY module importing it; s3fs is absent from
-                                    # pixi.toml so this reader crashed at import in the pixi runtime
-                                    # (cards review 2026-08-17, S2). pyarrow.fs.S3FileSystem is the
-                                    # sibling-standard S3 reader (see dgidb_drug_gene/read.py).
+        import pyarrow.fs as pafs  # was s3fs — the ONLY module importing it; s3fs is absent from
+
+        # pixi.toml so this reader crashed at import in the pixi runtime
+        # (cards review 2026-08-17, S2). pyarrow.fs.S3FileSystem is the
+        # sibling-standard S3 reader (see dgidb_drug_gene/read.py).
         fs = pafs.S3FileSystem()
-        tbl = pq.read_table(f"{S3_BUCKET}/{CPTAC_MATCHED_KEY}", filesystem=fs,
-                            filters=[("cohort", "==", cohort)])
+        tbl = pq.read_table(f"{S3_BUCKET}/{CPTAC_MATCHED_KEY}", filesystem=fs, filters=[("cohort", "==", cohort)])
         return tbl.to_pandas()
     except Exception as e:  # noqa: BLE001
         from methods.target_id_sidecar import is_definitively_absent
+
         # Only a GENUINELY missing object (NoSuchKey/404, or pyarrow FileNotFoundError) is data
         # absence -> empty frame (unchanged data_unavailable). A transient/creds/broken-env failure is
         # NOT absence -> re-raise so it surfaces as an honest _live_read_error, never a silent empty
@@ -222,8 +271,7 @@ def _read_matched_cohort(cohort: str):
         raise
 
 
-def read_tumor_rna_protein_concordance(target: str, indication: str,
-                                       plot_data_out: "Optional[Path]" = None) -> dict:
+def read_tumor_rna_protein_concordance(target: str, indication: str, plot_data_out: "Optional[Path]" = None) -> dict:
     """Q5 TUMOR arm — CPTAC matched tumor RNA↔protein concordance for target in the indication's
     CPTAC cohort. Same correlation + rna_as_biomarker vocab as the cell-line arm. data_unavailable-safe.
 
@@ -232,52 +280,77 @@ def read_tumor_rna_protein_concordance(target: str, indication: str,
     if plot_data_out is not None:
         try:
             import pandas as _pd
+
             pts = (read_tumor_rna_protein_scatter(target, indication).get("points")) or []
             if pts:
                 Path(plot_data_out).mkdir(parents=True, exist_ok=True)
                 _pd.DataFrame([{"rna": p["rna"], "protein": p["protein"]} for p in pts]).to_parquet(
-                    Path(plot_data_out) / "plot_data_rna_protein_tumor.parquet", index=False)
+                    Path(plot_data_out) / "plot_data_rna_protein_tumor.parquet", index=False
+                )
         except Exception:  # noqa: BLE001 — persistence best-effort
             pass
     cohorts = _cptac_cohorts_for(indication)
-    cohort = "+".join(cohorts) if cohorts else None   # e.g. "luad+lscc" for the NSCLC umbrella
-    base = {"target": target, "indication": indication, "cptac_cohort": cohort,
-            "substrate": "cptac_tumor"}
+    cohort = "+".join(cohorts) if cohorts else None  # e.g. "luad+lscc" for the NSCLC umbrella
+    base = {"target": target, "indication": indication, "cptac_cohort": cohort, "substrate": "cptac_tumor"}
     if not cohorts:
-        base.update({"rna_as_biomarker": "data_unavailable", "rna_protein_r": None,
-                     "n_paired_tumors": 0, "_data_note": "no CPTAC cohort for this indication"})
+        base.update(
+            {
+                "rna_as_biomarker": "data_unavailable",
+                "rna_protein_r": None,
+                "n_paired_tumors": 0,
+                "_data_note": "no CPTAC cohort for this indication",
+            }
+        )
         return base
     df = _read_matched_cohorts(cohorts)
     sub = df[df["gene"] == target.upper().strip()] if not df.empty else df
     sub = sub.dropna(subset=["rna_log2tpm", "protein_log2abundance"]) if not sub.empty else sub
     n = len(sub)
     if n < MIN_PAIRED_TUMORS:
-        base.update({"rna_as_biomarker": ("data_unavailable" if n == 0 else "insufficient_paired_tumors"),
-                     "rna_protein_r": None, "n_paired_tumors": n,
-                     "_data_note": (f"{cohort}: {n} tumors with matched RNA+protein for {target} "
-                                    f"(floor {MIN_PAIRED_TUMORS})")})
+        base.update(
+            {
+                "rna_as_biomarker": ("data_unavailable" if n == 0 else "insufficient_paired_tumors"),
+                "rna_protein_r": None,
+                "n_paired_tumors": n,
+                "_data_note": (
+                    f"{cohort}: {n} tumors with matched RNA+protein for {target} (floor {MIN_PAIRED_TUMORS})"
+                ),
+            }
+        )
         return base
     import numpy as np
+
     rna = sub["rna_log2tpm"].to_numpy(dtype=float)
     prot = sub["protein_log2abundance"].to_numpy(dtype=float)
     if np.ptp(rna) == 0 or np.ptp(prot) == 0:
-        base.update({"rna_as_biomarker": "insufficient_paired_tumors", "rna_protein_r": None,
-                     "n_paired_tumors": n, "_data_note": "RNA or protein constant across tumors"})
+        base.update(
+            {
+                "rna_as_biomarker": "insufficient_paired_tumors",
+                "rna_protein_r": None,
+                "n_paired_tumors": n,
+                "_data_note": "RNA or protein constant across tumors",
+            }
+        )
         return base
     try:
         from scipy.stats import pearsonr, spearmanr
-        pear = float(pearsonr(rna, prot)[0]); spear = float(spearmanr(rna, prot)[0])
+
+        pear = float(pearsonr(rna, prot)[0])
+        spear = float(spearmanr(rna, prot)[0])
     except Exception:  # noqa: BLE001
-        pear = float(np.corrcoef(rna, prot)[0, 1]); spear = None
-    _classify_r = spear if spear is not None else pear   # G10: classify on Spearman (Pearson fallback)
-    base.update({
-        "rna_protein_r": round(pear, 4),
-        "rna_protein_spearman": (round(spear, 4) if spear is not None else None),
-        "n_paired_tumors": n,
-        "rna_as_biomarker": _classify_rna_biomarker(_classify_r, n),
-        "rna_proxy_classified_on": "spearman" if spear is not None else "pearson_fallback",
-        **_proxy_boundary_ci(_classify_r, n),   # G10: Fisher-z CI + boundary-fragility flag
-    })
+        pear = float(np.corrcoef(rna, prot)[0, 1])
+        spear = None
+    _classify_r = spear if spear is not None else pear  # G10: classify on Spearman (Pearson fallback)
+    base.update(
+        {
+            "rna_protein_r": round(pear, 4),
+            "rna_protein_spearman": (round(spear, 4) if spear is not None else None),
+            "n_paired_tumors": n,
+            "rna_as_biomarker": _classify_rna_biomarker(_classify_r, n),
+            "rna_proxy_classified_on": "spearman" if spear is not None else "pearson_fallback",
+            **_proxy_boundary_ci(_classify_r, n),  # G10: Fisher-z CI + boundary-fragility flag
+        }
+    )
     return base
 
 
@@ -290,10 +363,18 @@ def read_tumor_rna_protein_scatter(target: str, indication: str) -> dict:
     df = _read_matched_cohorts(cohorts)
     sub = df[df["gene"] == target.upper().strip()] if not df.empty else df
     sub = sub.dropna(subset=["rna_log2tpm", "protein_log2abundance"]) if not sub.empty else sub
-    return {"available": bool(len(sub)), "cptac_cohort": cohort,
-            "points": [{"patient_id": r.patient_id, "rna": round(float(r.rna_log2tpm), 4),
-                        "protein": round(float(r.protein_log2abundance), 4)}
-                       for r in sub.itertuples()]}
+    return {
+        "available": bool(len(sub)),
+        "cptac_cohort": cohort,
+        "points": [
+            {
+                "patient_id": r.patient_id,
+                "rna": round(float(r.rna_log2tpm), 4),
+                "protein": round(float(r.protein_log2abundance), 4),
+            }
+            for r in sub.itertuples()
+        ],
+    }
 
 
 def read_rna_protein_scatter(target: str, release_pin: str = "26q1") -> dict:
@@ -302,6 +383,10 @@ def read_rna_protein_scatter(target: str, release_pin: str = "26q1") -> dict:
     if not rna_by_model or not prot_by_model:
         return {"available": False, "points": [], "_note": note}
     common = sorted(set(rna_by_model) & set(prot_by_model))
-    return {"available": bool(common),
-            "points": [{"model_id": m, "rna": round(float(rna_by_model[m]), 4),
-                        "protein": round(float(prot_by_model[m]), 4)} for m in common]}
+    return {
+        "available": bool(common),
+        "points": [
+            {"model_id": m, "rna": round(float(rna_by_model[m]), 4), "protein": round(float(prot_by_model[m]), 4)}
+            for m in common
+        ],
+    }

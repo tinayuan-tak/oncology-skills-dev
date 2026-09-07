@@ -7,6 +7,7 @@ grain is pre-aggregated → an O(1) per-indication lookup (no per-sample refit a
 Target-INDEPENDENT (tier: indication): the mutagenic-process profile is a cohort property; a target
 maps in only as "which indication am I in". Verdict-INERT: no resolver rung.
 """
+
 from __future__ import annotations
 
 from typing import Optional
@@ -21,6 +22,7 @@ DERIVED_MANIFEST_ID = "tcga-mc3-mutational-signatures-per-indication-v1"
 
 def _resolve_derived_uri() -> str:
     from methods.catalog_query.read import s3_uri_for
+
     return s3_uri_for(DERIVED_MANIFEST_ID)
 
 
@@ -30,6 +32,7 @@ from methods.target_id_sidecar import ensure_aws_profile
 def _load_product():
     # No dev-build fallback: an unreachable/empty product raises (RuntimeError), never a silent empty.
     from methods.derived_product import load_materialized_product
+
     ensure_aws_profile()
     return load_materialized_product(_resolve_derived_uri())
 
@@ -38,9 +41,15 @@ def _load_product():
 # an aliased/composite indication resolves to >1 code and is pooled sample-weighted (mirrors
 # pancanatlas_ddr_context). Unaliased indications pass through as their own code (e.g. BRCA, OV).
 _INDICATION_ALIASES = {
-    "COADREAD": ["COAD", "READ"], "CRC": ["COAD", "READ"],
-    "NSCLC": ["LUAD", "LUSC"], "GC": ["STAD"], "GASTRIC": ["STAD"],
-    "PDAC": ["PAAD"], "MELANOMA": ["SKCM"], "GBM": ["GBM"], "AML": ["LAML"],
+    "COADREAD": ["COAD", "READ"],
+    "CRC": ["COAD", "READ"],
+    "NSCLC": ["LUAD", "LUSC"],
+    "GC": ["STAD"],
+    "GASTRIC": ["STAD"],
+    "PDAC": ["PAAD"],
+    "MELANOMA": ["SKCM"],
+    "GBM": ["GBM"],
+    "AML": ["LAML"],
 }
 
 
@@ -49,8 +58,7 @@ def _pool_rows(rows: list, indication: str) -> dict:
     total_n = int(sum(int(r["n_samples"]) for r in rows))
     out = {"indication": indication, "n_samples": total_n}
     for pr in INFORMATIVE_PROCESSES:
-        frac = (sum(float(r[f"frac_{pr}_high"]) * int(r["n_samples"]) for r in rows) / total_n
-                if total_n else 0.0)
+        frac = sum(float(r[f"frac_{pr}_high"]) * int(r["n_samples"]) for r in rows) / total_n if total_n else 0.0
         out[f"frac_{pr}_high"] = round(frac, 4)
         out[f"{pr}_class"] = _cli._classify(total_n, frac)
     nb = {p: out[f"frac_{p}_high"] for p in NON_BASELINE_PROCESSES}
@@ -62,8 +70,7 @@ def _pool_rows(rows: list, indication: str) -> dict:
     return out
 
 
-def read_mutational_signature_context(target: Optional[str] = None,
-                                      indication: Optional[str] = None) -> dict:
+def read_mutational_signature_context(target: Optional[str] = None, indication: Optional[str] = None) -> dict:
     """Return the mutational-signature-context card's summary_fields for the indication.
 
     `target` accepted for the dispatcher signature but NOT consumed (cohort-level, target-independent).
@@ -71,15 +78,20 @@ def read_mutational_signature_context(target: Optional[str] = None,
     TCGA code(s) and pooled sample-weighted. Returns data_unavailable when unmapped.
     """
     if not indication:
-        return {"dominant_process": "data_unavailable",
-                "_note": "indication required (signature context is a per-indication cohort facet)."}
+        return {
+            "dominant_process": "data_unavailable",
+            "_note": "indication required (signature context is a per-indication cohort facet).",
+        }
     df = _load_product()
     codes = _INDICATION_ALIASES.get(indication.upper(), [indication.upper()])
     hit = df[df["indication"].astype(str).str.upper().isin([c.upper() for c in codes])]
     if hit.empty:
-        return {"dominant_process": "data_unavailable", "indication": indication,
-                "_note": f"{indication} (codes {codes}) not in the TCGA-MC3 signature product "
-                         f"(covers {sorted(df['indication'].unique())})."}
+        return {
+            "dominant_process": "data_unavailable",
+            "indication": indication,
+            "_note": f"{indication} (codes {codes}) not in the TCGA-MC3 signature product "
+            f"(covers {sorted(df['indication'].unique())}).",
+        }
     rows = hit.to_dict("records")
     out = _pool_rows(rows, indication) if len(rows) > 1 else {**rows[0], "indication": indication}
     keep = {"indication", "n_samples", "dominant_process", "enriched_processes", "pooled_from"}
@@ -89,6 +101,8 @@ def read_mutational_signature_context(target: Optional[str] = None,
         result[f"{pr}_class"] = out.get(f"{pr}_class")
         result[f"frac_{pr}_high"] = out.get(f"frac_{pr}_high")
     result["_method_version"] = METHOD_VERSION
-    result["_source"] = ("TCGA MC3 v0.2.8 → SigProfilerAssignment COSMIC v3.3 (pan-cancer, 33 TCGA "
-                         "studies via TCGA-CDR); verdict-inert cohort context")
+    result["_source"] = (
+        "TCGA MC3 v0.2.8 → SigProfilerAssignment COSMIC v3.3 (pan-cancer, 33 TCGA "
+        "studies via TCGA-CDR); verdict-inert cohort context"
+    )
     return result

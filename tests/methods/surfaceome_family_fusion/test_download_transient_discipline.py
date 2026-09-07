@@ -4,6 +4,7 @@ _ensure_derived_cached return None → _load_indexed returned EMPTY frames that 
 poisoning the whole batch off one blip. The download transient path must now RAISE; a genuine
 object-absence (404/NoSuchKey) still degrades to data_unavailable.
 """
+
 from __future__ import annotations
 
 import sys
@@ -40,9 +41,10 @@ def _reset(monkeypatch, tmp_path):
 
 def test_download_transient_raises_not_cached(monkeypatch, tmp_path):
     _reset(monkeypatch, tmp_path)
-    df = pd.DataFrame([{"gene_symbol": "EPCAM", "uniprot_ac": "P16422",
-                        "family_class": "surface", "is_surface_protein": True}])
-    client = _FlakyClient(RuntimeError("transient S3 throttle"), df)   # ONE instance (counter persists)
+    df = pd.DataFrame(
+        [{"gene_symbol": "EPCAM", "uniprot_ac": "P16422", "family_class": "surface", "is_surface_protein": True}]
+    )
+    client = _FlakyClient(RuntimeError("transient S3 throttle"), df)  # ONE instance (counter persists)
     monkeypatch.setattr(surf, "_boto3_client", lambda: client)
     with pytest.raises(RuntimeError):
         surf._load_indexed()

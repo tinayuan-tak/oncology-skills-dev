@@ -22,8 +22,7 @@ DEFAULT_RELEASE_PIN = "26q1-v3"
 from methods.target_id_sidecar import ensure_aws_profile
 
 
-def read_predictability(target: str, indication: Optional[str] = None,
-                          release_pin: str = DEFAULT_RELEASE_PIN) -> dict:
+def read_predictability(target: str, indication: Optional[str] = None, release_pin: str = DEFAULT_RELEASE_PIN) -> dict:
     """Compute predictability for a target — pan-cancer, indication-independent.
 
     `indication` is accepted for the framework's CARD_DISPATCHERS contract but
@@ -35,8 +34,7 @@ def read_predictability(target: str, indication: Optional[str] = None,
     if parquet_uri is None:
         return {
             "_live_read_error": "unknown_release_pin",
-            "_remediation": f"release_pin {release_pin!r} not in "
-                              f"{list(_cli.RELEASE_PIN_TO_PARQUET.keys())}",
+            "_remediation": f"release_pin {release_pin!r} not in {list(_cli.RELEASE_PIN_TO_PARQUET.keys())}",
             "predictability_class": "data_unavailable",
             "pred_dominant_feature_class": "data_unavailable",
         }

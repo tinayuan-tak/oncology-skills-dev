@@ -24,6 +24,7 @@ This slice wires the biology-axis PRESENCE facet only; the modality-gate facet i
 Modules:
     read — read_expression_purity_confound(target, indication): the purity↔expression correlation + class.
 """
+
 from __future__ import annotations
 
 from .read import read_expression_purity_confound, classify_purity_confound

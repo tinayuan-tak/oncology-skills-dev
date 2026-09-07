@@ -3,6 +3,7 @@
 Mocks the two S3 loaders (seg scores + barcode→cancer-type) to pin: indication scoping via the
 barcode-patient join, the median-based cohort class, and graceful data_unavailable.
 """
+
 from __future__ import annotations
 
 import sys
@@ -31,7 +32,7 @@ def test_scopes_to_indication_and_classifies_high(monkeypatch):
     cancer["TCGA-05-9999"] = "LUAD"
     _setup(monkeypatch, seg, cancer)
     out = r.aneuploidy_burden_for_indication("COADREAD")
-    assert out["n_samples"] == 3   # LUAD sample excluded
+    assert out["n_samples"] == 3  # LUAD sample excluded
     assert out["median_fraction_genome_altered"] == 0.5
     assert out["aneuploidy_burden_class"] == "highly_aneuploid"
 
@@ -60,6 +61,7 @@ def test_unmapped_indication_is_data_unavailable(monkeypatch):
 
 
 # ---------- WGD summary (v0.2.0, ABSOLUTE abs_tables) ----------
+
 
 def _setup_wgd(monkeypatch, absolute_rows, cancer_map):
     r._load_absolute.cache_clear()
@@ -122,6 +124,7 @@ def test_wgd_unmapped_indication_is_data_unavailable(monkeypatch):
 
 # ---------- MSI summary (v0.2.0, TCGA marker-paper subtype labels — CRC + STAD only) ----------
 
+
 def _setup_msi(monkeypatch, labels):
     """labels: tuple of raw MSI-status strings the marker-paper CSV would supply."""
     r._load_msi_labels.cache_clear()
@@ -130,7 +133,7 @@ def _setup_msi(monkeypatch, labels):
 
 def test_msi_high_enriched(monkeypatch):
     # 22% MSI-H (STAD-like) → >= 0.15 → msi_high_enriched.
-    labels = ["MSI-H"] * 22 + ["MSI-L"] * 15 + ["MSS"] * 63   # n=100, 22% H
+    labels = ["MSI-H"] * 22 + ["MSI-L"] * 15 + ["MSS"] * 63  # n=100, 22% H
     _setup_msi(monkeypatch, labels)
     out = r.msi_summary_for_indication("GC")
     assert out["n_samples"] == 100 and out["n_msi_high"] == 22
@@ -157,13 +160,14 @@ def test_msi_normalizes_status_spellings(monkeypatch):
 
 def test_msi_unmapped_indication_is_data_unavailable(monkeypatch):
     # NSCLC / PAAD etc. have NO patient MSI labels → data_unavailable, NOT a fabricated 0% MSI-H.
-    _setup_msi(monkeypatch, [])   # loader won't even be called for an unmapped indication
+    _setup_msi(monkeypatch, [])  # loader won't even be called for an unmapped indication
     out = r.msi_summary_for_indication("NSCLC")
     assert out["msi_class"] == "data_unavailable" and out["msi_high_fraction"] is None
     assert "CRC + STAD only" in out["_data_note"]
 
 
 # ---------- MODEL-side MSI summary (v0.2.0, DepMap OmicsGlobalSignatures MSIScore) ----------
+
 
 def _setup_model_msi(monkeypatch, by_lineage):
     """by_lineage: {OncotreeLineage: [MSIScore, ...]}."""
@@ -211,6 +215,7 @@ def test_model_msi_unmapped_indication_data_unavailable(monkeypatch):
 
 
 # ---------- MODEL-side mutational-SIGNATURE arm (DepMap OmicsMolecularSignatureMatrix) ----------
+
 
 def _setup_model_sig(monkeypatch, by_lineage):
     """by_lineage: {OncotreeLineage: [(mmr_frac, hrd_frac), ...]} — already per-model-normalized."""

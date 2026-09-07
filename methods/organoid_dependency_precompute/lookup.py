@@ -16,6 +16,7 @@ Access discipline (the "optimize access to derived products" invariant):
 Context strings name the null (organoid cohort, n≈114, GI-dominated) so a consumer can AUDIT
 which cohort the dependency was measured in — the anti-pooling guard.
 """
+
 from __future__ import annotations
 
 import threading as _threading
@@ -33,10 +34,18 @@ DEFAULT_AWS_PROFILE = "cbg"  # the onc-compbio bucket denies the default role
 # build_by_lineage (cohort n>=5: Bowel/Breast/Esophagus-Stomach/Pancreas/Prostate) resolve; any
 # other indication falls through to pan-organoid only.
 _INDICATION_TO_ORGANOID_LINEAGE = {
-    "COADREAD": "Bowel", "COAD": "Bowel", "READ": "Bowel", "CRC": "Bowel",
-    "PAAD": "Pancreas", "PDAC": "Pancreas",
-    "STAD": "Esophagus/Stomach", "ESCA": "Esophagus/Stomach", "ESCC": "Esophagus/Stomach",
-    "EGC": "Esophagus/Stomach", "GEA": "Esophagus/Stomach", "GC": "Esophagus/Stomach",
+    "COADREAD": "Bowel",
+    "COAD": "Bowel",
+    "READ": "Bowel",
+    "CRC": "Bowel",
+    "PAAD": "Pancreas",
+    "PDAC": "Pancreas",
+    "STAD": "Esophagus/Stomach",
+    "ESCA": "Esophagus/Stomach",
+    "ESCC": "Esophagus/Stomach",
+    "EGC": "Esophagus/Stomach",
+    "GEA": "Esophagus/Stomach",
+    "GC": "Esophagus/Stomach",
     "BRCA": "Breast",
     "PRAD": "Prostate",
 }
@@ -76,11 +85,13 @@ _S3FS_LOCK = _threading.Lock()
 def _build_s3fs():
     import boto3
     import pyarrow.fs as fs
+
     creds = boto3.Session(profile_name=DEFAULT_AWS_PROFILE).get_credentials()
     if creds is not None:
         frozen = creds.get_frozen_credentials()
-        return fs.S3FileSystem(access_key=frozen.access_key, secret_key=frozen.secret_key,
-                               session_token=frozen.token, region="us-east-1")
+        return fs.S3FileSystem(
+            access_key=frozen.access_key, secret_key=frozen.secret_key, session_token=frozen.token, region="us-east-1"
+        )
     return fs.S3FileSystem(region="us-east-1")
 
 
@@ -102,6 +113,7 @@ def _bucket_key(manifest_id: str = MANIFEST_ID) -> Optional[tuple]:
     data_unavailable rather than raising at import."""
     try:
         from methods.catalog_query.read import bucket_key_for
+
         return bucket_key_for(manifest_id)
     except FileNotFoundError:
         # absence-discipline: exempt -- a FileNotFoundError from bucket_key_for is DEFINITIVE
@@ -123,25 +135,47 @@ def _organoid_row(gene_symbol: str) -> Optional[tuple]:
     bucket, key = bk
     try:
         import pyarrow.parquet as pq
+
         tbl = pq.read_table(
-            f"{bucket}/{key}", filesystem=_s3fs(),
+            f"{bucket}/{key}",
+            filesystem=_s3fs(),
             filters=[("gene_symbol", "==", gene_symbol)],
-            columns=["entrez_gene_id", "n_models_screened", "n_dependent", "n_strongly_dependent",
-                     "frac_dependent", "frac_strongly_dependent", "mean_gene_effect",
-                     "median_gene_effect", "min_gene_effect", "organoid_dependency_percentile",
-                     "n_models_total", "n_genes"])
+            columns=[
+                "entrez_gene_id",
+                "n_models_screened",
+                "n_dependent",
+                "n_strongly_dependent",
+                "frac_dependent",
+                "frac_strongly_dependent",
+                "mean_gene_effect",
+                "median_gene_effect",
+                "min_gene_effect",
+                "organoid_dependency_percentile",
+                "n_models_total",
+                "n_genes",
+            ],
+        )
         df = tbl.to_pandas()
         if df.empty:
             return None
         r = df.iloc[0]
-        return (str(r["entrez_gene_id"]), int(r["n_models_screened"]), int(r["n_dependent"]),
-                int(r["n_strongly_dependent"]), float(r["frac_dependent"]),
-                float(r["frac_strongly_dependent"]), float(r["mean_gene_effect"]),
-                float(r["median_gene_effect"]), float(r["min_gene_effect"]),
-                float(r["organoid_dependency_percentile"]), int(r["n_models_total"]),
-                int(r["n_genes"]))
+        return (
+            str(r["entrez_gene_id"]),
+            int(r["n_models_screened"]),
+            int(r["n_dependent"]),
+            int(r["n_strongly_dependent"]),
+            float(r["frac_dependent"]),
+            float(r["frac_strongly_dependent"]),
+            float(r["mean_gene_effect"]),
+            float(r["median_gene_effect"]),
+            float(r["min_gene_effect"]),
+            float(r["organoid_dependency_percentile"]),
+            int(r["n_models_total"]),
+            int(r["n_genes"]),
+        )
     except Exception as e:  # noqa: BLE001
         from methods.target_id_sidecar import is_definitively_absent
+
         # Only a GENUINELY missing object (NoSuchKey/404, or pyarrow FileNotFoundError) is data
         # absence → None (data_unavailable). A transient/creds/broken-env failure is NOT absence →
         # re-raise so it surfaces as an honest _live_read_error, never masked as "gene absent".
@@ -163,21 +197,37 @@ def _lineage_rows(gene_symbol: str) -> tuple:
     bucket, key = bk
     try:
         import pyarrow.parquet as pq
+
         tbl = pq.read_table(
-            f"{bucket}/{key}", filesystem=_s3fs(),
+            f"{bucket}/{key}",
+            filesystem=_s3fs(),
             filters=[("gene_symbol", "==", gene_symbol)],
-            columns=["lineage", "n_lineage_cohort", "n_models_screened", "n_dependent",
-                     "frac_dependent", "n_strongly_dependent", "median_gene_effect"])
+            columns=[
+                "lineage",
+                "n_lineage_cohort",
+                "n_models_screened",
+                "n_dependent",
+                "frac_dependent",
+                "n_strongly_dependent",
+                "median_gene_effect",
+            ],
+        )
         df = tbl.to_pandas()
         return tuple(
-            {"lineage": str(r.lineage), "n_lineage_cohort": int(r.n_lineage_cohort),
-             "n_models_screened": int(r.n_models_screened), "n_dependent": int(r.n_dependent),
-             "frac_dependent": round(float(r.frac_dependent), 4),
-             "n_strongly_dependent": int(r.n_strongly_dependent),
-             "median_gene_effect": round(float(r.median_gene_effect), 4)}
-            for r in df.itertuples(index=False))
+            {
+                "lineage": str(r.lineage),
+                "n_lineage_cohort": int(r.n_lineage_cohort),
+                "n_models_screened": int(r.n_models_screened),
+                "n_dependent": int(r.n_dependent),
+                "frac_dependent": round(float(r.frac_dependent), 4),
+                "n_strongly_dependent": int(r.n_strongly_dependent),
+                "median_gene_effect": round(float(r.median_gene_effect), 4),
+            }
+            for r in df.itertuples(index=False)
+        )
     except Exception as e:  # noqa: BLE001
         from methods.target_id_sidecar import is_definitively_absent
+
         # Genuine absence (missing object) → no per-lineage data (still return pan-organoid summary).
         # Transient/creds/env failure → re-raise so it is not masked as "no lineage data".
         if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
@@ -219,34 +269,52 @@ def build_summary(target: str, indication: str = None) -> dict:
     row = _organoid_row(sym)
     if row is None:
         out["organoid_dependency_context"] = (
-            f"DepMap 26Q1 organoid CRISPR panel ({MANIFEST_ID}) — target absent or product unavailable")
+            f"DepMap 26Q1 organoid CRISPR panel ({MANIFEST_ID}) — target absent or product unavailable"
+        )
         out["_data_note"] = "gene absent from organoid gene-effect matrix or product not yet available"
         return out
-    (entrez, n_screened, n_dep, n_strong, frac_dep, frac_strong, mean_eff,
-     median_eff, min_eff, pct, n_total, _n_genes) = row
-    out.update({
-        "entrez_gene_id": entrez,
-        "organoid_dependency_class": classify_dependency(frac_dep),
-        "n_models_screened": n_screened,
-        "n_models_total": n_total,
-        "n_dependent": n_dep,
-        "n_strongly_dependent": n_strong,
-        "frac_dependent": round(frac_dep, 4),
-        "frac_strongly_dependent": round(frac_strong, 4),
-        "mean_gene_effect": round(mean_eff, 4),
-        "median_gene_effect": round(median_eff, 4),
-        "min_gene_effect": round(min_eff, 4),
-        "organoid_dependency_percentile": round(pct, 2),
-        "organoid_dependency_context": (
-            f"DepMap 26Q1 organoid CRISPR panel ({MANIFEST_ID}; n={n_screened}/{n_total} organoid "
-            f"models screened; GI-dominated cohort). Chronos gene-effect < -0.5 = dependent."),
-    })
+    (
+        entrez,
+        n_screened,
+        n_dep,
+        n_strong,
+        frac_dep,
+        frac_strong,
+        mean_eff,
+        median_eff,
+        min_eff,
+        pct,
+        n_total,
+        _n_genes,
+    ) = row
+    out.update(
+        {
+            "entrez_gene_id": entrez,
+            "organoid_dependency_class": classify_dependency(frac_dep),
+            "n_models_screened": n_screened,
+            "n_models_total": n_total,
+            "n_dependent": n_dep,
+            "n_strongly_dependent": n_strong,
+            "frac_dependent": round(frac_dep, 4),
+            "frac_strongly_dependent": round(frac_strong, 4),
+            "mean_gene_effect": round(mean_eff, 4),
+            "median_gene_effect": round(median_eff, 4),
+            "min_gene_effect": round(min_eff, 4),
+            "organoid_dependency_percentile": round(pct, 2),
+            "organoid_dependency_context": (
+                f"DepMap 26Q1 organoid CRISPR panel ({MANIFEST_ID}; n={n_screened}/{n_total} organoid "
+                f"models screened; GI-dominated cohort). Chronos gene-effect < -0.5 = dependent."
+            ),
+        }
+    )
 
     # --- v2 per-lineage enrichment (additive; pan-organoid class above is unchanged) ------------
     lineages = _lineage_rows(sym)
     out["per_lineage_stats"] = [
-        {k: r[k] for k in ("lineage", "n_models_screened", "frac_dependent",
-                           "n_strongly_dependent", "median_gene_effect")}
+        {
+            k: r[k]
+            for k in ("lineage", "n_models_screened", "frac_dependent", "n_strongly_dependent", "median_gene_effect")
+        }
         for r in sorted(lineages, key=lambda r: r["frac_dependent"], reverse=True)
     ]
     out["n_lineages_evaluated"] = len(lineages)
@@ -261,10 +329,12 @@ def build_summary(target: str, indication: str = None) -> dict:
     if lin:
         match = next((r for r in lineages if r["lineage"] == lin), None)
         if match:
-            out.update({
-                "organoid_lineage": lin,
-                "organoid_lineage_frac_dependent": match["frac_dependent"],
-                "organoid_lineage_class": classify_dependency(match["frac_dependent"]),
-                "organoid_lineage_n_screened": match["n_models_screened"],
-            })
+            out.update(
+                {
+                    "organoid_lineage": lin,
+                    "organoid_lineage_frac_dependent": match["frac_dependent"],
+                    "organoid_lineage_class": classify_dependency(match["frac_dependent"]),
+                    "organoid_lineage_n_screened": match["n_models_screened"],
+                }
+            )
     return out

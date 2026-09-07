@@ -8,6 +8,7 @@ CONSUMES the derived product uniprot-protein-features-v1 (payload + resolver sid
 Symbol→AC via the sidecar (never a source symbol column). A target absent from the payload has no
 curated domain AND no class-bearing keyword → data_unavailable (coverage/annotation gap, not a claim).
 """
+
 from __future__ import annotations
 
 import io
@@ -16,7 +17,7 @@ from typing import Optional
 
 from methods.catalog_query.read import bucket_prefix_for, sidecar_bucket_key_for
 
-METHOD_VERSION = "1.1.0"   # + additive InterPro domain layer (coverage-broadening)
+METHOD_VERSION = "1.1.0"  # + additive InterPro domain layer (coverage-broadening)
 S3_BUCKET = "onc-compbio"
 DERIVED_MANIFEST_ID = "uniprot-protein-features-v1"
 _PREFIX = f"data-catalog/derived/{DERIVED_MANIFEST_ID}"
@@ -29,8 +30,7 @@ DEFAULT_AWS_PROFILE = "cbg"
 # coverage from 8,768 (curated) to ~15,019 domain-annotated proteins (6,445 proteins have an
 # InterPro domain but NO curated FT DOMAIN). AC-keyed; pushdown on uniprot_accession.
 INTERPRO_MANIFEST_ID = "interpro-109-0-snapshot-2026-08-05"
-INTERPRO_KEY = (f"{bucket_prefix_for(INTERPRO_MANIFEST_ID)[1]}"
-                "interpro_human_domain_hits.parquet")
+INTERPRO_KEY = f"{bucket_prefix_for(INTERPRO_MANIFEST_ID)[1]}interpro_human_domain_hits.parquet"
 # InterPro resolver sidecar resolved from the manifest's target_resolution.sidecar_s3_uri.
 _, INTERPRO_SIDECAR_KEY = sidecar_bucket_key_for(INTERPRO_MANIFEST_ID)
 
@@ -40,12 +40,14 @@ from methods.target_id_sidecar import ensure_aws_profile
 
 def _read_parquet(path_or_none, bucket, key):
     import pandas as pd
+
     if path_or_none is not None:
         return pd.read_parquet(path_or_none)
     ensure_aws_profile()
     # shared client: AWS_PROFILE=cbg + adaptive-retry Config (absorbs transient S3 throttling on
     # batch reads — the failure mode that silently dropped protein-domains-class on a dossier run)
     from methods.target_id_sidecar import s3_client
+
     body = s3_client().get_object(Bucket=bucket, Key=key)["Body"].read()
     return pd.read_parquet(io.BytesIO(body))
 
@@ -60,6 +62,7 @@ def _load_indexed(payload_path: Optional[str] = None, sidecar_path: Optional[str
         # pandas/pyarrow), transient S3 (throttle/timeout), or creds error must NOT be masked as a
         # data gap — re-raise so the live-read seam surfaces _live_read_error instead of a dead axis.
         from methods.target_id_sidecar import is_definitively_absent
+
         if not is_definitively_absent(e):
             raise
         return None
@@ -70,12 +73,13 @@ def _load_indexed(payload_path: Optional[str] = None, sidecar_path: Optional[str
             by_ac[ac] = rec
     # primary symbol→AC crosswalk (the InterPro sidecar is a SUPERSET fallback tried by the caller).
     from methods.target_id_sidecar import read_resolver_sidecar_map
+
     try:
         symbol_to_ac = read_resolver_sidecar_map(
-            S3_BUCKET, SIDECAR_KEY, "hgnc_primary_symbol_at_resolution", "native_row_key",
-            local_path=sidecar_path)
+            S3_BUCKET, SIDECAR_KEY, "hgnc_primary_symbol_at_resolution", "native_row_key", local_path=sidecar_path
+        )
     except ImportError:
-        raise                              # broken env — never mask
+        raise  # broken env — never mask
     except Exception:  # noqa: BLE001 — S3/absence (retry-backed): degrade to the InterPro fallback
         symbol_to_ac = {}
     return by_ac, symbol_to_ac
@@ -97,16 +101,22 @@ def _load_interpro_symbol_map(sidecar_path: Optional[str] = None) -> dict:
     (19,652 symbols) is a SUPERSET of the curated-product sidecar (14,807) — used as a fallback so a
     target that InterPro covers but the curated product doesn't still gets its InterPro domains."""
     from methods.target_id_sidecar import read_resolver_sidecar_map
+
     try:
         return read_resolver_sidecar_map(
-            S3_BUCKET, INTERPRO_SIDECAR_KEY, "hgnc_primary_symbol_at_resolution", "native_row_key",
-            local_path=sidecar_path)
+            S3_BUCKET,
+            INTERPRO_SIDECAR_KEY,
+            "hgnc_primary_symbol_at_resolution",
+            "native_row_key",
+            local_path=sidecar_path,
+        )
     except ImportError:
-        raise                              # broken env — never mask
+        raise  # broken env — never mask
     except Exception as e:  # noqa: BLE001 — InterPro is the FALLBACK layer; degrade only on genuine absence
         # read_resolver_sidecar_map already RAISES on schema-drift / empty-crosswalk; here we swallow
         # ONLY a genuine object-absence (NoSuchKey) and re-raise transient/creds → _live_read_error.
         from methods.target_id_sidecar import is_definitively_absent
+
         if not is_definitively_absent(e):
             raise
         return {}
@@ -118,6 +128,7 @@ def _interpro_domains_for(ac: str, interpro_path: Optional[str] = None) -> Optio
     the product is unreadable (caller then reports interpro coverage as unavailable, distinct from
     'this AC has no InterPro domains')."""
     import pyarrow.parquet as pq
+
     flt = [("uniprot_accession", "==", ac), ("interpro_type", "==", "domain")]
     cols = ["interpro_id", "interpro_name", "start", "end"]
     try:
@@ -126,23 +137,30 @@ def _interpro_domains_for(ac: str, interpro_path: Optional[str] = None) -> Optio
         else:
             ensure_aws_profile()
             import pyarrow.fs as fs
-            tbl = pq.read_table(f"{S3_BUCKET}/{INTERPRO_KEY}",
-                                filesystem=fs.S3FileSystem(region="us-east-1"),
-                                filters=flt, columns=cols)
+
+            tbl = pq.read_table(
+                f"{S3_BUCKET}/{INTERPRO_KEY}", filesystem=fs.S3FileSystem(region="us-east-1"), filters=flt, columns=cols
+            )
     except Exception as e:  # noqa: BLE001
         # additive InterPro layer. Genuine object-absence → None (interpro unavailable, distinct from
         # "no domains"). Broken-env/transient/creds must surface — re-raise → _live_read_error.
         from methods.target_id_sidecar import is_definitively_absent
+
         if not (is_definitively_absent(e) or isinstance(e, FileNotFoundError)):
             raise
         return None
     d = tbl.to_pandas()
     # order by start (NaN/None last) so the architecture reads N→C-terminal
     d = d.sort_values("start", na_position="last")
-    return [{"interpro_id": str(r["interpro_id"]), "interpro_name": str(r["interpro_name"]),
-             "start": (None if r["start"] != r["start"] else int(r["start"])),
-             "end": (None if r["end"] != r["end"] else int(r["end"]))}
-            for _, r in d.iterrows()]
+    return [
+        {
+            "interpro_id": str(r["interpro_id"]),
+            "interpro_name": str(r["interpro_name"]),
+            "start": (None if r["start"] != r["start"] else int(r["start"])),
+            "end": (None if r["end"] != r["end"] else int(r["end"])),
+        }
+        for _, r in d.iterrows()
+    ]
 
 
 def _interpro_fields(ac: Optional[str], interpro_path: Optional[str]) -> dict:
@@ -151,18 +169,23 @@ def _interpro_fields(ac: Optional[str], interpro_path: Optional[str]) -> dict:
     ip = _interpro_domains_for(ac, interpro_path) if ac else None
     if ip is None:
         # either no AC, or the product was unreadable → no InterPro layer this run
-        return {"interpro_n_domains": 0, "interpro_domain_names": [],
-                "interpro_domain_architecture": None}
+        return {"interpro_n_domains": 0, "interpro_domain_names": [], "interpro_domain_architecture": None}
     names = [d["interpro_name"] for d in ip]
-    return {"interpro_n_domains": len(ip),
-            "interpro_domain_names": names,
-            "interpro_domain_architecture": ("; ".join(names) if names else None)}
+    return {
+        "interpro_n_domains": len(ip),
+        "interpro_domain_names": names,
+        "interpro_domain_architecture": ("; ".join(names) if names else None),
+    }
 
 
-def read_target_summary(target: str, indication: str = None,
-                        payload_path: Optional[str] = None, sidecar_path: Optional[str] = None,
-                        interpro_path: Optional[str] = None,
-                        interpro_sidecar_path: Optional[str] = None) -> dict:
+def read_target_summary(
+    target: str,
+    indication: str = None,
+    payload_path: Optional[str] = None,
+    sidecar_path: Optional[str] = None,
+    interpro_path: Optional[str] = None,
+    interpro_sidecar_path: Optional[str] = None,
+) -> dict:
     """Per-target domain architecture + protein class. `indication` unused (target-intrinsic).
 
     CURATED FT DOMAIN + protein class are authoritative (from uniprot-protein-features-v1). An
@@ -192,14 +215,16 @@ def read_target_summary(target: str, indication: str = None,
         # InterPro layer: if InterPro has domains for this AC, this is the interpro_only gap-fill —
         # a real, coverage-broadening answer, not an annotation gap.
         if ac and ip_n > 0:
-            out = _empty("no curated UniProt FT DOMAIN or class keyword; InterPro domains present "
-                         "(interpro_only coverage)")
+            out = _empty(
+                "no curated UniProt FT DOMAIN or class keyword; InterPro domains present (interpro_only coverage)"
+            )
             out.update(ip)
             out["uniprot_ac"] = ac
             out["domain_evidence"] = "interpro_only"
             return out
-        out = _empty(f"{target!r} has no curated UniProt domain or class-bearing keyword "
-                     f"(annotation gap, not 'featureless')")
+        out = _empty(
+            f"{target!r} has no curated UniProt domain or class-bearing keyword (annotation gap, not 'featureless')"
+        )
         out.update(ip)
         out["uniprot_ac"] = ac
         out["domain_evidence"] = "none"
@@ -209,20 +234,18 @@ def read_target_summary(target: str, indication: str = None,
     protein_class = _as_list(rec.get("protein_class"))
     n_dom = int(rec.get("n_domains") or 0)
     # a compact class for quick reads: has_domains + primary class (CURATED — unchanged vocabulary)
-    features_class = ("multi_domain" if n_dom >= 2 else
-                      "single_domain" if n_dom == 1 else
-                      "no_curated_domain")
+    features_class = "multi_domain" if n_dom >= 2 else "single_domain" if n_dom == 1 else "no_curated_domain"
     # domain_evidence: provenance of the domain call (curated FT DOMAIN vs InterPro-broadened)
     if n_dom > 0 and ip_n > 0:
         domain_evidence = "both"
     elif n_dom > 0:
         domain_evidence = "curated"
     elif ip_n > 0:
-        domain_evidence = "interpro_only"   # keyword-class record but no curated domain; InterPro fills it
+        domain_evidence = "interpro_only"  # keyword-class record but no curated domain; InterPro fills it
     else:
         domain_evidence = "none"
     out = {
-        "protein_features_class": features_class,   # PRIMARY (multi_domain | single_domain | no_curated_domain)
+        "protein_features_class": features_class,  # PRIMARY (multi_domain | single_domain | no_curated_domain)
         "n_domains": n_dom,
         "domain_names": domain_names,
         "domain_architecture": rec.get("domain_architecture"),
@@ -240,9 +263,17 @@ def read_target_summary(target: str, indication: str = None,
 def _empty(note: str) -> dict:
     return {
         "protein_features_class": "data_unavailable",
-        "n_domains": 0, "domain_names": [], "domain_architecture": None,
-        "protein_class": [], "protein_class_primary": None, "uniprot_ac": None,
+        "n_domains": 0,
+        "domain_names": [],
+        "domain_architecture": None,
+        "protein_class": [],
+        "protein_class_primary": None,
+        "uniprot_ac": None,
         "domain_evidence": "none",
-        "interpro_n_domains": 0, "interpro_domain_names": [], "interpro_domain_architecture": None,
-        "method_version": METHOD_VERSION, "_data_source": DERIVED_MANIFEST_ID, "_data_note": note,
+        "interpro_n_domains": 0,
+        "interpro_domain_names": [],
+        "interpro_domain_architecture": None,
+        "method_version": METHOD_VERSION,
+        "_data_source": DERIVED_MANIFEST_ID,
+        "_data_note": note,
     }

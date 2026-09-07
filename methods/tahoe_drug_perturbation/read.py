@@ -8,6 +8,7 @@ this reads the already-distilled significant-DE parquet.
 On unreachable product or missing target, returns a dict with tahoe_perturbation_class in
 {data_unavailable, not_measured} so the framework's graceful-degradation contract holds.
 """
+
 from __future__ import annotations
 
 from typing import Optional

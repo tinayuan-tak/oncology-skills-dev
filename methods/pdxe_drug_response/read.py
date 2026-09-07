@@ -27,6 +27,7 @@ CAVEAT — the gene_symbol key is the NATIVE PDXE 'Treatment target' token (cura
 protein-FAMILY / pathway / shorthand token, not a clean HGNC symbol). A target whose token is absent
 resolves data_unavailable; this reader does not consult the resolver sidecar (a token->HGNC v2).
 """
+
 from __future__ import annotations
 
 from functools import lru_cache
@@ -39,15 +40,22 @@ S3_BUCKET = "onc-compbio"
 SOURCE = "PDXE-Gao-2015"
 
 _PARQUET_COLS = [
-    "gene_symbol", "n_treatments", "n_models_tested", "n_response_records",
-    "median_best_avg_response", "min_best_avg_response", "responder_fraction",
-    "most_active_treatment", "most_active_treatment_median_best_avg_response",
+    "gene_symbol",
+    "n_treatments",
+    "n_models_tested",
+    "n_response_records",
+    "median_best_avg_response",
+    "min_best_avg_response",
+    "responder_fraction",
+    "most_active_treatment",
+    "most_active_treatment_median_best_avg_response",
     "treatment_types",
 ]
 
 
 def _round(v, ndigits: int = 4):
     import math
+
     if v is None:
         return None
     try:
@@ -59,6 +67,7 @@ def _round(v, ndigits: int = 4):
 
 def _int_or_none(v):
     import math
+
     if v is None:
         return None
     try:
@@ -86,11 +95,11 @@ def _read_gene_row(target: str):
         return None
     import pyarrow.fs as fs
     import pyarrow.parquet as pq
-    s3fs = fs.S3FileSystem(region="us-east-1")   # default cred chain honours AWS_PROFILE=cbg
+
+    s3fs = fs.S3FileSystem(region="us-east-1")  # default cred chain honours AWS_PROFILE=cbg
     filters = [("gene_symbol", "==", str(target).upper().strip())]
     try:
-        tbl = pq.read_table(f"{S3_BUCKET}/{key}", filesystem=s3fs,
-                            filters=filters, columns=_PARQUET_COLS)
+        tbl = pq.read_table(f"{S3_BUCKET}/{key}", filesystem=s3fs, filters=filters, columns=_PARQUET_COLS)
     except FileNotFoundError:
         return None
     return tbl.to_pandas()
@@ -116,8 +125,7 @@ def _summarize(row) -> dict:
         "min_best_avg_response": _round(row["min_best_avg_response"]),
         "responder_fraction": responder_fraction,
         "most_active_treatment": _str_or_none(row["most_active_treatment"]),
-        "most_active_treatment_median_best_avg_response":
-            _round(row["most_active_treatment_median_best_avg_response"]),
+        "most_active_treatment_median_best_avg_response": _round(row["most_active_treatment_median_best_avg_response"]),
         "treatment_types": _str_or_none(row["treatment_types"]),
         "source": SOURCE,
     }
@@ -153,7 +161,8 @@ def read_target_summary(target: str, indication: Optional[str] = None) -> dict:
     if rows.empty:
         return _data_unavailable(
             f"{str(target).upper().strip()} is not a PDXE 'Treatment target' token in {MANIFEST_ID} "
-            f"(no treatment in the Gao 2015 PDX trials names this gene as a target).")
+            f"(no treatment in the Gao 2015 PDX trials names this gene as a target)."
+        )
     out = _summarize(rows.iloc[0])
     out["_pdxe_target_token"] = str(target).upper().strip()
     out["_product_id"] = MANIFEST_ID

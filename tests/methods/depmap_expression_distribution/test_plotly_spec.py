@@ -7,6 +7,7 @@ pin: valid Plotly specs are written, their series equal the input (the no-drift 
 expression reflines (1.0 expressed / 5.0 highly-expressed) mirror the SVGs. Plotly is optional at
 emit time; if unavailable the method still emits SVGs.
 """
+
 from __future__ import annotations
 
 import base64
@@ -41,17 +42,18 @@ def _decode(v):
     plain float list so the no-drift check compares values, not serialization form."""
     if isinstance(v, dict) and "bdata" in v:
         import numpy as np
-        return np.frombuffer(base64.b64decode(v["bdata"]),
-                             dtype={"f8": "<f8", "f4": "<f4"}[v["dtype"]]).tolist()
+
+        return np.frombuffer(base64.b64decode(v["bdata"]), dtype={"f8": "<f8", "f4": "<f4"}[v["dtype"]]).tolist()
     return list(v)
 
 
 def _fixture():
     # log2(TPM+1) values spanning below-expressed, expressed, and highly-expressed bands.
     tpm = {f"ACH-{i:03d}": (i * 0.12) for i in range(60)}
-    meta = {f"ACH-{i:03d}": {"CCLEName": f"CL{i}_TISSUE",
-                             "OncotreeLineage": ["Bowel", "Lung", "Pancreas", "Skin"][i % 4]}
-            for i in range(60)}
+    meta = {
+        f"ACH-{i:03d}": {"CCLEName": f"CL{i}_TISSUE", "OncotreeLineage": ["Bowel", "Lung", "Pancreas", "Skin"][i % 4]}
+        for i in range(60)
+    }
     summary = {"n_cell_lines_evaluated": 60, "expression_class": "broadly_expressed"}
     return tpm, meta, summary
 
@@ -91,8 +93,7 @@ def test_lineage_plot_highlights_indication_lineage():
         ln = json.loads((out / "figure_lineage_expression.plotly.json").read_text())
         names = [t.get("name") for t in ln["data"]]
         assert "Bowel" in names
-        reds = [t.get("name") for t in ln["data"]
-                if (t.get("line") or {}).get("color") == "#cf2828"]
+        reds = [t.get("name") for t in ln["data"] if (t.get("line") or {}).get("color") == "#cf2828"]
         assert reds == ["Bowel"], f"expected Bowel highlighted, got {reds}"
 
 
@@ -105,7 +106,7 @@ def test_no_drift_density_series_matches_input():
         out = Path(d)
         cli.emit_plotly_specs(tpm, meta, "KRAS", summary, out, CONTRACTS)
         dens = json.loads((out / "figure_density_expression.plotly.json").read_text())
-        assert sorted(_decode(dens["data"][0]["x"])) == expect     # raw scores, any order
+        assert sorted(_decode(dens["data"][0]["x"])) == expect  # raw scores, any order
 
 
 def test_reference_lines_present_at_expression_thresholds():

@@ -14,6 +14,7 @@ Absence = coverage gap (no_mapped_drug_ade), never evidence of safety (measured-
 
 METHOD_VERSION 0.1.0.
 """
+
 from __future__ import annotations
 
 METHOD_VERSION = "0.1.0"

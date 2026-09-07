@@ -8,6 +8,7 @@ Modules:
     read — read_subtype_survival_association(indication, subgroup_assignments_manifest)
            + classify_subtype_survival_association + multivariate_logrank.
 """
+
 from __future__ import annotations
 
 from .read import (
@@ -18,5 +19,9 @@ from .read import (
 
 METHOD_VERSION = "0.1.0"
 
-__all__ = ["read_subtype_survival_association", "classify_subtype_survival_association",
-           "multivariate_logrank", "METHOD_VERSION"]
+__all__ = [
+    "read_subtype_survival_association",
+    "classify_subtype_survival_association",
+    "multivariate_logrank",
+    "METHOD_VERSION",
+]

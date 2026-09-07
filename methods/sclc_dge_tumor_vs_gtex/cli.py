@@ -46,8 +46,8 @@ import click
 
 
 # Substrate products (both log2(TPM+1) on the recount3 unversioned-Ensembl axis).
-TUMOR_PRODUCT = "sclc-george-tpm-long-v1"       # study='SCLC', 81 tumors
-GTEX_PRODUCT = "gtex-tpm-recount3-long-v1"       # tissue='LUNG' filter → 655 normals
+TUMOR_PRODUCT = "sclc-george-tpm-long-v1"  # study='SCLC', 81 tumors
+GTEX_PRODUCT = "gtex-tpm-recount3-long-v1"  # tissue='LUNG' filter → 655 normals
 GTEX_TISSUE = "LUNG"
 INDICATION = "SCLC"
 S3_BUCKET = "onc-compbio"
@@ -55,8 +55,8 @@ OUTPUT_MANIFEST_ID = "sclc-dge-tumor-vs-normal-sensitivity-v1"
 
 # Actionability thresholds — mirror the OV/DESeq2 sibling manifest so the
 # emitted flags mean the same thing downstream.
-SIG_Q = 0.05          # padj < 0.05 → significant
-UP_ABS_LOG2FC = 1.0   # |log2FC| >= 1 → "upregulated cohort" (is_significant is the harder gate)
+SIG_Q = 0.05  # padj < 0.05 → significant
+UP_ABS_LOG2FC = 1.0  # |log2FC| >= 1 → "upregulated cohort" (is_significant is the harder gate)
 
 
 def _log(msg: str) -> None:
@@ -87,6 +87,7 @@ def _welch_deg(log2_a, log2_b):
     """
     import numpy as np
     from scipy import stats
+
     a = log2_a[~np.isnan(log2_a)]
     b = log2_b[~np.isnan(log2_b)]
     if len(a) < 2 or len(b) < 2:
@@ -105,6 +106,7 @@ def _welch_deg(log2_a, log2_b):
 def _bh_correct(pvals):
     """Benjamini-Hochberg FDR. Identical to dge_tcga_gtex_precompute._bh_correct."""
     import numpy as np
+
     n = len(pvals)
     if n == 0:
         return np.array([])
@@ -124,15 +126,14 @@ def _read_long_tpm(manifest_id: str, s3fs, group_col: str, group_val: str):
     the data-catalog manifest (single source of truth for the path)."""
     import pyarrow.parquet as pq
     from methods.catalog_query.read import s3_uri_for
+
     s3_uri = s3_uri_for(manifest_id)
     path = s3_uri.replace("s3://", "")
     cols = ["gene_symbol", "ensembl_gene_id", "sample_id", group_col, "log2_tpm"]
     _log(f"    Reading {manifest_id} ({group_col}={group_val}) from {s3_uri}")
-    tbl = pq.read_table(path, filesystem=s3fs,
-                        filters=[(group_col, "=", group_val)], columns=cols)
+    tbl = pq.read_table(path, filesystem=s3fs, filters=[(group_col, "=", group_val)], columns=cols)
     df = tbl.to_pandas()
-    _log(f"    {df.shape[0]:,} rows, "
-         f"{df['sample_id'].nunique():,} samples, {df['ensembl_gene_id'].nunique():,} genes")
+    _log(f"    {df.shape[0]:,} rows, {df['sample_id'].nunique():,} samples, {df['ensembl_gene_id'].nunique():,} genes")
     return df, s3_uri
 
 
@@ -157,8 +158,7 @@ def compute_cell_c(s3fs):
     gmat = gtex.pivot(index="ensembl_gene_id", columns="sample_id", values="log2_tpm")
 
     # gene_symbol lookup (ensembl → symbol). Both products carry it; prefer tumor's.
-    sym = (tumor.drop_duplicates("ensembl_gene_id")
-           .set_index("ensembl_gene_id")["gene_symbol"])
+    sym = tumor.drop_duplicates("ensembl_gene_id").set_index("ensembl_gene_id")["gene_symbol"]
 
     # INNER join on ensembl_gene_id — only genes measured in both cohorts.
     common = tmat.index.intersection(gmat.index)
@@ -182,25 +182,26 @@ def compute_cell_c(s3fs):
     # (no TCGA adjacent-normal exists for SCLC). dominant_direction / cells_*
     # computed for the single cell that ran.
     sig_c = qval < SIG_Q
-    direction = np.where(sig_c & (lfc > 0), "up",
-                np.where(sig_c & (lfc < 0), "down", "none"))
-    df = pd.DataFrame({
-        "gene_symbol": symbols,
-        "ensembl_gene_id": ensembl,
-        "cells_ran": 1.0,
-        # cells_supporting: 1 if the single cell produced a directional sig call, else 0.
-        "cells_supporting": np.where(direction != "none", 1.0, 0.0),
-        "dominant_direction": direction,
-        "sig_all_cells": sig_c,
-        "discordant": False,          # only one cell ran → never self-discordant
-        "log2fc_A": np.nan,
-        "padj_A": np.nan,
-        "log2fc_B": np.nan,
-        "padj_B": np.nan,
-        "log2fc_C": lfc.astype(np.float64),
-        "padj_C": qval.astype(np.float64),
-        "max_abs_log2fc": np.abs(lfc).astype(np.float64),
-    })
+    direction = np.where(sig_c & (lfc > 0), "up", np.where(sig_c & (lfc < 0), "down", "none"))
+    df = pd.DataFrame(
+        {
+            "gene_symbol": symbols,
+            "ensembl_gene_id": ensembl,
+            "cells_ran": 1.0,
+            # cells_supporting: 1 if the single cell produced a directional sig call, else 0.
+            "cells_supporting": np.where(direction != "none", 1.0, 0.0),
+            "dominant_direction": direction,
+            "sig_all_cells": sig_c,
+            "discordant": False,  # only one cell ran → never self-discordant
+            "log2fc_A": np.nan,
+            "padj_A": np.nan,
+            "log2fc_B": np.nan,
+            "padj_B": np.nan,
+            "log2fc_C": lfc.astype(np.float64),
+            "padj_C": qval.astype(np.float64),
+            "max_abs_log2fc": np.abs(lfc).astype(np.float64),
+        }
+    )
     # Drop genes with no HGNC symbol (consumers filter by gene_symbol).
     df = df[df["gene_symbol"].notna()].reset_index(drop=True)
     df = df.sort_values("gene_symbol").reset_index(drop=True)
@@ -226,24 +227,26 @@ def write_parquet(df, local_path: Path) -> int:
     """
     import pyarrow as pa
     import pyarrow.parquet as pq
-    schema = pa.schema([
-        pa.field("gene_symbol", pa.string()),
-        pa.field("ensembl_gene_id", pa.string()),
-        pa.field("cells_ran", pa.float64()),
-        pa.field("cells_supporting", pa.float64()),
-        pa.field("dominant_direction", pa.string()),
-        pa.field("sig_all_cells", pa.bool_()),
-        pa.field("discordant", pa.bool_()),
-        pa.field("log2fc_A", pa.float64()),
-        pa.field("padj_A", pa.float64()),
-        pa.field("log2fc_B", pa.float64()),
-        pa.field("padj_B", pa.float64()),
-        pa.field("log2fc_C", pa.float64()),
-        pa.field("padj_C", pa.float64()),
-        pa.field("max_abs_log2fc", pa.float64()),
-    ])
-    table = pa.Table.from_pydict(
-        {f.name: df[f.name].tolist() for f in schema}, schema=schema)
+
+    schema = pa.schema(
+        [
+            pa.field("gene_symbol", pa.string()),
+            pa.field("ensembl_gene_id", pa.string()),
+            pa.field("cells_ran", pa.float64()),
+            pa.field("cells_supporting", pa.float64()),
+            pa.field("dominant_direction", pa.string()),
+            pa.field("sig_all_cells", pa.bool_()),
+            pa.field("discordant", pa.bool_()),
+            pa.field("log2fc_A", pa.float64()),
+            pa.field("padj_A", pa.float64()),
+            pa.field("log2fc_B", pa.float64()),
+            pa.field("padj_B", pa.float64()),
+            pa.field("log2fc_C", pa.float64()),
+            pa.field("padj_C", pa.float64()),
+            pa.field("max_abs_log2fc", pa.float64()),
+        ]
+    )
+    table = pa.Table.from_pydict({f.name: df[f.name].tolist() for f in schema}, schema=schema)
     table = table.sort_by("gene_symbol")
     local_path.parent.mkdir(parents=True, exist_ok=True)
     pq.write_table(table, str(local_path), compression="snappy", row_group_size=8192)
@@ -251,14 +254,17 @@ def write_parquet(df, local_path: Path) -> int:
 
 
 @click.command()
-@click.option("--local-dir", type=click.Path(file_okay=False, path_type=Path),
-              default=Path.home() / "dev" / "framework-runs" / "sclc-dge-tumor-vs-gtex",
-              help="Local staging directory.")
-@click.option("--upload", is_flag=True,
-              help="Upload parquet to S3. Default is dry-run (local only).")
+@click.option(
+    "--local-dir",
+    type=click.Path(file_okay=False, path_type=Path),
+    default=Path.home() / "dev" / "framework-runs" / "sclc-dge-tumor-vs-gtex",
+    help="Local staging directory.",
+)
+@click.option("--upload", is_flag=True, help="Upload parquet to S3. Default is dry-run (local only).")
 def main(local_dir: Path, upload: bool) -> None:
     """Compute + emit sclc-dge-tumor-vs-normal-sensitivity-v1 (cell C only)."""
     import pyarrow.fs as fs
+
     s3fs = fs.S3FileSystem()
 
     local_dir = local_dir / INDICATION
@@ -277,23 +283,24 @@ def main(local_dir: Path, upload: bool) -> None:
     parquet_path = local_dir / "sensitivity.parquet"
     size = write_parquet(df, parquet_path)
     md5 = _md5_file(parquet_path)
-    _log(f"  Wrote {parquet_path} ({size/1e6:.2f} MB, md5={md5})")
+    _log(f"  Wrote {parquet_path} ({size / 1e6:.2f} MB, md5={md5})")
 
     # Spot-check the canonical SCLC biology so a dry-run is self-validating.
     for g in ("DLL3", "ASCL1", "GAPDH", "ACTB"):
         r = df[df["gene_symbol"] == g]
         if len(r):
             row = r.iloc[0]
-            _log(f"    {g:6s} log2fc_C={row['log2fc_C']:+.2f} padj_C={row['padj_C']:.2e} "
-                 f"dir={row['dominant_direction']}")
+            _log(
+                f"    {g:6s} log2fc_C={row['log2fc_C']:+.2f} padj_C={row['padj_C']:.2e} dir={row['dominant_direction']}"
+            )
 
     if upload:
         import boto3
+
         s3 = boto3.client("s3")
         key = f"{s3_prefix}/sensitivity.parquet"
         _log(f"\n  Uploading → s3://{S3_BUCKET}/{key}")
-        s3.upload_file(str(parquet_path), S3_BUCKET, key,
-                       ExtraArgs={"Metadata": {"md5": md5}})
+        s3.upload_file(str(parquet_path), S3_BUCKET, key, ExtraArgs={"Metadata": {"md5": md5}})
         _log("  Upload complete.")
     else:
         _log("\n  DRY-RUN — not uploaded. Re-run with --upload to emit.")

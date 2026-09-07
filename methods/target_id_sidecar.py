@@ -17,6 +17,7 @@ For per-target DATA products (not the crosswalk) where a genuinely-absent object
 data gap, use `is_definitively_absent(exc)` to swallow only NoSuchKey/404 and re-raise everything
 else (broken env / transient / creds).
 """
+
 from __future__ import annotations
 
 import io
@@ -31,9 +32,7 @@ _BAD_VALUES = {"", "nan", "none", "null", "na", "<na>"}
 
 # Strict UniProt accession shape (Swiss-Prot/TrEMBL). Used to detect an AC passed in place of an
 # HGNC symbol; anchored + strict so it never false-matches digit-bearing symbols like NFE2L2.
-_UNIPROT_AC_RE = re.compile(
-    r"^(?:[OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z][0-9](?:[A-Z][A-Z0-9]{2}[0-9]){1,2})$"
-)
+_UNIPROT_AC_RE = re.compile(r"^(?:[OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z][0-9](?:[A-Z][A-Z0-9]{2}[0-9]){1,2})$")
 
 
 def looks_like_uniprot_ac(s: str) -> bool:
@@ -61,6 +60,7 @@ def s3_client(profile: Optional[str] = None):
     import boto3
     from botocore.exceptions import ProfileNotFound
     from botocore.config import Config
+
     cfg = Config(retries={"max_attempts": 8, "mode": "adaptive"})
     prof = profile or os.environ.get("AWS_PROFILE", DEFAULT_AWS_PROFILE)
     try:
@@ -110,8 +110,9 @@ def is_definitively_absent(exc: BaseException) -> bool:
     return False
 
 
-def read_resolver_sidecar_map(bucket: str, key: str, key_col: str, val_col: str, *,
-                              local_path: Optional[str] = None, upper_key: bool = True) -> dict:
+def read_resolver_sidecar_map(
+    bucket: str, key: str, key_col: str, val_col: str, *, local_path: Optional[str] = None, upper_key: bool = True
+) -> dict:
     """Return a {key_col -> val_col} crosswalk dict from a target-id resolver sidecar parquet.
 
     RAISES on any failure (see module docstring) — never returns an empty crosswalk silently, because
@@ -119,15 +120,17 @@ def read_resolver_sidecar_map(bucket: str, key: str, key_col: str, val_col: str,
     First value wins (setdefault); keys upper-cased when `upper_key`; stringified-null values skipped.
     """
     import pandas as pd  # ImportError here == broken env -> propagates (correct)
+
     if local_path is not None:
-        df = pd.read_parquet(local_path)                                   # fixture / cache: direct
+        df = pd.read_parquet(local_path)  # fixture / cache: direct
     else:
         body = s3_client().get_object(Bucket=bucket, Key=key)["Body"].read()
         df = pd.read_parquet(io.BytesIO(body))
     if key_col not in df.columns or val_col not in df.columns:
         raise ValueError(
             f"resolver sidecar s3://{bucket}/{key} missing expected columns "
-            f"{key_col!r}/{val_col!r} (present: {list(df.columns)[:10]}) — schema drift")
+            f"{key_col!r}/{val_col!r} (present: {list(df.columns)[:10]}) — schema drift"
+        )
     out: dict[str, str] = {}
     for k, v in zip(df[key_col].values, df[val_col].values):
         if isinstance(k, str) and isinstance(v, str):

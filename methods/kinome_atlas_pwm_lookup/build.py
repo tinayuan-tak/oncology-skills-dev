@@ -44,6 +44,7 @@ Usage:
         --tyr-xlsx /path/to/yaron_barir_2024_tyr_pwms.xlsx \\
         --out-parquet pwm_lookup_v1.parquet
 """
+
 from __future__ import annotations
 
 import argparse
@@ -56,7 +57,7 @@ import pandas as pd
 
 # Column header format: "{position:+/-N or 0}{amino_acid}"
 # Examples: "-5P", "+3Y", "0S", "0s" (phospho-Ser at position 0)
-_COL_RE = re.compile(r'^([+-]?\d+)([A-Za-z])$')
+_COL_RE = re.compile(r"^([+-]?\d+)([A-Za-z])$")
 
 
 def _parse_col(col: str) -> tuple[int, str] | None:
@@ -76,47 +77,46 @@ def _load_norm_scaled_sheet(xlsx_path: Path, sheet_name: str) -> pd.DataFrame:
     The sheet is wide: rows = kinases (name in first column, which pandas
     labels 'Unnamed: 0'), columns = position×aa cells + the kinase-name column.
     """
-    df = pd.read_excel(xlsx_path, sheet_name=sheet_name, engine='openpyxl')
+    df = pd.read_excel(xlsx_path, sheet_name=sheet_name, engine="openpyxl")
 
     # First column is the kinase name (unnamed in the xlsx header row).
     kinase_col = df.columns[0]
-    if not (isinstance(kinase_col, str) and kinase_col.startswith('Unnamed')):
+    if not (isinstance(kinase_col, str) and kinase_col.startswith("Unnamed")):
         print(
             f"[build] WARN: expected first column to be 'Unnamed:*' (kinase names); "
             f"got '{kinase_col}'. Will use it as kinase key anyway.",
             file=sys.stderr,
         )
-    df = df.rename(columns={kinase_col: 'kinase'})
+    df = df.rename(columns={kinase_col: "kinase"})
 
     # Identify position×aa columns
     pos_aa_cols: list[str] = []
     for c in df.columns:
-        if c == 'kinase':
+        if c == "kinase":
             continue
         parsed = _parse_col(c)
         if parsed is None:
-            print(f"[build] WARN: skipping unparseable column '{c}' in {sheet_name}",
-                  file=sys.stderr)
+            print(f"[build] WARN: skipping unparseable column '{c}' in {sheet_name}", file=sys.stderr)
             continue
         pos_aa_cols.append(c)
 
     # Melt: (kinase, pos_aa_col, value) -> parse pos_aa_col into position + amino_acid
     melted = df.melt(
-        id_vars=['kinase'],
+        id_vars=["kinase"],
         value_vars=pos_aa_cols,
-        var_name='pos_aa',
-        value_name='norm_scaled_value',
+        var_name="pos_aa",
+        value_name="norm_scaled_value",
     )
-    parsed = melted['pos_aa'].apply(_parse_col)
-    melted['position'] = parsed.apply(lambda p: p[0])
-    melted['amino_acid'] = parsed.apply(lambda p: p[1])
-    melted = melted.drop(columns=['pos_aa'])
+    parsed = melted["pos_aa"].apply(_parse_col)
+    melted["position"] = parsed.apply(lambda p: p[0])
+    melted["amino_acid"] = parsed.apply(lambda p: p[1])
+    melted = melted.drop(columns=["pos_aa"])
 
     # Coerce
-    melted['position'] = melted['position'].astype('int32')
-    melted['norm_scaled_value'] = melted['norm_scaled_value'].astype('float32')
+    melted["position"] = melted["position"].astype("int32")
+    melted["norm_scaled_value"] = melted["norm_scaled_value"].astype("float32")
     # Drop rows with NaN kinase (blank trailing rows in xlsx)
-    melted = melted[melted['kinase'].notna()]
+    melted = melted[melted["kinase"].notna()]
     return melted
 
 
@@ -124,48 +124,56 @@ def build_pwm_lookup(ser_thr_xlsx: Path, tyr_xlsx: Path) -> pd.DataFrame:
     """Load both workbooks' norm_scaled sheets, tag family + source_paper,
     concatenate, sort, return long-format DataFrame.
     """
-    st = _load_norm_scaled_sheet(ser_thr_xlsx, 'ser_thr_all_norm_scaled_matrice')
-    st['family'] = 'ser_thr'
-    st['source_paper'] = 'johnson_2023'
+    st = _load_norm_scaled_sheet(ser_thr_xlsx, "ser_thr_all_norm_scaled_matrice")
+    st["family"] = "ser_thr"
+    st["source_paper"] = "johnson_2023"
 
-    ty = _load_norm_scaled_sheet(tyr_xlsx, 'tyrosine_all_norm_scaled_matric')
-    ty['family'] = 'tyrosine'
-    ty['source_paper'] = 'yaron_barir_2024'
+    ty = _load_norm_scaled_sheet(tyr_xlsx, "tyrosine_all_norm_scaled_matric")
+    ty["family"] = "tyrosine"
+    ty["source_paper"] = "yaron_barir_2024"
 
     combined = pd.concat([st, ty], ignore_index=True)
-    combined['matrix_type'] = 'norm_scaled'
-    combined = combined[[
-        'family', 'kinase', 'position', 'amino_acid',
-        'norm_scaled_value', 'matrix_type', 'source_paper',
-    ]]
+    combined["matrix_type"] = "norm_scaled"
+    combined = combined[
+        [
+            "family",
+            "kinase",
+            "position",
+            "amino_acid",
+            "norm_scaled_value",
+            "matrix_type",
+            "source_paper",
+        ]
+    ]
     combined = combined.sort_values(
-        ['family', 'kinase', 'position', 'amino_acid'], kind='stable',
+        ["family", "kinase", "position", "amino_acid"],
+        kind="stable",
     ).reset_index(drop=True)
     return combined
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument('--ser-thr-xlsx', required=True, type=Path)
-    ap.add_argument('--tyr-xlsx', required=True, type=Path)
-    ap.add_argument('--out-parquet', required=True, type=Path)
+    ap.add_argument("--ser-thr-xlsx", required=True, type=Path)
+    ap.add_argument("--tyr-xlsx", required=True, type=Path)
+    ap.add_argument("--out-parquet", required=True, type=Path)
     args = ap.parse_args()
 
     df = build_pwm_lookup(args.ser_thr_xlsx, args.tyr_xlsx)
 
     args.out_parquet.parent.mkdir(parents=True, exist_ok=True)
-    df.to_parquet(args.out_parquet, index=False, compression='snappy')
+    df.to_parquet(args.out_parquet, index=False, compression="snappy")
 
     print(f"[build] wrote {len(df):,} rows -> {args.out_parquet}", file=sys.stderr)
     print(f"[build] families: {df['family'].value_counts().to_dict()}", file=sys.stderr)
     print(f"[build] kinases: {df['kinase'].nunique():,}", file=sys.stderr)
-    print(f"[build] position range: {df['position'].min()}..{df['position'].max()}",
-          file=sys.stderr)
+    print(f"[build] position range: {df['position'].min()}..{df['position'].max()}", file=sys.stderr)
     print(f"[build] amino_acid count: {df['amino_acid'].nunique()}", file=sys.stderr)
-    print(f"[build] value range: {df['norm_scaled_value'].min():.4g}..{df['norm_scaled_value'].max():.4g}",
-          file=sys.stderr)
-    print(f"[build] size on disk: {args.out_parquet.stat().st_size:,} bytes",
-          file=sys.stderr)
+    print(
+        f"[build] value range: {df['norm_scaled_value'].min():.4g}..{df['norm_scaled_value'].max():.4g}",
+        file=sys.stderr,
+    )
+    print(f"[build] size on disk: {args.out_parquet.stat().st_size:,} bytes", file=sys.stderr)
     return 0
 
 

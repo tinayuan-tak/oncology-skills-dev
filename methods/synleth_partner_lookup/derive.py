@@ -38,10 +38,8 @@ from typing import Optional
 METHOD_VERSION = "0.1.0"
 
 S3_BUCKET = "onc-compbio"
-SL_SOURCE_KEY = ("data-catalog/sources/synlethdb/v3-snapshot-2026-06-30/"
-                 "Human.SL.detailed.tsv")
-DERIVED_KEY = ("data-catalog/derived/synlethdb-sl-partners-per-gene-v1/"
-               "synlethdb_sl_partners_per_gene.parquet")
+SL_SOURCE_KEY = "data-catalog/sources/synlethdb/v3-snapshot-2026-06-30/Human.SL.detailed.tsv"
+DERIVED_KEY = "data-catalog/derived/synlethdb-sl-partners-per-gene-v1/synlethdb_sl_partners_per_gene.parquet"
 DEFAULT_AWS_PROFILE = "cbg"
 
 # rel_source → evidence tier rank (higher = stronger). Experimental screens outrank
@@ -78,12 +76,13 @@ from methods.target_id_sidecar import ensure_aws_profile
 def load_sl_pairs(tsv_path=None):
     """Load the SynLethDB SL pair table (local path or S3)."""
     import pandas as pd
-    cols = ["x:START_ID", "x_name", "y:END_ID", "y_name", "rel_source",
-            "cell_line", "pubmed_id", "cancer"]
+
+    cols = ["x:START_ID", "x_name", "y:END_ID", "y_name", "rel_source", "cell_line", "pubmed_id", "cancer"]
     if tsv_path is not None:
         return pd.read_csv(tsv_path, sep="\t", usecols=cols, dtype=str)
     ensure_aws_profile()
     import boto3
+
     body = boto3.client("s3").get_object(Bucket=S3_BUCKET, Key=SL_SOURCE_KEY)["Body"].read()
     return pd.read_csv(io.BytesIO(body), sep="\t", usecols=cols, dtype=str)
 
@@ -103,7 +102,8 @@ def build_partner_index(df) -> "list[dict]":
         # keep the STRONGEST evidence tier seen for this partner
         if existing is None or _TIER_RANK[tier] > _TIER_RANK[existing["evidence_tier"]]:
             rec["partners"][partner_sym] = {
-                "partner": partner_sym, "partner_entrez": partner_entrez,
+                "partner": partner_sym,
+                "partner_entrez": partner_entrez,
                 "evidence_tier": tier,
                 "pubmed_id": (pubmed if pubmed and pubmed != "nan" else None),
                 "cell_line": (cell_line if cell_line and cell_line != "nan" else None),
@@ -129,30 +129,37 @@ def build_partner_index(df) -> "list[dict]":
         partners = list(rec["partners"].values())
         n_exp = sum(1 for p in partners if p["evidence_tier"] == "experimental")
         tiers_present = {p["evidence_tier"] for p in partners}
-        best = ("experimental" if "experimental" in tiers_present
-                else "other" if "other" in tiers_present else "computational")
+        best = (
+            "experimental"
+            if "experimental" in tiers_present
+            else "other"
+            if "other" in tiers_present
+            else "computational"
+        )
         # top partners: experimental first, then by presence of pubmed
         partners_sorted = sorted(
-            partners,
-            key=lambda p: (_TIER_RANK[p["evidence_tier"]], p["pubmed_id"] is not None),
-            reverse=True)
-        records.append({
-            "gene_symbol": sym,
-            "entrez_id": rec["entrez"],
-            "sl_partner_count": len(partners),
-            "n_experimental_partners": n_exp,
-            "has_experimental_partner": n_exp > 0,
-            "best_evidence_tier": best,
-            "sl_partner_symbols": sorted(p["partner"] for p in partners),
-            "top_partners": partners_sorted[:20],
-            "method_version": METHOD_VERSION,
-        })
+            partners, key=lambda p: (_TIER_RANK[p["evidence_tier"]], p["pubmed_id"] is not None), reverse=True
+        )
+        records.append(
+            {
+                "gene_symbol": sym,
+                "entrez_id": rec["entrez"],
+                "sl_partner_count": len(partners),
+                "n_experimental_partners": n_exp,
+                "has_experimental_partner": n_exp > 0,
+                "best_evidence_tier": best,
+                "sl_partner_symbols": sorted(p["partner"] for p in partners),
+                "top_partners": partners_sorted[:20],
+                "method_version": METHOD_VERSION,
+            }
+        )
     return records
 
 
 def build_and_write(tsv_path=None, out_path=None):
     """Precompute entrypoint: build the per-gene partner parquet."""
     import pandas as pd
+
     df = load_sl_pairs(tsv_path)
     records = build_partner_index(df)
     out_df = pd.DataFrame.from_records(records)
@@ -168,6 +175,7 @@ def build_and_write(tsv_path=None, out_path=None):
 
 def _main(argv=None):
     import argparse
+
     ap = argparse.ArgumentParser(description="Build synlethdb-sl-partners-per-gene-v1.")
     ap.add_argument("--tsv-path", default=None, help="local SL TSV (else S3)")
     ap.add_argument("--out", required=True, help="output parquet path")

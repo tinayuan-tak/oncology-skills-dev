@@ -14,6 +14,7 @@ AWAY from its own lineage) is resolved through indication_crosswalk.yaml.
 control_position is a one-directional CONFIDENCE facet — like the rest of this subskill
 it never flips presence_verdict.
 """
+
 from __future__ import annotations
 
 from .read import control_position_tumor, control_position_cellline  # noqa: F401

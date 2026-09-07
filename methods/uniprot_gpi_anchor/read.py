@@ -14,6 +14,7 @@ reserved for "derived product could not be loaded."
 Runtime: S3 get → lru_cache index → single lookup per call. Symbol→AC via the sidecar (never a source
 symbol column — deprecated-symbol risk), same discipline as the CSPA + topology readers.
 """
+
 from __future__ import annotations
 
 import io
@@ -36,12 +37,14 @@ from methods.target_id_sidecar import ensure_aws_profile
 
 def _read_parquet(path_or_none, bucket, key):
     import pandas as pd
+
     if path_or_none is not None:
         return pd.read_parquet(path_or_none)
     ensure_aws_profile()
     # shared client: AWS_PROFILE=cbg + adaptive-retry Config (absorbs transient S3 throttling on
     # batch reads), mirroring uniprot_protein_features — a bare boto3.client had NO retry backoff.
     from methods.target_id_sidecar import s3_client
+
     body = s3_client().get_object(Bucket=bucket, Key=key)["Body"].read()
     return pd.read_parquet(io.BytesIO(body))
 
@@ -56,6 +59,7 @@ def _load_indexed(payload_path: Optional[str] = None, sidecar_path: Optional[str
         # error must NOT be masked as "product unavailable" (would silently flip every GPI target to
         # is_gpi_anchored=None) — re-raise (lru_cache never memoizes the raise, so it is retried).
         from methods.target_id_sidecar import is_definitively_absent
+
         if not is_definitively_absent(e):
             raise
         return None
@@ -78,23 +82,32 @@ def _load_indexed(payload_path: Optional[str] = None, sidecar_path: Optional[str
         # A transient/creds/broken-env failure must NOT be masked (would drop symbol→AC for the whole
         # batch AND poison the lru_cache with a partial index) — re-raise it.
         from methods.target_id_sidecar import is_definitively_absent
+
         if not is_definitively_absent(e):
             raise
     return gpi_acs, gpi_note_by_ac, symbol_to_ac
 
 
-def read_gpi_anchor(target: str, indication: Optional[str] = None,
-                    payload_path: Optional[str] = None,
-                    sidecar_path: Optional[str] = None) -> dict:
+def read_gpi_anchor(
+    target: str,
+    indication: Optional[str] = None,
+    payload_path: Optional[str] = None,
+    sidecar_path: Optional[str] = None,
+) -> dict:
     """GPI-anchor status for `target` (HGNC symbol or UniProt AC).
 
     is_gpi_anchored True/False is a real measured call (positive-only payload over complete reviewed-
     human UniProt); is_gpi_anchored=None ONLY when the derived product couldn't load."""
     idx = _load_indexed(payload_path, sidecar_path)
     if idx is None:
-        return {"is_gpi_anchored": None, "gpi_lipid_note": None, "uniprot_ac": None,
-                "method_version": METHOD_VERSION, "_data_source": DERIVED_MANIFEST_ID,
-                "_data_note": "uniprot_gpi_derived_product_unavailable"}
+        return {
+            "is_gpi_anchored": None,
+            "gpi_lipid_note": None,
+            "uniprot_ac": None,
+            "method_version": METHOD_VERSION,
+            "_data_source": DERIVED_MANIFEST_ID,
+            "_data_note": "uniprot_gpi_derived_product_unavailable",
+        }
     gpi_acs, gpi_note_by_ac, symbol_to_ac = idx
     key = target.strip()
     ac = key if key in gpi_acs else symbol_to_ac.get(key.upper())

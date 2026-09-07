@@ -4,6 +4,7 @@ and _row_for_ac (@lru_cache maxsize=512) memoized an "UNREADABLE" sentinel per-A
 payload failure. Both must RAISE on transient/broken-env (not memoized) and return the honest empty
 / sentinel ONLY on a genuine object-absence.
 """
+
 from __future__ import annotations
 
 import sys
@@ -43,7 +44,7 @@ def test_symbol_to_ac_transient_raises_not_cached(monkeypatch):
     monkeypatch.setattr(R, "_read_parquet", fake_read_parquet)
     with pytest.raises(RuntimeError):
         R._symbol_to_ac()
-    m = R._symbol_to_ac()          # NOT memoized: retry succeeds
+    m = R._symbol_to_ac()  # NOT memoized: retry succeeds
     assert m.get("KRAS") == "P01116"
 
 
@@ -66,6 +67,7 @@ def test_symbol_to_ac_schema_drift_raises(monkeypatch):
 def _patch_pyarrow(monkeypatch, read_table):
     import pyarrow.parquet as pq
     import pyarrow.fs as fs
+
     monkeypatch.setattr(fs, "S3FileSystem", lambda **k: object())
     monkeypatch.setattr(pq, "read_table", read_table)
 
@@ -82,7 +84,7 @@ def test_row_for_ac_transient_raises_not_cached(monkeypatch):
     _patch_pyarrow(monkeypatch, read_table)
     with pytest.raises(RuntimeError):
         R._row_for_ac("P01116")
-    row = R._row_for_ac("P01116")     # NOT memoized: retry succeeds
+    row = R._row_for_ac("P01116")  # NOT memoized: retry succeeds
     assert row not in (None, "UNREADABLE")
     assert row["uniprot_id"] == "P01116"
 

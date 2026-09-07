@@ -21,6 +21,7 @@ stays in the reader, so the product is release-independent).
 
 One streaming pass over the gzip (not one-pass-per-gene). Run with --upload to materialize to S3.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -29,18 +30,23 @@ import io
 from pathlib import Path
 
 from methods.depmap_methylation_silencing.read import (
-    CCLE_RRBS_TSS1KB_FILE, CCLE_SOURCE_MANIFEST_ID, DEFAULT_AWS_PROFILE,
+    CCLE_RRBS_TSS1KB_FILE,
+    CCLE_SOURCE_MANIFEST_ID,
+    DEFAULT_AWS_PROFILE,
 )
 
 _NAN_TOKENS = ("", "NaN", "NA", "nan")
-_DERIVED_S3_URI = ("s3://onc-compbio/data-catalog/derived/"
-                   "ccle-rrbs-promoter-methylation-mean-per-gene-v1/promoter_methylation_mean.parquet")
+_DERIVED_S3_URI = (
+    "s3://onc-compbio/data-catalog/derived/"
+    "ccle-rrbs-promoter-methylation-mean-per-gene-v1/promoter_methylation_mean.parquet"
+)
 
 
 def _open_ccle_stream():
     """Return a text stream over the CCLE RRBS TSS-1kb gzip (cbg role; frozen-creds trap handled)."""
     from methods.catalog_query.read import bucket_prefix_for
     import boto3
+
     bucket, prefix = bucket_prefix_for(CCLE_SOURCE_MANIFEST_ID)
     key = f"{prefix.rstrip('/')}/{CCLE_RRBS_TSS1KB_FILE}"
     try:
@@ -58,7 +64,7 @@ def build_table():
 
     text = _open_ccle_stream()
     header = text.readline().rstrip("\n").split("\t")
-    cell_cols = header[3:]                       # 0..2 = locus_id, CpG_sites_hg19, avg_coverage
+    cell_cols = header[3:]  # 0..2 = locus_id, CpG_sites_hg19, avg_coverage
     ncol = len(cell_cols)
 
     # gene -> [sums(ncol), counts(ncol)] accumulated across ALL of the gene's TSS rows/columns.
@@ -72,7 +78,7 @@ def build_table():
             sums[gene] = [0.0] * ncol
             counts[gene] = [0] * ncol
         s_arr, c_arr = sums[gene], counts[gene]
-        for i, v in enumerate(parts[3:3 + ncol]):
+        for i, v in enumerate(parts[3 : 3 + ncol]):
             s = v.strip()
             if s in _NAN_TOKENS:
                 continue
@@ -80,7 +86,7 @@ def build_table():
                 fv = float(s)
             except ValueError:
                 continue
-            if fv != fv:                         # residual NaN guard
+            if fv != fv:  # residual NaN guard
                 continue
             s_arr[i] += fv
             c_arr[i] += 1
@@ -101,8 +107,7 @@ def build_table():
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--out", default="/tmp/promoter_methylation_mean.parquet",
-                    help="local parquet output path")
+    ap.add_argument("--out", default="/tmp/promoter_methylation_mean.parquet", help="local parquet output path")
     ap.add_argument("--upload", action="store_true", help="upload to the derived S3 URI (cbg)")
     args = ap.parse_args()
 
@@ -117,6 +122,7 @@ def main():
 
     if args.upload:
         import boto3
+
         path = _DERIVED_S3_URI.replace("s3://", "", 1)
         bucket, _, key = path.partition("/")
         try:
@@ -125,6 +131,7 @@ def main():
             s3 = boto3.client("s3")
         s3.upload_file(args.out, bucket, key)
         import hashlib
+
         md5 = hashlib.md5(Path(args.out).read_bytes()).hexdigest()
         print(f"uploaded → {_DERIVED_S3_URI}\n  md5={md5}  size_bytes={Path(args.out).stat().st_size}")
 

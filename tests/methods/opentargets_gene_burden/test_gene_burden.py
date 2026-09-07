@@ -5,6 +5,7 @@ branches are pinned with dict fixtures — no S3. Plus the read_gene_burden data
 paths via monkeypatched opentargets_common. The guardrail under test: only risk-only fires
 lof_risk_phenotype; risk+protect conflict -> direction_unresolved (never a false hold).
 """
+
 from __future__ import annotations
 
 import importlib
@@ -23,18 +24,26 @@ r = importlib.import_module("methods.opentargets_gene_burden.read")
 def _row(direction, p, disease="D"):
     # split p into mantissa/exponent (p = mantissa * 10^exponent)
     import math
+
     exp = math.floor(math.log10(p)) if p > 0 else 0
-    man = p / (10.0 ** exp)
-    return {"directionOnTrait": direction, "pValueMantissa": man, "pValueExponent": exp,
-            "beta": None, "diseaseFromSource": disease, "oddsRatio": None,
-            "ancestry": None, "statisticalMethod": None}
+    man = p / (10.0**exp)
+    return {
+        "directionOnTrait": direction,
+        "pValueMantissa": man,
+        "pValueExponent": exp,
+        "beta": None,
+        "diseaseFromSource": disease,
+        "oddsRatio": None,
+        "ancestry": None,
+        "statisticalMethod": None,
+    }
 
 
 def test_risk_only_is_lof_risk_phenotype():
     out = r.classify_burden([_row("risk", 1e-10, "Leukemia"), _row("risk", 1e-8)])
     assert out["burden_safety_class"] == "lof_risk_phenotype"
     assert out["n_significant"] == 2
-    assert out["top_disease"] == "Leukemia"     # most-significant risk row
+    assert out["top_disease"] == "Leukemia"  # most-significant risk row
     assert out["direction_on_target"] == "LoF"
 
 
@@ -70,7 +79,7 @@ def test_nan_direction_does_not_crash_sorted():
     nan = float("nan")
     out = r.classify_burden([_row("risk", 1e-10, "Leukemia"), _row(nan, 1e-9)])
     assert out["burden_safety_class"] == "lof_risk_phenotype"
-    assert out["directions"] == ["risk"]          # NaN filtered out, no crash
+    assert out["directions"] == ["risk"]  # NaN filtered out, no crash
 
 
 def test_empty_rows_is_no_burden_signal():
@@ -86,8 +95,7 @@ def test_unresolvable_symbol_is_insufficient(monkeypatch):
 
 def test_resolved_but_no_rows_is_no_burden_signal(monkeypatch):
     monkeypatch.setattr(r, "symbol_to_ensembl", lambda t: "ENSG_ORPHAN")
-    monkeypatch.setattr(r, "read_entity",
-                        lambda entity, columns=None, **_kw: pd.DataFrame(columns=r._FIELDS))
+    monkeypatch.setattr(r, "read_entity", lambda entity, columns=None, **_kw: pd.DataFrame(columns=r._FIELDS))
     # entity present but empty -> insufficient (entity unavailable path)
     out = r.read_gene_burden("ORPHAN")
     assert out["burden_safety_class"] in ("insufficient", "no_burden_signal")

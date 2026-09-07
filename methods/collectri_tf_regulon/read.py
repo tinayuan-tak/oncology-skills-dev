@@ -19,6 +19,7 @@ License: CollecTri wrapper is GPL-3.0 (Müller-Dott 2023). Per-row data inherits
 named `resources` column value; this reader emits `resources` per edge so governance can filter
 downstream.
 """
+
 from __future__ import annotations
 
 import sys
@@ -48,6 +49,7 @@ def _get_s3fs():
         with _S3FS_LOCK:
             if _S3FS is None:
                 import pyarrow.fs as pafs
+
                 _S3FS = pafs.S3FileSystem(region="us-east-1")
     return _S3FS
 
@@ -78,7 +80,7 @@ def _row_to_edge(row: dict) -> dict:
     else:
         moa_class, modality_relevance = cls.moa_class, cls.modality_relevance
     return {
-        "partner_uniprot_ac": "",   # CollecTri is symbol-only
+        "partner_uniprot_ac": "",  # CollecTri is symbol-only
         "partner_gene_symbol": row.get("partner_gene_symbol") or "",
         "direction": direction,
         "raw_mechanism": mech_str,
@@ -87,7 +89,7 @@ def _row_to_edge(row: dict) -> dict:
         "modality_relevance": list(modality_relevance),
         "is_stimulation": is_stim,
         "is_inhibition": is_inh,
-        "direct_flag": True,   # CollecTri edges are direct-transcriptional by definition
+        "direct_flag": True,  # CollecTri edges are direct-transcriptional by definition
         "references": row.get("references") or "",
         "resources": row.get("resources") or "",
         "tf_category": row.get("tf_category") or "",
@@ -102,12 +104,12 @@ def _read_edges_from_derived(target: str, product_path=None) -> tuple[list[dict]
     Raises on a transient/creds/broken-env failure (NOT swallowed — the caller's boundary classifies a
     genuine 404/absence into data_unavailable via is_definitively_absent)."""
     import pyarrow.parquet as pq
+
     if product_path is not None:
         tbl = pq.read_table(str(product_path), filters=[("target_gene_symbol", "=", target)])
     else:
         bucket, key = bucket_key_for(DERIVED_MANIFEST_ID)
-        tbl = pq.read_table(f"{bucket}/{key}", filesystem=_get_s3fs(),
-                            filters=[("target_gene_symbol", "=", target)])
+        tbl = pq.read_table(f"{bucket}/{key}", filesystem=_get_s3fs(), filters=[("target_gene_symbol", "=", target)])
     edges: list[dict] = []
     total = unmapped = 0
     for row in tbl.to_pylist():
@@ -119,9 +121,7 @@ def _read_edges_from_derived(target: str, product_path=None) -> tuple[list[dict]
     return edges, total, unmapped
 
 
-def _aggregate_edges_to_summary(
-    edges: list[dict], total: int, unmapped: int
-) -> dict:
+def _aggregate_edges_to_summary(edges: list[dict], total: int, unmapped: int) -> dict:
     """Aggregate per-edge records → per-target summary matching the SIGNOR read.py contract shape.
     Same keys, same categorical enum, so the composed Phase-D card can union CollecTri + SIGNOR
     outputs without reshape logic."""
@@ -179,6 +179,7 @@ def read_target_summary(target: str, indication: str = None, product_path=None) 
         # data_unavailable. A transient/creds/broken-env error must NOT be masked as an empty regulon
         # — re-raise so the live-read seam surfaces _live_read_error instead of a silent dead axis.
         from methods.target_id_sidecar import is_definitively_absent
+
         if not (isinstance(e, FileNotFoundError) or is_definitively_absent(e)):
             raise
         return {

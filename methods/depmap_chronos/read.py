@@ -34,9 +34,7 @@ DEFAULT_AWS_PROFILE = "cbg"
 
 # Per-ModelID Chronos gene-effect matrix (the raw substrate for subgroup-
 # stratified dependency). Columns are `SYMBOL (ENTREZ)`; index/col `ModelID`.
-DEFAULT_CHRONOS_PARQUET = (
-    Path.home() / ".cache" / "framework-depmap-26q1-parquet" / "CRISPRGeneEffect.parquet"
-)
+DEFAULT_CHRONOS_PARQUET = Path.home() / ".cache" / "framework-depmap-26q1-parquet" / "CRISPRGeneEffect.parquet"
 
 # Indication → DepMap OncotreeLineage mapping — the CANONICAL, single-source map.
 # It is DEFINED as a literal in cli.py (the leaf module) and re-exported here as the
@@ -76,9 +74,7 @@ def read_lineage_selectivity(
     """
     ensure_aws_profile()
 
-    chronos_by_model, model_metadata, load_errors = _cli.load_depmap_files(
-        release_pin="26q1", target_symbol=target
-    )
+    chronos_by_model, model_metadata, load_errors = _cli.load_depmap_files(release_pin="26q1", target_symbol=target)
     if load_errors:
         return {
             "_live_read_error": load_errors[0].get("_live_read_error", "s3_or_local_read_failed"),
@@ -107,7 +103,9 @@ def read_lineage_selectivity(
     # `indication` accepted for back-compat with existing callers but NOT consumed
     # by the compute path. Card 2 is target-only per Decision 2A.
     return _cli.compute_lineage_summary(
-        chronos_by_model, model_metadata, indication=indication,
+        chronos_by_model,
+        model_metadata,
+        indication=indication,
         strong_threshold=strong_threshold,
         moderate_threshold=moderate_threshold,
     )
@@ -125,8 +123,7 @@ MIN_N_EFFECT_ADMISSIBLE = 3
 EFFECT_STRONG_FRAC = 0.75
 
 
-def _dependency_class(median_chronos: float | None,
-                      strong: float = -1.0, moderate: float = -0.5) -> str:
+def _dependency_class(median_chronos: float | None, strong: float = -1.0, moderate: float = -0.5) -> str:
     """Coarse dependency class for a subgroup (descriptive, not a verdict)."""
     if median_chronos is None:
         return "insufficient"
@@ -168,10 +165,16 @@ def read_stratified_dependency(
     path = chronos_parquet or DEFAULT_CHRONOS_PARQUET
     if not path.exists():
         return {
-            "target": target, "indication": indication,
-            "subgroup_n": 0, "median_chronos": None, "n_strong_dependent": None,
-            "subgroup_n_floor_met": False, "subgroup_effect_admissible": False, "evidence_state": "absent",
-            "dependency_class": "insufficient", "source_cohort": "DepMap-26Q1",
+            "target": target,
+            "indication": indication,
+            "subgroup_n": 0,
+            "median_chronos": None,
+            "n_strong_dependent": None,
+            "subgroup_n_floor_met": False,
+            "subgroup_effect_admissible": False,
+            "evidence_state": "absent",
+            "dependency_class": "insufficient",
+            "source_cohort": "DepMap-26Q1",
             "_data_note": f"No Chronos parquet at {path}.",
         }
 
@@ -181,10 +184,16 @@ def read_stratified_dependency(
     col = _chronos_gene_column(ce.columns, target)
     if col is None:
         return {
-            "target": target, "indication": indication,
-            "subgroup_n": 0, "median_chronos": None, "n_strong_dependent": None,
-            "subgroup_n_floor_met": False, "subgroup_effect_admissible": False, "evidence_state": "absent",
-            "dependency_class": "insufficient", "source_cohort": "DepMap-26Q1",
+            "target": target,
+            "indication": indication,
+            "subgroup_n": 0,
+            "median_chronos": None,
+            "n_strong_dependent": None,
+            "subgroup_n_floor_met": False,
+            "subgroup_effect_admissible": False,
+            "evidence_state": "absent",
+            "dependency_class": "insufficient",
+            "source_cohort": "DepMap-26Q1",
             "_data_note": f"{target!r} not a Chronos column.",
         }
 
@@ -197,7 +206,7 @@ def read_stratified_dependency(
     n_strong = int((gene <= -1.0).sum()) if n else None
     floor_met = n >= SUBGROUP_N_FLOOR
     frac_strong = (n_strong / n) if (n and n_strong is not None) else 0.0
-    effect_admissible = (n >= MIN_N_EFFECT_ADMISSIBLE and frac_strong >= EFFECT_STRONG_FRAC)
+    effect_admissible = n >= MIN_N_EFFECT_ADMISSIBLE and frac_strong >= EFFECT_STRONG_FRAC
     return {
         "target": target,
         "indication": indication,

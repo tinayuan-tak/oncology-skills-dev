@@ -52,53 +52,168 @@ INDICATION_TO_TCGA_PROJECTS = {
 # project information to a project_id. Limited to the priority indications.
 TSS_CODE_TO_TCGA_PROJECT = {
     # TCGA-COAD (colon adenocarcinoma)
-    "3L": "TCGA-COAD", "4N": "TCGA-COAD", "4T": "TCGA-COAD", "5M": "TCGA-COAD",
-    "A6": "TCGA-COAD", "AA": "TCGA-COAD", "AD": "TCGA-COAD", "AM": "TCGA-COAD",
-    "AU": "TCGA-COAD", "AY": "TCGA-COAD", "AZ": "TCGA-COAD", "CA": "TCGA-COAD",
-    "CK": "TCGA-COAD", "CM": "TCGA-COAD", "D5": "TCGA-COAD", "DM": "TCGA-COAD",
-    "F4": "TCGA-COAD", "G4": "TCGA-COAD", "NH": "TCGA-COAD", "QG": "TCGA-COAD",
-    "QL": "TCGA-COAD", "RU": "TCGA-COAD", "SS": "TCGA-COAD", "T9": "TCGA-COAD",
+    "3L": "TCGA-COAD",
+    "4N": "TCGA-COAD",
+    "4T": "TCGA-COAD",
+    "5M": "TCGA-COAD",
+    "A6": "TCGA-COAD",
+    "AA": "TCGA-COAD",
+    "AD": "TCGA-COAD",
+    "AM": "TCGA-COAD",
+    "AU": "TCGA-COAD",
+    "AY": "TCGA-COAD",
+    "AZ": "TCGA-COAD",
+    "CA": "TCGA-COAD",
+    "CK": "TCGA-COAD",
+    "CM": "TCGA-COAD",
+    "D5": "TCGA-COAD",
+    "DM": "TCGA-COAD",
+    "F4": "TCGA-COAD",
+    "G4": "TCGA-COAD",
+    "NH": "TCGA-COAD",
+    "QG": "TCGA-COAD",
+    "QL": "TCGA-COAD",
+    "RU": "TCGA-COAD",
+    "SS": "TCGA-COAD",
+    "T9": "TCGA-COAD",
     "WS": "TCGA-COAD",
     # TCGA-READ (rectum adenocarcinoma)
-    "AF": "TCGA-READ", "AG": "TCGA-READ", "AH": "TCGA-READ", "BM": "TCGA-READ",
-    "CI": "TCGA-READ", "CL": "TCGA-READ", "DC": "TCGA-READ", "DT": "TCGA-READ",
-    "DY": "TCGA-READ", "EF": "TCGA-READ", "EI": "TCGA-READ", "F5": "TCGA-READ",
+    "AF": "TCGA-READ",
+    "AG": "TCGA-READ",
+    "AH": "TCGA-READ",
+    "BM": "TCGA-READ",
+    "CI": "TCGA-READ",
+    "CL": "TCGA-READ",
+    "DC": "TCGA-READ",
+    "DT": "TCGA-READ",
+    "DY": "TCGA-READ",
+    "EF": "TCGA-READ",
+    "EI": "TCGA-READ",
+    "F5": "TCGA-READ",
     "G5": "TCGA-READ",
     # TCGA-PAAD (pancreatic adenocarcinoma)
-    "2J": "TCGA-PAAD", "2L": "TCGA-PAAD", "3A": "TCGA-PAAD", "3E": "TCGA-PAAD",
-    "F2": "TCGA-PAAD", "FB": "TCGA-PAAD", "H6": "TCGA-PAAD", "H8": "TCGA-PAAD",
-    "HV": "TCGA-PAAD", "HZ": "TCGA-PAAD", "IB": "TCGA-PAAD", "L1": "TCGA-PAAD",
-    "LB": "TCGA-PAAD", "M8": "TCGA-PAAD", "OE": "TCGA-PAAD", "PZ": "TCGA-PAAD",
-    "Q3": "TCGA-PAAD", "RB": "TCGA-PAAD", "RL": "TCGA-PAAD", "RV": "TCGA-PAAD",
-    "S4": "TCGA-PAAD", "US": "TCGA-PAAD", "XD": "TCGA-PAAD", "XN": "TCGA-PAAD",
-    "YB": "TCGA-PAAD", "YH": "TCGA-PAAD", "YY": "TCGA-PAAD", "Z5": "TCGA-PAAD",
+    "2J": "TCGA-PAAD",
+    "2L": "TCGA-PAAD",
+    "3A": "TCGA-PAAD",
+    "3E": "TCGA-PAAD",
+    "F2": "TCGA-PAAD",
+    "FB": "TCGA-PAAD",
+    "H6": "TCGA-PAAD",
+    "H8": "TCGA-PAAD",
+    "HV": "TCGA-PAAD",
+    "HZ": "TCGA-PAAD",
+    "IB": "TCGA-PAAD",
+    "L1": "TCGA-PAAD",
+    "LB": "TCGA-PAAD",
+    "M8": "TCGA-PAAD",
+    "OE": "TCGA-PAAD",
+    "PZ": "TCGA-PAAD",
+    "Q3": "TCGA-PAAD",
+    "RB": "TCGA-PAAD",
+    "RL": "TCGA-PAAD",
+    "RV": "TCGA-PAAD",
+    "S4": "TCGA-PAAD",
+    "US": "TCGA-PAAD",
+    "XD": "TCGA-PAAD",
+    "XN": "TCGA-PAAD",
+    "YB": "TCGA-PAAD",
+    "YH": "TCGA-PAAD",
+    "YY": "TCGA-PAAD",
+    "Z5": "TCGA-PAAD",
     # TCGA-LUAD (lung adenocarcinoma)
-    "05": "TCGA-LUAD", "35": "TCGA-LUAD", "38": "TCGA-LUAD", "44": "TCGA-LUAD",
-    "49": "TCGA-LUAD", "4B": "TCGA-LUAD", "50": "TCGA-LUAD", "53": "TCGA-LUAD",
-    "55": "TCGA-LUAD", "62": "TCGA-LUAD", "64": "TCGA-LUAD", "67": "TCGA-LUAD",
-    "69": "TCGA-LUAD", "71": "TCGA-LUAD", "73": "TCGA-LUAD", "75": "TCGA-LUAD",
-    "78": "TCGA-LUAD", "80": "TCGA-LUAD", "83": "TCGA-LUAD", "86": "TCGA-LUAD",
-    "91": "TCGA-LUAD", "93": "TCGA-LUAD", "95": "TCGA-LUAD", "97": "TCGA-LUAD",
-    "99": "TCGA-LUAD", "J2": "TCGA-LUAD", "L4": "TCGA-LUAD", "L9": "TCGA-LUAD",
-    "MN": "TCGA-LUAD", "MP": "TCGA-LUAD", "NJ": "TCGA-LUAD", "O1": "TCGA-LUAD",
-    "S2": "TCGA-LUAD", "T6": "TCGA-LUAD",
+    "05": "TCGA-LUAD",
+    "35": "TCGA-LUAD",
+    "38": "TCGA-LUAD",
+    "44": "TCGA-LUAD",
+    "49": "TCGA-LUAD",
+    "4B": "TCGA-LUAD",
+    "50": "TCGA-LUAD",
+    "53": "TCGA-LUAD",
+    "55": "TCGA-LUAD",
+    "62": "TCGA-LUAD",
+    "64": "TCGA-LUAD",
+    "67": "TCGA-LUAD",
+    "69": "TCGA-LUAD",
+    "71": "TCGA-LUAD",
+    "73": "TCGA-LUAD",
+    "75": "TCGA-LUAD",
+    "78": "TCGA-LUAD",
+    "80": "TCGA-LUAD",
+    "83": "TCGA-LUAD",
+    "86": "TCGA-LUAD",
+    "91": "TCGA-LUAD",
+    "93": "TCGA-LUAD",
+    "95": "TCGA-LUAD",
+    "97": "TCGA-LUAD",
+    "99": "TCGA-LUAD",
+    "J2": "TCGA-LUAD",
+    "L4": "TCGA-LUAD",
+    "L9": "TCGA-LUAD",
+    "MN": "TCGA-LUAD",
+    "MP": "TCGA-LUAD",
+    "NJ": "TCGA-LUAD",
+    "O1": "TCGA-LUAD",
+    "S2": "TCGA-LUAD",
+    "T6": "TCGA-LUAD",
     # TCGA-LUSC (lung squamous cell carcinoma)
-    "18": "TCGA-LUSC", "21": "TCGA-LUSC", "22": "TCGA-LUSC", "33": "TCGA-LUSC",
-    "34": "TCGA-LUSC", "37": "TCGA-LUSC", "39": "TCGA-LUSC", "43": "TCGA-LUSC",
-    "46": "TCGA-LUSC", "51": "TCGA-LUSC", "52": "TCGA-LUSC", "56": "TCGA-LUSC",
-    "58": "TCGA-LUSC", "60": "TCGA-LUSC", "63": "TCGA-LUSC", "66": "TCGA-LUSC",
-    "68": "TCGA-LUSC", "6A": "TCGA-LUSC", "70": "TCGA-LUSC", "77": "TCGA-LUSC",
-    "79": "TCGA-LUSC", "82": "TCGA-LUSC", "85": "TCGA-LUSC", "8C": "TCGA-LUSC",
-    "90": "TCGA-LUSC", "92": "TCGA-LUSC", "94": "TCGA-LUSC", "96": "TCGA-LUSC",
-    "98": "TCGA-LUSC", "J1": "TCGA-LUSC", "LA": "TCGA-LUSC", "MF": "TCGA-LUSC",
-    "NC": "TCGA-LUSC", "NK": "TCGA-LUSC", "O2": "TCGA-LUSC", "XC": "TCGA-LUSC",
+    "18": "TCGA-LUSC",
+    "21": "TCGA-LUSC",
+    "22": "TCGA-LUSC",
+    "33": "TCGA-LUSC",
+    "34": "TCGA-LUSC",
+    "37": "TCGA-LUSC",
+    "39": "TCGA-LUSC",
+    "43": "TCGA-LUSC",
+    "46": "TCGA-LUSC",
+    "51": "TCGA-LUSC",
+    "52": "TCGA-LUSC",
+    "56": "TCGA-LUSC",
+    "58": "TCGA-LUSC",
+    "60": "TCGA-LUSC",
+    "63": "TCGA-LUSC",
+    "66": "TCGA-LUSC",
+    "68": "TCGA-LUSC",
+    "6A": "TCGA-LUSC",
+    "70": "TCGA-LUSC",
+    "77": "TCGA-LUSC",
+    "79": "TCGA-LUSC",
+    "82": "TCGA-LUSC",
+    "85": "TCGA-LUSC",
+    "8C": "TCGA-LUSC",
+    "90": "TCGA-LUSC",
+    "92": "TCGA-LUSC",
+    "94": "TCGA-LUSC",
+    "96": "TCGA-LUSC",
+    "98": "TCGA-LUSC",
+    "J1": "TCGA-LUSC",
+    "LA": "TCGA-LUSC",
+    "MF": "TCGA-LUSC",
+    "NC": "TCGA-LUSC",
+    "NK": "TCGA-LUSC",
+    "O2": "TCGA-LUSC",
+    "XC": "TCGA-LUSC",
     "ZE": "TCGA-LUSC",
     # TCGA-STAD (stomach adenocarcinoma)
-    "B7": "TCGA-STAD", "BR": "TCGA-STAD", "CD": "TCGA-STAD", "CG": "TCGA-STAD",
-    "D7": "TCGA-STAD", "EQ": "TCGA-STAD", "F1": "TCGA-STAD", "FP": "TCGA-STAD",
-    "HF": "TCGA-STAD", "HJ": "TCGA-STAD", "HU": "TCGA-STAD", "IN": "TCGA-STAD",
-    "IP": "TCGA-STAD", "KB": "TCGA-STAD", "MX": "TCGA-STAD", "R5": "TCGA-STAD",
-    "RD": "TCGA-STAD", "SW": "TCGA-STAD", "VQ": "TCGA-STAD", "ZA": "TCGA-STAD",
+    "B7": "TCGA-STAD",
+    "BR": "TCGA-STAD",
+    "CD": "TCGA-STAD",
+    "CG": "TCGA-STAD",
+    "D7": "TCGA-STAD",
+    "EQ": "TCGA-STAD",
+    "F1": "TCGA-STAD",
+    "FP": "TCGA-STAD",
+    "HF": "TCGA-STAD",
+    "HJ": "TCGA-STAD",
+    "HU": "TCGA-STAD",
+    "IN": "TCGA-STAD",
+    "IP": "TCGA-STAD",
+    "KB": "TCGA-STAD",
+    "MX": "TCGA-STAD",
+    "R5": "TCGA-STAD",
+    "RD": "TCGA-STAD",
+    "SW": "TCGA-STAD",
+    "VQ": "TCGA-STAD",
+    "ZA": "TCGA-STAD",
     "ZQ": "TCGA-STAD",
 }
 
@@ -195,7 +310,9 @@ def aggregate_indication(indication: str) -> "pa.Table":
     for raw_line in gz:
         n_lines += 1
         if n_lines % 500000 == 0:
-            click.echo(f"  Processed {n_lines:,} MAF lines, {len(indication_samples)} samples in scope so far...", err=True)
+            click.echo(
+                f"  Processed {n_lines:,} MAF lines, {len(indication_samples)} samples in scope so far...", err=True
+            )
         line = raw_line.decode("utf-8", errors="replace").rstrip("\n")
         if not line or line.startswith("#"):
             continue
@@ -252,28 +369,32 @@ def aggregate_indication(indication: str) -> "pa.Table":
         gd = gene_data[gene]
         n_mutated = len(gd["mutated_samples"])
         overall_freq = n_mutated / n_total if n_total > 0 else 0.0
-        rows.append({
-            "indication": indication,
-            "gene_symbol": gene,
-            "n_samples_in_indication": n_total,
-            "n_samples_mutated": n_mutated,
-            "overall_mutation_frequency": overall_freq,
-            "hotspot_protein_change": None,
-            "hotspot_n_samples": None,
-            "hotspot_frequency": None,
-        })
-        for hs, hs_samples in gd["hotspots"].items():
-            hs_n = len(hs_samples)
-            rows.append({
+        rows.append(
+            {
                 "indication": indication,
                 "gene_symbol": gene,
                 "n_samples_in_indication": n_total,
                 "n_samples_mutated": n_mutated,
                 "overall_mutation_frequency": overall_freq,
-                "hotspot_protein_change": hs,
-                "hotspot_n_samples": hs_n,
-                "hotspot_frequency": hs_n / n_total if n_total > 0 else 0.0,
-            })
+                "hotspot_protein_change": None,
+                "hotspot_n_samples": None,
+                "hotspot_frequency": None,
+            }
+        )
+        for hs, hs_samples in gd["hotspots"].items():
+            hs_n = len(hs_samples)
+            rows.append(
+                {
+                    "indication": indication,
+                    "gene_symbol": gene,
+                    "n_samples_in_indication": n_total,
+                    "n_samples_mutated": n_mutated,
+                    "overall_mutation_frequency": overall_freq,
+                    "hotspot_protein_change": hs,
+                    "hotspot_n_samples": hs_n,
+                    "hotspot_frequency": hs_n / n_total if n_total > 0 else 0.0,
+                }
+            )
 
     rows.sort(key=lambda r: (r["gene_symbol"], -(r["hotspot_n_samples"] or 0)))
     return pa.Table.from_pylist(rows, schema=_output_schema())
@@ -281,26 +402,32 @@ def aggregate_indication(indication: str) -> "pa.Table":
 
 def _output_schema() -> "pa.Schema":
     import pyarrow as pa
-    return pa.schema([
-        pa.field("indication", pa.string()),
-        pa.field("gene_symbol", pa.string()),
-        pa.field("n_samples_in_indication", pa.int64()),
-        pa.field("n_samples_mutated", pa.int64()),
-        pa.field("overall_mutation_frequency", pa.float64()),
-        pa.field("hotspot_protein_change", pa.string()),
-        pa.field("hotspot_n_samples", pa.int64()),
-        pa.field("hotspot_frequency", pa.float64()),
-    ])
+
+    return pa.schema(
+        [
+            pa.field("indication", pa.string()),
+            pa.field("gene_symbol", pa.string()),
+            pa.field("n_samples_in_indication", pa.int64()),
+            pa.field("n_samples_mutated", pa.int64()),
+            pa.field("overall_mutation_frequency", pa.float64()),
+            pa.field("hotspot_protein_change", pa.string()),
+            pa.field("hotspot_n_samples", pa.int64()),
+            pa.field("hotspot_frequency", pa.float64()),
+        ]
+    )
 
 
 def _per_sample_schema() -> "pa.Schema":
     import pyarrow as pa
-    return pa.schema([
-        pa.field("sample_id", pa.string()),       # 3-segment PATIENT barcode (joins the assignments shard)
-        pa.field("gene_symbol", pa.string()),
-        pa.field("protein_change", pa.string()),  # HGVSp_Short (or "unknown")
-        pa.field("project", pa.string()),          # TCGA-COAD / TCGA-READ / ...
-    ])
+
+    return pa.schema(
+        [
+            pa.field("sample_id", pa.string()),  # 3-segment PATIENT barcode (joins the assignments shard)
+            pa.field("gene_symbol", pa.string()),
+            pa.field("protein_change", pa.string()),  # HGVSp_Short (or "unknown")
+            pa.field("project", pa.string()),  # TCGA-COAD / TCGA-READ / ...
+        ]
+    )
 
 
 def per_sample_maf(indication: str) -> "pa.Table":
@@ -388,8 +515,7 @@ def per_sample_maf(indication: str) -> "pa.Table":
     click.echo(f"  Distinct (patient, gene, protein_change) calls: {len(seen):,}", err=True)
 
     rows = [
-        {"sample_id": p, "gene_symbol": g, "protein_change": hs, "project": proj}
-        for (p, g, hs), proj in seen.items()
+        {"sample_id": p, "gene_symbol": g, "protein_change": hs, "project": proj} for (p, g, hs), proj in seen.items()
     ]
     rows.sort(key=lambda r: (r["gene_symbol"], r["sample_id"]))
     return pa.Table.from_pylist(rows, schema=_per_sample_schema())
@@ -397,18 +523,24 @@ def per_sample_maf(indication: str) -> "pa.Table":
 
 @click.command()
 @click.option("--indication", required=True, help="Indication code (COADREAD, PDAC, NSCLC, GC).")
-@click.option("--out", required=True, type=click.Path(dir_okay=False, path_type=Path),
-              help="Output Parquet path (local).")
-@click.option("--per-sample", is_flag=True, default=False,
-              help="Emit the PER-SAMPLE non-synonymous MAF (sample_id/gene_symbol/protein_change/"
-                   "project) instead of the per-gene hotspot aggregate. This is the substrate the "
-                   "subgroup-stratified-mutation-frequency panorama recomputes per-stratum from; "
-                   "sample_id is the 3-segment PATIENT barcode so it joins the assignments shards.")
+@click.option(
+    "--out", required=True, type=click.Path(dir_okay=False, path_type=Path), help="Output Parquet path (local)."
+)
+@click.option(
+    "--per-sample",
+    is_flag=True,
+    default=False,
+    help="Emit the PER-SAMPLE non-synonymous MAF (sample_id/gene_symbol/protein_change/"
+    "project) instead of the per-gene hotspot aggregate. This is the substrate the "
+    "subgroup-stratified-mutation-frequency panorama recomputes per-stratum from; "
+    "sample_id is the 3-segment PATIENT barcode so it joins the assignments shards.",
+)
 def main(indication: str, out: Path, per_sample: bool) -> int:
     import pyarrow.parquet as pq
+
     if per_sample:
         table = per_sample_maf(indication)
-        row_group = 8192   # narrow 4-col rows; larger groups are fine
+        row_group = 8192  # narrow 4-col rows; larger groups are fine
     else:
         table = aggregate_indication(indication)
         row_group = 1024

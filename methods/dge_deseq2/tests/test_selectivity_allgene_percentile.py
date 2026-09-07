@@ -10,6 +10,7 @@ These tests exercise the percentile helper + column-parameterized null WITHOUT S
 monkeypatching the null vector. They pin: per-column nulls (no pooling), the mid-rank
 convention, and graceful empties.
 """
+
 from __future__ import annotations
 
 import sys
@@ -26,8 +27,8 @@ def test_percentile_ranks_within_the_named_column(monkeypatch):
     """The percentile must use the null for the SPECIFIED column — cell A and cell C
     have different comparator scales, so each ranks against its own population."""
     nulls = {
-        "log2fc_A": tuple(float(x) for x in range(0, 100)),        # 0..99
-        "log2fc_C": tuple(float(x) for x in range(-50, 50)),       # -50..49 (different scale)
+        "log2fc_A": tuple(float(x) for x in range(0, 100)),  # 0..99
+        "log2fc_C": tuple(float(x) for x in range(-50, 50)),  # -50..49 (different scale)
     }
 
     def _fake_null(manifest_id, s3_uri, column):
@@ -60,5 +61,6 @@ def test_null_helper_is_column_parameterized():
     """Guard against a regression to the cell-A-only helper: the null helper must take a
     `column` arg (the whole point of extending to B/C)."""
     import inspect
+
     sig = inspect.signature(r._sensitivity_cell_null)
     assert "column" in sig.parameters

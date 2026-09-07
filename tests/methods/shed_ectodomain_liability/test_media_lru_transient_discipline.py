@@ -3,6 +3,7 @@
 not_on_secreted_panel AND was memoized process-wide. The transient path must now RAISE (not
 memoized); a genuine object-absence (S3 404/NoSuchKey or a missing local id map) still → {}.
 """
+
 from __future__ import annotations
 
 import sys
@@ -36,6 +37,7 @@ class _Body:
 
 def test_idmap_transient_raises_not_cached(monkeypatch):
     import boto3
+
     calls = {"n": 0}
     csv = b"UniprotID,Symbol\nP01116,KRAS\n"
 
@@ -49,7 +51,7 @@ def test_idmap_transient_raises_not_cached(monkeypatch):
     monkeypatch.setattr(boto3, "client", lambda *a, **k: _Client())
     with pytest.raises(RuntimeError):
         M._load_idmap()
-    idmap = M._load_idmap()        # NOT memoized: retry succeeds
+    idmap = M._load_idmap()  # NOT memoized: retry succeeds
     assert idmap.get("KRAS") == "P01116"
 
 

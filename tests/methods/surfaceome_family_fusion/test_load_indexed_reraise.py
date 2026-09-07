@@ -2,6 +2,7 @@
 corrupt-cache local-parquet failure rather than mask it as an empty frame; a genuine absent product
 (S3 404 latched upstream -> path=None) still yields data_unavailable, unchanged.
 """
+
 from __future__ import annotations
 
 import sys
@@ -28,6 +29,7 @@ def test_load_indexed_reraises_corrupt_local_cache(monkeypatch, tmp_path):
     fake.write_bytes(b"not-a-real-parquet")
     monkeypatch.setattr(surf, "_ensure_derived_cached", lambda: fake)
     import pandas as pd
+
     monkeypatch.setattr(pd, "read_parquet", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom")))
     with pytest.raises(RuntimeError):
         surf._load_indexed()
@@ -38,6 +40,7 @@ def test_read_target_summary_propagates_broken_env(monkeypatch, tmp_path):
     fake.write_bytes(b"x")
     monkeypatch.setattr(surf, "_ensure_derived_cached", lambda: fake)
     import pandas as pd
+
     monkeypatch.setattr(pd, "read_parquet", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom")))
     with pytest.raises(RuntimeError):
         surf.read_target_summary("EPCAM")

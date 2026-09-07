@@ -10,6 +10,7 @@ accepted for the dispatcher signature, not consumed).
 Returns the amp-expr-stratified-dependency card's summary_fields, or a dict with _live_read_error when
 the underlying DepMap data is unreachable.
 """
+
 from __future__ import annotations
 
 import sys
@@ -25,8 +26,7 @@ DEFAULT_AWS_PROFILE = "cbg"
 from methods.target_id_sidecar import ensure_aws_profile
 
 
-def read_amp_expr_dependency(target: str, indication: Optional[str] = None,
-                             release_pin: str = "26q1") -> dict:
+def read_amp_expr_dependency(target: str, indication: Optional[str] = None, release_pin: str = "26q1") -> dict:
     """Compute amplification+overexpression conjoint-stratified dependency for target across the panel.
 
     `indication` is accepted for dispatcher-signature back-compat but NOT consumed (target-only, like
@@ -62,26 +62,26 @@ def read_amp_expr_dependency(target: str, indication: Optional[str] = None,
         }
 
     # 2. Relative CN (bridged ModelConditionID -> ModelID by load_cn_files)
-    cn_by_model, _cn_meta, assay_used, cn_errs = cncli.load_cn_files(
-        release_pin=release_pin, target_symbol=target
-    )
+    cn_by_model, _cn_meta, assay_used, cn_errs = cncli.load_cn_files(release_pin=release_pin, target_symbol=target)
     if cn_errs or not cn_by_model:
         return {
-            "_live_read_error": (cn_errs[0].get("_live_read_error", "cn_read_failed")
-                                 if cn_errs else "no_cn_for_target"),
+            "_live_read_error": (
+                cn_errs[0].get("_live_read_error", "cn_read_failed") if cn_errs else "no_cn_for_target"
+            ),
             "errors": cn_errs,
             "_remediation": "Method cannot reach DepMap 26Q1 copy number; verify local cache or AWS credentials.",
             "amp_expr_stratification_class": "data_unavailable",
         }
 
     # 3. log2TPM expression
-    tpm_by_model, _tpm_meta, tpm_errs = excli.load_expression_files(
-        release_pin=release_pin, target_symbol=target
-    )
+    tpm_by_model, _tpm_meta, tpm_errs = excli.load_expression_files(release_pin=release_pin, target_symbol=target)
     if tpm_errs or not tpm_by_model:
         return {
-            "_live_read_error": (tpm_errs[0].get("_live_read_error", "expression_read_failed")
-                                 if tpm_errs else "no_expression_for_target"),
+            "_live_read_error": (
+                tpm_errs[0].get("_live_read_error", "expression_read_failed")
+                if tpm_errs
+                else "no_expression_for_target"
+            ),
             "errors": tpm_errs,
             "_remediation": "Method cannot reach DepMap 26Q1 expression; verify local cache or AWS credentials.",
             "amp_expr_stratification_class": "data_unavailable",
@@ -114,5 +114,5 @@ def read_amp_expr_dependency(target: str, indication: Optional[str] = None,
         return _cli.compute_amp_expr_stratification(c, cn, t)
 
     summary = apply_lineage_ladder(_compute, "amp_expr_stratification_class", model_metadata, indication)
-    summary["_cn_assay_used"] = assay_used   # WES (primary) or WGS (fallback), provenance
+    summary["_cn_assay_used"] = assay_used  # WES (primary) or WGS (fallback), provenance
     return summary

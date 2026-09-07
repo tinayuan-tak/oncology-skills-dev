@@ -15,6 +15,7 @@ Usage:
     python -m methods.depmap_coessentiality.cli --no-upload \\
         --output-prefix /tmp/coessentiality_test/
 """
+
 from __future__ import annotations
 
 import argparse
@@ -67,7 +68,7 @@ def run_emit(
     log.info("[coessentiality] Loading CRISPRGeneEffect.parquet …")
     local_path = _fetch_parquet("CRISPRGeneEffect.parquet")
     df = pd.read_parquet(local_path)
-    log.info(f"  loaded: {df.shape[0]} cell lines × {df.shape[1]} columns ({time.monotonic()-t0:.1f}s)")
+    log.info(f"  loaded: {df.shape[0]} cell lines × {df.shape[1]} columns ({time.monotonic() - t0:.1f}s)")
 
     # Drop the ModelID index column if it landed as a column (pandas artifact)
     id_col = next((c for c in df.columns if c in ("ModelID", "Unnamed: 0", "")), None)
@@ -97,18 +98,20 @@ def run_emit(
     else:
         out_path = Path(f"/tmp/coessentiality_edges_{release_pin}.parquet")
 
-    schema = pa.schema([
-        pa.field("gene_symbol",    pa.string()),
-        pa.field("partner_symbol", pa.string()),
-        pa.field("pearson_r",      pa.float32()),
-        pa.field("abs_rank",       pa.int32()),
-        pa.field("n_cell_lines",   pa.int32()),
-    ])
+    schema = pa.schema(
+        [
+            pa.field("gene_symbol", pa.string()),
+            pa.field("partner_symbol", pa.string()),
+            pa.field("pearson_r", pa.float32()),
+            pa.field("abs_rank", pa.int32()),
+            pa.field("n_cell_lines", pa.int32()),
+        ]
+    )
     table = pa.Table.from_pandas(edges, schema=schema, preserve_index=False)
     pq.write_table(table, out_path, row_group_size=50_000, compression="snappy")
     size_bytes = out_path.stat().st_size
     md5 = _md5_file(out_path)
-    log.info(f"[coessentiality] wrote {out_path} ({size_bytes/1e6:.1f} MB) md5={md5}")
+    log.info(f"[coessentiality] wrote {out_path} ({size_bytes / 1e6:.1f} MB) md5={md5}")
 
     # --- Sidecar metadata ---
     meta = {
@@ -129,6 +132,7 @@ def run_emit(
     # --- Upload ---
     if not no_upload:
         import boto3
+
         session = boto3.Session(profile_name=aws_profile)
         s3 = session.client("s3")
 
@@ -164,8 +168,11 @@ def main(argv=None) -> int:
     ap.add_argument("--release-pin", default="26q1", help="DepMap release label (default: 26q1)")
     ap.add_argument("--top-k", type=int, default=100, help="Neighbors per gene (default: 100)")
     ap.add_argument("--min-abs-r", type=float, default=0.20, help="Min |r| floor (default: 0.20)")
-    ap.add_argument("--output-prefix", default=None,
-                    help="S3 prefix or local dir. Default: s3://onc-compbio/data-catalog/derived/depmap-coessentiality-{release}-v1/")
+    ap.add_argument(
+        "--output-prefix",
+        default=None,
+        help="S3 prefix or local dir. Default: s3://onc-compbio/data-catalog/derived/depmap-coessentiality-{release}-v1/",
+    )
     ap.add_argument("--no-upload", action="store_true", help="Skip S3 upload (dry-run)")
     ap.add_argument("--aws-profile", default="cbg", help="AWS profile (default: cbg)")
     args = ap.parse_args(argv)
@@ -179,6 +186,7 @@ def main(argv=None) -> int:
         aws_profile=args.aws_profile,
     )
     import json as _json
+
     print(_json.dumps(result, indent=2))
     return 0
 

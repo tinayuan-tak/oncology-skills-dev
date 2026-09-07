@@ -22,6 +22,7 @@ can see it; the find-mode applies its own FDR + min-frequency floor on top.
 The pure functions (build_arm_calls / build_arm_indication_freq / arm_of) take DataFrames/dicts and
 are S3-free (unit-testable offline); the S3 read + parquet write live in derive.py.
 """
+
 from __future__ import annotations
 
 import re
@@ -65,7 +66,7 @@ def build_arm_calls(gistic_df: pd.DataFrame, threshold: float = 0.5) -> pd.DataF
         n_genes = len(idx)
         if n_genes == 0:
             continue
-        loss_frac = (block <= -1).sum(axis=0) / n_genes      # per-sample Series
+        loss_frac = (block <= -1).sum(axis=0) / n_genes  # per-sample Series
         gain_frac = (block >= 1).sum(axis=0) / n_genes
         for s in sample_cols:
             lf, gf = float(loss_frac[s]), float(gain_frac[s])
@@ -75,10 +76,19 @@ def build_arm_calls(gistic_df: pd.DataFrame, threshold: float = 0.5) -> pd.DataF
                 call = 1
             else:
                 call = 0
-            rows.append({"sample_barcode": s, "chromosome_arm": arm, "arm_call": call,
-                         "loss_frac": round(lf, 4), "gain_frac": round(gf, 4), "n_genes": n_genes})
-    out = pd.DataFrame(rows, columns=["sample_barcode", "chromosome_arm", "arm_call",
-                                      "loss_frac", "gain_frac", "n_genes"])
+            rows.append(
+                {
+                    "sample_barcode": s,
+                    "chromosome_arm": arm,
+                    "arm_call": call,
+                    "loss_frac": round(lf, 4),
+                    "gain_frac": round(gf, 4),
+                    "n_genes": n_genes,
+                }
+            )
+    out = pd.DataFrame(
+        rows, columns=["sample_barcode", "chromosome_arm", "arm_call", "loss_frac", "gain_frac", "n_genes"]
+    )
     return out.sort_values(["chromosome_arm", "sample_barcode"]).reset_index(drop=True)
 
 
@@ -88,17 +98,26 @@ def build_arm_indication_freq(arm_calls: pd.DataFrame, barcode_to_indication: di
     samples with no mapping are dropped."""
     df = arm_calls.copy()
     df["indication"] = df["sample_barcode"].map(
-        lambda b: barcode_to_indication.get(b) or barcode_to_indication.get(_patient_of(b)))
+        lambda b: barcode_to_indication.get(b) or barcode_to_indication.get(_patient_of(b))
+    )
     df = df[df["indication"].notna()]
     rows = []
     for (arm, ind), g in df.groupby(["chromosome_arm", "indication"]):
         n = len(g)
-        rows.append({"chromosome_arm": arm, "indication": ind, "n_samples": n,
-                     "loss_frequency": round((g["arm_call"] == -1).sum() / n, 4),
-                     "gain_frequency": round((g["arm_call"] == 1).sum() / n, 4)})
-    return pd.DataFrame(rows, columns=["chromosome_arm", "indication", "n_samples",
-                                       "loss_frequency", "gain_frequency"]
-                        ).sort_values(["chromosome_arm", "indication"]).reset_index(drop=True)
+        rows.append(
+            {
+                "chromosome_arm": arm,
+                "indication": ind,
+                "n_samples": n,
+                "loss_frequency": round((g["arm_call"] == -1).sum() / n, 4),
+                "gain_frequency": round((g["arm_call"] == 1).sum() / n, 4),
+            }
+        )
+    return (
+        pd.DataFrame(rows, columns=["chromosome_arm", "indication", "n_samples", "loss_frequency", "gain_frequency"])
+        .sort_values(["chromosome_arm", "indication"])
+        .reset_index(drop=True)
+    )
 
 
 def gene_arm_map(gistic_meta_df: pd.DataFrame) -> dict:

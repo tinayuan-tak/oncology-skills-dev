@@ -1,4 +1,5 @@
 """CLI + emitter for abundance_dependency (Q7 — protein abundance → dependency)."""
+
 from __future__ import annotations
 import os
 
@@ -10,14 +11,16 @@ from pathlib import Path
 from . import read as _read
 
 METHOD_VERSION = "0.1.0"
-DEFAULT_TARGET_CONTRACTS = os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+DEFAULT_TARGET_CONTRACTS = os.environ.get(
+    "TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
+)
 
 _CLASS_COLORS = {
-    "protein_predicts_dependency":  ("#0a2540", "#061829"),
+    "protein_predicts_dependency": ("#0a2540", "#061829"),
     "weak_protein_dependency_link": ("#4a7c9e", "#2f5670"),
-    "no_protein_dependency_link":   ("#c07a20", "#8f5810"),
-    "insufficient_paired_models":   ("#bbbbbb", "#8f8f8f"),
-    "data_unavailable":             ("#d9dbdd", "#a9adb1"),
+    "no_protein_dependency_link": ("#c07a20", "#8f5810"),
+    "insufficient_paired_models": ("#bbbbbb", "#8f8f8f"),
+    "data_unavailable": ("#d9dbdd", "#a9adb1"),
 }
 
 
@@ -29,6 +32,7 @@ def build_summary(target: str, indication: str) -> dict:
 
 def _load_style(contracts_dir):
     import matplotlib.pyplot as plt
+
     style = Path(contracts_dir) / "figure-style" / "matplotlibrc"
     if style.exists():
         try:
@@ -37,13 +41,14 @@ def _load_style(contracts_dir):
             pass
 
 
-def emit_svg(target: str, indication: str, summary: dict, out_dir: Path,
-             contracts_dir=DEFAULT_TARGET_CONTRACTS):
+def emit_svg(target: str, indication: str, summary: dict, out_dir: Path, contracts_dir=DEFAULT_TARGET_CONTRACTS):
     """Tier-3 SVG: protein-abundance→dependency evidence card (class + correlation stats). None if
     no correlation was computed."""
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+
     _load_style(contracts_dir)
     cls = summary.get("abundance_dependency_class")
     r = summary.get("protein_dependency_pearson_r")
@@ -51,22 +56,44 @@ def emit_svg(target: str, indication: str, summary: dict, out_dir: Path,
         return None
     out_path = Path(out_dir) / "figure_abundance_dependency.svg"
     fill, line = _CLASS_COLORS.get(cls, _CLASS_COLORS["data_unavailable"])
-    fig, ax = plt.subplots(figsize=(6.4, 3.0)); ax.set_axis_off()
-    ax.add_patch(plt.Rectangle((0.02, 0.58), 0.96, 0.38, facecolor=fill, edgecolor=line,
-                               alpha=0.5, linewidth=1.2, transform=ax.transAxes))
-    ax.text(0.5, 0.80, f"{target} — protein abundance → dependency", ha="center", va="center",
-            fontsize=10.5, weight="bold", transform=ax.transAxes)
-    ax.text(0.5, 0.66, cls.replace("_", " ").upper(), ha="center", va="center",
-            fontsize=11, weight="bold", color=line, transform=ax.transAxes)
+    fig, ax = plt.subplots(figsize=(6.4, 3.0))
+    ax.set_axis_off()
+    ax.add_patch(
+        plt.Rectangle(
+            (0.02, 0.58), 0.96, 0.38, facecolor=fill, edgecolor=line, alpha=0.5, linewidth=1.2, transform=ax.transAxes
+        )
+    )
+    ax.text(
+        0.5,
+        0.80,
+        f"{target} — protein abundance → dependency",
+        ha="center",
+        va="center",
+        fontsize=10.5,
+        weight="bold",
+        transform=ax.transAxes,
+    )
+    ax.text(
+        0.5,
+        0.66,
+        cls.replace("_", " ").upper(),
+        ha="center",
+        va="center",
+        fontsize=11,
+        weight="bold",
+        color=line,
+        transform=ax.transAxes,
+    )
     lines = [
         f"Pearson r (protein vs Chronos): {r}",
         f"Spearman r: {summary.get('protein_dependency_spearman_r', 'n/a')}",
         f"paired models: {summary.get('n_paired_models', 'n/a')}  |  dependent: {summary.get('n_dependent_models', 'n/a')}",
-        f"protein detected in: {summary.get('n_protein_detected_models','n/a')}/{summary.get('protein_panel_size','n/a')} lines",
+        f"protein detected in: {summary.get('n_protein_detected_models', 'n/a')}/{summary.get('protein_panel_size', 'n/a')} lines",
     ]
     for i, t in enumerate(lines):
         ax.text(0.06, 0.46 - i * 0.11, t, ha="left", va="center", fontsize=8.5, transform=ax.transAxes)
-    fig.savefig(out_path, bbox_inches="tight"); plt.close(fig)
+    fig.savefig(out_path, bbox_inches="tight")
+    plt.close(fig)
     return out_path
 
 

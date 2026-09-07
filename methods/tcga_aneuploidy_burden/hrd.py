@@ -24,15 +24,16 @@ This is a genuine DERIVATION — the scar counts exist in no landed file; only t
 segments do. Cohort roll-up mirrors the aneuploidy/WGD arms: per-indication fraction of samples that
 are HRD-high (score >= 42, the Myriad myChoice clinical cutoff).
 """
+
 from __future__ import annotations
 
 from typing import Optional
 
 # --- Scar-scoring thresholds (from the defining papers; MB in base pairs) ---
 _MB = 1_000_000
-HRD_LOH_MIN_MB = 15 * _MB       # Abkevich 2012: LOH region must exceed 15 Mb
-LST_MIN_SEG_MB = 10 * _MB       # Popova 2012: each flanking segment >= 10 Mb
-LST_SMOOTH_MB = 3 * _MB         # Popova 2012: remove/merge segments < 3 Mb before counting
+HRD_LOH_MIN_MB = 15 * _MB  # Abkevich 2012: LOH region must exceed 15 Mb
+LST_MIN_SEG_MB = 10 * _MB  # Popova 2012: each flanking segment >= 10 Mb
+LST_SMOOTH_MB = 3 * _MB  # Popova 2012: remove/merge segments < 3 Mb before counting
 # HRD-high clinical cutoff on the summed score (Myriad myChoice / Telli 2016): >= 42.
 HRD_HIGH_SCORE = 42
 # Cohort HRD-prevalence class cutoffs on the FRACTION of samples that are HRD-high.
@@ -43,19 +44,53 @@ _HRD_COHORT_LOW = 0.05
 # Source: UCSC hg19 gaps (centromere). ABSOLUTE segtabs are hg19-based (PanCanAtlas 2018).
 # We only need the centromere coordinate to split p/q arms and detect whole-chromosome spans.
 _HG19_CENTROMERE = {
-    1: 125_000_000, 2: 93_300_000, 3: 91_000_000, 4: 50_400_000, 5: 48_400_000,
-    6: 61_000_000, 7: 59_900_000, 8: 45_600_000, 9: 49_000_000, 10: 40_200_000,
-    11: 53_700_000, 12: 35_800_000, 13: 17_900_000, 14: 17_600_000, 15: 19_000_000,
-    16: 36_600_000, 17: 24_000_000, 18: 17_200_000, 19: 26_500_000, 20: 27_500_000,
-    21: 13_200_000, 22: 14_700_000,
+    1: 125_000_000,
+    2: 93_300_000,
+    3: 91_000_000,
+    4: 50_400_000,
+    5: 48_400_000,
+    6: 61_000_000,
+    7: 59_900_000,
+    8: 45_600_000,
+    9: 49_000_000,
+    10: 40_200_000,
+    11: 53_700_000,
+    12: 35_800_000,
+    13: 17_900_000,
+    14: 17_600_000,
+    15: 19_000_000,
+    16: 36_600_000,
+    17: 24_000_000,
+    18: 17_200_000,
+    19: 26_500_000,
+    20: 27_500_000,
+    21: 13_200_000,
+    22: 14_700_000,
 }
 # hg19 chromosome lengths (bp) 1..22 — for the whole-chromosome-LOH exclusion + telomere detection.
 _HG19_CHROM_LEN = {
-    1: 249_250_621, 2: 243_199_373, 3: 198_022_430, 4: 191_154_276, 5: 180_915_260,
-    6: 171_115_067, 7: 159_138_663, 8: 146_364_022, 9: 141_213_431, 10: 135_534_747,
-    11: 135_006_516, 12: 133_851_895, 13: 115_169_878, 14: 107_349_540, 15: 102_531_392,
-    16: 90_354_753, 17: 81_195_210, 18: 78_077_248, 19: 59_128_983, 20: 63_025_520,
-    21: 48_129_895, 22: 51_304_566,
+    1: 249_250_621,
+    2: 243_199_373,
+    3: 198_022_430,
+    4: 191_154_276,
+    5: 180_915_260,
+    6: 171_115_067,
+    7: 159_138_663,
+    8: 146_364_022,
+    9: 141_213_431,
+    10: 135_534_747,
+    11: 135_006_516,
+    12: 133_851_895,
+    13: 115_169_878,
+    14: 107_349_540,
+    15: 102_531_392,
+    16: 90_354_753,
+    17: 81_195_210,
+    18: 78_077_248,
+    19: 59_128_983,
+    20: 63_025_520,
+    21: 48_129_895,
+    22: 51_304_566,
 }
 # A segment "reaches" a telomere / centromere if within this slack of the boundary (probe/segment
 # resolution — ABSOLUTE segment ends rarely hit the exact base). 3 Mb is the Birkbak 2012 practice.
@@ -103,15 +138,19 @@ def hrd_scars_for_sample(segments: list[dict]) -> dict:
         if chrom not in _AUTOSOMES:
             continue
         try:
-            start = float(s["Start"]); end = float(s["End"])
+            start = float(s["Start"])
+            end = float(s["End"])
         except (TypeError, ValueError, KeyError):
             continue
-        by_chrom.setdefault(chrom, []).append({
-            "start": start, "end": end,
-            "length": float(s.get("Length") or (end - start)),
-            "loh": _truthy(s.get("LOH")),
-            "ai": _is_allelic_imbalance(s.get("Modal_HSCN_1"), s.get("Modal_HSCN_2")),
-        })
+        by_chrom.setdefault(chrom, []).append(
+            {
+                "start": start,
+                "end": end,
+                "length": float(s.get("Length") or (end - start)),
+                "loh": _truthy(s.get("LOH")),
+                "ai": _is_allelic_imbalance(s.get("Modal_HSCN_1"), s.get("Modal_HSCN_2")),
+            }
+        )
 
     hrd_loh = 0
     lst = 0
@@ -124,8 +163,7 @@ def hrd_scars_for_sample(segments: list[dict]) -> dict:
         # --- HRD-LOH: LOH segments > 15 Mb that do NOT span the whole chromosome ---
         for sg in segs:
             if sg["loh"] and sg["length"] > HRD_LOH_MIN_MB:
-                spans_whole = (sg["start"] <= _BOUNDARY_SLACK and
-                               sg["end"] >= chrom_len - _BOUNDARY_SLACK)
+                spans_whole = sg["start"] <= _BOUNDARY_SLACK and sg["end"] >= chrom_len - _BOUNDARY_SLACK
                 if not spans_whole:
                     hrd_loh += 1
 

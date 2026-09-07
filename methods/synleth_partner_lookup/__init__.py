@@ -18,6 +18,7 @@ Modules:
     derive — precompute: invert SL pair-list → per-gene partner parquet
     read   — read_target_summary: the live-mode dispatcher entry (point lookup)
 """
+
 METHOD_VERSION = "0.1.0"
 
 from .read import read_target_summary  # noqa: E402,F401

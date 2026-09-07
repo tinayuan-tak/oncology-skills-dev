@@ -21,6 +21,7 @@ Companion:
 Modules:
     cli — Fisher scanner + panel-intersect eligibility gate
 """
+
 METHOD_VERSION = "0.1.0"
 
 from .read import read_target_summary  # noqa: F401,E402

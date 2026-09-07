@@ -14,6 +14,7 @@ Cache discipline (mirrors structure_features_static): cache ONLY successful read
 dict. A transient read failure returns None WITHOUT caching, so a later call retries — an @lru_cache
 over the raw read would memoize that None permanently, poisoning the target to data_unavailable for
 the whole process lifetime after one S3 blip (silently, mid-batch)."""
+
 from __future__ import annotations
 
 from typing import Optional
@@ -38,6 +39,7 @@ def _symbol_to_gene_ids(target: str) -> Optional[list]:
     _symbol_to_ensembl_ids) so importing this module does not eagerly load the sibling's
     manifest-resolution module-level constants."""
     from methods.tcga_gtex_tpm_quantiles.read import _symbol_to_ensembl_ids
+
     return _symbol_to_ensembl_ids(target)
 
 
@@ -50,12 +52,14 @@ def _read_exon_rows_cached(target: str):
     if sym in _ROWS_CACHE:
         return _ROWS_CACHE[sym]
     import os
+
     if "AWS_PROFILE" not in os.environ:
         os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
     meta: dict = {}
     try:
         import pyarrow.parquet as pq
         import pyarrow.fs as fs
+
         bucket, key = bucket_key_for(PRODUCT_MANIFEST_ID)
         s3fs = fs.S3FileSystem(region="us-east-1")
         # Resolve symbol -> gene_id(s) and push down on the SORT KEY. A resolver failure is a
@@ -73,7 +77,8 @@ def _read_exon_rows_cached(target: str):
             meta["pushdown_key"] = "gene_symbol"
             meta["_pushdown_fallback"] = (
                 "symbol->gene_id resolution unavailable; fell back to a gene_symbol pushdown "
-                "(no row-group pruning; non-unique-HGNC-symbol correctness risk).")
+                "(no row-group pruning; non-unique-HGNC-symbol correctness risk)."
+            )
         tbl = pq.read_table(f"{bucket}/{key}", filesystem=s3fs, filters=filters)
         df = tbl.to_pandas()
     except Exception:  # noqa: BLE001
@@ -92,8 +97,7 @@ def read_exon_rows(target: str):
 def read_exon_window(target: str, indication: str, modality: str = "bite_tce") -> dict:
     """Reader entry the card dispatcher calls: per-gene exon-window summary for the indication at
     the modality's essential-tissue tier (bite_tce=1.0/adc=5.0/antibody=10.0)."""
-    tier = _classify.MODALITY_TIER_THRESHOLD.get(str(modality).lower(),
-                                                 _classify.MODALITY_TIER_THRESHOLD["bite_tce"])
+    tier = _classify.MODALITY_TIER_THRESHOLD.get(str(modality).lower(), _classify.MODALITY_TIER_THRESHOLD["bite_tce"])
     rows, meta = _read_exon_rows_cached(target)
     if rows is None:
         out = _classify._empty("data_unavailable", "exon product unreadable (infra failure)")

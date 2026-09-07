@@ -12,6 +12,7 @@ but stored directed for a uniform target-centric read). Partner universe is fixe
 antigens) so the product is a bounded batch, not an unbounded query — arbitrary partner sets stay served
 by the interactive scan skill.
 """
+
 from __future__ import annotations
 
 
@@ -46,10 +47,10 @@ def derive_bulk_pair_selectivity(
         t_tumor = tumor_cube.get(target)
         t_normal = normal_cube.get(target)
         if t_tumor is None and t_normal is None:
-            continue                                  # target not measured at all — nothing to emit
+            continue  # target not measured at all — nothing to emit
         for partner in partners:
             if partner == target:
-                continue                              # no self-pairs
+                continue  # no self-pairs
             p_tumor = tumor_cube.get(partner, {})
             p_normal = normal_cube.get(partner, {})
             for gate in gates:
@@ -57,22 +58,24 @@ def derive_bulk_pair_selectivity(
                 normal_frac_by_tissue = _positive_fraction_by_group(t_normal or {}, p_normal, gate)
                 for study in studies:
                     if study not in tumor_frac_by_study:
-                        continue                      # this pair not co-measured in this tumor study
+                        continue  # this pair not co-measured in this tumor study
                     res = reduce_gate(gate, tumor_frac_by_study, normal_frac_by_tissue, study)
-                    rows.append({
-                        "indication": indication,
-                        "target": target,
-                        "partner": partner,
-                        "gate": gate,
-                        "tumor_study": res["tumor_study"],
-                        "tumor_fraction": res["tumor_fraction"],
-                        "max_essential_normal_fraction": res["max_essential_normal_fraction"],
-                        "max_essential_normal_tissue": res["max_essential_normal_tissue"],
-                        "max_any_normal_fraction": res["max_any_normal_fraction"],
-                        "max_any_normal_tissue": res["max_any_normal_tissue"],
-                        "selectivity": res["selectivity"],
-                        "call": res["call"],
-                    })
+                    rows.append(
+                        {
+                            "indication": indication,
+                            "target": target,
+                            "partner": partner,
+                            "gate": gate,
+                            "tumor_study": res["tumor_study"],
+                            "tumor_fraction": res["tumor_fraction"],
+                            "max_essential_normal_fraction": res["max_essential_normal_fraction"],
+                            "max_essential_normal_tissue": res["max_essential_normal_tissue"],
+                            "max_any_normal_fraction": res["max_any_normal_fraction"],
+                            "max_any_normal_tissue": res["max_any_normal_tissue"],
+                            "selectivity": res["selectivity"],
+                            "call": res["call"],
+                        }
+                    )
     return rows
 
 
@@ -80,10 +83,12 @@ def best_partner_rollup(rows: list, target: str, indication: str) -> dict:
     """Target-centric rollup for the reader/card: the best (most selective) partner per gate for this
     target in this indication. Dissolves the 'no target_pair grain' blocker — grain stays target_indication
     with the best partner carried inside (mirrors surface-colocalization-avidity's rollup)."""
-    mine = [r for r in rows if r.get("target") == target and r.get("indication") == indication
-            and r.get("selectivity") is not None]
-    out = {"target": target, "indication": indication, "n_partners_scanned":
-           len({r["partner"] for r in mine})}
+    mine = [
+        r
+        for r in rows
+        if r.get("target") == target and r.get("indication") == indication and r.get("selectivity") is not None
+    ]
+    out = {"target": target, "indication": indication, "n_partners_scanned": len({r["partner"] for r in mine})}
     for gate in _GATES:
         g = [r for r in mine if r["gate"] == gate]
         if not g:
@@ -100,8 +105,11 @@ def best_partner_rollup(rows: list, target: str, indication: str) -> dict:
             # lets surface-intrinsic rules fire the bispecific-necessity signal instead of it reaching
             # only the LLM narrative. Derived from the winning AND row's structured fractions.
             out["best_and_call_class"] = classify_and_selectivity(
-                top["tumor_fraction"], top["max_essential_normal_fraction"],
-                top["max_any_normal_fraction"], top["selectivity"])
+                top["tumor_fraction"],
+                top["max_essential_normal_fraction"],
+                top["max_any_normal_fraction"],
+                top["selectivity"],
+            )
     return out
 
 

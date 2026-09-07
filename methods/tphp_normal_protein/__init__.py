@@ -14,6 +14,7 @@ highest-abundance tissue, fetal-vs-adult flag).
 
 Companion: data-catalog:manifests/derived/normal-tissue-protein-abundance-per-gene-v1.yaml
 """
+
 METHOD_VERSION = "0.1.0"
 
 # Re-export the public API so dispatchers using __import__(...) find read_target_summary at

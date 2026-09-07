@@ -22,15 +22,30 @@ The CI guard asserts COVERAGE (each source covers the canonical organs
 its vocab supports), NOT equality — so a source that ADDITIONALLY lists SPLEEN (the GTEx window
 card does) is fine, and promoting spleen to canonical later is a one-line change here.
 """
+
 from __future__ import annotations
 
 # Canonical vital / dose-limiting organs: on-target expression here is a therapeutic-window red
 # flag regardless of tumor abundance. Semantic tokens (source-vocab-independent).
-CANONICAL_VITAL_ORGANS = frozenset({
-    "heart", "brain", "liver", "lung", "kidney", "nerve", "muscle", "blood", "bone_marrow",
-    "pancreas", "adrenal_gland", "pituitary", "thyroid", "vasculature",
-    # "spleen": HELD — see module docstring (pending review).
-})
+CANONICAL_VITAL_ORGANS = frozenset(
+    {
+        "heart",
+        "brain",
+        "liver",
+        "lung",
+        "kidney",
+        "nerve",
+        "muscle",
+        "blood",
+        "bone_marrow",
+        "pancreas",
+        "adrenal_gland",
+        "pituitary",
+        "thyroid",
+        "vasculature",
+        # "spleen": HELD — see module docstring (pending review).
+    }
+)
 
 # The endocrine / vascular / CNS organs whose ABSENCE from a source's essential set WAS the S1-3
 # safety false-negative. The CI guard REQUIRES every source that can represent one of these to
@@ -44,20 +59,39 @@ S1_3_REQUIRED_ORGANS = frozenset({"adrenal_gland", "pituitary", "thyroid", "vasc
 # vasculature -> BLOOD_VESSEL (GTEx groups Artery-Aorta/Coronary/Tibial here; the old bare `ARTERY`
 # was never a GTEx tissue label and silently never matched).
 GTEX_CROSSWALK = {
-    "heart": "HEART", "brain": "BRAIN", "liver": "LIVER", "lung": "LUNG", "kidney": "KIDNEY",
-    "nerve": "NERVE", "muscle": "MUSCLE", "blood": "BLOOD", "bone_marrow": "BONE_MARROW",
-    "pancreas": "PANCREAS", "adrenal_gland": "ADRENAL_GLAND", "pituitary": "PITUITARY",
-    "thyroid": "THYROID", "vasculature": "BLOOD_VESSEL",
+    "heart": "HEART",
+    "brain": "BRAIN",
+    "liver": "LIVER",
+    "lung": "LUNG",
+    "kidney": "KIDNEY",
+    "nerve": "NERVE",
+    "muscle": "MUSCLE",
+    "blood": "BLOOD",
+    "bone_marrow": "BONE_MARROW",
+    "pancreas": "PANCREAS",
+    "adrenal_gland": "ADRENAL_GLAND",
+    "pituitary": "PITUITARY",
+    "thyroid": "THYROID",
+    "vasculature": "BLOOD_VESSEL",
 }
 
 # HPA closed 16-name grouped-intensity vocabulary. None = no group for that organ (substrate gap).
 HPA_CROSSWALK = {
-    "heart": "heart muscle", "brain": "cerebral cortex", "liver": "liver", "lung": "lung",
-    "kidney": "kidney", "pancreas": "pancreas", "bone_marrow": "bone marrow",
+    "heart": "heart muscle",
+    "brain": "cerebral cortex",
+    "liver": "liver",
+    "lung": "lung",
+    "kidney": "kidney",
+    "pancreas": "pancreas",
+    "bone_marrow": "bone marrow",
     "vasculature": "blood vessel",
     # Not in HPA's 16-name grouped-intensity field (data-substrate gap, NOT a list omission):
-    "nerve": None, "muscle": None, "blood": None,
-    "adrenal_gland": None, "pituitary": None, "thyroid": None,
+    "nerve": None,
+    "muscle": None,
+    "blood": None,
+    "adrenal_gland": None,
+    "pituitary": None,
+    "thyroid": None,
 }
 
 # Single-cell normal-tissue ALWAYS-ON shard slug (must be a `TISSUE_TO_PRODUCT` key). None where the
@@ -68,11 +102,20 @@ HPA_CROSSWALK = {
 # critical-organ arm produces a NAMED-organ liability FLAG (selective_with_normal_liability), not the
 # blunt selective_but_broadly_normal kill (Phase S).
 SC_NORMAL_CROSSWALK = {
-    "heart": "heart", "liver": "liver", "kidney": "kidney", "bone_marrow": "bone_marrow",
-    "brain": "brain", "adrenal_gland": "adrenal_gland",
-    "lung": "lung", "pancreas": "pancreas",   # PROMOTED to always-on (pneumonitis / islet safety) 2026-08-19
-    "nerve": None, "muscle": None, "blood": None,
-    "pituitary": None, "thyroid": None, "vasculature": None,
+    "heart": "heart",
+    "liver": "liver",
+    "kidney": "kidney",
+    "bone_marrow": "bone_marrow",
+    "brain": "brain",
+    "adrenal_gland": "adrenal_gland",
+    "lung": "lung",
+    "pancreas": "pancreas",  # PROMOTED to always-on (pneumonitis / islet safety) 2026-08-19
+    "nerve": None,
+    "muscle": None,
+    "blood": None,
+    "pituitary": None,
+    "thyroid": None,
+    "vasculature": None,
 }
 
 # --- Derived per-source essential sets (what each card imports). ---

@@ -6,12 +6,18 @@ Mann-Whitney stratified-dependency contrast (methods.depmap_common.boolean_strat
 statistic and the strong/moderate/reverse tiering are identical to the fusion / amp-expr siblings and
 the mutation path. This module owns only the CN-specific boolean and output field names.
 """
+
 from __future__ import annotations
 
 from methods.depmap_common.boolean_stratification import (
-    StratificationLabels, mannwhitney_stratification, classify_stratification,
-    STRONG_EFFECT_DELTA, MODERATE_EFFECT_DELTA, STRATIFICATION_ALPHA,
-    MIN_POSITIVE_CELLS, MIN_COMPARATOR_CELLS,
+    StratificationLabels,
+    mannwhitney_stratification,
+    classify_stratification,
+    STRONG_EFFECT_DELTA,
+    MODERATE_EFFECT_DELTA,
+    STRATIFICATION_ALPHA,
+    MIN_POSITIVE_CELLS,
+    MIN_COMPARATOR_CELLS,
 )
 
 METHOD_VERSION = "0.1.0"
@@ -31,24 +37,32 @@ _LABELS = StratificationLabels(
 )
 
 
-def compute_cn_stratification(chronos_by_model: dict, cn_by_model: dict,
-                              focal_amp: float = FOCAL_AMP_HIGH,
-                              strong_effect_delta: float = STRONG_EFFECT_DELTA,
-                              moderate_effect_delta: float = MODERATE_EFFECT_DELTA,
-                              stratification_alpha: float = STRATIFICATION_ALPHA,
-                              min_amplified: int = MIN_POSITIVE_CELLS,
-                              min_neutral: int = MIN_COMPARATOR_CELLS) -> dict:
+def compute_cn_stratification(
+    chronos_by_model: dict,
+    cn_by_model: dict,
+    focal_amp: float = FOCAL_AMP_HIGH,
+    strong_effect_delta: float = STRONG_EFFECT_DELTA,
+    moderate_effect_delta: float = MODERATE_EFFECT_DELTA,
+    stratification_alpha: float = STRATIFICATION_ALPHA,
+    min_amplified: int = MIN_POSITIVE_CELLS,
+    min_neutral: int = MIN_COMPARATOR_CELLS,
+) -> dict:
     """Compute the copy-number-stratified-dependency summary_fields.
 
     Amplified boolean = relative CN > focal_amp; neutral = every other line (broad comparator).
     """
     amp_by_model = {m: (cn > focal_amp) for m, cn in cn_by_model.items()}
-    res = mannwhitney_stratification(chronos_by_model, amp_by_model,
-                                     min_positive=min_amplified, min_comparator=min_neutral)
-    cls = classify_stratification(res, _LABELS, strong_effect_delta=strong_effect_delta,
-                                  moderate_effect_delta=moderate_effect_delta,
-                                  stratification_alpha=stratification_alpha)
-    q = res.get("p_value")   # single boolean -> single test -> q == p
+    res = mannwhitney_stratification(
+        chronos_by_model, amp_by_model, min_positive=min_amplified, min_comparator=min_neutral
+    )
+    cls = classify_stratification(
+        res,
+        _LABELS,
+        strong_effect_delta=strong_effect_delta,
+        moderate_effect_delta=moderate_effect_delta,
+        stratification_alpha=stratification_alpha,
+    )
+    q = res.get("p_value")  # single boolean -> single test -> q == p
     n_evaluated = len(set(chronos_by_model) & set(cn_by_model))
     return {
         "n_cell_lines_evaluated": int(n_evaluated),

@@ -10,6 +10,7 @@ consume it per (gene, indication).
 Usage:
     pixi run python -m methods.pancan_mutation_ccf.cli --indication COADREAD --out /tmp/coadread_ccf.parquet
 """
+
 from __future__ import annotations
 
 import gzip
@@ -28,13 +29,14 @@ from methods.gdc_somatic_hotspot.cli import (
 
 MC3_S3_BUCKET = "onc-compbio"
 MC3_S3_KEY = "data-catalog/sources/synapse/tcga-mc3-public/mc3.v0.2.8.PUBLIC.maf.gz"
-ABS_S3_KEY = ("data-catalog/sources/gdc-pancanatlas/2018-snapshot-2026-06-27/"
-              "TCGA_mastercalls.abs_tables_JSedit.fixed.txt")
+ABS_S3_KEY = (
+    "data-catalog/sources/gdc-pancanatlas/2018-snapshot-2026-06-27/TCGA_mastercalls.abs_tables_JSedit.fixed.txt"
+)
 
-MIN_DEPTH = 10          # drop low-coverage calls (VAF unreliable)
-CLONAL_CCF_CUT = 0.8    # a mutation is clonal if ccf >= this (standard threshold)
+MIN_DEPTH = 10  # drop low-coverage calls (VAF unreliable)
+CLONAL_CCF_CUT = 0.8  # a mutation is clonal if ccf >= this (standard threshold)
 MIN_MUTANT_SAMPLES = 10  # below this the clonality fraction is not reported (insufficient)
-CCF_CAP = 1.5           # cap ccf (purity/CN noise can push it >1)
+CCF_CAP = 1.5  # cap ccf (purity/CN noise can push it >1)
 
 
 from methods.target_id_sidecar import ensure_aws_profile
@@ -43,6 +45,7 @@ from methods.target_id_sidecar import ensure_aws_profile
 def load_purity() -> dict:
     """{sample-level barcode (first 15 chars) -> ABSOLUTE purity}."""
     import boto3
+
     ensure_aws_profile()
     s3 = boto3.client("s3")
     obj = s3.get_object(Bucket=MC3_S3_BUCKET, Key=ABS_S3_KEY)
@@ -74,6 +77,7 @@ def aggregate_clonality(indication: str) -> list[dict]:
     Returns a list of {indication, gene_symbol, n_mutant_samples, clonal_fraction, median_ccf,
     clonality_class, evidence_tier} dicts."""
     import boto3
+
     ensure_aws_profile()
 
     projects = set(INDICATION_TO_TCGA_PROJECTS.get(indication, []))
@@ -98,9 +102,10 @@ def aggregate_clonality(indication: str) -> list[dict]:
         cols = line.split("\t")
         if idx is None:
             try:
-                idx = {c: cols.index(c) for c in
-                       ("Hugo_Symbol", "Tumor_Sample_Barcode", "t_depth", "t_alt_count",
-                        "Variant_Classification")}
+                idx = {
+                    c: cols.index(c)
+                    for c in ("Hugo_Symbol", "Tumor_Sample_Barcode", "t_depth", "t_alt_count", "Variant_Classification")
+                }
             except ValueError as e:
                 raise RuntimeError(f"MC3 header missing required column: {e}")
             continue
@@ -123,15 +128,14 @@ def aggregate_clonality(indication: str) -> list[dict]:
         if depth < MIN_DEPTH:
             continue
         vaf = alt / depth
-        ccf = min(vaf * 2.0 / p, CCF_CAP)          # diploid CN=2, multiplicity=1
-        patient = "-".join(seg[:3])                 # patient-level dedup (TCGA-XX-XXXX)
+        ccf = min(vaf * 2.0 / p, CCF_CAP)  # diploid CN=2, multiplicity=1
+        patient = "-".join(seg[:3])  # patient-level dedup (TCGA-XX-XXXX)
         gene = cols[idx["Hugo_Symbol"]]
         key = (patient, gene)
         if ccf > patient_gene_ccf.get(key, -1.0):
             patient_gene_ccf[key] = ccf
 
-    click.echo(f"MC3 streamed: {n_lines:,} lines; {len(patient_gene_ccf):,} (patient,gene) calls in scope",
-               err=True)
+    click.echo(f"MC3 streamed: {n_lines:,} lines; {len(patient_gene_ccf):,} (patient,gene) calls in scope", err=True)
 
     by_gene: dict = defaultdict(list)
     for (patient, gene), ccf in patient_gene_ccf.items():
@@ -145,18 +149,24 @@ def aggregate_clonality(indication: str) -> list[dict]:
         else:
             clonal_frac = round(sum(1 for c in ccfs if c >= CLONAL_CCF_CUT) / n, 4)
             med = round(_st.median(ccfs), 4)
-            cls = ("predominantly_clonal" if clonal_frac >= 0.7 else
-                   "mixed_clonality" if clonal_frac >= 0.4 else
-                   "predominantly_subclonal")
-        rows.append({
-            "indication": indication,
-            "gene_symbol": gene,
-            "n_mutant_samples": n,
-            "clonal_fraction": clonal_frac,
-            "median_ccf": med,
-            "clonality_class": cls,
-            "evidence_tier": "inferred_diploid",
-        })
+            cls = (
+                "predominantly_clonal"
+                if clonal_frac >= 0.7
+                else "mixed_clonality"
+                if clonal_frac >= 0.4
+                else "predominantly_subclonal"
+            )
+        rows.append(
+            {
+                "indication": indication,
+                "gene_symbol": gene,
+                "n_mutant_samples": n,
+                "clonal_fraction": clonal_frac,
+                "median_ccf": med,
+                "clonality_class": cls,
+                "evidence_tier": "inferred_diploid",
+            }
+        )
     rows.sort(key=lambda r: (-(r["n_mutant_samples"]), r["gene_symbol"]))
     return rows
 
@@ -170,9 +180,22 @@ def main(indication: str, out: str):
         click.echo(f"No TCGA projects mapped for indication {indication!r} — empty product.", err=True)
     import pyarrow as pa
     import pyarrow.parquet as pq
-    table = pa.Table.from_pylist(rows) if rows else pa.table({
-        "indication": [], "gene_symbol": [], "n_mutant_samples": [], "clonal_fraction": [],
-        "median_ccf": [], "clonality_class": [], "evidence_tier": []})
+
+    table = (
+        pa.Table.from_pylist(rows)
+        if rows
+        else pa.table(
+            {
+                "indication": [],
+                "gene_symbol": [],
+                "n_mutant_samples": [],
+                "clonal_fraction": [],
+                "median_ccf": [],
+                "clonality_class": [],
+                "evidence_tier": [],
+            }
+        )
+    )
     pq.write_table(table, out)
     click.echo(f"wrote {len(rows)} gene rows -> {out}")
 

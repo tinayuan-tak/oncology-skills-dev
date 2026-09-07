@@ -29,6 +29,7 @@ resolvable DOI (no bar-graph digitization). Design invariants the reader/validat
 No value is authored in code; the committed corpus is the governed artifact. validate_row is the
 machine guard that keeps a malformed/quarantined row out of any calibration.
 """
+
 from __future__ import annotations
 
 import csv
@@ -76,23 +77,47 @@ def _ensure_corpus_cached() -> Optional[Path]:
         except Exception as e:
             resp = getattr(e, "response", None)
             code = resp.get("Error", {}).get("Code") if isinstance(resp, dict) else None
-            definitive = (code in ("404", "NoSuchKey")
-                          or e.__class__.__name__ in ("NoSuchKey", "404"))
+            definitive = code in ("404", "NoSuchKey") or e.__class__.__name__ in ("NoSuchKey", "404")
             if definitive:
                 _CORPUS_STATUS = False
             return None
     return None
 
+
 # --- schema v3 columns (superset; = the governed FINAL header) -------------------------------
 SCHEMA_V3_COLUMNS = (
-    "record_id", "target_gene", "target_symbol_reported", "sample_id", "model_or_sample",
-    "sample_type", "disease_or_context", "species", "native_or_engineered",
-    "measurement_method", "measurement_semantics", "reported_unit",
-    "value_qualifier", "value_central", "value_lower", "value_upper",
-    "uncertainty_type", "uncertainty_value", "replicate_count", "positive_cell_fraction",
-    "cells_measured", "preanalytical_condition", "record_partition", "evidence_grade",
-    "admissible_for_absolute_scale", "admissible_for_native_biology",
-    "source_title", "source_year", "source_doi", "source_url", "source_locator", "extraction_note",
+    "record_id",
+    "target_gene",
+    "target_symbol_reported",
+    "sample_id",
+    "model_or_sample",
+    "sample_type",
+    "disease_or_context",
+    "species",
+    "native_or_engineered",
+    "measurement_method",
+    "measurement_semantics",
+    "reported_unit",
+    "value_qualifier",
+    "value_central",
+    "value_lower",
+    "value_upper",
+    "uncertainty_type",
+    "uncertainty_value",
+    "replicate_count",
+    "positive_cell_fraction",
+    "cells_measured",
+    "preanalytical_condition",
+    "record_partition",
+    "evidence_grade",
+    "admissible_for_absolute_scale",
+    "admissible_for_native_biology",
+    "source_title",
+    "source_year",
+    "source_doi",
+    "source_url",
+    "source_locator",
+    "extraction_note",
 )
 
 # For admission as a NUMERIC absolute-scale datum. A record missing any of these (or that is an
@@ -111,35 +136,52 @@ REQUIRED_FIELDS = (
 )
 
 # Absolute-scale reported units. A relative/normalized unit (log2/ppm/NPX/TPM) is NOT admissible.
-ADMISSIBLE_UNITS = frozenset({
-    "ABC/cell", "sites_per_cell", "molecules/cell", "ABS/cell", "MESF",
-    "PE-equivalent molecules/cell", "epitopes/cell",
-})
+ADMISSIBLE_UNITS = frozenset(
+    {
+        "ABC/cell",
+        "sites_per_cell",
+        "molecules/cell",
+        "ABS/cell",
+        "MESF",
+        "PE-equivalent molecules/cell",
+        "epitopes/cell",
+    }
+)
 
 # Direct-measurement methods (calibrated flow / single-molecule). Non-calibrated → rejected.
-ADMISSIBLE_METHODS = frozenset({
-    "QIFIKIT calibrated flow cytometry",
-    "Quantibrite PE calibrated flow cytometry",
-    "monovalent Quantibrite PE calibrated flow cytometry",
-    "PE-calibrated quantitative flow cytometry",
-    "calibrated bead flow cytometry",
-    "dSTORM single-molecule localization microscopy",
-    "quantitative IHC calibrated",
-    # engineered calibration-ladder rows report study-characterized density; readable ONLY in the
-    # calibration_reference partition (grade CAL) — never a native anchor (partition gate handles that).
-    "quantitative antigen-density characterization reported by study",
-})
+ADMISSIBLE_METHODS = frozenset(
+    {
+        "QIFIKIT calibrated flow cytometry",
+        "Quantibrite PE calibrated flow cytometry",
+        "monovalent Quantibrite PE calibrated flow cytometry",
+        "PE-calibrated quantitative flow cytometry",
+        "calibrated bead flow cytometry",
+        "dSTORM single-molecule localization microscopy",
+        "quantitative IHC calibrated",
+        # engineered calibration-ladder rows report study-characterized density; readable ONLY in the
+        # calibration_reference partition (grade CAL) — never a native anchor (partition gate handles that).
+        "quantitative antigen-density characterization reported by study",
+    }
+)
 
 # record_partition vocabulary. NATIVE_PARTITIONS are the tumor-density default read.
 NATIVE_PARTITIONS = frozenset({"native_patient", "native_cell_line"})
-NONNATIVE_PARTITIONS = frozenset({"normal_reference", "calibration_reference", "method_control",
-                                  "explicit_negative"})
+NONNATIVE_PARTITIONS = frozenset({"normal_reference", "calibration_reference", "method_control", "explicit_negative"})
 ADMISSIBLE_PARTITIONS = NATIVE_PARTITIONS | NONNATIVE_PARTITIONS
 
 # value_qualifier vocabulary. explicit_negative carries no numeric value (a status record).
-NUMERIC_QUALIFIERS = frozenset({"exact_reported", "mean", "median", "patient_median",
-                                "mean_with_reported_range", "approximate", "lower_bound",
-                                "upper_bound"})
+NUMERIC_QUALIFIERS = frozenset(
+    {
+        "exact_reported",
+        "mean",
+        "median",
+        "patient_median",
+        "mean_with_reported_range",
+        "approximate",
+        "lower_bound",
+        "upper_bound",
+    }
+)
 VALUE_QUALIFIERS = NUMERIC_QUALIFIERS | frozenset({"explicit_negative"})
 
 # evidence_grade sub-tiers. NATIVE_ANCHOR_GRADES may set a native tumor density; CAL/QC/A-N never do.
@@ -154,7 +196,7 @@ _GRADE_RANK = {"A": 0, "A-": 1, "B": 2, "B-": 3}
 def _looks_like_doi(v: str) -> bool:
     s = str(v).strip().lower()
     if s.startswith("https://doi.org/"):
-        s = s[len("https://doi.org/"):]
+        s = s[len("https://doi.org/") :]
     if s.startswith("doi:"):
         s = s[4:].strip()
     return s.startswith("10.") and "/" in s and len(s) > 7
@@ -291,28 +333,34 @@ def _absolute_abundance_proxy(sym: str) -> dict:
     class otherwise rests on), so it fills the gap as CONTEXT. Explicitly a CELL-LINE proxy (not tumor
     copies-per-cell) and NOT verdict-moving (no fit_class rung reads it) — promotion to deciding-axis
     capture is a deliberate second pass. Best-effort: any failure → data_unavailable, never raises."""
-    out = {"absolute_abundance_proxy_class": "data_unavailable",
-           "absolute_abundance_proxy_percentile": None,
-           "absolute_abundance_proxy_source": "procan-cellline-protein-abundance-per-protein-v1",
-           "absolute_abundance_proxy_note": "cell-line proteomics all-gene percentile; NOT tumor "
-                                            "copies-per-cell; additive context, verdict-inert"}
+    out = {
+        "absolute_abundance_proxy_class": "data_unavailable",
+        "absolute_abundance_proxy_percentile": None,
+        "absolute_abundance_proxy_source": "procan-cellline-protein-abundance-per-protein-v1",
+        "absolute_abundance_proxy_note": "cell-line proteomics all-gene percentile; NOT tumor "
+        "copies-per-cell; additive context, verdict-inert",
+    }
     try:
         from methods.procan_protein_abundance.read import read_target_summary as _procan
+
         s = _procan(target=sym) or {}
         pct = s.get("allgene_percentile")
         if isinstance(pct, (int, float)):
             out["absolute_abundance_proxy_percentile"] = round(float(pct), 1)
             out["absolute_abundance_proxy_class"] = (
-                "high" if pct >= 75 else "moderate" if pct >= 50
-                else "low" if pct >= 25 else "very_low")
+                "high" if pct >= 75 else "moderate" if pct >= 50 else "low" if pct >= 25 else "very_low"
+            )
     except Exception:
-        pass                                   # verdict-inert context — degrade silently to data_unavailable
+        pass  # verdict-inert context — degrade silently to data_unavailable
     return out
 
 
-def read_absolute_density(target: str, indication: str = None,
-                          partitions: tuple = ("native_patient", "native_cell_line"),
-                          corpus_path: Optional[Path] = None) -> dict:
+def read_absolute_density(
+    target: str,
+    indication: str = None,
+    partitions: tuple = ("native_patient", "native_cell_line"),
+    corpus_path: Optional[Path] = None,
+) -> dict:
     """Absolute surface-density for a target from the governed calibration corpus (schema v3).
 
     Defaults to the two NATIVE partitions (a tumor-density anchor). `best` prefers patient-direct (A)
@@ -400,8 +448,12 @@ def read_explicit_negatives(target: str, corpus_path: Optional[Path] = None) -> 
     absence, not as value=0."""
     sym = str(target or "").upper().strip()
     return [
-        {"record_id": r.get("record_id"), "model_or_sample": r.get("model_or_sample"),
-         "disease_or_context": r.get("disease_or_context"), "source_doi": r.get("source_doi")}
+        {
+            "record_id": r.get("record_id"),
+            "model_or_sample": r.get("model_or_sample"),
+            "disease_or_context": r.get("disease_or_context"),
+            "source_doi": r.get("source_doi"),
+        }
         for r in _load_corpus(corpus_path)
         if str(r.get("target_gene", "")).upper().strip() == sym
         and str(r.get("record_partition", "")).strip() == "explicit_negative"

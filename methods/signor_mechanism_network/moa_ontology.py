@@ -33,6 +33,7 @@ Consumer contract:
   moa_class, modality_relevance = classify_edge(mechanism_string, direction)
   # direction: 'upstream' | 'downstream' (relative to the target being profiled)
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -55,98 +56,97 @@ ONTOLOGY_VERSION = "1.0.0"
 # Upstream edges: something → target. The "something" is a candidate MoA hook.
 UPSTREAM_ROWS = [
     # GAP / GEF: canonical Ras-family regulator mechanisms
-    ("gtpase-activating protein", "upstream_gap_modulation",
-     ("small_molecule_allosteric", "degrader")),
-    ("guanine nucleotide exchange factor", "upstream_gef_modulation",
-     ("small_molecule_allosteric", "degrader")),
+    ("gtpase-activating protein", "upstream_gap_modulation", ("small_molecule_allosteric", "degrader")),
+    ("guanine nucleotide exchange factor", "upstream_gef_modulation", ("small_molecule_allosteric", "degrader")),
     # Generic effect-derived fallback mechanisms (SIGNOR rows with empty
     # MECHANISM but is_stimulation/is_inhibition flags): treat as untyped
     # activity-regulation candidates for downstream reasoning.
-    ("stimulation", "upstream_stimulator",
-     ("small_molecule",)),
-    ("inhibition", "upstream_inhibitor",
-     ("small_molecule",)),
+    ("stimulation", "upstream_stimulator", ("small_molecule",)),
+    ("inhibition", "upstream_inhibitor", ("small_molecule",)),
     # Direct binding: molecular glue / disruptor tractability
-    ("binding", "molecular_glue_disruptor",
-     ("small_molecule", "molecular_glue", "protac")),
+    ("binding", "molecular_glue_disruptor", ("small_molecule", "molecular_glue", "protac")),
     # Enzyme-mediated post-translational modifications
-    ("phosphorylation", "upstream_kinase_modulation",
-     ("small_molecule_kinase_inhibitor",)),
-    ("dephosphorylation", "upstream_ppase_modulation",
-     ("small_molecule",)),  # rarely tractable, kept for completeness
-    ("ubiquitination", "upstream_ubl_modulation",
-     ("molecular_glue", "dub_inhibitor")),
-    ("deubiquitination", "upstream_dub_modulation",
-     ("dub_inhibitor",)),
-    ("methylation", "upstream_methyltransferase_modulation",
-     ("small_molecule_epigenetic",)),
-    ("acetylation", "upstream_hat_modulation",
-     ("small_molecule_epigenetic",)),
-    ("deacetylation", "upstream_hdac_modulation",
-     ("small_molecule_hdac_inhibitor",)),
+    ("phosphorylation", "upstream_kinase_modulation", ("small_molecule_kinase_inhibitor",)),
+    ("dephosphorylation", "upstream_ppase_modulation", ("small_molecule",)),  # rarely tractable, kept for completeness
+    ("ubiquitination", "upstream_ubl_modulation", ("molecular_glue", "dub_inhibitor")),
+    ("deubiquitination", "upstream_dub_modulation", ("dub_inhibitor",)),
+    ("methylation", "upstream_methyltransferase_modulation", ("small_molecule_epigenetic",)),
+    ("acetylation", "upstream_hat_modulation", ("small_molecule_epigenetic",)),
+    ("deacetylation", "upstream_hdac_modulation", ("small_molecule_hdac_inhibitor",)),
     # Cleavage: proteolytic activation / inactivation
-    ("cleavage", "upstream_protease_modulation",
-     ("small_molecule_protease_inhibitor",)),
+    ("cleavage", "upstream_protease_modulation", ("small_molecule_protease_inhibitor",)),
     # Transcriptional / translational regulation upstream
-    ("transcriptional regulation", "upstream_transcriptional_modulation",
-     ("rna_therapeutic", "small_molecule_transcription_factor")),
+    (
+        "transcriptional regulation",
+        "upstream_transcriptional_modulation",
+        ("rna_therapeutic", "small_molecule_transcription_factor"),
+    ),
     # CollecTri signed TF→target edges. Splits
     # generic "transcriptional regulation" into signed variants so
     # downstream reasoning can distinguish activator-loss (loss-of-function
     # target when the activating TF is drugged) from repressor-loss.
-    ("transcriptional activation", "upstream_transcriptional_activator",
-     ("rna_therapeutic", "small_molecule_transcription_factor")),
-    ("transcriptional repression", "upstream_transcriptional_repressor",
-     ("rna_therapeutic", "small_molecule_transcription_factor")),
+    (
+        "transcriptional activation",
+        "upstream_transcriptional_activator",
+        ("rna_therapeutic", "small_molecule_transcription_factor"),
+    ),
+    (
+        "transcriptional repression",
+        "upstream_transcriptional_repressor",
+        ("rna_therapeutic", "small_molecule_transcription_factor"),
+    ),
     # Kinome-atlas PWM-derived predictions.
     # Distinct from curated `phosphorylation` — these are PREDICTIONS from
     # positional-scanning peptide-array PWMs (Johnson 2023 + Yaron-Barir
     # 2024 Nature). Downstream synthesis should weight lower than curated.
-    ("predicted phosphorylation (ser_thr)", "upstream_predicted_kinase_modulation",
-     ("small_molecule_kinase_inhibitor_predicted",)),
-    ("predicted phosphorylation (tyr)", "upstream_predicted_kinase_modulation",
-     ("small_molecule_kinase_inhibitor_predicted",)),
+    (
+        "predicted phosphorylation (ser_thr)",
+        "upstream_predicted_kinase_modulation",
+        ("small_molecule_kinase_inhibitor_predicted",),
+    ),
+    (
+        "predicted phosphorylation (tyr)",
+        "upstream_predicted_kinase_modulation",
+        ("small_molecule_kinase_inhibitor_predicted",),
+    ),
 ]
 
 # Downstream edges: target → something. The "something" is a candidate PD marker.
 DOWNSTREAM_ROWS = [
-    ("binding", "downstream_pd_marker",
-     ("pd_biomarker",)),
+    ("binding", "downstream_pd_marker", ("pd_biomarker",)),
     # Generic effect-derived fallback (empty MECHANISM with is_stim/is_inh flag)
-    ("stimulation", "downstream_activation_readout",
-     ("pd_biomarker",)),
-    ("inhibition", "downstream_repression_readout",
-     ("pd_biomarker",)),
-    ("phosphorylation", "downstream_pd_kinase",
-     ("pd_biomarker_phospho",)),
-    ("dephosphorylation", "downstream_pd_dephospho",
-     ("pd_biomarker_phospho",)),
-    ("ubiquitination", "downstream_pd_ubiquitin",
-     ("pd_biomarker_ubiquitin",)),
-    ("gtpase-activating protein", "downstream_pd_gap",
-     ("pd_biomarker",)),
-    ("guanine nucleotide exchange factor", "downstream_pd_gef",
-     ("pd_biomarker",)),
-    ("transcriptional regulation", "transcriptional_pd_marker",
-     ("pd_biomarker_transcriptional", "rna_ihc_readout")),
+    ("stimulation", "downstream_activation_readout", ("pd_biomarker",)),
+    ("inhibition", "downstream_repression_readout", ("pd_biomarker",)),
+    ("phosphorylation", "downstream_pd_kinase", ("pd_biomarker_phospho",)),
+    ("dephosphorylation", "downstream_pd_dephospho", ("pd_biomarker_phospho",)),
+    ("ubiquitination", "downstream_pd_ubiquitin", ("pd_biomarker_ubiquitin",)),
+    ("gtpase-activating protein", "downstream_pd_gap", ("pd_biomarker",)),
+    ("guanine nucleotide exchange factor", "downstream_pd_gef", ("pd_biomarker",)),
+    ("transcriptional regulation", "transcriptional_pd_marker", ("pd_biomarker_transcriptional", "rna_ihc_readout")),
     # CollecTri signed TF→target edges — when target
     # IS a TF acting on downstream genes, split signed variants for
     # PD-marker reasoning (rna_ihc_readout on activator target ≠ same on
     # repressor target).
-    ("transcriptional activation", "downstream_transcriptional_activation_readout",
-     ("pd_biomarker_transcriptional", "rna_ihc_readout")),
-    ("transcriptional repression", "downstream_transcriptional_repression_readout",
-     ("pd_biomarker_transcriptional", "rna_ihc_readout")),
+    (
+        "transcriptional activation",
+        "downstream_transcriptional_activation_readout",
+        ("pd_biomarker_transcriptional", "rna_ihc_readout"),
+    ),
+    (
+        "transcriptional repression",
+        "downstream_transcriptional_repression_readout",
+        ("pd_biomarker_transcriptional", "rna_ihc_readout"),
+    ),
     # Kinome-atlas PWM-derived downstream predictions.
     # Target-as-KINASE case: predicted substrates → phospho PD readouts.
-    ("predicted phosphorylation (ser_thr)", "downstream_predicted_phospho_readout",
-     ("pd_biomarker_phospho_predicted",)),
-    ("predicted phosphorylation (tyr)", "downstream_predicted_phospho_readout",
-     ("pd_biomarker_phospho_predicted",)),
-    ("cleavage", "downstream_pd_cleavage",
-     ("pd_biomarker",)),
-    ("methylation", "downstream_pd_methylation",
-     ("pd_biomarker_epigenetic",)),
+    (
+        "predicted phosphorylation (ser_thr)",
+        "downstream_predicted_phospho_readout",
+        ("pd_biomarker_phospho_predicted",),
+    ),
+    ("predicted phosphorylation (tyr)", "downstream_predicted_phospho_readout", ("pd_biomarker_phospho_predicted",)),
+    ("cleavage", "downstream_pd_cleavage", ("pd_biomarker",)),
+    ("methylation", "downstream_pd_methylation", ("pd_biomarker_epigenetic",)),
 ]
 
 
@@ -165,6 +165,7 @@ class MoAClassification:
         ontology_version: The MoA ontology version stamp; downstream cards
             emit this so consumers can trace which classification snapshot fired.
     """
+
     moa_class: str
     modality_relevance: tuple[str, ...]
     raw_mechanism: str
@@ -184,9 +185,7 @@ def _build_lookup():
 _LOOKUP = _build_lookup()
 
 
-def classify_edge(
-    mechanism: str, direction: str
-) -> Optional[MoAClassification]:
+def classify_edge(mechanism: str, direction: str) -> Optional[MoAClassification]:
     """Classify one SIGNOR edge by (mechanism, direction).
 
     Args:

@@ -47,6 +47,7 @@ Usage:
     python -m methods.surfaceome_family_fusion.cli \\
         --out /tmp/surfaceome_family_v1.parquet
 """
+
 from __future__ import annotations
 
 import os
@@ -59,15 +60,19 @@ S3_BUCKET = "onc-compbio"
 
 SURFY_S3_KEY = "data-catalog/sources/surfacome-ethz-2018/table_S3_surfaceome.xlsx"
 HPA_S3_KEY = "data-catalog/sources/hpa-v25-1/proteinatlas.tsv.zip"
-UNIPROT_S3_KEY = (
-    "data-catalog/sources/uniprot-sprot-human/2026_02-snapshot-2026-06-18/"
-    "uniprot_sprot_human.dat.gz"
-)
+UNIPROT_S3_KEY = "data-catalog/sources/uniprot-sprot-human/2026_02-snapshot-2026-06-18/uniprot_sprot_human.dat.gz"
 
 FAMILY_TAXONOMY = [
-    "Kinase", "Enzyme", "Transporter", "CD_molecule",
-    "Adhesion", "GPCR", "Growth_factor", "Immune_receptor",
-    "Other", "Not_surface",
+    "Kinase",
+    "Enzyme",
+    "Transporter",
+    "CD_molecule",
+    "Adhesion",
+    "GPCR",
+    "Growth_factor",
+    "Immune_receptor",
+    "Other",
+    "Not_surface",
 ]
 
 # HPA protein_class column values → our family taxonomy.
@@ -96,8 +101,7 @@ _HPA_CLASS_TO_FAMILY = {
 
 
 @click.command()
-@click.option("--out", required=True, type=click.Path(path_type=Path),
-              help="Output parquet path.")
+@click.option("--out", required=True, type=click.Path(path_type=Path), help="Output parquet path.")
 def main(out: Path):
     """Fuse SURFY + HPA + UniProt EC + IUPHAR into a per-UniProt-AC family table.
 
@@ -137,14 +141,23 @@ def main(out: Path):
         "UniProt EC number + IUPHAR receptor class provide fallbacks.",
     ]
 
-    df = pd.DataFrame(columns=[
-        "uniprot_ac", "gene_symbol", "surface_protein_family",
-        "surfaceome_confidence_score",
-        "surface_present_surfy", "surfy_confidence_score",
-        "surface_present_hpa", "hpa_protein_class",
-        "uniprot_ec_number", "iuphar_family",
-        "fusion_provenance", "family_class", "method_version",
-    ])
+    df = pd.DataFrame(
+        columns=[
+            "uniprot_ac",
+            "gene_symbol",
+            "surface_protein_family",
+            "surfaceome_confidence_score",
+            "surface_present_surfy",
+            "surfy_confidence_score",
+            "surface_present_hpa",
+            "hpa_protein_class",
+            "uniprot_ec_number",
+            "iuphar_family",
+            "fusion_provenance",
+            "family_class",
+            "method_version",
+        ]
+    )
 
     out.parent.mkdir(parents=True, exist_ok=True)
     df.to_parquet(out, index=False)

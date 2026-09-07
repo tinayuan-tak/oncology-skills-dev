@@ -5,6 +5,7 @@ should ever cache on disk is the ~448 KB sidecar. A prior reader (removed PR #11
 long products into CACHE_DIR, and a long-lived process still holding that old code in memory can re-bloat
 the dir to ~16 GB. _sweep_stale_cache makes the CURRENT code self-healing so such residue never survives
 the next run. This pins that invariant. S3-free (filesystem only)."""
+
 from __future__ import annotations
 
 import sys

@@ -10,6 +10,7 @@ This test reproduces the melt+write step on a synthetic wide frame and asserts t
 ensembl_gene_id [min,max] span is NARROW (a single-gene filter touches few row-groups), which fails
 on the pre-fix (unsorted-melt) path and passes after.
 """
+
 from __future__ import annotations
 
 import sys
@@ -30,8 +31,7 @@ if str(REPO) not in sys.path:
 
 def _wide(n_genes: int, n_samples: int) -> pd.DataFrame:
     genes = [f"ENSG{i:011d}" for i in range(n_genes)]
-    w = pd.DataFrame({"gene_symbol": [f"G{i}" for i in range(n_genes)],
-                      "ensembl_gene_id": genes})
+    w = pd.DataFrame({"gene_symbol": [f"G{i}" for i in range(n_genes)], "ensembl_gene_id": genes})
     for s in range(n_samples):
         w[f"sample{s}"] = np.random.RandomState(s).rand(n_genes).astype("float32")
     return w
@@ -44,16 +44,16 @@ def _melt_write(wide: pd.DataFrame, out: Path, row_group_size: int, sort_melted:
     melted = wide.melt(id_vars=key, value_vars=samp, var_name="sample_id", value_name="log2_tpm")
     if sort_melted:  # THE FIX
         melted = melted.sort_values("ensembl_gene_id", kind="stable").reset_index(drop=True)
-    pq.write_table(pa.Table.from_pandas(melted, preserve_index=False),
-                   str(out), row_group_size=row_group_size)
+    pq.write_table(pa.Table.from_pandas(melted, preserve_index=False), str(out), row_group_size=row_group_size)
 
 
 def _rowgroup_spans(path: Path):
     pf = pq.ParquetFile(str(path))
     ci = pf.schema_arrow.names.index("ensembl_gene_id")
-    return [(pf.metadata.row_group(rg).column(ci).statistics.min,
-             pf.metadata.row_group(rg).column(ci).statistics.max)
-            for rg in range(pf.num_row_groups)]
+    return [
+        (pf.metadata.row_group(rg).column(ci).statistics.min, pf.metadata.row_group(rg).column(ci).statistics.max)
+        for rg in range(pf.num_row_groups)
+    ]
 
 
 def test_melted_sort_yields_narrow_rowgroup_gene_spans():
@@ -65,8 +65,9 @@ def test_melted_sort_yields_narrow_rowgroup_gene_spans():
         _melt_write(wide, out, row_group_size=40, sort_melted=True)
         spans = _rowgroup_spans(out)
         # every row-group spans at most 1 gene (40 rows/rg == 40 samples of one gene)
-        assert all(mn == mx for mn, mx in spans), \
+        assert all(mn == mx for mn, mx in spans), (
             f"row-groups should each hold ~1 gene after melted-sort; got spans {spans[:5]}"
+        )
 
 
 def test_unsorted_melt_is_the_bug_being_fixed():

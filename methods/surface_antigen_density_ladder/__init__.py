@@ -14,6 +14,7 @@ resolvable DOI (no bar-graph digitization). schema v3 is the SUPERSET of the dom
 explicit_negative = NOT); dual admissibility booleans + a quarantine-aware validator keep malformed or
 mis-tagged rows out of any calibration.
 """
+
 METHOD_VERSION = "0.3.0"
 
 from .read import read_absolute_density  # noqa: F401,E402

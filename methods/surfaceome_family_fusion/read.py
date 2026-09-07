@@ -15,6 +15,7 @@ Runtime discipline:
 Companion:
   data-catalog:manifests/derived/surfaceome-family-classification-per-uniprot-v1.yaml
 """
+
 from __future__ import annotations
 
 from functools import lru_cache
@@ -63,9 +64,11 @@ def _ensure_derived_cached() -> Optional[Path]:
             # exact bug this fix closes. lru_cache never memoizes a raise, so the next call retries.
             resp = getattr(e, "response", None)
             code = resp.get("Error", {}).get("Code") if isinstance(resp, dict) else None
-            definitive = (code in ("404", "NoSuchKey")
-                          or e.__class__.__name__ in ("NoSuchKey", "404")
-                          or isinstance(e, FileNotFoundError))
+            definitive = (
+                code in ("404", "NoSuchKey")
+                or e.__class__.__name__ in ("NoSuchKey", "404")
+                or isinstance(e, FileNotFoundError)
+            )
             if definitive:
                 _DERIVED_STATUS = False
                 return None
@@ -88,8 +91,10 @@ def _load_indexed():
     path = _ensure_derived_cached()
     if path is None:
         import pandas as pd
+
         return pd.DataFrame(), {}, {}
     import pandas as pd
+
     # LOCAL cache read — S3 absence (404/NoSuchKey) is latched in _ensure_derived_cached (path=None
     # above -> honest data_unavailable). A failure reading a PRESENT file is broken-env (missing
     # pyarrow) or a corrupt/partial cache, NOT data absence -> PROPAGATE (honest _live_read_error at
@@ -101,8 +106,8 @@ def _load_indexed():
         return df, {}, {}
 
     # Column-array iteration builds indices in ~10ms on 20K rows.
-    gene_col = df['gene_symbol'].values
-    ac_col = df['uniprot_ac'].values
+    gene_col = df["gene_symbol"].values
+    ac_col = df["uniprot_ac"].values
     gene_idx: dict[str, int] = {}
     ac_idx: dict[str, int] = {}
     for i in range(len(df)):
@@ -144,7 +149,9 @@ def read_target_summary(target: str, indication: str = None) -> dict:
         "source_uniprot_ec_number": row.get("source_uniprot_ec_number", ""),
         "source_iuphar_family": row.get("source_iuphar_family", ""),
         "hpa_protein_class_verbatim": row.get("hpa_protein_class_verbatim", ""),
-        "fusion_provenance": [str(x) for x in (row.get("fusion_provenance") if row.get("fusion_provenance") is not None else [])],
+        "fusion_provenance": [
+            str(x) for x in (row.get("fusion_provenance") if row.get("fusion_provenance") is not None else [])
+        ],
         "method_version": "0.1.0",
         "_data_source": DERIVED_MANIFEST_ID,
     }

@@ -7,6 +7,7 @@ per-gene product row (no S3) and pin: (1) product columns map to the card fields
 strongest_paralog_ohnolog is POPULATED from the product's ohnolog_flag, (3) an unreachable
 product falls back to the raw-CSV path.
 """
+
 from __future__ import annotations
 
 import json
@@ -19,18 +20,29 @@ sys.path.insert(0, str(REPO))
 import methods.depmap_paralog_aggregator.read as R  # noqa: E402
 
 
-def _product_row(symbol="VPS4A", partner="VPS4B", delta=1.55, ohnolog=True,
-                 buffering_class="strong"):
+def _product_row(symbol="VPS4A", partner="VPS4B", delta=1.55, ohnolog=True, buffering_class="strong"):
     """A synthetic derived-product row (matches the emitted parquet schema)."""
     top_partners = [
-        {"partner_symbol": partner, "dep_delta_paired_vs_max_single": delta,
-         "median_dual_ko_effect": -1.6, "single_ko_target": -0.05,
-         "single_ko_partner": -0.02, "buffering_class": buffering_class,
-         "ohnolog_flag": ohnolog, "ensembl_lca": None},
-        {"partner_symbol": "OTHER", "dep_delta_paired_vs_max_single": 0.1,
-         "median_dual_ko_effect": -0.2, "single_ko_target": -0.1,
-         "single_ko_partner": 0.0, "buffering_class": "none",
-         "ohnolog_flag": False, "ensembl_lca": None},
+        {
+            "partner_symbol": partner,
+            "dep_delta_paired_vs_max_single": delta,
+            "median_dual_ko_effect": -1.6,
+            "single_ko_target": -0.05,
+            "single_ko_partner": -0.02,
+            "buffering_class": buffering_class,
+            "ohnolog_flag": ohnolog,
+            "ensembl_lca": None,
+        },
+        {
+            "partner_symbol": "OTHER",
+            "dep_delta_paired_vs_max_single": 0.1,
+            "median_dual_ko_effect": -0.2,
+            "single_ko_target": -0.1,
+            "single_ko_partner": 0.0,
+            "buffering_class": "none",
+            "ohnolog_flag": False,
+            "ensembl_lca": None,
+        },
     ]
     return {
         "target_gene_symbol": symbol,
@@ -54,7 +66,7 @@ def test_primary_path_populates_real_ohnolog(monkeypatch):
     assert res["paralog_buffering_class"] == "strong"
     assert res["strongest_paralog_symbol"] == "VPS4B"
     assert res["strongest_paralog_delta"] == 1.55
-    assert res["strongest_paralog_ohnolog"] is True          # POPULATED (not None)
+    assert res["strongest_paralog_ohnolog"] is True  # POPULATED (not None)
     assert res["_data_source"] == "depmap-paralog-buffering-per-gene-v1"
     # functional_paralogs carry the per-partner ohnolog too
     fp = res["functional_paralogs"][0]
@@ -64,8 +76,7 @@ def test_primary_path_populates_real_ohnolog(monkeypatch):
 
 def test_primary_path_non_ohnolog(monkeypatch):
     monkeypatch.setattr(R, "_derived_parquet_uri", lambda: "s3://fake/paralog.parquet")
-    monkeypatch.setattr(R, "_fetch_derived_row",
-                        lambda uri, gene: _product_row(ohnolog=False))
+    monkeypatch.setattr(R, "_fetch_derived_row", lambda uri, gene: _product_row(ohnolog=False))
     res = R.read_target_summary("VPS4A")
     assert res["strongest_paralog_ohnolog"] is False
 
@@ -88,6 +99,7 @@ def test_unreachable_product_falls_back_to_raw_csv(monkeypatch, tmp_path):
     monkeypatch.setattr(R, "_derived_parquet_uri", lambda: None)
     # provide a synthetic raw CSV for the fallback path
     import csv
+
     p = tmp_path / "ParalogGeneEffect.csv"
     with p.open("w", newline="") as f:
         w = csv.writer(f)
@@ -98,8 +110,8 @@ def test_unreachable_product_falls_back_to_raw_csv(monkeypatch, tmp_path):
     R._load_paralog_indexed.cache_clear()
     res = R.read_target_summary("GA")
     assert res["paralog_buffering_class"] == "strong"
-    assert "ParalogGeneEffect.csv" in res["_data_source"]     # raw-CSV fallback stamp
-    assert res["strongest_paralog_ohnolog"] is None           # no ohnolog on fallback
+    assert "ParalogGeneEffect.csv" in res["_data_source"]  # raw-CSV fallback stamp
+    assert res["strongest_paralog_ohnolog"] is None  # no ohnolog on fallback
     R._load_paralog_indexed.cache_clear()
 
 
@@ -113,6 +125,7 @@ def test_fetch_derived_row_parses_s3_uri(monkeypatch):
     pyarrow (setting pyarrow.parquet/pyarrow.fs attributes), the fake was bypassed → real S3 read →
     order-dependent failure. Patch BOTH the attribute and sys.modules, via monkeypatch (auto-reverts)."""
     import methods.depmap_paralog_aggregator.read as RR
+
     captured = {}
 
     class _FakeTable:
@@ -121,16 +134,21 @@ def test_fetch_derived_row_parses_s3_uri(monkeypatch):
 
     import sys
     import types
-    fake_pq = types.SimpleNamespace(read_table=lambda path, filesystem=None, filters=None: (
-        captured.update(path=path, filters=filters) or _FakeTable()))
+
+    fake_pq = types.SimpleNamespace(
+        read_table=lambda path, filesystem=None, filters=None: (
+            captured.update(path=path, filters=filters) or _FakeTable()
+        )
+    )
     fake_fs = types.SimpleNamespace(S3FileSystem=lambda: object())
     import pyarrow  # real top-level module; we override its .parquet/.fs submodule attributes
+
     monkeypatch.setattr(pyarrow, "parquet", fake_pq, raising=False)
     monkeypatch.setattr(pyarrow, "fs", fake_fs, raising=False)
     monkeypatch.setitem(sys.modules, "pyarrow.parquet", fake_pq)
     monkeypatch.setitem(sys.modules, "pyarrow.fs", fake_fs)
 
     out = RR._fetch_derived_row("s3://onc-compbio/data-catalog/derived/x/p.parquet", "kras")
-    assert out is None                                        # num_rows == 0
+    assert out is None  # num_rows == 0
     assert captured["path"] == "onc-compbio/data-catalog/derived/x/p.parquet"
     assert captured["filters"] == [("target_gene_symbol", "=", "KRAS")]  # upper-cased

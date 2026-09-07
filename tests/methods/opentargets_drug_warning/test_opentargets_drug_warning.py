@@ -2,6 +2,7 @@
 
 Strongest-wins precedence (withdrawn > black_box > other > no_warning) + the coverage-gap /
 no-targeted-drug path. VERDICT-INERT; these guards pin the class taxonomy, not a verdict."""
+
 from __future__ import annotations
 
 import importlib
@@ -23,7 +24,7 @@ def test_no_targeted_drug_is_coverage_gap():
     out = r.classify_drug_warning([], n_targeted_drugs=0)
     assert out["drug_warning_class"] == "no_targeted_drug"
     assert out["has_black_box"] is False and out["has_withdrawn"] is False
-    assert out["n_targeted_drugs"] == 0          # declared summary_field must be present on this branch
+    assert out["n_targeted_drugs"] == 0  # declared summary_field must be present on this branch
 
 
 def test_nan_toxicity_class_does_not_leak_nan_token():
@@ -31,8 +32,8 @@ def test_nan_toxicity_class_does_not_leak_nan_token():
     # leak into toxicity_classes. Real string labels only.
     nan = float("nan")
     out = r.classify_drug_warning(
-        [_w("Black Box Warning", tox="hepatotoxicity"), _w("Black Box Warning", tox=nan)],
-        n_targeted_drugs=2)
+        [_w("Black Box Warning", tox="hepatotoxicity"), _w("Black Box Warning", tox=nan)], n_targeted_drugs=2
+    )
     assert out["toxicity_classes"] == ["hepatotoxicity"]
     assert "nan" not in out["toxicity_classes"]
 
@@ -51,7 +52,8 @@ def test_black_box_detected():
 
 def test_withdrawn_wins_over_black_box():
     out = r.classify_drug_warning(
-        [_w("Black Box Warning", ("CHEMBL1",)), _w("Withdrawn", ("CHEMBL2",))], n_targeted_drugs=2)
+        [_w("Black Box Warning", ("CHEMBL1",)), _w("Withdrawn", ("CHEMBL2",))], n_targeted_drugs=2
+    )
     assert out["drug_warning_class"] == "withdrawn_drug"
     assert out["has_withdrawn"] is True and out["has_black_box"] is True
     assert out["n_targeted_warned_drugs"] == 2

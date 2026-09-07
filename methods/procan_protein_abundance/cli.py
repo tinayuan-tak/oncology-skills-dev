@@ -29,6 +29,7 @@ accession absent from the ProCan panel, is `data_unavailable` (a coverage gap, N
 negative). A transient S3/read failure PROPAGATES (never memoized) so read.py surfaces an honest
 _live_read_error.
 """
+
 from __future__ import annotations
 
 from functools import lru_cache
@@ -36,6 +37,7 @@ from typing import Optional
 
 from methods.catalog_query.read import bucket_key_for, load_manifest
 from methods.target_id_sidecar import ensure_aws_profile
+
 # Reuse the Gygi sibling's summary shape + classifier + symbol->UniProt path (single source of truth).
 from methods.depmap_protein_abundance.cli import (  # noqa: F401
     classify_protein_abundance,
@@ -87,8 +89,7 @@ def _select_abundance_from_table(tbl, accession: str, panel_size):
     d = tbl.to_pydict()
     uids = sorted(set(d["uniprot_id"]))
     chosen = uids[0]
-    out = {m: float(v) for u, m, v in zip(d["uniprot_id"], d["model_id"], d["log_abundance"])
-           if u == chosen}
+    out = {m: float(v) for u, m, v in zip(d["uniprot_id"], d["model_id"], d["log_abundance"]) if u == chosen}
     return (out or None), panel_size
 
 
@@ -97,6 +98,7 @@ def _load_abundance_pushdown(accession: str, product_path=None):
     (abundance_by_model | None, panel_size). `product_path` (offline test seam) reads a local parquet
     with the same filter; None => the live S3 product (cached per accession)."""
     import pyarrow.parquet as pq
+
     if product_path is not None:
         tbl = pq.read_table(str(product_path), filters=[("uniprot_base", "=", accession)])
         return _select_abundance_from_table(tbl, accession, _panel_size())
@@ -109,10 +111,10 @@ def _load_abundance_pushdown_live(accession: str):
     RAISES and is NOT cached (lru_cache never memoizes exceptions), so a later call retries."""
     import pyarrow.fs as pafs
     import pyarrow.parquet as pq
+
     ensure_aws_profile()
     bucket, key = _derived_bucket_key()
-    tbl = pq.read_table(f"{bucket}/{key}", filesystem=pafs.S3FileSystem(),
-                        filters=[("uniprot_base", "=", accession)])
+    tbl = pq.read_table(f"{bucket}/{key}", filesystem=pafs.S3FileSystem(), filters=[("uniprot_base", "=", accession)])
     return _select_abundance_from_table(tbl, accession, _panel_size())
 
 
@@ -120,6 +122,7 @@ def _compute_null_from_table(path, filesystem=None) -> tuple:
     """One median per protein (uniprot_base) over the 2-column (uniprot_base, log_abundance) scan of the
     product — the all-protein null the product ships no sidecar for. Returned as a hashable tuple."""
     import pyarrow.parquet as pq
+
     tbl = pq.read_table(path, filesystem=filesystem, columns=["uniprot_base", "log_abundance"])
     med = tbl.to_pandas().groupby("uniprot_base")["log_abundance"].median()
     return tuple(float(x) for x in med.tolist())
@@ -137,6 +140,7 @@ def _allprotein_median_null(product_path=None) -> tuple:
 @lru_cache(maxsize=1)
 def _allprotein_median_null_live() -> tuple:
     import pyarrow.fs as pafs
+
     ensure_aws_profile()
     bucket, key = _derived_bucket_key()
     try:
@@ -146,8 +150,7 @@ def _allprotein_median_null_live() -> tuple:
 
 
 def _pct_context() -> str:
-    return (f"{DERIVED_PRODUCT_MANIFEST_ID} panel-wide "
-            f"metric=median_log_abundance source={PROTEIN_ABUNDANCE_SOURCE}")
+    return f"{DERIVED_PRODUCT_MANIFEST_ID} panel-wide metric=median_log_abundance source={PROTEIN_ABUNDANCE_SOURCE}"
 
 
 def load_and_classify(target: str, product_path=None, null_path=None) -> dict:
@@ -174,8 +177,7 @@ def load_and_classify(target: str, product_path=None, null_path=None) -> dict:
         return summ
 
     null_vec = _allprotein_median_null(product_path=(null_path if null_path is not None else product_path))
-    summary = compute_summary(target, col, {}, n_panel=panel_size,
-                              all_protein_medians=(null_vec or None))
+    summary = compute_summary(target, col, {}, n_panel=panel_size, all_protein_medians=(null_vec or None))
     summary["method_version"] = METHOD_VERSION
     summary["protein_abundance_source"] = PROTEIN_ABUNDANCE_SOURCE
     pct = percentile_rank(summary.get("median_log2_abundance_panel"), null_vec or [])
@@ -188,6 +190,7 @@ def load_and_classify(target: str, product_path=None, null_path=None) -> dict:
 def _main(argv=None):
     import argparse
     import json
+
     ap = argparse.ArgumentParser(description="ProCan cell-line protein-abundance distribution for a target.")
     ap.add_argument("--target", required=True)
     ap.add_argument("--product-path", default=None)

@@ -69,7 +69,9 @@ def _git_sha(repo_hint: Path | None = None) -> str:
         cwd = repo_hint or Path(__file__).resolve().parent
         out = subprocess.run(
             ["git", "-C", str(cwd), "rev-parse", "--short=7", "HEAD"],
-            capture_output=True, text=True, timeout=5,
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         sha = out.stdout.strip()
         if sha and all(c in "0123456789abcdef" for c in sha):
@@ -98,10 +100,7 @@ def _strata_summary(df: pd.DataFrame, catalog: dict) -> list[dict]:
     catalog's expected_n_* semantics. derivation_source is pulled from the
     catalog stratum definition when present.
     """
-    deriv_by_id = {
-        s["id"]: s.get("derivation_source")
-        for s in catalog.get("atomic_strata", []) or []
-    }
+    deriv_by_id = {s["id"]: s.get("derivation_source") for s in catalog.get("atomic_strata", []) or []}
     members = df[df["is_member"] == True]  # noqa: E712 — pandas mask needs ==
     counts = members.groupby("stratum_id")["sample_id"].nunique()
     summary = []
@@ -153,8 +152,7 @@ def emit_assignment_manifest(
     # products; without the variant segment they collide at the same S3 key and
     # overwrite each other. Layout: {IND}/{data_source}[/{variant}]/{pin}/file.
     _variant_seg = f"{variant}/" if variant else ""
-    s3_uri = (f"{S3_BASE}/{catalog['indication']}/{data_source}/"
-              f"{_variant_seg}{release_pin}/{parquet_filename}")
+    s3_uri = f"{S3_BASE}/{catalog['indication']}/{data_source}/{_variant_seg}{release_pin}/{parquet_filename}"
 
     manifest = {
         "manifest_kind": "subgroup_assignment_product",

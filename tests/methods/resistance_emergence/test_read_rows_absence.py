@@ -4,6 +4,7 @@ transient exception propagate (that would crash the whole skill run on an S3 bli
 the breadcrumb REASON now distinguishes transient/creds/broken-env from a genuine NoSuchKey/404, and
 a transient failure is NOT permanently cached (a later call retries).
 """
+
 from __future__ import annotations
 
 import sys
@@ -27,6 +28,7 @@ def _nosuchkey():
 def _raise(exc):
     def f(*a, **k):
         raise exc
+
     return f
 
 

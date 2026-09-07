@@ -11,6 +11,7 @@ was queried for SV AND covers the gene. Emits a genie_sv_recurrence_percentile/_
 all SV-covered genes in the indication), the coverage-gap flag, and recurrent SV partners (the SV data
 uniquely names the fusion counterpart — EML4 for ALK, etc.). DISPLAY facet, verdict-inert.
 """
+
 from __future__ import annotations
 
 import io
@@ -46,27 +47,33 @@ def _load_sv():
     parse — the free-text Comments/Annotation columns carry embedded newlines and quotes, so a
     naive line split would corrupt rows. Returns a pandas DataFrame or None."""
     import pandas as pd
+
     ensure_aws_profile()
     s3 = _boto3_client()
     try:
         body = s3.get_object(Bucket=S3_BUCKET, Key=SV_KEY)["Body"].read()
     except Exception as e:
         from methods.target_id_sidecar import is_definitively_absent
+
         # Mirror the sibling GENIE readers: a genuine NoSuchKey/404 (or FileNotFoundError) on the SV
         # feed -> None -> caller emits data_unavailable (unchanged). A transient/creds/broken-env
         # failure is NOT absence -> re-raise so the live-read seam tags _live_read_error.
         if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
             return None
         raise
-    df = pd.read_csv(io.BytesIO(body), sep="\t", dtype=str,
-                     usecols=lambda c: c in ("Sample_Id", "Site1_Hugo_Symbol", "Site2_Hugo_Symbol"))
-    df = df.rename(columns={"Sample_Id": "sample_id",
-                            "Site1_Hugo_Symbol": "site1", "Site2_Hugo_Symbol": "site2"})
+    df = pd.read_csv(
+        io.BytesIO(body),
+        sep="\t",
+        dtype=str,
+        usecols=lambda c: c in ("Sample_Id", "Site1_Hugo_Symbol", "Site2_Hugo_Symbol"),
+    )
+    df = df.rename(columns={"Sample_Id": "sample_id", "Site1_Hugo_Symbol": "site1", "Site2_Hugo_Symbol": "site2"})
     return df
 
 
 def _percentile(value, null_vec, cutoffs=None):
     from methods.percentile_null import percentile_rank, classify_percentile
+
     pct = percentile_rank(value, null_vec)
     return pct, classify_percentile(pct, cutoffs or DEFAULT_CUTOFFS)
 
@@ -79,12 +86,13 @@ def _sv_samples_by_gene(indication: str):
     from collections import Counter, defaultdict
     from methods.genie_panel_recurrence.read import _indication_cohort
     from methods.genie_panel_coverage.read import load_sv_sample_panel_map, load_panel_gene_sets
+
     df = _load_sv()
     if df is None or len(df) == 0:
         return {}, Counter(), 0
-    sp = load_sv_sample_panel_map()   # SV-keyed sample→panel (blank-sv samples already dropped)
-    pg = load_panel_gene_sets()       # shared panel→gene-set
-    cohort = set(_indication_cohort(indication)) & set(sp)   # indication ∩ SV-profiled
+    sp = load_sv_sample_panel_map()  # SV-keyed sample→panel (blank-sv samples already dropped)
+    pg = load_panel_gene_sets()  # shared panel→gene-set
+    cohort = set(_indication_cohort(indication)) & set(sp)  # indication ∩ SV-profiled
     if not cohort:
         return {}, Counter(), 0
     # coverage denominator per gene = cohort samples whose panel covers the gene.
@@ -124,6 +132,7 @@ def _recurrent_partners(target: str, indication: str) -> list:
     The SV feed uniquely names the counterpart of each breakend (EML4 for ALK, TMPRSS2 for ERG, …)."""
     from collections import defaultdict
     from methods.genie_panel_recurrence.read import _indication_cohort
+
     df = _load_sv()
     if df is None or len(df) == 0:
         return []
@@ -141,9 +150,14 @@ def _recurrent_partners(target: str, indication: str) -> list:
             partner_samples[g2s].add(sid)
         elif g2s.upper() == sym and g1s:
             partner_samples[g1s].add(sid)
-    rec = sorted(((p, len(s)) for p, s in partner_samples.items()
-                  if len(s) >= _RECURRENT_PARTNER_MIN and p.upper() not in _NON_GENE_PARTNER_TOKENS),
-                 key=lambda x: (-x[1], x[0]))
+    rec = sorted(
+        (
+            (p, len(s))
+            for p, s in partner_samples.items()
+            if len(s) >= _RECURRENT_PARTNER_MIN and p.upper() not in _NON_GENE_PARTNER_TOKENS
+        ),
+        key=lambda x: (-x[1], x[0]),
+    )
     return [{"partner": p, "n_samples": n} for p, n in rec]
 
 
@@ -158,31 +172,47 @@ def genie_sv_recurrence_for_gene(target: str, indication: str, cutoffs: dict = N
     """
     df = _load_sv()
     if df is None:
-        return {"genie_sv_recurrence_class": "data_unavailable",
-                "genie_sv_recurrence_percentile": None, "genie_sv_frequency": None,
-                "n_sv_covered": None, "n_sv_samples": None, "genie_sv_recurrent_partners": [],
-                "coverage_gap": None, "genie_sv_context": "no GENIE SV feed available"}
+        return {
+            "genie_sv_recurrence_class": "data_unavailable",
+            "genie_sv_recurrence_percentile": None,
+            "genie_sv_frequency": None,
+            "n_sv_covered": None,
+            "n_sv_samples": None,
+            "genie_sv_recurrent_partners": [],
+            "coverage_gap": None,
+            "genie_sv_context": "no GENIE SV feed available",
+        }
 
     gene_samples, covered, n_cohort = _sv_samples_by_gene(indication)
     if n_cohort == 0:
-        return {"genie_sv_recurrence_class": "data_unavailable",
-                "genie_sv_recurrence_percentile": None, "genie_sv_frequency": None,
-                "n_sv_covered": None, "n_sv_samples": None, "genie_sv_recurrent_partners": [],
-                "coverage_gap": None,
-                "genie_sv_context": f"no SV-profiled GENIE cohort for {indication}"}
+        return {
+            "genie_sv_recurrence_class": "data_unavailable",
+            "genie_sv_recurrence_percentile": None,
+            "genie_sv_frequency": None,
+            "n_sv_covered": None,
+            "n_sv_samples": None,
+            "genie_sv_recurrent_partners": [],
+            "coverage_gap": None,
+            "genie_sv_context": f"no SV-profiled GENIE cohort for {indication}",
+        }
 
     sym = target.strip()
     n_cov = covered.get(sym, 0)
     n_sv = len(gene_samples.get(sym, set()))
 
     if n_cov == 0:
-        return {"genie_sv_recurrence_class": "data_unavailable",
-                "genie_sv_recurrence_percentile": None, "genie_sv_frequency": None,
-                "n_sv_covered": 0, "n_sv_samples": n_sv, "genie_sv_recurrent_partners": [],
-                "coverage_gap": True,
-                "genie_sv_context": (
-                    f"{target} on NO SV-calling GENIE panel in {indication} "
-                    f"(coverage gap — not a real 0%)")}
+        return {
+            "genie_sv_recurrence_class": "data_unavailable",
+            "genie_sv_recurrence_percentile": None,
+            "genie_sv_frequency": None,
+            "n_sv_covered": 0,
+            "n_sv_samples": n_sv,
+            "genie_sv_recurrent_partners": [],
+            "coverage_gap": True,
+            "genie_sv_context": (
+                f"{target} on NO SV-calling GENIE panel in {indication} (coverage gap — not a real 0%)"
+            ),
+        }
 
     freq = n_sv / n_cov
     null = _covered_gene_sv_frequencies(indication)
@@ -193,8 +223,7 @@ def genie_sv_recurrence_for_gene(target: str, indication: str, cutoffs: dict = N
         note = f"{target} SV-covered on only {n_cov} GENIE {indication} samples (< {_MIN_COVERED}; too thin to rank)"
     else:
         pct, cls = _percentile(freq, null_vec, cutoffs)
-        note = (f"among {len(null_vec)} SV-covered genes in {indication} "
-                f"(GENIE data_sv, coverage-corrected denominator)")
+        note = f"among {len(null_vec)} SV-covered genes in {indication} (GENIE data_sv, coverage-corrected denominator)"
     return {
         "genie_sv_frequency": freq,
         "n_sv_covered": n_cov,
@@ -211,6 +240,7 @@ def build_genie_sv_recurrence_table(indication: str):
     """Materialize the per-gene coverage-correct GENIE SV recurrence table for an indication
     (for a registered derived product). One row per SV-covered+SV-bearing gene."""
     import pyarrow as pa
+
     null = _covered_gene_sv_frequencies(indication)
     if not null:
         return pa.Table.from_pylist([], schema=_schema())
@@ -218,21 +248,32 @@ def build_genie_sv_recurrence_table(indication: str):
     rows = []
     for gene, freq, n_cov, n_sv in null:
         pct, cls = _percentile(freq, null_vec)
-        rows.append({"indication": indication, "gene_symbol": gene,
-                     "n_sv_covered": n_cov, "n_sv_samples": n_sv,
-                     "genie_sv_frequency": freq,
-                     "genie_sv_recurrence_percentile": pct,
-                     "genie_sv_recurrence_class": cls})
+        rows.append(
+            {
+                "indication": indication,
+                "gene_symbol": gene,
+                "n_sv_covered": n_cov,
+                "n_sv_samples": n_sv,
+                "genie_sv_frequency": freq,
+                "genie_sv_recurrence_percentile": pct,
+                "genie_sv_recurrence_class": cls,
+            }
+        )
     rows.sort(key=lambda r: (r["gene_symbol"],))
     return pa.Table.from_pylist(rows, schema=_schema())
 
 
 def _schema():
     import pyarrow as pa
-    return pa.schema([
-        pa.field("indication", pa.string()), pa.field("gene_symbol", pa.string()),
-        pa.field("n_sv_covered", pa.int64()), pa.field("n_sv_samples", pa.int64()),
-        pa.field("genie_sv_frequency", pa.float64()),
-        pa.field("genie_sv_recurrence_percentile", pa.float64()),
-        pa.field("genie_sv_recurrence_class", pa.string()),
-    ])
+
+    return pa.schema(
+        [
+            pa.field("indication", pa.string()),
+            pa.field("gene_symbol", pa.string()),
+            pa.field("n_sv_covered", pa.int64()),
+            pa.field("n_sv_samples", pa.int64()),
+            pa.field("genie_sv_frequency", pa.float64()),
+            pa.field("genie_sv_recurrence_percentile", pa.float64()),
+            pa.field("genie_sv_recurrence_class", pa.string()),
+        ]
+    )

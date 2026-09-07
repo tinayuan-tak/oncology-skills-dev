@@ -20,6 +20,7 @@ Usage:
 Defaults for --tcga-long / --gtex-long resolve to the local batch copies if present, else the
 S3 long products.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -40,9 +41,9 @@ _S3_GTEX = "s3://onc-compbio/data-catalog/derived/gtex-tpm-recount3-long-v1/gtex
 # Correctness spot-checks: (gene, source, group, approx expected median log2TPM). Verified against
 # the live long products at build time; a broadly-expressed / marker gene per source.
 CORRECTNESS_CHECKS = [
-    ("GFAP", "tcga_tumor", "GBM", 11.2),    # astrocyte marker, high in glioblastoma tumor
+    ("GFAP", "tcga_tumor", "GBM", 11.2),  # astrocyte marker, high in glioblastoma tumor
     ("GFAP", "gtex_normal", "BRAIN", 8.9),  # and in normal brain
-    ("EPCAM", "tcga_tumor", "COAD", 9.6),   # epithelial marker, colon carcinoma
+    ("EPCAM", "tcga_tumor", "COAD", 9.6),  # epithelial marker, colon carcinoma
 ]
 
 
@@ -97,16 +98,18 @@ def build(tcga_long: str, gtex_long: str) -> "object":
         con.execute("SET s3_region='us-east-1';")
 
     frames = []
-    for uri, group_col, label in [(tcga_long, "study", "tcga_tumor"),
-                                  (gtex_long, "tissue", "gtex_normal")]:
+    for uri, group_col, label in [(tcga_long, "study", "tcga_tumor"), (gtex_long, "tissue", "gtex_normal")]:
         t0 = time.monotonic()
         _log(f"[quantiles] aggregating {label} <- {uri}")
         df = con.execute(_quantile_sql(_resolve(uri), group_col, label)).fetch_df()
-        _log(f"[quantiles]   {label}: {len(df):,} (gene,group) rows in {time.monotonic()-t0:.0f}s "
-             f"({df['group'].nunique()} groups, {df['gene_symbol'].nunique()} genes)")
+        _log(
+            f"[quantiles]   {label}: {len(df):,} (gene,group) rows in {time.monotonic() - t0:.0f}s "
+            f"({df['group'].nunique()} groups, {df['gene_symbol'].nunique()} genes)"
+        )
         frames.append(df)
 
     import pandas as pd
+
     allrows = pd.concat(frames, ignore_index=True)
     allrows = allrows.sort_values(["ensembl_gene_id", "source", "group"]).reset_index(drop=True)
     for c in ("min", "q1", "median", "q3", "max", "mean"):
@@ -118,23 +121,26 @@ def build(tcga_long: str, gtex_long: str) -> "object":
 def _run_correctness(allrows) -> None:
     """Log the correctness spot-checks — a (gene, source, group) median close to the expected."""
     for gene, source, group, expected in CORRECTNESS_CHECKS:
-        hit = allrows[(allrows["gene_symbol"] == gene) & (allrows["source"] == source)
-                      & (allrows["group"] == group)]
+        hit = allrows[(allrows["gene_symbol"] == gene) & (allrows["source"] == source) & (allrows["group"] == group)]
         if hit.empty:
             _log(f"[quantiles] CORRECTNESS MISS: {gene}/{source}/{group} not found")
             continue
         med = float(hit.iloc[0]["median"])
         ok = abs(med - expected) < 0.6
-        _log(f"[quantiles] correctness {'OK ' if ok else 'CHECK'}: {gene}/{source}/{group} "
-             f"median={med:.2f} (expected ~{expected})")
+        _log(
+            f"[quantiles] correctness {'OK ' if ok else 'CHECK'}: {gene}/{source}/{group} "
+            f"median={med:.2f} (expected ~{expected})"
+        )
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--tcga-long", default=None,
-                    help="TCGA long product (path or s3://). Default: local batch copy else S3.")
-    ap.add_argument("--gtex-long", default=None,
-                    help="GTEx long product (path or s3://). Default: local batch copy else S3.")
+    ap.add_argument(
+        "--tcga-long", default=None, help="TCGA long product (path or s3://). Default: local batch copy else S3."
+    )
+    ap.add_argument(
+        "--gtex-long", default=None, help="GTEx long product (path or s3://). Default: local batch copy else S3."
+    )
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--row-group-size", type=int, default=8192)
     ap.add_argument("--no-upload", action="store_true")
@@ -151,32 +157,45 @@ def main() -> int:
     allrows = build(tcga, gtex)
     _run_correctness(allrows)
 
-    schema = pa.schema([
-        pa.field("gene_symbol", pa.string()), pa.field("ensembl_gene_id", pa.string()),
-        pa.field("source", pa.string()), pa.field("group", pa.string()),
-        pa.field("n", pa.int32()),
-        pa.field("min", pa.float32()), pa.field("q1", pa.float32()),
-        pa.field("median", pa.float32()), pa.field("q3", pa.float32()),
-        pa.field("max", pa.float32()), pa.field("mean", pa.float32()),
-    ])
+    schema = pa.schema(
+        [
+            pa.field("gene_symbol", pa.string()),
+            pa.field("ensembl_gene_id", pa.string()),
+            pa.field("source", pa.string()),
+            pa.field("group", pa.string()),
+            pa.field("n", pa.int32()),
+            pa.field("min", pa.float32()),
+            pa.field("q1", pa.float32()),
+            pa.field("median", pa.float32()),
+            pa.field("q3", pa.float32()),
+            pa.field("max", pa.float32()),
+            pa.field("mean", pa.float32()),
+        ]
+    )
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    pq.write_table(pa.Table.from_pandas(allrows, schema=schema, preserve_index=False),
-                   str(args.out), compression="snappy", row_group_size=args.row_group_size)
+    pq.write_table(
+        pa.Table.from_pandas(allrows, schema=schema, preserve_index=False),
+        str(args.out),
+        compression="snappy",
+        row_group_size=args.row_group_size,
+    )
     size_bytes = args.out.stat().st_size
     md5 = _md5_hex(args.out)
-    _log(f"[quantiles] wrote {args.out} ({size_bytes/1e6:.1f} MB) md5={md5}")
-    _log(f"[quantiles] n_rows={len(allrows)} n_genes={allrows['gene_symbol'].nunique()} "
-         f"n_ensembl={allrows['ensembl_gene_id'].nunique()} "
-         f"sources={sorted(allrows['source'].unique())} "
-         f"n_tcga_studies={allrows[allrows['source']=='tcga_tumor']['group'].nunique()} "
-         f"n_gtex_tissues={allrows[allrows['source']=='gtex_normal']['group'].nunique()}")
+    _log(f"[quantiles] wrote {args.out} ({size_bytes / 1e6:.1f} MB) md5={md5}")
+    _log(
+        f"[quantiles] n_rows={len(allrows)} n_genes={allrows['gene_symbol'].nunique()} "
+        f"n_ensembl={allrows['ensembl_gene_id'].nunique()} "
+        f"sources={sorted(allrows['source'].unique())} "
+        f"n_tcga_studies={allrows[allrows['source'] == 'tcga_tumor']['group'].nunique()} "
+        f"n_gtex_tissues={allrows[allrows['source'] == 'gtex_normal']['group'].nunique()}"
+    )
 
     if not args.no_upload:
         import boto3
+
         key = f"{OUTPUT_S3_PREFIX}/{args.out.name}"
         _log(f"[quantiles] uploading -> s3://{DEPMAP_S3_BUCKET}/{key}")
-        boto3.client("s3").upload_file(str(args.out), DEPMAP_S3_BUCKET, key,
-                                       ExtraArgs={"Metadata": {"md5": md5}})
+        boto3.client("s3").upload_file(str(args.out), DEPMAP_S3_BUCKET, key, ExtraArgs={"Metadata": {"md5": md5}})
     _log("[quantiles] done.")
     return 0
 

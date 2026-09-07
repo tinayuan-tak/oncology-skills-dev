@@ -10,6 +10,7 @@ signature, not consumed).
 Returns the partner-conditional-dependency card's summary_fields, or a dict with
 _live_read_error / no_partner_mapped when the underlying data is unreachable or unmapped.
 """
+
 from __future__ import annotations
 
 import sys
@@ -36,8 +37,9 @@ _CLASS_RANK = {
 from methods.target_id_sidecar import ensure_aws_profile
 
 
-def read_partner_conditional_dependency(target: str, indication: Optional[str] = None,
-                                        release_pin: str = "26q1") -> dict:
+def read_partner_conditional_dependency(
+    target: str, indication: Optional[str] = None, release_pin: str = "26q1"
+) -> dict:
     """Compute partner-conditional dependency for target across the DepMap panel.
 
     `indication` is accepted for dispatcher-signature back-compat but NOT consumed (target-only,
@@ -56,11 +58,12 @@ def read_partner_conditional_dependency(target: str, indication: Optional[str] =
             "partner_stratification_class": "no_partner_mapped",
             "target": target,
             "_note": "target has no curated partner in partner_map.yaml; "
-                     "extend the map (SynLethDB is the candidate-generation source).",
+            "extend the map (SynLethDB is the candidate-generation source).",
         }
 
     # 1. Chronos for the TARGET (reuse the shared loader).
     from methods.depmap_chronos_distribution import cli as c1cli
+
     chronos_by_model, model_metadata, chronos_errs = c1cli.load_depmap_files(
         release_pin=release_pin, target_symbol=target
     )
@@ -86,18 +89,24 @@ def read_partner_conditional_dependency(target: str, indication: Optional[str] =
         try:
             deficient_by_model = _cli.build_partner_deficiency_vector(release_pin, partner, dtype)
         except Exception as e:  # loader failure for THIS partner → record, continue
-            all_results.append({
-                "partner": partner, "deficiency_type": dtype,
-                "partner_stratification_class": "data_unavailable",
-                "_live_read_error": f"partner_deficiency_load_failed: {type(e).__name__}: {e}",
-            })
+            all_results.append(
+                {
+                    "partner": partner,
+                    "deficiency_type": dtype,
+                    "partner_stratification_class": "data_unavailable",
+                    "_live_read_error": f"partner_deficiency_load_failed: {type(e).__name__}: {e}",
+                }
+            )
             continue
         if not deficient_by_model:
-            all_results.append({
-                "partner": partner, "deficiency_type": dtype,
-                "partner_stratification_class": "insufficient_partner_deficient_rate",
-                "_note": "no partner-deficiency calls loaded (partner absent from source or all-null).",
-            })
+            all_results.append(
+                {
+                    "partner": partner,
+                    "deficiency_type": dtype,
+                    "partner_stratification_class": "insufficient_partner_deficient_rate",
+                    "_note": "no partner-deficiency calls loaded (partner absent from source or all-null).",
+                }
+            )
             continue
         summary = _cli.compute_partner_stratification(chronos_by_model, deficient_by_model)
         summary["partner"] = partner

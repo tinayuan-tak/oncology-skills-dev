@@ -20,6 +20,7 @@ The caller supplies a `compute(restricted_or_full_dicts) -> result` thunk and th
 this module owns only the lineage restriction + the ladder decision, so all 4 methods share ONE
 implementation. Reuses the shared INDICATION_TO_DEPMAP_LINEAGE map (no fork).
 """
+
 from __future__ import annotations
 
 from typing import Callable, Optional
@@ -35,11 +36,11 @@ def models_in_lineage(model_metadata: dict, indication: Optional[str]) -> Option
         return None
     # Import here (not at module top) to avoid a circular import — depmap_chronos imports depmap_common.
     from methods.depmap_chronos.read import INDICATION_TO_DEPMAP_LINEAGE
+
     lineage = INDICATION_TO_DEPMAP_LINEAGE.get(str(indication).upper().strip())
     if lineage is None:
         return None
-    return {mid for mid, meta in model_metadata.items()
-            if (meta or {}).get("OncotreeLineage") == lineage}
+    return {mid for mid, meta in model_metadata.items() if (meta or {}).get("OncotreeLineage") == lineage}
 
 
 # strongly → moderately downgrade map, per stratified method's class vocabulary. The pan-lineage
@@ -57,10 +58,12 @@ _STRONG_TO_MODERATE = {
 _DEPENDENT_CLASSES = set(_STRONG_TO_MODERATE) | set(_STRONG_TO_MODERATE.values())
 
 
-def apply_lineage_ladder(compute: Callable[[Optional[set], Optional[set]], dict],
-                         class_key: str,
-                         model_metadata: dict,
-                         indication: Optional[str]) -> dict:
+def apply_lineage_ladder(
+    compute: Callable[[Optional[set], Optional[set]], dict],
+    class_key: str,
+    model_metadata: dict,
+    indication: Optional[str],
+) -> dict:
     """Run the 3-rung indication-conditioning ladder + attach provenance.
 
     `compute(mut_models, wt_models)` runs the method's stratification restricting the MUTANT arm to
@@ -92,7 +95,8 @@ def apply_lineage_ladder(compute: Callable[[Optional[set], Optional[set]], dict]
     if not restrict:
         pan["evidence_scope"] = "pan_no_indication"
         pan["lineage_evidence_scope_reason"] = (
-            "indication unmapped to a DepMap lineage" if indication else "no indication supplied")
+            "indication unmapped to a DepMap lineage" if indication else "no indication supplied"
+        )
         pan["lineage_context_divergent"] = False
         return pan
 
@@ -100,23 +104,23 @@ def apply_lineage_ladder(compute: Callable[[Optional[set], Optional[set]], dict]
         cls = res.get(class_key)
         res["evidence_scope"] = scope
         res["lineage_evidence_scope_reason"] = reason
-        res["lineage_context_divergent"] = (
-            (cls in _DEPENDENT_CLASSES) != (pan_class in _DEPENDENT_CLASSES))
+        res["lineage_context_divergent"] = (cls in _DEPENDENT_CLASSES) != (pan_class in _DEPENDENT_CLASSES)
         res[f"pan_lineage_{class_key}"] = pan_class
         return res
 
     # RUNG 1 — full within-lineage (both arms in-lineage).
     within = compute(restrict, restrict)
     if "insufficient" not in str(within.get(class_key)):
-        return _finish(within, "within_indication",
-                       f"within-lineage split cleared the floor ({indication})")
+        return _finish(within, "within_indication", f"within-lineage split cleared the floor ({indication})")
 
     # RUNG 2 — lineage MUTANT arm vs PAN WT (fixes the high-prevalence-driver under-call).
     hybrid = compute(restrict, None)
     if "insufficient" not in str(hybrid.get(class_key)):
-        return _finish(hybrid, "within_indication_mut_vs_pan_wt",
-                       f"within-lineage WT arm underpowered ({indication}); "
-                       "lineage-mutant vs pan-DepMap-WT comparator")
+        return _finish(
+            hybrid,
+            "within_indication_mut_vs_pan_wt",
+            f"within-lineage WT arm underpowered ({indication}); lineage-mutant vs pan-DepMap-WT comparator",
+        )
 
     # RUNG 3 — pan-lineage fallback, strong→moderate (even lineage mutants too few to indication-confirm).
     downgraded = _STRONG_TO_MODERATE.get(pan_class)
@@ -126,6 +130,7 @@ def apply_lineage_ladder(compute: Callable[[Optional[set], Optional[set]], dict]
     pan["evidence_scope"] = "pan_lineage_evidence_only"
     pan["lineage_evidence_scope_reason"] = (
         f"within-lineage underpowered even mut-vs-pan-WT ({indication}); pan-DepMap"
-        + (" (strong→moderate: not indication-confirmed)" if downgraded else ""))
+        + (" (strong→moderate: not indication-confirmed)" if downgraded else "")
+    )
     pan["lineage_context_divergent"] = False
     return pan

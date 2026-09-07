@@ -48,7 +48,9 @@ from methods.depmap_chronos.read import INDICATION_TO_DEPMAP_LINEAGE as INDICATI
 METHOD_DIR = Path(__file__).resolve().parent
 METHOD_VERSION = "0.1.0"
 
-DEFAULT_TARGET_CONTRACTS = Path(os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
+DEFAULT_TARGET_CONTRACTS = Path(
+    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+)
 DEPMAP_SOURCE_MANIFEST_ID = "depmap-consortium-26q1"
 # Resolved from the data-catalog manifest (single source of truth). DEPMAP_S3_PREFIX (s3://-form)
 # feeds echo/provenance; _DEPMAP_KEY_PREFIX (bucket-relative) builds the get_object read keys below.
@@ -64,8 +66,11 @@ DEPMAP_LOCAL_FALLBACK_DIRS = [
 # scanning for the target gene. The 'IsDefaultEntryForModel' filter ensures one
 # row per ModelID (canonical sequencing entry).
 TPM_METADATA_COLUMNS = (
-    "SequencingID", "ModelConditionID", "ModelID",
-    "IsDefaultEntryForMC", "IsDefaultEntryForModel",
+    "SequencingID",
+    "ModelConditionID",
+    "ModelID",
+    "IsDefaultEntryForMC",
+    "IsDefaultEntryForModel",
 )
 
 
@@ -107,26 +112,31 @@ def load_depmap_files_for_card4(release_pin: str, target_symbol: str) -> tuple[d
     else:
         try:
             from methods.depmap_common import load_model_csv
+
             model_df = load_model_csv(release_pin)
         except (FileNotFoundError, ImportError) as e:
-            load_errors.append({
-                "_live_read_error": "s3_read_failed",
-                "detail": str(e),
-            })
+            load_errors.append(
+                {
+                    "_live_read_error": "s3_read_failed",
+                    "detail": str(e),
+                }
+            )
             return {}, {}, {}, load_errors
 
     # === TIER-2 PATH: parquet derived products (dual: CRISPR + TPM columns) ===
     if crispr_path is None:
         try:
             from methods.depmap_common.parquet import get_chronos_column, get_tpm_column
+
             crispr_target_df = get_chronos_column(target_symbol, release_pin)
             tpm_target_df = get_tpm_column(target_symbol, release_pin)
             if crispr_target_df is not None and tpm_target_df is not None:
                 # Both columns available via parquet → build chronos_by_model + tpm_by_model
                 # directly and return early.
                 chronos_col = next((c for c in crispr_target_df.columns if c != "ModelID"), None)
-                tpm_col = next((c for c in tpm_target_df.columns
-                                  if c not in ("ModelID", "IsDefaultEntryForModel")), None)
+                tpm_col = next(
+                    (c for c in tpm_target_df.columns if c not in ("ModelID", "IsDefaultEntryForModel")), None
+                )
                 if chronos_col and tpm_col:
                     chronos_by_model = {}
                     for _, row in crispr_target_df.iterrows():
@@ -136,16 +146,16 @@ def load_depmap_files_for_card4(release_pin: str, target_symbol: str) -> tuple[d
                     # TPM: apply IsDefaultEntryForModel filter
                     tpm_filt = tpm_target_df
                     if "IsDefaultEntryForModel" in tpm_filt.columns:
-                        tpm_filt = tpm_filt[tpm_filt["IsDefaultEntryForModel"].isin(
-                            [True, "Yes", "yes", "true", "TRUE"])]
+                        tpm_filt = tpm_filt[
+                            tpm_filt["IsDefaultEntryForModel"].isin([True, "Yes", "yes", "true", "TRUE"])
+                        ]
                     tpm_by_model = {}
                     for _, row in tpm_filt.iterrows():
                         v = row[tpm_col]
                         if pd.notna(v):
                             tpm_by_model[row["ModelID"]] = float(v)
                     model_id_col = "ModelID" if "ModelID" in model_df.columns else model_df.columns[0]
-                    model_metadata = {row[model_id_col]: row.to_dict()
-                                       for _, row in model_df.iterrows()}
+                    model_metadata = {row[model_id_col]: row.to_dict() for _, row in model_df.iterrows()}
                     return chronos_by_model, tpm_by_model, model_metadata, load_errors
         except (FileNotFoundError, ImportError):
             pass  # fall through to CSV
@@ -154,6 +164,7 @@ def load_depmap_files_for_card4(release_pin: str, target_symbol: str) -> tuple[d
         # === LEGACY CSV PATH ===
         try:
             import boto3
+
             s3 = boto3.client("s3")
             bucket = "onc-compbio"
             tpm_key = f"{_DEPMAP_KEY_PREFIX}/OmicsExpressionTPMLogp1HumanProteinCodingGenes.csv"
@@ -167,31 +178,36 @@ def load_depmap_files_for_card4(release_pin: str, target_symbol: str) -> tuple[d
             tpm_obj = s3.get_object(Bucket=bucket, Key=tpm_key)
             tpm_df = pd.read_csv(BytesIO(tpm_obj["Body"].read()))
         except ImportError as e:
-            load_errors.append({
-                "_live_read_error": "boto3_not_available",
-                "detail": str(e),
-                "remediation": f"Install boto3 or provide local cache at {[str(d) for d in DEPMAP_LOCAL_FALLBACK_DIRS]}",
-            })
+            load_errors.append(
+                {
+                    "_live_read_error": "boto3_not_available",
+                    "detail": str(e),
+                    "remediation": f"Install boto3 or provide local cache at {[str(d) for d in DEPMAP_LOCAL_FALLBACK_DIRS]}",
+                }
+            )
             return {}, {}, {}, load_errors
         except Exception as e:
-            load_errors.append({
-                "_live_read_error": "s3_read_failed",
-                "detail": str(e),
-                "remediation": f"Ensure AWS credentials are set and bucket {DEPMAP_S3_PREFIX} is accessible.",
-            })
+            load_errors.append(
+                {
+                    "_live_read_error": "s3_read_failed",
+                    "detail": str(e),
+                    "remediation": f"Ensure AWS credentials are set and bucket {DEPMAP_S3_PREFIX} is accessible.",
+                }
+            )
             return {}, {}, {}, load_errors
     else:
         crispr_df = pd.read_csv(crispr_path)
         # For local-cache path we can use pd.read_csv with usecols since file is on disk.
         # First peek at header for target column.
         tpm_header = pd.read_csv(tpm_path, nrows=0)
-        target_tpm_cols = [c for c in tpm_header.columns
-                            if c == target_symbol or c.split(" ")[0] == target_symbol]
+        target_tpm_cols = [c for c in tpm_header.columns if c == target_symbol or c.split(" ")[0] == target_symbol]
         if not target_tpm_cols:
-            load_errors.append({
-                "_live_read_error": "target_not_in_tpm_matrix",
-                "detail": f"Target {target_symbol} not in TPM matrix",
-            })
+            load_errors.append(
+                {
+                    "_live_read_error": "target_not_in_tpm_matrix",
+                    "detail": f"Target {target_symbol} not in TPM matrix",
+                }
+            )
             return {}, {}, {}, load_errors
         usecols = list(TPM_METADATA_COLUMNS) + [target_tpm_cols[0]]
         # Some metadata columns may not exist in older releases; filter to those present
@@ -199,13 +215,14 @@ def load_depmap_files_for_card4(release_pin: str, target_symbol: str) -> tuple[d
         tpm_df = pd.read_csv(tpm_path, usecols=usecols)
 
     # === Extract target Chronos column ===
-    chronos_target_cols = [c for c in crispr_df.columns
-                            if c == target_symbol or c.split(" ")[0] == target_symbol]
+    chronos_target_cols = [c for c in crispr_df.columns if c == target_symbol or c.split(" ")[0] == target_symbol]
     if not chronos_target_cols:
-        load_errors.append({
-            "_live_read_error": "target_not_in_crispr_panel",
-            "detail": f"Target {target_symbol} not in CRISPRGeneEffect.csv",
-        })
+        load_errors.append(
+            {
+                "_live_read_error": "target_not_in_crispr_panel",
+                "detail": f"Target {target_symbol} not in CRISPRGeneEffect.csv",
+            }
+        )
         return {}, {}, {}, load_errors
     chronos_target_col = chronos_target_cols[0]
     chronos_id_col = crispr_df.columns[0]
@@ -215,13 +232,14 @@ def load_depmap_files_for_card4(release_pin: str, target_symbol: str) -> tuple[d
             chronos_by_model[row[chronos_id_col]] = float(row[chronos_target_col])
 
     # === Extract target TPM column with IsDefaultEntryForModel filter ===
-    tpm_target_cols = [c for c in tpm_df.columns
-                        if c == target_symbol or c.split(" ")[0] == target_symbol]
+    tpm_target_cols = [c for c in tpm_df.columns if c == target_symbol or c.split(" ")[0] == target_symbol]
     if not tpm_target_cols:
-        load_errors.append({
-            "_live_read_error": "target_not_in_tpm_matrix",
-            "detail": f"Target {target_symbol} not in TPM matrix",
-        })
+        load_errors.append(
+            {
+                "_live_read_error": "target_not_in_tpm_matrix",
+                "detail": f"Target {target_symbol} not in TPM matrix",
+            }
+        )
         return chronos_by_model, {}, {}, load_errors
     tpm_target_col = tpm_target_cols[0]
     # Filter to default-entry-per-model. DepMap 26Q1 encodes IsDefaultEntryForModel
@@ -250,7 +268,9 @@ def load_depmap_files_for_card4(release_pin: str, target_symbol: str) -> tuple[d
 
 
 def compute_correlation_summary(
-    chronos_by_model: dict, tpm_by_model: dict, model_metadata: dict,
+    chronos_by_model: dict,
+    tpm_by_model: dict,
+    model_metadata: dict,
     indication: str,
     strong_threshold: float = -0.4,
     moderate_threshold: float = -0.2,
@@ -276,15 +296,16 @@ def compute_correlation_summary(
     for mid in set(chronos_by_model.keys()) & set(tpm_by_model.keys()):
         meta = model_metadata.get(mid, {})
         lineage = meta.get("OncotreeLineage") or meta.get("lineage") or "unknown"
-        rows.append({
-            "ModelID": mid,
-            "chronos": chronos_by_model[mid],
-            "tpm_logp1": tpm_by_model[mid],
-            "OncotreeLineage": str(lineage),
-        })
+        rows.append(
+            {
+                "ModelID": mid,
+                "chronos": chronos_by_model[mid],
+                "tpm_logp1": tpm_by_model[mid],
+                "OncotreeLineage": str(lineage),
+            }
+        )
     if not rows:
-        return {"_no_overlap_between_chronos_and_tpm": True,
-                 "n_cell_lines_evaluated": 0}
+        return {"_no_overlap_between_chronos_and_tpm": True, "n_cell_lines_evaluated": 0}
 
     df = pd.DataFrame(rows)
     n = len(df)
@@ -308,7 +329,9 @@ def compute_correlation_summary(
     low_expr_mask = df["tpm_logp1"] <= tpm_q25
     chronos_high = float(df.loc[high_expr_mask, "chronos"].median()) if high_expr_mask.any() else None
     chronos_low = float(df.loc[low_expr_mask, "chronos"].median()) if low_expr_mask.any() else None
-    delta_top_vs_bottom = (chronos_high - chronos_low) if (chronos_high is not None and chronos_low is not None) else None
+    delta_top_vs_bottom = (
+        (chronos_high - chronos_low) if (chronos_high is not None and chronos_low is not None) else None
+    )
 
     # === Lineage breakout in high-expression subset ===
     high_expr_subset = df[high_expr_mask]
@@ -316,11 +339,13 @@ def compute_correlation_summary(
     for ln_name, sub in high_expr_subset.groupby("OncotreeLineage"):
         if len(sub) < 3:
             continue
-        lineage_breakout.append({
-            "lineage": str(ln_name),
-            "n_high_expr": int(len(sub)),
-            "mean_chronos_high_expr": float(sub["chronos"].mean()),
-        })
+        lineage_breakout.append(
+            {
+                "lineage": str(ln_name),
+                "n_high_expr": int(len(sub)),
+                "mean_chronos_high_expr": float(sub["chronos"].mean()),
+            }
+        )
     lineage_breakout.sort(key=lambda x: x["mean_chronos_high_expr"])
 
     # === Classification ===
@@ -359,15 +384,22 @@ def compute_correlation_summary(
 def _setup_plot_style(contracts_root: Path):
     """Load mplstyle + return palette helpers. Cached side effect (matplotlib.style)."""
     import matplotlib.pyplot as plt
+
     style_path = contracts_root / "plot_styles" / "takeda_oncology.mplstyle"
     if style_path.exists():
         plt.style.use(str(style_path))
     sys.path.insert(0, str(contracts_root / "plot_styles"))
     from takeda_palette import (  # type: ignore
-        get_lineage_color, REFLINE_NEUTRAL, REFLINE_KILLER, REFLINE_NOMINAL,
-        FIGSIZE_DOUBLE_COLUMN, FIGSIZE_DOUBLE_COLUMN_TALL,
-        CHRONOS_STRONG_DEPENDENCY, LINEAGE_DEFAULT_COLOR,
+        get_lineage_color,
+        REFLINE_NEUTRAL,
+        REFLINE_KILLER,
+        REFLINE_NOMINAL,
+        FIGSIZE_DOUBLE_COLUMN,
+        FIGSIZE_DOUBLE_COLUMN_TALL,
+        CHRONOS_STRONG_DEPENDENCY,
+        LINEAGE_DEFAULT_COLOR,
     )
+
     return {
         "get_lineage_color": get_lineage_color,
         "REFLINE_NEUTRAL": REFLINE_NEUTRAL,
@@ -380,9 +412,9 @@ def _setup_plot_style(contracts_root: Path):
     }
 
 
-def emit_scatter_regression_plot(merged_data: list, target_symbol: str,
-                                  indication: str, summary: dict,
-                                  out_path: Path, contracts_root: Path) -> None:
+def emit_scatter_regression_plot(
+    merged_data: list, target_symbol: str, indication: str, summary: dict, out_path: Path, contracts_root: Path
+) -> None:
     """Primary figure: lineage-colored scatter of expression vs Chronos with OLS line + r/p block.
     Target-indication lineage is emphasized (larger marker + thicker edge)."""
     import matplotlib.pyplot as plt
@@ -399,8 +431,7 @@ def emit_scatter_regression_plot(merged_data: list, target_symbol: str,
     fig, ax = plt.subplots(figsize=style["FIGSIZE_DOUBLE_COLUMN"])
 
     if df.empty:
-        ax.text(0.5, 0.5, "No data — see manifest", ha="center", va="center",
-                transform=ax.transAxes, color="#666666")
+        ax.text(0.5, 0.5, "No data — see manifest", ha="center", va="center", transform=ax.transAxes, color="#666666")
         fig.savefig(out_path / "figure_scatter_with_regression.svg", bbox_inches="tight")
         plt.close(fig)
         return
@@ -418,23 +449,43 @@ def emit_scatter_regression_plot(merged_data: list, target_symbol: str,
         sub = other[other["lineage"] == lg]
         if sub.empty:
             continue
-        ax.scatter(sub["tpm_logp1"], sub["chronos"],
-                    s=14, alpha=0.55, color=style["get_lineage_color"](lg),
-                    edgecolor="white", linewidth=0.3, zorder=2,
-                    label=None)
+        ax.scatter(
+            sub["tpm_logp1"],
+            sub["chronos"],
+            s=14,
+            alpha=0.55,
+            color=style["get_lineage_color"](lg),
+            edgecolor="white",
+            linewidth=0.3,
+            zorder=2,
+            label=None,
+        )
     # "Other lineages" (not in top-5)
     other_others = other[~other["lineage"].isin(top_lineages)]
     if not other_others.empty:
-        ax.scatter(other_others["tpm_logp1"], other_others["chronos"],
-                    s=12, alpha=0.35, color="#CCCCCC",
-                    edgecolor="white", linewidth=0.2, zorder=1)
+        ax.scatter(
+            other_others["tpm_logp1"],
+            other_others["chronos"],
+            s=12,
+            alpha=0.35,
+            color="#CCCCCC",
+            edgecolor="white",
+            linewidth=0.2,
+            zorder=1,
+        )
 
     # Target-lineage emphasis — larger + thicker edge + on top
     if not target_pts.empty:
-        ax.scatter(target_pts["tpm_logp1"], target_pts["chronos"],
-                    s=28, alpha=0.85,
-                    color=style["get_lineage_color"](target_lineage),
-                    edgecolor="#222222", linewidth=0.8, zorder=3)
+        ax.scatter(
+            target_pts["tpm_logp1"],
+            target_pts["chronos"],
+            s=28,
+            alpha=0.85,
+            color=style["get_lineage_color"](target_lineage),
+            edgecolor="#222222",
+            linewidth=0.8,
+            zorder=3,
+        )
 
     # OLS regression line (across all cells)
     if len(df) >= 3 and df["tpm_logp1"].std() > 0:
@@ -448,13 +499,30 @@ def emit_scatter_regression_plot(merged_data: list, target_symbol: str,
     ax.axhline(y=0, **style["REFLINE_NOMINAL"], zorder=1)
     ax.axhline(y=-0.5, **style["REFLINE_NEUTRAL"], zorder=1)
     ax.axhline(y=style["CHRONOS_STRONG_DEPENDENCY"], **style["REFLINE_KILLER"], zorder=1)
-    ax.text(0.005, 0.05, "no dependency", fontsize=8, color="#666666",
-            ha="left", va="bottom", transform=ax.get_yaxis_transform(),
-            bbox=_label_bbox, zorder=4)
-    ax.text(0.005, style["CHRONOS_STRONG_DEPENDENCY"], "strong",
-            fontsize=8, color="#B22222",
-            ha="left", va="bottom", transform=ax.get_yaxis_transform(),
-            bbox=_label_bbox, zorder=4)
+    ax.text(
+        0.005,
+        0.05,
+        "no dependency",
+        fontsize=8,
+        color="#666666",
+        ha="left",
+        va="bottom",
+        transform=ax.get_yaxis_transform(),
+        bbox=_label_bbox,
+        zorder=4,
+    )
+    ax.text(
+        0.005,
+        style["CHRONOS_STRONG_DEPENDENCY"],
+        "strong",
+        fontsize=8,
+        color="#B22222",
+        ha="left",
+        va="bottom",
+        transform=ax.get_yaxis_transform(),
+        bbox=_label_bbox,
+        zorder=4,
+    )
 
     # Annotation block (top-right) with r/p stats
     r = summary.get("pearson_r")
@@ -462,25 +530,31 @@ def emit_scatter_regression_plot(merged_data: list, target_symbol: str,
     sr = summary.get("spearman_r")
     n_val = summary.get("n_cell_lines_evaluated", len(df))
     if r is not None:
-        ann_text = (f"n = {n_val}\n"
-                    f"Pearson r = {r:.2f}\n"
-                    f"p = {p:.2e}\n"
-                    f"Spearman r = {sr:.2f}" if sr is not None else
-                    f"n = {n_val}\nPearson r = {r:.2f}\np = {p:.2e}")
-        ax.text(0.97, 0.97, ann_text,
-                transform=ax.transAxes, ha="right", va="top",
-                fontsize=9, family="monospace",
-                bbox=dict(facecolor="white", edgecolor="#888888",
-                            alpha=0.92, pad=4, boxstyle="round,pad=0.4"),
-                zorder=5)
+        ann_text = (
+            f"n = {n_val}\nPearson r = {r:.2f}\np = {p:.2e}\nSpearman r = {sr:.2f}"
+            if sr is not None
+            else f"n = {n_val}\nPearson r = {r:.2f}\np = {p:.2e}"
+        )
+        ax.text(
+            0.97,
+            0.97,
+            ann_text,
+            transform=ax.transAxes,
+            ha="right",
+            va="top",
+            fontsize=9,
+            family="monospace",
+            bbox=dict(facecolor="white", edgecolor="#888888", alpha=0.92, pad=4, boxstyle="round,pad=0.4"),
+            zorder=5,
+        )
 
     # Lineage legend (bottom-right)
     if top_lineages:
-        legend_handles = [Patch(color=style["get_lineage_color"](lg), label=lg)
-                          for lg in top_lineages]
+        legend_handles = [Patch(color=style["get_lineage_color"](lg), label=lg) for lg in top_lineages]
         if target_lineage and target_lineage not in top_lineages and target_lineage:
-            legend_handles.insert(0, Patch(color=style["get_lineage_color"](target_lineage),
-                                            label=f"{target_lineage} (target)"))
+            legend_handles.insert(
+                0, Patch(color=style["get_lineage_color"](target_lineage), label=f"{target_lineage} (target)")
+            )
         legend_handles.append(Patch(color="#CCCCCC", label="other"))
         ax.legend(handles=legend_handles, loc="lower right", framealpha=0.9, fontsize=8)
 
@@ -493,9 +567,9 @@ def emit_scatter_regression_plot(merged_data: list, target_symbol: str,
     plt.close(fig)
 
 
-def emit_lineage_stratified_scatter(merged_data: list, target_symbol: str,
-                                      indication: str, summary: dict,
-                                      out_path: Path, contracts_root: Path) -> None:
+def emit_lineage_stratified_scatter(
+    merged_data: list, target_symbol: str, indication: str, summary: dict, out_path: Path, contracts_root: Path
+) -> None:
     """Alternate figure: 2×3 small-multiples scatter, one panel per top-6 lineage.
     Reveals whether pan-cancer correlation is uniform or driven by 1-2 lineages."""
     import matplotlib.pyplot as plt
@@ -511,8 +585,7 @@ def emit_lineage_stratified_scatter(merged_data: list, target_symbol: str,
 
     if df.empty:
         fig, ax = plt.subplots(figsize=style["FIGSIZE_DOUBLE_COLUMN_TALL"])
-        ax.text(0.5, 0.5, "No data", ha="center", va="center",
-                transform=ax.transAxes, color="#666666")
+        ax.text(0.5, 0.5, "No data", ha="center", va="center", transform=ax.transAxes, color="#666666")
         fig.savefig(out_path / "figure_lineage_stratified_scatter.svg", bbox_inches="tight")
         plt.close(fig)
         return
@@ -524,8 +597,7 @@ def emit_lineage_stratified_scatter(merged_data: list, target_symbol: str,
         candidates = [target_lineage] + candidates[:5]
     candidates = candidates[:6]
 
-    fig, axes = plt.subplots(2, 3, figsize=style["FIGSIZE_DOUBLE_COLUMN_TALL"],
-                              sharex=True, sharey=True)
+    fig, axes = plt.subplots(2, 3, figsize=style["FIGSIZE_DOUBLE_COLUMN_TALL"], sharex=True, sharey=True)
     axes = axes.flatten()
 
     for i, ax in enumerate(axes):
@@ -536,44 +608,51 @@ def emit_lineage_stratified_scatter(merged_data: list, target_symbol: str,
         color = style["get_lineage_color"](lg)
         # Faded background scatter (other lineages, panel-wide context)
         bg = df[df["lineage"] != lg]
-        ax.scatter(bg["tpm_logp1"], bg["chronos"],
-                    s=8, alpha=0.12, color="#CCCCCC", zorder=1)
+        ax.scatter(bg["tpm_logp1"], bg["chronos"], s=8, alpha=0.12, color="#CCCCCC", zorder=1)
         # Foreground: this lineage
         fg = df[df["lineage"] == lg]
-        ax.scatter(fg["tpm_logp1"], fg["chronos"],
-                    s=14, alpha=0.85, color=color,
-                    edgecolor="white", linewidth=0.3, zorder=3)
+        ax.scatter(
+            fg["tpm_logp1"], fg["chronos"], s=14, alpha=0.85, color=color, edgecolor="white", linewidth=0.3, zorder=3
+        )
         # Within-lineage OLS line (skip if n < 8)
         n_lg = len(fg)
         if n_lg >= 8 and fg["tpm_logp1"].std() > 0:
             slope, intercept = np.polyfit(fg["tpm_logp1"], fg["chronos"], deg=1)
             x_line = np.linspace(fg["tpm_logp1"].min(), fg["tpm_logp1"].max(), 30)
-            ax.plot(x_line, slope * x_line + intercept,
-                    color=color, linewidth=1.5, zorder=4, alpha=0.9)
+            ax.plot(x_line, slope * x_line + intercept, color=color, linewidth=1.5, zorder=4, alpha=0.9)
         # Annotation: n + r
         r_lg = None
         if n_lg >= 3 and fg["tpm_logp1"].std() > 0:
             r_lg, _ = stats.pearsonr(fg["tpm_logp1"], fg["chronos"])
         ann = f"n={n_lg}, r={r_lg:.2f}" if r_lg is not None else f"n={n_lg}"
-        ax.text(0.97, 0.97, ann, transform=ax.transAxes,
-                ha="right", va="top", fontsize=8, family="monospace",
-                color="#222222")
+        ax.text(
+            0.97,
+            0.97,
+            ann,
+            transform=ax.transAxes,
+            ha="right",
+            va="top",
+            fontsize=8,
+            family="monospace",
+            color="#222222",
+        )
         # Reference lines
         ax.axhline(y=0, **style["REFLINE_NOMINAL"], zorder=1)
-        ax.axhline(y=style["CHRONOS_STRONG_DEPENDENCY"],
-                    **style["REFLINE_KILLER"], zorder=1)
+        ax.axhline(y=style["CHRONOS_STRONG_DEPENDENCY"], **style["REFLINE_KILLER"], zorder=1)
         # Panel title — bold for target lineage
-        is_target = (lg == target_lineage)
-        ax.set_title(lg, fontsize=10, fontweight="bold" if is_target else "normal",
-                      color="#B22222" if is_target else "#222222")
+        is_target = lg == target_lineage
+        ax.set_title(
+            lg, fontsize=10, fontweight="bold" if is_target else "normal", color="#B22222" if is_target else "#222222"
+        )
         ax.grid(axis="y", alpha=0.4)
 
-    for ax in axes[len(candidates):]:
+    for ax in axes[len(candidates) :]:
         ax.axis("off")
 
     # Common labels
-    fig.suptitle(f"{target_symbol}: expression-dependency by lineage in {indication}",
-                  fontsize=12, fontweight="bold", y=0.99)
+    fig.suptitle(
+        f"{target_symbol}: expression-dependency by lineage in {indication}", fontsize=12, fontweight="bold", y=0.99
+    )
     fig.supxlabel("Expression (log₂ TPM+1)", fontsize=10)
     fig.supylabel("Chronos score (more dependent ↓)", fontsize=10)
     plt.tight_layout()
@@ -604,10 +683,11 @@ def emit_plot_data(merged_data: list, out_path: Path) -> None:
     df.to_parquet(out_path / "plot_data.parquet", index=False)
 
 
-def emit_manifest(target: str, indication: str, release_pin: str,
-                   summary: dict, n_excluded: dict, out_path: Path,
-                   load_errors: list) -> None:
+def emit_manifest(
+    target: str, indication: str, release_pin: str, summary: dict, n_excluded: dict, out_path: Path, load_errors: list
+) -> None:
     import yaml
+
     manifest = {
         "method": "depmap-expression-dependency",
         "method_version": METHOD_VERSION,
@@ -633,34 +713,35 @@ def emit_manifest(target: str, indication: str, release_pin: str,
         yaml.safe_dump(manifest, f, sort_keys=False)
 
 
-def build_merged_data(chronos_by_model: dict, tpm_by_model: dict,
-                       model_metadata: dict, target_lineage: str) -> list:
+def build_merged_data(chronos_by_model: dict, tpm_by_model: dict, model_metadata: dict, target_lineage: str) -> list:
     """Build the long-format merged data list. Pure function — used by figure emitters
     AND emit_plot_data. Centralized so all three callers use the same shape."""
     merged = []
     for mid in set(chronos_by_model.keys()) & set(tpm_by_model.keys()):
         meta = model_metadata.get(mid, {})
         lineage = meta.get("OncotreeLineage") or meta.get("lineage") or "unknown"
-        merged.append({
-            "cell_line_id": mid,
-            "cell_line_name": meta.get("CellLineName", mid),
-            "chronos_score": chronos_by_model[mid],
-            "chronos": chronos_by_model[mid],  # alias for figure emitters
-            "tpm_logp1": tpm_by_model[mid],
-            "lineage": str(lineage),
-            "is_target_lineage": bool(lineage == target_lineage),
-        })
+        merged.append(
+            {
+                "cell_line_id": mid,
+                "cell_line_name": meta.get("CellLineName", mid),
+                "chronos_score": chronos_by_model[mid],
+                "chronos": chronos_by_model[mid],  # alias for figure emitters
+                "tpm_logp1": tpm_by_model[mid],
+                "lineage": str(lineage),
+                "is_target_lineage": bool(lineage == target_lineage),
+            }
+        )
     return merged
 
 
 @click.command()
 @click.option("--target", required=True)
-@click.option("--indication", required=True,
-              type=click.Choice(sorted(INDICATION_LINEAGE)))  # validated against the canonical map — no silent unmapped fallback
+@click.option(
+    "--indication", required=True, type=click.Choice(sorted(INDICATION_LINEAGE))
+)  # validated against the canonical map — no silent unmapped fallback
 @click.option("--release-pin", default="26q1")
 @click.option("--out", required=True, type=click.Path(file_okay=False, path_type=Path))
-@click.option("--contracts-root", type=click.Path(file_okay=False, path_type=Path),
-              default=DEFAULT_TARGET_CONTRACTS)
+@click.option("--contracts-root", type=click.Path(file_okay=False, path_type=Path), default=DEFAULT_TARGET_CONTRACTS)
 @click.option("--dry-run", is_flag=True)
 def main(target, indication, release_pin, out, contracts_root, dry_run) -> int:
     """Compute expression-dependency correlation for (target, indication) and
@@ -675,20 +756,19 @@ def main(target, indication, release_pin, out, contracts_root, dry_run) -> int:
         click.echo("(--dry-run: skipping)")
         return 0
 
-    chronos_by_model, tpm_by_model, model_metadata, load_errors = load_depmap_files_for_card4(
-        release_pin, target
-    )
+    chronos_by_model, tpm_by_model, model_metadata, load_errors = load_depmap_files_for_card4(release_pin, target)
     if load_errors:
         click.echo(f"  LOAD ERRORS: {len(load_errors)}", err=True)
         with (out / "summary.json").open("w") as f:
-            json.dump({"_live_read_error": True, "errors": load_errors,
-                       "target": target, "indication": indication}, f, indent=2)
+            json.dump(
+                {"_live_read_error": True, "errors": load_errors, "target": target, "indication": indication},
+                f,
+                indent=2,
+            )
         emit_manifest(target, indication, release_pin, {}, {}, out, load_errors)
         return 2
 
-    summary = compute_correlation_summary(
-        chronos_by_model, tpm_by_model, model_metadata, indication=indication
-    )
+    summary = compute_correlation_summary(chronos_by_model, tpm_by_model, model_metadata, indication=indication)
     target_lineage = summary.get("_target_lineage", "")
 
     n_chronos_only = len(set(chronos_by_model.keys()) - set(tpm_by_model.keys()))
@@ -698,8 +778,7 @@ def main(target, indication, release_pin, out, contracts_root, dry_run) -> int:
     with (out / "summary.json").open("w") as f:
         json.dump(summary, f, indent=2, default=str)
 
-    merged_data = build_merged_data(chronos_by_model, tpm_by_model,
-                                      model_metadata, target_lineage)
+    merged_data = build_merged_data(chronos_by_model, tpm_by_model, model_metadata, target_lineage)
     emit_plot_data(merged_data, out)
     emit_scatter_regression_plot(merged_data, target, indication, summary, out, contracts_root)
     emit_lineage_stratified_scatter(merged_data, target, indication, summary, out, contracts_root)

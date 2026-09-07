@@ -27,6 +27,7 @@ join payload + sidecar on the AC — never trust a source symbol column (depreca
 Deterministic per (DAT snapshot, discriminator, resolver release). Usage:
     python -m methods.uniprot_gpi_anchor.derive --out /tmp/gpi.parquet [--resolver-release resolver_v1.0.0]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -39,11 +40,12 @@ from pathlib import Path
 from typing import Optional
 
 S3_BUCKET = "onc-compbio"
-SOURCE_S3_KEY = ("data-catalog/sources/uniprot-sprot-human/2026_02-snapshot-2026-06-18/"
-                 "uniprot_sprot_human.dat.gz")
+SOURCE_S3_KEY = "data-catalog/sources/uniprot-sprot-human/2026_02-snapshot-2026-06-18/uniprot_sprot_human.dat.gz"
 DEFAULT_AWS_PROFILE = "cbg"
 DEFAULT_RESOLVER_RELEASE = "resolver_v1.0.0"
-DATA_CATALOG = Path(os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"))
+DATA_CATALOG = Path(
+    os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
+)
 
 # A GPI-anchored entry carries a LIPID feature whose /note names a GPI-anchor, e.g.
 #   FT   LIPID           ...
@@ -63,12 +65,14 @@ def _read_dat_bytes(local_path: Optional[str]) -> bytes:
     if "AWS_PROFILE" not in os.environ:
         os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
     import boto3
+
     return boto3.client("s3").get_object(Bucket=S3_BUCKET, Key=SOURCE_S3_KEY)["Body"].read()
 
 
 def build_payload(local_dat: Optional[str] = None):
     """Return the per-UniProt-AC GPI-anchor payload DataFrame (positive-only)."""
     import pandas as pd
+
     raw = _read_dat_bytes(local_dat)
     rows = []
     seen = set()
@@ -91,14 +95,15 @@ def build_payload(local_dat: Optional[str] = None):
             if ac in seen:
                 continue
             seen.add(ac)
-            rows.append({
-                "uniprot_ac": ac,
-                "is_gpi_anchored": True,
-                "gpi_lipid_note": note_hit.group(1) if note_hit else None,
-                "gpi_subcellular_evidence": bool(subcell_hit),
-            })
-    df = pd.DataFrame(rows, columns=["uniprot_ac", "is_gpi_anchored",
-                                     "gpi_lipid_note", "gpi_subcellular_evidence"])
+            rows.append(
+                {
+                    "uniprot_ac": ac,
+                    "is_gpi_anchored": True,
+                    "gpi_lipid_note": note_hit.group(1) if note_hit else None,
+                    "gpi_subcellular_evidence": bool(subcell_hit),
+                }
+            )
+    df = pd.DataFrame(rows, columns=["uniprot_ac", "is_gpi_anchored", "gpi_lipid_note", "gpi_subcellular_evidence"])
     return df.sort_values("uniprot_ac").reset_index(drop=True)
 
 
@@ -108,12 +113,13 @@ def _emit_sidecar(payload_path: Path, resolver_release: str):
     if str(lib) not in sys.path:
         sys.path.insert(0, str(lib))
     from target_id_resolver.sidecar import emit_sidecar
+
     sidecar_path = Path(str(payload_path).replace(".parquet", ".target_resolution.parquet"))
     stats = emit_sidecar(
         payload_parquet_path=payload_path,
         native_key_column="uniprot_ac",
         native_key_type="uniprot_accession",
-        gencode_version_source="n/a",           # UniProt curated feature, not gencode-annotated
+        gencode_version_source="n/a",  # UniProt curated feature, not gencode-annotated
         out_path=sidecar_path,
         resolver_release=resolver_release,
     )

@@ -8,6 +8,7 @@ selectivity_allgene_percentile=null despite the gene_row reader returning 25.75.
 pin that the composite forwards the field on BOTH the v3 path and the v2 fallback (as
 data_unavailable), so the orphaned-signal gap can't recur.
 """
+
 from __future__ import annotations
 
 import sys
@@ -23,12 +24,20 @@ def test_composite_forwards_percentile_from_gene_row(monkeypatch):
     """read_tumor_vs_normal_selectivity must forward selectivity_allgene_percentile* from
     the gene_row it calls — not drop it in the explicit field-map."""
     fake_row = {
-        "cells_ran": 3, "cells_supporting": 3, "dominant_direction": "up",
-        "sig_all_cells": True, "discordant": False, "max_abs_log2fc": 2.1,
-        "log2fc_cell_a": 2.1, "q_value_cell_a": 1e-9,
-        "log2fc_cell_b": 1.9, "q_value_cell_b": 1e-8,
-        "log2fc_cell_c": 1.7, "q_value_cell_c": 1e-6,
-        "log2fc_cell_d": None, "q_value_cell_d": None,
+        "cells_ran": 3,
+        "cells_supporting": 3,
+        "dominant_direction": "up",
+        "sig_all_cells": True,
+        "discordant": False,
+        "max_abs_log2fc": 2.1,
+        "log2fc_cell_a": 2.1,
+        "q_value_cell_a": 1e-9,
+        "log2fc_cell_b": 1.9,
+        "q_value_cell_b": 1e-8,
+        "log2fc_cell_c": 1.7,
+        "q_value_cell_c": 1e-6,
+        "log2fc_cell_d": None,
+        "q_value_cell_d": None,
         "selectivity_allgene_percentile": 98.5,
         "selectivity_allgene_percentile_class": "top_decile",
         "selectivity_allgene_percentile_context": "coadread-...-v1 metric=log2fc_A(primary)",
@@ -36,8 +45,7 @@ def test_composite_forwards_percentile_from_gene_row(monkeypatch):
         "selectivity_allgene_percentile_cell_c": 91.0,
         "_data_source": "coadread-dge-tumor-vs-normal-sensitivity-v1",
     }
-    monkeypatch.setattr(r, "read_tumor_vs_normal_sensitivity_gene_row",
-                        lambda t, i: fake_row)
+    monkeypatch.setattr(r, "read_tumor_vs_normal_sensitivity_gene_row", lambda t, i: fake_row)
     out = r.read_tumor_vs_normal_selectivity("EPCAM", "COADREAD")
     assert out["selectivity_allgene_percentile"] == 98.5
     assert out["selectivity_allgene_percentile_class"] == "top_decile"

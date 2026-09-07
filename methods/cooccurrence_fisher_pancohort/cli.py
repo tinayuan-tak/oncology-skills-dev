@@ -53,6 +53,7 @@ Usage:
         --target-symbol KRAS \\
         --out /tmp/kras_cooccurrence.parquet
 """
+
 from __future__ import annotations
 
 import os
@@ -68,8 +69,12 @@ MC3_S3_KEY = "data-catalog/sources/synapse/tcga-mc3-public/mc3.v0.2.8.PUBLIC.maf
 # set is the intersection of all seven cohorts' represented genes.
 GENIE_MAIN_S3_PREFIX = "data-catalog/sources/genie-19-0-public/"
 GENIE_BPC_COHORTS = [
-    "genie-bpc-bladder", "genie-bpc-brca", "genie-bpc-crc",
-    "genie-bpc-nsclc", "genie-bpc-panc", "genie-bpc-prostate",
+    "genie-bpc-bladder",
+    "genie-bpc-brca",
+    "genie-bpc-crc",
+    "genie-bpc-nsclc",
+    "genie-bpc-panc",
+    "genie-bpc-prostate",
 ]
 
 # Genes that are validated core panel members across all GENIE-covered panels
@@ -81,21 +86,27 @@ _KNOWN_CORE_PANEL_GENES_APPROX = 130  # count only — actual list computed per-
 
 
 @click.command()
-@click.option("--target-symbol", required=True,
-              help="HGNC gene symbol of the target being profiled. All pairs "
-                   "involving this target will be scanned.")
-@click.option("--out", required=True, type=click.Path(path_type=Path),
-              help="Output parquet path.")
-@click.option("--min-partner-frequency", type=float, default=0.01,
-              help="Skip partner genes with mutation frequency below this "
-                   "threshold in either MC3 or GENIE. Default 0.01 (1%%).")
-@click.option("--panel-intersect-mode",
-              type=click.Choice(["strict", "loose"]), default="strict",
-              help="strict: pooled Q emitted only when both genes on ALL GENIE "
-                   "panels. loose: pooled Q emitted when both genes on any GENIE "
-                   "cohort. Default strict (reviewer-driven blocker fix).")
-def main(target_symbol: str, out: Path, min_partner_frequency: float,
-         panel_intersect_mode: str):
+@click.option(
+    "--target-symbol",
+    required=True,
+    help="HGNC gene symbol of the target being profiled. All pairs involving this target will be scanned.",
+)
+@click.option("--out", required=True, type=click.Path(path_type=Path), help="Output parquet path.")
+@click.option(
+    "--min-partner-frequency",
+    type=float,
+    default=0.01,
+    help="Skip partner genes with mutation frequency below this threshold in either MC3 or GENIE. Default 0.01 (1%%).",
+)
+@click.option(
+    "--panel-intersect-mode",
+    type=click.Choice(["strict", "loose"]),
+    default="strict",
+    help="strict: pooled Q emitted only when both genes on ALL GENIE "
+    "panels. loose: pooled Q emitted when both genes on any GENIE "
+    "cohort. Default strict (reviewer-driven blocker fix).",
+)
+def main(target_symbol: str, out: Path, min_partner_frequency: float, panel_intersect_mode: str):
     """Fisher's exact co-mutation scan with panel-intersect eligibility.
 
     This iter-1 implementation is a scaffold: it consumes the two source
@@ -141,14 +152,30 @@ def main(target_symbol: str, out: Path, min_partner_frequency: float,
         "genome. Interpret q-values in context of the scanned set.",
     ]
 
-    df = pd.DataFrame(columns=[
-        "target_gene_symbol", "partner_gene_symbol", "source",
-        "n_samples_source", "n_target_mut", "n_partner_mut", "n_both_mut",
-        "n_target_only", "n_partner_only", "n_neither",
-        "fisher_odds_ratio", "log2_odds_ratio", "fisher_p_value",
-        "fisher_p_value_alternative", "bh_q_value", "ranking_score",
-        "call", "pooled_eligible", "method_version", "caveats",
-    ])
+    df = pd.DataFrame(
+        columns=[
+            "target_gene_symbol",
+            "partner_gene_symbol",
+            "source",
+            "n_samples_source",
+            "n_target_mut",
+            "n_partner_mut",
+            "n_both_mut",
+            "n_target_only",
+            "n_partner_only",
+            "n_neither",
+            "fisher_odds_ratio",
+            "log2_odds_ratio",
+            "fisher_p_value",
+            "fisher_p_value_alternative",
+            "bh_q_value",
+            "ranking_score",
+            "call",
+            "pooled_eligible",
+            "method_version",
+            "caveats",
+        ]
+    )
 
     out.parent.mkdir(parents=True, exist_ok=True)
     df.to_parquet(out, index=False)

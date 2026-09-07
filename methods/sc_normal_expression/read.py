@@ -9,6 +9,7 @@ Dependencies: pyarrow/pandas/boto3 ONLY — no scanpy/anndata/cellxgene-census a
 Credential discipline: boto3 Session(profile_name=AWS_PROFILE) where default="cbg" — the
 Developer-Dev SSO role lacks GetObject on onc-compbio (see sc_tumor_expression_celltype/read.py).
 """
+
 from __future__ import annotations
 
 import os
@@ -33,29 +34,29 @@ S3_BUCKET = "onc-compbio"
 # 2026-08-12: brain (critical fix — in card since #298 but missing here), plus 4 new tissues
 # now on S3 (data-catalog PR #330 + the normal-tissue batch PRs #275–#286 + expansion set).
 TISSUE_TO_PRODUCT = {
-    "colon":            "sc-normal-celltype-expression-colon-v1",
-    "lung":             "sc-normal-celltype-expression-lung-v1",
-    "heart":            "sc-normal-celltype-expression-heart-v1",
-    "liver":            "sc-normal-celltype-expression-liver-v1",
-    "kidney":           "sc-normal-celltype-expression-kidney-v1",
-    "stomach":          "sc-normal-celltype-expression-stomach-v1",
-    "bone_marrow":      "sc-normal-celltype-expression-bone-marrow-v1",
-    "skin":             "sc-normal-celltype-expression-skin-v1",
-    "small_intestine":  "sc-normal-celltype-expression-small-intestine-v1",
+    "colon": "sc-normal-celltype-expression-colon-v1",
+    "lung": "sc-normal-celltype-expression-lung-v1",
+    "heart": "sc-normal-celltype-expression-heart-v1",
+    "liver": "sc-normal-celltype-expression-liver-v1",
+    "kidney": "sc-normal-celltype-expression-kidney-v1",
+    "stomach": "sc-normal-celltype-expression-stomach-v1",
+    "bone_marrow": "sc-normal-celltype-expression-bone-marrow-v1",
+    "skin": "sc-normal-celltype-expression-skin-v1",
+    "small_intestine": "sc-normal-celltype-expression-small-intestine-v1",
     # Added 2026-08-12:
-    "brain":            "sc-normal-celltype-expression-brain-v1",           # always-on CNS safety (36M cells, 172 types)
-    "esophagus":        "sc-normal-celltype-expression-esophagus-v1",        # ESCA; squamous-normal proxy for HNSC
-    "pancreas":         "sc-normal-celltype-expression-pancreas-v1",         # PAAD normal comparator
-    "ovary":            "sc-normal-celltype-expression-ovary-v1",             # OV normal comparator
-    "prostate_gland":   "sc-normal-celltype-expression-prostate-gland-v1",   # PRAD normal comparator
+    "brain": "sc-normal-celltype-expression-brain-v1",  # always-on CNS safety (36M cells, 172 types)
+    "esophagus": "sc-normal-celltype-expression-esophagus-v1",  # ESCA; squamous-normal proxy for HNSC
+    "pancreas": "sc-normal-celltype-expression-pancreas-v1",  # PAAD normal comparator
+    "ovary": "sc-normal-celltype-expression-ovary-v1",  # OV normal comparator
+    "prostate_gland": "sc-normal-celltype-expression-prostate-gland-v1",  # PRAD normal comparator
     # Added 2026-08-15: complete the map to all 19 landed normal-tissue shards so the card's
     # required_inputs can honestly declare the full atlas (readable via tissues_for_indication /
     # future indication maps; not yet in any indication's always-on scan set).
-    "adrenal_gland":    "sc-normal-celltype-expression-adrenal-gland-v1",
-    "bladder_organ":    "sc-normal-celltype-expression-bladder-organ-v1",
-    "large_intestine":  "sc-normal-celltype-expression-large-intestine-v1",
-    "spleen":           "sc-normal-celltype-expression-spleen-v1",
-    "uterus":           "sc-normal-celltype-expression-uterus-v1",
+    "adrenal_gland": "sc-normal-celltype-expression-adrenal-gland-v1",
+    "bladder_organ": "sc-normal-celltype-expression-bladder-organ-v1",
+    "large_intestine": "sc-normal-celltype-expression-large-intestine-v1",
+    "spleen": "sc-normal-celltype-expression-spleen-v1",
+    "uterus": "sc-normal-celltype-expression-uterus-v1",
 }
 
 # SAFETY-ESSENTIAL tissues queried for EVERY target regardless of indication. On-target
@@ -76,17 +77,17 @@ SAFETY_ESSENTIAL_TISSUES = list(SC_NORMAL_ESSENTIAL_TISSUES)
 # mucosa is not a distinct Census tissue_general; squamous esophagus is the closest lineage match).
 INDICATION_TO_TISSUES = {
     "COADREAD": ["colon"],
-    "COAD":     ["colon"],
-    "READ":     ["colon"],
-    "NSCLC":    ["lung"],
-    "LUAD":     ["lung"],
-    "LUSC":     ["lung"],
-    "STAD":     ["stomach"],
-    "ESCA":     ["esophagus"],
-    "PAAD":     ["pancreas"],
-    "HNSC":     ["esophagus"],    # squamous-normal proxy (oral/pharyngeal mucosa absent from Census)
-    "OV":       ["ovary"],
-    "PRAD":     ["prostate_gland"],
+    "COAD": ["colon"],
+    "READ": ["colon"],
+    "NSCLC": ["lung"],
+    "LUAD": ["lung"],
+    "LUSC": ["lung"],
+    "STAD": ["stomach"],
+    "ESCA": ["esophagus"],
+    "PAAD": ["pancreas"],
+    "HNSC": ["esophagus"],  # squamous-normal proxy (oral/pharyngeal mucosa absent from Census)
+    "OV": ["ovary"],
+    "PRAD": ["prostate_gland"],
     # 2026-09-04 coverage: (1) WIRE three landed-but-orphaned shards (bladder_organ / skin / uterus)
     # into use — they existed in TISSUE_TO_PRODUCT but no indication mapped to them, so they were never
     # queried; (2) fix ORIGIN-TISSUE correctness for tumors whose tissue-of-origin is an always-on
@@ -94,16 +95,16 @@ INDICATION_TO_TISSUES = {
     # origin organ was queried but as OFF-origin, wrongly reading its own-organ essential expression as
     # critical_organ_liability. Adding the origin map softens that to origin_tissue_liability (window-
     # arbitrated) — veto-monotonic (can only downgrade a veto, never create one).
-    "BLCA":     ["bladder_organ"],
-    "SKCM":     ["skin"],
-    "UCEC":     ["uterus"],
-    "UCS":      ["uterus"],
-    "KIRC":     ["kidney"],        # renal clear cell — kidney is the tissue-of-origin, not an off-target
-    "KIRP":     ["kidney"],
-    "KICH":     ["kidney"],
-    "LIHC":     ["liver"],         # hepatocellular — liver is the tissue-of-origin
-    "GBM":      ["brain"],         # glioblastoma — brain is the tissue-of-origin
-    "LGG":      ["brain"],
+    "BLCA": ["bladder_organ"],
+    "SKCM": ["skin"],
+    "UCEC": ["uterus"],
+    "UCS": ["uterus"],
+    "KIRC": ["kidney"],  # renal clear cell — kidney is the tissue-of-origin, not an off-target
+    "KIRP": ["kidney"],
+    "KICH": ["kidney"],
+    "LIHC": ["liver"],  # hepatocellular — liver is the tissue-of-origin
+    "GBM": ["brain"],  # glioblastoma — brain is the tissue-of-origin
+    "LGG": ["brain"],
 }
 
 
@@ -120,13 +121,25 @@ def tissues_for_indication(indication: str) -> list[str]:
             out.append(t)
     return out
 
+
 _PARQUET_COLS = [
-    "gene_symbol", "ensembl_gene_id", "tissue", "cell_type",
-    "n_donors_total", "n_donors_reliable", "n_datasets_reliable", "n_donors_expressing",
-    "median_det", "q25_det", "q75_det",
+    "gene_symbol",
+    "ensembl_gene_id",
+    "tissue",
+    "cell_type",
+    "n_donors_total",
+    "n_donors_reliable",
+    "n_datasets_reliable",
+    "n_donors_expressing",
+    "median_det",
+    "q25_det",
+    "q75_det",
     "expressing_donor_fraction",
-    "median_abund", "q25_abund", "q75_abund",
-    "detection_pct_rank", "n_cell_types_above_20pct",
+    "median_abund",
+    "q25_abund",
+    "q75_abund",
+    "detection_pct_rank",
+    "n_cell_types_above_20pct",
 ]
 
 
@@ -173,11 +186,10 @@ def read_gene_celltype_rows(target: str, tissues: list[str]) -> Optional[pd.Data
 
     def _read_one(key: str) -> Optional[pd.DataFrame]:
         try:
-            tbl = pq.read_table(f"{S3_BUCKET}/{key}", filesystem=s3fs,
-                                filters=filters, columns=_PARQUET_COLS)
+            tbl = pq.read_table(f"{S3_BUCKET}/{key}", filesystem=s3fs, filters=filters, columns=_PARQUET_COLS)
             return tbl.to_pandas()
         except FileNotFoundError:
-            return None   # product not yet on S3 for this tissue — treat as coverage gap
+            return None  # product not yet on S3 for this tissue — treat as coverage gap
 
     # Preserve the original tissue ORDER in the concat (executor.map yields in submission order),
     # so the assembled frame is identical to the former serial loop, not completion-order-dependent.
@@ -199,13 +211,19 @@ def read_target_summary(target: str, indication: str) -> dict:
     tissues = tissues_for_indication(indication)
     rows = read_gene_celltype_rows(target, tissues)
     if rows is None:
-        return _data_unavailable(target, indication,
-                                 note=f"No sc-normal-celltype-expression product landed for "
-                                      f"tissues {tissues}; coverage gap, not a safety pass.")
+        return _data_unavailable(
+            target,
+            indication,
+            note=f"No sc-normal-celltype-expression product landed for "
+            f"tissues {tissues}; coverage gap, not a safety pass.",
+        )
     if rows.empty:
-        return _data_unavailable(target, indication,
-                                 note=f"{target} absent from sc-normal-celltype-expression products "
-                                      f"for tissues {tissues} (not measured in the Census atlases).")
+        return _data_unavailable(
+            target,
+            indication,
+            note=f"{target} absent from sc-normal-celltype-expression products "
+            f"for tissues {tissues} (not measured in the Census atlases).",
+        )
     # origin_tissues = the tumor's tissue-of-origin ONLY (matched normal), NOT the always-on
     # safety-essential organs — so the classifier can split origin-tissue essential expression
     # (on-tissue, therapeutic-window-arbitrated) from non-origin critical-organ expression (hard veto).

@@ -65,7 +65,9 @@ def _git_provenance() -> dict:
         try:
             r = subprocess.run(
                 ["git", "-C", str(repo_dir), *args],
-                capture_output=True, text=True, timeout=10,
+                capture_output=True,
+                text=True,
+                timeout=10,
             )
         except (OSError, subprocess.SubprocessError):
             return None
@@ -79,14 +81,15 @@ def _git_provenance() -> dict:
         "repo_dir": str(repo_dir),
     }
 
+
 # Classification thresholds (v2). See card YAML for the authoritative copy.
-R2_HIGH_CI_LO = 0.35    # CI lower bound above → strong-predictor bucket
+R2_HIGH_CI_LO = 0.35  # CI lower bound above → strong-predictor bucket
 R2_DEPMAP_HIGH_CONF = 0.16  # DepMap high-conf floor (Pearson r ≥ 0.4)
 
 # CV + bootstrap constants
 CV_N_SPLITS = 3
 BOOTSTRAP_N = 500
-LINEAGE_MIN_LINES = 30      # per-lineage refit min-n
+LINEAGE_MIN_LINES = 30  # per-lineage refit min-n
 SELECT_K_BEST = 1000
 MIN_CELL_LINES_PER_GENE = 100  # exclusion floor
 
@@ -95,6 +98,7 @@ MIN_CELL_LINES_PER_GENE = 100  # exclusion floor
 # QuantileKFold — quantile-stratified CV matching DepMap's cds-daintree
 # ---------------------------------------------------------------------------
 
+
 class QuantileKFold:
     """Stratify samples by y quantile then k-fold within each stratum.
 
@@ -102,6 +106,7 @@ class QuantileKFold:
     values — critical when Chronos values are heavy-tailed or unbalanced across
     the cell-line panel. Mirrors Broad Institute's cds-daintree custom splitter.
     """
+
     def __init__(self, n_splits: int = 3, random_state: int = 42):
         self.n_splits = n_splits
         self.random_state = random_state
@@ -132,6 +137,7 @@ class QuantileKFold:
 # Metrics + bootstrap
 # ---------------------------------------------------------------------------
 
+
 def _pearson_r(a: np.ndarray, b: np.ndarray) -> float:
     if np.std(a) < 1e-9 or np.std(b) < 1e-9:
         return 0.0
@@ -139,9 +145,7 @@ def _pearson_r(a: np.ndarray, b: np.ndarray) -> float:
     return 0.0 if not np.isfinite(r) else r
 
 
-def bootstrap_r2_ci(y_oof: np.ndarray, y_true: np.ndarray,
-                       n: int = BOOTSTRAP_N,
-                       seed: int = 42) -> tuple[float, float]:
+def bootstrap_r2_ci(y_oof: np.ndarray, y_true: np.ndarray, n: int = BOOTSTRAP_N, seed: int = 42) -> tuple[float, float]:
     """Bootstrap 95% CI on Pearson² r² over cell-line indices."""
     rng = np.random.default_rng(seed)
     n_samples = len(y_true)
@@ -159,14 +163,14 @@ def bootstrap_r2_ci(y_oof: np.ndarray, y_true: np.ndarray,
 # Per-fold pipeline: SelectKBest → RF + XGB → OOF predictions
 # ---------------------------------------------------------------------------
 
-def _train_dual_model_cv(X: np.ndarray, y: np.ndarray,
-                            feature_names: list,
-                            random_state: int = 42) -> dict:
+
+def _train_dual_model_cv(X: np.ndarray, y: np.ndarray, feature_names: list, random_state: int = 42) -> dict:
     """Run 3-fold QuantileKFold with per-fold KBest → RF + XGB. Return dict
     with y_oof arrays, aggregated SHAP means, and RF feature_importances_ means.
     """
     from sklearn.ensemble import RandomForestRegressor
     from sklearn.feature_selection import SelectKBest, f_regression
+
     n = len(y)
     y_oof_rf = np.full(n, np.nan, dtype=np.float32)
     y_oof_xgb = np.full(n, np.nan, dtype=np.float32)
@@ -184,17 +188,18 @@ def _train_dual_model_cv(X: np.ndarray, y: np.ndarray,
     # Lazy-import XGBoost + SHAP so import failures don't kill single-model runs
     try:
         from xgboost import XGBRegressor
+
         _has_xgb = True
     except ImportError:
         _has_xgb = False
     try:
         import shap
+
         _has_shap = True
     except ImportError:
         _has_shap = False
 
-    for train_idx, test_idx in QuantileKFold(n_splits=CV_N_SPLITS,
-                                                 random_state=random_state).split(X, y):
+    for train_idx, test_idx in QuantileKFold(n_splits=CV_N_SPLITS, random_state=random_state).split(X, y):
         # Per-fold feature selection (avoids leakage)
         kbest = SelectKBest(f_regression, k=k)
         kbest.fit(X[train_idx], y[train_idx])
@@ -205,8 +210,11 @@ def _train_dual_model_cv(X: np.ndarray, y: np.ndarray,
 
         # Fit RF
         rf = RandomForestRegressor(
-            n_estimators=100, max_depth=8, min_samples_leaf=5,
-            random_state=random_state, n_jobs=1,
+            n_estimators=100,
+            max_depth=8,
+            min_samples_leaf=5,
+            random_state=random_state,
+            n_jobs=1,
         )
         rf.fit(X_tr, y[train_idx])
         y_oof_rf[test_idx] = rf.predict(X_te)
@@ -232,8 +240,12 @@ def _train_dual_model_cv(X: np.ndarray, y: np.ndarray,
         if _has_xgb:
             try:
                 xgb = XGBRegressor(
-                    n_estimators=100, max_depth=6, learning_rate=0.1,
-                    random_state=random_state, n_jobs=1, verbosity=0,
+                    n_estimators=100,
+                    max_depth=6,
+                    learning_rate=0.1,
+                    random_state=random_state,
+                    n_jobs=1,
+                    verbosity=0,
                     objective="reg:squarederror",
                 )
                 xgb.fit(X_tr, y[train_idx])
@@ -284,11 +296,13 @@ def _top_features(names: list, ranks: np.ndarray, k: int = 10) -> list:
         if n in seen:
             continue
         seen.add(n)
-        out.append({
-            "feature": n,
-            "feature_class": feat.feature_class_of(n),
-            "importance": float(ranks[i]),
-        })
+        out.append(
+            {
+                "feature": n,
+                "feature_class": feat.feature_class_of(n),
+                "importance": float(ranks[i]),
+            }
+        )
     return out
 
 
@@ -311,10 +325,10 @@ def _classify(r2_rf: float, r2_rf_ci_lo: float, top_feature_class: str) -> tuple
 # Lineage-conditional companion
 # ---------------------------------------------------------------------------
 
-def _fit_lineage_conditional(X: np.ndarray, y: np.ndarray,
-                                 model_ids: list,
-                                 model_df: pd.DataFrame,
-                                 feature_names: list) -> list:
+
+def _fit_lineage_conditional(
+    X: np.ndarray, y: np.ndarray, model_ids: list, model_df: pd.DataFrame, feature_names: list
+) -> list:
     """For each large-enough lineage, refit RF within-lineage and report r² +
     top-3 features by RF importance. RF-only (no XGB / SHAP) to keep cost down.
     """
@@ -331,12 +345,14 @@ def _fit_lineage_conditional(X: np.ndarray, y: np.ndarray,
             r2, top = _lineage_fit(X[idx], y[idx], feature_names)
         except Exception:
             continue
-        results.append({
-            "lineage": lin,
-            "n_cell_lines": int(len(idx)),
-            "r2": float(r2),
-            "top_feature": top,
-        })
+        results.append(
+            {
+                "lineage": lin,
+                "n_cell_lines": int(len(idx)),
+                "r2": float(r2),
+                "top_feature": top,
+            }
+        )
     results.sort(key=lambda r: -r["r2"])
     return results
 
@@ -345,6 +361,7 @@ def _lineage_fit(X: np.ndarray, y: np.ndarray, feature_names: list) -> tuple[flo
     """RF-only 3-fold on a lineage subset. Return (r², top feature name)."""
     from sklearn.ensemble import RandomForestRegressor
     from sklearn.feature_selection import SelectKBest, f_regression
+
     y_oof = np.full(len(y), np.nan, dtype=np.float32)
     imp_sum = np.zeros(X.shape[1], dtype=np.float64)
     imp_count = np.zeros(X.shape[1], dtype=np.int32)
@@ -353,8 +370,7 @@ def _lineage_fit(X: np.ndarray, y: np.ndarray, feature_names: list) -> tuple[flo
         kbest = SelectKBest(f_regression, k=k)
         kbest.fit(X[tr], y[tr])
         sel = np.where(kbest.get_support())[0]
-        rf = RandomForestRegressor(n_estimators=50, max_depth=8, min_samples_leaf=5,
-                                       random_state=42, n_jobs=1)
+        rf = RandomForestRegressor(n_estimators=50, max_depth=8, min_samples_leaf=5, random_state=42, n_jobs=1)
         rf.fit(X[tr][:, sel], y[tr])
         y_oof[te] = rf.predict(X[te][:, sel])
         for i, src in enumerate(sel):
@@ -370,11 +386,11 @@ def _lineage_fit(X: np.ndarray, y: np.ndarray, feature_names: list) -> tuple[flo
 # Per-gene compute (the hot loop)
 # ---------------------------------------------------------------------------
 
+
 def train_gene(gene: str, omics: dict) -> Optional[dict]:
     """End-to-end per-gene v2 predictability record. Returns dict matching the
     v2 parquet schema, or None if gene lacks coverage."""
-    fm = feat.build_gene_feature_matrix(gene, omics,
-                                            min_cell_lines=MIN_CELL_LINES_PER_GENE)
+    fm = feat.build_gene_feature_matrix(gene, omics, min_cell_lines=MIN_CELL_LINES_PER_GENE)
     if fm is None:
         return None
     X, y, names, mids = fm["X"], fm["y"], fm["feature_names"], fm["model_ids"]
@@ -390,7 +406,8 @@ def train_gene(gene: str, omics: dict) -> Optional[dict]:
         r2_xgb = r_xgb * r_xgb
         r2_xgb_ci = bootstrap_r2_ci(trained["y_oof_xgb"], y)
     else:
-        r_xgb = float("nan"); r2_xgb = float("nan")
+        r_xgb = float("nan")
+        r2_xgb = float("nan")
         r2_xgb_ci = (float("nan"), float("nan"))
 
     # SHAP-ranked top features for RF (fall back to RF importances if SHAP absent)
@@ -404,9 +421,7 @@ def train_gene(gene: str, omics: dict) -> Optional[dict]:
 
     # Also attach the RF importance beside SHAP for parity/comparison
     for entry in top_rf:
-        entry["rf_importance"] = float(
-            trained["rf_importances_mean"][names.index(entry["feature"])]
-        )
+        entry["rf_importance"] = float(trained["rf_importances_mean"][names.index(entry["feature"])])
     for entry in top_xgb:
         entry["rf_importance"] = 0.0  # XGBoost has its own importances; we skip
 
@@ -449,43 +464,50 @@ def train_gene(gene: str, omics: dict) -> Optional[dict]:
 # Parquet writer
 # ---------------------------------------------------------------------------
 
+
 def write_parquet(records: list, out_path: Path) -> Path:
     import pyarrow as pa
     import pyarrow.parquet as pq
-    rows = sorted([r for r in records if r and "_error" not in r],
-                   key=lambda r: r["gene_symbol"])
 
-    top_struct = pa.struct([
-        pa.field("feature", pa.string()),
-        pa.field("feature_class", pa.string()),
-        pa.field("importance", pa.float32()),
-        pa.field("rf_importance", pa.float32()),
-    ])
-    lineage_struct = pa.struct([
-        pa.field("lineage", pa.string()),
-        pa.field("n_cell_lines", pa.int32()),
-        pa.field("r2", pa.float32()),
-        pa.field("top_feature", pa.string()),
-    ])
-    schema = pa.schema([
-        pa.field("gene_symbol", pa.string()),
-        pa.field("n_cell_lines_evaluated", pa.int32()),
-        pa.field("pearson_r_rf", pa.float32()),
-        pa.field("pearson_r_squared_rf", pa.float32()),
-        pa.field("pearson_r_squared_rf_ci_lo", pa.float32()),
-        pa.field("pearson_r_squared_rf_ci_hi", pa.float32()),
-        pa.field("pearson_r_xgb", pa.float32()),
-        pa.field("pearson_r_squared_xgb", pa.float32()),
-        pa.field("pearson_r_squared_xgb_ci_lo", pa.float32()),
-        pa.field("pearson_r_squared_xgb_ci_hi", pa.float32()),
-        pa.field("model_agreement", pa.string()),
-        pa.field("delta_r2", pa.float32()),
-        pa.field("top_features_rf_shap", pa.list_(top_struct)),
-        pa.field("top_features_xgb_shap", pa.list_(top_struct)),
-        pa.field("dominant_feature_class", pa.string()),
-        pa.field("predictability_class", pa.string()),
-        pa.field("per_lineage_predictability", pa.list_(lineage_struct)),
-    ])
+    rows = sorted([r for r in records if r and "_error" not in r], key=lambda r: r["gene_symbol"])
+
+    top_struct = pa.struct(
+        [
+            pa.field("feature", pa.string()),
+            pa.field("feature_class", pa.string()),
+            pa.field("importance", pa.float32()),
+            pa.field("rf_importance", pa.float32()),
+        ]
+    )
+    lineage_struct = pa.struct(
+        [
+            pa.field("lineage", pa.string()),
+            pa.field("n_cell_lines", pa.int32()),
+            pa.field("r2", pa.float32()),
+            pa.field("top_feature", pa.string()),
+        ]
+    )
+    schema = pa.schema(
+        [
+            pa.field("gene_symbol", pa.string()),
+            pa.field("n_cell_lines_evaluated", pa.int32()),
+            pa.field("pearson_r_rf", pa.float32()),
+            pa.field("pearson_r_squared_rf", pa.float32()),
+            pa.field("pearson_r_squared_rf_ci_lo", pa.float32()),
+            pa.field("pearson_r_squared_rf_ci_hi", pa.float32()),
+            pa.field("pearson_r_xgb", pa.float32()),
+            pa.field("pearson_r_squared_xgb", pa.float32()),
+            pa.field("pearson_r_squared_xgb_ci_lo", pa.float32()),
+            pa.field("pearson_r_squared_xgb_ci_hi", pa.float32()),
+            pa.field("model_agreement", pa.string()),
+            pa.field("delta_r2", pa.float32()),
+            pa.field("top_features_rf_shap", pa.list_(top_struct)),
+            pa.field("top_features_xgb_shap", pa.list_(top_struct)),
+            pa.field("dominant_feature_class", pa.string()),
+            pa.field("predictability_class", pa.string()),
+            pa.field("per_lineage_predictability", pa.list_(lineage_struct)),
+        ]
+    )
     columns = {name: [] for name in [f.name for f in schema]}
     for r in rows:
         for name in columns:
@@ -500,10 +522,14 @@ def write_parquet(records: list, out_path: Path) -> Path:
 # Gene-set selection (unchanged from v1)
 # ---------------------------------------------------------------------------
 
-def build_medium_gene_set(chronos_df: pd.DataFrame, model_df: pd.DataFrame,
-                            min_lines_per_lineage: int = 5,
-                            threshold: float = 0.3,
-                            priority_order: str = "selective") -> list:
+
+def build_medium_gene_set(
+    chronos_df: pd.DataFrame,
+    model_df: pd.DataFrame,
+    min_lines_per_lineage: int = 5,
+    threshold: float = 0.3,
+    priority_order: str = "selective",
+) -> list:
     """Select dependency-mappable genes and order them for the training queue.
 
     Selection: any OncotreeLineage (n_lines ≥ min_lines_per_lineage) has
@@ -545,12 +571,10 @@ def build_medium_gene_set(chronos_df: pd.DataFrame, model_df: pd.DataFrame,
         return []
     if priority_order == "selective":
         # Most-selective first: max_lineage(|median|) descending. Ties → alpha.
-        return sorted(gene_max_abs_median.keys(),
-                        key=lambda g: (-gene_max_abs_median[g], g))
+        return sorted(gene_max_abs_median.keys(), key=lambda g: (-gene_max_abs_median[g], g))
     if priority_order == "pan_cancer_median":
         pan_median = chronos_df.median(axis=0, skipna=True).abs()
-        return sorted(gene_max_abs_median.keys(),
-                        key=lambda g: (-float(pan_median.get(g, 0.0)), g))
+        return sorted(gene_max_abs_median.keys(), key=lambda g: (-float(pan_median.get(g, 0.0)), g))
     # 'alpha' fallback
     return sorted(gene_max_abs_median.keys())
 
@@ -571,6 +595,7 @@ def _worker_init_shm(handle):
     """
     global _WORKER_OMICS
     from . import shared_omics as _shm
+
     _WORKER_OMICS = _shm.attach_omics_from_shm(handle)
 
 
@@ -587,36 +612,62 @@ def _worker_train(gene: str) -> Optional[dict]:
 # CLI
 # ---------------------------------------------------------------------------
 
+
 @click.command()
 @click.option("--release-pin", default="26q1", show_default=True)
-@click.option("--gene-set", type=click.Choice(["smoke", "anchor", "medium", "genome", "explicit"]),
-              default="medium", show_default=True)
-@click.option("--gene-set-override", default=None,
-              help="Comma-separated HGNC symbols (used when --gene-set=explicit or "
-                    "appended to smoke).")
-@click.option("--out", required=True, type=click.Path(path_type=Path),
-              help="Output directory. Writes predictability_per_gene.parquet + "
-                    "checkpoints + run_manifest.json inside.")
+@click.option(
+    "--gene-set",
+    type=click.Choice(["smoke", "anchor", "medium", "genome", "explicit"]),
+    default="medium",
+    show_default=True,
+)
+@click.option(
+    "--gene-set-override",
+    default=None,
+    help="Comma-separated HGNC symbols (used when --gene-set=explicit or appended to smoke).",
+)
+@click.option(
+    "--out",
+    required=True,
+    type=click.Path(path_type=Path),
+    help="Output directory. Writes predictability_per_gene.parquet + checkpoints + run_manifest.json inside.",
+)
 @click.option("--workers", default=8, show_default=True, type=int)
-@click.option("--checkpoint-every", default=25, show_default=True, type=int,
-              help="Write a checkpoint parquet every N genes.")
+@click.option(
+    "--checkpoint-every", default=25, show_default=True, type=int, help="Write a checkpoint parquet every N genes."
+)
 @click.option("--min-lines-per-lineage", default=5, show_default=True, type=int)
 @click.option("--threshold", default=0.3, show_default=True, type=float)
-@click.option("--priority-order",
-              type=click.Choice(["selective", "pan_cancer_median", "alpha"]),
-              default="selective", show_default=True,
-              help="Gene training order. 'selective' = strongest lineage-selective "
-                    "dependencies first (recommended: banks the highest-value results "
-                    "earliest, so partial-run checkpoints are maximally useful). "
-                    "'pan_cancer_median' = largest |pan-cancer median| first. "
-                    "'alpha' = alphabetical (legacy).")
-@click.option("--resume/--no-resume", default=False,
-              help="If set, load the most-recent checkpoint parquet from --out and "
-                    "skip genes already computed. Enables restart-from-crash on the "
-                    "genome-wide multi-day batch.")
-def main(release_pin, gene_set, gene_set_override, out, workers,
-          checkpoint_every, min_lines_per_lineage, threshold, priority_order,
-          resume):
+@click.option(
+    "--priority-order",
+    type=click.Choice(["selective", "pan_cancer_median", "alpha"]),
+    default="selective",
+    show_default=True,
+    help="Gene training order. 'selective' = strongest lineage-selective "
+    "dependencies first (recommended: banks the highest-value results "
+    "earliest, so partial-run checkpoints are maximally useful). "
+    "'pan_cancer_median' = largest |pan-cancer median| first. "
+    "'alpha' = alphabetical (legacy).",
+)
+@click.option(
+    "--resume/--no-resume",
+    default=False,
+    help="If set, load the most-recent checkpoint parquet from --out and "
+    "skip genes already computed. Enables restart-from-crash on the "
+    "genome-wide multi-day batch.",
+)
+def main(
+    release_pin,
+    gene_set,
+    gene_set_override,
+    out,
+    workers,
+    checkpoint_every,
+    min_lines_per_lineage,
+    threshold,
+    priority_order,
+    resume,
+):
     out = Path(out)
     if out.suffix == ".parquet":
         parquet_path = out
@@ -637,9 +688,17 @@ def main(release_pin, gene_set, gene_set_override, out, workers,
     click.echo(f"  Arm-level CN: {omics['arm_level_cn'].shape}", err=True)
     click.echo(f"  OncoKB driver flags: {omics['driver_flags'].shape}", err=True)
     # v2.1 additions (may be None if a loader failed)
-    for key in ("fusion", "rppa", "ms_proteomics", "paralog_dep",
-                  "mol_signatures", "msi_status", "sv_matrix",
-                  "methylation", "metabolomics"):
+    for key in (
+        "fusion",
+        "rppa",
+        "ms_proteomics",
+        "paralog_dep",
+        "mol_signatures",
+        "msi_status",
+        "sv_matrix",
+        "methylation",
+        "metabolomics",
+    ):
         val = omics.get(key)
         if val is None:
             click.echo(f"  {key}: OMITTED (loader failed)", err=True)
@@ -647,8 +706,7 @@ def main(release_pin, gene_set, gene_set_override, out, workers,
             click.echo(f"  {key}: {val.shape}", err=True)
 
     # Gene set
-    ANCHOR_10 = ["KRAS", "BRAF", "EGFR", "PIK3CA", "TP53",
-                  "MYC", "MDM2", "MCL1", "CDK4", "WRN"]
+    ANCHOR_10 = ["KRAS", "BRAF", "EGFR", "PIK3CA", "TP53", "MYC", "MDM2", "MCL1", "CDK4", "WRN"]
     if gene_set == "smoke":
         genes = ["KRAS", "TP53", "MYC", "BRAF", "EGFR"]
         if gene_set_override:
@@ -669,8 +727,7 @@ def main(release_pin, gene_set, gene_set_override, out, workers,
         else:
             # Rank by max_lineage(|median Chronos|), NaN → 0. Same signal as
             # build_medium_gene_set but without the > threshold cut.
-            lineage_map = dict(zip(omics["model_df"]["ModelID"],
-                                     omics["model_df"]["OncotreeLineage"]))
+            lineage_map = dict(zip(omics["model_df"]["ModelID"], omics["model_df"]["OncotreeLineage"]))
             gene_score = {g: 0.0 for g in all_genes}
             lineage_groups: dict = {}
             for mid in omics["chronos"].index:
@@ -688,17 +745,19 @@ def main(release_pin, gene_set, gene_set_override, out, workers,
                             gene_score[gene] = a
             if priority_order == "pan_cancer_median":
                 pan_median = omics["chronos"].median(axis=0, skipna=True).abs()
-                genes = sorted(all_genes,
-                                 key=lambda g: (-float(pan_median.get(g, 0.0)), g))
+                genes = sorted(all_genes, key=lambda g: (-float(pan_median.get(g, 0.0)), g))
             else:  # 'selective' default
                 genes = sorted(all_genes, key=lambda g: (-gene_score.get(g, 0.0), g))
     else:  # medium
-        click.echo(f"Building medium-scope gene set "
-                    f"(any-lineage |median Chronos| > {threshold}, "
-                    f"priority={priority_order})...", err=True)
-        genes = build_medium_gene_set(omics["chronos"], omics["model_df"],
-                                          min_lines_per_lineage, threshold,
-                                          priority_order=priority_order)
+        click.echo(
+            f"Building medium-scope gene set "
+            f"(any-lineage |median Chronos| > {threshold}, "
+            f"priority={priority_order})...",
+            err=True,
+        )
+        genes = build_medium_gene_set(
+            omics["chronos"], omics["model_df"], min_lines_per_lineage, threshold, priority_order=priority_order
+        )
     click.echo(f"  Gene set size: {len(genes)}", err=True)
     if len(genes) > 0 and priority_order == "selective":
         click.echo(f"  Priority head (top 5 most-selective): {genes[:5]}", err=True)
@@ -713,6 +772,7 @@ def main(release_pin, gene_set, gene_set_override, out, workers,
     # === RESUME PATH: load newest checkpoint, drop already-computed genes ===
     if resume:
         import pyarrow.parquet as pq
+
         ckpts = sorted(out_dir.glob("checkpoint_*.parquet"))
         # Also consider the final parquet if a prior run finished writing it
         if parquet_path.exists():
@@ -722,8 +782,7 @@ def main(release_pin, gene_set, gene_set_override, out, workers,
             click.echo(f"Resume: loading {newest.name}", err=True)
             prev_df = pq.read_table(newest).to_pandas()
             already = set(prev_df["gene_symbol"].tolist())
-            click.echo(f"  {len(already)} genes already computed; skipping",
-                        err=True)
+            click.echo(f"  {len(already)} genes already computed; skipping", err=True)
             # Convert prior parquet rows back to record dicts for downstream write
             for _, prev_row in prev_df.iterrows():
                 rec = {}
@@ -744,16 +803,21 @@ def main(release_pin, gene_set, gene_set_override, out, workers,
     # of worker count. Replaces the previous pickle-per-worker pattern that
     # caused an instance OOM crash on 2026-07-02 with 16 workers × 5 GB each.
     from . import shared_omics as _shm
+
     click.echo("Publishing omics to shared memory...", err=True)
     omics_handle = _shm.publish_omics_to_shm(omics)
     # Drop our local reference to the DataFrames so the arrays we copied into
     # SHM are the only in-RAM copy on the coordinator; frees ~5 GB.
     del omics
-    import gc; gc.collect()
-    click.echo(f"  {len(omics_handle.frames)} matrices in SHM; "
-                 f"handle size ≈ {len(omics_handle.extras_pickle)//1024} KB extras + "
-                 f"{sum(len(f.index_pickle)+len(f.columns_pickle) for f in omics_handle.frames.values())//1024} KB labels",
-                 err=True)
+    import gc
+
+    gc.collect()
+    click.echo(
+        f"  {len(omics_handle.frames)} matrices in SHM; "
+        f"handle size ≈ {len(omics_handle.extras_pickle) // 1024} KB extras + "
+        f"{sum(len(f.index_pickle) + len(f.columns_pickle) for f in omics_handle.frames.values()) // 1024} KB labels",
+        err=True,
+    )
 
     try:
         if workers <= 1:
@@ -769,8 +833,7 @@ def main(release_pin, gene_set, gene_set_override, out, workers,
                     records.append(rec)
                 if (i + 1) % checkpoint_every == 0:
                     _write_checkpoint(records, out_dir, i + 1, len(genes), t_start)
-                    click.echo(f"  {i + 1}/{len(genes)} done "
-                                f"({time.time() - t_start:.1f}s elapsed)", err=True)
+                    click.echo(f"  {i + 1}/{len(genes)} done ({time.time() - t_start:.1f}s elapsed)", err=True)
         else:
             # Chunked submission bounds the executor's internal queue (submitting
             # all 18k futures eagerly caused a coordinator-death OOM in the
@@ -780,12 +843,13 @@ def main(release_pin, gene_set, gene_set_override, out, workers,
             # Workers now attach to SHM instead of unpickling — memory cost is
             # O(1) in worker count, so the 2026-07-02 16-worker OOM cannot recur.
             import multiprocessing as _mp
+
             ctx = _mp.get_context("spawn")
             chunk_size = max(workers * 4, checkpoint_every)
             total = len(genes)
             processed = 0
             for chunk_start in range(0, total, chunk_size):
-                chunk = genes[chunk_start:chunk_start + chunk_size]
+                chunk = genes[chunk_start : chunk_start + chunk_size]
                 with ProcessPoolExecutor(
                     max_workers=workers,
                     mp_context=ctx,
@@ -801,18 +865,19 @@ def main(release_pin, gene_set, gene_set_override, out, workers,
                             n_excluded += 1
                         elif "_error" in rec:
                             n_errored += 1
-                            click.echo(f"  [error] {futures[fut]}: {rec['_error']}",
-                                        err=True)
+                            click.echo(f"  [error] {futures[fut]}: {rec['_error']}", err=True)
                         else:
                             records.append(rec)
                         if processed % checkpoint_every == 0:
                             _write_checkpoint(records, out_dir, processed, total, t_start)
-                            click.echo(f"  {processed}/{total} done "
-                                        f"({time.time() - t_start:.1f}s elapsed, "
-                                        f"n_evaluated={len(records)}, "
-                                        f"n_excluded={n_excluded}, "
-                                        f"n_errored={n_errored})",
-                                        err=True)
+                            click.echo(
+                                f"  {processed}/{total} done "
+                                f"({time.time() - t_start:.1f}s elapsed, "
+                                f"n_evaluated={len(records)}, "
+                                f"n_excluded={n_excluded}, "
+                                f"n_errored={n_errored})",
+                                err=True,
+                            )
     finally:
         # Free the POSIX shared-memory segments. Idempotent; safe to call even
         # if workers have already exited or the coordinator is crashing.

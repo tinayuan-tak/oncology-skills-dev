@@ -5,6 +5,7 @@ chronos_by_model — so they cannot drift from the static figure or plot_data.pa
 (no S3 — synthetic input) pin: valid Plotly specs are written, and their series equal the input
 (the no-drift guarantee). Plotly is optional at emit time; if unavailable the method still emits SVGs.
 """
+
 from __future__ import annotations
 
 import base64
@@ -39,18 +40,24 @@ def _decode(v):
     plain float list so the no-drift check compares values, not serialization form."""
     if isinstance(v, dict) and "bdata" in v:
         import numpy as np
-        return np.frombuffer(base64.b64decode(v["bdata"]),
-                             dtype={"f8": "<f8", "f4": "<f4"}[v["dtype"]]).tolist()
+
+        return np.frombuffer(base64.b64decode(v["bdata"]), dtype={"f8": "<f8", "f4": "<f4"}[v["dtype"]]).tolist()
     return list(v)
 
 
 def _fixture():
     chronos = {f"ACH-{i:03d}": (-2.5 + i * 0.05) for i in range(60)}
-    meta = {f"ACH-{i:03d}": {"CellLineName": f"CL{i}",
-                             "OncotreeLineage": ["Bowel", "Lung", "Pancreas", "Skin"][i % 4]}
-            for i in range(60)}
-    summary = {"n_cell_lines_evaluated": 60, "median_chronos_panel": -0.4, "chronos_iqr": 0.8,
-               "fraction_strongly_dependent": 0.15, "distribution_shape": "bimodal"}
+    meta = {
+        f"ACH-{i:03d}": {"CellLineName": f"CL{i}", "OncotreeLineage": ["Bowel", "Lung", "Pancreas", "Skin"][i % 4]}
+        for i in range(60)
+    }
+    summary = {
+        "n_cell_lines_evaluated": 60,
+        "median_chronos_panel": -0.4,
+        "chronos_iqr": 0.8,
+        "fraction_strongly_dependent": 0.15,
+        "distribution_shape": "bimodal",
+    }
     return chronos, meta, summary
 
 
@@ -76,7 +83,7 @@ def test_no_drift_waterfall_and_histogram_series_match_input():
         out = Path(d)
         cli.emit_plotly_specs(chronos, meta, "KRAS", summary, out, CONTRACTS)
         wf = json.loads((out / "figure_waterfall.plotly.json").read_text())
-        assert _decode(wf["data"][0]["y"]) == expect          # bars sorted ascending
+        assert _decode(wf["data"][0]["y"]) == expect  # bars sorted ascending
         hist = json.loads((out / "figure_histogram_kde.plotly.json").read_text())
         assert sorted(_decode(hist["data"][0]["x"])) == expect  # raw scores, any order
 

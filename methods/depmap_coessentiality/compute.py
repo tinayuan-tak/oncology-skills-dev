@@ -21,6 +21,7 @@ Algorithm
    Both positive (co-essential) and negative (anti-correlated) partners are kept
    — the sign carries biological meaning.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -34,10 +35,10 @@ MIN_ABS_R_DEFAULT = 0.20
 def standardize(X: np.ndarray) -> np.ndarray:
     """Column-wise z-score with NaN mean-imputation. Returns float32 array."""
     X = X.astype(np.float32)
-    col_mean = np.nanmean(X, axis=0)          # (n_genes,)
-    X = X - col_mean[np.newaxis, :]           # center
-    X = np.where(np.isnan(X), 0.0, X)        # impute post-centering NaN → 0
-    col_std = np.std(X, axis=0, ddof=1)      # sample std → Z.T@Z/(n-1) == Pearson r
+    col_mean = np.nanmean(X, axis=0)  # (n_genes,)
+    X = X - col_mean[np.newaxis, :]  # center
+    X = np.where(np.isnan(X), 0.0, X)  # impute post-centering NaN → 0
+    col_std = np.std(X, axis=0, ddof=1)  # sample std → Z.T@Z/(n-1) == Pearson r
     nonzero = col_std > 0
     X[:, nonzero] = X[:, nonzero] / col_std[nonzero]
     return X
@@ -66,7 +67,7 @@ def top_k_neighbors(
 
     for i in range(n):
         r_row = corr[i].copy()
-        r_row[i] = 0.0                        # exclude self
+        r_row[i] = 0.0  # exclude self
         abs_r = np.abs(r_row)
         mask = (abs_r >= min_abs_r) & (np.arange(n) != i)  # belt + suspenders
         candidate_idx = np.where(mask)[0]
@@ -123,6 +124,7 @@ def build_edges_dataframe(
 def _strip_entrez(columns: list[str]) -> list[str]:
     """'KRAS (3845)' → 'KRAS'. Passthrough if no parens."""
     import re
+
     _re = re.compile(r'^"?([A-Za-z0-9._-]+)\s*\(\d+\)"?$')
     out = []
     for c in columns:

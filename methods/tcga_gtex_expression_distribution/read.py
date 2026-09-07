@@ -9,6 +9,7 @@ the full multi-GB file.
 INDICATION_TO_TCGA_STUDIES / INDICATION_TO_GTEX_TISSUE mirror the dge_deseq2 maps — the matched
 normal-tissue-of-origin per indication is the D2/D3 comparator.
 """
+
 from __future__ import annotations
 
 import threading
@@ -26,8 +27,9 @@ S3_BUCKET = "onc-compbio"
 # per symbol arise from ~14 known collisions (e.g. PAR-region genes) — the filter
 # uses an IN-list so all valid IDs are included and no true gene rows are dropped.
 _SYMBOL_TO_ENSEMBL_MAP: Optional[dict] = None
-ENSEMBL_ID_MAP_S3_KEY = (f"{bucket_prefix_for('ensembl-id-mapping-release-116-snapshot-2026-06-18')[1]}"
-                         "hsapiens_gene_id_map_release-116.tsv")
+ENSEMBL_ID_MAP_S3_KEY = (
+    f"{bucket_prefix_for('ensembl-id-mapping-release-116-snapshot-2026-06-18')[1]}hsapiens_gene_id_map_release-116.tsv"
+)
 
 
 def _symbol_to_ensembl_ids(symbol: str) -> Optional[list]:
@@ -39,11 +41,10 @@ def _symbol_to_ensembl_ids(symbol: str) -> Optional[list]:
             import boto3
             import io
             import pandas as pd
+
             s3 = boto3.Session(profile_name=DEFAULT_AWS_PROFILE).client("s3")
             body = s3.get_object(Bucket=S3_BUCKET, Key=ENSEMBL_ID_MAP_S3_KEY)["Body"].read()
-            df = pd.read_csv(io.BytesIO(body), sep="\t").dropna(
-                subset=["Gene stable ID", "HGNC symbol"]
-            )
+            df = pd.read_csv(io.BytesIO(body), sep="\t").dropna(subset=["Gene stable ID", "HGNC symbol"])
             rev: dict = {}
             for eid, sym in zip(df["Gene stable ID"], df["HGNC symbol"]):
                 rev.setdefault(sym, []).append(eid)
@@ -52,6 +53,8 @@ def _symbol_to_ensembl_ids(symbol: str) -> Optional[list]:
             _SYMBOL_TO_ENSEMBL_MAP = {}  # empty sentinel so we don't retry on every call
     ids = _SYMBOL_TO_ENSEMBL_MAP.get(symbol.upper().strip())
     return ids or None
+
+
 _, TCGA_LONG_KEY = bucket_key_for("tcga-tumor-tpm-recount3-long-v1")
 _, GTEX_LONG_KEY = bucket_key_for("gtex-tpm-recount3-long-v1")
 # SCLC is NOT a TCGA study (no TCGA-SCLC cohort). The George et al. 2015 patient cohort was
@@ -70,7 +73,7 @@ _, SCLC_LONG_KEY = bucket_key_for("sclc-george-tpm-long-v1")
 # NOT resolver-migrated: this is a COMPANION file of tcga-tumor-tpm-per-sample-v1, not that
 # manifest's s3_uri (which points at the matrix) nor a target_resolution sidecar (the manifest
 # declares target_resolution.not_applicable). No catalog_query helper reproduces it — kept hardcoded.
-TCGA_SIDECAR_KEY = ("data-catalog/derived/tcga-tumor-tpm-per-sample-v1/tcga_sample_study.parquet")
+TCGA_SIDECAR_KEY = "data-catalog/derived/tcga-tumor-tpm-per-sample-v1/tcga_sample_study.parquet"
 CACHE_DIR = Path.home() / ".cache" / "framework-tpm-long"
 _SIDECAR_CACHE = CACHE_DIR / "tcga_sample_study.parquet"
 
@@ -117,6 +120,7 @@ def _sweep_stale_cache_once() -> None:
     _STALE_CACHE_SWEPT = True
     _sweep_stale_cache(CACHE_DIR, _CACHE_ALLOWED_NAMES)
 
+
 # indication → the landed subgroup-assignment shard (tumor / case-barcode family).
 # ONLY COADREAD is materialized today (11 strata: MSI/MSS, sidedness, CMS1-4,
 # CIMP×3). The other 7 catalogued indications are defined-but-unbuilt — emitting
@@ -141,7 +145,7 @@ INDICATION_TO_TUMOR_ASSIGNMENT_MANIFEST = {
     "STAD": "tcga-subgroup-assignments-stad-v1",
     "GC": "tcga-subgroup-assignments-stad-v1",
     "NSCLC": "tcga-subgroup-assignments-nsclc-v1",
-    "LUAD": "tcga-subgroup-assignments-nsclc-v1",   # NSCLC shard carries the histology split (Adeno/SCC)
+    "LUAD": "tcga-subgroup-assignments-nsclc-v1",  # NSCLC shard carries the histology split (Adeno/SCC)
     "LUSC": "tcga-subgroup-assignments-nsclc-v1",
     "ESCA": "tcga-subgroup-assignments-esca-v1",
     "PAAD": "tcga-subgroup-assignments-paad-v1",
@@ -184,6 +188,7 @@ def _load_subtype_assignments(indication: str):
     schema (sample_id/stratum_id/is_member/...), so a plain row-concat is correct — no dedup needed."""
     from methods.subgroup_common.loaders import load_assignments
     import pandas as _pd
+
     key = indication.upper().strip()
     base_manifest = INDICATION_TO_TUMOR_ASSIGNMENT_MANIFEST.get(key)
     if base_manifest is None:
@@ -198,48 +203,93 @@ def _load_subtype_assignments(indication: str):
     merged = _pd.concat(frames, ignore_index=True) if len(frames) > 1 else frames[0]
     return merged, base_manifest
 
+
 # indication → recount3 TCGA study codes (mirrors dge_deseq2.read.INDICATION_TO_TCGA_STUDIES).
 INDICATION_TO_TCGA_STUDIES = {
-    "COADREAD": ["COAD", "READ"], "COAD": ["COAD"], "READ": ["READ"],
+    "COADREAD": ["COAD", "READ"],
+    "COAD": ["COAD"],
+    "READ": ["READ"],
     # NSCLC is the canonical (crosswalk) code for the lung-adeno+squamous union — its
     # subtype shard (INDICATION_TO_TUMOR_ASSIGNMENT_MANIFEST) already accepts it, but the
     # base study/tissue maps only had LUAD/LUSC, so an NSCLC query silently lost the tumor
     # axis (data_unavailable) while cell-line resolved. Map NSCLC → both lung studies
     # (crosswalk: NSCLC.tcga_studies = [TCGA-LUAD, TCGA-LUSC]).
     "NSCLC": ["LUAD", "LUSC"],
-    "LUAD": ["LUAD"], "LUSC": ["LUSC"], "BRCA": ["BRCA"], "PAAD": ["PAAD"], "PDAC": ["PAAD"],
-    "SKCM": ["SKCM"], "STAD": ["STAD"], "GC": ["STAD"], "PRAD": ["PRAD"], "OV": ["OV"],
-    "KIRC": ["KIRC"], "GBM": ["GBM"], "LGG": ["LGG"], "HNSC": ["HNSC"], "HNSCC": ["HNSC"],
-    "BLCA": ["BLCA"], "LIHC": ["LIHC"], "CESC": ["CESC"], "ESCA": ["ESCA"],
+    "LUAD": ["LUAD"],
+    "LUSC": ["LUSC"],
+    "BRCA": ["BRCA"],
+    "PAAD": ["PAAD"],
+    "PDAC": ["PAAD"],
+    "SKCM": ["SKCM"],
+    "STAD": ["STAD"],
+    "GC": ["STAD"],
+    "PRAD": ["PRAD"],
+    "OV": ["OV"],
+    "KIRC": ["KIRC"],
+    "GBM": ["GBM"],
+    "LGG": ["LGG"],
+    "HNSC": ["HNSC"],
+    "HNSCC": ["HNSC"],
+    "BLCA": ["BLCA"],
+    "LIHC": ["LIHC"],
+    "CESC": ["CESC"],
+    "ESCA": ["ESCA"],
     # Rare-cohort coverage (2026-08-19, A3): the recount3 substrate carries per-sample tumor + matched
     # GTEx normal for these 8 (verified n_tumor/n_normal live), so the per-sample percentile-crossing
     # card can answer them — the pooled aggregate selectivity card already did via dynamic manifest
     # resolution. Each has a clean single-tissue GTEx match (below). No subtype shard → not in the
     # subtype-assignment map (consistency invariant unaffected).
-    "ACC": ["ACC"], "KICH": ["KICH"], "KIRP": ["KIRP"], "PCPG": ["PCPG"],
-    "TGCT": ["TGCT"], "THCA": ["THCA"], "UCS": ["UCS"], "UCEC": ["UCEC"],
+    "ACC": ["ACC"],
+    "KICH": ["KICH"],
+    "KIRP": ["KIRP"],
+    "PCPG": ["PCPG"],
+    "TGCT": ["TGCT"],
+    "THCA": ["THCA"],
+    "UCS": ["UCS"],
+    "UCEC": ["UCEC"],
 }
 # NOTE: NSCLC/GC/HNSCC are canonical/alias codes the subtype-assignment map already accepts;
 # they are mirrored here (+ in INDICATION_TO_GTEX_TISSUE) so all three interpretation axes
 # resolve together. The map-consistency regression test enforces this invariant.
 # indication → matched GTEx normal tissue-of-origin (mirrors dge_deseq2.read.INDICATION_TO_GTEX_TISSUE).
 INDICATION_TO_GTEX_TISSUE = {
-    "COADREAD": "COLON", "COAD": "COLON", "READ": "COLON",
-    "NSCLC": "LUNG", "LUAD": "LUNG", "LUSC": "LUNG",
-    "BRCA": "BREAST", "PAAD": "PANCREAS", "PDAC": "PANCREAS", "SKCM": "SKIN",
-    "STAD": "STOMACH", "GC": "STOMACH", "PRAD": "PROSTATE", "OV": "OVARY", "KIRC": "KIDNEY",
-    "GBM": "BRAIN", "LGG": "BRAIN",
+    "COADREAD": "COLON",
+    "COAD": "COLON",
+    "READ": "COLON",
+    "NSCLC": "LUNG",
+    "LUAD": "LUNG",
+    "LUSC": "LUNG",
+    "BRCA": "BREAST",
+    "PAAD": "PANCREAS",
+    "PDAC": "PANCREAS",
+    "SKCM": "SKIN",
+    "STAD": "STOMACH",
+    "GC": "STOMACH",
+    "PRAD": "PROSTATE",
+    "OV": "OVARY",
+    "KIRC": "KIDNEY",
+    "GBM": "BRAIN",
+    "LGG": "BRAIN",
     # HNSC/HNSCC intentionally have NO entry: GTEx has no head-and-neck track, so they use the
     # squamous PROXY panel (INDICATION_TO_PROXY_NORMAL_TISSUES) — the documented "no true normal"
     # convention. (Were explicitly mapped to None, which read as "has an entry" and made the proxy
     # shadow a mislabeled matched channel. .get() returns None either way, so removal is behavior-
     # preserving for the sole consumer and restores lockstep with the proxy-map guard.)
-    "BLCA": "BLADDER", "LIHC": "LIVER", "CESC": "CERVIX_UTERI", "ESCA": "ESOPHAGUS",
+    "BLCA": "BLADDER",
+    "LIHC": "LIVER",
+    "CESC": "CERVIX_UTERI",
+    "ESCA": "ESOPHAGUS",
     # Rare-cohort matched-normal tissue (2026-08-19, A3) — verified live to resolve real GTEx normals:
     # adrenal (ACC/PCPG, 274), kidney (KICH/KIRP, 98), testis (TGCT, 410), thyroid (THCA, 706),
     # uterus (UCS/UCEC, 159). Kept in lockstep with INDICATION_TO_TCGA_STUDIES above.
-    "ACC": "ADRENAL_GLAND", "PCPG": "ADRENAL_GLAND", "KICH": "KIDNEY", "KIRP": "KIDNEY",
-    "TGCT": "TESTIS", "THCA": "THYROID", "UCS": "UTERUS", "UCEC": "UTERUS",
+    "ACC": "ADRENAL_GLAND",
+    "PCPG": "ADRENAL_GLAND",
+    "KICH": "KIDNEY",
+    "KIRP": "KIDNEY",
+    "TGCT": "TESTIS",
+    "THCA": "THYROID",
+    "UCS": "UTERUS",
+    "UCEC": "UTERUS",
 }
 
 # PROXY normal tissues — for indications with NO true GTEx tissue-of-origin (e.g. HNSC: GTEx has no
@@ -250,12 +300,22 @@ INDICATION_TO_GTEX_TISSUE = {
 # (non-keratinized stratified squamous, the closest architectural match) + skin (epidermal squamous)
 # + salivary gland (sub-site-specific). Each carries a rationale surfaced in the output.
 INDICATION_TO_PROXY_NORMAL_TISSUES = {
-    "HNSC":  [("ESOPHAGUS", "non-keratinized stratified squamous mucosa — closest architectural match to oral/pharyngeal epithelium"),
-              ("SKIN", "epidermal squamous epithelium — shared keratinocyte transcriptomic profile"),
-              ("SALIVARY_GLAND", "sub-site proxy for salivary-gland-origin H&N tumors")],
-    "HNSCC": [("ESOPHAGUS", "non-keratinized stratified squamous mucosa — closest architectural match to oral/pharyngeal epithelium"),
-              ("SKIN", "epidermal squamous epithelium — shared keratinocyte transcriptomic profile"),
-              ("SALIVARY_GLAND", "sub-site proxy for salivary-gland-origin H&N tumors")],
+    "HNSC": [
+        (
+            "ESOPHAGUS",
+            "non-keratinized stratified squamous mucosa — closest architectural match to oral/pharyngeal epithelium",
+        ),
+        ("SKIN", "epidermal squamous epithelium — shared keratinocyte transcriptomic profile"),
+        ("SALIVARY_GLAND", "sub-site proxy for salivary-gland-origin H&N tumors"),
+    ],
+    "HNSCC": [
+        (
+            "ESOPHAGUS",
+            "non-keratinized stratified squamous mucosa — closest architectural match to oral/pharyngeal epithelium",
+        ),
+        ("SKIN", "epidermal squamous epithelium — shared keratinocyte transcriptomic profile"),
+        ("SALIVARY_GLAND", "sub-site proxy for salivary-gland-origin H&N tumors"),
+    ],
 }
 
 
@@ -279,8 +339,7 @@ def _ensure_sidecar_cached() -> Optional[Path]:
         except Exception as e:  # noqa: BLE001
             resp = getattr(e, "response", None)
             code = resp.get("Error", {}).get("Code") if isinstance(resp, dict) else None
-            definitive = (code in ("404", "NoSuchKey")
-                          or e.__class__.__name__ in ("NoSuchKey", "404"))
+            definitive = code in ("404", "NoSuchKey") or e.__class__.__name__ in ("NoSuchKey", "404")
             if definitive:
                 _SIDECAR_STATUS = False
             return None
@@ -301,6 +360,7 @@ def _get_s3fs():
         with _S3FS_LOCK:
             if _S3FS is None:
                 import pyarrow.fs as fs
+
                 _S3FS = fs.S3FileSystem(region="us-east-1")
     return _S3FS
 
@@ -326,6 +386,7 @@ def _read_gene(which: str, target: str):
     concurrent herd for the same key blocks on ONE read. An empty DataFrame (gene genuinely absent)
     is a valid cached value — hence the `is not None` checks, never truthiness."""
     import os
+
     if os.environ.get("TCGA_GTEX_READ_CACHE") == "0":
         return _read_gene_uncached(which, target)
     key = (which, target.upper().strip())
@@ -335,7 +396,7 @@ def _read_gene(which: str, target: str):
     with _READ_GENE_GUARD:
         keylock = _READ_GENE_KEYLOCKS.setdefault(key, threading.Lock())
     with keylock:
-        hit = _READ_GENE_CACHE.get(key)      # another thread may have filled it while we waited
+        hit = _READ_GENE_CACHE.get(key)  # another thread may have filled it while we waited
         if hit is not None:
             return hit
         result = _read_gene_uncached(which, target)
@@ -386,6 +447,7 @@ def _read_gene_uncached(which: str, target: str):
         # transient-S3 (throttle/timeout) / creds error must NOT be masked as "gene not expressed" —
         # re-raise so the live-read seam surfaces _live_read_error instead of a silent dead axis.
         from methods.target_id_sidecar import is_definitively_absent
+
         if not (is_definitively_absent(e) or isinstance(e, FileNotFoundError)):
             raise
         return pd.DataFrame(columns=cols)
@@ -435,11 +497,13 @@ def _load_sidecar():
     """The UUID→barcode sidecar as a DataFrame (sample_id[UUID], submitter_id[barcode]),
     with a derived `case` column. Empty DataFrame if the sidecar is unavailable."""
     import pandas as pd
+
     path = _ensure_sidecar_cached()
     if path is None:
         return pd.DataFrame(columns=["sample_id", "submitter_id", "case"])
     try:
         import pyarrow.parquet as pq
+
         df = pq.read_table(str(path), columns=["sample_id", "submitter_id"]).to_pandas()
         df["case"] = df["submitter_id"].map(_tcga_case)
         return df
@@ -448,6 +512,7 @@ def _load_sidecar():
         # _ensure_sidecar_cached). Corrupt cache / broken env must surface — re-raise; only genuine
         # object-absence → empty sidecar.
         from methods.target_id_sidecar import is_definitively_absent
+
         if not (is_definitively_absent(e) or isinstance(e, FileNotFoundError)):
             raise
         return pd.DataFrame(columns=["sample_id", "submitter_id", "case"])
@@ -463,6 +528,7 @@ def read_tumor_samples_with_case(target: str, indication: str):
     (some recount3 UUIDs have no sidecar barcode / no stratum) is honest attrition,
     surfaced by the join-coverage guard in the stratified assembler."""
     import pandas as pd
+
     which, studies = _tumor_source(indication)
     df = _read_gene(which, target)
     if df.empty or not studies:
@@ -503,8 +569,7 @@ def read_all_normal_tissues(target: str) -> dict:
     df = _read_gene("gtex", target)
     if df.empty:
         return {}
-    return {t: sub["log2_tpm"].dropna().astype(float).tolist()
-            for t, sub in df.groupby("tissue")}
+    return {t: sub["log2_tpm"].dropna().astype(float).tolist() for t, sub in df.groupby("tissue")}
 
 
 def _distribution_summary(values: list) -> dict:
@@ -516,20 +581,24 @@ def _distribution_summary(values: list) -> dict:
     fracs = _stats.expression_fractions(values)
     out = {
         "n_tumor_samples": fn["n"],
-        "median_log2tpm": fn["median"], "p95_log2tpm": fn["p95"], "p99_log2tpm": fn["p99"],
-        "min_log2tpm": fn["min"], "max_log2tpm": fn["max"],
+        "median_log2tpm": fn["median"],
+        "p95_log2tpm": fn["p95"],
+        "p99_log2tpm": fn["p99"],
+        "min_log2tpm": fn["min"],
+        "max_log2tpm": fn["max"],
         "coefficient_of_variation": _stats.coefficient_of_variation(values),
         "distribution_pattern": _stats.distribution_pattern(values),
         **fracs,
     }
     out["tumor_expression_class"] = _classify_tumor_expression(
-        out["detectable_fraction"], out["high_fraction"], out["distribution_pattern"],
-        out.get("moderate_fraction"))
+        out["detectable_fraction"], out["high_fraction"], out["distribution_pattern"], out.get("moderate_fraction")
+    )
     return out
 
 
-def read_tumor_vs_normal_percentile_crossing(target: str, indication: str,
-                                             plot_data_out: "Optional[Path]" = None) -> dict:
+def read_tumor_vs_normal_percentile_crossing(
+    target: str, indication: str, plot_data_out: "Optional[Path]" = None
+) -> dict:
     """Q2 assembler: per-sample tumor-vs-matched-normal PERCENTILE-CROSSING selectivity for a
     (target, indication). The spec's headline enrichment metric — the fraction of tumors above the
     Nth percentile of matched-normal expression — computed on the directly-comparable per-sample
@@ -542,28 +611,42 @@ def read_tumor_vs_normal_percentile_crossing(target: str, indication: str,
     normal, tissue = read_normal_samples(target, indication)
     studies = INDICATION_TO_TCGA_STUDIES.get(indication.upper().strip(), [])
     if not tumor or not normal:
-        return {"selectivity_class": "data_unavailable",
-                "n_tumor_samples": len(tumor), "n_normal_samples": len(normal or []),
-                "matched_normal_tissue": tissue,
-                "fraction_tumor_above_normal_p95": None, "fraction_tumor_above_normal_p99": None,
-                "distribution_overlap_tumor_normal": None, "studies": studies,
-                "_data_note": ("no matched GTEx normal tissue for this indication" if not normal
-                               else "target absent from TCGA long product for this indication")}
-    out = {"n_tumor_samples": len(tumor), "n_normal_samples": len(normal),
-           "matched_normal_tissue": tissue, "studies": studies}
+        return {
+            "selectivity_class": "data_unavailable",
+            "n_tumor_samples": len(tumor),
+            "n_normal_samples": len(normal or []),
+            "matched_normal_tissue": tissue,
+            "fraction_tumor_above_normal_p95": None,
+            "fraction_tumor_above_normal_p99": None,
+            "distribution_overlap_tumor_normal": None,
+            "studies": studies,
+            "_data_note": (
+                "no matched GTEx normal tissue for this indication"
+                if not normal
+                else "target absent from TCGA long product for this indication"
+            ),
+        }
+    out = {
+        "n_tumor_samples": len(tumor),
+        "n_normal_samples": len(normal),
+        "matched_normal_tissue": tissue,
+        "studies": studies,
+    }
     for pct in (95, 99):
         fa = _stats.fraction_above_normal_percentile(tumor, normal, pct)
         out[f"fraction_tumor_above_normal_p{pct}"] = fa["fraction_tumor_above"]
         out[f"normal_p{pct}_log2tpm"] = fa["normal_pN"]
     out["distribution_overlap_tumor_normal"] = _stats.distribution_overlap(tumor, normal)
     out["selectivity_class"] = _classify_percentile_crossing(
-        out["fraction_tumor_above_normal_p95"], out["fraction_tumor_above_normal_p99"],
-        out["distribution_overlap_tumor_normal"])
+        out["fraction_tumor_above_normal_p95"],
+        out["fraction_tumor_above_normal_p99"],
+        out["distribution_overlap_tumor_normal"],
+    )
     if plot_data_out is not None:
         try:
             from . import cli as _cli
-            _cli.emit_plot_data(target, indication, Path(plot_data_out),
-                                presampled=(tumor, normal, tissue))
+
+            _cli.emit_plot_data(target, indication, Path(plot_data_out), presampled=(tumor, normal, tissue))
         except Exception:  # noqa: BLE001 — persistence best-effort; never break the verdict read
             pass
     return out
@@ -571,12 +654,12 @@ def read_tumor_vs_normal_percentile_crossing(target: str, indication: str,
 
 def _classify_percentile_crossing(frac_p95, frac_p99, overlap) -> str:
     """Categorical for the Q2 selectivity card/rules (per-sample percentile-crossing vocab):
-      strongly_tumor_enriched — most tumors clear the normal p95 AND distributions separate
-                                (frac_p95 >= 0.5 and overlap <= 0.4)
-      enriched_subset         — a real tumor-high subset above normal p95 (frac_p95 >= 0.25)
-      minimally_enriched      — few tumors exceed normal (frac_p95 < 0.25)
-      not_enriched            — essentially no separation (frac_p95 < 0.05)
-      data_unavailable        — handled by the caller."""
+    strongly_tumor_enriched — most tumors clear the normal p95 AND distributions separate
+                              (frac_p95 >= 0.5 and overlap <= 0.4)
+    enriched_subset         — a real tumor-high subset above normal p95 (frac_p95 >= 0.25)
+    minimally_enriched      — few tumors exceed normal (frac_p95 < 0.25)
+    not_enriched            — essentially no separation (frac_p95 < 0.05)
+    data_unavailable        — handled by the caller."""
     if frac_p95 is None:
         return "data_unavailable"
     if frac_p95 >= 0.5 and (overlap is not None and overlap <= 0.4):
@@ -588,8 +671,9 @@ def _classify_percentile_crossing(frac_p95, frac_p99, overlap) -> str:
     return "minimally_enriched"
 
 
-def read_normal_tissue_liability(target: str, indication: "Optional[str]" = None,
-                                 plot_data_out: "Optional[Path]" = None) -> dict:
+def read_normal_tissue_liability(
+    target: str, indication: "Optional[str]" = None, plot_data_out: "Optional[Path]" = None
+) -> dict:
     """Q3 assembler: normal-tissue-liability over the GTEx atlas (all tissues) for a target — the
     therapeutic-window / on-target-off-tumor question. Composes normal_tissue_liability over the
     per-tissue vectors from read_all_normal_tissues (recount3, same axis as the tumor TPM, so
@@ -599,33 +683,40 @@ def read_normal_tissue_liability(target: str, indication: "Optional[str]" = None
     (plot_data_normal_tissue_atlas.parquet) so the liability figure renders offline. Best-effort."""
     atlas = read_all_normal_tissues(target)
     if not atlas:
-        return {"liability_class": "data_unavailable", "n_tissues_tested": 0,
-                "highest_tissue": None, "critical_organ_max": None,
-                "_data_note": "target absent from GTEx long product"}
+        return {
+            "liability_class": "data_unavailable",
+            "n_tissues_tested": 0,
+            "highest_tissue": None,
+            "critical_organ_max": None,
+            "_data_note": "target absent from GTEx long product",
+        }
     if plot_data_out is not None:
         try:
             import pandas as pd
+
             Path(plot_data_out).mkdir(parents=True, exist_ok=True)
             rows = [{"tissue": t, "log2_tpm": float(v)} for t, vals in atlas.items() for v in vals]
             pd.DataFrame(rows, columns=["tissue", "log2_tpm"]).to_parquet(
-                Path(plot_data_out) / "plot_data_normal_tissue_atlas.parquet", index=False)
+                Path(plot_data_out) / "plot_data_normal_tissue_atlas.parquet", index=False
+            )
         except Exception:  # noqa: BLE001 — persistence best-effort; never break the verdict read
             pass
     summ = _stats.normal_tissue_liability(atlas)
     summ["liability_class"] = _classify_normal_liability(
-        summ["critical_organ_max"], summ["highest_tissue_median"], summ["tissue_breadth_fraction"])
+        summ["critical_organ_max"], summ["highest_tissue_median"], summ["tissue_breadth_fraction"]
+    )
     return summ
 
 
 def _classify_normal_liability(critical_organ_max, highest_median, breadth_fraction) -> str:
     """Categorical for the Q3 liability card/rules (therapeutic-window vocab):
-      critical_organ_liability — a CRITICAL organ carries high expression (>= HIGH cutoff):
-                                 on-target-off-tumor red flag regardless of tumor abundance
-      broadly_expressed_normal — detectable across most normal tissues (breadth >= 0.7):
-                                 narrow window (housekeeping-like)
-      restricted_normal        — expressed in few normal tissues (breadth < 0.3): favorable window
-      moderate_normal_breadth  — otherwise
-      data_unavailable         — handled by the caller."""
+    critical_organ_liability — a CRITICAL organ carries high expression (>= HIGH cutoff):
+                               on-target-off-tumor red flag regardless of tumor abundance
+    broadly_expressed_normal — detectable across most normal tissues (breadth >= 0.7):
+                               narrow window (housekeeping-like)
+    restricted_normal        — expressed in few normal tissues (breadth < 0.3): favorable window
+    moderate_normal_breadth  — otherwise
+    data_unavailable         — handled by the caller."""
     if breadth_fraction is None:
         return "data_unavailable"
     if critical_organ_max is not None and critical_organ_max >= _stats.HIGH_LOG2TPM:
@@ -646,11 +737,16 @@ def _tumor_allgene_percentile(target: str, studies: list) -> dict:
     data_unavailable-safe (any failure → None percentile)."""
     try:
         from methods.allgene_percentile_precompute.lookup import tumor_allgene_percentile
+
         ensembl_ids = _symbol_to_ensembl_ids(target) or []
         return tumor_allgene_percentile(ensembl_ids, studies)
     except Exception:  # noqa: BLE001 — enrichment best-effort
-        return {"allgene_percentile": None, "allgene_percentile_class": "data_unavailable",
-                "allgene_percentile_context": None, "allgene_percentile_by_study": {}}
+        return {
+            "allgene_percentile": None,
+            "allgene_percentile_class": "data_unavailable",
+            "allgene_percentile_context": None,
+            "allgene_percentile_by_study": {},
+        }
 
 
 def _tumor_control_position(target: str, indication: str) -> dict:
@@ -660,13 +756,13 @@ def _tumor_control_position(target: str, indication: str) -> dict:
     Additive/display — never flips tumor_expression_class. data_unavailable-safe."""
     try:
         from methods.tumor_presence_controls.read import control_position_tumor
+
         return control_position_tumor(target, indication)
     except Exception:  # noqa: BLE001 — enrichment best-effort
         return {"control_position_class": "data_unavailable"}
 
 
-def read_tumor_expression_distribution(target: str, indication: str,
-                                       plot_data_out: "Optional[Path]" = None) -> dict:
+def read_tumor_expression_distribution(target: str, indication: str, plot_data_out: "Optional[Path]" = None) -> dict:
     """Q1 assembler: the tumor per-sample distribution summary for a (target, indication).
     Composes the stats primitives into the spec's `tumor_expression` block. data_unavailable-safe.
 
@@ -677,25 +773,35 @@ def read_tumor_expression_distribution(target: str, indication: str,
     tumor = read_tumor_samples(target, indication)
     studies = INDICATION_TO_TCGA_STUDIES.get(indication.upper().strip(), [])
     if not tumor:
-        return {"tumor_expression_class": "data_unavailable",
-                "n_tumor_samples": 0, "distribution_pattern": None,
-                "coefficient_of_variation": None,
-                "detectable_fraction": None, "moderate_fraction": None, "high_fraction": None,
-                "allgene_percentile": None, "allgene_percentile_class": "data_unavailable",
-                "allgene_percentile_context": None,
-                "control_position_class": "data_unavailable",
-                "_data_note": "target absent from TCGA long product for this indication",
-                "studies": studies}
+        return {
+            "tumor_expression_class": "data_unavailable",
+            "n_tumor_samples": 0,
+            "distribution_pattern": None,
+            "coefficient_of_variation": None,
+            "detectable_fraction": None,
+            "moderate_fraction": None,
+            "high_fraction": None,
+            "allgene_percentile": None,
+            "allgene_percentile_class": "data_unavailable",
+            "allgene_percentile_context": None,
+            "control_position_class": "data_unavailable",
+            "_data_note": "target absent from TCGA long product for this indication",
+            "studies": studies,
+        }
     if plot_data_out is not None:
         try:
             normal, tissue = read_normal_samples(target, indication)
             from . import cli as _cli
-            _cli.emit_plot_data(target, indication, Path(plot_data_out),
-                                presampled=(tumor, normal, tissue))
+
+            _cli.emit_plot_data(target, indication, Path(plot_data_out), presampled=(tumor, normal, tissue))
         except Exception:  # noqa: BLE001 — persistence best-effort; never break the verdict read
             pass
-    return {**_distribution_summary(tumor), **_tumor_allgene_percentile(target, studies),
-            **_tumor_control_position(target, indication), "studies": studies}
+    return {
+        **_distribution_summary(tumor),
+        **_tumor_allgene_percentile(target, studies),
+        **_tumor_control_position(target, indication),
+        "studies": studies,
+    }
 
 
 # "Detected broadly" (TPM>=1 in >=70% of tumors) is only a broadly-EXPRESSED (tier-3 presence-positive)
@@ -710,8 +816,7 @@ def read_tumor_expression_distribution(target: str, indication: str,
 BROADLY_DETECTED_MODERATE_FRACTION_MIN = 0.5
 
 
-def _classify_tumor_expression(detectable_fraction, high_fraction, pattern,
-                               moderate_fraction=None) -> str:
+def _classify_tumor_expression(detectable_fraction, high_fraction, pattern, moderate_fraction=None) -> str:
     """Categorical for the card/rules (mirrors the DepMap distribution vocab, tumor-patient grain):
       broadly_high      — most tumors highly express (high_fraction >= 0.5, TPM≈50)
       broadly_detected  — most tumors detectable (TPM≥1 in >=0.7) AND moderately expressed
@@ -757,19 +862,22 @@ def _classify_tumor_expression(detectable_fraction, high_fraction, pattern,
 SUBTYPE_ENRICH_LOG2_DELTA = 0.585
 
 
-def _classify_subtype_signal(stratum_median, pooled_median, detectable_fraction,
-                             pooled_detectable) -> str:
+def _classify_subtype_signal(stratum_median, pooled_median, detectable_fraction, pooled_detectable) -> str:
     """Per-stratum categorical vs the indication's pooled distribution:
-      subtype_enriched   — stratum median >= pooled + SUBTYPE_ENRICH_LOG2_DELTA
-      subtype_restricted — detectable in this stratum but broadly absent pooled
-                           (stratum detectable >= 0.5 while pooled < 0.3)
-      subtype_depleted   — stratum median <= pooled - SUBTYPE_ENRICH_LOG2_DELTA
-      subtype_uniform    — within the band (no stratum-specific signal)
+    subtype_enriched   — stratum median >= pooled + SUBTYPE_ENRICH_LOG2_DELTA
+    subtype_restricted — detectable in this stratum but broadly absent pooled
+                         (stratum detectable >= 0.5 while pooled < 0.3)
+    subtype_depleted   — stratum median <= pooled - SUBTYPE_ENRICH_LOG2_DELTA
+    subtype_uniform    — within the band (no stratum-specific signal)
     """
     if stratum_median is None or pooled_median is None:
         return "subtype_uniform"
-    if (detectable_fraction is not None and pooled_detectable is not None
-            and detectable_fraction >= 0.5 and pooled_detectable < 0.3):
+    if (
+        detectable_fraction is not None
+        and pooled_detectable is not None
+        and detectable_fraction >= 0.5
+        and pooled_detectable < 0.3
+    ):
         return "subtype_restricted"
     if stratum_median >= pooled_median + SUBTYPE_ENRICH_LOG2_DELTA:
         return "subtype_enriched"
@@ -782,8 +890,7 @@ def _stratum_clears_window(rec: dict) -> bool:
     """Does this stratum clear its matched-normal OR any proxy p95 in >=50% of its tumors?"""
     if (rec.get("fraction_tumor_above_normal_p95") or 0) >= 0.5:
         return True
-    return any((pw.get("fraction_tumor_above_proxy_p95") or 0) >= 0.5
-               for pw in (rec.get("proxy_normal_windows") or []))
+    return any((pw.get("fraction_tumor_above_proxy_p95") or 0) >= 0.5 for pw in (rec.get("proxy_normal_windows") or []))
 
 
 def classify_subtype_stratification(landscape: list) -> str:
@@ -808,9 +915,9 @@ def classify_subtype_stratification(landscape: list) -> str:
     return "subtype_axis_unavailable"
 
 
-def read_tumor_expression_subtype_landscape(target: str, indication: str,
-                                            subtype: Optional[str] = None,
-                                            plot_data_out: "Optional[Path]" = None) -> dict:
+def read_tumor_expression_subtype_landscape(
+    target: str, indication: str, subtype: Optional[str] = None, plot_data_out: "Optional[Path]" = None
+) -> dict:
     """Subtype-stratified tumor expression for a (target, indication).
 
     COMPUTE-ALL: fans out over EVERY stratum of the indication's assignment shard,
@@ -828,19 +935,22 @@ def read_tumor_expression_subtype_landscape(target: str, indication: str,
       n_subtypes_enriched / n_subtypes_measured: rollup counts
     data_unavailable-safe: no shard → subtype_axis_available False + empty landscape.
     """
-    from methods.subgroup_common.panorama import (evidence_state as _evstate,
-                                                   axis_quality as _axis_quality,
-                                                   SUBGROUP_N_FLOOR as _SUBGROUP_N_FLOOR)
+    from methods.subgroup_common.panorama import (
+        evidence_state as _evstate,
+        axis_quality as _axis_quality,
+        SUBGROUP_N_FLOOR as _SUBGROUP_N_FLOOR,
+    )
     from methods.subgroup_common.scoping import compute_join_coverage
     from statistics import median as _median
+
     # Per-stratum tumor-PURITY annotation (ABSOLUTE, PanCanAtlas). Reused loader — same TCGA
     # case-barcode space as the strata. A subtype whose "enrichment" tracks LOW purity is a
     # stromal/microenvironment signal, not tumor-intrinsic; median_purity lets a consumer catch
     # that (esp. CMS4-mesenchymal / immune-high strata). Verdict-inert display annotation; a
     # purity-fetch failure degrades to None (never aborts the panorama).
     try:
-        from methods.expression_purity_confound.read import (_load_purity_by_case as _load_purity,
-                                                              _tcga_case as _to_case)
+        from methods.expression_purity_confound.read import _load_purity_by_case as _load_purity, _tcga_case as _to_case
+
         _purity_by_case = _load_purity()
     except Exception:  # noqa: BLE001 — additive display field; absence is honest, never fatal
         _purity_by_case, _to_case = {}, None
@@ -855,20 +965,36 @@ def read_tumor_expression_subtype_landscape(target: str, indication: str,
     except Exception as e:  # noqa: BLE001 — base shard itself unfetchable
         assignments, manifest = None, INDICATION_TO_TUMOR_ASSIGNMENT_MANIFEST.get(indication.upper().strip())
         if manifest is not None:
-            base.update({"subtype_axis_available": False, "subtype_axis_quality": "unavailable",
-                         "subtype_landscape": [],
-                         "n_subtypes_measured": 0, "n_subtypes_enriched": 0, "n_subtypes_restricted": 0,
-                         "subtype_stratification_class": "subtype_axis_unavailable",
-                         "_subtype_note": f"assignment shard unavailable: {type(e).__name__}"})
+            base.update(
+                {
+                    "subtype_axis_available": False,
+                    "subtype_axis_quality": "unavailable",
+                    "subtype_landscape": [],
+                    "n_subtypes_measured": 0,
+                    "n_subtypes_enriched": 0,
+                    "n_subtypes_restricted": 0,
+                    "subtype_stratification_class": "subtype_axis_unavailable",
+                    "_subtype_note": f"assignment shard unavailable: {type(e).__name__}",
+                }
+            )
             return base
     if manifest is None or pooled.get("tumor_expression_class") == "data_unavailable":
-        base.update({"subtype_axis_available": False, "subtype_axis_quality": "unavailable",
-                     "subtype_landscape": [],
-                     "n_subtypes_measured": 0, "n_subtypes_enriched": 0, "n_subtypes_restricted": 0,
-                     "subtype_stratification_class": "subtype_axis_unavailable",
-                     "_subtype_note": ("no landed tumor assignment shard for this indication"
-                                       if manifest is None
-                                       else "target absent — no per-subtype distribution")})
+        base.update(
+            {
+                "subtype_axis_available": False,
+                "subtype_axis_quality": "unavailable",
+                "subtype_landscape": [],
+                "n_subtypes_measured": 0,
+                "n_subtypes_enriched": 0,
+                "n_subtypes_restricted": 0,
+                "subtype_stratification_class": "subtype_axis_unavailable",
+                "_subtype_note": (
+                    "no landed tumor assignment shard for this indication"
+                    if manifest is None
+                    else "target absent — no per-subtype distribution"
+                ),
+            }
+        )
         return base
 
     bridged = read_tumor_samples_with_case(target, indication)  # DataFrame[case, log2_tpm]
@@ -889,21 +1015,21 @@ def read_tumor_expression_subtype_landscape(target: str, indication: str,
     # so the reader sees window-SENSITIVITY to proxy choice. Kept strictly OFF the matched-normal
     # channel: a proxy window is histologically-analogous, weaker evidence, explicitly labeled.
     proxy_specs = INDICATION_TO_PROXY_NORMAL_TISSUES.get(indication.upper().strip(), [])
-    proxy_normals = {}   # {tissue: (values, rationale)}
+    proxy_normals = {}  # {tissue: (values, rationale)}
     if not normal_vals and proxy_specs:
-        _all_tissues = read_all_normal_tissues(target)   # {tissue: [values]} one read, all tissues
+        _all_tissues = read_all_normal_tissues(target)  # {tissue: [values]} one read, all tissues
         for tissue, rationale in proxy_specs:
             vals_t = _all_tissues.get(tissue) or []
             if vals_t:
                 proxy_normals[tissue] = (vals_t, rationale)
 
     landscape = []
-    powered_vectors = {}       # {stratum_id: [log2tpm]} for POWERED strata — the omnibus input
-    powered_member_sets = {}   # {stratum_id: set(case)} — for per-axis intra-axis disjointness
+    powered_vectors = {}  # {stratum_id: [log2tpm]} for POWERED strata — the omnibus input
+    powered_member_sets = {}  # {stratum_id: set(case)} — for per-axis intra-axis disjointness
     for stratum_id in strata:
-        member_cases = set(assignments.loc[
-            (assignments["stratum_id"] == stratum_id) & (assignments["is_member"] == True),
-            "sample_id"])
+        member_cases = set(
+            assignments.loc[(assignments["stratum_id"] == stratum_id) & (assignments["is_member"] == True), "sample_id"]
+        )
         sub = bridged[bridged["case"].isin(member_cases)]
         vals = sub["log2_tpm"].tolist()
         n = len(vals)
@@ -916,27 +1042,45 @@ def read_tumor_expression_subtype_landscape(target: str, indication: str,
         state = _evstate(n, floor_met)
         # join-coverage guard: warns on the <5% id-convention-mismatch signature.
         cov = compute_join_coverage(bridged, "case", stratum_id, manifest, warn=True)
-        rec = {"stratum_id": stratum_id, "evidence_state": state,
-               "subgroup_n_floor_met": floor_met, "n_tumor_samples": n,
-               "match_rate": cov.match_rate}
+        rec = {
+            "stratum_id": stratum_id,
+            "evidence_state": state,
+            "subgroup_n_floor_met": floor_met,
+            "n_tumor_samples": n,
+            "match_rate": cov.match_rate,
+        }
         # per-stratum tumor purity (ABSOLUTE): median over member cases carrying a purity call.
         # Verdict-inert context — a low-purity stratum's expression enrichment may be stromal.
-        _strat_purities = ([_purity_by_case[_to_case(c)] for c in member_cases
-                            if _to_case(c) in _purity_by_case]
-                           if (_purity_by_case and _to_case is not None) else [])
+        _strat_purities = (
+            [_purity_by_case[_to_case(c)] for c in member_cases if _to_case(c) in _purity_by_case]
+            if (_purity_by_case and _to_case is not None)
+            else []
+        )
         rec["n_purity_paired"] = len(_strat_purities)
-        rec["median_purity"] = (round(float(_median(_strat_purities)), 4)
-                                if _strat_purities else None)
+        rec["median_purity"] = round(float(_median(_strat_purities)), 4) if _strat_purities else None
         if n > 0:
             summary = _distribution_summary(vals)
             # Option 1 (2026-08-04): project the FULL distribution block per stratum (was 5 fields) so
             # a per-subtype record has the same absolute-level depth as the pooled record — percentiles
             # + spread. _distribution_summary already computes these; this just stops dropping them.
-            rec.update({k: summary[k] for k in
-                        ("median_log2tpm", "p95_log2tpm", "p99_log2tpm", "min_log2tpm",
-                         "max_log2tpm", "coefficient_of_variation", "detectable_fraction",
-                         "high_fraction", "moderate_fraction", "distribution_pattern",
-                         "tumor_expression_class")})
+            rec.update(
+                {
+                    k: summary[k]
+                    for k in (
+                        "median_log2tpm",
+                        "p95_log2tpm",
+                        "p99_log2tpm",
+                        "min_log2tpm",
+                        "max_log2tpm",
+                        "coefficient_of_variation",
+                        "detectable_fraction",
+                        "high_fraction",
+                        "moderate_fraction",
+                        "distribution_pattern",
+                        "tumor_expression_class",
+                    )
+                }
+            )
             # Option 2 (2026-08-04): per-subtype matched-normal WINDOW — fraction of this subtype's
             # tumors clearing the (indication-wide) matched-normal Nth percentile. The decision-relevant
             # patient-selection signal, now answerable per subtype (was pooled-only). Null when the
@@ -948,10 +1092,15 @@ def read_tumor_expression_subtype_landscape(target: str, indication: str,
                     rec[f"normal_p{pct}_log2tpm"] = fa["normal_pN"]
                 rec["distribution_overlap_tumor_normal"] = _stats.distribution_overlap(vals, normal_vals)
             else:
-                rec.update({"fraction_tumor_above_normal_p95": None,
-                            "fraction_tumor_above_normal_p99": None,
-                            "normal_p95_log2tpm": None, "normal_p99_log2tpm": None,
-                            "distribution_overlap_tumor_normal": None})
+                rec.update(
+                    {
+                        "fraction_tumor_above_normal_p95": None,
+                        "fraction_tumor_above_normal_p99": None,
+                        "normal_p95_log2tpm": None,
+                        "normal_p99_log2tpm": None,
+                        "distribution_overlap_tumor_normal": None,
+                    }
+                )
             # PROXY window panel (labeled, never the matched channel). One entry per proxy tissue:
             # this subtype's tumors vs that proxy's p95/p99 + overlap. Empty list when a true normal
             # exists (proxies not needed) or none configured — the caller reads this as "proxy-only".
@@ -967,19 +1116,36 @@ def read_tumor_expression_subtype_landscape(target: str, indication: str,
             rec["proxy_normal_windows"] = proxy_windows
             # subtype signal is only trustworthy when the stratum clears the floor;
             # underpowered strata carry stats for context but a null signal.
-            rec["subtype_signal"] = (_classify_subtype_signal(
-                summary["median_log2tpm"], pooled_median,
-                summary["detectable_fraction"], pooled_detectable)
-                if floor_met else None)
+            rec["subtype_signal"] = (
+                _classify_subtype_signal(
+                    summary["median_log2tpm"], pooled_median, summary["detectable_fraction"], pooled_detectable
+                )
+                if floor_met
+                else None
+            )
         else:
-            rec.update({"median_log2tpm": None, "p95_log2tpm": None, "p99_log2tpm": None,
-                        "min_log2tpm": None, "max_log2tpm": None, "coefficient_of_variation": None,
-                        "detectable_fraction": None, "high_fraction": None, "moderate_fraction": None,
-                        "distribution_pattern": None, "tumor_expression_class": "data_unavailable",
-                        "fraction_tumor_above_normal_p95": None, "fraction_tumor_above_normal_p99": None,
-                        "normal_p95_log2tpm": None, "normal_p99_log2tpm": None,
-                        "distribution_overlap_tumor_normal": None, "proxy_normal_windows": [],
-                        "subtype_signal": None})
+            rec.update(
+                {
+                    "median_log2tpm": None,
+                    "p95_log2tpm": None,
+                    "p99_log2tpm": None,
+                    "min_log2tpm": None,
+                    "max_log2tpm": None,
+                    "coefficient_of_variation": None,
+                    "detectable_fraction": None,
+                    "high_fraction": None,
+                    "moderate_fraction": None,
+                    "distribution_pattern": None,
+                    "tumor_expression_class": "data_unavailable",
+                    "fraction_tumor_above_normal_p95": None,
+                    "fraction_tumor_above_normal_p99": None,
+                    "normal_p95_log2tpm": None,
+                    "normal_p99_log2tpm": None,
+                    "distribution_overlap_tumor_normal": None,
+                    "proxy_normal_windows": [],
+                    "subtype_signal": None,
+                }
+            )
         landscape.append(rec)
 
     n_measured = sum(1 for r in landscape if r["evidence_state"] == "measured")
@@ -987,10 +1153,15 @@ def read_tumor_expression_subtype_landscape(target: str, indication: str,
     # Rollup of the per-subtype WINDOW signal (Option 2): how many measured subtypes clear the
     # matched-normal p95 in a majority of their tumors (fraction_above >= 0.5) — the count of subtypes
     # with a real therapeutic window. None when there is no matched normal (window not computable).
-    n_window = (sum(1 for r in landscape
-                    if r["evidence_state"] == "measured"
-                    and (r.get("fraction_tumor_above_normal_p95") or 0) >= 0.5)
-                if normal_vals else None)
+    n_window = (
+        sum(
+            1
+            for r in landscape
+            if r["evidence_state"] == "measured" and (r.get("fraction_tumor_above_normal_p95") or 0) >= 0.5
+        )
+        if normal_vals
+        else None
+    )
     # Per-PROXY rollup (2026-08-04): the matched rollup above is a single count, but proxy windows are
     # MULTI-VALUED (one per proxy tissue) — a squamous-TF target can clear the salivary window in most
     # subtypes yet the skin window in few (the TP63/HNSC case). A single proxy count would over-simplify
@@ -1001,19 +1172,23 @@ def read_tumor_expression_subtype_landscape(target: str, indication: str,
         n_window_by_proxy = {}
         for tissue in proxy_normals:
             n_window_by_proxy[tissue] = sum(
-                1 for r in landscape if r["evidence_state"] == "measured"
-                and any((pw.get("proxy_tissue") == tissue
-                         and (pw.get("fraction_tumor_above_proxy_p95") or 0) >= 0.5)
-                        for pw in (r.get("proxy_normal_windows") or [])))
+                1
+                for r in landscape
+                if r["evidence_state"] == "measured"
+                and any(
+                    (pw.get("proxy_tissue") == tissue and (pw.get("fraction_tumor_above_proxy_p95") or 0) >= 0.5)
+                    for pw in (r.get("proxy_normal_windows") or [])
+                )
+            )
     # Comparator provenance: matched (true tissue-of-origin), proxy (histological analogue, weaker),
     # or none (neither available). Kept explicit so a consumer NEVER mistakes a proxy for a matched
     # normal — the window numbers mean different things and must be weighted differently.
-    comparator_type = ("matched" if normal_vals else
-                       "proxy" if proxy_normals else "none")
+    comparator_type = "matched" if normal_vals else "proxy" if proxy_normals else "none"
 
     # STRATIFICATION signal (2026-08-04) — graded patient-selection class for the biomarker facet.
-    n_restricted = sum(1 for r in landscape
-                       if r["evidence_state"] == "measured" and r.get("subtype_signal") == "subtype_restricted")
+    n_restricted = sum(
+        1 for r in landscape if r["evidence_state"] == "measured" and r.get("subtype_signal") == "subtype_restricted"
+    )
     subtype_stratification_class = classify_subtype_stratification(landscape)
 
     # ACROSS-SUBTYPE OMNIBUS (Phase 3, 2026-08-05) — Kruskal-Wallis H + ε² variance-explained
@@ -1033,27 +1208,41 @@ def read_tumor_expression_subtype_landscape(target: str, indication: str,
     # enrichment signal co-varies with tumor purity: if the "enriched" strata are systematically
     # LOWER purity, the enrichment is a stromal/microenvironment artefact, not tumor-intrinsic.
     # Verdict-inert context (like the omnibus). None when <2 measured strata carry a purity call.
-    _measured_purities = [r["median_purity"] for r in landscape
-                          if r["evidence_state"] == "measured" and r.get("median_purity") is not None]
-    subtype_purity_spread = ({"max_median_purity": max(_measured_purities),
-                              "min_median_purity": min(_measured_purities),
-                              "delta": round(max(_measured_purities) - min(_measured_purities), 4)}
-                             if len(_measured_purities) >= 2 else None)
+    _measured_purities = [
+        r["median_purity"]
+        for r in landscape
+        if r["evidence_state"] == "measured" and r.get("median_purity") is not None
+    ]
+    subtype_purity_spread = (
+        {
+            "max_median_purity": max(_measured_purities),
+            "min_median_purity": min(_measured_purities),
+            "delta": round(max(_measured_purities) - min(_measured_purities), 4),
+        }
+        if len(_measured_purities) >= 2
+        else None
+    )
 
-    base.update({"subtype_axis_available": True,
-                 "subtype_axis_quality": _axis_quality(landscape),
-                 "subtype_landscape": landscape,
-                 "purity_source": ("pancanatlas_absolute" if _purity_by_case else "unavailable"),
-                 "subtype_purity_spread": subtype_purity_spread,
-                 "assignment_manifest": manifest, "matched_normal_tissue": normal_tissue,
-                 "normal_comparator_type": comparator_type,
-                 "proxy_normal_tissues": sorted(proxy_normals.keys()) if proxy_normals else [],
-                 "n_subtypes_measured": n_measured, "n_subtypes_enriched": n_enriched,
-                 "n_subtypes_restricted": n_restricted,
-                 "subtype_stratification_class": subtype_stratification_class,
-                 "n_subtypes_clearing_normal_window": n_window,
-                 "n_subtypes_clearing_proxy_window_by_tissue": n_window_by_proxy,
-                 **omnibus})
+    base.update(
+        {
+            "subtype_axis_available": True,
+            "subtype_axis_quality": _axis_quality(landscape),
+            "subtype_landscape": landscape,
+            "purity_source": ("pancanatlas_absolute" if _purity_by_case else "unavailable"),
+            "subtype_purity_spread": subtype_purity_spread,
+            "assignment_manifest": manifest,
+            "matched_normal_tissue": normal_tissue,
+            "normal_comparator_type": comparator_type,
+            "proxy_normal_tissues": sorted(proxy_normals.keys()) if proxy_normals else [],
+            "n_subtypes_measured": n_measured,
+            "n_subtypes_enriched": n_enriched,
+            "n_subtypes_restricted": n_restricted,
+            "subtype_stratification_class": subtype_stratification_class,
+            "n_subtypes_clearing_normal_window": n_window,
+            "n_subtypes_clearing_proxy_window_by_tissue": n_window_by_proxy,
+            **omnibus,
+        }
+    )
 
     # Figure Stage 6: persist the per-stratum per-sample VALUES (the panel's substrate — the landscape
     # carries only summary stats) so the subtype figure renders offline. Long rows keyed by stratum_id;
@@ -1061,19 +1250,26 @@ def read_tumor_expression_subtype_landscape(target: str, indication: str,
     if plot_data_out is not None:
         try:
             import pandas as pd
+
             vals = read_tumor_subtype_values(target, indication)
             if vals.get("available") and vals.get("strata"):
                 rows = []
                 for s in vals["strata"]:
                     for v in s.get("values", []):
-                        rows.append({"stratum_id": str(s["stratum_id"]),
-                                     "subtype_signal": s.get("subtype_signal"), "log2_tpm": float(v)})
-                for v in (vals.get("pooled_values") or []):
+                        rows.append(
+                            {
+                                "stratum_id": str(s["stratum_id"]),
+                                "subtype_signal": s.get("subtype_signal"),
+                                "log2_tpm": float(v),
+                            }
+                        )
+                for v in vals.get("pooled_values") or []:
                     rows.append({"stratum_id": "__POOLED__", "subtype_signal": None, "log2_tpm": float(v)})
                 if rows:
                     Path(plot_data_out).mkdir(parents=True, exist_ok=True)
                     pd.DataFrame(rows, columns=["stratum_id", "subtype_signal", "log2_tpm"]).to_parquet(
-                        Path(plot_data_out) / "plot_data_subtype.parquet", index=False)
+                        Path(plot_data_out) / "plot_data_subtype.parquet", index=False
+                    )
         except Exception:  # noqa: BLE001 — persistence best-effort; never break the verdict read
             pass
     return base
@@ -1089,43 +1285,68 @@ def read_tumor_subtype_values(target: str, indication: str) -> dict:
        strata: [ {stratum_id, values: [..], subtype_signal, evidence_state,
                   subgroup_n_floor_met, n} ordered by median ], _note?: str}
     data_unavailable-safe (no shard / target absent → available False)."""
-    from methods.subgroup_common.panorama import (evidence_state as _evstate,
-                                                   SUBGROUP_N_FLOOR as _SUBGROUP_N_FLOOR)
+    from methods.subgroup_common.panorama import evidence_state as _evstate, SUBGROUP_N_FLOOR as _SUBGROUP_N_FLOOR
 
     pooled_vals = read_tumor_samples(target, indication)
     base_manifest = INDICATION_TO_TUMOR_ASSIGNMENT_MANIFEST.get(indication.upper().strip())
     if base_manifest is None or not pooled_vals:
-        return {"available": False, "pooled_values": pooled_vals or [], "pooled_median": None,
-                "strata": [], "_note": ("no landed tumor assignment shard for this indication"
-                                        if base_manifest is None else "target absent")}
+        return {
+            "available": False,
+            "pooled_values": pooled_vals or [],
+            "pooled_median": None,
+            "strata": [],
+            "_note": (
+                "no landed tumor assignment shard for this indication" if base_manifest is None else "target absent"
+            ),
+        }
     import statistics as _st
+
     pooled_median = _st.median(pooled_vals)
     bridged = read_tumor_samples_with_case(target, indication)
     # UNION of directly-tagged + maf-filter (genomic) strata — same helper as the landscape reader.
     try:
         assignments, manifest = _load_subtype_assignments(indication)
     except Exception as e:  # noqa: BLE001
-        return {"available": False, "pooled_values": pooled_vals, "pooled_median": pooled_median,
-                "strata": [], "_note": f"assignment shard unavailable: {type(e).__name__}"}
+        return {
+            "available": False,
+            "pooled_values": pooled_vals,
+            "pooled_median": pooled_median,
+            "strata": [],
+            "_note": f"assignment shard unavailable: {type(e).__name__}",
+        }
     pooled_detectable = _stats.expression_fractions(pooled_vals)["detectable_fraction"]
     strata_ids = sorted(assignments.loc[assignments["is_member"] == True, "stratum_id"].unique().tolist())
     rows = []
     for sid in strata_ids:
-        member_cases = set(assignments.loc[
-            (assignments["stratum_id"] == sid) & (assignments["is_member"] == True), "sample_id"])
+        member_cases = set(
+            assignments.loc[(assignments["stratum_id"] == sid) & (assignments["is_member"] == True), "sample_id"]
+        )
         vals = bridged[bridged["case"].isin(member_cases)]["log2_tpm"].tolist()
         n = len(vals)
         floor_met = n >= _SUBGROUP_N_FLOOR
         signal = None
         if n > 0 and floor_met:
             summ = _distribution_summary(vals)
-            signal = _classify_subtype_signal(summ["median_log2tpm"], pooled_median,
-                                              summ["detectable_fraction"], pooled_detectable)
-        rows.append({"stratum_id": sid, "values": vals, "subtype_signal": signal,
-                     "evidence_state": _evstate(n, floor_met),
-                     "subgroup_n_floor_met": floor_met, "n": n,
-                     "median": (_st.median(vals) if vals else None)})
+            signal = _classify_subtype_signal(
+                summ["median_log2tpm"], pooled_median, summ["detectable_fraction"], pooled_detectable
+            )
+        rows.append(
+            {
+                "stratum_id": sid,
+                "values": vals,
+                "subtype_signal": signal,
+                "evidence_state": _evstate(n, floor_met),
+                "subgroup_n_floor_met": floor_met,
+                "n": n,
+                "median": (_st.median(vals) if vals else None),
+            }
+        )
     # order by median (ascending) so the panel reads as a gradient; null medians last.
     rows.sort(key=lambda r: (r["median"] is None, r["median"] if r["median"] is not None else 0.0))
-    return {"available": True, "pooled_values": pooled_vals, "pooled_median": pooled_median,
-            "strata": rows, "assignment_manifest": manifest}
+    return {
+        "available": True,
+        "pooled_values": pooled_vals,
+        "pooled_median": pooled_median,
+        "strata": rows,
+        "assignment_manifest": manifest,
+    }

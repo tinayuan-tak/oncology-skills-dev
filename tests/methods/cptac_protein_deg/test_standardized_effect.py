@@ -4,6 +4,7 @@ large cohort with a small per-sample separation is indistinguishable from a genu
 _standardized_effect adds the variance-aware companion: exact logFC/SE when the (rebuilt) product carries
 SE, else a p-value z-score approximation, plus a sample-size-independent Cohen's d + class. Pure math.
 """
+
 from __future__ import annotations
 
 import math
@@ -26,7 +27,7 @@ def test_pvalue_approx_when_no_se():
     """No SE (pre-rebuild product) → recover |z| from the two-sided p; sign from the effect."""
     r = _standardized_effect(effect_size=0.5, p_value=0.05, se=None, n_tumor=100, n_normal=100)
     assert r["protein_effect_standardized_method"] == "pvalue_zscore_approx"
-    assert math.isclose(r["protein_effect_standardized_t"], 1.9600, abs_tol=1e-3)   # z_{0.975}
+    assert math.isclose(r["protein_effect_standardized_t"], 1.9600, abs_tol=1e-3)  # z_{0.975}
     assert r["protein_effect_size_se"] is None
 
 
@@ -67,7 +68,10 @@ def test_data_unavailable_paths():
 
 
 def test_nan_effect_and_p_floor():
-    assert _standardized_effect(float("nan"), 0.01, None, 10, 10)["protein_effect_standardized_method"] == "data_unavailable"
+    assert (
+        _standardized_effect(float("nan"), 0.01, None, 10, 10)["protein_effect_standardized_method"]
+        == "data_unavailable"
+    )
     # p == 0 must not blow up (floored) — yields a large finite t
     r = _standardized_effect(1.0, 0.0, None, 100, 100)
     assert r["protein_effect_standardized_t"] is not None and math.isfinite(r["protein_effect_standardized_t"])

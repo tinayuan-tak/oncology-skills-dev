@@ -46,6 +46,7 @@ def _log(msg: str) -> None:
     """Emit a fetch-progress line to stderr. Uses click if available, plain print otherwise."""
     try:
         import click
+
         click.echo(msg, err=True)
     except ImportError:
         print(msg, file=sys.stderr)
@@ -86,10 +87,7 @@ def _fetch_csv(
     try:
         import boto3
     except ImportError as e:
-        raise FileNotFoundError(
-            f"Cannot fetch {local_filename}: boto3 not installed and no local cache. "
-            f"Detail: {e}"
-        )
+        raise FileNotFoundError(f"Cannot fetch {local_filename}: boto3 not installed and no local cache. Detail: {e}")
 
     _log(f"  Fetching s3://{bucket}/{key}")
     s3 = boto3.client("s3")

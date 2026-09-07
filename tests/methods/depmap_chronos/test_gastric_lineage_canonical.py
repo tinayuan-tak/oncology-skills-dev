@@ -5,6 +5,7 @@ across the framework had forked "GC"/"STAD" -> "Stomach", so gastric within-line
 matched zero models. The two VERDICT-relevant readers now import the single-source canonical map from
 depmap_chronos.read; the display maps are corrected in place. An optional live leg confirms the value
 is a real Model.csv lineage."""
+
 from __future__ import annotations
 
 import sys
@@ -30,6 +31,7 @@ def test_verdict_readers_use_single_source_map():
     # both verdict-relevant readers import (not fork) the canonical map — literally the same object
     from methods.genomic_event_model_match import read as gemm
     from methods.patient_model_expression_correspondence import read as pmec
+
     assert gemm.INDICATION_TO_DEPMAP_LINEAGE is INDICATION_TO_DEPMAP_LINEAGE
     assert pmec.INDICATION_TO_DEPMAP_LINEAGE is INDICATION_TO_DEPMAP_LINEAGE
 
@@ -38,6 +40,7 @@ def test_display_maps_gastric_corrected():
     from methods.depmap_chronos.cli import INDICATION_LINEAGE as chronos_disp
     from methods.depmap_expression_distribution.cli import INDICATION_LINEAGE as expr_dist_disp
     from methods.depmap_protein_abundance.cli import INDICATION_LINEAGE as prot_disp
+
     assert chronos_disp["GC"] == "Esophagus/Stomach"
     assert expr_dist_disp["GC"] == "Esophagus/Stomach"
     assert expr_dist_disp["STAD"] == "Esophagus/Stomach"
@@ -49,6 +52,7 @@ def test_display_maps_gastric_corrected():
 def test_gastric_lineage_present_in_model_csv_live():
     # Optional live leg: the mapped lineage must be a real Model.csv OncotreeLineage.
     from methods.depmap_protein_abundance import cli as pa
+
     try:
         lin_by_model = pa.load_model_lineage()
     except Exception:  # noqa: BLE001 — no S3 / creds → skip (this leg is opportunistic)
@@ -57,4 +61,4 @@ def test_gastric_lineage_present_in_model_csv_live():
     if not lineages:
         pytest.skip("Model.csv unreachable (no S3)")
     assert INDICATION_TO_DEPMAP_LINEAGE["GC"] in lineages
-    assert "Stomach" not in lineages   # confirms the old value was genuinely bogus
+    assert "Stomach" not in lineages  # confirms the old value was genuinely bogus

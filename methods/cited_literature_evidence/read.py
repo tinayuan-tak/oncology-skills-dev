@@ -21,12 +21,13 @@ underlying readers/products; this reader only assembles + trims for display, the
 display-relevant fields to top level (so a card's `outputs.summary_fields` can name emitted top-level
 keys and the emission guard is satisfiable).
 """
+
 from __future__ import annotations
 
 from typing import Optional
 
 METHOD_VERSION = "0.1.0"
-CARD_VERSION = "0.2.0"          # preserved from the skills-side sibling this consolidates
+CARD_VERSION = "0.2.0"  # preserved from the skills-side sibling this consolidates
 DEFAULT_TOP_CITED = 8
 SOURCE = "cited-literature-evidence"  # composite; provider manifests carried in `sources`
 
@@ -38,7 +39,7 @@ def _looks_english(sentence) -> bool:
     s = str(sentence or "")
     letters = [c for c in s if c.isalpha()]
     if not letters:
-        return True   # no alphabetic content (e.g. all-numeric) — don't penalize
+        return True  # no alphabetic content (e.g. all-numeric) — don't penalize
     return sum(1 for c in letters if ord(c) < 128) / len(letters) >= 0.9
 
 
@@ -50,16 +51,24 @@ def _prefer_english(papers: list, k: int) -> list:
     return (eng + other)[:k]
 
 
-def build_cited_evidence_card(target: str, indication: str, epmc: Optional[dict],
-                              relations: Optional[dict], *, top_cited: int = DEFAULT_TOP_CITED) -> dict:
+def build_cited_evidence_card(
+    target: str, indication: str, epmc: Optional[dict], relations: Optional[dict], *, top_cited: int = DEFAULT_TOP_CITED
+) -> dict:
     """PURE (offline-testable): assemble the two reader outputs into the verdict-inert NESTED card.
     Either reader dict may be None (lane unavailable) or carry a non-'ok' status (absence/insufficient)
     — in which case that half is None and its note is recorded. NEVER raises on shape.
 
     Contract preserved verbatim from the former skills-side sibling so its tests stay green when the
     sibling delegates here."""
-    card = {"target": target, "indication": indication, "card_version": CARD_VERSION,
-            "verdict": None, "verdict_inert": True, "sources": {}, "notes": []}
+    card = {
+        "target": target,
+        "indication": indication,
+        "card_version": CARD_VERSION,
+        "verdict": None,
+        "verdict_inert": True,
+        "sources": {},
+        "notes": [],
+    }
 
     # --- OT europepmc cited evidence (co-occurrence; volume + recency + cited sentences)
     if isinstance(epmc, dict) and epmc.get("status") == "ok":
@@ -76,7 +85,7 @@ def build_cited_evidence_card(target: str, indication: str, epmc: Optional[dict]
             "latest_year": epmc.get("latest_year"),
             "top_cited": _prefer_english(list(epmc.get("top_papers") or []), top_cited),
             "_metric_note": "paper_disease_mentions/recent_mentions are summed over disease subtypes "
-                            "(mentions, not distinct papers); see n_diseases",
+            "(mentions, not distinct papers); see n_diseases",
         }
         card["sources"]["europepmc_evidence"] = epmc.get("source")
     else:
@@ -92,7 +101,7 @@ def build_cited_evidence_card(target: str, indication: str, epmc: Optional[dict]
             "indication_scope": relations.get("relation_scope") or relations.get("indication_scope"),
             "mesh_id_source": relations.get("mesh_id_source"),
             "total_publications": relations.get("total_publications"),
-            "relations": relations.get("relations"),   # per-type {relation_type, n_publications, pmids}
+            "relations": relations.get("relations"),  # per-type {relation_type, n_publications, pmids}
         }
         card["sources"]["pubtator_relations"] = relations.get("source")
     else:
@@ -120,23 +129,24 @@ def _flatten_for_card(card: dict) -> dict:
     rel = card.get("relation_direction") or {}
     relations = rel.get("relations") or []
     return {
-        "cited_evidence_status":       card.get("status"),
-        "literature_scope":            lit.get("indication_scope"),
-        "paper_disease_mentions":      lit.get("paper_disease_mentions"),
-        "recent_mentions":             lit.get("recent_mentions"),
-        "n_diseases":                  lit.get("n_diseases"),
-        "earliest_year":               lit.get("earliest_year"),
-        "latest_year":                 lit.get("latest_year"),
-        "top_cited":                   lit.get("top_cited") or [],
+        "cited_evidence_status": card.get("status"),
+        "literature_scope": lit.get("indication_scope"),
+        "paper_disease_mentions": lit.get("paper_disease_mentions"),
+        "recent_mentions": lit.get("recent_mentions"),
+        "n_diseases": lit.get("n_diseases"),
+        "earliest_year": lit.get("earliest_year"),
+        "latest_year": lit.get("latest_year"),
+        "top_cited": lit.get("top_cited") or [],
         # relation DIRECTION summary — the typed-relation labels present (associate/cause/…), ordered by
         # publication support, plus the total. NOT vocabulary-pinned (PubTator BioREx owns the labels).
-        "relation_types":              [r.get("relation_type") for r in relations],
+        "relation_types": [r.get("relation_type") for r in relations],
         "total_relation_publications": rel.get("total_publications"),
     }
 
 
-def read_cited_literature_evidence(target: str, indication: str, modality: Optional[str] = None,
-                                   *, top_cited: int = DEFAULT_TOP_CITED) -> dict:
+def read_cited_literature_evidence(
+    target: str, indication: str, modality: Optional[str] = None, *, top_cited: int = DEFAULT_TOP_CITED
+) -> dict:
     """CARD ENTRYPOINT (generic-dispatch signature fn(target=, indication=)): best-effort compose the
     two analysis-methods readers into the verdict-inert card, FLATTENED for the card contract. Each
     reader is imported + called defensively; an unavailable lane simply contributes None. `modality` is
@@ -144,9 +154,12 @@ def read_cited_literature_evidence(target: str, indication: str, modality: Optio
     card = _compose_nested(target, indication, top_cited=top_cited)
     flat = _flatten_for_card(card)
     return {
-        "target": target, "indication": indication,
-        "method_version": METHOD_VERSION, "source": SOURCE,
-        "verdict": None, "verdict_inert": True,
+        "target": target,
+        "indication": indication,
+        "method_version": METHOD_VERSION,
+        "source": SOURCE,
+        "verdict": None,
+        "verdict_inert": True,
         **flat,
         # retained detail (not summary_fields): the human/LLM display layer reads these
         "literature_evidence": card.get("literature_evidence"),
@@ -163,11 +176,13 @@ def _compose_nested(target: str, indication: str, *, top_cited: int = DEFAULT_TO
     epmc = relations = None
     try:
         from methods.opentargets_europepmc_evidence.read import read_europepmc_evidence
+
         epmc = read_europepmc_evidence(target, indication)
     except Exception:  # noqa: BLE001 — best-effort; missing method/product must not break the card
         epmc = None
     try:
         from methods.pubtator3_gene_disease_relations.read import read_gene_disease_relations
+
         relations = read_gene_disease_relations(target, indication)
     except Exception:  # noqa: BLE001
         relations = None
@@ -181,13 +196,19 @@ cited_evidence = _compose_nested
 def _main(argv=None):
     import argparse
     import json
+
     ap = argparse.ArgumentParser(description="Verdict-inert gene×indication cited-literature card (flattened).")
     ap.add_argument("--target", required=True)
     ap.add_argument("--indication", required=True)
     ap.add_argument("--top-cited", type=int, default=DEFAULT_TOP_CITED)
     args = ap.parse_args(argv)
-    print(json.dumps(read_cited_literature_evidence(args.target, args.indication, top_cited=args.top_cited),
-                     indent=2, default=str))
+    print(
+        json.dumps(
+            read_cited_literature_evidence(args.target, args.indication, top_cited=args.top_cited),
+            indent=2,
+            default=str,
+        )
+    )
 
 
 if __name__ == "__main__":

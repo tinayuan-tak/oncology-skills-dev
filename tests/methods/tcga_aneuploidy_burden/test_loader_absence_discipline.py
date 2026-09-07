@@ -4,6 +4,7 @@ mask it as an empty result -- while a GENUINE NoSuchKey/404 still yields today's
 absence), unchanged. Representative of the six loaders fixed in #361 (all read directly via
 _s3_read_bytes -> is_definitively_absent(+FileNotFoundError) discipline).
 """
+
 from __future__ import annotations
 
 import sys
@@ -26,6 +27,7 @@ def _nosuchkey():
 def _raise(exc):
     def f(*a, **k):
         raise exc
+
     return f
 
 
@@ -40,7 +42,7 @@ def test_load_absolute_transient_reraises(monkeypatch):
 def test_load_absolute_genuine_absence_returns_empty(monkeypatch):
     anu._load_absolute.cache_clear()
     monkeypatch.setattr(anu, "_s3_read_bytes", _raise(_nosuchkey()))
-    assert anu._load_absolute().empty          # genuine 404 -> honest empty (unchanged)
+    assert anu._load_absolute().empty  # genuine 404 -> honest empty (unchanged)
     anu._load_absolute.cache_clear()
 
 

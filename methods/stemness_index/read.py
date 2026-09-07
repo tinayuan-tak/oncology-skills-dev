@@ -6,6 +6,7 @@ Composite indications (COADREAD/NSCLC) pool member studies sample-weighted.
 
 Target-INDEPENDENT cohort context (tier: indication). Verdict-INERT: no resolver rung.
 """
+
 from __future__ import annotations
 
 from typing import Optional
@@ -24,7 +25,10 @@ def _resolve_derived_uri() -> str:
     never a parallel hand-typed copy that can drift on a re-emit.
     """
     from methods.catalog_query.read import s3_uri_for
+
     return s3_uri_for(DERIVED_MANIFEST_ID)
+
+
 _ALIASES = _cli.INDICATION_TO_STUDIES
 
 
@@ -33,6 +37,7 @@ from methods.target_id_sidecar import ensure_aws_profile
 
 def _load_product():
     from methods.derived_product import load_materialized_product
+
     ensure_aws_profile()
     # dev fallback (slow: rescores from source) if the materialized product is unreachable
     return load_materialized_product(_resolve_derived_uri(), dev_build=_cli.build_per_indication_table)
@@ -45,21 +50,23 @@ def read_stemness_index(target: Optional[str] = None, indication: Optional[str] 
     target-independent). data_unavailable when the indication is absent.
     """
     if not indication:
-        return {"stemness_class": "data_unavailable",
-                "_note": "indication required (per-indication cohort facet)."}
+        return {"stemness_class": "data_unavailable", "_note": "indication required (per-indication cohort facet)."}
     df = _load_product()
     codes = _ALIASES.get(indication.upper(), [indication.upper()])
     sub = df[df["indication"].isin(codes)]
     if sub.empty:
-        return {"stemness_class": "data_unavailable", "indication": indication,
-                "_note": f"{indication} (codes {codes}) not in the stemness product."}
+        return {
+            "stemness_class": "data_unavailable",
+            "indication": indication,
+            "_note": f"{indication} (codes {codes}) not in the stemness product.",
+        }
     n = int(sub["n_samples"].sum())
     med = float((sub["median_mrnasi"] * sub["n_samples"]).sum() / n) if n else 0.0
     pan_q3 = float(sub["pan_cancer_q3_mrnasi"].iloc[0])
     pan_med = float(sub["pan_cancer_median_mrnasi"].iloc[0])
-    cls = ("stem_high" if med >= pan_q3 else "stem_low" if med < pan_med else "stem_intermediate")
+    cls = "stem_high" if med >= pan_q3 else "stem_low" if med < pan_med else "stem_intermediate"
     return {
-        "stemness_class": cls,                       # PRIMARY (relative to pan-cancer distribution)
+        "stemness_class": cls,  # PRIMARY (relative to pan-cancer distribution)
         "indication": indication,
         "median_mrnasi": round(med, 4),
         "pan_cancer_median_mrnasi": round(pan_med, 4),

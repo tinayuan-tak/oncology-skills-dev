@@ -20,6 +20,7 @@ streams the 33 per-tissue SpliceSeq files once.
 
 METHOD_VERSION 0.1.0.
 """
+
 from __future__ import annotations
 
 METHOD_VERSION = "0.1.0"

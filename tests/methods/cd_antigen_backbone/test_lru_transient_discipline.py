@@ -4,6 +4,7 @@ breadcrumb, but the lru memoized the empty roster process-wide — so one transi
 target to "roster unreadable" for the whole process. The transient path must now RAISE (not
 memoized); a genuine object-absence (S3 404/NoSuchKey or a missing local members.json) still → {}.
 """
+
 from __future__ import annotations
 
 import sys
@@ -36,6 +37,7 @@ class _Body:
 def test_transient_raises_not_cached(monkeypatch):
     import boto3
     import json
+
     calls = {"n": 0}
 
     class _Client:
@@ -48,7 +50,7 @@ def test_transient_raises_not_cached(monkeypatch):
     monkeypatch.setattr(boto3, "client", lambda *a, **k: _Client())
     with pytest.raises(RuntimeError):
         R._load_roster()
-    roster = R._load_roster()      # NOT memoized: retry succeeds
+    roster = R._load_roster()  # NOT memoized: retry succeeds
     assert "CD19" in roster
 
 

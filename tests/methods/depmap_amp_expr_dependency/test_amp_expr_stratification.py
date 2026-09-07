@@ -8,6 +8,7 @@ conjunction gates correctly (amplified-but-low-expr and high-expr-but-not-amplif
 the positive arm); too few conjoint lines → insufficient_amp_expr_rate. The one-sided test guarantees the
 conjunction is never credited with a dependency it lacks.
 """
+
 from __future__ import annotations
 
 import sys
@@ -18,12 +19,22 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from methods.depmap_amp_expr_dependency.cli import (  # noqa: E402
-    compute_amp_expr_stratification, FOCAL_AMP_HIGH,
+    compute_amp_expr_stratification,
+    FOCAL_AMP_HIGH,
 )
 
 
-def _panel(conjoint_chronos, other_chronos, *, amp_cn=3.0, neut_cn=1.0, high_tpm=9.0, low_tpm=1.0,
-           decoy_amp_lowexpr=0, decoy_highexpr_neut=0):
+def _panel(
+    conjoint_chronos,
+    other_chronos,
+    *,
+    amp_cn=3.0,
+    neut_cn=1.0,
+    high_tpm=9.0,
+    low_tpm=1.0,
+    decoy_amp_lowexpr=0,
+    decoy_highexpr_neut=0,
+):
     """Build (chronos, cn, tpm) dicts.
 
     - conjoint_chronos: lines that are amplified (amp_cn) AND high-expr (high_tpm).
@@ -36,19 +47,36 @@ def _panel(conjoint_chronos, other_chronos, *, amp_cn=3.0, neut_cn=1.0, high_tpm
     chronos, cn, tpm = {}, {}, {}
     i = 0
     for c in conjoint_chronos:
-        m = f"ACH-{i:05d}"; chronos[m] = c; cn[m] = amp_cn; tpm[m] = high_tpm; i += 1
+        m = f"ACH-{i:05d}"
+        chronos[m] = c
+        cn[m] = amp_cn
+        tpm[m] = high_tpm
+        i += 1
     for c in other_chronos:
-        m = f"ACH-{i:05d}"; chronos[m] = c; cn[m] = neut_cn; tpm[m] = low_tpm; i += 1
+        m = f"ACH-{i:05d}"
+        chronos[m] = c
+        cn[m] = neut_cn
+        tpm[m] = low_tpm
+        i += 1
     for _ in range(decoy_amp_lowexpr):
-        m = f"ACH-{i:05d}"; chronos[m] = 0.0; cn[m] = amp_cn; tpm[m] = low_tpm; i += 1
+        m = f"ACH-{i:05d}"
+        chronos[m] = 0.0
+        cn[m] = amp_cn
+        tpm[m] = low_tpm
+        i += 1
     for _ in range(decoy_highexpr_neut):
-        m = f"ACH-{i:05d}"; chronos[m] = 0.0; cn[m] = neut_cn; tpm[m] = high_tpm; i += 1
+        m = f"ACH-{i:05d}"
+        chronos[m] = 0.0
+        cn[m] = neut_cn
+        tpm[m] = high_tpm
+        i += 1
     return chronos, cn, tpm
 
 
 def test_amplified_overexpressed_strongly_dependent():
     """Conjoint lines deeply dependent (~-1.2), rest ~0 → delta <= -0.5 + significant → strongly (KRAS live)."""
     import random
+
     rng = random.Random(0)
     conj = [-1.2 + rng.uniform(-0.1, 0.1) for _ in range(40)]
     other = [-0.05 + rng.uniform(-0.1, 0.1) for _ in range(300)]
@@ -63,6 +91,7 @@ def test_amplified_overexpressed_strongly_dependent():
 def test_moderate_tier():
     """A modest but real separation (delta ~ -0.3) → moderately (ERBB2/MYC live)."""
     import random
+
     rng = random.Random(2)
     conj = [-0.35 + rng.uniform(-0.08, 0.08) for _ in range(50)]
     other = [-0.02 + rng.uniform(-0.08, 0.08) for _ in range(300)]
@@ -75,6 +104,7 @@ def test_moderate_tier():
 def test_not_stratified_when_no_separation():
     """Conjoint + rest both near 0 → not_amp_expr_stratified (MET-live: amplified but not amp-addicted)."""
     import random
+
     rng = random.Random(1)
     conj = [-0.02 + rng.uniform(-0.08, 0.08) for _ in range(40)]
     other = [0.0 + rng.uniform(-0.08, 0.08) for _ in range(300)]
@@ -89,6 +119,7 @@ def test_conjunction_gates_decoys_out():
     decoys (all decoys near-0 chronos), the positive arm must be exactly the 40 conjoint lines (decoys
     would blunt the delta if they leaked in)."""
     import random
+
     rng = random.Random(3)
     conj = [-1.0 + rng.uniform(-0.08, 0.08) for _ in range(40)]
     other = [-0.03 + rng.uniform(-0.08, 0.08) for _ in range(200)]
@@ -115,13 +146,16 @@ def test_negative_more_dependent_never_mislabeled():
     classes must NOT fire. With the second-pass reverse test (gap #4) this strong inverse now correctly
     surfaces as `amp_expr_negative_more_dependent` (verdict-inert)."""
     import random
+
     rng = random.Random(4)
     conj = [-0.02 + rng.uniform(-0.08, 0.08) for _ in range(40)]
     other = [-0.6 + rng.uniform(-0.1, 0.1) for _ in range(300)]
     chronos, cn, tpm = _panel(conj, other)
     s = compute_amp_expr_stratification(chronos, cn, tpm)
-    assert s["amp_expr_stratification_class"] not in ("amplified_overexpressed_strongly_dependent",
-                                                      "amplified_overexpressed_moderately_dependent")
+    assert s["amp_expr_stratification_class"] not in (
+        "amplified_overexpressed_strongly_dependent",
+        "amplified_overexpressed_moderately_dependent",
+    )
     assert s["amp_expr_stratification_class"] == "amp_expr_negative_more_dependent"
     assert s["amp_expr_mannwhitney_q_reverse"] < 0.05
     assert s["delta_chronos_amp_expr_vs_rest"] > 0

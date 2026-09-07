@@ -40,6 +40,7 @@ a scaffolding-dependence proxy → those cases now return `indeterminate` (hones
 overrides (RIPK1/STAT3/BRD4/…) remain authoritative; the non-catalytic-class → `removal_favored`
 call is retained (a genuine no-pocket rationale).
 """
+
 from __future__ import annotations
 
 import os
@@ -48,22 +49,33 @@ from pathlib import Path
 from typing import Optional
 
 DEFAULT_TARGET_CONTRACTS = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT",
-                   "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
+    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+)
 VOCAB_RELPATH = "vocabularies/domain_modality_targets.yaml"
 
 METHOD_VERSION = "0.2.0"
 
 # protein_class values that are fundamentally CATALYTIC (a catalytic-site inhibitor has a target).
 _ENZYME_CLASSES = {
-    "kinase", "protease", "hydrolase", "transferase", "oxidoreductase",
-    "lyase", "ligase", "isomerase",
+    "kinase",
+    "protease",
+    "hydrolase",
+    "transferase",
+    "oxidoreductase",
+    "lyase",
+    "ligase",
+    "isomerase",
 }
 # protein_class values with NO catalytic pocket — function is binding/scaffolding/regulatory, so
 # catalytic inhibition is not the lever; removal (degrader/glue) is the natural modality.
 _NONCATALYTIC_CLASSES = {
-    "transcription_factor", "chromatin_regulator", "cell_adhesion",
-    "receptor", "chaperone", "growth_factor", "cytokine",
+    "transcription_factor",
+    "chromatin_regulator",
+    "cell_adhesion",
+    "receptor",
+    "chaperone",
+    "growth_factor",
+    "cytokine",
 }
 
 
@@ -71,6 +83,7 @@ _NONCATALYTIC_CLASSES = {
 def _load_vocab(target_contracts_dir: str = None) -> dict:
     """Load the curated domain→modality vocabulary (entries keyed by HGNC symbol). {} on failure."""
     import yaml
+
     path = Path(target_contracts_dir or DEFAULT_TARGET_CONTRACTS) / VOCAB_RELPATH
     try:
         data = yaml.safe_load(path.read_text()) or {}
@@ -84,8 +97,10 @@ def _uniprot_features(target: str) -> dict:
     Returns {} on any failure (heuristic then yields data_unavailable)."""
     try:
         import sys as _sys
+
         _sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
         from methods.uniprot_protein_features.read import read_target_summary
+
         return read_target_summary(target) or {}
     except Exception:  # noqa: BLE001
         return {}
@@ -97,8 +112,7 @@ def _as_list(v):
     return list(v) if isinstance(v, (list, tuple)) else [v]
 
 
-def _heuristic_class(protein_class: list, features_class: Optional[str], n_domains: int,
-                     has_any_domain: bool) -> str:
+def _heuristic_class(protein_class: list, features_class: Optional[str], n_domains: int, has_any_domain: bool) -> str:
     """Class-driven modality implication for a NON-curated target.
 
     - a catalytic class present + single clean domain architecture → inhibitor_sufficient
@@ -131,8 +145,12 @@ def _heuristic_class(protein_class: list, features_class: Optional[str], n_domai
     return "data_unavailable"
 
 
-def domain_modality_for_gene(target: str, target_contracts_dir: Optional[str] = None,
-                             features: Optional[dict] = None, vocab: Optional[dict] = None) -> dict:
+def domain_modality_for_gene(
+    target: str,
+    target_contracts_dir: Optional[str] = None,
+    features: Optional[dict] = None,
+    vocab: Optional[dict] = None,
+) -> dict:
     """Per-target domain→modality implication. Curated override > class-driven heuristic.
 
     `features` / `vocab` may be injected for tests; production reads uniprot_protein_features +
@@ -145,8 +163,9 @@ def domain_modality_for_gene(target: str, target_contracts_dir: Optional[str] = 
     protein_class = _as_list(feats.get("protein_class"))
     n_domains = int(feats.get("n_domains") or 0)
     interpro_n = int(feats.get("interpro_n_domains") or 0)
-    has_any_domain = n_domains > 0 or interpro_n > 0 or bool(feats.get("protein_features_class")
-                                                             not in (None, "data_unavailable"))
+    has_any_domain = (
+        n_domains > 0 or interpro_n > 0 or bool(feats.get("protein_features_class") not in (None, "data_unavailable"))
+    )
 
     if curated is not None:
         klass = curated.get("preferred_mechanism", "context_dependent")
@@ -162,15 +181,13 @@ def domain_modality_for_gene(target: str, target_contracts_dir: Optional[str] = 
             "method_version": METHOD_VERSION,
         }
 
-    klass = _heuristic_class(protein_class, feats.get("protein_features_class"), n_domains,
-                             has_any_domain)
+    klass = _heuristic_class(protein_class, feats.get("protein_features_class"), n_domains, has_any_domain)
     return {
         "modality_implication_class": klass,
         "modality_implication_basis": "heuristic" if klass != "data_unavailable" else "none",
-        "scaffolding_function": None,   # heuristic does NOT assert scaffolding (curated-only claim)
+        "scaffolding_function": None,  # heuristic does NOT assert scaffolding (curated-only claim)
         "protein_class": protein_class,
-        "functional_domains": _as_list(feats.get("domain_names")) or _as_list(
-            feats.get("interpro_domain_names")),
+        "functional_domains": _as_list(feats.get("domain_names")) or _as_list(feats.get("interpro_domain_names")),
         "n_domains": n_domains,
         "modality_context": _heuristic_context(sym, klass, protein_class, n_domains),
         "method_version": METHOD_VERSION,
@@ -180,18 +197,24 @@ def domain_modality_for_gene(target: str, target_contracts_dir: Optional[str] = 
 def _heuristic_context(sym: str, klass: str, protein_class: list, n_domains: int) -> Optional[str]:
     pc = ", ".join(protein_class) if protein_class else "no mapped class"
     if klass == "inhibitor_sufficient":
-        return (f"{sym}: single-domain {pc} — catalytic-site inhibition is the natural modality "
-                f"(no curated scaffolding caveat). Class-driven heuristic; verify for known "
-                f"kinase-independent functions.")
+        return (
+            f"{sym}: single-domain {pc} — catalytic-site inhibition is the natural modality "
+            f"(no curated scaffolding caveat). Class-driven heuristic; verify for known "
+            f"kinase-independent functions."
+        )
     if klass == "removal_favored":
-        return (f"{sym}: {pc}{' (multi-domain)' if n_domains >= 2 else ''} — no catalytic pocket to "
-                f"inhibit; removal (degrader) is the natural lever. Class-driven heuristic; not a "
-                f"curated scaffolding claim.")
+        return (
+            f"{sym}: {pc}{' (multi-domain)' if n_domains >= 2 else ''} — no catalytic pocket to "
+            f"inhibit; removal (degrader) is the natural lever. Class-driven heuristic; not a "
+            f"curated scaffolding claim."
+        )
     if klass == "indeterminate":
-        return (f"{sym}: {pc}{' (multi-domain)' if n_domains >= 2 else ''} — domain architecture "
-                f"alone cannot call inhibitor-vs-removal (domain count is not a scaffolding-dependence "
-                f"proxy; many multi-domain enzymes are strong inhibitor targets). No curated entry; "
-                f"treat modality as OPEN pending mechanism review.")
+        return (
+            f"{sym}: {pc}{' (multi-domain)' if n_domains >= 2 else ''} — domain architecture "
+            f"alone cannot call inhibitor-vs-removal (domain count is not a scaffolding-dependence "
+            f"proxy; many multi-domain enzymes are strong inhibitor targets). No curated entry; "
+            f"treat modality as OPEN pending mechanism review."
+        )
     if klass == "data_unavailable":
         return None
     return f"{sym}: {klass} (class-driven heuristic)."

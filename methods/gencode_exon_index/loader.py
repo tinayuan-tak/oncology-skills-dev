@@ -11,6 +11,7 @@ The md5 pin below MUST be kept in sync with the manifest at
 in the data-catalog repo. If they drift, the loader fails fast
 rather than returning drifted data.
 """
+
 from __future__ import annotations
 
 import os
@@ -28,10 +29,7 @@ S3_BUCKET, S3_KEY_PARQUET = bucket_key_for(DERIVED_MANIFEST_ID)
 _, _GTF_PREFIX = bucket_prefix_for(GTF_SOURCE_MANIFEST_ID)
 S3_KEY_GTF = f"{_GTF_PREFIX}gencode.v26.primary_assembly.annotation.gtf.gz"
 
-CACHE_DIR = Path(
-    os.environ.get("FRAMEWORK_GENCODE_CACHE_DIR",
-                   str(Path.home() / ".cache" / "framework-gencode-v26"))
-)
+CACHE_DIR = Path(os.environ.get("FRAMEWORK_GENCODE_CACHE_DIR", str(Path.home() / ".cache" / "framework-gencode-v26")))
 CACHE_FILE = CACHE_DIR / "exon_index_v26.parquet"
 
 # md5 pin — filled in from `md5sum exon_index_v26.parquet` at manifest-authoring
@@ -44,6 +42,7 @@ S3_MD5_GTF = "2c4494f53b61a8f0ef8b36d1900fa49d"
 
 def _md5_of_file(path: Path) -> str:
     import hashlib
+
     h = hashlib.md5(usedforsecurity=False)
     with path.open("rb") as f:
         for chunk in iter(lambda: f.read(1 << 20), b""):
@@ -55,6 +54,7 @@ def _try_s3_fetch(s3_key: str, local_path: Path, expected_md5: str) -> bool:
     """S3 → local with md5 verification. Silent-failure on any error."""
     try:
         import boto3
+
         os.environ.setdefault("AWS_PROFILE", "cbg")
         s3 = boto3.client("s3")
         local_path.parent.mkdir(parents=True, exist_ok=True)
@@ -64,10 +64,7 @@ def _try_s3_fetch(s3_key: str, local_path: Path, expected_md5: str) -> bool:
         return False
     actual = _md5_of_file(local_path)
     if actual != expected_md5:
-        print(
-            f"[exon_index] md5 mismatch for {s3_key}: "
-            f"expected {expected_md5}, got {actual}. Removing local copy."
-        )
+        print(f"[exon_index] md5 mismatch for {s3_key}: expected {expected_md5}, got {actual}. Removing local copy.")
         try:
             local_path.unlink()
         except Exception:
@@ -96,10 +93,7 @@ def load_exon_index(refresh: bool = False):
         actual = _md5_of_file(CACHE_FILE)
         if actual == S3_MD5_PARQUET:
             return pd.read_parquet(CACHE_FILE)
-        print(
-            f"[exon_index] local parquet md5 mismatch ({actual} vs "
-            f"{S3_MD5_PARQUET}); refetching."
-        )
+        print(f"[exon_index] local parquet md5 mismatch ({actual} vs {S3_MD5_PARQUET}); refetching.")
         CACHE_FILE.unlink()
 
     CACHE_DIR.mkdir(parents=True, exist_ok=True)

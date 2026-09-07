@@ -13,6 +13,7 @@ to the immune-context summary (median CD8 T-cell fraction across POOLED samples 
 Credential discipline: AWS_PROFILE=cbg. Manifest ID → bucket/key via catalog_query.
 Reuses the canonical dge_deseq2 INDICATION_TO_TCGA_STUDIES map (no new indication map).
 """
+
 from __future__ import annotations
 
 import threading
@@ -53,6 +54,7 @@ def _get_s3fs():
         with _S3FS_LOCK:
             if _S3FS is None:
                 import pyarrow.fs as pafs
+
                 _S3FS = pafs.S3FileSystem(region="us-east-1")
     return _S3FS
 
@@ -63,6 +65,7 @@ def _read_samples_for_studies(studies, product_path=None):
     a local parquet bypasses S3. Returns None on a GENUINE product-object absence (404); RAISES on a
     transient/creds/broken-env failure (never masked as a false immune-cold)."""
     import pyarrow.parquet as pq
+
     flt = [("cancer_type", "in", list(studies))]
     try:
         if product_path is not None:
@@ -72,9 +75,10 @@ def _read_samples_for_studies(studies, product_path=None):
             tbl = pq.read_table(f"{bucket}/{key}", filesystem=_get_s3fs(), filters=flt)
     except Exception as e:  # noqa: BLE001
         from methods.target_id_sidecar import is_definitively_absent
+
         if isinstance(e, FileNotFoundError) or is_definitively_absent(e):
-            return None   # genuine no-object → honest data_unavailable at the caller
-        raise             # transient/creds → propagate (live-read seam records the real cause)
+            return None  # genuine no-object → honest data_unavailable at the caller
+        raise  # transient/creds → propagate (live-read seam records the real cause)
     return tbl.to_pandas()
 
 
@@ -86,14 +90,20 @@ def read_immune_context(indication: str, product_path=None) -> dict:
     ind = str(indication).upper().strip()
     studies = INDICATION_TO_TCGA_STUDIES.get(ind)
     if not studies:
-        return {**_classify.summarize_immune_context([]),
-                "indication": ind, "tumor_studies": None,
-                "_data_note": f"indication {ind} has no TCGA study mapping (immune context is TCGA-based)"}
+        return {
+            **_classify.summarize_immune_context([]),
+            "indication": ind,
+            "tumor_studies": None,
+            "_data_note": f"indication {ind} has no TCGA study mapping (immune context is TCGA-based)",
+        }
     df = _read_samples_for_studies(studies, product_path=product_path)
     if df is None:
-        return {**_classify.summarize_immune_context([]),
-                "indication": ind, "tumor_studies": studies,
-                "_data_note": "CIBERSORT product unreadable (pancanatlas-cibersort-lm22-per-sample-v1)"}
+        return {
+            **_classify.summarize_immune_context([]),
+            "indication": ind,
+            "tumor_studies": studies,
+            "_data_note": "CIBERSORT product unreadable (pancanatlas-cibersort-lm22-per-sample-v1)",
+        }
     out = _classify.summarize_immune_context(df)
     out["indication"] = ind
     out["tumor_studies"] = studies

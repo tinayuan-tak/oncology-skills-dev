@@ -5,6 +5,7 @@ MUTANT tumor subset (a biologics handle on the driver-mutant patient subset)? Em
 mutant_stratified_surface_class {mutant_up_surface / mutant_down_surface / not_stratified /
 underpowered / not_in_product}. v1 covers the KRAS x NSCLC archetype. METHOD_VERSION 0.1.0.
 """
+
 from __future__ import annotations
 
 METHOD_VERSION = "0.1.0"

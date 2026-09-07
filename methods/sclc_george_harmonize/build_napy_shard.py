@@ -16,6 +16,7 @@ call, NOT a source-provided clinical label). Output:
 Usage:
   python -m methods.sclc_george_harmonize.build_napy_shard --out <cache>/sclc-subgroup-assignments-v1 [--no-upload]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -38,7 +39,8 @@ NAPY = {"ASCL1": "SCLC_A", "NEUROD1": "SCLC_N", "POU2F3": "SCLC_P", "YAP1": "SCL
 MIN_MARKER_LOG2TPM = 3.46
 
 
-def _log(m): print(m, file=sys.stderr, flush=True)
+def _log(m):
+    print(m, file=sys.stderr, flush=True)
 
 
 def _md5_hex(path: Path) -> str:
@@ -51,6 +53,7 @@ def _md5_hex(path: Path) -> str:
 
 def _s3():
     import boto3
+
     return boto3.Session(profile_name=DEFAULT_AWS_PROFILE).client("s3")
 
 
@@ -63,13 +66,15 @@ def build():
 
     # pushdown-read only the 4 marker genes (the product is ensembl-sorted; gene_symbol filter
     # still prunes via the row-group stats on the co-sorted symbol column).
-    tbl = pq.read_table(f"{S3_BUCKET}/{LONG_KEY}", filesystem=fs.S3FileSystem(),
-                        filters=[("gene_symbol", "in", list(NAPY))],
-                        columns=["gene_symbol", "sample_id", "log2_tpm"])
+    tbl = pq.read_table(
+        f"{S3_BUCKET}/{LONG_KEY}",
+        filesystem=fs.S3FileSystem(),
+        filters=[("gene_symbol", "in", list(NAPY))],
+        columns=["gene_symbol", "sample_id", "log2_tpm"],
+    )
     df = tbl.to_pandas()
     # a symbol may map to >1 ensembl row; collapse to one value per (gene, sample) via max.
-    wide = (df.groupby(["sample_id", "gene_symbol"])["log2_tpm"].max()
-              .unstack("gene_symbol"))
+    wide = df.groupby(["sample_id", "gene_symbol"])["log2_tpm"].max().unstack("gene_symbol")
     markers = [m for m in NAPY if m in wide.columns]
     _log(f"[read] {wide.shape[0]} samples × {len(markers)} NAPY markers")
 
@@ -84,17 +89,18 @@ def build():
     for sid in wide.index:
         a = assigned[sid]
         for stratum in strata_ids:
-            rows.append({
-                "sample_id": sid,
-                "patient_id": sid,            # George RNA sample_id IS the patient grain here
-                "source_native_id": sid,
-                "stratum_id": stratum,
-                "is_member": bool(a == stratum),
-                "derivation_source": "expression_argmax_napy",
-                "derivation_value": (f"{top_marker[sid]}={top_value[sid]:.2f}"
-                                     if stratum == a else ""),
-                "evaluated_at_release": RELEASE_PIN,
-            })
+            rows.append(
+                {
+                    "sample_id": sid,
+                    "patient_id": sid,  # George RNA sample_id IS the patient grain here
+                    "source_native_id": sid,
+                    "stratum_id": stratum,
+                    "is_member": bool(a == stratum),
+                    "derivation_source": "expression_argmax_napy",
+                    "derivation_value": (f"{top_marker[sid]}={top_value[sid]:.2f}" if stratum == a else ""),
+                    "evaluated_at_release": RELEASE_PIN,
+                }
+            )
     assignments = pd.DataFrame(rows)
     # de-facto stratum grouping (primary_filter_column: stratum_id)
     assignments = assignments.sort_values(["stratum_id", "sample_id"]).reset_index(drop=True)
@@ -107,14 +113,17 @@ def write(df, out_dir: Path) -> dict:
     out_dir.mkdir(parents=True, exist_ok=True)
     parquet = out_dir / "assignments.parquet"
     df.to_parquet(parquet, index=False)
-    return {"md5": _md5_hex(parquet), "size_bytes": parquet.stat().st_size,
-            "n_rows": len(df), "path": str(parquet)}
+    return {"md5": _md5_hex(parquet), "size_bytes": parquet.stat().st_size, "n_rows": len(df), "path": str(parquet)}
 
 
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description="Derive SCLC NAPY strata → subgroup-assignment shard.")
-    p.add_argument("--out", required=True, type=Path,
-                   help="output dir (session cache: .../subgroup-assignments/sclc-subgroup-assignments-v1)")
+    p.add_argument(
+        "--out",
+        required=True,
+        type=Path,
+        help="output dir (session cache: .../subgroup-assignments/sclc-subgroup-assignments-v1)",
+    )
     p.add_argument("--no-upload", action="store_true")
     args = p.parse_args(argv)
 
@@ -136,8 +145,7 @@ def main(argv=None) -> int:
         _log(f"[upload] s3://{S3_BUCKET}/{key}")
     else:
         _log("[upload] skipped (--no-upload)")
-    print(f"md5={meta['md5']} size_bytes={meta['size_bytes']} n_rows={meta['n_rows']} "
-          f"dist={summary}")
+    print(f"md5={meta['md5']} size_bytes={meta['size_bytes']} n_rows={meta['n_rows']} dist={summary}")
     return 0
 
 

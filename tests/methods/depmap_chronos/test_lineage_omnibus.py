@@ -7,6 +7,7 @@ a dependency that is UNIFORM across lineages reads negligible even if the omnibu
 small, while a dependency cleanly SEPARATED by lineage reads large. Also pins that the
 new fields are ADDITIVE (the descriptive stats + enrichment_class are unchanged).
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -46,31 +47,33 @@ def test_uniform_across_lineages_is_negligible_effect():
     negligible, regardless of significance (the 'class tracks effect not p' invariant)."""
     # three lineages, all centered near the same value (a pan-essential-like uniform depth)
     import random
+
     rng = random.Random(0)
-    panel = {ln: [-1.5 + rng.uniform(-0.15, 0.15) for _ in range(30)]
-             for ln in ("Bowel", "Lung", "Skin")}
+    panel = {ln: [-1.5 + rng.uniform(-0.15, 0.15) for _ in range(30)] for ln in ("Bowel", "Lung", "Skin")}
     chr_by_model, meta = _make_panel(panel)
     s = cli.compute_lineage_summary(chr_by_model, meta, min_n_lineage=5)
     assert s["lineage_omnibus_effect_size_class"] == "negligible"
     assert s["lineage_variance_explained"] is not None
-    assert s["lineage_variance_explained"] < cli.__dict__.get("EPSILON_SQUARED_MODERATE", 0.06) \
+    assert (
+        s["lineage_variance_explained"] < cli.__dict__.get("EPSILON_SQUARED_MODERATE", 0.06)
         or s["lineage_variance_explained"] < 0.06
+    )
 
 
 def test_cleanly_separated_lineages_is_large_effect():
     """A dependency confined to one lineage (deep) vs others (near-zero) → lineage explains
     most of the variance → large effect + which_lineages_separate names the extremes."""
     panel = {
-        "Bowel": [-2.4, -2.5, -2.3, -2.6, -2.4, -2.5, -2.3, -2.5],   # strongly dependent
-        "Lung":  [-0.05, 0.0, 0.02, -0.03, 0.01, 0.0, -0.02, 0.03],  # non-dependent
-        "Skin":  [0.0, 0.05, -0.02, 0.01, 0.0, 0.02, -0.01, 0.0],     # non-dependent
+        "Bowel": [-2.4, -2.5, -2.3, -2.6, -2.4, -2.5, -2.3, -2.5],  # strongly dependent
+        "Lung": [-0.05, 0.0, 0.02, -0.03, 0.01, 0.0, -0.02, 0.03],  # non-dependent
+        "Skin": [0.0, 0.05, -0.02, 0.01, 0.0, 0.02, -0.01, 0.0],  # non-dependent
     }
     chr_by_model, meta = _make_panel(panel)
     s = cli.compute_lineage_summary(chr_by_model, meta, min_n_lineage=5)
     assert s["lineage_omnibus_effect_size_class"] == "large"
     assert s["lineage_variance_explained"] >= 0.14
     wl = s["which_lineages_separate"]
-    assert wl["lowest"] == "Bowel"          # most negative median = most dependent
+    assert wl["lowest"] == "Bowel"  # most negative median = most dependent
     assert wl["highest"] in ("Lung", "Skin")
 
 
@@ -81,19 +84,29 @@ def test_omnibus_is_additive_enrichment_class_unchanged():
     chr_by_model, meta = _make_panel(panel)
     s = cli.compute_lineage_summary(chr_by_model, meta, min_n_lineage=5)
     # pre-existing fields intact
-    for k in ("enrichment_class", "per_lineage_stats", "n_lineages_evaluated",
-              "median_chronos_panel", "enriched_lineages"):
+    for k in (
+        "enrichment_class",
+        "per_lineage_stats",
+        "n_lineages_evaluated",
+        "median_chronos_panel",
+        "enriched_lineages",
+    ):
         assert k in s
     # new omnibus fields present
-    for k in ("lineage_omnibus_effect_size_class", "lineage_variance_explained",
-              "lineage_omnibus_p", "lineage_omnibus_kruskal_h", "which_lineages_separate",
-              "n_lineages_omnibus_tested"):
+    for k in (
+        "lineage_omnibus_effect_size_class",
+        "lineage_variance_explained",
+        "lineage_omnibus_p",
+        "lineage_omnibus_kruskal_h",
+        "which_lineages_separate",
+        "n_lineages_omnibus_tested",
+    ):
         assert k in s
 
 
 def test_too_few_lineages_degrades_data_unavailable():
     """Fewer than 2 evaluable lineages → omnibus data_unavailable, never a raise."""
-    panel = {"Bowel": [-1.0] * 8}   # single lineage
+    panel = {"Bowel": [-1.0] * 8}  # single lineage
     chr_by_model, meta = _make_panel(panel)
     s = cli.compute_lineage_summary(chr_by_model, meta, min_n_lineage=5)
     assert s["lineage_omnibus_effect_size_class"] == "data_unavailable"

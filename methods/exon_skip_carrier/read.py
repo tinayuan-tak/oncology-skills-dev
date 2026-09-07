@@ -12,6 +12,7 @@ MC3 / GENIE patient carriers use the SAME classifier (classify.carriers_for_even
 per-sample MAF, which retains Start_Position; that wiring is a downstream follow-up (the
 patient-prevalence + dependency-stratification consumers), tracked with the card/resolver work.
 """
+
 from __future__ import annotations
 
 import os
@@ -33,8 +34,10 @@ def _resolve_maf_location():
     """(bucket, key) for the raw DepMap somatic MAF, resolved from the data-catalog manifest."""
     import sys as _sys
     from pathlib import Path as _P
+
     _sys.path.insert(0, str(_P(__file__).resolve().parent.parent))
     from methods.catalog_query.read import bucket_prefix_for
+
     bucket, prefix = bucket_prefix_for(DEPMAP_SOURCE_MANIFEST_ID)
     return bucket, f"{prefix.rstrip('/')}/{_MAF_FILENAME}"
 
@@ -43,6 +46,7 @@ def _stream_maf_lines(bucket: str, key: str) -> Iterable[list]:
     """Yield tab-split rows of the raw MAF, streamed (no full-file buffering). First yielded
     row is the header. Skips leading '#'-comment lines."""
     import boto3
+
     s3 = boto3.Session(profile_name=os.environ.get("AWS_PROFILE", DEFAULT_AWS_PROFILE)).client("s3")
     body = s3.get_object(Bucket=bucket, Key=key)["Body"]
     header_sent = False
@@ -60,12 +64,25 @@ def _observations_from_maf(rows: Iterable[list], gene: str) -> Iterable[VariantO
     it = iter(rows)
     header = next(it)
     ix = {name: i for i, name in enumerate(header)}
-    gi, ci, pi, vi, si = (ix.get("Hugo_Symbol"), ix.get("Chromosome"),
-                          ix.get("Start_Position"), ix.get("Variant_Classification"),
-                          ix.get("ModelID"))
+    gi, ci, pi, vi, si = (
+        ix.get("Hugo_Symbol"),
+        ix.get("Chromosome"),
+        ix.get("Start_Position"),
+        ix.get("Variant_Classification"),
+        ix.get("ModelID"),
+    )
     if None in (gi, ci, pi, vi, si):
-        missing = [n for n, i in (("Hugo_Symbol", gi), ("Chromosome", ci), ("Start_Position", pi),
-                                  ("Variant_Classification", vi), ("ModelID", si)) if i is None]
+        missing = [
+            n
+            for n, i in (
+                ("Hugo_Symbol", gi),
+                ("Chromosome", ci),
+                ("Start_Position", pi),
+                ("Variant_Classification", vi),
+                ("ModelID", si),
+            )
+            if i is None
+        ]
         raise ValueError(f"raw MAF missing required columns: {missing}")
     for r in it:
         if len(r) <= max(gi, ci, pi, vi, si) or r[gi] != gene:
@@ -84,22 +101,34 @@ def _observations_from_product(gene: str) -> Optional[list]:
     try:
         import sys as _sys
         from pathlib import Path as _P
+
         _sys.path.insert(0, str(_P(__file__).resolve().parent.parent))
         from methods.catalog_query.read import bucket_key_for
         import pyarrow.parquet as pq
         import pyarrow.fs as fs
+
         bucket, key = bucket_key_for(PRODUCT_MANIFEST_ID)
         tbl = pq.read_table(
-            f"{bucket}/{key}", filesystem=fs.S3FileSystem(),
+            f"{bucket}/{key}",
+            filesystem=fs.S3FileSystem(),
             columns=["gene_symbol", "model_id", "chrom", "start_position", "variant_classification"],
-            filters=[("gene_symbol", "=", (gene or "").strip().upper())])
+            filters=[("gene_symbol", "=", (gene or "").strip().upper())],
+        )
     except Exception as e:  # noqa: BLE001
         from methods.target_id_sidecar import is_definitively_absent
+
         if not (is_definitively_absent(e) or isinstance(e, FileNotFoundError)):
             raise
         return None
-    return [VariantObs(sample_id=r["model_id"], chrom=r["chrom"], pos=r["start_position"],
-                       classification=r["variant_classification"]) for r in tbl.to_pylist()]
+    return [
+        VariantObs(
+            sample_id=r["model_id"],
+            chrom=r["chrom"],
+            pos=r["start_position"],
+            classification=r["variant_classification"],
+        )
+        for r in tbl.to_pylist()
+    ]
 
 
 @lru_cache(maxsize=8)
@@ -141,9 +170,12 @@ def carriers_from_observations(observations: Iterable[VariantObs], event_id: str
     ev = EXON_SKIP_EVENTS[event_id]
     carriers = carriers_for_event(observations, event_id)
     return {
-        "event_id": event_id, "gene": ev.gene, "genome_build": ev.genome_build,
+        "event_id": event_id,
+        "gene": ev.gene,
+        "genome_build": ev.genome_build,
         "window": f"{ev.chrom}:{ev.window_start}-{ev.window_end}",
-        "carrier_samples": sorted(carriers), "n_carriers": len(carriers),
+        "carrier_samples": sorted(carriers),
+        "n_carriers": len(carriers),
         "method_version": METHOD_VERSION,
     }
 
@@ -176,12 +208,17 @@ def exon_skip_landscape_summary(target: str, indication: str, _carrier_probe: bo
     if not events:
         return {
             "splice_exon_skip_class": "no_registered_event",
-            "event_id": None, "gene": (target or "").strip().upper(), "indication": ind,
-            "driver_direction": None, "n_depmap_carriers": None, "depmap_carrier_samples": [],
-            "oncogenic_indications": [], "splice_context": None,
+            "event_id": None,
+            "gene": (target or "").strip().upper(),
+            "indication": ind,
+            "driver_direction": None,
+            "n_depmap_carriers": None,
+            "depmap_carrier_samples": [],
+            "oncogenic_indications": [],
+            "splice_context": None,
             "method_version": METHOD_VERSION,
         }
-    ev = events[0]   # one registered event per gene today (METex14); first-match if extended
+    ev = events[0]  # one registered event per gene today (METex14); first-match if extended
     on_indication = ind in {i.upper() for i in ev.oncogenic_indications}
     n_carriers, carrier_samples = None, []
     if _carrier_probe:
@@ -191,12 +228,12 @@ def exon_skip_landscape_summary(target: str, indication: str, _carrier_probe: bo
         except Exception:  # noqa: BLE001 — carrier confirmation is best-effort context, never required
             n_carriers, carrier_samples = None, []
     cls = "recurrent_splice_driver" if on_indication else "splice_event_off_indication"
-    conf = (f"{n_carriers} DepMap carrier line(s)" if n_carriers is not None else "carrier count unavailable")
+    conf = f"{n_carriers} DepMap carrier line(s)" if n_carriers is not None else "carrier count unavailable"
     ctx = (
         f"{ev.gene} {ev.event_id} is a curated {ev.driver_direction} exon-skipping driver in {ind} "
         f"({conf}) — genomic driver class is SPLICE-skipping, not missense-dominant."
-        if on_indication else
-        f"{ev.gene} carries a registered {ev.event_id} exon-skip event, but {ind} is not in its "
+        if on_indication
+        else f"{ev.gene} carries a registered {ev.event_id} exon-skip event, but {ind} is not in its "
         f"curated oncogenic scope ({sorted(ev.oncogenic_indications)})."
     )
     return {

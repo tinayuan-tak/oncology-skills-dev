@@ -9,6 +9,7 @@ They verify:
   - source_counts includes depmap_coessentiality key
   - existing mechanism-edge output is unaffected by co-essentiality failure
 """
+
 from __future__ import annotations
 
 import sys
@@ -27,6 +28,7 @@ import methods.mechanism_composed.read as mc_read
 # ---------------------------------------------------------------------------
 # Stubs for every sub-reader
 # ---------------------------------------------------------------------------
+
 
 def _stub_signor(target, indication=None):
     return {
@@ -77,7 +79,7 @@ def _stub_coessentiality_ok(target, top_n=25, **kwargs):
     return {
         "gene_symbol": target,
         "partners": [
-            {"symbol": "NAE1",  "pearson_r": 0.345, "abs_rank": 1, "direction": "co-essential"},
+            {"symbol": "NAE1", "pearson_r": 0.345, "abs_rank": 1, "direction": "co-essential"},
             {"symbol": "NEDD8", "pearson_r": 0.336, "abs_rank": 2, "direction": "co-essential"},
         ],
         "n_partners": 2,
@@ -103,19 +105,15 @@ def _stub_coessentiality_unavailable(target, top_n=25, **kwargs):
 # Helper: run read_target_summary with all sub-readers mocked
 # ---------------------------------------------------------------------------
 
+
 @contextmanager
 def _all_mocked(coess_stub):
     with (
-        patch("methods.mechanism_composed.read.signor_read.read_target_summary",
-              side_effect=_stub_signor),
-        patch("methods.mechanism_composed.read.collectri_read.read_target_summary",
-              side_effect=_stub_collectri),
-        patch("methods.mechanism_composed.read.reactome_read.read_target_summary",
-              side_effect=_stub_reactome),
-        patch("methods.mechanism_composed.read.kinome_atlas_read.read_target_summary",
-              side_effect=_stub_kinome_atlas),
-        patch("methods.mechanism_composed.read.coessentiality_read.read_coessential_partners",
-              side_effect=coess_stub),
+        patch("methods.mechanism_composed.read.signor_read.read_target_summary", side_effect=_stub_signor),
+        patch("methods.mechanism_composed.read.collectri_read.read_target_summary", side_effect=_stub_collectri),
+        patch("methods.mechanism_composed.read.reactome_read.read_target_summary", side_effect=_stub_reactome),
+        patch("methods.mechanism_composed.read.kinome_atlas_read.read_target_summary", side_effect=_stub_kinome_atlas),
+        patch("methods.mechanism_composed.read.coessentiality_read.read_coessential_partners", side_effect=coess_stub),
     ):
         yield
 
@@ -128,6 +126,7 @@ def _run(target, coess_stub):
 # ---------------------------------------------------------------------------
 # Tests: coessentiality_context structure
 # ---------------------------------------------------------------------------
+
 
 class TestCoessentialityContextShape:
     def test_key_present(self):
@@ -164,6 +163,7 @@ class TestCoessentialityContextShape:
 # Tests: sources_wired + source_counts
 # ---------------------------------------------------------------------------
 
+
 class TestSourcesWired:
     def test_depmap_coessentiality_in_sources_wired_when_available(self):
         result = _run("UBA3", _stub_coessentiality_ok)
@@ -190,6 +190,7 @@ class TestSourcesWired:
 # Tests: graceful degradation
 # ---------------------------------------------------------------------------
 
+
 class TestGracefulDegradation:
     def test_data_available_false_when_gene_missing(self):
         result = _run("NOTREAL", _stub_coessentiality_unavailable)
@@ -207,6 +208,7 @@ class TestGracefulDegradation:
 
     def test_existing_upstream_regulators_unaffected_by_coessentiality_failure(self):
         """Mechanism edge union must be intact even if co-essentiality read fails."""
+
         def _raise(target, **kwargs):
             raise RuntimeError("substrate unavailable")
 
@@ -220,6 +222,4 @@ class TestGracefulDegradation:
             raise RuntimeError("substrate unavailable")
 
         result = _run("UBA3", _raise)
-        assert result["network_class"] in (
-            "well_characterized", "partial", "sparse", "data_unavailable"
-        )
+        assert result["network_class"] in ("well_characterized", "partial", "sparse", "data_unavailable")

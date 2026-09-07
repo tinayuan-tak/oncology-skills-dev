@@ -5,6 +5,7 @@ invokes. Mirrors the sc_tumor_expression_celltype/cli.py contract: deterministic
 (target, indication) → summary dict with a primary `sc_normal_expression_class` categorical
 and a data_unavailable-safe branch.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -38,13 +39,15 @@ def emit_normal_celltype_liability(summary: dict, target: str, out_dir, target_c
     if not rows:
         return
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     from pathlib import Path as _Path
+
     out_dir = _Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    rows = sorted(rows, key=lambda r: (r.get("median_detection_fraction") or 0.0))   # ascending → top at top
+    rows = sorted(rows, key=lambda r: r.get("median_detection_fraction") or 0.0)  # ascending → top at top
     labels = [f"{r['cell_type']}" + (f" · {r['tissue']}" if r.get("tissue") else "") for r in rows]
     vals = [r.get("median_detection_fraction") or 0.0 for r in rows]
     # safety-essential (critical-organ) cell types in red; all others neutral gray-blue.
@@ -58,12 +61,18 @@ def emit_normal_celltype_liability(summary: dict, target: str, out_dir, target_c
     liab = str((summary or {}).get("sc_normal_expression_class", "") or "").replace("_", " ")
     ess = str((summary or {}).get("sc_normal_safety_essential_class", "") or "").replace("_", " ")
     sub = " · ".join([s for s in (liab, ess if ess and ess != "none" else "") if s])
-    ax.set_title(f"{target} — normal-tissue single-cell footprint"
-                 + (f"\n{sub}" if sub else ""), fontsize=8.5)
+    ax.set_title(f"{target} — normal-tissue single-cell footprint" + (f"\n{sub}" if sub else ""), fontsize=8.5)
     from matplotlib.patches import Patch
-    ax.legend(handles=[Patch(color="#b2182b", label="safety-essential cell type"),
-                       Patch(color="#92b8d8", label="other normal cell type")],
-              fontsize=6.5, loc="lower right", frameon=False)
+
+    ax.legend(
+        handles=[
+            Patch(color="#b2182b", label="safety-essential cell type"),
+            Patch(color="#92b8d8", label="other normal cell type"),
+        ],
+        fontsize=6.5,
+        loc="lower right",
+        frameon=False,
+    )
     fig.tight_layout()
     fig.savefig(out_dir / "figure_sc_normal_celltype_liability.svg", format="svg")
     plt.close(fig)

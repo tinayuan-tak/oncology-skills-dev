@@ -13,16 +13,17 @@ a cell-weighted mean, which would let one large dataset dominate (CRC/NSCLC cell
 uneven across contributing atlases). Kept dependency-light + pure so it is unit-testable with a
 synthetic donor×compartment DataFrame and no data read.
 """
+
 from __future__ import annotations
 
 # Detection-fraction cutoffs (fraction of a compartment's cells expressing the target, cross-donor
 # median). Anchored to the single-cell convention where ~0.5 detection = "expressed in most cells of
 # the compartment" and ~0.1 = "a real expressing subset" (dropout-aware; scRNA under-detects, so
 # these sit below bulk TPM-fraction cutoffs by design).
-MALIGNANT_BROADLY_DETECTED_MIN = 0.5     # detected in >=50% of malignant cells (cross-donor median)
-MALIGNANT_SUBSET_DETECTED_MIN = 0.10     # a real expressing malignant subset (target-high cells)
-MICROENV_DETECTED_MIN = 0.25             # a compartment counts as "expressing" at >=25% detection
-BROADLY_LOW_MAX = 0.05                   # below this everywhere == effectively undetected
+MALIGNANT_BROADLY_DETECTED_MIN = 0.5  # detected in >=50% of malignant cells (cross-donor median)
+MALIGNANT_SUBSET_DETECTED_MIN = 0.10  # a real expressing malignant subset (target-high cells)
+MICROENV_DETECTED_MIN = 0.25  # a compartment counts as "expressing" at >=25% detection
+BROADLY_LOW_MAX = 0.05  # below this everywhere == effectively undetected
 
 # Compartments that constitute the tumor MICROENVIRONMENT (non-malignant, non-normal-epithelial).
 # A target detected here but NOT in malignant cells is a microenvironment-dominant signal — present
@@ -67,25 +68,33 @@ def _ambient_contamination_risk(cls, mdet, comp_summary) -> str:
     no malignant detection to assess. Never moves sc_expression_class."""
     if mdet is None:
         return "data_unavailable"
-    others = [comp_summary[c].get("median_detection_fraction") for c in comp_summary
-              if c != "malignant" and comp_summary[c].get("median_detection_fraction") is not None]
+    others = [
+        comp_summary[c].get("median_detection_fraction")
+        for c in comp_summary
+        if c != "malignant" and comp_summary[c].get("median_detection_fraction") is not None
+    ]
     dominant_other = max(others) if others else None
-    if (cls == "malignant_subset_detected" and dominant_other is not None and dominant_other > 0
-            and mdet <= AMBIENT_SOUP_PLAUSIBLE_FRACTION * dominant_other):
+    if (
+        cls == "malignant_subset_detected"
+        and dominant_other is not None
+        and dominant_other > 0
+        and mdet <= AMBIENT_SOUP_PLAUSIBLE_FRACTION * dominant_other
+    ):
         return "possible"
     return "low"
+
 
 # ── TCE antigen-escape thresholds (two-axis heterogeneity, 2026-08-20) ────────────────────────────
 # The prior single-number tce_homogeneity_class re-binned malignant_detection_fraction alone, with a
 # LENIENT 0.5 "homogeneous" bar — 50% of malignant cells antigen-negative is a large escape reservoir.
 # A T-cell-engager needs BOTH: (a) most cells in a typical tumour express it (WITHIN-tumour coverage),
 # and (b) that holds ACROSS patients (INTER-tumour consistency). We separate the two axes.
-TCE_COVERAGE_HOMOGENEOUS_MIN = 0.75      # within-tumour: >=75% of malignant cells express (tightened)
-TCE_COVERAGE_HETEROGENEOUS_MAX = 0.5     # <50% expressing == an escape reservoir within the tumour
-DONOR_CONSISTENCY_IQR_MAX = 0.25         # inter-donor detection IQR below this == consistent across pts
-DONOR_BROAD_DETECTION_MIN = 0.5          # a donor "broadly detects" at >=50% malignant detection
-DONOR_CONSISTENCY_FRACTION_MIN = 0.5     # consistent if >=50% of donors broadly detect
-MIN_DONORS_FOR_DISPERSION = 3            # IQR on 1-2 donors is meaningless -> report None, flag it
+TCE_COVERAGE_HOMOGENEOUS_MIN = 0.75  # within-tumour: >=75% of malignant cells express (tightened)
+TCE_COVERAGE_HETEROGENEOUS_MAX = 0.5  # <50% expressing == an escape reservoir within the tumour
+DONOR_CONSISTENCY_IQR_MAX = 0.25  # inter-donor detection IQR below this == consistent across pts
+DONOR_BROAD_DETECTION_MIN = 0.5  # a donor "broadly detects" at >=50% malignant detection
+DONOR_CONSISTENCY_FRACTION_MIN = 0.5  # consistent if >=50% of donors broadly detect
+MIN_DONORS_FOR_DISPERSION = 3  # IQR on 1-2 donors is meaningless -> report None, flag it
 
 
 def compartment_summary(rows) -> dict:
@@ -97,6 +106,7 @@ def compartment_summary(rows) -> dict:
     median_abundance_log1p_cp10k}}. Empty input → {} (honest gap, never fabricated zeros)."""
     import numpy as np
     import pandas as pd
+
     df = rows if isinstance(rows, pd.DataFrame) else pd.DataFrame(rows)
     if df.empty:
         return {}
@@ -130,10 +140,10 @@ def compartment_summary(rows) -> dict:
         else:
             p25 = p75 = donor_iqr = frac_broad = None
         out[str(comp)] = {
-            "n_donors": n_donors,                                   # RELIABLE donors (>= MIN_CELLS_PER_DONOR)
+            "n_donors": n_donors,  # RELIABLE donors (>= MIN_CELLS_PER_DONOR)
             "n_donors_dropped_low_cells": n_donors_raw - n_donors,  # transparency: strata below the floor
             "n_datasets": int(reliable.index.get_level_values("dataset_id").nunique()),
-            "n_cells_total": int(reliable["n_cells"].sum()),        # cells in the RELIABLE donors only
+            "n_cells_total": int(reliable["n_cells"].sum()),  # cells in the RELIABLE donors only
             "median_detection_fraction": float(np.median(det)),
             "median_abundance_log1p_cp10k": float(np.median(reliable["abundance_log1p_cp10k"])),
             # additive inter-donor dispersion (verdict-inert; None when under-powered)
@@ -167,14 +177,16 @@ def per_compartment_vector(comp_summary: dict) -> list:
     vec = []
     for c in ordered:
         s = comp_summary[c]
-        vec.append({
-            "compartment": c,
-            "median_detection_fraction": s["median_detection_fraction"],
-            "median_abundance_log1p_cp10k": s["median_abundance_log1p_cp10k"],
-            "n_donors": s["n_donors"],
-            "n_cells_total": s["n_cells_total"],
-            "is_caf": c == "stromal",   # DepMap/Census pseudobulk labels CAF/fibroblast as `stromal`
-        })
+        vec.append(
+            {
+                "compartment": c,
+                "median_detection_fraction": s["median_detection_fraction"],
+                "median_abundance_log1p_cp10k": s["median_abundance_log1p_cp10k"],
+                "n_donors": s["n_donors"],
+                "n_cells_total": s["n_cells_total"],
+                "is_caf": c == "stromal",  # DepMap/Census pseudobulk labels CAF/fibroblast as `stromal`
+            }
+        )
     return vec
 
 
@@ -191,24 +203,32 @@ def caf_readout(comp_summary: dict) -> dict:
     stromal = comp_summary.get("stromal") if comp_summary else None
     mal = comp_summary.get("malignant") if comp_summary else None
     if stromal is None:
-        return {"caf_detection_fraction": None, "caf_abundance_log1p_cp10k": None,
-                "caf_compartment_available": False, "caf_vs_malignant_class": "data_unavailable"}
+        return {
+            "caf_detection_fraction": None,
+            "caf_abundance_log1p_cp10k": None,
+            "caf_compartment_available": False,
+            "caf_vs_malignant_class": "data_unavailable",
+        }
     caf_det = stromal["median_detection_fraction"]
     mal_det = mal["median_detection_fraction"] if mal else None
     if caf_det < MICROENV_DETECTED_MIN:
         cls = "caf_low"
     elif mal_det is None:
         cls = "caf_dominant"
-    elif caf_det >= MICROENV_DETECTED_MIN and mal_det >= MALIGNANT_SUBSET_DETECTED_MIN \
-            and abs(caf_det - mal_det) < 0.15:
+    elif (
+        caf_det >= MICROENV_DETECTED_MIN and mal_det >= MALIGNANT_SUBSET_DETECTED_MIN and abs(caf_det - mal_det) < 0.15
+    ):
         cls = "shared_caf_malignant"
     elif caf_det > mal_det:
         cls = "caf_dominant"
     else:
         cls = "malignant_dominant"
-    return {"caf_detection_fraction": caf_det,
-            "caf_abundance_log1p_cp10k": stromal["median_abundance_log1p_cp10k"],
-            "caf_compartment_available": True, "caf_vs_malignant_class": cls}
+    return {
+        "caf_detection_fraction": caf_det,
+        "caf_abundance_log1p_cp10k": stromal["median_abundance_log1p_cp10k"],
+        "caf_compartment_available": True,
+        "caf_vs_malignant_class": cls,
+    }
 
 
 # --- stromal-confound classifier (the tumor-selectivity stromal-confound veto instrument) ---
@@ -220,9 +240,13 @@ def caf_readout(comp_summary: dict) -> dict:
 _TRUSTWORTHY_MALIGNANT_ANNOTATION = frozenset({"curated", "infercnv"})
 
 
-def classify_stromal_confound(sc_expression_class, caf_vs_malignant_class,
-                              top_microenvironment_compartment,
-                              malignant_annotation_method, entity_purity) -> str:
+def classify_stromal_confound(
+    sc_expression_class,
+    caf_vs_malignant_class,
+    top_microenvironment_compartment,
+    malignant_annotation_method,
+    entity_purity,
+) -> str:
     """Is a bulk tumor-vs-normal SELECTIVE signal actually driven by CAF/stromal microenvironment
     content rather than the malignant cells? The sc-unique attribution the bulk four-cell DESeq2 design
     cannot make. This is the verdict-DRIVING instrument for the tumor-selectivity stromal-confound veto
@@ -252,13 +276,14 @@ def classify_stromal_confound(sc_expression_class, caf_vs_malignant_class,
         return "data_unavailable"
     if sc_expression_class in ("malignant_broadly_detected", "malignant_subset_detected"):
         return "malignant_intrinsic"
-    stromal_signature = (sc_expression_class == "microenvironment_dominant"
-                         and caf_vs_malignant_class == "caf_dominant"
-                         and top_microenvironment_compartment == "stromal")
+    stromal_signature = (
+        sc_expression_class == "microenvironment_dominant"
+        and caf_vs_malignant_class == "caf_dominant"
+        and top_microenvironment_compartment == "stromal"
+    )
     if not stromal_signature:
         return "not_stromal_confounded"
-    if (malignant_annotation_method in _TRUSTWORTHY_MALIGNANT_ANNOTATION
-            and entity_purity == "entity_specific"):
+    if malignant_annotation_method in _TRUSTWORTHY_MALIGNANT_ANNOTATION and entity_purity == "entity_specific":
         return "stromal_confounded"
     return "inconclusive_low_confidence"
 
@@ -272,8 +297,8 @@ def classify_stromal_confound(sc_expression_class, caf_vs_malignant_class,
 # The 0.25 heterogeneity cut is a deliberate design call (see plan Phase 3.2): only clearly-low
 # malignant coverage fires the TCE-opposing signal; the 0.25-0.5 band is neutral (a real subset
 # expresses, but detection-fraction alone — dropout-aware — is too uncertain to penalize).
-TCE_HOMOGENEOUS_MIN = 0.5        # >=50% of malignant cells express — uniform coverage, low escape
-TCE_HETEROGENEOUS_MAX = 0.25     # <25% — antigen-low escape reservoir; TCE-opposing
+TCE_HOMOGENEOUS_MIN = 0.5  # >=50% of malignant cells express — uniform coverage, low escape
+TCE_HETEROGENEOUS_MAX = 0.25  # <25% — antigen-low escape reservoir; TCE-opposing
 
 
 def classify_tce_homogeneity(malignant_detection_fraction, malignant_compartment_available) -> str:
@@ -346,11 +371,15 @@ def malignant_heterogeneity_readout(comp_summary: dict) -> dict:
     """
     mal = comp_summary.get("malignant") if isinstance(comp_summary, dict) else None
     if not mal or mal.get("median_detection_fraction") is None:
-        return {"within_tumor_coverage_class": "data_unavailable",
-                "inter_donor_consistency_class": "data_unavailable",
-                "tce_antigen_escape_class": "data_unavailable",
-                "malignant_detection_fraction": None, "malignant_detection_donor_iqr": None,
-                "fraction_donors_broadly_detecting": None, "n_donors": (mal or {}).get("n_donors")}
+        return {
+            "within_tumor_coverage_class": "data_unavailable",
+            "inter_donor_consistency_class": "data_unavailable",
+            "tce_antigen_escape_class": "data_unavailable",
+            "malignant_detection_fraction": None,
+            "malignant_detection_donor_iqr": None,
+            "fraction_donors_broadly_detecting": None,
+            "n_donors": (mal or {}).get("n_donors"),
+        }
     mdet = mal["median_detection_fraction"]
     iqr = mal.get("detection_fraction_donor_iqr")
     frac_broad = mal.get("fraction_donors_broadly_detecting")
@@ -367,20 +396,24 @@ def malignant_heterogeneity_readout(comp_summary: dict) -> dict:
         escape = "escape_risk_patient_variable"
     else:  # partial coverage, consistent-or-underpowered
         escape = "escape_risk_moderate"
-    return {"within_tumor_coverage_class": coverage,
-            "inter_donor_consistency_class": consistency,
-            "tce_antigen_escape_class": escape,
-            "malignant_detection_fraction": mdet,
-            "malignant_detection_donor_iqr": iqr,
-            "fraction_donors_broadly_detecting": frac_broad,
-            "n_donors": n_donors}
+    return {
+        "within_tumor_coverage_class": coverage,
+        "inter_donor_consistency_class": consistency,
+        "tce_antigen_escape_class": escape,
+        "malignant_detection_fraction": mdet,
+        "malignant_detection_donor_iqr": iqr,
+        "fraction_donors_broadly_detecting": frac_broad,
+        "n_donors": n_donors,
+    }
 
 
-def classify_sc_expression(comp_summary: dict,
-                           malignant_broadly=MALIGNANT_BROADLY_DETECTED_MIN,
-                           malignant_subset=MALIGNANT_SUBSET_DETECTED_MIN,
-                           microenv_min=MICROENV_DETECTED_MIN,
-                           broadly_low_max=BROADLY_LOW_MAX) -> dict:
+def classify_sc_expression(
+    comp_summary: dict,
+    malignant_broadly=MALIGNANT_BROADLY_DETECTED_MIN,
+    malignant_subset=MALIGNANT_SUBSET_DETECTED_MIN,
+    microenv_min=MICROENV_DETECTED_MIN,
+    broadly_low_max=BROADLY_LOW_MAX,
+) -> dict:
     """Malignant-compartment-anchored presence class from a compartment_summary dict.
 
     Ladder (primary categorical `sc_expression_class`):
@@ -415,9 +448,10 @@ def classify_sc_expression(comp_summary: dict,
 
     mal = comp_summary.get("malignant")
     # top microenvironment compartment by detection (for the attribution readout + the microenv call)
-    micro = [(c, comp_summary[c]["median_detection_fraction"])
-             for c in MICROENVIRONMENT_COMPARTMENTS if c in comp_summary]
-    micro.sort(key=lambda x: (x[1] if x[1] is not None else -1.0), reverse=True)
+    micro = [
+        (c, comp_summary[c]["median_detection_fraction"]) for c in MICROENVIRONMENT_COMPARTMENTS if c in comp_summary
+    ]
+    micro.sort(key=lambda x: x[1] if x[1] is not None else -1.0, reverse=True)
     top_micro_comp = micro[0][0] if micro else None
     top_micro_det = micro[0][1] if micro else None
 
@@ -435,7 +469,8 @@ def classify_sc_expression(comp_summary: dict,
     # fraction, independent of the presence sc_expression_class below. data_unavailable when no
     # malignant compartment (the mal is None guard just below returns base with this already set).
     base["tce_homogeneity_class"] = classify_tce_homogeneity(
-        base["malignant_detection_fraction"], base["malignant_compartment_available"])
+        base["malignant_detection_fraction"], base["malignant_compartment_available"]
+    )
 
     # Malignant compartment absent → can't make a malignant-anchored call. v1 indications (COADREAD,
     # NSCLC) both carry it; this branch is the honest guard for any future indication that doesn't.
@@ -445,9 +480,11 @@ def classify_sc_expression(comp_summary: dict,
     # total (< MIN_MALIGNANT_CELLS_TOTAL over reliable donors) — a pooled cube with single-digit cells
     # per donor can clear the donor-count floor yet rest the call on a handful of cells (KIRC ~74 /
     # OV ~106). All are honest data_unavailable, never a coerced negative.
-    if (mal is None
-            or int(mal.get("n_donors", 0)) < MIN_RELIABLE_DONORS
-            or int(mal.get("n_cells_total", 0)) < MIN_MALIGNANT_CELLS_TOTAL):
+    if (
+        mal is None
+        or int(mal.get("n_donors", 0)) < MIN_RELIABLE_DONORS
+        or int(mal.get("n_cells_total", 0)) < MIN_MALIGNANT_CELLS_TOTAL
+    ):
         base["sc_expression_class"] = "data_unavailable"
         base["ambient_contamination_risk"] = "data_unavailable"
         return base

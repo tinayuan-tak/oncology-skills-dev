@@ -6,6 +6,7 @@ releases — `-v10` sorts before `-v9`, `26q10` before `26q2` — so it can retu
 as the "latest" head. These tests lock the natural-order key (`_version_key`) + the family-strip
 generalization that lets multi-digit release tokens share a family.
 """
+
 from __future__ import annotations
 
 import sys
@@ -33,7 +34,11 @@ def test_release_token_double_digit_beats_single_digit():
 
 def test_release_and_version_compose():
     ids = [
-        "baz-26q1-v1", "baz-26q2-v1", "baz-26q2-v2", "baz-26q10-v1", "baz-26q10-v2",
+        "baz-26q1-v1",
+        "baz-26q2-v1",
+        "baz-26q2-v2",
+        "baz-26q10-v1",
+        "baz-26q10-v2",
     ]
     assert sorted(ids, key=_version_key)[-1] == "baz-26q10-v2"
 
@@ -41,7 +46,7 @@ def test_release_and_version_compose():
 def test_lexical_would_have_been_wrong():
     """Sanity: the plain lexical sort DOES pick the wrong head here — proving the key matters."""
     ids = ["foo-v9", "foo-v10"]
-    assert sorted(ids)[-1] == "foo-v9"          # lexical: '9' > '1' → wrong
+    assert sorted(ids)[-1] == "foo-v9"  # lexical: '9' > '1' → wrong
     assert sorted(ids, key=_version_key)[-1] == "foo-v10"  # version-aware: correct
 
 

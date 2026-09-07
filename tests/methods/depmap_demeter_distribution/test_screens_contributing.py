@@ -2,6 +2,7 @@
 load_rnai_files loaded sample_info.csv but never returned it, so both callers omitted it from
 compute_summary_stats. This pins that (a) compute_summary_stats populates the screen membership from a
 sample_info_df, and (b) load_rnai_files now returns it as a 4th element (arity contract)."""
+
 from __future__ import annotations
 import importlib.util, inspect, sys
 from pathlib import Path
@@ -13,8 +14,10 @@ CLI = REPO / "methods" / "depmap_demeter_distribution" / "cli.py"
 
 def _load():
     spec = importlib.util.spec_from_file_location("rnai_cli_sc", CLI)
-    m = importlib.util.module_from_spec(spec); sys.modules["rnai_cli_sc"] = m
-    spec.loader.exec_module(m); return m
+    m = importlib.util.module_from_spec(spec)
+    sys.modules["rnai_cli_sc"] = m
+    spec.loader.exec_module(m)
+    return m
 
 
 cli = _load()
@@ -27,14 +30,16 @@ def test_screens_contributing_populated_from_sample_info():
         "ACH-2": {"CCLEName": "CL2_TISSUE", "OncotreeLineage": "Bowel"},
         "ACH-3": {"CCLEName": "CL3_TISSUE", "OncotreeLineage": "Skin"},
     }
-    sample_info_df = pd.DataFrame([
-        {"CCLE_ID": "CL1_TISSUE", "in_Achilles": True,  "in_DRIVE": True,  "in_Marcotte": False},
-        {"CCLE_ID": "CL2_TISSUE", "in_Achilles": True,  "in_DRIVE": False, "in_Marcotte": True},
-        {"CCLE_ID": "CL3_TISSUE", "in_Achilles": False, "in_DRIVE": True,  "in_Marcotte": True},
-    ])
+    sample_info_df = pd.DataFrame(
+        [
+            {"CCLE_ID": "CL1_TISSUE", "in_Achilles": True, "in_DRIVE": True, "in_Marcotte": False},
+            {"CCLE_ID": "CL2_TISSUE", "in_Achilles": True, "in_DRIVE": False, "in_Marcotte": True},
+            {"CCLE_ID": "CL3_TISSUE", "in_Achilles": False, "in_DRIVE": True, "in_Marcotte": True},
+        ]
+    )
     summary = cli.compute_summary_stats(demeter_by_model, model_metadata, sample_info_df=sample_info_df)
     screens = {s["screen"]: s["n_lines"] for s in summary["rnai_screens_contributing"]}
-    assert screens == {"Achilles": 2, "DRIVE": 2, "Marcotte": 2}   # each flag true in 2 of the 3 lines
+    assert screens == {"Achilles": 2, "DRIVE": 2, "Marcotte": 2}  # each flag true in 2 of the 3 lines
 
 
 def test_screens_contributing_empty_without_sample_info():

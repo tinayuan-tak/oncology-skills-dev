@@ -1,4 +1,5 @@
 """alteration_clinical_association (Q11-alteration) — pure classifier + monkeypatched end-to-end. No S3."""
+
 from __future__ import annotations
 
 import sys
@@ -11,7 +12,9 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from methods.alteration_clinical_association.read import (  # noqa: E402
-    classify_alteration_survival_association, MIN_EVENTS, MIN_PER_ARM,
+    classify_alteration_survival_association,
+    MIN_EVENTS,
+    MIN_PER_ARM,
 )
 from methods.alteration_clinical_association import read as _R  # noqa: E402
 from methods.expression_clinical_association import read as _eca  # noqa: E402
@@ -49,9 +52,10 @@ def test_none_p_is_data_unavailable():
 # ── monkeypatched end-to-end (synthetic MAF + CDR; exercises cohort/altered split + log-rank) ──
 def _write_maf(tmp_path, cohort, mutated_frac_gene="TARGETX", n_mut=20):
     import pandas as pd
+
     rows = []
     for i, c in enumerate(cohort):
-        rows.append({"sample_id": c, "gene_symbol": "OTHERGENE"})   # every patient is MC3-profiled
+        rows.append({"sample_id": c, "gene_symbol": "OTHERGENE"})  # every patient is MC3-profiled
         if i < n_mut:
             rows.append({"sample_id": c, "gene_symbol": mutated_frac_gene})
     p = tmp_path / "coadread-mc3.parquet"
@@ -60,7 +64,7 @@ def _write_maf(tmp_path, cohort, mutated_frac_gene="TARGETX", n_mut=20):
 
 
 def test_end_to_end_mutated_worse(tmp_path, monkeypatch):
-    cohort = [f"TCGA-AA-{i:04d}" for i in range(60)]      # 20 mutated, 40 WT
+    cohort = [f"TCGA-AA-{i:04d}" for i in range(60)]  # 20 mutated, 40 WT
     p = _write_maf(tmp_path, cohort, n_mut=20)
     monkeypatch.setattr(_R, "_mc3_maf_path", lambda indication: p)
     # mutated (first 20) die early; WT (next 40) die late → mutated arm worse (+1)

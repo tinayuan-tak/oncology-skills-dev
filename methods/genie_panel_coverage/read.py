@@ -11,6 +11,7 @@ Both maps are @lru_cache'd module-level (166 panels + 271k samples ≈ a few MB 
 so the per-(gene, sample_set) denominator is a dict scan over the sample set — no
 per-(sample,gene) materialization.
 """
+
 from __future__ import annotations
 
 from functools import lru_cache
@@ -76,6 +77,7 @@ def _sample_panel_map_for_column(column: str, genie_prefix: str = GENIE_PREFIX) 
     blank panel for that assay (not profiled on it) are OMITTED — they carry no coverage for
     any gene on that assay and must not enter its denominator. Cached per column."""
     import pandas as pd
+
     ensure_aws_profile()
     s3 = _boto3_client()
     key = f"{genie_prefix}/data_gene_matrix.txt" if genie_prefix != GENIE_PREFIX else GENE_MATRIX_KEY
@@ -104,9 +106,7 @@ def load_sv_sample_panel_map(genie_prefix: str = GENIE_PREFIX) -> dict:
     return _sample_panel_map_for_column(_SV_PANEL_COLUMN, genie_prefix)
 
 
-def covered(sample_id: str, gene: str,
-            sample_panel: Optional[dict] = None,
-            panel_genes: Optional[dict] = None) -> bool:
+def covered(sample_id: str, gene: str, sample_panel: Optional[dict] = None, panel_genes: Optional[dict] = None) -> bool:
     """True iff the panel that assayed `sample_id`'s SNVs covers `gene`. A sample not
     in the gene-matrix (no mutation panel) is NOT covered (returns False)."""
     sp = sample_panel if sample_panel is not None else load_sample_panel_map()
@@ -117,9 +117,9 @@ def covered(sample_id: str, gene: str,
     return gene in pg.get(panel, frozenset())
 
 
-def n_covered_samples(gene: str, sample_ids: Iterable[str],
-                      sample_panel: Optional[dict] = None,
-                      panel_genes: Optional[dict] = None) -> int:
+def n_covered_samples(
+    gene: str, sample_ids: Iterable[str], sample_panel: Optional[dict] = None, panel_genes: Optional[dict] = None
+) -> int:
     """The HONEST denominator: how many of `sample_ids` were sequenced on a panel
     that covers `gene`. This is what a GENIE mutation frequency divides by — NOT the
     raw sample count (which conflates wild-type with not-sequenced)."""
@@ -128,9 +128,9 @@ def n_covered_samples(gene: str, sample_ids: Iterable[str],
     return sum(1 for s in sample_ids if gene in pg.get(sp.get(s, ""), frozenset()))
 
 
-def panel_coverage_denominator(gene: str, sample_ids: Iterable[str],
-                               sample_panel: Optional[dict] = None,
-                               panel_genes: Optional[dict] = None) -> dict:
+def panel_coverage_denominator(
+    gene: str, sample_ids: Iterable[str], sample_panel: Optional[dict] = None, panel_genes: Optional[dict] = None
+) -> dict:
     """Full coverage breakdown for (gene, sample_set): the honest denominator plus the
     total and the uncovered count, so a caller can emit `data_unavailable`/coverage-gap
     (gene on NO panel in the set) rather than a misleading frequency ≈ 0.

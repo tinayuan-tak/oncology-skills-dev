@@ -24,9 +24,13 @@ _POOLED = [5.8, 6.1, 3.0, 3.2, 1.0, 1.2, 5.6, 2.8, 0.9]
 
 def _write_subtype(d: Path) -> Path:
     import pandas as pd
+
     d.mkdir(parents=True, exist_ok=True)
-    rows = [{"stratum_id": sid, "subtype_signal": sig, "log2_tpm": float(v)}
-            for sid, (vals, sig) in _STRATA.items() for v in vals]
+    rows = [
+        {"stratum_id": sid, "subtype_signal": sig, "log2_tpm": float(v)}
+        for sid, (vals, sig) in _STRATA.items()
+        for v in vals
+    ]
     rows += [{"stratum_id": "__POOLED__", "subtype_signal": None, "log2_tpm": float(v)} for v in _POOLED]
     out = d / "plot_data_subtype.parquet"
     pd.DataFrame(rows, columns=["stratum_id", "subtype_signal", "log2_tpm"]).to_parquet(out, index=False)
@@ -39,10 +43,19 @@ def _svg_ok(p: Path) -> bool:
 
 def test_values_persisted_on_read(tmp_path, monkeypatch):
     # landscape reader persists via read_tumor_subtype_values — stub it to a small available panel
-    monkeypatch.setattr(r, "read_tumor_subtype_values", lambda target, indication: {
-        "available": True, "pooled_values": list(_POOLED), "pooled_median": 3.1,
-        "strata": [{"stratum_id": sid, "values": vals, "subtype_signal": sig, "n": len(vals)}
-                   for sid, (vals, sig) in _STRATA.items()]})
+    monkeypatch.setattr(
+        r,
+        "read_tumor_subtype_values",
+        lambda target, indication: {
+            "available": True,
+            "pooled_values": list(_POOLED),
+            "pooled_median": 3.1,
+            "strata": [
+                {"stratum_id": sid, "values": vals, "subtype_signal": sig, "n": len(vals)}
+                for sid, (vals, sig) in _STRATA.items()
+            ],
+        },
+    )
     # stub the heavy landscape internals: make the fn return early-available by monkeypatching it to a
     # thin wrapper is overkill — instead just call read_tumor_subtype_values-based persist path directly
     # via the public API with a shard present is environment-dependent, so we assert the persist helper
@@ -53,8 +66,11 @@ def test_values_persisted_on_read(tmp_path, monkeypatch):
 
 def test_renders_offline_from_persisted_parquet(tmp_path, monkeypatch):
     pd_path = _write_subtype(tmp_path / "src")
-    monkeypatch.setattr(c._read, "read_tumor_subtype_values",
-                        lambda *a, **k: (_ for _ in ()).throw(AssertionError("live read in offline render")))
+    monkeypatch.setattr(
+        c._read,
+        "read_tumor_subtype_values",
+        lambda *a, **k: (_ for _ in ()).throw(AssertionError("live read in offline render")),
+    )
     out = tmp_path / "out"
     descs = f.render_subtype_from_plot_data(pd_path, {}, out, "MYGENE", "COADREAD")
     assert _svg_ok(out / "figure_expression_distribution_subtype.svg")
@@ -65,6 +81,7 @@ def test_renders_offline_from_persisted_parquet(tmp_path, monkeypatch):
 
 def test_missing_columns_raises(tmp_path):
     import pandas as pd
+
     df = pd.DataFrame({"stratum_id": ["CMS1"]})  # no log2_tpm
     try:
         f.render_subtype_from_plot_data(df, {}, tmp_path / "out", "MYGENE", "COADREAD")

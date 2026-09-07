@@ -4,6 +4,7 @@ Tests mock the GISTIC per-gene reader + the aliquot→cancer-type map (no S3), a
 fast-path OFF (→ live-TSV path) to exercise the classification directly. Pin: amp/del classification
 mirroring the DepMap vocabulary, the indication scoping, and honest amplification (NOT LoF-collapsed).
 """
+
 from __future__ import annotations
 
 import sys
@@ -56,7 +57,7 @@ def test_amplification_not_collapsed_by_loss(monkeypatch):
     _setup(monkeypatch, g, cancer)
     out = r.patient_cn_summary_for_gene("ERBB2", "BRCA")
     assert out["patient_amplified_fraction"] == 0.45 and out["patient_deleted_fraction"] == 0.22
-    assert out["patient_copy_number_class"] == "recurrently_amplified"   # NOT deleted (min-wins would)
+    assert out["patient_copy_number_class"] == "recurrently_amplified"  # NOT deleted (min-wins would)
 
 
 def test_mixed_when_balanced(monkeypatch):
@@ -85,7 +86,7 @@ def test_indication_scoping(monkeypatch):
     cancer = {"TCGA-A6-0001": "COAD", "TCGA-BR-0002": "STAD"}
     _setup(monkeypatch, g, cancer)
     out = r.patient_cn_summary_for_gene("ERBB2", "COADREAD")
-    assert out["n_samples"] == 1   # only the COAD aliquot
+    assert out["n_samples"] == 1  # only the COAD aliquot
 
 
 def test_unmapped_indication_data_unavailable(monkeypatch):
@@ -112,8 +113,8 @@ def test_arm_level_gain_is_NOT_focal(monkeypatch):
     cancer = {f"TCGA-A6-{i:04d}": "COAD" for i in range(100)}
     _setup(monkeypatch, g, cancer)
     out = r.patient_cn_summary_for_gene("KRAS", "COADREAD")
-    assert out["patient_copy_number_class"] == "recurrently_amplified"   # any-gain class
-    assert out["patient_focal_cn_class"] == "focal_neutral"              # but NOT focal → verdict-safe
+    assert out["patient_copy_number_class"] == "recurrently_amplified"  # any-gain class
+    assert out["patient_focal_cn_class"] == "focal_neutral"  # but NOT focal → verdict-safe
 
 
 def test_focal_deletion_gates_on_homdel(monkeypatch):

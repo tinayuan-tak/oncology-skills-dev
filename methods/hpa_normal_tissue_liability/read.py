@@ -29,11 +29,9 @@ def read_target_summary(target: str, indication: Optional[str] = None) -> dict:
     except Exception as e:  # noqa: BLE001 — any load failure → graceful data_unavailable
         return {
             "_live_read_error": "hpa_normal_tissue_read_failed",
-            "_remediation": (
-                f"Could not read HPA master TSV (s3://{_cli.S3_BUCKET}/{_cli.HPA_KEY}) "
-                f"for {target}: {e}"),
+            "_remediation": (f"Could not read HPA master TSV (s3://{_cli.S3_BUCKET}/{_cli.HPA_KEY}) for {target}: {e}"),
             "normal_tissue_breadth_class": "data_unavailable",
-            "essential_tissue_flag": "unknown",   # SOURCE unread → no data (NOT a measured `absent`); mirrors cli.py compute_summary(row=None)
+            "essential_tissue_flag": "unknown",  # SOURCE unread → no data (NOT a measured `absent`); mirrors cli.py compute_summary(row=None)
             "hpa_tissue_distribution": None,
             "hpa_tissue_specificity": None,
             "n_essential_tissues_with_expression": 0,

@@ -7,6 +7,7 @@ persists the built index to a pickle keyed by _catalog_signature (a fingerprint 
 file's path/size/mtime_ns). This test is the safety net that lets that live in the shared loader:
 the served index must equal a fresh build, and a stale index must never be served.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -15,8 +16,12 @@ import os
 import pytest
 
 from methods.catalog_query.read import (
-    DATA_CATALOG, TARGET_CONTRACTS, load_catalog, _build_catalog_index,
-    _catalog_signature, _catalog_input_files,
+    DATA_CATALOG,
+    TARGET_CONTRACTS,
+    load_catalog,
+    _build_catalog_index,
+    _catalog_signature,
+    _catalog_input_files,
 )
 
 
@@ -24,9 +29,18 @@ def _norm(idx):
     """A deep, order-stable projection of a CatalogIndex for equality comparison."""
     return (
         sorted(idx.manifests),
-        {k: (v.id, v.type, str(v.path), tuple(v.derived_from), tuple(v.declared_cited_by),
-             tuple(v.computed_cited_by), tuple(sorted((v.raw or {}).get("_categories", []))))
-         for k, v in idx.manifests.items()},
+        {
+            k: (
+                v.id,
+                v.type,
+                str(v.path),
+                tuple(v.derived_from),
+                tuple(v.declared_cited_by),
+                tuple(v.computed_cited_by),
+                tuple(sorted((v.raw or {}).get("_categories", []))),
+            )
+            for k, v in idx.manifests.items()
+        },
         idx.consumers,
         idx.subgroup_citations,
         sorted(idx.indication_configs),
@@ -46,7 +60,7 @@ def test_disk_cache_equivalent_to_fresh_build(cache_dir):
     """The index served from the disk pickle equals a fresh (uncached) build, field-for-field."""
     fresh = _build_catalog_index(DATA_CATALOG, TARGET_CONTRACTS)
     load_catalog.cache_clear()
-    built = load_catalog(root=DATA_CATALOG, contracts_root=TARGET_CONTRACTS)   # builds + persists
+    built = load_catalog(root=DATA_CATALOG, contracts_root=TARGET_CONTRACTS)  # builds + persists
     load_catalog.cache_clear()
     from_disk = load_catalog(root=DATA_CATALOG, contracts_root=TARGET_CONTRACTS)  # unpickles
     assert _norm(built) == _norm(fresh)

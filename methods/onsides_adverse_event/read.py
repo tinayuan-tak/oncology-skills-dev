@@ -26,6 +26,7 @@ onsides_ade_class (first match wins):
   no_mapped_drug_ade   — gene absent from the product (fuzzy drug->gene join mapped no drug) — a
                         coverage gap, NOT evidence of safety
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -44,15 +45,21 @@ def _read_onsides_row(target: str) -> Optional[dict]:
     rather than a false "no ADE" for a live gene."""
     try:
         import sys as _sys
+
         _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
         from methods.catalog_query.read import bucket_key_for
         import pyarrow.parquet as pq
         import pyarrow.fs as fs
+
         bucket, key = bucket_key_for(PRODUCT_MANIFEST_ID)
-        tbl = pq.read_table(f"{bucket}/{key}", filesystem=fs.S3FileSystem(),
-                            filters=[("gene_symbol", "=", (target or "").strip().upper())])
+        tbl = pq.read_table(
+            f"{bucket}/{key}",
+            filesystem=fs.S3FileSystem(),
+            filters=[("gene_symbol", "=", (target or "").strip().upper())],
+        )
     except Exception as e:  # noqa: BLE001
         from methods.target_id_sidecar import is_definitively_absent
+
         if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
             return None
         raise
@@ -72,8 +79,7 @@ def _classify(row: Optional[dict]) -> str:
     return "no_mapped_drug_ade"
 
 
-def read_target_summary(target: str, indication: Optional[str] = None,
-                        onsides_row: Optional[dict] = None) -> dict:
+def read_target_summary(target: str, indication: Optional[str] = None, onsides_row: Optional[dict] = None) -> dict:
     """Per-target OnSIDES ADE summary (verdict-INERT context).
 
     indication is accepted for the generic reader dispatch contract but is IGNORED — OnSIDES ADEs are
@@ -101,21 +107,29 @@ def read_target_summary(target: str, indication: Optional[str] = None,
 
 def _context(sym: str, klass: str, row: Optional[dict]) -> Optional[str]:
     if klass == "no_mapped_drug_ade":
-        return (f"{sym}: no drug fuzzy-mapped to this gene in the OnSIDES per-gene ADE product "
-                f"(the drug-name->gene join found no mapped drug). A coverage gap — NOT evidence of "
-                f"safety.")
+        return (
+            f"{sym}: no drug fuzzy-mapped to this gene in the OnSIDES per-gene ADE product "
+            f"(the drug-name->gene join found no mapped drug). A coverage gap — NOT evidence of "
+            f"safety."
+        )
     n_drugs = int((row or {}).get("n_drugs_mapped") or 0)
     n_terms = int((row or {}).get("n_meddra_terms") or 0)
     n_bw = int((row or {}).get("n_boxed_warning_terms") or 0)
     drugs = (row or {}).get("example_drugs") or ""
-    caveat = ("Drug-level, class-wide via a fuzzy drug-name join (recall-union over every gene a drug "
-              "engages) — CANNOT separate on-target from off-target; context only, not a verdict input.")
+    caveat = (
+        "Drug-level, class-wide via a fuzzy drug-name join (recall-union over every gene a drug "
+        "engages) — CANNOT separate on-target from off-target; context only, not a verdict input."
+    )
     if klass == "boxed_warning_ade":
         bw_terms = (row or {}).get("example_boxed_warning_terms") or ""
-        return (f"{sym}: {n_drugs} mapped drug(s), {n_terms} labeled MedDRA ADE term(s), {n_bw} in a "
-                f"BOXED WARNING (e.g. {bw_terms}). Mapped drugs: {drugs}. {caveat}")
+        return (
+            f"{sym}: {n_drugs} mapped drug(s), {n_terms} labeled MedDRA ADE term(s), {n_bw} in a "
+            f"BOXED WARNING (e.g. {bw_terms}). Mapped drugs: {drugs}. {caveat}"
+        )
     if klass == "labeled_ade_profile":
         terms = (row or {}).get("example_terms") or ""
-        return (f"{sym}: {n_drugs} mapped drug(s), {n_terms} labeled MedDRA ADE term(s), no boxed "
-                f"warning (e.g. {terms}). Mapped drugs: {drugs}. {caveat}")
+        return (
+            f"{sym}: {n_drugs} mapped drug(s), {n_terms} labeled MedDRA ADE term(s), no boxed "
+            f"warning (e.g. {terms}). Mapped drugs: {drugs}. {caveat}"
+        )
     return None

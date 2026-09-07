@@ -31,6 +31,7 @@ from Open Targets' entity-resolved text-mining instead, pinned to the release.
 
 data_unavailable-safe. Absence = coverage gap, never a silent fake-negative.
 """
+
 from __future__ import annotations
 
 import os
@@ -39,8 +40,8 @@ from typing import Optional
 
 import yaml
 
-LITERATURE_MANIFEST = "opentargets-literature-per-target-v2"   # v2: top-100 + entity_lut sentences
-METHOD_VERSION = "0.2.0"                                        # 0.2.0: axis-aware re-ranking
+LITERATURE_MANIFEST = "opentargets-literature-per-target-v2"  # v2: top-100 + entity_lut sentences
+METHOD_VERSION = "0.2.0"  # 0.2.0: axis-aware re-ranking
 DEFAULT_TOP_N = 10
 
 
@@ -48,6 +49,7 @@ def _axis_tokens(axis_terms) -> list[str]:
     """PURE: split an axis OR-clause ('toxicity OR adverse event OR ...') into lowercased tokens for
     sentence matching. Boolean glue (OR/AND) and parens are stripped; multi-word phrases kept whole."""
     import re
+
     if not axis_terms:
         return []
     raw = re.split(r"\bOR\b|\bAND\b", str(axis_terms))
@@ -62,8 +64,10 @@ def _axis_match(sentence, tokens: list[str]) -> int:
     s = str(sentence).lower()
     return sum(1 for tok in tokens if tok and tok in s)
 
-TARGET_CONTRACTS = Path(os.environ.get(
-    "TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
+
+TARGET_CONTRACTS = Path(
+    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+)
 
 # Finer OncoTree/panel subtype codes -> the indication_crosswalk `canonical_code` that carries the
 # efo_ids lane. The framework often passes a fine OncoTree code (e.g. LUAD) while the crosswalk keys
@@ -71,9 +75,10 @@ TARGET_CONTRACTS = Path(os.environ.get(
 # this normalization. Only 1:1 subtype->canonical aliases belong here (codes with no crosswalk entry,
 # e.g. MESO, correctly stay unaliased -> target-level).
 INDICATION_ALIAS = {
-    "LUAD": "NSCLC", "LUSC": "NSCLC",   # lung adeno / squamous -> NSCLC grouping
-    "DLBCL": "DLBC",                     # diffuse large B-cell lymphoma code spelling
-    "LAML": "AML",                       # acute myeloid leukemia code spelling
+    "LUAD": "NSCLC",
+    "LUSC": "NSCLC",  # lung adeno / squamous -> NSCLC grouping
+    "DLBCL": "DLBC",  # diffuse large B-cell lymphoma code spelling
+    "LAML": "AML",  # acute myeloid leukemia code spelling
 }
 
 
@@ -101,22 +106,25 @@ def _read_target_rows(ensembl_gene_id: str) -> list:
     """Pushdown-read the literature floor for one ENSG. Empty on genuine absence; re-raise env faults."""
     try:
         import sys as _sys
+
         _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
         from methods.catalog_query.read import bucket_key_for
         import pyarrow.parquet as pq
         import pyarrow.fs as fs
+
         bucket, key = bucket_key_for(LITERATURE_MANIFEST)
-        return pq.read_table(f"{bucket}/{key}", filesystem=fs.S3FileSystem(),
-                             filters=[("ensembl_gene_id", "=", ensembl_gene_id)]).to_pylist()
+        return pq.read_table(
+            f"{bucket}/{key}", filesystem=fs.S3FileSystem(), filters=[("ensembl_gene_id", "=", ensembl_gene_id)]
+        ).to_pylist()
     except Exception as e:  # noqa: BLE001
         from methods.target_id_sidecar import is_definitively_absent
+
         if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
             return []
         raise
 
 
-def aggregate_literature(rows: list, efo_ids: list, *, top_n: int = DEFAULT_TOP_N,
-                         axis_terms=None) -> dict:
+def aggregate_literature(rows: list, efo_ids: list, *, top_n: int = DEFAULT_TOP_N, axis_terms=None) -> dict:
     """PURE aggregator (offline-testable): literature-floor rows for ONE gene -> per-source top-N
     PMID pointers + the unioned PMID set. europepmc rows are scoped to the indication when efo_ids
     is non-empty (disease_id in efo_ids); entity_lut is target-level by construction.
@@ -160,22 +168,31 @@ def aggregate_literature(rows: list, efo_ids: list, *, top_n: int = DEFAULT_TOP_
     seen: set = set()
     for src, srows in by_source.items():
         # axis re-rank (axis_match desc) BEFORE the top-N cut; association rank_in_source breaks ties
-        srows = sorted(srows, key=lambda r: (-_axis_match(r.get("sentence"), tokens),
-                                             int(r.get("rank_in_source") or 1_000_000)))[:top_n]
-        recs = [{"pmid": str(r.get("pmid")), "score": r.get("score"), "year": r.get("year"),
-                 "rank_in_source": r.get("rank_in_source"),
-                 "axis_match": _axis_match(r.get("sentence"), tokens),
-                 "disease_id": r.get("disease_id"), "sentence": r.get("sentence")} for r in srows]
+        srows = sorted(
+            srows, key=lambda r: (-_axis_match(r.get("sentence"), tokens), int(r.get("rank_in_source") or 1_000_000))
+        )[:top_n]
+        recs = [
+            {
+                "pmid": str(r.get("pmid")),
+                "score": r.get("score"),
+                "year": r.get("year"),
+                "rank_in_source": r.get("rank_in_source"),
+                "axis_match": _axis_match(r.get("sentence"), tokens),
+                "disease_id": r.get("disease_id"),
+                "sentence": r.get("sentence"),
+            }
+            for r in srows
+        ]
         out_by_source[src] = recs
-        for rec in recs:                              # entity-first union order is caller's concern; here
-            if rec["pmid"] not in seen:               # we just dedup, preserving per-source rank order
+        for rec in recs:  # entity-first union order is caller's concern; here
+            if rec["pmid"] not in seen:  # we just dedup, preserving per-source rank order
                 seen.add(rec["pmid"])
                 union.append(rec["pmid"])
 
     return {
         "indication_scope": scope,
-        "europepmc_scope": europepmc_scope,   # 'indication' | 'target_level' | 'target_level_fallback'
-        "axis_reranked": bool(tokens),        # rows re-ranked by sentence↔axis-term match
+        "europepmc_scope": europepmc_scope,  # 'indication' | 'target_level' | 'target_level_fallback'
+        "axis_reranked": bool(tokens),  # rows re-ranked by sentence↔axis-term match
         "n_pmids": len(union),
         "pmids": union,
         "sources_present": sorted(out_by_source.keys()),
@@ -183,49 +200,85 @@ def aggregate_literature(rows: list, efo_ids: list, *, top_n: int = DEFAULT_TOP_
     }
 
 
-def read_literature_floor(target: str, indication: str, modality: Optional[str] = None,
-                          release_pin: Optional[str] = None, *, top_n: int = DEFAULT_TOP_N,
-                          axis_terms: Optional[str] = None) -> dict:
+def read_literature_floor(
+    target: str,
+    indication: str,
+    modality: Optional[str] = None,
+    release_pin: Optional[str] = None,
+    *,
+    top_n: int = DEFAULT_TOP_N,
+    axis_terms: Optional[str] = None,
+) -> dict:
     """Pinned literature floor for a (target, indication). `modality`/`release_pin` accepted for
     dispatch-signature parity; the product is pinned to its OT release. `axis_terms` (the calling
     subskill/axis OR-clause) re-ranks each source by sentence↔axis-term match so the floor surfaces
     axis-RELEVANT papers, not the same generic top-by-association papers for every axis."""
     from methods.opentargets_common import symbol_to_ensembl
-    base = {"target": target, "indication": indication, "method_version": METHOD_VERSION,
-            "source": LITERATURE_MANIFEST, "as_of_opentargets_release": "26.06"}
+
+    base = {
+        "target": target,
+        "indication": indication,
+        "method_version": METHOD_VERSION,
+        "source": LITERATURE_MANIFEST,
+        "as_of_opentargets_release": "26.06",
+    }
 
     ensg = symbol_to_ensembl(target)
     if not ensg:
-        return {**base, "status": "insufficient", "n_pmids": 0, "pmids": [], "by_source": {},
-                "_note": f"{target}: could not resolve to an Ensembl gene id (OT resolver)"}
+        return {
+            **base,
+            "status": "insufficient",
+            "n_pmids": 0,
+            "pmids": [],
+            "by_source": {},
+            "_note": f"{target}: could not resolve to an Ensembl gene id (OT resolver)",
+        }
 
     rows = _read_target_rows(ensg)
     if not rows:
-        return {**base, "ensembl_gene_id": ensg, "status": "no_literature_floor",
-                "indication_scope": "target_level", "n_pmids": 0, "pmids": [], "by_source": {},
-                "_note": f"{target} ({ensg}): no rows in {LITERATURE_MANIFEST} (un-text-mined or coverage gap)"}
+        return {
+            **base,
+            "ensembl_gene_id": ensg,
+            "status": "no_literature_floor",
+            "indication_scope": "target_level",
+            "n_pmids": 0,
+            "pmids": [],
+            "by_source": {},
+            "_note": f"{target} ({ensg}): no rows in {LITERATURE_MANIFEST} (un-text-mined or coverage gap)",
+        }
 
     efo_ids = _indication_efo_ids(indication)
     agg = aggregate_literature(rows, efo_ids, top_n=top_n, axis_terms=axis_terms)
     out = {**base, "ensembl_gene_id": ensg, "efo_ids": efo_ids, "status": "ok", **agg}
     if not efo_ids:
-        out["_note"] = (f"no efo_ids lane for indication {indication!r} in indication_crosswalk.yaml — "
-                        f"reporting the TARGET-LEVEL literature floor (europepmc lane not disease-scoped)")
+        out["_note"] = (
+            f"no efo_ids lane for indication {indication!r} in indication_crosswalk.yaml — "
+            f"reporting the TARGET-LEVEL literature floor (europepmc lane not disease-scoped)"
+        )
     return out
 
 
 def _main(argv=None):
     import argparse
     import json
+
     ap = argparse.ArgumentParser(description="Pinned per-target literature floor from Open Targets 26.06.")
     ap.add_argument("--target", required=True)
     ap.add_argument("--indication", required=True)
     ap.add_argument("--top-n", type=int, default=DEFAULT_TOP_N)
-    ap.add_argument("--axis-terms", default=None,
-                    help="axis OR-clause to re-rank by sentence match, e.g. 'toxicity OR normal tissue'")
+    ap.add_argument(
+        "--axis-terms",
+        default=None,
+        help="axis OR-clause to re-rank by sentence match, e.g. 'toxicity OR normal tissue'",
+    )
     args = ap.parse_args(argv)
-    print(json.dumps(read_literature_floor(args.target, args.indication, top_n=args.top_n,
-                                           axis_terms=args.axis_terms), indent=2, default=str))
+    print(
+        json.dumps(
+            read_literature_floor(args.target, args.indication, top_n=args.top_n, axis_terms=args.axis_terms),
+            indent=2,
+            default=str,
+        )
+    )
 
 
 if __name__ == "__main__":

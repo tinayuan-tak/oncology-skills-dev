@@ -8,6 +8,7 @@ error handling. Target-only (indication accepted for the dispatcher signature, n
 Returns the copy-number-stratified-dependency card's summary_fields, or a dict with
 _live_read_error when the underlying DepMap data is unreachable.
 """
+
 from __future__ import annotations
 
 import sys
@@ -39,9 +40,7 @@ def read_cn_stratified_dependency(target: str, indication: Optional[str] = None)
     from methods.depmap_cn_distribution import cli as cncli
 
     # 1. Chronos (reuse Card-1's loader)
-    chronos_by_model, model_metadata, chronos_errs = c1cli.load_depmap_files(
-        release_pin="26q1", target_symbol=target
-    )
+    chronos_by_model, model_metadata, chronos_errs = c1cli.load_depmap_files(release_pin="26q1", target_symbol=target)
     if chronos_errs:
         return {
             "_live_read_error": chronos_errs[0].get("_live_read_error", "s3_or_local_read_failed"),
@@ -57,13 +56,12 @@ def read_cn_stratified_dependency(target: str, indication: Optional[str] = None)
         }
 
     # 2. Relative CN (already bridged ModelConditionID → ModelID by load_cn_files)
-    cn_by_model, _cn_meta, assay_used, cn_errs = cncli.load_cn_files(
-        release_pin="26q1", target_symbol=target
-    )
+    cn_by_model, _cn_meta, assay_used, cn_errs = cncli.load_cn_files(release_pin="26q1", target_symbol=target)
     if cn_errs or not cn_by_model:
         return {
-            "_live_read_error": (cn_errs[0].get("_live_read_error", "cn_read_failed")
-                                 if cn_errs else "no_cn_for_target"),
+            "_live_read_error": (
+                cn_errs[0].get("_live_read_error", "cn_read_failed") if cn_errs else "no_cn_for_target"
+            ),
             "errors": cn_errs,
             "_remediation": "Method cannot reach DepMap 26Q1 copy number; verify local cache or AWS credentials.",
             "cn_stratification_class": "data_unavailable",
@@ -85,10 +83,11 @@ def read_cn_stratified_dependency(target: str, indication: Optional[str] = None)
         def _keep(m):
             arm = mut_models if cn_by_model.get(m, 0) > FOCAL_AMP_HIGH else wt_models
             return arm is None or m in arm
+
         c = {m: v for m, v in chronos_by_model.items() if _keep(m)}
         cn = {m: v for m, v in cn_by_model.items() if m in c}
         return _cli.compute_cn_stratification(c, cn)
 
     summary = apply_lineage_ladder(_compute, "cn_stratification_class", model_metadata, indication)
-    summary["_cn_assay_used"] = assay_used   # WES (primary) or WGS (fallback), provenance
+    summary["_cn_assay_used"] = assay_used  # WES (primary) or WGS (fallback), provenance
     return summary

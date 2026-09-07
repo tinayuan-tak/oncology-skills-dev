@@ -16,6 +16,7 @@ this card is the OT-prioritisation orientation layer.
 
 data_unavailable-safe: absent entity / unresolved target -> data_unavailable summary.
 """
+
 from __future__ import annotations
 
 from typing import Optional
@@ -27,11 +28,15 @@ METHOD_VERSION = "0.1.0"
 # The subset of target_prioritisation columns this card surfaces, grouped by theme. All are
 # OT-normalized scores unless noted; we pass them through with a light categorical band.
 _SAFETY_FIELDS = ["hasSafetyEvent", "geneticConstraint", "mouseKOScore"]
-_TRACTABILITY_FIELDS = ["hasPocket", "hasLigand", "hasSmallMoleculeBinder",
-                        "hasHighQualityChemicalProbes", "hasTEP"]
+_TRACTABILITY_FIELDS = ["hasPocket", "hasLigand", "hasSmallMoleculeBinder", "hasHighQualityChemicalProbes", "hasTEP"]
 _LOCALIZATION_FIELDS = ["isInMembrane", "isSecreted"]
-_CONTEXT_FIELDS = ["isCancerDriverGene", "maxClinicalStage", "tissueSpecificity",
-                   "celltypeSpecificity", "paralogMaxIdentityPercentage"]
+_CONTEXT_FIELDS = [
+    "isCancerDriverGene",
+    "maxClinicalStage",
+    "tissueSpecificity",
+    "celltypeSpecificity",
+    "paralogMaxIdentityPercentage",
+]
 _ALL_FIELDS = ["targetId"] + _SAFETY_FIELDS + _TRACTABILITY_FIELDS + _LOCALIZATION_FIELDS + _CONTEXT_FIELDS
 
 
@@ -43,6 +48,7 @@ def _band(score: Optional[float]) -> str:
     None/NaN -> not_scored (OT did not assign a prioritisation value for this field).
     """
     import math
+
     if score is None:
         return "not_scored"
     try:
@@ -65,20 +71,33 @@ def read_target_prioritisation(target: str, indication: Optional[str] = None) ->
     target_prioritisation is a per-target (indication-agnostic) OT engineered score.
     """
     ensg = symbol_to_ensembl(target)
-    base = {"target": target, "ensembl_gene_id": ensg, "method_version": METHOD_VERSION,
-            "source": "opentargets-26-06/target_prioritisation"}
+    base = {
+        "target": target,
+        "ensembl_gene_id": ensg,
+        "method_version": METHOD_VERSION,
+        "source": "opentargets-26-06/target_prioritisation",
+    }
     if ensg is None:
-        return {**base, "prioritisation_status": "data_unavailable",
-                "_note": "target not resolvable to an Ensembl gene id via the OT resolver sidecar"}
+        return {
+            **base,
+            "prioritisation_status": "data_unavailable",
+            "_note": "target not resolvable to an Ensembl gene id via the OT resolver sidecar",
+        }
 
     df = read_entity("target_prioritisation", columns=_ALL_FIELDS, filter_col="targetId", filter_val=ensg)
     if df.empty:
-        return {**base, "prioritisation_status": "data_unavailable",
-                "_note": "target_prioritisation entity not available"}
+        return {
+            **base,
+            "prioritisation_status": "data_unavailable",
+            "_note": "target_prioritisation entity not available",
+        }
     hit = df[df["targetId"] == ensg]
     if hit.empty:
-        return {**base, "prioritisation_status": "not_in_prioritisation_table",
-                "_note": f"{ensg} absent from OT target_prioritisation (78,691 targets scored)"}
+        return {
+            **base,
+            "prioritisation_status": "not_in_prioritisation_table",
+            "_note": f"{ensg} absent from OT target_prioritisation (78,691 targets scored)",
+        }
 
     row = hit.iloc[0].to_dict()
 
@@ -89,6 +108,7 @@ def read_target_prioritisation(target: str, indication: Optional[str] = None) ->
         try:
             fv = float(v)
             import math
+
             return None if math.isnan(fv) else round(fv, 4)
         except (TypeError, ValueError):
             return None
@@ -101,10 +121,13 @@ def read_target_prioritisation(target: str, indication: Optional[str] = None) ->
         "genetic_constraint_band": _band(row.get("geneticConstraint")),
         "mouse_ko_score_band": _band(row.get("mouseKOScore")),
         # raw scores (full precision surfaced for the skill / figure).
-        "ot_scores": {f: raw(f) for f in _SAFETY_FIELDS + _TRACTABILITY_FIELDS
-                      + _LOCALIZATION_FIELDS + _CONTEXT_FIELDS},
-        "_encoding_note": ("OT-normalized prioritisation scores (~[-1,1], higher=more favorable); "
-                           "NOT raw facts. Authoritative per-fact reads live in the dedicated cards."),
+        "ot_scores": {
+            f: raw(f) for f in _SAFETY_FIELDS + _TRACTABILITY_FIELDS + _LOCALIZATION_FIELDS + _CONTEXT_FIELDS
+        },
+        "_encoding_note": (
+            "OT-normalized prioritisation scores (~[-1,1], higher=more favorable); "
+            "NOT raw facts. Authoritative per-fact reads live in the dedicated cards."
+        ),
     }
 
 

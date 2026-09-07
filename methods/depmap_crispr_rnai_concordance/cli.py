@@ -72,18 +72,16 @@ def load_concordance_inputs(target_symbol: str, release_pin: str = "26q1") -> tu
 
     demeter_by_model, _meta_rnai, rnai_errors, _si = rnai_cli.load_rnai_files(
         release_pin=release_pin, target_symbol=target_symbol
-    )   # 4th return (sample_info_df) added for rnai_screens_contributing; unused here
+    )  # 4th return (sample_info_df) added for rnai_screens_contributing; unused here
     if rnai_errors:
         return {}, {}, {}, [{"_live_read_error": "rnai_load_failed", "underlying": rnai_errors}]
 
     return chronos_by_model, demeter_by_model, model_metadata, []
 
 
-def _classify_cell_line(model_id: str,
-                         chronos: Optional[float],
-                         demeter: Optional[float],
-                         crispr_threshold: float,
-                         rnai_threshold: float) -> str:
+def _classify_cell_line(
+    model_id: str, chronos: Optional[float], demeter: Optional[float], crispr_threshold: float, rnai_threshold: float
+) -> str:
     """Assign a single cell line to one of 8 concordance buckets."""
     has_crispr = chronos is not None
     has_rnai = demeter is not None
@@ -100,21 +98,23 @@ def _classify_cell_line(model_id: str,
             return "agree_non_dependent"
         if crispr_dep and not rnai_dep:
             return "disagree_crispr_dependent"
-        return "disagree_rnai_dependent"   # rnai_dep and not crispr_dep
+        return "disagree_rnai_dependent"  # rnai_dep and not crispr_dep
     if has_crispr:
         return "crispr_only_dependent" if crispr_dep else "crispr_only_non_dependent"
     # has_rnai only
     return "rnai_only_dependent" if rnai_dep else "rnai_only_non_dependent"
 
 
-def compute_concordance(chronos_by_model: dict,
-                         demeter_by_model: dict,
-                         model_metadata: dict,
-                         crispr_threshold: float = -0.5,
-                         rnai_threshold: float = -0.25,
-                         min_overlap_for_call: int = 30,
-                         strongly_concordant_fraction: float = 0.85,
-                         discordant_fraction: float = 0.30) -> dict:
+def compute_concordance(
+    chronos_by_model: dict,
+    demeter_by_model: dict,
+    model_metadata: dict,
+    crispr_threshold: float = -0.5,
+    rnai_threshold: float = -0.25,
+    min_overlap_for_call: int = 30,
+    strongly_concordant_fraction: float = 0.85,
+    discordant_fraction: float = 0.30,
+) -> dict:
     """Compute the concordance partition + overall class.
 
     Per-line buckets are recorded in `per_line_concordance`. Bucket counts +
@@ -126,10 +126,14 @@ def compute_concordance(chronos_by_model: dict,
 
     per_line = []
     bucket_counts = {
-        "agree_dependent": 0, "agree_non_dependent": 0,
-        "disagree_crispr_dependent": 0, "disagree_rnai_dependent": 0,
-        "crispr_only_dependent": 0, "crispr_only_non_dependent": 0,
-        "rnai_only_dependent": 0, "rnai_only_non_dependent": 0,
+        "agree_dependent": 0,
+        "agree_non_dependent": 0,
+        "disagree_crispr_dependent": 0,
+        "disagree_rnai_dependent": 0,
+        "crispr_only_dependent": 0,
+        "crispr_only_non_dependent": 0,
+        "rnai_only_dependent": 0,
+        "rnai_only_non_dependent": 0,
     }
 
     for model_id in sorted(all_ids):
@@ -138,18 +142,24 @@ def compute_concordance(chronos_by_model: dict,
         meta = model_metadata.get(model_id, {})
         bucket = _classify_cell_line(model_id, chronos, demeter, crispr_threshold, rnai_threshold)
         bucket_counts[bucket] = bucket_counts.get(bucket, 0) + 1
-        per_line.append({
-            "model_id": model_id,
-            "ccle_name": meta.get("CCLEName"),
-            "lineage": meta.get("OncotreeLineage"),
-            "chronos": float(chronos) if chronos is not None else None,
-            "demeter2": float(demeter) if demeter is not None else None,
-            "concordance_label": bucket,
-        })
+        per_line.append(
+            {
+                "model_id": model_id,
+                "ccle_name": meta.get("CCLEName"),
+                "lineage": meta.get("OncotreeLineage"),
+                "chronos": float(chronos) if chronos is not None else None,
+                "demeter2": float(demeter) if demeter is not None else None,
+                "concordance_label": bucket,
+            }
+        )
 
     # Derived denominator slices
-    n_in_both = (bucket_counts["agree_dependent"] + bucket_counts["agree_non_dependent"]
-                 + bucket_counts["disagree_crispr_dependent"] + bucket_counts["disagree_rnai_dependent"])
+    n_in_both = (
+        bucket_counts["agree_dependent"]
+        + bucket_counts["agree_non_dependent"]
+        + bucket_counts["disagree_crispr_dependent"]
+        + bucket_counts["disagree_rnai_dependent"]
+    )
     n_crispr_only = bucket_counts["crispr_only_dependent"] + bucket_counts["crispr_only_non_dependent"]
     n_rnai_only = bucket_counts["rnai_only_dependent"] + bucket_counts["rnai_only_non_dependent"]
     n_total = n_in_both + n_crispr_only + n_rnai_only
@@ -168,8 +178,9 @@ def compute_concordance(chronos_by_model: dict,
         concordance_class = "partially_assayed"
     elif fraction_agree >= strongly_concordant_fraction:
         # Both assays agree for majority — but is the majority calling dependent or non-dependent?
-        frac_dep_among_agree = (bucket_counts["agree_dependent"] /
-                                 max(1, bucket_counts["agree_dependent"] + bucket_counts["agree_non_dependent"]))
+        frac_dep_among_agree = bucket_counts["agree_dependent"] / max(
+            1, bucket_counts["agree_dependent"] + bucket_counts["agree_non_dependent"]
+        )
         if frac_dep_among_agree >= 0.5:
             concordance_class = "strongly_concordant_dependent"
         else:
@@ -207,15 +218,18 @@ def compute_concordance(chronos_by_model: dict,
         "n_rnai_only_dependent": bucket_counts["rnai_only_dependent"],
         "n_rnai_only_non_dependent": bucket_counts["rnai_only_non_dependent"],
         "fraction_agree": float(fraction_agree) if fraction_agree is not None else None,
-        "fraction_dependent_in_both": float(fraction_dependent_in_both) if fraction_dependent_in_both is not None else None,
+        "fraction_dependent_in_both": float(fraction_dependent_in_both)
+        if fraction_dependent_in_both is not None
+        else None,
         "concordance_class": concordance_class,
         "per_line_concordance": per_line,
     }
     return summary
 
 
-def emit_concordance_overlay_density(per_line: list, target_symbol: str,
-                                       out_dir: Path, target_contracts_dir: Path) -> Path:
+def emit_concordance_overlay_density(
+    per_line: list, target_symbol: str, out_dir: Path, target_contracts_dir: Path
+) -> Path:
     """Overlay 1D KDE densities + per-assay rug — PRIMARY figure for concordance.
 
     CRISPR and RNAi scores are z-score-standardized to a shared x-axis (per-assay
@@ -228,6 +242,7 @@ def emit_concordance_overlay_density(per_line: list, target_symbol: str,
     — partition-preserving union.
     """
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import numpy as np
@@ -244,10 +259,19 @@ def emit_concordance_overlay_density(per_line: list, target_symbol: str,
     if len(crispr_scores) == 0 or len(rnai_scores) == 0:
         # Degenerate case; emit a stub
         fig, ax = plt.subplots(figsize=pal.FIGSIZE_DOUBLE_COLUMN)
-        ax.text(0.5, 0.5, "Insufficient data for concordance density overlay",
-                transform=ax.transAxes, ha="center", va="center", fontsize=10, color="#666666")
+        ax.text(
+            0.5,
+            0.5,
+            "Insufficient data for concordance density overlay",
+            transform=ax.transAxes,
+            ha="center",
+            va="center",
+            fontsize=10,
+            color="#666666",
+        )
         out_path = out_dir / "figure_concordance_overlay_density.svg"
-        fig.savefig(out_path); plt.close(fig)
+        fig.savefig(out_path)
+        plt.close(fig)
         return out_path
 
     # Z-score standardization (per-assay): each assay's distribution on a unit-std scale
@@ -276,10 +300,22 @@ def emit_concordance_overlay_density(per_line: list, target_symbol: str,
         ax.fill_between(xs, kde_r(xs), alpha=0.15, color="#f0a020")
 
     # Threshold reference lines (in z-score space)
-    ax.axvline(crispr_dep_z, color="#0a2540", linestyle="--", linewidth=1, alpha=0.6,
-               label=f"CRISPR dep threshold (z={crispr_dep_z:.2f})")
-    ax.axvline(rnai_dep_z, color="#f0a020", linestyle="--", linewidth=1, alpha=0.6,
-               label=f"RNAi dep threshold (z={rnai_dep_z:.2f})")
+    ax.axvline(
+        crispr_dep_z,
+        color="#0a2540",
+        linestyle="--",
+        linewidth=1,
+        alpha=0.6,
+        label=f"CRISPR dep threshold (z={crispr_dep_z:.2f})",
+    )
+    ax.axvline(
+        rnai_dep_z,
+        color="#f0a020",
+        linestyle="--",
+        linewidth=1,
+        alpha=0.6,
+        label=f"RNAi dep threshold (z={rnai_dep_z:.2f})",
+    )
 
     # Rug ticks: place above the density curves
     y_top = ax.get_ylim()[1]
@@ -287,11 +323,11 @@ def emit_concordance_overlay_density(per_line: list, target_symbol: str,
     rug_y_crispr = y_top + rug_h * 0.5
     rug_y_rnai = y_top + rug_h * 1.7
     for z in crispr_z:
-        ax.plot([z, z], [rug_y_crispr - rug_h * 0.3, rug_y_crispr + rug_h * 0.3],
-                color="#0a2540", linewidth=0.4, alpha=0.5)
+        ax.plot(
+            [z, z], [rug_y_crispr - rug_h * 0.3, rug_y_crispr + rug_h * 0.3], color="#0a2540", linewidth=0.4, alpha=0.5
+        )
     for z in rnai_z:
-        ax.plot([z, z], [rug_y_rnai - rug_h * 0.3, rug_y_rnai + rug_h * 0.3],
-                color="#f0a020", linewidth=0.4, alpha=0.5)
+        ax.plot([z, z], [rug_y_rnai - rug_h * 0.3, rug_y_rnai + rug_h * 0.3], color="#f0a020", linewidth=0.4, alpha=0.5)
     ax.set_ylim(0, rug_y_rnai + rug_h)
 
     ax.set_xlabel("Dependency score (z-score, per-assay standardized; lower → more dependent)")
@@ -304,8 +340,9 @@ def emit_concordance_overlay_density(per_line: list, target_symbol: str,
     rnai_only = sum(1 for p in per_line if p["chronos"] is None and p["demeter2"] is not None)
     in_both = sum(1 for p in per_line if p["chronos"] is not None and p["demeter2"] is not None)
     note = f"n_in_both: {in_both}\ncrispr_only: {crispr_only}\nrnai_only: {rnai_only}"
-    ax.text(0.02, 0.98, note, transform=ax.transAxes, fontsize=7,
-            ha="left", va="top", color="#555555", family="monospace")
+    ax.text(
+        0.02, 0.98, note, transform=ax.transAxes, fontsize=7, ha="left", va="top", color="#555555", family="monospace"
+    )
 
     fig.tight_layout()
     out_path = out_dir / "figure_concordance_overlay_density.svg"
@@ -314,11 +351,11 @@ def emit_concordance_overlay_density(per_line: list, target_symbol: str,
     return out_path
 
 
-def emit_concordance_scatter(per_line: list, target_symbol: str,
-                              out_dir: Path, target_contracts_dir: Path) -> Path:
+def emit_concordance_scatter(per_line: list, target_symbol: str, out_dir: Path, target_contracts_dir: Path) -> Path:
     """Scatter of Chronos vs DEMETER2 with quadrant lines — SECONDARY figure
     (demoted from primary). Only in-both points appear; partition counts annotated."""
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
@@ -344,8 +381,7 @@ def emit_concordance_scatter(per_line: list, target_symbol: str,
     ax.set_title(f"{target_symbol} — CRISPR vs RNAi (n_in_both={len(in_both)})")
     ax.legend(loc="upper left", fontsize=8)
     note = f"crispr_only: {crispr_only}\nrnai_only: {rnai_only}"
-    ax.text(0.98, 0.02, note, transform=ax.transAxes, fontsize=8,
-            ha="right", va="bottom", color="#555555")
+    ax.text(0.98, 0.02, note, transform=ax.transAxes, fontsize=8, ha="right", va="bottom", color="#555555")
     fig.tight_layout()
     out_path = out_dir / "figure_concordance_scatter.svg"
     fig.savefig(out_path)
@@ -353,10 +389,10 @@ def emit_concordance_scatter(per_line: list, target_symbol: str,
     return out_path
 
 
-def emit_partition_bar(summary: dict, target_symbol: str,
-                        out_dir: Path, target_contracts_dir: Path) -> Path:
+def emit_partition_bar(summary: dict, target_symbol: str, out_dir: Path, target_contracts_dir: Path) -> Path:
     """Stacked bar showing partition counts across the 8 buckets."""
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
@@ -368,21 +404,35 @@ def emit_partition_bar(summary: dict, target_symbol: str,
 
     fig, ax = plt.subplots(figsize=pal.FIGSIZE_DOUBLE_COLUMN)
     labels = [
-        "agree\nnon-dep", "agree\ndep",
-        "disagree:\nCRISPR-dep", "disagree:\nRNAi-dep",
-        "CRISPR-only\nnon-dep", "CRISPR-only\ndep",
-        "RNAi-only\nnon-dep", "RNAi-only\ndep",
+        "agree\nnon-dep",
+        "agree\ndep",
+        "disagree:\nCRISPR-dep",
+        "disagree:\nRNAi-dep",
+        "CRISPR-only\nnon-dep",
+        "CRISPR-only\ndep",
+        "RNAi-only\nnon-dep",
+        "RNAi-only\ndep",
     ]
     counts = [
-        summary["n_agree_non_dependent"], summary["n_agree_dependent"],
-        summary["n_disagree_crispr_dependent"], summary["n_disagree_rnai_dependent"],
-        summary["n_crispr_only_non_dependent"], summary["n_crispr_only_dependent"],
-        summary["n_rnai_only_non_dependent"], summary["n_rnai_only_dependent"],
+        summary["n_agree_non_dependent"],
+        summary["n_agree_dependent"],
+        summary["n_disagree_crispr_dependent"],
+        summary["n_disagree_rnai_dependent"],
+        summary["n_crispr_only_non_dependent"],
+        summary["n_crispr_only_dependent"],
+        summary["n_rnai_only_non_dependent"],
+        summary["n_rnai_only_dependent"],
     ]
-    colors = ["#7fa7c0", "#0a2540",       # agree (light/dark blue)
-              "#f0a020", "#cf2828",       # disagree (orange/red)
-              "#a8b8c0", "#506070",       # CRISPR-only (light/dark gray)
-              "#b0a8c8", "#5a4a78"]       # RNAi-only (light/dark purple)
+    colors = [
+        "#7fa7c0",
+        "#0a2540",  # agree (light/dark blue)
+        "#f0a020",
+        "#cf2828",  # disagree (orange/red)
+        "#a8b8c0",
+        "#506070",  # CRISPR-only (light/dark gray)
+        "#b0a8c8",
+        "#5a4a78",
+    ]  # RNAi-only (light/dark purple)
     ax.bar(labels, counts, color=colors, edgecolor="white")
     for i, c in enumerate(counts):
         ax.text(i, c + max(counts) * 0.01, str(c), ha="center", fontsize=8)
@@ -396,8 +446,7 @@ def emit_partition_bar(summary: dict, target_symbol: str,
     return out_path
 
 
-def emit_plotly_specs(per_line: list, target_symbol: str, out_path: Path,
-                      contracts_root: Path) -> list:
+def emit_plotly_specs(per_line: list, target_symbol: str, out_path: Path, contracts_root: Path) -> list:
     """Emit interactive Plotly spec SIBLING to the concordance SVGs (Gate-C plotly debt, 2026-07-21).
 
     Interactive twin of emit_concordance_scatter: CRISPR Chronos (x) vs RNAi DEMETER2 (y) for the
@@ -413,41 +462,58 @@ def emit_plotly_specs(per_line: list, target_symbol: str, out_path: Path,
 
     written = []
     try:
-        in_both = [p for p in per_line
-                   if p.get("chronos") is not None and p.get("demeter2") is not None]
-        crispr_only = sum(1 for p in per_line
-                          if p.get("chronos") is not None and p.get("demeter2") is None)
-        rnai_only = sum(1 for p in per_line
-                        if p.get("chronos") is None and p.get("demeter2") is not None)
+        in_both = [p for p in per_line if p.get("chronos") is not None and p.get("demeter2") is not None]
+        crispr_only = sum(1 for p in per_line if p.get("chronos") is not None and p.get("demeter2") is None)
+        rnai_only = sum(1 for p in per_line if p.get("chronos") is None and p.get("demeter2") is not None)
         # color by concordance_label (the per-line bucket _classify_cell_line assigns); else navy.
         # Only in-both lines appear here, so the relevant labels are the agree/disagree ones.
-        bucket_color = {"agree_dependent": "#cf2828", "agree_non_dependent": "#CCCCCC",
-                        "disagree_crispr_dependent": "#0072B2",
-                        "disagree_rnai_dependent": "#f0a020"}
+        bucket_color = {
+            "agree_dependent": "#cf2828",
+            "agree_non_dependent": "#CCCCCC",
+            "disagree_crispr_dependent": "#0072B2",
+            "disagree_rnai_dependent": "#f0a020",
+        }
         xs = [p["chronos"] for p in in_both]
         ys = [p["demeter2"] for p in in_both]
         colors = [bucket_color.get(p.get("concordance_label"), "#0a2540") for p in in_both]
         names = [p.get("model_id", "?") for p in in_both]
         buckets = [p.get("concordance_label", "?") for p in in_both]
-        fig = go.Figure(go.Scatter(
-            x=xs, y=ys, mode="markers",
-            marker=dict(color=colors, size=7, opacity=0.6, line=dict(width=0.5, color="white")),
-            customdata=list(zip(names, buckets)),
-            hovertemplate="%{customdata[0]}<br>%{customdata[1]}"
-                          "<br>CRISPR %{x:.2f} / RNAi %{y:.2f}<extra></extra>"))
+        fig = go.Figure(
+            go.Scatter(
+                x=xs,
+                y=ys,
+                mode="markers",
+                marker=dict(color=colors, size=7, opacity=0.6, line=dict(width=0.5, color="white")),
+                customdata=list(zip(names, buckets)),
+                hovertemplate="%{customdata[0]}<br>%{customdata[1]}<br>CRISPR %{x:.2f} / RNAi %{y:.2f}<extra></extra>",
+            )
+        )
         # quadrant thresholds mirror the SVG exactly (-0.5 CRISPR / -0.25 RNAi).
-        fig.add_vline(x=-0.5, line=dict(color="#cf2828", dash="dash", width=1.5),
-                      annotation_text="CRISPR dep (-0.5)", annotation_position="top")
-        fig.add_hline(y=-0.25, line=dict(color="#cf2828", dash="dash", width=1.5),
-                      annotation_text="RNAi dep (-0.25)", annotation_position="right")
+        fig.add_vline(
+            x=-0.5,
+            line=dict(color="#cf2828", dash="dash", width=1.5),
+            annotation_text="CRISPR dep (-0.5)",
+            annotation_position="top",
+        )
+        fig.add_hline(
+            y=-0.25,
+            line=dict(color="#cf2828", dash="dash", width=1.5),
+            annotation_text="RNAi dep (-0.25)",
+            annotation_position="right",
+        )
         fig.update_layout(
             title=f"{target_symbol} — CRISPR vs RNAi concordance "
-                  f"(n_in_both={len(in_both)}; crispr_only={crispr_only}, rnai_only={rnai_only})",
-            xaxis_title="CRISPR Chronos", yaxis_title="RNAi DEMETER2",
-            template="plotly_white", showlegend=False, margin=dict(l=60, r=20, t=50, b=50))
+            f"(n_in_both={len(in_both)}; crispr_only={crispr_only}, rnai_only={rnai_only})",
+            xaxis_title="CRISPR Chronos",
+            yaxis_title="RNAi DEMETER2",
+            template="plotly_white",
+            showlegend=False,
+            margin=dict(l=60, r=20, t=50, b=50),
+        )
         (out_path / "figure_concordance_scatter.plotly.json").write_text(fig.to_json())
-        written.append({"id": "concordance_scatter",
-                        "path": "figure_concordance_scatter.plotly.json", "type": "plotly"})
+        written.append(
+            {"id": "concordance_scatter", "path": "figure_concordance_scatter.plotly.json", "type": "plotly"}
+        )
     except Exception as e:  # noqa: BLE001
         print(f"[crispr-rnai-concordance] scatter plotly skipped: {e}", file=sys.stderr)
 
@@ -457,16 +523,17 @@ def emit_plotly_specs(per_line: list, target_symbol: str, out_path: Path,
 def emit_plot_data(per_line: list, out_path: Path) -> Path:
     """Emit per-line concordance Parquet."""
     import pandas as pd
+
     df = pd.DataFrame(per_line)
     out_file = out_path / "plot_data_concordance.parquet"
     df.to_parquet(out_file, index=False)
     return out_file
 
 
-def emit_manifest(target_symbol: str, release_pin: str, summary: dict,
-                   out_dir: Path, load_errors: list) -> Path:
+def emit_manifest(target_symbol: str, release_pin: str, summary: dict, out_dir: Path, load_errors: list) -> Path:
     """Emit provenance manifest YAML."""
     import yaml
+
     manifest = {
         "method_id": "depmap-crispr-rnai-concordance",
         "method_version": METHOD_VERSION,
@@ -506,9 +573,13 @@ def main(target, release_pin, crispr_dependent_threshold, rnai_dependent_thresho
         }
         (out / "summary.json").write_text(json.dumps(err, indent=2))
         sys.exit(1)
-    summary = compute_concordance(chronos_by, demeter_by, model_meta,
-                                   crispr_threshold=crispr_dependent_threshold,
-                                   rnai_threshold=rnai_dependent_threshold)
+    summary = compute_concordance(
+        chronos_by,
+        demeter_by,
+        model_meta,
+        crispr_threshold=crispr_dependent_threshold,
+        rnai_threshold=rnai_dependent_threshold,
+    )
     (out / "summary.json").write_text(json.dumps(summary, indent=2, default=str))
     emit_concordance_overlay_density(summary["per_line_concordance"], target, out, DEFAULT_TARGET_CONTRACTS)
     emit_concordance_scatter(summary["per_line_concordance"], target, out, DEFAULT_TARGET_CONTRACTS)

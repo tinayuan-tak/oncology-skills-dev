@@ -27,6 +27,7 @@ Usage:
     python -m methods.depmap_paralog_aggregator.cli \\
         --out /path/to/paralog_buffering.parquet
 """
+
 from __future__ import annotations
 
 import json
@@ -41,10 +42,7 @@ DEFAULT_AWS_PROFILE = "cbg"
 ENSEMBL_COMPARA_MANIFEST_ID = "ensembl-compara-release-116-snapshot-2026-07-10"
 # bucket + key resolved from the data-catalog manifest (single source of truth).
 S3_BUCKET, _ENSEMBL_COMPARA_PREFIX = bucket_prefix_for(ENSEMBL_COMPARA_MANIFEST_ID)
-ENSEMBL_PARALOG_S3_KEY = (
-    f"{_ENSEMBL_COMPARA_PREFIX}"
-    "hsapiens_paralog_subtypes_release-116.tsv"
-)
+ENSEMBL_PARALOG_S3_KEY = f"{_ENSEMBL_COMPARA_PREFIX}hsapiens_paralog_subtypes_release-116.tsv"
 ENSEMBL_CACHE_DIR = Path.home() / ".cache" / "framework-ensembl-compara"
 ENSEMBL_CACHE_TSV = ENSEMBL_CACHE_DIR / "hsapiens_paralog_subtypes_release-116.tsv"
 
@@ -68,13 +66,13 @@ def _ensure_ensembl_cached() -> Path | None:
         return ENSEMBL_CACHE_TSV
     try:
         import boto3
+
         s3 = boto3.Session(profile_name=DEFAULT_AWS_PROFILE).client("s3")
         click.echo("  Downloading Ensembl compara paralog subtypes (~188 MB)...", err=True)
         s3.download_file(S3_BUCKET, ENSEMBL_PARALOG_S3_KEY, str(ENSEMBL_CACHE_TSV))
         return ENSEMBL_CACHE_TSV
     except Exception as e:  # absence-discipline: exempt -- build-time OPTIONAL ohnolog enrichment; failure WARNs to stderr + skips (not a silent card-facing gap)
-        click.echo(f"  WARNING: Ensembl paralog cache failed: {e} — ohnolog annotation skipped",
-                   err=True)
+        click.echo(f"  WARNING: Ensembl paralog cache failed: {e} — ohnolog annotation skipped", err=True)
         return None
 
 
@@ -85,13 +83,13 @@ def _ensure_ensembl_id_map_cached() -> Path | None:
         return ENSEMBL_ID_MAP_CACHE_TSV
     try:
         import boto3
+
         s3 = boto3.Session(profile_name=DEFAULT_AWS_PROFILE).client("s3")
         click.echo("  Downloading Ensembl gene-ID -> HGNC-symbol map...", err=True)
         s3.download_file(_S3_BUCKET_IDMAP, ENSEMBL_ID_MAP_S3_KEY, str(ENSEMBL_ID_MAP_CACHE_TSV))
         return ENSEMBL_ID_MAP_CACHE_TSV
     except Exception as e:  # absence-discipline: exempt -- build-time OPTIONAL ohnolog enrichment; failure WARNs to stderr + skips (not a silent card-facing gap)
-        click.echo(f"  WARNING: Ensembl id-map cache failed: {e} — ohnolog annotation skipped",
-                   err=True)
+        click.echo(f"  WARNING: Ensembl id-map cache failed: {e} — ohnolog annotation skipped", err=True)
         return None
 
 
@@ -105,6 +103,7 @@ def _load_ensembl_gene_id_to_symbol() -> dict[str, str]:
     if not path:
         return {}
     import csv
+
     id2sym: dict[str, str] = {}
     with path.open("r", encoding="utf-8", newline="") as f:
         reader = csv.DictReader(f, delimiter="\t")
@@ -138,17 +137,23 @@ def _load_ensembl_ohnolog_set() -> frozenset[tuple[str, str]]:
         return frozenset()
     id2sym = _load_ensembl_gene_id_to_symbol()
     if not id2sym:
-        click.echo("  WARNING: Ensembl-ID->symbol bridge empty — ohnolog annotation skipped",
-                   err=True)
+        click.echo("  WARNING: Ensembl-ID->symbol bridge empty — ohnolog annotation skipped", err=True)
         return frozenset()
 
     import csv
+
     # WGD-era ancestry (Vertebrata-2R and older). Anything younger than the jawed-vertebrate
     # radiation (Euteleostomi/Gnathostomata/Vertebrata/Chordata + the deep pan-eukaryotic strata)
     # is treated as an ohnolog-era divergence; Eutheria and later placental/primate strata are not.
     ANCIENT_LCAS = {
-        "Vertebrata", "Chordata", "Gnathostomata", "Euteleostomi",   # vertebrate 2R-WGD era
-        "Bilateria", "Opisthokonta", "Eukaryota", "Unikonta",        # deep pan-eukaryotic
+        "Vertebrata",
+        "Chordata",
+        "Gnathostomata",
+        "Euteleostomi",  # vertebrate 2R-WGD era
+        "Bilateria",
+        "Opisthokonta",
+        "Eukaryota",
+        "Unikonta",  # deep pan-eukaryotic
     }
     n_query_unmapped = 0
     ohnolog_pairs: set[tuple[str, str]] = set()
@@ -167,16 +172,22 @@ def _load_ensembl_ohnolog_set() -> frozenset[tuple[str, str]]:
             if query_sym == partner_sym:
                 continue
             ohnolog_pairs.add(tuple(sorted([query_sym, partner_sym])))
-    click.echo(f"  Loaded {len(ohnolog_pairs):,} ohnolog pairs from Ensembl compara "
-               f"({n_query_unmapped:,} query rows had no HGNC symbol)", err=True)
+    click.echo(
+        f"  Loaded {len(ohnolog_pairs):,} ohnolog pairs from Ensembl compara "
+        f"({n_query_unmapped:,} query rows had no HGNC symbol)",
+        err=True,
+    )
     return frozenset(ohnolog_pairs)
 
 
 @click.command()
-@click.option("--out", required=True, type=click.Path(path_type=Path),
-              help="Output parquet path.")
-@click.option("--no-ensembl", is_flag=True, default=False,
-              help="Skip Ensembl ohnolog annotation (faster; ohnolog_flag will be null).")
+@click.option("--out", required=True, type=click.Path(path_type=Path), help="Output parquet path.")
+@click.option(
+    "--no-ensembl",
+    is_flag=True,
+    default=False,
+    help="Skip Ensembl ohnolog annotation (faster; ohnolog_flag will be null).",
+)
 def main(out: Path, no_ensembl: bool):
     """Emit genome-wide per-gene paralog buffering parquet from DepMap 26Q1."""
     import pandas as pd
@@ -186,7 +197,9 @@ def main(out: Path, no_ensembl: bool):
 
     # Pull paralog indexed data from read.py (triggers S3 cache if needed)
     from methods.depmap_paralog_aggregator.read import (
-        _load_paralog_indexed, _classify_buffering, PARALOG_SOURCE_MANIFEST_ID
+        _load_paralog_indexed,
+        _classify_buffering,
+        PARALOG_SOURCE_MANIFEST_ID,
     )
 
     click.echo("  Loading DepMap paralog gene-effect index...", err=True)
@@ -194,8 +207,7 @@ def main(out: Path, no_ensembl: bool):
     if not pair_delta_index:
         click.echo("ERROR: paralog data unavailable — check S3 / AWS_PROFILE", err=True)
         raise SystemExit(1)
-    click.echo(f"  Indexed {len(pair_delta_index):,} pairs, "
-               f"{len(per_gene_pair_index):,} unique genes", err=True)
+    click.echo(f"  Indexed {len(pair_delta_index):,} pairs, {len(per_gene_pair_index):,} unique genes", err=True)
 
     # Optional Ensembl ohnolog annotation
     ohnolog_pairs: frozenset = frozenset()
@@ -206,10 +218,8 @@ def main(out: Path, no_ensembl: bool):
     rows = []
     for gene, partners in per_gene_pair_index.items():
         # Sort partners by delta desc (strongest buffering first), unmeasured last
-        measured = [(p, rec) for p, rec in partners
-                    if rec["delta_vs_max_single"] is not None]
-        unmeasured = [(p, rec) for p, rec in partners
-                      if rec["delta_vs_max_single"] is None]
+        measured = [(p, rec) for p, rec in partners if rec["delta_vs_max_single"] is not None]
+        unmeasured = [(p, rec) for p, rec in partners if rec["delta_vs_max_single"] is None]
         measured.sort(key=lambda x: x[1]["delta_vs_max_single"], reverse=True)
         sorted_partners = measured + unmeasured
 
@@ -218,35 +228,40 @@ def main(out: Path, no_ensembl: bool):
             delta = rec["delta_vs_max_single"]
             pair_key = tuple(sorted([gene, partner]))
             ohnolog = pair_key in ohnolog_pairs if ohnolog_pairs else None
-            top_partners_out.append({
-                "partner_symbol": partner,
-                "dep_delta_paired_vs_max_single": delta,
-                "median_dual_ko_effect": rec["median_dual"],
-                "single_ko_target": rec.get("single_a") if gene < partner else rec.get("single_b"),
-                "single_ko_partner": rec.get("single_b") if gene < partner else rec.get("single_a"),
-                "buffering_class": _classify_buffering(delta),
-                "ohnolog_flag": ohnolog,
-                "ensembl_lca": None,
-            })
+            top_partners_out.append(
+                {
+                    "partner_symbol": partner,
+                    "dep_delta_paired_vs_max_single": delta,
+                    "median_dual_ko_effect": rec["median_dual"],
+                    "single_ko_target": rec.get("single_a") if gene < partner else rec.get("single_b"),
+                    "single_ko_partner": rec.get("single_b") if gene < partner else rec.get("single_a"),
+                    "buffering_class": _classify_buffering(delta),
+                    "ohnolog_flag": ohnolog,
+                    "ensembl_lca": None,
+                }
+            )
 
-        n_buffering = sum(1 for p in top_partners_out
-                         if p["buffering_class"] in ("strong", "partial"))
+        n_buffering = sum(1 for p in top_partners_out if p["buffering_class"] in ("strong", "partial"))
         strongest = measured[0] if measured else None
-        buffering_class = _classify_buffering(
-            strongest[1]["delta_vs_max_single"] if strongest else None
-        ) if measured else "data_unavailable"
+        buffering_class = (
+            _classify_buffering(strongest[1]["delta_vs_max_single"] if strongest else None)
+            if measured
+            else "data_unavailable"
+        )
 
-        rows.append({
-            "target_gene_symbol": gene,
-            "paralog_buffering_class": buffering_class,
-            "n_paralogs_annotated": len(sorted_partners),
-            "n_paralogs_buffering": n_buffering,
-            "strongest_partner": strongest[0] if strongest else None,
-            "strongest_delta": strongest[1]["delta_vs_max_single"] if strongest else None,
-            "top_partners": json.dumps(top_partners_out),
-            "sanger_screen_included": False,
-            "method_version": METHOD_VERSION,
-        })
+        rows.append(
+            {
+                "target_gene_symbol": gene,
+                "paralog_buffering_class": buffering_class,
+                "n_paralogs_annotated": len(sorted_partners),
+                "n_paralogs_buffering": n_buffering,
+                "strongest_partner": strongest[0] if strongest else None,
+                "strongest_delta": strongest[1]["delta_vs_max_single"] if strongest else None,
+                "top_partners": json.dumps(top_partners_out),
+                "sanger_screen_included": False,
+                "method_version": METHOD_VERSION,
+            }
+        )
 
     df = pd.DataFrame(rows)
 
@@ -256,8 +271,7 @@ def main(out: Path, no_ensembl: bool):
     n_none = int((df["paralog_buffering_class"] == "none").sum())
     n_unavail = int((df["paralog_buffering_class"] == "data_unavailable").sum())
     click.echo(
-        f"  Genes: {len(df):,} total | "
-        f"strong={n_strong} partial={n_partial} none={n_none} unavailable={n_unavail}",
+        f"  Genes: {len(df):,} total | strong={n_strong} partial={n_partial} none={n_none} unavailable={n_unavail}",
         err=True,
     )
 
@@ -278,8 +292,10 @@ def main(out: Path, no_ensembl: bool):
         "n_genes": len(df),
         "n_pairs": len(pair_delta_index),
         "class_distribution": {
-            "strong": n_strong, "partial": n_partial,
-            "none": n_none, "data_unavailable": n_unavail,
+            "strong": n_strong,
+            "partial": n_partial,
+            "none": n_none,
+            "data_unavailable": n_unavail,
         },
         "buffering_thresholds": {
             "strong_delta_threshold": 0.5,
@@ -288,7 +304,9 @@ def main(out: Path, no_ensembl: bool):
         },
         "ohnolog_annotation_source": (
             "ensembl-compara-release-116; LCA in {Vertebrata, Bilateria, Opisthokonta, Eukaryota}"
-        ) if not no_ensembl and ohnolog_pairs else "skipped",
+        )
+        if not no_ensembl and ohnolog_pairs
+        else "skipped",
     }
     prov_path = out.with_suffix(".provenance.json")
     prov_path.write_text(json.dumps(prov, indent=2))

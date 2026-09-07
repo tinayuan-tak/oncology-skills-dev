@@ -1,4 +1,5 @@
 """Hermetic tests for opentargets_literature_floor — pure aggregator (no S3)."""
+
 from __future__ import annotations
 import sys
 from pathlib import Path
@@ -8,13 +9,23 @@ if str(AM) not in sys.path:
     sys.path.insert(0, str(AM))
 
 from methods.opentargets_literature_floor.read import (  # noqa: E402
-    aggregate_literature, _canonical_indication, _axis_tokens, _axis_match,
+    aggregate_literature,
+    _canonical_indication,
+    _axis_tokens,
+    _axis_match,
 )
 
 
 def _row(source, pmid, rank, score, disease=None, sentence=None, year=2020):
-    return {"source": source, "pmid": pmid, "rank_in_source": rank, "score": score,
-            "disease_id": disease, "sentence": sentence, "year": year}
+    return {
+        "source": source,
+        "pmid": pmid,
+        "rank_in_source": rank,
+        "score": score,
+        "disease_id": disease,
+        "sentence": sentence,
+        "year": year,
+    }
 
 
 # gene with europepmc (disease-scoped) + entity_lut (target-level) rows
@@ -23,7 +34,7 @@ _ROWS = [
     _row("europepmc", "222", 2, 3.0, disease="EFO_OTHER", sentence="off-indication"),
     _row("europepmc", "333", 3, 2.0, disease="EFO_HIT", sentence="normal-tissue liability"),
     _row("entity_lut", "444", 1, 1.5),
-    _row("entity_lut", "111", 2, 1.4),   # overlaps europepmc 111 -> dedup in union
+    _row("entity_lut", "111", 2, 1.4),  # overlaps europepmc 111 -> dedup in union
 ]
 
 
@@ -32,7 +43,7 @@ def test_target_level_when_no_efo_lane():
     agg = aggregate_literature(_ROWS, efo_ids=[], top_n=10)
     assert agg["indication_scope"] == "target_level"
     assert set(agg["sources_present"]) == {"europepmc", "entity_lut"}
-    assert agg["pmids"] == ["111", "222", "333", "444"]      # 111 deduped, per-source rank order
+    assert agg["pmids"] == ["111", "222", "333", "444"]  # 111 deduped, per-source rank order
     assert agg["n_pmids"] == 4
     # europepmc records carry the text-mined sentence hint
     epmc = {r["pmid"]: r for r in agg["by_source"]["europepmc"]}
@@ -44,13 +55,13 @@ def test_europepmc_scoped_to_indication_when_efo_present():
     agg = aggregate_literature(_ROWS, efo_ids=["EFO_HIT"], top_n=10)
     assert agg["indication_scope"] == "indication"
     epmc_pmids = [r["pmid"] for r in agg["by_source"]["europepmc"]]
-    assert epmc_pmids == ["111", "333"]                      # 222 (EFO_OTHER) dropped
-    assert "444" in agg["pmids"]                             # entity_lut unaffected by scoping
+    assert epmc_pmids == ["111", "333"]  # 222 (EFO_OTHER) dropped
+    assert "444" in agg["pmids"]  # entity_lut unaffected by scoping
 
 
 def test_top_n_caps_per_source_by_rank():
     agg = aggregate_literature(_ROWS, efo_ids=[], top_n=1)
-    assert [r["pmid"] for r in agg["by_source"]["europepmc"]] == ["111"]   # rank 1 only
+    assert [r["pmid"] for r in agg["by_source"]["europepmc"]] == ["111"]  # rank 1 only
     assert [r["pmid"] for r in agg["by_source"]["entity_lut"]] == ["444"]  # rank 1 only
 
 
@@ -73,10 +84,10 @@ def test_over_filter_fallback_keeps_target_level_europepmc():
         _row("entity_lut", "444", 1, 1.5),
     ]
     agg = aggregate_literature(rows, efo_ids=["EFO_NOMATCH"], top_n=10)
-    assert agg["indication_scope"] == "indication"          # efo_ids WERE supplied
+    assert agg["indication_scope"] == "indication"  # efo_ids WERE supplied
     assert agg["europepmc_scope"] == "target_level_fallback"  # but none matched -> fallback
     assert [r["pmid"] for r in agg["by_source"]["europepmc"]] == ["111", "222"]
-    assert "444" in agg["pmids"]                             # entity_lut unaffected
+    assert "444" in agg["pmids"]  # entity_lut unaffected
 
 
 def test_over_filter_no_fallback_when_gene_has_no_europepmc():
@@ -91,9 +102,9 @@ def test_axis_tokens_and_match():
     toks = _axis_tokens("toxicity OR adverse event OR normal tissue")
     assert toks == ["toxicity", "adverse event", "normal tissue"]
     assert _axis_tokens(None) == [] and _axis_tokens("") == []
-    assert _axis_match("reported normal tissue toxicity in liver", toks) == 2   # 'toxicity' + 'normal tissue'
+    assert _axis_match("reported normal tissue toxicity in liver", toks) == 2  # 'toxicity' + 'normal tissue'
     assert _axis_match("unrelated proliferation finding", toks) == 0
-    assert _axis_match(None, toks) == 0                                          # entity_lut row w/o sentence
+    assert _axis_match(None, toks) == 0  # entity_lut row w/o sentence
 
 
 def test_axis_rerank_floats_axis_relevant_papers_before_topn():
@@ -108,8 +119,7 @@ def test_axis_rerank_floats_axis_relevant_papers_before_topn():
     assert [r["pmid"] for r in plain["by_source"]["europepmc"]] == ["111", "222"]
     assert plain["axis_reranked"] is False
     # safety axis_terms -> 222 (matches 'normal tissue'+'toxicity') floats to #1, survives top_n=2
-    axed = aggregate_literature(rows, efo_ids=[], top_n=2,
-                                axis_terms="toxicity OR normal tissue OR adverse event")
+    axed = aggregate_literature(rows, efo_ids=[], top_n=2, axis_terms="toxicity OR normal tissue OR adverse event")
     assert axed["axis_reranked"] is True
     assert axed["by_source"]["europepmc"][0]["pmid"] == "222"
     assert axed["by_source"]["europepmc"][0]["axis_match"] >= 2
@@ -125,7 +135,7 @@ def test_axis_rerank_noop_when_no_sentences():
 def test_indication_alias_normalizes_subtype_codes():
     # finer OncoTree/panel codes normalize to the crosswalk canonical_code
     assert _canonical_indication("LUAD") == "NSCLC"
-    assert _canonical_indication("luad") == "NSCLC"          # case-insensitive
+    assert _canonical_indication("luad") == "NSCLC"  # case-insensitive
     assert _canonical_indication("DLBCL") == "DLBC"
     assert _canonical_indication("LAML") == "AML"
     # codes with no alias pass through unchanged (target-level if no crosswalk entry)

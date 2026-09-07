@@ -7,6 +7,7 @@ tier-wins per partner; (4) has_experimental_partner gate; (5) reader classes
 data_unavailable distinction; (6) graceful degradation. derive + read are pure over a
 tiny synthetic TSV / parquet.
 """
+
 from __future__ import annotations
 
 import sys
@@ -20,6 +21,7 @@ from methods.synleth_partner_lookup import read as r  # noqa: E402
 
 # --- evidence tier (pure) --------------------------------------------------
 
+
 def test_evidence_tier_buckets():
     assert d.evidence_tier("CRISPR/CRISPRi") == "experimental"
     assert d.evidence_tier("GenomeRNAi") == "experimental"
@@ -32,49 +34,75 @@ def test_evidence_tier_buckets():
 
 # --- symmetric inversion (synthetic TSV) -----------------------------------
 
+
 def _write_sl_tsv(tmp_path, rows):
     """rows: [(x_ent, x_name, y_ent, y_name, rel_source, cell_line, pubmed, cancer)]."""
     p = tmp_path / "sl.tsv"
-    cols = ["x:START_ID", "x_type", "x_name", "x_source", "y:END_ID", "y_type",
-            "y_name", "y_source", "relation", ":TYPE", "rel_source", "edge_index",
-            "cell_line", "pubmed_id", "cancer"]
+    cols = [
+        "x:START_ID",
+        "x_type",
+        "x_name",
+        "x_source",
+        "y:END_ID",
+        "y_type",
+        "y_name",
+        "y_source",
+        "relation",
+        ":TYPE",
+        "rel_source",
+        "edge_index",
+        "cell_line",
+        "pubmed_id",
+        "cancer",
+    ]
     with open(p, "w") as fh:
         fh.write("\t".join(cols) + "\n")
-        for (xe, xn, ye, yn, rs, cl, pm, ca) in rows:
-            fh.write("\t".join([xe, "Gene", xn, "NCBI", ye, "Gene", yn, "NCBI",
-                                "SL", "Gene_SL_Gene", rs, "1", cl, pm, ca]) + "\n")
+        for xe, xn, ye, yn, rs, cl, pm, ca in rows:
+            fh.write(
+                "\t".join([xe, "Gene", xn, "NCBI", ye, "Gene", yn, "NCBI", "SL", "Gene_SL_Gene", rs, "1", cl, pm, ca])
+                + "\n"
+            )
     return str(p)
 
 
 def test_symmetric_inversion(tmp_path):
-    tsv = _write_sl_tsv(tmp_path, [
-        ("1", "SMARCA2", "2", "SMARCA4", "CRISPR/CRISPRi", "HELA", "123", ""),
-    ])
+    tsv = _write_sl_tsv(
+        tmp_path,
+        [
+            ("1", "SMARCA2", "2", "SMARCA4", "CRISPR/CRISPRi", "HELA", "123", ""),
+        ],
+    )
     df = d.build_and_write(tsv_path=tsv)
     a2 = df[df.gene_symbol == "SMARCA2"].iloc[0]
     a4 = df[df.gene_symbol == "SMARCA4"].iloc[0]
-    assert "SMARCA4" in list(a2.sl_partner_symbols)   # y in x's partners
-    assert "SMARCA2" in list(a4.sl_partner_symbols)   # x in y's partners (symmetric)
+    assert "SMARCA4" in list(a2.sl_partner_symbols)  # y in x's partners
+    assert "SMARCA2" in list(a4.sl_partner_symbols)  # x in y's partners (symmetric)
     assert a2.has_experimental_partner and a4.has_experimental_partner
 
 
 def test_strongest_tier_wins_per_partner(tmp_path):
     # same pair from a computational AND an experimental source → experimental wins
-    tsv = _write_sl_tsv(tmp_path, [
-        ("1", "GENEA", "2", "GENEB", "Computational Prediction", "", "1", ""),
-        ("1", "GENEA", "2", "GENEB", "CRISPR/CRISPRi", "K562", "2", ""),
-    ])
+    tsv = _write_sl_tsv(
+        tmp_path,
+        [
+            ("1", "GENEA", "2", "GENEB", "Computational Prediction", "", "1", ""),
+            ("1", "GENEA", "2", "GENEB", "CRISPR/CRISPRi", "K562", "2", ""),
+        ],
+    )
     df = d.build_and_write(tsv_path=tsv)
     a = df[df.gene_symbol == "GENEA"].iloc[0]
-    assert a.sl_partner_count == 1              # deduped
-    assert a.has_experimental_partner           # strongest tier retained
+    assert a.sl_partner_count == 1  # deduped
+    assert a.has_experimental_partner  # strongest tier retained
     assert a.top_partners[0]["evidence_tier"] == "experimental"
 
 
 def test_computational_only_partner_not_experimental(tmp_path):
-    tsv = _write_sl_tsv(tmp_path, [
-        ("1", "MARK3", "2", "MTA1", "Computational Prediction", "", "9", ""),
-    ])
+    tsv = _write_sl_tsv(
+        tmp_path,
+        [
+            ("1", "MARK3", "2", "MTA1", "Computational Prediction", "", "9", ""),
+        ],
+    )
     df = d.build_and_write(tsv_path=tsv)
     m = df[df.gene_symbol == "MARK3"].iloc[0]
     assert m.sl_partner_count == 1
@@ -83,6 +111,7 @@ def test_computational_only_partner_not_experimental(tmp_path):
 
 
 # --- reader classes (synthetic parquet) ------------------------------------
+
 
 def _build_parquet(tmp_path, rows):
     tsv = _write_sl_tsv(tmp_path, rows)
@@ -109,7 +138,8 @@ def test_reader_absent_gene_is_no_partner_not_data_unavailable(tmp_path):
     pq = _build_parquet(tmp_path, [("1", "SMARCA2", "2", "SMARCA4", "CRISPR/CRISPRi", "HELA", "1", "")])
     s = r.read_target_summary("NOPE", parquet_path=pq)
     assert s["sl_partner_class"] == "no_curated_sl_partner", (
-        "a gene absent from the SL table is a real 'no partner' read, NOT data_unavailable")
+        "a gene absent from the SL table is a real 'no partner' read, NOT data_unavailable"
+    )
 
 
 def test_reader_case_insensitive(tmp_path):
@@ -120,6 +150,7 @@ def test_reader_case_insensitive(tmp_path):
 def test_reader_graceful_on_read_failure(monkeypatch):
     def _boom(*a, **k):
         raise RuntimeError("s3 down")
+
     monkeypatch.setattr(r, "_read_gene_rows", _boom)
     s = r.read_target_summary("SMARCA2")
     assert s["sl_partner_class"] == "data_unavailable"
@@ -131,12 +162,20 @@ def test_known_v3_rel_sources_never_fall_to_other():
     """Every rel_source value observed in the SynLethDB v3 table (+ common combinations) must map to
     experimental or computational — a drift into the least-trusted 'other' bucket on the next source
     refresh would silently mis-tier partners. If v3 adds a NEW rel_source, extend the markers."""
-    known = ["CRISPR/CRISPRi", "GenomeRNAi", "High Throughput", "Low Throughput",
-             "Computational Prediction", "Text Mining",
-             "CRISPR/CRISPRi;High Throughput", "GenomeRNAi;Low Throughput"]
+    known = [
+        "CRISPR/CRISPRi",
+        "GenomeRNAi",
+        "High Throughput",
+        "Low Throughput",
+        "Computational Prediction",
+        "Text Mining",
+        "CRISPR/CRISPRi;High Throughput",
+        "GenomeRNAi;Low Throughput",
+    ]
     for src in known:
-        assert d.evidence_tier(src) in ("experimental", "computational"), \
+        assert d.evidence_tier(src) in ("experimental", "computational"), (
             f"{src!r} fell to 'other' — extend _EXPERIMENTAL_MARKERS/_COMPUTATIONAL_MARKERS"
+        )
 
 
 def test_tier_rank_orders_experimental_over_computational_over_other():

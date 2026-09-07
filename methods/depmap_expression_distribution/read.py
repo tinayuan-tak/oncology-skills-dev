@@ -14,7 +14,11 @@ from . import cli as _cli
 # exactly as depmap_chronos.build_dependency_panorama does for dependency. DESCRIPTIVE / verdict-inert.
 from methods.subgroup_common.iteration import subgroup_iterable
 from methods.subgroup_common.panorama import (
-    build_panorama, delta_reducer, evidence_state, axis_quality, SUBGROUP_N_FLOOR,
+    build_panorama,
+    delta_reducer,
+    evidence_state,
+    axis_quality,
+    SUBGROUP_N_FLOOR,
 )
 from methods.subgroup_common.scoping import resolve_subgroup_cohort
 
@@ -26,9 +30,12 @@ _HIGHLY_EXPRESSED = 5.0
 _SUBTYPE_ENRICH_LOG2_DELTA = 1.0
 
 
-def read_expression_distribution(target: str, indication: Optional[str] = None,
-                                  expressed_threshold: float = 1.0,
-                                  plot_data_out: Optional[Path] = None) -> Optional[dict]:
+def read_expression_distribution(
+    target: str,
+    indication: Optional[str] = None,
+    expressed_threshold: float = 1.0,
+    plot_data_out: Optional[Path] = None,
+) -> Optional[dict]:
     """Compute pan-cancer expression distribution for target. Returns summary dict
     matching the cellline-rna-distribution card's outputs.summary_fields.
 
@@ -36,9 +43,7 @@ def read_expression_distribution(target: str, indication: Optional[str] = None,
     frame is persisted there (plot_data_expression.parquet) as a first-class artifact of card
     RESOLUTION — so the offline renderer draws from it without a second live read. Default None =>
     byte-identical no-op (the frame is simply discarded, as today)."""
-    tpm_by_model, model_metadata, load_errors = _cli.load_expression_files(
-        release_pin="26q1", target_symbol=target
-    )
+    tpm_by_model, model_metadata, load_errors = _cli.load_expression_files(release_pin="26q1", target_symbol=target)
     if load_errors:
         return {
             "_live_read_error": load_errors[0].get("_live_read_error", "unknown"),
@@ -51,14 +56,14 @@ def read_expression_distribution(target: str, indication: Optional[str] = None,
             "_live_read_error": "no_data_for_target",
             "expression_class": "data_unavailable",
         }
-    summary = _cli.compute_summary_stats(tpm_by_model, model_metadata,
-                                         expressed_threshold=expressed_threshold)
+    summary = _cli.compute_summary_stats(tpm_by_model, model_metadata, expressed_threshold=expressed_threshold)
     # All-gene percentile of the panel median (Phase 1C): where does this target's panel
     # median log2(TPM+1) sit among ALL ~19k protein-coding genes in the DepMap panel? A
     # single-gene predicate-pushdown lookup of the precomputed allgene-depmap-rank-26q1-v1
     # (NO re-scan of the wide matrix). Additive/display — never flips expression_class.
     try:
         from methods.allgene_percentile_precompute.lookup import depmap_allgene_percentile
+
         summary.update(depmap_allgene_percentile(target))
     except Exception:  # noqa: BLE001 — enrichment is best-effort; core summary stands
         summary.setdefault("allgene_percentile", None)
@@ -69,6 +74,7 @@ def read_expression_distribution(target: str, indication: Optional[str] = None,
     # display — never flips expression_class. Best-effort (vocab load / S3 failure → null).
     try:
         from methods.tumor_presence_controls.read import control_position_cellline
+
         summary.update(control_position_cellline(target))
     except Exception:  # noqa: BLE001
         summary.setdefault("control_position_class", "data_unavailable")
@@ -91,6 +97,7 @@ def read_expression_distribution(target: str, indication: Optional[str] = None,
 # Cell-line RNA subtype panorama (WS-C) — DepMap driver-mutation stratification
 # ---------------------------------------------------------------------------
 
+
 @lru_cache(maxsize=64)
 def _cached_tpm(target: str, release_pin: str):
     """Load per-ModelID log2(TPM+1) for target ONCE per (target, release_pin); the panorama
@@ -110,8 +117,9 @@ def _expression_class(median: Optional[float]) -> str:
 
 
 @subgroup_iterable
-def read_stratified_expression(target: str, indication: str, *,
-                               _sample_id_filter=None, release_pin: str = "26q1") -> dict:
+def read_stratified_expression(
+    target: str, indication: str, *, _sample_id_filter=None, release_pin: str = "26q1"
+) -> dict:
     """Per-subgroup cell-line RNA distribution of `target` across DepMap cell lines.
 
     DESCRIPTIVE panorama reader — the cell-line-expression analogue of
@@ -120,13 +128,21 @@ def read_stratified_expression(target: str, indication: str, *,
     shard, already lineage-scoped by the assigner). Member-set intersection via `_sample_id_filter`.
     """
     import numpy as np
+
     tpm_by_model, errs = _cached_tpm(target, release_pin)
     if errs or not tpm_by_model:
-        return {"target": target, "indication": indication, "subgroup_n": 0,
-                "median_log2tpm": None, "fraction_expressed": None,
-                "subgroup_n_floor_met": False, "evidence_state": "absent",
-                "expression_class": "insufficient", "source_cohort": f"DepMap-{release_pin}",
-                "_data_note": f"no DepMap {release_pin} expression for {target!r}"}
+        return {
+            "target": target,
+            "indication": indication,
+            "subgroup_n": 0,
+            "median_log2tpm": None,
+            "fraction_expressed": None,
+            "subgroup_n_floor_met": False,
+            "evidence_state": "absent",
+            "expression_class": "insufficient",
+            "source_cohort": f"DepMap-{release_pin}",
+            "_data_note": f"no DepMap {release_pin} expression for {target!r}",
+        }
     if _sample_id_filter is not None:
         vals = [v for m, v in tpm_by_model.items() if m in _sample_id_filter]
     else:
@@ -137,7 +153,8 @@ def read_stratified_expression(target: str, indication: str, *,
     frac_expr = float((scores >= _EXPRESSED).mean()) if n else None
     floor_met = n >= SUBGROUP_N_FLOOR
     return {
-        "target": target, "indication": indication,
+        "target": target,
+        "indication": indication,
         "subgroup_n": n,
         "median_log2tpm": (round(median, 4) if median is not None else None),
         "fraction_expressed": (round(frac_expr, 4) if frac_expr is not None else None),
@@ -165,8 +182,7 @@ def _expression_projection(stratum_id: str, rec: dict) -> dict:
     }
 
 
-def _classify_subtype_signal(stratum_median: Optional[float],
-                             pooled_median: Optional[float]) -> str:
+def _classify_subtype_signal(stratum_median: Optional[float], pooled_median: Optional[float]) -> str:
     """enriched / depleted / uniform for one stratum vs the within-lineage pooled median."""
     if stratum_median is None or pooled_median is None:
         return "uniform"
@@ -178,11 +194,13 @@ def _classify_subtype_signal(stratum_median: Optional[float],
     return "uniform"
 
 
-def _pooled_lineage_median(target: str, subgroups: list, manifest: str,
-                           catalog_repo, release_pin: str) -> Optional[float]:
+def _pooled_lineage_median(
+    target: str, subgroups: list, manifest: str, catalog_repo, release_pin: str
+) -> Optional[float]:
     """Within-lineage pooled median log2(TPM+1): the median over the UNION of all strata members
     (the lineage's assigned cell lines) — the baseline each stratum's enrichment is measured against."""
     import numpy as np
+
     tpm_by_model, errs = _cached_tpm(target, release_pin)
     if errs or not tpm_by_model:
         return None
@@ -229,10 +247,14 @@ def _subtype_rollup(records: list, pooled_median: Optional[float]) -> dict:
     }
 
 
-def build_expression_subtype_panorama(target: str, indication: str, subgroups: list,
-                                      subgroup_assignments_manifest: str,
-                                      subgroup_catalog_repo=None,
-                                      release_pin: str = "26q1") -> dict:
+def build_expression_subtype_panorama(
+    target: str,
+    indication: str,
+    subgroups: list,
+    subgroup_assignments_manifest: str,
+    subgroup_catalog_repo=None,
+    release_pin: str = "26q1",
+) -> dict:
     """Assemble the cellline-rna-distribution-by-subtype card's per_subgroup_metrics panorama.
 
     Thin call into subgroup_common.panorama.build_panorama (same composer as the dependency
@@ -252,8 +274,9 @@ def build_expression_subtype_panorama(target: str, indication: str, subgroups: l
         subgroup_catalog_repo=subgroup_catalog_repo,
         reader_kwargs={"release_pin": release_pin},
     )
-    pooled = _pooled_lineage_median(target, subgroups, subgroup_assignments_manifest,
-                                    subgroup_catalog_repo, release_pin)
+    pooled = _pooled_lineage_median(
+        target, subgroups, subgroup_assignments_manifest, subgroup_catalog_repo, release_pin
+    )
     panorama.update(_subtype_rollup(panorama["per_subgroup_metrics"], pooled))
     panorama["_data_source"] = f"DepMap-{release_pin} expression (subgroup-stratified)"
     return panorama

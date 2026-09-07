@@ -7,12 +7,18 @@ TPM tertile) — and runs the shared single-boolean Mann-Whitney stratified-depe
 fusion siblings and the mutation path. This module owns only the conjoint boolean, the within-panel
 high-expression cutoff, and the output field names.
 """
+
 from __future__ import annotations
 
 from methods.depmap_common.boolean_stratification import (
-    StratificationLabels, mannwhitney_stratification, classify_stratification,
-    STRONG_EFFECT_DELTA, MODERATE_EFFECT_DELTA, STRATIFICATION_ALPHA,
-    MIN_POSITIVE_CELLS, MIN_COMPARATOR_CELLS,
+    StratificationLabels,
+    mannwhitney_stratification,
+    classify_stratification,
+    STRONG_EFFECT_DELTA,
+    MODERATE_EFFECT_DELTA,
+    STRATIFICATION_ALPHA,
+    MIN_POSITIVE_CELLS,
+    MIN_COMPARATOR_CELLS,
 )
 
 METHOD_VERSION = "0.1.0"
@@ -52,13 +58,17 @@ def _high_expression_threshold(tpm_by_model: dict, evaluated: set) -> float | No
     return vals[idx]
 
 
-def compute_amp_expr_stratification(chronos_by_model: dict, cn_by_model: dict, tpm_by_model: dict,
-                                    focal_amp: float = FOCAL_AMP_HIGH,
-                                    strong_effect_delta: float = STRONG_EFFECT_DELTA,
-                                    moderate_effect_delta: float = MODERATE_EFFECT_DELTA,
-                                    stratification_alpha: float = STRATIFICATION_ALPHA,
-                                    min_conjoint: int = MIN_POSITIVE_CELLS,
-                                    min_comparator: int = MIN_COMPARATOR_CELLS) -> dict:
+def compute_amp_expr_stratification(
+    chronos_by_model: dict,
+    cn_by_model: dict,
+    tpm_by_model: dict,
+    focal_amp: float = FOCAL_AMP_HIGH,
+    strong_effect_delta: float = STRONG_EFFECT_DELTA,
+    moderate_effect_delta: float = MODERATE_EFFECT_DELTA,
+    stratification_alpha: float = STRATIFICATION_ALPHA,
+    min_conjoint: int = MIN_POSITIVE_CELLS,
+    min_comparator: int = MIN_COMPARATOR_CELLS,
+) -> dict:
     """Compute the amp-expr-stratified-dependency summary_fields.
 
     Positive arm = amplified (CN > focal_amp) AND high-expression (TPM > top-tertile cut among evaluated
@@ -83,16 +93,18 @@ def compute_amp_expr_stratification(chronos_by_model: dict, cn_by_model: dict, t
             "amp_expr_stratification_class": _LABELS.insufficient,
         }
 
-    conjoint_by_model = {
-        m: (cn_by_model[m] > focal_amp and tpm_by_model[m] > high_expr_cut)
-        for m in evaluated
-    }
-    res = mannwhitney_stratification(chronos_by_model, conjoint_by_model,
-                                     min_positive=min_conjoint, min_comparator=min_comparator)
-    cls = classify_stratification(res, _LABELS, strong_effect_delta=strong_effect_delta,
-                                  moderate_effect_delta=moderate_effect_delta,
-                                  stratification_alpha=stratification_alpha)
-    q = res.get("p_value")   # single boolean -> single test -> q == p
+    conjoint_by_model = {m: (cn_by_model[m] > focal_amp and tpm_by_model[m] > high_expr_cut) for m in evaluated}
+    res = mannwhitney_stratification(
+        chronos_by_model, conjoint_by_model, min_positive=min_conjoint, min_comparator=min_comparator
+    )
+    cls = classify_stratification(
+        res,
+        _LABELS,
+        strong_effect_delta=strong_effect_delta,
+        moderate_effect_delta=moderate_effect_delta,
+        stratification_alpha=stratification_alpha,
+    )
+    q = res.get("p_value")  # single boolean -> single test -> q == p
     return {
         "n_cell_lines_evaluated": len(evaluated),
         "n_amplified_overexpressed": res["n_mutant"],

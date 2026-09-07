@@ -32,7 +32,8 @@ def read_target_summary(target: str, indication: Optional[str] = None) -> dict:
             "_remediation": (
                 f"Could not read shed-antigen sources (curated vocab "
                 f"{_cli.SHED_VOCAB_RELPATH} + HPA s3://{_cli.S3_BUCKET}/{_cli.HPA_KEY}) "
-                f"for {target}: {e}"),
+                f"for {target}: {e}"
+            ),
             "shed_liability_class": "data_unavailable",
             "shed_evidence_tier": "none",
             "serum_marker": None,

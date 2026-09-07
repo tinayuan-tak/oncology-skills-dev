@@ -5,6 +5,7 @@ SIZE a first-class biologics-substrate signal, derived from fields TMbed already
 (extracellular_residue_count + topology_class + ecd_orientation). Truth table + the
 measured-vs-data_unavailable discipline are pinned here.
 """
+
 from __future__ import annotations
 
 import sys
@@ -15,8 +16,10 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from methods.topology_predictions_tmbed.classify import (  # noqa: E402
-    classify_ecd_engineerability, compute_summary,
-    ECD_ENGINEERABLE_FLOOR, ECD_AMPLE_EPITOPE_AREA,
+    classify_ecd_engineerability,
+    compute_summary,
+    ECD_ENGINEERABLE_FLOOR,
+    ECD_AMPLE_EPITOPE_AREA,
 )
 
 
@@ -34,14 +37,14 @@ def test_large_ecd_ample_epitope_area():
 def test_moderate_ecd_engineerable_but_constrained():
     # 30..199 AA — engineerable (TCE-viable) but epitope-area-constrained for ADC
     assert _e("single_pass_type_2", 120) == "moderate_ecd"
-    assert _e("single_pass_type_1", ECD_ENGINEERABLE_FLOOR) == "moderate_ecd"        # 30 inclusive
-    assert _e("single_pass_type_1", ECD_AMPLE_EPITOPE_AREA - 1) == "moderate_ecd"    # 199 upper
+    assert _e("single_pass_type_1", ECD_ENGINEERABLE_FLOOR) == "moderate_ecd"  # 30 inclusive
+    assert _e("single_pass_type_1", ECD_AMPLE_EPITOPE_AREA - 1) == "moderate_ecd"  # 199 upper
 
 
 def test_minimal_ecd_too_small_to_engineer():
     # < 30 AA — no bindable ectodomain regardless of surface residency
     assert _e("multi_pass", 12) == "minimal_ecd"
-    assert _e("single_pass_type_1", ECD_ENGINEERABLE_FLOOR - 1) == "minimal_ecd"     # 29
+    assert _e("single_pass_type_1", ECD_ENGINEERABLE_FLOOR - 1) == "minimal_ecd"  # 29
 
 
 # ── no-substrate cases ───────────────────────────────────────────────────────
@@ -69,8 +72,13 @@ def test_data_unavailable_topology_propagates():
 
 # ── compute_summary integration: the field is emitted alongside topology_class ──
 def _row(**kw):
-    base = {"n_tm_alpha_helices": 1, "n_tm_beta_strands": 0, "signal_peptide": True,
-            "ecd_orientation": "outside", "ecd_length": 250}
+    base = {
+        "n_tm_alpha_helices": 1,
+        "n_tm_beta_strands": 0,
+        "signal_peptide": True,
+        "ecd_orientation": "outside",
+        "ecd_length": 250,
+    }
     base.update(kw)
     return base
 
@@ -90,7 +98,8 @@ def test_compute_summary_none_ecd_length_abstains():
 
 def test_compute_summary_multipass_small_loop_is_minimal():
     # multi-pass GPCR-like: many TM, tiny extracellular loop → minimal_ecd (the steric-constraint case)
-    s = compute_summary(_row(n_tm_alpha_helices=7, ecd_length=18, signal_peptide=False),
-                        ptm_fields={}, method_version="test")
+    s = compute_summary(
+        _row(n_tm_alpha_helices=7, ecd_length=18, signal_peptide=False), ptm_fields={}, method_version="test"
+    )
     assert s["topology_class"] == "multi_pass"
     assert s["ecd_engineerability_class"] == "minimal_ecd"

@@ -19,6 +19,7 @@ Pipeline
 Consumers join case_barcode <-> tcga-sample-id-crosswalk-v1.case_barcode to reach patient
 expression (and methylation.patient_barcode directly).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -42,14 +43,16 @@ DEFAULT_AWS_PROFILE = "cbg"
 _META_COLS = {"Gene Symbol", "Locus ID", "Cytoband"}
 _GENE_CHUNK = 2000  # genes per melt chunk (2000 x ~6900 = ~14M rows/chunk, bounded memory)
 
-_SCHEMA = pa.schema([
-    pa.field("gene_symbol", pa.string()),
-    pa.field("case_barcode", pa.string()),
-    pa.field("sample_barcode", pa.string()),
-    pa.field("gistic_aliquot_barcode", pa.string()),
-    pa.field("gistic_call", pa.int8()),
-    pa.field("cancer_type", pa.string()),
-])
+_SCHEMA = pa.schema(
+    [
+        pa.field("gene_symbol", pa.string()),
+        pa.field("case_barcode", pa.string()),
+        pa.field("sample_barcode", pa.string()),
+        pa.field("gistic_aliquot_barcode", pa.string()),
+        pa.field("gistic_call", pa.int8()),
+        pa.field("cancer_type", pa.string()),
+    ]
+)
 
 
 def _log(msg: str) -> None:
@@ -111,8 +114,10 @@ def build(out_path: Path, profile: str) -> dict:
             continue
         seen_cases.add(case)
         kept_cols.append(c)
-    _log(f"  {len(kept_cols):,} aliquots kept (one per patient; dropped "
-         f"{len(sample_cols) - len(kept_cols):,} duplicate-patient columns)")
+    _log(
+        f"  {len(kept_cols):,} aliquots kept (one per patient; dropped "
+        f"{len(sample_cols) - len(kept_cols):,} duplicate-patient columns)"
+    )
 
     df = df.rename(columns={"Gene Symbol": "gene_symbol"})
     df = df.dropna(subset=["gene_symbol"])
@@ -125,11 +130,14 @@ def build(out_path: Path, profile: str) -> dict:
     df = df.set_index("gene_symbol")
     try:
         for i in range(0, len(genes_sorted), _GENE_CHUNK):
-            chunk_genes = genes_sorted[i:i + _GENE_CHUNK]
+            chunk_genes = genes_sorted[i : i + _GENE_CHUNK]
             sub = df.loc[chunk_genes]  # gene rows for this chunk (index = gene_symbol)
             long = sub.reset_index().melt(
-                id_vars=["gene_symbol"], value_vars=kept_cols,
-                var_name="gistic_aliquot_barcode", value_name="gistic_call")
+                id_vars=["gene_symbol"],
+                value_vars=kept_cols,
+                var_name="gistic_aliquot_barcode",
+                value_name="gistic_call",
+            )
             # keep only genuine integer calls; drop NaN/blank cells
             long = long[pd.to_numeric(long["gistic_call"], errors="coerce").notna()]
             long["gistic_call"] = long["gistic_call"].astype("int8")
@@ -137,8 +145,7 @@ def build(out_path: Path, profile: str) -> dict:
             long["sample_barcode"] = long["gistic_aliquot_barcode"].map(col_sample)
             long["cancer_type"] = long["case_barcode"].map(cancer_types)
             long = long.sort_values(["gene_symbol", "case_barcode"])
-            table = pa.Table.from_pandas(
-                long[[f.name for f in _SCHEMA]], schema=_SCHEMA, preserve_index=False)
+            table = pa.Table.from_pandas(long[[f.name for f in _SCHEMA]], schema=_SCHEMA, preserve_index=False)
             writer.write_table(table)
             n_rows += len(long)
             _log(f"  genes {i:,}-{i + len(chunk_genes):,} → {n_rows:,} rows")
@@ -146,9 +153,14 @@ def build(out_path: Path, profile: str) -> dict:
         writer.close()
 
     md5, size = _md5_hex(out_path), out_path.stat().st_size
-    _log(f"[3/4] wrote {n_rows:,} rows | {size/1e6:.1f} MB | md5={md5}")
-    return {"md5": md5, "size_bytes": size, "n_rows": n_rows,
-            "n_genes": len(genes_sorted), "n_patients": len(kept_cols)}
+    _log(f"[3/4] wrote {n_rows:,} rows | {size / 1e6:.1f} MB | md5={md5}")
+    return {
+        "md5": md5,
+        "size_bytes": size,
+        "n_rows": n_rows,
+        "n_genes": len(genes_sorted),
+        "n_patients": len(kept_cols),
+    }
 
 
 def main(argv=None) -> int:
@@ -163,13 +175,14 @@ def main(argv=None) -> int:
 
     if not args.no_upload:
         key = f"{OUTPUT_S3_PREFIX}/{args.out.name}"
-        _s3(args.profile).upload_file(str(args.out), S3_BUCKET, key,
-                                      ExtraArgs={"Metadata": {"md5": meta["md5"]}})
+        _s3(args.profile).upload_file(str(args.out), S3_BUCKET, key, ExtraArgs={"Metadata": {"md5": meta["md5"]}})
         _log(f"[4/4] uploaded → s3://{S3_BUCKET}/{key}")
     else:
         _log("[4/4] upload skipped (--no-upload)")
-    print(f"md5={meta['md5']} size_bytes={meta['size_bytes']} n_rows={meta['n_rows']} "
-          f"n_genes={meta['n_genes']} n_patients={meta['n_patients']}")
+    print(
+        f"md5={meta['md5']} size_bytes={meta['size_bytes']} n_rows={meta['n_rows']} "
+        f"n_genes={meta['n_genes']} n_patients={meta['n_patients']}"
+    )
     return 0
 
 

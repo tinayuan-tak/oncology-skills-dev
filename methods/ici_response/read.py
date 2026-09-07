@@ -17,6 +17,7 @@ VERDICT-INERT: an ICI-biomarker display/context reader (immune-context). It emit
 `ici_response_class` PRIMARY categorical for provenance/availability accounting, but NO interpretation
 rule consumes it — it moves no gate verdict.
 """
+
 from __future__ import annotations
 
 from typing import Optional
@@ -30,17 +31,27 @@ ROLLUP_COHORT = "pan-melanoma-rollup"
 # Framework indication codes the product covers (melanoma). A query outside this set is out of scope.
 _MELANOMA_INDICATIONS = frozenset({"SKCM", "MELANOMA", "SKIN"})
 
-_PARQUET_COLS = ["gene_symbol", "cohort", "indication", "ici_agent",
-                 "log2fc_resp_vs_nonresp", "mannwhitney_p", "higher_in",
-                 "stouffer_z", "stouffer_p", "n_cohorts_concordant"]
+_PARQUET_COLS = [
+    "gene_symbol",
+    "cohort",
+    "indication",
+    "ici_agent",
+    "log2fc_resp_vs_nonresp",
+    "mannwhitney_p",
+    "higher_in",
+    "stouffer_z",
+    "stouffer_p",
+    "n_cohorts_concordant",
+]
 
-_SIG_P = 0.05   # per-cohort Mann-Whitney significance threshold (uncorrected; display flag only)
+_SIG_P = 0.05  # per-cohort Mann-Whitney significance threshold (uncorrected; display flag only)
 
 
 def _summarize(rows) -> dict:
     """Roll the per-cohort + rollup rows for one gene up to a per-gene ICI-association summary.
     `rows` is a non-empty pandas DataFrame with _PARQUET_COLS."""
     import math
+
     df = rows
     per_cohort = df[df["cohort"].astype(str) != ROLLUP_COHORT]
     rollup = df[df["cohort"].astype(str) == ROLLUP_COHORT]
@@ -92,9 +103,11 @@ def _summarize(rows) -> dict:
         "median_log2fc_resp_vs_nonresp": _f(log2fc),
         "rollup_stouffer_z": _f(stouffer_z),
         "rollup_stouffer_p": _f(stouffer_p),
-        "n_cohorts_concordant": (int(n_concordant) if n_concordant is not None
-                                 and not (isinstance(n_concordant, float) and math.isnan(n_concordant))
-                                 else None),
+        "n_cohorts_concordant": (
+            int(n_concordant)
+            if n_concordant is not None and not (isinstance(n_concordant, float) and math.isnan(n_concordant))
+            else None
+        ),
         "n_cohorts": int(len(cohorts)),
         "any_cohort_significant": any_sig,
         "min_mannwhitney_p": min_p,
@@ -112,11 +125,11 @@ def _read_gene_rows(target: str):
         return None
     import pyarrow.fs as fs
     import pyarrow.parquet as pq
-    s3fs = fs.S3FileSystem(region="us-east-1")   # default cred chain honours AWS_PROFILE=cbg
+
+    s3fs = fs.S3FileSystem(region="us-east-1")  # default cred chain honours AWS_PROFILE=cbg
     filters = [("gene_symbol", "==", str(target).upper().strip())]
     try:
-        tbl = pq.read_table(f"{S3_BUCKET}/{key}", filesystem=s3fs,
-                            filters=filters, columns=_PARQUET_COLS)
+        tbl = pq.read_table(f"{S3_BUCKET}/{key}", filesystem=s3fs, filters=filters, columns=_PARQUET_COLS)
     except FileNotFoundError:
         return None
     return tbl.to_pandas()
@@ -128,18 +141,21 @@ def read_target_summary(target: str, indication: Optional[str] = None) -> dict:
     indication resolves data_unavailable (honest scope ceiling)."""
     ind = str(indication).upper().strip() if indication else None
     if ind is not None and ind not in _MELANOMA_INDICATIONS:
-        return _data_unavailable(ind,
-                                 note=f"ICI-response product ({MANIFEST_ID}) covers melanoma (SKCM) "
-                                      f"open-GEO anti-PD-1 cohorts only; indication {ind} out of scope.")
+        return _data_unavailable(
+            ind,
+            note=f"ICI-response product ({MANIFEST_ID}) covers melanoma (SKCM) "
+            f"open-GEO anti-PD-1 cohorts only; indication {ind} out of scope.",
+        )
     rows = _read_gene_rows(target)
     if rows is None:
         return _data_unavailable(ind, note=f"No landed ICI-response product ({MANIFEST_ID}).")
     if rows.empty:
-        return _data_unavailable(ind,
-                                 note=f"{str(target).upper().strip()} absent from {MANIFEST_ID} "
-                                      f"(not measured in the melanoma ICI cohorts).")
+        return _data_unavailable(
+            ind,
+            note=f"{str(target).upper().strip()} absent from {MANIFEST_ID} (not measured in the melanoma ICI cohorts).",
+        )
     out = _summarize(rows)
-    out["indication"] = "SKCM"   # product scope (both cohorts are melanoma)
+    out["indication"] = "SKCM"  # product scope (both cohorts are melanoma)
     out["product_id"] = MANIFEST_ID
     return out
 

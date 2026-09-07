@@ -26,7 +26,9 @@ import yaml
 
 from methods.catalog_query.read import bucket_prefix_for, s3_uri_for
 
-DATA_CATALOG = Path(os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"))
+DATA_CATALOG = Path(
+    os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
+)
 DEFAULT_AWS_PROFILE = "cbg"
 
 
@@ -51,6 +53,7 @@ def _get_s3fs():
         with _S3FS_LOCK:
             if _S3FS is None:
                 import pyarrow.fs as fs
+
                 _S3FS = fs.S3FileSystem(region="us-east-1")
     return _S3FS
 
@@ -59,9 +62,7 @@ def _load_manifest(manifest_id: str) -> dict:
     """Load a derived manifest YAML from the data-catalog."""
     candidates = list((DATA_CATALOG / "manifests" / "derived").glob(f"{manifest_id}.yaml"))
     if not candidates:
-        raise FileNotFoundError(
-            f"Derived manifest not found in data-catalog/manifests/derived/: {manifest_id!r}"
-        )
+        raise FileNotFoundError(f"Derived manifest not found in data-catalog/manifests/derived/: {manifest_id!r}")
     with candidates[0].open() as f:
         return yaml.safe_load(f)
 
@@ -78,6 +79,7 @@ def _allgene_log2fc_null(manifest_id: str, column: str = "log2FoldChange") -> tu
     full-column scan of a gene-sorted parquet (~30-34k rows); amortized across targets.
     Returns a tuple (hashable/cache-safe); empty on any failure → percentile is None."""
     import pyarrow.parquet as pq
+
     ensure_aws_profile()
     try:
         manifest = _load_manifest(manifest_id)
@@ -96,8 +98,10 @@ def _dge_allgene_percentile(manifest_id: str, log2_fc, cutoffs: dict = None):
     """Percentile + class of this gene's log2_fc among all genes in the SAME manifest."""
     import sys as _sys
     from pathlib import Path as _Path
+
     _sys.path.insert(0, str(_Path(__file__).resolve().parent.parent))  # methods/ on path
     from methods.percentile_null import percentile_rank, classify_percentile
+
     null_vec = _allgene_log2fc_null(manifest_id)
     pct = percentile_rank(log2_fc, null_vec)
     return pct, classify_percentile(pct, cutoffs)
@@ -111,6 +115,7 @@ def _sensitivity_cell_null(manifest_id: str, s3_uri: str, column: str) -> tuple:
     null over its OWN column — pooling A and C would mix comparator scales. Cached per
     (manifest, column); one added full-column scan per cell. Empty on failure."""
     import pyarrow.parquet as pq
+
     ensure_aws_profile()
     try:
         path = _s3_uri_to_path(s3_uri)
@@ -121,14 +126,15 @@ def _sensitivity_cell_null(manifest_id: str, s3_uri: str, column: str) -> tuple:
         return tuple()
 
 
-def _dge_sensitivity_cell_percentile(manifest_id: str, s3_uri: str, column: str,
-                                     log2fc, cutoffs: dict = None):
+def _dge_sensitivity_cell_percentile(manifest_id: str, s3_uri: str, column: str, log2fc, cutoffs: dict = None):
     """Percentile + class of one cell's log2FC among all genes in the SAME sensitivity product,
     keyed to the SAME comparator column (never pooled across cells)."""
     import sys as _sys
     from pathlib import Path as _Path
+
     _sys.path.insert(0, str(_Path(__file__).resolve().parent.parent))
     from methods.percentile_null import percentile_rank, classify_percentile
+
     null_vec = _sensitivity_cell_null(manifest_id, s3_uri, column)
     pct = percentile_rank(log2fc, null_vec)
     return pct, classify_percentile(pct, cutoffs)
@@ -195,8 +201,7 @@ def read_dge_gene_row(
         # All-gene percentile null (additive): where this gene's log2FC falls among ALL
         # genes in the SAME per-indication DGE product. Context-matched by manifest_id.
         # One-directional display facet; never moves expression_call_class / presence_verdict.
-        **dict(zip(("allgene_percentile", "allgene_percentile_class"),
-                   _dge_allgene_percentile(manifest_id, log2_fc))),
+        **dict(zip(("allgene_percentile", "allgene_percentile_class"), _dge_allgene_percentile(manifest_id, log2_fc))),
         "allgene_percentile_context": f"{manifest_id} metric=log2FoldChange",
         "_data_source": manifest_id,
         "_data_s3_uri": s3_uri,
@@ -254,8 +259,9 @@ def _classify_expression_call(log2_fc, q_value) -> str:
 # source prefixes/keys resolved from the data-catalog manifests (single source of truth);
 # rstrip('/') keeps the existing f"{RECOUNT3_S3_PREFIX}/tcga/..." idiom byte-identical.
 RECOUNT3_S3_PREFIX = bucket_prefix_for("recount3-tcga-gtex-2023-01-04")[1].rstrip("/")
-ENSEMBL_ID_MAP_S3 = (f"{bucket_prefix_for('ensembl-id-mapping-release-116-snapshot-2026-06-18')[1]}"
-                     "hsapiens_gene_id_map_release-116.tsv")
+ENSEMBL_ID_MAP_S3 = (
+    f"{bucket_prefix_for('ensembl-id-mapping-release-116-snapshot-2026-06-18')[1]}hsapiens_gene_id_map_release-116.tsv"
+)
 
 # Indication → recount3 TCGA study codes. Some framework indications map to
 # multiple recount3 studies (COADREAD = COAD + READ).
@@ -263,7 +269,7 @@ INDICATION_TO_TCGA_STUDIES = {
     "COADREAD": ["COAD", "READ"],
     "COAD": ["COAD"],
     "READ": ["READ"],
-    "NSCLC": ["LUAD", "LUSC"],   # composite: pooled LUAD+LUSC (study-adjusted DGE, see 06_four_cell_driver.R)
+    "NSCLC": ["LUAD", "LUSC"],  # composite: pooled LUAD+LUSC (study-adjusted DGE, see 06_four_cell_driver.R)
     "LUAD": ["LUAD"],
     "LUSC": ["LUSC"],
     "BRCA": ["BRCA"],
@@ -293,6 +299,7 @@ def _load_ensembl_hgnc_map():
     ensure_aws_profile()
     import boto3, io
     import pandas as pd
+
     s3 = boto3.client("s3")
     body = s3.get_object(Bucket="onc-compbio", Key=ENSEMBL_ID_MAP_S3)["Body"].read()
     df = pd.read_csv(io.BytesIO(body), sep="\t")
@@ -332,16 +339,22 @@ def _fetch_recount3_metadata(study: str) -> "pd.DataFrame":
     ensure_aws_profile()
     import boto3, gzip, io
     import pandas as pd
+
     s3 = boto3.client("s3")
     key = f"{RECOUNT3_S3_PREFIX}/tcga/{study}/metadata/tcga.tcga.{study}.MD.gz"
     body = s3.get_object(Bucket="onc-compbio", Key=key)["Body"].read()
-    df = pd.read_csv(io.BytesIO(gzip.decompress(body)), sep="\t", low_memory=False,
-                     usecols=["gdc_file_id", "gdc_cases.samples.sample_type",
-                              "gdc_cases.submitter_id"])
-    return df.rename(columns={
-        "gdc_cases.samples.sample_type": "sample_type",
-        "gdc_cases.submitter_id": "submitter_id",
-    })
+    df = pd.read_csv(
+        io.BytesIO(gzip.decompress(body)),
+        sep="\t",
+        low_memory=False,
+        usecols=["gdc_file_id", "gdc_cases.samples.sample_type", "gdc_cases.submitter_id"],
+    )
+    return df.rename(
+        columns={
+            "gdc_cases.samples.sample_type": "sample_type",
+            "gdc_cases.submitter_id": "submitter_id",
+        }
+    )
 
 
 def _fetch_recount3_gene_row(study: str, target_ensembl_ids: set[str]) -> "pd.DataFrame":
@@ -354,6 +367,7 @@ def _fetch_recount3_gene_row(study: str, target_ensembl_ids: set[str]) -> "pd.Da
     ensure_aws_profile()
     import boto3, gzip, io
     import pandas as pd
+
     s3 = boto3.client("s3")
     key = f"{RECOUNT3_S3_PREFIX}/tcga/{study}/gene_sums/tcga.gene_sums.{study}.G026.gz"
     body = s3.get_object(Bucket="onc-compbio", Key=key)["Body"].read()
@@ -379,14 +393,17 @@ def _fetch_recount3_gene_row(study: str, target_ensembl_ids: set[str]) -> "pd.Da
     # Aggregate across matched Ensembl IDs (usually 1 hit; some genes have multi-loci
     # ENSG entries — sum counts across them for the same HGNC symbol).
     import numpy as np
+
     all_counts = np.zeros(len(sample_cols))
     for _gid, counts in matched_rows:
         all_counts += np.array(counts)
-    return pd.DataFrame({
-        "sample_id": sample_cols,
-        "count": all_counts,
-        "gene_id": [matched_rows[0][0]] * len(sample_cols),
-    })
+    return pd.DataFrame(
+        {
+            "sample_id": sample_cols,
+            "count": all_counts,
+            "gene_id": [matched_rows[0][0]] * len(sample_cols),
+        }
+    )
 
 
 @lru_cache(maxsize=64)
@@ -400,6 +417,7 @@ def _fetch_recount3_library_sizes(study: str) -> "pd.Series":
     ensure_aws_profile()
     import boto3, gzip, io
     import numpy as np
+
     s3 = boto3.client("s3")
     key = f"{RECOUNT3_S3_PREFIX}/tcga/{study}/gene_sums/tcga.gene_sums.{study}.G026.gz"
     body = s3.get_object(Bucket="onc-compbio", Key=key)["Body"].read()
@@ -415,6 +433,7 @@ def _fetch_recount3_library_sizes(study: str) -> "pd.Series":
             row_counts = np.fromstring(parts[1], dtype=np.float64, sep="\t")
             totals += row_counts
     import pandas as pd
+
     return pd.Series(totals, index=sample_cols, name="library_size")
 
 
@@ -424,7 +443,8 @@ RPK_CACHE_DIR = Path.home() / ".cache" / "framework-recount3-rpk-sums"
 
 
 def _fetch_recount3_rpk_sums(
-    cohort: str, code: str,
+    cohort: str,
+    code: str,
 ) -> "pd.Series":
     """Per-sample sum(count_j / length_kb_j) for a study or GTEx tissue.
 
@@ -445,22 +465,22 @@ def _fetch_recount3_rpk_sums(
         pandas.Series indexed by sample UUID → per-sample RPK-sum (float64)
     """
     import pandas as pd
+
     RPK_CACHE_DIR.mkdir(parents=True, exist_ok=True)
     cache_path = RPK_CACHE_DIR / f"{cohort}-{code}.parquet"
     if cache_path.exists():
         return pd.read_parquet(cache_path)["rpk_sum"]
 
     from .gene_lengths import load_gene_lengths
+
     gene_lengths = load_gene_lengths()  # unversioned Ensembl → bp
 
     ensure_aws_profile()
     import boto3, gzip, io
     import numpy as np
+
     s3 = boto3.client("s3")
-    key = (
-        f"{RECOUNT3_S3_PREFIX}/{cohort}/{code}/gene_sums/"
-        f"{cohort}.gene_sums.{code}.G026.gz"
-    )
+    key = f"{RECOUNT3_S3_PREFIX}/{cohort}/{code}/gene_sums/{cohort}.gene_sums.{code}.G026.gz"
     body = s3.get_object(Bucket="onc-compbio", Key=key)["Body"].read()
 
     with gzip.open(io.BytesIO(body), "rt") as f:
@@ -481,9 +501,7 @@ def _fetch_recount3_rpk_sums(
                 n_length_missing += 1
                 continue
             length_kb = length_bp / 1000.0
-            row_counts = np.fromstring(
-                line[gid_end + 1:].rstrip("\n"), dtype=np.float64, sep="\t"
-            )
+            row_counts = np.fromstring(line[gid_end + 1 :].rstrip("\n"), dtype=np.float64, sep="\t")
             totals += row_counts / length_kb
             n_rows += 1
 
@@ -498,7 +516,8 @@ def _fetch_recount3_rpk_sums(
 
 
 def read_tumor_vs_normal_selectivity(
-    target: str, indication: str,
+    target: str,
+    indication: str,
 ) -> dict:
     """Composite dispatcher for the tumor-vs-normal-selectivity card (v3).
 
@@ -517,32 +536,32 @@ def read_tumor_vs_normal_selectivity(
     row = read_tumor_vs_normal_sensitivity_gene_row(target, indication)
     if row:
         return {
-            "cells_ran":          row.get("cells_ran"),
-            "cells_supporting":   row.get("cells_supporting"),
+            "cells_ran": row.get("cells_ran"),
+            "cells_supporting": row.get("cells_supporting"),
             "dominant_direction": row.get("dominant_direction"),
-            "sig_all_cells":      row.get("sig_all_cells"),
-            "discordant":         row.get("discordant"),
-            "max_abs_log2fc":     row.get("max_abs_log2fc"),
-            "log2fc_cell_a":  row.get("log2fc_cell_a"),
+            "sig_all_cells": row.get("sig_all_cells"),
+            "discordant": row.get("discordant"),
+            "max_abs_log2fc": row.get("max_abs_log2fc"),
+            "log2fc_cell_a": row.get("log2fc_cell_a"),
             "q_value_cell_a": row.get("q_value_cell_a"),
-            "log2fc_cell_b":  row.get("log2fc_cell_b"),
+            "log2fc_cell_b": row.get("log2fc_cell_b"),
             "q_value_cell_b": row.get("q_value_cell_b"),
-            "log2fc_cell_c":  row.get("log2fc_cell_c"),
+            "log2fc_cell_c": row.get("log2fc_cell_c"),
             "q_value_cell_c": row.get("q_value_cell_c"),
-            "log2fc_cell_d":  row.get("log2fc_cell_d"),
+            "log2fc_cell_d": row.get("log2fc_cell_d"),
             "q_value_cell_d": row.get("q_value_cell_d"),
-            "n_tumor":       None,  # cohort-level n lives in provenance.yaml, not per-gene
-            "n_adjacent":    None,
+            "n_tumor": None,  # cohort-level n lives in provenance.yaml, not per-gene
+            "n_adjacent": None,
             "n_gtex_normal": None,
             # Forward the SEL-1 selectivity all-gene percentile the gene_row reader computes.
             # The card dispatcher calls THIS composite (not the gene_row reader directly), so an
             # explicit field-map here silently dropped the percentile — the orphaned-signal pattern
             # one layer up. Forward all cells (A primary + B/C corroboration) + class + context.
-            "selectivity_allgene_percentile":         row.get("selectivity_allgene_percentile"),
-            "selectivity_allgene_percentile_class":   row.get("selectivity_allgene_percentile_class"),
+            "selectivity_allgene_percentile": row.get("selectivity_allgene_percentile"),
+            "selectivity_allgene_percentile_class": row.get("selectivity_allgene_percentile_class"),
             "selectivity_allgene_percentile_context": row.get("selectivity_allgene_percentile_context"),
-            "selectivity_allgene_percentile_cell_b":  row.get("selectivity_allgene_percentile_cell_b"),
-            "selectivity_allgene_percentile_cell_c":  row.get("selectivity_allgene_percentile_cell_c"),
+            "selectivity_allgene_percentile_cell_b": row.get("selectivity_allgene_percentile_cell_b"),
+            "selectivity_allgene_percentile_cell_c": row.get("selectivity_allgene_percentile_cell_c"),
             "selectivity_class": _classify_selectivity_from_sensitivity(row),
             # DERIVED: do the TCGA-adjacent (A/B) and GTEx (C) comparator families agree? Exposes the
             # cross-comparator robustness cells_supporting collapses to a count (slice-4 finding #3).
@@ -590,12 +609,12 @@ def _read_tvn_selectivity_v2_fallback(target: str, indication: str) -> dict:
         row = None
     else:
         dom = "up" if sum(lfcs) > 0 else ("down" if sum(lfcs) < 0 else "none")
-        supporting = sum(1 for lfc, q in sig if q < 0.05 and
-                         ((lfc > 0) == (dom == "up")))
+        supporting = sum(1 for lfc, q in sig if q < 0.05 and ((lfc > 0) == (dom == "up")))
         any_up = any(lfc > 0 and q < 0.05 for lfc, q in sig)
         any_down = any(lfc < 0 and q < 0.05 for lfc, q in sig)
         row = {
-            "cells_ran": 2, "cells_supporting": supporting,
+            "cells_ran": 2,
+            "cells_supporting": supporting,
             "dominant_direction": dom,
             "sig_all_cells": supporting == 2,
             "discordant": any_up and any_down,
@@ -605,39 +624,46 @@ def _read_tvn_selectivity_v2_fallback(target: str, indication: str) -> dict:
             # (>=1.5 strong / >=0.5 modest) and log2fc_cell_c for the field-effect branch.
             # Without them raw_max_lfc collapses to 0.0 and every fallback call degrades to
             # not_informative/discordant. Cell A = TCGA-adjacent, cell C = GTEx (see docstring).
-            "log2fc_cell_a": lfc_a, "q_value_cell_a": q_a,
-            "log2fc_cell_b": None,  "q_value_cell_b": None,
-            "log2fc_cell_c": lfc_c, "q_value_cell_c": q_c,
+            "log2fc_cell_a": lfc_a,
+            "q_value_cell_a": q_a,
+            "log2fc_cell_b": None,
+            "q_value_cell_b": None,
+            "log2fc_cell_c": lfc_c,
+            "q_value_cell_c": q_c,
         }
 
     return {
-        "cells_ran":          2 if row else None,
-        "cells_supporting":   (row or {}).get("cells_supporting"),
+        "cells_ran": 2 if row else None,
+        "cells_supporting": (row or {}).get("cells_supporting"),
         "dominant_direction": (row or {}).get("dominant_direction"),
-        "sig_all_cells":      (row or {}).get("sig_all_cells"),
-        "discordant":         (row or {}).get("discordant"),
-        "max_abs_log2fc":     (row or {}).get("max_abs_log2fc"),
-        "log2fc_cell_a": lfc_a, "q_value_cell_a": q_a,
-        "log2fc_cell_b": None,  "q_value_cell_b": None,
-        "log2fc_cell_c": lfc_c, "q_value_cell_c": q_c,
-        "log2fc_cell_d": None,  "q_value_cell_d": None,
-        "n_tumor":       (gtex or {}).get("n_tumor") or (adj or {}).get("n_tumor"),
-        "n_adjacent":    (adj or {}).get("n_adjacent"),
+        "sig_all_cells": (row or {}).get("sig_all_cells"),
+        "discordant": (row or {}).get("discordant"),
+        "max_abs_log2fc": (row or {}).get("max_abs_log2fc"),
+        "log2fc_cell_a": lfc_a,
+        "q_value_cell_a": q_a,
+        "log2fc_cell_b": None,
+        "q_value_cell_b": None,
+        "log2fc_cell_c": lfc_c,
+        "q_value_cell_c": q_c,
+        "log2fc_cell_d": None,
+        "q_value_cell_d": None,
+        "n_tumor": (gtex or {}).get("n_tumor") or (adj or {}).get("n_tumor"),
+        "n_adjacent": (adj or {}).get("n_adjacent"),
         "n_gtex_normal": (gtex or {}).get("n_gtex_normal"),
         # The v2 fallback reads legacy per-product rows that lack the sensitivity product's
         # all-gene columns, so the SEL-1 selectivity percentile is genuinely uncomputable here —
         # emit data_unavailable/None honestly (the field always exists, distinct from a real value).
-        "selectivity_allgene_percentile":         None,
-        "selectivity_allgene_percentile_class":   "data_unavailable",
+        "selectivity_allgene_percentile": None,
+        "selectivity_allgene_percentile_class": "data_unavailable",
         "selectivity_allgene_percentile_context": "v2_fallback: sensitivity product not landed; percentile uncomputable",
-        "selectivity_allgene_percentile_cell_b":  None,
-        "selectivity_allgene_percentile_cell_c":  None,
+        "selectivity_allgene_percentile_cell_b": None,
+        "selectivity_allgene_percentile_cell_c": None,
         "selectivity_class": _classify_selectivity_from_sensitivity(row),
         # v2 fallback carries cell A (TCGA-adjacent) + cell C (GTEx) — the two families — so
         # comparator_concordance is still meaningful (single_comparator when only one product landed).
-        "comparator_concordance": _comparator_concordance({
-            "log2fc_cell_a": lfc_a, "q_value_cell_a": q_a,
-            "log2fc_cell_c": lfc_c, "q_value_cell_c": q_c}),
+        "comparator_concordance": _comparator_concordance(
+            {"log2fc_cell_a": lfc_a, "q_value_cell_a": q_a, "log2fc_cell_c": lfc_c, "q_value_cell_c": q_c}
+        ),
         "_data_source": "v2_fallback",
         "_schema": "v2_two_product_fallback",
     }
@@ -666,6 +692,7 @@ def read_tumor_vs_gtex_gene_row(target: str, indication: str) -> Optional[dict]:
     derived product (not all TCGA indications have a clean GTEx counterpart).
     """
     import pyarrow.parquet as pq
+
     ensure_aws_profile()
     s3fs = _get_s3fs()
     try:
@@ -674,14 +701,14 @@ def read_tumor_vs_gtex_gene_row(target: str, indication: str) -> Optional[dict]:
         # matching the prior "product absent → None" behavior.
         s3_uri = s3_uri_for(f"{indication.lower()}-dge-tumor-vs-gtex-v1")
         path = _s3_uri_to_path(s3_uri)
-        table = pq.read_table(path, filesystem=s3fs,
-                                filters=[("gene_symbol", "=", target)])
+        table = pq.read_table(path, filesystem=s3fs, filters=[("gene_symbol", "=", target)])
     except Exception as e:
         # Genuine absence only (no landed manifest / missing object → FileNotFoundError, or
         # NoSuchKey/404) → None. A transient-S3 / creds / broken-env error must NOT be masked as
         # "product absent" — re-raise it so the caller does not silently degrade (RD3: keeps
         # read_tumor_vs_normal_selectivity from falling back v3→legacy-v2 on a transient failure).
         from methods.target_id_sidecar import is_definitively_absent
+
         if not (isinstance(e, FileNotFoundError) or is_definitively_absent(e)):
             raise
         return None
@@ -696,9 +723,7 @@ def read_tumor_vs_gtex_gene_row(target: str, indication: str) -> Optional[dict]:
         "n_gtex_normal": raw.get("n_gtex_normal"),
         "mean_log2cpm_tumor": raw.get("mean_log2cpm_tumor"),
         "mean_log2cpm_gtex_normal": raw.get("mean_log2cpm_gtex_normal"),
-        "expression_call_class": _classify_expression_call(
-            raw.get("log2_fc"), raw.get("q_value")
-        ),
+        "expression_call_class": _classify_expression_call(raw.get("log2_fc"), raw.get("q_value")),
         "_data_source": f"{indication.lower()}-dge-tumor-vs-gtex-v1",
         "_data_s3_uri": s3_uri,
     }
@@ -717,6 +742,7 @@ def read_tumor_vs_normal_sensitivity_gene_row(target: str, indication: str) -> O
     absent.
     """
     import pyarrow.parquet as pq
+
     ensure_aws_profile()
     manifest_id = f"{indication.lower()}-dge-tumor-vs-normal-sensitivity-v1"
     s3fs = _get_s3fs()
@@ -725,14 +751,14 @@ def read_tumor_vs_normal_sensitivity_gene_row(target: str, indication: str) -> O
         # Indications without a landed manifest raise FileNotFoundError → caught → None.
         s3_uri = s3_uri_for(manifest_id)
         path = _s3_uri_to_path(s3_uri)
-        table = pq.read_table(path, filesystem=s3fs,
-                              filters=[("gene_symbol", "=", target)])
+        table = pq.read_table(path, filesystem=s3fs, filters=[("gene_symbol", "=", target)])
     except Exception as e:
         # Genuine absence only (no landed manifest / missing object → FileNotFoundError, or
         # NoSuchKey/404) → None. A transient-S3 / creds / broken-env error must NOT be masked as
         # "product absent" — re-raise it so read_tumor_vs_normal_selectivity does not silently fall
         # back v3→legacy-v2 on a transient failure (RD3).
         from methods.target_id_sidecar import is_definitively_absent
+
         if not (isinstance(e, FileNotFoundError) or is_definitively_absent(e)):
             raise
         return None
@@ -751,26 +777,26 @@ def read_tumor_vs_normal_sensitivity_gene_row(target: str, indication: str) -> O
     pct_b, _ = _dge_sensitivity_cell_percentile(manifest_id, s3_uri, "log2fc_B", raw.get("log2fc_B"))
     pct_c, _ = _dge_sensitivity_cell_percentile(manifest_id, s3_uri, "log2fc_C", raw.get("log2fc_C"))
     return {
-        "gene_symbol":        raw.get("gene_symbol"),
-        "selectivity_allgene_percentile":       pct_a,          # cell-A (TCGA tumor-vs-adjacent) — PRIMARY
+        "gene_symbol": raw.get("gene_symbol"),
+        "selectivity_allgene_percentile": pct_a,  # cell-A (TCGA tumor-vs-adjacent) — PRIMARY
         "selectivity_allgene_percentile_class": pct_a_class,
         "selectivity_allgene_percentile_context": f"{manifest_id} metric=log2fc_A(tumor-vs-adjacent, primary)",
-        "selectivity_allgene_percentile_cell_b": pct_b,         # cell-B (TCGA-adjacent ComBat) corroboration
-        "selectivity_allgene_percentile_cell_c": pct_c,         # cell-C (GTEx population) corroboration
-        "cells_ran":          raw.get("cells_ran"),
-        "cells_supporting":   raw.get("cells_supporting"),
+        "selectivity_allgene_percentile_cell_b": pct_b,  # cell-B (TCGA-adjacent ComBat) corroboration
+        "selectivity_allgene_percentile_cell_c": pct_c,  # cell-C (GTEx population) corroboration
+        "cells_ran": raw.get("cells_ran"),
+        "cells_supporting": raw.get("cells_supporting"),
         "dominant_direction": raw.get("dominant_direction"),
-        "sig_all_cells":      raw.get("sig_all_cells"),
-        "discordant":         raw.get("discordant"),
-        "max_abs_log2fc":     raw.get("max_abs_log2fc"),
+        "sig_all_cells": raw.get("sig_all_cells"),
+        "discordant": raw.get("discordant"),
+        "max_abs_log2fc": raw.get("max_abs_log2fc"),
         # per-cell log2fc / padj → lowercase card field names
-        "log2fc_cell_a":  raw.get("log2fc_A"),
+        "log2fc_cell_a": raw.get("log2fc_A"),
         "q_value_cell_a": raw.get("padj_A"),
-        "log2fc_cell_b":  raw.get("log2fc_B"),
+        "log2fc_cell_b": raw.get("log2fc_B"),
         "q_value_cell_b": raw.get("padj_B"),
-        "log2fc_cell_c":  raw.get("log2fc_C"),
+        "log2fc_cell_c": raw.get("log2fc_C"),
         "q_value_cell_c": raw.get("padj_C"),
-        "log2fc_cell_d":  raw.get("log2fc_D"),
+        "log2fc_cell_d": raw.get("log2fc_D"),
         "q_value_cell_d": raw.get("padj_D"),
         "_data_source": f"{indication.lower()}-dge-tumor-vs-normal-sensitivity-v1",
         "_data_s3_uri": s3_uri,
@@ -824,16 +850,19 @@ def _classify_selectivity_from_sensitivity(row: dict) -> str:
     direction = row.get("dominant_direction")
     cells_ran = row.get("cells_ran")
     # FIX 1: RAW-comparator magnitude (A=TCGA-adjacent-raw, C=GTEx-raw); exclude ComBat cell B.
-    raw_lfcs = [abs(row.get(k)) for k in ("log2fc_cell_a", "log2fc_cell_c")
-                if isinstance(row.get(k), (int, float)) and row.get(k) == row.get(k)]
+    raw_lfcs = [
+        abs(row.get(k))
+        for k in ("log2fc_cell_a", "log2fc_cell_c")
+        if isinstance(row.get(k), (int, float)) and row.get(k) == row.get(k)
+    ]
     raw_max_lfc = max(raw_lfcs) if raw_lfcs else 0.0
 
     if row.get("discordant"):
         # FIX 2: distinguish the field-effect signature from a genuine comparator conflict.
-        adj = _family_direction(row, _ADJACENT_CELLS)   # TCGA-adjacent (A+B)
-        gtex = _family_direction(row, _GTEX_CELLS)       # GTEx population-normal (C)
+        adj = _family_direction(row, _ADJACENT_CELLS)  # TCGA-adjacent (A+B)
+        gtex = _family_direction(row, _GTEX_CELLS)  # GTEx population-normal (C)
         c_lfc = row.get("log2fc_cell_c")
-        gtex_strong_up = (gtex == "up" and isinstance(c_lfc, (int, float)) and c_lfc >= 1.5)
+        gtex_strong_up = gtex == "up" and isinstance(c_lfc, (int, float)) and c_lfc >= 1.5
         if gtex_strong_up and adj in (None, "down"):
             # adjacent flat/down + GTEx strongly up = field cancerization; the GTEx (population)
             # normal is the trustworthy reference here. Tumour-selective vs true normal, flagged.
@@ -860,10 +889,13 @@ def _classify_selectivity_from_sensitivity(row: dict) -> str:
     # confound). Gated on cell C being significantly up AND >= 1.5 so a weak/non-significant single comparator
     # still reads not_informative (batch-artifact guard; same GTEx-anchored caveat as FIX 2).
     c_lfc = row.get("log2fc_cell_c")
-    if (direction == "up"
-            and _family_direction(row, _GTEX_CELLS) == "up"
-            and isinstance(c_lfc, (int, float)) and c_lfc >= 1.5
-            and _family_direction(row, _ADJACENT_CELLS) in (None, "down")):
+    if (
+        direction == "up"
+        and _family_direction(row, _GTEX_CELLS) == "up"
+        and isinstance(c_lfc, (int, float))
+        and c_lfc >= 1.5
+        and _family_direction(row, _ADJACENT_CELLS) in (None, "down")
+    ):
         return "field_effect_tumor_selective"
     if supporting <= 1:
         return "not_informative"
@@ -922,22 +954,28 @@ def _comparator_concordance(row: dict) -> str:
     if adj is None or gtex is None:
         return "single_comparator"
     if adj == "mixed" or gtex == "mixed":
-        return "discordant"          # a family self-disagrees → not a clean concordance
+        return "discordant"  # a family self-disagrees → not a clean concordance
     return "concordant" if adj == gtex else "discordant"
 
 
 # GTEx indication → tissue-of-origin (mirrors dge_tcga_gtex_precompute.cli).
 INDICATION_TO_GTEX_TISSUE = {
-    "COADREAD": "COLON", "COAD": "COLON", "READ": "COLON",
-    "NSCLC": "LUNG", "LUAD": "LUNG", "LUSC": "LUNG",
+    "COADREAD": "COLON",
+    "COAD": "COLON",
+    "READ": "COLON",
+    "NSCLC": "LUNG",
+    "LUAD": "LUNG",
+    "LUSC": "LUNG",
     "BRCA": "BREAST",
-    "PAAD": "PANCREAS", "PDAC": "PANCREAS",
+    "PAAD": "PANCREAS",
+    "PDAC": "PANCREAS",
     "SKCM": "SKIN",
     "STAD": "STOMACH",
     "PRAD": "PROSTATE",
     "OV": "OVARY",
     "KIRC": "KIDNEY",
-    "GBM": "BRAIN", "LGG": "BRAIN",
+    "GBM": "BRAIN",
+    "LGG": "BRAIN",
     "BLCA": "BLADDER",
     "LIHC": "LIVER",
     "CESC": "CERVIX_UTERI",
@@ -961,11 +999,14 @@ def _fetch_recount3_gtex_metadata(tissue: str) -> "pd.DataFrame":
     ensure_aws_profile()
     import boto3, gzip, io
     import pandas as pd
+
     s3 = boto3.client("s3")
     key = f"{RECOUNT3_S3_PREFIX}/gtex/{tissue}/metadata/gtex.gtex.{tissue}.MD.gz"
     body = s3.get_object(Bucket="onc-compbio", Key=key)["Body"].read()
     return pd.read_csv(
-        io.BytesIO(gzip.decompress(body)), sep="\t", low_memory=False,
+        io.BytesIO(gzip.decompress(body)),
+        sep="\t",
+        low_memory=False,
         usecols=["external_id", "SMTS", "SMTSD"],
     )
 
@@ -976,6 +1017,7 @@ def _fetch_recount3_gtex_gene_row(tissue: str, target_ensembl_ids: set) -> "pd.D
     import boto3, gzip, io
     import numpy as np
     import pandas as pd
+
     s3 = boto3.client("s3")
     key = f"{RECOUNT3_S3_PREFIX}/gtex/{tissue}/gene_sums/gtex.gene_sums.{tissue}.G026.gz"
     body = s3.get_object(Bucket="onc-compbio", Key=key)["Body"].read()
@@ -1000,11 +1042,13 @@ def _fetch_recount3_gtex_gene_row(tissue: str, target_ensembl_ids: set) -> "pd.D
     all_counts = np.zeros(len(sample_cols))
     for _gid, counts in matched_rows:
         all_counts += np.array(counts)
-    return pd.DataFrame({
-        "sample_id": sample_cols,
-        "count": all_counts,
-        "gene_id": [matched_rows[0][0]] * len(sample_cols),
-    })
+    return pd.DataFrame(
+        {
+            "sample_id": sample_cols,
+            "count": all_counts,
+            "gene_id": [matched_rows[0][0]] * len(sample_cols),
+        }
+    )
 
 
 def _fetch_recount3_gtex_library_sizes(tissue: str) -> "pd.Series":
@@ -1012,6 +1056,7 @@ def _fetch_recount3_gtex_library_sizes(tissue: str) -> "pd.Series":
     ensure_aws_profile()
     import boto3, gzip, io
     import numpy as np, pandas as pd
+
     s3 = boto3.client("s3")
     key = f"{RECOUNT3_S3_PREFIX}/gtex/{tissue}/gene_sums/gtex.gene_sums.{tissue}.G026.gz"
     body = s3.get_object(Bucket="onc-compbio", Key=key)["Body"].read()
@@ -1033,7 +1078,8 @@ GTEX_TPM_LONG_S3_URI = s3_uri_for("gtex-tpm-recount3-long-v1")
 
 
 def _fetch_gtex_samples_from_long_product(
-    target: str, gtex_tissue: str,
+    target: str,
+    gtex_tissue: str,
 ) -> "list[dict]":
     """Predicate-pushdown read of the long GTEx TPM product for one (gene, tissue).
 
@@ -1092,7 +1138,8 @@ def _fetch_gtex_samples_from_long_product(
 
 
 def read_per_sample_expression_all_three_groups(
-    target: str, indication: str,
+    target: str,
+    indication: str,
 ) -> Optional[dict]:
     """Fetch per-sample expression for tumor + adjacent-normal + GTEx-normal.
 
@@ -1147,7 +1194,8 @@ def read_per_sample_expression_all_three_groups(
 
 @lru_cache(maxsize=32)
 def read_per_sample_expression_tumor_vs_adjacent(
-    target: str, indication: str,
+    target: str,
+    indication: str,
 ) -> Optional[dict]:
     """Read per-sample log2(CPM+1) for `target` across TCGA `indication`, split by
     sample_type (Primary Tumor vs Solid Tissue Normal). Uses recount3 substrate.
@@ -1191,6 +1239,7 @@ def read_per_sample_expression_tumor_vs_adjacent(
     import pandas as pd
     import numpy as np
     from .gene_lengths import load_gene_lengths
+
     gene_lengths = load_gene_lengths()
 
     per_sample = []
@@ -1292,9 +1341,12 @@ def read_per_sample_expression_tumor_vs_adjacent(
 # Parquet emits uppercase cell tags (log2fc_A, padj_A); the card summary + the
 # classifier/concordance helpers key on lowercase (log2fc_cell_a, q_value_cell_a).
 _STRATUM_CELL_MAP = {
-    "log2fc_A": "log2fc_cell_a", "padj_A": "q_value_cell_a",
-    "log2fc_B": "log2fc_cell_b", "padj_B": "q_value_cell_b",
-    "log2fc_C": "log2fc_cell_c", "padj_C": "q_value_cell_c",
+    "log2fc_A": "log2fc_cell_a",
+    "padj_A": "q_value_cell_a",
+    "log2fc_B": "log2fc_cell_b",
+    "padj_B": "q_value_cell_b",
+    "log2fc_C": "log2fc_cell_c",
+    "padj_C": "q_value_cell_c",
 }
 
 
@@ -1312,6 +1364,7 @@ def _stratum_row_to_card_fields(r) -> dict:
         # guard and the reducer's None-filter behave).
         try:
             import math
+
             if v is None or (isinstance(v, float) and math.isnan(v)):
                 return None
         except Exception:
@@ -1319,12 +1372,12 @@ def _stratum_row_to_card_fields(r) -> dict:
         return v
 
     row = {
-        "cells_ran":          _num(r.get("cells_ran")),
-        "cells_supporting":   _num(r.get("cells_supporting")),
+        "cells_ran": _num(r.get("cells_ran")),
+        "cells_supporting": _num(r.get("cells_supporting")),
         "dominant_direction": r.get("dominant_direction"),
-        "sig_all_cells":      bool(r.get("sig_all_cells")) if r.get("sig_all_cells") is not None else None,
-        "discordant":         bool(r.get("discordant")) if r.get("discordant") is not None else None,
-        "max_abs_log2fc":     _num(r.get("max_abs_log2fc")),
+        "sig_all_cells": bool(r.get("sig_all_cells")) if r.get("sig_all_cells") is not None else None,
+        "discordant": bool(r.get("discordant")) if r.get("discordant") is not None else None,
+        "max_abs_log2fc": _num(r.get("max_abs_log2fc")),
     }
     for up, lo in _STRATUM_CELL_MAP.items():
         row[lo] = _num(r.get(up))
@@ -1332,21 +1385,25 @@ def _stratum_row_to_card_fields(r) -> dict:
     n = r.get("subgroup_n_tumor")
     n = int(n) if n is not None and n == n else 0
     floor_met = n >= SUBGROUP_N_FLOOR
-    row.update({
-        "stratum":              r.get("stratum_id"),
-        "subgroup_n":           n,
-        "subgroup_n_floor_met": floor_met,
-        "evidence_state":       evidence_state(n, floor_met),
-        "selectivity_class":    _classify_selectivity_from_sensitivity(row),
-        "comparator_concordance": _comparator_concordance(row),
-        "source_cohort":        f"recount3 TCGA-tumor∈{r.get('stratum_id')} vs shared normals "
-                                f"(adjacent n={r.get('n_adjacent')}, GTEx n={r.get('n_gtex')})",
-    })
+    row.update(
+        {
+            "stratum": r.get("stratum_id"),
+            "subgroup_n": n,
+            "subgroup_n_floor_met": floor_met,
+            "evidence_state": evidence_state(n, floor_met),
+            "selectivity_class": _classify_selectivity_from_sensitivity(row),
+            "comparator_concordance": _comparator_concordance(row),
+            "source_cohort": f"recount3 TCGA-tumor∈{r.get('stratum_id')} vs shared normals "
+            f"(adjacent n={r.get('n_adjacent')}, GTEx n={r.get('n_gtex')})",
+        }
+    )
     return row
 
 
 def read_stratified_tumor_vs_normal_selectivity(
-    target: str, indication: str, subgroup_axis: Optional[str] = None,
+    target: str,
+    indication: str,
+    subgroup_axis: Optional[str] = None,
 ) -> dict:
     """Descriptive per-subgroup tumor-vs-normal selectivity panorama for a target.
 
@@ -1375,10 +1432,14 @@ def read_stratified_tumor_vs_normal_selectivity(
 
     def _empty(status: str) -> dict:
         return {
-            "target": target, "indication": indication, "subgroup_axis": subgroup_axis,
-            "status": status, "per_subgroup_metrics": [],
+            "target": target,
+            "indication": indication,
+            "subgroup_axis": subgroup_axis,
+            "status": status,
+            "per_subgroup_metrics": [],
             "n_subgroups_with_data": 0,
-            "max_subgroup_log2fc": None, "min_subgroup_log2fc": None,
+            "max_subgroup_log2fc": None,
+            "min_subgroup_log2fc": None,
             "cross_subgroup_delta_log2fc": None,
             "selectivity_class_by_subgroup": {},
             "cross_subgroup_selectivity_divergence": None,
@@ -1390,10 +1451,10 @@ def read_stratified_tumor_vs_normal_selectivity(
     try:
         s3_uri = s3_uri_for(manifest_id)
         path = _s3_uri_to_path(s3_uri)
-        table = pq.read_table(path, filesystem=s3fs,
-                              filters=[("gene_symbol", "=", target)])
+        table = pq.read_table(path, filesystem=s3fs, filters=[("gene_symbol", "=", target)])
     except Exception as e:
         from methods.target_id_sidecar import is_definitively_absent
+
         if not (isinstance(e, FileNotFoundError) or is_definitively_absent(e)):
             raise
         return _empty("data_unavailable")
@@ -1417,7 +1478,8 @@ def read_stratified_tumor_vs_normal_selectivity(
     axes = {a for a in df["subgroup_axis"].dropna().unique()} if "subgroup_axis" in df else set()
     resolved_axis = subgroup_axis or (next(iter(axes)) if len(axes) == 1 else None)
     envelope = {
-        "target": target, "indication": indication,
+        "target": target,
+        "indication": indication,
         "subgroup_axis": resolved_axis,
         "status": "live",
         "per_subgroup_metrics": records,
@@ -1430,11 +1492,13 @@ def read_stratified_tumor_vs_normal_selectivity(
     class_by = {r["stratum"]: r["selectivity_class"] for r in records}
     measured_classes = {r["selectivity_class"] for r in measured}
     strong = {"strong_tumor_selective", "field_effect_tumor_selective"}
-    envelope.update({
-        "selectivity_class_by_subgroup": class_by,
-        # divergence judged over MEASURED (floor-clearing) strata only — an
-        # underpowered stratum's class is an unknown, not a real difference.
-        "cross_subgroup_selectivity_divergence": (len(measured_classes) > 1) if measured else None,
-        "any_subgroup_strong_selective": bool(measured_classes & strong) if measured else None,
-    })
+    envelope.update(
+        {
+            "selectivity_class_by_subgroup": class_by,
+            # divergence judged over MEASURED (floor-clearing) strata only — an
+            # underpowered stratum's class is an unknown, not a real difference.
+            "cross_subgroup_selectivity_divergence": (len(measured_classes) > 1) if measured else None,
+            "any_subgroup_strong_selective": bool(measured_classes & strong) if measured else None,
+        }
+    )
     return envelope

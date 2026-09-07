@@ -14,6 +14,7 @@ to surface genuine breakage, never to hide it behind "no data". (This mirrors th
 Locally: unset SKILLS_SKIP_LIVE_DATA (default) to run everything, including live-S3 tests, against
 real credentials.
 """
+
 from __future__ import annotations
 
 import os
@@ -21,16 +22,18 @@ import os
 import pytest
 
 # Exception TYPE names that indicate "couldn't reach the data", not "the code is wrong".
-_LIVE_DATA_EXC_NAMES = frozenset({
-    "NoCredentialsError",
-    "PartialCredentialsError",
-    "ClientError",
-    "EndpointConnectionError",
-    "ConnectTimeoutError",
-    "ReadTimeoutError",
-    "SSLError",
-    "CredentialRetrievalError",
-})
+_LIVE_DATA_EXC_NAMES = frozenset(
+    {
+        "NoCredentialsError",
+        "PartialCredentialsError",
+        "ClientError",
+        "EndpointConnectionError",
+        "ConnectTimeoutError",
+        "ReadTimeoutError",
+        "SSLError",
+        "CredentialRetrievalError",
+    }
+)
 
 
 def _is_live_data_failure(excinfo) -> bool:
@@ -39,7 +42,7 @@ def _is_live_data_failure(excinfo) -> bool:
         return False
     exc = excinfo.value
     seen = 0
-    while exc is not None and seen < 10:            # walk the __cause__/__context__ chain
+    while exc is not None and seen < 10:  # walk the __cause__/__context__ chain
         etype = type(exc)
         if getattr(etype, "__module__", "").split(".")[0] == "botocore":
             return True

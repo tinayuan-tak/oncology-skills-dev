@@ -20,6 +20,7 @@ Modules:
     cli  — loaders (per-protein pushdown + on-read all-protein null) + load_and_classify + CLI
     read — read_target_summary: the live-mode dispatcher entry
 """
+
 METHOD_VERSION = "0.1.0"
 
 from .read import read_target_summary  # noqa: E402,F401

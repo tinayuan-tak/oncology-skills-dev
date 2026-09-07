@@ -48,9 +48,7 @@ def read_mutation_stratified_dependency(
         sys.path.insert(0, str(METHODS_REPO))
     from methods.depmap_chronos_distribution import cli as c1cli
 
-    chronos_by_model, model_metadata, chronos_errs = c1cli.load_depmap_files(
-        release_pin="26q1", target_symbol=target
-    )
+    chronos_by_model, model_metadata, chronos_errs = c1cli.load_depmap_files(release_pin="26q1", target_symbol=target)
     if chronos_errs:
         return {
             "_live_read_error": chronos_errs[0].get("_live_read_error", "s3_or_local_read_failed"),
@@ -65,9 +63,7 @@ def read_mutation_stratified_dependency(
             "mutation_stratification_class": "data_unavailable",
         }
 
-    hotspot_by_model, damaging_by_model, mut_errs = _cli.load_mutation_data(
-        release_pin="26q1", target_symbol=target
-    )
+    hotspot_by_model, damaging_by_model, mut_errs = _cli.load_mutation_data(release_pin="26q1", target_symbol=target)
     if mut_errs:
         return {
             "_live_read_error": mut_errs[0].get("_live_read_error", "mutation_read_failed"),
@@ -81,8 +77,7 @@ def read_mutation_stratified_dependency(
     if plot_data_out is not None:
         try:
             plot_data_out.mkdir(parents=True, exist_ok=True)
-            _cli.emit_plot_data(chronos_by_model, hotspot_by_model, damaging_by_model,
-                                model_metadata, plot_data_out)
+            _cli.emit_plot_data(chronos_by_model, hotspot_by_model, damaging_by_model, model_metadata, plot_data_out)
         except Exception:  # noqa: BLE001 — persistence best-effort; never break the verdict read
             pass
 
@@ -99,13 +94,13 @@ def read_mutation_stratified_dependency(
             is_mut = bool(hotspot_by_model.get(m) or damaging_by_model.get(m))
             arm = mut_models if is_mut else wt_models
             return arm is None or m in arm
+
         c = {m: v for m, v in chronos_by_model.items() if _keep(m)}
         h = {m: v for m, v in hotspot_by_model.items() if m in c}
         d = {m: v for m, v in damaging_by_model.items() if m in c}
         return _cli.compute_mutation_stratification(c, h, d)
 
-    result = apply_lineage_ladder(
-        _compute, "mutation_stratification_class", model_metadata, indication)
+    result = apply_lineage_ladder(_compute, "mutation_stratification_class", model_metadata, indication)
     # Card-declared indication_lineage: the shared ladder sets pan_lineage_* but not the resolved
     # lineage NAME, so this card (the only sibling declaring it) saw it MISSING. Set it here (None
     # when the indication is unmapped / absent — honest).

@@ -29,6 +29,7 @@ lens, orthogonal to the biology axes.
 
 data_unavailable-safe. Absence = coverage gap (measured-vs-null discipline).
 """
+
 from __future__ import annotations
 
 import os
@@ -41,12 +42,20 @@ DRUG_TARGET_MANIFEST = "dgidb-drug-target-directional-v1"
 AACT_MANIFEST = "aact-oncology-trial-precedent-per-condition-intervention-v1"
 METHOD_VERSION = "0.1.0"
 
-TARGET_CONTRACTS = Path(os.environ.get(
-    "TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
+TARGET_CONTRACTS = Path(
+    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+)
 
 # AACT phase string -> ordinal (for highest-stage), and ordinal -> clinical-stage class.
-_PHASE_ORD = {"EARLY_PHASE1": 1, "PHASE1": 2, "PHASE1/PHASE2": 3, "PHASE2": 4,
-              "PHASE2/PHASE3": 5, "PHASE3": 6, "PHASE4": 7}
+_PHASE_ORD = {
+    "EARLY_PHASE1": 1,
+    "PHASE1": 2,
+    "PHASE1/PHASE2": 3,
+    "PHASE2": 4,
+    "PHASE2/PHASE3": 5,
+    "PHASE3": 6,
+    "PHASE4": 7,
+}
 
 
 def _indication_mesh_terms(indication: str) -> list[str]:
@@ -66,14 +75,17 @@ def _read_rows(manifest_id: str, filters):
     """Pushdown-read a catalogued parquet. None on genuine absence; re-raise transient/env faults."""
     try:
         import sys as _sys
+
         _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
         from methods.catalog_query.read import bucket_key_for
         import pyarrow.parquet as pq
         import pyarrow.fs as fs
+
         bucket, key = bucket_key_for(manifest_id)
         return pq.read_table(f"{bucket}/{key}", filesystem=fs.S3FileSystem(), filters=filters).to_pylist()
     except Exception as e:  # noqa: BLE001
         from methods.target_id_sidecar import is_definitively_absent
+
         if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
             return []
         raise
@@ -90,11 +102,11 @@ def _target_drug_set(target: str) -> tuple[set, set]:
 def _highest_stage(max_ord: int, approved_hit: bool) -> str:
     if approved_hit:
         return "approved"
-    if max_ord >= 6:            # PHASE3 / PHASE4
+    if max_ord >= 6:  # PHASE3 / PHASE4
         return "phase_3"
-    if max_ord >= 4:            # PHASE2 / PHASE2/PHASE3
+    if max_ord >= 4:  # PHASE2 / PHASE2/PHASE3
         return "phase_2"
-    if max_ord >= 1:            # EARLY_PHASE1 .. PHASE1/PHASE2
+    if max_ord >= 1:  # EARLY_PHASE1 .. PHASE1/PHASE2
         return "phase_1"
     return "none"
 
@@ -104,16 +116,25 @@ def aggregate_precedent(aact_rows: list, drug_set: set, approved_drugs: set) -> 
     indication's mesh_terms, intersected here with the target's engaging-drug set, -> precedent."""
     matched = [r for r in aact_rows if r.get("intervention_name_norm") in drug_set]
     if not matched:
-        return {"clinical_precedent_class": "no_trial_precedent", "highest_clinical_stage": "none",
-                "n_trials": 0, "n_active_trials": 0, "approved_agents": [], "notable_failures": [],
-                "n_agents_engaging_target": 0, "modality_precedent": None,
-                "resistance_mechanisms_reported": None, "example_nct_ids": []}
+        return {
+            "clinical_precedent_class": "no_trial_precedent",
+            "highest_clinical_stage": "none",
+            "n_trials": 0,
+            "n_active_trials": 0,
+            "approved_agents": [],
+            "notable_failures": [],
+            "n_agents_engaging_target": 0,
+            "modality_precedent": None,
+            "resistance_mechanisms_reported": None,
+            "example_nct_ids": [],
+        }
     max_ord = max(_PHASE_ORD.get(r.get("highest_phase"), 0) for r in matched)
     approved_hit = any(r["intervention_name_norm"] in approved_drugs for r in matched)
     n_active = sum(int(r.get("n_active") or 0) for r in matched)
     agents = sorted({r["intervention_name_norm"] for r in matched})
-    approved_agents = sorted({r["intervention_name_norm"] for r in matched
-                              if r["intervention_name_norm"] in approved_drugs})
+    approved_agents = sorted(
+        {r["intervention_name_norm"] for r in matched if r["intervention_name_norm"] in approved_drugs}
+    )
     failures = sorted({r["intervention_name_norm"] for r in matched if int(r.get("n_terminated") or 0) > 0})
     types = {}
     for r in matched:
@@ -137,24 +158,39 @@ def aggregate_precedent(aact_rows: list, drug_set: set, approved_drugs: set) -> 
         "notable_failures": failures[:15],
         "n_agents_engaging_target": len(agents),
         "modality_precedent": "|".join(f"{k}:{v}" for k, v in sorted(types.items())) or None,
-        "resistance_mechanisms_reported": None,   # not derivable from AACT structured fields
+        "resistance_mechanisms_reported": None,  # not derivable from AACT structured fields
         "example_nct_ids": ncts,
     }
 
 
-def read_clinical_precedent(target: str, indication: str, modality: Optional[str] = None,
-                            release_pin: Optional[str] = None) -> dict:
-    base = {"target": target, "indication": indication, "method_version": METHOD_VERSION,
-            "source": "aact-oncology-trial-precedent-per-condition-intervention-v1 x dgidb-drug-target-directional-v1"}
+def read_clinical_precedent(
+    target: str, indication: str, modality: Optional[str] = None, release_pin: Optional[str] = None
+) -> dict:
+    base = {
+        "target": target,
+        "indication": indication,
+        "method_version": METHOD_VERSION,
+        "source": "aact-oncology-trial-precedent-per-condition-intervention-v1 x dgidb-drug-target-directional-v1",
+    }
     mesh_terms = _indication_mesh_terms(indication)
     if not mesh_terms:
-        return {**base, "clinical_precedent_class": "insufficient", "highest_clinical_stage": "none",
-                "_note": f"no mesh_terms lane for indication {indication!r} in indication_crosswalk.yaml"}
+        return {
+            **base,
+            "clinical_precedent_class": "insufficient",
+            "highest_clinical_stage": "none",
+            "_note": f"no mesh_terms lane for indication {indication!r} in indication_crosswalk.yaml",
+        }
     drug_set, approved = _target_drug_set(target)
     if not drug_set:
-        return {**base, "clinical_precedent_class": "no_known_agent", "highest_clinical_stage": "none",
-                "n_trials": 0, "approved_agents": [], "notable_failures": [],
-                "_note": f"{target}: no drug with a DIRECTIONAL DGIdb interaction (coverage gap, not 'undruggable')"}
+        return {
+            **base,
+            "clinical_precedent_class": "no_known_agent",
+            "highest_clinical_stage": "none",
+            "n_trials": 0,
+            "approved_agents": [],
+            "notable_failures": [],
+            "_note": f"{target}: no drug with a DIRECTIONAL DGIdb interaction (coverage gap, not 'undruggable')",
+        }
     aact_rows = _read_rows(AACT_MANIFEST, [("condition_mesh_term", "in", mesh_terms)])
     return {**base, "mesh_terms": mesh_terms, **aggregate_precedent(aact_rows, drug_set, approved)}
 
@@ -162,6 +198,7 @@ def read_clinical_precedent(target: str, indication: str, modality: Optional[str
 def _main(argv=None):
     import argparse
     import json
+
     ap = argparse.ArgumentParser(description="Clinical-trial precedent for a (target, indication) from AACT.")
     ap.add_argument("--target", required=True)
     ap.add_argument("--indication", required=True)

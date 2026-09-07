@@ -1,4 +1,5 @@
 """expression_clinical_association (Q11) — pure classifier + a log-rank numerical check. No S3."""
+
 from __future__ import annotations
 
 import sys
@@ -11,7 +12,10 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from methods.expression_clinical_association.read import (  # noqa: E402
-    classify_survival_association, _logrank, MIN_EVENTS, MIN_PER_ARM,
+    classify_survival_association,
+    _logrank,
+    MIN_EVENTS,
+    MIN_PER_ARM,
 )
 from methods.expression_clinical_association import read as _R  # noqa: E402
 
@@ -25,12 +29,18 @@ def test_load_cdr_raises_on_missing_dependency_not_silent(monkeypatch):
     # _load_cdr must RAISE ImportError (broken env) rather than swallow it into an empty {}
     # that reads as a data gap. S3 fetch succeeds; the .xlsx parse hits a missing openpyxl.
     _R._load_cdr.cache_clear()
-    monkeypatch.setattr(_R, "_boto3", lambda: type("S", (), {
-        "get_object": lambda self, Bucket, Key: {"Body": type("B", (), {"read": lambda self: b"x"})()}
-    })())
+    monkeypatch.setattr(
+        _R,
+        "_boto3",
+        lambda: type(
+            "S", (), {"get_object": lambda self, Bucket, Key: {"Body": type("B", (), {"read": lambda self: b"x"})()}}
+        )(),
+    )
     import pandas as pd
+
     def _raise_import(*a, **k):
         raise ImportError("Missing optional dependency 'openpyxl'.")
+
     monkeypatch.setattr(pd, "read_excel", _raise_import)
     with pytest.raises(ImportError):
         _R._load_cdr()
@@ -42,11 +52,17 @@ def test_load_cdr_raises_on_missing_dependency_not_silent(monkeypatch):
 def test_load_cdr_genuine_s3_absence_is_graceful_empty(monkeypatch):
     # a genuine data-unreachable (S3 error) stays a graceful {} with a distinct note (NOT raised)
     _R._load_cdr.cache_clear()
+
     def _boom_s3():
         raise RuntimeError("NoSuchKey")
-    monkeypatch.setattr(_R, "_boto3", lambda: type("S", (), {
-        "get_object": lambda self, Bucket, Key: (_ for _ in ()).throw(RuntimeError("NoSuchKey"))
-    })())
+
+    monkeypatch.setattr(
+        _R,
+        "_boto3",
+        lambda: type(
+            "S", (), {"get_object": lambda self, Bucket, Key: (_ for _ in ()).throw(RuntimeError("NoSuchKey"))}
+        )(),
+    )
     assert _R._load_cdr() == {}
     assert _R._CDR_LOAD_ERROR and "unreachable" in _R._CDR_LOAD_ERROR.lower()
     _R._load_cdr.cache_clear()
@@ -91,15 +107,15 @@ def test_logrank_separated_groups_significant():
     b_e = np.ones(8, dtype=int)
     chi2, p, direction = _logrank(a_t, a_e, b_t, b_e)
     assert p < 0.01
-    assert direction == 1          # group A (early deaths) has more hazard
+    assert direction == 1  # group A (early deaths) has more hazard
 
 
 def test_logrank_censoring_handled():
     # censored observations (event=0) must not count as deaths
     a_t = np.array([10, 20, 30, 40], dtype=float)
-    a_e = np.array([0, 0, 0, 0], dtype=int)   # all censored → no events in A
+    a_e = np.array([0, 0, 0, 0], dtype=int)  # all censored → no events in A
     b_t = np.array([5, 6, 7, 8], dtype=float)
-    b_e = np.array([1, 1, 1, 1], dtype=int)   # all events in B
+    b_e = np.array([1, 1, 1, 1], dtype=int)  # all events in B
     chi2, p, direction = _logrank(a_t, a_e, b_t, b_e)
     # B has all the hazard → group A direction should be -1 (less hazard)
     assert direction == -1

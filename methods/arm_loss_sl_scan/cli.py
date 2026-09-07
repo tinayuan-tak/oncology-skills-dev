@@ -19,6 +19,7 @@ Usage:
     python -m methods.arm_loss_sl_scan.cli --all-targets --out /tmp/all_arm_loss_sl.parquet \\
         --min-loss-freq 0.25 --fdr-alpha 0.05 --experimental-only
 """
+
 from __future__ import annotations
 
 import json
@@ -50,8 +51,7 @@ INPUT_MANIFEST_IDS = [
 
 # GISTIC meta source (same object the arm-CNV product derives from -> label-consistent arms).
 _GISTIC_BUCKET = "onc-compbio"
-_GISTIC_KEY = ("data-catalog/sources/gdc-pancanatlas/2018-snapshot-2026-06-27/"
-               "all_thresholded.by_genes_whitelisted.tsv")
+_GISTIC_KEY = "data-catalog/sources/gdc-pancanatlas/2018-snapshot-2026-06-27/all_thresholded.by_genes_whitelisted.tsv"
 _LOSS_CN_CLASSES = ("homdel", "loss")
 _CACHE_DIR = Path.home() / ".cache" / "arm-loss-sl-scan"
 
@@ -63,6 +63,7 @@ def _ensure_profile(profile: str):
 def _bkey(manifest_id: str):
     """(bucket, key) from the data-catalog manifest -- single source of truth for S3 location."""
     from methods.catalog_query.read import bucket_key_for
+
     return bucket_key_for(manifest_id)
 
 
@@ -73,8 +74,10 @@ def _load_sl_pairs(target: Optional[str], experimental_only: bool) -> "pd.DataFr
     is faithful and the downstream two-hit read stays bounded. sl_partner_symbols (the full,
     possibly huge, per-pair-tier-less list) is deliberately NOT used here."""
     import pandas as pd
+
     bucket, key = _bkey("synlethdb-sl-partners-per-gene-v1")
     import boto3
+
     obj = boto3.client("s3").get_object(Bucket=bucket, Key=key)
     df = pd.read_parquet(BytesIO(obj["Body"].read()))
     if target is not None:
@@ -82,7 +85,7 @@ def _load_sl_pairs(target: Optional[str], experimental_only: bool) -> "pd.DataFr
     rows = []
     for _, r in df.iterrows():
         tgt = str(r["gene_symbol"]).strip().upper()
-        for p in (list(r["top_partners"]) if r["top_partners"] is not None else []):
+        for p in list(r["top_partners"]) if r["top_partners"] is not None else []:
             pd_ = dict(p)
             tier = pd_.get("evidence_tier")
             is_exp = str(tier).lower() == "experimental"
@@ -91,40 +94,51 @@ def _load_sl_pairs(target: Optional[str], experimental_only: bool) -> "pd.DataFr
             partner = pd_.get("partner")
             if not partner:
                 continue
-            rows.append({"target": tgt, "partner": str(partner).strip().upper(),
-                         "evidence_tier": tier, "has_experimental": is_exp})
-    return pd.DataFrame(rows, columns=["target", "partner", "evidence_tier", "has_experimental"]
-                        ).drop_duplicates(["target", "partner"]).reset_index(drop=True)
+            rows.append(
+                {
+                    "target": tgt,
+                    "partner": str(partner).strip().upper(),
+                    "evidence_tier": tier,
+                    "has_experimental": is_exp,
+                }
+            )
+    return (
+        pd.DataFrame(rows, columns=["target", "partner", "evidence_tier", "has_experimental"])
+        .drop_duplicates(["target", "partner"])
+        .reset_index(drop=True)
+    )
 
 
 def _load_gene_arm_map() -> dict:
     """gene->arm from GISTIC meta (Gene Symbol, Cytoband). One-time full-object read (the source
     is a wide row-oriented TSV, not column-projectable) -> cached as a tiny parquet thereafter."""
     import pandas as pd
+
     cache = _CACHE_DIR / "gene_arm_map.parquet"
     if cache.exists():
         m = pd.read_parquet(cache)
         return dict(zip(m["gene_symbol"], m["chromosome_arm"]))
-    click.echo("[arm_loss_sl_scan] downloading GISTIC meta for gene->arm (one-time, cached)...",
-               err=True)
+    click.echo("[arm_loss_sl_scan] downloading GISTIC meta for gene->arm (one-time, cached)...", err=True)
     import boto3
+
     obj = boto3.client("s3").get_object(Bucket=_GISTIC_BUCKET, Key=_GISTIC_KEY)
     meta = pd.read_csv(BytesIO(obj["Body"].read()), sep="\t", usecols=["Gene Symbol", "Cytoband"])
     gmap = gene_arm_map(meta)
     _CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    pd.DataFrame({"gene_symbol": list(gmap), "chromosome_arm": list(gmap.values())}
-                 ).to_parquet(cache, index=False)
+    pd.DataFrame({"gene_symbol": list(gmap), "chromosome_arm": list(gmap.values())}).to_parquet(cache, index=False)
     return gmap
 
 
 def _load_arm_calls() -> "pd.DataFrame":
     import pandas as pd
+
     bucket, key = _bkey("pancan-arm-cnv-per-sample-v1")
     import boto3
+
     obj = boto3.client("s3").get_object(Bucket=bucket, Key=key)
-    return pd.read_parquet(BytesIO(obj["Body"].read()),
-                           columns=["sample_barcode", "chromosome_arm", "arm_call",
-                                    "loss_frac", "n_genes"])
+    return pd.read_parquet(
+        BytesIO(obj["Body"].read()), columns=["sample_barcode", "chromosome_arm", "arm_call", "loss_frac", "n_genes"]
+    )
 
 
 def _arm_bystander(arm_calls, barcode_to_indication) -> dict:
@@ -136,13 +150,15 @@ def _arm_bystander(arm_calls, barcode_to_indication) -> dict:
     (breadth penalty) + is emitted as a standalone column for the Paradigm-B re-weighting."""
     df = arm_calls.copy()
     df["indication"] = df["sample_barcode"].map(
-        lambda b: barcode_to_indication.get(b) or barcode_to_indication.get(_patient_of(b)))
+        lambda b: barcode_to_indication.get(b) or barcode_to_indication.get(_patient_of(b))
+    )
     lost = df[(df["indication"].notna()) & (df["arm_call"] == -1)].copy()
     if lost.empty:
         return {}
     lost["codeleted"] = lost["loss_frac"].astype(float) * lost["n_genes"].astype(float)
-    return {(arm, ind): float(g["codeleted"].mean())
-            for (arm, ind), g in lost.groupby(["chromosome_arm", "indication"])}
+    return {
+        (arm, ind): float(g["codeleted"].mean()) for (arm, ind), g in lost.groupby(["chromosome_arm", "indication"])
+    }
 
 
 def _load_twohit_universe_and_loss(partners: set) -> "tuple":
@@ -158,6 +174,7 @@ def _load_twohit_universe_and_loss(partners: set) -> "tuple":
     test). cn_class in {homdel, loss} = the loss events."""
     import pyarrow.dataset as ds
     import pyarrow.compute as pc
+
     bucket, key = _bkey("pancan-genomic-two-hit-per-gene-v1")
     dataset = ds.dataset(f"{bucket}/{key}", filesystem=_arrow_fs(), format="parquet")
 
@@ -170,8 +187,11 @@ def _load_twohit_universe_and_loss(partners: set) -> "tuple":
     twohit_loss_freq = {}
     if partners:
         filt = pc.field("gene_symbol").isin(list(partners)) & pc.field("cn_class").isin(list(_LOSS_CN_CLASSES))
-        loss = dataset.to_table(columns=["gene_symbol", "patient_barcode", "cancer_type"],
-                                filter=filt).to_pandas().drop_duplicates()
+        loss = (
+            dataset.to_table(columns=["gene_symbol", "patient_barcode", "cancer_type"], filter=filt)
+            .to_pandas()
+            .drop_duplicates()
+        )
         for (g, ind), grp in loss.groupby(["gene_symbol", "cancer_type"]):
             denom = ind_patient_totals.get(ind, 0)
             if denom:
@@ -181,6 +201,7 @@ def _load_twohit_universe_and_loss(partners: set) -> "tuple":
 
 def _arrow_fs():
     import pyarrow.fs as pafs
+
     return pafs.S3FileSystem()
 
 
@@ -189,7 +210,8 @@ def _pancan_baseline(arm_calls, barcode_to_indication) -> dict:
     baseline and the per-indication observed frequencies share the same denominator population)."""
     df = arm_calls.copy()
     df["indication"] = df["sample_barcode"].map(
-        lambda b: barcode_to_indication.get(b) or barcode_to_indication.get(_patient_of(b)))
+        lambda b: barcode_to_indication.get(b) or barcode_to_indication.get(_patient_of(b))
+    )
     df = df[df["indication"].notna()]
     out = {}
     for arm, g in df.groupby("chromosome_arm"):
@@ -200,14 +222,28 @@ def _pancan_baseline(arm_calls, barcode_to_indication) -> dict:
 
 @click.command()
 @click.option("--target", default=None, help="Single target gene (scan its SL partners). Omit with --all-targets.")
-@click.option("--all-targets", is_flag=True, help="Scan every gene in the SL product (full sweep; reads more of the two-hit product).")
+@click.option(
+    "--all-targets",
+    is_flag=True,
+    help="Scan every gene in the SL product (full sweep; reads more of the two-hit product).",
+)
 @click.option("--out", required=True, type=click.Path(path_type=Path), help="Output parquet path.")
-@click.option("--min-loss-freq", type=float, default=0.20, show_default=True, help="Actionability floor on observed arm-loss frequency.")
+@click.option(
+    "--min-loss-freq",
+    type=float,
+    default=0.20,
+    show_default=True,
+    help="Actionability floor on observed arm-loss frequency.",
+)
 @click.option("--fdr-alpha", type=float, default=0.05, show_default=True, help="BH q-value cutoff.")
 @click.option("--experimental-only", is_flag=True, help="Keep only experimentally-supported SL pairs.")
-@click.option("--bystander-map-out", type=click.Path(path_type=Path), default=None,
-              help="Also write the Paradigm-B bystander map (per-(arm, indication) discovery "
-                   "contexts, bystander-positive ranking) to this parquet path.")
+@click.option(
+    "--bystander-map-out",
+    type=click.Path(path_type=Path),
+    default=None,
+    help="Also write the Paradigm-B bystander map (per-(arm, indication) discovery "
+    "contexts, bystander-positive ranking) to this parquet path.",
+)
 @click.option("--aws-profile", default=DEFAULT_AWS_PROFILE, show_default=True)
 def main(target, all_targets, out, min_loss_freq, fdr_alpha, experimental_only, bystander_map_out, aws_profile):
     """Compose the SL -> arm-loss -> indication nomination scan and write parquet + a
@@ -216,15 +252,20 @@ def main(target, all_targets, out, min_loss_freq, fdr_alpha, experimental_only, 
         raise click.UsageError("provide --target GENE or --all-targets")
     _ensure_profile(aws_profile)
 
-    click.echo(f"[arm_loss_sl_scan] loading SL pairs (target={target or 'ALL'}, "
-               f"experimental_only={experimental_only})...", err=True)
+    click.echo(
+        f"[arm_loss_sl_scan] loading SL pairs (target={target or 'ALL'}, experimental_only={experimental_only})...",
+        err=True,
+    )
     sl_pairs = _load_sl_pairs(target, experimental_only)
     if sl_pairs.empty:
         _write_empty(out, "no SL pairs for the requested scope", target_scope=(target or "ALL"))
         return
     partners = set(sl_pairs["partner"])
-    click.echo(f"[arm_loss_sl_scan] {len(sl_pairs)} pairs, {len(partners)} distinct partners; "
-               f"reading arm calls + two-hit + gene->arm...", err=True)
+    click.echo(
+        f"[arm_loss_sl_scan] {len(sl_pairs)} pairs, {len(partners)} distinct partners; "
+        f"reading arm calls + two-hit + gene->arm...",
+        err=True,
+    )
 
     gene_to_arm = _load_gene_arm_map()
     arm_calls = _load_arm_calls()
@@ -235,15 +276,27 @@ def main(target, all_targets, out, min_loss_freq, fdr_alpha, experimental_only, 
     arm_bystander = _arm_bystander(arm_calls, barcode_to_indication)
 
     click.echo("[arm_loss_sl_scan] scanning...", err=True)
-    hits = sl_arm_scan(sl_pairs, arm_ind_freq, baseline, gene_to_arm,
-                       twohit_loss_freq=twohit_loss_freq, arm_bystander=arm_bystander,
-                       min_loss_freq=min_loss_freq, fdr_alpha=fdr_alpha)
+    hits = sl_arm_scan(
+        sl_pairs,
+        arm_ind_freq,
+        baseline,
+        gene_to_arm,
+        twohit_loss_freq=twohit_loss_freq,
+        arm_bystander=arm_bystander,
+        min_loss_freq=min_loss_freq,
+        fdr_alpha=fdr_alpha,
+    )
 
     out.parent.mkdir(parents=True, exist_ok=True)
     hits.to_parquet(out, index=False)
-    _write_sidecars(out, hits, target_scope=(target or "ALL"),
-                    min_loss_freq=min_loss_freq, fdr_alpha=fdr_alpha,
-                    experimental_only=experimental_only)
+    _write_sidecars(
+        out,
+        hits,
+        target_scope=(target or "ALL"),
+        min_loss_freq=min_loss_freq,
+        fdr_alpha=fdr_alpha,
+        experimental_only=experimental_only,
+    )
     click.echo(f"[arm_loss_sl_scan] wrote {len(hits)} hits -> {out}", err=True)
 
     if bystander_map_out is not None:
@@ -252,23 +305,34 @@ def main(target, all_targets, out, min_loss_freq, fdr_alpha, experimental_only, 
         bmap.to_parquet(bystander_map_out, index=False)
         # federation sidecar for the map (same input_manifest_ids; distinct grain)
         sc = bystander_map_out.with_suffix(".input_manifest_ids.json")
-        sc.write_text(json.dumps({
-            "method": "arm_loss_sl_scan_bystander_map",
-            "method_version": METHOD_VERSION,
-            "input_manifest_ids": INPUT_MANIFEST_IDS,
-            "target_scope": (target or "ALL"),
-            "indication_scope": "discovery",
-            "n_contexts": int(len(bmap)),
-            "grain": "chromosome_arm x indication",
-            "ranking": "pb_discovery_value (arm_loss_freq * selectivity * bystander_density)",
-            "parameters": {"min_loss_freq": min_loss_freq, "fdr_alpha": fdr_alpha,
-                           "experimental_only": experimental_only},
-        }, indent=2, sort_keys=True, default=str))
+        sc.write_text(
+            json.dumps(
+                {
+                    "method": "arm_loss_sl_scan_bystander_map",
+                    "method_version": METHOD_VERSION,
+                    "input_manifest_ids": INPUT_MANIFEST_IDS,
+                    "target_scope": (target or "ALL"),
+                    "indication_scope": "discovery",
+                    "n_contexts": int(len(bmap)),
+                    "grain": "chromosome_arm x indication",
+                    "ranking": "pb_discovery_value (arm_loss_freq * selectivity * bystander_density)",
+                    "parameters": {
+                        "min_loss_freq": min_loss_freq,
+                        "fdr_alpha": fdr_alpha,
+                        "experimental_only": experimental_only,
+                    },
+                },
+                indent=2,
+                sort_keys=True,
+                default=str,
+            )
+        )
         click.echo(f"[arm_loss_sl_scan] wrote {len(bmap)} bystander-map contexts -> {bystander_map_out}", err=True)
 
 
 def _write_empty(out: Path, reason: str, target_scope: str = "ALL"):
     import pandas as pd
+
     out.parent.mkdir(parents=True, exist_ok=True)
     empty = pd.DataFrame(columns=SCAN_COLUMNS)
     empty.to_parquet(out, index=False)
@@ -279,23 +343,36 @@ def _write_empty(out: Path, reason: str, target_scope: str = "ALL"):
 # top nominations carried in the sidecar so the eval-ledger row_from_scan reader is JSON-only
 # (target-contracts is bare-python: no parquet/pandas dependency).
 _SIDECAR_TOP_N = 50
-_SIDECAR_HIT_COLS = ["target", "indication", "sl_partner", "partner_arm",
-                     "arm_loss_freq", "selectivity", "focality_ratio", "bystander_density",
-                     "discovery_value", "q_value", "coloss_concordance"]
+_SIDECAR_HIT_COLS = [
+    "target",
+    "indication",
+    "sl_partner",
+    "partner_arm",
+    "arm_loss_freq",
+    "selectivity",
+    "focality_ratio",
+    "bystander_density",
+    "discovery_value",
+    "q_value",
+    "coloss_concordance",
+]
 
 
 def _write_sidecars(out: Path, hits, target_scope: str, note: str = "", **params):
     """input_manifest_ids federation sidecar (JSON, self-describing) + a human caveats sidecar."""
     top = hits.head(_SIDECAR_TOP_N)[_SIDECAR_HIT_COLS].to_dict("records") if len(hits) else []
-    nominated = sorted({(r["target"], r["indication"]) for r in
-                        hits[["target", "indication"]].to_dict("records")}) if len(hits) else []
+    nominated = (
+        sorted({(r["target"], r["indication"]) for r in hits[["target", "indication"]].to_dict("records")})
+        if len(hits)
+        else []
+    )
     sidecar = out.with_suffix(".input_manifest_ids.json")
     payload = {
         "method": "arm_loss_sl_scan",
         "method_version": METHOD_VERSION,
-        "input_manifest_ids": INPUT_MANIFEST_IDS,   # FEDERATION KEY -> data-product/discovery graph
-        "target_scope": target_scope,               # --target gene, or "ALL"
-        "indication_scope": "discovery",             # scans are cross-indication by construction
+        "input_manifest_ids": INPUT_MANIFEST_IDS,  # FEDERATION KEY -> data-product/discovery graph
+        "target_scope": target_scope,  # --target gene, or "ALL"
+        "indication_scope": "discovery",  # scans are cross-indication by construction
         "n_hits": int(len(hits)),
         "nominated_target_indications": [f"{t}|{i}" for t, i in nominated],
         "top_hits": top,

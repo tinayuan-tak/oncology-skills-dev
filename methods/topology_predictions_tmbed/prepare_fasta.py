@@ -15,6 +15,7 @@ Design notes:
     - `--max-records` supports pilot runs (100-seq sanity check).
     - Emits diagnostic counts to stderr: total_read / emitted / skipped_length.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -55,17 +56,23 @@ def iter_records(path: Path):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("--dat-gz", required=True, type=Path,
-                    help="Path to uniprot_sprot_human.dat.gz "
-                         "(from data-catalog S3: uniprot-sprot-human-* manifest).")
+    ap.add_argument(
+        "--dat-gz",
+        required=True,
+        type=Path,
+        help="Path to uniprot_sprot_human.dat.gz (from data-catalog S3: uniprot-sprot-human-* manifest).",
+    )
     ap.add_argument("--out-fasta", required=True, type=Path)
-    ap.add_argument("--max-records", type=int, default=None,
-                    help="Emit only the first N records (for pilot benchmarks).")
-    ap.add_argument("--min-len", type=int, default=20,
-                    help="Skip sequences shorter than N residues.")
-    ap.add_argument("--max-len", type=int, default=4200,
-                    help="Skip sequences longer than N residues "
-                         "(TMbed OOM guardrail; retained on CPU for parity).")
+    ap.add_argument(
+        "--max-records", type=int, default=None, help="Emit only the first N records (for pilot benchmarks)."
+    )
+    ap.add_argument("--min-len", type=int, default=20, help="Skip sequences shorter than N residues.")
+    ap.add_argument(
+        "--max-len",
+        type=int,
+        default=4200,
+        help="Skip sequences longer than N residues (TMbed OOM guardrail; retained on CPU for parity).",
+    )
     args = ap.parse_args()
 
     args.out_fasta.parent.mkdir(parents=True, exist_ok=True)
@@ -82,8 +89,7 @@ def main():
             if args.max_records and n_emit >= args.max_records:
                 break
 
-    print(f"[prepare_fasta] total_read={n_total} emitted={n_emit} "
-          f"skipped_length={n_skip_len}", file=sys.stderr)
+    print(f"[prepare_fasta] total_read={n_total} emitted={n_emit} skipped_length={n_skip_len}", file=sys.stderr)
 
 
 if __name__ == "__main__":

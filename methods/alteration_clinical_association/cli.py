@@ -1,4 +1,5 @@
 """CLI + emitter for alteration_clinical_association (Q11-alteration — OS by target mutation status)."""
+
 from __future__ import annotations
 
 import argparse
@@ -11,14 +12,15 @@ from . import read as _read
 
 METHOD_VERSION = "0.1.0"
 DEFAULT_TARGET_CONTRACTS = os.environ.get(
-    "TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+    "TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
+)
 
 _CLASS_COLORS = {
-    "alteration_mutated_worse_survival":  ("#a63d2e", "#7a2c20"),   # poor-prognosis alteration
-    "alteration_mutated_better_survival": ("#c07a20", "#8f5810"),   # caution — marks indolent disease
-    "no_survival_association":            ("#4a7c9e", "#2f5670"),
-    "insufficient_survival_data":         ("#bbbbbb", "#8f8f8f"),
-    "data_unavailable":                   ("#d9dbdd", "#a9adb1"),
+    "alteration_mutated_worse_survival": ("#a63d2e", "#7a2c20"),  # poor-prognosis alteration
+    "alteration_mutated_better_survival": ("#c07a20", "#8f5810"),  # caution — marks indolent disease
+    "no_survival_association": ("#4a7c9e", "#2f5670"),
+    "insufficient_survival_data": ("#bbbbbb", "#8f8f8f"),
+    "data_unavailable": ("#d9dbdd", "#a9adb1"),
 }
 
 
@@ -30,6 +32,7 @@ def build_summary(target: str, indication: str) -> dict:
 
 def _load_style(contracts_dir):
     import matplotlib.pyplot as plt
+
     style = Path(contracts_dir) / "figure-style" / "matplotlibrc"
     if style.exists():
         try:
@@ -38,40 +41,64 @@ def _load_style(contracts_dir):
             pass
 
 
-def emit_svg(target: str, indication: str, summary: dict, out_dir: Path,
-             contracts_dir=DEFAULT_TARGET_CONTRACTS):
+def emit_svg(target: str, indication: str, summary: dict, out_dir: Path, contracts_dir=DEFAULT_TARGET_CONTRACTS):
     """Tier-3 SVG: alteration-survival association card (class + log-rank stats). None if no test."""
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+
     _load_style(contracts_dir)
     cls = summary.get("alteration_survival_association_class")
     if cls in (None, "data_unavailable", "insufficient_survival_data") or summary.get("logrank_p") is None:
         return None
     out_path = Path(out_dir) / "figure_alteration_clinical_association.svg"
     fill, line = _CLASS_COLORS.get(cls, _CLASS_COLORS["data_unavailable"])
-    fig, ax = plt.subplots(figsize=(6.4, 3.0)); ax.set_axis_off()
-    ax.add_patch(plt.Rectangle((0.02, 0.58), 0.96, 0.38, facecolor=fill, edgecolor=line,
-                               alpha=0.5, linewidth=1.2, transform=ax.transAxes))
-    ax.text(0.5, 0.80, f"{target} in {indication} — OS by mutation status", ha="center", va="center",
-            fontsize=10.5, weight="bold", transform=ax.transAxes)
-    ax.text(0.5, 0.66, cls.replace("_", " ").upper(), ha="center", va="center",
-            fontsize=10.5, weight="bold", color=line, transform=ax.transAxes)
+    fig, ax = plt.subplots(figsize=(6.4, 3.0))
+    ax.set_axis_off()
+    ax.add_patch(
+        plt.Rectangle(
+            (0.02, 0.58), 0.96, 0.38, facecolor=fill, edgecolor=line, alpha=0.5, linewidth=1.2, transform=ax.transAxes
+        )
+    )
+    ax.text(
+        0.5,
+        0.80,
+        f"{target} in {indication} — OS by mutation status",
+        ha="center",
+        va="center",
+        fontsize=10.5,
+        weight="bold",
+        transform=ax.transAxes,
+    )
+    ax.text(
+        0.5,
+        0.66,
+        cls.replace("_", " ").upper(),
+        ha="center",
+        va="center",
+        fontsize=10.5,
+        weight="bold",
+        color=line,
+        transform=ax.transAxes,
+    )
     lines = [
-        f"log-rank p = {summary.get('logrank_p','n/a')}  (chi2={summary.get('logrank_chi2','n/a')})",
-        f"mutated n={summary.get('n_mutated','n/a')}  WT n={summary.get('n_wildtype','n/a')}  events={summary.get('n_events','n/a')}",
-        f"median OS days — mutated: {summary.get('median_ostime_mutated_days','n/a')}  WT: {summary.get('median_ostime_wildtype_days','n/a')}",
+        f"log-rank p = {summary.get('logrank_p', 'n/a')}  (chi2={summary.get('logrank_chi2', 'n/a')})",
+        f"mutated n={summary.get('n_mutated', 'n/a')}  WT n={summary.get('n_wildtype', 'n/a')}  events={summary.get('n_events', 'n/a')}",
+        f"median OS days — mutated: {summary.get('median_ostime_mutated_days', 'n/a')}  WT: {summary.get('median_ostime_wildtype_days', 'n/a')}",
         "univariate mutation-status split, unadjusted (exploratory)",
     ]
     for i, t in enumerate(lines):
         ax.text(0.06, 0.46 - i * 0.11, t, ha="left", va="center", fontsize=8.5, transform=ax.transAxes)
-    fig.savefig(out_path, bbox_inches="tight"); plt.close(fig)
+    fig.savefig(out_path, bbox_inches="tight")
+    plt.close(fig)
     return out_path
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(
-        description="alteration_clinical_association (Q11-alteration) — OS by target mutation status")
+        description="alteration_clinical_association (Q11-alteration) — OS by target mutation status"
+    )
     ap.add_argument("--target", required=True)
     ap.add_argument("--indication", required=True)
     ap.add_argument("--out", type=Path, default=None)

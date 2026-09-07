@@ -1,5 +1,6 @@
 """Hermetic tests for tcga_patient_cn_per_sample (no S3): barcode-hierarchy helpers +
 indication-cohort filtering + absence discipline of the reader."""
+
 from __future__ import annotations
 
 from methods.tcga_patient_cn_per_sample import build, read

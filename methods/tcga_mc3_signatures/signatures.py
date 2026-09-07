@@ -7,30 +7,50 @@ indication discards that noise and yields a stable, interpretable cohort facet.
 
 Refs: COSMIC Mutational Signatures v3.x (Alexandrov 2020, Nat.); standard aetiology assignments.
 """
+
 from __future__ import annotations
 
 # COSMIC v3.x SBS signature → process class. Only aetiology-assigned signatures are mapped;
 # unmapped signatures (incl. artifact/unknown SBS27/43/45-60) are intentionally treated as noise.
 SIGNATURE_TO_PROCESS: dict[str, str] = {
     # APOBEC cytidine-deaminase
-    "SBS2": "apobec", "SBS13": "apobec",
+    "SBS2": "apobec",
+    "SBS13": "apobec",
     # Mismatch-repair deficiency / MSI
-    "SBS6": "mmr_deficiency", "SBS14": "mmr_deficiency", "SBS15": "mmr_deficiency",
-    "SBS20": "mmr_deficiency", "SBS21": "mmr_deficiency", "SBS26": "mmr_deficiency",
+    "SBS6": "mmr_deficiency",
+    "SBS14": "mmr_deficiency",
+    "SBS15": "mmr_deficiency",
+    "SBS20": "mmr_deficiency",
+    "SBS21": "mmr_deficiency",
+    "SBS26": "mmr_deficiency",
     "SBS44": "mmr_deficiency",
     # Homologous-recombination deficiency
     "SBS3": "hrd",
     # Tobacco
-    "SBS4": "tobacco", "SBS29": "tobacco",
+    "SBS4": "tobacco",
+    "SBS29": "tobacco",
     # UV
-    "SBS7a": "uv", "SBS7b": "uv", "SBS7c": "uv", "SBS7d": "uv", "SBS38": "uv",
+    "SBS7a": "uv",
+    "SBS7b": "uv",
+    "SBS7c": "uv",
+    "SBS7d": "uv",
+    "SBS38": "uv",
     # POLE/POLD proofreading deficiency
-    "SBS10a": "pole", "SBS10b": "pole", "SBS10c": "pole", "SBS10d": "pole", "SBS28": "pole",
+    "SBS10a": "pole",
+    "SBS10b": "pole",
+    "SBS10c": "pole",
+    "SBS10d": "pole",
+    "SBS28": "pole",
     # Clock-like (spontaneous deamination / age)
-    "SBS1": "clock", "SBS5": "clock",
+    "SBS1": "clock",
+    "SBS5": "clock",
     # Prior-therapy / exposure: mapped but NOT surfaced (not in INFORMATIVE_PROCESSES)
-    "SBS31": "platinum", "SBS35": "platinum", "SBS11": "temozolomide",
-    "SBS32": "azathioprine", "SBS22": "aristolochic_acid", "SBS24": "aflatoxin",
+    "SBS31": "platinum",
+    "SBS35": "platinum",
+    "SBS11": "temozolomide",
+    "SBS32": "azathioprine",
+    "SBS22": "aristolochic_acid",
+    "SBS24": "aflatoxin",
     "SBS9": "pol_eta",
 }
 

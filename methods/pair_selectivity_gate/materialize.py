@@ -12,6 +12,7 @@ sets stay served by the interactive bispecific-pair-scan skill).
 Usage (AWS_PROFILE=cbg):
     python -m methods.pair_selectivity_gate.materialize --indication all --out /tmp/bulk_pair_selectivity.parquet
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -31,13 +32,59 @@ CLINICAL_SEED_ANTIGENS = [
     # DUPLICATE of FOLH1 (and ambiguous vs proteasome PSMA1-8). Excludes non-surface targets: GD2
     # (glycolipid, no gene), KLK2 (secreted), PMEL/gp100 (pMHC/ImmTAC), CD3 (effector), HLA (LOH NOT-gate).
     # --- solid-tumor surface antigens ---
-    "EPCAM", "CEACAM5", "ERBB2", "ERBB3", "EGFR", "MET", "MSLN", "FOLR1", "FOLH1", "TACSTD2",
-    "MUC1", "MUC16", "NECTIN4", "DLL3", "CLDN18", "CLDN6", "STEAP1", "PSCA", "GUCY2C", "CDH17",
-    "CDH3", "CDH6", "SLC34A2", "SLC39A6", "F3", "ROR1", "ROR2", "FGFR2", "FGFR3", "LRRC15",
-    "GPC3", "IL13RA2", "CD276", "CD44",
+    "EPCAM",
+    "CEACAM5",
+    "ERBB2",
+    "ERBB3",
+    "EGFR",
+    "MET",
+    "MSLN",
+    "FOLR1",
+    "FOLH1",
+    "TACSTD2",
+    "MUC1",
+    "MUC16",
+    "NECTIN4",
+    "DLL3",
+    "CLDN18",
+    "CLDN6",
+    "STEAP1",
+    "PSCA",
+    "GUCY2C",
+    "CDH17",
+    "CDH3",
+    "CDH6",
+    "SLC34A2",
+    "SLC39A6",
+    "F3",
+    "ROR1",
+    "ROR2",
+    "FGFR2",
+    "FGFR3",
+    "LRRC15",
+    "GPC3",
+    "IL13RA2",
+    "CD276",
+    "CD44",
     # --- hematologic / myeloid / T-cell surface antigens ---
-    "CD19", "MS4A1", "CD22", "CD79B", "TNFRSF17", "GPRC5D", "FCRL5", "CD33", "IL3RA", "CLEC12A",
-    "FLT3", "LILRB4", "CD70", "CD38", "SLAMF7", "CD5", "CD7", "TNFRSF8",
+    "CD19",
+    "MS4A1",
+    "CD22",
+    "CD79B",
+    "TNFRSF17",
+    "GPRC5D",
+    "FCRL5",
+    "CD33",
+    "IL3RA",
+    "CLEC12A",
+    "FLT3",
+    "LILRB4",
+    "CD70",
+    "CD38",
+    "SLAMF7",
+    "CD5",
+    "CD7",
+    "TNFRSF8",
 ]
 
 
@@ -48,6 +95,7 @@ def _build_cube(genes: list, source: str) -> dict:
     This is the whole point of the batch path: the 790M-row GTEx read cost is row-group-bound (not
     predicate-bound), so pulling 20 genes costs ~the same as pulling 2 — but we reuse it for every pair."""
     from methods.catalog_query.read import s3_uri_for
+
     manifest = TUMOR_MANIFEST_ID if source == "tumor" else GTEX_MANIFEST_ID
     group_col = "study" if source == "tumor" else "tissue"
     uri = s3_uri_for(manifest)
@@ -72,14 +120,23 @@ def cube_from_frame(df) -> dict:
 def materialize_all(indications: list | None = None) -> "pandas.DataFrame":  # noqa: F821
     """Build both cubes ONCE, then compute all rows for each indication. Returns the long DataFrame."""
     import pandas as pd
+
     inds = indications or sorted(INDICATION_TO_TCGA_STUDIES.keys())
     tumor_cube = _build_cube(CLINICAL_SEED_ANTIGENS, "tumor")
     normal_cube = _build_cube(CLINICAL_SEED_ANTIGENS, "normal")
     rows: list = []
     for ind in inds:
-        rows.extend(derive_bulk_pair_selectivity(
-            tumor_cube, normal_cube, ind, INDICATION_TO_TCGA_STUDIES,
-            CLINICAL_SEED_ANTIGENS, CLINICAL_SEED_ANTIGENS, gates=_gates._GATES))
+        rows.extend(
+            derive_bulk_pair_selectivity(
+                tumor_cube,
+                normal_cube,
+                ind,
+                INDICATION_TO_TCGA_STUDIES,
+                CLINICAL_SEED_ANTIGENS,
+                CLINICAL_SEED_ANTIGENS,
+                gates=_gates._GATES,
+            )
+        )
     df = pd.DataFrame(rows)
     if len(df):
         df["method_version"] = METHOD_VERSION
@@ -89,6 +146,7 @@ def materialize_all(indications: list | None = None) -> "pandas.DataFrame":  # n
 
 def _main() -> int:
     import argparse
+
     ap = argparse.ArgumentParser(description="Materialize the bulk pair-selectivity product.")
     ap.add_argument("--indication", default="all", help="OncoTree code, or 'all'")
     ap.add_argument("--out", required=True, type=Path)
@@ -96,8 +154,10 @@ def _main() -> int:
     inds = None if args.indication == "all" else [args.indication.upper().strip()]
     df = materialize_all(inds)
     df.to_parquet(args.out, index=False)
-    print(f"wrote {len(df)} rows ({df['indication'].nunique() if len(df) else 0} indications, "
-          f"{len(CLINICAL_SEED_ANTIGENS)} seed antigens) -> {args.out}")
+    print(
+        f"wrote {len(df)} rows ({df['indication'].nunique() if len(df) else 0} indications, "
+        f"{len(CLINICAL_SEED_ANTIGENS)} seed antigens) -> {args.out}"
+    )
     return 0
 
 

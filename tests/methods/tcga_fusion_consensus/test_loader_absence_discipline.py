@@ -5,6 +5,7 @@ pd.read_parquet(local). The absence discipline is unchanged in SPIRIT: a corrupt
 (missing pyarrow) / transient / creds error must PROPAGATE, not be masked as an empty frame; a GENUINE
 absence (pyarrow FileNotFoundError / NoSuchKey) still yields an empty frame + latches the status flag.
 """
+
 from __future__ import annotations
 
 import sys
@@ -30,7 +31,7 @@ def _absent(*a, **k):
 
 def test_load_consensus_corrupt_or_transient_reraises(monkeypatch):
     fus._load_consensus.cache_clear()
-    monkeypatch.setattr(fus, "_DERIVED_STATUS", None)      # clear any latched-absence from a prior test
+    monkeypatch.setattr(fus, "_DERIVED_STATUS", None)  # clear any latched-absence from a prior test
     monkeypatch.setattr(fus, "_stream_parquet", _boom)
     with pytest.raises(RuntimeError):
         fus._load_consensus()
@@ -40,7 +41,7 @@ def test_load_consensus_corrupt_or_transient_reraises(monkeypatch):
 def test_load_consensus_genuine_absence_returns_empty(monkeypatch):
     fus._load_consensus.cache_clear()
     monkeypatch.setattr(fus, "_DERIVED_STATUS", None)
-    monkeypatch.setattr(fus, "_stream_parquet", _absent)   # NoSuchKey/404 -> pyarrow FileNotFoundError
+    monkeypatch.setattr(fus, "_stream_parquet", _absent)  # NoSuchKey/404 -> pyarrow FileNotFoundError
     assert fus._load_consensus().empty
     fus._load_consensus.cache_clear()
 

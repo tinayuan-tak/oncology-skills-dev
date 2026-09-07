@@ -25,6 +25,7 @@ Scope caveats (mirrored in the card): MUTATION status only (CN / fusion arms = f
 "MC3-profiled indication patient with no {target} mutation" (assumes MC3 coverage of the cohort);
 univariate, unadjusted for stage/age, exploratory, multiple-testing-naive.
 """
+
 from __future__ import annotations
 
 
@@ -32,17 +33,20 @@ from __future__ import annotations
 # the module (not `from ... import _CDR_LOAD_ERROR`) so the live post-call error value is read.
 from methods.expression_clinical_association import read as _eca
 from methods.gdc_somatic_hotspot.read import (
-    _read_product_table, _mc3_maf_path, _PER_SAMPLE_MAF_MANIFEST,
+    _read_product_table,
+    _mc3_maf_path,
+    _PER_SAMPLE_MAF_MANIFEST,
 )
 from methods.target_id_sidecar import ensure_aws_profile
 
-MIN_EVENTS = _eca.MIN_EVENTS          # minimum deaths for a meaningful log-rank
-MIN_PER_ARM = _eca.MIN_PER_ARM        # minimum patients per arm
+MIN_EVENTS = _eca.MIN_EVENTS  # minimum deaths for a meaningful log-rank
+MIN_PER_ARM = _eca.MIN_PER_ARM  # minimum patients per arm
 SIGNIFICANCE_ALPHA = _eca.SIGNIFICANCE_ALPHA
 
 
-def classify_alteration_survival_association(p, mutated_hazard_direction: int | None,
-                                             n_events: int, n_mut: int, n_wt: int) -> str:
+def classify_alteration_survival_association(
+    p, mutated_hazard_direction: int | None, n_events: int, n_mut: int, n_wt: int
+) -> str:
     """Pure classifier — no I/O. mutated_hazard_direction: +1 = MUTATED arm has MORE hazard
     (worse survival), -1 = less, 0 = none."""
     if n_events < MIN_EVENTS or n_mut < MIN_PER_ARM or n_wt < MIN_PER_ARM:
@@ -61,26 +65,41 @@ def read_alteration_clinical_association(target: str, indication: str) -> dict:
     Returns the association class + log-rank stats. data_unavailable-safe. Univariate/unadjusted."""
     ensure_aws_profile()
     sym = target.upper().strip()
-    base = {"target": target, "indication": indication, "endpoint": "OS",
-            "survival_source": "pancanatlas_tcga_cdr", "alteration_type": "somatic_mutation"}
+    base = {
+        "target": target,
+        "indication": indication,
+        "endpoint": "OS",
+        "survival_source": "pancanatlas_tcga_cdr",
+        "alteration_type": "somatic_mutation",
+    }
 
     # 1) per-sample MC3 MAF for the indication. LOCAL-CACHE-FIRST then the registered S3 product
     #    (mirrors gdc_somatic_hotspot). cohort = MC3-profiled indication patients; altered = {target} mut.
     import pandas as pd
+
     maf_path = _mc3_maf_path(indication)
     maf = None
     if maf_path.exists():
         maf = pd.read_parquet(maf_path, columns=["sample_id", "gene_symbol"])
     else:
-        table = _read_product_table(maf_path, _PER_SAMPLE_MAF_MANIFEST,
-                                    filters=[("indication", "=", indication)],
-                                    columns=["sample_id", "gene_symbol"])
+        table = _read_product_table(
+            maf_path,
+            _PER_SAMPLE_MAF_MANIFEST,
+            filters=[("indication", "=", indication)],
+            columns=["sample_id", "gene_symbol"],
+        )
         if table is not None:
             maf = table.to_pandas()
     if maf is None or len(maf) == 0:
-        base.update({"alteration_survival_association_class": "data_unavailable",
-                     "_data_note": (f"no per-sample MC3 MAF for {indication} "
-                                    f"(neither local {maf_path} nor {_PER_SAMPLE_MAF_MANIFEST} manifest/S3)")})
+        base.update(
+            {
+                "alteration_survival_association_class": "data_unavailable",
+                "_data_note": (
+                    f"no per-sample MC3 MAF for {indication} "
+                    f"(neither local {maf_path} nor {_PER_SAMPLE_MAF_MANIFEST} manifest/S3)"
+                ),
+            }
+        )
         return base
 
     cohort_ids = {_eca._tcga_case(s) for s in maf["sample_id"].dropna()}
@@ -91,17 +110,28 @@ def read_alteration_clinical_association(target: str, indication: str) -> dict:
     try:
         cdr = _eca._load_cdr()
     except ImportError:
-        base.update({"alteration_survival_association_class": "data_unavailable",
-                     "_data_note": (_eca._CDR_LOAD_ERROR or "survival read dependency missing "
-                                    "(install openpyxl in the run runtime) — NOT a data gap")})
+        base.update(
+            {
+                "alteration_survival_association_class": "data_unavailable",
+                "_data_note": (
+                    _eca._CDR_LOAD_ERROR
+                    or "survival read dependency missing (install openpyxl in the run runtime) — NOT a data gap"
+                ),
+            }
+        )
         return base
     if not cdr:
-        base.update({"alteration_survival_association_class": "data_unavailable",
-                     "_data_note": _eca._CDR_LOAD_ERROR or "TCGA-CDR survival table unavailable"})
+        base.update(
+            {
+                "alteration_survival_association_class": "data_unavailable",
+                "_data_note": _eca._CDR_LOAD_ERROR or "TCGA-CDR survival table unavailable",
+            }
+        )
         return base
 
     # 3) arms over cohort ∩ patients-with-OS; log-rank mutated vs WT
     import numpy as np
+
     rows = [(c, (c in altered_ids), cdr[c][0], cdr[c][1]) for c in cohort_ids if c in cdr]
     base["n_patients"] = len(rows)
     mut = [(o, t) for _c, a, o, t in rows if a]
@@ -109,13 +139,21 @@ def read_alteration_clinical_association(target: str, indication: str) -> dict:
     n_mut, n_wt = len(mut), len(wt)
     n_events = int(sum(o for _c, _a, o, _t in rows))
     if n_mut == 0 or n_wt == 0:
-        base.update({"alteration_survival_association_class": "insufficient_survival_data",
-                     "n_mutated": n_mut, "n_wildtype": n_wt, "n_events": n_events,
-                     "_data_note": f"cohort with OS has n_mutated={n_mut}, n_wildtype={n_wt}"})
+        base.update(
+            {
+                "alteration_survival_association_class": "insufficient_survival_data",
+                "n_mutated": n_mut,
+                "n_wildtype": n_wt,
+                "n_events": n_events,
+                "_data_note": f"cohort with OS has n_mutated={n_mut}, n_wildtype={n_wt}",
+            }
+        )
         return base
 
-    mut_e = np.array([o for o, _t in mut], int); mut_t = np.array([t for _o, t in mut], float)
-    wt_e = np.array([o for o, _t in wt], int); wt_t = np.array([t for _o, t in wt], float)
+    mut_e = np.array([o for o, _t in mut], int)
+    mut_t = np.array([t for _o, t in mut], float)
+    wt_e = np.array([o for o, _t in wt], int)
+    wt_t = np.array([t for _o, t in wt], float)
     # _logrank returns the hazard direction for group A; pass MUTATED as A → direction is the
     # mutated arm's (+1 = mutated worse, -1 = mutated better).
     chi2, p, mut_dir = _eca._logrank(mut_t, mut_e, wt_t, wt_e)
@@ -124,16 +162,18 @@ def read_alteration_clinical_association(target: str, indication: str) -> dict:
     def _median_surv(arm):
         return round(float(np.median([t for _o, t in arm])), 1) if arm else None
 
-    base.update({
-        "alteration_survival_association_class": cls,
-        "logrank_p": float(f"{p:.3g}"),
-        "logrank_chi2": round(float(chi2), 3),
-        "n_events": n_events,
-        "n_mutated": n_mut,
-        "n_wildtype": n_wt,
-        "mutated_hazard_direction": mut_dir,          # +1 worse, -1 better, 0 none
-        "mutated_frequency": round(n_mut / (n_mut + n_wt), 4),
-        "median_ostime_mutated_days": _median_surv(mut),
-        "median_ostime_wildtype_days": _median_surv(wt),
-    })
+    base.update(
+        {
+            "alteration_survival_association_class": cls,
+            "logrank_p": float(f"{p:.3g}"),
+            "logrank_chi2": round(float(chi2), 3),
+            "n_events": n_events,
+            "n_mutated": n_mut,
+            "n_wildtype": n_wt,
+            "mutated_hazard_direction": mut_dir,  # +1 worse, -1 better, 0 none
+            "mutated_frequency": round(n_mut / (n_mut + n_wt), 4),
+            "median_ostime_mutated_days": _median_surv(mut),
+            "median_ostime_wildtype_days": _median_surv(wt),
+        }
+    )
     return base

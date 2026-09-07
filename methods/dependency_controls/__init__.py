@@ -23,4 +23,5 @@ data_unavailable-safe: vocab-load failure or absent Chronos → a
 dep_control_position_class of data_unavailable, never a raise into the render path
 (so the method can land before the vocab is merged, mirroring tumor_presence_controls).
 """
+
 from .read import control_position_dependency, METHOD_VERSION  # noqa: F401

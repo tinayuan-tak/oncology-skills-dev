@@ -45,9 +45,9 @@ OUTPUT_S3_PREFIX = "data-catalog/derived/tcga-tumor-tpm-recount3-long-v1"
 # Validation triples: (gene_symbol, study, description). Actual log2_tpm medians are checked against
 # the wide matrix at emit time — tumor-appropriate genes across a few studies.
 CORRECTNESS_TRIPLES = [
-    ("KRAS",  "COAD", "broadly-expressed oncogene, colorectal"),
+    ("KRAS", "COAD", "broadly-expressed oncogene, colorectal"),
     ("EPCAM", "COAD", "epithelial marker, high in carcinomas"),
-    ("GFAP",  "GBM",  "astrocyte marker, high in glioblastoma"),
+    ("GFAP", "GBM", "astrocyte marker, high in glioblastoma"),
 ]
 
 
@@ -63,8 +63,7 @@ def _md5_hex(path: Path) -> str:
     return h.hexdigest()
 
 
-def build_long(wide_path: Path, sidecar_path: Path, out_path: Path,
-               row_group_size: int) -> tuple[int, dict]:
+def build_long(wide_path: Path, sidecar_path: Path, out_path: Path, row_group_size: int) -> tuple[int, dict]:
     """Read wide matrix + sidecar, melt to long (sorted by ensembl_gene_id), write long parquet.
     Returns (size_bytes, stats_dict)."""
     import numpy as np
@@ -87,17 +86,19 @@ def build_long(wide_path: Path, sidecar_path: Path, out_path: Path,
     if missing:
         raise RuntimeError(f"{len(missing)} sample columns absent from sidecar; first 3: {missing[:3]}")
 
-    long_schema = pa.schema([
-        pa.field("gene_symbol",     pa.string()),
-        pa.field("ensembl_gene_id", pa.string()),
-        pa.field("sample_id",       pa.string()),
-        pa.field("study",           pa.string()),
-        pa.field("log2_tpm",        pa.float32()),
-    ])
+    long_schema = pa.schema(
+        [
+            pa.field("gene_symbol", pa.string()),
+            pa.field("ensembl_gene_id", pa.string()),
+            pa.field("sample_id", pa.string()),
+            pa.field("study", pa.string()),
+            pa.field("log2_tpm", pa.float32()),
+        ]
+    )
     out_path.parent.mkdir(parents=True, exist_ok=True)
     _log(f"[rewrite_long] melting -> {out_path} (row_group_size={row_group_size})")
 
-    study_series = pd.Series(sample_to_study)   # sample_id -> study lookup
+    study_series = pd.Series(sample_to_study)  # sample_id -> study lookup
     n_total = n_row_groups_written = 0
     study_uniq: set[str] = set()
     ensembl_uniq: set[str] = set()
@@ -107,19 +108,18 @@ def build_long(wide_path: Path, sidecar_path: Path, out_path: Path,
         t0 = time.monotonic()
         _log("  reading wide matrix into memory...")
         wide = wide_pf.read().to_pandas()
-        _log(f"  loaded wide dataframe: {wide.shape} ({time.monotonic()-t0:.0f}s)")
+        _log(f"  loaded wide dataframe: {wide.shape} ({time.monotonic() - t0:.0f}s)")
 
         # Sort by ensembl_gene_id BEFORE melting so the long parquet is naturally sorted
         # (critical for per-gene pushdown).
         wide = wide.sort_values("ensembl_gene_id").reset_index(drop=True)
         ensembl_uniq.update(wide["ensembl_gene_id"].unique())
 
-        BATCH = 512   # genes per melt-batch
+        BATCH = 512  # genes per melt-batch
         _log(f"  melting in gene-batches of {BATCH} ...")
         for batch_start in range(0, len(wide), BATCH):
-            batch = wide.iloc[batch_start:batch_start + BATCH]
-            melted = batch.melt(id_vars=key_cols, value_vars=sample_cols,
-                                var_name="sample_id", value_name="log2_tpm")
+            batch = wide.iloc[batch_start : batch_start + BATCH]
+            melted = batch.melt(id_vars=key_cols, value_vars=sample_cols, var_name="sample_id", value_name="log2_tpm")
             # CRITICAL: melt emits SAMPLE-major rows (gene0,gene1,…,gene0,gene1,…), so within a
             # batch every row-group spans the whole 512-gene range — per-gene pushdown then can't
             # prune below the batch (~500x read amplification; measured 7-132s/gene). Re-sort the
@@ -136,17 +136,25 @@ def build_long(wide_path: Path, sidecar_path: Path, out_path: Path,
             n_total += len(melted)
             n_row_groups_written += (len(melted) + row_group_size - 1) // row_group_size
             if batch_start % (BATCH * 20) == 0:
-                _log(f"    processed {batch_start + len(batch):,}/{len(wide):,} genes "
-                     f"(long rows so far: {n_total:,}, {time.monotonic()-t0:.0f}s)")
+                _log(
+                    f"    processed {batch_start + len(batch):,}/{len(wide):,} genes "
+                    f"(long rows so far: {n_total:,}, {time.monotonic() - t0:.0f}s)"
+                )
     finally:
         writer.close()
 
     size_bytes = out_path.stat().st_size
-    stats = {"n_rows": n_total, "n_row_groups": n_row_groups_written,
-             "n_ensembl_ids": len(ensembl_uniq), "n_samples": len(sample_cols),
-             "n_studies": len(study_uniq)}
-    _log(f"[rewrite_long] wrote {out_path} ({size_bytes/1e9:.2f} GB) "
-         f"| rows={n_total:,} | row_groups={n_row_groups_written:,}")
+    stats = {
+        "n_rows": n_total,
+        "n_row_groups": n_row_groups_written,
+        "n_ensembl_ids": len(ensembl_uniq),
+        "n_samples": len(sample_cols),
+        "n_studies": len(study_uniq),
+    }
+    _log(
+        f"[rewrite_long] wrote {out_path} ({size_bytes / 1e9:.2f} GB) "
+        f"| rows={n_total:,} | row_groups={n_row_groups_written:,}"
+    )
     return size_bytes, stats
 
 
@@ -166,38 +174,58 @@ def correctness_check(wide_path: Path, sidecar_path: Path, long_path: Path) -> N
             continue
         wide_row = wide_row.iloc[0]
         study_samples = set(sidecar.loc[sidecar["study"] == study, "sample_id"])
-        wide_vals = np.array([float(wide_row[s]) for s in study_samples if s in wide_row.index],
-                             dtype=float)
+        wide_vals = np.array([float(wide_row[s]) for s in study_samples if s in wide_row.index], dtype=float)
         wide_median = float(np.median(wide_vals)) if len(wide_vals) else float("nan")
         wide_dt = time.monotonic() - t0
 
         t0 = time.monotonic()
-        long_hit = pq.read_table(str(long_path),
-                                 filters=[("gene_symbol", "=", gene), ("study", "=", study)]).to_pandas()
-        long_median = (float(long_hit["log2_tpm"].median()) if not long_hit.empty else float("nan"))
+        long_hit = pq.read_table(
+            str(long_path), filters=[("gene_symbol", "=", gene), ("study", "=", study)]
+        ).to_pandas()
+        long_median = float(long_hit["log2_tpm"].median()) if not long_hit.empty else float("nan")
         long_dt = time.monotonic() - t0
 
-        _log(f"  {gene:6s} {study:5s} | wide median={wide_median:.4f} ({wide_dt:.2f}s)  |  "
-             f"long median={long_median:.4f} ({long_dt:.2f}s)  |  {desc}")
+        _log(
+            f"  {gene:6s} {study:5s} | wide median={wide_median:.4f} ({wide_dt:.2f}s)  |  "
+            f"long median={long_median:.4f} ({long_dt:.2f}s)  |  {desc}"
+        )
         diff = abs(wide_median - long_median)
         assert diff < 1e-4, f"MISMATCH {gene}/{study}: wide={wide_median} long={long_median} |diff|={diff}"
     _log("  all triples matched (|diff| < 1e-4).")
 
 
 @click.command()
-@click.option("--wide-parquet", type=click.Path(exists=True, dir_okay=False, path_type=Path),
-              required=True, help="Local path to tcga_tpm_log2.parquet (the v1 wide product).")
-@click.option("--sidecar", type=click.Path(exists=True, dir_okay=False, path_type=Path),
-              required=True, help="Local path to tcga_sample_study.parquet (v1 sidecar).")
-@click.option("--out", type=click.Path(dir_okay=False, path_type=Path), required=True,
-              help="Local output path for tcga_tpm_long.parquet.")
-@click.option("--row-group-size", type=int, default=8192,
-              help="Rows per Parquet row-group. Tuned so one gene's ~10k rows spans 2-3 row-groups.")
+@click.option(
+    "--wide-parquet",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    required=True,
+    help="Local path to tcga_tpm_log2.parquet (the v1 wide product).",
+)
+@click.option(
+    "--sidecar",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    required=True,
+    help="Local path to tcga_sample_study.parquet (v1 sidecar).",
+)
+@click.option(
+    "--out",
+    type=click.Path(dir_okay=False, path_type=Path),
+    required=True,
+    help="Local output path for tcga_tpm_long.parquet.",
+)
+@click.option(
+    "--row-group-size",
+    type=int,
+    default=8192,
+    help="Rows per Parquet row-group. Tuned so one gene's ~10k rows spans 2-3 row-groups.",
+)
 @click.option("--no-upload", is_flag=True, help="Write locally only; skip S3 upload.")
-@click.option("--skip-correctness-check", is_flag=True,
-              help="Skip wide-vs-long assertions (only for iterating on layout).")
-def main(wide_parquet: Path, sidecar: Path, out: Path,
-         row_group_size: int, no_upload: bool, skip_correctness_check: bool) -> None:
+@click.option(
+    "--skip-correctness-check", is_flag=True, help="Skip wide-vs-long assertions (only for iterating on layout)."
+)
+def main(
+    wide_parquet: Path, sidecar: Path, out: Path, row_group_size: int, no_upload: bool, skip_correctness_check: bool
+) -> None:
     """Re-encode the wide TCGA tumor TPM matrix to long/tidy for fast per-gene reads."""
     import boto3
 

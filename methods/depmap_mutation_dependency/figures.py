@@ -33,14 +33,23 @@ def _reconstruct(plot_data: "Union[str, Path, object]") -> tuple[dict, dict, dic
         chronos[mid] = float(row.chronos_score)
         hotspot[mid] = bool(row.is_hotspot_mutant)
         damaging[mid] = bool(row.is_damaging_mutant)
-        meta[mid] = {"ModelID": mid, "CellLineName": getattr(row, "cell_line_name", None),
-                     "OncotreeLineage": getattr(row, "lineage", None)}
+        meta[mid] = {
+            "ModelID": mid,
+            "CellLineName": getattr(row, "cell_line_name", None),
+            "OncotreeLineage": getattr(row, "lineage", None),
+        }
     return chronos, hotspot, damaging, meta
 
 
-def render_from_plot_data(plot_data: "Union[str, Path, object]", summary: dict, out_dir: "Union[str, Path]",
-                          target: str, indication: Optional[str] = None, *,
-                          target_contracts_dir: "Optional[Union[str, Path]]" = None) -> list[dict]:
+def render_from_plot_data(
+    plot_data: "Union[str, Path, object]",
+    summary: dict,
+    out_dir: "Union[str, Path]",
+    target: str,
+    indication: Optional[str] = None,
+    *,
+    target_contracts_dir: "Optional[Union[str, Path]]" = None,
+) -> list[dict]:
     """Render the mutation-stratified-dependency figures OFFLINE from persisted plot_data. NO live
     read — reconstructs the frame, recomputes the (pure) stratification, and delegates to the same
     cli.emit_* draw functions a live run uses."""
@@ -51,21 +60,33 @@ def render_from_plot_data(plot_data: "Union[str, Path, object]", summary: dict, 
     chronos_by_model, hotspot_by_model, damaging_by_model, _meta = _reconstruct(plot_data)
     recomputed = _cli.compute_mutation_stratification(chronos_by_model, hotspot_by_model, damaging_by_model)
 
-    _cli.emit_mut_vs_wt_strip_plot(chronos_by_model, hotspot_by_model, damaging_by_model,
-                                   target, recomputed, out_dir, tcd)
-    _cli.emit_per_hotspot_chronos_plot(chronos_by_model, recomputed.get("per_hotspot_stats", []),
-                                       target, out_dir, tcd)
+    _cli.emit_mut_vs_wt_strip_plot(
+        chronos_by_model, hotspot_by_model, damaging_by_model, target, recomputed, out_dir, tcd
+    )
+    _cli.emit_per_hotspot_chronos_plot(chronos_by_model, recomputed.get("per_hotspot_stats", []), target, out_dir, tcd)
 
     static = [
-        {"id": "mut_vs_wt_strip", "path": "figure_mut_vs_wt_strip.svg",
-         "type": "mutation_stratified_strip", "primary": True},
-        {"id": "per_hotspot_chronos", "path": "figure_per_hotspot_chronos.svg",
-         "type": "per_hotspot_chronos_strip", "primary": False},
+        {
+            "id": "mut_vs_wt_strip",
+            "path": "figure_mut_vs_wt_strip.svg",
+            "type": "mutation_stratified_strip",
+            "primary": True,
+        },
+        {
+            "id": "per_hotspot_chronos",
+            "path": "figure_per_hotspot_chronos.svg",
+            "type": "per_hotspot_chronos_strip",
+            "primary": False,
+        },
     ]
     dynamic: list[dict] = []
     try:
-        specs = _cli.emit_plotly_specs(chronos_by_model, hotspot_by_model, damaging_by_model,
-                                       target, recomputed, out_dir, tcd) or []
+        specs = (
+            _cli.emit_plotly_specs(
+                chronos_by_model, hotspot_by_model, damaging_by_model, target, recomputed, out_dir, tcd
+            )
+            or []
+        )
         dynamic = [{**s, "dynamic": True} for s in specs]
     except Exception:  # noqa: BLE001 — additive interactive twin; SVGs are the contract
         pass

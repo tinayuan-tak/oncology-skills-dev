@@ -8,6 +8,7 @@ Also carries an S3-FREE fixture test that drives read.read_target_summary end-to
 sidecar + UniProt2Reactome + hierarchy (mirrors the ppi_interactome / gene_ontology_annotation
 pattern), so reader logic is exercised offline. The live tests narrow their skip to botocore
 connectivity/credential errors — a schema-drift / logic bug must SURFACE, not silently skip."""
+
 from __future__ import annotations
 
 import sys
@@ -24,20 +25,26 @@ from methods.reactome_pathway_context import read as _r  # noqa: E402
 
 
 # --- S3-free fixture: synthetic sidecar + UniProt2Reactome + hierarchy --------------------------
-_U2R = "".join(
-    "\t".join(["P00001", f"R-HSA-10{i}", "https://reactome.org/x",
-               f"Leaf Pathway {i}", "IEA", "Homo sapiens"]) + "\n"
-    for i in range(5)
-) + "\t".join(["P00001", "R-HSA-999", "url", "Mouse noise", "IEA", "Mus musculus"]) + "\n"
+_U2R = (
+    "".join(
+        "\t".join(["P00001", f"R-HSA-10{i}", "https://reactome.org/x", f"Leaf Pathway {i}", "IEA", "Homo sapiens"])
+        + "\n"
+        for i in range(5)
+    )
+    + "\t".join(["P00001", "R-HSA-999", "url", "Mouse noise", "IEA", "Mus musculus"])
+    + "\n"
+)
 
-_PATHWAYS = ("R-HSA-9\tSignal Transduction\tHomo sapiens\n"
-             + "".join(f"R-HSA-10{i}\tLeaf Pathway {i}\tHomo sapiens\n" for i in range(5)))
+_PATHWAYS = "R-HSA-9\tSignal Transduction\tHomo sapiens\n" + "".join(
+    f"R-HSA-10{i}\tLeaf Pathway {i}\tHomo sapiens\n" for i in range(5)
+)
 
 _RELATIONS = "".join(f"R-HSA-9\tR-HSA-10{i}\n" for i in range(5))
 
 
 def _fixtures(tmp_path):
     import pandas as pd
+
     u2r = tmp_path / "UniProt2Reactome_All_Levels.txt"
     u2r.write_text(_U2R)
     pathways = tmp_path / "ReactomePathways.txt"
@@ -45,23 +52,23 @@ def _fixtures(tmp_path):
     relations = tmp_path / "ReactomePathwaysRelation.txt"
     relations.write_text(_RELATIONS)
     sc = tmp_path / "sidecar.parquet"
-    pd.DataFrame([{"hgnc_primary_symbol_at_resolution": "TESTG",
-                   "native_row_key": "P00001"}]).to_parquet(sc)
+    pd.DataFrame([{"hgnc_primary_symbol_at_resolution": "TESTG", "native_row_key": "P00001"}]).to_parquet(sc)
     # clear lru caches so the fixtures (distinct cache keys) are the only source
     _r._load_uniprot_to_reactome.cache_clear()
     _r._load_pathway_hierarchy.cache_clear()
     _r._load_hgnc_uniprot_crosswalk.cache_clear()
-    return dict(uniprot2reactome_path=str(u2r), pathways_path=str(pathways),
-                relations_path=str(relations), sidecar_path=str(sc))
+    return dict(
+        uniprot2reactome_path=str(u2r), pathways_path=str(pathways), relations_path=str(relations), sidecar_path=str(sc)
+    )
 
 
 def test_offline_summary_resolves_via_sidecar_and_rolls_up(tmp_path):
     s = _r.read_target_summary("TESTG", **_fixtures(tmp_path))
-    assert s["uniprot_ac_resolved"] == "P00001"           # resolved via sidecar, not a hardcoded map
-    assert s["pathway_count"] == 5                          # 5 human leaves; the Mus row is filtered
+    assert s["uniprot_ac_resolved"] == "P00001"  # resolved via sidecar, not a hardcoded map
+    assert s["pathway_count"] == 5  # 5 human leaves; the Mus row is filtered
     assert s["top_level_pathways"] == ["Signal Transduction"]
     assert s["is_signaling"] is True
-    assert s["pathway_class"] == "partial"                  # 5 <= n < 20
+    assert s["pathway_class"] == "partial"  # 5 <= n < 20
     assert s.get("_data_note") is None
 
 
@@ -81,8 +88,9 @@ def test_offline_resolvable_but_absent_from_reactome(tmp_path):
 # --- resolver-sidecar discipline guards (live; skip only on real S3/creds failure) --------------
 def test_crosswalk_is_sidecar_backed_not_hardcoded():
     # The crosswalk must resolve to the resolver sidecar, and the inline 30-target dict must be gone.
-    assert _r.REACTOME_RESOLVER_SIDECAR_S3_KEY.endswith("target_resolution.parquet"), \
+    assert _r.REACTOME_RESOLVER_SIDECAR_S3_KEY.endswith("target_resolution.parquet"), (
         "crosswalk must read the resolver sidecar"
+    )
     src = (REPO / "methods" / "reactome_pathway_context" / "read.py").read_text()
     assert '"KRAS": "P01116"' not in src, "the hardcoded inline crosswalk must be removed"
 
@@ -90,10 +98,10 @@ def test_crosswalk_is_sidecar_backed_not_hardcoded():
 @pytest.mark.parametrize("target", ["CDH17", "GPC3", "MSLN"])
 def test_non_inline_targets_now_resolve(target):
     # These were NOT in the former inline crosswalk — they resolve only via the sidecar.
-    _r._load_hgnc_uniprot_crosswalk.cache_clear()   # drop any fixture-primed entry
+    _r._load_hgnc_uniprot_crosswalk.cache_clear()  # drop any fixture-primed entry
     try:
         xwalk = _r._load_hgnc_uniprot_crosswalk()
-    except (BotoCoreError, ClientError):            # narrowed: only S3/creds connectivity → skip
+    except (BotoCoreError, ClientError):  # narrowed: only S3/creds connectivity → skip
         pytest.skip("resolver sidecar unreachable (no S3)")
     if not xwalk:
         pytest.skip("resolver sidecar unreachable (no S3)")
@@ -104,15 +112,32 @@ def test_non_inline_targets_now_resolve(target):
 def test_product_path_reconstructs_ordered_pathways_and_toplevels(tmp_path):
     import pandas as pd
     import methods.reactome_pathway_context.read as RE
+
     p = tmp_path / "re.parquet"
-    pd.DataFrame([  # deliberately out of row_order to prove the reader restores source order
-        {"uniprot_ac": "P1", "row_order": 1, "pathway_id": "R-2", "pathway_name": "B",
-         "evidence_code": "IEA", "url": "u2", "top_level_pathway_name": "Signal Transduction"},
-        {"uniprot_ac": "P1", "row_order": 0, "pathway_id": "R-1", "pathway_name": "A",
-         "evidence_code": "TAS", "url": "u1", "top_level_pathway_name": "Metabolism"},
-    ]).to_parquet(p, index=False)
+    pd.DataFrame(
+        [  # deliberately out of row_order to prove the reader restores source order
+            {
+                "uniprot_ac": "P1",
+                "row_order": 1,
+                "pathway_id": "R-2",
+                "pathway_name": "B",
+                "evidence_code": "IEA",
+                "url": "u2",
+                "top_level_pathway_name": "Signal Transduction",
+            },
+            {
+                "uniprot_ac": "P1",
+                "row_order": 0,
+                "pathway_id": "R-1",
+                "pathway_name": "A",
+                "evidence_code": "TAS",
+                "url": "u1",
+                "top_level_pathway_name": "Metabolism",
+            },
+        ]
+    ).to_parquet(p, index=False)
     pathways, tops = RE._load_pathways_from_product("P1", product_path=str(p))
-    assert [x["pathway_id"] for x in pathways] == ["R-1", "R-2"]         # restored to row_order
+    assert [x["pathway_id"] for x in pathways] == ["R-1", "R-2"]  # restored to row_order
     assert tops == {"Signal Transduction", "Metabolism"}
     # absent AC → ([], set()) → caller emits target_not_in_reactome_human
     assert RE._load_pathways_from_product("PZZ", product_path=str(p)) == ([], set())

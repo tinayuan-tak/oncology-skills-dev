@@ -4,6 +4,7 @@ Pins the evidence bands (T-cell-recognized = strongest; presented-only; no-posit
 negative), the assay-asymmetry rule (absent = weak-negative not_observed, never a confirmed
 non-epitope), and the exact summary shape the DISPLAY card contracts against.
 """
+
 from __future__ import annotations
 
 import sys
@@ -14,7 +15,8 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from methods.iedb_epitope.classify import (  # noqa: E402
-    classify_epitope_evidence, summarize_epitope,
+    classify_epitope_evidence,
+    summarize_epitope,
 )
 
 
@@ -41,9 +43,16 @@ def test_none_is_data_unavailable():
 
 # ── summarize + assay asymmetry (absent protein = weak-negative, not data_unavailable) ──
 def test_summarize_row_tcell_validated():
-    row = {"n_epitopes": 151, "n_mhc_class_i_epitopes": 119, "n_mhc_class_ii_epitopes": 36,
-           "n_hla_alleles": 43, "has_tcell_positive": True, "has_mhc_ligand_positive": True,
-           "has_cancer_context": True, "example_hla_alleles": "HLA-A*02:01;HLA-A*01:01"}
+    row = {
+        "n_epitopes": 151,
+        "n_mhc_class_i_epitopes": 119,
+        "n_mhc_class_ii_epitopes": 36,
+        "n_hla_alleles": 43,
+        "has_tcell_positive": True,
+        "has_mhc_ligand_positive": True,
+        "has_cancer_context": True,
+        "example_hla_alleles": "HLA-A*02:01;HLA-A*01:01",
+    }
     s = summarize_epitope(row)
     assert s["epitope_evidence_class"] == "tcell_validated"
     assert s["n_epitopes"] == 151
@@ -67,12 +76,24 @@ def test_summarize_absent_protein_is_weak_negative_not_observed():
 
 def test_summary_field_keys_exact():
     """The DISPLAY card's summary_fields contract against these EXACT keys (minus provenance)."""
-    row = {"n_epitopes": 10, "n_mhc_class_i_epitopes": 8, "n_mhc_class_ii_epitopes": 2,
-           "n_hla_alleles": 5, "has_tcell_positive": False, "has_mhc_ligand_positive": True,
-           "has_cancer_context": False, "example_hla_alleles": "HLA-A*02:01"}
+    row = {
+        "n_epitopes": 10,
+        "n_mhc_class_i_epitopes": 8,
+        "n_mhc_class_ii_epitopes": 2,
+        "n_hla_alleles": 5,
+        "has_tcell_positive": False,
+        "has_mhc_ligand_positive": True,
+        "has_cancer_context": False,
+        "example_hla_alleles": "HLA-A*02:01",
+    }
     s = summarize_epitope(row)
     assert set(s.keys()) == {
-        "epitope_evidence_class", "n_epitopes", "n_mhc_class_i_epitopes",
-        "n_mhc_class_ii_epitopes", "n_hla_alleles", "has_tcell_positive",
-        "has_cancer_context", "example_hla_alleles",
+        "epitope_evidence_class",
+        "n_epitopes",
+        "n_mhc_class_i_epitopes",
+        "n_mhc_class_ii_epitopes",
+        "n_hla_alleles",
+        "has_tcell_positive",
+        "has_cancer_context",
+        "example_hla_alleles",
     }

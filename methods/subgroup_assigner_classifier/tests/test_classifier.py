@@ -20,13 +20,14 @@ CATALOG_REPO = Path("/home/sagemaker-user/rnd-computational-biology-oncology-dat
 def test_napy_classifier_argmax():
     """4 samples, each expressing 1 marker gene high — should assign to the matching stratum."""
     from methods.subgroup_assigner_classifier.cli import _run_napy_classifier
+
     # 4 samples: A-dominant, N-dominant, P-dominant, Y-dominant
     expression = pd.DataFrame(
         {
-            "ASCL1":   [10, 1, 1, 1],
+            "ASCL1": [10, 1, 1, 1],
             "NEUROD1": [1, 10, 1, 1],
-            "POU2F3":  [1, 1, 10, 1],
-            "YAP1":    [1, 1, 1, 10],
+            "POU2F3": [1, 1, 10, 1],
+            "YAP1": [1, 1, 1, 10],
         },
         index=["Sample_A", "Sample_N", "Sample_P", "Sample_Y"],
     )
@@ -54,32 +55,39 @@ def _napy_config(min_margin=0.0, min_zscore=0.0):
     return {
         "classifier_method": "napy_zscore_classifier",
         "marker_genes": {"SCLC_A": "ASCL1", "SCLC_N": "NEUROD1", "SCLC_P": "POU2F3", "SCLC_Y": "YAP1"},
-        "min_zscore": min_zscore, "min_margin": min_margin,
+        "min_zscore": min_zscore,
+        "min_margin": min_margin,
     }
 
 
 def test_min_margin_default_zero_is_backward_compatible():
     """min_margin=0.0 (default) → pure argmax, byte-identical to the prior behaviour."""
     from methods.subgroup_assigner_classifier.cli import _run_napy_classifier
+
     expr = pd.DataFrame(
         {"ASCL1": [10, 1, 1, 1], "NEUROD1": [1, 10, 1, 1], "POU2F3": [1, 1, 10, 1], "YAP1": [1, 1, 1, 10]},
-        index=["S_A", "S_N", "S_P", "S_Y"])
+        index=["S_A", "S_N", "S_P", "S_Y"],
+    )
     out = _run_napy_classifier(expr, _napy_config(min_margin=0.0))
     a = out[(out["sample_id"] == "S_A") & (out["stratum_id"] == "SCLC_A")]
-    assert (a["is_member"] == True).all()          # clean argmax still assigns
+    assert (a["is_member"] == True).all()  # clean argmax still assigns
 
 
 def test_min_margin_leaves_co_expressing_sample_unclassifiable():
     """A sample high in BOTH ASCL1 and NEUROD1 (co-expressed, tiny margin) → unclassifiable under a
     margin requirement, instead of being force-assigned to the marginally-higher marker."""
     from methods.subgroup_assigner_classifier.cli import _run_napy_classifier
+
     # S_mix: ASCL1 and NEUROD1 nearly tied (both high); clean singles for the others to set the z-scale.
     expr = pd.DataFrame(
-        {"ASCL1":   [10, 1,  1,  1,  9.6],
-         "NEUROD1": [1,  10, 1,  1,  9.5],
-         "POU2F3":  [1,  1,  10, 1,  1],
-         "YAP1":    [1,  1,  1,  10, 1]},
-        index=["S_A", "S_N", "S_P", "S_Y", "S_mix"])
+        {
+            "ASCL1": [10, 1, 1, 1, 9.6],
+            "NEUROD1": [1, 10, 1, 1, 9.5],
+            "POU2F3": [1, 1, 10, 1, 1],
+            "YAP1": [1, 1, 1, 10, 1],
+        },
+        index=["S_A", "S_N", "S_P", "S_Y", "S_mix"],
+    )
     out = _run_napy_classifier(expr, _napy_config(min_margin=1.0))
     mix = out[out["sample_id"] == "S_mix"]
     # no stratum is a member (unclassifiable) — the two lineage-TFs are co-expressed within the margin
@@ -95,6 +103,7 @@ def test_min_margin_leaves_co_expressing_sample_unclassifiable():
 def test_single_gene_threshold():
     """DLL3-high threshold: sample with z-score >= threshold is member."""
     from methods.subgroup_assigner_classifier.cli import _run_single_gene_threshold
+
     expression = pd.DataFrame(
         {"DLL3": [10, 5, 3, 1, 0]},  # z-scores will span roughly -1 to +1.5
         index=[f"Sample_{i}" for i in range(5)],
@@ -126,13 +135,13 @@ def test_e2e_napy_synthetic_depmap(tmp_path):
     model_ids = [f"ACH-{i:06d}" for i in range(n)]
     exp_df = pd.DataFrame(
         {
-            "ModelID":               model_ids,
+            "ModelID": model_ids,
             "IsDefaultEntryForModel": ["Yes"] * n,
-            "ASCL1 (429)":           [10, 10, 1, 1, 1, 1, 1, 1],
-            "NEUROD1 (4760)":        [1, 1, 10, 10, 1, 1, 1, 1],
-            "POU2F3 (25833)":        [1, 1, 1, 1, 10, 10, 1, 1],
-            "YAP1 (10413)":          [1, 1, 1, 1, 1, 1, 10, 10],
-            "DLL3 (10683)":          [8, 8, 8, 8, 1, 1, 1, 1],
+            "ASCL1 (429)": [10, 10, 1, 1, 1, 1, 1, 1],
+            "NEUROD1 (4760)": [1, 1, 10, 10, 1, 1, 1, 1],
+            "POU2F3 (25833)": [1, 1, 1, 1, 10, 10, 1, 1],
+            "YAP1 (10413)": [1, 1, 1, 1, 1, 1, 10, 10],
+            "DLL3 (10683)": [8, 8, 8, 8, 1, 1, 1, 1],
         },
     )
     exp_df.to_csv(exp_path, index=False)
@@ -141,20 +150,32 @@ def test_e2e_napy_synthetic_depmap(tmp_path):
     if not catalog_path.exists():
         pytest.skip(f"SCLC catalog not landed on this branch/main: {catalog_path}")
 
-    config_path = METHODS_REPO / "methods" / "subgroup_assigner_classifier" / "example-configs" / "sclc-napy-2026-q3.yaml"
+    config_path = (
+        METHODS_REPO / "methods" / "subgroup_assigner_classifier" / "example-configs" / "sclc-napy-2026-q3.yaml"
+    )
 
     out_dir = tmp_path / "sac_out"
     result = subprocess.run(
         [
-            "python", "-m", "methods.subgroup_assigner_classifier.cli",
-            "--subgroup-catalog", str(catalog_path),
-            "--classifier-config", str(config_path),
-            "--data-source", "depmap",
-            "--release-pin", "2026-Q3",
-            "--catalog-repo", str(CATALOG_REPO),
-            "--out", str(out_dir),
+            "python",
+            "-m",
+            "methods.subgroup_assigner_classifier.cli",
+            "--subgroup-catalog",
+            str(catalog_path),
+            "--classifier-config",
+            str(config_path),
+            "--data-source",
+            "depmap",
+            "--release-pin",
+            "2026-Q3",
+            "--catalog-repo",
+            str(CATALOG_REPO),
+            "--out",
+            str(out_dir),
         ],
-        cwd=METHODS_REPO, capture_output=True, text=True,
+        cwd=METHODS_REPO,
+        capture_output=True,
+        text=True,
         env={**os.environ, "FRAMEWORK_CACHE_ROOT": str(tmp_path / ".cache")},
     )
     assert result.returncode == 0, f"CLI failed: {result.stderr}\nstdout:\n{result.stdout}"
@@ -165,9 +186,16 @@ def test_e2e_napy_synthetic_depmap(tmp_path):
     assert manifest_path.exists()
 
     assignments = pd.read_parquet(parquet_path)
-    expected_cols = {"sample_id", "patient_id", "source_native_id", "stratum_id",
-                     "is_member", "derivation_source", "derivation_value",
-                     "evaluated_at_release"}
+    expected_cols = {
+        "sample_id",
+        "patient_id",
+        "source_native_id",
+        "stratum_id",
+        "is_member",
+        "derivation_source",
+        "derivation_value",
+        "evaluated_at_release",
+    }
     assert expected_cols.issubset(set(assignments.columns))
 
     # SCLC_A should have 2 members (ACH-000000, ACH-000001)

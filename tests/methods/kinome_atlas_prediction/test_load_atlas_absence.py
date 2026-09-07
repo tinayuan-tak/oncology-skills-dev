@@ -4,6 +4,7 @@ A GENUINELY-absent object (NoSuchKey/404 or a pyarrow FileNotFoundError) -> empt
 absence); a CORRUPT parquet / broken-env / creds / transient failure -> re-raise -> _live_read_error
 (and lru_cache never latches the empty).
 """
+
 from __future__ import annotations
 
 import sys
@@ -22,6 +23,7 @@ from methods.kinome_atlas_prediction import read as kin  # noqa: E402
 def _raise(exc):
     def f(*a, **k):
         raise exc
+
     return f
 
 

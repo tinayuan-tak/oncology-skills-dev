@@ -85,16 +85,17 @@ def _parse_s3_uri(uri: str) -> tuple[str, str]:
 def fetch_prism_row(parquet_uri: str, gene: str) -> Optional[dict]:
     """Pyarrow predicate-pushdown read for ONE gene row. Returns dict or None."""
     import pyarrow.parquet as pq
+
     if parquet_uri.startswith("s3://"):
         import pyarrow.fs as pafs
+
         bucket, key = _parse_s3_uri(parquet_uri)
         fs = pafs.S3FileSystem()
         path = f"{bucket}/{key}"
     else:
         fs = None
         path = parquet_uri
-    table = pq.read_table(path, filesystem=fs,
-                            filters=[("gene_symbol", "=", gene)])
+    table = pq.read_table(path, filesystem=fs, filters=[("gene_symbol", "=", gene)])
     if table.num_rows == 0:
         return None
     if table.num_rows > 1:
@@ -116,9 +117,11 @@ def compute_summary(row: Optional[dict], target: str) -> dict:
     if row is None:
         return {
             "prism_activity_class": CLASS_NO_COMPOUNDS_FOUND,
-            "_data_note": (f"Target {target!r} has no PRISM-annotated compounds across "
-                           "either OncRef 25Q4 or Repurposing 24Q2. First-in-class opportunity, "
-                           "not a data-availability gap."),
+            "_data_note": (
+                f"Target {target!r} has no PRISM-annotated compounds across "
+                "either OncRef 25Q4 or Repurposing 24Q2. First-in-class opportunity, "
+                "not a data-availability gap."
+            ),
             "n_compounds_targeting": 0,
             "highest_clinical_phase": None,
             "median_log2auc_across_compounds": None,
@@ -144,31 +147,44 @@ def compute_summary(row: Optional[dict], target: str) -> dict:
 
 def _load_takeda_palette(target_contracts_dir: Path):
     import matplotlib.pyplot as plt
+
     style_path = target_contracts_dir / "plot_styles" / "takeda_oncology.mplstyle"
     if style_path.exists():
         plt.style.use(str(style_path))
     sys.path.insert(0, str(target_contracts_dir / "plot_styles"))
     import takeda_palette
+
     return takeda_palette
 
 
 def _placeholder_svg(msg_lines: list[str], out_path: Path, pal) -> Path:
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+
     fig, ax = plt.subplots(figsize=pal.FIGSIZE_DOUBLE_COLUMN)
     y = 0.7
     for line in msg_lines:
-        ax.text(0.5, y, line, transform=ax.transAxes, ha="center",
-                 fontsize=10 if y == 0.7 else 8, color="#444" if y == 0.7 else "#777")
+        ax.text(
+            0.5,
+            y,
+            line,
+            transform=ax.transAxes,
+            ha="center",
+            fontsize=10 if y == 0.7 else 8,
+            color="#444" if y == 0.7 else "#777",
+        )
         y -= 0.1
     ax.set_axis_off()
-    fig.savefig(out_path); plt.close(fig)
+    fig.savefig(out_path)
+    plt.close(fig)
     return out_path
 
 
-def emit_top_compounds_bar(summary: dict, target: str, out_dir: Path,
-                              target_contracts_dir: Path = DEFAULT_TARGET_CONTRACTS) -> Path:
+def emit_top_compounds_bar(
+    summary: dict, target: str, out_dir: Path, target_contracts_dir: Path = DEFAULT_TARGET_CONTRACTS
+) -> Path:
     """Horizontal bar of top-K compounds by activity, colored by clinical status.
 
     Bar length = -median_log2auc (more-negative Log2AUC → longer bar, more potent).
@@ -177,6 +193,7 @@ def emit_top_compounds_bar(summary: dict, target: str, out_dir: Path,
     Annotations: drug_name (y-axis label), MOA + polyselective flag (right of bar).
     """
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
@@ -186,10 +203,11 @@ def emit_top_compounds_bar(summary: dict, target: str, out_dir: Path,
 
     top = summary.get("top_compounds") or []
     if cls == CLASS_NO_COMPOUNDS_FOUND or not top:
-        return _placeholder_svg([
-            f"{target} — no PRISM-annotated compounds",
-            "first-in-class opportunity, not a data-availability gap"
-        ], out_path, pal)
+        return _placeholder_svg(
+            [f"{target} — no PRISM-annotated compounds", "first-in-class opportunity, not a data-availability gap"],
+            out_path,
+            pal,
+        )
 
     def _activity(c):
         """Primary metric = median_log2auc; fall back to single_dose_lfc (Repurposing)."""
@@ -223,8 +241,7 @@ def emit_top_compounds_bar(summary: dict, target: str, out_dir: Path,
             metric_tag = " (no activity data)"
         else:
             metric_tag = ""
-        ax.text(max(bars + [0.01]) * 0.02, i, f"{moa}{poly_tag}{metric_tag}",
-                va="center", fontsize=7, color="#333")
+        ax.text(max(bars + [0.01]) * 0.02, i, f"{moa}{poly_tag}{metric_tag}", va="center", fontsize=7, color="#333")
     ax.set_yticks(range(len(names)))
     ax.set_yticklabels(names, fontsize=8)
     ax.invert_yaxis()
@@ -241,16 +258,16 @@ def emit_top_compounds_bar(summary: dict, target: str, out_dir: Path,
     med = summary.get("median_log2auc_across_compounds")
     med_txt = f"median Log2AUC={med:.2f}" if isinstance(med, (int, float)) else "median Log2AUC=NA"
     class_label = (cls or "unknown").replace("_", " ")
-    ax.set_title(f"{target} — {n} PRISM compounds ({class_label}, phase≥{phase}, {med_txt})",
-                    fontsize=9)
+    ax.set_title(f"{target} — {n} PRISM compounds ({class_label}, phase≥{phase}, {med_txt})", fontsize=9)
     fig.tight_layout()
-    fig.savefig(out_path); plt.close(fig)
+    fig.savefig(out_path)
+    plt.close(fig)
     return out_path
 
 
-def emit_lineage_activity_bar(summary: dict, target: str, out_dir: Path,
-                                 target_contracts_dir: Path = DEFAULT_TARGET_CONTRACTS,
-                                 top_k: int = 10) -> Path:
+def emit_lineage_activity_bar(
+    summary: dict, target: str, out_dir: Path, target_contracts_dir: Path = DEFAULT_TARGET_CONTRACTS, top_k: int = 10
+) -> Path:
     """Per-lineage median Log2AUC horizontal bar (v3).
 
     Bar length = -median_log2auc (larger = more potent). Color:
@@ -265,6 +282,7 @@ def emit_lineage_activity_bar(summary: dict, target: str, out_dir: Path,
     Placeholder rendering when per_lineage_activity is empty.
     """
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
@@ -275,17 +293,19 @@ def emit_lineage_activity_bar(summary: dict, target: str, out_dir: Path,
     lineage_sel = summary.get("prism_lineage_selectivity") or LINEAGE_SEL_DATA_UNAVAILABLE
 
     if not entries:
-        return _placeholder_svg([
-            f"{target} — no per-lineage activity data",
-            "(lineage stratification unavailable in this precompute)"
-        ], out_path, pal)
+        return _placeholder_svg(
+            [f"{target} — no per-lineage activity data", "(lineage stratification unavailable in this precompute)"],
+            out_path,
+            pal,
+        )
 
     # Already sorted most-active-first in the precompute; head off top_k
     top = entries[:top_k]
     lineages = [e["lineage"] for e in top]
     aucs = [-e["median_log2auc"] if e.get("median_log2auc") is not None else 0.0 for e in top]
     colors = [
-        "#0a2540" if (e.get("median_log2auc") is not None and e["median_log2auc"] < LINEAGE_ACTIVE_LOG2AUC_THRESHOLD)
+        "#0a2540"
+        if (e.get("median_log2auc") is not None and e["median_log2auc"] < LINEAGE_ACTIVE_LOG2AUC_THRESHOLD)
         else "#bbbbbb"
         for e in top
     ]
@@ -306,22 +326,25 @@ def emit_lineage_activity_bar(summary: dict, target: str, out_dir: Path,
     ax.set_xlabel("−median Log2AUC in lineage  (dashed = active threshold |Log2AUC|=0.15)")
 
     handles = [
-        plt.Rectangle((0, 0), 1, 1, color="#0a2540", label=f"Active (median Log2AUC < {LINEAGE_ACTIVE_LOG2AUC_THRESHOLD})"),
+        plt.Rectangle(
+            (0, 0), 1, 1, color="#0a2540", label=f"Active (median Log2AUC < {LINEAGE_ACTIVE_LOG2AUC_THRESHOLD})"
+        ),
         plt.Rectangle((0, 0), 1, 1, color="#bbbbbb", label="Inactive or borderline"),
     ]
     ax.legend(handles=handles, loc="lower right", fontsize=7, framealpha=0.9)
 
     n_lineages = len(entries)
     sel_label = lineage_sel.replace("_", " ")
-    ax.set_title(f"{target} — per-lineage PRISM activity  ({n_lineages} evaluable lineages · {sel_label})",
-                    fontsize=9)
+    ax.set_title(f"{target} — per-lineage PRISM activity  ({n_lineages} evaluable lineages · {sel_label})", fontsize=9)
     fig.tight_layout()
-    fig.savefig(out_path); plt.close(fig)
+    fig.savefig(out_path)
+    plt.close(fig)
     return out_path
 
 
-def emit_activity_vocabulary_panel(summary: dict, target: str, out_dir: Path,
-                                        target_contracts_dir: Path = DEFAULT_TARGET_CONTRACTS) -> Path:
+def emit_activity_vocabulary_panel(
+    summary: dict, target: str, out_dir: Path, target_contracts_dir: Path = DEFAULT_TARGET_CONTRACTS
+) -> Path:
     """Text summary card: class + granular fields + polyselective breakdown.
 
     Complements the compounds bar with the vocabulary-driven headline. This is
@@ -329,6 +352,7 @@ def emit_activity_vocabulary_panel(summary: dict, target: str, out_dir: Path,
     framework still wants a "here's what the card says" panel.
     """
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
@@ -345,12 +369,14 @@ def emit_activity_vocabulary_panel(summary: dict, target: str, out_dir: Path,
     lineage_entries = summary.get("per_lineage_activity") or []
     lineage_sel = summary.get("prism_lineage_selectivity") or LINEAGE_SEL_DATA_UNAVAILABLE
     n_lineages_active = sum(
-        1 for e in lineage_entries
+        1
+        for e in lineage_entries
         if e.get("median_log2auc") is not None and e["median_log2auc"] < LINEAGE_ACTIVE_LOG2AUC_THRESHOLD
     )
     # Deepest responder across all evaluable lineages (tail signal)
-    best_lfcs = [e["best_responder_lfc"] for e in lineage_entries
-                 if isinstance(e.get("best_responder_lfc"), (int, float))]
+    best_lfcs = [
+        e["best_responder_lfc"] for e in lineage_entries if isinstance(e.get("best_responder_lfc"), (int, float))
+    ]
     best_responder_txt = f"{min(best_lfcs):+.1f}" if best_lfcs else "NA"
 
     lines = [
@@ -378,20 +404,28 @@ def emit_activity_vocabulary_panel(summary: dict, target: str, out_dir: Path,
     for i, line in enumerate(lines):
         weight = "bold" if i == 0 else "normal"
         size = 11 if i == 0 else 9
-        ax.text(0.05, y, line, transform=ax.transAxes, ha="left",
-                 fontsize=size, weight=weight,
-                 color=color if i == 0 else "#333",
-                 family="monospace" if i > 0 else "sans-serif")
+        ax.text(
+            0.05,
+            y,
+            line,
+            transform=ax.transAxes,
+            ha="left",
+            fontsize=size,
+            weight=weight,
+            color=color if i == 0 else "#333",
+            family="monospace" if i > 0 else "sans-serif",
+        )
         y -= 0.10
     ax.set_axis_off()
     fig.tight_layout()
-    fig.savefig(out_path); plt.close(fig)
+    fig.savefig(out_path)
+    plt.close(fig)
     return out_path
 
 
-def emit_manifest(target: str, release_pin: str, summary: dict,
-                    out_dir: Path, parquet_uri: str) -> Path:
+def emit_manifest(target: str, release_pin: str, summary: dict, out_dir: Path, parquet_uri: str) -> Path:
     import yaml
+
     manifest = {
         "method_id": "depmap-prism-activity",
         "method_version": METHOD_VERSION,
@@ -415,10 +449,13 @@ def emit_manifest(target: str, release_pin: str, summary: dict,
 
 @click.command()
 @click.option("--target", required=True, help="HGNC symbol")
-@click.option("--release-pin", default="prism-activity-v4", show_default=True,
-              type=click.Choice(list(RELEASE_PIN_TO_PARQUET.keys())))
-@click.option("--parquet-uri", default=None,
-              help="Override the parquet URI (for testing / local fixture).")
+@click.option(
+    "--release-pin",
+    default="prism-activity-v4",
+    show_default=True,
+    type=click.Choice(list(RELEASE_PIN_TO_PARQUET.keys())),
+)
+@click.option("--parquet-uri", default=None, help="Override the parquet URI (for testing / local fixture).")
 @click.option("--out", required=True, type=click.Path(file_okay=False, writable=True, path_type=Path))
 def main(target, release_pin, parquet_uri, out):
     out.mkdir(parents=True, exist_ok=True)

@@ -20,6 +20,7 @@ ABCB1/ABCG2 efflux are INDUCED; anti-apoptotic MCL1/BCL2L1 go DOWN = drug workin
 Keyed to the anchor drug of an inhibited_target (MRTX1133->KRAS etc.), read per program-gene from
 the Tahoe product via pushdown. Returns a compact adaptation summary for the target's anchor drug.
 """
+
 from __future__ import annotations
 
 
@@ -47,7 +48,7 @@ RESISTANCE_PROGRAMS = {
 }
 _ALL_PROGRAM_GENES = sorted({g for gs in RESISTANCE_PROGRAMS.values() for g in gs})
 
-INDUCE_LFC = 0.5          # median log2FC >= this under the anchor drug = program INDUCED
+INDUCE_LFC = 0.5  # median log2FC >= this under the anchor drug = program INDUCED
 PADJ_STRICT = 0.05
 METHOD_VERSION = "0.1.0"
 
@@ -58,19 +59,25 @@ def _fetch_program_rows(drug_substrings: list[str]):
     import pyarrow.parquet as pq
     import pyarrow.fs as pafs
     import pandas as pd
+
     try:
         import sys as _sys
         from pathlib import Path as _Path
+
         _sys.path.insert(0, str(_Path(__file__).resolve().parent.parent))
         from methods.catalog_query.read import bucket_key_for
+
         bucket, key = bucket_key_for(TAHOE_PRODUCT_MANIFEST_ID)
         path = f"{bucket}/{key}"
         fs = pafs.S3FileSystem()
         frames = []
         for g in _ALL_PROGRAM_GENES:
-            t = pq.read_table(path, filesystem=fs,
-                              filters=[("gene_name", "=", g)],
-                              columns=["gene_name", "drug", "log2FoldChange", "padj", "Cell_ID_DepMap"])
+            t = pq.read_table(
+                path,
+                filesystem=fs,
+                filters=[("gene_name", "=", g)],
+                columns=["gene_name", "drug", "log2FoldChange", "padj", "Cell_ID_DepMap"],
+            )
             if t.num_rows:
                 frames.append(t.to_pandas())
     except Exception:  # noqa: BLE001
@@ -99,8 +106,9 @@ def tahoe_adaptation_for_target(target: str, df=None) -> dict:
         return {
             "tahoe_adaptation_class": "not_in_tahoe",
             "induced_programs": [],
-            "tahoe_adaptation_note": (f"{sym}: no Tahoe drug mapping for the anchor — the DepMap "
-                                      f"genetic-rescue layer stands alone."),
+            "tahoe_adaptation_note": (
+                f"{sym}: no Tahoe drug mapping for the anchor — the DepMap genetic-rescue layer stands alone."
+            ),
             "method_version": METHOD_VERSION,
         }
     data = df if df is not None else _fetch_program_rows(drugs)
@@ -131,25 +139,33 @@ def tahoe_adaptation_for_target(target: str, df=None) -> dict:
         gmed = sub.groupby("gene_name")["log2FoldChange"].median()
         up = gmed[gmed >= INDUCE_LFC]
         if len(up):
-            induced.append({
-                "program": prog,
-                "genes_induced": [{"gene": g, "median_log2fc": round(float(v), 3)}
-                                  for g, v in up.sort_values(ascending=False).items()],
-                "max_induction": round(float(up.max()), 3),
-            })
+            induced.append(
+                {
+                    "program": prog,
+                    "genes_induced": [
+                        {"gene": g, "median_log2fc": round(float(v), 3)}
+                        for g, v in up.sort_values(ascending=False).items()
+                    ],
+                    "max_induction": round(float(up.max()), 3),
+                }
+            )
 
     induced.sort(key=lambda p: p["max_induction"], reverse=True)
     if induced:
         klass = "induced_resistance_programs"
         top = induced[0]
-        note = (f"{sym} inhibition (Tahoe): INDUCES the {top['program']} resistance program "
-                f"(e.g. {top['genes_induced'][0]['gene']} +{top['genes_induced'][0]['median_log2fc']}). "
-                f"A transcriptional-adaptation hypothesis (verdict-inert) — weaker than the DepMap "
-                f"genetic-rescue signal; read as candidate adaptive resistance to monitor.")
+        note = (
+            f"{sym} inhibition (Tahoe): INDUCES the {top['program']} resistance program "
+            f"(e.g. {top['genes_induced'][0]['gene']} +{top['genes_induced'][0]['median_log2fc']}). "
+            f"A transcriptional-adaptation hypothesis (verdict-inert) — weaker than the DepMap "
+            f"genetic-rescue signal; read as candidate adaptive resistance to monitor."
+        )
     else:
         klass = "no_induced_programs"
-        note = (f"{sym} inhibition (Tahoe): no curated resistance program induced above threshold in "
-                f"the screened cancer lines.")
+        note = (
+            f"{sym} inhibition (Tahoe): no curated resistance program induced above threshold in "
+            f"the screened cancer lines."
+        )
     return {
         "tahoe_adaptation_class": klass,
         "induced_programs": induced,

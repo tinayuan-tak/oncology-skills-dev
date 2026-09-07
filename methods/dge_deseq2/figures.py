@@ -22,7 +22,8 @@ from typing import Optional, Union
 from . import emit as _emit
 
 _DEFAULT_TARGET_CONTRACTS = os.environ.get(
-    "TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+    "TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
+)
 
 _REQUIRED_COLUMNS = ("group",)
 _SAMPLE_FIELDS = _emit._PLOT_DATA_SAMPLE_FIELDS
@@ -42,7 +43,7 @@ def _cell_contrasts(summary: dict) -> list[dict]:
     rows = []
     for label, lfc_k, q_k in _DGE_SENSITIVITY_CELLS:
         lfc = (summary or {}).get(lfc_k)
-        if lfc is None or lfc != lfc:   # skip absent / NaN cells (matches the SVG forest)
+        if lfc is None or lfc != lfc:  # skip absent / NaN cells (matches the SVG forest)
             continue
         rows.append({"label": label, "log2_fc": float(lfc), "q_value": summary.get(q_k)})
     return rows
@@ -74,8 +75,7 @@ def _reconstruct_per_sample(plot_data: "Union[str, Path, object]") -> Optional[d
         if key is None:
             continue
         out[key].append({f: _clean(r[f]) for f in _SAMPLE_FIELDS if f in df.columns})
-    for k, cnt_key in (("tumor_samples", "n_tumor"), ("adjacent_samples", "n_adjacent"),
-                       ("gtex_samples", "n_gtex")):
+    for k, cnt_key in (("tumor_samples", "n_tumor"), ("adjacent_samples", "n_adjacent"), ("gtex_samples", "n_gtex")):
         out[cnt_key] = len(out[k])
     gtex_tissue = _clean(df["gtex_tissue"].iloc[0]) if "gtex_tissue" in df.columns else None
     out["gtex_tissue"] = gtex_tissue
@@ -93,36 +93,61 @@ def _render_4panel(plot_data, summary, out_dir, target, indication, figure_id, t
         return []
 
     _emit.emit_tumor_vs_normal_selectivity_4panel(
-        sensitivity_summary=summary or {}, per_sample_data=per_sample,
-        target=target, indication=indication, out_dir=out_dir, target_contracts_dir=tcd)
+        sensitivity_summary=summary or {},
+        per_sample_data=per_sample,
+        target=target,
+        indication=indication,
+        out_dir=out_dir,
+        target_contracts_dir=tcd,
+    )
     static = [
-        {"id": figure_id, "path": "figure_tumor_vs_normal_selectivity_4panel.svg",
-         "type": "box_forest_sensitivity_panel", "primary": True},
+        {
+            "id": figure_id,
+            "path": "figure_tumor_vs_normal_selectivity_4panel.svg",
+            "type": "box_forest_sensitivity_panel",
+            "primary": True,
+        },
     ]
     dynamic: list[dict] = []
     try:
-        specs = _emit.emit_plotly_specs(per_sample, _cell_contrasts(summary), target, indication,
-                                        out_dir, tcd, "tumor_vs_normal") or []
+        specs = (
+            _emit.emit_plotly_specs(
+                per_sample, _cell_contrasts(summary), target, indication, out_dir, tcd, "tumor_vs_normal"
+            )
+            or []
+        )
         dynamic = [{**s, "dynamic": True} for s in specs]
     except Exception:  # noqa: BLE001 — additive interactive twin; the SVG is the contract
         pass
     return static + dynamic
 
 
-def render_selectivity_from_plot_data(plot_data: "Union[str, Path, object]", summary: dict,
-                                      out_dir: "Union[str, Path]", target: str,
-                                      indication: "Optional[str]" = None, *,
-                                      target_contracts_dir: "Optional[Union[str, Path]]" = None) -> list[dict]:
+def render_selectivity_from_plot_data(
+    plot_data: "Union[str, Path, object]",
+    summary: dict,
+    out_dir: "Union[str, Path]",
+    target: str,
+    indication: "Optional[str]" = None,
+    *,
+    target_contracts_dir: "Optional[Union[str, Path]]" = None,
+) -> list[dict]:
     """Render the tumor-vs-normal-selectivity 4-panel OFFLINE from persisted plot_data. NO live read."""
-    return _render_4panel(plot_data, summary, out_dir, target, indication,
-                          "tumor_vs_normal_selectivity_4panel", target_contracts_dir)
+    return _render_4panel(
+        plot_data, summary, out_dir, target, indication, "tumor_vs_normal_selectivity_4panel", target_contracts_dir
+    )
 
 
-def render_adjacent_from_plot_data(plot_data: "Union[str, Path, object]", summary: dict,
-                                   out_dir: "Union[str, Path]", target: str,
-                                   indication: "Optional[str]" = None, *,
-                                   target_contracts_dir: "Optional[Union[str, Path]]" = None) -> list[dict]:
+def render_adjacent_from_plot_data(
+    plot_data: "Union[str, Path, object]",
+    summary: dict,
+    out_dir: "Union[str, Path]",
+    target: str,
+    indication: "Optional[str]" = None,
+    *,
+    target_contracts_dir: "Optional[Union[str, Path]]" = None,
+) -> list[dict]:
     """Render the tumor-rna-vs-adjacent 3-group panel OFFLINE from persisted plot_data (same SVG as
     the selectivity card, distinct descriptor id). NO live read."""
-    return _render_4panel(plot_data, summary, out_dir, target, indication,
-                          "tumor_vs_normal_3group", target_contracts_dir)
+    return _render_4panel(
+        plot_data, summary, out_dir, target, indication, "tumor_vs_normal_3group", target_contracts_dir
+    )

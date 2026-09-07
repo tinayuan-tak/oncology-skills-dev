@@ -14,6 +14,7 @@ Usage:
   python -m methods.organoid_dependency_precompute.build \\
       --out <dir>/organoid_dependency_summary.parquet [--no-upload]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -40,9 +41,9 @@ _COL_RE = re.compile(r"^(?P<sym>.+?)\s+\((?P<entrez>\d+)\)$")
 # Correctness spot-checks (verified live at build): pan-essential genes must be near-ubiquitous
 # organoid dependencies; a lineage-restricted non-essential must not be.
 CORRECTNESS_CHECKS = [  # (symbol, field, comparator, threshold)
-    ("RPL9", "frac_dependent", ">=", 0.90),    # core ribosomal → pan-organoid essential
+    ("RPL9", "frac_dependent", ">=", 0.90),  # core ribosomal → pan-organoid essential
     ("POLR2B", "frac_dependent", ">=", 0.90),  # RNA Pol II → pan-organoid essential
-    ("KRT5", "frac_dependent", "<=", 0.20),    # basal-keratin marker → not broadly essential
+    ("KRT5", "frac_dependent", "<=", 0.20),  # basal-keratin marker → not broadly essential
 ]
 
 
@@ -62,12 +63,13 @@ def _read_csv(uri: str, **kw):
     """Read a DepMap source CSV from s3:// (cbg profile — the bucket denies the default role)
     or a local path."""
     import pandas as pd
+
     if uri.startswith("s3://"):
         import boto3
         from io import BytesIO
-        bucket, _, key = uri[len("s3://"):].partition("/")
-        body = boto3.Session(profile_name="cbg").client("s3").get_object(
-            Bucket=bucket, Key=key)["Body"].read()
+
+        bucket, _, key = uri[len("s3://") :].partition("/")
+        body = boto3.Session(profile_name="cbg").client("s3").get_object(Bucket=bucket, Key=key)["Body"].read()
         return pd.read_csv(BytesIO(body), **kw)
     return pd.read_csv(uri, **kw)
 
@@ -91,7 +93,7 @@ def build(matrix_uri: str = _S3_MATRIX, model_uri: str = _S3_MODEL):
 
     t0 = time.time()
     df = _read_csv(matrix_uri, index_col=0)  # rows = organoid ModelIDs, cols = 'SYMBOL (ENTREZ)'
-    _log(f"[read] {df.shape[0]} organoid models × {df.shape[1]} genes in {time.time()-t0:.1f}s")
+    _log(f"[read] {df.shape[0]} organoid models × {df.shape[1]} genes in {time.time() - t0:.1f}s")
     n_models_total = int(df.shape[0])
     _log_cohort_composition(model_uri, df.index.tolist())
 
@@ -109,27 +111,43 @@ def build(matrix_uri: str = _S3_MATRIX, model_uri: str = _S3_MODEL):
         sym = mo.group("sym") if mo else col
         entrez = mo.group("entrez") if mo else None
         ns = int(n_screened[col])
-        rows.append((
-            sym, entrez, ns,
-            int(n_dependent[col]), int(n_strong[col]),
-            (float(n_dependent[col]) / ns) if ns else 0.0,
-            (float(n_strong[col]) / ns) if ns else 0.0,
-            float(mean_eff[col]), float(median_eff[col]), float(min_eff[col]),
-        ))
-    out = pd.DataFrame(rows, columns=[
-        "gene_symbol", "entrez_gene_id", "n_models_screened",
-        "n_dependent", "n_strongly_dependent", "frac_dependent", "frac_strongly_dependent",
-        "mean_gene_effect", "median_gene_effect", "min_gene_effect"])
+        rows.append(
+            (
+                sym,
+                entrez,
+                ns,
+                int(n_dependent[col]),
+                int(n_strong[col]),
+                (float(n_dependent[col]) / ns) if ns else 0.0,
+                (float(n_strong[col]) / ns) if ns else 0.0,
+                float(mean_eff[col]),
+                float(median_eff[col]),
+                float(min_eff[col]),
+            )
+        )
+    out = pd.DataFrame(
+        rows,
+        columns=[
+            "gene_symbol",
+            "entrez_gene_id",
+            "n_models_screened",
+            "n_dependent",
+            "n_strongly_dependent",
+            "frac_dependent",
+            "frac_strongly_dependent",
+            "mean_gene_effect",
+            "median_gene_effect",
+            "min_gene_effect",
+        ],
+    )
 
     # Organoid-cohort dependency percentile: rank of the gene's MEDIAN gene-effect, ascending on
     # -median so a MORE-negative (more dependent) median → HIGHER percentile. 100 = most dependent.
-    out["organoid_dependency_percentile"] = (
-        (-out["median_gene_effect"]).rank(pct=True) * 100.0).astype("float32")
+    out["organoid_dependency_percentile"] = ((-out["median_gene_effect"]).rank(pct=True) * 100.0).astype("float32")
     out["n_models_total"] = n_models_total
     out["n_genes"] = len(out)
 
-    for c in ["frac_dependent", "frac_strongly_dependent", "mean_gene_effect",
-              "median_gene_effect", "min_gene_effect"]:
+    for c in ["frac_dependent", "frac_strongly_dependent", "mean_gene_effect", "median_gene_effect", "min_gene_effect"]:
         out[c] = out[c].astype("float32")
     out = out.sort_values("gene_symbol").reset_index(drop=True)
     return out
@@ -138,25 +156,31 @@ def build(matrix_uri: str = _S3_MATRIX, model_uri: str = _S3_MODEL):
 def write(df, out: Path, row_group_size: int = 8192) -> dict:
     import pyarrow as pa
     import pyarrow.parquet as pq
+
     out.parent.mkdir(parents=True, exist_ok=True)
-    schema = pa.schema([
-        pa.field("gene_symbol", pa.string()),
-        pa.field("entrez_gene_id", pa.string()),
-        pa.field("n_models_screened", pa.int32()),
-        pa.field("n_dependent", pa.int32()),
-        pa.field("n_strongly_dependent", pa.int32()),
-        pa.field("frac_dependent", pa.float32()),
-        pa.field("frac_strongly_dependent", pa.float32()),
-        pa.field("mean_gene_effect", pa.float32()),
-        pa.field("median_gene_effect", pa.float32()),
-        pa.field("min_gene_effect", pa.float32()),
-        pa.field("organoid_dependency_percentile", pa.float32()),
-        pa.field("n_models_total", pa.int32()),
-        pa.field("n_genes", pa.int32()),
-    ])
-    pq.write_table(pa.Table.from_pandas(df[[f.name for f in schema]], schema=schema,
-                                        preserve_index=False),
-                   str(out), compression="snappy", row_group_size=row_group_size)
+    schema = pa.schema(
+        [
+            pa.field("gene_symbol", pa.string()),
+            pa.field("entrez_gene_id", pa.string()),
+            pa.field("n_models_screened", pa.int32()),
+            pa.field("n_dependent", pa.int32()),
+            pa.field("n_strongly_dependent", pa.int32()),
+            pa.field("frac_dependent", pa.float32()),
+            pa.field("frac_strongly_dependent", pa.float32()),
+            pa.field("mean_gene_effect", pa.float32()),
+            pa.field("median_gene_effect", pa.float32()),
+            pa.field("min_gene_effect", pa.float32()),
+            pa.field("organoid_dependency_percentile", pa.float32()),
+            pa.field("n_models_total", pa.int32()),
+            pa.field("n_genes", pa.int32()),
+        ]
+    )
+    pq.write_table(
+        pa.Table.from_pandas(df[[f.name for f in schema]], schema=schema, preserve_index=False),
+        str(out),
+        compression="snappy",
+        row_group_size=row_group_size,
+    )
     return {"md5": _md5_hex(out), "size_bytes": out.stat().st_size, "n_rows": len(df)}
 
 
@@ -184,9 +208,11 @@ def main(argv=None) -> int:
 
     if not args.no_upload:
         import boto3
+
         key = f"{OUTPUT_S3_PREFIX}/{args.out.name}"
         boto3.Session(profile_name="cbg").client("s3").upload_file(
-            str(args.out), S3_BUCKET, key, ExtraArgs={"Metadata": {"md5": meta["md5"]}})
+            str(args.out), S3_BUCKET, key, ExtraArgs={"Metadata": {"md5": meta["md5"]}}
+        )
         _log(f"[upload] s3://{S3_BUCKET}/{key}")
     else:
         _log("[upload] skipped (--no-upload)")

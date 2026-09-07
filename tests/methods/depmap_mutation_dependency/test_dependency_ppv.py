@@ -5,6 +5,7 @@ Treats the biomarker (mutant = positive) as a classifier for the DepMap-dependen
 DEPENDENCY performance metrics on the one ground truth the framework has (DepMap genetic
 dependency) — NOT drug-response or clinical metrics. Verdict-inert (new fields; classifier unchanged).
 """
+
 from __future__ import annotations
 
 import sys
@@ -29,9 +30,15 @@ def _vec(mut_scores, wt_scores):
     chronos, mut = {}, {}
     i = 0
     for s in mut_scores:
-        m = f"ACH-{i:05d}"; chronos[m] = s; mut[m] = True; i += 1
+        m = f"ACH-{i:05d}"
+        chronos[m] = s
+        mut[m] = True
+        i += 1
     for s in wt_scores:
-        m = f"ACH-{i:05d}"; chronos[m] = s; mut[m] = False; i += 1
+        m = f"ACH-{i:05d}"
+        chronos[m] = s
+        mut[m] = False
+        i += 1
     return chronos, mut
 
 
@@ -76,15 +83,24 @@ def test_base_rate_and_lift_when_biomarker_uninformative():
 def test_surfaced_in_compute_summary_hotspot():
     # the summary lifts the hotspot-tier dependency performance fields.
     import random
+
     rng = random.Random(0)
     chronos, hot, dam = {}, {}, {}
     i = 0
     for _ in range(30):
-        m = f"ACH-{i:05d}"; chronos[m] = -1.1 + rng.uniform(-0.1, 0.1); hot[m] = True; dam[m] = True; i += 1
+        m = f"ACH-{i:05d}"
+        chronos[m] = -1.1 + rng.uniform(-0.1, 0.1)
+        hot[m] = True
+        dam[m] = True
+        i += 1
     for _ in range(200):
-        m = f"ACH-{i:05d}"; chronos[m] = -0.02 + rng.uniform(-0.1, 0.1); hot[m] = False; dam[m] = False; i += 1
+        m = f"ACH-{i:05d}"
+        chronos[m] = -0.02 + rng.uniform(-0.1, 0.1)
+        hot[m] = False
+        dam[m] = False
+        i += 1
     s = C(chronos, hot, dam)
     assert s["hotspot_dependency_ppv"] is not None
-    assert s["hotspot_dependency_ppv"] > 0.9          # mutants deeply dependent
+    assert s["hotspot_dependency_ppv"] > 0.9  # mutants deeply dependent
     assert s["hotspot_dependency_base_rate"] is not None
-    assert s["hotspot_dependency_ppv_lift"] > 1.0     # informative biomarker
+    assert s["hotspot_dependency_ppv_lift"] > 1.0  # informative biomarker

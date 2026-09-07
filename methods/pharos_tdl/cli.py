@@ -11,13 +11,14 @@ tier: target (indication-independent). Reads the frozen per-gene TDL snapshot; O
 FACET-ONLY discipline: the novelty score is literature/grant-driven → verdict-INERT, never a killer
 (same guardrail the framework applies to the OpenTargets association score).
 """
+
 from __future__ import annotations
 
 import io
 from functools import lru_cache
 from typing import Optional
 
-METHOD_VERSION = "0.1.1"   # 0.1.1: resolve source via the data-catalog manifest (catalog_query) instead of a hardcoded s3:// URI — same parquet, byte-identical output.
+METHOD_VERSION = "0.1.1"  # 0.1.1: resolve source via the data-catalog manifest (catalog_query) instead of a hardcoded s3:// URI — same parquet, byte-identical output.
 
 # Source resolved through the data-catalog single-source-of-truth (catalog_query.bucket_prefix_for),
 # NOT a hand-typed s3:// constant — so a snapshot relocation follows the manifest, mirroring the
@@ -30,9 +31,11 @@ _TDL_PARQUET_FILENAME = "pharos_tdl_per_gene.parquet"
 _TDL_MEANING = {
     "Tclin": "clinically drugged (approved drug acts via this target's mode)",
     "Tchem": "chemically probed (potent small-molecule ligands; no approved drug)",
-    "Tbio":  "biologically studied (no chemical probe / approved drug)",
+    "Tbio": "biologically studied (no chemical probe / approved drug)",
     "Tdark": "understudied / dark (minimal biology, no probe)",
 }
+
+
 @lru_cache(maxsize=1)
 def _load_table():
     """Frozen per-gene TDL snapshot, indexed by gene_symbol. Uses boto3 via the shared client
@@ -43,7 +46,8 @@ def _load_table():
     import pandas as pd
     from methods.target_id_sidecar import s3_client
     from methods.catalog_query.read import bucket_prefix_for
-    bucket, prefix = bucket_prefix_for(_TDL_SOURCE_MANIFEST_ID)   # manifest s3_uri (dir) → (bucket, key_prefix)
+
+    bucket, prefix = bucket_prefix_for(_TDL_SOURCE_MANIFEST_ID)  # manifest s3_uri (dir) → (bucket, key_prefix)
     key = f"{prefix}{_TDL_PARQUET_FILENAME}"
     body = s3_client().get_object(Bucket=bucket, Key=key)["Body"].read()
     return pd.read_parquet(io.BytesIO(body)).set_index("gene_symbol")
@@ -64,16 +68,19 @@ def read_pharos_tdl(target: str, indication: Optional[str] = None) -> dict:
     except Exception as e:
         return {"tdl_class": "data_unavailable", "_live_read_error": f"{type(e).__name__}: {e}"}
     if target not in tbl.index:
-        return {"tdl_class": "data_unavailable", "target": target,
-                "_note": f"{target} not in the Pharos/IDG TCRD table."}
+        return {
+            "tdl_class": "data_unavailable",
+            "target": target,
+            "_note": f"{target} not in the Pharos/IDG TCRD table.",
+        }
     row = tbl.loc[target]
-    if hasattr(row, "iloc") and getattr(row, "ndim", 1) > 1:   # duplicate symbol safety
+    if hasattr(row, "iloc") and getattr(row, "ndim", 1) > 1:  # duplicate symbol safety
         row = row.iloc[0]
     tdl = str(row["tdl"])
     return {
-        "tdl_class": tdl,                            # PRIMARY (Tclin | Tchem | Tbio | Tdark)
+        "tdl_class": tdl,  # PRIMARY (Tclin | Tchem | Tbio | Tdark)
         "tdl_meaning": _TDL_MEANING.get(tdl, ""),
-        "target_family": str(row.get("fam", "")),    # Kinase / Enzyme / GPCR / TF / ...
+        "target_family": str(row.get("fam", "")),  # Kinase / Enzyme / GPCR / TF / ...
         "novelty_score": float(row["novelty"]) if row.get("novelty") == row.get("novelty") else None,
         "target": target,
         "_method_version": METHOD_VERSION,
@@ -89,6 +96,7 @@ try:
     @click.option("--indication", default=None)
     def main(target, indication):
         import json
+
         click.echo(json.dumps(read_pharos_tdl(target, indication), indent=2, default=str))
 
     if __name__ == "__main__":

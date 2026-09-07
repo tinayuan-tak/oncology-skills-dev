@@ -12,6 +12,7 @@ doesn't cover the gene is not a measured wild-type; it is not-sequenced, and mus
 
 METHOD_VERSION 0.1.0.
 """
+
 from __future__ import annotations
 
 METHOD_VERSION = "0.1.0"

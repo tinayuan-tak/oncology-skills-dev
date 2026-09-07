@@ -1,4 +1,5 @@
 """til_fraction_saltz — classification + fail-closed coverage (hermetic)."""
+
 from __future__ import annotations
 
 import sys
@@ -9,15 +10,18 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from methods.til_fraction_saltz.read import (  # noqa: E402
-    _classify, read_til_fraction, MIN_N, INDICATION_TO_TCGA_STUDIES,
+    _classify,
+    read_til_fraction,
+    MIN_N,
+    INDICATION_TO_TCGA_STUDIES,
 )
 
 
 def test_classify_bands():
-    assert _classify(6.2, 100) == "til_high"          # PAAD-like
+    assert _classify(6.2, 100) == "til_high"  # PAAD-like
     assert _classify(3.0, 100) == "til_intermediate"  # LUAD-like
-    assert _classify(1.3, 100) == "til_low"           # BRCA-like
-    assert _classify(6.0, 5) == "data_unavailable"    # below n floor
+    assert _classify(1.3, 100) == "til_low"  # BRCA-like
+    assert _classify(6.0, 5) == "data_unavailable"  # below n floor
     assert _classify(None, 100) == "data_unavailable"
 
 

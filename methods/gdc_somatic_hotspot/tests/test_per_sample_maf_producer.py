@@ -11,6 +11,7 @@ patient barcode — NOT the 4-segment sample id the aggregate's internal dedup u
 tests mock the S3 MC3 stream with a synthetic gzipped MAF and pin: patient-barcode join key,
 non-synonymous filter, dedup across aliquots, and off-indication rejection.
 """
+
 from __future__ import annotations
 
 import gzip
@@ -40,8 +41,11 @@ def _mock_mc3(monkeypatch, lines):
     gz_bytes.seek(0)
 
     class _FakeBody:
-        def __init__(self, b): self._b = b
-        def read(self, *a): return self._b.read(*a)
+        def __init__(self, b):
+            self._b = b
+
+        def read(self, *a):
+            return self._b.read(*a)
 
     class _FakeS3:
         def get_object(self, Bucket, Key):
@@ -49,6 +53,7 @@ def _mock_mc3(monkeypatch, lines):
 
     # boto3 is imported function-locally inside per_sample_maf, so patch the boto3 module.
     import boto3
+
     monkeypatch.setattr(boto3, "client", lambda *a, **k: _FakeS3())
 
 
@@ -60,7 +65,7 @@ def test_sample_id_is_patient_barcode(monkeypatch):
     _mock_mc3(monkeypatch, lines)
     tbl = cli.per_sample_maf("COADREAD").to_pylist()
     assert len(tbl) == 1
-    assert tbl[0]["sample_id"] == "TCGA-A6-2670"          # 3-segment patient barcode
+    assert tbl[0]["sample_id"] == "TCGA-A6-2670"  # 3-segment patient barcode
     assert tbl[0]["sample_id"].count("-") == 2
     assert tbl[0]["gene_symbol"] == "KRAS"
     assert tbl[0]["protein_change"] == "p.G12D"
@@ -69,8 +74,8 @@ def test_sample_id_is_patient_barcode(monkeypatch):
 def test_synonymous_variants_dropped(monkeypatch):
     lines = [
         _maf_line("KRAS", "Missense_Mutation", "p.G12D", "TCGA-A6-2670-01A-01D-1-10"),
-        _maf_line("TTN", "Silent", "p.=", "TCGA-A6-2670-01A-01D-1-10"),          # synonymous → dropped
-        _maf_line("XYZ", "3'UTR", "", "TCGA-A6-2670-01A-01D-1-10"),               # non-coding → dropped
+        _maf_line("TTN", "Silent", "p.=", "TCGA-A6-2670-01A-01D-1-10"),  # synonymous → dropped
+        _maf_line("XYZ", "3'UTR", "", "TCGA-A6-2670-01A-01D-1-10"),  # non-coding → dropped
     ]
     _mock_mc3(monkeypatch, lines)
     genes = {r["gene_symbol"] for r in cli.per_sample_maf("COADREAD").to_pylist()}
@@ -93,7 +98,7 @@ def test_dedup_across_aliquots_of_same_patient(monkeypatch):
 def test_off_indication_rows_rejected(monkeypatch):
     """A LUAD-TSS barcode must not appear in a COADREAD per-sample MAF."""
     lines = [
-        _maf_line("KRAS", "Missense_Mutation", "p.G12D", "TCGA-A6-2670-01A-01D-1-10"),   # COAD
+        _maf_line("KRAS", "Missense_Mutation", "p.G12D", "TCGA-A6-2670-01A-01D-1-10"),  # COAD
         _maf_line("EGFR", "Missense_Mutation", "p.L858R", "TCGA-05-4384-01A-01D-1-10"),  # LUAD TSS 05
     ]
     _mock_mc3(monkeypatch, lines)

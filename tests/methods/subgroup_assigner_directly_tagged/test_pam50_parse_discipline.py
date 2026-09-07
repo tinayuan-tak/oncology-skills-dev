@@ -3,6 +3,7 @@ existence is checked first. A parse failure of an EXISTING file is corruption an
 (rather than silently collapse every BRCA patient to a null PAM50 stratum); a genuinely-missing file
 still returns None (strata self-degrade to null), unchanged.
 """
+
 from __future__ import annotations
 
 import sys
@@ -22,7 +23,7 @@ def _curated_path(root: Path) -> Path:
 
 
 def test_missing_file_returns_none(monkeypatch, tmp_path):
-    monkeypatch.setattr(sub, "cache_root", lambda: tmp_path)   # file does not exist
+    monkeypatch.setattr(sub, "cache_root", lambda: tmp_path)  # file does not exist
     assert sub._load_brca_pam50_from_curated() is None
 
 

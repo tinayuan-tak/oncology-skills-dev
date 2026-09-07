@@ -35,6 +35,7 @@ STATUS: first productionized cut. Loaders are live-read (need cbg); MSigDB reads
 (a derived gene-set-membership product would be cleaner — build-order item 5). Card/resolver/skill
 wiring + full tests are the continuation.
 """
+
 from __future__ import annotations
 
 import io
@@ -49,7 +50,10 @@ from methods.target_id_sidecar import s3_client
 from methods.depmap_chronos.cli import INDICATION_LINEAGE
 from methods.depmap_paralog_aggregator.read import read_target_summary as _read_paralog_buffering
 from methods.depmap_common.parquet import (
-    _find_gene_column, _remote_schema_names, _remote_uri, _stream_table,
+    _find_gene_column,
+    _remote_schema_names,
+    _remote_uri,
+    _stream_table,
 )
 
 METHOD_VERSION = "0.1.0"
@@ -60,10 +64,8 @@ _SRC_MODEL = _DMC + "Model.csv"
 _SRC_COMMON_ESS = _DMC + "CRISPRInferredCommonEssentials.csv"
 _SRC_TDL = "data-catalog/sources/pharos-idg-tcrd/snapshot-2026-08-10/pharos_tdl_per_gene.parquet"
 _SRC_CORUM = "data-catalog/sources/corum/release-5.3-snapshot-2026-07-14/corum_complete.json"
-_SRC_BIOGRID = ("data-catalog/derived/biogrid-physical-interactions-per-gene-v1/"
-                "biogrid_physical_edges_per_gene.parquet")
-_SRC_MSIGDB_ZIP = ("data-catalog/sources/msigdb/human-v2026-1-hs/"
-                   "msigdb_v2026.1.Hs_files_to_download_locally.zip")
+_SRC_BIOGRID = "data-catalog/derived/biogrid-physical-interactions-per-gene-v1/biogrid_physical_edges_per_gene.parquet"
+_SRC_MSIGDB_ZIP = "data-catalog/sources/msigdb/human-v2026-1-hs/msigdb_v2026.1.Hs_files_to_download_locally.zip"
 _MSIGDB_GMT_DIR = "msigdb_v2026.1.Hs_files_to_download_locally/msigdb_v2026.1.Hs_GMTs/"
 # Pathway-lens gene-set collections, in spec-§3 PRECEDENCE order (curated first, functional second):
 #   C2.CP  = curated canonical pathways (Reactome / KEGG / WikiPathways / BioCarta / PID) — tightest
@@ -72,11 +74,11 @@ _MSIGDB_GMT_C2CP = _MSIGDB_GMT_DIR + "c2.cp.v2026.1.Hs.symbols.gmt"
 _MSIGDB_GMT_C5BP = _MSIGDB_GMT_DIR + "c5.go.bp.v2026.1.Hs.symbols.gmt"
 _BUCKET = "onc-compbio"
 
-DEP_FLOOR = -0.5          # a node must clear this median Chronos to be dependency-relevant
-MIN_SEP = 0.15           # min median-Chronos separation to call one node stronger (vs screen noise)
-MIN_COHORT = 15          # min lineage cell lines before we trust lineage-scoped medians; else pan-lineage
-PPI_TOP_N = 25           # cap the BioGRID interaction neighbourhood to the best-evidenced partners
-                         # (the PPI lens is the broadest/hairball per spec §3 — bounded + REPORT-ONLY)
+DEP_FLOOR = -0.5  # a node must clear this median Chronos to be dependency-relevant
+MIN_SEP = 0.15  # min median-Chronos separation to call one node stronger (vs screen noise)
+MIN_COHORT = 15  # min lineage cell lines before we trust lineage-scoped medians; else pan-lineage
+PPI_TOP_N = 25  # cap the BioGRID interaction neighbourhood to the best-evidenced partners
+# (the PPI lens is the broadest/hairball per spec §3 — bounded + REPORT-ONLY)
 # Pathway node-set size band. A gene sits in MANY gene sets; the smallest containing set is almost always
 # a niche/incidental one (e.g. CDK4 -> GOBP_RESPONSE_TO_IONOMYCIN), and the largest is generic machinery.
 # Prefer the smallest set WITHIN [MIN,MAX] as a coarse "specific-but-not-niche" heuristic. This is a
@@ -103,7 +105,7 @@ def _get(key: str) -> bytes:
 @lru_cache(maxsize=1)
 def _chronos() -> pd.DataFrame:
     df = pd.read_csv(io.BytesIO(_get(_SRC_CHRONOS)), index_col=0)
-    df.columns = [c.split(" ")[0] for c in df.columns]       # 'GENE (id)' -> 'GENE'
+    df.columns = [c.split(" ")[0] for c in df.columns]  # 'GENE (id)' -> 'GENE'
     return df
 
 
@@ -128,7 +130,7 @@ def _chronos_subframe(genes) -> pd.DataFrame:
     try:
         uri, schema = _chronos_parquet_meta()
         id_col = "ModelID" if "ModelID" in schema else schema[0]
-        colmap = {}                                          # parquet 'GENE (id)' col -> bare 'GENE'
+        colmap = {}  # parquet 'GENE (id)' col -> bare 'GENE'
         for g in genes:
             c = _find_gene_column(schema, g)
             if c is not None and c not in colmap:
@@ -139,7 +141,7 @@ def _chronos_subframe(genes) -> pd.DataFrame:
         return tbl.set_index(id_col).rename(columns=colmap)
     except ImportError:
         raise
-    except Exception:                                        # parquet product unreachable -> CSV fallback
+    except Exception:  # parquet product unreachable -> CSV fallback
         df = _chronos()
         return df[[g for g in genes if g in df.columns]]
 
@@ -210,8 +212,11 @@ def _select_in_band(gmt: dict, target: str) -> Optional[tuple]:
     Falls back to the smallest containing set of ANY size only if none lands in the band (so a target
     that lives only in tiny/huge sets still gets a node-set rather than nothing). Returns (name, members)
     or None if the target is in no set of this collection."""
-    hits = [(name, members) for name, members in gmt.items()
-            if target in members and not name.startswith(_PATHWAY_SET_EXCLUDE_PREFIXES)]
+    hits = [
+        (name, members)
+        for name, members in gmt.items()
+        if target in members and not name.startswith(_PATHWAY_SET_EXCLUDE_PREFIXES)
+    ]
     if not hits:
         return None
     in_band = [h for h in hits if MIN_PATHWAY_SET <= len(h[1]) <= MAX_PATHWAY_SET]
@@ -238,20 +243,20 @@ def _ppi_node_sets(target: str) -> list:
     inflate 'dominated' calls). FAIL-SOFT: any read error yields an empty lens (never takes down the
     headline complex/pathway lenses). Pushdown on the symbol-sorted gene_symbol column."""
     try:
-        df = pd.read_parquet(io.BytesIO(_get(_SRC_BIOGRID)),
-                             columns=["gene_symbol", "partner_symbol", "n_publications"],
-                             filters=[("gene_symbol", "==", target)])
+        df = pd.read_parquet(
+            io.BytesIO(_get(_SRC_BIOGRID)),
+            columns=["gene_symbol", "partner_symbol", "n_publications"],
+            filters=[("gene_symbol", "==", target)],
+        )
     except Exception:  # absence-discipline: exempt -- PPI is a REPORT-ONLY lens (excluded from the headline); a transient/creds/absent BioGRID read must degrade to 'no PPI lens this run', NOT propagate — re-raising would couple a non-verdict-bearing lens to the whole node_leverage read (fail the verdict on a BioGRID blip). The verdict-bearing complex/pathway lenses have their own read paths.
         return []
     if df.empty:
         return []
-    partners = (df.sort_values("n_publications", ascending=False)
-                  .head(PPI_TOP_N)["partner_symbol"].tolist())
+    partners = df.sort_values("n_publications", ascending=False).head(PPI_TOP_N)["partner_symbol"].tolist()
     members = sorted(set(partners) | {target})
     if len(members) < 2:
         return []
-    return [{"name": f"BioGRID physical interactors (top {PPI_TOP_N} by publications)",
-             "members": members}]
+    return [{"name": f"BioGRID physical interactors (top {PPI_TOP_N} by publications)", "members": members}]
 
 
 # --- lineage-scoped comparison ----------------------------------------------------------------------
@@ -264,7 +269,7 @@ def _model_ids_for_lineage(lineage: Optional[str]) -> Optional[list]:
 
 
 def _stats(genes: list, target: str, model_ids: Optional[list]) -> pd.DataFrame:
-    sub = _chronos_subframe(set(genes) | {target})           # column-projected (only these genes)
+    sub = _chronos_subframe(set(genes) | {target})  # column-projected (only these genes)
     if model_ids:
         sub = sub.loc[sub.index.isin(model_ids)]
     rows = []
@@ -272,8 +277,14 @@ def _stats(genes: list, target: str, model_ids: Optional[list]) -> pd.DataFrame:
         v = sub[g].dropna()
         if len(v) < 5:
             continue
-        rows.append({"gene": g, "median_chronos": float(v.median()),
-                     "frac_dependent": float((v < DEP_FLOOR).mean()), "n": int(len(v))})
+        rows.append(
+            {
+                "gene": g,
+                "median_chronos": float(v.median()),
+                "frac_dependent": float((v < DEP_FLOOR).mean()),
+                "n": int(len(v)),
+            }
+        )
     stats = pd.DataFrame(rows)
     if stats.empty:
         return stats
@@ -300,13 +311,17 @@ def _classify(target: str, stats: pd.DataFrame) -> dict:
     else:
         verdict = "dominated_node"
     return {
-        "verdict": verdict, "n_nodes": int(len(stats)),
+        "verdict": verdict,
+        "n_nodes": int(len(stats)),
         "target_median_chronos": round(float(tgt["median_chronos"]), 3),
-        "target_tdl": str(tgt["tdl"]), "target_frac_dependent": round(float(tgt["frac_dependent"]), 3),
-        "n_stronger": int(len(stronger)), "n_stronger_tractable": int(len(tractable_stronger)),
+        "target_tdl": str(tgt["tdl"]),
+        "target_frac_dependent": round(float(tgt["frac_dependent"]), 3),
+        "n_stronger": int(len(stronger)),
+        "n_stronger_tractable": int(len(tractable_stronger)),
         "dominant_competitors": [
             {"gene": r["gene"], "median_chronos": round(r["median_chronos"], 3), "tdl": str(r["tdl"])}
-            for _, r in stronger.head(6).iterrows()],
+            for _, r in stronger.head(6).iterrows()
+        ],
     }
 
 
@@ -325,14 +340,20 @@ def _paralog_buffering(target: str) -> dict:
     except Exception:  # absence-discipline: exempt -- paralog buffering is ADDITIVE context (qualifies but does not set node_leverage_class); a transient/creds/absent paralog-product read must degrade to 'data_unavailable', NOT propagate and fail the whole node_leverage verdict (which the complex/pathway lenses own).
         s = {}
     cls = s.get("paralog_buffering_class", "data_unavailable")
-    return {"paralog_buffering_class": cls,
-            "strongest_buffering_paralog": s.get("strongest_paralog_symbol") or "",
-            "single_ko_leverage_understated": cls in ("strong", "partial")}
+    return {
+        "paralog_buffering_class": cls,
+        "strongest_buffering_paralog": s.get("strongest_paralog_symbol") or "",
+        "single_ko_leverage_understated": cls in ("strong", "partial"),
+    }
 
 
 # --- headline aggregation ---------------------------------------------------------------------------
-_HEADLINE_ORDER = {"dominated_node": 0, "dominated_but_tractability_edge": 1,
-                   "weak_and_uncontested": 2, "dominant_node": 3}
+_HEADLINE_ORDER = {
+    "dominated_node": 0,
+    "dominated_but_tractability_edge": 1,
+    "weak_and_uncontested": 2,
+    "dominant_node": 3,
+}
 
 
 def _headline_class(lenses: dict) -> str:
@@ -340,8 +361,9 @@ def _headline_class(lenses: dict) -> str:
     The `ppi` lens is REPORT-ONLY — EXCLUDED here — because a raw interaction neighbourhood
     (~94 partners/gene) under worst-across-lenses aggregation would spuriously crown a more-dependent
     bystander and inflate 'dominated'. PPI is surfaced per-lens for inspection, not for the verdict."""
-    verdicts = [p["verdict"] for ln, lp in lenses.items() if ln != "ppi"
-                for p in lp if p.get("verdict") in _HEADLINE_ORDER]
+    verdicts = [
+        p["verdict"] for ln, lp in lenses.items() if ln != "ppi" for p in lp if p.get("verdict") in _HEADLINE_ORDER
+    ]
     return min(verdicts, key=lambda v: _HEADLINE_ORDER[v]) if verdicts else "no_node_set"
 
 
@@ -353,25 +375,35 @@ def read_node_leverage(target: str, indication: Optional[str] = None) -> dict:
     lineage = INDICATION_LINEAGE.get(indication) if indication else None
     try:
         model_ids = _model_ids_for_lineage(lineage)
-        scope = ("within_indication_lineage" if model_ids else
-                 ("pan_lineage_thin_cohort" if lineage else "pan_lineage_no_indication"))
+        scope = (
+            "within_indication_lineage"
+            if model_ids
+            else ("pan_lineage_thin_cohort" if lineage else "pan_lineage_no_indication")
+        )
         lenses = {}
-        for lens_name, node_sets in (("complex", _complex_node_sets(target)),
-                                     ("pathway", _pathway_node_sets(target)),
-                                     ("ppi", _ppi_node_sets(target))):
-            per = [{"node_set": ns["name"], "n_members": len(ns["members"]),
-                    **_classify(target, _stats(ns["members"], target, model_ids))} for ns in node_sets]
+        for lens_name, node_sets in (
+            ("complex", _complex_node_sets(target)),
+            ("pathway", _pathway_node_sets(target)),
+            ("ppi", _ppi_node_sets(target)),
+        ):
+            per = [
+                {
+                    "node_set": ns["name"],
+                    "n_members": len(ns["members"]),
+                    **_classify(target, _stats(ns["members"], target, model_ids)),
+                }
+                for ns in node_sets
+            ]
             lenses[lens_name] = per
     except ImportError:
         raise
     except Exception as e:
-        return {"node_leverage_class": "data_unavailable",
-                "_live_read_error": f"{type(e).__name__}: {e}"}
+        return {"node_leverage_class": "data_unavailable", "_live_read_error": f"{type(e).__name__}: {e}"}
 
     headline = _headline_class(lenses)
     buffering = _paralog_buffering(target)
     return {
-        "node_leverage_class": headline,          # soft, verdict-inert context (no veto, no certainty lift)
+        "node_leverage_class": headline,  # soft, verdict-inert context (no veto, no certainty lift)
         "evidence_scope": scope,
         # paralog/combinatorial correction (spec §6): a buffered target's single-KO leverage UNDERSTATES
         # its dependency — qualifies node_leverage_class (esp. a buffered weak_and_uncontested/dominated
@@ -381,22 +413,24 @@ def read_node_leverage(target: str, indication: Optional[str] = None) -> dict:
         "single_ko_leverage_understated": buffering["single_ko_leverage_understated"],
         "lenses": lenses,
         "_method_version": METHOD_VERSION,
-        "_caveats": ["SOFT context: no veto, never raises certainty",
-                     "complex (CORUM) lens is the robust one; pathway-lens node-set selection is a "
-                     "HEURISTIC (C2.CP-preferred, size-banded) over many-to-many gene<->set membership "
-                     "— judge the selected node_set NAME for relevance",
-                     "ppi lens (BioGRID physical interactors, top-N by publications) is REPORT-ONLY — "
-                     "surfaced for inspection but EXCLUDED from the headline (an interaction hairball "
-                     "under worst-across-lenses aggregation would inflate 'dominated'); fail-soft",
-                     "no directed acts-through check (SIGNOR/OmniPath) — DEFERRED, and not yet needed: "
-                     "this method makes a relative fitness-rank comparison, NOT a directional "
-                     "'X acts through Y' claim, so there is no directional assertion to ground yet",
-                     "paralog/combinatorial correction: single_ko_leverage_understated flags when the "
-                     "target is paralog-BUFFERED (strong/partial, from the dual-KO buffering product) — "
-                     "its single-KO Chronos, hence its leverage verdict, UNDERSTATES its dependency; a "
-                     "buffered weak_and_uncontested/dominated call is a candidate false-negative masked "
-                     "by redundancy (assess dual-KO / combinatorial leverage). Additive, fail-soft. NOTE "
-                     "the paralog-MEDIATED-effector case (target whose PARALOG sits in the effector "
-                     "pathway, e.g. MARK2 via MARK3) is surfaced as this buffering flag, not as a "
-                     "node-set membership edge (which the pinned lenses cannot ground)"],
+        "_caveats": [
+            "SOFT context: no veto, never raises certainty",
+            "complex (CORUM) lens is the robust one; pathway-lens node-set selection is a "
+            "HEURISTIC (C2.CP-preferred, size-banded) over many-to-many gene<->set membership "
+            "— judge the selected node_set NAME for relevance",
+            "ppi lens (BioGRID physical interactors, top-N by publications) is REPORT-ONLY — "
+            "surfaced for inspection but EXCLUDED from the headline (an interaction hairball "
+            "under worst-across-lenses aggregation would inflate 'dominated'); fail-soft",
+            "no directed acts-through check (SIGNOR/OmniPath) — DEFERRED, and not yet needed: "
+            "this method makes a relative fitness-rank comparison, NOT a directional "
+            "'X acts through Y' claim, so there is no directional assertion to ground yet",
+            "paralog/combinatorial correction: single_ko_leverage_understated flags when the "
+            "target is paralog-BUFFERED (strong/partial, from the dual-KO buffering product) — "
+            "its single-KO Chronos, hence its leverage verdict, UNDERSTATES its dependency; a "
+            "buffered weak_and_uncontested/dominated call is a candidate false-negative masked "
+            "by redundancy (assess dual-KO / combinatorial leverage). Additive, fail-soft. NOTE "
+            "the paralog-MEDIATED-effector case (target whose PARALOG sits in the effector "
+            "pathway, e.g. MARK2 via MARK3) is surfaced as this buffering flag, not as a "
+            "node-set membership edge (which the pinned lenses cannot ground)",
+        ],
     }

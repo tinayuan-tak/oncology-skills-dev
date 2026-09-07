@@ -3,6 +3,7 @@
 No S3: the three per-cohort count readers are monkeypatched with in-memory {gene: (n_mut, n_cov)} dicts,
 so the summed-counts/summed-coverage pooling + percentile ranking + cohort provenance are exercised
 entirely on fixtures."""
+
 from __future__ import annotations
 
 import methods.pooled_snv_recurrence.read as pr
@@ -12,7 +13,7 @@ import methods.pooled_snv_recurrence.read as pr
 def test_pool_sums_counts_and_tracks_cohorts():
     per_cohort = {
         "TCGA-MC3": {"KRAS": (100, 500), "TP53": (200, 500)},
-        "GENIE":    {"KRAS": (300, 1000), "APC": (40, 900)},
+        "GENIE": {"KRAS": (300, 1000), "APC": (40, 900)},
         "MSK-CHORD": {"KRAS": (150, 600)},
     }
     pooled = pr.pool_gene_counts(per_cohort)

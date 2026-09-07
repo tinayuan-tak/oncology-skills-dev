@@ -4,6 +4,7 @@ The per-reader _load_product wrappers monkeypatch _load_product itself, so they 
 this helper — these tests cover its two behavior contracts directly: dev-build fallback (the
 progeny/stemness/oncogenic/pancanatlas/precog shape) vs raise-on-empty (the tcga_mc3 shape).
 """
+
 from __future__ import annotations
 
 import io
@@ -24,6 +25,7 @@ def _parquet_bytes(df: pd.DataFrame) -> bytes:
 def _fake_run(stdout: bytes):
     def run(*args, **kwargs):
         return types.SimpleNamespace(stdout=stdout)
+
     return run
 
 
@@ -50,6 +52,7 @@ def test_empty_without_dev_build_raises(monkeypatch):
 def test_subprocess_error_with_dev_build_falls_back(monkeypatch):
     def boom(*a, **k):
         raise OSError("aws cli missing")
+
     monkeypatch.setattr(dp.subprocess, "run", boom)
     sentinel = pd.DataFrame({"built": [2]})
     out = dp.load_materialized_product("s3://bucket/key.parquet", dev_build=lambda: sentinel)
@@ -59,6 +62,7 @@ def test_subprocess_error_with_dev_build_falls_back(monkeypatch):
 def test_subprocess_error_without_dev_build_reraises(monkeypatch):
     def boom(*a, **k):
         raise OSError("aws cli missing")
+
     monkeypatch.setattr(dp.subprocess, "run", boom)
     with pytest.raises(OSError):
         dp.load_materialized_product("s3://bucket/key.parquet")

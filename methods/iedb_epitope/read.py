@@ -13,6 +13,7 @@ context; moves no verdict).
 Entrypoint: read_target_summary(target, indication=None) — invoked by the skills generic dispatcher via
 the card's `methods: module: iedb_epitope, entrypoint: read_target_summary` declaration.
 """
+
 from __future__ import annotations
 
 from functools import lru_cache
@@ -32,7 +33,8 @@ METHOD_VERSION = "1.0.0"
 def _read_parquet(bucket, key):
     import pyarrow.parquet as pq
     import pyarrow.fs as fs
-    s3fs = fs.S3FileSystem(region="us-east-1")   # default cred chain honors AWS_PROFILE=cbg
+
+    s3fs = fs.S3FileSystem(region="us-east-1")  # default cred chain honors AWS_PROFILE=cbg
     return pq.read_table(f"{bucket}/{key}", filesystem=s3fs)
 
 
@@ -42,6 +44,7 @@ def _symbol_to_ac() -> dict:
     still works). A transient/creds/broken-env failure is RE-RAISED — not masked as an empty map that
     @lru_cache would then memoize process-wide (one blip -> every symbol unresolvable for the process)."""
     from methods.target_id_sidecar import is_definitively_absent
+
     try:
         df = _read_parquet(S3_BUCKET, SIDECAR_KEY).to_pandas()
     except Exception as e:  # noqa: BLE001
@@ -57,7 +60,8 @@ def _symbol_to_ac() -> dict:
         # product, NOT a data gap — raise (do not memoize an empty map). Mirrors pmhc_presentation.
         raise ValueError(
             f"IEDB resolver sidecar s3://{S3_BUCKET}/{SIDECAR_KEY} missing expected columns "
-            f"{sym_col!r}/{ac_col!r} (present: {list(df.columns)[:10]}) — schema drift")
+            f"{sym_col!r}/{ac_col!r} (present: {list(df.columns)[:10]}) — schema drift"
+        )
     out = {}
     for sym, ac in zip(df[sym_col], df[ac_col]):
         if sym is not None and ac is not None and str(sym).strip() and str(sym) != "nan":
@@ -86,16 +90,17 @@ def _row_for_ac(ac: str) -> Optional[dict]:
     data_unavailable). A transient/creds/broken-env failure is RE-RAISED, so @lru_cache does NOT
     memoize the failure — otherwise one blip would pin this AC to UNREADABLE for the whole process."""
     from methods.target_id_sidecar import is_definitively_absent
+
     try:
         import pyarrow.parquet as pq
         import pyarrow.fs as fs
+
         s3fs = fs.S3FileSystem(region="us-east-1")
-        tbl = pq.read_table(f"{S3_BUCKET}/{PAYLOAD_KEY}", filesystem=s3fs,
-                            filters=[("uniprot_id", "==", ac)])
+        tbl = pq.read_table(f"{S3_BUCKET}/{PAYLOAD_KEY}", filesystem=s3fs, filters=[("uniprot_id", "==", ac)])
     except Exception as e:  # noqa: BLE001
         if not (is_definitively_absent(e) or isinstance(e, FileNotFoundError)):
             raise
-        return "UNREADABLE"   # genuine product absence -> data_unavailable (stable; memoization ok)
+        return "UNREADABLE"  # genuine product absence -> data_unavailable (stable; memoization ok)
     df = tbl.to_pandas()
     if df.empty:
         return None
@@ -121,7 +126,7 @@ def read_target_summary(target: str, indication: str = None) -> dict:
         out["epitope_evidence_class"] = "data_unavailable"
         out["_live_read_error"] = "iedb_epitope_read_failed"
     else:
-        out = _classify.summarize_epitope(row)   # row=None -> not_observed (weak-negative)
+        out = _classify.summarize_epitope(row)  # row=None -> not_observed (weak-negative)
     out["uniprot_ac"] = ac
     out["method_version"] = METHOD_VERSION
     out["_data_source"] = DERIVED_MANIFEST_ID

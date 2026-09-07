@@ -1,4 +1,5 @@
 """Subtype-stratified CPTAC tumor-protein distribution reader + panorama composer."""
+
 from __future__ import annotations
 
 from typing import Optional
@@ -6,8 +7,7 @@ from typing import Optional
 import numpy as np
 
 from methods.subgroup_common.iteration import subgroup_iterable
-from methods.subgroup_common.panorama import (build_panorama, evidence_state, axis_quality,
-                                              SUBGROUP_N_FLOOR)
+from methods.subgroup_common.panorama import build_panorama, evidence_state, axis_quality, SUBGROUP_N_FLOOR
 
 # indication -> the landed CPTAC subgroup-assignment shard. COADREAD only today (MSI_H/MSS from
 # MMR-IHC). Absent -> subtype_axis_available:false (honest), mirroring the RNA-subtype allowlist.
@@ -36,8 +36,9 @@ def _protein_class(median: Optional[float]) -> str:
 
 
 @subgroup_iterable
-def read_stratified_protein(target: str, indication: str, *,
-                            _sample_id_filter=None, cohort: Optional[str] = None) -> dict:
+def read_stratified_protein(
+    target: str, indication: str, *, _sample_id_filter=None, cohort: Optional[str] = None
+) -> dict:
     """Per-subgroup CPTAC tumor-protein distribution of `target` across the stratum's member aliquots.
 
     The CPTAC-protein analogue of depmap_expression_distribution.read_stratified_expression. Reads the
@@ -45,12 +46,20 @@ def read_stratified_protein(target: str, indication: str, *,
     indication's cohort + tumor condition, and intersects with the stratum's member aliquots via
     `_sample_id_filter` (the CPTAC assignment shard). DESCRIPTIVE — no signal, no verdict."""
     from methods.cptac_protein_deg.read import read_per_sample
+
     cohort = cohort or INDICATION_TO_CPTAC_COHORT.get(indication.upper().strip())
     df = read_per_sample(target)
-    empty = {"target": target, "indication": indication, "subgroup_n": 0,
-             "median_log2_ratio": None, "detectable_fraction": None,
-             "subgroup_n_floor_met": False, "evidence_state": "absent",
-             "protein_class": "insufficient", "source_cohort": f"CPTAC-{cohort}"}
+    empty = {
+        "target": target,
+        "indication": indication,
+        "subgroup_n": 0,
+        "median_log2_ratio": None,
+        "detectable_fraction": None,
+        "subgroup_n_floor_met": False,
+        "evidence_state": "absent",
+        "protein_class": "insufficient",
+        "source_cohort": f"CPTAC-{cohort}",
+    }
     if df is None or df.empty or cohort is None:
         return empty
     df = df[df["cohort"].astype(str).str.upper() == cohort]
@@ -65,7 +74,9 @@ def read_stratified_protein(target: str, indication: str, *,
     median = float(np.median(vals))
     floor_met = n >= SUBGROUP_N_FLOOR
     return {
-        "target": target, "indication": indication, "subgroup_n": n,
+        "target": target,
+        "indication": indication,
+        "subgroup_n": n,
         "median_log2_ratio": round(median, 4),
         "detectable_fraction": round(float(np.isfinite(vals).mean()), 4),
         "subgroup_n_floor_met": floor_met,
@@ -121,14 +132,17 @@ def _subtype_rollup(records: list, pooled_median: Optional[float]) -> dict:
         "n_subtypes_enriched": n_enr,
         "n_subtypes_depleted": n_dep,
         "subtype_stratification_class": strat,
-        "pooled_cohort_median_log2_ratio": (round(pooled_median, 4)
-                                            if pooled_median is not None else None),
+        "pooled_cohort_median_log2_ratio": (round(pooled_median, 4) if pooled_median is not None else None),
     }
 
 
-def build_protein_subtype_panorama(target: str, indication: str, subgroups: list,
-                                   subgroup_assignments_manifest: Optional[str] = None,
-                                   subgroup_catalog_repo=None) -> dict:
+def build_protein_subtype_panorama(
+    target: str,
+    indication: str,
+    subgroups: list,
+    subgroup_assignments_manifest: Optional[str] = None,
+    subgroup_catalog_repo=None,
+) -> dict:
     """Assemble the tumor-protein-distribution-by-subtype panorama. Thin call into build_panorama
     (same composer as the RNA subtype + dependency panoramas). Honest subtype_axis_available:false
     when the indication has no landed CPTAC assignment shard."""
@@ -136,20 +150,29 @@ def build_protein_subtype_panorama(target: str, indication: str, subgroups: list
     manifest = subgroup_assignments_manifest or INDICATION_TO_CPTAC_ASSIGNMENT_MANIFEST.get(ind)
     cohort = INDICATION_TO_CPTAC_COHORT.get(ind)
     if manifest is None:
-        return {"target": target, "indication": indication, "per_subgroup_metrics": [],
-                "subtype_axis_available": False, "subtype_axis_quality": "unavailable",
-                "n_subtypes_measured": 0, "n_subtypes_enriched": 0, "n_subtypes_depleted": 0,
-                "subtype_stratification_class": "subtype_axis_unavailable",
-                "_subtype_note": "no landed CPTAC subgroup-assignment shard for this indication"}
+        return {
+            "target": target,
+            "indication": indication,
+            "per_subgroup_metrics": [],
+            "subtype_axis_available": False,
+            "subtype_axis_quality": "unavailable",
+            "n_subtypes_measured": 0,
+            "n_subtypes_enriched": 0,
+            "n_subtypes_depleted": 0,
+            "subtype_stratification_class": "subtype_axis_unavailable",
+            "_subtype_note": "no landed CPTAC subgroup-assignment shard for this indication",
+        }
     # pooled cohort median (the enrichment baseline) — all tumor aliquots, no stratum filter
     pooled_rec = read_stratified_protein(target, indication, cohort=cohort)
     pooled_median = pooled_rec.get("median_log2_ratio")
     panorama = build_panorama(
         read_stratified_protein,
-        target=target, indication=indication, subgroups=subgroups,
+        target=target,
+        indication=indication,
+        subgroups=subgroups,
         subgroup_assignments_manifest=manifest,
         record_projection=_protein_projection,
-        reducer=lambda records: {},          # rollup applied below (needs the pooled baseline)
+        reducer=lambda records: {},  # rollup applied below (needs the pooled baseline)
         subgroup_catalog_repo=subgroup_catalog_repo,
         reader_kwargs={"cohort": cohort},
     )

@@ -2,6 +2,7 @@
 
 Properties: the aggregator's drug-set intersection + highest-stage/approved/failure derivation, and
 the coverage-gap paths (no mesh_terms lane -> insufficient; no engaging drug -> no_known_agent)."""
+
 from __future__ import annotations
 
 import importlib
@@ -16,19 +17,27 @@ r = importlib.import_module("methods.aact_clinical_precedent.read")
 
 
 def _row(cond, drug, phase="PHASE2", n_trials=3, n_active=1, n_terminated=0, itype="DRUG", ncts="NCT1"):
-    return {"condition_mesh_term": cond, "intervention_name_norm": drug, "highest_phase": phase,
-            "n_trials": n_trials, "n_active": n_active, "n_terminated": n_terminated,
-            "intervention_type": itype, "example_nct_ids": ncts}
+    return {
+        "condition_mesh_term": cond,
+        "intervention_name_norm": drug,
+        "highest_phase": phase,
+        "n_trials": n_trials,
+        "n_active": n_active,
+        "n_terminated": n_terminated,
+        "intervention_type": itype,
+        "example_nct_ids": ncts,
+    }
 
 
 def test_approved_agent_gives_approved_stage():
-    rows = [_row("breast neoplasms", "trastuzumab", phase="PHASE4", n_active=5),
-            _row("breast neoplasms", "some-experimental", phase="PHASE1")]
-    out = r.aggregate_precedent(rows, drug_set={"trastuzumab", "some-experimental"},
-                                approved_drugs={"trastuzumab"})
+    rows = [
+        _row("breast neoplasms", "trastuzumab", phase="PHASE4", n_active=5),
+        _row("breast neoplasms", "some-experimental", phase="PHASE1"),
+    ]
+    out = r.aggregate_precedent(rows, drug_set={"trastuzumab", "some-experimental"}, approved_drugs={"trastuzumab"})
     assert out["highest_clinical_stage"] == "approved"
     assert out["approved_agents"] == ["trastuzumab"]
-    assert out["n_active_trials"] == 6   # 5 (trastuzumab) + 1 (some-experimental default)
+    assert out["n_active_trials"] == 6  # 5 (trastuzumab) + 1 (some-experimental default)
     assert out["clinical_precedent_class"] == "trial_precedent_present"
 
 
@@ -41,16 +50,20 @@ def test_phase_mapping_without_approval():
 
 
 def test_notable_failures_from_terminated():
-    rows = [_row("melanoma", "failed-drug", phase="PHASE2", n_terminated=4),
-            _row("melanoma", "ok-drug", phase="PHASE3", n_terminated=0)]
+    rows = [
+        _row("melanoma", "failed-drug", phase="PHASE2", n_terminated=4),
+        _row("melanoma", "ok-drug", phase="PHASE3", n_terminated=0),
+    ]
     out = r.aggregate_precedent(rows, {"failed-drug", "ok-drug"}, set())
     assert out["notable_failures"] == ["failed-drug"]
 
 
 def test_drug_set_intersection_excludes_nonengaging_drugs():
     """A trial-precedent row for a drug that does NOT engage the target is excluded."""
-    rows = [_row("melanoma", "pembrolizumab", phase="PHASE4"),   # engages PDCD1, not our target
-            _row("melanoma", "vemurafenib", phase="PHASE3")]      # engages BRAF (our target)
+    rows = [
+        _row("melanoma", "pembrolizumab", phase="PHASE4"),  # engages PDCD1, not our target
+        _row("melanoma", "vemurafenib", phase="PHASE3"),
+    ]  # engages BRAF (our target)
     out = r.aggregate_precedent(rows, drug_set={"vemurafenib"}, approved_drugs=set())
     assert out["n_agents_engaging_target"] == 1
     assert out["highest_clinical_stage"] == "phase_3"
@@ -80,6 +93,7 @@ def test_crosswalk_loader_reads_mesh_terms(monkeypatch, tmp_path):
     vocab = tmp_path / "vocabularies"
     vocab.mkdir()
     (vocab / "indication_crosswalk.yaml").write_text(
-        "indications:\n  - canonical_code: COADREAD\n    mesh_terms: [\"colorectal neoplasms\"]\n")
+        'indications:\n  - canonical_code: COADREAD\n    mesh_terms: ["colorectal neoplasms"]\n'
+    )
     monkeypatch.setattr(r, "TARGET_CONTRACTS", tmp_path)
     assert r._indication_mesh_terms("coadread") == ["colorectal neoplasms"]

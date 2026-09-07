@@ -7,6 +7,7 @@ Now: a disk cache (download once/machine) + an lru_cache on the parsed default f
   - the lru default read parses once (second call reuses) — mocked so no S3.
 No live S3: the default S3 path is exercised via a monkeypatched _ensure_hpa_cached + a temp zip.
 """
+
 from __future__ import annotations
 
 import importlib
@@ -42,8 +43,9 @@ def test_override_path_reads_and_is_not_cached(tmp_path):
     assert list(df1.columns) == [cli.HPA_GENE_COL, cli.HPA_DIST_COL, cli.HPA_SPEC_COL, cli.HPA_INTENSITY_COL]
     assert df1.iloc[0][cli.HPA_GENE_COL] == "KRAS"
     # a DIFFERENT override path returns different data (override is not lru-cached)
-    z2 = _write_hpa_zip(tmp_path / "d2" if (tmp_path / "d2").mkdir() or True else tmp_path,
-                        [["EGFR", "Detected in many", "x", ""]])
+    z2 = _write_hpa_zip(
+        tmp_path / "d2" if (tmp_path / "d2").mkdir() or True else tmp_path, [["EGFR", "Detected in many", "x", ""]]
+    )
     df2 = cli._read_hpa(hpa_path=z2)
     assert df2.iloc[0][cli.HPA_GENE_COL] == "EGFR"
 
@@ -61,8 +63,8 @@ def test_default_path_lru_parses_once(tmp_path, monkeypatch):
         return orig(zip_path, cols)
 
     monkeypatch.setattr(cli, "_read_zip_cols", _counting)
-    a = cli._read_hpa()   # cold -> parse
-    b = cli._read_hpa()   # lru reuse -> no parse
+    a = cli._read_hpa()  # cold -> parse
+    b = cli._read_hpa()  # lru reuse -> no parse
     assert calls["n"] == 1, "default read must parse the zip only once (lru)"
     # returns a COPY (callers can mutate without corrupting the cached frame)
     a.loc[0, cli.HPA_GENE_COL] = "MUTATED"
@@ -76,7 +78,9 @@ def test_ensure_hpa_cached_hits_existing_disk_file(tmp_path, monkeypatch):
     z = tmp_path / "proteinatlas.tsv.zip"
     monkeypatch.setattr(cli, "HPA_CACHE_ZIP", z)
     _write_hpa_zip(tmp_path, [["KRAS", "Detected in all", "y", ""]])  # writes proteinatlas.tsv.zip
+
     def _boom(*a, **k):
         raise AssertionError("must not download when disk cache exists")
+
     monkeypatch.setattr(cli, "ensure_aws_profile", _boom)
     assert cli._ensure_hpa_cached() == z

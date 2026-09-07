@@ -41,6 +41,7 @@ Returns:
       },
     }
 """
+
 from __future__ import annotations
 
 import sys
@@ -106,11 +107,13 @@ def _merge_edge(existing: dict, new_edge: dict, new_source: str) -> dict:
     # different moa_class than the first-seen edge, we keep the first-seen
     # class as authoritative but flag disagreement in _class_disagreement.
     if new_edge.get("moa_class") and existing.get("moa_class") != new_edge["moa_class"]:
-        existing.setdefault("_class_disagreement", []).append({
-            "source": new_source,
-            "moa_class": new_edge["moa_class"],
-            "raw_mechanism": new_edge.get("raw_mechanism", ""),
-        })
+        existing.setdefault("_class_disagreement", []).append(
+            {
+                "source": new_source,
+                "moa_class": new_edge["moa_class"],
+                "raw_mechanism": new_edge.get("raw_mechanism", ""),
+            }
+        )
     # Fill in AC if the new edge has it and existing doesn't
     if new_edge.get("partner_uniprot_ac") and not existing.get("partner_uniprot_ac"):
         existing["partner_uniprot_ac"] = new_edge["partner_uniprot_ac"]
@@ -196,16 +199,18 @@ def read_target_summary(target: str, indication: str = None) -> dict:
         if signor_result.get("network_class") not in (None, "data_unavailable"):
             sources_wired.append(SOURCE_KEY_SIGNOR)
     except Exception as e:
-        signor_result = {"_data_note": f"signor_failed: {e}",
-                          "upstream_regulators": [], "downstream_effectors": []}
+        signor_result = {"_data_note": f"signor_failed: {e}", "upstream_regulators": [], "downstream_effectors": []}
 
     try:
         collectri_result = collectri_read.read_target_summary(target, indication)
         if collectri_result.get("network_class") not in (None, "data_unavailable"):
             sources_wired.append(SOURCE_KEY_COLLECTRI)
     except Exception as e:
-        collectri_result = {"_data_note": f"collectri_failed: {e}",
-                             "upstream_regulators": [], "downstream_effectors": []}
+        collectri_result = {
+            "_data_note": f"collectri_failed: {e}",
+            "upstream_regulators": [],
+            "downstream_effectors": [],
+        }
 
     try:
         reactome_result = reactome_read.read_target_summary(target, indication)
@@ -221,8 +226,11 @@ def read_target_summary(target: str, indication: str = None) -> dict:
         if kinome_atlas_result.get("network_class") not in (None, "data_unavailable"):
             sources_wired.append(SOURCE_KEY_KINOME_ATLAS)
     except Exception as e:
-        kinome_atlas_result = {"_data_note": f"kinome_atlas_failed: {e}",
-                                "upstream_regulators": [], "downstream_effectors": []}
+        kinome_atlas_result = {
+            "_data_note": f"kinome_atlas_failed: {e}",
+            "upstream_regulators": [],
+            "downstream_effectors": [],
+        }
 
     # Sprint 4 (2026-08-10): DepMap co-essentiality lane — functional dependency
     # evidence (correlated CRISPR profiles across 1,538 cell lines). Kept separate
@@ -230,9 +238,7 @@ def read_target_summary(target: str, indication: str = None) -> dict:
     # anti-correlated dependency (buffering / SL candidate direction).
     coessentiality_result: dict = {}
     try:
-        coessentiality_result = coessentiality_read.read_coessential_partners(
-            target, top_n=25
-        )
+        coessentiality_result = coessentiality_read.read_coessential_partners(target, top_n=25)
         if not coessentiality_result.get("_data_unavailable"):
             sources_wired.append(SOURCE_KEY_COESSENTIALITY)
     except Exception as e:
@@ -261,16 +267,11 @@ def read_target_summary(target: str, indication: str = None) -> dict:
     network_class = _classify_network(n_up, n_dn)
 
     # High-confidence edges = edges supported by >=2 sources
-    high_conf_edges = sum(
-        1 for e in (union_upstream + union_downstream)
-        if e.get("n_sources_supporting", 1) >= 2
-    )
+    high_conf_edges = sum(1 for e in (union_upstream + union_downstream) if e.get("n_sources_supporting", 1) >= 2)
 
     # MoA classes aggregated across the union
-    moa_classes_present = sorted({e.get("moa_class") for e in union_upstream
-                                    if e.get("moa_class")})
-    pd_classes_present = sorted({e.get("moa_class") for e in union_downstream
-                                   if e.get("moa_class")})
+    moa_classes_present = sorted({e.get("moa_class") for e in union_upstream if e.get("moa_class")})
+    pd_classes_present = sorted({e.get("moa_class") for e in union_downstream if e.get("moa_class")})
 
     # Aggregated unmapped fraction (weighted)
     signor_total_edges = len(signor_up) + len(signor_dn)
@@ -279,9 +280,7 @@ def read_target_summary(target: str, indication: str = None) -> dict:
     signor_frac = signor_result.get("moa_ontology_unmapped_fraction", 0.0) or 0.0
     collectri_frac = collectri_result.get("moa_ontology_unmapped_fraction", 0.0) or 0.0
     if total > 0:
-        unmapped_frac = (
-            signor_frac * signor_total_edges + collectri_frac * collectri_total_edges
-        ) / total
+        unmapped_frac = (signor_frac * signor_total_edges + collectri_frac * collectri_total_edges) / total
     else:
         unmapped_frac = 0.0
 

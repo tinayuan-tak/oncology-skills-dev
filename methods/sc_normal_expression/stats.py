@@ -16,6 +16,7 @@ Both HIGH thresholds must be met (AND): requiring BOTH magnitude and consistency
 high-variance gene in one small-n donor from triggering a killer rule. MODERATE uses OR:
 either consistent detection or high fraction is enough to warrant a safety flag.
 """
+
 from __future__ import annotations
 
 import re
@@ -54,7 +55,7 @@ SAFETY_ESSENTIAL_CELL_TYPE_PREFIXES = (
     "kidney proximal tubule",
     "kidney collecting duct",
     "kidney loop of henle",
-    "pneumocyte",       # alveolar type I/II
+    "pneumocyte",  # alveolar type I/II
     "alveolar type",
     "enterocyte",
     "colonocyte",
@@ -65,8 +66,8 @@ SAFETY_ESSENTIAL_CELL_TYPE_PREFIXES = (
     # CNS neurons; adrenal cortical/medullary + chromaffin were previously unflagged).
     "astrocyte",
     "oligodendrocyte",
-    "adrenal",           # adrenal cortical / gland cells
-    "chromaffin",        # adrenal medulla
+    "adrenal",  # adrenal cortical / gland cells
+    "chromaffin",  # adrenal medulla
     # --- W3b (2026-09-04, backtest-gated): essential cell types the always-on shards contained but
     # no prefix matched — so the veto silently under-called them. Labels are the RAW Census Cell
     # Ontology strings actually present in the shards (verified via a reader-level probe); a naive
@@ -78,11 +79,11 @@ SAFETY_ESSENTIAL_CELL_TYPE_PREFIXES = (
     # endocrine islet cells (α/δ/PP/ε) round out the functional unit. A β-restricted target (e.g.
     # SLC30A8/INS/IAPP) now correctly flips to critical_organ_liability for a NON-pancreatic
     # indication (origin_tissue_liability for PAAD, where the islet is on-tissue).
-    "type b pancreatic cell",       # β-cell (insulin) — CL:0000169
-    "pancreatic a cell",            # α-cell (glucagon)
-    "pancreatic d cell",            # δ-cell (somatostatin)
-    "pancreatic pp cell",           # PP/γ-cell (pancreatic polypeptide)
-    "pancreatic epsilon cell",      # ε-cell (ghrelin)
+    "type b pancreatic cell",  # β-cell (insulin) — CL:0000169
+    "pancreatic a cell",  # α-cell (glucagon)
+    "pancreatic d cell",  # δ-cell (somatostatin)
+    "pancreatic pp cell",  # PP/γ-cell (pancreatic polypeptide)
+    "pancreatic epsilon cell",  # ε-cell (ghrelin)
     # Kidney PODOCYTE — glomerular filtration barrier; loss → proteinuria/nephrotic syndrome
     # (well replicated: n_datasets_reliable=17 in the kidney shard).
     "podocyte",
@@ -184,7 +185,7 @@ def classify_sc_normal_expression(rows: pd.DataFrame, origin_tissues=None) -> di
     _e_abund_col = "median_abund" if "median_abund" in reliable.columns else None
     _e_frac = frac_col in reliable.columns
     origin = {str(t).lower().strip() for t in (origin_tissues or [])}
-    essential_off_origin = False   # a hit in a critical organ that is NOT the tumor's tissue-of-origin
+    essential_off_origin = False  # a hit in a critical organ that is NOT the tumor's tissue-of-origin
     essential_origin_only = False  # essential hits, but ALL in the tissue-of-origin
     # Per-essential-cell records so the veto's NAMED driver (organ/cell/detection/atlas-count) can be
     # surfaced downstream — the pooled max_detection_cell_type below is the argmax over ALL cell types
@@ -205,21 +206,25 @@ def classify_sc_normal_expression(rows: pd.DataFrame, origin_tissues=None) -> di
                 essential_off_origin = True
             # else: off-origin but sub-floor (0.05–0.20) → recorded in flags/records for transparency,
             # does NOT flip to critical_organ_liability (marginal single-atlas / ambient-noise band).
-            essential_records.append({
-                "cell_type": str(row["cell_type"]),
-                "tissue": str(row["tissue"]) if has_tissue else None,
-                "median_detection_fraction": det_val,
-                "expressing_donor_fraction": float(row[frac_col]) if _e_frac else None,
-                "n_datasets_reliable": int(row["n_datasets_reliable"]) if has_datasets else None,
-                "median_abund": float(row[_e_abund_col])
-                                if _e_abund_col is not None and pd.notna(row[_e_abund_col]) else None,
-                "is_off_origin": not is_origin,
-            })
+            essential_records.append(
+                {
+                    "cell_type": str(row["cell_type"]),
+                    "tissue": str(row["tissue"]) if has_tissue else None,
+                    "median_detection_fraction": det_val,
+                    "expressing_donor_fraction": float(row[frac_col]) if _e_frac else None,
+                    "n_datasets_reliable": int(row["n_datasets_reliable"]) if has_datasets else None,
+                    "median_abund": float(row[_e_abund_col])
+                    if _e_abund_col is not None and pd.notna(row[_e_abund_col])
+                    else None,
+                    "is_off_origin": not is_origin,
+                }
+            )
 
     # --- Liability classification ---
     # HIGH: any cell type exceeds both magnitude AND consistency thresholds (AND gate)
-    high_mask = (reliable[det_col] > HIGH_LIABILITY_DET_THRESHOLD) & \
-                (reliable[frac_col] > HIGH_LIABILITY_DONOR_FRACTION)
+    high_mask = (reliable[det_col] > HIGH_LIABILITY_DET_THRESHOLD) & (
+        reliable[frac_col] > HIGH_LIABILITY_DONOR_FRACTION
+    )
     if high_mask.any():
         liability = "HIGH_LIABILITY"
         # Report the triggering cell type (highest det among AND-gate passers), not the
@@ -227,8 +232,7 @@ def classify_sc_normal_expression(rows: pd.DataFrame, origin_tissues=None) -> di
         # cell at det=0.55/frac=0.80 that actually fired the HIGH rule.
         anchor_rows = reliable[high_mask]
         anchor_row = anchor_rows.loc[anchor_rows[det_col].idxmax()]
-    elif (reliable[det_col] > MODERATE_LIABILITY_DET).any() or \
-         (reliable[frac_col] > MODERATE_DONOR_FRACTION).any():
+    elif (reliable[det_col] > MODERATE_LIABILITY_DET).any() or (reliable[frac_col] > MODERATE_DONOR_FRACTION).any():
         liability = "MODERATE_LIABILITY"
         anchor_row = reliable.loc[reliable[det_col].idxmax()]
     elif (reliable[det_col] > NOT_EXPRESSED_CEILING).any():
@@ -245,8 +249,7 @@ def classify_sc_normal_expression(rows: pd.DataFrame, origin_tissues=None) -> di
     # #984 Tier-2: ABUNDANCE at the liability-anchor cell type — how MUCH the target is expressed in the
     # normal cell that drives the liability, not just whether it is detected. Tissue-robust fixed bands.
     _abund_col = "median_abund" if "median_abund" in reliable.columns else None
-    peak_abund = (float(anchor_row[_abund_col])
-                  if _abund_col is not None and pd.notna(anchor_row[_abund_col]) else None)
+    peak_abund = float(anchor_row[_abund_col]) if _abund_col is not None and pd.notna(anchor_row[_abund_col]) else None
     if peak_abund is None:
         abundance_class = "data_unavailable"
     elif peak_abund >= NORMAL_ABUND_HIGH:
@@ -265,14 +268,16 @@ def classify_sc_normal_expression(rows: pd.DataFrame, origin_tissues=None) -> di
     # sub-floor off-origin hits), name nothing. This lets the verdict/headline say "kidney proximal tubule,
     # 3 atlases" instead of an anonymous flag — and never names a sub-floor hit that did not move the class.
     if essential_off_origin:
-        _driver_pool = [e for e in essential_records
-                        if e["is_off_origin"] and e["median_detection_fraction"] > CRITICAL_ORGAN_OFF_ORIGIN_DET_FLOOR]
+        _driver_pool = [
+            e
+            for e in essential_records
+            if e["is_off_origin"] and e["median_detection_fraction"] > CRITICAL_ORGAN_OFF_ORIGIN_DET_FLOOR
+        ]
     elif essential_origin_only:
         _driver_pool = essential_records
     else:
         _driver_pool = []
-    essential_driver = (max(_driver_pool, key=lambda e: e["median_detection_fraction"])
-                        if _driver_pool else None)
+    essential_driver = max(_driver_pool, key=lambda e: e["median_detection_fraction"]) if _driver_pool else None
 
     # Normal cell-type DETECTION CEILING across ALL reliable cell types — the honest denominator for a
     # single-cell tumor-vs-normal WINDOW (the positive use of the atlas, not only the safety veto). This
@@ -289,20 +294,23 @@ def classify_sc_normal_expression(rows: pd.DataFrame, origin_tissues=None) -> di
     _has_datasets = "n_datasets_reliable" in reliable.columns
     per_cell_type_top = []
     for _, r in reliable.sort_values(det_col, ascending=False).head(15).iterrows():
-        per_cell_type_top.append({
-            "cell_type": str(r["cell_type"]),
-            "tissue": str(r["tissue"]) if _has_tissue else None,
-            "median_detection_fraction": float(r[det_col]),
-            "expressing_donor_fraction": float(r[frac_col]) if _has_frac else None,
-            "n_donors_reliable": int(r["n_donors_reliable"]),
-            # median_abund (magnitude, not just detection breadth) + n_datasets_reliable (independent-atlas
-            # replication) were read from Tier-1 but dropped from the footprint — surface them so a
-            # confidence/abundance gate and the narrator can weight each cell type, not just the argmax.
-            "median_abund": float(r[_pct_abund_col])
-                            if _pct_abund_col is not None and pd.notna(r[_pct_abund_col]) else None,
-            "n_datasets_reliable": int(r["n_datasets_reliable"]) if _has_datasets else None,
-            "is_safety_essential": _is_safety_essential(str(r["cell_type"])),
-        })
+        per_cell_type_top.append(
+            {
+                "cell_type": str(r["cell_type"]),
+                "tissue": str(r["tissue"]) if _has_tissue else None,
+                "median_detection_fraction": float(r[det_col]),
+                "expressing_donor_fraction": float(r[frac_col]) if _has_frac else None,
+                "n_donors_reliable": int(r["n_donors_reliable"]),
+                # median_abund (magnitude, not just detection breadth) + n_datasets_reliable (independent-atlas
+                # replication) were read from Tier-1 but dropped from the footprint — surface them so a
+                # confidence/abundance gate and the narrator can weight each cell type, not just the argmax.
+                "median_abund": float(r[_pct_abund_col])
+                if _pct_abund_col is not None and pd.notna(r[_pct_abund_col])
+                else None,
+                "n_datasets_reliable": int(r["n_datasets_reliable"]) if _has_datasets else None,
+                "is_safety_essential": _is_safety_essential(str(r["cell_type"])),
+            }
+        )
 
     return {
         "sc_normal_expression_class": liability,
@@ -318,9 +326,12 @@ def classify_sc_normal_expression(rows: pd.DataFrame, origin_tissues=None) -> di
         # cell type incl. tissue-of-origin epithelium — too blunt to veto a validated ADC target).
         # off_origin dominates: any critical-organ hit → critical_organ_liability even if origin also hit.
         "sc_normal_safety_essential_class": (
-            "critical_organ_liability" if essential_off_origin
-            else "origin_tissue_liability" if essential_origin_only
-            else "none"),
+            "critical_organ_liability"
+            if essential_off_origin
+            else "origin_tissue_liability"
+            if essential_origin_only
+            else "none"
+        ),
         "max_detection_cell_type": max_det_ct,
         "max_detection_fraction": max_det_val,
         "expressing_donor_fraction_max": max_frac_val,
@@ -331,12 +342,15 @@ def classify_sc_normal_expression(rows: pd.DataFrame, origin_tissues=None) -> di
         # cell type + detection + independent-atlas count + abundance). None when no essential hit fired.
         "sc_normal_essential_max_cell_type": essential_driver["cell_type"] if essential_driver else None,
         "sc_normal_essential_max_tissue": essential_driver["tissue"] if essential_driver else None,
-        "sc_normal_essential_max_detection_fraction":
-            essential_driver["median_detection_fraction"] if essential_driver else None,
-        "sc_normal_essential_donor_fraction":
-            essential_driver["expressing_donor_fraction"] if essential_driver else None,
-        "sc_normal_essential_n_datasets_reliable":
-            essential_driver["n_datasets_reliable"] if essential_driver else None,
+        "sc_normal_essential_max_detection_fraction": essential_driver["median_detection_fraction"]
+        if essential_driver
+        else None,
+        "sc_normal_essential_donor_fraction": essential_driver["expressing_donor_fraction"]
+        if essential_driver
+        else None,
+        "sc_normal_essential_n_datasets_reliable": essential_driver["n_datasets_reliable"]
+        if essential_driver
+        else None,
         "sc_normal_essential_median_abund": essential_driver["median_abund"] if essential_driver else None,
         # Normal cell-type detection ceiling across all reliable cell types (single-cell window denominator).
         "sc_normal_ceiling_detection_fraction": ceiling_det,

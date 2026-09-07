@@ -10,12 +10,13 @@ amplification-driven cis-dosage card cannot see.
 Pure compute over two loaded {ModelID -> value} dicts; the statistic (Spearman primary) mirrors
 depmap_cis_dosage, with the coupling direction NEGATED (silencing = negative r).
 """
+
 from __future__ import annotations
 
 METHOD_VERSION = "0.1.0"
 
 # --- classification thresholds (mirror cards/cellline-methylation-expression-coherence.card.yaml) ---
-STRONG_SILENCING_SPEARMAN_R = -0.4     # silencing_coupled_strong (methylation ↓ expression)
+STRONG_SILENCING_SPEARMAN_R = -0.4  # silencing_coupled_strong (methylation ↓ expression)
 MODERATE_SILENCING_SPEARMAN_R = -0.25  # silencing_coupled_moderate
 SIGNIFICANCE_ALPHA = 0.01
 MIN_CELL_LINES_FOR_CORRELATION = 50
@@ -23,26 +24,29 @@ MIN_CELL_LINES_FOR_CORRELATION = 50
 # untestable (methylation_invariant_panel). Keyed on the p90-p10 spread of the methylation fraction
 # (tail-sensitive, per the cis-dosage ERBB2 calibration lesson): a gene silenced in only a subset still
 # has a methylated tail that carries the correlation signal.
-MIN_METHYL_P10_P90_SPREAD = 0.1        # methylation fraction is 0..1
+MIN_METHYL_P10_P90_SPREAD = 0.1  # methylation fraction is 0..1
 # "Hypermethylated" cut for the subset contrast (fractional methylation).
 HYPERMETHYLATION_THRESHOLD = 0.5
 # Silencing is intrinsically a SUBSET phenomenon (most TSGs are silenced only in a subtype, e.g. MLH1
 # in MSI/CIMP lines) — so the PRIMARY test is a hypermethylated-subset-vs-rest expression contrast
 # (Mann-Whitney), like amp-expr's conjoint contrast, NOT a pan-panel correlation (which the minority
 # tail dilutes). The pan-panel Spearman remains the path for BROADLY-methylated genes (e.g. MGMT).
-MIN_HYPERMETHYLATED = 10               # min hypermethylated lines to run the subset contrast
+MIN_HYPERMETHYLATED = 10  # min hypermethylated lines to run the subset contrast
 MIN_UNMETHYLATED_COMPARATOR = 30
-STRONG_SILENCING_DELTA = -1.0          # median log2TPM (hyper - unmeth); strong under-expression
+STRONG_SILENCING_DELTA = -1.0  # median log2TPM (hyper - unmeth); strong under-expression
 MODERATE_SILENCING_DELTA = -0.5
 
 
-def compute_methylation_silencing(methyl_by_model: dict, tpm_by_model: dict,
-                                  strong_r: float = STRONG_SILENCING_SPEARMAN_R,
-                                  moderate_r: float = MODERATE_SILENCING_SPEARMAN_R,
-                                  significance_alpha: float = SIGNIFICANCE_ALPHA,
-                                  min_cell_lines: int = MIN_CELL_LINES_FOR_CORRELATION,
-                                  min_methyl_spread: float = MIN_METHYL_P10_P90_SPREAD,
-                                  hypermethylation_threshold: float = HYPERMETHYLATION_THRESHOLD) -> dict:
+def compute_methylation_silencing(
+    methyl_by_model: dict,
+    tpm_by_model: dict,
+    strong_r: float = STRONG_SILENCING_SPEARMAN_R,
+    moderate_r: float = MODERATE_SILENCING_SPEARMAN_R,
+    significance_alpha: float = SIGNIFICANCE_ALPHA,
+    min_cell_lines: int = MIN_CELL_LINES_FOR_CORRELATION,
+    min_methyl_spread: float = MIN_METHYL_P10_P90_SPREAD,
+    hypermethylation_threshold: float = HYPERMETHYLATION_THRESHOLD,
+) -> dict:
     """Compute the cellline-methylation-expression-coherence summary_fields.
 
     Evaluated universe = lines with BOTH promoter methylation AND log2TPM present. methylation_silencing_class
@@ -59,17 +63,23 @@ def compute_methylation_silencing(methyl_by_model: dict, tpm_by_model: dict,
     def _base(cls: str, **extra) -> dict:
         out = {
             "n_cell_lines_evaluated": n,
-            "methyl_expr_spearman_r": None, "methyl_expr_spearman_p": None,
-            "methyl_expr_pearson_r": None, "methyl_expr_pearson_p": None,
+            "methyl_expr_spearman_r": None,
+            "methyl_expr_spearman_p": None,
+            "methyl_expr_pearson_r": None,
+            "methyl_expr_pearson_p": None,
             "methyl_expr_slope_log2tpm_per_methyl": None,
-            "methylation_p10_p90_spread": None, "log2tpm_iqr": None,
-            "median_methylation": None, "median_log2tpm": None,
-            "n_hypermethylated": 0, "n_unmethylated": 0,
-            "mean_log2tpm_hypermethylated": None, "mean_log2tpm_unmethylated": None,
-            "delta_log2tpm_hyper_vs_unmethylated": None,       # mean-based (interpretability)
-            "subset_median_delta_log2tpm": None,               # median-based (the subset class driver)
+            "methylation_p10_p90_spread": None,
+            "log2tpm_iqr": None,
+            "median_methylation": None,
+            "median_log2tpm": None,
+            "n_hypermethylated": 0,
+            "n_unmethylated": 0,
+            "mean_log2tpm_hypermethylated": None,
+            "mean_log2tpm_unmethylated": None,
+            "delta_log2tpm_hyper_vs_unmethylated": None,  # mean-based (interpretability)
+            "subset_median_delta_log2tpm": None,  # median-based (the subset class driver)
             "subset_mannwhitney_p": None,
-            "silencing_driver": None,                          # subset_hypermethylation | pan_panel_correlation
+            "silencing_driver": None,  # subset_hypermethylation | pan_panel_correlation
             "hypermethylation_threshold": float(hypermethylation_threshold),
             "methylation_silencing_class": cls,
         }
@@ -97,19 +107,23 @@ def compute_methylation_silencing(methyl_by_model: dict, tpm_by_model: dict,
 
     n_unmeth = int(unmeth_tpm.size)
     common = dict(
-        methylation_p10_p90_spread=meth_spread, log2tpm_iqr=tpm_iqr,
-        median_methylation=float(np.median(meth)), median_log2tpm=float(np.median(tpm)),
-        n_hypermethylated=n_hyper, n_unmethylated=n_unmeth,
+        methylation_p10_p90_spread=meth_spread,
+        log2tpm_iqr=tpm_iqr,
+        median_methylation=float(np.median(meth)),
+        median_log2tpm=float(np.median(tpm)),
+        n_hypermethylated=n_hyper,
+        n_unmethylated=n_unmeth,
         mean_log2tpm_hypermethylated=mean_hyper,
-        mean_log2tpm_unmethylated=mean_unmeth, delta_log2tpm_hyper_vs_unmethylated=delta,
+        mean_log2tpm_unmethylated=mean_unmeth,
+        delta_log2tpm_hyper_vs_unmethylated=delta,
     )
 
     # Testable if EITHER a hypermethylated subset exists (n_hyper >= MIN_HYPERMETHYLATED — the subset
     # path, for subtype-silenced TSGs like MLH1) OR methylation varies broadly (p90-p10 spread — the
     # correlation path, for broadly-methylated genes like MGMT). Otherwise the panel is uniformly
     # (un)methylated → methylation_invariant_panel (untestable, honest; distinct from uncoupled).
-    subset_testable = (n_hyper >= MIN_HYPERMETHYLATED and n_unmeth >= MIN_UNMETHYLATED_COMPARATOR)
-    broad_testable = (meth_spread >= min_methyl_spread and meth.std() > 1e-9)
+    subset_testable = n_hyper >= MIN_HYPERMETHYLATED and n_unmeth >= MIN_UNMETHYLATED_COMPARATOR
+    broad_testable = meth_spread >= min_methyl_spread and meth.std() > 1e-9
     if tpm.std() < 1e-9 or not (subset_testable or broad_testable):
         return _base("methylation_invariant_panel", **common)
 
@@ -131,17 +145,20 @@ def compute_methylation_silencing(methyl_by_model: dict, tpm_by_model: dict,
     spearman_r, spearman_p = stats.spearmanr(meth, tpm)
     pearson_r, pearson_p = stats.pearsonr(meth, tpm)
     try:
-        slope = float(np.polyfit(meth, tpm, deg=1)[0])   # provenance-only; SVD can fail → None
+        slope = float(np.polyfit(meth, tpm, deg=1)[0])  # provenance-only; SVD can fail → None
     except (np.linalg.LinAlgError, ValueError):
         slope = None
 
     driver = None
     cls = "methylation_uncoupled"
     # Subset path takes precedence (the biologically-primary silencing test).
-    if (subset_p is not None and subset_p <= significance_alpha
-            and subset_delta_med is not None and subset_delta_med <= MODERATE_SILENCING_DELTA):
-        cls = ("silencing_coupled_strong" if subset_delta_med <= STRONG_SILENCING_DELTA
-               else "silencing_coupled_moderate")
+    if (
+        subset_p is not None
+        and subset_p <= significance_alpha
+        and subset_delta_med is not None
+        and subset_delta_med <= MODERATE_SILENCING_DELTA
+    ):
+        cls = "silencing_coupled_strong" if subset_delta_med <= STRONG_SILENCING_DELTA else "silencing_coupled_moderate"
         driver = "subset_hypermethylation"
     # Else the broad-correlation path (only meaningful when methylation varies across the panel).
     elif broad_testable and spearman_p == spearman_p and spearman_p <= significance_alpha:

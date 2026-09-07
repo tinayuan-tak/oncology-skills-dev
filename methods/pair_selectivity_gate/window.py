@@ -28,6 +28,7 @@ COADREAD, both=0.71) as insufficient_tumor_engagement when the real driver was t
 Coordination is retained as a REPORTED flag (tumor_coordinated), not a hard gate, so the signal is
 not lost. under_powered normal is conservatively NOT a pass.
 """
+
 from __future__ import annotations
 
 from methods.pair_selectivity_gate.normal import normal_max_both
@@ -36,18 +37,22 @@ from methods.pair_selectivity_gate.samecell import (
     read_target_samecell_avidity,
 )
 
-TUMOR_ENGAGEMENT_MIN = 0.30      # median fraction of malignant cells co-expressing both
+TUMOR_ENGAGEMENT_MIN = 0.30  # median fraction of malignant cells co-expressing both
 # Honest-abstain donor floor for the TUMOR side, mirroring normal.MIN_DONORS_NORMAL (BP-2). The normal
 # side already floors its selectivity statistic at >=3 donors & >=10 cells; the tumor engagement side
 # had NO donor floor, so window_open could be declared from a single-donor tumor observation (n=1 is
 # not a cross-donor signal). Below the floor we abstain (insufficient_tumor_power), never pass.
 MIN_TUMOR_DONORS = 3
-_COORDINATED_CALL = "same_cell_coordinated"   # samecell avidity call required for window_open
+_COORDINATED_CALL = "same_cell_coordinated"  # samecell avidity call required for window_open
 
 # verdict rank for target-centric best-partner selection (higher = more viable)
 _VERDICT_RANK = {
-    "window_open": 5, "window_marginal": 4, "selectivity_unproven": 3,
-    "no_window": 2, "insufficient_tumor_engagement": 1, "insufficient_tumor_power": 1,
+    "window_open": 5,
+    "window_marginal": 4,
+    "selectivity_unproven": 3,
+    "no_window": 2,
+    "insufficient_tumor_engagement": 1,
+    "insufficient_tumor_power": 1,
     "data_unavailable": 0,
 }
 
@@ -75,7 +80,8 @@ def pair_selectivity_window(target: str, partner: str, indication: str) -> dict:
 
     def out(verdict: str) -> dict:
         return {
-            "target": target.upper().strip(), "partner": partner.upper().strip(),
+            "target": target.upper().strip(),
+            "partner": partner.upper().strip(),
             "indication": str(indication).upper().strip(),
             "window_verdict": verdict,
             "selectivity_margin": margin,
@@ -102,13 +108,15 @@ def pair_selectivity_window(target: str, partner: str, indication: str) -> dict:
 
     # Tumor engages — the verdict is now driven by the normal selectivity class.
     nclass = normal.get("normal_selectivity_class")
-    return out({
-        "selectivity_clean": "window_open",
-        "normal_borderline": "window_marginal",
-        "normal_liability": "no_window",
-        "under_powered": "selectivity_unproven",
-        "data_unavailable": "data_unavailable",
-    }.get(nclass, "data_unavailable"))
+    return out(
+        {
+            "selectivity_clean": "window_open",
+            "normal_borderline": "window_marginal",
+            "normal_liability": "no_window",
+            "under_powered": "selectivity_unproven",
+            "data_unavailable": "data_unavailable",
+        }.get(nclass, "data_unavailable")
+    )
 
 
 # --- TARGET-CENTRIC (card-facing) ------------------------------------------------------------------
@@ -119,14 +127,24 @@ def read_target_selectivity_window(target: str, indication: str) -> dict:
     avidity = read_target_samecell_avidity(target, indication)
     partners_in = avidity.get("partners") or []
     if not partners_in:
-        return {"target": target, "indication": str(indication).upper().strip(),
-                "window_verdict": "data_unavailable", "n_partners_tested": 0,
-                "best_partner": None, "best_selectivity_margin": None, "partners": [],
-                "_data_note": avidity.get("_data_note", "no tumor same-cell cube for this indication")}
+        return {
+            "target": target,
+            "indication": str(indication).upper().strip(),
+            "window_verdict": "data_unavailable",
+            "n_partners_tested": 0,
+            "best_partner": None,
+            "best_selectivity_margin": None,
+            "partners": [],
+            "_data_note": avidity.get("_data_note", "no tumor same-cell cube for this indication"),
+        }
     results = [pair_selectivity_window(target, p["partner"], indication) for p in partners_in]
-    results.sort(key=lambda r: (_VERDICT_RANK.get(r["window_verdict"], 0),
-                                r["selectivity_margin"] if r["selectivity_margin"] is not None else -1.0),
-                 reverse=True)
+    results.sort(
+        key=lambda r: (
+            _VERDICT_RANK.get(r["window_verdict"], 0),
+            r["selectivity_margin"] if r["selectivity_margin"] is not None else -1.0,
+        ),
+        reverse=True,
+    )
     best = results[0]
     return {
         "target": target.upper().strip(),
@@ -137,9 +155,15 @@ def read_target_selectivity_window(target: str, indication: str) -> dict:
         "best_partner": best["partner"],
         "best_selectivity_margin": best["selectivity_margin"],
         "best_normal_liability_locus": best["normal_liability_locus"],
-        "partners": [{"partner": r["partner"], "window_verdict": r["window_verdict"],
-                      "selectivity_margin": r["selectivity_margin"],
-                      "tumor_both_fraction": r["tumor_both_fraction"],
-                      "normal_max_both_fraction": r["normal_max_both_fraction"]} for r in results],
+        "partners": [
+            {
+                "partner": r["partner"],
+                "window_verdict": r["window_verdict"],
+                "selectivity_margin": r["selectivity_margin"],
+                "tumor_both_fraction": r["tumor_both_fraction"],
+                "normal_max_both_fraction": r["normal_max_both_fraction"],
+            }
+            for r in results
+        ],
         "_evidence_tier": "single_cell_measured",
     }

@@ -1,4 +1,5 @@
 """Tests for hcmi_model_availability — the per-indication translational model-availability signal (#1)."""
+
 from __future__ import annotations
 
 import pytest
@@ -19,43 +20,46 @@ from methods.hcmi_model_availability.cli import (
 
 
 # ── crosswalk unit tests (the (primary_site, disease_type) -> indication judgment) ──────────────────
-@pytest.mark.parametrize("ps,dt,expected", [
-    # ── core set (pre-existing v1) ──────────────────────────────────────────────────────────────────
-    ("Colon", "Adenomas and Adenocarcinomas", "COADREAD"),
-    ("Rectum", "Adenomas and Adenocarcinomas", "COADREAD"),
-    ("Rectosigmoid junction", "Adenomas and Adenocarcinomas", "COADREAD"),
-    ("Pancreas", "Ductal and Lobular Neoplasms", "PAAD"),
-    ("Pancreas", "Adenomas and Adenocarcinomas", "PAAD"),
-    ("Bronchus and lung", "Adenomas and Adenocarcinomas", "NSCLC"),
-    ("Bronchus and lung", "Squamous Cell Neoplasms", "NSCLC"),
-    ("Stomach", "Adenomas and Adenocarcinomas", "GC"),
-    # ── broadened set (2026-08-24): unambiguous single-histology categories now MAPPED ──────────────
-    ("Esophagus", "Adenomas and Adenocarcinomas", "ESCA"),
-    ("Breast", "Ductal and Lobular Neoplasms", "BRCA"),          # was None pre-broaden
-    ("Breast", "Complex Epithelial Neoplasms", "BRCA"),
-    ("Skin", "Nevi and Melanomas", "SKCM"),                      # was None pre-broaden
-    ("Ovary", "Cystic, Mucinous and Serous Neoplasms", "OV"),
-    ("Ovary", "Adenomas and Adenocarcinomas", "OV"),
-    ("Bladder", "Transitional Cell Papillomas and Carcinomas", "BLCA"),
-    ("Corpus uteri", "Adenomas and Adenocarcinomas", "UCEC"),
-    ("Corpus uteri", "Cystic, Mucinous and Serous Neoplasms", "UCEC"),
-    ("Other and unspecified parts of mouth", "Squamous Cell Neoplasms", "HNSC"),
-    ("Larynx", "Squamous Cell Neoplasms", "HNSC"),
-    ("Thyroid gland", "Adenomas and Adenocarcinomas", "THCA"),
-    # ── DELIBERATELY LEFT UNMAPPED -> None (conservative: never mis-assign) ──────────────────────────
-    ("Brain", "Gliomas", None),                                  # grade-indeterminate: GBM vs LGG
-    ("Liver and intrahepatic bile ducts", "Adenomas and Adenocarcinomas", None),  # cholangio, not LIHC
-    ("Kidney", "Adenomas and Adenocarcinomas", None),            # RCC subtype KIRC/KIRP/KICH unresolvable
-    ("Other and unspecified parts of biliary tract", "Adenomas and Adenocarcinomas", None),  # no CHOL code
-    ("Small intestine", "Adenomas and Adenocarcinomas", None),   # no SBA code; not COADREAD
-    ("Ovary", "Complex Mixed and Stromal Neoplasms", None),      # sex-cord stromal, non-epithelial
-    ("Skin", "Squamous Cell Neoplasms", None),                   # cutaneous SCC, not melanoma
-    ("Eye and adnexa", "Nevi and Melanomas", None),              # uveal melanoma, not cutaneous SKCM
-    ("Uterus, NOS", "Adenomas and Adenocarcinomas", None),       # corpus-vs-cervix ambiguous site
-    ("Colon", "Cystic, Mucinous and Serous Neoplasms", None),    # non-adenocarcinoma colon histology
-    ("Thyroid gland", "Squamous Cell Neoplasms", None),          # thyroid SCC, not adeno
-    (None, None, None),
-])
+@pytest.mark.parametrize(
+    "ps,dt,expected",
+    [
+        # ── core set (pre-existing v1) ──────────────────────────────────────────────────────────────────
+        ("Colon", "Adenomas and Adenocarcinomas", "COADREAD"),
+        ("Rectum", "Adenomas and Adenocarcinomas", "COADREAD"),
+        ("Rectosigmoid junction", "Adenomas and Adenocarcinomas", "COADREAD"),
+        ("Pancreas", "Ductal and Lobular Neoplasms", "PAAD"),
+        ("Pancreas", "Adenomas and Adenocarcinomas", "PAAD"),
+        ("Bronchus and lung", "Adenomas and Adenocarcinomas", "NSCLC"),
+        ("Bronchus and lung", "Squamous Cell Neoplasms", "NSCLC"),
+        ("Stomach", "Adenomas and Adenocarcinomas", "GC"),
+        # ── broadened set (2026-08-24): unambiguous single-histology categories now MAPPED ──────────────
+        ("Esophagus", "Adenomas and Adenocarcinomas", "ESCA"),
+        ("Breast", "Ductal and Lobular Neoplasms", "BRCA"),  # was None pre-broaden
+        ("Breast", "Complex Epithelial Neoplasms", "BRCA"),
+        ("Skin", "Nevi and Melanomas", "SKCM"),  # was None pre-broaden
+        ("Ovary", "Cystic, Mucinous and Serous Neoplasms", "OV"),
+        ("Ovary", "Adenomas and Adenocarcinomas", "OV"),
+        ("Bladder", "Transitional Cell Papillomas and Carcinomas", "BLCA"),
+        ("Corpus uteri", "Adenomas and Adenocarcinomas", "UCEC"),
+        ("Corpus uteri", "Cystic, Mucinous and Serous Neoplasms", "UCEC"),
+        ("Other and unspecified parts of mouth", "Squamous Cell Neoplasms", "HNSC"),
+        ("Larynx", "Squamous Cell Neoplasms", "HNSC"),
+        ("Thyroid gland", "Adenomas and Adenocarcinomas", "THCA"),
+        # ── DELIBERATELY LEFT UNMAPPED -> None (conservative: never mis-assign) ──────────────────────────
+        ("Brain", "Gliomas", None),  # grade-indeterminate: GBM vs LGG
+        ("Liver and intrahepatic bile ducts", "Adenomas and Adenocarcinomas", None),  # cholangio, not LIHC
+        ("Kidney", "Adenomas and Adenocarcinomas", None),  # RCC subtype KIRC/KIRP/KICH unresolvable
+        ("Other and unspecified parts of biliary tract", "Adenomas and Adenocarcinomas", None),  # no CHOL code
+        ("Small intestine", "Adenomas and Adenocarcinomas", None),  # no SBA code; not COADREAD
+        ("Ovary", "Complex Mixed and Stromal Neoplasms", None),  # sex-cord stromal, non-epithelial
+        ("Skin", "Squamous Cell Neoplasms", None),  # cutaneous SCC, not melanoma
+        ("Eye and adnexa", "Nevi and Melanomas", None),  # uveal melanoma, not cutaneous SKCM
+        ("Uterus, NOS", "Adenomas and Adenocarcinomas", None),  # corpus-vs-cervix ambiguous site
+        ("Colon", "Cystic, Mucinous and Serous Neoplasms", None),  # non-adenocarcinoma colon histology
+        ("Thyroid gland", "Squamous Cell Neoplasms", None),  # thyroid SCC, not adeno
+        (None, None, None),
+    ],
+)
 def test_crosswalk_maps_core_indications_and_rejects_unmapped(ps, dt, expected):
     assert crosswalk_indication(ps, dt) == expected
 
@@ -73,15 +77,26 @@ def test_availability_class_thresholds():
 @pytest.fixture
 def product(tmp_path):
     import pandas as pd
+
     p = tmp_path / "hcmi_model_availability.parquet"
-    pd.DataFrame([
-        {"indication": "COADREAD", "n_patient_derived_models": 209,
-         "model_availability_class": "deep_model_coverage", "source": "HCMI-CMDC-DR45",
-         "primary_site_breakdown": "Colon|Adenomas and Adenocarcinomas=153"},
-        {"indication": "GC", "n_patient_derived_models": 25,
-         "model_availability_class": "moderate_model_coverage", "source": "HCMI-CMDC-DR45",
-         "primary_site_breakdown": "Stomach|Adenomas and Adenocarcinomas=25"},
-    ]).to_parquet(p)
+    pd.DataFrame(
+        [
+            {
+                "indication": "COADREAD",
+                "n_patient_derived_models": 209,
+                "model_availability_class": "deep_model_coverage",
+                "source": "HCMI-CMDC-DR45",
+                "primary_site_breakdown": "Colon|Adenomas and Adenocarcinomas=153",
+            },
+            {
+                "indication": "GC",
+                "n_patient_derived_models": 25,
+                "model_availability_class": "moderate_model_coverage",
+                "source": "HCMI-CMDC-DR45",
+                "primary_site_breakdown": "Stomach|Adenomas and Adenocarcinomas=25",
+            },
+        ]
+    ).to_parquet(p)
     return str(p)
 
 
@@ -140,6 +155,7 @@ def test_generic_dispatch_contract_accepts_target_kwarg(product):
 # GENOTYPE-MATCHED-MODEL (R2.10 v2): per-(gene, indication) — "do HCMI models carry an alteration in X?"
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
 
+
 # ── unit: the coarse-match thresholds + the MAF-barcode -> model-id derivation (the join key) ────────
 def test_genotype_matched_class_thresholds():
     assert genotype_matched_class(5) == "matched_deep"
@@ -149,15 +165,18 @@ def test_genotype_matched_class_thresholds():
     assert genotype_matched_class(0) == "none"
 
 
-@pytest.mark.parametrize("barcode,expected", [
-    # HCM-<TSS>-<Patient>-<Sample>-<portion...> -> first 4 fields == case-JSON SubjectData.submitter_id
-    ("HCM-STAN-0846-C20-01D-04D-A937-36", "HCM-STAN-0846-C20"),
-    ("HCM-CSHL-0257-C18-06A-11D-A78W-36", "HCM-CSHL-0257-C18"),
-    ("HCM-BROD-1129-C56", "HCM-BROD-1129-C56"),  # already model-length
-    ("HCM-STAN", None),   # too few fields -> unmappable
-    (None, None),
-    ("", None),
-])
+@pytest.mark.parametrize(
+    "barcode,expected",
+    [
+        # HCM-<TSS>-<Patient>-<Sample>-<portion...> -> first 4 fields == case-JSON SubjectData.submitter_id
+        ("HCM-STAN-0846-C20-01D-04D-A937-36", "HCM-STAN-0846-C20"),
+        ("HCM-CSHL-0257-C18-06A-11D-A78W-36", "HCM-CSHL-0257-C18"),
+        ("HCM-BROD-1129-C56", "HCM-BROD-1129-C56"),  # already model-length
+        ("HCM-STAN", None),  # too few fields -> unmappable
+        (None, None),
+        ("", None),
+    ],
+)
 def test_model_id_from_barcode(barcode, expected):
     assert _model_id_from_barcode(barcode) == expected
 
@@ -176,31 +195,58 @@ def test_functional_coding_classes_are_the_coarse_set():
 @pytest.fixture
 def genotype_product(tmp_path):
     import pandas as pd
+
     p = tmp_path / "hcmi_genotype_matched_model.parquet"
-    pd.DataFrame([
-        {"gene_symbol": "KRAS", "indication": "PAAD", "n_models_in_indication": 115,
-         "n_models_with_alteration": 71, "n_models_with_recurrent_hotspot": 68,
-         "variant_classes_present": "Missense_Mutation",
-         "hgvsp_examples": "p.G12D; p.G12V", "genotype_matched_class": "matched_deep",
-         "source": "HCMI-CMDC-DR45"},
-        {"gene_symbol": "KRAS", "indication": "GC", "n_models_in_indication": 25,
-         "n_models_with_alteration": 2, "n_models_with_recurrent_hotspot": 2,
-         "variant_classes_present": "Missense_Mutation",
-         "hgvsp_examples": "p.G12D; p.A146V", "genotype_matched_class": "matched_sparse",
-         "source": "HCMI-CMDC-DR45"},
-        {"gene_symbol": "KRAS", "indication": "ALL", "n_models_in_indication": 631,
-         "n_models_with_alteration": 129, "n_models_with_recurrent_hotspot": 121,
-         "variant_classes_present": "Missense_Mutation",
-         "hgvsp_examples": "p.G12D", "genotype_matched_class": "matched_deep",
-         "source": "HCMI-CMDC-DR45"},
-        # COADREAD present as a COVERED indication (with a driver row) so a MISS on a different gene in
-        # COADREAD is an honest 'none', distinguishable from an uncovered indication → data_unavailable.
-        {"gene_symbol": "APC", "indication": "COADREAD", "n_models_in_indication": 209,
-         "n_models_with_alteration": 140, "n_models_with_recurrent_hotspot": 40,
-         "variant_classes_present": "Frame_Shift_Del",
-         "hgvsp_examples": "p.R1450*", "genotype_matched_class": "matched_deep",
-         "source": "HCMI-CMDC-DR45"},
-    ]).to_parquet(p)
+    pd.DataFrame(
+        [
+            {
+                "gene_symbol": "KRAS",
+                "indication": "PAAD",
+                "n_models_in_indication": 115,
+                "n_models_with_alteration": 71,
+                "n_models_with_recurrent_hotspot": 68,
+                "variant_classes_present": "Missense_Mutation",
+                "hgvsp_examples": "p.G12D; p.G12V",
+                "genotype_matched_class": "matched_deep",
+                "source": "HCMI-CMDC-DR45",
+            },
+            {
+                "gene_symbol": "KRAS",
+                "indication": "GC",
+                "n_models_in_indication": 25,
+                "n_models_with_alteration": 2,
+                "n_models_with_recurrent_hotspot": 2,
+                "variant_classes_present": "Missense_Mutation",
+                "hgvsp_examples": "p.G12D; p.A146V",
+                "genotype_matched_class": "matched_sparse",
+                "source": "HCMI-CMDC-DR45",
+            },
+            {
+                "gene_symbol": "KRAS",
+                "indication": "ALL",
+                "n_models_in_indication": 631,
+                "n_models_with_alteration": 129,
+                "n_models_with_recurrent_hotspot": 121,
+                "variant_classes_present": "Missense_Mutation",
+                "hgvsp_examples": "p.G12D",
+                "genotype_matched_class": "matched_deep",
+                "source": "HCMI-CMDC-DR45",
+            },
+            # COADREAD present as a COVERED indication (with a driver row) so a MISS on a different gene in
+            # COADREAD is an honest 'none', distinguishable from an uncovered indication → data_unavailable.
+            {
+                "gene_symbol": "APC",
+                "indication": "COADREAD",
+                "n_models_in_indication": 209,
+                "n_models_with_alteration": 140,
+                "n_models_with_recurrent_hotspot": 40,
+                "variant_classes_present": "Frame_Shift_Del",
+                "hgvsp_examples": "p.R1450*",
+                "genotype_matched_class": "matched_deep",
+                "source": "HCMI-CMDC-DR45",
+            },
+        ]
+    ).to_parquet(p)
     return str(p)
 
 
@@ -243,8 +289,7 @@ def test_genotype_read_uncovered_indication_is_data_unavailable(genotype_product
 
 
 def test_genotype_read_missing_product_is_data_unavailable(tmp_path):
-    r = read_genotype_matched_model(target="KRAS", indication="PAAD",
-                                    product_path=str(tmp_path / "nope.parquet"))
+    r = read_genotype_matched_model(target="KRAS", indication="PAAD", product_path=str(tmp_path / "nope.parquet"))
     assert r["genotype_matched_class"] == "data_unavailable"
     assert "no HCMI genotype-matched-model product" in r["_missing_reason"]
 
@@ -284,14 +329,26 @@ def test_genotype_dispatch_contract_accepts_target_and_indication(genotype_produ
 from methods.hcmi_model_availability.read import normalize_indication
 
 
-@pytest.mark.parametrize("leaf,composite", [
-    ("LUAD", "NSCLC"), ("LUSC", "NSCLC"), ("STAD", "GC"), ("ESCC", "ESCA"),
-    ("COAD", "COADREAD"), ("READ", "COADREAD"), ("PDAC", "PAAD"),
-    ("luad", "NSCLC"),                 # case-insensitive
-    ("NSCLC", "NSCLC"), ("COADREAD", "COADREAD"), ("GC", "GC"),  # already-composite: idempotent no-op
-    ("PRAD", "PRAD"), ("GBM", "GBM"),  # not in the alias map → passthrough unchanged
-    (None, None), ("", ""),
-])
+@pytest.mark.parametrize(
+    "leaf,composite",
+    [
+        ("LUAD", "NSCLC"),
+        ("LUSC", "NSCLC"),
+        ("STAD", "GC"),
+        ("ESCC", "ESCA"),
+        ("COAD", "COADREAD"),
+        ("READ", "COADREAD"),
+        ("PDAC", "PAAD"),
+        ("luad", "NSCLC"),  # case-insensitive
+        ("NSCLC", "NSCLC"),
+        ("COADREAD", "COADREAD"),
+        ("GC", "GC"),  # already-composite: idempotent no-op
+        ("PRAD", "PRAD"),
+        ("GBM", "GBM"),  # not in the alias map → passthrough unchanged
+        (None, None),
+        ("", ""),
+    ],
+)
 def test_normalize_indication_leaf_to_composite(leaf, composite):
     assert normalize_indication(leaf) == composite
 

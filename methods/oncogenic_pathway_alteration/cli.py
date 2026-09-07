@@ -15,6 +15,7 @@ BUILD (per-indication rollup, read grain pre-aggregated → O(1) skill reads):
   - per-(pathway x indication): fraction of cohort with the pathway altered.
   - mmc3 pathway templates: gene → pathway membership (so a target maps to its pathway).
 """
+
 from __future__ import annotations
 
 import io
@@ -43,16 +44,19 @@ def _join(base: str, filename: str) -> str:
 
 def _resolve_src_dir() -> str:
     from methods.catalog_query.read import s3_uri_for
+
     return s3_uri_for(SANCHEZ_SOURCE_MANIFEST_ID)
 
 
 def _resolve_bridge_uri() -> str:
     from methods.catalog_query.read import s3_uri_for
+
     return _join(s3_uri_for(BRIDGE_SOURCE_MANIFEST_ID), _BRIDGE_FILE)
+
 
 PATHWAYS = ["Cell Cycle", "HIPPO", "MYC", "NOTCH", "NRF2", "PI3K", "RTK RAS", "TP53", "TGF-Beta", "WNT"]
 MIN_COHORT_N = 15
-HIGH_ALT_FRAC = 0.50     # >= 50% of cohort altered → pathway-frequently-altered in this indication
+HIGH_ALT_FRAC = 0.50  # >= 50% of cohort altered → pathway-frequently-altered in this indication
 
 
 def _s3_bytes(uri: str) -> bytes:
@@ -61,8 +65,12 @@ def _s3_bytes(uri: str) -> bytes:
 
 def _load_barcode_to_indication() -> dict:
     """{sample_barcode(TCGA-XX-XXXX-01) -> cancer type} from merged_sample_quality_annotations."""
-    df = pd.read_csv(io.BytesIO(_s3_bytes(_resolve_bridge_uri())), sep="\t", low_memory=False,
-                     usecols=["aliquot_barcode", "cancer type"])
+    df = pd.read_csv(
+        io.BytesIO(_s3_bytes(_resolve_bridge_uri())),
+        sep="\t",
+        low_memory=False,
+        usecols=["aliquot_barcode", "cancer type"],
+    )
     # mmc4 SAMPLE_BARCODE is TCGA-OR-A5J1-01 (patient + sample-type); the aliquot is longer. Join on the
     # PATIENT barcode (first 3 fields) — verified 100% coverage of the 9,125 mmc4 samples.
     df["patient"] = df["aliquot_barcode"].str.split("-").str[:3].str.join("-")
@@ -88,7 +96,7 @@ def build_per_indication_table() -> pd.DataFrame:
     """Per-(pathway x indication) alteration frequency. Returns long DataFrame
     [indication, pathway, n_samples, frac_altered, pathway_alteration_class]."""
     xl = pd.ExcelFile(io.BytesIO(_s3_bytes(_join(_resolve_src_dir(), _MMC4_FILE))))
-    pl = xl.parse("Pathway level", header=0)   # row 0 IS the header (SAMPLE_BARCODE + 10 pathways)
+    pl = xl.parse("Pathway level", header=0)  # row 0 IS the header (SAMPLE_BARCODE + 10 pathways)
     bc2ind = _load_barcode_to_indication()
     pl["indication"] = pl["SAMPLE_BARCODE"].str.split("-").str[:3].str.join("-").map(bc2ind)
     pl = pl.dropna(subset=["indication"])
@@ -103,13 +111,21 @@ def build_per_indication_table() -> pd.DataFrame:
             if vals.empty:
                 continue
             frac = float((vals > 0).mean())
-            rows.append({
-                "indication": str(ind), "pathway": pw, "n_samples": int(n),
-                "frac_altered": round(frac, 4),
-                "pathway_alteration_class": ("frequently_altered" if frac >= HIGH_ALT_FRAC
-                                             else "occasionally_altered" if frac >= 0.10
-                                             else "rarely_altered"),
-            })
+            rows.append(
+                {
+                    "indication": str(ind),
+                    "pathway": pw,
+                    "n_samples": int(n),
+                    "frac_altered": round(frac, 4),
+                    "pathway_alteration_class": (
+                        "frequently_altered"
+                        if frac >= HIGH_ALT_FRAC
+                        else "occasionally_altered"
+                        if frac >= 0.10
+                        else "rarely_altered"
+                    ),
+                }
+            )
     return pd.DataFrame(rows).sort_values(["indication", "pathway"]).reset_index(drop=True)
 
 

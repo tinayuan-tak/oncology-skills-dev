@@ -50,26 +50,27 @@ import click
 # Each source declares: S3 keys, the cache dir, the output-parquet tag, the
 # MAF column names to normalize from, and the filter strategy.
 
+
 @dataclass(frozen=True)
 class SourceConfig:
-    cache_dir: str                      # ~/.cache/framework-<cache_dir>/
-    maf_s3_key: str                     # S3 key of the MAF file
-    maf_filename: str                   # local filename for the MAF
-    out_tag: str                        # output parquet: {indication}-{out_tag}.parquet
-    gene_col: str                       # source column → gene_symbol
-    protein_col: str                    # source column → protein_change
-    effect_col: str                     # source column → effect (raw Variant_Classification)
-    sample_col: str                     # source column → sample_id
-    filter_strategy: str                # 'tcga_patient_list' | 'genie_cancer_type' | 'depmap_lineage' | 'none'
-    comment_char: str = ""              # '#' for cBioPortal-style headers, '' otherwise
+    cache_dir: str  # ~/.cache/framework-<cache_dir>/
+    maf_s3_key: str  # S3 key of the MAF file
+    maf_filename: str  # local filename for the MAF
+    out_tag: str  # output parquet: {indication}-{out_tag}.parquet
+    gene_col: str  # source column → gene_symbol
+    protein_col: str  # source column → protein_change
+    effect_col: str  # source column → effect (raw Variant_Classification)
+    sample_col: str  # source column → sample_id
+    filter_strategy: str  # 'tcga_patient_list' | 'genie_cancer_type' | 'depmap_lineage' | 'none'
+    comment_char: str = ""  # '#' for cBioPortal-style headers, '' otherwise
     # Optional columns for effect/exon rule support (catalogs use a normalized
     # lowercase `effect` vocabulary + an `exon` int; raw MAFs carry MAF v2.4
     # Variant_Classification + `Exon_Number` like '19/28'). Empty string = the
     # source lacks the column → the corresponding output column is omitted and
     # effect stays raw-passthrough (backward-compatible for GENIE/DepMap).
-    exon_col: str = ""                  # source column → exon (parsed to leading int)
-    polyphen_col: str = ""              # source column → PolyPhen (for missense_damaging)
-    normalize_effect: bool = False      # map Variant_Classification → catalog effect vocab
+    exon_col: str = ""  # source column → exon (parsed to leading int)
+    polyphen_col: str = ""  # source column → PolyPhen (for missense_damaging)
+    normalize_effect: bool = False  # map Variant_Classification → catalog effect vocab
 
 
 SOURCE_CONFIGS = {
@@ -79,21 +80,27 @@ SOURCE_CONFIGS = {
         maf_filename="mc3.v0.2.8.PUBLIC.maf.gz",
         out_tag="mc3",
         # Output goes to the gdc-pancohort-somatic cache dir the assigner reads
-        gene_col="Hugo_Symbol", protein_col="HGVSp_Short",
-        effect_col="Variant_Classification", sample_col="Tumor_Sample_Barcode",
+        gene_col="Hugo_Symbol",
+        protein_col="HGVSp_Short",
+        effect_col="Variant_Classification",
+        sample_col="Tumor_Sample_Barcode",
         filter_strategy="tcga_patient_list",
         # MC3 carries Exon_Number ('19/28') + PolyPhen ('benign(0.335)') so the
         # catalogs' effect/exon rules (EGFR ex19del, MET ex14, HER2 missense, TP53
         # missense_damaging across NSCLC/HNSC/ESCA/PAAD/AML) can evaluate.
-        exon_col="Exon_Number", polyphen_col="PolyPhen", normalize_effect=True,
+        exon_col="Exon_Number",
+        polyphen_col="PolyPhen",
+        normalize_effect=True,
     ),
     "genie_public_v19": SourceConfig(
         cache_dir="genie-public-v19",
         maf_s3_key="data-catalog/sources/synapse/genie-public-v19-0/data_mutations_extended.txt",
         maf_filename="data_mutations_extended.txt",
         out_tag="genie-maf",
-        gene_col="Hugo_Symbol", protein_col="HGVSp_Short",
-        effect_col="Variant_Classification", sample_col="Tumor_Sample_Barcode",
+        gene_col="Hugo_Symbol",
+        protein_col="HGVSp_Short",
+        effect_col="Variant_Classification",
+        sample_col="Tumor_Sample_Barcode",
         filter_strategy="genie_cancer_type",
     ),
     "genie_bpc_crc": SourceConfig(
@@ -101,17 +108,21 @@ SOURCE_CONFIGS = {
         maf_s3_key="data-catalog/sources/synapse/genie-bpc-crc-v2.0/cBioPortal_files/data_mutations_extended.txt",
         maf_filename="data_mutations_extended.txt",
         out_tag="genie-bpc-maf",
-        gene_col="Hugo_Symbol", protein_col="HGVSp_Short",
-        effect_col="Variant_Classification", sample_col="Tumor_Sample_Barcode",
-        filter_strategy="none",   # BPC-CRC is already CRC-only
+        gene_col="Hugo_Symbol",
+        protein_col="HGVSp_Short",
+        effect_col="Variant_Classification",
+        sample_col="Tumor_Sample_Barcode",
+        filter_strategy="none",  # BPC-CRC is already CRC-only
     ),
     "depmap_somatic": SourceConfig(
         cache_dir="depmap-26q1",
         maf_s3_key="data-catalog/sources/depmap-consortium/dmc-26q1/OmicsSomaticMutationsMAF.maf",
         maf_filename="OmicsSomaticMutationsMAF.maf",
         out_tag="depmap-maf",
-        gene_col="Hugo_Symbol", protein_col="Protein_Change",   # DepMap uses Protein_Change
-        effect_col="Variant_Classification", sample_col="ModelID",
+        gene_col="Hugo_Symbol",
+        protein_col="Protein_Change",  # DepMap uses Protein_Change
+        effect_col="Variant_Classification",
+        sample_col="ModelID",
         filter_strategy="depmap_lineage",
     ),
 }
@@ -153,8 +164,8 @@ GENIE_CANCER_TYPE = {
     "COADREAD": "Colorectal Cancer",
     "NSCLC": "Non-Small Cell Lung Cancer",
     "PAAD": "Pancreatic Cancer",
-    "PDAC": "Pancreatic Cancer",          # canonical/CPTAC-spelling dual-key (see gdc_somatic_hotspot)
-    "GC": "Esophagogastric Cancer",       # BROADER than STAD (includes esophageal) — see note above
+    "PDAC": "Pancreatic Cancer",  # canonical/CPTAC-spelling dual-key (see gdc_somatic_hotspot)
+    "GC": "Esophagogastric Cancer",  # BROADER than STAD (includes esophageal) — see note above
 }
 DEPMAP_LINEAGE = {"COADREAD": "Bowel"}
 
@@ -192,7 +203,8 @@ def _s3_download(key: str, dest: Path, dry_run: bool) -> None:
     _log(f"downloading s3://{S3_BUCKET}/{key} → {dest}")
     r = subprocess.run(
         ["aws", "s3", "cp", f"s3://{S3_BUCKET}/{key}", str(dest), "--no-progress"],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     if r.returncode != 0:
         _log(f"download FAILED: {r.stderr}")
@@ -210,8 +222,10 @@ def _filter_samples(cfg: SourceConfig, indication: str, dry_run: bool):
         # Intersect with TCGA marker-paper patient list for the indication
         mp = Path.home() / ".cache" / "framework-tcga-marker-paper" / indication.lower() / "subtypes.csv"
         if not mp.exists():
-            _log(f"WARNING: TCGA marker-paper file for {indication} not at {mp}; "
-                 f"cannot build patient list. Run the directly-tagged prefetch first.")
+            _log(
+                f"WARNING: TCGA marker-paper file for {indication} not at {mp}; "
+                f"cannot build patient list. Run the directly-tagged prefetch first."
+            )
             if dry_run:
                 return set()
             sys.exit(1)
@@ -223,7 +237,8 @@ def _filter_samples(cfg: SourceConfig, indication: str, dry_run: bool):
         clin = _cache_path(cfg, "data_clinical_sample.txt")
         _s3_download(
             "data-catalog/sources/synapse/genie-public-v19-0/data_clinical_sample.txt",
-            clin, dry_run,
+            clin,
+            dry_run,
         )
         if dry_run and not clin.exists():
             return set()
@@ -239,7 +254,9 @@ def _filter_samples(cfg: SourceConfig, indication: str, dry_run: bool):
     if cfg.filter_strategy == "depmap_lineage":
         model = _cache_path(cfg, "Model.csv")
         _s3_download(
-            "data-catalog/sources/depmap-consortium/dmc-26q1/Model.csv", model, dry_run,
+            "data-catalog/sources/depmap-consortium/dmc-26q1/Model.csv",
+            model,
+            dry_run,
         )
         if dry_run and not model.exists():
             return set()
@@ -300,17 +317,20 @@ def prefetch_genie_bpc_lot(indication: str, dry_run: bool) -> int:
 
     def _cat(m):
         return "LOT_3Lplus" if m >= 3 else ("LOT_2L" if m == 2 else "LOT_1L_only")
+
     lot["lot_category"] = lot["max_lot"].apply(_cat)
 
     # Join to sample_id via cancer_panel_test (record_id → cpt_genie_sample_id)
     linked = cpt[["record_id", "cpt_genie_sample_id"]].merge(lot, on="record_id", how="inner")
-    out = pd.DataFrame({
-        "sample_id": linked["cpt_genie_sample_id"],
-        "patient_id": linked["record_id"],
-        "source_native_id": linked["cpt_genie_sample_id"],
-        "lot_category": linked["lot_category"],
-        "max_lot": linked["max_lot"],
-    }).drop_duplicates(subset=["sample_id"])
+    out = pd.DataFrame(
+        {
+            "sample_id": linked["cpt_genie_sample_id"],
+            "patient_id": linked["record_id"],
+            "source_native_id": linked["cpt_genie_sample_id"],
+            "lot_category": linked["lot_category"],
+            "max_lot": linked["max_lot"],
+        }
+    ).drop_duplicates(subset=["sample_id"])
 
     out.to_parquet(out_path, index=False)
     _log(f"wrote {out_path}: {len(out):,} samples")
@@ -320,8 +340,7 @@ def prefetch_genie_bpc_lot(indication: str, dry_run: bool) -> int:
 
 
 @click.command()
-@click.option("--source", required=True,
-              type=click.Choice(list(SOURCE_CONFIGS) + ["genie_bpc_lot"]))
+@click.option("--source", required=True, type=click.Choice(list(SOURCE_CONFIGS) + ["genie_bpc_lot"]))
 @click.option("--indication", required=True)
 def main(source: str, indication: str) -> int:
     """Prefetch + filter + normalize a mutation source into a per-indication MAF parquet."""
@@ -383,12 +402,14 @@ def main(source: str, indication: str) -> int:
     _log(f"  filtered MAF: {len(maf):,} rows, {maf[cfg.sample_col].nunique():,} unique samples")
 
     # 5. Normalize columns to resolver-product convention
-    out = maf.rename(columns={
-        cfg.gene_col: "gene_symbol",
-        cfg.protein_col: "protein_change",
-        cfg.effect_col: "effect",
-        cfg.sample_col: "sample_id",
-    })
+    out = maf.rename(
+        columns={
+            cfg.gene_col: "gene_symbol",
+            cfg.protein_col: "protein_change",
+            cfg.effect_col: "effect",
+            cfg.sample_col: "sample_id",
+        }
+    )
     out["source_native_id"] = out["sample_id"]
 
     # 5b. effect/exon normalization for catalogs that author rules against the
@@ -403,15 +424,15 @@ def main(source: str, indication: str) -> int:
         out["exon"] = pd.to_numeric(exon_raw, errors="coerce").astype("Int64")
     if cfg.normalize_effect:
         raw_effect = out["effect"].copy()
-        out["effect"] = raw_effect.map(VARIANT_CLASSIFICATION_TO_EFFECT).fillna(
-            raw_effect.astype(str).str.lower())
+        out["effect"] = raw_effect.map(VARIANT_CLASSIFICATION_TO_EFFECT).fillna(raw_effect.astype(str).str.lower())
         # `missense_damaging` = Missense_Mutation ∧ PolyPhen probably/possibly_damaging.
         # Additive: appended as a SECOND row per damaging-missense variant so a rule
         # `effect in ['missense_damaging']` fires without breaking `effect == 'missense'`.
         if cfg.polyphen_col and cfg.polyphen_col in maf.columns:
             pph = maf[cfg.polyphen_col].astype(str)
-            dmg_mask = (raw_effect == "Missense_Mutation") & \
-                pph.str.startswith(("probably_damaging", "possibly_damaging"))
+            dmg_mask = (raw_effect == "Missense_Mutation") & pph.str.startswith(
+                ("probably_damaging", "possibly_damaging")
+            )
             n_dmg = int(dmg_mask.sum())
             if n_dmg:
                 dmg_rows = out[dmg_mask.values].copy()
@@ -421,7 +442,7 @@ def main(source: str, indication: str) -> int:
     # patient_id: TCGA truncates to barcode; others null
     if cfg.filter_strategy == "tcga_patient_list":
         out["patient_id"] = out["sample_id"].str[:12]
-        out["sample_id"] = out["patient_id"]   # marker-paper is patient-level; align
+        out["sample_id"] = out["patient_id"]  # marker-paper is patient-level; align
         out["source_native_id"] = out["source_native_id"]  # keep aliquot as native
     else:
         out["patient_id"] = None

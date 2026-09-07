@@ -40,12 +40,14 @@ def test_marker_paper_session_cache_hit(tmp_path, monkeypatch):
     # Populate session cache
     session_path = tmp_path / "session" / "tcga-marker-paper" / "coadread" / "subtypes.csv"
     session_path.parent.mkdir(parents=True)
-    session_df = pd.DataFrame({
-        "sample_id": ["TCGA-A"],
-        "patient_id": ["TCGA-A"],
-        "source_native_id": ["TCGA-A-01"],
-        "MSI_status": ["MSI-H"],
-    })
+    session_df = pd.DataFrame(
+        {
+            "sample_id": ["TCGA-A"],
+            "patient_id": ["TCGA-A"],
+            "source_native_id": ["TCGA-A-01"],
+            "MSI_status": ["MSI-H"],
+        }
+    )
     session_df.to_csv(session_path, index=False)
 
     loaders.load_tcga_marker_paper_subtypes.cache_clear()
@@ -96,11 +98,13 @@ def test_assignments_load_synthetic(tmp_path, monkeypatch):
     # Session-cache the assignments parquet
     parquet_dir = tmp_path / "cache" / "assignments" / "tcga-subgroup-assignments-coadread-v1"
     parquet_dir.mkdir(parents=True)
-    df = pd.DataFrame({
-        "sample_id": ["S1", "S2", "S1", "S2"],
-        "stratum_id": ["MSI_H", "MSI_H", "MSS", "MSS"],
-        "is_member": [True, False, False, True],
-    })
+    df = pd.DataFrame(
+        {
+            "sample_id": ["S1", "S2", "S1", "S2"],
+            "stratum_id": ["MSI_H", "MSI_H", "MSS", "MSS"],
+            "is_member": [True, False, False, True],
+        }
+    )
     df.to_parquet(parquet_dir / "assignments.parquet", index=False)
 
     loaders.load_assignments.cache_clear()
@@ -113,6 +117,7 @@ def test_assignments_s3_fetch_on_cache_miss(tmp_path, monkeypatch):
     """On cache miss + a manifest with s3_uri, load_assignments fetches from S3
     (aws s3 cp) into the session cache, then reads. Mocks subprocess so no network."""
     import subprocess
+
     monkeypatch.setattr(loaders, "CACHE_ASSIGNMENTS", tmp_path / "cache" / "assignments")
 
     fake_catalog = tmp_path / "data-catalog"
@@ -126,8 +131,7 @@ def test_assignments_s3_fetch_on_cache_miss(tmp_path, monkeypatch):
     )
     # NB: no local cache entry → forces the S3-fetch branch.
 
-    df = pd.DataFrame({"sample_id": ["ACH-1", "ACH-2"], "stratum_id": ["MSI_H", "MSS"],
-                       "is_member": [True, True]})
+    df = pd.DataFrame({"sample_id": ["ACH-1", "ACH-2"], "stratum_id": ["MSI_H", "MSS"], "is_member": [True, True]})
 
     def _fake_aws_cp(cmd, capture_output, text):
         # cmd = ["aws","s3","cp", s3_uri, dest, "--no-progress"]
@@ -141,29 +145,31 @@ def test_assignments_s3_fetch_on_cache_miss(tmp_path, monkeypatch):
     monkeypatch.setattr("subprocess.run", _fake_aws_cp)
 
     loaders.load_assignments.cache_clear()
-    got = loaders.load_assignments("depmap-subgroup-assignments-coadread-v1",
-                                   data_catalog_repo=fake_catalog)
+    got = loaders.load_assignments("depmap-subgroup-assignments-coadread-v1", data_catalog_repo=fake_catalog)
     assert len(got) == 2
     assert set(got["stratum_id"]) == {"MSI_H", "MSS"}
     # the fetch wrote into the session cache (so a repeat read is local)
-    assert (loaders.CACHE_ASSIGNMENTS / "depmap-subgroup-assignments-coadread-v1"
-            / "assignments.parquet").exists()
+    assert (loaders.CACHE_ASSIGNMENTS / "depmap-subgroup-assignments-coadread-v1" / "assignments.parquet").exists()
 
 
 def test_assignments_s3_fetch_failure_raises(tmp_path, monkeypatch):
     """A failed aws cp raises a clear FileNotFoundError (not a silent empty result)."""
     import subprocess
+
     monkeypatch.setattr(loaders, "CACHE_ASSIGNMENTS", tmp_path / "cache" / "assignments")
     fake_catalog = tmp_path / "data-catalog"
-    md = fake_catalog / "manifests" / "derived"; md.mkdir(parents=True)
+    md = fake_catalog / "manifests" / "derived"
+    md.mkdir(parents=True)
     (md / "x-v1.yaml").write_text("id: x-v1\ntype: derived\ns3_uri: s3://onc-compbio/x.parquet\n")
 
     def _fail(cmd, capture_output, text):
         return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="AccessDenied")
+
     monkeypatch.setattr("subprocess.run", _fail)
 
     loaders.load_assignments.cache_clear()
     import pytest
+
     with pytest.raises(FileNotFoundError, match="S3 fetch"):
         loaders.load_assignments("x-v1", data_catalog_repo=fake_catalog)
 

@@ -46,6 +46,7 @@ except Exception:  # noqa: BLE001 — keep the accessor importable even if the h
             return "bottom_decile"
         return "mid"
 
+
 DEFAULT_AWS_PROFILE = "cbg"
 from methods.catalog_query.read import bucket_key_for
 
@@ -75,11 +76,13 @@ def _build_s3fs():
     test never needs boto3/pyarrow at module import."""
     import pyarrow.fs as fs
     import boto3
+
     creds = boto3.Session(profile_name=DEFAULT_AWS_PROFILE).get_credentials()
     if creds is not None:
         frozen = creds.get_frozen_credentials()
-        return fs.S3FileSystem(access_key=frozen.access_key, secret_key=frozen.secret_key,
-                               session_token=frozen.token, region="us-east-1")
+        return fs.S3FileSystem(
+            access_key=frozen.access_key, secret_key=frozen.secret_key, session_token=frozen.token, region="us-east-1"
+        )
     return fs.S3FileSystem(region="us-east-1")
 
 
@@ -117,6 +120,7 @@ def _rank_dataset(key: str):
             ds = _DATASETS.get(key)
             if ds is None:
                 import pyarrow.dataset as pads
+
                 ds = pads.dataset(f"{S3_BUCKET}/{key}", filesystem=_s3fs(), format="parquet")
                 _DATASETS[key] = ds
     return ds
@@ -131,25 +135,27 @@ def _tumor_rows(ensembl_ids: tuple, source: str) -> tuple:
         return ()
     try:
         import pyarrow.compute as pc
+
         # Same predicate as the former read_table DNF filters, against a reused Dataset (footer read
         # once) — see _rank_dataset. Byte-identical rows/columns to the prior pq.read_table path.
         expr = pc.field("ensembl_gene_id").isin(list(ensembl_ids)) & (pc.field("source") == source)
         tbl = _rank_dataset(TUMOR_RANK_KEY).to_table(
-            filter=expr,
-            columns=["group", "allgene_percentile", "allgene_rank", "n_genes_in_group", "median"])
+            filter=expr, columns=["group", "allgene_percentile", "allgene_rank", "n_genes_in_group", "median"]
+        )
         df = tbl.to_pandas()
     except Exception as e:  # noqa: BLE001 — a READ failure is a typed error, NOT silent absence
         raise _RankReadError(str(e)) from e
     # An empty frame here means the gene(s) are genuinely absent from the product (→ () is correct);
     # a read/auth/parse failure raised above instead, so the caller can tell the two apart.
-    return tuple((str(r.group), float(r.allgene_percentile), int(r.allgene_rank),
-                  int(r.n_genes_in_group), float(r.median))
-                 for r in df.itertuples(index=False))
+    return tuple(
+        (str(r.group), float(r.allgene_percentile), int(r.allgene_rank), int(r.n_genes_in_group), float(r.median))
+        for r in df.itertuples(index=False)
+    )
 
 
-def tumor_allgene_percentile(ensembl_ids: Sequence[str], studies: Sequence[str],
-                             cutoffs: Optional[dict] = None,
-                             source: str = "tcga_tumor") -> dict:
+def tumor_allgene_percentile(
+    ensembl_ids: Sequence[str], studies: Sequence[str], cutoffs: Optional[dict] = None, source: str = "tcga_tumor"
+) -> dict:
     """All-gene percentile of the target's tumor MEDIAN, averaged over the indication's
     TCGA studies (biologically-matched — COADREAD → COAD+READ), from allgene-tumor-rank-v1.
 
@@ -159,8 +165,12 @@ def tumor_allgene_percentile(ensembl_ids: Sequence[str], studies: Sequence[str],
       allgene_percentile_context str        — the exact source + studies the null was drawn from (audit)
       allgene_percentile_by_study {study: pct}  — per-study breakdown (multi-study transparency)
     """
-    out = {"allgene_percentile": None, "allgene_percentile_class": "data_unavailable",
-           "allgene_percentile_context": None, "allgene_percentile_by_study": {}}
+    out = {
+        "allgene_percentile": None,
+        "allgene_percentile_class": "data_unavailable",
+        "allgene_percentile_context": None,
+        "allgene_percentile_by_study": {},
+    }
     ids = tuple(sorted({str(e) for e in (ensembl_ids or []) if e}))
     want = {str(s).upper().strip() for s in (studies or [])}
     if not ids or not want:
@@ -169,12 +179,12 @@ def tumor_allgene_percentile(ensembl_ids: Sequence[str], studies: Sequence[str],
         rows = _tumor_rows(ids, source)
     except _RankReadError as e:
         out["allgene_percentile_context"] = (
-            f"{source}:{','.join(sorted(want))} (allgene-tumor-rank-v1) — rank read failed: {e}")
+            f"{source}:{','.join(sorted(want))} (allgene-tumor-rank-v1) — rank read failed: {e}"
+        )
         return out
     by_study = {g: pct for (g, pct, _rank, _n, _med) in rows if g.upper() in want}
     if not by_study:
-        out["allgene_percentile_context"] = (
-            f"{source}:{','.join(sorted(want))} (allgene-tumor-rank-v1) — target absent")
+        out["allgene_percentile_context"] = f"{source}:{','.join(sorted(want))} (allgene-tumor-rank-v1) — target absent"
         return out
     mean_pct = sum(by_study.values()) / len(by_study)
     out["allgene_percentile"] = mean_pct
@@ -182,7 +192,8 @@ def tumor_allgene_percentile(ensembl_ids: Sequence[str], studies: Sequence[str],
     out["allgene_percentile_by_study"] = {k: round(v, 2) for k, v in sorted(by_study.items())}
     out["allgene_percentile_context"] = (
         f"{source}:{','.join(sorted(by_study))} all-gene median rank "
-        f"(allgene-tumor-rank-v1; mean of {len(by_study)} study null(s))")
+        f"(allgene-tumor-rank-v1; mean of {len(by_study)} study null(s))"
+    )
     return out
 
 
@@ -195,18 +206,19 @@ def _depmap_row(gene_symbol: str) -> Optional[tuple]:
         return None
     try:
         import pyarrow.compute as pc
+
         # Reused Dataset (footer read once) + pushdown — byte-identical to the prior read_table filter.
         tbl = _rank_dataset(DEPMAP_RANK_KEY).to_table(
             filter=pc.field("gene_symbol") == gene_symbol,
-            columns=["allgene_percentile", "allgene_rank", "n_genes", "panel_median_log2tpm"])
+            columns=["allgene_percentile", "allgene_rank", "n_genes", "panel_median_log2tpm"],
+        )
         df = tbl.to_pandas()
     except Exception as e:  # noqa: BLE001 — a READ failure is a typed error, NOT silent absence
         raise _RankReadError(str(e)) from e
-    if df.empty:            # genuinely absent from the product (→ None is correct)
+    if df.empty:  # genuinely absent from the product (→ None is correct)
         return None
     r = df.iloc[0]
-    return (float(r["allgene_percentile"]), int(r["allgene_rank"]),
-            int(r["n_genes"]), float(r["panel_median_log2tpm"]))
+    return (float(r["allgene_percentile"]), int(r["allgene_rank"]), int(r["n_genes"]), float(r["panel_median_log2tpm"]))
 
 
 def depmap_allgene_percentile(gene_symbol: str, cutoffs: Optional[dict] = None) -> dict:
@@ -215,23 +227,24 @@ def depmap_allgene_percentile(gene_symbol: str, cutoffs: Optional[dict] = None) 
 
     Returns a data_unavailable-safe dict (same shape as the tumor accessor, no per-study
     breakdown — the DepMap null is a single pan-cancer panel)."""
-    out = {"allgene_percentile": None, "allgene_percentile_class": "data_unavailable",
-           "allgene_percentile_context": None}
+    out = {
+        "allgene_percentile": None,
+        "allgene_percentile_class": "data_unavailable",
+        "allgene_percentile_context": None,
+    }
     sym = (gene_symbol or "").strip()
     try:
         row = _depmap_row(sym)
     except _RankReadError as e:
-        out["allgene_percentile_context"] = (
-            f"DepMap 26q1 panel (allgene-depmap-rank-26q1-v1) — rank read failed: {e}")
+        out["allgene_percentile_context"] = f"DepMap 26q1 panel (allgene-depmap-rank-26q1-v1) — rank read failed: {e}"
         return out
     if row is None:
-        out["allgene_percentile_context"] = (
-            "DepMap 26q1 panel (allgene-depmap-rank-26q1-v1) — target absent")
+        out["allgene_percentile_context"] = "DepMap 26q1 panel (allgene-depmap-rank-26q1-v1) — target absent"
         return out
     pct, rank, n_genes, _median = row
     out["allgene_percentile"] = pct
     out["allgene_percentile_class"] = classify_percentile(pct, cutoffs)
     out["allgene_percentile_context"] = (
-        f"DepMap 26q1 pan-cancer panel all-gene median rank "
-        f"(allgene-depmap-rank-26q1-v1; rank {rank}/{n_genes})")
+        f"DepMap 26q1 pan-cancer panel all-gene median rank (allgene-depmap-rank-26q1-v1; rank {rank}/{n_genes})"
+    )
     return out

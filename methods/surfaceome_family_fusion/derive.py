@@ -45,6 +45,7 @@ Usage:
     python -m methods.surfaceome_family_fusion.derive \\
         --out /tmp/surfaceome_family.parquet
 """
+
 from __future__ import annotations
 
 import argparse
@@ -66,10 +67,7 @@ S3_BUCKET = "onc-compbio"
 # Source S3 keys (all landed sources per data-catalog audit).
 SURFY_S3_KEY = "data-catalog/sources/surfacome-ethz-2018/table_S3_surfaceome.xlsx"
 HPA_S3_KEY = "data-catalog/sources/hpa/v25-1/proteinatlas.tsv.zip"
-UNIPROT_DAT_S3_KEY = (
-    "data-catalog/sources/uniprot-sprot-human/2026_02-snapshot-2026-06-18/"
-    "uniprot_sprot_human.dat.gz"
-)
+UNIPROT_DAT_S3_KEY = "data-catalog/sources/uniprot-sprot-human/2026_02-snapshot-2026-06-18/uniprot_sprot_human.dat.gz"
 IUPHAR_S3_KEY = "data-catalog/sources/iuphar-gtop/2026-2/targets_and_families.csv"
 
 
@@ -126,18 +124,27 @@ _IUPHAR_TYPE_TO_FAMILY: dict[str, str] = {
 }
 
 # IUPHAR types that imply surface-presence even if HPA/SURFY didn't flag it
-_IUPHAR_SURFACE_TYPES = {"gpcr", "ion channel", "vgic", "lgic",
-                          "other ion channel", "catalytic receptor", "transporter"}
+_IUPHAR_SURFACE_TYPES = {
+    "gpcr",
+    "ion channel",
+    "vgic",
+    "lgic",
+    "other ion channel",
+    "catalytic receptor",
+    "transporter",
+}
 
 
 def _boto3_client():
     import boto3
+
     return boto3.Session(profile_name=DEFAULT_AWS_PROFILE).client("s3")
 
 
 # ---------------------------------------------------------------------------
 # Per-source loaders
 # ---------------------------------------------------------------------------
+
 
 def _load_surfy(local_path: Path) -> pd.DataFrame:
     """Load SURFY SurfaceomeMasterTable sheet. Handles the title-comment first row.
@@ -161,12 +168,12 @@ def _load_surfy(local_path: Path) -> pd.DataFrame:
             col_map[c] = "surfy_confidence_score"
     df = df.rename(columns=col_map)
     if "uniprot_ac" not in df.columns:
-        raise RuntimeError(
-            f"SURFY: uniprot column not found. Available: {list(df.columns)[:8]}"
-        )
+        raise RuntimeError(f"SURFY: uniprot column not found. Available: {list(df.columns)[:8]}")
     df["uniprot_ac"] = df["uniprot_ac"].astype(str).str.strip()
     if "surfy_label" in df.columns:
-        df["surface_present_surfy"] = df["surfy_label"].astype(str).str.lower().str.strip().isin({"surface", "yes", "true"})
+        df["surface_present_surfy"] = (
+            df["surfy_label"].astype(str).str.lower().str.strip().isin({"surface", "yes", "true"})
+        )
     else:
         # Master-table lists both surface and non-surface; SURFY score >0.5 = surface fallback
         df["surface_present_surfy"] = df.get("surfy_confidence_score", 0).fillna(0) >= 0.5
@@ -206,9 +213,7 @@ def _load_hpa(local_path: Path) -> pd.DataFrame:
     df = df[df["uniprot_ac"] != ""].copy()
 
     # Surface flag: Plasma membrane in subcellular main location
-    df["source_hpa_plasma_membrane"] = df["hpa_subcell"].str.contains(
-        "Plasma membrane", case=False, na=False
-    )
+    df["source_hpa_plasma_membrane"] = df["hpa_subcell"].str.contains("Plasma membrane", case=False, na=False)
 
     # Family from Protein class. HPA is multi-label; a target like ERBB2 may
     # be tagged as both "Kinases" AND "CD markers" AND "Transporters" — we
@@ -217,8 +222,14 @@ def _load_hpa(local_path: Path) -> pd.DataFrame:
     # therapy-modality relevance: Kinase > Adhesion > GPCR > Growth_factor
     # > Immune_receptor > CD_molecule > Transporter > Enzyme.
     _FAMILY_PRIORITY = [
-        "Kinase", "Adhesion", "GPCR", "Growth_factor",
-        "Immune_receptor", "CD_molecule", "Transporter", "Enzyme",
+        "Kinase",
+        "Adhesion",
+        "GPCR",
+        "Growth_factor",
+        "Immune_receptor",
+        "CD_molecule",
+        "Transporter",
+        "Enzyme",
     ]
 
     def pick_family(cls_str: str) -> str:
@@ -288,9 +299,7 @@ def _load_iuphar(local_path: Path) -> pd.DataFrame:
     # First row is title comment; real header on row 1
     df = pd.read_csv(local_path, skiprows=1, low_memory=False, dtype=str)
     if "Human SwissProt" not in df.columns:
-        raise RuntimeError(
-            f"IUPHAR: 'Human SwissProt' column not found. Available: {list(df.columns)[:8]}"
-        )
+        raise RuntimeError(f"IUPHAR: 'Human SwissProt' column not found. Available: {list(df.columns)[:8]}")
     df = df[["Human SwissProt", "Type", "Family name"]].copy()
     df.columns = ["uniprot_ac", "iuphar_type", "iuphar_family_name"]
     df["uniprot_ac"] = df["uniprot_ac"].fillna("").str.strip()
@@ -308,10 +317,9 @@ def _load_iuphar(local_path: Path) -> pd.DataFrame:
     # Family-name override for Adhesion: matches 'Integrin' or 'cadherin'
     # BUT NOT 'Adhesion Class GPCRs' (a GPCR subclass).
     fam_lower = df["iuphar_family_name"].str.lower()
-    is_adhesion = (
-        (fam_lower.str.contains("integrin", na=False))
-        | (fam_lower.str.contains("cadherin", na=False))
-    ) & (~fam_lower.str.contains("gpcr", na=False))
+    is_adhesion = ((fam_lower.str.contains("integrin", na=False)) | (fam_lower.str.contains("cadherin", na=False))) & (
+        ~fam_lower.str.contains("gpcr", na=False)
+    )
     df.loc[is_adhesion, "source_iuphar_family"] = "Adhesion"
 
     return df[["uniprot_ac", "source_iuphar_family", "iuphar_type_lower", "iuphar_family_name"]].drop_duplicates(
@@ -322,6 +330,7 @@ def _load_iuphar(local_path: Path) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 # Fusion
 # ---------------------------------------------------------------------------
+
 
 def _classify_family(row) -> str:
     """Family assignment across 4 sources.
@@ -387,9 +396,7 @@ def _classify_family_class(row) -> str:
 def _build_provenance(row) -> list[str]:
     prov = []
     if row.get("_surfy_reported"):
-        prov.append(
-            f"surfy:{'surface' if row.get('source_surfy_positive') else 'not_surface'}"
-        )
+        prov.append(f"surfy:{'surface' if row.get('source_surfy_positive') else 'not_surface'}")
     if row.get("_hpa_reported"):
         hpa_call = "surface" if row.get("source_hpa_plasma_membrane") else "not_surface"
         family = row.get("hpa_family") or ""
@@ -421,9 +428,7 @@ def fuse(
     df["_surfy_reported"] = df["_surfy_reported"].fillna(False)
     df["_hpa_reported"] = df["_hpa_reported"].fillna(False)
     df["source_surfy_positive"] = df.get("surface_present_surfy", False).fillna(False)
-    df["source_hpa_plasma_membrane"] = df.get(
-        "source_hpa_plasma_membrane", False
-    ).fillna(False)
+    df["source_hpa_plasma_membrane"] = df.get("source_hpa_plasma_membrane", False).fillna(False)
     df["source_uniprot_ec_number"] = df.get("source_uniprot_ec_number", "").fillna("")
     df["source_iuphar_family"] = df.get("source_iuphar_family", "").fillna("")
     df["hpa_family"] = df.get("hpa_family", "").fillna("")
@@ -443,10 +448,9 @@ def fuse(
     # of sources that REPORTED on surface status (SURFY + HPA); IUPHAR is
     # inference-only for surface (doesn't report an explicit "is-surface" bit).
     reported = df["_surfy_reported"].astype(int) + df["_hpa_reported"].astype(int)
-    agreeing = (
-        (df["_surfy_reported"] & (df["source_surfy_positive"] == df["is_surface_protein"])).astype(int)
-        + (df["_hpa_reported"] & (df["source_hpa_plasma_membrane"] == df["is_surface_protein"])).astype(int)
-    )
+    agreeing = (df["_surfy_reported"] & (df["source_surfy_positive"] == df["is_surface_protein"])).astype(int) + (
+        df["_hpa_reported"] & (df["source_hpa_plasma_membrane"] == df["is_surface_protein"])
+    ).astype(int)
     df["surfaceome_confidence_score"] = agreeing / reported.where(reported > 0, 1)
     df.loc[reported == 0, "surfaceome_confidence_score"] = None
 
@@ -462,6 +466,7 @@ def fuse(
 # ---------------------------------------------------------------------------
 # Orchestration
 # ---------------------------------------------------------------------------
+
 
 def _download_source(local_dir: Path, s3_key: str) -> Path:
     """Download s3_key to local_dir if not already present. Returns local path."""
@@ -486,7 +491,7 @@ def derive_surfaceome_family(out_parquet: Path, local_cache_dir: Path) -> pd.Dat
     uniprot_local = _download_source(local_cache_dir, UNIPROT_DAT_S3_KEY)
     iuphar_local = _download_source(local_cache_dir, IUPHAR_S3_KEY)
     print(
-        f"[surfaceome_family_fusion.derive] downloads: {time.perf_counter()-t0:.1f}s",
+        f"[surfaceome_family_fusion.derive] downloads: {time.perf_counter() - t0:.1f}s",
         file=sys.stderr,
     )
 
@@ -494,8 +499,7 @@ def derive_surfaceome_family(out_parquet: Path, local_cache_dir: Path) -> pd.Dat
     t0 = time.perf_counter()
     surfy_df = _load_surfy(surfy_local)
     print(
-        f"[surfaceome_family_fusion.derive]   SURFY rows: {len(surfy_df):,} "
-        f"({time.perf_counter()-t0:.1f}s)",
+        f"[surfaceome_family_fusion.derive]   SURFY rows: {len(surfy_df):,} ({time.perf_counter() - t0:.1f}s)",
         file=sys.stderr,
     )
 
@@ -503,8 +507,7 @@ def derive_surfaceome_family(out_parquet: Path, local_cache_dir: Path) -> pd.Dat
     t0 = time.perf_counter()
     hpa_df = _load_hpa(hpa_local)
     print(
-        f"[surfaceome_family_fusion.derive]   HPA rows: {len(hpa_df):,} "
-        f"({time.perf_counter()-t0:.1f}s)",
+        f"[surfaceome_family_fusion.derive]   HPA rows: {len(hpa_df):,} ({time.perf_counter() - t0:.1f}s)",
         file=sys.stderr,
     )
 
@@ -512,8 +515,7 @@ def derive_surfaceome_family(out_parquet: Path, local_cache_dir: Path) -> pd.Dat
     t0 = time.perf_counter()
     uniprot_df = _load_uniprot_ec(uniprot_local)
     print(
-        f"[surfaceome_family_fusion.derive]   UniProt records: {len(uniprot_df):,} "
-        f"({time.perf_counter()-t0:.1f}s)",
+        f"[surfaceome_family_fusion.derive]   UniProt records: {len(uniprot_df):,} ({time.perf_counter() - t0:.1f}s)",
         file=sys.stderr,
     )
 
@@ -521,8 +523,7 @@ def derive_surfaceome_family(out_parquet: Path, local_cache_dir: Path) -> pd.Dat
     t0 = time.perf_counter()
     iuphar_df = _load_iuphar(iuphar_local)
     print(
-        f"[surfaceome_family_fusion.derive]   IUPHAR rows: {len(iuphar_df):,} "
-        f"({time.perf_counter()-t0:.1f}s)",
+        f"[surfaceome_family_fusion.derive]   IUPHAR rows: {len(iuphar_df):,} ({time.perf_counter() - t0:.1f}s)",
         file=sys.stderr,
     )
 
@@ -530,8 +531,7 @@ def derive_surfaceome_family(out_parquet: Path, local_cache_dir: Path) -> pd.Dat
     t0 = time.perf_counter()
     fused = fuse(surfy_df, hpa_df, uniprot_df, iuphar_df)
     print(
-        f"[surfaceome_family_fusion.derive]   fused rows: {len(fused):,} "
-        f"({time.perf_counter()-t0:.1f}s)",
+        f"[surfaceome_family_fusion.derive]   fused rows: {len(fused):,} ({time.perf_counter() - t0:.1f}s)",
         file=sys.stderr,
     )
 
@@ -560,7 +560,7 @@ def derive_surfaceome_family(out_parquet: Path, local_cache_dir: Path) -> pd.Dat
     fused.to_parquet(out_parquet, engine="pyarrow", compression="snappy", index=False)
     print(
         f"[surfaceome_family_fusion.derive] wrote {len(fused):,} rows "
-        f"({out_parquet.stat().st_size/1e6:.1f}MB) -> {out_parquet}",
+        f"({out_parquet.stat().st_size / 1e6:.1f}MB) -> {out_parquet}",
         file=sys.stderr,
     )
 
@@ -574,11 +574,13 @@ def derive_surfaceome_family(out_parquet: Path, local_cache_dir: Path) -> pd.Dat
 
 def _main(argv: Iterable[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--out", type=Path, required=True,
-                    help="Output parquet path")
-    ap.add_argument("--cache-dir", type=Path,
-                    default=Path.home() / ".cache" / "framework-surfaceome-family-sources",
-                    help="Local directory for source-file caching")
+    ap.add_argument("--out", type=Path, required=True, help="Output parquet path")
+    ap.add_argument(
+        "--cache-dir",
+        type=Path,
+        default=Path.home() / ".cache" / "framework-surfaceome-family-sources",
+        help="Local directory for source-file caching",
+    )
     args = ap.parse_args(argv)
 
     os.environ.setdefault("AWS_PROFILE", DEFAULT_AWS_PROFILE)

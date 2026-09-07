@@ -15,13 +15,14 @@ entry, BEFORE path resolution and the pushdown filter. Mirrors the PAAD/PDAC dua
 crosswalk sub-codes that roll up to a coarser `canonical_code`; identity for codes that are already
 canonical or have their own partition.
 """
+
 from __future__ import annotations
 
 # OncoTree sub-code -> framework patient-cohort canonical_code (indication_crosswalk.yaml).
 # Only sub-codes whose patient-cohort product is materialised at a COARSER canonical grain belong here.
 _TO_COHORT_CANONICAL = {
-    "LUAD": "NSCLC",   # TCGA-LUAD ∈ NSCLC (pooled with LUSC)
-    "LUSC": "NSCLC",   # TCGA-LUSC ∈ NSCLC
+    "LUAD": "NSCLC",  # TCGA-LUAD ∈ NSCLC (pooled with LUSC)
+    "LUSC": "NSCLC",  # TCGA-LUSC ∈ NSCLC
 }
 
 
@@ -41,7 +42,7 @@ def to_cohort_canonical(indication: str) -> str:
 # DID see LUAD+LSCC while the per-sample CPTAC readers returned "no cohort"). Keyed by the crosswalk
 # umbrella canonical_code; identity for codes that already have their own leaf partition.
 _UMBRELLA_TO_LEAVES = {
-    "NSCLC": ("LUAD", "LUSC"),   # CPTAC: LUAD + LSCC (LUSC≡LSCC); no pooled NSCLC cohort
+    "NSCLC": ("LUAD", "LUSC"),  # CPTAC: LUAD + LSCC (LUSC≡LSCC); no pooled NSCLC cohort
 }
 
 

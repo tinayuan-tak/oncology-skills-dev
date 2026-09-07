@@ -1,6 +1,7 @@
 """Hermetic tests for the patient cis-coherence arm (no S3): stubs the three case-keyed readers
 and verifies (1) the CN->expression join feeds compute_cis_dosage, (2) case-barcode intersection,
 (3) the methylation->expression silencing contrast, (4) honest empty/absence propagation."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -26,7 +27,7 @@ def test_cn_expression_coupling_calls_compute_and_intersects_on_case(monkeypatch
     expr["TCGA-XX-9002"] = 9.0
     _stub(monkeypatch, expr, cn, {})
     out = cli.compute_patient_cis_coherence("ERBB2", "BRCA")
-    assert out["n_patients_cn_expr"] == n                       # intersection only
+    assert out["n_patients_cn_expr"] == n  # intersection only
     assert out["patient_cis_dosage_class"].startswith("cn_dosage_coupled")  # strong positive rank corr
     assert out["cn_expr_spearman_r"] > 0.5
 
@@ -37,11 +38,11 @@ def test_gistic_plus_one_gains_counted_as_amplified(monkeypatch):
     cases = [f"TCGA-XX-{i:04d}" for i in range(60)]
     cn = {}
     for i, c in enumerate(cases):
-        cn[c] = (0 if i < 10 else -1 if i < 20 else 1 if i < 40 else 2)
+        cn[c] = 0 if i < 10 else -1 if i < 20 else 1 if i < 40 else 2
     expr = {c: 3.0 + 1.2 * cn[c] for c in cases}
     _stub(monkeypatch, expr, cn, {})
     out = cli.compute_patient_cis_coherence("ERBB2", "BRCA")
-    assert out["n_amplified"] == 40   # +1 (20) AND +2 (20); would be 20 if +1 gains were excluded
+    assert out["n_amplified"] == 40  # +1 (20) AND +2 (20); would be 20 if +1 gains were excluded
 
 
 def test_methylation_silencing_negative_delta(monkeypatch):
@@ -58,8 +59,7 @@ def test_methylation_silencing_negative_delta(monkeypatch):
 
 
 def test_methylation_no_signal_when_expression_unchanged(monkeypatch):
-    meth = {**{f"TCGA-M-{i:03d}": True for i in range(6)},
-            **{f"TCGA-U-{i:03d}": False for i in range(6)}}
+    meth = {**{f"TCGA-M-{i:03d}": True for i in range(6)}, **{f"TCGA-U-{i:03d}": False for i in range(6)}}
     expr = {c: 5.0 for c in meth}  # identical expression regardless of methylation
     _stub(monkeypatch, expr, {}, meth)
     out = cli.compute_patient_cis_coherence("GENE", "BRCA")
@@ -93,7 +93,7 @@ def test_entrypoint_no_indication_is_data_unavailable():
 def test_entrypoint_delegates_and_strips_internal(monkeypatch):
     _stub(monkeypatch, {}, {}, {})
     out = cli.read_patient_cis_coherence("ERBB2", "BRCA", release_pin="ignored")
-    assert "_cis_dosage_full" not in out          # internal provenance stripped for the card
+    assert "_cis_dosage_full" not in out  # internal provenance stripped for the card
     assert out["method_version"] == cli.METHOD_VERSION
     assert out["indication"] == "BRCA"
 
@@ -104,17 +104,19 @@ def test_methylation_reader_scopes_to_indication(monkeypatch):
     ct = {"TCGA-ST-001": "STAD", "TCGA-ST-002": "STAD", "TCGA-HN-001": "HNSC", "TCGA-ES-001": "ESCA"}
     monkeypatch.setattr("methods.functional_gene_state.read._read_patient_methylation", lambda t, i: pan)
     monkeypatch.setattr("methods.functional_gene_state.read._load_sample_cancer_types", lambda: ct)
-    out = read.read_patient_methylation_by_case("CDKN2A", "GC")   # GC -> ("STAD",)
-    assert out == {"TCGA-ST-001": True, "TCGA-ST-002": False}     # HNSC/ESCA dropped
+    out = read.read_patient_methylation_by_case("CDKN2A", "GC")  # GC -> ("STAD",)
+    assert out == {"TCGA-ST-001": True, "TCGA-ST-002": False}  # HNSC/ESCA dropped
 
 
 def test_methylation_reader_unknown_indication_returns_pan(monkeypatch):
     pan = {"TCGA-ST-001": True}
     monkeypatch.setattr("methods.functional_gene_state.read._read_patient_methylation", lambda t, i: pan)
-    monkeypatch.setattr("methods.functional_gene_state.read._load_sample_cancer_types",
-                        lambda: (_ for _ in ()).throw(AssertionError("must not load ct for unknown ind")))
+    monkeypatch.setattr(
+        "methods.functional_gene_state.read._load_sample_cancer_types",
+        lambda: (_ for _ in ()).throw(AssertionError("must not load ct for unknown ind")),
+    )
     out = read.read_patient_methylation_by_case("GENE", "NOT_A_REAL_INDICATION")
-    assert out == pan   # cannot scope -> unfiltered (expr intersection bounds it downstream)
+    assert out == pan  # cannot scope -> unfiltered (expr intersection bounds it downstream)
 
 
 def test_methylation_reader_absent_annotation_falls_back_to_pan(monkeypatch):
@@ -122,15 +124,16 @@ def test_methylation_reader_absent_annotation_falls_back_to_pan(monkeypatch):
     monkeypatch.setattr("methods.functional_gene_state.read._read_patient_methylation", lambda t, i: pan)
     monkeypatch.setattr("methods.functional_gene_state.read._load_sample_cancer_types", lambda: {})
     out = read.read_patient_methylation_by_case("GENE", "GC")
-    assert out == pan   # annotation genuinely absent -> don't zero out the leg
+    assert out == pan  # annotation genuinely absent -> don't zero out the leg
 
 
 def test_readers_are_thin_case_keyed_wrappers(monkeypatch):
     # read_patient_expression_by_case averages multi-aliquot cases to one value per case.
     import pandas as pd
+
     fake = pd.DataFrame({"case": ["TCGA-A-1", "TCGA-A-1", "TCGA-B-2"], "log2_tpm": [2.0, 4.0, 7.0]})
     monkeypatch.setattr(
-        "methods.tcga_gtex_expression_distribution.read.read_tumor_samples_with_case",
-        lambda t, i: fake)
+        "methods.tcga_gtex_expression_distribution.read.read_tumor_samples_with_case", lambda t, i: fake
+    )
     out = read.read_patient_expression_by_case("GENE", "BRCA")
     assert out == {"TCGA-A-1": 3.0, "TCGA-B-2": 7.0}

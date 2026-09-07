@@ -84,9 +84,9 @@ import click
 DEPMAP_S3_BUCKET = "onc-compbio"
 DEFAULT_OUTPUT_PREFIX = "data-catalog/derived/depmap-prism-activity-v4"
 DERIVED_PRODUCT_ID = "depmap-prism-activity-v4"
-DERIVED_PRODUCT_VERSION = "0.4.1"   # 2026-08-08: triangulated/confirmed calls now require BH-FDR
-                                    # q<0.05 per assay (not bare best-of-N rho≥0.30). Takes effect on
-                                    # re-emit; per-compound (rho,n) already persisted in the parquet.
+DERIVED_PRODUCT_VERSION = "0.4.1"  # 2026-08-08: triangulated/confirmed calls now require BH-FDR
+# q<0.05 per assay (not bare best-of-N rho≥0.30). Takes effect on
+# re-emit; per-compound (rho,n) already persisted in the parquet.
 
 # v4: CRISPR-PRISM concordance thresholds. The concordance is the Spearman
 # correlation between CRISPR Chronos-per-line (gene knockout effect) and
@@ -94,21 +94,21 @@ DERIVED_PRODUCT_VERSION = "0.4.1"   # 2026-08-08: triangulated/confirmed calls n
 # panel. Positive Spearman = compound tracks with genetic dependency (target-
 # engaged). Weak/no Spearman = compound activity doesn't track knockout →
 # likely off-target.
-MIN_LINES_FOR_CONCORDANCE = 20            # need ≥20 intersected lines for meaningful Spearman
-CONCORDANCE_STRONG_SPEARMAN = 0.30        # rho ≥ this → target-engaged call
-CONCORDANCE_WEAK_SPEARMAN = 0.10          # 0.1 ≤ rho < 0.3 → mixed / partial engagement
-CONCORDANCE_FDR_Q = 0.05                  # 2026-08-08: a "strong" (rho≥0.30) call must ALSO clear
-                                          # BH-FDR q < this across the gene's evaluated compounds, PER
-                                          # assay. Fixes the best-of-N multiplicity: max-rho over N
-                                          # annotated compounds at a fixed 0.30 with no significance
-                                          # control gave heavily-annotated genes ~N shots at a spurious
-                                          # 0.30 (worst for polypharmacology hubs). Also closes the
-                                          # independent-max loophole (CRISPR + RNAi maxes taken from
-                                          # DIFFERENT compounds): each assay's best must be its OWN
-                                          # FDR-significant best, computed from the already-stored (rho,n).
+MIN_LINES_FOR_CONCORDANCE = 20  # need ≥20 intersected lines for meaningful Spearman
+CONCORDANCE_STRONG_SPEARMAN = 0.30  # rho ≥ this → target-engaged call
+CONCORDANCE_WEAK_SPEARMAN = 0.10  # 0.1 ≤ rho < 0.3 → mixed / partial engagement
+CONCORDANCE_FDR_Q = 0.05  # 2026-08-08: a "strong" (rho≥0.30) call must ALSO clear
+# BH-FDR q < this across the gene's evaluated compounds, PER
+# assay. Fixes the best-of-N multiplicity: max-rho over N
+# annotated compounds at a fixed 0.30 with no significance
+# control gave heavily-annotated genes ~N shots at a spurious
+# 0.30 (worst for polypharmacology hubs). Also closes the
+# independent-max loophole (CRISPR + RNAi maxes taken from
+# DIFFERENT compounds): each assay's best must be its OWN
+# FDR-significant best, computed from the already-stored (rho,n).
 # Dual-responder thresholds
-DUAL_RESPONDER_CHRONOS = -0.5             # cell line "dependent" by CRISPR
-DUAL_RESPONDER_LFC = -1.0                 # cell line "responsive" by PRISM (any compound)
+DUAL_RESPONDER_CHRONOS = -0.5  # cell line "dependent" by CRISPR
+DUAL_RESPONDER_LFC = -1.0  # cell line "responsive" by PRISM (any compound)
 
 # Release-pin ↔ source-prefix registry. v3: OncRef contributes both Log2AUC
 # (primary metric) and LFCCollapsed (best-responder tail). Repurposing
@@ -122,7 +122,7 @@ RELEASES = {
         "log2auc_filename": "PRISMOncologyReferenceLumLog2AUCMatrix.csv",
         # v3: best-responder tail signal — raw LFC across all (compound × dose × cell_line)
         "lfc_collapsed_filename": "PRISMOncologyReferenceLumLFCCollapsed.csv",
-        "priority": 1,   # lower wins in cross-release dedup
+        "priority": 1,  # lower wins in cross-release dedup
     },
     "repurposing-24q2": {
         "lineage": "repurposing",
@@ -147,16 +147,16 @@ LFC_RESPONDING_THRESHOLD = -1.0
 # Recalibration data-point: BRAF Skin Log2AUC median = -0.50; KRAS Bowel Log2AUC
 # median = -0.17. Setting active threshold at -0.15 captures both selective +
 # broadly-cytotoxic drugs; inactive at > -0.05 (nearly-flat Log2AUC).
-MIN_CELL_LINES_IN_LINEAGE = 5             # E2 parity — smaller lineages excluded from per-lineage stats
+MIN_CELL_LINES_IN_LINEAGE = 5  # E2 parity — smaller lineages excluded from per-lineage stats
 LINEAGE_ACTIVE_LOG2AUC_THRESHOLD = -0.15  # lineage's median Log2AUC below this → 'active'
-LINEAGE_INACTIVE_LOG2AUC_THRESHOLD = -0.05 # lineage's median Log2AUC above this → 'inactive'
-LINEAGE_SELECTIVE_MIN_ACTIVE = 1          # ≥1 lineages active AND ≥1 inactive → lineage_selective
-LINEAGE_SELECTIVE_MIN_INACTIVE = 1        # mirrors E2 (which requires 1 significant enrichment)
+LINEAGE_INACTIVE_LOG2AUC_THRESHOLD = -0.05  # lineage's median Log2AUC above this → 'inactive'
+LINEAGE_SELECTIVE_MIN_ACTIVE = 1  # ≥1 lineages active AND ≥1 inactive → lineage_selective
+LINEAGE_SELECTIVE_MIN_INACTIVE = 1  # mirrors E2 (which requires 1 significant enrichment)
 
 # Compound-level activity thresholds (Log2AUC scale).
-WEAKLY_ACTIVE_LOG2AUC_THRESHOLD = -0.15   # tool compound must clear this to count as weakly_active
+WEAKLY_ACTIVE_LOG2AUC_THRESHOLD = -0.15  # tool compound must clear this to count as weakly_active
 CLINICALLY_ACTIVE_LOG2AUC_THRESHOLD = -0.10  # phase_1+ compound needs Log2AUC below this
-                                             # for the "clinically_active with signal" call
+# for the "clinically_active with signal" call
 
 # Vocabulary buckets for prism_activity_class. See card spec for authoritative copy.
 CLASS_CLINICALLY_ACTIVE = "clinically_active"
@@ -219,7 +219,7 @@ def _sha256_bytes(b: bytes, chunk_size: int = 8_388_608) -> str:
     h = hashlib.sha256()
     view = memoryview(b)
     for i in range(0, len(view), chunk_size):
-        h.update(view[i:i + chunk_size])
+        h.update(view[i : i + chunk_size])
     return h.hexdigest()
 
 
@@ -265,6 +265,7 @@ def load_oncref_compound_list(body: bytes) -> "pandas.DataFrame":
       source_release — 'oncref-25q4'
     """
     import pandas as pd
+
     df = pd.read_csv(BytesIO(body))
     df = df.copy()
     df["compound_id"] = df["SampleID"].astype(str)
@@ -288,8 +289,10 @@ def load_repurposing_compound_list(body: bytes) -> "pandas.DataFrame":
       source_release — 'repurposing-24q2'
     """
     import pandas as pd
+
     df = pd.read_csv(BytesIO(body))
     df = df.copy()
+
     # Parse 'BRD:BRD-A04843135-001-09-9' → 'BRD-A04843135' stem (drops well/plate/version)
     def _parse_brd(x):
         s = str(x)
@@ -300,6 +303,7 @@ def load_repurposing_compound_list(body: bytes) -> "pandas.DataFrame":
         if len(parts) >= 2:
             return "-".join(parts[:2])
         return s
+
     df["compound_id"] = df["IDs"].apply(_parse_brd)
     df["drug_name"] = df["Drug.Name"].astype(str).str.strip()
     df["gene_targets"] = df["repurposing_target"].apply(_split_gene_list)
@@ -325,6 +329,7 @@ def load_oncref_log2auc(body: bytes) -> "pandas.DataFrame":
     Primary v3 activity metric. DepMap portal-default sensitivity signal.
     """
     import pandas as pd
+
     df = pd.read_csv(BytesIO(body))
     id_col = df.columns[0]
     df = df.rename(columns={id_col: "model_id"})
@@ -344,14 +349,13 @@ def load_oncref_lfccollapsed(body: bytes, compound_ids_wanted: set[str]) -> "pan
     × ~444 compounds ≈ 3.2M rows.
     """
     import pandas as pd
+
     parts = []
-    chunk_iter = pd.read_csv(BytesIO(body), chunksize=500_000,
-                              usecols=["SampleID", "depmap_id", "LFC"])
+    chunk_iter = pd.read_csv(BytesIO(body), chunksize=500_000, usecols=["SampleID", "depmap_id", "LFC"])
     for chunk in chunk_iter:
         chunk = chunk[chunk["SampleID"].isin(compound_ids_wanted)]
         if len(chunk):
-            parts.append(chunk.rename(columns={"SampleID": "compound_id",
-                                                "depmap_id": "model_id"}))
+            parts.append(chunk.rename(columns={"SampleID": "compound_id", "depmap_id": "model_id"}))
     if not parts:
         return pd.DataFrame(columns=["model_id", "compound_id", "min_lfc", "source_release"])
     long = pd.concat(parts, ignore_index=True)
@@ -370,17 +374,17 @@ def load_repurposing_lfc(body: bytes, compound_ids_wanted: set[str]) -> "pandas.
     Drops rows with '- QC Failure' in the broad_id.
     """
     import pandas as pd
+
     parts = []
-    chunk_iter = pd.read_csv(BytesIO(body), chunksize=500_000,
-                              usecols=["row_id", "broad_id", "dose", "LFC"])
+    chunk_iter = pd.read_csv(BytesIO(body), chunksize=500_000, usecols=["row_id", "broad_id", "dose", "LFC"])
     for chunk in chunk_iter:
         # QC filter
         chunk = chunk[~chunk["broad_id"].astype(str).str.contains(" - QC Failure", regex=False)]
         # Parse ModelID from row_id
         chunk["model_id"] = chunk["row_id"].astype(str).str.split("::").str[0]
         # Parse BRD stem from broad_id (same convention as compound-list)
-        chunk["compound_id"] = chunk["broad_id"].astype(str).apply(
-            lambda s: "-".join(s.split("-")[:2]) if len(s.split("-")) >= 2 else s
+        chunk["compound_id"] = (
+            chunk["broad_id"].astype(str).apply(lambda s: "-".join(s.split("-")[:2]) if len(s.split("-")) >= 2 else s)
         )
         chunk = chunk[chunk["compound_id"].isin(compound_ids_wanted)]
         if len(chunk):
@@ -397,6 +401,7 @@ def load_repurposing_lfc(body: bytes, compound_ids_wanted: set[str]) -> "pandas.
 # Cross-release compound merge + gene aggregate
 # ---------------------------------------------------------------------------
 
+
 def merge_compound_universes(dfs: list["pandas.DataFrame"]) -> "pandas.DataFrame":
     """Concatenate per-release compound rows and dedup by (drug_name, gene_targets-signature).
 
@@ -409,6 +414,7 @@ def merge_compound_universes(dfs: list["pandas.DataFrame"]) -> "pandas.DataFrame
     stays under its BRD stem; a compound only in OncRef stays under its PRC stem.
     """
     import pandas as pd
+
     all_cmp = pd.concat(dfs, ignore_index=True)
     all_cmp["_drug_key"] = all_cmp["drug_name"].str.upper().str.strip()
     # Sort by release priority so OncRef rows come first; drop_duplicates keeps first
@@ -434,9 +440,10 @@ def load_crispr_chronos_for_genes(chronos_parquet_local_path, gene_symbols: set[
     """
     import re
     import pyarrow.parquet as pq
+
     schema_names = pq.read_schema(str(chronos_parquet_local_path)).names
-    _re = re.compile(r'^([A-Za-z0-9._-]+)\s*\(\d+\)$')
-    col_map: dict[str, str] = {}   # gene_symbol -> parquet col name
+    _re = re.compile(r"^([A-Za-z0-9._-]+)\s*\(\d+\)$")
+    col_map: dict[str, str] = {}  # gene_symbol -> parquet col name
     for c in schema_names:
         m = _re.match(str(c))
         if m and m.group(1) in gene_symbols:
@@ -460,6 +467,7 @@ def load_ccle_to_modelid(model_csv_body: bytes) -> dict[str, str]:
     """Parse Model.csv → {CCLEName: ModelID} map for bridging DEMETER2 (CCLE-keyed)
     to CRISPR/PRISM (ModelID-keyed)."""
     import pandas as pd
+
     df = pd.read_csv(BytesIO(model_csv_body), usecols=["ModelID", "CCLEName"])
     df = df.dropna(subset=["ModelID", "CCLEName"])
     return dict(zip(df["CCLEName"].astype(str), df["ModelID"].astype(str)))
@@ -479,6 +487,7 @@ def load_rnai_demeter_for_genes(
     CCLE_ID doesn't bridge are dropped.
     """
     import pyarrow.parquet as pq
+
     if not gene_symbols:
         return {}
     # Row filter: gene_symbol IN wanted set
@@ -516,6 +525,7 @@ def load_model_to_lineage(model_csv_body: bytes) -> dict[str, str]:
     doesn't produce a '' or NaN lineage bucket.
     """
     import pandas as pd
+
     df = pd.read_csv(BytesIO(model_csv_body), usecols=["ModelID", "OncotreeLineage"])
     df = df.dropna(subset=["OncotreeLineage"])
     df = df[df["OncotreeLineage"].astype(str).str.strip() != ""]
@@ -566,6 +576,7 @@ def build_gene_aggregate(
     # ---------- Polyselective annotation ----------
     def _n_targets(x):
         return len(x) if isinstance(x, list) else 0
+
     merged_compounds = merged_compounds.copy()
     merged_compounds["n_annotated_targets"] = merged_compounds["gene_targets"].apply(_n_targets)
     merged_compounds["polyselective"] = merged_compounds["n_annotated_targets"] > 1
@@ -576,12 +587,16 @@ def build_gene_aggregate(
 
     # ---------- Per-compound primary activity (Log2AUC) ----------
     # OncRef compounds get real Log2AUC; Repurposing compounds get None (no AUC data).
-    per_compound_log2auc = {}   # {compound_id: {median_log2auc, n_lines_screened, ...}}
+    per_compound_log2auc = {}  # {compound_id: {median_log2auc, n_lines_screened, ...}}
     if oncref_log2auc is not None and len(oncref_log2auc):
-        stats = oncref_log2auc.groupby("compound_id").agg(
-            median_log2auc=("log2auc", "median"),
-            n_lines_screened=("log2auc", "size"),
-        ).reset_index()
+        stats = (
+            oncref_log2auc.groupby("compound_id")
+            .agg(
+                median_log2auc=("log2auc", "median"),
+                n_lines_screened=("log2auc", "size"),
+            )
+            .reset_index()
+        )
         for _, row in stats.iterrows():
             per_compound_log2auc[row["compound_id"]] = {
                 "median_log2auc": float(row["median_log2auc"]),
@@ -590,23 +605,31 @@ def build_gene_aggregate(
             }
 
     # ---------- Per-compound responder tail (min LFC from LFCCollapsed) ----------
-    per_compound_min_lfc = {}   # {compound_id: min_lfc across all (dose × line) entries}
+    per_compound_min_lfc = {}  # {compound_id: min_lfc across all (dose × line) entries}
     if oncref_lfccollapsed_min is not None and len(oncref_lfccollapsed_min):
         # Already aggregated per (model_id, compound_id) as min-across-doses; take
         # min across model_ids for the deepest responder.
-        stats = oncref_lfccollapsed_min.groupby("compound_id").agg(
-            best_responder_lfc=("min_lfc", "min"),
-        ).reset_index()
+        stats = (
+            oncref_lfccollapsed_min.groupby("compound_id")
+            .agg(
+                best_responder_lfc=("min_lfc", "min"),
+            )
+            .reset_index()
+        )
         for _, row in stats.iterrows():
             per_compound_min_lfc[row["compound_id"]] = float(row["best_responder_lfc"])
 
     # ---------- Per-compound single-dose LFC (Repurposing, annotation-completeness) ----------
-    per_compound_single_dose_lfc = {}   # {compound_id: median_lfc across screened lines}
+    per_compound_single_dose_lfc = {}  # {compound_id: median_lfc across screened lines}
     if repurposing_lfc is not None and len(repurposing_lfc):
-        stats = repurposing_lfc.groupby("compound_id").agg(
-            single_dose_lfc=("median_lfc", "median"),
-            n_lines_screened=("median_lfc", "size"),
-        ).reset_index()
+        stats = (
+            repurposing_lfc.groupby("compound_id")
+            .agg(
+                single_dose_lfc=("median_lfc", "median"),
+                n_lines_screened=("median_lfc", "size"),
+            )
+            .reset_index()
+        )
         for _, row in stats.iterrows():
             per_compound_single_dose_lfc[row["compound_id"]] = {
                 "single_dose_lfc": float(row["single_dose_lfc"]),
@@ -615,16 +638,20 @@ def build_gene_aggregate(
             }
 
     # ---------- Per-compound × per-lineage Log2AUC (OncRef only) ----------
-    per_compound_lineage_log2auc = {}   # {(compound_id, lineage): {median_log2auc, n_lines_screened, ...}}
+    per_compound_lineage_log2auc = {}  # {(compound_id, lineage): {median_log2auc, n_lines_screened, ...}}
     if model_to_lineage and oncref_log2auc is not None and len(oncref_log2auc):
         df = oncref_log2auc.copy()
         df["lineage"] = df["model_id"].map(model_to_lineage)
         df = df.dropna(subset=["lineage"])
         if not df.empty:
-            grouped = df.groupby(["compound_id", "lineage"]).agg(
-                lin_median_log2auc=("log2auc", "median"),
-                lin_n_lines_screened=("log2auc", "size"),
-            ).reset_index()
+            grouped = (
+                df.groupby(["compound_id", "lineage"])
+                .agg(
+                    lin_median_log2auc=("log2auc", "median"),
+                    lin_n_lines_screened=("log2auc", "size"),
+                )
+                .reset_index()
+            )
             for _, row in grouped.iterrows():
                 per_compound_lineage_log2auc[(row["compound_id"], row["lineage"])] = {
                     "median_log2auc": float(row["lin_median_log2auc"]),
@@ -634,15 +661,19 @@ def build_gene_aggregate(
 
     # ---------- Per-compound × per-lineage min LFC (OncRef LFCCollapsed) ----------
     # Used for per-lineage best_responder_lfc.
-    per_compound_lineage_min_lfc = {}   # {(compound_id, lineage): min_lfc}
+    per_compound_lineage_min_lfc = {}  # {(compound_id, lineage): min_lfc}
     if model_to_lineage and oncref_lfccollapsed_min is not None and len(oncref_lfccollapsed_min):
         df = oncref_lfccollapsed_min.copy()
         df["lineage"] = df["model_id"].map(model_to_lineage)
         df = df.dropna(subset=["lineage"])
         if not df.empty:
-            grouped = df.groupby(["compound_id", "lineage"]).agg(
-                lin_min_lfc=("min_lfc", "min"),
-            ).reset_index()
+            grouped = (
+                df.groupby(["compound_id", "lineage"])
+                .agg(
+                    lin_min_lfc=("min_lfc", "min"),
+                )
+                .reset_index()
+            )
             for _, row in grouped.iterrows():
                 per_compound_lineage_min_lfc[(row["compound_id"], row["lineage"])] = float(row["lin_min_lfc"])
 
@@ -657,38 +688,43 @@ def build_gene_aggregate(
             log2auc_stats = per_compound_log2auc.get(cid)
             sd_lfc_stats = per_compound_single_dose_lfc.get(cid)
             best_lfc = per_compound_min_lfc.get(cid)
-            compound_rows.append({
-                "compound_id": cid,
-                "drug_name": r["drug_name"],
-                "moa": r["moa"],
-                "median_log2auc": log2auc_stats["median_log2auc"] if log2auc_stats else None,
-                "best_responder_lfc": best_lfc,
-                "single_dose_lfc": sd_lfc_stats["single_dose_lfc"] if sd_lfc_stats else None,
-                "n_lines_screened": (log2auc_stats or sd_lfc_stats or {}).get("n_lines_screened"),
-                "polyselective": bool(r["polyselective"]),
-                "n_annotated_targets": int(r["n_annotated_targets"]),
-                "source_release": r["source_release"],
-                "prioritized": bool(r["prioritized"]),
-                "metric_source": "log2auc" if log2auc_stats else ("single_dose_lfc" if sd_lfc_stats else "annotation_only"),
-            })
+            compound_rows.append(
+                {
+                    "compound_id": cid,
+                    "drug_name": r["drug_name"],
+                    "moa": r["moa"],
+                    "median_log2auc": log2auc_stats["median_log2auc"] if log2auc_stats else None,
+                    "best_responder_lfc": best_lfc,
+                    "single_dose_lfc": sd_lfc_stats["single_dose_lfc"] if sd_lfc_stats else None,
+                    "n_lines_screened": (log2auc_stats or sd_lfc_stats or {}).get("n_lines_screened"),
+                    "polyselective": bool(r["polyselective"]),
+                    "n_annotated_targets": int(r["n_annotated_targets"]),
+                    "source_release": r["source_release"],
+                    "prioritized": bool(r["prioritized"]),
+                    "metric_source": "log2auc"
+                    if log2auc_stats
+                    else ("single_dose_lfc" if sd_lfc_stats else "annotation_only"),
+                }
+            )
 
         # Ranking key: sort primary by prioritized, then by whichever activity metric applies.
         # Compounds with Log2AUC data rank before compounds with only single_dose_lfc rank
         # before annotation-only compounds.
         def _rank_key(c):
-            act = c["median_log2auc"] if c["median_log2auc"] is not None else (
-                c["single_dose_lfc"] if c["single_dose_lfc"] is not None else 0.0
+            act = (
+                c["median_log2auc"]
+                if c["median_log2auc"] is not None
+                else (c["single_dose_lfc"] if c["single_dose_lfc"] is not None else 0.0)
             )
             metric_priority = {"log2auc": 0, "single_dose_lfc": 1, "annotation_only": 2}[c["metric_source"]]
             return (not c["prioritized"], metric_priority, act)
+
         compound_rows.sort(key=_rank_key)
         top_compounds = compound_rows[:5]
 
         # Gene-level median Log2AUC — computed ONLY over OncRef compounds with real Log2AUC data
         oncref_log2aucs = [c["median_log2auc"] for c in compound_rows if c["median_log2auc"] is not None]
-        median_log2auc_across_compounds = (
-            float(pd.Series(oncref_log2aucs).median()) if oncref_log2aucs else None
-        )
+        median_log2auc_across_compounds = float(pd.Series(oncref_log2aucs).median()) if oncref_log2aucs else None
 
         n_compounds_targeting = len(compound_rows)
         # highest_clinical_phase — unchanged from v2 semantics (Prioritized/OncRef presence)
@@ -739,20 +775,22 @@ def build_gene_aggregate(
             model_to_lineage=model_to_lineage,
         )
 
-        rows.append({
-            "gene_symbol": gene,
-            "n_compounds_targeting": int(n_compounds_targeting),
-            "highest_clinical_phase": highest_clinical_phase,
-            "median_log2auc_across_compounds": median_log2auc_across_compounds,
-            "top_compounds": top_compounds,
-            "prism_activity_class": prism_activity_class,
-            "per_lineage_activity": per_lineage_activity,
-            "prism_lineage_selectivity": prism_lineage_selectivity,
-            # v4
-            "per_compound_concordance": per_compound_concordance,
-            "crispr_prism_concordance_class": crispr_prism_concordance_class,
-            "dual_responders": dual_responders,
-        })
+        rows.append(
+            {
+                "gene_symbol": gene,
+                "n_compounds_targeting": int(n_compounds_targeting),
+                "highest_clinical_phase": highest_clinical_phase,
+                "median_log2auc_across_compounds": median_log2auc_across_compounds,
+                "top_compounds": top_compounds,
+                "prism_activity_class": prism_activity_class,
+                "per_lineage_activity": per_lineage_activity,
+                "prism_lineage_selectivity": prism_lineage_selectivity,
+                # v4
+                "per_compound_concordance": per_compound_concordance,
+                "crispr_prism_concordance_class": crispr_prism_concordance_class,
+                "dual_responders": dual_responders,
+            }
+        )
 
     return pd.DataFrame(rows)
 
@@ -806,6 +844,7 @@ def _build_per_lineage_activity(
             continue
         # median-of-per-compound Log2AUC
         import statistics as _stats
+
         median_log2auc = float(_stats.median([s["median_log2auc"] for s in compound_stats]))
         # best_responder_lfc across compounds in this lineage — falls back to Log2AUC-derived
         # value if no LFC data is present (rare — happens when LFCCollapsed missed a compound).
@@ -818,14 +857,16 @@ def _build_per_lineage_activity(
         )
         top_compound_id = ranked[0]["compound_id"]
         top_compound_name = cmpmeta.get(top_compound_id, {}).get("drug_name") or top_compound_id
-        per_lineage_activity.append({
-            "lineage": lineage,
-            "n_lines_screened": int(n_lines_screened),
-            "median_log2auc": median_log2auc,
-            "best_responder_lfc": best_responder_lfc,
-            "top_compound_in_lineage": top_compound_name,
-            "n_compounds_evaluated": len(compound_stats),
-        })
+        per_lineage_activity.append(
+            {
+                "lineage": lineage,
+                "n_lines_screened": int(n_lines_screened),
+                "median_log2auc": median_log2auc,
+                "best_responder_lfc": best_responder_lfc,
+                "top_compound_in_lineage": top_compound_name,
+                "n_compounds_evaluated": len(compound_stats),
+            }
+        )
 
     per_lineage_activity.sort(key=lambda e: e["median_log2auc"])
 
@@ -888,19 +929,23 @@ def compute_per_compound_concordance(
         # Skip compound if BOTH assays are thin (nothing to say)
         if rho_crispr is None and rho_rnai is None:
             continue
-        result.append({
-            "compound_id": cid,
-            "n_intersected_crispr": n_crispr,
-            "spearman_r_crispr": rho_crispr,
-            "n_intersected_rnai": n_rnai,
-            "spearman_r_rnai": rho_rnai,
-            "metric_used": metric,
-        })
+        result.append(
+            {
+                "compound_id": cid,
+                "n_intersected_crispr": n_crispr,
+                "spearman_r_crispr": rho_crispr,
+                "n_intersected_rnai": n_rnai,
+                "spearman_r_rnai": rho_rnai,
+                "metric_used": metric,
+            }
+        )
     return result
 
 
 def _correlate_maps(
-    a_map: dict[str, float], b_map: Optional[dict[str, float]], min_lines: int,
+    a_map: dict[str, float],
+    b_map: Optional[dict[str, float]],
+    min_lines: int,
 ) -> tuple[Optional[float], Optional[int]]:
     """Intersect two {ModelID: value} maps, compute Spearman rho over the overlap.
     Returns (rho, n_intersected) or (None, None) if b_map is None or overlap < min_lines.
@@ -924,6 +969,7 @@ def _spearman_rho(a: list[float], b: list[float]) -> Optional[float]:
     variance is zero (undefined correlation) or n < 3."""
     if len(a) != len(b) or len(a) < 3:
         return None
+
     def _ranks(v):
         sorted_v = sorted(enumerate(v), key=lambda x: x[1])
         # Handle ties with average rank (fractional). Simpler: use pandas.rank if importable.
@@ -938,6 +984,7 @@ def _spearman_rho(a: list[float], b: list[float]) -> Optional[float]:
                 ranks[sorted_v[k][0]] = avg_rank
             i = j + 1
         return ranks
+
     ra, rb = _ranks(a), _ranks(b)
     mean_a = sum(ra) / len(ra)
     mean_b = sum(rb) / len(rb)
@@ -946,7 +993,7 @@ def _spearman_rho(a: list[float], b: list[float]) -> Optional[float]:
     var_b = sum((y - mean_b) ** 2 for y in rb)
     if var_a == 0 or var_b == 0:
         return None
-    return num / (var_a ** 0.5 * var_b ** 0.5)
+    return num / (var_a**0.5 * var_b**0.5)
 
 
 def _spearman_p_value(rho: Optional[float], n: Optional[int]) -> Optional[float]:
@@ -959,6 +1006,7 @@ def _spearman_p_value(rho: Optional[float], n: Optional[int]) -> Optional[float]
     if abs(rho) >= 1.0:
         return 0.0
     from scipy import stats as _sps
+
     t = rho * ((n - 2) / (1.0 - rho * rho)) ** 0.5
     return float(2.0 * _sps.t.sf(abs(t), df=n - 2))
 
@@ -1017,8 +1065,7 @@ def compute_dual_responders(
     best_per_line["chronos_dep"] = best_per_line["model_id"].map(chronos_by_model)
     # Filter to dual-responders
     dual = best_per_line[
-        (best_per_line["chronos_dep"] < chronos_threshold)
-        & (best_per_line["best_compound_lfc"] < lfc_threshold)
+        (best_per_line["chronos_dep"] < chronos_threshold) & (best_per_line["best_compound_lfc"] < lfc_threshold)
     ].copy()
     if dual.empty:
         return []
@@ -1067,8 +1114,8 @@ def classify_crispr_prism_concordance(
     if not per_compound_concordance:
         return CONCORDANCE_THIN
 
-    strong = CONCORDANCE_STRONG_SPEARMAN   # 0.30
-    weak = CONCORDANCE_WEAK_SPEARMAN       # 0.10
+    strong = CONCORDANCE_STRONG_SPEARMAN  # 0.30
+    weak = CONCORDANCE_WEAK_SPEARMAN  # 0.10
 
     def _best_significant(rho_key: str, n_key: str) -> Optional[float]:
         """Best rho among this assay's compounds that clear rho ≥ 0.30 AND BH-FDR q < 0.05.
@@ -1084,8 +1131,7 @@ def classify_crispr_prism_concordance(
             return None
         qvals = _bh_fdr([pvals[i] for i in idx])
         q_by_row = {i: q for i, q in zip(idx, qvals)}
-        sig = [rows[i][rho_key] for i in idx
-               if rows[i][rho_key] >= strong and q_by_row[i] < CONCORDANCE_FDR_Q]
+        sig = [rows[i][rho_key] for i in idx if rows[i][rho_key] >= strong and q_by_row[i] < CONCORDANCE_FDR_Q]
         return max(sig) if sig else None
 
     best_c_sig = _best_significant("spearman_r_crispr", "n_intersected_crispr")
@@ -1099,10 +1145,8 @@ def classify_crispr_prism_concordance(
         return CONCORDANCE_RNAI_CONFIRMED
     # Neither assay has an FDR-significant strong call. Fall back to the DESCRIPTIVE weak-signal band
     # on the bare best rho (mixed/off-target are not target-engaged calls, so no FDR gate applied).
-    crispr_rhos = [c["spearman_r_crispr"] for c in per_compound_concordance
-                   if c.get("spearman_r_crispr") is not None]
-    rnai_rhos = [c["spearman_r_rnai"] for c in per_compound_concordance
-                 if c.get("spearman_r_rnai") is not None]
+    crispr_rhos = [c["spearman_r_crispr"] for c in per_compound_concordance if c.get("spearman_r_crispr") is not None]
+    rnai_rhos = [c["spearman_r_rnai"] for c in per_compound_concordance if c.get("spearman_r_rnai") is not None]
     best_c = max(crispr_rhos) if crispr_rhos else None
     best_r = max(rnai_rhos) if rnai_rhos else None
     max_rho = max([r for r in [best_c, best_r] if r is not None], default=None)
@@ -1125,10 +1169,16 @@ def classify_prism_lineage_selectivity(per_lineage_activity: list[dict]) -> str:
     """
     if not per_lineage_activity:
         return LINEAGE_SEL_DATA_UNAVAILABLE
-    n_active = sum(1 for e in per_lineage_activity
-                   if e["median_log2auc"] is not None and e["median_log2auc"] < LINEAGE_ACTIVE_LOG2AUC_THRESHOLD)
-    n_inactive = sum(1 for e in per_lineage_activity
-                     if e["median_log2auc"] is not None and e["median_log2auc"] > LINEAGE_INACTIVE_LOG2AUC_THRESHOLD)
+    n_active = sum(
+        1
+        for e in per_lineage_activity
+        if e["median_log2auc"] is not None and e["median_log2auc"] < LINEAGE_ACTIVE_LOG2AUC_THRESHOLD
+    )
+    n_inactive = sum(
+        1
+        for e in per_lineage_activity
+        if e["median_log2auc"] is not None and e["median_log2auc"] > LINEAGE_INACTIVE_LOG2AUC_THRESHOLD
+    )
     if n_active >= LINEAGE_SELECTIVE_MIN_ACTIVE and n_inactive >= LINEAGE_SELECTIVE_MIN_INACTIVE:
         return LINEAGE_SEL_SELECTIVE
     if n_active >= max(3, len(per_lineage_activity) // 2):
@@ -1175,6 +1225,7 @@ def classify_prism_activity(
 # Parquet write
 # ---------------------------------------------------------------------------
 
+
 def write_gene_aggregate_parquet(df: "pandas.DataFrame", local_path: Path) -> int:
     """Write the per-gene aggregate DataFrame to parquet with an explicit schema.
 
@@ -1185,58 +1236,68 @@ def write_gene_aggregate_parquet(df: "pandas.DataFrame", local_path: Path) -> in
     import pyarrow as pa
     import pyarrow.parquet as pq
 
-    top_struct = pa.struct([
-        pa.field("compound_id", pa.string()),
-        pa.field("drug_name", pa.string()),
-        pa.field("moa", pa.string()),
-        pa.field("median_log2auc", pa.float32()),         # v3: primary activity metric
-        pa.field("best_responder_lfc", pa.float32()),      # v3: deepest single-line LFC
-        pa.field("single_dose_lfc", pa.float32()),         # v3: Repurposing-only fallback
-        pa.field("n_lines_screened", pa.int32()),
-        pa.field("polyselective", pa.bool_()),
-        pa.field("n_annotated_targets", pa.int32()),
-        pa.field("source_release", pa.string()),
-        pa.field("prioritized", pa.bool_()),
-        pa.field("metric_source", pa.string()),            # v3: 'log2auc' | 'single_dose_lfc' | 'annotation_only'
-    ])
-    lineage_struct = pa.struct([
-        pa.field("lineage", pa.string()),
-        pa.field("n_lines_screened", pa.int32()),
-        pa.field("median_log2auc", pa.float32()),
-        pa.field("best_responder_lfc", pa.float32()),
-        pa.field("top_compound_in_lineage", pa.string()),
-        pa.field("n_compounds_evaluated", pa.int32()),
-    ])
+    top_struct = pa.struct(
+        [
+            pa.field("compound_id", pa.string()),
+            pa.field("drug_name", pa.string()),
+            pa.field("moa", pa.string()),
+            pa.field("median_log2auc", pa.float32()),  # v3: primary activity metric
+            pa.field("best_responder_lfc", pa.float32()),  # v3: deepest single-line LFC
+            pa.field("single_dose_lfc", pa.float32()),  # v3: Repurposing-only fallback
+            pa.field("n_lines_screened", pa.int32()),
+            pa.field("polyselective", pa.bool_()),
+            pa.field("n_annotated_targets", pa.int32()),
+            pa.field("source_release", pa.string()),
+            pa.field("prioritized", pa.bool_()),
+            pa.field("metric_source", pa.string()),  # v3: 'log2auc' | 'single_dose_lfc' | 'annotation_only'
+        ]
+    )
+    lineage_struct = pa.struct(
+        [
+            pa.field("lineage", pa.string()),
+            pa.field("n_lines_screened", pa.int32()),
+            pa.field("median_log2auc", pa.float32()),
+            pa.field("best_responder_lfc", pa.float32()),
+            pa.field("top_compound_in_lineage", pa.string()),
+            pa.field("n_compounds_evaluated", pa.int32()),
+        ]
+    )
     # v4: 3-way concordance struct per compound
-    concordance_struct = pa.struct([
-        pa.field("compound_id", pa.string()),
-        pa.field("n_intersected_crispr", pa.int32()),
-        pa.field("spearman_r_crispr", pa.float32()),
-        pa.field("n_intersected_rnai", pa.int32()),
-        pa.field("spearman_r_rnai", pa.float32()),
-        pa.field("metric_used", pa.string()),
-    ])
-    dual_responder_struct = pa.struct([
-        pa.field("model_id", pa.string()),
-        pa.field("lineage", pa.string()),
-        pa.field("chronos_dep", pa.float32()),
-        pa.field("best_compound_lfc", pa.float32()),
-        pa.field("best_compound_id", pa.string()),
-    ])
-    schema = pa.schema([
-        pa.field("gene_symbol", pa.string()),
-        pa.field("n_compounds_targeting", pa.int32()),
-        pa.field("highest_clinical_phase", pa.string()),
-        pa.field("median_log2auc_across_compounds", pa.float32()),
-        pa.field("top_compounds", pa.list_(top_struct)),
-        pa.field("prism_activity_class", pa.string()),
-        pa.field("per_lineage_activity", pa.list_(lineage_struct)),
-        pa.field("prism_lineage_selectivity", pa.string()),
-        # v4
-        pa.field("per_compound_concordance", pa.list_(concordance_struct)),
-        pa.field("crispr_prism_concordance_class", pa.string()),
-        pa.field("dual_responders", pa.list_(dual_responder_struct)),
-    ])
+    concordance_struct = pa.struct(
+        [
+            pa.field("compound_id", pa.string()),
+            pa.field("n_intersected_crispr", pa.int32()),
+            pa.field("spearman_r_crispr", pa.float32()),
+            pa.field("n_intersected_rnai", pa.int32()),
+            pa.field("spearman_r_rnai", pa.float32()),
+            pa.field("metric_used", pa.string()),
+        ]
+    )
+    dual_responder_struct = pa.struct(
+        [
+            pa.field("model_id", pa.string()),
+            pa.field("lineage", pa.string()),
+            pa.field("chronos_dep", pa.float32()),
+            pa.field("best_compound_lfc", pa.float32()),
+            pa.field("best_compound_id", pa.string()),
+        ]
+    )
+    schema = pa.schema(
+        [
+            pa.field("gene_symbol", pa.string()),
+            pa.field("n_compounds_targeting", pa.int32()),
+            pa.field("highest_clinical_phase", pa.string()),
+            pa.field("median_log2auc_across_compounds", pa.float32()),
+            pa.field("top_compounds", pa.list_(top_struct)),
+            pa.field("prism_activity_class", pa.string()),
+            pa.field("per_lineage_activity", pa.list_(lineage_struct)),
+            pa.field("prism_lineage_selectivity", pa.string()),
+            # v4
+            pa.field("per_compound_concordance", pa.list_(concordance_struct)),
+            pa.field("crispr_prism_concordance_class", pa.string()),
+            pa.field("dual_responders", pa.list_(dual_responder_struct)),
+        ]
+    )
     df = df.copy()
     df["median_log2auc_across_compounds"] = df["median_log2auc_across_compounds"].astype(object)
     if "per_lineage_activity" not in df.columns:
@@ -1262,16 +1323,24 @@ def write_gene_aggregate_parquet(df: "pandas.DataFrame", local_path: Path) -> in
 
 
 def _upload_to_s3(s3, local_path: Path, s3_key: str) -> None:
-    _log(f"  Uploading {local_path.name} ({local_path.stat().st_size / 1e6:.1f} MB) -> s3://{DEPMAP_S3_BUCKET}/{s3_key}")
+    _log(
+        f"  Uploading {local_path.name} ({local_path.stat().st_size / 1e6:.1f} MB) -> s3://{DEPMAP_S3_BUCKET}/{s3_key}"
+    )
     with open(local_path, "rb") as f:
         s3.upload_fileobj(f, DEPMAP_S3_BUCKET, s3_key)
 
 
 def _write_manifest(
-    entries: list[dict], gene_agg_size: int, gene_agg_n_rows: int,
-    local_dir: Path, output_prefix: str, s3, upload: bool = True,
+    entries: list[dict],
+    gene_agg_size: int,
+    gene_agg_n_rows: int,
+    local_dir: Path,
+    output_prefix: str,
+    s3,
+    upload: bool = True,
 ) -> Path:
     import yaml
+
     manifest = {
         "derived_product_id": DERIVED_PRODUCT_ID,
         "derived_product_version": DERIVED_PRODUCT_VERSION,
@@ -1306,20 +1375,27 @@ def _write_manifest(
         },
         "vocabulary": {
             "prism_activity_class": [
-                CLASS_CLINICALLY_ACTIVE, CLASS_TOOL_COMPOUND_ONLY,
-                CLASS_WEAKLY_ACTIVE, CLASS_NO_COMPOUNDS_FOUND,
+                CLASS_CLINICALLY_ACTIVE,
+                CLASS_TOOL_COMPOUND_ONLY,
+                CLASS_WEAKLY_ACTIVE,
+                CLASS_NO_COMPOUNDS_FOUND,
                 CLASS_DATA_UNAVAILABLE,
             ],
             "prism_lineage_selectivity": [
-                LINEAGE_SEL_SELECTIVE, LINEAGE_SEL_BROADLY_ACTIVE,
-                LINEAGE_SEL_NO_SIGNAL, LINEAGE_SEL_DATA_UNAVAILABLE,
+                LINEAGE_SEL_SELECTIVE,
+                LINEAGE_SEL_BROADLY_ACTIVE,
+                LINEAGE_SEL_NO_SIGNAL,
+                LINEAGE_SEL_DATA_UNAVAILABLE,
             ],
             "highest_clinical_phase": ["tool", "preclinical", "phase_1_plus", "approved"],
             "metric_source": ["log2auc", "single_dose_lfc", "annotation_only"],
             "crispr_prism_concordance_class": [
-                CONCORDANCE_TRIANGULATED, CONCORDANCE_CRISPR_CONFIRMED,
-                CONCORDANCE_RNAI_CONFIRMED, CONCORDANCE_MIXED,
-                CONCORDANCE_OFF_TARGET, CONCORDANCE_THIN,
+                CONCORDANCE_TRIANGULATED,
+                CONCORDANCE_CRISPR_CONFIRMED,
+                CONCORDANCE_RNAI_CONFIRMED,
+                CONCORDANCE_MIXED,
+                CONCORDANCE_OFF_TARGET,
+                CONCORDANCE_THIN,
                 CONCORDANCE_DATA_UNAVAILABLE,
             ],
         },
@@ -1355,20 +1431,31 @@ def _write_manifest(
 # CLI entry point
 # ---------------------------------------------------------------------------
 
+
 @click.command()
-@click.option("--output-prefix", default=DEFAULT_OUTPUT_PREFIX,
-              help="S3 prefix (relative to bucket) where parquet + manifest get written.")
-@click.option("--local-dir", type=click.Path(file_okay=False, writable=True, path_type=Path),
-              default=Path.home() / "dev" / "framework-runs" / "depmap-prism-precompute-local",
-              help="Local staging dir where the parquet is written before S3 upload.")
-@click.option("--releases", multiple=True, type=click.Choice(list(RELEASES.keys())),
-              default=list(RELEASES.keys()),
-              help="Subset of releases to ingest. Default: all.")
-@click.option("--no-upload", is_flag=True,
-              help="Skip S3 upload; write local parquet only. Useful for testing.")
+@click.option(
+    "--output-prefix",
+    default=DEFAULT_OUTPUT_PREFIX,
+    help="S3 prefix (relative to bucket) where parquet + manifest get written.",
+)
+@click.option(
+    "--local-dir",
+    type=click.Path(file_okay=False, writable=True, path_type=Path),
+    default=Path.home() / "dev" / "framework-runs" / "depmap-prism-precompute-local",
+    help="Local staging dir where the parquet is written before S3 upload.",
+)
+@click.option(
+    "--releases",
+    multiple=True,
+    type=click.Choice(list(RELEASES.keys())),
+    default=list(RELEASES.keys()),
+    help="Subset of releases to ingest. Default: all.",
+)
+@click.option("--no-upload", is_flag=True, help="Skip S3 upload; write local parquet only. Useful for testing.")
 def main(output_prefix: str, local_dir: Path, releases: tuple[str, ...], no_upload: bool) -> None:
     """CLI: ingest PRISM sources → build per-gene activity parquet → upload."""
     import boto3
+
     s3 = boto3.client("s3")
 
     releases_to_ingest = list(releases) if releases else list(RELEASES.keys())
@@ -1395,14 +1482,16 @@ def main(output_prefix: str, local_dir: Path, releases: tuple[str, ...], no_uplo
             cmp_df = load_repurposing_compound_list(cmp_body)
         _log(f"  compound rows: {len(cmp_df)}, unique compound_ids: {cmp_df['compound_id'].nunique()}")
         compound_dfs.append(cmp_df)
-        entries.append({
-            "release_pin": release_pin,
-            "source_key": cmp_key,
-            "source_sha256": cmp_sha,
-            "source_size_bytes": cmp_size,
-            "role": "compound_list",
-            "n_rows": len(cmp_df),
-        })
+        entries.append(
+            {
+                "release_pin": release_pin,
+                "source_key": cmp_key,
+                "source_sha256": cmp_sha,
+                "source_size_bytes": cmp_size,
+                "role": "compound_list",
+                "n_rows": len(cmp_df),
+            }
+        )
 
         cmp_ids_here = set(cmp_df["compound_id"].astype(str))
 
@@ -1413,43 +1502,51 @@ def main(output_prefix: str, local_dir: Path, releases: tuple[str, ...], no_uplo
             log2auc_key = f"{rel['source_prefix']}/{rel['log2auc_filename']}"
             body, sha, size = _fetch_source(s3, log2auc_key)
             oncref_log2auc = load_oncref_log2auc(body)
-            _log(f"  Log2AUC edges: {len(oncref_log2auc)}, "
-                 f"unique compounds: {oncref_log2auc['compound_id'].nunique() if len(oncref_log2auc) else 0}")
-            entries.append({
-                "release_pin": release_pin,
-                "source_key": log2auc_key,
-                "source_sha256": sha,
-                "source_size_bytes": size,
-                "role": "log2auc_primary_activity",
-                "n_rows_agg": len(oncref_log2auc),
-            })
+            _log(
+                f"  Log2AUC edges: {len(oncref_log2auc)}, "
+                f"unique compounds: {oncref_log2auc['compound_id'].nunique() if len(oncref_log2auc) else 0}"
+            )
+            entries.append(
+                {
+                    "release_pin": release_pin,
+                    "source_key": log2auc_key,
+                    "source_sha256": sha,
+                    "source_size_bytes": size,
+                    "role": "log2auc_primary_activity",
+                    "n_rows_agg": len(oncref_log2auc),
+                }
+            )
             # 2b. LFCCollapsed (best-responder tail from raw LFC)
             lfc_key = f"{rel['source_prefix']}/{rel['lfc_collapsed_filename']}"
             body, sha, size = _fetch_source(s3, lfc_key)
             oncref_lfccollapsed_min = load_oncref_lfccollapsed(body, cmp_ids_here)
             _log(f"  LFCCollapsed edges (min-LFC per cell-line×compound): {len(oncref_lfccollapsed_min)}")
-            entries.append({
-                "release_pin": release_pin,
-                "source_key": lfc_key,
-                "source_sha256": sha,
-                "source_size_bytes": size,
-                "role": "lfc_best_responder_tail",
-                "n_rows_agg": len(oncref_lfccollapsed_min),
-            })
+            entries.append(
+                {
+                    "release_pin": release_pin,
+                    "source_key": lfc_key,
+                    "source_sha256": sha,
+                    "source_size_bytes": size,
+                    "role": "lfc_best_responder_tail",
+                    "n_rows_agg": len(oncref_lfccollapsed_min),
+                }
+            )
         else:
             # Repurposing: single-dose LFC for annotation rank (no AUC available)
             lfc_key = f"{rel['source_prefix']}/{rel['lfc_filename']}"
             body, sha, size = _fetch_source(s3, lfc_key)
             repurposing_lfc = load_repurposing_lfc(body, cmp_ids_here)
             _log(f"  Repurposing LFC edges: {len(repurposing_lfc)}")
-            entries.append({
-                "release_pin": release_pin,
-                "source_key": lfc_key,
-                "source_sha256": sha,
-                "source_size_bytes": size,
-                "role": "single_dose_lfc_annotation_only",
-                "n_rows_agg": len(repurposing_lfc),
-            })
+            entries.append(
+                {
+                    "release_pin": release_pin,
+                    "source_key": lfc_key,
+                    "source_sha256": sha,
+                    "source_size_bytes": size,
+                    "role": "single_dose_lfc_annotation_only",
+                    "n_rows_agg": len(repurposing_lfc),
+                }
+            )
 
     _log("\n=== Fetching Model.csv for ModelID -> OncotreeLineage + CCLE bridging ===")
     model_csv_key = "data-catalog/sources/depmap-consortium/dmc-26q1/Model.csv"
@@ -1458,19 +1555,20 @@ def main(output_prefix: str, local_dir: Path, releases: tuple[str, ...], no_uplo
     ccle_to_modelid = load_ccle_to_modelid(model_body)
     _log(f"  {len(model_to_lineage)} ModelID -> OncotreeLineage mappings")
     _log(f"  {len(ccle_to_modelid)} CCLE_ID -> ModelID bridges (for RNAi lookup)")
-    entries.append({
-        "release_pin": "dmc-26q1",
-        "source_key": model_csv_key,
-        "source_sha256": model_sha,
-        "source_size_bytes": model_size,
-        "role": "cell_line_lineage_metadata",
-        "n_rows": len(model_to_lineage),
-    })
+    entries.append(
+        {
+            "release_pin": "dmc-26q1",
+            "source_key": model_csv_key,
+            "source_sha256": model_sha,
+            "source_size_bytes": model_size,
+            "role": "cell_line_lineage_metadata",
+            "n_rows": len(model_to_lineage),
+        }
+    )
 
     _log("\n=== Merging compound universes ===")
     merged = merge_compound_universes(compound_dfs)
-    _log(f"  merged compound rows: {len(merged)}, unique compounds after cross-release dedup: "
-         f"{len(merged)}")
+    _log(f"  merged compound rows: {len(merged)}, unique compounds after cross-release dedup: {len(merged)}")
 
     # Determine which HGNC genes have ≥1 annotated compound — that's the set to
     # fetch CRISPR + RNAi for (all others don't need the correlation).
@@ -1482,30 +1580,35 @@ def main(output_prefix: str, local_dir: Path, releases: tuple[str, ...], no_uplo
 
     _log("\n=== Fetching CRISPR Chronos for annotated genes (v4 concordance) ===")
     from methods.depmap_common.parquet import get_full_matrix_path
+
     chronos_local = get_full_matrix_path("CRISPRGeneEffect.parquet")
     chronos_by_gene = load_crispr_chronos_for_genes(chronos_local, all_annotated_genes)
     _log(f"  Chronos loaded for {len(chronos_by_gene)}/{len(all_annotated_genes)} genes")
-    entries.append({
-        "release_pin": "dmc-26q1",
-        "source_key": "data-catalog/derived/depmap-26q1-parquet-v1/CRISPRGeneEffect.parquet",
-        "source_sha256": None,
-        "source_size_bytes": chronos_local.stat().st_size,
-        "role": "crispr_chronos_for_concordance",
-        "n_rows_agg": len(chronos_by_gene),
-    })
+    entries.append(
+        {
+            "release_pin": "dmc-26q1",
+            "source_key": "data-catalog/derived/depmap-26q1-parquet-v1/CRISPRGeneEffect.parquet",
+            "source_sha256": None,
+            "source_size_bytes": chronos_local.stat().st_size,
+            "role": "crispr_chronos_for_concordance",
+            "n_rows_agg": len(chronos_by_gene),
+        }
+    )
 
     _log("\n=== Fetching RNAi DEMETER2 for annotated genes (v4 concordance) ===")
     demeter_local = get_full_matrix_path("D2_combined_gene_dep_scores.parquet")
     rnai_by_gene = load_rnai_demeter_for_genes(demeter_local, all_annotated_genes, ccle_to_modelid)
     _log(f"  RNAi DEMETER2 loaded for {len(rnai_by_gene)}/{len(all_annotated_genes)} genes")
-    entries.append({
-        "release_pin": "dmc-26q1",
-        "source_key": "data-catalog/derived/depmap-26q1-parquet-v1/D2_combined_gene_dep_scores.parquet",
-        "source_sha256": None,
-        "source_size_bytes": demeter_local.stat().st_size,
-        "role": "rnai_demeter2_for_concordance",
-        "n_rows_agg": len(rnai_by_gene),
-    })
+    entries.append(
+        {
+            "release_pin": "dmc-26q1",
+            "source_key": "data-catalog/derived/depmap-26q1-parquet-v1/D2_combined_gene_dep_scores.parquet",
+            "source_sha256": None,
+            "source_size_bytes": demeter_local.stat().st_size,
+            "role": "rnai_demeter2_for_concordance",
+            "n_rows_agg": len(rnai_by_gene),
+        }
+    )
 
     _log("\n=== Building gene aggregate ===")
     gene_agg = build_gene_aggregate(
@@ -1531,8 +1634,7 @@ def main(output_prefix: str, local_dir: Path, releases: tuple[str, ...], no_uplo
         s3_key = f"{output_prefix.rstrip('/')}/prism_activity_per_gene.parquet"
         _upload_to_s3(s3, parquet_path, s3_key)
 
-    _write_manifest(entries, parquet_size, len(gene_agg), local_dir, output_prefix,
-                     s3, upload=not no_upload)
+    _write_manifest(entries, parquet_size, len(gene_agg), local_dir, output_prefix, s3, upload=not no_upload)
 
     _log("\n=== PRISM precompute complete ===")
 

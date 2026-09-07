@@ -45,6 +45,7 @@ validated-vs-contrarian modality, differentiation hooks). Orthogonal to the biol
 
 data_unavailable-safe. Absence = coverage gap, never a silent fake-negative.
 """
+
 from __future__ import annotations
 
 import os
@@ -56,22 +57,35 @@ import yaml
 COMPETITOR_MANIFEST = "opentargets-target-competitor-drugs-per-gene-v1"
 METHOD_VERSION = "0.1.0"
 
-TARGET_CONTRACTS = Path(os.environ.get(
-    "TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
+TARGET_CONTRACTS = Path(
+    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+)
 
 # CD3 / immune-effector Ensembl gene ids — a competitor antibody engaging one of these has the
 # T-cell-engager (bispecific TCE) signature. CD3D / CD3E / CD3G / CD247(CD3zeta) + FCGR3A (NK engager).
-_EFFECTOR_ENGAGER_ENSG = frozenset({
-    "ENSG00000167286",  # CD3D
-    "ENSG00000198851",  # CD3E
-    "ENSG00000160654",  # CD3G
-    "ENSG00000198821",  # CD247 (CD3 zeta)
-    "ENSG00000203747",  # FCGR3A (CD16a — NK-cell engager)
-})
+_EFFECTOR_ENGAGER_ENSG = frozenset(
+    {
+        "ENSG00000167286",  # CD3D
+        "ENSG00000198851",  # CD3E
+        "ENSG00000160654",  # CD3G
+        "ENSG00000198821",  # CD247 (CD3 zeta)
+        "ENSG00000203747",  # FCGR3A (CD16a — NK-cell engager)
+    }
+)
 
 # Open Targets maxClinicalStage -> ordinal (highest-wins) + coarse stage class.
-_STAGE_ORD = {"PRECLINICAL": 1, "IND": 2, "EARLY_PHASE_1": 3, "PHASE_1": 4, "PHASE_1_2": 5,
-              "PHASE_2": 6, "PHASE_2_3": 7, "PHASE_3": 8, "PREAPPROVAL": 9, "APPROVAL": 10}
+_STAGE_ORD = {
+    "PRECLINICAL": 1,
+    "IND": 2,
+    "EARLY_PHASE_1": 3,
+    "PHASE_1": 4,
+    "PHASE_1_2": 5,
+    "PHASE_2": 6,
+    "PHASE_2_3": 7,
+    "PHASE_3": 8,
+    "PREAPPROVAL": 9,
+    "APPROVAL": 10,
+}
 _APPROVED_STAGES = frozenset({"APPROVAL", "PREAPPROVAL"})
 
 
@@ -97,22 +111,30 @@ def _read_target_rows(ensembl_gene_id: str) -> list:
     """Pushdown-read the competitor rollup for one ENSG. Empty on genuine absence; re-raise env faults."""
     try:
         import sys as _sys
+
         _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
         from methods.catalog_query.read import bucket_key_for
         import pyarrow.parquet as pq
         import pyarrow.fs as fs
+
         bucket, key = bucket_key_for(COMPETITOR_MANIFEST)
-        return pq.read_table(f"{bucket}/{key}", filesystem=fs.S3FileSystem(),
-                             filters=[("ensembl_gene_id", "=", ensembl_gene_id)]).to_pylist()
+        return pq.read_table(
+            f"{bucket}/{key}", filesystem=fs.S3FileSystem(), filters=[("ensembl_gene_id", "=", ensembl_gene_id)]
+        ).to_pylist()
     except Exception as e:  # noqa: BLE001
         from methods.target_id_sidecar import is_definitively_absent
+
         if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
             return []
         raise
 
 
-def classify_modality(drug_type: Optional[str], all_moa_target_genes: Optional[str],
-                      n_moa_target_genes: Optional[int], action_type: Optional[str]) -> str:
+def classify_modality(
+    drug_type: Optional[str],
+    all_moa_target_genes: Optional[str],
+    n_moa_target_genes: Optional[int],
+    action_type: Optional[str],
+) -> str:
     """Infer the therapeutic MODALITY from the raw OT fields (see module docstring)."""
     dt = (drug_type or "").strip().lower()
     at = (action_type or "").upper()
@@ -143,7 +165,7 @@ def _competitor_class(programs: list) -> str:
     if any(p["is_approved"] for p in programs):
         return "approved_competitor"
     top = max(_stage_ord(p["max_clinical_stage"]) for p in programs)
-    if top >= _STAGE_ORD["PHASE_1"]:          # any clinical-stage (PHASE_1..PHASE_3)
+    if top >= _STAGE_ORD["PHASE_1"]:  # any clinical-stage (PHASE_1..PHASE_3)
         return "active_clinical_competitor"
     return "early_or_preclinical_competitor"  # PRECLINICAL / IND / EARLY_PHASE_1 / UNKNOWN only
 
@@ -163,16 +185,22 @@ def aggregate_landscape(rows: list, efo_ids: list) -> dict:
         did = r.get("drug_chembl_id")
         if did is None:
             continue
-        modality = classify_modality(r.get("drug_type"), r.get("all_moa_target_genes"),
-                                     r.get("n_moa_target_genes"), r.get("action_type"))
+        modality = classify_modality(
+            r.get("drug_type"), r.get("all_moa_target_genes"), r.get("n_moa_target_genes"), r.get("action_type")
+        )
         p = by_drug.get(did)
         cur_ord = _stage_ord(r.get("max_clinical_stage"))
         if p is None or cur_ord > p["_ord"]:
             by_drug[did] = {
-                "drug_name": r.get("drug_name"), "drug_chembl_id": did, "modality": modality,
-                "drug_type": r.get("drug_type"), "max_clinical_stage": r.get("max_clinical_stage"),
-                "is_approved": bool(r.get("is_approved")), "withdrawn": bool(r.get("withdrawn")),
-                "mechanism_of_action": r.get("mechanism_of_action"), "_ord": cur_ord,
+                "drug_name": r.get("drug_name"),
+                "drug_chembl_id": did,
+                "modality": modality,
+                "drug_type": r.get("drug_type"),
+                "max_clinical_stage": r.get("max_clinical_stage"),
+                "is_approved": bool(r.get("is_approved")),
+                "withdrawn": bool(r.get("withdrawn")),
+                "mechanism_of_action": r.get("mechanism_of_action"),
+                "_ord": cur_ord,
             }
         elif cur_ord == p["_ord"]:
             p["is_approved"] = p["is_approved"] or bool(r.get("is_approved"))
@@ -185,8 +213,9 @@ def aggregate_landscape(rows: list, efo_ids: list) -> dict:
     modality_landscape: dict = {}
     for p in programs:
         m = p["modality"]
-        slot = modality_landscape.setdefault(m, {"n_programs": 0, "max_clinical_stage": None,
-                                                  "approved": False, "example_agents": []})
+        slot = modality_landscape.setdefault(
+            m, {"n_programs": 0, "max_clinical_stage": None, "approved": False, "example_agents": []}
+        )
         slot["n_programs"] += 1
         if _stage_ord(p["max_clinical_stage"]) > _stage_ord(slot["max_clinical_stage"]):
             slot["max_clinical_stage"] = p["max_clinical_stage"]
@@ -197,9 +226,13 @@ def aggregate_landscape(rows: list, efo_ids: list) -> dict:
     approved_agents = sorted({p["drug_name"] for p in programs if p["is_approved"] and p["drug_name"]})
     withdrawn_agents = sorted({p["drug_name"] for p in programs if p["withdrawn"] and p["drug_name"]})
     # candidate failures: reached >= PHASE_2 but never approved, not currently the approved agent.
-    late_non_approved = sorted({p["drug_name"] for p in programs
-                                if not p["is_approved"] and _stage_ord(p["max_clinical_stage"]) >= _STAGE_ORD["PHASE_2"]
-                                and p["drug_name"]})
+    late_non_approved = sorted(
+        {
+            p["drug_name"]
+            for p in programs
+            if not p["is_approved"] and _stage_ord(p["max_clinical_stage"]) >= _STAGE_ORD["PHASE_2"] and p["drug_name"]
+        }
+    )
     top_ord = max((_stage_ord(p["max_clinical_stage"]) for p in programs), default=0)
     highest_stage = next((s for s, o in sorted(_STAGE_ORD.items(), key=lambda kv: -kv[1]) if o == top_ord), None)
 
@@ -214,43 +247,67 @@ def aggregate_landscape(rows: list, efo_ids: list) -> dict:
         "late_stage_non_approved_agents": late_non_approved,
         "modality_landscape": modality_landscape,
         "modalities_in_development": sorted(modality_landscape.keys()),
-        "example_programs": [{k: p[k] for k in ("drug_name", "modality", "max_clinical_stage",
-                                                "is_approved", "mechanism_of_action")} for p in programs[:15]],
+        "example_programs": [
+            {k: p[k] for k in ("drug_name", "modality", "max_clinical_stage", "is_approved", "mechanism_of_action")}
+            for p in programs[:15]
+        ],
     }
 
 
-def read_competitor_landscape(target: str, indication: str, modality: Optional[str] = None,
-                              release_pin: Optional[str] = None) -> dict:
+def read_competitor_landscape(
+    target: str, indication: str, modality: Optional[str] = None, release_pin: Optional[str] = None
+) -> dict:
     """Competitor field for a (target, indication). `modality`/`release_pin` accepted for
     dispatch-signature parity; the product is pinned to its OT release (parameters.opentargets_release)."""
     from methods.opentargets_common import symbol_to_ensembl
-    base = {"target": target, "indication": indication, "method_version": METHOD_VERSION,
-            "source": COMPETITOR_MANIFEST, "as_of_opentargets_release": "26.06"}
+
+    base = {
+        "target": target,
+        "indication": indication,
+        "method_version": METHOD_VERSION,
+        "source": COMPETITOR_MANIFEST,
+        "as_of_opentargets_release": "26.06",
+    }
 
     ensg = symbol_to_ensembl(target)
     if not ensg:
-        return {**base, "competitor_class": "insufficient", "highest_clinical_stage": None,
-                "_note": f"{target}: could not resolve to an Ensembl gene id (OT resolver)"}
+        return {
+            **base,
+            "competitor_class": "insufficient",
+            "highest_clinical_stage": None,
+            "_note": f"{target}: could not resolve to an Ensembl gene id (OT resolver)",
+        }
 
     rows = _read_target_rows(ensg)
     if not rows:
-        return {**base, "ensembl_gene_id": ensg, "competitor_class": "no_known_competitor",
-                "indication_scope": "target_level", "n_competitor_programs": 0, "n_approved": 0,
-                "highest_clinical_stage": None, "approved_agents": [], "modality_landscape": {},
-                "_note": f"{target} ({ensg}): no drug in the OT clinical-candidates rollup (virgin target or coverage gap)"}
+        return {
+            **base,
+            "ensembl_gene_id": ensg,
+            "competitor_class": "no_known_competitor",
+            "indication_scope": "target_level",
+            "n_competitor_programs": 0,
+            "n_approved": 0,
+            "highest_clinical_stage": None,
+            "approved_agents": [],
+            "modality_landscape": {},
+            "_note": f"{target} ({ensg}): no drug in the OT clinical-candidates rollup (virgin target or coverage gap)",
+        }
 
     efo_ids = _indication_efo_ids(indication)
     agg = aggregate_landscape(rows, efo_ids)
     out = {**base, "ensembl_gene_id": ensg, "efo_ids": efo_ids, **agg}
     if not efo_ids:
-        out["_note"] = (f"no efo_ids lane for indication {indication!r} in indication_crosswalk.yaml — "
-                        f"reporting the TARGET-LEVEL competitor field (all indications)")
+        out["_note"] = (
+            f"no efo_ids lane for indication {indication!r} in indication_crosswalk.yaml — "
+            f"reporting the TARGET-LEVEL competitor field (all indications)"
+        )
     return out
 
 
 def _main(argv=None):
     import argparse
     import json
+
     ap = argparse.ArgumentParser(description="Competitor drugs/programs for a (target, indication) from Open Targets.")
     ap.add_argument("--target", required=True)
     ap.add_argument("--indication", required=True)

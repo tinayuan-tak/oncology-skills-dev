@@ -28,6 +28,7 @@ Same cohort grain, same barcode join.
 
 METHOD_VERSION 0.3.0.
 """
+
 from __future__ import annotations
 
 METHOD_VERSION = "0.3.0"

@@ -17,6 +17,7 @@ The end-to-end test writes a synthetic tall parquet and points the reader at it
 by monkeypatching s3_uri_for → local path + pyarrow S3FileSystem → LocalFileSystem.
 Hermetic: no network, no real S3.
 """
+
 from __future__ import annotations
 
 import importlib
@@ -38,15 +39,29 @@ from methods.subgroup_common.panorama import SUBGROUP_N_FLOOR  # noqa: E402
 
 # ── unit: per-stratum projection reuses the whole-cohort classifier ──────────
 
+
 def _series(**kw):
     import pandas as pd
+
     base = dict(
-        gene_symbol="FOLR1", cells_ran=3, cells_supporting=3,
-        dominant_direction="up", sig_all_cells=True, discordant=False,
-        log2fc_A=1.8, padj_A=1e-8, log2fc_B=1.5, padj_B=1e-6,
-        log2fc_C=2.0, padj_C=1e-9, max_abs_log2fc=2.0,
-        stratum_id="MSI_H", subgroup_axis="msi_status",
-        subgroup_n_tumor=38, n_adjacent=41, n_gtex=308,
+        gene_symbol="FOLR1",
+        cells_ran=3,
+        cells_supporting=3,
+        dominant_direction="up",
+        sig_all_cells=True,
+        discordant=False,
+        log2fc_A=1.8,
+        padj_A=1e-8,
+        log2fc_B=1.5,
+        padj_B=1e-6,
+        log2fc_C=2.0,
+        padj_C=1e-9,
+        max_abs_log2fc=2.0,
+        stratum_id="MSI_H",
+        subgroup_axis="msi_status",
+        subgroup_n_tumor=38,
+        n_adjacent=41,
+        n_gtex=308,
     )
     base.update(kw)
     return pd.Series(base)
@@ -82,27 +97,28 @@ def test_projection_handles_skipped_cell_nan():
 
 # ── end-to-end: synthetic parquet through the S3-shaped reader ───────────────
 
+
 def _write_synthetic_product(tmp_path: Path) -> Path:
     """Two strata for FOLR1: MSI_H strong (n=38), MSS modest (n=193)."""
     rows = {
-        "gene_symbol":        ["FOLR1", "FOLR1"],
-        "cells_ran":          [3, 3],
-        "cells_supporting":   [3, 2],
+        "gene_symbol": ["FOLR1", "FOLR1"],
+        "cells_ran": [3, 3],
+        "cells_supporting": [3, 2],
         "dominant_direction": ["up", "up"],
-        "sig_all_cells":      [True, False],
-        "discordant":         [False, False],
-        "log2fc_A":           [1.8, 0.6],
-        "padj_A":             [1e-8, 1e-3],
-        "log2fc_B":           [1.5, 0.5],
-        "padj_B":             [1e-6, 1e-2],
-        "log2fc_C":           [2.0, 0.7],
-        "padj_C":             [1e-9, 1e-3],
-        "max_abs_log2fc":     [2.0, 0.7],
-        "stratum_id":         ["MSI_H", "MSS"],
-        "subgroup_axis":      ["msi_status", "msi_status"],
-        "subgroup_n_tumor":   [38, 193],
-        "n_adjacent":         [41, 41],
-        "n_gtex":             [308, 308],
+        "sig_all_cells": [True, False],
+        "discordant": [False, False],
+        "log2fc_A": [1.8, 0.6],
+        "padj_A": [1e-8, 1e-3],
+        "log2fc_B": [1.5, 0.5],
+        "padj_B": [1e-6, 1e-2],
+        "log2fc_C": [2.0, 0.7],
+        "padj_C": [1e-9, 1e-3],
+        "max_abs_log2fc": [2.0, 0.7],
+        "stratum_id": ["MSI_H", "MSS"],
+        "subgroup_axis": ["msi_status", "msi_status"],
+        "subgroup_n_tumor": [38, 193],
+        "n_adjacent": [41, 41],
+        "n_gtex": [308, 308],
     }
     p = tmp_path / "sensitivity_by_subgroup.parquet"
     pq.write_table(pa.table(rows), p)
@@ -134,6 +150,7 @@ def test_reader_projects_strata_and_reduces(tmp_path, monkeypatch):
 def test_reader_absent_product_returns_data_unavailable(monkeypatch):
     def _raise(mid):
         raise FileNotFoundError(mid)
+
     monkeypatch.setattr(read, "s3_uri_for", _raise)
     out = read.read_stratified_tumor_vs_normal_selectivity("FOLR1", "NOPE")
     assert out["status"] == "data_unavailable"

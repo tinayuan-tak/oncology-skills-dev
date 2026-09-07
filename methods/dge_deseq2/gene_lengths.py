@@ -65,6 +65,7 @@ GENCODE_V26_GTF_URL = (
 def _md5_of_file(path: Path) -> str:
     """Compute md5 hex of a local file."""
     import hashlib
+
     h = hashlib.md5()
     with path.open("rb") as f:
         for chunk in iter(lambda: f.read(1 << 20), b""):
@@ -81,6 +82,7 @@ def _try_s3_fetch(s3_key: str, local_path: Path, expected_md5: str) -> bool:
     try:
         import boto3
         import os
+
         os.environ.setdefault("AWS_PROFILE", "cbg")
         s3 = boto3.client("s3")
         local_path.parent.mkdir(parents=True, exist_ok=True)
@@ -115,10 +117,7 @@ def _download_gtf(local_path: Path) -> Path:
         actual = _md5_of_file(local_path)
         if actual == S3_MD5_GTF:
             return local_path
-        print(
-            f"[gene_lengths] local cache md5 mismatch ({actual} vs "
-            f"{S3_MD5_GTF}); refetching."
-        )
+        print(f"[gene_lengths] local cache md5 mismatch ({actual} vs {S3_MD5_GTF}); refetching.")
         local_path.unlink()
 
     if _try_s3_fetch(S3_KEY_GTF, local_path, S3_MD5_GTF):
@@ -152,6 +151,7 @@ def _parse_gtf_to_gene_lengths(gtf_gz_path: Path) -> "pd.Series":
     pipeline.
     """
     import pandas as pd
+
     # Map gene_id (unversioned) → set of (chrom, start, end) exon intervals.
     # We'll dedupe intervals per gene at the end via a merge-intervals pass.
     per_gene_exons: dict[str, list[tuple[int, int]]] = {}
@@ -218,10 +218,7 @@ def load_gene_lengths(refresh: bool = False) -> "pd.Series":
         actual = _md5_of_file(CACHE_FILE)
         if actual == S3_MD5_LENGTHS:
             return pd.read_parquet(CACHE_FILE)["effective_length_bp"]
-        print(
-            f"[gene_lengths] local parquet md5 mismatch ({actual} vs "
-            f"{S3_MD5_LENGTHS}); refetching."
-        )
+        print(f"[gene_lengths] local parquet md5 mismatch ({actual} vs {S3_MD5_LENGTHS}); refetching.")
         CACHE_FILE.unlink()
 
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
@@ -278,10 +275,13 @@ def counts_to_tpm(
 
     if gene_lengths is None:
         gene_lengths = load_gene_lengths()
-    lengths_kb = pd.Series(
-        [gene_lengths.get(gid, np.nan) for gid in gene_ids],
-        index=gene_ids,
-    ) / 1000.0
+    lengths_kb = (
+        pd.Series(
+            [gene_lengths.get(gid, np.nan) for gid in gene_ids],
+            index=gene_ids,
+        )
+        / 1000.0
+    )
 
     if lengths_kb.isna().any():
         # Genes not in Gencode v26 (e.g. non-standard chroms, decoys) —
@@ -347,4 +347,5 @@ def count_to_tpm_single_gene(
         0.0,
     )
     import pandas as pd
+
     return pd.Series(tpm, index=aligned.index, name="tpm")

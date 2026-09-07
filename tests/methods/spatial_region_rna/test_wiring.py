@@ -1,4 +1,5 @@
 """Wiring + classifier regression for spatial_region_rna (GeoMx WTA region-RNA)."""
+
 from __future__ import annotations
 
 import sys
@@ -8,8 +9,8 @@ REPO = Path(__file__).resolve().parents[3]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
-from methods.spatial_region_rna import read as RR   # noqa: E402
-from methods.spatial_region_rna import stats as ST   # noqa: E402
+from methods.spatial_region_rna import read as RR  # noqa: E402
+from methods.spatial_region_rna import stats as ST  # noqa: E402
 
 
 def test_hnsc_wired_to_geomx_wta():
@@ -24,10 +25,9 @@ def test_nsclc_histologies_wired_to_geomx_rna():
 
 def test_product_resolves_to_catalog_s3_uri():
     from methods.catalog_query.read import s3_uri_for
-    assert s3_uri_for("spatial-region-rna-hnsc-v1").endswith(
-        "spatial-region-rna-hnsc-v1/spatial_region_rna.parquet")
-    assert s3_uri_for("spatial-region-rna-nsclc-v1").endswith(
-        "spatial-region-rna-nsclc-v1/spatial_region_rna.parquet")
+
+    assert s3_uri_for("spatial-region-rna-hnsc-v1").endswith("spatial-region-rna-hnsc-v1/spatial_region_rna.parquet")
+    assert s3_uri_for("spatial-region-rna-nsclc-v1").endswith("spatial-region-rna-nsclc-v1/spatial_region_rna.parquet")
 
 
 def test_coadread_wired_to_geomx_wta():
@@ -45,7 +45,7 @@ def test_brca_wired_to_geomx_wta():
 
 
 def test_unmapped_indication_is_data_unavailable():
-    out = RR.read_spatial_region_rna("EGFR", "STAD")   # no region-RNA product for STAD
+    out = RR.read_spatial_region_rna("EGFR", "STAD")  # no region-RNA product for STAD
     assert out["spatial_rna_class"] == "data_unavailable"
     assert out["product_id"] is None
 
@@ -70,8 +70,11 @@ def test_classify_tme_enriched():
 
 
 def test_classify_no_compartment_preference():
-    rows = _rows([("d1", "TUMOUR", 5.16), ("d1", "TME", 4.93)])   # EPCAM-like small delta in HNSC
-    assert ST.classify_region_rna(ST.summarize_rna(rows), rows)["spatial_rna_class"] == "tumour_present_no_compartment_preference"
+    rows = _rows([("d1", "TUMOUR", 5.16), ("d1", "TME", 4.93)])  # EPCAM-like small delta in HNSC
+    assert (
+        ST.classify_region_rna(ST.summarize_rna(rows), rows)["spatial_rna_class"]
+        == "tumour_present_no_compartment_preference"
+    )
 
 
 def test_empty_is_data_unavailable():
@@ -79,5 +82,5 @@ def test_empty_is_data_unavailable():
 
 
 def test_cross_donor_median():
-    rows = _rows([("d1", "TUMOUR", 9.0), ("d2", "TUMOUR", 11.0)])   # median 10.0
+    rows = _rows([("d1", "TUMOUR", 9.0), ("d2", "TUMOUR", 11.0)])  # median 10.0
     assert ST.summarize_rna(rows)["compartment_abundance"]["TUMOUR"] == 10.0

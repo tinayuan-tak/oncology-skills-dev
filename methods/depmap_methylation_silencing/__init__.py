@@ -13,4 +13,5 @@ Emits methylation_silencing_class ∈ {silencing_coupled_strong, silencing_coupl
 methylation_uncoupled, methylation_invariant_panel, data_unavailable}. Feeds the cis_coherence resolver's
 LoF/silencing arm (coherent_lof_silencing) alongside the amplification-driven cis_dosage leg.
 """
+
 from .read import read_methylation_silencing, METHOD_VERSION  # noqa: F401

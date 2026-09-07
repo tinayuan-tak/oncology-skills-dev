@@ -80,10 +80,15 @@ def test_dge_deseq2_byte_identity_vs_legacy_coadread(tmp_path):
     new_out.mkdir()
     new_parquet = new_out / "result.parquet"
     new_cmd = [
-        sys.executable, "-m", "methods.dge_deseq2.cli",
-        "--indication", "COADREAD",
-        "--contrast", "tumor_vs_adjacent",
-        "--release-pin", "2026-Q2",
+        sys.executable,
+        "-m",
+        "methods.dge_deseq2.cli",
+        "--indication",
+        "COADREAD",
+        "--contrast",
+        "tumor_vs_adjacent",
+        "--release-pin",
+        "2026-Q2",
         f"--catalog-repo={CATALOG_REPO}",
         f"--out={new_out}",
         f"--parquet-uri={new_parquet}",
@@ -98,9 +103,7 @@ def test_dge_deseq2_byte_identity_vs_legacy_coadread(tmp_path):
     assert set(df_legacy.columns) == set(df_new.columns), (
         f"column sets differ: legacy={sorted(df_legacy.columns)}, new={sorted(df_new.columns)}"
     )
-    assert len(df_legacy) == len(df_new), (
-        f"row counts differ: legacy={len(df_legacy)}, new={len(df_new)}"
-    )
+    assert len(df_legacy) == len(df_new), f"row counts differ: legacy={len(df_legacy)}, new={len(df_new)}"
 
     df_legacy_sorted = df_legacy.sort_values("gene_id").reset_index(drop=True)
     df_new_sorted = df_new.sort_values("gene_id").reset_index(drop=True)
@@ -109,7 +112,8 @@ def test_dge_deseq2_byte_identity_vs_legacy_coadread(tmp_path):
         if col not in df_legacy_sorted.columns:
             continue
         pd.testing.assert_series_equal(
-            df_legacy_sorted[col], df_new_sorted[col],
+            df_legacy_sorted[col],
+            df_new_sorted[col],
             check_exact=True,
             obj=f"R4 byte-identity column {col}",
         )
@@ -120,17 +124,27 @@ def test_cli_dry_run_smoke():
     This is the minimal sanity check that does NOT require R env."""
     result = subprocess.run(
         [
-            sys.executable, "-m", "methods.dge_deseq2.cli",
-            "--indication", "COADREAD",
-            "--contrast", "tumor_vs_adjacent",
-            "--release-pin", "2026-Q2",
-            "--out", "/tmp/dge_deseq2_dryrun",
+            sys.executable,
+            "-m",
+            "methods.dge_deseq2.cli",
+            "--indication",
+            "COADREAD",
+            "--contrast",
+            "tumor_vs_adjacent",
+            "--release-pin",
+            "2026-Q2",
+            "--out",
+            "/tmp/dge_deseq2_dryrun",
             "--dry-run",
         ],
-        capture_output=True, text=True, cwd=METHODS_REPO,
+        capture_output=True,
+        text=True,
+        cwd=METHODS_REPO,
     )
     # CLI may fail config resolution if no config exists; we accept that for dry-run smoke
     # — what we care about is that the Python imports and Click parsing work.
-    assert "dge-deseq2 invocation" in result.stdout or "No config found" in (result.stderr or "") or "No config found" in (result.stdout or ""), (
-        f"CLI did not produce expected output. stdout={result.stdout!r}, stderr={result.stderr!r}"
-    )
+    assert (
+        "dge-deseq2 invocation" in result.stdout
+        or "No config found" in (result.stderr or "")
+        or "No config found" in (result.stdout or "")
+    ), f"CLI did not produce expected output. stdout={result.stdout!r}, stderr={result.stderr!r}"

@@ -45,7 +45,7 @@ DEPMAP_S3_BUCKET = "onc-compbio"
 # multi-release caller never gets a 26q1 file back for a 26q2 request (M4). The bare 26q1 path is
 # preserved as the default subdir name for backward-compat with already-cached files.
 _PARQUET_CACHE_ROOT = Path.home() / ".cache"
-PARQUET_CACHE_DIR = _PARQUET_CACHE_ROOT / "framework-depmap-26q1-parquet"   # legacy 26q1 default
+PARQUET_CACHE_DIR = _PARQUET_CACHE_ROOT / "framework-depmap-26q1-parquet"  # legacy 26q1 default
 
 # 2026-08-11 REVIEW FIX (M4 — full multi-release). Every loader accepts a `release_pin`; the S3
 # prefix is now resolved PER RELEASE from the catalog manifest `depmap-{release_pin}-parquet-v1`
@@ -64,8 +64,9 @@ def _release_prefix(release_pin: str = "26q1") -> str:
     (from bucket_prefix_for) if the release is not registered in the catalog — the loud,
     auditable failure that replaces #283's ValueError guard."""
     from methods.catalog_query.read import bucket_prefix_for
+
     _bucket, prefix = bucket_prefix_for(f"depmap-{release_pin}-parquet-v1")
-    return prefix.rstrip("/")   # sibling loaders.py idiom: strip trailing slash, join with "/"
+    return prefix.rstrip("/")  # sibling loaders.py idiom: strip trailing slash, join with "/"
 
 
 # ── Streamed pushdown read path (per-target reads; no whole-file download) ───────────────────
@@ -85,6 +86,7 @@ def _get_s3fs():
         with _S3FS_LOCK:
             if _S3FS is None:
                 import pyarrow.fs as pafs
+
                 _S3FS = pafs.S3FileSystem(region="us-east-1")
     return _S3FS
 
@@ -103,6 +105,7 @@ def _remote_schema_names(uri: str) -> tuple:
     A wide DepMap matrix has ~19k columns; caching the footer means a batch of per-target reads
     resolves the gene column without re-fetching the footer each call."""
     import pyarrow.parquet as pq
+
     return tuple(pq.read_schema(uri, filesystem=_get_s3fs()).names)
 
 
@@ -113,6 +116,7 @@ def _stream_table(uri: str, columns=None, filters=None):
     transient/creds error propagates so the caller's live-read seam records the real cause — we do
     NOT wrap in a broad except that would mask the two, per the reader-absence-discipline guard)."""
     import pyarrow.parquet as pq
+
     return pq.read_table(uri, filesystem=_get_s3fs(), columns=columns, filters=filters)
 
 
@@ -122,6 +126,7 @@ _GENE_LABEL_RE = re.compile(r'^"?([A-Za-z0-9._-]+)\s*\(\d+\)"?$')
 def _log(msg: str) -> None:
     try:
         import click
+
         click.echo(msg, err=True)
     except ImportError:
         print(msg, file=sys.stderr)
@@ -130,8 +135,9 @@ def _log(msg: str) -> None:
 def _local_cached(filename: str, release_pin: str = "26q1") -> Path:
     # 26q1 keeps the legacy cache dir (backward-compat with already-downloaded files); other
     # releases get their own subdir so files never collide across releases (M4).
-    cache_dir = (PARQUET_CACHE_DIR if release_pin == "26q1"
-                 else _PARQUET_CACHE_ROOT / f"framework-depmap-{release_pin}-parquet")
+    cache_dir = (
+        PARQUET_CACHE_DIR if release_pin == "26q1" else _PARQUET_CACHE_ROOT / f"framework-depmap-{release_pin}-parquet"
+    )
     cache_dir.mkdir(parents=True, exist_ok=True)
     return cache_dir / filename
 
@@ -144,9 +150,10 @@ def _fetch_parquet(filename: str, release_pin: str = "26q1") -> Path:
     if local_path.exists():
         return local_path
 
-    prefix = _release_prefix(release_pin)   # catalog-resolved; raises if release unregistered
+    prefix = _release_prefix(release_pin)  # catalog-resolved; raises if release unregistered
     _log(f"  Downloading parquet: s3://{DEPMAP_S3_BUCKET}/{prefix}/{filename}")
     import boto3
+
     s3 = boto3.client("s3")
     key = f"{prefix}/{filename}"
     try:
@@ -172,21 +179,27 @@ def _find_gene_column(schema_names, target_symbol: str) -> Optional[str]:
     return None
 
 
-def _read_wide_target_column(filename: str, target_symbol: str,
-                              id_col_hints: tuple = ("ModelID", "ModelConditionID"),
-                              release_pin: str = "26q1", *, source_path=None):
+def _read_wide_target_column(
+    filename: str,
+    target_symbol: str,
+    id_col_hints: tuple = ("ModelID", "ModelConditionID"),
+    release_pin: str = "26q1",
+    *,
+    source_path=None,
+):
     """Read a WIDE parquet with column projection: only ID/metadata cols + the target gene.
 
     Streams over S3 (footer cached, only the target column's chunks transit the wire) — no
     whole-file download. `source_path` (offline test seam): a local parquet path bypasses S3."""
     import pyarrow.parquet as pq
+
     if source_path is not None:
         schema_names = tuple(pq.read_schema(source_path).names)
-        read = lambda cols: pq.read_table(source_path, columns=cols)   # noqa: E731
+        read = lambda cols: pq.read_table(source_path, columns=cols)  # noqa: E731
     else:
         uri = _remote_uri(filename, release_pin)
         schema_names = _remote_schema_names(uri)
-        read = lambda cols: _stream_table(uri, columns=cols)           # noqa: E731
+        read = lambda cols: _stream_table(uri, columns=cols)  # noqa: E731
     target_col = _find_gene_column(schema_names, target_symbol)
     if target_col is None:
         return None
@@ -204,29 +217,36 @@ def _read_wide_target_column(filename: str, target_symbol: str,
 def get_chronos_column(target_symbol: str, release_pin: str = "26q1"):
     """CRISPR Chronos target column. Returns DataFrame or None.
     Column-projection read: ~1-2 MB (vs 564 MB CSV parse)."""
-    return _read_wide_target_column("CRISPRGeneEffect.parquet", target_symbol,
-                                     id_col_hints=("ModelID",), release_pin=release_pin)
+    return _read_wide_target_column(
+        "CRISPRGeneEffect.parquet", target_symbol, id_col_hints=("ModelID",), release_pin=release_pin
+    )
 
 
 @lru_cache(maxsize=128)
 def get_tpm_column(target_symbol: str, release_pin: str = "26q1"):
     """TPM target column. Returns DataFrame or None."""
-    return _read_wide_target_column("OmicsExpressionTPMLogp1HumanProteinCodingGenes.parquet",
-                                     target_symbol, id_col_hints=("ModelID",), release_pin=release_pin)
+    return _read_wide_target_column(
+        "OmicsExpressionTPMLogp1HumanProteinCodingGenes.parquet",
+        target_symbol,
+        id_col_hints=("ModelID",),
+        release_pin=release_pin,
+    )
 
 
 @lru_cache(maxsize=128)
 def get_cn_column_wes(target_symbol: str, release_pin: str = "26q1"):
     """CN WES target column. Returns DataFrame or None (fall back to WGS if None)."""
-    return _read_wide_target_column("OmicsCNGeneMC_WES.parquet", target_symbol,
-                                     id_col_hints=("ModelConditionID",), release_pin=release_pin)
+    return _read_wide_target_column(
+        "OmicsCNGeneMC_WES.parquet", target_symbol, id_col_hints=("ModelConditionID",), release_pin=release_pin
+    )
 
 
 @lru_cache(maxsize=128)
 def get_cn_column_wgs(target_symbol: str, release_pin: str = "26q1"):
     """CN WGS target column (fallback for genes absent from WES panel)."""
-    return _read_wide_target_column("OmicsCNGeneWGS.parquet", target_symbol,
-                                     id_col_hints=("ModelConditionID",), release_pin=release_pin)
+    return _read_wide_target_column(
+        "OmicsCNGeneWGS.parquet", target_symbol, id_col_hints=("ModelConditionID",), release_pin=release_pin
+    )
 
 
 @lru_cache(maxsize=128)
@@ -239,8 +259,9 @@ def get_hotspot_mutation_column(target_symbol: str, release_pin: str = "26q1"):
     per cell-line (float32-cast during precompute; downstream code casts to
     bool for the mutation-status flag).
     """
-    return _read_wide_target_column("OmicsSomaticMutationsMatrixHotspot.parquet",
-                                     target_symbol, id_col_hints=("ModelID",), release_pin=release_pin)
+    return _read_wide_target_column(
+        "OmicsSomaticMutationsMatrixHotspot.parquet", target_symbol, id_col_hints=("ModelID",), release_pin=release_pin
+    )
 
 
 @lru_cache(maxsize=128)
@@ -249,13 +270,13 @@ def get_damaging_mutation_column(target_symbol: str, release_pin: str = "26q1"):
     OmicsSomaticMutationsMatrixDamaging. Same shape as get_hotspot_mutation_column.
     Broader panel (~19584 gene cols vs ~554 for hotspot).
     """
-    return _read_wide_target_column("OmicsSomaticMutationsMatrixDamaging.parquet",
-                                     target_symbol, id_col_hints=("ModelID",), release_pin=release_pin)
+    return _read_wide_target_column(
+        "OmicsSomaticMutationsMatrixDamaging.parquet", target_symbol, id_col_hints=("ModelID",), release_pin=release_pin
+    )
 
 
 @lru_cache(maxsize=128)
-def get_matrix_column_by_model_id(filename: str, target_symbol: str, release_pin: str = "26q1",
-                                  *, source_path=None):
+def get_matrix_column_by_model_id(filename: str, target_symbol: str, release_pin: str = "26q1", *, source_path=None):
     """Column-projection read of a wide DepMap matrix parquet, keyed on ModelID.
 
     Unlike get_cn_column_wgs / get_*_mutation_column (which project ModelConditionID or
@@ -267,13 +288,14 @@ def get_matrix_column_by_model_id(filename: str, target_symbol: str, release_pin
     (e.g. 'OmicsSomaticMutationsMatrixDamaging.parquet').
     """
     import pyarrow.parquet as pq
+
     if source_path is not None:
         schema_names = tuple(pq.read_schema(source_path).names)
-        read = lambda cols: pq.read_table(source_path, columns=cols)   # noqa: E731
+        read = lambda cols: pq.read_table(source_path, columns=cols)  # noqa: E731
     else:
         uri = _remote_uri(filename, release_pin)
         schema_names = _remote_schema_names(uri)
-        read = lambda cols: _stream_table(uri, columns=cols)           # noqa: E731
+        read = lambda cols: _stream_table(uri, columns=cols)  # noqa: E731
     target_col = _find_gene_column(schema_names, target_symbol)
     if target_col is None:
         return None
@@ -292,8 +314,9 @@ def get_demeter_row(target_symbol: str, release_pin: str = "26q1"):
     """
     # Streamed filter pushdown on the sorted-by-gene_symbol parquet — only the target row's
     # row group transits the wire (the D2 product is transposed: gene rows × cell-line cols).
-    table = _stream_table(_remote_uri("D2_combined_gene_dep_scores.parquet", release_pin),
-                          filters=[("gene_symbol", "=", target_symbol)])
+    table = _stream_table(
+        _remote_uri("D2_combined_gene_dep_scores.parquet", release_pin), filters=[("gene_symbol", "=", target_symbol)]
+    )
     if table.num_rows == 0:
         return None
     df = table.to_pandas()
@@ -317,8 +340,9 @@ def get_maf_gene_rows(target_symbol: str, release_pin: str = "26q1"):
     the target gene are skipped entirely. Drops per-query read from ~738 MB CSV
     parse to <10 MB parquet slice.
     """
-    table = _stream_table(_remote_uri("OmicsSomaticMutations.parquet", release_pin),
-                          filters=[("HugoSymbol", "=", target_symbol)])
+    table = _stream_table(
+        _remote_uri("OmicsSomaticMutations.parquet", release_pin), filters=[("HugoSymbol", "=", target_symbol)]
+    )
     return table.to_pandas()
 
 
@@ -373,4 +397,4 @@ def clear_all_parquet_caches() -> None:
     get_hotspot_mutation_column.cache_clear()
     get_damaging_mutation_column.cache_clear()
     get_matrix_column_by_model_id.cache_clear()
-    _remote_schema_names.cache_clear()   # streamed-read footer/schema cache
+    _remote_schema_names.cache_clear()  # streamed-read footer/schema cache

@@ -8,6 +8,7 @@ COAD ∪ READ over the SAME tumor samples — so counting all three double-count
 
 These are pure-function tests on the row list (no S3), mirroring the module's unit-test style.
 """
+
 from methods.dge_deseq2.derive_pancan_stack import (
     _dedupe_overlapping_indications,
     _COMPOSITE_INDICATIONS,
@@ -21,7 +22,7 @@ def _row(ind):
 def test_coadread_dropped_when_both_children_present():
     rows = [_row("COAD"), _row("READ"), _row("COADREAD"), _row("LUAD")]
     kept = {r["indication"] for r in _dedupe_overlapping_indications(rows)}
-    assert kept == {"COAD", "READ", "LUAD"}          # composite parent removed
+    assert kept == {"COAD", "READ", "LUAD"}  # composite parent removed
     assert "COADREAD" not in kept
 
 
@@ -54,7 +55,7 @@ def test_idempotent():
 def test_case_insensitive_indication_labels():
     rows = [_row("coad"), _row("read"), _row("coadread")]
     kept = {r["indication"] for r in _dedupe_overlapping_indications(rows)}
-    assert kept == {"coad", "read"}                  # lowercase composite still dropped
+    assert kept == {"coad", "read"}  # lowercase composite still dropped
 
 
 def test_composite_map_documents_coadread():

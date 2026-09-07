@@ -6,8 +6,9 @@ from typing import Optional
 from . import cli as _cli
 
 
-def read_cn_distribution(target: str, indication: Optional[str] = None,
-                         plot_data_out: Optional[Path] = None) -> Optional[dict]:
+def read_cn_distribution(
+    target: str, indication: Optional[str] = None, plot_data_out: Optional[Path] = None
+) -> Optional[dict]:
     """Compute pan-cancer CN distribution for target. WES-primary + WGS-fallback.
     Returns summary dict matching the copy-number-distribution card's outputs.summary_fields."""
     cn_by, mmeta, assay_used, load_errors = _cli.load_cn_files("26q1", target)

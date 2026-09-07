@@ -44,9 +44,15 @@ def _reconstruct_frame(plot_data: "Union[str, Path, object]") -> tuple[dict, dic
     return chronos_by_model, model_metadata
 
 
-def render_from_plot_data(plot_data: "Union[str, Path, object]", summary: dict, out_dir: "Union[str, Path]",
-                          target: str, indication: Optional[str] = None, *,
-                          target_contracts_dir: "Optional[Union[str, Path]]" = None) -> list[dict]:
+def render_from_plot_data(
+    plot_data: "Union[str, Path, object]",
+    summary: dict,
+    out_dir: "Union[str, Path]",
+    target: str,
+    indication: Optional[str] = None,
+    *,
+    target_contracts_dir: "Optional[Union[str, Path]]" = None,
+) -> list[dict]:
     """Render the dependency-lineage-selectivity figures OFFLINE from persisted plot_data. NO live
     read — reconstructs the frame, recomputes the lineage summary, and delegates to the same cli.emit_*
     draw functions a live run uses."""
@@ -58,17 +64,33 @@ def render_from_plot_data(plot_data: "Union[str, Path, object]", summary: dict, 
     target_lineage = _cli.INDICATION_LINEAGE.get(indication, "") if indication else ""
 
     lineage_summary = _cli.compute_lineage_summary(
-        chronos_by_model, model_metadata, indication=indication,
+        chronos_by_model,
+        model_metadata,
+        indication=indication,
     )
     merged_data = _cli.emit_plot_data(
-        chronos_by_model, model_metadata, target_lineage, -1.0, out_dir,
+        chronos_by_model,
+        model_metadata,
+        target_lineage,
+        -1.0,
+        out_dir,
     )
     _cli.emit_forest_plot(
-        lineage_summary.get("_per_lineage_records", []), target_lineage,
-        target, indication, lineage_summary, out_dir, tcd,
+        lineage_summary.get("_per_lineage_records", []),
+        target_lineage,
+        target,
+        indication,
+        lineage_summary,
+        out_dir,
+        tcd,
     )
     _cli.emit_lineage_strip(
-        merged_data, target_lineage, target, indication, out_dir, tcd,
+        merged_data,
+        target_lineage,
+        target,
+        indication,
+        out_dir,
+        tcd,
     )
 
     static = [
@@ -79,9 +101,18 @@ def render_from_plot_data(plot_data: "Union[str, Path, object]", summary: dict, 
     # an EXACT drop-in for the registry emitter (which appends _plotly_from today). Best-effort.
     dynamic: list[dict] = []
     try:
-        specs = _cli.emit_plotly_specs(
-            lineage_summary.get("_per_lineage_records", []), target_lineage,
-            target, indication, lineage_summary, out_dir, tcd) or []
+        specs = (
+            _cli.emit_plotly_specs(
+                lineage_summary.get("_per_lineage_records", []),
+                target_lineage,
+                target,
+                indication,
+                lineage_summary,
+                out_dir,
+                tcd,
+            )
+            or []
+        )
         dynamic = [{**s, "dynamic": True} for s in specs]
     except Exception:  # noqa: BLE001 — additive interactive twin; SVGs are the contract
         pass

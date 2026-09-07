@@ -26,6 +26,7 @@ the sharpest presence signal (phospho-activity > total abundance).
 Modules:
     read — read_phospho_pathway_activity(target, indication): the phospho-activity summary + class.
 """
+
 from __future__ import annotations
 
 from .read import read_phospho_pathway_activity, classify_phospho_activity

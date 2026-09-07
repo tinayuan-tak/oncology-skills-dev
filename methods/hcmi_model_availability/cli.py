@@ -34,6 +34,7 @@ COADREAD remains deepest, consistent with HCMI's documented GI/colorectal-heavy 
 
 ROLE: VERDICT-INERT translational facet on first wiring; drives NO resolver rung.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -52,21 +53,30 @@ _HCMI_PREFIX = "data-catalog/sources/hcmi/cmdc-dr45-0/HCMI-CMDC/"
 
 # Genotype-matched (R2.10 v2) constants ─────────────────────────────────────────────────────────────
 # Canonical S3 home for the per-(gene, indication) genotype-matched-model product.
-_GENOTYPE_DERIVED_PREFIX = ("data-catalog/derived/hcmi-genotype-matched-model-per-gene-v1/")
+_GENOTYPE_DERIVED_PREFIX = "data-catalog/derived/hcmi-genotype-matched-model-per-gene-v1/"
 _GENOTYPE_PARQUET_BASENAME = "hcmi_genotype_matched_model.parquet"
-DATA_CATALOG_ROOT = Path(os.environ.get(
-    "DATA_CATALOG_ROOT",
-    "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"))
+DATA_CATALOG_ROOT = Path(
+    os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
+)
 DEFAULT_RESOLVER_RELEASE = "resolver_v1.0.0"
 
 # FUNCTIONAL coding Variant_Classification values kept for a COARSE alteration match (any one of these
 # in a gene = the model "carries an alteration in X"). Deliberately excludes Silent, RNA, intronic,
 # UTR, IGR, flanking — those are not a nomination-validating coding hit. HGVSp is CARRIED (not
 # filtered on) so a hotspot-specific v2 refinement stays a later step.
-_FUNCTIONAL_CODING_CLASSES = frozenset({
-    "Missense_Mutation", "Nonsense_Mutation", "Frame_Shift_Ins", "Frame_Shift_Del",
-    "In_Frame_Ins", "In_Frame_Del", "Splice_Site", "Nonstop_Mutation", "Translation_Start_Site",
-})
+_FUNCTIONAL_CODING_CLASSES = frozenset(
+    {
+        "Missense_Mutation",
+        "Nonsense_Mutation",
+        "Frame_Shift_Ins",
+        "Frame_Shift_Del",
+        "In_Frame_Ins",
+        "In_Frame_Del",
+        "Splice_Site",
+        "Nonstop_Mutation",
+        "Translation_Start_Site",
+    }
+)
 
 # Genotype-matched-model coverage thresholds (distinct models carrying a functional alteration in the
 # gene, within the indication). matched_deep (>=5) / matched_sparse (1-4) / none (0 — reader-side only,
@@ -100,6 +110,7 @@ def _model_id_from_barcode(barcode: "Optional[str]") -> "Optional[str]":
         return None
     return "-".join(parts[:4])
 
+
 # (primary_site, disease_type) -> framework indication crosswalk.
 # Keyed on lowercased substring matches against the GDC clinical vocabulary; deliberately conservative —
 # a rule fires ONLY when (primary_site, disease_type) is UNAMBIGUOUS for one framework indication, so a
@@ -129,33 +140,36 @@ def crosswalk_indication(primary_site: "Optional[str]", disease_type: "Optional[
     if any(x in ps for x in ("colon", "rectum", "rectosigmoid")) and "adenom" in dt:
         return "COADREAD"  # colon/rectum adenocarcinoma (non-adenocarcinoma colon histologies left unmapped)
     if "pancreas" in ps and ("ductal" in dt or "adenom" in dt):
-        return "PAAD"      # pancreatic ductal / adenocarcinoma (PDAC)
+        return "PAAD"  # pancreatic ductal / adenocarcinoma (PDAC)
     if ("bronchus" in ps or "lung" in ps) and any(x in dt for x in ("adenom", "squamous", "epithelial")):
-        return "NSCLC"     # lung adeno / squamous / epithelial-NOS carcinoma (non-small-cell)
+        return "NSCLC"  # lung adeno / squamous / epithelial-NOS carcinoma (non-small-cell)
     if "stomach" in ps and "adenom" in dt:
-        return "GC"        # gastric adenocarcinoma (pre-existing 'GC' tag kept verbatim, not 'STAD')
+        return "GC"  # gastric adenocarcinoma (pre-existing 'GC' tag kept verbatim, not 'STAD')
     # ── broadened set (2026-08-24): each an unambiguous single-histology category ────────────────────
     if "esophagus" in ps and "adenom" in dt:
-        return "ESCA"      # esophageal adenocarcinoma (epithelial-NOS esophagus left unmapped)
+        return "ESCA"  # esophageal adenocarcinoma (epithelial-NOS esophagus left unmapped)
     if "breast" in ps and ("ductal" in dt or "lobular" in dt or "epithelial" in dt):
-        return "BRCA"      # invasive ductal/lobular + metaplastic/epithelial breast carcinoma (site is
-                           #   unambiguous for BRCA across epithelial subtypes)
+        return "BRCA"  # invasive ductal/lobular + metaplastic/epithelial breast carcinoma (site is
+        #   unambiguous for BRCA across epithelial subtypes)
     if "skin" in ps and "melanom" in dt:
-        return "SKCM"      # cutaneous melanoma ONLY (skin SCC / lymphoma / sarcoma and uveal 'Eye and
-                           #   adnexa' melanoma are NOT skin-cutaneous-melanoma -> left unmapped)
+        return "SKCM"  # cutaneous melanoma ONLY (skin SCC / lymphoma / sarcoma and uveal 'Eye and
+        #   adnexa' melanoma are NOT skin-cutaneous-melanoma -> left unmapped)
     if "ovary" in ps and "stromal" not in dt and any(x in dt for x in ("serous", "cystic", "mucinous", "adenom")):
-        return "OV"        # epithelial ovarian carcinoma (serous/cystic/mucinous/adeno); sex-cord
-                           #   'Complex Mixed and Stromal Neoplasms' excluded (distinct non-epithelial biology)
+        return "OV"  # epithelial ovarian carcinoma (serous/cystic/mucinous/adeno); sex-cord
+        #   'Complex Mixed and Stromal Neoplasms' excluded (distinct non-epithelial biology)
     if "bladder" in ps and ("transitional" in dt or "urothelial" in dt):
-        return "BLCA"      # urothelial / transitional-cell carcinoma (bladder adeno-variant + NOS left unmapped)
+        return "BLCA"  # urothelial / transitional-cell carcinoma (bladder adeno-variant + NOS left unmapped)
     if "corpus uteri" in ps and any(x in dt for x in ("adenom", "serous", "cystic", "mucinous")):
-        return "UCEC"      # endometrioid + serous uterine-corpus carcinoma; 'Uterus, NOS' site (ambiguous
-                           #   corpus-vs-cervix) and myomatous/stromal (leiomyo/carcinosarcoma) left unmapped
-    if any(s in ps for s in ("mouth", "tongue", "larynx", "pharynx", "lip", "tonsil", "palate", "gum")) and "squamous" in dt:
-        return "HNSC"      # head & neck squamous cell carcinoma (oral cavity / tongue / larynx / pharynx);
-                           #   sinonasal 'Nasal cavity and middle ear' + ill-defined sites left unmapped
+        return "UCEC"  # endometrioid + serous uterine-corpus carcinoma; 'Uterus, NOS' site (ambiguous
+        #   corpus-vs-cervix) and myomatous/stromal (leiomyo/carcinosarcoma) left unmapped
+    if (
+        any(s in ps for s in ("mouth", "tongue", "larynx", "pharynx", "lip", "tonsil", "palate", "gum"))
+        and "squamous" in dt
+    ):
+        return "HNSC"  # head & neck squamous cell carcinoma (oral cavity / tongue / larynx / pharynx);
+        #   sinonasal 'Nasal cavity and middle ear' + ill-defined sites left unmapped
     if "thyroid" in ps and "adenom" in dt:
-        return "THCA"      # thyroid papillary/follicular adenocarcinoma (thyroid SCC left unmapped)
+        return "THCA"  # thyroid papillary/follicular adenocarcinoma (thyroid SCC left unmapped)
     return None
 
 
@@ -182,6 +196,7 @@ def _list_case_jsons(s3) -> list:
 def _read_one(key: str):
     """Return (model_id, primary_site, disease_type) for one case JSON, or None on any read/parse error."""
     import boto3
+
     try:
         d = json.loads(boto3.client("s3").get_object(Bucket=_BUCKET, Key=key)["Body"].read())["ClinicalData"]
         mid = (d.get("SubjectData") or {}).get("submitter_id")
@@ -194,11 +209,12 @@ def _read_one(key: str):
 def aggregate_model_availability(max_workers: int = 24) -> list:
     """Walk the HCMI case JSONs and aggregate patient-derived model counts per framework indication."""
     import boto3
+
     os.environ.setdefault("AWS_PROFILE", "cbg")
     s3 = boto3.client("s3")
     keys = _list_case_jsons(s3)
     rows = []
-    n_unreadable = 0                       # _read_one returned None = a read/parse FAILURE (not a genuine no-model-id case)
+    n_unreadable = 0  # _read_one returned None = a read/parse FAILURE (not a genuine no-model-id case)
     with cf.ThreadPoolExecutor(max_workers=max_workers) as ex:
         for r in ex.map(_read_one, keys):
             if r is None:
@@ -208,9 +224,13 @@ def aggregate_model_availability(max_workers: int = 24) -> list:
                 rows.append(r)
     if n_unreadable:
         import sys as _sys
-        print(f"WARNING: {n_unreadable}/{len(keys)} HCMI case JSONs were unreadable/unparseable and "
-              f"were SKIPPED — if this is S3 throttling (not genuine gaps) the per-indication model "
-              f"counts UNDERCOUNT. Re-run to confirm stability.", file=_sys.stderr)
+
+        print(
+            f"WARNING: {n_unreadable}/{len(keys)} HCMI case JSONs were unreadable/unparseable and "
+            f"were SKIPPED — if this is S3 throttling (not genuine gaps) the per-indication model "
+            f"counts UNDERCOUNT. Re-run to confirm stability.",
+            file=_sys.stderr,
+        )
     per = defaultdict(lambda: {"models": set(), "sites": Counter()})
     for mid, ps, dt in rows:
         ind = crosswalk_indication(ps, dt)
@@ -220,13 +240,15 @@ def aggregate_model_availability(max_workers: int = 24) -> list:
     out = []
     for ind in sorted(per):
         n = len(per[ind]["models"])
-        out.append({
-            "indication": ind,
-            "n_patient_derived_models": n,
-            "model_availability_class": _availability_class(n),
-            "source": "HCMI-CMDC-DR45",
-            "primary_site_breakdown": "; ".join(f"{k}={c}" for k, c in per[ind]["sites"].most_common()),
-        })
+        out.append(
+            {
+                "indication": ind,
+                "n_patient_derived_models": n,
+                "model_availability_class": _availability_class(n),
+                "source": "HCMI-CMDC-DR45",
+                "primary_site_breakdown": "; ".join(f"{k}={c}" for k, c in per[ind]["sites"].most_common()),
+            }
+        )
     return out
 
 
@@ -241,6 +263,7 @@ def build_model_indication_map(max_workers: int = 24) -> tuple:
                             genotype-matched n_models_in_indication DENOMINATOR).
     """
     import boto3
+
     os.environ.setdefault("AWS_PROFILE", "cbg")
     s3 = boto3.client("s3")
     keys = _list_case_jsons(s3)
@@ -260,8 +283,11 @@ def build_model_indication_map(max_workers: int = 24) -> tuple:
                 model_to_indication[mid] = ind
                 denom[ind] += 1
     if n_unreadable:
-        print(f"WARNING: {n_unreadable}/{len(keys)} HCMI case JSONs unreadable/unparseable and SKIPPED "
-              f"— per-indication DENOMINATORS may undercount. Re-run to confirm stability.", file=sys.stderr)
+        print(
+            f"WARNING: {n_unreadable}/{len(keys)} HCMI case JSONs unreadable/unparseable and SKIPPED "
+            f"— per-indication DENOMINATORS may undercount. Re-run to confirm stability.",
+            file=sys.stderr,
+        )
     return model_to_indication, denom, len(keys), n_unreadable
 
 
@@ -280,6 +306,7 @@ def _parse_maf(key: str):
     """Parse one gzipped MAF; return list of (model_id, gene_symbol, variant_class, hgvsp_short) for
     FUNCTIONAL coding variants only, or None on any read/parse error (COUNTED + WARNed by the caller)."""
     import boto3
+
     try:
         raw = boto3.client("s3").get_object(Bucket=_BUCKET, Key=key)["Body"].read()
         out = []
@@ -333,6 +360,7 @@ def aggregate_genotype_matched(max_workers: int = 24) -> tuple:
     the set of covered indications grow correspondingly.
     """
     import boto3
+
     os.environ.setdefault("AWS_PROFILE", "cbg")
     model_to_indication, denom, n_cases, n_unreadable_cases = build_model_indication_map(max_workers)
     s3 = boto3.client("s3")
@@ -340,15 +368,16 @@ def aggregate_genotype_matched(max_workers: int = 24) -> tuple:
 
     # (gene, indication) -> {"models": set(model_id), "classes": Counter, "hgvsp": set(sample),
     #                         "model_hgvsps": {model_id -> set(HGVSp_Short)} for the recurrent-hotspot column}
-    agg: dict = defaultdict(lambda: {"models": set(), "classes": Counter(), "hgvsp": set(),
-                                     "model_hgvsps": defaultdict(set)})
+    agg: dict = defaultdict(
+        lambda: {"models": set(), "classes": Counter(), "hgvsp": set(), "model_hgvsps": defaultdict(set)}
+    )
     # Self-contained hotspot recurrence (#2): (gene, HGVSp_Short) -> set(model_id) tallied over the FULL
     # HCMI cohort (ALL MAF-bearing models, mapped OR unmapped), so recurrence has a robust cohort-wide
     # denominator and does NOT depend on the indication crosswalk. An HGVSp is "recurrent" for a gene iff
     # it is seen in >=2 DISTINCT models cohort-wide (no external hotspot source).
     gene_hgvsp_models: dict = defaultdict(set)
     n_unreadable_mafs = 0
-    mafs_mapped = set()      # distinct model ids (with a MAF) that map to a core indication
+    mafs_mapped = set()  # distinct model ids (with a MAF) that map to a core indication
     mafs_unmapped_models = set()
     ROLL = _rollup_indication()
     with cf.ThreadPoolExecutor(max_workers=max_workers) as ex:
@@ -358,7 +387,7 @@ def aggregate_genotype_matched(max_workers: int = 24) -> tuple:
                 continue
             for mid, gene, vc, hgvsp in res:
                 if hgvsp:
-                    gene_hgvsp_models[(gene, hgvsp)].add(mid)   # cohort-wide recurrence tally (all models)
+                    gene_hgvsp_models[(gene, hgvsp)].add(mid)  # cohort-wide recurrence tally (all models)
                 ind = model_to_indication.get(mid)
                 if ind is None:
                     mafs_unmapped_models.add(mid)
@@ -373,8 +402,11 @@ def aggregate_genotype_matched(max_workers: int = 24) -> tuple:
                         if len(cell["hgvsp"]) < 5:
                             cell["hgvsp"].add(hgvsp)
     if n_unreadable_mafs:
-        print(f"WARNING: {n_unreadable_mafs}/{len(maf_keys)} HCMI MAFs unreadable/unparseable and SKIPPED "
-              f"— n_models_with_alteration may undercount. Re-run to confirm stability.", file=sys.stderr)
+        print(
+            f"WARNING: {n_unreadable_mafs}/{len(maf_keys)} HCMI MAFs unreadable/unparseable and SKIPPED "
+            f"— n_models_with_alteration may undercount. Re-run to confirm stability.",
+            file=sys.stderr,
+        )
 
     # recurrent HGVSp set per gene (>=2 distinct models cohort-wide)
     recurrent_by_gene: dict = defaultdict(set)
@@ -390,17 +422,19 @@ def aggregate_genotype_matched(max_workers: int = 24) -> tuple:
         rec = recurrent_by_gene.get(gene, frozenset())
         # distinct models (in this gene x indication cell) carrying >=1 recurrent-hotspot HGVSp
         n_recurrent = sum(1 for _mid, hgs in cell["model_hgvsps"].items() if hgs & rec)
-        rows.append({
-            "gene_symbol": gene,
-            "indication": scope,
-            "n_models_in_indication": int(n_denom),
-            "n_models_with_alteration": int(n_alt),
-            "n_models_with_recurrent_hotspot": int(n_recurrent),
-            "variant_classes_present": "; ".join(sorted(cell["classes"])),
-            "hgvsp_examples": "; ".join(sorted(x for x in cell["hgvsp"] if x)),
-            "genotype_matched_class": genotype_matched_class(n_alt),
-            "source": "HCMI-CMDC-DR45",
-        })
+        rows.append(
+            {
+                "gene_symbol": gene,
+                "indication": scope,
+                "n_models_in_indication": int(n_denom),
+                "n_models_with_alteration": int(n_alt),
+                "n_models_with_recurrent_hotspot": int(n_recurrent),
+                "variant_classes_present": "; ".join(sorted(cell["classes"])),
+                "hgvsp_examples": "; ".join(sorted(x for x in cell["hgvsp"] if x)),
+                "genotype_matched_class": genotype_matched_class(n_alt),
+                "source": "HCMI-CMDC-DR45",
+            }
+        )
     rows.sort(key=lambda r: (r["gene_symbol"], r["indication"]))
     meta = {
         "n_cases_walked": n_cases,
@@ -425,12 +459,13 @@ def _emit_genotype_sidecar(payload_path: Path, resolver_release: str):
     if str(lib) not in sys.path:
         sys.path.insert(0, str(lib))
     from target_id_resolver.sidecar import emit_sidecar
+
     sidecar_path = Path(str(payload_path).replace(".parquet", ".target_resolution.parquet"))
     stats = emit_sidecar(
         payload_parquet_path=payload_path,
         native_key_column="gene_symbol",
         native_key_type="gene_symbol",
-        gencode_version_source="n/a",   # GDC MAF Hugo_Symbol column; not gencode-versioned here
+        gencode_version_source="n/a",  # GDC MAF Hugo_Symbol column; not gencode-versioned here
         out_path=sidecar_path,
         resolver_release=resolver_release,
     )
@@ -440,6 +475,7 @@ def _emit_genotype_sidecar(payload_path: Path, resolver_release: str):
 def _run_availability(args) -> int:
     import pyarrow as pa
     import pyarrow.parquet as pq
+
     rows = aggregate_model_availability(max_workers=args.max_workers)
     pq.write_table(pa.Table.from_pylist(rows), args.out)
     total = sum(r["n_patient_derived_models"] for r in rows)
@@ -452,12 +488,12 @@ def _run_availability(args) -> int:
 def _run_genotype_matched(args) -> int:
     import pyarrow as pa
     import pyarrow.parquet as pq
+
     rows, meta = aggregate_genotype_matched(max_workers=args.max_workers)
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     pq.write_table(pa.Table.from_pylist(rows), str(out))
-    print(f"wrote {len(rows)} (gene, indication) rows ({meta['n_distinct_genes']} genes) -> {out}",
-          file=sys.stderr)
+    print(f"wrote {len(rows)} (gene, indication) rows ({meta['n_distinct_genes']} genes) -> {out}", file=sys.stderr)
     print(f"  meta: {json.dumps(meta)}", file=sys.stderr)
     if not args.no_sidecar:
         sidecar_path, stats = _emit_genotype_sidecar(out, args.resolver_release)
@@ -468,12 +504,19 @@ def _run_genotype_matched(args) -> int:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="Materialize an HCMI model product (availability or genotype-matched).")
-    ap.add_argument("--mode", choices=["availability", "genotype-matched"], default="availability",
-                    help="availability = v1 per-indication counts; genotype-matched = R2.10 v2 per-(gene, indication).")
+    ap.add_argument(
+        "--mode",
+        choices=["availability", "genotype-matched"],
+        default="availability",
+        help="availability = v1 per-indication counts; genotype-matched = R2.10 v2 per-(gene, indication).",
+    )
     ap.add_argument("--out", required=True, help="output parquet path")
     ap.add_argument("--max-workers", type=int, default=24)
-    ap.add_argument("--resolver-release", default=DEFAULT_RESOLVER_RELEASE,
-                    help="resolver release pin for the genotype-matched sidecar")
+    ap.add_argument(
+        "--resolver-release",
+        default=DEFAULT_RESOLVER_RELEASE,
+        help="resolver release pin for the genotype-matched sidecar",
+    )
     ap.add_argument("--no-sidecar", action="store_true", help="genotype-matched: skip sidecar emission")
     args = ap.parse_args()
     if args.mode == "genotype-matched":

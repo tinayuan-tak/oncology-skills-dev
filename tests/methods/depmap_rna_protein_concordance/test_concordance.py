@@ -2,6 +2,7 @@
 
 No S3: the two per-model readers (RNA card4 loader, protein Gygi loader) are monkeypatched.
 """
+
 from __future__ import annotations
 
 import sys
@@ -20,19 +21,23 @@ from methods.depmap_rna_protein_concordance import read as R  # noqa: E402
 
 def _wire(monkeypatch, rna_by_model, prot_by_model, accession="P00000", errs=None):
     import methods.depmap_expression_dependency.cli as rna_cli
-    monkeypatch.setattr(rna_cli, "load_depmap_files_for_card4",
-                        lambda release_pin, target_symbol: ({}, rna_by_model, {}, errs or []))
+
+    monkeypatch.setattr(
+        rna_cli, "load_depmap_files_for_card4", lambda release_pin, target_symbol: ({}, rna_by_model, {}, errs or [])
+    )
     import methods.depmap_protein_abundance.cli as prot_cli
+
     monkeypatch.setattr(prot_cli, "resolve_accession", lambda t, sidecar_path=None: accession)
-    monkeypatch.setattr(prot_cli, "load_abundance_column",
-                        lambda acc, matrix_path=None: (prot_by_model, len(prot_by_model)))
+    monkeypatch.setattr(
+        prot_cli, "load_abundance_column", lambda acc, matrix_path=None: (prot_by_model, len(prot_by_model))
+    )
 
 
 def test_adequate_proxy_high_correlation(monkeypatch):
     # RNA ≈ protein (tight linear) → adequate_proxy
     ids = [f"ACH-{i:04d}" for i in range(40)]
     rna = {m: float(i % 8) for i, m in enumerate(ids)}
-    prot = {m: rna[m] + 0.1 for m in ids}          # near-perfect
+    prot = {m: rna[m] + 0.1 for m in ids}  # near-perfect
     _wire(monkeypatch, rna, prot)
     out = R.read_rna_protein_concordance("EGFR")
     assert out["rna_as_biomarker"] == "adequate_proxy"
@@ -42,7 +47,7 @@ def test_adequate_proxy_high_correlation(monkeypatch):
 def test_poor_proxy_decoupled(monkeypatch):
     ids = [f"ACH-{i:04d}" for i in range(40)]
     rna = {m: float(i % 8) for i, m in enumerate(ids)}
-    prot = {m: float((i * 37) % 5) for i, m in enumerate(ids)}   # scrambled → low r
+    prot = {m: float((i * 37) % 5) for i, m in enumerate(ids)}  # scrambled → low r
     _wire(monkeypatch, rna, prot)
     out = R.read_rna_protein_concordance("X")
     assert out["rna_as_biomarker"] in ("poor_proxy", "partial_proxy")
@@ -61,9 +66,9 @@ def test_classifies_on_spearman_not_pearson_outlier_inflated(monkeypatch):
     prot = {m: (5.0 + (i % 3) * 0.017 if i < 39 else 20.0) for i, m in enumerate(ids)}
     _wire(monkeypatch, rna, prot)
     out = R.read_rna_protein_concordance("X")
-    assert out["rna_protein_r"] > 0.7                      # Pearson inflated by the outlier
-    assert out["rna_protein_spearman"] < 0.7               # rank correlation is not adequate
-    assert out["rna_as_biomarker"] != "adequate_proxy"     # class follows Spearman, not Pearson
+    assert out["rna_protein_r"] > 0.7  # Pearson inflated by the outlier
+    assert out["rna_protein_spearman"] < 0.7  # rank correlation is not adequate
+    assert out["rna_as_biomarker"] != "adequate_proxy"  # class follows Spearman, not Pearson
     assert out["rna_proxy_classified_on"] == "spearman"
 
 
@@ -72,6 +77,7 @@ def test_boundary_ci_fragility_flag_G10():
     A near-boundary r at small n straddles a class boundary (fragile=True); a value far from any boundary
     is not; a wider n narrows the CI. The flag never changes the class (rna_as_biomarker unaffected)."""
     from methods.depmap_rna_protein_concordance import read as R
+
     # r=0.45 at n=20: sits just above the 0.4 partial/poor boundary, wide CI → straddles 0.4 → fragile
     near = R._proxy_boundary_ci(0.45, 20)
     assert near["rna_protein_r_ci95_low"] < 0.4 < near["rna_protein_r_ci95_high"]
@@ -109,8 +115,8 @@ def test_rna_high_protein_low_population(monkeypatch):
     # all RNA-expressed (but VARIED, so correlation is defined); a subset protein-bottom-decile
     # → nonzero rna_high_protein_low_fraction
     ids = [f"ACH-{i:04d}" for i in range(40)]
-    rna = {m: 3.0 + (i % 5) * 0.5 for i, m in enumerate(ids)}        # all >= detectable, varied
-    prot = {m: (0.0 if i < 5 else 5.0) for i, m in enumerate(ids)}   # 5 protein-low
+    rna = {m: 3.0 + (i % 5) * 0.5 for i, m in enumerate(ids)}  # all >= detectable, varied
+    prot = {m: (0.0 if i < 5 else 5.0) for i, m in enumerate(ids)}  # 5 protein-low
     _wire(monkeypatch, rna, prot)
     out = R.read_rna_protein_concordance("X")
     assert out["rna_high_protein_low_fraction"] is not None
@@ -128,11 +134,18 @@ def test_zero_variance_guard(monkeypatch):
 
 def test_tumor_arm_concordance(monkeypatch):
     import pandas as pd
+
     # a COAD cohort matched frame with a clean linear KRAS relationship
     n = 40
-    rows = [{"patient_id": f"01CO{i:03d}", "gene": "KRAS",
-             "rna_log2tpm": 3.0 + (i % 8) * 0.3, "protein_log2abundance": 3.0 + (i % 8) * 0.3 + 0.1}
-            for i in range(n)]
+    rows = [
+        {
+            "patient_id": f"01CO{i:03d}",
+            "gene": "KRAS",
+            "rna_log2tpm": 3.0 + (i % 8) * 0.3,
+            "protein_log2abundance": 3.0 + (i % 8) * 0.3 + 0.1,
+        }
+        for i in range(n)
+    ]
     monkeypatch.setattr(R, "_read_matched_cohort", lambda cohort: pd.DataFrame(rows))
     out = R.read_tumor_rna_protein_concordance("KRAS", "COADREAD")
     assert out["cptac_cohort"] == "coad" and out["substrate"] == "cptac_tumor"
@@ -143,12 +156,19 @@ def test_tumor_arm_concordance(monkeypatch):
 
 def test_tumor_emitter(tmp_path, monkeypatch):
     import importlib, pandas as pd
+
     pytest.importorskip("matplotlib")
     cli = importlib.import_module("methods.depmap_rna_protein_concordance.cli")
     n = 40
-    rows = [{"patient_id": f"01CO{i:03d}", "gene": "CDX2",
-             "rna_log2tpm": 3.0 + (i % 8) * 0.3, "protein_log2abundance": 3.0 + (i % 8) * 0.3 + 0.1}
-            for i in range(n)]
+    rows = [
+        {
+            "patient_id": f"01CO{i:03d}",
+            "gene": "CDX2",
+            "rna_log2tpm": 3.0 + (i % 8) * 0.3,
+            "protein_log2abundance": 3.0 + (i % 8) * 0.3 + 0.1,
+        }
+        for i in range(n)
+    ]
     monkeypatch.setattr(R, "_read_matched_cohort", lambda cohort: pd.DataFrame(rows))
     svg = cli.emit_tumor_svg("CDX2", "COADREAD", tmp_path)
     assert svg is not None and svg.exists()
@@ -160,19 +180,26 @@ def test_tumor_emitter(tmp_path, monkeypatch):
 
 def test_tumor_arm_underpowered_and_gap(monkeypatch):
     import pandas as pd
+
     # fewer than the floor → insufficient_paired_tumors
-    rows = [{"patient_id": f"p{i}", "gene": "X", "rna_log2tpm": float(i), "protein_log2abundance": float(i)}
-            for i in range(5)]
+    rows = [
+        {"patient_id": f"p{i}", "gene": "X", "rna_log2tpm": float(i), "protein_log2abundance": float(i)}
+        for i in range(5)
+    ]
     monkeypatch.setattr(R, "_read_matched_cohort", lambda cohort: pd.DataFrame(rows))
     assert R.read_tumor_rna_protein_concordance("X", "COADREAD")["rna_as_biomarker"] == "insufficient_paired_tumors"
     # target absent from the cohort → data_unavailable (n==0)
-    monkeypatch.setattr(R, "_read_matched_cohort",
-                        lambda cohort: pd.DataFrame(columns=["patient_id", "gene", "rna_log2tpm", "protein_log2abundance"]))
+    monkeypatch.setattr(
+        R,
+        "_read_matched_cohort",
+        lambda cohort: pd.DataFrame(columns=["patient_id", "gene", "rna_log2tpm", "protein_log2abundance"]),
+    )
     assert R.read_tumor_rna_protein_concordance("GHOST", "COADREAD")["rna_as_biomarker"] == "data_unavailable"
 
 
 def test_cli_build_and_figure(tmp_path, monkeypatch):
     import importlib
+
     pytest.importorskip("matplotlib")
     cli = importlib.import_module("methods.depmap_rna_protein_concordance.cli")
     ids = [f"ACH-{i:04d}" for i in range(40)]

@@ -19,6 +19,7 @@ Cohort class (fraction of samples that are HRD-high, HRD_Score >= HRD_HIGH_CUT):
 VERDICT-INERT context facet: no resolver rung, no rescue. Surfaces the cohort HRD prior alongside
 the (separate, verdict-moving) partner-conditional dependency analysis; it does NOT itself flip a verdict.
 """
+
 from __future__ import annotations
 
 import io
@@ -32,13 +33,12 @@ METHOD_VERSION = "0.1.0"
 HRD_HIGH_CUT = 42.0
 HRD_ENRICHED_FRAC = 0.30
 HRD_INTERMEDIATE_FRAC = 0.10
-MIN_COHORT_N = 15   # below → data_unavailable (underpowered cohort)
+MIN_COHORT_N = 15  # below → data_unavailable (underpowered cohort)
 
-_SOURCE_KEY = ("data-catalog/sources/gdc-pancanatlas/2018-snapshot-2026-06-27/"
-               "TCGA_DDR_Data_Resources.xlsx")
+_SOURCE_KEY = "data-catalog/sources/gdc-pancanatlas/2018-snapshot-2026-06-27/TCGA_DDR_Data_Resources.xlsx"
 _BUCKET = "onc-compbio"
 _SHEET = "DDR footprints"
-_HEADER_ROW = 3   # 0-indexed; rows 0-2 are score-dictionary metadata, row 3 is the column header
+_HEADER_ROW = 3  # 0-indexed; rows 0-2 are score-dictionary metadata, row 3 is the column header
 
 
 def _load_footprints_df():
@@ -52,6 +52,7 @@ def _load_footprints_df():
         raw = cache.read_bytes()
     else:
         import boto3
+
         raw = boto3.client("s3").get_object(Bucket=_BUCKET, Key=_SOURCE_KEY)["Body"].read()
         try:
             cache.parent.mkdir(parents=True, exist_ok=True)
@@ -59,7 +60,7 @@ def _load_footprints_df():
         except OSError:
             pass
     df = pd.read_excel(io.BytesIO(raw), sheet_name=_SHEET, header=_HEADER_ROW)
-    df.columns = [str(c).strip() for c in df.columns]   # source has trailing spaces on some cols
+    df.columns = [str(c).strip() for c in df.columns]  # source has trailing spaces on some cols
     return df
 
 
@@ -78,16 +79,20 @@ def build_per_indication_table():
         if n == 0:
             continue
         frac_high = float((hrd >= HRD_HIGH_CUT).mean())
-        rows.append({
-            "indication": str(disease),
-            "n_samples": n,
-            "median_hrd_score": round(float(hrd.median()), 3),
-            "p75_hrd_score": round(float(hrd.quantile(0.75)), 3),
-            "frac_hrd_high": round(frac_high, 4),
-            "median_mutsig3": round(float(g["mutSig3"].dropna().median()), 4) if g["mutSig3"].notna().any() else None,
-            "hrd_high_cut": HRD_HIGH_CUT,
-            "ddr_context_class": _classify(n, frac_high),
-        })
+        rows.append(
+            {
+                "indication": str(disease),
+                "n_samples": n,
+                "median_hrd_score": round(float(hrd.median()), 3),
+                "p75_hrd_score": round(float(hrd.quantile(0.75)), 3),
+                "frac_hrd_high": round(frac_high, 4),
+                "median_mutsig3": round(float(g["mutSig3"].dropna().median()), 4)
+                if g["mutSig3"].notna().any()
+                else None,
+                "hrd_high_cut": HRD_HIGH_CUT,
+                "ddr_context_class": _classify(n, frac_high),
+            }
+        )
     return pd.DataFrame(rows).sort_values("indication").reset_index(drop=True)
 
 
@@ -105,8 +110,12 @@ try:
     import click
 
     @click.command()
-    @click.option("--out", type=click.Path(path_type=Path), required=True,
-                  help="Output parquet path for the per-indication DDR-context product.")
+    @click.option(
+        "--out",
+        type=click.Path(path_type=Path),
+        required=True,
+        help="Output parquet path for the per-indication DDR-context product.",
+    )
     def main(out):
         """Build the per-indication DDR-deficiency context product (materialized rollup)."""
         tbl = build_per_indication_table()

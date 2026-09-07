@@ -12,6 +12,7 @@ Usage:
     AWS_PROFILE=cbg python -m scripts.build_msk_impact_maf --out /tmp/msk_maf.parquet [--upload]
     DRY_RUN=1 ... --upload    # prints S3 key + md5 without uploading
 """
+
 from __future__ import annotations
 
 import gzip
@@ -34,13 +35,21 @@ S3_KEY = "data-catalog/derived/msk-impact-50k-per-sample-maf-v1/per_sample_maf.p
 
 # Same non-synonymous vocabulary the GENIE MAF builder retains (MSK mutationType is title-case).
 _NON_SYNONYMOUS = {
-    "Missense_Mutation", "Nonsense_Mutation", "Frame_Shift_Ins", "Frame_Shift_Del",
-    "In_Frame_Ins", "In_Frame_Del", "Splice_Site", "Nonstop_Mutation", "Translation_Start_Site",
+    "Missense_Mutation",
+    "Nonsense_Mutation",
+    "Frame_Shift_Ins",
+    "Frame_Shift_Del",
+    "In_Frame_Ins",
+    "In_Frame_Del",
+    "Splice_Site",
+    "Nonstop_Mutation",
+    "Translation_Start_Site",
 }
 
 
 def _s3():
     import boto3
+
     return boto3.Session(profile_name=os.environ.get("AWS_PROFILE", "cbg")).client("s3")
 
 
@@ -48,12 +57,13 @@ def _sample_to_indication() -> dict:
     """{SAMPLE_ID: framework indication} from clinical CANCER_TYPE (reverse of MSK_CANCER_TYPE). A sample
     whose CANCER_TYPE maps to several framework codes (e.g. COADREAD) uses the canonical code."""
     import pandas as pd
+
     body = _s3().get_object(Bucket=S3_BUCKET, Key=CLINICAL_KEY)["Body"].read()
     df = pd.read_csv(io.BytesIO(body), sep="\t", comment="#", dtype=str)
     # canonical framework code per CANCER_TYPE string (first key that maps to it)
     ct_to_ind = {}
     for ind, ct in MSK_CANCER_TYPE.items():
-        ct_to_ind.setdefault(ct, ind)   # COADREAD before COAD/READ (dict insertion order), NSCLC before LUAD…
+        ct_to_ind.setdefault(ct, ind)  # COADREAD before COAD/READ (dict insertion order), NSCLC before LUAD…
     out = {}
     for sid, ct in zip(df["SAMPLE_ID"], df["CANCER_TYPE"]):
         ind = ct_to_ind.get(ct)
@@ -65,6 +75,7 @@ def _sample_to_indication() -> dict:
 def build() -> "pandas.DataFrame":
     import pandas as pd
     from methods.hgnc_entrez_crosswalk.read import load_entrez_to_symbol
+
     entrez_to_symbol = load_entrez_to_symbol()
     sample_ind = _sample_to_indication()
     raw = _s3().get_object(Bucket=S3_BUCKET, Key=MUTATIONS_KEY)["Body"].read()
@@ -79,26 +90,44 @@ def build() -> "pandas.DataFrame":
             sid = r.get("sampleId")
             ind = sample_ind.get(sid)
             if ind is None:
-                continue                       # sample not in a framework indication MSK-IMPACT-50k carries
+                continue  # sample not in a framework indication MSK-IMPACT-50k carries
             try:
                 sym = entrez_to_symbol.get(int(r.get("entrezGeneId")))
             except (TypeError, ValueError):
                 sym = None
             if not sym:
-                continue                       # unmapped entrez id (dropped, logged in the count)
+                continue  # unmapped entrez id (dropped, logged in the count)
             n_kept += 1
-            rows.append({"indication": ind, "gene_symbol": sym,
-                         "effect": r.get("mutationType"), "sample_id": sid,
-                         "protein_change": r.get("proteinChange"),
-                         "source_native_id": sid, "patient_id": r.get("patientId")})
+            rows.append(
+                {
+                    "indication": ind,
+                    "gene_symbol": sym,
+                    "effect": r.get("mutationType"),
+                    "sample_id": sid,
+                    "protein_change": r.get("proteinChange"),
+                    "source_native_id": sid,
+                    "patient_id": r.get("patientId"),
+                }
+            )
     print(f"  scanned {n_seen} variants, kept {n_kept} non-synonymous in-indication", file=sys.stderr)
-    df = pd.DataFrame(rows, columns=["indication", "gene_symbol", "effect", "sample_id",
-                                     "protein_change", "source_native_id", "patient_id"])
+    df = pd.DataFrame(
+        rows,
+        columns=[
+            "indication",
+            "gene_symbol",
+            "effect",
+            "sample_id",
+            "protein_change",
+            "source_native_id",
+            "patient_id",
+        ],
+    )
     return df.sort_values(["indication", "gene_symbol"]).reset_index(drop=True)
 
 
 def main(argv=None) -> int:
     import argparse
+
     ap = argparse.ArgumentParser(description="Materialize msk-impact-50k-per-sample-maf-v1.")
     ap.add_argument("--out", required=True, type=Path)
     ap.add_argument("--upload", action="store_true")

@@ -4,6 +4,7 @@ Pins the ported biologics logic-gate physics + the two disciplines: the AND/NOT 
 rare-in-tumor pair scores 0 regardless of ratio) and the Theme-1 dual denominator (a non-essential
 normal tissue firing is surfaced, not hidden).
 """
+
 from __future__ import annotations
 
 import sys
@@ -14,12 +15,16 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from methods.pair_selectivity_gate.gates import (  # noqa: E402
-    _positive_fraction_by_group, reduce_gate, classify_and_selectivity,
-    GATE_POSITIVE_THRESHOLD_TPM, AND_GATE_MIN_COFRACTION, AVIDITY_CAVEAT,
+    _positive_fraction_by_group,
+    reduce_gate,
+    classify_and_selectivity,
+    GATE_POSITIVE_THRESHOLD_TPM,
+    AND_GATE_MIN_COFRACTION,
+    AVIDITY_CAVEAT,
 )
 
-HI = GATE_POSITIVE_THRESHOLD_TPM + 5    # clearly positive
-LO = 0.0                                # clearly negative
+HI = GATE_POSITIVE_THRESHOLD_TPM + 5  # clearly positive
+LO = 0.0  # clearly negative
 
 
 def _grp(*tpms):
@@ -29,20 +34,20 @@ def _grp(*tpms):
 
 # ── per-sample gate fractions ────────────────────────────────────────────────
 def test_and_gate_fraction_needs_both_positive():
-    a = {"COAD": _grp(HI, HI, HI, LO)}      # 3/4 A-positive
-    b = {"COAD": _grp(HI, HI, LO, LO)}      # A&B positive only in samples 0,1 → 2/4 = 0.5
+    a = {"COAD": _grp(HI, HI, HI, LO)}  # 3/4 A-positive
+    b = {"COAD": _grp(HI, HI, LO, LO)}  # A&B positive only in samples 0,1 → 2/4 = 0.5
     frac = _positive_fraction_by_group(a, b, "AND")
     assert frac["COAD"] == 0.5
 
 
 def test_or_gate_fraction_is_union():
     a = {"COAD": _grp(HI, LO, LO, LO)}
-    b = {"COAD": _grp(LO, HI, LO, LO)}      # union = samples 0,1 → 2/4 = 0.5
+    b = {"COAD": _grp(LO, HI, LO, LO)}  # union = samples 0,1 → 2/4 = 0.5
     assert _positive_fraction_by_group(a, b, "OR")["COAD"] == 0.5
 
 
 def test_not_gate_requires_veto_truly_absent():
-    a = {"COAD": _grp(HI, HI, HI)}          # all A-positive
+    a = {"COAD": _grp(HI, HI, HI)}  # all A-positive
     # veto B: sample0 high (veto fires, excluded), sample1 mid (>=5 veto threshold, excluded),
     # sample2 truly absent (<5) → only sample2 fires the NOT gate → 1/3
     b = {"COAD": _grp(HI, 6.0, LO)}
@@ -52,7 +57,7 @@ def test_not_gate_requires_veto_truly_absent():
 
 def test_groups_missing_an_arm_are_skipped():
     a = {"COAD": _grp(HI, HI), "READ": _grp(HI)}
-    b = {"COAD": _grp(HI, HI)}              # READ absent in b → skipped
+    b = {"COAD": _grp(HI, HI)}  # READ absent in b → skipped
     frac = _positive_fraction_by_group(a, b, "AND")
     assert "COAD" in frac and "READ" not in frac
 
@@ -65,7 +70,7 @@ def test_and_gate_tumor_selective_call():
     r = reduce_gate("AND", tumor, normal, "COAD")
     assert r["tumor_fraction"] == 1.0
     assert r["max_essential_normal_tissue"] == "LUNG"
-    assert r["selectivity"] == 4.0                       # 1.0 / 0.25
+    assert r["selectivity"] == 4.0  # 1.0 / 0.25
     assert "tumor-selective" in r["call"]
 
 
@@ -80,7 +85,7 @@ def test_coverage_gate_zeroes_rare_and_pairs():
 def test_resolution_floor_caps_zero_essential_selectivity():
     # 100% tumor, 0% essential → capped at ~1/floor (100x), not infinite from a pseudocount
     r = reduce_gate("AND", {"COAD": 1.0}, {"LUNG": 0.0}, "COAD")
-    assert r["selectivity"] == 100.0                      # 1.0 / 0.01 resolution floor
+    assert r["selectivity"] == 100.0  # 1.0 / 0.01 resolution floor
 
 
 def test_theme1_nonessential_normal_surfaced_in_call():
@@ -89,10 +94,10 @@ def test_theme1_nonessential_normal_surfaced_in_call():
     tumor = {"COAD": 0.9}
     normal = {"LUNG": 0.05, "SKIN": 0.60}
     r = reduce_gate("AND", tumor, normal, "COAD")
-    assert r["max_essential_normal_tissue"] == "LUNG"     # essential denominator: lung
-    assert r["max_any_normal_tissue"] == "SKIN"           # full-normal denominator: skin (Theme-1)
+    assert r["max_essential_normal_tissue"] == "LUNG"  # essential denominator: lung
+    assert r["max_any_normal_tissue"] == "SKIN"  # full-normal denominator: skin (Theme-1)
     assert r["max_any_normal_fraction"] == 0.6
-    assert "non-essential normal" in r["call"]            # broad-tissue liability surfaced
+    assert "non-essential normal" in r["call"]  # broad-tissue liability surfaced
 
 
 def test_and_gate_dirty_when_essential_also_fires():
@@ -102,7 +107,7 @@ def test_and_gate_dirty_when_essential_also_fires():
 
 
 def test_no_tumor_samples_yields_none_selectivity():
-    r = reduce_gate("AND", {"READ": 0.9}, {"LUNG": 0.1}, "COAD")   # asked for COAD, only READ present
+    r = reduce_gate("AND", {"READ": 0.9}, {"LUNG": 0.1}, "COAD")  # asked for COAD, only READ present
     assert r["tumor_fraction"] is None
     assert r["selectivity"] is None
     assert "cannot evaluate" in r["call"]

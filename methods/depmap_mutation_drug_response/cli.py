@@ -23,6 +23,7 @@ provenance. This is a DRUG-RESPONSE biomarker — a genotype predicting SENSITIV
 target-directed compound — distinct from (and stronger evidence than) the CRISPR dependency
 biomarker, because it reflects an actual pharmacologic agent, not gene knockout.
 """
+
 from __future__ import annotations
 
 import json
@@ -39,7 +40,8 @@ if str(METHODS_REPO) not in sys.path:
     sys.path.insert(0, str(METHODS_REPO))
 
 from methods.depmap_mutation_drug_response.read import (
-    load_on_target_compounds, load_drug_response_by_model,
+    load_on_target_compounds,
+    load_drug_response_by_model,
 )
 
 # Drug-response effect-size thresholds on the Log2AUC scale. Log2AUC is compressed into
@@ -47,7 +49,7 @@ from methods.depmap_mutation_drug_response.read import (
 # Calibrated to the precompute's documented anchors (BRAF Skin Log2AUC median ~ -0.50;
 # near-flat/inactive > -0.05). We use delta thresholds MILDER than the Chronos ones
 # (-0.5/-0.2) because Log2AUC dynamic range is narrower than Chronos.
-STRONG_EFFECT_DELTA = -0.20     # mutant median Log2AUC >= 0.20 below WT → strong sensitivity shift
+STRONG_EFFECT_DELTA = -0.20  # mutant median Log2AUC >= 0.20 below WT → strong sensitivity shift
 MODERATE_EFFECT_DELTA = -0.08
 STRATIFICATION_ALPHA = 0.05
 MIN_MUTANT_LINES = 5
@@ -55,15 +57,16 @@ MIN_WILDTYPE_LINES = 30
 
 
 def compute_drug_response_stratification(
-        drug_response_by_model: dict,
-        hotspot_by_model: dict,
-        damaging_by_model: dict,
-        compound_records: list = None,
-        strong_effect_delta: float = STRONG_EFFECT_DELTA,
-        moderate_effect_delta: float = MODERATE_EFFECT_DELTA,
-        stratification_alpha: float = STRATIFICATION_ALPHA,
-        min_mutant: int = MIN_MUTANT_LINES,
-        min_wildtype: int = MIN_WILDTYPE_LINES) -> dict:
+    drug_response_by_model: dict,
+    hotspot_by_model: dict,
+    damaging_by_model: dict,
+    compound_records: list = None,
+    strong_effect_delta: float = STRONG_EFFECT_DELTA,
+    moderate_effect_delta: float = MODERATE_EFFECT_DELTA,
+    stratification_alpha: float = STRATIFICATION_ALPHA,
+    min_mutant: int = MIN_MUTANT_LINES,
+    min_wildtype: int = MIN_WILDTYPE_LINES,
+) -> dict:
     """Genotype × drug-response stratification via the shared Mann-Whitney primitive.
 
     Uses the 'any mutation' vector (hotspot OR damaging) — for a drug-SENSITIVITY biomarker the
@@ -78,10 +81,12 @@ def compute_drug_response_stratification(
         any_by_model[m] = bool(hotspot_by_model.get(m) or damaging_by_model.get(m))
 
     res = mannwhitney_stratification(
-        drug_response_by_model, any_by_model,
-        min_positive=min_mutant, min_comparator=min_wildtype,
+        drug_response_by_model,
+        any_by_model,
+        min_positive=min_mutant,
+        min_comparator=min_wildtype,
     )
-    q = res.get("p_value")                # single test → q == p (no multi-tier BH)
+    q = res.get("p_value")  # single test → q == p (no multi-tier BH)
     q_reverse = res.get("p_value_reverse")
     delta = res.get("delta_mut_vs_wt")
 
@@ -98,8 +103,7 @@ def compute_drug_response_stratification(
                 return "mutant_moderately_drug_sensitive"
         # REVERSE (second pass): mutant more RESISTANT (WT more sensitive) — a real resistance-
         # biomarker signal. Gated on reverse q + a strong POSITIVE delta. Verdict-inert direction.
-        if (q_reverse is not None and q_reverse < stratification_alpha
-                and delta >= -strong_effect_delta):
+        if q_reverse is not None and q_reverse < stratification_alpha and delta >= -strong_effect_delta:
             return "mutant_drug_resistant"
         return "not_drug_response_stratified"
 
@@ -128,7 +132,9 @@ def compute_drug_response_stratification(
         "n_on_target_compounds": len(compound_records),
         "on_target_compounds": [
             {"name": r.get("name"), "moa": r.get("target_or_mechanism")}
-            for r in compound_records if not r.get("_live_read_error")][:20],
+            for r in compound_records
+            if not r.get("_live_read_error")
+        ][:20],
     }
 
 
@@ -148,7 +154,8 @@ def _no_compound_summary(target: str, reason: str) -> dict:
 @click.option("--out", required=True, type=click.Path())
 @click.option("--aggregate", default="best", type=click.Choice(["best", "median"]))
 def main(target, indication, release_pin, out, aggregate) -> int:
-    out = Path(out); out.mkdir(parents=True, exist_ok=True)
+    out = Path(out)
+    out.mkdir(parents=True, exist_ok=True)
     click.echo(f"depmap-mutation-drug-response: {target} / {indication} ({release_pin})")
 
     # 1. select on-target PRISM compounds
@@ -175,6 +182,7 @@ def main(target, indication, release_pin, out, aggregate) -> int:
 
     # 3. mutation status (reuse the dependency method's loader verbatim)
     from methods.depmap_mutation_dependency.cli import load_mutation_data
+
     hotspot, damaging, mut_errs = load_mutation_data(release_pin, target)
     if mut_errs:
         summary = _no_compound_summary(target, f"mutation load failed: {mut_errs[:1]}")
@@ -183,30 +191,37 @@ def main(target, indication, release_pin, out, aggregate) -> int:
         _emit_manifest(target, indication, release_pin, summary, out)
         return 2
 
-    summary = compute_drug_response_stratification(
-        drug_response_by_model, hotspot, damaging, compound_records)
+    summary = compute_drug_response_stratification(drug_response_by_model, hotspot, damaging, compound_records)
     summary["aggregate_metric"] = aggregate
     (out / "summary.json").write_text(json.dumps(summary, indent=2, default=str))
     _emit_manifest(target, indication, release_pin, summary, out)
-    click.echo(f"  class={summary['drug_response_stratification_class']} "
-               f"delta={summary.get('delta_log2auc_mut_vs_wt')} "
-               f"n_compounds={summary['n_on_target_compounds']}")
+    click.echo(
+        f"  class={summary['drug_response_stratification_class']} "
+        f"delta={summary.get('delta_log2auc_mut_vs_wt')} "
+        f"n_compounds={summary['n_on_target_compounds']}"
+    )
     return 0
 
 
 def _emit_manifest(target, indication, release_pin, summary, out):
     import yaml
-    (out / "manifest.yaml").write_text(yaml.safe_dump({
-        "method": "depmap-mutation-drug-response",
-        "method_version": METHOD_VERSION,
-        "target": target,
-        "indication": indication,
-        "release_pin": release_pin,
-        "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "input_manifests": ["depmap-consortium-26q1", "prism-oncref-dmc-25q4"],
-        "drug_response_stratification_class": summary.get("drug_response_stratification_class"),
-        "n_on_target_compounds": summary.get("n_on_target_compounds"),
-    }, sort_keys=False))
+
+    (out / "manifest.yaml").write_text(
+        yaml.safe_dump(
+            {
+                "method": "depmap-mutation-drug-response",
+                "method_version": METHOD_VERSION,
+                "target": target,
+                "indication": indication,
+                "release_pin": release_pin,
+                "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "input_manifests": ["depmap-consortium-26q1", "prism-oncref-dmc-25q4"],
+                "drug_response_stratification_class": summary.get("drug_response_stratification_class"),
+                "n_on_target_compounds": summary.get("n_on_target_compounds"),
+            },
+            sort_keys=False,
+        )
+    )
 
 
 if __name__ == "__main__":

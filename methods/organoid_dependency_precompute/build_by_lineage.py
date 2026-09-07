@@ -20,6 +20,7 @@ Usage:
   python -m methods.organoid_dependency_precompute.build_by_lineage \\
       --out <dir>/organoid_dependency_by_lineage.parquet [--no-upload]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -65,12 +66,13 @@ def _md5_hex(path: Path) -> str:
 
 def _read_csv(uri: str, **kw):
     import pandas as pd
+
     if uri.startswith("s3://"):
         import boto3
         from io import BytesIO
-        bucket, _, key = uri[len("s3://"):].partition("/")
-        body = boto3.Session(profile_name="cbg").client("s3").get_object(
-            Bucket=bucket, Key=key)["Body"].read()
+
+        bucket, _, key = uri[len("s3://") :].partition("/")
+        body = boto3.Session(profile_name="cbg").client("s3").get_object(Bucket=bucket, Key=key)["Body"].read()
         return pd.read_csv(BytesIO(body), **kw)
     return pd.read_csv(uri, **kw)
 
@@ -81,7 +83,7 @@ def build(matrix_uri: str = _S3_MATRIX, model_uri: str = _S3_MODEL):
 
     t0 = time.time()
     df = _read_csv(matrix_uri, index_col=0)  # organoid ModelID × 'SYMBOL (ENTREZ)'
-    _log(f"[read] {df.shape[0]} organoid models × {df.shape[1]} genes in {time.time()-t0:.1f}s")
+    _log(f"[read] {df.shape[0]} organoid models × {df.shape[1]} genes in {time.time() - t0:.1f}s")
 
     model = _read_csv(model_uri, usecols=["ModelID", "OncotreeLineage"])
     lin_by_model = dict(zip(model["ModelID"], model["OncotreeLineage"]))
@@ -90,12 +92,10 @@ def build(matrix_uri: str = _S3_MATRIX, model_uri: str = _S3_MODEL):
     # Which lineages clear the cohort floor?
     counts = lineages.value_counts()
     admitted = sorted([lin for lin, n in counts.items() if lin and n >= MIN_LINEAGE_COHORT])
-    _log(f"[lineage] admitted (n>={MIN_LINEAGE_COHORT}): "
-         + ", ".join(f"{l}={int(counts[l])}" for l in admitted))
+    _log(f"[lineage] admitted (n>={MIN_LINEAGE_COHORT}): " + ", ".join(f"{l}={int(counts[l])}" for l in admitted))
     dropped = [(lin, int(n)) for lin, n in counts.items() if lin and n < MIN_LINEAGE_COHORT]
     if dropped:
-        _log("[lineage] DROPPED (below floor, not emitted): "
-             + ", ".join(f"{l}={n}" for l, n in sorted(dropped)))
+        _log("[lineage] DROPPED (below floor, not emitted): " + ", ".join(f"{l}={n}" for l, n in sorted(dropped)))
 
     # Parse gene column headers once.
     col_meta = []
@@ -107,9 +107,9 @@ def build(matrix_uri: str = _S3_MATRIX, model_uri: str = _S3_MODEL):
     for lin in admitted:
         sub = df.loc[lineages[lineages == lin].index]  # organoids in this lineage × genes
         n_cohort = int(sub.shape[0])
-        vals = sub.to_numpy(dtype="float64")           # models × genes
+        vals = sub.to_numpy(dtype="float64")  # models × genes
         obs_mask = ~np.isnan(vals)
-        n_screened = obs_mask.sum(axis=0)              # per gene
+        n_screened = obs_mask.sum(axis=0)  # per gene
         n_dep = np.nansum(vals < DEPENDENT_CUTOFF, axis=0)
         n_strong = np.nansum(vals < STRONG_CUTOFF, axis=0)
         median = np.nanmedian(np.where(obs_mask, vals, np.nan), axis=0)
@@ -117,12 +117,34 @@ def build(matrix_uri: str = _S3_MATRIX, model_uri: str = _S3_MODEL):
             ns = int(n_screened[j])
             if ns == 0:
                 continue  # gene not screened in any organoid of this lineage
-            rows.append((sym, entrez, lin, n_cohort, ns, int(n_dep[j]),
-                         float(n_dep[j]) / ns, int(n_strong[j]), float(median[j])))
+            rows.append(
+                (
+                    sym,
+                    entrez,
+                    lin,
+                    n_cohort,
+                    ns,
+                    int(n_dep[j]),
+                    float(n_dep[j]) / ns,
+                    int(n_strong[j]),
+                    float(median[j]),
+                )
+            )
 
-    out = pd.DataFrame(rows, columns=[
-        "gene_symbol", "entrez_gene_id", "lineage", "n_lineage_cohort", "n_models_screened",
-        "n_dependent", "frac_dependent", "n_strongly_dependent", "median_gene_effect"])
+    out = pd.DataFrame(
+        rows,
+        columns=[
+            "gene_symbol",
+            "entrez_gene_id",
+            "lineage",
+            "n_lineage_cohort",
+            "n_models_screened",
+            "n_dependent",
+            "frac_dependent",
+            "n_strongly_dependent",
+            "median_gene_effect",
+        ],
+    )
     out["frac_dependent"] = out["frac_dependent"].astype("float32")
     out["median_gene_effect"] = out["median_gene_effect"].astype("float32")
     for c in ["n_lineage_cohort", "n_models_screened", "n_dependent", "n_strongly_dependent"]:
@@ -135,21 +157,27 @@ def build(matrix_uri: str = _S3_MATRIX, model_uri: str = _S3_MODEL):
 def write(df, out: Path, row_group_size: int = 16384) -> dict:
     import pyarrow as pa
     import pyarrow.parquet as pq
+
     out.parent.mkdir(parents=True, exist_ok=True)
-    schema = pa.schema([
-        pa.field("gene_symbol", pa.string()),
-        pa.field("entrez_gene_id", pa.string()),
-        pa.field("lineage", pa.string()),
-        pa.field("n_lineage_cohort", pa.int32()),
-        pa.field("n_models_screened", pa.int32()),
-        pa.field("n_dependent", pa.int32()),
-        pa.field("frac_dependent", pa.float32()),
-        pa.field("n_strongly_dependent", pa.int32()),
-        pa.field("median_gene_effect", pa.float32()),
-    ])
-    pq.write_table(pa.Table.from_pandas(df[[f.name for f in schema]], schema=schema,
-                                        preserve_index=False),
-                   str(out), compression="snappy", row_group_size=row_group_size)
+    schema = pa.schema(
+        [
+            pa.field("gene_symbol", pa.string()),
+            pa.field("entrez_gene_id", pa.string()),
+            pa.field("lineage", pa.string()),
+            pa.field("n_lineage_cohort", pa.int32()),
+            pa.field("n_models_screened", pa.int32()),
+            pa.field("n_dependent", pa.int32()),
+            pa.field("frac_dependent", pa.float32()),
+            pa.field("n_strongly_dependent", pa.int32()),
+            pa.field("median_gene_effect", pa.float32()),
+        ]
+    )
+    pq.write_table(
+        pa.Table.from_pandas(df[[f.name for f in schema]], schema=schema, preserve_index=False),
+        str(out),
+        compression="snappy",
+        row_group_size=row_group_size,
+    )
     return {"md5": _md5_hex(out), "size_bytes": out.stat().st_size, "n_rows": len(df)}
 
 
@@ -164,8 +192,7 @@ def main(argv=None) -> int:
 
     df = build(args.matrix, args.model)
     meta = write(df, args.out, args.row_group_size)
-    _log(f"[write] {args.out.name}: {meta['n_rows']} (gene,lineage) rows / {meta['size_bytes']} B / "
-         f"md5={meta['md5']}")
+    _log(f"[write] {args.out.name}: {meta['n_rows']} (gene,lineage) rows / {meta['size_bytes']} B / md5={meta['md5']}")
 
     for sym, lin, field, cmp_, thresh in CORRECTNESS_CHECKS:
         sub = df[(df["gene_symbol"] == sym) & (df["lineage"] == lin)]
@@ -178,9 +205,11 @@ def main(argv=None) -> int:
 
     if not args.no_upload:
         import boto3
+
         key = f"{OUTPUT_S3_PREFIX}/{args.out.name}"
         boto3.Session(profile_name="cbg").client("s3").upload_file(
-            str(args.out), S3_BUCKET, key, ExtraArgs={"Metadata": {"md5": meta["md5"]}})
+            str(args.out), S3_BUCKET, key, ExtraArgs={"Metadata": {"md5": meta["md5"]}}
+        )
         _log(f"[upload] s3://{S3_BUCKET}/{key}")
     else:
         _log("[upload] skipped (--no-upload)")

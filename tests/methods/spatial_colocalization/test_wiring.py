@@ -3,6 +3,7 @@
 Value invariants + product resolution need no S3 (dict lookups + local catalog YAML). The classifier
 tests are pure. Mirrors tests/methods/pair_selectivity_gate/test_lusc_wiring.py.
 """
+
 from __future__ import annotations
 
 import sys
@@ -12,19 +13,20 @@ REPO = Path(__file__).resolve().parents[3]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
-from methods.spatial_colocalization import read as SC   # noqa: E402
-from methods.spatial_colocalization import stats as ST   # noqa: E402
+from methods.spatial_colocalization import read as SC  # noqa: E402
+from methods.spatial_colocalization import stats as ST  # noqa: E402
 
 
 # ── wiring invariants (no S3) ────────────────────────────────────────────────
+
 
 def test_coadread_wired_to_crc_cosmx():
     # COADREAD carries the CosMx lead + depth cohorts (Visium HD measured + Xenium inferred).
     for code in ("COADREAD", "COAD", "READ"):
         prods = SC._product_ids(code)
         assert "spatial-coloc-tumor-crc-coadread-v1" in prods
-        assert "spatial-coloc-tumor-crc-gse280318-v1" in prods   # Visium HD depth (MEASURED)
-        assert "spatial-coloc-tumor-crc-gse335552-v1" in prods   # Xenium liver-mets depth (inferred)
+        assert "spatial-coloc-tumor-crc-gse280318-v1" in prods  # Visium HD depth (MEASURED)
+        assert "spatial-coloc-tumor-crc-gse335552-v1" in prods  # Xenium liver-mets depth (inferred)
     # the Visium HD cohort is author-labelled -> measured tier (NOT in _INFERRED_PRODUCTS)
     assert SC._tier_of("spatial-coloc-tumor-crc-gse280318-v1") == "measured"
 
@@ -35,7 +37,7 @@ def test_visiumhd_fine_labels_map_to_compartments():
     assert ST.compartment_of_neighbor("Proliferating Macrophages") == "immune"
     assert ST.compartment_of_neighbor("mRegDC") == "immune"
     assert ST.compartment_of_neighbor("Neuroendocrine") == "epithelial_normal"
-    assert ST.compartment_of_neighbor("Goblet") == "epithelial_normal"   # via fallback, safety-margin signal
+    assert ST.compartment_of_neighbor("Goblet") == "epithelial_normal"  # via fallback, safety-margin signal
 
 
 def test_stad_wired_to_gastric_cosmx():
@@ -44,7 +46,7 @@ def test_stad_wired_to_gastric_cosmx():
 
 def test_paad_wired_to_pdac_xenium():
     prods = SC._product_ids("PAAD")
-    assert "spatial-coloc-tumor-paad-v1" in prods          # measured lead
+    assert "spatial-coloc-tumor-paad-v1" in prods  # measured lead
     assert "spatial-coloc-tumor-paad-gse313662-v1" in prods  # inferred depth cohort (Xenium)
     assert "spatial-coloc-tumor-paad-gse310352-v1" in prods  # inferred depth cohort (CosMx GSE310352)
     assert SC._tier_of("spatial-coloc-tumor-paad-gse310352-v1") == "inferred"
@@ -65,8 +67,8 @@ def test_nsclc_histologies_wired_to_lung_product():
 def test_tier_dominant_partition_measured_vs_inferred():
     # tier_dominant: the author-curated leads are measured; the mode-C depth cohorts are inferred. The
     # reader reads measured first and only falls back to inferred — it never pools the two (Rule 5).
-    assert SC._tier_of("spatial-coloc-tumor-crc-coadread-v1") == "measured"   # CosMx CRC atlas lead
-    assert SC._tier_of("spatial-coloc-tumor-paad-v1") == "measured"           # Xenium PDAC atlas lead
+    assert SC._tier_of("spatial-coloc-tumor-crc-coadread-v1") == "measured"  # CosMx CRC atlas lead
+    assert SC._tier_of("spatial-coloc-tumor-paad-v1") == "measured"  # Xenium PDAC atlas lead
     assert SC._tier_of("spatial-coloc-tumor-crc-gse335552-v1") == "inferred"  # mode-C depth
     assert SC._tier_of("spatial-coloc-tumor-paad-gse313662-v1") == "inferred"
     # a mixed indication resolves BOTH tiers; a pure-inferred indication resolves only inferred
@@ -93,16 +95,17 @@ def test_paad_caf_variants_map_to_stromal():
 
 def test_products_resolve_to_catalog_s3_uris():
     from methods.catalog_query.read import s3_uri_for
+
     assert s3_uri_for("spatial-coloc-tumor-crc-coadread-v1").endswith(
-        "spatial-coloc-tumor-crc-coadread-v1/spatial_coloc.parquet")
-    assert s3_uri_for("spatial-coloc-tumor-stad-v1").endswith(
-        "spatial-coloc-tumor-stad-v1/spatial_coloc.parquet")
+        "spatial-coloc-tumor-crc-coadread-v1/spatial_coloc.parquet"
+    )
+    assert s3_uri_for("spatial-coloc-tumor-stad-v1").endswith("spatial-coloc-tumor-stad-v1/spatial_coloc.parquet")
 
 
 def test_product_ids_normalizes_str_and_list():
     # a map value may be a single product id (str) or a list (multiple datasets per indication)
     assert SC._product_ids("STAD") == ["spatial-coloc-tumor-stad-v1"]  # str value -> [str]
-    assert SC._product_ids("KIRC") == []                              # unmapped -> []
+    assert SC._product_ids("KIRC") == []  # unmapped -> []
     # list values are returned as-is (simulate a multi-dataset indication)
     orig = SC.INDICATION_TO_SPATIAL_COLOC.get("PAAD")
     try:
@@ -120,6 +123,7 @@ def test_unmapped_indication_is_data_unavailable():
 
 
 # ── neighbour-compartment mapping ────────────────────────────────────────────
+
 
 def test_neighbor_compartment_mapping():
     # GSE303070 CosMx labels
@@ -144,30 +148,38 @@ def test_token_fallback_does_not_misroute_epithelial_to_immune():
     assert ST.compartment_of_neighbor("Tuft") == "epithelial_normal"
     assert ST.compartment_of_neighbor("Goblet") == "epithelial_normal"
     assert ST.compartment_of_neighbor("Enterocyte") == "epithelial_normal"
-    assert ST.compartment_of_neighbor("Tumor") != "immune"          # not misrouted
+    assert ST.compartment_of_neighbor("Tumor") != "immune"  # not misrouted
 
 
 def test_token_fallback_catches_unmapped_immune_and_stromal():
-    assert ST.compartment_of_neighbor("Neutrophil") == "immune"     # was 'other' under substring fallback
+    assert ST.compartment_of_neighbor("Neutrophil") == "immune"  # was 'other' under substring fallback
     assert ST.compartment_of_neighbor("Basophil") == "immune"
     assert ST.compartment_of_neighbor("CAF") == "stromal"
     assert ST.compartment_of_neighbor("Pericyte") == "stromal"
     assert ST.compartment_of_neighbor("Lymphatic endothelial") == "endothelial"
-    assert ST.compartment_of_neighbor("Neuron") == "other"          # genuinely unknown -> other, not guessed
+    assert ST.compartment_of_neighbor("Neuron") == "other"  # genuinely unknown -> other, not guessed
 
 
 # ── classifier (pure) ────────────────────────────────────────────────────────
 
+
 def _rows(spec):
     """spec: list of (donor, dataset, neighbor_cell_type, enrichment, adjacency)."""
-    return [{"donor_id": d, "dataset_id": s, "neighbor_cell_type": ct,
-             "enrichment_vs_random": e, "adjacency_fraction": a, "target_pos_fraction": 0.1}
-            for (d, s, ct, e, a) in spec]
+    return [
+        {
+            "donor_id": d,
+            "dataset_id": s,
+            "neighbor_cell_type": ct,
+            "enrichment_vs_random": e,
+            "adjacency_fraction": a,
+            "target_pos_fraction": 0.1,
+        }
+        for (d, s, ct, e, a) in spec
+    ]
 
 
 def test_classify_immune_niche_colocalized():
-    rows = _rows([("d1", "s1", "Macro", 1.4, 0.20), ("d1", "s1", "TCD8", 1.3, 0.10),
-                  ("d1", "s1", "Fibro", 0.9, 0.10)])
+    rows = _rows([("d1", "s1", "Macro", 1.4, 0.20), ("d1", "s1", "TCD8", 1.3, 0.10), ("d1", "s1", "Fibro", 0.9, 0.10)])
     c = ST.classify_spatial_coloc(ST.neighbor_summary(rows), rows)
     assert c["spatial_coloc_class"] == "immune_niche_colocalized"
     assert c["top_enriched_compartment"] == "immune"
@@ -188,8 +200,7 @@ def test_classify_no_spatial_preference():
 
 def test_classify_immune_excluded():
     # immune neighbours DEPLETED (enrichment <= 0.85), no compartment enriched → immune-cold tumour region
-    rows = _rows([("d1", "s1", "Macro", 0.7, 0.03), ("d1", "s1", "TCD8", 0.8, 0.02),
-                  ("d1", "s1", "Epi", 1.05, 0.4)])
+    rows = _rows([("d1", "s1", "Macro", 0.7, 0.03), ("d1", "s1", "TCD8", 0.8, 0.02), ("d1", "s1", "Epi", 1.05, 0.4)])
     assert ST.classify_spatial_coloc(ST.neighbor_summary(rows), rows)["spatial_coloc_class"] == "immune_excluded"
 
 
@@ -201,8 +212,14 @@ def test_other_compartment_excluded_from_headline():
     # 'other' (marker-inference catch-all) must NOT be the headline even when top-enriched; an immune
     # depletion underneath must surface as immune_excluded (regression: NSCLC EPCAM was masked to
     # other_niche_colocalized by an enriched 'other' compartment).
-    rows = _rows([("d1", "s1", "other", 1.4, 0.3), ("d1", "s1", "Macro", 0.7, 0.05),
-                  ("d2", "s1", "other", 1.5, 0.3), ("d2", "s1", "TCD8", 0.75, 0.04)])
+    rows = _rows(
+        [
+            ("d1", "s1", "other", 1.4, 0.3),
+            ("d1", "s1", "Macro", 0.7, 0.05),
+            ("d2", "s1", "other", 1.5, 0.3),
+            ("d2", "s1", "TCD8", 0.75, 0.04),
+        ]
+    )
     c = ST.classify_spatial_coloc(ST.neighbor_summary(rows), rows)
     assert c["spatial_coloc_class"] == "immune_excluded"
     assert c["top_enriched_compartment"] != "other"

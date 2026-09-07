@@ -7,14 +7,17 @@ both `gene` and `indication` filter. Graceful data_unavailable when the gene is 
 in-indication (below the aggregator's MIN_MUTANT_SAMPLES floor → not in the product) or the product /
 indication is absent. Mirrors precog_prognostic.read's S3-resolve pattern (aws s3 cp → pandas).
 """
+
 from __future__ import annotations
 
 import io
 from functools import lru_cache
 from typing import Optional
 
-_DERIVED_S3 = ("s3://onc-compbio/data-catalog/derived/"
-               "pancan-mutation-clonality-per-gene-v1/pancan_mutation_clonality_per_gene.parquet")
+_DERIVED_S3 = (
+    "s3://onc-compbio/data-catalog/derived/"
+    "pancan-mutation-clonality-per-gene-v1/pancan_mutation_clonality_per_gene.parquet"
+)
 
 _UNAVAILABLE = {
     "clonality_class": "data_unavailable",
@@ -38,12 +41,15 @@ def _load_product(product_path: "Optional[str]" = None):
     from the object simply not existing.
     """
     import pandas as pd
+
     if product_path:
         from pathlib import Path
+
         return pd.read_parquet(product_path) if Path(product_path).exists() else None
     ensure_aws_profile()
     import boto3
-    bucket, key = _DERIVED_S3[len("s3://"):].split("/", 1)
+
+    bucket, key = _DERIVED_S3[len("s3://") :].split("/", 1)
     try:
         obj = boto3.client("s3").get_object(Bucket=bucket, Key=key)
         return pd.read_parquet(io.BytesIO(obj["Body"].read()))
@@ -53,8 +59,13 @@ def _load_product(product_path: "Optional[str]" = None):
         return None
 
 
-def read_clonality(gene: "Optional[str]" = None, indication: "Optional[str]" = None,
-                   product_path: "Optional[str]" = None, *, target: "Optional[str]" = None) -> dict:
+def read_clonality(
+    gene: "Optional[str]" = None,
+    indication: "Optional[str]" = None,
+    product_path: "Optional[str]" = None,
+    *,
+    target: "Optional[str]" = None,
+) -> dict:
     """Per-(gene, indication) clonality summary for the target-clonality card. VERDICT-INERT signal.
 
     Accepts `target` as an alias for `gene` to satisfy the compose-dashboard generic-dispatch contract
@@ -67,13 +78,15 @@ def read_clonality(gene: "Optional[str]" = None, indication: "Optional[str]" = N
         return dict(_UNAVAILABLE, _missing_reason="no clonality product materialized/reachable")
     hit = df[(df["gene_symbol"] == gene) & (df["indication"] == indication)]
     if hit.empty:
-        return dict(_UNAVAILABLE,
-                    _missing_reason=f"{gene} not recurrently mutated in {indication} (below floor) "
-                                    f"or indication not materialized")
+        return dict(
+            _UNAVAILABLE,
+            _missing_reason=f"{gene} not recurrently mutated in {indication} (below floor) "
+            f"or indication not materialized",
+        )
     row = hit.iloc[0]
 
     def _f(v):
-        return None if v is None or (isinstance(v, float) and v != v) else float(v)   # NaN-safe
+        return None if v is None or (isinstance(v, float) and v != v) else float(v)  # NaN-safe
 
     return {
         "clonality_class": row["clonality_class"],

@@ -8,6 +8,7 @@ ADDITIVE — load_and_classify(with_measured=False) reproduces the pre-E3 primar
 BYTE-IDENTICALLY, and with the facet ON the primary shed_liability_class is unchanged;
 (5) the MIN_LINES_DETECTED floor (a high mean off too few wells does NOT clear high);
 (6) isoform/phospho-suffix column matching. All offline (synthetic CSVs, no S3)."""
+
 from __future__ import annotations
 
 import sys
@@ -15,22 +16,24 @@ from pathlib import Path
 
 METHODS_REPO = Path("/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods")
 sys.path.insert(0, str(METHODS_REPO))
-from methods.shed_ectodomain_liability import cli as sc          # noqa: E402
-from methods.shed_ectodomain_liability import media as scm       # noqa: E402
+from methods.shed_ectodomain_liability import cli as sc  # noqa: E402
+from methods.shed_ectodomain_liability import media as scm  # noqa: E402
 
 
 # --- synthetic fixtures ----------------------------------------------------
 
+
 def _write_media(tmp_path):
     """A 5-line x 6-protein media matrix. Column accessions chosen so:
-      P15941 (MUC1)  = uniformly high  -> media_shed_high
-      Q8WXI7 (MUC16) = high mean but detected in only 2 lines -> below MIN_LINES floor -> low
-      P21860 (ERBB3) = uniformly low   -> media_shed_low
-      P08581 (MET)   = mid, base-accession match test (id map may give P08581)
-      Q13421 (MSLN)  = low, isoform id (id map gives Q13421-2 -> base match)
-      P0DUMMY        = filler to shape the p75
+    P15941 (MUC1)  = uniformly high  -> media_shed_high
+    Q8WXI7 (MUC16) = high mean but detected in only 2 lines -> below MIN_LINES floor -> low
+    P21860 (ERBB3) = uniformly low   -> media_shed_low
+    P08581 (MET)   = mid, base-accession match test (id map may give P08581)
+    Q13421 (MSLN)  = low, isoform id (id map gives Q13421-2 -> base match)
+    P0DUMMY        = filler to shape the p75
     """
     import pandas as pd
+
     cols = ["P15941", "Q8WXI7", "P21860", "P08581", "Q13421", "P0DUMMY"]
     data = [
         [8.0, 7.0, -2.0, 2.0, -1.5, 0.0],
@@ -48,12 +51,13 @@ def _write_media(tmp_path):
 
 def _write_idmap(tmp_path):
     import pandas as pd
+
     rows = [
-        ("P15941-2", "MUC1"),   # isoform-suffixed -> base P15941
+        ("P15941-2", "MUC1"),  # isoform-suffixed -> base P15941
         ("Q8WXI7", "MUC16"),
         ("P21860", "ERBB3"),
         ("P08581", "MET"),
-        ("Q13421-2", "MSLN"),   # isoform-suffixed -> base Q13421
+        ("Q13421-2", "MSLN"),  # isoform-suffixed -> base Q13421
         ("P06731", "CEACAM5"),  # NOT a media column -> not_on_secreted_panel
     ]
     idm = pd.DataFrame(rows, columns=["UniprotID", "Symbol"])
@@ -69,6 +73,7 @@ def _paths(tmp_path):
 
 
 # --- classifier bands ------------------------------------------------------
+
 
 def test_uniformly_high_media_protein_is_media_shed_high(tmp_path):
     media, idmap = _paths(tmp_path)
@@ -123,12 +128,21 @@ def test_unreadable_media_is_data_unavailable(tmp_path):
 
 # --- ADDITIVITY: the primary class must stay byte-stable -------------------
 
+
 def test_measured_facet_does_not_alter_primary_class(tmp_path):
     """load_and_classify with_measured=True must leave EVERY primary field byte-identical
     to with_measured=False — the facet is purely additive."""
     media, idmap = _paths(tmp_path)
-    PRIMARY = ("shed_liability_class", "shed_evidence_tier", "serum_marker", "shed_product",
-               "shedding_protease", "hpa_secretome_location", "source_citation", "method_version")
+    PRIMARY = (
+        "shed_liability_class",
+        "shed_evidence_tier",
+        "serum_marker",
+        "shed_product",
+        "shedding_protease",
+        "hpa_secretome_location",
+        "source_citation",
+        "method_version",
+    )
     for gene in ("MUC1", "ERBB3", "CEACAM5", "KRAS"):
         base = sc.load_and_classify(gene, with_measured=False)
         aug = sc.load_and_classify(gene, with_measured=True, media_path=media, idmap_path=idmap)
@@ -142,7 +156,12 @@ def test_measured_facet_fields_present_and_in_vocab(tmp_path):
     valid = {"media_shed_high", "media_shed_low", "not_on_secreted_panel", "data_unavailable"}
     for gene in ("MUC1", "ERBB3", "CEACAM5"):
         out = sc.load_and_classify(gene, with_measured=True, media_path=media, idmap_path=idmap)
-        for f in ("measured_shed_class", "media_mean_npx", "media_n_lines_detected",
-                  "media_panel_high_npx", "media_uniprot"):
+        for f in (
+            "measured_shed_class",
+            "media_mean_npx",
+            "media_n_lines_detected",
+            "media_panel_high_npx",
+            "media_uniprot",
+        ):
             assert f in out, f"measured field missing: {f}"
         assert out["measured_shed_class"] in valid

@@ -2,6 +2,7 @@
 must RAISE on a transient/broken-env read failure (so @lru_cache never memoizes it — one blip must
 not poison the whole process) and return None ONLY on a genuine object-absence (404/NoSuchKey).
 """
+
 from __future__ import annotations
 
 import sys
@@ -28,10 +29,16 @@ def _clear_lru():
 def test_transient_raises_and_is_not_cached(monkeypatch):
     """A transient failure raises out of the lru (not memoized); the next call retries + succeeds."""
     calls = {"n": 0}
-    good = pd.DataFrame([
-        {"uniprot_ac": "P01116", "surface_confirmation_class": "confirmed",
-         "cspa_category": "1 - high confidence", "n_celllines_detected": 5},
-    ])
+    good = pd.DataFrame(
+        [
+            {
+                "uniprot_ac": "P01116",
+                "surface_confirmation_class": "confirmed",
+                "cspa_category": "1 - high confidence",
+                "n_celllines_detected": 5,
+            },
+        ]
+    )
 
     def fake_read_parquet(path, bucket, key):
         calls["n"] += 1
@@ -67,10 +74,16 @@ def test_genuine_absence_returns_none(monkeypatch):
 
 def test_sidecar_transient_raises(monkeypatch):
     """A transient failure on the SIDECAR read (payload OK) must also raise, not silently drop symbol→AC."""
-    good_payload = pd.DataFrame([
-        {"uniprot_ac": "P01116", "surface_confirmation_class": "confirmed",
-         "cspa_category": "1 - high confidence", "n_celllines_detected": 5},
-    ])
+    good_payload = pd.DataFrame(
+        [
+            {
+                "uniprot_ac": "P01116",
+                "surface_confirmation_class": "confirmed",
+                "cspa_category": "1 - high confidence",
+                "n_celllines_detected": 5,
+            },
+        ]
+    )
 
     def fake_read_parquet(path, bucket, key):
         if key == R.PAYLOAD_KEY:

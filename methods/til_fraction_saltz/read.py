@@ -6,6 +6,7 @@ absolute-TIL corroborator of the immune-context CIBERSORT CD8 call). read_target
 indication) is the generic-dispatch wrapper (target ignored — indication-tier). 13-study coverage;
 any other indication → data_unavailable (fail-closed, never imputed).
 """
+
 from __future__ import annotations
 
 import threading
@@ -16,7 +17,7 @@ from methods.target_id_sidecar import ensure_aws_profile, is_definitively_absent
 
 METHOD_VERSION = "1.0.0"
 DERIVED_MANIFEST_ID = "tcga-til-fraction-saltz-per-sample-v1"
-MIN_N = 30   # per-indication admissibility floor (below → data_unavailable, wide-CI guard)
+MIN_N = 30  # per-indication admissibility floor (below → data_unavailable, wide-CI guard)
 
 # Reuse the canonical OncoTree→TCGA-study map (+ the NSCLC umbrella supplement), same as immune_context.
 try:
@@ -44,6 +45,7 @@ def _get_s3fs():
             if _S3FS is None:
                 ensure_aws_profile()
                 import pyarrow.fs as fs
+
                 _S3FS = fs.S3FileSystem(region="us-east-1")
     return _S3FS
 
@@ -60,10 +62,10 @@ def _classify(median_til: Optional[float], n: int) -> str:
 
 def _read_rows(studies):
     import pyarrow.parquet as pq
+
     bucket, key = bucket_key_for(DERIVED_MANIFEST_ID)
     try:
-        tbl = pq.read_table(f"{bucket}/{key}", filesystem=_get_s3fs(),
-                            filters=[("cancer_type", "in", list(studies))])
+        tbl = pq.read_table(f"{bucket}/{key}", filesystem=_get_s3fs(), filters=[("cancer_type", "in", list(studies))])
     except Exception as e:  # noqa: BLE001
         if is_definitively_absent(e):
             return None
@@ -72,8 +74,12 @@ def _read_rows(studies):
 
 
 def _empty(note: str) -> dict:
-    return {"til_fraction_class": "data_unavailable", "_data_note": note,
-            "_data_source": DERIVED_MANIFEST_ID, "method_version": METHOD_VERSION}
+    return {
+        "til_fraction_class": "data_unavailable",
+        "_data_note": note,
+        "_data_source": DERIVED_MANIFEST_ID,
+        "method_version": METHOD_VERSION,
+    }
 
 
 def read_til_fraction(indication: str) -> dict:
@@ -89,11 +95,11 @@ def read_til_fraction(indication: str) -> dict:
     n = len(tils)
     if n < MIN_N:
         # coverage gap: none of the mapped studies is in the Saltz 13-study set (or too few) → honest gap
-        out = _empty(f"only {n} Saltz TIL samples for {indication} (studies {list(studies)}); "
-                     f"Saltz covers 13 studies")
+        out = _empty(f"only {n} Saltz TIL samples for {indication} (studies {list(studies)}); Saltz covers 13 studies")
         out["n_samples"] = n
         return out
     import statistics
+
     median_til = statistics.median(tils)
     clusters = [r["number_of_clusters"] for r in rows if r.get("number_of_clusters") is not None]
     cls = _classify(median_til, n)
@@ -103,9 +109,11 @@ def read_til_fraction(indication: str) -> dict:
         "median_number_of_clusters": (round(statistics.median(clusters), 2) if clusters else None),
         "n_samples": n,
         "tcga_studies": list(studies),
-        "til_context": (f"Saltz H&E DL absolute TIL: median til_percentage={median_til:.2f} ({cls}) "
-                        f"over {n} {'/'.join(studies)} participants — orthogonal corroborator of the "
-                        f"CIBERSORT relative CD8 call"),
+        "til_context": (
+            f"Saltz H&E DL absolute TIL: median til_percentage={median_til:.2f} ({cls}) "
+            f"over {n} {'/'.join(studies)} participants — orthogonal corroborator of the "
+            f"CIBERSORT relative CD8 call"
+        ),
         "_data_source": DERIVED_MANIFEST_ID,
         "method_version": METHOD_VERSION,
     }

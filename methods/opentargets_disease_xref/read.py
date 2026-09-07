@@ -16,6 +16,7 @@ consuming reader then honestly falls back to TARGET-LEVEL relations. A robust in
 PubTator lane needs a curated indication -> MESH-id lane in indication_crosswalk.yaml (mirrors the
 existing `mesh_terms` lane) or a MONDO ontology-neighbourhood bridge — tracked as a follow-up.
 """
+
 from __future__ import annotations
 
 
@@ -26,8 +27,8 @@ def _extract_mesh(dbxrefs) -> list:
     if dbxrefs is None:
         return out
     try:
-        items = list(dbxrefs)          # handles python list AND numpy array
-    except TypeError:                  # scalar / NaN -> no xrefs
+        items = list(dbxrefs)  # handles python list AND numpy array
+    except TypeError:  # scalar / NaN -> no xrefs
         return out
     for x in items:
         s = str(x).strip()
@@ -49,6 +50,7 @@ def mesh_ids_for_efo(efo_ids) -> set:
     if not ids:
         return set()
     from methods.opentargets_common import read_entity
+
     df = read_entity("disease", columns=["id", "dbXRefs"])
     out: set = set()
     if df is None or len(df) == 0:
@@ -61,6 +63,7 @@ def mesh_ids_for_efo(efo_ids) -> set:
 
 def _main(argv=None):
     import argparse, json
+
     ap = argparse.ArgumentParser(description="MESH ids for a set of OT disease (MONDO/EFO) ids.")
     ap.add_argument("--efo-ids", nargs="+", required=True)
     args = ap.parse_args(argv)

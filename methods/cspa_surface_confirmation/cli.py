@@ -7,6 +7,7 @@ read-side lookup for ad-hoc inspection:
     python -m methods.cspa_surface_confirmation.cli --target EGFR --payload-path /tmp/cspa.parquet \
         --sidecar-path /tmp/cspa.target_resolution.parquet
 """
+
 from __future__ import annotations
 
 import argparse
@@ -24,8 +25,8 @@ def main(argv=None) -> int:
     ap.add_argument("--sidecar-path", default=None, help="local sidecar parquet (else S3)")
     args = ap.parse_args(argv)
     summary = read_surface_confirmation(
-        args.target, indication=args.indication,
-        payload_path=args.payload_path, sidecar_path=args.sidecar_path)
+        args.target, indication=args.indication, payload_path=args.payload_path, sidecar_path=args.sidecar_path
+    )
     print(json.dumps(summary, indent=2, default=str))
     return 0
 

@@ -5,6 +5,7 @@ against the target but with NO measured cell-panel activity now reads `clinical_
 (honestly weaker), NOT the strong `clinically_active` — which is reserved for a clinical anchor WITH
 measured Log2AUC below the clinically-active threshold. Hermetic (pure function, no I/O).
 """
+
 from __future__ import annotations
 
 import sys

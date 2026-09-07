@@ -15,6 +15,7 @@ numerator = distinct stratum members with the target fused (>= min_callers). Bot
 3-segment PATIENT grain before intersection so the join does not silently drop to zero (id-convention
 guard). Reuses the consensus df + coverage + tissue map from read.py.
 """
+
 from __future__ import annotations
 
 from functools import partial
@@ -45,9 +46,9 @@ def _to_patient(sample_key: str) -> str:
 
 
 @subgroup_iterable
-def read_stratified_fusion(target: str, indication: str,
-                           min_callers: int = _DEFAULT_MIN_CALLERS,
-                           _sample_id_filter: set | None = None) -> dict:
+def read_stratified_fusion(
+    target: str, indication: str, min_callers: int = _DEFAULT_MIN_CALLERS, _sample_id_filter: set | None = None
+) -> dict:
     """Per-stratum fusion recurrence. Denominator = assayed samples in the indication tissue ∩ stratum
     members; numerator = distinct stratum members with the target fused. `_sample_id_filter` injected by
     @subgroup_iterable."""
@@ -87,8 +88,10 @@ def read_stratified_fusion(target: str, indication: str,
             for p in parts:
                 partner_samples.setdefault(p, set()).add(pid)
 
-    recurrent = sorted(((p, len(s)) for p, s in partner_samples.items() if len(s) >= _RECURRENT_MIN_SAMPLES),
-                       key=lambda x: (-x[1], x[0]))
+    recurrent = sorted(
+        ((p, len(s)) for p, s in partner_samples.items() if len(s) >= _RECURRENT_MIN_SAMPLES),
+        key=lambda x: (-x[1], x[0]),
+    )
     recurrent_partners = [{"partner": p, "n_samples": n} for p, n in recurrent]
     n_with_fusion = len(fused)
 
@@ -108,7 +111,7 @@ def read_stratified_fusion(target: str, indication: str,
     return {
         "target": target,
         "indication": indication,
-        "subgroup_n": subgroup_n,                            # assayed denominator (int → coverage guard)
+        "subgroup_n": subgroup_n,  # assayed denominator (int → coverage guard)
         "subgroup_n_floor_met": floor_met,
         "evidence_state": evidence_state(subgroup_n, floor_met),
         "fusion_class": fclass if subgroup_n else "data_unavailable",
@@ -137,14 +140,15 @@ def _fusion_freq_projection(stratum_id: str, rec: dict) -> dict:
     }
 
 
-def build_fusion_panorama(target: str, indication: str, subgroups: list,
-                          subgroup_assignments_manifest: str,
-                          subgroup_catalog_repo=None) -> dict:
+def build_fusion_panorama(
+    target: str, indication: str, subgroups: list, subgroup_assignments_manifest: str, subgroup_catalog_repo=None
+) -> dict:
     """By-subgroup fusion-recurrence panorama. Cross-stratum spread on fusion_frequency flags a
     subgroup-specific fusion gradient (rare — see the honest-power caveat above)."""
     pan = build_panorama(
         read_stratified_fusion,
-        target=target, indication=indication,
+        target=target,
+        indication=indication,
         subgroups=subgroups,
         subgroup_assignments_manifest=subgroup_assignments_manifest,
         record_projection=_fusion_freq_projection,

@@ -37,28 +37,28 @@ from typing import Optional
 import click
 
 # Anchor set from plan file § Phase B
-ANCHOR_TARGETS = ["KRAS", "BRAF", "EGFR", "PIK3CA", "TP53",
-                    "MYC", "MDM2", "MCL1", "CDK4", "WRN"]
+ANCHOR_TARGETS = ["KRAS", "BRAF", "EGFR", "PIK3CA", "TP53", "MYC", "MDM2", "MCL1", "CDK4", "WRN"]
 
 ANCHOR_EXPECTED_CLASS = {
     # Approximate expectation from prior biology / DepMap qualitative reports.
     # These aren't hard truth — they're used as sanity-check hints in the report,
     # not as pass/fail gates.
-    "KRAS":   "own_omics_driven (via own_mut_hotspot)",
-    "BRAF":   "own_omics_driven (via own_mut_hotspot / lineage_Skin)",
-    "EGFR":   "own_omics_driven (via own_mut_hotspot or own_expression)",
+    "KRAS": "own_omics_driven (via own_mut_hotspot)",
+    "BRAF": "own_omics_driven (via own_mut_hotspot / lineage_Skin)",
+    "EGFR": "own_omics_driven (via own_mut_hotspot or own_expression)",
     "PIK3CA": "context_or_driver_dependent (co-driver signals; PIK3CA mutation partial)",
-    "TP53":   "weakly_predictable or unpredictable (LOF heterogeneity)",
-    "MYC":    "own_omics_driven (via own_expression / own_copy_number)",
-    "MDM2":   "own_omics_driven (via TP53 status → own_expression amplification)",
-    "MCL1":   "context_or_driver_dependent (lineage_hematopoietic co-signal)",
-    "CDK4":   "own_omics_driven (via own_copy_number amplification)",
-    "WRN":    "context_or_driver_dependent (MSI lineage-conditional biomarker)",
+    "TP53": "weakly_predictable or unpredictable (LOF heterogeneity)",
+    "MYC": "own_omics_driven (via own_expression / own_copy_number)",
+    "MDM2": "own_omics_driven (via TP53 status → own_expression amplification)",
+    "MCL1": "context_or_driver_dependent (lineage_hematopoietic co-signal)",
+    "CDK4": "own_omics_driven (via own_copy_number amplification)",
+    "WRN": "context_or_driver_dependent (MSI lineage-conditional biomarker)",
 }
 
 
 def _read_ours(parquet_path: Path) -> "pandas.DataFrame":
     import pyarrow.parquet as pq
+
     return pq.read_table(parquet_path).to_pandas()
 
 
@@ -68,23 +68,25 @@ def _read_depmap(csv_path: Path) -> Optional["pandas.DataFrame"]:
     drift between releases; we accept plausible aliases.
     """
     import pandas as pd
+
     if not csv_path.exists():
         return None
     df = pd.read_csv(csv_path)
     # Normalize column names
     lower = {c.lower(): c for c in df.columns}
+
     def _pick(*names):
         for n in names:
             if n in lower:
                 return lower[n]
         return None
+
     gene_col = _pick("gene", "hugosymbol", "gene_symbol", "entity")
     pearson_col = _pick("pearson", "best_pearson", "pearson_best", "correlation")
     top_col = _pick("top_feature", "best_feature", "feature_top")
     if not (gene_col and pearson_col):
         raise click.UsageError(
-            f"DepMap CSV at {csv_path} lacks expected columns (gene + pearson). "
-            f"Got: {list(df.columns)}"
+            f"DepMap CSV at {csv_path} lacks expected columns (gene + pearson). Got: {list(df.columns)}"
         )
     df = df.rename(columns={gene_col: "gene", pearson_col: "pearson_depmap"})
     if top_col:
@@ -166,36 +168,43 @@ def build_report_md(rows: list, has_depmap: bool) -> str:
         deltas = [r["abs_delta_r"] for r in rows if r["abs_delta_r"] is not None]
         if deltas:
             import statistics
+
             med = statistics.median(deltas)
             max_delta = max(deltas)
             n_over_02 = sum(1 for d in deltas if d > 0.20)
-            lines.extend([
-                "## Summary vs DepMap",
-                "",
-                f"- Anchors compared: **{len(deltas)}/{len(rows)}**",
-                f"- Median |r_ours − r_depmap|: **{med:.3f}** "
+            lines.extend(
+                [
+                    "## Summary vs DepMap",
+                    "",
+                    f"- Anchors compared: **{len(deltas)}/{len(rows)}**",
+                    f"- Median |r_ours − r_depmap|: **{med:.3f}** "
                     f"(pass criterion: ≤ 0.10 → {'✓ PASS' if med <= 0.10 else '✗ FAIL'})",
-                f"- Max |r_ours − r_depmap|: **{max_delta:.3f}** "
+                    f"- Max |r_ours − r_depmap|: **{max_delta:.3f}** "
                     f"(pass criterion: no anchor > 0.20 → "
                     f"{'✓ PASS' if n_over_02 == 0 else f'✗ FAIL ({n_over_02} outliers)'})",
-                "",
-            ])
+                    "",
+                ]
+            )
     else:
-        lines.extend([
-            "## Reference not available",
+        lines.extend(
+            [
+                "## Reference not available",
+                "",
+                "DepMap portal CSV (`PredictionsCellContextCRISPR.csv` or "
+                "`EnsembleCellContextCRISPR.csv`) was not provided. This report "
+                "shows our per-anchor scores only; parity check deferred until the "
+                "reference CSV is downloaded from https://depmap.org/portal/data_page.",
+                "",
+            ]
+        )
+    lines.extend(
+        [
+            "## Per-anchor results",
             "",
-            "DepMap portal CSV (`PredictionsCellContextCRISPR.csv` or "
-            "`EnsembleCellContextCRISPR.csv`) was not provided. This report "
-            "shows our per-anchor scores only; parity check deferred until the "
-            "reference CSV is downloaded from https://depmap.org/portal/data_page.",
-            "",
-        ])
-    lines.extend([
-        "## Per-anchor results",
-        "",
-        "| Gene | ours r (RF) | ours r² [CI] | ours class | ours top feature | ours XGB r | agreement | depmap r | Δr | Expected hint |",
-        "|------|-------------|--------------|------------|------------------|-----------|-----------|----------|------|---------------|",
-    ])
+            "| Gene | ours r (RF) | ours r² [CI] | ours class | ours top feature | ours XGB r | agreement | depmap r | Δr | Expected hint |",
+            "|------|-------------|--------------|------------|------------------|-----------|-----------|----------|------|---------------|",
+        ]
+    )
     for r in rows:
         ci_txt = "—"
         if r["ours_r2_ci"]:
@@ -207,39 +216,51 @@ def build_report_md(rows: list, has_depmap: bool) -> str:
             f"{_fmt_num(r['depmap_r'])} | {_fmt_num(r['abs_delta_r'], 3)} | "
             f"{r['expected_class_hint']} |"
         )
-    lines.extend([
-        "",
-        "## Interpretation notes",
-        "",
-        "**Metric alignment.** DepMap reports Pearson r (their portal DB column "
-        "literally named `pearson`). We report both r and r². The parity check "
-        "is on r; r² and its bootstrap CI are our EXTENSIONS beyond DepMap.",
-        "",
-        "**Feature-set gaps** (may explain systematic negative deltas vs DepMap):",
-        "- Fusion status matrix — not ingested",
-        "- RPPA proteomics + RRBS methylation + metabolomics + ssGSEA — not ingested",
-        "- OncoKB per-VARIANT annotations — we use per-GENE role list (coarser)",
-        "- DepMap's dynamic MatchRelated related-entity lookup — we use static "
+    lines.extend(
+        [
+            "",
+            "## Interpretation notes",
+            "",
+            "**Metric alignment.** DepMap reports Pearson r (their portal DB column "
+            "literally named `pearson`). We report both r and r². The parity check "
+            "is on r; r² and its bootstrap CI are our EXTENSIONS beyond DepMap.",
+            "",
+            "**Feature-set gaps** (may explain systematic negative deltas vs DepMap):",
+            "- Fusion status matrix — not ingested",
+            "- RPPA proteomics + RRBS methylation + metabolomics + ssGSEA — not ingested",
+            "- OncoKB per-VARIANT annotations — we use per-GENE role list (coarser)",
+            "- DepMap's dynamic MatchRelated related-entity lookup — we use static "
             "genome-wide cross-gene features (superset but noisier)",
-        "",
-        "**Passing criteria** (from plan file):",
-        "- Median |Δr| ≤ 0.10 across anchors",
-        "- Dominant-feature-class agreement on ≥ 7/10 anchors",
-        "- No anchor with |Δr| > 0.20",
-        "",
-    ])
+            "",
+            "**Passing criteria** (from plan file):",
+            "- Median |Δr| ≤ 0.10 across anchors",
+            "- Dominant-feature-class agreement on ≥ 7/10 anchors",
+            "- No anchor with |Δr| > 0.20",
+            "",
+        ]
+    )
     return "\n".join(lines)
 
 
 @click.command()
-@click.option("--ours", required=True, type=click.Path(exists=True, path_type=Path),
-              help="Path to our v2 predictability parquet")
-@click.option("--depmap-csv", default=None, type=click.Path(path_type=Path),
-              help="Optional path to DepMap portal CSV. If absent, report ours only.")
-@click.option("--out", required=True, type=click.Path(file_okay=False, path_type=Path),
-              help="Output directory for report.md + summary.json")
-@click.option("--anchors", default=",".join(ANCHOR_TARGETS), show_default=True,
-              help="Comma-separated anchor gene symbols")
+@click.option(
+    "--ours", required=True, type=click.Path(exists=True, path_type=Path), help="Path to our v2 predictability parquet"
+)
+@click.option(
+    "--depmap-csv",
+    default=None,
+    type=click.Path(path_type=Path),
+    help="Optional path to DepMap portal CSV. If absent, report ours only.",
+)
+@click.option(
+    "--out",
+    required=True,
+    type=click.Path(file_okay=False, path_type=Path),
+    help="Output directory for report.md + summary.json",
+)
+@click.option(
+    "--anchors", default=",".join(ANCHOR_TARGETS), show_default=True, help="Comma-separated anchor gene symbols"
+)
 def main(ours, depmap_csv, out, anchors):
     out.mkdir(parents=True, exist_ok=True)
     anchor_list = [g.strip() for g in anchors.split(",") if g.strip()]

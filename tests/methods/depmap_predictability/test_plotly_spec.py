@@ -4,6 +4,7 @@ Interactive twin of emit_feature_importance_bar: horizontal bar of top-10 SHAP-r
 colored by feature_class. Built from the SAME summary the SVG + v2 parquet use — no drift. No S3
 (synthetic summary). Plotly optional; no feature data → no-op.
 """
+
 from __future__ import annotations
 
 import base64
@@ -36,8 +37,8 @@ cli = _load()
 def _decode(v):
     if isinstance(v, dict) and "bdata" in v:
         import numpy as np
-        return np.frombuffer(base64.b64decode(v["bdata"]),
-                             dtype={"f8": "<f8", "f4": "<f4"}[v["dtype"]]).tolist()
+
+        return np.frombuffer(base64.b64decode(v["bdata"]), dtype={"f8": "<f8", "f4": "<f4"}[v["dtype"]]).tolist()
     return list(v)
 
 
@@ -49,8 +50,10 @@ def _summary():
     ]
     return {
         "predictability_class": "own_omics_driven",
-        "pearson_r_squared_rf": 0.55, "pearson_r_squared_rf_ci_lo": 0.4,
-        "pearson_r_squared_rf_ci_hi": 0.7, "model_agreement": "concordant",
+        "pearson_r_squared_rf": 0.55,
+        "pearson_r_squared_rf_ci_lo": 0.4,
+        "pearson_r_squared_rf_ci_hi": 0.7,
+        "model_agreement": "concordant",
         "pred_top_features_rf": feats,
     }
 
@@ -82,7 +85,7 @@ def test_top_feature_at_top_of_bar():
         cli.emit_plotly_specs(_summary(), "KRAS", out, CONTRACTS)
         obj = json.loads((out / "figure_feature_importance_bar.plotly.json").read_text())
         ticktext = obj["layout"]["yaxis"]["ticktext"]
-        assert ticktext[-1] == "KRAS_expr"   # highest importance at top
+        assert ticktext[-1] == "KRAS_expr"  # highest importance at top
 
 
 def test_no_features_no_op():

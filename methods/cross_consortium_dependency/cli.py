@@ -12,6 +12,7 @@ pan-cell dependency fraction in each; classify agreement.
 
 tier: target (pan-cancer, indication-independent). VERDICT-INERT: raises C-confidence, never a killer.
 """
+
 from __future__ import annotations
 
 import io
@@ -21,15 +22,15 @@ from typing import Optional
 
 METHOD_VERSION = "0.1.0"
 _PREFIX = "s3://onc-compbio/data-catalog/sources/depmap-consortium/dmc-26q1"
-_BROAD = f"{_PREFIX}/CRISPRGeneEffect.csv"          # Broad Achilles Chronos (CSV fallback)
-_SANGER = f"{_PREFIX}/ScreenGeneEffect.csv"         # Sanger-inclusive combined Chronos (Project Score; CSV fallback)
+_BROAD = f"{_PREFIX}/CRISPRGeneEffect.csv"  # Broad Achilles Chronos (CSV fallback)
+_SANGER = f"{_PREFIX}/ScreenGeneEffect.csv"  # Sanger-inclusive combined Chronos (Project Score; CSV fallback)
 # Gene-column parquet products in depmap-26q1-parquet-v1 (column projection: ~1-2 MB over the wire vs the
 # 560/685 MB CSVs). Preferred read path; the CSVs above are the graceful fallback if a product is absent.
 _BROAD_PARQUET = "CRISPRGeneEffect.parquet"
 _SANGER_PARQUET = "ScreenGeneEffect.parquet"
 
-DEPENDENCY_CUT = -0.5      # Chronos <= -0.5 = dependent (the standard strong-dependency cut)
-STRONG_FRAC = 0.10        # >= 10% of lines dependent = a real dependency in that consortium
+DEPENDENCY_CUT = -0.5  # Chronos <= -0.5 = dependent (the standard strong-dependency cut)
+STRONG_FRAC = 0.10  # >= 10% of lines dependent = a real dependency in that consortium
 
 
 def _col_for(cols, gene: str):
@@ -45,8 +46,12 @@ def _summarize_vals(vals):
     if vals.empty:
         return None
     import numpy as np
-    return {"frac_dependent": round(float(np.mean(vals <= DEPENDENCY_CUT)), 4),
-            "n_lines": int(len(vals)), "median": round(float(vals.median()), 4)}
+
+    return {
+        "frac_dependent": round(float(np.mean(vals <= DEPENDENCY_CUT)), 4),
+        "n_lines": int(len(vals)),
+        "median": round(float(vals.median()), 4),
+    }
 
 
 def _consortium_frac(parquet_name: str, uri: str, gene: str):
@@ -58,9 +63,11 @@ def _consortium_frac(parquet_name: str, uri: str, gene: str):
     parquet stores float32, but frac_dependent/median rounded to 4 dp match the float64 CSV (verified
     ERBB2/KRAS/TP53/BRAF/MYC on both matrices)."""
     import pandas as pd
+
     # fast path: gene-column projection from the parquet product
     try:
         from methods.depmap_common import parquet as _dp
+
         pq_df = _dp.get_matrix_column_by_model_id(parquet_name, gene)
         # None here = the gene is absent from the matrix (a real "no data" for this consortium), which is
         # the SAME answer the CSV path gives when _col_for finds no column — so return it directly.
@@ -75,6 +82,7 @@ def _consortium_frac(parquet_name: str, uri: str, gene: str):
         # (the intended redundancy). A transient/creds/broken-env error must NOT masquerade as
         # product-absence — re-raise it (the CSV fallback reads the same backend).
         from methods.target_id_sidecar import is_definitively_absent
+
         if not (isinstance(e, FileNotFoundError) or is_definitively_absent(e)):
             raise
     # fallback: full-object CSV read (parquet product unreachable)
@@ -103,31 +111,38 @@ def read_cross_consortium_dependency(target: str, indication: Optional[str] = No
     # reads one gene's COLUMN from the parquet product (falling back to its CSV if the product is
     # absent). Output-equivalent: each returns its own (frac_dependent, n_lines, median) or None.
     from concurrent.futures import ThreadPoolExecutor
+
     with ThreadPoolExecutor(max_workers=2) as ex:
         f_broad = ex.submit(_consortium_frac, _BROAD_PARQUET, _BROAD, target)
         f_sanger = ex.submit(_consortium_frac, _SANGER_PARQUET, _SANGER, target)
         broad = f_broad.result()
         sanger = f_sanger.result()
     if broad is None and sanger is None:
-        return {"cross_consortium_class": "data_unavailable", "target": target,
-                "_note": f"{target} in neither Broad nor Sanger gene-effect matrix."}
+        return {
+            "cross_consortium_class": "data_unavailable",
+            "target": target,
+            "_note": f"{target} in neither Broad nor Sanger gene-effect matrix.",
+        }
     if broad is None or sanger is None:
         present = "sanger_only" if broad is None else "broad_only"
-        return {"cross_consortium_class": "single_consortium_only", "target": target,
-                "present_in": present,
-                "broad_frac_dependent": (broad or {}).get("frac_dependent"),
-                "sanger_frac_dependent": (sanger or {}).get("frac_dependent"),
-                "_note": "only one consortium screened this gene; no cross-consortium corroboration possible."}
+        return {
+            "cross_consortium_class": "single_consortium_only",
+            "target": target,
+            "present_in": present,
+            "broad_frac_dependent": (broad or {}).get("frac_dependent"),
+            "sanger_frac_dependent": (sanger or {}).get("frac_dependent"),
+            "_note": "only one consortium screened this gene; no cross-consortium corroboration possible.",
+        }
     b, s = broad["frac_dependent"], sanger["frac_dependent"]
     b_dep, s_dep = b >= STRONG_FRAC, s >= STRONG_FRAC
     if b_dep and s_dep:
-        cls = "concordant_dependent"          # BOTH consortia agree it's a dependency → strong corroboration
+        cls = "concordant_dependent"  # BOTH consortia agree it's a dependency → strong corroboration
     elif not b_dep and not s_dep:
-        cls = "concordant_non_dependent"      # both agree not a dependency
+        cls = "concordant_non_dependent"  # both agree not a dependency
     else:
-        cls = "discordant"                    # consortia disagree → interpret with caution
+        cls = "discordant"  # consortia disagree → interpret with caution
     return {
-        "cross_consortium_class": cls,        # PRIMARY
+        "cross_consortium_class": cls,  # PRIMARY
         "target": target,
         "broad_frac_dependent": b,
         "sanger_frac_dependent": s,
@@ -149,6 +164,7 @@ try:
     @click.option("--indication", default=None)
     def main(target, indication):
         import json
+
         click.echo(json.dumps(read_cross_consortium_dependency(target, indication), indent=2, default=str))
 
     if __name__ == "__main__":

@@ -7,6 +7,7 @@ of the (unmaterialized) hotspot product; (2) gene-symbol AND uniprot lookup both
 (3) an absent target degrades to insufficient_evidence (coverage gap, never a false negative);
 (4) the hotspot fields remain present + backward-compatible.
 """
+
 from __future__ import annotations
 
 import sys
@@ -25,20 +26,38 @@ from methods.structure_features_static import read as R  # noqa: E402
 @pytest.fixture
 def synthetic_ligandability(tmp_path, monkeypatch):
     """Point the reader's ligandability cache at a synthetic parquet + reset caches."""
-    df = pd.DataFrame([
-        # KRAS — experimental co-crystal + pocket, foldable
-        {"uniprot_id": "P01116", "gene_symbol": "KRAS",
-         "structural_ligandability_class": "experimental_ligandable", "n_ligandability_axes": 2,
-         "experimental_cocrystal": True, "druggable_pocket": True, "virtual_screen_hit": False,
-         "cryptic_site": False, "annotated_binding_site": False, "foldable": True,
-         "disorder_tractability_class": "mostly_ordered"},
-        # A disordered target — measured negative
-        {"uniprot_id": "Q99999", "gene_symbol": "IDPX",
-         "structural_ligandability_class": "disordered_low", "n_ligandability_axes": 0,
-         "experimental_cocrystal": False, "druggable_pocket": False, "virtual_screen_hit": False,
-         "cryptic_site": False, "annotated_binding_site": False, "foldable": False,
-         "disorder_tractability_class": "highly_disordered"},
-    ])
+    df = pd.DataFrame(
+        [
+            # KRAS — experimental co-crystal + pocket, foldable
+            {
+                "uniprot_id": "P01116",
+                "gene_symbol": "KRAS",
+                "structural_ligandability_class": "experimental_ligandable",
+                "n_ligandability_axes": 2,
+                "experimental_cocrystal": True,
+                "druggable_pocket": True,
+                "virtual_screen_hit": False,
+                "cryptic_site": False,
+                "annotated_binding_site": False,
+                "foldable": True,
+                "disorder_tractability_class": "mostly_ordered",
+            },
+            # A disordered target — measured negative
+            {
+                "uniprot_id": "Q99999",
+                "gene_symbol": "IDPX",
+                "structural_ligandability_class": "disordered_low",
+                "n_ligandability_axes": 0,
+                "experimental_cocrystal": False,
+                "druggable_pocket": False,
+                "virtual_screen_hit": False,
+                "cryptic_site": False,
+                "annotated_binding_site": False,
+                "foldable": False,
+                "disorder_tractability_class": "highly_disordered",
+            },
+        ]
+    )
     cache = tmp_path / "structure_ligandability_per_protein.parquet"
     df.to_parquet(cache, index=False)
     monkeypatch.setattr(R, "CACHE_LIGAND_PARQUET", cache)
@@ -117,7 +136,7 @@ def test_absent_target_is_insufficient_not_false_negative(synthetic_ligandabilit
 def test_product_unavailable_degrades_gracefully(tmp_path, monkeypatch):
     """No ligandability product at all -> insufficient_evidence, no crash."""
     monkeypatch.setattr(R, "CACHE_LIGAND_PARQUET", tmp_path / "nonexistent.parquet")
-    monkeypatch.setattr(R, "_LIGAND_STATUS", False)   # definitive-absent
+    monkeypatch.setattr(R, "_LIGAND_STATUS", False)  # definitive-absent
     monkeypatch.setattr(R, "_DERIVED_STATUS", False)
     R._load_ligandability_indexed.cache_clear()
     R._load_structure_indexed.cache_clear()

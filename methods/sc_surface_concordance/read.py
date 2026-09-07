@@ -10,6 +10,7 @@ surfaces it.
 Dependencies: pyarrow/pandas/boto3 ONLY. Credential discipline: boto3 Session(profile_name=AWS_PROFILE)
 default="cbg" — the Developer-Dev SSO role lacks GetObject on onc-compbio.
 """
+
 from __future__ import annotations
 
 import os
@@ -28,9 +29,17 @@ MANIFEST_ID = "sc-cite-rna-protein-concordance-v1"
 S3_BUCKET, PAYLOAD_KEY = bucket_key_for(MANIFEST_ID)
 
 _PARQUET_COLS = [
-    "dataset_id", "gene_symbol", "hgnc_id", "adt_proteins", "n_cell_types", "n_cells",
-    "pearson_r_rna_vs_adt", "spearman_r_rna_vs_adt", "rna_as_biomarker",
-    "compartment_scope", "matched_via",
+    "dataset_id",
+    "gene_symbol",
+    "hgnc_id",
+    "adt_proteins",
+    "n_cell_types",
+    "n_cells",
+    "pearson_r_rna_vs_adt",
+    "spearman_r_rna_vs_adt",
+    "rna_as_biomarker",
+    "compartment_scope",
+    "matched_via",
 ]
 
 
@@ -38,8 +47,9 @@ def _s3fs():
     """pyarrow S3FileSystem with explicit cbg SSO creds (never the Developer-Dev fallback)."""
     profile = os.environ.get("AWS_PROFILE", DEFAULT_AWS_PROFILE)
     creds = boto3.Session(profile_name=profile).get_credentials().get_frozen_credentials()
-    return fs.S3FileSystem(region="us-east-1", access_key=creds.access_key,
-                           secret_key=creds.secret_key, session_token=creds.token)
+    return fs.S3FileSystem(
+        region="us-east-1", access_key=creds.access_key, secret_key=creds.secret_key, session_token=creds.token
+    )
 
 
 def read_gene_rows(target: str) -> Optional[pd.DataFrame]:
@@ -47,13 +57,13 @@ def read_gene_rows(target: str) -> Optional[pd.DataFrame]:
     (coverage gap); empty DataFrame = gene absent from the panel (honest not-surface-profiled)."""
     filters = [("gene_symbol", "==", str(target).strip().upper())]
     try:
-        tbl = pq.read_table(f"{S3_BUCKET}/{PAYLOAD_KEY}", filesystem=_s3fs(),
-                            filters=filters, columns=_PARQUET_COLS)
+        tbl = pq.read_table(f"{S3_BUCKET}/{PAYLOAD_KEY}", filesystem=_s3fs(), filters=filters, columns=_PARQUET_COLS)
         return tbl.to_pandas()
     except FileNotFoundError:
         return None
     except Exception as e:  # noqa: BLE001
         from methods.target_id_sidecar import is_definitively_absent
+
         # A genuine NoSuchKey/404 (product not on S3) is an honest coverage gap -> None (caller emits
         # data_unavailable, unchanged). A transient/creds/broken-env failure is NOT a coverage gap ->
         # re-raise so the live-read seam surfaces an honest _live_read_error rather than a masked gap.
@@ -63,10 +73,19 @@ def read_gene_rows(target: str) -> Optional[pd.DataFrame]:
 
 
 def _data_unavailable(target: str, note: str) -> dict:
-    return {"target": target, "substrate": "cite_seq_surface", "measurement_type": "rna_protein_concordance",
-            "rna_as_biomarker": "data_unavailable", "rna_protein_r": None, "rna_protein_spearman": None,
-            "n_cell_types": 0, "compartment_scope": None, "adt_proteins": None, "datasets": [],
-            "_data_note": note}
+    return {
+        "target": target,
+        "substrate": "cite_seq_surface",
+        "measurement_type": "rna_protein_concordance",
+        "rna_as_biomarker": "data_unavailable",
+        "rna_protein_r": None,
+        "rna_protein_spearman": None,
+        "n_cell_types": 0,
+        "compartment_scope": None,
+        "adt_proteins": None,
+        "datasets": [],
+        "_data_note": note,
+    }
 
 
 def read_sc_surface_concordance(target: str, indication: Optional[str] = None) -> dict:
@@ -77,11 +96,14 @@ def read_sc_surface_concordance(target: str, indication: Optional[str] = None) -
     data_unavailable}. data_unavailable-safe: distinguishes product-missing from gene-absent."""
     rows = read_gene_rows(target)
     if rows is None:
-        return _data_unavailable(target, note=f"{MANIFEST_ID} not readable on S3 (coverage gap, "
-                                              f"not a concordance pass).")
+        return _data_unavailable(
+            target, note=f"{MANIFEST_ID} not readable on S3 (coverage gap, not a concordance pass)."
+        )
     if rows.empty:
-        return _data_unavailable(target, note=f"{target} not in the CITE-seq surface panel "
-                                              f"(not surface-profiled by ADT; not measured, not a pass).")
+        return _data_unavailable(
+            target,
+            note=f"{target} not in the CITE-seq surface panel (not surface-profiled by ADT; not measured, not a pass).",
+        )
     # One row per dataset. v1 has a single dataset; if multiple, prefer the best-powered row
     # (most cells), and report the full dataset set. Never average across datasets here — a
     # cross-dataset consensus is a Tier-1 step.

@@ -69,7 +69,7 @@ FOCAL_AMP = 1.5
 HIGH_AMP = 4.0
 
 # Gene-column label regex: "SYMBOL (entrez_id)" -> SYMBOL
-_GENE_LABEL_RE = re.compile(r'^([A-Za-z0-9._-]+)\s*\(\d+\)$')
+_GENE_LABEL_RE = re.compile(r"^([A-Za-z0-9._-]+)\s*\(\d+\)$")
 
 
 def _parse_gene_symbol(label: str) -> Optional[str]:
@@ -105,35 +105,42 @@ def load_cn_files(release_pin: str, target_symbol: str) -> tuple[dict, dict, str
 
     try:
         import boto3
+
         # Model.csv + ModelCondition.csv via shared cached loaders. Model.csv (26Q1)
         # does NOT carry ModelConditionID — the bridge lives in ModelCondition.csv.
         from methods.depmap_common import load_model_csv, load_model_condition_csv
+
         model_df = load_model_csv(release_pin)
         model_condition_df = load_model_condition_csv(release_pin)
 
         # === TIER-2 PATH: parquet derived product (100-500× faster than CSV) ===
         try:
             from methods.depmap_common.parquet import get_cn_column_wes, get_cn_column_wgs
+
             wes_df = get_cn_column_wes(target_symbol, release_pin)
             if wes_df is not None:
                 assay_used = "wes"
                 chosen_df = wes_df
-                target_col = next((c for c in wes_df.columns
-                                     if c not in ("ModelConditionID", "IsDefaultEntryForMC")), None)
+                target_col = next(
+                    (c for c in wes_df.columns if c not in ("ModelConditionID", "IsDefaultEntryForMC")), None
+                )
             else:
                 wgs_df = get_cn_column_wgs(target_symbol, release_pin)
                 if wgs_df is not None:
                     click.echo(f"  Target {target_symbol!r} absent from WES parquet; using WGS", err=True)
                     assay_used = "wgs"
                     chosen_df = wgs_df
-                    target_col = next((c for c in wgs_df.columns
-                                         if c not in ("ModelConditionID", "IsDefaultEntryForMC")), None)
+                    target_col = next(
+                        (c for c in wgs_df.columns if c not in ("ModelConditionID", "IsDefaultEntryForMC")), None
+                    )
                 else:
-                    load_errors.append({
-                        "_live_read_error": "target_not_in_cn_panel",
-                        "detail": f"Target {target_symbol!r} not found in WES or WGS gene-level CN matrices",
-                        "remediation": "Confirm HGNC symbol spelling; this gene may not be captured by either CN platform.",
-                    })
+                    load_errors.append(
+                        {
+                            "_live_read_error": "target_not_in_cn_panel",
+                            "detail": f"Target {target_symbol!r} not found in WES or WGS gene-level CN matrices",
+                            "remediation": "Confirm HGNC symbol spelling; this gene may not be captured by either CN platform.",
+                        }
+                    )
                     return {}, {}, "data_unavailable", load_errors
         except (FileNotFoundError, ImportError):
             # Parquet not available → fall through to CSV path
@@ -153,10 +160,12 @@ def load_cn_files(release_pin: str, target_symbol: str) -> tuple[dict, dict, str
                 wgs_df = pd.read_csv(BytesIO(wgs_obj["Body"].read()))
                 target_col = _find_target_col(wgs_df.columns, target_symbol)
                 if target_col is None:
-                    load_errors.append({
-                        "_live_read_error": "target_not_in_cn_panel",
-                        "detail": f"Target {target_symbol!r} not found in WES or WGS gene-level CN matrices",
-                    })
+                    load_errors.append(
+                        {
+                            "_live_read_error": "target_not_in_cn_panel",
+                            "detail": f"Target {target_symbol!r} not found in WES or WGS gene-level CN matrices",
+                        }
+                    )
                     return {}, {}, "data_unavailable", load_errors
                 assay_used = "wgs"
                 chosen_df = wgs_df
@@ -164,21 +173,25 @@ def load_cn_files(release_pin: str, target_symbol: str) -> tuple[dict, dict, str
         load_errors.append({"_live_read_error": "boto3_not_available", "detail": str(e)})
         return {}, {}, "data_unavailable", load_errors
     except Exception as e:
-        load_errors.append({
-            "_live_read_error": "s3_read_failed",
-            "detail": str(e),
-            "remediation": f"Ensure AWS credentials are set and {DEPMAP_S3_PREFIX} is accessible.",
-        })
+        load_errors.append(
+            {
+                "_live_read_error": "s3_read_failed",
+                "detail": str(e),
+                "remediation": f"Ensure AWS credentials are set and {DEPMAP_S3_PREFIX} is accessible.",
+            }
+        )
         return {}, {}, "data_unavailable", load_errors
 
     # Identify ID column — both WES and WGS use ModelConditionID as first column,
     # with IsDefaultEntryForMC immediately after. Apply IsDefault filter to keep
     # one row per cell-line.
     if "ModelConditionID" not in chosen_df.columns:
-        load_errors.append({
-            "_live_read_error": "cn_matrix_missing_modelconditionid",
-            "detail": "CN matrix lacks ModelConditionID column; cannot bridge to ModelID.",
-        })
+        load_errors.append(
+            {
+                "_live_read_error": "cn_matrix_missing_modelconditionid",
+                "detail": "CN matrix lacks ModelConditionID column; cannot bridge to ModelID.",
+            }
+        )
         return {}, {}, "data_unavailable", load_errors
 
     if "IsDefaultEntryForMC" in chosen_df.columns:
@@ -213,9 +226,9 @@ def load_cn_files(release_pin: str, target_symbol: str) -> tuple[dict, dict, str
     return cn_by_model_id, model_metadata_by_id, assay_used, load_errors
 
 
-def _classify_cn(fraction_amp: float, fraction_del: float,
-                  recurrent_threshold: float = 0.20,
-                  dominant_ratio: float = 2.0) -> str:
+def _classify_cn(
+    fraction_amp: float, fraction_del: float, recurrent_threshold: float = 0.20, dominant_ratio: float = 2.0
+) -> str:
     """Map per-event fractions to copy_number_class.
 
     Returns one of:
@@ -251,9 +264,9 @@ def _classify_shape(median_cn: float, iqr: float, frac_amp: float, frac_del: flo
     return "unclassified"
 
 
-def compute_summary_stats(cn_by_model: dict, model_metadata: dict,
-                            assay_used: str = "wes",
-                            recurrent_threshold: float = 0.20) -> dict:
+def compute_summary_stats(
+    cn_by_model: dict, model_metadata: dict, assay_used: str = "wes", recurrent_threshold: float = 0.20
+) -> dict:
     """Compute decision-grade summary scalars for the CN card."""
     import numpy as np
     import pandas as pd
@@ -285,7 +298,7 @@ def compute_summary_stats(cn_by_model: dict, model_metadata: dict,
     # recurrent hemizygous loss. The amp-driver signal belongs to the indication-specific
     # GISTIC focal-CN class + the copy-number-stratified-dependency card, not this
     # pan-cancer distribution classifier. Do NOT re-tune these bands.
-    fraction_recurrent_amp = frac_focal_amp + frac_high_amp   # focal + high (excludes shallow — validated)
+    fraction_recurrent_amp = frac_focal_amp + frac_high_amp  # focal + high (excludes shallow — validated)
     fraction_recurrent_del = frac_deep_del + frac_shallow_del  # deep + shallow (hemizygous — validated)
 
     median_cn = float(np.median(cn_arr))
@@ -311,7 +324,8 @@ def compute_summary_stats(cn_by_model: dict, model_metadata: dict,
     }
 
     summary["copy_number_class"] = _classify_cn(
-        fraction_recurrent_amp, fraction_recurrent_del,
+        fraction_recurrent_amp,
+        fraction_recurrent_del,
         recurrent_threshold=recurrent_threshold,
     )
     # Homozygous-deletion recurrence flag (DISPLAY facet). copy_number_class folds deep +
@@ -322,19 +336,15 @@ def compute_summary_stats(cn_by_model: dict, model_metadata: dict,
     # additive/verdict-inert — it surfaces "recurrently homozygously deleted" to render/LLM without
     # touching the resolver spine. (A degrader-not-viable KILLER rule keyed on it is a deferred follow-up.)
     summary["cn_homozygous_deletion_recurrent"] = (
-        "recurrent_homozygous_deletion" if frac_deep_del >= recurrent_threshold
-        else "not_recurrent_homozygous_deletion"
+        "recurrent_homozygous_deletion" if frac_deep_del >= recurrent_threshold else "not_recurrent_homozygous_deletion"
     )
-    summary["cn_distribution_shape"] = _classify_shape(
-        median_cn, iqr, fraction_recurrent_amp, fraction_recurrent_del
-    )
+    summary["cn_distribution_shape"] = _classify_shape(median_cn, iqr, fraction_recurrent_amp, fraction_recurrent_del)
 
     # Per-lineage stratification: identify lineages with significant amp or del
     lineage_records = []
     for model_id, cn in cn_by_model.items():
         meta = model_metadata.get(model_id, {})
-        lineage = (meta.get("OncotreeLineage") or meta.get("lineage")
-                   or meta.get("PrimaryDisease") or "unknown")
+        lineage = meta.get("OncotreeLineage") or meta.get("lineage") or meta.get("PrimaryDisease") or "unknown"
         lineage_records.append({"model_id": model_id, "lineage": lineage, "cn": cn})
     lineage_df = pd.DataFrame(lineage_records)
 
@@ -351,21 +361,25 @@ def compute_summary_stats(cn_by_model: dict, model_metadata: dict,
             frac_del_lin = float((subset["cn"] <= SHALLOW_DEL).mean())
             med_cn_lin = float(subset["cn"].median())
             if frac_amp_lin >= 0.10:
-                top_amp_lineages.append({
-                    "lineage": lin_name,
-                    "n_in_lineage": int(n_in_lin),
-                    "fraction_focal_amplified": frac_amp_lin,
-                    "median_cn": med_cn_lin,
-                    "fraction_of_amp_tail": float((subset["cn"] > FOCAL_AMP).sum() / amp_tail_total),
-                })
+                top_amp_lineages.append(
+                    {
+                        "lineage": lin_name,
+                        "n_in_lineage": int(n_in_lin),
+                        "fraction_focal_amplified": frac_amp_lin,
+                        "median_cn": med_cn_lin,
+                        "fraction_of_amp_tail": float((subset["cn"] > FOCAL_AMP).sum() / amp_tail_total),
+                    }
+                )
             if frac_del_lin >= 0.10:
-                top_del_lineages.append({
-                    "lineage": lin_name,
-                    "n_in_lineage": int(n_in_lin),
-                    "fraction_deleted": frac_del_lin,
-                    "median_cn": med_cn_lin,
-                    "fraction_of_del_tail": float((subset["cn"] <= SHALLOW_DEL).sum() / del_tail_total),
-                })
+                top_del_lineages.append(
+                    {
+                        "lineage": lin_name,
+                        "n_in_lineage": int(n_in_lin),
+                        "fraction_deleted": frac_del_lin,
+                        "median_cn": med_cn_lin,
+                        "fraction_of_del_tail": float((subset["cn"] <= SHALLOW_DEL).sum() / del_tail_total),
+                    }
+                )
     top_amp_lineages.sort(key=lambda x: x["fraction_focal_amplified"], reverse=True)
     top_del_lineages.sort(key=lambda x: x["fraction_deleted"], reverse=True)
     summary["cn_top_amplified_lineages"] = top_amp_lineages[:5]
@@ -376,16 +390,19 @@ def compute_summary_stats(cn_by_model: dict, model_metadata: dict,
 
 def _load_takeda_style(target_contracts_dir: Path):
     import matplotlib.pyplot as plt
+
     style_path = target_contracts_dir / "plot_styles" / "takeda_oncology.mplstyle"
     if style_path.exists():
         plt.style.use(str(style_path))
     sys.path.insert(0, str(target_contracts_dir / "plot_styles"))
     import takeda_palette  # type: ignore
+
     return takeda_palette
 
 
-def emit_density_plot(cn_by_model: dict, target_symbol: str, summary: dict,
-                       out_dir: Path, target_contracts_dir: Path) -> Path:
+def emit_density_plot(
+    cn_by_model: dict, target_symbol: str, summary: dict, out_dir: Path, target_contracts_dir: Path
+) -> Path:
     """Emit pan-cancer CN KDE + histogram density plot — PRIMARY figure.
 
     X-axis clipped to [0, max(5, p95+0.5)] so the diploid bulk + relevant threshold
@@ -394,6 +411,7 @@ def emit_density_plot(cn_by_model: dict, target_symbol: str, summary: dict,
     Fixed lower bound = 0 enables visual cross-target comparison.
     """
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import numpy as np
@@ -412,8 +430,7 @@ def emit_density_plot(cn_by_model: dict, target_symbol: str, summary: dict,
     max_score = float(scores.max())
 
     fig, ax = plt.subplots(figsize=pal.FIGSIZE_DOUBLE_COLUMN)
-    ax.hist(clipped_scores, bins=60, range=(x_min, x_max),
-            density=True, alpha=0.45, color="#0a2540", edgecolor="white")
+    ax.hist(clipped_scores, bins=60, range=(x_min, x_max), density=True, alpha=0.45, color="#0a2540", edgecolor="white")
     if len(clipped_scores) >= 10:
         kde = gaussian_kde(clipped_scores)
         xs = np.linspace(x_min, x_max, 500)
@@ -430,9 +447,17 @@ def emit_density_plot(cn_by_model: dict, target_symbol: str, summary: dict,
     # Annotate clipped tail
     if n_above_clip > 0:
         note = f"n={n_above_clip} lines with CN > {x_max:.1f} not shown\n(max CN = {max_score:.1f})"
-        ax.text(0.98, 0.55, note, transform=ax.transAxes, fontsize=7,
-                ha="right", va="top", color="#555555",
-                bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor="#cccccc", alpha=0.9))
+        ax.text(
+            0.98,
+            0.55,
+            note,
+            transform=ax.transAxes,
+            fontsize=7,
+            ha="right",
+            va="top",
+            color="#555555",
+            bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor="#cccccc", alpha=0.9),
+        )
 
     fig.tight_layout()
     out_path = out_dir / "figure_density_cn.svg"
@@ -441,10 +466,17 @@ def emit_density_plot(cn_by_model: dict, target_symbol: str, summary: dict,
     return out_path
 
 
-def emit_waterfall_plot(cn_by_model: dict, model_metadata: dict, target_symbol: str,
-                         summary: dict, out_dir: Path, target_contracts_dir: Path) -> Path:
+def emit_waterfall_plot(
+    cn_by_model: dict,
+    model_metadata: dict,
+    target_symbol: str,
+    summary: dict,
+    out_dir: Path,
+    target_contracts_dir: Path,
+) -> Path:
     """Emit ranked-waterfall SVG — SECONDARY figure."""
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import pandas as pd
@@ -474,10 +506,17 @@ def emit_waterfall_plot(cn_by_model: dict, model_metadata: dict, target_symbol: 
     return out_path
 
 
-def emit_lineage_strip(cn_by_model: dict, model_metadata: dict, target_symbol: str,
-                        summary: dict, out_dir: Path, target_contracts_dir: Path) -> Path:
+def emit_lineage_strip(
+    cn_by_model: dict,
+    model_metadata: dict,
+    target_symbol: str,
+    summary: dict,
+    out_dir: Path,
+    target_contracts_dir: Path,
+) -> Path:
     """Emit per-lineage strip plot, lineages ordered by median CN descending."""
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import numpy as np
@@ -512,14 +551,20 @@ def emit_lineage_strip(cn_by_model: dict, model_metadata: dict, target_symbol: s
         above_cap = scores[scores > x_max]
         lineage_color = pal.get_lineage_color(lin)
         jitter_below = np.random.RandomState(42 + i).uniform(-0.15, 0.15, size=len(below_cap))
-        ax.scatter(below_cap, np.full(len(below_cap), i) + jitter_below,
-                   alpha=0.5, s=8, color=lineage_color)
+        ax.scatter(below_cap, np.full(len(below_cap), i) + jitter_below, alpha=0.5, s=8, color=lineage_color)
         if len(above_cap) > 0:
             jitter_above = np.random.RandomState(99 + i).uniform(-0.15, 0.15, size=len(above_cap))
             # Plot at the cap edge using triangle markers — signals "this is clipped"
-            ax.scatter(np.full(len(above_cap), x_max - 0.05),
-                       np.full(len(above_cap), i) + jitter_above,
-                       marker=">", s=20, color=lineage_color, alpha=0.9, edgecolor="white", linewidth=0.3)
+            ax.scatter(
+                np.full(len(above_cap), x_max - 0.05),
+                np.full(len(above_cap), i) + jitter_above,
+                marker=">",
+                s=20,
+                color=lineage_color,
+                alpha=0.9,
+                edgecolor="white",
+                linewidth=0.3,
+            )
         # Median marker (dark red |) — distinct from lineage color so it stays legible
         ax.scatter([np.median(scores)], [i], color="#B22222", s=30, marker="|", zorder=5)
     ax.axvline(SHALLOW_DEL, color="#f0a020", linestyle="--", linewidth=1)
@@ -532,11 +577,17 @@ def emit_lineage_strip(cn_by_model: dict, model_metadata: dict, target_symbol: s
     ax.set_xlabel(f"Relative copy number ({summary.get('cn_assay_used', 'wes').upper()})")
     ax.set_title(f"{target_symbol} — per-lineage CN (n≥5; ordered by median, top=highest)")
     if n_above_cap > 0:
-        ax.text(0.98, 0.02,
-                f"n={n_above_cap} cell lines with CN > {x_max:.1f}\nshown as ▶ at right edge (max={max_score:.1f})",
-                transform=ax.transAxes, fontsize=7, ha="right", va="bottom",
-                color="#555555", bbox=dict(boxstyle="round,pad=0.3",
-                                           facecolor="white", edgecolor="#cccccc", alpha=0.9))
+        ax.text(
+            0.98,
+            0.02,
+            f"n={n_above_cap} cell lines with CN > {x_max:.1f}\nshown as ▶ at right edge (max={max_score:.1f})",
+            transform=ax.transAxes,
+            fontsize=7,
+            ha="right",
+            va="bottom",
+            color="#555555",
+            bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor="#cccccc", alpha=0.9),
+        )
     fig.tight_layout()
     out_path = out_dir / "figure_lineage_strip_cn.svg"
     fig.savefig(out_path)
@@ -544,8 +595,14 @@ def emit_lineage_strip(cn_by_model: dict, model_metadata: dict, target_symbol: s
     return out_path
 
 
-def emit_plotly_specs(cn_by_model: dict, model_metadata: dict, target_symbol: str,
-                      summary: dict, out_dir: Path, target_contracts_dir: Path) -> list:
+def emit_plotly_specs(
+    cn_by_model: dict,
+    model_metadata: dict,
+    target_symbol: str,
+    summary: dict,
+    out_dir: Path,
+    target_contracts_dir: Path,
+) -> list:
     """Emit interactive Plotly figure specs SIBLING to the copy-number SVGs (dynamic-dashboard twin).
 
     Built from the SAME in-memory cn_by_model the SVGs + plot_data_cn.parquet use → the interactive
@@ -562,6 +619,7 @@ def emit_plotly_specs(cn_by_model: dict, model_metadata: dict, target_symbol: st
     try:
         import numpy as np
         import plotly.graph_objects as go
+
         sys.path.insert(0, str(target_contracts_dir / "plot_styles"))
     except Exception as e:  # noqa: BLE001 — Plotly optional; never block the SVG artifacts
         print(f"[copy-number-distribution] plotly spec emission skipped: {e}", file=sys.stderr)
@@ -569,9 +627,11 @@ def emit_plotly_specs(cn_by_model: dict, model_metadata: dict, target_symbol: st
 
     assay = str(summary.get("cn_assay_used", "wes")).upper()
     axis_title = f"Relative copy number ({assay} gene-level)"
-    reflines = [(SHALLOW_DEL, "#f0a020", "dash", f"shallow del ≤{SHALLOW_DEL}"),
-                (FOCAL_AMP, "#cf2828", "dash", f"focal amp >{FOCAL_AMP}"),
-                (1.0, "#666666", "dot", "diploid 1.0")]
+    reflines = [
+        (SHALLOW_DEL, "#f0a020", "dash", f"shallow del ≤{SHALLOW_DEL}"),
+        (FOCAL_AMP, "#cf2828", "dash", f"focal amp >{FOCAL_AMP}"),
+        (1.0, "#666666", "dot", "diploid 1.0"),
+    ]
     written: list = []
 
     scores = np.array(list(cn_by_model.values()), dtype=float)
@@ -584,17 +644,31 @@ def emit_plotly_specs(cn_by_model: dict, model_metadata: dict, target_symbol: st
     # --- Density histogram (mirrors emit_density_plot) ---
     try:
         clipped = scores[scores <= x_max]
-        fig = go.Figure(go.Histogram(
-            x=clipped, histnorm="probability density", nbinsx=60,
-            marker_color="#0a2540", marker_line_color="white", marker_line_width=0.5, opacity=0.45,
-            hovertemplate="relative CN %{x:.2f}<br>density %{y:.3f}<extra></extra>"))
+        fig = go.Figure(
+            go.Histogram(
+                x=clipped,
+                histnorm="probability density",
+                nbinsx=60,
+                marker_color="#0a2540",
+                marker_line_color="white",
+                marker_line_width=0.5,
+                opacity=0.45,
+                hovertemplate="relative CN %{x:.2f}<br>density %{y:.3f}<extra></extra>",
+            )
+        )
         for xv, col, dash, lab in reflines:
             fig.add_vline(x=xv, line=dict(color=col, dash=dash, width=1.3))
         fig.update_layout(
             title=dict(text=f"{target_symbol} — pan-cancer copy-number (n={len(scores)})", font_size=13),
-            xaxis_title=axis_title, yaxis_title="Density", xaxis=dict(range=[x_min, x_max]),
-            template="plotly_white", showlegend=False, height=300,
-            margin=dict(l=54, r=16, t=40, b=44), font=dict(size=11))
+            xaxis_title=axis_title,
+            yaxis_title="Density",
+            xaxis=dict(range=[x_min, x_max]),
+            template="plotly_white",
+            showlegend=False,
+            height=300,
+            margin=dict(l=54, r=16, t=40, b=44),
+            font=dict(size=11),
+        )
         (out_dir / "figure_density_cn.plotly.json").write_text(fig.to_json())
         written.append({"id": "density_cn", "path": "figure_density_cn.plotly.json", "type": "plotly"})
     except Exception as e:  # noqa: BLE001
@@ -603,23 +677,37 @@ def emit_plotly_specs(cn_by_model: dict, model_metadata: dict, target_symbol: st
     # --- Ranked waterfall (mirrors emit_waterfall_plot; sorted per-cell-line bars, lineage hover) ---
     try:
         rows = sorted(
-            ((mid, v, (model_metadata.get(mid, {}).get("OncotreeLineage") or "unknown"))
-             for mid, v in cn_by_model.items()), key=lambda r: r[1])
+            (
+                (mid, v, (model_metadata.get(mid, {}).get("OncotreeLineage") or "unknown"))
+                for mid, v in cn_by_model.items()
+            ),
+            key=lambda r: r[1],
+        )
         vals = [v for _, v, _ in rows]
         names = [model_metadata.get(mid, {}).get("CCLEName", mid) for mid, _, _ in rows]
         lineages = [lg for _, _, lg in rows]
-        fig = go.Figure(go.Bar(
-            x=list(range(len(rows))), y=vals, marker_color="#0a2540",
-            customdata=list(zip(names, lineages)),
-            hovertemplate="%{customdata[0]}<br>%{customdata[1]}<br>relative CN %{y:.2f}<extra></extra>"))
+        fig = go.Figure(
+            go.Bar(
+                x=list(range(len(rows))),
+                y=vals,
+                marker_color="#0a2540",
+                customdata=list(zip(names, lineages)),
+                hovertemplate="%{customdata[0]}<br>%{customdata[1]}<br>relative CN %{y:.2f}<extra></extra>",
+            )
+        )
         for yv, col, dash, lab in reflines:
-            fig.add_hline(y=yv, line=dict(color=col, dash=dash, width=1.5),
-                          annotation_text=lab, annotation_position="top left")
+            fig.add_hline(
+                y=yv, line=dict(color=col, dash=dash, width=1.5), annotation_text=lab, annotation_position="top left"
+            )
         fig.update_layout(
             title=f"{target_symbol} — pan-cancer CN (ranked waterfall)",
             xaxis_title=f"Cell lines (n={len(rows)}, sorted by CN)",
-            yaxis_title=axis_title, template="plotly_white", showlegend=False,
-            bargap=0, margin=dict(l=60, r=20, t=50, b=50))
+            yaxis_title=axis_title,
+            template="plotly_white",
+            showlegend=False,
+            bargap=0,
+            margin=dict(l=60, r=20, t=50, b=50),
+        )
         (out_dir / "figure_waterfall_cn.plotly.json").write_text(fig.to_json())
         written.append({"id": "waterfall_cn", "path": "figure_waterfall_cn.plotly.json", "type": "plotly"})
     except Exception as e:  # noqa: BLE001
@@ -635,18 +723,31 @@ def emit_plotly_specs(cn_by_model: dict, model_metadata: dict, target_symbol: st
         lins.sort(key=lambda lv: float(np.median(lv[1])))
         fig = go.Figure()
         for lg, vals in lins:
-            fig.add_trace(go.Box(
-                x=vals, name=lg, orientation="h", boxpoints="all", jitter=0.4, pointpos=0,
-                marker=dict(size=3, opacity=0.5, color="#0a2540"),
-                line=dict(color="#7fa7c0", width=1),
-                hovertemplate=f"{lg}<br>relative CN %{{x:.2f}}<extra></extra>"))
+            fig.add_trace(
+                go.Box(
+                    x=vals,
+                    name=lg,
+                    orientation="h",
+                    boxpoints="all",
+                    jitter=0.4,
+                    pointpos=0,
+                    marker=dict(size=3, opacity=0.5, color="#0a2540"),
+                    line=dict(color="#7fa7c0", width=1),
+                    hovertemplate=f"{lg}<br>relative CN %{{x:.2f}}<extra></extra>",
+                )
+            )
         for xv, col, dash, lab in reflines:
             fig.add_vline(x=xv, line=dict(color=col, dash=dash, width=1.2))
         fig.update_layout(
             title=dict(text=f"{target_symbol} — per-lineage CN (n≥5)", font_size=13),
-            xaxis_title=axis_title, xaxis=dict(range=[x_min, x_max]), template="plotly_white",
-            showlegend=False, margin=dict(l=130, r=16, t=40, b=40), font=dict(size=11),
-            height=max(260, 18 * len(lins) + 70))
+            xaxis_title=axis_title,
+            xaxis=dict(range=[x_min, x_max]),
+            template="plotly_white",
+            showlegend=False,
+            margin=dict(l=130, r=16, t=40, b=40),
+            font=dict(size=11),
+            height=max(260, 18 * len(lins) + 70),
+        )
         (out_dir / "figure_lineage_strip_cn.plotly.json").write_text(fig.to_json())
         written.append({"id": "lineage_strip_cn", "path": "figure_lineage_strip_cn.plotly.json", "type": "plotly"})
     except Exception as e:  # noqa: BLE001
@@ -657,26 +758,29 @@ def emit_plotly_specs(cn_by_model: dict, model_metadata: dict, target_symbol: st
 
 def emit_plot_data(cn_by_model: dict, model_metadata: dict, out_path: Path) -> Path:
     import pandas as pd
+
     records = []
     for model_id, cn in cn_by_model.items():
         meta = model_metadata.get(model_id, {})
-        records.append({
-            "model_id": model_id,
-            "ccle_name": meta.get("CCLEName"),
-            "lineage": meta.get("OncotreeLineage"),
-            "relative_cn": cn,
-            "is_deleted": cn <= SHALLOW_DEL,
-            "is_amplified": cn > FOCAL_AMP,
-        })
+        records.append(
+            {
+                "model_id": model_id,
+                "ccle_name": meta.get("CCLEName"),
+                "lineage": meta.get("OncotreeLineage"),
+                "relative_cn": cn,
+                "is_deleted": cn <= SHALLOW_DEL,
+                "is_amplified": cn > FOCAL_AMP,
+            }
+        )
     df = pd.DataFrame(records)
     out_file = out_path / "plot_data_cn.parquet"
     df.to_parquet(out_file, index=False)
     return out_file
 
 
-def emit_manifest(target_symbol: str, release_pin: str, summary: dict,
-                   out_dir: Path, load_errors: list) -> Path:
+def emit_manifest(target_symbol: str, release_pin: str, summary: dict, out_dir: Path, load_errors: list) -> Path:
     import yaml
+
     manifest = {
         "method_id": "depmap-cn-distribution",
         "method_version": METHOD_VERSION,

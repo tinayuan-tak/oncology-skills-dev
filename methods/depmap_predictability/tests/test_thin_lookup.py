@@ -25,37 +25,43 @@ from depmap_predictability import read as e5read  # noqa: E402
 
 def _make_v2_parquet(out_path: Path):
     """Build a small v2 parquet matching production schema."""
-    top_struct = pa.struct([
-        pa.field("feature", pa.string()),
-        pa.field("feature_class", pa.string()),
-        pa.field("importance", pa.float32()),
-        pa.field("rf_importance", pa.float32()),
-    ])
-    lineage_struct = pa.struct([
-        pa.field("lineage", pa.string()),
-        pa.field("n_cell_lines", pa.int32()),
-        pa.field("r2", pa.float32()),
-        pa.field("top_feature", pa.string()),
-    ])
-    schema = pa.schema([
-        pa.field("gene_symbol", pa.string()),
-        pa.field("n_cell_lines_evaluated", pa.int32()),
-        pa.field("pearson_r_rf", pa.float32()),
-        pa.field("pearson_r_squared_rf", pa.float32()),
-        pa.field("pearson_r_squared_rf_ci_lo", pa.float32()),
-        pa.field("pearson_r_squared_rf_ci_hi", pa.float32()),
-        pa.field("pearson_r_xgb", pa.float32()),
-        pa.field("pearson_r_squared_xgb", pa.float32()),
-        pa.field("pearson_r_squared_xgb_ci_lo", pa.float32()),
-        pa.field("pearson_r_squared_xgb_ci_hi", pa.float32()),
-        pa.field("model_agreement", pa.string()),
-        pa.field("delta_r2", pa.float32()),
-        pa.field("top_features_rf_shap", pa.list_(top_struct)),
-        pa.field("top_features_xgb_shap", pa.list_(top_struct)),
-        pa.field("dominant_feature_class", pa.string()),
-        pa.field("predictability_class", pa.string()),
-        pa.field("per_lineage_predictability", pa.list_(lineage_struct)),
-    ])
+    top_struct = pa.struct(
+        [
+            pa.field("feature", pa.string()),
+            pa.field("feature_class", pa.string()),
+            pa.field("importance", pa.float32()),
+            pa.field("rf_importance", pa.float32()),
+        ]
+    )
+    lineage_struct = pa.struct(
+        [
+            pa.field("lineage", pa.string()),
+            pa.field("n_cell_lines", pa.int32()),
+            pa.field("r2", pa.float32()),
+            pa.field("top_feature", pa.string()),
+        ]
+    )
+    schema = pa.schema(
+        [
+            pa.field("gene_symbol", pa.string()),
+            pa.field("n_cell_lines_evaluated", pa.int32()),
+            pa.field("pearson_r_rf", pa.float32()),
+            pa.field("pearson_r_squared_rf", pa.float32()),
+            pa.field("pearson_r_squared_rf_ci_lo", pa.float32()),
+            pa.field("pearson_r_squared_rf_ci_hi", pa.float32()),
+            pa.field("pearson_r_xgb", pa.float32()),
+            pa.field("pearson_r_squared_xgb", pa.float32()),
+            pa.field("pearson_r_squared_xgb_ci_lo", pa.float32()),
+            pa.field("pearson_r_squared_xgb_ci_hi", pa.float32()),
+            pa.field("model_agreement", pa.string()),
+            pa.field("delta_r2", pa.float32()),
+            pa.field("top_features_rf_shap", pa.list_(top_struct)),
+            pa.field("top_features_xgb_shap", pa.list_(top_struct)),
+            pa.field("dominant_feature_class", pa.string()),
+            pa.field("predictability_class", pa.string()),
+            pa.field("per_lineage_predictability", pa.list_(lineage_struct)),
+        ]
+    )
     rows = {
         "gene_symbol": ["BRAF", "KRAS", "TP53"],
         "n_cell_lines_evaluated": [1180, 1250, 1300],
@@ -70,34 +76,67 @@ def _make_v2_parquet(out_path: Path):
         "model_agreement": ["concordant", "concordant", "concordant"],
         "delta_r2": [-0.03, -0.03, -0.01],
         "top_features_rf_shap": [
-            [{"feature": "own_mut_hotspot", "feature_class": "own_mut_hotspot",
-              "importance": 0.51, "rf_importance": 0.42},
-             {"feature": "lineage_Skin", "feature_class": "lineage",
-              "importance": 0.18, "rf_importance": 0.09}],
-            [{"feature": "own_mut_hotspot", "feature_class": "own_mut_hotspot",
-              "importance": 0.42, "rf_importance": 0.38},
-             {"feature": "lineage_Bowel", "feature_class": "lineage",
-              "importance": 0.20, "rf_importance": 0.10}],
-            [{"feature": "own_mut_damaging", "feature_class": "own_mut_damaging",
-              "importance": 0.08, "rf_importance": 0.07}],
+            [
+                {
+                    "feature": "own_mut_hotspot",
+                    "feature_class": "own_mut_hotspot",
+                    "importance": 0.51,
+                    "rf_importance": 0.42,
+                },
+                {"feature": "lineage_Skin", "feature_class": "lineage", "importance": 0.18, "rf_importance": 0.09},
+            ],
+            [
+                {
+                    "feature": "own_mut_hotspot",
+                    "feature_class": "own_mut_hotspot",
+                    "importance": 0.42,
+                    "rf_importance": 0.38,
+                },
+                {"feature": "lineage_Bowel", "feature_class": "lineage", "importance": 0.20, "rf_importance": 0.10},
+            ],
+            [
+                {
+                    "feature": "own_mut_damaging",
+                    "feature_class": "own_mut_damaging",
+                    "importance": 0.08,
+                    "rf_importance": 0.07,
+                }
+            ],
         ],
         "top_features_xgb_shap": [
-            [{"feature": "own_mut_hotspot", "feature_class": "own_mut_hotspot",
-              "importance": 0.52, "rf_importance": 0.0}],
-            [{"feature": "own_mut_hotspot", "feature_class": "own_mut_hotspot",
-              "importance": 0.44, "rf_importance": 0.0}],
-            [{"feature": "own_mut_damaging", "feature_class": "own_mut_damaging",
-              "importance": 0.09, "rf_importance": 0.0}],
+            [
+                {
+                    "feature": "own_mut_hotspot",
+                    "feature_class": "own_mut_hotspot",
+                    "importance": 0.52,
+                    "rf_importance": 0.0,
+                }
+            ],
+            [
+                {
+                    "feature": "own_mut_hotspot",
+                    "feature_class": "own_mut_hotspot",
+                    "importance": 0.44,
+                    "rf_importance": 0.0,
+                }
+            ],
+            [
+                {
+                    "feature": "own_mut_damaging",
+                    "feature_class": "own_mut_damaging",
+                    "importance": 0.09,
+                    "rf_importance": 0.0,
+                }
+            ],
         ],
         "dominant_feature_class": ["own_mut_hotspot", "own_mut_hotspot", "unpredictable"],
         "predictability_class": ["own_omics_driven", "own_omics_driven", "unpredictable"],
         "per_lineage_predictability": [
-            [{"lineage": "Skin", "n_cell_lines": 60, "r2": 0.72,
-              "top_feature": "own_mut_hotspot"}],
-            [{"lineage": "Bowel", "n_cell_lines": 80, "r2": 0.65,
-              "top_feature": "own_mut_hotspot"},
-             {"lineage": "Pancreas", "n_cell_lines": 45, "r2": 0.60,
-              "top_feature": "own_mut_hotspot"}],
+            [{"lineage": "Skin", "n_cell_lines": 60, "r2": 0.72, "top_feature": "own_mut_hotspot"}],
+            [
+                {"lineage": "Bowel", "n_cell_lines": 80, "r2": 0.65, "top_feature": "own_mut_hotspot"},
+                {"lineage": "Pancreas", "n_cell_lines": 45, "r2": 0.60, "top_feature": "own_mut_hotspot"},
+            ],
             [],
         ],
     }

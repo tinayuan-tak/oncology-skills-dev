@@ -5,6 +5,7 @@ same quadrant coloring + reflines at 0.10 / 0.30 (both axes) + 0. Built from the
 summary['per_compound_concordance'] the SVG + the shared v4 parquet use — no drift. No S3
 (synthetic summary). Plotly optional; thin/absent evidence → no-op.
 """
+
 from __future__ import annotations
 
 import base64
@@ -37,8 +38,8 @@ cli = _load()
 def _decode(v):
     if isinstance(v, dict) and "bdata" in v:
         import numpy as np
-        return np.frombuffer(base64.b64decode(v["bdata"]),
-                             dtype={"f8": "<f8", "f4": "<f4"}[v["dtype"]]).tolist()
+
+        return np.frombuffer(base64.b64decode(v["bdata"]), dtype={"f8": "<f8", "f4": "<f4"}[v["dtype"]]).tolist()
     return list(v)
 
 
@@ -79,8 +80,7 @@ def test_threshold_reflines_present():
         out = Path(d)
         cli.emit_plotly_specs(_summary(), "KRAS", out, CONTRACTS)
         obj = json.loads((out / "figure_concordance_scatter.plotly.json").read_text())
-        xvals = {round(s.get("x0", -99), 2) for s in obj["layout"].get("shapes", [])
-                 if s.get("x0") == s.get("x1")}
+        xvals = {round(s.get("x0", -99), 2) for s in obj["layout"].get("shapes", []) if s.get("x0") == s.get("x1")}
         assert {0.1, 0.3, 0.0} <= xvals, f"missing threshold/zero reflines; got {xvals}"
 
 
@@ -89,6 +89,5 @@ def test_thin_evidence_no_op():
         out = Path(d)
         assert cli.emit_plotly_specs({"per_compound_concordance": []}, "KRAS", out, CONTRACTS) == []
         # a row with both rhos None is also thin
-        thin = {"per_compound_concordance": [{"drug_name": "x", "spearman_r_crispr": None,
-                                              "spearman_r_rnai": None}]}
+        thin = {"per_compound_concordance": [{"drug_name": "x", "spearman_r_crispr": None, "spearman_r_rnai": None}]}
         assert cli.emit_plotly_specs(thin, "KRAS", out, CONTRACTS) == []

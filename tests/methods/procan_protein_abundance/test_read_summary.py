@@ -10,6 +10,7 @@ No S3: a synthetic local long/tidy parquet (the derived product's schema) is rea
   * read_target_summary degrades to _live_read_error on a load fault (never crashes the compose path);
   * per-lineage stratification is empty (SIDM ids have no OncotreeLineage crosswalk yet).
 """
+
 from __future__ import annotations
 
 import importlib
@@ -29,12 +30,24 @@ read = importlib.import_module("methods.procan_protein_abundance.read")
 # The fields the cellline-protein-abundance card declares in outputs.summary_fields — the reader MUST
 # emit all of them (the drift guard). Kept explicit so a card/reader divergence fails HERE.
 _CARD_SUMMARY_FIELDS = {
-    "n_cell_lines_evaluated", "n_cell_lines_in_panel", "fraction_detected",
-    "median_log2_abundance_panel", "p25_log2_abundance_panel", "p75_log2_abundance_panel",
-    "p5_log2_abundance_panel", "p95_log2_abundance_panel", "log2_abundance_iqr",
-    "protein_expression_class", "protein_effect_size", "n_lineages_evaluated", "per_lineage_stats",
-    "n_lineage_restricted_lineages", "method_version",
-    "allgene_percentile", "allgene_percentile_class", "allgene_percentile_context",
+    "n_cell_lines_evaluated",
+    "n_cell_lines_in_panel",
+    "fraction_detected",
+    "median_log2_abundance_panel",
+    "p25_log2_abundance_panel",
+    "p75_log2_abundance_panel",
+    "p5_log2_abundance_panel",
+    "p95_log2_abundance_panel",
+    "log2_abundance_iqr",
+    "protein_expression_class",
+    "protein_effect_size",
+    "n_lineages_evaluated",
+    "per_lineage_stats",
+    "n_lineage_restricted_lineages",
+    "method_version",
+    "allgene_percentile",
+    "allgene_percentile_class",
+    "allgene_percentile_context",
 }
 _CLASS_VOCAB = {"broadly_high", "broadly_moderate", "lineage_restricted", "broadly_low", "data_unavailable"}
 
@@ -111,7 +124,7 @@ def test_broadly_high_reachable_with_null(tmp_path, monkeypatch):
 
 
 def test_unresolved_symbol_is_data_unavailable(tmp_path, monkeypatch):
-    _patch_map(monkeypatch, {})   # symbol not in the map
+    _patch_map(monkeypatch, {})  # symbol not in the map
     _patch_panel(monkeypatch, 100)
     prod = _mk_null_background(tmp_path, [])
     out = cli.load_and_classify("GHOST", product_path=prod, null_path=prod)
@@ -121,10 +134,20 @@ def test_unresolved_symbol_is_data_unavailable(tmp_path, monkeypatch):
     assert out["allgene_percentile_class"] == "data_unavailable"
     # The gap path emits the core fields (parity with the Gygi sibling's compute_summary None-branch,
     # which omits the p*/iqr detail — headline/rules read those via get_card_field → None, safely).
-    _GAP_CORE = {"protein_expression_class", "n_cell_lines_evaluated", "n_cell_lines_in_panel",
-                 "fraction_detected", "median_log2_abundance_panel", "protein_effect_size",
-                 "per_lineage_stats", "method_version", "protein_abundance_source",
-                 "allgene_percentile", "allgene_percentile_class", "allgene_percentile_context"}
+    _GAP_CORE = {
+        "protein_expression_class",
+        "n_cell_lines_evaluated",
+        "n_cell_lines_in_panel",
+        "fraction_detected",
+        "median_log2_abundance_panel",
+        "protein_effect_size",
+        "per_lineage_stats",
+        "method_version",
+        "protein_abundance_source",
+        "allgene_percentile",
+        "allgene_percentile_class",
+        "allgene_percentile_context",
+    }
     assert set(out) >= _GAP_CORE
 
 
@@ -140,6 +163,7 @@ def test_accession_absent_from_panel_is_data_unavailable(tmp_path, monkeypatch):
 def test_read_target_summary_degrades_on_fault(monkeypatch):
     def _boom(*a, **k):
         raise RuntimeError("s3 down")
+
     monkeypatch.setattr(cli, "load_and_classify", _boom)
     out = read.read_target_summary("EGFR", indication="COADREAD")
     assert out["_live_read_error"] == "procan_protein_abundance_read_failed"
@@ -153,8 +177,9 @@ def test_isoform_tiebreak_picks_min_uniprot_id(tmp_path, monkeypatch):
     """Two uniprot_id share the base accession → deterministically pick the min (parity with Gygi)."""
     _patch_map(monkeypatch, {"EGFR": ["P00533"]})
     _patch_panel(monkeypatch, 100)
-    tgt = ([("P00533", "EGFR_HUMAN", f"SIDM{i:04d}", 5.0) for i in range(20)]
-           + [("P00533", "AAAA_HUMAN", f"SIDM{i:04d}", 1.0) for i in range(20)])  # min uid = AAAA_HUMAN
+    tgt = [("P00533", "EGFR_HUMAN", f"SIDM{i:04d}", 5.0) for i in range(20)] + [
+        ("P00533", "AAAA_HUMAN", f"SIDM{i:04d}", 1.0) for i in range(20)
+    ]  # min uid = AAAA_HUMAN
     prod = _mk_null_background(tmp_path, tgt)
     out = cli.load_and_classify("EGFR", product_path=prod, null_path=prod)
     assert out["median_log2_abundance_panel"] == 1.0  # AAAA_HUMAN rows chosen

@@ -12,6 +12,7 @@ Usage:
   python -m methods.allgene_percentile_precompute.build_depmap_rank \\
       --matrix <path-or-s3>  --out <dir>/depmap_panel_median_allgene_rank.parquet [--no-upload]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -23,14 +24,16 @@ from pathlib import Path
 
 S3_BUCKET = "onc-compbio"
 OUTPUT_S3_PREFIX = "data-catalog/derived/allgene-depmap-rank-26q1-v1"
-_S3_MATRIX = ("s3://onc-compbio/data-catalog/derived/depmap-26q1-parquet-v1/"
-              "OmicsExpressionTPMLogp1HumanProteinCodingGenes.parquet")
+_S3_MATRIX = (
+    "s3://onc-compbio/data-catalog/derived/depmap-26q1-parquet-v1/"
+    "OmicsExpressionTPMLogp1HumanProteinCodingGenes.parquet"
+)
 
 # DepMap wide columns are 'SYMBOL (ENTREZ)'; split to (symbol, entrez).
 _COL_RE = re.compile(r"^(?P<sym>.+?)\s+\((?P<entrez>\d+)\)$")
 
 CORRECTNESS_CHECKS = [  # (symbol, comparator, threshold_pct)
-    ("ACTB", ">=", 99.0),   # housekeeping → ceiling
+    ("ACTB", ">=", 99.0),  # housekeeping → ceiling
     ("SFTPC", "<=", 20.0),  # lung marker → bottom in pan-cancer panel
 ]
 
@@ -54,15 +57,15 @@ def build(matrix_uri: str):
 
     t0 = time.time()
     if matrix_uri.startswith("s3://"):
-        table = pq.read_table(matrix_uri[len("s3://"):], filesystem=fs.S3FileSystem())
+        table = pq.read_table(matrix_uri[len("s3://") :], filesystem=fs.S3FileSystem())
     else:
         table = pq.read_table(matrix_uri)
     df = table.to_pandas()
-    _log(f"[read] {df.shape[0]} lines × {df.shape[1]} cols in {time.time()-t0:.1f}s")
+    _log(f"[read] {df.shape[0]} lines × {df.shape[1]} cols in {time.time() - t0:.1f}s")
 
     idcol = df.columns[0]
     gene_cols = [c for c in df.columns if c != idcol and not c.startswith("IsDefault")]
-    med = df[gene_cols].median(axis=0, numeric_only=True)   # panel median per gene column
+    med = df[gene_cols].median(axis=0, numeric_only=True)  # panel median per gene column
 
     rows = []
     for col, m in med.items():
@@ -82,18 +85,24 @@ def build(matrix_uri: str):
 def write(df, out: Path, row_group_size: int = 8192) -> dict:
     import pyarrow as pa
     import pyarrow.parquet as pq
+
     out.parent.mkdir(parents=True, exist_ok=True)
-    schema = pa.schema([
-        pa.field("gene_symbol", pa.string()),
-        pa.field("entrez_gene_id", pa.string()),
-        pa.field("panel_median_log2tpm", pa.float32()),
-        pa.field("allgene_percentile", pa.float32()),
-        pa.field("allgene_rank", pa.int32()),
-        pa.field("n_genes", pa.int32()),
-    ])
-    pq.write_table(pa.Table.from_pandas(df[[f.name for f in schema]], schema=schema,
-                                        preserve_index=False),
-                   str(out), compression="snappy", row_group_size=row_group_size)
+    schema = pa.schema(
+        [
+            pa.field("gene_symbol", pa.string()),
+            pa.field("entrez_gene_id", pa.string()),
+            pa.field("panel_median_log2tpm", pa.float32()),
+            pa.field("allgene_percentile", pa.float32()),
+            pa.field("allgene_rank", pa.int32()),
+            pa.field("n_genes", pa.int32()),
+        ]
+    )
+    pq.write_table(
+        pa.Table.from_pandas(df[[f.name for f in schema]], schema=schema, preserve_index=False),
+        str(out),
+        compression="snappy",
+        row_group_size=row_group_size,
+    )
     md5 = _md5_hex(out)
     return {"md5": md5, "size_bytes": out.stat().st_size, "n_rows": len(df)}
 
@@ -119,9 +128,9 @@ def main(argv=None) -> int:
 
     if not args.no_upload:
         import boto3
+
         key = f"{OUTPUT_S3_PREFIX}/{args.out.name}"
-        boto3.client("s3").upload_file(str(args.out), S3_BUCKET, key,
-                                       ExtraArgs={"Metadata": {"md5": meta["md5"]}})
+        boto3.client("s3").upload_file(str(args.out), S3_BUCKET, key, ExtraArgs={"Metadata": {"md5": meta["md5"]}})
         _log(f"[upload] s3://{S3_BUCKET}/{key}")
     else:
         _log("[upload] skipped (--no-upload)")

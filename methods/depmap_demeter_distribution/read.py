@@ -17,10 +17,13 @@ from typing import Optional
 from . import cli as _cli
 
 
-def read_pan_cancer_rnai_distribution(target: str, indication: Optional[str] = None,
-                                       strong_threshold: float = -0.5,
-                                       moderate_threshold: float = -0.25,
-                                       plot_data_out: Optional[Path] = None) -> Optional[dict]:
+def read_pan_cancer_rnai_distribution(
+    target: str,
+    indication: Optional[str] = None,
+    strong_threshold: float = -0.5,
+    moderate_threshold: float = -0.25,
+    plot_data_out: Optional[Path] = None,
+) -> Optional[dict]:
     """Compute the pan-cancer RNAi dependency distribution for target. Returns the
     summary dict matching the pan-cancer-rnai-dependency-distribution card's
     outputs.summary_fields. The `indication` parameter is intentionally ignored.
@@ -47,8 +50,9 @@ def read_pan_cancer_rnai_distribution(target: str, indication: Optional[str] = N
         }
 
     summary = _cli.compute_summary_stats(
-        demeter_by_model, model_metadata,
-        sample_info_df=sample_info_df,   # Track C fix: was dropped → rnai_screens_contributing always []
+        demeter_by_model,
+        model_metadata,
+        sample_info_df=sample_info_df,  # Track C fix: was dropped → rnai_screens_contributing always []
         strong_threshold=strong_threshold,
         moderate_threshold=moderate_threshold,
     )

@@ -13,6 +13,7 @@ same S3 key, prints new md5 + size_bytes for each. Safe to re-run (idempotent on
 Usage:
     AWS_PROFILE=cbg python3 scripts/resort_sort_mismatch_products.py [--dry-run] [--product ID]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -90,8 +91,7 @@ def resort_product(product: dict, work_dir: Path, s3, dry_run: bool) -> dict:
         print(f"[{pid}] DRY RUN — skipping S3 upload", flush=True)
     else:
         print(f"[{pid}] uploading to s3://{S3_BUCKET}/{s3_key} ...", flush=True)
-        s3.upload_file(str(local_out), S3_BUCKET, s3_key,
-                       ExtraArgs={"Metadata": {"md5": new_md5}})
+        s3.upload_file(str(local_out), S3_BUCKET, s3_key, ExtraArgs={"Metadata": {"md5": new_md5}})
         print(f"[{pid}] upload complete", flush=True)
 
     return {"id": pid, "md5": new_md5, "size_bytes": new_size, "n_row_groups": n_rg}
@@ -101,8 +101,9 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--dry-run", action="store_true", help="skip S3 upload")
     ap.add_argument("--product", default=None, help="run only this product id")
-    ap.add_argument("--work-dir", type=Path, default=None,
-                    help="local scratch dir (default: /tmp/resort_sort_mismatch)")
+    ap.add_argument(
+        "--work-dir", type=Path, default=None, help="local scratch dir (default: /tmp/resort_sort_mismatch)"
+    )
     args = ap.parse_args()
 
     os.environ.setdefault("AWS_PROFILE", AWS_PROFILE)

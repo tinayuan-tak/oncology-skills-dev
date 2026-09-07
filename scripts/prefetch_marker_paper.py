@@ -112,8 +112,7 @@ INDICATION_PERCOHORT_SUBTYPE: dict[str, dict] = {
 # normalized clinical columns onto the marker-paper frame so directly-tagged
 # clinical rules (clinical.hpv_status == 'positive', clinical.anatomic_site ==
 # 'oropharyngeal') fire without a separate emitter path.
-_CLINICAL_S3 = ("data-catalog/sources/gdc-pancanatlas/2018-snapshot-2026-06-27/"
-                "clinical_PANCAN_patient_with_followup.tsv")
+_CLINICAL_S3 = "data-catalog/sources/gdc-pancanatlas/2018-snapshot-2026-06-27/clinical_PANCAN_patient_with_followup.tsv"
 
 # TCGA-HNSC anatomic_neoplasm_subdivision (fine-grained) → catalog site buckets.
 # Oropharyngeal = HPV-enriched (tonsil, base of tongue, oropharynx); oral cavity
@@ -138,7 +137,7 @@ _HNSC_SITE_GROUPING = {
 # `hpv_col` is the raw p16 column normalized to positive/negative/null.
 INDICATION_CLINICAL_ENRICH: dict[str, dict] = {
     "HNSC": {
-        "hpv_col": "hpv_status_by_p16_testing",   # Positive/Negative/[Not Available]/...
+        "hpv_col": "hpv_status_by_p16_testing",  # Positive/Negative/[Not Available]/...
         "site_col": "anatomic_neoplasm_subdivision",
         "site_grouping": _HNSC_SITE_GROUPING,
     },
@@ -163,7 +162,8 @@ def _s3_download_key(key: str, dest: Path, dry_run: bool) -> None:
     _log(f"downloading s3://{S3_BUCKET}/{key} → {dest}")
     r = subprocess.run(
         ["aws", "s3", "cp", f"s3://{S3_BUCKET}/{key}", str(dest), "--no-progress"],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     if r.returncode != 0:
         _log(f"download FAILED: {r.stderr}")
@@ -182,7 +182,8 @@ def _s3_download(filename: str, dest: Path, dry_run: bool) -> None:
     _log(f"downloading s3://{S3_BUCKET}/{key} → {dest}")
     r = subprocess.run(
         ["aws", "s3", "cp", f"s3://{S3_BUCKET}/{key}", str(dest), "--no-progress"],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     if r.returncode != 0:
         _log(f"download FAILED: {r.stderr}")
@@ -198,8 +199,10 @@ def main(indication: str) -> int:
     pancan_only = INDICATION_PANCAN_ONLY.get(ind)
     _log(f"=== prefetch marker-paper × {ind} ===")
     if cohorts is None and pancan_only is None:
-        _log(f"No marker-paper cohort mapping for {ind}; add it to INDICATION_COHORTS "
-             f"or INDICATION_PANCAN_ONLY. (AML has no marker-paper LAML file — see the D7 audit.)")
+        _log(
+            f"No marker-paper cohort mapping for {ind}; add it to INDICATION_COHORTS "
+            f"or INDICATION_PANCAN_ONLY. (AML has no marker-paper LAML file — see the D7 audit.)"
+        )
         sys.exit(1)
 
     out_dir = Path.home() / ".cache" / "framework-tcga-marker-paper" / ind.lower()
@@ -228,8 +231,10 @@ def main(indication: str) -> int:
         h_map = pancan_only.get("histology_from_subtype")
         if h_map:
             composed["histology"] = composed["Subtype_Selected"].map(h_map)
-            _log(f"  {pancan_only['cancer_type']} pancan-only: {len(composed)} patients | "
-                 f"histology: {composed['histology'].value_counts(dropna=False).to_dict()}")
+            _log(
+                f"  {pancan_only['cancer_type']} pancan-only: {len(composed)} patients | "
+                f"histology: {composed['histology'].value_counts(dropna=False).to_dict()}"
+            )
     else:
         frames = []
         for filename, histology in cohorts:
@@ -237,13 +242,14 @@ def main(indication: str) -> int:
             _s3_download(filename, local, dry_run=False)
             df = pd.read_csv(local)
             if "patient" not in df.columns:
-                _log(f"WARNING: {filename} has no `patient` column — the directly_tagged "
-                     f"loader joins on it. Columns: {list(df.columns)[:6]}")
+                _log(
+                    f"WARNING: {filename} has no `patient` column — the directly_tagged "
+                    f"loader joins on it. Columns: {list(df.columns)[:6]}"
+                )
             if histology is not None:
                 df["histology"] = histology
             frames.append(df)
-            _log(f"  {filename}: {len(df)} rows"
-                 + (f" (histology={histology})" if histology else ""))
+            _log(f"  {filename}: {len(df)} rows" + (f" (histology={histology})" if histology else ""))
         composed = pd.concat(frames, ignore_index=True) if len(frames) > 1 else frames[0]
 
     # Per-cohort subtype mapping (PAAD Moffitt: numeric-coded column → vocab).
@@ -254,8 +260,7 @@ def main(indication: str) -> int:
             composed[pcs["out_col"]] = composed[src].map(pcs["value_map"])
             _log(f"  mapped {pcs['out_col']}: {composed[pcs['out_col']].value_counts(dropna=False).to_dict()}")
         else:
-            _log(f"WARNING: per-cohort subtype src column {src!r} not found; "
-                 f"columns: {list(composed.columns)[:8]}")
+            _log(f"WARNING: per-cohort subtype src column {src!r} not found; columns: {list(composed.columns)[:8]}")
 
     # Enrich with the published molecular subtype from the PanCanAtlas curated
     # table when the per-cohort file lacks it (HNSC Bass subtypes etc.). Joins on
@@ -269,8 +274,7 @@ def main(indication: str) -> int:
         cur = pd.read_csv(curated_local)
         cur = cur[cur["cancer.type"] == cancer_type][["pan.samplesID", "Subtype_Selected"]].copy()
         cur["patient"] = cur["pan.samplesID"].str[:12]
-        cur[out_col] = cur["Subtype_Selected"].astype(str).str.replace(
-            strip_prefix, "", regex=False)
+        cur[out_col] = cur["Subtype_Selected"].astype(str).str.replace(strip_prefix, "", regex=False)
         cur = cur[["patient", out_col]].drop_duplicates("patient")
         composed = composed.merge(cur, on="patient", how="left")
         _log(f"  enriched {out_col}: {composed[out_col].value_counts(dropna=False).to_dict()}")

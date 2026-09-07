@@ -3,6 +3,7 @@ except (bucket_key_for) must PROPAGATE a broken-resolver / broken-env failure ra
 a coverage gap (None) -- while a GENUINE object-absence (NoSuchKey) still yields None (data_unavailable),
 unchanged. (The pq read below already carries its own discriminant.)
 """
+
 from __future__ import annotations
 
 import sys
@@ -26,11 +27,12 @@ def _nosuchkey():
 def _raise(exc):
     def f(*a, **k):
         raise exc
+
     return f
 
 
 def test_bucket_key_transient_reraises(monkeypatch, tmp_path):
-    monkeypatch.setattr(gen, "GENIE_MAF_LOCAL", tmp_path)          # no local cache -> S3 path
+    monkeypatch.setattr(gen, "GENIE_MAF_LOCAL", tmp_path)  # no local cache -> S3 path
     monkeypatch.setattr(cq, "bucket_key_for", _raise(RuntimeError("catalog resolver broken")))
     with pytest.raises(RuntimeError):
         gen._load_genie_maf("COADREAD")

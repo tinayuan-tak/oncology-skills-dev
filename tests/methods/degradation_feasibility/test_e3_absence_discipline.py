@@ -3,6 +3,7 @@ absence as NEUTRAL (-> None), but must NOT swallow a transient/broken-env failur
 downgrades a real `ubiquitination_substrate` positive to `plausible_untested`. A transient error
 re-raises and propagates through the public entrypoint (surfaced as _live_read_error by the seam).
 """
+
 from __future__ import annotations
 
 import sys
@@ -27,6 +28,7 @@ def _nosuchkey():
 def _raise(exc):
     def f(*a, **k):
         raise exc
+
     return f
 
 

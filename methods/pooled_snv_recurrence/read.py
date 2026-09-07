@@ -16,6 +16,7 @@ CAVEAT (encoded in the manifest + card): MSK cohorts are metastatic/hypermutator
 burden can inflate raw frequency; the within-indication percentile reframe partially controls it (all
 genes rise together), but cross-cohort batch effects remain — hence `cohorts_contributing` provenance.
 """
+
 from __future__ import annotations
 
 from functools import lru_cache
@@ -58,12 +59,18 @@ def _mc3_gene_counts(indication: str) -> dict:
     """{gene: (n_mut, n_cov)} from the TCGA-MC3 hotspot-frequency aggregate (gene-summary rows). WES →
     n_cov = n_samples_in_indication (every gene covered). Empty on any absence (MC3 not the whole pool)."""
     from methods.gdc_somatic_hotspot.read import (
-        _read_product_table, _resolve_aggregate_path, _HOTSPOT_FREQUENCY_MANIFEST)
+        _read_product_table,
+        _resolve_aggregate_path,
+        _HOTSPOT_FREQUENCY_MANIFEST,
+    )
+
     try:
         tbl = _read_product_table(
-            _resolve_aggregate_path(indication), _HOTSPOT_FREQUENCY_MANIFEST,
+            _resolve_aggregate_path(indication),
+            _HOTSPOT_FREQUENCY_MANIFEST,
             filters=[("indication", "=", indication)],
-            columns=["gene_symbol", "hotspot_protein_change", "n_samples_mutated", "n_samples_in_indication"])
+            columns=["gene_symbol", "hotspot_protein_change", "n_samples_mutated", "n_samples_in_indication"],
+        )
         if tbl is None:
             return {}
         df = tbl.to_pandas()
@@ -82,6 +89,7 @@ def _genie_gene_counts(indication: str) -> dict:
     """{gene: (n_mut, n_cov)} from the GENIE coverage-correct frequencies (gene, freq, n_cov, n_mut)."""
     try:
         from methods.genie_panel_recurrence.read import _covered_gene_frequencies
+
         return {g: (int(n_mut), int(n_cov)) for g, _f, n_cov, n_mut in _covered_gene_frequencies(indication)}
     except Exception:  # noqa: BLE001
         return {}
@@ -91,6 +99,7 @@ def _msk_gene_counts(indication: str) -> dict:
     """{gene: (n_mut, n_cov)} from the MSK-CHORD coverage-correct frequencies (gene, n_mut, n_cov)."""
     try:
         from methods.msk_panel_coverage.read import msk_covered_gene_frequencies
+
         return {g: (int(n_mut), int(n_cov)) for g, n_mut, n_cov in msk_covered_gene_frequencies(indication)}
     except Exception:  # noqa: BLE001
         return {}
@@ -129,12 +138,13 @@ def _pooled_from_product(target: str, indication: str, cutoffs: dict = None):
         import pandas as pd
         import pyarrow.fs as fs
         import pyarrow.parquet as pq
+
         path = uri.replace("s3://", "", 1)
-        df = pq.read_table(path, filesystem=fs.S3FileSystem(),
-                           filters=[("indication", "=", indication),
-                                    ("gene_symbol", "=", target)]).to_pandas()
+        df = pq.read_table(
+            path, filesystem=fs.S3FileSystem(), filters=[("indication", "=", indication), ("gene_symbol", "=", target)]
+        ).to_pandas()
         if df.empty:
-            return None   # not a rankable row → live fallback (distinguishes uncovered vs too-thin)
+            return None  # not a rankable row → live fallback (distinguishes uncovered vs too-thin)
         row = df.iloc[0]
         cohorts = str(row["cohorts_contributing"]).split(",") if row["cohorts_contributing"] else []
         n_ranked = int(row["n_ranked_genes"])
@@ -142,19 +152,24 @@ def _pooled_from_product(target: str, indication: str, cutoffs: dict = None):
             "pooled_mutation_frequency": float(row["pooled_mutation_frequency"]),
             "n_covered_pooled": int(row["n_covered_pooled"]),
             "n_mutated_pooled": int(row["n_mutated_pooled"]),
-            "pooled_driver_recurrence_percentile": (None if pd.isna(row["pooled_driver_recurrence_percentile"])
-                                                    else float(row["pooled_driver_recurrence_percentile"])),
+            "pooled_driver_recurrence_percentile": (
+                None
+                if pd.isna(row["pooled_driver_recurrence_percentile"])
+                else float(row["pooled_driver_recurrence_percentile"])
+            ),
             "pooled_driver_recurrence_class": str(row["pooled_driver_recurrence_class"]),
             "cohorts_contributing": cohorts,
             "pooled_recurrence_context": (
                 f"pooled {'+'.join(cohorts)} — {target} ranks among {n_ranked} "
-                f"panel-covered genes in {indication} (summed-counts/summed-coverage)"),
+                f"panel-covered genes in {indication} (summed-counts/summed-coverage)"
+            ),
         }
     except Exception as e:  # noqa: BLE001
         from methods.target_id_sidecar import is_definitively_absent
+
         if not (isinstance(e, FileNotFoundError) or is_definitively_absent(e)):
             raise
-        return None   # product object genuinely absent → live fallback
+        return None  # product object genuinely absent → live fallback
 
 
 def pooled_recurrence_for_gene(target: str, indication: str, cutoffs: dict = None) -> dict:
@@ -165,22 +180,32 @@ def pooled_recurrence_for_gene(target: str, indication: str, cutoffs: dict = Non
     Prefers the precomputed per-(indication, gene) product (pushdown; avoids rebuilding the pooled null
     LIVE — the MSK-CHORD + GENIE panel-coverage loads). Falls back to the live computation when the
     product is unreachable or the gene is not a rankable product row. Byte-identical either way."""
-    indication = to_cohort_canonical(indication)   # LUAD/LUSC -> NSCLC (patient-cohort canonical grain)
+    indication = to_cohort_canonical(indication)  # LUAD/LUSC -> NSCLC (patient-cohort canonical grain)
     prod = _pooled_from_product(target, indication, cutoffs)
     if prod is not None:
         return prod
     pooled = _pooled_for_indication(indication)
     if not pooled:
-        return {"pooled_driver_recurrence_class": "data_unavailable",
-                "pooled_driver_recurrence_percentile": None, "pooled_mutation_frequency": None,
-                "n_covered_pooled": None, "n_mutated_pooled": None, "cohorts_contributing": [],
-                "pooled_recurrence_context": f"no pooled SNV recurrence cohort for {indication}"}
+        return {
+            "pooled_driver_recurrence_class": "data_unavailable",
+            "pooled_driver_recurrence_percentile": None,
+            "pooled_mutation_frequency": None,
+            "n_covered_pooled": None,
+            "n_mutated_pooled": None,
+            "cohorts_contributing": [],
+            "pooled_recurrence_context": f"no pooled SNV recurrence cohort for {indication}",
+        }
     entry = pooled.get(target)
     if entry is None or entry["n_cov"] == 0:
-        return {"pooled_driver_recurrence_class": "data_unavailable",
-                "pooled_driver_recurrence_percentile": None, "pooled_mutation_frequency": None,
-                "n_covered_pooled": 0, "n_mutated_pooled": 0, "cohorts_contributing": [],
-                "pooled_recurrence_context": f"{target} covered by no pooled cohort in {indication}"}
+        return {
+            "pooled_driver_recurrence_class": "data_unavailable",
+            "pooled_driver_recurrence_percentile": None,
+            "pooled_mutation_frequency": None,
+            "n_covered_pooled": 0,
+            "n_mutated_pooled": 0,
+            "cohorts_contributing": [],
+            "pooled_recurrence_context": f"{target} covered by no pooled cohort in {indication}",
+        }
     freq = entry["n_mut"] / entry["n_cov"]
     null_vec = tuple(e["n_mut"] / e["n_cov"] for e in pooled.values() if e["n_cov"] >= _MIN_COVERED)
     if entry["n_cov"] < _MIN_COVERED or not null_vec:
@@ -188,10 +213,13 @@ def pooled_recurrence_for_gene(target: str, indication: str, cutoffs: dict = Non
         note = f"{target} pooled coverage {entry['n_cov']} < {_MIN_COVERED} (too thin to rank)"
     else:
         from methods.percentile_null import percentile_rank, classify_percentile
+
         pct = percentile_rank(freq, null_vec)
         cls = classify_percentile(pct, cutoffs or DEFAULT_CUTOFFS)
-        note = (f"pooled {'+'.join(entry['cohorts'])} — {target} ranks among {len(null_vec)} "
-                f"panel-covered genes in {indication} (summed-counts/summed-coverage)")
+        note = (
+            f"pooled {'+'.join(entry['cohorts'])} — {target} ranks among {len(null_vec)} "
+            f"panel-covered genes in {indication} (summed-counts/summed-coverage)"
+        )
     return {
         "pooled_mutation_frequency": freq,
         "n_covered_pooled": entry["n_cov"],
@@ -207,37 +235,50 @@ def build_pooled_recurrence_table(indication: str):
     """Materialize the per-gene pooled recurrence table for one indication. One row per pooled-covered
     gene (n_cov >= _MIN_COVERED); percentile ranked among that same set."""
     import pyarrow as pa
+
     pooled = _pooled_for_indication(indication)
     rankable = {g: e for g, e in pooled.items() if e["n_cov"] >= _MIN_COVERED}
     if not rankable:
         return pa.Table.from_pylist([], schema=_schema())
     from methods.percentile_null import percentile_rank, classify_percentile
+
     null_vec = tuple(e["n_mut"] / e["n_cov"] for e in rankable.values())
-    n_ranked = len(null_vec)   # == len(null_vec) in pooled_recurrence_for_gene → lets the product-read
-                               # reader reconstruct the context string byte-identically (see _pooled_from_product).
+    n_ranked = len(null_vec)  # == len(null_vec) in pooled_recurrence_for_gene → lets the product-read
+    # reader reconstruct the context string byte-identically (see _pooled_from_product).
     rows = []
     for gene, e in rankable.items():
         freq = e["n_mut"] / e["n_cov"]
         pct = percentile_rank(freq, null_vec)
-        rows.append({"indication": indication, "gene_symbol": gene,
-                     "n_covered_pooled": e["n_cov"], "n_mutated_pooled": e["n_mut"],
-                     "pooled_mutation_frequency": freq,
-                     "pooled_driver_recurrence_percentile": pct,
-                     "pooled_driver_recurrence_class": classify_percentile(pct, DEFAULT_CUTOFFS),
-                     "cohorts_contributing": ",".join(e["cohorts"]),
-                     "n_ranked_genes": n_ranked})
+        rows.append(
+            {
+                "indication": indication,
+                "gene_symbol": gene,
+                "n_covered_pooled": e["n_cov"],
+                "n_mutated_pooled": e["n_mut"],
+                "pooled_mutation_frequency": freq,
+                "pooled_driver_recurrence_percentile": pct,
+                "pooled_driver_recurrence_class": classify_percentile(pct, DEFAULT_CUTOFFS),
+                "cohorts_contributing": ",".join(e["cohorts"]),
+                "n_ranked_genes": n_ranked,
+            }
+        )
     rows.sort(key=lambda r: r["gene_symbol"])
     return pa.Table.from_pylist(rows, schema=_schema())
 
 
 def _schema():
     import pyarrow as pa
-    return pa.schema([
-        pa.field("indication", pa.string()), pa.field("gene_symbol", pa.string()),
-        pa.field("n_covered_pooled", pa.int64()), pa.field("n_mutated_pooled", pa.int64()),
-        pa.field("pooled_mutation_frequency", pa.float64()),
-        pa.field("pooled_driver_recurrence_percentile", pa.float64()),
-        pa.field("pooled_driver_recurrence_class", pa.string()),
-        pa.field("cohorts_contributing", pa.string()),
-        pa.field("n_ranked_genes", pa.int64()),
-    ])
+
+    return pa.schema(
+        [
+            pa.field("indication", pa.string()),
+            pa.field("gene_symbol", pa.string()),
+            pa.field("n_covered_pooled", pa.int64()),
+            pa.field("n_mutated_pooled", pa.int64()),
+            pa.field("pooled_mutation_frequency", pa.float64()),
+            pa.field("pooled_driver_recurrence_percentile", pa.float64()),
+            pa.field("pooled_driver_recurrence_class", pa.string()),
+            pa.field("cohorts_contributing", pa.string()),
+            pa.field("n_ranked_genes", pa.int64()),
+        ]
+    )

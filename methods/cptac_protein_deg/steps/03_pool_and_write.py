@@ -16,6 +16,7 @@ Effect-size classification:
     modest_down : logFC < -0.5, q < 0.05
     ns          : otherwise
 """
+
 from __future__ import annotations
 
 import argparse
@@ -32,7 +33,7 @@ import pyarrow.parquet as pq
 
 CPTAC_COHORTS = ["BRCA", "CCRCC", "COAD", "GBM", "HNSCC", "LSCC", "LUAD", "OV", "PDAC", "UCEC"]
 
-METHOD_VERSION = "1.2.0"   # 2026-08-20: variance-aware classify (G7) — negligible Cohen's d → small_effect
+METHOD_VERSION = "1.2.0"  # 2026-08-20: variance-aware classify (G7) — negligible Cohen's d → small_effect
 STAT_TEST_USED = "msstatstmt_limma_ebayes_moderated"
 
 # Below this |Cohen's d| the standardized (sample-size-independent) effect is negligible — a call that
@@ -55,20 +56,21 @@ def _cohens_d(logfc, se, n_tumor, n_normal, p_value=None):
             return None
         t = None
         if se is not None and not pd.isna(se) and float(se) > 0:
-            t = float(logfc) / float(se)                              # exact moderated-SE t
+            t = float(logfc) / float(se)  # exact moderated-SE t
         elif p_value is not None and not pd.isna(p_value) and 0.0 <= float(p_value) <= 1.0:
-            arg = min(max(1.0 - float(p_value) / 2.0, 1e-15), 1.0 - 1e-15)   # clamp for inv_cdf
+            arg = min(max(1.0 - float(p_value) / 2.0, 1e-15), 1.0 - 1e-15)  # clamp for inv_cdf
             t = math.copysign(_STD_NORMAL.inv_cdf(arg), float(logfc))  # p-value z-score approximation
         if t is None:
             return None
         n_eff = (float(n_tumor) * float(n_normal)) / (float(n_tumor) + float(n_normal))
-        return t / (n_eff ** 0.5)
+        return t / (n_eff**0.5)
     except Exception:  # noqa: BLE001
         return None
 
 
-def classify(logfc: float, q: float, se: float = None,
-             n_tumor: int = None, n_normal: int = None, p_value: float = None) -> str:
+def classify(
+    logfc: float, q: float, se: float = None, n_tumor: int = None, n_normal: int = None, p_value: float = None
+) -> str:
     # 2026-08-14 multi-pair review (finding #5): the former single `ns` bucket conflated TWO
     # distinct outcomes — "tested, not statistically significant" (q >= 0.05) and "significant but
     # effect too small to class up/down" (q < 0.05, |logfc| <= 0.5). That effect-size-vs-significance
@@ -122,8 +124,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--work-dir", required=True, type=Path)
     ap.add_argument("--out-parquet", required=True, type=Path)
-    ap.add_argument("--uniprot-map", type=Path, default=None,
-                    help="Optional gene_symbol → uniprot_ac TSV")
+    ap.add_argument("--uniprot-map", type=Path, default=None, help="Optional gene_symbol → uniprot_ac TSV")
     args = ap.parse_args()
 
     uniprot_map = load_uniprot_map(args.uniprot_map)
@@ -148,41 +149,48 @@ def main() -> int:
         n_normal = int(df["n_normal"].iloc[0])
         n_proteins_tested = int(df["gene_symbol"].nunique())
 
-        out = pd.DataFrame({
-            "cohort": cohort,
-            "gene_symbol": df["gene_symbol"].astype(str),
-            "uniprot_ac": df["gene_symbol"].map(uniprot_map).astype("string"),
-            "protein_effect_size": df["logFC"].astype(float),
-            # MSstatsTMT moderated-model standard error (02_msstats emits `SE`) — carried through so the
-            # read layer can report an EXACT variance-standardized effect (logFC/SE) instead of only the
-            # raw log2 difference the class thresholds on. NaN when the upstream row lacks it.
-            "protein_effect_size_se": (df["SE"].astype(float) if "SE" in df.columns
-                                       else pd.Series([float("nan")] * len(df))),
-            "protein_p_value": df["pvalue"].astype(float),
-            "protein_bh_q_value": df["adj.pvalue"].astype(float),
-            "protein_median_log2_tumor": df["med_log2_tumor"].astype(float),
-            "protein_median_log2_normal": df["med_log2_normal"].astype(float),
-            "n_tumor_samples": n_tumor,
-            "n_normal_samples": n_normal,
-            "n_proteins_tested_cohort": n_proteins_tested,
-            # variance-aware classify (G7): pass SE + per-cohort n so a negligible Cohen's d demotes a
-            # significant-by-n call to small_effect. SE column is NaN-filled when the upstream lacks it
-            # (→ classify falls back to the raw-logFC bands).
-            "protein_expression_class": [
-                classify(f, q, se, n_tumor, n_normal, p_value=p)
-                for f, q, se, p in zip(df["logFC"], df["adj.pvalue"],
-                                       (df["SE"] if "SE" in df.columns else [None] * len(df)),
-                                       (df["pvalue"] if "pvalue" in df.columns else [None] * len(df)))
-            ],
-            "stat_test_used": STAT_TEST_USED,
-            "method_version": METHOD_VERSION,
-        })
+        out = pd.DataFrame(
+            {
+                "cohort": cohort,
+                "gene_symbol": df["gene_symbol"].astype(str),
+                "uniprot_ac": df["gene_symbol"].map(uniprot_map).astype("string"),
+                "protein_effect_size": df["logFC"].astype(float),
+                # MSstatsTMT moderated-model standard error (02_msstats emits `SE`) — carried through so the
+                # read layer can report an EXACT variance-standardized effect (logFC/SE) instead of only the
+                # raw log2 difference the class thresholds on. NaN when the upstream row lacks it.
+                "protein_effect_size_se": (
+                    df["SE"].astype(float) if "SE" in df.columns else pd.Series([float("nan")] * len(df))
+                ),
+                "protein_p_value": df["pvalue"].astype(float),
+                "protein_bh_q_value": df["adj.pvalue"].astype(float),
+                "protein_median_log2_tumor": df["med_log2_tumor"].astype(float),
+                "protein_median_log2_normal": df["med_log2_normal"].astype(float),
+                "n_tumor_samples": n_tumor,
+                "n_normal_samples": n_normal,
+                "n_proteins_tested_cohort": n_proteins_tested,
+                # variance-aware classify (G7): pass SE + per-cohort n so a negligible Cohen's d demotes a
+                # significant-by-n call to small_effect. SE column is NaN-filled when the upstream lacks it
+                # (→ classify falls back to the raw-logFC bands).
+                "protein_expression_class": [
+                    classify(f, q, se, n_tumor, n_normal, p_value=p)
+                    for f, q, se, p in zip(
+                        df["logFC"],
+                        df["adj.pvalue"],
+                        (df["SE"] if "SE" in df.columns else [None] * len(df)),
+                        (df["pvalue"] if "pvalue" in df.columns else [None] * len(df)),
+                    )
+                ],
+                "stat_test_used": STAT_TEST_USED,
+                "method_version": METHOD_VERSION,
+            }
+        )
         frames.append(out)
         n_strong_up = (out["protein_expression_class"] == "strong_up").sum()
         n_modest_up = (out["protein_expression_class"] == "modest_up").sum()
-        print(f"[03_pool] {cohort}: {len(out):,} proteins, "
-              f"{n_strong_up} strong_up, {n_modest_up} modest_up",
-              file=sys.stderr)
+        print(
+            f"[03_pool] {cohort}: {len(out):,} proteins, {n_strong_up} strong_up, {n_modest_up} modest_up",
+            file=sys.stderr,
+        )
 
     if not frames:
         raise RuntimeError("No cohort results found. Run stage 02 first.")
@@ -199,10 +207,12 @@ def main() -> int:
     args.out_parquet.parent.mkdir(parents=True, exist_ok=True)
     tbl = pa.Table.from_pandas(merged, preserve_index=False)
     pq.write_table(tbl, args.out_parquet, compression="snappy", row_group_size=64)
-    print(f"[03_pool] wrote {args.out_parquet} — {len(merged):,} rows, "
-          f"{merged['cohort'].nunique()} cohorts, "
-          f"{merged['gene_symbol'].nunique()} unique proteins",
-          file=sys.stderr)
+    print(
+        f"[03_pool] wrote {args.out_parquet} — {len(merged):,} rows, "
+        f"{merged['cohort'].nunique()} cohorts, "
+        f"{merged['gene_symbol'].nunique()} unique proteins",
+        file=sys.stderr,
+    )
     return 0
 
 

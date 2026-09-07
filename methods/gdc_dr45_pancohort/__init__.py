@@ -16,6 +16,7 @@ Emits the SAME two shapes as methods/gdc_somatic_hotspot so DR45 is a drop-in se
 
 METHOD_VERSION 0.1.0.
 """
+
 from __future__ import annotations
 
 METHOD_VERSION = "0.1.0"
@@ -23,5 +24,5 @@ METHOD_VERSION = "0.1.0"
 # Program → framework indication. Only whole-program-single-disease mappings live here (no
 # per-case disease-join). CPTAC-3 is deliberately ABSENT (multi-disease; needs the clinical join).
 PROGRAM_TO_INDICATION = {
-    "ALCHEMIST-ALCH": "NSCLC",   # NCI ALCHEMIST adjuvant trial — all NSCLC
+    "ALCHEMIST-ALCH": "NSCLC",  # NCI ALCHEMIST adjuvant trial — all NSCLC
 }

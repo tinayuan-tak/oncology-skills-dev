@@ -5,4 +5,5 @@ targets) a target synergizes with, ranked, with a target-level synergy_opportuni
 chemical-synergy input to combination-and-vulnerability's new SYNERGY relational axis. Bliss-excess,
 3-tissue, cell-line — MoA/hypothesis-generating (NOT a dependency).
 """
+
 from .read import read_target_summary, synergy_partners_for_gene, METHOD_VERSION  # noqa: F401

@@ -3,6 +3,7 @@ transient discipline (mirrors pmhc_presentation): both @lru_cache readers must R
 transient/broken-env (not memoize a failure) and return the honest empty / sentinel ONLY on a genuine
 object-absence. read_target_summary must assemble the full DISPLAY-card summary shape + provenance.
 """
+
 from __future__ import annotations
 
 import sys
@@ -33,6 +34,7 @@ def _clear_lru():
 def _patch_pyarrow(monkeypatch, read_table):
     import pyarrow.parquet as pq
     import pyarrow.fs as fs
+
     monkeypatch.setattr(fs, "S3FileSystem", lambda **k: object())
     monkeypatch.setattr(pq, "read_table", read_table)
 
@@ -41,13 +43,21 @@ def test_read_target_summary_resolves_symbol_and_summarizes(monkeypatch):
     monkeypatch.setattr(R, "_symbol_to_ac", lambda: {"ERBB2": "P04626"})
 
     def read_table(path, filesystem=None, filters=None):
-        return pa.table({
-            "uniprot_id": ["P04626"], "n_epitopes": [151], "n_mhc_class_i_epitopes": [119],
-            "n_mhc_class_ii_epitopes": [36], "n_hla_alleles": [43], "n_assays": [673],
-            "has_tcell_positive": [True], "has_mhc_ligand_positive": [True],
-            "has_cancer_context": [True], "example_hla_alleles": ["HLA-A*02:01;HLA-A*01:01"],
-            "example_epitopes": ["ALCRWGLLL;ALCRWGLLLA"],
-        })
+        return pa.table(
+            {
+                "uniprot_id": ["P04626"],
+                "n_epitopes": [151],
+                "n_mhc_class_i_epitopes": [119],
+                "n_mhc_class_ii_epitopes": [36],
+                "n_hla_alleles": [43],
+                "n_assays": [673],
+                "has_tcell_positive": [True],
+                "has_mhc_ligand_positive": [True],
+                "has_cancer_context": [True],
+                "example_hla_alleles": ["HLA-A*02:01;HLA-A*01:01"],
+                "example_epitopes": ["ALCRWGLLL;ALCRWGLLLA"],
+            }
+        )
 
     _patch_pyarrow(monkeypatch, read_table)
     out = R.read_target_summary("ERBB2", "COADREAD")
@@ -101,13 +111,14 @@ def test_symbol_to_ac_transient_raises_not_cached(monkeypatch):
     monkeypatch.setattr(R, "_read_parquet", fake_read_parquet)
     with pytest.raises(RuntimeError):
         R._symbol_to_ac()
-    m = R._symbol_to_ac()          # NOT memoized: retry succeeds
+    m = R._symbol_to_ac()  # NOT memoized: retry succeeds
     assert m.get("ERBB2") == "P04626"
 
 
 def test_symbol_to_ac_genuine_absence_empty(monkeypatch):
-    monkeypatch.setattr(R, "_read_parquet", lambda b, k: (_ for _ in ()).throw(
-        FileNotFoundError("object does not exist")))
+    monkeypatch.setattr(
+        R, "_read_parquet", lambda b, k: (_ for _ in ()).throw(FileNotFoundError("object does not exist"))
+    )
     assert R._symbol_to_ac() == {}
 
 
@@ -130,7 +141,7 @@ def test_row_for_ac_transient_raises_not_cached(monkeypatch):
     _patch_pyarrow(monkeypatch, read_table)
     with pytest.raises(RuntimeError):
         R._row_for_ac("P04626")
-    row = R._row_for_ac("P04626")     # NOT memoized: retry succeeds
+    row = R._row_for_ac("P04626")  # NOT memoized: retry succeeds
     assert row not in (None, "UNREADABLE")
     assert row["uniprot_id"] == "P04626"
 

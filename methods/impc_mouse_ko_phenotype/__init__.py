@@ -7,6 +7,7 @@ at finer developmental resolution. Coverage is PARTIAL (IMPC ~9k genes); absence
 
 METHOD_VERSION 0.1.0.
 """
+
 from __future__ import annotations
 
 METHOD_VERSION = "0.1.0"

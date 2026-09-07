@@ -79,8 +79,9 @@ from methods.indication_aliases import to_cohort_canonical
 # wins (preserves the fast path + byte-stability for already-provisioned environments),
 # else fall back to the manifest's S3 payload. Both products carry an `indication`
 # column, so a single pushdown filter on (indication[, gene_symbol]) works either way.
-DATA_CATALOG = Path(os.environ.get(
-    "DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"))
+DATA_CATALOG = Path(
+    os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
+)
 
 _HOTSPOT_FREQUENCY_MANIFEST = "tcga-mc3-hotspot-frequency-v1"
 _PER_SAMPLE_MAF_MANIFEST = "tcga-mc3-per-sample-maf-v1"
@@ -101,7 +102,7 @@ def _manifest_s3_path(manifest_id: str) -> Optional[str]:
     s3_uri = _load_manifest(manifest_id).get("s3_uri")
     if not s3_uri or not s3_uri.startswith("s3://"):
         return None
-    return s3_uri[len("s3://"):]
+    return s3_uri[len("s3://") :]
 
 
 def _read_product_table(local_path: Path, manifest_id: str, *, filters=None, columns=None):
@@ -111,6 +112,7 @@ def _read_product_table(local_path: Path, manifest_id: str, *, filters=None, col
     - Else resolve the manifest's s3_uri and read from S3 with the same filters/columns.
     Returns None if neither is available (caller renders data_unavailable)."""
     import pyarrow.parquet as pq
+
     ensure_aws_profile()
     if local_path.exists():
         return pq.read_table(local_path, filters=filters, columns=columns)
@@ -118,6 +120,7 @@ def _read_product_table(local_path: Path, manifest_id: str, *, filters=None, col
     if key is None:
         return None
     import pyarrow.fs as fs
+
     try:
         return pq.read_table(key, filesystem=fs.S3FileSystem(), filters=filters, columns=columns)
     except Exception as e:  # noqa: BLE001
@@ -126,11 +129,13 @@ def _read_product_table(local_path: Path, manifest_id: str, *, filters=None, col
         # masked as a coverage gap (the "bare-except masks broken env" bug class). Mirrors the
         # definitive-vs-transient discriminant in tcga_fusion_consensus/read.py.
         code = str(getattr(e, "response", {}).get("Error", {}).get("Code", "")) if hasattr(e, "response") else ""
-        definitive = (code in ("404", "NoSuchKey", "NoSuchBucket")
-                      or e.__class__.__name__ in ("NoSuchKey", "FileNotFoundError"))
+        definitive = code in ("404", "NoSuchKey", "NoSuchBucket") or e.__class__.__name__ in (
+            "NoSuchKey",
+            "FileNotFoundError",
+        )
         if definitive:
-            return None            # real absence → caller renders data_unavailable
-        raise                      # infra failure → surface it, do not mask as a coverage gap
+            return None  # real absence → caller renders data_unavailable
+        raise  # infra failure → surface it, do not mask as a coverage gap
 
 
 def _resolve_aggregate_path(indication: str, cache_base: Path = DEFAULT_CACHE_BASE) -> Path:
@@ -157,6 +162,7 @@ def _resolve_aggregate_path(indication: str, cache_base: Path = DEFAULT_CACHE_BA
 #   3. Context-matched to the SAME indication aggregate the target row came from —
 #      never pooled across indications (the #1 percentile-null risk).
 
+
 @lru_cache(maxsize=16)
 def _allgene_mutation_frequency_null(aggregate_path_str: str, indication: str = "") -> tuple:
     """All genes' overall_mutation_frequency (gene-summary rows only) for ONE indication —
@@ -171,16 +177,16 @@ def _allgene_mutation_frequency_null(aggregate_path_str: str, indication: str = 
         # contributes its frequency exactly ONCE. Filter to the indication (S3 concat carries all).
         filters = [("indication", "=", indication)] if indication else None
         table = _read_product_table(
-            local, _HOTSPOT_FREQUENCY_MANIFEST,
+            local,
+            _HOTSPOT_FREQUENCY_MANIFEST,
             filters=filters,
-            columns=["overall_mutation_frequency", "hotspot_protein_change"])
+            columns=["overall_mutation_frequency", "hotspot_protein_change"],
+        )
         if table is None:
             return tuple()
         df = table.to_pandas()
         summary = df[df["hotspot_protein_change"].isnull()]
-        return tuple(
-            float(v) for v in summary["overall_mutation_frequency"].tolist()
-            if v is not None)
+        return tuple(float(v) for v in summary["overall_mutation_frequency"].tolist() if v is not None)
     except Exception:
         return tuple()
 
@@ -191,8 +197,10 @@ def _driver_recurrence_percentile(aggregate_path: Path, indication, overall_freq
     class is emitted for render/LLM/rules-readiness but the skill does NOT wire a
     rule against it yet (verdict spine stays byte-stable). Returns (pct, class)."""
     import sys as _sys
+
     _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # methods/ on path
     from methods.percentile_null import percentile_rank, classify_percentile
+
     null_vec = _allgene_mutation_frequency_null(str(aggregate_path), indication or "")
     pct = percentile_rank(overall_freq, null_vec)
     return pct, classify_percentile(pct, cutoffs)
@@ -203,17 +211,24 @@ def _genie_recurrence_fields(target: str, indication: str) -> dict:
     mutation-hotspot-frequency card — the higher-N sibling of the MC3 driver_recurrence_*. Lazily
     imports genie_panel_recurrence + always returns the 4 keys (graceful data_unavailable on any
     failure/absence), so the card gains the GENIE comparator without ever breaking the MC3 path."""
-    keys = ("genie_driver_recurrence_percentile", "genie_driver_recurrence_class",
-            "genie_mutation_frequency", "genie_recurrence_context")
+    keys = (
+        "genie_driver_recurrence_percentile",
+        "genie_driver_recurrence_class",
+        "genie_mutation_frequency",
+        "genie_recurrence_context",
+    )
     try:
         from methods.genie_panel_recurrence.read import genie_recurrence_for_gene
+
         g = genie_recurrence_for_gene(target, indication)
         return {k: g.get(k) for k in keys}
     except Exception:
-        return {"genie_driver_recurrence_percentile": None,
-                "genie_driver_recurrence_class": "data_unavailable",
-                "genie_mutation_frequency": None,
-                "genie_recurrence_context": None}
+        return {
+            "genie_driver_recurrence_percentile": None,
+            "genie_driver_recurrence_class": "data_unavailable",
+            "genie_mutation_frequency": None,
+            "genie_recurrence_context": None,
+        }
 
 
 def _pooled_recurrence_fields(target: str, indication: str) -> dict:
@@ -222,18 +237,30 @@ def _pooled_recurrence_fields(target: str, indication: str) -> dict:
     Phase 2; fires the recurrent_snv_driver rung). Lazily imports pooled_snv_recurrence + always
     returns the keys (graceful data_unavailable on any failure/absence), so the card gains the pooled
     comparator without ever breaking the MC3/GENIE path."""
-    keys = ("pooled_driver_recurrence_class", "pooled_driver_recurrence_percentile",
-            "pooled_mutation_frequency", "n_covered_pooled", "n_mutated_pooled",
-            "cohorts_contributing", "pooled_recurrence_context")
+    keys = (
+        "pooled_driver_recurrence_class",
+        "pooled_driver_recurrence_percentile",
+        "pooled_mutation_frequency",
+        "n_covered_pooled",
+        "n_mutated_pooled",
+        "cohorts_contributing",
+        "pooled_recurrence_context",
+    )
     try:
         from methods.pooled_snv_recurrence.read import pooled_recurrence_for_gene
+
         p = pooled_recurrence_for_gene(target, indication)
         return {k: p.get(k) for k in keys}
     except Exception:
-        return {"pooled_driver_recurrence_class": "data_unavailable",
-                "pooled_driver_recurrence_percentile": None, "pooled_mutation_frequency": None,
-                "n_covered_pooled": None, "n_mutated_pooled": None, "cohorts_contributing": [],
-                "pooled_recurrence_context": None}
+        return {
+            "pooled_driver_recurrence_class": "data_unavailable",
+            "pooled_driver_recurrence_percentile": None,
+            "pooled_mutation_frequency": None,
+            "n_covered_pooled": None,
+            "n_mutated_pooled": None,
+            "cohorts_contributing": [],
+            "pooled_recurrence_context": None,
+        }
 
 
 def read_hotspot_summary(
@@ -255,7 +282,7 @@ def read_hotspot_summary(
     lists with a structured note.
     """
     ensure_aws_profile()
-    indication = to_cohort_canonical(indication)   # LUAD/LUSC -> NSCLC (patient-cohort canonical grain)
+    indication = to_cohort_canonical(indication)  # LUAD/LUSC -> NSCLC (patient-cohort canonical grain)
     if aggregate_path is None:
         aggregate_path = _resolve_aggregate_path(indication)
 
@@ -268,10 +295,11 @@ def read_hotspot_summary(
     # produced ({**genie, **pooled}: pooled keys win on collision, matching the prior literal order), so
     # every emitted summary is byte-identical.
     from concurrent.futures import ThreadPoolExecutor
+
     _rec_ex = ThreadPoolExecutor(max_workers=2)
     _f_genie = _rec_ex.submit(_genie_recurrence_fields, target, indication)
     _f_pooled = _rec_ex.submit(_pooled_recurrence_fields, target, indication)
-    _rec_ex.shutdown(wait=False)   # no more tasks; the two submitted reads run to completion
+    _rec_ex.shutdown(wait=False)  # no more tasks; the two submitted reads run to completion
 
     def _recurrence_fields() -> dict:
         return {**_f_genie.result(), **_f_pooled.result()}
@@ -279,7 +307,8 @@ def read_hotspot_summary(
     # Predicate pushdown on (indication, gene_symbol) — LOCAL-CACHE-FIRST then the registered
     # S3 product (tcga-mc3-hotspot-frequency-v1). None → neither local file nor S3 resolvable.
     table = _read_product_table(
-        aggregate_path, _HOTSPOT_FREQUENCY_MANIFEST,
+        aggregate_path,
+        _HOTSPOT_FREQUENCY_MANIFEST,
         filters=[("indication", "=", indication), ("gene_symbol", "=", target)],
     )
 
@@ -337,9 +366,11 @@ def read_hotspot_summary(
     df = table.to_pandas()
     # Gene-summary row is the one with hotspot_protein_change == null
     summary_row = df[df["hotspot_protein_change"].isnull()].iloc[0]
-    hotspot_rows = df[df["hotspot_protein_change"].notnull()].sort_values(
-        "hotspot_n_samples", ascending=False
-    ).head(top_n_hotspots)
+    hotspot_rows = (
+        df[df["hotspot_protein_change"].notnull()]
+        .sort_values("hotspot_n_samples", ascending=False)
+        .head(top_n_hotspots)
+    )
 
     overall_freq = float(summary_row["overall_mutation_frequency"])
     # Driver-recurrence percentile — where does this gene's recurrence
@@ -405,9 +436,7 @@ def _hotspot_freq_for_samples(maf, target, member_ids, hotspot_change):
     if n == 0:
         return None, 0
     hit = maf[
-        (maf["gene_symbol"] == target)
-        & (maf["protein_change"] == hotspot_change)
-        & (maf["sample_id"].isin(member_ids))
+        (maf["gene_symbol"] == target) & (maf["protein_change"] == hotspot_change) & (maf["sample_id"].isin(member_ids))
     ]["sample_id"].nunique()
     return (hit / n), hit
 
@@ -472,20 +501,25 @@ def read_stratified_mutation_frequency(
     if maf_path.exists():
         maf = pd.read_parquet(maf_path)
     elif maf_source == "tcga_mc3" and maf_cache is None:
-        table = _read_product_table(
-            maf_path, _PER_SAMPLE_MAF_MANIFEST,
-            filters=[("indication", "=", indication)])
+        table = _read_product_table(maf_path, _PER_SAMPLE_MAF_MANIFEST, filters=[("indication", "=", indication)])
         if table is not None:
             maf = table.to_pandas()
     if maf is None:
         return {
-            "target": target, "indication": indication,
-            "subgroup_n": 0, "overall_mutation_frequency": None,
-            "n_samples_mutated": None, "subgroup_n_floor_met": False,
-            "evidence_state": "absent", "mutation_class": "insufficient",
-            "hotspot_frequencies": [], "source_cohort": cohort,
-            "_data_note": (f"No per-sample MAF for {indication} (neither local {maf_path} nor the "
-                           f"{_PER_SAMPLE_MAF_MANIFEST} manifest/S3)."),
+            "target": target,
+            "indication": indication,
+            "subgroup_n": 0,
+            "overall_mutation_frequency": None,
+            "n_samples_mutated": None,
+            "subgroup_n_floor_met": False,
+            "evidence_state": "absent",
+            "mutation_class": "insufficient",
+            "hotspot_frequencies": [],
+            "source_cohort": cohort,
+            "_data_note": (
+                f"No per-sample MAF for {indication} (neither local {maf_path} nor the "
+                f"{_PER_SAMPLE_MAF_MANIFEST} manifest/S3)."
+            ),
         }
 
     cohort_ids = set(maf["sample_id"].dropna())
@@ -494,19 +528,19 @@ def read_stratified_mutation_frequency(
     member_ids = (cohort_ids & _sample_id_filter) if _sample_id_filter is not None else cohort_ids
 
     n = len(member_ids)
-    mutated = maf[
-        (maf["gene_symbol"] == target) & (maf["sample_id"].isin(member_ids))
-    ]["sample_id"].nunique()
+    mutated = maf[(maf["gene_symbol"] == target) & (maf["sample_id"].isin(member_ids))]["sample_id"].nunique()
     freq = (mutated / n) if n else None
 
     hotspots = []
     for change in hotspot_changes:
         hf, hn = _hotspot_freq_for_samples(maf, target, member_ids, change)
-        hotspots.append({
-            "protein_change": change,
-            "frequency": (round(hf, 4) if hf is not None else None),
-            "n_samples": hn,
-        })
+        hotspots.append(
+            {
+                "protein_change": change,
+                "frequency": (round(hf, 4) if hf is not None else None),
+                "n_samples": hn,
+            }
+        )
 
     floor_met = n >= SUBGROUP_N_FLOOR
     return {
@@ -572,8 +606,7 @@ def build_mutation_frequency_panorama(
         record_projection=_mutation_freq_projection,
         reducer=partial(delta_reducer, metric_key="overall_mutation_frequency", label="frequency"),
         subgroup_catalog_repo=subgroup_catalog_repo,
-        reader_kwargs={"hotspot_changes": hotspot_changes, "maf_source": maf_source,
-                       "maf_cache": maf_cache},
+        reader_kwargs={"hotspot_changes": hotspot_changes, "maf_source": maf_source, "maf_cache": maf_cache},
     )
     panorama["_data_source"] = f"{maf_source} per-sample MAF (subgroup-stratified)"
     return panorama

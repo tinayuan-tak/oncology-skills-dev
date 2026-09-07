@@ -16,6 +16,7 @@ Usage:
     python -m methods.cptac_protein_deg.validate_biology \\
         --parquet ~/dev/framework-runs/.../cptac_protein_deg.parquet
 """
+
 from __future__ import annotations
 
 import argparse
@@ -39,7 +40,10 @@ def check_target_cohort(df, gene, cohort, min_logfc, max_q, label) -> tuple[bool
     logfc = float(sub["protein_effect_size"].iloc[0])
     q = float(sub["protein_bh_q_value"].iloc[0])
     ok = (logfc >= min_logfc) and (q <= max_q)
-    return ok, f"{label}: {gene} in {cohort} logFC={logfc:.2f} (>={min_logfc}), q={q:.2e} (<={max_q}) — {'PASS' if ok else 'FAIL'}"
+    return (
+        ok,
+        f"{label}: {gene} in {cohort} logFC={logfc:.2f} (>={min_logfc}), q={q:.2e} (<={max_q}) — {'PASS' if ok else 'FAIL'}",
+    )
 
 
 def check_mki67_universal(df) -> tuple[bool, str]:
@@ -50,8 +54,7 @@ def check_mki67_universal(df) -> tuple[bool, str]:
     n_up = len(up)
     n_total = len(mki)
     ok = n_up >= 8
-    return ok, (f"MKI67 up (logFC>1.0, q<0.05) in {n_up}/{n_total} cohorts (>=8 required) "
-                f"— {'PASS' if ok else 'FAIL'}")
+    return ok, (f"MKI67 up (logFC>1.0, q<0.05) in {n_up}/{n_total} cohorts (>=8 required) — {'PASS' if ok else 'FAIL'}")
 
 
 def check_target_present(df, gene, label) -> tuple[bool, str]:
@@ -66,15 +69,17 @@ def main() -> int:
     args = ap.parse_args()
 
     df = load(args.parquet)
-    print(f"[validate] loaded {len(df):,} rows, "
-          f"{df['gene_symbol'].nunique()} unique proteins, "
-          f"{df['cohort'].nunique()} cohorts: {sorted(df['cohort'].unique())}",
-          file=sys.stderr)
+    print(
+        f"[validate] loaded {len(df):,} rows, "
+        f"{df['gene_symbol'].nunique()} unique proteins, "
+        f"{df['cohort'].nunique()} cohorts: {sorted(df['cohort'].unique())}",
+        file=sys.stderr,
+    )
 
     checks = [
         check_target_cohort(df, "ERBB2", "BRCA", 2.0, 0.001, "ERBB2/BRCA"),
-        check_target_cohort(df, "MSLN",  "OV",   3.0, 0.001, "MSLN/OV"),
-        check_target_cohort(df, "FOLH1", "PDAC", 0.5, 0.05,  "FOLH1/PDAC"),
+        check_target_cohort(df, "MSLN", "OV", 3.0, 0.001, "MSLN/OV"),
+        check_target_cohort(df, "FOLH1", "PDAC", 0.5, 0.05, "FOLH1/PDAC"),
         check_target_present(df, "MDM2", "MDM2 presence"),
         check_mki67_universal(df),
     ]

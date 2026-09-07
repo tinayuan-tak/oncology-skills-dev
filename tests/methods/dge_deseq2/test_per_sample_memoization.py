@@ -9,6 +9,7 @@ Two guarantees:
      are @lru_cache'd on `study`, so a DIFFERENT target in the same indication re-streams only the
      gene-row counts, not the library sizes / metadata.
 """
+
 from __future__ import annotations
 
 import sys
@@ -43,6 +44,7 @@ def test_library_sizes_and_metadata_memoize_per_study(monkeypatch):
     """Stub the S3-streaming bodies with call-counters; a repeated `study` must NOT re-invoke the
     underlying stream (the per-study constants are target-independent)."""
     import pandas as pd
+
     r._fetch_recount3_library_sizes.cache_clear()
     r._fetch_recount3_metadata.cache_clear()
 
@@ -61,13 +63,14 @@ def test_library_sizes_and_metadata_memoize_per_study(monkeypatch):
     @lru_cache(maxsize=64)
     def fake_md(study):
         md_calls["n"] += 1
-        return pd.DataFrame({"gdc_file_id": ["s1"], "sample_type": ["Primary Tumor"],
-                             "submitter_id": ["c1"]})
+        return pd.DataFrame({"gdc_file_id": ["s1"], "sample_type": ["Primary Tumor"], "submitter_id": ["c1"]})
 
     monkeypatch.setattr(r, "_fetch_recount3_library_sizes", fake_lib)
     monkeypatch.setattr(r, "_fetch_recount3_metadata", fake_md)
 
-    r._fetch_recount3_library_sizes("COAD"); r._fetch_recount3_library_sizes("COAD")
-    r._fetch_recount3_metadata("COAD");      r._fetch_recount3_metadata("COAD")
+    r._fetch_recount3_library_sizes("COAD")
+    r._fetch_recount3_library_sizes("COAD")
+    r._fetch_recount3_metadata("COAD")
+    r._fetch_recount3_metadata("COAD")
     assert lib_calls["n"] == 1, "library sizes re-streamed for the same study (should be cached)"
     assert md_calls["n"] == 1, "metadata re-streamed for the same study (should be cached)"

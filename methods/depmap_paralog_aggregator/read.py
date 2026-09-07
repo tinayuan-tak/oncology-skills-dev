@@ -17,6 +17,7 @@ access. Not redistributable outside Takeda.
 
 Companion: data-catalog:manifests/sources/depmap-consortium-26q1-paralogs.yaml
 """
+
 from __future__ import annotations
 
 from functools import lru_cache
@@ -68,8 +69,9 @@ def _ensure_paralog_cached() -> Optional[Path]:
             raise  # broken env (boto3 missing) — never mask the whole axis as a data gap
         except Exception as e:  # noqa: BLE001
             from methods.target_id_sidecar import is_definitively_absent
+
             if is_definitively_absent(e):
-                _PARALOG_STATUS = False   # product genuinely absent -> honest, latched data_unavailable
+                _PARALOG_STATUS = False  # product genuinely absent -> honest, latched data_unavailable
             # transient (throttle/creds/network): do NOT latch -> stays None so a later call retries
             return None
     return None
@@ -130,8 +132,8 @@ def _load_paralog_indexed() -> tuple[dict, dict]:
         single_labels: list[tuple[Optional[str], int]] = []
         CONTROL_MARKERS = {"AAVS1", "CHR2", "NONTARGET", "SAFE"}
         for idx, col_name in enumerate(header):
-            pair_labels.append((None, idx))       # default: not a pair
-            single_labels.append((None, idx))     # default: not a single
+            pair_labels.append((None, idx))  # default: not a pair
+            single_labels.append((None, idx))  # default: not a single
             if idx == 0:
                 continue
             raw = col_name.strip()
@@ -143,7 +145,7 @@ def _load_paralog_indexed() -> tuple[dict, dict]:
                     single_labels[idx] = (g, idx)
                 continue
             if len(tokens) != 2:
-                continue   # 3+ token controls
+                continue  # 3+ token controls
             gene_a, gene_b = tokens
             if not gene_a or not gene_b:
                 continue
@@ -250,6 +252,7 @@ def _derived_parquet_uri() -> Optional[str]:
     truth). Returns None if the manifest is unreadable (then the reader falls back to raw CSV)."""
     try:
         from methods.catalog_query.read import s3_uri_for
+
         return s3_uri_for(DERIVED_PRODUCT_MANIFEST_ID)
     except Exception:  # absence-discipline: exempt -- manifest unresolvable → reader falls back to raw-CSV recompute (benign fallback, not a dead axis)
         return None
@@ -259,17 +262,18 @@ def _fetch_derived_row(parquet_uri: str, gene: str) -> Optional[dict]:
     """Pyarrow predicate-pushdown read of ONE gene row from the derived product. Returns the
     row dict or None (target absent). Mirrors depmap_predictability.cli.fetch_predictability_row."""
     import pyarrow.parquet as pq
+
     if parquet_uri.startswith("s3://"):
         import pyarrow.fs as pafs
-        without = parquet_uri[len("s3://"):]
+
+        without = parquet_uri[len("s3://") :]
         bucket, _, key = without.partition("/")
         fs = pafs.S3FileSystem()
         path = f"{bucket}/{key}"
     else:
         fs = None
         path = parquet_uri
-    table = pq.read_table(path, filesystem=fs,
-                          filters=[("target_gene_symbol", "=", gene.upper().strip())])
+    table = pq.read_table(path, filesystem=fs, filters=[("target_gene_symbol", "=", gene.upper().strip())])
     if table.num_rows == 0:
         return None
     return {col: table[col][0].as_py() for col in table.column_names}
@@ -283,6 +287,7 @@ def _read_from_derived_product(target: str) -> Optional[dict]:
       - None to signal "product unreachable — caller should fall back to the raw-CSV recompute".
     """
     import json as _json
+
     uri = _derived_parquet_uri()
     if not uri:
         return None
@@ -298,14 +303,17 @@ def _read_from_derived_product(target: str) -> Optional[dict]:
     except (ValueError, TypeError):
         top = []
     # Card-shaped functional_paralogs (rename product keys → card keys).
-    functional_paralogs = [{
-        "partner_gene_symbol": p.get("partner_symbol"),
-        "median_dual_ko_effect": p.get("median_dual_ko_effect"),
-        "single_ko_effect": p.get("single_ko_target"),
-        "dep_delta_paired_vs_max_single": p.get("dep_delta_paired_vs_max_single"),
-        "buffering_class": p.get("buffering_class"),
-        "ohnolog": p.get("ohnolog_flag"),
-    } for p in top]
+    functional_paralogs = [
+        {
+            "partner_gene_symbol": p.get("partner_symbol"),
+            "median_dual_ko_effect": p.get("median_dual_ko_effect"),
+            "single_ko_effect": p.get("single_ko_target"),
+            "dep_delta_paired_vs_max_single": p.get("dep_delta_paired_vs_max_single"),
+            "buffering_class": p.get("buffering_class"),
+            "ohnolog": p.get("ohnolog_flag"),
+        }
+        for p in top
+    ]
     # The strongest partner is the first entry (product sorts top_partners by delta desc).
     strongest = top[0] if top else None
     return {
@@ -325,7 +333,7 @@ def _read_from_derived_product(target: str) -> Optional[dict]:
         # there is never confused with a genuine False by the strong_ohnolog_paralog predicate.
         "strongest_paralog_ohnolog_status": "annotated",
         "strongest_paralog_delta": row.get("strongest_delta"),
-        "method_version": "0.3.1",   # 0.3.1: + ohnolog_status tri-state + strongest-paralog semantics doc
+        "method_version": "0.3.1",  # 0.3.1: + ohnolog_status tri-state + strongest-paralog semantics doc
         "_data_source": DERIVED_PRODUCT_MANIFEST_ID,
         "_data_source_upstream": PARALOG_SOURCE_MANIFEST_ID,
     }
@@ -384,33 +392,31 @@ def _read_from_raw_csv(target: str) -> dict:
         # max single-KO effect of the pair (the baseline the delta is measured against)
         singles = [s for s in (rec["single_a"], rec["single_b"]) if s is not None]
         max_single = max(singles) if singles else None
-        functional_paralogs.append({
-            "partner_gene_symbol": partner,
-            "median_dual_ko_effect": rec["median_dual"],
-            "single_ko_effect": max_single,
-            "dep_delta_paired_vs_max_single": delta,
-            "buffering_class": _classify_buffering(delta),
-        })
+        functional_paralogs.append(
+            {
+                "partner_gene_symbol": partner,
+                "median_dual_ko_effect": rec["median_dual"],
+                "single_ko_effect": max_single,
+                "dep_delta_paired_vs_max_single": delta,
+                "buffering_class": _classify_buffering(delta),
+            }
+        )
 
     # Rank by delta descending (strongest buffering first); unmeasured (None) last.
     functional_paralogs.sort(
-        key=lambda x: (x["dep_delta_paired_vs_max_single"] is not None,
-                       x["dep_delta_paired_vs_max_single"] or 0.0),
+        key=lambda x: (x["dep_delta_paired_vs_max_single"] is not None, x["dep_delta_paired_vs_max_single"] or 0.0),
         reverse=True,
     )
 
     n_annotated = len(functional_paralogs)
-    n_buffering = sum(1 for p in functional_paralogs
-                       if p["buffering_class"] in ("strong", "partial"))
+    n_buffering = sum(1 for p in functional_paralogs if p["buffering_class"] in ("strong", "partial"))
 
     # Skill-level class from the strongest MEASURED partner. If every partner is
     # unmeasured (no single-KO baseline anywhere), the buffering call is unavailable,
     # not `none` — absence of the baseline is not evidence of no buffering.
-    measured = [p for p in functional_paralogs
-                if p["dep_delta_paired_vs_max_single"] is not None]
+    measured = [p for p in functional_paralogs if p["dep_delta_paired_vs_max_single"] is not None]
     if not measured:
-        return _empty_result("paralog_single_ko_baseline_unavailable",
-                             n_annotated=n_annotated)
+        return _empty_result("paralog_single_ko_baseline_unavailable", n_annotated=n_annotated)
     strongest = measured[0]
     return {
         "paralog_buffering_class": strongest["buffering_class"],
@@ -429,7 +435,7 @@ def _read_from_raw_csv(target: str) -> dict:
         "strongest_paralog_ohnolog": None,
         "strongest_paralog_ohnolog_status": "unknown_fallback",
         "strongest_paralog_delta": strongest["dep_delta_paired_vs_max_single"],
-        "method_version": "0.3.1-fallback-raw-csv",   # fallback recompute (product unreachable)
+        "method_version": "0.3.1-fallback-raw-csv",  # fallback recompute (product unreachable)
         # PROVENANCE: this FALLBACK recomputes buffering LIVE from the RAW source CSV
         # (ParalogGeneEffect.csv) — report exactly that, and name the derived product as the
         # preferred source the primary path reads instead.
@@ -439,7 +445,8 @@ def _read_from_raw_csv(target: str) -> dict:
         "_paralog_ohnolog_note": (
             "ohnolog annotation unavailable on the raw-CSV fallback path; it is populated by the "
             "PRIMARY read from the derived product depmap-paralog-buffering-per-gene-v1. This "
-            "fallback fired because that product was unreachable at read time."),
+            "fallback fired because that product was unreachable at read time."
+        ),
     }
 
 
@@ -450,8 +457,8 @@ def _empty_result(note: str, n_annotated: int = 0) -> dict:
         "n_paralogs_functionally_buffering": 0,
         "functional_paralogs": [],
         "strongest_paralog_symbol": "",
-        "strongest_paralog_ohnolog": None,   # card-declared field; always present (None when unmeasured)
-        "strongest_paralog_ohnolog_status": "data_unavailable",   # no paralog data at all → not annotatable
+        "strongest_paralog_ohnolog": None,  # card-declared field; always present (None when unmeasured)
+        "strongest_paralog_ohnolog_status": "data_unavailable",  # no paralog data at all → not annotatable
         "strongest_paralog_delta": None,
         "method_version": "0.2.1",
         "_data_note": note,

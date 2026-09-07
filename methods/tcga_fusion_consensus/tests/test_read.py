@@ -4,6 +4,7 @@ Uses synthetic DataFrames injected directly into the normalization logic
 to verify: barcode normalization, each loader's canonical schema, and the
 assayed-samples denominator helpers.
 """
+
 from __future__ import annotations
 
 import sys
@@ -28,43 +29,55 @@ from tcga_fusion_consensus.read import (  # noqa: E402
 # ---------- sample_key normalization --------------------------------------
 
 CANONICAL_SCHEMA = [
-    "sample_key", "gene_symbol", "partner_gene", "partner_side",
-    "tissue", "frame_pred", "caller", "event_id",
+    "sample_key",
+    "gene_symbol",
+    "partner_gene",
+    "partner_side",
+    "tissue",
+    "frame_pred",
+    "caller",
+    "event_id",
 ]
 
 
-@pytest.mark.parametrize("barcode, expected", [
-    # TumorFusions/Gao: sample + vial
-    ("TCGA-05-4244-01A", "TCGA-05-4244-01"),
-    # Gao: full aliquot
-    ("TCGA-05-4244-01A-11R-A29S-07", "TCGA-05-4244-01"),
-    # TumorFusions: full aliquot
-    ("TCGA-50-8460-01A-11R-2326-07", "TCGA-50-8460-01"),
-    # cBioPortal: already sample-level (no vial)
-    ("TCGA-05-4244-01", "TCGA-05-4244-01"),
-    # Numeric sample type 11 (normal)
-    ("TCGA-ZZ-1234-11A", "TCGA-ZZ-1234-11"),
-    # Garbage
-    ("not-a-tcga-barcode", None),
-    ("", None),
-    (None, None),
-    (123, None),
-])
+@pytest.mark.parametrize(
+    "barcode, expected",
+    [
+        # TumorFusions/Gao: sample + vial
+        ("TCGA-05-4244-01A", "TCGA-05-4244-01"),
+        # Gao: full aliquot
+        ("TCGA-05-4244-01A-11R-A29S-07", "TCGA-05-4244-01"),
+        # TumorFusions: full aliquot
+        ("TCGA-50-8460-01A-11R-2326-07", "TCGA-50-8460-01"),
+        # cBioPortal: already sample-level (no vial)
+        ("TCGA-05-4244-01", "TCGA-05-4244-01"),
+        # Numeric sample type 11 (normal)
+        ("TCGA-ZZ-1234-11A", "TCGA-ZZ-1234-11"),
+        # Garbage
+        ("not-a-tcga-barcode", None),
+        ("", None),
+        (None, None),
+        (123, None),
+    ],
+)
 def test_sample_key(barcode, expected):
     assert sample_key(barcode) == expected
 
 
 # ---------- load_tumorfusions (mock pd.read_excel) ------------------------
 
+
 def _make_tumorfusions_df():
     """Minimal File007 'Cancer fusions' content (3 rows)."""
-    return pd.DataFrame({
-        "Tissue": ["LUAD", "LUAD", "LUSC"],
-        "Sample": ["TCGA-50-8460-01A-11R-2326-07", "TCGA-05-4244-01A", "TCGA-66-2756-01A"],
-        "Gene_A": ["EML4", "KIF5B", "FGFR3"],
-        "Gene_B": ["ALK", "RET", "TACC3"],
-        "Frame Prediction": ["In-frame", "In-frame", "In-frame"],
-    })
+    return pd.DataFrame(
+        {
+            "Tissue": ["LUAD", "LUAD", "LUSC"],
+            "Sample": ["TCGA-50-8460-01A-11R-2326-07", "TCGA-05-4244-01A", "TCGA-66-2756-01A"],
+            "Gene_A": ["EML4", "KIF5B", "FGFR3"],
+            "Gene_B": ["ALK", "RET", "TACC3"],
+            "Frame Prediction": ["In-frame", "In-frame", "In-frame"],
+        }
+    )
 
 
 def test_load_tumorfusions_schema():
@@ -79,7 +92,7 @@ def test_load_tumorfusions_schema():
 def test_load_tumorfusions_sample_key_normalization():
     with patch("tcga_fusion_consensus.read.pd.read_excel", return_value=_make_tumorfusions_df()):
         df = load_tumorfusions("fake.xlsx")
-    assert (df["sample_key"] == df["sample_key"].str.extract(r'^(TCGA-[A-Z0-9]+-[A-Z0-9]+-\d{2})$')[0]).all()
+    assert (df["sample_key"] == df["sample_key"].str.extract(r"^(TCGA-[A-Z0-9]+-[A-Z0-9]+-\d{2})$")[0]).all()
 
 
 def test_load_tumorfusions_drops_null_sample_key():
@@ -104,17 +117,20 @@ def test_load_tumorfusions_drops_null_gene():
 
 # ---------- load_gao_2018 (mock pd.read_excel) ----------------------------
 
+
 def _make_gao_df():
     """Minimal 'Final fusion call set' content (2 rows, after skiprows=1)."""
-    return pd.DataFrame({
-        "Cancer": ["LUAD", "LUSC"],
-        "Sample": ["TCGA-05-4244-01A-11R-A29S-07", "TCGA-66-2756-01A-11R-2235-07"],
-        "Fusion": ["EML4--ALK", "FGFR3--TACC3"],
-        "Junction": [10, 20],
-        "Spanning": [5, 8],
-        "Breakpoint1": ["chr2:29", "chr4:1"],
-        "Breakpoint2": ["chr2:42", "chr4:1"],
-    })
+    return pd.DataFrame(
+        {
+            "Cancer": ["LUAD", "LUSC"],
+            "Sample": ["TCGA-05-4244-01A-11R-A29S-07", "TCGA-66-2756-01A-11R-2235-07"],
+            "Fusion": ["EML4--ALK", "FGFR3--TACC3"],
+            "Junction": [10, 20],
+            "Spanning": [5, 8],
+            "Breakpoint1": ["chr2:29", "chr4:1"],
+            "Breakpoint2": ["chr2:42", "chr4:1"],
+        }
+    )
 
 
 def test_load_gao_schema():
@@ -149,19 +165,33 @@ def test_load_gao_drops_nan_gene():
 
 # ---------- load_cbioportal_sv (in-memory, no gzip mock) ------------------
 
+
 def _cbio_rows():
     return [
-        {"sampleId": "TCGA-50-8460-01", "site1HugoSymbol": "EML4", "site2HugoSymbol": "ALK",
-         "site2EffectOnFrame": "In_frame"},
-        {"sampleId": "TCGA-XX-0001-01", "site1HugoSymbol": "ROS1", "site2HugoSymbol": "CD74",
-         "site2EffectOnFrame": None},
-        {"sampleId": None, "site1HugoSymbol": "FGFR3", "site2HugoSymbol": "TACC3",
-         "site2EffectOnFrame": "In_frame"},  # null sampleId → should be dropped
+        {
+            "sampleId": "TCGA-50-8460-01",
+            "site1HugoSymbol": "EML4",
+            "site2HugoSymbol": "ALK",
+            "site2EffectOnFrame": "In_frame",
+        },
+        {
+            "sampleId": "TCGA-XX-0001-01",
+            "site1HugoSymbol": "ROS1",
+            "site2HugoSymbol": "CD74",
+            "site2EffectOnFrame": None,
+        },
+        {
+            "sampleId": None,
+            "site1HugoSymbol": "FGFR3",
+            "site2HugoSymbol": "TACC3",
+            "site2EffectOnFrame": "In_frame",
+        },  # null sampleId → should be dropped
     ]
 
 
 def test_load_cbioportal_sv_schema(tmp_path):
     import gzip, json
+
     sv_file = tmp_path / "structural_variants.jsonl.gz"
     with gzip.open(sv_file, "wt") as f:
         for r in _cbio_rows():
@@ -177,6 +207,7 @@ def test_load_cbioportal_sv_schema(tmp_path):
 def test_load_cbioportal_sv_frame_replicated(tmp_path):
     """site2EffectOnFrame should appear on BOTH the 5prime and 3prime rows."""
     import gzip, json
+
     sv_file = tmp_path / "structural_variants.jsonl.gz"
     with gzip.open(sv_file, "wt") as f:
         f.write(json.dumps(_cbio_rows()[0]) + "\n")
@@ -186,13 +217,14 @@ def test_load_cbioportal_sv_frame_replicated(tmp_path):
 
 # ---------- assayed-samples denominators ----------------------------------
 
+
 def _make_file006_df():
-    return pd.DataFrame({
-        "Disease": ["LUAD", "LUAD", "LUSC"],
-        "barcode": ["TCGA-50-8460-01A-11R-2326-07",
-                    "TCGA-05-4244-01A-11R-A29S-07",
-                    "TCGA-66-2756-01A"],
-    })
+    return pd.DataFrame(
+        {
+            "Disease": ["LUAD", "LUAD", "LUSC"],
+            "barcode": ["TCGA-50-8460-01A-11R-2326-07", "TCGA-05-4244-01A-11R-A29S-07", "TCGA-66-2756-01A"],
+        }
+    )
 
 
 def test_tumorfusions_assayed_samples_schema():
@@ -204,10 +236,12 @@ def test_tumorfusions_assayed_samples_schema():
 
 
 def _make_gao_samples_df():
-    return pd.DataFrame({
-        "Sample": ["TCGA-05-4244-01A-11R-A29S-07", "TCGA-66-2756-01A"],
-        "Cancer": ["LUAD", "LUSC"],
-    })
+    return pd.DataFrame(
+        {
+            "Sample": ["TCGA-05-4244-01A-11R-A29S-07", "TCGA-66-2756-01A"],
+            "Cancer": ["LUAD", "LUSC"],
+        }
+    )
 
 
 def test_gao_assayed_samples_schema():

@@ -3,6 +3,7 @@ deletion, distinct from copy_number_class (which folds deep+shallow into recurre
 
 Key byte-stability property: adding this flag must NOT change copy_number_class (verdict-driving).
 """
+
 from __future__ import annotations
 
 import sys
@@ -19,14 +20,14 @@ def _cn(n_deep, n_total, deep_val=0.1, other=1.0):
 
 
 def test_recurrent_homdel_flag_fires_above_threshold():
-    s = compute_summary_stats(_cn(6, 20), {}, "wes")   # 30% deep-del
+    s = compute_summary_stats(_cn(6, 20), {}, "wes")  # 30% deep-del
     assert s["cn_homozygous_deletion_recurrent"] == "recurrent_homozygous_deletion"
     # copy_number_class UNCHANGED (deep folds into recurrently_deleted) — verdict spine intact
     assert s["copy_number_class"] == "recurrently_deleted"
 
 
 def test_flag_not_fired_below_threshold():
-    s = compute_summary_stats(_cn(2, 20), {}, "wes")   # 10% deep-del < 20%
+    s = compute_summary_stats(_cn(2, 20), {}, "wes")  # 10% deep-del < 20%
     assert s["cn_homozygous_deletion_recurrent"] == "not_recurrent_homozygous_deletion"
 
 

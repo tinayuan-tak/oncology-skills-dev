@@ -3,6 +3,7 @@
 Pins: (1) surface_confirmation_class (the verdict-driving field) stays CSPA-driven regardless of
 HPA; (2) the surface_multimodal_support corroboration call across agree/disagree/single-modality;
 (3) HPA absence degrades gracefully (never breaks CSPA)."""
+
 from __future__ import annotations
 
 import sys

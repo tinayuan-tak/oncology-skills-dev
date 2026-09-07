@@ -1,4 +1,5 @@
 """CLI + dispatcher entrypoint for the sc-surface RNA<->protein concordance arm."""
+
 from __future__ import annotations
 
 import json
@@ -20,6 +21,7 @@ def build_summary(target: str, indication: str = None) -> dict:
 
 def main() -> int:
     import argparse
+
     ap = argparse.ArgumentParser()
     ap.add_argument("--target", required=True)
     ap.add_argument("--indication", default=None)
@@ -28,10 +30,20 @@ def main() -> int:
     args.out.mkdir(parents=True, exist_ok=True)
     summary = build_summary(args.target, args.indication)
     (args.out / "summary.json").write_text(json.dumps(summary, indent=2, default=str))
-    (args.out / "manifest.json").write_text(json.dumps(
-        {"method": "sc_surface_concordance", "method_version": METHOD_VERSION,
-         "target": args.target, "rna_as_biomarker": summary.get("rna_as_biomarker"),
-         "artifacts": {"summary": "summary.json"}, "plotly_figures": []}, indent=2, default=str))
+    (args.out / "manifest.json").write_text(
+        json.dumps(
+            {
+                "method": "sc_surface_concordance",
+                "method_version": METHOD_VERSION,
+                "target": args.target,
+                "rna_as_biomarker": summary.get("rna_as_biomarker"),
+                "artifacts": {"summary": "summary.json"},
+                "plotly_figures": [],
+            },
+            indent=2,
+            default=str,
+        )
+    )
     return 0
 
 

@@ -1,4 +1,5 @@
 """Hermetic tests for opentargets_disease_xref._extract_mesh (pure; no S3)."""
+
 from __future__ import annotations
 import sys
 from pathlib import Path

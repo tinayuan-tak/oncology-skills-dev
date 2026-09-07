@@ -18,6 +18,7 @@ Two resident tables (both small — 166 panels, 271k samples):
 
 METHOD_VERSION 0.1.0.
 """
+
 from __future__ import annotations
 
 METHOD_VERSION = "0.1.0"

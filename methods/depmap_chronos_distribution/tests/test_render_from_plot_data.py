@@ -19,9 +19,11 @@ from methods.depmap_chronos_distribution import read as r
 def _panel() -> tuple[dict, dict]:
     chronos, meta = {}, {}
     i = 1
-    for lin, vals in {"Bowel": [-1.2, -1.4, -0.9, -1.1, -1.3],
-                      "Lung": [-0.6, -0.5, -0.7, -0.4, -0.55],
-                      "Breast": [0.05, -0.1, 0.1, -0.05, 0.0]}.items():
+    for lin, vals in {
+        "Bowel": [-1.2, -1.4, -0.9, -1.1, -1.3],
+        "Lung": [-0.6, -0.5, -0.7, -0.4, -0.55],
+        "Breast": [0.05, -0.1, 0.1, -0.05, 0.0],
+    }.items():
         for v in vals:
             mid = f"ACH-{i:06d}"
             chronos[mid] = float(v)
@@ -49,13 +51,15 @@ def test_plot_data_persisted_on_read(tmp_path, monkeypatch):
 def test_renders_offline_from_persisted_parquet(tmp_path, monkeypatch):
     chronos, meta = _panel()
     summary = c.compute_summary_stats(chronos, meta)
-    src = tmp_path / "src"; src.mkdir()
+    src = tmp_path / "src"
+    src.mkdir()
     c.emit_plot_data(chronos, meta, -1.0, src)
     assert (src / "plot_data.parquet").exists()
 
     # NO live read allowed on the offline render path
-    monkeypatch.setattr(c, "load_depmap_files",
-                        lambda *a, **k: (_ for _ in ()).throw(AssertionError("live read in offline render")))
+    monkeypatch.setattr(
+        c, "load_depmap_files", lambda *a, **k: (_ for _ in ()).throw(AssertionError("live read in offline render"))
+    )
     out = tmp_path / "out"
     descs = f.render_from_plot_data(src / "plot_data.parquet", summary, out, "MYGENE")
 
@@ -69,6 +73,7 @@ def test_renders_offline_from_persisted_parquet(tmp_path, monkeypatch):
 
 def test_missing_columns_raises(tmp_path):
     import pandas as pd
+
     df = pd.DataFrame({"cell_line_id": ["ACH-1"]})  # no chronos_score
     try:
         f.render_from_plot_data(df, {}, tmp_path / "out", "MYGENE")
@@ -83,13 +88,16 @@ def test_returns_plotly_descriptors_with_dynamic_flag(tmp_path, monkeypatch):
     just the SVGs — so it is an exact drop-in for the registry emitter (which appends them today)."""
     chronos, meta = _panel()
     summary = c.compute_summary_stats(chronos, meta)
-    src = tmp_path / "src"; src.mkdir()
+    src = tmp_path / "src"
+    src.mkdir()
     c.emit_plot_data(chronos, meta, -1.0, src)
 
     # deterministic plotly stub so the assertion is env-independent (real plotly may be absent)
-    monkeypatch.setattr(c, "emit_plotly_specs",
-                        lambda *a, **k: [{"id": "waterfall",
-                                          "path": "figure_waterfall.plotly.json", "type": "plotly"}])
+    monkeypatch.setattr(
+        c,
+        "emit_plotly_specs",
+        lambda *a, **k: [{"id": "waterfall", "path": "figure_waterfall.plotly.json", "type": "plotly"}],
+    )
     descs = f.render_from_plot_data(src / "plot_data.parquet", summary, tmp_path / "out", "MYGENE")
     dyn = [d for d in descs if d.get("dynamic")]
     assert dyn and dyn[0]["path"].endswith(".plotly.json") and dyn[0]["dynamic"] is True

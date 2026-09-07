@@ -41,7 +41,7 @@ import pandas as pd
 
 from methods.catalog_query.read import bucket_key_for
 
-METHOD_VERSION = "0.3.0"   # 0.3.0: + GENIE-SV breadth fields (genie_sv_*) — pan-cohort display sibling
+METHOD_VERSION = "0.3.0"  # 0.3.0: + GENIE-SV breadth fields (genie_sv_*) — pan-cohort display sibling
 #                            0.2.0: + per-target read_target_summary over the derived S3 product
 
 # ---------- per-target read over the derived consensus product ----------
@@ -94,6 +94,7 @@ def _get_s3fs():
         with _S3FS_LOCK:
             if _S3FS is None:
                 import pyarrow.fs as pafs
+
                 _S3FS = pafs.S3FileSystem(region="us-east-1")
     return _S3FS
 
@@ -105,6 +106,7 @@ def _stream_parquet(bucket: str, key: str):
     a transient/creds/broken-env error propagates so the caller's absence latch re-raises the real
     cause. No whole-file download."""
     import pyarrow.parquet as pq
+
     return pq.read_table(f"{bucket}/{key}", filesystem=_get_s3fs()).to_pandas()
 
 
@@ -121,6 +123,7 @@ def _load_consensus():
         df = _stream_parquet(S3_BUCKET, DERIVED_S3_KEY)
     except Exception as e:  # noqa: BLE001
         from methods.target_id_sidecar import is_definitively_absent
+
         if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
             _DERIVED_STATUS = False
             return pd.DataFrame()
@@ -150,6 +153,7 @@ def _load_coverage():
         df = _stream_parquet(S3_BUCKET, _COVERAGE_KEY)
     except Exception as e:  # noqa: BLE001
         from methods.target_id_sidecar import is_definitively_absent
+
         if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
             _COVERAGE_STATUS = False
             return pd.DataFrame()
@@ -177,9 +181,15 @@ def _n_assayed_in_tissue(indication: Optional[str]) -> Optional[int]:
 # GENIE-SV breadth keys — the pan-cohort (271k panel tumors) complement to the TCGA-consensus
 # fusion facts. Panel-coverage-correct DISPLAY facet (verdict-inert). TCGA is deep-tissue but shallow
 # (LUAD ~5 ALK); GENIE surfaces 774 ALK-SV NSCLC samples with EML4 the dominant partner.
-_GENIE_SV_KEYS = ("genie_sv_recurrence_class", "genie_sv_recurrence_percentile",
-                  "genie_sv_frequency", "n_sv_samples", "n_sv_covered",
-                  "genie_sv_recurrent_partners", "genie_sv_context")
+_GENIE_SV_KEYS = (
+    "genie_sv_recurrence_class",
+    "genie_sv_recurrence_percentile",
+    "genie_sv_frequency",
+    "n_sv_samples",
+    "n_sv_covered",
+    "genie_sv_recurrent_partners",
+    "genie_sv_context",
+)
 
 
 def _genie_sv_fields(target: str, indication: Optional[str]) -> dict:
@@ -187,14 +197,20 @@ def _genie_sv_fields(target: str, indication: Optional[str]) -> dict:
     card — the higher-N sibling of the TCGA-consensus fusion facts. Lazily imports genie_sv_recurrence
     and always returns the keys (graceful data_unavailable on any failure/absence), so the card gains
     the GENIE breadth comparator without ever breaking the TCGA path. No indication → no GENIE cohort."""
-    default = {"genie_sv_recurrence_class": "data_unavailable",
-               "genie_sv_recurrence_percentile": None, "genie_sv_frequency": None,
-               "n_sv_samples": None, "n_sv_covered": None,
-               "genie_sv_recurrent_partners": [], "genie_sv_context": None}
+    default = {
+        "genie_sv_recurrence_class": "data_unavailable",
+        "genie_sv_recurrence_percentile": None,
+        "genie_sv_frequency": None,
+        "n_sv_samples": None,
+        "n_sv_covered": None,
+        "genie_sv_recurrent_partners": [],
+        "genie_sv_context": None,
+    }
     if not indication:
         return default
     try:
         from methods.genie_sv_recurrence.read import genie_sv_recurrence_for_gene
+
         g = genie_sv_recurrence_for_gene(target, indication)
         return {k: g.get(k) for k in _GENIE_SV_KEYS}
     except Exception:  # noqa: BLE001
@@ -218,8 +234,7 @@ def _empty_summary(note: str, target: str = None, indication: str = None) -> dic
     return out
 
 
-def read_target_summary(target: str, indication: str = None,
-                        min_callers: int = _DEFAULT_MIN_CALLERS) -> dict:
+def read_target_summary(target: str, indication: str = None, min_callers: int = _DEFAULT_MIN_CALLERS) -> dict:
     """Per-(target, indication) fusion-recurrence summary for the fusion-rearrangement-landscape card.
 
     Reads the tcga-fusion-consensus-v1 derived product (S3, cached), filters to the target gene and —
@@ -268,8 +283,10 @@ def read_target_summary(target: str, indication: str = None,
                 parts.update(str(p) for p in v if p)
         for p in parts:
             partner_samples.setdefault(p, set()).add(row["sample_key"])
-    recurrent = sorted(((p, len(s)) for p, s in partner_samples.items() if len(s) >= _RECURRENT_MIN_SAMPLES),
-                       key=lambda x: (-x[1], x[0]))
+    recurrent = sorted(
+        ((p, len(s)) for p, s in partner_samples.items() if len(s) >= _RECURRENT_MIN_SAMPLES),
+        key=lambda x: (-x[1], x[0]),
+    )
     recurrent_partners = [{"partner": p, "n_samples": n} for p, n in recurrent]
 
     # Recurrence confidence tier — VERDICT-INERT, additive.
@@ -313,8 +330,7 @@ def read_target_summary(target: str, indication: str = None,
         "method_version": METHOD_VERSION,
         "_data_source": DERIVED_MANIFEST_ID,
         "_min_callers": min_callers,
-        "_n_events_total": int(sub[["n_events_tumorfusions", "n_events_gao_2018",
-                                    "n_events_cbioportal"]].sum().sum()),
+        "_n_events_total": int(sub[["n_events_tumorfusions", "n_events_gao_2018", "n_events_cbioportal"]].sum().sum()),
         # GENIE-SV breadth (pan-cohort, panel-coverage-correct) — additive display sibling.
         **_genie_sv_fields(target, indication),
     }
@@ -326,12 +342,32 @@ def _target_in_product(df: pd.DataFrame, sym: str) -> bool:
 
 # indication (OncoTree-ish) → set of TCGA disease codes present in the product's `tissue` column.
 _INDICATION_TISSUE = {
-    "COADREAD": {"COAD", "READ", "COADREAD"}, "COAD": {"COAD", "COADREAD"}, "READ": {"READ", "COADREAD"},
-    "NSCLC": {"LUAD", "LUSC"}, "LUAD": {"LUAD"}, "LUSC": {"LUSC"},
-    "HNSC": {"HNSC"}, "HNSCC": {"HNSC"}, "BRCA": {"BRCA"}, "PRAD": {"PRAD"}, "PAAD": {"PAAD"},
-    "STAD": {"STAD"}, "OV": {"OV"}, "GBM": {"GBM"}, "LGG": {"LGG"}, "BLCA": {"BLCA"},
-    "KIRC": {"KIRC"}, "KIRP": {"KIRP"}, "KICH": {"KICH"}, "LIHC": {"LIHC"}, "SKCM": {"SKCM"},
-    "THCA": {"THCA"}, "UCEC": {"UCEC"}, "CESC": {"CESC"}, "ESCA": {"ESCA"}, "SARC": {"SARC"},
+    "COADREAD": {"COAD", "READ", "COADREAD"},
+    "COAD": {"COAD", "COADREAD"},
+    "READ": {"READ", "COADREAD"},
+    "NSCLC": {"LUAD", "LUSC"},
+    "LUAD": {"LUAD"},
+    "LUSC": {"LUSC"},
+    "HNSC": {"HNSC"},
+    "HNSCC": {"HNSC"},
+    "BRCA": {"BRCA"},
+    "PRAD": {"PRAD"},
+    "PAAD": {"PAAD"},
+    "STAD": {"STAD"},
+    "OV": {"OV"},
+    "GBM": {"GBM"},
+    "LGG": {"LGG"},
+    "BLCA": {"BLCA"},
+    "KIRC": {"KIRC"},
+    "KIRP": {"KIRP"},
+    "KICH": {"KICH"},
+    "LIHC": {"LIHC"},
+    "SKCM": {"SKCM"},
+    "THCA": {"THCA"},
+    "UCEC": {"UCEC"},
+    "CESC": {"CESC"},
+    "ESCA": {"ESCA"},
+    "SARC": {"SARC"},
 }
 
 
@@ -342,7 +378,7 @@ def _indication_tissue_codes(ind: str) -> set:
 
 # ---------- barcode normalization ----------
 
-_SAMPLE_KEY_RE = re.compile(r'^(TCGA-[A-Z0-9]+-[A-Z0-9]+-\d{2})')
+_SAMPLE_KEY_RE = re.compile(r"^(TCGA-[A-Z0-9]+-[A-Z0-9]+-\d{2})")
 
 
 def sample_key(barcode: str | None) -> str | None:
@@ -355,6 +391,7 @@ def sample_key(barcode: str | None) -> str | None:
 
 # ---------- TumorFusions (Hu 2018 NAR) ----------
 
+
 def load_tumorfusions(xlsx_path: str | Path) -> pd.DataFrame:
     """Load File007 'Cancer fusions' sheet (20,731 rows across 33 TCGA tissue types).
 
@@ -364,28 +401,29 @@ def load_tumorfusions(xlsx_path: str | Path) -> pd.DataFrame:
     """
     # converters force str on gene columns — prevents Excel auto-date mangling
     # of gene names like SEPT1, MARCH1 into datetime.datetime objects.
-    df = pd.read_excel(xlsx_path, sheet_name="Cancer fusions",
-                       converters={"Gene_A": str, "Gene_B": str, "Sample": str})
+    df = pd.read_excel(xlsx_path, sheet_name="Cancer fusions", converters={"Gene_A": str, "Gene_B": str, "Sample": str})
     # Two rows per event: one per side.
-    a = df.rename(columns={"Gene_A": "gene_symbol", "Gene_B": "partner_gene",
-                           "Frame Prediction": "frame_pred"})
+    a = df.rename(columns={"Gene_A": "gene_symbol", "Gene_B": "partner_gene", "Frame Prediction": "frame_pred"})
     a = a[["Tissue", "Sample", "gene_symbol", "partner_gene", "frame_pred"]].copy()
     a["partner_side"] = "5prime"
-    b = df.rename(columns={"Gene_B": "gene_symbol", "Gene_A": "partner_gene",
-                           "Frame Prediction": "frame_pred"})
+    b = df.rename(columns={"Gene_B": "gene_symbol", "Gene_A": "partner_gene", "Frame Prediction": "frame_pred"})
     b = b[["Tissue", "Sample", "gene_symbol", "partner_gene", "frame_pred"]].copy()
     b["partner_side"] = "3prime"
     out = pd.concat([a, b], ignore_index=True)
     out["sample_key"] = out["Sample"].map(sample_key)
     out = out.rename(columns={"Tissue": "tissue"})
     out["caller"] = "tumorfusions"
-    out["event_id"] = out["Sample"].astype(str) + "|" + out["gene_symbol"].astype(str) + "--" + out["partner_gene"].astype(str)
+    out["event_id"] = (
+        out["Sample"].astype(str) + "|" + out["gene_symbol"].astype(str) + "--" + out["partner_gene"].astype(str)
+    )
     out = out[out["sample_key"].notna() & out["gene_symbol"].notna()]
-    return out[["sample_key", "gene_symbol", "partner_gene", "partner_side",
-                "tissue", "frame_pred", "caller", "event_id"]]
+    return out[
+        ["sample_key", "gene_symbol", "partner_gene", "partner_side", "tissue", "frame_pred", "caller", "event_id"]
+    ]
 
 
 # ---------- Gao 2018 (Cell Reports) ----------
+
 
 def load_gao_2018(xlsx_path: str | Path) -> pd.DataFrame:
     """Load 'Final fusion call set' sheet (25,664 rows, 33 TCGA cancer types).
@@ -393,17 +431,16 @@ def load_gao_2018(xlsx_path: str | Path) -> pd.DataFrame:
     Header row is row 2 (skiprows=1). Columns: Cancer, Sample, Fusion (5'--3'),
     Junction, Spanning, Breakpoint1, Breakpoint2. Fusion string 'A--B' splits into
     5' and 3' partners. NO frame prediction column — emitted as None."""
-    df = pd.read_excel(xlsx_path, sheet_name="Final fusion call set", skiprows=1,
-                       converters={"Sample": str, "Fusion": str})
+    df = pd.read_excel(
+        xlsx_path, sheet_name="Final fusion call set", skiprows=1, converters={"Sample": str, "Fusion": str}
+    )
     # Parse 'A--B' -> 5', 3'
     fus = df["Fusion"].astype(str).str.split("--", n=1, expand=True)
     df = df.assign(gene_5p=fus[0], gene_3p=fus[1])
-    a = df.rename(columns={"gene_5p": "gene_symbol", "gene_3p": "partner_gene",
-                           "Cancer": "tissue"})
+    a = df.rename(columns={"gene_5p": "gene_symbol", "gene_3p": "partner_gene", "Cancer": "tissue"})
     a = a[["tissue", "Sample", "gene_symbol", "partner_gene", "Fusion"]].copy()
     a["partner_side"] = "5prime"
-    b = df.rename(columns={"gene_3p": "gene_symbol", "gene_5p": "partner_gene",
-                           "Cancer": "tissue"})
+    b = df.rename(columns={"gene_3p": "gene_symbol", "gene_5p": "partner_gene", "Cancer": "tissue"})
     b = b[["tissue", "Sample", "gene_symbol", "partner_gene", "Fusion"]].copy()
     b["partner_side"] = "3prime"
     out = pd.concat([a, b], ignore_index=True)
@@ -412,22 +449,47 @@ def load_gao_2018(xlsx_path: str | Path) -> pd.DataFrame:
     out["caller"] = "gao_2018"
     out["event_id"] = out["Sample"].astype(str) + "|" + out["Fusion"].astype(str)
     out = out[out["sample_key"].notna() & out["gene_symbol"].notna() & (out["gene_symbol"] != "nan")]
-    return out[["sample_key", "gene_symbol", "partner_gene", "partner_side",
-                "tissue", "frame_pred", "caller", "event_id"]]
+    return out[
+        ["sample_key", "gene_symbol", "partner_gene", "partner_side", "tissue", "frame_pred", "caller", "event_id"]
+    ]
 
 
 # ---------- cBioPortal TCGA PanCancer Atlas (32 studies) ----------
 
 _STUDY_TO_TISSUE = {
     # cBioPortal study prefix -> TCGA disease code
-    "acc_": "ACC", "blca_": "BLCA", "brca_": "BRCA", "cesc_": "CESC",
-    "chol_": "CHOL", "coadread_": "COADREAD", "dlbc_": "DLBC", "esca_": "ESCA",
-    "gbm_": "GBM", "hnsc_": "HNSC", "kich_": "KICH", "kirc_": "KIRC",
-    "kirp_": "KIRP", "laml_": "LAML", "lgg_": "LGG", "lihc_": "LIHC",
-    "luad_": "LUAD", "lusc_": "LUSC", "meso_": "MESO", "ov_": "OV",
-    "paad_": "PAAD", "pcpg_": "PCPG", "prad_": "PRAD", "sarc_": "SARC",
-    "skcm_": "SKCM", "stad_": "STAD", "tgct_": "TGCT", "thca_": "THCA",
-    "thym_": "THYM", "ucec_": "UCEC", "ucs_": "UCS", "uvm_": "UVM",
+    "acc_": "ACC",
+    "blca_": "BLCA",
+    "brca_": "BRCA",
+    "cesc_": "CESC",
+    "chol_": "CHOL",
+    "coadread_": "COADREAD",
+    "dlbc_": "DLBC",
+    "esca_": "ESCA",
+    "gbm_": "GBM",
+    "hnsc_": "HNSC",
+    "kich_": "KICH",
+    "kirc_": "KIRC",
+    "kirp_": "KIRP",
+    "laml_": "LAML",
+    "lgg_": "LGG",
+    "lihc_": "LIHC",
+    "luad_": "LUAD",
+    "lusc_": "LUSC",
+    "meso_": "MESO",
+    "ov_": "OV",
+    "paad_": "PAAD",
+    "pcpg_": "PCPG",
+    "prad_": "PRAD",
+    "sarc_": "SARC",
+    "skcm_": "SKCM",
+    "stad_": "STAD",
+    "tgct_": "TGCT",
+    "thca_": "THCA",
+    "thym_": "THYM",
+    "ucec_": "UCEC",
+    "ucs_": "UCS",
+    "uvm_": "UVM",
 }
 
 
@@ -458,13 +520,14 @@ def load_cbioportal_sv(jsonl_gz_path: str | Path, study_id: str) -> pd.DataFrame
                 rows.append((sid, g1, g2, "5prime", frame, eid))
             if g2:
                 rows.append((sid, g2, g1, "3prime", frame, eid))
-    df = pd.DataFrame(rows, columns=[
-        "sample_key", "gene_symbol", "partner_gene", "partner_side",
-        "frame_pred", "event_id"])
+    df = pd.DataFrame(
+        rows, columns=["sample_key", "gene_symbol", "partner_gene", "partner_side", "frame_pred", "event_id"]
+    )
     df["tissue"] = _cbio_study_tissue(study_id)
     df["caller"] = "cbioportal"
-    return df[["sample_key", "gene_symbol", "partner_gene", "partner_side",
-               "tissue", "frame_pred", "caller", "event_id"]]
+    return df[
+        ["sample_key", "gene_symbol", "partner_gene", "partner_side", "tissue", "frame_pred", "caller", "event_id"]
+    ]
 
 
 def load_cbioportal_all(base_dir: str | Path) -> pd.DataFrame:
@@ -485,12 +548,12 @@ def load_cbioportal_all(base_dir: str | Path) -> pd.DataFrame:
 
 # ---------- sample-coverage tables (denominator for is_member=false vs null) ----------
 
+
 def tumorfusions_assayed_samples(xlsx_path: str | Path) -> pd.DataFrame:
     """Which samples did TumorFusions ATTEMPT to profile? (Denominator for
     false-vs-null.) Comes from File006 'All sample IDs' (10,655 rows).
     Column `barcode` is the full aliquot barcode; return sample-level keys."""
-    df = pd.read_excel(xlsx_path, sheet_name="All sample IDs",
-                       converters={"barcode": str})
+    df = pd.read_excel(xlsx_path, sheet_name="All sample IDs", converters={"barcode": str})
     df = df.rename(columns={"Disease": "tissue"})
     df["sample_key"] = df["barcode"].map(sample_key)
     df = df[df["sample_key"].notna()]
@@ -501,8 +564,7 @@ def tumorfusions_assayed_samples(xlsx_path: str | Path) -> pd.DataFrame:
 def gao_2018_assayed_samples(xlsx_path: str | Path) -> pd.DataFrame:
     """Which samples did Gao 2018 include? Comes from sheet 'TCGA samples used
     in this study'. Header on row 2 (skiprows=1)."""
-    df = pd.read_excel(xlsx_path, sheet_name="TCGA samples used in this study",
-                       skiprows=1, dtype=str)
+    df = pd.read_excel(xlsx_path, sheet_name="TCGA samples used in this study", skiprows=1, dtype=str)
     # Column names on row 2 vary — normalize by position for the first two cols.
     df = df.rename(columns={df.columns[0]: "Sample", df.columns[1]: "tissue"})
     df["sample_key"] = df["Sample"].map(sample_key)

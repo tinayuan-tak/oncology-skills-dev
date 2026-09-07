@@ -74,9 +74,9 @@ def test_delta_reducer_excludes_underpowered_from_spread():
         {"metric": 0.99, "subgroup_n": 3, "evidence_state": "underpowered"},
     ]
     out = delta_reducer(records, metric_key="metric", label="frequency")
-    assert out["max_subgroup_frequency"] == 0.50   # NOT the 0.99 underpowered outlier
+    assert out["max_subgroup_frequency"] == 0.50  # NOT the 0.99 underpowered outlier
     assert out["min_subgroup_frequency"] == 0.40
-    assert out["cross_subgroup_delta_frequency"] == 0.1   # 0.50-0.40, not 0.99-0.40
+    assert out["cross_subgroup_delta_frequency"] == 0.1  # 0.50-0.40, not 0.99-0.40
     assert out["n_subgroups_measured"] == 2
     assert out["n_subgroups_with_data"] == 3  # underpowered stratum still has samples
 
@@ -91,8 +91,20 @@ def test_stratum_axis_and_partition():
     assert stratum_axis("CIMP_High") == "CIMP"
     assert stratum_axis("stage_II") == "stage"
     assert stratum_axis("KRAS_G12C") == "KRAS_G12C"  # unknown → singleton
-    axes = partition_axes(["MSI_H", "MSS", "CMS1", "CMS2", "left_sided", "right_sided",
-                           "CIMP_High", "stage_I", "stage_II", "stage_resectable"])
+    axes = partition_axes(
+        [
+            "MSI_H",
+            "MSS",
+            "CMS1",
+            "CMS2",
+            "left_sided",
+            "right_sided",
+            "CIMP_High",
+            "stage_I",
+            "stage_II",
+            "stage_resectable",
+        ]
+    )
     assert axes["MSI"] == ["MSI_H", "MSS"]
     assert axes["CMS"] == ["CMS1", "CMS2"]
     assert axes["sidedness"] == ["left_sided", "right_sided"]
@@ -105,16 +117,16 @@ def test_disjoint_arms_drops_overlapping_composite():
     member_sets = {
         "stage_I": {1, 2, 3},
         "stage_II": {4, 5, 6},
-        "stage_resectable": {1, 2, 3, 4, 5, 6},   # overlaps both
+        "stage_resectable": {1, 2, 3, 4, 5, 6},  # overlaps both
     }
     kept, dropped = disjoint_arms(["stage_I", "stage_II", "stage_resectable"], member_sets)
     assert kept == ["stage_I", "stage_II"]
     assert dropped == ["stage_resectable"]
 
 
-def _fake_reader(target, indication, *, subgroups=None,
-                 subgroup_assignments_manifest=None, subgroup_catalog_repo=None,
-                 scale=1.0):
+def _fake_reader(
+    target, indication, *, subgroups=None, subgroup_assignments_manifest=None, subgroup_catalog_repo=None, scale=1.0
+):
     """Fake @subgroup_iterable-style reader: returns {stratum: record} directly."""
     out = {}
     for i, s in enumerate(subgroups):
@@ -142,7 +154,8 @@ def test_build_panorama_generic_shape():
 
     pan = build_panorama(
         _fake_reader,
-        target="KRAS", indication="COADREAD",
+        target="KRAS",
+        indication="COADREAD",
         subgroups=["A", "B", "C"],
         subgroup_assignments_manifest="fake-v1",
         record_projection=projection,

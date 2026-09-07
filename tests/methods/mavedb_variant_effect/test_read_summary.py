@@ -13,6 +13,7 @@ target_categories, urns) is read via the `product_path` offline seam. Pins:
   * a genuine 404-class fault → data_unavailable + _live_read_error (never crashes the compose path);
   * a transient/creds error is RE-RAISED (never masked as an empty footprint).
 """
+
 from __future__ import annotations
 
 import importlib
@@ -31,15 +32,33 @@ read = importlib.import_module("methods.mavedb_variant_effect.read")
 # The fields the variant-effect-mave-mavedb card declares in outputs.summary_fields — the reader
 # MUST emit all of them (the drift guard). Kept explicit so a card/reader divergence fails HERE.
 _CARD_SUMMARY_FIELDS = {
-    "mave_evidence_class", "has_hgnc_mapping", "n_score_sets", "n_variants_assayed",
-    "n_variants_scored", "score_min", "score_median", "score_max", "target_categories",
-    "urns", "mave_context", "method_version",
+    "mave_evidence_class",
+    "has_hgnc_mapping",
+    "n_score_sets",
+    "n_variants_assayed",
+    "n_variants_scored",
+    "score_min",
+    "score_median",
+    "score_max",
+    "target_categories",
+    "urns",
+    "mave_context",
+    "method_version",
 }
-_CLASS_VOCAB = {"mave_well_characterized", "mave_assayed", "mave_unmapped_target",
-                "not_assayed", "data_unavailable"}
+_CLASS_VOCAB = {"mave_well_characterized", "mave_assayed", "mave_unmapped_target", "not_assayed", "data_unavailable"}
 
-_COLS = ["gene_symbol", "has_hgnc_mapping", "n_score_sets", "n_variants_assayed",
-         "n_variants_scored", "score_min", "score_median", "score_max", "target_categories", "urns"]
+_COLS = [
+    "gene_symbol",
+    "has_hgnc_mapping",
+    "n_score_sets",
+    "n_variants_assayed",
+    "n_variants_scored",
+    "score_min",
+    "score_median",
+    "score_max",
+    "target_categories",
+    "urns",
+]
 
 
 def _write_product(tmp_path, rows) -> Path:
@@ -50,19 +69,39 @@ def _write_product(tmp_path, rows) -> Path:
     return p
 
 
-def _row(gene, mapped=True, n_score_sets=2, n_assayed=1000, n_scored=950,
-         smin=-4.0, smed=-0.5, smax=1.2, cats="protein_coding", urns="urn:mavedb:00000001-a-1"):
-    return {"gene_symbol": gene, "has_hgnc_mapping": mapped, "n_score_sets": n_score_sets,
-            "n_variants_assayed": n_assayed, "n_variants_scored": n_scored,
-            "score_min": smin, "score_median": smed, "score_max": smax,
-            "target_categories": cats, "urns": urns}
+def _row(
+    gene,
+    mapped=True,
+    n_score_sets=2,
+    n_assayed=1000,
+    n_scored=950,
+    smin=-4.0,
+    smed=-0.5,
+    smax=1.2,
+    cats="protein_coding",
+    urns="urn:mavedb:00000001-a-1",
+):
+    return {
+        "gene_symbol": gene,
+        "has_hgnc_mapping": mapped,
+        "n_score_sets": n_score_sets,
+        "n_variants_assayed": n_assayed,
+        "n_variants_scored": n_scored,
+        "score_min": smin,
+        "score_median": smed,
+        "score_max": smax,
+        "target_categories": cats,
+        "urns": urns,
+    }
 
 
 def test_summary_shape_matches_card_and_class(tmp_path):
     # TP53 assayed by 3 MAVE score sets (>=2 → well_characterized); a background gene forces the
     # pushdown to actually filter on gene_symbol.
-    rows = [_row("TP53", n_score_sets=3, n_assayed=8000, n_scored=7900, smin=-6.1, smed=-0.2, smax=2.3),
-            _row("BRCA1", n_score_sets=1)]
+    rows = [
+        _row("TP53", n_score_sets=3, n_assayed=8000, n_scored=7900, smin=-6.1, smed=-0.2, smax=2.3),
+        _row("BRCA1", n_score_sets=1),
+    ]
     prod = _write_product(tmp_path, rows)
 
     out = read.read_target_summary("TP53", indication="COADREAD", product_path=prod)
@@ -95,12 +134,11 @@ def test_non_hgnc_mapped_row_is_unmapped_target(tmp_path):
     mave_unmapped_target: NOT counted as clean human-gene MAVE evidence, but its assay counts are
     still SURFACED (never a silent not_assayed on a gene that plainly was assayed — the real KRAS case,
     30 score sets under an unmapped raw target name)."""
-    prod = _write_product(tmp_path, [_row("KRAS", mapped=False, n_score_sets=30, n_assayed=200000,
-                                          n_scored=198000)])
+    prod = _write_product(tmp_path, [_row("KRAS", mapped=False, n_score_sets=30, n_assayed=200000, n_scored=198000)])
     out = read.read_target_summary("KRAS", product_path=prod)
     assert out["mave_evidence_class"] == "mave_unmapped_target"
     assert out["has_hgnc_mapping"] is False
-    assert out["n_score_sets"] == 30            # counts surfaced for transparency
+    assert out["n_score_sets"] == 30  # counts surfaced for transparency
     assert out["n_variants_scored"] == 198000
 
 
@@ -118,8 +156,10 @@ def test_gene_absent_is_not_assayed_not_unavailable(tmp_path):
 
 def test_definitive_absence_degrades_not_crashes(monkeypatch):
     """A genuine 404-class fault → data_unavailable + _live_read_error (honest degrade)."""
+
     def _boom(*a, **k):
         raise FileNotFoundError("no such key")
+
     monkeypatch.setattr(read, "load_and_classify", _boom)
     out = read.read_target_summary("TP53", indication="COADREAD")
     assert out["_live_read_error"] == "mavedb_variant_effect_read_failed"
@@ -130,8 +170,10 @@ def test_definitive_absence_degrades_not_crashes(monkeypatch):
 def test_transient_fault_is_reraised(monkeypatch):
     """A transient / non-definitive error must NOT be masked as an empty footprint — re-raise so the
     live-read seam surfaces the infra failure (absence discipline)."""
+
     def _boom(*a, **k):
         raise RuntimeError("connection reset")
+
     monkeypatch.setattr(read, "load_and_classify", _boom)
     with pytest.raises(RuntimeError):
         read.read_target_summary("TP53")

@@ -10,6 +10,7 @@ The per-reader ``_load_product`` / ``_resolve_derived_uri`` wrappers are intenti
 tests monkeypatch ``_load_product`` and inspect ``_resolve_derived_uri`` by name); they now delegate
 here rather than re-implementing the fetch.
 """
+
 from __future__ import annotations
 
 import io
@@ -29,6 +30,7 @@ def load_materialized_product(uri: str, *, dev_build: Optional[Callable] = None,
     a subprocess/read exception or an empty payload routes to ``dev_build`` if given, else raises.
     """
     import pandas as pd
+
     try:
         raw = subprocess.run(["aws", "s3", "cp", uri, "-"], capture_output=True, timeout=timeout).stdout
         if raw:

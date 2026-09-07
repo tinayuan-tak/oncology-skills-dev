@@ -1,6 +1,7 @@
 """opentargets_clinvar — P5 ClinVar germline-pathogenic classifier (pure, dict-fixture tested).
 
 Under test: pathogenicity gate + germline guardrail (somatic excluded) + review-status tiering."""
+
 from __future__ import annotations
 
 import importlib
@@ -17,8 +18,14 @@ r = importlib.import_module("methods.opentargets_clinvar.read")
 
 
 def _row(sigs, origins, confidence="criteria provided, single submitter", disease="D"):
-    return {"clinicalSignificances": sigs, "alleleOrigins": origins, "confidence": confidence,
-            "diseaseFromSource": disease, "variantRsId": "rs1", "variantFunctionalConsequenceId": None}
+    return {
+        "clinicalSignificances": sigs,
+        "alleleOrigins": origins,
+        "confidence": confidence,
+        "diseaseFromSource": disease,
+        "variantRsId": "rs1",
+        "variantFunctionalConsequenceId": None,
+    }
 
 
 def test_germline_pathogenic_fires():
@@ -37,27 +44,33 @@ def test_somatic_pathogenic_is_guardrailed_out():
 
 
 def test_uncertain_and_benign_do_not_fire():
-    out = r.classify_clinvar([_row(["uncertain significance"], ["germline"]),
-                              _row(["likely benign"], ["germline"]),
-                              _row(["benign"], ["germline"])])
+    out = r.classify_clinvar(
+        [
+            _row(["uncertain significance"], ["germline"]),
+            _row(["likely benign"], ["germline"]),
+            _row(["benign"], ["germline"]),
+        ]
+    )
     assert out["clinvar_pathogenic_class"] == "no_pathogenic_signal"
 
 
 def test_weak_review_only_is_low_review_tier():
-    out = r.classify_clinvar([_row(["pathogenic"], ["germline"],
-                                   confidence="no assertion criteria provided")])
+    out = r.classify_clinvar([_row(["pathogenic"], ["germline"], confidence="no assertion criteria provided")])
     assert out["clinvar_pathogenic_class"] == "germline_pathogenic_low_review"
 
 
 def test_conflicting_review_is_weak():
-    out = r.classify_clinvar([_row(["pathogenic"], ["germline"],
-                                   confidence="conflicting classifications")])
+    out = r.classify_clinvar([_row(["pathogenic"], ["germline"], confidence="conflicting classifications")])
     assert out["clinvar_pathogenic_class"] == "germline_pathogenic_low_review"
 
 
 def test_confident_wins_over_weak():
-    out = r.classify_clinvar([_row(["pathogenic"], ["germline"], confidence="no assertion criteria provided"),
-                              _row(["likely_pathogenic"], ["inherited"], confidence="reviewed by expert panel")])
+    out = r.classify_clinvar(
+        [
+            _row(["pathogenic"], ["germline"], confidence="no assertion criteria provided"),
+            _row(["likely_pathogenic"], ["inherited"], confidence="reviewed by expert panel"),
+        ]
+    )
     assert out["clinvar_pathogenic_class"] == "germline_pathogenic"
     assert out["n_pathogenic_germline_confident"] == 1
     assert out["n_pathogenic_germline"] == 2

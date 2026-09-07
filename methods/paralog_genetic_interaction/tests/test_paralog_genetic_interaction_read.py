@@ -8,6 +8,7 @@ read failure (never a benign coverage gap).
 
 The S3 read is monkeypatched at the pyarrow boundary — no live creds needed (noted: live S3 not
 exercised). _bucket_keys() resolves offline from the local data-catalog manifest."""
+
 from __future__ import annotations
 
 import sys
@@ -39,12 +40,22 @@ class _FakeS3FS:
         pass
 
 
-_GOOD_ROWS = [{
-    "target_gene": "CDK4", "partner_gene": "CDK6", "pair_id": "CDK4_CDK6", "n_lines": 50,
-    "mean_gi": -0.8, "median_gi": -0.7, "gi_ttest_pvalue": 1e-6, "frac_lines_strong_gi": 0.6,
-    "min_gi": -1.5, "min_gi_lineage": "Lung", "n_lineages_strong": 3,
-    "interaction_class": "constitutive_buffering",
-}]
+_GOOD_ROWS = [
+    {
+        "target_gene": "CDK4",
+        "partner_gene": "CDK6",
+        "pair_id": "CDK4_CDK6",
+        "n_lines": 50,
+        "mean_gi": -0.8,
+        "median_gi": -0.7,
+        "gi_ttest_pvalue": 1e-6,
+        "frac_lines_strong_gi": 0.6,
+        "min_gi": -1.5,
+        "min_gi_lineage": "Lung",
+        "n_lineages_strong": 3,
+        "interaction_class": "constitutive_buffering",
+    }
+]
 
 
 @pytest.fixture(autouse=True)
@@ -80,7 +91,7 @@ def test_transient_failure_not_permanently_cached(monkeypatch):
     monkeypatch.setattr(pq, "read_table", _flaky)
     first = r.combinatorial_dependency_for_gene("CDK4")
     assert first["combinatorial_dependency_class"] == "data_unavailable"
-    second = r.combinatorial_dependency_for_gene("CDK4")   # retry after recovery
+    second = r.combinatorial_dependency_for_gene("CDK4")  # retry after recovery
     assert second["combinatorial_dependency_class"] == "strong_synthetic_lethal"
     assert second["strongest_partner"] == "CDK6"
     assert calls["n"] == 2
@@ -126,7 +137,7 @@ def _pc(mean_gi, frac_strong, min_gi=None):
 
 
 def test_partner_class_cutpoints_are_pinned():
-    assert r.FRAC_STRONG_CONSTITUTIVE == 0.4         # the load-bearing eyeballed gate
+    assert r.FRAC_STRONG_CONSTITUTIVE == 0.4  # the load-bearing eyeballed gate
     assert r.CONSTITUTIVE_MEAN == -0.25
     # MARK2/3-style survivor: broad negative + majority-ish strong lines -> constitutive
     assert _pc(-0.30, 0.58) == "constitutive_buffering"

@@ -4,6 +4,7 @@ to_cohort_canonical UP-pools a finer OncoTree code to its patient-cohort canonic
 indication_leaf_codes DOWN-expands an umbrella to its member LEAF codes for leaf-keyed products
 (NSCLC→(LUAD,LUSC)) — the CPTAC per-sample readers, which have no pooled NSCLC cohort.
 """
+
 from __future__ import annotations
 
 import importlib
@@ -20,12 +21,12 @@ IA = importlib.import_module("methods.indication_aliases")
 def test_up_pooling_unchanged():
     assert IA.to_cohort_canonical("LUAD") == "NSCLC"
     assert IA.to_cohort_canonical("LUSC") == "NSCLC"
-    assert IA.to_cohort_canonical("COADREAD") == "COADREAD"   # identity for a canonical code
+    assert IA.to_cohort_canonical("COADREAD") == "COADREAD"  # identity for a canonical code
 
 
 def test_leaf_expansion_of_umbrella():
     assert IA.indication_leaf_codes("NSCLC") == ("LUAD", "LUSC")
-    assert IA.indication_leaf_codes("nsclc") == ("LUAD", "LUSC")   # case-normalized
+    assert IA.indication_leaf_codes("nsclc") == ("LUAD", "LUSC")  # case-normalized
 
 
 def test_leaf_expansion_identity_for_leaf_code():

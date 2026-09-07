@@ -25,6 +25,7 @@ Composition discipline:
     (not per-edge; per-target).
   - MoA ontology + version stamped from moa_ontology.py.
 """
+
 METHOD_VERSION = "0.1.0"
 
 # Re-export the public API so dispatchers using __import__("methods.X",

@@ -6,6 +6,7 @@ decisive classifications: fusion-positive lines cleanly more dependent → fusio
 → not_fusion_stratified; too few fusion-positive lines → insufficient_fusion_rate. The one-sided test
 guarantees a fusion is NEVER credited with a dependency it lacks (protects the symbol-union v1).
 """
+
 from __future__ import annotations
 
 import sys
@@ -23,9 +24,15 @@ def _panel(pos_chronos, neg_chronos):
     chronos, fusion = {}, {}
     i = 0
     for c in pos_chronos:
-        m = f"ACH-{i:05d}"; chronos[m] = c; fusion[m] = True; i += 1
+        m = f"ACH-{i:05d}"
+        chronos[m] = c
+        fusion[m] = True
+        i += 1
     for c in neg_chronos:
-        m = f"ACH-{i:05d}"; chronos[m] = c; fusion[m] = False; i += 1
+        m = f"ACH-{i:05d}"
+        chronos[m] = c
+        fusion[m] = False
+        i += 1
     return chronos, fusion
 
 
@@ -33,6 +40,7 @@ def test_fusion_positive_strongly_dependent():
     """Fusion-positive lines deeply dependent (~-1.0), negative not (~0) → delta <= -0.5 + significant
     → fusion_positive_strongly_dependent (the FLI1/EWSR1-FLI1 Ewing signal, live delta -0.69)."""
     import random
+
     rng = random.Random(0)
     pos = [-1.0 + rng.uniform(-0.1, 0.1) for _ in range(24)]
     neg = [-0.05 + rng.uniform(-0.1, 0.1) for _ in range(300)]
@@ -47,6 +55,7 @@ def test_not_fusion_stratified_when_no_separation():
     """Fusion-positive + negative both near 0 → no dependency difference → not_fusion_stratified
     (the method must NOT fabricate a fusion signal, e.g. the ALK/BRAF live result)."""
     import random
+
     rng = random.Random(1)
     pos = [-0.02 + rng.uniform(-0.08, 0.08) for _ in range(24)]
     neg = [0.0 + rng.uniform(-0.08, 0.08) for _ in range(300)]
@@ -58,6 +67,7 @@ def test_not_fusion_stratified_when_no_separation():
 def test_moderate_tier():
     """A modest but real separation (delta ~ -0.3) → fusion_positive_moderately_dependent (ABL1 live -0.47)."""
     import random
+
     rng = random.Random(2)
     pos = [-0.35 + rng.uniform(-0.08, 0.08) for _ in range(30)]
     neg = [-0.02 + rng.uniform(-0.08, 0.08) for _ in range(300)]
@@ -71,6 +81,7 @@ def test_insufficient_fusion_rate():
     """Fewer than min_positive (5) fusion-positive lines → insufficient_fusion_rate, never a call
     off an underpowered fusion-positive group."""
     import random
+
     rng = random.Random(3)
     pos = [-1.2, -1.1, -1.3]  # only 3 fusion-positive
     neg = [0.0 + rng.uniform(-0.08, 0.08) for _ in range(300)]
@@ -86,16 +97,19 @@ def test_fusion_negative_more_dependent_is_never_mislabeled_positive_dependent()
     dilutes toward the null). With the second-pass reverse test (gap #4) this strong inverse now
     correctly surfaces as `fusion_negative_strongly_dependent` (verdict-inert)."""
     import random
+
     rng = random.Random(4)
     pos = [-0.02 + rng.uniform(-0.08, 0.08) for _ in range(24)]
     neg = [-0.6 + rng.uniform(-0.1, 0.1) for _ in range(300)]
     chronos, fusion = _panel(pos, neg)
     s = compute_fusion_stratification(chronos, fusion)
-    assert s["fusion_stratification_class"] not in ("fusion_positive_strongly_dependent",
-                                                    "fusion_positive_moderately_dependent")
+    assert s["fusion_stratification_class"] not in (
+        "fusion_positive_strongly_dependent",
+        "fusion_positive_moderately_dependent",
+    )
     assert s["fusion_stratification_class"] == "fusion_negative_strongly_dependent"
     assert s["fusion_stratification_mannwhitney_q_reverse"] < 0.05
-    assert s["delta_chronos_fusion_positive_vs_negative"] > 0   # negative arm more dependent → positive delta
+    assert s["delta_chronos_fusion_positive_vs_negative"] > 0  # negative arm more dependent → positive delta
 
 
 # ── fusion↔alteration confound annotation (verdict-inert; mutation ∪ focal amplification overlap) ──
@@ -106,9 +120,13 @@ def _fusion_universe(n_pos, n_neg):
     """chronos_by_model + fusion_by_model with n_pos fusion+ / n_neg fusion- ACH ids."""
     chronos, fusion = {}, {}
     for i in range(n_pos):
-        m = f"ACH-{i:05d}"; chronos[m] = -0.8; fusion[m] = True
+        m = f"ACH-{i:05d}"
+        chronos[m] = -0.8
+        fusion[m] = True
     for j in range(n_neg):
-        m = f"ACH-9{j:04d}"; chronos[m] = 0.0; fusion[m] = False
+        m = f"ACH-9{j:04d}"
+        chronos[m] = 0.0
+        fusion[m] = False
     return chronos, fusion
 
 
@@ -117,14 +135,16 @@ def _patch_alterations(monkeypatch, mutant_ids=(), amplified_ids=(), mut_fail=Fa
         if mut_fail:
             return {}, {}, [{"_live_read_error": "x"}]
         return ({m: True for m in mutant_ids}, {}, [])
+
     def fake_load_cn_files(release_pin, target_symbol):
         if cn_fail:
             return {}, {}, None, [{"_live_read_error": "x"}]
         return ({m: 3.0 for m in amplified_ids}, {}, "assay", [])
-    monkeypatch.setattr("methods.depmap_mutation_dependency.cli.load_mutation_data",
-                        fake_load_mutation_data, raising=False)
-    monkeypatch.setattr("methods.depmap_cn_distribution.cli.load_cn_files",
-                        fake_load_cn_files, raising=False)
+
+    monkeypatch.setattr(
+        "methods.depmap_mutation_dependency.cli.load_mutation_data", fake_load_mutation_data, raising=False
+    )
+    monkeypatch.setattr("methods.depmap_cn_distribution.cli.load_cn_files", fake_load_cn_files, raising=False)
 
 
 def test_confound_flags_majority_altered_fusion_positive(monkeypatch):

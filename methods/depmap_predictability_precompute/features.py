@@ -50,16 +50,11 @@ DEPMAP_PARALOGS_PREFIX = "data-catalog/sources/depmap-consortium/dmc-26q1-paralo
 DEPMAP_CCLE_2019_PREFIX = "data-catalog/sources/depmap-consortium/dmc-ccle-2019"
 
 # External source manifests (v2 build depends on these)
-CYTOBAND_S3_KEY = (
-    "data-catalog/sources/ucsc-cytoband/hg38-snapshot-2026-07-01/cytoBand.txt.gz"
-)
+CYTOBAND_S3_KEY = "data-catalog/sources/ucsc-cytoband/hg38-snapshot-2026-07-01/cytoBand.txt.gz"
 ONCOKB_GENE_ROLES_S3_KEY = (
-    "data-catalog/sources/oncokb/gene-roles-public-snapshot-2026-07-01/"
-    "oncokb_cancer_gene_list.json"
+    "data-catalog/sources/oncokb/gene-roles-public-snapshot-2026-07-01/oncokb_cancer_gene_list.json"
 )
-ENSEMBL_COORDS_S3_KEY_GLOB = (
-    "data-catalog/sources/ensembl-coords/release-116-snapshot-2026-06-22/"
-)
+ENSEMBL_COORDS_S3_KEY_GLOB = "data-catalog/sources/ensembl-coords/release-116-snapshot-2026-06-22/"
 
 # v2.1 feature-source keys — all confirmed on S3 2026-07-01
 FUSION_S3_KEY = f"{DEPMAP_SOURCE_PREFIX}/OmicsFusionFiltered.csv"
@@ -80,13 +75,17 @@ _GENE_PAREN_RE = re.compile(r"^([A-Za-z0-9._\-]+)\s*\(\d+\)$")
 # Feature-class taxonomy — every feature name resolves to one of these classes
 # via _feature_class(). Used by the classifier to identify dominant-feature-class.
 FEATURE_CLASS_OWN = {
-    "own_expression", "own_copy_number", "own_mut_hotspot", "own_mut_damaging",
+    "own_expression",
+    "own_copy_number",
+    "own_mut_hotspot",
+    "own_mut_damaging",
 }
 
 
 # ---------------------------------------------------------------------------
 # Symbol extraction (shared between loaders)
 # ---------------------------------------------------------------------------
+
 
 def extract_symbol(col: str) -> Optional[str]:
     """Return HGNC symbol from a matrix column header in either form.
@@ -106,8 +105,7 @@ def extract_symbol(col: str) -> Optional[str]:
     return s.split(" ", 1)[0] or None
 
 
-def _rename_gene_cols_to_symbols(df: pd.DataFrame,
-                                    protect_cols: set) -> pd.DataFrame:
+def _rename_gene_cols_to_symbols(df: pd.DataFrame, protect_cols: set) -> pd.DataFrame:
     """Rename gene-columns (SYMBOL or 'SYMBOL (entrez)') to plain HGNC symbol.
     Metadata columns in `protect_cols` are preserved verbatim. Duplicate symbol
     columns (from split annotations) are collapsed by mean-aggregation.
@@ -135,9 +133,11 @@ def _rename_gene_cols_to_symbols(df: pd.DataFrame,
 # Loaders — each returns a ModelID-indexed DataFrame
 # ---------------------------------------------------------------------------
 
+
 def _s3_read_csv(key: str, **read_csv_kwargs) -> pd.DataFrame:
     """One-shot S3 CSV fetch. Boto3 is imported lazily so tests can monkey-patch."""
     import boto3
+
     s3 = boto3.client("s3")
     obj = s3.get_object(Bucket=DEPMAP_S3_BUCKET, Key=key)
     return pd.read_csv(BytesIO(obj["Body"].read()), **read_csv_kwargs)
@@ -158,6 +158,7 @@ def _read_parquet_full(filename: str) -> pd.DataFrame:
     """
     from methods.depmap_common.parquet import get_full_matrix_path
     import pyarrow.parquet as pq
+
     local_path = get_full_matrix_path(filename)
     return pq.read_table(local_path).to_pandas()
 
@@ -185,8 +186,7 @@ def load_expression() -> pd.DataFrame:
         df = df[mask]
     # Include "Unnamed: 0" (pandas row-index artifact from CSV→parquet conversion)
     # and pattern-match any other Unnamed columns to protect against schema drift.
-    meta_cols = {"SequencingID", "ModelConditionID", "ModelID",
-                  "IsDefaultEntryForMC", "IsDefaultEntryForModel"}
+    meta_cols = {"SequencingID", "ModelConditionID", "ModelID", "IsDefaultEntryForMC", "IsDefaultEntryForModel"}
     for c in df.columns:
         if c.startswith("Unnamed"):
             meta_cols.add(c)
@@ -220,8 +220,10 @@ def _load_cn_parquet(filename: str, mc_to_model: dict) -> Optional[pd.DataFrame]
     # (ModelID, SequencingID, IsDefaultEntryForModel, IsDefaultEntryForMC);
     # any survivor produces a "could not convert string to float" downstream.
     metadata_drops = {
-        "ModelID", "SequencingID",
-        "IsDefaultEntryForModel", "IsDefaultEntryForMC",
+        "ModelID",
+        "SequencingID",
+        "IsDefaultEntryForModel",
+        "IsDefaultEntryForMC",
     }
     df = df.drop(columns=[c for c in df.columns if c in metadata_drops], errors="ignore")
     # Bridge MC → Model. Rows with no bridge fall through to the MC id itself.
@@ -268,8 +270,7 @@ def load_mutation_matrix(suffix: str) -> pd.DataFrame:
     if "IsDefaultEntryForModel" in df.columns:
         mask = df["IsDefaultEntryForModel"].isin([True, "Yes", "yes", "true", "TRUE"])
         df = df[mask]
-    meta_cols = {"SequencingID", "ModelConditionID", "ModelID",
-                  "IsDefaultEntryForMC", "IsDefaultEntryForModel"}
+    meta_cols = {"SequencingID", "ModelConditionID", "ModelID", "IsDefaultEntryForMC", "IsDefaultEntryForModel"}
     if "ModelID" in df.columns:
         df = df.set_index("ModelID")
     else:
@@ -285,6 +286,7 @@ def load_mutation_matrix(suffix: str) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 # v2.1 loaders — the 8 previously-declared "gaps" (all confirmed in S3)
 # ---------------------------------------------------------------------------
+
 
 def load_uniprot_hgnc_map() -> dict:
     """Return {UniprotID → HGNC Symbol} from Broad's shipped mapping file.
@@ -317,23 +319,28 @@ def load_fusion() -> pd.DataFrame:
         df = df[df["IsDefaultEntryForModel"].isin([True, "Yes", "yes", "true", "TRUE"])]
     # Column names for gene identifiers vary slightly across DepMap releases.
     # Look for likely candidates.
-    left_col = next((c for c in df.columns if c.lower() in ("leftgene", "leftgenesymbol", "gene1", "leftbreakpointgene")), None)
-    right_col = next((c for c in df.columns if c.lower() in ("rightgene", "rightgenesymbol", "gene2", "rightbreakpointgene")), None)
+    left_col = next(
+        (c for c in df.columns if c.lower() in ("leftgene", "leftgenesymbol", "gene1", "leftbreakpointgene")), None
+    )
+    right_col = next(
+        (c for c in df.columns if c.lower() in ("rightgene", "rightgenesymbol", "gene2", "rightbreakpointgene")), None
+    )
     if left_col is None or right_col is None:
         # Fallback: single "FusionName" like GENE1_GENE2 or similar; not present
         # in current 26Q1 schema. Return empty frame indexed by unique ModelIDs.
         return pd.DataFrame(index=pd.Index(df["ModelID"].unique(), name="ModelID"))
     # Extract symbol from either raw string or "GENE (entrez)" style
-    long_df = pd.DataFrame({
-        "ModelID": pd.concat([df["ModelID"], df["ModelID"]], ignore_index=True),
-        "gene": pd.concat([df[left_col], df[right_col]], ignore_index=True),
-    })
+    long_df = pd.DataFrame(
+        {
+            "ModelID": pd.concat([df["ModelID"], df["ModelID"]], ignore_index=True),
+            "gene": pd.concat([df[left_col], df[right_col]], ignore_index=True),
+        }
+    )
     long_df["gene"] = long_df["gene"].map(extract_symbol)
     long_df = long_df.dropna(subset=["gene"])
     long_df["v"] = 1
     # Pivot: rows=ModelID, cols=gene, value=1 (dedup fusions)
-    wide = long_df.pivot_table(index="ModelID", columns="gene", values="v",
-                                  aggfunc="max", fill_value=0).astype("int8")
+    wide = long_df.pivot_table(index="ModelID", columns="gene", values="v", aggfunc="max", fill_value=0).astype("int8")
     return wide
 
 
@@ -422,8 +429,7 @@ def load_molecular_signatures() -> pd.DataFrame:
     df = _s3_read_csv(MOLSIG_S3_KEY)
     if "IsDefaultEntryForModel" in df.columns:
         df = df[df["IsDefaultEntryForModel"].isin([True, "Yes", "yes", "true", "TRUE"])]
-    meta_cols = {"SequencingID", "ModelConditionID", "ModelID",
-                  "IsDefaultEntryForMC", "IsDefaultEntryForModel"}
+    meta_cols = {"SequencingID", "ModelConditionID", "ModelID", "IsDefaultEntryForMC", "IsDefaultEntryForModel"}
     if "ModelID" in df.columns:
         df = df.set_index("ModelID")
     else:
@@ -448,12 +454,14 @@ def load_msi_status() -> pd.DataFrame:
     Requires OmicsProfiles.csv for SequencingID → ModelID bridge.
     """
     import boto3
+
     s3 = boto3.client("s3")
     obj = s3.get_object(Bucket=DEPMAP_S3_BUCKET, Key=MSI_S3_KEY)
     df = pd.read_csv(BytesIO(obj["Body"].read()))
     # First 6 columns are per-repeat metadata; the rest are CDS-* (SequencingID).
     metadata_cols = ["Chromosome", "Location", "LeftFlank", "Repeat", "RightFlank"]
     seq_cols = [c for c in df.columns if c not in ({"Unnamed: 0"} | set(metadata_cols))]
+
     # For each SequencingID column: extract just the numeric repeat count
     # (values may be strings like "11[T]"). Length of repeat expansion is
     # first numeric token before `[`.
@@ -465,15 +473,18 @@ def load_msi_status() -> pd.DataFrame:
             except ValueError:
                 return None
         return v
+
     counts_df = df[seq_cols].apply(lambda col: col.map(_extract_count))
     # For each repeat row, compute median count across all cell lines
     per_repeat_median = counts_df.median(axis=1, skipna=True)
     # For each cell line, count how many repeats differ by > 3 from the median
     # (proxy for MSI-high status; more mutation-like variability = higher MSI).
     n_repeats = len(counts_df)
+
     def _msi_frac(col):
         diff = (col - per_repeat_median).abs()
         return (diff > 3).sum() / max(n_repeats - diff.isna().sum(), 1)
+
     per_seq = counts_df.apply(_msi_frac, axis=0)
     # Bridge SequencingID → ModelID via OmicsProfiles.csv
     profiles = load_omics_profiles()
@@ -507,8 +518,14 @@ def load_sv_matrix() -> pd.DataFrame:
     df = _s3_read_csv(SV_MATRIX_S3_KEY)
     if "IsDefaultEntryForModel" in df.columns:
         df = df[df["IsDefaultEntryForModel"].isin([True, "Yes", "yes", "true", "TRUE"])]
-    meta_cols = {"SequencingID", "ModelConditionID", "ModelID",
-                  "IsDefaultEntryForMC", "IsDefaultEntryForModel", "Unnamed: 0"}
+    meta_cols = {
+        "SequencingID",
+        "ModelConditionID",
+        "ModelID",
+        "IsDefaultEntryForMC",
+        "IsDefaultEntryForModel",
+        "Unnamed: 0",
+    }
     if "ModelID" in df.columns:
         df = df.set_index("ModelID")
     else:
@@ -535,6 +552,7 @@ def load_methylation() -> pd.DataFrame:
     each cell line. Result is per-gene continuous feature `methyl_{SYMBOL}`.
     """
     import boto3
+
     s3 = boto3.client("s3")
     obj = s3.get_object(Bucket=DEPMAP_S3_BUCKET, Key=RRBS_S3_KEY)
     df = pd.read_csv(BytesIO(obj["Body"].read()), sep="\t")
@@ -592,8 +610,10 @@ def load_metabolomics() -> pd.DataFrame:
 # External-source loaders: cytoband + OncoKB + Ensembl coords
 # ---------------------------------------------------------------------------
 
+
 def _s3_read_gzipped_tsv(key: str, **read_csv_kwargs) -> pd.DataFrame:
     import boto3, gzip
+
     s3 = boto3.client("s3")
     obj = s3.get_object(Bucket=DEPMAP_S3_BUCKET, Key=key)
     raw = gzip.decompress(obj["Body"].read())
@@ -621,6 +641,7 @@ def load_oncokb_gene_roles() -> pd.DataFrame:
     hugoSymbol + geneType columns (plus panel-membership flags kept as-is).
     """
     import boto3
+
     s3 = boto3.client("s3")
     obj = s3.get_object(Bucket=DEPMAP_S3_BUCKET, Key=ONCOKB_GENE_ROLES_S3_KEY)
     parsed = json.loads(obj["Body"].read())
@@ -636,6 +657,7 @@ def load_ensembl_gene_coords() -> pd.DataFrame:
     prefix and pick the .tsv file inside.
     """
     import boto3
+
     s3 = boto3.client("s3")
     resp = s3.list_objects_v2(Bucket=DEPMAP_S3_BUCKET, Prefix=ENSEMBL_COORDS_S3_KEY_GLOB)
     tsv_keys = [o["Key"] for o in resp.get("Contents", []) if o["Key"].endswith(".tsv")]
@@ -644,12 +666,14 @@ def load_ensembl_gene_coords() -> pd.DataFrame:
     obj = s3.get_object(Bucket=DEPMAP_S3_BUCKET, Key=tsv_keys[0])
     df = pd.read_csv(BytesIO(obj["Body"].read()), sep="\t")
     # Normalize column names to what our downstream expects
-    df = df.rename(columns={
-        "HGNC symbol": "hgnc_symbol",
-        "Chromosome/scaffold name": "chrom_name",
-        "Gene start (bp)": "gene_start",
-        "Gene end (bp)": "gene_end",
-    })
+    df = df.rename(
+        columns={
+            "HGNC symbol": "hgnc_symbol",
+            "Chromosome/scaffold name": "chrom_name",
+            "Gene start (bp)": "gene_start",
+            "Gene end (bp)": "gene_end",
+        }
+    )
     # Only keep primary-assembly chroms
     df = df[df["chrom_name"].isin([str(i) for i in range(1, 23)] + ["X", "Y", "MT"])]
     df = df[df["hgnc_symbol"].notna() & (df["hgnc_symbol"] != "")]
@@ -660,8 +684,8 @@ def load_ensembl_gene_coords() -> pd.DataFrame:
 # Derived feature matrices: arm-level CN + OncoKB driver flags + lineage
 # ---------------------------------------------------------------------------
 
-def assign_genes_to_arms(coords_df: pd.DataFrame,
-                           cytoband_df: pd.DataFrame) -> dict:
+
+def assign_genes_to_arms(coords_df: pd.DataFrame, cytoband_df: pd.DataFrame) -> dict:
     """Return {hgnc_symbol -> arm_label} where arm_label = 'chr12p' | 'chr12q' | etc.
 
     A gene's arm is determined by the FIRST cytoband its midpoint falls into.
@@ -671,9 +695,7 @@ def assign_genes_to_arms(coords_df: pd.DataFrame,
     band_lookup: dict = {}
     for _, row in cytoband_df.iterrows():
         arm = row["chrom"] + row["name"][0]  # 'chr12p' / 'chr12q'
-        band_lookup.setdefault(row["chrom"], []).append(
-            (int(row["chromStart"]), int(row["chromEnd"]), arm)
-        )
+        band_lookup.setdefault(row["chrom"], []).append((int(row["chromStart"]), int(row["chromEnd"]), arm))
     # Sort each chrom's bands by start position for a binary search
     for chrom in band_lookup:
         band_lookup[chrom].sort()
@@ -695,8 +717,7 @@ def assign_genes_to_arms(coords_df: pd.DataFrame,
     return gene_to_arm
 
 
-def compute_arm_level_cn(cn_df: pd.DataFrame,
-                          gene_to_arm: dict) -> pd.DataFrame:
+def compute_arm_level_cn(cn_df: pd.DataFrame, gene_to_arm: dict) -> pd.DataFrame:
     """Per-cell-line arm-mean CN (~48 columns × ~1500 rows).
 
     For each arm, take the mean CN across all genes on the arm (skipping NaN).
@@ -713,9 +734,9 @@ def compute_arm_level_cn(cn_df: pd.DataFrame,
     return pd.DataFrame(arm_frames)
 
 
-def compute_oncokb_driver_flags(oncokb_df: pd.DataFrame,
-                                    hotspot_df: pd.DataFrame,
-                                    damaging_df: pd.DataFrame) -> pd.DataFrame:
+def compute_oncokb_driver_flags(
+    oncokb_df: pd.DataFrame, hotspot_df: pd.DataFrame, damaging_df: pd.DataFrame
+) -> pd.DataFrame:
     """Per-cell-line {Symbol}_GoF and {Symbol}_LoF driver flags from OncoKB
     gene roles × DepMap hotspot/damaging matrices.
 
@@ -724,14 +745,8 @@ def compute_oncokb_driver_flags(oncokb_df: pd.DataFrame,
       TSG + damaging mutation → {Symbol}_LoF = 1
       ONCOGENE_AND_TSG genes get both flags per rule.
     """
-    onc_genes = set(oncokb_df.loc[
-        oncokb_df["geneType"].isin(["ONCOGENE", "ONCOGENE_AND_TSG"]),
-        "hugoSymbol"
-    ].dropna())
-    tsg_genes = set(oncokb_df.loc[
-        oncokb_df["geneType"].isin(["TSG", "ONCOGENE_AND_TSG"]),
-        "hugoSymbol"
-    ].dropna())
+    onc_genes = set(oncokb_df.loc[oncokb_df["geneType"].isin(["ONCOGENE", "ONCOGENE_AND_TSG"]), "hugoSymbol"].dropna())
+    tsg_genes = set(oncokb_df.loc[oncokb_df["geneType"].isin(["TSG", "ONCOGENE_AND_TSG"]), "hugoSymbol"].dropna())
     frames = {}
     for gene in sorted(onc_genes):
         if gene in hotspot_df.columns:
@@ -744,17 +759,14 @@ def compute_oncokb_driver_flags(oncokb_df: pd.DataFrame,
     return pd.DataFrame(frames)
 
 
-def build_lineage_one_hot(model_df: pd.DataFrame,
-                            min_lines_per_lineage: int = 5) -> pd.DataFrame:
+def build_lineage_one_hot(model_df: pd.DataFrame, min_lines_per_lineage: int = 5) -> pd.DataFrame:
     """One-hot encode Model.csv.OncotreeLineage, collapsing < min_lines
     lineages (and null) into 'OTHER'.
     """
     df = model_df.set_index("ModelID")[["OncotreeLineage"]].copy()
     counts = df["OncotreeLineage"].value_counts(dropna=False)
     keep = set(counts[counts >= min_lines_per_lineage].index.dropna())
-    df["bucket"] = df["OncotreeLineage"].where(
-        df["OncotreeLineage"].isin(keep), other="OTHER"
-    ).fillna("OTHER")
+    df["bucket"] = df["OncotreeLineage"].where(df["OncotreeLineage"].isin(keep), other="OTHER").fillna("OTHER")
     oh = pd.get_dummies(df["bucket"], prefix="lineage").astype("int8")
     return oh
 
@@ -762,6 +774,7 @@ def build_lineage_one_hot(model_df: pd.DataFrame,
 # ---------------------------------------------------------------------------
 # Shared omics bundle (built once per pipeline run)
 # ---------------------------------------------------------------------------
+
 
 def _try_load(label: str, fn):
     """Wrap a loader with a try/except that returns None + logs the failure.
@@ -771,8 +784,10 @@ def _try_load(label: str, fn):
     try:
         return fn()
     except Exception as e:
-        print(f"[features] WARNING: {label} loader failed: {type(e).__name__}: {e}. "
-              f"Feature class will be omitted for this run.")
+        print(
+            f"[features] WARNING: {label} loader failed: {type(e).__name__}: {e}. "
+            f"Feature class will be omitted for this run."
+        )
         return None
 
 
@@ -844,6 +859,7 @@ def load_all_omics(min_lines_per_lineage: int = 5) -> dict:
 # Per-gene feature-matrix assembly (the hot loop)
 # ---------------------------------------------------------------------------
 
+
 def feature_class_of(feature_name: str) -> str:
     """Map a feature name to its feature-class taxonomy label.
 
@@ -886,8 +902,7 @@ def feature_class_of(feature_name: str) -> str:
     return "other"
 
 
-def build_gene_feature_matrix(gene: str, omics: dict,
-                                  min_cell_lines: int = 100) -> Optional[dict]:
+def build_gene_feature_matrix(gene: str, omics: dict, min_cell_lines: int = 100) -> Optional[dict]:
     """Assemble the full feature matrix for one gene. Returns dict:
         {
           'X': ndarray (n_lines, n_features),
