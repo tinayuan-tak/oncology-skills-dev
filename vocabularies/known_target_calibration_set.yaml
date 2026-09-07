@@ -134,12 +134,13 @@ known_gap_watchlist:
     outcome: approved_class            # belzutifan approved; the canonical VHL-loss oncogenic dependency
     dependency_mode: biomarker_conditional   # dependency is conditional on VHL loss (VHL-null stabilizes HIF-2α)
     biomarker: VHL_loss
-    assertion_type: known_gap_expected_fail
-    measured: false                    # reasoned-only — snapshot capture pending a live cbg --emit (epas1_rcc.functional-requirement.json)
-    expected_verdict_current: non_dependent
-    expected_driving_rule_current: non-dependent-killer
-    expected_after_vhl_conditional: [biomarker_stratified_dependency, conditional_dependent, insufficient]  # flip when a VHL-status classifier stratifies the dependency
-    note: "Biomarker-conditional false-negative (analogue of MET/LUAD + SMARCA2/LUAD), surfaced by the literature↔deterministic discordance loop (skills eval/CASE_LOG.md CASE-014). functional-requirement reads non_dependent because 2D pan-line DepMap CRISPR/RNAi under-represents an in-vivo / VHL-loss-conditional dependency, and the partner-conditional COND axis is UNMEASURED for EPAS1×VHL — ccRCC is near-uniformly VHL-null, so there is no in-panel VHL-WT contrast to compute the conditional stratum. EPAS1/HIF-2α is APPROVED (belzutifan) in VHL-deficient ccRCC, so the gate-C non_dependent veto is a documented miss. DISTINCT from the reference_profiles HIF2A/RCC anchor (which frames the OVERALL nomination as clinical_precedent/license_blocked honest_blind — the Cortellis wall); this entry pins the DEPENDENCY-axis FN specifically. Flips to must_not_veto when a VHL-status-stratified dependency lane lands (mostly WIRE from DepMap VHL mutation status + a pan-cancer conditional stratum, not ACQUIRE). Reasoned-only until the live snapshot is captured."
+    assertion_type: must_not_veto      # FLIPPED from known_gap_expected_fail — CASE-014 fix landed (AM #582)
+    measured: true
+    snapshot: epas1_rcc.functional-requirement.json
+    expected_verdict_not_in: [non_dependent, pan_essential_killer]
+    resolved_verdict: partner_conditional_dependent            # realized (was non_dependent)
+    resolved_driving_rule: partner-conditional-moderately-dependent-supportive
+    note: "RESOLVED CASE-014 (skills eval/CASE_LOG.md). Was a biomarker-conditional false-negative (analogue of MET/LUAD + SMARCA2/LUAD): pooled pan-line CRISPR/RNAi read non_dependent because EPAS1/HIF-2α dependency is CONDITIONAL on VHL loss (ccRCC near-uniformly VHL-null → no in-RCC-panel contrast; the conditional signal is only visible pan-cancer). FIXED by curating EPAS1×VHL (lof_mutation) in analysis-methods partner_map (PR #582): live DepMap 26q1 EPAS1×VHL-LoF stratum = delta -0.066 Chronos, mann-whitney q 2.1e-3, rank-biserial 0.32, n=28 VHL-LoF / 1510 neutral → partner_conditional_moderately_dependent, which the dependency resolver rescues above the non_dependent rung. Live FR re-run 2026-09-07 confirms the flip non_dependent → partner_conditional_dependent (snapshot epas1_rcc.functional-requirement.json). belzutifan-validated, so must_not_veto now holds. DISTINCT from the reference_profiles HIF2A/RCC licensing-blind anchor (Cortellis wall)."
 
   MARK2:
     indication: PAAD

@@ -1,0 +1,17 @@
+{
+  "skill": "functional-requirement",
+  "target": "EPAS1",
+  "indication": "RCC",
+  "generated_at": "2026-09-07",
+  "headline": {
+    "dependency_verdict": "partner_conditional_dependent",
+    "driving_rule_id": "partner-conditional-moderately-dependent-supportive",
+    "crispr_call": "non_dependent",
+    "rnai_call": "non_dependent",
+    "concordance_call": "strongly_concordant_non_dependent",
+    "lineage_selectivity": "no_lineage_enrichment",
+    "cards_available": 13,
+    "cards_missing": ["dependency-predictability", "recommended-models"]
+  },
+  "_snapshot_note": "Captured live 2026-09-07 (depmap-consortium-26q1, AWS_PROFILE=cbg, /opt/conda py3.12). EPAS1 (HIF2A) reads pan-line non_dependent in CRISPR + RNAi, but the dependency is CONDITIONAL on VHL loss: the EPAS1xVHL partner-conditional lane (analysis-methods partner_map, PR #582) measures partner_conditional_moderately_dependent (delta -0.066 Chronos, mann-whitney q 2.1e-3, rank-biserial 0.32, n=28 VHL-LoF / 1510 neutral) and the dependency resolver rescues it above the non_dependent rung -> partner_conditional_dependent (driving partner-conditional-moderately-dependent-supportive). This RESOLVES the CASE-014 false-negative (skills eval/CASE_LOG.md): EPAS1/HIF-2a is the belzutifan-validated VHL-deficient ccRCC dependency, so must_not_veto now holds. If this verdict regresses to non_dependent, the partner_map entry or the resolver rescue rung broke."
+}
