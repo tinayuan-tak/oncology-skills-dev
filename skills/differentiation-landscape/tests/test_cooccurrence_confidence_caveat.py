@@ -237,3 +237,47 @@ def test_idh1_gbm_lineage_confound_arm():
     assert "LINEAGE" in cav["detail"] or "lineage" in cav["detail"]
     # IDH1 outside GBM is not auto-confounded
     assert (m._cooccurrence_confidence_caveat(hl, "IDH1", "AML") or {}).get("reason") != "cooccurrence_tmb_or_lineage_confounded"
+
+
+# ── the TEMPORAL-context / acquired-bypass caveat (CASE-007; MET/LUAD) ─────────────────────────────
+def _met_hl(cls="strong_cooccurring", partner="EGFR"):
+    return {"cooccurrence_class": cls, "has_cooccurring_driver": True,
+            "top_cooccurring": [{"partner_gene_symbol": partner, "log2_odds_ratio": 1.4, "bh_q_value": 1e-4}]}
+
+
+def test_temporal_caveat_fires_for_met_luad_with_tki_partner():
+    m = load_run_py(SKILL_DIR, "_diff_temporal_helpers")
+    cav = m._cooccurrence_temporal_context_caveat(_met_hl(partner="EGFR"), target="MET", indication="LUAD")
+    assert cav and cav["reason"] == "cooccurrence_acquired_bypass_temporal_context"
+    assert cav["tier"] == "sharp" and cav["false_demote_guarded"] is False
+    assert cav["tki_partners"] == ["EGFR"]
+    assert "bypass" in cav["detail"].lower() and "17463250" in cav["detail"]
+
+
+def test_temporal_caveat_indication_alias_coad_read():
+    m = load_run_py(SKILL_DIR, "_diff_temporal_helpers")
+    # MET is curated for LUAD/NSCLC only — COADREAD must NOT fire
+    assert m._cooccurrence_temporal_context_caveat(_met_hl(), target="MET", indication="COADREAD") is None
+
+
+def test_temporal_caveat_none_without_tki_partner():
+    m = load_run_py(SKILL_DIR, "_diff_temporal_helpers")
+    hl = _met_hl(partner="FBXW7")   # co-occurs, but not with a first-line-TKI driver → not the tell
+    assert m._cooccurrence_temporal_context_caveat(hl, target="MET", indication="LUAD") is None
+
+
+def test_temporal_caveat_none_outside_curated_set():
+    m = load_run_py(SKILL_DIR, "_diff_temporal_helpers")
+    assert m._cooccurrence_temporal_context_caveat(_met_hl(), target="KRAS", indication="LUAD") is None
+
+
+def test_temporal_caveat_none_on_negative_and_absent_paths():
+    m = load_run_py(SKILL_DIR, "_diff_temporal_helpers")
+    # ns / data_unavailable → byte-stable None
+    assert m._cooccurrence_temporal_context_caveat(
+        {"cooccurrence_class": "ns"}, target="MET", indication="LUAD") is None
+    # a clean mutual-exclusivity read (no co-occurring component) → None
+    assert m._cooccurrence_temporal_context_caveat(
+        {"cooccurrence_class": "strong_mutually_exclusive"}, target="MET", indication="LUAD") is None
+    # field-absent-safe
+    assert m._cooccurrence_temporal_context_caveat({}, target="MET", indication="LUAD") is None

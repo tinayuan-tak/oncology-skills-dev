@@ -45,7 +45,11 @@ from _skills_common.claim_record import assemble_claim_record
 
 
 SKILL_NAME = "differentiation-landscape"
-SKILL_VERSION = "1.10.0"  # 1.10.0 (2026-09-04, cross-indication generalization follow-up): the v1.9.0 cooccurrence
+SKILL_VERSION = "1.11.0"  # 1.11.0 (2026-09-07, CASE-007 literature-discordance loop): add verdict-INERT
+                          #        cooccurrence_temporal_context_caveat — a curated acquired-bypass (target,indication)
+                          #        co-occurring with a first-line-TKI driver (EGFR/ALK/ROS1) is flagged as likely
+                          #        acquired-bypass, not de-novo co-driver (MET/LUAD). Verdict/resolver/golden byte-stable.
+                          # 1.10.0 (2026-09-04, cross-indication generalization follow-up): the v1.9.0 cooccurrence
                           #        confidence crosswalks were COADREAD-only, so BRAF/SKCM, KRAS/LUAD, KRAS/PAAD, NRAS/SKCM,
                           #        TP53/BRCA, TP53/LUAD, EGFR/LUAD all read caveat=None (the canonical MAPK/RTK exclusivity +
                           #        TP53 near-universality signals silently vanished outside CRC). Generalized: the RAS/RAF MAPK-
@@ -316,6 +320,36 @@ _COMUT_POSITIVE = {
 _COMUT_COOC_COMPONENT = {"both_patterns_present", "strong_cooccurring", "modest_cooccurring"}
 _COMUT_MODEST = {"modest_cooccurring", "modest_mutually_exclusive"}
 
+# (target, indication) whose de-novo driver is largely MUTUALLY EXCLUSIVE with the first-line-TKI
+# oncogenic drivers, but which recurs as an ACQUIRED bypass / resistance event ON first-line-TKI
+# therapy — so a pooled cross-sectional co-occurrence with a TKI partner is more likely a TEMPORAL /
+# treatment-context association (secondary amplification in a treated tumor) than a same-clone de-novo
+# co-driver interaction. The pooled Fisher product (cooccurrence_fisher_pancohort) has NO treatment /
+# timepoint axis, so the two cannot be separated in data — hence a curated verdict-INERT caveat, exactly
+# as the TMB/lineage confound above. DISCLAIMED / non-exhaustive; an absent (target,indication) → None.
+# Surfaced by the literature↔deterministic discordance loop (eval/CASE_LOG.md CASE-007, MET/LUAD).
+_ACQUIRED_BYPASS_TEMPORAL_COMUT = {
+    ("MET", "LUAD"): (
+        "MET in LUAD (MET-amplification / METex14) is a de-novo oncogenic driver largely MUTUALLY "
+        "EXCLUSIVE with EGFR/ALK/ROS1 at diagnosis; a pooled co-occurrence signal with a first-line-TKI "
+        "driver most likely reflects ACQUIRED MET amplification as an EGFR-TKI resistance/bypass event "
+        "(secondary, treatment-emergent) rather than a same-clone de-novo co-driver interaction (Engelman "
+        "2007 PMID 17463250). The cross-sectional pooled Fisher product has no treatment/timepoint axis to "
+        "separate de-novo co-mutation from acquired bypass — read this as bypass-CONTEXT, not a de-novo "
+        "patient-selection co-mutation hypothesis."),
+    ("MET", "NSCLC"): (
+        "MET in NSCLC (MET-amplification / METex14) is a de-novo driver largely mutually exclusive with "
+        "EGFR/ALK/ROS1; a pooled co-occurrence with a first-line-TKI driver most likely reflects ACQUIRED "
+        "MET amplification as a TKI bypass/resistance event, not a de-novo co-driver — the pooled Fisher "
+        "product cannot separate the two (no treatment/timepoint axis) (Engelman 2007 PMID 17463250)."),
+}
+
+# first-line-TKI oncogenic-driver partners whose co-occurrence with an acquired-bypass target (above)
+# is the temporal-context tell. A caveat fires only when one of these appears among the co-occurring
+# partners (top_cooccurring[].partner_gene_symbol), so a co-occurrence with an UNRELATED partner does
+# NOT trip it. DISCLAIMED / non-exhaustive.
+_FIRST_LINE_TKI_PARTNERS = {"EGFR", "ALK", "ROS1"}
+
 
 def _is_established(gene: str, key: tuple) -> bool:
     """Canonical biologically-established same-pathway relationship — the pan-cancer GENE-LEVEL MAPK-triad
@@ -390,6 +424,43 @@ def _cooccurrence_confidence_caveat(hl: dict, target=None, indication=None) -> d
                            "combination hypothesis.")}
     # A STRONG, panel-eligible, non-confounded, non-near-universal pattern → no caveat (honest positive).
     return None
+
+
+def _cooccurring_tki_partners(hl: dict) -> list:
+    """First-line-TKI driver symbols (EGFR/ALK/ROS1) present among the CO-OCCURRING partners,
+    field-absent-safe. The tell that a co-occurrence signal is a treatment-context/bypass association."""
+    out = []
+    for p in (hl.get("top_cooccurring") or []):
+        if isinstance(p, dict):
+            sym = (p.get("partner_gene_symbol") or "").upper().strip()
+            if sym in _FIRST_LINE_TKI_PARTNERS and sym not in out:
+                out.append(sym)
+    return out
+
+
+def _cooccurrence_temporal_context_caveat(hl: dict, target=None, indication=None) -> dict | None:
+    """VERDICT-INERT temporal-context caveat: for a curated acquired-bypass (target, indication) whose
+    co-occurrence signal includes a first-line-TKI driver partner, flag that a pooled cross-sectional
+    co-occurrence more likely reflects an ACQUIRED bypass/resistance event than a de-novo same-clone
+    co-driver — a distinction the treatment-axis-less pooled Fisher product cannot make. Independent of
+    the consolidated confidence caveat (this is a separate annotation, like clonality_caveat). Fires ONLY
+    on the co-occurring path for a curated (target, indication) WITH a matching TKI partner; None otherwise
+    → byte-stable negative path. Surfaced by the discordance loop (eval/CASE_LOG.md CASE-007)."""
+    cls = hl.get("cooccurrence_class")
+    if cls not in _COMUT_POSITIVE:
+        return None                                              # ns / data_unavailable → byte-stable
+    key = ((target or "").upper().strip(), _norm_ind(indication))
+    if key not in _ACQUIRED_BYPASS_TEMPORAL_COMUT:
+        return None
+    has_cooc = bool(hl.get("has_cooccurring_driver")) or cls in _COMUT_COOC_COMPONENT
+    if not has_cooc:
+        return None                                              # a clean mutual-exclusivity read → no caveat
+    partners = _cooccurring_tki_partners(hl)
+    if not partners:
+        return None                                              # co-occurs, but not with a TKI driver → not the tell
+    detail = _ACQUIRED_BYPASS_TEMPORAL_COMUT[key]
+    return {"reason": "cooccurrence_acquired_bypass_temporal_context", "tier": "sharp",
+            "false_demote_guarded": False, "tki_partners": partners, "detail": detail}
 
 
 def _best_partner(lst) -> dict | None:
@@ -682,6 +753,17 @@ def _headline(cards, fired, verdict_pair, target=None, indication=None):
     except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
         hl.setdefault("_enrichment_errors", {})["clonality_caveat"] = f"{type(exc).__name__}: {exc}"
         hl["clonality_caveat"] = None
+    # TEMPORAL-context ≠ de-novo co-driver (CASE-007): for a curated acquired-bypass (target,indication)
+    # co-occurring with a first-line-TKI driver, the pooled cross-sectional signal likely reflects an
+    # acquired bypass/resistance event, not a same-clone de-novo co-mutation — a distinction the
+    # treatment-axis-less pooled Fisher cannot make. Fires only on the curated co-occurring+TKI-partner
+    # path; None otherwise (byte-stable spine; independent of cooccurrence_confidence_caveat). Verdict-INERT.
+    try:
+        hl["cooccurrence_temporal_context_caveat"] = _cooccurrence_temporal_context_caveat(
+            hl, target=target, indication=indication)
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
+        hl.setdefault("_enrichment_errors", {})["cooccurrence_temporal_context_caveat"] = f"{type(exc).__name__}: {exc}"
+        hl["cooccurrence_temporal_context_caveat"] = None
     # Canonical HEADLINE block (verdict + confidence + top tension) — the concise, consumer-facing headline
     # message as deterministic text + a renderer-agnostic hero payload. A verdict-INERT projection over the
     # claim_vector / key_signals just built. Best-effort: a formatting/read fault must NEVER discard the
@@ -741,6 +823,8 @@ _SYNTHESIS_FACET_KEYS = (
     "cooccurrence_confidence_caveat", "cooccurrence_provenance", "cooccurrence_class_prefloor",
     # cohort-level ≠ same-cell/clonal co-occurrence (the (c) sub-inflation; verdict-inert, co-occurring path):
     "clonality_caveat",
+    # temporal-context ≠ de-novo co-driver (CASE-007; verdict-inert, curated acquired-bypass path):
+    "cooccurrence_temporal_context_caveat",
     # the per-question (data·signal·confidence) rows — rendered as the leading table by target-profile too
     "question_table",
     # the canonical headline (verdict + confidence + top tension) — text + hero payload for every consumer
