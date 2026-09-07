@@ -175,8 +175,15 @@ SALIENCE_SPECS: dict = {
 
     # surface-modality-fit (§3.6)
     "sc_normal_surface_protein": {
-        "effect_field": "max_detection_fraction", "n_field": "n_cell_types_above_20pct", "direction": "higher_is_worse",
-        "categorical": ["sc_normal_safety_essential_class"]},
+        # FIELDS CORRECTED (2026-09-07): this spec's measurement_type is emitted by sc-surface-normal-safety
+        # (surface CLR-ADT liability ladder), but the fields formerly named here (max_detection_fraction,
+        # n_cell_types_above_20pct, sc_normal_safety_essential_class) belong to a DIFFERENT card
+        # (sc-normal-celltype-expression, measurement_type sc_normal_celltype_expression) — so the numeric
+        # salience never populated at runtime. Re-point to sc-surface-normal-safety's own summary_fields.
+        # No reference_frame: max_mean_clr is a peak CLR-ADT DISPLAY level with no card-named cut → the
+        # categorical sc_surface_normal_class liability ladder IS the ruler (correctly class-gauged).
+        "effect_field": "max_mean_clr", "n_field": "n_celltypes_surface_displaying", "direction": "higher_is_worse",
+        "categorical": ["sc_surface_normal_class"]},
     "rna_protein_concordance": {
         "effect_field": "rna_protein_r", "n_field": "n_paired_tumors", "direction": "higher_is_stronger"},
 

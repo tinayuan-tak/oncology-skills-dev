@@ -88,6 +88,7 @@ METRIC_GLOSS: dict = {
     "fraction_tumor_above_normal_p95": ("tumor fraction above the normal 95th pct", "fraction"),
     "absolute_copies_per_cell": ("surface copies per cell", "copies/cell"),
     "max_detection_fraction": ("max normal cell-type detection fraction", "fraction"),
+    "max_mean_clr": ("peak normal-immune surface CLR-ADT", "CLR"),
     "rna_protein_r": ("RNA-protein correlation", "Pearson r"),
     "chembl_best_pchembl": ("best measured potency (ChEMBL)", "pChEMBL"),
     "median_log2auc": ("median PRISM compound activity", "log2 AUC"),
