@@ -15,6 +15,7 @@ Verdict-INERT: never feeds the druggability resolver; frozen by the skill's repl
 from __future__ import annotations
 
 from _skills_common.claim_vector_core import (ClaimSpec, build_claim_vector, build_key_signals,
+                                              bump_corroboration, cap_corroboration,
                                               corr as _corr_present, signal_from_class as _sig)
 
 _POTENCY_SIGNAL = {"potent_measured_ligand": "strong", "weak_measured_ligand": "moderate",
@@ -58,6 +59,28 @@ def _mk_atom(card, field, keys):
 _C_POT, _C_ACT = "measured-potency-tractability", "prism-compound-activity"
 _C_STR, _C_DRUG, _C_DEG = "structure-features-static", "known-drug-tractability", "degradation-feasibility"
 
+# GDSC (Sanger) activity classes that AGREE with a PRISM-active call vs those that CONTRADICT it.
+_GDSC_ACTIVE = {"potent_activity", "moderate_activity"}
+_GDSC_INACTIVE = {"weak_activity", "no_compounds_found"}
+
+
+def _activity_corr(h, c):
+    """ACTIVITY corroboration: PRISM (the signal source) is ONE drug-response platform → base corroboration;
+    GDSC (Sanger, in the headline) is a genuinely INDEPENDENT second platform — an agreeing GDSC call bumps
+    corroboration, a contradicting one (PRISM-active but GDSC-inactive) caps it. Was the single-source
+    `_corr_present` proxy (a dead-constant `moderate`); GDSC makes it carry real cross-platform agreement.
+    Verdict-INERT (the tractability verdict is the resolver's, not this projection's)."""
+    base = "moderate" if _ACTIVITY_SIGNAL.get((c.get(_C_ACT) or {}).get("prism_activity_class"),
+                                              "unmeasured") != "unmeasured" else "unmeasured"
+    if base == "unmeasured":
+        return "unmeasured"
+    gdsc = h.get("gdsc_activity_class")
+    if gdsc in _GDSC_ACTIVE:
+        return bump_corroboration(base, True)      # independent agreeing platform → moderate→high
+    if gdsc in _GDSC_INACTIVE:
+        return cap_corroboration(base, "low")      # PRISM-active but GDSC-inactive → conflict caps
+    return base                                    # GDSC unmeasured / data_unavailable → single-source base
+
 SMALL_MOLECULE_CLAIM_SPEC = [
     ClaimSpec("POTENCY", "measured binding", _sig(_C_POT, "measured_bioactivity_class", _POTENCY_SIGNAL),
               _corr_present(_C_POT, "measured_bioactivity_class", _POTENCY_SIGNAL), _INFORMS["POTENCY"],
@@ -65,7 +88,7 @@ SMALL_MOLECULE_CLAIM_SPEC = [
                        ("measured_bioactivity_class", "chembl_best_pchembl", "chembl_n_potent_ligands",
                         "best_measured_potency_neglog_m", "chembl_max_clinical_phase", "bindingdb_best_p_affinity"))),
     ClaimSpec("ACTIVITY", "functional compound", _sig(_C_ACT, "prism_activity_class", _ACTIVITY_SIGNAL),
-              _corr_present(_C_ACT, "prism_activity_class", _ACTIVITY_SIGNAL), _INFORMS["ACTIVITY"],
+              _activity_corr, _INFORMS["ACTIVITY"],
               _mk_atom(_C_ACT, "prism_activity_class",
                        ("prism_activity_class", "n_compounds_targeting", "highest_clinical_phase",
                         "median_log2auc_across_compounds"))),
