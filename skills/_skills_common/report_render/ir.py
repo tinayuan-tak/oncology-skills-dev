@@ -1209,7 +1209,8 @@ def _card_chain_block(eg: dict) -> Optional[Block]:
             "description": _dg.card_description(c.get("id"), target, indication),  # plain "what is this card"
             "reads": _dg.humanize(class_value) or None,                            # class-led "Reads: <class>"
             "interpretation": interp,                                              # typed reference-frame ruler(s)
-            "gauge": _dg.gauge_string(interp[0]) if interp else None,              # the ruler in words
+            "gauge": _dg.gauge_string(interp[0]) if interp else None,              # the LEAD ruler in words
+            "gauges": [g for g in (_dg.gauge_string(gv) for gv in interp) if g],   # ALL rulers in words (multi-frame)
             "n": (c.get("confidence") or {}).get("n"), "dots": (c.get("confidence") or {}).get("dots"),
             "dataset_ids": chain.get("dataset_ids") or [], "data": chain.get("data") or [],
             "rule_id": chain.get("rule_id"), "is_driving": bool(chain.get("is_driving")),

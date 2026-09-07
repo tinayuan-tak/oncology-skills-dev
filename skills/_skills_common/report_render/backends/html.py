@@ -949,13 +949,21 @@ class HtmlBackend:
                 f"{verdict_line}<div class='cfp'>{''.join(lanehtml)}</div>{dhtml}"]
 
     def _gauge(self, c: dict) -> str:
-        """Visual reference-frame ruler for a card's interpretation[0] — a track with floor/cut/ceiling
-        (or comparator) ticks + a polarity-coloured value marker, captioned by the plain gauge words. On a
-        plain numeric axis (min→max of the points) so the marker placement can't invert; the words carry
-        the past/short-of-cut reading. '' when the card has no ruler."""
+        """Visual reference-frame ruler(s) for a card — one track per interpretation[] frame (a card may
+        carry >1: a pan-cancer rank AND a within-panel position). Each track has floor/cut/ceiling (or
+        comparator) ticks + a polarity-coloured value marker, captioned by the plain gauge words. '' when
+        the card has no ruler."""
         interp = c.get("interpretation") or []
-        gv = interp[0] if interp and isinstance(interp[0], dict) else None
-        words = c.get("gauge")
+        words_all = c.get("gauges") or ([c.get("gauge")] if c.get("gauge") else [])
+        tracks = []
+        for i, gv in enumerate(interp):
+            if isinstance(gv, dict):
+                tracks.append(self._gauge_track(c, gv, words_all[i] if i < len(words_all) else None))
+        return "".join(t for t in tracks if t)
+
+    def _gauge_track(self, c: dict, gv: dict, words) -> str:
+        """One visual track for a single gauged_value (see _gauge). On a plain numeric axis (min→max of the
+        points) so the marker placement can't invert; the words carry the past/short-of-cut reading."""
         if not gv or gv.get("value") is None:
             return ""
         val = gv.get("value")

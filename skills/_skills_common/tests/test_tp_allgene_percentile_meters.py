@@ -31,13 +31,23 @@ _TP_PERCENTILE_METERS = {
 }
 
 
+def _frames(mt):
+    """The spec's reference_frame normalized to a list (it may be a dict or a list of frames)."""
+    rf = SALIENCE_SPECS[mt].get("reference_frame")
+    return rf if isinstance(rf, list) else ([rf] if isinstance(rf, dict) else [])
+
+
+def _percentile_frame(mt):
+    return next((f for f in _frames(mt) if f.get("value_field") == "allgene_percentile"), None)
+
+
 def test_each_distribution_axis_has_a_wellformed_percentile_ruler():
     for mt, (card_id, _summary) in _TP_PERCENTILE_METERS.items():
         spec = SALIENCE_SPECS.get(mt)
         assert spec, f"{mt}: no salience spec (the ruler needs one)"
-        rf = spec.get("reference_frame")
-        assert rf and rf["kind"] == "distance_to_cut", f"{mt}: missing distance_to_cut reference_frame"
-        assert rf["value_field"] == "allgene_percentile" and rf["scale"], f"{mt}: not gauging the pan-cancer rank"
+        rf = _percentile_frame(mt)
+        assert rf and rf["kind"] == "distance_to_cut", f"{mt}: missing pan-cancer percentile frame"
+        assert rf["scale"], f"{mt}: percentile frame needs a scale"
         assert rf["position_field"] == "allgene_percentile_class", f"{mt}: position must be the resolver band"
         assert rf["cut"]["card_id"] == card_id and rf["cut"]["threshold"] == "allgene_top_decile"
         assert spec.get("direction") == "higher_is_stronger", f"{mt}: gauge needs an orienting direction"
@@ -46,11 +56,12 @@ def test_each_distribution_axis_has_a_wellformed_percentile_ruler():
 def test_ruler_gauges_the_rank_reads_position_verbatim_and_resolves_the_cut():
     for mt, (card_id, summary) in _TP_PERCENTILE_METERS.items():
         spec = SALIENCE_SPECS[mt]
-        gv = build_interpretation({}, summary, spec, card_id)
-        assert len(gv) == 1, f"{mt}: expected exactly one gauged value from {summary}"
-        g = gv[0]
-        assert g["metric"] == "allgene_percentile" and g["value"] == summary["allgene_percentile"]
-        assert g["scale"], f"{mt}: no bare number (scale required)"
+        gvs = build_interpretation({}, summary, spec, card_id)
+        # the pan-cancer rank ruler is one of the frames (a secondary within-distribution frame may also be
+        # present, but its value is absent from this rank-only summary so it drops out → the rank stands)
+        g = next((x for x in gvs if x["metric"] == "allgene_percentile"), None)
+        assert g is not None, f"{mt}: pan-cancer rank ruler not emitted from {summary}"
+        assert g["value"] == summary["allgene_percentile"] and g["scale"], f"{mt}: no bare number"
         assert g["position"] == summary["allgene_percentile_class"]  # READ VERBATIM
         if contract_threshold(card_id, "allgene_top_decile") is not None:  # only with contracts checked out
             cut = {a["role"]: a["value"] for a in g["frame"]["anchors"]}.get("cut")

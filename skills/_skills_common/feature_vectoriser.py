@@ -42,12 +42,15 @@ _DIR_SIGN = {"higher_is_stronger": 1.0, "lower_is_stronger": -1.0, "higher_is_wo
 
 def numeric_feature_specs() -> dict:
     """{measurement_type: (value_field, direction)} for every SALIENCE_SPECS axis that carries a
-    reference_frame — i.e. the meter value_fields double as the atlas numeric features (one registry)."""
+    reference_frame — i.e. the meter value_fields double as the atlas numeric features (one registry).
+    reference_frame may be a dict OR a list of frames (multi-ruler); the atlas keeps ONE numeric feature
+    per axis, keyed off the PRIMARY (first) frame's value_field — the headline metric the axis leads with."""
     out = {}
     for mt, spec in SALIENCE_SPECS.items():
         rf = spec.get("reference_frame")
-        if isinstance(rf, dict) and rf.get("value_field"):
-            out[mt] = (rf["value_field"], spec.get("direction"))
+        primary = rf[0] if isinstance(rf, list) and rf else (rf if isinstance(rf, dict) else None)
+        if isinstance(primary, dict) and primary.get("value_field"):
+            out[mt] = (primary["value_field"], spec.get("direction"))
     return out
 
 

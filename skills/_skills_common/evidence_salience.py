@@ -323,6 +323,62 @@ for _mt, (_vf, _sc, _card, _cut) in _BATCH_DISTANCE_TO_CUT_METERS.items():
             "cut": {"card_id": _card, "threshold": _cut, "label": _cut}}
 
 
+# ── SECONDARY reference_frames (multi-ruler, tranche #3) ─────────────────────────────────────────────
+# A single card often carries >1 orthogonal reading; key_evidence.interpretation is a LIST and the builder
+# projects EVERY frame (feat/interp-multi-ruler). Here we append a second tumor-presence frame so the card
+# view reads BOTH gauges (interp[0] stays the headline read the narrator/single-gauge leads with; the
+# appended frame is the additional context). The append normalizes reference_frame dict→list; a frame whose
+# value is absent at runtime simply drops out. DISPLAY-ONLY / verdict-INERT.
+#   - the 3 distribution cards: their pan-cancer allgene-percentile ruler (tranche #1) PLUS a within-panel /
+#     within-tumor position gauge (where the median sits vs the panel spread or the high-expression cut).
+#   - cptac + tumor-vs-adjacent: their call-cut ruler PLUS the pan-cancer allgene-percentile companion, so
+#     ALL FIVE allgene-carrying cards read the population rank.
+#   - single-cell: its malignant-detection cut ruler PLUS a comparator_delta vs the top microenvironment
+#     compartment — the stromal-confound story a lone malignant fraction hides.
+def _allgene_percentile_frame(card_id: str) -> dict:
+    return {"kind": "distance_to_cut", "value_field": "allgene_percentile", "scale": "percentile",
+            "position_field": "allgene_percentile_class",
+            "cut": {"card_id": card_id, "threshold": "allgene_top_decile", "label": "pan_cancer_top_decile"}}
+
+
+_SECONDARY_FRAMES = {
+    "cell_line_rna_expression": {
+        "kind": "floor_cut_ceiling", "value_field": "median_log2tpm_panel", "scale": "log2tpm",
+        "position_field": "expression_class",
+        "anchors": [{"role": "floor", "field": "p5_log2tpm_panel", "label": "panel_p5"},
+                    {"role": "ceiling", "field": "p95_log2tpm_panel", "label": "panel_p95"}],
+        "cut": {"card_id": "cellline-rna-distribution", "threshold": "highly_expressed_threshold_log2tpm",
+                "label": "highly_expressed_cut"}},
+    "tumor_expression_distribution": {
+        "kind": "distance_to_cut", "value_field": "median_log2tpm", "scale": "log2tpm",
+        "position_field": "tumor_expression_class",
+        "cut": {"card_id": "tumor-rna-distribution", "threshold": "high_log2tpm", "label": "high_expression_cut"}},
+    "cell_line_protein_abundance": {
+        "kind": "floor_cut_ceiling", "value_field": "median_log2_abundance_panel", "scale": "log2_abundance",
+        "position_field": "protein_expression_class",
+        "anchors": [{"role": "floor", "field": "p5_log2_abundance_panel", "label": "panel_p5"},
+                    {"role": "ceiling", "field": "p95_log2_abundance_panel", "label": "panel_p95"}]},
+    "tumor_protein_abundance": _allgene_percentile_frame("tumor-protein-abundance-cptac"),
+    "tumor_vs_adjacent_expression": _allgene_percentile_frame("tumor-rna-vs-adjacent"),
+    "sc_tumor_celltype_expression": {
+        "kind": "comparator_delta", "value_field": "malignant_detection_fraction", "scale": "detection_fraction",
+        "position_field": "sc_expression_class",
+        "anchors": [{"role": "comparator", "field": "top_microenvironment_detection_fraction",
+                     "label": "microenvironment"}]},
+}
+for _mt, _frame in _SECONDARY_FRAMES.items():
+    _spec = SALIENCE_SPECS.get(_mt)
+    if _spec is None:
+        continue
+    _rf = _spec.get("reference_frame")
+    if _rf is None:
+        _spec["reference_frame"] = [_frame]
+    elif isinstance(_rf, list):
+        _rf.append(_frame)
+    else:
+        _spec["reference_frame"] = [_rf, _frame]
+
+
 def spec_for(measurement_type):
     return SALIENCE_SPECS.get(measurement_type) if measurement_type else None
 

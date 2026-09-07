@@ -25,9 +25,16 @@ _SAMPLE = {
 }
 
 
+def _primary_frame(mt):
+    """The batch loop attaches its distance_to_cut as the PRIMARY frame; a later tranche may APPEND a
+    second frame (reference_frame becomes a list). The batched meter is always frame[0]."""
+    rf = (SALIENCE_SPECS.get(mt) or {}).get("reference_frame")
+    return rf[0] if isinstance(rf, list) and rf else (rf if isinstance(rf, dict) else None)
+
+
 def test_batch_table_attached_a_reference_frame_to_every_entry():
     for mt in _BATCH_DISTANCE_TO_CUT_METERS:
-        rf = (SALIENCE_SPECS.get(mt) or {}).get("reference_frame")
+        rf = _primary_frame(mt)
         assert rf and rf["kind"] == "distance_to_cut", f"{mt}: batch loop did not attach a reference_frame"
         assert SALIENCE_SPECS[mt].get("direction"), f"{mt}: gauge needs a direction"
 
@@ -35,15 +42,16 @@ def test_batch_table_attached_a_reference_frame_to_every_entry():
 def test_each_batched_axis_gauges_value_and_resolves_its_cut():
     for mt, (summary, expected_cut) in _SAMPLE.items():
         spec = SALIENCE_SPECS[mt]
+        rf = _primary_frame(mt)
         gv = build_interpretation({}, summary, spec)
-        assert len(gv) == 1, f"{mt}: expected one gauged value from {summary}"
-        vf = spec["reference_frame"]["value_field"]
-        assert gv[0]["metric"] == vf and gv[0]["value"] == summary[vf]
-        assert gv[0]["scale"], f"{mt}: no bare number (scale required)"
-        cut_key = spec["reference_frame"]["cut"]["threshold"]
-        card = spec["reference_frame"]["cut"]["card_id"]
+        # the batched value is present; any APPENDED frame's value is absent from this sample → drops out
+        vf = rf["value_field"]
+        batched = next((g for g in gv if g["metric"] == vf), None)
+        assert batched is not None, f"{mt}: batched meter {vf} not gauged from {summary}"
+        assert batched["value"] == summary[vf] and batched["scale"], f"{mt}: no bare number"
+        cut_key, card = rf["cut"]["threshold"], rf["cut"]["card_id"]
         if contract_threshold(card, cut_key) is not None:      # only when contracts is checked out
-            assert {a["role"]: a["value"] for a in gv[0]["frame"]["anchors"]}.get("cut") == expected_cut
+            assert {a["role"]: a["value"] for a in batched["frame"]["anchors"]}.get("cut") == expected_cut
 
 
 def test_absent_value_yields_no_bare_frame():

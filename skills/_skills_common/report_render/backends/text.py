@@ -523,8 +523,9 @@ class TextBackend:
                 rule = ("→ " + c.get("rule_id")) if c.get("rule_id") else "display-only"
                 # class-led plain reading: humanized class ("Reads:") + the reference-frame gauge (words)
                 # when the card carries a ruler, else the glossed key-evidence one-liner.
+                gauges = " · ".join(c.get("gauges") or [])  # all reference-frame rulers (multi-frame)
                 rows.append([lyr.get("layer"), c.get("id"), c.get("reads") or c.get("class_value"), rule,
-                             c.get("gauge") or c.get("key_evidence_summary") or ""])
+                             gauges or c.get("gauge") or c.get("key_evidence_summary") or ""])
         return self._h2("Cards — dataset → data → rule → verdict") + self._table(
             ["layer", "card", "class", "rule", "key evidence"], rows)
 

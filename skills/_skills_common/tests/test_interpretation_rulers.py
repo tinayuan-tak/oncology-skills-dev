@@ -229,8 +229,8 @@ def test_sc_tumor_malignant_detection_distance_to_cut_ruler():
                                         "sc_expression_class": "malignant_expressed"},
                                   SALIENCE_SPECS["sc_tumor_celltype_expression"],
                                   card_id="tumor-scrna-celltype-expression")
-    assert len(interp) == 1
-    gv = interp[0]
+    # the card carries a second (comparator_delta) frame too; here we assert the PRIMARY distance_to_cut ruler
+    gv = next(g for g in interp if g["frame"]["kind"] == "distance_to_cut")
     assert gv["metric"] == "malignant_detection_fraction" and gv["value"] == 0.68
     assert gv["scale"] == "detection_fraction" and gv["direction"] == "higher_is_stronger"
     assert gv["position"] == "malignant_expressed" and gv["position_source"] == "sc_expression_class"
