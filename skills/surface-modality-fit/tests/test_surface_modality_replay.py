@@ -51,6 +51,16 @@ if str(SKILLS_ROOT) not in sys.path:
 
 # The bite_tce KILLER rules that DOWNGRADE a both_viable/tce_preferred base fit to a TCE-unsafe verdict.
 _BITE_KILLER_RULES = {"sc-normal-high-liability-bite-killer", "normal-tissue-essential-bite-killer"}
+# Legitimate TCE-unsafe safety-DOWNGRADE drivers (a `both_viable` base dropped to a TCE-unsafe verdict
+# by an on-target-off-tumor normal liability). Superset of the bite killers: after the 2026-09-07
+# sc-normal-killer repoint (blunt HIGH_LIABILITY → organ-aware critical_organ_liability), an ORIGIN-tissue
+# antigen (CEACAM5: colonocyte = COADREAD origin) no longer fires the sc-normal bite killer — its TCE arm
+# is instead correctly killed by the off-origin therapeutic-window liability (lung). Both are real
+# safety-downgrade rules; the crown-jewel guard is that SOME such rule drove the downgrade (not a base call).
+_TCE_UNSAFE_DOWNGRADE_RULES = _BITE_KILLER_RULES | {
+    "modality-window-essential-liability-tce-opposing",
+    "exon-window-essential-liability-tce-opposing",
+}
 # The TCE-unsafe downgrade verdicts those killers emit.
 _TCE_UNSAFE = {"adc_preferred_tce_unsafe", "tce_unsafe_normal_liability"}
 _COLLAPSED = {None, "", "insufficient", "modality_ambiguous"}
@@ -177,8 +187,9 @@ def test_bite_killer_downgrades_tce(pair_id, target, indication, expected):
         f"{target} resolved {v!r}, not a TCE-unsafe downgrade — a bite_tce killer stopped firing "
         f"(normal-tissue / sc-normal reader drift → a TCE-unsafe antigen would read as both_viable).")
     assert v != "both_viable", f"{target} read both_viable — the bite killer is DEAD (false TCE-safe call)."
-    assert h.get("driving_rule_id") in _BITE_KILLER_RULES, (
-        f"{target} driving_rule_id={h.get('driving_rule_id')!r} is not a bite_tce killer rule.")
+    assert h.get("driving_rule_id") in _TCE_UNSAFE_DOWNGRADE_RULES, (
+        f"{target} driving_rule_id={h.get('driving_rule_id')!r} is not a TCE-unsafe safety-downgrade rule "
+        f"(bite killer or essential-window opposing).")
     # the killer only MOVES the verdict if the base fit was viable — confirms the downgrade, not a base call
     assert h.get("fit_class") == "both_viable", (
         f"{target} base fit_class={h.get('fit_class')!r}, expected both_viable — the fixture no longer "

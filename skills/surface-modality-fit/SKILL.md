@@ -15,11 +15,12 @@ description: |
   the ligandability leg drives the sibling small-molecule call, though structure does NOT feed the
   biologics `fit_class` by design).
   The composed `fit_class` keys on topology+family and emits `neither_viable` (an honest
-  negative), NOT `insufficient`, when upstream is thin. `ADC_preferred`/`both_viable` are
-  REACHABLE (B1): the topology product does not measure endocytosis, so that unmeasured field
-  no longer vetoes the ADC branch (ADC rests on topology; `endocytosis_confidence: unmeasured`
-  is surfaced as the honest gap), and curated clinical-ADC antigens
-  (internalizing_antigen_targets.yaml) carry a `clinically_internalizing` positive signal.
+  negative), NOT `insufficient`, when upstream is thin. `both_viable` is REACHABLE (B1): the
+  topology product does not measure endocytosis, so that unmeasured field no longer vetoes the
+  ADC branch (ADC rests on topology; `endocytosis_confidence: unmeasured` is surfaced as the
+  honest gap), and curated clinical-ADC antigens (internalizing_antigen_targets.yaml) carry a
+  `clinically_internalizing` positive signal. A CLEAN `ADC_preferred` is NOT reachable on live
+  data (see the C2 KNOWN GAP below) — a surface-favorable target reads `both_viable`.
 
   SAFETY/DENSITY/SHED REFINEMENT (v1.1.0, 2026-08-09 modality-fit review): the verdict was
   topology-only — the surface cards' KILLER/downgrade signals (essential-normal-tissue TCE safety,
@@ -27,9 +28,12 @@ description: |
   the call. The resolver now carries `when_all_fired` combination rungs so those cited-threshold
   liabilities REFINE the topology `fit_class`:
     - protein `ihc-not-detected` → `neither_viable` (no surface substrate for either mechanism).
-    - essential-normal-tissue / sc-normal HIGH_LIABILITY (bite_tce-ONLY killers) → `adc_preferred_tce_unsafe`
-      (drops TCE on safety, PRESERVES ADC — CEACAM5-class: validated ADC target w/ normal-gut expression),
-      or `tce_unsafe_normal_liability` for a TCE-only target.
+    - essential-normal-tissue / sc-normal critical-organ-liability (bite_tce-ONLY killers) → `adc_preferred_tce_unsafe`
+      (drops TCE on safety, PRESERVES ADC — DLL3/ERBB2-class: off-origin essential-organ expression),
+      or `tce_unsafe_normal_liability` for a TCE-only target. (2026-09-07: the sc-normal killer keys on the
+      organ-aware `sc_normal_safety_essential_class == critical_organ_liability`, matching tumor-selectivity;
+      an ORIGIN-tissue antigen like CEACAM5 is NOT hard-vetoed by sc-normal — its TCE arm is instead killed
+      by the off-origin therapeutic-window liability where present.)
     - MEASURED (grade A/B) below-soluble-TCE-floor density → `surface_viable_density_caveated` — a
       DOWNGRADE, NEVER a veto (CD19 = 110 copies/cell is a validated CAR-T/TCE antigen; unmeasured
       density abstains, grade-gated at source).
@@ -247,7 +251,7 @@ reads "surface: neither_viable; pMHC-TCE: supported". It CANNOT flip a surface-v
 ## Orthogonality facet (E7, 2026-08-07 — VERDICT-INERT)
 
 The headline carries an `orthogonality` sub-key: a meta-facet scoring how many
-INDEPENDENT lines of surface-biology evidence converge. Of the 13 composed cards only
+INDEPENDENT lines of surface-biology evidence converge. Of the 24 composed cards only
 ~5 measure independent things; the scorer collapses the 6-card presence cluster
 (CSPA / topology / density / family / RNA-proxy / CN) into ONE dimension, so a target is
 not double-counted for measuring presence six ways. Five dimensions —
