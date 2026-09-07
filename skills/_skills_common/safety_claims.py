@@ -256,8 +256,27 @@ def _normaltissue_signal(h, c):
     return _normaltissue_sig(h), ev, None
 
 
+# GTEx normal-tissue liability_class directions (independent RNA atlas) vs the HPA-IHC protein call.
+_GTEX_LIABILITY = {"critical_organ_liability", "broadly_expressed_normal"}
+_GTEX_CLEAN = {"restricted_normal", "moderate_normal_breadth"}
+
+
 def _normaltissue_corr(h, c):
-    return "moderate" if _normaltissue_sig(h) != "unmeasured" else "unmeasured"
+    # HPA-IHC essential-tissue protein (the signal source) is ONE assay → base corroboration. The GTEx
+    # normal-tissue RNA atlas (normal-tissue-liability-gtex, a verdict-bearing decision card that fired
+    # normal-liability rules but was invisible to this claim) is a genuinely INDEPENDENT second arm: a
+    # same-direction GTEx call (both flag a normal-tissue liability, or both read clean) bumps
+    # corroboration; a contradicting one caps it. Was single-source (dead-constant moderate). Verdict-INERT.
+    sig = _normaltissue_sig(h)
+    if sig == "unmeasured":
+        return "unmeasured"
+    hpa_liability = sig_ge(sig, "moderate")          # present/broad = liability; absent = clean
+    gtex = (c.get("normal-tissue-liability-gtex") or {}).get("liability_class")
+    if gtex in _GTEX_LIABILITY:
+        return bump_corroboration("moderate", True) if hpa_liability else cap_corroboration("moderate", "low")
+    if gtex in _GTEX_CLEAN:
+        return bump_corroboration("moderate", True) if not hpa_liability else cap_corroboration("moderate", "low")
+    return "moderate"                                # GTEx unavailable / indeterminate → single-source base
 
 
 _PHARMACOVIGILANCE_CAVEAT = (
