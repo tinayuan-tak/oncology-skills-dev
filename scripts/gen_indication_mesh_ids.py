@@ -45,6 +45,14 @@ MESH_IDS = {
     "CESC": ["MESH:D002583"],
     "UCEC": ["MESH:D014594", "MESH:D016889"],
     "DLBC": ["MESH:D016393", "MESH:D016403"],
+    # 2026-09-07: UVM/NBL/BCC (added to the crosswalk in #599 after this map was baked, so they
+    # shipped with empty mesh_ids -> turned the mesh_ids governance test RED on trunk). Resolved
+    # against NCBI MeSH E-utilities 2026-09-07. UVM = melanoma (D008545) + the uveal anatomic site
+    # (uveal neoplasms D014604); the supplementary 'melanoma, intraocular' resolves to the cutaneous
+    # descriptor D000098943 and is deliberately excluded as a mislabel for the uveal indication.
+    "BCC": ["MESH:D002280"],
+    "NBL": ["MESH:D009447"],
+    "UVM": ["MESH:D008545", "MESH:D014604"],
 }
 
 

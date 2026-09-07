@@ -452,9 +452,10 @@ indications:
     adj_normal_manifest: null
     mesh_terms: [carcinoma, basal cell]
     efo_ids: []
-    mesh_ids: []
+    mesh_ids:
+      - MESH:D002280
     iter1_status: provisional
-    notes: "Added 2026-09-01 for discovery-register coverage (non-TCGA skin cancer). efo_ids/mesh_ids pending curation (run gen_indication_mesh_ids.py --regenerate)."
+    notes: "Added 2026-09-01 for discovery-register coverage (non-TCGA skin cancer). mesh_ids curated 2026-09-07 (NCBI MeSH: 'carcinoma, basal cell' -> D002280); efo_ids pending."
   - canonical_code: NBL
     display_name: Neuroblastoma
     strategic_bucket: Pediatric
@@ -468,9 +469,10 @@ indications:
     adj_normal_manifest: null
     mesh_terms: [neuroblastoma]
     efo_ids: []
-    mesh_ids: []
+    mesh_ids:
+      - MESH:D009447
     iter1_status: provisional
-    notes: "Added 2026-09-01 for discovery-register coverage (pediatric, non-TCGA; TARGET-NBL). efo_ids/mesh_ids pending curation."
+    notes: "Added 2026-09-01 for discovery-register coverage (pediatric, non-TCGA; TARGET-NBL). mesh_ids curated 2026-09-07 (NCBI MeSH: 'neuroblastoma' -> D009447); efo_ids pending."
   - canonical_code: UVM
     display_name: Uveal Melanoma
     strategic_bucket: Ophthalmic
@@ -484,6 +486,8 @@ indications:
     adj_normal_manifest: null
     mesh_terms: [melanoma, intraocular, uveal melanoma]
     efo_ids: []
-    mesh_ids: []
+    mesh_ids:
+      - MESH:D008545
+      - MESH:D014604
     iter1_status: provisional
-    notes: "Added 2026-09-01 for discovery-register coverage (distinct from SKCM cutaneous; TCGA-UVM). efo_ids/mesh_ids pending curation."
+    notes: "Added 2026-09-01 for discovery-register coverage (distinct from SKCM cutaneous; TCGA-UVM). mesh_ids curated 2026-09-07 (NCBI MeSH: 'melanoma' -> D008545 + 'uveal neoplasms' -> D014604, the correct uveal-site + melanoma pair; supplementary 'melanoma, intraocular' -> cutaneous D000098943 deliberately excluded); efo_ids pending."
