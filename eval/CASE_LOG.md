@@ -82,7 +82,32 @@ Dangerous false-positives to keep pinned: ADAR1, CLDN18.2_LRRC15, EGFR_cMET_VEGF
   coverage-gap `insufficient` — an absent-vs-unresolved conflation. Alias→HGNC resolution in the reader/
   dispatcher layer (vs each harness's curated `TARGET_CANON`) would be the robust cross-repo fix, but it is
   verdict-moving with wide golden fan-out; keep it as a follow-up, not part of this eval-only fix.
-- **Status:** FIXED (harvest canonicalization landed). Corpus/ledger re-harvest QUEUED (credentialed).
+- **Re-harvest DONE (2026-09-07, `AWS_PROFILE=cbg BEDROCK_AWS_PROFILE=cmp-dev`):** re-harvested the 6
+  harvestable aliased pairs (`HER2/BRCA`, `TROP2/TNBC`, `BCMA/MM`, `CD20/lymphoma`, `SCD1/CRC`, `HIF2A/RCC`;
+  `ADAR1` skipped — `indication: multi`), `--literature-scope gating`, overwriting `eval/literature-snapshots/*`;
+  every record now carries `resolved_symbol` = the HGNC symbol (ERBB2/TACSTD2/TNFRSF17/MS4A1/SCD/EPAS1) and all
+  8 gating axes RESOLVE (were phantom `data_unavailable`/`insufficient` before). Rebuilt
+  `~/dev/discordance_full_sweep_ledger_2026-09-07.json` (pre-fix copy kept as `*.pre-case011.bak.json`).
+  **HER2/BRCA tractability confirmed FIXED:** `chemically_unhit` → **`chemically_confirmed_genetic`**
+  (`e7-crispr-confirmed-supportive-sm`) — the top on-target rung; the 2 phantom calibration_gap rows
+  (ACTIVITY, DRUG) are GONE. Ledger delta: `blind_spot_gap` 1204→1129 (−75 phantom rows), `calibration_gap`
+  32→37, total 1373→1302. Monitor diff vs the old baseline: **5 RESOLVED** (HER2 tractability ACTIVITY+DRUG,
+  HER2 mechanism PHOSPHO, TROP2 mechanism PERTURBATION, HIF2A differentiation NODE — all phantom alias rows)
+  + **10 NEW** sharp calibration_gaps DE-MASKED (real discordances previously hidden behind the alias). Baseline
+  regenerated (`eval/discordance_baseline.json`, 37 keys, new corpus fingerprint) so the weekly monitor is
+  coherent with the corrected corpus.
+- **DE-MASKED triage queue (CASE-011 follow-on, NOT regressions — pre-existing truths the alias bug hid):**
+  (a) **biologics-approved DRUG-axis inflation (CASE-008 pattern):** `BCMA/MM` + `CD20/lymphoma` tractability
+  DRUG read druggable off the approved BIOLOGIC (BCMA = CAR/TCE; CD20 = rituximab antibody). BCMA (`TNFRSF17`)
+  is already in `_BIOLOGICS_APPROVED_NONSM`; **`CD20`/`MS4A1` is NOT — add it to the curated set + the
+  `sm_modality_mismatch_caveat` will fire** (verdict-inert, mirrors CASE-008). (b) **HIF2A/RCC
+  functional-requirement DEP+SEL read `absent`** vs belzutifan-validated HIF2A dependency in ccRCC — a
+  candidate genuine FN (VHL-loss-conditional; needs a biomarker-conditional look, SMARCA2/LUAD-style). (c)
+  TROP2/SCD1 tractability + BCMA/SCD1 surface + BCMA tumor-selectivity SAFE — queued for per-row triage.
+- **Status:** ✅ COMPLETE. Harvest canonicalization LANDED (PR #1175); corpus + ledger re-harvested and
+  rebuilt; baseline refreshed. HER2 tractability false-negative resolved. 10 de-masked discordances queued
+  above (separate cases). Deeper reader/dispatcher alias-resolution hardening remains a proposed cross-repo
+  follow-up.
 
 ### CASE-001 — surface-antigen TOPOLOGY killer — DEMOTED by live data (2026-09-02)
 - **Original hypothesis:** add a multi-TM/ion-channel topology-killer to surface-modality-fit,
