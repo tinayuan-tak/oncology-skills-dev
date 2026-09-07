@@ -1,0 +1,51 @@
+# Triage dispositions for the SHARP discordance rows (calibration_gap + verdict_rule_gap), keyed by the
+# ledger row key "SKILL|TARGET|INDICATION|AXIS|GAP_CLASS". The structured record of the CASE_LOG triage
+# (CASE-007..010), consumed by loop_health.py to measure the loop's own precision. Update this alongside
+# CASE_LOG when a row is triaged; prune the baseline when a real gap is FIXED.
+#
+# disposition vocabulary:
+#   fixed                    - a landed fix addresses this row (verdict-INERT caveat or verdict-moving)
+#   real_deferred            - a REAL gap, fix deferred (data-build / verdict-moving follow-up)
+#   dismissed_scope          - a MEASURED-axis contradiction, but the axis is scope-honest AND the verdict
+#                              is already conservative; resolved with a scope caveat (not a bug)
+#   dismissed_concordant     - literature actually AGREES with the verdict; the lane over-flagged a sub-axis
+#   dismissed_data_absent    - the omics axis was data_unavailable; literature cannot contradict an absent signal
+#
+# "real" (numerator of strict precision) = fixed + real_deferred.
+# "noise" = dismissed_concordant + dismissed_data_absent. "scope" is reported separately (borderline-honest).
+
+version: 1
+snapshot: discordance_full_sweep_2026-09-07
+dispositions:
+  "differentiation-landscape|KRAS|COADREAD|SURVIVAL|calibration_gap":     {disposition: fixed, case: CASE-010}
+  "differentiation-landscape|MET|LUAD|COMUT|calibration_gap":             {disposition: fixed, case: CASE-007}
+  "differentiation-landscape|CHEK1|COADREAD|SURVIVAL|calibration_gap":    {disposition: dismissed_data_absent, case: CASE-010}
+  "differentiation-landscape|HIF2A|RCC|NODE|calibration_gap":             {disposition: dismissed_data_absent, case: CASE-010}
+  "functional-requirement|CEACAM5|NSCLC|SEL|calibration_gap":            {disposition: dismissed_concordant, case: CASE-010}
+  "functional-requirement|DLL3|SCLC|SEL|calibration_gap":               {disposition: dismissed_concordant, case: CASE-010}
+  "functional-requirement|STEAP1|prostate|SEL|calibration_gap":          {disposition: dismissed_concordant, case: CASE-010}
+  "functional-requirement|PARP1|OV|COND|calibration_gap":               {disposition: real_deferred, case: CASE-010, note: "HRD/BRCA-conditional SL dependency the COND axis under-calls; partner-conditional stratification follow-up"}
+  "mechanism-and-pharmacology|HER2|BRCA|PHOSPHO|calibration_gap":         {disposition: real_deferred, case: CASE-010, note: "HER2 validated phospho-RTK; phospho card coverage gap"}
+  "mechanism-and-pharmacology|TROP2|TNBC|PERTURBATION|calibration_gap":   {disposition: dismissed_data_absent, case: CASE-010}
+  "mechanism-and-pharmacology|XPO1|MM|D|calibration_gap":               {disposition: dismissed_concordant, case: CASE-010}
+  "on-target-safety-liability|BCL2|CLL_AML|PHARMACOVIGILANCE|calibration_gap":  {disposition: dismissed_scope, case: CASE-009}
+  "on-target-safety-liability|PARP1|OV|PHARMACOVIGILANCE|calibration_gap":     {disposition: dismissed_scope, case: CASE-009}
+  "on-target-safety-liability|PSMB5|MM|PHARMACOVIGILANCE|calibration_gap":     {disposition: dismissed_scope, case: CASE-009}
+  "on-target-safety-liability|XPO1|MM|PHARMACOVIGILANCE|calibration_gap":      {disposition: dismissed_scope, case: CASE-009}
+  "surface-modality-fit|FOLR1|OV|TOPOLOGY|calibration_gap":              {disposition: dismissed_concordant, case: CASE-010}
+  "surface-modality-fit|STEAP1|prostate|FIT|calibration_gap":            {disposition: dismissed_concordant, case: CASE-010}
+  "surface-modality-fit|NOX1|CRC|SAFETY|calibration_gap":               {disposition: real_deferred, case: CASE-012, note: "broadly normal-expressed antigen vs positive TCE verdict; verify normal-expression data then veto arm"}
+  "tractability-small-molecule|DLL3|SCLC|DRUG|calibration_gap":          {disposition: fixed, case: CASE-008}
+  "tractability-small-molecule|DLL3|SCLC|STRUCT|calibration_gap":        {disposition: fixed, case: CASE-008}
+  "tractability-small-molecule|STEAP1|prostate|DRUG|calibration_gap":    {disposition: fixed, case: CASE-008}
+  "tractability-small-molecule|FOLR1|OV|POTENCY|calibration_gap":        {disposition: fixed, case: CASE-008}
+  "tractability-small-molecule|NECTIN4|urothelial|POTENCY|calibration_gap": {disposition: fixed, case: CASE-008}
+  "tractability-small-molecule|CEACAM5|NSCLC|ACTIVITY|calibration_gap":   {disposition: fixed, case: CASE-008}
+  "tractability-small-molecule|CEACAM5|NSCLC|DRUG|calibration_gap":       {disposition: fixed, case: CASE-008}
+  "tractability-small-molecule|HER2|BRCA|ACTIVITY|calibration_gap":       {disposition: real_deferred, case: CASE-011, note: "PRISM/ChEMBL coverage false-negative; approved HER2 TKIs exist"}
+  "tractability-small-molecule|HER2|BRCA|DRUG|calibration_gap":           {disposition: real_deferred, case: CASE-011}
+  "tractability-small-molecule|IDO1|SKCM|DRUG|calibration_gap":          {disposition: dismissed_concordant, case: CASE-008, note: "SM-directed (epacadostat) — tractable is right; only the 'approved' status is over-stated"}
+  "tractability-small-molecule|KIF11|COADREAD|ACTIVITY|calibration_gap":  {disposition: dismissed_concordant, case: CASE-008, note: "discordant_off_target verdict is honest"}
+  "tractability-small-molecule|NLRP3|heme|ACTIVITY|calibration_gap":      {disposition: dismissed_data_absent, case: CASE-008, note: "heme-indication measured floor no_compounds_found; SM inhibitors exist pan-indication"}
+  "tractability-small-molecule|XPO1|MM|DEGRADER|calibration_gap":         {disposition: dismissed_concordant, case: CASE-008, note: "DEGRADER axis minor; selinexor is an occupancy inhibitor"}
+  "tumor-selectivity|DLL3|SCLC|SAFE|calibration_gap":                   {disposition: dismissed_concordant, case: CASE-010, note: "literature cites DLL3 low normal expr = good therapeutic index — concordant with selective"}
