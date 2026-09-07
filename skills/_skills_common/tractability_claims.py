@@ -62,24 +62,34 @@ _C_STR, _C_DRUG, _C_DEG = "structure-features-static", "known-drug-tractability"
 # GDSC (Sanger) activity classes that AGREE with a PRISM-active call vs those that CONTRADICT it.
 _GDSC_ACTIVE = {"potent_activity", "moderate_activity"}
 _GDSC_INACTIVE = {"weak_activity", "no_compounds_found"}
+# chemical-genetic concordance (prism-crispr-concordance): does the compound kill TRACK the genetic
+# dependency (ON-target engagement) or NOT (off-target)?
+_CONCORD_ONTARGET = {"triangulated_target_engaged", "crispr_confirmed_engagement", "rnai_confirmed_engagement"}
+_CONCORD_OFFTARGET = {"discordant_off_target_likely"}
 
 
 def _activity_corr(h, c):
-    """ACTIVITY corroboration: PRISM (the signal source) is ONE drug-response platform → base corroboration;
-    GDSC (Sanger, in the headline) is a genuinely INDEPENDENT second platform — an agreeing GDSC call bumps
-    corroboration, a contradicting one (PRISM-active but GDSC-inactive) caps it. Was the single-source
-    `_corr_present` proxy (a dead-constant `moderate`); GDSC makes it carry real cross-platform agreement.
-    Verdict-INERT (the tractability verdict is the resolver's, not this projection's)."""
+    """ACTIVITY corroboration: PRISM (the signal source) is ONE drug-response platform → base corroboration.
+    TWO genuinely INDEPENDENT arms then adjust it: (1) GDSC (Sanger, a 2nd drug-response platform) — an
+    agreeing call bumps, a contradicting one caps; (2) the prism-crispr chemical-genetic CONCORDANCE
+    (crispr_prism_concordance_class, the raw evidence class — NOT the verdict) — ON-target engagement bumps,
+    an off-target-likely discordance caps (the measured cell-kill may not reflect ON-TARGET druggability).
+    Was the single-source `_corr_present` proxy (dead-constant `moderate`). Verdict-INERT."""
     base = "moderate" if _ACTIVITY_SIGNAL.get((c.get(_C_ACT) or {}).get("prism_activity_class"),
                                               "unmeasured") != "unmeasured" else "unmeasured"
     if base == "unmeasured":
         return "unmeasured"
     gdsc = h.get("gdsc_activity_class")
     if gdsc in _GDSC_ACTIVE:
-        return bump_corroboration(base, True)      # independent agreeing platform → moderate→high
-    if gdsc in _GDSC_INACTIVE:
-        return cap_corroboration(base, "low")      # PRISM-active but GDSC-inactive → conflict caps
-    return base                                    # GDSC unmeasured / data_unavailable → single-source base
+        base = bump_corroboration(base, True)      # independent agreeing platform → moderate→high
+    elif gdsc in _GDSC_INACTIVE:
+        base = cap_corroboration(base, "low")      # PRISM-active but GDSC-inactive → conflict caps
+    concord = h.get("prism_crispr_concord")        # raw crispr_prism_concordance_class (evidence, not verdict)
+    if concord in _CONCORD_ONTARGET:
+        base = bump_corroboration(base, True)      # compound kill tracks the genetic dependency → on-target
+    elif concord in _CONCORD_OFFTARGET:
+        base = cap_corroboration(base, "low")      # off-target-likely → activity may not be on-target druggability
+    return base
 
 SMALL_MOLECULE_CLAIM_SPEC = [
     ClaimSpec("POTENCY", "measured binding", _sig(_C_POT, "measured_bioactivity_class", _POTENCY_SIGNAL),
