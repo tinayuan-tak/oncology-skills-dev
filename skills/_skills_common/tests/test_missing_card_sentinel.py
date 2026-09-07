@@ -186,3 +186,47 @@ def test_honest_data_unavailable_is_available_for_rule_matching_but_counts_again
     assert "crispr-data-unavailable-insufficient" in fired_ids
     # genuine absence (no _data_unavailable) → still excluded from rule-matching
     assert "rnai-data-unavailable-insufficient" not in fired_ids
+
+
+# ---------------------------------------------------------------------------
+# R1 (2026-09-06) — a LIVE_READ_ERROR stub whose summary still reports a
+# data_unavailable class must ALSO fire its `equals: data_unavailable` rung (so a
+# read-errored backbone anchors the provenance rung instead of falling through to a
+# null driving_rule), WITHOUT being flagged _data_unavailable (which would mislabel
+# its dispatcher availability_state as `insufficient` instead of `read_error`).
+# ---------------------------------------------------------------------------
+
+def test_live_read_error_with_class_fires_data_unavailable_rung_but_stays_read_error():
+    from _skills_common import fired_rules
+    from _skills_common.dispatcher import _availability_state_for
+
+    # the resolve_cards shape for a live-read-errored backbone card that still stamped its class
+    read_error = {
+        "card_id": "pan-cancer-crispr-dependency-distribution",
+        "summary": {"dependency_class": "data_unavailable", "_live_read_error": "S3 timeout"},
+        "interpretation_call": "data_unavailable",
+        "_missing": True, "_missing_reason": "live_read_error: S3 timeout",
+        "_data_unavailable": False,   # NOT honest-DU → availability_state must stay read_error
+    }
+    empty_absence = {
+        "card_id": "pan-cancer-rnai-dependency-distribution",
+        "summary": {}, "interpretation_call": "not_implemented", "_missing": True,
+    }
+    rules = [
+        {"rule_id": "crispr-data-unavailable-insufficient",
+         "when": {"card_id": "pan-cancer-crispr-dependency-distribution",
+                  "field": "dependency_class", "equals": "data_unavailable"}, "signals": {}},
+        {"rule_id": "rnai-data-unavailable-insufficient",
+         "when": {"card_id": "pan-cancer-rnai-dependency-distribution",
+                  "field": "rnai_dependency_class", "equals": "data_unavailable"}, "signals": {}},
+    ]
+    fired_ids = {f["rule_id"] for f in fired_rules(
+        [read_error, empty_absence], axis="intracellular_intrinsic", rules=rules,
+        card_id_filter=["pan-cancer-crispr-dependency-distribution",
+                        "pan-cancer-rnai-dependency-distribution"])}
+    # R1 fix: the read-errored card with a class fires its data_unavailable rung (provenance anchor)
+    assert "crispr-data-unavailable-insufficient" in fired_ids
+    # a truly EMPTY absence (no class) still fires nothing
+    assert "rnai-data-unavailable-insufficient" not in fired_ids
+    # availability_state distinction is preserved: read_error, NOT insufficient
+    assert _availability_state_for(read_error)[0] == "read_error"

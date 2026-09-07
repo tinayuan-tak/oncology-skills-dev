@@ -71,7 +71,12 @@ CARDS = [
                                                 # per_lineage_stats), NOT the machine verdict (FR review,
                                                 # 2026-08-13). A future indication-conditioned verdict would
                                                 # be a grain change (needs a nomination-side decision).
-    "paralog-buffering",
+    "paralog-buffering",                        # COMPOUND-ONLY veto-suppressor: strong-paralog-buffering-
+                                                # degrader-preferred moves the verdict ONLY via the
+                                                # `when_all` rung (non-dependent-killer AND this) →
+                                                # non_dependent_paralog_buffered. On any positive/pan-ess
+                                                # call it is verdict-INERT and only sets modality_scope
+                                                # (degrader-preferred). Not a standalone verdict input.
     "partner-conditional-dependency",           # (2026-08-09) — VERDICT-BEARING synthetic-
                                                 # lethality rescue. Does dependency stratify by a
                                                 # PARTNER gene's deficiency (WRN×MSI, PARP1×HRD)? Its

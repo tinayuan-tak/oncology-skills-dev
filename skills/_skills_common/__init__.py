@@ -463,13 +463,17 @@ def fired_rules(card_outputs: list[dict],
         rules = load_interpretation_rules(axis) or []
     rules = filter_rules_by_card_ids(rules, card_id_filter or [])
 
-    # Include cards that are either available OR an HONEST data_unavailable answer. A genuine
-    # absence (_missing without _data_unavailable — dispatcher None / live_read_error) stays
-    # excluded. An honest data_unavailable card IS available for rule-matching so its dedicated
-    # `equals: data_unavailable` rung fires (M2, 2026-08-11): the card's interpretation_call is
-    # "data_unavailable" and its summary carries the data_unavailable *_class value the rule keys on.
+    # Include cards that are either available OR carry a data_unavailable *_class the dedicated
+    # `equals: data_unavailable` rung keys on — so a coverage gap anchors its provenance rung instead of
+    # falling through to the resolver default (null driving_rule). Two such cases: an HONEST
+    # data_unavailable answer (`_data_unavailable`, M2 2026-08-11) AND a LIVE_READ_ERROR stub whose
+    # summary still reports a data_unavailable class (the reader errored but stamped the class) — the
+    # latter is NOT flagged `_data_unavailable` (that flag also drives dispatcher availability_state:
+    # read_error vs insufficient, which must stay distinct), so we detect the class on the summary here.
+    # A genuine EMPTY absence (dispatcher-None → summary {}, no class) stays excluded (nothing to fire).
     card_by_id = {c["card_id"]: c for c in card_outputs
-                  if c.get("card_id") and (not c.get("_missing") or c.get("_data_unavailable"))}
+                  if c.get("card_id") and (not c.get("_missing") or c.get("_data_unavailable")
+                                           or _data_unavailable_field(c.get("summary") or {}) is not None)}
 
     fired: list[dict] = []
     for rule in rules:

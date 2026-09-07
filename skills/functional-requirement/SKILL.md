@@ -3,13 +3,15 @@ name: functional-requirement
 description: |
   Focused question skill: "Is target X a genetic dependency in indication
   Y, and how does the call hold up across CRISPR + RNAi + lineage context?"
-  Consumes 13 cards: 7 verdict-bearing (CRISPR + RNAi distributions, CRISPR/RNAi
-  concordance, lineage-selectivity, paralog-buffering, prism-crispr chemical-genetic
-  confirmation, and partner-conditional-dependency [WRN×MSI-style SL rescue]) resolved
-  via the shared dependency resolver; dependency-predictability + cross-consortium-dependency
-  as CONFIDENCE annotations (not the verdict); and 4 verdict-inert biomarker-facet render
-  cards (expression↔dependency, abundance↔dependency, recommended-models, + the
-  --subtypes-gated subgroup-stratified-dependency panorama).
+  Consumes 16 cards: 7 verdict-bearing (CRISPR + RNAi distributions, CRISPR/RNAi
+  concordance, lineage-selectivity, paralog-buffering [compound-only veto-suppressor],
+  prism-crispr chemical-genetic confirmation, and partner-conditional-dependency
+  [WRN×MSI-style SL rescue]) resolved via the shared dependency resolver;
+  dependency-predictability + cross-consortium-dependency + coessential-module as
+  3 CONFIDENCE annotations (not the verdict); 5 verdict-inert biomarker-facet render
+  cards (expression↔dependency, abundance↔dependency, recommended-models,
+  genomic-event-model-match, organoid-crispr-dependency); and the --subtypes-gated
+  subgroup-stratified-dependency panorama (1). See DATA_PRODUCT.md for the canonical breakdown.
 
   Use for focused questions like "is KRAS a dependency in COADREAD?", "is
   MET essential across CRC cell lines?", "does the CRISPR and RNAi signal
@@ -192,10 +194,20 @@ match wins), highest precedence first:
   9. `non_dependent_paralog_buffered` — pooled non-dependence AND a strong
      paralog buffer → buffering artifact spares the veto (veto-suppressor:
      `when_all_fired`, so it can never fabricate a dependency).
-  10. `non_dependent` — CRISPR non-dependence VETO (RNAi-alone non-dependence is
+  10. `partner_conditional_dependent` — pooled non-dependence rescued by a
+      partner-deficiency-stratified SL signal (WRN×MSI), OR a standalone partner-
+      conditional call; strong + moderate tiers, veto-suppressor (`driving_rule`
+      re-pointed to the partner rule). Four resolver rungs.
+  11. `non_dependent` — CRISPR non-dependence VETO (RNAi-alone non-dependence is
       neutral — false-negative-prone — and never vetoes).
-  11. `broadly_dependent` — broad but sub-pan-essential.
-  12. `insufficient` — measured coverage gap / nothing fired (provenance-anchored).
+  12. `broadly_dependent` — broad but sub-pan-essential.
+  13. `insufficient` — measured coverage gap / nothing fired (provenance-anchored;
+      as of 2026-09-06 a live-read-errored backbone card also anchors this rung
+      rather than falling through to a null driving_rule).
+
+(These are the 13 emitted verdicts; the resolver expresses them across 18 ordered
+rungs — several verdicts have multiple rungs, e.g. the CRISPR vs RNAi-both-agree
+paths and the partner-conditional strong/moderate × rescue/standalone matrix.)
 
 `driving_rule_id` in the headline records which rule drove the verdict, so a
 reviewer can trace back to the resolver rung + the interpretation-rules YAML.
