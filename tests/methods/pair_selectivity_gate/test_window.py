@@ -3,7 +3,6 @@
 Monkeypatch the two upstream readers (confirm_pair_samecell, normal_max_both) with canned payloads
 and assert the verdict truth table + margin. No S3."""
 
-import pytest
 
 import methods.pair_selectivity_gate.window as W
 

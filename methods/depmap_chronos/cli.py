@@ -33,7 +33,6 @@ from datetime import datetime, timezone
 from functools import lru_cache
 from io import BytesIO
 from pathlib import Path
-from typing import Optional
 
 from methods.catalog_query.read import bucket_prefix_for, s3_uri_for
 
@@ -458,8 +457,7 @@ def emit_forest_plot(per_lineage_records: list, target_lineage: str,
         plt.style.use(str(style_path))
     sys.path.insert(0, str(contracts_root / "plot_styles"))
     from takeda_palette import (  # type: ignore
-        get_lineage_color, REFLINE_NEUTRAL, REFLINE_KILLER, REFLINE_NOMINAL,
-        FIGSIZE_SINGLE_COLUMN_TALL, CHRONOS_STRONG_DEPENDENCY,
+        get_lineage_color, FIGSIZE_SINGLE_COLUMN_TALL, CHRONOS_STRONG_DEPENDENCY,
     )
 
     if not per_lineage_records:
@@ -711,7 +709,7 @@ def main(target, indication, release_pin, strong_dependency_threshold,
          catalog_repo, contracts_root, out, dry_run) -> int:
     """Lineage-specific dependency analysis for (target, indication)."""
     out.mkdir(parents=True, exist_ok=True)
-    click.echo(f"=== depmap-chronos (lineage-selectivity) ===")
+    click.echo("=== depmap-chronos (lineage-selectivity) ===")
     click.echo(f"  target:      {target}")
     click.echo(f"  indication:  {indication}")
     click.echo(f"  release_pin: {release_pin}")

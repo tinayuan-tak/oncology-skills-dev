@@ -32,11 +32,7 @@ fits.
 from __future__ import annotations
 
 import json
-import pickle
-import re
 import subprocess
-import sys
-import tempfile
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import datetime, timezone
@@ -322,8 +318,6 @@ def _fit_lineage_conditional(X: np.ndarray, y: np.ndarray,
     """For each large-enough lineage, refit RF within-lineage and report r² +
     top-3 features by RF importance. RF-only (no XGB / SHAP) to keep cost down.
     """
-    from sklearn.ensemble import RandomForestRegressor
-    from sklearn.feature_selection import SelectKBest, f_regression
     lineage_map = dict(zip(model_df["ModelID"], model_df["OncotreeLineage"]))
     lineages = np.array([lineage_map.get(m) or "unknown" for m in model_ids])
     results = []

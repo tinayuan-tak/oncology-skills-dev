@@ -11,11 +11,9 @@ Mirrors Card 1+2+4 synthetic-test pattern. No S3 required.
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import pandas as pd
-import pytest
 import yaml
 
 

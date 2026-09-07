@@ -6,7 +6,6 @@ S3 read is exercised by the PR-description smoke, not here.
 """
 from __future__ import annotations
 
-import importlib.util
 import sys
 from pathlib import Path
 

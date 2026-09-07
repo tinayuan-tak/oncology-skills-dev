@@ -12,7 +12,7 @@ REPO = Path(__file__).resolve().parents[3]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
-from methods.pancanatlas_ddr_context.cli import _classify, HRD_ENRICHED_FRAC, HRD_INTERMEDIATE_FRAC, MIN_COHORT_N  # noqa: E402
+from methods.pancanatlas_ddr_context.cli import _classify, MIN_COHORT_N  # noqa: E402
 from methods.pancanatlas_ddr_context import read as ddr_read  # noqa: E402
 
 

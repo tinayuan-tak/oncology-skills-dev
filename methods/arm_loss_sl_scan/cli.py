@@ -30,7 +30,6 @@ from typing import Optional
 import click
 
 from methods.arm_loss_sl_scan.scan import (
-    BYSTANDER_MAP_COLUMNS,
     METHOD_VERSION,
     SCAN_COLUMNS,
     bystander_map,
@@ -213,7 +212,6 @@ def _pancan_baseline(arm_calls, barcode_to_indication) -> dict:
 def main(target, all_targets, out, min_loss_freq, fdr_alpha, experimental_only, bystander_map_out, aws_profile):
     """Compose the SL -> arm-loss -> indication nomination scan and write parquet + a
     <out>.input_manifest_ids.json federation sidecar + a caveats sidecar."""
-    import pandas as pd
     if not target and not all_targets:
         raise click.UsageError("provide --target GENE or --all-targets")
     _ensure_profile(aws_profile)

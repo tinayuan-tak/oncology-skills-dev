@@ -287,7 +287,7 @@ def main(wide_parquet: Path, sidecar: Path, out: Path,
         _log(f"[rewrite_long] uploading to s3://{DEPMAP_S3_BUCKET}/{key}")
         s3.upload_file(str(out), DEPMAP_S3_BUCKET, key,
                        ExtraArgs={"Metadata": {"md5": md5}})
-        _log(f"[rewrite_long] uploaded.")
+        _log("[rewrite_long] uploaded.")
 
     _log(f"[rewrite_long] done. size={size_bytes} md5={md5}")
 

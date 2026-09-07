@@ -22,7 +22,6 @@ the Tahoe product via pushdown. Returns a compact adaptation summary for the tar
 """
 from __future__ import annotations
 
-from typing import Optional
 
 TAHOE_PRODUCT_MANIFEST_ID = "tahoe-drug-perturbation-per-gene-v1"
 
@@ -94,7 +93,6 @@ def tahoe_adaptation_for_target(target: str, df=None) -> dict:
         not_in_tahoe                  target's anchor drug not in the Tahoe drug set (coverage gap)
         data_unavailable              read failure
     """
-    import numpy as np
     sym = (target or "").strip().upper()
     drugs = TARGET_TO_TAHOE_DRUGS.get(sym)
     if drugs is None:

@@ -28,10 +28,8 @@ target-contracts docs/design/SAMPLE_ANNOTATION_PLAN.md for Modality B design.
 from __future__ import annotations
 import os
 
-import hashlib
 import re
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
 import click
@@ -487,7 +485,7 @@ def main(subgroup_catalog: Path, data_source: str, release_pin: str,
     skipped = [s["id"] for s in atomic if s.get("derivation_source") not in SUPPORTED_DERIVATION_SOURCES]
     if skipped:
         click.echo(f"  skipped strata (non-MAF derivation): {skipped}")
-        click.echo(f"  → dispatch to subgroup_assigner_directly_tagged or subgroup_assigner_classifier")
+        click.echo("  → dispatch to subgroup_assigner_directly_tagged or subgroup_assigner_classifier")
 
     if not applicable:
         click.echo(f"WARNING: no applicable MAF-filter strata for data_source={data_source}", err=True)

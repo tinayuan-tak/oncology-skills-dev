@@ -33,7 +33,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
-from methods.catalog_query.read import bucket_key_for, bucket_prefix_for
+from methods.catalog_query.read import bucket_prefix_for
 
 # Canonical indication → DepMap OncotreeLineage map (single source of truth in
 # depmap_chronos.cli). Imported here as INDICATION_LINEAGE — do NOT re-fork it
@@ -289,7 +289,6 @@ def _symbol_to_uniprot_map() -> dict:
     prefix. NOT the Gygi target_resolution sidecar (which only covers Gygi-present symbols) — this
     resolves surface/secreted antigens the Gygi panel misses, so the Olink fallback can find them.
     {} on any failure (fallback then degrades to data_unavailable — honest)."""
-    import pandas as pd
     try:
         df = _read_csv(None, S3_BUCKET, _UNIPROT_MAP_KEY)
     except Exception:  # noqa: BLE001

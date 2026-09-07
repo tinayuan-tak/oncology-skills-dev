@@ -17,7 +17,7 @@ if str(REPO) not in sys.path:
 
 from methods.structure_features_static.compute import (  # noqa: E402
     parse_hgvsp_residue, aggregate_plddt, per_domain_plddt, pdb_coverage,
-    pocket_adjacency, build_row, parse_cif_plddt, PLDDT_POCKET_MIN,
+    pocket_adjacency, build_row, parse_cif_plddt,
 )
 
 

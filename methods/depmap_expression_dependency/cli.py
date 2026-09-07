@@ -34,7 +34,6 @@ import sys
 from datetime import datetime, timezone
 from io import BytesIO
 from pathlib import Path
-from typing import Optional
 
 import click
 
@@ -267,7 +266,6 @@ def compute_correlation_summary(
     Args mirror the card_spec thresholds; defaults match cards/expression-
     dependency-correlation.card.yaml.
     """
-    import numpy as np
     import pandas as pd
     from scipy import stats
 
@@ -668,7 +666,7 @@ def main(target, indication, release_pin, out, contracts_root, dry_run) -> int:
     """Compute expression-dependency correlation for (target, indication) and
     emit summary + figures + plot_data + manifest."""
     out.mkdir(parents=True, exist_ok=True)
-    click.echo(f"=== depmap-expression-dependency (Card 4) ===")
+    click.echo("=== depmap-expression-dependency (Card 4) ===")
     click.echo(f"  target:      {target}")
     click.echo(f"  indication:  {indication}")
     click.echo(f"  release_pin: {release_pin}")

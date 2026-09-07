@@ -169,14 +169,14 @@ def _main(argv: list[str] | None = None) -> int:
     ]
     if missing_stages:
         print(
-            f"[derive] ERROR: pipeline stages not yet written. Missing:\n"
-            f"  " + "\n  ".join(missing_stages),
+            "[derive] ERROR: pipeline stages not yet written. Missing:\n"
+            "  " + "\n  ".join(missing_stages),
             file=sys.stderr,
         )
         print(
-            f"\nThis is a bounded-checkpoint SKELETON. Fresh session must "
-            f"write the stages per the plan at "
-            f"~/.claude/plans/deep-foraging-thompson.md (PR 1 section).",
+            "\nThis is a bounded-checkpoint SKELETON. Fresh session must "
+            "write the stages per the plan at "
+            "~/.claude/plans/deep-foraging-thompson.md (PR 1 section).",
             file=sys.stderr,
         )
         return 2

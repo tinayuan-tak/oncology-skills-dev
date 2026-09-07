@@ -179,7 +179,6 @@ def load_depmap_files(release_pin: str, target_symbol: str) -> tuple[dict, dict,
     if crispr_path is None:
         try:
             import boto3
-            from botocore.exceptions import ClientError, NoCredentialsError
             s3 = boto3.client("s3")
             bucket = "onc-compbio"
             crispr_key = f"{_DEPMAP_KEY_PREFIX}/CRISPRGeneEffect.csv"
@@ -841,7 +840,7 @@ def main(target: str, release_pin: str, strong_dependency_threshold: float,
     """Pan-cancer Chronos distribution analysis for a target."""
     out.mkdir(parents=True, exist_ok=True)
 
-    click.echo(f"=== depmap-chronos-distribution ===")
+    click.echo("=== depmap-chronos-distribution ===")
     click.echo(f"  target:        {target}")
     click.echo(f"  release_pin:   {release_pin}")
     click.echo(f"  strong_thresh: {strong_dependency_threshold}")

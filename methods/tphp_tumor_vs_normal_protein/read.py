@@ -33,7 +33,6 @@ from __future__ import annotations
 
 import math
 import threading
-from typing import Optional
 
 from methods.catalog_query.read import bucket_key_for
 

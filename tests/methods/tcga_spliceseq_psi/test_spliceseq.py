@@ -9,7 +9,6 @@ the composite-indication rollup (COAD+READ -> COADREAD), and gene-sorted output.
 from __future__ import annotations
 
 import sys
-import tempfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]

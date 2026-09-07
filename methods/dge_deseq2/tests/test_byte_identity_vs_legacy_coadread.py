@@ -27,7 +27,6 @@ Run in iter-1 execution:
     pixi run pytest methods/dge_deseq2/tests/test_byte_identity_vs_legacy_coadread.py -v
 """
 
-import os
 import shutil
 import subprocess
 import sys
@@ -68,7 +67,7 @@ def test_dge_deseq2_byte_identity_vs_legacy_coadread(tmp_path):
         str(SKILLS_REPO / "batch" / "expression_rna_COADREAD" / "run_pipeline.R"),
         f"--config={SKILLS_REPO / 'configs' / 'COADREAD.yaml'}",
         f"--catalog-repo={CATALOG_REPO}",
-        f"--git-sha=R4-byte-identity-test",
+        "--git-sha=R4-byte-identity-test",
         f"--out-dir={legacy_out}",
         f"--parquet-uri={legacy_parquet}",
         "--threads=4",

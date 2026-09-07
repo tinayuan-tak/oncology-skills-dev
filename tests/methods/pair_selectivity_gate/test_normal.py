@@ -3,7 +3,6 @@
 Synthetic cube + monkeypatched _read_normal_cube (the repo idiom); no S3."""
 
 import pandas as pd
-import pytest
 
 import methods.pair_selectivity_gate.normal as N
 

@@ -16,7 +16,6 @@ Reuses the canonical dge_deseq2 INDICATION_TO_TCGA_STUDIES map (no new indicatio
 from __future__ import annotations
 
 import threading
-from typing import Optional
 
 from methods.catalog_query.read import bucket_key_for
 from . import classify as _classify

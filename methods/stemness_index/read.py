@@ -44,7 +44,6 @@ def read_stemness_index(target: Optional[str] = None, indication: Optional[str] 
     `target` accepted for the dispatcher signature; NOT consumed (cohort-level stemness is
     target-independent). data_unavailable when the indication is absent.
     """
-    import pandas as pd
     if not indication:
         return {"stemness_class": "data_unavailable",
                 "_note": "indication required (per-indication cohort facet)."}

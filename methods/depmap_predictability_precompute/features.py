@@ -33,7 +33,6 @@ from __future__ import annotations
 import json
 import re
 from io import BytesIO
-from pathlib import Path
 from typing import Optional
 
 import numpy as np

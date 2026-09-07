@@ -12,7 +12,6 @@ Hermetic: monkeypatches _ensure_paralog_cached to a synthetic CSV in tmp — the
 """
 from __future__ import annotations
 
-import importlib
 import sys
 from pathlib import Path
 

@@ -18,10 +18,8 @@ indications at read time), never as an absolute pathway call.
 from __future__ import annotations
 
 import io
-import sys
 import time
 from pathlib import Path
-from typing import Optional
 
 import pandas as pd
 

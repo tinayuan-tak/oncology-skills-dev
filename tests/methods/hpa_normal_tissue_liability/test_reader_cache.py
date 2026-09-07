@@ -10,7 +10,6 @@ No live S3: the default S3 path is exercised via a monkeypatched _ensure_hpa_cac
 from __future__ import annotations
 
 import importlib
-import io
 import sys
 import zipfile
 from pathlib import Path

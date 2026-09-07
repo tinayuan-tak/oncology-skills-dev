@@ -17,7 +17,6 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import pytest
 
 REPO = Path(__file__).resolve().parents[3]
 COMPUTE_PY = REPO / "methods" / "depmap_coessentiality" / "compute.py"

@@ -23,7 +23,6 @@ import os
 from collections import Counter
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional
 
 DEFAULT_AWS_PROFILE = "cbg"
 S3_BUCKET = "onc-compbio"

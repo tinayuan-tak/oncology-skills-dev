@@ -16,7 +16,6 @@ CLI:  python -m methods.exon_skip_carrier.build --upload    # build from raw MAF
 from __future__ import annotations
 
 import hashlib
-import io
 import os
 from typing import Iterable, Optional
 

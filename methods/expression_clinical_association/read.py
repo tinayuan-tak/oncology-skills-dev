@@ -166,8 +166,6 @@ def read_expression_clinical_association(target: str, indication: str) -> dict:
         return base
 
     # 3) join on case (mean expression per case), median-split, log-rank
-    import numpy as np
-    import pandas as pd
     df = expr.groupby("case", as_index=False)["log2_tpm"].mean()
     df["os"] = df["case"].map(lambda c: cdr.get(c, (None, None))[0])
     df["os_time"] = df["case"].map(lambda c: cdr.get(c, (None, None))[1])

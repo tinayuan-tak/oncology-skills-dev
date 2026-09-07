@@ -183,7 +183,7 @@ def main(indication: str, contrast: str, release_pin: str, catalog_repo: Path,
     if gtex_tissue:
         cmd.append(f"--gtex-tissue={gtex_tissue}")
 
-    click.echo(f"=== dge-deseq2 invocation ===")
+    click.echo("=== dge-deseq2 invocation ===")
     click.echo(f"  indication:   {indication}")
     click.echo(f"  contrast:     {contrast}")
     click.echo(f"  release-pin:  {release_pin}")

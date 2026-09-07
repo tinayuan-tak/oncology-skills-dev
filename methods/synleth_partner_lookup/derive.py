@@ -90,7 +90,6 @@ def load_sl_pairs(tsv_path=None):
 
 def build_partner_index(df) -> "list[dict]":
     """Invert the symmetric SL pair-list → per-gene partner records."""
-    import pandas as pd
     # gene_symbol → {entrez, partners: {partner_sym: {tier, pubmed, cell_line, entrez}}}
     genes: dict = defaultdict(lambda: {"entrez": None, "partners": {}})
 

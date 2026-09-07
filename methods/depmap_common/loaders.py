@@ -18,7 +18,6 @@ import sys
 from functools import lru_cache
 from io import BytesIO
 from pathlib import Path
-from typing import Optional
 
 from methods.catalog_query.read import bucket_prefix_for
 

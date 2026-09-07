@@ -6,7 +6,6 @@ transcript-TPM once (the file is too big to live-read per query). ENST→gene vi
 from __future__ import annotations
 
 import io
-import math
 import os
 import re
 from functools import lru_cache

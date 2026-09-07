@@ -28,7 +28,6 @@ Phase-3 change (~5 LOC per method).
 from __future__ import annotations
 
 import functools
-import inspect
 import warnings
 from pathlib import Path
 from typing import Any, Callable

@@ -24,7 +24,6 @@ from __future__ import annotations
 import sys
 import threading
 from pathlib import Path
-from typing import Optional
 
 _METHODS_ROOT = Path(__file__).resolve().parent.parent
 if str(_METHODS_ROOT.parent) not in sys.path:

@@ -269,7 +269,6 @@ def emit_normal_tissue_bar(summary: dict, target_symbol: str, out_dir, target_co
             a fallback signal is derived from the breadth class (+ essential-organ escalation)."""
     import matplotlib
     matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
     from matplotlib.patches import FancyBboxPatch
     from pathlib import Path as _Path
 

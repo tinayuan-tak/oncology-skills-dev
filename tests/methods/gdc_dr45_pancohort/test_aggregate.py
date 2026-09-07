@@ -6,8 +6,6 @@ Mocks _load_manifest_files + _stream_maf_genes.
 """
 from __future__ import annotations
 
-import gzip
-import io
 import sys
 from pathlib import Path
 

@@ -69,7 +69,6 @@ def test_renders_three_svgs_from_persisted_parquet(tmp_path, monkeypatch):
 def test_returns_plotly_descriptors_with_dynamic_flag(tmp_path, monkeypatch):
     """Stage-3 parity: render_from_plot_data RETURNS the plotly-twin descriptors (dynamic:True), not
     just the SVGs — so it is an exact drop-in for the registry emitter (which appends them today)."""
-    import pandas as pd
     tpm, meta = _panel()
     summary = c.compute_summary_stats(tpm, meta)
     src = tmp_path / "src"; src.mkdir()

@@ -19,7 +19,6 @@ genes rise together), but cross-cohort batch effects remain — hence `cohorts_c
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Optional
 
 from methods.catalog_query.read import s3_uri_for
 from methods.indication_aliases import to_cohort_canonical

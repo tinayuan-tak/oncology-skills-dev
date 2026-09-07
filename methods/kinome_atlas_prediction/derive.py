@@ -230,7 +230,7 @@ def derive_kinome_atlas_long(
     """Melt both wide-format atlas files, concatenate, write parquet."""
     frames: list[pd.DataFrame] = []
 
-    print(f"=== Deriving kinome-atlas long-edges parquet ===")
+    print("=== Deriving kinome-atlas long-edges parquet ===")
     print(f"  johnson_xlsx: {johnson_xlsx}")
     print(f"  yaron_xlsx:   {yaron_xlsx}")
     print(f"  out_parquet:  {out_parquet}")
@@ -268,7 +268,7 @@ def derive_kinome_atlas_long(
     print(f"  kinase count: {combined['kinase_symbol'].nunique()}")
     print(f"  substrate count: {combined['substrate_gene'].nunique()}")
     print(f"  by kinome: {combined['kinome'].value_counts().to_dict()}")
-    print(f"  percentile distribution:")
+    print("  percentile distribution:")
     print(combined['percentile'].describe().to_string())
     print()
 

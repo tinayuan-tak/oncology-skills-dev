@@ -17,7 +17,6 @@ import json
 from pathlib import Path
 
 import pandas as pd
-import pytest
 import yaml
 
 
@@ -185,7 +184,6 @@ def test_synthetic_kras_distribution(tmp_path, monkeypatch):
 
 def test_synthetic_kras_full_cli_invocation(tmp_path, monkeypatch):
     """Run the full CLI as a subprocess against synthetic data."""
-    import subprocess
     import sys
 
     # Stage synthetic DepMap data

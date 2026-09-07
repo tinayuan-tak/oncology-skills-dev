@@ -164,7 +164,6 @@ def read_stratified_dependency(
     Member-set intersection at read time via `_sample_id_filter` (ModelIDs).
     """
     import pandas as pd
-    import numpy as np
 
     path = chronos_parquet or DEFAULT_CHRONOS_PARQUET
     if not path.exists():

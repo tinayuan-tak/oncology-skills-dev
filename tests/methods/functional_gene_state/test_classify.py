@@ -297,7 +297,6 @@ def test_patient_methylation_graceful_degradation():
 # ── M1: CCLE RRBS column → ModelID join (punctuated display names must resolve) ─────────────────
 import gzip  # noqa: E402
 import io  # noqa: E402
-import pandas as pd  # noqa: E402
 import methods.functional_gene_state.read as _fgs_read  # noqa: E402
 
 # A Model.csv whose display CellLineName is PUNCTUATED ("NCI-H2126", "DMS 53"); the RRBS columns are

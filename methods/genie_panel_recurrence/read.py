@@ -10,7 +10,6 @@ import os
 import sys
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional
 
 DEFAULT_AWS_PROFILE = "cbg"
 GENIE_MAF_MANIFEST = "genie-registry-per-sample-maf-v1"

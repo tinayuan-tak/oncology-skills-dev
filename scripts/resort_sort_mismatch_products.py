@@ -19,7 +19,6 @@ import argparse
 import hashlib
 import os
 import sys
-import tempfile
 from pathlib import Path
 
 import boto3

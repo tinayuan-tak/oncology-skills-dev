@@ -23,7 +23,6 @@ import io
 import subprocess
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
 METHOD_VERSION = "0.1.0"

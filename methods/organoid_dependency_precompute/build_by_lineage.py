@@ -94,7 +94,7 @@ def build(matrix_uri: str = _S3_MATRIX, model_uri: str = _S3_MODEL):
          + ", ".join(f"{l}={int(counts[l])}" for l in admitted))
     dropped = [(lin, int(n)) for lin, n in counts.items() if lin and n < MIN_LINEAGE_COHORT]
     if dropped:
-        _log(f"[lineage] DROPPED (below floor, not emitted): "
+        _log("[lineage] DROPPED (below floor, not emitted): "
              + ", ".join(f"{l}={n}" for l, n in sorted(dropped)))
 
     # Parse gene column headers once.

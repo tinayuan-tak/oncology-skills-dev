@@ -52,7 +52,6 @@ membership from data_gene_matrix.txt. Requires cohort labeling
 from __future__ import annotations
 
 import argparse
-import io
 import sys
 import time
 from pathlib import Path

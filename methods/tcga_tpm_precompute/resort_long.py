@@ -89,7 +89,7 @@ def resort(in_uri: str, out_path: Path, row_group_size: int) -> tuple[int, dict]
     tmp_dir = out_path.parent / "_duckdb_tmp"
     tmp_dir.mkdir(parents=True, exist_ok=True)
     con = duckdb.connect()
-    con.execute(f"SET memory_limit='40GB';")
+    con.execute("SET memory_limit='40GB';")
     con.execute(f"SET temp_directory='{tmp_dir}';")
 
     if in_uri.startswith("s3://"):

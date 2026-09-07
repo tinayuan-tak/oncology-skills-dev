@@ -37,13 +37,10 @@ Phase 2a.3 of iDAS Subtype Pipeline. NEW method — no prior version.
 from __future__ import annotations
 import os
 
-import hashlib
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
 import click
-import numpy as np
 import pandas as pd
 import yaml
 

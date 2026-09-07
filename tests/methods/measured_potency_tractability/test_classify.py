@@ -14,7 +14,7 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from methods.measured_potency_tractability.read import (  # noqa: E402
-    classify_measured_bioactivity, measured_potency_for_gene, POTENT_PCHEMBL, POTENT_SERIES_MIN,
+    classify_measured_bioactivity, measured_potency_for_gene, POTENT_SERIES_MIN,
     classify_chembl_clinical_phase, classify_chembl_approved_engagement)
 
 

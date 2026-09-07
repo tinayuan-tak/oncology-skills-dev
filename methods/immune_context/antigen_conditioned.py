@@ -20,7 +20,6 @@ Pure stat (antigen_conditioned_summary) is unit-testable on synthetic per-patien
 """
 from __future__ import annotations
 
-from typing import Optional
 
 from . import classify as _classify
 

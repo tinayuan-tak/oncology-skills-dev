@@ -26,8 +26,6 @@ convention, downstream consumers can wrap with np.log2(tpm + 1.0).
 from __future__ import annotations
 
 import gzip
-import io
-import os
 import urllib.request
 from pathlib import Path
 
@@ -235,9 +233,9 @@ def load_gene_lengths(refresh: bool = False) -> "pd.Series":
 
     # Step 3: fallback — fetch GTF + parse locally
     print(
-        f"[gene_lengths] WARN: S3 mirror unavailable; parsing GTF locally. "
-        f"Result will match the S3 version deterministically, but the "
-        f"provenance link is degraded."
+        "[gene_lengths] WARN: S3 mirror unavailable; parsing GTF locally. "
+        "Result will match the S3 version deterministically, but the "
+        "provenance link is degraded."
     )
     gtf_path = CACHE_DIR / "gencode.v26.primary_assembly.annotation.gtf.gz"
     _download_gtf(gtf_path)

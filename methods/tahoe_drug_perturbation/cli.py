@@ -58,8 +58,6 @@ def compute_summary(df, target: str) -> dict:
     df: pandas DataFrame of rows for ONE gene (cols: drug, Cell_ID_DepMap, concentration,
         log2FoldChange, padj, stat, baseMean, ...). None => read failure. Empty => gene absent.
     """
-    import numpy as np
-    import pandas as pd
 
     if df is None:
         return {

@@ -27,7 +27,6 @@ univariate, unadjusted for stage/age, exploratory, multiple-testing-naive.
 """
 from __future__ import annotations
 
-from pathlib import Path
 
 # Single source of truth for the survival substrate + log-rank engine + thresholds. Referenced via
 # the module (not `from ... import _CDR_LOAD_ERROR`) so the live post-call error value is read.

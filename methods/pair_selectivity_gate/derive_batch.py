@@ -14,7 +14,6 @@ by the interactive scan skill.
 """
 from __future__ import annotations
 
-from typing import Optional
 
 from .gates import _positive_fraction_by_group, reduce_gate, _GATES, classify_and_selectivity
 

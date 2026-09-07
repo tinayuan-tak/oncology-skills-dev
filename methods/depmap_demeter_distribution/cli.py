@@ -120,7 +120,6 @@ def load_rnai_files(release_pin: str, target_symbol: str) -> tuple[dict, dict, l
     model_df = None
     try:
         import boto3
-        from botocore.exceptions import ClientError, NoCredentialsError
         s3 = boto3.client("s3")
         bucket = "onc-compbio"
 
@@ -440,7 +439,6 @@ def emit_waterfall_plot(demeter_by_model: dict, model_metadata: dict, target_sym
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    import numpy as np
     import pandas as pd
 
     style_path = target_contracts_dir / "plot_styles" / "takeda_oncology.mplstyle"

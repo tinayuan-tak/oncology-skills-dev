@@ -1,7 +1,6 @@
 """Synthetic-data tests for surfaceome_cohort_ranking.derive (no S3)."""
 import numpy as np
 import pandas as pd
-import pytest
 
 from methods.surfaceome_cohort_ranking.derive import (
     CPTAC_COHORT_MAP,

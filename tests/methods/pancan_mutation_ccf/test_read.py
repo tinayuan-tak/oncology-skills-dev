@@ -2,7 +2,6 @@
 no S3. Guards the read-side contract + the graceful data_unavailable floor."""
 from __future__ import annotations
 
-from pathlib import Path
 
 import pytest
 

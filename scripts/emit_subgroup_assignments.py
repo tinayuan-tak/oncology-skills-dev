@@ -345,7 +345,7 @@ def main(source: str, indication: str, release_pin: str, catalog_repo: Path,
         classifier_config=classifier_config,
     )
 
-    _log(f"=== emit-subgroup-assignments ===")
+    _log("=== emit-subgroup-assignments ===")
     _log(f"  shard:           {source} × {indication}")
     _log(f"  release_pin:     {release_pin}")
     _log(f"  catalog:         {shard.catalog_path}")

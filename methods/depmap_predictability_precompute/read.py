@@ -11,7 +11,6 @@ from __future__ import annotations
 
 from typing import Optional
 
-from . import cli as _cli  # re-export helpers so tests can import them
 
 
 def read_predictability_precompute(target: str, indication: Optional[str] = None) -> dict:

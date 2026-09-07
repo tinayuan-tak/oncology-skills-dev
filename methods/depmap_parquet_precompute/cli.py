@@ -29,7 +29,6 @@ source CSVs; parquet conversion is quick).
 from __future__ import annotations
 
 import hashlib
-import json
 import sys
 from datetime import datetime, timezone
 from io import BytesIO
@@ -358,7 +357,7 @@ def main(release_pin: str, output_prefix: str, local_dir: Path,
         entries.append(entry)
 
     manifest_path = write_manifest(entries, local_dir, output_prefix, s3, upload=not no_upload)
-    _log(f"\n=== Precompute complete ===")
+    _log("\n=== Precompute complete ===")
     _log(f"  {len(entries)} files precomputed")
     _log(f"  manifest: {manifest_path}")
     for e in entries:

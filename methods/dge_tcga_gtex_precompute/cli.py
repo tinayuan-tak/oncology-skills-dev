@@ -19,10 +19,8 @@ from __future__ import annotations
 import gzip
 import hashlib
 import io
-import re
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
 
 import click
 
@@ -150,7 +148,6 @@ def _log2cpm(counts_df: "pd.DataFrame", sample_cols: list[str]) -> "pd.DataFrame
     in sample_cols. gene_id column is preserved as-is.
     """
     import numpy as np
-    import pandas as pd
     lib_sizes = counts_df[sample_cols].sum(axis=0)
     # CPM = count / lib_size × 1e6; log2(CPM+1)
     cpm = counts_df[sample_cols].div(lib_sizes, axis=1) * 1e6

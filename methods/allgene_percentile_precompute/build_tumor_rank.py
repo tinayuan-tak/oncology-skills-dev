@@ -50,7 +50,6 @@ def build(quantiles_uri: str):
     """Read the quantiles product, rank each gene's median within (source, group)."""
     import pyarrow.fs as fs
     import pyarrow.parquet as pq
-    import pandas as pd
 
     t0 = time.time()
     if quantiles_uri.startswith("s3://"):
@@ -115,7 +114,6 @@ def main(argv=None) -> int:
          f"{meta['size_bytes']} B / md5={meta['md5']}")
 
     # Correctness gate
-    import pandas as pd
     for sym, src, grp, thresh in CORRECTNESS_CHECKS:
         sub = df[(df["gene_symbol"] == sym) & (df["source"] == src)]
         if grp:

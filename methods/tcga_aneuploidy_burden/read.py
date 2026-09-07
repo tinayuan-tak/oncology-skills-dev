@@ -229,7 +229,6 @@ def _hrd_from_product(indication: str):
     except Exception:  # noqa: BLE001  # absence-discipline: exempt -- LOCAL catalog manifest lookup, not an S3 read; a raise means the derived manifest is not registered → fall back to the live segtabs computation
         return None
     try:
-        import numpy as np
         import pandas as pd
         import pyarrow.fs as fs
         import pyarrow.parquet as pq

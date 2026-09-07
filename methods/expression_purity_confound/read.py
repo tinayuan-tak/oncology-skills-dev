@@ -138,7 +138,6 @@ def read_expression_purity_confound(target: str, indication: str) -> dict:
 
     # 3) join on case, correlate. A case may have multiple tumor samples → mean expression per case.
     import numpy as np
-    import pandas as pd
     df = expr.groupby("case", as_index=False)["log2_tpm"].mean()
     df["purity"] = df["case"].map(purity_by_case)
     df = df.dropna(subset=["purity"])

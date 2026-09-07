@@ -14,7 +14,6 @@ import os
 
 import pytest
 
-from methods.catalog_query import read as cq
 from methods.catalog_query.read import (
     DATA_CATALOG, TARGET_CONTRACTS, load_catalog, _build_catalog_index,
     _catalog_signature, _catalog_input_files,

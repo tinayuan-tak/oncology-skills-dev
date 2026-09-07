@@ -73,7 +73,6 @@ from __future__ import annotations
 
 import hashlib
 import re
-import sys
 from datetime import datetime, timezone
 from io import BytesIO
 from pathlib import Path
@@ -433,7 +432,6 @@ def load_crispr_chronos_for_genes(chronos_parquet_local_path, gene_symbols: set[
     Used by v4 to fetch Chronos in bulk for all PRISM-annotated genes at precompute
     time (~2000 genes) so per-gene concordance loops don't do S3 round-trips.
     """
-    import pandas as pd
     import re
     import pyarrow.parquet as pq
     schema_names = pq.read_schema(str(chronos_parquet_local_path)).names
@@ -926,7 +924,6 @@ def _spearman_rho(a: list[float], b: list[float]) -> Optional[float]:
     variance is zero (undefined correlation) or n < 3."""
     if len(a) != len(b) or len(a) < 3:
         return None
-    import statistics as _stats
     def _ranks(v):
         sorted_v = sorted(enumerate(v), key=lambda x: x[1])
         # Handle ties with average rank (fractional). Simpler: use pandas.rank if importable.
@@ -1372,7 +1369,6 @@ def _write_manifest(
 def main(output_prefix: str, local_dir: Path, releases: tuple[str, ...], no_upload: bool) -> None:
     """CLI: ingest PRISM sources → build per-gene activity parquet → upload."""
     import boto3
-    import pandas as pd
     s3 = boto3.client("s3")
 
     releases_to_ingest = list(releases) if releases else list(RELEASES.keys())

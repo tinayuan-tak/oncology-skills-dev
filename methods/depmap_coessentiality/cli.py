@@ -55,7 +55,6 @@ def run_emit(
 
     Returns a provenance dict suitable for the data-catalog manifest.
     """
-    import numpy as np
     import pandas as pd
     import pyarrow as pa
     import pyarrow.parquet as pq
