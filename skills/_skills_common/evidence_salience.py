@@ -60,10 +60,23 @@ SALIENCE_SPECS: dict = {
     "chemical_genetic_concordance": {
         "strata_array": "per_compound_concordance", "effect_field": "spearman_r_crispr", "label_field": "drug_name",
         "direction": "higher_is_stronger", "categorical": ["crispr_prism_concordance_class"],
-        "extra_scalars": ["best_spearman_r_crispr", "best_spearman_r_rnai"]},
+        "extra_scalars": ["best_spearman_r_crispr", "best_spearman_r_rnai"],
+        # gauge the BEST-compound CRISPR-PRISM concordance (top-level scalar) on a graded band (weak 0.10 /
+        # strong 0.30). The per-compound rhos live in an array; best_spearman_r_crispr is the card-level max.
+        "reference_frame": {
+            "kind": "graded_band", "value_field": "best_spearman_r_crispr", "scale": "spearman_r",
+            "position_field": "crispr_prism_concordance_class",
+            "cuts": [{"card_id": "prism-crispr-concordance", "threshold": "concordance_weak_spearman", "label": "weak"},
+                     {"card_id": "prism-crispr-concordance", "threshold": "concordance_strong_spearman", "label": "strong"}]}},
     "dependency_predictability": {
         "strata_array": "per_lineage_predictability", "effect_field": "r2", "direction": "higher_is_stronger",
-        "categorical": ["predictability_class", "pred_dominant_feature_class"], "extra_scalars": ["pearson_r_squared_rf"]},
+        "categorical": ["predictability_class", "pred_dominant_feature_class"], "extra_scalars": ["pearson_r_squared_rf"],
+        # gauge the DepMap-parity r² (top-level scalar) vs the high-confidence floor (0.16). position = the
+        # predictability_class band READ VERBATIM.
+        "reference_frame": {
+            "kind": "distance_to_cut", "value_field": "pearson_r_squared_rf", "scale": "r2",
+            "position_field": "predictability_class",
+            "cut": {"card_id": "dependency-predictability", "threshold": "r2_depmap_high_conf", "label": "high_conf_cut"}}},
 
     # on-target-safety-liability (§3.2) — the liability anchor (scalar-effect, count-driven)
     "gnomad_lof_constraint": {
@@ -265,7 +278,15 @@ SALIENCE_SPECS: dict = {
     # tractability-small-molecule (§3.7)
     "prism_compound_activity": {
         "strata_array": "top_compounds", "effect_field": "median_log2auc", "label_field": "drug_name",
-        "direction": "lower_is_stronger", "categorical": ["prism_activity_class"]},
+        "direction": "lower_is_stronger", "categorical": ["prism_activity_class"],
+        # gauge the across-compound median PRISM activity (top-level scalar; LOWER Log2AUC = more active) vs
+        # the clinically-active cut (-0.10). position = prism_activity_class READ VERBATIM (the per-compound
+        # depth lives in top_compounds[]; median_log2auc_across_compounds is the card-level summary).
+        "reference_frame": {
+            "kind": "distance_to_cut", "value_field": "median_log2auc_across_compounds", "scale": "log2auc",
+            "position_field": "prism_activity_class",
+            "cut": {"card_id": "prism-compound-activity", "threshold": "clinically_active_log2auc",
+                    "label": "clinically_active_cut"}}},
     "measured_potency_tractability": {
         "effect_field": "chembl_best_pchembl", "direction": "higher_is_stronger",
         "categorical": ["measured_bioactivity_class", "chembl_clinical_phase_class"],
@@ -292,13 +313,33 @@ SALIENCE_SPECS: dict = {
     # combination-and-vulnerability (§3.9)
     "combinatorial_ko_dependency": {
         "strata_array": "ranked_partner_table", "effect_field": "mean_gi", "significance_field": "gi_ttest_pvalue",
-        "label_field": "partner_gene", "direction": "lower_is_stronger", "categorical": ["combinatorial_dependency_class"]},
+        "label_field": "partner_gene", "direction": "lower_is_stronger", "categorical": ["combinatorial_dependency_class"],
+        # gauge the STRONGEST partner's mean GI (top-level scalar; more negative = stronger interaction) vs
+        # the constitutive-interaction cut (-0.25). position = combinatorial_dependency_class READ VERBATIM.
+        "reference_frame": {
+            "kind": "distance_to_cut", "value_field": "strongest_partner_mean_gi", "scale": "gi_chronos",
+            "position_field": "combinatorial_dependency_class",
+            "cut": {"card_id": "combinatorial-dependency", "threshold": "constitutive_mean_gi", "label": "constitutive_cut"}}},
     "drug_anchored_combination": {
         "strata_array": "top_co_targets", "effect_field": "mean_effect_shift", "significance_field": "frac_models_significant",
-        "label_field": "co_target_gene", "direction": "lower_is_stronger", "categorical": ["combination_opportunity_class"]},
+        "label_field": "co_target_gene", "direction": "lower_is_stronger", "categorical": ["combination_opportunity_class"],
+        # strongest co-target's essentiality shift (more negative = combination) on a graded band
+        # (supported -0.25 / strong -0.50). position = combination_opportunity_class READ VERBATIM.
+        "reference_frame": {
+            "kind": "graded_band", "value_field": "strongest_co_target_shift", "scale": "effect_shift",
+            "position_field": "combination_opportunity_class",
+            "cuts": [{"card_id": "combo-crispr-screen", "threshold": "supported_shift", "label": "supported"},
+                     {"card_id": "combo-crispr-screen", "threshold": "strong_shift", "label": "strong"}]}},
     "drug_anchored_resistance": {
         "strata_array": "top_resistance_mediators", "effect_field": "mean_effect_shift", "significance_field": "frac_models_significant",
-        "label_field": "rescuer_gene", "direction": "higher_is_stronger", "categorical": ["resistance_emergence_class"]},
+        "label_field": "rescuer_gene", "direction": "higher_is_stronger", "categorical": ["resistance_emergence_class"],
+        # strongest rescuer's shift (more positive = stronger rescue) on a graded band (supported 0.25 /
+        # strong 0.50). position = resistance_emergence_class READ VERBATIM.
+        "reference_frame": {
+            "kind": "graded_band", "value_field": "strongest_mediator_shift", "scale": "effect_shift",
+            "position_field": "resistance_emergence_class",
+            "cuts": [{"card_id": "resistance-emergence-signature", "threshold": "supported_shift", "label": "supported"},
+                     {"card_id": "resistance-emergence-signature", "threshold": "strong_shift", "label": "strong"}]}},
 
     # immune-context (§3.10)
     "immune_context": {

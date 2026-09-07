@@ -136,6 +136,10 @@ METRIC_GLOSS: dict = {
     "alphafold_plddt_mean": ("AlphaFold mean pLDDT (model confidence)", "pLDDT"),
     "n_upstream_regulators": ("upstream regulators in the network", "count"),
     "n_downstream_effectors": ("downstream effectors in the network", "count"),
+    "median_log2auc_across_compounds": ("median PRISM activity across compounds", "log2 AUC"),
+    "strongest_partner_mean_gi": ("strongest partner mean genetic interaction", "GI score"),
+    "strongest_co_target_shift": ("strongest co-target dependency shift", "delta effect"),
+    "strongest_mediator_shift": ("strongest resistance-mediator shift", "delta effect"),
 }
 
 # ── affix backstop for the raw L3 tail (fields NOT in the salience registry) ─────────────────────────
