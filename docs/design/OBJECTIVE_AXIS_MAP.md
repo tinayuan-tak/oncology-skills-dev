@@ -59,7 +59,7 @@ themselves gates.
   | piece | card | home | status |
   |---|---|---|---|
   | cell-line isoform | `cellline-isoform-expression` (NEW) | tumor-presence | promote from a `cellline-rna-distribution` sub-call |
-  | tumor splice | `tumor-splice-expression` (NEW) | tumor-presence (→ foreign: tumor-selectivity) | promote from a `tumor-rna-distribution` sub-call |
+  | tumor splice | ~~`tumor-splice-expression`~~ COLLAPSED (#1126, 2026-09-06) → the splice axis is served by `splice-exon-skip-landscape` (curated exon-skip driver) + `tumor-splice-dysregulation` (PSI display facet) | genomic-alteration-profile | tumor-splice-expression card DELETED (was duplicative of tumor-splice-dysregulation) |
   | exon window | `modality-exon-window` | surface-modality-fit | exists (inclusion-only; blind to transcript identity) |
   | isoform guardrail | `isoform_selective_targets.yaml` | surface + mechanism (caveat) | exists |
 
