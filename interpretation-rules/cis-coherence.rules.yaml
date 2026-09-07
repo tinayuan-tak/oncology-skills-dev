@@ -2,10 +2,13 @@
 #
 # The cis-feature-coherence skill's dedicated, self-contained rule set (mirrors the
 # combination-opportunity / resistance-emergence pattern): its rules_id == axis == the skill's
-# requested axis name, and it is kept OUT of the shared nomination ladder. VERDICT-INERT at the
-# composed target-profile layer — cis_coherence is NOT a gating axis (see tp_gates._GATING_AXES);
-# it emits a descriptive coherence classification consumed as a confidence-annotation +
-# tension_analysis spine, never as a nomination gate. Graduation to a gate is a later, calibrated stage.
+# requested axis name, and it is kept OUT of the shared nomination LADDER (kill/hold rungs).
+# VERDICT-INERT for overall_recommendation — cis_coherence is NOT a kill/hold gating axis (see
+# tp_gates._GATING_AXES) and has no `gates` action, so it can never move the Go/No-Go. It emits a
+# descriptive coherence classification that GRADUATED (nomination_verdict_gate.yaml v1.6.0) to a
+# CONFIDENCE-tier positive_signal (coherent_cis_driver) + positive_contradiction (expressed_cis_coupled_
+# inert, blocks `strong`) — consumed as a confidence-annotation + tension_analysis spine, never a
+# recommendation gate.
 #
 # These rules fire the leg tokens the cis_coherence.resolver.yaml ladders into cis_coherence_verdict.
 # The verdict is a deterministic 2x2 cross-tab of two coherence legs:

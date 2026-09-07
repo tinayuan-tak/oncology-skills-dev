@@ -15,11 +15,14 @@
 #          └──────────────────────────────┴──────────────────────────────────┘
 #   any leg untestable / unmeasured  →  insufficient_cis_coherence (default; honest abstention)
 #
-# VERDICT-INERT at the composed target-profile layer: cis_coherence is a DEDICATED self-contained axis
-# (like combination_opportunity / resistance_emergence), NOT registered in the skills gating axes
-# (tp_gates._GATING_AXES). It feeds confidence + tension_analysis, never a nomination gate. Graduation
-# to a gate (coherent -> supportive positive_signal; incoherent -> positive_contradiction) is a later
-# CALIBRATED stage, not this one.
+# VERDICT-INERT for overall_recommendation: cis_coherence is a DEDICATED self-contained axis (like
+# combination_opportunity / resistance_emergence), NOT registered in the skills kill/hold gating axes
+# (tp_gates._GATING_AXES) and NOT in target-profile's _SHORT_TO_GATE — it has NO `gates` action, so it can
+# never cross the kill boundary or move the Go/No-Go. GRADUATED (nomination_verdict_gate.yaml v1.6.0,
+# 2026-08-20) to a CONFIDENCE-tier axis: coherent_cis_driver -> positive_signal (supportive),
+# expressed_cis_coupled_inert -> positive_contradiction (blocks `strong`), grouped with genomic_alteration
+# (correlated_dimension_groups) to avoid double-counting the shared amplification signal. It moves
+# CONFIDENCE + tension_analysis, never the nomination recommendation.
 #
 # leg-2 is an OR of two reused signals (correlation-leg cis-expr-dependency-coupled-supportive OR the
 # conjoint-leg cis-conjoint-dependent-supportive); both map to the SAME verdict so first-match never
