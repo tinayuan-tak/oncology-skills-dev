@@ -92,7 +92,32 @@ _INFORMS = {
     "FUS": "fusion driver — rearrangement-defined subgroup",
     "SPL": "splice exon-skip driver — a transcript-form driver (e.g. METex14), rearrangement-independent",
     "DEP": "alteration confers a genetic dependency — the actionability 'so what' (biomarker-stratified)",
+    "ROLE": "curated driver role (OncoKB × IntOGen GoF/LoF) — a driver call independent of cohort recurrence",
 }
+
+
+# curated driver-role class (alteration-role card) → driver-confidence signal. Class-AGNOSTIC (it does not
+# say which alteration class drives), so it is its OWN claim, not folded into SNV/CN/FUS: a curated driver
+# with NO cohort recurrence would otherwise be invisible (the recurrence-keyed SNV signal reads `absent`).
+_ROLE_SIGNAL = {"direct_driver_gof": "strong", "direct_driver_lof": "strong",
+                "predictive_biomarker": "moderate", "passenger": "absent", "data_unavailable": "unmeasured"}
+
+
+def _role_signal(h, c):
+    cls = h.get("alteration_role")
+    sig = _ROLE_SIGNAL.get(cls, "unmeasured")
+    fd = h.get("functional_direction")
+    ev = f"curated role: {cls or 'data_unavailable'}" + (f" ({fd})" if fd else "")
+    return sig, ev, None
+
+
+def _role_corroboration(h, c):
+    # only a POSITIVE curated-driver call carries corroboration (a passenger/gap does not). A DEFINITIVE
+    # functional direction (activating / loss_of_function) is a second evidence facet that corroborates the
+    # role call; an ambiguous direction stays single-source. Mirrors _dep/_spl (corrob only when positive).
+    if _ROLE_SIGNAL.get(h.get("alteration_role"), "unmeasured") in ("unmeasured", "absent"):
+        return "unmeasured"
+    return "high" if h.get("functional_direction") in ("activating", "loss_of_function") else "moderate"
 
 
 def _by_class(h):
@@ -290,7 +315,7 @@ def _dep_corroboration(h, c):
     return base
 
 
-SNV, CN, FUS, SPL, DEP = "SNV", "CN", "FUS", "SPL", "DEP"
+SNV, CN, FUS, SPL, DEP, ROLE = "SNV", "CN", "FUS", "SPL", "DEP", "ROLE"
 
 
 # ── citable evidence atoms (claim_vector_core atom_fn) ──────────────────────────────────────────────
@@ -354,6 +379,10 @@ GENOMIC_CLAIM_SPEC = [
     # (curated event, not a numeric anchor). Verdict-INERT.
     ClaimSpec(SPL, "splice exon-skip driver", _spl_signal, _spl_corroboration, _INFORMS["SPL"]),
     ClaimSpec(DEP, "alteration confers dependency", _dep_signal, _dep_corroboration, _INFORMS["DEP"], _gdep_atom),
+    # ROLE: curated driver-role (OncoKB × IntOGen). Class-agnostic driver CONFIDENCE, independent of the
+    # cohort-recurrence-keyed SNV/CN/FUS signals — captures a curated driver with no cohort recurrence
+    # (previously invisible to the claim vector / atlas). No numeric anchor → no atom_fn (like SPL).
+    ClaimSpec(ROLE, "curated driver role", _role_signal, _role_corroboration, _INFORMS["ROLE"]),
 ]
 
 _DISCLAIMER = (
