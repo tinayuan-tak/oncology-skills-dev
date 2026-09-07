@@ -110,9 +110,11 @@ gates:
       resolver places it below the gnomAD rungs), so it EXTENDS safety coverage
       rather than competing. HOLD, not veto — same precedent as
       highly_constrained_safety_concern: a WT-loss window may still be
-      addressable with a mutant-selective modality (indeed the resolver
-      DOWNGRADES this to wt_human_genetics_mechanism_mismatch, ungated, when an
-      activating-driver context co-fires — exactly like the gnomAD path).
+      addressable with a mutant-selective modality — the GoF/allele-selective
+      escape is MODALITY-CONDITIONAL (small_molecule=conditional in
+      safety_verdict_by_modality), realised via exists_safe_modality
+      veto-suppression, NOT a scalar downgrade (the scalar role-proxy
+      mismatch downgrade was retired, safety.resolver v2.0.0).
     driving_rule_ids: [gene-burden-lof-safety-warning, clingen-dominant-loss-safety-warning, clinvar-germline-pathogenic-safety-warning, mouse-ko-lethal-safety-warning]
 
   - sub_skill: safety                   # on-target-safety-liability sub-skill (data-utilization expansion, 2026-08-21)
@@ -122,8 +124,10 @@ gates:
       DepMap classes the target common_essential — depleted across essentially the whole cell-line
       panel — so a full-KO modality abrogates an essential function in NORMAL tissue too (on-target
       broad toxicity). HOLD, not veto: a constrained window may still be addressable with a
-      mutant-selective modality (the resolver DOWNGRADES this to wt_human_genetics_mechanism_mismatch,
-      ungated, when an activating-driver context co-fires), or in a specific subtype. NOTE this is the
+      mutant-selective modality (the GoF/allele-selective escape is MODALITY-CONDITIONAL —
+      small_molecule=conditional in safety_verdict_by_modality, via exists_safe_modality suppression,
+      NOT a scalar downgrade; the scalar mismatch downgrade was retired v2.0.0), or in a specific
+      subtype. NOTE this is the
       SAFETY-axis reading of pan-essentiality and is DELIBERATELY redundant with the dependency-axis
       pan_essential_killer VETO (veto > hold in precedence): it never loosens a nomination — it makes
       the broad-tox reason legible on the safety scorecard rather than only as a dependency veto.
