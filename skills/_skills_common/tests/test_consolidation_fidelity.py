@@ -3,6 +3,7 @@
 Generalizes tumor-presence's cell_line_vs_tumor_discordant into a framework-wide, verdict-inert
 signal: does the single collapsed verdict MASK a polarity conflict among the fired rules? Emitted by
 the shared dispatcher into decision['consolidation'] for every wired skill."""
+
 from __future__ import annotations
 
 import sys
@@ -32,8 +33,11 @@ def test_polarity_from_suffix():
 def test_masked_conflict_when_driver_positive_but_negative_fired():
     """Headline verdict is positive (supportive drives) but a killer fired from another card and was
     overruled — the classic masked over-consolidation."""
-    fired = [_fr("adc-supportive", "topology"), _fr("shed-ectodomain-clinical-opposing", "shed"),
-             _fr("normal-tissue-broad-opposing", "normal")]
+    fired = [
+        _fr("adc-supportive", "topology"),
+        _fr("shed-ectodomain-clinical-opposing", "shed"),
+        _fr("normal-tissue-broad-opposing", "normal"),
+    ]
     c = D._consolidation_fidelity(fired, driving_rule_id="adc-supportive")
     assert c["driving_role"] == "positive"
     assert c["discordant"] is True

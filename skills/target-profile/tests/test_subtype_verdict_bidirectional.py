@@ -5,13 +5,14 @@ Guards: NEGATIVE (opposing) -> subtype_specific_non_dependence (HOLD); POSITIVE 
 subtype_restricted_dependency; BOTH -> negative precedence (HOLD wins); neither / no subtype tier -> None
 (so a default no--subtypes run is unaffected).
 """
+
 import sys
 from pathlib import Path
 
 from _test_support import load_module
 
 _F = Path(__file__).resolve().parent.parent / "scripts" / "tp_fanout.py"
-sys.path.insert(0, str(_F.parent))                  # scripts/ (tp_common etc.)
+sys.path.insert(0, str(_F.parent))  # scripts/ (tp_common etc.)
 mod = load_module(_F, "_tp_fanout_uc")
 _subtype_verdict = mod._subtype_verdict
 

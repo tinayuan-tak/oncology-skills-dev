@@ -9,6 +9,7 @@ Asserts: (a) skills that produce a skill_report also carry a referentially-intac
 is question-anchored in composition, not just standalone; (c) the verdict spine is byte-identical to the
 replay expectations (the carry is additive / display-only). Verdict-INERT throughout.
 """
+
 import copy
 from pathlib import Path
 
@@ -34,6 +35,7 @@ def _fan_out_full(pair_id: str, target: str, indication: str) -> dict:
         def _read(card_id, target_, indication_, *a, **k):
             s = frozen.get(card_id)
             return copy.deepcopy(s) if _real_summary(s) else None
+
         return _read
 
     mp = pytest.MonkeyPatch()
@@ -75,8 +77,9 @@ def test_carry_attaches_referentially_intact_graphs(kras):
             assert set(c["dataset_ids"]) <= dids, f"{short}: dangling card→dataset"
             assert set(c["rule_ids"]) <= rids, f"{short}: dangling card→rule"
             # P1 canonical vocabulary is preserved through the composed carry
-            assert c["signal"]["polarity"] in {"supportive", "neutral", "opposing", "killer",
-                                               "not_applicable", None}, f"{short}: non-canonical polarity"
+            assert c["signal"]["polarity"] in {"supportive", "neutral", "opposing", "killer", "not_applicable", None}, (
+                f"{short}: non-canonical polarity"
+            )
 
 
 # ── tumor-presence carries its full question-anchored structure in composition (FULL tier) ───────────
@@ -86,8 +89,7 @@ def test_expression_graph_is_question_anchored(kras):
     # 7 canonical questions from skills/tumor-presence/questions.yaml — proving load_questions runs in
     # the composed path, not only in the standalone dispatcher
     assert len(eg["questions"]) == 7
-    assert {q["id"] for q in eg["questions"]} >= {"expressed_at_all", "elevated_vs_normal",
-                                                  "malignant_intrinsic"}
+    assert {q["id"] for q in eg["questions"]} >= {"expressed_at_all", "elevated_vs_normal", "malignant_intrinsic"}
 
 
 # ── the carry never moves the verdict spine (additive / display-only) ────────────────────────────────

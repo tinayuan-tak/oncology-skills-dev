@@ -4,6 +4,7 @@ The load-bearing invariant is the CONTAINMENT GUARD: an LLM must never emit a PM
 only PMIDs present in the retrieved corpus may be cited. These tests pin that guard + the
 6-dimension shape + the overlap-anchor mapping, all without a live call.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -15,21 +16,21 @@ rc = load_run_py(Path(__file__).resolve().parent.parent, "lra_run")
 
 def test_containment_drops_pmids_not_in_corpus():
     retrieved = {"111", "222"}
-    good, bad = rc._contain(["111", "999"], retrieved)   # 999 never retrieved → confabulated
+    good, bad = rc._contain(["111", "999"], retrieved)  # 999 never retrieved → confabulated
     assert good == ["111"]
     assert bad == ["999"]
 
 
 def test_containment_all_grounded_is_clean():
     good, bad = rc._contain(["111", "222"], {"111", "222", "333"})
-    assert bad == []                       # retrieval-grounded → zero confabulation
+    assert bad == []  # retrieval-grounded → zero confabulation
     assert set(good) == {"111", "222"}
 
 
 def test_containment_handles_none_and_ints():
     good, bad = rc._contain(None, {"1"})
     assert good == [] and bad == []
-    good, bad = rc._contain([111, "222"], {"111"})   # int coerced to str
+    good, bad = rc._contain([111, "222"], {"111"})  # int coerced to str
     assert good == ["111"] and bad == ["222"]
 
 
@@ -53,14 +54,21 @@ class _Res:
 def test_run_downgrades_grade_with_only_confabulated_citations(monkeypatch):
     # A HIGH grade whose only cited PMID was confabulated (not retrieved) must be downgraded to
     # not_assessed rather than shipping an ungrounded risk level (P0.2 grounding-integrity).
-    monkeypatch.setattr(rc.ps, "search_pubmed",
-                        lambda *a, **k: _Res({"safety": [_Ab("111")]}))
-    monkeypatch.setattr(rc.ps, "SEARCH_PATTERNS_BY_CATEGORY",
-                        {d: "{gene} {disease}" for d in rc.DIMENSIONS}, raising=False)
-    monkeypatch.setattr(rc, "synthesize_structured",
-                        lambda *a, **k: {"risk_level": "HIGH", "justification": "j",
-                                         "interpretation": "i", "cited_pmids": ["999"],
-                                         "contradicts_deterministic": False})
+    monkeypatch.setattr(rc.ps, "search_pubmed", lambda *a, **k: _Res({"safety": [_Ab("111")]}))
+    monkeypatch.setattr(
+        rc.ps, "SEARCH_PATTERNS_BY_CATEGORY", {d: "{gene} {disease}" for d in rc.DIMENSIONS}, raising=False
+    )
+    monkeypatch.setattr(
+        rc,
+        "synthesize_structured",
+        lambda *a, **k: {
+            "risk_level": "HIGH",
+            "justification": "j",
+            "interpretation": "i",
+            "cited_pmids": ["999"],
+            "contradicts_deterministic": False,
+        },
+    )
     res = rc.run("GENE", "safety-indication", None, "2015", "2026", per_cat=1)
     d = res["dimensions"]["safety"]
     assert d["risk_level"] == "not_assessed"
@@ -69,21 +77,27 @@ def test_run_downgrades_grade_with_only_confabulated_citations(monkeypatch):
 
 
 def test_run_keeps_grade_with_surviving_citation(monkeypatch):
-    monkeypatch.setattr(rc.ps, "search_pubmed",
-                        lambda *a, **k: _Res({"safety": [_Ab("111")]}))
-    monkeypatch.setattr(rc.ps, "SEARCH_PATTERNS_BY_CATEGORY",
-                        {d: "{gene} {disease}" for d in rc.DIMENSIONS}, raising=False)
-    monkeypatch.setattr(rc, "synthesize_structured",
-                        lambda *a, **k: {"risk_level": "HIGH", "justification": "j",
-                                         "interpretation": "i", "cited_pmids": ["111"],
-                                         "contradicts_deterministic": False})
+    monkeypatch.setattr(rc.ps, "search_pubmed", lambda *a, **k: _Res({"safety": [_Ab("111")]}))
+    monkeypatch.setattr(
+        rc.ps, "SEARCH_PATTERNS_BY_CATEGORY", {d: "{gene} {disease}" for d in rc.DIMENSIONS}, raising=False
+    )
+    monkeypatch.setattr(
+        rc,
+        "synthesize_structured",
+        lambda *a, **k: {
+            "risk_level": "HIGH",
+            "justification": "j",
+            "interpretation": "i",
+            "cited_pmids": ["111"],
+            "contradicts_deterministic": False,
+        },
+    )
     d = rc.run("GENE", "safety-indication", None, "2015", "2026", per_cat=1)["dimensions"]["safety"]
     assert d["risk_level"] == "HIGH" and "risk_level_pre_containment" not in d
 
 
 def test_six_dimensions_and_overlap_anchors():
-    assert set(rc.DIMENSIONS) == {"biological", "druggability", "translational",
-                                  "clinical", "safety", "commercial"}
+    assert set(rc.DIMENSIONS) == {"biological", "druggability", "translational", "clinical", "safety", "commercial"}
     # overlap dimensions anchor to a deterministic sub_verdict; orthogonal ones do not
     anchor = {d: rc.DIMENSIONS[d][2] for d in rc.DIMENSIONS}
     assert anchor["biological"] == "dependency"
@@ -93,17 +107,22 @@ def test_six_dimensions_and_overlap_anchors():
 
 def test_tool_schema_null_state_and_required():
     props = rc.TOOL_SCHEMA["properties"]
-    assert "not_assessed" in props["risk_level"]["enum"]   # null != MEDIUM
+    assert "not_assessed" in props["risk_level"]["enum"]  # null != MEDIUM
     # two reads per axis: a risk grade AND an interpretation (context) — the general primitive
-    assert set(rc.TOOL_SCHEMA["required"]) >= {"risk_level", "interpretation", "cited_pmids", "contradicts_deterministic"}
+    assert set(rc.TOOL_SCHEMA["required"]) >= {
+        "risk_level",
+        "interpretation",
+        "cited_pmids",
+        "contradicts_deterministic",
+    }
 
 
 # ── gene-symbol disambiguation (the AR→TG2 wrong-gene retrieval fix) ────────────────────────────
 def test_gene_search_term_disambiguates_ambiguous_symbol():
     q = rc.ps.gene_search_term("AR")
     assert "[Gene]" in q and '"AR"[Title]' in q
-    assert q != "AR"                                  # never a bare free-text symbol
-    assert rc.ps.gene_search_term("") == ""           # empty is a no-op
+    assert q != "AR"  # never a bare free-text symbol
+    assert rc.ps.gene_search_term("") == ""  # empty is a no-op
 
 
 def test_search_pubmed_queries_are_gene_qualified(monkeypatch):
@@ -112,5 +131,5 @@ def test_search_pubmed_queries_are_gene_qualified(monkeypatch):
     monkeypatch.setattr(rc.ps.time, "sleep", lambda *a, **k: None)
     rc.ps.search_pubmed("AR", "crc", abstracts_per_category=3)
     assert seen, "expected per-category esearch queries"
-    assert all("[Gene]" in q for q in seen)           # every category query is entity-qualified
-    assert not any("(AR)" in q for q in seen)         # never the bare free-text gene group
+    assert all("[Gene]" in q for q in seen)  # every category query is entity-qualified
+    assert not any("(AR)" in q for q in seen)  # never the bare free-text gene group

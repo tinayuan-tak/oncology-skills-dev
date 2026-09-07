@@ -2,6 +2,7 @@
 Pins the WT-loss concern -> per-modality mapping (§8: opposes engages-WT biologics, conditional for
 allele-selective SM), the reassuring/open-world cases, coverage-only certainty, the fired-set
 cross-check, and schema conformance. Consumed-by-nothing / verdict-inert."""
+
 from __future__ import annotations
 
 import json
@@ -13,10 +14,19 @@ from _test_support import load_run_py
 
 saf = load_run_py(Path(__file__).resolve().parent.parent, "saf_run")
 
-_DECISION_CARDS = [{"card_id": c, "summary": {"x": 1}} for c in
-                   ("gnomad-lof-constraint", "normal-tissue-liability-gtex", "clinvar-pathogenicity-safety",
-                    "mouse-ko-phenotype", "clingen-dosage", "gene-burden-safety",
-                    "pan-cancer-crispr-dependency-distribution", "normal-tissue-liability")]
+_DECISION_CARDS = [
+    {"card_id": c, "summary": {"x": 1}}
+    for c in (
+        "gnomad-lof-constraint",
+        "normal-tissue-liability-gtex",
+        "clinvar-pathogenicity-safety",
+        "mouse-ko-phenotype",
+        "clingen-dosage",
+        "gene-burden-safety",
+        "pan-cancer-crispr-dependency-distribution",
+        "normal-tissue-liability",
+    )
+]
 
 
 def _fired(*rids):
@@ -26,8 +36,11 @@ def _fired(*rids):
 def test_wt_loss_concern_is_modality_conditional():
     # a germline WT-loss concern fired + the allele-selective eligibility context (activating driver)
     fired = _fired("highly-constrained-safety-warning", "activating-driver-role-safety-context")
-    rec = saf._claim_record(_DECISION_CARDS, fired=fired,
-                            verdict_pair=("highly_constrained_safety_concern", "highly-constrained-safety-warning"))
+    rec = saf._claim_record(
+        _DECISION_CARDS,
+        fired=fired,
+        verdict_pair=("highly_constrained_safety_concern", "highly-constrained-safety-warning"),
+    )
     assert rec["axis"] == "safety"
     assert rec["finding"]["direction"] == "opposes"
     assert rec["finding"]["availability"] == "measured_positive"
@@ -39,7 +52,8 @@ def test_wt_loss_concern_is_modality_conditional():
     assert ms["small_molecule"] in {"conditional", "unfavorable"}
     # provenance mirrors the fired set (M1 cross-check)
     assert rec["provenance"]["fired_rule_ids"] == sorted(
-        {"highly-constrained-safety-warning", "activating-driver-role-safety-context"})
+        {"highly-constrained-safety-warning", "activating-driver-role-safety-context"}
+    )
 
 
 def test_tolerant_is_reassuring_measured_negative():
@@ -58,7 +72,7 @@ def test_data_unavailable_is_open_world_noncommittal():
 def test_coverage_only_certainty_reflects_present_cards():
     full = saf._claim_record(_DECISION_CARDS, fired=[], verdict_pair=("moderately_constrained_safety", None))
     assert full["certainty"]["coverage"] == "high"
-    assert full["certainty"]["corroboration"] == "unmeasured"       # no disjoint corroborator for safety
+    assert full["certainty"]["corroboration"] == "unmeasured"  # no disjoint corroborator for safety
     assert full["certainty"]["level"] == full["certainty"]["coverage"]
     assert full["certainty"]["unknown_mass"] == 0.0
     thin = saf._claim_record([], fired=[], verdict_pair=("moderately_constrained_safety", None))
@@ -80,10 +94,14 @@ def test_conforms_to_contract_schema_if_available():
     if schema is None:
         pytest.skip("contracts repo / claim_record.schema.json not available")
     from jsonschema import Draft202012Validator
-    cases = [("highly_constrained_safety_concern", _fired("highly-constrained-safety-warning")),
-             ("pan_essential_broad_tox_concern", _fired("pan-essential-killer")),
-             ("tolerant_reduced_safety_risk", []), ("data_unavailable", []),
-             ("moderately_constrained_safety", [])]
+
+    cases = [
+        ("highly_constrained_safety_concern", _fired("highly-constrained-safety-warning")),
+        ("pan_essential_broad_tox_concern", _fired("pan-essential-killer")),
+        ("tolerant_reduced_safety_risk", []),
+        ("data_unavailable", []),
+        ("moderately_constrained_safety", []),
+    ]
     for v, fired in cases:
         rec = saf._claim_record(_DECISION_CARDS, fired=fired, verdict_pair=(v, None))
         errs = sorted(Draft202012Validator(schema).iter_errors(rec), key=lambda e: e.path)

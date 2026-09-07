@@ -1,5 +1,6 @@
 """narrator_engine — the ONE generic capsule-driven single-lens narrator. Deterministic prompt/schema
 assertions, no Bedrock. Two-slot / verdict-inert."""
+
 from __future__ import annotations
 import sys
 from pathlib import Path
@@ -10,18 +11,46 @@ if str(SKILLS) not in sys.path:
 
 from _skills_common import narrator_engine as NE  # noqa: E402
 from _skills_common.narrator_lenses import (  # noqa: E402
-    FUNCTIONAL_REQUIREMENT, GENOMIC_ALTERATION, ON_TARGET_SAFETY, SURFACE_MODALITY_FIT,
-    TRACTABILITY_SM, TUMOR_SELECTIVITY)
+    FUNCTIONAL_REQUIREMENT,
+    GENOMIC_ALTERATION,
+    ON_TARGET_SAFETY,
+    SURFACE_MODALITY_FIT,
+    TRACTABILITY_SM,
+    TUMOR_SELECTIVITY,
+)
 
 
 def _decision():
-    return {"target": "KRAS", "indication": "COADREAD",
-            "headline": {"verdict": "lineage_selective", "driving_rule_id": "lineage-selective-supportive",
-                         "subgroup_signals": {"DEP": {"signal": "strong", "confidence": "high", "n_sources": 6,
-                                                      "n_agree": 5, "power": "high", "conflict": False, "sources": []}}},
-            "cards": [{"card_id": "pan-cancer-crispr-dependency-distribution",
-                       "summary": {"dependency_class": "strongly_selective", "median_chronos_panel": -0.457,
-                                   "selectivity_index": 0.85, "n_cell_lines_evaluated": 1538}}]}
+    return {
+        "target": "KRAS",
+        "indication": "COADREAD",
+        "headline": {
+            "verdict": "lineage_selective",
+            "driving_rule_id": "lineage-selective-supportive",
+            "subgroup_signals": {
+                "DEP": {
+                    "signal": "strong",
+                    "confidence": "high",
+                    "n_sources": 6,
+                    "n_agree": 5,
+                    "power": "high",
+                    "conflict": False,
+                    "sources": [],
+                }
+            },
+        },
+        "cards": [
+            {
+                "card_id": "pan-cancer-crispr-dependency-distribution",
+                "summary": {
+                    "dependency_class": "strongly_selective",
+                    "median_chronos_panel": -0.457,
+                    "selectivity_index": 0.85,
+                    "n_cell_lines_evaluated": 1538,
+                },
+            }
+        ],
+    }
 
 
 def test_verdict_tool_uses_lens_relevance_enum():
@@ -36,6 +65,7 @@ def test_verdict_tool_uses_lens_relevance_enum():
 
 def test_descriptive_mode_tool_has_no_relevance_verdict():
     from _skills_common.narrator_engine import LensConfig
+
     lens = LensConfig(name="combination-and-vulnerability", thesis="t", relevance_prompt="p", mode="descriptive")
     name, schema = NE._tool(lens)
     assert name.endswith("_context")
@@ -44,18 +74,18 @@ def test_descriptive_mode_tool_has_no_relevance_verdict():
 
 def test_system_prompt_threads_polarity_and_scope():
     s = NE._system(ON_TARGET_SAFETY).lower()
-    assert "liability" in s and "reassuring" in s          # polarity note threaded
-    assert "do not discuss" in s                            # scope exclusions threaded
-    assert "never change the deterministic" in s            # verdict-inert guardrail
+    assert "liability" in s and "reassuring" in s  # polarity note threaded
+    assert "do not discuss" in s  # scope exclusions threaded
+    assert "never change the deterministic" in s  # verdict-inert guardrail
 
 
 def test_prompt_carries_signal_lead_and_capsules_and_scope():
     p = NE.build_capsule_prompt(_decision(), FUNCTIONAL_REQUIREMENT)
-    assert "SUB-GROUP SIGNALS" in p                          # signal layer (contract)
-    assert "EVIDENCE CAPSULES" in p and "card floor" in p    # data layer (capsules) + completeness
-    assert "selectivity_index=0.85" in p                     # a bounded raw anchor reached the prompt
+    assert "SUB-GROUP SIGNALS" in p  # signal layer (contract)
+    assert "EVIDENCE CAPSULES" in p and "card floor" in p  # data layer (capsules) + completeness
+    assert "selectivity_index=0.85" in p  # a bounded raw anchor reached the prompt
     assert "COLLAPSED VERDICT" in p and "lineage_selective" in p
-    assert p.index("SUB-GROUP SIGNALS") < p.index("COLLAPSED VERDICT")   # signals lead, verdict trails
+    assert p.index("SUB-GROUP SIGNALS") < p.index("COLLAPSED VERDICT")  # signals lead, verdict trails
 
 
 def test_selectivity_collapsed_verdict_is_resolved_class_not_rule_id():
@@ -64,10 +94,15 @@ def test_selectivity_collapsed_verdict_is_resolved_class_not_rule_id():
     like 'tvn-...-veto'), which is what the fallback chain landed on before the fix. Mirrors the
     TUMOR_PRESENCE verdict_key contract."""
     assert TUMOR_SELECTIVITY.verdict_key == "selectivity_class"
-    decision = {"target": "TACSTD2", "indication": "COADREAD",
-                "headline": {"selectivity_class": "selective_but_broadly_normal",
-                             "driving_rule_id": "tvn-no-therapeutic-window-veto",
-                             "claim_vector": {"WIN": {"signal": "strong", "corroboration": "high"}}}}
+    decision = {
+        "target": "TACSTD2",
+        "indication": "COADREAD",
+        "headline": {
+            "selectivity_class": "selective_but_broadly_normal",
+            "driving_rule_id": "tvn-no-therapeutic-window-veto",
+            "claim_vector": {"WIN": {"signal": "strong", "corroboration": "high"}},
+        },
+    }
     p = NE.build_capsule_prompt(decision, TUMOR_SELECTIVITY)
     collapsed = p.split("COLLAPSED VERDICT", 1)[1].splitlines()[0]
     assert "selective_but_broadly_normal" in collapsed
@@ -82,10 +117,15 @@ def test_functional_requirement_collapsed_verdict_is_resolved_token_not_rule_id(
     The pan_essential case matters most: leaking the rule-id would rob the narrator of the resolved
     'this is a liability' token."""
     assert FUNCTIONAL_REQUIREMENT.verdict_key == "dependency_verdict"
-    decision = {"target": "PLK1", "indication": "COADREAD",
-                "headline": {"dependency_verdict": "pan_essential_killer",
-                             "driving_rule_id": "pan-essential-killer",
-                             "claim_vector": {"DEP": {"signal": "strong", "corroboration": "high"}}}}
+    decision = {
+        "target": "PLK1",
+        "indication": "COADREAD",
+        "headline": {
+            "dependency_verdict": "pan_essential_killer",
+            "driving_rule_id": "pan-essential-killer",
+            "claim_vector": {"DEP": {"signal": "strong", "corroboration": "high"}},
+        },
+    }
     p = NE.build_capsule_prompt(decision, FUNCTIONAL_REQUIREMENT)
     collapsed = p.split("COLLAPSED VERDICT", 1)[1].splitlines()[0]
     assert "pan_essential_killer" in collapsed
@@ -100,10 +140,15 @@ def test_on_target_safety_collapsed_verdict_is_resolved_token_not_rule_id():
     safety headline key is safety_verdict, never 'verdict'). Mirrors the presence/selectivity/FR contract;
     safety was left behind when those three were fixed."""
     assert ON_TARGET_SAFETY.verdict_key == "safety_verdict"
-    decision = {"target": "KRAS", "indication": "COADREAD",
-                "headline": {"safety_verdict": "highly_constrained_safety_concern",
-                             "driving_rule_id": "highly-constrained-safety-warning",
-                             "claim_vector": {"CONSTRAINT": {"signal": "strong", "corroboration": "high"}}}}
+    decision = {
+        "target": "KRAS",
+        "indication": "COADREAD",
+        "headline": {
+            "safety_verdict": "highly_constrained_safety_concern",
+            "driving_rule_id": "highly-constrained-safety-warning",
+            "claim_vector": {"CONSTRAINT": {"signal": "strong", "corroboration": "high"}},
+        },
+    }
     p = NE.build_capsule_prompt(decision, ON_TARGET_SAFETY)
     collapsed = p.split("COLLAPSED VERDICT", 1)[1].splitlines()[0]
     assert "highly_constrained_safety_concern" in collapsed
@@ -121,11 +166,16 @@ def test_surface_modality_collapsed_verdict_is_resolved_token_not_rule_id():
     (surface fit_class=neither_viable) against a POSITIVE resolved verdict. Mirrors the
     presence/selectivity/FR/safety contract; surface-modality-fit was left behind."""
     assert SURFACE_MODALITY_FIT.verdict_key == "surface_modality_verdict"
-    decision = {"target": "KRAS", "indication": "COADREAD",
-                "headline": {"surface_modality_verdict": "pmhc_tce_supported",
-                             "driving_rule_id": "pmhc-iedb-tcell-validated-tce-supportive",
-                             "fit_class": "neither_viable",
-                             "claim_vector": {"FIT": {"signal": "strong", "corroboration": "high"}}}}
+    decision = {
+        "target": "KRAS",
+        "indication": "COADREAD",
+        "headline": {
+            "surface_modality_verdict": "pmhc_tce_supported",
+            "driving_rule_id": "pmhc-iedb-tcell-validated-tce-supportive",
+            "fit_class": "neither_viable",
+            "claim_vector": {"FIT": {"signal": "strong", "corroboration": "high"}},
+        },
+    }
     p = NE.build_capsule_prompt(decision, SURFACE_MODALITY_FIT)
     collapsed = p.split("COLLAPSED VERDICT", 1)[1].splitlines()[0]
     assert "pmhc_tce_supported" in collapsed
@@ -142,10 +192,15 @@ def test_genomic_alteration_collapsed_verdict_is_resolved_token_not_rule_id():
     genomic-alteration was the LAST verdict-skill left behind; mirrors the
     presence/selectivity/FR/safety/surface-modality-fit contract."""
     assert GENOMIC_ALTERATION.verdict_key == "genomic_alteration_profile"
-    decision = {"target": "KRAS", "indication": "COADREAD",
-                "headline": {"genomic_alteration_profile": "biomarker_stratified_dependency",
-                             "driving_rule_id": "mutant-strongly-dependent-supportive",
-                             "claim_vector": {"DEP": {"signal": "strong", "corroboration": "high"}}}}
+    decision = {
+        "target": "KRAS",
+        "indication": "COADREAD",
+        "headline": {
+            "genomic_alteration_profile": "biomarker_stratified_dependency",
+            "driving_rule_id": "mutant-strongly-dependent-supportive",
+            "claim_vector": {"DEP": {"signal": "strong", "corroboration": "high"}},
+        },
+    }
     p = NE.build_capsule_prompt(decision, GENOMIC_ALTERATION)
     collapsed = p.split("COLLAPSED VERDICT", 1)[1].splitlines()[0]
     assert "biomarker_stratified_dependency" in collapsed
@@ -161,10 +216,15 @@ def test_tractability_sm_collapsed_verdict_is_resolved_token_not_rule_id():
     'druggability_snapshot') and landed on driving_rule_id. tractability-small-molecule was the LAST
     verdict-skill left behind; mirrors the presence/selectivity/FR/safety/surface/genomic contract."""
     assert TRACTABILITY_SM.verdict_key == "druggability_snapshot"
-    decision = {"target": "EGFR", "indication": "LUAD",
-                "headline": {"druggability_snapshot": "well_covered",
-                             "driving_rule_id": "e7-triangulated-target-engaged-supportive",
-                             "claim_vector": {"ACTIVITY": {"signal": "strong", "corroboration": "high"}}}}
+    decision = {
+        "target": "EGFR",
+        "indication": "LUAD",
+        "headline": {
+            "druggability_snapshot": "well_covered",
+            "driving_rule_id": "e7-triangulated-target-engaged-supportive",
+            "claim_vector": {"ACTIVITY": {"signal": "strong", "corroboration": "high"}},
+        },
+    }
     p = NE.build_capsule_prompt(decision, TRACTABILITY_SM)
     collapsed = p.split("COLLAPSED VERDICT", 1)[1].splitlines()[0]
     assert "well_covered" in collapsed
@@ -181,11 +241,17 @@ def test_immune_context_collapsed_verdict_is_resolved_token_not_rule_id():
     naming-coincidence dependency (a future rename can't silently regress it) and brings this lens into
     line with the presence/selectivity/FR/safety/surface/genomic/tractability contract."""
     from _skills_common.narrator_lenses import IMMUNE_CONTEXT
+
     assert IMMUNE_CONTEXT.verdict_key == "immune_context_verdict"
-    decision = {"target": "MSLN", "indication": "PRAD",
-                "headline": {"immune_context_verdict": "immune_hot",
-                             "driving_rule_id": "immune-context-hot-tce-supportive",
-                             "claim_vector": {"IMMUNE": {"signal": "strong", "corroboration": "moderate"}}}}
+    decision = {
+        "target": "MSLN",
+        "indication": "PRAD",
+        "headline": {
+            "immune_context_verdict": "immune_hot",
+            "driving_rule_id": "immune-context-hot-tce-supportive",
+            "claim_vector": {"IMMUNE": {"signal": "strong", "corroboration": "moderate"}},
+        },
+    }
     p = NE.build_capsule_prompt(decision, IMMUNE_CONTEXT)
     collapsed = p.split("COLLAPSED VERDICT", 1)[1].splitlines()[0]
     assert "immune_hot" in collapsed
@@ -205,11 +271,17 @@ def test_mechanism_collapsed_verdict_is_resolved_token_not_rule_id():
     the surface/genomic/tractability guess-misses fix; mechanism was the last verdict-carrying skill left
     behind."""
     from _skills_common.narrator_lenses import MECHANISM_PHARMACOLOGY
+
     assert MECHANISM_PHARMACOLOGY.verdict_key == "mechanism_verdict"
-    decision = {"target": "EGFR", "indication": "COADREAD",
-                "headline": {"mechanism_verdict": "well_characterized",
-                             "driving_rule_id": "mechanism-well-characterized-supportive",
-                             "claim_vector": {"NETWORK": {"signal": "moderate", "corroboration": "moderate"}}}}
+    decision = {
+        "target": "EGFR",
+        "indication": "COADREAD",
+        "headline": {
+            "mechanism_verdict": "well_characterized",
+            "driving_rule_id": "mechanism-well-characterized-supportive",
+            "claim_vector": {"NETWORK": {"signal": "moderate", "corroboration": "moderate"}},
+        },
+    }
     p = NE.build_capsule_prompt(decision, MECHANISM_PHARMACOLOGY)
     collapsed = p.split("COLLAPSED VERDICT", 1)[1].splitlines()[0]
     assert "well_characterized" in collapsed
@@ -228,11 +300,17 @@ def test_differentiation_landscape_collapsed_verdict_is_resolved_token_not_rule_
     surface/genomic/tractability/mechanism guess-misses fix; differentiation was the last verdict-carrying
     lens left behind."""
     from _skills_common.narrator_lenses import DIFFERENTIATION_LANDSCAPE
+
     assert DIFFERENTIATION_LANDSCAPE.verdict_key == "differentiation_verdict"
-    decision = {"target": "PCLO", "indication": "COADREAD",
-                "headline": {"differentiation_verdict": "strong_cooccurring",
-                             "driving_rule_id": "cooccurrence-strong-supportive",
-                             "claim_vector": {"COMUT": {"signal": "strong", "corroboration": "moderate"}}}}
+    decision = {
+        "target": "PCLO",
+        "indication": "COADREAD",
+        "headline": {
+            "differentiation_verdict": "strong_cooccurring",
+            "driving_rule_id": "cooccurrence-strong-supportive",
+            "claim_vector": {"COMUT": {"signal": "strong", "corroboration": "moderate"}},
+        },
+    }
     p = NE.build_capsule_prompt(decision, DIFFERENTIATION_LANDSCAPE)
     collapsed = p.split("COLLAPSED VERDICT", 1)[1].splitlines()[0]
     assert "strong_cooccurring" in collapsed
@@ -252,11 +330,17 @@ def test_cis_feature_coherence_collapsed_verdict_is_resolved_token_not_rule_id()
     surface/genomic/tractability/mechanism/differentiation guess-misses fix; cis-feature-coherence was the last
     verdict-carrying lens left behind."""
     from _skills_common.narrator_lenses import CIS_FEATURE_COHERENCE
+
     assert CIS_FEATURE_COHERENCE.verdict_key == "cis_coherence_verdict"
-    decision = {"target": "ERBB2", "indication": "BRCA",
-                "headline": {"cis_coherence_verdict": "coherent_cis_driver",
-                             "driving_rule_id": "cis-dosage-coupled-supportive",
-                             "claim_vector": {"CIS_DOSAGE": {"signal": "moderate", "corroboration": "moderate"}}}}
+    decision = {
+        "target": "ERBB2",
+        "indication": "BRCA",
+        "headline": {
+            "cis_coherence_verdict": "coherent_cis_driver",
+            "driving_rule_id": "cis-dosage-coupled-supportive",
+            "claim_vector": {"CIS_DOSAGE": {"signal": "moderate", "corroboration": "moderate"}},
+        },
+    }
     p = NE.build_capsule_prompt(decision, CIS_FEATURE_COHERENCE)
     collapsed = p.split("COLLAPSED VERDICT", 1)[1].splitlines()[0]
     assert "coherent_cis_driver" in collapsed
@@ -265,9 +349,11 @@ def test_cis_feature_coherence_collapsed_verdict_is_resolved_token_not_rule_id()
 
 def test_make_synthesize_fn_signature(monkeypatch):
     seen = {}
-    monkeypatch.setattr(NE, "narrate", lambda dec, lens, model_id=None: seen.update(lens=lens.name, m=model_id) or {"ok": 1})
+    monkeypatch.setattr(
+        NE, "narrate", lambda dec, lens, model_id=None: seen.update(lens=lens.name, m=model_id) or {"ok": 1}
+    )
     fn = NE.make_synthesize_fn(FUNCTIONAL_REQUIREMENT)
-    out = fn(_decision(), "modelX", "MSI_H")                 # (decision, model_id, subtype_query)
+    out = fn(_decision(), "modelX", "MSI_H")  # (decision, model_id, subtype_query)
     assert out == {"ok": 1} and seen["lens"] == "functional-requirement" and seen["m"] == "modelX"
 
 
@@ -276,25 +362,41 @@ def _wrapped_lit():
     """A literature_synthesis block as a --literature-only decision.json can carry it: `axes` and
     `blind_spots` still provenance-WRAPPED as {value:[...], _source:'llm_synthesized', ...}."""
     stamp = {"_source": "llm_synthesized", "_model_id": "m", "_prompt_hash": "h"}
-    axes = [{"axis_key": "A", "literature_read": "strongly_supports", "agreement_vs_omics": "agree",
-             "confidence": "high", "assertion": "EpCAM abundant in CRC.",
-             "citations": [{"label": "Went 2006", "pmid": "16404434", "verified": True}]}]
+    axes = [
+        {
+            "axis_key": "A",
+            "literature_read": "strongly_supports",
+            "agreement_vs_omics": "agree",
+            "confidence": "high",
+            "assertion": "EpCAM abundant in CRC.",
+            "citations": [{"label": "Went 2006", "pmid": "16404434", "verified": True}],
+        }
+    ]
     blind = [{"signal": "localization", "why_omics_blind": "MS/RNA cannot resolve", "citations": []}]
-    return {"literature_synthesis": {"axes": {"value": axes, **stamp},
-                                     "blind_spots": {"value": blind, **stamp},
-                                     "overall_consistency": "concordant"}}
+    return {
+        "literature_synthesis": {
+            "axes": {"value": axes, **stamp},
+            "blind_spots": {"value": blind, **stamp},
+            "overall_consistency": "concordant",
+        }
+    }
 
 
 def test_render_literature_unwraps_provenance_wrapped_axes():
     """Regression: a re-wrapped `axes` dict must still render axis lines, not iterate wrapper keys."""
     out = NE._render_literature(_wrapped_lit())
-    assert "axis A" in out                     # the axis line survives the unwrap
+    assert "axis A" in out  # the axis line survives the unwrap
     assert "strongly_supports" in out
     assert "PMID:16404434" in out
-    assert "OMICS-BLIND" in out                # blind_spots also unwrapped
+    assert "OMICS-BLIND" in out  # blind_spots also unwrapped
     # sanity: an unwrapped (plain-list) block renders identically for axes
-    plain = {"literature_synthesis": {"axes": _wrapped_lit()["literature_synthesis"]["axes"]["value"],
-                                      "blind_spots": [], "overall_consistency": "concordant"}}
+    plain = {
+        "literature_synthesis": {
+            "axes": _wrapped_lit()["literature_synthesis"]["axes"]["value"],
+            "blind_spots": [],
+            "overall_consistency": "concordant",
+        }
+    }
     assert "axis A" in NE._render_literature(plain)
 
 

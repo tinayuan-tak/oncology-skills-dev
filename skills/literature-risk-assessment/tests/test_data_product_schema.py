@@ -14,6 +14,7 @@ model call (`synthesize_structured`). This is the sanctioned offline-replay path
 the assertions run against whatever `run()` actually produces. CI-liveness: schema unresolvable → SKIP
 locally, FAIL in CI.
 """
+
 from __future__ import annotations
 
 import os
@@ -29,7 +30,10 @@ SKILLS_ROOT = SKILL_DIR.parent
 if str(SKILLS_ROOT) not in sys.path:
     sys.path.insert(0, str(SKILLS_ROOT))
 from _skills_common.data_product_contract import (  # noqa: E402
-    conformance_errors, load_schema, schema_path)
+    conformance_errors,
+    load_schema,
+    schema_path,
+)
 from _test_support import load_run_py  # noqa: E402
 
 rc = load_run_py(SKILL_DIR, "lra_run_dp")
@@ -42,8 +46,10 @@ def _schema_or_gate() -> dict:
     schema = load_schema(SKILL, "emit")
     if schema is not None:
         return schema
-    reason = (f"data-product emit schema not found at {schema_path(SKILL, 'emit')} — set "
-              f"TARGET_CONTRACTS_ROOT / land the contracts schema PR first")
+    reason = (
+        f"data-product emit schema not found at {schema_path(SKILL, 'emit')} — set "
+        f"TARGET_CONTRACTS_ROOT / land the contracts schema PR first"
+    )
     if os.environ.get("CI"):
         pytest.fail(reason + " [CI: the data-product lock must be live, not skipped]")
     pytest.skip(reason)
@@ -68,15 +74,27 @@ class _Res:
 #                 (risk_level_pre_containment + downgraded_reason)
 #   translational/clinical/commercial — no abstracts retrieved → not_assessed (no model call)
 _FROZEN_LLM = {
-    "biological": {"risk_level": "LOW", "justification": "well-supported disease linkage.",
-                   "interpretation": "target is genetically implicated in the indication.",
-                   "cited_pmids": ["111"], "contradicts_deterministic": False},
-    "druggability": {"risk_level": "MEDIUM", "justification": "tool compounds exist but selectivity is unclear.",
-                     "interpretation": "chemical matter reported; developability partially characterized.",
-                     "cited_pmids": ["333"], "contradicts_deterministic": False},
-    "safety": {"risk_level": "HIGH", "justification": "normal-tissue liability reported.",
-               "interpretation": "on-target normal-tissue expression raises a safety concern.",
-               "cited_pmids": ["999"], "contradicts_deterministic": True},  # 999 not retrieved → confabulated
+    "biological": {
+        "risk_level": "LOW",
+        "justification": "well-supported disease linkage.",
+        "interpretation": "target is genetically implicated in the indication.",
+        "cited_pmids": ["111"],
+        "contradicts_deterministic": False,
+    },
+    "druggability": {
+        "risk_level": "MEDIUM",
+        "justification": "tool compounds exist but selectivity is unclear.",
+        "interpretation": "chemical matter reported; developability partially characterized.",
+        "cited_pmids": ["333"],
+        "contradicts_deterministic": False,
+    },
+    "safety": {
+        "risk_level": "HIGH",
+        "justification": "normal-tissue liability reported.",
+        "interpretation": "on-target normal-tissue expression raises a safety concern.",
+        "cited_pmids": ["999"],
+        "contradicts_deterministic": True,
+    },  # 999 not retrieved → confabulated
 }
 
 
@@ -84,12 +102,15 @@ def _fresh_emit(monkeypatch) -> dict:
     """Produce a REAL emit through run() with the PubMed + LLM boundaries replaced by frozen responses."""
     retrieved = {"biological": [_Ab("111"), _Ab("222")], "druggability": [_Ab("333")], "safety": [_Ab("444")]}
     monkeypatch.setattr(rc.ps, "search_pubmed", lambda *a, **k: _Res(retrieved))
-    monkeypatch.setattr(rc.ps, "SEARCH_PATTERNS_BY_CATEGORY",
-                        {d: "{gene} {disease}" for d in rc.DIMENSIONS}, raising=False)
+    monkeypatch.setattr(
+        rc.ps, "SEARCH_PATTERNS_BY_CATEGORY", {d: "{gene} {disease}" for d in rc.DIMENSIONS}, raising=False
+    )
     # non-null anchor_verdict for the overlap dimensions (biological/druggability/safety)
-    monkeypatch.setattr(rc, "_load_anchors",
-                        lambda pkg: {"dependency": "likely_dependency", "tractability_sm": "tractable",
-                                     "safety": "tolerable"})
+    monkeypatch.setattr(
+        rc,
+        "_load_anchors",
+        lambda pkg: {"dependency": "likely_dependency", "tractability_sm": "tractable", "safety": "tolerable"},
+    )
 
     def _fake_synth(system, prompt, name, schema):
         for dim, resp in _FROZEN_LLM.items():
@@ -129,4 +150,5 @@ def test_emit_conforms_to_schema(monkeypatch):
     decision = _fresh_emit(monkeypatch)
     errors = conformance_errors(schema, decision)
     assert not errors, "emit violates the data-product schema:\n  " + "\n  ".join(
-        f"{list(e.path)}: {e.message}" for e in errors[:15])
+        f"{list(e.path)}: {e.message}" for e in errors[:15]
+    )

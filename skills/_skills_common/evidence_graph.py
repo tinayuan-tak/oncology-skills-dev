@@ -21,6 +21,7 @@ Fail-soft throughout: absent `literature_synthesis`/`llm_synthesis` (or their er
 `literature`/`narrative` sub-objects; a skill without a `questions.yaml` still emits a
 referentially-intact graph with best-effort (null) question anchoring.
 """
+
 from __future__ import annotations
 
 import functools
@@ -64,11 +65,17 @@ def _unwrap(v):
 # renderer — and the composed embedded view) reads one vocabulary. Unknown tokens pass through
 # UNCHANGED so a new vocabulary value can never silently acquire a wrong rank.
 _CANON_POLARITY = {
-    "supports": "supportive", "supportive": "supportive", "positive": "supportive",
-    "opposes": "opposing", "opposing": "opposing", "negative": "opposing",
+    "supports": "supportive",
+    "supportive": "supportive",
+    "positive": "supportive",
+    "opposes": "opposing",
+    "opposing": "opposing",
+    "negative": "opposing",
     "neutral": "neutral",
     "killer": "killer",
-    "none": "not_applicable", "not_applicable": "not_applicable", "na": "not_applicable",
+    "none": "not_applicable",
+    "not_applicable": "not_applicable",
+    "na": "not_applicable",
 }
 
 
@@ -81,8 +88,7 @@ def _canon_polarity(p):
 
 def _question_signal(row: dict) -> dict:
     s = row.get("signal") or {}
-    return {"tier": s.get("tier"), "polarity": _canon_polarity(s.get("polarity")),
-            "label": s.get("label")}
+    return {"tier": s.get("tier"), "polarity": _canon_polarity(s.get("polarity")), "label": s.get("label")}
 
 
 def _question_confidence(row: dict) -> dict:
@@ -103,8 +109,7 @@ def _card_signal(cap: dict, sg_tier: Optional[str], fired: bool, is_liability: b
         polarity = "supportive"
     else:
         polarity = "neutral"
-    return {"tier": sg_tier, "polarity": polarity, "label": cap.get("class"),
-            "liability": bool(is_liability)}
+    return {"tier": sg_tier, "polarity": polarity, "label": cap.get("class"), "liability": bool(is_liability)}
 
 
 _CONF_DOTS = {"high": 3, "moderate": 2, "low": 1, "standard": 2, "unknown": 0, "unmeasured": 0}
@@ -116,8 +121,13 @@ _ECO_BY_STATE = {"measured": "ECO:0000006", "comparator": "ECO:0000006", "inferr
 def _card_confidence(cap: dict, n: Optional[float]) -> dict:
     es = cap.get("evidence_state")
     level = "high" if es == "measured" else ("low" if es in ("comparator", "inferred") else "moderate")
-    return {"level": level, "dots": _CONF_DOTS.get(level, 0), "evidence_state": es,
-            "eco_id": _ECO_BY_STATE.get(es), "n": n}
+    return {
+        "level": level,
+        "dots": _CONF_DOTS.get(level, 0),
+        "evidence_state": es,
+        "eco_id": _ECO_BY_STATE.get(es),
+        "n": n,
+    }
 
 
 # ── card ↔ question join (measurement_type membership, with subtype-tier disambiguation) ────────────
@@ -189,7 +199,11 @@ def _narrative_cites(text: str, card_ids: set, rule_ids: set) -> tuple:
 
 # ── key_evidence promotion (the decisive-data-point substrate) ──────────────────────────────────────
 from _skills_common.evidence_salience import (  # noqa: E402
-    spec_for, sig_round, SUBTYPE_SPECS, build_interpretation)
+    spec_for,
+    sig_round,
+    SUBTYPE_SPECS,
+    build_interpretation,
+)
 
 _KE_R = 4
 _KE_ROLE = {"INDICATION": "indication", "extreme_strongest": "strongest", "extreme_weakest": "weakest"}
@@ -213,8 +227,10 @@ def _build_subtype_axis(summary: dict) -> Optional[dict]:
         sp = SUBTYPE_SPECS["subtype_omnibus_by_axis"]
         driving = s.get(sp["driving_axis_field"])
         drow = next((a for a in axes if a.get(sp["axis_field"]) == driving), None) or axes[0]
-        out = {"driving_axis": driving or drow.get(sp["axis_field"]),
-               "restriction_class": s.get(sp["restriction_class_field"])}
+        out = {
+            "driving_axis": driving or drow.get(sp["axis_field"]),
+            "restriction_class": s.get(sp["restriction_class_field"]),
+        }
         if _is_num(drow.get(sp["omnibus_field"])):
             out["omnibus"] = {"stat": sp["omnibus_field"], "value": sig_round(drow[sp["omnibus_field"]])}
         which = drow.get(sp["which_separate_field"])
@@ -222,9 +238,15 @@ def _build_subtype_axis(summary: dict) -> Optional[dict]:
             out["which_separate"] = {"highest": which.get("highest"), "lowest": which.get("lowest")}
         subs = s.get(sp["subgroup_array"])
         if isinstance(subs, list):
-            top = [{"label": r.get(sp["subgroup_label_field"]), "value": _kenum(r.get(sp["subgroup_effect_field"])),
-                    "n": r.get(sp["subgroup_n_field"])}
-                   for r in subs if isinstance(r, dict) and _is_num(r.get(sp["subgroup_effect_field"]))][:3]
+            top = [
+                {
+                    "label": r.get(sp["subgroup_label_field"]),
+                    "value": _kenum(r.get(sp["subgroup_effect_field"])),
+                    "n": r.get(sp["subgroup_n_field"]),
+                }
+                for r in subs
+                if isinstance(r, dict) and _is_num(r.get(sp["subgroup_effect_field"]))
+            ][:3]
             if top:
                 out["top_subtypes"] = top
         return out
@@ -232,19 +254,28 @@ def _build_subtype_axis(summary: dict) -> Optional[dict]:
     subs = s.get("per_subgroup_metrics")
     if isinstance(subs, list) and subs and any(isinstance(r, dict) and _is_num(r.get("median_chronos")) for r in subs):
         sp = SUBTYPE_SPECS["per_subgroup_metrics"]
-        rows = sorted((r for r in subs if isinstance(r, dict) and _is_num(r.get("median_chronos"))),
-                      key=lambda r: r.get("median_chronos"))
-        top = [{"label": r.get("stratum"), "value": _kenum(r.get("median_chronos")), "n": r.get("subgroup_n")}
-               for r in rows][:3]
-        return {"driving_axis": None, "restriction_class": s.get(sp["restriction_class_field"]),
-                "top_subtypes": top} if top else None
+        rows = sorted(
+            (r for r in subs if isinstance(r, dict) and _is_num(r.get("median_chronos"))),
+            key=lambda r: r.get("median_chronos"),
+        )
+        top = [
+            {"label": r.get("stratum"), "value": _kenum(r.get("median_chronos")), "n": r.get("subgroup_n")}
+            for r in rows
+        ][:3]
+        return (
+            {"driving_axis": None, "restriction_class": s.get(sp["restriction_class_field"]), "top_subtypes": top}
+            if top
+            else None
+        )
     # (c) per_axis_association survival
     paa = s.get("per_axis_association")
     if isinstance(paa, list) and paa and all(isinstance(a, dict) for a in paa):
-        driving = next((a for a in paa if str(a.get("subtype_survival_association_class") or "").startswith("subtype_stratifies")), None)
+        driving = next(
+            (a for a in paa if str(a.get("subtype_survival_association_class") or "").startswith("subtype_stratifies")),
+            None,
+        )
         row = driving or paa[0]
-        out = {"driving_axis": row.get("axis"),
-               "restriction_class": s.get("subtype_survival_association_class")}
+        out = {"driving_axis": row.get("axis"), "restriction_class": s.get("subtype_survival_association_class")}
         if _is_num(row.get("logrank_p")):
             out["omnibus"] = {"stat": "logrank_p", "value": sig_round(row["logrank_p"])}
         return out
@@ -272,7 +303,11 @@ def _build_key_evidence(cap: dict, summary: dict) -> Optional[dict]:
         effect = {"metric": eff_row.get("metric"), "value": eff_row.get("value"), "direction": direction}
         n = eff_row.get("n")
     elif spec.get("effect_field") and _is_num(summary.get(spec["effect_field"])):
-        effect = {"metric": spec["effect_field"], "value": _kenum(summary[spec["effect_field"]]), "direction": direction}
+        effect = {
+            "metric": spec["effect_field"],
+            "value": _kenum(summary[spec["effect_field"]]),
+            "direction": direction,
+        }
     else:
         na = cap.get("numeric_anchors") or []
         if na:
@@ -302,34 +337,51 @@ def _build_key_evidence(cap: dict, summary: dict) -> Optional[dict]:
             # only a COUNT-like n_basis entry (n_* / *_n / *count*) — n_basis also holds decisive
             # medians/z-scores/effects, and grabbing the first numeric mis-read those as the sample
             # size (e.g. syn_z_score 0.39, median_chronos -1.18 surfacing as "n").
-            n = next((v for k, v in cap["n_basis"].items()
-                      if _is_num(v) and (str(k).startswith("n_") or str(k).endswith("_n")
-                                         or "count" in str(k).lower())), None)
+            n = next(
+                (
+                    v
+                    for k, v in cap["n_basis"].items()
+                    if _is_num(v) and (str(k).startswith("n_") or str(k).endswith("_n") or "count" in str(k).lower())
+                ),
+                None,
+            )
 
     # top_strata: reshape the capsule rows to the schema shape (label/role/value/n/q)
     top_strata = []
     for r in tks:
-        row = {"label": r.get("stratum"), "role": _KE_ROLE.get(r.get("role"), r.get("role")),
-               "value": r.get("value"), "n": r.get("n")}
+        row = {
+            "label": r.get("stratum"),
+            "role": _KE_ROLE.get(r.get("role"), r.get("role")),
+            "value": r.get("value"),
+            "n": r.get("n"),
+        }
         if r.get("q") is not None:
             row["q"] = r.get("q")
         top_strata.append(row)
 
     # categorical: the spec's decisive labels present in summary, else the capsule's categorical_anchors
-    categorical = [{"field": f, "value": summary[f]} for f in (spec.get("categorical") or [])
-                   if f in summary and summary.get(f) is not None]
+    categorical = [
+        {"field": f, "value": summary[f]}
+        for f in (spec.get("categorical") or [])
+        if f in summary and summary.get(f) is not None
+    ]
     if not categorical:
-        categorical = [{"field": a.get("field"), "value": a.get("value")}
-                       for a in (cap.get("categorical_anchors") or [])]
+        categorical = [
+            {"field": a.get("field"), "value": a.get("value")} for a in (cap.get("categorical_anchors") or [])
+        ]
 
     # conflict: the first sibling-disagreement pair
     conflict = None
     cps = cap.get("conflict_pairs") or []
     if cps and isinstance(cps[0], dict):
         cp = cps[0]
-        conflict = {"this_class": cp.get("this_class"),
-                    "other": [{"card": o.get("card"), "class": o.get("class"), "tier": o.get("tier")}
-                              for o in (cp.get("other_sources") or [])]}
+        conflict = {
+            "this_class": cp.get("this_class"),
+            "other": [
+                {"card": o.get("card"), "class": o.get("class"), "tier": o.get("tier")}
+                for o in (cp.get("other_sources") or [])
+            ],
+        }
 
     subtype_axis = _build_subtype_axis(summary)
 
@@ -382,8 +434,7 @@ def build_evidence_graph(decision: dict, questions: Optional[list] = None) -> di
     hb = h.get("headline_block") or {}
     hb_verdict = hb.get("verdict") or {}
     driving_rule_id = h.get("driving_rule_id") or hb_verdict.get("driving_rule_id")
-    verdict_call = (h.get("presence_verdict") or hb_verdict.get("call")
-                    or h.get("verdict"))
+    verdict_call = h.get("presence_verdict") or hb_verdict.get("call") or h.get("verdict")
 
     fired_by_card: dict = {}
     driving_card_id = None
@@ -401,7 +452,7 @@ def build_evidence_graph(decision: dict, questions: Optional[list] = None) -> di
     for _blk in (h.get("subgroup_signals") or {}).values():
         if not isinstance(_blk, dict):
             continue
-        for _s in (_blk.get("sources") or []):
+        for _s in _blk.get("sources") or []:
             if isinstance(_s, dict) and _s.get("card") and _s.get("card") not in sg_by_card:
                 sg_by_card[_s["card"]] = (_s.get("tier"), _s.get("n"))
 
@@ -421,7 +472,10 @@ def build_evidence_graph(decision: dict, questions: Optional[list] = None) -> di
         rules_for = fired_by_card.get(cid, [])
         rule_ids = [r.get("rule_id") for r in rules_for if r.get("rule_id")]
         is_vb = cid in verdict_bearing_cards
-        is_liability = str(cap.get("class") or "").upper().endswith("LIABILITY") or "liability" in str(cap.get("class") or "").lower()
+        is_liability = (
+            str(cap.get("class") or "").upper().endswith("LIABILITY")
+            or "liability" in str(cap.get("class") or "").lower()
+        )
         qids = _card_question_ids(cap, questions, ambiguous) if cap else []
         card_qids[cid] = qids
         # class field/value — from the fired rule (verdict-bearing) else the first categorical anchor.
@@ -430,7 +484,10 @@ def build_evidence_graph(decision: dict, questions: Optional[list] = None) -> di
         else:
             anchors = cap.get("categorical_anchors") or []
             first = anchors[0] if anchors else {}
-            class_field, class_value = first.get("field"), (cap.get("class") if cap.get("class") is not None else first.get("value"))
+            class_field, class_value = (
+                first.get("field"),
+                (cap.get("class") if cap.get("class") is not None else first.get("value")),
+            )
         dataset_ids = list(c.get("input_manifest_ids") or [])
         for d in dataset_ids:
             if d not in dataset_ids_seen:
@@ -446,22 +503,24 @@ def build_evidence_graph(decision: dict, questions: Optional[list] = None) -> di
         }
         key_fields = {a.get("metric"): a.get("value") for a in numeric if a.get("metric")}
         key_evidence = _build_key_evidence(cap, c.get("summary") or {})
-        card_nodes.append({
-            "id": cid,
-            "measurement_type": cap.get("measurement_type"),
-            "tier": cap.get("tier"),
-            "role": "verdict_bearing" if is_vb else "display_only",
-            "question_ids": qids,
-            "axis_id": next((q.get("axis_id") for q in questions if q["id"] in qids and q.get("axis_id")), None),
-            "signal": _card_signal(cap, sg_tier, is_vb, is_liability),
-            "confidence": _card_confidence(cap, sg_n),
-            "class": {"field": class_field, "value": class_value},
-            "dataset_ids": dataset_ids,
-            "rule_ids": rule_ids,
-            "chain": chain,
-            "key_fields": key_fields,
-            "key_evidence": key_evidence,
-        })
+        card_nodes.append(
+            {
+                "id": cid,
+                "measurement_type": cap.get("measurement_type"),
+                "tier": cap.get("tier"),
+                "role": "verdict_bearing" if is_vb else "display_only",
+                "question_ids": qids,
+                "axis_id": next((q.get("axis_id") for q in questions if q["id"] in qids and q.get("axis_id")), None),
+                "signal": _card_signal(cap, sg_tier, is_vb, is_liability),
+                "confidence": _card_confidence(cap, sg_n),
+                "class": {"field": class_field, "value": class_value},
+                "dataset_ids": dataset_ids,
+                "rule_ids": rule_ids,
+                "chain": chain,
+                "key_fields": key_fields,
+                "key_evidence": key_evidence,
+            }
+        )
 
     # ── questions[] (both edge directions; literature axis crosswalk fed later) ──
     q_nodes = []
@@ -479,37 +538,47 @@ def build_evidence_graph(decision: dict, questions: Optional[list] = None) -> di
         evidence_refs = []
         for cnode in card_nodes:
             if cnode["id"] in q_card_ids and cnode["class"].get("value") is not None:
-                evidence_refs.append({
-                    "card_id": cnode["id"], "field": cnode["class"].get("field"),
-                    "value": cnode["class"].get("value"),
-                    "label": f"{cnode['id']} {cnode['class'].get('value')}",
-                })
-        q_nodes.append({
-            "id": qid,
-            "seq": q.get("seq"),
-            "text": q.get("text") or row.get("question"),
-            "axis_id": q.get("axis_id"),
-            "role": q.get("role"),
-            "signal": _question_signal(row),
-            "confidence": _question_confidence(row),
-            "card_ids": q_card_ids,
-            "rule_ids": q_rule_ids,
-            "literature_axis_ids": [],  # filled by the literature crosswalk below
-            "evidence_refs": evidence_refs,
-            "prose": {"primary": row.get("primary"), "support": row.get("support")},
-        })
+                evidence_refs.append(
+                    {
+                        "card_id": cnode["id"],
+                        "field": cnode["class"].get("field"),
+                        "value": cnode["class"].get("value"),
+                        "label": f"{cnode['id']} {cnode['class'].get('value')}",
+                    }
+                )
+        q_nodes.append(
+            {
+                "id": qid,
+                "seq": q.get("seq"),
+                "text": q.get("text") or row.get("question"),
+                "axis_id": q.get("axis_id"),
+                "role": q.get("role"),
+                "signal": _question_signal(row),
+                "confidence": _question_confidence(row),
+                "card_ids": q_card_ids,
+                "rule_ids": q_rule_ids,
+                "literature_axis_ids": [],  # filled by the literature crosswalk below
+                "evidence_refs": evidence_refs,
+                "prose": {"primary": row.get("primary"), "support": row.get("support")},
+            }
+        )
     q_by_id = {q["id"]: q for q in q_nodes}
 
     # ── rules[] ──
     rule_nodes = []
     for r in fired_rules:
         rid = r.get("rule_id")
-        rule_nodes.append({
-            "id": rid, "card_id": r.get("card_id"), "field": r.get("field"),
-            "value": r.get("value"), "dominant": bool(r.get("dominant")),
-            "is_driving": rid == driving_rule_id,
-            "rationale": r.get("rationale_summary"),
-        })
+        rule_nodes.append(
+            {
+                "id": rid,
+                "card_id": r.get("card_id"),
+                "field": r.get("field"),
+                "value": r.get("value"),
+                "dominant": bool(r.get("dominant")),
+                "is_driving": rid == driving_rule_id,
+                "rationale": r.get("rationale_summary"),
+            }
+        )
 
     # ── datasets[] (dedup, sorted for byte-stability) ──
     dataset_nodes = [{"id": d, "s3_uri": None, "license": None} for d in sorted(set(dataset_ids_seen))]
@@ -519,24 +588,34 @@ def build_evidence_graph(decision: dict, questions: Optional[list] = None) -> di
 
     # ── narrative (Phase 4) ── pass the citation NODES (id + pmid, for PMID:-ref normalization) + the
     # registry legacy_id→slug map (so a bullet's positional `Q3` ref resolves to its semantic question id).
-    narrative = _build_narrative(decision, card_nodes, rule_nodes, q_nodes,
-                                 citation_nodes=citation_nodes,
-                                 legacy_to_qid={q.get("legacy_id"): q["id"] for q in questions
-                                                if q.get("legacy_id") and q.get("id")})
+    narrative = _build_narrative(
+        decision,
+        card_nodes,
+        rule_nodes,
+        q_nodes,
+        citation_nodes=citation_nodes,
+        legacy_to_qid={q.get("legacy_id"): q["id"] for q in questions if q.get("legacy_id") and q.get("id")},
+    )
 
     # ── verdict node ──
     conf = hb.get("confidence") or {}
     tension = hb.get("top_tension") or {}
-    tension_cards = [c for c in re.findall(r"[a-z0-9]+(?:-[a-z0-9]+){2,}", str(tension.get("text") or ""))
-                     if c in {cn["id"] for cn in card_nodes}]
+    tension_cards = [
+        c
+        for c in re.findall(r"[a-z0-9]+(?:-[a-z0-9]+){2,}", str(tension.get("text") or ""))
+        if c in {cn["id"] for cn in card_nodes}
+    ]
     verdict_node = {
         "id": verdict_call,
         "call": hb_verdict.get("phrase") or hb.get("headline_text") or verdict_call,
         "polarity": _canon_polarity(hb_verdict.get("polarity")),
         "driving_rule_id": driving_rule_id,
         "confidence": {"level": conf.get("level"), "coverage": conf.get("coverage")},
-        "top_tension": ({"text": tension.get("text"), "severity": tension.get("severity"),
-                         "source_card_ids": tension_cards} if tension else None),
+        "top_tension": (
+            {"text": tension.get("text"), "severity": tension.get("severity"), "source_card_ids": tension_cards}
+            if tension
+            else None
+        ),
     }
 
     return {
@@ -576,7 +655,7 @@ def _build_literature(decision: dict, questions: list, q_by_id: dict) -> tuple:
 
     def _cite_ids(cite_list) -> list:
         ids = []
-        for c in (cite_list or []):
+        for c in cite_list or []:
             if not isinstance(c, dict):
                 continue
             ids.append((c, _citation_id(c, taken)))
@@ -590,22 +669,31 @@ def _build_literature(decision: dict, questions: list, q_by_id: dict) -> tuple:
         axis_id = ax.get("axis_key")
         cite_ids = []
         for cite, cid in _cite_ids(ax.get("citations")):
-            citation_nodes.append({"id": cid, "label": cite.get("label"),
-                                   "pmid": cite.get("pmid"), "doi": cite.get("doi"),
-                                   "verified": bool(cite.get("verified"))})
+            citation_nodes.append(
+                {
+                    "id": cid,
+                    "label": cite.get("label"),
+                    "pmid": cite.get("pmid"),
+                    "doi": cite.get("doi"),
+                    "verified": bool(cite.get("verified")),
+                }
+            )
             cite_ids.append(cid)
         qids = list(axis_to_questions.get(axis_id, []))
         for qid in qids:
             if qid in q_by_id and axis_id not in q_by_id[qid]["literature_axis_ids"]:
                 q_by_id[qid]["literature_axis_ids"].append(axis_id)
-        axes_out.append({
-            "axis_id": axis_id, "question_ids": qids,
-            "read": ax.get("literature_read"),
-            "agreement_vs_omics": ax.get("agreement_vs_omics"),
-            "confidence": ax.get("confidence"),
-            "assertion": ax.get("assertion"),
-            "citation_ids": cite_ids,
-        })
+        axes_out.append(
+            {
+                "axis_id": axis_id,
+                "question_ids": qids,
+                "read": ax.get("literature_read"),
+                "agreement_vs_omics": ax.get("agreement_vs_omics"),
+                "confidence": ax.get("confidence"),
+                "assertion": ax.get("assertion"),
+                "citation_ids": cite_ids,
+            }
+        )
 
     blind_out = []
     for bs in blind_raw:
@@ -613,12 +701,19 @@ def _build_literature(decision: dict, questions: list, q_by_id: dict) -> tuple:
             continue
         cite_ids = []
         for cite, cid in _cite_ids(bs.get("citations")):
-            citation_nodes.append({"id": cid, "label": cite.get("label"),
-                                   "pmid": cite.get("pmid"), "doi": cite.get("doi"),
-                                   "verified": bool(cite.get("verified"))})
+            citation_nodes.append(
+                {
+                    "id": cid,
+                    "label": cite.get("label"),
+                    "pmid": cite.get("pmid"),
+                    "doi": cite.get("doi"),
+                    "verified": bool(cite.get("verified")),
+                }
+            )
             cite_ids.append(cid)
-        blind_out.append({"text": bs.get("signal"), "why_omics_blind": bs.get("why_omics_blind"),
-                          "citation_ids": cite_ids})
+        blind_out.append(
+            {"text": bs.get("signal"), "why_omics_blind": bs.get("why_omics_blind"), "citation_ids": cite_ids}
+        )
 
     literature = {
         "axes": axes_out,
@@ -629,8 +724,14 @@ def _build_literature(decision: dict, questions: list, q_by_id: dict) -> tuple:
     return literature, citation_nodes
 
 
-def _build_narrative(decision: dict, card_nodes: list, rule_nodes: list, q_nodes: list,
-                     citation_nodes: Optional[list] = None, legacy_to_qid: Optional[dict] = None) -> dict:
+def _build_narrative(
+    decision: dict,
+    card_nodes: list,
+    rule_nodes: list,
+    q_nodes: list,
+    citation_nodes: Optional[list] = None,
+    legacy_to_qid: Optional[dict] = None,
+) -> dict:
     """Project decision.llm_synthesis into an anchored narrative. Fail-soft: absent/error stub → {}.
     Stage 2: leads with `exec_bullets`, each anchored to real card/question/citation ids. The narrator
     cites in the VOCABULARY the prompt showed it — a citation as `PMID:40855221`, a question by its
@@ -662,8 +763,9 @@ def _build_narrative(decision: dict, card_nodes: list, rule_nodes: list, q_nodes
 
     # focused llm_synthesis stamps each field as {value,_source:"llm_synthesized",...}; unwrap so the
     # graph carries plain scalars (mirrors _build_literature, which already unwraps its axes).
-    text = " ".join(str(_unwrap(syn.get(k)) or "") for k in ("rationale", "key_caveat", "context_read",
-                                                             "key_signals_summary"))
+    text = " ".join(
+        str(_unwrap(syn.get(k)) or "") for k in ("rationale", "key_caveat", "context_read", "key_signals_summary")
+    )
     cited_cards, cited_rules = _narrative_cites(text, card_ids, rule_ids)
     cited_qids = [q["id"] for q in q_nodes if set(q["card_ids"]) & set(cited_cards)]
 
@@ -677,18 +779,21 @@ def _build_narrative(decision: dict, card_nodes: list, rule_nodes: list, q_nodes
     # exec_bullets (PRIMARY): unwrap + anchor each bullet's cites to REAL ids (normalize pmid/legacy refs,
     # then drop any still-unresolved id so the referential invariant holds); canonicalize polarity.
     exec_bullets = []
-    for b in (_unwrap(syn.get("exec_bullets")) or []):
+    for b in _unwrap(syn.get("exec_bullets")) or []:
         if not isinstance(b, dict):
             continue
         bc = b.get("cites") or {}
-        exec_bullets.append({
-            "text": _unwrap(b.get("text")),
-            "polarity": _canon_polarity(_unwrap(b.get("polarity"))),
-            "cites": {
-                "card_ids": _dedup(i for i in (bc.get("card_ids") or []) if i in card_ids),
-                "question_ids": _dedup(_resolve_qid(i) for i in (bc.get("question_ids") or [])),
-                "citation_ids": _dedup(_resolve_cid(i) for i in (bc.get("citation_ids") or [])),
-            }})
+        exec_bullets.append(
+            {
+                "text": _unwrap(b.get("text")),
+                "polarity": _canon_polarity(_unwrap(b.get("polarity"))),
+                "cites": {
+                    "card_ids": _dedup(i for i in (bc.get("card_ids") or []) if i in card_ids),
+                    "question_ids": _dedup(_resolve_qid(i) for i in (bc.get("question_ids") or [])),
+                    "citation_ids": _dedup(_resolve_cid(i) for i in (bc.get("citation_ids") or [])),
+                },
+            }
+        )
     out = {
         "relevance": _unwrap(syn.get("relevance")) or _unwrap(syn.get("context_read")),
         "rationale": _unwrap(syn.get("rationale")) or _unwrap(syn.get("key_signals_summary")),
@@ -716,20 +821,20 @@ def _referential_integrity_errors(graph: dict) -> list:
     axis_ids = {a.get("axis_id") for a in ((g.get("literature") or {}).get("axes") or []) if isinstance(a, dict)}
 
     def _chk(ids, universe, where):
-        for i in (ids or []):
+        for i in ids or []:
             if i is not None and i not in universe:
                 errs.append(f"REFERENTIAL [{where}]: id '{i}' does not resolve to a node")
 
-    for q in (g.get("questions") or []):
+    for q in g.get("questions") or []:
         if not isinstance(q, dict):
             continue
         _chk(q.get("card_ids"), card_ids, f"question[{q.get('id')}].card_ids")
         _chk(q.get("rule_ids"), rule_ids, f"question[{q.get('id')}].rule_ids")
         _chk(q.get("literature_axis_ids"), axis_ids, f"question[{q.get('id')}].literature_axis_ids")
-        for ref in (q.get("evidence_refs") or []):
+        for ref in q.get("evidence_refs") or []:
             if isinstance(ref, dict):
                 _chk([ref.get("card_id")], card_ids, f"question[{q.get('id')}].evidence_refs.card_id")
-    for c in (g.get("cards") or []):
+    for c in g.get("cards") or []:
         if not isinstance(c, dict):
             continue
         cid = c.get("id")
@@ -741,18 +846,18 @@ def _referential_integrity_errors(graph: dict) -> list:
         if chain.get("rule_id") is not None:
             _chk([chain.get("rule_id")], rule_ids, f"card[{cid}].chain.rule_id")
         conflict = (c.get("key_evidence") or {}).get("conflict") or {}
-        for o in (conflict.get("other") or []):
+        for o in conflict.get("other") or []:
             if isinstance(o, dict) and o.get("card") is not None:
                 _chk([o.get("card")], card_ids, f"card[{cid}].key_evidence.conflict.other.card")
-    for r in (g.get("rules") or []):
+    for r in g.get("rules") or []:
         if isinstance(r, dict) and r.get("card_id") is not None:
             _chk([r.get("card_id")], card_ids, f"rule[{r.get('id')}].card_id")
     lit = g.get("literature") or {}
-    for ax in (lit.get("axes") or []):
+    for ax in lit.get("axes") or []:
         if isinstance(ax, dict):
             _chk(ax.get("question_ids"), q_ids, f"literature.axes[{ax.get('axis_id')}].question_ids")
             _chk(ax.get("citation_ids"), cite_ids, f"literature.axes[{ax.get('axis_id')}].citation_ids")
-    for bs in (lit.get("blind_spots") or []):
+    for bs in lit.get("blind_spots") or []:
         if isinstance(bs, dict):
             _chk(bs.get("citation_ids"), cite_ids, "literature.blind_spots.citation_ids")
     verdict = g.get("verdict") or {}
@@ -780,10 +885,12 @@ def _load_schema(contracts_repo: Optional[str] = None):
     """Load evidence_graph.schema.json from target-contracts (best-effort; None if unavailable)."""
     try:
         import json
+
         if contracts_repo:
             base = Path(contracts_repo)
         else:
             from _skills_common.scope import DEFAULT_CONTRACTS_REPO
+
             base = Path(DEFAULT_CONTRACTS_REPO)
         p = base / "schemas" / "evidence_graph.schema.json"
         return json.loads(p.read_text()) if p.exists() else None
@@ -791,8 +898,9 @@ def _load_schema(contracts_repo: Optional[str] = None):
         return None
 
 
-def assert_evidence_graph_valid(graph: dict, schema: Optional[dict] = None,
-                                contracts_repo: Optional[str] = None) -> bool:
+def assert_evidence_graph_valid(
+    graph: dict, schema: Optional[dict] = None, contracts_repo: Optional[str] = None
+) -> bool:
     """Raise AssertionError unless `graph` is schema-valid AND referentially intact. The single shared
     check the per-skill evidence_graph tests call (replacing 14 copy-pasted referential-integrity bodies).
     Schema validation is best-effort — skipped (referential-only) when jsonschema or the contracts schema
@@ -800,13 +908,13 @@ def assert_evidence_graph_valid(graph: dict, schema: Optional[dict] = None,
     errs = _referential_integrity_errors(graph)
     try:
         from jsonschema import Draft202012Validator
+
         sch = schema if schema is not None else _load_schema(contracts_repo)
         # Lockstep guard: only schema-validate against a schema that DECLARES key_evidence (the Stage-1
         # contracts schema). Against the pre-Stage-1 trunk schema (additionalProperties:false, no
         # key_evidence) we'd otherwise false-reject the additive field during the cross-repo landing
         # window — so fall back to referential-only until the schema catches up.
-        if sch is not None and "key_evidence" in ((sch.get("$defs", {}).get("card", {})
-                                                   .get("properties", {})) or {}):
+        if sch is not None and "key_evidence" in ((sch.get("$defs", {}).get("card", {}).get("properties", {})) or {}):
             for e in Draft202012Validator(sch).iter_errors(graph):
                 path = ".".join(str(p) for p in e.absolute_path) or "<root>"
                 errs.append(f"STRUCTURAL [{path}]: {e.message}")
@@ -840,5 +948,10 @@ def attach_evidence_graph(decision: dict, skill_dir) -> dict:
     return decision
 
 
-__all__ = ["build_evidence_graph", "attach_evidence_graph", "assert_evidence_graph_valid",
-           "load_questions", "SCHEMA_VERSION"]
+__all__ = [
+    "build_evidence_graph",
+    "attach_evidence_graph",
+    "assert_evidence_graph_valid",
+    "load_questions",
+    "SCHEMA_VERSION",
+]

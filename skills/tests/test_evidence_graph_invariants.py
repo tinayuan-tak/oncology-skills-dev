@@ -10,6 +10,7 @@ signal/confidence/card_ids, literature-axis crosswalk, driving-card chain, verdi
 build_evidence_graph is a PURE function of (decision, questions) — no run.py import — so exercising all
 skills in this one process is collision-free (unlike the per-skill suites that load run.py).
 """
+
 from __future__ import annotations
 
 import copy
@@ -18,8 +19,7 @@ from pathlib import Path
 
 import pytest
 
-from _skills_common.evidence_graph import (
-    build_evidence_graph, load_questions, assert_evidence_graph_valid)
+from _skills_common.evidence_graph import build_evidence_graph, load_questions, assert_evidence_graph_valid
 
 SKILLS_DIR = Path(__file__).resolve().parents[1]
 

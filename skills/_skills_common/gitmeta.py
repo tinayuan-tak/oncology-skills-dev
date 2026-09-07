@@ -10,6 +10,7 @@ skill) stamp a real short SHA, falling back to a schema-valid sentinel when git 
 (CI checkout depth, non-repo install, etc.). Modeled on analysis-methods
 methods/subgroup_common/manifest.py::_git_sha.
 """
+
 from __future__ import annotations
 
 import subprocess

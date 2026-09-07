@@ -22,6 +22,7 @@ Invariants (mirror test_marketplace_registry_sync.py's "on-disk == registered, H
 
 target-contracts is resolved via TARGET_CONTRACTS_ROOT; unresolvable → SKIP locally, FAIL in CI.
 """
+
 from __future__ import annotations
 
 import ast
@@ -30,7 +31,7 @@ from pathlib import Path
 
 import pytest
 
-SKILLS_DIR = Path(__file__).resolve().parent.parent           # .../skills
+SKILLS_DIR = Path(__file__).resolve().parent.parent  # .../skills
 TP_FANOUT = SKILLS_DIR / "target-profile" / "scripts" / "tp_fanout.py"
 _DEFAULT_TC = "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
 
@@ -71,7 +72,7 @@ def _have_schema() -> set[str]:
     have: set[str] = set()
     known = _all_skill_dirs()
     for p in d.glob("*.schema.json"):
-        stem = p.name[: -len(".schema.json")]          # e.g. "tumor-presence.decision" | "target-archetype.companion"
+        stem = p.name[: -len(".schema.json")]  # e.g. "tumor-presence.decision" | "target-archetype.companion"
         skill = stem.rsplit(".", 1)[0] if "." in stem else stem
         if skill in known:
             have.add(skill)

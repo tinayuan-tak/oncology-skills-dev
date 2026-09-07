@@ -6,6 +6,7 @@ Pins: (1) it exposes the per-(measurement, sample_context) matrix + proxy-qualit
 comparators; (2) it is VERDICT-INERT — the collapsed presence_verdict it reports equals _verdict()'s,
 so surfacing the facet cannot move the spine; (3) it degrades honestly on an empty run.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -27,17 +28,24 @@ def _cards():
 
 
 def test_facet_carries_the_reconciliation_and_is_verdict_inert():
-    fired = [_fr("tumor-expression-broadly-high-supportive", "tumor-rna-distribution"),
-             _fr("expression-lineage-restricted-supportive", "cellline-rna-distribution")]
+    fired = [
+        _fr("tumor-expression-broadly-high-supportive", "tumor-rna-distribution"),
+        _fr("expression-lineage-restricted-supportive", "cellline-rna-distribution"),
+    ]
     verdict_pair = tp._verdict(fired)
     facet = tp._synthesis_facet(cards=_cards(), fired=fired, verdict_pair=verdict_pair)
     # the key object — the per-modality cross-modal matrix
     assert "presence_verdict_by_modality" in facet
     assert facet["presence_verdict_by_modality"]  # non-empty (buckets populated from fired)
     # proxy-quality + normal-comparator framing keys are present (values may be None w/o cards)
-    for k in ("bulk_rna_proxy_quality", "rna_as_biomarker_tumor",
-              "normal_tissue_ihc_breadth_class", "sc_normal_expression_class",
-              "cell_line_vs_tumor_discordant", "headline_lens"):
+    for k in (
+        "bulk_rna_proxy_quality",
+        "rna_as_biomarker_tumor",
+        "normal_tissue_ihc_breadth_class",
+        "sc_normal_expression_class",
+        "cell_line_vs_tumor_discordant",
+        "headline_lens",
+    ):
         assert k in facet
     # VERDICT-INERT: the facet's collapsed verdict is exactly _verdict()'s — surfacing it can't
     # move the spine.

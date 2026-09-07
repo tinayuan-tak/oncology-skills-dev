@@ -2,6 +2,7 @@
 verdict->record mapping, the REAL continuous magnitude (max_abs_log2fc), the open-world case, the
 fired-set cross-check, and full conformance to claim_record.schema.json when contracts is present.
 Consumed-by-nothing / verdict-inert."""
+
 from __future__ import annotations
 
 import json
@@ -25,8 +26,11 @@ def _fired(*rids):
 
 
 def test_strong_selective_measured_positive_with_real_magnitude():
-    rec = sel._claim_record(_tvn(), fired=_fired("tumor-selective-strong"),
-                            verdict_pair=("strong_tumor_selective", "tumor-selective-strong"))
+    rec = sel._claim_record(
+        _tvn(),
+        fired=_fired("tumor-selective-strong"),
+        verdict_pair=("strong_tumor_selective", "tumor-selective-strong"),
+    )
     assert rec["axis"] == "selectivity"
     assert rec["finding"]["state"] == "strong_tumor_selective"
     assert rec["finding"]["direction"] == "supports"
@@ -40,12 +44,10 @@ def test_strong_selective_measured_positive_with_real_magnitude():
 
 def test_magnitude_carries_distance_to_cut():
     # strong verdict, max|log2FC|=3.1 vs the strong cutpoint 1.5 -> distance_to_cut = 1.6 (well clear)
-    rec = sel._claim_record(_tvn(max_abs_log2fc=3.1), fired=[],
-                            verdict_pair=("strong_tumor_selective", None))
+    rec = sel._claim_record(_tvn(max_abs_log2fc=3.1), fired=[], verdict_pair=("strong_tumor_selective", None))
     assert rec["finding"]["magnitude"]["distance_to_cut"] == 1.6
     # a barely-cleared modest call: 0.6 vs the modest cutpoint 0.5 -> distance 0.1 (knife-edge)
-    rec2 = sel._claim_record(_tvn(max_abs_log2fc=0.6), fired=[],
-                             verdict_pair=("modest_tumor_selective", None))
+    rec2 = sel._claim_record(_tvn(max_abs_log2fc=0.6), fired=[], verdict_pair=("modest_tumor_selective", None))
     assert rec2["finding"]["magnitude"]["distance_to_cut"] == 0.1
 
 
@@ -60,7 +62,7 @@ def test_data_unavailable_is_open_world_noncommittal():
     f = rec["finding"]
     assert f["availability"] == "not_wired"
     assert f["state"] == "unknown" and f["direction"] == "neutral"
-    assert f["magnitude"]["value"] is None            # open-world flattens magnitude
+    assert f["magnitude"]["value"] is None  # open-world flattens magnitude
 
 
 def test_inconclusive_is_measured_but_underpowered():
@@ -83,9 +85,14 @@ def test_conforms_to_contract_schema_if_available():
     if schema is None:
         pytest.skip("contracts repo / claim_record.schema.json not available")
     from jsonschema import Draft202012Validator
-    for vp in [("strong_tumor_selective", "r"), ("not_selective", None),
-               ("data_unavailable", None), ("discordant_across_comparators", None),
-               ("modest_tumor_selective", "r")]:
+
+    for vp in [
+        ("strong_tumor_selective", "r"),
+        ("not_selective", None),
+        ("data_unavailable", None),
+        ("discordant_across_comparators", None),
+        ("modest_tumor_selective", "r"),
+    ]:
         rec = sel._claim_record(_tvn(), fired=_fired("r") if vp[1] else [], verdict_pair=vp)
         errs = sorted(Draft202012Validator(schema).iter_errors(rec), key=lambda e: e.path)
         assert not errs, f"{vp} -> {[e.message for e in errs]}"

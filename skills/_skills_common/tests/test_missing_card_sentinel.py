@@ -8,6 +8,7 @@ Fix: __init__.py emits `_missing` everywhere; dispatcher.py checks only `_missin
 These tests verify both that the output dict carries `_missing` and that the
 old bare `missing` arm is gone from dispatcher.
 """
+
 from __future__ import annotations
 
 import sys
@@ -23,6 +24,7 @@ from _skills_common.dispatcher import _apply_on_dependency_status
 # ---------------------------------------------------------------------------
 # Test 1 — resolve_cards output carries _missing (not bare missing)
 # ---------------------------------------------------------------------------
+
 
 def _make_card(card_id: str, missing: bool) -> dict:
     """Build a card_output dict as resolve_cards produces internally."""
@@ -57,13 +59,9 @@ def test_make_decision_json_emits_underscore_missing_key():
     assert len(result["cards"]) == 1
     card = result["cards"][0]
 
-    assert "_missing" in card, (
-        "RP4 regression: `_missing` key absent — make_decision_json emitted bare `missing`"
-    )
+    assert "_missing" in card, "RP4 regression: `_missing` key absent — make_decision_json emitted bare `missing`"
     assert card["_missing"] is True, f"Expected _missing=True, got {card['_missing']}"
-    assert "missing" not in card, (
-        "Bare `missing` key (no underscore) must not appear — `_missing` is canonical"
-    )
+    assert "missing" not in card, "Bare `missing` key (no underscore) must not appear — `_missing` is canonical"
 
 
 def test_make_decision_json_present_card_has_missing_false():
@@ -91,6 +89,7 @@ def test_make_decision_json_present_card_has_missing_false():
 # ---------------------------------------------------------------------------
 # Test 2 — dispatcher.py no longer accepts bare `missing` as sentinel
 # ---------------------------------------------------------------------------
+
 
 def test_apply_on_dependency_status_ignores_bare_missing():
     """_apply_on_dependency_status checks only `_missing`; bare `missing` is NOT a sentinel.
@@ -137,11 +136,13 @@ def test_apply_on_dependency_status_skips_underscore_missing():
 # so its dedicated `equals: data_unavailable` resolver rung fires.
 # ---------------------------------------------------------------------------
 
+
 def test_data_unavailable_detected_on_topic_specific_class_field():
     """_summary_is_unavailable must recognize data_unavailable in a topic-specific *_class
     field (dependency_class, cn_stratification_class, fit_class, …), not only the 3 legacy
     primaries (selectivity_class/class/interpretation_call)."""
     from _skills_common import _summary_is_unavailable, _data_unavailable_field
+
     for field in ("dependency_class", "cn_stratification_class", "fit_class", "concordance_class"):
         summary = {field: "data_unavailable"}
         assert _data_unavailable_field(summary) == field
@@ -160,25 +161,41 @@ def test_honest_data_unavailable_is_available_for_rule_matching_but_counts_again
         "card_id": "pan-cancer-crispr-dependency-distribution",
         "summary": {"dependency_class": "data_unavailable"},
         "interpretation_call": "data_unavailable",
-        "_missing": True, "_data_unavailable": True,
+        "_missing": True,
+        "_data_unavailable": True,
     }
     genuine_absence = {
         "card_id": "pan-cancer-rnai-dependency-distribution",
-        "summary": {}, "interpretation_call": "not_implemented",
+        "summary": {},
+        "interpretation_call": "not_implemented",
         "_missing": True,  # no _data_unavailable
     }
     rules = [
-        {"rule_id": "crispr-data-unavailable-insufficient",
-         "when": {"card_id": "pan-cancer-crispr-dependency-distribution",
-                  "field": "dependency_class", "equals": "data_unavailable"}, "signals": {}},
-        {"rule_id": "rnai-data-unavailable-insufficient",
-         "when": {"card_id": "pan-cancer-rnai-dependency-distribution",
-                  "field": "rnai_dependency_class", "equals": "data_unavailable"}, "signals": {}},
+        {
+            "rule_id": "crispr-data-unavailable-insufficient",
+            "when": {
+                "card_id": "pan-cancer-crispr-dependency-distribution",
+                "field": "dependency_class",
+                "equals": "data_unavailable",
+            },
+            "signals": {},
+        },
+        {
+            "rule_id": "rnai-data-unavailable-insufficient",
+            "when": {
+                "card_id": "pan-cancer-rnai-dependency-distribution",
+                "field": "rnai_dependency_class",
+                "equals": "data_unavailable",
+            },
+            "signals": {},
+        },
     ]
-    fired = fired_rules([honest_du, genuine_absence], axis="intracellular_intrinsic",
-                        rules=rules,
-                        card_id_filter=["pan-cancer-crispr-dependency-distribution",
-                                        "pan-cancer-rnai-dependency-distribution"])
+    fired = fired_rules(
+        [honest_du, genuine_absence],
+        axis="intracellular_intrinsic",
+        rules=rules,
+        card_id_filter=["pan-cancer-crispr-dependency-distribution", "pan-cancer-rnai-dependency-distribution"],
+    )
     fired_ids = {f["rule_id"] for f in fired}
     # honest data_unavailable → its rung fires (was silently excluded before M2)
     assert "crispr-data-unavailable-insufficient" in fired_ids
@@ -194,6 +211,7 @@ def test_honest_data_unavailable_is_available_for_rule_matching_but_counts_again
 # its dispatcher availability_state as `insufficient` instead of `read_error`).
 # ---------------------------------------------------------------------------
 
+
 def test_live_read_error_with_class_fires_data_unavailable_rung_but_stays_read_error():
     from _skills_common import fired_rules
     from _skills_common.dispatcher import _availability_state_for
@@ -203,25 +221,45 @@ def test_live_read_error_with_class_fires_data_unavailable_rung_but_stays_read_e
         "card_id": "pan-cancer-crispr-dependency-distribution",
         "summary": {"dependency_class": "data_unavailable", "_live_read_error": "S3 timeout"},
         "interpretation_call": "data_unavailable",
-        "_missing": True, "_missing_reason": "live_read_error: S3 timeout",
-        "_data_unavailable": False,   # NOT honest-DU → availability_state must stay read_error
+        "_missing": True,
+        "_missing_reason": "live_read_error: S3 timeout",
+        "_data_unavailable": False,  # NOT honest-DU → availability_state must stay read_error
     }
     empty_absence = {
         "card_id": "pan-cancer-rnai-dependency-distribution",
-        "summary": {}, "interpretation_call": "not_implemented", "_missing": True,
+        "summary": {},
+        "interpretation_call": "not_implemented",
+        "_missing": True,
     }
     rules = [
-        {"rule_id": "crispr-data-unavailable-insufficient",
-         "when": {"card_id": "pan-cancer-crispr-dependency-distribution",
-                  "field": "dependency_class", "equals": "data_unavailable"}, "signals": {}},
-        {"rule_id": "rnai-data-unavailable-insufficient",
-         "when": {"card_id": "pan-cancer-rnai-dependency-distribution",
-                  "field": "rnai_dependency_class", "equals": "data_unavailable"}, "signals": {}},
+        {
+            "rule_id": "crispr-data-unavailable-insufficient",
+            "when": {
+                "card_id": "pan-cancer-crispr-dependency-distribution",
+                "field": "dependency_class",
+                "equals": "data_unavailable",
+            },
+            "signals": {},
+        },
+        {
+            "rule_id": "rnai-data-unavailable-insufficient",
+            "when": {
+                "card_id": "pan-cancer-rnai-dependency-distribution",
+                "field": "rnai_dependency_class",
+                "equals": "data_unavailable",
+            },
+            "signals": {},
+        },
     ]
-    fired_ids = {f["rule_id"] for f in fired_rules(
-        [read_error, empty_absence], axis="intracellular_intrinsic", rules=rules,
-        card_id_filter=["pan-cancer-crispr-dependency-distribution",
-                        "pan-cancer-rnai-dependency-distribution"])}
+    fired_ids = {
+        f["rule_id"]
+        for f in fired_rules(
+            [read_error, empty_absence],
+            axis="intracellular_intrinsic",
+            rules=rules,
+            card_id_filter=["pan-cancer-crispr-dependency-distribution", "pan-cancer-rnai-dependency-distribution"],
+        )
+    }
     # R1 fix: the read-errored card with a class fires its data_unavailable rung (provenance anchor)
     assert "crispr-data-unavailable-insufficient" in fired_ids
     # a truly EMPTY absence (no class) still fires nothing

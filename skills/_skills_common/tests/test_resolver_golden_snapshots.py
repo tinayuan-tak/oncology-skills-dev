@@ -30,6 +30,7 @@ The snapshot is trustworthy BECAUSE it was generated from specs the pre-swap ora
 Regenerating it is a deliberate, reviewed act (a verdict-contract change) — run
 regenerate_resolver_golden.py and commit the new JSON alongside the resolver edit.
 """
+
 from __future__ import annotations
 
 import json
@@ -43,10 +44,10 @@ from _test_support import load_module
 # Load the shared modules (resolver.py, coemission.py) RELATIVE TO THIS TEST FILE so the harness runs
 # correctly from any checkout/worktree (a new sibling module added on a branch is visible before merge).
 # CONTRACTS stays an env-overridable canonical pin (the resolver specs + interpretation-rules under test).
-SKILLS = Path(__file__).resolve().parents[2]           # .../skills
-CONTRACTS = Path(os.environ.get(
-    "TARGET_CONTRACTS_ROOT",
-    "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
+SKILLS = Path(__file__).resolve().parents[2]  # .../skills
+CONTRACTS = Path(
+    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+)
 SNAPSHOT = Path(__file__).resolve().parent / "resolver_golden_snapshots.json"
 
 _resolver = load_module(SKILLS / "_skills_common" / "resolver.py", "resolver_snap_ut")
@@ -62,10 +63,8 @@ def _coemission_fired_sets(gate: str):
 def test_snapshot_covers_all_shipped_resolver_gates():
     """Guard: the frozen snapshot must cover every shipped resolver spec (so a NEW gate
     can't be added without a golden table)."""
-    shipped = {p.stem.replace(".resolver", "")
-               for p in (CONTRACTS / "resolvers").glob("*.resolver.yaml")}
-    assert set(_GOLDEN.keys()) == shipped, (
-        f"snapshot gates {set(_GOLDEN.keys())} != shipped resolvers {shipped}")
+    shipped = {p.stem.replace(".resolver", "") for p in (CONTRACTS / "resolvers").glob("*.resolver.yaml")}
+    assert set(_GOLDEN.keys()) == shipped, f"snapshot gates {set(_GOLDEN.keys())} != shipped resolvers {shipped}"
 
 
 @pytest.mark.parametrize("gate", list(_GOLDEN.keys()))
@@ -83,7 +82,8 @@ def test_spec_reproduces_frozen_golden_table(gate):
     assert keys_from_sets == set(table.keys()), (
         f"[{gate}] co-emission fired-sets != frozen table keys "
         f"(missing {len(keys_from_sets - set(table))}, stale {len(set(table) - keys_from_sets)}). "
-        f"Regenerate the snapshot (regenerate_resolver_golden.py).")
+        f"Regenerate the snapshot (regenerate_resolver_golden.py)."
+    )
     # ...and each reproduces its frozen (verdict, driving_rule_id).
     mismatches = []
     for fs in fired_sets:
@@ -94,8 +94,9 @@ def test_spec_reproduces_frozen_golden_table(gate):
             mismatches.append((key, [exp_v, exp_drv], [got_v, got_drv]))
     assert not mismatches, (
         f"[{gate}] {len(mismatches)}/{len(table)} combos DRIFTED from the frozen golden table. "
-        f"If intentional, regenerate the snapshot (a reviewed verdict-contract change). First:\n" +
-        "\n".join(f"  fired={m[0]}\n    golden={m[1]} spec={m[2]}" for m in mismatches[:5]))
+        f"If intentional, regenerate the snapshot (a reviewed verdict-contract change). First:\n"
+        + "\n".join(f"  fired={m[0]}\n    golden={m[1]} spec={m[2]}" for m in mismatches[:5])
+    )
 
 
 @pytest.mark.parametrize("gate", list(_GOLDEN.keys()))
@@ -115,7 +116,8 @@ def test_coemission_is_reachable_subset(gate):
         seen_groups = [group_of[r] for r in fired if r in group_of]
         assert len(seen_groups) == len(set(seen_groups)), (
             f"[{gate}] frozen key {key!r} co-fires >1 rule from one exclusivity group "
-            f"(card-co-emission-impossible — should never be in a co-emission table)")
+            f"(card-co-emission-impossible — should never be in a co-emission table)"
+        )
 
 
 def test_tractability_full_rule_set_is_frozen():

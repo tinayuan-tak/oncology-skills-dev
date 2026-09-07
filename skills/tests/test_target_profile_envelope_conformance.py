@@ -13,6 +13,7 @@ Couples the two engines on purpose: it CALLS the shared builder (runtime, pure f
 `_skills_common/envelope.py` and `target-profile/run.py` (static) to prove each routes through it. No
 live S3 / Bedrock.
 """
+
 from __future__ import annotations
 
 import ast
@@ -32,8 +33,11 @@ _GOVERNANCE_REPRO_SPINE = {"data_mode", "release_pin", "validation_summary"}
 
 # The evidence_package schema's governance.validation_summary object (required, unevaluatedProperties:false).
 _VALIDATION_SUMMARY_KEYS = {
-    "n_cards_attempted", "n_cards_passed", "n_cards_passed_with_warnings",
-    "n_cards_failed", "n_cards_excluded_by_applies_when",
+    "n_cards_attempted",
+    "n_cards_passed",
+    "n_cards_passed_with_warnings",
+    "n_cards_failed",
+    "n_cards_excluded_by_applies_when",
 }
 
 
@@ -51,8 +55,7 @@ def _last_dict_literal_keys(pyfile: Path, var_name: str) -> "set[str] | None":
     for node in ast.walk(ast.parse(pyfile.read_text())):
         if isinstance(node, ast.Assign) and isinstance(node.value, ast.Dict):
             if any(isinstance(t, ast.Name) and t.id == var_name for t in node.targets):
-                keys = {k.value for k in node.value.keys
-                        if isinstance(k, ast.Constant) and isinstance(k.value, str)}
+                keys = {k.value for k in node.value.keys if isinstance(k, ast.Constant) and isinstance(k.value, str)}
     return keys
 
 
@@ -60,6 +63,7 @@ def _shared_build_governance():
     if str(SKILLS) not in sys.path:
         sys.path.insert(0, str(SKILLS))
     from _skills_common.envelope import build_governance  # noqa: E402
+
     return build_governance
 
 
@@ -72,14 +76,16 @@ def test_shared_build_governance_returns_the_reproducibility_spine():
 def test_compose_dashboard_governance_is_single_sourced():
     # assemble_evidence_package must route governance through build_governance (not an inline dict).
     assert _calls_function(ENVELOPE, "build_governance"), (
-        "assemble_evidence_package no longer calls build_governance — governance construction forked.")
+        "assemble_evidence_package no longer calls build_governance — governance construction forked."
+    )
 
 
 def test_target_profile_governance_is_single_sourced():
     # target-profile must build governance via the shared builder, NOT a hand-built dict literal.
     assert _calls_function(TP_RUN, "build_governance"), (
         "target-profile stopped routing governance through the shared build_governance — the #9 "
-        "two-engine governance drift has been reintroduced.")
+        "two-engine governance drift has been reintroduced."
+    )
 
 
 def test_target_profile_validation_summary_matches_the_schema_shape():
@@ -88,7 +94,8 @@ def test_target_profile_validation_summary_matches_the_schema_shape():
     keys = _last_dict_literal_keys(TP_EVIDENCE, "validation_summary")
     assert keys is not None, f"no `validation_summary = {{...}}` literal found in {TP_EVIDENCE}"
     assert keys == _VALIDATION_SUMMARY_KEYS, (
-        f"target-profile validation_summary keys {keys} != schema {_VALIDATION_SUMMARY_KEYS}")
+        f"target-profile validation_summary keys {keys} != schema {_VALIDATION_SUMMARY_KEYS}"
+    )
 
 
 def test_target_profile_sub_verdict_keeps_the_audit_spine():

@@ -8,6 +8,7 @@ defects against the tool schema, retries the call, and — if still malformed �
 defective fields to schema-valid empties with a visible `_malformed_fields` record instead of
 shipping leaked markup into the evidence package.
 """
+
 from __future__ import annotations
 
 import sys
@@ -49,6 +50,7 @@ _CLEAN = {
 
 # ---- pure helpers (no Bedrock) -------------------------------------------------
 
+
 def test_leak_marker_detection():
     assert LLM._leaks_toolcall_markup('x <parameter name="y">')
     assert LLM._leaks_toolcall_markup("</parameter>")
@@ -76,14 +78,12 @@ _ENUM_SCHEMA = {
 
 def test_defects_flags_off_enum_value():
     # an off-enum categorical is a defect (was silently stored verbatim before)
-    defects = LLM._tool_input_defects(
-        {"risk_level": "moderate-high", "justification": "j"}, _ENUM_SCHEMA)
+    defects = LLM._tool_input_defects({"risk_level": "moderate-high", "justification": "j"}, _ENUM_SCHEMA)
     assert "risk_level" in defects
 
 
 def test_valid_enum_value_is_not_a_defect():
-    assert LLM._tool_input_defects(
-        {"risk_level": "not_assessed", "justification": "j"}, _ENUM_SCHEMA) == []
+    assert LLM._tool_input_defects({"risk_level": "not_assessed", "justification": "j"}, _ENUM_SCHEMA) == []
 
 
 def test_salvage_enum_prefers_nullish_member():
@@ -100,7 +100,7 @@ def test_salvage_enum_without_nullish_uses_first_member():
     payload = {"risk_level": "not_assessed", "grade": "bogus", "justification": "j"}
     defects = LLM._tool_input_defects(payload, _ENUM_SCHEMA)
     out = LLM._salvage_tool_input(payload, _ENUM_SCHEMA, defects)
-    assert out["grade"] == "strong"   # no null-ish member → first declared, still schema-valid
+    assert out["grade"] == "strong"  # no null-ish member → first declared, still schema-valid
 
 
 def test_defects_flags_missing_required():
@@ -117,7 +117,7 @@ def test_salvage_coerces_to_schema_empties_and_records():
     payload = dict(_MALFORMED)
     defects = LLM._tool_input_defects(payload, _SCHEMA)
     out = LLM._salvage_tool_input(payload, _SCHEMA, defects)
-    assert out["top_arguments_for"] == []            # array defect -> []
+    assert out["top_arguments_for"] == []  # array defect -> []
     assert out["_malformed_fields"] == defects
     # No leaked markup survives anywhere in the salvaged payload.
     for v in out.values():
@@ -125,6 +125,7 @@ def test_salvage_coerces_to_schema_empties_and_records():
 
 
 # ---- retry / salvage loop (mocked Bedrock client) ------------------------------
+
 
 def _fake_response(tool_input: dict):
     block = SimpleNamespace(type="tool_use", input=tool_input)
@@ -135,17 +136,19 @@ def _run_with_sequence(input_sequence, max_retries=2):
     """Invoke synthesize_structured with a fake client whose messages.create yields
     the given tool_input dicts in order."""
     responses = [_fake_response(i) for i in input_sequence]
-    fake_client = SimpleNamespace(
-        messages=SimpleNamespace(create=lambda **kw: responses.pop(0))
-    )
+    fake_client = SimpleNamespace(messages=SimpleNamespace(create=lambda **kw: responses.pop(0)))
     fake_cfg = SimpleNamespace(synthesis_model="test-model")
     ModelConfig = SimpleNamespace(from_env=staticmethod(lambda: fake_cfg))
-    with patch.object(LLM, "_import_bedrock_client",
-                      return_value=(lambda: fake_client, ModelConfig, RuntimeError)), \
-         patch.object(LLM, "_bedrock_profile"):
+    with (
+        patch.object(LLM, "_import_bedrock_client", return_value=(lambda: fake_client, ModelConfig, RuntimeError)),
+        patch.object(LLM, "_bedrock_profile"),
+    ):
         return LLM.synthesize_structured(
-            system_prompt="s", user_prompt="u", tool_name="t",
-            tool_schema=_SCHEMA, max_retries=max_retries,
+            system_prompt="s",
+            user_prompt="u",
+            tool_name="t",
+            tool_schema=_SCHEMA,
+            max_retries=max_retries,
         )
 
 
@@ -197,11 +200,15 @@ def test_recover_extracts_swallowed_fields():
     assert set(out["_recovered_fields"]) == {"top_arguments_for", "top_arguments_against", "overall_recommendation"}
     # after recovery there are NO residual defects (nothing to salvage)
     assert LLM._tool_input_defects(out, _SCHEMA) == []
+
     # and no leaked markup survives anywhere
     def _leaks(v):
-        if isinstance(v, str): return LLM._leaks_toolcall_markup(v)
-        if isinstance(v, list): return any(isinstance(x, str) and LLM._leaks_toolcall_markup(x) for x in v)
+        if isinstance(v, str):
+            return LLM._leaks_toolcall_markup(v)
+        if isinstance(v, list):
+            return any(isinstance(x, str) and LLM._leaks_toolcall_markup(x) for x in v)
         return False
+
     assert not any(_leaks(v) for v in out.values())
 
 
@@ -216,8 +223,8 @@ def test_recover_does_not_clobber_a_clean_field():
     }
     defects = LLM._tool_input_defects(payload, _SCHEMA)
     out = LLM._recover_leaked_toolcall(payload, _SCHEMA, defects)
-    assert out["executive_summary"] == "CLEAN summary — keep me."   # not clobbered
-    assert out["overall_recommendation"] == "veto"                  # missing required -> recovered
+    assert out["executive_summary"] == "CLEAN summary — keep me."  # not clobbered
+    assert out["overall_recommendation"] == "veto"  # missing required -> recovered
 
 
 def test_full_loop_recovers_on_persistent_rich_malformation():
@@ -227,5 +234,5 @@ def test_full_loop_recovers_on_persistent_rich_malformation():
     assert out["top_arguments_for"]["value"] == ["approved TCE (tarlatamab)", "strong tumor selectivity"]
     assert out["top_arguments_against"]["value"] == ["forebrain-neuron liability", "sub-threshold surface density"]
     assert out["overall_recommendation"]["value"] == "hold"
-    assert "_malformed_fields" not in out          # nothing left to salvage
+    assert "_malformed_fields" not in out  # nothing left to salvage
     assert "top_arguments_for" in out["_recovered_fields"]

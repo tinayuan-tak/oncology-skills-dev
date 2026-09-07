@@ -1,4 +1,5 @@
 """Hermetic tests for diff_discordance_ledger (the monitored-cadence diff). No network."""
+
 from __future__ import annotations
 
 import sys
@@ -16,16 +17,25 @@ def _ledger(*rows, counts=None):
 
 
 def _row(skill, target, ind, axis, gap="calibration_gap", **extra):
-    r = {"skill": skill, "target": target, "indication": ind, "axis_key": axis, "gap_class": gap,
-         "n_verified_citations": 2, "claim_signal": "absent"}
+    r = {
+        "skill": skill,
+        "target": target,
+        "indication": ind,
+        "axis_key": axis,
+        "gap_class": gap,
+        "n_verified_citations": 2,
+        "claim_signal": "absent",
+    }
     r.update(extra)
     return r
 
 
 def test_sharp_keys_only_calibration_and_verdict_rule():
-    led = _ledger(_row("s", "T", "I", "A", "calibration_gap"),
-                  _row("s", "T", "I", "B", "verdict_rule_gap"),
-                  _row("s", "T", "I", "C", "blind_spot_gap"))
+    led = _ledger(
+        _row("s", "T", "I", "A", "calibration_gap"),
+        _row("s", "T", "I", "B", "verdict_rule_gap"),
+        _row("s", "T", "I", "C", "blind_spot_gap"),
+    )
     assert dd.sharp_keys(led) == {"s|T|I|A|calibration_gap", "s|T|I|B|verdict_rule_gap"}
 
 
@@ -46,15 +56,19 @@ def test_diff_quiet_when_matches_baseline():
 
 
 def test_baseline_from_ledger_roundtrips_sharp_keys():
-    led = _ledger(_row("s", "T", "I", "A", "calibration_gap"),
-                  _row("s", "T", "I", "B", "blind_spot_gap"), counts={"calibration_gap": 1})
+    led = _ledger(
+        _row("s", "T", "I", "A", "calibration_gap"),
+        _row("s", "T", "I", "B", "blind_spot_gap"),
+        counts={"calibration_gap": 1},
+    )
     base = dd.baseline_from_ledger(led)
-    assert base["keys"] == ["s|T|I|A|calibration_gap"]           # blind_spot excluded from sharp baseline
+    assert base["keys"] == ["s|T|I|A|calibration_gap"]  # blind_spot excluded from sharp baseline
     assert base["counts"] == {"calibration_gap": 1}
 
 
 def test_fail_on_new_exit_code(tmp_path, capsys):
     import json
+
     led = _ledger(_row("s", "NEW", "I", "A"))
     (tmp_path / "l.json").write_text(json.dumps(led))
     (tmp_path / "b.json").write_text(json.dumps({"keys": [], "counts": {}}))

@@ -4,6 +4,7 @@ surface_modality_question_table already existed in _skills_common but was never 
 decision.headline; this pins that it now is, and that a fault in that display-layer projection degrades
 to None + records `_enrichment_errors` rather than aborting the surface-modality spine.
 """
+
 from __future__ import annotations
 
 from pathlib import Path

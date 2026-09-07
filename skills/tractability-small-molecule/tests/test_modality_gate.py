@@ -13,6 +13,7 @@ INSTEAD of the SM-supportive approved-drug rung. These tests pin:
 The top-line VERDICT is unchanged for the live calibration targets (DLL3/STEAP1 STRUCT-driven,
 FOLR1/NECTIN4/CEACAM5 e7-discordant); this gate moves the DRUG-axis fired signal.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -23,9 +24,15 @@ from _test_support import load_run_py
 
 tp = load_run_py(Path(__file__).resolve().parent.parent, "tsm_run_modality")
 
-_ALL_CARD_IDS = ["prism-compound-activity", "prism-crispr-concordance", "dependency-predictability",
-                 "structure-features-static", "known-drug-tractability", "degradation-feasibility",
-                 "gdsc-drug-activity"]
+_ALL_CARD_IDS = [
+    "prism-compound-activity",
+    "prism-crispr-concordance",
+    "dependency-predictability",
+    "structure-features-static",
+    "known-drug-tractability",
+    "degradation-feasibility",
+    "gdsc-drug-activity",
+]
 
 
 def _cards(**summaries):
@@ -34,6 +41,7 @@ def _cards(**summaries):
 
 def _fired_for(known_drug_summary: dict):
     import _skills_common as skc
+
     cards = _cards(**{"known-drug-tractability": known_drug_summary})
     return skc.fired_rules(cards, "intracellular_intrinsic", card_id_filter=["known-drug-tractability"])
 
@@ -47,17 +55,19 @@ def _resolver_available() -> bool:
 
 # ── fired_rules mapping (the reader field → the rule) ─────────────────────────────────────────────
 def test_biologic_only_fires_the_gate_rung_not_the_sm_supportive_rung():
-    fired = _fired_for({"approved_drug_engagement_class": "approved_biologic_only",
-                        "approved_drug_modality": "biologic"})
+    fired = _fired_for(
+        {"approved_drug_engagement_class": "approved_biologic_only", "approved_drug_modality": "biologic"}
+    )
     ids = {f["rule_id"] for f in fired}
     assert "known-drug-approved-biologic-only-sm-not-supportive" in ids
-    assert "known-drug-approved-antineoplastic-sm-supportive" not in ids   # SM rung gated OFF
-    assert "known-drug-approved-indirect-only-sm-weak" not in ids          # mutually exclusive
+    assert "known-drug-approved-antineoplastic-sm-supportive" not in ids  # SM rung gated OFF
+    assert "known-drug-approved-indirect-only-sm-weak" not in ids  # mutually exclusive
 
 
 def test_approved_direct_still_fires_sm_supportive_osimertinib_guard():
-    fired = _fired_for({"approved_drug_engagement_class": "approved_direct",
-                        "approved_drug_modality": "small_molecule_or_unknown"})
+    fired = _fired_for(
+        {"approved_drug_engagement_class": "approved_direct", "approved_drug_modality": "small_molecule_or_unknown"}
+    )
     ids = {f["rule_id"] for f in fired}
     assert "known-drug-approved-antineoplastic-sm-supportive" in ids
     assert "known-drug-approved-biologic-only-sm-not-supportive" not in ids
@@ -74,12 +84,20 @@ def test_resolver_biologic_only_maps_to_annotation_only_indirect():
 @pytest.mark.skipif(not _resolver_available(), reason="tractability_small_molecule resolver spec not resolvable")
 def test_resolver_biologic_only_loses_to_structural_and_offtarget():
     # DLL3/STEAP1 shape: a predicted structural pocket co-fires → structurally_ligandable WINS (verdict-stable).
-    v, _ = tp._snapshot([{"rule_id": "known-drug-approved-biologic-only-sm-not-supportive"},
-                         {"rule_id": "ligandability-predicted-sm-supportive"}])
+    v, _ = tp._snapshot(
+        [
+            {"rule_id": "known-drug-approved-biologic-only-sm-not-supportive"},
+            {"rule_id": "ligandability-predicted-sm-supportive"},
+        ]
+    )
     assert v == "structurally_ligandable"
     # FOLR1/NECTIN4/CEACAM5 shape: an e7 off-target read co-fires → discordant WINS (verdict-stable).
-    v2, _ = tp._snapshot([{"rule_id": "known-drug-approved-biologic-only-sm-not-supportive"},
-                          {"rule_id": "e7-discordant-off-target-warning"}])
+    v2, _ = tp._snapshot(
+        [
+            {"rule_id": "known-drug-approved-biologic-only-sm-not-supportive"},
+            {"rule_id": "e7-discordant-off-target-warning"},
+        ]
+    )
     assert v2 == "discordant"
 
 
@@ -91,9 +109,13 @@ def test_legacy_oracle_mirrors_resolver_for_the_new_rung():
 
 # ── _sm_modality_mismatch_caveat ────────────────────────────────────────────────────────────────
 def test_caveat_confirmation_when_gate_fired():
-    hl = {"approved_drug_modality": "biologic", "approved_drug_modality_tag": "tce",
-          "approved_drug_engagement_class": "approved_biologic_only", "has_approved_drug": True,
-          "n_antineoplastic_interactions": 4}
+    hl = {
+        "approved_drug_modality": "biologic",
+        "approved_drug_modality_tag": "tce",
+        "approved_drug_engagement_class": "approved_biologic_only",
+        "has_approved_drug": True,
+        "n_antineoplastic_interactions": 4,
+    }
     c = tp._sm_modality_mismatch_caveat(hl, target="DLL3")
     assert c is not None
     assert "MODALITY GATE FIRED" in c
@@ -103,30 +125,38 @@ def test_caveat_confirmation_when_gate_fired():
 
 def test_caveat_mismatch_when_biologic_but_not_gated():
     # authoritative modality says biologic but the engagement class hasn't been gated (stale contract path)
-    hl = {"approved_drug_modality": "biologic", "approved_drug_modality_tag": "adc",
-          "approved_drug_engagement_class": "approved_direct", "has_approved_drug": True}
+    hl = {
+        "approved_drug_modality": "biologic",
+        "approved_drug_modality_tag": "adc",
+        "approved_drug_engagement_class": "approved_direct",
+        "has_approved_drug": True,
+    }
     c = tp._sm_modality_mismatch_caveat(hl, target="FOLR1")
     assert c is not None and "MODALITY MISMATCH" in c
 
 
 def test_caveat_none_for_sm_or_unknown_and_not_applicable():
-    assert tp._sm_modality_mismatch_caveat(
-        {"approved_drug_modality": "small_molecule_or_unknown", "has_approved_drug": True}, target="EGFR") is None
-    assert tp._sm_modality_mismatch_caveat(
-        {"approved_drug_modality": "not_applicable"}, target="STEAP1") is None
+    assert (
+        tp._sm_modality_mismatch_caveat(
+            {"approved_drug_modality": "small_molecule_or_unknown", "has_approved_drug": True}, target="EGFR"
+        )
+        is None
+    )
+    assert tp._sm_modality_mismatch_caveat({"approved_drug_modality": "not_applicable"}, target="STEAP1") is None
 
 
 def test_caveat_curated_fallback_when_card_field_absent():
     # degraded/stale run: card lacks approved_drug_modality → fall back to the curated set + has_approved
-    assert tp._sm_modality_mismatch_caveat(
-        {"has_approved_drug": True}, target="DLL3") is not None            # DLL3 ∈ curated set
-    assert tp._sm_modality_mismatch_caveat(
-        {"has_approved_drug": True}, target="BRAF") is None                # BRAF ∉ curated set → None
+    assert tp._sm_modality_mismatch_caveat({"has_approved_drug": True}, target="DLL3") is not None  # DLL3 ∈ curated set
+    assert (
+        tp._sm_modality_mismatch_caveat({"has_approved_drug": True}, target="BRAF") is None
+    )  # BRAF ∉ curated set → None
 
 
 # ── #07: live biologics-only vocab reader (replaces the hardcoded fallback) ───────────────────────
 def test_live_loader_covers_biologics_only_and_excludes_dual_sm():
     from _skills_common._live_readers import _load_biologics_precedent_modalities
+
     m = _load_biologics_precedent_modalities()
     # biologics-only antigens present with their modality tag
     assert m.get("DLL3") == "tce" and m.get("CEACAM5") == "adc_tce" and m.get("FOLR1") == "adc"

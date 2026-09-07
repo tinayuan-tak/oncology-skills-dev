@@ -8,6 +8,7 @@ Covers the VERDICT-INERT enrichment over the curated-SynLethDB synthetic-lethal-
 
 Pure caveat tests use synthetic headline dicts (no card / no resolver / no LLM). SET literals, not 2-string
 tuples (reference-drift guard)."""
+
 from __future__ import annotations
 from pathlib import Path
 
@@ -24,15 +25,28 @@ def M():
     return load_run_py(SKILL_DIR, "slp_run_caveats")
 
 
-def _hl(verdict="has_experimental_sl_partner", cls="has_experimental_sl_partner", count=3,
-        n_exp=3, has_exp=True, tier="experimental"):
-    return {"sl_partner_verdict": verdict, "sl_partner_class": cls, "sl_partner_count": count,
-            "n_experimental_partners": n_exp, "has_experimental_partner": has_exp, "best_evidence_tier": tier}
+def _hl(
+    verdict="has_experimental_sl_partner",
+    cls="has_experimental_sl_partner",
+    count=3,
+    n_exp=3,
+    has_exp=True,
+    tier="experimental",
+):
+    return {
+        "sl_partner_verdict": verdict,
+        "sl_partner_class": cls,
+        "sl_partner_count": count,
+        "n_experimental_partners": n_exp,
+        "has_experimental_partner": has_exp,
+        "best_evidence_tier": tier,
+    }
 
 
 # ── MILDER — validated_established_synthetic_lethal guard (combination + paralog crosswalks) ─────────
-@pytest.mark.parametrize("target,indication", [("BRCA1", "BRCA"), ("BRCA2", "OV"), ("WRN", "COADREAD"),
-                                               ("KRAS", "PAAD")])
+@pytest.mark.parametrize(
+    "target,indication", [("BRCA1", "BRCA"), ("BRCA2", "OV"), ("WRN", "COADREAD"), ("KRAS", "PAAD")]
+)
 def test_validated_combination_guard(M, target, indication):
     c = M._sl_partner_confidence_caveat(_hl(), target=target, indication=indication)
     assert c["reason"] == "validated_established_synthetic_lethal" and c["false_demote_guarded"] is True
@@ -48,17 +62,33 @@ def test_validated_paralog_guard(M, target):
 
 def test_guard_wins_over_computational(M):
     # a canonical pair reported computational-only still wins the milder guard (precedence).
-    c = M._sl_partner_confidence_caveat(_hl(verdict="has_computational_sl_partner",
-                                            cls="has_computational_sl_partner", has_exp=False, n_exp=0,
-                                            tier="computational"), target="BRCA1", indication="BRCA")
+    c = M._sl_partner_confidence_caveat(
+        _hl(
+            verdict="has_computational_sl_partner",
+            cls="has_computational_sl_partner",
+            has_exp=False,
+            n_exp=0,
+            tier="computational",
+        ),
+        target="BRCA1",
+        indication="BRCA",
+    )
     assert c["reason"] == "validated_established_synthetic_lethal"
 
 
 # ── SHARP — computational_only_sl_edge ──────────────────────────────────────────────────────────────
 def test_computational_only_fires_sharp(M):
-    c = M._sl_partner_confidence_caveat(_hl(verdict="has_computational_sl_partner",
-                                            cls="has_computational_sl_partner", has_exp=False, n_exp=0,
-                                            tier="computational"), target="FOO", indication="BAR")
+    c = M._sl_partner_confidence_caveat(
+        _hl(
+            verdict="has_computational_sl_partner",
+            cls="has_computational_sl_partner",
+            has_exp=False,
+            n_exp=0,
+            tier="computational",
+        ),
+        target="FOO",
+        indication="BAR",
+    )
     assert c["reason"] == "computational_only_sl_edge" and c["tier"] == "sharp"
 
 
@@ -71,9 +101,19 @@ def test_curated_context_default(M):
 # ── None path (no curated partner) ──────────────────────────────────────────────────────────────────
 @pytest.mark.parametrize("verdict", ["no_curated_sl_partner", "insufficient", None])
 def test_no_substrate_none(M, verdict):
-    assert M._sl_partner_confidence_caveat(
-        {"sl_partner_verdict": verdict, "sl_partner_class": verdict, "n_experimental_partners": 0,
-         "sl_partner_count": 0}, target="BRCA1", indication="BRCA") is None
+    assert (
+        M._sl_partner_confidence_caveat(
+            {
+                "sl_partner_verdict": verdict,
+                "sl_partner_class": verdict,
+                "n_experimental_partners": 0,
+                "sl_partner_count": 0,
+            },
+            target="BRCA1",
+            indication="BRCA",
+        )
+        is None
+    )
 
 
 # ── provenance ──────────────────────────────────────────────────────────────────────────────────────
@@ -85,8 +125,10 @@ def test_provenance_fields(M):
 
 
 def test_provenance_none_on_thin(M):
-    assert M._sl_partner_provenance({"sl_partner_verdict": "no_curated_sl_partner"},
-                                    target="FOO", indication="BAR") is None
+    assert (
+        M._sl_partner_provenance({"sl_partner_verdict": "no_curated_sl_partner"}, target="FOO", indication="BAR")
+        is None
+    )
 
 
 # ── lens contract ───────────────────────────────────────────────────────────────────────────────────
@@ -105,6 +147,7 @@ def test_literature_fn_and_synthesize_wired(M):
 
 def test_reference_containers_are_sets_or_dicts(M):
     from _skills_common import sl_crosswalks as X
+
     assert isinstance(X.VALIDATED_COMBINATION_PRECEDENT, dict)
     assert isinstance(X.VALIDATED_PARALOG_SL, dict)
     assert isinstance(M._SL_PARTNER_PRESENT, set)

@@ -19,6 +19,7 @@ Design notes:
 - **Flush per line** so `tail -f <out>/run.log` follows a run live and the file is
   complete on disk even if the process is killed before a clean close.
 """
+
 from __future__ import annotations
 
 import atexit
@@ -32,8 +33,10 @@ from typing import Optional
 # and the tee objects we installed (so teardown can tell OUR tee from a later swap).
 _STATE: dict = {
     "file": None,
-    "stdout_orig": None, "stdout_tee": None,
-    "stderr_orig": None, "stderr_tee": None,
+    "stdout_orig": None,
+    "stdout_tee": None,
+    "stderr_orig": None,
+    "stderr_tee": None,
     "atexit": False,
 }
 
@@ -119,8 +122,7 @@ def install_run_log(out_dir, *, header: Optional[dict] = None) -> bool:
         out_dir.mkdir(parents=True, exist_ok=True)
         f = open(out_dir / "run.log", "w", encoding="utf-8")
     except OSError as e:
-        print(f"[run-log] WARN: could not open {out_dir}/run.log ({e}); "
-              f"continuing without a run log.", file=sys.stderr)
+        print(f"[run-log] WARN: could not open {out_dir}/run.log ({e}); continuing without a run log.", file=sys.stderr)
         return False
     started = datetime.now(timezone.utc).isoformat(timespec="seconds")
     f.write("# run log\n")

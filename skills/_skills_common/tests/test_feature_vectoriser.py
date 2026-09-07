@@ -4,6 +4,7 @@ Pins: numeric features derive from the SALIENCE_SPECS reference_frame value_fiel
 AND atlas numerics); polarity-signing makes each numeric monotone-with-strength; and the explicit mask keeps
 a measured-zero DISTINCT from an unmeasured axis (the EGFR failure mode). Verdict-INERT, pure, deterministic.
 """
+
 import sys
 from pathlib import Path
 
@@ -12,7 +13,9 @@ if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
 
 from _skills_common.feature_vectoriser import (  # noqa: E402
-    build_feature_vector, numeric_features, numeric_feature_specs,
+    build_feature_vector,
+    numeric_features,
+    numeric_feature_specs,
 )
 from _skills_common.archetype_core import claim_features  # noqa: E402
 from _skills_common.evidence_salience import SALIENCE_SPECS  # noqa: E402
@@ -42,7 +45,7 @@ def test_measured_zero_is_distinct_from_unmeasured():
     present = numeric_features({"tumor_vs_normal_selectivity": {"log2fc_cell_a": 0.0}})
     assert present["tumor_vs_normal_selectivity::num::log2fc_cell_a"] == 0.0
     assert present["tumor_vs_normal_selectivity::num::log2fc_cell_a::mask"] == 1.0
-    absent = numeric_features({})   # axis not measured at all
+    absent = numeric_features({})  # axis not measured at all
     assert absent["tumor_vs_normal_selectivity::num::log2fc_cell_a"] is None
     assert absent["tumor_vs_normal_selectivity::num::log2fc_cell_a::mask"] == 0.0
 

@@ -24,6 +24,7 @@ THE DISCIPLINE (inherited from claim_vector_core — this is a one-way VIEW, nev
     it with no live read — matching the framework's offline-figure discipline
     (docs/FIGURE_EMITTER_ARCHITECTURE_2026-08-19.md §3.1).
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -58,6 +59,7 @@ class HeadlineSpec:
                     source beyond the claim_vector conflicts + key_signals.caveat (e.g. presence's
                     `presence_headline_conflict` cross-modal flag). Higher severity wins the single slot.
     """
+
     gate: str
     axis_labels: dict
     axis_keys: Sequence[str]
@@ -67,8 +69,9 @@ class HeadlineSpec:
 
 
 # ── confidence ────────────────────────────────────────────────────────────────────────────────────
-def derive_confidence(claim_vector: dict, axis_keys: Sequence[str], critical_axes: Sequence[str],
-                      certainty: Optional[dict] = None) -> dict:
+def derive_confidence(
+    claim_vector: dict, axis_keys: Sequence[str], critical_axes: Sequence[str], certainty: Optional[dict] = None
+) -> dict:
     """Weakest-link confidence over the claim vector's measured axes, capped by conflict and floored by
     coverage. If a CERTAINTY_MODEL sidecar is supplied it WINS (its `level` is authoritative).
 
@@ -81,9 +84,12 @@ def derive_confidence(claim_vector: dict, axis_keys: Sequence[str], critical_axe
     coverage = {"n_measured": n_measured, "n_axes": n_axes, "n_critical_measured": n_crit_measured}
 
     if certainty and isinstance(certainty, dict):
-        lvl = ((certainty.get("certainty") or {}).get("level")
-               if isinstance(certainty.get("certainty"), dict) else certainty.get("level"))
-        lvl = _CERTAINTY_LEVEL_ALIAS.get(lvl, lvl)   # accept low/medium/high sidecars verbatim
+        lvl = (
+            (certainty.get("certainty") or {}).get("level")
+            if isinstance(certainty.get("certainty"), dict)
+            else certainty.get("level")
+        )
+        lvl = _CERTAINTY_LEVEL_ALIAS.get(lvl, lvl)  # accept low/medium/high sidecars verbatim
         if lvl in CONFIDENCE_ORD:
             return {"level": lvl, "basis": "certainty_model_sidecar", "coverage": coverage}
 
@@ -131,17 +137,24 @@ def rank_tension(claim_vector: dict, key_signals: dict, spec: HeadlineSpec, head
     if spec.tension_extra is not None:
         extra = spec.tension_extra(headline or {})
         if extra and extra.get("text"):
-            cands.append({"text": extra["text"], "source": extra.get("source", "skill"),
-                          "severity": extra.get("severity", 3)})
+            cands.append(
+                {"text": extra["text"], "source": extra.get("source", "skill"), "severity": extra.get("severity", 3)}
+            )
     if not cands:
         return None
     return max(cands, key=lambda t: t["severity"])
 
 
 # ── the hero payload (renderer-agnostic) ──────────────────────────────────────────────────────────
-def headline_hero_plot_data(*, verdict: dict, confidence: dict, tension: Optional[dict],
-                            claim_vector: dict, spec: HeadlineSpec,
-                            modality_arms: Optional[dict] = None) -> dict:
+def headline_hero_plot_data(
+    *,
+    verdict: dict,
+    confidence: dict,
+    tension: Optional[dict],
+    claim_vector: dict,
+    spec: HeadlineSpec,
+    modality_arms: Optional[dict] = None,
+) -> dict:
     """The renderer-agnostic hero payload: the data the reference renderer (or any consumer) needs to
     draw the headline — verdict badge, confidence meter, per-axis signal×corroboration, tension marker.
     Pure data; no target/indication (the renderer injects those from the decision).
@@ -154,13 +167,23 @@ def headline_hero_plot_data(*, verdict: dict, confidence: dict, tension: Optiona
     axes = []
     for k in spec.axis_keys:
         cl = (claim_vector or {}).get(k) or {}
-        axes.append({"key": k, "label": spec.axis_labels.get(k, k),
-                     "signal": cl.get("signal"), "corroboration": cl.get("corroboration"),
-                     "conflict": bool(cl.get("conflict"))})
+        axes.append(
+            {
+                "key": k,
+                "label": spec.axis_labels.get(k, k),
+                "signal": cl.get("signal"),
+                "corroboration": cl.get("corroboration"),
+                "conflict": bool(cl.get("conflict")),
+            }
+        )
     payload = {
         "kind": "headline_hero",
-        "verdict": {"call": verdict.get("call"), "phrase": verdict.get("phrase"),
-                    "gate": verdict.get("gate"), "polarity": verdict.get("polarity")},
+        "verdict": {
+            "call": verdict.get("call"),
+            "phrase": verdict.get("phrase"),
+            "gate": verdict.get("gate"),
+            "polarity": verdict.get("polarity"),
+        },
         "confidence": {"level": confidence.get("level"), "coverage": confidence.get("coverage")},
         "tension": ({"text": tension["text"]} if tension else None),
         "axes": axes,
@@ -176,7 +199,7 @@ def compose_headline_text(verdict: dict, confidence: dict, tension: Optional[dic
     the LLM narration (that stays a separate, optional llm_synthesis) — it is the always-available,
     reproducible headline."""
     phrase = verdict.get("phrase") or verdict.get("call") or "No call"
-    phrase = str(phrase).rstrip(". ")   # descriptive phrases may end in "." → avoid a double period
+    phrase = str(phrase).rstrip(". ")  # descriptive phrases may end in "." → avoid a double period
     lvl = confidence.get("level", "insufficient")
     conf_clause = "coverage insufficient for a confidence call" if lvl == "insufficient" else f"{lvl} confidence"
     text = f"{phrase} — {conf_clause}"
@@ -199,11 +222,20 @@ def collect_citations(claim_vector: dict, axis_keys: Sequence[str]) -> list:
 
 
 # ── the builder ─────────────────────────────────────────────────────────────────────────────────
-def build_headline(headline: dict, claim_vector: dict, key_signals: dict, *, spec: HeadlineSpec,
-                   verdict_token: Optional[str], driving_rule_id: Optional[str] = None,
-                   verdict_polarity: Optional[str] = None, certainty: Optional[dict] = None,
-                   descriptive_phrase: Optional[str] = None, phrase_override: Optional[str] = None,
-                   modality_arms: Optional[dict] = None) -> dict:
+def build_headline(
+    headline: dict,
+    claim_vector: dict,
+    key_signals: dict,
+    *,
+    spec: HeadlineSpec,
+    verdict_token: Optional[str],
+    driving_rule_id: Optional[str] = None,
+    verdict_polarity: Optional[str] = None,
+    certainty: Optional[dict] = None,
+    descriptive_phrase: Optional[str] = None,
+    phrase_override: Optional[str] = None,
+    modality_arms: Optional[dict] = None,
+) -> dict:
     """Assemble the canonical Headline block from a skill's ALREADY-computed decision objects.
 
     verdict_polarity: OPTIONAL "positive" | "negative" | "neutral" — the skill's OWN reading of the call
@@ -229,11 +261,22 @@ def build_headline(headline: dict, claim_vector: dict, key_signals: dict, *, spe
     else:
         phrase = descriptive_phrase or "No call"
         if verdict_polarity is None:
-            verdict_polarity = "neutral"    # a descriptive lens has no positive/negative call to colour
-    verdict = {"call": verdict_token, "phrase": phrase, "gate": spec.gate,
-               "driving_rule_id": driving_rule_id, "polarity": verdict_polarity}
-    hero = headline_hero_plot_data(verdict=verdict, confidence=confidence, tension=tension,
-                                   claim_vector=claim_vector, spec=spec, modality_arms=modality_arms)
+            verdict_polarity = "neutral"  # a descriptive lens has no positive/negative call to colour
+    verdict = {
+        "call": verdict_token,
+        "phrase": phrase,
+        "gate": spec.gate,
+        "driving_rule_id": driving_rule_id,
+        "polarity": verdict_polarity,
+    }
+    hero = headline_hero_plot_data(
+        verdict=verdict,
+        confidence=confidence,
+        tension=tension,
+        claim_vector=claim_vector,
+        spec=spec,
+        modality_arms=modality_arms,
+    )
     return {
         "verdict": verdict,
         "confidence": confidence,
@@ -241,12 +284,22 @@ def build_headline(headline: dict, claim_vector: dict, key_signals: dict, *, spe
         "headline_text": compose_headline_text(verdict, confidence, tension),
         "hero": hero,
         "provenance": collect_citations(claim_vector, spec.axis_keys),
-        "_disclaimer": ("Canonical headline (verdict + confidence + top-tension) — a verdict-INERT "
-                        "projection over the computed decision. Confidence is weakest-link over the "
-                        "claim vector's corroboration (measured axes), capped by conflict and coverage; "
-                        "it never moves the verdict."),
+        "_disclaimer": (
+            "Canonical headline (verdict + confidence + top-tension) — a verdict-INERT "
+            "projection over the computed decision. Confidence is weakest-link over the "
+            "claim vector's corroboration (measured axes), capped by conflict and coverage; "
+            "it never moves the verdict."
+        ),
     }
 
 
-__all__ = ["CONFIDENCE_ORD", "HeadlineSpec", "derive_confidence", "rank_tension",
-           "headline_hero_plot_data", "compose_headline_text", "collect_citations", "build_headline"]
+__all__ = [
+    "CONFIDENCE_ORD",
+    "HeadlineSpec",
+    "derive_confidence",
+    "rank_tension",
+    "headline_hero_plot_data",
+    "compose_headline_text",
+    "collect_citations",
+    "build_headline",
+]

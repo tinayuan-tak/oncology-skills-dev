@@ -5,6 +5,7 @@ Pins the gate × modality extraction that feeds the ordinal evidence-matrix VIEW
 signals only surface when no on-scale signal exists, and the matrix carries the disclaimer +
 never a verdict. (The scale semantics themselves are tested in _skills_common/test_ordinal_view.)
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -22,30 +23,35 @@ def test_killer_dominates_supportive_in_a_cell():
     """When one rule emits small_molecule:supportive and another small_molecule:killer, the
     cell shows the killer (most-negative) — the display convention that a killer dominates."""
     got = tp._strongest_signal_for_modality(
-        _fired({"small_molecule": "supportive"}, {"small_molecule": "killer"}),
-        "small_molecule")
+        _fired({"small_molecule": "supportive"}, {"small_molecule": "killer"}), "small_molecule"
+    )
     assert got == "killer"
 
 
 def test_offscale_only_when_no_onscale():
     """insufficient is returned ONLY if no on-scale signal was emitted for that modality — an
     on-scale signal always wins over a coverage gap."""
-    assert tp._strongest_signal_for_modality(
-        _fired({"degrader": "insufficient"}, {"degrader": "supportive"}), "degrader") == "supportive"
-    assert tp._strongest_signal_for_modality(
-        _fired({"degrader": "insufficient"}), "degrader") == "insufficient"
+    assert (
+        tp._strongest_signal_for_modality(_fired({"degrader": "insufficient"}, {"degrader": "supportive"}), "degrader")
+        == "supportive"
+    )
+    assert tp._strongest_signal_for_modality(_fired({"degrader": "insufficient"}), "degrader") == "insufficient"
     # a modality no rule mentions → None (empty cell)
     assert tp._strongest_signal_for_modality(_fired({"small_molecule": "supportive"}), "adc") is None
 
 
 def test_matrix_shape_and_disclaimer():
     sub_results = {
-        "dependency": {"skill_dir": "functional-requirement",
-                       "verdict": ("lineage_selective", "lineage-selective-supportive"),
-                       "fired": _fired({"small_molecule": "opposing", "degrader": "supportive"})},
-        "surface_modality": {"skill_dir": "surface-modality-fit",
-                             "verdict": ("neither_viable", "x"),
-                             "fired": _fired({"adc": "killer", "bite_tce": "killer"})},
+        "dependency": {
+            "skill_dir": "functional-requirement",
+            "verdict": ("lineage_selective", "lineage-selective-supportive"),
+            "fired": _fired({"small_molecule": "opposing", "degrader": "supportive"}),
+        },
+        "surface_modality": {
+            "skill_dir": "surface-modality-fit",
+            "verdict": ("neither_viable", "x"),
+            "fired": _fired({"adc": "killer", "bite_tce": "killer"}),
+        },
     }
     mx = tp._ordinal_matrix(sub_results)
     assert mx["_disclaimer"] and "NOT calibrated" in mx["_disclaimer"]
@@ -68,8 +74,11 @@ def test_dominant_rule_wins_cell_over_nondominant_killer():
     degrader-preferred verdict + the authoritative modality_fit_by_channel."""
     fired = [
         {"rule_id": "non-dependent-killer", "signals": {"small_molecule": "killer", "degrader": "killer"}},
-        {"rule_id": "strong-paralog-buffering-degrader-preferred", "dominant": True,
-         "signals": {"small_molecule": "opposing", "degrader": "supportive"}},
+        {
+            "rule_id": "strong-paralog-buffering-degrader-preferred",
+            "dominant": True,
+            "signals": {"small_molecule": "opposing", "degrader": "supportive"},
+        },
     ]
     assert tp._strongest_signal_for_modality(fired, "degrader") == "supportive"
     assert tp._strongest_signal_for_modality(fired, "small_molecule") == "opposing"
@@ -89,7 +98,7 @@ def test_most_decisive_among_multiple_dominants():
     """Two dominant rules on the same cell → the most-decisive (most-negative) dominant wins; a
     co-fired non-dominant signal (even a killer) does not participate once any dominant is present."""
     fired = [
-        {"rule_id": "nd-kill", "signals": {"degrader": "killer"}},               # non-dominant
+        {"rule_id": "nd-kill", "signals": {"degrader": "killer"}},  # non-dominant
         {"rule_id": "dom-sup", "dominant": True, "signals": {"degrader": "supportive"}},
         {"rule_id": "dom-opp", "dominant": True, "signals": {"degrader": "opposing"}},
     ]
@@ -108,10 +117,14 @@ def test_no_dominant_signal_falls_back_to_min_over_all():
 
 def test_render_matrix_md_is_labeled_and_tabular():
     sub_results = {
-        "dependency": {"skill_dir": "functional-requirement", "verdict": ("lineage_selective", "x"),
-                       "fired": _fired({"small_molecule": "opposing", "degrader": "supportive"})},
+        "dependency": {
+            "skill_dir": "functional-requirement",
+            "verdict": ("lineage_selective", "x"),
+            "fired": _fired({"small_molecule": "opposing", "degrader": "supportive"}),
+        },
     }
     from _skills_common import ordinal_view
+
     md = ordinal_view.render_matrix_md(tp._ordinal_matrix(sub_results), "KRAS", "COADREAD")
     assert "Ordinal evidence matrix — KRAS × COADREAD" in md
     assert "NOT calibrated measurement" in md

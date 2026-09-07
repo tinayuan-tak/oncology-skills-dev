@@ -22,6 +22,7 @@ The orchestration lives HERE (in target-profile) and only IMPORTS ground_axis / 
 literature-risk-assessment + cross-evidence-hypothesis run() entry points from the sibling skills —
 `_skills_common` and those skills are untouched, so no other skill's byte-output moves.
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -105,6 +106,7 @@ def _import_ground_axis():
     if str(lra) not in sys.path:
         sys.path.insert(0, str(lra))
     import ground_axis as ga  # noqa: E402
+
     return ga
 
 
@@ -112,9 +114,17 @@ def _default_ground_fn() -> Callable:
     return _import_ground_axis().ground_axis
 
 
-def auto_ground(target: str, indication: str, pkg_path, out_dir: Path, axes: list, *,
-                ground_fn: Optional[Callable] = None, mindate: str = "2015",
-                maxdate: str = "2026") -> dict:
+def auto_ground(
+    target: str,
+    indication: str,
+    pkg_path,
+    out_dir: Path,
+    axes: list,
+    *,
+    ground_fn: Optional[Callable] = None,
+    mindate: str = "2015",
+    maxdate: str = "2026",
+) -> dict:
     """Run ground_axis for each axis over the assembled evidence package, writing grounded_<axis>.json
     into out_dir and returning {axis: record}. `ground_fn` is injectable for offline testing
     (defaults to literature-risk-assessment.ground_axis.ground_axis).
@@ -129,12 +139,13 @@ def auto_ground(target: str, indication: str, pkg_path, out_dir: Path, axes: lis
         try:
             rec = gf(target, indication, str(pkg_path), axis=ax, mindate=mindate, maxdate=maxdate)
         except Exception as e:  # noqa: BLE001 — one axis failing never blocks the rest
-            print(f"[target-profile] WARN: grounding axis {ax!r} failed "
-                  f"({type(e).__name__}: {e}); skipping", file=sys.stderr)
+            print(
+                f"[target-profile] WARN: grounding axis {ax!r} failed ({type(e).__name__}: {e}); skipping",
+                file=sys.stderr,
+            )
             continue
         if not isinstance(rec, dict):
-            print(f"[target-profile] WARN: grounding axis {ax!r} returned non-dict; skipping",
-                  file=sys.stderr)
+            print(f"[target-profile] WARN: grounding axis {ax!r} returned non-dict; skipping", file=sys.stderr)
             continue
         rec.setdefault("axis", ax)
         (out_dir / f"grounded_{ax}.json").write_text(json.dumps(rec, indent=2, default=str))
@@ -150,8 +161,9 @@ def auto_ground(target: str, indication: str, pkg_path, out_dir: Path, axes: lis
 # mirroring _import_ground_axis. Each sibling run.py is loaded under a UNIQUE module key via importlib
 # to avoid the sys.modules 'run' collision with target-profile's own run.py.
 # --------------------------------------------------------------------------------------------------
-def plan_substrate(*, no_substrate: bool, no_synthesis: bool, emit, ground,
-                   no_ground: bool, no_risk: bool, no_hypothesis: bool) -> dict:
+def plan_substrate(
+    *, no_substrate: bool, no_synthesis: bool, emit, ground, no_ground: bool, no_risk: bool, no_hypothesis: bool
+) -> dict:
     """PURE gating for the default-ON grounded-substrate chain (unit-testable without executing main()).
 
     The chain is ON for a full nomination run unless opted out (--no-substrate) and is auto-SKIPPED in
@@ -183,13 +195,14 @@ def _load_sibling(module_key: str, skill: str, filename: str):
     path = scripts / filename
     spec = importlib.util.spec_from_file_location(module_key, str(path))
     mod = importlib.util.module_from_spec(spec)
-    sys.modules[module_key] = mod        # register before exec so any self-reference resolves
+    sys.modules[module_key] = mod  # register before exec so any self-reference resolves
     spec.loader.exec_module(mod)
     return mod
 
 
-def build_risk_6dim(sub_results: dict, modality: Optional[str], grounded_by_axis: Optional[dict],
-                    out_dir=None) -> Optional[dict]:
+def build_risk_6dim(
+    sub_results: dict, modality: Optional[str], grounded_by_axis: Optional[dict], out_dir=None
+) -> Optional[dict]:
     """[3A] The DETERMINISTIC 6-dim risk roll-up — `target_report.risk_6dim`. A pure spine PROJECTION:
     modality-conditioned worst-case bins computed STRAIGHT from the in-memory `sub_results` (no disk
     round-trip, no network), via the re-homed `_skills_common.risk_projection`. One of three orthogonal
@@ -205,6 +218,7 @@ def build_risk_6dim(sub_results: dict, modality: Optional[str], grounded_by_axis
     blocks a run. modality None → small_molecule."""
     try:
         from _skills_common.risk_projection import assemble_risk_package, deterministic_bins, _mod
+
         pkg = assemble_risk_package(sub_results)
         if grounded_by_axis:
             rr = _load_sibling("tp_sib_risk_rollup", "literature-risk-assessment", "risk_rollup.py")
@@ -216,13 +230,17 @@ def build_risk_6dim(sub_results: dict, modality: Optional[str], grounded_by_axis
             print(f"[target-profile] risk_6dim [3A] → risk_rollup.json in {out_dir}", file=sys.stderr)
         return dims
     except Exception as e:  # noqa: BLE001 — verdict-inert display context, never blocks a run
-        print(f"[target-profile] WARN: risk_6dim [3A] failed ({type(e).__name__}: {e}); "
-              "continuing without the deterministic risk roll-up", file=sys.stderr)
+        print(
+            f"[target-profile] WARN: risk_6dim [3A] failed ({type(e).__name__}: {e}); "
+            "continuing without the deterministic risk roll-up",
+            file=sys.stderr,
+        )
         return None
 
 
-def auto_risk_assessment(target: str, indication: str, pkg_path, out_dir, *,
-                         mindate: str = "2015", maxdate: str = "2026", per_cat: int = 6) -> Optional[dict]:
+def auto_risk_assessment(
+    target: str, indication: str, pkg_path, out_dir, *, mindate: str = "2015", maxdate: str = "2026", per_cat: int = 6
+) -> Optional[dict]:
     """The 6-dim retrieval-grounded literature RISK read (literature-risk-assessment): a live PubMed
     E-utilities search feeds a Bedrock tool-use call that grades Biological/Druggability/Translational/
     Clinical/Safety/Commercial, anchored to the evidence-package sub_verdicts. Writes risk_assessment.json
@@ -231,12 +249,14 @@ def auto_risk_assessment(target: str, indication: str, pkg_path, out_dir, *,
         lra = _load_sibling("tp_sib_lra_run", "literature-risk-assessment", "run.py")
         res = lra.run(target, indication, str(pkg_path), mindate, maxdate, per_cat)
         (Path(out_dir) / "risk_assessment.json").write_text(json.dumps(res, indent=2, default=str))
-        print(f"[target-profile] 6-dim literature risk_assessment → risk_assessment.json in {out_dir}",
-              file=sys.stderr)
+        print(f"[target-profile] 6-dim literature risk_assessment → risk_assessment.json in {out_dir}", file=sys.stderr)
         return res
     except Exception as e:  # noqa: BLE001 — verdict-inert display context, never blocks a run
-        print(f"[target-profile] WARN: 6-dim literature risk_assessment failed "
-              f"({type(e).__name__}: {e}); continuing without the literature risk read", file=sys.stderr)
+        print(
+            f"[target-profile] WARN: 6-dim literature risk_assessment failed "
+            f"({type(e).__name__}: {e}); continuing without the literature risk read",
+            file=sys.stderr,
+        )
         return None
 
 
@@ -246,10 +266,16 @@ def auto_risk_assessment(target: str, indication: str, pkg_path, out_dir, *,
 # cited_literature_evidence.json here — so the card/skill validators + the emission guard see it.
 
 
-def auto_hypothesis(pkg_path, out_dir, *, modality: Optional[str] = None,
-                    objective: str = "small-molecule drug target", dossier_path: Optional[str] = None,
-                    risk_path: Optional[str] = None,
-                    grounded_by_axis: Optional[dict] = None) -> Optional[dict]:
+def auto_hypothesis(
+    pkg_path,
+    out_dir,
+    *,
+    modality: Optional[str] = None,
+    objective: str = "small-molecule drug target",
+    dossier_path: Optional[str] = None,
+    risk_path: Optional[str] = None,
+    grounded_by_axis: Optional[dict] = None,
+) -> Optional[dict]:
     """[3B] The cross-evidence-hypothesis integrator: a two-call Bedrock pipeline that reasons ACROSS the
     orthogonal evidence lines (+ optional 6-dim risk + grounded substrate) into a gate-CLAMPED, cited,
     six-part drug-target hypothesis. The deterministic gate_ceiling clamps the proposed verdict — the
@@ -257,18 +283,33 @@ def auto_hypothesis(pkg_path, out_dir, *, modality: Optional[str] = None,
     None on failure."""
     try:
         ceh = _load_sibling("tp_sib_ceh_run", "cross-evidence-hypothesis", "run.py")
-        res = ceh.run(str(pkg_path), risk_path=risk_path, objective=objective, modality=modality,
-                      dossier_path=dossier_path, substrate=(grounded_by_axis or None))
+        res = ceh.run(
+            str(pkg_path),
+            risk_path=risk_path,
+            objective=objective,
+            modality=modality,
+            dossier_path=dossier_path,
+            substrate=(grounded_by_axis or None),
+        )
         (Path(out_dir) / "hypothesis.json").write_text(json.dumps(res, indent=2, default=str))
-        print(f"[target-profile] cross-evidence hypothesis [3B] → hypothesis.json in {out_dir}",
-              file=sys.stderr)
+        print(f"[target-profile] cross-evidence hypothesis [3B] → hypothesis.json in {out_dir}", file=sys.stderr)
         return res
     except Exception as e:  # noqa: BLE001 — verdict-inert display context, never blocks a run
-        print(f"[target-profile] WARN: cross-evidence hypothesis [3B] failed "
-              f"({type(e).__name__}: {e}); continuing without the cross-evidence hypothesis",
-              file=sys.stderr)
+        print(
+            f"[target-profile] WARN: cross-evidence hypothesis [3B] failed "
+            f"({type(e).__name__}: {e}); continuing without the cross-evidence hypothesis",
+            file=sys.stderr,
+        )
         return None
 
 
-__all__ = ["ENGINE_AXES", "PSEUDO_AXES", "resolve_axes", "auto_ground", "plan_substrate",
-           "build_risk_6dim", "auto_risk_assessment", "auto_hypothesis"]
+__all__ = [
+    "ENGINE_AXES",
+    "PSEUDO_AXES",
+    "resolve_axes",
+    "auto_ground",
+    "plan_substrate",
+    "build_risk_6dim",
+    "auto_risk_assessment",
+    "auto_hypothesis",
+]

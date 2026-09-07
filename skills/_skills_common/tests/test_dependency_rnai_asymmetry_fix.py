@@ -9,6 +9,7 @@ cross-check"). This pins the fix: RNAi-alone falls through; RNAi corroborates on
 
 Evaluates the shipped dependency resolver via the shared interpreter (reads target-contracts).
 """
+
 from __future__ import annotations
 
 import os
@@ -17,9 +18,10 @@ from pathlib import Path
 
 from _test_support import load_module
 
-SKILLS = Path(__file__).resolve().parents[2]   # the skills/ dir (this test is skills/_skills_common/tests/)
-CONTRACTS = Path(os.environ.get("TARGET_CONTRACTS_ROOT",
-                                "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
+SKILLS = Path(__file__).resolve().parents[2]  # the skills/ dir (this test is skills/_skills_common/tests/)
+CONTRACTS = Path(
+    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+)
 
 _r = load_module(SKILLS / "_skills_common" / "resolver.py", "rnai_fix_rslv")
 
@@ -35,7 +37,8 @@ def test_rnai_alone_pan_essential_does_not_kill():
     v, _ = _verdict(["rnai-pan-essential-killer"])
     assert v != "pan_essential_killer", (
         "RNAi-alone pan-essential fired the safety killer — seed-effect false-positive risk; "
-        "the killer must require CRISPR corroboration.")
+        "the killer must require CRISPR corroboration."
+    )
 
 
 def test_rnai_pan_essential_does_not_override_crispr_selective():
@@ -43,8 +46,8 @@ def test_rnai_pan_essential_does_not_override_crispr_selective():
     must resolve to the CRISPR-selective call, NOT be killed by RNAi."""
     v, _ = _verdict(["strongly-selective-supportive", "rnai-pan-essential-killer"])
     assert v == "selective_dependent", (
-        f"CRISPR-selective was overridden by RNAi-alone pan-essential (got {v!r}) — "
-        "the RNAi-asymmetry regression.")
+        f"CRISPR-selective was overridden by RNAi-alone pan-essential (got {v!r}) — the RNAi-asymmetry regression."
+    )
 
 
 def test_crispr_pan_essential_still_kills():
@@ -64,7 +67,8 @@ def test_rnai_alone_selective_does_not_mint_selective_dependent():
     v, _ = _verdict(["rnai-strongly-selective-supportive"])
     assert v != "selective_dependent", (
         "RNAi-alone selective minted a full selective_dependent verdict against its own rule's "
-        "'needs CRISPR cross-check' rationale.")
+        "'needs CRISPR cross-check' rationale."
+    )
 
 
 def test_rnai_selective_with_crispr_broad_corroborates():

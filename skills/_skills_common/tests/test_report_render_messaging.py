@@ -1,5 +1,6 @@
 """Messaging-polish guards from the multi-agent eval: thesis subtitle, plain-language strip sublabels,
 'context (descriptive)' relabel, and Signals/Questions dedupe."""
+
 import sys
 from pathlib import Path
 
@@ -19,20 +20,20 @@ def test_header_shows_thesis_subtitle():
 
 def test_descriptive_skill_labeled_context_not_not_scored():
     txt = render_report(make_nomination(), preset="full", backend="text")
-    assert "context (descriptive)" in txt   # target_intrinsic (descriptive, call=None)
+    assert "context (descriptive)" in txt  # target_intrinsic (descriptive, call=None)
 
 
 def test_signal_strip_uses_plain_language_not_snake_case():
     html = render_report(make_nomination(), preset="full", backend="html")
-    _ss = html.index("class='signal-strip'")   # the diverging strip (a preceding scatter SVG may exist)
-    strip = html[_ss:html.index("</svg>", _ss)]
-    assert "Highly LoF-constrained" in strip        # honest_phrase, not the call token
-    assert "lof_constrained" not in strip           # raw snake_case call is gone from the strip
+    _ss = html.index("class='signal-strip'")  # the diverging strip (a preceding scatter SVG may exist)
+    strip = html[_ss : html.index("</svg>", _ss)]
+    assert "Highly LoF-constrained" in strip  # honest_phrase, not the call token
+    assert "lof_constrained" not in strip  # raw snake_case call is gone from the strip
 
 
 def test_dedupe_questions_replace_chips_at_L2():
     ir = build_ir(make_nomination(), resolve_spec(level="L2"))
-    safety = next(s for s in ir.sections if s.short == "safety")   # has both chips + question_table
+    safety = next(s for s in ir.sections if s.short == "safety")  # has both chips + question_table
     kinds = [b.kind for b in safety.blocks]
     assert vocab.QUESTION_TABLE in kinds and vocab.CLAIM_CHIPS not in kinds
 
@@ -48,4 +49,4 @@ def test_no_repeated_not_surfaced_noise_lines():
     txt = render_report(make_nomination(), preset="full", backend="text")
     # the old per-card "figures: not measured / per phase metrics: not measured" noise is gone
     assert "figures: not measured" not in txt.lower()
-    assert txt.lower().count("not measured") <= 2   # at most the question_table coverage flag(s)
+    assert txt.lower().count("not measured") <= 2  # at most the question_table coverage flag(s)

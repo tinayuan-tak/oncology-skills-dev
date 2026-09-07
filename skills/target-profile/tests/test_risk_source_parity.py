@@ -4,6 +4,7 @@ renderer computed its own parallel 6-category mapping (a fallback with md-only L
 labels) that could drift from the HTML + risk_rollup.json. Now build_risk_6dim computes the projection
 once (offline-safe, from in-memory sub_results) and every surface consumes it. Pure/synthetic — no data.
 """
+
 from __future__ import annotations
 
 import sys
@@ -24,9 +25,12 @@ def _sub_results():
     # A clear mix: safety HIGH (constrained), biological LOW (concordant dep + known mech), druggability
     # LOW (well_covered), clinical/commercial/translational engine-blind (no card).
     return {
-        "safety": {"verdict": ("highly_constrained_safety_concern", "r"),
-                   "cards": [{"card_id": "gnomad-lof-constraint", "summary": {"loeuf_score": 0.1},
-                              "interpretation_call": "x"}]},
+        "safety": {
+            "verdict": ("highly_constrained_safety_concern", "r"),
+            "cards": [
+                {"card_id": "gnomad-lof-constraint", "summary": {"loeuf_score": 0.1}, "interpretation_call": "x"}
+            ],
+        },
         "dependency": {"verdict": ("concordant_dependent", "r"), "cards": []},
         "mechanism": {"verdict": ("well_characterized", "r"), "cards": []},
         "tractability_sm": {"verdict": ("well_covered", "r"), "cards": []},
@@ -52,8 +56,7 @@ def test_row_projection_and_target_report_share_one_source():
     dims = tp_grounding.build_risk_6dim(_sub_results(), "small_molecule", None, None)
 
     # (1) target_report.risk_6dim is the SAME dims object (by reference — no recompute).
-    tr = build_target_report(target_call={"schema": "target_call.v1", "recommendation": "hold"},
-                             risk_rollup=dims)
+    tr = build_target_report(target_call={"schema": "target_call.v1", "recommendation": "hold"}, risk_rollup=dims)
     assert tr["risk_6dim"] is dims
 
     # (2) the (category, level, driver) row projection renders from that same dims
@@ -63,5 +66,11 @@ def test_row_projection_and_target_report_share_one_source():
     assert lvl["safety"] == "HIGH"
     assert lvl["druggability"] == "LOW"
     assert lvl["clinical"] == "insufficient_evidence"
-    assert {c for c, _, _ in rows} == {"biological", "druggability", "translational",
-                                       "clinical", "safety", "commercial"}
+    assert {c for c, _, _ in rows} == {
+        "biological",
+        "druggability",
+        "translational",
+        "clinical",
+        "safety",
+        "commercial",
+    }

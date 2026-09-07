@@ -29,6 +29,7 @@ legitimately DOWNGRADE level below that on a none/absent verdict (a valid downgr
 When real records first hit the contracts validator (M3), invariant D should relax to
 level <= ordinal-min(...) (downgrade-only). At M1 this is moot — the record is shadow-only.
 """
+
 from __future__ import annotations
 
 from typing import Optional
@@ -36,10 +37,17 @@ from typing import Optional
 OPEN_WORLD_AVAILABILITY = frozenset({"not_wired", "data_blocked", "read_error"})
 _NONE_MAGNITUDE = {"level": "none", "value": None, "scale": None, "distance_to_cut": None}
 
-_VALID_AVAILABILITY = frozenset({
-    "not_wired", "data_blocked", "read_error",
-    "insufficient", "measured_negative", "measured_positive", "out_of_scope",
-})
+_VALID_AVAILABILITY = frozenset(
+    {
+        "not_wired",
+        "data_blocked",
+        "read_error",
+        "insufficient",
+        "measured_negative",
+        "measured_positive",
+        "out_of_scope",
+    }
+)
 _VALID_DIRECTION = frozenset({"supports", "opposes", "neutral"})
 
 
@@ -134,13 +142,19 @@ def magnitude_from_interpretation(gv: Optional[dict]) -> dict:
         return {}
     out: dict = {}
     val, scale = gv.get("value"), gv.get("scale")
-    if val is not None and scale:                       # no bare number (assemble_claim_record re-checks)
+    if val is not None and scale:  # no bare number (assemble_claim_record re-checks)
         out["value"] = val
         out["scale"] = scale
     dtc = gv.get("distance_to_cut")
     if dtc is None and isinstance(val, (int, float)) and not isinstance(val, bool):
-        cut = next((a.get("value") for a in ((gv.get("frame") or {}).get("anchors") or [])
-                    if isinstance(a, dict) and a.get("role") == "cut"), None)
+        cut = next(
+            (
+                a.get("value")
+                for a in ((gv.get("frame") or {}).get("anchors") or [])
+                if isinstance(a, dict) and a.get("role") == "cut"
+            ),
+            None,
+        )
         if isinstance(cut, (int, float)) and not isinstance(cut, bool):
             dtc = round(val - cut, 4)
     if dtc is not None:
@@ -148,8 +162,9 @@ def magnitude_from_interpretation(gv: Optional[dict]) -> dict:
     return out
 
 
-def magnitude_for_card(cards, card_id: str, measurement_type: str, level: str,
-                       contracts_repo: Optional[str] = None) -> dict:
+def magnitude_for_card(
+    cards, card_id: str, measurement_type: str, level: str, contracts_repo: Optional[str] = None
+) -> dict:
     """A claim_record magnitude {level, [value, scale, distance_to_cut]} for a single-value axis whose
     strength is carried by ONE card's reference-frame ruler. Builds that card's interpretation ruler from
     the SAME SALIENCE_SPEC + summary the display graph uses (evidence_salience.build_interpretation), so
@@ -165,6 +180,7 @@ def magnitude_for_card(cards, card_id: str, measurement_type: str, level: str,
     summary = (c or {}).get("summary") or {}
     try:
         from _skills_common.evidence_salience import build_interpretation, spec_for
+
         interp = build_interpretation({}, summary, spec_for(measurement_type), card_id, contracts_repo)
     except Exception:  # noqa: BLE001 — shadow record; never break the run over a ruler
         interp = []

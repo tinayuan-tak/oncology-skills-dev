@@ -23,31 +23,104 @@ The 6 selector shapes:
   6 provenance_keys    — distinct contributing sources + distinct_provenance_count
 plus data_quality_flags — generic mis-bind / direction-inversion contradictions surfaced, not hidden.
 """
+
 from __future__ import annotations
 
-from _skills_common.subgroup_derivation import (
-    _card_capsule_contract, _card_meta, default_classify, _TIERV)
+from _skills_common.subgroup_derivation import _card_capsule_contract, _card_meta, default_classify, _TIERV
 from _skills_common.evidence_salience import spec_for, indication_stratum_aliases, sig_round
 
-_R = 4                               # float precision (hash-stability)
+_R = 4  # float precision (hash-stability)
 _STRATUM_LABELS = ("oncotree_code", "lineage", "stratum_id", "stratum", "subgroup", "cohort", "subtype")
-_STRATUM_METRICS = ("median_chronos", "median_dep_score", "frac_dependent", "fraction_strongly_dependent",
-                    "median_log2fc", "log2_fc", "effect_size", "r2", "median", "value", "median_gene_effect")
-_ANCHOR_HINTS = ("effect_size", "cohens_d", "q_value", "bh_q", "pvalue", "p_value", "percentile",
-                 "median", "fraction", "pearson_r", "spearman_r", "r_squared", "r2", "ci_lo", "ci_hi",
-                 "log2_fc", "log2fc", "frac_dependent", "variance_explained", "selectivity_index",
-                 "copies_per_cell", "pchembl", "ppv", "sensitivity", "specificity", "base_rate")
-_N_HINTS = ("n_", "_n", "_samples", "_lines", "_cells", "_donors", "_models", "_evaluated", "_paired",
-            "n_patient", "n_compounds", "n_ligands")
-_CAVEAT_HINTS = ("escape", "variability", "consistency", "coverage", "buffering", "shed", "fragile",
-                 "heterogen", "purity", "confound", "conflict", "underpowered", "instability")
+_STRATUM_METRICS = (
+    "median_chronos",
+    "median_dep_score",
+    "frac_dependent",
+    "fraction_strongly_dependent",
+    "median_log2fc",
+    "log2_fc",
+    "effect_size",
+    "r2",
+    "median",
+    "value",
+    "median_gene_effect",
+)
+_ANCHOR_HINTS = (
+    "effect_size",
+    "cohens_d",
+    "q_value",
+    "bh_q",
+    "pvalue",
+    "p_value",
+    "percentile",
+    "median",
+    "fraction",
+    "pearson_r",
+    "spearman_r",
+    "r_squared",
+    "r2",
+    "ci_lo",
+    "ci_hi",
+    "log2_fc",
+    "log2fc",
+    "frac_dependent",
+    "variance_explained",
+    "selectivity_index",
+    "copies_per_cell",
+    "pchembl",
+    "ppv",
+    "sensitivity",
+    "specificity",
+    "base_rate",
+)
+_N_HINTS = (
+    "n_",
+    "_n",
+    "_samples",
+    "_lines",
+    "_cells",
+    "_donors",
+    "_models",
+    "_evaluated",
+    "_paired",
+    "n_patient",
+    "n_compounds",
+    "n_ligands",
+)
+_CAVEAT_HINTS = (
+    "escape",
+    "variability",
+    "consistency",
+    "coverage",
+    "buffering",
+    "shed",
+    "fragile",
+    "heterogen",
+    "purity",
+    "confound",
+    "conflict",
+    "underpowered",
+    "instability",
+)
 _PROV_HINTS = ("_source", "_data_source", "screens_contributing", "consortium", "product_id", "release_pin")
 # Tier-3 echo/provenance denylist — request-echo + housekeeping fields that carry no evidence and must
 # never masquerade as an anchor/caveat/categorical. Applied to the HEURISTIC selector branches only; a
 # card that explicitly DECLARES a field (config / capsule contract) is honored verbatim.
-_ECHO_DENYLIST = ("target", "indication", "method_version", "_method_version", "uniprot_ac",
-                  "uniprot_ac_resolved", "ensembl_gene_id", "entrez_gene_id", "source", "_source",
-                  "_data_source", "release_pin", "schema_version", "vocabulary_phase")
+_ECHO_DENYLIST = (
+    "target",
+    "indication",
+    "method_version",
+    "_method_version",
+    "uniprot_ac",
+    "uniprot_ac_resolved",
+    "ensembl_gene_id",
+    "entrez_gene_id",
+    "source",
+    "_source",
+    "_data_source",
+    "release_pin",
+    "schema_version",
+    "vocabulary_phase",
+)
 
 
 def _denied(k):
@@ -101,18 +174,27 @@ def _top_k_strata(summary, indication, cfg, spec=None, label_aliases=frozenset()
         arr = summary[key]
         sample = arr[0] if arr and isinstance(arr[0], dict) else {}
         lab = lab if lab in sample else next((L for L in _STRATUM_LABELS if L in sample), None)
-        met = met if isinstance(sample.get(met), (int, float)) else next(
-            (M for M in _STRATUM_METRICS if isinstance(sample.get(M), (int, float))), None)
+        met = (
+            met
+            if isinstance(sample.get(met), (int, float))
+            else next((M for M in _STRATUM_METRICS if isinstance(sample.get(M), (int, float))), None)
+        )
     else:
         key, lab, met = _first_stratum_array(summary)
     if not (key and lab and met):
         return []
     sig_field = (cfg or {}).get("significance_field") or spec.get("significance_field")
     ind = (indication or "").upper()
-    keyed = [(str(r.get(lab)), _num(r.get(met)),
-              r.get("n") or r.get("n_in_lineage") or r.get("n_models_screened") or r.get("subgroup_n"),
-              _row_significance(r, sig_field))
-             for r in summary[key] if isinstance(r, dict) and isinstance(r.get(met), (int, float))]
+    keyed = [
+        (
+            str(r.get(lab)),
+            _num(r.get(met)),
+            r.get("n") or r.get("n_in_lineage") or r.get("n_models_screened") or r.get("subgroup_n"),
+            _row_significance(r, sig_field),
+        )
+        for r in summary[key]
+        if isinstance(r, dict) and isinstance(r.get(met), (int, float))
+    ]
     if not keyed:
         return []
     # Orient strongest/weakest. Apply the spec's `direction` ONLY when the array's metric IS the spec's
@@ -125,8 +207,10 @@ def _top_k_strata(summary, indication, cfg, spec=None, label_aliases=frozenset()
         lower_is_stronger = met in ("median_chronos", "median_dep_score", "median_gene_effect")
     strongest = (min if lower_is_stronger else max)(keyed, key=lambda k: k[1])
     weakest = (max if lower_is_stronger else min)(keyed, key=lambda k: k[1])
-    ind_row = next((k for k in keyed if k[0].upper() in label_aliases
-                    or k[0].upper() == ind or (ind and ind in k[0].upper())), None)
+    ind_row = next(
+        (k for k in keyed if k[0].upper() in label_aliases or k[0].upper() == ind or (ind and ind in k[0].upper())),
+        None,
+    )
     rows, seen = [], set()
     for role, k in (("INDICATION", ind_row), ("extreme_strongest", strongest), ("extreme_weakest", weakest)):
         if k and k[0] not in seen:
@@ -141,18 +225,22 @@ def _top_k_strata(summary, indication, cfg, spec=None, label_aliases=frozenset()
 def _numeric_anchors(summary, cfg):
     fields = (cfg or {}).get("anchor_fields")
     if fields:
-        picked = [f for f in fields if f in summary]                # declared → honored verbatim
+        picked = [f for f in fields if f in summary]  # declared → honored verbatim
     else:
-        picked = sorted(k for k, v in summary.items()
-                        if isinstance(v, (int, float)) and not _denied(k)
-                        and any(h in k.lower() for h in _ANCHOR_HINTS))[:4]
+        picked = sorted(
+            k
+            for k, v in summary.items()
+            if isinstance(v, (int, float)) and not _denied(k) and any(h in k.lower() for h in _ANCHOR_HINTS)
+        )[:4]
     return [{"metric": f, "value": _num(summary.get(f))} for f in picked]
 
 
 def _n_basis(summary):
-    ns = sorted(k for k, v in summary.items()
-                if isinstance(v, (int, float)) and not _denied(k)
-                and any(h in k.lower() for h in _N_HINTS))
+    ns = sorted(
+        k
+        for k, v in summary.items()
+        if isinstance(v, (int, float)) and not _denied(k) and any(h in k.lower() for h in _N_HINTS)
+    )
     return {k: summary[k] for k in ns[:3]}
 
 
@@ -215,8 +303,12 @@ def _cited_statements(summary, k: int = 3):
         sent = s.get("sentence") or s.get("text") or ""
         if isinstance(sent, str) and len(sent) > 240:
             sent = sent[:237].rstrip() + "…"
-        row = {"pmid": str(pmid) if pmid is not None else None, "year": s.get("year"),
-               "section": s.get("section"), "sentence": sent or None}
+        row = {
+            "pmid": str(pmid) if pmid is not None else None,
+            "year": s.get("year"),
+            "section": s.get("section"),
+            "sentence": sent or None,
+        }
         out.append({kk: vv for kk, vv in row.items() if vv is not None})
     return out or None
 
@@ -227,13 +319,25 @@ def _data_quality_flags(cid, summary, cfg):
     direction = str(summary.get("functional_direction") or summary.get("patient_event_state") or "").lower()
     for k, v in summary.items():
         if k.endswith("_class") and isinstance(v, str) and "inactivation" in v.lower() and "activating" in direction:
-            flags.append({"field": k, "value": v, "contradicts": f"functional_direction/state='{direction}'",
-                          "flag": "activating-direction card carries a loss-of-function state label — do NOT narrate as LoF"})
+            flags.append(
+                {
+                    "field": k,
+                    "value": v,
+                    "contradicts": f"functional_direction/state='{direction}'",
+                    "flag": "activating-direction card carries a loss-of-function state label — do NOT narrate as LoF",
+                }
+            )
     # config-supplied explicit checks: {"field": <name>, "expect_gt": n} style mis-bind guards
     for chk in (cfg or {}).get("dq_checks", []):
         f = chk.get("field")
         if f in summary and summary.get(f) is None:
-            flags.append({"field": f, "value": None, "flag": chk.get("note", f"{f} is null on a scored card — possible mis-bind")})
+            flags.append(
+                {
+                    "field": f,
+                    "value": None,
+                    "flag": chk.get("note", f"{f} is null on a scored card — possible mis-bind"),
+                }
+            )
     return flags
 
 
@@ -241,7 +345,8 @@ def _conflict_pairs(cards, classify):
     """Cross-card: same measurement_type, tier disagreement >=2 levels. Returns list keyed for each mt."""
     by_mt = {}
     for c in cards:
-        cid = c.get("card_id"); summ = c.get("summary") or {}
+        cid = c.get("card_id")
+        summ = c.get("summary") or {}
         mt, tier = _card_meta(cid)
         if not mt or tier == "subtype":
             continue
@@ -256,9 +361,15 @@ def _conflict_pairs(cards, classify):
         tiers = {_TIERV[m[2]] for m in members}
         if max(tiers) - min(tiers) >= 2:
             for cid, cls, t in members:
-                out.setdefault(cid, []).append({"measurement_type": mt, "other_sources":
-                    [{"card": m[0], "class": m[1], "tier": m[2]} for m in members if m[0] != cid],
-                    "this_class": cls, "this_tier": t, "conflict": True})
+                out.setdefault(cid, []).append(
+                    {
+                        "measurement_type": mt,
+                        "other_sources": [{"card": m[0], "class": m[1], "tier": m[2]} for m in members if m[0] != cid],
+                        "this_class": cls,
+                        "this_tier": t,
+                        "conflict": True,
+                    }
+                )
     return out
 
 
@@ -270,7 +381,7 @@ def emit_capsules(cards, indication=None, verdict_card_ids=None, config=None, cl
     anchor_fields, caveat_fields, categorical_fields, dq_checks). `verdict_card_ids` (set) get FULL capsules;
     others get THIN (signal + one anchor). Deterministic + hash-stable."""
     config = config or {}
-    _aliases = indication_stratum_aliases(indication)   # crosswalk-resolved indication stratum labels (F2)
+    _aliases = indication_stratum_aliases(indication)  # crosswalk-resolved indication stratum labels (F2)
     cards_sorted = sorted((c for c in cards if isinstance(c, dict)), key=lambda c: c.get("card_id") or "")
     conflicts = _conflict_pairs(cards_sorted, classify)
     capsules, manifest = {}, []
@@ -280,10 +391,15 @@ def emit_capsules(cards, indication=None, verdict_card_ids=None, config=None, cl
         mt, tier = _card_meta(cid)
         missing = bool(c.get("_missing")) or not summ
         if missing:
-            manifest.append({"card_id": cid, "status": "absent",
-                             "reason": "data_unavailable" if c.get("_missing") else "not_wired"})
-            capsules[cid] = {"card_id": cid, "measurement_type": mt, "evidence_state": "data_unavailable",
-                             "_complete": True}
+            manifest.append(
+                {"card_id": cid, "status": "absent", "reason": "data_unavailable" if c.get("_missing") else "not_wired"}
+            )
+            capsules[cid] = {
+                "card_id": cid,
+                "measurement_type": mt,
+                "evidence_state": "data_unavailable",
+                "_complete": True,
+            }
             continue
         cfg = config.get(cid, {})
         # Contracts-first field selection: the card's optional `capsule:` block declares its verdict-driving
@@ -296,13 +412,16 @@ def emit_capsules(cards, indication=None, verdict_card_ids=None, config=None, cl
         if primary_class and isinstance(summ.get(primary_class), str):
             cls = summ[primary_class]
         else:
-            cls = next((summ.get(k) for k in sorted(summ)
-                        if k.endswith("_class") and isinstance(summ.get(k), str)), None)
-        cat_fields = list(contract_cat) + [f for f in (cfg.get("categorical_fields") or [])
-                                           if f not in contract_cat]
+            cls = next(
+                (summ.get(k) for k in sorted(summ) if k.endswith("_class") and isinstance(summ.get(k), str)), None
+            )
+        cat_fields = list(contract_cat) + [f for f in (cfg.get("categorical_fields") or []) if f not in contract_cat]
         full = verdict_card_ids is None or cid in verdict_card_ids
         cap = {
-            "card_id": cid, "measurement_type": mt, "tier": tier, "evidence_state": "measured",
+            "card_id": cid,
+            "measurement_type": mt,
+            "tier": tier,
+            "evidence_state": "measured",
             "class": cls,
             "numeric_anchors": (_numeric_anchors(summ, cfg) or None),
             "categorical_anchors": _categorical_anchors(summ, cat_fields),
@@ -310,17 +429,19 @@ def emit_capsules(cards, indication=None, verdict_card_ids=None, config=None, cl
             "_complete": True,
         }
         if full:
-            cap.update({
-                "top_k_strata": (_top_k_strata(summ, indication, cfg, spec_for(mt), _aliases) or None),
-                "conflict_pairs": conflicts.get(cid) or None,
-                "sibling_caveats": (_sibling_caveats(summ, cfg) or None),
-                "provenance_keys": (_provenance_keys(summ) or None),
-                "data_quality_flags": (_data_quality_flags(cid, summ, cfg) or None),
-                # RAW SUBSTANCE of a citation card — the exemplar cited statements (pmid/year/sentence) so the
-                # narrator can LEAD with the card's OWN cited statements. Data-shape gated (only a card with a
-                # `top_cited` summary list): every other card's capsule stays byte-identical.
-                "cited_statements": _cited_statements(summ),
-            })
+            cap.update(
+                {
+                    "top_k_strata": (_top_k_strata(summ, indication, cfg, spec_for(mt), _aliases) or None),
+                    "conflict_pairs": conflicts.get(cid) or None,
+                    "sibling_caveats": (_sibling_caveats(summ, cfg) or None),
+                    "provenance_keys": (_provenance_keys(summ) or None),
+                    "data_quality_flags": (_data_quality_flags(cid, summ, cfg) or None),
+                    # RAW SUBSTANCE of a citation card — the exemplar cited statements (pmid/year/sentence) so the
+                    # narrator can LEAD with the card's OWN cited statements. Data-shape gated (only a card with a
+                    # `top_cited` summary list): every other card's capsule stays byte-identical.
+                    "cited_statements": _cited_statements(summ),
+                }
+            )
         manifest.append({"card_id": cid, "status": "full" if full else "thin"})
         capsules[cid] = cap
     return {"capsules": capsules, "manifest": sorted(manifest, key=lambda m: m["card_id"])}

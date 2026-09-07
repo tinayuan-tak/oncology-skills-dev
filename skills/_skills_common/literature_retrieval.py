@@ -20,6 +20,7 @@ verification leaves the model's flags and marks ``_verification: {"status": "una
 literature lane itself is already optional + verdict-inert, so a retrieval/verification outage can never
 touch the spine.
 """
+
 from __future__ import annotations
 import json
 import re
@@ -36,22 +37,46 @@ _UA = {"User-Agent": "onc-compbio-skills-literature-lane/1.0 (mailto:noreply@tak
 # raw code + "cancer", which free-text still ranks usefully). Kept tiny + local on purpose — this is a
 # query hint, not a canonical vocabulary.
 _INDICATION_PHRASE = {
-    "COADREAD": "colorectal cancer", "COAD": "colon cancer", "READ": "rectal cancer",
-    "LUAD": "lung adenocarcinoma", "LUSC": "lung squamous carcinoma", "NSCLC": "non-small cell lung cancer",
-    "BRCA": "breast cancer", "PAAD": "pancreatic cancer", "PDAC": "pancreatic ductal adenocarcinoma",
-    "STAD": "gastric cancer", "OV": "ovarian cancer", "PRAD": "prostate cancer", "UCEC": "endometrial cancer",
-    "SCLC": "small cell lung cancer", "HNSC": "head and neck squamous carcinoma", "SKCM": "melanoma",
-    "GBM": "glioblastoma", "AML": "acute myeloid leukemia", "BLCA": "bladder cancer",
+    "COADREAD": "colorectal cancer",
+    "COAD": "colon cancer",
+    "READ": "rectal cancer",
+    "LUAD": "lung adenocarcinoma",
+    "LUSC": "lung squamous carcinoma",
+    "NSCLC": "non-small cell lung cancer",
+    "BRCA": "breast cancer",
+    "PAAD": "pancreatic cancer",
+    "PDAC": "pancreatic ductal adenocarcinoma",
+    "STAD": "gastric cancer",
+    "OV": "ovarian cancer",
+    "PRAD": "prostate cancer",
+    "UCEC": "endometrial cancer",
+    "SCLC": "small cell lung cancer",
+    "HNSC": "head and neck squamous carcinoma",
+    "SKCM": "melanoma",
+    "GBM": "glioblastoma",
+    "AML": "acute myeloid leukemia",
+    "BLCA": "bladder cancer",
     # Added 2026-09-04: common OncoTree/TCGA codes that were falling back to the weak "<CODE> cancer"
     # free-text (observed live: FGFR2/CHOL literature grounding returned no PMID-bearing hits →
     # internal-knowledge mode). All are standard, well-established code→disease names.
-    "CHOL": "cholangiocarcinoma", "LIHC": "hepatocellular carcinoma", "ESCA": "esophageal cancer",
-    "KIRC": "clear cell renal cell carcinoma", "KIRP": "papillary renal cell carcinoma",
-    "THCA": "thyroid carcinoma", "CESC": "cervical cancer", "MESO": "mesothelioma",
-    "SARC": "sarcoma", "ACC": "adrenocortical carcinoma", "UVM": "uveal melanoma",
-    "DLBC": "diffuse large B-cell lymphoma", "LAML": "acute myeloid leukemia",
-    "MB": "medulloblastoma", "NBL": "neuroblastoma", "GIST": "gastrointestinal stromal tumor",
-    "ESAD": "esophageal adenocarcinoma", "EGC": "esophagogastric cancer",
+    "CHOL": "cholangiocarcinoma",
+    "LIHC": "hepatocellular carcinoma",
+    "ESCA": "esophageal cancer",
+    "KIRC": "clear cell renal cell carcinoma",
+    "KIRP": "papillary renal cell carcinoma",
+    "THCA": "thyroid carcinoma",
+    "CESC": "cervical cancer",
+    "MESO": "mesothelioma",
+    "SARC": "sarcoma",
+    "ACC": "adrenocortical carcinoma",
+    "UVM": "uveal melanoma",
+    "DLBC": "diffuse large B-cell lymphoma",
+    "LAML": "acute myeloid leukemia",
+    "MB": "medulloblastoma",
+    "NBL": "neuroblastoma",
+    "GIST": "gastrointestinal stromal tumor",
+    "ESAD": "esophageal adenocarcinoma",
+    "EGC": "esophagogastric cancer",
 }
 
 # Per-subskill query SPECIFICITY: curated domain terms keyed by LensConfig.name, ADDED to the lens's own
@@ -59,42 +84,93 @@ _INDICATION_PHRASE = {
 # IT measures — not a generic gene∧disease string. Small + reviewable; unknown lenses fall back to
 # axis_labels only (or bare gene∧disease when no lens is supplied).
 _LENS_QUERY_TERMS = {
-    "tumor-selectivity":          ["tumor versus normal expression", "therapeutic window",
-                                   "normal tissue expression", "immunohistochemistry"],
-    "tumor-presence":             ["immunohistochemistry", "protein abundance mass spectrometry",
-                                   "single-cell RNA sequencing", "tumor microenvironment stromal expression",
-                                   "RNA protein correlation", "cell of origin", "overexpression",
-                                   "protein abundance"],
-    "functional-requirement":     ["genetic dependency", "essential gene", "CRISPR knockout",
-                                   "RNA interference", "oncogene addiction", "selective dependency"],
-    "on-target-safety-liability": ["loss-of-function intolerance", "haploinsufficiency",
-                                   "knockout phenotype", "germline"],
-    "mechanism-and-pharmacology": ["signaling pathway", "mechanism of action", "signal transduction",
-                                   "pathway activation", "pharmacodynamic biomarker", "mechanism of resistance",
-                                   "driver pathway", "molecular glue degrader"],
-    "genomic-alteration-profile": ["somatic mutation", "copy number amplification", "gene fusion",
-                                   "driver mutation"],
-    "surface-modality-fit":       ["cell surface protein", "cell surface proteomics", "antibody-drug conjugate",
-                                    "receptor internalization", "shed antigen", "bispecific T-cell engager",
-                                    "antigen escape"],
-    "tractability-small-molecule": ["small molecule inhibitor", "druggability", "direct target engagement",
-                                    "tool compound", "covalent inhibitor", "allosteric pocket"],
+    "tumor-selectivity": [
+        "tumor versus normal expression",
+        "therapeutic window",
+        "normal tissue expression",
+        "immunohistochemistry",
+    ],
+    "tumor-presence": [
+        "immunohistochemistry",
+        "protein abundance mass spectrometry",
+        "single-cell RNA sequencing",
+        "tumor microenvironment stromal expression",
+        "RNA protein correlation",
+        "cell of origin",
+        "overexpression",
+        "protein abundance",
+    ],
+    "functional-requirement": [
+        "genetic dependency",
+        "essential gene",
+        "CRISPR knockout",
+        "RNA interference",
+        "oncogene addiction",
+        "selective dependency",
+    ],
+    "on-target-safety-liability": [
+        "loss-of-function intolerance",
+        "haploinsufficiency",
+        "knockout phenotype",
+        "germline",
+    ],
+    "mechanism-and-pharmacology": [
+        "signaling pathway",
+        "mechanism of action",
+        "signal transduction",
+        "pathway activation",
+        "pharmacodynamic biomarker",
+        "mechanism of resistance",
+        "driver pathway",
+        "molecular glue degrader",
+    ],
+    "genomic-alteration-profile": ["somatic mutation", "copy number amplification", "gene fusion", "driver mutation"],
+    "surface-modality-fit": [
+        "cell surface protein",
+        "cell surface proteomics",
+        "antibody-drug conjugate",
+        "receptor internalization",
+        "shed antigen",
+        "bispecific T-cell engager",
+        "antigen escape",
+    ],
+    "tractability-small-molecule": [
+        "small molecule inhibitor",
+        "druggability",
+        "direct target engagement",
+        "tool compound",
+        "covalent inhibitor",
+        "allosteric pocket",
+    ],
     # Front-loaded so the highest-value TRAP discriminators (TMB/MSI/subtype confound, patient-selection,
     # combination rationale) lead — a co-mutation / mutual-exclusivity ASSOCIATION over-calls a biological /
     # patient-selection relationship (the burden/lineage confound). The base gene∧disease query supplies
     # co-mutation recall; the precision query needs the confounder + actionability terms.
-    "differentiation-landscape":  ["co-occurrence mutually exclusive mutations", "tumor mutational burden",
-                                   "microsatellite instability", "patient stratification biomarker",
-                                   "combination therapy rationale", "co-mutation", "mutual exclusivity",
-                                   "molecular subtype"],
+    "differentiation-landscape": [
+        "co-occurrence mutually exclusive mutations",
+        "tumor mutational burden",
+        "microsatellite instability",
+        "patient stratification biomarker",
+        "combination therapy rationale",
+        "co-mutation",
+        "mutual exclusivity",
+        "molecular subtype",
+    ],
     # Front-loaded so the highest-value SPATIAL/FUNCTIONAL discriminators survive the _lens_terms cap
     # (max_terms=5: the axis_label "CD8 / immune infiltration" + the first 4 here). The base gene∧disease
     # query already supplies TIL/CD8 recall; the precision query needs the exclusion / phenotype /
     # exhaustion / spatial terms that separate an INFLAMED from an EXCLUDED/DESERT/EXHAUSTED read.
-    "immune-context":             ["immune exclusion", "immune phenotype inflamed excluded desert",
-                                   "T-cell exhaustion", "multiplex immunohistochemistry spatial",
-                                   "immune checkpoint response", "tertiary lymphoid structure",
-                                   "T-cell exclusion stroma", "tumor-infiltrating lymphocytes", "CD8 T cell"],
+    "immune-context": [
+        "immune exclusion",
+        "immune phenotype inflamed excluded desert",
+        "T-cell exhaustion",
+        "multiplex immunohistochemistry spatial",
+        "immune checkpoint response",
+        "tertiary lymphoid structure",
+        "T-cell exclusion stroma",
+        "tumor-infiltrating lymphocytes",
+        "CD8 T cell",
+    ],
     # Front-loaded so the highest-value RELATIONAL-TRAP discriminators (statistical relational signal
     # OVER-CALLS a druggable/portable SL) lead: a curated SynLethDB edge / DepMap co-essentiality delta
     # / paralog GI / drug-anchor screen delta can be a cell-line artifact, a pan-essential co-fitness, or
@@ -103,30 +179,43 @@ _LENS_QUERY_TERMS = {
     # lens declares FIVE axis_labels (SL/CODEP/COMBO/SYNERGY/RESISTANCE), which alone would fill the default
     # 5-term cap — so it gets a per-lens cap bump (_LENS_MAX_TERMS below) to let the first ~4 discriminators
     # through alongside the axis labels.
-    "combination-and-vulnerability": ["synthetic lethality", "drug combination therapy",
-                                      "resistance mechanism",
-                                      "genetic knockout versus pharmacological inhibition",
-                                      "paralog buffering", "DepMap co-dependency screen",
-                                      "PARP inhibitor BRCA", "WRN helicase microsatellite instability",
-                                      "context dependence reproducibility"],
+    "combination-and-vulnerability": [
+        "synthetic lethality",
+        "drug combination therapy",
+        "resistance mechanism",
+        "genetic knockout versus pharmacological inhibition",
+        "paralog buffering",
+        "DepMap co-dependency screen",
+        "PARP inhibitor BRCA",
+        "WRN helicase microsatellite instability",
+        "context dependence reproducibility",
+    ],
     # synthetic-lethal-partners is the STANDALONE curated-SynLethDB SL skill (single axis SL). The trap is a
     # CURATED SL edge OVER-CALLING a validated, portable, druggable SL — so the precision query front-loads the
     # SL-VALIDATION / reproducibility / evidence-tier / KO-vs-inhibition discriminators (the base gene query
     # supplies recall). One axis label → per-lens cap bump below.
-    "synthetic-lethal-partners":  ["synthetic lethality validated", "synthetic lethal partner",
-                                   "synthetic lethality reproducibility context dependence",
-                                   "genetic knockout versus pharmacological inhibition",
-                                   "PARP inhibitor BRCA", "WRN helicase microsatellite instability",
-                                   "computational prediction synthetic lethality"],
+    "synthetic-lethal-partners": [
+        "synthetic lethality validated",
+        "synthetic lethal partner",
+        "synthetic lethality reproducibility context dependence",
+        "genetic knockout versus pharmacological inhibition",
+        "PARP inhibitor BRCA",
+        "WRN helicase microsatellite instability",
+        "computational prediction synthetic lethality",
+    ],
     # combinatorial-dependency is the STANDALONE measured DepMap ParalogV2 paralog dual-KO skill (single axis
     # CODEP). The trap is a MEASURED GI OVER-CALLING a portable druggable SL, WHILE single-context screens
     # UNDER-call buffered paralogs — so the query front-loads the paralog-buffering / dual-KO / validation /
     # KO-vs-inhibition discriminators. One axis label → per-lens cap bump below.
-    "combinatorial-dependency":   ["paralog synthetic lethality", "paralog buffering essentiality",
-                                   "paralog dual knockout CRISPR screen",
-                                   "SMARCA4 SMARCA2 synthetic lethal", "ARID1A ARID1B synthetic lethal",
-                                   "genetic knockout versus pharmacological inhibition",
-                                   "synthetic lethality context dependence reproducibility"],
+    "combinatorial-dependency": [
+        "paralog synthetic lethality",
+        "paralog buffering essentiality",
+        "paralog dual knockout CRISPR screen",
+        "SMARCA4 SMARCA2 synthetic lethal",
+        "ARID1A ARID1B synthetic lethal",
+        "genetic knockout versus pharmacological inhibition",
+        "synthetic lethality context dependence reproducibility",
+    ],
     # Front-loaded so the highest-value FIDELITY/ATTRIBUTION discriminators lead: a model-availability /
     # genotype-matched / PDX-responder read OVER-CALLS faithful, on-target, adequately-powered preclinical
     # validatability. The base gene∧disease query supplies model recall; the precision query needs the
@@ -134,10 +223,15 @@ _LENS_QUERY_TERMS = {
     # that separate a validated preclinical model precedent from an availability-only / small-cohort /
     # off-target-PDX over-call. The lens declares FOUR axis_labels (MODEL/GENOTYPE/ORGANOID/PDX), which alone
     # would leave only ~1 curated term under the default 5-cap — so it gets a per-lens cap bump (below).
-    "translational-readiness":    ["patient-derived xenograft fidelity", "tumor organoid model",
-                                   "PDX drug response", "preclinical model genomic fidelity",
-                                   "patient-derived model drift", "co-clinical trial",
-                                   "cancer model fidelity"],
+    "translational-readiness": [
+        "patient-derived xenograft fidelity",
+        "tumor organoid model",
+        "PDX drug response",
+        "preclinical model genomic fidelity",
+        "patient-derived model drift",
+        "co-clinical trial",
+        "cancer model fidelity",
+    ],
     # target-intrinsic is the indication-INDEPENDENT dossier; the trap is a PREDICTION / HOMOLOGY
     # annotation OVER-CALLING an experimentally-confirmed actionable intrinsic property (an AlphaFold /
     # computational druggable pocket over-calling a co-crystal-confirmed pocket; a family/surfaceome-class
@@ -146,23 +240,31 @@ _LENS_QUERY_TERMS = {
     # the EXPERIMENTAL-vs-PREDICTED structural discriminators. Only 2 axis_labels (modality routing /
     # tractability precedent), so the default 5-term cap admits the first ~3 curated terms — ordered
     # sharpest-first (co-crystal / fragment screen / AlphaFold) — no _LENS_MAX_TERMS bump needed.
-    "target-intrinsic":           ["experimental co-crystal structure",
-                                    "druggable pocket fragment screen",
-                                    "AlphaFold predicted structure",
-                                    "pseudokinase catalytically dead",
-                                    "protein family homology",
-                                    "subcellular localization proteomics",
-                                    "gnomAD loss-of-function constraint"],
+    "target-intrinsic": [
+        "experimental co-crystal structure",
+        "druggable pocket fragment screen",
+        "AlphaFold predicted structure",
+        "pseudokinase catalytically dead",
+        "protein family homology",
+        "subcellular localization proteomics",
+        "gnomAD loss-of-function constraint",
+    ],
     # Front-loaded so the highest-value cis-CAUSALITY discriminators lead: the base gene∧disease query
     # supplies cis/CN-expression recall; the precision query needs the amplicon driver-vs-passenger,
     # focal-amplitude, protein-dosage-buffering, CIMP-lineage, and purity-confound terms that separate a
     # CAUSAL cis-driver / targeted silencing from a co-amplified passenger / dosage-buffered / CIMP-confounded
     # correlation. The lens declares 4 axis_labels, so a per-lens _LENS_MAX_TERMS bump (below) is needed to let
     # ~5 of these curated discriminators survive the default max_terms=5 cap.
-    "cis-feature-coherence":      ["copy-number-driven expression", "amplicon driver versus passenger",
-                                   "focal amplification", "promoter methylation silencing",
-                                   "CpG island methylator phenotype", "oncogene addiction dosage",
-                                   "protein abundance copy number", "tumor purity confound"],
+    "cis-feature-coherence": [
+        "copy-number-driven expression",
+        "amplicon driver versus passenger",
+        "focal amplification",
+        "promoter methylation silencing",
+        "CpG island methylator phenotype",
+        "oncogene addiction dosage",
+        "protein abundance copy number",
+        "tumor purity confound",
+    ],
     # target-archetype is the META cross-skill signature LANDSCAPE companion: it grounds the DOMINANT
     # phenotype_mixture component + the top nearest_analogs ANALOGY ("does the literature support that target X
     # is phenotype-P and most like reference-Y?"). Its 5 axis_labels (PHENOTYPE/ANALOG/PRECEDENT/NOVELTY/
@@ -171,10 +273,16 @@ _LENS_QUERY_TERMS = {
     # discriminators (target family/class, surface-antigen vs driver vs TSG phenotype, analogy/"most similar
     # to" reasoning, drug-target archetype) carry the precision query. often INDICATION-INDEPENDENT →
     # None-indication → _indication_phrase→"cancer" (like target-intrinsic).
-    "target-archetype":           ["drug target class", "oncogene tumor suppressor classification",
-                                   "cell surface antigen", "driver gene amplification mutation",
-                                   "oncogene addiction", "target druggability class",
-                                   "antibody-drug conjugate target", "molecular subtype classification"],
+    "target-archetype": [
+        "drug target class",
+        "oncogene tumor suppressor classification",
+        "cell surface antigen",
+        "driver gene amplification mutation",
+        "oncogene addiction",
+        "target druggability class",
+        "antibody-drug conjugate target",
+        "molecular subtype classification",
+    ],
 }
 
 
@@ -193,22 +301,26 @@ def _indication_phrase(indication: Optional[str]) -> str:
 # (CIS_DOSAGE/SILENCING/EXPR_DEP/CONJOINT), so a cap of 5 admits only ONE curated term; 9 lets the first ~5
 # discriminators (amplicon driver-vs-passenger / focal amplification / CpG island methylator phenotype /
 # oncogene addiction dosage / protein abundance copy number) through.
-_LENS_MAX_TERMS = {"combination-and-vulnerability": 9, "cis-feature-coherence": 9,
-                   # translational-readiness declares FOUR axis_labels (MODEL/GENOTYPE/ORGANOID/PDX), so the
-                   # default 5-cap admits only ONE curated term; 8 lets the first ~4 discriminators (PDX
-                   # fidelity / tumor organoid model / PDX drug response / preclinical model genomic fidelity)
-                   # through alongside the axis labels. Surgical: every other lens keeps the default cap.
-                   "translational-readiness": 8,
-                   # target-archetype declares FIVE (framework-internal) axis_labels, so the default 5-cap
-                   # admits ZERO curated terms; 10 lets the first ~5 phenotype/analogy discriminators (drug
-                   # target class / oncogene-vs-TSG / cell surface antigen / driver amp-vs-mutation / oncogene
-                   # addiction) through alongside the axis labels. Surgical: every other lens keeps the default.
-                   "target-archetype": 10,
-                   # synthetic-lethal-partners + combinatorial-dependency each declare only ONE axis_label
-                   # (SL / CODEP), so the default 5-cap would admit 4 curated terms; 7 lets ~6 of the
-                   # SL-validation / reproducibility / paralog-buffering / KO-vs-inhibition discriminators
-                   # through alongside the single axis label. Surgical: every other lens keeps the default cap.
-                   "synthetic-lethal-partners": 7, "combinatorial-dependency": 7}
+_LENS_MAX_TERMS = {
+    "combination-and-vulnerability": 9,
+    "cis-feature-coherence": 9,
+    # translational-readiness declares FOUR axis_labels (MODEL/GENOTYPE/ORGANOID/PDX), so the
+    # default 5-cap admits only ONE curated term; 8 lets the first ~4 discriminators (PDX
+    # fidelity / tumor organoid model / PDX drug response / preclinical model genomic fidelity)
+    # through alongside the axis labels. Surgical: every other lens keeps the default cap.
+    "translational-readiness": 8,
+    # target-archetype declares FIVE (framework-internal) axis_labels, so the default 5-cap
+    # admits ZERO curated terms; 10 lets the first ~5 phenotype/analogy discriminators (drug
+    # target class / oncogene-vs-TSG / cell surface antigen / driver amp-vs-mutation / oncogene
+    # addiction) through alongside the axis labels. Surgical: every other lens keeps the default.
+    "target-archetype": 10,
+    # synthetic-lethal-partners + combinatorial-dependency each declare only ONE axis_label
+    # (SL / CODEP), so the default 5-cap would admit 4 curated terms; 7 lets ~6 of the
+    # SL-validation / reproducibility / paralog-buffering / KO-vs-inhibition discriminators
+    # through alongside the single axis label. Surgical: every other lens keeps the default cap.
+    "synthetic-lethal-partners": 7,
+    "combinatorial-dependency": 7,
+}
 
 
 def _lens_terms(lens, *, max_terms: int = 5) -> list[str]:
@@ -220,12 +332,14 @@ def _lens_terms(lens, *, max_terms: int = 5) -> list[str]:
     cap = _LENS_MAX_TERMS.get(getattr(lens, "name", ""), max_terms)
     seen: set = set()
     out: list[str] = []
+
     def _add(t):
         t = (t or "").strip()
         k = t.lower()
         if t and k not in seen:
             seen.add(k)
             out.append(t)
+
     for v in (getattr(lens, "axis_labels", {}) or {}).values():
         _add(v)
     for t in _LENS_QUERY_TERMS.get(getattr(lens, "name", ""), []):
@@ -243,7 +357,7 @@ def _build_query_variations(target: str, indication: Optional[str], lens) -> lis
     terms = _lens_terms(lens)
     if terms:
         or_clause = " OR ".join(f'"{t}"' for t in terms)
-        variations.append(f'{base} AND ({or_clause})')
+        variations.append(f"{base} AND ({or_clause})")
     return variations
 
 
@@ -256,8 +370,8 @@ def _clean_pubtator_hl(s: str) -> str:
     inline entity tokens like ``@DISEASE_Colorectal_Neoplasms`` / ``@DISEASE_MESH:D015179``. Unwrap the
     spans (keep the human text), drop the entity tokens + any HTML tags, and collapse whitespace so the
     grounding snippet reads as prose."""
-    s = re.sub(r"@@@(.*?)@@@", r"\1", s or "")        # unwrap highlighted spans → keep inner text
-    s = re.sub(r"@[A-Za-z]+_\S+", "", s)              # drop @TYPE_Identifier bioconcept tokens
+    s = re.sub(r"@@@(.*?)@@@", r"\1", s or "")  # unwrap highlighted spans → keep inner text
+    s = re.sub(r"@[A-Za-z]+_\S+", "", s)  # drop @TYPE_Identifier bioconcept tokens
     return re.sub(r"\s+", " ", _strip_tags(s)).strip()
 
 
@@ -296,8 +410,9 @@ def _http_get_json(url: str, timeout: float, *, retries: int = 1) -> Optional[di
 
 def _search(query: str, *, page_size: int, result_type: str, timeout: float) -> Optional[dict]:
     """Europe PMC search (kept as `_search` — the monkeypatch seam the tests pin)."""
-    params = urllib.parse.urlencode({"query": query, "format": "json",
-                                     "resultType": result_type, "pageSize": page_size})
+    params = urllib.parse.urlencode(
+        {"query": query, "format": "json", "resultType": result_type, "pageSize": page_size}
+    )
     return _http_get_json(f"{_EPMC_SEARCH}?{params}", timeout)
 
 
@@ -317,8 +432,10 @@ def _fmt_corpus(source_label: str, target: str, phrase: str, records: list[dict]
             break
     if not kept:
         return None
-    header = (f"Top {source_label} results for {target} in {phrase} (cite these PMIDs; you MAY mark "
-              f"verified=true only for identifiers listed here):")
+    header = (
+        f"Top {source_label} results for {target} in {phrase} (cite these PMIDs; you MAY mark "
+        f"verified=true only for identifiers listed here):"
+    )
     lines = []
     for r in kept:
         cite = f"{r.get('author', '?')} {r.get('year', '?')}, {r.get('journal', '?')}"
@@ -334,8 +451,9 @@ def _truncate(s: str, n: int) -> str:
 
 
 # ── retrievers ─────────────────────────────────────────────────────────────────────────────────────
-def europe_pmc_retrieve(target, indication, lens=None, *, max_results: int = 8,
-                        abstract_chars: int = 420, timeout: float = 8.0) -> Optional[str]:
+def europe_pmc_retrieve(
+    target, indication, lens=None, *, max_results: int = 8, abstract_chars: int = 420, timeout: float = 8.0
+) -> Optional[str]:
     """Grounding corpus of the top Europe PMC hits for (target, indication), LENS-AWARE (see
     _build_query_variations). None on any failure / no hits."""
     if not target:
@@ -343,25 +461,27 @@ def europe_pmc_retrieve(target, indication, lens=None, *, max_results: int = 8,
     phrase = _indication_phrase(indication)
     records: list[dict] = []
     for query in _build_query_variations(target, indication, lens):
-        data = _search(f"{query} AND (HAS_ABSTRACT:Y)", page_size=max_results,
-                       result_type="core", timeout=timeout)
-        for r in (((data or {}).get("resultList") or {}).get("result") or []):
-            pmid = r.get("pmid")           # ONLY a real PMID — never fall back to `id` (a PPR/preprint id
-            if not pmid:                   # is not PMID-verifiable and must not be mislabelled [PMID:...]).
+        data = _search(f"{query} AND (HAS_ABSTRACT:Y)", page_size=max_results, result_type="core", timeout=timeout)
+        for r in ((data or {}).get("resultList") or {}).get("result") or []:
+            pmid = r.get("pmid")  # ONLY a real PMID — never fall back to `id` (a PPR/preprint id
+            if not pmid:  # is not PMID-verifiable and must not be mislabelled [PMID:...]).
                 continue
-            records.append({
-                "pmid": pmid,
-                "author": _first_author(r.get("authorString")),
-                "year": r.get("pubYear", "?"),
-                "journal": r.get("journalTitle") or r.get("source") or "?",
-                "title": r.get("title") or "",
-                "snippet": _truncate(r.get("abstractText") or "", abstract_chars),
-            })
+            records.append(
+                {
+                    "pmid": pmid,
+                    "author": _first_author(r.get("authorString")),
+                    "year": r.get("pubYear", "?"),
+                    "journal": r.get("journalTitle") or r.get("source") or "?",
+                    "title": r.get("title") or "",
+                    "snippet": _truncate(r.get("abstractText") or "", abstract_chars),
+                }
+            )
     return _fmt_corpus("Europe PMC", target, phrase, records, max_results)
 
 
-def pubtator3_retrieve(target, indication, lens=None, *, max_results: int = 8,
-                       snippet_chars: int = 420, timeout: float = 8.0) -> Optional[str]:
+def pubtator3_retrieve(
+    target, indication, lens=None, *, max_results: int = 8, snippet_chars: int = 420, timeout: float = 8.0
+) -> Optional[str]:
     """Grounding corpus from NCBI PubTator3 search (entity/bioconcept-index-ranked), LENS-AWARE. Uses the
     relevance-highlighted `text_hl` snippet (tags stripped) as the grounding text. None on failure / no hits.
     A drop-in `retrieve_fn` (same signature as europe_pmc_retrieve) — the fallback source in default_retrieve."""
@@ -371,26 +491,29 @@ def pubtator3_retrieve(target, indication, lens=None, *, max_results: int = 8,
     records: list[dict] = []
     for query in _build_query_variations(target, indication, lens):
         data = _http_get_json(f"{_PUBTATOR_SEARCH}?{urllib.parse.urlencode({'text': query})}", timeout)
-        for r in ((data or {}).get("results") or []):
+        for r in (data or {}).get("results") or []:
             pmid = r.get("pmid")
             if not pmid:
                 continue
-            records.append({
-                "pmid": str(pmid),
-                "author": _first_author(r.get("authors")),
-                "year": _year_from(r.get("date")),
-                "journal": r.get("journal") or "?",
-                "title": r.get("title") or "",
-                "snippet": _truncate(_clean_pubtator_hl(r.get("text_hl") or ""), snippet_chars),
-            })
+            records.append(
+                {
+                    "pmid": str(pmid),
+                    "author": _first_author(r.get("authors")),
+                    "year": _year_from(r.get("date")),
+                    "journal": r.get("journal") or "?",
+                    "title": r.get("title") or "",
+                    "snippet": _truncate(_clean_pubtator_hl(r.get("text_hl") or ""), snippet_chars),
+                }
+            )
     return _fmt_corpus("NCBI PubTator3", target, phrase, records, max_results)
 
 
 def default_retrieve(target, indication, lens=None, *, max_results: int = 8, timeout: float = 8.0) -> Optional[str]:
     """RECOMMENDED retriever: Europe PMC first, PubTator3 on failure — a transient outage of one source
     no longer collapses grounding to internal-knowledge/unverified. Both are lens-aware."""
-    return (europe_pmc_retrieve(target, indication, lens, max_results=max_results, timeout=timeout)
-            or pubtator3_retrieve(target, indication, lens, max_results=max_results, timeout=timeout))
+    return europe_pmc_retrieve(
+        target, indication, lens, max_results=max_results, timeout=timeout
+    ) or pubtator3_retrieve(target, indication, lens, max_results=max_results, timeout=timeout)
 
 
 # ── PMID verification (Europe PMC primary, NCBI E-utilities fallback) ───────────────────────────────
@@ -429,10 +552,10 @@ def verify_citations(result: dict, *, timeout: float = 8.0) -> dict:
     if not isinstance(result, dict):
         return result
     cites = []
-    for ax in (result.get("axes") or []):
+    for ax in result.get("axes") or []:
         if isinstance(ax, dict):
             cites += [c for c in (ax.get("citations") or []) if isinstance(c, dict)]
-    for bs in (result.get("blind_spots") or []):
+    for bs in result.get("blind_spots") or []:
         if isinstance(bs, dict):
             cites += [c for c in (bs.get("citations") or []) if isinstance(c, dict)]
     checked = verified = flipped = 0
@@ -441,12 +564,12 @@ def verify_citations(result: dict, *, timeout: float = 8.0) -> dict:
     for c in cites:
         pmid = str(c.get("pmid") or "").strip()
         if not pmid:
-            c["verified"] = False              # no identifier → not verifiable here
+            c["verified"] = False  # no identifier → not verifiable here
             continue
         if pmid not in seen:
             seen[pmid] = _pmid_exists(pmid, timeout)
         exists = seen[pmid]
-        if exists is None:                     # neither source could run — leave the model's flag
+        if exists is None:  # neither source could run — leave the model's flag
             continue
         ran = True
         checked += 1
@@ -454,12 +577,21 @@ def verify_citations(result: dict, *, timeout: float = 8.0) -> dict:
         c["verified"] = exists
         verified += 1 if exists else 0
         flipped += 1 if was != exists else 0
-    result["_verification"] = ({"status": "unavailable",
-                                "note": "PMID verification could not run (no network / API error); "
-                                        "citation.verified reflects the model's self-report, treat as unconfirmed."}
-                               if (cites and not ran) else
-                               {"status": "checked", "source": "europe_pmc",
-                                "n_pmid_checked": checked, "n_verified": verified, "n_flipped": flipped})
+    result["_verification"] = (
+        {
+            "status": "unavailable",
+            "note": "PMID verification could not run (no network / API error); "
+            "citation.verified reflects the model's self-report, treat as unconfirmed.",
+        }
+        if (cites and not ran)
+        else {
+            "status": "checked",
+            "source": "europe_pmc",
+            "n_pmid_checked": checked,
+            "n_verified": verified,
+            "n_flipped": flipped,
+        }
+    )
     return result
 
 

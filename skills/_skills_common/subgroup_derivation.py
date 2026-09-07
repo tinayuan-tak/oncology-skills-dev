@@ -9,6 +9,7 @@ a per-measurement_type reader spec; this module does the binding + aggregation.
 Verdict-INERT: a one-way projection over resolved cards; never feeds a verdict/resolver. Best-effort —
 if target-contracts is unavailable (no measurement_type lookup), returns {} (spine unaffected).
 """
+
 from __future__ import annotations
 import functools
 import re
@@ -29,6 +30,7 @@ def _card_meta(card_id: str) -> tuple:
         return (None, None)
     try:
         import yaml
+
         y = yaml.safe_load(p.read_text()) or {}
     except Exception:  # noqa: BLE001 — verdict-inert projection; never break the spine
         return (None, None)
@@ -47,6 +49,7 @@ def _card_capsule_contract(card_id: str) -> tuple:
         return (None, ())
     try:
         import yaml
+
         y = yaml.safe_load(p.read_text()) or {}
     except Exception:  # noqa: BLE001 — verdict-inert projection; never break the spine
         return (None, ())
@@ -80,6 +83,7 @@ def make_value_classifier(value_tiers: dict, default: Callable = default_classif
     def classify(v) -> str:
         t = norm.get(str("" if v is None else v).lower())
         return t if t in _TIERV else default(v)
+
     return classify
 
 
@@ -91,18 +95,37 @@ def _nbucket(n) -> str:
 
 # DEFAULT heuristic reader — so fleet wiring needs no per-skill reader spec. Picks the primary signal
 # field (a `*_class`, else a signal-keyword string field) + the sample-size field(s) from a card summary.
-_SIGNAL_KEY = re.compile(r"(expression|dependency|abundance|selectivity|breadth|role|state|fit|density|"
-                         r"score|concordance|biomarker|activity|druggability|homogeneity|coverage)")
-_N_KEY = re.compile(r"(^n_|_n$|_samples$|_cells$|_cells_total$|_donors$|_lines$|_evaluated$|subgroup_n|"
-                    r"_paired|cells_ran|n_cohorts|_ligands$|_patients$|_models$|_compounds$)")
+_SIGNAL_KEY = re.compile(
+    r"(expression|dependency|abundance|selectivity|breadth|role|state|fit|density|"
+    r"score|concordance|biomarker|activity|druggability|homogeneity|coverage)"
+)
+_N_KEY = re.compile(
+    r"(^n_|_n$|_samples$|_cells$|_cells_total$|_donors$|_lines$|_evaluated$|subgroup_n|"
+    r"_paired|cells_ran|n_cohorts|_ligands$|_patients$|_models$|_compounds$)"
+)
 # FEATURE / QUALITY counts that superficially match _N_KEY but are NOT a sample size — binding them as
 # `n` mis-reads power (n_domains_low_plddt=6 as PDB coverage; n_admissible_strata=14 as patient count).
-_N_DENY = re.compile(r"(_low_plddt$|_axes$|_strata$|_domains$|_classes$|_flags$|_bins$|_categories$|"
-                     r"_features$|_complexes$|_paralogs.*$|_partners$|_interactors$)")
+_N_DENY = re.compile(
+    r"(_low_plddt$|_axes$|_strata$|_domains$|_classes$|_flags$|_bins$|_categories$|"
+    r"_features$|_complexes$|_paralogs.*$|_partners$|_interactors$)"
+)
 # Prefer a genuine SAMPLE-SIZE field over any other n-match (the reader takes the FIRST present n, so
 # ordering decides): patients/samples/lines/cells/donors/models/ligands rank ahead of generic counts.
-_N_PRIORITY = ("patient", "sample", "cell_line", "_lines", "cell", "donor", "model", "screen",
-               "ligand", "tumor", "compound", "pair", "cohort")
+_N_PRIORITY = (
+    "patient",
+    "sample",
+    "cell_line",
+    "_lines",
+    "cell",
+    "donor",
+    "model",
+    "screen",
+    "ligand",
+    "tumor",
+    "compound",
+    "pair",
+    "cohort",
+)
 
 
 def _n_rank(k: str) -> int:
@@ -113,18 +136,19 @@ def _n_rank(k: str) -> int:
 def _heuristic_reader(summary: dict) -> "dict | None":
     if not isinstance(summary, dict):
         return None
-    cls = next((k for k in summary if k.endswith("_class") and isinstance(summary[k], str)), None) \
-        or next((k for k in summary if _SIGNAL_KEY.search(k) and isinstance(summary[k], str)), None)
+    cls = next((k for k in summary if k.endswith("_class") and isinstance(summary[k], str)), None) or next(
+        (k for k in summary if _SIGNAL_KEY.search(k) and isinstance(summary[k], str)), None
+    )
     if not cls:
         return None
-    ns = [k for k in summary if _N_KEY.search(k) and isinstance(summary[k], (int, float))
-          and not _N_DENY.search(k)]
-    ns = sorted(ns, key=lambda k: (_n_rank(k), k))    # true sample-size fields first; deterministic tie-break
+    ns = [k for k in summary if _N_KEY.search(k) and isinstance(summary[k], (int, float)) and not _N_DENY.search(k)]
+    ns = sorted(ns, key=lambda k: (_n_rank(k), k))  # true sample-size fields first; deterministic tie-break
     return {"class": cls, "n": ns, "label": cls.replace("_class", "").replace("_", " ")}
 
 
-def derive_subgroups(hierarchy: dict, cards: list, reader_spec: "dict | None" = None,
-                     classify: Callable = default_classify) -> dict:
+def derive_subgroups(
+    hierarchy: dict, cards: list, reader_spec: "dict | None" = None, classify: Callable = default_classify
+) -> dict:
     """{sub_group -> {signal, confidence, n_sources, n_agree, power, conflict, sources[]}}.
 
     reader_spec: {measurement_type: {"class": field, "n": [fields], "label": str,
@@ -137,24 +161,24 @@ def derive_subgroups(hierarchy: dict, cards: list, reader_spec: "dict | None" = 
                 type_sg.setdefault(mt, sg["id"])
 
     per: dict = {}
-    _seen: set = set()                    # (sub_group, _data_source, value) — dedup byte-identical sources
+    _seen: set = set()  # (sub_group, _data_source, value) — dedup byte-identical sources
     for c in cards or []:
         cid = c.get("card_id")
         summ = c.get("summary") or {}
         mt, tier = _card_meta(cid)
         sg = type_sg.get(mt)
         if not sg or tier == "subtype":
-            continue                      # not a source for a whole-cohort sub-group signal
+            continue  # not a source for a whole-cohort sub-group signal
         if reader_spec and mt in reader_spec:
-            spec = reader_spec[mt]          # explicit per-skill spec; a FALSY value = confidence-only card,
-            if not spec:                    # not a signal source (e.g. FR's paralog-buffering caveat) → skip
+            spec = reader_spec[mt]  # explicit per-skill spec; a FALSY value = confidence-only card,
+            if not spec:  # not a signal source (e.g. FR's paralog-buffering caveat) → skip
                 continue
         else:
             spec = _heuristic_reader(summ)  # no per-skill spec for this measurement_type → default heuristic
         if not spec:
             continue
         raw = summ.get(spec["class"])
-        if raw in spec.get("present_synonyms", ()):   # e.g. protein ns = quantified/present, not low
+        if raw in spec.get("present_synonyms", ()):  # e.g. protein ns = quantified/present, not low
             raw = "__present__"
         t = classify(raw)
         # Dedup byte-identical sources: two cards from the SAME provenance with the SAME measured value are
@@ -166,10 +190,18 @@ def derive_subgroups(hierarchy: dict, cards: list, reader_spec: "dict | None" = 
                 continue
             _seen.add(_key)
         n = next((summ.get(f) for f in spec.get("n", []) if isinstance(summ.get(f), (int, float))), None)
-        conflict = summ.get("allgene_percentile_class") == "bottom_decile"   # level != breadth
-        per.setdefault(sg, []).append({"card": cid, "tier": t, "n": n, "power": _nbucket(n),
-                                       "label": spec.get("label", mt), "conflict": conflict,
-                                       "value": summ.get(spec["class"])})
+        conflict = summ.get("allgene_percentile_class") == "bottom_decile"  # level != breadth
+        per.setdefault(sg, []).append(
+            {
+                "card": cid,
+                "tier": t,
+                "n": n,
+                "power": _nbucket(n),
+                "label": spec.get("label", mt),
+                "conflict": conflict,
+                "value": summ.get(spec["class"]),
+            }
+        )
 
     out: dict = {}
     for sg, srcs in per.items():
@@ -178,14 +210,34 @@ def derive_subgroups(hierarchy: dict, cards: list, reader_spec: "dict | None" = 
         best_power = max((s["power"] for s in srcs), key=lambda p: _POW.index(p))
         conflicts = [s for s in srcs if s["conflict"]]
         # confidence = agreement × sample-size, capped by conflict (NOT weakest-link)
-        conf = ("high" if len(present) == len(srcs) and best_power in ("high", "very high")
-                else "moderate" if len(present) >= max(1, len(srcs) // 2) else "low")
+        conf = (
+            "high"
+            if len(present) == len(srcs) and best_power in ("high", "very high")
+            else "moderate"
+            if len(present) >= max(1, len(srcs) // 2)
+            else "low"
+        )
         if conflicts and conf == "high":
             conf = "moderate"
-        out[sg] = {"signal": signal, "confidence": conf, "n_sources": len(srcs), "n_agree": len(present),
-                   "power": best_power, "conflict": bool(conflicts),
-                   "sources": [{"card": s["card"], "tier": s["tier"], "n": s["n"], "label": s["label"],
-                                "conflict": s["conflict"], "value": s["value"]} for s in srcs]}
+        out[sg] = {
+            "signal": signal,
+            "confidence": conf,
+            "n_sources": len(srcs),
+            "n_agree": len(present),
+            "power": best_power,
+            "conflict": bool(conflicts),
+            "sources": [
+                {
+                    "card": s["card"],
+                    "tier": s["tier"],
+                    "n": s["n"],
+                    "label": s["label"],
+                    "conflict": s["conflict"],
+                    "value": s["value"],
+                }
+                for s in srcs
+            ],
+        }
     return out
 
 
@@ -246,18 +298,29 @@ def derive_stratified(hierarchy: dict, cards: list, classify=default_classify) -
             if not sid:
                 continue
             n = next((r.get(f) for f in _STRATUM_N_FIELDS if isinstance(r.get(f), (int, float))), None)
-            powered = (r.get("evidence_state") == "measured" and isinstance(n, (int, float)) and n >= _SUBGROUP_N_FLOOR)
+            powered = r.get("evidence_state") == "measured" and isinstance(n, (int, float)) and n >= _SUBGROUP_N_FLOOR
             by.setdefault(sid, []).append({"tier": _stratum_tier(r, classify), "n": n, "powered": powered})
         k = len(by)
         strata = {}
         for sid, reads in by.items():
             best = max(reads, key=lambda x: _TIERV.get(x["tier"], -1))
             n = best["n"]
-            base = "high" if isinstance(n, (int, float)) and n >= 100 else "moderate" if isinstance(n, (int, float)) and n >= _SUBGROUP_N_FLOOR else "low"
+            base = (
+                "high"
+                if isinstance(n, (int, float)) and n >= 100
+                else "moderate"
+                if isinstance(n, (int, float)) and n >= _SUBGROUP_N_FLOOR
+                else "low"
+            )
             powered = any(x["powered"] for x in reads)
-            cert = _multiplicity_haircut(base, k) if powered else "low"   # underpowered stratum never over-read
-            strata[sid] = {"signal": best["tier"], "certainty": cert, "n": n, "powered": powered,
-                           "multiplicity_strata_tested": k}
+            cert = _multiplicity_haircut(base, k) if powered else "low"  # underpowered stratum never over-read
+            strata[sid] = {
+                "signal": best["tier"],
+                "certainty": cert,
+                "n": n,
+                "powered": powered,
+                "multiplicity_strata_tested": k,
+            }
         if strata:
             out[sg] = strata
     return out
@@ -288,35 +351,44 @@ def overlay_claim_signals(subgroup_signals: dict, claim_vector: dict, hierarchy:
     `sources`, `confidence`, and `by_stratum` untouched (corroboration + sample-size + subtype stay). A
     sub-group with a mapped claim but no card source is CREATED (signal-only). Verdict-inert, in-place +
     returned; no-op when claim_vector/hierarchy missing. Mutates `subgroup_signals`."""
-    if not (isinstance(subgroup_signals, dict) and isinstance(claim_vector, dict)
-            and isinstance(hierarchy, dict)):
+    if not (isinstance(subgroup_signals, dict) and isinstance(claim_vector, dict) and isinstance(hierarchy, dict)):
         return subgroup_signals
     for sg in hierarchy.get("sub_groups", []):
         sgid = sg.get("id")
-        mapped = [(ax, claim_vector[ax]) for ax in _claim_axes_for(sg)
-                  if isinstance(claim_vector.get(ax), dict)]
+        mapped = [(ax, claim_vector[ax]) for ax in _claim_axes_for(sg) if isinstance(claim_vector.get(ax), dict)]
         if not mapped:
-            continue                                   # no claim for this axis — leave heuristic signal
+            continue  # no claim for this axis — leave heuristic signal
         measured = [(ax, cl) for ax, cl in mapped if _SIGNAL_ORD.get(cl.get("signal")) is not None]
         if measured:
             best = max(_SIGNAL_ORD[cl["signal"]] for _, cl in measured)
             claim_signal = _ORD_SIGNAL[best]
         else:
-            claim_signal = "unmeasured"                # gap≠absent — the heuristic could not express this
-        entry = subgroup_signals.setdefault(sgid, {"confidence": "low", "n_sources": 0, "n_agree": 0,
-                                                    "power": "low", "conflict": False, "sources": []})
+            claim_signal = "unmeasured"  # gap≠absent — the heuristic could not express this
+        entry = subgroup_signals.setdefault(
+            sgid, {"confidence": "low", "n_sources": 0, "n_agree": 0, "power": "low", "conflict": False, "sources": []}
+        )
         entry["signal"] = claim_signal
         entry["signal_source"] = "claim_vector"
-        entry["claims"] = [{k: v for k, v in {
-            "axis": ax, "signal": cl.get("signal"), "corroboration": cl.get("corroboration"),
-            "conflict": cl.get("conflict"), "evidence": cl.get("evidence"),
-            "evidence_atom": cl.get("evidence_atom")}.items() if v is not None} for ax, cl in mapped]
+        entry["claims"] = [
+            {
+                k: v
+                for k, v in {
+                    "axis": ax,
+                    "signal": cl.get("signal"),
+                    "corroboration": cl.get("corroboration"),
+                    "conflict": cl.get("conflict"),
+                    "evidence": cl.get("evidence"),
+                    "evidence_atom": cl.get("evidence_atom"),
+                }.items()
+                if v is not None
+            }
+            for ax, cl in mapped
+        ]
         entry["conflict"] = bool(entry.get("conflict")) or any(cl.get("conflict") for _, cl in mapped)
     return subgroup_signals
 
 
-def subgroup_signals_for(skill_dir, cards, reader_spec=None, classify=default_classify,
-                         claim_vector=None) -> dict:
+def subgroup_signals_for(skill_dir, cards, reader_spec=None, classify=default_classify, claim_vector=None) -> dict:
     """One-call wiring for a skill's run.py: load <skill_dir>/question_hierarchy.yaml, derive the pooled
     sub-group signals, fold in the first-class per-stratum by_stratum, and (when a `claim_vector` is
     given) OVERLAY the authoritative claim signal + evidence atoms over each sub-group. Uses the default
@@ -325,6 +397,7 @@ def subgroup_signals_for(skill_dir, cards, reader_spec=None, classify=default_cl
     try:
         import yaml
         from pathlib import Path as _P
+
         hier = yaml.safe_load((_P(skill_dir) / "question_hierarchy.yaml").read_text()) or {}
         sg = derive_subgroups(hier, cards, reader_spec, classify)
         for name, by in derive_stratified(hier, cards, classify).items():

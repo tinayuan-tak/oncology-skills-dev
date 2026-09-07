@@ -8,6 +8,7 @@ TP53/COADREAD resolves `highly_constrained_safety_concern` — a LoF-intolerant 
 five claim axes are INVERSE-VALENCE liabilities, that liability verdict must colour the badge polarity
 `negative` (undesirable for a drug program), the discriminating polarity check for this skill.
 """
+
 from __future__ import annotations
 
 import copy
@@ -33,8 +34,7 @@ _AXIS_KEYS = ["CONSTRAINT", "BURDEN", "DOSAGE", "CLINVAR", "MOUSE_KO", "PAN_ESSE
 
 
 def _real_summary(s) -> bool:
-    return (isinstance(s, dict) and bool(s)
-            and not s.get("_freeze_error") and not s.get("_dispatcher_returned_none"))
+    return isinstance(s, dict) and bool(s) and not s.get("_freeze_error") and not s.get("_dispatcher_returned_none")
 
 
 def _decision(pair_id: str, target: str, indication: str) -> dict:
@@ -51,14 +51,14 @@ def _decision(pair_id: str, target: str, indication: str) -> dict:
             if not _real_summary(s):
                 return None
             return copy.deepcopy(s)
+
         return _read_live
 
     out_dir = Path(tempfile.mkdtemp(prefix=f"safety-hl-{pair_id}-"))
     mp = pytest.MonkeyPatch()
     mp.delenv("FRAMEWORK_HEALTH_SMOKE", raising=False)
     mp.setattr(skc, "_import_dispatcher", _fake_dispatcher_factory)
-    mp.setattr(sys, "argv", ["run.py", "--target", target, "--indication", indication,
-                             "--out", str(out_dir)])
+    mp.setattr(sys, "argv", ["run.py", "--target", target, "--indication", indication, "--out", str(out_dir)])
     try:
         runpy.run_path(str(RUN_PY), run_name="__main__")
     except SystemExit as e:
@@ -82,9 +82,11 @@ def test_headline_block_present_and_consistent_for_liability_verdict():
     # the spine the headline projects over
     safety_verdict = h.get("safety_verdict")
     assert safety_verdict == "highly_constrained_safety_concern", (
-        f"fixture no longer exercises a liability HOLD (got {safety_verdict!r}) — re-curate/refreeze.")
+        f"fixture no longer exercises a liability HOLD (got {safety_verdict!r}) — re-curate/refreeze."
+    )
     assert "headline_block" not in (h.get("_enrichment_errors") or {}), (
-        f"headline_block DEGRADED: {(h.get('_enrichment_errors') or {}).get('headline_block')}")
+        f"headline_block DEGRADED: {(h.get('_enrichment_errors') or {}).get('headline_block')}"
+    )
 
     block = h.get("headline_block")
     assert isinstance(block, dict), "headline_block missing or not a dict (degraded projection)"
@@ -103,7 +105,8 @@ def test_headline_block_present_and_consistent_for_liability_verdict():
 
     # INVERSE VALENCE: a LoF-intolerant liability HOLD is UNdesirable for a drug program → negative badge.
     assert verdict.get("polarity") == "negative", (
-        f"a safety-liability HOLD must colour the badge negative; got {verdict.get('polarity')!r}")
+        f"a safety-liability HOLD must colour the badge negative; got {verdict.get('polarity')!r}"
+    )
 
     # deterministic headline text is always available
     assert isinstance(block.get("headline_text"), str) and block["headline_text"]

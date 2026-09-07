@@ -45,6 +45,7 @@ an OVERLAPPING value-set on a shared field, `build_exclusivity_groups` raises â€
 unsound (two could co-fire), so the author must reconcile the rules or the model. Fail-loud, never
 silently under-cover.
 """
+
 from __future__ import annotations
 
 import itertools
@@ -74,7 +75,7 @@ def load_rule_index(contracts_root: Path) -> dict[str, tuple[Optional[str], Opti
     rules_dir = Path(contracts_root) / "interpretation-rules"
     for f in sorted(rules_dir.glob("*.rules.yaml")):
         doc = yaml.safe_load(f.read_text())
-        for r in (doc.get("rules") or []):
+        for r in doc.get("rules") or []:
             rid = r.get("rule_id")
             if rid:
                 idx[rid] = _rule_condition(r.get("when") or {})
@@ -123,7 +124,8 @@ def build_exclusivity_groups(
                         raise ValueError(
                             f"cannot group {members[i]!r} and {members[j]!r} on {key}: "
                             f"value-sets overlap on {set(vi & vj)} (both could fire â€” grouping unsound). "
-                            f"Reconcile the rules or exclude from co-emission grouping.")
+                            f"Reconcile the rules or exclude from co-emission grouping."
+                        )
             groups.append(list(members))
         else:
             free.extend(members)

@@ -11,6 +11,7 @@ evidence_salience, certainty_corroboration, functional-requirement/run.py, sever
 The IDAS multi-indication design still lives in target-contracts docs/design/IDAS_SUBTYPE_PIPELINE.md;
 re-introduce a typed Scope here if/when that pipeline is actually wired.
 """
+
 from __future__ import annotations
 
 from _skills_common.paths import DEFAULT_CONTRACTS_REPO  # noqa: F401  (back-compat re-export)

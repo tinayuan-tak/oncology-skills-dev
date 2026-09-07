@@ -20,6 +20,7 @@ WHAT THIS IS NOT (the honesty discipline):
 Consumed by tumor-presence run.py (_headline) and surfaced in the _synthesis_facet package that the
 composed target-profile fan-out reads.
 """
+
 from __future__ import annotations
 import re
 from typing import Optional
@@ -85,9 +86,21 @@ def _claim_A(h, c):
         sig = "strong" if med >= 5 else "moderate" if med >= 3.46 else "weak"
         band = f"raw median {med:.1f} log2TPM (anchor n/a)"
     else:
-        return {"signal": "unmeasured", "corroboration": "unmeasured", "evidence": "no abundance anchor", "conflict": None, "informs": CLAIM_INFORMS["A"]}
+        return {
+            "signal": "unmeasured",
+            "corroboration": "unmeasured",
+            "evidence": "no abundance anchor",
+            "conflict": None,
+            "informs": CLAIM_INFORMS["A"],
+        }
     proxy = h.get("bulk_rna_proxy_quality")
-    rel = "high" if proxy == "rna_confirmed_by_protein" else "moderate" if proxy == "rna_positive_proxy_partial" else "low"
+    rel = (
+        "high"
+        if proxy == "rna_confirmed_by_protein"
+        else "moderate"
+        if proxy == "rna_positive_proxy_partial"
+        else "low"
+    )
     conflict = None
     note = None
     # LEVEL != breadth (Principle 2): if a level anchor reads bottom-decile while the abundance claim is
@@ -104,8 +117,11 @@ def _claim_A(h, c):
     elif h.get("abundance_floor_flag") == "present_low_abundance_single_lens":
         low = ", ".join(x.get("lens", "?") for x in _lenses)
         opp = ", ".join((_lenses[0].get("overridden_by") or [])) if _lenses else ""
-        note = (f"single-lens low-abundance ({low}) overridden by orthogonal protein-present evidence"
-                + (f" ({opp})" if opp else "") + " — not read as low")
+        note = (
+            f"single-lens low-abundance ({low}) overridden by orthogonal protein-present evidence"
+            + (f" ({opp})" if opp else "")
+            + " — not read as low"
+        )
     # P1: antibody-IHC (HPA Pathology) is the MS-INDEPENDENT protein-in-tumor leg. When protein presence is
     # IHC-confirmed high it corroborates abundance (and lifts a proxy-floored corroboration off the floor),
     # resolving the "protein magnitude unsettled" read a bottom-decile MS panel would otherwise leave.
@@ -118,18 +134,39 @@ def _claim_A(h, c):
     # from (tumor CPTAC vs cell-line). Record it as a role-tagged corr_cite so the chip's corroboration
     # is traceable to its own source card, not silently attributed to the signal card.
     _proxy_src = h.get("bulk_rna_proxy_quality_source")
-    _corr_card = ("rna-protein-concordance-tumor" if _proxy_src == "tumor"
-                  else "cellline-rna-protein-concordance" if _proxy_src == "cell_line" else None)
+    _corr_card = (
+        "rna-protein-concordance-tumor"
+        if _proxy_src == "tumor"
+        else "cellline-rna-protein-concordance"
+        if _proxy_src == "cell_line"
+        else None
+    )
     corr_cite = {"card_id": _corr_card, "fields": ["rna_as_biomarker"]} if (_corr_card and proxy) else None
-    return {"signal": sig, "corroboration": rel, "conflict": conflict, "informs": CLAIM_INFORMS["A"],
-            "corr_cite": corr_cite,
-            "evidence": f"anchored: {band}" + (f", {pct:.0f}th pct" if isinstance(pct, (int, float)) else "") + f"; proxy={proxy}"
-                        + (f"; {note}" if note else ""),
-            "evidence_atom": _patom("tumor-rna-distribution", trd,
-                                    ("tumor_expression_class", "control_position_class", "allgene_percentile",
-                                     "median_log2tpm", "p95_log2tpm", "distribution_pattern"),
-                                    {"measurement_type": "tumor_rna_expression", "sample_context": "tumor"},
-                                    trd.get("tumor_expression_class"))}
+    return {
+        "signal": sig,
+        "corroboration": rel,
+        "conflict": conflict,
+        "informs": CLAIM_INFORMS["A"],
+        "corr_cite": corr_cite,
+        "evidence": f"anchored: {band}"
+        + (f", {pct:.0f}th pct" if isinstance(pct, (int, float)) else "")
+        + f"; proxy={proxy}"
+        + (f"; {note}" if note else ""),
+        "evidence_atom": _patom(
+            "tumor-rna-distribution",
+            trd,
+            (
+                "tumor_expression_class",
+                "control_position_class",
+                "allgene_percentile",
+                "median_log2tpm",
+                "p95_log2tpm",
+                "distribution_pattern",
+            ),
+            {"measurement_type": "tumor_rna_expression", "sample_context": "tumor"},
+            trd.get("tumor_expression_class"),
+        ),
+    }
 
 
 def _dir(cls):
@@ -147,16 +184,25 @@ def _dir(cls):
 
 
 def _claim_B(h, c):
-    tva = c.get("tumor-rna-vs-adjacent", {}); cp = c.get("tumor-protein-abundance-cptac", {})
-    dge = _dir(tva.get("expression_call_class")); cpt = _dir(cp.get("protein_expression_class"))
+    tva = c.get("tumor-rna-vs-adjacent", {})
+    cp = c.get("tumor-protein-abundance-cptac", {})
+    dge = _dir(tva.get("expression_call_class"))
+    cpt = _dir(cp.get("protein_expression_class"))
     arms = []
     if dge:
         arms.append(("RNA-DGE", dge, tva.get("log2_fc"), tva.get("q_value")))
     if cpt:
         arms.append(("CPTAC", cpt, cp.get("protein_effect_size"), cp.get("protein_bh_q_value")))
     if not arms:
-        return {"signal": "unmeasured", "corroboration": "unmeasured", "evidence": "no tumor-vs-normal arm", "conflict": None, "informs": CLAIM_INFORMS["B"]}
-    ups = [a for a in arms if a[1][0] == "up"]; downs = [a for a in arms if a[1][0] == "down"]
+        return {
+            "signal": "unmeasured",
+            "corroboration": "unmeasured",
+            "evidence": "no tumor-vs-normal arm",
+            "conflict": None,
+            "informs": CLAIM_INFORMS["B"],
+        }
+    ups = [a for a in arms if a[1][0] == "up"]
+    downs = [a for a in arms if a[1][0] == "down"]
     flats = [a for a in arms if a[1][0] == "flat"]
     conflict = None
     if ups and downs:
@@ -169,12 +215,16 @@ def _claim_B(h, c):
         # (the elevation is real but not corroborated across arms/comparators) without moving the tier;
         # corroboration is capped since the arms don't agree. See P1 calibration finding (2026-08-18).
         if flats:
-            up_names = "/".join(a[0] for a in ups); flat_names = "/".join(a[0] for a in flats)
+            up_names = "/".join(a[0] for a in ups)
+            flat_names = "/".join(a[0] for a in flats)
             conflict = f"comparator discordance: {up_names} elevated but {flat_names} flat"
             rel = "moderate" if rel == "high" else rel
     else:
         sig, rel = "absent", "moderate"
-    ev = "; ".join(f"{n}:{d[0]}(fc/eff={_f(fc)},q={q:.0e})" if isinstance(q, (int, float)) else f"{n}:{d[0]}" for n, d, fc, q in arms)
+    ev = "; ".join(
+        f"{n}:{d[0]}(fc/eff={_f(fc)},q={q:.0e})" if isinstance(q, (int, float)) else f"{n}:{d[0]}"
+        for n, d, fc, q in arms
+    )
     # TWO-COMPARATOR surfacing (P1): the primary tier stays the MATCHED-adjacent (+CPTAC) call, but the DGE
     # card also carries a population/GTEx-normal contrast + the fraction of tumours above matched-normal p95
     # that a flat-vs-adjacent read silently drops. A flat-vs-adjacent with strong-vs-population elevation is
@@ -186,20 +236,32 @@ def _claim_B(h, c):
     if isinstance(tva.get("log2_fc"), (int, float)):
         _cbits.append(f"vs matched-adjacent {_f(tva['log2_fc'], 2)} log2FC")
     if isinstance(gtex_fc, (int, float)):
-        _cbits.append(f"vs GTEx-population {_f(gtex_fc, 2)} log2FC" + (f" (q={gtex_q:.0e})" if isinstance(gtex_q, (int, float)) else ""))
+        _cbits.append(
+            f"vs GTEx-population {_f(gtex_fc, 2)} log2FC"
+            + (f" (q={gtex_q:.0e})" if isinstance(gtex_q, (int, float)) else "")
+        )
     if isinstance(frac_p95, (int, float)):
         _cbits.append(f"{_f(frac_p95 * 100, 0)}% tumours > matched-normal p95")
     comparator_detail = "; ".join(_cbits) or None
     if sig == "absent" and isinstance(gtex_fc, (int, float)) and gtex_fc >= 1.0:
         ev += " [flat vs adjacent but elevated vs GTEx-population — comparator-dependent]"
-    return {"signal": sig, "corroboration": rel, "evidence": ev, "conflict": conflict, "informs": CLAIM_INFORMS["B"],
-            "comparator_detail": comparator_detail,
-            # cite the DGE arm (tumor-rna-vs-adjacent) with its values; the CPTAC protein arm is
-            # corroboration (in the tier + evidence string), not double-cited under one card_id.
-            "evidence_atom": _patom("tumor-rna-vs-adjacent", tva,
-                                    ("expression_call_class", "log2_fc", "q_value", "n_tumor"),
-                                    {"measurement_type": "tumor_rna_dge_vs_adjacent", "sample_context": "tumor"},
-                                    tva.get("expression_call_class"))}
+    return {
+        "signal": sig,
+        "corroboration": rel,
+        "evidence": ev,
+        "conflict": conflict,
+        "informs": CLAIM_INFORMS["B"],
+        "comparator_detail": comparator_detail,
+        # cite the DGE arm (tumor-rna-vs-adjacent) with its values; the CPTAC protein arm is
+        # corroboration (in the tier + evidence string), not double-cited under one card_id.
+        "evidence_atom": _patom(
+            "tumor-rna-vs-adjacent",
+            tva,
+            ("expression_call_class", "log2_fc", "q_value", "n_tumor"),
+            {"measurement_type": "tumor_rna_dge_vs_adjacent", "sample_context": "tumor"},
+            tva.get("expression_call_class"),
+        ),
+    }
 
 
 def _claim_C(h, c):
@@ -209,9 +271,19 @@ def _claim_C(h, c):
     # cite the denominator that matches the fraction, and the field the evidence_atom below lists.
     frac, n = h.get("sc_malignant_detection_fraction"), h.get("sc_malignant_n_donors")
     if not cls or cls == "data_unavailable":
-        return {"signal": "unmeasured", "corroboration": "unmeasured", "evidence": "no single-cell for indication", "conflict": None, "informs": CLAIM_INFORMS["C"]}
-    sig = {"malignant_broadly_detected": "strong", "malignant_subset_detected": "weak",
-           "microenvironment_dominant": "negative", "broadly_low": "absent"}.get(cls, "weak")
+        return {
+            "signal": "unmeasured",
+            "corroboration": "unmeasured",
+            "evidence": "no single-cell for indication",
+            "conflict": None,
+            "informs": CLAIM_INFORMS["C"],
+        }
+    sig = {
+        "malignant_broadly_detected": "strong",
+        "malignant_subset_detected": "weak",
+        "microenvironment_dominant": "negative",
+        "broadly_low": "absent",
+    }.get(cls, "weak")
     rel = "high" if isinstance(n, int) and n >= 100 else "moderate" if isinstance(n, int) and n >= 20 else "low"
     # P2: the single-cell card carries antigen-ESCAPE risk + inter-donor consistency + the fraction of donors
     # broadly detecting — decision-critical for a TCE/CAR read but collapsed to one `homogeneity` string
@@ -243,50 +315,79 @@ def _claim_C(h, c):
     purity = scd.get("entity_purity")
     _qc = []
     if ambient == "possible":
-        _qc.append("ambient-contamination:possible"); rel = _CORR_DOWN.get(rel, rel)
+        _qc.append("ambient-contamination:possible")
+        rel = _CORR_DOWN.get(rel, rel)
     if annot in ("phenotype_proxy", "unspecified"):
-        _qc.append(f"malignant-annotation:{annot}"); rel = _CORR_DOWN.get(rel, rel)
+        _qc.append(f"malignant-annotation:{annot}")
+        rel = _CORR_DOWN.get(rel, rel)
     elif annot:
-        _qc.append(f"malignant-annotation:{annot}")       # curated/infercnv — provenance note, no downgrade
+        _qc.append(f"malignant-annotation:{annot}")  # curated/infercnv — provenance note, no downgrade
     if purity == "multi_entity_pooled":
         _qc.append("entity:multi_entity_pooled")
     qc_detail = "; ".join(_qc) or None
-    return {"signal": sig, "corroboration": rel, "conflict": None, "informs": CLAIM_INFORMS["C"],
-            "homogeneity_detail": homogeneity_detail, "qc_detail": qc_detail,
-            "evidence": f"{cls} (malignant frac {_f(frac)}, n={n} donors)"
-                        + (f"; {homogeneity_detail}" if homogeneity_detail else "")
-                        + (f"; QC[{qc_detail}]" if qc_detail else ""),
-            "evidence_atom": _patom("tumor-scrna-celltype-expression",
-                                    c.get("tumor-scrna-celltype-expression", {}),
-                                    ("sc_expression_class", "malignant_detection_fraction",
-                                     "malignant_n_donors", "caf_vs_malignant_class",
-                                     "top_microenvironment_compartment"),
-                                    {"measurement_type": "sc_tumor_celltype_expression",
-                                     "sample_context": "tumor", "grain": "single_cell"},
-                                    cls)}
+    return {
+        "signal": sig,
+        "corroboration": rel,
+        "conflict": None,
+        "informs": CLAIM_INFORMS["C"],
+        "homogeneity_detail": homogeneity_detail,
+        "qc_detail": qc_detail,
+        "evidence": f"{cls} (malignant frac {_f(frac)}, n={n} donors)"
+        + (f"; {homogeneity_detail}" if homogeneity_detail else "")
+        + (f"; QC[{qc_detail}]" if qc_detail else ""),
+        "evidence_atom": _patom(
+            "tumor-scrna-celltype-expression",
+            c.get("tumor-scrna-celltype-expression", {}),
+            (
+                "sc_expression_class",
+                "malignant_detection_fraction",
+                "malignant_n_donors",
+                "caf_vs_malignant_class",
+                "top_microenvironment_compartment",
+            ),
+            {"measurement_type": "sc_tumor_celltype_expression", "sample_context": "tumor", "grain": "single_cell"},
+            cls,
+        ),
+    }
 
 
 def _claim_D(h, c):
     br = h.get("tumor_elevation_breadth_class") or h.get("rna_tumor_elevation_breadth_class")
     dist = c.get("tumor-rna-distribution", {}).get("distribution_pattern")
-    sig = {"broadly_tumor_elevated": "strong", "multi_tumor_elevated": "moderate",
-           "single_tumor_elevated": "weak", "not_tumor_elevated": "absent"}.get(br, "unmeasured")
+    sig = {
+        "broadly_tumor_elevated": "strong",
+        "multi_tumor_elevated": "moderate",
+        "single_tumor_elevated": "weak",
+        "not_tumor_elevated": "absent",
+    }.get(br, "unmeasured")
     # Corroboration scales with HOW MANY cohorts/indications the breadth was tested over (was hardcoded
     # `moderate`, which over-stated a 2-cohort breadth). Uses the larger of the protein-cohort and
     # RNA-indication test counts the breadth card reports.
-    n_tested = max(h.get("tumor_elevation_n_cohorts_tested") or 0,
-                   h.get("rna_tumor_elevation_n_indications_tested") or 0)
-    rel = ("high" if n_tested >= 10 else "moderate" if n_tested >= 5
-           else "low" if n_tested >= 1 else "unmeasured")
-    return {"signal": sig, "corroboration": rel,
-            "evidence": f"breadth={br}; dist={dist}; tested over {n_tested} cohorts/indications",
-            "conflict": None, "informs": CLAIM_INFORMS["D"],
-            "evidence_atom": _patom("tumor-elevation-breadth", c.get("tumor-elevation-breadth", {}),
-                                    ("tumor_elevation_breadth_class", "rna_tumor_elevation_breadth_class",
-                                     "n_cohorts_elevated", "n_cohorts_tested",
-                                     "rna_n_indications_elevated", "rna_n_indications_tested"),
-                                    {"measurement_type": "tumor_elevation_breadth", "grain": "target"},
-                                    br)}
+    n_tested = max(
+        h.get("tumor_elevation_n_cohorts_tested") or 0, h.get("rna_tumor_elevation_n_indications_tested") or 0
+    )
+    rel = "high" if n_tested >= 10 else "moderate" if n_tested >= 5 else "low" if n_tested >= 1 else "unmeasured"
+    return {
+        "signal": sig,
+        "corroboration": rel,
+        "evidence": f"breadth={br}; dist={dist}; tested over {n_tested} cohorts/indications",
+        "conflict": None,
+        "informs": CLAIM_INFORMS["D"],
+        "evidence_atom": _patom(
+            "tumor-elevation-breadth",
+            c.get("tumor-elevation-breadth", {}),
+            (
+                "tumor_elevation_breadth_class",
+                "rna_tumor_elevation_breadth_class",
+                "n_cohorts_elevated",
+                "n_cohorts_tested",
+                "rna_n_indications_elevated",
+                "rna_n_indications_tested",
+            ),
+            {"measurement_type": "tumor_elevation_breadth", "grain": "target"},
+            br,
+        ),
+    }
 
 
 def _homogeneity(h, c):
@@ -302,12 +403,19 @@ def presence_claim_vector(headline: dict, cards: list) -> dict:
     """The modality-blind claim vector: {A,B,C,D: {signal, corroboration, evidence, informs}, homogeneity}.
     Verdict-inert projection over the computed headline + card summaries."""
     c = _by_id(cards)
-    vec = {"A": _claim_A(headline, c), "B": _claim_B(headline, c), "C": _claim_C(headline, c),
-           "D": _claim_D(headline, c), "homogeneity": _homogeneity(headline, c),
-           "_disclaimer": ("Modality-blind, verdict-INERT projection of the presence cards into orthogonal "
-                           "claims (A abundance / B tumor-elevation / C malignant-intrinsic / D generality), "
-                           "each signal×corroboration. Claims are NOT additive; a weak C does not degrade a "
-                           "strong B. Never feeds the presence_verdict.")}
+    vec = {
+        "A": _claim_A(headline, c),
+        "B": _claim_B(headline, c),
+        "C": _claim_C(headline, c),
+        "D": _claim_D(headline, c),
+        "homogeneity": _homogeneity(headline, c),
+        "_disclaimer": (
+            "Modality-blind, verdict-INERT projection of the presence cards into orthogonal "
+            "claims (A abundance / B tumor-elevation / C malignant-intrinsic / D generality), "
+            "each signal×corroboration. Claims are NOT additive; a weak C does not degrade a "
+            "strong B. Never feeds the presence_verdict."
+        ),
+    }
     # OMIT a None evidence_atom (source card absent) so an unmeasured claim stays byte-stable — matching
     # the ClaimSpec axes, where build_claim_vector only attaches the key when the atom is non-None.
     for k in ("A", "B", "C", "D"):
@@ -318,8 +426,12 @@ def presence_claim_vector(headline: dict, cards: list) -> dict:
 
 # ── key signals: a brief, direct, CITED read (deterministic; available without the LLM) ────────
 def presence_key_signals(headline: dict, cards: list) -> dict:
-    c = _by_id(cards); vec = presence_claim_vector(headline, cards)
-    trd = c.get("tumor-rna-distribution", {}); tva = c.get("tumor-rna-vs-adjacent", {}); cp = c.get("tumor-protein-abundance-cptac", {}); br = c.get("tumor-elevation-breadth", {})
+    c = _by_id(cards)
+    vec = presence_claim_vector(headline, cards)
+    trd = c.get("tumor-rna-distribution", {})
+    tva = c.get("tumor-rna-vs-adjacent", {})
+    cp = c.get("tumor-protein-abundance-cptac", {})
+    br = c.get("tumor-elevation-breadth", {})
 
     def support(k):
         cl = vec[k]
@@ -327,7 +439,11 @@ def presence_key_signals(headline: dict, cards: list) -> dict:
             return None
         if k == "A":
             pos, pct = trd.get("control_position", ""), trd.get("allgene_percentile")
-            anchor = pos if isinstance(pos, str) and "positive" in pos else f"median {_f(trd.get('median_log2tpm'),1)} log2TPM"
+            anchor = (
+                pos
+                if isinstance(pos, str) and "positive" in pos
+                else f"median {_f(trd.get('median_log2tpm'), 1)} log2TPM"
+            )
             lead = f"{pct:.0f}th percentile ({anchor})" if isinstance(pct, (int, float)) else anchor
             return f"Abundant in tumors — {lead} [tumor-rna-distribution]"
         if k == "B":
@@ -338,19 +454,27 @@ def presence_key_signals(headline: dict, cards: list) -> dict:
                 # unwrapped, aborts the whole run. Guard the q clause exactly like the sibling at line ~145.
                 _q = tva.get("q_value")
                 _qs = f", q={_q:.0e}" if isinstance(_q, (int, float)) else ""
-                bits.append(f"{2**tva['log2_fc']:.1f}x vs adjacent (log2FC {_f(tva['log2_fc'],1)}{_qs})")
+                bits.append(f"{2 ** tva['log2_fc']:.1f}x vs adjacent (log2FC {_f(tva['log2_fc'], 1)}{_qs})")
             # `or 1` fold a genuine 0.0 q-value to 1.0 and DROPPED the protein-confirmed bit for the STRONGEST
             # signals; test membership explicitly so a maximally-significant 0.0 is kept.
             _pq = cp.get("protein_bh_q_value")
-            if (isinstance(cp.get("protein_effect_size"), (int, float)) and isinstance(_pq, (int, float))
-                    and _pq < 0.05 and cp["protein_effect_size"] > 0.3):
+            if (
+                isinstance(cp.get("protein_effect_size"), (int, float))
+                and isinstance(_pq, (int, float))
+                and _pq < 0.05
+                and cp["protein_effect_size"] > 0.3
+            ):
                 bits.append(f"protein-confirmed (CPTAC effect {_f(cp['protein_effect_size'])}, q={_pq:.0e})")
             return ("Tumor-elevated vs normal — " + "; ".join(bits) + " [DGE + CPTAC]") if bits else None
         if k == "C":
-            return f"Expressed in cancer cells — {_f((headline.get('sc_malignant_detection_fraction') or 0)*100,0)}% of malignant cells (n={headline.get('sc_malignant_n_donors')} donors) [single-cell]"
+            return f"Expressed in cancer cells — {_f((headline.get('sc_malignant_detection_fraction') or 0) * 100, 0)}% of malignant cells (n={headline.get('sc_malignant_n_donors')} donors) [single-cell]"
         if k == "D":
             ne, nt = br.get("n_cohorts_elevated"), br.get("n_cohorts_tested")
-            return f"Broad — protein-elevated in {ne}/{nt} cancer cohorts [tumor-elevation-breadth]" if isinstance(ne, int) and isinstance(nt, int) else None
+            return (
+                f"Broad — protein-elevated in {ne}/{nt} cancer cohorts [tumor-elevation-breadth]"
+                if isinstance(ne, int) and isinstance(nt, int)
+                else None
+            )
         return None
 
     ranked = sorted("ABCD", key=lambda k: -(_SIG_ORD.get(vec[k]["signal"]) or -1))
@@ -361,25 +485,32 @@ def presence_key_signals(headline: dict, cards: list) -> dict:
     if crit:
         k, tier = min(crit, key=lambda kv: kv[1])
         if k == "A" and tier <= 1:
-            caveat = f"Mid-tier abundance — {trd.get('control_position','')} [tumor-rna-distribution]"
+            caveat = f"Mid-tier abundance — {trd.get('control_position', '')} [tumor-rna-distribution]"
         elif k == "C" and tier <= 1:
-            caveat = f"Antigen-heterogeneous — only {_f((headline.get('sc_malignant_detection_fraction') or 0)*100,0)}% of malignant cells express it [single-cell]"
+            caveat = f"Antigen-heterogeneous — only {_f((headline.get('sc_malignant_detection_fraction') or 0) * 100, 0)}% of malignant cells express it [single-cell]"
         elif k == "B" and tier <= 1:
             caveat = "Tumor-vs-normal elevation not established (contrast flat/unavailable) [DGE + CPTAC]"
     # Breadcrumb (not an adjudication): presence carries the normal comparators but the therapeutic-window
     # VERDICT is owned by tumor-selectivity / on-target-safety. Surface the hand-off when EITHER the HPA
     # normal-tissue breadth is broad OR the single-cell normal footprint reads HIGH_LIABILITY.
-    if caveat is None and ("broad" in str(headline.get("normal_tissue_ihc_breadth_class") or "")
-                           or headline.get("sc_normal_expression_class") == "HIGH_LIABILITY"):
+    if caveat is None and (
+        "broad" in str(headline.get("normal_tissue_ihc_breadth_class") or "")
+        or headline.get("sc_normal_expression_class") == "HIGH_LIABILITY"
+    ):
         # #984 Tier-2: sharpen the hand-off with normal-tissue ABUNDANCE — a low-abundance normal liability
         # (FOLR1-class) implies a workable window despite broad detection; high-abundance (EPCAM/CEA-class)
         # is the real concern. Still just a breadcrumb — the window VERDICT is owned by tumor-selectivity.
         _ab = headline.get("sc_normal_abundance_class")
-        _ab_note = {"low_abundance": " — but LOW normal abundance (window may be workable; FOLR1-class)",
-                    "moderate_abundance": " — at moderate normal abundance",
-                    "high_abundance": " — at HIGH normal abundance (real window concern)"}.get(_ab, "")
-        caveat = ("Broadly expressed in normal tissue → therapeutic-window liability" + _ab_note
-                  + "; the window VERDICT is owned by tumor-selectivity / on-target-safety [normal comparators]")
+        _ab_note = {
+            "low_abundance": " — but LOW normal abundance (window may be workable; FOLR1-class)",
+            "moderate_abundance": " — at moderate normal abundance",
+            "high_abundance": " — at HIGH normal abundance (real window concern)",
+        }.get(_ab, "")
+        caveat = (
+            "Broadly expressed in normal tissue → therapeutic-window liability"
+            + _ab_note
+            + "; the window VERDICT is owned by tumor-selectivity / on-target-safety [normal comparators]"
+        )
     # deterministic headline from the vector (NOT the LLM)
     sa, sb = vec["A"]["signal"], vec["B"]["signal"]
     if _SIG_ORD.get(sa) and _SIG_ORD.get(sb) and _SIG_ORD[sa] >= 2 and _SIG_ORD[sb] >= 2:
@@ -396,11 +527,14 @@ def presence_key_signals(headline: dict, cards: list) -> dict:
     if st.get("conflict") or p in ("no", "untested") or mal == "stroma":
         head = presence_state_phrase(st)
         if mal == "stroma":
-            caveat = ("Signal is STROMAL — expressed in the tumor microenvironment, not the malignant "
-                      "cells [single-cell]")
+            caveat = (
+                "Signal is STROMAL — expressed in the tumor microenvironment, not the malignant cells [single-cell]"
+            )
         elif st.get("conflict"):
-            caveat = ("Protein↔RNA CONFLICT — confirm the target in the disagreeing modality before any "
-                      "dependent read [protein vs RNA/single-cell]")
+            caveat = (
+                "Protein↔RNA CONFLICT — confirm the target in the disagreeing modality before any "
+                "dependent read [protein vs RNA/single-cell]"
+            )
     return {"headline": head, "supports": supports, "caveat": caveat}
 
 
@@ -437,8 +571,8 @@ def derive_presence_state(headline: dict) -> dict:
     sc_expression_class, tumor_elevation_breadth_class). Never reads presence_verdict."""
     vec = headline.get("claim_vector") or {}
     A, B, C = _ps_sig(vec, "A"), _ps_sig(vec, "B"), _ps_sig(vec, "C")
-    pcs = headline.get("protein_confirmation_state")          # confirmed|measured_absent|untested|not_applicable
-    floor = headline.get("abundance_floor_flag")              # present_low_abundance|adequate_abundance|None
+    pcs = headline.get("protein_confirmation_state")  # confirmed|measured_absent|untested|not_applicable
+    floor = headline.get("abundance_floor_flag")  # present_low_abundance|adequate_abundance|None
     scc = headline.get("sc_expression_class")
     bc = headline.get("tumor_elevation_breadth_class")
 
@@ -452,35 +586,56 @@ def derive_presence_state(headline: dict) -> dict:
     # sc broadly_low). A tumor/full `confirmed` still counts; only the cell-line-only-AND-contradicted
     # combination is demoted, and ONLY in the RNA-absent branch (surgical — the RNA-present branch is
     # untouched, so no present='yes' target changes). VERDICT-INERT projection.
-    _thin_cellline_only = (pcs == "confirmed_cell_line_only"
-                           and floor == "present_low_abundance"
-                           and headline.get("hpa_ihc_protein_presence_class") == "ihc_not_detected")
+    _thin_cellline_only = (
+        pcs == "confirmed_cell_line_only"
+        and floor == "present_low_abundance"
+        and headline.get("hpa_ihc_protein_presence_class") == "ihc_not_detected"
+    )
     if A in _PS_POS_SIG:
-        present = ("yes" if _confirmed else
-                   "rna_only_protein_absent" if pcs == "measured_absent" else "rna_only")
+        present = "yes" if _confirmed else "rna_only_protein_absent" if pcs == "measured_absent" else "rna_only"
     elif A in ("absent", "negative"):
         present = "protein_only_rna_absent" if (_confirmed and not _thin_cellline_only) else "no"
-    else:                                                     # abundance unmeasured
+    else:  # abundance unmeasured
         present = "protein_only" if _confirmed else "untested"
 
-    abundance_level = ("low" if floor == "present_low_abundance"
-                       else "high" if A == "strong"
-                       else "moderate" if A in ("moderate", "weak")
-                       else "untested")
-    elevated = ("yes" if B in ("strong", "moderate")
-                else "no" if B in ("absent", "negative") else "untested")
-    malignant = ("stroma" if (C == "negative" or scc == "microenvironment_dominant")
-                 else "yes" if C in _PS_POS_SIG
-                 else "no" if C == "absent" else "untested")
-    breadth = {"broadly_tumor_elevated": "broad", "multi_tumor_elevated": "multi",
-               "single_tumor_elevated": "single", "not_tumor_elevated": "none"}.get(bc, "untested")
+    abundance_level = (
+        "low"
+        if floor == "present_low_abundance"
+        else "high"
+        if A == "strong"
+        else "moderate"
+        if A in ("moderate", "weak")
+        else "untested"
+    )
+    elevated = "yes" if B in ("strong", "moderate") else "no" if B in ("absent", "negative") else "untested"
+    malignant = (
+        "stroma"
+        if (C == "negative" or scc == "microenvironment_dominant")
+        else "yes"
+        if C in _PS_POS_SIG
+        else "no"
+        if C == "absent"
+        else "untested"
+    )
+    breadth = {
+        "broadly_tumor_elevated": "broad",
+        "multi_tumor_elevated": "multi",
+        "single_tumor_elevated": "single",
+        "not_tumor_elevated": "none",
+    }.get(bc, "untested")
 
-    return {"present": present,
-            "conflict": present in ("rna_only_protein_absent", "protein_only_rna_absent"),
-            "abundance_level": abundance_level, "elevated_vs_normal": elevated,
-            "malignant_intrinsic": malignant, "breadth": breadth,
-            "_basis": ("typed projection of claim_vector A/B/C/D + protein_confirmation_state + "
-                       "abundance_floor_flag + sc_expression_class; VERDICT-INERT, reads no presence_verdict")}
+    return {
+        "present": present,
+        "conflict": present in ("rna_only_protein_absent", "protein_only_rna_absent"),
+        "abundance_level": abundance_level,
+        "elevated_vs_normal": elevated,
+        "malignant_intrinsic": malignant,
+        "breadth": breadth,
+        "_basis": (
+            "typed projection of claim_vector A/B/C/D + protein_confirmation_state + "
+            "abundance_floor_flag + sc_expression_class; VERDICT-INERT, reads no presence_verdict"
+        ),
+    }
 
 
 # Re-based signal STRENGTH for the certainty-discounted composite. Keyed on the INTEGRATED claim vector
@@ -500,11 +655,14 @@ def presence_strength_from_state(presence_state: dict, claim_vector: dict) -> st
         return "negative"
     if p in (None, "untested"):
         return "none"
-    ords = [o for ax in ("A", "B", "C", "D")
-            for o in [_SIG_ORD.get(((claim_vector or {}).get(ax) or {}).get("signal"))]
-            if isinstance(o, int) and o >= 1]
+    ords = [
+        o
+        for ax in ("A", "B", "C", "D")
+        for o in [_SIG_ORD.get(((claim_vector or {}).get(ax) or {}).get("signal"))]
+        if isinstance(o, int) and o >= 1
+    ]
     strength = _STRENGTH_BY_ORD.get(max(ords), "weak_positive") if ords else "weak_positive"
-    if (presence_state or {}).get("conflict"):          # protein↔RNA disagreement is never strong
+    if (presence_state or {}).get("conflict"):  # protein↔RNA disagreement is never strong
         strength = "weak_positive"
     return strength
 
@@ -522,8 +680,10 @@ def presence_state_phrase(state: dict) -> str:
     if p == "untested":
         return "Presence untested"
     if p == "protein_only_rna_absent":
-        return ("Conflicting — protein detected but RNA / single-cell absent; investigate "
-                "(contamination or post-transcriptional) before any read")
+        return (
+            "Conflicting — protein detected but RNA / single-cell absent; investigate "
+            "(contamination or post-transcriptional) before any read"
+        )
     if p == "rna_only_protein_absent":
         return "RNA-present but protein measured-absent — confirm protein before a biologics read"
     if p == "protein_only":
@@ -550,8 +710,9 @@ def render_presence_label(state: dict) -> str:
         return "conflicted_protein_present_rna_absent"
     if p == "protein_only":
         return "present_protein_only"
-    tier = {"high": "broadly", "moderate": "moderately", "low": "sparsely",
-            "untested": "moderately"}.get(state.get("abundance_level"), "moderately")
+    tier = {"high": "broadly", "moderate": "moderately", "low": "sparsely", "untested": "moderately"}.get(
+        state.get("abundance_level"), "moderately"
+    )
     stub = "protein_confirmed" if p == "yes" else "rna_only"
     elev = "_tumor_elevated" if state.get("elevated_vs_normal") == "yes" else ""
     return f"present_{tier}{elev}_{stub}"
@@ -604,25 +765,35 @@ def presence_claim_vector_by_subtype(cards: list) -> Optional[dict]:
     # k = strata scanned (multiple-testing surface) — the tested count, else the count with data.
     k_tested = s.get("n_subtypes_measured")
     if not isinstance(k_tested, int):
-        k_tested = sum(1 for r in (s.get("per_subgroup_metrics") or [])
-                       if isinstance(r, dict) and r.get("stratum_id"))
-    for r in (s.get("per_subgroup_metrics") or []):
-        if not isinstance(r, dict):   # tolerate simplified/frozen fixtures where rows aren't full dicts
+        k_tested = sum(1 for r in (s.get("per_subgroup_metrics") or []) if isinstance(r, dict) and r.get("stratum_id"))
+    for r in s.get("per_subgroup_metrics") or []:
+        if not isinstance(r, dict):  # tolerate simplified/frozen fixtures where rows aren't full dicts
             continue
         sid = r.get("stratum_id")
         if not sid:
             continue
         med, fa, n = r.get("median_log2tpm"), r.get("fraction_tumor_above_normal_p95"), r.get("n_tumor_samples")
-        rel_base = "high" if isinstance(n, int) and n >= 100 else "moderate" if isinstance(n, int) and n >= 30 else "low"
-        rel = _multiplicity_discount(rel_base, k_tested)                       # multiplicity haircut
+        rel_base = (
+            "high" if isinstance(n, int) and n >= 100 else "moderate" if isinstance(n, int) and n >= 30 else "low"
+        )
+        rel = _multiplicity_discount(rel_base, k_tested)  # multiplicity haircut
         fb = "moderate" if isinstance(fa, (int, float)) else "unmeasured"
         strata[sid] = {
-            "A": {"signal": _tier_from_median(med), "corroboration": rel,
-                  "evidence": f"stratum median {_f(med, 1)} log2TPM, n={n}"
-                              + (f" (certainty {rel_base}→{rel}: 1 of {k_tested} strata scanned)" if rel != rel_base else "")},
-            "B": {"signal": _tier_from_fraction_above_normal(fa), "corroboration": _multiplicity_discount(fb, k_tested),
-                  "evidence": (f"{_f((fa or 0) * 100, 0)}% of stratum tumours > GTEx-normal p95 (distributional, not the DEG)"
-                               if isinstance(fa, (int, float)) else "no per-stratum normal window")},
+            "A": {
+                "signal": _tier_from_median(med),
+                "corroboration": rel,
+                "evidence": f"stratum median {_f(med, 1)} log2TPM, n={n}"
+                + (f" (certainty {rel_base}→{rel}: 1 of {k_tested} strata scanned)" if rel != rel_base else ""),
+            },
+            "B": {
+                "signal": _tier_from_fraction_above_normal(fa),
+                "corroboration": _multiplicity_discount(fb, k_tested),
+                "evidence": (
+                    f"{_f((fa or 0) * 100, 0)}% of stratum tumours > GTEx-normal p95 (distributional, not the DEG)"
+                    if isinstance(fa, (int, float))
+                    else "no per-stratum normal window"
+                ),
+            },
             "n_tumor_samples": n,
         }
     return {
@@ -634,18 +805,27 @@ def presence_claim_vector_by_subtype(cards: list) -> Optional[dict]:
         "multiplicity_strata_tested": k_tested,
         "strata": strata,
         "_indication_grain_claims": "C (single-cell malignant) and protein-confirmation are NOT stratified "
-                                    "(single-cell pooled; CPTAC whole-cohort) — read them from the pooled claim_vector.",
-        "_disclaimer": ("Per-stratum claim vector — verdict-INERT (the pooled presence_verdict is byte-stable). "
-                        "Only claims A (abundance) and a distributional B (fraction > GTEx-normal p95) are live per "
-                        "subtype (from per_subgroup_metrics); a pooled indication read can flatten a subtype-"
-                        "concentrated signal (cf. CD274/MSI-H), so a per-stratum POSITIVE is surfaced here rather "
-                        f"than suppressed. Certainty is MULTIPLICITY-AWARE: with {k_tested} strata scanned, each "
-                        "per-stratum corroboration takes a 1-tier haircut (k>=5) so a single stratum is not over-"
-                        "trusted; small-n strata are additionally low by power. Read certainty, not just signal."),
+        "(single-cell pooled; CPTAC whole-cohort) — read them from the pooled claim_vector.",
+        "_disclaimer": (
+            "Per-stratum claim vector — verdict-INERT (the pooled presence_verdict is byte-stable). "
+            "Only claims A (abundance) and a distributional B (fraction > GTEx-normal p95) are live per "
+            "subtype (from per_subgroup_metrics); a pooled indication read can flatten a subtype-"
+            "concentrated signal (cf. CD274/MSI-H), so a per-stratum POSITIVE is surfaced here rather "
+            f"than suppressed. Certainty is MULTIPLICITY-AWARE: with {k_tested} strata scanned, each "
+            "per-stratum corroboration takes a 1-tier haircut (k>=5) so a single stratum is not over-"
+            "trusted; small-n strata are additionally low by power. Read certainty, not just signal."
+        ),
     }
 
 
-__all__ = ["presence_claim_vector", "presence_claim_vector_by_subtype", "presence_key_signals",
-           "derive_presence_state", "render_presence_label", "presence_strength_from_state",
-           "presence_state_phrase",
-           "CLAIM_NAME", "CLAIM_INFORMS"]
+__all__ = [
+    "presence_claim_vector",
+    "presence_claim_vector_by_subtype",
+    "presence_key_signals",
+    "derive_presence_state",
+    "render_presence_label",
+    "presence_strength_from_state",
+    "presence_state_phrase",
+    "CLAIM_NAME",
+    "CLAIM_INFORMS",
+]

@@ -9,6 +9,7 @@ Offline: pure _headline over synthetic cards, no S3/reader. _headline reads seve
 get_card_field, which RAISES on a missing card_id — so a valid call must supply every card the skill
 declares (me.CARDS); we populate only the avidity one.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -57,7 +58,7 @@ def test_headline_emits_avidity_fields():
     assert h["samecell_window_verdict"] == "window_open"
     assert h["samecell_selectivity_margin"] == 0.39
     assert h["samecell_n_window_open"] == 1
-    assert "samecell_normal_liability_locus" in h            # emitted even when None
+    assert "samecell_normal_liability_locus" in h  # emitted even when None
 
 
 def test_avidity_is_verdict_inert():

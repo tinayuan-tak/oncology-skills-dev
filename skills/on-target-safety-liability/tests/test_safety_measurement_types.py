@@ -8,6 +8,7 @@ it exists, every pulled type resolves to a key in vocabularies/measurement_types
 anti-drift guard — every card the gate USES maps to a type it DECLARES it pulls. Graceful-skip when
 target-contracts is absent. Mirror of surface-modality-fit / genomic-alteration-profile.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -44,17 +45,24 @@ def test_gate_declares_measurement_types_pulled():
     # the human-genetics safety spine + the mechanism-conditioning input + the two data-utilization
     # expansion legs (2026-08-21): DepMap pan-essentiality (crispr_lof_dependency) and the HPA-IHC
     # essential-tissue PROTEIN card (normal_tissue_protein_breadth — now legitimately composed here).
-    for required in ("gnomad_lof_constraint", "human_genetic_safety", "alteration_role",
-                     "crispr_lof_dependency", "normal_tissue_protein_breadth"):
+    for required in (
+        "gnomad_lof_constraint",
+        "human_genetic_safety",
+        "alteration_role",
+        "crispr_lof_dependency",
+        "normal_tissue_protein_breadth",
+    ):
         assert required in pulled, f"{required!r} missing from measurement_types_pulled"
     # normal_tissue_protein_breadth is NOW legitimate — the normal-tissue-liability (HPA-IHC protein)
     # card joined the roster in the data-utilization expansion. Its RNA sibling
     # (normal-tissue-liability-gtex) remains a SEPARATE normal_tissue_rna_breadth entry; both are pulled.
     assert "normal_tissue_rna_breadth" in pulled, (
-        "normal_tissue_rna_breadth missing — the GTEx card (normal-tissue-liability-gtex) is RNA-breadth")
+        "normal_tissue_rna_breadth missing — the GTEx card (normal-tissue-liability-gtex) is RNA-breadth"
+    )
     # regression: this spurious entry must NOT reappear (belonged to protein-surface-evidence, re-homed)
     assert "surface_confirmation" not in pulled, (
-        "surface_confirmation is spurious — protein-surface-evidence was re-homed to surface-modality-fit")
+        "surface_confirmation is spurious — protein-surface-evidence was re-homed to surface-modality-fit"
+    )
 
 
 def test_pulled_types_are_registered_in_the_vocab():
@@ -78,7 +86,9 @@ def test_every_used_card_maps_to_a_pulled_type():
             card_to_type[cid] = mtype
     pulled = set(_pulled())
     cards_used = _skill_frontmatter()["composition"].get("cards_used") or []
-    undeclared = [(cid, card_to_type[cid]) for cid in cards_used
-                  if card_to_type.get(cid) is not None and card_to_type[cid] not in pulled]
-    assert not undeclared, (
-        f"cards used but whose measurement_type is not in measurement_types_pulled: {undeclared}")
+    undeclared = [
+        (cid, card_to_type[cid])
+        for cid in cards_used
+        if card_to_type.get(cid) is not None and card_to_type[cid] not in pulled
+    ]
+    assert not undeclared, f"cards used but whose measurement_type is not in measurement_types_pulled: {undeclared}"

@@ -22,6 +22,7 @@ rule_id has no card mapping) — callers MUST treat empty as "read ALL cards", n
 Callers should additionally assert ``verdict_relevant_cards(gate) <= set(skill_CARDS)`` (a lean set
 must be a subset of what the skill declares); the shipped guard test enforces this per gate.
 """
+
 from __future__ import annotations
 
 import functools

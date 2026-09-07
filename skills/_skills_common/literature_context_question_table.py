@@ -15,6 +15,7 @@ what typed relations) — descriptive, NOT a good/bad push on the nomination. Si
 Signal reuses the claim_vector tier vocabulary (strong>moderate>weak>absent, unmeasured); Confidence
 reuses the corroboration vocabulary (high>moderate>low, unmeasured).
 """
+
 from __future__ import annotations
 
 from typing import Optional

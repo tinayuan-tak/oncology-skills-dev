@@ -3,6 +3,7 @@ blocks with a spine-polarity verdict badge, card→owner routing, level/medium g
 
 Fixture shapes mirror the REAL nomination (top-level sub_verdicts.cards_used + card_figures descriptors)
 so the join is exercised against real shapes, not fixture-invented ones (the #990 lesson)."""
+
 import sys
 from pathlib import Path
 
@@ -22,18 +23,18 @@ def _figs(ir, short):
     """Card-figure blocks in a section (the join's output — carry a card_id). The legacy
     skill_report.figures hero blocks (no card_id) are excluded so counts test the join only."""
     sec = _section(ir, short)
-    return [b for b in (sec.blocks if sec else [])
-            if b.kind == vocab.FIGURE and b.payload.get("card_id")]
+    return [b for b in (sec.blocks if sec else []) if b.kind == vocab.FIGURE and b.payload.get("card_id")]
 
 
 # -- the join + owner routing --------------------------------------------------------------------
 def test_card_figures_join_into_their_owning_section():
     ir = build_ir(make_nomination(), resolve_spec("full"))
     dep = _figs(ir, "dependency")
-    assert [b.payload["card_id"] for b in dep] == \
-        ["pan-cancer-crispr-dependency-distribution", "pan-cancer-crispr-dependency-distribution"]  # L3: 2 svgs
-    assert {b.payload["card_id"] for b in _figs(ir, "safety")} == \
-        {"gnomad-lof-constraint", "normal-tissue-liability"}
+    assert [b.payload["card_id"] for b in dep] == [
+        "pan-cancer-crispr-dependency-distribution",
+        "pan-cancer-crispr-dependency-distribution",
+    ]  # L3: 2 svgs
+    assert {b.payload["card_id"] for b in _figs(ir, "safety")} == {"gnomad-lof-constraint", "normal-tissue-liability"}
 
 
 def test_shared_card_routes_to_the_gating_lister_not_the_descriptive_one():
@@ -42,8 +43,8 @@ def test_shared_card_routes_to_the_gating_lister_not_the_descriptive_one():
     safety_cards = {b.payload["card_id"] for b in _figs(ir, "safety")}
     ti_cards = {b.payload["card_id"] for b in _figs(ir, "target_intrinsic")}
     assert "normal-tissue-liability" in safety_cards
-    assert "normal-tissue-liability" not in ti_cards          # no duplication across sections
-    assert ti_cards == {"functional-gene-state"}              # only its own-lens card
+    assert "normal-tissue-liability" not in ti_cards  # no duplication across sections
+    assert ti_cards == {"functional-gene-state"}  # only its own-lens card
 
 
 def test_figure_ref_is_prefixed_for_the_run_root():
@@ -56,7 +57,7 @@ def test_figure_ref_is_prefixed_for_the_run_root():
 def test_badge_is_derived_from_the_sections_spine_polarity():
     ir = build_ir(make_nomination(), resolve_spec("full"))
     assert all(b.payload["status"]["label"] == "SUPPORTS" for b in _figs(ir, "dependency"))  # supportive
-    assert all(b.payload["status"]["label"] == "KILLER" for b in _figs(ir, "safety"))        # killer
+    assert all(b.payload["status"]["label"] == "KILLER" for b in _figs(ir, "safety"))  # killer
     # a descriptive skill's figure is an honest CONTEXT no-call, never a grey killer.
     assert all(b.payload["status"]["signal"] == "context" for b in _figs(ir, "target_intrinsic"))
 
@@ -81,8 +82,7 @@ def test_plotly_sibling_is_carried_as_dynamic_ref_not_its_own_block():
     primary = next(b for b in _figs(ir, "dependency") if b.payload["primary"])
     assert primary.payload["dynamic_ref"].endswith("figure_chronos_density.plotly.json")
     # the .plotly.json descriptor is never emitted as its own FIGURE block (no .plotly.json refs).
-    assert not any(str(b.payload.get("ref") or "").endswith(".plotly.json")
-                   for b in _figs(ir, "dependency"))
+    assert not any(str(b.payload.get("ref") or "").endswith(".plotly.json") for b in _figs(ir, "dependency"))
 
 
 def test_medium_text_suppresses_the_image_but_keeps_the_caption():
@@ -103,13 +103,13 @@ def test_html_embeds_image_and_status_pill():
 def test_markdown_embeds_image_with_badge_in_caption():
     md = render_report(make_nomination(), preset="full", backend="markdown")
     assert "![" in md and "figures/cards/gnomad-lof-constraint/" in md
-    assert "KILLER —" in md          # badge kept in the markdown caption
+    assert "KILLER —" in md  # badge kept in the markdown caption
 
 
 def test_text_fallback_names_figure_and_badge_without_image():
     txt = render_report(make_nomination(), backend="text", level="L3", medium="text")
     assert "FIGURE:" in txt.upper()
-    assert "SUPPORTS —" in txt       # dependency figures badged in the text degrade path
+    assert "SUPPORTS —" in txt  # dependency figures badged in the text degrade path
 
 
 # -- fail-soft / single-skill --------------------------------------------------------------------

@@ -11,6 +11,7 @@ headline, unit-tested on the pure helpers (they never touch the collapsed spine)
     absolute abundance LEVEL reads bottom-decile in >=1 lens. The contrast-rank cards (CPTAC,
     RNA-vs-adjacent) are deliberately excluded — a low contrast rank is not low abundance.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -21,8 +22,13 @@ tp = load_run_py(Path(__file__).resolve().parent.parent, "tp_run_guards")
 
 
 def _bucket(measurement, sample_context, verdict, evidence_state="measured"):
-    return {"measurement": measurement, "sample_context": sample_context,
-            "verdict": verdict, "driving_rule_id": None, "evidence_state": evidence_state}
+    return {
+        "measurement": measurement,
+        "sample_context": sample_context,
+        "verdict": verdict,
+        "driving_rule_id": None,
+        "evidence_state": evidence_state,
+    }
 
 
 # ── presence_headline_conflict ─────────────────────────────────────────────────────────────────
@@ -66,8 +72,9 @@ def test_conflict_ignores_unmeasured_negative_lookalike():
     conflict flag even under a positive headline."""
     pm = {
         "bulk_rna/tumor": _bucket("bulk_rna", "tumor", "tumor_broadly_expressed"),
-        "bulk_protein_ms/tumor": _bucket("bulk_protein_ms", "tumor", "data_unavailable",
-                                         evidence_state="data_unavailable"),
+        "bulk_protein_ms/tumor": _bucket(
+            "bulk_protein_ms", "tumor", "data_unavailable", evidence_state="data_unavailable"
+        ),
     }
     conflict, _, buckets = tp._headline_conflict("tumor_broadly_expressed", pm)
     assert conflict is False and buckets == []
@@ -76,17 +83,20 @@ def test_conflict_ignores_unmeasured_negative_lookalike():
 # ── abundance_floor_flag ───────────────────────────────────────────────────────────────────────
 def _cards(**pct_by_card):
     """Minimal cards list carrying only allgene_percentile_class for the level-anchor cards."""
-    return [{"card_id": cid, "summary": {"allgene_percentile_class": klass}}
-            for cid, klass in pct_by_card.items()]
+    return [{"card_id": cid, "summary": {"allgene_percentile_class": klass}} for cid, klass in pct_by_card.items()]
 
 
 def test_abundance_floor_fires_on_bottom_decile_level_lens():
     """UNOPPOSED single-lens case: presence-positive, cell-line PROTEIN bottom-decile, and NO orthogonal
     protein contradiction (no ProCan / IHC in this minimal card set). A high RNA anchor does NOT override
     a protein floor (RNA != protein), so the HARD floor fires and names the low lens."""
-    cards = _cards(**{"tumor-rna-distribution": "top_1pct",
-                      "cellline-rna-distribution": "mid",
-                      "cellline-protein-abundance": "bottom_decile"})
+    cards = _cards(
+        **{
+            "tumor-rna-distribution": "top_1pct",
+            "cellline-rna-distribution": "mid",
+            "cellline-protein-abundance": "bottom_decile",
+        }
+    )
     flag, lenses = tp._abundance_floor(cards, "tumor_broadly_expressed")
     assert flag == "present_low_abundance"
     assert [x["card_id"] for x in lenses] == ["cellline-protein-abundance"]
@@ -97,10 +107,14 @@ def test_abundance_floor_single_lens_demoted_by_orthogonal_protein():
     """QUORUM (P0): a LONE bottom-decile PROTEIN panel orthogonally contradicted by the 2nd protein
     platform (ProCan `mid`) is a detection-sensitivity artifact — demoted to the SOFT single-lens flag
     (still named + overriding evidence recorded), NOT a hard floor. This is the true EPCAM shape."""
-    cards = _cards(**{"tumor-rna-distribution": "top_1pct",
-                      "cellline-rna-distribution": "mid",
-                      "cellline-protein-abundance": "bottom_decile",
-                      "cellline-protein-abundance-procan": "mid"})
+    cards = _cards(
+        **{
+            "tumor-rna-distribution": "top_1pct",
+            "cellline-rna-distribution": "mid",
+            "cellline-protein-abundance": "bottom_decile",
+            "cellline-protein-abundance-procan": "mid",
+        }
+    )
     flag, lenses = tp._abundance_floor(cards, "tumor_broadly_expressed")
     assert flag == "present_low_abundance_single_lens"
     assert lenses[0]["card_id"] == "cellline-protein-abundance"
@@ -111,19 +125,27 @@ def test_abundance_floor_single_lens_demoted_by_orthogonal_protein():
 def test_abundance_floor_multi_lens_stays_hard():
     """Two independent bottom-decile level lenses = genuine low abundance → HARD floor (multi_lens),
     never demoted regardless of orthogonal signals."""
-    cards = _cards(**{"tumor-rna-distribution": "mid",
-                      "cellline-rna-distribution": "bottom_decile",
-                      "cellline-protein-abundance": "bottom_decile",
-                      "cellline-protein-abundance-procan": "mid"})
+    cards = _cards(
+        **{
+            "tumor-rna-distribution": "mid",
+            "cellline-rna-distribution": "bottom_decile",
+            "cellline-protein-abundance": "bottom_decile",
+            "cellline-protein-abundance-procan": "mid",
+        }
+    )
     flag, lenses = tp._abundance_floor(cards, "tumor_broadly_expressed")
     assert flag == "present_low_abundance"
     assert {x["quorum"] for x in lenses} == {"multi_lens"}
 
 
 def test_abundance_floor_adequate_when_no_bottom_decile_level():
-    cards = _cards(**{"tumor-rna-distribution": "top_1pct",
-                      "cellline-rna-distribution": "mid",
-                      "cellline-protein-abundance": "mid"})
+    cards = _cards(
+        **{
+            "tumor-rna-distribution": "top_1pct",
+            "cellline-rna-distribution": "mid",
+            "cellline-protein-abundance": "mid",
+        }
+    )
     flag, lenses = tp._abundance_floor(cards, "tumor_broadly_expressed")
     assert flag == "adequate_abundance" and lenses == []
 
@@ -136,8 +158,10 @@ def _ihc_card(klass):
 def _procan_card(pct, klass="mid"):
     """ProCan card carrying BOTH the raw all-gene percentile (the surface re-anchor's ≥50 bar) and the
     coarse class (the general #965 orthogonal-contradiction check)."""
-    return {"card_id": "cellline-protein-abundance-procan",
-            "summary": {"allgene_percentile": pct, "allgene_percentile_class": klass}}
+    return {
+        "card_id": "cellline-protein-abundance-procan",
+        "summary": {"allgene_percentile": pct, "allgene_percentile_class": klass},
+    }
 
 
 def test_surface_class_reanchors_lone_gygi_low_when_procan_at_least_median():
@@ -145,9 +169,13 @@ def test_surface_class_reanchors_lone_gygi_low_when_procan_at_least_median():
     is a class under-read, not a floor → re-anchor to adequate (EPCAM 79.7 / CEACAM5 84.3 / MSLN 61.5 /
     TACSTD2 87.0). Contrast the non-surface path (next test), which stays the SOFT single-lens flag —
     the surface gate is the only difference."""
-    cards = _cards(**{"tumor-rna-distribution": "top_1pct",
-                      "cellline-rna-distribution": "mid",
-                      "cellline-protein-abundance": "bottom_decile"}) + [_procan_card(79.7)]
+    cards = _cards(
+        **{
+            "tumor-rna-distribution": "top_1pct",
+            "cellline-rna-distribution": "mid",
+            "cellline-protein-abundance": "bottom_decile",
+        }
+    ) + [_procan_card(79.7)]
     flag, lenses = tp._abundance_floor(cards, "tumor_broadly_expressed", is_surface=True)
     assert flag == "adequate_abundance" and lenses == []
 
@@ -155,9 +183,13 @@ def test_surface_class_reanchors_lone_gygi_low_when_procan_at_least_median():
 def test_non_surface_gygi_low_procan_recovers_stays_soft_flag_byte_stable():
     """The SAME cards WITHOUT the surface gate keep the general PR #965 behavior (SOFT single-lens flag) —
     proves the surface anchor is the ONLY behavior change (non-surface targets are byte-stable)."""
-    cards = _cards(**{"tumor-rna-distribution": "top_1pct",
-                      "cellline-rna-distribution": "mid",
-                      "cellline-protein-abundance": "bottom_decile"}) + [_procan_card(79.7)]
+    cards = _cards(
+        **{
+            "tumor-rna-distribution": "top_1pct",
+            "cellline-rna-distribution": "mid",
+            "cellline-protein-abundance": "bottom_decile",
+        }
+    ) + [_procan_card(79.7)]
     flag, _ = tp._abundance_floor(cards, "tumor_broadly_expressed", is_surface=False)
     assert flag == "present_low_abundance_single_lens"
 
@@ -168,9 +200,13 @@ def test_surface_class_does_NOT_rescue_folr1_shape_procan_below_median():
     them. With the ≥50 RAW-percentile bar the surface re-anchor does NOT fire; it falls through to the
     general #965 path → SOFT single-lens flag (ProCan `mid` still contradicts the hard floor). So FOLR1
     keeps an honest low-abundance flag — neither a false `adequate` nor a spurious hard floor."""
-    cards = _cards(**{"tumor-rna-distribution": "top_1pct",
-                      "cellline-rna-distribution": "mid",
-                      "cellline-protein-abundance": "bottom_decile"}) + [_procan_card(20.8)]
+    cards = _cards(
+        **{
+            "tumor-rna-distribution": "top_1pct",
+            "cellline-rna-distribution": "mid",
+            "cellline-protein-abundance": "bottom_decile",
+        }
+    ) + [_procan_card(20.8)]
     flag, lenses = tp._abundance_floor(cards, "tumor_broadly_expressed", is_surface=True)
     assert flag == "present_low_abundance_single_lens"
     assert lenses[0]["quorum"] == "single_lens_overridden"
@@ -179,9 +215,13 @@ def test_surface_class_does_NOT_rescue_folr1_shape_procan_below_median():
 def test_surface_class_ihc_high_carries_reanchor_when_procan_missing():
     """MUC1-class exception: Gygi low, ProCan absent/low, but IHC detected_high → the surface re-anchor
     still fires (antibody-IHC carries the abundance signal)."""
-    cards = _cards(**{"tumor-rna-distribution": "top_1pct",
-                      "cellline-rna-distribution": "mid",
-                      "cellline-protein-abundance": "bottom_decile"}) + [_ihc_card("ihc_detected_high")]
+    cards = _cards(
+        **{
+            "tumor-rna-distribution": "top_1pct",
+            "cellline-rna-distribution": "mid",
+            "cellline-protein-abundance": "bottom_decile",
+        }
+    ) + [_ihc_card("ihc_detected_high")]
     flag, lenses = tp._abundance_floor(cards, "tumor_broadly_expressed", is_surface=True)
     assert flag == "adequate_abundance" and lenses == []
 
@@ -190,10 +230,14 @@ def test_surface_class_keeps_hard_floor_when_procan_also_bottom_decile_no_ihc():
     """A surface antigen bottom-decile on BOTH Gygi AND ProCan (raw pct absent → below bar) with no
     IHC-high is genuinely low on both platforms — no orthogonal contradiction, so the honest HARD floor
     stands (single_lens_unopposed)."""
-    cards = _cards(**{"tumor-rna-distribution": "top_1pct",
-                      "cellline-rna-distribution": "mid",
-                      "cellline-protein-abundance": "bottom_decile",
-                      "cellline-protein-abundance-procan": "bottom_decile"})
+    cards = _cards(
+        **{
+            "tumor-rna-distribution": "top_1pct",
+            "cellline-rna-distribution": "mid",
+            "cellline-protein-abundance": "bottom_decile",
+            "cellline-protein-abundance-procan": "bottom_decile",
+        }
+    )
     flag, lenses = tp._abundance_floor(cards, "tumor_broadly_expressed", is_surface=True)
     assert flag == "present_low_abundance"
     assert lenses[0]["quorum"] == "single_lens_unopposed"
@@ -202,9 +246,13 @@ def test_surface_class_keeps_hard_floor_when_procan_also_bottom_decile_no_ihc():
 def test_surface_class_does_not_rescue_a_multi_lens_low():
     """A surface antigen ALSO bottom-decile on an RNA level anchor (not just Gygi) is a genuine multi-lens
     low — the surface re-anchor (Gygi-only under-read) does NOT fire; the multi_lens HARD floor stands."""
-    cards = _cards(**{"tumor-rna-distribution": "mid",
-                      "cellline-rna-distribution": "bottom_decile",
-                      "cellline-protein-abundance": "bottom_decile"}) + [_procan_card(79.7)]
+    cards = _cards(
+        **{
+            "tumor-rna-distribution": "mid",
+            "cellline-rna-distribution": "bottom_decile",
+            "cellline-protein-abundance": "bottom_decile",
+        }
+    ) + [_procan_card(79.7)]
     flag, lenses = tp._abundance_floor(cards, "tumor_broadly_expressed", is_surface=True)
     assert flag == "present_low_abundance"
     assert {x["quorum"] for x in lenses} == {"multi_lens"}
@@ -214,6 +262,7 @@ def test_surface_secreted_vocab_loads_expected_members():
     """The curated vocab loads and covers the issue panel (EPCAM incl. — biology_axis_curated MISSES it)
     without over-claiming a cytoplasmic control."""
     from _skills_common._live_readers import _load_surface_secreted_antigens
+
     v = _load_surface_secreted_antigens()
     assert {"EPCAM", "CEACAM5", "FOLR1", "MSLN", "TACSTD2", "DLL3", "MUC1"} <= v
     assert "KRAS" not in v and "ACTB" not in v
@@ -221,9 +270,13 @@ def test_surface_secreted_vocab_loads_expected_members():
 
 def test_abundance_floor_none_when_not_positive():
     """A negative / gap / insufficient headline gets no abundance-floor read (nothing to qualify)."""
-    cards = _cards(**{"tumor-rna-distribution": "bottom_decile",
-                      "cellline-rna-distribution": "bottom_decile",
-                      "cellline-protein-abundance": "bottom_decile"})
+    cards = _cards(
+        **{
+            "tumor-rna-distribution": "bottom_decile",
+            "cellline-rna-distribution": "bottom_decile",
+            "cellline-protein-abundance": "bottom_decile",
+        }
+    )
     for v in ("broadly_low_expression", "data_unavailable", "insufficient"):
         flag, lenses = tp._abundance_floor(cards, v)
         assert flag is None and lenses == []
@@ -249,8 +302,10 @@ def test_conflict_surfaces_within_bucket_buried_negative():
     cross-bucket scan never sees it. `tumor-rna-vs-adjacent` modestly_downregulated + `tumor-rna-
     distribution` broadly-high both live in bulk_rna/tumor. Passing `fired` must surface the buried
     negative on presence_headline_conflict."""
-    fired = [_fr("tumor-expression-broadly-high-supportive", "tumor-rna-distribution"),
-             _fr("expression-modest-downregulation-opposing", "tumor-rna-vs-adjacent")]
+    fired = [
+        _fr("tumor-expression-broadly-high-supportive", "tumor-rna-distribution"),
+        _fr("expression-modest-downregulation-opposing", "tumor-rna-vs-adjacent"),
+    ]
     pm = tp._per_modality_verdicts(fired)
     # the bucket winner is the positive (no cross-bucket negative anywhere)
     assert tp._is_presence_positive(pm[tp._ctx_key("bulk_rna", "tumor")]["verdict"])

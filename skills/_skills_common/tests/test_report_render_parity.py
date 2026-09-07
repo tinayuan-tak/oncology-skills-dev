@@ -1,5 +1,6 @@
 """report_render — content-parity blocks with the legacy target_profile.html/.md: synthesis, coherence,
 modality-fit matrix, literature risk, deciding axis (all report-level, spine/facet-sourced)."""
+
 import json
 import sys
 from pathlib import Path
@@ -18,8 +19,7 @@ def _kinds(ir):
 
 def test_full_report_has_all_parity_blocks():
     ir = build_ir(make_nomination(), resolve_spec("full"))
-    for k in (vocab.SYNTHESIS, vocab.COHERENCE, vocab.MODALITY_MATRIX, vocab.LITERATURE_RISK,
-              vocab.DECIDING_AXIS):
+    for k in (vocab.SYNTHESIS, vocab.COHERENCE, vocab.MODALITY_MATRIX, vocab.LITERATURE_RISK, vocab.DECIDING_AXIS):
         assert k in _kinds(ir), f"missing parity block {k}"
 
 
@@ -66,11 +66,22 @@ def test_text_and_json_render_parity():
 
 def test_parity_blocks_failsoft_when_sources_absent():
     # a minimal spine-only nomination (no llm_synthesis / risk_assessment / evidence_matrix / thesis)
-    nom = {"target_report": {"skill_reports": {
-        "safety": {"role": "gating", "polarity": "killer", "call": "x", "honest_phrase": "y",
-                   "claim_chips": [], "provenance": {}}}}}
+    nom = {
+        "target_report": {
+            "skill_reports": {
+                "safety": {
+                    "role": "gating",
+                    "polarity": "killer",
+                    "call": "x",
+                    "honest_phrase": "y",
+                    "claim_chips": [],
+                    "provenance": {},
+                }
+            }
+        }
+    }
     ir = build_ir(nom, resolve_spec("full"))
     present = _kinds(ir)
     for k in (vocab.SYNTHESIS, vocab.MODALITY_MATRIX, vocab.LITERATURE_RISK, vocab.COHERENCE):
-        assert k not in present            # absent, not crashing
+        assert k not in present  # absent, not crashing
     assert render_report(nom, preset="full", backend="html")  # still renders

@@ -1,14 +1,18 @@
 """#984 Tier-2: the tumor-selectivity window hand-off breadcrumb is ABUNDANCE-aware — a low-abundance
 normal liability (FOLR1-class) is flagged as a workable window despite broad detection; high-abundance
 (EPCAM/CEA-class) is the real concern. Still a breadcrumb — presence never adjudicates the window."""
+
 from __future__ import annotations
 
 from _skills_common.presence_claims import presence_key_signals
 
 
 def _h(abund):
-    return {"normal_tissue_ihc_breadth_class": "broad_normal_expression",
-            "sc_normal_expression_class": "HIGH_LIABILITY", "sc_normal_abundance_class": abund}
+    return {
+        "normal_tissue_ihc_breadth_class": "broad_normal_expression",
+        "sc_normal_expression_class": "HIGH_LIABILITY",
+        "sc_normal_abundance_class": abund,
+    }
 
 
 def test_breadcrumb_low_abundance_flags_workable_window():

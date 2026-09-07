@@ -11,6 +11,7 @@ These tests pin:
   3. on a non-call verdict (insufficient/discordant) the note is neutral (nothing to be confident in);
   4. the card is composed (in CARDS) so it actually runs.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -22,11 +23,13 @@ fr = load_run_py(Path(__file__).resolve().parent.parent, "fr_run_conf")
 
 # --- composition ---------------------------------------------------------------------------
 
+
 def test_predictability_card_is_composed():
     assert "dependency-predictability" in fr.CARDS
 
 
 # --- verdict path is untouched by predictability -------------------------------------------
+
 
 def test_verdict_ignores_predictability_rules():
     """A predictability rule firing must NOT change the verdict — it is not in any resolver rung.
@@ -34,11 +37,13 @@ def test_verdict_ignores_predictability_rules():
     base = [{"rule_id": "concordant-dependent-supportive-dominant"}]
     v_base, drv_base = fr._verdict(base)
     v_with, drv_with = fr._verdict(base + [{"rule_id": "predictability-biomarker-hypothesis-supportive"}])
-    assert (v_with, drv_with) == (v_base, drv_base) == ("concordant_dependent",
-                                                        "concordant-dependent-supportive-dominant")
+    assert (
+        (v_with, drv_with) == (v_base, drv_base) == ("concordant_dependent", "concordant-dependent-supportive-dominant")
+    )
 
 
 # --- confidence-note mapping ---------------------------------------------------------------
+
 
 def test_own_omics_driven_is_high_confidence_on_a_call():
     c = fr._dependency_confidence_note("concordant_dependent", "own_omics_driven")
@@ -82,6 +87,7 @@ def test_confidence_applies_to_veto_verdict_too():
 
 # --- cross-consortium corroboration (2026-08-12): independent confidence axis --------------
 
+
 def test_concordant_consortium_lifts_bare_standard_to_moderate():
     """concordant_dependent (Broad Achilles + Sanger Project Score agree) RAISES a bare
     standard/unknown confidence to moderate — independent-consortium replication is itself a
@@ -89,7 +95,7 @@ def test_concordant_consortium_lifts_bare_standard_to_moderate():
     c = fr._dependency_confidence_note("selective_dependent", "unpredictable", "concordant_dependent")
     assert c["confidence"] == "moderate"
     assert "Independently corroborated across consortia" in c["note"]
-    assert "not a verdict downgrade" in c["note"]   # base predictability note preserved
+    assert "not a verdict downgrade" in c["note"]  # base predictability note preserved
 
 
 def test_concordant_consortium_lifts_unknown_to_moderate():
@@ -116,8 +122,9 @@ def test_discordant_consortium_adds_caveat_no_downgrade():
 def test_no_corroboration_signal_is_backward_compatible():
     """single_consortium_only / data_unavailable / None → identical to the 2-arg call (no change)."""
     for cc in ("single_consortium_only", "data_unavailable", None):
-        assert (fr._dependency_confidence_note("selective_dependent", "unpredictable", cc)
-                == fr._dependency_confidence_note("selective_dependent", "unpredictable"))
+        assert fr._dependency_confidence_note(
+            "selective_dependent", "unpredictable", cc
+        ) == fr._dependency_confidence_note("selective_dependent", "unpredictable")
 
 
 def test_corroboration_ignored_on_non_call_verdict():
@@ -129,30 +136,32 @@ def test_corroboration_ignored_on_non_call_verdict():
 
 # --- co-essential-module confidence fold (2026-08-19, enrichment-review #1) -----------------
 
+
 def test_coessential_module_card_is_composed():
     assert "coessential-module" in fr.CARDS
 
 
 def test_coherent_module_raises_confidence_and_annotates():
     # a bare (unknown-predictability) dependency call lifted to moderate by module coherence
-    note = fr._dependency_confidence_note("concordant_dependent", None, None,
-                                          coessential_module_class="in_coherent_module")
+    note = fr._dependency_confidence_note(
+        "concordant_dependent", None, None, coessential_module_class="in_coherent_module"
+    )
     assert note["confidence"] == "moderate"
     assert "Module-anchored" in note["note"]
 
 
 def test_coherent_module_never_exceeds_high_and_composes_with_predictability():
     # own_omics_driven already high → module coherence keeps it high (never a downgrade)
-    note = fr._dependency_confidence_note("concordant_dependent", "own_omics_driven",
-                                          "concordant_dependent", "in_coherent_module")
+    note = fr._dependency_confidence_note(
+        "concordant_dependent", "own_omics_driven", "concordant_dependent", "in_coherent_module"
+    )
     assert note["confidence"] == "high" and "Module-anchored" in note["note"]
 
 
 def test_isolated_module_is_a_caveat_not_a_downgrade():
     base = fr._dependency_confidence_note("concordant_dependent", "own_omics_driven", None, None)
-    iso = fr._dependency_confidence_note("concordant_dependent", "own_omics_driven", None,
-                                         "isolated_dependency")
-    assert iso["confidence"] == base["confidence"] == "high"   # caveat text only, no downgrade
+    iso = fr._dependency_confidence_note("concordant_dependent", "own_omics_driven", None, "isolated_dependency")
+    assert iso["confidence"] == base["confidence"] == "high"  # caveat text only, no downgrade
     assert "isolated" in iso["note"]
 
 

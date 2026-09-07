@@ -2,6 +2,7 @@
 the NEGATIVE cross-axis block (ignores recommendation_gate.fired), the thesis/coherence lens, and the
 PROMINENT subtype block — over the 4 archetype shapes (KRAS driver / ERBB2 amp-antigen / DLL3 surface
 antigen / intracellular non-dependent). Pure functions of sub_results + facets; no S3/render."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -22,26 +23,32 @@ def _mfc(**fits):
 
 
 def test_kras_driver_favorable_not_blocked():
-    sr = _sr(dependency=("lineage_selective", "lineage-selective-supportive"),
-             surface_modality=("pmhc_tce_supported", "r"),
-             safety=("highly_constrained_safety_concern", "r"),
-             cis_coherence=("coherent_cis_driver", "r"))
-    r = tf.build_target_rollup(sr, _mfc(small_molecule="conditional", degrader="unfavorable",
-                                        adc="not_applicable_by_axis"))
+    sr = _sr(
+        dependency=("lineage_selective", "lineage-selective-supportive"),
+        surface_modality=("pmhc_tce_supported", "r"),
+        safety=("highly_constrained_safety_concern", "r"),
+        cis_coherence=("coherent_cis_driver", "r"),
+    )
+    r = tf.build_target_rollup(
+        sr, _mfc(small_molecule="conditional", degrader="unfavorable", adc="not_applicable_by_axis")
+    )
     assert r["axes"]["biological_necessity"]["band"] == "favorable"
     assert r["biology_axis"] == "intracellular_intrinsic"
-    assert r["block"]["blocked"] is False                      # escapable via mutant-selective SM
+    assert r["block"]["blocked"] is False  # escapable via mutant-selective SM
     c = tf.build_target_coherence(sr, r)
     assert c["thesis"]["primary"] == "oncogene_addiction_driver"
 
 
 def test_erbb2_amp_antigen_not_blocked():
-    sr = _sr(dependency=("non_dependent_paralog_buffered", "r"),
-             genomic_alteration=("biomarker_stratified_dependency", "cn-amplified-strongly-dependent-supportive"),
-             surface_modality=("adc_preferred_tce_unsafe", "r"),
-             safety=("human_genetics_safety_concern", "r"))
-    r = tf.build_target_rollup(sr, _mfc(small_molecule="unfavorable", adc="favorable", antibody="favorable",
-                                        bite_tce="unfavorable"))
+    sr = _sr(
+        dependency=("non_dependent_paralog_buffered", "r"),
+        genomic_alteration=("biomarker_stratified_dependency", "cn-amplified-strongly-dependent-supportive"),
+        surface_modality=("adc_preferred_tce_unsafe", "r"),
+        safety=("human_genetics_safety_concern", "r"),
+    )
+    r = tf.build_target_rollup(
+        sr, _mfc(small_molecule="unfavorable", adc="favorable", antibody="favorable", bite_tce="unfavorable")
+    )
     assert r["axes"]["biological_necessity"]["call"] == "amplification_driven"
     assert r["axes"]["deliverability"]["viable_channels"] == ["adc", "antibody"]
     assert r["block"]["blocked"] is False
@@ -49,23 +56,26 @@ def test_erbb2_amp_antigen_not_blocked():
 
 
 def test_dll3_surface_antigen_reclassified_not_blocked():
-    sr = _sr(dependency=("non_dependent", "non-dependent-killer"),
-             genomic_alteration=("confirmed_driver", "mut-missense-dominant-supportive"),
-             surface_modality=("adc_preferred_tce_unsafe", "r"),
-             cis_coherence=("cis_uncoupled_no_dependency", "r"))
+    sr = _sr(
+        dependency=("non_dependent", "non-dependent-killer"),
+        genomic_alteration=("confirmed_driver", "mut-missense-dominant-supportive"),
+        surface_modality=("adc_preferred_tce_unsafe", "r"),
+        cis_coherence=("cis_uncoupled_no_dependency", "r"),
+    )
     r = tf.build_target_rollup(sr, _mfc(adc="favorable", antibody="favorable", bite_tce="unfavorable"))
     A = r["axes"]["biological_necessity"]
     assert A["call"] == "antigen_no_survival_necessity" and A["band"] == "insufficient"
-    assert r["block"]["blocked"] is False                      # antigen non_dependent does NOT block
+    assert r["block"]["blocked"] is False  # antigen non_dependent does NOT block
     c = tf.build_target_coherence(sr, r)
     assert c["thesis"]["primary"] == "surface_antigen_no_dependency"
-    assert c["thesis"]["reclassified_note"]                    # mut-spectrum driver flagged
+    assert c["thesis"]["reclassified_note"]  # mut-spectrum driver flagged
     assert any("data_artifact" in a for a in c["coherence"]["artifact_flags"])
 
 
 def test_intracellular_no_necessity_blocks():
-    sr = _sr(dependency=("non_dependent", "non-dependent-killer"),
-             surface_modality=("neither_viable", "r"))          # intracellular
+    sr = _sr(
+        dependency=("non_dependent", "non-dependent-killer"), surface_modality=("neither_viable", "r")
+    )  # intracellular
     r = tf.build_target_rollup(sr, _mfc(small_molecule="unfavorable"))
     assert r["axes"]["biological_necessity"]["call"] == "no_necessity"
     assert r["block"]["blocked"] is True
@@ -75,10 +85,15 @@ def test_intracellular_no_necessity_blocks():
 def test_subtype_block_is_prominent():
     sr = _sr(dependency=("lineage_selective", "r"), surface_modality=("pmhc_tce_supported", "r"))
     # convergent
-    r = tf.build_target_rollup(sr, _mfc(small_molecule="conditional"),
-                               subtype_facet={"convergent_subtypes": ["MSI-H", "KRAS_G12C"],
-                                              "axes_available": ["expression", "dependency"],
-                                              "n_subtypes_evaluated": 5})
+    r = tf.build_target_rollup(
+        sr,
+        _mfc(small_molecule="conditional"),
+        subtype_facet={
+            "convergent_subtypes": ["MSI-H", "KRAS_G12C"],
+            "axes_available": ["expression", "dependency"],
+            "n_subtypes_evaluated": 5,
+        },
+    )
     assert r["subtype"]["prominence"] == "convergent" and "MSI-H" in r["subtype"]["headline"]
     # whole-cohort (no facet)
     r2 = tf.build_target_rollup(sr, _mfc(small_molecule="conditional"), subtype_facet=None)
@@ -93,7 +108,8 @@ def test_subtype_block_is_prominent():
 def test_assemblers_do_not_mutate_sub_results():
     sr = _sr(dependency=("lineage_selective", "r"), surface_modality=("pmhc_tce_supported", "r"))
     import copy
+
     snap = copy.deepcopy(sr)
     tf.build_target_rollup(sr, _mfc(small_molecule="conditional"))
     tf.build_target_coherence(sr, None)
-    assert sr == snap        # verdict-inert: pure read, no mutation of the spine input
+    assert sr == snap  # verdict-inert: pure read, no mutation of the spine input

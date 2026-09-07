@@ -13,6 +13,7 @@ role=verdict_bearing) but NO driving_rule_id is selected (no verdict_fn), so no 
 tests therefore drop the non-null-verdict spine-equality asserts (there is no verdict token) and instead
 assert the null verdict is tolerated end-to-end and the deterministic Summary block still renders.
 """
+
 from __future__ import annotations
 
 import copy
@@ -21,14 +22,28 @@ import copy
 # target-intrinsic is gateless — a fired rule NEVER selects a driving_rule_id (no verdict_fn), so none of
 # these is is_driving; the partition is purely "did any rule fire on this card".
 VERDICT_BEARING = {
-    "gnomad-lof-constraint", "gene-burden-safety", "clingen-dosage", "clinvar-pathogenicity-safety",
-    "mouse-ko-phenotype", "structure-features-static", "signaling-network-mechanism",
-    "measured-potency-tractability", "domain-modality-relevance", "paralog-buffering",
+    "gnomad-lof-constraint",
+    "gene-burden-safety",
+    "clingen-dosage",
+    "clinvar-pathogenicity-safety",
+    "mouse-ko-phenotype",
+    "structure-features-static",
+    "signaling-network-mechanism",
+    "measured-potency-tractability",
+    "domain-modality-relevance",
+    "paralog-buffering",
 }
 DISPLAY_ONLY = {
-    "target-identity-summary", "target-safety-prioritisation", "surfaceome-family-classification",
-    "shed-ectodomain-liability", "gene-ontology-annotation", "reactome-pathway-membership",
-    "ppi-interactome", "protein-domains-class", "target-development-level", "normal-tissue-liability",
+    "target-identity-summary",
+    "target-safety-prioritisation",
+    "surfaceome-family-classification",
+    "shed-ectodomain-liability",
+    "gene-ontology-annotation",
+    "reactome-pathway-membership",
+    "ppi-interactome",
+    "protein-domains-class",
+    "target-development-level",
+    "normal-tissue-liability",
 }
 
 # the deterministic descriptive dominant-signal phrase target-intrinsic mints in DESCRIPTIVE MODE
@@ -39,23 +54,33 @@ DESCRIPTIVE_PHRASE = "Target-intrinsic modality/tractability context present."
 # emits — narrator_lenses.TARGET_INTRINSIC.axis_labels: MODALITY_ROUTING / TRACTABILITY_PRECEDENT).
 _SYNTH_LIT = {
     "axes": [
-        {"axis_key": "MODALITY_ROUTING", "literature_read": "supports",
-         "assertion": "KRAS G12C covalent pocket is co-crystal confirmed.",
-         "agreement_vs_omics": "agree", "confidence": "high",
-         "citations": [{"label": "Ostrem 2013", "pmid": "24256730", "verified": True}]},
-        {"axis_key": "TRACTABILITY_PRECEDENT", "literature_read": "supports",
-         "assertion": "Sotorasib approved (Tclin precedent).",
-         "agreement_vs_omics": "agree", "confidence": "high", "citations": []},
+        {
+            "axis_key": "MODALITY_ROUTING",
+            "literature_read": "supports",
+            "assertion": "KRAS G12C covalent pocket is co-crystal confirmed.",
+            "agreement_vs_omics": "agree",
+            "confidence": "high",
+            "citations": [{"label": "Ostrem 2013", "pmid": "24256730", "verified": True}],
+        },
+        {
+            "axis_key": "TRACTABILITY_PRECEDENT",
+            "literature_read": "supports",
+            "assertion": "Sotorasib approved (Tclin precedent).",
+            "agreement_vs_omics": "agree",
+            "confidence": "high",
+            "citations": [],
+        },
     ],
-    "blind_spots": [], "overall_consistency": "consistent", "key_divergence": None,
+    "blind_spots": [],
+    "overall_consistency": "consistent",
+    "key_divergence": None,
 }
 
 
 # ── Phase 0 registry sanity ──────────────────────────────────────────────────────────────────────
 def test_questions_registry_loads_five(eg_questions):
     ids = [q["id"] for q in eg_questions]
-    assert ids == ["modality_route", "tractability_precedent", "biology_context",
-                   "safety_genetics", "normal_context"]
+    assert ids == ["modality_route", "tractability_precedent", "biology_context", "safety_genetics", "normal_context"]
     # the two lens axes shared with the target-intrinsic narrator lens (narrator_lenses.TARGET_INTRINSIC)
     axes = {q["axis_id"] for q in eg_questions if q.get("axis_id")}
     assert axes == {"MODALITY_ROUTING", "TRACTABILITY_PRECEDENT"}
@@ -100,16 +125,31 @@ def test_reconstruct_questions_and_cards(eg_graph):
     assert qs["safety_genetics"]["signal"]["tier"] is None
     # the many-to-many card join (measurement_type membership)
     assert set(qs["modality_route"]["card_ids"]) == {
-        "surfaceome-family-classification", "structure-features-static", "shed-ectodomain-liability",
-        "protein-domains-class", "domain-modality-relevance"}
+        "surfaceome-family-classification",
+        "structure-features-static",
+        "shed-ectodomain-liability",
+        "protein-domains-class",
+        "domain-modality-relevance",
+    }
     assert set(qs["tractability_precedent"]["card_ids"]) == {
-        "target-development-level", "measured-potency-tractability"}
+        "target-development-level",
+        "measured-potency-tractability",
+    }
     assert set(qs["biology_context"]["card_ids"]) == {
-        "target-identity-summary", "gene-ontology-annotation", "signaling-network-mechanism",
-        "reactome-pathway-membership", "ppi-interactome"}
+        "target-identity-summary",
+        "gene-ontology-annotation",
+        "signaling-network-mechanism",
+        "reactome-pathway-membership",
+        "ppi-interactome",
+    }
     assert set(qs["safety_genetics"]["card_ids"]) == {
-        "gnomad-lof-constraint", "gene-burden-safety", "clingen-dosage",
-        "clinvar-pathogenicity-safety", "mouse-ko-phenotype", "target-safety-prioritisation"}
+        "gnomad-lof-constraint",
+        "gene-burden-safety",
+        "clingen-dosage",
+        "clinvar-pathogenicity-safety",
+        "mouse-ko-phenotype",
+        "target-safety-prioritisation",
+    }
     assert set(qs["normal_context"]["card_ids"]) == {"paralog-buffering", "normal-tissue-liability"}
     # every card joins at least one question (nothing collapses into an "Other" layer) + carries a mt
     assert all(c["question_ids"] for c in eg_graph["cards"])
@@ -150,10 +190,10 @@ def test_card_chains_no_driving_rule(eg_graph):
     # a fired card contributes but is NOT driving (gateless — no driving_rule_id)
     fired = next(c for c in eg_graph["cards"] if c["id"] == "structure-features-static")
     assert fired["role"] == "verdict_bearing"
-    assert fired["rule_ids"]                       # rules fired
+    assert fired["rule_ids"]  # rules fired
     assert fired["chain"]["rule_id"] is not None
     assert fired["chain"]["contributes_to_verdict"] is True
-    assert fired["chain"]["is_driving"] is False   # gateless — never driving
+    assert fired["chain"]["is_driving"] is False  # gateless — never driving
     # a display-only card never invents a rule
     do = next(c for c in eg_graph["cards"] if c["id"] == "target-development-level")
     assert do["role"] == "display_only"

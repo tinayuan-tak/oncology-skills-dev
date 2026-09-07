@@ -4,6 +4,7 @@ The backend makes NO selection decisions (the IR builder already tiered/scoped/l
 it only knows how to turn each block kind into lines. `medium` is irrelevant here — a text target always
 uses each block's text form, and a FIGURE block degrades to its caption + fallback text.
 """
+
 from __future__ import annotations
 
 from typing import Optional
@@ -55,7 +56,7 @@ class TextBackend:
     def render(self, ir: ReportIR) -> str:
         lines: list = []
         lines += self._emit(ir.header)
-        if getattr(ir, "banner", None) is not None:      # persistent advisory banner (chrome, above tabs)
+        if getattr(ir, "banner", None) is not None:  # persistent advisory banner (chrome, above tabs)
             lines.append("")
             lines += self._emit(ir.banner)
         lenses = ir.lenses()
@@ -108,13 +109,13 @@ class TextBackend:
     def _table(self, headers: list, rows: list) -> list:
         rows = [[("" if c is None else str(c)) for c in r] for r in rows]
         if self.md:
-            out = ["| " + " | ".join(headers) + " |",
-                   "|" + "---|" * len(headers)]
+            out = ["| " + " | ".join(headers) + " |", "|" + "---|" * len(headers)]
             out += ["| " + " | ".join(r) + " |" for r in rows]
             return out
         # plain text: fixed-width columns
-        widths = [max(len(headers[i]), *(len(r[i]) for r in rows)) if rows else len(headers[i])
-                  for i in range(len(headers))]
+        widths = [
+            max(len(headers[i]), *(len(r[i]) for r in rows)) if rows else len(headers[i]) for i in range(len(headers))
+        ]
         fmt = lambda cols: "  ".join(c.ljust(widths[i]) for i, c in enumerate(cols))
         out = [fmt(headers), fmt(["-" * w for w in widths])]
         out += [fmt(r) for r in rows]
@@ -150,8 +151,11 @@ class TextBackend:
         # the call is a snake_case machine verdict (lineage_selective) — humanize it for the header.
         call = _humanize(p.get("call")) or None
         # call=None (gateless descriptive/inert) → label it plainly as context, never "not scored".
-        verdict = call or ("context (descriptive)" if p.get("role") in ("descriptive", "inert")
-                           else vocab.polarity_label(p.get("polarity")))
+        verdict = call or (
+            "context (descriptive)"
+            if p.get("role") in ("descriptive", "inert")
+            else vocab.polarity_label(p.get("polarity"))
+        )
         head = f"{glyph} {title} — {verdict}"
         if p.get("is_deciding"):
             head += "  [deciding axis]"
@@ -198,8 +202,11 @@ class TextBackend:
         rows = p.get("rows") or []
         if not rows:
             return []
-        table = [[r.get("metric") or r.get("label"), r.get("value"),
-                  r.get("sample_context") or r.get("context")] for r in rows if isinstance(r, dict)]
+        table = [
+            [r.get("metric") or r.get("label"), r.get("value"), r.get("sample_context") or r.get("context")]
+            for r in rows
+            if isinstance(r, dict)
+        ]
         return [f"{self._b('Metrics')}:"] + self._table(["metric", "value", "context"], table)
 
     def _figure(self, p: dict) -> list:
@@ -220,8 +227,7 @@ class TextBackend:
         fired = prov.get("fired_rule_ids") or []
         used = prov.get("cards_used") or []
         missing = prov.get("cards_missing") or []
-        out = [f"{self._b('Provenance')}: driving rule {drv}; {len(fired)} rule(s) fired; "
-               f"{len(used)} card(s) used"]
+        out = [f"{self._b('Provenance')}: driving rule {drv}; {len(fired)} rule(s) fired; {len(used)} card(s) used"]
         if missing:
             out.append(self._bullet(f"cards missing: {', '.join(map(str, missing))}", indent=1))
         return out
@@ -240,10 +246,11 @@ class TextBackend:
             out.append(f"Ordinal polarity scale (order-preserving, not metric): {scale}.")
         spec = p.get("spec") or {}
         if spec:
-            out.append(f"Spec: level={spec.get('level')} · medium={spec.get('medium')} · "
-                       f"scope={spec.get('scope')} · lead={spec.get('lead')}.")
+            out.append(
+                f"Spec: level={spec.get('level')} · medium={spec.get('medium')} · "
+                f"scope={spec.get('scope')} · lead={spec.get('lead')}."
+            )
         return out
-
 
     def _signals_overview(self, p: dict) -> list:
         rows = p.get("rows") or []
@@ -251,8 +258,7 @@ class TextBackend:
             return []
         c = p.get("counts") or {}
         out = self._h2("Signals across skills")
-        out.append(f"{c.get('support', 0)} support · {c.get('neutral', 0)} neutral · "
-                   f"{c.get('against', 0)} against")
+        out.append(f"{c.get('support', 0)} support · {c.get('neutral', 0)} neutral · {c.get('against', 0)} against")
         for r in rows:
             g = vocab.polarity_glyph(r.get("polarity"))
             sub = r.get("honest_phrase") or _humanize(r.get("call")) or vocab.polarity_label(r.get("polarity"))
@@ -288,14 +294,17 @@ class TextBackend:
             out.append(str(p["executive_summary"]))
         if p.get("tension_analysis"):
             out.append(f"{self._b('Tensions')}: {p['tension_analysis']}")
-        for a in (p.get("arguments") or []):
+        for a in p.get("arguments") or []:
             out.append(self._bullet(_arg_summary(a)))
         cites = p.get("citations") or []
         if cites:
             # rule-ids lifted out of the prose → a compact grounding footnote (provenance affordance).
             joined = ", ".join(cites)
-            out.append(f"_Grounded in {len(cites)} framework rules: {joined}._"
-                       if self.md else f"Grounded in {len(cites)} framework rules: {joined}")
+            out.append(
+                f"_Grounded in {len(cites)} framework rules: {joined}._"
+                if self.md
+                else f"Grounded in {len(cites)} framework rules: {joined}"
+            )
         return out
 
     def _coherence(self, p: dict) -> list:
@@ -303,12 +312,13 @@ class TextBackend:
         bits = []
         if p.get("coherence"):
             bits.append(f"{self._b('Coherence')}: {_humanize(p['coherence'])}")
-        for c in (p.get("caveats") or []):
+        for c in p.get("caveats") or []:
             bits.append(self._bullet(str(c)))
         return bits
 
     def _modality_matrix(self, p: dict) -> list:
         from ...ordinal_view import _cell_glyph  # single-source glyphs (backends → report_render → _skills_common)
+
         cols, rows = p.get("columns") or [], p.get("rows") or []
         if not rows or not cols:
             return []
@@ -316,21 +326,23 @@ class TextBackend:
         for r in rows:
             cells = r.get("cells") or {}
             glyphs = [_cell_glyph(cells.get(m) or {}) for m in cols]
-            body.append([vocab.skill_title(r.get("short"))] + glyphs
-                        + [_humanize(r.get("verdict")) if r.get("verdict") else "—"])
+            body.append(
+                [vocab.skill_title(r.get("short"))]
+                + glyphs
+                + [_humanize(r.get("verdict")) if r.get("verdict") else "—"]
+            )
         out = self._h2("Modality-fit matrix") + self._table(["gate"] + list(cols) + ["verdict"], body)
         if p.get("glyph_legend"):
-            out.append(p["glyph_legend"])                       # inline glyph key
+            out.append(p["glyph_legend"])  # inline glyph key
         if p.get("disclaimer"):
-            out.append(_collapse_disclaimer(p["disclaimer"]))   # first sentence only; rest → provenance
+            out.append(_collapse_disclaimer(p["disclaimer"]))  # first sentence only; rest → provenance
         return out
 
     def _literature_risk(self, p: dict) -> list:
         dims = p.get("dims") or []
         if not dims:
             return []
-        rows = [[d.get("dim"), d.get("risk_level") or "—", (d.get("interpretation") or "")[:80]]
-                for d in dims]
+        rows = [[d.get("dim"), d.get("risk_level") or "—", (d.get("interpretation") or "")[:80]] for d in dims]
         return self._h2("Literature risk (context)") + self._table(["dimension", "risk", "note"], rows)
 
     def _deciding_axis(self, p: dict) -> list:
@@ -371,11 +383,15 @@ class TextBackend:
             return []
         out = self._h2("Subtype stratification")
         axes = ", ".join(p.get("axes_available") or []) or "—"
-        out.append(f"{self._b('Verdict')}: {_humanize(p.get('verdict'))} "
-                   f"({p.get('n_evaluated', 0)} subtypes evaluated on {axes})")
-        for label, key in (("Convergent subtypes", "convergent_subtypes"),
-                           ("Associated subtypes", "associated_subtypes"),
-                           ("Evaluated", "subtypes")):
+        out.append(
+            f"{self._b('Verdict')}: {_humanize(p.get('verdict'))} "
+            f"({p.get('n_evaluated', 0)} subtypes evaluated on {axes})"
+        )
+        for label, key in (
+            ("Convergent subtypes", "convergent_subtypes"),
+            ("Associated subtypes", "associated_subtypes"),
+            ("Evaluated", "subtypes"),
+        ):
             vals = p.get(key) or []
             if vals:
                 out.append(f"{self._b(label)}: {', '.join(map(str, vals))}")
@@ -390,10 +406,12 @@ class TextBackend:
             head += f" · preferred assay: {_humanize(p['preferred_assay'])}"
         out.append(head)
         strat = []
-        for lab, key in (("driver role", "alteration_role"),
-                         ("mutation stratification", "mutation_stratification"),
-                         ("subtype stratification", "subtype_stratification"),
-                         ("survival", "survival_association")):
+        for lab, key in (
+            ("driver role", "alteration_role"),
+            ("mutation stratification", "mutation_stratification"),
+            ("subtype stratification", "subtype_stratification"),
+            ("survival", "survival_association"),
+        ):
             if p.get(key):
                 strat.append(f"{lab}: {_humanize(p[key])}")
         if strat:
@@ -401,7 +419,7 @@ class TextBackend:
         uses = p.get("intended_uses") or []
         if uses:
             out.append(f"{self._b('Intended uses')}: {', '.join(_humanize(u) for u in uses)}")
-        for h in (p.get("hypotheses") or []):
+        for h in p.get("hypotheses") or []:
             iu, basis, es = _humanize(h.get("intended_use")), _humanize(h.get("basis")), h.get("evidence_strength")
             out.append(self._bullet(f"{iu}: {basis}" + (f" [{es}]" if es else "")))
         return out
@@ -413,13 +431,18 @@ class TextBackend:
             out.append(str(p["executive_summary"]))
         mm = p.get("mismatch")
         if isinstance(mm, dict) and mm.get("deterministic"):
-            out.append(f"⚠ LLM read: {mm.get('llm')} · deterministic call: {mm['deterministic']} "
-                       f"— mismatch flagged (the deterministic call stands).")
+            out.append(
+                f"⚠ LLM read: {mm.get('llm')} · deterministic call: {mm['deterministic']} "
+                f"— mismatch flagged (the deterministic call stands)."
+            )
         cites = p.get("citations") or []
         if cites:
             joined = ", ".join(cites)
-            out.append(f"_Grounded in {len(cites)} framework rules: {joined}._"
-                       if self.md else f"Grounded in {len(cites)} framework rules: {joined}")
+            out.append(
+                f"_Grounded in {len(cites)} framework rules: {joined}._"
+                if self.md
+                else f"Grounded in {len(cites)} framework rules: {joined}"
+            )
         return out
 
     def _synthesis_note(self, p: dict) -> list:
@@ -439,8 +462,10 @@ class TextBackend:
             return []
         is_sg = p.get("scope") == "subgroups"
         head = "sub-group" if is_sg else "skill"
-        rows = [[(pt.get("name") if is_sg else pt.get("title")),
-                 pt.get("signal_tier"), _humanize(pt.get("confidence"))] for pt in pts]
+        rows = [
+            [(pt.get("name") if is_sg else pt.get("title")), pt.get("signal_tier"), _humanize(pt.get("confidence"))]
+            for pt in pts
+        ]
         title = "Signals × confidence" + (" (sub-groups)" if is_sg else "")
         return self._h2(title) + self._table([head, "signal", "confidence"], rows)
 
@@ -448,9 +473,15 @@ class TextBackend:
         rows = p.get("sub_groups") or []
         if not rows:
             return []
-        table = [[r.get("name"), r.get("signal"), _humanize(r.get("confidence")),
-                  f"{r.get('n_agree', 0)}/{r.get('n_sources', 0)}"
-                  + (" ⚠" if r.get("conflict") else "")] for r in rows]
+        table = [
+            [
+                r.get("name"),
+                r.get("signal"),
+                _humanize(r.get("confidence")),
+                f"{r.get('n_agree', 0)}/{r.get('n_sources', 0)}" + (" ⚠" if r.get("conflict") else ""),
+            ]
+            for r in rows
+        ]
         return self._h2("Sub-group bands") + self._table(["sub-group", "signal", "confidence", "sources"], table)
 
     def _cross_cutting(self, p: dict) -> list:
@@ -480,13 +511,19 @@ class TextBackend:
             out.append(" · ".join(vbits))
         rows = []
         for lane in lanes:
-            for s in (lane.get("skills") or []):
+            for s in lane.get("skills") or []:
                 g = vocab.polarity_glyph(s.get("polarity"))
                 call = _humanize(s.get("call")) or vocab.polarity_label(s.get("polarity")) or ""
-                rows.append([lane.get("title"), f"{g} {s.get('title')}", call,
-                             _humanize(s.get("confidence")) or "—",
-                             "deciding" if s.get("deciding") else "",
-                             _humanize(s.get("literature_consistency")) or "—"])
+                rows.append(
+                    [
+                        lane.get("title"),
+                        f"{g} {s.get('title')}",
+                        call,
+                        _humanize(s.get("confidence")) or "—",
+                        "deciding" if s.get("deciding") else "",
+                        _humanize(s.get("literature_consistency")) or "—",
+                    ]
+                )
         out += self._table(["lens", "subskill", "verdict", "confidence", "role", "literature"], rows)
         dissent = p.get("dissent") or []
         if dissent:
@@ -506,12 +543,18 @@ class TextBackend:
         rows = []
         for q in qs:
             lit = q.get("lit") or {}
-            rows.append([q.get("text") or q.get("id"),
-                         f"{q.get('polarity') or '—'}/{q.get('tier') or '—'}",
-                         "●" * (q.get("dots") or 0) or "—", str(len(q.get("cells") or [])),
-                         _humanize(lit.get("agreement")) if lit else "—"])
+            rows.append(
+                [
+                    q.get("text") or q.get("id"),
+                    f"{q.get('polarity') or '—'}/{q.get('tier') or '—'}",
+                    "●" * (q.get("dots") or 0) or "—",
+                    str(len(q.get("cells") or [])),
+                    _humanize(lit.get("agreement")) if lit else "—",
+                ]
+            )
         return self._h2("Evidence fingerprint") + self._table(
-            ["question", "signal", "conf", "cards", "literature"], rows)
+            ["question", "signal", "conf", "cards", "literature"], rows
+        )
 
     def _card_chain(self, p: dict) -> list:
         layers = p.get("layers") or []
@@ -519,25 +562,36 @@ class TextBackend:
             return []
         rows = []
         for lyr in layers:
-            for c in (lyr.get("cards") or []):
+            for c in lyr.get("cards") or []:
                 rule = ("→ " + c.get("rule_id")) if c.get("rule_id") else "display-only"
                 # class-led plain reading: humanized class ("Reads:") + the reference-frame gauge (words)
                 # when the card carries a ruler, else the glossed key-evidence one-liner.
                 gauges = " · ".join(c.get("gauges") or [])  # all reference-frame rulers (multi-frame)
-                rows.append([lyr.get("layer"), c.get("id"), c.get("reads") or c.get("class_value"), rule,
-                             gauges or c.get("gauge") or c.get("key_evidence_summary") or ""])
+                rows.append(
+                    [
+                        lyr.get("layer"),
+                        c.get("id"),
+                        c.get("reads") or c.get("class_value"),
+                        rule,
+                        gauges or c.get("gauge") or c.get("key_evidence_summary") or "",
+                    ]
+                )
         return self._h2("Cards — dataset → data → rule → verdict") + self._table(
-            ["layer", "card", "class", "rule", "key evidence"], rows)
+            ["layer", "card", "class", "rule", "key evidence"], rows
+        )
 
     def _literature_axes(self, p: dict) -> list:
         axes = p.get("axes") or []
         blind = p.get("blind_spots") or []
         if not axes and not blind:
             return []
-        rows = [[a.get("axis_id"), a.get("read"), _humanize(a.get("agreement")),
-                 ", ".join(a.get("question_ids") or [])] for a in axes]
+        rows = [
+            [a.get("axis_id"), a.get("read"), _humanize(a.get("agreement")), ", ".join(a.get("question_ids") or [])]
+            for a in axes
+        ]
         out = self._h2("Literature — per-axis agreement") + self._table(
-            ["axis", "read", "agreement", "questions"], rows)
+            ["axis", "read", "agreement", "questions"], rows
+        )
         for b in blind:
             out.append(f"  blind spot: {b.get('text') or ''}")
         oc = p.get("overall_consistency")
@@ -573,8 +627,7 @@ def _confidence_summary(conf) -> Optional[str]:
     if isinstance(cov, dict):  # {n_measured, n_axes, n_critical_measured} — format, never str(dict)
         nm, na, nc = cov.get("n_measured"), cov.get("n_axes"), cov.get("n_critical_measured")
         cov = (f"{nm}/{na} axes" + (f" ({nc} critical)" if nc is not None else "")) if na is not None else None
-    parts = [p for p in [level, f"basis: {basis}" if basis else None,
-                         f"coverage: {cov}" if cov else None] if p]
+    parts = [p for p in [level, f"basis: {basis}" if basis else None, f"coverage: {cov}" if cov else None] if p]
     return " · ".join(map(str, parts)) if parts else None
 
 

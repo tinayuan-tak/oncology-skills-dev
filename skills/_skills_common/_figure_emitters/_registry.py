@@ -56,8 +56,6 @@ from ._genomic import (
 )
 
 
-
-
 CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = {
     "tumor-rna-distribution": _emit_tumor_expression_distribution,
     "tumor-scrna-celltype-expression": _emit_sc_tumor_celltype_expression,
@@ -82,7 +80,7 @@ CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = 
     "mutation-type-counts": _emit_mutation_type_counts,
     "dependency-lineage-selectivity": _emit_card2_dependency_lineage_selectivity,
     "expression-dependency-correlation": _emit_card4_expression_dependency_correlation,
-    "cis-feature-expression-coherence": _emit_cis_feature_expression_coherence,   # cis-dosage scatter (2026-08-20)
+    "cis-feature-expression-coherence": _emit_cis_feature_expression_coherence,  # cis-dosage scatter (2026-08-20)
     "mutation-stratified-dependency": _emit_card3_mutation_stratified_dependency,
     "dependency-predictability": _emit_dependency_predictability,
     "prism-compound-activity": _emit_prism_compound_activity,
@@ -104,10 +102,12 @@ CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = 
 }
 
 
-
-
 def emit_figures_for_card(
-    card_id: str, summary: dict, out_root: Path, target: str, indication: str,
+    card_id: str,
+    summary: dict,
+    out_root: Path,
+    target: str,
+    indication: str,
 ) -> list[dict]:
     """Phase-2 helper. For card_id, write figures to out_root/cards/<card_id>/
     and return the list of figure descriptors to attach to the card_output.
@@ -127,12 +127,9 @@ def emit_figures_for_card(
         card_dir = out_root / "cards" / card_id
         figures = emitter(summary, card_dir, target, indication)
         relpath_root = Path("cards") / card_id
-        return [
-            {**f, "path": str(relpath_root / f["path"])}
-            for f in figures
-        ]
+        return [{**f, "path": str(relpath_root / f["path"])} for f in figures]
     except Exception as e:
         import sys as _sys
-        print(f"[figures] emit failed for {card_id}: {type(e).__name__}: {e}",
-              file=_sys.stderr)
+
+        print(f"[figures] emit failed for {card_id}: {type(e).__name__}: {e}", file=_sys.stderr)
         return []

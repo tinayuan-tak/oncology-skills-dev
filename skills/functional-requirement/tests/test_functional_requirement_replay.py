@@ -11,6 +11,7 @@ credential-less, on the SAME drift a live run would.
 Fixture: KRAS / COADREAD — the canonical dependency reference (bimodal → a positive dependency call;
 also the compose-dashboard engine-equivalence anchor), stable across the 2026-08-13 classifier fixes.
 """
+
 from __future__ import annotations
 
 import copy
@@ -44,8 +45,7 @@ def _load_fixture() -> dict:
 
 
 def _real(s) -> bool:
-    return (isinstance(s, dict) and bool(s)
-            and not s.get("_freeze_error") and not s.get("_dispatcher_returned_none"))
+    return isinstance(s, dict) and bool(s) and not s.get("_freeze_error") and not s.get("_dispatcher_returned_none")
 
 
 def _positive_calls() -> set:
@@ -61,14 +61,14 @@ def kras_decision(tmp_path_factory):
         def _read(card_id, target, indication, *a, **k):
             s = frozen.get(card_id)
             return copy.deepcopy(s) if _real(s) else None
+
         return _read
 
     out_dir = tmp_path_factory.mktemp("fr-kras-replay")
     mp = pytest.MonkeyPatch()
     mp.delenv("FRAMEWORK_HEALTH_SMOKE", raising=False)
     mp.setattr(skc, "_import_dispatcher", _factory)
-    mp.setattr(sys, "argv", ["run.py", "--target", "KRAS", "--indication", "COADREAD",
-                             "--out", str(out_dir)])
+    mp.setattr(sys, "argv", ["run.py", "--target", "KRAS", "--indication", "COADREAD", "--out", str(out_dir)])
     try:
         runpy.run_path(str(RUN_PY), run_name="__main__")
     except SystemExit as e:
@@ -85,7 +85,8 @@ def test_fixture_is_nonvacuous():
     real = [c for c, s in frozen.items() if _real(s)]
     assert len(real) >= 10, (
         f"only {len(real)}/{len(frozen)} frozen cards carry a real summary — refreeze (freeze_fixture.py). "
-        f"Real: {sorted(real)}")
+        f"Real: {sorted(real)}"
+    )
 
 
 def test_replay_conforms_to_data_product_schema(kras_decision):
@@ -101,7 +102,8 @@ def test_replay_conforms_to_data_product_schema(kras_decision):
         pytest.fail(reason + " [CI]") if os.environ.get("CI") else pytest.skip(reason)
     errors = conformance_errors(schema, kras_decision)
     assert not errors, "FRESH replay emit violates the data-product schema:\n  " + "\n  ".join(
-        f"{list(e.path)}: {e.message}" for e in errors[:15])
+        f"{list(e.path)}: {e.message}" for e in errors[:15]
+    )
 
 
 def test_replay_verdict_is_a_positive_dependency_call(kras_decision):
@@ -113,7 +115,8 @@ def test_replay_verdict_is_a_positive_dependency_call(kras_decision):
     verdict = h.get("dependency_verdict")
     assert verdict in _positive_calls(), (
         f"dependency_verdict={verdict!r} is not a positive dependency call for KRAS/COADREAD — suspect "
-        f"a rule that stopped firing on a renamed reader field. driving_rule_id={h.get('driving_rule_id')!r}")
+        f"a rule that stopped firing on a renamed reader field. driving_rule_id={h.get('driving_rule_id')!r}"
+    )
     assert h.get("driving_rule_id"), "positive verdict but empty driving_rule_id — inconsistent spine."
 
 
@@ -124,7 +127,8 @@ def test_replay_headline_resolves_broadly(kras_decision):
     non_null = [k for k, v in h.items() if v not in (None, "", [], "data_unavailable")]
     assert len(non_null) >= 15, (
         f"only {len(non_null)}/{len(h)} headline fields resolved for the frozen KRAS replay — suspect a "
-        f"reader field-name drift (get_card_field -> None). Non-null: {sorted(non_null)}")
+        f"reader field-name drift (get_card_field -> None). Non-null: {sorted(non_null)}"
+    )
 
 
 def test_replay_by_scope_indication_is_honest(kras_decision):
@@ -137,9 +141,10 @@ def test_replay_by_scope_indication_is_honest(kras_decision):
     # pan-cancer rung == the pooled verdict (verdict-inert: the reduction never moves the spine)
     assert by["pan_cancer"]["verdict"] == h.get("dependency_verdict")
     ind = by["indication"]
-    assert ind["depmap_lineage"] == "Bowel"                      # COADREAD → Bowel crosswalk
+    assert ind["depmap_lineage"] == "Bowel"  # COADREAD → Bowel crosswalk
     assert ind["class"] == "selective_in_indication", (
-        f"Bowel is a frozen enriched lineage for KRAS → expected selective_in_indication, got {ind['class']!r}")
+        f"Bowel is a frozen enriched lineage for KRAS → expected selective_in_indication, got {ind['class']!r}"
+    )
 
 
 def test_replay_headline_block_present_and_wellformed(kras_decision):
@@ -151,11 +156,12 @@ def test_replay_headline_block_present_and_wellformed(kras_decision):
     assert isinstance(block, dict) and block, "headline_block missing/empty on the frozen KRAS replay"
     # non-degraded: the best-effort enrich must not have caught an exception building the block
     assert "headline_block" not in (h.get("_enrichment_errors") or {}), (
-        f"headline_block degraded: {(h.get('_enrichment_errors') or {}).get('headline_block')!r}")
+        f"headline_block degraded: {(h.get('_enrichment_errors') or {}).get('headline_block')!r}"
+    )
     # verdict-inert: the block's canonical verdict == the skill's own dependency_verdict
     assert block["verdict"]["call"] == h.get("dependency_verdict")
     assert block["verdict"]["gate"] == "dependency"
-    assert block["verdict"]["phrase"]                      # a curated human phrase, never empty
+    assert block["verdict"]["phrase"]  # a curated human phrase, never empty
     # confidence in the canonical vocabulary
     assert block["confidence"]["level"] in {"strong", "moderate", "weak", "insufficient"}
     # the hero surfaces the four dependency claim axes in order

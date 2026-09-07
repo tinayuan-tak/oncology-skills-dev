@@ -40,6 +40,7 @@ def load_resolver(gate: str, contracts_repo: Path | None = None) -> Optional[dic
     """Load a gate's resolver spec, or None if absent (caller falls back to its own
     _verdict during the golden-oracle migration — never a hard failure)."""
     import yaml
+
     repo = contracts_repo or _CONTRACTS_REPO
     path = repo / "resolvers" / f"{gate}.resolver.yaml"
     try:
@@ -59,7 +60,7 @@ def _rung_match(rung: dict, fired_ids: set) -> tuple[bool, str | None]:
         rid = rung["when_fired"]
         return (rid in fired_ids, rung.get("driving_rule") or rid)
     if "when_any_fired" in rung:
-        for rid in rung["when_any_fired"]:          # list order = precedence tie-break
+        for rid in rung["when_any_fired"]:  # list order = precedence tie-break
             if rid in fired_ids:
                 return True, (rung.get("driving_rule") or rid)
         return False, None
@@ -90,25 +91,25 @@ def resolve_verdict(fired: list[dict], spec: dict) -> tuple[str, str | None]:
     rungs = spec.get("resolve", [])
 
     if spec.get("evaluation") == "match_all_reduce":
-        best: tuple[int, str, str | None] | None = None    # (priority, verdict, driving_rule_id)
+        best: tuple[int, str, str | None] | None = None  # (priority, verdict, driving_rule_id)
         for i, rung in enumerate(rungs):
             matched, drv = _rung_match(rung, fired_ids)
             if matched:
-                pr = rung.get("priority", i)               # explicit priority, else ladder index
-                if best is None or pr < best[0]:           # min priority wins; < → first-seen breaks ties
+                pr = rung.get("priority", i)  # explicit priority, else ladder index
+                if best is None or pr < best[0]:  # min priority wins; < → first-seen breaks ties
                     best = (pr, rung["verdict"], drv)
         return (best[1], best[2]) if best is not None else (spec["default"], None)
 
-    for rung in rungs:                                     # first_match (default / legacy)
+    for rung in rungs:  # first_match (default / legacy)
         matched, drv = _rung_match(rung, fired_ids)
         if matched:
             return rung["verdict"], drv
     return spec["default"], None
 
 
-def resolve_verdict_for_gate(fired: list[dict], gate: str,
-                             contracts_repo: Path | None = None
-                             ) -> Optional[tuple[str, str | None]]:
+def resolve_verdict_for_gate(
+    fired: list[dict], gate: str, contracts_repo: Path | None = None
+) -> Optional[tuple[str, str | None]]:
     """Convenience: load the gate's spec + resolve. Returns None if no spec exists (the
     caller then uses its legacy _verdict — the migration seam)."""
     spec = load_resolver(gate, contracts_repo)
@@ -117,8 +118,7 @@ def resolve_verdict_for_gate(fired: list[dict], gate: str,
     return resolve_verdict(fired, spec)
 
 
-def resolve_or_raise(fired: list[dict], gate: str,
-                     contracts_repo: Path | None = None) -> tuple[str, str | None]:
+def resolve_or_raise(fired: list[dict], gate: str, contracts_repo: Path | None = None) -> tuple[str, str | None]:
     """The standard skill `_verdict` body: resolve a gate's verdict from the shared
     declarative resolver, raising if the spec is absent.
 
@@ -133,5 +133,6 @@ def resolve_or_raise(fired: list[dict], gate: str,
         raise RuntimeError(
             f"{gate} resolver spec missing "
             f"(target-contracts/resolvers/{gate}.resolver.yaml) "
-            "— the verdict source of truth is absent.")
+            "— the verdict source of truth is absent."
+        )
     return result

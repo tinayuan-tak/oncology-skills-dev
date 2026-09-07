@@ -24,6 +24,7 @@ runs Tier-3 synthesis twice and no axis is grounded twice.
 Live stages need Bedrock (cmp-dev) + cbg S3. Use --dry-run to print the exact commands without
 running them (offline; what the tests assert).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -31,8 +32,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-_SKILL_DIR = Path(__file__).resolve().parent.parent          # skills/target-profile
-_SKILLS = _SKILL_DIR.parent                                  # skills/
+_SKILL_DIR = Path(__file__).resolve().parent.parent  # skills/target-profile
+_SKILLS = _SKILL_DIR.parent  # skills/
 _TP_RUN = _SKILL_DIR / "scripts" / "run.py"
 _CEH_RUN = _SKILLS / "cross-evidence-hypothesis" / "scripts" / "run.py"
 _TI_RUN = _SKILLS / "target-intrinsic" / "scripts" / "run.py"
@@ -48,12 +49,22 @@ def dossier_cmd(py: str, target: str, out: Path) -> list:
     return [py, str(_TI_RUN), "--target", target, "--out", str(out / DOSSIER_DIR)]
 
 
-def ground_cmd(py: str, target: str, indication: str, out: Path, ground: str,
-               ground_indication: str | None) -> list:
+def ground_cmd(py: str, target: str, indication: str, out: Path, ground: str, ground_indication: str | None) -> list:
     """Stage 1: deterministic fan-out + grounding, NO Tier-3 synthesis (cheap)."""
-    cmd = [py, str(_TP_RUN), "--target", target, "--indication", indication,
-           "--out", str(out / GROUND_DIR), "--ground", ground,
-           "--no-synthesis", "--no-figures"]
+    cmd = [
+        py,
+        str(_TP_RUN),
+        "--target",
+        target,
+        "--indication",
+        indication,
+        "--out",
+        str(out / GROUND_DIR),
+        "--ground",
+        ground,
+        "--no-synthesis",
+        "--no-figures",
+    ]
     if ground_indication:
         cmd += ["--ground-indication", ground_indication]
     return cmd
@@ -64,14 +75,20 @@ def collect_substrate(ground_dir: Path) -> list:
     for a stable command. Returns [] when nothing was grounded (caller decides whether that's fatal)."""
     specs = []
     for gp in sorted(ground_dir.glob("grounded_*.json")):
-        axis = gp.stem[len("grounded_"):]
+        axis = gp.stem[len("grounded_") :]
         specs.append(f"{axis}={gp}")
     return specs
 
 
-def hypothesis_cmd(py: str, ep_path: Path, substrate_specs: list, out: Path,
-                   modality: str | None, dossier: Path | None,
-                   objective: str | None) -> list:
+def hypothesis_cmd(
+    py: str,
+    ep_path: Path,
+    substrate_specs: list,
+    out: Path,
+    modality: str | None,
+    dossier: Path | None,
+    objective: str | None,
+) -> list:
     """Stage 2: the [3B] cross-evidence hypothesis over the grounded substrate."""
     cmd = [py, str(_CEH_RUN), "--evidence-package", str(ep_path), "--out", str(out / HYP_DIR)]
     if substrate_specs:
@@ -88,10 +105,20 @@ def hypothesis_cmd(py: str, ep_path: Path, substrate_specs: list, out: Path,
 def render_cmd(py: str, target: str, indication: str, out: Path, modality: str | None) -> list:
     """Stage 3: full synthesized dashboard, REUSING stage-1 grounded records (--grounded-dir, no
     re-grounding) + the stage-2 hypothesis as the synthesis section."""
-    cmd = [py, str(_TP_RUN), "--target", target, "--indication", indication,
-           "--out", str(out / DASH_DIR),
-           "--grounded-dir", str(out / GROUND_DIR),
-           "--hypothesis", str(out / HYP_DIR / "hypothesis.json")]
+    cmd = [
+        py,
+        str(_TP_RUN),
+        "--target",
+        target,
+        "--indication",
+        indication,
+        "--out",
+        str(out / DASH_DIR),
+        "--grounded-dir",
+        str(out / GROUND_DIR),
+        "--hypothesis",
+        str(out / HYP_DIR / "hypothesis.json"),
+    ]
     if modality:
         cmd += ["--modality", modality]
     return cmd
@@ -108,17 +135,27 @@ def main(argv=None) -> int:
     ap.add_argument("--indication", required=True)
     ap.add_argument("--out", required=True, type=Path, help="output root (stages write numbered subdirs)")
     ap.add_argument("--ground", default="engine", help="axes to ground: engine | all | comma-list")
-    ap.add_argument("--ground-indication", default=None,
-                    help="PubMed disease term for grounding (OncoTree codes retrieve ~nothing); "
-                         "defaults to --indication inside target-profile")
+    ap.add_argument(
+        "--ground-indication",
+        default=None,
+        help="PubMed disease term for grounding (OncoTree codes retrieve ~nothing); "
+        "defaults to --indication inside target-profile",
+    )
     ap.add_argument("--modality", default=None, help="controlled modality enum (threaded to both skills)")
     ap.add_argument("--objective", default=None, help="free-text objective for the hypothesis (narration)")
-    ap.add_argument("--target-dossier", default=None, type=Path,
-                    help="target-intrinsic decision.json (indication-independent biology) for the hypothesis; "
-                         "if omitted, stage 0 PRODUCES one (see --no-dossier)")
-    ap.add_argument("--no-dossier", action="store_true",
-                    help="skip stage 0 (do not produce a target-intrinsic dossier). The hypothesis then runs "
-                         "degraded and floors certainty to 'low' — only use for a quick ground+render check")
+    ap.add_argument(
+        "--target-dossier",
+        default=None,
+        type=Path,
+        help="target-intrinsic decision.json (indication-independent biology) for the hypothesis; "
+        "if omitted, stage 0 PRODUCES one (see --no-dossier)",
+    )
+    ap.add_argument(
+        "--no-dossier",
+        action="store_true",
+        help="skip stage 0 (do not produce a target-intrinsic dossier). The hypothesis then runs "
+        "degraded and floors certainty to 'low' — only use for a quick ground+render check",
+    )
     ap.add_argument("--dry-run", action="store_true", help="print the stage commands; run nothing")
     args = ap.parse_args(argv)
 
@@ -150,14 +187,18 @@ def main(argv=None) -> int:
         return 1
     substrate = collect_substrate(out / GROUND_DIR)
     if not substrate:
-        print("WARNING: stage 1 produced no grounded_<axis>.json — the hypothesis will run WITHOUT "
-              "grounded literature (substrate-empty). Check --ground / --ground-indication.", file=sys.stderr)
+        print(
+            "WARNING: stage 1 produced no grounded_<axis>.json — the hypothesis will run WITHOUT "
+            "grounded literature (substrate-empty). Check --ground / --ground-indication.",
+            file=sys.stderr,
+        )
     hyp_dossier = dossier_path if (produce_dossier or args.target_dossier) and dossier_path.exists() else None
     if produce_dossier and hyp_dossier is None:
-        print("WARNING: stage 0 did not produce a dossier; the hypothesis will run degraded "
-              "(certainty capped 'low').", file=sys.stderr)
-    _run(hypothesis_cmd(py, ep_path, substrate, out, args.modality, hyp_dossier, args.objective),
-         "2 HYPOTHESIZE")
+        print(
+            "WARNING: stage 0 did not produce a dossier; the hypothesis will run degraded (certainty capped 'low').",
+            file=sys.stderr,
+        )
+    _run(hypothesis_cmd(py, ep_path, substrate, out, args.modality, hyp_dossier, args.objective), "2 HYPOTHESIZE")
     _run(render_cmd(py, args.target, args.indication, out, args.modality), "3 RENDER")
     print(f"\n✓ full loop complete → {out / DASH_DIR / 'target_profile.html'}", file=sys.stderr)
     return 0

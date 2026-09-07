@@ -1,6 +1,7 @@
 """surface-modality-fit factored-record SHADOW builder (M1) — the axis where modality_scope is NATIVE
 (the verdict directly names the fitting biologic modality). Pins the per-verdict ADC/TCE preference,
 open-world/negative cases, fired-set cross-check, and schema conformance. Consumed-by-nothing."""
+
 from __future__ import annotations
 
 import json
@@ -22,13 +23,12 @@ def _fired(*rids):
 
 
 def test_adc_preferred_maps_to_adc_favorable_tce_unfavorable():
-    rec = sm._claim_record(_cards(), fired=_fired("adc-preferred"),
-                           verdict_pair=("adc_preferred", "adc-preferred"))
+    rec = sm._claim_record(_cards(), fired=_fired("adc-preferred"), verdict_pair=("adc_preferred", "adc-preferred"))
     assert rec["axis"] == "surface_modality"
     assert rec["finding"]["direction"] == "supports"
     assert rec["finding"]["availability"] == "measured_positive"
     ms = rec["modality_scope"]
-    assert ms["small_molecule"] == "na"                 # surface fit does not speak to SM
+    assert ms["small_molecule"] == "na"  # surface fit does not speak to SM
     assert ms["_refinements"]["adc"] == "favorable"
     assert ms["_refinements"]["bite_tce"] == "unfavorable"
     assert ms["biologics"] == "favorable"
@@ -56,7 +56,7 @@ def test_tce_escape_risk_is_conditional_tce():
 def test_ambiguous_has_no_modality_call():
     rec = sm._claim_record(_cards(), fired=[], verdict_pair=("modality_ambiguous", None))
     assert rec["finding"]["availability"] == "insufficient"
-    assert "modality_scope" not in rec                  # no call → block omitted
+    assert "modality_scope" not in rec  # no call → block omitted
 
 
 def test_data_unavailable_is_open_world():
@@ -81,9 +81,19 @@ def test_conforms_to_contract_schema_if_available():
     if schema is None:
         pytest.skip("contracts repo / claim_record.schema.json not available")
     from jsonschema import Draft202012Validator
-    for v in ("adc_preferred", "adc_preferred_tce_escape_risk", "tce_preferred", "both_viable",
-              "surface_viable_density_caveated", "shed_dominant_opposed", "neither_viable",
-              "tce_unsafe_normal_liability", "modality_ambiguous", "data_unavailable"):
+
+    for v in (
+        "adc_preferred",
+        "adc_preferred_tce_escape_risk",
+        "tce_preferred",
+        "both_viable",
+        "surface_viable_density_caveated",
+        "shed_dominant_opposed",
+        "neither_viable",
+        "tce_unsafe_normal_liability",
+        "modality_ambiguous",
+        "data_unavailable",
+    ):
         rec = sm._claim_record(_cards(), fired=[], verdict_pair=(v, None))
         errs = sorted(Draft202012Validator(schema).iter_errors(rec), key=lambda e: e.path)
         assert not errs, f"{v} -> {[e.message for e in errs]}"

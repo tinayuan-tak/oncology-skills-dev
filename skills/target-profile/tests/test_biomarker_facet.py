@@ -3,6 +3,7 @@
 Verifies the facet pulls corroboration + stratification + preferred_assay from synthetic sub_results,
 and the golden cases the plan names: KRAS-like → strong_selection_biomarker (mutant-stratified);
 housekeeping-like → none. No S3/LLM (pure dict fixtures)."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -23,8 +24,10 @@ def _sr(**cards_by_short):
 def test_kras_like_strong_selection_biomarker_genomic():
     # the plan's golden: mutant-stratified dependency → strong_selection_biomarker, preferred genomic
     sr = _sr(
-        genomic_alteration={"mutation-stratified-dependency": {"mutation_stratification_class": "mutant_strongly_dependent"},
-                            "alteration-role": {"alteration_role": "direct_driver_gof"}},
+        genomic_alteration={
+            "mutation-stratified-dependency": {"mutation_stratification_class": "mutant_strongly_dependent"},
+            "alteration-role": {"alteration_role": "direct_driver_gof"},
+        },
         expression={"cellline-rna-protein-concordance": {"rna_as_biomarker": "partial_proxy"}},
     )
     f = run._biomarker_facet(sr)
@@ -43,17 +46,27 @@ def test_predictive_biomarker_alteration_role_is_genomic_stratifier():
 def test_dependency_ppv_performance_flows_to_predictive_hypothesis():
     # dependency-classification performance on the mutation-stratified card should (a) surface
     # in the quantitative block and (b) attach to the genomic predictive hypothesis as dependency_performance.
-    sr = _sr(genomic_alteration={"mutation-stratified-dependency": {
-        "mutation_stratification_class": "mutant_strongly_dependent",
-        "hotspot_dependency_ppv": 0.81, "hotspot_dependency_ppv_lift": 9.65,
-        "hotspot_dependency_sensitivity": 0.66, "hotspot_dependency_specificity": 0.99,
-        "hotspot_dependency_base_rate": 0.084}})
+    sr = _sr(
+        genomic_alteration={
+            "mutation-stratified-dependency": {
+                "mutation_stratification_class": "mutant_strongly_dependent",
+                "hotspot_dependency_ppv": 0.81,
+                "hotspot_dependency_ppv_lift": 9.65,
+                "hotspot_dependency_sensitivity": 0.66,
+                "hotspot_dependency_specificity": 0.99,
+                "hotspot_dependency_base_rate": 0.084,
+            }
+        }
+    )
     f = run._biomarker_facet(sr)
     # (a) quantitative re-surfacing
     assert f["quantitative"]["genomic_alteration"]["hotspot_dependency_ppv_lift"] == 9.65
     # (b) attached to the predictive hypothesis
-    pred = [h for h in f["biomarker_hypotheses"]
-            if h["intended_use"] == "predictive" and "mutation_stratification_class" in h["basis"]]
+    pred = [
+        h
+        for h in f["biomarker_hypotheses"]
+        if h["intended_use"] == "predictive" and "mutation_stratification_class" in h["basis"]
+    ]
     assert pred, "expected a mutation-stratified predictive hypothesis"
     perf = pred[0].get("dependency_performance")
     assert perf is not None
@@ -63,8 +76,11 @@ def test_dependency_ppv_performance_flows_to_predictive_hypothesis():
 
 def test_dependency_performance_absent_when_ppv_not_provided():
     # No PPV fields on the card → predictive hypothesis still forms, but carries no dependency_performance.
-    sr = _sr(genomic_alteration={"mutation-stratified-dependency": {
-        "mutation_stratification_class": "mutant_moderately_dependent"}})
+    sr = _sr(
+        genomic_alteration={
+            "mutation-stratified-dependency": {"mutation_stratification_class": "mutant_moderately_dependent"}
+        }
+    )
     f = run._biomarker_facet(sr)
     pred = [h for h in f["biomarker_hypotheses"] if h["intended_use"] == "predictive"]
     assert pred and "dependency_performance" not in pred[0]
@@ -83,8 +99,10 @@ def test_rna_adequate_proxy_prefers_rna():
 
 
 def test_poor_proxy_prefers_protein():
-    sr = _sr(expression={"cellline-rna-protein-concordance": {"rna_as_biomarker": "poor_proxy"}},
-             mechanism={"phospho-pathway-activity": {"phospho_activity_class": "phospho_present"}})
+    sr = _sr(
+        expression={"cellline-rna-protein-concordance": {"rna_as_biomarker": "poor_proxy"}},
+        mechanism={"phospho-pathway-activity": {"phospho_activity_class": "phospho_present"}},
+    )
     f = run._biomarker_facet(sr)
     assert f["preferred_assay"] == "protein"
     # corroboration present (phospho_present, from the mechanism sub-result) → corroborating_only
@@ -102,11 +120,15 @@ def test_housekeeping_like_none():
     # the plan's other golden: nothing biomarker-relevant → none. All corroboration signals must be
     # in the excluded set (None / data_unavailable / not_informative) and no stratifier present.
     sr = _sr(
-        expression={"cellline-rna-protein-concordance": {"rna_as_biomarker": "data_unavailable"},
-                    "phospho-pathway-activity": {"phospho_activity_class": "data_unavailable"},
-                    "expression-purity-confound": {"purity_confound_class": "data_unavailable"}},
-        genomic_alteration={"alteration-role": {"alteration_role": "data_unavailable"},
-                            "mutation-stratified-dependency": {"mutation_stratification_class": "data_unavailable"}},
+        expression={
+            "cellline-rna-protein-concordance": {"rna_as_biomarker": "data_unavailable"},
+            "phospho-pathway-activity": {"phospho_activity_class": "data_unavailable"},
+            "expression-purity-confound": {"purity_confound_class": "data_unavailable"},
+        },
+        genomic_alteration={
+            "alteration-role": {"alteration_role": "data_unavailable"},
+            "mutation-stratified-dependency": {"mutation_stratification_class": "data_unavailable"},
+        },
     )
     f = run._biomarker_facet(sr)
     assert f["verdict"] == "none"
@@ -131,8 +153,11 @@ def test_subtype_stratification_class_is_a_stratification_input_not_a_verdict_pr
     """subtype_stratification_class (2026-08-04) feeds the facet's stratification_role — it defines a
     patient-selection population (raises confidence) but must NOT promote the facet verdict to
     strong_selection_biomarker (reserved for GENOMIC stratifiers). One-directional."""
-    sr = _sr(expression={"tumor-rna-distribution-by-subtype":
-                         {"subtype_stratification_class": "subtype_restricted_with_window"}})
+    sr = _sr(
+        expression={
+            "tumor-rna-distribution-by-subtype": {"subtype_stratification_class": "subtype_restricted_with_window"}
+        }
+    )
     f = run._biomarker_facet(sr)
     # captured in the stratification block (visible patient-selection context)
     assert f["stratification_role"]["subtype_stratification_class"] == "subtype_restricted_with_window"
@@ -147,8 +172,11 @@ def _roles(f):
 
 
 def test_best_role_predictive_from_mutation_stratified_dependency():
-    sr = _sr(genomic_alteration={"mutation-stratified-dependency":
-                                 {"mutation_stratification_class": "mutant_strongly_dependent"}})
+    sr = _sr(
+        genomic_alteration={
+            "mutation-stratified-dependency": {"mutation_stratification_class": "mutant_strongly_dependent"}
+        }
+    )
     f = run._biomarker_facet(sr)
     assert "predictive" in _roles(f)
     h = next(h for h in f["biomarker_hypotheses"] if h["intended_use"] == "predictive")
@@ -159,8 +187,11 @@ def test_best_role_predictive_from_mutation_stratified_dependency():
 
 def test_best_role_prognostic_kept_separate_from_predictive():
     # expression↔survival alone → PROGNOSTIC only, never predictive
-    sr = _sr(differentiation={"expression-clinical-association":
-                              {"survival_association_class": "expression_high_worse_survival"}})
+    sr = _sr(
+        differentiation={
+            "expression-clinical-association": {"survival_association_class": "expression_high_worse_survival"}
+        }
+    )
     f = run._biomarker_facet(sr)
     assert _roles(f) == {"prognostic"}
     assert "prognostic" in _roles(f) and "predictive" not in _roles(f)
@@ -169,9 +200,13 @@ def test_best_role_prognostic_kept_separate_from_predictive():
 def test_best_role_multi_role_target_carries_several_hypotheses():
     # a target that is BOTH mutation-predictive AND driver-subtyping AND prognostic → 3 distinct roles
     sr = _sr(
-        genomic_alteration={"mutation-stratified-dependency": {"mutation_stratification_class": "mutant_strongly_dependent"},
-                            "alteration-role": {"alteration_role": "direct_driver_lof"}},
-        differentiation={"expression-clinical-association": {"survival_association_class": "expression_high_better_survival"}},
+        genomic_alteration={
+            "mutation-stratified-dependency": {"mutation_stratification_class": "mutant_strongly_dependent"},
+            "alteration-role": {"alteration_role": "direct_driver_lof"},
+        },
+        differentiation={
+            "expression-clinical-association": {"survival_association_class": "expression_high_better_survival"}
+        },
     )
     f = run._biomarker_facet(sr)
     assert {"predictive", "diagnostic_subtyping", "prognostic"}.issubset(_roles(f))
@@ -202,27 +237,39 @@ def test_best_role_empty_when_nothing_biomarker_relevant():
 
 
 def test_best_role_data_unavailable_contributes_no_role():
-    sr = _sr(differentiation={"expression-clinical-association": {"survival_association_class": "data_unavailable"}},
-             genomic_alteration={"mutation-stratified-dependency": {"mutation_stratification_class": "insufficient_mutation_rate"}})
+    sr = _sr(
+        differentiation={"expression-clinical-association": {"survival_association_class": "data_unavailable"}},
+        genomic_alteration={
+            "mutation-stratified-dependency": {"mutation_stratification_class": "insufficient_mutation_rate"}
+        },
+    )
     f = run._biomarker_facet(sr)
     assert f["biomarker_hypotheses"] == []
 
 
 # --- quantitative re-surfacing (the raw stats behind each categorical class) ---
 
+
 def test_quantitative_block_resurfaces_card_statistics():
     """The facet re-surfaces the numeric companions the cards compute (r, effect size,
     Mann-Whitney q, delta-Chronos, agreement fractions) alongside the categorical classes."""
     sr = _sr(
-        genomic_alteration={"mutation-stratified-dependency": {
-            "mutation_stratification_class": "mutant_strongly_dependent",
-            "hotspot_mannwhitney_q": 0.002, "hotspot_effect_size": 0.61,
-            "delta_chronos_hotspot_mut_vs_wt": -0.83}},
-        dependency={"expression-dependency-correlation": {
-            "correlation_class": "strong_negative", "pearson_r": -0.55,
-            "delta_chronos_top_vs_bottom_quartile": -0.7},
-            "crispr-rnai-dependency-concordance": {
-            "concordance_class": "concordant", "fraction_agree": 0.88}},
+        genomic_alteration={
+            "mutation-stratified-dependency": {
+                "mutation_stratification_class": "mutant_strongly_dependent",
+                "hotspot_mannwhitney_q": 0.002,
+                "hotspot_effect_size": 0.61,
+                "delta_chronos_hotspot_mut_vs_wt": -0.83,
+            }
+        },
+        dependency={
+            "expression-dependency-correlation": {
+                "correlation_class": "strong_negative",
+                "pearson_r": -0.55,
+                "delta_chronos_top_vs_bottom_quartile": -0.7,
+            },
+            "crispr-rnai-dependency-concordance": {"concordance_class": "concordant", "fraction_agree": 0.88},
+        },
     )
     f = run._biomarker_facet(sr)
     q = f["quantitative"]
@@ -238,9 +285,13 @@ def test_quantitative_is_verdict_inert():
     """Adding the numeric companions must NOT change verdict / preferred_assay / intended_uses —
     they ride in a parallel block; the facet's categorical logic is untouched."""
     base_cards = {"mutation-stratified-dependency": {"mutation_stratification_class": "mutant_strongly_dependent"}}
-    with_nums = {"mutation-stratified-dependency": {
-        "mutation_stratification_class": "mutant_strongly_dependent",
-        "hotspot_mannwhitney_q": 0.002, "hotspot_effect_size": 0.61}}
+    with_nums = {
+        "mutation-stratified-dependency": {
+            "mutation_stratification_class": "mutant_strongly_dependent",
+            "hotspot_mannwhitney_q": 0.002,
+            "hotspot_effect_size": 0.61,
+        }
+    }
     f_base = run._biomarker_facet(_sr(genomic_alteration=base_cards))
     f_num = run._biomarker_facet(_sr(genomic_alteration=with_nums))
     for k in ("verdict", "preferred_assay", "intended_uses", "corroboration_role", "stratification_role"):
@@ -250,8 +301,11 @@ def test_quantitative_is_verdict_inert():
 def test_quantitative_omits_absent_fields_honestly():
     """Absent numeric fields are simply omitted (no fabricated 0/null); a sub-skill with no numeric
     companions present contributes no quantitative entry."""
-    sr = _sr(genomic_alteration={"mutation-stratified-dependency": {
-        "mutation_stratification_class": "mutant_strongly_dependent"}})  # class only, no numbers
+    sr = _sr(
+        genomic_alteration={
+            "mutation-stratified-dependency": {"mutation_stratification_class": "mutant_strongly_dependent"}
+        }
+    )  # class only, no numbers
     f = run._biomarker_facet(sr)
     # no numeric companions present → genomic_alteration key absent from quantitative (not {}/null-filled)
     assert "genomic_alteration" not in f["quantitative"]

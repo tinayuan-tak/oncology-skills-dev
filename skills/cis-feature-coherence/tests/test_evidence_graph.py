@@ -12,6 +12,7 @@ cross-tab resolver, so the graph's verdict node carries the resolved coherence c
 driver) rather than None. The verdict asserts below are therefore NULL-TOLERANT: the resolved-token path is
 pinned for this fixture. Nothing here touches the cis_coherence_verdict spine.
 """
+
 from __future__ import annotations
 
 import copy
@@ -19,12 +20,16 @@ import copy
 # cards that FIRE a cis_coherence rule in the KRAS/COADREAD fixture (verdict-bearing) vs the pure
 # display-only facets (the verdict-INERT protein / abundance / patient / molecular-form legs).
 VERDICT_BEARING = {
-    "cis-feature-expression-coherence", "expression-dependency-correlation",
+    "cis-feature-expression-coherence",
+    "expression-dependency-correlation",
     "amp-expr-stratified-dependency",
 }
 DISPLAY_ONLY = {
-    "cis-feature-protein-coherence", "cellline-methylation-expression-coherence",
-    "abundance-dependency", "patient-cis-coherence", "cellline-isoform-dominance",
+    "cis-feature-protein-coherence",
+    "cellline-methylation-expression-coherence",
+    "abundance-dependency",
+    "patient-cis-coherence",
+    "cellline-isoform-dominance",
     "cellline-isoform-expression",
 }
 ALL_CARDS = VERDICT_BEARING | DISPLAY_ONLY
@@ -33,18 +38,42 @@ ALL_CARDS = VERDICT_BEARING | DISPLAY_ONLY
 # make_literature_fn emits from narrator_lenses.CIS_FEATURE_COHERENCE.axis_labels).
 _SYNTH_LIT = {
     "axes": [
-        {"axis_key": "CIS_DOSAGE", "literature_read": "supports",
-         "assertion": "KRAS amplification drives its own expression.",
-         "agreement_vs_omics": "agree", "confidence": "high",
-         "citations": [{"label": "Singh 2009", "pmid": "19490893", "verified": True}]},
-        {"axis_key": "SILENCING", "literature_read": "n/a", "assertion": "No promoter silencing reported.",
-         "agreement_vs_omics": "omics_blind", "confidence": "low", "citations": []},
-        {"axis_key": "EXPR_DEP", "literature_read": "supports", "assertion": "Expression tracks dependency.",
-         "agreement_vs_omics": "agree", "confidence": "moderate", "citations": []},
-        {"axis_key": "CONJOINT", "literature_read": "mixed", "assertion": "Amp∩overexpr addiction context.",
-         "agreement_vs_omics": "agree", "confidence": "moderate", "citations": []},
+        {
+            "axis_key": "CIS_DOSAGE",
+            "literature_read": "supports",
+            "assertion": "KRAS amplification drives its own expression.",
+            "agreement_vs_omics": "agree",
+            "confidence": "high",
+            "citations": [{"label": "Singh 2009", "pmid": "19490893", "verified": True}],
+        },
+        {
+            "axis_key": "SILENCING",
+            "literature_read": "n/a",
+            "assertion": "No promoter silencing reported.",
+            "agreement_vs_omics": "omics_blind",
+            "confidence": "low",
+            "citations": [],
+        },
+        {
+            "axis_key": "EXPR_DEP",
+            "literature_read": "supports",
+            "assertion": "Expression tracks dependency.",
+            "agreement_vs_omics": "agree",
+            "confidence": "moderate",
+            "citations": [],
+        },
+        {
+            "axis_key": "CONJOINT",
+            "literature_read": "mixed",
+            "assertion": "Amp∩overexpr addiction context.",
+            "agreement_vs_omics": "agree",
+            "confidence": "moderate",
+            "citations": [],
+        },
     ],
-    "blind_spots": [], "overall_consistency": "consistent", "key_divergence": None,
+    "blind_spots": [],
+    "overall_consistency": "consistent",
+    "key_divergence": None,
 }
 
 
@@ -78,17 +107,18 @@ def test_reconstruct_questions_signal_and_cards(eg_graph):
     # verdict-INERT skill's question_table polarity is "informs" (never supports/opposes a nomination).
     assert qs["cis_dosage_read"]["signal"]["tier"] == "strong"
     assert qs["cis_dosage_read"]["signal"]["polarity"] == "informs"
-    assert qs["silencing_read"]["signal"]["tier"] == "unmeasured"     # methylation_invariant_panel
+    assert qs["silencing_read"]["signal"]["tier"] == "unmeasured"  # methylation_invariant_panel
     # the many-to-many card join (measurement_type membership) — protein sibling + molecular-form
     # context cards anchor to the CIS_DOSAGE leg they inform.
     assert set(qs["cis_dosage_read"]["card_ids"]) == {
-        "cis-feature-expression-coherence", "cis-feature-protein-coherence",
-        "cellline-isoform-dominance", "cellline-isoform-expression"}
+        "cis-feature-expression-coherence",
+        "cis-feature-protein-coherence",
+        "cellline-isoform-dominance",
+        "cellline-isoform-expression",
+    }
     assert set(qs["silencing_read"]["card_ids"]) == {"cellline-methylation-expression-coherence"}
-    assert set(qs["expr_dep_read"]["card_ids"]) == {
-        "expression-dependency-correlation", "abundance-dependency"}
-    assert set(qs["conjoint_read"]["card_ids"]) == {
-        "amp-expr-stratified-dependency", "patient-cis-coherence"}
+    assert set(qs["expr_dep_read"]["card_ids"]) == {"expression-dependency-correlation", "abundance-dependency"}
+    assert set(qs["conjoint_read"]["card_ids"]) == {"amp-expr-stratified-dependency", "patient-cis-coherence"}
     # every card joins at least one question (nothing collapses into the "Other" layer)
     assert all(c["question_ids"] for c in eg_graph["cards"])
     # the driving leg materializes both edge directions
@@ -141,4 +171,4 @@ def test_verdict_node_matches_spine(eg_graph, eg_decision):
     assert eg_decision["headline"]["cis_coherence_verdict"] == "coherent_cis_driver"
     assert eg_graph["verdict"]["id"] == "coherent_cis_driver"
     assert eg_graph["verdict"]["driving_rule_id"] == "cis-dosage-coupled-supportive"
-    assert eg_graph["verdict"]["polarity"] == "supportive"   # canonical (was legacy "positive")
+    assert eg_graph["verdict"]["polarity"] == "supportive"  # canonical (was legacy "positive")

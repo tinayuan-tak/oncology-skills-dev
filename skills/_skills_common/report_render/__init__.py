@@ -15,6 +15,7 @@ Public API:
                   indication=None, **spec_overrides) -> str
     build_ir(...), ReportSpec, PRESETS, resolve_spec, backend_names()
 """
+
 from __future__ import annotations
 
 from typing import Optional
@@ -25,9 +26,19 @@ from .ir import ReportIR, build_ir, build_ir_for_skill
 from .spec import PRESETS, ReportSpec, resolve_spec
 
 __all__ = [
-    "render_report", "render_all", "render_skill_report", "build_ir", "build_ir_for_skill",
-    "build_ir_auto", "ReportIR", "ReportSpec", "PRESETS", "resolve_spec",
-    "backend_names", "string_backend_names", "coverage",
+    "render_report",
+    "render_all",
+    "render_skill_report",
+    "build_ir",
+    "build_ir_for_skill",
+    "build_ir_auto",
+    "ReportIR",
+    "ReportSpec",
+    "PRESETS",
+    "resolve_spec",
+    "backend_names",
+    "string_backend_names",
+    "coverage",
 ]
 
 
@@ -47,7 +58,7 @@ def _extract_skill(data):
         # the ONE renderer for the standalone sub-skill dashboard too (retires evidence_graph_dashboard).
         eg = hb.get("evidence_graph")
         if isinstance(eg, dict) and eg and "evidence_graph" not in sr:
-            sr = {**sr, "evidence_graph": eg}   # shallow copy — never mutate the caller's decision
+            sr = {**sr, "evidence_graph": eg}  # shallow copy — never mutate the caller's decision
         return sr, data.get("skill")
     if "role" in data and "claim_chips" in data and "target_report" not in data:
         return data, data.get("_skill_name")
@@ -60,15 +71,27 @@ def build_ir_auto(data: dict, spec: ReportSpec, *, target=None, indication=None)
     sk = _extract_skill(data)
     if sk is not None:
         report, name = sk
-        return build_ir_for_skill(report, spec, skill_name=name,
-                                  target=target or data.get("target"),
-                                  indication=indication or data.get("indication"))
+        return build_ir_for_skill(
+            report,
+            spec,
+            skill_name=name,
+            target=target or data.get("target"),
+            indication=indication or data.get("indication"),
+        )
     return build_ir(data, spec, target=target, indication=indication)
 
 
-def render_report(nomination: dict, *, preset: Optional[str] = None, backend: str = "text",
-                  spec: Optional[ReportSpec] = None, target: Optional[str] = None,
-                  indication: Optional[str] = None, asset_root=None, **spec_overrides) -> str:
+def render_report(
+    nomination: dict,
+    *,
+    preset: Optional[str] = None,
+    backend: str = "text",
+    spec: Optional[ReportSpec] = None,
+    target: Optional[str] = None,
+    indication: Optional[str] = None,
+    asset_root=None,
+    **spec_overrides,
+) -> str:
     """Render one nomination to one backend's string. Provide a `preset` name and/or explicit
     `spec_overrides` (level/medium/scope/lead/bump_deciding), or pass a full `spec`. `asset_root` (the
     run dir where `figures/` lives) makes the html backend INLINE figure SVGs → a self-contained page."""
@@ -80,9 +103,16 @@ def render_report(nomination: dict, *, preset: Optional[str] = None, backend: st
     return _backends.render(ir, backend, asset_root=asset_root)
 
 
-def render_all(nomination: dict, *, preset: Optional[str] = None, spec: Optional[ReportSpec] = None,
-               backends: Optional[list] = None, target: Optional[str] = None,
-               indication: Optional[str] = None, **spec_overrides) -> dict:
+def render_all(
+    nomination: dict,
+    *,
+    preset: Optional[str] = None,
+    spec: Optional[ReportSpec] = None,
+    backends: Optional[list] = None,
+    target: Optional[str] = None,
+    indication: Optional[str] = None,
+    **spec_overrides,
+) -> dict:
     """Render one nomination once (single IR) into several backends. Returns {backend_name: str}."""
     if spec is None:
         spec = resolve_spec(preset, **spec_overrides)
@@ -91,10 +121,18 @@ def render_all(nomination: dict, *, preset: Optional[str] = None, spec: Optional
     return {name: _backends.render(ir, name) for name in names}
 
 
-def render_skill_report(source: dict, *, preset: Optional[str] = None, backend: str = "text",
-                        spec: Optional[ReportSpec] = None, skill_name: Optional[str] = None,
-                        short: Optional[str] = None, target: Optional[str] = None,
-                        indication: Optional[str] = None, **spec_overrides) -> str:
+def render_skill_report(
+    source: dict,
+    *,
+    preset: Optional[str] = None,
+    backend: str = "text",
+    spec: Optional[ReportSpec] = None,
+    skill_name: Optional[str] = None,
+    short: Optional[str] = None,
+    target: Optional[str] = None,
+    indication: Optional[str] = None,
+    **spec_overrides,
+) -> str:
     """Render a SINGLE skill. `source` may be a standalone decision.json, or a bare skill_report dict
     (then pass `skill_name`/`short` for a nice title)."""
     if spec is None:
@@ -108,6 +146,7 @@ def render_skill_report(source: dict, *, preset: Optional[str] = None, backend: 
         indication = indication or source.get("indication")
     else:
         report, name = source, skill_name
-    ir = build_ir_for_skill(report, spec, skill_name=name or skill_name, short=short,
-                            target=target, indication=indication)
+    ir = build_ir_for_skill(
+        report, spec, skill_name=name or skill_name, short=short, target=target, indication=indication
+    )
     return _backends.render(ir, backend)

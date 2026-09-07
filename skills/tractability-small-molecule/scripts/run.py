@@ -56,15 +56,24 @@ from _skills_common.subgroup_derivation import make_value_classifier
 # _TRACT_VALUE_TIERS states the tier for the small-molecule-tractability vocabulary (signal = strength
 # of evidence FOR small-molecule druggability). default_classify is the fallback. VERDICT-INERT.
 _TRACT_VALUE_TIERS = {
-    "approved_drug_tractable": "strong", "clinical_drug_tractable": "strong",
-    "tool_compound_tractable": "moderate", "no_known_drug": "absent",
-    "potent_measured_ligand": "strong", "moderate_measured_ligand": "moderate",
-    "weak_measured_ligand": "weak", "no_measured_ligand": "absent",
+    "approved_drug_tractable": "strong",
+    "clinical_drug_tractable": "strong",
+    "tool_compound_tractable": "moderate",
+    "no_known_drug": "absent",
+    "potent_measured_ligand": "strong",
+    "moderate_measured_ligand": "moderate",
+    "weak_measured_ligand": "weak",
+    "no_measured_ligand": "absent",
     "clinical_precedent_only": "moderate",
-    "triangulated_target_engaged": "strong", "mixed_engagement": "weak", "no_engagement": "absent",
-    "strong_activity": "strong", "moderate_activity": "moderate", "weak_activity": "weak",
+    "triangulated_target_engaged": "strong",
+    "mixed_engagement": "weak",
+    "no_engagement": "absent",
+    "strong_activity": "strong",
+    "moderate_activity": "moderate",
+    "weak_activity": "weak",
     "no_activity": "absent",
-    "ubiquitination_substrate": "moderate", "no_e3_handle": "absent",
+    "ubiquitination_substrate": "moderate",
+    "no_e3_handle": "absent",
 }
 
 
@@ -77,36 +86,45 @@ _TRACT_VALUE_TIERS = {
 # rungs; negatives are the intractable / off-target rungs; `insufficient` is the coverage gap.
 _DRUGGABILITY_VERDICT_PHRASE = {
     # positives — a druggable / tractable call
-    "well_covered":                 "Well-covered small-molecule target",
+    "well_covered": "Well-covered small-molecule target",
     "chemically_confirmed_genetic": "Chemically confirmed genetic dependency",
-    "chemically_active":            "Chemically active compound",
-    "measured_potent_ligand":       "Measured potent ligand",
-    "clinical_precedent_only":      "Clinical precedent only",
-    "tool_compound_only":           "Tool compound only",
-    "weakly_active":                "Weakly active compound",
-    "structurally_ligandable":      "Structurally ligandable pocket",
+    "chemically_active": "Chemically active compound",
+    "measured_potent_ligand": "Measured potent ligand",
+    "clinical_precedent_only": "Clinical precedent only",
+    "tool_compound_only": "Tool compound only",
+    "weakly_active": "Weakly active compound",
+    "structurally_ligandable": "Structurally ligandable pocket",
     # negatives — an intractable / undruggable / off-target call
-    "structurally_intractable":     "Structurally intractable",
-    "chemically_unhit":             "Chemically unhit (no compound found)",
-    "discordant":                   "Discordant off-target activity",
-    "annotation_only_indirect":     "Annotation-only (indirect compounds; no direct binder)",
+    "structurally_intractable": "Structurally intractable",
+    "chemically_unhit": "Chemically unhit (no compound found)",
+    "discordant": "Discordant off-target activity",
+    "annotation_only_indirect": "Annotation-only (indirect compounds; no direct binder)",
     # gap
-    "insufficient":                 "Insufficient evidence",
+    "insufficient": "Insufficient evidence",
 }
 
 # Positive (tractable) vs negative (intractable / off-target) druggability rungs — used only to colour
 # the hero badge polarity; never a gate. Kept in sync with the resolver rung vocabulary.
-_TRACTABILITY_POSITIVE = frozenset({
-    "well_covered", "chemically_confirmed_genetic", "chemically_active", "measured_potent_ligand",
-    "clinical_precedent_only", "tool_compound_only", "weakly_active", "structurally_ligandable",
-})
+_TRACTABILITY_POSITIVE = frozenset(
+    {
+        "well_covered",
+        "chemically_confirmed_genetic",
+        "chemically_active",
+        "measured_potent_ligand",
+        "clinical_precedent_only",
+        "tool_compound_only",
+        "weakly_active",
+        "structurally_ligandable",
+    }
+)
 # annotation_only_indirect (resolver v1.5.0 directness gate): an approved drug is catalogued but the DGIdb
 # roster is INDIRECT/sparse — no DIRECT small-molecule binder established. A non-positive SM-tractability
 # outcome (hero badge negative-polarity is honest: "no direct binder"), distinct from chemically_unhit
 # (compounds ARE catalogued, just indirect) — the nuance rides in the phrase. NON-nominating (the TC
 # nomination gate leaves it out of the positive/kill sets), so this membership only colours display.
-_TRACTABILITY_NEGATIVE = frozenset({"structurally_intractable", "chemically_unhit", "discordant",
-                                    "annotation_only_indirect"})
+_TRACTABILITY_NEGATIVE = frozenset(
+    {"structurally_intractable", "chemically_unhit", "discordant", "annotation_only_indirect"}
+)
 
 
 def _tractability_verdict_polarity(v) -> str:
@@ -131,28 +149,39 @@ def _tractability_verdict_polarity(v) -> str:
 # test_verdict_by_modality_covers_all_tokens); an unmapped/None token falls back to insufficient (honest).
 _SM_ARM = {
     # strong positives → viable; weaker/forward positives → caveated (a handle, not a proven hit)
-    "well_covered": "viable", "chemically_confirmed_genetic": "viable", "chemically_active": "viable",
+    "well_covered": "viable",
+    "chemically_confirmed_genetic": "viable",
+    "chemically_active": "viable",
     "measured_potent_ligand": "viable",
-    "clinical_precedent_only": "caveated", "tool_compound_only": "caveated",
-    "weakly_active": "caveated", "structurally_ligandable": "caveated",
+    "clinical_precedent_only": "caveated",
+    "tool_compound_only": "caveated",
+    "weakly_active": "caveated",
+    "structurally_ligandable": "caveated",
     # negatives
-    "discordant": "opposed", "structurally_intractable": "not_viable", "chemically_unhit": "not_viable",
+    "discordant": "opposed",
+    "structurally_intractable": "not_viable",
+    "chemically_unhit": "not_viable",
     # indirect-only: catalogued compounds exist but none direct → a CAVEATED (non-direct) handle, not a
     # clean not_viable (there IS chemical matter) nor viable (no direct binder). Verdict-inert projection.
     "annotation_only_indirect": "caveated",
     "insufficient": "insufficient",
 }
 _DEG_ARM = {
-    "strong_degrader_rationale": "viable", "degrader_rationale": "supported",
-    "degrader_opposed": "opposed", "degrader_unviable": "not_viable", "insufficient": "insufficient",
+    "strong_degrader_rationale": "viable",
+    "degrader_rationale": "supported",
+    "degrader_opposed": "opposed",
+    "degrader_unviable": "not_viable",
+    "insufficient": "insufficient",
 }
 
 
 def _druggability_verdict_by_modality(sm_snapshot, degrader_snapshot) -> dict:
     """Project the two resolved snapshots onto explicit per-modality-arm calls {small_molecule, degrader}.
     Pure projection — never moves the spine; unmapped/None → insufficient (never fabricates a viable arm)."""
-    return {"small_molecule": _SM_ARM.get(sm_snapshot, "insufficient"),
-            "degrader": _DEG_ARM.get(degrader_snapshot, "insufficient")}
+    return {
+        "small_molecule": _SM_ARM.get(sm_snapshot, "insufficient"),
+        "degrader": _DEG_ARM.get(degrader_snapshot, "insufficient"),
+    }
 
 
 # ── FACTORED-RECORD SHADOW (M1) — the TRACTABILITY (small-molecule) per-axis builder. This axis is
@@ -168,11 +197,11 @@ _TRACT_WEAK = {"tool_compound_only", "weakly_active"}
 
 def _tract_availability(v) -> str:
     if v is None:
-        return "not_wired"                       # open-world → assembler forces unknown/neutral
+        return "not_wired"  # open-world → assembler forces unknown/neutral
     if v == "insufficient":
-        return "insufficient"                    # the coverage gap (measured underpowered)
+        return "insufficient"  # the coverage gap (measured underpowered)
     if v in _TRACTABILITY_NEGATIVE:
-        return "measured_negative"               # measured intractable / unhit / discordant
+        return "measured_negative"  # measured intractable / unhit / discordant
     return "measured_positive"
 
 
@@ -201,9 +230,10 @@ def _tract_level(v) -> str:
 # degrader channel silently INHERITED the SM base favorability (_CHANNEL_BASE['degrader']=small_molecule)
 # -- parroting the SM call for a channel with its own evidence. insufficient -> omit (keep SM fallback).
 _DEGRADER_CLASS_TO_SCOPE = {
-    "strong_degrader_rationale": "favorable", "degrader_rationale": "favorable",
-    "degrader_opposed": "conditional",        # a degrader-opposing signal fired -- downgrade, not a kill
-    "degrader_unviable": "unfavorable",        # a degrader-killer fired (nothing to degrade)
+    "strong_degrader_rationale": "favorable",
+    "degrader_rationale": "favorable",
+    "degrader_opposed": "conditional",  # a degrader-opposing signal fired -- downgrade, not a kill
+    "degrader_unviable": "unfavorable",  # a degrader-killer fired (nothing to degrade)
 }
 
 
@@ -217,14 +247,14 @@ def _tract_modality_scope(v, fired=None) -> dict | None:
     # per-modality view reflects the ACTUAL degrader-feasibility read, not SM inheritance.
     if fired is not None:
         try:
-            deg_class, _drv = _degrader_snapshot(fired)          # reads fired[].signals[degrader]
+            deg_class, _drv = _degrader_snapshot(fired)  # reads fired[].signals[degrader]
         except Exception:  # noqa: BLE001 -- shadow must never crash the run (fired may lack signals)
             deg_class = "insufficient"
         deg = _DEGRADER_CLASS_TO_SCOPE.get(deg_class)
         if deg is not None:
             scope = dict(scope or {"small_molecule": "na", "biologics": "na"})
             scope["_refinements"] = {"degrader": deg}
-    return scope                                 # None only when no SM call AND degrader insufficient
+    return scope  # None only when no SM call AND degrader insufficient
 
 
 def _tract_certainty(v) -> dict:
@@ -259,10 +289,15 @@ def _tractability_tension_extra(headline: dict):
     AGAINST small-molecule tractability. Surfaced from the `discordant` verdict + the concordance class."""
     if headline.get("druggability_snapshot") == "discordant":
         concord = headline.get("prism_crispr_concord")
-        return {"text": ("chemical activity is discordant with the genetic dependency (off-target) — the "
-                         "compound kill does not track the CRISPR/RNAi requirement"
-                         + (f"; concordance: {concord}" if concord else "")),
-                "source": "chemical_genetic_discordance", "severity": 3}
+        return {
+            "text": (
+                "chemical activity is discordant with the genetic dependency (off-target) — the "
+                "compound kill does not track the CRISPR/RNAi requirement"
+                + (f"; concordance: {concord}" if concord else "")
+            ),
+            "source": "chemical_genetic_discordance",
+            "severity": 3,
+        }
     return None
 
 
@@ -280,13 +315,15 @@ def _tractability_tension_extra(headline: dict):
 # looks-druggable-but-UNCONFIRMED. Fires ONLY on an annotation-driven positive rung WITHOUT direct
 # corroboration → None (byte-stable) for the on-target concordance rungs (KRAS well_covered /
 # e7-triangulated), the measured-PRISM-activity rung, and the structural / negative / gap verdicts.
-_ANNOTATION_DRIVEN_RUNGS = frozenset({
-    "known-drug-approved-antineoplastic-sm-supportive",   # DGIdb has_approved_drug (indirect-inclusive)
-    "measured-chembl-approved-sm-supportive",             # ChEMBL max_clinical_phase>=4 (gene-aggregated)
-    "known-drug-druggable-category-sm-supportive",        # DGIdb druggable-class prior (no bound compound)
-    "measured-potent-ligand-sm-supportive",               # ChEMBL potent series (gene-aggregated; direct?)
-    "measured-weak-ligand-sm-supportive",                 # ChEMBL weak measured series (gene-aggregated)
-})
+_ANNOTATION_DRIVEN_RUNGS = frozenset(
+    {
+        "known-drug-approved-antineoplastic-sm-supportive",  # DGIdb has_approved_drug (indirect-inclusive)
+        "measured-chembl-approved-sm-supportive",  # ChEMBL max_clinical_phase>=4 (gene-aggregated)
+        "known-drug-druggable-category-sm-supportive",  # DGIdb druggable-class prior (no bound compound)
+        "measured-potent-ligand-sm-supportive",  # ChEMBL potent series (gene-aggregated; direct?)
+        "measured-weak-ligand-sm-supportive",  # ChEMBL weak measured series (gene-aggregated)
+    }
+)
 # A MEASURED cellular hit (PRISM) or chemical-genetic concordance PROVES direct engagement → suppresses the
 # caveat. `clinically_active` is a measured cell-panel kill; the two concordance tokens below mean the
 # compound-kill tracks the CRISPR/RNAi dependency (on-target). Kept in sync with the concordance vocab.
@@ -301,9 +338,17 @@ _DIRECT_ENGAGEMENT_CONCORD = frozenset({"triangulated_target_engaged", "crispr_c
 # does NOT flag biologics_only (ERBB2/EGFR/MET are dual-modality SM targets; FOLH1/PSMA has the SM
 # radioligand PSMA-617), so the live loader is strictly more accurate (the osimertinib guard). DISCLAIMED.
 _BIOLOGICS_APPROVED_NONSM = {
-    "DLL3": "tce", "STEAP1": "tce", "FOLR1": "adc", "NECTIN4": "adc", "CEACAM5": "adc_tce",
-    "TACSTD2": "adc", "MSLN": "adc_tce", "CD22": "adc",
-    "CD79B": "adc", "TNFRSF17": "tce_car", "GPC3": "car",
+    "DLL3": "tce",
+    "STEAP1": "tce",
+    "FOLR1": "adc",
+    "NECTIN4": "adc",
+    "CEACAM5": "adc_tce",
+    "TACSTD2": "adc",
+    "MSLN": "adc_tce",
+    "CD22": "adc",
+    "CD79B": "adc",
+    "TNFRSF17": "tce_car",
+    "GPC3": "car",
 }
 
 
@@ -314,6 +359,7 @@ def _biologics_only_modalities() -> dict:
     live vocab is unreadable (returns {})."""
     try:
         from _skills_common._live_readers import _load_biologics_precedent_modalities
+
         live = _load_biologics_precedent_modalities()
         if live:
             return live
@@ -322,31 +368,34 @@ def _biologics_only_modalities() -> dict:
     return _BIOLOGICS_APPROVED_NONSM
 
 
-def _directness_caveat(snapshot, driving_rule_id, prism_activity_class, prism_crispr_concord,
-                       known_drug_class=None, n_antineoplastic=None) -> str | None:
+def _directness_caveat(
+    snapshot, driving_rule_id, prism_activity_class, prism_crispr_concord, known_drug_class=None, n_antineoplastic=None
+) -> str | None:
     """Name the DGIdb/ChEMBL druggability-inflation risk on a positive snapshot that rests on retrospective
     annotation WITHOUT direct-engagement corroboration. VERDICT-INERT: reports WHY the positive call is
     annotation-driven; never changes it. None unless the pattern holds → byte-stable on the on-target /
     measured-PRISM / structural / negative / gap paths (KRAS, EGFR/FOXA1 fixtures)."""
     if driving_rule_id not in _ANNOTATION_DRIVEN_RUNGS:
         return None
-    if snapshot not in _TRACTABILITY_POSITIVE:          # defensive; the annotation rungs are all positive
+    if snapshot not in _TRACTABILITY_POSITIVE:  # defensive; the annotation rungs are all positive
         return None
     if prism_activity_class in _DIRECT_ENGAGEMENT_PRISM:
-        return None                                     # a measured cell-panel hit — direct-ish, not inflated
+        return None  # a measured cell-panel hit — direct-ish, not inflated
     if prism_crispr_concord in _DIRECT_ENGAGEMENT_CONCORD:
-        return None                                     # compound-kill tracks the dependency — on-target
+        return None  # compound-kill tracks the dependency — on-target
     n = f" ({n_antineoplastic} antineoplastic interactions)" if isinstance(n_antineoplastic, int) else ""
-    return (f"The positive snapshot ('{snapshot}') rests on a RETROSPECTIVE-ANNOTATION rung "
-            f"({driving_rule_id}) — a DGIdb known-drug / druggable-category boolean or a ChEMBL gene-"
-            f"aggregated ligand count{n} — which tabulates a compound AGAINST THE GENE but does NOT prove it "
-            "engages THIS target DIRECTLY. Direct engagement is UNCONFIRMED in-package: PRISM cellular "
-            f"activity = {prism_activity_class or 'data_unavailable'}, chemical-genetic concordance = "
-            f"{prism_crispr_concord or 'data_unavailable'} (neither a measured cell-panel hit nor "
-            "chemical-genetic agreement). For a classically-undruggable TF/scaffold the interaction roster "
-            "is dominated by INDIRECT / pathway / downstream compounds, so this can read druggable with no "
-            "direct binder in existence — treat as looks-druggable-but-UNCONFIRMED, not confirmed direct "
-            "druggability. Confirm target-directness from the literature lane (--literature).")
+    return (
+        f"The positive snapshot ('{snapshot}') rests on a RETROSPECTIVE-ANNOTATION rung "
+        f"({driving_rule_id}) — a DGIdb known-drug / druggable-category boolean or a ChEMBL gene-"
+        f"aggregated ligand count{n} — which tabulates a compound AGAINST THE GENE but does NOT prove it "
+        "engages THIS target DIRECTLY. Direct engagement is UNCONFIRMED in-package: PRISM cellular "
+        f"activity = {prism_activity_class or 'data_unavailable'}, chemical-genetic concordance = "
+        f"{prism_crispr_concord or 'data_unavailable'} (neither a measured cell-panel hit nor "
+        "chemical-genetic agreement). For a classically-undruggable TF/scaffold the interaction roster "
+        "is dominated by INDIRECT / pathway / downstream compounds, so this can read druggable with no "
+        "direct binder in existence — treat as looks-druggable-but-UNCONFIRMED, not confirmed direct "
+        "druggability. Confirm target-directness from the literature lane (--literature)."
+    )
 
 
 def _sm_modality_mismatch_caveat(hl: dict, target=None) -> str | None:
@@ -361,33 +410,38 @@ def _sm_modality_mismatch_caveat(hl: dict, target=None) -> str | None:
     or degraded run). Fires only when an approved drug is present AND the target is biologics-only; None
     otherwise → byte-stable. Never enters fired/resolver — it explains the DRUG-axis modality read."""
     gene = (target or "").upper().strip()
-    card_modality = hl.get("approved_drug_modality")          # authoritative reader signal
+    card_modality = hl.get("approved_drug_modality")  # authoritative reader signal
     # authoritative path: the reader classified the approved drug's modality
     if card_modality == "biologic":
         modality = hl.get("approved_drug_modality_tag") or _biologics_only_modalities().get(gene) or "biologic"
     elif card_modality in ("small_molecule_or_unknown", "not_applicable"):
-        return None                                           # reader says not a biologics-only approval
+        return None  # reader says not a biologics-only approval
     else:
         # card field unavailable (degraded/stale contract) → fall back to the LIVE biologics-only vocab
         # read (curated fail-safe only if the vocab is unreadable) + has_approved
         modality = _biologics_only_modalities().get(gene)
         if modality is None or hl.get("has_approved_drug") is not True:
             return None
-    gated = (hl.get("approved_drug_engagement_class") == "approved_biologic_only")
+    gated = hl.get("approved_drug_engagement_class") == "approved_biologic_only"
     n = hl.get("n_antineoplastic_interactions")
     n_txt = f" ({n} antineoplastic interactions)" if isinstance(n, int) else ""
-    lead = ("MODALITY GATE FIRED" if gated else "MODALITY MISMATCH")
-    tail = ("The modality gate has SUPPRESSED this over-credit: approved_drug_engagement_class="
-            "approved_biologic_only routes the DRUG axis to annotation_only_indirect (a catalogued "
-            "approved agent, but not a small molecule), so it no longer contributes SM-supportive "
-            "evidence." if gated else
-            "Treat any positive DRUG-axis / known-drug contribution here as biologics-precedent, NOT "
-            "evidence of small-molecule druggability.")
-    return (f"{lead}: {gene}'s approved / clinically-precedented agent is a BIOLOGIC "
-            f"(modality={modality} — antibody-drug conjugate / T-cell engager / CAR), NOT a small "
-            f"molecule. DGIdb's known-drug annotation (has_approved_drug=true{n_txt}) is modality-BLIND. "
-            f"{tail} Confirm a direct small-molecule binder from the structure/potency axes or the "
-            "literature lane (--literature). Source: biologics_precedent_targets.yaml (curated).")
+    lead = "MODALITY GATE FIRED" if gated else "MODALITY MISMATCH"
+    tail = (
+        "The modality gate has SUPPRESSED this over-credit: approved_drug_engagement_class="
+        "approved_biologic_only routes the DRUG axis to annotation_only_indirect (a catalogued "
+        "approved agent, but not a small molecule), so it no longer contributes SM-supportive "
+        "evidence."
+        if gated
+        else "Treat any positive DRUG-axis / known-drug contribution here as biologics-precedent, NOT "
+        "evidence of small-molecule druggability."
+    )
+    return (
+        f"{lead}: {gene}'s approved / clinically-precedented agent is a BIOLOGIC "
+        f"(modality={modality} — antibody-drug conjugate / T-cell engager / CAR), NOT a small "
+        f"molecule. DGIdb's known-drug annotation (has_approved_drug=true{n_txt}) is modality-BLIND. "
+        f"{tail} Confirm a direct small-molecule binder from the structure/potency axes or the "
+        "literature lane (--literature). Source: biologics_precedent_targets.yaml (curated)."
+    )
 
 
 # ── CHEMICAL-GENETIC AGREEMENT arm (verdict-INERT) ───────────────────────────────────────────────────
@@ -396,25 +450,39 @@ def _sm_modality_mismatch_caveat(hl: dict, target=None) -> str | None:
 # an explicit agreement class (corroboration / partial / off-target conflict / unmeasured) + a one-line
 # read, mirroring FR's concordance handling. VERDICT-INERT; None when the concordance is unread.
 _CONCORD_AGREEMENT = {
-    "triangulated_target_engaged": ("on_target_confirmed",
+    "triangulated_target_engaged": (
+        "on_target_confirmed",
         "compound-kill tracks BOTH the CRISPR and RNAi genetic dependency (triangulated) — direct "
-        "on-target engagement corroborated (the strongest chemical-genetic agreement)."),
-    "crispr_confirmed_engagement": ("on_target_crispr",
-        "compound-kill tracks the CRISPR genetic dependency — on-target engagement (single-channel)."),
-    "rnai_confirmed_engagement": ("on_target_rnai_only",
+        "on-target engagement corroborated (the strongest chemical-genetic agreement).",
+    ),
+    "crispr_confirmed_engagement": (
+        "on_target_crispr",
+        "compound-kill tracks the CRISPR genetic dependency — on-target engagement (single-channel).",
+    ),
+    "rnai_confirmed_engagement": (
+        "on_target_rnai_only",
         "compound-kill tracks the RNAi dependency only (orthogonal LoF, no CRISPR arm) — on-target but "
-        "single-channel and seed/off-target-prone; weaker corroboration."),
-    "mixed_engagement": ("partial",
+        "single-channel and seed/off-target-prone; weaker corroboration.",
+    ),
+    "mixed_engagement": (
+        "partial",
         "compound-kill only PARTIALLY tracks the genetic dependency — engagement ambiguous, neither "
-        "clean on-target nor clearly off-target."),
-    "discordant_off_target_likely": ("off_target_conflict",
+        "clean on-target nor clearly off-target.",
+    ),
+    "discordant_off_target_likely": (
+        "off_target_conflict",
         "compound-kill does NOT track the genetic dependency — likely OFF-TARGET; a chemical-genetic "
-        "CONFLICT that argues AGAINST small-molecule tractability."),
-    "thin_evidence": ("unmeasured",
+        "CONFLICT that argues AGAINST small-molecule tractability.",
+    ),
+    "thin_evidence": (
+        "unmeasured",
         "chemical-genetic concordance is UNMEASURED (no/too-few compounds evaluated) — engagement neither "
-        "confirmed nor refuted; the positive chemical signal is uncorroborated by the genetic dependency."),
-    "data_unavailable": ("unmeasured",
-        "chemical-genetic concordance is unavailable — engagement neither confirmed nor refuted."),
+        "confirmed nor refuted; the positive chemical signal is uncorroborated by the genetic dependency.",
+    ),
+    "data_unavailable": (
+        "unmeasured",
+        "chemical-genetic concordance is unavailable — engagement neither confirmed nor refuted.",
+    ),
 }
 
 
@@ -423,16 +491,25 @@ def _chemical_genetic_agreement(prism_crispr_concord) -> dict | None:
     thin = unmeasured. VERDICT-INERT; None when concordance is unread (byte-stable on the empty case)."""
     if not prism_crispr_concord:
         return None
-    cls, note = _CONCORD_AGREEMENT.get(prism_crispr_concord, ("unmeasured",
-        f"chemical-genetic concordance class '{prism_crispr_concord}' is unrecognised — treat as unmeasured."))
+    cls, note = _CONCORD_AGREEMENT.get(
+        prism_crispr_concord,
+        (
+            "unmeasured",
+            f"chemical-genetic concordance class '{prism_crispr_concord}' is unrecognised — treat as unmeasured.",
+        ),
+    )
     return {"agreement_class": cls, "note": note, "source_concordance_class": prism_crispr_concord}
 
 
 _TRACTABILITY_HEADLINE_SPEC = HeadlineSpec(
     gate="tractability_sm",
-    axis_labels={"POTENCY": "measured binding", "ACTIVITY": "functional compound",
-                 "STRUCT": "ligandable pocket", "DRUG": "known-drug pharmacology",
-                 "DEGRADER": "degrader feasibility"},
+    axis_labels={
+        "POTENCY": "measured binding",
+        "ACTIVITY": "functional compound",
+        "STRUCT": "ligandable pocket",
+        "DRUG": "known-drug pharmacology",
+        "DEGRADER": "degrader feasibility",
+    },
     axis_keys=("POTENCY", "ACTIVITY", "STRUCT", "DRUG", "DEGRADER"),
     critical_axes=("POTENCY", "ACTIVITY"),
     verdict_label=lambda v: _DRUGGABILITY_VERDICT_PHRASE.get(v, str(v).replace("_", " ").strip().capitalize()),
@@ -446,43 +523,52 @@ def _build_headline_block(headline: dict) -> dict:
     skill emits no CERTAINTY_MODEL sidecar, so confidence is the derived weakest-link over the claim
     vector's corroboration."""
     v = headline.get("druggability_snapshot")
-    return build_headline(headline, headline.get("claim_vector"), headline.get("key_signals"),
-                          spec=_TRACTABILITY_HEADLINE_SPEC, verdict_token=v,
-                          driving_rule_id=headline.get("driving_rule_id"),
-                          verdict_polarity=_tractability_verdict_polarity(v),
-                          # per-modality-arm chips (SM inhibition + degrader) — omitted (None) leaves the
-                          # shared hero byte-identical for skills that don't decompose. Verdict-inert.
-                          modality_arms=(headline.get("druggability_verdict_by_modality")
-                                         or _druggability_verdict_by_modality(v, headline.get("degrader_snapshot"))))
+    return build_headline(
+        headline,
+        headline.get("claim_vector"),
+        headline.get("key_signals"),
+        spec=_TRACTABILITY_HEADLINE_SPEC,
+        verdict_token=v,
+        driving_rule_id=headline.get("driving_rule_id"),
+        verdict_polarity=_tractability_verdict_polarity(v),
+        # per-modality-arm chips (SM inhibition + degrader) — omitted (None) leaves the
+        # shared hero byte-identical for skills that don't decompose. Verdict-inert.
+        modality_arms=(
+            headline.get("druggability_verdict_by_modality")
+            or _druggability_verdict_by_modality(v, headline.get("degrader_snapshot"))
+        ),
+    )
 
 
 SKILL_NAME = "tractability-small-molecule"
 SKILL_VERSION = "3.11.1"  # 3.11.1 (2026-09-07, CASE-008 #07): _sm_modality_mismatch_caveat fallback now reads the biologics-only modality map LIVE from biologics_precedent_targets.yaml (_biologics_only_modalities → _live_readers._load_biologics_precedent_modalities, keyed on biologics_only: true) instead of the hardcoded _BIOLOGICS_APPROVED_NONSM (demoted to a last-resort fail-safe). New vocab entries covered automatically. VERDICT-INERT (caveat is a headline field; spine/resolver/golden byte-stable).
-                          # 3.11.0 (2026-09-07, CASE-008 graduation, VERDICT-MOVING signal-vector): consume the new AM/TC modality gate — reader emits approved_drug_modality + approved_biologic_only; resolver v1.6.0 rung known-drug-approved-biologic-only-sm-not-supportive routes a biologics-only approved antigen's DRUG axis to annotation_only_indirect (stops the SM-supportive approved-drug rung). _sm_modality_mismatch_caveat now keys on the reader's authoritative approved_drug_modality (curated set = fallback) and becomes a CONFIRMATION when the gate fired. Legacy oracle mirrors the new rung. DRUG-axis fired signal moves for biologics antigens (CEACAM5/DLL3/FOLR1/NECTIN4); top-line verdict STABLE for the calibration set (STRUCT/e7-driven). Golden/replay regenerated.
-                          # 3.10.0 (2026-09-07, CASE-008 literature-discordance loop): VERDICT-INERT sm_modality_mismatch_caveat — a biologics-approved antigen (ADC/TCE/CAR; curated _BIOLOGICS_APPROVED_NONSM seeded from biologics_precedent_targets.yaml) whose modality-blind DGIdb known-drug annotation can inflate the DRUG axis into SM tractability. Fires on has_approved_drug + curated target; spine/resolver/golden byte-stable. target signature-introspected in _headline/_synthesis_facet.
-                          # 3.9.1 (2026-09-04): VERDICT-INERT — set structural_ligandability_class + has_druggable_pocket + ligandability_disorder_class in _headline (declared-but-unset facet debt).     # 3.9.0 (2026-09-04): VERDICT-MOVING annotation_only_indirect — consume the resolver v1.5.0 directness gate (approved-drug rung now requires DIRECT engagement; indirect/sparse DGIdb roster → annotation_only_indirect). Depends AM dgidb v0.2.0 + TC resolver v1.5.0.     # 3.8.0 (2026-09-04): --literature lane + verdict-INERT surfacing (directness_caveat = DGIdb/ChEMBL druggability-inflation flag; chemical_genetic_agreement arm; TRACTABILITY_SM thesis + polarity_note). Spine byte-stable.     # 3.7.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.     # 3.6.0 (2026-08-27): tuned signals-first sub-group reader (tractability vocab). Verdict-INERT.
-                            # 3.5.0 (2026-08-21): emit existing per-question question_table into the headline
-                            # 3.4.0/3.1.0 +E8; +known-drug; +degradation; +T1.1/T1.2/T3.1
-                            #   (discordant reorder, clinical_precedent_only, measured-potency card).
-                            # 3.0.0: split from tractability-and-modality 2.1.0.
+# 3.11.0 (2026-09-07, CASE-008 graduation, VERDICT-MOVING signal-vector): consume the new AM/TC modality gate — reader emits approved_drug_modality + approved_biologic_only; resolver v1.6.0 rung known-drug-approved-biologic-only-sm-not-supportive routes a biologics-only approved antigen's DRUG axis to annotation_only_indirect (stops the SM-supportive approved-drug rung). _sm_modality_mismatch_caveat now keys on the reader's authoritative approved_drug_modality (curated set = fallback) and becomes a CONFIRMATION when the gate fired. Legacy oracle mirrors the new rung. DRUG-axis fired signal moves for biologics antigens (CEACAM5/DLL3/FOLR1/NECTIN4); top-line verdict STABLE for the calibration set (STRUCT/e7-driven). Golden/replay regenerated.
+# 3.10.0 (2026-09-07, CASE-008 literature-discordance loop): VERDICT-INERT sm_modality_mismatch_caveat — a biologics-approved antigen (ADC/TCE/CAR; curated _BIOLOGICS_APPROVED_NONSM seeded from biologics_precedent_targets.yaml) whose modality-blind DGIdb known-drug annotation can inflate the DRUG axis into SM tractability. Fires on has_approved_drug + curated target; spine/resolver/golden byte-stable. target signature-introspected in _headline/_synthesis_facet.
+# 3.9.1 (2026-09-04): VERDICT-INERT — set structural_ligandability_class + has_druggable_pocket + ligandability_disorder_class in _headline (declared-but-unset facet debt).     # 3.9.0 (2026-09-04): VERDICT-MOVING annotation_only_indirect — consume the resolver v1.5.0 directness gate (approved-drug rung now requires DIRECT engagement; indirect/sparse DGIdb roster → annotation_only_indirect). Depends AM dgidb v0.2.0 + TC resolver v1.5.0.     # 3.8.0 (2026-09-04): --literature lane + verdict-INERT surfacing (directness_caveat = DGIdb/ChEMBL druggability-inflation flag; chemical_genetic_agreement arm; TRACTABILITY_SM thesis + polarity_note). Spine byte-stable.     # 3.7.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.     # 3.6.0 (2026-08-27): tuned signals-first sub-group reader (tractability vocab). Verdict-INERT.
+# 3.5.0 (2026-08-21): emit existing per-question question_table into the headline
+# 3.4.0/3.1.0 +E8; +known-drug; +degradation; +T1.1/T1.2/T3.1
+#   (discordant reorder, clinical_precedent_only, measured-potency card).
+# 3.0.0: split from tractability-and-modality 2.1.0.
 
 CARDS = [
     "prism-compound-activity",
     "prism-crispr-concordance",
     "dependency-predictability",
-    "structure-features-static",   # E8: FORWARD ligandability (pocket structure)
-    "known-drug-tractability",     # E-known-drug: PHARMACOLOGY leg (DGIdb known-drug + druggable-category)
+    "structure-features-static",  # E8: FORWARD ligandability (pocket structure)
+    "known-drug-tractability",  # E-known-drug: PHARMACOLOGY leg (DGIdb known-drug + druggable-category)
     "measured-potency-tractability",  # E-measured-potency (T3.1): ChEMBL/BindingDB MEASURED binding potency
-    "degradation-feasibility",     # E3 slice 3: DEGRADER-lens degradability (E3-substrate + precedent + location gate)
-    "gdsc-drug-activity",          # 2nd drug-response platform (Sanger GDSC1/2) — ORTHOGONAL corroboration of
-                                   # PRISM. DISPLAY-ONLY / verdict-INERT: fires no rule, feeds no resolver rung,
-                                   # so druggability_snapshot is byte-stable (the ProCan->Gygi analog).
+    "degradation-feasibility",  # E3 slice 3: DEGRADER-lens degradability (E3-substrate + precedent + location gate)
+    "gdsc-drug-activity",  # 2nd drug-response platform (Sanger GDSC1/2) — ORTHOGONAL corroboration of
+    # PRISM. DISPLAY-ONLY / verdict-INERT: fires no rule, feeds no resolver rung,
+    # so druggability_snapshot is byte-stable (the ProCan->Gygi analog).
 ]
 
-QUESTION = ("Does {target} in {indication} show small-molecule druggability evidence "
-            "— is there a compound that hits it (chemical), does that agree with the "
-            "genetic dependency, and is there a druggable pocket even absent a known "
-            "compound (structural / forward ligandability)?")
+QUESTION = (
+    "Does {target} in {indication} show small-molecule druggability evidence "
+    "— is there a compound that hits it (chemical), does that agree with the "
+    "genetic dependency, and is there a druggable pocket even absent a known "
+    "compound (structural / forward ligandability)?"
+)
 
 
 def _snapshot(fired: list[dict]) -> tuple[str, str | None]:
@@ -607,6 +693,7 @@ def _degrader_snapshot(fired: list[dict]) -> tuple[str, str | None]:
     degrader_unviable; a dominant degrader-supportive → strong_degrader_rationale; any degrader-
     supportive → degrader_rationale; a degrader-opposing → degrader_opposed; else insufficient."""
     from _skills_common import modality_lens
+
     tally = modality_lens(fired, "degrader")
     if tally["killer"]:
         return "degrader_unviable", tally["killer"][0]["rule_id"]
@@ -624,8 +711,8 @@ def _headline(cards, fired, verdict_pair, target=None):
     v, drv = verdict_pair or ("insufficient", None)
     degrader_class, degrader_drv = _degrader_snapshot(fired)
     hl = {
-        "druggability_snapshot":     v,
-        "driving_rule_id":           drv,
+        "druggability_snapshot": v,
+        "driving_rule_id": drv,
         # DEGRADER lens — additive to the SM verdict; degradation ≠ inhibition (KO-like complete
         # removal). The degrader_snapshot now folds in the E3-degradability slice (slice 3): the
         # degradation-feasibility card's degrader-channel rules fire into the same `fired` set the
@@ -633,17 +720,17 @@ def _headline(cards, fired, verdict_pair, target=None):
         # strong_degrader_rationale and a surface/secreted target reads degrader_opposed — WITHOUT
         # touching the small-molecule druggability_snapshot (degrader-channel-only rules; SM spine
         # byte-stable, proven by the resolver golden-oracle test).
-        "degrader_snapshot":         degrader_class,
-        "degrader_driving_rule_id":  degrader_drv,
+        "degrader_snapshot": degrader_class,
+        "degrader_driving_rule_id": degrader_drv,
         # PER-MODALITY-ARM decomposition — pure projection of the two snapshots above onto
         # {small_molecule, degrader} calls (the SM analog of surface/safety/presence *_by_modality).
         # Verdict-INERT (cannot disagree with the one-word spine); rendered as hero chips + a facet key.
         "druggability_verdict_by_modality": _druggability_verdict_by_modality(v, degrader_class),
         # slice 3 LANDED: the target-degradability read (E3-substrate + PROTAC precedent + location
         # gate) from the degradation-feasibility card, replacing the not_yet_assessed placeholder.
-        "degradability_machinery":   get_card_field(cards, "degradation-feasibility", "degradability_feasibility_class"),
+        "degradability_machinery": get_card_field(cards, "degradation-feasibility", "degradability_feasibility_class"),
         "degradability_e3_evidence": get_card_field(cards, "degradation-feasibility", "e3_substrate_evidence"),
-        "degrader_precedent":        get_card_field(cards, "degradation-feasibility", "degrader_precedent"),
+        "degrader_precedent": get_card_field(cards, "degradation-feasibility", "degrader_precedent"),
         # 2026-08-09 bugfix: these read the WRONG field names — the methods emit
         # `prism_activity_class` / `crispr_prism_concordance_class`, not `activity_class` /
         # `concordance_class`. get_card_field returns None on a missing key (no raise), so both
@@ -651,20 +738,22 @@ def _headline(cards, fired, verdict_pair, target=None):
         # (synthesis_tractability_sm.py reads h['prism_activity_class'] / ['prism_crispr_concord'])
         # was starved of the two most important chemical facts. Verdict UNAFFECTED (the rules read
         # the correct field names directly via the rule engine).
-        "prism_activity_class":      get_card_field(cards, "prism-compound-activity", "prism_activity_class"),
-        "prism_crispr_concord":      get_card_field(cards, "prism-crispr-concordance", "crispr_prism_concordance_class"),
+        "prism_activity_class": get_card_field(cards, "prism-compound-activity", "prism_activity_class"),
+        "prism_crispr_concord": get_card_field(cards, "prism-crispr-concordance", "crispr_prism_concordance_class"),
         # GDSC 2nd-platform ORTHOGONAL corroboration (2026-08-25): Sanger GDSC1+GDSC2 drug-response,
         # a DIFFERENT lab/assay/library than Broad PRISM. VERDICT-INERT display — the card fires no
         # rule + feeds no resolver rung, so these fields never move druggability_snapshot; a headline-
         # only cross-platform read (a target potent in BOTH GDSC and PRISM is more credible). NOT in
         # _SYNTHESIS_FACET_KEYS → the composed claim_vector/facet stay byte-stable.
-        "gdsc_activity_class":       get_card_field(cards, "gdsc-drug-activity", "gdsc_activity_class"),
-        "gdsc_most_sensitive_drug":  get_card_field(cards, "gdsc-drug-activity", "most_sensitive_drug_name"),
-        "predictability_class":      get_card_field(cards, "dependency-predictability", "predictability_class"),
+        "gdsc_activity_class": get_card_field(cards, "gdsc-drug-activity", "gdsc_activity_class"),
+        "gdsc_most_sensitive_drug": get_card_field(cards, "gdsc-drug-activity", "most_sensitive_drug_name"),
+        "predictability_class": get_card_field(cards, "dependency-predictability", "predictability_class"),
         # E8 structural / forward ligandability (2026-07-17)
-        "hotspot_pocket_adjacency":  get_card_field(cards, "structure-features-static", "hotspot_pocket_adjacency_call"),
-        "hotspot_in_druggable_pocket": get_card_field(cards, "structure-features-static", "mutation_hotspot_in_druggable_pocket"),
-        "pdb_coverage_class":        get_card_field(cards, "structure-features-static", "pdb_coverage_class"),
+        "hotspot_pocket_adjacency": get_card_field(cards, "structure-features-static", "hotspot_pocket_adjacency_call"),
+        "hotspot_in_druggable_pocket": get_card_field(
+            cards, "structure-features-static", "mutation_hotspot_in_druggable_pocket"
+        ),
+        "pdb_coverage_class": get_card_field(cards, "structure-features-static", "pdb_coverage_class"),
         "alphafold_confidence_class": get_card_field(cards, "structure-features-static", "alphafold_confidence_class"),
         # STRUCTURAL LIGANDABILITY read (2026-09-04 debt fix): structural_ligandability_class was DECLARED
         # in _SYNTHESIS_FACET_KEYS but never set here → the composed target-profile facet always emitted it
@@ -674,17 +763,25 @@ def _headline(cards, fired, verdict_pair, target=None):
         # has_druggable_pocket + ligandability_disorder_class complete the structure read: they are the
         # coverage-vs-pocket discriminators the narrator's polarity_note reasons over (a flat PPI-groove
         # target can score pdb_coverage_class=strong yet be disordered / lack a real orthosteric pocket).
-        "structural_ligandability_class": get_card_field(cards, "structure-features-static", "structural_ligandability_class"),
-        "has_druggable_pocket":      get_card_field(cards, "structure-features-static", "has_druggable_pocket"),
-        "ligandability_disorder_class": get_card_field(cards, "structure-features-static", "ligandability_disorder_class"),
+        "structural_ligandability_class": get_card_field(
+            cards, "structure-features-static", "structural_ligandability_class"
+        ),
+        "has_druggable_pocket": get_card_field(cards, "structure-features-static", "has_druggable_pocket"),
+        "ligandability_disorder_class": get_card_field(
+            cards, "structure-features-static", "ligandability_disorder_class"
+        ),
         # E-known-drug PHARMACOLOGY leg (DGIdb, 2026-08-07): known-drug + druggable-category read
-        "known_drug_tractability":   get_card_field(cards, "known-drug-tractability", "known_drug_tractability_class"),
-        "has_approved_drug":         get_card_field(cards, "known-drug-tractability", "has_approved_drug"),
-        "n_antineoplastic_interactions": get_card_field(cards, "known-drug-tractability", "n_antineoplastic_interactions"),
+        "known_drug_tractability": get_card_field(cards, "known-drug-tractability", "known_drug_tractability_class"),
+        "has_approved_drug": get_card_field(cards, "known-drug-tractability", "has_approved_drug"),
+        "n_antineoplastic_interactions": get_card_field(
+            cards, "known-drug-tractability", "n_antineoplastic_interactions"
+        ),
         # MODALITY read (CASE-008): the reader's authoritative drug-modality classification + the
         # resolver-keyed engagement class (approved_biologic_only when the gate fired).
-        "approved_drug_engagement_class": get_card_field(cards, "known-drug-tractability", "approved_drug_engagement_class"),
-        "approved_drug_modality":    get_card_field(cards, "known-drug-tractability", "approved_drug_modality"),
+        "approved_drug_engagement_class": get_card_field(
+            cards, "known-drug-tractability", "approved_drug_engagement_class"
+        ),
+        "approved_drug_modality": get_card_field(cards, "known-drug-tractability", "approved_drug_modality"),
         "approved_drug_modality_tag": get_card_field(cards, "known-drug-tractability", "approved_drug_modality_tag"),
     }
     # verdict-INERT claim-vector projection (6th concrete) — POTENCY/ACTIVITY/STRUCT/DRUG/DEGRADER
@@ -698,10 +795,14 @@ def _headline(cards, fired, verdict_pair, target=None):
     # concordance rungs / measured-PRISM / structural / gap verdicts → byte-stable (KRAS well_covered, the
     # EGFR/FOXA1 replay fixtures). (2) chemical_genetic_agreement: the explicit AGREE/conflict/unmeasured arm
     # over the concordance class. Neither touches the druggability_snapshot spine.
-    hl["directness_caveat"] = _directness_caveat(v, drv, hl.get("prism_activity_class"),
-                                                 hl.get("prism_crispr_concord"),
-                                                 known_drug_class=hl.get("known_drug_tractability"),
-                                                 n_antineoplastic=hl.get("n_antineoplastic_interactions"))
+    hl["directness_caveat"] = _directness_caveat(
+        v,
+        drv,
+        hl.get("prism_activity_class"),
+        hl.get("prism_crispr_concord"),
+        known_drug_class=hl.get("known_drug_tractability"),
+        n_antineoplastic=hl.get("n_antineoplastic_interactions"),
+    )
     hl["chemical_genetic_agreement"] = _chemical_genetic_agreement(hl.get("prism_crispr_concord"))
     # (3) sm_modality_mismatch_caveat (CASE-008): the DGIdb known-drug annotation is modality-BLIND, so
     # a biologics-approved antigen (DLL3/STEAP1/FOLR1/NECTIN4/CEACAM5 — ADC/TCE/CAR) can inflate the DRUG
@@ -762,15 +863,23 @@ def _headline(cards, fired, verdict_pair, target=None):
 
 
 _SYNTHESIS_FACET_KEYS = (
-    "druggability_snapshot", "driving_rule_id", "degrader_snapshot",
-    "druggability_verdict_by_modality",     # per-arm {small_molecule, degrader} projection (verdict-inert)
-    "prism_activity_class", "known_drug_tractability", "structural_ligandability_class",
+    "druggability_snapshot",
+    "driving_rule_id",
+    "degrader_snapshot",
+    "druggability_verdict_by_modality",  # per-arm {small_molecule, degrader} projection (verdict-inert)
+    "prism_activity_class",
+    "known_drug_tractability",
+    "structural_ligandability_class",
     # structure read completed (2026-09-04 debt fix) — the coverage-vs-pocket discriminators
-    "has_druggable_pocket", "ligandability_disorder_class",
-    "degradability_machinery", "claim_vector", "key_signals",
+    "has_druggable_pocket",
+    "ligandability_disorder_class",
+    "degradability_machinery",
+    "claim_vector",
+    "key_signals",
     # verdict-INERT surfacing flags (2026-09-04): the DGIdb/ChEMBL druggability-inflation caveat + the
     # explicit chemical-genetic AGREEMENT arm (mirrors FR measurement_caveat / concordance_scope_note).
-    "directness_caveat", "chemical_genetic_agreement",
+    "directness_caveat",
+    "chemical_genetic_agreement",
     # CASE-008: modality-mismatch druggability-inflation (biologics-approved antigen; verdict-INERT)
     "sm_modality_mismatch_caveat",
     # the per-question (data·signal·confidence) rows — rendered as the leading table by target-profile too
@@ -791,14 +900,15 @@ def _synthesis_facet(cards, fired, verdict_pair, target=None):
     (keyed on the biologics-approved crosswalk) reaches the composed profile."""
     h = _headline(cards, fired, verdict_pair, target=target)
     facet = {k: h.get(k) for k in _SYNTHESIS_FACET_KEYS}
-    facet["_facet_note"] = ("Deterministic small-molecule tractability facet; claim_vector is a "
-                            "POSITIVE-valence druggability decomposition. Verdict owned by the "
-                            "druggability resolver, not this projection.")
+    facet["_facet_note"] = (
+        "Deterministic small-molecule tractability facet; claim_vector is a "
+        "POSITIVE-valence druggability decomposition. Verdict owned by the "
+        "druggability resolver, not this projection."
+    )
     return facet
 
 
-def _llm_synthesis(cards, fired, verdict_pair, target, indication,
-                   model_id=None, subtype=None):
+def _llm_synthesis(cards, fired, verdict_pair, target, indication, model_id=None, subtype=None):
     """Fan-out opt-in (mirrors _synthesis_facet): return this lens's provenance-tagged
     llm_synthesis block for the COMPOSED target-profile run. Builds the SAME minimal decision the
     narrator consumes standalone ({target, indication, headline, cards}) from the fan-out's already-
@@ -806,42 +916,45 @@ def _llm_synthesis(cards, fired, verdict_pair, target, indication,
     effort + VERDICT-INERT: never enters fired/verdict/cards — a failure is the caller's to swallow."""
     headline = _headline(cards, fired, verdict_pair, target=target)
     decision = {
-        "target": target, "indication": indication, "headline": headline,
-        "cards": [{"card_id": c.get("card_id"), "summary": c.get("summary") or {}}
-                  for c in cards],
+        "target": target,
+        "indication": indication,
+        "headline": headline,
+        "cards": [{"card_id": c.get("card_id"), "summary": c.get("summary") or {}} for c in cards],
     }
     return make_synthesize_fn(_LENS)(decision, model_id, subtype)  # migrated to generic capsule-driven engine
 
 
 if __name__ == "__main__":
-    sys.exit(run_wired_skill(
-        skill_name=SKILL_NAME,
-        skill_version=SKILL_VERSION,
-        cards=CARDS,
-        axis="intracellular_intrinsic",
-        question=QUESTION,
-        verdict_fn=_snapshot,
-        headline_fn=_headline,
-        # Skill-level graphics (opt-in --figures): the canonical headline hero (verdict · confidence ·
-        # top tension). Additive / display-only; mirrors tumor-presence.
-        skill_figures_fn=emit_headline_hero,
-        # Opt-in --synthesize narrates through the SMALL-MOLECULE tractability lens — its own tool schema
-        # + prompt, foregrounding ON-TARGET-chemical vs FORWARD-structural vs neither (a discordant read
-        # ARGUES AGAINST), plus the additive degrader read. Two-slot / verdict-inert: the dispatcher
-        # attaches decision['llm_synthesis'] as a sibling key AFTER the spine is composed, so it is
-        # structurally impossible for the narration to alter druggability_snapshot. Without this
-        # synthesize_fn the dispatcher would fall back to the PRESENCE narrator (wrong lens — B3b, 2026-08-06).
-        synthesize_fn=make_synthesize_fn(_LENS),
-        # Opt-in --literature: a VERDICT-INERT literature corroboration/contradiction lane (mirrors FR #987
-        # / tumor-selectivity #964 / genomic-alteration #982). Attaches decision['literature_synthesis']
-        # (Europe PMC → PubTator3 fallback grounding + a post-synthesis verify_citations pass) and feeds the
-        # --synthesize narrator. The _LENS_QUERY_TERMS entry for "tractability-small-molecule" (small-molecule
-        # inhibitor / direct target engagement / tool compound / covalent / allosteric pocket / structural
-        # ligandability) lives in literature_retrieval.py. Two-slot / spine-untouched: the dispatcher attaches
-        # it AFTER the deterministic decision is composed, so it is structurally impossible for the literature
-        # lane to alter druggability_snapshot. This is the lane that RESOLVES the directness_caveat — the
-        # DGIdb/ChEMBL interaction roster (indirect-inclusive) is exactly what a literature pass adjudicates.
-        literature_fn=make_literature_fn(_LENS, retrieve_fn=default_retrieve, verify_fn=verify_citations),
-        # Signals-first: tuned sub-group reader for the tractability vocabulary. Verdict-INERT.
-        subgroup_classify=make_value_classifier(_TRACT_VALUE_TIERS),
-    ))
+    sys.exit(
+        run_wired_skill(
+            skill_name=SKILL_NAME,
+            skill_version=SKILL_VERSION,
+            cards=CARDS,
+            axis="intracellular_intrinsic",
+            question=QUESTION,
+            verdict_fn=_snapshot,
+            headline_fn=_headline,
+            # Skill-level graphics (opt-in --figures): the canonical headline hero (verdict · confidence ·
+            # top tension). Additive / display-only; mirrors tumor-presence.
+            skill_figures_fn=emit_headline_hero,
+            # Opt-in --synthesize narrates through the SMALL-MOLECULE tractability lens — its own tool schema
+            # + prompt, foregrounding ON-TARGET-chemical vs FORWARD-structural vs neither (a discordant read
+            # ARGUES AGAINST), plus the additive degrader read. Two-slot / verdict-inert: the dispatcher
+            # attaches decision['llm_synthesis'] as a sibling key AFTER the spine is composed, so it is
+            # structurally impossible for the narration to alter druggability_snapshot. Without this
+            # synthesize_fn the dispatcher would fall back to the PRESENCE narrator (wrong lens — B3b, 2026-08-06).
+            synthesize_fn=make_synthesize_fn(_LENS),
+            # Opt-in --literature: a VERDICT-INERT literature corroboration/contradiction lane (mirrors FR #987
+            # / tumor-selectivity #964 / genomic-alteration #982). Attaches decision['literature_synthesis']
+            # (Europe PMC → PubTator3 fallback grounding + a post-synthesis verify_citations pass) and feeds the
+            # --synthesize narrator. The _LENS_QUERY_TERMS entry for "tractability-small-molecule" (small-molecule
+            # inhibitor / direct target engagement / tool compound / covalent / allosteric pocket / structural
+            # ligandability) lives in literature_retrieval.py. Two-slot / spine-untouched: the dispatcher attaches
+            # it AFTER the deterministic decision is composed, so it is structurally impossible for the literature
+            # lane to alter druggability_snapshot. This is the lane that RESOLVES the directness_caveat — the
+            # DGIdb/ChEMBL interaction roster (indirect-inclusive) is exactly what a literature pass adjudicates.
+            literature_fn=make_literature_fn(_LENS, retrieve_fn=default_retrieve, verify_fn=verify_citations),
+            # Signals-first: tuned sub-group reader for the tractability vocabulary. Verdict-INERT.
+            subgroup_classify=make_value_classifier(_TRACT_VALUE_TIERS),
+        )
+    )

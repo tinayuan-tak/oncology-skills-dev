@@ -2,6 +2,7 @@
 contract, and that every consumed card is genuinely tier:target (indication-independent).
 
 S3-free — parses the run.py CARDS literal + the SKILL.md composition + the card tier fields."""
+
 from __future__ import annotations
 
 import ast
@@ -20,8 +21,9 @@ def _cards_from_runpy() -> list[str]:
         if isinstance(node, ast.Assign):
             for t in node.targets:
                 if isinstance(t, ast.Name) and t.id == "CARDS":
-                    return [e.value for e in node.value.elts
-                            if isinstance(e, ast.Constant) and isinstance(e.value, str)]
+                    return [
+                        e.value for e in node.value.elts if isinstance(e, ast.Constant) and isinstance(e.value, str)
+                    ]
     raise AssertionError("CARDS literal not found in run.py")
 
 
@@ -47,7 +49,8 @@ def test_measurement_types_parity():
     n_mtypes = len(comp["measurement_types_pulled"])
     assert n_mtypes == n_cards, (
         f"measurement_types_pulled ({n_mtypes}) != cards_used ({n_cards}) — each consumed card must "
-        f"declare its pulled measurement_type (DATA_TO_SKILL_CONTRACT Rule 3).")
+        f"declare its pulled measurement_type (DATA_TO_SKILL_CONTRACT Rule 3)."
+    )
 
 
 def test_descriptive_no_verdict_contract():
@@ -67,6 +70,7 @@ def test_all_cards_are_indication_independent():
     cards_dir = CONTRACTS / "cards"
     if not cards_dir.is_dir():
         import pytest
+
         pytest.skip("target-contracts not checked out alongside")
     forbidden = {"indication", "subtype"}
     violations = []
@@ -78,7 +82,8 @@ def test_all_cards_are_indication_independent():
             violations.append((cid, tier))
     assert not violations, (
         f"target-intrinsic consumes indication/subtype-grain card(s): {violations} — "
-        f"a target-intrinsic skill must only consume tier:target (indication-independent) cards.")
+        f"a target-intrinsic skill must only consume tier:target (indication-independent) cards."
+    )
 
 
 def _cards_read_in_headline() -> set[str]:
@@ -90,9 +95,10 @@ def _cards_read_in_headline() -> set[str]:
     tree = ast.parse((SKILL_DIR / "scripts" / "run.py").read_text())
     for node in tree.body:
         if isinstance(node, ast.Assign) and any(
-                isinstance(t, ast.Name) and t.id == "_HEADLINE_SPEC" for t in node.targets):
+            isinstance(t, ast.Name) and t.id == "_HEADLINE_SPEC" for t in node.targets
+        ):
             out: set[str] = set()
-            for elt in node.value.elts:                       # each row: (key, card_id, field)
+            for elt in node.value.elts:  # each row: (key, card_id, field)
                 if isinstance(elt, (ast.Tuple, ast.List)) and len(elt.elts) >= 2:
                     cid = elt.elts[1]
                     if isinstance(cid, ast.Constant) and isinstance(cid.value, str):
@@ -115,4 +121,5 @@ def test_every_card_is_surfaced_in_headline():
     assert not unsurfaced, (
         f"card(s) in CARDS but absent from _HEADLINE_SPEC: {sorted(unsurfaced)} — "
         f"they resolve invisibly (counted in cards_available but their signal never surfaces). "
-        f"Add a (\"<headline_key>\", \"<card-id>\", \"<field>\") row to _HEADLINE_SPEC, or drop the card from CARDS.")
+        f'Add a ("<headline_key>", "<card-id>", "<field>") row to _HEADLINE_SPEC, or drop the card from CARDS.'
+    )

@@ -1,4 +1,5 @@
 """target-profile — --emit evidence-package writer + card-figure emission + governance validation."""
+
 from __future__ import annotations
 
 import json
@@ -15,8 +16,6 @@ from _skills_common import resolve_cards
 from tp_common import SKILLS_DIR, SKILL_NAME, _CONTRACTS_REPO
 
 
-
-
 def _claim_vectors_from_sub_results(sub_results: dict) -> dict:
     """Per-short verdict-INERT claim_vector (+ key_signals) carried into the machine envelope so a
     downstream reasoner (e.g. cross-evidence-hypothesis) consumes the SIGNAL decomposition + citable
@@ -28,8 +27,7 @@ def _claim_vectors_from_sub_results(sub_results: dict) -> dict:
     for short, r in sub_results.items():
         facet = r.get("synthesis_facet")
         if isinstance(facet, dict) and isinstance(facet.get("claim_vector"), dict):
-            entry = {"claim_vector": facet["claim_vector"],
-                     "key_signals": facet.get("key_signals")}
+            entry = {"claim_vector": facet["claim_vector"], "key_signals": facet.get("key_signals")}
             # The canonical headline block (verdict + confidence + top tension + hero payload), carried
             # alongside the signal decomposition so the store / dashboard / reasoner read ONE object.
             if isinstance(facet.get("headline_block"), dict):
@@ -45,15 +43,21 @@ def _claim_vectors_from_sub_results(sub_results: dict) -> dict:
 # salient categorical fields so `categorical_anchors` surfaces them. VERDICT-INERT (rider only).
 _CAPSULE_CONFIG: dict = {
     "clinical-precedent": {
-        "categorical_fields": ["highest_clinical_stage", "approved_agents", "clinical_precedent_class"]},
+        "categorical_fields": ["highest_clinical_stage", "approved_agents", "clinical_precedent_class"]
+    },
     "competitor-landscape": {
-        "categorical_fields": ["highest_clinical_stage", "competitor_class", "n_approved",
-                               "late_stage_non_approved_agents", "indication_scope"]},
+        "categorical_fields": [
+            "highest_clinical_stage",
+            "competitor_class",
+            "n_approved",
+            "late_stage_non_approved_agents",
+            "indication_scope",
+        ]
+    },
     "known-drug-tractability": {
-        "categorical_fields": ["known_drug_tractability_class", "has_approved_drug",
-                               "n_approved_drug_interactions"]},
-    "target-development-level": {
-        "categorical_fields": ["tdl_class", "target_family"]},
+        "categorical_fields": ["known_drug_tractability_class", "has_approved_drug", "n_approved_drug_interactions"]
+    },
+    "target-development-level": {"categorical_fields": ["tdl_class", "target_family"]},
 }
 
 
@@ -91,14 +95,14 @@ def _load_figure_registry():
         if str(SKILLS_DIR) not in sys.path:
             sys.path.insert(0, str(SKILLS_DIR))
         import _skills_common._figure_emitters as _fe  # type: ignore
+
         return _fe
     except Exception as e:  # noqa: BLE001
         print(f"[target-profile] WARN: figure registry unavailable: {e}", file=sys.stderr)
         return None
 
 
-def _emit_card_figures(sub_results: dict, figures_dir: Path,
-                       target: str, indication: str) -> dict:
+def _emit_card_figures(sub_results: dict, figures_dir: Path, target: str, indication: str) -> dict:
     """Produce each card's distribution figures (SVG + interactive .plotly.json) by invoking the
     shared figure registry per card, writing into figures_dir/cards/<card_id>/.
 
@@ -122,17 +126,16 @@ def _emit_card_figures(sub_results: dict, figures_dir: Path,
                 continue
             seen.add(card_id)
             try:
-                figs = fe.emit_figures_for_card(
-                    card_id, c.get("summary") or {}, figures_dir, target, indication)
+                figs = fe.emit_figures_for_card(card_id, c.get("summary") or {}, figures_dir, target, indication)
             except Exception as e:  # noqa: BLE001 — figure emission never blocks the run
-                print(f"[target-profile] WARN: figure emit failed for {card_id}: {e}",
-                      file=sys.stderr)
+                print(f"[target-profile] WARN: figure emit failed for {card_id}: {e}", file=sys.stderr)
                 figs = []
             if figs:
                 by_card[card_id] = figs
     n_plotly = sum(1 for figs in by_card.values() for f in figs if f.get("dynamic"))
-    print(f"[target-profile] per-card figures: {len(by_card)} cards, "
-          f"{n_plotly} interactive Plotly specs", file=sys.stderr)
+    print(
+        f"[target-profile] per-card figures: {len(by_card)} cards, {n_plotly} interactive Plotly specs", file=sys.stderr
+    )
     return by_card
 
 
@@ -141,6 +144,7 @@ def _emit_card_figures(sub_results: dict, figures_dir: Path,
 # envelope (the same shape compose-dashboard emits), assembled from the per-sub-skill
 # CompositionResult carriers via the SHARED writer. Purely additive — selected by --emit; the
 # nomination path is untouched.
+
 
 def _deciding_short(deciding_axis: dict) -> Optional[str]:
     """Map the deciding_axis block to the short whose gate is the envelope PRIMARY.
@@ -160,6 +164,7 @@ def _framework_version() -> str:
     canonical _skills_common.FRAMEWORK_VERSION (rehomed from the retired compose-dashboard)."""
     try:
         from _skills_common import FRAMEWORK_VERSION
+
         return FRAMEWORK_VERSION
     except Exception:  # noqa: BLE001
         return "2.0.0"
@@ -204,7 +209,7 @@ def _validation_summary_from_sub_results(sub_results: dict) -> dict:
     seen: set = set()
     deduped: list[dict] = []
     for r in sub_results.values():
-        for c in (r.get("cards") or []):
+        for c in r.get("cards") or []:
             cid = c.get("card_id")
             if not cid or cid in seen:
                 continue
@@ -234,17 +239,27 @@ def _validation_summary_from_sub_results(sub_results: dict) -> dict:
 # lives under the 'expression' short; dependency + mutation-frequency resolve under SUBTYPE_SHORT in
 # production (per-gate short in the synthetic fixtures) — both are tried, per axis.
 _SUBTYPE_STRAT_CARDS = [
-    ("expression",         "tumor-rna-distribution-by-subtype",      "expression"),
-    ("expression",         "tumor-protein-distribution-by-subtype",  "protein"),
-    ("dependency",         "subgroup-stratified-dependency",         "dependency"),
+    ("expression", "tumor-rna-distribution-by-subtype", "expression"),
+    ("expression", "tumor-protein-distribution-by-subtype", "protein"),
+    ("dependency", "subgroup-stratified-dependency", "dependency"),
     ("genomic_alteration", "subgroup-stratified-mutation-frequency", "mutation_frequency"),
 ]
 # per_subgroup_metrics bookkeeping keys → everything else on a row is the axis metric (effect-size).
 # Includes the tumor-rna-distribution-by-subtype reader's row keys (stratum_id / n_tumor_samples /
 # match_rate) so the expression axis's metric block is not polluted by bookkeeping.
-_SUBTYPE_BOOKKEEPING = {"stratum", "stratum_id", "subgroup_id", "subgroup_label", "subgroup",
-                        "subgroup_n", "n_tumor_samples", "match_rate",
-                        "subgroup_n_floor_met", "evidence_state", "source_cohort"}
+_SUBTYPE_BOOKKEEPING = {
+    "stratum",
+    "stratum_id",
+    "subgroup_id",
+    "subgroup_label",
+    "subgroup",
+    "subgroup_n",
+    "n_tumor_samples",
+    "match_rate",
+    "subgroup_n_floor_met",
+    "evidence_state",
+    "source_cohort",
+}
 _SUBTYPE_RESOLVED_DISCLAIMER = (
     "SOFT integrator context, NOT a gate (subtype-first-class-evidence, Option A): per-stratum "
     "subtype SIGNALS surfaced machine-readable for the cross-evidence integrator. The deterministic "
@@ -255,8 +270,7 @@ _SUBTYPE_RESOLVED_DISCLAIMER = (
 )
 
 
-def _subtype_resolved_block(sub_results: dict, subtypes: list,
-                            subtype_facet: Optional[dict]) -> dict:
+def _subtype_resolved_block(sub_results: dict, subtypes: list, subtype_facet: Optional[dict]) -> dict:
     """Assemble the first-class `subtype_resolved` evidence block. Per requested stratum: the
     per-axis per_subgroup_metrics projection (evidence_state + subgroup_n + n-floor-met + the
     effect-size metric) from the THREE subtype-grain cards — expression/presence
@@ -293,8 +307,7 @@ def _subtype_resolved_block(sub_results: dict, subtypes: list,
                 continue
             available.add(st)
             rec_block = per_stratum_map.setdefault(st, {"stratum": st, "axes": {}})
-            metric = {k: v for k, v in rec.items()
-                      if k not in _SUBTYPE_BOOKKEEPING and v is not None}
+            metric = {k: v for k, v in rec.items() if k not in _SUBTYPE_BOOKKEEPING and v is not None}
             # n normalization: the tumor-rna-distribution-by-subtype reader exposes per-stratum n as
             # `n_tumor_samples`, the subgroup_common panoramas as `subgroup_n`.
             n = rec.get("subgroup_n") if rec.get("subgroup_n") is not None else rec.get("n_tumor_samples")
@@ -316,18 +329,25 @@ def _subtype_resolved_block(sub_results: dict, subtypes: list,
     return block
 
 
-def _write_evidence_package(*, args, sub_results: dict, gate_action: Optional[str],
-                            recommendation_gate: dict, confidence_tier: dict,
-                            deciding_axis: dict, validation_summary: dict,
-                            subtypes: Optional[list] = None,
-                            subtype_facet: Optional[dict] = None,
-                            certainty_by_axis: Optional[dict] = None,
-                            cross_gate_shared_evidence: Optional[dict] = None,
-                            fragility: Optional[dict] = None,
-                            competitor_crossref: Optional[dict] = None,
-                            modality_fit_by_channel: Optional[dict] = None,
-                            magnitude_borderline: Optional[list] = None,
-                            modality: Optional[str] = None) -> Path:
+def _write_evidence_package(
+    *,
+    args,
+    sub_results: dict,
+    gate_action: Optional[str],
+    recommendation_gate: dict,
+    confidence_tier: dict,
+    deciding_axis: dict,
+    validation_summary: dict,
+    subtypes: Optional[list] = None,
+    subtype_facet: Optional[dict] = None,
+    certainty_by_axis: Optional[dict] = None,
+    cross_gate_shared_evidence: Optional[dict] = None,
+    fragility: Optional[dict] = None,
+    competitor_crossref: Optional[dict] = None,
+    modality_fit_by_channel: Optional[dict] = None,
+    magnitude_borderline: Optional[list] = None,
+    modality: Optional[str] = None,
+) -> Path:
     """Assemble + write evidence_package.json around target-profile's composed verdict.
 
     Reuses the shared normalizers (`_envelope_card_present`, `_availability_state_for`) and writer
@@ -347,17 +367,21 @@ def _write_evidence_package(*, args, sub_results: dict, gate_action: Optional[st
     env_present: list[dict] = []
     env_unavailable: list[dict] = []
     for r in sub_results.values():
-        for c in (r.get("cards") or []):
+        for c in r.get("cards") or []:
             cid = c.get("card_id")
             if not cid or cid in seen:
                 continue
             seen.add(cid)
             if c.get("_missing"):
                 state, reason = _availability_state_for(c)
-                env_unavailable.append({
-                    "card_id": cid, "card_version": c.get("card_version", "n/a"),
-                    "availability_state": state, "availability_reason": reason,
-                })
+                env_unavailable.append(
+                    {
+                        "card_id": cid,
+                        "card_version": c.get("card_version", "n/a"),
+                        "availability_state": state,
+                        "availability_reason": reason,
+                    }
+                )
             else:
                 env_present.append(_envelope_card_present(c))
 
@@ -370,9 +394,11 @@ def _write_evidence_package(*, args, sub_results: dict, gate_action: Optional[st
                 seen.add(cid)
                 env_present.append(_envelope_card_present(c))
     except Exception as e:  # noqa: BLE001 — identity read is best-effort; never break emit
-        print(f"[target-profile] --emit evidence-package: target-identity read failed "
-              f"({type(e).__name__}); context.target.hgnc_id will be the unresolved sentinel.",
-              file=sys.stderr)
+        print(
+            f"[target-profile] --emit evidence-package: target-identity read failed "
+            f"({type(e).__name__}); context.target.hgnc_id will be the unresolved sentinel.",
+            file=sys.stderr,
+        )
 
     # 3. Synthesis block — SUPERSET. Per-short verdicts mirror nomination.json (verdict present even
     #    for gateless shorts); the primary/additional split reads the gate blocks the
@@ -398,12 +424,14 @@ def _write_evidence_package(*, args, sub_results: dict, gate_action: Optional[st
         if short == "safety":
             try:
                 from _skills_common.modality_safety import safety_verdict_by_modality
-                sub_verdicts[short]["safety_verdict_by_modality"] = safety_verdict_by_modality(
-                    r.get("fired") or [])
+
+                sub_verdicts[short]["safety_verdict_by_modality"] = safety_verdict_by_modality(r.get("fired") or [])
             except Exception as e:  # noqa: BLE001 — never break emit on a vocabulary read
-                print(f"[target-profile] --emit evidence-package: safety_verdict_by_modality stamp "
-                      f"failed ({type(e).__name__}); the per-modality safety block will be absent.",
-                      file=sys.stderr)
+                print(
+                    f"[target-profile] --emit evidence-package: safety_verdict_by_modality stamp "
+                    f"failed ({type(e).__name__}); the per-modality safety block will be absent.",
+                    file=sys.stderr,
+                )
         if blk is not None:
             gate_blocks[short] = blk
 
@@ -419,8 +447,7 @@ def _write_evidence_package(*, args, sub_results: dict, gate_action: Optional[st
     # disagreed with the same run's nomination.json). Use an honest neutral term for the no-kill case.
     recommendation = gate_action or "no_deterministic_kill"
     tier = confidence_tier.get("tier")
-    headline = (f"{args.target} in {args.indication}: {recommendation}"
-                + (f" ({tier} confidence)" if tier else ""))
+    headline = f"{args.target} in {args.indication}: {recommendation}" + (f" ({tier} confidence)" if tier else "")
     synthesis_block = {
         "headline": headline,
         "caveats_summary": (
@@ -536,29 +563,33 @@ def _write_evidence_package(*, args, sub_results: dict, gate_action: Optional[st
     schema_errors = _validate_evidence_package(ep, _CONTRACTS_REPO)
     if schema_errors:
         _machine_emit = getattr(args, "emit", None) == "evidence-package"
-        _lead = ("--emit evidence-package: envelope FAILED" if _machine_emit
-                 else "grounded-substrate envelope FAILED")
-        print(f"[target-profile] {_lead} evidence_package.schema "
-              f"validation ({len(schema_errors)} error(s)) — NOT a governance-grade artifact "
-              f"(written to {out_path} for inspection):", file=sys.stderr)
+        _lead = "--emit evidence-package: envelope FAILED" if _machine_emit else "grounded-substrate envelope FAILED"
+        print(
+            f"[target-profile] {_lead} evidence_package.schema "
+            f"validation ({len(schema_errors)} error(s)) — NOT a governance-grade artifact "
+            f"(written to {out_path} for inspection):",
+            file=sys.stderr,
+        )
         for e in schema_errors[:20]:
             print(f"    - {e}", file=sys.stderr)
         if _machine_emit:
             raise SystemExit(1)
-        print("[target-profile] WARN: schema-invalid substrate envelope on a default/nomination run "
-              "— continuing so target_profile.md / .html / nomination.json still emit (the invalid "
-              "envelope is retained for inspection; it feeds the verdict-inert substrate chain only).",
-              file=sys.stderr)
+        print(
+            "[target-profile] WARN: schema-invalid substrate envelope on a default/nomination run "
+            "— continuing so target_profile.md / .html / nomination.json still emit (the invalid "
+            "envelope is retained for inspection; it feeds the verdict-inert substrate chain only).",
+            file=sys.stderr,
+        )
     return out_path
 
 
 __all__ = [
-    '_deciding_short',
-    '_emit_card_figures',
-    '_framework_version',
-    '_load_figure_registry',
-    '_validate_evidence_package',
-    '_subtype_resolved_block',
-    '_validation_summary_from_sub_results',
-    '_write_evidence_package',
+    "_deciding_short",
+    "_emit_card_figures",
+    "_framework_version",
+    "_load_figure_registry",
+    "_validate_evidence_package",
+    "_subtype_resolved_block",
+    "_validation_summary_from_sub_results",
+    "_write_evidence_package",
 ]

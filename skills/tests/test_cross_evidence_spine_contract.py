@@ -10,6 +10,7 @@ evidence_substrate stamps) via the real `_write_evidence_package`, then resolves
 
 Offline: `resolve_cards` (target-identity) is monkeypatched; no Bedrock, no S3.
 """
+
 from __future__ import annotations
 
 import json
@@ -22,7 +23,7 @@ import yaml
 from _skills_common.compose_core import subskill_composition
 from _test_support import load_run_py
 
-SKILLS = Path(__file__).resolve().parents[1]          # .../skills
+SKILLS = Path(__file__).resolve().parents[1]  # .../skills
 SKILL_MD = SKILLS / "cross-evidence-hypothesis" / "SKILL.md"
 
 
@@ -53,29 +54,42 @@ _IDENTITY_CARD = {
 
 
 def _card(card_id):
-    return {"card_id": card_id, "summary": {"x": 1}, "interpretation_call": "informative",
-            "provenance": {"method_calls": [], "input_manifest_ids": []}}
+    return {
+        "card_id": card_id,
+        "summary": {"x": 1},
+        "interpretation_call": "informative",
+        "provenance": {"method_calls": [], "input_manifest_ids": []},
+    }
 
 
 def _sub(card_id, fired_id, gate, verdict_pair, synthesis_facet=None):
     cards = [_card(card_id)]
     fired = [{"rule_id": fired_id}]
-    out = {"skill_dir": f"dir-{gate or 'none'}", "cards": cards, "fired": fired,
-           "verdict": verdict_pair,
-           "composition": subskill_composition(card_outputs=cards, fired=fired, gate=gate,
-                                               verdict_pair=verdict_pair)}
+    out = {
+        "skill_dir": f"dir-{gate or 'none'}",
+        "cards": cards,
+        "fired": fired,
+        "verdict": verdict_pair,
+        "composition": subskill_composition(card_outputs=cards, fired=fired, gate=gate, verdict_pair=verdict_pair),
+    }
     if synthesis_facet is not None:
         out["synthesis_facet"] = synthesis_facet
     return out
 
 
 _DEP_FACET = {
-    "claim_vector": {"DEP": {"signal": "strong", "corroboration": "high",
-                             "evidence_atom": {"read": "strongly_selective",
-                                               "values": {"bimodality_coefficient": 0.7},
-                                               "cite": {"card_id": "pan-cancer-crispr-dependency-distribution",
-                                                        "fields": ["bimodality_coefficient"]}}},
-                     "_disclaimer": "verdict-inert"},
+    "claim_vector": {
+        "DEP": {
+            "signal": "strong",
+            "corroboration": "high",
+            "evidence_atom": {
+                "read": "strongly_selective",
+                "values": {"bimodality_coefficient": 0.7},
+                "cite": {"card_id": "pan-cancer-crispr-dependency-distribution", "fields": ["bimodality_coefficient"]},
+            },
+        },
+        "_disclaimer": "verdict-inert",
+    },
     "key_signals": {"headline": "Strong genetic dependency."},
 }
 
@@ -86,40 +100,73 @@ def _build_maximal_pkg(tmp_path, tp):
     stamp), a populated recommendation_gate.hard_gates, all decision_facets kwargs, and --subtypes (→
     subtype_resolved.per_stratum)."""
     import tp_evidence_package
+
     tp_evidence_package.resolve_cards = lambda card_ids, target, indication, **kw: [dict(_IDENTITY_CARD)]
 
     sub_results = {
         # registry-backed card_ids so evidence_substrate stamps; a subtype-capable axis for per_stratum
         "expression": _sub("tumor-rna-distribution", "expr-01", None, ("tumor_broadly_expressed", "expr-01")),
-        "dependency": _sub("pan-cancer-crispr-dependency-distribution", "dep-01", "dependency",
-                           ("selective_dependency", "dep-01"), synthesis_facet=_DEP_FACET),
-        "selectivity": _sub("tumor-vs-normal-selectivity", "sel-01", "selectivity",
-                            ("tumor_selective", "sel-01")),
-        "safety": _sub("gnomad-lof-constraint", "gnomad-lof-intolerant", "safety",
-                       ("human_genetics_safety_concern", "gnomad-lof-intolerant")),
+        "dependency": _sub(
+            "pan-cancer-crispr-dependency-distribution",
+            "dep-01",
+            "dependency",
+            ("selective_dependency", "dep-01"),
+            synthesis_facet=_DEP_FACET,
+        ),
+        "selectivity": _sub("tumor-vs-normal-selectivity", "sel-01", "selectivity", ("tumor_selective", "sel-01")),
+        "safety": _sub(
+            "gnomad-lof-constraint",
+            "gnomad-lof-intolerant",
+            "safety",
+            ("human_genetics_safety_concern", "gnomad-lof-intolerant"),
+        ),
     }
     args = SimpleNamespace(target="KRAS", indication="COADREAD", release_pin=None, out=tmp_path)
     recommendation_gate = {
-        "fired": False, "forced_recommendation": None,
-        "hard_gates": [{"short": "dependency", "verdict": "non_dependent", "disposition": "gated",
-                        "status": "latent", "live_verdict": "selective_dependency", "policy_source": "vocab"}],
+        "fired": False,
+        "forced_recommendation": None,
+        "hard_gates": [
+            {
+                "short": "dependency",
+                "verdict": "non_dependent",
+                "disposition": "gated",
+                "status": "latent",
+                "live_verdict": "selective_dependency",
+                "policy_source": "vocab",
+            }
+        ],
     }
     ep_path = tp._write_evidence_package(
-        args=args, sub_results=sub_results, gate_action=None,
-        recommendation_gate=recommendation_gate, confidence_tier={"tier": "high"},
-        deciding_axis={"basis": "gate_fired",
-                       "deciding_axis": {"short": "dependency", "gate": "dependency"}, "routing": "x"},
-        validation_summary={"n_cards_attempted": 4, "n_cards_passed": 4,
-                            "n_cards_passed_with_warnings": 0, "n_cards_failed": 0,
-                            "n_cards_excluded_by_applies_when": 0},
-        subtypes=["MSS"], subtype_facet=None,
-        certainty_by_axis={"dependency": {"strength": "strong_positive",
-                                          "certainty": {"level": "high", "coverage": "high",
-                                                        "corroboration": "high", "unknown_mass": 0.0}}},
+        args=args,
+        sub_results=sub_results,
+        gate_action=None,
+        recommendation_gate=recommendation_gate,
+        confidence_tier={"tier": "high"},
+        deciding_axis={
+            "basis": "gate_fired",
+            "deciding_axis": {"short": "dependency", "gate": "dependency"},
+            "routing": "x",
+        },
+        validation_summary={
+            "n_cards_attempted": 4,
+            "n_cards_passed": 4,
+            "n_cards_passed_with_warnings": 0,
+            "n_cards_failed": 0,
+            "n_cards_excluded_by_applies_when": 0,
+        },
+        subtypes=["MSS"],
+        subtype_facet=None,
+        certainty_by_axis={
+            "dependency": {
+                "strength": "strong_positive",
+                "certainty": {"level": "high", "coverage": "high", "corroboration": "high", "unknown_mass": 0.0},
+            }
+        },
         cross_gate_shared_evidence={"shared_input_cards": {}, "correlated_gate_pairs": []},
         fragility={"contested": False, "acquisition_backlog": []},
         competitor_crossref={"competition_density": "whitespace"},
-        modality="small_molecule")
+        modality="small_molecule",
+    )
     return json.loads(Path(ep_path).read_text())
 
 
@@ -158,7 +205,8 @@ def test_declared_reads_spine_fields_are_all_producible(tmp_path):
     assert unresolved == [], (
         "cross-evidence-hypothesis reads_spine_fields NOT producible by the target-profile "
         f"evidence_package emitter (contract drift): {unresolved}. Either the emitter renamed/dropped "
-        "the field, or the SKILL.md declaration is stale.")
+        "the field, or the SKILL.md declaration is stale."
+    )
 
 
 def test_contract_guard_would_catch_a_rename(tmp_path):

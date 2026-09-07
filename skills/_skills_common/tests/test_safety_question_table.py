@@ -58,10 +58,11 @@ def test_indeterminate_and_missing_are_unmeasured():
     rows = {r["id"]: r for r in safety_question_table(h)}
     assert rows["Constraint"]["signal"]["tier"] == "unmeasured"
     assert rows["Burden"]["signal"]["tier"] == "unmeasured"
-    assert rows["ClinVar"]["signal"]["tier"] == "unmeasured"   # missing field → named gap
+    assert rows["ClinVar"]["signal"]["tier"] == "unmeasured"  # missing field → named gap
 
 
 def test_renders_html_via_shared_renderer():
-    html = render_question_table_html(safety_question_table(_safe_headline()),
-                                      verdict="lof_tolerant_low_concern", title="On-target safety")
+    html = render_question_table_html(
+        safety_question_table(_safe_headline()), verdict="lof_tolerant_low_concern", title="On-target safety"
+    )
     assert "<table" in html and "On-target safety at a glance" in html

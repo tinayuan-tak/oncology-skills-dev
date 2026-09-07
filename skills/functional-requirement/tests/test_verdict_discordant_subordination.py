@@ -13,6 +13,7 @@ killer"). BUT the subordination was UNDER-TESTED. These tests pin it both ways:
     (crispr-rnai-dependency-concordance) on MUTUALLY-EXCLUSIVE concordance_class values — they never
     co-fire, so r4 being above the discordant rung is a same-card exclusive, not a dead-control shadow.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -28,6 +29,7 @@ def _fresh_verdict(fired):
     scope — so a stale-path spec can leak across tests within one pytest session. Clearing the cache
     makes these assertions deterministic regardless of test order."""
     from _skills_common import resolver as _r
+
     _r.load_resolver.cache_clear()
     return fr._verdict(fired)
 
@@ -36,20 +38,20 @@ def test_discordant_is_reachable_alone():
     """discordant ALONE must resolve to `discordant` — else its nomination positive_contradiction
     (blocks strong) would be a dead safeguard."""
     assert _fresh_verdict([{"rule_id": "concordance-discordant-warning"}]) == (
-        "discordant", "concordance-discordant-warning")
+        "discordant",
+        "concordance-discordant-warning",
+    )
 
 
 def test_selective_positive_correctly_outranks_discordant():
     """A strong selective-dependency signal (from a DIFFERENT card) co-fires with discordant and WINS
     (correct subordination — a real selectivity call beats cross-assay disagreement)."""
-    v, _ = _fresh_verdict([{"rule_id": "strongly-selective-supportive"},
-                        {"rule_id": "concordance-discordant-warning"}])
+    v, _ = _fresh_verdict([{"rule_id": "strongly-selective-supportive"}, {"rule_id": "concordance-discordant-warning"}])
     assert v == "selective_dependent"
 
 
 def test_lineage_selective_correctly_outranks_discordant():
-    v, _ = _fresh_verdict([{"rule_id": "lineage-selective-supportive"},
-                        {"rule_id": "concordance-discordant-warning"}])
+    v, _ = _fresh_verdict([{"rule_id": "lineage-selective-supportive"}, {"rule_id": "concordance-discordant-warning"}])
     assert v == "lineage_selective"
 
 

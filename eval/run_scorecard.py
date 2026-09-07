@@ -33,6 +33,7 @@ crashes the whole scorecard):
 Repo locations follow the framework convention (env override, else the SageMaker default layout):
   TARGET_CONTRACTS_ROOT, CLAUDE_ONCOLOGY_SKILLS_ROOT.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -69,9 +70,9 @@ PASS, FAIL, ERROR, STUB = "PASS", "FAIL", "ERROR", "STUB"
 class Step:
     key: str
     label: str
-    kind: str                    # "regression" | "structural" | "memory" | "stub"
+    kind: str  # "regression" | "structural" | "memory" | "stub"
     interpreter: str
-    argv: list[str]              # argv AFTER the interpreter
+    argv: list[str]  # argv AFTER the interpreter
     cwd: Path
     env: dict = field(default_factory=dict)
     stub_reason: str = ""
@@ -138,42 +139,83 @@ def _steps() -> list[Step]:
 
 def _run_step(step: Step, tail_lines: int) -> dict:
     if step.kind == "stub":
-        return {"key": step.key, "label": step.label, "kind": step.kind,
-                "status": STUB, "returncode": None, "duration_s": 0.0,
-                "note": step.stub_reason, "tail": ""}
+        return {
+            "key": step.key,
+            "label": step.label,
+            "kind": step.kind,
+            "status": STUB,
+            "returncode": None,
+            "duration_s": 0.0,
+            "note": step.stub_reason,
+            "tail": "",
+        }
 
     if not step.cwd.exists():
-        return {"key": step.key, "label": step.label, "kind": step.kind,
-                "status": ERROR, "returncode": None, "duration_s": 0.0,
-                "note": f"cwd not found: {step.cwd}", "tail": ""}
+        return {
+            "key": step.key,
+            "label": step.label,
+            "kind": step.kind,
+            "status": ERROR,
+            "returncode": None,
+            "duration_s": 0.0,
+            "note": f"cwd not found: {step.cwd}",
+            "tail": "",
+        }
 
     env = {**os.environ, **step.env}
     t0 = time.time()
     try:
         proc = subprocess.run(
             [step.interpreter, *step.argv],
-            cwd=str(step.cwd), env=env, capture_output=True, text=True, timeout=1800,
+            cwd=str(step.cwd),
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=1800,
         )
     except FileNotFoundError as e:
-        return {"key": step.key, "label": step.label, "kind": step.kind,
-                "status": ERROR, "returncode": None, "duration_s": round(time.time() - t0, 1),
-                "note": f"interpreter not found: {e}", "tail": ""}
+        return {
+            "key": step.key,
+            "label": step.label,
+            "kind": step.kind,
+            "status": ERROR,
+            "returncode": None,
+            "duration_s": round(time.time() - t0, 1),
+            "note": f"interpreter not found: {e}",
+            "tail": "",
+        }
     except subprocess.TimeoutExpired:
-        return {"key": step.key, "label": step.label, "kind": step.kind,
-                "status": ERROR, "returncode": None, "duration_s": round(time.time() - t0, 1),
-                "note": "timeout (1800s)", "tail": ""}
+        return {
+            "key": step.key,
+            "label": step.label,
+            "kind": step.kind,
+            "status": ERROR,
+            "returncode": None,
+            "duration_s": round(time.time() - t0, 1),
+            "note": "timeout (1800s)",
+            "tail": "",
+        }
 
     combined = (proc.stdout or "") + (proc.stderr or "")
     tail = "\n".join(combined.strip().splitlines()[-tail_lines:])
     # An import/collection failure (missing deps) is an ERROR, not a real FAIL of the metric.
     is_env_error = proc.returncode != 0 and (
-        "ModuleNotFoundError" in combined or "ImportError" in combined
-        or "No module named" in combined or "INTERNALERROR" in combined
+        "ModuleNotFoundError" in combined
+        or "ImportError" in combined
+        or "No module named" in combined
+        or "INTERNALERROR" in combined
     )
     status = PASS if proc.returncode == 0 else (ERROR if is_env_error else FAIL)
-    return {"key": step.key, "label": step.label, "kind": step.kind,
-            "status": status, "returncode": proc.returncode,
-            "duration_s": round(time.time() - t0, 1), "note": "", "tail": tail}
+    return {
+        "key": step.key,
+        "label": step.label,
+        "kind": step.kind,
+        "status": status,
+        "returncode": proc.returncode,
+        "duration_s": round(time.time() - t0, 1),
+        "note": "",
+        "tail": tail,
+    }
 
 
 def main(argv=None) -> int:

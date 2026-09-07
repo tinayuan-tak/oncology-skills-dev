@@ -13,6 +13,7 @@ VERDICT-INERT (they read only headline fields, feed no rule). The live panel beh
 Plus the two tiers with NO live panel member (unit-only): the sharp RNA-only tier and the
 clinically-precedented-without-data-confirmation spare.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -28,10 +29,22 @@ def rp():
 
 
 # ── minimal headline builders (only the fields the three functions read) ──────────────────────
-def _hl(present="yes", malignant="yes", pcs="confirmed", scc="malignant_broadly_detected",
-        caf="caf_low", floor="adequate_abundance", cl_dir=None, ihc="ihc_detected_high",
-        mal_frac=0.9, micro_comp="stromal", micro_frac=0.05, proxy="adequate",
-        rna_tumor="strongly_upregulated_in_tumor", rna_cl="broadly_high"):
+def _hl(
+    present="yes",
+    malignant="yes",
+    pcs="confirmed",
+    scc="malignant_broadly_detected",
+    caf="caf_low",
+    floor="adequate_abundance",
+    cl_dir=None,
+    ihc="ihc_detected_high",
+    mal_frac=0.9,
+    micro_comp="stromal",
+    micro_frac=0.05,
+    proxy="adequate",
+    rna_tumor="strongly_upregulated_in_tumor",
+    rna_cl="broadly_high",
+):
     return {
         "presence_state": {"present": present, "malignant_intrinsic": malignant},
         "protein_confirmation_state": pcs,
@@ -55,8 +68,15 @@ def _hl(present="yes", malignant="yes", pcs="confirmed", scc="malignant_broadly_
 def test_fap_stromal_compartment_unconfirmed(rp):
     """The DRIVER: bulk protein CONFIRMED but single-cell resolves it to the stroma → the compartment
     tier OUTRANKS the protein-confirmed guard (stromal protein is still protein)."""
-    hl = _hl(malignant="stroma", scc="microenvironment_dominant", caf="caf_dominant",
-             pcs="confirmed", ihc="ihc_detected_high", mal_frac=0.0076, micro_frac=0.29)
+    hl = _hl(
+        malignant="stroma",
+        scc="microenvironment_dominant",
+        caf="caf_dominant",
+        pcs="confirmed",
+        ihc="ihc_detected_high",
+        mal_frac=0.0076,
+        micro_frac=0.29,
+    )
     cav = rp._presence_confirmation_caveat(hl, target="FAP")
     assert cav and cav["reason"] == "malignant_compartment_unconfirmed"
     assert cav["tier"] == "compartment"
@@ -82,8 +102,12 @@ def test_epcam_protein_confirmed_not_flagged(rp):
 def test_folr1_spared_despite_overridden_abundance_floor(rp):
     """FOLR1: a lone Gygi bottom-decile (single-lens, ProCan-recovered) MUST NOT sharp-caveat a
     protein-confirmed, clinically-precedented antigen — the abundance-floor false-demote guard."""
-    hl = _hl(pcs="confirmed", ihc="data_unavailable", floor="present_low_abundance_single_lens",
-             scc="malignant_broadly_detected")
+    hl = _hl(
+        pcs="confirmed",
+        ihc="data_unavailable",
+        floor="present_low_abundance_single_lens",
+        scc="malignant_broadly_detected",
+    )
     cav = rp._presence_confirmation_caveat(hl, target="FOLR1")
     assert cav["reason"] == "protein_confirmed_malignant_present"
     assert "single-lens" in cav["detail"].lower()
@@ -100,8 +124,13 @@ def test_clinically_precedented_without_data_confirmation(rp):
     """A validated antigen whose protein is NOT directly confirmed here (no CPTAC/IHC) is rescued by
     the precedent crosswalk to the MILDER tier — never the sharp RNA-only tier (unit-only; no live
     panel member reads this)."""
-    hl = _hl(present="rna_only", pcs="untested", ihc="data_unavailable",
-             scc="malignant_subset_detected", floor="adequate_abundance")
+    hl = _hl(
+        present="rna_only",
+        pcs="untested",
+        ihc="data_unavailable",
+        scc="malignant_subset_detected",
+        floor="adequate_abundance",
+    )
     cav = rp._presence_confirmation_caveat(hl, target="MSLN")  # in the crosswalk
     assert cav["reason"] == "clinically_precedented_antigen_present"
     assert "precedent" in cav["detail"].lower()
@@ -111,8 +140,14 @@ def test_clinically_precedented_without_data_confirmation(rp):
 def test_rna_only_uncredentialed_target_sharp_caveat(rp):
     """The RNA-proxy inflation: RNA present, protein untested, NOT a precedented antigen, NOT stromal
     → the sharp `rna_or_cellline_present_protein_unconfirmed`. No live panel member reads this."""
-    hl = _hl(present="rna_only", malignant="untested", pcs="untested", ihc="data_unavailable",
-             scc="data_unavailable", floor="adequate_abundance")
+    hl = _hl(
+        present="rna_only",
+        malignant="untested",
+        pcs="untested",
+        ihc="data_unavailable",
+        scc="data_unavailable",
+        floor="adequate_abundance",
+    )
     cav = rp._presence_confirmation_caveat(hl, target="NOVELGENE1")
     assert cav["reason"] == "rna_or_cellline_present_protein_unconfirmed"
     assert cav["tier"] == "confirmation"
@@ -120,24 +155,41 @@ def test_rna_only_uncredentialed_target_sharp_caveat(rp):
 
 
 def test_hard_abundance_floor_uncredentialed_is_sharp(rp):
-    hl = _hl(present="rna_only", malignant="untested", pcs="untested", ihc="data_unavailable",
-             scc="data_unavailable", floor="present_low_abundance")  # HARD (quorum) floor
+    hl = _hl(
+        present="rna_only",
+        malignant="untested",
+        pcs="untested",
+        ihc="data_unavailable",
+        scc="data_unavailable",
+        floor="present_low_abundance",
+    )  # HARD (quorum) floor
     cav = rp._presence_confirmation_caveat(hl, target="NOVELGENE2")
     assert cav["reason"] == "rna_or_cellline_present_protein_unconfirmed"
     assert "bottom-decile" in cav["detail"].lower()
 
 
 def test_cell_line_overstates_tumor_is_sharp(rp):
-    hl = _hl(present="rna_only", malignant="untested", pcs="untested", ihc="data_unavailable",
-             scc="data_unavailable", cl_dir="cell_line_overstates_tumor")
+    hl = _hl(
+        present="rna_only",
+        malignant="untested",
+        pcs="untested",
+        ihc="data_unavailable",
+        scc="data_unavailable",
+        cl_dir="cell_line_overstates_tumor",
+    )
     cav = rp._presence_confirmation_caveat(hl, target="NOVELGENE3")
     assert cav["reason"] == "rna_or_cellline_present_protein_unconfirmed"
     assert "over-states" in cav["detail"].lower()
 
 
 def test_cellline_protein_only_tumor_unconfirmed_is_sharp(rp):
-    hl = _hl(present="protein_only", malignant="untested", pcs="confirmed_cell_line_only",
-             ihc="data_unavailable", scc="data_unavailable")
+    hl = _hl(
+        present="protein_only",
+        malignant="untested",
+        pcs="confirmed_cell_line_only",
+        ihc="data_unavailable",
+        scc="data_unavailable",
+    )
     cav = rp._presence_confirmation_caveat(hl, target="NOVELGENE4")
     assert cav["reason"] == "rna_or_cellline_present_protein_unconfirmed"
     assert "cell line" in cav["detail"].lower()
@@ -151,15 +203,21 @@ def test_none_on_nonpositive(rp, present):
 
 
 def test_mlana_honest_negative_none(rp):
-    hl = _hl(present="protein_only_rna_absent", malignant="no", pcs="confirmed_cell_line_only",
-             scc="broadly_low", ihc="ihc_not_detected")
+    hl = _hl(
+        present="protein_only_rna_absent",
+        malignant="no",
+        pcs="confirmed_cell_line_only",
+        scc="broadly_low",
+        ihc="ihc_not_detected",
+    )
     assert rp._presence_confirmation_caveat(hl, target="MLANA") is None
 
 
 # ── presence_provenance ───────────────────────────────────────────────────────────────────────
 def test_provenance_malignant_confirmed_true_for_epcam(rp):
-    prov = rp._presence_provenance(_hl(pcs="confirmed", ihc="ihc_detected_high",
-                                       scc="malignant_broadly_detected", malignant="yes"))
+    prov = rp._presence_provenance(
+        _hl(pcs="confirmed", ihc="ihc_detected_high", scc="malignant_broadly_detected", malignant="yes")
+    )
     assert prov["malignant_protein_confirmed"] is True
     assert "sc_rna/tumor(malignant)" in prov["corroborating_layers"]
     assert "bulk_protein_ms" in prov["corroborating_layers"]
@@ -168,14 +226,16 @@ def test_provenance_malignant_confirmed_true_for_epcam(rp):
 def test_provenance_malignant_confirmed_false_for_stromal_protein(rp):
     """FAP: bulk protein confirmed but the malignant compartment is stromal → malignant_protein_confirmed
     must be FALSE (a bulk protein signal on a stromal antigen is NOT malignant-cell confirmation)."""
-    prov = rp._presence_provenance(_hl(pcs="confirmed", ihc="ihc_detected_high",
-                                       scc="microenvironment_dominant", malignant="stroma"))
+    prov = rp._presence_provenance(
+        _hl(pcs="confirmed", ihc="ihc_detected_high", scc="microenvironment_dominant", malignant="stroma")
+    )
     assert prov["malignant_protein_confirmed"] is False
 
 
 def test_provenance_false_when_protein_untested(rp):
-    prov = rp._presence_provenance(_hl(pcs="untested", ihc="data_unavailable",
-                                       scc="malignant_broadly_detected", malignant="rna_only"))
+    prov = rp._presence_provenance(
+        _hl(pcs="untested", ihc="data_unavailable", scc="malignant_broadly_detected", malignant="rna_only")
+    )
     assert prov["malignant_protein_confirmed"] is False
 
 

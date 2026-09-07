@@ -3,6 +3,7 @@ Wave-3 skill_report adoption for genomic-alteration-profile (5th GATING adopter)
 call==the RECONCILED emitted verdict (genomic reconciles its one-word verdict; skill_report must inherit
 the reconciled word, not the raw ladder), a canonical polarity, and best-effort degrade.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -26,8 +27,8 @@ def test_build_headline_emits_gating_skill_report_with_reconciled_call():
     # call must equal the EMITTED (reconciled) verdict, not necessarily the raw input
     assert sr["call"] == hl["genomic_alteration_profile"]
     assert sr["polarity"] in ("supportive", "neutral", "opposing", "insufficient", "not_applicable")
-    assert sr["polarity"] != "killer"                            # genomic has no veto-killer verdict
-    assert isinstance(sr["question_table"], list)                # genomic HAS a question_table
+    assert sr["polarity"] != "killer"  # genomic has no veto-killer verdict
+    assert isinstance(sr["question_table"], list)  # genomic HAS a question_table
     assert sr["provenance"]["driving_rule_id"] == "genomic-recurrent-driver"
     assert "skill_report" in gen._SYNTHESIS_FACET_KEYS
 
@@ -38,6 +39,6 @@ def test_skill_report_fault_degrades_not_aborts(monkeypatch):
 
     monkeypatch.setattr(gen, "build_skill_report", _boom)
     hl = gen._build_headline(_cards(), "insufficient", None, {}, fired=[])
-    assert isinstance(hl.get("genomic_alteration_profile"), str)   # spine intact despite the fault
+    assert isinstance(hl.get("genomic_alteration_profile"), str)  # spine intact despite the fault
     assert hl["skill_report"] is None
     assert hl["_enrichment_errors"]["skill_report"].startswith("ValueError")

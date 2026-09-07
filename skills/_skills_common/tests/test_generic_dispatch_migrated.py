@@ -16,6 +16,7 @@ mod.EP(target=, indication=)`). So "the card resolves to the same fn `M.EP`" + "
 two kwargs" IS the behavior-preserving proof, statically (no data read, CI-safe). The live
 data-equivalence proof for one card lives in test_generic_dispatch.py (ppi-interactome).
 """
+
 from __future__ import annotations
 
 import os
@@ -27,14 +28,16 @@ import yaml
 
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))   # skills/ — _live_readers in _skills_common
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # skills/ — _live_readers in _skills_common
 
 from _skills_common import _live_readers as lr  # noqa: E402
 
-_CONTRACTS = Path(os.environ.get(
-    "TARGET_CONTRACTS_ROOT",
-    "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
-))
+_CONTRACTS = Path(
+    os.environ.get(
+        "TARGET_CONTRACTS_ROOT",
+        "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
+    )
+)
 _CARDS = _CONTRACTS / "cards"
 
 
@@ -60,15 +63,21 @@ _ROUTED = _generic_routed_cards()
 pytestmark = pytest.mark.skipif(
     len(_ROUTED) < 35,
     reason=f"expected >=37 generic-routed cards (T11 collapse); found {len(_ROUTED)} "
-           "— target-contracts checkout likely predates the module/entrypoint wiring (#329)",
+    "— target-contracts checkout likely predates the module/entrypoint wiring (#329)",
 )
 
 
 def test_collapse_removed_the_passthrough_dispatchers():
     """The 37 migrated cards must no longer have a bespoke dispatcher (they route generically)."""
     # a representative sample of the migrated set — all must be absent from CARD_DISPATCHERS.
-    for cid in ("tumor-vs-normal-selectivity", "dependency-lineage-selectivity", "gnomad-lof-constraint",
-                "mutation-stratified-dependency", "reactome-pathway-membership", "target-development-level"):
+    for cid in (
+        "tumor-vs-normal-selectivity",
+        "dependency-lineage-selectivity",
+        "gnomad-lof-constraint",
+        "mutation-stratified-dependency",
+        "reactome-pathway-membership",
+        "target-development-level",
+    ):
         assert cid not in lr.CARD_DISPATCHERS, f"{cid} still has a bespoke dispatcher (not collapsed)"
 
 
@@ -79,8 +88,7 @@ def test_intentionally_kept_dispatchers():
     would NameError at runtime — the generic path only routes top-level card reads.
     (mutation-drug-response was kept until analysis-methods re-exported its entrypoint; it is now
     collapsed — see test_mutation_drug_response_now_collapsed.)"""
-    for cid in ("signaling-network-mechanism", "surfaceome-family-classification",
-                "structure-features-static"):
+    for cid in ("signaling-network-mechanism", "surfaceome-family-classification", "structure-features-static"):
         assert cid in lr.CARD_DISPATCHERS, f"{cid} must remain a bespoke dispatcher (kept-with-reason)"
 
 

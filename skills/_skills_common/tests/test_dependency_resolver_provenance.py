@@ -15,6 +15,7 @@ rule_ids to the exhaustive table would cause (they are a strict, low-precedence 
      sibling test_resolver_golden_snapshots test; here we just assert the new rule_ids are
      absent from that frozen table's dimension (so no silent table drift).
 """
+
 from __future__ import annotations
 
 import json
@@ -23,9 +24,10 @@ from pathlib import Path
 
 from _test_support import load_module
 
-SKILLS = Path(__file__).resolve().parents[2]   # the skills/ dir (this test is skills/_skills_common/tests/)
-CONTRACTS = Path(os.environ.get("TARGET_CONTRACTS_ROOT",
-                                "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
+SKILLS = Path(__file__).resolve().parents[2]  # the skills/ dir (this test is skills/_skills_common/tests/)
+CONTRACTS = Path(
+    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+)
 
 _resolver = load_module(SKILLS / "_skills_common" / "resolver.py", "resolver_prov_ut")
 _SPEC = _resolver.load_resolver("dependency", contracts_repo=CONTRACTS)
@@ -67,13 +69,13 @@ def test_data_unavailable_rung_never_outranks_a_real_signal():
     data-unavailable rule always wins (the rung is a strict, low-precedence addition)."""
     # CRISPR data-unavailable + a concordant-dependent positive → the positive wins
     v, drv = _resolver.resolve_verdict(
-        [{"rule_id": "data-unavailable-insufficient"},
-         {"rule_id": "concordant-dependent-supportive-dominant"}], _SPEC)
+        [{"rule_id": "data-unavailable-insufficient"}, {"rule_id": "concordant-dependent-supportive-dominant"}], _SPEC
+    )
     assert v == "concordant_dependent"
     # rnai data-unavailable + a non-dependent veto → the veto wins
     v2, _ = _resolver.resolve_verdict(
-        [{"rule_id": "rnai-data-unavailable-insufficient"},
-         {"rule_id": "non-dependent-killer"}], _SPEC)
+        [{"rule_id": "rnai-data-unavailable-insufficient"}, {"rule_id": "non-dependent-killer"}], _SPEC
+    )
     assert v2 == "non_dependent"
 
 
@@ -83,9 +85,9 @@ def test_new_rule_ids_absent_from_frozen_golden_table_dimension():
     strict, low-precedence addition that never fires on the old 15). Guards against someone silently
     widening the frozen dimension. (Since D5 the table is co-emission-aware, not the full power set,
     but the dependency dimension is still the 15 pre-existing rule_ids.)"""
-    golden = json.loads((SKILLS / "_skills_common" / "tests" /
-                         "resolver_golden_snapshots.json").read_text())
+    golden = json.loads((SKILLS / "_skills_common" / "tests" / "resolver_golden_snapshots.json").read_text())
     frozen_ids = set(golden["dependency"]["rule_ids"])
     for rid in _DATA_UNAVAILABLE_RULES:
         assert rid not in frozen_ids, (
-            f"{rid} leaked into the frozen golden dimension — it would widen the frozen rule set")
+            f"{rid} leaked into the frozen golden dimension — it would widen the frozen rule set"
+        )

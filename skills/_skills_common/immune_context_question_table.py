@@ -5,6 +5,7 @@ skill (CD8 infiltration companion to surface-modality-fit).
 DESCRIPTIVE skill → the rows come from the shared `build_cv_question_table` (informs polarity, never
 supports/opposes the nomination). Verdict-INERT: a one-way projection over decision['headline'].
 """
+
 from __future__ import annotations
 
 from typing import Optional

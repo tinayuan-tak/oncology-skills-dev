@@ -57,19 +57,18 @@ def _bedrock_profile():
     If the profile can't be resolved (e.g. not configured), fall back to the
     old profile-swap behavior so nothing gets worse than before.
     """
-    _CRED_KEYS = ("AWS_PROFILE", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY",
-                  "AWS_SESSION_TOKEN")
+    _CRED_KEYS = ("AWS_PROFILE", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN")
     saved = {k: os.environ.get(k) for k in _CRED_KEYS}
     try:
         frozen = None
         try:
             import boto3
-            frozen = boto3.Session(profile_name=BEDROCK_AWS_PROFILE) \
-                .get_credentials().get_frozen_credentials()
+
+            frozen = boto3.Session(profile_name=BEDROCK_AWS_PROFILE).get_credentials().get_frozen_credentials()
         except Exception:  # noqa: BLE001 — profile unresolvable → fall back to profile-swap
             frozen = None
         if frozen is not None:
-            os.environ.pop("AWS_PROFILE", None)   # explicit creds must win over any ambient profile
+            os.environ.pop("AWS_PROFILE", None)  # explicit creds must win over any ambient profile
             os.environ["AWS_ACCESS_KEY_ID"] = frozen.access_key
             os.environ["AWS_SECRET_ACCESS_KEY"] = frozen.secret_key
             if frozen.token:
@@ -94,9 +93,12 @@ def _import_bedrock_client():
     cost for the anthropic SDK. Raises ImportError with a clear message if
     the anthropic[bedrock] extra isn't installed (surfaced by get_bedrock_client).
     """
-    from _skills_common.bedrock_client import (             # noqa: F401
-        get_bedrock_client, ModelConfig, BedrockAuthError,
+    from _skills_common.bedrock_client import (  # noqa: F401
+        get_bedrock_client,
+        ModelConfig,
+        BedrockAuthError,
     )
+
     return get_bedrock_client, ModelConfig, BedrockAuthError
 
 
@@ -117,8 +119,7 @@ EVIDENCE_ONLY_DIRECTIVE = (
 )
 
 
-def _prompt_hash(system: str, user: str, tool: dict, model_id: str,
-                 temperature: Optional[float] = None) -> str:
+def _prompt_hash(system: str, user: str, tool: dict, model_id: str, temperature: Optional[float] = None) -> str:
     """Deterministic hash of everything that shapes the LLM output.
 
     Includes system prompt, user prompt, tool schema (serialized as
@@ -187,7 +188,11 @@ def _stamp_llm_provenance(
 # (observed 2026-08-24: `top_arguments_for` == '\n<parameter name="top_arguments_against">...',
 # and `top_arguments_against` dropped to None, in 12/25 target-profile runs).
 _LEAKED_TOOLCALL_MARKERS = (
-    "<parameter name=", "</parameter>", "<function", "</function", "antml:",
+    "<parameter name=",
+    "</parameter>",
+    "<function",
+    "</function",
+    "antml:",
 )
 
 
@@ -227,12 +232,10 @@ def _tool_input_defects(payload: dict, tool_schema: dict) -> list[str]:
         elif declared == "string" and (not isinstance(val, str) or _leaks_toolcall_markup(val)):
             defects.append(name)
         elif enum and isinstance(val, str) and val not in enum:
-            defects.append(name)   # off-enum categorical — violates the fixed vocabulary
+            defects.append(name)  # off-enum categorical — violates the fixed vocabulary
         elif isinstance(val, str) and _leaks_toolcall_markup(val):
             defects.append(name)
-        elif isinstance(val, list) and any(
-            isinstance(x, str) and _leaks_toolcall_markup(x) for x in val
-        ):
+        elif isinstance(val, list) and any(isinstance(x, str) and _leaks_toolcall_markup(x) for x in val):
             defects.append(name)
 
     # Dedup, preserve first-seen order.
@@ -265,8 +268,7 @@ def _coerce_recovered(text: str, declared: Optional[str]) -> Any:
                 return items or None
         except (ValueError, TypeError):
             pass
-        items = [re.sub(r'^[\s\-\*•\d\.\)]+', "", ln).strip()
-                 for ln in t.splitlines() if ln.strip()]
+        items = [re.sub(r"^[\s\-\*•\d\.\)]+", "", ln).strip() for ln in t.splitlines() if ln.strip()]
         return items or [t]
     return t
 
@@ -294,11 +296,11 @@ def _recover_leaked_toolcall(payload: dict, tool_schema: dict, defects: list[str
         first = val.find('<parameter name="')
         lead = (val[:first] if first != -1 else val).strip()
         if lead and not _leaks_toolcall_markup(lead):
-            recovered_text.setdefault(name, lead)   # the swallower field's OWN value
+            recovered_text.setdefault(name, lead)  # the swallower field's OWN value
         for m in _PARAM_BLOCK_RE.finditer(val):
             fname, fval = m.group(1), (m.group(2) or "").strip()
             if fname in props and fval and not _leaks_toolcall_markup(fval):
-                recovered_text.setdefault(fname, fval)   # a swallowed field
+                recovered_text.setdefault(fname, fval)  # a swallowed field
 
     applied: list[str] = []
     for fname, text in recovered_text.items():
@@ -311,9 +313,7 @@ def _recover_leaked_toolcall(payload: dict, tool_schema: dict, defects: list[str
         # Belt-and-braces: a recovered value must not itself re-introduce leaked markup.
         if isinstance(coerced, str) and _leaks_toolcall_markup(coerced):
             continue
-        if isinstance(coerced, list) and any(
-            isinstance(x, str) and _leaks_toolcall_markup(x) for x in coerced
-        ):
+        if isinstance(coerced, list) and any(isinstance(x, str) and _leaks_toolcall_markup(x) for x in coerced):
             continue
         payload[fname] = coerced
         applied.append(fname)
@@ -327,8 +327,14 @@ def _recover_leaked_toolcall(payload: dict, tool_schema: dict, defects: list[str
 # defective ENUM field so the loss reads as an abstention, not a fabricated decision. Ordered by
 # preference; matched case-insensitively against the field's declared enum.
 _NULLISH_ENUM_MEMBERS = (
-    "not_assessed", "insufficient_evidence", "insufficient", "data_unavailable",
-    "unknown", "none", "neither_viable", "insufficient_cis_coherence",
+    "not_assessed",
+    "insufficient_evidence",
+    "insufficient",
+    "data_unavailable",
+    "unknown",
+    "none",
+    "neither_viable",
+    "insufficient_cis_coherence",
 )
 
 
@@ -427,7 +433,7 @@ def synthesize_structured(
         # 400 "account is not authorized to invoke this API operation"). The base id IS
         # invokable. This is a no-op for already-clean ids.
         if model and model.endswith("[1m]"):
-            model = model[:-len("[1m]")]
+            model = model[: -len("[1m]")]
 
         tool = {
             "name": tool_name,
@@ -468,8 +474,7 @@ def synthesize_structured(
                     break
             if tool_use_block is None:
                 raise RuntimeError(
-                    f"LLM did not use the tool {tool_name!r} as instructed. "
-                    f"stop_reason={response.stop_reason}"
+                    f"LLM did not use the tool {tool_name!r} as instructed. stop_reason={response.stop_reason}"
                 )
             payload = dict(tool_use_block.input)
             defects = _tool_input_defects(payload, tool_schema)

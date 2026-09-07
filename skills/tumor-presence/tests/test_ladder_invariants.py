@@ -16,6 +16,7 @@ Two guards:
   2. LADDER RATIONALE. The documented ordering principles (positives > negatives > gaps; tumor tissue >
      cell-line proxy; RNA backbone > protein > single-cell; protein-absence is a NEGATIVE) hold.
 """
+
 from __future__ import annotations
 
 from itertools import combinations
@@ -58,12 +59,12 @@ def test_no_positive_outranked_by_any_negative_or_gap():
 def test_negatives_only_firesets_never_resolve_positive():
     """Behavioural corollary, checked directly: no combination of measured-negative / gap rungs (up to
     triples, plus the all-negatives-and-gaps set) resolves to a presence-positive."""
-    neg_gap = [rid for rid, v in tp._VERDICT_RANK
-               if v in tp._MEASURED_NEGATIVE_VERDICTS or v in tp._COLLAPSE_GAP_VERDICTS]
-    subsets = ([[r] for r in neg_gap]
-               + list(combinations(neg_gap, 2))
-               + list(combinations(neg_gap, 3))
-               + [neg_gap])                       # the maximal adversarial set
+    neg_gap = [
+        rid for rid, v in tp._VERDICT_RANK if v in tp._MEASURED_NEGATIVE_VERDICTS or v in tp._COLLAPSE_GAP_VERDICTS
+    ]
+    subsets = (
+        [[r] for r in neg_gap] + list(combinations(neg_gap, 2)) + list(combinations(neg_gap, 3)) + [neg_gap]
+    )  # the maximal adversarial set
     for combo in subsets:
         v, _ = tp._verdict([_fr(r) for r in combo])
         assert not tp._is_presence_positive(v), f"dangerous flip: {list(combo)} -> {v!r} (positive)"
@@ -132,8 +133,7 @@ def _live_intracellular_rule_ids():
     if not path.exists():
         return None
     spec = yaml.safe_load(path.read_text()) or {}
-    return {r["rule_id"] for r in (spec.get("rules") or [])
-            if isinstance(r, dict) and r.get("rule_id")}
+    return {r["rule_id"] for r in (spec.get("rules") or []) if isinstance(r, dict) and r.get("rule_id")}
 
 
 def test_protein_absence_rids_non_empty():
@@ -141,8 +141,9 @@ def test_protein_absence_rids_non_empty():
     an RNA-present target is protein-ABSENT — fires only when a rule in `_PROTEIN_ABSENCE_RIDS` is among
     the fired set. An empty set silently disables that entire demotion pathway with no other test catching
     it, so pin it non-empty."""
-    assert tp._PROTEIN_ABSENCE_RIDS, \
+    assert tp._PROTEIN_ABSENCE_RIDS, (
         "_PROTEIN_ABSENCE_RIDS is empty — the protein-absence demotion is silently unreachable"
+    )
 
 
 def test_protein_absence_rids_resolve_to_live_contract_rules():
@@ -155,8 +156,9 @@ def test_protein_absence_rids_resolve_to_live_contract_rules():
     if live is None:
         pytest.skip("target-contracts checkout absent — cross-repo rule-id guard not applicable")
     missing = sorted(set(tp._PROTEIN_ABSENCE_RIDS) - live)
-    assert not missing, \
+    assert not missing, (
         f"_PROTEIN_ABSENCE_RIDS reference rules not defined in intracellular-intrinsic.rules.yaml: {missing}"
+    )
 
 
 def test_present_rna_only_protein_absent_demotion_fires_behaviorally():
@@ -164,9 +166,11 @@ def test_present_rna_only_protein_absent_demotion_fires_behaviorally():
     the CTAs tried are cell-line broadly_moderate, not broadly_low): an RNA positive + the cell-line
     `protein-abundance-broadly-low-degrader-killer` + NO protein-positive collapses to
     present_rna_only_protein_absent."""
-    fired = [_fr("expression-broadly-high-supportive", "cellline-rna-distribution"),
-             _fr("tumor-expression-broadly-high-supportive", "tumor-rna-distribution"),
-             _fr("protein-abundance-broadly-low-degrader-killer", "cellline-protein-abundance")]
+    fired = [
+        _fr("expression-broadly-high-supportive", "cellline-rna-distribution"),
+        _fr("tumor-expression-broadly-high-supportive", "tumor-rna-distribution"),
+        _fr("protein-abundance-broadly-low-degrader-killer", "cellline-protein-abundance"),
+    ]
     v, _drv = tp._verdict(fired)
     assert v == tp.PRESENT_RNA_ONLY_PROTEIN_ABSENT
 
@@ -174,8 +178,10 @@ def test_present_rna_only_protein_absent_demotion_fires_behaviorally():
 def test_protein_absence_demotion_suppressed_by_any_protein_positive():
     """Guard the demotion's precondition: if ANY protein-positive fired, the broadly_low killer does NOT
     demote (the target IS protein-present somewhere) — the RNA positive stands."""
-    fired = [_fr("expression-broadly-high-supportive", "cellline-rna-distribution"),
-             _fr("protein-abundance-broadly-low-degrader-killer", "cellline-protein-abundance"),
-             _fr("protein-strongly-up-supportive", "tumor-protein-abundance-cptac")]
+    fired = [
+        _fr("expression-broadly-high-supportive", "cellline-rna-distribution"),
+        _fr("protein-abundance-broadly-low-degrader-killer", "cellline-protein-abundance"),
+        _fr("protein-strongly-up-supportive", "tumor-protein-abundance-cptac"),
+    ]
     v, _drv = tp._verdict(fired)
     assert v != tp.PRESENT_RNA_ONLY_PROTEIN_ABSENT

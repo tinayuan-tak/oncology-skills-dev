@@ -7,6 +7,7 @@ drug-warning + OnSIDES-BOXED detector, and the overall safety verdict is already
 (highly_constrained via gnomAD) — so this is a SCOPE clarifier, not a verdict change. The caveat
 fires ONLY on the measured-negative 'no_warning' state and never enters the resolver.
 """
+
 from __future__ import annotations
 
 from pathlib import Path

@@ -29,6 +29,7 @@ THRESHOLDS ARE ILLUSTRATIVE (v0). The CONTRACT is the contribution: modality-con
 escalate-only fusion + declared blind-spots + reproducible bin. Thresholds are to be calibrated; the
 tests pin the STRUCTURE (conjunction, escalate-only, discordance), not the exact thresholds.
 """
+
 from __future__ import annotations
 
 import sys
@@ -39,19 +40,29 @@ from pathlib import Path
 _SCRIPTS = Path(__file__).resolve().parent
 if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
-_SKILLS = _SCRIPTS.parents[1]        # .../skills
+_SKILLS = _SCRIPTS.parents[1]  # .../skills
 if str(_SKILLS) not in sys.path:
     sys.path.insert(0, str(_SKILLS))
 
 # The deterministic core, re-homed to the shared layer (single source of truth). Re-exported here so
 # `import risk_rollup as rr; rr.deterministic_bins` (validate_gold + tests) and the CLI keep working.
 from _skills_common.risk_projection import (  # noqa: E402,F401
-    RANK, INV, SURFACE, AXIS_TO_DIM, _mod, _sv, _calls, _card, _q, deterministic_bins,
+    RANK,
+    INV,
+    SURFACE,
+    AXIS_TO_DIM,
+    _mod,
+    _sv,
+    _calls,
+    _card,
+    _q,
+    deterministic_bins,
 )
+
 
 def _findings_of(block: dict) -> list:
     g = block.get("grounded", block) or {}
-    return g.get("findings") or g.get("liability_findings") or []   # tolerant of both field names
+    return g.get("findings") or g.get("liability_findings") or []  # tolerant of both field names
 
 
 def project(pkg: dict, modality: str, substrate: dict | None = None) -> dict:
@@ -78,6 +89,7 @@ def project(pkg: dict, modality: str, substrate: dict | None = None) -> dict:
 
 if __name__ == "__main__":
     import argparse, json
+
     ap = argparse.ArgumentParser()
     ap.add_argument("--evidence-package", required=True)
     ap.add_argument("--modality", required=True)
@@ -86,7 +98,9 @@ if __name__ == "__main__":
     a = ap.parse_args()
     sub = {}
     for spec in a.substrate:
-        ax, p = spec.split("=", 1); sub[ax] = json.loads(Path(p).read_text())
+        ax, p = spec.split("=", 1)
+        sub[ax] = json.loads(Path(p).read_text())
     dims = project(json.loads(Path(a.evidence_package).read_text()), a.modality, sub)
-    if a.out: Path(a.out).write_text(json.dumps(dims, indent=2))
+    if a.out:
+        Path(a.out).write_text(json.dumps(dims, indent=2))
     print(json.dumps(dims, indent=2))

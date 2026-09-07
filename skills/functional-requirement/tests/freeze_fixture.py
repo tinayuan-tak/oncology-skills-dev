@@ -16,6 +16,7 @@ Usage (repo checkout with siblings adjacent, AWS creds present):
     pixi run python skills/functional-requirement/tests/freeze_fixture.py            # refreeze KRAS/COADREAD
     pixi run python skills/functional-requirement/tests/freeze_fixture.py --target MET --indication COADREAD
 """
+
 from __future__ import annotations
 
 import argparse
@@ -29,11 +30,11 @@ import yaml
 HERE = Path(__file__).resolve().parent
 SKILL_DIR = HERE.parent
 SKILLS = SKILL_DIR.parent
-for p in (str(SKILLS),):     # _skills_common (incl. rehomed _live_readers) resolves from SKILLS
+for p in (str(SKILLS),):  # _skills_common (incl. rehomed _live_readers) resolves from SKILLS
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from _skills_common import _import_dispatcher   # noqa: E402
+from _skills_common import _import_dispatcher  # noqa: E402
 
 _FIELD_BYTES_CAP = 3000
 
@@ -64,7 +65,7 @@ def freeze(target: str, indication: str, read_live) -> dict:
     for card in _load_cards_from_runpy():
         try:
             summary = read_live(card, target, indication)
-        except Exception as e:                              # noqa: BLE001
+        except Exception as e:  # noqa: BLE001
             summary = {"_freeze_error": f"{type(e).__name__}: {e}"}
         frozen[card] = _prune(summary) if summary is not None else {"_dispatcher_returned_none": True}
     return frozen
@@ -76,8 +77,7 @@ def main() -> int:
     ap.add_argument("--indication", default="COADREAD")
     ap.add_argument("--out", default=None)
     args = ap.parse_args()
-    out = Path(args.out) if args.out else (
-        HERE / "fixtures" / f"{args.target.lower()}_{args.indication.lower()}.yaml")
+    out = Path(args.out) if args.out else (HERE / "fixtures" / f"{args.target.lower()}_{args.indication.lower()}.yaml")
     if not out.is_absolute():
         out = HERE / out
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -85,13 +85,16 @@ def main() -> int:
     print(f"freezing {args.target}/{args.indication} functional-requirement dossier → {out} …", flush=True)
     frozen = freeze(args.target, args.indication, read_live)
     out.write_text(yaml.safe_dump(frozen, sort_keys=True, default_flow_style=False))
-    real = [c for c, s in frozen.items()
-            if isinstance(s, dict) and not s.get("_freeze_error")
-            and not s.get("_dispatcher_returned_none") and s]
-    errs = {c: s.get("_freeze_error") for c, s in frozen.items()
-            if isinstance(s, dict) and s.get("_freeze_error")}
-    print(f"  wrote {len(frozen)} cards; {len(real)} with a real summary"
-          + (f"; errors: {json.dumps(errs)[:300]}" if errs else ""))
+    real = [
+        c
+        for c, s in frozen.items()
+        if isinstance(s, dict) and not s.get("_freeze_error") and not s.get("_dispatcher_returned_none") and s
+    ]
+    errs = {c: s.get("_freeze_error") for c, s in frozen.items() if isinstance(s, dict) and s.get("_freeze_error")}
+    print(
+        f"  wrote {len(frozen)} cards; {len(real)} with a real summary"
+        + (f"; errors: {json.dumps(errs)[:300]}" if errs else "")
+    )
     return 0
 
 

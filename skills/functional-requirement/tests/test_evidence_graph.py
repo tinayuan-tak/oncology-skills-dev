@@ -9,45 +9,86 @@ specific to functional-requirement's graph.
 Cards partition 11 verdict-bearing / 4 display-only, and the DEP/SEL/COND/CHEM literature axis→question
 crosswalk resolves. VERDICT-INERT: nothing here touches the dependency_verdict spine.
 """
+
 from __future__ import annotations
 
 import copy
 
 # cards that fire a rule in the KRAS/COADREAD fixture (verdict-bearing) vs the pure display-only facets
 VERDICT_BEARING = {
-    "pan-cancer-crispr-dependency-distribution", "pan-cancer-rnai-dependency-distribution",
-    "crispr-rnai-dependency-concordance", "dependency-lineage-selectivity", "paralog-buffering",
-    "prism-crispr-concordance", "recommended-models", "expression-dependency-correlation",
-    "abundance-dependency", "dependency-predictability", "organoid-crispr-dependency",
+    "pan-cancer-crispr-dependency-distribution",
+    "pan-cancer-rnai-dependency-distribution",
+    "crispr-rnai-dependency-concordance",
+    "dependency-lineage-selectivity",
+    "paralog-buffering",
+    "prism-crispr-concordance",
+    "recommended-models",
+    "expression-dependency-correlation",
+    "abundance-dependency",
+    "dependency-predictability",
+    "organoid-crispr-dependency",
 }
 DISPLAY_ONLY = {
-    "cross-consortium-dependency", "partner-conditional-dependency", "coessential-module",
+    "cross-consortium-dependency",
+    "partner-conditional-dependency",
+    "coessential-module",
     "genomic-event-model-match",
 }
 
 # a synthetic literature_synthesis keyed by the FR lens axis LETTERS (what make_literature_fn emits)
 _SYNTH_LIT = {
     "axes": [
-        {"axis_key": "DEP", "literature_read": "supports", "assertion": "KRAS is an established dependency.",
-         "agreement_vs_omics": "agree", "confidence": "high",
-         "citations": [{"label": "Singh 2009", "pmid": "19490893", "verified": True}]},
-        {"axis_key": "SEL", "literature_read": "supports", "assertion": "Lineage-selective in colorectal.",
-         "agreement_vs_omics": "agree", "confidence": "moderate", "citations": []},
-        {"axis_key": "COND", "literature_read": "mixed", "assertion": "SL partners reported.",
-         "agreement_vs_omics": "omics_blind", "confidence": "low", "citations": []},
-        {"axis_key": "CHEM", "literature_read": "supports", "assertion": "G12C inhibitors clinically active.",
-         "agreement_vs_omics": "agree", "confidence": "high", "citations": []},
+        {
+            "axis_key": "DEP",
+            "literature_read": "supports",
+            "assertion": "KRAS is an established dependency.",
+            "agreement_vs_omics": "agree",
+            "confidence": "high",
+            "citations": [{"label": "Singh 2009", "pmid": "19490893", "verified": True}],
+        },
+        {
+            "axis_key": "SEL",
+            "literature_read": "supports",
+            "assertion": "Lineage-selective in colorectal.",
+            "agreement_vs_omics": "agree",
+            "confidence": "moderate",
+            "citations": [],
+        },
+        {
+            "axis_key": "COND",
+            "literature_read": "mixed",
+            "assertion": "SL partners reported.",
+            "agreement_vs_omics": "omics_blind",
+            "confidence": "low",
+            "citations": [],
+        },
+        {
+            "axis_key": "CHEM",
+            "literature_read": "supports",
+            "assertion": "G12C inhibitors clinically active.",
+            "agreement_vs_omics": "agree",
+            "confidence": "high",
+            "citations": [],
+        },
     ],
-    "blind_spots": [], "overall_consistency": "consistent", "key_divergence": None,
+    "blind_spots": [],
+    "overall_consistency": "consistent",
+    "key_divergence": None,
 }
 
 
 # ── Phase 0 registry sanity ──────────────────────────────────────────────────────────────────────
 def test_questions_registry_loads_seven(eg_questions):
     ids = [q["id"] for q in eg_questions]
-    assert ids == ["lethal_at_all", "selective_or_pan_essential", "selective_to_lineage",
-                   "crispr_rnai_agree", "conditional_sl_rescue", "chemically_confirmable",
-                   "corroborated_predictable"]
+    assert ids == [
+        "lethal_at_all",
+        "selective_or_pan_essential",
+        "selective_to_lineage",
+        "crispr_rnai_agree",
+        "conditional_sl_rescue",
+        "chemically_confirmable",
+        "corroborated_predictable",
+    ]
     # unified axis vocabulary shared with the FR narrator lens (narrator_lenses.FUNCTIONAL_REQUIREMENT)
     axes = {q["axis_id"] for q in eg_questions if q.get("axis_id")}
     assert axes == {"DEP", "SEL", "COND", "CHEM"}
@@ -72,26 +113,34 @@ def test_reconstruct_questions_signal_confidence_and_cards(eg_graph):
     assert qs["lethal_at_all"]["signal"]["tier"] == "strong"
     assert qs["lethal_at_all"]["signal"]["polarity"] == "supportive"
     assert qs["lethal_at_all"]["confidence"]["level"] == "high"
-    assert qs["crispr_rnai_agree"]["signal"]["polarity"] == "opposing"   # canonical (was legacy "opposes")
+    assert qs["crispr_rnai_agree"]["signal"]["polarity"] == "opposing"  # canonical (was legacy "opposes")
     # the many-to-many card join (measurement_type membership)
     assert set(qs["lethal_at_all"]["card_ids"]) == {
-        "pan-cancer-crispr-dependency-distribution", "pan-cancer-rnai-dependency-distribution",
-        "dependency-lineage-selectivity", "organoid-crispr-dependency"}
+        "pan-cancer-crispr-dependency-distribution",
+        "pan-cancer-rnai-dependency-distribution",
+        "dependency-lineage-selectivity",
+        "organoid-crispr-dependency",
+    }
     assert set(qs["crispr_rnai_agree"]["card_ids"]) == {"crispr-rnai-dependency-concordance"}
-    assert set(qs["conditional_sl_rescue"]["card_ids"]) == {
-        "paralog-buffering", "partner-conditional-dependency"}
+    assert set(qs["conditional_sl_rescue"]["card_ids"]) == {"paralog-buffering", "partner-conditional-dependency"}
     assert set(qs["corroborated_predictable"]["card_ids"]) == {
-        "cross-consortium-dependency", "dependency-predictability", "coessential-module"}
+        "cross-consortium-dependency",
+        "dependency-predictability",
+        "coessential-module",
+    }
     # the SEL question anchors both the lineage driver AND the biomarker/model facet cards
     assert set(qs["selective_to_lineage"]["card_ids"]) >= {
-        "dependency-lineage-selectivity", "expression-dependency-correlation", "abundance-dependency",
-        "recommended-models", "genomic-event-model-match"}
+        "dependency-lineage-selectivity",
+        "expression-dependency-correlation",
+        "abundance-dependency",
+        "recommended-models",
+        "genomic-event-model-match",
+    }
     # every card joins at least one question (nothing collapses into the "Other" layer)
     assert all(c["question_ids"] for c in eg_graph["cards"])
     # a shared measurement_type materializes both edge directions
     crispr = next(c for c in eg_graph["cards"] if c["id"] == "pan-cancer-crispr-dependency-distribution")
-    assert set(crispr["question_ids"]) == {
-        "lethal_at_all", "selective_or_pan_essential", "selective_to_lineage"}
+    assert set(crispr["question_ids"]) == {"lethal_at_all", "selective_or_pan_essential", "selective_to_lineage"}
 
 
 # ── literature DEP/SEL/COND/CHEM axis crosswalk ─────────────────────────────────────────────────────
@@ -136,4 +185,4 @@ def test_driving_card_chain(eg_graph):
 def test_verdict_node_matches_spine(eg_graph, eg_decision):
     assert eg_graph["verdict"]["id"] == eg_decision["headline"]["dependency_verdict"] == "lineage_selective"
     assert eg_graph["verdict"]["driving_rule_id"] == "lineage-selective-supportive"
-    assert eg_graph["verdict"]["polarity"] == "supportive"   # canonical (was legacy "positive")
+    assert eg_graph["verdict"]["polarity"] == "supportive"  # canonical (was legacy "positive")

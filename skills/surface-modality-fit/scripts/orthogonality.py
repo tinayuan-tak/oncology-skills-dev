@@ -35,6 +35,7 @@ adc-tce-modality-fit.fit_class rungs (resolve_verdict_for_gate); the headline fe
 rung, so this facet is structurally incapable of moving surface_modality_verdict. Pinned
 by test_orthogonality_is_verdict_inert + the existing byte-stability sweep.
 """
+
 from __future__ import annotations
 
 from typing import Optional
@@ -43,9 +44,17 @@ from typing import Optional
 # collapsed set of that dimension's card values → 'supportive' | 'opposing' | 'abstain'.
 # A dimension is `covered` iff it is not 'abstain'.
 
-_ABSTAIN = {None, "data_unavailable", "unmeasured", "insufficient_paired_tumors",
-            "not_on_secreted_panel", "not_observed", "not_expressed_in_cohort",
-            "insufficient", "indeterminate"}
+_ABSTAIN = {
+    None,
+    "data_unavailable",
+    "unmeasured",
+    "insufficient_paired_tumors",
+    "not_on_secreted_panel",
+    "not_observed",
+    "not_expressed_in_cohort",
+    "insufficient",
+    "indeterminate",
+}
 
 
 def _get(cards, card_id, field):
@@ -65,11 +74,12 @@ def _tern(supportive: bool, opposing: bool) -> str:
     if opposing and not supportive:
         return "opposing"
     if supportive and opposing:
-        return "mixed"      # both a supportive and an opposing sub-signal → counts as covered, neither vote
+        return "mixed"  # both a supportive and an opposing sub-signal → counts as covered, neither vote
     return "abstain"
 
 
 # ---- per-dimension classifiers (keyed on REAL card vocabularies) ----
+
 
 def _d1_presence(cards) -> dict:
     """Presence / surface accessibility — the CORRELATED cluster collapsed to one line.
@@ -80,23 +90,32 @@ def _d1_presence(cards) -> dict:
     dens = _get(cards, "surface-abundance-density", "surface_density_class")
     fam = _get(cards, "surfaceome-family-classification", "family_class")
     rna = _get(cards, "rna-protein-concordance-tumor", "rna_as_biomarker")
-    supportive = any([
-        surf_conf in {"confirmed_high", "confirmed"},
-        topo in {"single_pass_type_1", "single_pass_type_2", "single_pass_type_other", "gpi_anchored"},
-        ecd in {"large_ecd", "moderate_ecd"},
-        dens in {"high", "moderate"},
-        (fam not in _ABSTAIN and fam not in {None, "not_surface"}),
-        rna == "adequate_proxy",
-    ])
-    opposing = any([
-        surf_conf == "not_surface",
-        topo == "no_transmembrane",
-        fam == "not_surface",
-        ecd == "no_extracellular_domain",
-    ])
-    members = {"surface_confirmation_class": surf_conf, "topology_class": topo,
-               "ecd_engineerability_class": ecd, "surface_density_class": dens,
-               "family_class": fam, "rna_as_biomarker": rna}
+    supportive = any(
+        [
+            surf_conf in {"confirmed_high", "confirmed"},
+            topo in {"single_pass_type_1", "single_pass_type_2", "single_pass_type_other", "gpi_anchored"},
+            ecd in {"large_ecd", "moderate_ecd"},
+            dens in {"high", "moderate"},
+            (fam not in _ABSTAIN and fam not in {None, "not_surface"}),
+            rna == "adequate_proxy",
+        ]
+    )
+    opposing = any(
+        [
+            surf_conf == "not_surface",
+            topo == "no_transmembrane",
+            fam == "not_surface",
+            ecd == "no_extracellular_domain",
+        ]
+    )
+    members = {
+        "surface_confirmation_class": surf_conf,
+        "topology_class": topo,
+        "ecd_engineerability_class": ecd,
+        "surface_density_class": dens,
+        "family_class": fam,
+        "rna_as_biomarker": rna,
+    }
     return {"call": _tern(supportive, opposing), "members": members}
 
 
@@ -105,18 +124,23 @@ def _d2_selectivity(cards) -> dict:
     breadth = _get(cards, "normal-tissue-liability", "normal_tissue_breadth_class")
     essential = _get(cards, "normal-tissue-liability", "essential_tissue_flag")
     window = _get(cards, "modality-therapeutic-window", "window_class")
-    supportive = any([
-        breadth in {"restricted_normal_expression", "not_detected_in_normal"},
-        window == "clean_window",
-    ])
-    opposing = any([
-        breadth == "broad_normal_expression",
-        essential == "present",
-        window in {"essential_tissue_liability", "narrow_window"},
-    ])
-    return {"call": _tern(supportive, opposing),
-            "members": {"normal_tissue_breadth_class": breadth,
-                        "essential_tissue_flag": essential, "window_class": window}}
+    supportive = any(
+        [
+            breadth in {"restricted_normal_expression", "not_detected_in_normal"},
+            window == "clean_window",
+        ]
+    )
+    opposing = any(
+        [
+            breadth == "broad_normal_expression",
+            essential == "present",
+            window in {"essential_tissue_liability", "narrow_window"},
+        ]
+    )
+    return {
+        "call": _tern(supportive, opposing),
+        "members": {"normal_tissue_breadth_class": breadth, "essential_tissue_flag": essential, "window_class": window},
+    }
 
 
 def _d3_shed(cards) -> dict:
@@ -124,12 +148,16 @@ def _d3_shed(cards) -> dict:
     shed = _get(cards, "shed-ectodomain-liability", "shed_liability_class")
     measured = _get(cards, "shed-ectodomain-liability", "measured_shed_class")
     supportive = shed == "not_shed_membrane_retained"
-    opposing = any([
-        shed in {"clinically_shed", "secretome_proxy_shed"},
-        measured == "media_shed_high",
-    ])
-    return {"call": _tern(supportive, opposing),
-            "members": {"shed_liability_class": shed, "measured_shed_class": measured}}
+    opposing = any(
+        [
+            shed in {"clinically_shed", "secretome_proxy_shed"},
+            measured == "media_shed_high",
+        ]
+    )
+    return {
+        "call": _tern(supportive, opposing),
+        "members": {"shed_liability_class": shed, "measured_shed_class": measured},
+    }
 
 
 def _d4_homogeneity(cards) -> dict:
@@ -137,8 +165,7 @@ def _d4_homogeneity(cards) -> dict:
     homo = _get(cards, "tumor-scrna-celltype-expression", "tce_homogeneity_class")
     supportive = homo == "homogeneous"
     opposing = homo == "heterogeneous"
-    return {"call": _tern(supportive, opposing),
-            "members": {"tce_homogeneity_class": homo}}
+    return {"call": _tern(supportive, opposing), "members": {"tce_homogeneity_class": homo}}
 
 
 def _d5_pmhc(cards) -> dict:
@@ -146,8 +173,7 @@ def _d5_pmhc(cards) -> dict:
     pmhc = _get(cards, "pmhc-presentation", "pmhc_presentation_class")
     supportive = pmhc == "restricted_presentation"
     opposing = pmhc == "broadly_presented_normal"
-    return {"call": _tern(supportive, opposing),
-            "members": {"pmhc_presentation_class": pmhc}}
+    return {"call": _tern(supportive, opposing), "members": {"pmhc_presentation_class": pmhc}}
 
 
 _DIMENSIONS = [
@@ -163,16 +189,16 @@ def _classify(n_supportive: int, n_covered: int, n_total: int) -> str:
     """orthogonality_class keys on BREADTH OF SUPPORT, gated by coverage. `abstain` /
     `mixed` dimensions are covered but not supportive — they never count as support."""
     if n_covered == 0:
-        return "insufficient_coverage"          # nothing measurable — honest, NOT a negative
+        return "insufficient_coverage"  # nothing measurable — honest, NOT a negative
     if n_supportive >= 4:
-        return "broadly_corroborated"           # >=4 independent axes agree
+        return "broadly_corroborated"  # >=4 independent axes agree
     if n_supportive == 3:
         return "moderately_corroborated"
     if n_supportive == 2:
         return "narrowly_corroborated"
     if n_supportive == 1:
-        return "single_axis"                    # rests on ONE line of evidence
-    return "uncorroborated"                     # covered dims exist but none supportive
+        return "single_axis"  # rests on ONE line of evidence
+    return "uncorroborated"  # covered dims exist but none supportive
 
 
 def score_orthogonality(cards: Optional[list]) -> dict:
@@ -202,8 +228,10 @@ def score_orthogonality(cards: Optional[list]) -> dict:
         "n_dimensions_total": n_total,
         "dimensions": {k: v["call"] for k, v in per_dim.items()},
         "dimension_evidence": {k: v["members"] for k, v in per_dim.items()},
-        "_doctrine": ("VERDICT-INERT display facet: counts INDEPENDENT surface-biology "
-                      "dimensions with supporting evidence (the 6-card presence cluster is "
-                      "collapsed to ONE dimension). abstain=coverage gap, NOT an opposing "
-                      "vote. Never feeds the surface_modality resolver."),
+        "_doctrine": (
+            "VERDICT-INERT display facet: counts INDEPENDENT surface-biology "
+            "dimensions with supporting evidence (the 6-card presence cluster is "
+            "collapsed to ONE dimension). abstain=coverage gap, NOT an opposing "
+            "vote. Never feeds the surface_modality resolver."
+        ),
     }

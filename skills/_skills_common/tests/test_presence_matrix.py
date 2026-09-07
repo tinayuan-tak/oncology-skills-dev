@@ -5,18 +5,25 @@ order-preserving; data_unavailable / missing cells are OFF-SCALE (never a tier);
 column is a status COMPARATOR, never on the presence ramp; and it is a one-way VIEW (no verdict).
 Pure over decision['headline'] — no S3, no method reads.
 """
+
 from __future__ import annotations
 
 import sys
 from pathlib import Path
 
-SKILLS = Path(__file__).resolve().parents[2]        # skills/
+SKILLS = Path(__file__).resolve().parents[2]  # skills/
 if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
 
 from _skills_common.presence_matrix import (  # noqa: E402
-    build_matrix_cells, render_presence_matrix_svg, emit_presence_matrix, _tier_of, _status_of,
-    _wrap_two_lines, _short_verdict, _sc_detail,
+    build_matrix_cells,
+    render_presence_matrix_svg,
+    emit_presence_matrix,
+    _tier_of,
+    _status_of,
+    _wrap_two_lines,
+    _short_verdict,
+    _sc_detail,
 )
 
 
@@ -30,28 +37,48 @@ def _headline():
         "cell_line_vs_tumor_discordant": True,
         "presence_interpretation_note": "one-word verdict understates tumor presence",
         "presence_verdict_by_modality": {
-            "bulk_rna/cell_line": {"measurement": "bulk_rna", "sample_context": "cell_line",
-                                   "verdict": "lineage_restricted",
-                                   "driving_rule_id": "expression-lineage-restricted-supportive",
-                                   "evidence_state": "measured"},
-            "bulk_rna/tumor": {"measurement": "bulk_rna", "sample_context": "tumor",
-                               "verdict": "tumor_broadly_expressed",
-                               "driving_rule_id": "tumor-expression-broadly-high-supportive",
-                               "evidence_state": "measured"},
-            "bulk_protein_ms/tumor": {"measurement": "bulk_protein_ms", "sample_context": "tumor",
-                                      "verdict": "protein_modestly_upregulated",
-                                      "driving_rule_id": "protein-modestly-up-neutral",
-                                      "evidence_state": "measured"},
-            "sc_rna/tumor": {"measurement": "sc_rna", "sample_context": "tumor",
-                             "verdict": "sc_malignant_detected",
-                             "driving_rule_id": "sc-expression-malignant-broadly-detected-supportive",
-                             "evidence_state": "measured"},
-            "sc_rna/normal": {"measurement": "sc_rna", "sample_context": "normal",
-                              "verdict": "HIGH_LIABILITY", "driving_rule_id": None,
-                              "evidence_state": "comparator"},
-            "protein_ihc/normal": {"measurement": "protein_ihc", "sample_context": "normal",
-                                   "verdict": "broad_normal_expression", "driving_rule_id": None,
-                                   "evidence_state": "comparator"},
+            "bulk_rna/cell_line": {
+                "measurement": "bulk_rna",
+                "sample_context": "cell_line",
+                "verdict": "lineage_restricted",
+                "driving_rule_id": "expression-lineage-restricted-supportive",
+                "evidence_state": "measured",
+            },
+            "bulk_rna/tumor": {
+                "measurement": "bulk_rna",
+                "sample_context": "tumor",
+                "verdict": "tumor_broadly_expressed",
+                "driving_rule_id": "tumor-expression-broadly-high-supportive",
+                "evidence_state": "measured",
+            },
+            "bulk_protein_ms/tumor": {
+                "measurement": "bulk_protein_ms",
+                "sample_context": "tumor",
+                "verdict": "protein_modestly_upregulated",
+                "driving_rule_id": "protein-modestly-up-neutral",
+                "evidence_state": "measured",
+            },
+            "sc_rna/tumor": {
+                "measurement": "sc_rna",
+                "sample_context": "tumor",
+                "verdict": "sc_malignant_detected",
+                "driving_rule_id": "sc-expression-malignant-broadly-detected-supportive",
+                "evidence_state": "measured",
+            },
+            "sc_rna/normal": {
+                "measurement": "sc_rna",
+                "sample_context": "normal",
+                "verdict": "HIGH_LIABILITY",
+                "driving_rule_id": None,
+                "evidence_state": "comparator",
+            },
+            "protein_ihc/normal": {
+                "measurement": "protein_ihc",
+                "sample_context": "normal",
+                "verdict": "broad_normal_expression",
+                "driving_rule_id": None,
+                "evidence_state": "comparator",
+            },
         },
     }
 
@@ -62,8 +89,12 @@ def test_tier_is_order_preserving_and_unknown_is_none():
     assert _tier_of("lineage_restricted") == 1
     assert _tier_of("protein_absent") == 0
     # order is preserved across the tiers
-    assert _tier_of("tumor_broadly_expressed") > _tier_of("protein_broadly_moderate") > \
-        _tier_of("lineage_restricted") > _tier_of("protein_absent")
+    assert (
+        _tier_of("tumor_broadly_expressed")
+        > _tier_of("protein_broadly_moderate")
+        > _tier_of("lineage_restricted")
+        > _tier_of("protein_absent")
+    )
     # unknown verdict → NO fabricated rank
     assert _tier_of("some_new_unmapped_verdict") is None
     assert _tier_of(None) is None
@@ -113,7 +144,7 @@ def test_render_svg_is_wellformed_and_shows_labels_not_color_alone():
     # normal comparator carries an icon + word, not hue alone
     assert "liability" in svg
     # off-scale cells are hatched (pattern) not ramped
-    assert 'url(#na)' in svg
+    assert "url(#na)" in svg
 
 
 def test_emit_writes_svg_and_json(tmp_path):
@@ -140,8 +171,12 @@ def test_cell_labels_wrap_not_truncate():
 
 
 def test_wrap_two_lines_never_exceeds_two_lines_or_width():
-    for label, mx in [("broadly moderate", 15), ("present not elevated", 12),
-                      ("lineage restricted", 11), ("superlongunbreakabletoken", 10)]:
+    for label, mx in [
+        ("broadly moderate", 15),
+        ("present not elevated", 12),
+        ("lineage restricted", 11),
+        ("superlongunbreakabletoken", 10),
+    ]:
         lines = _wrap_two_lines(label, mx)
         assert 1 <= len(lines) <= 2
         assert all(len(ln) <= mx for ln in lines), (label, lines)
@@ -151,14 +186,22 @@ def test_sc_detail_projection_and_strip_render():
     """The single-cell detail block is projected from the headline sc_* fields and shows on the SVG when
     measured; honest 'not measured' otherwise."""
     h = dict(_headline())
-    h.update({"sc_expression_class": "malignant_broadly_detected",
-              "sc_malignant_detection_fraction": 0.8886, "sc_tce_homogeneity_class": "homogeneous",
-              "sc_caf_vs_malignant_class": "caf_low", "sc_n_donor_groups": 453, "sc_n_datasets": 45})
+    h.update(
+        {
+            "sc_expression_class": "malignant_broadly_detected",
+            "sc_malignant_detection_fraction": 0.8886,
+            "sc_tce_homogeneity_class": "homogeneous",
+            "sc_caf_vs_malignant_class": "caf_low",
+            "sc_n_donor_groups": 453,
+            "sc_n_datasets": 45,
+        }
+    )
     d = _sc_detail(h)
     assert d["measured"] is True and d["tce_homogeneity_class"] == "homogeneous"
     svg = render_presence_matrix_svg(h, "EPCAM", "COADREAD")
     assert "Single-cell (tumor)" in svg and "malignant cells" in svg and "CAF-low" in svg
     # unmeasured sc → honest label, no CAF/homogeneity clutter
-    h2 = dict(_headline()); h2["sc_expression_class"] = "data_unavailable"
+    h2 = dict(_headline())
+    h2["sc_expression_class"] = "data_unavailable"
     assert _sc_detail(h2)["measured"] is False
     assert "not measured for this indication" in render_presence_matrix_svg(h2, "X", "Y")

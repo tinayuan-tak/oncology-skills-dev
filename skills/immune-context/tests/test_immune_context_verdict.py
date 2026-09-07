@@ -2,6 +2,7 @@
 
 Pins the class-rule → effector-verdict mapping + the honest insufficient when no rule fires.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -44,6 +45,6 @@ def test_cards_list_includes_immune_context_and_tme_display_cards():
         "myeloid-compartment-expression-cheng",
         "caf-compartment-expression-luo",
         "ici-response-association",
-        "tcga-til-fraction-saltz",   # 2026-08-28 — absolute H&E-DL TIL corroborator (verdict-inert)
-        "ici-response-imvigor210",   # 2026-08-28 — urothelial ICI-response + immune phenotype (verdict-inert)
+        "tcga-til-fraction-saltz",  # 2026-08-28 — absolute H&E-DL TIL corroborator (verdict-inert)
+        "ici-response-imvigor210",  # 2026-08-28 — urothelial ICI-response + immune phenotype (verdict-inert)
     }

@@ -1,5 +1,6 @@
 """report_render — schema validation: the spine + JSON report-view validate against their JSON Schemas,
 and the skill_report schema tolerates the additive slots the spine-repoint workstream introduces."""
+
 import json
 from pathlib import Path
 
@@ -43,7 +44,9 @@ def test_report_view_validates_every_preset_and_fixture():
 def test_skill_report_schema_tolerates_incoming_spine_slots():
     # feat/spine-repoint-modality-fit adds modality_scope + claim_scalars — schema must stay valid.
     schema = _load("skill_report.schema.json")
-    rep = dict(next(iter(make_nomination()["target_report"]["skill_reports"].values())),
-               modality_scope={"small_molecule": "supportive", "degrader": "supportive"},
-               claim_scalars={"homogeneity": 0.82})
+    rep = dict(
+        next(iter(make_nomination()["target_report"]["skill_reports"].values())),
+        modality_scope={"small_molecule": "supportive", "degrader": "supportive"},
+        claim_scalars={"homogeneity": 0.82},
+    )
     jsonschema.validate(rep, schema)

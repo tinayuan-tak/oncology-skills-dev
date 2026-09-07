@@ -13,6 +13,7 @@ fired_rules / write_package so the run exercises the REAL run_wired_skill code p
 The stubbed target-identity read returns a realistic resolved identity (as a live read would),
 so context.target.hgnc_id is a real integer >= 1 and the package validates.
 """
+
 from __future__ import annotations
 
 import json
@@ -28,38 +29,53 @@ if str(SKILLS) not in sys.path:
 
 import _skills_common.dispatcher as D  # noqa: E402
 
-CONTRACTS = Path(os.environ.get("TARGET_CONTRACTS_ROOT",
-                                "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
+CONTRACTS = Path(
+    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+)
 PKG_SCHEMA = json.loads((CONTRACTS / "schemas" / "evidence_package.schema.json").read_text())
 
 
 def _patch_common(monkeypatch):
     """Stub the three live-touching seams; run_wired_skill's own logic runs for real."""
+
     def fake_resolve(card_ids, target, indication, **k):
         # The envelope path issues a SECOND resolve for the foundational identity card.
         if list(card_ids) == ["target-identity-summary"]:
-            return [{
-                "card_id": "target-identity-summary",
-                "summary": {
-                    "resolved_hgnc_symbol": "KRAS",
-                    "resolved_hgnc_id": 6407,
-                    "resolved_ensembl_id": "ENSG00000133703",
-                    "resolution_status": "resolved",
-                },
-                "interpretation_call": None,
-            }]
-        return [{
-            "card_id": "crispr-dependency-distribution",
-            "summary": {"dependency_class": "strong_dependency"},
-            "interpretation_call": "strong_dependency",
-        }]
+            return [
+                {
+                    "card_id": "target-identity-summary",
+                    "summary": {
+                        "resolved_hgnc_symbol": "KRAS",
+                        "resolved_hgnc_id": 6407,
+                        "resolved_ensembl_id": "ENSG00000133703",
+                        "resolution_status": "resolved",
+                    },
+                    "interpretation_call": None,
+                }
+            ]
+        return [
+            {
+                "card_id": "crispr-dependency-distribution",
+                "summary": {"dependency_class": "strong_dependency"},
+                "interpretation_call": "strong_dependency",
+            }
+        ]
 
     monkeypatch.setattr(D, "resolve_cards", fake_resolve)
-    monkeypatch.setattr(D, "fired_rules", lambda card_outputs, axis, card_id_filter=None: [
-        {"rule_id": "crispr-strong-dependency", "card_id": "crispr-dependency-distribution",
-         "field": "dependency_class", "value": "strong_dependency",
-         "dominant": True, "rationale": "strong Chronos dependency across the lineage"},
-    ])
+    monkeypatch.setattr(
+        D,
+        "fired_rules",
+        lambda card_outputs, axis, card_id_filter=None: [
+            {
+                "rule_id": "crispr-strong-dependency",
+                "card_id": "crispr-dependency-distribution",
+                "field": "dependency_class",
+                "value": "strong_dependency",
+                "dominant": True,
+                "rationale": "strong Chronos dependency across the lineage",
+            },
+        ],
+    )
     monkeypatch.setattr(D, "write_package", lambda **kw: {"tables": [], "figures": []})
 
 
@@ -69,9 +85,11 @@ def _run(monkeypatch, out_dir: Path, emit: bool):
     if emit:
         argv.append("--emit-envelope")
     rc = D.run_wired_skill(
-        skill_name="functional-requirement", skill_version="9.9.9",
+        skill_name="functional-requirement",
+        skill_version="9.9.9",
         cards=["crispr-dependency-distribution"],
-        axis="intracellular_intrinsic", question="Is {target} required in {indication}?",
+        axis="intracellular_intrinsic",
+        question="Is {target} required in {indication}?",
         verdict_fn=lambda fired: ("strong_dependency", "crispr-strong-dependency"),
         headline_fn=lambda cards, fired, vp: {"verdict": vp[0], "driving_rule_id": vp[1]},
         argv=argv,
@@ -122,13 +140,26 @@ def test_data_mode_and_release_pin_carry_into_governance(monkeypatch, tmp_path):
     _patch_common(monkeypatch)
     out_dir = tmp_path / "fr_pinned"
     rc = D.run_wired_skill(
-        skill_name="functional-requirement", skill_version="9.9.9",
+        skill_name="functional-requirement",
+        skill_version="9.9.9",
         cards=["crispr-dependency-distribution"],
-        axis="intracellular_intrinsic", question="Is {target} required in {indication}?",
+        axis="intracellular_intrinsic",
+        question="Is {target} required in {indication}?",
         verdict_fn=lambda fired: ("strong_dependency", "crispr-strong-dependency"),
         headline_fn=lambda cards, fired, vp: {"verdict": vp[0], "driving_rule_id": vp[1]},
-        argv=["--target", "KRAS", "--indication", "COADREAD", "--out", str(out_dir),
-              "--emit-envelope", "--data-mode", "pinned", "--release-pin", "2026-Q2"],
+        argv=[
+            "--target",
+            "KRAS",
+            "--indication",
+            "COADREAD",
+            "--out",
+            str(out_dir),
+            "--emit-envelope",
+            "--data-mode",
+            "pinned",
+            "--release-pin",
+            "2026-Q2",
+        ],
     )
     assert rc == 0
     ep = json.loads((out_dir / "evidence_package.json").read_text())

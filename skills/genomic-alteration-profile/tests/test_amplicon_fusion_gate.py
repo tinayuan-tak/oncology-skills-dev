@@ -7,6 +7,7 @@ SV (ERBB2/STAD, MDM2/SARC), not a competent fusion driver → demoted to `promis
 separates it from a genuine promiscuous kinase fusion (ROS1/NTRK1/FGFR2 — NOT amplified → SPARED, the
 load-bearing non-regression). Verdict-moving ONLY for the amplified amplicon-passenger subset.
 """
+
 from __future__ import annotations
 
 import sys
@@ -17,13 +18,18 @@ if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
 
 from _skills_common.card_preprocessors import (  # noqa: E402
-    apply_promiscuous_amplicon_fusion_demotion, preprocess_cards_for_gate,
+    apply_promiscuous_amplicon_fusion_demotion,
+    preprocess_cards_for_gate,
 )
 
 
 def _cards(fusion_class="recurrent_fusion_driver", conf="moderate_promiscuous", cn=None):
-    cards = [{"card_id": "fusion-rearrangement-landscape",
-              "summary": {"fusion_class": fusion_class, "fusion_recurrence_confidence": conf}}]
+    cards = [
+        {
+            "card_id": "fusion-rearrangement-landscape",
+            "summary": {"fusion_class": fusion_class, "fusion_recurrence_confidence": conf},
+        }
+    ]
     if cn is not None:
         cards.append({"card_id": "copy-number-distribution", "summary": {"patient_focal_cn_class": cn}})
     return cards
@@ -75,7 +81,7 @@ def test_noop_when_no_copy_number_card():
 def test_idempotent():
     cards = _cards(cn="recurrent_focal_amplification")
     apply_promiscuous_amplicon_fusion_demotion(cards)
-    prov2 = apply_promiscuous_amplicon_fusion_demotion(cards)   # second pass sees the demoted class
+    prov2 = apply_promiscuous_amplicon_fusion_demotion(cards)  # second pass sees the demoted class
     assert prov2["demoted"] is False
     assert _fclass(cards) == "promiscuous_amplicon_fusion"
 
@@ -91,6 +97,7 @@ def test_applied_via_the_composed_registry_preprocessor():
 def test_fus_claim_signal_reads_weak_for_demoted_class():
     # The demoted class is a real SV but a passenger → the FUS claim reads WEAK (never absent/strong).
     from _skills_common.genomic_claims import _fus_signal
+
     h = {"genomic_alteration_by_class": {"fusion": {"verdict": "promiscuous_amplicon_fusion"}}}
     sig, ev, _ = _fus_signal(h, {})
     assert sig == "weak"

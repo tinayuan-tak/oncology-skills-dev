@@ -26,16 +26,42 @@ from typing import Optional
 from _skills_common.question_table_core import sig as _sig, conf as _conf, row as _row  # shared Signal/Confidence vocab
 
 # value → tier, where strong = LoF-TOLERANT (safe) and absent = a safety LIABILITY (concern).
-_CONSTRAINT = {"tolerant": "strong", "moderately_constrained": "weak",
-               "highly_constrained": "absent", "indeterminate": "unmeasured"}
-_BURDEN = {"no_burden_signal": "strong", "protective": "strong", "direction_unresolved": "weak",
-           "lof_risk_phenotype": "absent", "insufficient": "unmeasured"}
-_DOSAGE = {"dosage_sufficient": "strong", "no_clingen_entry": "unmeasured", "unresolved": "weak",
-           "autosomal_dominant_loss": "absent", "insufficient": "unmeasured"}
-_MOUSE = {"no_phenotype": "strong", "mild_phenotype": "moderate", "developmental_only": "weak",
-          "severe_organ_phenotype": "absent", "lethal_ko": "absent", "insufficient": "unmeasured"}
-_CLINVAR = {"no_pathogenic_signal": "strong", "no_clinvar_entry": "unmeasured", "somatic_only": "moderate",
-            "germline_pathogenic_low_review": "weak", "germline_pathogenic": "absent", "insufficient": "unmeasured"}
+_CONSTRAINT = {
+    "tolerant": "strong",
+    "moderately_constrained": "weak",
+    "highly_constrained": "absent",
+    "indeterminate": "unmeasured",
+}
+_BURDEN = {
+    "no_burden_signal": "strong",
+    "protective": "strong",
+    "direction_unresolved": "weak",
+    "lof_risk_phenotype": "absent",
+    "insufficient": "unmeasured",
+}
+_DOSAGE = {
+    "dosage_sufficient": "strong",
+    "no_clingen_entry": "unmeasured",
+    "unresolved": "weak",
+    "autosomal_dominant_loss": "absent",
+    "insufficient": "unmeasured",
+}
+_MOUSE = {
+    "no_phenotype": "strong",
+    "mild_phenotype": "moderate",
+    "developmental_only": "weak",
+    "severe_organ_phenotype": "absent",
+    "lethal_ko": "absent",
+    "insufficient": "unmeasured",
+}
+_CLINVAR = {
+    "no_pathogenic_signal": "strong",
+    "no_clinvar_entry": "unmeasured",
+    "somatic_only": "moderate",
+    "germline_pathogenic_low_review": "weak",
+    "germline_pathogenic": "absent",
+    "insufficient": "unmeasured",
+}
 
 # (row id, sub-question [framed as tolerant/safe], headline field, value→tier map)
 _ROWS = [
@@ -62,9 +88,16 @@ def safety_question_table(headline: dict, cards: Optional[list] = None) -> list:
     for qid, question, field, mapping in _ROWS:
         val = h.get(field)
         tier = _tier(mapping, val)
-        rows.append(_row(qid, question, str(val if val not in (None, "") else "—"), "",
-                         _sig(tier, "not measured" if tier == "unmeasured" else str(val)),
-                         _conf("unmeasured" if tier == "unmeasured" else "moderate")))
+        rows.append(
+            _row(
+                qid,
+                question,
+                str(val if val not in (None, "") else "—"),
+                "",
+                _sig(tier, "not measured" if tier == "unmeasured" else str(val)),
+                _conf("unmeasured" if tier == "unmeasured" else "moderate"),
+            )
+        )
     return rows
 
 

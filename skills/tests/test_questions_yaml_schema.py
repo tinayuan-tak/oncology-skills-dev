@@ -6,6 +6,7 @@ resolve to a real card contract's measurement_type. Mirrors target-contracts/val
 Fail-soft on infra: if the contracts schema / cards dir is unavailable (isolated CI), the affected layer
 is skipped — the referential structure of questions.yaml is still exercised by the evidence_graph tests.
 """
+
 from __future__ import annotations
 
 import json
@@ -48,10 +49,13 @@ def test_registries_discovered():
 @pytest.mark.parametrize("qpath", _QUESTIONS, ids=lambda p: p.parent.name)
 def test_questions_yaml_matches_schema(qpath):
     from jsonschema import Draft202012Validator
+
     schema = json.loads(_SCHEMA_PATH.read_text())
     doc = yaml.safe_load(qpath.read_text()) or {}
-    errs = [f"[{'.'.join(str(x) for x in e.absolute_path) or '<root>'}]: {e.message}"
-            for e in Draft202012Validator(schema).iter_errors(doc)]
+    errs = [
+        f"[{'.'.join(str(x) for x in e.absolute_path) or '<root>'}]: {e.message}"
+        for e in Draft202012Validator(schema).iter_errors(doc)
+    ]
     assert not errs, (qpath.parent.name, errs)
 
 
@@ -62,6 +66,10 @@ def test_measurement_types_resolve_to_cards(qpath):
     if not valid:
         pytest.skip("no card measurement_types discovered")
     doc = yaml.safe_load(qpath.read_text()) or {}
-    dangling = [(q.get("id"), mt) for q in (doc.get("questions") or [])
-                for mt in (q.get("measurement_types") or []) if mt not in valid]
+    dangling = [
+        (q.get("id"), mt)
+        for q in (doc.get("questions") or [])
+        for mt in (q.get("measurement_types") or [])
+        if mt not in valid
+    ]
     assert not dangling, (qpath.parent.name, dangling)

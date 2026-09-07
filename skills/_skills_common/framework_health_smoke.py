@@ -32,7 +32,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-SKILLS_DIR = Path(__file__).resolve().parents[1]          # .../skills
+SKILLS_DIR = Path(__file__).resolve().parents[1]  # .../skills
 _OUT = SKILLS_DIR / "_skills_common" / "subskill_health.json"
 
 # Fixture invocation — a canonical target/indication that exercises indication-scoped AND
@@ -42,11 +42,18 @@ _FIX_TARGET = "FIXTURE"
 _FIX_INDICATION = "COADREAD"
 
 # Non-run.py / non-wired skill dirs to skip (orchestration/retrieval/workflow + infra).
-_SKIP_DIRS = {"_skills_common", "tests", "compose-dashboard", "render-evidence-package",
-              "query-target-evidence",
-              # DEPRECATED 2026-08-20 (retired from the fan-out → consolidated into
-              # combination-and-vulnerability). Runnable standalone but not active wired subskills.
-              "synthetic-lethal-partners", "combinatorial-dependency", "combo-and-resistance"}
+_SKIP_DIRS = {
+    "_skills_common",
+    "tests",
+    "compose-dashboard",
+    "render-evidence-package",
+    "query-target-evidence",
+    # DEPRECATED 2026-08-20 (retired from the fan-out → consolidated into
+    # combination-and-vulnerability). Runnable standalone but not active wired subskills.
+    "synthetic-lethal-partners",
+    "combinatorial-dependency",
+    "combo-and-resistance",
+}
 
 
 def _wired_subskills() -> list[str]:
@@ -66,31 +73,37 @@ def _smoke_one(skill: str) -> dict:
     status). A non-zero exit or missing run_health is a FAILED smoke — the real signal."""
     rp = SKILLS_DIR / skill / "scripts" / "run.py"
     with tempfile.TemporaryDirectory() as td:
-        env = {**os.environ, "FRAMEWORK_HEALTH_SMOKE": "1",
-               "PYTHONPATH": str(SKILLS_DIR) + os.pathsep + os.environ.get("PYTHONPATH", "")}
+        env = {
+            **os.environ,
+            "FRAMEWORK_HEALTH_SMOKE": "1",
+            "PYTHONPATH": str(SKILLS_DIR) + os.pathsep + os.environ.get("PYTHONPATH", ""),
+        }
         try:
             proc = subprocess.run(
-                [sys.executable, str(rp), "--target", _FIX_TARGET,
-                 "--indication", _FIX_INDICATION, "--out", td],
-                capture_output=True, text=True, timeout=120, env=env,
+                [sys.executable, str(rp), "--target", _FIX_TARGET, "--indication", _FIX_INDICATION, "--out", td],
+                capture_output=True,
+                text=True,
+                timeout=120,
+                env=env,
             )
         except subprocess.SubprocessError as e:
-            return {"skill_name": skill, "smoke": "error",
-                    "smoke_reason": f"subprocess: {type(e).__name__}: {e}"}
+            return {"skill_name": skill, "smoke": "error", "smoke_reason": f"subprocess: {type(e).__name__}: {e}"}
         dj = Path(td) / "decision.json"
         if proc.returncode != 0:
             # last stderr line is the useful bit; keep the record small.
             tail = (proc.stderr or "").strip().splitlines()[-1:] or [""]
-            return {"skill_name": skill, "smoke": "error", "exit_code": proc.returncode,
-                    "smoke_reason": f"run.py exit {proc.returncode}: {tail[0][:200]}"}
+            return {
+                "skill_name": skill,
+                "smoke": "error",
+                "exit_code": proc.returncode,
+                "smoke_reason": f"run.py exit {proc.returncode}: {tail[0][:200]}",
+            }
         if not dj.exists():
-            return {"skill_name": skill, "smoke": "error",
-                    "smoke_reason": "run.py exited 0 but wrote no decision.json"}
+            return {"skill_name": skill, "smoke": "error", "smoke_reason": "run.py exited 0 but wrote no decision.json"}
         try:
             rh = json.loads(dj.read_text()).get("run_health")
         except (OSError, json.JSONDecodeError) as e:
-            return {"skill_name": skill, "smoke": "error",
-                    "smoke_reason": f"unreadable decision.json: {e}"}
+            return {"skill_name": skill, "smoke": "error", "smoke_reason": f"unreadable decision.json: {e}"}
         if not rh:
             # Ran clean (exit 0, wrote a decision.json) but emitted NO run_health — the skill
             # HAND-ROLLS main() instead of calling run_wired_skill (e.g. genomic-alteration-profile,
@@ -98,17 +111,32 @@ def _smoke_one(skill: str) -> dict:
             # executes, but it's off the instrumented dispatcher, so we have no read/compute split.
             # Reporting this as 'error' would overstate the problem (the skill works); reporting it
             # as 'clean' would hide that it's not covered by run_health. So: its own status.
-            return {"skill_name": skill, "smoke": "clean_uninstrumented",
-                    "smoke_reason": "ran clean but hand-rolls main() (no run_wired_skill) → no run_health"}
+            return {
+                "skill_name": skill,
+                "smoke": "clean_uninstrumented",
+                "smoke_reason": "ran clean but hand-rolls main() (no run_wired_skill) → no run_health",
+            }
         # smoke passes iff the run completed and emitted run_health. run_health.status
         # (ok|degraded) is the dispatcher's own read of card availability — under smoke all
         # cards resolve to stubs, so status should be 'ok'; a 'degraded' here means the
         # skill declares on_dependency_status skips even for present cards (informative).
-        return {"skill_name": skill, "smoke": "clean",
-                "run_health": {k: rh.get(k) for k in
-                               ("status", "n_cards_consumed", "n_cards_resolved",
-                                "n_cards_fired", "cards_fired", "read_secs",
-                                "compute_secs", "total_secs")}}
+        return {
+            "skill_name": skill,
+            "smoke": "clean",
+            "run_health": {
+                k: rh.get(k)
+                for k in (
+                    "status",
+                    "n_cards_consumed",
+                    "n_cards_resolved",
+                    "n_cards_fired",
+                    "cards_fired",
+                    "read_secs",
+                    "compute_secs",
+                    "total_secs",
+                )
+            },
+        }
 
 
 def build() -> dict:
@@ -120,12 +148,18 @@ def build() -> dict:
     return {
         "schema_version": "1.0.0",
         "harness": "framework_health_smoke",
-        "note": ("Deterministic offline 'runs clean?' smoke of each wired subskill's real "
-                 "run.py under FRAMEWORK_HEALTH_SMOKE=1 (card readers stubbed; NO live data). "
-                 "smoke=clean → compute path executed + emitted run_health; clean_uninstrumented "
-                 "→ ran clean but hand-rolls main() (no run_health); error → a real pipeline break."),
-        "summary": {"n_subskills": len(skills), "n_clean": n_clean,
-                    "n_clean_uninstrumented": n_uninstrumented, "n_error": n_error},
+        "note": (
+            "Deterministic offline 'runs clean?' smoke of each wired subskill's real "
+            "run.py under FRAMEWORK_HEALTH_SMOKE=1 (card readers stubbed; NO live data). "
+            "smoke=clean → compute path executed + emitted run_health; clean_uninstrumented "
+            "→ ran clean but hand-rolls main() (no run_health); error → a real pipeline break."
+        ),
+        "summary": {
+            "n_subskills": len(skills),
+            "n_clean": n_clean,
+            "n_clean_uninstrumented": n_uninstrumented,
+            "n_error": n_error,
+        },
         "subskills": {r["skill_name"]: r for r in results},
     }
 
@@ -134,6 +168,7 @@ def _stable(report: dict) -> str:
     """Canonical projection dropping volatile timings — the --check basis (mirrors the
     dashboard's stable_projection discipline: run-clean STATUS is stable, seconds are not)."""
     import copy
+
     r = copy.deepcopy(report)
     for entry in r.get("subskills", {}).values():
         rh = entry.get("run_health") or {}
@@ -144,9 +179,12 @@ def _stable(report: dict) -> str:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="Framework-health 'runs clean?' subskill smoke harness.")
-    ap.add_argument("--check", action="store_true",
-                    help="fail (exit 1) if the committed subskill_health.json is stale vs a fresh smoke "
-                         "(compares a STABLE projection dropping volatile timings)")
+    ap.add_argument(
+        "--check",
+        action="store_true",
+        help="fail (exit 1) if the committed subskill_health.json is stale vs a fresh smoke "
+        "(compares a STABLE projection dropping volatile timings)",
+    )
     args = ap.parse_args(argv)
 
     report = build()
@@ -157,16 +195,19 @@ def main(argv=None) -> int:
             print(f"  MISSING {_OUT.name} — run without --check to generate.", file=sys.stderr)
             return 1
         if _stable(json.loads(_OUT.read_text())) != fresh:
-            print(f"  STALE {_OUT.name} — committed subskill health differs from computed; regenerate.",
-                  file=sys.stderr)
+            print(
+                f"  STALE {_OUT.name} — committed subskill health differs from computed; regenerate.", file=sys.stderr
+            )
             return 1
         print(f"  OK {_OUT.name} (fresh)")
         return 0
 
     _OUT.write_text(json.dumps(report, indent=2))
     s = report["summary"]
-    print(f"  wrote {_OUT.name}: {s['n_subskills']} subskills, {s['n_clean']} clean, "
-          f"{s['n_clean_uninstrumented']} clean-uninstrumented, {s['n_error']} error")
+    print(
+        f"  wrote {_OUT.name}: {s['n_subskills']} subskills, {s['n_clean']} clean, "
+        f"{s['n_clean_uninstrumented']} clean-uninstrumented, {s['n_error']} error"
+    )
     for name, r in report["subskills"].items():
         if r["smoke"] == "error":
             print(f"    ERROR {name}: {r.get('smoke_reason')}", file=sys.stderr)

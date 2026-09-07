@@ -3,6 +3,7 @@ skill_report adoption for functional-requirement (the 2nd GATING adopter after t
 pilot). Pins role=gating, call==the resolved verdict verbatim (no recompute), a canonical polarity on the
 ordinal_view scale, and best-effort degrade (a fault → None + _enrichment_errors, never a spine abort).
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -23,12 +24,12 @@ def test_headline_emits_gating_skill_report():
     sr = hl.get("skill_report")
     assert isinstance(sr, dict), f"expected a skill_report dict, got {sr!r}"
     assert sr["role"] == "gating"
-    assert sr["call"] == "lineage_selective"                 # verbatim verdict — no recompute
+    assert sr["call"] == "lineage_selective"  # verbatim verdict — no recompute
     # canonical polarity on the ordinal_view scale (dependency has no veto-killer, so never 'killer')
     assert sr["polarity"] in ("supportive", "neutral", "opposing", "insufficient", "not_applicable")
     assert sr["polarity"] != "killer"
     assert sr["provenance"]["driving_rule_id"] == "dep-lineage-selective-supportive"
-    assert "_enrichment_errors" not in hl                    # happy path adds no error key
+    assert "_enrichment_errors" not in hl  # happy path adds no error key
     assert "skill_report" in fr._SYNTHESIS_FACET_KEYS
 
 
@@ -48,6 +49,6 @@ def test_skill_report_fault_degrades_not_aborts(monkeypatch):
 
     monkeypatch.setattr(fr, "build_skill_report", _boom)
     hl = fr._headline(_cards(), [], ("insufficient", None))
-    assert hl["dependency_verdict"] == "insufficient"        # spine survives the projection fault
+    assert hl["dependency_verdict"] == "insufficient"  # spine survives the projection fault
     assert hl["skill_report"] is None
     assert hl["_enrichment_errors"]["skill_report"].startswith("ValueError")

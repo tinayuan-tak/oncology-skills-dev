@@ -26,6 +26,7 @@ Run:
       --evidence-package <evidence_package.json> --hypothesis <hypothesis.json> \
       [--risk r.json] [--target-dossier d.json] [--threshold 0.75] [--out survival.json]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -36,7 +37,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-sys.path.insert(0, str(HERE.parent.parent))   # skills/ (for _skills_common)
+sys.path.insert(0, str(HERE.parent.parent))  # skills/ (for _skills_common)
 
 import hypothesis_core as hc  # noqa: E402
 import run as R  # noqa: E402
@@ -44,7 +45,7 @@ from _skills_common.llm import EVIDENCE_ONLY_DIRECTIVE  # noqa: E402
 
 CLAUSE_KEYS = ("causal_rationale", "therapeutic_hypothesis", "population", "therapeutic_window")
 N_SKEPTICS = 3
-DEFAULT_THRESHOLD = 0.75   # a hypothesis below this is FLAGGED, not shipped clean on traceability alone
+DEFAULT_THRESHOLD = 0.75  # a hypothesis below this is FLAGGED, not shipped clean on traceability alone
 
 SKEPTIC_SYSTEM = (
     "You are a SKEPTICAL oncology target reviewer. You are given a drug-target hypothesis broken into "
@@ -75,8 +76,7 @@ SKEPTIC_SYSTEM = (
     "helps, citing the card_id / stratum name / PMID shown.\n\n"
     "For each clause return: refuted (bool), refutation (the specific evidence-grounded reason, or '' "
     "if it survives), and cited (the EXACT package tokens your refutation rests on — card_ids / "
-    "sub-verdict names / rule_ids / PMIDs / dossier field names / stratum names)."
-    + EVIDENCE_ONLY_DIRECTIVE
+    "sub-verdict names / rule_ids / PMIDs / dossier field names / stratum names)." + EVIDENCE_ONLY_DIRECTIVE
 )
 
 # Per-skeptic ADVERSARIAL ANGLES (majority-of-N is only a real ensemble if the passes differ). Since
@@ -113,12 +113,19 @@ def _skeptic_schema(clause_names: list) -> dict:
     return {
         "type": "object",
         "properties": {
-            "clauses": {"type": "array", "items": {"type": "object", "properties": {
-                "clause": {"type": "string", "enum": clause_names},
-                "refuted": {"type": "boolean"},
-                "refutation": {"type": "string"},
-                "cited": {"type": "array", "items": {"type": "string"}}},
-                "required": ["clause", "refuted", "refutation", "cited"]}},
+            "clauses": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "clause": {"type": "string", "enum": clause_names},
+                        "refuted": {"type": "boolean"},
+                        "refutation": {"type": "string"},
+                        "cited": {"type": "array", "items": {"type": "string"}},
+                    },
+                    "required": ["clause", "refuted", "refutation", "cited"],
+                },
+            },
         },
         "required": ["clauses"],
     }
@@ -127,7 +134,7 @@ def _skeptic_schema(clause_names: list) -> dict:
 def _clause_block(hyp: dict):
     """Extract the assertive clauses {name: {statement, citations}} from a hypothesis result."""
     clauses = {}
-    h = hyp.get("hypothesis", hyp)   # accept the full result OR the inner hypothesis dict
+    h = hyp.get("hypothesis", hyp)  # accept the full result OR the inner hypothesis dict
     for k in CLAUSE_KEYS:
         c = hc._uv(h.get(k)) or {}
         c = c if isinstance(c, dict) else {}
@@ -155,11 +162,15 @@ def _evidence_block(panel: dict) -> str:
         f"PANEL — deterministic verdict per line:\n{json.dumps(conviction, indent=1, default=str)}",
     ]
     if gap_lines:
-        parts.append("GAP / ABSENT lines (verdict is insufficient / data_unavailable / not_assessed — "
-                     "a clause resting on one is refutable; cite the line's own name to stay contained): "
-                     f"{gap_lines}")
-    parts.append(f"PANEL — per-card interpretation (card_id -> call):\n"
-                 f"{json.dumps(panel.get('cards_brief') or {}, indent=1, default=str)}")
+        parts.append(
+            "GAP / ABSENT lines (verdict is insufficient / data_unavailable / not_assessed — "
+            "a clause resting on one is refutable; cite the line's own name to stay contained): "
+            f"{gap_lines}"
+        )
+    parts.append(
+        f"PANEL — per-card interpretation (card_id -> call):\n"
+        f"{json.dumps(panel.get('cards_brief') or {}, indent=1, default=str)}"
+    )
     # claim-vector atoms (the citable signal decomposition the integrator reasoned over) — reuse the
     # integrator's own salience-gated renderer so the skeptic sees the same atoms + card_ids.
     cv = R._render_claim_vectors(panel.get("claim_vectors") or {})
@@ -167,12 +178,16 @@ def _evidence_block(panel: dict) -> str:
         parts.append("PANEL — " + cv.strip())
     gs = panel.get("grounded_substrate") or {}
     if gs.get("present") and gs.get("per_axis"):
-        parts.append("GROUNDED per-axis literature findings (cite the PMIDs / axis shown):\n"
-                     f"{json.dumps(gs['per_axis'], indent=1, default=str)}")
+        parts.append(
+            "GROUNDED per-axis literature findings (cite the PMIDs / axis shown):\n"
+            f"{json.dumps(gs['per_axis'], indent=1, default=str)}"
+        )
     subtype = panel.get("subtype") or {}
     if subtype.get("present") and subtype.get("per_stratum"):
-        parts.append("SUBTYPE-RESOLVED per-stratum records (cite the stratum name):\n"
-                     f"{json.dumps(subtype['per_stratum'], indent=1, default=str)}")
+        parts.append(
+            "SUBTYPE-RESOLVED per-stratum records (cite the stratum name):\n"
+            f"{json.dumps(subtype['per_stratum'], indent=1, default=str)}"
+        )
     if panel.get("dossier"):
         parts.append(f"TARGET-BIOLOGY dossier fields:\n{json.dumps(panel['dossier'], indent=1, default=str)}")
     if panel.get("risk"):
@@ -180,9 +195,14 @@ def _evidence_block(panel: dict) -> str:
     return "\n\n".join(parts)
 
 
-def adversarial_survival(hypothesis_result: dict, pkg_path: str, risk_path=None,
-                         dossier_path=None, n_skeptics: int = N_SKEPTICS,
-                         synthesize_fn=None) -> dict:
+def adversarial_survival(
+    hypothesis_result: dict,
+    pkg_path: str,
+    risk_path=None,
+    dossier_path=None,
+    n_skeptics: int = N_SKEPTICS,
+    synthesize_fn=None,
+) -> dict:
     """Run n_skeptics refutation passes over the hypothesis clauses; return per-clause survival + score.
     `synthesize_fn` is injectable for offline testing (mirrors run.run)."""
     synth = synthesize_fn or R._default_synthesize()
@@ -194,11 +214,14 @@ def adversarial_survival(hypothesis_result: dict, pkg_path: str, risk_path=None,
 
     clause_prompt = "\n\n".join(
         f"CLAUSE `{k}`:\n  statement: {c['statement']}\n  cites: {json.dumps(c['citations'], default=str)}"
-        for k, c in clauses.items())
-    user = (f"{_evidence_block(panel)}\n\n"
-            f"HYPOTHESIS CLAUSES TO ATTACK:\n{clause_prompt}\n\n"
-            "For every clause, attempt refutation from the evidence package ONLY. "
-            "Return one entry per clause.")
+        for k, c in clauses.items()
+    )
+    user = (
+        f"{_evidence_block(panel)}\n\n"
+        f"HYPOTHESIS CLAUSES TO ATTACK:\n{clause_prompt}\n\n"
+        "For every clause, attempt refutation from the evidence package ONLY. "
+        "Return one entry per clause."
+    )
     schema = _skeptic_schema(clause_names)
 
     tally = {k: [] for k in clause_names}
@@ -213,29 +236,41 @@ def adversarial_survival(hypothesis_result: dict, pkg_path: str, risk_path=None,
                 continue
             refuted = bool(hc._scalar(entry.get("refuted")))
             cited = [str(x) for x in (entry.get("cited") or [])]
-            untraceable = hc.check_traceability(cited, surface)   # CONTAINMENT: recall is discarded
+            untraceable = hc.check_traceability(cited, surface)  # CONTAINMENT: recall is discarded
             contained = refuted and bool(cited) and not untraceable
-            tally[name].append({
-                "skeptic": i, "angle": angle.split(":")[0].replace("ANGLE — ", "").strip(),
-                "refuted": refuted,
-                "refutation": hc._scalar(entry.get("refutation")) or "",
-                "cited": cited, "containment_valid": bool(contained),
-                "untraceable_citations": untraceable,
-            })
+            tally[name].append(
+                {
+                    "skeptic": i,
+                    "angle": angle.split(":")[0].replace("ANGLE — ", "").strip(),
+                    "refuted": refuted,
+                    "refutation": hc._scalar(entry.get("refutation")) or "",
+                    "cited": cited,
+                    "containment_valid": bool(contained),
+                    "untraceable_citations": untraceable,
+                }
+            )
 
     clause_results, n_survive = {}, 0
     for k in clause_names:
         votes = tally[k]
         valid_refutations = sum(1 for v in votes if v["containment_valid"])
-        survives = valid_refutations < 2   # refuted by a MAJORITY of 3 => not survived
+        survives = valid_refutations < 2  # refuted by a MAJORITY of 3 => not survived
         if survives:
             n_survive += 1
-        clause_results[k] = {"survives": survives, "valid_refutations": valid_refutations,
-                             "n_skeptics": len(votes), "skeptics": votes}
+        clause_results[k] = {
+            "survives": survives,
+            "valid_refutations": valid_refutations,
+            "n_skeptics": len(votes),
+            "skeptics": votes,
+        }
     score = round(n_survive / len(clause_names), 3)
-    return {"score": score, "n_clauses": len(clause_names),
-            "n_surviving": n_survive, "clauses": clause_results,
-            "provenance": {"skeptic_prompt_hash": skeptic_prompt_hash(), "n_skeptics": n_skeptics}}
+    return {
+        "score": score,
+        "n_clauses": len(clause_names),
+        "n_surviving": n_survive,
+        "clauses": clause_results,
+        "provenance": {"skeptic_prompt_hash": skeptic_prompt_hash(), "n_skeptics": n_skeptics},
+    }
 
 
 def adversarial_survival_gate(result: dict, threshold: float = DEFAULT_THRESHOLD) -> dict:
@@ -244,9 +279,13 @@ def adversarial_survival_gate(result: dict, threshold: float = DEFAULT_THRESHOLD
     score = result.get("score")
     below = sorted(k for k, c in (result.get("clauses") or {}).items() if not c.get("survives"))
     passed = score is not None and score >= threshold
-    return {"passed": bool(passed), "score": score, "threshold": threshold,
-            "below_threshold": (score is not None and score < threshold),
-            "non_surviving_clauses": below}
+    return {
+        "passed": bool(passed),
+        "score": score,
+        "threshold": threshold,
+        "below_threshold": (score is not None and score < threshold),
+        "non_surviving_clauses": below,
+    }
 
 
 def main(argv=None) -> int:
@@ -260,14 +299,15 @@ def main(argv=None) -> int:
     ap.add_argument("--out", default=None)
     args = ap.parse_args(argv)
     hyp = json.loads(Path(args.hypothesis).read_text())
-    r = adversarial_survival(hyp, args.evidence_package, args.risk, args.target_dossier,
-                             args.n_skeptics)
+    r = adversarial_survival(hyp, args.evidence_package, args.risk, args.target_dossier, args.n_skeptics)
     gate = adversarial_survival_gate(r, args.threshold)
     r["gate"] = gate
     print(f"\n=== adversarial-survival: {hyp.get('target')} / {hyp.get('indication')} ===")
-    print(f"SCORE {r['score']}  ({r.get('n_surviving')}/{r['n_clauses']} clauses survive "
-          f"{args.n_skeptics} skeptics)  GATE={'PASS' if gate['passed'] else 'FLAG'} "
-          f"(threshold {args.threshold})")
+    print(
+        f"SCORE {r['score']}  ({r.get('n_surviving')}/{r['n_clauses']} clauses survive "
+        f"{args.n_skeptics} skeptics)  GATE={'PASS' if gate['passed'] else 'FLAG'} "
+        f"(threshold {args.threshold})"
+    )
     for k, c in r["clauses"].items():
         flag = "SURVIVES" if c["survives"] else "REFUTED"
         print(f"  [{flag}] {k}: {c['valid_refutations']}/{c['n_skeptics']} valid refutations")

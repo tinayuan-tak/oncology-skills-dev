@@ -23,6 +23,7 @@ WHAT THIS IS NOT — the honesty discipline (mirrors _skills_common.presence_mat
 Reads ONLY decision['headline'] (the computed spine) — no S3 re-read — so it is deterministic given a
 decision.json and cheap to emit as an additive --figures artifact.
 """
+
 from __future__ import annotations
 
 import json
@@ -31,8 +32,12 @@ from typing import Optional
 
 # The axis-A "selective" set is single-sourced in selectivity_veto (the veto owns which verdicts are
 # downgradable); the hero reads it so the "window open" tile can never drift from the clamp's view.
-from _skills_common.selectivity_veto import (_AXIS_A_SELECTIVE, _VETO_VERDICT, _LIABILITY_VERDICT,
-                                             _STROMAL_CONFOUND_VERDICT)
+from _skills_common.selectivity_veto import (
+    _AXIS_A_SELECTIVE,
+    _VETO_VERDICT,
+    _LIABILITY_VERDICT,
+    _STROMAL_CONFOUND_VERDICT,
+)
 from _skills_common.figure_palette import esc as _esc
 
 # --- verdict → banner status (the resolved selectivity_class) --------------------------------------
@@ -82,9 +87,9 @@ def build_selectivity_axes(headline: dict) -> dict:
     cls = h.get("selectivity_class")
     axis_a = h.get("axis_a_selectivity_class")
     driving = h.get("driving_rule_id")
-    vetoed = cls == _VETO_VERDICT               # window CLOSED (housekeeping / no-window KILL)
-    liability = cls == _LIABILITY_VERDICT       # window OPEN but a NON-origin critical-organ liability
-    stromal_confound = cls == _STROMAL_CONFOUND_VERDICT   # INT-axis KILL: signal in the WRONG cells (CAF/stroma)
+    vetoed = cls == _VETO_VERDICT  # window CLOSED (housekeeping / no-window KILL)
+    liability = cls == _LIABILITY_VERDICT  # window OPEN but a NON-origin critical-organ liability
+    stromal_confound = cls == _STROMAL_CONFOUND_VERDICT  # INT-axis KILL: signal in the WRONG cells (CAF/stroma)
     axes: list[dict] = []
 
     def add(key, label, status, value, note):
@@ -96,9 +101,13 @@ def build_selectivity_axes(headline: dict) -> dict:
     if cr:
         frac = (cs or 0) / cr if cr else 0
         st = "bad" if disc else ("good" if frac >= 0.99 else ("warn" if frac > 0 else "off"))
-        add("comparators", "Cross-comparator", st,
+        add(
+            "comparators",
+            "Cross-comparator",
+            st,
             f"{int(cs or 0)}/{int(cr)} agree" + (" · discordant" if disc else ""),
-            "independent tumor-vs-normal contrasts (TCGA-adjacent raw + ComBat, GTEx)")
+            "independent tumor-vs-normal contrasts (TCGA-adjacent raw + ComBat, GTEx)",
+        )
     else:
         add("comparators", "Cross-comparator", "na", "n/a", "no comparator cells ran")
 
@@ -109,8 +118,13 @@ def build_selectivity_axes(headline: dict) -> dict:
     if fcs is not None:
         up = dr == "up"
         st = "off" if not up else ("good" if float(fc) >= 1.0 else "warn")
-        add("fold_change", "Fold-change", st,
-            f"{'↑' if up else '↓'} {fcs} log2FC", "max |log2FC| across comparators + direction")
+        add(
+            "fold_change",
+            "Fold-change",
+            st,
+            f"{'↑' if up else '↓'} {fcs} log2FC",
+            "max |log2FC| across comparators + direction",
+        )
     else:
         add("fold_change", "Fold-change", "na", "n/a", "no fold-change")
 
@@ -119,11 +133,14 @@ def build_selectivity_axes(headline: dict) -> dict:
     frac_p95 = h.get("fraction_tumor_above_normal_p95")
     fps = _fnum(frac_p95, "{:.0%}")
     if pcx:
-        st = ("good" if "strongly" in pcx else ("warn" if ("enriched" in pcx or "moderate" in pcx)
-              else "off"))
-        add("crossing", "Per-sample crossing", st,
+        st = "good" if "strongly" in pcx else ("warn" if ("enriched" in pcx or "moderate" in pcx) else "off")
+        add(
+            "crossing",
+            "Per-sample crossing",
+            st,
             (f"{fps} > normal p95" if fps else pcx.replace("_", " ")),
-            "fraction of tumors above the matched-normal 95th percentile")
+            "fraction of tumors above the matched-normal 95th percentile",
+        )
     else:
         add("crossing", "Per-sample crossing", "na", "n/a", "no per-sample corroboration")
 
@@ -132,29 +149,47 @@ def build_selectivity_axes(headline: dict) -> dict:
     pcls = h.get("selectivity_allgene_percentile_class")
     ps = _fnum(pct, "{:.0f}")
     if pcls:
-        st = ("good" if pcls in ("top_decile", "high") else ("warn" if pcls == "mid" else "off"))
-        add("rank", "In-cohort rank", st,
+        st = "good" if pcls in ("top_decile", "high") else ("warn" if pcls == "mid" else "off")
+        add(
+            "rank",
+            "In-cohort rank",
+            st,
             (f"{ps}th pct · {pcls}" if ps else pcls),
-            "selectivity percentile vs all genes in-indication (context)")
+            "selectivity percentile vs all genes in-indication (context)",
+        )
     else:
         add("rank", "In-cohort rank", "na", "n/a", "no in-cohort rank")
 
     # 5. NORMAL-TISSUE WINDOW — the veto axis (the one bulk fold-change gets wrong)
     if vetoed:
-        add("window", "Normal-tissue window", "bad", "CLOSED — no window",
-            f"broadly expressed in normal tissue; veto: {driving or 'normal-breadth'}")
+        add(
+            "window",
+            "Normal-tissue window",
+            "bad",
+            "CLOSED — no window",
+            f"broadly expressed in normal tissue; veto: {driving or 'normal-breadth'}",
+        )
     elif liability:
         organ = h.get("sc_normal_max_detection_cell_type")
-        add("window", "Normal-tissue window", "warn", "open · critical-organ liability",
+        add(
+            "window",
+            "Normal-tissue window",
+            "warn",
+            "open · critical-organ liability",
             "a real tumor-vs-normal window, but expressed in a non-origin critical organ"
             + (f" ({organ})" if organ else "")
-            + " — a safety/therapeutic-index liability (owned by on-target-safety), not loss of selectivity")
+            + " — a safety/therapeutic-index liability (owned by on-target-safety), not loss of selectivity",
+        )
     elif cls in _AXIS_A_SELECTIVE:
-        add("window", "Normal-tissue window", "good", "open",
-            "tumor elevated over the worst critical normal — a therapeutic window")
+        add(
+            "window",
+            "Normal-tissue window",
+            "good",
+            "open",
+            "tumor elevated over the worst critical normal — a therapeutic window",
+        )
     else:
-        add("window", "Normal-tissue window", "na", "n/a",
-            "window axis not evaluated (target not axis-A selective)")
+        add("window", "Normal-tissue window", "na", "n/a", "window axis not evaluated (target not axis-A selective)")
 
     # 6. malignant-cell-intrinsic (single-cell) — is the signal tumor cells or stroma/CAF?
     scf = h.get("sc_malignant_detection_fraction")
@@ -166,22 +201,35 @@ def build_selectivity_axes(headline: dict) -> dict:
         if stromal_confound or h.get("sc_stromal_confound_class") == "stromal_confounded":
             st = "bad"
         else:
-            st = ("good" if (caf == "caf_low" and "broadly" in (sctc or "")) else
-                  ("warn" if caf in ("caf_low", "caf_moderate") or "detected" in (sctc or "") else "off"))
-        val = (f"malignant {scs}" if scs else sctc.replace("_", " "))
+            st = (
+                "good"
+                if (caf == "caf_low" and "broadly" in (sctc or ""))
+                else ("warn" if caf in ("caf_low", "caf_moderate") or "detected" in (sctc or "") else "off")
+            )
+        val = f"malignant {scs}" if scs else sctc.replace("_", " ")
         if caf:
             val += f" · {caf}"
-        add("malignant_intrinsic", "Malignant-intrinsic (sc)", st, val,
-            "single-cell: is the selective signal in malignant cells vs stroma/CAF?")
+        add(
+            "malignant_intrinsic",
+            "Malignant-intrinsic (sc)",
+            st,
+            val,
+            "single-cell: is the selective signal in malignant cells vs stroma/CAF?",
+        )
     else:
-        add("malignant_intrinsic", "Malignant-intrinsic (sc)", "na", "n/a",
-            "no tumor single-cell coverage for this indication")
+        add(
+            "malignant_intrinsic",
+            "Malignant-intrinsic (sc)",
+            "na",
+            "n/a",
+            "no tumor single-cell coverage for this indication",
+        )
 
     # 7. in-situ spatial (deconvolution-free tumour-compartment enrichment)
     spr = h.get("spatial_rna_class")
     adj = h.get("spatial_normal_epithelium_adjacency_fraction")
     if spr and spr != "data_unavailable":
-        st = ("good" if "enriched" in spr else ("warn" if "present" in spr else "off"))
+        st = "good" if "enriched" in spr else ("warn" if "present" in spr else "off")
         note = "in-situ tumour-vs-microenvironment RNA enrichment (GeoMx WTA)"
         if adj is not None:
             note += f"; normal-epithelium adjacency {_fnum(adj, '{:.2%}')}"
@@ -195,8 +243,13 @@ def build_selectivity_axes(headline: dict) -> dict:
     cps = _fnum(cpc, "{:,.0f}")
     if dcl and dcl not in ("no_absolute_measurement", "data_unavailable"):
         st = "good" if dcl in ("high", "very_high") else ("warn" if dcl == "moderate" else "off")
-        add("density", "Absolute density", st,
-            (f"{cps}/cell · {dcl}" if cps else dcl), "calibrated surface copies/cell (modality context)")
+        add(
+            "density",
+            "Absolute density",
+            st,
+            (f"{cps}/cell · {dcl}" if cps else dcl),
+            "calibrated surface copies/cell (modality context)",
+        )
     else:
         add("density", "Absolute density", "na", "n/a", "no calibrated absolute-density anchor")
 
@@ -215,7 +268,8 @@ def build_selectivity_axes(headline: dict) -> dict:
             "SELECTIVITY EVIDENCE STRIP — a display projection of decision['headline'] across the "
             "independent tumor-vs-normal comparators. NOT calibrated measurement, NOT a verdict input; "
             "n/a axes are coverage gaps, not evidence against selectivity. The normal-tissue WINDOW "
-            "axis DISPLAYS the normal-breadth veto outcome (owned by the resolver/clamp)."),
+            "axis DISPLAYS the normal-breadth veto outcome (owned by the resolver/clamp)."
+        ),
     }
 
 
@@ -240,36 +294,50 @@ def render_selectivity_hero_svg(headline: dict, target: str, indication: str) ->
     H = _PAD + 26 + _BANNER_H + 14 + grid_h + 26 + _PAD
     vstat = view["verdict_status"]
     s: list[str] = []
-    s.append(f'<svg xmlns="http://www.w3.org/2000/svg" width="{_W}" height="{H}" '
-             f'viewBox="0 0 {_W} {H}" font-family="Inter, Helvetica, Arial, sans-serif">')
+    s.append(
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{_W}" height="{H}" '
+        f'viewBox="0 0 {_W} {H}" font-family="Inter, Helvetica, Arial, sans-serif">'
+    )
     s.append(f'<rect x="0" y="0" width="{_W}" height="{H}" fill="#ffffff"/>')
-    s.append('<defs><pattern id="na_h" width="6" height="6" patternUnits="userSpaceOnUse" '
-             'patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#d5d7da" '
-             'stroke-width="1.4"/></pattern></defs>')
+    s.append(
+        '<defs><pattern id="na_h" width="6" height="6" patternUnits="userSpaceOnUse" '
+        'patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#d5d7da" '
+        'stroke-width="1.4"/></pattern></defs>'
+    )
     # title
-    s.append(f'<text x="{_PAD}" y="20" font-size="13" font-weight="700" fill="#1a1a19">'
-             f'{_esc(target)} · {_esc(indication)} — tumor-vs-normal selectivity</text>')
+    s.append(
+        f'<text x="{_PAD}" y="20" font-size="13" font-weight="700" fill="#1a1a19">'
+        f"{_esc(target)} · {_esc(indication)} — tumor-vs-normal selectivity</text>"
+    )
 
     # verdict banner
     by = _PAD + 26
     bfill = _STATUS_FILL.get(vstat, "#b8bcc2")
     bink = _STATUS_INK.get(vstat, "#1a1a19")
-    s.append(f'<rect x="{_PAD}" y="{by}" width="{_W - 2*_PAD}" height="{_BANNER_H}" rx="8" '
-             f'fill="{bfill}" opacity="0.95"/>')
-    s.append(f'<text x="{_PAD+16}" y="{by+25}" font-size="16" font-weight="800" fill="{bink}">'
-             f'{_STATUS_ICON.get(vstat,"")}  {_esc(view["verdict_label"])}</text>')
-    sub = f'resolved selectivity_class: {view["target_verdict"] or "insufficient"}'
+    s.append(
+        f'<rect x="{_PAD}" y="{by}" width="{_W - 2 * _PAD}" height="{_BANNER_H}" rx="8" fill="{bfill}" opacity="0.95"/>'
+    )
+    s.append(
+        f'<text x="{_PAD + 16}" y="{by + 25}" font-size="16" font-weight="800" fill="{bink}">'
+        f"{_STATUS_ICON.get(vstat, '')}  {_esc(view['verdict_label'])}</text>"
+    )
+    sub = f"resolved selectivity_class: {view['target_verdict'] or 'insufficient'}"
     if view.get("stromal_confound") and view["axis_a_selectivity_class"]:
-        sub = (f'axis-A: {view["axis_a_selectivity_class"]}  →  STROMA-DRIVEN (not tumor-cell-intrinsic)  ·  '
-               f'{view["driving_rule_id"] or ""}')
+        sub = (
+            f"axis-A: {view['axis_a_selectivity_class']}  →  STROMA-DRIVEN (not tumor-cell-intrinsic)  ·  "
+            f"{view['driving_rule_id'] or ''}"
+        )
     elif view["vetoed"] and view["axis_a_selectivity_class"]:
-        sub = (f'axis-A: {view["axis_a_selectivity_class"]}  →  VETOED (no therapeutic window)  ·  '
-               f'{view["driving_rule_id"] or ""}')
+        sub = (
+            f"axis-A: {view['axis_a_selectivity_class']}  →  VETOED (no therapeutic window)  ·  "
+            f"{view['driving_rule_id'] or ''}"
+        )
     elif view.get("liability") and view["axis_a_selectivity_class"]:
-        sub = (f'axis-A: {view["axis_a_selectivity_class"]}  →  SELECTIVE, normal-tissue liability  ·  '
-               f'{view["driving_rule_id"] or ""}')
-    s.append(f'<text x="{_PAD+16}" y="{by+46}" font-size="10.5" fill="{bink}" opacity="0.92">'
-             f'{_esc(sub)}</text>')
+        sub = (
+            f"axis-A: {view['axis_a_selectivity_class']}  →  SELECTIVE, normal-tissue liability  ·  "
+            f"{view['driving_rule_id'] or ''}"
+        )
+    s.append(f'<text x="{_PAD + 16}" y="{by + 46}" font-size="10.5" fill="{bink}" opacity="0.92">{_esc(sub)}</text>')
 
     # axis tiles (2-col grid)
     gy = by + _BANNER_H + 14
@@ -279,38 +347,50 @@ def render_selectivity_hero_svg(headline: dict, target: str, indication: str) ->
         y = gy + r * (_TILE_H + _TILE_GAP)
         st = ax["status"]
         if st == "na":
-            s.append(f'<rect x="{x}" y="{y}" width="{_TILE_W}" height="{_TILE_H}" rx="6" '
-                     f'fill="url(#na_h)" stroke="#e3e4e6" stroke-width="1"/>')
+            s.append(
+                f'<rect x="{x}" y="{y}" width="{_TILE_W}" height="{_TILE_H}" rx="6" '
+                f'fill="url(#na_h)" stroke="#e3e4e6" stroke-width="1"/>'
+            )
         else:
-            s.append(f'<rect x="{x}" y="{y}" width="{_TILE_W}" height="{_TILE_H}" rx="6" '
-                     f'fill="#ffffff" stroke="#e3e4e6" stroke-width="1"/>')
+            s.append(
+                f'<rect x="{x}" y="{y}" width="{_TILE_W}" height="{_TILE_H}" rx="6" '
+                f'fill="#ffffff" stroke="#e3e4e6" stroke-width="1"/>'
+            )
             # status pip
-            s.append(f'<rect x="{x}" y="{y}" width="6" height="{_TILE_H}" rx="0" '
-                     f'fill="{_STATUS_FILL.get(st,"#b8bcc2")}"/>')
+            s.append(
+                f'<rect x="{x}" y="{y}" width="6" height="{_TILE_H}" rx="0" fill="{_STATUS_FILL.get(st, "#b8bcc2")}"/>'
+            )
         # label
-        s.append(f'<text x="{x+16}" y="{y+18}" font-size="10" font-weight="700" fill="#6b6f76" '
-                 f'letter-spacing="0.3">{_esc(ax["label"].upper())}</text>')
+        s.append(
+            f'<text x="{x + 16}" y="{y + 18}" font-size="10" font-weight="700" fill="#6b6f76" '
+            f'letter-spacing="0.3">{_esc(ax["label"].upper())}</text>'
+        )
         # value + status word
         pip = _STATUS_FILL.get(st, "#b8bcc2")
         val = ax["value"]
         if len(val) > 34:
             val = val[:33] + "…"
-        s.append(f'<text x="{x+16}" y="{y+35}" font-size="12.5" font-weight="700" '
-                 f'fill="#1a1a19">{_esc(val)}</text>')
-        s.append(f'<text x="{x+_TILE_W-12}" y="{y+18}" font-size="9.5" text-anchor="end" '
-                 f'font-weight="700" fill="{pip}">{_STATUS_ICON.get(st,"")} '
-                 f'{_esc(_AXIS_WORD.get(st,""))}</text>')
+        s.append(
+            f'<text x="{x + 16}" y="{y + 35}" font-size="12.5" font-weight="700" fill="#1a1a19">{_esc(val)}</text>'
+        )
+        s.append(
+            f'<text x="{x + _TILE_W - 12}" y="{y + 18}" font-size="9.5" text-anchor="end" '
+            f'font-weight="700" fill="{pip}">{_STATUS_ICON.get(st, "")} '
+            f"{_esc(_AXIS_WORD.get(st, ''))}</text>"
+        )
         note = ax["note"]
         if len(note) > 62:
             note = note[:61] + "…"
-        s.append(f'<text x="{x+16}" y="{y+50}" font-size="8.8" fill="#8a8d91">{_esc(note)}</text>')
+        s.append(f'<text x="{x + 16}" y="{y + 50}" font-size="8.8" fill="#8a8d91">{_esc(note)}</text>')
 
     # legend / disclaimer
     ly = gy + grid_h + 16
-    s.append(f'<text x="{_PAD}" y="{ly}" font-size="8.5" fill="#8a8d91">'
-             f'✓ supports · ! caution · × opposes/closed · · n/a (coverage gap, not counter-evidence) '
-             f'— display view over the resolved verdict, not a verdict input</text>')
-    s.append('</svg>')
+    s.append(
+        f'<text x="{_PAD}" y="{ly}" font-size="8.5" fill="#8a8d91">'
+        f"✓ supports · ! caution · × opposes/closed · · n/a (coverage gap, not counter-evidence) "
+        f"— display view over the resolved verdict, not a verdict input</text>"
+    )
+    s.append("</svg>")
     return "\n".join(s)
 
 

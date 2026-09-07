@@ -5,6 +5,7 @@ Asserts build_interpretation projects the pilot SALIENCE_SPECS reference_frames 
 thresholds:, and degrades gracefully (absent value -> [], no bare number). Also that _build_key_evidence
 promotes it onto key_evidence and that an UN-spec'd type stays byte-stable (no interpretation).
 """
+
 import sys
 from pathlib import Path
 
@@ -18,9 +19,12 @@ from _skills_common.evidence_graph import _build_key_evidence
 
 # ── crispr floor_cut_ceiling (fields live in summary AND capsule n_basis/numeric_anchors) ────────────
 def _crispr_summary():
-    return {"median_chronos_panel": -0.45738519728183746,
-            "dep_control_non_essential_floor": -0.038, "dep_control_pan_essential_ceiling": -1.499,
-            "dep_control_position_class": "between_controls"}
+    return {
+        "median_chronos_panel": -0.45738519728183746,
+        "dep_control_non_essential_floor": -0.038,
+        "dep_control_pan_essential_ceiling": -1.499,
+        "dep_control_position_class": "between_controls",
+    }
 
 
 def test_crispr_floor_cut_ceiling_ruler_from_summary():
@@ -29,20 +33,22 @@ def test_crispr_floor_cut_ceiling_ruler_from_summary():
     gv = interp[0]
     assert gv["metric"] == "median_chronos_panel" and gv["value"] == -0.4574 and gv["scale"] == "chronos"
     assert gv["direction"] == "lower_is_stronger"
-    assert gv["position"] == "between_controls"                       # READ VERBATIM
+    assert gv["position"] == "between_controls"  # READ VERBATIM
     assert gv["position_source"] == "dep_control_position_class"
     roles = {a["role"]: a["value"] for a in gv["frame"]["anchors"]}
     assert roles["floor"] == -0.038 and roles["ceiling"] == -1.499
-    assert roles.get("cut") == -0.5                                   # single-sourced from card thresholds:
+    assert roles.get("cut") == -0.5  # single-sourced from card thresholds:
     assert gv["frame"]["kind"] == "floor_cut_ceiling"
 
 
 def test_crispr_ruler_reads_floor_ceiling_from_capsule_when_summary_stripped():
     # the frozen-fixture shape: summary empty, floor/ceiling in n_basis, panel in numeric_anchors
-    cap = {"card_id": "pan-cancer-crispr-dependency-distribution",
-           "numeric_anchors": [{"metric": "median_chronos_panel", "value": -0.4574}],
-           "n_basis": {"dep_control_non_essential_floor": -0.038, "dep_control_pan_essential_ceiling": -1.499},
-           "categorical_anchors": [{"field": "dep_control_position_class", "value": "between_controls"}]}
+    cap = {
+        "card_id": "pan-cancer-crispr-dependency-distribution",
+        "numeric_anchors": [{"metric": "median_chronos_panel", "value": -0.4574}],
+        "n_basis": {"dep_control_non_essential_floor": -0.038, "dep_control_pan_essential_ceiling": -1.499},
+        "categorical_anchors": [{"field": "dep_control_position_class", "value": "between_controls"}],
+    }
     interp = build_interpretation(cap, {}, SALIENCE_SPECS["crispr_lof_dependency"])
     assert interp and interp[0]["value"] == -0.4574
     assert interp[0]["position"] == "between_controls"
@@ -52,10 +58,12 @@ def test_crispr_ruler_reads_floor_ceiling_from_capsule_when_summary_stripped():
 
 # ── genomic comparator_delta ─────────────────────────────────────────────────────────────────────────
 def _genomic_summary():
-    return {"median_chronos_hotspot_mutant": -1.7287354469299316,
-            "median_chronos_hotspot_wildtype": -0.5864385962486267,
-            "delta_chronos_hotspot_mut_vs_wt": -1.142296850681305,
-            "hotspot_mannwhitney_q": 1.2467439493977978e-10}
+    return {
+        "median_chronos_hotspot_mutant": -1.7287354469299316,
+        "median_chronos_hotspot_wildtype": -0.5864385962486267,
+        "delta_chronos_hotspot_mut_vs_wt": -1.142296850681305,
+        "hotspot_mannwhitney_q": 1.2467439493977978e-10,
+    }
 
 
 def test_genomic_comparator_delta_ruler():
@@ -63,64 +71,70 @@ def test_genomic_comparator_delta_ruler():
     assert len(interp) == 1
     gv = interp[0]
     assert gv["metric"] == "median_chronos_hotspot_mutant" and gv["value"] == -1.729
-    assert gv["distance_to_cut"] == -1.142                            # SURFACED, not recomputed
+    assert gv["distance_to_cut"] == -1.142  # SURFACED, not recomputed
     roles = {a["role"]: a["value"] for a in gv["frame"]["anchors"]}
     assert roles["comparator"] == -0.5864
-    assert roles.get("cut") == -0.5                                   # strong_effect_delta from thresholds:
+    assert roles.get("cut") == -0.5  # strong_effect_delta from thresholds:
     assert gv["frame"]["kind"] == "comparator_delta"
 
 
 # ── tumor-presence distance_to_cut (pilot #3; first distance_to_cut consumer) ────────────────────────
 def _tumor_vs_adjacent_summary():
     # real MET-COADREAD values (tumor-presence run 2026-09-03)
-    return {"log2_fc": 1.7318034419423631, "q_value": 2.555898149424007e-72,
-            "expression_call_class": "strong_upregulation"}
+    return {
+        "log2_fc": 1.7318034419423631,
+        "q_value": 2.555898149424007e-72,
+        "expression_call_class": "strong_upregulation",
+    }
 
 
 def test_tumor_vs_adjacent_distance_to_cut_ruler():
     from _skills_common import display_gloss as dg
     from _skills_common.evidence_salience import contract_threshold
 
-    interp = build_interpretation({}, _tumor_vs_adjacent_summary(),
-                                  SALIENCE_SPECS["tumor_vs_adjacent_expression"],
-                                  card_id="tumor-rna-vs-adjacent")
+    interp = build_interpretation(
+        {},
+        _tumor_vs_adjacent_summary(),
+        SALIENCE_SPECS["tumor_vs_adjacent_expression"],
+        card_id="tumor-rna-vs-adjacent",
+    )
     # tumor-vs-adjacent now gauges log2FC on a GRADED BAND (modest 0.5 / strong 1.5); no allgene_percentile
     # in this summary → the appended percentile companion drops out, leaving the one graded_band ruler.
     gv = next(g for g in interp if g["frame"]["kind"] == "graded_band")
     assert gv["metric"] == "log2_fc" and gv["value"] == 1.732 and gv["scale"] == "log2FC"
     assert gv["direction"] == "higher_is_stronger"
-    assert gv["position"] == "strong_upregulation"                    # band READ VERBATIM
+    assert gv["position"] == "strong_upregulation"  # band READ VERBATIM
     assert gv["position_source"] == "expression_call_class"
     words = dg.gauge_string(gv)
-    assert words.startswith("strong upregulation — ")                 # leads with the banded call
+    assert words.startswith("strong upregulation — ")  # leads with the banded call
     # both cuts single-source from the card thresholds:; assert only when the keys resolve (lockstep window).
     modest = contract_threshold("tumor-rna-vs-adjacent", "modest_upregulation_log2fc")
     strong = contract_threshold("tumor-rna-vs-adjacent", "strong_upregulation_log2fc")
     if modest is not None and strong is not None:
         assert (modest, strong) == (0.5, 1.5)
         cut_vals = sorted(a["value"] for a in gv["frame"]["anchors"] if a["role"] == "cut")
-        assert cut_vals == [0.5, 1.5]                                 # the modest+strong ladder
-        assert "past the 1.5 strong cut" in words                    # 1.732 clears the strong cut
+        assert cut_vals == [0.5, 1.5]  # the modest+strong ladder
+        assert "past the 1.5 strong cut" in words  # 1.732 clears the strong cut
 
 
 # ── safety gnomad LOEUF distance_to_cut (first SAFETY-axis reference_frame; LOWER = more constrained) ──
 def _gnomad_summary():
     # constrained-gene shape: LOEUF below the 0.45 cut, highly_constrained band
-    return {"loeuf_score": 0.32, "pli_score": 0.99, "constraint_class": "highly_constrained",
-            "mis_z_score": 3.1}
+    return {"loeuf_score": 0.32, "pli_score": 0.99, "constraint_class": "highly_constrained", "mis_z_score": 3.1}
 
 
 def test_gnomad_loeuf_distance_to_cut_ruler():
     from _skills_common import display_gloss as dg
     from _skills_common.evidence_salience import contract_threshold
 
-    interp = build_interpretation({}, _gnomad_summary(), SALIENCE_SPECS["gnomad_lof_constraint"],
-                                  card_id="gnomad-lof-constraint")
+    interp = build_interpretation(
+        {}, _gnomad_summary(), SALIENCE_SPECS["gnomad_lof_constraint"], card_id="gnomad-lof-constraint"
+    )
     assert len(interp) == 1
     gv = interp[0]
     assert gv["metric"] == "loeuf_score" and gv["value"] == 0.32 and gv["scale"] == "loeuf"
     assert gv["direction"] == "lower_is_stronger"
-    assert gv["position"] == "highly_constrained"                     # constraint_class READ VERBATIM
+    assert gv["position"] == "highly_constrained"  # constraint_class READ VERBATIM
     assert gv["position_source"] == "constraint_class"
     assert gv["frame"]["kind"] == "distance_to_cut"
     # cut single-sources from the card's high_loeuf threshold (already a NAMED threshold — no lockstep)
@@ -130,21 +144,24 @@ def test_gnomad_loeuf_distance_to_cut_ruler():
         roles = {a["role"]: a["value"] for a in gv["frame"]["anchors"]}
         assert roles.get("cut") == 0.45
     words = dg.gauge_string(gv)
-    assert words and "0.45" in words                                  # the constraint cut is surfaced
+    assert words and "0.45" in words  # the constraint cut is surfaced
 
 
 def test_build_key_evidence_promotes_gnomad_loeuf_interpretation():
-    ke = _build_key_evidence({"measurement_type": "gnomad_lof_constraint",
-                              "card_id": "gnomad-lof-constraint"}, _gnomad_summary())
+    ke = _build_key_evidence(
+        {"measurement_type": "gnomad_lof_constraint", "card_id": "gnomad-lof-constraint"}, _gnomad_summary()
+    )
     assert ke and ke.get("interpretation")
     assert ke["interpretation"][0]["metric"] == "loeuf_score"
 
 
 # ── invariants ───────────────────────────────────────────────────────────────────────────────────────
 def test_no_bare_number_scale_present_whenever_value_is():
-    summaries = {"crispr_lof_dependency": _crispr_summary(),
-                 "mutation_stratified_dependency": _genomic_summary(),
-                 "tumor_vs_adjacent_expression": _tumor_vs_adjacent_summary()}
+    summaries = {
+        "crispr_lof_dependency": _crispr_summary(),
+        "mutation_stratified_dependency": _genomic_summary(),
+        "tumor_vs_adjacent_expression": _tumor_vs_adjacent_summary(),
+    }
     for mt, summ in summaries.items():
         for gv in build_interpretation({}, summ, SALIENCE_SPECS[mt], card_id="tumor-rna-vs-adjacent"):
             if gv.get("value") is not None:
@@ -163,8 +180,10 @@ def test_deterministic_repeat_build_is_identical():
 
 
 def test_build_key_evidence_promotes_interpretation():
-    ke = _build_key_evidence({"measurement_type": "crispr_lof_dependency",
-                              "card_id": "pan-cancer-crispr-dependency-distribution"}, _crispr_summary())
+    ke = _build_key_evidence(
+        {"measurement_type": "crispr_lof_dependency", "card_id": "pan-cancer-crispr-dependency-distribution"},
+        _crispr_summary(),
+    )
     assert ke and ke.get("interpretation") and ke["interpretation"][0]["metric"] == "median_chronos_panel"
 
 
@@ -172,18 +191,22 @@ def test_unspecced_type_emits_no_interpretation_byte_stable():
     # a measurement_type without a reference_frame carries no interpretation (goldens stay byte-identical).
     # Use a CATEGORICAL-ONLY spec (effect_field=None → never gaugeable as a numeric ruler): clinvar germline
     # pathogenicity. (rnai_lof_dependency was the old example but now carries a distance_to_cut ruler.)
-    ke = _build_key_evidence({"measurement_type": "clinvar_germline_pathogenicity_safety"},
-                             {"n_pathogenic_germline": 3})
+    ke = _build_key_evidence(
+        {"measurement_type": "clinvar_germline_pathogenicity_safety"}, {"n_pathogenic_germline": 3}
+    )
     assert not (ke or {}).get("interpretation")
 
 
 # ── selectivity + surface distance_to_cut rulers (meter rollout; existing named card thresholds) ──────
 def test_selectivity_log2fc_distance_to_cut_ruler():
     from _skills_common.evidence_salience import contract_threshold
-    interp = build_interpretation({}, {"log2fc_cell_a": 2.1, "q_value_cell_a": 1e-5,
-                                        "selectivity_class": "strongly_selective"},
-                                  SALIENCE_SPECS["tumor_vs_normal_selectivity"],
-                                  card_id="tumor-vs-normal-selectivity")
+
+    interp = build_interpretation(
+        {},
+        {"log2fc_cell_a": 2.1, "q_value_cell_a": 1e-5, "selectivity_class": "strongly_selective"},
+        SALIENCE_SPECS["tumor_vs_normal_selectivity"],
+        card_id="tumor-vs-normal-selectivity",
+    )
     assert len(interp) == 1
     gv = interp[0]
     assert gv["metric"] == "log2fc_cell_a" and gv["value"] == 2.1 and gv["scale"] == "log2FC"
@@ -196,9 +219,13 @@ def test_selectivity_log2fc_distance_to_cut_ruler():
 
 def test_surface_density_copies_per_cell_distance_to_cut_ruler():
     from _skills_common.evidence_salience import contract_threshold
-    interp = build_interpretation({}, {"absolute_copies_per_cell": 5000,
-                                        "surface_density_class": "tce_viable"},
-                                  SALIENCE_SPECS["surface_density"], card_id="surface-abundance-density")
+
+    interp = build_interpretation(
+        {},
+        {"absolute_copies_per_cell": 5000, "surface_density_class": "tce_viable"},
+        SALIENCE_SPECS["surface_density"],
+        card_id="surface-abundance-density",
+    )
     assert len(interp) == 1
     gv = interp[0]
     assert gv["metric"] == "absolute_copies_per_cell" and gv["value"] == 5000 and gv["scale"] == "copies_per_cell"
@@ -211,13 +238,17 @@ def test_surface_density_copies_per_cell_distance_to_cut_ruler():
 
 def test_percentile_crossing_fraction_distance_to_cut_ruler_no_position():
     from _skills_common.evidence_salience import contract_threshold
-    interp = build_interpretation({}, {"fraction_tumor_above_normal_p95": 0.72},
-                                  SALIENCE_SPECS["tumor_vs_normal_percentile_crossing"],
-                                  card_id="tumor-vs-normal-percentile-crossing")
+
+    interp = build_interpretation(
+        {},
+        {"fraction_tumor_above_normal_p95": 0.72},
+        SALIENCE_SPECS["tumor_vs_normal_percentile_crossing"],
+        card_id="tumor-vs-normal-percentile-crossing",
+    )
     assert len(interp) == 1
     gv = interp[0]
     assert gv["metric"] == "fraction_tumor_above_normal_p95" and gv["value"] == 0.72 and gv["scale"] == "fraction"
-    assert "position" not in gv                                       # this spec has no categorical
+    assert "position" not in gv  # this spec has no categorical
     if contract_threshold("tumor-vs-normal-percentile-crossing", "strong_frac_p95") is not None:
         assert {a["role"]: a["value"] for a in gv["frame"]["anchors"]}.get("cut") == 0.5
 
@@ -225,10 +256,13 @@ def test_percentile_crossing_fraction_distance_to_cut_ruler_no_position():
 # ── sc-tumor malignant detection + measured-potency (cross-repo cut) distance_to_cut rulers ───────────
 def test_sc_tumor_malignant_detection_distance_to_cut_ruler():
     from _skills_common.evidence_salience import contract_threshold
-    interp = build_interpretation({}, {"malignant_detection_fraction": 0.68,
-                                        "sc_expression_class": "malignant_expressed"},
-                                  SALIENCE_SPECS["sc_tumor_celltype_expression"],
-                                  card_id="tumor-scrna-celltype-expression")
+
+    interp = build_interpretation(
+        {},
+        {"malignant_detection_fraction": 0.68, "sc_expression_class": "malignant_expressed"},
+        SALIENCE_SPECS["sc_tumor_celltype_expression"],
+        card_id="tumor-scrna-celltype-expression",
+    )
     # the card carries a second (comparator_delta) frame too; here we assert the PRIMARY distance_to_cut ruler
     gv = next(g for g in interp if g["frame"]["kind"] == "distance_to_cut")
     assert gv["metric"] == "malignant_detection_fraction" and gv["value"] == 0.68
@@ -241,10 +275,13 @@ def test_sc_tumor_malignant_detection_distance_to_cut_ruler():
 
 def test_measured_potency_distance_to_cut_ruler():
     from _skills_common.evidence_salience import contract_threshold
-    interp = build_interpretation({}, {"best_measured_potency_neglog_m": 7.2,
-                                        "measured_bioactivity_class": "potent_measured_ligand"},
-                                  SALIENCE_SPECS["measured_potency_tractability"],
-                                  card_id="measured-potency-tractability")
+
+    interp = build_interpretation(
+        {},
+        {"best_measured_potency_neglog_m": 7.2, "measured_bioactivity_class": "potent_measured_ligand"},
+        SALIENCE_SPECS["measured_potency_tractability"],
+        card_id="measured-potency-tractability",
+    )
     assert len(interp) == 1
     gv = interp[0]
     assert gv["metric"] == "best_measured_potency_neglog_m" and gv["value"] == 7.2 and gv["scale"] == "neglog_M"

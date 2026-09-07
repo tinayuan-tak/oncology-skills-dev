@@ -7,6 +7,7 @@ declare `module` + `entrypoint` in its card_spec and be routed WITHOUT a bespoke
 those passthroughs into data. This pins: (a) a generic-wired card resolves via _generic_dispatch,
 (b) it returns the SAME result as a direct method call, (c) an unwired card still returns None.
 """
+
 from __future__ import annotations
 
 import os
@@ -17,15 +18,17 @@ import pytest
 
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))   # skills/ — _live_readers in _skills_common
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # skills/ — _live_readers in _skills_common
 
 from _skills_common import _live_readers as lr  # noqa: E402
 from conftest import skip_if_no_data  # noqa: E402  (T10: live-S3 skip guard)
 
-_CONTRACTS = Path(os.environ.get(
-    "TARGET_CONTRACTS_ROOT",
-    "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
-))
+_CONTRACTS = Path(
+    os.environ.get(
+        "TARGET_CONTRACTS_ROOT",
+        "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
+    )
+)
 
 # ppi-interactome is the reference generic-wired card (module+entrypoint in its card_spec, and its
 # bespoke dispatcher was removed). Skip if this contracts checkout predates that wiring.
@@ -36,6 +39,7 @@ def _ppi_generic_wired() -> bool:
     if not _PPI_CARD.exists():
         return False
     import yaml
+
     spec = yaml.safe_load(_PPI_CARD.read_text()) or {}
     has_entrypoint = any(m.get("entrypoint") for m in (spec.get("methods") or []) if isinstance(m, dict))
     return has_entrypoint and "ppi-interactome" not in lr.CARD_DISPATCHERS
@@ -64,7 +68,8 @@ def test_generic_matches_direct_method_call():
     via skip_if_no_data (2026-08-15) — the reader re-raises NoCredentialsError, which would
     otherwise hard-fail in a creds-less CI."""
     direct = skip_if_no_data(
-        lambda: lr._import_method("ppi_interactome").read_target_summary(target="KRAS", indication="COADREAD"))
+        lambda: lr._import_method("ppi_interactome").read_target_summary(target="KRAS", indication="COADREAD")
+    )
     generic = skip_if_no_data(lambda: lr.read_live_summary("ppi-interactome", "KRAS", "COADREAD"))
     assert generic == direct
 

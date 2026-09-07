@@ -5,6 +5,7 @@ That set MUST be a non-empty SUBSET of the skill's declared CARDS — otherwise 
 prove the lean is safe and falls back to reading ALL cards. This guards the subset invariant and
 catches the drift where the resolver grows a rung keying a card the skill does not consume.
 """
+
 from __future__ import annotations
 
 import ast
@@ -19,7 +20,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-_SK = Path(__file__).resolve().parent.parent.parent   # .../claude-oncology-skills/skills
+_SK = Path(__file__).resolve().parent.parent.parent  # .../claude-oncology-skills/skills
 sys.path.insert(0, str(_SK))
 os.environ.setdefault(
     "TARGET_CONTRACTS_ROOT",
@@ -35,9 +36,12 @@ FIXTURES = SKILL_DIR / "tests" / "fixtures"
 
 def _cards_const() -> set:
     for node in ast.parse(RUN_PY.read_text()).body:
-        if (isinstance(node, ast.Assign) and len(node.targets) == 1
-                and getattr(node.targets[0], "id", None) == "CARDS"
-                and isinstance(node.value, ast.List)):
+        if (
+            isinstance(node, ast.Assign)
+            and len(node.targets) == 1
+            and getattr(node.targets[0], "id", None) == "CARDS"
+            and isinstance(node.value, ast.List)
+        ):
             return {e.value for e in node.value.elts if isinstance(e, ast.Constant)}
     return set()
 
@@ -50,12 +54,12 @@ def test_surface_lean_set_is_nonempty_subset_of_cards():
     missing = lean - cards
     assert not missing, (
         f"surface_modality resolver references card(s) not in surface-modality-fit CARDS: {missing} "
-        f"— add them to CARDS (the skill must consume every verdict-relevant card).")
+        f"— add them to CARDS (the skill must consume every verdict-relevant card)."
+    )
 
 
 def _real_summary(s) -> bool:
-    return (isinstance(s, dict) and bool(s)
-            and not s.get("_freeze_error") and not s.get("_dispatcher_returned_none"))
+    return isinstance(s, dict) and bool(s) and not s.get("_freeze_error") and not s.get("_dispatcher_returned_none")
 
 
 def test_verdict_only_run_does_not_crash_and_populates_verdict(monkeypatch):
@@ -78,13 +82,17 @@ def test_verdict_only_run_does_not_crash_and_populates_verdict(monkeypatch):
             if not _real_summary(s):
                 return None
             return copy.deepcopy(s)
+
         return _read_live
 
     out_dir = Path(tempfile.mkdtemp(prefix="smf-lean-"))
     monkeypatch.delenv("FRAMEWORK_HEALTH_SMOKE", raising=False)
     monkeypatch.setattr(skc, "_import_dispatcher", _fake_dispatcher_factory)
-    monkeypatch.setattr(sys, "argv", ["run.py", "--target", "CEACAM5", "--indication", "COADREAD",
-                                      "--verdict-only", "--out", str(out_dir)])
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["run.py", "--target", "CEACAM5", "--indication", "COADREAD", "--verdict-only", "--out", str(out_dir)],
+    )
     try:
         runpy.run_path(str(RUN_PY), run_name="__main__")
     except SystemExit as e:
@@ -96,5 +104,6 @@ def test_verdict_only_run_does_not_crash_and_populates_verdict(monkeypatch):
     h = d.get("headline") or {}
     v = h.get("surface_modality_verdict")
     assert v not in (None, "", "insufficient", "modality_ambiguous"), (
-        f"lean-mode surface_modality_verdict={v!r} collapsed — the verdict spine did not resolve.")
+        f"lean-mode surface_modality_verdict={v!r} collapsed — the verdict spine did not resolve."
+    )
     assert h.get("driving_rule_id"), "lean run resolved a verdict but driving_rule_id is empty."

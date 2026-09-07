@@ -7,6 +7,7 @@
      the nomination `sub_verdicts`.
 S3-free: pure over the loader + assembler + synthetic sub_results.
 """
+
 from __future__ import annotations
 
 import sys
@@ -22,7 +23,7 @@ from tp_facets import _certainty_by_axis  # noqa: E402
 
 def test_certainty_loader_is_opt_in():
     # functional-requirement (the reference axis) supplies the hook
-    _load_sub_skill_verdict_fn("functional-requirement")   # warm the module cache
+    _load_sub_skill_verdict_fn("functional-requirement")  # warm the module cache
     fn = _load_sub_skill_certainty_fn("functional-requirement")
     assert callable(fn)
     # a sub-skill without the hook returns None (loader never fabricates one)
@@ -31,10 +32,12 @@ def test_certainty_loader_is_opt_in():
 
 
 def _cert(level="high"):
-    return {"strength": "moderate_positive",
-            "certainty": {"level": level, "coverage": "high", "corroboration": "high",
-                          "unknown_mass": 0.0},
-            "provenance": {}, "_model_ref": "CERTAINTY_MODEL.md#dependency"}
+    return {
+        "strength": "moderate_positive",
+        "certainty": {"level": level, "coverage": "high", "corroboration": "high", "unknown_mass": 0.0},
+        "provenance": {},
+        "_model_ref": "CERTAINTY_MODEL.md#dependency",
+    }
 
 
 def test_certainty_by_axis_assembles_only_present_sidecars():
@@ -50,7 +53,7 @@ def test_certainty_by_axis_assembles_only_present_sidecars():
 
 def test_certainty_by_axis_is_empty_and_none_safe_until_opt_in():
     assert _certainty_by_axis({}) == {}
-    assert _certainty_by_axis({"dependency": {"strength_certainty": {}}}) == {}   # empty dict → skipped
+    assert _certainty_by_axis({"dependency": {"strength_certainty": {}}}) == {}  # empty dict → skipped
     assert _certainty_by_axis({"x": {}}) == {}
     assert _certainty_by_axis(None) == {}
 

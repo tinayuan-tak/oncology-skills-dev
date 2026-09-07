@@ -2,6 +2,7 @@
 (now emitted RAW by the resolver) is cleared at the gate iff the per-modality safety verdict shows an
 admissible safe channel. Verifies the swap is behavior-PRESERVING for nomination: GoF point-mutation
 drivers are rescued (stay nominable), amplification-driven / non-GoF constrained targets are NOT."""
+
 import sys
 from pathlib import Path
 
@@ -11,9 +12,11 @@ import tp_gates
 _HIT = [{"short": "safety", "verdict": "highly_constrained_safety_concern", "action": "hold"}]
 
 # GoF point-mutation driver (KRAS-shape): eligible, not disqualified.
-_GOF = [{"rule_id": "highly-constrained-safety-warning"},
-        {"rule_id": "activating-driver-role-safety-context"},
-        {"rule_id": "oncogene-role-safety-context"}]
+_GOF = [
+    {"rule_id": "highly-constrained-safety-warning"},
+    {"rule_id": "activating-driver-role-safety-context"},
+    {"rule_id": "oncogene-role-safety-context"},
+]
 # Amplification-driven oncogene (ERBB2-shape): eligible role BUT disqualified (no selectable point mut).
 _AMP = _GOF + [{"rule_id": "copy-number-amplified-oncogene-safety-context"}]
 # Non-GoF constrained (TP53-shape): concern only, no allele-selective eligibility.
@@ -22,8 +25,8 @@ _NONGOF = [{"rule_id": "highly-constrained-safety-warning"}]
 
 def _survives(fired, modality=None):
     survivors, supp = tp_gates._suppressed_gate_hits(
-        list(_HIT), {"safety": {"fired": fired, "verdict": ("highly_constrained_safety_concern", "x")}},
-        modality)
+        list(_HIT), {"safety": {"fired": fired, "verdict": ("highly_constrained_safety_concern", "x")}}, modality
+    )
     return any(h["short"] == "safety" for h in survivors), supp
 
 
@@ -60,11 +63,14 @@ def test_sm_scoped_run_rescued():
 # without depleting WT protein — WT-loss is not_applicable to it. The hold should clear WHEN the ADC arm
 # is viable (favorable surface fit or an explicit biologics --modality), and ONLY then.
 
+
 def _survives_surface(fired, surface_verdict, modality=None):
     """exists-safe-modality with a surface_modality sub-verdict present (for the biologics-viability
     co-condition)."""
-    subs = {"safety": {"fired": fired, "verdict": ("highly_constrained_safety_concern", "x")},
-            "surface_modality": {"verdict": (surface_verdict, "adc-tce-fit")}}
+    subs = {
+        "safety": {"fired": fired, "verdict": ("highly_constrained_safety_concern", "x")},
+        "surface_modality": {"verdict": (surface_verdict, "adc-tce-fit")},
+    }
     survivors, supp = tp_gates._suppressed_gate_hits(list(_HIT), subs, modality)
     return any(h["short"] == "safety" for h in survivors), supp
 
@@ -89,8 +95,8 @@ def test_amp_adc_cleared_when_modality_explicitly_adc():
     """An explicit --modality adc clears the WT-loss hold even without a surface sub-verdict (the user is
     asking about the ADC channel, to which WT-loss does not apply)."""
     survivors, supp = tp_gates._suppressed_gate_hits(
-        list(_HIT), {"safety": {"fired": _AMP, "verdict": ("highly_constrained_safety_concern", "x")}},
-        "adc")
+        list(_HIT), {"safety": {"fired": _AMP, "verdict": ("highly_constrained_safety_concern", "x")}}, "adc"
+    )
     assert not any(h["short"] == "safety" for h in survivors)
 
 

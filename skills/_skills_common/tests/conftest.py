@@ -1,4 +1,5 @@
 """Shared pytest fixtures for the _skills_common test suite."""
+
 from __future__ import annotations
 
 import pytest
@@ -23,8 +24,7 @@ def _scrub_volatile(pkg: dict) -> dict:
     pkg.pop("generated_at", None)
     rh = pkg.get("run_health")
     if isinstance(rh, dict):
-        pkg["run_health"] = {k: v for k, v in rh.items()
-                             if k not in ("read_secs", "compute_secs", "total_secs")}
+        pkg["run_health"] = {k: v for k, v in rh.items() if k not in ("read_secs", "compute_secs", "total_secs")}
     return pkg
 
 
@@ -41,10 +41,14 @@ def scrub_volatile():
 # an S3 access/credential failure OR degrades to a structured no-data dict, skip — that's an
 # environment limitation, not a regression. A dict with real populated fields returns normally.
 _S3_ACCESS_MARKERS = (
-    "access_denied", "accessdenied",
-    "nocredentials", "unable to locate credentials",
-    "forbidden", "403",
-    "expiredtoken", "invalidaccesskeyid",
+    "access_denied",
+    "accessdenied",
+    "nocredentials",
+    "unable to locate credentials",
+    "forbidden",
+    "403",
+    "expiredtoken",
+    "invalidaccesskeyid",
     "profilenotfound",
 )
 

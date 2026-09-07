@@ -8,6 +8,7 @@ NOTE (deliberately NOT shared): presence_matrix's `_TIER_FILL` is a DIFFERENT se
 cell-shading ramp, not the signal-tier fill), and subgroup_figure keeps its own palette — those are
 intentionally distinct and stay module-local pending a design pass.
 """
+
 from __future__ import annotations
 
 

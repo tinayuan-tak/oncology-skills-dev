@@ -4,6 +4,7 @@ target_report.risk_6dim from in-memory sub_results). Pins the CONTRACT (modality
 conjunction, reproducibility, engine-blind dims, card-fed clinical/commercial) — not the thresholds —
 and the in-memory package assembler's byte-parity with the on-disk evidence-package cards.
 """
+
 from __future__ import annotations
 
 import sys
@@ -14,23 +15,27 @@ if str(COMMON.parent) not in sys.path:
     sys.path.insert(0, str(COMMON.parent))  # skills/
 
 from _skills_common.risk_projection import (  # noqa: E402
-    deterministic_bins, assemble_risk_package, _mod,
+    deterministic_bins,
+    assemble_risk_package,
+    _mod,
 )
 
 
 def _pkg(sub_verdicts: dict, cards: list | None = None) -> dict:
-    return {"synthesis": {"sub_verdicts": {k: {"verdict": v} for k, v in sub_verdicts.items()}},
-            "cards": cards or []}
+    return {"synthesis": {"sub_verdicts": {k: {"verdict": v} for k, v in sub_verdicts.items()}}, "cards": cards or []}
 
 
 # --------------------------------------------------------------- deterministic_bins (the pure core)
+
 
 def test_safety_conjunction_fixes_false_low():
     """The validated FOLR1 fix: on-target-safety may read tolerant, but a critical-organ normal-tissue
     liability under a SURFACE modality escalates safety to HIGH (esc=2) — a 1:1 on-target-only map misses
     it. Conjunction, not a single lookup."""
-    pkg = _pkg({"safety": "tolerant_reduced_safety_risk"},
-               [{"card_id": "normal-tissue-liability-gtex", "interpretation_call": "critical_organ_liability"}])
+    pkg = _pkg(
+        {"safety": "tolerant_reduced_safety_risk"},
+        [{"card_id": "normal-tissue-liability-gtex", "interpretation_call": "critical_organ_liability"}],
+    )
     assert deterministic_bins(pkg, "adc")["safety"]["bin"] == "HIGH"
     # same signal, non-surface modality → esc=1 → MED (still raised above the tolerant base LOW)
     assert deterministic_bins(pkg, "small_molecule")["safety"]["bin"] == "MED"
@@ -79,13 +84,16 @@ def test_engine_blind_dims_present_when_unfed():
 
 
 def test_raw_loeuf_surfaced_in_safety_chain():
-    pkg = _pkg({"safety": "highly_constrained_safety_concern"},
-               [{"card_id": "gnomad-lof-constraint", "summary": {"loeuf_score": 0.12}}])
+    pkg = _pkg(
+        {"safety": "highly_constrained_safety_concern"},
+        [{"card_id": "gnomad-lof-constraint", "summary": {"loeuf_score": 0.12}}],
+    )
     chain = deterministic_bins(pkg, "small_molecule")["safety"]["chain"]
     assert any("0.12" in str(detail) for _src, detail, _lvl in chain)
 
 
 # --------------------------------------------------------------- assemble_risk_package (in-memory pkg)
+
 
 def _sr(short, verdict, cards=None):
     return {short: {"verdict": (verdict, "r"), "cards": cards or []}}
@@ -96,29 +104,40 @@ def test_assemble_from_sub_results_feeds_cards_and_verdicts():
     verdict string — so a clinical-precedent card carried on a sub-result reaches the clinical bin."""
     sub_results = {
         **_sr("safety", "highly_constrained_safety_concern"),
-        **_sr("differentiation", "landscape",
-              [{"card_id": "clinical-precedent", "summary": {"highest_clinical_stage": "approved"},
-                "interpretation_call": "x"}]),
+        **_sr(
+            "differentiation",
+            "landscape",
+            [
+                {
+                    "card_id": "clinical-precedent",
+                    "summary": {"highest_clinical_stage": "approved"},
+                    "interpretation_call": "x",
+                }
+            ],
+        ),
     }
     pkg = assemble_risk_package(sub_results)
     dims = deterministic_bins(pkg, _mod("small_molecule"))
-    assert dims["safety"]["bin"] == "HIGH"       # verdict string threaded
-    assert dims["clinical"]["bin"] == "LOW"       # present card threaded through _envelope_card_present
+    assert dims["safety"]["bin"] == "HIGH"  # verdict string threaded
+    assert dims["clinical"]["bin"] == "LOW"  # present card threaded through _envelope_card_present
 
 
 def test_assemble_skips_missing_cards():
     """A _missing card must be excluded from the package (matching _write_evidence_package's present-only
     union) — so a would-be competitor card that didn't resolve leaves commercial ENGINE-BLIND."""
-    sub_results = _sr("differentiation", "landscape",
-                      [{"card_id": "competitor-landscape",
-                        "summary": {"competitor_class": "approved_competitor"}, "_missing": True}])
+    sub_results = _sr(
+        "differentiation",
+        "landscape",
+        [{"card_id": "competitor-landscape", "summary": {"competitor_class": "approved_competitor"}, "_missing": True}],
+    )
     pkg = assemble_risk_package(sub_results)
-    assert pkg["cards"] == []                      # skipped
+    assert pkg["cards"] == []  # skipped
     assert deterministic_bins(pkg, "small_molecule")["commercial"]["bin"] == "ENGINE-BLIND"
 
 
 def test_assemble_bad_input_raises_for_caller_to_catch():
     """assemble_risk_package is pure; a non-dict caller error surfaces (build_risk_6dim wraps it)."""
     import pytest
+
     with pytest.raises(AttributeError):
         assemble_risk_package("not-a-dict")

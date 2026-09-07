@@ -15,6 +15,7 @@ tests (test_<skill>_replay.py) load + validate against that schema — imported 
 Pure helpers: they do NOT call pytest.skip/fail — the test decides that, so the CI-fail-not-skip policy
 stays in the test layer.
 """
+
 from __future__ import annotations
 
 import json

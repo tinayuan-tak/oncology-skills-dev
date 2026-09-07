@@ -7,6 +7,7 @@ Offline: pure _headline over synthetic cards, no S3/reader.
 _headline reads several cards via get_card_field, which RAISES on a missing card_id — so a valid call
 must supply every card the skill declares (me.CARDS); we populate only the tahoe one.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -20,7 +21,7 @@ me = load_run_py(Path(__file__).resolve().parent.parent, "me_run")
 _TAHOE_SUMMARY = {
     "tahoe_perturbation_class": "drug_suppressed",
     "n_perturbing_drugs": 12,
-    "strongest_mover_drug": "Trametinib",           # the DUSP6->MEK-inhibitor Pilot-2 anchor
+    "strongest_mover_drug": "Trametinib",  # the DUSP6->MEK-inhibitor Pilot-2 anchor
     "strongest_mover_log2fc": -2.3,
     "top_suppressing_drugs": [{"drug": "Trametinib", "median_log2fc": -2.3}],
     "top_inducing_drugs": [],
@@ -49,7 +50,7 @@ def test_headline_emits_all_six_tahoe_fields():
     assert h["tahoe_strongest_mover_drug"] == "Trametinib"
     assert h["tahoe_strongest_mover_log2fc"] == -2.3
     assert h["tahoe_top_suppressing_drugs"] == [{"drug": "Trametinib", "median_log2fc": -2.3}]
-    assert "tahoe_top_inducing_drugs" in h            # emitted even when empty
+    assert "tahoe_top_inducing_drugs" in h  # emitted even when empty
 
 
 def test_tahoe_is_verdict_inert():

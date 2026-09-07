@@ -10,6 +10,7 @@ _SHORT_TO_GATE, so it can never move the spine) AND the RuntimeError is the spec
 one. It must NOT swallow (a) errors on verdict-bearing gates, nor (b) any other RuntimeError — those
 are real faults that must stay fail-loud.
 """
+
 from __future__ import annotations
 
 import sys
@@ -24,7 +25,8 @@ import tp_fanout  # noqa: E402
 
 _MISSING = RuntimeError(
     "cis_coherence resolver spec missing "
-    "(target-contracts/resolvers/cis_coherence.resolver.yaml) — the verdict source of truth is absent.")
+    "(target-contracts/resolvers/cis_coherence.resolver.yaml) — the verdict source of truth is absent."
+)
 
 
 def test_gateless_axis_absent_resolver_is_swallowed():

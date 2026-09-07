@@ -5,6 +5,7 @@ an independent MW test at per-card alpha=0.05, with NO shared compute point. _ap
 collects the FIRING classes, BH-corrects jointly, and DEMOTES any whose family-wise q >= alpha so its
 rule cannot fire. Must be a no-op (byte-stable) when <2 classes fire.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -38,6 +39,7 @@ def _ae(cls, p):
 
 # ── BH math ───────────────────────────────────────────────────────────────
 
+
 def test_bh_qvalues_monotone_and_bounded():
     q = gap._bh_qvalues([0.01, 0.02, 0.5])
     assert all(0 <= x <= 1 for x in q)
@@ -56,13 +58,14 @@ def test_bh_matches_known_values():
 
 # ── no-op cases (byte-stable) ───────────────────────────────────────────────
 
+
 def test_single_class_fire_is_noop():
     # family_size counts TESTED classes (both have a p), n_firing counts firing (1). Correction
     # still requires >=2 FIRING → no-op, class unchanged.
     cards = [_mut("mutant_strongly_dependent", 1e-9), _cn("not_cn_stratified", 0.4)]
     prov = gap._apply_family_wise_fdr(cards)
     assert prov["corrected"] is False and prov["n_firing"] == 1 and prov["demoted"] == []
-    assert prov["family_size"] == 2   # 2 TESTED (the denominator), even though only 1 fired
+    assert prov["family_size"] == 2  # 2 TESTED (the denominator), even though only 1 fired
     # class unchanged
     assert cards[0]["summary"]["mutation_stratification_class"] == "mutant_strongly_dependent"
 
@@ -71,16 +74,19 @@ def test_zero_class_fire_is_noop():
     cards = [_mut("not_mutation_stratified", 0.5), _cn("not_cn_stratified", 0.6)]
     prov = gap._apply_family_wise_fdr(cards)
     assert prov["corrected"] is False and prov["n_firing"] == 0
-    assert prov["family_size"] == 2   # 2 TESTED (both emit a p), 0 firing
+    assert prov["family_size"] == 2  # 2 TESTED (both emit a p), 0 firing
 
 
 # ── verdict-moving cases ────────────────────────────────────────────────────
 
+
 def test_multiclass_all_strong_all_survive():
     # 3 classes fire, all with tiny p → BH keeps all significant → none demoted.
-    cards = [_mut("mutant_strongly_dependent", 1e-20),
-             _cn("amplified_strongly_dependent", 1e-18),
-             _fus("fusion_positive_strongly_dependent", 1e-15)]
+    cards = [
+        _mut("mutant_strongly_dependent", 1e-20),
+        _cn("amplified_strongly_dependent", 1e-18),
+        _fus("fusion_positive_strongly_dependent", 1e-15),
+    ]
     prov = gap._apply_family_wise_fdr(cards)
     assert prov["corrected"] is True and prov["family_size"] == 3 and prov["demoted"] == []
     assert cards[0]["summary"]["mutation_stratification_class"] == "mutant_strongly_dependent"
@@ -96,16 +102,21 @@ def test_multiclass_weakest_demoted_by_fdr():
     # at the card level. The realistic demotion: 3 fired, weakest p=0.04 → q=0.04*3/3=0.04 survives;
     # p=0.048 with m=3 and mid p=0.045 → sorted[0.001,0.045,0.048]: q3=0.048, q2=min(0.048,0.045*3/2=0.0675)=0.048,
     # → 0.048 survives. FDR is LENIENT by design. Force a clear demotion with a wide spread:
-    cards = [_mut("mutant_strongly_dependent", 1e-12),
-             _cn("amplified_moderately_dependent", 0.049),
-             _fus("fusion_positive_moderately_dependent", 0.049)]
+    cards = [
+        _mut("mutant_strongly_dependent", 1e-12),
+        _cn("amplified_moderately_dependent", 0.049),
+        _fus("fusion_positive_moderately_dependent", 0.049),
+    ]
     prov = gap._apply_family_wise_fdr(cards)
     # family of 3; the two 0.049s: sorted [1e-12, 0.049, 0.049], q for the largest = 0.049*3/3=0.049
     # (survives), middle = min(0.049, 0.049*3/2=0.0735)=0.049 (survives). So NONE demoted — this proves
     # BH is appropriately lenient. Assert the provenance records the family + q-values honestly.
     assert prov["corrected"] is True and prov["family_size"] == 3
     assert set(prov["family_wise_q"].keys()) == {
-        "mutation-stratified-dependency", "copy-number-stratified-dependency", "fusion-stratified-dependency"}
+        "mutation-stratified-dependency",
+        "copy-number-stratified-dependency",
+        "fusion-stratified-dependency",
+    }
 
 
 def test_demotion_actually_fires_with_failing_q():
@@ -117,10 +128,12 @@ def test_demotion_actually_fires_with_failing_q():
     # demote when raw p is close to alpha AND many tests inflate the rank penalty. p=0.049 at rank 4/4:
     # q=0.049 survives; rank 4 with m=4 gives k=4 → no penalty. The penalty bites at LOWER ranks:
     # p=0.049 as the 2nd-largest of 4 → q=0.049*4/3=0.065 >= 0.05 → DEMOTED.
-    cards = [_mut("mutant_strongly_dependent", 1e-15),
-             _cn("amplified_strongly_dependent", 1e-14),
-             _fus("fusion_positive_moderately_dependent", 0.049),
-             _ae("amplified_overexpressed_strongly_dependent", 0.001)]
+    cards = [
+        _mut("mutant_strongly_dependent", 1e-15),
+        _cn("amplified_strongly_dependent", 1e-14),
+        _fus("fusion_positive_moderately_dependent", 0.049),
+        _ae("amplified_overexpressed_strongly_dependent", 0.001),
+    ]
     prov = gap._apply_family_wise_fdr(cards)
     # sorted p: [1e-15, 1e-14, 0.001, 0.049]; ranks 1..4. q(0.049)=0.049*4/4=0.049 (survives!)
     # q(0.001)=min(0.049, 0.001*4/3=0.00133)=0.00133. So 0.049 at the TOP rank survives.
@@ -145,9 +158,11 @@ def test_demotion_when_weak_p_not_top_rank():
     # and reassuring: the correction is conservative, so the FDR stage is near-byte-stable in practice
     # and only demotes pathological spreads. Assert that a genuinely-failing raw p (>=alpha, included
     # defensively) IS demoted:
-    cards = [_mut("mutant_strongly_dependent", 1e-9),
-             _cn("amplified_moderately_dependent", 0.001),
-             _fus("fusion_positive_moderately_dependent", 0.30)]  # p=0.30 fired-but-weak (defensive)
+    cards = [
+        _mut("mutant_strongly_dependent", 1e-9),
+        _cn("amplified_moderately_dependent", 0.001),
+        _fus("fusion_positive_moderately_dependent", 0.30),
+    ]  # p=0.30 fired-but-weak (defensive)
     prov = gap._apply_family_wise_fdr(cards)
     # sorted[1e-9,0.001,0.30]; q(0.30)=0.30*3/3=0.30 >= 0.05 → DEMOTED
     assert "fusion-stratified-dependency" in prov["demoted"]
@@ -157,15 +172,16 @@ def test_demotion_when_weak_p_not_top_rank():
 
 # ── denominator = TESTED classes, not just firing ──────────────────────────────────────────────────
 
+
 def test_denominator_counts_tested_not_just_firing():
     """Two firing classes at p=0.03 with two more TESTED (non-firing) classes must be BH-corrected
     against m=4 (all tested), not m=2 (firing subset). m=4 → q≈0.06 ≥ 0.05 → BOTH firing classes demote;
     the old m=firing gave q≈0.03 < 0.05 → both survived (the under-correction bug)."""
     cards = [
-        _mut("mutant_strongly_dependent", 0.03),          # firing
-        _cn("amplified_strongly_dependent", 0.03),        # firing
-        _fus("not_fusion_stratified", 0.90),              # tested, not firing
-        _ae("not_amp_expr_stratified", 0.90),             # tested, not firing
+        _mut("mutant_strongly_dependent", 0.03),  # firing
+        _cn("amplified_strongly_dependent", 0.03),  # firing
+        _fus("not_fusion_stratified", 0.90),  # tested, not firing
+        _ae("not_amp_expr_stratified", 0.90),  # tested, not firing
     ]
     prov = gap._apply_family_wise_fdr(cards)
     assert prov["family_size"] == 4 and prov["n_firing"] == 2 and prov["corrected"] is True

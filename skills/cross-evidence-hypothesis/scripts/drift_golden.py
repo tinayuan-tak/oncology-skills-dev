@@ -14,6 +14,7 @@ decision, the intra-package coherence result, and the two provenance PINS (promp
 model_id). The LLM PROSE (edge rationales, clause statements) is deliberately NOT frozen — only the
 deterministic spine required to be run-to-run stable.
 """
+
 from __future__ import annotations
 
 import json
@@ -33,12 +34,15 @@ def trim_evidence_package(pkg: dict) -> dict:
         "framework_version": pkg.get("framework_version"),
         "context": pkg.get("context", {}),
         "synthesis": {
-            "sub_verdicts": syn.get("sub_verdicts", {}),           # full: verdict + fired_rule_ids
+            "sub_verdicts": syn.get("sub_verdicts", {}),  # full: verdict + fired_rule_ids
             "recommendation_gate": syn.get("recommendation_gate", {}),  # full: fired/hard_gates/...
-            "claim_vectors": syn.get("claim_vectors", {}),         # Stage 2a: signal facets + citable atoms
+            "claim_vectors": syn.get("claim_vectors", {}),  # Stage 2a: signal facets + citable atoms
         },
-        "cards": [{k: c.get(k) for k in _CARD_KEEP if k in c}
-                  for c in pkg.get("cards", []) if isinstance(c, dict) and c.get("card_id")],
+        "cards": [
+            {k: c.get(k) for k in _CARD_KEEP if k in c}
+            for c in pkg.get("cards", [])
+            if isinstance(c, dict) and c.get("card_id")
+        ],
     }
     if isinstance(pkg.get("subtype_resolved"), dict):
         out["subtype_resolved"] = pkg["subtype_resolved"]
@@ -88,9 +92,11 @@ def deterministic_spine_subset(r: dict) -> dict:
 
 def load_golden_case(case_dir: Path) -> dict:
     """Read a golden case dir → the inputs + the frozen expected spine subset."""
+
     def _opt(name):
         p = case_dir / name
         return str(p) if p.exists() else None
+
     return {
         "pkg": str(case_dir / "evidence_package.json"),
         "risk": _opt("risk.json"),

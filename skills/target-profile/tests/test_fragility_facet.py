@@ -13,6 +13,7 @@ Covers the load-bearing behaviours:
   - a blind (un-evidenced) decision axis is tracked separately, NOT folded into the indices.
   - VERDICT-INERT: the facet never mutates sub_results and never perturbs _gate_recommendation.
 """
+
 from __future__ import annotations
 
 import copy
@@ -59,8 +60,7 @@ def _fixture_contracts(tmp_path: Path, with_threshold: bool = True) -> Path:
         "action_precedence": {"veto": 2, "hold": 1},
         "gates": [
             {"sub_skill": "dependency", "verdict": "non_dependent", "action": "veto", "rationale": "t"},
-            {"sub_skill": "safety", "verdict": "highly_constrained_safety_concern",
-             "action": "hold", "rationale": "t"},
+            {"sub_skill": "safety", "verdict": "highly_constrained_safety_concern", "action": "hold", "rationale": "t"},
         ],
         "positive_signals": [
             {"sub_skill": "dependency", "verdict": "lineage_selective", "weight": "supportive"},
@@ -83,15 +83,18 @@ def _sr(**by_short) -> dict:
     """sub_results from {short: (fired_rule_ids, verdict_tuple_or_None)}."""
     out = {}
     for short, (rule_ids, verdict) in by_short.items():
-        out[short] = {"skill_dir": short, "cards": [],
-                      "fired": [{"rule_id": r} for r in rule_ids], "verdict": verdict}
+        out[short] = {"skill_dir": short, "cards": [], "fired": [{"rule_id": r} for r in rule_ids], "verdict": verdict}
     return out
 
 
 def test_raw_vs_decision_flip_kras_anchor(tmp_path):
     c = _fixture_contracts(tmp_path)
-    sr = _sr(dependency=(["lineage-selective-supportive", "strongly-selective-supportive"],
-                         ("lineage_selective", "lineage-selective-supportive")))
+    sr = _sr(
+        dependency=(
+            ["lineage-selective-supportive", "strongly-selective-supportive"],
+            ("lineage_selective", "lineage-selective-supportive"),
+        )
+    )
     f = run._fragility_facet(sr, contracts_repo=c)
     ax = f["per_axis"]["dependency"]
     # raw flips: killer-add (→non_dependent) AND lineage-remove (→selective_dependent) = 2/3.
@@ -103,10 +106,10 @@ def test_raw_vs_decision_flip_kras_anchor(tmp_path):
     assert ax["recommendation_flip_fragility"] == round(1 / 3, 4)
     killer = [df for df in ax["decision_flips"] if df["to_verdict"] == "non_dependent"]
     assert killer and killer[0]["recommendation_flip"] is True and killer[0]["to_role"] == "kill:veto"
-    assert {df["to_verdict"] for df in ax["decision_flips"]} == {"non_dependent"}   # KRAS anchor
+    assert {df["to_verdict"] for df in ax["decision_flips"]} == {"non_dependent"}  # KRAS anchor
     assert f["target_index"] == round(1 / 3, 4)
     assert f["recommendation_fragility_index"] == round(1 / 3, 4)
-    assert f["contested"] is False                                # 0.333 < 0.5
+    assert f["contested"] is False  # 0.333 < 0.5
 
 
 def test_contested_true_on_recommendation_fragile_axis(tmp_path):
@@ -128,11 +131,11 @@ def test_call_fragile_but_recommendation_solid_not_contested(tmp_path):
     sr = _sr(selectivity=(["sel-strong"], ("strong_tumor_selective", "sel-strong")))
     f = run._fragility_facet(sr, contracts_repo=c)
     ax = f["per_axis"]["selectivity"]
-    assert ax["decision_flip_fragility"] == 0.5          # call IS fragile (positive→contradiction)
-    assert ax["recommendation_flip_fragility"] == 0.0    # but crosses NO kill boundary
+    assert ax["decision_flip_fragility"] == 0.5  # call IS fragile (positive→contradiction)
+    assert ax["recommendation_flip_fragility"] == 0.0  # but crosses NO kill boundary
     assert f["target_index"] == 0.5
     assert f["recommendation_fragility_index"] == 0.0
-    assert f["contested"] is False                       # the whole point of the refinement
+    assert f["contested"] is False  # the whole point of the refinement
 
 
 def test_selectivity_veto_reflected_in_fragility_base_verdict(tmp_path):
@@ -146,14 +149,14 @@ def test_selectivity_veto_reflected_in_fragility_base_verdict(tmp_path):
     equal it."""
     c = _fixture_contracts(tmp_path)
     veto_rule = "tvn-no-therapeutic-window-veto"
-    sr = _sr(selectivity=(["sel-strong", veto_rule],
-                          ("selective_but_broadly_normal", veto_rule)))
+    sr = _sr(selectivity=(["sel-strong", veto_rule], ("selective_but_broadly_normal", veto_rule)))
     f = run._fragility_facet(sr, contracts_repo=c)
     ax = f["per_axis"]["selectivity"]
     adopted = sr["selectivity"]["verdict"][0]
     assert ax["base_verdict"] == "selective_but_broadly_normal", (
         f"fragility base_verdict={ax['base_verdict']!r} — expected the POST-veto adopted verdict "
-        f"(pre-veto leak: reported strong_tumor_selective for a broadly-normal target).")
+        f"(pre-veto leak: reported strong_tumor_selective for a broadly-normal target)."
+    )
     assert ax["base_verdict"] == adopted, "facet base_verdict must match the adopted sub-skill verdict"
 
 
@@ -168,8 +171,9 @@ def test_selectivity_without_veto_unchanged(tmp_path):
 
 def test_blind_axis_tracked_separately_not_in_index(tmp_path):
     c = _fixture_contracts(tmp_path)
-    sr = _sr(dependency=(["non-dependent-killer"], ("non_dependent", "non-dependent-killer")),
-             safety=([], None))   # safety: no verdict, no fired → blind
+    sr = _sr(
+        dependency=(["non-dependent-killer"], ("non_dependent", "non-dependent-killer")), safety=([], None)
+    )  # safety: no verdict, no fired → blind
     f = run._fragility_facet(sr, contracts_repo=c)
     assert "safety" in f["blind_decision_axes"]
     assert f["per_axis"]["safety"]["fragility"] is None
@@ -183,22 +187,24 @@ def test_no_contested_flag_without_threshold(tmp_path):
     c = _fixture_contracts(tmp_path, with_threshold=False)
     sr = _sr(safety=(["safety-killer"], ("highly_constrained_safety_concern", "safety-killer")))
     f = run._fragility_facet(sr, contracts_repo=c)
-    assert f["recommendation_fragility_index"] == 0.5    # the number is always emitted
-    assert f["contested"] is None                        # but no flag without a configured threshold
+    assert f["recommendation_fragility_index"] == 0.5  # the number is always emitted
+    assert f["contested"] is None  # but no flag without a configured threshold
     assert f["_contested_threshold"] is None
 
 
 def test_verdict_inert(tmp_path):
     """The facet must not mutate sub_results and must not perturb the recommendation gate."""
     c = _fixture_contracts(tmp_path)
-    sr = _sr(dependency=(["lineage-selective-supportive"], ("lineage_selective", "lineage-selective-supportive")),
-             selectivity=(["sel-strong"], ("strong_tumor_selective", "sel-strong")))
+    sr = _sr(
+        dependency=(["lineage-selective-supportive"], ("lineage_selective", "lineage-selective-supportive")),
+        selectivity=(["sel-strong"], ("strong_tumor_selective", "sel-strong")),
+    )
     sr_before = copy.deepcopy(sr)
     gate_before = run._gate_recommendation(sr, contracts_repo=c)
     f = run._fragility_facet(sr, contracts_repo=c)
     gate_after = run._gate_recommendation(sr, contracts_repo=c)
-    assert sr == sr_before                    # no mutation of the input
-    assert gate_before == gate_after          # the facet did not perturb the gate
+    assert sr == sr_before  # no mutation of the input
+    assert gate_before == gate_after  # the facet did not perturb the gate
     assert "overall_recommendation" not in f
     assert "value" not in f
 
@@ -212,9 +218,11 @@ def test_short_to_gate_maps_to_real_resolvers():
     import pytest
     from _skills_common.reachability import resolver_referenced_rule_ids
 
-    contracts = Path(os.environ.get(
-        "TARGET_CONTRACTS_ROOT",
-        "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
+    contracts = Path(
+        os.environ.get(
+            "TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
+        )
+    )
     if not (contracts / "resolvers").is_dir():
         pytest.skip("live target-contracts resolvers/ not available")
     for short, gate in run._SHORT_TO_GATE.items():
@@ -227,10 +235,12 @@ def test_acquisition_backlog_lists_blind_axis_with_missing_cards(tmp_path):
     their availability_state (the 'go measure X' backlog the composed layer otherwise drops)."""
     c = _fixture_contracts(tmp_path)
     sr = _sr(dependency=(["strongly-selective-supportive"], ("selective_dependent", "x")))  # evidenced
-    sr["safety"] = {"skill_dir": "safety",
-                    "cards": [{"card_id": "gnomad-lof-constraint", "_missing": True,
-                               "availability_state": "data_blocked"}],
-                    "fired": [], "verdict": None}   # blind
+    sr["safety"] = {
+        "skill_dir": "safety",
+        "cards": [{"card_id": "gnomad-lof-constraint", "_missing": True, "availability_state": "data_blocked"}],
+        "fired": [],
+        "verdict": None,
+    }  # blind
     f = run._fragility_facet(sr, contracts_repo=c)
     ab = {a["axis"]: a for a in f["acquisition_backlog"]}
     assert "safety" in ab, "blind decision axis must surface as an ACQUIRE task"
@@ -251,14 +261,14 @@ def test_measured_negative_kill_is_not_an_acquire_task(tmp_path):
 
 # ── M4 insufficient-split: the factored record's finding.availability drives a THIRD action class ──
 
+
 def test_measured_insufficient_is_a_strengthen_task_not_acquire(tmp_path):
     """The record resolves the state the has_signal/blind logic could not: a MEASURED-but-underpowered
     verdict (finding.availability=='insufficient') HAS signal (so it is not blind/acquire) yet is thin
     → it lands in `underpowered_axes` with action 'strengthen', NOT in acquisition_backlog."""
     c = _fixture_contracts(tmp_path)
     sr = _sr(dependency=(["strongly-selective-supportive"], ("selective_dependent", "x")))  # has signal
-    sr["dependency"]["claim_record_shadow"] = {"axis": "dependency",
-                                               "finding": {"availability": "insufficient"}}
+    sr["dependency"]["claim_record_shadow"] = {"axis": "dependency", "finding": {"availability": "insufficient"}}
     f = run._fragility_facet(sr, contracts_repo=c)
     up = {a["axis"]: a for a in f["underpowered_axes"]}
     assert "dependency" in up, "a measured-underpowered axis must surface as a STRENGTHEN task"
@@ -272,11 +282,13 @@ def test_acquire_entry_carries_record_availability(tmp_path):
     over the per-missing-card availability_state)."""
     c = _fixture_contracts(tmp_path)
     sr = _sr(dependency=(["strongly-selective-supportive"], ("selective_dependent", "x")))
-    sr["safety"] = {"skill_dir": "safety",
-                    "cards": [{"card_id": "gnomad-lof-constraint", "_missing": True,
-                               "availability_state": "data_blocked"}],
-                    "fired": [], "verdict": None,
-                    "claim_record_shadow": {"axis": "safety", "finding": {"availability": "not_wired"}}}
+    sr["safety"] = {
+        "skill_dir": "safety",
+        "cards": [{"card_id": "gnomad-lof-constraint", "_missing": True, "availability_state": "data_blocked"}],
+        "fired": [],
+        "verdict": None,
+        "claim_record_shadow": {"axis": "safety", "finding": {"availability": "not_wired"}},
+    }
     f = run._fragility_facet(sr, contracts_repo=c)
     ab = {a["axis"]: a for a in f["acquisition_backlog"]}
     assert ab["safety"]["availability"] == "not_wired"

@@ -16,6 +16,7 @@ headline field-map, or the axis is duplicated here — a change to the skill is 
 replay. The frozen fixture is refreshed by a nightly-live re-freeze (freeze_fixture.py), which is what
 guards the snapshot itself against reader drift.
 """
+
 from __future__ import annotations
 
 import copy
@@ -46,8 +47,7 @@ def _load_fixture() -> dict:
 
 def _real_summary(s) -> bool:
     """A frozen entry is a REAL reader summary (not a freeze/dispatcher error, not empty)."""
-    return (isinstance(s, dict) and bool(s)
-            and not s.get("_freeze_error") and not s.get("_dispatcher_returned_none"))
+    return isinstance(s, dict) and bool(s) and not s.get("_freeze_error") and not s.get("_dispatcher_returned_none")
 
 
 @pytest.fixture(scope="module")
@@ -62,8 +62,9 @@ def egfr_decision(tmp_path_factory):
         def _read_live(card_id, target, indication, *args, **kwargs):
             s = frozen.get(card_id)
             if not _real_summary(s):
-                return None                       # → resolve_cards marks the card _missing (honest)
-            return copy.deepcopy(s)               # deepcopy: run.py must not mutate the shared fixture
+                return None  # → resolve_cards marks the card _missing (honest)
+            return copy.deepcopy(s)  # deepcopy: run.py must not mutate the shared fixture
+
         return _read_live
 
     out_dir = tmp_path_factory.mktemp("ti-egfr-replay")
@@ -75,7 +76,7 @@ def egfr_decision(tmp_path_factory):
     mp.setattr(sys, "argv", ["run.py", "--target", "EGFR", "--out", str(out_dir)])
     try:
         runpy.run_path(str(RUN_PY), run_name="__main__")
-    except SystemExit as e:                        # run.py ends in sys.exit(run_wired_skill(...))
+    except SystemExit as e:  # run.py ends in sys.exit(run_wired_skill(...))
         assert e.code in (0, None), f"run.py exited non-zero ({e.code}) on the frozen EGFR replay"
     finally:
         mp.undo()
@@ -93,7 +94,8 @@ def test_fixture_is_nonvacuous():
     real = [cid for cid, s in frozen.items() if _real_summary(s)]
     assert len(real) >= 12, (
         f"only {len(real)}/{len(frozen)} frozen cards carry a real summary — refreeze against live "
-        f"S3 (freeze_fixture.py). Real cards: {sorted(real)}")
+        f"S3 (freeze_fixture.py). Real cards: {sorted(real)}"
+    )
 
 
 def test_replay_conforms_to_data_product_schema(egfr_decision):
@@ -109,7 +111,8 @@ def test_replay_conforms_to_data_product_schema(egfr_decision):
         pytest.fail(reason + " [CI]") if os.environ.get("CI") else pytest.skip(reason)
     errors = conformance_errors(schema, egfr_decision)
     assert not errors, "FRESH replay emit violates the data-product schema:\n  " + "\n  ".join(
-        f"{list(e.path)}: {e.message}" for e in errors[:15])
+        f"{list(e.path)}: {e.message}" for e in errors[:15]
+    )
 
 
 def test_replay_identity_and_verdict_free(egfr_decision):
@@ -118,7 +121,8 @@ def test_replay_identity_and_verdict_free(egfr_decision):
     assert (egfr_decision.get("headline") or {}).get("target_symbol") == "EGFR"
     # descriptive skill: no top-level verdict spine
     assert egfr_decision.get("verdict") in (None, "descriptive", "none"), (
-        f"target-intrinsic is verdict-free; got verdict={egfr_decision.get('verdict')!r}")
+        f"target-intrinsic is verdict-free; got verdict={egfr_decision.get('verdict')!r}"
+    )
 
 
 def test_replay_domain_modality_not_removal_favored(egfr_decision):
@@ -127,7 +131,8 @@ def test_replay_domain_modality_not_removal_favored(egfr_decision):
     klass = (egfr_decision.get("headline") or {}).get("modality_implication_class")
     assert klass != "removal_favored", (
         f"EGFR modality_implication_class={klass!r}: the multi-domain-enzyme heuristic mislabelled a "
-        f"well-drugged inhibitor target as degrader-favored.")
+        f"well-drugged inhibitor target as degrader-favored."
+    )
 
 
 def test_replay_headline_resolves_broadly(egfr_decision):
@@ -140,7 +145,8 @@ def test_replay_headline_resolves_broadly(egfr_decision):
     assert len(non_null) >= 12, (
         f"only {len(non_null)}/{len(headline)} headline fields resolved for the frozen EGFR replay — "
         f"suspect a reader field-name drift vs _HEADLINE_SPEC (g('card','field') -> None). "
-        f"Non-null keys: {sorted(non_null)}")
+        f"Non-null keys: {sorted(non_null)}"
+    )
 
 
 def test_replay_headline_block_descriptive_and_verdict_inert(egfr_decision):
@@ -154,14 +160,14 @@ def test_replay_headline_block_descriptive_and_verdict_inert(egfr_decision):
       * the hero lists exactly the two claim axes (MODALITY_ROUTING, TRACTABILITY_PRECEDENT)."""
     h = egfr_decision.get("headline") or {}
     assert "headline_block" not in (h.get("_enrichment_errors") or {}), (
-        f"headline_block degraded on the EGFR replay: "
-        f"{(h.get('_enrichment_errors') or {}).get('headline_block')}")
+        f"headline_block degraded on the EGFR replay: {(h.get('_enrichment_errors') or {}).get('headline_block')}"
+    )
     blk = h.get("headline_block")
     assert isinstance(blk, dict), "no headline_block on the EGFR replay"
-    assert blk["verdict"]["call"] is None                    # gateless — descriptive, no verdict token
+    assert blk["verdict"]["call"] is None  # gateless — descriptive, no verdict token
     assert isinstance(blk["verdict"]["phrase"], str) and blk["verdict"]["phrase"]
     assert blk["verdict"]["gate"] == "target_intrinsic"
-    assert blk["verdict"]["polarity"] == "neutral"           # a descriptive lens has no positive/negative call
+    assert blk["verdict"]["polarity"] == "neutral"  # a descriptive lens has no positive/negative call
     assert blk["confidence"]["level"] in ("strong", "moderate", "weak", "insufficient")
     assert [a["key"] for a in blk["hero"]["axes"]] == ["MODALITY_ROUTING", "TRACTABILITY_PRECEDENT"]
     assert blk["headline_text"].endswith(".")
@@ -175,7 +181,8 @@ def test_replay_intrinsic_confirmation_caveat_guards_egfr(egfr_decision):
     cav = h.get("intrinsic_confirmation_caveat")
     assert isinstance(cav, dict), "no intrinsic_confirmation_caveat on the EGFR replay"
     assert cav["reason"] == "experimentally_confirmed_intrinsic_property", (
-        f"EGFR (approved-drug, co-crystal) must be GUARDED, not flagged inflated; got {cav['reason']!r}")
+        f"EGFR (approved-drug, co-crystal) must be GUARDED, not flagged inflated; got {cav['reason']!r}"
+    )
     prov = h.get("intrinsic_provenance") or {}
     assert prov.get("experimentally_confirmed_actionable_property") is True
     assert prov.get("ot_composite_double_counts_dedicated_cards") is True

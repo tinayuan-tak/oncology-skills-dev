@@ -8,6 +8,7 @@ Standalone + additive — reads a nomination, writes/prints report artifacts. Th
 path now flows through this engine too (it renders target_profile.{md,html} here). With --out, files are
 written as report_<label>.<ext>; without --out, the (single) rendered backend prints to stdout.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -42,10 +43,11 @@ def _overrides(args) -> dict:
 
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(prog="python -m _skills_common.report_render",
-                                 description="Render a target report from a nomination.json spine.")
-    ap.add_argument("input", type=Path,
-                    help="path to a nomination.json OR a standalone skill decision.json")
+    ap = argparse.ArgumentParser(
+        prog="python -m _skills_common.report_render",
+        description="Render a target report from a nomination.json spine.",
+    )
+    ap.add_argument("input", type=Path, help="path to a nomination.json OR a standalone skill decision.json")
     ap.add_argument("--target", default=None, help="override target label (for a decision.json)")
     ap.add_argument("--indication", default=None, help="override indication label")
     ap.add_argument("--preset", choices=sorted(PRESETS), default=None)

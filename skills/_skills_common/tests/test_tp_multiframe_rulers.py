@@ -7,6 +7,7 @@ Each tumor-presence measurement_type now pairs its headline ruler with one ortho
 The builder projects every frame whose value is present; interp[0] stays the headline read.
 Verdict-INERT / display-only.
 """
+
 import sys
 from pathlib import Path
 
@@ -26,35 +27,69 @@ def _frames(mt):
 _MULTIFRAME = {
     "cell_line_rna_expression": (
         [("allgene_percentile", "distance_to_cut"), ("median_log2tpm_panel", "floor_cut_ceiling")],
-        {"allgene_percentile": 96.4, "allgene_percentile_class": "top_decile",
-         "median_log2tpm_panel": 6.2, "expression_class": "broadly_expressed",
-         "p5_log2tpm_panel": 0.1, "p95_log2tpm_panel": 8.0}),
+        {
+            "allgene_percentile": 96.4,
+            "allgene_percentile_class": "top_decile",
+            "median_log2tpm_panel": 6.2,
+            "expression_class": "broadly_expressed",
+            "p5_log2tpm_panel": 0.1,
+            "p95_log2tpm_panel": 8.0,
+        },
+    ),
     "tumor_expression_distribution": (
         # 3 frames: pan-cancer rank + within-tumor median (both fire on the main card) + subtype ε²
         # graded_band (fires only on the by-subtype card). This synthetic summary carries all three fields.
-        [("allgene_percentile", "distance_to_cut"), ("median_log2tpm", "distance_to_cut"),
-         ("subtype_variance_explained", "graded_band")],
-        {"allgene_percentile": 99.9, "allgene_percentile_class": "top_1pct",
-         "median_log2tpm": 6.1, "tumor_expression_class": "broadly_high",
-         "subtype_variance_explained": 0.18, "subtype_effect_size_class": "large_subtype_effect"}),
+        [
+            ("allgene_percentile", "distance_to_cut"),
+            ("median_log2tpm", "distance_to_cut"),
+            ("subtype_variance_explained", "graded_band"),
+        ],
+        {
+            "allgene_percentile": 99.9,
+            "allgene_percentile_class": "top_1pct",
+            "median_log2tpm": 6.1,
+            "tumor_expression_class": "broadly_high",
+            "subtype_variance_explained": 0.18,
+            "subtype_effect_size_class": "large_subtype_effect",
+        },
+    ),
     "cell_line_protein_abundance": (
         [("allgene_percentile", "distance_to_cut"), ("median_log2_abundance_panel", "floor_cut_ceiling")],
-        {"allgene_percentile": 3.8, "allgene_percentile_class": "bottom_decile",
-         "median_log2_abundance_panel": -1.2, "protein_expression_class": "low",
-         "p5_log2_abundance_panel": -3.0, "p95_log2_abundance_panel": 2.0}),
+        {
+            "allgene_percentile": 3.8,
+            "allgene_percentile_class": "bottom_decile",
+            "median_log2_abundance_panel": -1.2,
+            "protein_expression_class": "low",
+            "p5_log2_abundance_panel": -3.0,
+            "p95_log2_abundance_panel": 2.0,
+        },
+    ),
     "tumor_protein_abundance": (
         [("protein_effect_size", "distance_to_cut"), ("allgene_percentile", "distance_to_cut")],
-        {"protein_effect_size": 1.05, "protein_expression_class": "elevated",
-         "allgene_percentile": 91.0, "allgene_percentile_class": "top_decile"}),
+        {
+            "protein_effect_size": 1.05,
+            "protein_expression_class": "elevated",
+            "allgene_percentile": 91.0,
+            "allgene_percentile_class": "top_decile",
+        },
+    ),
     "tumor_vs_adjacent_expression": (
         [("log2_fc", "graded_band"), ("allgene_percentile", "distance_to_cut")],
-        {"log2_fc": 1.2, "expression_call_class": "elevated",
-         "allgene_percentile": 88.0, "allgene_percentile_class": "upper_range"}),
+        {
+            "log2_fc": 1.2,
+            "expression_call_class": "elevated",
+            "allgene_percentile": 88.0,
+            "allgene_percentile_class": "upper_range",
+        },
+    ),
     "sc_tumor_celltype_expression": (
-        [("malignant_detection_fraction", "distance_to_cut"),
-         ("malignant_detection_fraction", "comparator_delta")],
-        {"malignant_detection_fraction": 0.76, "sc_expression_class": "malignant_broadly_detected",
-         "top_microenvironment_detection_fraction": 0.30}),
+        [("malignant_detection_fraction", "distance_to_cut"), ("malignant_detection_fraction", "comparator_delta")],
+        {
+            "malignant_detection_fraction": 0.76,
+            "sc_expression_class": "malignant_broadly_detected",
+            "top_microenvironment_detection_fraction": 0.30,
+        },
+    ),
 }
 
 
@@ -70,7 +105,7 @@ def test_builder_emits_both_rulers_when_both_values_present():
         gvs = build_interpretation({}, summary, SALIENCE_SPECS[mt], None)
         got = [(g["metric"], g["frame"]["kind"]) for g in gvs]
         assert got == expected, f"{mt}: emitted {got} != expected {expected}"
-        for g in gvs:                       # no bare numbers
+        for g in gvs:  # no bare numbers
             assert g["value"] is not None and g["scale"]
 
 

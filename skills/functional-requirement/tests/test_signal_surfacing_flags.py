@@ -5,6 +5,7 @@ Pure over the two helper functions — no S3, no card reads. Both are NEW headli
 except in the specific data shape each names, so every existing fixture/golden (both arms measured,
 positive verdict) is byte-stable and the dependency_verdict spine is untouched.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -45,28 +46,26 @@ def test_measurement_caveat_none_when_verdict_is_a_call():
 def test_concordance_scope_note_fires_on_pooled_nondep_with_selective_distributions():
     """KRAS/COADREAD shape: concordance card *_concordant_non_dependent while BOTH distributions read a
     selective class → a pooled-scope selective signature, NOT a modality contradiction."""
-    note = run._concordance_scope_note("moderately_concordant_non_dependent",
-                                       "strongly_selective", "strongly_selective")
+    note = run._concordance_scope_note(
+        "moderately_concordant_non_dependent", "strongly_selective", "strongly_selective"
+    )
     assert note and "POOLED" in note and "not evidence against the dependency" in note
 
 
 def test_concordance_scope_note_none_when_distributions_not_dependent():
     """WRN shape: strongly_concordant_non_dependent with both distributions non_dependent → genuinely
     non-dependent pooled; no reconciliation note (it is NOT a pooled-scope artifact)."""
-    assert run._concordance_scope_note("strongly_concordant_non_dependent",
-                                       "non_dependent", "non_dependent") is None
+    assert run._concordance_scope_note("strongly_concordant_non_dependent", "non_dependent", "non_dependent") is None
 
 
 def test_concordance_scope_note_none_when_concordance_is_dependent():
     """PLK1 shape: strongly_concordant_dependent → not the non_dependent-label case → no note."""
-    assert run._concordance_scope_note("strongly_concordant_dependent",
-                                       "common_essential", "common_essential") is None
+    assert run._concordance_scope_note("strongly_concordant_dependent", "common_essential", "common_essential") is None
 
 
 # ── indication_scope_note: positive pooled verdict enriched OUTSIDE the queried indication ────────────
 def _by_scope(cls):
-    return {"indication": {"class": cls, "depmap_lineage": "Bowel", "indication": "COADREAD",
-                           "median_chronos": -0.248}}
+    return {"indication": {"class": cls, "depmap_lineage": "Bowel", "indication": "COADREAD", "median_chronos": -0.248}}
 
 
 def test_indication_scope_note_fires_on_positive_pooled_outside_indication():

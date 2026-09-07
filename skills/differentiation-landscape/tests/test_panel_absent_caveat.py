@@ -9,6 +9,7 @@ instead of leaving it to LLM discretion. The differentiation VERDICT token is un
 and the caveat fires ONLY for panel-absent targets, so every panel-present target (incl. the KRAS/FBXW7
 replay fixtures and CD19) is byte-identical.
 """
+
 from __future__ import annotations
 
 import copy
@@ -50,8 +51,7 @@ def test_panel_absent_signal_fires_only_for_scanned_panel_absent_target():
 
     # field-absent-safe: None counts must not raise and must not fire
     assert m._panel_absent_signal({}) is None
-    assert m._panel_absent_signal({"n_pairs_panel_intersect_eligible": None,
-                                   "n_pairs_per_source_only": None}) is None
+    assert m._panel_absent_signal({"n_pairs_panel_intersect_eligible": None, "n_pairs_per_source_only": None}) is None
 
 
 # ── panel-present replay is byte-stable (the fixture the spine is frozen against) ─────────────────
@@ -65,10 +65,12 @@ def _replay(pair_id: str, target: str, indication: str) -> dict:
     def _factory():
         def _read_live(card_id, *a, **k):
             s = frozen.get(card_id)
-            if not (isinstance(s, dict) and s and not s.get("_freeze_error")
-                    and not s.get("_dispatcher_returned_none")):
+            if not (
+                isinstance(s, dict) and s and not s.get("_freeze_error") and not s.get("_dispatcher_returned_none")
+            ):
                 return None
             return copy.deepcopy(s)
+
         return _read_live
 
     out_dir = Path(tempfile.mkdtemp(prefix=f"diff-pa-{pair_id}-"))
@@ -90,7 +92,7 @@ def test_panel_present_fixture_carries_no_panel_absent_signal(pair_id, target):
     """KRAS/FBXW7 COADREAD are panel-present (n_pairs_panel_intersect_eligible > 0), so the panel-absent
     caveat must NOT fire: key_signals.caveat stays None and the top_tension (if any) is not the
     panel-absent flag — proving the fix is inert on the frozen spine."""
-    h = (_replay(pair_id, target, "COADREAD").get("headline") or {})
+    h = _replay(pair_id, target, "COADREAD").get("headline") or {}
     assert (h.get("n_pairs_panel_intersect_eligible") or 0) > 0, "fixture no longer panel-present — refreeze"
     assert (h.get("key_signals") or {}).get("caveat") is None, "panel-absent caveat leaked onto a panel-present target"
     tension = (h.get("headline_block") or {}).get("top_tension") or {}

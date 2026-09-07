@@ -23,6 +23,7 @@ Three curated fixtures pin all three non-trivial verdicts:
 The frozen fixtures are refreshed by the nightly-live re-freeze (card-behavior-matrix-nightly). Mirror of
 tumor-selectivity's replay.
 """
+
 from __future__ import annotations
 
 import copy
@@ -46,8 +47,7 @@ _COLLAPSED = {None, "", "insufficient", "data_unavailable"}
 
 
 def _real_summary(s) -> bool:
-    return (isinstance(s, dict) and bool(s)
-            and not s.get("_freeze_error") and not s.get("_dispatcher_returned_none"))
+    return isinstance(s, dict) and bool(s) and not s.get("_freeze_error") and not s.get("_dispatcher_returned_none")
 
 
 def _load_fixture(pair_id: str) -> dict:
@@ -73,15 +73,16 @@ def _decision(pair_id: str, target: str, indication: str) -> dict:
             if not _real_summary(s):
                 return None
             return copy.deepcopy(s)
+
         return _read_live
 
     import tempfile
+
     out_dir = Path(tempfile.mkdtemp(prefix=f"sl-{pair_id}-"))
     mp = pytest.MonkeyPatch()
     mp.delenv("FRAMEWORK_HEALTH_SMOKE", raising=False)
     mp.setattr(skc, "_import_dispatcher", _fake_dispatcher_factory)
-    mp.setattr(sys, "argv", ["run.py", "--target", target, "--indication", indication,
-                             "--out", str(out_dir)])
+    mp.setattr(sys, "argv", ["run.py", "--target", target, "--indication", indication, "--out", str(out_dir)])
     try:
         runpy.run_path(str(RUN_PY), run_name="__main__")
     except SystemExit as e:
@@ -98,7 +99,7 @@ def _decision(pair_id: str, target: str, indication: str) -> dict:
 
 # ── the three curated fixtures (pair_id, target, indication, expected_verdict) ────────────────────
 SMARCA2 = ("smarca2_coadread", "SMARCA2", "COADREAD", "has_experimental_sl_partner")
-STAG1   = ("stag1_coadread",   "STAG1",   "COADREAD", "has_computational_sl_partner")
+STAG1 = ("stag1_coadread", "STAG1", "COADREAD", "has_computational_sl_partner")
 CEACAM5 = ("ceacam5_coadread", "CEACAM5", "COADREAD", "no_curated_sl_partner")
 ALL = [SMARCA2, STAG1, CEACAM5]
 
@@ -111,7 +112,8 @@ def test_fixture_is_nonvacuous(pair_id, target, indication, _exp):
     real = [cid for cid, s in frozen.items() if _real_summary(s)]
     assert len(real) >= 1, (
         f"the synthetic-lethal-partners card carries no real summary for {pair_id} — refreeze "
-        f"against live S3 (freeze_fixture.py).")
+        f"against live S3 (freeze_fixture.py)."
+    )
 
 
 @pytest.mark.parametrize("pair_id,target,indication,expected", ALL, ids=[p[1].lower() for p in ALL])
@@ -123,8 +125,7 @@ def test_verdict_matches_expected(pair_id, target, indication, expected):
     assert d["skill"] == "synthetic-lethal-partners"
     h = d.get("headline") or {}
     v = h.get("sl_partner_verdict")
-    assert v == expected, (
-        f"sl_partner_verdict={v!r} for {target}/{indication}, expected {expected!r}.")
+    assert v == expected, f"sl_partner_verdict={v!r} for {target}/{indication}, expected {expected!r}."
     assert h.get("driving_rule_id"), "resolved a verdict but driving_rule_id is empty — inconsistent spine."
 
 
@@ -138,11 +139,13 @@ def test_experimental_partner_suppressor_fires():
     h = d.get("headline") or {}
     assert h.get("sl_partner_verdict") == "has_experimental_sl_partner", (
         f"SMARCA2 resolved {h.get('sl_partner_verdict')!r}, not has_experimental_sl_partner — the "
-        f"experimental-partner rule stopped firing (card reader drift → the SL veto-suppressor is dead).")
+        f"experimental-partner rule stopped firing (card reader drift → the SL veto-suppressor is dead)."
+    )
     assert h.get("sl_partner_verdict") not in _COLLAPSED
     assert h.get("has_experimental_partner"), (
         "SMARCA2 headline has_experimental_partner is falsy — the fixture no longer exercises the "
-        "experimental-partner suppressor; re-curate/refreeze.")
+        "experimental-partner suppressor; re-curate/refreeze."
+    )
 
 
 def test_no_partner_target_does_not_suppress():
@@ -152,5 +155,5 @@ def test_no_partner_target_does_not_suppress():
     d = _decision(*CEACAM5[:3])
     h = d.get("headline") or {}
     assert h.get("sl_partner_verdict") == "no_curated_sl_partner", (
-        f"CEACAM5 resolved {h.get('sl_partner_verdict')!r}, expected no_curated_sl_partner (suppressor "
-        f"over-fire?).")
+        f"CEACAM5 resolved {h.get('sl_partner_verdict')!r}, expected no_curated_sl_partner (suppressor over-fire?)."
+    )

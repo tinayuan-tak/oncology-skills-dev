@@ -8,6 +8,7 @@ as DATA_UNAVAILABLE. This pins BOTH directions:
   - a real primary + data-less secondary stays AVAILABLE (the bug), and
   - a genuinely no-data PRIMARY is still DETECTED (the M2 case this must not re-open).
 """
+
 from __future__ import annotations
 
 import sys
@@ -22,40 +23,40 @@ from _skills_common import _data_unavailable_field, _primary_class_value  # noqa
 
 # --- real primary + data_unavailable SECONDARY facet must stay AVAILABLE (the bug) -----------
 
+
 def test_immune_context_real_primary_data_unavailable_facet_is_available():
-    s = {"immune_context_class": "immune_intermediate",
-         "antigen_high_immune_context_class": "data_unavailable"}
+    s = {"immune_context_class": "immune_intermediate", "antigen_high_immune_context_class": "data_unavailable"}
     assert _data_unavailable_field(s) is None
     assert _primary_class_value(s) == "immune_intermediate"
 
 
 def test_copy_number_real_primary_data_unavailable_patient_crosscheck_is_available():
-    s = {"copy_number_class": "recurrently_amplified",
-         "patient_copy_number_class": "data_unavailable",
-         "patient_focal_cn_class": "data_unavailable"}
+    s = {
+        "copy_number_class": "recurrently_amplified",
+        "patient_copy_number_class": "data_unavailable",
+        "patient_focal_cn_class": "data_unavailable",
+    }
     assert _data_unavailable_field(s) is None
     assert _primary_class_value(s) == "recurrently_amplified"
 
 
 def test_gnomad_real_constraint_data_unavailable_human_ko_facet_is_available():
-    s = {"constraint_class": "highly_constrained",
-         "human_ko_observed_class": "data_unavailable"}
+    s = {"constraint_class": "highly_constrained", "human_ko_observed_class": "data_unavailable"}
     assert _data_unavailable_field(s) is None
     assert _primary_class_value(s) == "highly_constrained"
 
 
 def test_dependency_real_primary_data_unavailable_control_facet_is_available():
-    s = {"dependency_class": "broadly_dependent",
-         "dep_control_position_class": "data_unavailable"}
+    s = {"dependency_class": "broadly_dependent", "dep_control_position_class": "data_unavailable"}
     assert _data_unavailable_field(s) is None
     assert _primary_class_value(s) == "broadly_dependent"
 
 
 # --- a genuinely no-data PRIMARY must still be DETECTED (do not re-open the M2 bug) ----------
 
+
 def test_topic_specific_all_classes_data_unavailable_is_detected():
-    s = {"copy_number_class": "data_unavailable",
-         "patient_copy_number_class": "data_unavailable"}
+    s = {"copy_number_class": "data_unavailable", "patient_copy_number_class": "data_unavailable"}
     assert _data_unavailable_field(s) == "copy_number_class"
 
 

@@ -12,6 +12,7 @@ include/omit/limit decisions live. The IR builder reads it; the backends never s
 only the already-selected blocks. That keeps depth/medium orthogonal to format (a new backend needs
 zero selection logic; a new dial changes only the builder).
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
@@ -35,9 +36,10 @@ SCOPE_GATING = "gating"
 @dataclass(frozen=True)
 class ReportSpec:
     """One declarative report request. Frozen + hashable so it can key a cache / golden snapshot."""
+
     level: str = "L1"
     medium: str = "text"
-    scope: Union[str, tuple] = SCOPE_ALL       # SCOPE_ALL | SCOPE_GATING | tuple(shorts)
+    scope: Union[str, tuple] = SCOPE_ALL  # SCOPE_ALL | SCOPE_GATING | tuple(shorts)
     lead: str = "recommendation"
     # bump the single deciding-axis skill one level deeper than `level` (the reviewer-dossier pattern:
     # "L2, deciding axis L3"). A pure selection knob — the builder resolves which skill is deciding.
@@ -51,8 +53,7 @@ class ReportSpec:
         if self.lead not in LEADS:
             raise ValueError(f"lead must be one of {LEADS}, got {self.lead!r}")
         if not (self.scope in (SCOPE_ALL, SCOPE_GATING) or isinstance(self.scope, tuple)):
-            raise ValueError(
-                f"scope must be {SCOPE_ALL!r}, {SCOPE_GATING!r}, or a tuple of shorts, got {self.scope!r}")
+            raise ValueError(f"scope must be {SCOPE_ALL!r}, {SCOPE_GATING!r}, or a tuple of shorts, got {self.scope!r}")
 
     @property
     def level_int(self) -> int:
@@ -73,8 +74,9 @@ PRESETS: dict[str, ReportSpec] = {
     # one page, no figures, every skill as a one-liner, opens on the recommendation.
     "exec-brief": ReportSpec(level="L0", medium="text", scope=SCOPE_ALL, lead="recommendation"),
     # the decision-driving skills at evidence depth, deciding axis to the trace, figures where useful.
-    "reviewer-dossier": ReportSpec(level="L2", medium="both", scope=SCOPE_GATING,
-                                   lead="deciding_axis", bump_deciding=True),
+    "reviewer-dossier": ReportSpec(
+        level="L2", medium="both", scope=SCOPE_GATING, lead="deciding_axis", bump_deciding=True
+    ),
     # slide-friendly: gating skills, summary depth, figure-forward.
     "deck": ReportSpec(level="L1", medium="figure", scope=SCOPE_GATING, lead="recommendation"),
     # everything, deepest, both forms — the full dossier / machine view source.
@@ -95,5 +97,4 @@ def resolve_spec(preset: Optional[str] = None, **overrides) -> ReportSpec:
     return replace(base, **overrides)
 
 
-__all__ = ["ReportSpec", "PRESETS", "resolve_spec", "LEVELS", "MEDIA", "LEADS",
-           "SCOPE_ALL", "SCOPE_GATING"]
+__all__ = ["ReportSpec", "PRESETS", "resolve_spec", "LEVELS", "MEDIA", "LEADS", "SCOPE_ALL", "SCOPE_GATING"]

@@ -11,6 +11,7 @@ Pins the load-bearing design properties:
       surface_modality verdict (the resolver keys only on fit_class rungs).
 All pure (synthetic card dicts); no S3.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -35,6 +36,7 @@ def _card(cid, **summary):
 
 # ---- (1) presence-cluster collapse ---------------------------------------
 
+
 def test_presence_cluster_collapses_to_one_dimension():
     """FIVE presence cards all supportive → presence contributes exactly ONE supportive
     dimension, not five. This is the core anti-double-count guarantee."""
@@ -54,6 +56,7 @@ def test_presence_cluster_collapses_to_one_dimension():
 
 
 # ---- (2) coverage vs support separation (honest coverage) ----------------
+
 
 def test_abstain_is_coverage_gap_not_opposing():
     """A dimension with no data abstains — it must NOT count as opposing, and must lower
@@ -75,6 +78,7 @@ def test_no_cards_at_all_is_insufficient_coverage():
 
 # ---- (3) shed inversion ---------------------------------------------------
 
+
 def test_shed_not_shed_is_supportive():
     cards = [_card("shed-ectodomain-liability", shed_liability_class="not_shed_membrane_retained")]
     out = orth.score_orthogonality(cards)
@@ -90,22 +94,27 @@ def test_shed_clinically_shed_is_opposing():
 
 
 def test_shed_measured_high_is_opposing_even_if_annotation_absent():
-    cards = [_card("shed-ectodomain-liability", shed_liability_class="indeterminate",
-                   measured_shed_class="media_shed_high")]
+    cards = [
+        _card("shed-ectodomain-liability", shed_liability_class="indeterminate", measured_shed_class="media_shed_high")
+    ]
     out = orth.score_orthogonality(cards)
     assert out["dimensions"]["shed_liability"] == "opposing"
 
 
 # ---- (4) class bands ------------------------------------------------------
 
+
 def test_four_supportive_dimensions_is_broadly_corroborated():
     cards = [
         _card("protein-surface-evidence", surface_confirmation_class="confirmed_high"),  # D1
-        _card("normal-tissue-liability", normal_tissue_breadth_class="restricted_normal_expression",
-              essential_tissue_flag="absent"),                                                    # D2
-        _card("shed-ectodomain-liability", shed_liability_class="not_shed_membrane_retained"),    # D3
-        _card("tumor-scrna-celltype-expression", tce_homogeneity_class="homogeneous"),            # D4
-        _card("pmhc-presentation", pmhc_presentation_class="broadly_presented_normal"),           # D5 opposing
+        _card(
+            "normal-tissue-liability",
+            normal_tissue_breadth_class="restricted_normal_expression",
+            essential_tissue_flag="absent",
+        ),  # D2
+        _card("shed-ectodomain-liability", shed_liability_class="not_shed_membrane_retained"),  # D3
+        _card("tumor-scrna-celltype-expression", tce_homogeneity_class="homogeneous"),  # D4
+        _card("pmhc-presentation", pmhc_presentation_class="broadly_presented_normal"),  # D5 opposing
     ]
     out = orth.score_orthogonality(cards)
     assert out["n_dimensions_supportive"] == 4
@@ -118,8 +127,8 @@ def test_covered_but_unsupportive_is_uncorroborated_not_insufficient():
     """Dims are COVERED but none supportive → uncorroborated (distinct from the
     no-coverage insufficient_coverage state)."""
     cards = [
-        _card("shed-ectodomain-liability", shed_liability_class="clinically_shed"),        # opposing
-        _card("pmhc-presentation", pmhc_presentation_class="broadly_presented_normal"),    # opposing
+        _card("shed-ectodomain-liability", shed_liability_class="clinically_shed"),  # opposing
+        _card("pmhc-presentation", pmhc_presentation_class="broadly_presented_normal"),  # opposing
     ]
     out = orth.score_orthogonality(cards)
     assert out["n_dimensions_covered"] == 2
@@ -129,14 +138,21 @@ def test_covered_but_unsupportive_is_uncorroborated_not_insufficient():
 
 # ---- (5) verdict-inertness ------------------------------------------------
 
+
 def test_orthogonality_is_verdict_inert():
     """The facet is emitted in the headline; it must carry NO verdict-bearing key and the
     surface_modality resolver must never read the headline. Mirrors the biomarker-facet
     verdict-inert contract (no overall_recommendation / nominate)."""
     cards = [_card("protein-surface-evidence", surface_confirmation_class="confirmed_high")]
     out = orth.score_orthogonality(cards)
-    for forbidden in ("surface_modality_verdict", "verdict", "fit_class",
-                      "overall_recommendation", "nominate", "driving_rule_id"):
+    for forbidden in (
+        "surface_modality_verdict",
+        "verdict",
+        "fit_class",
+        "overall_recommendation",
+        "nominate",
+        "driving_rule_id",
+    ):
         assert forbidden not in out, f"orthogonality facet must not carry {forbidden}"
     assert "_doctrine" in out and "VERDICT-INERT" in out["_doctrine"]
 

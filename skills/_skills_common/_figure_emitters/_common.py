@@ -14,10 +14,12 @@ import sys
 from pathlib import Path  # noqa: F401
 
 
-METHODS_REPO = Path(os.environ.get("ANALYSIS_METHODS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods"))
-TARGET_CONTRACTS = Path(os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
-
-
+METHODS_REPO = Path(
+    os.environ.get("ANALYSIS_METHODS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods")
+)
+TARGET_CONTRACTS = Path(
+    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+)
 
 
 def _ensure_methods_path() -> None:
@@ -26,12 +28,8 @@ def _ensure_methods_path() -> None:
         sys.path.insert(0, str(METHODS_REPO))
 
 
-
-
 def _has_live_read_error(summary: dict) -> bool:
     return isinstance(summary, dict) and "_live_read_error" in summary
-
-
 
 
 def _plotly_from(module, fn_name: str, *args) -> list[dict]:
@@ -50,13 +48,14 @@ def _plotly_from(module, fn_name: str, *args) -> list[dict]:
         specs = fn(*args) or []
     except Exception as e:  # noqa: BLE001
         import sys as _sys
-        print(f"[figures] plotly spec emission skipped "
-              f"({getattr(module, '__name__', module)}.{fn_name}): {type(e).__name__}: {e}",
-              file=_sys.stderr)
+
+        print(
+            f"[figures] plotly spec emission skipped "
+            f"({getattr(module, '__name__', module)}.{fn_name}): {type(e).__name__}: {e}",
+            file=_sys.stderr,
+        )
         return []
     return [{**s, "dynamic": True} for s in specs]
-
-
 
 
 # The 4-cell sensitivity contrasts the tumor-vs-normal-selectivity SVG forest draws (Cell A/B/C/D).
@@ -70,13 +69,11 @@ _DGE_SENSITIVITY_CELLS = [
 ]
 
 
-
-
 def _dge_cell_contrasts(summary: dict) -> list[dict]:
     rows = []
     for label, lfc_k, q_k in _DGE_SENSITIVITY_CELLS:
         lfc = summary.get(lfc_k)
-        if lfc is None or lfc != lfc:   # skip absent / NaN cells (matches the SVG)
+        if lfc is None or lfc != lfc:  # skip absent / NaN cells (matches the SVG)
             continue
         rows.append({"label": label, "log2_fc": float(lfc), "q_value": summary.get(q_k)})
     return rows

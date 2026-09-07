@@ -8,6 +8,7 @@ always co-fires and outranks it). The dead rung was REMOVED (2026-09-07, resolve
 marker survives non-verdictally as headline.has_pd_marker. These tests pin that shape always wins
 and that has-pd-marker-supportive alone no longer resolves to a verdict.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -18,14 +19,12 @@ me = load_run_py(Path(__file__).resolve().parent.parent, "me_run")
 
 
 def test_sparse_beats_pd_marker():
-    v, _ = me._verdict([{"rule_id": "mechanism-sparse-warning"},
-                        {"rule_id": "has-pd-marker-supportive"}])
+    v, _ = me._verdict([{"rule_id": "mechanism-sparse-warning"}, {"rule_id": "has-pd-marker-supportive"}])
     assert v == "sparse", "sparse network's opposing signal must not be buried by a PD marker"
 
 
 def test_partial_beats_pd_marker():
-    v, _ = me._verdict([{"rule_id": "mechanism-partial-neutral"},
-                        {"rule_id": "has-pd-marker-supportive"}])
+    v, _ = me._verdict([{"rule_id": "mechanism-partial-neutral"}, {"rule_id": "has-pd-marker-supportive"}])
     assert v == "partial"
 
 
@@ -39,6 +38,7 @@ def test_pd_marker_rung_removed_falls_to_default():
 
 
 def test_well_characterized_still_top():
-    v, _ = me._verdict([{"rule_id": "mechanism-well-characterized-supportive"},
-                        {"rule_id": "has-pd-marker-supportive"}])
+    v, _ = me._verdict(
+        [{"rule_id": "mechanism-well-characterized-supportive"}, {"rule_id": "has-pd-marker-supportive"}]
+    )
     assert v == "well_characterized"

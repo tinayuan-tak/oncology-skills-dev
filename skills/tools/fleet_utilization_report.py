@@ -17,6 +17,7 @@ TARGET_CONTRACTS_ROOT for the card measurement_types; prints a skip notice and e
 
     python skills/tools/fleet_utilization_report.py
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -94,9 +95,7 @@ def classify_skill(skill_dir: Path):
 
 
 def build_report():
-    skills = sorted(
-        d for d in SKILLS_DIR.iterdir() if d.is_dir() and (d / "question_hierarchy.yaml").exists()
-    )
+    skills = sorted(d for d in SKILLS_DIR.iterdir() if d.is_dir() and (d / "question_hierarchy.yaml").exists())
     rows, T = [], dict(total=0, source=0, context=0, other_lens=0, orphan=0, no_type=0)
     for d in skills:
         r = classify_skill(d)

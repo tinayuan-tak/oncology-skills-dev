@@ -8,6 +8,7 @@
 
 S3-free: pure over the resolver spec + the FR module. Skips gracefully if target-contracts is absent.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -25,11 +26,13 @@ rc = load_run_py(_RUN.parent.parent, "fr_run_sidecar")
 def _dependency_resolver_verdicts():
     """The full verdict enum the dependency resolver can emit, or None if target-contracts absent."""
     from _skills_common.resolver import load_resolver
+
     spec = load_resolver("dependency")
     if not spec:
         return None
-    return {r["verdict"] for r in (spec.get("resolve") or [])
-            if isinstance(r, dict) and isinstance(r.get("verdict"), str)}
+    return {
+        r["verdict"] for r in (spec.get("resolve") or []) if isinstance(r, dict) and isinstance(r.get("verdict"), str)
+    }
 
 
 def test_verdict_to_strength_is_total_over_resolver_enum():
@@ -47,7 +50,8 @@ def test_verdict_to_strength_is_total_over_resolver_enum():
         else:
             assert s != "none", (
                 f"resolver verdict {v!r} maps to strength 'none' — a real dependency call is being "
-                f"silently under-reported. Add it to the _DEP_* strength sets.")
+                f"silently under-reported. Add it to the _DEP_* strength sets."
+            )
 
 
 def test_model_ref_points_at_an_existing_doc():
@@ -65,10 +69,11 @@ def test_sidecar_hook_reuses_single_source():
     """The fan-out hook `_strength_certainty(cards, fired, verdict_pair)` must equal the direct
     `_dependency_strength_certainty` computation — one source, so the sidecar can't drift."""
     cards = [
-        {"card_id": "pan-cancer-crispr-dependency-distribution",
-         "summary": {"n_cell_lines_evaluated": 40, "dependency_class": "strongly_selective"}},
-        {"card_id": "cross-consortium-dependency",
-         "summary": {"cross_consortium_class": "concordant_dependent"}},
+        {
+            "card_id": "pan-cancer-crispr-dependency-distribution",
+            "summary": {"n_cell_lines_evaluated": 40, "dependency_class": "strongly_selective"},
+        },
+        {"card_id": "cross-consortium-dependency", "summary": {"cross_consortium_class": "concordant_dependent"}},
     ]
     hook = rc._strength_certainty(cards, fired=None, verdict_pair=("lineage_selective", "r-x"))
     direct = rc._dependency_strength_certainty(cards, "lineage_selective", "concordant_dependent")

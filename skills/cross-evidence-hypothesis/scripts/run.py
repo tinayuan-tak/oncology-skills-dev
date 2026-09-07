@@ -34,6 +34,7 @@ one shared substrate (grounded-substrate two-projection design). The substrate i
 enriches the panel + adds citable PMIDs + surfaces engine↔literature discordance as tensions, but never
 lowers the deterministic gate ceiling.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -48,25 +49,26 @@ sys.path.insert(0, str(SKILLS_DIR))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import hypothesis_core as hc  # noqa: E402
+
 # Shared anti-lore grounding fence. This skill puts the target gene name in-prompt and GENERATES
 # biology, which is exactly the prior-knowledge-leak (KRAS blinding) case the directive was written
 # for; append it to both generation prompts. Offline-safe (llm.py imports only stdlib at module level).
 from _skills_common.llm import EVIDENCE_ONLY_DIRECTIVE  # noqa: E402
 
 SKILL_NAME = "cross-evidence-hypothesis"
-SKILL_VERSION = "0.5.0"   # 0.4.0→0.5.0: P4 reconciliation — the spine's cross-gate correlation
-                          # (independent decision-gate groups) tightens the certainty discount as the
-                          # MORE conservative unit count (min with card-substrate); never more permissive.
-                          # 0.3.0→0.4.0: consume the remaining decision_facets — cross_gate_shared_evidence
-                          # (surfaced in evidence_independence, additive) + fragility/competitor into the
-                          # LLM panel (P4/P5).
-                          # 0.2.0→0.3.0: consume the spine's decision_facets layer — modality×safety
-                          # seam (per-modality safety cap refinement + composed-modality mismatch) +
-                          # per-axis CERTAINTY_MODEL certainty + confidence_tier cross-check.
-                          # 0.1.0→0.2.0: DRIFT-GUARD (pinned prompt_template_hash + model_id
-                          # + offline golden-set drift-CI) and the intra-package COHERENCE step
-                          # (adversarial-survival root-cause fix). Deferred: content-addressed
-                          # provenance manifest; curated truth-set eval.
+SKILL_VERSION = "0.5.0"  # 0.4.0→0.5.0: P4 reconciliation — the spine's cross-gate correlation
+# (independent decision-gate groups) tightens the certainty discount as the
+# MORE conservative unit count (min with card-substrate); never more permissive.
+# 0.3.0→0.4.0: consume the remaining decision_facets — cross_gate_shared_evidence
+# (surfaced in evidence_independence, additive) + fragility/competitor into the
+# LLM panel (P4/P5).
+# 0.2.0→0.3.0: consume the spine's decision_facets layer — modality×safety
+# seam (per-modality safety cap refinement + composed-modality mismatch) +
+# per-axis CERTAINTY_MODEL certainty + confidence_tier cross-check.
+# 0.1.0→0.2.0: DRIFT-GUARD (pinned prompt_template_hash + model_id
+# + offline golden-set drift-CI) and the intra-package COHERENCE step
+# (adversarial-survival root-cause fix). Deferred: content-addressed
+# provenance manifest; curated truth-set eval.
 
 
 # --- LLM prompts (ported + extended for subtype-resolved reasoning) ---------------------------------
@@ -94,32 +96,59 @@ EDGE_SYSTEM = (
     "the decision; (c) evidence_paths — string signals into ordered CHAINS building to a "
     "decision-relevant claim, each step citing what it rests on. A line whose verdict is "
     "insufficient / data_unavailable carries NO weight — do not build an edge or path on it (you may "
-    "note its absence as a tension). Cite-or-abstain; never cite from memory."
-    + EVIDENCE_ONLY_DIRECTIVE
+    "note its absence as a tension). Cite-or-abstain; never cite from memory." + EVIDENCE_ONLY_DIRECTIVE
 )
 
 EDGE_SCHEMA = {
     "type": "object",
     "properties": {
-        "edges": {"type": "array", "items": {"type": "object", "properties": {
-            "type": {"type": "string",
-                     "enum": ["conditions", "tensions_with", "corroborates", "contradicts"]},
-            "from_dimension": {"type": "string"}, "to_dimension": {"type": "string"},
-            "rationale": {"type": "string"},
-            "citations": {"type": "array", "items": {"type": "string"}}},
-            "required": ["type", "from_dimension", "to_dimension", "rationale", "citations"]}},
-        "principal_tensions": {"type": "array", "items": {"type": "object", "properties": {
-            "statement": {"type": "string"},
-            "citations": {"type": "array", "items": {"type": "string"}}},
-            "required": ["statement", "citations"]}},
-        "evidence_paths": {"type": "array", "items": {"type": "object", "properties": {
-            "claim": {"type": "string"},
-            "steps": {"type": "array", "items": {"type": "object", "properties": {
-                "signal": {"type": "string"}, "citation": {"type": "string"}},
-                "required": ["signal", "citation"]}},
-            "leads_to": {"type": "string", "enum": [
-                "causal_rationale", "therapeutic_hypothesis", "population", "therapeutic_window"]}},
-            "required": ["claim", "steps"]}},
+        "edges": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "type": {"type": "string", "enum": ["conditions", "tensions_with", "corroborates", "contradicts"]},
+                    "from_dimension": {"type": "string"},
+                    "to_dimension": {"type": "string"},
+                    "rationale": {"type": "string"},
+                    "citations": {"type": "array", "items": {"type": "string"}},
+                },
+                "required": ["type", "from_dimension", "to_dimension", "rationale", "citations"],
+            },
+        },
+        "principal_tensions": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "statement": {"type": "string"},
+                    "citations": {"type": "array", "items": {"type": "string"}},
+                },
+                "required": ["statement", "citations"],
+            },
+        },
+        "evidence_paths": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "claim": {"type": "string"},
+                    "steps": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {"signal": {"type": "string"}, "citation": {"type": "string"}},
+                            "required": ["signal", "citation"],
+                        },
+                    },
+                    "leads_to": {
+                        "type": "string",
+                        "enum": ["causal_rationale", "therapeutic_hypothesis", "population", "therapeutic_window"],
+                    },
+                },
+                "required": ["claim", "steps"],
+            },
+        },
     },
     "required": ["edges", "principal_tensions", "evidence_paths"],
 }
@@ -164,8 +193,7 @@ HYP_SYSTEM = (
     "grade those lines 'absent'. An honest low-certainty hypothesis with a clear next experiment is "
     "the goal — do not inflate confidence to fill a gap. go_forth is REQUIRED and must name the "
     "single most decision-changing next experiment (typically resolving the limiting gap or the "
-    "principal tension)."
-    + EVIDENCE_ONLY_DIRECTIVE
+    "principal tension)." + EVIDENCE_ONLY_DIRECTIVE
 )
 
 HYPOTHESIS_SCHEMA = {
@@ -177,46 +205,83 @@ HYPOTHESIS_SCHEMA = {
         # READ it from all four clauses. Declaring it on only one clause meant the escape hatch depended
         # on an undeclared field for three clauses — so a legitimately acknowledged-tension clause could
         # fail the coherence guard. (contracts-first: schema now matches prompt + reader.)
-        "causal_rationale": {"type": "object", "properties": {
-            "statement": {"type": "string"},
-            "citations": {"type": "array", "items": {"type": "string"}},
-            "contradicting_citations": {"type": "array", "items": {"type": "string"}}},
-            "required": ["statement", "citations"]},
-        "therapeutic_hypothesis": {"type": "object", "properties": {
-            "statement": {"type": "string"},
-            # controlled modality channel (matches hypothesis_core.MODALITY_SCOPE / the resolved
-            # --modality vocabulary) so the proposed channel is cross-checkable, not free text.
-            "modality": {"type": "string", "enum": sorted(hc.MODALITY_SCOPE)},
-            "citations": {"type": "array", "items": {"type": "string"}},
-            "contradicting_citations": {"type": "array", "items": {"type": "string"}}},
-            "required": ["statement", "modality", "citations"]},
-        "population": {"type": "object", "properties": {
-            "statement": {"type": "string"}, "indication": {"type": "string"},
-            "subtype_or_biomarker": {"type": "string"},
-            "citations": {"type": "array", "items": {"type": "string"}},
-            "contradicting_citations": {"type": "array", "items": {"type": "string"}}},
-            "required": ["statement", "citations"]},
-        "therapeutic_window": {"type": "object", "properties": {
-            "statement": {"type": "string"},
-            "citations": {"type": "array", "items": {"type": "string"}},
-            "contradicting_citations": {"type": "array", "items": {"type": "string"}}},
-            "required": ["statement", "citations"]},
-        "evidence_grade": {"type": "object", "properties": {
-            "overall": {"type": "string", "enum": ["strong", "moderate", "weak", "insufficient"]},
-            "per_line": {"type": "array", "items": {"type": "object", "properties": {
-                "dimension": {"type": "string"},
-                "strength": {"type": "string", "enum": ["strong", "moderate", "weak", "absent"]}},
-                "required": ["dimension", "strength"]}}},
-            "required": ["overall", "per_line"]},
+        "causal_rationale": {
+            "type": "object",
+            "properties": {
+                "statement": {"type": "string"},
+                "citations": {"type": "array", "items": {"type": "string"}},
+                "contradicting_citations": {"type": "array", "items": {"type": "string"}},
+            },
+            "required": ["statement", "citations"],
+        },
+        "therapeutic_hypothesis": {
+            "type": "object",
+            "properties": {
+                "statement": {"type": "string"},
+                # controlled modality channel (matches hypothesis_core.MODALITY_SCOPE / the resolved
+                # --modality vocabulary) so the proposed channel is cross-checkable, not free text.
+                "modality": {"type": "string", "enum": sorted(hc.MODALITY_SCOPE)},
+                "citations": {"type": "array", "items": {"type": "string"}},
+                "contradicting_citations": {"type": "array", "items": {"type": "string"}},
+            },
+            "required": ["statement", "modality", "citations"],
+        },
+        "population": {
+            "type": "object",
+            "properties": {
+                "statement": {"type": "string"},
+                "indication": {"type": "string"},
+                "subtype_or_biomarker": {"type": "string"},
+                "citations": {"type": "array", "items": {"type": "string"}},
+                "contradicting_citations": {"type": "array", "items": {"type": "string"}},
+            },
+            "required": ["statement", "citations"],
+        },
+        "therapeutic_window": {
+            "type": "object",
+            "properties": {
+                "statement": {"type": "string"},
+                "citations": {"type": "array", "items": {"type": "string"}},
+                "contradicting_citations": {"type": "array", "items": {"type": "string"}},
+            },
+            "required": ["statement", "citations"],
+        },
+        "evidence_grade": {
+            "type": "object",
+            "properties": {
+                "overall": {"type": "string", "enum": ["strong", "moderate", "weak", "insufficient"]},
+                "per_line": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "dimension": {"type": "string"},
+                            "strength": {"type": "string", "enum": ["strong", "moderate", "weak", "absent"]},
+                        },
+                        "required": ["dimension", "strength"],
+                    },
+                },
+            },
+            "required": ["overall", "per_line"],
+        },
         "proposed_verdict": {"type": "string", "enum": list(hc.VERDICT_RANK.keys())},
         "proposed_verdict_reason": {"type": "string"},
-        "go_forth": {"type": "object", "properties": {
-            "next_evidence": {"type": "string"}, "value_of_information": {"type": "string"}},
-            "required": ["next_evidence"]},
+        "go_forth": {
+            "type": "object",
+            "properties": {"next_evidence": {"type": "string"}, "value_of_information": {"type": "string"}},
+            "required": ["next_evidence"],
+        },
     },
-    "required": ["causal_rationale", "therapeutic_hypothesis", "population",
-                 "therapeutic_window", "evidence_grade", "proposed_verdict",
-                 "proposed_verdict_reason", "go_forth"],
+    "required": [
+        "causal_rationale",
+        "therapeutic_hypothesis",
+        "population",
+        "therapeutic_window",
+        "evidence_grade",
+        "proposed_verdict",
+        "proposed_verdict_reason",
+        "go_forth",
+    ],
 }
 
 
@@ -226,7 +291,7 @@ def _objs(lst) -> list:
     if isinstance(lst, dict):
         lst = lst.get("value") or lst.get("items") or []
     out = []
-    for x in (lst or []):
+    for x in lst or []:
         x = hc._uv(x)
         if isinstance(x, dict) and set(x.keys()) == {"value"} and isinstance(x["value"], dict):
             x = x["value"]
@@ -268,14 +333,14 @@ def _edge_endpoint_warnings(edges: list, panel: dict) -> list:
         for role in ("from_dimension", "to_dimension"):
             tok = e.get(role)
             if tok and hc._norm(tok) not in recognized:
-                warnings.append({"edge_index": i, "type": e.get("type"),
-                                 "field": role, "value": tok})
+                warnings.append({"edge_index": i, "type": e.get("type"), "field": role, "value": tok})
     return warnings
 
 
 def _default_synthesize():
     """Lazy default LLM fn — import only when a real run needs Bedrock (keeps tests offline)."""
     from _skills_common.llm import synthesize_structured
+
     return synthesize_structured
 
 
@@ -286,9 +351,12 @@ def prompt_template_hash() -> str:
     this hash, so the golden-set drift-CI (test_drift_guard) fails and forces a review + golden
     regeneration on any prompt/model change."""
     h = hashlib.sha256()
-    for part in (EDGE_SYSTEM, HYP_SYSTEM,
-                 json.dumps(EDGE_SCHEMA, sort_keys=True),
-                 json.dumps(HYPOTHESIS_SCHEMA, sort_keys=True)):
+    for part in (
+        EDGE_SYSTEM,
+        HYP_SYSTEM,
+        json.dumps(EDGE_SCHEMA, sort_keys=True),
+        json.dumps(HYPOTHESIS_SCHEMA, sort_keys=True),
+    ):
         h.update(part.encode("utf-8"))
         h.update(b"\x00")
     return h.hexdigest()
@@ -302,6 +370,7 @@ def _resolve_model_id(llm_mode: str) -> str:
         return f"offline:{llm_mode}"
     try:
         from _skills_common.bedrock_client import FRAMEWORK_SYNTHESIS_MODEL
+
         return FRAMEWORK_SYNTHESIS_MODEL
     except Exception:  # noqa: BLE001 — provenance must never crash the run
         return "unknown"
@@ -311,11 +380,12 @@ def replay_synthesize(replay: dict):
     """Deterministic offline synthesize_fn backed by a CANNED two-call response dict
     ({"cross_edges": {...}, "hypothesis": {...}}). Powers `--no-llm --llm-replay <file>` and the
     offline golden-set drift-CI: identical inputs → identical deterministic spine outputs, no Bedrock."""
+
     def _synth(system, user, name, schema, **kw):
         if name not in replay:
-            raise KeyError(f"--llm-replay file has no canned response for call {name!r} "
-                           f"(have: {sorted(replay)})")
+            raise KeyError(f"--llm-replay file has no canned response for call {name!r} (have: {sorted(replay)})")
         return replay[name]
+
     return _synth
 
 
@@ -323,7 +393,7 @@ def replay_synthesize(replay: dict):
 # As more sub-skills emit atoms (fan-in → up to 13 axes), dumping every full atom drowns the
 # decision-relevant one (salience dilution). The gate partitions claims into PRIMARY (render full
 # citable values) vs SECONDARY (one-line tier only), so the panel stays legible as it scales.
-_CV_INFORMATIVE = {"strong", "moderate", "weak", "negative"}   # measured + directional tiers
+_CV_INFORMATIVE = {"strong", "moderate", "weak", "negative"}  # measured + directional tiers
 # Atom value-key fragments that signal decision-relevant distribution STRUCTURE even when the tier is
 # flat — the BRAF/SKCM case: tier `unmeasured` (non_dependent_underpowered) but bimodality + a nonzero
 # responder fraction reveal a hidden subpopulation. Salience must NOT gate on the tier alone.
@@ -339,8 +409,12 @@ _CV_PRIMARY_CAP = 30
 
 def _atom_is_notable(atom: dict) -> bool:
     for k, v in ((atom or {}).get("values") or {}).items():
-        if (any(p in k.lower() for p in _CV_NOTABLE_KEYS)
-                and isinstance(v, (int, float)) and not isinstance(v, bool) and v):
+        if (
+            any(p in k.lower() for p in _CV_NOTABLE_KEYS)
+            and isinstance(v, (int, float))
+            and not isinstance(v, bool)
+            and v
+        ):
             return True
     return False
 
@@ -353,10 +427,12 @@ def _render_capsule_data(caps_by_short: dict) -> str:
     Salience-gated (indication row / conflict / DQ only); '' when no capsules (byte-stable for older packages)."""
     if not isinstance(caps_by_short, dict) or not caps_by_short:
         return ""
-    lines = ["PANEL — evidence-capsule DATA (bounded raw behind the classes; card-floor complete; cite these "
-             "card_ids). Complements the claim-vector atoms with the on-indication stratum, salient "
-             "categoricals (clinical stage / competitor drugs), cross-source CONFLICTS, and DATA-QUALITY "
-             "flags (treat flags as bugs to note, NOT as biology):"]
+    lines = [
+        "PANEL — evidence-capsule DATA (bounded raw behind the classes; card-floor complete; cite these "
+        "card_ids). Complements the claim-vector atoms with the on-indication stratum, salient "
+        "categoricals (clinical stage / competitor drugs), cross-source CONFLICTS, and DATA-QUALITY "
+        "flags (treat flags as bugs to note, NOT as biology):"
+    ]
     for short in sorted(caps_by_short):
         caps = (caps_by_short.get(short) or {}).get("capsules") or {}
         rows = []
@@ -372,7 +448,9 @@ def _render_capsule_data(caps_by_short: dict) -> str:
                 frag.append("; ".join(f"{a.get('field')}={a.get('value')}" for a in c["categorical_anchors"]))
             if c.get("conflict_pairs"):
                 cp = c["conflict_pairs"][0]
-                frag.append(f"CONFLICT(mt={cp.get('measurement_type')} vs {[o.get('card') for o in cp.get('other_sources', [])]})")
+                frag.append(
+                    f"CONFLICT(mt={cp.get('measurement_type')} vs {[o.get('card') for o in cp.get('other_sources', [])]})"
+                )
             for dq in (c.get("data_quality_flags") or [])[:1]:
                 frag.append(f"DATA_QUALITY: {str(dq.get('flag'))[:70]}")
             if frag:
@@ -394,7 +472,7 @@ def _render_claim_vectors(cvs: dict) -> str:
     # top-N cut keeps the most important atoms rather than whatever fell in the first N by assembly
     # order (a conflict/strong atom on a late axis used to be silently dropped for an early neutral one).
     # priority: conflict=0, informative-signal / deterministic-headline=1, notable-only atom=2.
-    prim_entries, sec = [], []      # prim_entries: (priority, order_index, text)
+    prim_entries, sec = [], []  # prim_entries: (priority, order_index, text)
     for short, facet in cvs.items():
         if not isinstance(facet, dict):
             continue
@@ -406,8 +484,13 @@ def _render_claim_vectors(cvs: dict) -> str:
             cite = (atom.get("cite") or {}).get("card_id")
             informative, notable = sig in _CV_INFORMATIVE, _atom_is_notable(atom)
             if informative or bool(conflict) or notable:
-                entry = {"signal": sig, "corroboration": corr, "read": atom.get("read"),
-                         "values": atom.get("values"), "cite_card_id": cite}
+                entry = {
+                    "signal": sig,
+                    "corroboration": corr,
+                    "read": atom.get("read"),
+                    "values": atom.get("values"),
+                    "cite_card_id": cite,
+                }
                 if conflict:
                     entry["conflict"] = conflict
                 priority = 0 if conflict else (1 if informative else 2)
@@ -423,15 +506,19 @@ def _render_claim_vectors(cvs: dict) -> str:
     elided = 0
     if len(prim) > _CV_PRIMARY_CAP:
         elided = len(prim) - _CV_PRIMARY_CAP
-        prim = prim[:_CV_PRIMARY_CAP]      # top-N by SALIENCE (conflict > informative > notable), bound the prompt
-    out = ("PANEL — claim-vector signal decomposition (SALIENCE-GATED for scale). PRIMARY claims carry "
-           "their full citable atom VALUES — reason over them and cite the cite_card_id. SECONDARY "
-           "claims are one-line tiers (uninformative/unremarkable for this target):\n")
+        prim = prim[:_CV_PRIMARY_CAP]  # top-N by SALIENCE (conflict > informative > notable), bound the prompt
+    out = (
+        "PANEL — claim-vector signal decomposition (SALIENCE-GATED for scale). PRIMARY claims carry "
+        "their full citable atom VALUES — reason over them and cite the cite_card_id. SECONDARY "
+        "claims are one-line tiers (uninformative/unremarkable for this target):\n"
+    )
     out += "PRIMARY:\n" + ("\n".join(prim) if prim else "  (none)") + "\n"
     if elided:
-        out += (f"  … (+{elided} more PRIMARY claim(s) elided for length; the {_CV_PRIMARY_CAP} shown are "
-                "the highest-SALIENCE (conflict > informative > notable) — see the full "
-                "nomination.json claim_vectors)\n")
+        out += (
+            f"  … (+{elided} more PRIMARY claim(s) elided for length; the {_CV_PRIMARY_CAP} shown are "
+            "the highest-SALIENCE (conflict > informative > notable) — see the full "
+            "nomination.json claim_vectors)\n"
+        )
     if sec:
         out += "SECONDARY (tier-only):\n" + "\n".join(sec) + "\n"
     return out + "\n"
@@ -439,25 +526,27 @@ def _render_claim_vectors(cvs: dict) -> str:
 
 def _panel_block(panel: dict, objective: str) -> str:
     ctx = panel["context"]
-    tgt = (ctx.get("target") or {}).get("symbol") if isinstance(ctx.get("target"), dict) \
-        else ctx.get("target")
+    tgt = (ctx.get("target") or {}).get("symbol") if isinstance(ctx.get("target"), dict) else ctx.get("target")
     _ind = ctx.get("indication")
     ind = (_ind.get("name") or _ind.get("oncotree_code")) if isinstance(_ind, dict) else _ind
     subtype = panel["subtype"]
     scoped_subtype = ctx.get("subgroup_spec") or (
-        ", ".join(subtype["requested_strata"]) if subtype["requested_strata"] else None)
+        ", ".join(subtype["requested_strata"]) if subtype["requested_strata"] else None
+    )
     dossier_block = ""
     if panel["dossier"]:
         dossier_block = (
             "TARGET BIOLOGY — indication-INDEPENDENT dossier (mechanism + pathway role, interactome, "
             "paralogy, domain/structure, on-target-safety genetics). Cite these field names:\n"
-            f"{json.dumps(panel['dossier'], indent=1, default=str)}\n\n")
+            f"{json.dumps(panel['dossier'], indent=1, default=str)}\n\n"
+        )
     subtype_block = ""
     if subtype["present"] and subtype["per_stratum"]:
         subtype_block = (
             "SUBTYPE-RESOLVED per-stratum records (cite the stratum name; a stratum axis with "
             "n_floor_met_by_axis=false is UNDERPOWERED — do not credit it):\n"
-            f"{json.dumps(subtype['per_stratum'], indent=1, default=str)}\n\n")
+            f"{json.dumps(subtype['per_stratum'], indent=1, default=str)}\n\n"
+        )
     # per-subskill GROUNDED SUBSTRATE — the design-correct literature path: escalate-only
     # per-axis literature findings, each ANCHORED to the axis it augments. The engine may MISS these;
     # they RAISE a concern, never lower one. Their PMIDs are in the citation surface (cite them).
@@ -469,7 +558,8 @@ def _panel_block(panel: dict, objective: str) -> str:
             "axis (the deterministic engine may MISS these; a finding may RAISE that axis's concern, "
             "never lower it). Cite the PMIDs listed. An axis with contradicts_deterministic=true "
             "DISAGREES with that axis's deterministic verdict — you MUST surface it as a tension:\n"
-            f"{json.dumps(gs['per_axis'], indent=1, default=str)}\n\n")
+            f"{json.dumps(gs['per_axis'], indent=1, default=str)}\n\n"
+        )
     # Stage 2a — claim-vector SIGNAL decomposition + CITABLE evidence atoms per sub-skill. Each axis
     # carries a signal×corroboration tier PLUS an evidence_atom binding the load-bearing NUMERIC values
     # (bimodality, responder fraction, control-position, …) to {card_id, fields} + entity keys. Reason
@@ -478,19 +568,24 @@ def _panel_block(panel: dict, objective: str) -> str:
     caps_block = _render_capsule_data((panel["pkg"].get("synthesis") or {}).get("evidence_capsules") or {})
     facets_block = _render_decision_facets(panel)
     return (
-        f"OBJECTIVE (modality): {objective}\nMODALITY (controlled): {panel['modality']}\n"
-        f"TARGET: {tgt}\nINDICATION: {ind}\nSCOPED SUBTYPE: {scoped_subtype}\n\n"
-        f"{dossier_block}{subtype_block}"
-        f"PANEL — deterministic verdict per INDICATION-CONDITIONED line:\n"
-        f"{json.dumps(panel['conviction'], indent=1, default=str)}\n\n"
-        f"PANEL — per-card interpretation (card_id -> call; cite these card_ids):\n"
-        f"{json.dumps(panel['cards_brief'], indent=1, default=str)}\n\n"
-        f"{cv_block}"
-        f"{caps_block}"
-        f"{facets_block}"
-        f"{grounded_block}"
-        f"GROUNDED literature risk reads:\n{json.dumps(panel['risk'], indent=1, default=str)}\n\n"), \
-        tgt, ind, scoped_subtype
+        (
+            f"OBJECTIVE (modality): {objective}\nMODALITY (controlled): {panel['modality']}\n"
+            f"TARGET: {tgt}\nINDICATION: {ind}\nSCOPED SUBTYPE: {scoped_subtype}\n\n"
+            f"{dossier_block}{subtype_block}"
+            f"PANEL — deterministic verdict per INDICATION-CONDITIONED line:\n"
+            f"{json.dumps(panel['conviction'], indent=1, default=str)}\n\n"
+            f"PANEL — per-card interpretation (card_id -> call; cite these card_ids):\n"
+            f"{json.dumps(panel['cards_brief'], indent=1, default=str)}\n\n"
+            f"{cv_block}"
+            f"{caps_block}"
+            f"{facets_block}"
+            f"{grounded_block}"
+            f"GROUNDED literature risk reads:\n{json.dumps(panel['risk'], indent=1, default=str)}\n\n"
+        ),
+        tgt,
+        ind,
+        scoped_subtype,
+    )
 
 
 def _render_decision_facets(panel: dict) -> str:
@@ -516,11 +611,15 @@ def _render_decision_facets(panel: dict) -> str:
         # M4 factored-record split: BLIND axes → ACQUIRE (never-looked); measured-thin → STRENGTHEN
         # (add power). Distinct next-actions the scalar 'insufficient' conflated.
         strengthen = [u.get("axis") for u in (frag.get("underpowered_axes") or []) if isinstance(u, dict)]
-        lines.append(f"  fragility: contested={contested}"
-                     + (f"; acquisition_backlog (BLIND axes to ACQUIRE, feed go_forth): {backlog}"
-                        if backlog else "")
-                     + (f"; underpowered_axes (measured-thin → STRENGTHEN, add cohort/power): {strengthen}"
-                        if strengthen else ""))
+        lines.append(
+            f"  fragility: contested={contested}"
+            + (f"; acquisition_backlog (BLIND axes to ACQUIRE, feed go_forth): {backlog}" if backlog else "")
+            + (
+                f"; underpowered_axes (measured-thin → STRENGTHEN, add cohort/power): {strengthen}"
+                if strengthen
+                else ""
+            )
+        )
     if mfc:
         # per-MODALITY favorability (worst-case conjunction across axes): a target can be nominable via
         # one modality and held via another. Reason per channel, not on a flattened scalar.
@@ -530,23 +629,39 @@ def _render_decision_facets(panel: dict) -> str:
     if mbl:
         # knife-edge calls: a categorical verdict that hard-cut a near-threshold continuous value —
         # treat these verdicts as magnitude-FRAGILE, not crisp.
-        bl = [{ "axis": b.get("axis"), "scale": b.get("scale"), "distance_to_cut": b.get("distance_to_cut")}
-              for b in mbl if isinstance(b, dict)]
+        bl = [
+            {"axis": b.get("axis"), "scale": b.get("scale"), "distance_to_cut": b.get("distance_to_cut")}
+            for b in mbl
+            if isinstance(b, dict)
+        ]
         lines.append(f"  magnitude_borderline (knife-edge on the cutpoint → treat as fragile): {bl}")
     if comp:
         lines.append(f"  competitor: {json.dumps(comp, default=str)}")
     if cgse.get("correlated_gate_pairs"):
-        lines.append("  cross-gate shared evidence (these gate PAIRS share an input card → correlated, "
-                     f"NOT independent corroboration): {cgse['correlated_gate_pairs']}")
+        lines.append(
+            "  cross-gate shared evidence (these gate PAIRS share an input card → correlated, "
+            f"NOT independent corroboration): {cgse['correlated_gate_pairs']}"
+        )
     if not lines:
         return ""
-    return ("PANEL — decision facets (verdict-INERT context; reason over these but they do NOT change "
-            "any deterministic verdict):\n" + "\n".join(lines) + "\n\n")
+    return (
+        "PANEL — decision facets (verdict-INERT context; reason over these but they do NOT change "
+        "any deterministic verdict):\n" + "\n".join(lines) + "\n\n"
+    )
 
 
-def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug target",
-        modality=None, dossier_path=None, synthesize_fn=None, llm_mode=None,
-        substrate=None, adversarial=False, n_skeptics=None) -> dict:
+def run(
+    pkg_path: str,
+    risk_path=None,
+    objective: str = "small-molecule drug target",
+    modality=None,
+    dossier_path=None,
+    synthesize_fn=None,
+    llm_mode=None,
+    substrate=None,
+    adversarial=False,
+    n_skeptics=None,
+) -> dict:
     """Assemble the panel, run the two-call pipeline, clamp, and enforce the defensibility contract.
     `synthesize_fn(system, user, name, schema, max_tokens=...)` is injectable for offline testing.
     `llm_mode` labels provenance: 'bedrock' (default live), 'offline_replay', or 'injected' (a test
@@ -567,10 +682,15 @@ def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug tar
     panel_block, tgt, ind, scoped_subtype = _panel_block(panel, objective)
 
     # CALL 1 — typed cited edges + tensions + evidence paths
-    edge_out = synth(EDGE_SYSTEM, panel_block + "Emit typed cross-line edges, principal tensions, "
-                     "and evidence_paths. Cite only card_ids / sub-verdict names / rule_ids / panel "
-                     "PMIDs / dossier fields / stratum names.", "cross_edges", EDGE_SCHEMA,
-                     max_tokens=8000)
+    edge_out = synth(
+        EDGE_SYSTEM,
+        panel_block + "Emit typed cross-line edges, principal tensions, "
+        "and evidence_paths. Cite only card_ids / sub-verdict names / rule_ids / panel "
+        "PMIDs / dossier fields / stratum names.",
+        "cross_edges",
+        EDGE_SCHEMA,
+        max_tokens=8000,
+    )
     edges = _objs(edge_out.get("edges"))
     tensions = _objs(edge_out.get("principal_tensions"))
     paths = _objs(edge_out.get("evidence_paths"))
@@ -578,13 +698,13 @@ def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug tar
 
     # CALL 2 — assemble the six-part hypothesis ON the edges/paths/tensions
     hyp_user = (
-        panel_block +
-        f"CROSS-LINE EDGES (build on these):\n{json.dumps(edges, indent=1, default=str)}\n\n"
+        panel_block + f"CROSS-LINE EDGES (build on these):\n{json.dumps(edges, indent=1, default=str)}\n\n"
         f"EVIDENCE PATHS (signal chains to a claim):\n{json.dumps(paths, indent=1, default=str)}\n\n"
         f"PRINCIPAL TENSIONS:\n{json.dumps(tensions, indent=1, default=str)}\n\n"
         "Assemble the drug-target hypothesis. Cite on EVERY clause. Reflect tensions honestly. Fill "
         "go_forth with the single most decision-changing next experiment. Propose a verdict; a gate "
-        "will clamp it.")
+        "will clamp it."
+    )
     hyp_out = synth(HYP_SYSTEM, hyp_user, "hypothesis", HYPOTHESIS_SCHEMA, max_tokens=6000)
     out = {**hyp_out, "edges": edges, "tensions": tensions, "evidence_paths": paths}
 
@@ -593,10 +713,8 @@ def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug tar
     # integrator resolves a DIFFERENT modality, the ceiling it clamps against reflects the wrong channel.
     # Detect + surface the mismatch (never silently trusts a cross-channel ceiling). None on either side
     # (a modality-agnostic compose or run) is NOT a mismatch. ---
-    composed_modality = ((panel["pkg"].get("synthesis") or {}).get("decision_facets")
-                         or {}).get("composed_modality")
-    modality_mismatch = bool(composed_modality and modality_resolved
-                             and composed_modality != modality_resolved)
+    composed_modality = ((panel["pkg"].get("synthesis") or {}).get("decision_facets") or {}).get("composed_modality")
+    modality_mismatch = bool(composed_modality and modality_resolved and composed_modality != modality_resolved)
 
     # --- deterministic FAIL-CLOSED GATE-COMPLETE clamp (the ceiling; the model never overrides) ---
     gate = hc.gate_ceiling(panel["pkg"], modality=modality_resolved)
@@ -604,15 +722,18 @@ def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug tar
     computed, was_clamped = hc.clamp(proposed, gate["ceiling"])
     gate_tension = None
     if was_clamped:
-        gate_tension = (f"HYPOTHESIS proposed '{proposed}' but the deterministic gate caps at "
-                        f"'{gate['ceiling']}' ({gate['reason']}). The evidence read is not permitted "
-                        f"to override the gate — surfaced, not resolved in the hypothesis's favour.")
+        gate_tension = (
+            f"HYPOTHESIS proposed '{proposed}' but the deterministic gate caps at "
+            f"'{gate['ceiling']}' ({gate['reason']}). The evidence read is not permitted "
+            f"to override the gate — surfaced, not resolved in the hypothesis's favour."
+        )
 
     # --- clause traceability WITH TEETH ---
     surface = panel["citation_surface"]
     clause_cites = _all_clause_citations(out)
-    untraceable = {k: bad for k, bad in
-                   ((k, hc.check_traceability(v, surface)) for k, v in clause_cites.items()) if bad}
+    untraceable = {
+        k: bad for k, bad in ((k, hc.check_traceability(v, surface)) for k, v in clause_cites.items()) if bad
+    }
     n_clauses = len(clause_cites)
     n_clean = sum(1 for k, v in clause_cites.items() if not hc.check_traceability(v, surface))
     traceability = round(n_clean / n_clauses, 3) if n_clauses else None
@@ -640,8 +761,12 @@ def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug tar
     # substrate discount stands alone (byte-stable for older packages).
     supporting_gates = [d for d in in_scope if conviction.get(d) not in hc.GAP_VERDICTS]
     gate_ind = hc.gate_independence(panel.get("cross_gate_shared_evidence"), supporting_gates)
-    cert = hc.discounted_certainty(base_certainty, substrate["n_independent_units"], degraded_inputs,
-                                   n_independent_gate_groups=gate_ind["n_independent_gate_groups"])
+    cert = hc.discounted_certainty(
+        base_certainty,
+        substrate["n_independent_units"],
+        degraded_inputs,
+        n_independent_gate_groups=gate_ind["n_independent_gate_groups"],
+    )
     # confidence_tier CROSS-CHECK (quick win; no emit-side dependency): the spine emits its OWN
     # composed confidence tier. When the integrator's discounted certainty DIVERGES from it, record the
     # divergence (informational — the integrator's certainty is weakest-link + independence-discounted, a
@@ -650,12 +775,12 @@ def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug tar
     if spine_tier and str(spine_tier).lower() != cert["final"]:
         cert["cap_reasons"] = list(cert["cap_reasons"]) + [
             f"diverges from spine confidence_tier '{spine_tier}' (integrator certainty is weakest-link + "
-            "independence-discounted)"]
+            "independence-discounted)"
+        ]
 
     # absence-discipline WITH TEETH: a SUPPORTING clause may not cite a gap-line sub-verdict.
     gapset = set(gaps)
-    support_clauses = ("causal_rationale", "therapeutic_hypothesis", "population",
-                       "therapeutic_window")
+    support_clauses = ("causal_rationale", "therapeutic_hypothesis", "population", "therapeutic_window")
     absence_violations = {}
     for key in support_clauses:
         c = hc._uv(out.get(key)) or {}
@@ -675,12 +800,11 @@ def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug tar
             "support": list(c.get("citations") or []),
             "surfaced": list(c.get("contradicting_citations") or []),
         }
-    present_norm = {hc._norm(t) for t in (surface["card_ids"] | surface["sub_verdicts"]
-                                          | surface["rule_ids"])}
-    card_calls = {cid: call for cid, call in (panel.get("cards_brief") or {}).items()
-                  if isinstance(call, str)}
-    coherence_v = hc.coherence_violations(coherence_clauses, conviction, edges, tensions,
-                                          present_norm, out_of_scope=oos, card_calls=card_calls)
+    present_norm = {hc._norm(t) for t in (surface["card_ids"] | surface["sub_verdicts"] | surface["rule_ids"])}
+    card_calls = {cid: call for cid, call in (panel.get("cards_brief") or {}).items() if isinstance(call, str)}
+    coherence_v = hc.coherence_violations(
+        coherence_clauses, conviction, edges, tensions, present_norm, out_of_scope=oos, card_calls=card_calls
+    )
     # SURFACE each detected tension into the structured `tensions` slot (fold-into-tensions), so the
     # contradiction is carried explicitly, never buried — without mutating any LLM clause prose.
     # coherence_v (as DETECTED) still blocks promotion below (the teeth).
@@ -699,12 +823,18 @@ def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug tar
     for ax in grounded.get("discordant_axes", []):
         rec = next((r for r in grounded.get("per_axis", []) if r.get("axis") == ax), {})
         pmids = sorted({p for f in rec.get("findings", []) for p in (f.get("cited_pmids") or [])})
-        grounded_discordance_tensions.append({
-            "statement": (f"grounded literature on the '{ax}' axis contradicts its deterministic "
-                          f"verdict '{rec.get('anchor_verdict')}' — an escalate-only concern the "
-                          "engine's narrow verdict may have missed"),
-            "citations": [ax] + pmids, "axis": ax,
-            "source": "grounded_substrate_discordance"})
+        grounded_discordance_tensions.append(
+            {
+                "statement": (
+                    f"grounded literature on the '{ax}' axis contradicts its deterministic "
+                    f"verdict '{rec.get('anchor_verdict')}' — an escalate-only concern the "
+                    "engine's narrow verdict may have missed"
+                ),
+                "citations": [ax] + pmids,
+                "axis": ax,
+                "source": "grounded_substrate_discordance",
+            }
+        )
     if grounded_discordance_tensions:
         tensions = tensions + grounded_discordance_tensions
         out["tensions"] = tensions
@@ -714,16 +844,23 @@ def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug tar
     # may not apply to this channel. Surface a deterministic tension so the mismatch is explicit for a
     # reviewer; the safe move is to recompose the package under this modality. ---
     if modality_mismatch:
-        tensions = tensions + [{
-            "statement": (f"the evidence package was COMPOSED under modality "
-                          f"'{composed_modality}' but this hypothesis resolves modality "
-                          f"'{modality_resolved}'. The deterministic ceiling (hard_gates, incl. the "
-                          "per-modality safety suppression) was frozen for the composed modality and "
-                          "may not hold for this channel — recompose the target-profile package under "
-                          f"'{modality_resolved}' to trust the ceiling."),
-            "citations": ["synthesis.recommendation_gate.hard_gates",
-                          "synthesis.decision_facets.composed_modality"],
-            "source": "integrator_modality_mismatch"}]
+        tensions = tensions + [
+            {
+                "statement": (
+                    f"the evidence package was COMPOSED under modality "
+                    f"'{composed_modality}' but this hypothesis resolves modality "
+                    f"'{modality_resolved}'. The deterministic ceiling (hard_gates, incl. the "
+                    "per-modality safety suppression) was frozen for the composed modality and "
+                    "may not hold for this channel — recompose the target-profile package under "
+                    f"'{modality_resolved}' to trust the ceiling."
+                ),
+                "citations": [
+                    "synthesis.recommendation_gate.hard_gates",
+                    "synthesis.decision_facets.composed_modality",
+                ],
+                "source": "integrator_modality_mismatch",
+            }
+        ]
         out["tensions"] = tensions
 
     # --- minimum-inputs gate: enough non-gap in-scope decision lines to reason over? ---
@@ -747,10 +884,16 @@ def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug tar
         was_clamped = True
 
     result = {
-        "skill": SKILL_NAME, "skill_version": SKILL_VERSION,
-        "target": tgt, "indication": ind, "objective": objective,
-        "modality": {"resolved": modality_resolved, "inferred_from_objective": modality_inferred,
-                     "out_of_scope_dimensions": sorted(oos)},
+        "skill": SKILL_NAME,
+        "skill_version": SKILL_VERSION,
+        "target": tgt,
+        "indication": ind,
+        "objective": objective,
+        "modality": {
+            "resolved": modality_resolved,
+            "inferred_from_objective": modality_inferred,
+            "out_of_scope_dimensions": sorted(oos),
+        },
         "hypothesis": {
             "causal_rationale": hc._uv(out.get("causal_rationale")),
             "therapeutic_hypothesis": hc._uv(out.get("therapeutic_hypothesis")),
@@ -763,34 +906,46 @@ def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug tar
         "edges": _objs(out.get("edges")),
         "evidence_paths": _objs(out.get("evidence_paths")),
         "verdict": {
-            "proposed_by_agent": proposed, "computed": computed, "was_clamped": was_clamped,
-            "gate_ceiling": gate["ceiling"], "gate_reason": gate["reason"],
+            "proposed_by_agent": proposed,
+            "computed": computed,
+            "was_clamped": was_clamped,
+            "gate_ceiling": gate["ceiling"],
+            "gate_reason": gate["reason"],
             "gate_fail_closed": gate["fail_closed"],
             "hard_gates_present": gate["hard_gates_present"],
-            "active_vetoes": gate["active_vetoes"], "blind_gates": gate["blind_gates"],
-            "opposing_gates": gate["opposing"], "modality_excluded_gates": gate["excluded"],
-            "gate_clamp_tension": gate_tension, "reason": hc._uv(out.get("proposed_verdict_reason")),
+            "active_vetoes": gate["active_vetoes"],
+            "blind_gates": gate["blind_gates"],
+            "opposing_gates": gate["opposing"],
+            "modality_excluded_gates": gate["excluded"],
+            "gate_clamp_tension": gate_tension,
+            "reason": hc._uv(out.get("proposed_verdict_reason")),
             # MODALITY×SAFETY: the per-modality safety action for this channel + whether it cleared the
             # blanket hold-grade cap (== the spine's exists_safe_modality suppression, mirrored).
             "safety_modality_action": gate.get("safety_modality_action"),
             "safety_modality_cleared": gate.get("safety_modality_cleared", False),
         },
         "defensibility": {
-            "clause_traceability": traceability, "untraceable_citations": untraceable,
-            "n_clauses": n_clauses, "n_fully_traceable": n_clean,
+            "clause_traceability": traceability,
+            "untraceable_citations": untraceable,
+            "n_clauses": n_clauses,
+            "n_fully_traceable": n_clean,
             "coherence_violations": coherence_v,
             "n_coherence_violations": sum(len(v) for v in coherence_v.values()),
             "n_coherence_tensions_surfaced": len(coherence_surfaced_tensions),
-            "promotable": promotable, "promotion_blockers": promotion_blockers,
+            "promotable": promotable,
+            "promotion_blockers": promotion_blockers,
             # verdict-INERT audit: edges whose from/to_dimension isn't a recognized dimension/card
             # token, so the coherence teeth couldn't match them (a hallucinated/misspelled endpoint
             # could hide a real contradiction). Flagged for a reviewer; never blocks promotion.
             "edge_endpoint_warnings": edge_endpoint_warnings,
         },
         "uncertainty": {
-            "overall_certainty": cert["final"], "base_certainty": cert["base"],
-            "certainty_capped": cert["capped"], "cap_reasons": cert["cap_reasons"],
-            "limiting_dimension": limiting, "data_gaps": gaps,
+            "overall_certainty": cert["final"],
+            "base_certainty": cert["base"],
+            "certainty_capped": cert["capped"],
+            "cap_reasons": cert["cap_reasons"],
+            "limiting_dimension": limiting,
+            "data_gaps": gaps,
             "absence_discipline_violations": absence_violations,
         },
         "evidence_independence": {
@@ -818,13 +973,16 @@ def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug tar
             "convergence_facet": panel["subtype"]["convergence_facet"],
         },
         "degraded_mode": {
-            "dossier_present": panel["dossier_present"], "risk_present": panel["risk_present"],
+            "dossier_present": panel["dossier_present"],
+            "risk_present": panel["risk_present"],
             "grounded_substrate_present": panel.get("grounded_substrate_present", False),
-            "degraded_inputs": degraded_inputs, "minimum_inputs_met": minimum_inputs_met,
+            "degraded_inputs": degraded_inputs,
+            "minimum_inputs_met": minimum_inputs_met,
             "n_supporting_in_scope_lines": n_supporting,
             # composed-modality seam: the modality the package was composed under + whether it mismatches
             # this run's resolved modality (the ceiling was frozen for the composed channel).
-            "composed_modality": composed_modality, "modality_mismatch": modality_mismatch,
+            "composed_modality": composed_modality,
+            "modality_mismatch": modality_mismatch,
         },
         # --- GROUNDED SUBSTRATE: the per-axis literature findings the hypothesis reasoned over,
         # the count of grounded PMIDs folded into the citation surface, and the engine↔literature
@@ -845,18 +1003,18 @@ def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug tar
         "quality": {"adversarial_survival": None},
         # --- drift-guard provenance: the two PINS the golden-set drift-CI freezes ---
         "provenance": {
-            "skill": SKILL_NAME, "skill_version": SKILL_VERSION,
+            "skill": SKILL_NAME,
+            "skill_version": SKILL_VERSION,
             "prompt_template_hash": prompt_template_hash(),
-            "model_id": _resolve_model_id(llm_mode), "llm_mode": llm_mode,
+            "model_id": _resolve_model_id(llm_mode),
+            "llm_mode": llm_mode,
             "generated_at": datetime.now(timezone.utc).isoformat(),
             # Surface any malformed-tool-use SALVAGE / RECOVERY that synthesize_structured applied to
             # either LLM call (fields lost to the XML-<parameter> dialect leak, or recovered from it),
             # so a partially-lost response is AUDITABLE rather than proceeding silently.
             "llm_field_recovery": {
-                "edges": {k: edge_out.get(k) for k in ("_malformed_fields", "_recovered_fields")
-                          if edge_out.get(k)},
-                "hypothesis": {k: hyp_out.get(k) for k in ("_malformed_fields", "_recovered_fields")
-                               if hyp_out.get(k)},
+                "edges": {k: edge_out.get(k) for k in ("_malformed_fields", "_recovered_fields") if edge_out.get(k)},
+                "hypothesis": {k: hyp_out.get(k) for k in ("_malformed_fields", "_recovered_fields") if hyp_out.get(k)},
             },
         },
         "panel_conviction": conviction,
@@ -867,8 +1025,10 @@ def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug tar
     # score is a defensibility SIGNAL for the human, not a gate. ---
     if adversarial:
         import adversarial_survival as AS  # local import: only loaded on the opt-in path
-        surv = AS.adversarial_survival(result, pkg_path, risk_path, dossier_path,
-                                       n_skeptics=(n_skeptics or AS.N_SKEPTICS), synthesize_fn=synth)
+
+        surv = AS.adversarial_survival(
+            result, pkg_path, risk_path, dossier_path, n_skeptics=(n_skeptics or AS.N_SKEPTICS), synthesize_fn=synth
+        )
         result["quality"]["adversarial_survival"] = surv
         result["quality"]["adversarial_gate"] = AS.adversarial_survival_gate(surv)
     return result
@@ -876,34 +1036,58 @@ def run(pkg_path: str, risk_path=None, objective: str = "small-molecule drug tar
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="cross-evidence hypothesis integrator (WS4)")
-    ap.add_argument("--evidence-package", required=True,
-                    help="target-profile evidence_package.json (the indication-conditioned panel)")
-    ap.add_argument("--target-dossier", default=None,
-                    help="target-intrinsic decision.json (indication-independent target biology)")
+    ap.add_argument(
+        "--evidence-package",
+        required=True,
+        help="target-profile evidence_package.json (the indication-conditioned panel)",
+    )
+    ap.add_argument(
+        "--target-dossier", default=None, help="target-intrinsic decision.json (indication-independent target biology)"
+    )
     ap.add_argument("--risk", default=None, help="6-dim literature-risk decision.json (optional)")
-    ap.add_argument("--substrate", nargs="*", default=[], metavar="AXIS=PATH",
-                    help="per-subskill GROUNDED SUBSTRATE blocks (ground_axis output), as axis=path "
-                         "(e.g. safety=safety.json selectivity=sel.json). The DESIGN-CORRECT literature "
-                         "path (§13): findings enrich the panel + PMIDs become citable; discordant axes "
-                         "surface as tensions. Escalate-only — never lowers the deterministic ceiling.")
-    ap.add_argument("--objective", default="small-molecule drug target",
-                    help="free-text objective (narration only)")
-    ap.add_argument("--modality", default=None, choices=sorted(hc.MODALITY_SCOPE),
-                    help="controlled modality enum (overrides objective inference)")
+    ap.add_argument(
+        "--substrate",
+        nargs="*",
+        default=[],
+        metavar="AXIS=PATH",
+        help="per-subskill GROUNDED SUBSTRATE blocks (ground_axis output), as axis=path "
+        "(e.g. safety=safety.json selectivity=sel.json). The DESIGN-CORRECT literature "
+        "path (§13): findings enrich the panel + PMIDs become citable; discordant axes "
+        "surface as tensions. Escalate-only — never lowers the deterministic ceiling.",
+    )
+    ap.add_argument("--objective", default="small-molecule drug target", help="free-text objective (narration only)")
+    ap.add_argument(
+        "--modality",
+        default=None,
+        choices=sorted(hc.MODALITY_SCOPE),
+        help="controlled modality enum (overrides objective inference)",
+    )
     ap.add_argument("--out", required=True, help="output directory")
-    ap.add_argument("--no-llm", action="store_true",
-                    help="OFFLINE deterministic run: use --llm-replay canned responses instead of "
-                         "Bedrock (powers the golden-set drift-CI; the deterministic spine is identical)")
-    ap.add_argument("--llm-replay", default=None,
-                    help="canned two-call response JSON ({\"cross_edges\":{...},\"hypothesis\":{...}}) "
-                         "for --no-llm")
-    ap.add_argument("--adversarial", action="store_true",
-                    help="OPT-IN (WS5): after assembling the hypothesis, run the SKEPTIC refutation "
-                         "post-check and populate quality.adversarial_survival + quality.adversarial_gate. "
-                         "Costs N extra Bedrock calls; INTRINSIC-quality only — never changes the "
-                         "verdict/ceiling. Incompatible with --no-llm (the skeptic pass has no replay).")
-    ap.add_argument("--n-skeptics", type=int, default=None,
-                    help="number of skeptic refutation passes for --adversarial (default: 3)")
+    ap.add_argument(
+        "--no-llm",
+        action="store_true",
+        help="OFFLINE deterministic run: use --llm-replay canned responses instead of "
+        "Bedrock (powers the golden-set drift-CI; the deterministic spine is identical)",
+    )
+    ap.add_argument(
+        "--llm-replay",
+        default=None,
+        help='canned two-call response JSON ({"cross_edges":{...},"hypothesis":{...}}) for --no-llm',
+    )
+    ap.add_argument(
+        "--adversarial",
+        action="store_true",
+        help="OPT-IN (WS5): after assembling the hypothesis, run the SKEPTIC refutation "
+        "post-check and populate quality.adversarial_survival + quality.adversarial_gate. "
+        "Costs N extra Bedrock calls; INTRINSIC-quality only — never changes the "
+        "verdict/ceiling. Incompatible with --no-llm (the skeptic pass has no replay).",
+    )
+    ap.add_argument(
+        "--n-skeptics",
+        type=int,
+        default=None,
+        help="number of skeptic refutation passes for --adversarial (default: 3)",
+    )
     args = ap.parse_args(argv)
 
     synthesize_fn, llm_mode = None, None
@@ -912,15 +1096,18 @@ def main(argv=None) -> int:
             print("--no-llm requires --llm-replay <canned response json>", file=sys.stderr)
             return 2
         if args.adversarial:
-            print("--adversarial needs live Bedrock (the skeptic pass is not part of the two-call "
-                  "replay); drop --no-llm to run it", file=sys.stderr)
+            print(
+                "--adversarial needs live Bedrock (the skeptic pass is not part of the two-call "
+                "replay); drop --no-llm to run it",
+                file=sys.stderr,
+            )
             return 2
         synthesize_fn = replay_synthesize(json.loads(Path(args.llm_replay).read_text()))
         llm_mode = "offline_replay"
 
     # load the per-subskill grounded substrate blocks (axis=path), if any
     substrate = {}
-    for spec in (args.substrate or []):
+    for spec in args.substrate or []:
         if "=" not in spec:
             print(f"--substrate expects axis=path, got {spec!r}", file=sys.stderr)
             return 2
@@ -930,42 +1117,65 @@ def main(argv=None) -> int:
     outd = Path(args.out)
     outd.mkdir(parents=True, exist_ok=True)
     print("→ assembling cross-evidence hypothesis ...", file=sys.stderr)
-    r = run(args.evidence_package, args.risk, args.objective, args.modality, args.target_dossier,
-            synthesize_fn=synthesize_fn, llm_mode=llm_mode, substrate=substrate or None,
-            adversarial=args.adversarial, n_skeptics=args.n_skeptics)
+    r = run(
+        args.evidence_package,
+        args.risk,
+        args.objective,
+        args.modality,
+        args.target_dossier,
+        synthesize_fn=synthesize_fn,
+        llm_mode=llm_mode,
+        substrate=substrate or None,
+        adversarial=args.adversarial,
+        n_skeptics=args.n_skeptics,
+    )
     (outd / "hypothesis.json").write_text(json.dumps(r, indent=2, default=str))
 
     v = r["verdict"]
     print(f"\n=== {r['target']} / {r['indication']}  ({r['modality']['resolved']}) ===")
-    print(f"VERDICT: {v['computed']}  (proposed {v['proposed_by_agent']}; ceiling {v['gate_ceiling']}"
-          f" — {v['gate_reason']})")
+    print(
+        f"VERDICT: {v['computed']}  (proposed {v['proposed_by_agent']}; ceiling {v['gate_ceiling']}"
+        f" — {v['gate_reason']})"
+    )
     if v["gate_clamp_tension"]:
         print(f"  CLAMPED: {v['gate_clamp_tension']}")
     u = r["uncertainty"]
-    print(f"CERTAINTY: {u['overall_certainty']} (base {u['base_certainty']}; "
-          f"limited by {u['limiting_dimension']}; caps {u['cap_reasons']})")
+    print(
+        f"CERTAINTY: {u['overall_certainty']} (base {u['base_certainty']}; "
+        f"limited by {u['limiting_dimension']}; caps {u['cap_reasons']})"
+    )
     ei = r["evidence_independence"]
     if ei["correlated_evidence_discounted"]:
         print(f"  correlated evidence discounted: {ei['correlated_groups']}")
     d = r["defensibility"]
-    print(f"DEFENSIBILITY: traceability={d['clause_traceability']} promotable={d['promotable']} "
-          f"blockers={d['promotion_blockers']}")
+    print(
+        f"DEFENSIBILITY: traceability={d['clause_traceability']} promotable={d['promotable']} "
+        f"blockers={d['promotion_blockers']}"
+    )
     if d["coherence_violations"]:
-        print(f"  COHERENCE: {d['n_coherence_violations']} intra-package contradiction(s): "
-              f"{ {k: [x['type'] for x in v] for k, v in d['coherence_violations'].items()} }")
+        print(
+            f"  COHERENCE: {d['n_coherence_violations']} intra-package contradiction(s): "
+            f"{ {k: [x['type'] for x in v] for k, v in d['coherence_violations'].items()} }"
+        )
     gsub = r["grounded_substrate"]
     if gsub["present"]:
-        print(f"GROUNDED SUBSTRATE: {gsub['n_findings']} finding(s) / {gsub['n_grounded_pmids']} "
-              f"citable PMID(s) across {len(gsub['per_axis'])} axes"
-              + (f"; discordant: {gsub['discordant_axes']}" if gsub["discordant_axes"] else ""))
+        print(
+            f"GROUNDED SUBSTRATE: {gsub['n_findings']} finding(s) / {gsub['n_grounded_pmids']} "
+            f"citable PMID(s) across {len(gsub['per_axis'])} axes"
+            + (f"; discordant: {gsub['discordant_axes']}" if gsub["discordant_axes"] else "")
+        )
     surv = (r.get("quality") or {}).get("adversarial_survival")
     if surv and surv.get("score") is not None:
         gate = (r.get("quality") or {}).get("adversarial_gate") or {}
-        print(f"ADVERSARIAL SURVIVAL: {surv['n_surviving']}/{surv['n_clauses']} clauses survive "
-              f"(score {surv['score']}; gate {'PASS' if gate.get('passed') else 'FLAG'})")
-    print(f"PROVENANCE: model={r['provenance']['model_id']} "
-          f"prompt_template_hash={r['provenance']['prompt_template_hash'][:12]}… "
-          f"mode={r['provenance']['llm_mode']}")
+        print(
+            f"ADVERSARIAL SURVIVAL: {surv['n_surviving']}/{surv['n_clauses']} clauses survive "
+            f"(score {surv['score']}; gate {'PASS' if gate.get('passed') else 'FLAG'})"
+        )
+    print(
+        f"PROVENANCE: model={r['provenance']['model_id']} "
+        f"prompt_template_hash={r['provenance']['prompt_template_hash'][:12]}… "
+        f"mode={r['provenance']['llm_mode']}"
+    )
     print(f"wrote {outd}/hypothesis.json", file=sys.stderr)
     return 0
 

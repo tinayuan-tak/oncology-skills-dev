@@ -13,6 +13,7 @@ CONFIRM a dependency but can NEVER create or flip a veto (PRISM absence is neutr
 killer — not-yet-drugged ≠ undruggable). Sibling of
 test_verdict_paralog_buffered_not_veto.py.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -35,10 +36,12 @@ def test_triangulated_alone_confirms_dependency():
 def test_pan_essential_killer_wins_over_confirmation():
     """VETO-SAFETY: a pan-essential target is never rescued/confirmed by compound
     correlation — pan_essential_killer must win over the confirmation arm."""
-    v, _ = fr._verdict([
-        {"rule_id": TRIANGULATED},
-        {"rule_id": "pan-essential-killer"},
-    ])
+    v, _ = fr._verdict(
+        [
+            {"rule_id": TRIANGULATED},
+            {"rule_id": "pan-essential-killer"},
+        ]
+    )
     assert v == "pan_essential_killer"
 
 
@@ -54,10 +57,12 @@ def test_genetic_concordant_outranks_confirmation():
     """A direct genetic dependency (concordant CRISPR+RNAi) is the stronger call and
     ranks above the chemical-genetic CONFIRMATION — the confirmation corroborates, it is
     not a stronger signal than a direct dependency."""
-    v, _ = fr._verdict([
-        {"rule_id": TRIANGULATED},
-        {"rule_id": "concordant-dependent-supportive-dominant"},
-    ])
+    v, _ = fr._verdict(
+        [
+            {"rule_id": TRIANGULATED},
+            {"rule_id": "concordant-dependent-supportive-dominant"},
+        ]
+    )
     assert v == "concordant_dependent"
 
 
@@ -67,9 +72,11 @@ def test_confirmation_outranks_pooled_non_dependence():
     AND RNAi both track compound kill while the pooled median reads non_dependent, that is
     the biomarker-dilution pattern the framework resolves in favor of the measured
     positive. (Mirrors how concordant/lineage/selective already shadow non_dependent.)"""
-    v, drv = fr._verdict([
-        {"rule_id": TRIANGULATED},
-        {"rule_id": "non-dependent-killer"},
-    ])
+    v, drv = fr._verdict(
+        [
+            {"rule_id": TRIANGULATED},
+            {"rule_id": "non-dependent-killer"},
+        ]
+    )
     assert v == "chemical_genetic_confirmed_dependent"
     assert drv == TRIANGULATED

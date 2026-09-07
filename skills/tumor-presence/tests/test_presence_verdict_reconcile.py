@@ -3,6 +3,7 @@ DISAGREE with the signal package. Surgical: only disagreeing POSITIVES demote (s
 conflict / not-present); agreeing positives and raw negatives are byte-stable. The RAW ladder collapse
 (_verdict) is untouched, so its golden-spine / ladder-invariant / flip-matrix tests stay byte-stable.
 """
+
 from pathlib import Path
 
 from _test_support import load_run_py
@@ -51,21 +52,24 @@ def test_tier2_raw_is_never_capped():
 
 def test_stromal_demotes():
     # PECAM1: raw positive but the signal is microenvironment/stromal, not malignant-cell.
-    assert tp.reconcile_presence_verdict(
-        "tumor_broadly_expressed", {"present": "yes", "malignant_intrinsic": "stroma"}
-    ) == tp.STROMAL_MICROENVIRONMENT_PRESENT
+    assert (
+        tp.reconcile_presence_verdict("tumor_broadly_expressed", {"present": "yes", "malignant_intrinsic": "stroma"})
+        == tp.STROMAL_MICROENVIRONMENT_PRESENT
+    )
 
 
 def test_protein_rna_conflict_demotes():
     # ALB: raw positive (single tumor-vs-adjacent contrast) but abundance/sc absent, protein present.
-    assert tp.reconcile_presence_verdict(
-        "strongly_upregulated_in_tumor", {"present": "protein_only_rna_absent", "malignant_intrinsic": "no"}
-    ) == tp.CONFLICTED_PROTEIN_PRESENT_RNA_ABSENT
+    assert (
+        tp.reconcile_presence_verdict(
+            "strongly_upregulated_in_tumor", {"present": "protein_only_rna_absent", "malignant_intrinsic": "no"}
+        )
+        == tp.CONFLICTED_PROTEIN_PRESENT_RNA_ABSENT
+    )
 
 
 def test_not_present_demotes_to_absent():
-    assert tp.reconcile_presence_verdict(
-        "strongly_upregulated_in_tumor", {"present": "no"}) == "absent"
+    assert tp.reconcile_presence_verdict("strongly_upregulated_in_tumor", {"present": "no"}) == "absent"
 
 
 def test_raw_negative_is_left_alone():

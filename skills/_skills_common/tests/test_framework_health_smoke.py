@@ -24,8 +24,10 @@ def test_smoke_seam_short_circuits_live_reads(monkeypatch):
     called = {"live": False}
     # If the seam leaked, _import_dispatcher would be reached; make it explode to prove it isn't.
     import _skills_common as C
-    monkeypatch.setattr(C, "_import_dispatcher",
-                        lambda: (_ for _ in ()).throw(AssertionError("live read attempted under smoke")))
+
+    monkeypatch.setattr(
+        C, "_import_dispatcher", lambda: (_ for _ in ()).throw(AssertionError("live read attempted under smoke"))
+    )
     monkeypatch.setenv("FRAMEWORK_HEALTH_SMOKE", "1")
     out = resolve_cards(["card-a", "card-b"], "FIXTURE", "COADREAD")
     assert [c["card_id"] for c in out] == ["card-a", "card-b"]
@@ -36,7 +38,8 @@ def test_smoke_seam_off_by_default(monkeypatch):
     """Unset flag → the smoke branch is NOT entered (live path is taken)."""
     monkeypatch.delenv("FRAMEWORK_HEALTH_SMOKE", raising=False)
     import _skills_common as C
-    monkeypatch.setattr(C, "_import_dispatcher", lambda: (lambda cid, t, i, **k: None))
+
+    monkeypatch.setattr(C, "_import_dispatcher", lambda: lambda cid, t, i, **k: None)
     out = resolve_cards(["card-a"], "T", "IND")
     # live path tagged it missing (dispatcher returned None) — proves smoke branch was skipped
     assert out[0]["_missing"] and not out[0].get("_smoke")
@@ -52,13 +55,25 @@ def test_wired_subskills_discovered():
 
 def test_stable_projection_drops_volatile_timings():
     """--check must ignore per-run seconds (volatile) but catch a status change."""
-    base = {"subskills": {"s": {"smoke": "clean", "run_health":
-            {"status": "ok", "read_secs": 0.1, "compute_secs": 0.2, "total_secs": 0.3}}}}
-    slow = {"subskills": {"s": {"smoke": "clean", "run_health":
-            {"status": "ok", "read_secs": 9.9, "compute_secs": 8.8, "total_secs": 18.7}}}}
-    assert H._stable(base) == H._stable(slow)             # only timings differ → same projection
+    base = {
+        "subskills": {
+            "s": {
+                "smoke": "clean",
+                "run_health": {"status": "ok", "read_secs": 0.1, "compute_secs": 0.2, "total_secs": 0.3},
+            }
+        }
+    }
+    slow = {
+        "subskills": {
+            "s": {
+                "smoke": "clean",
+                "run_health": {"status": "ok", "read_secs": 9.9, "compute_secs": 8.8, "total_secs": 18.7},
+            }
+        }
+    }
+    assert H._stable(base) == H._stable(slow)  # only timings differ → same projection
     broke = {"subskills": {"s": {"smoke": "error", "run_health": {}}}}
-    assert H._stable(base) != H._stable(broke)            # status change IS caught
+    assert H._stable(base) != H._stable(broke)  # status change IS caught
 
 
 def test_committed_rollup_is_fresh_and_consistent():
@@ -66,6 +81,7 @@ def test_committed_rollup_is_fresh_and_consistent():
     (this is what a CI guard runs). If this fails, regenerate it."""
     if not H._OUT.exists():
         import pytest
+
         pytest.skip("no committed subskill_health.json")
     rep = json.loads(H._OUT.read_text())
     s = rep["summary"]

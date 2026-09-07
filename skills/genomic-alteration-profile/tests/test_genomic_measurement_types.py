@@ -7,6 +7,7 @@ type it DECLARES it pulls, so the list cannot silently drift out of sync with ca
 when target-contracts is absent (isolated CI). Mirror of
 surface-modality-fit/tests/test_measurement_types_pulled.py.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -42,9 +43,14 @@ def test_gate_declares_measurement_types_pulled():
     pulled = _pulled()
     assert pulled, "genomic-alteration-profile must declare composition.measurement_types_pulled"
     # the verdict-driving spine: SNV spectrum + the stratified-dependency siblings + role
-    for required in ("mutation_variant_class_spectrum", "cn_stratified_dependency",
-                     "fusion_stratified_dependency", "amp_expr_stratified_dependency",
-                     "alteration_role", "copy_number_alteration"):
+    for required in (
+        "mutation_variant_class_spectrum",
+        "cn_stratified_dependency",
+        "fusion_stratified_dependency",
+        "amp_expr_stratified_dependency",
+        "alteration_role",
+        "copy_number_alteration",
+    ):
         assert required in pulled, f"{required!r} missing from measurement_types_pulled"
 
 
@@ -77,5 +83,4 @@ def test_every_used_card_maps_to_a_pulled_type():
         mtype = card_to_type.get(cid)
         if mtype is not None and mtype not in pulled:
             undeclared.append((cid, mtype))
-    assert not undeclared, (
-        f"cards used but whose measurement_type is not in measurement_types_pulled: {undeclared}")
+    assert not undeclared, f"cards used but whose measurement_type is not in measurement_types_pulled: {undeclared}"

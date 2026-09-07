@@ -12,6 +12,7 @@ signals the framework already computes. Regenerate the committed KRAS×COADREAD 
 Needs AWS_PROFILE=cbg + /opt/conda/bin/python for the live DepMap reads (see the framework env
 notes). The RENDERING is deterministic given the same catalog pin; the demo does not call an LLM.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -26,8 +27,7 @@ from _skills_common import ordinal_view  # noqa: E402
 
 
 def _load_run():
-    spec = importlib.util.spec_from_file_location(
-        "tp_run", Path(__file__).resolve().parent / "run.py")
+    spec = importlib.util.spec_from_file_location("tp_run", Path(__file__).resolve().parent / "run.py")
     m = importlib.util.module_from_spec(spec)
     sys.modules["tp_run"] = m
     spec.loader.exec_module(m)
@@ -38,8 +38,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--target", required=True)
     ap.add_argument("--indication", required=True)
-    ap.add_argument("--out", type=Path, default=None,
-                    help="write the rendered markdown here; else print to stdout")
+    ap.add_argument("--out", type=Path, default=None, help="write the rendered markdown here; else print to stdout")
     args = ap.parse_args()
 
     tp = _load_run()

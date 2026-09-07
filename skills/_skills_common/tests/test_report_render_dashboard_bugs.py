@@ -1,5 +1,6 @@
 """Regression guards for the dashboard rendering bugs the multi-agent eval surfaced on the real
 KRAS×COADREAD run: leaked python dicts, grey recommendation chip, empty deciding-axis, strip order."""
+
 import sys
 from pathlib import Path
 
@@ -22,7 +23,7 @@ def test_no_raw_python_dict_leaks_in_any_backend():
 
 def test_confidence_coverage_dict_is_formatted():
     txt = render_report(make_nomination(), preset="full", backend="text")
-    assert "4/5 axes" in txt and "2 critical" in txt   # from {n_measured:4,n_axes:5,n_critical_measured:2}
+    assert "4/5 axes" in txt and "2 critical" in txt  # from {n_measured:4,n_axes:5,n_critical_measured:2}
 
 
 def test_coherence_renders_class_not_dict():
@@ -40,7 +41,7 @@ def test_recommendation_badge_gets_semantic_color():
 
 def test_deciding_axis_resolves_from_deciding_axes_list_not_dash():
     ir = build_ir(make_nomination(), resolve_spec("full"))
-    assert ir.deciding_short == "safety"                       # extracted from deciding_axes[0].short
+    assert ir.deciding_short == "safety"  # extracted from deciding_axes[0].short
     da = next(b for b in ir.overview if b.kind == vocab.DECIDING_AXIS)
     assert da.payload["title"] == "On-target safety" and da.payload["axes"]
     txt = render_report(make_nomination(), preset="full", backend="text")
@@ -54,8 +55,9 @@ def test_signals_strip_orders_killers_first():
     # Slice from the BODY div (class='signal-strip'), NOT h.index('signal-strip') which matches the CSS
     # rule + the header's deciding mention first.
     import re
+
     html = render_report(make_nomination(), preset="full", backend="html")
-    _ss = html.index("class='signal-strip'")   # the diverging strip (a preceding scatter SVG may exist)
-    strip = html[_ss:html.index("</svg>", _ss)]
+    _ss = html.index("class='signal-strip'")  # the diverging strip (a preceding scatter SVG may exist)
+    strip = html[_ss : html.index("</svg>", _ss)]
     titles = re.findall(r"font-size='12.5'[^>]*>([^<]+)<", strip)  # row title labels, in SVG order
     assert titles and titles.index("On-target safety") < titles.index("Functional dependency")

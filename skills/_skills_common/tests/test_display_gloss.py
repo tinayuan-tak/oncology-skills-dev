@@ -5,6 +5,7 @@ extra_scalars) MUST have a METRIC_GLOSS entry, so no verdict-bearing card metric
 snake_case field. Plus the primitives (direction phrase normalization, affix backstop, card description
 interpolation) behave.
 """
+
 import sys
 from pathlib import Path
 
@@ -22,7 +23,7 @@ def _salience_metric_fields() -> set:
         for k in ("effect_field", "significance_field", "omnibus_field"):
             if s.get(k):
                 fields.add(s[k])
-        for e in (s.get("extra_scalars") or []):
+        for e in s.get("extra_scalars") or []:
             fields.add(e)
     return fields
 
@@ -53,7 +54,7 @@ def test_direction_phrase_three_values_and_alias_normalization():
 
 def test_metric_reading_places_the_two_prompt_exemplars():
     # the prompt's two canonical bare numbers must now read as gauged plain language
-    r1 = dg.metric_reading("amp_expr_effect_size", 0.62, "higher_is_stronger")   # affix-tail (un-spec'd)
+    r1 = dg.metric_reading("amp_expr_effect_size", 0.62, "higher_is_stronger")  # affix-tail (un-spec'd)
     assert "0.62" in r1 and "effect size" in r1 and "higher = stronger" in r1
     r2 = dg.metric_reading("median_chronos_hotspot_mutant", -1.73, "lower_is_stronger")
     assert "-1.73" in r2 and "CHRONOS" in r2 and "lower = stronger" in r2 and "hotspot-mutant" in r2
@@ -94,11 +95,20 @@ def test_humanize():
 
 
 def test_gauge_string_comparator_delta():
-    gv = {"metric": "median_chronos_hotspot_mutant", "value": -1.729, "scale": "chronos",
-          "direction": "lower_is_stronger", "distance_to_cut": -1.142,
-          "frame": {"kind": "comparator_delta", "anchors": [
-              {"role": "comparator", "label": "hotspot_wildtype", "value": -0.5864},
-              {"role": "cut", "label": "strong_effect_delta", "value": -0.5}]}}
+    gv = {
+        "metric": "median_chronos_hotspot_mutant",
+        "value": -1.729,
+        "scale": "chronos",
+        "direction": "lower_is_stronger",
+        "distance_to_cut": -1.142,
+        "frame": {
+            "kind": "comparator_delta",
+            "anchors": [
+                {"role": "comparator", "label": "hotspot_wildtype", "value": -0.5864},
+                {"role": "cut", "label": "strong_effect_delta", "value": -0.5},
+            ],
+        },
+    }
     s = dg.gauge_string(gv)
     assert "hotspot-mutant lines -1.729" in s
     assert "vs hotspot wildtype -0.5864" in s
@@ -106,12 +116,21 @@ def test_gauge_string_comparator_delta():
 
 
 def test_gauge_string_floor_cut_ceiling_oriented_and_positioned():
-    gv = {"metric": "median_chronos_panel", "value": -0.4574, "scale": "chronos",
-          "direction": "lower_is_stronger", "position": "between_controls",
-          "frame": {"kind": "floor_cut_ceiling", "anchors": [
-              {"role": "floor", "label": "non_essential_floor", "value": -0.038},
-              {"role": "ceiling", "label": "pan_essential_ceiling", "value": -1.499},
-              {"role": "cut", "label": "dependency_cut", "value": -0.5}]}}
+    gv = {
+        "metric": "median_chronos_panel",
+        "value": -0.4574,
+        "scale": "chronos",
+        "direction": "lower_is_stronger",
+        "position": "between_controls",
+        "frame": {
+            "kind": "floor_cut_ceiling",
+            "anchors": [
+                {"role": "floor", "label": "non_essential_floor", "value": -0.038},
+                {"role": "ceiling", "label": "pan_essential_ceiling", "value": -1.499},
+                {"role": "cut", "label": "dependency_cut", "value": -0.5},
+            ],
+        },
+    }
     s = dg.gauge_string(gv)
     assert s.startswith("between controls — ")
     assert "between non essential floor -0.038 and pan essential ceiling -1.499" in s
@@ -123,6 +142,13 @@ def test_gauge_string_empty_and_no_frame():
     assert dg.gauge_string({}) == ""
     assert dg.gauge_string({"value": None}) == ""
     # no frame -> falls back to the glossed metric reading
-    s = dg.gauge_string({"metric": "median_chronos", "value": -1.2, "scale": "chronos",
-                         "direction": "lower_is_stronger", "frame": {"kind": None, "anchors": []}})
+    s = dg.gauge_string(
+        {
+            "metric": "median_chronos",
+            "value": -1.2,
+            "scale": "chronos",
+            "direction": "lower_is_stronger",
+            "frame": {"kind": None, "anchors": []},
+        }
+    )
     assert "median CRISPR gene-effect (CHRONOS)" in s and "-1.2" in s

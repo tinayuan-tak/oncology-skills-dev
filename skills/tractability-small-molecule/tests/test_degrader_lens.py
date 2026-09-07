@@ -3,6 +3,7 @@
 The SM skill loads the intracellular axis, which scores small_molecule AND degrader in parallel.
 _degrader_snapshot projects the DEGRADER channel of the fired rules into a degrader-specific read,
 additive to (verdict-inert w.r.t.) the SM druggability_snapshot. Pure-helper tests (no I/O)."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -13,8 +14,12 @@ tp = load_run_py(Path(__file__).resolve().parent.parent, "tsm_run")
 
 
 def _fired(rule_id, degrader_signal, dominant=False):
-    return {"rule_id": rule_id, "card_id": "c", "dominant": dominant,
-            "signals": {"small_molecule": "neutral", "degrader": degrader_signal}}
+    return {
+        "rule_id": rule_id,
+        "card_id": "c",
+        "dominant": dominant,
+        "signals": {"small_molecule": "neutral", "degrader": degrader_signal},
+    }
 
 
 def test_dominant_degrader_supportive_is_strong():
@@ -41,13 +46,13 @@ def test_degrader_opposing():
 def test_no_degrader_signal_is_insufficient():
     assert tp._degrader_snapshot([]) == ("insufficient", None)
     # a rule with no degrader channel → insufficient
-    assert tp._degrader_snapshot([{"rule_id": "x", "card_id": "c", "dominant": False,
-                                   "signals": {"small_molecule": "supportive"}}]) == ("insufficient", None)
+    assert tp._degrader_snapshot(
+        [{"rule_id": "x", "card_id": "c", "dominant": False, "signals": {"small_molecule": "supportive"}}]
+    ) == ("insufficient", None)
 
 
 def test_killer_precedence_over_supportive():
     # a killer must dominate even if a supportive also fired
-    fired = [_fired("r-sup", "supportive", dominant=True),
-             _fired("r-kill", "killer")]
+    fired = [_fired("r-sup", "supportive", dominant=True), _fired("r-kill", "killer")]
     cls, _ = tp._degrader_snapshot(fired)
     assert cls == "degrader_unviable"

@@ -5,6 +5,7 @@ Enforces the tree  skill > sub-group > question > card > data-signal: every cons
 to a question (by measurement_type), be routed to another lens, or be context — else it is a
 SAME-QUESTION ORPHAN. Also: every question must have >=1 source card. The shared body lives in
 skills/conftest.py (was copy-pasted byte-identically across 13 skills)."""
+
 from __future__ import annotations
 
 from pathlib import Path

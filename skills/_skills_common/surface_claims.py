@@ -18,34 +18,56 @@ no_extracellular_domain / very_low density) is `absent`. `unmeasured` is a data 
 Verdict-INERT: reads the ALREADY-computed surface cards; the surface verdict is owned by the shared
 resolver and stays byte-stable with or without this projection.
 """
+
 from __future__ import annotations
 
-from _skills_common.claim_vector_core import (ClaimSpec, build_claim_vector, build_key_signals,
-                                              bump_corroboration, cap_corroboration, sig_ge,
-                                              corr as _corr, signal_from_class as _sig)
+from _skills_common.claim_vector_core import (
+    ClaimSpec,
+    build_claim_vector,
+    build_key_signals,
+    bump_corroboration,
+    cap_corroboration,
+    sig_ge,
+    corr as _corr,
+    signal_from_class as _sig,
+)
 
 # ── enum → substrate-strength tier maps (grounded in the target-contracts summary vocabularies) ──────
 _FIT_SIGNAL = {
-    "ADC_preferred": "strong", "TCE_preferred": "strong", "both_viable": "strong",
-    "modality_ambiguous": "moderate", "isoform_dependent_undefined": "weak",
-    "neither_viable": "absent", "data_unavailable": "unmeasured",
-}
-_TOPOLOGY_SIGNAL = {   # ecd_engineerability_class — accessible ECD to engineer a binder against
-    "large_ecd": "strong", "moderate_ecd": "moderate", "minimal_ecd": "weak",
-    "no_extracellular_domain": "absent", "data_unavailable": "unmeasured",
-}
-_DENSITY_SIGNAL = {    # surface_density_class — antigen copies/cell
-    "high": "strong", "moderate": "moderate", "low": "weak", "very_low": "absent",
-    "unmeasured": "unmeasured",
-}
-_SAFETY_SIGNAL = {     # normal_tissue_breadth_class — clean window = strong; broad = measured LIABILITY
-    "not_detected_in_normal": "strong", "restricted_normal_expression": "moderate",
-    "moderate_normal_expression": "weak", "broad_normal_expression": "negative",
+    "ADC_preferred": "strong",
+    "TCE_preferred": "strong",
+    "both_viable": "strong",
+    "modality_ambiguous": "moderate",
+    "isoform_dependent_undefined": "weak",
+    "neither_viable": "absent",
     "data_unavailable": "unmeasured",
 }
-_SHED_SIGNAL = {       # shed_liability_class — membrane-retained = strong; clinically-shed = measured LIABILITY
-    "not_shed_membrane_retained": "strong", "secretome_proxy_shed": "weak",
-    "clinically_shed": "negative", "indeterminate": "unmeasured",
+_TOPOLOGY_SIGNAL = {  # ecd_engineerability_class — accessible ECD to engineer a binder against
+    "large_ecd": "strong",
+    "moderate_ecd": "moderate",
+    "minimal_ecd": "weak",
+    "no_extracellular_domain": "absent",
+    "data_unavailable": "unmeasured",
+}
+_DENSITY_SIGNAL = {  # surface_density_class — antigen copies/cell
+    "high": "strong",
+    "moderate": "moderate",
+    "low": "weak",
+    "very_low": "absent",
+    "unmeasured": "unmeasured",
+}
+_SAFETY_SIGNAL = {  # normal_tissue_breadth_class — clean window = strong; broad = measured LIABILITY
+    "not_detected_in_normal": "strong",
+    "restricted_normal_expression": "moderate",
+    "moderate_normal_expression": "weak",
+    "broad_normal_expression": "negative",
+    "data_unavailable": "unmeasured",
+}
+_SHED_SIGNAL = {  # shed_liability_class — membrane-retained = strong; clinically-shed = measured LIABILITY
+    "not_shed_membrane_retained": "strong",
+    "secretome_proxy_shed": "weak",
+    "clinically_shed": "negative",
+    "indeterminate": "unmeasured",
 }
 
 _INFORMS = {
@@ -68,6 +90,7 @@ def _atom(card_id, summary, keys, entity, read):
 def _mk_atom(card, field, keys, entity):
     def fn(h, c):
         return _atom(card, c.get(card) or {}, keys, entity, (c.get(card) or {}).get(field))
+
     return fn
 
 
@@ -96,7 +119,7 @@ def _fit_corr(h, c):
     if fit_tier == "unmeasured":
         return "unmeasured"
     base = "moderate"
-    if sig_ge(fit_tier, "moderate"):                 # only a VIABLE fit call is qualified by antigen homogeneity
+    if sig_ge(fit_tier, "moderate"):  # only a VIABLE fit call is qualified by antigen homogeneity
         escape = h.get("tce_antigen_escape_class")
         if escape in _ESCAPE_HOMOGENEOUS:
             return bump_corroboration(base, True)
@@ -104,14 +127,20 @@ def _fit_corr(h, c):
             return cap_corroboration(base, "low")
     return base
 
+
 # pMHC-TCE route (peptide-MHC): the FIT/TOPOLOGY claims read the FOLDED-surface ladder (adc-tce-modality-fit
 # reads neither_viable for an intracellular target), so an intracellular target with validated pMHC epitopes
 # — a real TCR-mimetic TCE route (ERBB2/NY-ESO-1/MAGE archetype) — was invisible to the claim vector (the
 # route lived only in the skill's verdict SNAPSHOT). This claim reads the RAW IEDB epitope evidence
 # (pmhc_epitope_evidence_class, in the headline — NOT the snapshot/verdict), corroborated by the independent
 # HLA-ligand-atlas presentation (pmhc_presentation_class). Verdict-INERT.
-_PMHC_SIGNAL = {"tcell_validated": "strong", "presented_not_tcell_confirmed": "moderate",
-                "no_positive_epitopes": "absent", "not_observed": "absent", "data_unavailable": "unmeasured"}
+_PMHC_SIGNAL = {
+    "tcell_validated": "strong",
+    "presented_not_tcell_confirmed": "moderate",
+    "no_positive_epitopes": "absent",
+    "not_observed": "absent",
+    "data_unavailable": "unmeasured",
+}
 _PMHC_PRESENTED = {"restricted_presentation", "intermediate_presentation", "broadly_presented_normal"}
 
 
@@ -133,32 +162,109 @@ def _pmhc_corr(h, c):
 
 
 SURFACE_CLAIM_SPEC = [
-    ClaimSpec("FIT", "ADC/TCE modality fit", _sig(_C_FIT, "fit_class", _FIT_SIGNAL),
-              _fit_corr, _INFORMS["FIT"],
-              _mk_atom(_C_FIT, "fit_class",
-                       ("fit_class", "fit_rationale", "endocytosis_confidence", "surface_family_class",
-                        "is_adc_topology_favorable", "is_tce_topology_favorable"), _E_TI)),
-    ClaimSpec("TOPOLOGY", "surface topology / ECD", _sig(_C_TOP, "ecd_engineerability_class", _TOPOLOGY_SIGNAL),
-              _corr(_C_TOP, "ecd_engineerability_class", _TOPOLOGY_SIGNAL), _INFORMS["TOPOLOGY"],
-              _mk_atom(_C_TOP, "ecd_engineerability_class",
-                       ("topology_class", "ecd_engineerability_class", "tm_pass_count",
-                        "extracellular_residue_count", "ecd_orientation", "signal_peptide_present"), _E_T)),
-    ClaimSpec("DENSITY", "antigen abundance", _sig(_C_DEN, "surface_density_class", _DENSITY_SIGNAL),
-              _corr(_C_DEN, "surface_density_class", _DENSITY_SIGNAL), _INFORMS["DENSITY"],
-              _mk_atom(_C_DEN, "surface_density_class",
-                       ("surface_density_class", "density_evidence_level", "estimated_copies_per_cell_median",
-                        "estimated_copies_per_cell_lower", "estimated_copies_per_cell_upper",
-                        "hpa_ihc_intensity_class", "is_tce_viable", "is_adc_high_payload_viable"), _E_TI)),
-    ClaimSpec("SAFETY", "normal-tissue window", _sig(_C_SAFE, "normal_tissue_breadth_class", _SAFETY_SIGNAL),
-              _corr(_C_SAFE, "normal_tissue_breadth_class", _SAFETY_SIGNAL), _INFORMS["SAFETY"],
-              _mk_atom(_C_SAFE, "normal_tissue_breadth_class",
-                       ("normal_tissue_breadth_class", "essential_tissue_flag", "hpa_tissue_specificity",
-                        "n_essential_tissues_with_expression", "essential_tissues_flagged", "n_specific_tissues"), _E_SAFE)),
-    ClaimSpec("SHED", "ectodomain shedding", _sig(_C_SHED, "shed_liability_class", _SHED_SIGNAL),
-              _corr(_C_SHED, "shed_liability_class", _SHED_SIGNAL), _INFORMS["SHED"],
-              _mk_atom(_C_SHED, "shed_liability_class",
-                       ("shed_liability_class", "shed_evidence_tier", "serum_marker", "shed_product",
-                        "shedding_protease", "measured_shed_class", "media_mean_npx"), _E_SHED)),
+    ClaimSpec(
+        "FIT",
+        "ADC/TCE modality fit",
+        _sig(_C_FIT, "fit_class", _FIT_SIGNAL),
+        _fit_corr,
+        _INFORMS["FIT"],
+        _mk_atom(
+            _C_FIT,
+            "fit_class",
+            (
+                "fit_class",
+                "fit_rationale",
+                "endocytosis_confidence",
+                "surface_family_class",
+                "is_adc_topology_favorable",
+                "is_tce_topology_favorable",
+            ),
+            _E_TI,
+        ),
+    ),
+    ClaimSpec(
+        "TOPOLOGY",
+        "surface topology / ECD",
+        _sig(_C_TOP, "ecd_engineerability_class", _TOPOLOGY_SIGNAL),
+        _corr(_C_TOP, "ecd_engineerability_class", _TOPOLOGY_SIGNAL),
+        _INFORMS["TOPOLOGY"],
+        _mk_atom(
+            _C_TOP,
+            "ecd_engineerability_class",
+            (
+                "topology_class",
+                "ecd_engineerability_class",
+                "tm_pass_count",
+                "extracellular_residue_count",
+                "ecd_orientation",
+                "signal_peptide_present",
+            ),
+            _E_T,
+        ),
+    ),
+    ClaimSpec(
+        "DENSITY",
+        "antigen abundance",
+        _sig(_C_DEN, "surface_density_class", _DENSITY_SIGNAL),
+        _corr(_C_DEN, "surface_density_class", _DENSITY_SIGNAL),
+        _INFORMS["DENSITY"],
+        _mk_atom(
+            _C_DEN,
+            "surface_density_class",
+            (
+                "surface_density_class",
+                "density_evidence_level",
+                "estimated_copies_per_cell_median",
+                "estimated_copies_per_cell_lower",
+                "estimated_copies_per_cell_upper",
+                "hpa_ihc_intensity_class",
+                "is_tce_viable",
+                "is_adc_high_payload_viable",
+            ),
+            _E_TI,
+        ),
+    ),
+    ClaimSpec(
+        "SAFETY",
+        "normal-tissue window",
+        _sig(_C_SAFE, "normal_tissue_breadth_class", _SAFETY_SIGNAL),
+        _corr(_C_SAFE, "normal_tissue_breadth_class", _SAFETY_SIGNAL),
+        _INFORMS["SAFETY"],
+        _mk_atom(
+            _C_SAFE,
+            "normal_tissue_breadth_class",
+            (
+                "normal_tissue_breadth_class",
+                "essential_tissue_flag",
+                "hpa_tissue_specificity",
+                "n_essential_tissues_with_expression",
+                "essential_tissues_flagged",
+                "n_specific_tissues",
+            ),
+            _E_SAFE,
+        ),
+    ),
+    ClaimSpec(
+        "SHED",
+        "ectodomain shedding",
+        _sig(_C_SHED, "shed_liability_class", _SHED_SIGNAL),
+        _corr(_C_SHED, "shed_liability_class", _SHED_SIGNAL),
+        _INFORMS["SHED"],
+        _mk_atom(
+            _C_SHED,
+            "shed_liability_class",
+            (
+                "shed_liability_class",
+                "shed_evidence_tier",
+                "serum_marker",
+                "shed_product",
+                "shedding_protease",
+                "measured_shed_class",
+                "media_mean_npx",
+            ),
+            _E_SHED,
+        ),
+    ),
     # pMHC-TCE route — reads the headline pmhc fields directly (custom fn, not the _sig card factory).
     ClaimSpec("PMHC", "pMHC-TCE route", _pmhc_signal, _pmhc_corr, _INFORMS["PMHC"]),
 ]
@@ -168,7 +274,8 @@ _DISCLAIMER = (
     "(FIT / TOPOLOGY / DENSITY / SAFETY / SHED / PMHC), each signal×corroboration. UNIFORM valence: a strong "
     "signal is a BETTER surface-modality substrate; a MEASURED adverse read (broad normal expression, "
     "clinically-shed ectodomain) is `negative` (a real liability); a measured no-substrate read is "
-    "`absent`; `unmeasured` is a data gap. Claims are NOT averaged; never feeds the surface verdict.")
+    "`absent`; `unmeasured` is a data gap. Claims are NOT averaged; never feeds the surface verdict."
+)
 
 
 def surface_claim_vector(headline: dict, cards: list) -> dict:
@@ -184,19 +291,31 @@ def surface_key_signals(headline: dict, cards: list) -> dict:
 
     def _liability_caveat(label):
         def fn(claim):
-            return f"{label} is a MEASURED liability ({claim['evidence']})" if claim.get("signal") == "negative" else None
+            return (
+                f"{label} is a MEASURED liability ({claim['evidence']})" if claim.get("signal") == "negative" else None
+            )
+
         return fn
 
     return build_key_signals(
-        vec, rank_keys=("FIT", "DENSITY", "TOPOLOGY", "SAFETY", "SHED"),
-        support_fns={k: (lambda cl, _k=k: f"{_k}: {cl['signal']} ({cl['evidence']})") for k in
-                     ("FIT", "DENSITY", "TOPOLOGY", "SAFETY", "SHED")},
+        vec,
+        rank_keys=("FIT", "DENSITY", "TOPOLOGY", "SAFETY", "SHED"),
+        support_fns={
+            k: (lambda cl, _k=k: f"{_k}: {cl['signal']} ({cl['evidence']})")
+            for k in ("FIT", "DENSITY", "TOPOLOGY", "SAFETY", "SHED")
+        },
         critical_keys=("FIT", "DENSITY", "SAFETY", "SHED"),
-        caveat_fns={"SAFETY": _liability_caveat("normal-tissue breadth"),
-                    "SHED": _liability_caveat("ectodomain shedding")},
-        headline_fn=lambda v, s: ("Surface / modality-fit substrate present." if s else
-                                   "Limited surface / modality-fit substrate (or largely unmeasured)."),
-        fallback_caveat_fn=lambda: None)
+        caveat_fns={
+            "SAFETY": _liability_caveat("normal-tissue breadth"),
+            "SHED": _liability_caveat("ectodomain shedding"),
+        },
+        headline_fn=lambda v, s: (
+            "Surface / modality-fit substrate present."
+            if s
+            else "Limited surface / modality-fit substrate (or largely unmeasured)."
+        ),
+        fallback_caveat_fn=lambda: None,
+    )
 
 
 __all__ = ["surface_claim_vector", "surface_key_signals", "SURFACE_CLAIM_SPEC"]

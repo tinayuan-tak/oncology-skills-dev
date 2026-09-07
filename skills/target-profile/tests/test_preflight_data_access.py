@@ -7,6 +7,7 @@ whole profile silently degrades to all-`insufficient` with exit 0 — which woul
 an at-scale pressure-test batch. The preflight resolves the identity via a permission-free STS call
 and hard-fails (main() → exit 3) when the account is not an onc-compbio account.
 """
+
 from __future__ import annotations
 
 import sys
@@ -20,6 +21,7 @@ tp = load_run_py(Path(__file__).resolve().parents[1], "tp_run_preflight")
 
 def _fake_boto3(account=None, raise_exc=None):
     """A stand-in boto3 module whose sts client returns `account` (or raises)."""
+
     class _Client:
         def get_caller_identity(self):
             if raise_exc is not None:
@@ -44,8 +46,9 @@ def _run_with(monkeypatch, *, account=None, raise_exc=None, env_accounts=None, p
     if env_accounts is not None:
         monkeypatch.setenv("ONC_COMPBIO_ACCOUNT_IDS", env_accounts)
         # the account set is captured at import time; re-read it for the test.
-        monkeypatch.setattr(tp, "_ONC_COMPBIO_ACCOUNT_IDS",
-                            frozenset(a.strip() for a in env_accounts.split(",") if a.strip()))
+        monkeypatch.setattr(
+            tp, "_ONC_COMPBIO_ACCOUNT_IDS", frozenset(a.strip() for a in env_accounts.split(",") if a.strip())
+        )
     return tp._preflight_data_access()
 
 
@@ -68,8 +71,7 @@ def test_unresolvable_identity_fails(monkeypatch):
 
 
 def test_env_override_allows_additional_account(monkeypatch):
-    ok, _ = _run_with(monkeypatch, account="123456789012",
-                      env_accounts="557690623046,123456789012")
+    ok, _ = _run_with(monkeypatch, account="123456789012", env_accounts="557690623046,123456789012")
     assert ok is True
 
 

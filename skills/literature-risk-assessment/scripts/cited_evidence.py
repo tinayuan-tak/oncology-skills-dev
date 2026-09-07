@@ -14,6 +14,7 @@ SKILL.md) and any legacy caller keep working; it holds no compose logic of its o
 See analysis-methods methods/cited_literature_evidence/read.py for the implementation +
 read_cited_literature_evidence (the flattened CARD entrypoint the target-contracts card dispatches).
 """
+
 from __future__ import annotations
 
 import os
@@ -22,8 +23,9 @@ import sys
 # analysis-methods holds the single source of truth (methods/cited_literature_evidence/). Put its repo
 # root on sys.path (repo convention: ANALYSIS_METHODS_ROOT, mirrors _skills_common/_live_readers.py) so
 # the top-level re-export resolves whether this shim is imported standalone (CLI / importlib) or in-process.
-_METHODS_REPO = os.environ.get("ANALYSIS_METHODS_ROOT",
-                               "/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods")
+_METHODS_REPO = os.environ.get(
+    "ANALYSIS_METHODS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods"
+)
 if _METHODS_REPO not in sys.path:
     sys.path.insert(0, _METHODS_REPO)
 
@@ -40,13 +42,13 @@ __all__ = ["build_cited_evidence_card", "cited_evidence", "DEFAULT_TOP_CITED", "
 def _main(argv=None):
     import argparse
     import json
+
     ap = argparse.ArgumentParser(description="Verdict-inert gene×indication cited-literature card.")
     ap.add_argument("--target", required=True)
     ap.add_argument("--indication", required=True)
     ap.add_argument("--top-cited", type=int, default=DEFAULT_TOP_CITED)
     args = ap.parse_args(argv)
-    print(json.dumps(cited_evidence(args.target, args.indication, top_cited=args.top_cited),
-                     indent=2, default=str))
+    print(json.dumps(cited_evidence(args.target, args.indication, top_cited=args.top_cited), indent=2, default=str))
 
 
 if __name__ == "__main__":

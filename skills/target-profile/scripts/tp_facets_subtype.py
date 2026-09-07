@@ -1,5 +1,6 @@
 """tp_facets — subtype / subgroup facet cluster (split out of tp_facets.py for readability; byte-identical).
 Re-exported by tp_facets, so `from tp_facets import *` and existing imports are unaffected."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -10,9 +11,9 @@ from tp_fanout import SUBTYPE_SHORT
 
 
 _SUBTYPE_INPUTS = [
-    ("expression",         "tumor-rna-distribution-by-subtype",        "expression"),
-    ("dependency",         "subgroup-stratified-dependency",           "dependency"),
-    ("genomic_alteration", "subgroup-stratified-mutation-frequency",   "mutation_frequency"),
+    ("expression", "tumor-rna-distribution-by-subtype", "expression"),
+    ("dependency", "subgroup-stratified-dependency", "dependency"),
+    ("genomic_alteration", "subgroup-stratified-mutation-frequency", "mutation_frequency"),
 ]
 
 
@@ -100,6 +101,7 @@ def _load_subtype_crosswalk(indication: str, contracts_repo: Path | None = None)
         return out
     try:
         import yaml
+
         doc = yaml.safe_load(path.read_text()) or {}
     except Exception:  # noqa: BLE001
         return out
@@ -115,8 +117,7 @@ def _load_subtype_crosswalk(indication: str, contracts_repo: Path | None = None)
     return out
 
 
-def _subtype_facet(sub_results: dict, indication: str = None,
-                   contracts_repo: Path | None = None) -> dict:
+def _subtype_facet(sub_results: dict, indication: str = None, contracts_repo: Path | None = None) -> dict:
     """Assemble the per-molecular-subtype CONVERGENCE facet. Deterministic;
     additive; VERDICT-INERT (a synthesis facet, never a gate — informs patient-selection confidence,
     never mints a nominate). Converges the three subtype-grain panoramas BY SUBTYPE:
@@ -138,12 +139,15 @@ def _subtype_facet(sub_results: dict, indication: str = None,
     Absence is HONEST: a subtype/axis with no measured record contributes nothing (never fabricated).
     The association tier NEVER collapses two strata into one — it reports them as related, with the
     relationship type + cohort bridge explicit, so a CMS finding is never mislabeled an MSI finding."""
-    xwalk = _load_subtype_crosswalk(indication, contracts_repo) if indication else \
-        {"associations": [], "axis_of": {}, "cohorts_of": {}}
+    xwalk = (
+        _load_subtype_crosswalk(indication, contracts_repo)
+        if indication
+        else {"associations": [], "axis_of": {}, "cohorts_of": {}}
+    )
     per_subtype: dict = {}
     axes_seen: set = set()
     any_rows = False
-    chips_by_subtype: dict = {}          # {axis: rows} — the per-axis subtype spine (exposed for the renderer)
+    chips_by_subtype: dict = {}  # {axis: rows} — the per-axis subtype spine (exposed for the renderer)
     for short, card_id, axis in _SUBTYPE_INPUTS:
         # Read the axis's subtype panorama SPINE-FIRST (`skill_report.claim_chips_by_subtype`), falling
         # back to the card `per_subgroup_metrics` under the per-gate short, then SUBTYPE_SHORT where the
@@ -159,14 +163,26 @@ def _subtype_facet(sub_results: dict, indication: str = None,
             if not subtype:
                 continue
             state = rec.get("evidence_state")
-            block = per_subtype.setdefault(subtype, {"axes_measured": [], "axes_present": [],
-                                                     "metrics": {}})
+            block = per_subtype.setdefault(subtype, {"axes_measured": [], "axes_present": [], "metrics": {}})
             block["axes_present"].append(axis)
             # carry the axis metric (whatever numeric/class the panorama row exposes beyond bookkeeping)
-            metric = {k: v for k, v in rec.items()
-                      if k not in ("stratum", "stratum_id", "subgroup_id", "subgroup_label",
-                                   "subgroup", "subgroup_n", "subgroup_n_floor_met",
-                                   "evidence_state", "source_cohort") and v is not None}
+            metric = {
+                k: v
+                for k, v in rec.items()
+                if k
+                not in (
+                    "stratum",
+                    "stratum_id",
+                    "subgroup_id",
+                    "subgroup_label",
+                    "subgroup",
+                    "subgroup_n",
+                    "subgroup_n_floor_met",
+                    "evidence_state",
+                    "source_cohort",
+                )
+                and v is not None
+            }
             if metric:
                 block["metrics"][axis] = metric
             if state == "measured":
@@ -184,8 +200,7 @@ def _subtype_facet(sub_results: dict, indication: str = None,
     # linked by a subtype_crosswalk enriched_in / co_defining association. This is what lets
     # MSI_H(dependency) relate to CMS1(expression) across the vocabulary/cohort gap WITHOUT claiming
     # they are the same stratum. Only strata that are actually MEASURED here participate.
-    measured_axes_of = {st: set(b["axes_measured"]) for st, b in per_subtype.items()
-                        if b["n_axes_measured"] >= 1}
+    measured_axes_of = {st: set(b["axes_measured"]) for st, b in per_subtype.items() if b["n_axes_measured"] >= 1}
     associated_pairs = []
     for assoc in xwalk["associations"]:
         a, b_, rel = assoc.get("from"), assoc.get("to"), assoc.get("relationship")
@@ -201,11 +216,17 @@ def _subtype_facet(sub_results: dict, indication: str = None,
         # cohort bridge: the two strata's registry cohorts don't overlap (e.g. DepMap dep vs TCGA expr)
         coh_a, coh_b = set(xwalk["cohorts_of"].get(a, [])), set(xwalk["cohorts_of"].get(b_, []))
         cohort_bridge = bool(coh_a and coh_b and not (coh_a & coh_b))
-        associated_pairs.append({
-            "from": a, "to": b_, "relationship": rel,
-            "from_axes_measured": sorted(axes_a), "to_axes_measured": sorted(axes_b),
-            "cohort_bridge": cohort_bridge, "note": assoc.get("note", ""),
-        })
+        associated_pairs.append(
+            {
+                "from": a,
+                "to": b_,
+                "relationship": rel,
+                "from_axes_measured": sorted(axes_a),
+                "to_axes_measured": sorted(axes_b),
+                "cohort_bridge": cohort_bridge,
+                "note": assoc.get("note", ""),
+            }
+        )
 
     if not any_rows:
         verdict = "subtype_axis_unavailable"
@@ -229,17 +250,19 @@ def _subtype_facet(sub_results: dict, indication: str = None,
         # the renderer + roll-up provenance read the SAME rows off target_report.subtype_convergence
         # rather than re-reaching into cards (contract §197-223). Empty when no subtype panorama reached.
         "claim_chips_by_subtype": chips_by_subtype,
-        "_disclaimer": ("Subtype is a FACET, not a gate: it converges the per-molecular-subtype "
-                        "panoramas (expression / dependency / mutation-frequency) BY SUBTYPE to "
-                        "surface cross-axis patient-selection strata. It informs confidence + "
-                        "patient-selection, never mints a nominate. convergent_subtypes = subtypes "
-                        "with >=2 MEASURED axes on the SAME stratum id (strong). associated_subtypes "
-                        "= DIFFERENT strata each measured on its own axis, linked by a "
-                        "subtype_crosswalk enriched_in/co_defining association (weak, cohort-bridged) "
-                        "— reported as RELATED, never as the same stratum (a CMS finding is never "
-                        "relabeled an MSI finding); cohort_bridge=true flags a DepMap-vs-TCGA cross. "
-                        "subtype_axis_unavailable = no shard for this indication (coverage gap), not "
-                        "a measured negative."),
+        "_disclaimer": (
+            "Subtype is a FACET, not a gate: it converges the per-molecular-subtype "
+            "panoramas (expression / dependency / mutation-frequency) BY SUBTYPE to "
+            "surface cross-axis patient-selection strata. It informs confidence + "
+            "patient-selection, never mints a nominate. convergent_subtypes = subtypes "
+            "with >=2 MEASURED axes on the SAME stratum id (strong). associated_subtypes "
+            "= DIFFERENT strata each measured on its own axis, linked by a "
+            "subtype_crosswalk enriched_in/co_defining association (weak, cohort-bridged) "
+            "— reported as RELATED, never as the same stratum (a CMS finding is never "
+            "relabeled an MSI finding); cohort_bridge=true flags a DepMap-vs-TCGA cross. "
+            "subtype_axis_unavailable = no shard for this indication (coverage gap), not "
+            "a measured negative."
+        ),
     }
 
 
@@ -259,23 +282,39 @@ def _subgroup_flip_view(sub_results: dict) -> dict:
         st = _subtype_stratum_key(rec)
         if not st:
             continue
-        rows.append({
-            "stratum": st,
-            "evidence_state": rec.get("evidence_state"),
-            "subgroup_n_floor_met": rec.get("subgroup_n_floor_met"),
-            "metric": {k: v for k, v in rec.items()
-                       if k not in ("stratum", "subgroup_id", "subgroup_label", "subgroup",
-                                    "subgroup_n", "subgroup_n_floor_met", "evidence_state",
-                                    "source_cohort") and v is not None},
-        })
+        rows.append(
+            {
+                "stratum": st,
+                "evidence_state": rec.get("evidence_state"),
+                "subgroup_n_floor_met": rec.get("subgroup_n_floor_met"),
+                "metric": {
+                    k: v
+                    for k, v in rec.items()
+                    if k
+                    not in (
+                        "stratum",
+                        "subgroup_id",
+                        "subgroup_label",
+                        "subgroup",
+                        "subgroup_n",
+                        "subgroup_n_floor_met",
+                        "evidence_state",
+                        "source_cohort",
+                    )
+                    and v is not None
+                },
+            }
+        )
     return {
         "pooled_dependency_verdict": dep_v[0] if dep_v else None,
         "subtype_fit_verdict": subtype_v[0] if subtype_v else None,
         "per_stratum_dependency": rows,
-        "_note": ("Descriptive per-stratum view (--subtypes): the subtype panorama's own "
-                  "per_subgroup_metrics beside the POOLED dependency verdict, to expose a stratified "
-                  "pattern the pooled call hides. NOT a re-resolved per-stratum verdict; the "
-                  "resolver-backed subtype call is subtype_fit_verdict."),
+        "_note": (
+            "Descriptive per-stratum view (--subtypes): the subtype panorama's own "
+            "per_subgroup_metrics beside the POOLED dependency verdict, to expose a stratified "
+            "pattern the pooled call hides. NOT a re-resolved per-stratum verdict; the "
+            "resolver-backed subtype call is subtype_fit_verdict."
+        ),
     }
 
 
@@ -289,14 +328,18 @@ def _rollup_subtype_block(subtype_facet: "Optional[dict]") -> dict:
     n_eval = sf.get("n_subtypes_evaluated") or 0
     status = sf.get("verdict") or ("no_subtype_signal" if not n_eval else None)
     if convergent:
-        headline = (f"{len(convergent)} convergent subtype stratum"
-                    f"{'a' if len(convergent) != 1 else ''}: {', '.join(convergent[:4])}"
-                    + (" …" if len(convergent) > 4 else "")
-                    + f" (multi-axis agreement; stratified axes: {', '.join(axes_avail) or '—'})")
+        headline = (
+            f"{len(convergent)} convergent subtype stratum"
+            f"{'a' if len(convergent) != 1 else ''}: {', '.join(convergent[:4])}"
+            + (" …" if len(convergent) > 4 else "")
+            + f" (multi-axis agreement; stratified axes: {', '.join(axes_avail) or '—'})"
+        )
         prominence = "convergent"
     elif n_eval:
-        headline = (f"{n_eval} subtype stratum{'a' if n_eval != 1 else ''} evaluated; no multi-axis "
-                    f"convergence yet (stratified axes: {', '.join(axes_avail) or '—'})")
+        headline = (
+            f"{n_eval} subtype stratum{'a' if n_eval != 1 else ''} evaluated; no multi-axis "
+            f"convergence yet (stratified axes: {', '.join(axes_avail) or '—'})"
+        )
         prominence = "evaluated_no_convergence"
     else:
         headline = "Whole-cohort — no molecular-subtype stratification wired for this target-indication"
@@ -310,5 +353,5 @@ def _rollup_subtype_block(subtype_facet: "Optional[dict]") -> dict:
         "stratified_axes": axes_avail,
         "n_subtypes_evaluated": n_eval,
         "_note": "Subtype is a FACET, not a gate — surfaced prominently; never moves block/verdict. Only "
-                 "the expression axis is stratified today (coverage gap flagged in stratified_axes).",
+        "the expression axis is stratified today (coverage gap flagged in stratified_axes).",
     }

@@ -10,6 +10,7 @@ It removes the most-copied test boilerplate: the "load a script as an isolated m
 which was re-declared as a local `_load()` (or an ad-hoc `import run as X`) in ~180 test files.
 `load_module()` is that triple; `load_run_py()` is the run.py convenience wrapper.
 """
+
 from __future__ import annotations
 
 import importlib.util

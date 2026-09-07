@@ -13,6 +13,7 @@ Two tiers, mirroring the freeze/replay split:
                                      emitted field with no disposition (orphan) or a STALE ledger
                                      entry fails CI.
 """
+
 from __future__ import annotations
 
 import os
@@ -38,9 +39,11 @@ def _cards() -> list[str]:
 
 
 def _contracts_root() -> Path | None:
-    root = Path(os.environ.get(
-        "TARGET_CONTRACTS_ROOT",
-        "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
+    root = Path(
+        os.environ.get(
+            "TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
+        )
+    )
     return root if (root / "cards").is_dir() else None
 
 
@@ -59,8 +62,8 @@ def test_ledger_wellformed():
     cards = set(_cards())
     ledger_cards = {k for k in doc if not k.startswith("_")}
     assert ledger_cards == cards, (
-        f"ledger cards != run.py CARDS. missing={sorted(cards - ledger_cards)} "
-        f"extra={sorted(ledger_cards - cards)}")
+        f"ledger cards != run.py CARDS. missing={sorted(cards - ledger_cards)} extra={sorted(ledger_cards - cards)}"
+    )
     for cid in ledger_cards:
         entry = doc[cid]
         if entry.get("_no_contract_fields"):
@@ -71,8 +74,10 @@ def test_ledger_wellformed():
             assert str(spec.get("reason") or "").strip(), f"{cid}.{field}: empty reason"
 
 
-@pytest.mark.skipif(_contracts_root() is None,
-                    reason="target-contracts not resolvable (set TARGET_CONTRACTS_ROOT) — drift check skipped")
+@pytest.mark.skipif(
+    _contracts_root() is None,
+    reason="target-contracts not resolvable (set TARGET_CONTRACTS_ROOT) — drift check skipped",
+)
 def test_ledger_matches_emitted_fields():
     """THE RATCHET: ledger fields per card == the card's emitted summary_fields. A new emitted field
     with no disposition (silent-drop risk) or a stale ledger entry fails here."""
@@ -84,8 +89,8 @@ def test_ledger_matches_emitted_fields():
             continue
         entry = {k: v for k, v in (doc.get(cid) or {}).items() if not k.startswith("_")}
         ledger_fields = set(entry)
-        orphans = emitted - ledger_fields          # emitted, NO disposition → would be dropped silently
-        stale = ledger_fields - emitted            # in ledger, no longer emitted
+        orphans = emitted - ledger_fields  # emitted, NO disposition → would be dropped silently
+        stale = ledger_fields - emitted  # in ledger, no longer emitted
         if orphans:
             problems.append(f"{cid}: UNCLASSIFIED emitted fields (add a disposition): {sorted(orphans)}")
         if stale:

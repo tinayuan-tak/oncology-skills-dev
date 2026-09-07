@@ -14,6 +14,7 @@ graph verdict node's display `call` — so the verdict node carries the resolved
 well_characterized) rather than None. The verdict asserts below are therefore NULL-TOLERANT: the
 resolved-token path is pinned for this fixture. Nothing here touches the mechanism_verdict spine.
 """
+
 from __future__ import annotations
 
 import copy
@@ -22,10 +23,13 @@ import copy
 # display-only facets. Descriptive skill: even the "verdict-bearing" cards only INFORM the neutral
 # mechanism_verdict token — none pushes a nomination.
 VERDICT_BEARING = {
-    "signaling-network-mechanism", "phospho-pathway-activity", "dependency-predictability",
+    "signaling-network-mechanism",
+    "phospho-pathway-activity",
+    "dependency-predictability",
 }
 DISPLAY_ONLY = {
-    "tahoe-drug-perturbation", "pathway-activity-context",
+    "tahoe-drug-perturbation",
+    "pathway-activity-context",
 }
 ALL_CARDS = VERDICT_BEARING | DISPLAY_ONLY
 
@@ -33,29 +37,57 @@ ALL_CARDS = VERDICT_BEARING | DISPLAY_ONLY
 # make_literature_fn emits from narrator_lenses.MECHANISM_PHARMACOLOGY.axis_labels).
 _SYNTH_LIT = {
     "axes": [
-        {"axis_key": "NETWORK", "literature_read": "supports",
-         "assertion": "KRAS is a well-curated MAPK signaling hub.",
-         "agreement_vs_omics": "agree", "confidence": "high",
-         "citations": [{"label": "Simanshu 2017", "pmid": "28666118", "verified": True}]},
-        {"axis_key": "PHOSPHO", "literature_read": "mixed", "assertion": "Phospho-signaling context.",
-         "agreement_vs_omics": "omics_blind", "confidence": "low", "citations": []},
-        {"axis_key": "PATHWAY", "literature_read": "supports", "assertion": "MAPK pathway active in CRC.",
-         "agreement_vs_omics": "agree", "confidence": "moderate", "citations": []},
-        {"axis_key": "PERTURBATION", "literature_read": "mixed", "assertion": "Drug-perturbation MoA.",
-         "agreement_vs_omics": "omics_blind", "confidence": "low", "citations": []},
-        {"axis_key": "PREDICTABILITY", "literature_read": "supports",
-         "assertion": "Own-omics driven dependency.", "agreement_vs_omics": "agree",
-         "confidence": "moderate", "citations": []},
+        {
+            "axis_key": "NETWORK",
+            "literature_read": "supports",
+            "assertion": "KRAS is a well-curated MAPK signaling hub.",
+            "agreement_vs_omics": "agree",
+            "confidence": "high",
+            "citations": [{"label": "Simanshu 2017", "pmid": "28666118", "verified": True}],
+        },
+        {
+            "axis_key": "PHOSPHO",
+            "literature_read": "mixed",
+            "assertion": "Phospho-signaling context.",
+            "agreement_vs_omics": "omics_blind",
+            "confidence": "low",
+            "citations": [],
+        },
+        {
+            "axis_key": "PATHWAY",
+            "literature_read": "supports",
+            "assertion": "MAPK pathway active in CRC.",
+            "agreement_vs_omics": "agree",
+            "confidence": "moderate",
+            "citations": [],
+        },
+        {
+            "axis_key": "PERTURBATION",
+            "literature_read": "mixed",
+            "assertion": "Drug-perturbation MoA.",
+            "agreement_vs_omics": "omics_blind",
+            "confidence": "low",
+            "citations": [],
+        },
+        {
+            "axis_key": "PREDICTABILITY",
+            "literature_read": "supports",
+            "assertion": "Own-omics driven dependency.",
+            "agreement_vs_omics": "agree",
+            "confidence": "moderate",
+            "citations": [],
+        },
     ],
-    "blind_spots": [], "overall_consistency": "consistent", "key_divergence": None,
+    "blind_spots": [],
+    "overall_consistency": "consistent",
+    "key_divergence": None,
 }
 
 
 # ── Phase 0 registry sanity ──────────────────────────────────────────────────────────────────────
 def test_questions_registry_loads_five(eg_questions):
     ids = [q["id"] for q in eg_questions]
-    assert ids == ["network_read", "phospho_read", "pathway_read", "perturbation_read",
-                   "predictability_read"]
+    assert ids == ["network_read", "phospho_read", "pathway_read", "perturbation_read", "predictability_read"]
     # unified axis vocabulary shared with the mechanism-and-pharmacology narrator lens
     axes = {q["axis_id"] for q in eg_questions if q.get("axis_id")}
     assert axes == {"NETWORK", "PHOSPHO", "PATHWAY", "PERTURBATION", "PREDICTABILITY"}
@@ -83,7 +115,7 @@ def test_reconstruct_questions_signal_and_cards(eg_graph):
     # DESCRIPTIVE skill's question_table polarity is `informs` (never supports/opposes a nomination).
     assert qs["network_read"]["signal"]["tier"] == "moderate"
     assert qs["network_read"]["signal"]["polarity"] == "informs"
-    assert qs["phospho_read"]["signal"]["tier"] == "absent"      # not_phosphoprotein
+    assert qs["phospho_read"]["signal"]["tier"] == "absent"  # not_phosphoprotein
     # the card join (measurement_type membership) — the 5 cards map 1:1 onto the 5 axes.
     assert set(qs["network_read"]["card_ids"]) == {"signaling-network-mechanism"}
     assert set(qs["phospho_read"]["card_ids"]) == {"phospho-pathway-activity"}
@@ -111,9 +143,13 @@ def test_literature_axis_crosswalk(eg_decision, eg_questions, eg_build):
     assert axes["PREDICTABILITY"]["question_ids"] == ["predictability_read"]
     # crosswalk materialized on the question node too — every lens axis resolves (no corroboration
     # questions here, so no dangling literature axis)
-    for qid, axis in [("network_read", "NETWORK"), ("phospho_read", "PHOSPHO"),
-                      ("pathway_read", "PATHWAY"), ("perturbation_read", "PERTURBATION"),
-                      ("predictability_read", "PREDICTABILITY")]:
+    for qid, axis in [
+        ("network_read", "NETWORK"),
+        ("phospho_read", "PHOSPHO"),
+        ("pathway_read", "PATHWAY"),
+        ("perturbation_read", "PERTURBATION"),
+        ("predictability_read", "PREDICTABILITY"),
+    ]:
         q = next(q for q in g["questions"] if q["id"] == qid)
         assert q["literature_axis_ids"] == [axis]
     # citations hoisted + referentially intact
@@ -147,4 +183,4 @@ def test_verdict_node_matches_spine(eg_graph, eg_decision):
     assert eg_graph["verdict"]["id"] == "well_characterized"
     assert eg_graph["verdict"]["call"] == "Well-characterized signaling network"
     assert eg_graph["verdict"]["driving_rule_id"] == "mechanism-well-characterized-supportive"
-    assert eg_graph["verdict"]["polarity"] == "neutral"   # descriptive — every rung neutral
+    assert eg_graph["verdict"]["polarity"] == "neutral"  # descriptive — every rung neutral

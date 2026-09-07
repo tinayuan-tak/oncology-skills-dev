@@ -8,6 +8,7 @@ that is exercised by a live smoke run, not here. These offline tests pin the det
   - the produced record shape is what BOTH consumers accept (HTML grounded_by_axis + the --substrate
     parse_grounded_substrate): a {axis, deterministic, grounded} dict.
 """
+
 from __future__ import annotations
 
 import json
@@ -36,8 +37,17 @@ def test_resolve_axes_default_and_engine_cover_all_configured_engine_axes():
     assert tg.resolve_axes("engine") == engine
     assert tg.resolve_axes("") == engine
     # the 5 originals + the 4 rolled-out engine axes are all reachable by the default now
-    assert {"safety", "dependency", "selectivity", "surface_modality", "tractability_sm",
-            "mechanism", "genomic_alteration", "differentiation", "expression"} <= set(engine)
+    assert {
+        "safety",
+        "dependency",
+        "selectivity",
+        "surface_modality",
+        "tractability_sm",
+        "mechanism",
+        "genomic_alteration",
+        "differentiation",
+        "expression",
+    } <= set(engine)
     # consolidation orphans must NOT be engine axes (removed with the 2026-08-21 cleanup)
     assert "synthetic_lethal_partners" not in engine and "combinatorial_dependency" not in engine
 
@@ -66,13 +76,20 @@ def test_resolve_axes_unknown_axis_raises_loudly():
 # =============================== auto_ground (injected ground_fn) ===============================
 def _fake_rec(axis: str) -> dict:
     """A ground_axis-shaped record."""
-    return {"axis": axis, "deterministic": {"verdict": f"{axis}_verdict", "cards": {}},
-            "grounded": {"findings": [{"finding": f"{axis} finding", "kind": "k",
-                                       "cited_pmids": ["12345678"]}],
-                         "corroborations": [], "contradicts_deterministic": False,
-                         "anchor_verdict": f"{axis}_verdict", "escalate_only": True,
-                         "confabulated_dropped": [], "n_retrieved": 3,
-                         "corpus_pin": {"mindate": "2015", "maxdate": "2026"}}}
+    return {
+        "axis": axis,
+        "deterministic": {"verdict": f"{axis}_verdict", "cards": {}},
+        "grounded": {
+            "findings": [{"finding": f"{axis} finding", "kind": "k", "cited_pmids": ["12345678"]}],
+            "corroborations": [],
+            "contradicts_deterministic": False,
+            "anchor_verdict": f"{axis}_verdict",
+            "escalate_only": True,
+            "confabulated_dropped": [],
+            "n_retrieved": 3,
+            "corpus_pin": {"mindate": "2015", "maxdate": "2026"},
+        },
+    }
 
 
 def test_auto_ground_writes_records_and_returns_map(tmp_path):
@@ -84,8 +101,7 @@ def test_auto_ground_writes_records_and_returns_map(tmp_path):
 
     pkg = tmp_path / "evidence_package.json"
     pkg.write_text("{}")
-    produced = tg.auto_ground("KRAS", "COADREAD", pkg, tmp_path,
-                              ["safety", "dependency"], ground_fn=gf)
+    produced = tg.auto_ground("KRAS", "COADREAD", pkg, tmp_path, ["safety", "dependency"], ground_fn=gf)
     assert set(produced) == {"safety", "dependency"}
     # each axis wrote a grounded_<axis>.json with the {axis, deterministic, grounded} shape
     for ax in ("safety", "dependency"):
@@ -103,13 +119,12 @@ def test_auto_ground_is_best_effort_one_bad_axis_skipped(tmp_path):
         if axis == "dependency":
             raise RuntimeError("Bedrock unavailable")
         if axis == "selectivity":
-            return "not a dict"          # malformed → skipped, not crashed
+            return "not a dict"  # malformed → skipped, not crashed
         return _fake_rec(axis)
 
     pkg = tmp_path / "evidence_package.json"
     pkg.write_text("{}")
-    produced = tg.auto_ground("KRAS", "COADREAD", pkg, tmp_path,
-                              ["safety", "dependency", "selectivity"], ground_fn=gf)
+    produced = tg.auto_ground("KRAS", "COADREAD", pkg, tmp_path, ["safety", "dependency", "selectivity"], ground_fn=gf)
     # only the healthy axis survives; the run did not raise
     assert set(produced) == {"safety"}
     assert (tmp_path / "grounded_safety.json").exists()
@@ -127,8 +142,9 @@ def test_produced_record_is_consumable_by_substrate_parser(tmp_path):
 
     pkg = tmp_path / "evidence_package.json"
     pkg.write_text("{}")
-    produced = tg.auto_ground("KRAS", "COADREAD", pkg, tmp_path, ["safety"],
-                              ground_fn=lambda *a, axis, **k: _fake_rec(axis))
+    produced = tg.auto_ground(
+        "KRAS", "COADREAD", pkg, tmp_path, ["safety"], ground_fn=lambda *a, axis, **k: _fake_rec(axis)
+    )
     parsed = hc.parse_grounded_substrate(produced)
     assert parsed["present"] is True
     assert parsed["n_findings"] == 1
@@ -139,15 +155,34 @@ def test_produced_record_is_consumable_by_substrate_parser(tmp_path):
 def test_plan_substrate_default_full_run_turns_the_whole_chain_on():
     """A plain nomination run (no opt-outs, no fast/machine mode) runs ground + both projections, with
     grounding defaulting to the engine axes."""
-    p = tg.plan_substrate(no_substrate=False, no_synthesis=False, emit=None, ground=None,
-                          no_ground=False, no_risk=False, no_hypothesis=False)
-    assert p == {"chain_on": True, "run_ground": True, "ground_spec": "engine",
-                 "run_risk": True, "run_hypothesis": True}
+    p = tg.plan_substrate(
+        no_substrate=False,
+        no_synthesis=False,
+        emit=None,
+        ground=None,
+        no_ground=False,
+        no_risk=False,
+        no_hypothesis=False,
+    )
+    assert p == {
+        "chain_on": True,
+        "run_ground": True,
+        "ground_spec": "engine",
+        "run_risk": True,
+        "run_hypothesis": True,
+    }
 
 
 def test_plan_substrate_no_substrate_restores_offline_byte_identical_run():
-    p = tg.plan_substrate(no_substrate=True, no_synthesis=False, emit=None, ground=None,
-                          no_ground=False, no_risk=False, no_hypothesis=False)
+    p = tg.plan_substrate(
+        no_substrate=True,
+        no_synthesis=False,
+        emit=None,
+        ground=None,
+        no_ground=False,
+        no_risk=False,
+        no_hypothesis=False,
+    )
     assert p["chain_on"] is False
     assert (p["run_ground"], p["run_risk"], p["run_hypothesis"]) == (False, False, False)
 
@@ -155,8 +190,15 @@ def test_plan_substrate_no_substrate_restores_offline_byte_identical_run():
 def test_plan_substrate_fast_and_machine_modes_skip_the_chain():
     # --no-synthesis / --verdict-only (which sets no_synthesis) and --emit all keep the run byte-identical
     for kw in ({"no_synthesis": True}, {"emit": "evidence-package"}):
-        base = dict(no_substrate=False, no_synthesis=False, emit=None, ground=None,
-                    no_ground=False, no_risk=False, no_hypothesis=False)
+        base = dict(
+            no_substrate=False,
+            no_synthesis=False,
+            emit=None,
+            ground=None,
+            no_ground=False,
+            no_risk=False,
+            no_hypothesis=False,
+        )
         base.update(kw)
         p = tg.plan_substrate(**base)
         assert p["chain_on"] is False
@@ -164,8 +206,15 @@ def test_plan_substrate_fast_and_machine_modes_skip_the_chain():
 
 
 def test_plan_substrate_granular_opt_outs_are_independent():
-    p = tg.plan_substrate(no_substrate=False, no_synthesis=False, emit=None, ground=None,
-                          no_ground=True, no_risk=False, no_hypothesis=True)
+    p = tg.plan_substrate(
+        no_substrate=False,
+        no_synthesis=False,
+        emit=None,
+        ground=None,
+        no_ground=True,
+        no_risk=False,
+        no_hypothesis=True,
+    )
     assert p["chain_on"] is True
     assert p["run_ground"] is False and p["run_hypothesis"] is False
     assert p["run_risk"] is True
@@ -174,8 +223,15 @@ def test_plan_substrate_granular_opt_outs_are_independent():
 def test_plan_substrate_explicit_ground_survives_no_ground_and_sets_spec():
     # an explicit --ground value forces grounding on even in a mode where the chain would be off, and
     # threads the requested axis spec through.
-    p = tg.plan_substrate(no_substrate=True, no_synthesis=False, emit=None, ground="safety,dependency",
-                          no_ground=True, no_risk=False, no_hypothesis=False)
+    p = tg.plan_substrate(
+        no_substrate=True,
+        no_synthesis=False,
+        emit=None,
+        ground="safety,dependency",
+        no_ground=True,
+        no_risk=False,
+        no_hypothesis=False,
+    )
     assert p["run_ground"] is True and p["ground_spec"] == "safety,dependency"
 
 
@@ -208,12 +264,10 @@ def test_build_risk_6dim_is_best_effort_bad_input_returns_none(tmp_path):
 def test_auto_risk_assessment_is_best_effort_on_failure(tmp_path, monkeypatch):
     # Inject a failing sibling loader so the fail-soft contract is tested WITHOUT touching the network
     # (the live LRA path hits PubMed before reading the package, so a bad-path test would be flaky).
-    monkeypatch.setattr(tg, "_load_sibling",
-                        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("no Bedrock/network")))
+    monkeypatch.setattr(tg, "_load_sibling", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("no Bedrock/network")))
     assert tg.auto_risk_assessment("KRAS", "colorectal cancer", tmp_path / "nope.json", tmp_path) is None
 
 
 def test_auto_hypothesis_is_best_effort_on_failure(tmp_path, monkeypatch):
-    monkeypatch.setattr(tg, "_load_sibling",
-                        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("no Bedrock/network")))
+    monkeypatch.setattr(tg, "_load_sibling", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("no Bedrock/network")))
     assert tg.auto_hypothesis(tmp_path / "nope.json", tmp_path, modality="small_molecule") is None

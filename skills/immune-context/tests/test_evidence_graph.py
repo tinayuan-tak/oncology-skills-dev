@@ -10,6 +10,7 @@ immune-context is a mode=verdict skill where a SINGLE rule fires (immune_context
 immune_context_verdict, a direct read), so exactly one card is verdict-bearing and the other five are
 verdict-inert display context. VERDICT-INERT: nothing here touches the immune_context_verdict spine.
 """
+
 from __future__ import annotations
 
 import copy
@@ -18,20 +19,29 @@ import copy
 # TME/immune context facets. immune-context's verdict is a direct read of immune_context_class.
 VERDICT_BEARING = {"immune-context"}
 DISPLAY_ONLY = {
-    "myeloid-compartment-expression-cheng", "caf-compartment-expression-luo",
-    "ici-response-association", "ici-response-imvigor210", "tcga-til-fraction-saltz",
+    "myeloid-compartment-expression-cheng",
+    "caf-compartment-expression-luo",
+    "ici-response-association",
+    "ici-response-imvigor210",
+    "tcga-til-fraction-saltz",
 }
 
 # a synthetic literature_synthesis keyed by the immune-context lens's SINGLE axis (what
 # make_literature_fn(IMMUNE_CONTEXT) emits — narrator_lenses.IMMUNE_CONTEXT.axis_labels = {IMMUNE: ...}).
 _SYNTH_LIT = {
     "axes": [
-        {"axis_key": "IMMUNE", "literature_read": "supports",
-         "assertion": "COADREAD carries a moderate CD8 effector infiltrate.",
-         "agreement_vs_omics": "agree", "confidence": "moderate",
-         "citations": [{"label": "Thorsson 2018", "pmid": "29628290", "verified": True}]},
+        {
+            "axis_key": "IMMUNE",
+            "literature_read": "supports",
+            "assertion": "COADREAD carries a moderate CD8 effector infiltrate.",
+            "agreement_vs_omics": "agree",
+            "confidence": "moderate",
+            "citations": [{"label": "Thorsson 2018", "pmid": "29628290", "verified": True}],
+        },
     ],
-    "blind_spots": [], "overall_consistency": "consistent", "key_divergence": None,
+    "blind_spots": [],
+    "overall_consistency": "consistent",
+    "key_divergence": None,
 }
 
 
@@ -75,7 +85,9 @@ def test_reconstruct_questions_signal_confidence_and_cards(eg_graph):
     assert set(qs["infiltration"]["card_ids"]) == {"immune-context", "tcga-til-fraction-saltz"}
     assert set(qs["ici_response"]["card_ids"]) == {"ici-response-association", "ici-response-imvigor210"}
     assert set(qs["microenvironment"]["card_ids"]) == {
-        "myeloid-compartment-expression-cheng", "caf-compartment-expression-luo"}
+        "myeloid-compartment-expression-cheng",
+        "caf-compartment-expression-luo",
+    }
     # every card joins at least one question (nothing collapses into the "Other" layer)
     assert all(c["question_ids"] for c in eg_graph["cards"])
     # a shared measurement_type (ici_response_expression) materializes both edge directions

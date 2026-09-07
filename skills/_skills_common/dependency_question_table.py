@@ -20,6 +20,7 @@ PRIMARY read (drives the Signal) plus a SUPPORTING/caveat sub-line from the rema
 Signal reuses the claim_vector tier vocabulary (strong>moderate>weak>absent/negative, unmeasured);
 Confidence reuses the corroboration vocabulary (high>moderate>low, unmeasured).
 """
+
 from __future__ import annotations
 from typing import Optional
 
@@ -27,19 +28,18 @@ from _skills_common.question_table_core import cbyid as _cbyid, conf as _conf, r
 
 # Signal tier → (meter fill 0-5, polarity toward a SELECTIVE, actionable dependency).
 _SIG_META = {
-    "strong":     (5, "supports"),
-    "moderate":   (3, "supports"),
-    "weak":       (2, "supports"),
-    "absent":     (1, "opposes"),     # measured floor (not a dependency)
-    "negative":   (1, "opposes"),     # measured against (e.g. off-target compound kill)
+    "strong": (5, "supports"),
+    "moderate": (3, "supports"),
+    "weak": (2, "supports"),
+    "absent": (1, "opposes"),  # measured floor (not a dependency)
+    "negative": (1, "opposes"),  # measured against (e.g. off-target compound kill)
     "unmeasured": (0, "none"),
 }
 
 
 def _sig(tier: str, label: str, polarity: Optional[str] = None, fill: Optional[int] = None) -> dict:
     f, pol = _SIG_META.get(tier, (0, "none"))
-    return {"tier": tier, "fill": fill if fill is not None else f,
-            "polarity": polarity or pol, "label": label}
+    return {"tier": tier, "fill": fill if fill is not None else f, "polarity": polarity or pol, "label": label}
 
 
 # ── per-question builders ────────────────────────────────────────────────────────────────────────
@@ -55,20 +55,26 @@ def _q1_lethal(h, c, cv):
         bits.append(f"concordance {conc}")
     support = " · ".join(bits) if bits else "single CRISPR arm"
     label = tier + (" ⚠ RNAi disagrees" if dep.get("conflict") and "RNAi" in str(dep.get("conflict")) else "")
-    return _row("Q1", "Is loss-of-function lethal at all?", primary, support,
-                _sig(tier, label), _conf(corr, f"CRISPR×RNAi + cross-consortium: {corr}"))
+    return _row(
+        "Q1",
+        "Is loss-of-function lethal at all?",
+        primary,
+        support,
+        _sig(tier, label),
+        _conf(corr, f"CRISPR×RNAi + cross-consortium: {corr}"),
+    )
 
 
 # control-benchmark class → (fill, polarity, label). INVERTED semantics: near the pan-essential
 # ceiling is a broad-toxicity liability (opposes a therapeutic window), NOT a win; the window is
 # `between_controls`. Non-dependence (near the non-essential floor) also opposes.
 _CONTROL_SIG = {
-    "between_controls":                (5, "supports", "selective window"),
-    "selective_dependency":            (5, "supports", "selective window"),
-    "as_essential_as_pan_essential":   (2, "opposes",  "⚠ pan-essential (tox liability)"),
-    "near_pan_essential":              (2, "opposes",  "⚠ near pan-essential (tox)"),
-    "near_non_essential":              (1, "opposes",  "not dependent"),
-    "data_unavailable":                (0, "none",     "unmeasured"),
+    "between_controls": (5, "supports", "selective window"),
+    "selective_dependency": (5, "supports", "selective window"),
+    "as_essential_as_pan_essential": (2, "opposes", "⚠ pan-essential (tox liability)"),
+    "near_pan_essential": (2, "opposes", "⚠ near pan-essential (tox)"),
+    "near_non_essential": (1, "opposes", "not dependent"),
+    "data_unavailable": (0, "none", "unmeasured"),
 }
 
 
@@ -85,8 +91,14 @@ def _q2_window(h, c, cv):
     support = str(ctx) if ctx else "pan-essential ceiling ↔ non-essential floor"
     n = crispr.get("n_cell_lines_evaluated")
     conf = "high" if isinstance(n, (int, float)) and n >= 500 else "moderate" if n else "unmeasured"
-    return _row("Q2", "Selective, or pan-essential? (therapeutic window)", primary, support,
-                _sig(tier, label, polarity=pol, fill=fill), _conf(conf))
+    return _row(
+        "Q2",
+        "Selective, or pan-essential? (therapeutic window)",
+        primary,
+        support,
+        _sig(tier, label, polarity=pol, fill=fill),
+        _conf(conf),
+    )
 
 
 def _q3_lineage(h, c, cv):
@@ -101,9 +113,13 @@ def _q3_lineage(h, c, cv):
         primary = f"{lin or 'lineage'}: {cls}"
         if isinstance(ind.get("q_value"), (int, float)):
             primary += f" (q={ind['q_value']:.1e})"
-        _map = {"selective_in_indication": "strong", "dependent_not_enriched": "moderate",
-                "not_dependent_in_indication": "absent", "underpowered": "unmeasured",
-                "not_in_panel": "unmeasured"}
+        _map = {
+            "selective_in_indication": "strong",
+            "dependent_not_enriched": "moderate",
+            "not_dependent_in_indication": "absent",
+            "underpowered": "unmeasured",
+            "not_in_panel": "unmeasured",
+        }
         tier = _map.get(cls, tier)
         if ind.get("shared_lineage_caveat"):
             primary += " ⚠ coarse-lineage (shared)"
@@ -115,9 +131,15 @@ def _q3_lineage(h, c, cv):
     return _row("Q3", "Selective to this indication's lineage?", primary, support, _sig(tier, tier), _conf(conf))
 
 
-_CONC_TIER = {"strongly_concordant_dependent": "strong", "moderately_concordant_dependent": "moderate",
-              "strongly_concordant_non_dependent": "absent", "moderately_concordant_non_dependent": "absent",
-              "discordant": "negative", "partially_assayed": "unmeasured", "data_unavailable": "unmeasured"}
+_CONC_TIER = {
+    "strongly_concordant_dependent": "strong",
+    "moderately_concordant_dependent": "moderate",
+    "strongly_concordant_non_dependent": "absent",
+    "moderately_concordant_non_dependent": "absent",
+    "discordant": "negative",
+    "partially_assayed": "unmeasured",
+    "data_unavailable": "unmeasured",
+}
 
 
 def _q4_concordance(h, c, cv):
@@ -137,7 +159,9 @@ def _q5_conditional(h, c, cv):
     primary = cond.get("evidence") or f"partner-conditional: {h.get('partner_conditional_class', 'data_unavailable')}"
     par = h.get("paralog_buffering_class")
     parsym = h.get("strongest_paralog_symbol")
-    support = (f"paralog buffer: {par}" + (f" (strongest {parsym})" if parsym else "")) if par else "no paralog buffer read"
+    support = (
+        (f"paralog buffer: {par}" + (f" (strongest {parsym})" if parsym else "")) if par else "no paralog buffer read"
+    )
     corr = cond.get("corroboration", "unmeasured")
     return _row("Q5", "Conditional / synthetic-lethal rescue?", primary, support, _sig(tier, tier), _conf(corr))
 
@@ -153,8 +177,13 @@ def _q6_chemical(h, c, cv):
     return _row("Q6", "Is the dependency chemically confirmable?", primary, support, _sig(tier, label), _conf(corr))
 
 
-_XCONS_TIER = {"concordant_dependent": "strong", "concordant_non_dependent": "absent",
-               "single_consortium_only": "weak", "discordant": "negative", "data_unavailable": "unmeasured"}
+_XCONS_TIER = {
+    "concordant_dependent": "strong",
+    "concordant_non_dependent": "absent",
+    "single_consortium_only": "weak",
+    "discordant": "negative",
+    "data_unavailable": "unmeasured",
+}
 
 
 def _q7_corroborated(h, c, cv):
@@ -177,14 +206,21 @@ def _q7_corroborated(h, c, cv):
     support = " · ".join(support_bits) if support_bits else "no predictability read"
     # confidence here is the dependency_confidence annotation FR already computes
     conf = h.get("dependency_confidence") or "unmeasured"
-    return _row("Q7", "How corroborated / predictable is the call?", primary, support,
-                _sig(tier, tier), _conf(conf, f"dependency confidence: {conf}"))
+    return _row(
+        "Q7",
+        "How corroborated / predictable is the call?",
+        primary,
+        support,
+        _sig(tier, tier),
+        _conf(conf, f"dependency confidence: {conf}"),
+    )
 
 
 def dependency_question_table(headline: dict, cards: list, claim_vector: Optional[dict] = None) -> list:
     """The 7 question rows (each: id, question, primary read, supporting/caveat line, signal, confidence).
     Verdict-inert. `claim_vector` defaults to the one on the headline (`headline['claim_vector']`)."""
     from _skills_common.dependency_claims import dependency_claim_vector
+
     cv = claim_vector or headline.get("claim_vector") or dependency_claim_vector(headline, cards)
     c = _cbyid(cards)
     return [

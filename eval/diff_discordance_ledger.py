@@ -15,6 +15,7 @@ Row key = "SKILL|TARGET|INDICATION|AXIS|GAP_CLASS" (claim-vector-axis aligned �
 build_discordance_ledger v2). Exit non-zero when NEW sharp gaps appear (the nightly guard signal).
 This is escalate-only + review-queue: it never edits a verdict, never fails a skill run.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -64,14 +65,17 @@ def diff(ledger: dict, baseline: dict) -> dict:
 
 def baseline_from_ledger(ledger: dict) -> dict:
     import datetime as _dt
+
     return {
         "schema": "discordance_baseline/v1",
         "generated_at": _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds"),
         "corpus_fingerprint": ledger.get("corpus_fingerprint"),
         "keys": sorted(sharp_keys(ledger)),
         "counts": _coarse_counts(ledger),
-        "note": ("SHARP (calibration_gap + verdict_rule_gap) keys seen as of this build; the monitor "
-                 "flags NEW sharp keys. Prune a key here when its gap is fixed/dismissed (CASE_LOG)."),
+        "note": (
+            "SHARP (calibration_gap + verdict_rule_gap) keys seen as of this build; the monitor "
+            "flags NEW sharp keys. Prune a key here when its gap is fixed/dismissed (CASE_LOG)."
+        ),
     }
 
 
@@ -80,10 +84,14 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--ledger", required=True, help="fresh discordance_ledger.json (v2)")
     ap.add_argument("--baseline", required=True, help="committed eval/discordance_baseline.json")
     ap.add_argument("--out", default=None, help="write the diff report JSON here")
-    ap.add_argument("--write-baseline", action="store_true",
-                    help="(re)generate the baseline FROM --ledger and write it to --baseline (no diff/exit)")
-    ap.add_argument("--fail-on-new", action="store_true",
-                    help="exit 1 when NEW sharp gaps appear (the nightly-guard signal)")
+    ap.add_argument(
+        "--write-baseline",
+        action="store_true",
+        help="(re)generate the baseline FROM --ledger and write it to --baseline (no diff/exit)",
+    )
+    ap.add_argument(
+        "--fail-on-new", action="store_true", help="exit 1 when NEW sharp gaps appear (the nightly-guard signal)"
+    )
     a = ap.parse_args(argv)
 
     ledger = json.loads(Path(a.ledger).read_text())
@@ -96,14 +104,20 @@ def main(argv: list[str] | None = None) -> int:
     text = json.dumps(report, indent=2)
     if a.out:
         Path(a.out).write_text(text)
-    print(f"[diff] NEW sharp gaps: {report['n_new']} · RESOLVED: {report['n_resolved']} · "
-          f"count delta: {report['coarse_count_delta']}")
+    print(
+        f"[diff] NEW sharp gaps: {report['n_new']} · RESOLVED: {report['n_resolved']} · "
+        f"count delta: {report['coarse_count_delta']}"
+    )
     for r in report["new_sharp_gaps"]:
-        print(f"  NEW [{r['gap_class']}] {r['skill']} {r['target']}/{r['indication']} "
-              f"axis={r['axis_key']} claim_signal={r.get('claim_signal')} vcites={r['n_verified_citations']}")
+        print(
+            f"  NEW [{r['gap_class']}] {r['skill']} {r['target']}/{r['indication']} "
+            f"axis={r['axis_key']} claim_signal={r.get('claim_signal')} vcites={r['n_verified_citations']}"
+        )
     if a.fail_on_new and report["n_new"] > 0:
-        print(f"::error title=discordance-monitor::{report['n_new']} NEW sharp discordance(s) — triage + "
-              "update eval/CASE_LOG.md, then prune the baseline.")
+        print(
+            f"::error title=discordance-monitor::{report['n_new']} NEW sharp discordance(s) — triage + "
+            "update eval/CASE_LOG.md, then prune the baseline."
+        )
         return 1
     return 0
 

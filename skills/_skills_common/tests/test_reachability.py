@@ -5,13 +5,14 @@ the resolver's REFERENCED rule_ids, so dropping cards whose rules are non-refere
 verdict byte-identical. These pin that invariant + the derivation, including the 2026-08-09 v1.1.0
 surface_modality safety-mover catch that motivated deriving (not hand-listing) the lean set.
 """
+
 from __future__ import annotations
 
 import os
 import sys
 from pathlib import Path
 
-_SK = Path(__file__).resolve().parent.parent.parent   # .../claude-oncology-skills/skills
+_SK = Path(__file__).resolve().parent.parent.parent  # .../claude-oncology-skills/skills
 sys.path.insert(0, str(_SK))
 os.environ.setdefault(
     "TARGET_CONTRACTS_ROOT",
@@ -31,8 +32,12 @@ def test_surface_modality_lean_set_includes_the_v1_1_0_safety_movers():
     would silently drop the safety downgrades (the exact bug this primitive prevents)."""
     got = verdict_relevant_cards("surface_modality")
     assert "adc-tce-modality-fit" in got
-    for mover in ("normal-tissue-liability", "sc-normal-celltype-expression",
-                  "surface-abundance-density", "shed-ectodomain-liability"):
+    for mover in (
+        "normal-tissue-liability",
+        "sc-normal-celltype-expression",
+        "surface-abundance-density",
+        "shed-ectodomain-liability",
+    ):
         assert mover in got, f"{mover} is a v1.1.0 verdict-mover but is missing from the lean set"
 
 
@@ -52,6 +57,5 @@ def test_resolve_verdict_ignores_non_referenced_fired_rules():
     assert a_ref_rule in ref
     base = resolve_verdict_for_gate([{"rule_id": a_ref_rule}], gate)
     assert base is not None
-    inert = [{"rule_id": "totally-inert-enrichment-rule-xyz"},
-             {"rule_id": "another-non-referenced-rule"}]
+    inert = [{"rule_id": "totally-inert-enrichment-rule-xyz"}, {"rule_id": "another-non-referenced-rule"}]
     assert resolve_verdict_for_gate([{"rule_id": a_ref_rule}] + inert, gate) == base

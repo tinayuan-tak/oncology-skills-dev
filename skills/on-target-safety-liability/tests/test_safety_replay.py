@@ -31,6 +31,7 @@ Four curated fixtures pin all four non-trivial verdict classes AND both conditio
 The frozen fixtures are refreshed by the nightly-live re-freeze (card-behavior-matrix-nightly). Mirror of
 tumor-selectivity's replay.
 """
+
 from __future__ import annotations
 
 import copy
@@ -54,7 +55,7 @@ if str(SKILLS_ROOT) not in sys.path:
 
 
 _SAFETY = load_run_py(SKILL_DIR, "_safety_run_const")
-_MISMATCH = set(_SAFETY._MECHANISM_MISMATCH_VERDICTS)   # the mutant-selective downgrade verdicts
+_MISMATCH = set(_SAFETY._MECHANISM_MISMATCH_VERDICTS)  # the mutant-selective downgrade verdicts
 # A resolved safety verdict must never collapse to these for a target with real human-genetics data.
 _COLLAPSED = {None, "", "insufficient", "data_unavailable"}
 # The raw (non-downgraded) nomination-HOLD concerns.
@@ -62,8 +63,7 @@ _CONCERNS = {"highly_constrained_safety_concern", "human_genetics_safety_concern
 
 
 def _real_summary(s) -> bool:
-    return (isinstance(s, dict) and bool(s)
-            and not s.get("_freeze_error") and not s.get("_dispatcher_returned_none"))
+    return isinstance(s, dict) and bool(s) and not s.get("_freeze_error") and not s.get("_dispatcher_returned_none")
 
 
 def _load_fixture(pair_id: str) -> dict:
@@ -89,15 +89,16 @@ def _decision(pair_id: str, target: str, indication: str) -> dict:
             if not _real_summary(s):
                 return None
             return copy.deepcopy(s)
+
         return _read_live
 
     import tempfile
+
     out_dir = Path(tempfile.mkdtemp(prefix=f"safety-{pair_id}-"))
     mp = pytest.MonkeyPatch()
     mp.delenv("FRAMEWORK_HEALTH_SMOKE", raising=False)
     mp.setattr(skc, "_import_dispatcher", _fake_dispatcher_factory)
-    mp.setattr(sys, "argv", ["run.py", "--target", target, "--indication", indication,
-                             "--out", str(out_dir)])
+    mp.setattr(sys, "argv", ["run.py", "--target", target, "--indication", indication, "--out", str(out_dir)])
     try:
         runpy.run_path(str(RUN_PY), run_name="__main__")
     except SystemExit as e:
@@ -120,7 +121,7 @@ def _decision(pair_id: str, target: str, indication: str) -> dict:
 BRAF = ("braf_coadread", "BRAF", "COADREAD", "highly_constrained_safety_concern")
 EGFR = ("egfr_coadread", "EGFR", "COADREAD", "human_genetics_safety_concern")
 TP53 = ("tp53_coadread", "TP53", "COADREAD", "highly_constrained_safety_concern")
-VHL  = ("vhl_coadread",  "VHL",  "COADREAD", "human_genetics_safety_concern")
+VHL = ("vhl_coadread", "VHL", "COADREAD", "human_genetics_safety_concern")
 # (cards review 2026-08-17): an ACTIVATING GoF ONCOGENE that is AMPLIFICATION-driven. Unlike the
 # DOWNGRADE cases (activating -> mutant-selective downgrade), the amplification guard KEEPS the raw HOLD
 # because a drug hits the WILD-TYPE (amplified) protein — the mutant-selective-sparing logic fails.
@@ -128,8 +129,7 @@ ERBB2 = ("erbb2_brca", "ERBB2", "BRCA", "human_genetics_safety_concern")
 ALL = [BRAF, EGFR, TP53, VHL, ERBB2]
 
 
-@pytest.mark.parametrize("pair_id,target,indication,_exp", ALL,
-                         ids=[p[1].lower() + "_" + p[2].lower() for p in ALL])
+@pytest.mark.parametrize("pair_id,target,indication,_exp", ALL, ids=[p[1].lower() + "_" + p[2].lower() for p in ALL])
 def test_replay_conforms_to_data_product_schema(pair_id, target, indication, _exp):
     """LOAD-BEARING output-drift guard: the FRESH run.py emit must validate against the finalized
     data-product schema (static golden trimmed → this is the conformance target). CI-fail-not-skip."""
@@ -142,13 +142,15 @@ def test_replay_conforms_to_data_product_schema(pair_id, target, indication, _ex
         pytest.fail(reason + " [CI]") if os.environ.get("CI") else pytest.skip(reason)
     errors = conformance_errors(schema, _decision(pair_id, target, indication))
     assert not errors, f"FRESH {pair_id} emit violates the data-product schema:\n  " + "\n  ".join(
-        f"{list(e.path)}: {e.message}" for e in errors[:15])
+        f"{list(e.path)}: {e.message}" for e in errors[:15]
+    )
+
+
 DOWNGRADE = [BRAF, EGFR]
 CONCERN = [TP53, VHL]
 
 
-@pytest.mark.parametrize("pair_id,target,indication,_exp", ALL,
-                         ids=[p[1].lower() for p in ALL])
+@pytest.mark.parametrize("pair_id,target,indication,_exp", ALL, ids=[p[1].lower() for p in ALL])
 def test_fixture_is_nonvacuous(pair_id, target, indication, _exp):
     """Guard against a stale/broken freeze reading green: each curated target resolves most of the
     8-card safety roster. Require >=5 to carry a real summary."""
@@ -156,11 +158,11 @@ def test_fixture_is_nonvacuous(pair_id, target, indication, _exp):
     real = [cid for cid, s in frozen.items() if _real_summary(s)]
     assert len(real) >= 5, (
         f"only {len(real)}/{len(frozen)} frozen cards carry a real summary for {pair_id} — refreeze "
-        f"against live S3 (freeze_fixture.py). Real cards: {sorted(real)}")
+        f"against live S3 (freeze_fixture.py). Real cards: {sorted(real)}"
+    )
 
 
-@pytest.mark.parametrize("pair_id,target,indication,expected", ALL,
-                         ids=[p[1].lower() for p in ALL])
+@pytest.mark.parametrize("pair_id,target,indication,expected", ALL, ids=[p[1].lower() for p in ALL])
 def test_verdict_matches_expected(pair_id, target, indication, expected):
     """THE VERDICT-PATH DRIFT GUARD: rules fire over the REAL frozen summaries and the shared safety
     resolver runs. Each curated target's resolved safety_verdict must equal its pinned class — a reader
@@ -170,17 +172,17 @@ def test_verdict_matches_expected(pair_id, target, indication, expected):
     h = d.get("headline") or {}
     v = h.get("safety_verdict")
     assert v not in _COLLAPSED, (
-        f"safety_verdict={v!r} collapsed for {target}/{indication} — a rule stopped firing (reader "
-        f"field rename?).")
+        f"safety_verdict={v!r} collapsed for {target}/{indication} — a rule stopped firing (reader field rename?)."
+    )
     assert v == expected, (
         f"safety_verdict={v!r} for {target}/{indication}, expected {expected!r}. If this is a GoF "
         f"driver that dropped OUT of a *_mechanism_mismatch downgrade, suspect alteration-role reader "
-        f"drift (the false-HOLD failure this replay exists to catch).")
+        f"drift (the false-HOLD failure this replay exists to catch)."
+    )
     assert h.get("driving_rule_id"), "resolved a verdict but driving_rule_id is empty — inconsistent spine."
 
 
-@pytest.mark.parametrize("pair_id,target,indication,expected", DOWNGRADE,
-                         ids=[p[1].lower() for p in DOWNGRADE])
+@pytest.mark.parametrize("pair_id,target,indication,expected", DOWNGRADE, ids=[p[1].lower() for p in DOWNGRADE])
 def test_gof_driver_rescued_by_per_modality_verdict(pair_id, target, indication, expected):
     """CROWN-JEWEL GUARD (post role-proxy retirement, 2026-08-24). A point-mutation GoF activating driver
     with a WT-loss warning now resolves to the RAW safety concern at the scalar (the scalar downgrade was
@@ -191,21 +193,24 @@ def test_gof_driver_rescued_by_per_modality_verdict(pair_id, target, indication,
     d = _decision(pair_id, target, indication)
     h = d.get("headline") or {}
     assert h.get("safety_verdict") in _CONCERNS, (
-        f"{target} resolved {h.get('safety_verdict')!r}, expected the raw WT-loss concern post-retirement.")
+        f"{target} resolved {h.get('safety_verdict')!r}, expected the raw WT-loss concern post-retirement."
+    )
     assert h.get("alteration_functional_direction") == "activating", (
         f"{target} alteration_functional_direction={h.get('alteration_functional_direction')!r}, "
-        f"expected 'activating' — the fixture no longer exercises the GoF path; re-curate/refreeze.")
+        f"expected 'activating' — the fixture no longer exercises the GoF path; re-curate/refreeze."
+    )
     vbm = h.get("safety_verdict_by_modality") or {}
     assert vbm.get("small_molecule", {}).get("action") == "conditional", (
         f"{target} (point-mutation GoF) small_molecule={vbm.get('small_molecule')!r}, expected 'conditional' "
         f"— the allele-selective escape; without it exists-safe-modality can't clear the raw concern → "
-        f"false nomination HOLD.")
+        f"false nomination HOLD."
+    )
     assert vbm.get("degrader", {}).get("action") == "hold", (
-        f"{target} degrader={vbm.get('degrader')!r}, expected 'hold' — a degrader depletes WT.")
+        f"{target} degrader={vbm.get('degrader')!r}, expected 'hold' — a degrader depletes WT."
+    )
 
 
-@pytest.mark.parametrize("pair_id,target,indication,expected", CONCERN,
-                         ids=[p[1].lower() for p in CONCERN])
+@pytest.mark.parametrize("pair_id,target,indication,expected", CONCERN, ids=[p[1].lower() for p in CONCERN])
 def test_non_gof_concern_is_not_downgraded(pair_id, target, indication, expected):
     """The downgrade must NOT over-fire: a non-activating (LoF) gene with a real safety concern must
     resolve to a raw HOLD, NOT a mechanism-mismatch. Guards a false downgrade that would nullify a
@@ -213,14 +218,18 @@ def test_non_gof_concern_is_not_downgraded(pair_id, target, indication, expected
     d = _decision(pair_id, target, indication)
     h = d.get("headline") or {}
     assert h.get("safety_verdict") in _CONCERNS, (
-        f"{target} resolved {h.get('safety_verdict')!r}, expected a raw safety concern.")
+        f"{target} resolved {h.get('safety_verdict')!r}, expected a raw safety concern."
+    )
     assert h.get("safety_verdict") not in _MISMATCH, (
         f"{target} was DOWNGRADED to {h.get('safety_verdict')!r} despite being non-activating — the "
-        f"mutant-selective downgrade over-fired.")
+        f"mutant-selective downgrade over-fired."
+    )
     assert h.get("alteration_functional_direction") != "activating", (
-        f"{target} reads as 'activating' — fixture no longer exercises the raw-concern (non-downgrade) path.")
+        f"{target} reads as 'activating' — fixture no longer exercises the raw-concern (non-downgrade) path."
+    )
     assert h.get("mechanism_conditioning_note") is None, (
-        f"{target} is a raw concern but carries a mechanism_conditioning_note (note should be downgrade-only).")
+        f"{target} is a raw concern but carries a mechanism_conditioning_note (note should be downgrade-only)."
+    )
 
 
 def test_amplification_driven_oncogene_keeps_hold_not_downgraded():
@@ -236,14 +245,17 @@ def test_amplification_driven_oncogene_keeps_hold_not_downgraded():
     v = h.get("safety_verdict")
     assert v in _CONCERNS, (
         f"ERBB2 resolved {v!r}, expected a raw safety HOLD — the amplification guard "
-        f"(copy-number-amplified-oncogene-safety-context) failed to keep the hold (S1-1 regression).")
+        f"(copy-number-amplified-oncogene-safety-context) failed to keep the hold (S1-1 regression)."
+    )
     assert v not in _MISMATCH, (
         f"ERBB2 was mutant-selectively DOWNGRADED to {v!r} despite being amplification-driven — the "
-        f"S1-1 amplification guard is not firing (the leak this test exists to catch).")
+        f"S1-1 amplification guard is not firing (the leak this test exists to catch)."
+    )
     # It IS an activating oncogene (that's the point — activating+oncogene+amplified → held, not rescued).
     assert h.get("alteration_functional_direction") == "activating", (
         f"ERBB2 alteration_functional_direction={h.get('alteration_functional_direction')!r}, expected "
-        f"'activating' — the fixture no longer exercises the amplification path.")
+        f"'activating' — the fixture no longer exercises the amplification path."
+    )
     # POST-RETIREMENT (2026-08-24): the GROUP-0 amplification guard rung is gone; the amplification logic now
     # lives in the per-modality verdict via the allele-selective DISQUALIFIER (copy-number-amplified /
     # rarely-altered). ERBB2 is amplification-driven → NO selectable point mutation → small_molecule=hold
@@ -252,13 +264,13 @@ def test_amplification_driven_oncogene_keeps_hold_not_downgraded():
     assert vbm.get("small_molecule", {}).get("action") == "hold", (
         f"ERBB2 (amplification-driven) small_molecule={vbm.get('small_molecule')!r}, expected 'hold' — a "
         f"'conditional' (allele-selective escape) would let exists-safe-modality FALSELY clear the hold "
-        f"(the S1-1 amplification-guard regression, now guarded at the per-modality layer).")
+        f"(the S1-1 amplification-guard regression, now guarded at the per-modality layer)."
+    )
     # A raw HOLD, not a downgrade → no mechanism-conditioning note.
     assert h.get("mechanism_conditioning_note") is None
 
 
-@pytest.mark.parametrize("pair_id,target,indication,_exp", DOWNGRADE,
-                         ids=[p[1].lower() for p in DOWNGRADE])
+@pytest.mark.parametrize("pair_id,target,indication,_exp", DOWNGRADE, ids=[p[1].lower() for p in DOWNGRADE])
 def test_per_modality_safety_verdict_emitted(pair_id, target, indication, _exp):
     """Layer-2b wire-in: the additive per-modality safety verdict is emitted and, for a GoF driver
     carrying WT-loss warnings, splits by wt_engagement — small_molecule=conditional (allele-selective

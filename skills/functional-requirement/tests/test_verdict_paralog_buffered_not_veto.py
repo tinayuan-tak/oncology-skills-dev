@@ -10,6 +10,7 @@ distinct `non_dependent_paralog_buffered` verdict — NEVER `non_dependent` — 
 nomination gate (which vetoes only on the exact `non_dependent` tuple) treats it as a
 coverage gap, not a false negative. Sibling of test_verdict_underpowered_not_veto.py.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -22,10 +23,12 @@ fr = load_run_py(Path(__file__).resolve().parent.parent, "fr_run")
 def test_strong_paralog_buffer_suppresses_non_dependent_veto():
     """MARK2/3-class: pooled non-dependent-killer fires BUT strong paralog buffering
     also fires → distinct non_dependent_paralog_buffered, NOT the veto verdict."""
-    v, drv = fr._verdict([
-        {"rule_id": "non-dependent-killer"},
-        {"rule_id": "strong-paralog-buffering-degrader-preferred"},
-    ])
+    v, drv = fr._verdict(
+        [
+            {"rule_id": "non-dependent-killer"},
+            {"rule_id": "strong-paralog-buffering-degrader-preferred"},
+        ]
+    )
     assert v != "non_dependent", "a strong-buffered pooled negative must not reach the veto verdict"
     assert v == "non_dependent_paralog_buffered"
     assert drv == "strong-paralog-buffering-degrader-preferred", "driving rule recorded for provenance"
@@ -35,8 +38,7 @@ def test_genuine_non_dependent_no_buffer_still_vetoes_control():
     """CONTROL: pooled non-dependent WITHOUT a strong paralog buffer must still veto —
     the suppressor only spares the buffered case. (A genuinely expendable gene with no
     paralog rescue is a real trusted negative.)"""
-    assert fr._verdict([{"rule_id": "non-dependent-killer"}]) == (
-        "non_dependent", "non-dependent-killer")
+    assert fr._verdict([{"rule_id": "non-dependent-killer"}]) == ("non_dependent", "non-dependent-killer")
 
 
 def test_paralog_buffer_alone_does_not_fabricate_a_dependency():
@@ -53,19 +55,23 @@ def test_pan_essential_precedence_over_paralog_buffer():
     """A pan-essential killer still wins over a co-firing paralog buffer — a
     common-essential target is not rescued by buffering (different failure mode; the
     suppressor targets the non_dependent arm only, never pan_essential)."""
-    v, _ = fr._verdict([
-        {"rule_id": "pan-essential-killer"},
-        {"rule_id": "non-dependent-killer"},
-        {"rule_id": "strong-paralog-buffering-degrader-preferred"},
-    ])
+    v, _ = fr._verdict(
+        [
+            {"rule_id": "pan-essential-killer"},
+            {"rule_id": "non-dependent-killer"},
+            {"rule_id": "strong-paralog-buffering-degrader-preferred"},
+        ]
+    )
     assert v == "pan_essential_killer"
 
 
 def test_positive_dependency_precedence_over_buffer():
     """If the target reads as a real dependency (concordant/selective) that wins — the
     paralog-buffered rung is only reached when the pooled read was non-dependent."""
-    v, _ = fr._verdict([
-        {"rule_id": "concordant-dependent-supportive-dominant"},
-        {"rule_id": "strong-paralog-buffering-degrader-preferred"},
-    ])
+    v, _ = fr._verdict(
+        [
+            {"rule_id": "concordant-dependent-supportive-dominant"},
+            {"rule_id": "strong-paralog-buffering-degrader-preferred"},
+        ]
+    )
     assert v == "concordant_dependent"

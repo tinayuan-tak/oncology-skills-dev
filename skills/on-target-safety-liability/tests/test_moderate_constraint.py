@@ -6,6 +6,7 @@ was insufficient_evidence. Now moderately-constrained-safety-neutral fires → v
 `moderately_constrained_safety` → risk table MEDIUM (equivocal). NOT a hold (only
 highly_constrained gates a safety hold).
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -28,8 +29,8 @@ def test_risk_table_moderate_is_medium_not_insufficient():
     # md risk row MEDIUM (via tp._risk_rows_from_rollup, the same source md/html/json render).
     tp = load_run_py(TP_RUN.parent.parent, "tp_run_c2c")
     from _skills_common.risk_projection import deterministic_bins
-    pkg = {"synthesis": {"sub_verdicts": {"safety": {"verdict": "moderately_constrained_safety"}}},
-           "cards": []}
+
+    pkg = {"synthesis": {"sub_verdicts": {"safety": {"verdict": "moderately_constrained_safety"}}}, "cards": []}
     dims = deterministic_bins(pkg, "small_molecule")
     row = next((lvl, drv) for c, lvl, drv in tp._risk_rows_from_rollup(dims) if c == "safety")
     assert row[0] == "MEDIUM"

@@ -9,6 +9,7 @@ helpers (no Bedrock, no S3):
   3. the markdown renderer produces a well-formed, self-explanatory report from the stub (the LLM
      narrative degrades to the "synthesis skipped" note; the deterministic sections remain).
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -19,20 +20,23 @@ tp = load_run_py(Path(__file__).resolve().parents[1], "tp_run_vo")
 
 
 def _fired(*sm):
-    return [{"rule_id": f"r{i}", "card_id": "c", "field": "f", "value": "v", "signals": s}
-            for i, s in enumerate(sm)]
+    return [{"rule_id": f"r{i}", "card_id": "c", "field": "f", "value": "v", "signals": s} for i, s in enumerate(sm)]
 
 
 def _sr():
     return {
-        "dependency": {"skill_dir": "functional-requirement",
-                       "cards": [{"card_id": "crispr", "summary": {}}],
-                       "verdict": ("lineage_selective", "x"),
-                       "fired": _fired({"small_molecule": "opposing", "degrader": "supportive"})},
-        "safety": {"skill_dir": "on-target-safety-liability",
-                   "cards": [{"card_id": "g", "summary": {}}],
-                   "verdict": ("highly_constrained_safety_concern", "y"),
-                   "fired": _fired({"small_molecule": "opposing"})},
+        "dependency": {
+            "skill_dir": "functional-requirement",
+            "cards": [{"card_id": "crispr", "summary": {}}],
+            "verdict": ("lineage_selective", "x"),
+            "fired": _fired({"small_molecule": "opposing", "degrader": "supportive"}),
+        },
+        "safety": {
+            "skill_dir": "on-target-safety-liability",
+            "cards": [{"card_id": "g", "summary": {}}],
+            "verdict": ("highly_constrained_safety_concern", "y"),
+            "fired": _fired({"small_molecule": "opposing"}),
+        },
     }
 
 
@@ -58,10 +62,11 @@ def test_gate_clamps_into_skipped_stub_like_a_real_synthesis():
     synthesis dict — so --verdict-only still yields the deterministic forced recommendation."""
     stub = tp._skipped_synthesis_output()
     gate_action, hits, _sup = tp._gate_recommendation(
-        _sub("dependency", "pan_essential_killer", "pan-essential-killer"))
+        _sub("dependency", "pan_essential_killer", "pan-essential-killer")
+    )
     assert gate_action == "veto"
-    rec = stub["overall_recommendation"]          # main(): rec = llm_output.get("overall_recommendation")
-    rec["value"] = gate_action                    # main(): rec["value"] = gate_action
+    rec = stub["overall_recommendation"]  # main(): rec = llm_output.get("overall_recommendation")
+    rec["value"] = gate_action  # main(): rec["value"] = gate_action
     rec["_gated"] = True
     assert stub["overall_recommendation"]["value"] == "veto"
 
@@ -77,6 +82,7 @@ def test_synthesize_or_degrade_fail_closed_on_bedrock_error(monkeypatch):
     wrapper (which would crash main() before the nomination/evidence-package is written). It
     degrades to the --no-synthesis stub tagged _synthesis_error, so the deterministic spine below
     is still emitted. Regression for the unwrapped synthesize_structured call at run.py."""
+
     class _BedrockDown(RuntimeError):
         pass
 
@@ -101,7 +107,8 @@ def test_gate_clamps_into_degraded_error_stub():
     stub = tp._skipped_synthesis_output()
     stub["_synthesis_error"] = "BedrockAuthError: expired SSO"
     gate_action, _hits, _sup = tp._gate_recommendation(
-        _sub("dependency", "pan_essential_killer", "pan-essential-killer"))
+        _sub("dependency", "pan_essential_killer", "pan-essential-killer")
+    )
     assert gate_action == "veto"
     stub["overall_recommendation"]["value"] = gate_action
     assert stub["overall_recommendation"]["value"] == "veto"

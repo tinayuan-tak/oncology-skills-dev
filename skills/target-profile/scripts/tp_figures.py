@@ -10,6 +10,7 @@ per-card figures skipped under --no-figures), PLUS one additive fix: per-sub-ski
 written to `figures/subskills/<short>/hero.svg` (previously computed but only re-rendered inline in
 HTML, never emitted as files). All verdict-inert — figures never touch the nomination spine.
 """
+
 from __future__ import annotations
 
 import sys
@@ -31,12 +32,13 @@ def resolve_figures_root(out: Path) -> Path:
 @dataclass
 class FigureManifest:
     """Everything a renderer needs to reference this run's figures — one source of truth."""
+
     figures_dir: Path
     composite_png: Optional[Path] = None
     composite_svg: Optional[Path] = None
-    composite_rel: Optional[str] = None          # md image relpath; None when composite skipped/failed
-    card_figures: dict = field(default_factory=dict)      # {card_id: [descriptor,...]} from the registry
-    subskill_heros: dict = field(default_factory=dict)    # {short: "figures/subskills/<short>/hero.svg"}
+    composite_rel: Optional[str] = None  # md image relpath; None when composite skipped/failed
+    card_figures: dict = field(default_factory=dict)  # {card_id: [descriptor,...]} from the registry
+    subskill_heros: dict = field(default_factory=dict)  # {short: "figures/subskills/<short>/hero.svg"}
 
 
 def emit_subskill_heros(sub_results: dict, figures_dir: Path, target: str, indication: str) -> dict:
@@ -47,8 +49,10 @@ def emit_subskill_heros(sub_results: dict, figures_dir: Path, target: str, indic
     try:
         from _skills_common.headline_hero import render_headline_hero_svg
     except Exception as e:  # noqa: BLE001 — heros must never block a run
-        print(f"[target-profile] WARN: headline_hero unavailable ({type(e).__name__}); no sub-skill heros",
-              file=sys.stderr)
+        print(
+            f"[target-profile] WARN: headline_hero unavailable ({type(e).__name__}); no sub-skill heros",
+            file=sys.stderr,
+        )
         return {}
     out: dict = {}
     for short, sr in (sub_results or {}).items():
@@ -60,16 +64,14 @@ def emit_subskill_heros(sub_results: dict, figures_dir: Path, target: str, indic
         try:
             svg = render_headline_hero_svg(hero, target, indication)
         except Exception as e:  # noqa: BLE001
-            print(f"[target-profile] WARN: hero render failed for {short} ({type(e).__name__})",
-                  file=sys.stderr)
+            print(f"[target-profile] WARN: hero render failed for {short} ({type(e).__name__})", file=sys.stderr)
             continue
         d = figures_dir / "subskills" / short
         d.mkdir(parents=True, exist_ok=True)
         (d / "hero.svg").write_text(svg)
         out[short] = f"figures/subskills/{short}/hero.svg"
     if out:
-        print(f"[target-profile] wrote {len(out)} sub-skill hero svg(s) → figures/subskills/",
-              file=sys.stderr)
+        print(f"[target-profile] wrote {len(out)} sub-skill hero svg(s) → figures/subskills/", file=sys.stderr)
     return out
 
 
@@ -87,9 +89,13 @@ def emit_figures(args, sub_results: dict, llm_output: dict, *, profile_timers: b
         print("[target-profile] --verdict-only: skipped composite panel render", file=sys.stderr)
     else:
         try:
-            render_composite_panel(out_path=composite_png, target=args.target,
-                                   indication=args.indication, sub_results=sub_results,
-                                   llm_output=llm_output)
+            render_composite_panel(
+                out_path=composite_png,
+                target=args.target,
+                indication=args.indication,
+                sub_results=sub_results,
+                llm_output=llm_output,
+            )
             composite_rel = f"figures/{composite_png.name}"
             print(f"[target-profile] wrote {composite_png} (+ .svg companion)", file=sys.stderr)
         except Exception as e:  # noqa: BLE001 — never block emission on a panel render failure

@@ -17,6 +17,7 @@ NOT a good/bad push on the nomination. So the Signal polarity is `informs` (neve
 Signal reuses the claim_vector tier vocabulary (strong>moderate>weak>absent, unmeasured); Confidence
 reuses the corroboration vocabulary (high>moderate>low, unmeasured).
 """
+
 from __future__ import annotations
 
 from typing import Optional
@@ -27,7 +28,11 @@ from _skills_common.question_table_core import build_cv_question_table
 _QUESTIONS = [
     ("Q1", "Are patient-derived (HCMI) models available to preclinically validate the nomination?", "MODEL"),
     ("Q2", "Does an available patient-derived model carry a functional alteration in THIS target?", "GENOTYPE"),
-    ("Q3", "Does the target's dependency reproduce EX VIVO in patient-derived organoid (3D CRISPR) models?", "ORGANOID"),
+    (
+        "Q3",
+        "Does the target's dependency reproduce EX VIVO in patient-derived organoid (3D CRISPR) models?",
+        "ORGANOID",
+    ),
     ("Q4", "Does the target's tractability reproduce IN VIVO in PDX population trials?", "PDX"),
 ]
 

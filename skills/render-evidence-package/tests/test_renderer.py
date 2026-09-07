@@ -36,6 +36,7 @@ from scripts.render_markdown import (  # noqa: E402
 # Hand-authored evidence_package fixtures
 # ============================================================================
 
+
 def _minimal_kras_coadread_ep() -> dict:
     """Synthetic KRAS-COADREAD evidence_package with 3 cards covering the main
     panel types: pass, passed_with_warnings, excluded_by_applies_when."""
@@ -71,8 +72,10 @@ def _minimal_kras_coadread_ep() -> dict:
                 "summary": {"log2_fc": 2.1, "q_value": 0.0003, "n_tumor": 412},
                 "interpretation_call": "strong upregulation",
                 "caveats": ["RNA does not imply protein"],
-                "provenance": {"method_calls": [{"method": "dge-deseq2", "git_sha": "abc123"}],
-                               "input_manifest_ids": ["coadread-dge-df06320"]},
+                "provenance": {
+                    "method_calls": [{"method": "dge-deseq2", "git_sha": "abc123"}],
+                    "input_manifest_ids": ["coadread-dge-df06320"],
+                },
             },
             {
                 "card_id": "dependency-lineage-selectivity",
@@ -161,6 +164,7 @@ def _tg_unknown_axis_ep() -> dict:
 # Test 1: KRAS-COADREAD renders with all expected sections
 # ============================================================================
 
+
 def test_render_kras_coadread_full_dashboard():
     md = render_evidence_package(_minimal_kras_coadread_ep())
 
@@ -199,6 +203,7 @@ def test_render_kras_coadread_full_dashboard():
 # Test 2: TG-COADREAD renders the refusal page
 # ============================================================================
 
+
 def test_render_tg_coadread_refusal_page():
     md = render_evidence_package(_tg_unknown_axis_ep())
 
@@ -228,6 +233,7 @@ def test_render_tg_coadread_refusal_page():
 # Test 3: Modality fit table uses icons
 # ============================================================================
 
+
 def test_render_modality_fit_table_uses_icons():
     md = render_evidence_package(_minimal_kras_coadread_ep())
     has_icon = any(icon in md for icon in ["🟢", "🟡", "🟠", "🔴", "⚪"])
@@ -237,6 +243,7 @@ def test_render_modality_fit_table_uses_icons():
 # ============================================================================
 # Test 4: Decoupling — render handles JSON-serialized round-trip
 # ============================================================================
+
 
 def test_renderer_decoupled_works_after_json_roundtrip(tmp_path):
     ep = _minimal_kras_coadread_ep()
@@ -254,6 +261,7 @@ def test_renderer_decoupled_works_after_json_roundtrip(tmp_path):
 # Test 5: Pass cards get ✓; warned cards get ⚠; excluded get ⏸️
 # ============================================================================
 
+
 def test_render_card_state_icons():
     md = render_evidence_package(_minimal_kras_coadread_ep())
     assert "✓ `tumor-rna-vs-adjacent`" in md, "passed card should have ✓ icon"
@@ -265,6 +273,7 @@ def test_render_card_state_icons():
 # Test 6: Warning IDs surface in rendered card
 # ============================================================================
 
+
 def test_render_warning_ids_surface():
     md = render_evidence_package(_minimal_kras_coadread_ep())
     assert "small_lineage_panel" in md
@@ -273,6 +282,7 @@ def test_render_warning_ids_surface():
 # ============================================================================
 # Test 7: Excluded card renders exclusion_reason
 # ============================================================================
+
 
 def test_render_excluded_card_shows_reason():
     md = render_evidence_package(_minimal_kras_coadread_ep())
@@ -284,22 +294,42 @@ def test_render_excluded_card_shows_reason():
 # Test 8: Subgroup-panorama table renders the evidence_state trichotomy
 # ============================================================================
 
+
 def _panorama_rows():
     return [
-        {"stratum": "MSS", "class": "strong_dependency", "evidence_state": "measured",
-         "median_chronos": -1.22, "subgroup_n": 71, "subgroup_n_floor_met": True,
-         "source_cohort": "DepMap-26Q1"},
-        {"stratum": "MSI_H", "class": "moderate_dependency", "evidence_state": "underpowered",
-         "median_chronos": -0.69, "subgroup_n": 17, "subgroup_n_floor_met": False,
-         "source_cohort": "DepMap-26Q1"},
-        {"stratum": "POLE", "class": "insufficient", "evidence_state": "absent",
-         "median_chronos": None, "subgroup_n": 0, "subgroup_n_floor_met": False,
-         "source_cohort": "DepMap-26Q1"},
+        {
+            "stratum": "MSS",
+            "class": "strong_dependency",
+            "evidence_state": "measured",
+            "median_chronos": -1.22,
+            "subgroup_n": 71,
+            "subgroup_n_floor_met": True,
+            "source_cohort": "DepMap-26Q1",
+        },
+        {
+            "stratum": "MSI_H",
+            "class": "moderate_dependency",
+            "evidence_state": "underpowered",
+            "median_chronos": -0.69,
+            "subgroup_n": 17,
+            "subgroup_n_floor_met": False,
+            "source_cohort": "DepMap-26Q1",
+        },
+        {
+            "stratum": "POLE",
+            "class": "insufficient",
+            "evidence_state": "absent",
+            "median_chronos": None,
+            "subgroup_n": 0,
+            "subgroup_n_floor_met": False,
+            "source_cohort": "DepMap-26Q1",
+        },
     ]
 
 
 def test_panorama_table_distinguishes_evidence_states():
     from scripts.render_markdown import _render_subgroup_panorama_table
+
     lines = _render_subgroup_panorama_table(_panorama_rows())
     md = "\n".join(lines)
     # measured is trusted; underpowered is flagged inline with n<floor; absent is marked.
@@ -318,6 +348,7 @@ def test_panorama_field_routes_to_trichotomy_renderer_not_generic():
     """A card whose summary carries per_subgroup_metrics gets the evidence_state
     renderer (badges), not the plain list-of-dicts table."""
     from scripts.render_markdown import _render_card_panel
+
     card = {
         "card_id": "subgroup-stratified-dependency",
         "interpretation_call": "subgroup-specific dependency pattern",
@@ -333,27 +364,44 @@ def test_panorama_field_routes_to_trichotomy_renderer_not_generic():
 # Test: card_unavailable reasoned-absence panels (F, 2026-07-20)
 # ============================================================================
 
+
 def test_card_unavailable_not_wired_renders_as_reasoned_absence():
     """A not_wired card_unavailable entry must render as a reasoned coverage-gap panel —
     NOT fall through to the present-card path ('? uninterpreted', the pre-fix bug)."""
     from scripts.render_markdown import _render_card_panel
-    md = "\n".join(_render_card_panel({
-        "card_id": "fusion-rearrangement-landscape", "card_version": "0.1.0",
-        "availability_state": "not_wired", "availability_reason": "dispatcher_returned_none"}))
+
+    md = "\n".join(
+        _render_card_panel(
+            {
+                "card_id": "fusion-rearrangement-landscape",
+                "card_version": "0.1.0",
+                "availability_state": "not_wired",
+                "availability_reason": "dispatcher_returned_none",
+            }
+        )
+    )
     assert "unavailable (`not_wired`)" in md
     assert "dispatcher_returned_none" in md
-    assert "coverage gap, not evidence" in md          # the honesty warning for a non-measured gap
-    assert "uninterpreted" not in md                    # must NOT render as a broken present card
-    assert "?" not in md.split("\n")[0]                 # no '?' state icon in the heading
+    assert "coverage gap, not evidence" in md  # the honesty warning for a non-measured gap
+    assert "uninterpreted" not in md  # must NOT render as a broken present card
+    assert "?" not in md.split("\n")[0]  # no '?' state icon in the heading
 
 
 def test_card_unavailable_insufficient_is_measured_no_coverage_warning():
     """An `insufficient` entry is a MEASURED absence (the reader looked) — it uses the 🔎 icon
     and must NOT carry the 'coverage gap, not evidence' warning reserved for never-looked gaps."""
     from scripts.render_markdown import _render_card_panel
-    md = "\n".join(_render_card_panel({
-        "card_id": "gnomad-lof-constraint", "card_version": "1.0.0",
-        "availability_state": "insufficient", "availability_reason": "primary_class=data_unavailable"}))
+
+    md = "\n".join(
+        _render_card_panel(
+            {
+                "card_id": "gnomad-lof-constraint",
+                "card_version": "1.0.0",
+                "availability_state": "insufficient",
+                "availability_reason": "primary_class=data_unavailable",
+            }
+        )
+    )
     assert "unavailable (`insufficient`)" in md
     assert "🔎" in md
     assert "coverage gap, not evidence" not in md
@@ -364,19 +412,23 @@ def test_cards_without_evidence_section_reconciles_reasoned_and_residual():
     """The section reconciles n_cards_failed against the reasoned-absence panels: it names the
     reasoned count + only speculates for a genuine residual drop."""
     from scripts.render_markdown import _render_failed_cards_section
+
     ep = {
         "governance": {"validation_summary": {"n_cards_failed": 2}},
         "cards": [
-            {"card_id": "fusion-rearrangement-landscape", "availability_state": "not_wired",
-             "availability_reason": "dispatcher_returned_none"},
+            {
+                "card_id": "fusion-rearrangement-landscape",
+                "availability_state": "not_wired",
+                "availability_reason": "dispatcher_returned_none",
+            },
             # 1 reasoned + (2 - 1) = 1 residual genuine drop
         ],
     }
     md = "\n".join(_render_failed_cards_section(ep))
     assert "## Cards Without Evidence" in md
     assert "reasoned-absence panels" in md
-    assert "1 of 2" in md                       # reasoned count reconciled against the total
-    assert "1 further card(s) were dropped" in md   # the residual
+    assert "1 of 2" in md  # reasoned count reconciled against the total
+    assert "1 further card(s) were dropped" in md  # the residual
     # 2026-08-10: the residual note no longer points at the phantom
     # validation_report.json (never written); it points at the real failure signals.
     assert "validation_report.json" not in md
@@ -385,6 +437,7 @@ def test_cards_without_evidence_section_reconciles_reasoned_and_residual():
 
 def test_no_failed_no_section():
     from scripts.render_markdown import _render_failed_cards_section
+
     assert _render_failed_cards_section({"governance": {"validation_summary": {"n_cards_failed": 0}}}) == []
 
 
@@ -392,6 +445,7 @@ def test_no_failed_no_section():
 # TOC dangling-anchor regression: a Contents link
 # must appear only when its target section actually renders.
 # ============================================================================
+
 
 def test_toc_omits_modality_fit_link_when_no_assessment():
     # render_evidence_package renders the Modality Fit section only `if fit:`; the TOC link must
@@ -404,8 +458,10 @@ def test_toc_omits_modality_fit_link_when_no_assessment():
 def test_toc_omits_cards_without_evidence_link_unless_cards_failed():
     # _render_failed_cards_section returns [] unless n_cards_failed is truthy. A reasoned-absence
     # card (availability_state) with n_cards_failed == 0 must NOT add the link (was dangling).
-    ep_absence = {"cards": [{"card_id": "x", "availability_state": "not_wired"}],
-                  "governance": {"validation_summary": {"n_cards_failed": 0}}}
+    ep_absence = {
+        "cards": [{"card_id": "x", "availability_state": "not_wired"}],
+        "governance": {"validation_summary": {"n_cards_failed": 0}},
+    }
     assert "(#cards-without-evidence)" not in "\n".join(_render_toc(ep_absence, []))
     ep_failed = {"cards": [], "governance": {"validation_summary": {"n_cards_failed": 2}}}
     assert "(#cards-without-evidence)" in "\n".join(_render_toc(ep_failed, []))
@@ -414,6 +470,7 @@ def test_toc_omits_cards_without_evidence_link_unless_cards_failed():
 # ============================================================================
 # non_concludable fit_level must NOT render as a green "dominant positive"
 # ============================================================================
+
 
 def _non_concludable_entry() -> dict:
     """A modality whose safety veto could not be assessed (killer-veto card read_error /
@@ -444,12 +501,20 @@ def test_non_concludable_evidence_cell_does_not_render_dominant_positive():
 
 def test_non_concludable_has_icon_and_renders_in_table():
     assert "non_concludable" in FIT_ICONS
-    assert FIT_ICONS["non_concludable"] != "🟢"   # never a green pass
-    fit = [_non_concludable_entry(),
-           {"modality": "adc", "fit_level": "strong", "headline_decision_question": "",
-            "primary_cards_positive_count": 3, "primary_cards_in_scope": 3,
-            "primary_cards_total": 3, "dominant_hits": [{"card_id": "x", "call": "y"}],
-            "killer_conditions_hit": []}]
+    assert FIT_ICONS["non_concludable"] != "🟢"  # never a green pass
+    fit = [
+        _non_concludable_entry(),
+        {
+            "modality": "adc",
+            "fit_level": "strong",
+            "headline_decision_question": "",
+            "primary_cards_positive_count": 3,
+            "primary_cards_in_scope": 3,
+            "primary_cards_total": 3,
+            "dominant_hits": [{"card_id": "x", "call": "y"}],
+            "killer_conditions_hit": [],
+        },
+    ]
     md = "\n".join(_render_modality_fit_table(fit))
     assert "non_concludable" in md
     assert "Non-concludable — killer-veto card unavailable" in md

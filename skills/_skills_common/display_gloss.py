@@ -23,6 +23,7 @@ METRIC_GLOSS so the card view + the narrator bullets read one vocabulary.
 Author budget kept small on purpose (contract in the CI coverage test test_display_gloss_coverage.py):
 ~50 metric entries (one per salience-promoted field) + ~20 affix rules + a handful of direction phrases.
 """
+
 from __future__ import annotations
 
 import functools
@@ -43,9 +44,12 @@ _DIRECTION_PHRASE = {
     "near_zero_is_independent": "near zero = independent",
 }
 _DIRECTION_ALIASES = {
-    "lower_stronger": "lower_is_stronger", "more_negative_is_stronger": "lower_is_stronger",
-    "higher_stronger": "higher_is_stronger", "higher_is_better": "higher_is_stronger",
-    "higher_worse": "higher_is_worse", "higher_bad": "higher_is_worse",
+    "lower_stronger": "lower_is_stronger",
+    "more_negative_is_stronger": "lower_is_stronger",
+    "higher_stronger": "higher_is_stronger",
+    "higher_is_better": "higher_is_stronger",
+    "higher_worse": "higher_is_worse",
+    "higher_bad": "higher_is_worse",
     "lower_worse": "lower_is_worse",
 }
 
@@ -218,7 +222,7 @@ def _fmt_num(v):
 
 def _anchor_by_role(gv: dict) -> dict:
     out = {}
-    for a in ((gv.get("frame") or {}).get("anchors") or []):
+    for a in (gv.get("frame") or {}).get("anchors") or []:
         if isinstance(a, dict) and a.get("role"):
             out[a["role"]] = a
     return out
@@ -227,7 +231,12 @@ def _anchor_by_role(gv: dict) -> dict:
 def _past_or_short(x, cut, direction) -> Optional[str]:
     """'past' when x is on the STRONGER/worse side of the cut (per direction), else 'short of'. None when
     either value is missing/non-numeric."""
-    if not isinstance(x, (int, float)) or isinstance(x, bool) or not isinstance(cut, (int, float)) or isinstance(cut, bool):
+    if (
+        not isinstance(x, (int, float))
+        or isinstance(x, bool)
+        or not isinstance(cut, (int, float))
+        or isinstance(cut, bool)
+    ):
         return None
     d = _norm_direction(direction)
     if d in ("lower_is_stronger", "lower_is_worse"):
@@ -267,7 +276,7 @@ def gauge_string(gv: dict) -> str:
         tail = []
         if dtc is not None:
             tail.append(f"Δ{_fmt_num(dtc)}")
-        ps = _past_or_short(dtc, cut.get("value"), direction)   # the cut is on the DELTA here
+        ps = _past_or_short(dtc, cut.get("value"), direction)  # the cut is on the DELTA here
         if ps and cut.get("value") is not None:
             tail.append(f"{ps} the {_fmt_num(cut['value'])} cut")
         if tail:
@@ -294,15 +303,20 @@ def gauge_string(gv: dict) -> str:
         ps = _past_or_short(value, cut.get("value"), direction)
         if ps and cut.get("value") is not None:
             seg += f", {ps} the {_fmt_num(cut['value'])} cut"
-        pos = gv.get("position")   # lead with the banded call when present (mirrors floor_cut_ceiling)
+        pos = gv.get("position")  # lead with the banded call when present (mirrors floor_cut_ceiling)
         return f"{humanize(pos).lower()} — {seg}" if pos else seg
 
     if kind == "graded_band":
         # value read against a ladder of >=2 cut anchors: name the STRONGEST cut it clears (e.g. "past the
         # 1.5 strong cut"), else the nearest one it falls short of ("short of the 0.5 modest cut").
         seg = head
-        cuts = [a for a in (frame.get("anchors") or [])
-                if a.get("role") == "cut" and isinstance(a.get("value"), (int, float)) and not isinstance(a.get("value"), bool)]
+        cuts = [
+            a
+            for a in (frame.get("anchors") or [])
+            if a.get("role") == "cut"
+            and isinstance(a.get("value"), (int, float))
+            and not isinstance(a.get("value"), bool)
+        ]
         stronger_first = _norm_direction(direction) in ("lower_is_stronger", "lower_is_worse")
         cuts.sort(key=lambda a: a["value"], reverse=stronger_first)  # weakest → strongest cut
         passed = [a for a in cuts if _past_or_short(value, a["value"], direction) == "past"]
@@ -356,6 +370,7 @@ def card_question(card_id: str) -> Optional[str]:
     render). Mirrors _skills_common.card_input_manifest_ids' cached card.yaml read."""
     try:
         from _skills_common.paths import target_contracts_root
+
         p = target_contracts_root() / "cards" / f"{card_id}.card.yaml"
         if not p.exists():
             return None
@@ -374,6 +389,7 @@ def indication_label(indication: Optional[str]) -> Optional[str]:
     ind = indication.upper()
     try:
         from _skills_common.evidence_salience import _crosswalk_entries
+
         for e in _crosswalk_entries():
             codes = {str(e.get("canonical_code") or "").upper(), str(e.get("oncotree_code") or "").upper()}
             if ind in codes and isinstance(e.get("display_name"), str):
@@ -383,8 +399,7 @@ def indication_label(indication: Optional[str]) -> Optional[str]:
     return indication
 
 
-def card_description(card_id: str, target: Optional[str] = None,
-                     indication: Optional[str] = None) -> Optional[str]:
+def card_description(card_id: str, target: Optional[str] = None, indication: Optional[str] = None) -> Optional[str]:
     """The card `question:` with {target.symbol} / {indication.label} filled in (never left as a raw
     placeholder — an un-interpolated description reads broken). None when the card carries no question."""
     q = card_question(card_id)
@@ -399,5 +414,14 @@ def card_description(card_id: str, target: Optional[str] = None,
     return re.sub(r"\s{2,}", " ", q).strip() or None
 
 
-__all__ = ["direction_phrase", "gloss", "metric_reading", "gauge_string", "humanize", "METRIC_GLOSS",
-           "card_question", "card_description", "indication_label"]
+__all__ = [
+    "direction_phrase",
+    "gloss",
+    "metric_reading",
+    "gauge_string",
+    "humanize",
+    "METRIC_GLOSS",
+    "card_question",
+    "card_description",
+    "indication_label",
+]

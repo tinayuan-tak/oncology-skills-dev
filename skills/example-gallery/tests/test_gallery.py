@@ -1,4 +1,5 @@
 """example-gallery HTML assembly — pure render test from a fixture decision.json (no S3/subprocess/LLM)."""
+
 from __future__ import annotations
 
 import sys
@@ -12,24 +13,46 @@ import generate_example_gallery as G  # noqa: E402
 
 def _decision():
     return {
-        "skill": "tumor-presence", "target": "CEACAM5", "indication": "COADREAD",
-        "headline": {"presence_verdict": "lineage_restricted",
-                     "driving_rule_id": "expression-lineage-restricted-supportive"},
+        "skill": "tumor-presence",
+        "target": "CEACAM5",
+        "indication": "COADREAD",
+        "headline": {
+            "presence_verdict": "lineage_restricted",
+            "driving_rule_id": "expression-lineage-restricted-supportive",
+        },
         "llm_synthesis": {
             "expression_relevance_for_target": {"value": "strongly_supports", "_source": "llm_synthesized"},
-            "relevance_rationale": {"value": "CEACAM5 sits in the top 1% of all genes...", "_source": "llm_synthesized"},
+            "relevance_rationale": {
+                "value": "CEACAM5 sits in the top 1% of all genes...",
+                "_source": "llm_synthesized",
+            },
         },
         "cards": [
-            {"card_id": "tumor-rna-distribution",
-             "summary": {"tumor_expression_class": "broadly_high", "median_log2tpm": 10.99,
-                         "allgene_percentile": 99.9, "_data_source": "allgene-tumor-rank-v1"}},
-            {"card_id": "tumor-protein-abundance-cptac", "summary": {},
-             "_missing": True, "_missing_reason": "no_cptac_cohort_for_indication"},
+            {
+                "card_id": "tumor-rna-distribution",
+                "summary": {
+                    "tumor_expression_class": "broadly_high",
+                    "median_log2tpm": 10.99,
+                    "allgene_percentile": 99.9,
+                    "_data_source": "allgene-tumor-rank-v1",
+                },
+            },
+            {
+                "card_id": "tumor-protein-abundance-cptac",
+                "summary": {},
+                "_missing": True,
+                "_missing_reason": "no_cptac_cohort_for_indication",
+            },
         ],
         "fired_rules": [
-            {"rule_id": "expression-broadly-high-supportive", "card_id": "tumor-rna-distribution",
-             "field": "tumor_expression_class", "value": "broadly_high", "dominant": True,
-             "rationale_summary": "top-quartile broad expression"},
+            {
+                "rule_id": "expression-broadly-high-supportive",
+                "card_id": "tumor-rna-distribution",
+                "field": "tumor_expression_class",
+                "value": "broadly_high",
+                "dominant": True,
+                "rationale_summary": "top-quartile broad expression",
+            },
         ],
     }
 
@@ -62,7 +85,7 @@ def test_page_has_verdict_synthesis_and_card(tmp_path):
     # zoomable figures scaffold + lightbox present
     assert "zbackdrop" in page
     # self-contained (no external asset refs)
-    assert "<!DOCTYPE html>" in page and "src=\"http" not in page
+    assert "<!DOCTYPE html>" in page and 'src="http' not in page
 
 
 def test_presence_hero_emitted_and_inlined_when_matrix_present(tmp_path):
@@ -71,15 +94,17 @@ def test_presence_hero_emitted_and_inlined_when_matrix_present(tmp_path):
     inlined into the page. Gated on the field, not the skill name."""
     d = _decision()
     d["headline"]["presence_verdict_by_modality"] = {
-        "bulk_rna/tumor": {"verdict": "tumor_broadly_expressed", "evidence_state": "measured",
-                           "driving_rule_id": "expression-lineage-restricted-supportive"},
-        "sc_rna/normal": {"verdict": "HIGH_LIABILITY", "evidence_state": "comparator",
-                          "driving_rule_id": None},
+        "bulk_rna/tumor": {
+            "verdict": "tumor_broadly_expressed",
+            "evidence_state": "measured",
+            "driving_rule_id": "expression-lineage-restricted-supportive",
+        },
+        "sc_rna/normal": {"verdict": "HIGH_LIABILITY", "evidence_state": "comparator", "driving_rule_id": None},
     }
     page = G.render_page(d, tmp_path, fig_map={}, interactive=False)
     assert "Presence × context" in page
     assert 'class="hero-matrix"' in page
-    assert "<svg" in page                                    # inlined
+    assert "<svg" in page  # inlined
     # persisted into the run's figures/ so publish_run.py ships it
     assert (tmp_path / "figures" / "figure_presence_context_matrix.svg").exists()
     assert (tmp_path / "figures" / "presence_context_matrix.json").exists()
@@ -94,13 +119,17 @@ def test_presence_hero_absent_without_matrix(tmp_path):
 
 def test_headline_and_metrics_curation():
     # curated card: headline field + prettified key-metric labels
-    s = {"expression_class": "broadly_high", "median_log2tpm_panel": 10.99, "allgene_percentile": 99.9,
-         "fraction_expressed": 0.26}
+    s = {
+        "expression_class": "broadly_high",
+        "median_log2tpm_panel": 10.99,
+        "allgene_percentile": 99.9,
+        "fraction_expressed": 0.26,
+    }
     hl, kind, val = G._card_headline_html("cellline-rna-distribution", s, missing=False)
     assert val == "broadly_high" and kind == "good"
     m = G._key_metrics_html("cellline-rna-distribution", s)
-    assert "Median log2TPM" in m and "All-gene %ile" in m   # pretty labels from CARD_DISPLAY
-    assert "median_log2tpm" not in m                        # raw key not shown
+    assert "Median log2TPM" in m and "All-gene %ile" in m  # pretty labels from CARD_DISPLAY
+    assert "median_log2tpm" not in m  # raw key not shown
 
 
 def test_heuristic_headline_for_uncurated_card():
@@ -110,8 +139,8 @@ def test_heuristic_headline_for_uncurated_card():
 
 def test_summary_table_skips_private_and_big_values():
     t = G._summary_table({"good_thing": 1, "_hidden": 2, "big": list(range(200))})
-    assert "Good thing" in t and "_hidden" not in t   # prettified label; private hidden
-    assert "list, 200 items" in t   # large list summarized, not dumped
+    assert "Good thing" in t and "_hidden" not in t  # prettified label; private hidden
+    assert "list, 200 items" in t  # large list summarized, not dumped
 
 
 def test_csv_table_renders_rows(tmp_path):
@@ -126,8 +155,8 @@ def test_fig_css_sets_explicit_width_not_only_maxwidth():
     scales). CSS must give it an EXPLICIT width — with only max-width, browsers render it 0×0 (the
     'blank plots' bug). Assert .fig has a width and .fig svg is width:100%."""
     css = G._CSS
-    assert ".fig{" in css and "width:380px" in css          # the figure box has a real width
-    assert ".fig svg{width:100%" in css                     # svg fills it (not just max-width)
+    assert ".fig{" in css and "width:380px" in css  # the figure box has a real width
+    assert ".fig svg{width:100%" in css  # svg fills it (not just max-width)
 
 
 def test_subtype_breakdown_panel_promoted_to_card_body():
@@ -135,17 +164,30 @@ def test_subtype_breakdown_panel_promoted_to_card_body():
     in the card body — one row per subtype with its signal chip — not be collapsed to '<list, N items>'
     in the buried drill-down. This is the subgroup-analysis visibility the framework requires."""
     summary = {
-        "subtype_axis_available": True, "subtype_stratification_class": "pan_subtype_uniform",
-        "subtype_effect_size_class": "moderate", "subtype_variance_explained": 0.062,
-        "subtype_omnibus_p": 2.8e-11, "n_subtypes_measured": 7,
+        "subtype_axis_available": True,
+        "subtype_stratification_class": "pan_subtype_uniform",
+        "subtype_effect_size_class": "moderate",
+        "subtype_variance_explained": 0.062,
+        "subtype_omnibus_p": 2.8e-11,
+        "n_subtypes_measured": 7,
         "which_subtypes_separate": {"highest": "left_sided", "lowest": "MSI_H"},
         "per_subgroup_metrics": [
-            {"stratum_id": "MSI_H", "n_tumor_samples": 47, "median_log2tpm": 9.19,
-             "tumor_expression_class": "broadly_high", "fraction_tumor_above_normal_p95": 0.32,
-             "subtype_signal": "subtype_depleted"},
-            {"stratum_id": "MSS", "n_tumor_samples": 205, "median_log2tpm": 10.86,
-             "tumor_expression_class": "broadly_high", "fraction_tumor_above_normal_p95": 0.80,
-             "subtype_signal": "subtype_uniform"},
+            {
+                "stratum_id": "MSI_H",
+                "n_tumor_samples": 47,
+                "median_log2tpm": 9.19,
+                "tumor_expression_class": "broadly_high",
+                "fraction_tumor_above_normal_p95": 0.32,
+                "subtype_signal": "subtype_depleted",
+            },
+            {
+                "stratum_id": "MSS",
+                "n_tumor_samples": 205,
+                "median_log2tpm": 10.86,
+                "tumor_expression_class": "broadly_high",
+                "fraction_tumor_above_normal_p95": 0.80,
+                "subtype_signal": "subtype_uniform",
+            },
         ],
     }
     panel = G._breakdown_panel_html("tumor-rna-distribution-by-subtype", summary)
@@ -167,8 +209,7 @@ def test_breakdown_panel_absent_when_not_configured_or_empty():
     # a card with no BREAKDOWN_PANELS entry → "" ; configured card but empty list → ""
     assert G._breakdown_panel_html("tumor-rna-distribution", {"per_subgroup_metrics": []}) == ""
     assert G._breakdown_panel_html("tumor-rna-distribution-by-subtype", {}) == ""
-    assert G._breakdown_panel_html("tumor-rna-distribution-by-subtype",
-                                   {"per_subgroup_metrics": []}) == ""
+    assert G._breakdown_panel_html("tumor-rna-distribution-by-subtype", {"per_subgroup_metrics": []}) == ""
 
 
 def test_static_figure_inlines_svg(tmp_path):
@@ -177,11 +218,12 @@ def test_static_figure_inlines_svg(tmp_path):
     card_dir.mkdir(parents=True)
     (card_dir / "figure_x.svg").write_text(
         '<?xml version="1.0"?>\n<svg width="600pt" height="400pt" viewBox="0 0 600 400">'
-        '<rect width="10" height="10"/></svg>')
+        '<rect width="10" height="10"/></svg>'
+    )
     figs = [{"id": "x", "path": "cards/tumor-rna-distribution/figure_x.svg"}]
     out = G._card_figures_html(tmp_path, figs, interactive=False)
     assert "<svg" in out and "viewBox" in out
-    assert 'width="600pt"' not in out   # fixed width stripped so it scales
+    assert 'width="600pt"' not in out  # fixed width stripped so it scales
 
 
 def test_missing_svg_is_graceful(tmp_path):
@@ -192,25 +234,40 @@ def test_missing_svg_is_graceful(tmp_path):
 def test_flow_tabs_chain_and_structure():
     # flow tabs: 5 radios (nth-of-type CSS), one tabbar with 5 labels, one tabpanels with 5 panels;
     # the fired rule + its value + _data_source appear in the chain.
-    fired = [{"rule_id": "r1", "card_id": "tumor-rna-distribution", "field": "tumor_expression_class",
-              "value": "broadly_high", "dominant": True, "rationale_summary": "why"}]
-    html = G._flow_tabs_html("tumor-rna-distribution",
-                             {"tumor_expression_class": "broadly_high", "_data_source": "prod-x"},
-                             fired, uid="0", target="KRAS", indication="COADREAD")
+    fired = [
+        {
+            "rule_id": "r1",
+            "card_id": "tumor-rna-distribution",
+            "field": "tumor_expression_class",
+            "value": "broadly_high",
+            "dominant": True,
+            "rationale_summary": "why",
+        }
+    ]
+    html = G._flow_tabs_html(
+        "tumor-rna-distribution",
+        {"tumor_expression_class": "broadly_high", "_data_source": "prod-x"},
+        fired,
+        uid="0",
+        target="KRAS",
+        indication="COADREAD",
+    )
     assert html.count('class="tabin"') == 5
     assert html.count('class="tablabel"') == 5
     assert html.count('class="tabpanel"') == 5
     assert '<div class="tabbar">' in html and '<div class="tabpanels">' in html
     # radios come BEFORE the tabbar (required for the ~ sibling selector)
     assert html.index('class="tabin"') < html.index('class="tabbar"') < html.index('class="tabpanels"')
-    assert "r1" in html and "broadly_high" in html          # rule + value in the chain
-    assert "prod-x" in html                                 # _data_source surfaced in Data tab
+    assert "r1" in html and "broadly_high" in html  # rule + value in the chain
+    assert "prod-x" in html  # _data_source surfaced in Data tab
 
 
 def test_question_template_placeholders_filled():
     # {target.symbol}/{indication.label} in a card question must be substituted (no raw leak)
-    assert G._fill_template("expr of {target.symbol} in {indication.label}", "KRAS", "COADREAD") \
+    assert (
+        G._fill_template("expr of {target.symbol} in {indication.label}", "KRAS", "COADREAD")
         == "expr of KRAS in COADREAD"
+    )
     # in a real flow-tabs render, no raw placeholder remains
     html = G._flow_tabs_html("tumor-rna-distribution", {}, [], uid="0", target="KRAS", indication="COADREAD")
     assert "{target.symbol}" not in html and "{indication" not in html
@@ -232,6 +289,7 @@ def test_synthesize_retry_without_flag(tmp_path, monkeypatch):
     """A subskill that rejects --synthesize (e.g. genomic-alteration-profile's custom main) must be
     retried WITHOUT it, not fail the row. We stub subprocess.run to reject --synthesize once."""
     import subprocess as _sp
+
     calls = []
 
     def fake_run(cmd, **kw):
@@ -241,9 +299,13 @@ def test_synthesize_retry_without_flag(tmp_path, monkeypatch):
         # second call (no --synthesize): write a minimal decision.json so the run "succeeds"
         out_dir = Path(cmd[cmd.index("--out") + 1])
         (out_dir).mkdir(parents=True, exist_ok=True)
-        (out_dir / "decision.json").write_text('{"skill":"genomic-alteration-profile","target":"KRAS",'
-                                               '"indication":"COADREAD","headline":{},"cards":[]}')
-        class R: pass
+        (out_dir / "decision.json").write_text(
+            '{"skill":"genomic-alteration-profile","target":"KRAS","indication":"COADREAD","headline":{},"cards":[]}'
+        )
+
+        class R:
+            pass
+
         return R()
 
     # point SKILLS_DIR's run.py existence check at a real run.py (any subskill's) so the guard passes
@@ -251,8 +313,8 @@ def test_synthesize_retry_without_flag(tmp_path, monkeypatch):
     monkeypatch.setattr(G, "SKILLS_DIR", G.SKILLS_DIR)  # unchanged; genomic-alteration-profile/run.py exists
     dec = G.run_subskill("genomic-alteration-profile", "KRAS", "COADREAD", tmp_path, synthesize=True)
     assert dec is not None and dec["skill"] == "genomic-alteration-profile"
-    assert any("--synthesize" in c for c in calls)       # first attempt had it
-    assert any("--synthesize" not in c for c in calls)   # retry dropped it
+    assert any("--synthesize" in c for c in calls)  # first attempt had it
+    assert any("--synthesize" not in c for c in calls)  # retry dropped it
 
 
 # --- render-from-existing-dir mode (no skill re-run) -------------------------
@@ -270,7 +332,8 @@ def _make_existing_run(tmp_path):
     # a second card with only an SVG (no twin)
     (run / "figures" / "cards" / "cellline-rna-distribution").mkdir(parents=True)
     (run / "figures" / "cards" / "cellline-rna-distribution" / "figure_density_expression.svg").write_text(
-        '<svg viewBox="0 0 10 10"><rect/></svg>')
+        '<svg viewBox="0 0 10 10"><rect/></svg>'
+    )
     (run / "decision.json").write_text(_json.dumps(_decision()))
     return run
 
@@ -282,7 +345,7 @@ def test_fig_map_from_existing_reconstructs_descriptors(tmp_path):
     trd = fm["tumor-rna-distribution"][0]
     # path is relative to run_dir and points under figures/cards/
     assert trd["path"] == "figures/cards/tumor-rna-distribution/figure_expression_distribution.svg"
-    assert trd["dynamic"] is True                       # .plotly.json twin present
+    assert trd["dynamic"] is True  # .plotly.json twin present
     # the SVG-only card carries no dynamic flag
     assert "dynamic" not in fm["cellline-rna-distribution"][0]
 
@@ -303,7 +366,7 @@ def test_render_from_existing_writes_dashboard_and_index(tmp_path):
     dash = run / "dashboard.html"
     assert dash.exists()
     page = dash.read_text()
-    assert "lineage_restricted" in page and "<svg" in page      # verdict + inlined figure
+    assert "lineage_restricted" in page and "<svg" in page  # verdict + inlined figure
     assert (out / "index.html").exists()
     assert (out / "tumor-presence__CEACAM5__COADREAD.html").exists()
 
@@ -311,24 +374,35 @@ def test_render_from_existing_writes_dashboard_and_index(tmp_path):
 def test_render_from_existing_graceful_on_missing_decision(tmp_path):
     out = tmp_path / "g"
     rc = G._render_from_existing([str(tmp_path / "does-not-exist")], out, interactive=False)
-    assert rc == 0                                       # no raise
-    assert (out / "index.html").exists()                 # index still written (row marked NO decision.json)
+    assert rc == 0  # no raise
+    assert (out / "index.html").exists()  # index still written (row marked NO decision.json)
 
 
 # --- provenance surfacing in card metrics ----------------------------
+
 
 def test_scrna_card_surfaces_indication_and_atlas_provenance(tmp_path):
     """The single-cell card must render its indication + atlas + donor/dataset provenance so a
     reader can see the read is indication-specific (not generic)."""
     decision = {
-        "skill": "tumor-presence", "target": "CEACAM5", "indication": "NSCLC",
+        "skill": "tumor-presence",
+        "target": "CEACAM5",
+        "indication": "NSCLC",
         "headline": {"presence_verdict": "tumor_broadly_expressed"},
-        "cards": [{"card_id": "tumor-scrna-celltype-expression",
-                   "summary": {"sc_expression_class": "malignant_subset_detected",
-                               "indication": "NSCLC",
-                               "product_id": "sc-pseudobulk-tumor-luca-nsclc-v1",
-                               "malignant_n_donors": 115, "n_datasets": 14, "n_donor_groups": 146,
-                               "malignant_detection_fraction": 0.182}}],
+        "cards": [
+            {
+                "card_id": "tumor-scrna-celltype-expression",
+                "summary": {
+                    "sc_expression_class": "malignant_subset_detected",
+                    "indication": "NSCLC",
+                    "product_id": "sc-pseudobulk-tumor-luca-nsclc-v1",
+                    "malignant_n_donors": 115,
+                    "n_datasets": 14,
+                    "n_donor_groups": 146,
+                    "malignant_detection_fraction": 0.182,
+                },
+            }
+        ],
     }
     page = G.render_page(decision, tmp_path, fig_map={}, interactive=False)
     assert "Indication" in page and "NSCLC" in page
@@ -341,12 +415,22 @@ def test_deg_card_adjacent_only_gtex_moves_to_normal_band(tmp_path):
     the population-normal GTEx contrast (selectivity, owned by tumor-selectivity) is NOT shown as a
     DEG-card metric — it is rendered once in the normal-comparator band as a labeled reference."""
     decision = {
-        "skill": "tumor-presence", "target": "CEACAM5", "indication": "LUAD",
+        "skill": "tumor-presence",
+        "target": "CEACAM5",
+        "indication": "LUAD",
         "headline": {"presence_verdict": "tumor_broadly_expressed"},
-        "cards": [{"card_id": "tumor-rna-vs-adjacent",
-                   "summary": {"expression_call_class": "modest_upregulation",
-                               "log2_fc": 0.8, "q_value": 1e-4,
-                               "gtex_log2_fc": 3.1, "gtex_q_value": 1e-20}}],
+        "cards": [
+            {
+                "card_id": "tumor-rna-vs-adjacent",
+                "summary": {
+                    "expression_call_class": "modest_upregulation",
+                    "log2_fc": 0.8,
+                    "q_value": 1e-4,
+                    "gtex_log2_fc": 3.1,
+                    "gtex_q_value": 1e-20,
+                },
+            }
+        ],
     }
     page = G.render_page(decision, tmp_path, fig_map={}, interactive=False)
     # adjacent contrast still on the DEG card
@@ -362,30 +446,66 @@ def test_presence_scope_layout_placement_and_ladder(tmp_path, monkeypatch):
     sections → data-type subsections → scope ladder; the rung at query depth leads; the subtype
     decomposition is inline at indication depth; typed-empty + cross-lens band render. Hermetic:
     the coordinate map is injected (no dependency on the sibling target-contracts checkout)."""
-    monkeypatch.setattr(G, "_CARD_META_CACHE", {
-        # (sample_context, measurement, tier) — tier absent on cellline-rna-distribution → fallback pan-cancer
-        "cellline-rna-distribution":            {"sample_context": "cell_line", "measurement": "bulk_rna"},
-        "tumor-rna-distribution":               {"sample_context": "tumor", "measurement": "bulk_rna", "tier": "indication"},
-        "tumor-rna-distribution-by-subtype":    {"sample_context": "tumor", "measurement": "bulk_rna", "tier": "subtype"},
-        "tumor-scrna-celltype-expression":      {"sample_context": "tumor", "measurement": "sc_rna", "tier": "indication"},
-        "sc-normal-celltype-expression":        {"sample_context": "normal", "measurement": "sc_rna", "tier": "target"},
-        "cellline-rna-protein-concordance":     {"sample_context": "cell_line", "measurement": "bulk_rna", "tier": "target"},
-    })
+    monkeypatch.setattr(
+        G,
+        "_CARD_META_CACHE",
+        {
+            # (sample_context, measurement, tier) — tier absent on cellline-rna-distribution → fallback pan-cancer
+            "cellline-rna-distribution": {"sample_context": "cell_line", "measurement": "bulk_rna"},
+            "tumor-rna-distribution": {"sample_context": "tumor", "measurement": "bulk_rna", "tier": "indication"},
+            "tumor-rna-distribution-by-subtype": {
+                "sample_context": "tumor",
+                "measurement": "bulk_rna",
+                "tier": "subtype",
+            },
+            "tumor-scrna-celltype-expression": {
+                "sample_context": "tumor",
+                "measurement": "sc_rna",
+                "tier": "indication",
+            },
+            "sc-normal-celltype-expression": {"sample_context": "normal", "measurement": "sc_rna", "tier": "target"},
+            "cellline-rna-protein-concordance": {
+                "sample_context": "cell_line",
+                "measurement": "bulk_rna",
+                "tier": "target",
+            },
+        },
+    )
     decision = {
-        "skill": "tumor-presence", "target": "CEACAM5", "indication": "COADREAD",
+        "skill": "tumor-presence",
+        "target": "CEACAM5",
+        "indication": "COADREAD",
         "headline": {"presence_verdict": "tumor_broadly_expressed"},
         "cards": [
             {"card_id": "cellline-rna-distribution", "summary": {"expression_class": "broadly_high"}},
-            {"card_id": "tumor-rna-distribution", "summary": {"tumor_expression_class": "broadly_high", "median_log2tpm": 10.9}},
-            {"card_id": "tumor-rna-distribution-by-subtype",
-             "summary": {"subtype_stratification_class": "subtype_enriched",
-                         "per_subgroup_metrics": [
-                             {"stratum_id": "CMS1", "n_tumor_samples": 40, "median_log2tpm": 11.2,
-                              "tumor_expression_class": "broadly_high",
-                              "fraction_tumor_above_normal_p95": 0.9, "subtype_signal": "subtype_enriched"},
-                             {"stratum_id": "MSS", "n_tumor_samples": 300, "median_log2tpm": 10.7,
-                              "tumor_expression_class": "broadly_high",
-                              "fraction_tumor_above_normal_p95": 0.7, "subtype_signal": "pan_subtype_uniform"}]}},
+            {
+                "card_id": "tumor-rna-distribution",
+                "summary": {"tumor_expression_class": "broadly_high", "median_log2tpm": 10.9},
+            },
+            {
+                "card_id": "tumor-rna-distribution-by-subtype",
+                "summary": {
+                    "subtype_stratification_class": "subtype_enriched",
+                    "per_subgroup_metrics": [
+                        {
+                            "stratum_id": "CMS1",
+                            "n_tumor_samples": 40,
+                            "median_log2tpm": 11.2,
+                            "tumor_expression_class": "broadly_high",
+                            "fraction_tumor_above_normal_p95": 0.9,
+                            "subtype_signal": "subtype_enriched",
+                        },
+                        {
+                            "stratum_id": "MSS",
+                            "n_tumor_samples": 300,
+                            "median_log2tpm": 10.7,
+                            "tumor_expression_class": "broadly_high",
+                            "fraction_tumor_above_normal_p95": 0.7,
+                            "subtype_signal": "pan_subtype_uniform",
+                        },
+                    ],
+                },
+            },
             {"card_id": "tumor-scrna-celltype-expression", "summary": {"sc_expression_class": "sc_malignant_detected"}},
             {"card_id": "sc-normal-celltype-expression", "summary": {"sc_normal_expression_class": "MODERATE"}},
             {"card_id": "cellline-rna-protein-concordance", "summary": {"rna_as_biomarker": "adequate_proxy"}},
@@ -415,9 +535,15 @@ def test_presence_question_table_leads(tmp_path):
     page = G.render_page(_decision(), tmp_path, fig_map={}, interactive=False)
     assert "Presence at a glance" in page
     # all 7 question rows
-    for q in ("Expressed in cancers at all?", "This indication vs other cancers?",
-              "Elevated vs normals", "Do subtypes differ", "Absolute abundance vs all genes?",
-              "Do RNA and protein agree?", "malignant-cell-intrinsic"):
+    for q in (
+        "Expressed in cancers at all?",
+        "This indication vs other cancers?",
+        "Elevated vs normals",
+        "Do subtypes differ",
+        "Absolute abundance vs all genes?",
+        "Do RNA and protein agree?",
+        "malignant-cell-intrinsic",
+    ):
         assert q in page, q
     # signal meter segments (7 rows × 5) + confidence dots present
     assert page.count('class="seg') >= 35
@@ -429,66 +555,136 @@ def test_presence_question_table_leads(tmp_path):
 
 # --- functional-requirement claim×scope layout (Phase 1, renderer-only, verdict-inert) --------------
 
+
 def _dependency_decision():
     """A realistic functional-requirement decision.json (KRAS/COADREAD-shaped) for render tests."""
     return {
-        "skill": "functional-requirement", "target": "KRAS", "indication": "COADREAD",
+        "skill": "functional-requirement",
+        "target": "KRAS",
+        "indication": "COADREAD",
         "headline": {
             "dependency_verdict": "lineage_selective",
             "driving_rule_id": "lineage-selective-supportive",
-            "crispr_call": "strongly_selective", "rnai_call": "strongly_selective",
+            "crispr_call": "strongly_selective",
+            "rnai_call": "strongly_selective",
             "concordance_call": "moderately_concordant_dependent",
             "lineage_selectivity": "lineage_selective",
             "cross_consortium_class": "concordant_dependent",
             "predictability_class": "own_omics_driven",
             "claim_vector": {
-                "DEP": {"signal": "strong", "corroboration": "high", "evidence": "CRISPR strongly_selective; RNAi strongly_selective",
-                        "conflict": None, "informs": "genetic dependency — is loss lethal?"},
-                "SEL": {"signal": "strong", "corroboration": "moderate",
-                        "evidence": "lineage enrichment: lineage_selective (target-grain)", "conflict": None,
-                        "informs": "context-selectivity"},
-                "COND": {"signal": "unmeasured", "corroboration": "unmeasured",
-                         "evidence": "partner-conditional: no_partner_mapped", "conflict": None, "informs": "conditional / SL"},
-                "CHEM": {"signal": "moderate", "corroboration": "moderate",
-                         "evidence": "PRISM×CRISPR: crispr_confirmed_engagement", "conflict": None, "informs": "chemical-genetic"},
+                "DEP": {
+                    "signal": "strong",
+                    "corroboration": "high",
+                    "evidence": "CRISPR strongly_selective; RNAi strongly_selective",
+                    "conflict": None,
+                    "informs": "genetic dependency — is loss lethal?",
+                },
+                "SEL": {
+                    "signal": "strong",
+                    "corroboration": "moderate",
+                    "evidence": "lineage enrichment: lineage_selective (target-grain)",
+                    "conflict": None,
+                    "informs": "context-selectivity",
+                },
+                "COND": {
+                    "signal": "unmeasured",
+                    "corroboration": "unmeasured",
+                    "evidence": "partner-conditional: no_partner_mapped",
+                    "conflict": None,
+                    "informs": "conditional / SL",
+                },
+                "CHEM": {
+                    "signal": "moderate",
+                    "corroboration": "moderate",
+                    "evidence": "PRISM×CRISPR: crispr_confirmed_engagement",
+                    "conflict": None,
+                    "informs": "chemical-genetic",
+                },
                 "_disclaimer": "modality-blind, verdict-inert",
             },
-            "key_signals": {"headline": "Selective genetic dependency, chemically confirmed.",
-                            "supports": ["Genetic dependency — CRISPR strongly_selective, RNAi strongly_selective [CRISPR + RNAi distributions]"],
-                            "caveat": None},
+            "key_signals": {
+                "headline": "Selective genetic dependency, chemically confirmed.",
+                "supports": [
+                    "Genetic dependency — CRISPR strongly_selective, RNAi strongly_selective [CRISPR + RNAi distributions]"
+                ],
+                "caveat": None,
+            },
         },
         "cards": [
-            {"card_id": "pan-cancer-crispr-dependency-distribution",
-             "summary": {"dependency_class": "strongly_selective", "median_chronos_panel": -0.457,
-                         "fraction_strongly_dependent": 0.31, "dep_control_position_class": "between_controls",
-                         "n_cell_lines_evaluated": 1538}},
-            {"card_id": "pan-cancer-rnai-dependency-distribution",
-             "summary": {"rnai_dependency_class": "strongly_selective", "rnai_median_dep_score": -0.3}},
-            {"card_id": "crispr-rnai-dependency-concordance",
-             "summary": {"concordance_class": "moderately_concordant_dependent", "fraction_agree": 0.746}},
-            {"card_id": "dependency-lineage-selectivity",
-             "summary": {"enrichment_class": "lineage_selective", "n_enriched_lineages": 3,
-                         "lineage_variance_explained": 0.186,
-                         "enriched_lineages": [
-                             {"lineage": "Pancreas", "n": 74, "median_chronos": -1.83, "effect_size": 0.73, "q_value": 2.7e-25},
-                             {"lineage": "Bowel", "n": 88, "median_chronos": -1.18, "effect_size": 0.53, "q_value": 3.8e-16}]}},
+            {
+                "card_id": "pan-cancer-crispr-dependency-distribution",
+                "summary": {
+                    "dependency_class": "strongly_selective",
+                    "median_chronos_panel": -0.457,
+                    "fraction_strongly_dependent": 0.31,
+                    "dep_control_position_class": "between_controls",
+                    "n_cell_lines_evaluated": 1538,
+                },
+            },
+            {
+                "card_id": "pan-cancer-rnai-dependency-distribution",
+                "summary": {"rnai_dependency_class": "strongly_selective", "rnai_median_dep_score": -0.3},
+            },
+            {
+                "card_id": "crispr-rnai-dependency-concordance",
+                "summary": {"concordance_class": "moderately_concordant_dependent", "fraction_agree": 0.746},
+            },
+            {
+                "card_id": "dependency-lineage-selectivity",
+                "summary": {
+                    "enrichment_class": "lineage_selective",
+                    "n_enriched_lineages": 3,
+                    "lineage_variance_explained": 0.186,
+                    "enriched_lineages": [
+                        {
+                            "lineage": "Pancreas",
+                            "n": 74,
+                            "median_chronos": -1.83,
+                            "effect_size": 0.73,
+                            "q_value": 2.7e-25,
+                        },
+                        {"lineage": "Bowel", "n": 88, "median_chronos": -1.18, "effect_size": 0.53, "q_value": 3.8e-16},
+                    ],
+                },
+            },
             {"card_id": "paralog-buffering", "summary": {"paralog_buffering_class": "none"}},
-            {"card_id": "partner-conditional-dependency",
-             "summary": {"partner_stratification_class": "no_partner_mapped"}},
-            {"card_id": "prism-crispr-concordance",
-             "summary": {"crispr_prism_concordance_class": "crispr_confirmed_engagement", "n_compounds_evaluated": 4}},
-            {"card_id": "cross-consortium-dependency",
-             "summary": {"cross_consortium_class": "concordant_dependent", "broad_frac_dependent": 0.449}},
-            {"card_id": "dependency-predictability",
-             "summary": {"predictability_class": "own_omics_driven", "pearson_r_squared_rf": 0.42}},
-            {"card_id": "expression-dependency-correlation",
-             "summary": {"correlation_class": "moderate_negative", "pearson_r": -0.35}},
-            {"card_id": "recommended-models",
-             "summary": {"correspondence_class": "well_modeled_in_lineage", "n_positive_models_in_lineage": 12}},
+            {
+                "card_id": "partner-conditional-dependency",
+                "summary": {"partner_stratification_class": "no_partner_mapped"},
+            },
+            {
+                "card_id": "prism-crispr-concordance",
+                "summary": {
+                    "crispr_prism_concordance_class": "crispr_confirmed_engagement",
+                    "n_compounds_evaluated": 4,
+                },
+            },
+            {
+                "card_id": "cross-consortium-dependency",
+                "summary": {"cross_consortium_class": "concordant_dependent", "broad_frac_dependent": 0.449},
+            },
+            {
+                "card_id": "dependency-predictability",
+                "summary": {"predictability_class": "own_omics_driven", "pearson_r_squared_rf": 0.42},
+            },
+            {
+                "card_id": "expression-dependency-correlation",
+                "summary": {"correlation_class": "moderate_negative", "pearson_r": -0.35},
+            },
+            {
+                "card_id": "recommended-models",
+                "summary": {"correspondence_class": "well_modeled_in_lineage", "n_positive_models_in_lineage": 12},
+            },
         ],
         "fired_rules": [
-            {"rule_id": "lineage-selective-supportive", "card_id": "dependency-lineage-selectivity",
-             "field": "enrichment_class", "value": "lineage_selective", "dominant": True}],
+            {
+                "rule_id": "lineage-selective-supportive",
+                "card_id": "dependency-lineage-selectivity",
+                "field": "enrichment_class",
+                "value": "lineage_selective",
+                "dominant": True,
+            }
+        ],
     }
 
 
@@ -534,26 +730,33 @@ def test_dependency_layout_only_for_functional_requirement(tmp_path):
     # a skill that is NEITHER functional-requirement, tumor-presence, NOR tumor-selectivity must get
     # the FLAT cardlist (no claim layout, no scope/question-table layout) — the byte-stable path for
     # every other skill.
-    d = _dependency_decision(); d["skill"] = "mechanism-and-pharmacology"
+    d = _dependency_decision()
+    d["skill"] = "mechanism-and-pharmacology"
     page = G.render_page(d, tmp_path, fig_map={}, interactive=False)
     assert "Dependency claims" not in page and "DEP · Genetic dependency" not in page
-    assert "Evidence at a glance" in page   # the flat header
+    assert "Evidence at a glance" in page  # the flat header
 
 
 def test_selectivity_layout_renders_question_table(tmp_path):
     # tumor-selectivity gets the LEADING 8-question table (from headline['question_table']) + a
     # "Detailed evidence" drill-down, NOT the flat "Evidence at a glance" header.
-    d = _dependency_decision(); d["skill"] = "tumor-selectivity"
+    d = _dependency_decision()
+    d["skill"] = "tumor-selectivity"
     d["headline"]["question_table"] = [
-        {"id": "Q1", "question": "Over-expressed vs tissue-of-origin?", "primary": "axis-A strong",
-         "support": "RNA→protein: rna_protein_concordant",
-         "signal": {"fill": 5, "polarity": "supports", "label": "strong"}, "confidence": {"dots": 3}},
+        {
+            "id": "Q1",
+            "question": "Over-expressed vs tissue-of-origin?",
+            "primary": "axis-A strong",
+            "support": "RNA→protein: rna_protein_concordant",
+            "signal": {"fill": 5, "polarity": "supports", "label": "strong"},
+            "confidence": {"dots": 3},
+        },
     ]
     d["headline"]["selectivity_class"] = "field_effect_tumor_selective"
     page = G.render_page(d, tmp_path, fig_map={}, interactive=False)
-    assert "Dependency claims" not in page          # not the FR layout
-    assert "<table" in page and "Q1" in page         # the leading question table rendered
-    assert "Detailed evidence" in page               # per-card drill-down, not the flat header
+    assert "Dependency claims" not in page  # not the FR layout
+    assert "<table" in page and "Q1" in page  # the leading question table rendered
+    assert "Detailed evidence" in page  # per-card drill-down, not the flat header
 
 
 def test_dependency_catchall_no_card_dropped(tmp_path):
@@ -571,15 +774,33 @@ def test_dependency_subgroup_panorama_and_scope_when_present(tmp_path):
     d["headline"]["dependency_verdict_by_scope"] = {
         "pan_cancer": {"verdict": "lineage_selective"},
         "indication": {"verdict": "selective_in_indication"},
-        "subtype": {"verdict": "MSI_H_dependent"}}
-    d["cards"].append({"card_id": "subgroup-stratified-dependency",
-                       "summary": {"subtype_dependency_pattern": "subgroup_specific_dependency",
-                                   "cross_subgroup_delta_dependency": 0.4,
-                                   "per_subgroup_metrics": [
-                                       {"stratum": "MSI_H", "subgroup_n": 30, "median_chronos": -0.9,
-                                        "class": "strong_dependency", "evidence_state": "measured"},
-                                       {"stratum": "MSS", "subgroup_n": 106, "median_chronos": -0.4,
-                                        "class": "not_dependent", "evidence_state": "measured"}]}})
+        "subtype": {"verdict": "MSI_H_dependent"},
+    }
+    d["cards"].append(
+        {
+            "card_id": "subgroup-stratified-dependency",
+            "summary": {
+                "subtype_dependency_pattern": "subgroup_specific_dependency",
+                "cross_subgroup_delta_dependency": 0.4,
+                "per_subgroup_metrics": [
+                    {
+                        "stratum": "MSI_H",
+                        "subgroup_n": 30,
+                        "median_chronos": -0.9,
+                        "class": "strong_dependency",
+                        "evidence_state": "measured",
+                    },
+                    {
+                        "stratum": "MSS",
+                        "subgroup_n": 106,
+                        "median_chronos": -0.4,
+                        "class": "not_dependent",
+                        "evidence_state": "measured",
+                    },
+                ],
+            },
+        }
+    )
     page = G.render_page(d, tmp_path, fig_map={}, interactive=False)
     assert "Verdict by scope" in page and "selective_in_indication" in page
     assert "Molecular-subgroup panorama" in page
@@ -590,29 +811,45 @@ def _genomic_decision():
     """A KRAS/COADREAD-shaped genomic-alteration-profile decision.json for the Phase-R hero tests.
     Mutation dependency is within_indication → scope_of_driving_verdict = indication_anchored."""
     return {
-        "skill": "genomic-alteration-profile", "target": "KRAS", "indication": "COADREAD",
+        "skill": "genomic-alteration-profile",
+        "target": "KRAS",
+        "indication": "COADREAD",
         "headline": {
             "genomic_alteration_profile": "biomarker_stratified_dependency",
             "driving_rule_id": "mutant-strongly-dependent-supportive",
             "genomic_alteration_by_class": {
-                "snv_indel":   {"verdict": "missense_dominant", "evidence_state": "measured",
-                                "stratified_dependency_class": "mutant_strongly_dependent"},
+                "snv_indel": {
+                    "verdict": "missense_dominant",
+                    "evidence_state": "measured",
+                    "stratified_dependency_class": "mutant_strongly_dependent",
+                },
                 "copy_number": {"verdict": "broadly_neutral", "evidence_state": "measured"},
-                "fusion":      {"verdict": "no_recurrent_fusion", "evidence_state": "measured"},
+                "fusion": {"verdict": "no_recurrent_fusion", "evidence_state": "measured"},
             },
             "genomic_alteration_by_scope": {
                 "scope_of_driving_verdict": "indication_anchored",
-                "pan_cancer": {"evidence_present": True, "mutation_dependency_class": "mutant_strongly_dependent",
-                               "mutation_dependency_scope": "within_indication"},
-                "indication": {"evidence_present": True, "driver_recurrence_class": "top_1pct",
-                               "alteration_role": "direct_driver_gof", "intogen_scope": "indication"},
+                "pan_cancer": {
+                    "evidence_present": True,
+                    "mutation_dependency_class": "mutant_strongly_dependent",
+                    "mutation_dependency_scope": "within_indication",
+                },
+                "indication": {
+                    "evidence_present": True,
+                    "driver_recurrence_class": "top_1pct",
+                    "alteration_role": "direct_driver_gof",
+                    "intogen_scope": "indication",
+                },
                 "subtype": {"evidence_present": False, "note": "pass --subtypes to populate"},
             },
         },
         "cards": [
-            {"card_id": "mutation-stratified-dependency",
-             "summary": {"mutation_stratification_class": "mutant_strongly_dependent",
-                         "evidence_scope": "within_indication"}},
+            {
+                "card_id": "mutation-stratified-dependency",
+                "summary": {
+                    "mutation_stratification_class": "mutant_strongly_dependent",
+                    "evidence_scope": "within_indication",
+                },
+            },
             {"card_id": "copy-number-distribution", "summary": {"copy_number_class": "broadly_neutral"}},
         ],
     }
@@ -645,7 +882,8 @@ def test_genomic_hero_pan_cancer_extrapolation_lamp(tmp_path):
 
 
 def test_genomic_hero_only_for_genomic_alteration(tmp_path):
-    d = _genomic_decision(); d["skill"] = "mechanism-and-pharmacology"
+    d = _genomic_decision()
+    d["skill"] = "mechanism-and-pharmacology"
     page = G.render_page(d, tmp_path, fig_map={}, interactive=False)
     assert "Genomic alteration at a glance" not in page
-    assert "Evidence at a glance" in page   # the flat fallback path
+    assert "Evidence at a glance" in page  # the flat fallback path

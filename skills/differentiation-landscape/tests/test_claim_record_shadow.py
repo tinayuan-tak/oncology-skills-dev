@@ -1,6 +1,7 @@
 """differentiation-landscape factored-record SHADOW builder (M1) — DESCRIPTIVE axis (pattern TYPE,
 neutral valence). Pins direction always neutral, the availability mapping, open-world, fired-set
 cross-check, and schema conformance. Consumed-by-nothing / verdict-inert."""
+
 from __future__ import annotations
 
 import json
@@ -14,8 +15,7 @@ diff = load_run_py(Path(__file__).resolve().parent.parent, "diff_run_claim_shado
 
 
 def _cards(n_pairs=80):
-    return [{"card_id": "co-mutation-and-mutual-exclusivity",
-             "summary": {"n_pairs_panel_intersect_eligible": n_pairs}}]
+    return [{"card_id": "co-mutation-and-mutual-exclusivity", "summary": {"n_pairs_panel_intersect_eligible": n_pairs}}]
 
 
 def _fired(*rids):
@@ -23,10 +23,11 @@ def _fired(*rids):
 
 
 def test_pattern_is_measured_positive_but_neutral_valence():
-    rec = diff._claim_record(_cards(), fired=_fired("strong-cooccurring"),
-                             verdict_pair=("strong_cooccurring", "strong-cooccurring"))
+    rec = diff._claim_record(
+        _cards(), fired=_fired("strong-cooccurring"), verdict_pair=("strong_cooccurring", "strong-cooccurring")
+    )
     assert rec["axis"] == "differentiation"
-    assert rec["finding"]["direction"] == "neutral"        # pattern TYPE — never pushes nomination
+    assert rec["finding"]["direction"] == "neutral"  # pattern TYPE — never pushes nomination
     assert rec["finding"]["availability"] == "measured_positive"
     assert rec["finding"]["magnitude"]["level"] == "strong"
     assert rec["provenance"]["fired_rule_ids"] == ["strong-cooccurring"]
@@ -60,8 +61,17 @@ def test_conforms_to_contract_schema_if_available():
     if schema is None:
         pytest.skip("contracts repo / claim_record.schema.json not available")
     from jsonschema import Draft202012Validator
-    for v in ("strong_cooccurring", "strong_mutually_exclusive", "both_patterns_present",
-              "has_cooccurring_driver", "modest_cooccurring", "ns", "insufficient", "data_unavailable"):
+
+    for v in (
+        "strong_cooccurring",
+        "strong_mutually_exclusive",
+        "both_patterns_present",
+        "has_cooccurring_driver",
+        "modest_cooccurring",
+        "ns",
+        "insufficient",
+        "data_unavailable",
+    ):
         rec = diff._claim_record(_cards(), fired=[], verdict_pair=(v, None))
         errs = sorted(Draft202012Validator(schema).iter_errors(rec), key=lambda e: e.path)
         assert not errs, f"{v} -> {[e.message for e in errs]}"

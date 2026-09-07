@@ -67,7 +67,8 @@ FRAMEWORK_VERSION = "2.0.0"
 def _import_dispatcher():
     """Import the shared live-reader dispatcher. Dispatch table is a framework-wide registry
     (16 wired cards) that lives in _skills_common (rehomed off the retiring compose-dashboard)."""
-    from ._live_readers import read_live_summary          # noqa: F401
+    from ._live_readers import read_live_summary  # noqa: F401
+
     return read_live_summary
 
 
@@ -85,7 +86,8 @@ def card_input_manifest_ids(card_id: str) -> tuple[str, ...]:
         path = TARGET_CONTRACTS / "cards" / f"{card_id}.card.yaml"
         spec = yaml.safe_load(path.read_text()) or {}
         return tuple(
-            ri["product_id"] for ri in (spec.get("required_inputs") or [])
+            ri["product_id"]
+            for ri in (spec.get("required_inputs") or [])
             if isinstance(ri, dict) and ri.get("product_id")
         )
     except Exception:  # noqa: BLE001 — provenance is best-effort; never break card resolution
@@ -93,6 +95,7 @@ def card_input_manifest_ids(card_id: str) -> tuple[str, ...]:
 
 
 # --- Skill API -------------------------------------------------------------
+
 
 def _is_data_unavailable(v) -> bool:
     """True if a summary value is the honest 'no data' sentinel."""
@@ -117,8 +120,7 @@ def _primary_class_value(summary: dict):
         v = summary.get(f)
         if v is not None:
             return v
-    class_vals = [summary[k] for k in summary
-                  if k.endswith("_class") and isinstance(summary[k], str)]
+    class_vals = [summary[k] for k in summary if k.endswith("_class") and isinstance(summary[k], str)]
     if not class_vals:
         return None
     real = [v for v in class_vals if not _is_data_unavailable(v)]
@@ -148,8 +150,7 @@ def _data_unavailable_field(summary: dict) -> Optional[str]:
     for f in ("selectivity_class", "class", "interpretation_call"):
         if f in summary:
             return f if _is_data_unavailable(summary.get(f)) else None
-    class_fields = [k for k in summary
-                    if k.endswith("_class") and isinstance(summary.get(k), str)]
+    class_fields = [k for k in summary if k.endswith("_class") and isinstance(summary.get(k), str)]
     if class_fields and all(_is_data_unavailable(summary[k]) for k in class_fields):
         return class_fields[0]
     return None
@@ -179,9 +180,13 @@ def _summary_is_unavailable(summary: dict) -> Optional[str]:
     return None
 
 
-def _resolve_one_card(card_id: str, target: str, indication: str,
-                      subgroup_context: "Optional[dict]",
-                      plot_data_root: "Optional[Path]" = None) -> dict:
+def _resolve_one_card(
+    card_id: str,
+    target: str,
+    indication: str,
+    subgroup_context: "Optional[dict]",
+    plot_data_root: "Optional[Path]" = None,
+) -> dict:
     """Read + classify ONE card into its card_output dict. MODULE-LEVEL (picklable) so it can run in
     either a thread or a FORKED worker process. Imports the live-reader dispatcher internally (cached
     — a no-op in a forked child, which inherits the parent's already-imported modules). Returns a
@@ -204,7 +209,8 @@ def _resolve_one_card(card_id: str, target: str, indication: str,
         summary = read_live(card_id, target, indication)
     if summary is None:
         return {
-            "card_id": card_id, "summary": {},
+            "card_id": card_id,
+            "summary": {},
             "interpretation_call": "not_implemented",
             "_missing": True,
             "_missing_reason": "dispatcher_returned_none",
@@ -236,17 +242,16 @@ def _resolve_one_card_star(args: tuple) -> dict:
     return _resolve_one_card(*args)
 
 
-def _read_cards_threaded(card_ids, target, indication, subgroup_context, max_workers,
-                         plot_data_root=None) -> list:
+def _read_cards_threaded(card_ids, target, indication, subgroup_context, max_workers, plot_data_root=None) -> list:
     from concurrent.futures import ThreadPoolExecutor
+
     with ThreadPoolExecutor(max_workers=min(max_workers, len(card_ids))) as ex:
-        return list(ex.map(
-            lambda c: _resolve_one_card(c, target, indication, subgroup_context, plot_data_root),
-            card_ids))
+        return list(
+            ex.map(lambda c: _resolve_one_card(c, target, indication, subgroup_context, plot_data_root), card_ids)
+        )
 
 
-def _read_cards_process(card_ids, target, indication, subgroup_context, max_workers,
-                        plot_data_root=None) -> list:
+def _read_cards_process(card_ids, target, indication, subgroup_context, max_workers, plot_data_root=None) -> list:
     """DEFAULT (SKILLS_READ_POOL unset or =process): read cards in FORKED worker processes to bypass the GIL.
     The reader CPU (pandas assembly, per-row dict builds) is GIL-bound, so a thread pool serializes it
     — profiling showed the cold parallel read is GIL-limited, and a fork pool did 12.8s -> 8.7s.
@@ -268,6 +273,7 @@ def _read_cards_process(card_ids, target, indication, subgroup_context, max_work
     Order preserved (Pool.map); results are the same fresh card_output dicts, pickled back."""
     import multiprocessing as mp
     import threading
+
     # Fork-safety guard (see docstring): fork ONLY from the MAIN thread of a SINGLE-threaded process.
     # Forking a multithreaded process risks a child deadlock (it inherits copies of locks held by
     # threads that don't exist in it — CPython even emits a DeprecationWarning). Two ways that arises:
@@ -279,28 +285,32 @@ def _read_cards_process(card_ids, target, indication, subgroup_context, max_work
     # skill CLI run is single-threaded on main (verified), so the fork pool still engages and keeps the
     # speedup; a multithreaded host silently and safely stays on threads.
     if threading.current_thread() is not threading.main_thread() or threading.active_count() != 1:
-        return _read_cards_threaded(card_ids, target, indication, subgroup_context, max_workers,
-                                    plot_data_root)
+        return _read_cards_threaded(card_ids, target, indication, subgroup_context, max_workers, plot_data_root)
     try:
         ctx = mp.get_context("fork")
     except ValueError:
         # No fork on this platform — thread pool is the safe equivalent.
-        return _read_cards_threaded(card_ids, target, indication, subgroup_context, max_workers,
-                                    plot_data_root)
+        return _read_cards_threaded(card_ids, target, indication, subgroup_context, max_workers, plot_data_root)
     args = [(c, target, indication, subgroup_context, plot_data_root) for c in card_ids]
     try:
         with ctx.Pool(processes=min(max_workers, len(card_ids))) as pool:
             return pool.map(_resolve_one_card_star, args)
     except Exception as e:  # noqa: BLE001 — the pool is an optimization; never break the run
-        print(f"[resolve_cards] SKILLS_READ_POOL=process failed ({type(e).__name__}: {e}); "
-              f"falling back to the thread pool.", file=sys.stderr)
-        return _read_cards_threaded(card_ids, target, indication, subgroup_context, max_workers,
-                                    plot_data_root)
+        print(
+            f"[resolve_cards] SKILLS_READ_POOL=process failed ({type(e).__name__}: {e}); "
+            f"falling back to the thread pool.",
+            file=sys.stderr,
+        )
+        return _read_cards_threaded(card_ids, target, indication, subgroup_context, max_workers, plot_data_root)
 
 
-def resolve_cards(card_ids: list[str], target: str, indication: str,
-                  subgroup_context: Optional[dict] = None,
-                  plot_data_root: Optional[Path] = None) -> list[dict]:
+def resolve_cards(
+    card_ids: list[str],
+    target: str,
+    indication: str,
+    subgroup_context: Optional[dict] = None,
+    plot_data_root: Optional[Path] = None,
+) -> list[dict]:
     """Fetch live summaries for a list of card_ids via the compose-dashboard
     dispatcher registry. Returns one card_output dict per card_id.
 
@@ -332,9 +342,16 @@ def resolve_cards(card_ids: list[str], target: str, indication: str,
         # Synthetic stub per card — a well-formed but empty summary. Rules that need real
         # values simply don't fire (fired=[]); the point is that resolve→rules→verdict→
         # run_health executes without error, which is the "runs clean?" health signal.
-        return [{"card_id": cid, "summary": {}, "_missing": False, "_smoke": True,
-                 "provenance": {"input_manifest_ids": list(card_input_manifest_ids(cid))}}
-                for cid in card_ids]
+        return [
+            {
+                "card_id": cid,
+                "summary": {},
+                "_missing": False,
+                "_smoke": True,
+                "provenance": {"input_manifest_ids": list(card_input_manifest_ids(cid))},
+            }
+            for cid in card_ids
+        ]
 
     # Pre-warm the live-reader import in the PARENT so a forked worker (SKILLS_READ_POOL=process)
     # inherits it at ~zero cost. This imports modules only — it opens no S3/SSL client — so it is
@@ -364,14 +381,11 @@ def resolve_cards(card_ids: list[str], target: str, indication: str,
         _max_workers = 8
     _pool_mode = os.environ.get("SKILLS_READ_POOL", "thread").strip().lower()
     if len(card_ids) <= 1 or _max_workers <= 1:
-        outputs = [_resolve_one_card(cid, target, indication, subgroup_context, plot_data_root)
-                   for cid in card_ids]
+        outputs = [_resolve_one_card(cid, target, indication, subgroup_context, plot_data_root) for cid in card_ids]
     elif _pool_mode == "process":
-        outputs = _read_cards_process(card_ids, target, indication, subgroup_context, _max_workers,
-                                      plot_data_root)
+        outputs = _read_cards_process(card_ids, target, indication, subgroup_context, _max_workers, plot_data_root)
     else:
-        outputs = _read_cards_threaded(card_ids, target, indication, subgroup_context, _max_workers,
-                                       plot_data_root)
+        outputs = _read_cards_threaded(card_ids, target, indication, subgroup_context, _max_workers, plot_data_root)
     # PROVENANCE (2026-08-13): stamp each card_output with the manifest ids it DECLARES as inputs
     # (card_spec.required_inputs[].product_id), so the subskill default path carries the same real
     # per-card data provenance as the composed engine — the basis for the decision.json governance
@@ -434,10 +448,9 @@ def _record_matches(record: dict, in_record: dict) -> bool:
     return True
 
 
-def fired_rules(card_outputs: list[dict],
-                axis: str,
-                card_id_filter: Optional[list[str]] = None,
-                rules: Optional[list[dict]] = None) -> list[dict]:
+def fired_rules(
+    card_outputs: list[dict], axis: str, card_id_filter: Optional[list[str]] = None, rules: Optional[list[dict]] = None
+) -> list[dict]:
     """Return a FLAT list of {rule_id, card_id, field, value, signals, dominant,
     killer_message, ...} for each rule whose when: predicate matched some card_output.
     Signals kept as the raw dict from the rules file so downstream can either ignore
@@ -465,9 +478,16 @@ def fired_rules(card_outputs: list[dict],
     # latter is NOT flagged `_data_unavailable` (that flag also drives dispatcher availability_state:
     # read_error vs insufficient, which must stay distinct), so we detect the class on the summary here.
     # A genuine EMPTY absence (dispatcher-None → summary {}, no class) stays excluded (nothing to fire).
-    card_by_id = {c["card_id"]: c for c in card_outputs
-                  if c.get("card_id") and (not c.get("_missing") or c.get("_data_unavailable")
-                                           or _data_unavailable_field(c.get("summary") or {}) is not None)}
+    card_by_id = {
+        c["card_id"]: c
+        for c in card_outputs
+        if c.get("card_id")
+        and (
+            not c.get("_missing")
+            or c.get("_data_unavailable")
+            or _data_unavailable_field(c.get("summary") or {}) is not None
+        )
+    }
 
     fired: list[dict] = []
     for rule in rules:
@@ -495,36 +515,40 @@ def fired_rules(card_outputs: list[dict],
             records = actual if isinstance(actual, list) else []
             for rec in records:
                 if isinstance(rec, dict) and _record_matches(rec, in_record):
-                    fired.append({
-                        "rule_id": rule.get("rule_id"),
-                        "card_id": card_id,
-                        "field": field,
-                        "value": rec,                       # the matched record
-                        "matched_stratum": rec.get("stratum"),
-                        "signals": rule.get("signals") or {},
-                        "tier": rule.get("tier"),
-                        "dominant": bool(rule.get("dominant")),
-                        "killer_message": rule.get("killer_message"),
-                        "rationale": (rule.get("rationale") or "").strip(),
-                    })
+                    fired.append(
+                        {
+                            "rule_id": rule.get("rule_id"),
+                            "card_id": card_id,
+                            "field": field,
+                            "value": rec,  # the matched record
+                            "matched_stratum": rec.get("stratum"),
+                            "signals": rule.get("signals") or {},
+                            "tier": rule.get("tier"),
+                            "dominant": bool(rule.get("dominant")),
+                            "killer_message": rule.get("killer_message"),
+                            "rationale": (rule.get("rationale") or "").strip(),
+                        }
+                    )
             continue
 
-        matched = (equals is not None and _rule_values_equal(actual, equals)) \
-                  or (equals is None and in_list
-                      and any(_rule_values_equal(actual, opt) for opt in in_list))
+        matched = (equals is not None and _rule_values_equal(actual, equals)) or (
+            equals is None and in_list and any(_rule_values_equal(actual, opt) for opt in in_list)
+        )
         if not matched:
             continue
-        fired.append({
-            "rule_id": rule.get("rule_id"),
-            "card_id": card_id,
-            "field": field,
-            "value": actual,
-            "signals": rule.get("signals") or {},
-            "tier": rule.get("tier"),
-            "dominant": bool(rule.get("dominant")),
-            "killer_message": rule.get("killer_message"),
-            "rationale": (rule.get("rationale") or "").strip(),
-        })
+        fired.append(
+            {
+                "rule_id": rule.get("rule_id"),
+                "card_id": card_id,
+                "field": field,
+                "value": actual,
+                "signals": rule.get("signals") or {},
+                "tier": rule.get("tier"),
+                "dominant": bool(rule.get("dominant")),
+                "killer_message": rule.get("killer_message"),
+                "rationale": (rule.get("rationale") or "").strip(),
+            }
+        )
     return fired
 
 
@@ -534,14 +558,11 @@ def modality_lens(fired: list[dict], modality: str) -> dict:
     insufficient} for that lens. Same categorical accounting Macro's fit-
     assessment uses; exposed as an add-on so a modality-agnostic skill can
     skip it entirely."""
-    tally = {"supportive": [], "opposing": [], "killer": [],
-             "neutral": [], "insufficient": []}
+    tally = {"supportive": [], "opposing": [], "killer": [], "neutral": [], "insufficient": []}
     for rule in fired:
         signal = (rule["signals"] or {}).get(modality)
         if signal in tally:
-            tally[signal].append({"rule_id": rule["rule_id"],
-                                  "card_id": rule["card_id"],
-                                  "dominant": rule["dominant"]})
+            tally[signal].append({"rule_id": rule["rule_id"], "card_id": rule["card_id"], "dominant": rule["dominant"]})
     return tally
 
 
@@ -573,18 +594,26 @@ def make_decision_json(
         "question": question,
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "headline": headline,
-        "cards": [{"card_id": c["card_id"],
-                   "summary": c["summary"],
-                   "_missing": c.get("_missing", False),
-                   "input_manifest_ids": (c.get("provenance") or {}).get("input_manifest_ids", [])}
-                  for c in card_outputs],
-        "fired_rules": [{"rule_id": r["rule_id"],
-                         "card_id": r["card_id"],
-                         "field": r["field"],
-                         "value": r["value"],
-                         "dominant": r["dominant"],
-                         "rationale_summary": r["rationale"].split("\n", 1)[0][:200]}
-                        for r in fired],
+        "cards": [
+            {
+                "card_id": c["card_id"],
+                "summary": c["summary"],
+                "_missing": c.get("_missing", False),
+                "input_manifest_ids": (c.get("provenance") or {}).get("input_manifest_ids", []),
+            }
+            for c in card_outputs
+        ],
+        "fired_rules": [
+            {
+                "rule_id": r["rule_id"],
+                "card_id": r["card_id"],
+                "field": r["field"],
+                "value": r["value"],
+                "dominant": r["dominant"],
+                "rationale_summary": r["rationale"].split("\n", 1)[0][:200],
+            }
+            for r in fired
+        ],
         **({"provenance": provenance} if provenance else {}),
         **({"modality_lenses": modality_lenses} if modality_lenses else {}),
     }

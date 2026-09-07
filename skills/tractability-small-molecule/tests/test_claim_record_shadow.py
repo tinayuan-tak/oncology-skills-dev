@@ -1,6 +1,7 @@
 """tractability-small-molecule factored-record SHADOW builder (M1) — SM-specific modality_scope axis.
 Pins druggable->favorable / intractable->unfavorable SM scope, direction/availability, minimal
 coverage-only certainty, fired-set cross-check, and schema conformance. Consumed-by-nothing."""
+
 from __future__ import annotations
 
 import json
@@ -18,8 +19,9 @@ def _fired(*rids):
 
 
 def test_ligandable_supports_sm_favorable():
-    rec = tr._claim_record([], fired=_fired("structurally-ligandable"),
-                           verdict_pair=("measured_potent_ligand", "structurally-ligandable"))
+    rec = tr._claim_record(
+        [], fired=_fired("structurally-ligandable"), verdict_pair=("measured_potent_ligand", "structurally-ligandable")
+    )
     assert rec["axis"] == "tractability_small_molecule"
     assert rec["finding"]["direction"] == "supports"
     assert rec["finding"]["availability"] == "measured_positive"
@@ -64,9 +66,21 @@ def test_conforms_to_contract_schema_if_available():
     if schema is None:
         pytest.skip("contracts repo / claim_record.schema.json not available")
     from jsonschema import Draft202012Validator
-    for v in ("well_covered", "measured_potent_ligand", "chemically_active", "structurally_ligandable",
-              "clinical_precedent_only", "tool_compound_only", "weakly_active", "structurally_intractable",
-              "chemically_unhit", "discordant", "insufficient", None):
+
+    for v in (
+        "well_covered",
+        "measured_potent_ligand",
+        "chemically_active",
+        "structurally_ligandable",
+        "clinical_precedent_only",
+        "tool_compound_only",
+        "weakly_active",
+        "structurally_intractable",
+        "chemically_unhit",
+        "discordant",
+        "insufficient",
+        None,
+    ):
         rec = tr._claim_record([], fired=[], verdict_pair=(v, None))
         errs = sorted(Draft202012Validator(schema).iter_errors(rec), key=lambda e: e.path)
         assert not errs, f"{v} -> {[e.message for e in errs]}"
@@ -94,4 +108,4 @@ def test_degrader_unviable_and_opposed_map(monkeypatch):
 def test_degrader_insufficient_omits_refinement(monkeypatch):
     monkeypatch.setattr(tr, "_degrader_snapshot", lambda fired: ("insufficient", None))
     rec = tr._claim_record([], fired=[{"rule_id": "x"}], verdict_pair=("structurally_ligandable", None))
-    assert "_refinements" not in (rec.get("modality_scope") or {})   # keeps SM-base fallback
+    assert "_refinements" not in (rec.get("modality_scope") or {})  # keeps SM-base fallback

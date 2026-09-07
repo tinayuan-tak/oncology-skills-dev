@@ -8,6 +8,7 @@ safety/mechanism/differentiation verdict through a presence prompt.) These tests
 synthesize_fn runs; (b) a verdict-bearing skill WITHOUT a narrator honest-skips (no presence fallback);
 (c) a descriptive skill honest-skips; (d) two-slot byte-stability. Bedrock fully mocked.
 """
+
 from __future__ import annotations
 
 import json
@@ -23,8 +24,11 @@ from _skills_common import dispatcher as D  # noqa: E402
 
 def _run(tmp_path, *, synthesize, synthesize_fn=None, verdict_fn="default"):
     card_outputs = [
-        {"card_id": "tumor-vs-normal-selectivity", "summary": {
-            "selectivity_class": "strong_tumor_selective"}, "_missing": False},
+        {
+            "card_id": "tumor-vs-normal-selectivity",
+            "summary": {"selectivity_class": "strong_tumor_selective"},
+            "_missing": False,
+        },
     ]
 
     def _headline(cards, fired, vp):
@@ -40,13 +44,18 @@ def _run(tmp_path, *, synthesize, synthesize_fn=None, verdict_fn="default"):
     if synthesize:
         argv.append("--synthesize")
 
-    with patch.object(D, "resolve_cards", return_value=card_outputs), \
-         patch.object(D, "fired_rules", return_value=[]):
+    with patch.object(D, "resolve_cards", return_value=card_outputs), patch.object(D, "fired_rules", return_value=[]):
         D.run_wired_skill(
-            skill_name="tumor-selectivity", skill_version="9.9.9",
-            cards=["tumor-vs-normal-selectivity"], axis="intracellular_intrinsic",
+            skill_name="tumor-selectivity",
+            skill_version="9.9.9",
+            cards=["tumor-vs-normal-selectivity"],
+            axis="intracellular_intrinsic",
             question="How selective is {target} in {indication}?",
-            headline_fn=_headline, verdict_fn=_vf, synthesize_fn=synthesize_fn, argv=argv)
+            headline_fn=_headline,
+            verdict_fn=_vf,
+            synthesize_fn=synthesize_fn,
+            argv=argv,
+        )
     return json.loads((tmp_path / "decision.json").read_text())
 
 
@@ -56,9 +65,14 @@ def test_synthesize_fn_is_invoked_not_presence(tmp_path):
 
     def _fake_selectivity(decision, model_id=None, subtype_query=None):
         calls["n"] += 1
-        return {"selectivity_relevance_for_target": {
-            "value": "strongly_supports", "_source": "llm_synthesized",
-            "_model_id": "m", "_prompt_hash": "h"}}
+        return {
+            "selectivity_relevance_for_target": {
+                "value": "strongly_supports",
+                "_source": "llm_synthesized",
+                "_model_id": "m",
+                "_prompt_hash": "h",
+            }
+        }
 
     d = _run(tmp_path / "sel", synthesize=True, synthesize_fn=_fake_selectivity)
     assert calls["n"] == 1
@@ -71,7 +85,7 @@ def test_verdict_bearing_without_narrator_skips_not_mislens(tmp_path):
     d = _run(tmp_path / "pres", synthesize=True, synthesize_fn=None)  # verdict_fn defaults present
     s = d["llm_synthesis"]
     assert s.get("_synthesis_skipped") == "no_narrator_declared"
-    assert "expression_relevance_for_target" not in s   # no mis-lensed presence fields leaked in
+    assert "expression_relevance_for_target" not in s  # no mis-lensed presence fields leaked in
 
 
 def test_descriptive_skill_skips_synthesis_not_mislens(tmp_path):
@@ -100,8 +114,14 @@ def test_two_slot_byte_stability_with_custom_synthesizer(tmp_path, scrub_volatil
     import copy
 
     def _fake(decision, model_id=None, subtype_query=None):
-        return {"selectivity_relevance_for_target": {"value": "strongly_supports",
-                "_source": "llm_synthesized", "_model_id": "m", "_prompt_hash": "h"}}
+        return {
+            "selectivity_relevance_for_target": {
+                "value": "strongly_supports",
+                "_source": "llm_synthesized",
+                "_model_id": "m",
+                "_prompt_hash": "h",
+            }
+        }
 
     def _split(d):
         d = copy.deepcopy(d)
@@ -116,14 +136,16 @@ def test_two_slot_byte_stability_with_custom_synthesizer(tmp_path, scrub_volatil
     assert {k: v for k, v in synth_spine.items() if k != "llm_synthesis"} == base_spine
     # the evidence_graph projection is byte-stable across --synthesize EXCEPT its narrative slot
     if base_eg is not None and synth_eg is not None:
-        assert {k: v for k, v in synth_eg.items() if k != "narrative"} == \
-               {k: v for k, v in base_eg.items() if k != "narrative"}
-        assert base_eg["narrative"] == {}          # no llm_synthesis → empty narration
+        assert {k: v for k, v in synth_eg.items() if k != "narrative"} == {
+            k: v for k, v in base_eg.items() if k != "narrative"
+        }
+        assert base_eg["narrative"] == {}  # no llm_synthesis → empty narration
 
 
 def test_synthesize_fn_failure_degrades_to_note(tmp_path):
     def _boom(decision, model_id=None, subtype_query=None):
         raise RuntimeError("bedrock down")
+
     d = _run(tmp_path / "c", synthesize=True, synthesize_fn=_boom)
     assert "_synthesis_error" in d["llm_synthesis"]
     assert d["headline"]["selectivity_class"] == "strong_tumor_selective"
@@ -131,9 +153,15 @@ def test_synthesize_fn_failure_degrades_to_note(tmp_path):
 
 # --- subtype panorama hook (2026-08-06): --subtypes-gated, verdict-inert ---
 
+
 def _run_sub(tmp_path, *, subtypes=None, panorama_fn=None):
-    card_outputs = [{"card_id": "pan-cancer-crispr-dependency-distribution",
-                     "summary": {"dependency_class": "strongly_selective"}, "_missing": False}]
+    card_outputs = [
+        {
+            "card_id": "pan-cancer-crispr-dependency-distribution",
+            "summary": {"dependency_class": "strongly_selective"},
+            "_missing": False,
+        }
+    ]
 
     def _headline(cards, fired, vp):
         return {"dependency_verdict": "lineage_selective", "driving_rule_id": "r"}
@@ -141,13 +169,17 @@ def _run_sub(tmp_path, *, subtypes=None, panorama_fn=None):
     argv = ["--target", "KRAS", "--indication", "COADREAD", "--out", str(tmp_path)]
     if subtypes:
         argv += ["--subtypes", subtypes]
-    with patch.object(D, "resolve_cards", return_value=card_outputs), \
-         patch.object(D, "fired_rules", return_value=[]):
+    with patch.object(D, "resolve_cards", return_value=card_outputs), patch.object(D, "fired_rules", return_value=[]):
         D.run_wired_skill(
-            skill_name="functional-requirement", skill_version="9.9.9",
-            cards=["pan-cancer-crispr-dependency-distribution"], axis="intracellular_intrinsic",
+            skill_name="functional-requirement",
+            skill_version="9.9.9",
+            cards=["pan-cancer-crispr-dependency-distribution"],
+            axis="intracellular_intrinsic",
             question="Is {target} a dependency in {indication}?",
-            headline_fn=_headline, subtype_panorama_fn=panorama_fn, argv=argv)
+            headline_fn=_headline,
+            subtype_panorama_fn=panorama_fn,
+            argv=argv,
+        )
     return json.loads((tmp_path / "decision.json").read_text())
 
 
@@ -174,11 +206,19 @@ def test_panorama_fn_not_invoked_without_subtypes_flag(tmp_path):
 def test_panorama_appended_and_verdict_byte_stable(tmp_path):
     """--subtypes + panorama_fn: the panorama block merges into the headline + its cards append to
     the package, but the verdict spine is byte-identical to the no-subtypes run."""
+
     def _pano(target, indication, strata):
-        return {"cards": [{"card_id": "subgroup-stratified-dependency",
-                           "summary": {"per_subgroup_metrics": []}, "_missing": False}],
-                "scope_subtypes": strata,
-                "subtype_dependency_panorama": {"subtype_dependency_pattern": "uniform_across_subgroups"}}
+        return {
+            "cards": [
+                {
+                    "card_id": "subgroup-stratified-dependency",
+                    "summary": {"per_subgroup_metrics": []},
+                    "_missing": False,
+                }
+            ],
+            "scope_subtypes": strata,
+            "subtype_dependency_panorama": {"subtype_dependency_pattern": "uniform_across_subgroups"},
+        }
 
     base = _run_sub(tmp_path / "base", subtypes=None, panorama_fn=_pano)
     sub = _run_sub(tmp_path / "sub", subtypes="MSI_H,MSS", panorama_fn=_pano)
@@ -193,8 +233,10 @@ def test_panorama_appended_and_verdict_byte_stable(tmp_path):
 
 def test_panorama_fn_failure_degrades_not_breaks(tmp_path):
     """A panorama-resolution failure must NOT break the deterministic run (degrades to an error note)."""
+
     def _boom(target, indication, strata):
         raise RuntimeError("shard unreachable")
+
     d = _run_sub(tmp_path / "c", subtypes="MSI_H,MSS", panorama_fn=_boom)
-    assert d["headline"]["dependency_verdict"] == "lineage_selective"   # spine intact
+    assert d["headline"]["dependency_verdict"] == "lineage_selective"  # spine intact
     assert "_subtype_panorama_error" in d["headline"]

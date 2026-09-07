@@ -7,6 +7,7 @@ build_ir_auto / the `python -m _skills_common.report_render <decision.json>` CLI
 (fingerprint + chains + literature) — the same P3 blocks the composed embedded view renders, from the
 same graph. These tests replace the retired test_evidence_graph_dashboard.py.
 """
+
 import sys
 from pathlib import Path
 
@@ -16,15 +17,21 @@ if str(SKILLS) not in sys.path:
 
 from _skills_common.report_render import render_skill_report, build_ir_auto, resolve_spec, vocab
 from _skills_common.report_render import backends as be
+
 # reuse the P3 sample graph builder
 from _skills_common.tests.test_report_render_evidence_graph_blocks import _graph
 
 
 def _skill_report_lean() -> dict:
-    return {"role": "gating", "call": "tumor_broadly_expressed", "polarity": "supportive",
-            "honest_phrase": "Abundantly present", "confidence": {"level": "moderate"},
-            "question_table": [{"id": "Q1", "question": "x", "signal": {}, "confidence": {}}],
-            "provenance": {"driving_rule_id": "r1", "fired_rule_ids": ["r1"], "cards_used": ["tumor-rna"]}}
+    return {
+        "role": "gating",
+        "call": "tumor_broadly_expressed",
+        "polarity": "supportive",
+        "honest_phrase": "Abundantly present",
+        "confidence": {"level": "moderate"},
+        "question_table": [{"id": "Q1", "question": "x", "signal": {}, "confidence": {}}],
+        "provenance": {"driving_rule_id": "r1", "fired_rule_ids": ["r1"], "cards_used": ["tumor-rna"]},
+    }
 
 
 def _decision(with_graph: bool) -> dict:
@@ -38,10 +45,10 @@ def _decision(with_graph: bool) -> dict:
 def test_standalone_decision_renders_rich_view_via_report_render():
     html = render_skill_report(_decision(with_graph=True), backend="html", preset="full")
     assert "<!doctype html>" in html
-    assert "Evidence fingerprint" in html and "hmcell" in html          # per-question heatmap
-    assert "DRIVING" in html and "chainline" in html                    # dataset→data→rule→verdict chain
-    assert "cite-pill" in html and "16404434" in html                   # literature axis + verified PMID
-    assert "var(--killer)" in html                                      # liability card as killer
+    assert "Evidence fingerprint" in html and "hmcell" in html  # per-question heatmap
+    assert "DRIVING" in html and "chainline" in html  # dataset→data→rule→verdict chain
+    assert "cite-pill" in html and "16404434" in html  # literature axis + verified PMID
+    assert "var(--killer)" in html  # liability card as killer
 
 
 def test_extract_skill_merges_sibling_graph_onto_skill_report():
@@ -69,6 +76,7 @@ def test_text_and_json_standalone_paths_cover_the_blocks():
 
 def test_bespoke_dashboard_module_is_retired():
     import importlib
+
     try:
         importlib.import_module("_skills_common.evidence_graph_dashboard")
     except ImportError:

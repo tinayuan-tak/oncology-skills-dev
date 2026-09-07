@@ -24,6 +24,7 @@ The fixed panel lives in AB_REVIEW_RUBRIC.md and is duplicated here as the singl
 harness runs; keep the two in sync (a rubric change without a panel change would review the wrong
 targets).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -85,15 +86,23 @@ def _spine(nom: dict) -> dict:
     rec = _find_first(nom, "overall_recommendation")
     spine["recommendation_gated"] = rec.get("_gated") if isinstance(rec, dict) else None
     sv = nom.get("sub_verdicts") or {}
-    spine["sub_verdicts"] = {s: (r.get("verdict") if isinstance(r, dict) else None)
-                             for s, r in sv.items()}
+    spine["sub_verdicts"] = {s: (r.get("verdict") if isinstance(r, dict) else None) for s, r in sv.items()}
     return spine
 
 
 def _run(target: str, indication: str, out: Path, control: bool) -> Path:
     out.mkdir(parents=True, exist_ok=True)
-    cmd = [sys.executable, str(_RUN_PY), "--target", target, "--indication", indication,
-           "--out", str(out), "--no-figures"]
+    cmd = [
+        sys.executable,
+        str(_RUN_PY),
+        "--target",
+        target,
+        "--indication",
+        indication,
+        "--out",
+        str(out),
+        "--no-figures",
+    ]
     if control:
         cmd.append("--ab-suppress-fragility-prompt")
     print(f"  [{'CONTROL' if control else 'TREAT'}] {target}/{indication} -> {out}", file=sys.stderr)
@@ -113,25 +122,34 @@ def _prose(nom: dict) -> dict:
         v = _find_first(nom, k)
         if isinstance(v, dict):
             # strip provenance tags; keep the human text field if present
-            v = v.get("text") or v.get("value") or json.dumps({kk: vv for kk, vv in v.items()
-                                                               if not kk.startswith("_")})
+            v = (
+                v.get("text")
+                or v.get("value")
+                or json.dumps({kk: vv for kk, vv in v.items() if not kk.startswith("_")})
+            )
         return _clean(v)
-    return {"executive_summary": _txt("executive_summary"),
-            "tension_analysis": _txt("tension_analysis")}
+
+    return {"executive_summary": _txt("executive_summary"), "tension_analysis": _txt("tension_analysis")}
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--out-root", required=True, type=Path)
-    ap.add_argument("--report-only", action="store_true",
-                    help="Skip the (expensive) runs; re-derive the report + parity check from the "
-                         "nomination.json files already written under --out-root. Use after a full "
-                         "run to iterate on the report/parity logic without re-invoking Bedrock.")
+    ap.add_argument(
+        "--report-only",
+        action="store_true",
+        help="Skip the (expensive) runs; re-derive the report + parity check from the "
+        "nomination.json files already written under --out-root. Use after a full "
+        "run to iterate on the report/parity logic without re-invoking Bedrock.",
+    )
     args = ap.parse_args()
 
-    report = ["# A/B — fragility/certainty block in synthesis (Phase-0 gate artifact)", "",
-              "For each pair: deterministic spine MUST match (verdict-inert); compare the prose per "
-              "the rubric.", ""]
+    report = [
+        "# A/B — fragility/certainty block in synthesis (Phase-0 gate artifact)",
+        "",
+        "For each pair: deterministic spine MUST match (verdict-inert); compare the prose per the rubric.",
+        "",
+    ]
     spine_failures = []
 
     for target, indication in PANEL:
@@ -152,8 +170,9 @@ def main() -> int:
         report += [
             f"## {target} / {indication}",
             f"- **spine parity (verdict-inert):** {'✅ IDENTICAL' if ok else '❌ MISMATCH — HARD FAIL'}",
-            f"- recommendation: `{sc['overall_recommendation']}` (both arms)" if ok else
-            f"- CONTROL spine {sc}  vs  TREATMENT spine {st}",
+            f"- recommendation: `{sc['overall_recommendation']}` (both arms)"
+            if ok
+            else f"- CONTROL spine {sc}  vs  TREATMENT spine {st}",
             "",
             "| | CONTROL (no block) | TREATMENT (block) |",
             "|---|---|---|",
@@ -167,11 +186,16 @@ def main() -> int:
     print(f"\nWrote {out_md}")
 
     if spine_failures:
-        print(f"\n❌ SPINE PARITY FAILED for {len(spine_failures)} pair(s) — the certainty block is "
-              f"NOT verdict-inert. This is a blocker, not a review item.", file=sys.stderr)
+        print(
+            f"\n❌ SPINE PARITY FAILED for {len(spine_failures)} pair(s) — the certainty block is "
+            f"NOT verdict-inert. This is a blocker, not a review item.",
+            file=sys.stderr,
+        )
         return 1
-    print("\n✅ Spine byte-identical across arms for the whole panel (verdict-inert confirmed). "
-          "Now apply tools/AB_REVIEW_RUBRIC.md to the prose in ab_report.md.")
+    print(
+        "\n✅ Spine byte-identical across arms for the whole panel (verdict-inert confirmed). "
+        "Now apply tools/AB_REVIEW_RUBRIC.md to the prose in ab_report.md."
+    )
     return 0
 
 

@@ -4,6 +4,7 @@ The genomic_alteration_profile verdict collapses SNV/indel + copy-number + fusio
 scalar. `genomic_alteration_by_class` reorganizes the already-computed per-card class fields into a
 per-class breakdown (mirroring tumor-presence's presence_verdict_by_modality) so a consumer sees WHICH
 class drives. ADDITIVE / verdict-inert — each class's `verdict` is its own primary card call."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -26,8 +27,14 @@ def test_amplification_driven_class_is_isolated():
         _card("mutation-stratified-dependency", mutation_stratification_class="mutant_moderately_dependent"),
         _card("copy-number-distribution", copy_number_class="broadly_neutral", patient_copy_number_class="mixed"),
         _card("copy-number-stratified-dependency", cn_stratification_class="amplified_strongly_dependent"),
-        _card("amp-expr-stratified-dependency", amp_expr_stratification_class="amplified_overexpressed_strongly_dependent"),
-        _card("fusion-rearrangement-landscape", fusion_class="no_recurrent_fusion", genie_sv_recurrence_class="data_unavailable"),
+        _card(
+            "amp-expr-stratified-dependency", amp_expr_stratification_class="amplified_overexpressed_strongly_dependent"
+        ),
+        _card(
+            "fusion-rearrangement-landscape",
+            fusion_class="no_recurrent_fusion",
+            genie_sv_recurrence_class="data_unavailable",
+        ),
         _card("fusion-stratified-dependency", fusion_stratification_class="not_fusion_stratified"),
     ]
     bc = gap._genomic_alteration_by_class(cards)
@@ -66,11 +73,16 @@ def test_fusion_class_surfaces_alteration_confound():
     by_class.fusion must surface it as stratified_dependency_confound (VERDICT-INERT — the collapsed
     verdict is unchanged)."""
     cards = [
-        _card("fusion-rearrangement-landscape", fusion_class="no_recurrent_fusion",
-              genie_sv_recurrence_class="data_unavailable"),
-        _card("fusion-stratified-dependency",
-              fusion_stratification_class="fusion_positive_moderately_dependent",
-              fusion_stratification_confound="alteration_confounded"),
+        _card(
+            "fusion-rearrangement-landscape",
+            fusion_class="no_recurrent_fusion",
+            genie_sv_recurrence_class="data_unavailable",
+        ),
+        _card(
+            "fusion-stratified-dependency",
+            fusion_stratification_class="fusion_positive_moderately_dependent",
+            fusion_stratification_confound="alteration_confounded",
+        ),
     ]
     bc = gap._genomic_alteration_by_class(cards)
     assert bc["fusion"]["stratified_dependency_class"] == "fusion_positive_moderately_dependent"

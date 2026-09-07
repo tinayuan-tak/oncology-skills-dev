@@ -30,6 +30,7 @@ The dissenter valence is read from the DRIVING rule's own per-channel ``signals`
 winning rung expresses per modality channel). A fired non-driver rule that expresses the opposite
 sign on a channel dissents on that channel — self-contained, no external decision-role vocabulary.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -104,7 +105,10 @@ def build_narrative(
     ref_sign = {ch: _sign(s) for ch, s in driver_signals.items()}
 
     def _opposes(sigs) -> bool:
-        return any(_sign(sigs.get(ch)) != 0 and ref_sign.get(ch, 0) != 0 and _sign(sigs.get(ch)) != ref_sign.get(ch, 0) for ch in sigs)
+        return any(
+            _sign(sigs.get(ch)) != 0 and ref_sign.get(ch, 0) != 0 and _sign(sigs.get(ch)) != ref_sign.get(ch, 0)
+            for ch in sigs
+        )
 
     # ---- movers: driver first, then resolver-referenced rules present that pull the SAME way.
     movers: list[dict] = []
@@ -131,14 +135,16 @@ def build_narrative(
     for rid in mover_ids:
         fr = fired_by_id[rid]
         rationale, killer, card_id = _sentence_for(rid, text_index, fired_by_id)
-        movers.append({
-            "rule_id": rid,
-            "card_id": fr.get("card_id") or card_id,
-            "role": "driver" if rid == driving_rule_id else "reachability_present",
-            "signals": fr.get("signals") or {},
-            "sentence": rationale,
-            "killer_message": killer,
-        })
+        movers.append(
+            {
+                "rule_id": rid,
+                "card_id": fr.get("card_id") or card_id,
+                "role": "driver" if rid == driving_rule_id else "reachability_present",
+                "signals": fr.get("signals") or {},
+                "sentence": rationale,
+                "killer_message": killer,
+            }
+        )
 
     # ---- dissenters: fired non-driver rules whose channel sign OPPOSES the driver's on that channel.
     dissenters: list[dict] = []
@@ -154,14 +160,16 @@ def build_narrative(
                 continue
             fr = fired_by_id[rid]
             rationale, killer, card_id = _sentence_for(rid, text_index, fired_by_id)
-            dissenters.append({
-                "rule_id": rid,
-                "card_id": fr.get("card_id") or card_id,
-                "channel": ch,
-                "signal": sigs[ch],
-                "sentence": rationale,
-                "killer_message": killer,
-            })
+            dissenters.append(
+                {
+                    "rule_id": rid,
+                    "card_id": fr.get("card_id") or card_id,
+                    "channel": ch,
+                    "signal": sigs[ch],
+                    "sentence": rationale,
+                    "killer_message": killer,
+                }
+            )
     dissenters.sort(key=lambda d: (d["channel"], d["rule_id"]))
 
     # ---- flip_conditions: pre-computed (composed) or a single-rule scan (standalone).
@@ -173,8 +181,7 @@ def build_narrative(
     for fl in raw_flips:
         rid = fl.get("rule_id")
         rationale, _killer, _card = _sentence_for(rid, text_index, fired_by_id)
-        fc = {"rule_id": rid, "present": fl.get("present"),
-              "to_verdict": fl.get("to_verdict"), "sentence": rationale}
+        fc = {"rule_id": rid, "present": fl.get("present"), "to_verdict": fl.get("to_verdict"), "sentence": rationale}
         if "to_role" in fl:
             fc["to_role"] = fl["to_role"]
         if "recommendation_flip" in fl:
@@ -202,7 +209,9 @@ def build_narrative(
         "flip_conditions": flip_conditions,
         "gaps": list(gaps or []),
         "rule_sentences": rule_sentences,
-        "_basis": ("movers=driver+resolver-referenced-present pulling the same way; "
-                   "dissenters=opposing-sign fired non-driver rules (per channel); "
-                   "flips+gaps re-projected from the flip/fragility facet; verdict-INERT"),
+        "_basis": (
+            "movers=driver+resolver-referenced-present pulling the same way; "
+            "dissenters=opposing-sign fired non-driver rules (per channel); "
+            "flips+gaps re-projected from the flip/fragility facet; verdict-INERT"
+        ),
     }

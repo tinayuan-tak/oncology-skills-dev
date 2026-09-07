@@ -20,10 +20,12 @@ import os
 import sys
 from pathlib import Path
 
-METHODS_REPO = Path(os.environ.get(
-    "ANALYSIS_METHODS_ROOT",
-    "/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods",
-))
+METHODS_REPO = Path(
+    os.environ.get(
+        "ANALYSIS_METHODS_ROOT",
+        "/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods",
+    )
+)
 
 
 def main() -> int:
@@ -35,6 +37,7 @@ def main() -> int:
         return 2
     sys.path.insert(0, str(METHODS_REPO))
     from methods.catalog_query.cli import main as cli_main
+
     return cli_main(sys.argv[1:])
 
 

@@ -51,8 +51,11 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from . import (
-    resolve_cards, fired_rules, modality_lens,
-    make_decision_json, write_package,
+    resolve_cards,
+    fired_rules,
+    modality_lens,
+    make_decision_json,
+    write_package,
 )
 from .run_log import install_run_log, restore_run_log
 
@@ -199,9 +202,10 @@ def _consolidation_fidelity(fired: list, driving_rule_id: "Optional[str]") -> di
     roles = set(pol.values())
     drv_pol = _rule_polarity(driving_rule_id)
     overruled_opp = sorted(
-        rid for rid in ids if rid != driving_rule_id
-        and ((drv_pol == "positive" and pol[rid] == "negative")
-             or (drv_pol == "negative" and pol[rid] == "positive"))
+        rid
+        for rid in ids
+        if rid != driving_rule_id
+        and ((drv_pol == "positive" and pol[rid] == "negative") or (drv_pol == "negative" and pol[rid] == "positive"))
     )
     return {
         "discordant": ("positive" in roles) and ("negative" in roles),
@@ -254,10 +258,16 @@ def _envelope_card_present(card: dict) -> dict:
     }
 
 
-def _emit_subskill_envelope(*, args, skill_name: str, skill_version: str,
-                            emitted_cards: list[dict], headline: dict,
-                            verdict_pair: "Optional[tuple[str, Optional[str]]]",
-                            fired: list[dict]) -> Path:
+def _emit_subskill_envelope(
+    *,
+    args,
+    skill_name: str,
+    skill_version: str,
+    emitted_cards: list[dict],
+    headline: dict,
+    verdict_pair: "Optional[tuple[str, Optional[str]]]",
+    fired: list[dict],
+) -> Path:
     """Assemble + write evidence_package.json around a subskill's resolver verdict (opt-in).
 
     PURELY ADDITIVE: consumes the already-computed decision outputs (emitted_cards, headline,
@@ -300,12 +310,14 @@ def _emit_subskill_envelope(*, args, skill_name: str, skill_version: str,
     for c in emitted_cards:
         if c.get("_missing"):
             state, reason = _availability_state_for(c)
-            env_unavailable.append({
-                "card_id": c["card_id"],
-                "card_version": c.get("card_version", "n/a"),
-                "availability_state": state,
-                "availability_reason": reason,
-            })
+            env_unavailable.append(
+                {
+                    "card_id": c["card_id"],
+                    "card_version": c.get("card_version", "n/a"),
+                    "availability_state": state,
+                    "availability_reason": reason,
+                }
+            )
         else:
             env_present.append(_envelope_card_present(c))
 
@@ -318,8 +330,11 @@ def _emit_subskill_envelope(*, args, skill_name: str, skill_version: str,
             if not c.get("_missing"):
                 env_present.append(_envelope_card_present(c))
     except Exception as e:  # noqa: BLE001 — identity read is best-effort; never break emit
-        print(f"[dispatcher] --emit-envelope: target-identity read failed ({type(e).__name__}); "
-              f"context.target.hgnc_id will be the unresolved sentinel.", file=sys.stderr)
+        print(
+            f"[dispatcher] --emit-envelope: target-identity read failed ({type(e).__name__}); "
+            f"context.target.hgnc_id will be the unresolved sentinel.",
+            file=sys.stderr,
+        )
 
     input_context = {
         "target_symbol": args.target,
@@ -366,22 +381,26 @@ def _emit_card_figures(card_outputs: list[dict], out_dir, target: str, indicatio
     try:
         from ._figure_emitters import emit_figures_for_card
     except Exception as e:  # noqa: BLE001 — registry import is best-effort
-        print(f"[dispatcher] --figures: figure-emitter registry unavailable "
-              f"({type(e).__name__}: {e}); no figures emitted.", file=sys.stderr)
+        print(
+            f"[dispatcher] --figures: figure-emitter registry unavailable "
+            f"({type(e).__name__}: {e}); no figures emitted.",
+            file=sys.stderr,
+        )
         return 0
     figures_root = Path(out_dir) / "figures"
     n = 0
     for c in card_outputs:
         if c.get("_missing"):
-            continue                       # no data to plot (honest gap)
+            continue  # no data to plot (honest gap)
         cid = c.get("card_id")
         try:
-            descs = emit_figures_for_card(cid, c.get("summary") or {}, figures_root,
-                                          target, indication)
+            descs = emit_figures_for_card(cid, c.get("summary") or {}, figures_root, target, indication)
             n += len(descs)
         except Exception as e:  # noqa: BLE001 — a figure must never break the run
-            print(f"[dispatcher] --figures: {cid} figure emission failed "
-                  f"({type(e).__name__}: {e}); skipped.", file=sys.stderr)
+            print(
+                f"[dispatcher] --figures: {cid} figure emission failed ({type(e).__name__}: {e}); skipped.",
+                file=sys.stderr,
+            )
     return n
 
 
@@ -398,66 +417,98 @@ def _build_run_parser() -> argparse.ArgumentParser:
     # indication-scoped reader invoked without a real indication degrades to data_unavailable (its
     # honest gap posture). BACKWARD-COMPATIBLE: every existing focused skill still passes --indication,
     # so their behavior is unchanged.
-    ap.add_argument("--indication", required=False, default=None, help="OncoTree code (optional for target-intrinsic skills)")
+    ap.add_argument(
+        "--indication", required=False, default=None, help="OncoTree code (optional for target-intrinsic skills)"
+    )
     ap.add_argument("--out", required=True, type=Path)
-    ap.add_argument("--modality", default=None,
-                    help="OPTIONAL post-hoc modality lens.")
-    ap.add_argument("--synthesize", action="store_true",
-                    help="OPT-IN: attach an LLM narration of the deterministic verdict + "
-                         "contextualized axes under decision['llm_synthesis']. NEVER alters the "
-                         "verdict spine (the decision is byte-identical without this flag).")
-    ap.add_argument("--synthesis-model", default=None,
-                    help="Override the Bedrock synthesis model id (default: framework Opus).")
-    ap.add_argument("--literature", action="store_true",
-                    help="OPT-IN: attach a verdict-INERT LLM LITERATURE lane (published-literature read "
-                         "per axis + agreement-vs-omics + omics-blind signals) under "
-                         "decision['literature_synthesis'], AND feed it to the --synthesize narrator as a "
-                         "corroboration/contradiction lane. Requires the skill to supply a literature_fn; "
-                         "NEVER alters the verdict spine (byte-identical without this flag).")
-    ap.add_argument("--literature-model", default=None,
-                    help="Override the Bedrock model id for the --literature lane (default: framework Opus).")
-    ap.add_argument("--subtype", default=None,
-                    help="OPTIONAL synthesis-grain selector: name a molecular subtype (e.g. MSI_H) to "
-                         "have the narration FOREGROUND that stratum's position, in addition to the "
-                         "across-subtype omnibus. Emphasis-only — no spine change; if the subtype is "
-                         "not among the computed strata, synthesis says so honestly.")
-    ap.add_argument("--subtypes", default=None,
-                    help="OPTIONAL comma-separated molecular subtype/stratum ids (e.g. 'MSI_H,MSS'). "
-                         "When set AND the skill supplies a subtype_panorama_fn, resolves a DESCRIPTIVE "
-                         "per-stratum panorama across those strata (e.g. dependency by MSI status) and "
-                         "appends it to the package + headline. Does NOT affect the verdict (byte-stable "
-                         "regardless). Distinct from --subtype (singular), which only steers synthesis "
-                         "emphasis over already-computed strata.")
-    ap.add_argument("--verdict-only", action="store_true",
-                    help="FAST/lean mode: read ONLY the verdict-relevant cards (the resolver's "
-                         "referenced cards, passed by the skill as verdict_cards) and skip the "
-                         "verdict-inert enrichment reads + any --synthesize narration. The verdict "
-                         "spine (verdict + driving_rule_id) is byte-identical to a full run. No-op "
-                         "for a skill that declares no verdict_cards subset (reads all cards).")
-    ap.add_argument("--emit-envelope", action="store_true",
-                    help="OPT-IN (default OFF ⇒ complete no-op): ALSO write a governance-grade "
-                         "evidence_package.json envelope (beside decision.json) around THIS "
-                         "subskill's resolver verdict, via the shared _skills_common.envelope "
-                         "writer. PURELY ADDITIVE — decision.json is byte-identical whether or not "
-                         "this flag is set. The synthesis slot carries the verdict as its headline.")
-    ap.add_argument("--data-mode", default="live",
-                    help="Data-provenance posture, carried into the emitted envelope's "
-                         "input_context/governance ONLY (mapped to the governance data_mode enum; "
-                         "a subskill envelope is exploratory-grade). D1b does NOT implement manifest "
-                         "pinning / resolve_release — that is a data-catalog follow-on. Inert unless "
-                         "--emit-envelope is set.")
-    ap.add_argument("--release-pin", default=None,
-                    help="Optional catalog release pin, carried into the envelope governance block "
-                         "ONLY (no manifest resolution yet — follow-on). Inert unless --emit-envelope.")
-    ap.add_argument("--figures", action="store_true",
-                    help="OPT-IN (default OFF ⇒ no figures): emit per-card SVG (+ interactive plotly) "
-                         "figures via the shared _skills_common figure-emitter registry (rehomed from "
-                         "the retired compose-dashboard) into "
-                         "<out>/figures/cards/<card_id>/. PURELY ADDITIVE — decision.json is "
-                         "byte-identical whether or not this flag is set. Best-effort per card: a card "
-                         "with no registered emitter or a failed data load contributes no figure and "
-                         "never breaks the run. NB: emitters re-read method data from S3, so a --figures "
-                         "run is materially slower than the deterministic spine.")
+    ap.add_argument("--modality", default=None, help="OPTIONAL post-hoc modality lens.")
+    ap.add_argument(
+        "--synthesize",
+        action="store_true",
+        help="OPT-IN: attach an LLM narration of the deterministic verdict + "
+        "contextualized axes under decision['llm_synthesis']. NEVER alters the "
+        "verdict spine (the decision is byte-identical without this flag).",
+    )
+    ap.add_argument(
+        "--synthesis-model", default=None, help="Override the Bedrock synthesis model id (default: framework Opus)."
+    )
+    ap.add_argument(
+        "--literature",
+        action="store_true",
+        help="OPT-IN: attach a verdict-INERT LLM LITERATURE lane (published-literature read "
+        "per axis + agreement-vs-omics + omics-blind signals) under "
+        "decision['literature_synthesis'], AND feed it to the --synthesize narrator as a "
+        "corroboration/contradiction lane. Requires the skill to supply a literature_fn; "
+        "NEVER alters the verdict spine (byte-identical without this flag).",
+    )
+    ap.add_argument(
+        "--literature-model",
+        default=None,
+        help="Override the Bedrock model id for the --literature lane (default: framework Opus).",
+    )
+    ap.add_argument(
+        "--subtype",
+        default=None,
+        help="OPTIONAL synthesis-grain selector: name a molecular subtype (e.g. MSI_H) to "
+        "have the narration FOREGROUND that stratum's position, in addition to the "
+        "across-subtype omnibus. Emphasis-only — no spine change; if the subtype is "
+        "not among the computed strata, synthesis says so honestly.",
+    )
+    ap.add_argument(
+        "--subtypes",
+        default=None,
+        help="OPTIONAL comma-separated molecular subtype/stratum ids (e.g. 'MSI_H,MSS'). "
+        "When set AND the skill supplies a subtype_panorama_fn, resolves a DESCRIPTIVE "
+        "per-stratum panorama across those strata (e.g. dependency by MSI status) and "
+        "appends it to the package + headline. Does NOT affect the verdict (byte-stable "
+        "regardless). Distinct from --subtype (singular), which only steers synthesis "
+        "emphasis over already-computed strata.",
+    )
+    ap.add_argument(
+        "--verdict-only",
+        action="store_true",
+        help="FAST/lean mode: read ONLY the verdict-relevant cards (the resolver's "
+        "referenced cards, passed by the skill as verdict_cards) and skip the "
+        "verdict-inert enrichment reads + any --synthesize narration. The verdict "
+        "spine (verdict + driving_rule_id) is byte-identical to a full run. No-op "
+        "for a skill that declares no verdict_cards subset (reads all cards).",
+    )
+    ap.add_argument(
+        "--emit-envelope",
+        action="store_true",
+        help="OPT-IN (default OFF ⇒ complete no-op): ALSO write a governance-grade "
+        "evidence_package.json envelope (beside decision.json) around THIS "
+        "subskill's resolver verdict, via the shared _skills_common.envelope "
+        "writer. PURELY ADDITIVE — decision.json is byte-identical whether or not "
+        "this flag is set. The synthesis slot carries the verdict as its headline.",
+    )
+    ap.add_argument(
+        "--data-mode",
+        default="live",
+        help="Data-provenance posture, carried into the emitted envelope's "
+        "input_context/governance ONLY (mapped to the governance data_mode enum; "
+        "a subskill envelope is exploratory-grade). D1b does NOT implement manifest "
+        "pinning / resolve_release — that is a data-catalog follow-on. Inert unless "
+        "--emit-envelope is set.",
+    )
+    ap.add_argument(
+        "--release-pin",
+        default=None,
+        help="Optional catalog release pin, carried into the envelope governance block "
+        "ONLY (no manifest resolution yet — follow-on). Inert unless --emit-envelope.",
+    )
+    ap.add_argument(
+        "--figures",
+        action="store_true",
+        help="OPT-IN (default OFF ⇒ no figures): emit per-card SVG (+ interactive plotly) "
+        "figures via the shared _skills_common figure-emitter registry (rehomed from "
+        "the retired compose-dashboard) into "
+        "<out>/figures/cards/<card_id>/. PURELY ADDITIVE — decision.json is "
+        "byte-identical whether or not this flag is set. Best-effort per card: a card "
+        "with no registered emitter or a failed data load contributes no figure and "
+        "never breaks the run. NB: emitters re-read method data from S3, so a --figures "
+        "run is materially slower than the deterministic spine.",
+    )
     return ap
 
 
@@ -467,13 +518,14 @@ def _attach_literature_lane(decision: dict, args, literature_fn) -> None:
         if literature_fn is None:
             decision["literature_synthesis"] = {
                 "_literature_skipped": "no_literature_lens_declared",
-                "_note": ("This skill declares no literature lens, so --literature is a no-op. The "
-                          "deterministic decision above is complete."),
+                "_note": (
+                    "This skill declares no literature lens, so --literature is a no-op. The "
+                    "deterministic decision above is complete."
+                ),
             }
         else:
             try:
-                decision["literature_synthesis"] = literature_fn(
-                    decision, getattr(args, "literature_model", None))
+                decision["literature_synthesis"] = literature_fn(decision, getattr(args, "literature_model", None))
             except Exception as e:  # noqa: BLE001 — the literature lane is optional; never break the spine
                 decision["literature_synthesis"] = {
                     "_literature_error": f"{type(e).__name__}: {e}",
@@ -496,15 +548,16 @@ def _attach_synthesis_lane(decision: dict, args, synthesize_fn) -> None:
         if _synth is None:
             decision["llm_synthesis"] = {
                 "_synthesis_skipped": "no_narrator_declared",
-                "_note": ("This skill declares no synthesis narrator, so --synthesize is a no-op — "
-                          "there is no lens-appropriate narration for this grain, and the framework "
-                          "will not narrate it through another skill's lens. The deterministic "
-                          "decision above is complete."),
+                "_note": (
+                    "This skill declares no synthesis narrator, so --synthesize is a no-op — "
+                    "there is no lens-appropriate narration for this grain, and the framework "
+                    "will not narrate it through another skill's lens. The deterministic "
+                    "decision above is complete."
+                ),
             }
         else:
             try:
-                decision["llm_synthesis"] = _synth(
-                    decision, args.synthesis_model, args.subtype)
+                decision["llm_synthesis"] = _synth(decision, args.synthesis_model, args.subtype)
             except Exception as e:  # noqa: BLE001 — synthesis is optional; never break the spine
                 decision["llm_synthesis"] = {
                     "_synthesis_error": f"{type(e).__name__}: {e}",
@@ -634,30 +687,31 @@ def run_wired_skill(
     # absent-resolver / incomplete derivation returns empty and must never silently read nothing).
     _lean = bool(args.verdict_only and verdict_cards and set(verdict_cards) <= set(cards))
     if args.verdict_only and not _lean:
-        print("[dispatcher] --verdict-only: no proven verdict-card subset for this skill "
-              "(verdict_cards empty or not a subset of cards) — reading ALL cards (no-op).",
-              file=sys.stderr)
+        print(
+            "[dispatcher] --verdict-only: no proven verdict-card subset for this skill "
+            "(verdict_cards empty or not a subset of cards) — reading ALL cards (no-op).",
+            file=sys.stderr,
+        )
     _cards_to_read = list(verdict_cards) if _lean else cards
     if _lean:
-        args.synthesize = False   # verdict-only skips narration too
-        args.literature = False   # ... and the (verdict-inert) literature lane
-        print(f"[dispatcher] --verdict-only: reading {len(_cards_to_read)}/{len(cards)} "
-              f"verdict-relevant cards (enrichment reads skipped; verdict byte-identical)",
-              file=sys.stderr)
+        args.synthesize = False  # verdict-only skips narration too
+        args.literature = False  # ... and the (verdict-inert) literature lane
+        print(
+            f"[dispatcher] --verdict-only: reading {len(_cards_to_read)}/{len(cards)} "
+            f"verdict-relevant cards (enrichment reads skipped; verdict byte-identical)",
+            file=sys.stderr,
+        )
     # Figure Stage 3: under --figures, persist each card's plot_data DURING resolution into the SAME
     # figures/cards/<id>/ dir the figure-emitter reads from, so migrated emitters render OFFLINE (from
     # the persisted plot_data) with no second live read. Default (no --figures) => plot_data_root=None,
     # a byte-identical no-op. The figures_root here must match _emit_card_figures' Path(out)/"figures".
     _plot_data_root = (Path(args.out) / "figures") if getattr(args, "figures", False) else None
-    card_outputs = resolve_cards(_cards_to_read, args.target, _indication,
-                                 plot_data_root=_plot_data_root)
+    card_outputs = resolve_cards(_cards_to_read, args.target, _indication, plot_data_root=_plot_data_root)
     _read_secs = time.perf_counter() - _t0
     _compute_start = time.perf_counter()
 
     # 2. Apply on_dependency_status behavior
-    card_outputs, skipped_card_ids, a4_caveats = _apply_on_dependency_status(
-        card_outputs, on_dependency_status or {}
-    )
+    card_outputs, skipped_card_ids, a4_caveats = _apply_on_dependency_status(card_outputs, on_dependency_status or {})
 
     # 2c. CARD PREPROCESSORS (before fired_rules) — a per-gate cross-card correction that MUST travel to
     # every resolution path (standalone here + target-profile fan-out + resolve_gate_spine). The composed
@@ -668,12 +722,12 @@ def run_wired_skill(
     preprocess_provenance = {}
     if preprocess_gate:
         from _skills_common.card_preprocessors import preprocess_cards_for_gate
+
         preprocess_provenance = preprocess_cards_for_gate(card_outputs, preprocess_gate)
 
     # 3. Fire rules against surviving cards only
     surviving_card_ids = [c["card_id"] for c in card_outputs]
-    fired = fired_rules(card_outputs, axis=axis,
-                        card_id_filter=surviving_card_ids)
+    fired = fired_rules(card_outputs, axis=axis, card_id_filter=surviving_card_ids)
 
     # 4. Verdict (optional callback) — the PRIMARY `axis` alone drives the verdict.
     verdict_pair = verdict_fn(fired) if verdict_fn else None
@@ -683,9 +737,8 @@ def run_wired_skill(
     # (decision['fired_rules']) + run_health.cards_fired, but must NOT touch the primary verdict.
     # Fired AFTER verdict_fn and merged into `fired`, so the resistance verdict a skill computes in
     # its headline_fn is traceable to a fired rule. Default (no extra_axes) is byte-identical.
-    for _extra_axis in (extra_axes or []):
-        fired = fired + fired_rules(card_outputs, axis=_extra_axis,
-                                    card_id_filter=surviving_card_ids)
+    for _extra_axis in extra_axes or []:
+        fired = fired + fired_rules(card_outputs, axis=_extra_axis, card_id_filter=surviving_card_ids)
 
     # 4b. OPTIONAL subtype panorama (DESCRIPTIVE, --subtypes-gated). Resolved on a SEPARATE path
     # from the whole-cohort spine: its cards are NOT in `fired` and touch no resolver rung, so the
@@ -698,13 +751,17 @@ def run_wired_skill(
         try:
             subtype_result = subtype_panorama_fn(args.target, args.indication, _subtypes)
         except Exception as e:  # noqa: BLE001 — the panorama is a display facet; never load-bearing
-            subtype_result = {"cards": [], "scope_subtypes": _subtypes,
-                              "_subtype_panorama_error": f"{type(e).__name__}: {e}"}
+            subtype_result = {
+                "cards": [],
+                "scope_subtypes": _subtypes,
+                "_subtype_panorama_error": f"{type(e).__name__}: {e}",
+            }
 
     # 5. Isoform-selective check (optional)
     isoform_warning = None
     if isoform_check_target:
         from .isoform_selective_targets import check_target
+
         isoform_warning = check_target(args.target)
 
     # 6. Headline (optional callback; default is a minimal skeleton)
@@ -721,8 +778,7 @@ def run_wired_skill(
         if _lean:
             _read_ids = {c["card_id"] for c in card_outputs}
             _headline_cards = card_outputs + [
-                {"card_id": cid, "summary": {}, "_missing": True}
-                for cid in cards if cid not in _read_ids
+                {"card_id": cid, "summary": {}, "_missing": True} for cid in cards if cid not in _read_ids
             ]
         else:
             _headline_cards = card_outputs
@@ -762,16 +818,20 @@ def run_wired_skill(
     if isinstance(headline, dict):
         try:
             from _skills_common.subgroup_derivation import subgroup_signals_for, default_classify
+
             _skill_dir = Path(__file__).resolve().parent.parent / skill_name
             if (_skill_dir / "question_hierarchy.yaml").exists():
                 # A skill may pass a tuned reader_spec / value→tier classify (run_wired_skill kwargs) so its
                 # OWN card vocabulary is read with correct polarity + card roles; else the default heuristic.
                 # The claim_vector overlays the authoritative per-axis signal; the tuned classify fixes the
                 # corroborating SOURCE tiers + agreement/confidence the overlay does not set.
-                _sg = subgroup_signals_for(_skill_dir, card_outputs,
-                                           reader_spec=subgroup_reader_spec,
-                                           classify=subgroup_classify or default_classify,
-                                           claim_vector=headline.get("claim_vector"))
+                _sg = subgroup_signals_for(
+                    _skill_dir,
+                    card_outputs,
+                    reader_spec=subgroup_reader_spec,
+                    classify=subgroup_classify or default_classify,
+                    claim_vector=headline.get("claim_vector"),
+                )
                 if _sg:
                     headline.setdefault("subgroup_signals", _sg)
         except Exception:  # noqa: BLE001 — verdict-inert projection; never break the spine
@@ -786,15 +846,14 @@ def run_wired_skill(
     if isinstance(headline, dict):
         try:
             from _skills_common.evidence_capsule import emit_capsules
+
             headline["evidence_capsules"] = emit_capsules(card_outputs, _indication)
         except Exception:  # noqa: BLE001 — verdict-inert projection; never break the spine
             pass
 
     # Attach dependency-status provenance + isoform-selective flags uniformly
-    headline["cards_available"] = sum(1 for c in card_outputs
-                                       if not c.get("_missing"))
-    headline["cards_missing"] = [c["card_id"] for c in card_outputs
-                                  if c.get("_missing")]
+    headline["cards_available"] = sum(1 for c in card_outputs if not c.get("_missing"))
+    headline["cards_missing"] = [c["card_id"] for c in card_outputs if c.get("_missing")]
     if skipped_card_ids:
         headline["_a4_skipped_sections"] = skipped_card_ids
     if a4_caveats:
@@ -803,9 +862,7 @@ def run_wired_skill(
         headline["_partial_status_note"] = partial_status_note
     if isoform_check_target:
         headline["isoform_selective_warning"] = isoform_warning is not None
-        headline["isoform_selective_dominant_isoform"] = (
-            isoform_warning.dominant_isoform if isoform_warning else None
-        )
+        headline["isoform_selective_dominant_isoform"] = isoform_warning.dominant_isoform if isoform_warning else None
 
     # Attach the subtype panorama to the headline (DESCRIPTIVE; verdict-inert). The skill's
     # panorama_fn returns a dict with a "scope_subtypes" list + one panorama block keyed by axis
@@ -822,7 +879,7 @@ def run_wired_skill(
         else:
             headline["subtype_scope"] = subtype_result.get("scope_subtypes")
             for k, v in subtype_result.items():
-                if k not in ("cards", "scope_subtypes"):   # the panorama block(s) + any error note
+                if k not in ("cards", "scope_subtypes"):  # the panorama block(s) + any error note
                     headline[k] = v
 
     # 7. Optional modality lens
@@ -845,18 +902,26 @@ def run_wired_skill(
     # sourced via build_subskill_provenance (same digest the envelope uses). Best-effort; never raises.
     from .envelope import build_subskill_provenance
     from .gitmeta import skills_repo_sha
+
     _identity = next((c for c in emitted_cards if c.get("card_id") == "target-identity-summary"), None)
     _resolver_pin = (_identity.get("summary") or {}).get("resolver_release_pin") if _identity else None
     provenance = build_subskill_provenance(
-        emitted_cards, args.data_mode, args.release_pin, skills_repo_sha(),
+        emitted_cards,
+        args.data_mode,
+        args.release_pin,
+        skills_repo_sha(),
         resolver_release_pin=_resolver_pin,
     )
     decision = make_decision_json(
         skill_name=skill_name,
-        target=args.target, indication=_indication,
+        target=args.target,
+        indication=_indication,
         question=question.format(target=args.target, indication=_indication),
-        card_outputs=emitted_cards, fired=fired,
-        headline=headline, modality_lenses=lenses, provenance=provenance,
+        card_outputs=emitted_cards,
+        fired=fired,
+        headline=headline,
+        modality_lenses=lenses,
+        provenance=provenance,
     )
 
     # 8a. Per-subskill RUN-HEALTH record (observability; sibling key, never touches the spine).
@@ -907,8 +972,7 @@ def run_wired_skill(
     # conflict among the fired rules? Sibling key, verdict-inert (never touches the spine). Lets any
     # consumer detect over-consolidation generically — masked_conflict=true means "read the per-card /
     # per-modality decomposition, not just the one-word verdict."
-    decision["consolidation"] = _consolidation_fidelity(
-        fired, verdict_pair[1] if verdict_pair else None)
+    decision["consolidation"] = _consolidation_fidelity(fired, verdict_pair[1] if verdict_pair else None)
 
     # 8a-iii. OPT-IN LLM LITERATURE lane (verdict-INERT). Attached as a SIBLING key
     # decision['literature_synthesis'] AFTER the deterministic decision is composed and BEFORE the
@@ -935,6 +999,7 @@ def run_wired_skill(
         # CENTRAL per-sub-group signals-first figure (any skill with subgroup_signals). Best-effort.
         try:
             from _skills_common.subgroup_figure import emit_subgroup_figure
+
             _sgf = emit_subgroup_figure(decision, Path(args.out) / "figures")
             if _sgf:
                 print(f"  --figures: emitted {len(_sgf)} sub-group signal figure(s)")
@@ -951,8 +1016,10 @@ def run_wired_skill(
                 if _skill_figs:
                     print(f"  --figures: emitted {len(_skill_figs)} skill-level figure(s)")
             except Exception as e:  # noqa: BLE001 — an aggregate figure must never break the run
-                print(f"[dispatcher] --figures: skill-level figure emission failed "
-                      f"({type(e).__name__}: {e}); skipped.", file=sys.stderr)
+                print(
+                    f"[dispatcher] --figures: skill-level figure emission failed ({type(e).__name__}: {e}); skipped.",
+                    file=sys.stderr,
+                )
 
     # 8d. CENTRAL claim-graph projection (decision.headline.evidence_graph). A one-way, DISPLAY-ONLY
     # relational view over the now fully-assembled decision (verdict spine + cards + fired_rules +
@@ -963,6 +1030,7 @@ def run_wired_skill(
     # whole fleet; a skill without a questions.yaml still gets a referentially-intact graph.
     if isinstance(headline, dict):
         from _skills_common.evidence_graph import attach_evidence_graph
+
         _eg_skill_dir = Path(__file__).resolve().parent.parent / skill_name
         # SINGLE shared seam (also called from genomic's hand-rolled main + tp_fanout): builds + attaches
         # the graph incl. per-card key_evidence, self-checks referential integrity, and is fail-soft
@@ -996,14 +1064,21 @@ def run_wired_skill(
     if args.emit_envelope:
         try:
             _ep_path = _emit_subskill_envelope(
-                args=args, skill_name=skill_name, skill_version=skill_version,
-                emitted_cards=emitted_cards, headline=headline,
-                verdict_pair=verdict_pair, fired=fired,
+                args=args,
+                skill_name=skill_name,
+                skill_version=skill_version,
+                emitted_cards=emitted_cards,
+                headline=headline,
+                verdict_pair=verdict_pair,
+                fired=fired,
             )
             print(f"  emitted evidence_package.json → {_ep_path}")
         except Exception as e:  # noqa: BLE001 — envelope is additive; never break the spine
-            print(f"[dispatcher] --emit-envelope: envelope emission failed "
-                  f"({type(e).__name__}: {e}); decision.json is unaffected.", file=sys.stderr)
+            print(
+                f"[dispatcher] --emit-envelope: envelope emission failed "
+                f"({type(e).__name__}: {e}); decision.json is unaffected.",
+                file=sys.stderr,
+            )
 
     print()
     print(json.dumps(headline, indent=2, default=str))

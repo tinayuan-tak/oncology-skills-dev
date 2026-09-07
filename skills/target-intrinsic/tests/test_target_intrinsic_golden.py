@@ -12,6 +12,7 @@ S3 creds), so it fails on drift/logic bugs but not on data availability.
 Self-contained: does not depend on the compose-dashboard skip_if_no_data conftest helper (still in review).
 When it lands, this can be refactored to reuse it.
 """
+
 from __future__ import annotations
 
 import json
@@ -43,7 +44,8 @@ def egfr_decision(tmp_path_factory):
         pytest.skip("target-intrinsic EGFR run timed out (slow/unavailable live reads)")
     # A hard non-zero exit is a real failure (the dispatcher should degrade gracefully, not crash).
     assert result.returncode == 0, (
-        f"run.py exited {result.returncode} on EGFR.\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}")
+        f"run.py exited {result.returncode} on EGFR.\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+    )
     decision_path = out_dir / "decision.json"
     assert decision_path.exists(), f"no decision.json written.\nstdout:\n{result.stdout}"
     return json.loads(decision_path.read_text())
@@ -62,7 +64,8 @@ def test_egfr_identity_and_shape(egfr_decision):
         assert headline.get("target_symbol") == "EGFR"
     # descriptive skill: NO top-level verdict spine
     assert egfr_decision.get("verdict") in (None, "descriptive", "none"), (
-        f"target-intrinsic is verdict-free; got verdict={egfr_decision.get('verdict')!r}")
+        f"target-intrinsic is verdict-free; got verdict={egfr_decision.get('verdict')!r}"
+    )
 
 
 def test_egfr_domain_modality_not_mislabelled(egfr_decision):
@@ -75,7 +78,8 @@ def test_egfr_domain_modality_not_mislabelled(egfr_decision):
     assert klass != "removal_favored", (
         f"EGFR modality_implication_class={klass!r}: the multi-domain-enzyme heuristic mislabelled a "
         f"well-drugged inhibitor target as degrader-favored (the v0.2.0 fix should yield indeterminate "
-        f"unless a curated entry exists).")
+        f"unless a curated entry exists)."
+    )
 
 
 def test_egfr_headline_resolves_broadly(egfr_decision):
@@ -91,4 +95,5 @@ def test_egfr_headline_resolves_broadly(egfr_decision):
     assert len(non_null) >= 12, (
         f"only {len(non_null)}/{len(headline)} headline fields resolved for EGFR while "
         f"{len(available)} cards are available — suspect a reader field-name drift "
-        f"(g('card','field') -> None). Non-null keys: {sorted(non_null)}")
+        f"(g('card','field') -> None). Non-null keys: {sorted(non_null)}"
+    )

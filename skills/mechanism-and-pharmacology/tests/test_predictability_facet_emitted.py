@@ -8,6 +8,7 @@ Offline: pure _headline over synthetic cards, no S3/reader.
 _headline reads several cards via get_card_field (RAISES on a missing card_id) — so a valid call must
 supply every card the skill declares (me.CARDS); we populate the predictability + SIGNOR ones.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -23,16 +24,16 @@ _PRED_SUMMARY = {
     "pred_dominant_feature_class": "cross_gene_expression",
     "pred_top_features_rf": [
         {"feature": "expr_EDA2R", "feature_class": "cross_gene_expression", "importance": 0.42},
-        {"feature": "cn_MYC",     "feature_class": "cross_gene_copy_number", "importance": 0.21},
-        {"feature": "arm_chr8q",  "feature_class": "arm_level_cn",           "importance": 0.15},  # confounder -> dropped
-        {"feature": "lineage_Bowel", "feature_class": "lineage",             "importance": 0.10},  # confounder -> dropped
-        {"feature": "own_mut_hotspot", "feature_class": "own_mut_hotspot",   "importance": 0.05},  # self -> not a partner
+        {"feature": "cn_MYC", "feature_class": "cross_gene_copy_number", "importance": 0.21},
+        {"feature": "arm_chr8q", "feature_class": "arm_level_cn", "importance": 0.15},  # confounder -> dropped
+        {"feature": "lineage_Bowel", "feature_class": "lineage", "importance": 0.10},  # confounder -> dropped
+        {"feature": "own_mut_hotspot", "feature_class": "own_mut_hotspot", "importance": 0.05},  # self -> not a partner
     ],
 }
 # SIGNOR partners: EDA2R is a curated partner (convergence); MYC is NOT (data-driven-only hypothesis).
 _SIGNOR_SUMMARY = {
-    "upstream_regulators":  [{"partner_gene_symbol": "EDA2R"}],
-    "downstream_effectors": [{"partner_symbol": "TP53BP1"}],   # defensive: alt key name still read
+    "upstream_regulators": [{"partner_gene_symbol": "EDA2R"}],
+    "downstream_effectors": [{"partner_symbol": "TP53BP1"}],  # defensive: alt key name still read
 }
 
 

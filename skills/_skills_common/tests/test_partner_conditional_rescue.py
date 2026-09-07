@@ -10,6 +10,7 @@ its frozen enumeration). This test proves the new rungs actually DO what they're
   3. the MODERATE tier rescues too (the WRN×MSI anchor is a -0.41 moderate effect).
 Requires the Track-PC resolver rungs (point TARGET_CONTRACTS_ROOT at the feature branch if not on main).
 """
+
 from __future__ import annotations
 
 import sys
@@ -28,8 +29,7 @@ def _rules(*ids):
 
 
 def _skip_if_rung_absent():
-    v = resolve_verdict_for_gate(_rules("partner-conditional-strongly-dependent-supportive"),
-                                 "dependency")
+    v = resolve_verdict_for_gate(_rules("partner-conditional-strongly-dependent-supportive"), "dependency")
     if not v or v[0] != "partner_conditional_dependent":
         pytest.skip("Track-PC partner-conditional resolver rung not present in resolved contracts")
 
@@ -37,7 +37,8 @@ def _skip_if_rung_absent():
 def test_partner_strong_fires_partner_conditional_dependent():
     _skip_if_rung_absent()
     verdict, driving = resolve_verdict_for_gate(
-        _rules("partner-conditional-strongly-dependent-supportive"), "dependency")
+        _rules("partner-conditional-strongly-dependent-supportive"), "dependency"
+    )
     assert verdict == "partner_conditional_dependent"
     assert driving == "partner-conditional-strongly-dependent-supportive"
 
@@ -46,7 +47,8 @@ def test_partner_moderate_fires_partner_conditional_dependent():
     """The WRN×MSI anchor tier: MODERATE is rescue-firing for this family (delta -0.41)."""
     _skip_if_rung_absent()
     verdict, driving = resolve_verdict_for_gate(
-        _rules("partner-conditional-moderately-dependent-supportive"), "dependency")
+        _rules("partner-conditional-moderately-dependent-supportive"), "dependency"
+    )
     assert verdict == "partner_conditional_dependent"
     assert driving == "partner-conditional-moderately-dependent-supportive"
 
@@ -58,9 +60,9 @@ def test_compound_rescue_intercepts_the_non_dependent_veto():
     false negative rescued (mirrors non_dependent_paralog_buffered)."""
     _skip_if_rung_absent()
     verdict, driving = resolve_verdict_for_gate(
-        _rules("non-dependent-killer",
-               "partner-conditional-moderately-dependent-supportive"), "dependency")
-    assert verdict == "partner_conditional_dependent"   # NOT non_dependent — the rescue intercepts
+        _rules("non-dependent-killer", "partner-conditional-moderately-dependent-supportive"), "dependency"
+    )
+    assert verdict == "partner_conditional_dependent"  # NOT non_dependent — the rescue intercepts
     assert driving == "partner-conditional-moderately-dependent-supportive"
 
 

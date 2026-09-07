@@ -1,6 +1,7 @@
 """report_render — decision-critical detail blocks surfaced from buried spine content:
 flip_conditions ("what would change the call"), subtype stratification (MSI/MSS…), and the
 patient-selection biomarker facet. Fixture shapes mirror the real nomination."""
+
 import sys
 import json
 from pathlib import Path
@@ -23,9 +24,9 @@ def test_flip_conditions_only_recommendation_flips_no_dev_notes():
     fc = _ov(ir, vocab.FLIP_CONDITIONS)
     assert fc is not None
     verdicts = {r["to_verdict"] for r in fc.payload["rows"]}
-    assert "pan_essential_killer" in verdicts               # a counterfactual (present=False)
-    assert "moderately_constrained_safety" in verdicts      # a load-bearing signal (present=True)
-    assert "concordant_dependent" not in verdicts           # recommendation_flip=False → filtered out
+    assert "pan_essential_killer" in verdicts  # a counterfactual (present=False)
+    assert "moderately_constrained_safety" in verdicts  # a load-bearing signal (present=True)
+    assert "concordant_dependent" not in verdicts  # recommendation_flip=False → filtered out
     # the dev-note sentence must never reach the payload.
     assert all("sentence" not in r for r in fc.payload["rows"])
 
@@ -34,24 +35,25 @@ def test_flip_conditions_curated_not_exhaustive():
     # dependency emits 5 recommendation-flips (rests-on + kill + 2 strengthen + 1 dup neutralize) — the
     # block must CURATE, not dump: dedupe by direction, present-first, cap per axis + overall.
     from collections import Counter
+
     ir = build_ir(make_nomination(), resolve_spec("full"))
     fc = _ov(ir, vocab.FLIP_CONDITIONS)
     rows = fc.payload["rows"]
     dep = [r for r in rows if r["axis"] == vocab.skill_title("dependency")]
-    assert len(dep) <= 2                                     # capped per axis
-    assert any(r["present"] for r in dep)                    # the load-bearing rest-on survives
+    assert len(dep) <= 2  # capped per axis
+    assert any(r["present"] for r in dep)  # the load-bearing rest-on survives
     dv = {r["to_verdict"] for r in dep}
-    assert "pan_essential_killer" in dv                      # adverse kill kept
+    assert "pan_essential_killer" in dv  # adverse kill kept
     assert "lineage_selective" not in dv and "selective_dependent" not in dv  # vacuous upside capped out
-    assert "insufficient_underpowered" not in dv             # same-direction dup collapsed into the rest-on
-    assert len(rows) <= 6                                    # global cap
+    assert "insufficient_underpowered" not in dv  # same-direction dup collapsed into the rest-on
+    assert len(rows) <= 6  # global cap
     assert max(Counter(r["axis"] for r in rows).values()) <= 2
 
 
 def test_flip_conditions_present_first_and_rendered_clean():
     t = render_report(make_nomination(), preset="full", backend="text")
     assert "What would change the call" in t
-    assert "H fix" not in t and "DEV NOTE" not in t         # dev-note text never rendered
+    assert "H fix" not in t and "DEV NOTE" not in t  # dev-note text never rendered
     # load-bearing (present) framing vs counterfactual framing.
     assert "rests on" in t
     h = render_report(make_nomination(), preset="full", backend="html")
@@ -78,8 +80,11 @@ def test_subtype_block_surfaces_convergent_subtype():
 
 def test_subtype_block_absent_when_axis_unavailable():
     nom = make_nomination()
-    nom["target_report"]["subtype_convergence"] = {"verdict": "subtype_axis_unavailable",
-                                                   "n_subtypes_evaluated": 0, "per_subtype": {}}
+    nom["target_report"]["subtype_convergence"] = {
+        "verdict": "subtype_axis_unavailable",
+        "n_subtypes_evaluated": 0,
+        "per_subtype": {},
+    }
     assert _ov(build_ir(nom, resolve_spec("full")), vocab.SUBTYPE) is None
 
 
@@ -92,16 +97,16 @@ def test_biomarker_block_surfaces_stratification_not_dev_note():
     assert bm.payload["mutation_stratification"] == "mutant_strongly_dependent"
     assert bm.payload["hypotheses"][0]["intended_use"] == "predictive"
     # the dev-note + deep dependency_performance must be dropped.
-    assert all("_note" not in h and "dependency_performance" not in h
-               for h in bm.payload["hypotheses"])
+    assert all("_note" not in h and "dependency_performance" not in h for h in bm.payload["hypotheses"])
     t = render_report(make_nomination(), preset="full", backend="text")
     assert "Patient-selection biomarker" in t and "DEV NOTE" not in t
-    assert "mutant strongly dependent" in t                 # humanized
+    assert "mutant strongly dependent" in t  # humanized
 
 
 # -- coverage / determinism ---------------------------------------------------------------------
 def test_new_kinds_handled_by_every_backend_and_schema_valid():
     from _skills_common.report_render import coverage
+
     for name, kinds in coverage().items():
         for k in (vocab.FLIP_CONDITIONS, vocab.SUBTYPE, vocab.BIOMARKER):
             assert k in kinds, f"{name} cannot render {k}"

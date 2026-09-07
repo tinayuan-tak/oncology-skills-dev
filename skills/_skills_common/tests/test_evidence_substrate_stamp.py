@@ -11,6 +11,7 @@ Pins:
      existing caller (compose-dashboard byte-golden, target-profile --emit, subskill --emit-envelope)
      is byte-identical and keeps validating against the un-updated evidence_package.schema.
 """
+
 from __future__ import annotations
 
 import sys
@@ -101,27 +102,39 @@ def test_unmigrated_card_resolves_to_none(tmp_path, monkeypatch):
 # --- stamping on the envelope ----------------------------------------------------------------
 
 _CTX = {"target_symbol": "KRAS", "indication": "COADREAD", "data_mode": "exploratory"}
-_VS = {"n_cards_attempted": 1, "n_cards_passed": 1, "n_cards_passed_with_warnings": 0,
-       "n_cards_failed": 0, "n_cards_excluded_by_applies_when": 0}
+_VS = {
+    "n_cards_attempted": 1,
+    "n_cards_passed": 1,
+    "n_cards_passed_with_warnings": 0,
+    "n_cards_failed": 0,
+    "n_cards_excluded_by_applies_when": 0,
+}
 _SYN = {"headline": "test headline"}
 
 
 def _one_card_outputs():
-    return [{
-        "card_id": "tumor-vs-normal-selectivity",
-        "card_version": "1.0.0",
-        "validation_state": "pass",
-        "summary": {"selectivity_class": "tumor_selective"},
-        "interpretation_call": "tumor_selective",
-        "provenance": {"method_calls": [], "input_manifest_ids": ["coadread-dge-tumor-vs-normal-sensitivity-v1"]},
-    }]
+    return [
+        {
+            "card_id": "tumor-vs-normal-selectivity",
+            "card_version": "1.0.0",
+            "validation_state": "pass",
+            "summary": {"selectivity_class": "tumor_selective"},
+            "interpretation_call": "tumor_selective",
+            "provenance": {"method_calls": [], "input_manifest_ids": ["coadread-dge-tumor-vs-normal-sensitivity-v1"]},
+        }
+    ]
 
 
 def _assemble(stamp: bool):
     return assemble_evidence_package(
-        input_context=_CTX, card_outputs=_one_card_outputs(), validation_summary=_VS,
-        synthesis_block=_SYN, deterministic_timestamps=True, framework_version="2.0.0",
-        generated_by="skills/test@abc123", dashboard_spec_ref="skill:test",
+        input_context=_CTX,
+        card_outputs=_one_card_outputs(),
+        validation_summary=_VS,
+        synthesis_block=_SYN,
+        deterministic_timestamps=True,
+        framework_version="2.0.0",
+        generated_by="skills/test@abc123",
+        dashboard_spec_ref="skill:test",
         stamp_evidence_substrate=stamp,
     )
 
@@ -131,8 +144,8 @@ def test_stamp_on_adds_all_three_fields(tmp_path, monkeypatch):
     # required_product_ids reads the card spec's required_inputs; stub it so the test is hermetic
     # (independent of a target-contracts checkout).
     import _skills_common as SC
-    monkeypatch.setattr(SC, "card_input_manifest_ids",
-                        lambda cid: ("coadread-dge-tumor-vs-normal-sensitivity-v1",))
+
+    monkeypatch.setattr(SC, "card_input_manifest_ids", lambda cid: ("coadread-dge-tumor-vs-normal-sensitivity-v1",))
     ep = _assemble(stamp=True)
     entry = next(c for c in ep["cards"] if c.get("card_id") == "tumor-vs-normal-selectivity")
     assert entry["measurement_type"] == "tumor_vs_normal_selectivity"

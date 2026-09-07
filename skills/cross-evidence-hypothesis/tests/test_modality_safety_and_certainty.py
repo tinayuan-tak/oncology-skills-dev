@@ -5,6 +5,7 @@ synthesis.decision_facets layer + the safety_verdict_by_modality stamp on the sa
 No Bedrock: gate_ceiling / parse_certainty_by_axis / weakest_link_certainty are pure; the two run()-level
 tests inject a stub synthesize_fn. Package fixtures are edited copies of evidence_package_new_blocks.json.
 """
+
 from __future__ import annotations
 
 import json
@@ -32,7 +33,7 @@ def _with_safety_hold_and_svbm(pkg, sm_action):
     """Set the safety sub-verdict to a hold-grade WT-loss concern and attach a per-modality safety block
     whose small_molecule channel carries `sm_action` (degrader always holds)."""
     sv = pkg["synthesis"]["sub_verdicts"]
-    sv["safety"]["verdict"] = "human_genetics_safety_concern"     # in hc.SAFETY_HOLD
+    sv["safety"]["verdict"] = "human_genetics_safety_concern"  # in hc.SAFETY_HOLD
     sv["safety"]["safety_verdict_by_modality"] = {
         "small_molecule": {"action": sm_action, "wt_engagement": "conditional", "driving_rules": []},
         "degrader": {"action": "hold", "wt_engagement": "engages_wt", "driving_rules": ["r"]},
@@ -41,6 +42,7 @@ def _with_safety_hold_and_svbm(pkg, sm_action):
 
 
 # =============================== Phase 2 — modality×safety in gate_ceiling ==========================
+
 
 def test_scalar_safety_hold_caps_when_no_modality():
     """Without a --modality, a hold-grade safety verdict caps the ceiling at advanceable_flagged
@@ -83,25 +85,27 @@ def test_missing_svbm_block_is_fail_closed():
 
 # =============================== Phase 3 — per-axis certainty ======================================
 
+
 def test_parse_certainty_by_axis_normalizes_medium_to_moderate():
     pkg = _pkg()
-    pkg["synthesis"]["decision_facets"] = {"certainty_by_axis": {
-        "dependency": {"certainty": {"level": "high"}},
-        "selectivity": {"certainty": {"level": "medium"}},
-        "genomic_alteration": {"certainty": {"level": "low"}},
-        "malformed": {"certainty": "not-a-dict"},
-    }}
+    pkg["synthesis"]["decision_facets"] = {
+        "certainty_by_axis": {
+            "dependency": {"certainty": {"level": "high"}},
+            "selectivity": {"certainty": {"level": "medium"}},
+            "genomic_alteration": {"certainty": {"level": "low"}},
+            "malformed": {"certainty": "not-a-dict"},
+        }
+    }
     cba = hc.parse_certainty_by_axis(pkg)
     assert cba == {"dependency": "high", "selectivity": "moderate", "genomic_alteration": "low"}
 
 
 def test_parse_certainty_by_axis_absent_is_empty():
-    assert hc.parse_certainty_by_axis(_pkg()) == {}          # fixture has no decision_facets → {}
+    assert hc.parse_certainty_by_axis(_pkg()) == {}  # fixture has no decision_facets → {}
 
 
 def test_weakest_link_prefers_sidecar_and_falls_back():
-    conviction = {"dependency": "selective_dependency", "selectivity": "tumor_selective",
-                  "mechanism": "some_call"}
+    conviction = {"dependency": "selective_dependency", "selectivity": "tumor_selective", "mechanism": "some_call"}
     in_scope = ["dependency", "selectivity", "mechanism"]
     # dependency+selectivity opt in (high); mechanism has no sidecar → binary proxy = moderate → limits
     cba = {"dependency": "high", "selectivity": "high"}
@@ -115,38 +119,39 @@ def test_weakest_link_prefers_sidecar_and_falls_back():
 
 def test_weakest_link_gap_axis_still_low():
     conviction = {"dependency": "selective_dependency", "selectivity": "insufficient"}
-    worst, limiting = hc.weakest_link_certainty(conviction, ["dependency", "selectivity"],
-                                                {"dependency": "high"})
-    assert worst == "low" and limiting == "selectivity"      # gap axis (absence-discipline) dominates
+    worst, limiting = hc.weakest_link_certainty(conviction, ["dependency", "selectivity"], {"dependency": "high"})
+    assert worst == "low" and limiting == "selectivity"  # gap axis (absence-discipline) dominates
 
 
 # =============================== run()-level surfacing =============================================
+
 
 def _stub(system, user, name, schema, **kw):
     if name == "cross_edges":
         return {"edges": [], "principal_tensions": [], "evidence_paths": []}
     return {
         "causal_rationale": {"statement": "x", "citations": ["dependency"]},
-        "therapeutic_hypothesis": {"statement": "x", "modality": "small_molecule",
-                                   "citations": ["dependency"]},
+        "therapeutic_hypothesis": {"statement": "x", "modality": "small_molecule", "citations": ["dependency"]},
         "population": {"statement": "x", "citations": ["dependency"]},
         "therapeutic_window": {"statement": "x", "citations": ["safety"]},
         "evidence_grade": {"overall": "moderate", "per_line": []},
-        "proposed_verdict": "advanceable", "proposed_verdict_reason": "x",
+        "proposed_verdict": "advanceable",
+        "proposed_verdict_reason": "x",
         "go_forth": {"next_evidence": "y"},
     }
 
 
 def test_run_surfaces_composed_modality_mismatch(tmp_path):
     pkg = _pkg()
-    pkg["synthesis"]["decision_facets"] = {"composed_modality": "adc"}   # composed under ADC
+    pkg["synthesis"]["decision_facets"] = {"composed_modality": "adc"}  # composed under ADC
     p = tmp_path / "ep.json"
     p.write_text(json.dumps(pkg))
     r = R.run(str(p), None, "small-molecule drug target", "small_molecule", None, synthesize_fn=_stub)
     assert r["degraded_mode"]["composed_modality"] == "adc"
     assert r["degraded_mode"]["modality_mismatch"] is True
-    assert any(t.get("source") == "integrator_modality_mismatch"
-               for t in r["hypothesis"]["tensions"]), "expected a modality-mismatch tension"
+    assert any(t.get("source") == "integrator_modality_mismatch" for t in r["hypothesis"]["tensions"]), (
+        "expected a modality-mismatch tension"
+    )
 
 
 def test_run_matching_modality_has_no_mismatch(tmp_path):
@@ -156,19 +161,17 @@ def test_run_matching_modality_has_no_mismatch(tmp_path):
     p.write_text(json.dumps(pkg))
     r = R.run(str(p), None, "small-molecule drug target", "small_molecule", None, synthesize_fn=_stub)
     assert r["degraded_mode"]["modality_mismatch"] is False
-    assert not any(t.get("source") == "integrator_modality_mismatch"
-                   for t in r["hypothesis"]["tensions"])
+    assert not any(t.get("source") == "integrator_modality_mismatch" for t in r["hypothesis"]["tensions"])
 
 
 def test_run_confidence_tier_divergence_recorded(tmp_path):
     """When the spine's confidence_tier diverges from the integrator's discounted certainty, the
     divergence is recorded in cap_reasons (informational; never overrides the spine)."""
     pkg = _pkg()
-    pkg["synthesis"]["confidence_tier"] = {"tier": "high"}     # spine says high
+    pkg["synthesis"]["confidence_tier"] = {"tier": "high"}  # spine says high
     p = tmp_path / "ep.json"
     p.write_text(json.dumps(pkg))
     # no dossier/risk → degraded inputs cap the integrator's certainty at low → diverges from 'high'
     r = R.run(str(p), None, "small-molecule drug target", "small_molecule", None, synthesize_fn=_stub)
     assert r["uncertainty"]["overall_certainty"] != "high"
-    assert any("diverges from spine confidence_tier 'high'" in reason
-               for reason in r["uncertainty"]["cap_reasons"])
+    assert any("diverges from spine confidence_tier 'high'" in reason for reason in r["uncertainty"]["cap_reasons"])

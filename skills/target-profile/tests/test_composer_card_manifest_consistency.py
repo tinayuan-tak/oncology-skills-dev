@@ -13,6 +13,7 @@ in NO composer entry is a silent drop → FAIL, unless it is on the explicit, do
 
 This is Bedrock-free — it only parses the CARDS/SUB_SKILL_CARDS literals via ast (no live reads).
 """
+
 from __future__ import annotations
 
 import ast
@@ -21,7 +22,7 @@ from pathlib import Path
 
 import pytest
 
-SKILLS = Path(__file__).resolve().parents[2]           # .../skills
+SKILLS = Path(__file__).resolve().parents[2]  # .../skills
 # SUB_SKILLS / SUB_SKILL_CARDS moved from run.py to tp_fanout.py in the 2026-08-16 god-module split.
 COMPOSER = SKILLS / "target-profile" / "scripts" / "tp_fanout.py"
 
@@ -86,7 +87,7 @@ def _sub_skill_cards(skill_dir: str) -> list[str] | None:
 
 def test_no_sub_skill_card_is_silently_dropped_from_the_composer():
     sub_skills, ssc = _composer_maps()
-    all_composed = {c for cards in ssc.values() for c in cards}   # every card the composer composes anywhere
+    all_composed = {c for cards in ssc.values() for c in cards}  # every card the composer composes anywhere
     violations = []
     for skill_dir, _short in sub_skills:
         own = _sub_skill_cards(skill_dir)
@@ -94,16 +95,17 @@ def test_no_sub_skill_card_is_silently_dropped_from_the_composer():
             continue
         for card in own:
             if card in ssc.get(skill_dir, []):
-                continue                                   # composed under its own entry — fine
+                continue  # composed under its own entry — fine
             if card in all_composed:
-                continue                                   # composed under another entry — deliberate cross-gate
+                continue  # composed under another entry — deliberate cross-gate
             if (skill_dir, card) in WAIVED_COMPOSER_OMISSIONS:
-                continue                                   # explicitly waived
+                continue  # explicitly waived
             violations.append((skill_dir, card))
     assert not violations, (
         "sub-skill cards wired into run.py CARDS but DROPPED from the composer (SUB_SKILL_CARDS) and "
         f"not composed anywhere + not waived: {violations}. Either add the card to SUB_SKILL_CARDS or "
-        "add a documented WAIVED_COMPOSER_OMISSIONS entry.")
+        "add a documented WAIVED_COMPOSER_OMISSIONS entry."
+    )
 
 
 def test_gygi_card_is_composed_for_tumor_presence():
@@ -118,7 +120,7 @@ def test_waiver_entries_are_still_real_omissions():
     _sub_skills, ssc = _composer_maps()
     all_composed = {c for cards in ssc.values() for c in cards}
     stale = []
-    for (skill_dir, card) in WAIVED_COMPOSER_OMISSIONS:
+    for skill_dir, card in WAIVED_COMPOSER_OMISSIONS:
         own = _sub_skill_cards(skill_dir) or []
         # a waiver is real iff the card IS in the sub-skill's CARDS and is NOT composed anywhere
         if card not in own or card in all_composed:
@@ -152,7 +154,8 @@ def test_composer_entry_composes_no_card_foreign_to_the_sub_skill():
     assert not violations, (
         "cards composed under a SUB_SKILL_CARDS entry but NOT in that sub-skill's own run.py CARDS "
         f"(stale / typo'd / mis-attributed): {violations}. Fix the entry, or — for a deliberate "
-        "cross-lens attribution — add a documented WAIVED_FOREIGN_COMPOSER_CARDS entry.")
+        "cross-lens attribution — add a documented WAIVED_FOREIGN_COMPOSER_CARDS entry."
+    )
 
 
 def test_foreign_composer_waivers_are_still_real():
@@ -161,7 +164,7 @@ def test_foreign_composer_waivers_are_still_real():
     staleness guard, keeping the waiver list from masking a later correct wiring)."""
     _sub_skills, ssc = _composer_maps()
     stale = []
-    for (skill_dir, card) in WAIVED_FOREIGN_COMPOSER_CARDS:
+    for skill_dir, card in WAIVED_FOREIGN_COMPOSER_CARDS:
         own = set(_sub_skill_cards(skill_dir) or [])
         if card in own or card not in ssc.get(skill_dir, []):
             stale.append((skill_dir, card))
@@ -213,11 +216,11 @@ _GATE_BY_SUBSKILL = {
     "tractability-small-molecule": "tractability_small_molecule",
     "surface-modality-fit": "surface_modality",
     "on-target-safety-liability": "safety",
-    "cis-feature-coherence": "cis_coherence",   # Stage 2 (2026-08-20): resolver-backed (resolve_or_raise),
-                                                # but VERDICT-INERT — cis_coherence ∉ _SHORT_TO_GATE, so it is
-                                                # a resolver call WITHOUT a nomination gate (surfaced only in
-                                                # sub_verdicts + synthesis). This map tracks resolver CALLS, not
-                                                # nomination gates, so it belongs here.
+    "cis-feature-coherence": "cis_coherence",  # Stage 2 (2026-08-20): resolver-backed (resolve_or_raise),
+    # but VERDICT-INERT — cis_coherence ∉ _SHORT_TO_GATE, so it is
+    # a resolver call WITHOUT a nomination gate (surfaced only in
+    # sub_verdicts + synthesis). This map tracks resolver CALLS, not
+    # nomination gates, so it belongs here.
 }
 
 
@@ -280,13 +283,17 @@ def test_gate_map_matches_resolver_calls():
             discovered[skill_dir] = gate
     missing = {k: v for k, v in discovered.items() if k not in _GATE_BY_SUBSKILL}
     stale = {k: _GATE_BY_SUBSKILL[k] for k in _GATE_BY_SUBSKILL if k not in discovered}
-    mismatched = {k: (_GATE_BY_SUBSKILL[k], discovered[k])
-                  for k in _GATE_BY_SUBSKILL if k in discovered and _GATE_BY_SUBSKILL[k] != discovered[k]}
+    mismatched = {
+        k: (_GATE_BY_SUBSKILL[k], discovered[k])
+        for k in _GATE_BY_SUBSKILL
+        if k in discovered and _GATE_BY_SUBSKILL[k] != discovered[k]
+    }
     assert not (missing or stale or mismatched), (
         "_GATE_BY_SUBSKILL is out of sync with the resolve_verdict_for_gate() call sites.\n"
         f"  resolver-backed sub-skills MISSING from the map (add them): {missing}\n"
         f"  map entries with NO resolver call (remove them): {stale}\n"
-        f"  gate-name mismatches (map != run.py): {mismatched}")
+        f"  gate-name mismatches (map != run.py): {mismatched}"
+    )
 
 
 @pytest.mark.skipif(not CONTRACTS.exists(), reason="target-contracts repo not checked out (cross-repo guard)")
@@ -309,7 +316,8 @@ def test_resolver_dependency_cards_are_in_the_composer_entry():
                 violations.append((skill_dir, gate, rid, card))
     assert not violations, (
         "resolver-referenced cards MISSING from the sub-skill's composer entry — the rung can never "
-        f"fire in the composed profile: {violations}. Add each card to SUB_SKILL_CARDS[<sub-skill>].")
+        f"fire in the composed profile: {violations}. Add each card to SUB_SKILL_CARDS[<sub-skill>]."
+    )
 
 
 def test_fr_composer_entry_covers_headline_card_reads():
@@ -322,6 +330,7 @@ def test_fr_composer_entry_covers_headline_card_reads():
     "composed somewhere" guard above). `dependency-predictability` + `genomic-event-model-match` were
     exactly this."""
     import re
+
     _sub_skills, ssc = _composer_maps()
     fr_run = (SKILLS / "functional-requirement" / "scripts" / "run.py").read_text()
     headline_cards = set(re.findall(r'get_card_field\(cards,\s*"([a-z0-9-]+)"', fr_run))
@@ -330,7 +339,8 @@ def test_fr_composer_entry_covers_headline_card_reads():
     assert not missing, (
         f"functional-requirement _headline reads cards NOT in its OWN composer entry: {sorted(missing)} "
         "— _synthesis_facet will KeyError → swallow → empty claim_vector/claim_vectors in the composed "
-        "profile. Add each to SUB_SKILL_CARDS['functional-requirement'].")
+        "profile. Add each to SUB_SKILL_CARDS['functional-requirement']."
+    )
 
 
 def _facet_headline_card_reads(src: str) -> set:
@@ -350,7 +360,7 @@ def _synthesis_facet_body(src: str) -> str:
     _headline card (scan the whole file); a SELF-CONTAINED facet that reads only its own cards (and
     never calls `_headline`) is bounded by its own body — so a partial-in-composed descriptive dossier
     (target-intrinsic: _HEADLINE_SPEC reads 12 cards HOME'd elsewhere) is not forced to over-compose."""
-    m = re.search(r'\ndef _synthesis_facet\b.*?(?=\ndef |\Z)', src, re.S)
+    m = re.search(r"\ndef _synthesis_facet\b.*?(?=\ndef |\Z)", src, re.S)
     return m.group(0) if m else ""
 
 
@@ -368,7 +378,7 @@ def test_facet_subskills_compose_all_headline_card_reads():
         if not run_py.exists():
             continue
         src = run_py.read_text()
-        if "def _synthesis_facet" not in src:          # only facet-exposing sub-skills flow a claim_vector
+        if "def _synthesis_facet" not in src:  # only facet-exposing sub-skills flow a claim_vector
             continue
         # REACHABILITY: if the facet reuses _headline it transitively reads every _headline card (scan the
         # whole file — the common case: safety/tractability/differentiation/surface/combination-vulnerability
@@ -389,4 +399,5 @@ def test_facet_subskills_compose_all_headline_card_reads():
     assert not violations, (
         "facet-exposing sub-skills read cards NOT in their OWN composer entry → _synthesis_facet "
         f"KeyError → swallowed → claim_vector silently empty in the composed profile: {violations}. "
-        "Add each card to SUB_SKILL_CARDS[<sub-skill>] in tp_fanout.py.")
+        "Add each card to SUB_SKILL_CARDS[<sub-skill>] in tp_fanout.py."
+    )

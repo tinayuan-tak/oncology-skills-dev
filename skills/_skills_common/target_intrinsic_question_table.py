@@ -7,6 +7,7 @@ verdict (target-intrinsic is gateless / DESCRIPTIVE). DESCRIPTIVE skill → Sign
 (never supports/opposes the nomination). Signal reuses the claim_vector tier vocabulary
 (strong>moderate>weak>absent, unmeasured); Confidence reuses the corroboration vocabulary.
 """
+
 from __future__ import annotations
 
 from typing import Optional

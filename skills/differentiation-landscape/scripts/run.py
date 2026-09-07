@@ -32,12 +32,20 @@ from _skills_common.subgroup_derivation import make_value_classifier
 # Signals-first sub-group reader (VERDICT-INERT). Thesis: a differentiation signal exists (co-mutation
 # pattern / stemness node / prognostic association). default_classify is the fallback for unmapped values.
 _DIFFERENTIATION_VALUE_TIERS = {
-    "both_patterns_present": "moderate", "co_occurrence": "moderate", "mutual_exclusivity": "moderate",
+    "both_patterns_present": "moderate",
+    "co_occurrence": "moderate",
+    "mutual_exclusivity": "moderate",
     "no_significant_pattern": "absent",
-    "stem_high": "strong", "stem_intermediate": "moderate", "stem_low": "weak",
-    "dominant_node": "strong", "intermediate_node": "moderate", "peripheral_node": "weak",
-    "expression_high_better_survival": "moderate", "expression_high_worse_survival": "moderate",
-    "no_prognostic_association": "absent", "no_survival_association": "absent",
+    "stem_high": "strong",
+    "stem_intermediate": "moderate",
+    "stem_low": "weak",
+    "dominant_node": "strong",
+    "intermediate_node": "moderate",
+    "peripheral_node": "weak",
+    "expression_high_better_survival": "moderate",
+    "expression_high_worse_survival": "moderate",
+    "no_prognostic_association": "absent",
+    "no_survival_association": "absent",
     "subtype_stratifies_survival": "strong",
 }
 from _skills_common.resolver import resolve_or_raise
@@ -46,100 +54,102 @@ from _skills_common.claim_record import assemble_claim_record
 
 SKILL_NAME = "differentiation-landscape"
 SKILL_VERSION = "1.12.0"  # 1.12.0 (2026-09-07, CASE-010 literature-discordance loop): add verdict-INERT survival_direction_scope_caveat — the SURVIVAL axis is mRNA-EXPRESSION↔survival, NOT mutation-outcome; for a mutational driver the direction can differ/invert (KRAS-mutant CRC). Fires only on directional expression-survival classes; verdict/resolver/golden/replay byte-stable.
-                          # 1.11.0 (2026-09-07, CASE-007 literature-discordance loop): add verdict-INERT
-                          #        cooccurrence_temporal_context_caveat — a curated acquired-bypass (target,indication)
-                          #        co-occurring with a first-line-TKI driver (EGFR/ALK/ROS1) is flagged as likely
-                          #        acquired-bypass, not de-novo co-driver (MET/LUAD). Verdict/resolver/golden byte-stable.
-                          # 1.10.0 (2026-09-04, cross-indication generalization follow-up): the v1.9.0 cooccurrence
-                          #        confidence crosswalks were COADREAD-only, so BRAF/SKCM, KRAS/LUAD, KRAS/PAAD, NRAS/SKCM,
-                          #        TP53/BRCA, TP53/LUAD, EGFR/LUAD all read caveat=None (the canonical MAPK/RTK exclusivity +
-                          #        TP53 near-universality signals silently vanished outside CRC). Generalized: the RAS/RAF MAPK-
-                          #        exclusivity guard (_ESTABLISHED_MAPK_EXCLUSIVITY_GENES = KRAS/NRAS/HRAS/BRAF) + TP53
-                          #        near-universal (_NEAR_UNIVERSAL_GENES) are now PAN-CANCER gene-level; +NSCLC RTK-driver
-                          #        exclusivity (EGFR/LUAD/LUSC/NSCLC explicit); +IDH1/GBM as the LINEAGE arm of the confound tier
-                          #        (WHO-2021 IDH-mutant glioma is a distinct lineage). The TMB/lineage confound stays
-                          #        (target,indication)-specific (BRAF/COADREAD TMB arm) and OUTRANKS the pan-cancer guard.
-                          #        VERDICT-INERT (crosswalks feed only the caveat/provenance; resolver + replay + golden byte-stable).
-                          # 1.9.1 (2026-09-04, #1037): + clonality_caveat headline field — COHORT-level (same-SAMPLE)
-                          #        co-occurrence != same-CELL/clonal (the (c) sub-inflation): a pooled bulk TCGA-MC3+GENIE Fisher
-                          #        pair cannot resolve clonal vs subclonal/parallel evolution (Gerlinger 2012 PMID 22397650;
-                          #        McGranahan-Swanton 2017 PMID 28187284). Fires on the co-occurring path only; + a clonality clause
-                          #        in the DIFFERENTIATION polarity_note. VERDICT-INERT.
-                          # 1.9.0 (2026-09-04, literature-and-claims arc): (1) BAKE the OPTIONAL --literature lane
-                          #        (was UNWIRED — literature_fn=make_literature_fn(DIFFERENTIATION_LANDSCAPE, default_retrieve,
-                          #        verify_citations); refined _LENS_QUERY_TERMS +TMB/MSI/patient-strat/combo). (2) NEW consolidated
-                          #        cooccurrence_confidence_caveat headline field — the co-mutation analog of mechanism's
-                          #        actionable_moa / tumor-presence's presence_confirmation caveat: a STATISTICAL co-mutation /
-                          #        mutual-exclusivity association OVER-CALLS a biological / patient-selection relationship. Tiers
-                          #        (i) cooccurrence_tmb_or_lineage_confounded (BRAF/COADREAD MSI-H hypermutation driver, curated),
-                          #        (ii) significant_but_low_effect_or_panel_ineligible / significant_but_near_universal (TP53), (iii)
-                          #        MILDER biologically_established_pattern false-demote guard (KRAS/NRAS-class canonical MAPK
-                          #        exclusivity, curated). (3) cooccurrence_provenance quorum summary. (4) DIFFERENTIATION lens
-                          #        thesis extended + polarity_note ADDED (was NONE). VERDICT-INERT: gates on already-emitted
-                          #        headline fields, None on ns/data_unavailable, NEVER read by the resolver -> differentiation_verdict
-                          #        + resolver golden + KRAS/FBXW7 replay byte-stable.   # 1.8.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.7.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.   # 1.6.0 (2026-08-24): compose competitor-landscape (Open Targets competitor field)
-                          #        as an ADDITIVE, verdict-inert render facet; namespaced competitor_* headline
-                          #        keys feed the target-profile deterministic modality cross-ref. Verdict byte-stable.
-                          # 1.5.0 (2026-08-21): compose clinical-precedent (AACT trial precedent) as an
-                          #        ADDITIVE/VERDICT-INERT render facet (translational-maturity lens);
-                          #        differentiation verdict byte-stable (no resolver rung on clinical_*).
-                          # 1.4.0 (2026-08-21): + canonical HEADLINE block (verdict + confidence + top
-                          #        tension) + shared headline hero (figure_headline_hero.{svg,png,json}).
-                          #        A verdict-INERT projection over the DESCRIPTIVE claim_vector /
-                          #        key_signals — differentiation_verdict spine byte-stable (frozen by
-                          #        the KRAS/FBXW7 COADREAD replay guard).
+# 1.11.0 (2026-09-07, CASE-007 literature-discordance loop): add verdict-INERT
+#        cooccurrence_temporal_context_caveat — a curated acquired-bypass (target,indication)
+#        co-occurring with a first-line-TKI driver (EGFR/ALK/ROS1) is flagged as likely
+#        acquired-bypass, not de-novo co-driver (MET/LUAD). Verdict/resolver/golden byte-stable.
+# 1.10.0 (2026-09-04, cross-indication generalization follow-up): the v1.9.0 cooccurrence
+#        confidence crosswalks were COADREAD-only, so BRAF/SKCM, KRAS/LUAD, KRAS/PAAD, NRAS/SKCM,
+#        TP53/BRCA, TP53/LUAD, EGFR/LUAD all read caveat=None (the canonical MAPK/RTK exclusivity +
+#        TP53 near-universality signals silently vanished outside CRC). Generalized: the RAS/RAF MAPK-
+#        exclusivity guard (_ESTABLISHED_MAPK_EXCLUSIVITY_GENES = KRAS/NRAS/HRAS/BRAF) + TP53
+#        near-universal (_NEAR_UNIVERSAL_GENES) are now PAN-CANCER gene-level; +NSCLC RTK-driver
+#        exclusivity (EGFR/LUAD/LUSC/NSCLC explicit); +IDH1/GBM as the LINEAGE arm of the confound tier
+#        (WHO-2021 IDH-mutant glioma is a distinct lineage). The TMB/lineage confound stays
+#        (target,indication)-specific (BRAF/COADREAD TMB arm) and OUTRANKS the pan-cancer guard.
+#        VERDICT-INERT (crosswalks feed only the caveat/provenance; resolver + replay + golden byte-stable).
+# 1.9.1 (2026-09-04, #1037): + clonality_caveat headline field — COHORT-level (same-SAMPLE)
+#        co-occurrence != same-CELL/clonal (the (c) sub-inflation): a pooled bulk TCGA-MC3+GENIE Fisher
+#        pair cannot resolve clonal vs subclonal/parallel evolution (Gerlinger 2012 PMID 22397650;
+#        McGranahan-Swanton 2017 PMID 28187284). Fires on the co-occurring path only; + a clonality clause
+#        in the DIFFERENTIATION polarity_note. VERDICT-INERT.
+# 1.9.0 (2026-09-04, literature-and-claims arc): (1) BAKE the OPTIONAL --literature lane
+#        (was UNWIRED — literature_fn=make_literature_fn(DIFFERENTIATION_LANDSCAPE, default_retrieve,
+#        verify_citations); refined _LENS_QUERY_TERMS +TMB/MSI/patient-strat/combo). (2) NEW consolidated
+#        cooccurrence_confidence_caveat headline field — the co-mutation analog of mechanism's
+#        actionable_moa / tumor-presence's presence_confirmation caveat: a STATISTICAL co-mutation /
+#        mutual-exclusivity association OVER-CALLS a biological / patient-selection relationship. Tiers
+#        (i) cooccurrence_tmb_or_lineage_confounded (BRAF/COADREAD MSI-H hypermutation driver, curated),
+#        (ii) significant_but_low_effect_or_panel_ineligible / significant_but_near_universal (TP53), (iii)
+#        MILDER biologically_established_pattern false-demote guard (KRAS/NRAS-class canonical MAPK
+#        exclusivity, curated). (3) cooccurrence_provenance quorum summary. (4) DIFFERENTIATION lens
+#        thesis extended + polarity_note ADDED (was NONE). VERDICT-INERT: gates on already-emitted
+#        headline fields, None on ns/data_unavailable, NEVER read by the resolver -> differentiation_verdict
+#        + resolver golden + KRAS/FBXW7 replay byte-stable.   # 1.8.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.7.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.   # 1.6.0 (2026-08-24): compose competitor-landscape (Open Targets competitor field)
+#        as an ADDITIVE, verdict-inert render facet; namespaced competitor_* headline
+#        keys feed the target-profile deterministic modality cross-ref. Verdict byte-stable.
+# 1.5.0 (2026-08-21): compose clinical-precedent (AACT trial precedent) as an
+#        ADDITIVE/VERDICT-INERT render facet (translational-maturity lens);
+#        differentiation verdict byte-stable (no resolver rung on clinical_*).
+# 1.4.0 (2026-08-21): + canonical HEADLINE block (verdict + confidence + top
+#        tension) + shared headline hero (figure_headline_hero.{svg,png,json}).
+#        A verdict-INERT projection over the DESCRIPTIVE claim_vector /
+#        key_signals — differentiation_verdict spine byte-stable (frozen by
+#        the KRAS/FBXW7 COADREAD replay guard).
 
 CARDS = [
     "co-mutation-and-mutual-exclusivity",
-    "stemness-context",   # Malta 2018 (2026-08-10): per-indication tumor-stemness (mRNAsi) cohort prior
-                          # — dedifferentiation/aggressiveness prognostic context. ADDITIVE, VERDICT-INERT
-                          # (its rules feed NO resolver; differentiation verdict byte-stable). reads stemness_index.
-    "expression-clinical-association",   # Q11 (2026-07-23 composition) — does target expression
-                                         # stratify SURVIVAL (prognostic context)? A patient-selection /
-                                         # clinical-context render facet + biomarker-facet stratification
-                                         # input. ADDITIVE — its clinical-* rules feed NO resolver ladder
-                                         # (differentiation verdict byte-stable; resolver reads only the
-                                         # co-mutation rule_ids). Fills part of the clinical-precedent gap
-                                         # this skill's status-partial note flags.
-    "precog-prognostic-association",     # PRECOG (2026-08-10): pan-cancer META-ANALYTIC expression→survival
-                                         # meta-Z (Gentles 2015 + 2026 NAR; 166 datasets / ~18k patients).
-                                         # The better-powered pan-cancer CORROBORATION of the single-cohort
-                                         # expression-clinical-association card above. ADDITIVE, VERDICT-INERT
-                                         # (no resolver rung; differentiation verdict byte-stable). reads precog_prognostic.
-    "pathway-node-leverage",             # (2026-08-17): COMPARATIVE node-leverage — is the target the best
-                                         # NODE to hit in its complex/pathway neighbourhood, or dominated? ADDITIVE,
-                                         # VERDICT-INERT (its rules emit soft axis_fit signals + fired_rule_ids for
-                                         # the cross-evidence hypothesis agent; feed NO resolver → differentiation
-                                         # verdict byte-stable). reads node_leverage_class + evidence_scope.
-    "alteration-clinical-association",   # Q11-alteration (2026-08-20): does {target} MUTATION status
-                                         # stratify OS (prognostic context)? The alteration analog of
-                                         # expression-clinical-association. ADDITIVE, VERDICT-INERT (its
-                                         # alteration-* rules feed NO resolver; differentiation verdict
-                                         # byte-stable). reads alteration_survival_association_class.
-    "subtype-survival-association",      # Q2-subtype (2026-08-20): does OS differ ACROSS the indication's
-                                         # molecular subtypes? Target-independent patient-selection context.
-                                         # ADDITIVE, VERDICT-INERT (subtype-* rules feed NO resolver;
-                                         # differentiation verdict byte-stable). reads subtype_survival_association_class.
-    "clinical-precedent",                # (2026-08-21): AACT clinical-trial precedent for (target, indication) —
-                                         # highest stage / active trials / approved agents / notable failures for a
-                                         # drug that ENGAGES the target. WIRED via public-domain AACT (was the
-                                         # licensing-blocked placeholder this skill's status note flagged). ADDITIVE,
-                                         # VERDICT-INERT (no resolver rung; differentiation verdict byte-stable) —
-                                         # the translational-maturity render facet. reads highest_clinical_stage +.
-    "competitor-landscape",              # (2026-08-24): Open Targets competitor field for (target, indication) —
-                                         # WHO ELSE is developing a drug against this target, at what MODALITY
-                                         # (ADC/TCE/mAb/SM/degrader) and clinical stage. WIRED via the pinned OT mirror
-                                         # (opentargets-target-competitor-drugs-per-gene-v1). ADDITIVE, VERDICT-INERT
-                                         # (no resolver rung; differentiation verdict byte-stable) — the competitive-
-                                         # positioning render facet. The value-add cross-ref vs the framework's own
-                                         # modality-fit/biomarker verdicts is computed at the target-profile fan-out.
-                                         # reads competitor_class + modality_landscape.
+    "stemness-context",  # Malta 2018 (2026-08-10): per-indication tumor-stemness (mRNAsi) cohort prior
+    # — dedifferentiation/aggressiveness prognostic context. ADDITIVE, VERDICT-INERT
+    # (its rules feed NO resolver; differentiation verdict byte-stable). reads stemness_index.
+    "expression-clinical-association",  # Q11 (2026-07-23 composition) — does target expression
+    # stratify SURVIVAL (prognostic context)? A patient-selection /
+    # clinical-context render facet + biomarker-facet stratification
+    # input. ADDITIVE — its clinical-* rules feed NO resolver ladder
+    # (differentiation verdict byte-stable; resolver reads only the
+    # co-mutation rule_ids). Fills part of the clinical-precedent gap
+    # this skill's status-partial note flags.
+    "precog-prognostic-association",  # PRECOG (2026-08-10): pan-cancer META-ANALYTIC expression→survival
+    # meta-Z (Gentles 2015 + 2026 NAR; 166 datasets / ~18k patients).
+    # The better-powered pan-cancer CORROBORATION of the single-cohort
+    # expression-clinical-association card above. ADDITIVE, VERDICT-INERT
+    # (no resolver rung; differentiation verdict byte-stable). reads precog_prognostic.
+    "pathway-node-leverage",  # (2026-08-17): COMPARATIVE node-leverage — is the target the best
+    # NODE to hit in its complex/pathway neighbourhood, or dominated? ADDITIVE,
+    # VERDICT-INERT (its rules emit soft axis_fit signals + fired_rule_ids for
+    # the cross-evidence hypothesis agent; feed NO resolver → differentiation
+    # verdict byte-stable). reads node_leverage_class + evidence_scope.
+    "alteration-clinical-association",  # Q11-alteration (2026-08-20): does {target} MUTATION status
+    # stratify OS (prognostic context)? The alteration analog of
+    # expression-clinical-association. ADDITIVE, VERDICT-INERT (its
+    # alteration-* rules feed NO resolver; differentiation verdict
+    # byte-stable). reads alteration_survival_association_class.
+    "subtype-survival-association",  # Q2-subtype (2026-08-20): does OS differ ACROSS the indication's
+    # molecular subtypes? Target-independent patient-selection context.
+    # ADDITIVE, VERDICT-INERT (subtype-* rules feed NO resolver;
+    # differentiation verdict byte-stable). reads subtype_survival_association_class.
+    "clinical-precedent",  # (2026-08-21): AACT clinical-trial precedent for (target, indication) —
+    # highest stage / active trials / approved agents / notable failures for a
+    # drug that ENGAGES the target. WIRED via public-domain AACT (was the
+    # licensing-blocked placeholder this skill's status note flagged). ADDITIVE,
+    # VERDICT-INERT (no resolver rung; differentiation verdict byte-stable) —
+    # the translational-maturity render facet. reads highest_clinical_stage +.
+    "competitor-landscape",  # (2026-08-24): Open Targets competitor field for (target, indication) —
+    # WHO ELSE is developing a drug against this target, at what MODALITY
+    # (ADC/TCE/mAb/SM/degrader) and clinical stage. WIRED via the pinned OT mirror
+    # (opentargets-target-competitor-drugs-per-gene-v1). ADDITIVE, VERDICT-INERT
+    # (no resolver rung; differentiation verdict byte-stable) — the competitive-
+    # positioning render facet. The value-add cross-ref vs the framework's own
+    # modality-fit/biomarker verdicts is computed at the target-profile fan-out.
+    # reads competitor_class + modality_landscape.
 ]
 
-QUESTION = ("What genes co-occur with or are mutually exclusive to "
-            "{target} mutations across TCGA MC3 + GENIE 19.0-public, "
-            "and what patient-selection or combination-biology hypotheses "
-            "does the pattern support in {indication}?")
+QUESTION = (
+    "What genes co-occur with or are mutually exclusive to "
+    "{target} mutations across TCGA MC3 + GENIE 19.0-public, "
+    "and what patient-selection or combination-biology hypotheses "
+    "does the pattern support in {indication}?"
+)
 
 PARTIAL_STATUS_NOTE = (
     "differentiation-landscape is status: partial. The clinical-precedent card is now WIRED "
@@ -174,14 +184,14 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
 # The differentiation.resolver verdict vocabulary → human phrase, with a prettify fallback for any
 # future addition. All are DESCRIPTIVE pattern reads (direction lives in the claim atoms).
 _DIFFERENTIATION_VERDICT_PHRASE = {
-    "both_patterns_present":     "Co-occurring + mutually-exclusive partners",
-    "strong_cooccurring":        "Strong co-mutation landscape",
+    "both_patterns_present": "Co-occurring + mutually-exclusive partners",
+    "strong_cooccurring": "Strong co-mutation landscape",
     "strong_mutually_exclusive": "Strong mutual-exclusivity landscape",
-    "modest_cooccurring":        "Modest co-mutation signal",
+    "modest_cooccurring": "Modest co-mutation signal",
     "modest_mutually_exclusive": "Modest mutual-exclusivity signal",
-    "ns":                        "No significant co-mutation pattern",
-    "data_unavailable":          "Data unavailable",
-    "insufficient":              "Insufficient evidence",
+    "ns": "No significant co-mutation pattern",
+    "data_unavailable": "Data unavailable",
+    "insufficient": "Insufficient evidence",
 }
 
 
@@ -215,11 +225,13 @@ def _panel_absent_signal(hl: dict) -> str | None:
     elig = _int_or_none(hl.get("n_pairs_panel_intersect_eligible"))
     per_source = _int_or_none(hl.get("n_pairs_per_source_only"))
     if elig == 0 and (per_source or 0) > 0:
-        return ("Target is absent from the GENIE panel-intersect (0 panel-intersect-eligible pairs; "
-                f"{per_source} per-source-only pairs) — no POOLED cross-cohort co-mutation claim is "
-                "possible. The co-mutation pattern rests entirely on per-source pairs and, for a "
-                "large/passenger gene, may reflect tumor-mutational-burden / gene-length confounding "
-                "rather than biology (pooled_eligible=false throughout).")
+        return (
+            "Target is absent from the GENIE panel-intersect (0 panel-intersect-eligible pairs; "
+            f"{per_source} per-source-only pairs) — no POOLED cross-cohort co-mutation claim is "
+            "possible. The co-mutation pattern rests entirely on per-source pairs and, for a "
+            "large/passenger gene, may reflect tumor-mutational-burden / gene-length confounding "
+            "rather than biology (pooled_eligible=false throughout)."
+        )
     return None
 
 
@@ -275,14 +287,16 @@ _TMB_LINEAGE_CONFOUNDED_COMUT = {
         "with a long passenger tail is a tumor-mutational-burden artifact, not a pairwise biological "
         "interaction (Weisenberger 2006 PMID 16804544; TCGA 2012 PMID 22810696; van de Haar 2019 PMID "
         "31150618; DISCOVER Canisius 2016 PMID 27986087 — chance explains most co-occurrence). The actionable "
-        "axis in this subset is MSI/dMMR (checkpoint benefit; KEYNOTE-177), not the BRAF co-mutation per se."),
+        "axis in this subset is MSI/dMMR (checkpoint benefit; KEYNOTE-177), not the BRAF co-mutation per se."
+    ),
     ("IDH1", "GBM"): (
         "LINEAGE arm — IDH1 mutation defines a DISTINCT glioma lineage (IDH-mutant lower-grade glioma / "
         "secondary GBM) that is molecularly separate from IDH-wildtype primary GBM (EGFR-amplified / "
         "PTEN-lost / +7/-10); WHO 2021 classifies them as different entities. So IDH1's co-occurrence / "
         "mutual-exclusivity in a pooled GBM cohort reflects the IDH-mutant SUBTYPE restriction (a Simpson's-"
         "paradox / population-stratification confound), not a pairwise interaction (Yan 2009 PMID 19228619; "
-        "Ceccarelli 2016 PMID 26824661; Guinney-style subtype confound van de Haar 2019 PMID 31150618)."),
+        "Ceccarelli 2016 PMID 26824661; Guinney-style subtype confound van de Haar 2019 PMID 31150618)."
+    ),
 }
 
 # canonical, biologically-ESTABLISHED same-pathway relationships that must NOT be demoted (the FALSE-DEMOTE
@@ -299,7 +313,9 @@ _ESTABLISHED_MAPK_EXCLUSIVITY_GENES = {"KRAS", "NRAS", "HRAS", "BRAF"}
 # lung adenocarcinoma because one activating RTK→RAS→MAPK driver is sufficient (the canonical NSCLC oncogenic-
 # driver partition). DISCLAIMED / non-exhaustive.
 _BIOLOGICALLY_ESTABLISHED_COMUT = {
-    ("EGFR", "LUAD"), ("EGFR", "LUSC"), ("EGFR", "NSCLC"),
+    ("EGFR", "LUAD"),
+    ("EGFR", "LUSC"),
+    ("EGFR", "NSCLC"),
 }
 
 # near-universal drivers whose HIGH co-occurrence count is chiefly a marginal-FREQUENCY consequence (co-occurs
@@ -308,14 +324,17 @@ _BIOLOGICALLY_ESTABLISHED_COMUT = {
 # PMID 27986087). TP53 is near-universal PAN-CANCER (most solid tumors), so this arm is GENE-LEVEL; an
 # indication-specific near-universal driver can be added to the explicit set below. DISCLAIMED / non-exhaustive.
 _NEAR_UNIVERSAL_GENES = {"TP53"}
-_NEAR_UNIVERSAL_MUTATION: set = set()   # explicit (target, indication) rows for non-pan-cancer near-universal drivers
+_NEAR_UNIVERSAL_MUTATION: set = set()  # explicit (target, indication) rows for non-pan-cancer near-universal drivers
 
 # cooccurrence_class values that carry a POSITIVE / significant pattern (the caveat fires ONLY on these; a
 # ns / data_unavailable / insufficient / absent read → None, byte-stable on the negative path). SET literal
 # (NOT a 2-tuple — the drift guard reads a 2-string tuple as a (rule_id, verdict) precedence pair).
 _COMUT_POSITIVE = {
-    "both_patterns_present", "strong_cooccurring", "strong_mutually_exclusive",
-    "modest_cooccurring", "modest_mutually_exclusive",
+    "both_patterns_present",
+    "strong_cooccurring",
+    "strong_mutually_exclusive",
+    "modest_cooccurring",
+    "modest_mutually_exclusive",
 }
 _COMUT_COOC_COMPONENT = {"both_patterns_present", "strong_cooccurring", "modest_cooccurring"}
 _COMUT_MODEST = {"modest_cooccurring", "modest_mutually_exclusive"}
@@ -336,12 +355,14 @@ _ACQUIRED_BYPASS_TEMPORAL_COMUT = {
         "(secondary, treatment-emergent) rather than a same-clone de-novo co-driver interaction (Engelman "
         "2007 PMID 17463250). The cross-sectional pooled Fisher product has no treatment/timepoint axis to "
         "separate de-novo co-mutation from acquired bypass — read this as bypass-CONTEXT, not a de-novo "
-        "patient-selection co-mutation hypothesis."),
+        "patient-selection co-mutation hypothesis."
+    ),
     ("MET", "NSCLC"): (
         "MET in NSCLC (MET-amplification / METex14) is a de-novo driver largely mutually exclusive with "
         "EGFR/ALK/ROS1; a pooled co-occurrence with a first-line-TKI driver most likely reflects ACQUIRED "
         "MET amplification as a TKI bypass/resistance event, not a de-novo co-driver — the pooled Fisher "
-        "product cannot separate the two (no treatment/timepoint axis) (Engelman 2007 PMID 17463250)."),
+        "product cannot separate the two (no treatment/timepoint axis) (Engelman 2007 PMID 17463250)."
+    ),
 }
 
 # first-line-TKI oncogenic-driver partners whose co-occurrence with an acquired-bypass target (above)
@@ -370,7 +391,7 @@ def _cooccurrence_confidence_caveat(hl: dict, target=None, indication=None) -> d
     (ii, significance≠actionability) > None. Gates on already-emitted headline fields; never moves the spine."""
     cls = hl.get("cooccurrence_class")
     if cls not in _COMUT_POSITIVE:
-        return None                                              # ns / data_unavailable / insufficient → byte-stable
+        return None  # ns / data_unavailable / insufficient → byte-stable
     gene = (target or "").upper().strip()
     key = (gene, _norm_ind(indication))
     has_cooc = bool(hl.get("has_cooccurring_driver")) or cls in _COMUT_COOC_COMPONENT
@@ -383,45 +404,73 @@ def _cooccurrence_confidence_caveat(hl: dict, target=None, indication=None) -> d
     if key in _TMB_LINEAGE_CONFOUNDED_COMUT and has_cooc:
         detail = _TMB_LINEAGE_CONFOUNDED_COMUT[key]
         if has_mutex:
-            detail += (" The mutual-exclusivity component (e.g. KRAS/NRAS MAPK pathway redundancy) may still "
-                       "be a real, biologically-established relationship — see top_mutually_exclusive.")
-        return {"reason": "cooccurrence_tmb_or_lineage_confounded", "tier": "sharp",
-                "false_demote_guarded": False, "detail": detail}
+            detail += (
+                " The mutual-exclusivity component (e.g. KRAS/NRAS MAPK pathway redundancy) may still "
+                "be a real, biologically-established relationship — see top_mutually_exclusive."
+            )
+        return {
+            "reason": "cooccurrence_tmb_or_lineage_confounded",
+            "tier": "sharp",
+            "false_demote_guarded": False,
+            "detail": detail,
+        }
 
     # TIER (iii) MILDER — biologically-established same-pathway guard (pan-cancer MAPK-triad OR the explicit
     # NSCLC RTK-driver rows) OUTRANKS the data cautions (a canonical KRAS/NRAS/BRAF/EGFR-class exclusivity must
     # NOT be flagged as low-effect / uninformative).
     if _is_established(gene, key):
-        return {"reason": "biologically_established_pattern", "tier": "milder", "false_demote_guarded": True,
-                "detail": ("Canonical, biologically-established same-pathway relationship — NOT an over-call, "
-                           "explicitly NOT demoted. The RAS/RAF MAPK-activating drivers (KRAS/NRAS/HRAS/BRAF) "
-                           "are mutually exclusive by same-pathway redundancy in ANY cancer — one activating "
-                           "hit is sufficient (Rajagopalan 2002 PMID 12198537; Davies 2002 PMID 12068308) — a "
-                           "validated anti-EGFR negative predictor (CRYSTAL/PRIME); the NSCLC RTK-driver "
-                           "exclusivity (EGFR vs KRAS/ALK) is the same one-driver-sufficient partition.")}
+        return {
+            "reason": "biologically_established_pattern",
+            "tier": "milder",
+            "false_demote_guarded": True,
+            "detail": (
+                "Canonical, biologically-established same-pathway relationship — NOT an over-call, "
+                "explicitly NOT demoted. The RAS/RAF MAPK-activating drivers (KRAS/NRAS/HRAS/BRAF) "
+                "are mutually exclusive by same-pathway redundancy in ANY cancer — one activating "
+                "hit is sufficient (Rajagopalan 2002 PMID 12198537; Davies 2002 PMID 12068308) — a "
+                "validated anti-EGFR negative predictor (CRYSTAL/PRIME); the NSCLC RTK-driver "
+                "exclusivity (EGFR vs KRAS/ALK) is the same one-driver-sufficient partition."
+            ),
+        }
 
     # TIER (ii) SHARP — significance ≠ actionability: near-universal (pan-cancer TP53 OR explicit row), then
     # DATA-derived panel-ineligibility / low effect size.
     if _is_near_universal(gene, key):
-        return {"reason": "significant_but_near_universal", "tier": "sharp", "false_demote_guarded": False,
-                "detail": ("Near-universal driver: co-occurs with a long partner tail chiefly as a "
-                           "marginal-frequency consequence (mutated in a majority of tumors), so a "
-                           "q-significant pair is not a patient-selection hypothesis — significance ≠ "
-                           "actionability (DISCOVER Canisius 2016 PMID 27986087: chance explains most "
-                           "co-occurrence).")}
+        return {
+            "reason": "significant_but_near_universal",
+            "tier": "sharp",
+            "false_demote_guarded": False,
+            "detail": (
+                "Near-universal driver: co-occurs with a long partner tail chiefly as a "
+                "marginal-frequency consequence (mutated in a majority of tumors), so a "
+                "q-significant pair is not a patient-selection hypothesis — significance ≠ "
+                "actionability (DISCOVER Canisius 2016 PMID 27986087: chance explains most "
+                "co-occurrence)."
+            ),
+        }
     if _panel_absent_signal(hl) is not None:
-        return {"reason": "significant_but_low_effect_or_panel_ineligible", "tier": "sharp",
-                "false_demote_guarded": False,
-                "detail": ("Panel-absent: 0 panel-intersect-eligible pairs; the pattern rests entirely on "
-                           "per-source-only pairs (pooled_eligible=false) — no pooled cross-cohort co-mutation "
-                           "claim is possible, and for a large/passenger gene may reflect TMB / gene-length "
-                           "confounding.")}
+        return {
+            "reason": "significant_but_low_effect_or_panel_ineligible",
+            "tier": "sharp",
+            "false_demote_guarded": False,
+            "detail": (
+                "Panel-absent: 0 panel-intersect-eligible pairs; the pattern rests entirely on "
+                "per-source-only pairs (pooled_eligible=false) — no pooled cross-cohort co-mutation "
+                "claim is possible, and for a large/passenger gene may reflect TMB / gene-length "
+                "confounding."
+            ),
+        }
     if cls in _COMUT_MODEST:
-        return {"reason": "significant_but_low_effect_or_panel_ineligible", "tier": "sharp",
-                "false_demote_guarded": False,
-                "detail": ("Modest effect size (q<0.05 but 0.5<|log2_odds_ratio|<1.0): q-significant yet "
-                           "small-effect — informative context, not a decision-grade patient-selection / "
-                           "combination hypothesis.")}
+        return {
+            "reason": "significant_but_low_effect_or_panel_ineligible",
+            "tier": "sharp",
+            "false_demote_guarded": False,
+            "detail": (
+                "Modest effect size (q<0.05 but 0.5<|log2_odds_ratio|<1.0): q-significant yet "
+                "small-effect — informative context, not a decision-grade patient-selection / "
+                "combination hypothesis."
+            ),
+        }
     # A STRONG, panel-eligible, non-confounded, non-near-universal pattern → no caveat (honest positive).
     return None
 
@@ -430,7 +479,7 @@ def _cooccurring_tki_partners(hl: dict) -> list:
     """First-line-TKI driver symbols (EGFR/ALK/ROS1) present among the CO-OCCURRING partners,
     field-absent-safe. The tell that a co-occurrence signal is a treatment-context/bypass association."""
     out = []
-    for p in (hl.get("top_cooccurring") or []):
+    for p in hl.get("top_cooccurring") or []:
         if isinstance(p, dict):
             sym = (p.get("partner_gene_symbol") or "").upper().strip()
             if sym in _FIRST_LINE_TKI_PARTNERS and sym not in out:
@@ -455,16 +504,21 @@ def _survival_direction_scope_caveat(hl: dict) -> dict | None:
     cls = hl.get("survival_association_class")
     if cls not in _EXPRESSION_SURVIVAL_DIRECTIONAL:
         return None
-    return {"reason": "survival_is_expression_not_mutation_outcome", "tier": "scope",
-            "false_demote_guarded": False,
-            "detail": (f"The SURVIVAL axis is an mRNA-EXPRESSION↔survival association (class={cls}: this "
-                       "target's expression level high-vs-low), NOT a mutation-outcome association. For a "
-                       "mutational / activating driver the expression→survival direction can DIFFER FROM — even "
-                       "INVERT — the clinical MUTATION→outcome association (e.g. KRAS-mutant CRC: mutation "
-                       "associates with WORSE outcome, while an expression-high-vs-low split can read "
-                       "better-survival). Interpret as an expression-prognostic signal, not the mutation's "
-                       "clinical prognosis; confirm the mutation-outcome direction from the literature lane "
-                       "(--literature).")}
+    return {
+        "reason": "survival_is_expression_not_mutation_outcome",
+        "tier": "scope",
+        "false_demote_guarded": False,
+        "detail": (
+            f"The SURVIVAL axis is an mRNA-EXPRESSION↔survival association (class={cls}: this "
+            "target's expression level high-vs-low), NOT a mutation-outcome association. For a "
+            "mutational / activating driver the expression→survival direction can DIFFER FROM — even "
+            "INVERT — the clinical MUTATION→outcome association (e.g. KRAS-mutant CRC: mutation "
+            "associates with WORSE outcome, while an expression-high-vs-low split can read "
+            "better-survival). Interpret as an expression-prognostic signal, not the mutation's "
+            "clinical prognosis; confirm the mutation-outcome direction from the literature lane "
+            "(--literature)."
+        ),
+    }
 
 
 def _cooccurrence_temporal_context_caveat(hl: dict, target=None, indication=None) -> dict | None:
@@ -477,28 +531,37 @@ def _cooccurrence_temporal_context_caveat(hl: dict, target=None, indication=None
     → byte-stable negative path. Surfaced by the discordance loop (eval/CASE_LOG.md CASE-007)."""
     cls = hl.get("cooccurrence_class")
     if cls not in _COMUT_POSITIVE:
-        return None                                              # ns / data_unavailable → byte-stable
+        return None  # ns / data_unavailable → byte-stable
     key = ((target or "").upper().strip(), _norm_ind(indication))
     if key not in _ACQUIRED_BYPASS_TEMPORAL_COMUT:
         return None
     has_cooc = bool(hl.get("has_cooccurring_driver")) or cls in _COMUT_COOC_COMPONENT
     if not has_cooc:
-        return None                                              # a clean mutual-exclusivity read → no caveat
+        return None  # a clean mutual-exclusivity read → no caveat
     partners = _cooccurring_tki_partners(hl)
     if not partners:
-        return None                                              # co-occurs, but not with a TKI driver → not the tell
+        return None  # co-occurs, but not with a TKI driver → not the tell
     detail = _ACQUIRED_BYPASS_TEMPORAL_COMUT[key]
-    return {"reason": "cooccurrence_acquired_bypass_temporal_context", "tier": "sharp",
-            "false_demote_guarded": False, "tki_partners": partners, "detail": detail}
+    return {
+        "reason": "cooccurrence_acquired_bypass_temporal_context",
+        "tier": "sharp",
+        "false_demote_guarded": False,
+        "tki_partners": partners,
+        "detail": detail,
+    }
 
 
 def _best_partner(lst) -> dict | None:
     """The top (already rank-sorted) partner's effect-size row, field-absent-safe."""
-    for p in (lst or []):
+    for p in lst or []:
         if isinstance(p, dict):
-            return {"partner_gene_symbol": p.get("partner_gene_symbol"),
-                    "log2_odds_ratio": p.get("log2_odds_ratio"), "bh_q_value": p.get("bh_q_value"),
-                    "source": p.get("source"), "pooled_eligible": p.get("pooled_eligible")}
+            return {
+                "partner_gene_symbol": p.get("partner_gene_symbol"),
+                "log2_odds_ratio": p.get("log2_odds_ratio"),
+                "bh_q_value": p.get("bh_q_value"),
+                "source": p.get("source"),
+                "pooled_eligible": p.get("pooled_eligible"),
+            }
     return None
 
 
@@ -513,8 +576,13 @@ def _cooccurrence_provenance(hl: dict, target=None, indication=None) -> dict | N
     per_source = _int_or_none(hl.get("n_pairs_per_source_only"))
     top_cooc = hl.get("top_cooccurring") or []
     top_mutex = hl.get("top_mutually_exclusive") or []
-    srcs = sorted({str((p or {}).get("source", "")).lower()
-                   for p in (top_cooc[:10] + top_mutex[:10]) if isinstance(p, dict) and p.get("source")})
+    srcs = sorted(
+        {
+            str((p or {}).get("source", "")).lower()
+            for p in (top_cooc[:10] + top_mutex[:10])
+            if isinstance(p, dict) and p.get("source")
+        }
+    )
     gene = (target or "").upper().strip()
     key = (gene, _norm_ind(indication))
     return {
@@ -547,28 +615,34 @@ def _clonality_caveat(hl: dict) -> dict | None:
     Keyed on the emitted headline only (no curated crosswalk): it applies to EVERY pooled co-occurrence."""
     cls = hl.get("cooccurrence_class")
     if cls not in _COMUT_POSITIVE:
-        return None                                              # ns / data_unavailable / insufficient → byte-stable
+        return None  # ns / data_unavailable / insufficient → byte-stable
     has_cooc = bool(hl.get("has_cooccurring_driver")) or cls in _COMUT_COOC_COMPONENT
     if not has_cooc:
-        return None                                              # exclusivity-only → same-cell caveat N/A
+        return None  # exclusivity-only → same-cell caveat N/A
     return {
         "reason": "cohort_not_same_cell_clonal",
         "resolves_clonality": False,
-        "detail": ("Cohort-level co-occurrence, NOT same-cell / clonal. The pooled TCGA-MC3 + GENIE Fisher "
-                   "scan counts two altered genes in the SAME PATIENT / bulk SAMPLE but cannot resolve whether "
-                   "they share a CLONE (clonal co-drivers) or arose in separate subclones / by parallel "
-                   "(branched) evolution — bulk sequencing without single-cell / multi-region / cancer-cell-"
-                   "fraction (CCF) data cannot distinguish clonal from subclonal co-occurrence (Gerlinger 2012 "
-                   "PMID 22397650; McGranahan & Swanton 2017 PMID 28187284). A same-sample co-occurrence is a "
-                   "patient-level association, NOT proof of a same-cell co-driver relationship; a same-cell "
-                   "co-dependency / SL call is owned by functional-requirement + combination-and-vulnerability."),
+        "detail": (
+            "Cohort-level co-occurrence, NOT same-cell / clonal. The pooled TCGA-MC3 + GENIE Fisher "
+            "scan counts two altered genes in the SAME PATIENT / bulk SAMPLE but cannot resolve whether "
+            "they share a CLONE (clonal co-drivers) or arose in separate subclones / by parallel "
+            "(branched) evolution — bulk sequencing without single-cell / multi-region / cancer-cell-"
+            "fraction (CCF) data cannot distinguish clonal from subclonal co-occurrence (Gerlinger 2012 "
+            "PMID 22397650; McGranahan & Swanton 2017 PMID 28187284). A same-sample co-occurrence is a "
+            "patient-level association, NOT proof of a same-cell co-driver relationship; a same-cell "
+            "co-dependency / SL call is owned by functional-requirement + combination-and-vulnerability."
+        ),
     }
 
 
 _DIFFERENTIATION_HEADLINE_SPEC = HeadlineSpec(
     gate="differentiation",
-    axis_labels={"COMUT": "co-mutation landscape", "SURVIVAL": "expression↔survival",
-                 "PROGNOSIS": "PRECOG prognostic", "NODE": "pathway-node leverage"},
+    axis_labels={
+        "COMUT": "co-mutation landscape",
+        "SURVIVAL": "expression↔survival",
+        "PROGNOSIS": "PRECOG prognostic",
+        "NODE": "pathway-node leverage",
+    },
     axis_keys=("COMUT", "SURVIVAL", "PROGNOSIS", "NODE"),
     critical_axes=("COMUT", "SURVIVAL"),
     verdict_label=lambda v: _DIFFERENTIATION_VERDICT_PHRASE.get(v, str(v).replace("_", " ").strip().capitalize()),
@@ -584,10 +658,15 @@ def _build_headline_block(headline: dict) -> dict:
     resolved verdict + the verdict-inert claim_vector / key_signals; never moves the spine. This skill
     emits no CERTAINTY_MODEL sidecar, so confidence is derived from the claim vector's corroboration."""
     v = headline.get("differentiation_verdict")
-    return build_headline(headline, headline.get("claim_vector"), headline.get("key_signals"),
-                          spec=_DIFFERENTIATION_HEADLINE_SPEC, verdict_token=v,
-                          driving_rule_id=headline.get("driving_rule_id"),
-                          verdict_polarity=_differentiation_verdict_polarity(v))
+    return build_headline(
+        headline,
+        headline.get("claim_vector"),
+        headline.get("key_signals"),
+        spec=_DIFFERENTIATION_HEADLINE_SPEC,
+        verdict_token=v,
+        driving_rule_id=headline.get("driving_rule_id"),
+        verdict_polarity=_differentiation_verdict_polarity(v),
+    )
 
 
 # ── (strength, certainty) SIDECAR — CERTAINTY_MODEL.md. ADDITIVE + verdict-INERT. Differentiation is a
@@ -599,7 +678,10 @@ def _build_headline_block(headline: dict) -> dict:
 #    magnitude (co-occurrence vs mutual-exclusivity is a pattern TYPE, not good/bad — informational).
 _DIFF_ORD = {"low": 0, "medium": 1, "high": 2}
 _DIFF_STRONG = {"strong_cooccurring", "strong_mutually_exclusive", "both_patterns_present"}
-_DIFF_MOD = {"modest_cooccurring", "modest_mutually_exclusive"}  # has_cooccurring_driver removed (dead rung, resolver v1.2.0)
+_DIFF_MOD = {
+    "modest_cooccurring",
+    "modest_mutually_exclusive",
+}  # has_cooccurring_driver removed (dead rung, resolver v1.2.0)
 _DIFF_NONE = {"ns", "data_unavailable", "insufficient", None}
 
 
@@ -611,7 +693,7 @@ def _diff_card_field(cards, field):
 
 def _diff_strength(v) -> str:
     if v in _DIFF_STRONG:
-        return "strong_pattern"           # informational: co-occurrence / mutual-exclusivity is a TYPE
+        return "strong_pattern"  # informational: co-occurrence / mutual-exclusivity is a TYPE
     if v in _DIFF_MOD:
         return "moderate_pattern"
     return "none"
@@ -629,12 +711,16 @@ def _strength_certainty(cards, fired=None, verdict_pair=None) -> dict:
     v = verdict_pair[0] if verdict_pair else (_verdict(fired)[0] if fired is not None else None)
     n_pairs = _diff_card_field(cards, "n_pairs_panel_intersect_eligible")
     coverage = _diff_coverage(n_pairs)
-    level = "low" if v in _DIFF_NONE else coverage      # corroboration unmeasured → level = coverage
+    level = "low" if v in _DIFF_NONE else coverage  # corroboration unmeasured → level = coverage
     present = "co-mutation-and-mutual-exclusivity" in {c["card_id"] for c in (cards or [])}
     return {
         "strength": _diff_strength(v),
-        "certainty": {"level": level, "coverage": coverage, "corroboration": "unmeasured",
-                      "unknown_mass": 0.0 if present else 1.0},   # single verdict card (degenerate)
+        "certainty": {
+            "level": level,
+            "coverage": coverage,
+            "corroboration": "unmeasured",
+            "unknown_mass": 0.0 if present else 1.0,
+        },  # single verdict card (degenerate)
         "provenance": {"n_pairs_panel_intersect_eligible": n_pairs},
         "_model_ref": "CERTAINTY_MODEL.md#differentiation",
     }
@@ -650,12 +736,12 @@ _DIFF_STRENGTH_TO_LEVEL = {"strong_pattern": "strong", "moderate_pattern": "mode
 
 def _diff_availability(v) -> str:
     if v == "data_unavailable" or v is None:
-        return "not_wired"                       # open-world → assembler forces unknown/neutral
+        return "not_wired"  # open-world → assembler forces unknown/neutral
     if v == "insufficient":
         return "insufficient"
     if v == "ns":
-        return "measured_negative"               # measured, no significant pattern
-    return "measured_positive"                   # a pattern was detected
+        return "measured_negative"  # measured, no significant pattern
+    return "measured_positive"  # a pattern was detected
 
 
 def _claim_record(cards, fired=None, verdict_pair=None) -> dict:
@@ -665,7 +751,7 @@ def _claim_record(cards, fired=None, verdict_pair=None) -> dict:
     return assemble_claim_record(
         axis="differentiation",
         state=(v or "insufficient"),
-        direction="neutral",                     # descriptive pattern — never pushes a nomination
+        direction="neutral",  # descriptive pattern — never pushes a nomination
         availability=_diff_availability(v),
         magnitude={"level": _DIFF_STRENGTH_TO_LEVEL.get(_diff_strength(v), "none")},
         certainty=sc["certainty"],
@@ -677,72 +763,74 @@ def _claim_record(cards, fired=None, verdict_pair=None) -> dict:
 def _headline(cards, fired, verdict_pair, target=None, indication=None):
     v, drv = verdict_pair or ("insufficient", None)
     hl = {
-        "differentiation_verdict":          v,
-        "driving_rule_id":                  drv,
-        "cooccurrence_class":               get_card_field(cards, "co-mutation-and-mutual-exclusivity",
-                                                 "cooccurrence_class"),
+        "differentiation_verdict": v,
+        "driving_rule_id": drv,
+        "cooccurrence_class": get_card_field(cards, "co-mutation-and-mutual-exclusivity", "cooccurrence_class"),
         # AUDIT: raw pre-floor class (verdict-INERT card field — differs from cooccurrence_class only when a
         # pure-TCGA-WES passenger was floored to ns). Surfaced in cooccurrence_provenance for panel-absence context.
-        "cooccurrence_class_prefloor":      get_card_field(cards, "co-mutation-and-mutual-exclusivity",
-                                                 "cooccurrence_class_prefloor"),
-        "n_significant_cooccurring":        get_card_field(cards, "co-mutation-and-mutual-exclusivity",
-                                                 "n_significant_cooccurring"),
-        "n_significant_mutually_exclusive": get_card_field(cards, "co-mutation-and-mutual-exclusivity",
-                                                 "n_significant_mutually_exclusive"),
-        "n_pairs_panel_intersect_eligible": get_card_field(cards, "co-mutation-and-mutual-exclusivity",
-                                                 "n_pairs_panel_intersect_eligible"),
-        "n_pairs_per_source_only":          get_card_field(cards, "co-mutation-and-mutual-exclusivity",
-                                                 "n_pairs_per_source_only"),
-        "has_cooccurring_driver":           get_card_field(cards, "co-mutation-and-mutual-exclusivity",
-                                                 "has_cooccurring_driver"),
-        "has_mutually_exclusive_driver":    get_card_field(cards, "co-mutation-and-mutual-exclusivity",
-                                                 "has_mutually_exclusive_driver"),
-        "top_cooccurring":                  get_card_field(cards, "co-mutation-and-mutual-exclusivity",
-                                                 "top_cooccurring"),
-        "top_mutually_exclusive":           get_card_field(cards, "co-mutation-and-mutual-exclusivity",
-                                                 "top_mutually_exclusive"),
+        "cooccurrence_class_prefloor": get_card_field(
+            cards, "co-mutation-and-mutual-exclusivity", "cooccurrence_class_prefloor"
+        ),
+        "n_significant_cooccurring": get_card_field(
+            cards, "co-mutation-and-mutual-exclusivity", "n_significant_cooccurring"
+        ),
+        "n_significant_mutually_exclusive": get_card_field(
+            cards, "co-mutation-and-mutual-exclusivity", "n_significant_mutually_exclusive"
+        ),
+        "n_pairs_panel_intersect_eligible": get_card_field(
+            cards, "co-mutation-and-mutual-exclusivity", "n_pairs_panel_intersect_eligible"
+        ),
+        "n_pairs_per_source_only": get_card_field(
+            cards, "co-mutation-and-mutual-exclusivity", "n_pairs_per_source_only"
+        ),
+        "has_cooccurring_driver": get_card_field(cards, "co-mutation-and-mutual-exclusivity", "has_cooccurring_driver"),
+        "has_mutually_exclusive_driver": get_card_field(
+            cards, "co-mutation-and-mutual-exclusivity", "has_mutually_exclusive_driver"
+        ),
+        "top_cooccurring": get_card_field(cards, "co-mutation-and-mutual-exclusivity", "top_cooccurring"),
+        "top_mutually_exclusive": get_card_field(cards, "co-mutation-and-mutual-exclusivity", "top_mutually_exclusive"),
         # Q11 expression→survival prognostic context (render facet; feeds NO resolver — the
         # differentiation verdict reads only the co-mutation rule_ids, so this is verdict-inert):
-        "survival_association_class":       get_card_field(cards, "expression-clinical-association",
-                                                 "survival_association_class"),
-        "logrank_p":                        get_card_field(cards, "expression-clinical-association", "logrank_p"),
+        "survival_association_class": get_card_field(
+            cards, "expression-clinical-association", "survival_association_class"
+        ),
+        "logrank_p": get_card_field(cards, "expression-clinical-association", "logrank_p"),
         # PRECOG pan-cancer META-ANALYTIC corroboration of the single-cohort survival call above
         # (render facet; verdict-inert — no resolver rung). Surface the class + both meta-Z views so a
         # reader can compare the single-cohort log-rank vs the pan-cancer meta-analysis at a glance:
-        "precog_prognostic_class":          get_card_field(cards, "precog-prognostic-association",
-                                                 "prognostic_class"),
-        "precog_meta_z":                    get_card_field(cards, "precog-prognostic-association", "meta_z"),
-        "precog_pan_cancer_meta_z":         get_card_field(cards, "precog-prognostic-association",
-                                                 "pan_cancer_meta_z"),
-        "precog_indication_approx":         get_card_field(cards, "precog-prognostic-association",
-                                                 "precog_indication_approx"),
+        "precog_prognostic_class": get_card_field(cards, "precog-prognostic-association", "prognostic_class"),
+        "precog_meta_z": get_card_field(cards, "precog-prognostic-association", "meta_z"),
+        "precog_pan_cancer_meta_z": get_card_field(cards, "precog-prognostic-association", "pan_cancer_meta_z"),
+        "precog_indication_approx": get_card_field(cards, "precog-prognostic-association", "precog_indication_approx"),
         # comparative node-leverage (soft/verdict-inert differentiation context; feeds NO resolver —
         # its axis_fit signals + fired_rule_ids are consumed by the cross-evidence hypothesis agent):
-        "node_leverage_class":              get_card_field(cards, "pathway-node-leverage",
-                                                 "node_leverage_class"),
-        "node_leverage_evidence_scope":     get_card_field(cards, "pathway-node-leverage",
-                                                 "evidence_scope"),
+        "node_leverage_class": get_card_field(cards, "pathway-node-leverage", "node_leverage_class"),
+        "node_leverage_evidence_scope": get_card_field(cards, "pathway-node-leverage", "evidence_scope"),
         # AACT clinical-trial precedent (render facet; verdict-inert — no resolver rung). The
         # translational-maturity lens: highest stage reached by a drug ENGAGING the target in this
         # indication, active-trial count, approved agents, and notable (terminated) failures.
         # (highest_clinical_stage is the primary categorical — the card emits no separate _class field):
-        "highest_clinical_stage":           get_card_field(cards, "clinical-precedent", "highest_clinical_stage"),
-        "n_active_trials":                  get_card_field(cards, "clinical-precedent", "n_active_trials"),
-        "approved_agents":                  get_card_field(cards, "clinical-precedent", "approved_agents"),
-        "notable_failures":                 get_card_field(cards, "clinical-precedent", "notable_failures"),
+        "highest_clinical_stage": get_card_field(cards, "clinical-precedent", "highest_clinical_stage"),
+        "n_active_trials": get_card_field(cards, "clinical-precedent", "n_active_trials"),
+        "approved_agents": get_card_field(cards, "clinical-precedent", "approved_agents"),
+        "notable_failures": get_card_field(cards, "clinical-precedent", "notable_failures"),
         # Open Targets competitor field (render facet; verdict-inert — no resolver rung). The
         # competitive-positioning lens: who else has a drug against this target, at what MODALITY and
         # stage. Namespaced 'competitor_*' to avoid colliding with the AACT clinical-precedent keys
         # above. modality_landscape is the field the target-profile cross-ref keys on (competitor
         # modality validated-vs-contrarian vs the framework's own surface-modality-fit verdict).
-        "competitor_class":                 get_card_field(cards, "competitor-landscape", "competitor_class"),
-        "competitor_highest_stage":         get_card_field(cards, "competitor-landscape", "highest_clinical_stage"),
-        "competitor_indication_scope":      get_card_field(cards, "competitor-landscape", "indication_scope"),
-        "n_competitor_programs":            get_card_field(cards, "competitor-landscape", "n_competitor_programs"),
-        "competitor_approved_agents":       get_card_field(cards, "competitor-landscape", "approved_agents"),
-        "competitor_late_stage_non_approved": get_card_field(cards, "competitor-landscape", "late_stage_non_approved_agents"),
-        "competitor_modalities_in_development": get_card_field(cards, "competitor-landscape", "modalities_in_development"),
-        "competitor_modality_landscape":    get_card_field(cards, "competitor-landscape", "modality_landscape"),
+        "competitor_class": get_card_field(cards, "competitor-landscape", "competitor_class"),
+        "competitor_highest_stage": get_card_field(cards, "competitor-landscape", "highest_clinical_stage"),
+        "competitor_indication_scope": get_card_field(cards, "competitor-landscape", "indication_scope"),
+        "n_competitor_programs": get_card_field(cards, "competitor-landscape", "n_competitor_programs"),
+        "competitor_approved_agents": get_card_field(cards, "competitor-landscape", "approved_agents"),
+        "competitor_late_stage_non_approved": get_card_field(
+            cards, "competitor-landscape", "late_stage_non_approved_agents"
+        ),
+        "competitor_modalities_in_development": get_card_field(
+            cards, "competitor-landscape", "modalities_in_development"
+        ),
+        "competitor_modality_landscape": get_card_field(cards, "competitor-landscape", "modality_landscape"),
     }
     # verdict-INERT claim-vector projection (7th concrete) — COMUT/SURVIVAL/PROGNOSIS/NODE decomposition
     # + citable atoms the composed fan-out lifts to the cross-evidence agent.
@@ -789,7 +877,8 @@ def _headline(cards, fired, verdict_pair, target=None, indication=None):
     # path; None otherwise (byte-stable spine; independent of cooccurrence_confidence_caveat). Verdict-INERT.
     try:
         hl["cooccurrence_temporal_context_caveat"] = _cooccurrence_temporal_context_caveat(
-            hl, target=target, indication=indication)
+            hl, target=target, indication=indication
+        )
     except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
         hl.setdefault("_enrichment_errors", {})["cooccurrence_temporal_context_caveat"] = f"{type(exc).__name__}: {exc}"
         hl["cooccurrence_temporal_context_caveat"] = None
@@ -847,17 +936,32 @@ def _headline(cards, fired, verdict_pair, target=None, indication=None):
 
 
 _SYNTHESIS_FACET_KEYS = (
-    "differentiation_verdict", "driving_rule_id", "cooccurrence_class",
-    "survival_association_class", "precog_prognostic_class", "node_leverage_class",
-    "highest_clinical_stage", "n_active_trials", "approved_agents", "notable_failures",
+    "differentiation_verdict",
+    "driving_rule_id",
+    "cooccurrence_class",
+    "survival_association_class",
+    "precog_prognostic_class",
+    "node_leverage_class",
+    "highest_clinical_stage",
+    "n_active_trials",
+    "approved_agents",
+    "notable_failures",
     # Open Targets competitor field (verdict-inert) — the substrate for the target-profile cross-ref:
-    "competitor_class", "competitor_highest_stage", "competitor_indication_scope",
-    "n_competitor_programs", "competitor_approved_agents", "competitor_late_stage_non_approved",
-    "competitor_modalities_in_development", "competitor_modality_landscape",
-    "claim_vector", "key_signals",
+    "competitor_class",
+    "competitor_highest_stage",
+    "competitor_indication_scope",
+    "n_competitor_programs",
+    "competitor_approved_agents",
+    "competitor_late_stage_non_approved",
+    "competitor_modalities_in_development",
+    "competitor_modality_landscape",
+    "claim_vector",
+    "key_signals",
     # the CONSOLIDATED statistical-vs-biological co-mutation confidence caveat + provenance quorum
     # (verdict-INERT; the co-mutation analog of mechanism's actionable-MoA / tumor-presence's presence caveat):
-    "cooccurrence_confidence_caveat", "cooccurrence_provenance", "cooccurrence_class_prefloor",
+    "cooccurrence_confidence_caveat",
+    "cooccurrence_provenance",
+    "cooccurrence_class_prefloor",
     # cohort-level ≠ same-cell/clonal co-occurrence (the (c) sub-inflation; verdict-inert, co-occurring path):
     "clonality_caveat",
     # temporal-context ≠ de-novo co-driver (CASE-007; verdict-inert, curated acquired-bypass path):
@@ -882,32 +986,36 @@ def _synthesis_facet(cards, fired, verdict_pair, target=None, indication=None):
     composed profile too."""
     h = _headline(cards, fired, verdict_pair, target=target, indication=indication)
     facet = {k: h.get(k) for k in _SYNTHESIS_FACET_KEYS}
-    facet["_facet_note"] = ("Deterministic differentiation-landscape facet; claim_vector is a DESCRIPTIVE "
-                            "decomposition (direction in the atoms). Verdict owned by the resolver.")
+    facet["_facet_note"] = (
+        "Deterministic differentiation-landscape facet; claim_vector is a DESCRIPTIVE "
+        "decomposition (direction in the atoms). Verdict owned by the resolver."
+    )
     return facet
 
 
 if __name__ == "__main__":
-    sys.exit(run_wired_skill(
-        skill_name=SKILL_NAME,
-        skill_version=SKILL_VERSION,
-        cards=CARDS,
-        axis="intracellular_intrinsic",
-        question=QUESTION,
-        verdict_fn=_verdict,
-        headline_fn=_headline,
-        # NET-NEW capsule-driven narrator (generic engine + this lens's LensConfig).
-        synthesize_fn=make_synthesize_fn(_LENS),
-        # OPTIONAL verdict-INERT LLM --literature lane (BAKED 2026-09-04): Europe-PMC-grounded (default_retrieve
-        # = Europe PMC → PubTator3 fallback) + PMID-verified (verify_citations); attached as
-        # decision['literature_synthesis'] AFTER the deterministic decision is composed and fed to the
-        # --synthesize narrator as a corroboration/contradiction lane. Query terms
-        # (_LENS_QUERY_TERMS["differentiation-landscape"]) refined for the co-mutation / mutual-exclusivity /
-        # TMB-MSI / patient-selection / combination trap. Spine byte-stable (the lane cannot touch the verdict).
-        literature_fn=make_literature_fn(_LENS, retrieve_fn=default_retrieve, verify_fn=verify_citations),
-        # Skill-level graphics (opt-in --figures): the canonical headline hero. Additive / display-only.
-        skill_figures_fn=emit_headline_hero,
-        partial_status_note=PARTIAL_STATUS_NOTE,
-        # Signals-first: tuned sub-group reader for the differentiation vocabulary. Verdict-INERT.
-        subgroup_classify=make_value_classifier(_DIFFERENTIATION_VALUE_TIERS),
-    ))
+    sys.exit(
+        run_wired_skill(
+            skill_name=SKILL_NAME,
+            skill_version=SKILL_VERSION,
+            cards=CARDS,
+            axis="intracellular_intrinsic",
+            question=QUESTION,
+            verdict_fn=_verdict,
+            headline_fn=_headline,
+            # NET-NEW capsule-driven narrator (generic engine + this lens's LensConfig).
+            synthesize_fn=make_synthesize_fn(_LENS),
+            # OPTIONAL verdict-INERT LLM --literature lane (BAKED 2026-09-04): Europe-PMC-grounded (default_retrieve
+            # = Europe PMC → PubTator3 fallback) + PMID-verified (verify_citations); attached as
+            # decision['literature_synthesis'] AFTER the deterministic decision is composed and fed to the
+            # --synthesize narrator as a corroboration/contradiction lane. Query terms
+            # (_LENS_QUERY_TERMS["differentiation-landscape"]) refined for the co-mutation / mutual-exclusivity /
+            # TMB-MSI / patient-selection / combination trap. Spine byte-stable (the lane cannot touch the verdict).
+            literature_fn=make_literature_fn(_LENS, retrieve_fn=default_retrieve, verify_fn=verify_citations),
+            # Skill-level graphics (opt-in --figures): the canonical headline hero. Additive / display-only.
+            skill_figures_fn=emit_headline_hero,
+            partial_status_note=PARTIAL_STATUS_NOTE,
+            # Signals-first: tuned sub-group reader for the differentiation vocabulary. Verdict-INERT.
+            subgroup_classify=make_value_classifier(_DIFFERENTIATION_VALUE_TIERS),
+        )
+    )

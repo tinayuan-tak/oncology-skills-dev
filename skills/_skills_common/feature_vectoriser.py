@@ -24,6 +24,7 @@ query (build_atlas and Atlas._embed will both call this); verdict-INERT (a proje
 `None` (unmeasured) is kept DISTINCT from a measured 0.0. Reused by build_atlas (offline) and archetype_core
 (runtime) once the re-freeze adopts it — until then it is additive and touches no frozen path.
 """
+
 from __future__ import annotations
 
 from typing import Optional
@@ -32,7 +33,7 @@ from _skills_common.archetype_core import claim_features
 from _skills_common.evidence_salience import SALIENCE_SPECS
 
 FEATURE_SCHEMA_VERSION = "1.0.0"
-VERDICT_FEATURES_STATUS = "deferred"   # pending a shared verdict→severity contract (see module docstring)
+VERDICT_FEATURES_STATUS = "deferred"  # pending a shared verdict→severity contract (see module docstring)
 
 # sign multiplier so a larger feature value always means "more supportive of the phenotype"
 _DIR_SIGN = {"higher_is_stronger": 1.0, "lower_is_stronger": -1.0, "higher_is_worse": 1.0}
@@ -61,7 +62,7 @@ def _num(v) -> Optional[float]:
         f = float(v)
     except (TypeError, ValueError):
         return None
-    return f if f == f else None   # drop NaN
+    return f if f == f else None  # drop NaN
 
 
 def numeric_features(numeric_values: dict) -> dict:

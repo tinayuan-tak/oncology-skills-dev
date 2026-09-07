@@ -6,14 +6,15 @@ into the ONE `skill_report` shape every skill shares, stamping the `role` (gatin
 the canonical polarity (from `ordinal_view`). It NEVER recomputes or moves a verdict — signals lead, the
 verdict is a subordinate summary (the contract's central principle).
 """
+
 from __future__ import annotations
 
 from typing import Optional, Sequence
 
 # role taxonomy — how the composer treats the skill (see the contract doc).
-ROLE_GATING = "gating"            # verdict can move the nomination recommendation (∈ _SHORT_TO_GATE)
+ROLE_GATING = "gating"  # verdict can move the nomination recommendation (∈ _SHORT_TO_GATE)
 ROLE_DESCRIPTIVE = "descriptive"  # real read, no gate (rendered, excluded from gate math)
-ROLE_INERT = "inert"             # verdict-shaped but explicitly not a call (e.g. cis_coherence)
+ROLE_INERT = "inert"  # verdict-shaped but explicitly not a call (e.g. cis_coherence)
 ROLES = (ROLE_GATING, ROLE_DESCRIPTIVE, ROLE_INERT)
 
 # 3-band headline polarity → the canonical order-preserving scale (ordinal_view). We cannot distinguish
@@ -48,18 +49,20 @@ def _chips_from_claim_vector(claim_vector: Optional[dict], axis_labels: Optional
     chips = []
     for key, atom in claim_vector.items():
         if not isinstance(atom, dict) or "signal" not in atom:
-            continue                       # skip scalars like `homogeneity` / `_disclaimer`
+            continue  # skip scalars like `homogeneity` / `_disclaimer`
         cites = _cites_for(atom)
-        chips.append({
-            "key": key,
-            "label": (axis_labels or {}).get(key) or atom.get("informs"),
-            "signal": atom.get("signal"),
-            "corroboration": atom.get("corroboration"),
-            "conflict": atom.get("conflict"),
-            "evidence": atom.get("evidence"),
-            "cites": cites,                                   # FULL role-tagged card list (signal/corrob/conflict)
-            "cite": (atom.get("evidence_atom") or {}).get("cite"),   # back-compat: raw primary (signal) card
-        })
+        chips.append(
+            {
+                "key": key,
+                "label": (axis_labels or {}).get(key) or atom.get("informs"),
+                "signal": atom.get("signal"),
+                "corroboration": atom.get("corroboration"),
+                "conflict": atom.get("conflict"),
+                "evidence": atom.get("evidence"),
+                "cites": cites,  # FULL role-tagged card list (signal/corrob/conflict)
+                "cite": (atom.get("evidence_atom") or {}).get("cite"),  # back-compat: raw primary (signal) card
+            }
+        )
     return chips
 
 
@@ -74,15 +77,14 @@ def _scalars_from_claim_vector(claim_vector: Optional[dict]) -> dict:
     out: dict = {}
     for key, val in claim_vector.items():
         if key.startswith("_"):
-            continue                                   # private (e.g. `_disclaimer`) — not a signal
+            continue  # private (e.g. `_disclaimer`) — not a signal
         if isinstance(val, dict) and "signal" in val:
-            continue                                   # an atom claim → already a chip
+            continue  # an atom claim → already a chip
         out[key] = val
     return out
 
 
-def canonical_polarity(role: str, headline_block: Optional[dict],
-                       explicit: Optional[str] = None) -> str:
+def canonical_polarity(role: str, headline_block: Optional[dict], explicit: Optional[str] = None) -> str:
     """The one normalized direction for the call. descriptive/inert → `not_scored`; otherwise map the
     3-band headline polarity onto the canonical scale (or honor an explicit canonical override)."""
     if role in (ROLE_DESCRIPTIVE, ROLE_INERT):
@@ -93,22 +95,25 @@ def canonical_polarity(role: str, headline_block: Optional[dict],
     return _HEADLINE_TO_CANONICAL.get(hb_pol, "neutral")
 
 
-def build_skill_report(*, role: str,
-                       verdict: Optional[str],
-                       driving_rule_id: Optional[str] = None,
-                       headline_block: Optional[dict] = None,
-                       claim_vector: Optional[dict] = None,
-                       question_table: Optional[list] = None,
-                       fired_rule_ids: Optional[Sequence[str]] = None,
-                       cards_used: Optional[Sequence[str]] = None,
-                       cards_missing: Optional[Sequence[str]] = None,
-                       per_phase_metrics: Optional[list] = None,
-                       figures: Optional[list] = None,
-                       axis_labels: Optional[dict] = None,
-                       modality_scope: Optional[dict] = None,
-                       claim_chips_by_subtype: Optional[list] = None,
-                       subgroup_signals: Optional[dict] = None,
-                       canonical_polarity_override: Optional[str] = None) -> dict:
+def build_skill_report(
+    *,
+    role: str,
+    verdict: Optional[str],
+    driving_rule_id: Optional[str] = None,
+    headline_block: Optional[dict] = None,
+    claim_vector: Optional[dict] = None,
+    question_table: Optional[list] = None,
+    fired_rule_ids: Optional[Sequence[str]] = None,
+    cards_used: Optional[Sequence[str]] = None,
+    cards_missing: Optional[Sequence[str]] = None,
+    per_phase_metrics: Optional[list] = None,
+    figures: Optional[list] = None,
+    axis_labels: Optional[dict] = None,
+    modality_scope: Optional[dict] = None,
+    claim_chips_by_subtype: Optional[list] = None,
+    subgroup_signals: Optional[dict] = None,
+    canonical_polarity_override: Optional[str] = None,
+) -> dict:
     """Assemble the canonical `skill_report`. Pure projection over already-computed objects; never moves
     a verdict. `verdict` is None for gateless skills. See docs/UNIFIED_OUTPUT_CONTRACT.md."""
     if role not in ROLES:
@@ -159,5 +164,4 @@ def build_skill_report(*, role: str,
     }
 
 
-__all__ = ["build_skill_report", "canonical_polarity", "ROLES",
-           "ROLE_GATING", "ROLE_DESCRIPTIVE", "ROLE_INERT"]
+__all__ = ["build_skill_report", "canonical_polarity", "ROLES", "ROLE_GATING", "ROLE_DESCRIPTIVE", "ROLE_INERT"]

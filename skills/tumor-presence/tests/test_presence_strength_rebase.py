@@ -4,6 +4,7 @@ ALB-style false-strong — a single tumor-vs-adjacent contrast wins the ladder (
 `strongly_upregulated_in_tumor`) but the integrated signal package is weak — which previously ranked
 albumin at composite 1.0, ABOVE validated ERBB2. Verdict-INERT sidecar.
 """
+
 from pathlib import Path
 
 from _skills_common.presence_claims import presence_strength_from_state
@@ -24,35 +25,51 @@ _ALB_ST = {"present": "protein_only_rna_absent", "conflict": True}
 
 
 def test_peak_signal_drives_strength():
-    assert presence_strength_from_state({"present": "yes"}, _cv("strong", "absent", "absent", "absent")) == "strong_positive"
-    assert presence_strength_from_state({"present": "yes"}, _cv("moderate", "weak", "absent", "absent")) == "moderate_positive"
-    assert presence_strength_from_state({"present": "rna_only"}, _cv("weak", "absent", "absent", "absent")) == "weak_positive"
+    assert (
+        presence_strength_from_state({"present": "yes"}, _cv("strong", "absent", "absent", "absent"))
+        == "strong_positive"
+    )
+    assert (
+        presence_strength_from_state({"present": "yes"}, _cv("moderate", "weak", "absent", "absent"))
+        == "moderate_positive"
+    )
+    assert (
+        presence_strength_from_state({"present": "rna_only"}, _cv("weak", "absent", "absent", "absent"))
+        == "weak_positive"
+    )
 
 
 def test_presence_state_floors():
     assert presence_strength_from_state({"present": "no"}, _cv("strong", "strong", "strong", "strong")) == "negative"
     assert presence_strength_from_state({"present": "untested"}, _cv("strong", "strong", "strong", "strong")) == "none"
     # a protein<->RNA conflict is never strong, even with a strong claim signal
-    assert presence_strength_from_state({"present": "rna_only_protein_absent", "conflict": True},
-                                        _cv("strong", "strong", "strong", "strong")) == "weak_positive"
+    assert (
+        presence_strength_from_state(
+            {"present": "rna_only_protein_absent", "conflict": True}, _cv("strong", "strong", "strong", "strong")
+        )
+        == "weak_positive"
+    )
 
 
 def test_alb_is_not_strong_despite_strong_upregulation_verdict():
     """The core fix: ALB's ladder verdict is strongly_upregulated_in_tumor, but its integrated signal
     package peaks at weak → the re-based strength is weak_positive, not strong_positive."""
     assert presence_strength_from_state(_ALB_ST, _ALB_CV) == "weak_positive"
-    sc = tp._strength_certainty([], verdict_pair=("strongly_upregulated_in_tumor", "rid"),
-                                claim_vector=_ALB_CV, presence_state=_ALB_ST)
-    assert sc["strength"] == "weak_positive"          # was strong_positive under the verdict-keyed basis
+    sc = tp._strength_certainty(
+        [], verdict_pair=("strongly_upregulated_in_tumor", "rid"), claim_vector=_ALB_CV, presence_state=_ALB_ST
+    )
+    assert sc["strength"] == "weak_positive"  # was strong_positive under the verdict-keyed basis
 
 
 def test_erbb2_outranks_alb_composite_regression():
     """ERBB2 (validated) must rank ABOVE ALB (contamination artifact). Under the OLD verdict-keyed
     strength both read strong_positive and ALB even tied/beat ERBB2 at composite 1.0."""
-    erbb2 = tp._strength_certainty([], verdict_pair=("broadly_high_expression", "rid"),
-                                   claim_vector=_ERBB2_CV, presence_state=_ERBB2_ST)
-    alb = tp._strength_certainty([], verdict_pair=("strongly_upregulated_in_tumor", "rid"),
-                                 claim_vector=_ALB_CV, presence_state=_ALB_ST)
+    erbb2 = tp._strength_certainty(
+        [], verdict_pair=("broadly_high_expression", "rid"), claim_vector=_ERBB2_CV, presence_state=_ERBB2_ST
+    )
+    alb = tp._strength_certainty(
+        [], verdict_pair=("strongly_upregulated_in_tumor", "rid"), claim_vector=_ALB_CV, presence_state=_ALB_ST
+    )
     assert erbb2["strength"] == "strong_positive"
     assert alb["strength"] == "weak_positive"
     assert erbb2["composite"] > alb["composite"]
@@ -63,6 +80,7 @@ def test_falls_back_to_verdict_basis_without_vector():
     caller that hasn't migrated is unchanged."""
     sc = tp._strength_certainty([], verdict_pair=("strongly_upregulated_in_tumor", "rid"))
     assert sc["strength"] == "strong_positive"
+
 
 # NOTE: standalone _headline emission of strength_certainty (with the re-based strength) is covered by
 # the full-fixture replay suite (test_tumor_presence_replay.py) — _headline reads every card via the

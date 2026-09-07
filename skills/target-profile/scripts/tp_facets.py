@@ -3,6 +3,7 @@ router): ordinal matrix, biomarker, subtype, fragility, heterogeneity, addressab
 competitor cross-ref, per-axis certainty, modality-fit-by-channel, actionability-mode, magnitude,
 and cross-gate shared-evidence, plus the composed target_report builder family (build_target_report /
 build_target_rollup / build_target_call / build_target_coherence / build_composed_evidence_graph)."""
+
 from __future__ import annotations
 
 import functools
@@ -21,23 +22,40 @@ from _skills_common.flip_analysis import flip_analysis
 from _skills_common.narrative import build_narrative
 from tp_common import _CONTRACTS_REPO
 from tp_fanout import SUBTYPE_SHORT, _SHORT_TO_GATE, _CONFIDENCE_AXIS_TO_GATE
-from tp_gates import _COVERAGE_RANK, _load_gate_coverage, _load_gate_verdicts, _load_positive_signals, _run_coverage_for_short, _sub_result_has_signal
+from tp_gates import (
+    _COVERAGE_RANK,
+    _load_gate_coverage,
+    _load_gate_verdicts,
+    _load_positive_signals,
+    _run_coverage_for_short,
+    _sub_result_has_signal,
+)
 from tp_facets_biomarker import (  # re-export the split-out biomarker cluster
-    _BIOMARKER_INPUTS, _BIOMARKER_QUANT,
-    _biomarker_quantitative, _classify_biomarker_best_roles, _biomarker_facet,
+    _BIOMARKER_INPUTS,
+    _BIOMARKER_QUANT,
+    _biomarker_quantitative,
+    _classify_biomarker_best_roles,
+    _biomarker_facet,
 )
 from tp_facets_subtype import (  # re-export the split-out subtype/subgroup cluster
-    _SUBTYPE_INPUTS, _first_card_per_subgroup, _backfill_subtype_spine,
-    _subtype_stratum_key, _load_subtype_crosswalk, _subtype_facet, _subgroup_flip_view,
+    _SUBTYPE_INPUTS,
+    _first_card_per_subgroup,
+    _backfill_subtype_spine,
+    _subtype_stratum_key,
+    _load_subtype_crosswalk,
+    _subtype_facet,
+    _subgroup_flip_view,
     _rollup_subtype_block,
 )
 
 
-
-
-def _deciding_axis(sub_results: dict, gate_action: Optional[str],
-                   gate_hits: list[dict], positive_hits: list[dict],
-                   contracts_repo: Path | None = None) -> dict:
+def _deciding_axis(
+    sub_results: dict,
+    gate_action: Optional[str],
+    gate_hits: list[dict],
+    positive_hits: list[dict],
+    contracts_repo: Path | None = None,
+) -> dict:
     """Build the deciding_axis block (see module comment above). Deterministic; never predicts."""
     baseline, source = _load_gate_coverage(contracts_repo)
 
@@ -59,16 +77,24 @@ def _deciding_axis(sub_results: dict, gate_action: Optional[str],
         _winning = next((h for h in gate_hits if h.get("action") == gate_action), gate_hits[0])
         top = _winning["short"]
         row = _row(top)
-        row["framework_can_evidence"] = "captured"   # it fired → we evidenced it
+        row["framework_can_evidence"] = "captured"  # it fired → we evidenced it
         # A veto axis (e.g. safety) has a gate NAME but no lettered gate id → never render "gate None".
         _gid, _gname = row.get("gate"), row.get("gate_name")
-        _gate_label = (f"gate {_gid} ({_gname})" if _gid and _gname
-                       else f"gate {_gid}" if _gid
-                       else f"the {_gname} gate" if _gname
-                       else f"the {top} gate")
-        return {"basis": "gate_fired", "coverage_source": source,
-                "deciding_axis": row,
-                "routing": f"decided by {_gate_label}: {top} forced '{gate_action}'."}
+        _gate_label = (
+            f"gate {_gid} ({_gname})"
+            if _gid and _gname
+            else f"gate {_gid}"
+            if _gid
+            else f"the {_gname} gate"
+            if _gname
+            else f"the {top} gate"
+        )
+        return {
+            "basis": "gate_fired",
+            "coverage_source": source,
+            "deciding_axis": row,
+            "routing": f"decided by {_gate_label}: {top} forced '{gate_action}'.",
+        }
 
     # (2) A positive tier exists → the load-bearing axis is the strongest positive dimension.
     if positive_hits:
@@ -79,12 +105,19 @@ def _deciding_axis(sub_results: dict, gate_action: Optional[str],
         # labelling them "necessity" mis-states what was evidenced.
         _nec = any(r.get("band") == "necessity" for r in rows)
         _suf = any(r.get("band") and r.get("band") != "necessity" for r in rows)
-        _kind = ("necessity + sufficiency evidenced" if _nec and _suf
-                 else "necessity biology evidenced" if _nec
-                 else "sufficiency / supporting evidence")
-        return {"basis": "positive_signal", "coverage_source": source,
-                "deciding_axes": rows,
-                "routing": f"supported by {', '.join(shorts)} ({_kind})."}
+        _kind = (
+            "necessity + sufficiency evidenced"
+            if _nec and _suf
+            else "necessity biology evidenced"
+            if _nec
+            else "sufficiency / supporting evidence"
+        )
+        return {
+            "basis": "positive_signal",
+            "coverage_source": source,
+            "deciding_axes": rows,
+            "routing": f"supported by {', '.join(shorts)} ({_kind}).",
+        }
 
     # (3) Abstaining → report the NECESSITY gates we could NOT evidence this run + their standing.
     # This is the routing instruction: "the decision lives in a gate we're blind on."
@@ -96,15 +129,21 @@ def _deciding_axis(sub_results: dict, gate_action: Optional[str],
             unevidenced.append(_row(short))
     # necessity first, then by weakest coverage (blind before partial) — the gates most likely
     # to be the reason we can't decide.
-    unevidenced.sort(key=lambda x: (x.get("band") != "necessity",
-                                    _COVERAGE_RANK.get(x.get("framework_can_evidence"), 0)))
-    return {"basis": "abstention_coverage_gaps", "coverage_source": source,
-            "unevidenced_gates": unevidenced,
-            "routing": ("cannot decide from framework evidence; unevidenced gates (necessity "
-                        "first): " + ", ".join(
-                            f"{g['short']}[{g.get('gate')}/{g.get('framework_can_evidence')}]"
-                            for g in unevidenced) if unevidenced else
-                        "cannot decide; no gate produced a signal and no coverage map available.")}
+    unevidenced.sort(
+        key=lambda x: (x.get("band") != "necessity", _COVERAGE_RANK.get(x.get("framework_can_evidence"), 0))
+    )
+    return {
+        "basis": "abstention_coverage_gaps",
+        "coverage_source": source,
+        "unevidenced_gates": unevidenced,
+        "routing": (
+            "cannot decide from framework evidence; unevidenced gates (necessity "
+            "first): "
+            + ", ".join(f"{g['short']}[{g.get('gate')}/{g.get('framework_can_evidence')}]" for g in unevidenced)
+            if unevidenced
+            else "cannot decide; no gate produced a signal and no coverage map available."
+        ),
+    }
 
 
 # --- Ordinal matrix VIEW ------------------------
@@ -145,7 +184,7 @@ def _strongest_signal_for_modality(fired: list[dict], modality: str) -> Optional
             continue
         o = ordinal_view.ordinal_of(sig)
         if o is None:
-            off_scale = off_scale or sig      # remember an off-scale signal as a fallback
+            off_scale = off_scale or sig  # remember an off-scale signal as a fallback
         else:
             on_scale.append((o, sig))
             if r.get("dominant"):
@@ -154,8 +193,8 @@ def _strongest_signal_for_modality(fired: list[dict], modality: str) -> Optional
     if dominant_on_scale:
         return min(dominant_on_scale, key=lambda t: t[0])[1]
     if on_scale:
-        return min(on_scale, key=lambda t: t[0])[1]   # most-negative wins the cell
-    return off_scale                                   # else an off-scale coverage marker (or None)
+        return min(on_scale, key=lambda t: t[0])[1]  # most-negative wins the cell
+    return off_scale  # else an off-scale coverage marker (or None)
 
 
 def _ordinal_matrix(sub_results: dict) -> dict:
@@ -166,14 +205,19 @@ def _ordinal_matrix(sub_results: dict) -> dict:
         fired = r.get("fired") or []
         by_mod = {m: _strongest_signal_for_modality(fired, m) for m in _MATRIX_MODALITIES}
         view = ordinal_view.project_signals(by_mod)
-        rows.append({
-            "short": short,
-            "verdict": (r.get("verdict") or [None])[0],
-            "cells": view["cells"],          # {modality: {signal, ordinal, on_scale}}
-        })
+        rows.append(
+            {
+                "short": short,
+                "verdict": (r.get("verdict") or [None])[0],
+                "cells": view["cells"],  # {modality: {signal, ordinal, on_scale}}
+            }
+        )
     return {
-        "axes": {"rows": "gate (sub-skill)", "columns": list(_MATRIX_MODALITIES),
-                 "cell": "strongest signal for (gate, modality), ordinal-projected"},
+        "axes": {
+            "rows": "gate (sub-skill)",
+            "columns": list(_MATRIX_MODALITIES),
+            "cell": "strongest signal for (gate, modality), ordinal-projected",
+        },
         "rows": rows,
         "legend": ordinal_view.scale_legend(),
         # SPINE-SAFETY GUARD: this matrix is a per-CELL display view; it must NOT be aggregated down a
@@ -182,9 +226,11 @@ def _ordinal_matrix(sub_results: dict) -> dict:
         # target to unfavorable). The authoritative per-modality spine is modality_fit_by_channel.
         "spine_safe": False,
         "spine_source": "modality_fit_by_channel",
-        "_disclaimer": ordinal_view.scale_legend()["_disclaimer"] + (
+        "_disclaimer": ordinal_view.scale_legend()["_disclaimer"]
+        + (
             " NOT SPINE-SAFE: do not aggregate a modality COLUMN into a per-modality call — that "
-            "double-counts a normal-breadth liability shared across axes. Use modality_fit_by_channel."),
+            "double-counts a normal-breadth liability shared across axes. Use modality_fit_by_channel."
+        ),
     }
 
 
@@ -226,10 +272,24 @@ def _presence_facet(sub_results: dict) -> Optional[dict]:
 # (This is the DLL3 archetype: framework says adc_preferred_tce_unsafe, but the APPROVED competitor is
 # a TCE and the ADC failed at PHASE_3 → modality_contrarian=True — an independent check on the surface
 # call, exactly the round-1 ADC/TCE arbitration-inversion this layer was built to surface.)
-_COMPETITOR_STAGE_ORD = {"PRECLINICAL": 1, "IND": 2, "EARLY_PHASE_1": 3, "PHASE_1": 4, "PHASE_1_2": 5,
-                         "PHASE_2": 6, "PHASE_2_3": 7, "PHASE_3": 8, "PREAPPROVAL": 9, "APPROVAL": 10}
-_COMPETITION_DENSITY = {"approved_competitor": "crowded", "active_clinical_competitor": "contested",
-                        "early_or_preclinical_competitor": "emerging", "no_known_competitor": "white_space"}
+_COMPETITOR_STAGE_ORD = {
+    "PRECLINICAL": 1,
+    "IND": 2,
+    "EARLY_PHASE_1": 3,
+    "PHASE_1": 4,
+    "PHASE_1_2": 5,
+    "PHASE_2": 6,
+    "PHASE_2_3": 7,
+    "PHASE_3": 8,
+    "PREAPPROVAL": 9,
+    "APPROVAL": 10,
+}
+_COMPETITION_DENSITY = {
+    "approved_competitor": "crowded",
+    "active_clinical_competitor": "contested",
+    "early_or_preclinical_competitor": "emerging",
+    "no_known_competitor": "white_space",
+}
 
 
 def _framework_preferred_modalities(surface_verdict) -> set:
@@ -238,11 +298,11 @@ def _framework_preferred_modalities(surface_verdict) -> set:
     v = surface_verdict or ""
     if v == "both_viable":
         return {"ADC", "TCE"}
-    if v.startswith("adc_preferred"):   # adc_preferred / adc_preferred_tce_unsafe / adc_preferred_tce_escape_risk
+    if v.startswith("adc_preferred"):  # adc_preferred / adc_preferred_tce_unsafe / adc_preferred_tce_escape_risk
         return {"ADC"}
     if v in ("tce_preferred", "tce_escape_risk"):
         return {"TCE"}
-    if v == "pmhc_tce_supported":   # peptide-MHC / TCR-mimic route (surface-dead intracellular target)
+    if v == "pmhc_tce_supported":  # peptide-MHC / TCR-mimic route (surface-dead intracellular target)
         return {"TCE"}
     return set()
 
@@ -267,7 +327,7 @@ def _competitor_crossref_facet(sub_results: dict) -> Optional[dict]:
         if slot.get("approved"):
             positioning[mod] = "validated_approved"
         elif _COMPETITOR_STAGE_ORD.get(slot.get("max_clinical_stage") or "", 0) >= _COMPETITOR_STAGE_ORD["PHASE_2"]:
-            positioning[mod] = "attempted_not_approved"     # candidate failed / failing precedent
+            positioning[mod] = "attempted_not_approved"  # candidate failed / failing precedent
         elif slot:
             positioning[mod] = "in_development"
         else:
@@ -276,21 +336,29 @@ def _competitor_crossref_facet(sub_results: dict) -> Optional[dict]:
     hooks: list = []
     contrarian = bool(pref) and bool(approved_modalities) and not (pref & set(approved_modalities))
     if contrarian:
-        hooks.append(f"The framework's preferred surface modality {sorted(pref)} is NOT the approved clinical "
-                     f"modality here — the approved competitor(s) validate {approved_modalities}. The modality "
-                     f"preference is CONTRARIAN to clinical precedent; re-examine the surface-modality-fit call.")
+        hooks.append(
+            f"The framework's preferred surface modality {sorted(pref)} is NOT the approved clinical "
+            f"modality here — the approved competitor(s) validate {approved_modalities}. The modality "
+            f"preference is CONTRARIAN to clinical precedent; re-examine the surface-modality-fit call."
+        )
     for mod in sorted(pref):
         if positioning.get(mod) == "attempted_not_approved":
             st = (ml.get(mod) or {}).get("max_clinical_stage")
-            hooks.append(f"{mod}: a competitor reached {st} but was not approved (candidate failed precedent) — "
-                         f"de-risk before committing to {mod}.")
+            hooks.append(
+                f"{mod}: a competitor reached {st} but was not approved (candidate failed precedent) — "
+                f"de-risk before committing to {mod}."
+            )
     if density == "white_space":
-        hooks.append("No competitor in the Open Targets clinical field — potential white space (verify "
-                     "undisclosed / preclinical / patent-stage assets before claiming first-mover).")
+        hooks.append(
+            "No competitor in the Open Targets clinical field — potential white space (verify "
+            "undisclosed / preclinical / patent-stage assets before claiming first-mover)."
+        )
     if density == "crowded" and (pref & set(approved_modalities)):
-        hooks.append(f"Crowded at the framework's preferred modality {sorted(pref & set(approved_modalities))} "
-                     f"(an approved competitor exists) — differentiation must come from biomarker/subtype "
-                     f"selection, a next-gen format, or a distinct indication.")
+        hooks.append(
+            f"Crowded at the framework's preferred modality {sorted(pref & set(approved_modalities))} "
+            f"(an approved competitor exists) — differentiation must come from biomarker/subtype "
+            f"selection, a next-gen format, or a distinct indication."
+        )
 
     return {
         "competition_density": density,
@@ -305,9 +373,11 @@ def _competitor_crossref_facet(sub_results: dict) -> Optional[dict]:
         "modality_positioning": positioning,
         "modality_contrarian": contrarian,
         "differentiation_hooks": hooks,
-        "_facet_note": ("DETERMINISTIC competitor cross-ref (verdict-inert): the Open Targets competitor "
-                        "field vs the framework's own surface-modality-fit verdict. Surfaces positioning hooks "
-                        "(crowded/white-space, modality validated/contrarian); the TPP author writes the claim."),
+        "_facet_note": (
+            "DETERMINISTIC competitor cross-ref (verdict-inert): the Open Targets competitor "
+            "field vs the framework's own surface-modality-fit verdict. Surfaces positioning hooks "
+            "(crowded/white-space, modality validated/contrarian); the TPP author writes the claim."
+        ),
     }
 
 
@@ -377,7 +447,7 @@ def _modality_scope_by_axis(sub_results: dict) -> dict:
     for short in {*reports, *shadow}:
         ms = (reports.get(short) or {}).get("modality_scope")
         if not isinstance(ms, dict):
-            ms = (shadow.get(short) or {}).get("modality_scope")   # spine absent → legacy fallback
+            ms = (shadow.get(short) or {}).get("modality_scope")  # spine absent → legacy fallback
         if isinstance(ms, dict) and ms:
             out[short] = ms
     return out
@@ -400,13 +470,11 @@ def build_skill_report_rollup(skill_reports_by_short: dict, target_call: "Option
     gating_polarities: dict = {}
     for short, sr in (skill_reports_by_short or {}).items():
         role = sr.get("role")
-        by_role.setdefault(role, []).append(
-            {"short": short, "call": sr.get("call"), "polarity": sr.get("polarity")})
+        by_role.setdefault(role, []).append({"short": short, "call": sr.get("call"), "polarity": sr.get("polarity")})
         if role == "gating":
             gating_polarities[short] = sr.get("polarity")
-    ranks = [_SKILL_REPORT_POLARITY_RANK[p] for p in gating_polarities.values()
-             if p in _SKILL_REPORT_POLARITY_RANK]
-    peak = max(ranks) if ranks else None            # most-favorable gating signal on the ordinal scale
+    ranks = [_SKILL_REPORT_POLARITY_RANK[p] for p in gating_polarities.values() if p in _SKILL_REPORT_POLARITY_RANK]
+    peak = max(ranks) if ranks else None  # most-favorable gating signal on the ordinal scale
     killer_axes = [s for s, p in gating_polarities.items() if p == "killer"]
     rec = target_call.get("recommendation") if isinstance(target_call, dict) else None
     positive_rec = str(rec).lower() in _POSITIVE_RECOMMENDATIONS
@@ -419,8 +487,10 @@ def build_skill_report_rollup(skill_reports_by_short: dict, target_call: "Option
         # INV-6 at the target level (verdict-inert coherence flag): a killer gating signal should have
         # forced a non-positive recommendation; surface — never silently allow — the mismatch.
         "recommendation_exceeds_signals": bool(killer_axes) and positive_rec,
-        "_note": ("VERDICT-INERT projection over the skill_report[] spine; groups by role + flags any "
-                  "target-level INV-6 breach. target_call remains the sole recommendation owner."),
+        "_note": (
+            "VERDICT-INERT projection over the skill_report[] spine; groups by role + flags any "
+            "target-level INV-6 breach. target_call remains the sole recommendation owner."
+        ),
     }
 
 
@@ -432,23 +502,28 @@ def build_skill_report_rollup(skill_reports_by_short: dict, target_call: "Option
 # collapsing to one call. Deterministic worst-case CONJUNCTION across axes (the selectivity
 # best-practice: a target is only as deliverable via a channel as its WEAKEST modality-relevant axis
 # on that channel). VERDICT-INERT — a projection over the shadow, never the recommendation spine.
-_MODALITY_FIT_ORDER = {"unfavorable": 0, "conditional": 1, "favorable": 2}   # worst -> best
+_MODALITY_FIT_ORDER = {"unfavorable": 0, "conditional": 1, "favorable": 2}  # worst -> best
 # a specific channel inherits from the record's `_refinements[channel]` if present, else its BASE
 # channel: small_molecule for degrader (a PROTAC is a small molecule), biologics for adc/bite_tce/antibody.
-_CHANNEL_BASE = {"small_molecule": "small_molecule", "biologics": "biologics",
-                 "degrader": "small_molecule", "adc": "biologics",
-                 "bite_tce": "biologics", "antibody": "biologics"}
+_CHANNEL_BASE = {
+    "small_molecule": "small_molecule",
+    "biologics": "biologics",
+    "degrader": "small_molecule",
+    "adc": "biologics",
+    "bite_tce": "biologics",
+    "antibody": "biologics",
+}
 
 
 def _channel_value(modality_scope: dict, channel: str):
     """The axis's favorability for `channel`: an explicit _refinements override wins, else the base
     channel value. Returns None when the axis says nothing (base 'na'/absent) about that channel."""
-    ref = (modality_scope.get("_refinements") or {})
+    ref = modality_scope.get("_refinements") or {}
     if channel in ref:
         v = ref[channel]
     else:
         v = modality_scope.get(_CHANNEL_BASE.get(channel, channel))
-    return v if v in _MODALITY_FIT_ORDER else None      # 'na' / None → axis is silent on this channel
+    return v if v in _MODALITY_FIT_ORDER else None  # 'na' / None → axis is silent on this channel
 
 
 # --- MAGNITUDE-BORDERLINE consumer (M4 coarsen-magnitude; VERDICT_REPRESENTATION move #5 / R5) -------
@@ -459,7 +534,7 @@ def _channel_value(modality_scope: dict, channel: str):
 # Scale-aware (the band is in the measure's own units). VERDICT-INERT — a fragility signal for the
 # reader, never the spine. Empty until an axis populates magnitude.value + distance_to_cut (selectivity
 # is the first: max|log2FC| vs the strong>=1.5 / modest>=0.5 cutpoints).
-_BORDERLINE_BAND = {"log2fc": 0.25}    # within this many units of the cutpoint = borderline
+_BORDERLINE_BAND = {"log2fc": 0.25}  # within this many units of the cutpoint = borderline
 
 
 def _magnitude_borderline(sub_results: dict) -> list[dict]:
@@ -470,10 +545,18 @@ def _magnitude_borderline(sub_results: dict) -> list[dict]:
         value, scale, dist = mag.get("value"), mag.get("scale"), mag.get("distance_to_cut")
         band = _BORDERLINE_BAND.get(scale)
         if value is None or dist is None or band is None:
-            continue                   # axis has no continuous value / cutpoint to be borderline on
+            continue  # axis has no continuous value / cutpoint to be borderline on
         if abs(dist) <= band:
-            out.append({"axis": short, "level": mag.get("level"), "value": value, "scale": scale,
-                        "distance_to_cut": dist, "band": band})
+            out.append(
+                {
+                    "axis": short,
+                    "level": mag.get("level"),
+                    "value": value,
+                    "scale": scale,
+                    "distance_to_cut": dist,
+                    "band": band,
+                }
+            )
     return out
 
 
@@ -517,8 +600,12 @@ def _modality_fit_by_channel(sub_results: dict, axis_info: Optional[dict] = None
     for channel in ("small_molecule", "biologics", "degrader", "adc", "bite_tce", "antibody"):
         # coherence mask FIRST — a category-error channel is not_applicable regardless of any axis's fit.
         if mask_active and not _channel_applicable_for_axis(channel, plausible):
-            out[channel] = {"fit": _NOT_APPLICABLE_BY_AXIS, "limiting_axis": None, "by_axis": {},
-                            "masked_by_axis": ax.get("biology_axis")}
+            out[channel] = {
+                "fit": _NOT_APPLICABLE_BY_AXIS,
+                "limiting_axis": None,
+                "by_axis": {},
+                "masked_by_axis": ax.get("biology_axis"),
+            }
             continue
         by_axis: dict = {}
         for short, ms in scope_by_axis.items():
@@ -542,8 +629,14 @@ def _modality_fit_by_channel(sub_results: dict, axis_info: Optional[dict] = None
 # VERDICT-INERT — additive to nomination.json, never touches the recommendation spine (like the
 # biomarker / subtype / presence facets). Returns None if the presence claim vector is absent.
 def _modality_gate(sig):
-    return {"strong": "pass", "moderate": "pass", "weak": "conditional",
-            "absent": "fail", "negative": "fail", "unmeasured": "unknown"}.get(sig, "unknown")
+    return {
+        "strong": "pass",
+        "moderate": "pass",
+        "weak": "conditional",
+        "absent": "fail",
+        "negative": "fail",
+        "unmeasured": "unknown",
+    }.get(sig, "unknown")
 
 
 # selectivity verdict -> (TCE window, ADC window). TCE has no therapeutic-index buffer, so a broad
@@ -577,7 +670,7 @@ def _presence_signal_from_spine(sub_results: dict, key: str) -> Optional[str]:
     byte-identical spine read of what `_modality_conjunction_facet` used to reach into the raw
     claim_vector for (contract §100-128)."""
     sr = ((sub_results or {}).get("expression", {}).get("synthesis_facet") or {}).get("skill_report")
-    for chip in ((sr or {}).get("claim_chips") or []):
+    for chip in (sr or {}).get("claim_chips") or []:
         if isinstance(chip, dict) and chip.get("key") == key:
             return chip.get("signal")
     return None
@@ -593,7 +686,7 @@ def _modality_conjunction_facet(sub_results: dict) -> Optional[dict]:
     # (sometimes reconciled) skill_report.call, so re-pointing them would change the mapped window/surface.
     sr = facet.get("skill_report") or {}
     if not cv and not sr.get("claim_chips"):
-        return None                                   # no presence claim vector on EITHER path → graceful
+        return None  # no presence claim vector on EITHER path → graceful
     scalars = sr.get("claim_scalars") if isinstance(sr.get("claim_scalars"), dict) else {}
     _a_sig = _presence_signal_from_spine(sub_results, "A")
     _c_sig = _presence_signal_from_spine(sub_results, "C")
@@ -602,8 +695,9 @@ def _modality_conjunction_facet(sub_results: dict) -> Optional[dict]:
     A = _modality_gate(a_raw)
     C = _modality_gate(c_raw)
     hom = scalars.get("homogeneity", cv.get("homogeneity"))
-    hom_gate = {"homogeneous": "pass", "moderately_homogeneous": "conditional",
-                "heterogeneous": "fail"}.get(hom, "unknown")
+    hom_gate = {"homogeneous": "pass", "moderately_homogeneous": "conditional", "heterogeneous": "fail"}.get(
+        hom, "unknown"
+    )
     sel_v = _sub_verdict(sub_results, "selectivity")
     surf_v = _sub_verdict(sub_results, "surface_modality")
     safe_v = _sub_verdict(sub_results, "safety")
@@ -612,30 +706,52 @@ def _modality_conjunction_facet(sub_results: dict) -> Optional[dict]:
 
     def rollup(gates):
         stat = [s for _, s in gates]
-        head = ("FAIL" if any(s == "fail" for s in stat)
-                else "CONDITIONAL" if any(s in ("conditional", "unknown", "stub") for s in stat)
-                else "PASS")
+        head = (
+            "FAIL"
+            if any(s == "fail" for s in stat)
+            else "CONDITIONAL"
+            if any(s in ("conditional", "unknown", "stub") for s in stat)
+            else "PASS"
+        )
         weakest = min(gates, key=lambda g: _RANK.get(g[1], 1))[0]
         return {"call": head, "weakest_gate": weakest, "gates": dict(gates)}
 
-    adc = rollup([("presence_abundance", A), ("presence_malignant(tolerant)", "conditional" if C == "conditional" else C),
-                  ("surface", adc_s), ("window", adc_w)])
-    tce = rollup([("presence_abundance", A), ("presence_malignant", C), ("homogeneity", hom_gate),
-                  ("surface", tce_s), ("window", tce_w)])
+    adc = rollup(
+        [
+            ("presence_abundance", A),
+            ("presence_malignant(tolerant)", "conditional" if C == "conditional" else C),
+            ("surface", adc_s),
+            ("window", adc_w),
+        ]
+    )
+    tce = rollup(
+        [
+            ("presence_abundance", A),
+            ("presence_malignant", C),
+            ("homogeneity", hom_gate),
+            ("surface", tce_s),
+            ("window", tce_w),
+        ]
+    )
     return {
-        "ADC": adc, "TCE": tce,
-        "inputs": {"presence_A": a_raw, "presence_C": c_raw,
-                   "homogeneity": hom, "selectivity_verdict": sel_v, "surface_fit_class": surf_v},
+        "ADC": adc,
+        "TCE": tce,
+        "inputs": {
+            "presence_A": a_raw,
+            "presence_C": c_raw,
+            "homogeneity": hom,
+            "selectivity_verdict": sel_v,
+            "surface_fit_class": surf_v,
+        },
         "safety_signal": safe_v,
         "_disclaimer": (
             "Cross-lens modality nomination — VERDICT-INERT (never touches overall_recommendation). "
             "Conjoins the presence claim vector (modality-blind) with the surface-accessibility "
             "(surface-modality-fit), tumor-vs-normal WINDOW (tumor-selectivity), and safety gates that "
             "only the composed layer holds. Gated by the WEAKEST required gate, not an average. Safety "
-            "is surfaced as a signal (it has its own resolver); weigh it, do not read this as a safety call."),
+            "is surfaced as a signal (it has its own resolver); weigh it, do not read this as a safety call."
+        ),
     }
-
-
 
 
 _FRAGILITY_LEGEND = (
@@ -665,8 +781,7 @@ def _load_contested_threshold(contracts_repo: Path | None = None) -> Optional[di
         return None
 
 
-def _decision_role(short: str, verdict: str,
-                   gate_map: dict, pos_map: dict, contra_set: set) -> str:
+def _decision_role(short: str, verdict: str, gate_map: dict, pos_map: dict, contra_set: set) -> str:
     """The axis's role in the nomination decision for a given verdict: 'kill:<action>' /
     'positive:<weight>' / 'contradiction' / 'neutral'. Pure lookup over the loaded vocab maps."""
     if (short, verdict) in gate_map:
@@ -676,8 +791,6 @@ def _decision_role(short: str, verdict: str,
     if (short, verdict) in contra_set:
         return "contradiction"
     return "neutral"
-
-
 
 
 def _cross_gate_shared_evidence(sub_results: dict) -> dict:
@@ -692,25 +805,30 @@ def _cross_gate_shared_evidence(sub_results: dict) -> dict:
     for short, r in sub_results.items():
         if not isinstance(r, dict):
             continue
-        for f in (r.get("fired") or []):
+        for f in r.get("fired") or []:
             cid = f.get("card_id") if isinstance(f, dict) else None
             if cid:
                 card_to_gates.setdefault(cid, set()).add(short)
     shared = {cid: sorted(gates) for cid, gates in card_to_gates.items() if len(gates) > 1}
     # correlated gate pairs (the actionable read for the synthesis: don't double-count these)
-    correlated_gates = sorted({tuple(sorted((a, b)))
-                               for gates in shared.values() for a in gates for b in gates if a < b})
+    correlated_gates = sorted(
+        {tuple(sorted((a, b))) for gates in shared.values() for a in gates for b in gates if a < b}
+    )
     return {
         "shared_input_cards": {c: shared[c] for c in sorted(shared)},
         "correlated_gate_pairs": [list(p) for p in correlated_gates],
         "_note": "Cards driving >1 gate's fired signal → those gate verdicts are CORRELATED (share "
-                 "evidence), NOT independent corroboration. Roll-ups / synthesis must not treat "
-                 "co-firing correlated gates as independent agreement.",
+        "evidence), NOT independent corroboration. Roll-ups / synthesis must not treat "
+        "co-firing correlated gates as independent agreement.",
     }
 
 
-def _fragility_facet(sub_results: dict, subtypes: Optional[list[str]] = None,
-                     contracts_repo: Path | None = None, modality: str | None = None) -> dict:
+def _fragility_facet(
+    sub_results: dict,
+    subtypes: Optional[list[str]] = None,
+    contracts_repo: Path | None = None,
+    modality: str | None = None,
+) -> dict:
     """Verdict-inert flip-stability facet (see section header). Emitted in nomination.json; never
     touches the verdict / gate / recommendation. `modality` is threaded so the decision-relevant
     axis set includes modality-scoped surface positives under an explicit biologics modality —
@@ -720,12 +838,11 @@ def _fragility_facet(sub_results: dict, subtypes: Optional[list[str]] = None,
     baseline, _covsrc = _load_gate_coverage(contracts_repo)
 
     # Decision-relevant axes = every sub_skill short the gate / positive / contradiction vocab reads.
-    decision_shorts = ({s for (s, _v) in gate_map} | {s for (s, _v) in pos_map}
-                       | {s for (s, _v) in contra_set})
+    decision_shorts = {s for (s, _v) in gate_map} | {s for (s, _v) in pos_map} | {s for (s, _v) in contra_set}
 
     per_axis: dict = {}
-    fragilities: list[float] = []           # worst-case CALL fragility (any decision-role change)
-    rec_fragilities: list[float] = []       # worst-case RECOMMENDATION fragility (kill-boundary crossing)
+    fragilities: list[float] = []  # worst-case CALL fragility (any decision-role change)
+    rec_fragilities: list[float] = []  # worst-case RECOMMENDATION fragility (kill-boundary crossing)
     blind_decision_axes: list[str] = []
     # ACQUISITION BACKLOG (VERDICT_REPRESENTATION.md — ignorance≠negation). A decision-relevant axis
     # that is BLIND this run is held by IGNORANCE (a coverage gap), NOT by a measured negative — the two
@@ -743,6 +860,7 @@ def _fragility_facet(sub_results: dict, subtypes: Optional[list[str]] = None,
 
     def _record_availability(res: dict):
         return (((res or {}).get("claim_record_shadow") or {}).get("finding") or {}).get("availability")
+
     for short in sorted(decision_shorts):
         r = sub_results.get(short)
         if r is None:
@@ -759,46 +877,70 @@ def _fragility_facet(sub_results: dict, subtypes: Optional[list[str]] = None,
             # An un-evidenced axis is an EVIDENCE GAP, not a fragile verdict (measured-vs-null
             # discipline): it has no verdict to flip. Tracked separately, NOT folded into the flip
             # index — coverage/blindness is the deciding-axis router's responsibility, not fragility's.
-            per_axis[short] = {"gate": gate, "flip_applicable": bool(gate), "has_signal": False,
-                               "coverage": coverage, "fragility": None, "reason": "blind"}
+            per_axis[short] = {
+                "gate": gate,
+                "flip_applicable": bool(gate),
+                "has_signal": False,
+                "coverage": coverage,
+                "fragility": None,
+                "reason": "blind",
+            }
             blind_decision_axes.append(short)
             # ACQUIRE task: name the missing cards + WHY (availability_state, if the composer set it —
             # not_wired / data_blocked / read_error / insufficient). is_coverage_gap distinguishes a
             # never-looked gap (acquire wiring/data) from a measured 'we looked, absent' insufficient.
-            missing = [{"card_id": c.get("card_id"),
-                        "availability_state": c.get("availability_state") or "unknown"}
-                       for c in (r.get("cards") or []) if c.get("_missing")]
-            acquisition_backlog.append({
-                "axis": short, "gate": gate, "coverage": coverage,
-                "action": "acquire",   # held by IGNORANCE → go measure; never a KILL
-                # M4: the record's axis-level absence TYPE (not_wired / data_blocked / read_error),
-                # authoritative over the per-missing-card availability_state above. None if no shadow.
-                "availability": _record_availability(r),
-                "missing_cards": missing,
-            })
+            missing = [
+                {"card_id": c.get("card_id"), "availability_state": c.get("availability_state") or "unknown"}
+                for c in (r.get("cards") or [])
+                if c.get("_missing")
+            ]
+            acquisition_backlog.append(
+                {
+                    "axis": short,
+                    "gate": gate,
+                    "coverage": coverage,
+                    "action": "acquire",  # held by IGNORANCE → go measure; never a KILL
+                    # M4: the record's axis-level absence TYPE (not_wired / data_blocked / read_error),
+                    # authoritative over the per-missing-card availability_state above. None if no shadow.
+                    "availability": _record_availability(r),
+                    "missing_cards": missing,
+                }
+            )
             continue
 
         if gate is None:
             # decision-relevant but no resolver to flip (e.g. `expression` presence positive): it has
             # signal but no flip scan, so it informs coverage, not the index.
-            per_axis[short] = {"gate": None, "flip_applicable": False, "has_signal": True,
-                               "coverage": coverage, "fragility": None, "reason": "no_resolver_gate"}
+            per_axis[short] = {
+                "gate": None,
+                "flip_applicable": False,
+                "has_signal": True,
+                "coverage": coverage,
+                "fragility": None,
+                "reason": "no_resolver_gate",
+            }
             continue
 
         fa = flip_analysis(r.get("fired") or [], gate, contracts_repo)
         if fa is None:
-            per_axis[short] = {"gate": gate, "flip_applicable": False, "has_signal": True,
-                               "coverage": coverage, "fragility": None, "reason": "resolver_absent"}
+            per_axis[short] = {
+                "gate": gate,
+                "flip_applicable": False,
+                "has_signal": True,
+                "coverage": coverage,
+                "fragility": None,
+                "reason": "resolver_absent",
+            }
             continue
 
         base_role = _decision_role(short, fa["base_verdict"], gate_map, pos_map, contra_set)
-        base_kill = base_role.startswith("kill:")   # base verdict maps to a gate action (veto/hold)
+        base_kill = base_role.startswith("kill:")  # base verdict maps to a gate action (veto/hold)
         decision_flips = []
         n_rec_flips = 0
         for f in fa["flips"]:
             to_role = _decision_role(short, f["to_verdict"], gate_map, pos_map, contra_set)
             if to_role == base_role:
-                continue                              # raw flip but same decision role (e.g. lineage↔selective)
+                continue  # raw flip but same decision role (e.g. lineage↔selective)
             # A RECOMMENDATION flip crosses the KILL boundary (enters/leaves a gate action) — the only
             # flips that can move overall_recommendation. Role changes AMONG positive/contradiction/
             # neutral change CONFIDENCE, not the Go/No-Go — so they are call-fragile, not recommendation-
@@ -806,16 +948,27 @@ def _fragility_facet(sub_results: dict, subtypes: Optional[list[str]] = None,
             rec = base_kill != to_role.startswith("kill:")
             if rec:
                 n_rec_flips += 1
-            decision_flips.append({"rule_id": f["rule_id"], "present": f["present"],
-                                   "to_verdict": f["to_verdict"], "to_role": to_role,
-                                   "recommendation_flip": rec})
+            decision_flips.append(
+                {
+                    "rule_id": f["rule_id"],
+                    "present": f["present"],
+                    "to_verdict": f["to_verdict"],
+                    "to_role": to_role,
+                    "recommendation_flip": rec,
+                }
+            )
         n_rel = fa["n_relevant"]
         decision_fragility = (len(decision_flips) / n_rel) if n_rel else 0.0
         rec_fragility = (n_rec_flips / n_rel) if n_rel else 0.0
         per_axis[short] = {
-            "gate": gate, "flip_applicable": True, "has_signal": True, "coverage": coverage,
-            "base_verdict": fa["base_verdict"], "base_driver": fa["base_driver"],
-            "base_role": base_role, "n_relevant": n_rel,
+            "gate": gate,
+            "flip_applicable": True,
+            "has_signal": True,
+            "coverage": coverage,
+            "base_verdict": fa["base_verdict"],
+            "base_driver": fa["base_driver"],
+            "base_role": base_role,
+            "n_relevant": n_rel,
             "raw_flip_fragility": round(fa["flip_fragility"], 4),
             "decision_flip_fragility": round(decision_fragility, 4),
             "recommendation_flip_fragility": round(rec_fragility, 4),
@@ -838,10 +991,14 @@ def _fragility_facet(sub_results: dict, subtypes: Optional[list[str]] = None,
     # from the record, independent of the flip/coverage machinery above. Verdict-INERT.
     for short in sorted(decision_shorts):
         if _record_availability(sub_results.get(short)) == "insufficient":
-            underpowered_axes.append({
-                "axis": short, "gate": _SHORT_TO_GATE.get(short),
-                "action": "strengthen", "availability": "insufficient",
-            })
+            underpowered_axes.append(
+                {
+                    "axis": short,
+                    "gate": _SHORT_TO_GATE.get(short),
+                    "action": "strengthen",
+                    "availability": "insufficient",
+                }
+            )
 
     ct = _load_contested_threshold(contracts_repo)
     contested = None
@@ -858,9 +1015,9 @@ def _fragility_facet(sub_results: dict, subtypes: Optional[list[str]] = None,
         "underpowered_axes": underpowered_axes,
         "per_axis": per_axis,
         "_basis": "target_index = worst-case DECISION-flip (any role change: how solid is each axis's "
-                  "call). recommendation_fragility_index = worst-case KILL-boundary-crossing flip (how "
-                  "solid the Go/No-Go ACTION is) and DRIVES `contested`. single-rule scan; blind axes "
-                  "tracked separately (coverage != fragility), never folded into either index.",
+        "call). recommendation_fragility_index = worst-case KILL-boundary-crossing flip (how "
+        "solid the Go/No-Go ACTION is) and DRIVES `contested`. single-rule scan; blind axes "
+        "tracked separately (coverage != fragility), never folded into either index.",
         "_legend": _FRAGILITY_LEGEND,
         "_contested_threshold": ct,
     }
@@ -869,8 +1026,9 @@ def _fragility_facet(sub_results: dict, subtypes: Optional[list[str]] = None,
     return facet
 
 
-def _narrative_by_axis(sub_results: dict, fragility_facet: dict,
-                       contracts_repo: Path | None = None, modality: str | None = None) -> dict:
+def _narrative_by_axis(
+    sub_results: dict, fragility_facet: dict, contracts_repo: Path | None = None, modality: str | None = None
+) -> dict:
     """Verdict-INERT per-axis NARRATIVE for every decision-relevant sub-verdict — the composed
     fan-out of the shared build_narrative (Stage C deterministic half). For each resolver-backed
     axis it re-materialises the traversal the resolver distils away: movers (winning driver +
@@ -888,11 +1046,12 @@ def _narrative_by_axis(sub_results: dict, fragility_facet: dict,
     gaps_by_axis: dict[str, list] = {}
     for g in (fragility_facet or {}).get("acquisition_backlog") or []:
         gaps_by_axis.setdefault(g.get("axis"), []).append(
-            {"kind": "acquire", "availability": g.get("availability"),
-             "missing_cards": g.get("missing_cards") or []})
+            {"kind": "acquire", "availability": g.get("availability"), "missing_cards": g.get("missing_cards") or []}
+        )
     for g in (fragility_facet or {}).get("underpowered_axes") or []:
         gaps_by_axis.setdefault(g.get("axis"), []).append(
-            {"kind": "strengthen", "availability": g.get("availability"), "missing_cards": []})
+            {"kind": "strengthen", "availability": g.get("availability"), "missing_cards": []}
+        )
 
     out: dict = {}
     for short, ax in per_axis.items():
@@ -901,10 +1060,14 @@ def _narrative_by_axis(sub_results: dict, fragility_facet: dict,
             r = sub_results.get(short) or {}
             try:
                 out[short] = build_narrative(
-                    axis=short, gate=ax.get("gate"), fired=r.get("fired") or [],
-                    verdict=ax.get("base_verdict"), driving_rule_id=ax.get("base_driver"),
-                    modality=modality, contracts_repo=contracts_repo,
-                    flip_facet=ax,               # reuse the fragility facet's decision_flips (no re-scan)
+                    axis=short,
+                    gate=ax.get("gate"),
+                    fired=r.get("fired") or [],
+                    verdict=ax.get("base_verdict"),
+                    driving_rule_id=ax.get("base_driver"),
+                    modality=modality,
+                    contracts_repo=contracts_repo,
+                    flip_facet=ax,  # reuse the fragility facet's decision_flips (no re-scan)
                     gaps=gaps,
                 )
             except Exception:  # noqa: BLE001 — verdict-inert projection; a build fault must not abort
@@ -912,18 +1075,26 @@ def _narrative_by_axis(sub_results: dict, fragility_facet: dict,
         elif gaps:
             # blind / no-resolver axis with an outstanding acquire/strengthen task: gap-only narrative
             # so the dashboard still surfaces "go measure X" (ignorance != a measured negative).
-            out[short] = {"axis": short, "gate": ax.get("gate"), "verdict": None,
-                          "driving_rule_id": None, "scan_depth": "single_rule",
-                          "movers": [], "dissenters": [], "flip_conditions": [],
-                          "gaps": gaps, "rule_sentences": {},
-                          "_basis": "blind/underpowered axis — acquire/strengthen gap only; verdict-INERT"}
+            out[short] = {
+                "axis": short,
+                "gate": ax.get("gate"),
+                "verdict": None,
+                "driving_rule_id": None,
+                "scan_depth": "single_rule",
+                "movers": [],
+                "dissenters": [],
+                "flip_conditions": [],
+                "gaps": gaps,
+                "rule_sentences": {},
+                "_basis": "blind/underpowered axis — acquire/strengthen gap only; verdict-INERT",
+            }
     return out
 
 
 def _find_card_summary(sub_results: dict, card_id: str) -> dict:
     """First matching card's summary dict across all sub-results (source-short-agnostic), or {}."""
     for r in sub_results.values():
-        for c in (r.get("cards") or []):
+        for c in r.get("cards") or []:
             if c.get("card_id") == card_id:
                 return c.get("summary") or {}
     return {}
@@ -937,6 +1108,7 @@ def _cv(vals: list) -> "Optional[float]":
     "'float' object has no attribute 'numerator'". bool and NaN are excluded.
     """
     import math
+
     xs = []
     for v in vals:
         if not isinstance(v, (int, float)) or isinstance(v, bool):
@@ -948,6 +1120,7 @@ def _cv(vals: list) -> "Optional[float]":
     if len(xs) < 2:
         return None
     import statistics
+
     m = statistics.mean(xs)
     return (statistics.pstdev(xs) / abs(m)) if m != 0 else None
 
@@ -959,6 +1132,7 @@ def _norm_entropy(labels: list) -> "Optional[float]":
         return None
     import math
     from collections import Counter
+
     counts = Counter(xs)
     if len(counts) < 2:
         return 0.0
@@ -1000,11 +1174,15 @@ def _heterogeneity_facet(sub_results: dict, subtypes: "Optional[list[str]]" = No
         unsupported = 1.0 - (sup / ran)
         disc = bool(sel.get("discordant"))
         logs_cv = _cv([sel.get("log2fc_cell_a"), sel.get("log2fc_cell_b"), sel.get("log2fc_cell_c")])
-        disp = 1.0 if disc else round(unsupported, 4)   # an explicit discordant read is maximal dispersion
+        disp = 1.0 if disc else round(unsupported, 4)  # an explicit discordant read is maximal dispersion
         sources["selectivity_comparators"] = {
-            "cells_ran": ran, "cells_supporting": sup, "unsupported_fraction": round(unsupported, 4),
-            "discordant": disc, "log2fc_cv": round(logs_cv, 4) if logs_cv is not None else None,
-            "dispersion": disp}
+            "cells_ran": ran,
+            "cells_supporting": sup,
+            "unsupported_fraction": round(unsupported, 4),
+            "discordant": disc,
+            "log2fc_cv": round(logs_cv, 4) if logs_cv is not None else None,
+            "dispersion": disp,
+        }
         signals.append(disp)
 
     # (2) CRISPR-vs-RNAi modality dispersion
@@ -1017,10 +1195,8 @@ def _heterogeneity_facet(sub_results: dict, subtypes: "Optional[list[str]]" = No
 
     # (3) per-molecular-subtype dependency spread — only when --subtypes scoped (panorama present)
     if subtypes:
-        rows = _first_card_per_subgroup(sub_results.get(SUBTYPE_SHORT) or {},
-                                        "subgroup-stratified-dependency")
-        measured = [r for r in rows
-                    if r.get("evidence_state") == "measured" and r.get("subgroup_n_floor_met")]
+        rows = _first_card_per_subgroup(sub_results.get(SUBTYPE_SHORT) or {}, "subgroup-stratified-dependency")
+        measured = [r for r in rows if r.get("evidence_state") == "measured" and r.get("subgroup_n_floor_met")]
         if len(measured) >= 2:
             metric_cv = _cv([r.get("median_chronos") for r in measured])
             ent = _norm_entropy([r.get("dependency_class") or r.get("_dependency_class") for r in measured])
@@ -1029,7 +1205,8 @@ def _heterogeneity_facet(sub_results: dict, subtypes: "Optional[list[str]]" = No
                 "n_measured_strata": len(measured),
                 "class_entropy": round(ent, 4) if ent is not None else None,
                 "metric_cv": round(metric_cv, 4) if metric_cv is not None else None,
-                "dispersion": round(disp, 4) if disp is not None else None}
+                "dispersion": round(disp, 4) if disp is not None else None,
+            }
             if disp is not None:
                 signals.append(disp)
 
@@ -1037,7 +1214,7 @@ def _heterogeneity_facet(sub_results: dict, subtypes: "Optional[list[str]]" = No
         "heterogeneity_index": round(max(signals), 4) if signals else None,
         "sources": sources,
         "_basis": "worst_case over available normalized cross-context dispersion signals "
-                  "(selectivity four-cell / crispr-rnai concordance / subtype strata [--subtypes only])",
+        "(selectivity four-cell / crispr-rnai concordance / subtype strata [--subtypes only])",
         "_legend": _HETEROGENEITY_LEGEND,
     }
 
@@ -1053,12 +1230,13 @@ _ADDRESSABLE_POPULATION_LEGEND = (
     "context beside the nomination, never a gate input."
 )
 
+
 # clinical addressable-population tiers by alteration prevalence
 def _addressable_population_class(freq: "float | None") -> "str | None":
     if not isinstance(freq, (int, float)):
         return None
     if freq >= 0.20:
-        return "broad"            # e.g. KRAS/TP53 in COADREAD (~40%)
+        return "broad"  # e.g. KRAS/TP53 in COADREAD (~40%)
     if freq >= 0.05:
         return "common"
     if freq >= 0.01:
@@ -1067,15 +1245,28 @@ def _addressable_population_class(freq: "float | None") -> "str | None":
         return "rare"
     return "ultra_rare"
 
+
 # genomic verdicts whose actionability is TIED TO AN SNV/indel ALTERATION → population = its prevalence
-_SNV_SELECTION_VERDICTS = frozenset({
-    "biomarker_stratified_dependency", "moderate_biomarker_dependency", "confirmed_driver",
-    "multi_class_driver", "confirmed_lof_driver", "multi_class_lof_driver",
-    "missense_dominant_pattern", "lof_dominant_pattern", "drug_response_biomarker",
-})
-_CN_FUSION_SELECTION_VERDICTS = frozenset({
-    "recurrent_amplification_driver", "recurrent_deletion_driver", "recurrent_fusion_driver",
-})
+_SNV_SELECTION_VERDICTS = frozenset(
+    {
+        "biomarker_stratified_dependency",
+        "moderate_biomarker_dependency",
+        "confirmed_driver",
+        "multi_class_driver",
+        "confirmed_lof_driver",
+        "multi_class_lof_driver",
+        "missense_dominant_pattern",
+        "lof_dominant_pattern",
+        "drug_response_biomarker",
+    }
+)
+_CN_FUSION_SELECTION_VERDICTS = frozenset(
+    {
+        "recurrent_amplification_driver",
+        "recurrent_deletion_driver",
+        "recurrent_fusion_driver",
+    }
+)
 _NON_DEPENDENT = frozenset({"non_dependent", "insufficient", "data_unavailable", ""})
 
 
@@ -1094,9 +1285,13 @@ def _addressable_population_facet(sub_results: dict) -> dict:
     genie_freq = hf.get("genie_mutation_frequency")
     mc3_freq = hf.get("overall_mutation_frequency")
     n_samples = hf.get("n_samples_in_indication")
-    freq, source = ((genie_freq, "genie") if isinstance(genie_freq, (int, float))
-                    else (mc3_freq, "tcga_mc3") if isinstance(mc3_freq, (int, float))
-                    else (None, None))
+    freq, source = (
+        (genie_freq, "genie")
+        if isinstance(genie_freq, (int, float))
+        else (mc3_freq, "tcga_mc3")
+        if isinstance(mc3_freq, (int, float))
+        else (None, None)
+    )
 
     if gen_verdict in _SNV_SELECTION_VERDICTS:
         basis = "snv_indel_stratified"
@@ -1105,18 +1300,21 @@ def _addressable_population_facet(sub_results: dict) -> dict:
     elif gen_verdict in _CN_FUSION_SELECTION_VERDICTS:
         basis = "copy_number_or_fusion_stratified"
         pop_class, freq, source = "not_estimated_this_axis", None, None
-        note = ("addressable population is defined by a CN/fusion event; SNV frequency is inapplicable "
-                "— CN/fusion prevalence (copy-number-distribution / fusion cards) is a v2 extension")
+        note = (
+            "addressable population is defined by a CN/fusion event; SNV frequency is inapplicable "
+            "— CN/fusion prevalence (copy-number-distribution / fusion cards) is a v2 extension"
+        )
     elif dep_verdict and dep_verdict not in _NON_DEPENDENT:
         basis = "biomarker_unrestricted"
         pop_class = "biomarker_unrestricted"
-        note = ("a broad dependency with no alteration-defined selection biomarker; the addressable "
-                "population is the indication itself")
+        note = (
+            "a broad dependency with no alteration-defined selection biomarker; the addressable "
+            "population is the indication itself"
+        )
     else:
         basis = "undetermined"
         pop_class = None
-        note = ("no alteration-selection verdict and no positive dependency to anchor an "
-                "addressable-population estimate")
+        note = "no alteration-selection verdict and no positive dependency to anchor an addressable-population estimate"
 
     return {
         "addressable_population_class": pop_class,
@@ -1144,11 +1342,9 @@ def _addressable_population_facet(sub_results: dict) -> dict:
 # `unknown` (read-failure/uncurated) is strictly distinct from `none` (measured-absent): a blind arm
 # lowers confidence and never cedes to another mode. Thresholds are calibratable; unrecognized
 # card values degrade to none/unknown (honest), never crash. See the actionability-mode design doc.
-_ABUNDANCE_FIT = frozenset({"both_viable", "adc_preferred", "tce_preferred",
-                            "ADC_preferred", "TCE_preferred"})
+_ABUNDANCE_FIT = frozenset({"both_viable", "adc_preferred", "tce_preferred", "ADC_preferred", "TCE_preferred"})
 _ABUNDANCE_DENSITY = frozenset({"high", "moderate"})
-_SELECTIVE_VERDICTS = frozenset({"strong_tumor_selective", "modest_tumor_selective",
-                                 "selective_with_normal_liability"})
+_SELECTIVE_VERDICTS = frozenset({"strong_tumor_selective", "modest_tumor_selective", "selective_with_normal_liability"})
 
 
 @functools.lru_cache(maxsize=1)
@@ -1164,12 +1360,12 @@ def _actionability_mode_overrides() -> dict:
     except yaml.YAMLError:
         return {}
     out: dict = {}
-    for o in (doc.get("overrides") or []):
+    for o in doc.get("overrides") or []:
         if not isinstance(o, dict) or not o.get("hgnc_symbol") or not o.get("mode"):
             continue
         entry = {"mode": o["mode"], "rationale": o.get("rationale")}
         out[o["hgnc_symbol"].upper()] = entry
-        for a in (o.get("aliases") or []):
+        for a in o.get("aliases") or []:
             out[str(a).upper()] = entry
     return out
 
@@ -1179,8 +1375,10 @@ def _actionability_mode_facet(sub_results: dict, target: str | None = None) -> d
     / insufficient). Post-hoc over fired sub_results; never touches the gate. A curated override
     (actionability_mode_lookup.yaml) pins `dominant` for listed high-value duals; the derived
     value is retained as `derived_dominant` for audit."""
+
     def _cs(card_id, field):
         return (_find_card_summary(sub_results, card_id) or {}).get(field)
+
     def _v(short):
         vv = (sub_results.get(short) or {}).get("verdict")
         return vv[0] if vv else None
@@ -1188,29 +1386,51 @@ def _actionability_mode_facet(sub_results: dict, target: str | None = None) -> d
     deriv: list[str] = []
 
     # ---- CIS-FEATURE arm: a specific lesion/feature IS the handle (patient-selection = the biomarker) ----
-    role, hotspot = _cs("alteration-role", "alteration_role"), _cs("mutation-hotspot-frequency", "pooled_driver_recurrence_class")
-    fusion, cn, gen_v = _cs("fusion-rearrangement-landscape", "fusion_class"), _cs("copy-number-distribution", "patient_focal_cn_class"), _v("genomic_alteration")
+    role, hotspot = (
+        _cs("alteration-role", "alteration_role"),
+        _cs("mutation-hotspot-frequency", "pooled_driver_recurrence_class"),
+    )
+    fusion, cn, gen_v = (
+        _cs("fusion-rearrangement-landscape", "fusion_class"),
+        _cs("copy-number-distribution", "patient_focal_cn_class"),
+        _v("genomic_alteration"),
+    )
     # a LoF/TSG driver is NOT a positive cis handle (you cannot target an absence) → route it to the
     # dependency_relational arm (MDM2/SL/context), never cis. Suppress the cis arm when role is LoF.
-    _lof = (role == "direct_driver_lof")
-    cis_dom = (not _lof) and (role == "direct_driver_gof" or hotspot == "top_1pct" or fusion == "recurrent_fusion_driver"
-               or gen_v in _SNV_SELECTION_VERDICTS or gen_v in _CN_FUSION_SELECTION_VERDICTS)
+    _lof = role == "direct_driver_lof"
+    cis_dom = (not _lof) and (
+        role == "direct_driver_gof"
+        or hotspot == "top_1pct"
+        or fusion == "recurrent_fusion_driver"
+        or gen_v in _SNV_SELECTION_VERDICTS
+        or gen_v in _CN_FUSION_SELECTION_VERDICTS
+    )
     cis_sup = (not _lof) and (role == "predictive_biomarker" or hotspot == "top_decile" or fusion == "sporadic_fusion")
     cis_seen = any(x not in (None, "data_unavailable") for x in (role, hotspot, fusion, cn, gen_v))
     cis_tier = "dominant" if cis_dom else "supporting" if cis_sup else "none" if cis_seen else "unknown"
     if cis_dom:
-        deriv += [f"{k}={x} -> cis:dominant" for k, x in (("role", role), ("hotspot", hotspot),
-                  ("fusion", fusion), ("genomic_verdict", gen_v)) if x]
+        deriv += [
+            f"{k}={x} -> cis:dominant"
+            for k, x in (("role", role), ("hotspot", hotspot), ("fusion", fusion), ("genomic_verdict", gen_v))
+            if x
+        ]
 
     # ---- ABUNDANCE arm: selectively over-present (patient-selection = an expression/density cutoff) ----
-    dens_abs, dens_cls = _cs("surface-abundance-density", "absolute_density_class"), _cs("surface-abundance-density", "surface_density_class")
+    dens_abs, dens_cls = (
+        _cs("surface-abundance-density", "absolute_density_class"),
+        _cs("surface-abundance-density", "surface_density_class"),
+    )
     fit, sel_v = _cs("adc-tce-modality-fit", "fit_class"), _v("selectivity")
-    ab_dom = (dens_abs in _ABUNDANCE_DENSITY or dens_cls in _ABUNDANCE_DENSITY or fit in _ABUNDANCE_FIT)
-    ab_sup = (dens_cls == "low" or sel_v in _SELECTIVE_VERDICTS)
+    ab_dom = dens_abs in _ABUNDANCE_DENSITY or dens_cls in _ABUNDANCE_DENSITY or fit in _ABUNDANCE_FIT
+    ab_sup = dens_cls == "low" or sel_v in _SELECTIVE_VERDICTS
     ab_seen = any(x not in (None, "data_unavailable", "unmeasured") for x in (dens_abs, dens_cls, fit, sel_v))
     ab_tier = "dominant" if ab_dom else "supporting" if ab_sup else "none" if ab_seen else "unknown"
     if ab_dom:
-        deriv += [f"{k}={x} -> abundance:dominant" for k, x in (("surface_density", dens_abs or dens_cls), ("adc_tce_fit", fit)) if x]
+        deriv += [
+            f"{k}={x} -> abundance:dominant"
+            for k, x in (("surface_density", dens_abs or dens_cls), ("adc_tce_fit", fit))
+            if x
+        ]
 
     # ---- DEPENDENCY_RELATIONAL arm: no positive cis handle / not over-abundant — actioned via a
     #      partner/context (LoF-driver → MDM2/SL; partner-conditional SL [WRN×MSI]; combinatorial) ----
@@ -1226,21 +1446,33 @@ def _actionability_mode_facet(sub_results: dict, target: str | None = None) -> d
     # which are the card-vocab equivalents of the constitutive/context verdicts (suppressive_interaction is
     # NOT a co-targeting rationale, so it is excluded).
     combo_cls = _cs("combinatorial-dependency", "combinatorial_dependency_class")
-    rel_dom = (role == "direct_driver_lof" or dep_v == "partner_conditional_dependent" or sl_cls == "has_experimental_sl_partner")
-    rel_sup = (sl_cls == "has_computational_sl_partner" or combo_cls in ("strong_synthetic_lethal", "context_synthetic_lethal"))
+    rel_dom = (
+        role == "direct_driver_lof"
+        or dep_v == "partner_conditional_dependent"
+        or sl_cls == "has_experimental_sl_partner"
+    )
+    rel_sup = sl_cls == "has_computational_sl_partner" or combo_cls in (
+        "strong_synthetic_lethal",
+        "context_synthetic_lethal",
+    )
     rel_seen = any(x not in (None, "data_unavailable", "") for x in (role, dep_v, sl_cls, combo_cls))
     rel_tier = "dominant" if rel_dom else "supporting" if rel_sup else "none" if rel_seen else "unknown"
     if rel_dom:
-        deriv += [f"{k}={x} -> dependency_relational:dominant" for k, x in
-                  (("role", role if role == "direct_driver_lof" else None),
-                   ("dependency", dep_v if dep_v == "partner_conditional_dependent" else None),
-                   ("sl_partner", sl_cls if sl_cls == "has_experimental_sl_partner" else None)) if x]
+        deriv += [
+            f"{k}={x} -> dependency_relational:dominant"
+            for k, x in (
+                ("role", role if role == "direct_driver_lof" else None),
+                ("dependency", dep_v if dep_v == "partner_conditional_dependent" else None),
+                ("sl_partner", sl_cls if sl_cls == "has_experimental_sl_partner" else None),
+            )
+            if x
+        ]
 
     arms = {"cis_feature": cis_tier, "abundance": ab_tier, "dependency_relational": rel_tier}
     dom_arms = [a for a, t in arms.items() if t == "dominant"]
     secondary = None
     if len(dom_arms) >= 2:
-        dominant = "mixed"                              # both leading arms ARE the story (HER2/EGFR/MET guarantee)
+        dominant = "mixed"  # both leading arms ARE the story (HER2/EGFR/MET guarantee)
     elif len(dom_arms) == 1:
         dominant = dom_arms[0]
     else:
@@ -1282,11 +1514,13 @@ def _actionability_mode_facet(sub_results: dict, target: str | None = None) -> d
         "arms": arms,
         "confidence": confidence,
         "derivation": deriv,
-        "note": ("VERDICT-INERT selection-basis profile: it ROUTES narrative emphasis (render lead-order "
-                 "+ a synthesis emphasis-governance block) but never changes the verdict / recommendation / "
-                 "gate (all clamped deterministically). Orthogonal to biology_axis; `unknown` != `none`. cis_feature=biomarker handle, "
-                 "abundance=expression/density cutoff, dependency_relational=partner/context handle, "
-                 "mixed=both (e.g. HER2 amplification is BOTH the cis handle AND the abundance readout)."),
+        "note": (
+            "VERDICT-INERT selection-basis profile: it ROUTES narrative emphasis (render lead-order "
+            "+ a synthesis emphasis-governance block) but never changes the verdict / recommendation / "
+            "gate (all clamped deterministically). Orthogonal to biology_axis; `unknown` != `none`. cis_feature=biomarker handle, "
+            "abundance=expression/density cutoff, dependency_relational=partner/context handle, "
+            "mixed=both (e.g. HER2 amplification is BOTH the cis handle AND the abundance readout)."
+        ),
     }
 
 
@@ -1320,10 +1554,9 @@ def _biology_axis_from_surface(surf_v: "Optional[str]") -> str:
     return "unknown"
 
 
-
-
-def build_target_rollup(sub_results: dict, modality_fit_by_channel: "Optional[dict]" = None,
-                        subtype_facet: "Optional[dict]" = None) -> dict:
+def build_target_rollup(
+    sub_results: dict, modality_fit_by_channel: "Optional[dict]" = None, subtype_facet: "Optional[dict]" = None
+) -> dict:
     """target_rollup.v1 — 7-axis distillation + a NEGATIVE cross-axis block + a PROMINENT subtype block.
     Verdict-inert; the block is recomputed from axis evidence and deliberately IGNORES
     recommendation_gate.fired (which mis-fires the dependency hard-gate on antigen-only targets)."""
@@ -1350,18 +1583,19 @@ def build_target_rollup(sub_results: dict, modality_fit_by_channel: "Optional[di
     else:
         A = ("unresolved_necessity", "insufficient")
 
-    B = {"discordant_across_comparators": ("present_not_selective", "conditional"),
-         "selective_but_broadly_normal": ("present_broad_normal", "conditional"),
-         "selective_with_normal_liability": ("selective_normal_liability", "conditional"),
-         "strong_tumor_selective": ("tumor_selective_present", "favorable")}.get(sel_v, ("present", "insufficient"))
+    B = {
+        "discordant_across_comparators": ("present_not_selective", "conditional"),
+        "selective_but_broadly_normal": ("present_broad_normal", "conditional"),
+        "selective_with_normal_liability": ("selective_normal_liability", "conditional"),
+        "strong_tumor_selective": ("tumor_selective_present", "favorable"),
+    }.get(sel_v, ("present", "insufficient"))
 
     # D deliverability — per-channel from modality_fit_by_channel; frontier = best viable band.
     ch: dict = {}
     for c in ("small_molecule", "degrader", "adc", "bite_tce", "antibody"):
         fit = (mfc.get(c) or {}).get("fit")
         applicable = fit not in ("not_applicable_by_axis", "na", None)
-        ch[c] = {"fit": fit, "applicable": applicable,
-                 "viable": applicable and fit in ("favorable", "conditional")}
+        ch[c] = {"fit": fit, "applicable": applicable, "viable": applicable and fit in ("favorable", "conditional")}
     viable = [c for c, v in ch.items() if v["viable"]]
     frontier = max((_ROLLUP_FIT_ORDER[ch[c]["fit"]] for c in viable), default=None)
     D_band = {3: "favorable", 2: "conditional"}.get(frontier, "unfavorable")
@@ -1388,8 +1622,13 @@ def build_target_rollup(sub_results: dict, modality_fit_by_channel: "Optional[di
         blocks.append({"axis": "deliverability", "kind": "no_viable_modality"})
     if E_blocks:
         blocks.append({"axis": "safety_liability", "kind": "pan_modality_safety_veto"})
-    block_status = ("hard_block" if blocks
-                    else "provisional_block" if (A == ("unresolved_necessity", "insufficient")) else "not_blocked")
+    block_status = (
+        "hard_block"
+        if blocks
+        else "provisional_block"
+        if (A == ("unresolved_necessity", "insufficient"))
+        else "not_blocked"
+    )
     return {
         "schema": "target_rollup.v1",
         "biology_axis": bio,
@@ -1399,17 +1638,25 @@ def build_target_rollup(sub_results: dict, modality_fit_by_channel: "Optional[di
             "deliverability": {"band": D_band, "viable_channels": viable, "channels": ch},
             "safety_liability": {"call": E[0], "band": E[1], "escapable_by": E_escape},
         },
-        "block": {"blocked": bool(blocks), "status": block_status, "blocking_axes": blocks,
-                  "_basis": "union of per-axis unescapable blocks; from axis evidence, IGNORES recommendation_gate.fired"},
+        "block": {
+            "blocked": bool(blocks),
+            "status": block_status,
+            "blocking_axes": blocks,
+            "_basis": "union of per-axis unescapable blocks; from axis evidence, IGNORES recommendation_gate.fired",
+        },
         "subtype": _rollup_subtype_block(subtype_facet),
         "_note": "VERDICT-INERT distillation. No positive scalar — the only target-level verdict is block.blocked.",
     }
 
 
-def build_target_call(recommendation_gate: dict, confidence_tier: dict, deciding_axis: dict,
-                      gate_scorecard: "Optional[dict]" = None,
-                      overall_recommendation: "Optional[object]" = None,
-                      target_rollup: "Optional[dict]" = None) -> dict:
+def build_target_call(
+    recommendation_gate: dict,
+    confidence_tier: dict,
+    deciding_axis: dict,
+    gate_scorecard: "Optional[dict]" = None,
+    overall_recommendation: "Optional[object]" = None,
+    target_rollup: "Optional[dict]" = None,
+) -> dict:
     """target_call.v1 — the unified DECISION view for `target_report`, and the CANONICAL OWNER of the
     decision-spine objects (docs/UNIFIED_OUTPUT_CONTRACT.md).
 
@@ -1421,36 +1668,47 @@ def build_target_call(recommendation_gate: dict, confidence_tier: dict, deciding
     spine object carries: the authoritative recommendation VALUE, and a `dissent` block naming where
     independent signals disagree with the gate (the honest 'why not higher / why not lower')."""
     rg = recommendation_gate or {}
-    rec_val = (overall_recommendation.get("value") if isinstance(overall_recommendation, dict)
-               else overall_recommendation)
+    rec_val = (
+        overall_recommendation.get("value") if isinstance(overall_recommendation, dict) else overall_recommendation
+    )
     dissent: list = []
     # (1) the gate overrode the LLM's recommendation (already computed by run.py's gate assembly)
     if rg.get("overridden"):
-        dissent.append({"source": "llm_synthesis",
-                        "detail": f"LLM recommended {rg.get('llm_recommendation')!r}; "
-                                  f"gate forced {rg.get('forced_recommendation')!r}",
-                        "resolved_to": rg.get("forced_recommendation")})
+        dissent.append(
+            {
+                "source": "llm_synthesis",
+                "detail": f"LLM recommended {rg.get('llm_recommendation')!r}; "
+                f"gate forced {rg.get('forced_recommendation')!r}",
+                "resolved_to": rg.get("forced_recommendation"),
+            }
+        )
     # (2) the verdict-inert evidence-band block (target_rollup) fired while the recommendation gate did
     #     not — the two intentionally-independent negative reads disagree (see build_target_rollup's
     #     "IGNORES recommendation_gate.fired" note). Surface it rather than silently collapsing.
-    blk = ((target_rollup or {}).get("block") or {})
+    blk = (target_rollup or {}).get("block") or {}
     if blk.get("blocked") and not rg.get("fired"):
-        dissent.append({"source": "target_rollup.block",
-                        "detail": f"evidence-band block ({blk.get('status')}) fired while the "
-                                  f"recommendation gate did not",
-                        "blocking_axes": blk.get("blocking_axes"), "resolved_to": rec_val})
+        dissent.append(
+            {
+                "source": "target_rollup.block",
+                "detail": f"evidence-band block ({blk.get('status')}) fired while the recommendation gate did not",
+                "blocking_axes": blk.get("blocking_axes"),
+                "resolved_to": rec_val,
+            }
+        )
     return {
         "schema": "target_call.v1",
-        "recommendation": rec_val,          # authoritative (gate-forced or positive-floored LLM value)
-        "gate": rg,                         # ← recommendation_gate (SOLE owner of the recommendation)
-        "confidence": confidence_tier,      # ← confidence_tier
-        "deciding_axis": deciding_axis,     # ← deciding_axis
-        "gate_scorecard": gate_scorecard,   # ← gate_scorecard
-        "dissent": dissent,                 # NEW: independent signals that disagree with the gate
-        "_note": ("Unified DECISION view + CANONICAL OWNER of the decision spine (target_report.target_call). "
-                  "VERDICT-INERT COMPOSITION; recommendation_gate remains the sole owner of the "
-                  "recommendation. The four spine objects nest here and are no longer top-level "
-                  "nomination keys (full-nest 2026-09-03)."),
+        "recommendation": rec_val,  # authoritative (gate-forced or positive-floored LLM value)
+        "gate": rg,  # ← recommendation_gate (SOLE owner of the recommendation)
+        "confidence": confidence_tier,  # ← confidence_tier
+        "deciding_axis": deciding_axis,  # ← deciding_axis
+        "gate_scorecard": gate_scorecard,  # ← gate_scorecard
+        "dissent": dissent,  # NEW: independent signals that disagree with the gate
+        "_note": (
+            "Unified DECISION view + CANONICAL OWNER of the decision spine (target_report.target_call). "
+            "VERDICT-INERT COMPOSITION; recommendation_gate remains the sole owner of the "
+            "recommendation. The four spine objects nest here and are no longer top-level "
+            "nomination keys (full-nest 2026-09-03)."
+        ),
     }
 
 
@@ -1487,7 +1745,9 @@ def build_target_coherence(sub_results: dict, target_rollup: "Optional[dict]" = 
         if cis_v == "cis_uncoupled_no_dependency":
             confirms.append("cis-uncoupled: no dosage-driven dependency — coherent (cis-coupling is ANTI here)")
         if (gen_r or "").startswith("mut-"):
-            artifacts.append("genomic driver via mutation-spectrum, contradicted by cis-uncoupled + non_dependent → data_artifact")
+            artifacts.append(
+                "genomic driver via mutation-spectrum, contradicted by cis-uncoupled + non_dependent → data_artifact"
+            )
     elif thesis == "oncogene_addiction_driver":
         confirms.append("cis-coherent driver + lineage-selective dependency — coherent addiction core")
     coherence_class = "coherent" if not artifacts else "coherent_with_caveats"
@@ -1522,8 +1782,7 @@ def build_composed_evidence_graph(target_report: dict) -> dict:
     if isinstance(da.get("deciding_axis"), dict) and da["deciding_axis"].get("short"):
         deciding_shorts = [da["deciding_axis"]["short"]]
     elif isinstance(da.get("deciding_axes"), list):
-        deciding_shorts = [r.get("short") for r in da["deciding_axes"]
-                           if isinstance(r, dict) and r.get("short")]
+        deciding_shorts = [r.get("short") for r in da["deciding_axes"] if isinstance(r, dict) and r.get("short")]
     deciding_set = set(deciding_shorts)
 
     conf = tc.get("confidence") if isinstance(tc.get("confidence"), dict) else {}
@@ -1542,74 +1801,107 @@ def build_composed_evidence_graph(target_report: dict) -> dict:
         eg = rep.get("evidence_graph") if isinstance(rep.get("evidence_graph"), dict) else None
         lit = (eg or {}).get("literature") or {}
         c = rep.get("confidence") if isinstance(rep.get("confidence"), dict) else {}
-        skills.append({
-            "short": short,
-            "lens": SKILL_TOPICAL_LENS.get(short),
-            "role": rep.get("role"),
-            "call": rep.get("call"),
-            "polarity": rep.get("polarity"),
-            "confidence": c.get("level"),
-            "deciding": short in deciding_set,
-            "has_evidence_graph": eg is not None,
-            "literature_consistency": lit.get("overall_consistency"),
-        })
+        skills.append(
+            {
+                "short": short,
+                "lens": SKILL_TOPICAL_LENS.get(short),
+                "role": rep.get("role"),
+                "call": rep.get("call"),
+                "polarity": rep.get("polarity"),
+                "confidence": c.get("level"),
+                "deciding": short in deciding_set,
+                "has_evidence_graph": eg is not None,
+                "literature_consistency": lit.get("overall_consistency"),
+            }
+        )
 
     edges: list = []
     # deciding_axis: verdict → the deciding skill(s)
     for s in deciding_shorts:
-        edges.append({"type": "deciding_axis", "from": "verdict", "to": s,
-                      "ref": "target_report.target_call.deciding_axis"})
+        edges.append(
+            {"type": "deciding_axis", "from": "verdict", "to": s, "ref": "target_report.target_call.deciding_axis"}
+        )
     # dissent: an independent signal disagreed with the gate (the honest 'why not higher/lower')
-    for d in (tc.get("dissent") or []):
+    for d in tc.get("dissent") or []:
         if isinstance(d, dict):
-            edges.append({"type": "dissent", "from": d.get("source"), "to": "verdict",
-                          "note": d.get("detail"), "resolved_to": d.get("resolved_to"),
-                          "ref": "target_report.target_call.dissent"})
+            edges.append(
+                {
+                    "type": "dissent",
+                    "from": d.get("source"),
+                    "to": "verdict",
+                    "note": d.get("detail"),
+                    "resolved_to": d.get("resolved_to"),
+                    "ref": "target_report.target_call.dissent",
+                }
+            )
     # modality_fit: the limiting skill → each channel (worst-case fit per channel)
     for channel, mf in ((tr.get("modality_fit") or {}).get("by_channel") or {}).items():
         if isinstance(mf, dict):
-            edges.append({"type": "modality_fit", "from": mf.get("limiting_axis"), "to": channel,
-                          "signal": mf.get("fit"), "ref": "target_report.modality_fit.by_channel"})
+            edges.append(
+                {
+                    "type": "modality_fit",
+                    "from": mf.get("limiting_axis"),
+                    "to": channel,
+                    "signal": mf.get("fit"),
+                    "ref": "target_report.modality_fit.by_channel",
+                }
+            )
     # risk: verdict → each governance risk dimension (deterministic 6-dim)
     risk = tr.get("risk_6dim") or {}
     if isinstance(risk, dict):
         for dim, rd in risk.items():
             if isinstance(rd, dict) and rd.get("bin") is not None:
-                edges.append({"type": "risk", "from": "verdict", "to": dim, "bin": rd.get("bin"),
-                              "ref": "target_report.risk_6dim"})
+                edges.append(
+                    {
+                        "type": "risk",
+                        "from": "verdict",
+                        "to": dim,
+                        "bin": rd.get("bin"),
+                        "ref": "target_report.risk_6dim",
+                    }
+                )
     # subtype convergence: the convergent molecular strata
     sc = tr.get("subtype_convergence") if isinstance(tr.get("subtype_convergence"), dict) else {}
-    for st in (sc.get("convergent_subtypes") or []):
-        edges.append({"type": "subtype_convergence", "to": st,
-                      "ref": "target_report.subtype_convergence"})
+    for st in sc.get("convergent_subtypes") or []:
+        edges.append({"type": "subtype_convergence", "to": st, "ref": "target_report.subtype_convergence"})
 
     return {
         "schema": "composed_evidence_graph.v1",
         "verdict": verdict_node,
         "skills": skills,
         "edges": edges,
-        "_note": ("Thin DISPLAY-ONLY index over target_report — the composed analog of the per-subskill "
-                  "evidence_graph. Edges reference existing rollups by `ref`; recomputes nothing; gates "
-                  "nothing; target_call owns the recommendation."),
+        "_note": (
+            "Thin DISPLAY-ONLY index over target_report — the composed analog of the per-subskill "
+            "evidence_graph. Edges reference existing rollups by `ref`; recomputes nothing; gates "
+            "nothing; target_call owns the recommendation."
+        ),
     }
 
 
-def build_target_report(*, target_call: dict, target_rollup: "Optional[dict]" = None,
-                        target_coherence: "Optional[dict]" = None, ordinal_matrix: "Optional[dict]" = None,
-                        modality_fit_by_channel: "Optional[dict]" = None,
-                        modality_conjunction: "Optional[dict]" = None, risk_rollup: "Optional[dict]" = None,
-                        subtype_facet: "Optional[dict]" = None, biomarker_facet: "Optional[dict]" = None,
-                        fragility: "Optional[dict]" = None, heterogeneity: "Optional[dict]" = None,
-                        cross_gate_shared_evidence: "Optional[dict]" = None,
-                        magnitude_borderline: "Optional[object]" = None,
-                        certainty_by_axis: "Optional[dict]" = None,
-                        addressable_population: "Optional[dict]" = None,
-                        actionability_mode: "Optional[dict]" = None,
-                        competitor_crossref: "Optional[dict]" = None,
-                        archetype_companion: "Optional[dict]" = None,
-                        nomination_scorecard: "Optional[dict]" = None,
-                        nomination_predictive_score: "Optional[object]" = None,
-                        skill_reports: "Optional[dict]" = None) -> dict:
+def build_target_report(
+    *,
+    target_call: dict,
+    target_rollup: "Optional[dict]" = None,
+    target_coherence: "Optional[dict]" = None,
+    ordinal_matrix: "Optional[dict]" = None,
+    modality_fit_by_channel: "Optional[dict]" = None,
+    modality_conjunction: "Optional[dict]" = None,
+    risk_rollup: "Optional[dict]" = None,
+    subtype_facet: "Optional[dict]" = None,
+    biomarker_facet: "Optional[dict]" = None,
+    fragility: "Optional[dict]" = None,
+    heterogeneity: "Optional[dict]" = None,
+    cross_gate_shared_evidence: "Optional[dict]" = None,
+    magnitude_borderline: "Optional[object]" = None,
+    certainty_by_axis: "Optional[dict]" = None,
+    addressable_population: "Optional[dict]" = None,
+    actionability_mode: "Optional[dict]" = None,
+    competitor_crossref: "Optional[dict]" = None,
+    archetype_companion: "Optional[dict]" = None,
+    nomination_scorecard: "Optional[dict]" = None,
+    nomination_predictive_score: "Optional[object]" = None,
+    skill_reports: "Optional[dict]" = None,
+) -> dict:
     """target_report.v1 — the unified per-target object (docs/UNIFIED_OUTPUT_CONTRACT.md).
 
     ADDITIVE + VERDICT-INERT: a composed VIEW that REFERENCES the existing target-level facets (which
@@ -1624,29 +1916,34 @@ def build_target_report(*, target_call: dict, target_rollup: "Optional[dict]" = 
         # the unified per-skill signals (docs/UNIFIED_OUTPUT_CONTRACT.md). Verdict-inert; the rollup carries
         # a target-level INV-6 coherence flag but never moves the recommendation (target_call owns it).
         "skill_reports": skill_reports,
-        "skill_report_rollup": (build_skill_report_rollup(skill_reports, target_call)
-                                if skill_reports else None),
-        "target_call": target_call,                       # DECISION (recommendation owner = target_call.gate)
-        "risk_6dim": risk_rollup,                         # ← risk_rollup (deterministic 6-dim; None w/o substrate)
-        "axis_rollup": tr.get("axes"),                    # ← target_rollup.axes (A/B/D/E bands)
-        "block": tr.get("block"),                         # ← target_rollup.block (evidence-band shadow)
-        "thesis": target_coherence,                       # ← target_coherence
-        "evidence_matrix": ordinal_matrix,                # ← ordinal_matrix_view
+        "skill_report_rollup": (build_skill_report_rollup(skill_reports, target_call) if skill_reports else None),
+        "target_call": target_call,  # DECISION (recommendation owner = target_call.gate)
+        "risk_6dim": risk_rollup,  # ← risk_rollup (deterministic 6-dim; None w/o substrate)
+        "axis_rollup": tr.get("axes"),  # ← target_rollup.axes (A/B/D/E bands)
+        "block": tr.get("block"),  # ← target_rollup.block (evidence-band shadow)
+        "thesis": target_coherence,  # ← target_coherence
+        "evidence_matrix": ordinal_matrix,  # ← ordinal_matrix_view
         "modality_fit": {"by_channel": modality_fit_by_channel, "conjunction": modality_conjunction},
-        "subtype_convergence": subtype_facet,             # ← subtype_facet (convergent_subtypes)
+        "subtype_convergence": subtype_facet,  # ← subtype_facet (convergent_subtypes)
         "biomarker": biomarker_facet,
-        "robustness": {"fragility": fragility, "heterogeneity": heterogeneity,
-                       "correlated_evidence": cross_gate_shared_evidence,
-                       "borderline": magnitude_borderline, "certainty_by_axis": certainty_by_axis},
+        "robustness": {
+            "fragility": fragility,
+            "heterogeneity": heterogeneity,
+            "correlated_evidence": cross_gate_shared_evidence,
+            "borderline": magnitude_borderline,
+            "certainty_by_axis": certainty_by_axis,
+        },
         "addressable_population": addressable_population,
         "actionability_mode": actionability_mode,
         "competitive_positioning": competitor_crossref,
         "archetype": archetype_companion,
         "nomination_scorecard": nomination_scorecard,
         "predictive_score": nomination_predictive_score,
-        "_note": ("Unified per-target object (target_report.v1). VERDICT-INERT composition over the "
-                  "existing target-level facets, which remain top-level until consumers migrate. "
-                  "target_call owns the recommendation; nothing here is recomputed."),
+        "_note": (
+            "Unified per-target object (target_report.v1). VERDICT-INERT composition over the "
+            "existing target-level facets, which remain top-level until consumers migrate. "
+            "target_call owns the recommendation; nothing here is recomputed."
+        ),
     }
     # additive DISPLAY-ONLY composed index over this report — the composed analog of the per-subskill
     # decision.headline.evidence_graph (P6). Pure projection; recomputes nothing; verdict spine untouched.
@@ -1655,45 +1952,45 @@ def build_target_report(*, target_call: dict, target_rollup: "Optional[dict]" = 
 
 
 __all__ = [
-    'build_target_rollup',
-    'build_target_coherence',
-    'build_target_call',
-    'build_target_report',
-    'build_composed_evidence_graph',
-    '_ADDRESSABLE_POPULATION_LEGEND',
-    '_BIOMARKER_INPUTS',
-    '_BIOMARKER_QUANT',
-    '_CN_FUSION_SELECTION_VERDICTS',
-    '_FRAGILITY_LEGEND',
-    '_HETEROGENEITY_LEGEND',
-    '_MATRIX_MODALITIES',
-    '_NON_DEPENDENT',
-    '_SNV_SELECTION_VERDICTS',
-    '_SUBTYPE_INPUTS',
-    '_actionability_mode_facet',
-    '_addressable_population_class',
-    '_addressable_population_facet',
-    '_biomarker_facet',
-    '_presence_facet',
-    '_competitor_crossref_facet',
-    '_framework_preferred_modalities',
-    '_modality_conjunction_facet',
-    '_biomarker_quantitative',
-    '_classify_biomarker_best_roles',
-    '_cv',
-    '_deciding_axis',
-    '_decision_role',
-    '_find_card_summary',
-    '_first_card_per_subgroup',
-    '_fragility_facet',
-    '_heterogeneity_facet',
-    '_load_contested_threshold',
-    '_load_subtype_crosswalk',
-    '_norm_entropy',
-    '_ordinal_matrix',
-    '_backfill_subtype_spine',
-    '_strongest_signal_for_modality',
-    '_subgroup_flip_view',
-    '_subtype_facet',
-    '_subtype_stratum_key',
+    "build_target_rollup",
+    "build_target_coherence",
+    "build_target_call",
+    "build_target_report",
+    "build_composed_evidence_graph",
+    "_ADDRESSABLE_POPULATION_LEGEND",
+    "_BIOMARKER_INPUTS",
+    "_BIOMARKER_QUANT",
+    "_CN_FUSION_SELECTION_VERDICTS",
+    "_FRAGILITY_LEGEND",
+    "_HETEROGENEITY_LEGEND",
+    "_MATRIX_MODALITIES",
+    "_NON_DEPENDENT",
+    "_SNV_SELECTION_VERDICTS",
+    "_SUBTYPE_INPUTS",
+    "_actionability_mode_facet",
+    "_addressable_population_class",
+    "_addressable_population_facet",
+    "_biomarker_facet",
+    "_presence_facet",
+    "_competitor_crossref_facet",
+    "_framework_preferred_modalities",
+    "_modality_conjunction_facet",
+    "_biomarker_quantitative",
+    "_classify_biomarker_best_roles",
+    "_cv",
+    "_deciding_axis",
+    "_decision_role",
+    "_find_card_summary",
+    "_first_card_per_subgroup",
+    "_fragility_facet",
+    "_heterogeneity_facet",
+    "_load_contested_threshold",
+    "_load_subtype_crosswalk",
+    "_norm_entropy",
+    "_ordinal_matrix",
+    "_backfill_subtype_spine",
+    "_strongest_signal_for_modality",
+    "_subgroup_flip_view",
+    "_subtype_facet",
+    "_subtype_stratum_key",
 ]

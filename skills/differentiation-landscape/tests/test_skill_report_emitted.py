@@ -4,6 +4,7 @@ question_table (component parity with the other skills). Pins role=gating, call=
 verbatim, a canonical polarity, a NON-EMPTY question_table carried into the skill_report, and best-effort
 degrade.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -24,9 +25,9 @@ def test_headline_emits_gating_skill_report():
     sr = hl.get("skill_report")
     assert isinstance(sr, dict), f"expected a skill_report dict, got {sr!r}"
     assert sr["role"] == "gating"
-    assert sr["call"] == "insufficient"                          # verbatim verdict — no recompute
+    assert sr["call"] == "insufficient"  # verbatim verdict — no recompute
     assert sr["polarity"] in ("supportive", "neutral", "opposing", "insufficient", "not_applicable")
-    assert sr["polarity"] != "killer"                            # differentiation has no veto-killer verdict
+    assert sr["polarity"] != "killer"  # differentiation has no veto-killer verdict
     # differentiation NOW has a question_table (component parity) — 4 rows (COMUT/SURVIVAL/NODE + precedent)
     assert isinstance(sr["question_table"], list) and len(sr["question_table"]) == 4
     assert [r["id"] for r in sr["question_table"]] == ["Q1", "Q2", "Q3", "Q4"]
@@ -51,6 +52,6 @@ def test_skill_report_fault_degrades_not_aborts(monkeypatch):
 
     monkeypatch.setattr(diff, "build_skill_report", _boom)
     hl = diff._headline(_cards(), [], ("insufficient", None))
-    assert hl["differentiation_verdict"] == "insufficient"       # spine survives the projection fault
+    assert hl["differentiation_verdict"] == "insufficient"  # spine survives the projection fault
     assert hl["skill_report"] is None
     assert hl["_enrichment_errors"]["skill_report"].startswith("ValueError")

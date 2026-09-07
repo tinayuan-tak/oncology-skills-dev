@@ -6,6 +6,7 @@ dropped (verdict=None), never reaching synthesis / the gate / the risk table.
 These tests pin the rule-id → verdict mapping and that verdict strings equal the
 selectivity_class values (so the risk-table _biological() reshape consumes them).
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -25,13 +26,11 @@ def _fire(rule_id):
 
 
 def test_strong_selective_maps_to_class_string():
-    assert _fire("tvn-strong-selective-supportive") == (
-        "strong_tumor_selective", "tvn-strong-selective-supportive")
+    assert _fire("tvn-strong-selective-supportive") == ("strong_tumor_selective", "tvn-strong-selective-supportive")
 
 
 def test_not_selective_maps():
-    assert _fire("tvn-not-selective-neutral") == (
-        "not_selective", "tvn-not-selective-neutral")
+    assert _fire("tvn-not-selective-neutral") == ("not_selective", "tvn-not-selective-neutral")
 
 
 def test_discordant_maps():
@@ -51,8 +50,8 @@ def test_verdict_strings_match_risk_table_biological_keys():
     guard against a rename that would silently stop selectivity feeding biological risk."""
     strong = _fire("tvn-strong-selective-supportive")[0]
     notsel = _fire("tvn-not-selective-neutral")[0]
-    assert strong == "strong_tumor_selective"   # consumed by _biological() LOW branch
-    assert notsel == "not_selective"            # consumed by _biological() HIGH branch
+    assert strong == "strong_tumor_selective"  # consumed by _biological() LOW branch
+    assert notsel == "not_selective"  # consumed by _biological() HIGH branch
 
 
 def test_verdict_fn_is_discoverable_by_composer():
@@ -74,8 +73,7 @@ def _fire_two(axis_a_rule):
 
 def test_strong_selective_downgraded_by_window_veto():
     """The GAPDH archetype: strong axis-A fold-change, but tumor below worst critical normal."""
-    assert _fire_two("tvn-strong-selective-supportive") == (
-        "selective_but_broadly_normal", _VETO)
+    assert _fire_two("tvn-strong-selective-supportive") == ("selective_but_broadly_normal", _VETO)
 
 
 def test_modest_selective_downgraded_by_window_veto():
@@ -96,8 +94,7 @@ def test_veto_alone_does_not_manufacture_a_selective_call():
 def test_not_selective_unaffected_by_window_veto():
     """A NOT-selective gene that also has no window stays not_selective — the veto can't
     turn a down-regulated gene into 'broadly normal' (that verdict is a downgrade OF selective)."""
-    assert ts._verdict(
-        [{"rule_id": "tvn-not-selective-neutral"}, {"rule_id": _VETO}])[0] == "not_selective"
+    assert ts._verdict([{"rule_id": "tvn-not-selective-neutral"}, {"rule_id": _VETO}])[0] == "not_selective"
 
 
 # --- NORMAL-BREADTH VETO: the pan-normal window arm (tvn-no-full-normal-window-veto). ---
@@ -107,15 +104,16 @@ _FULL_VETO = "tvn-no-full-normal-window-veto"
 def test_strong_selective_downgraded_by_full_normal_veto():
     """TROP2/TACSTD2 archetype: clean vs essential organs but broad across NON-essential normals →
     the pan-normal veto (alone) downgrades a selective axis-A call."""
-    assert ts._verdict(
-        [{"rule_id": "tvn-strong-selective-supportive"}, {"rule_id": _FULL_VETO}]) == (
-        "selective_but_broadly_normal", _FULL_VETO)
+    assert ts._verdict([{"rule_id": "tvn-strong-selective-supportive"}, {"rule_id": _FULL_VETO}]) == (
+        "selective_but_broadly_normal",
+        _FULL_VETO,
+    )
 
 
 def test_field_effect_downgraded_by_full_normal_veto():
-    assert ts._verdict(
-        [{"rule_id": "tvn-field-effect-selective-supportive"}, {"rule_id": _FULL_VETO}])[0] == (
-        "selective_but_broadly_normal")
+    assert ts._verdict([{"rule_id": "tvn-field-effect-selective-supportive"}, {"rule_id": _FULL_VETO}])[0] == (
+        "selective_but_broadly_normal"
+    )
 
 
 def test_full_normal_veto_alone_does_not_manufacture_selective():
@@ -126,16 +124,14 @@ def test_full_normal_veto_alone_does_not_manufacture_selective():
 def test_essential_veto_takes_precedence_in_driving_rule_when_both_fire():
     """When BOTH normal-breadth vetoes fire, the verdict is the downgrade and the driving_rule names
     the essential-organ veto (the stricter critical-organ signal)."""
-    v, drv = ts._verdict([{"rule_id": "tvn-strong-selective-supportive"},
-                          {"rule_id": _VETO}, {"rule_id": _FULL_VETO}])
+    v, drv = ts._verdict([{"rule_id": "tvn-strong-selective-supportive"}, {"rule_id": _VETO}, {"rule_id": _FULL_VETO}])
     assert v == "selective_but_broadly_normal"
     assert drv == _VETO
 
 
 def test_clean_full_normal_target_retains_selective():
     """CEACAM5/FOLR1/MSLN archetype: neither veto fired → axis-A selective call stands (no false downgrade)."""
-    assert _fire("tvn-strong-selective-supportive") == (
-        "strong_tumor_selective", "tvn-strong-selective-supportive")
+    assert _fire("tvn-strong-selective-supportive") == ("strong_tumor_selective", "tvn-strong-selective-supportive")
 
 
 # --- NORMAL-BREADTH VETO: the cell-type-resolved sc-normal arm (tvn-sc-normal-critical-organ-veto). ---
@@ -147,9 +143,10 @@ def test_strong_selective_flagged_liability_by_sc_normal_veto():
     organ (critical_organ_liability) → the sc-normal arm produces the SELECTIVITY-PRESERVING
     selective_with_normal_liability (a named-organ SAFETY flag), NOT the housekeeping
     selective_but_broadly_normal KILL. The bulk window vetoes did not fire (a real window exists)."""
-    assert ts._verdict(
-        [{"rule_id": "tvn-strong-selective-supportive"}, {"rule_id": _SC_VETO}]) == (
-        "selective_with_normal_liability", _SC_VETO)
+    assert ts._verdict([{"rule_id": "tvn-strong-selective-supportive"}, {"rule_id": _SC_VETO}]) == (
+        "selective_with_normal_liability",
+        _SC_VETO,
+    )
 
 
 def test_sc_normal_veto_alone_does_not_manufacture_selective():
@@ -161,12 +158,19 @@ def test_veto_precedence_essential_over_full_over_sc(tmp_path=None):
     """When multiple normal-breadth vetoes fire, the verdict is the downgrade and the driving_rule
     follows precedence: essential-organ window > pan-normal window > sc-normal cell-type."""
     # all three fire → essential-organ wins the label
-    v, drv = ts._verdict([{"rule_id": "tvn-strong-selective-supportive"},
-                          {"rule_id": _VETO}, {"rule_id": _FULL_VETO}, {"rule_id": _SC_VETO}])
+    v, drv = ts._verdict(
+        [
+            {"rule_id": "tvn-strong-selective-supportive"},
+            {"rule_id": _VETO},
+            {"rule_id": _FULL_VETO},
+            {"rule_id": _SC_VETO},
+        ]
+    )
     assert v == "selective_but_broadly_normal" and drv == _VETO
     # full + sc (no essential) → pan-normal wins
-    _, drv2 = ts._verdict([{"rule_id": "tvn-strong-selective-supportive"},
-                           {"rule_id": _FULL_VETO}, {"rule_id": _SC_VETO}])
+    _, drv2 = ts._verdict(
+        [{"rule_id": "tvn-strong-selective-supportive"}, {"rule_id": _FULL_VETO}, {"rule_id": _SC_VETO}]
+    )
     assert drv2 == _FULL_VETO
     # sc alone → sc names it
     _, drv3 = ts._verdict([{"rule_id": "tvn-strong-selective-supportive"}, {"rule_id": _SC_VETO}])
@@ -175,8 +179,8 @@ def test_veto_precedence_essential_over_full_over_sc(tmp_path=None):
 
 def test_selective_without_veto_is_unchanged():
     """No veto fired (CEACAM5/FOLR1/MSLN archetype: real window) → axis-A call stands byte-for-byte."""
-    assert _fire("tvn-strong-selective-supportive") == (
-        "strong_tumor_selective", "tvn-strong-selective-supportive")
+    assert _fire("tvn-strong-selective-supportive") == ("strong_tumor_selective", "tvn-strong-selective-supportive")
+
 
 # --- NORMAL-BREADTH VETO: the quantitative normal-PROTEIN abundance arm (tphp, Floor-C). ---
 _TPHP_VETO = "tvn-tphp-broad-abundant-normal-protein-veto"
@@ -187,9 +191,10 @@ def test_strong_selective_flagged_liability_by_tphp_normal_protein_veto():
     (tphp_normal_protein_liability_class == broad_and_abundant) with a real RNA window → the tphp arm
     produces the SELECTIVITY-PRESERVING selective_with_normal_liability (mirrors the sc-normal arm),
     NOT the housekeeping KILL. This is the RNA-clean / protein-broad safety-net the arm closes."""
-    assert ts._verdict(
-        [{"rule_id": "tvn-strong-selective-supportive"}, {"rule_id": _TPHP_VETO}]) == (
-        "selective_with_normal_liability", _TPHP_VETO)
+    assert ts._verdict([{"rule_id": "tvn-strong-selective-supportive"}, {"rule_id": _TPHP_VETO}]) == (
+        "selective_with_normal_liability",
+        _TPHP_VETO,
+    )
 
 
 def test_tphp_veto_alone_does_not_manufacture_selective():
@@ -200,8 +205,7 @@ def test_tphp_veto_alone_does_not_manufacture_selective():
 def test_window_kill_outranks_tphp_liability_when_both_fire():
     """Precedence: a no-window KILL (housekeeping GAPDH: window veto + broad_and_abundant tphp both
     fire) outranks the tphp named liability → selective_but_broadly_normal, driven by the window veto."""
-    v, drv = ts._verdict([{"rule_id": "tvn-strong-selective-supportive"},
-                          {"rule_id": _VETO}, {"rule_id": _TPHP_VETO}])
+    v, drv = ts._verdict([{"rule_id": "tvn-strong-selective-supportive"}, {"rule_id": _VETO}, {"rule_id": _TPHP_VETO}])
     assert v == "selective_but_broadly_normal" and drv == _VETO
 
 
@@ -220,9 +224,10 @@ def test_strong_selective_downgraded_by_stromal_confound_veto():
     """FAP/POSTN archetype: strong axis-A bulk fold-change but the single-cell attribution shows the
     signal is CAF/stroma-driven (stromal_confound_class == stromal_confounded) → the INT-axis veto
     downgrades to selective_but_stromal_confound (a false window for tumor-cell-targeted modalities)."""
-    assert ts._verdict(
-        [{"rule_id": "tvn-strong-selective-supportive"}, {"rule_id": _STROMAL_VETO}]) == (
-        "selective_but_stromal_confound", _STROMAL_VETO)
+    assert ts._verdict([{"rule_id": "tvn-strong-selective-supportive"}, {"rule_id": _STROMAL_VETO}]) == (
+        "selective_but_stromal_confound",
+        _STROMAL_VETO,
+    )
 
 
 def test_modest_and_field_effect_also_downgraded_by_stromal_confound():
@@ -232,8 +237,11 @@ def test_modest_and_field_effect_also_downgraded_by_stromal_confound():
 
 def test_stromal_confound_veto_alone_does_not_manufacture_selective():
     v = ts._verdict([{"rule_id": _STROMAL_VETO}])[0]
-    assert v not in ("selective_but_stromal_confound", "selective_but_broadly_normal",
-                     "selective_with_normal_liability")
+    assert v not in (
+        "selective_but_stromal_confound",
+        "selective_but_broadly_normal",
+        "selective_with_normal_liability",
+    )
 
 
 def test_stromal_confound_does_not_clamp_a_non_selective_call():
@@ -246,9 +254,15 @@ def test_stromal_confound_OUTRANKS_window_kill_when_both_fire():
     genes are broadly normal too), the INT-axis stromal-confound KILL outranks the SAFE-axis window KILL:
     'the antigen is not on the tumor cells' is the more fundamental disqualifier + more actionable
     nomination signal. Verdict = selective_but_stromal_confound, driven by the stromal veto."""
-    v, drv = ts._verdict([{"rule_id": "tvn-strong-selective-supportive"},
-                          {"rule_id": _VETO}, {"rule_id": _FULL_VETO},
-                          {"rule_id": _SC_VETO}, {"rule_id": _STROMAL_VETO}])
+    v, drv = ts._verdict(
+        [
+            {"rule_id": "tvn-strong-selective-supportive"},
+            {"rule_id": _VETO},
+            {"rule_id": _FULL_VETO},
+            {"rule_id": _SC_VETO},
+            {"rule_id": _STROMAL_VETO},
+        ]
+    )
     assert v == "selective_but_stromal_confound" and drv == _STROMAL_VETO
 
 
@@ -266,28 +280,29 @@ def test_headline_emits_stromal_confound_downgrade():
 # If _headline emitted the raw tvn.selectivity_class, a veto-downgraded target
 # (selective_but_broadly_normal) would never appear in decision.json and the narrator would over-claim.
 
+
 def _headline_for(cards_summary_class, verdict_pair):
-    cards = [{"card_id": "tumor-vs-normal-selectivity", "summary": {"selectivity_class": cards_summary_class}},
-             {"card_id": "tumor-vs-normal-percentile-crossing", "summary": {}},
-             {"card_id": "modality-therapeutic-window", "summary": {}},
-             {"card_id": "expression-purity-confound", "summary": {"purity_confound_class": "purity_independent"}}]
+    cards = [
+        {"card_id": "tumor-vs-normal-selectivity", "summary": {"selectivity_class": cards_summary_class}},
+        {"card_id": "tumor-vs-normal-percentile-crossing", "summary": {}},
+        {"card_id": "modality-therapeutic-window", "summary": {}},
+        {"card_id": "expression-purity-confound", "summary": {"purity_confound_class": "purity_independent"}},
+    ]
     return ts._headline(cards, [], verdict_pair)
 
 
 def test_headline_emits_resolved_veto_downgrade():
     """When _verdict returns the veto downgrade, the headline selectivity_class is the RESOLVED
     value (not the raw axis-A class), driving_rule_id names the veto, and the raw class is preserved."""
-    h = _headline_for("strong_tumor_selective",
-                      ("selective_but_broadly_normal", ts._WINDOW_VETO_RULE))
-    assert h["selectivity_class"] == "selective_but_broadly_normal"     # RESOLVED, was dropped before
+    h = _headline_for("strong_tumor_selective", ("selective_but_broadly_normal", ts._WINDOW_VETO_RULE))
+    assert h["selectivity_class"] == "selective_but_broadly_normal"  # RESOLVED, was dropped before
     assert h["driving_rule_id"] == ts._WINDOW_VETO_RULE
-    assert h["axis_a_selectivity_class"] == "strong_tumor_selective"    # raw pre-veto preserved
+    assert h["axis_a_selectivity_class"] == "strong_tumor_selective"  # raw pre-veto preserved
 
 
 def test_headline_emits_resolved_verdict_no_veto():
     """No veto: headline selectivity_class == the resolved axis-A verdict; raw == resolved."""
-    h = _headline_for("strong_tumor_selective",
-                      ("strong_tumor_selective", "tvn-strong-selective-supportive"))
+    h = _headline_for("strong_tumor_selective", ("strong_tumor_selective", "tvn-strong-selective-supportive"))
     assert h["selectivity_class"] == "strong_tumor_selective"
     assert h["driving_rule_id"] == "tvn-strong-selective-supportive"
     assert h["axis_a_selectivity_class"] == "strong_tumor_selective"
@@ -306,13 +321,13 @@ def test_composed_path_composes_all_veto_cards():
     (tvn-sc-normal-critical-organ-veto, keying sc-normal-celltype-expression) must not silently drop
     from the selectivity lens."""
     import ast
+
     # SUB_SKILL_CARDS lives in target-profile/scripts/tp_fanout.py.
     tp_run = (RUN_PY.parent.parent.parent / "target-profile" / "scripts" / "tp_fanout.py").read_text()
     tree = ast.parse(tp_run)
     ssc = None
     for node in ast.walk(tree):
-        if isinstance(node, ast.Assign) and any(
-                getattr(t, "id", None) == "SUB_SKILL_CARDS" for t in node.targets):
+        if isinstance(node, ast.Assign) and any(getattr(t, "id", None) == "SUB_SKILL_CARDS" for t in node.targets):
             ssc = node.value
     assert ssc is not None, "SUB_SKILL_CARDS not found in target-profile/scripts/tp_fanout.py"
     # find the tumor-selectivity entry
@@ -324,18 +339,25 @@ def test_composed_path_composes_all_veto_cards():
     # EVERY card backing a veto arm must be composed into the selectivity lens — all four:
     # the two normal-breadth arms (window, sc-normal), the normal-PROTEIN arm (tphp), and the
     # INT-axis stromal-confound arm — else that arm's veto silently cannot fire in target-profile.
-    for veto_card in ("modality-therapeutic-window", "sc-normal-celltype-expression",
-                      "normal-tissue-protein-abundance-tphp", "tumor-scrna-celltype-expression"):
+    for veto_card in (
+        "modality-therapeutic-window",
+        "sc-normal-celltype-expression",
+        "normal-tissue-protein-abundance-tphp",
+        "tumor-scrna-celltype-expression",
+    ):
         assert veto_card in sel_cards, (
             f"regression: veto card {veto_card!r} is not composed into the selectivity "
             f"lens → its veto arm cannot fire in target-profile (housekeeping/stromal FP "
-            f"resurrected for that arm).")
+            f"resurrected for that arm)."
+        )
 
 
 # --- resolver-vs-clamp enum reconciliation (the 8-vs-11 legibility gap) -------------------------
 
+
 def _contracts_yaml(rel):
     from _skills_common.paths import target_contracts_root
+
     p = target_contracts_root() / rel
     return None if not p.exists() else __import__("yaml").safe_load(p.read_text())
 
@@ -348,6 +370,7 @@ def test_emitted_verdict_enum_equals_resolver_rungs_plus_declared_clamp():
     load-bearing and a reviewer reading the resolver sees the COMPLETE emitted enum. (Skips until the
     contracts-first clamp_verdicts block has landed.)"""
     from _skills_common.selectivity_veto import _VETO_OUTCOMES
+
     spec = _contracts_yaml("resolvers/selectivity.resolver.yaml")
     if spec is None:
         pytest.skip("target-contracts checkout absent")
@@ -357,8 +380,8 @@ def test_emitted_verdict_enum_equals_resolver_rungs_plus_declared_clamp():
     assert clamp == set(_VETO_OUTCOMES), f"resolver clamp_verdicts {clamp} != _VETO_OUTCOMES {set(_VETO_OUTCOMES)}"
     resolver_enum = {r["verdict"] for r in spec["resolve"]} | {spec["default"]}
     assert set(ts._SELECTIVITY_VERDICT_PHRASE) == resolver_enum | clamp, (
-        f"emitted enum drift: phrase={set(ts._SELECTIVITY_VERDICT_PHRASE)} vs "
-        f"resolver∪clamp={resolver_enum | clamp}")
+        f"emitted enum drift: phrase={set(ts._SELECTIVITY_VERDICT_PHRASE)} vs resolver∪clamp={resolver_enum | clamp}"
+    )
 
 
 def test_clamp_kills_are_declared_contradictions_in_the_nomination_gate():
@@ -384,13 +407,16 @@ def test_clamp_kills_are_declared_contradictions_in_the_nomination_gate():
 # The CD19 counterexample (110 copies/cell, grade A — a validated CAR-T/TCE antigen below the soluble-TCE
 # floor) is why below_tce_floor must NOT clamp the selectivity verdict. These pin the inert contract. ---
 
+
 def _headline_with_density(axis_a_class, verdict_pair, density_fields):
-    cards = [{"card_id": "tumor-vs-normal-selectivity", "summary": {"selectivity_class": axis_a_class}},
-             {"card_id": "tumor-vs-normal-percentile-crossing", "summary": {}},
-             {"card_id": "modality-therapeutic-window", "summary": {}},
-             {"card_id": "sc-normal-celltype-expression", "summary": {}},
-             {"card_id": "expression-purity-confound", "summary": {}},
-             {"card_id": "surface-abundance-density", "summary": density_fields}]
+    cards = [
+        {"card_id": "tumor-vs-normal-selectivity", "summary": {"selectivity_class": axis_a_class}},
+        {"card_id": "tumor-vs-normal-percentile-crossing", "summary": {}},
+        {"card_id": "modality-therapeutic-window", "summary": {}},
+        {"card_id": "sc-normal-celltype-expression", "summary": {}},
+        {"card_id": "expression-purity-confound", "summary": {}},
+        {"card_id": "surface-abundance-density", "summary": density_fields},
+    ]
     return ts._headline(cards, [], verdict_pair)
 
 
@@ -398,11 +424,17 @@ def test_density_facet_surfaced_but_verdict_inert():
     """The absolute-density facet appears in the headline but the selectivity_class is exactly the
     resolved verdict — the density fields feed NO clamp."""
     h = _headline_with_density(
-        "strong_tumor_selective", ("strong_tumor_selective", "tvn-strong-selective-supportive"),
-        {"absolute_copies_per_cell": 110.0, "absolute_density_grade": "A",
-         "density_floor_verdict": "below_tce_floor", "is_tce_viable": False})
-    assert h["selectivity_class"] == "strong_tumor_selective"      # NOT downgraded by below_tce_floor
-    assert h["absolute_copies_per_cell"] == 110.0                  # facet surfaced
+        "strong_tumor_selective",
+        ("strong_tumor_selective", "tvn-strong-selective-supportive"),
+        {
+            "absolute_copies_per_cell": 110.0,
+            "absolute_density_grade": "A",
+            "density_floor_verdict": "below_tce_floor",
+            "is_tce_viable": False,
+        },
+    )
+    assert h["selectivity_class"] == "strong_tumor_selective"  # NOT downgraded by below_tce_floor
+    assert h["absolute_copies_per_cell"] == 110.0  # facet surfaced
     assert h["density_floor_verdict"] == "below_tce_floor"
 
 
@@ -412,54 +444,73 @@ def test_below_floor_does_not_appear_in_veto_rule_set():
     veto_rules = set(ts._NORMAL_BREADTH_VETO_RULES)
     assert not any("density" in r or "floor" in r for r in veto_rules), (
         "regression: a density-floor rule leaked into the veto set — axis-C must stay verdict-inert "
-        "(below-floor is a modality caveat, not a target killer; CD19=110/cell is a validated antigen).")
+        "(below-floor is a modality caveat, not a target killer; CD19=110/cell is a validated antigen)."
+    )
 
 
 def test_density_facet_unmeasured_when_no_anchor():
     """Un-anchored target → density_floor_verdict passes through as whatever the card emits (unmeasured);
     the facet still does not touch the verdict."""
     h = _headline_with_density(
-        "modest_tumor_selective", ("modest_tumor_selective", "tvn-modest-selective-supportive"),
-        {"absolute_copies_per_cell": None, "density_floor_verdict": "unmeasured"})
+        "modest_tumor_selective",
+        ("modest_tumor_selective", "tvn-modest-selective-supportive"),
+        {"absolute_copies_per_cell": None, "density_floor_verdict": "unmeasured"},
+    )
     assert h["selectivity_class"] == "modest_tumor_selective"
     assert h["density_floor_verdict"] == "unmeasured"
 
 
 # ── (strength, certainty) sidecar — CERTAINTY_MODEL 2nd axis ─────────────────────────────────────
 def _sel_cards(sel_class, cells_ran=3, n_tumor=50, direction="up", prot_eff=1.5, prot_q=0.01, protein=True):
-    c = [{"card_id": "tumor-vs-normal-selectivity",
-          "summary": {"selectivity_class": sel_class, "cells_ran": cells_ran, "n_tumor": n_tumor,
-                      "dominant_direction": direction}},
-         {"card_id": "modality-therapeutic-window", "summary": {"therapeutic_window_class": "adequate_window"}},
-         {"card_id": "sc-normal-celltype-expression", "summary": {"sc_normal_safety_essential_class": "no_liability"}}]
+    c = [
+        {
+            "card_id": "tumor-vs-normal-selectivity",
+            "summary": {
+                "selectivity_class": sel_class,
+                "cells_ran": cells_ran,
+                "n_tumor": n_tumor,
+                "dominant_direction": direction,
+            },
+        },
+        {"card_id": "modality-therapeutic-window", "summary": {"therapeutic_window_class": "adequate_window"}},
+        {"card_id": "sc-normal-celltype-expression", "summary": {"sc_normal_safety_essential_class": "no_liability"}},
+    ]
     if protein:
-        c.append({"card_id": "tumor-protein-abundance-cptac",
-                  "summary": {"protein_effect_size": prot_eff, "protein_bh_q_value": prot_q}})
+        c.append(
+            {
+                "card_id": "tumor-protein-abundance-cptac",
+                "summary": {"protein_effect_size": prot_eff, "protein_bh_q_value": prot_q},
+            }
+        )
     return c
 
 
 def test_strength_certainty_strong_selective_concordant():
-    sc = ts._strength_certainty(_sel_cards("strong_tumor_selective"),
-                                verdict_pair=("strong_tumor_selective", "tvn-strong-selective-supportive"))
+    sc = ts._strength_certainty(
+        _sel_cards("strong_tumor_selective"), verdict_pair=("strong_tumor_selective", "tvn-strong-selective-supportive")
+    )
     assert sc["strength"] == "strong_positive"
-    assert sc["certainty"]["coverage"] == "high"           # 3 cells, n_tumor>=10
-    assert sc["certainty"]["corroboration"] == "high"      # CPTAC protein concordant
+    assert sc["certainty"]["coverage"] == "high"  # 3 cells, n_tumor>=10
+    assert sc["certainty"]["corroboration"] == "high"  # CPTAC protein concordant
     assert sc["certainty"]["level"] == "high"
     assert sc["certainty"]["unknown_mass"] == 0.0
 
 
 def test_strength_certainty_protein_unmeasured_drops_from_level():
     # no CPTAC card -> corroboration unmeasured -> level = coverage (absence is ignorance, not disagreement)
-    sc = ts._strength_certainty(_sel_cards("modest_tumor_selective", cells_ran=2, protein=False),
-                                verdict_pair=("modest_tumor_selective", "tvn-modest-selective-supportive"))
+    sc = ts._strength_certainty(
+        _sel_cards("modest_tumor_selective", cells_ran=2, protein=False),
+        verdict_pair=("modest_tumor_selective", "tvn-modest-selective-supportive"),
+    )
     assert sc["strength"] == "moderate_positive"
     assert sc["certainty"]["corroboration"] == "unmeasured"
     assert sc["certainty"]["level"] == sc["certainty"]["coverage"] == "medium"
 
 
 def test_strength_certainty_insufficient_forces_low():
-    sc = ts._strength_certainty(_sel_cards("data_unavailable", cells_ran=0, protein=False),
-                                verdict_pair=("insufficient", None))
+    sc = ts._strength_certainty(
+        _sel_cards("data_unavailable", cells_ran=0, protein=False), verdict_pair=("insufficient", None)
+    )
     assert sc["strength"] == "none"
     assert sc["certainty"]["level"] == "low"
 
@@ -468,11 +519,14 @@ def test_strength_certainty_corroborator_is_cptac_not_percentile_crossing():
     # DISJOINTNESS in spirit: corroboration is driven by the CPTAC protein card, NOT by the same-RNA
     # percentile-crossing card (pseudo-replication). Adding a percentile-crossing card must not change it.
     base = _sel_cards("strong_tumor_selective", protein=False)
-    base.append({"card_id": "tumor-vs-normal-percentile-crossing",
-                 "summary": {"selectivity_class": "strong_tumor_selective",
-                             "fraction_tumor_above_normal_p95": 0.9}})
+    base.append(
+        {
+            "card_id": "tumor-vs-normal-percentile-crossing",
+            "summary": {"selectivity_class": "strong_tumor_selective", "fraction_tumor_above_normal_p95": 0.9},
+        }
+    )
     sc = ts._strength_certainty(base, verdict_pair=("strong_tumor_selective", "x"))
-    assert sc["certainty"]["corroboration"] == "unmeasured"   # no CPTAC -> unmeasured despite percentile card
+    assert sc["certainty"]["corroboration"] == "unmeasured"  # no CPTAC -> unmeasured despite percentile card
 
 
 # ── comparator-family coverage (double-count fix) ────────────────────────────────────────────────
@@ -485,28 +539,26 @@ def _sel_cards_conc(concordance, cells_ran=3, n_tumor=50):
 def test_coverage_single_comparator_is_medium_not_high():
     """A 3-cell run whose support rests on ONE independent comparator family (adjacent A+B; GTEx silent)
     must read coverage 'medium', not 'high' — cells A+B are the SAME comparison (ComBat double-count)."""
-    sc = ts._strength_certainty(_sel_cards_conc("single_comparator"),
-                                verdict_pair=("strong_tumor_selective", "x"))
+    sc = ts._strength_certainty(_sel_cards_conc("single_comparator"), verdict_pair=("strong_tumor_selective", "x"))
     assert sc["certainty"]["coverage"] == "medium"
     assert sc["provenance"]["comparator_concordance"] == "single_comparator"
 
 
 def test_coverage_concordant_families_is_high():
-    sc = ts._strength_certainty(_sel_cards_conc("concordant"),
-                                verdict_pair=("strong_tumor_selective", "x"))
+    sc = ts._strength_certainty(_sel_cards_conc("concordant"), verdict_pair=("strong_tumor_selective", "x"))
     assert sc["certainty"]["coverage"] == "high"
 
 
 def test_coverage_discordant_families_is_low():
-    sc = ts._strength_certainty(_sel_cards_conc("discordant"),
-                                verdict_pair=("strong_tumor_selective", "x"))
+    sc = ts._strength_certainty(_sel_cards_conc("discordant"), verdict_pair=("strong_tumor_selective", "x"))
     assert sc["certainty"]["coverage"] == "low"
 
 
 def test_coverage_falls_back_to_cell_count_when_concordance_absent():
     """Byte-stability: no comparator_concordance (older summaries) → the legacy 3-cell tier = high."""
-    sc = ts._strength_certainty(_sel_cards("strong_tumor_selective", protein=False),
-                                verdict_pair=("strong_tumor_selective", "x"))
+    sc = ts._strength_certainty(
+        _sel_cards("strong_tumor_selective", protein=False), verdict_pair=("strong_tumor_selective", "x")
+    )
     assert sc["certainty"]["coverage"] == "high"
 
 
@@ -518,9 +570,11 @@ def _cv(dist=None, win=None, intr=None):
 def test_measurement_caveat_flags_stromal_false_window():
     """FAP/PDAC archetype: resolved not_informative (axis-A abstained) but strongly present (DIST) and
     stroma-driven (INT negative / stromal_confounded) → a MEASURED false window, not an unmeasured gap."""
-    hl = {"selectivity_class": "not_informative",
-          "sc_stromal_confound_class": "stromal_confounded",
-          "claim_vector": _cv(dist="strong", intr="negative")}
+    hl = {
+        "selectivity_class": "not_informative",
+        "sc_stromal_confound_class": "stromal_confounded",
+        "claim_vector": _cv(dist="strong", intr="negative"),
+    }
     mc = ts._measurement_caveat(hl)
     assert mc and mc["verdict_is_coverage_gap"] and mc["measured_signal_present"]
     assert mc["reason"] == "stromal_confounded_false_window"
@@ -554,9 +608,9 @@ def test_measurement_caveat_in_synthesis_facet_keys():
 # RNA arm → the aggregate RNA classifier lands not_informative / discordant_across_comparators. That flat
 # arm must NOT sink a call the INDEPENDENT CPTAC-protein + population-normal arms support: the rescue lifts
 # it to field_effect_tumor_selective ONLY when a CPTAC-up rule AND the population-crossing-up rule both fire.
-_CPTAC = "protein-modestly-up-neutral"           # a CPTAC tumor-vs-normal protein-up rule
+_CPTAC = "protein-modestly-up-neutral"  # a CPTAC tumor-vs-normal protein-up rule
 _CPTAC_STRONG = "protein-strongly-up-supportive"
-_POP = "tumor-vs-normal-crossing-strong-supportive"   # population-normal percentile-crossing up
+_POP = "tumor-vs-normal-crossing-strong-supportive"  # population-normal percentile-crossing up
 _RESCUE_DRIVER = "tvn-protein-population-field-effect-rescue"
 
 
@@ -596,5 +650,7 @@ def test_rescue_then_window_veto_still_downgrades_GAPDH_safety_net():
 
 
 def test_rescue_then_stromal_confound_veto_still_downgrades_FAP_safety_net():
-    assert _fire_ids("tvn-discordant-neutral-flagged", _CPTAC, _POP,
-                     "tvn-stromal-confound-veto")[0] == "selective_but_stromal_confound"
+    assert (
+        _fire_ids("tvn-discordant-neutral-flagged", _CPTAC, _POP, "tvn-stromal-confound-veto")[0]
+        == "selective_but_stromal_confound"
+    )

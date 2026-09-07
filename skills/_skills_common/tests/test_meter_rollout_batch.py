@@ -4,6 +4,7 @@ Asserts each batched axis got a well-formed reference_frame whose value gauges a
 (the cut is single-sourced from target-contracts, so the resolved-value assertion runs only when the
 contracts checkout is present, matching the other ruler tests). Verdict-INERT / display-only.
 """
+
 import sys
 from pathlib import Path
 
@@ -12,7 +13,10 @@ if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
 
 from _skills_common.evidence_salience import (  # noqa: E402
-    SALIENCE_SPECS, build_interpretation, contract_threshold, _BATCH_DISTANCE_TO_CUT_METERS,
+    SALIENCE_SPECS,
+    build_interpretation,
+    contract_threshold,
+    _BATCH_DISTANCE_TO_CUT_METERS,
 )
 
 # one representative in-range value per batched axis + the cut we expect to resolve from the card
@@ -50,7 +54,7 @@ def test_each_batched_axis_gauges_value_and_resolves_its_cut():
         assert batched is not None, f"{mt}: batched meter {vf} not gauged from {summary}"
         assert batched["value"] == summary[vf] and batched["scale"], f"{mt}: no bare number"
         cut_key, card = rf["cut"]["threshold"], rf["cut"]["card_id"]
-        if contract_threshold(card, cut_key) is not None:      # only when contracts is checked out
+        if contract_threshold(card, cut_key) is not None:  # only when contracts is checked out
             assert {a["role"]: a["value"] for a in batched["frame"]["anchors"]}.get("cut") == expected_cut
 
 

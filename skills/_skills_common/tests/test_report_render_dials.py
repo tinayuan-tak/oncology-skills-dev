@@ -1,4 +1,5 @@
 """report_render — determinism (byte-stable) + the three dials behaving as declared."""
+
 import sys
 from pathlib import Path
 
@@ -7,8 +8,7 @@ if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
 
 from _skills_common.report_render._fixtures import make_nomination
-from _skills_common.report_render import (build_ir, render_all, render_report, resolve_spec,
-                                           string_backend_names, vocab)
+from _skills_common.report_render import build_ir, render_all, render_report, resolve_spec, string_backend_names, vocab
 
 
 def test_render_is_byte_stable():
@@ -16,8 +16,9 @@ def test_render_is_byte_stable():
     # on the text-form backends; the deterministic snapshot surface is the json view.
     nom = make_nomination()
     for name in string_backend_names():
-        assert render_report(nom, preset="full", backend=name) == \
-               render_report(nom, preset="full", backend=name), f"non-deterministic: {name!r}"
+        assert render_report(nom, preset="full", backend=name) == render_report(nom, preset="full", backend=name), (
+            f"non-deterministic: {name!r}"
+        )
 
 
 def test_question_table_cells_render_label_not_dict_repr():
@@ -36,8 +37,7 @@ def test_question_table_cells_render_label_not_dict_repr():
 
 def test_level_is_progressive_disclosure():
     nom = make_nomination()
-    k = {lvl: build_ir(nom, resolve_spec(level=lvl, scope="all")).present_kinds()
-         for lvl in ("L0", "L1", "L2", "L3")}
+    k = {lvl: build_ir(nom, resolve_spec(level=lvl, scope="all")).present_kinds() for lvl in ("L0", "L1", "L2", "L3")}
     assert k["L0"] <= k["L1"]
     assert vocab.CLAIM_CHIPS not in k["L0"]
     # L1 shows claim_chips (no question_table yet); L2+ SWAPS to the question_table (dedupe suppresses

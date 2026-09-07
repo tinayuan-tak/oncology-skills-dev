@@ -9,6 +9,7 @@ before it is run live on real evidence packages:
   - score_gold aggregates per-dimension accuracy + lists misses + counts no_package;
   - load_gold scores only gold_upheld (review_queue is carried, never silently scored).
 """
+
 from __future__ import annotations
 
 import json
@@ -22,10 +23,15 @@ if str(SCRIPTS) not in sys.path:
 import validate_gold as vg  # noqa: E402
 
 
-def _pkg(dep=None, mech="well_characterized", safety="tolerant_reduced_safety_risk",
-         sel=None, tract="well_covered", cards=None):
-    sv = {"mechanism": {"verdict": mech}, "safety": {"verdict": safety},
-          "tractability_sm": {"verdict": tract}}
+def _pkg(
+    dep=None,
+    mech="well_characterized",
+    safety="tolerant_reduced_safety_risk",
+    sel=None,
+    tract="well_covered",
+    cards=None,
+):
+    sv = {"mechanism": {"verdict": mech}, "safety": {"verdict": safety}, "tractability_sm": {"verdict": tract}}
     if dep:
         sv["dependency"] = {"verdict": dep}
     if sel:
@@ -34,8 +40,15 @@ def _pkg(dep=None, mech="well_characterized", safety="tolerant_reduced_safety_ri
 
 
 def _entry(dim, target, modality, expected, label="positive", indication="X"):
-    return {"_dimension": dim, "target": target, "modality": modality,
-            "expected_bin": expected, "label": label, "indication": indication, "confidence": "high"}
+    return {
+        "_dimension": dim,
+        "target": target,
+        "modality": modality,
+        "expected_bin": expected,
+        "label": label,
+        "indication": indication,
+        "confidence": "high",
+    }
 
 
 # ---- score_entry: biological (1:1) ----
@@ -79,9 +92,9 @@ def test_miss_is_flagged():
 # ---- score_gold aggregation ----
 def test_score_gold_aggregates_and_lists_misses():
     entries = [
-        _entry("biological", "A", "small_molecule", "LOW", indication="i1"),   # hit (lineage_selective)
-        _entry("biological", "B", "small_molecule", "LOW", indication="i2"),   # miss (non_dependent->HIGH)
-        _entry("biological", "C", "small_molecule", "LOW", indication="i3"),   # no_package
+        _entry("biological", "A", "small_molecule", "LOW", indication="i1"),  # hit (lineage_selective)
+        _entry("biological", "B", "small_molecule", "LOW", indication="i2"),  # miss (non_dependent->HIGH)
+        _entry("biological", "C", "small_molecule", "LOW", indication="i3"),  # no_package
     ]
     pkgs = {("A", "i1"): _pkg(dep="lineage_selective"), ("B", "i2"): _pkg(dep="non_dependent")}
     rep = vg.score_gold(entries, lambda t, i: pkgs.get((t, i)))
@@ -94,13 +107,25 @@ def test_score_gold_aggregates_and_lists_misses():
 
 # ---- load_gold: only gold_upheld is scored ----
 def test_load_gold_flattens_upheld_only(tmp_path):
-    doc = {"assembled": [
-        {"dimension": "safety",
-         "gold_upheld": [{"target": "T1", "indication": "i", "modality": "small_molecule",
-                          "expected_bin": "LOW", "label": "positive"}],
-         "review_queue": [{"target": "T2", "indication": "i", "modality": "adc",
-                           "expected_bin": "HIGH", "label": "negative"}]},
-    ]}
+    doc = {
+        "assembled": [
+            {
+                "dimension": "safety",
+                "gold_upheld": [
+                    {
+                        "target": "T1",
+                        "indication": "i",
+                        "modality": "small_molecule",
+                        "expected_bin": "LOW",
+                        "label": "positive",
+                    }
+                ],
+                "review_queue": [
+                    {"target": "T2", "indication": "i", "modality": "adc", "expected_bin": "HIGH", "label": "negative"}
+                ],
+            },
+        ]
+    }
     p = tmp_path / "gold.json"
     p.write_text(json.dumps(doc))
     entries, review = vg.load_gold(p)

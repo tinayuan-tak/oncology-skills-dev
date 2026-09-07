@@ -15,6 +15,7 @@ governed card — so the card/skill validators + the emission guard see it. Dist
 literature-risk-assessment skill (live PubMed + LLM 6-dimension RISK read); this reads pinned,
 catalogued products (reproducible, no LLM).
 """
+
 from __future__ import annotations
 
 import sys
@@ -27,8 +28,7 @@ from _skills_common.dispatcher import run_wired_skill
 from _skills_common import get_card_field
 from _skills_common.narrator_engine import make_synthesize_fn
 from _skills_common.narrator_lenses import LITERATURE_CONTEXT as _LENS
-from _skills_common.literature_context_claims import (
-    literature_context_claim_vector, literature_context_key_signals)
+from _skills_common.literature_context_claims import literature_context_claim_vector, literature_context_key_signals
 from _skills_common.literature_context_question_table import literature_context_question_table
 from _skills_common.headline_core import build_headline, HeadlineSpec
 from _skills_common.skill_report import build_skill_report, ROLE_DESCRIPTIVE
@@ -36,28 +36,30 @@ from _skills_common.skill_report import build_skill_report, ROLE_DESCRIPTIVE
 
 SKILL_NAME = "literature-context"
 SKILL_VERSION = "1.1.0"  # 1.1.0 (2026-09-05, literature-and-claims arc, 2nd NON-standard skill after
-                         # target-archetype #1052): CREATE the LITERATURE_CONTEXT narrator lens (was NONE)
-                         # + wire synthesize_fn. DELIBERATE DECISION: SKIP the LLM --literature lane as
-                         # REDUNDANT/CIRCULAR — the cited-literature-evidence card IS the Europe-PMC +
-                         # PubTator3 literature, and default_retrieve grounds on those same two sources, so
-                         # a lit lane would re-derive the card's own source + double-count its pmids (see
-                         # SKILL.md "What this skill does NOT do"). Verdict-INERT cited-evidence confidence
-                         # surface — cited_evidence_confidence_caveat (3-tier: volume_without_validated_relation
-                         # / relation_direction_automated_or_conflicting / validated_established_relationship
-                         # false-demote guard) + stale_literature recency note + cited_evidence_provenance
-                         # QUORUM. Caveats gate on the EXISTING _headline fields (NO new card-field read) →
-                         # GATELESS + verdict None + gate None byte-stable. SET literals not 2-tuples.
+# target-archetype #1052): CREATE the LITERATURE_CONTEXT narrator lens (was NONE)
+# + wire synthesize_fn. DELIBERATE DECISION: SKIP the LLM --literature lane as
+# REDUNDANT/CIRCULAR — the cited-literature-evidence card IS the Europe-PMC +
+# PubTator3 literature, and default_retrieve grounds on those same two sources, so
+# a lit lane would re-derive the card's own source + double-count its pmids (see
+# SKILL.md "What this skill does NOT do"). Verdict-INERT cited-evidence confidence
+# surface — cited_evidence_confidence_caveat (3-tier: volume_without_validated_relation
+# / relation_direction_automated_or_conflicting / validated_established_relationship
+# false-demote guard) + stale_literature recency note + cited_evidence_provenance
+# QUORUM. Caveats gate on the EXISTING _headline fields (NO new card-field read) →
+# GATELESS + verdict None + gate None byte-stable. SET literals not 2-tuples.
 
 CARDS = [
-    "cited-literature-evidence",   # OT europepmc co-occurrence (volume/recency + top cited statements)
-                                   # + PubTator3 BioREx typed relation direction. gene×indication.
-                                   # VERDICT-INERT descriptive literature context (composes both readers
-                                   # via analysis-methods cited_literature_evidence.read).
+    "cited-literature-evidence",  # OT europepmc co-occurrence (volume/recency + top cited statements)
+    # + PubTator3 BioREx typed relation direction. gene×indication.
+    # VERDICT-INERT descriptive literature context (composes both readers
+    # via analysis-methods cited_literature_evidence.read).
 ]
 
-QUESTION = ("What does the literature say about {target} in {indication} — co-occurrence volume/recency, "
-            "the top cited statements (Open Targets europePMC), and typed relation direction (PubTator3 "
-            "associate/cause/inhibit/…) — with citations?")
+QUESTION = (
+    "What does the literature say about {target} in {indication} — co-occurrence volume/recency, "
+    "the top cited statements (Open Targets europePMC), and typed relation direction (PubTator3 "
+    "associate/cause/inhibit/…) — with citations?"
+)
 
 
 # ── CITED-EVIDENCE confidence surface (VERDICT-INERT) — the cited-literature analog of translational-
@@ -90,9 +92,17 @@ QUESTION = ("What does the literature say about {target} in {indication} — co-
 
 # NORMALISE the OncoTree code so the guard crosswalk matches leaf/composite/synonym codes (mirrors the
 # translational-readiness / HCMI-reader normalization).
-_LIT_IND_ALIAS = {"COAD": "COADREAD", "READ": "COADREAD", "COADREAD": "COADREAD",
-                  "LUSC": "LUAD", "NSCLC": "LUAD", "LUAD": "LUAD",
-                  "CCRCC": "KIRC", "RCC": "KIRC", "KIRC": "KIRC"}
+_LIT_IND_ALIAS = {
+    "COAD": "COADREAD",
+    "READ": "COADREAD",
+    "COADREAD": "COADREAD",
+    "LUSC": "LUAD",
+    "NSCLC": "LUAD",
+    "LUAD": "LUAD",
+    "CCRCC": "KIRC",
+    "RCC": "KIRC",
+    "KIRC": "KIRC",
+}
 
 
 def _lit_norm_ind(indication) -> str:
@@ -107,10 +117,10 @@ _REL_DOWN = {"inhibit", "negative_correlate"}
 # `cause` / `associate` are directional-but-not-polarity (a TSG-LoF "cause" is direction-consistent — see the
 # VHL note), so they are NOT counted as a polarity conflict on their own.
 
-_SINGLE_PAPER_MAX = 2   # total_relation_publications ≤ this ⇒ the typed relation rests on ≤2 papers (thin)
+_SINGLE_PAPER_MAX = 2  # total_relation_publications ≤ this ⇒ the typed relation rests on ≤2 papers (thin)
 _PLEIOTROPY_MIN_DISEASES = 8  # n_diseases ≥ this ⇒ promiscuous/pleiotropic hub (the TP53 pattern)
-_STALE_BEFORE_YEAR = 2016     # latest_year ≤ this (a decade before the OT 26.06 release) ⇒ stale literature.
-                              # A FIXED data-release anchor (NOT wall-clock) so the note is deterministic.
+_STALE_BEFORE_YEAR = 2016  # latest_year ≤ this (a decade before the OT 26.06 release) ⇒ stale literature.
+# A FIXED data-release anchor (NOT wall-clock) so the note is deterministic.
 
 # (target, indication) whose cited literature is a CANONICAL, VALIDATED, DIRECTION-CORRECT relationship — the
 # MILDER false-demote guard (mirrors translational-readiness's _VALIDATED_PRECLINICAL_MODEL / differentiation's
@@ -121,32 +131,40 @@ _STALE_BEFORE_YEAR = 2016     # latest_year ≤ this (a decade before the OT 26.
 # → cause/positive_correlate/stimulate); VHL is a LoF two-hit TSG (disease driven by LOSS — a typed "cause" is
 # still direction-consistent but must NOT be read as oncogene-style GoF).
 _VALIDATED_ESTABLISHED_RELATIONSHIP = {
-    ("KRAS", "COADREAD"): ("Canonical activating GoF oncogene driver of colorectal cancer (codon 12/13 hotspot "
-                           "SNVs): an early, defining step of the adenoma→carcinoma sequence (Fearon & Vogelstein "
-                           "1990 PMID 2188735), a validated negative predictor of anti-EGFR benefit (Karapetis "
-                           "2008 PMID 18946061; Amado 2008 PMID 18316791), and pharmacologically validated by "
-                           "KRAS-G12C inhibition (sotorasib Hong 2020 PMID 32955176; adagrasib±cetuximab in CRC "
-                           "Yaeger 2023 PMID 36546659). A high co-occurrence VOLUME + a cause/positive_correlate "
-                           "direction is EXPECTED here, NOT a citation-bias over-call."),
-    ("ERBB2", "BRCA"):    ("Canonical amplification/overexpression-driven oncogene in breast cancer — the founding "
-                           "predictive-biomarker→targeted-therapy story: HER2/neu amplification correlates with "
-                           "relapse and shortened survival (Slamon 1987 PMID 3798106) and anti-HER2 (trastuzumab) "
-                           "validates the amplification as driver (Slamon 2001 PMID 11248153). High VOLUME + a "
-                           "cause/positive_correlate direction is EXPECTED, NOT an over-call."),
-    ("EGFR", "LUAD"):     ("Canonical activating GoF oncogene in lung adenocarcinoma via kinase-domain SNV/indel "
-                           "(exon-19 del / L858R) — the defining oncogene-addiction paradigm: activating EGFR "
-                           "mutations confer TKI sensitivity (Lynch 2004 PMID 15118073; Paez 2004 PMID 15118125; "
-                           "Pao 2004 PMID 15329413) and first-line TKI superiority is established (IPASS, Mok 2009 "
-                           "PMID 19692680). High VOLUME + a cause/positive_correlate/stimulate direction is "
-                           "EXPECTED, NOT an over-call."),
-    ("VHL", "KIRC"):      ("Canonical loss-of-function two-hit TUMOR SUPPRESSOR of clear-cell RCC (biallelic "
-                           "inactivation: mutation/deletion + second-hit mutation or promoter methylation): VHL "
-                           "identified as the ccRCC TSG (Latif 1993 PMID 8493574), somatic VHL mutation in "
-                           "sporadic ccRCC (Gnarra 1994 PMID 7915601), pVHL degrades HIF-α so VHL loss → "
-                           "constitutive-HIF pseudohypoxia (Maxwell 1999 PMID 10353251). A high VOLUME is EXPECTED "
-                           "and a typed cause/associate direction is direction-CONSISTENT for a TSG — but this is "
-                           "a LOSS-driven relationship, OPPOSITE in sign to the oncogene guards; do NOT read the "
-                           "typed edge as oncogene-style GoF."),
+    ("KRAS", "COADREAD"): (
+        "Canonical activating GoF oncogene driver of colorectal cancer (codon 12/13 hotspot "
+        "SNVs): an early, defining step of the adenoma→carcinoma sequence (Fearon & Vogelstein "
+        "1990 PMID 2188735), a validated negative predictor of anti-EGFR benefit (Karapetis "
+        "2008 PMID 18946061; Amado 2008 PMID 18316791), and pharmacologically validated by "
+        "KRAS-G12C inhibition (sotorasib Hong 2020 PMID 32955176; adagrasib±cetuximab in CRC "
+        "Yaeger 2023 PMID 36546659). A high co-occurrence VOLUME + a cause/positive_correlate "
+        "direction is EXPECTED here, NOT a citation-bias over-call."
+    ),
+    ("ERBB2", "BRCA"): (
+        "Canonical amplification/overexpression-driven oncogene in breast cancer — the founding "
+        "predictive-biomarker→targeted-therapy story: HER2/neu amplification correlates with "
+        "relapse and shortened survival (Slamon 1987 PMID 3798106) and anti-HER2 (trastuzumab) "
+        "validates the amplification as driver (Slamon 2001 PMID 11248153). High VOLUME + a "
+        "cause/positive_correlate direction is EXPECTED, NOT an over-call."
+    ),
+    ("EGFR", "LUAD"): (
+        "Canonical activating GoF oncogene in lung adenocarcinoma via kinase-domain SNV/indel "
+        "(exon-19 del / L858R) — the defining oncogene-addiction paradigm: activating EGFR "
+        "mutations confer TKI sensitivity (Lynch 2004 PMID 15118073; Paez 2004 PMID 15118125; "
+        "Pao 2004 PMID 15329413) and first-line TKI superiority is established (IPASS, Mok 2009 "
+        "PMID 19692680). High VOLUME + a cause/positive_correlate/stimulate direction is "
+        "EXPECTED, NOT an over-call."
+    ),
+    ("VHL", "KIRC"): (
+        "Canonical loss-of-function two-hit TUMOR SUPPRESSOR of clear-cell RCC (biallelic "
+        "inactivation: mutation/deletion + second-hit mutation or promoter methylation): VHL "
+        "identified as the ccRCC TSG (Latif 1993 PMID 8493574), somatic VHL mutation in "
+        "sporadic ccRCC (Gnarra 1994 PMID 7915601), pVHL degrades HIF-α so VHL loss → "
+        "constitutive-HIF pseudohypoxia (Maxwell 1999 PMID 10353251). A high VOLUME is EXPECTED "
+        "and a typed cause/associate direction is direction-CONSISTENT for a TSG — but this is "
+        "a LOSS-driven relationship, OPPOSITE in sign to the oncogene guards; do NOT read the "
+        "typed edge as oncogene-style GoF."
+    ),
 }
 
 
@@ -187,20 +205,28 @@ def _stale_literature_note(hl: dict) -> dict | None:
     recent = hl.get("recent_mentions")
     vol = hl.get("paper_disease_mentions")
     old = isinstance(latest, (int, float)) and latest <= _STALE_BEFORE_YEAR
-    quiet = (isinstance(recent, (int, float)) and recent == 0
-             and isinstance(vol, (int, float)) and vol > 0)
+    quiet = isinstance(recent, (int, float)) and recent == 0 and isinstance(vol, (int, float)) and vol > 0
     if not (old or quiet):
         return None
     bits = []
     if old:
-        bits.append(f"the latest cited mention is {latest} (≤ {_STALE_BEFORE_YEAR}, a decade before the data "
-                    "release) — a stale literature that may pre-date modern understanding")
+        bits.append(
+            f"the latest cited mention is {latest} (≤ {_STALE_BEFORE_YEAR}, a decade before the data "
+            "release) — a stale literature that may pre-date modern understanding"
+        )
     if quiet:
-        bits.append(f"there is measured co-occurrence VOLUME ({vol}) but ZERO recent mentions — attention has "
-                    "moved on (or the association was never built out)")
-    return {"reason": "stale_literature", "tier": "context",
-            "detail": ("RECENCY flag: " + "; ".join(bits) + ". Recency is a low-confidence signal, not "
-                       "validation (Stoeger 2018 PMID 30226837; Edwards 2011 PMID 21307913).")}
+        bits.append(
+            f"there is measured co-occurrence VOLUME ({vol}) but ZERO recent mentions — attention has "
+            "moved on (or the association was never built out)"
+        )
+    return {
+        "reason": "stale_literature",
+        "tier": "context",
+        "detail": (
+            "RECENCY flag: " + "; ".join(bits) + ". Recency is a low-confidence signal, not "
+            "validation (Stoeger 2018 PMID 30226837; Edwards 2011 PMID 21307913)."
+        ),
+    }
 
 
 def _cited_evidence_confidence_caveat(hl: dict, target=None, indication=None) -> dict | None:
@@ -212,13 +238,17 @@ def _cited_evidence_confidence_caveat(hl: dict, target=None, indication=None) ->
     fields + the curated (target, indication) crosswalk; never moves a spine (there is none — gateless +
     tokenless)."""
     if not _cited_positive_substrate(hl):
-        return None                                            # thin / stale / no-evidence → byte-stable None
+        return None  # thin / stale / no-evidence → byte-stable None
     key = ((target or "").upper().strip(), _lit_norm_ind(indication))
 
     # TIER (iii) MILDER — canonical validated + direction-correct relationship guard (false-demote).
     if key in _VALIDATED_ESTABLISHED_RELATIONSHIP:
-        return {"reason": "validated_established_relationship", "tier": "milder", "false_demote_guarded": True,
-                "detail": _VALIDATED_ESTABLISHED_RELATIONSHIP[key]}
+        return {
+            "reason": "validated_established_relationship",
+            "tier": "milder",
+            "false_demote_guarded": True,
+            "detail": _VALIDATED_ESTABLISHED_RELATIONSHIP[key],
+        }
 
     # TIER (ii) SHARP — the typed RELATION DIRECTION rests on automated / conflicting / single-paper BioREx
     # extraction. Fires when a relation signal is present AND (direction-conflict OR ≤2-paper thin).
@@ -228,18 +258,27 @@ def _cited_evidence_confidence_caveat(hl: dict, target=None, indication=None) ->
         rts = [str(r) for r in (hl.get("relation_types") or []) if r]
         bits = []
         if conflict:
-            bits.append(f"the typed-relation set CONFLICTS on direction (both up- and down-polarity labels "
-                        f"present: {', '.join(rts[:6])}) — the automated extraction disagrees across papers")
+            bits.append(
+                f"the typed-relation set CONFLICTS on direction (both up- and down-polarity labels "
+                f"present: {', '.join(rts[:6])}) — the automated extraction disagrees across papers"
+            )
         if single:
-            bits.append(f"the typed relation rests on only {hl.get('total_relation_publications')} publication(s) "
-                        "— a single-/few-paper automated assertion, not a corroborated mechanism")
-        return {"reason": "relation_direction_automated_or_conflicting", "tier": "sharp",
-                "false_demote_guarded": False,
-                "detail": ("The RELATION DIRECTION is UNRELIABLE: " + "; ".join(bits) + ". PubTator3 typed "
-                           "edges are ML-extracted by BioREx (best-in-class 79.6% F1 on BioRED — Lai 2023 PMID "
-                           "37673376; Wei 2024 PMID 38572754), often from a SINGLE sentence, so the direction "
-                           "can be mis-typed / context-free (an in-vitro edge is not a validated in-vivo "
-                           "mechanism). The mechanistic/causal call is owned by mechanism-and-pharmacology.")}
+            bits.append(
+                f"the typed relation rests on only {hl.get('total_relation_publications')} publication(s) "
+                "— a single-/few-paper automated assertion, not a corroborated mechanism"
+            )
+        return {
+            "reason": "relation_direction_automated_or_conflicting",
+            "tier": "sharp",
+            "false_demote_guarded": False,
+            "detail": (
+                "The RELATION DIRECTION is UNRELIABLE: " + "; ".join(bits) + ". PubTator3 typed "
+                "edges are ML-extracted by BioREx (best-in-class 79.6% F1 on BioRED — Lai 2023 PMID "
+                "37673376; Wei 2024 PMID 38572754), often from a SINGLE sentence, so the direction "
+                "can be mis-typed / context-free (an in-vitro edge is not a validated in-vivo "
+                "mechanism). The mechanistic/causal call is owned by mechanism-and-pharmacology."
+            ),
+        }
 
     # TIER (i) SHARP — volume-without-validated-relation default (the catch-all over-call warning). Covers a
     # HIGH-volume pair with thin/absent relation direction AND the pleiotropy inflation (high n_diseases).
@@ -247,25 +286,33 @@ def _cited_evidence_confidence_caveat(hl: dict, target=None, indication=None) ->
     pleiotropic = isinstance(nd, (int, float)) and nd >= _PLEIOTROPY_MIN_DISEASES
     extra = ""
     if pleiotropic:
-        extra = (f" This target co-occurs across MANY diseases (n_diseases={nd} ≥ {_PLEIOTROPY_MIN_DISEASES}) — "
-                 "a promiscuous/pleiotropic hub (the TP53 pattern; Kandoth 2013 PMID 24132290), so the VOLUME "
-                 "is a low-SPECIFICITY signal, not an indication-specific validated relationship.")
-    return {"reason": "volume_without_validated_relation", "tier": "sharp", "false_demote_guarded": False,
-            "detail": ("The co-occurrence VOLUME describes HOW MUCH is written, NOT a validated / causal target–"
-                       "indication relationship: a high count reflects CITATION / ATTENTION / STUDY bias "
-                       "(well-studied genes accrue mentions — Stoeger 2018 PMID 30226837; Edwards 2011 PMID "
-                       "21307913; guilt-by-association multifunctionality — Gillis & Pavlidis 2012 PMID 22479173), "
-                       "and the relation direction here is thin/absent/ambiguous so it cannot corroborate a "
-                       "specific mechanism." + extra + " Treat as DESCRIPTIVE citation context, not validation; "
-                       "the causal call is owned by mechanism-and-pharmacology and the RISK read by "
-                       "literature-risk-assessment.")}
+        extra = (
+            f" This target co-occurs across MANY diseases (n_diseases={nd} ≥ {_PLEIOTROPY_MIN_DISEASES}) — "
+            "a promiscuous/pleiotropic hub (the TP53 pattern; Kandoth 2013 PMID 24132290), so the VOLUME "
+            "is a low-SPECIFICITY signal, not an indication-specific validated relationship."
+        )
+    return {
+        "reason": "volume_without_validated_relation",
+        "tier": "sharp",
+        "false_demote_guarded": False,
+        "detail": (
+            "The co-occurrence VOLUME describes HOW MUCH is written, NOT a validated / causal target–"
+            "indication relationship: a high count reflects CITATION / ATTENTION / STUDY bias "
+            "(well-studied genes accrue mentions — Stoeger 2018 PMID 30226837; Edwards 2011 PMID "
+            "21307913; guilt-by-association multifunctionality — Gillis & Pavlidis 2012 PMID 22479173), "
+            "and the relation direction here is thin/absent/ambiguous so it cannot corroborate a "
+            "specific mechanism." + extra + " Treat as DESCRIPTIVE citation context, not validation; "
+            "the causal call is owned by mechanism-and-pharmacology and the RISK read by "
+            "literature-risk-assessment."
+        ),
+    }
 
 
 def _top_cited_pmids(hl: dict, cap: int = 8) -> list:
     """Extract the pmids from the top_cited statements (for the provenance quorum) — the card's OWN verified
     citations, so a consumer can attribute to them without inventing an identifier. Best-effort / shape-tolerant."""
     out = []
-    for c in (hl.get("top_cited") or []):
+    for c in hl.get("top_cited") or []:
         if not isinstance(c, dict):
             continue
         pmid = c.get("pmid") or c.get("PMID")
@@ -283,8 +330,17 @@ def _cited_evidence_provenance(hl: dict, target=None, indication=None) -> dict |
     validated-relationship flag — plus the load-bearing 'co-occurrence ≠ causation + BioREx is automated
     single-sentence extraction' note — so a high VOLUME or an automated relation is never mistaken for a
     validated, causal, direction-correct relationship. None only on a truly empty read (byte-stable)."""
-    _fields = ("cited_evidence_status", "paper_disease_mentions", "recent_mentions", "n_diseases",
-               "earliest_year", "latest_year", "relation_types", "total_relation_publications", "top_cited")
+    _fields = (
+        "cited_evidence_status",
+        "paper_disease_mentions",
+        "recent_mentions",
+        "n_diseases",
+        "earliest_year",
+        "latest_year",
+        "relation_types",
+        "total_relation_publications",
+        "top_cited",
+    )
     if all(hl.get(f) in (None, [], 0) for f in _fields):
         return None
     key = ((target or "").upper().strip(), _lit_norm_ind(indication))
@@ -311,12 +367,14 @@ def _cited_evidence_provenance(hl: dict, target=None, indication=None) -> dict |
         "pleiotropic_flag": bool(isinstance(nd, (int, float)) and nd >= _PLEIOTROPY_MIN_DISEASES),
         "stale_flag": bool(isinstance(latest, (int, float)) and latest <= _STALE_BEFORE_YEAR),
         "validated_established_relationship_flag": key in _VALIDATED_ESTABLISHED_RELATIONSHIP,
-        "provenance_note": ("Cited-literature CONTEXT (Open Targets europePMC co-occurrence + PubTator3 BioREx "
-                            "typed relations). CO-OCCURRENCE ≠ CAUSATION (volume tracks citation/attention/study "
-                            "bias — Stoeger 2018 PMID 30226837), and the typed relation DIRECTION is AUTOMATED "
-                            "single-sentence extraction (BioREx ~79.6% F1 — Lai 2023 PMID 37673376), NOT a "
-                            "validated in-vivo mechanism. Descriptive + context-tier — never a nomination gate "
-                            "(RISK_ASSESSMENT_INTEGRATION.md §4)."),
+        "provenance_note": (
+            "Cited-literature CONTEXT (Open Targets europePMC co-occurrence + PubTator3 BioREx "
+            "typed relations). CO-OCCURRENCE ≠ CAUSATION (volume tracks citation/attention/study "
+            "bias — Stoeger 2018 PMID 30226837), and the typed relation DIRECTION is AUTOMATED "
+            "single-sentence extraction (BioREx ~79.6% F1 — Lai 2023 PMID 37673376), NOT a "
+            "validated in-vivo mechanism. Descriptive + context-tier — never a nomination gate "
+            "(RISK_ASSESSMENT_INTEGRATION.md §4)."
+        ),
     }
 
 
@@ -324,8 +382,7 @@ def _cited_evidence_provenance(hl: dict, target=None, indication=None) -> dict |
 # coverage-critical axis that floors confidence.
 _LITERATURE_HEADLINE_SPEC = HeadlineSpec(
     gate="literature_context",
-    axis_labels={"VOLUME": "co-occurrence volume", "RECENCY": "recent activity",
-                 "RELATION": "typed relations"},
+    axis_labels={"VOLUME": "co-occurrence volume", "RECENCY": "recent activity", "RELATION": "typed relations"},
     axis_keys=("VOLUME", "RECENCY", "RELATION"),
     critical_axes=("VOLUME",),
 )
@@ -336,9 +393,14 @@ def _build_headline_block(headline: dict) -> dict:
     verdict_token=None and the deterministic key_signals.headline is the descriptive_phrase (call stays
     None, polarity neutral). Never moves a spine (there is none)."""
     ks = headline.get("key_signals") or {}
-    return build_headline(headline, headline.get("claim_vector"), headline.get("key_signals"),
-                          spec=_LITERATURE_HEADLINE_SPEC, verdict_token=None,
-                          descriptive_phrase=ks.get("headline"))
+    return build_headline(
+        headline,
+        headline.get("claim_vector"),
+        headline.get("key_signals"),
+        spec=_LITERATURE_HEADLINE_SPEC,
+        verdict_token=None,
+        descriptive_phrase=ks.get("headline"),
+    )
 
 
 def _headline(cards, fired, verdict_pair, target=None, indication=None):
@@ -350,21 +412,18 @@ def _headline(cards, fired, verdict_pair, target=None, indication=None):
     present) — they key the (target, indication)-crosswalk false-demote guard in
     cited_evidence_confidence_caveat."""
     hl = {
-        "cited_evidence_status":       get_card_field(cards, "cited-literature-evidence",
-                                            "cited_evidence_status"),
-        "literature_scope":            get_card_field(cards, "cited-literature-evidence",
-                                            "literature_scope"),
-        "paper_disease_mentions":      get_card_field(cards, "cited-literature-evidence",
-                                            "paper_disease_mentions"),
-        "recent_mentions":             get_card_field(cards, "cited-literature-evidence",
-                                            "recent_mentions"),
-        "n_diseases":                  get_card_field(cards, "cited-literature-evidence", "n_diseases"),
-        "earliest_year":               get_card_field(cards, "cited-literature-evidence", "earliest_year"),
-        "latest_year":                 get_card_field(cards, "cited-literature-evidence", "latest_year"),
-        "top_cited":                   get_card_field(cards, "cited-literature-evidence", "top_cited"),
-        "relation_types":              get_card_field(cards, "cited-literature-evidence", "relation_types"),
-        "total_relation_publications": get_card_field(cards, "cited-literature-evidence",
-                                            "total_relation_publications"),
+        "cited_evidence_status": get_card_field(cards, "cited-literature-evidence", "cited_evidence_status"),
+        "literature_scope": get_card_field(cards, "cited-literature-evidence", "literature_scope"),
+        "paper_disease_mentions": get_card_field(cards, "cited-literature-evidence", "paper_disease_mentions"),
+        "recent_mentions": get_card_field(cards, "cited-literature-evidence", "recent_mentions"),
+        "n_diseases": get_card_field(cards, "cited-literature-evidence", "n_diseases"),
+        "earliest_year": get_card_field(cards, "cited-literature-evidence", "earliest_year"),
+        "latest_year": get_card_field(cards, "cited-literature-evidence", "latest_year"),
+        "top_cited": get_card_field(cards, "cited-literature-evidence", "top_cited"),
+        "relation_types": get_card_field(cards, "cited-literature-evidence", "relation_types"),
+        "total_relation_publications": get_card_field(
+            cards, "cited-literature-evidence", "total_relation_publications"
+        ),
     }
     # ── verdict-INERT signals-first projections (mirrors the other descriptive skills) ─────────────
     hl["claim_vector"] = literature_context_claim_vector(hl, cards)
@@ -381,11 +440,12 @@ def _headline(cards, fired, verdict_pair, target=None, indication=None):
     except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the context spine
         hl.setdefault("_enrichment_errors", {})["cited_evidence_confidence_caveat"] = f"{type(exc).__name__}: {exc}"
         hl["cited_evidence_confidence_caveat"] = None
-    for _fld, _fn in (("stale_literature_note", _stale_literature_note),
-                      ("cited_evidence_provenance", _cited_evidence_provenance)):
+    for _fld, _fn in (
+        ("stale_literature_note", _stale_literature_note),
+        ("cited_evidence_provenance", _cited_evidence_provenance),
+    ):
         try:
-            hl[_fld] = _fn(hl, target=target, indication=indication) if _fld == "cited_evidence_provenance" \
-                else _fn(hl)
+            hl[_fld] = _fn(hl, target=target, indication=indication) if _fld == "cited_evidence_provenance" else _fn(hl)
         except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the context spine
             hl.setdefault("_enrichment_errors", {})[_fld] = f"{type(exc).__name__}: {exc}"
             hl[_fld] = None
@@ -434,14 +494,26 @@ def _headline(cards, fired, verdict_pair, target=None, indication=None):
 # literature claim_vector + headline_block + question_table + skill_report to the composed target-profile
 # synthesis (getattr(module, "_synthesis_facet")). Never moves a verdict + never a gate.
 _SYNTHESIS_FACET_KEYS = (
-    "cited_evidence_status", "literature_scope", "paper_disease_mentions", "recent_mentions",
-    "n_diseases", "earliest_year", "latest_year", "top_cited", "relation_types",
+    "cited_evidence_status",
+    "literature_scope",
+    "paper_disease_mentions",
+    "recent_mentions",
+    "n_diseases",
+    "earliest_year",
+    "latest_year",
+    "top_cited",
+    "relation_types",
     "total_relation_publications",
-    "claim_vector", "key_signals",
+    "claim_vector",
+    "key_signals",
     # the CONSOLIDATED cited-evidence confidence caveats + provenance quorum (verdict-INERT; the cited-
     # literature analog of translational-readiness / target-archetype's confidence surface):
-    "cited_evidence_confidence_caveat", "stale_literature_note", "cited_evidence_provenance",
-    "question_table", "headline_block", "skill_report",
+    "cited_evidence_confidence_caveat",
+    "stale_literature_note",
+    "cited_evidence_provenance",
+    "question_table",
+    "headline_block",
+    "skill_report",
 )
 
 
@@ -452,30 +524,34 @@ def _synthesis_facet(cards, fired, verdict_pair=None, target=None, indication=No
     established-relationship false-demote guard reaches the composed profile too."""
     h = _headline(cards, fired, verdict_pair, target=target, indication=indication)
     facet = {k: h.get(k) for k in _SYNTHESIS_FACET_KEYS}
-    facet["_facet_note"] = ("Deterministic literature-context facet; claim_vector is VOLUME/RECENCY/"
-                            "RELATION over the cited-literature card. Context-tier — never a gate.")
+    facet["_facet_note"] = (
+        "Deterministic literature-context facet; claim_vector is VOLUME/RECENCY/"
+        "RELATION over the cited-literature card. Context-tier — never a gate."
+    )
     return facet
 
 
 if __name__ == "__main__":
-    sys.exit(run_wired_skill(
-        skill_name=SKILL_NAME,
-        skill_version=SKILL_VERSION,
-        cards=CARDS,
-        axis="intracellular_intrinsic",   # rules axis for loading; literature-context emits no verdict
-        question=QUESTION,
-        verdict_fn=None,                   # DESCRIPTIVE — cited literature is context, not a gate
-        headline_fn=_headline,
-        # NET-NEW capsule-driven narrator (generic engine + this skill's LensConfig). literature-context had
-        # NO lens/narrator before the literature-and-claims arc; LITERATURE_CONTEXT (mode=descriptive) LEADS
-        # with the top CITED STATEMENTS + separates a canonical validated relationship from a volume-inflation
-        # / automated-relation / pleiotropy over-call.
-        synthesize_fn=make_synthesize_fn(_LENS),
-        # NB: NO literature_fn. The LLM --literature lane is DELIBERATELY SKIPPED as REDUNDANT / CIRCULAR — the
-        # cited-literature-evidence card IS the Europe-PMC + PubTator3 literature, and default_retrieve grounds
-        # a lit lane on those SAME two sources, so the lane would re-derive the card's own source and
-        # double-count its pmids (it cannot be an INDEPENDENT corroboration of itself). The "literature
-        # grounding" the arc wants is ALREADY the deterministic card, surfaced by the narrator + the confidence
-        # caveats. See SKILL.md "What this skill does NOT do" + the concordance doc. (Under --literature the
-        # dispatcher honest-skips: no literature_fn declared.)
-    ))
+    sys.exit(
+        run_wired_skill(
+            skill_name=SKILL_NAME,
+            skill_version=SKILL_VERSION,
+            cards=CARDS,
+            axis="intracellular_intrinsic",  # rules axis for loading; literature-context emits no verdict
+            question=QUESTION,
+            verdict_fn=None,  # DESCRIPTIVE — cited literature is context, not a gate
+            headline_fn=_headline,
+            # NET-NEW capsule-driven narrator (generic engine + this skill's LensConfig). literature-context had
+            # NO lens/narrator before the literature-and-claims arc; LITERATURE_CONTEXT (mode=descriptive) LEADS
+            # with the top CITED STATEMENTS + separates a canonical validated relationship from a volume-inflation
+            # / automated-relation / pleiotropy over-call.
+            synthesize_fn=make_synthesize_fn(_LENS),
+            # NB: NO literature_fn. The LLM --literature lane is DELIBERATELY SKIPPED as REDUNDANT / CIRCULAR — the
+            # cited-literature-evidence card IS the Europe-PMC + PubTator3 literature, and default_retrieve grounds
+            # a lit lane on those SAME two sources, so the lane would re-derive the card's own source and
+            # double-count its pmids (it cannot be an INDEPENDENT corroboration of itself). The "literature
+            # grounding" the arc wants is ALREADY the deterministic card, surfaced by the narrator + the confidence
+            # caveats. See SKILL.md "What this skill does NOT do" + the concordance doc. (Under --literature the
+            # dispatcher honest-skips: no literature_fn declared.)
+        )
+    )

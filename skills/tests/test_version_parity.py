@@ -12,6 +12,7 @@ audited. This caught tumor-selectivity stamping 1.6.0 while SKILL.md declared 1.
 Regex/YAML-only (no imports, no live reads). Only checks skills that have BOTH files; placeholder skills
 without a run.py, or a run.py without a SKILL_VERSION constant, are skipped (not all skills stamp one).
 """
+
 from __future__ import annotations
 
 import re
@@ -63,7 +64,8 @@ def test_skill_md_version_matches_stamped_version(name, skill_md, run_py):
     assert declared == stamped, (
         f"{name}: SKILL.md metadata.version={declared!r} but run.py SKILL_VERSION={stamped!r}. "
         f"These MUST agree — SKILL_VERSION is stamped into provenance.yaml; a drift mislabels every "
-        f"emitted data-package. Bump whichever is stale so both match.")
+        f"emitted data-package. Bump whichever is stale so both match."
+    )
 
 
 def test_at_least_one_pair_checked():

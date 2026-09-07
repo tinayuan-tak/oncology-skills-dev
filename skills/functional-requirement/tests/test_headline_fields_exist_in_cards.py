@@ -12,6 +12,7 @@ no existing verdict test caught it. This asserts the headline's card reads match
 S3-free: parses run.py's get_card_field calls (AST-lite regex) + each card's summary_fields from the
 target-contracts card YAML. Skips gracefully if target-contracts isn't checked out alongside.
 """
+
 from __future__ import annotations
 
 import re
@@ -61,4 +62,5 @@ def test_headline_field_is_emitted_by_card(card_id, field):
     assert field in declared, (
         f"_headline reads get_card_field(cards, {card_id!r}, {field!r}) but {card_id} does not "
         f"declare {field!r} in its summary_fields — it will silently render None. "
-        f"Declared fields: {sorted(declared)}")
+        f"Declared fields: {sorted(declared)}"
+    )

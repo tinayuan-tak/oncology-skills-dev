@@ -15,14 +15,19 @@ veto rungs; without this shared clamp it would report `strong_tumor_selective` f
 gene that the standalone skill downgrades.) The clamp is a NO-OP unless a veto rule actually fired AND
 the verdict is a selective axis-A class, so non-veto targets are byte-unchanged in both engines.
 """
+
 from __future__ import annotations
 
 SELECTIVITY_GATE = "selectivity"
 
 # The axis-A "selective" verdicts the normal-breadth veto can downgrade.
-_AXIS_A_SELECTIVE = frozenset({
-    "strong_tumor_selective", "modest_tumor_selective", "field_effect_tumor_selective",
-})
+_AXIS_A_SELECTIVE = frozenset(
+    {
+        "strong_tumor_selective",
+        "modest_tumor_selective",
+        "field_effect_tumor_selective",
+    }
+)
 
 # All normal-breadth veto rule_ids — ANY firing downgrades a selective axis-A call. Ordered by the
 # precedence used for the driving_rule LABEL when several fire (all yield the same verdict): essential-
@@ -36,8 +41,12 @@ _SC_NORMAL_VETO_RULE = "tvn-sc-normal-critical-organ-veto"
 # (abundance-gated Floor-C, NOT DIA detection). Like the sc-normal arm it is SELECTIVITY-PRESERVING ->
 # selective_with_normal_liability (a named normal-protein liability, not the housekeeping KILL).
 _TPHP_NORMAL_PROTEIN_VETO_RULE = "tvn-tphp-broad-abundant-normal-protein-veto"
-_NORMAL_BREADTH_VETO_RULES = (_WINDOW_VETO_RULE, _FULL_NORMAL_VETO_RULE, _SC_NORMAL_VETO_RULE,
-                              _TPHP_NORMAL_PROTEIN_VETO_RULE)
+_NORMAL_BREADTH_VETO_RULES = (
+    _WINDOW_VETO_RULE,
+    _FULL_NORMAL_VETO_RULE,
+    _SC_NORMAL_VETO_RULE,
+    _TPHP_NORMAL_PROTEIN_VETO_RULE,
+)
 
 # The INT-axis (tumor-cell-INTRINSIC) veto — the stromal-confound arm (2026-08-31). Distinct from the
 # four SAFE-axis normal-breadth arms above: it fires when the bulk axis-A selective signal is driven by
@@ -58,18 +67,18 @@ _STROMAL_CONFOUND_VETO_RULE = "tvn-stromal-confound-veto"
 #     concern (owned by on-target-safety-liability + modality-fit), NOT loss of selectivity. Measured
 #     on the #416 backtest panel: the old single-verdict clamp collapsed these into the housekeeping
 #     KILL — a false-negative for approved drugs (the CD19 "over-eager clamp kills good targets" lesson).
-_VETO_VERDICT = "selective_but_broadly_normal"          # housekeeping / no-window KILL (SAFE axis)
+_VETO_VERDICT = "selective_but_broadly_normal"  # housekeeping / no-window KILL (SAFE axis)
 _LIABILITY_VERDICT = "selective_with_normal_liability"  # sc-normal critical-organ: selectivity-preserving
 _STROMAL_CONFOUND_VERDICT = "selective_but_stromal_confound"  # INT-axis KILL: axis-A signal is in the WRONG cells
 # rule_id → the verdict its firing produces. Precedence is the _NORMAL_BREADTH_VETO_RULES order below:
 # when BOTH a window veto AND the sc-normal arm fire (e.g. TACSTD2/TROP2), the window KILL wins — a gene
 # with no window at all is not rescued by also having a named-organ liability.
 _VETO_RULE_VERDICT = {
-    _STROMAL_CONFOUND_VETO_RULE: _STROMAL_CONFOUND_VERDICT,   # INT-axis KILL (wrong cells)
+    _STROMAL_CONFOUND_VETO_RULE: _STROMAL_CONFOUND_VERDICT,  # INT-axis KILL (wrong cells)
     _WINDOW_VETO_RULE: _VETO_VERDICT,
     _FULL_NORMAL_VETO_RULE: _VETO_VERDICT,
     _SC_NORMAL_VETO_RULE: _LIABILITY_VERDICT,
-    _TPHP_NORMAL_PROTEIN_VETO_RULE: _LIABILITY_VERDICT,   # normal-PROTEIN abundance liability (selectivity-preserving)
+    _TPHP_NORMAL_PROTEIN_VETO_RULE: _LIABILITY_VERDICT,  # normal-PROTEIN abundance liability (selectivity-preserving)
 }
 
 # FULL precedence order across ALL selectivity veto arms — first firing wins the verdict + driving label.
@@ -80,7 +89,10 @@ _VETO_RULE_VERDICT = {
 # then the two selectivity-preserving SAFE-axis liabilities. All arms only DOWNGRADE a selective axis-A call.
 _SELECTIVITY_VETO_PRECEDENCE = (
     _STROMAL_CONFOUND_VETO_RULE,
-    _WINDOW_VETO_RULE, _FULL_NORMAL_VETO_RULE, _SC_NORMAL_VETO_RULE, _TPHP_NORMAL_PROTEIN_VETO_RULE,
+    _WINDOW_VETO_RULE,
+    _FULL_NORMAL_VETO_RULE,
+    _SC_NORMAL_VETO_RULE,
+    _TPHP_NORMAL_PROTEIN_VETO_RULE,
 )
 # All clamp outcomes still had axis-A over-expression hold; consumers asking "did any selectivity veto
 # fire?" should test membership here (now incl. the INT-axis stromal-confound outcome).
@@ -113,7 +125,9 @@ _VETO_OUTCOMES = frozenset(_VETO_RULE_VERDICT.values())
 _RESCUE_ELIGIBLE = frozenset({"not_informative", "discordant_across_comparators"})
 _CPTAC_UP_RULES = frozenset({"protein-strongly-up-supportive", "protein-modestly-up-neutral"})
 _POP_NORMAL_UP_RULES = frozenset({"tumor-vs-normal-crossing-strong-supportive"})
-_PROTEIN_POPULATION_RESCUE_DRIVER = "tvn-protein-population-field-effect-rescue"  # provenance label (not a resolver rung)
+_PROTEIN_POPULATION_RESCUE_DRIVER = (
+    "tvn-protein-population-field-effect-rescue"  # provenance label (not a resolver rung)
+)
 
 
 def apply_protein_population_rescue(verdict, driving_rule_id, fired):

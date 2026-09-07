@@ -3,6 +3,7 @@ advisory synthesis prompt so executive_summary/tension_analysis NARRATE the gove
 and the md recommendation renders as advisory (the deterministic gate is the recommendation of record),
 surfacing any LLM↔gate disagreement. Pure/synthetic — no Bedrock, no data.
 """
+
 from __future__ import annotations
 
 import sys
@@ -20,10 +21,22 @@ from tp_synthesis_prompt import _render_risk_6dim_block, _build_user_prompt  # n
 def _dims():
     return {
         "biological": {"pillar": "Right Target", "bin": "MED", "chain": [("dependency", "discordant", "MED")]},
-        "druggability": {"pillar": "Right Molecule", "bin": "LOW", "chain": [("tractability-SM", "well_covered", "LOW")]},
-        "safety": {"pillar": "Right Safety", "bin": "HIGH", "chain": [("on-target-safety", "highly_constrained", "HIGH")]},
+        "druggability": {
+            "pillar": "Right Molecule",
+            "bin": "LOW",
+            "chain": [("tractability-SM", "well_covered", "LOW")],
+        },
+        "safety": {
+            "pillar": "Right Safety",
+            "bin": "HIGH",
+            "chain": [("on-target-safety", "highly_constrained", "HIGH")],
+        },
         "clinical": {"pillar": "Right Patient", "bin": "ENGINE-BLIND", "chain": []},
-        "commercial": {"pillar": "Right Commercial", "bin": "LOW", "chain": [("competitor-landscape", "no_known_competitor", "LOW")]},
+        "commercial": {
+            "pillar": "Right Commercial",
+            "bin": "LOW",
+            "chain": [("competitor-landscape", "no_known_competitor", "LOW")],
+        },
         "translational": {"pillar": "Right Patient", "bin": "ENGINE-BLIND", "chain": []},
     }
 
@@ -50,12 +63,18 @@ def test_risk_block_none_and_wrapped():
 
 
 def test_build_user_prompt_includes_risk_block_when_passed():
-    sr = {"safety": {"verdict": ("highly_constrained_safety_concern", "r"),
-                     "skill_dir": "on-target-safety-liability", "cards": [], "fired": []}}
+    sr = {
+        "safety": {
+            "verdict": ("highly_constrained_safety_concern", "r"),
+            "skill_dir": "on-target-safety-liability",
+            "cards": [],
+            "fired": [],
+        }
+    }
     with_risk = _build_user_prompt("KRAS", "COADREAD", sr, risk_6dim=_dims())
     without = _build_user_prompt("KRAS", "COADREAD", sr)
     assert "6-dimension risk roll-up" in with_risk
-    assert "6-dimension risk roll-up" not in without    # additive — absent when not supplied
+    assert "6-dimension risk roll-up" not in without  # additive — absent when not supplied
 
 
 # (test_md_recommendation_is_advisory_and_surfaces_gate_disagreement was removed with the retirement of

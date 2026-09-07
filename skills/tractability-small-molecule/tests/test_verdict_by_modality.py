@@ -14,6 +14,7 @@ Pins the load-bearing properties:
       byte-stable.
 All pure (no S3).
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -51,7 +52,9 @@ def test_sm_positive_maps_viable_negative_maps_opposed_or_not_viable():
     assert _M._druggability_verdict_by_modality("discordant", "insufficient")["small_molecule"] == "opposed"
     assert _M._druggability_verdict_by_modality("chemically_unhit", "insufficient")["small_molecule"] == "not_viable"
     # a forward/weaker positive is a caveated handle, not a proven hit
-    assert _M._druggability_verdict_by_modality("structurally_ligandable", "insufficient")["small_molecule"] == "caveated"
+    assert (
+        _M._druggability_verdict_by_modality("structurally_ligandable", "insufficient")["small_molecule"] == "caveated"
+    )
 
 
 def test_degrader_arm_independent_of_sm_arm():
@@ -72,10 +75,13 @@ def test_arms_surface_in_headline_block_hero():
         "druggability_snapshot": "structurally_intractable",
         "degrader_snapshot": "strong_degrader_rationale",
         "druggability_verdict_by_modality": _M._druggability_verdict_by_modality(
-            "structurally_intractable", "strong_degrader_rationale"),
+            "structurally_intractable", "strong_degrader_rationale"
+        ),
         "driving_rule_id": "structure-low-confidence-sm-opposing",
-        "claim_vector": {k: {"signal": "strong", "corroboration": "high"} for k in
-                         ("POTENCY", "ACTIVITY", "STRUCT", "DRUG", "DEGRADER")},
+        "claim_vector": {
+            k: {"signal": "strong", "corroboration": "high"}
+            for k in ("POTENCY", "ACTIVITY", "STRUCT", "DRUG", "DEGRADER")
+        },
         "key_signals": {},
     }
     blk = _M._build_headline_block(headline)

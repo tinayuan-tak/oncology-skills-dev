@@ -1,5 +1,6 @@
 """mechanism-and-pharmacology factored-record SHADOW (M1) — descriptive characterization axis.
 Understanding supports; minimal coverage-only certainty. Consumed-by-nothing / verdict-inert."""
+
 from __future__ import annotations
 
 import json
@@ -17,8 +18,9 @@ def _fired(*rids):
 
 
 def test_well_characterized_supports_strong():
-    rec = me._claim_record([], fired=_fired("moa-well-characterized"),
-                           verdict_pair=("well_characterized", "moa-well-characterized"))
+    rec = me._claim_record(
+        [], fired=_fired("moa-well-characterized"), verdict_pair=("well_characterized", "moa-well-characterized")
+    )
     assert rec["axis"] == "mechanism"
     assert rec["finding"]["direction"] == "supports"
     assert rec["finding"]["availability"] == "measured_positive"
@@ -27,16 +29,21 @@ def test_well_characterized_supports_strong():
 
 
 def test_moa_classes_populate_mechanism_coordinate():
-    cards = [{"card_id": "signaling-network-mechanism",
-              "summary": {"moa_classes_present": ["kinase", "transcription_factor"]}}]
-    rec = me._claim_record(cards, fired=_fired("moa-well-characterized"),
-                           verdict_pair=("well_characterized", "moa-well-characterized"))
-    assert rec["mechanism"]["classes"] == ["kinase", "transcription_factor"]   # WHY on the chart
+    cards = [
+        {
+            "card_id": "signaling-network-mechanism",
+            "summary": {"moa_classes_present": ["kinase", "transcription_factor"]},
+        }
+    ]
+    rec = me._claim_record(
+        cards, fired=_fired("moa-well-characterized"), verdict_pair=("well_characterized", "moa-well-characterized")
+    )
+    assert rec["mechanism"]["classes"] == ["kinase", "transcription_factor"]  # WHY on the chart
 
 
 def test_no_mechanism_block_when_moa_absent():
     rec = me._claim_record([], fired=[], verdict_pair=("sparse", None))
-    assert "mechanism" not in rec               # empty MoA → no fabricated block
+    assert "mechanism" not in rec  # empty MoA → no fabricated block
 
 
 def test_data_unavailable_open_world():
@@ -60,6 +67,7 @@ def test_conforms_to_contract_schema_if_available():
     if schema is None:
         pytest.skip("contracts schema not available")
     from jsonschema import Draft202012Validator
+
     for v in ("well_characterized", "has_pd_marker", "partial", "sparse", "insufficient", "data_unavailable"):
         rec = me._claim_record([], fired=[], verdict_pair=(v, None))
         errs = sorted(Draft202012Validator(schema).iter_errors(rec), key=lambda e: e.path)

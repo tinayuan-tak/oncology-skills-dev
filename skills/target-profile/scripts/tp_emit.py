@@ -12,6 +12,7 @@ owned by `tp_figures`; run.log by `_skills_common.run_log`; grounded_<axis>.json
 the full-package manifest by `tp_manifest` (folds in at PR-4). Verdict-inert — writing bytes never
 changes the nomination spine.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -30,10 +31,10 @@ ARTIFACT_FILENAMES = {
 # and the full-package manifest are owned by their own emitters and asserted there). `--ground` and
 # `--full-package` are MODIFIERS layered on the base mode via `expected_artifacts`.
 MODE_WRITE_SETS = {
-    "evidence-package": frozenset({"evidence_package"}),                       # --emit: envelope only
-    "verdict-only":     frozenset({"nomination", "markdown", "html", "provenance"}),
-    "no-figures":       frozenset({"nomination", "markdown", "html", "provenance"}),
-    "default":          frozenset({"nomination", "markdown", "html", "provenance"}),
+    "evidence-package": frozenset({"evidence_package"}),  # --emit: envelope only
+    "verdict-only": frozenset({"nomination", "markdown", "html", "provenance"}),
+    "no-figures": frozenset({"nomination", "markdown", "html", "provenance"}),
+    "default": frozenset({"nomination", "markdown", "html", "provenance"}),
 }
 
 
@@ -56,8 +57,11 @@ def expected_artifacts(args) -> frozenset:
     by reading the `substrate_chain_on` it stashes on args from tp_grounding.plan_substrate, so this
     guard cannot drift from the writer."""
     kinds = set(MODE_WRITE_SETS[run_mode(args)])
-    if (getattr(args, "ground", None) or getattr(args, "full_package", False)
-            or getattr(args, "substrate_chain_on", False)):
+    if (
+        getattr(args, "ground", None)
+        or getattr(args, "full_package", False)
+        or getattr(args, "substrate_chain_on", False)
+    ):
         kinds.add("evidence_package")
     # --reports emits a report_render bundle (report_<preset>.* under <out>/reports/). It is written
     # directly (not via write_artifact — its filenames are per-preset, not one-per-kind), so it is a
@@ -98,8 +102,16 @@ def assert_write_set(args, written: set) -> None:
     missing = required - written
     assert not extra and not missing, (
         f"artifact write-set drift for mode {run_mode(args)!r}: written={sorted(written)} "
-        f"expected={sorted(want)} (missing_required={sorted(missing)} unexpected={sorted(extra)})")
+        f"expected={sorted(want)} (missing_required={sorted(missing)} unexpected={sorted(extra)})"
+    )
 
 
-__all__ = ["ARTIFACT_FILENAMES", "MODE_WRITE_SETS", "BEST_EFFORT_ARTIFACTS", "run_mode",
-           "expected_artifacts", "write_artifact", "assert_write_set"]
+__all__ = [
+    "ARTIFACT_FILENAMES",
+    "MODE_WRITE_SETS",
+    "BEST_EFFORT_ARTIFACTS",
+    "run_mode",
+    "expected_artifacts",
+    "write_artifact",
+    "assert_write_set",
+]

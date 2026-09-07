@@ -12,6 +12,7 @@ test proves the new rung actually DOES what it's for:
     a mutation-spectrum composition with no functional test).
 Requires the new resolver rung (skip gracefully if the contracts half hasn't landed here yet).
 """
+
 from __future__ import annotations
 
 import sys
@@ -30,8 +31,7 @@ def _rules(*ids):
 
 
 def _skip_if_rung_absent():
-    v = resolve_verdict_for_gate(
-        _rules("mutation-drug-response-strongly-sensitive-supportive"), "genomic_alteration")
+    v = resolve_verdict_for_gate(_rules("mutation-drug-response-strongly-sensitive-supportive"), "genomic_alteration")
     if not v or v[0] != "drug_response_biomarker":
         pytest.skip("deferred-c drug_response_biomarker resolver rung not present in resolved contracts")
 
@@ -39,8 +39,9 @@ def _skip_if_rung_absent():
 def test_strong_drug_sensitive_fires_distinct_drug_response_biomarker():
     _skip_if_rung_absent()
     verdict, driving = resolve_verdict_for_gate(
-        _rules("mutation-drug-response-strongly-sensitive-supportive"), "genomic_alteration")
-    assert verdict == "drug_response_biomarker"          # DISTINCT — not biomarker_stratified_dependency
+        _rules("mutation-drug-response-strongly-sensitive-supportive"), "genomic_alteration"
+    )
+    assert verdict == "drug_response_biomarker"  # DISTINCT — not biomarker_stratified_dependency
     assert driving == "mutation-drug-response-strongly-sensitive-supportive"
 
 
@@ -52,9 +53,13 @@ def test_genetic_dependency_wins_first_match_over_drug_response():
     # (mutant-indication-scoped-context). A within-indication KO-dependency still wins first-match
     # over the drug-response rung; the gate does not change that precedence.
     verdict, driving = resolve_verdict_for_gate(
-        _rules("mutant-strongly-dependent-supportive",
-               "mutant-indication-scoped-context",
-               "mutation-drug-response-strongly-sensitive-supportive"), "genomic_alteration")
+        _rules(
+            "mutant-strongly-dependent-supportive",
+            "mutant-indication-scoped-context",
+            "mutation-drug-response-strongly-sensitive-supportive",
+        ),
+        "genomic_alteration",
+    )
     assert verdict == "biomarker_stratified_dependency"
     assert driving == "mutant-strongly-dependent-supportive"
 
@@ -64,8 +69,9 @@ def test_drug_response_precedes_bare_variant_class_pattern():
     signal (missense/lof dominance with NO functional test)."""
     _skip_if_rung_absent()
     verdict, driving = resolve_verdict_for_gate(
-        _rules("mutation-drug-response-strongly-sensitive-supportive",
-               "mut-missense-dominant-supportive"), "genomic_alteration")
+        _rules("mutation-drug-response-strongly-sensitive-supportive", "mut-missense-dominant-supportive"),
+        "genomic_alteration",
+    )
     assert verdict == "drug_response_biomarker"
     assert driving == "mutation-drug-response-strongly-sensitive-supportive"
 
@@ -75,7 +81,6 @@ def test_moderate_drug_sensitive_does_not_fire_a_verdict():
     facet (necessary-not-sufficient for a nomination tier). Firing ONLY the moderate rule must NOT
     yield drug_response_biomarker."""
     _skip_if_rung_absent()
-    v = resolve_verdict_for_gate(
-        _rules("mutation-drug-response-moderately-sensitive-supportive"), "genomic_alteration")
+    v = resolve_verdict_for_gate(_rules("mutation-drug-response-moderately-sensitive-supportive"), "genomic_alteration")
     # either no verdict, or some lower-precedence default — but NEVER drug_response_biomarker
     assert (v is None) or (v[0] != "drug_response_biomarker")

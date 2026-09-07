@@ -20,6 +20,7 @@ DRIFT_FLOAT_TOL to be robust to platform float formatting. The "beyond tolerance
 model/prompt change" channel is handled by regeneration + review (a flipped prompt_template_hash makes
 this test fail loudly), not by loosening the offline comparison.
 """
+
 from __future__ import annotations
 
 import json
@@ -38,25 +39,29 @@ import drift_golden as dg  # noqa: E402
 R = load_run_py(SCRIPTS.parent, "ce_run_drift")
 
 GOLDEN = Path(__file__).resolve().parent / "fixtures" / "golden"
-CASES = sorted(p.name for p in GOLDEN.iterdir() if (p / "expected_spine.json").exists()) \
-    if GOLDEN.exists() else []
+CASES = sorted(p.name for p in GOLDEN.iterdir() if (p / "expected_spine.json").exists()) if GOLDEN.exists() else []
 
 DRIFT_FLOAT_TOL = 1e-9
 
 
 def _run_offline(case_dir: Path, case: dict) -> dict:
     """Replay the frozen canned LLM response through the real deterministic spine — no Bedrock."""
-    return R.run(case["pkg"], case["risk"], case["meta"]["objective"], case["meta"]["modality"],
-                 case["dossier"], synthesize_fn=R.replay_synthesize(case["replay"]),
-                 llm_mode="offline_replay")
+    return R.run(
+        case["pkg"],
+        case["risk"],
+        case["meta"]["objective"],
+        case["meta"]["modality"],
+        case["dossier"],
+        synthesize_fn=R.replay_synthesize(case["replay"]),
+        llm_mode="offline_replay",
+    )
 
 
 def _assert_spine_equal(got: dict, expected: dict, case_name: str):
     assert set(got) == set(expected), f"[{case_name}] spine key-set drift: {set(got) ^ set(expected)}"
     for k in expected:
         if k == "clause_traceability" and isinstance(got[k], float) and isinstance(expected[k], float):
-            assert abs(got[k] - expected[k]) <= DRIFT_FLOAT_TOL, \
-                f"[{case_name}] {k} drift: {got[k]} != {expected[k]}"
+            assert abs(got[k] - expected[k]) <= DRIFT_FLOAT_TOL, f"[{case_name}] {k} drift: {got[k]} != {expected[k]}"
         else:
             assert got[k] == expected[k], f"[{case_name}] {k} drift: {got[k]!r} != {expected[k]!r}"
 
@@ -112,11 +117,18 @@ def test_perturbing_a_deterministic_output_is_detected():
     tmp = GOLDEN / case_name / "_perturbed_pkg.json"
     tmp.write_text(json.dumps(pkg))
     try:
-        r = R.run(str(tmp), case["risk"], case["meta"]["objective"], case["meta"]["modality"],
-                  case["dossier"], synthesize_fn=R.replay_synthesize(case["replay"]),
-                  llm_mode="offline_replay")
+        r = R.run(
+            str(tmp),
+            case["risk"],
+            case["meta"]["objective"],
+            case["meta"]["modality"],
+            case["dossier"],
+            synthesize_fn=R.replay_synthesize(case["replay"]),
+            llm_mode="offline_replay",
+        )
         perturbed = dg.deterministic_spine_subset(r)
-        assert perturbed != case["expected"], \
+        assert perturbed != case["expected"], (
             "perturbing a veto-capable sub-verdict did NOT change the frozen spine — guard is vacuous"
+        )
     finally:
         tmp.unlink(missing_ok=True)

@@ -16,6 +16,7 @@ collapsed presence_verdict spine is unchanged; these pin and surface facets *aro
   L6 — cell_line_vs_tumor_discordant is a standing invariant guard (should be False for every target).
        Previously only spot-checked (4 cases); this proves it TOTAL over the two-lens RNA rung space.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -32,17 +33,20 @@ def _fr(rule_id, card_id):
 
 
 # ── M1: sole-neutral-signal behavior is PINNED (was the invariant-proof blind spot) ─────────────
-@pytest.mark.parametrize("rule_id,card_id,expected_verdict", [
-    ("sc-expression-broadly-low-neutral", "tumor-scrna-celltype-expression", "sc_broadly_low"),
-    ("tumor-expression-broadly-low-neutral", "tumor-rna-distribution", "tumor_sparsely_expressed"),
-])
+@pytest.mark.parametrize(
+    "rule_id,card_id,expected_verdict",
+    [
+        ("sc-expression-broadly-low-neutral", "tumor-scrna-celltype-expression", "sc_broadly_low"),
+        ("tumor-expression-broadly-low-neutral", "tumor-rna-distribution", "tumor_sparsely_expressed"),
+    ],
+)
 def test_sole_neutral_signal_collapses_positive_but_reads_neutral(rule_id, card_id, expected_verdict):
     """DOCUMENTED DESIGN: a lone neutral/low rung collapses into the positive tier (present), so
     `_is_presence_positive` is True — but `presence_signal_strength` must read 'neutral', giving a
     downstream consumer the signal `_is_presence_positive` alone hides."""
     v, drv = tp._verdict([_fr(rule_id, card_id)])
     assert v == expected_verdict
-    assert tp._is_presence_positive(v) is True          # intentional: a low read never buries a nomination
+    assert tp._is_presence_positive(v) is True  # intentional: a low read never buries a nomination
     assert tp._presence_signal_strength(drv, v) == "neutral"
 
 
@@ -84,8 +88,11 @@ def test_measured_present_despite_insufficient_empty_when_present():
     """When the collapse resolves present, the field is empty (it only fires on the insufficient-vs-
     measured disagreement)."""
     cards = _cards_with()
-    hl = tp._headline(cards, [_fr("tumor-expression-broadly-high-supportive", "tumor-rna-distribution")],
-                      ("tumor_broadly_expressed", "tumor-expression-broadly-high-supportive"))
+    hl = tp._headline(
+        cards,
+        [_fr("tumor-expression-broadly-high-supportive", "tumor-rna-distribution")],
+        ("tumor_broadly_expressed", "tumor-expression-broadly-high-supportive"),
+    )
     assert hl["measured_present_despite_insufficient"] == []
 
 
@@ -93,16 +100,16 @@ def test_measured_present_despite_insufficient_empty_when_present():
 # Cell-line lens rungs (card cellline-rna-distribution) and tumor lens rungs (tumor-rna-distribution /
 # tumor-rna-vs-adjacent). Mirrors the rung→card mapping the reanchor matrix uses.
 _CELL_LINE_RNA = [
-    ("expression-broadly-high-supportive",       "broadly_high_expression"),
-    ("expression-broadly-moderate-neutral",      "broadly_moderate_expression"),
+    ("expression-broadly-high-supportive", "broadly_high_expression"),
+    ("expression-broadly-moderate-neutral", "broadly_moderate_expression"),
     ("expression-lineage-restricted-supportive", "lineage_restricted"),
 ]
 _TUMOR_RNA = [
-    ("tumor-expression-broadly-high-supportive",   "tumor-rna-distribution"),
-    ("tumor-expression-broadly-moderate-neutral",  "tumor-rna-distribution"),
-    ("tumor-expression-broadly-low-neutral",       "tumor-rna-distribution"),
-    ("expression-strong-upregulation-supportive",  "tumor-rna-vs-adjacent"),
-    ("expression-modest-upregulation-neutral",     "tumor-rna-vs-adjacent"),
+    ("tumor-expression-broadly-high-supportive", "tumor-rna-distribution"),
+    ("tumor-expression-broadly-moderate-neutral", "tumor-rna-distribution"),
+    ("tumor-expression-broadly-low-neutral", "tumor-rna-distribution"),
+    ("expression-strong-upregulation-supportive", "tumor-rna-vs-adjacent"),
+    ("expression-modest-upregulation-neutral", "tumor-rna-vs-adjacent"),
 ]
 
 
@@ -123,13 +130,20 @@ def test_cell_line_vs_tumor_discordant_is_tier_inequality_total():
             tv_b = pm.get(tp._BULK_RNA_TUMOR) or {}
             cl_tier = tp._PRESENCE_TIER.get(cl_b.get("verdict"))
             tu_tier = tp._PRESENCE_TIER.get(tv_b.get("verdict"))
-            expect = bool(lens == tp._BULK_RNA_CELL_LINE and tv_b.get("evidence_state") == "measured"
-                          and cl_tier is not None and tu_tier is not None and cl_tier != tu_tier)
+            expect = bool(
+                lens == tp._BULK_RNA_CELL_LINE
+                and tv_b.get("evidence_state") == "measured"
+                and cl_tier is not None
+                and tu_tier is not None
+                and cl_tier != tu_tier
+            )
             assert discordant is expect, (
                 f"discordant={discordant} expected {expect} for cl={cl_rid} tu={tu_rid} "
-                f"(collapsed={v}, drv={drv}, cl_tier={cl_tier}, tu_tier={tu_tier}).")
+                f"(collapsed={v}, drv={drv}, cl_tier={cl_tier}, tu_tier={tu_tier})."
+            )
             if discordant:
-                assert direction == ("cell_line_understates_tumor" if tu_tier > cl_tier
-                                     else "cell_line_overstates_tumor")
+                assert direction == (
+                    "cell_line_understates_tumor" if tu_tier > cl_tier else "cell_line_overstates_tumor"
+                )
             else:
                 assert direction is None

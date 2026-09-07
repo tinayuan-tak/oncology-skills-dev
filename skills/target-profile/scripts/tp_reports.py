@@ -6,6 +6,7 @@ run (mirrors the html artifact) — so `reports` is a BEST_EFFORT kind in tp_emi
 wrapped. Returns {"reports"} iff at least one file was written, so the caller can record it in the
 run-scoped write-set that assert_write_set checks.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -18,8 +19,7 @@ from _skills_common.report_render.backends import BINARY_BACKENDS, EXTENSIONS
 DEFAULT_BACKENDS = ("markdown", "html", "json")
 
 
-def write_reports(out_dir, nomination: dict, presets: Iterable[str],
-                  backends: Iterable[str] | None = None) -> set:
+def write_reports(out_dir, nomination: dict, presets: Iterable[str], backends: Iterable[str] | None = None) -> set:
     """Render each preset × backend → <out_dir>/reports/report_<preset>.<ext>.
 
     Returns {"reports"} if ≥1 file was written, else an empty set. Fail-soft at every level (a bad

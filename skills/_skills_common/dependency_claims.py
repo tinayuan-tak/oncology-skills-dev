@@ -26,20 +26,27 @@ All inputs are read from the `headline` dict (populated by run.py::_headline via
 headline-fields drift guard covers every class the claims key on); the `cards` param is accepted for
 contract-uniformity with presence_claims but unused here.
 """
+
 from __future__ import annotations
 
-from _skills_common.claim_vector_core import (ClaimSpec, build_claim_vector, build_key_signals,
-                                              bump_corroboration, cap_corroboration, sig_ge,
-                                              build_summary_atom)
+from _skills_common.claim_vector_core import (
+    ClaimSpec,
+    build_claim_vector,
+    build_key_signals,
+    bump_corroboration,
+    cap_corroboration,
+    sig_ge,
+    build_summary_atom,
+)
 
 # ── enum → tier maps (grounded in the target-contracts card summary_fields_vocabulary) ────────────
 # CRISPR dependency_class: common_essential | common_essential_underpowered | strongly_selective |
 #                          broadly_dependent | non_dependent | non_dependent_underpowered | data_unavailable
 _DEP_SIGNAL = {
     "strongly_selective": "strong",
-    "common_essential": "strong",            # strong dependency MAGNITUDE (broad-tox caveat, see conflict)
+    "common_essential": "strong",  # strong dependency MAGNITUDE (broad-tox caveat, see conflict)
     "broadly_dependent": "moderate",
-    "non_dependent": "absent",               # a MEASURED pooled floor
+    "non_dependent": "absent",  # a MEASURED pooled floor
     # both underpowered classes are admissibility GAPS (tiny-panel / diluted-pooled), NOT trusted calls
     "non_dependent_underpowered": "unmeasured",
     "common_essential_underpowered": "unmeasured",
@@ -60,23 +67,23 @@ _CONCORDANCE_REL = {
 # lineage enrichment_class: lineage_selective | broadly_lineage_dependent | no_lineage_enrichment | data_unavailable
 _SEL_SIGNAL = {
     "lineage_selective": "strong",
-    "broadly_lineage_dependent": "weak",     # dependent across lineages = NOT selective (low window value)
+    "broadly_lineage_dependent": "weak",  # dependent across lineages = NOT selective (low window value)
     "no_lineage_enrichment": "absent",
     "data_unavailable": "unmeasured",
 }
 # partner_stratification_class
 _COND_SIGNAL = {
     "partner_conditional_strongly_dependent": "strong",
-    "partner_conditional_moderately_dependent": "moderate",   # rescue-firing for the WRN×MSI family
-    "partner_neutral_strongly_dependent": "absent",           # dependent, but NOT conditional → no SL signal
+    "partner_conditional_moderately_dependent": "moderate",  # rescue-firing for the WRN×MSI family
+    "partner_neutral_strongly_dependent": "absent",  # dependent, but NOT conditional → no SL signal
     "not_partner_stratified": "absent",
     "insufficient_partner_deficient_rate": "unmeasured",
-    "no_partner_mapped": "unmeasured",                        # GAP: no curated partner (extend partner_map)
+    "no_partner_mapped": "unmeasured",  # GAP: no curated partner (extend partner_map)
     "data_unavailable": "unmeasured",
 }
 # crispr_prism_concordance_class
 _CHEM_SIGNAL = {
-    "triangulated_target_engaged": "strong",     # CRISPR AND RNAi BOTH track compound kill
+    "triangulated_target_engaged": "strong",  # CRISPR AND RNAi BOTH track compound kill
     "crispr_confirmed_engagement": "moderate",
     "rnai_confirmed_engagement": "moderate",
     "mixed_engagement": "weak",
@@ -105,8 +112,10 @@ def _dep_signal(h, c):
     ev = f"CRISPR {cls or 'data_unavailable'}" + (f"; RNAi {rnai}" if rnai else "")
     conflict = None
     if cls == "common_essential":
-        conflict = ("pan-essential — strong dependency magnitude but a broad-toxicity liability "
-                    "(low selective window; also routes to on-target-safety)")
+        conflict = (
+            "pan-essential — strong dependency magnitude but a broad-toxicity liability "
+            "(low selective window; also routes to on-target-safety)"
+        )
     elif sig_ge(sig, "moderate") and rnai in _RNAI_NONDEP:
         conflict = "RNAi (orthogonal LoF) does not corroborate the CRISPR dependency"
     return sig, ev, conflict
@@ -115,7 +124,7 @@ def _dep_signal(h, c):
 def _dep_corroboration(h, c):
     base = _CONCORDANCE_REL.get(h.get("concordance_call"), "unmeasured")
     if base == "unmeasured" and h.get("crispr_call") not in (None, "data_unavailable"):
-        base = "low"   # a single CRISPR arm with no concordance read is still weak evidence
+        base = "low"  # a single CRISPR arm with no concordance read is still weak evidence
     crispr_dep = sig_ge(_DEP_SIGNAL.get(h.get("crispr_call")), "moderate")
     rnai = h.get("rnai_call")
     # sub-additive: independent orthogonal-assay (RNAi) agreement lifts corroboration one step
@@ -151,8 +160,10 @@ def _dep_corroboration(h, c):
 
 def _sel_signal(h, c):
     cls = h.get("lineage_selectivity")
-    ev = (f"lineage enrichment: {cls or 'data_unavailable'}"
-          " (target-grain — selective to SOME lineage, not necessarily the queried indication)")
+    ev = (
+        f"lineage enrichment: {cls or 'data_unavailable'}"
+        " (target-grain — selective to SOME lineage, not necessarily the queried indication)"
+    )
     return _SEL_SIGNAL.get(cls, "unmeasured"), ev, None
 
 
@@ -186,8 +197,11 @@ def _cond_corroboration(h, c):
 
 def _chem_signal(h, c):
     cls = h.get("prism_concordance_class")
-    conflict = ("PRISM compound kill does not track the CRISPR/RNAi dependency — likely off-target"
-                if cls == "discordant_off_target_likely" else None)
+    conflict = (
+        "PRISM compound kill does not track the CRISPR/RNAi dependency — likely off-target"
+        if cls == "discordant_off_target_likely"
+        else None
+    )
     return _CHEM_SIGNAL.get(cls, "unmeasured"), f"PRISM×CRISPR: {cls or 'data_unavailable'}", conflict
 
 
@@ -213,46 +227,76 @@ def _atom(card_id: str, summary: dict, keys: tuple, entity: dict, read) -> dict 
 
 def _dep_atom(h, c):
     cid = "pan-cancer-crispr-dependency-distribution"
-    return _atom(cid, c.get(cid) or {},
-                 ("bimodality_coefficient", "distribution_shape", "fraction_strongly_dependent",
-                  "median_chronos_panel", "p5_chronos_panel", "n_cell_lines_evaluated",
-                  "selectivity_index", "dep_control_position_class"),
-                 {"measurement_type": "crispr_lof_dependency", "sample_context": "cell_line",
-                  "stratum": "pan_cancer"},
-                 h.get("crispr_call"))
+    return _atom(
+        cid,
+        c.get(cid) or {},
+        (
+            "bimodality_coefficient",
+            "distribution_shape",
+            "fraction_strongly_dependent",
+            "median_chronos_panel",
+            "p5_chronos_panel",
+            "n_cell_lines_evaluated",
+            "selectivity_index",
+            "dep_control_position_class",
+        ),
+        {"measurement_type": "crispr_lof_dependency", "sample_context": "cell_line", "stratum": "pan_cancer"},
+        h.get("crispr_call"),
+    )
 
 
 def _sel_atom(h, c):
     cid = "dependency-lineage-selectivity"
-    return _atom(cid, c.get(cid) or {},
-                 ("enrichment_class", "lineage_variance_explained", "lineage_omnibus_kruskal_h",
-                  "lineage_omnibus_effect_size_class", "n_enriched_lineages", "n_lineages_evaluated"),
-                 {"measurement_type": "crispr_lof_dependency", "sample_context": "cell_line",
-                  "grain": "target_lineage"},
-                 h.get("lineage_selectivity"))
+    return _atom(
+        cid,
+        c.get(cid) or {},
+        (
+            "enrichment_class",
+            "lineage_variance_explained",
+            "lineage_omnibus_kruskal_h",
+            "lineage_omnibus_effect_size_class",
+            "n_enriched_lineages",
+            "n_lineages_evaluated",
+        ),
+        {"measurement_type": "crispr_lof_dependency", "sample_context": "cell_line", "grain": "target_lineage"},
+        h.get("lineage_selectivity"),
+    )
 
 
 def _cond_atom(h, c):
     cid = "partner-conditional-dependency"
-    return _atom(cid, c.get(cid) or {},
-                 ("partner_stratification_class", "n_partner_deficient", "partner_stratification_q"),
-                 {"sample_context": "cell_line", "stratum": "partner_deficient"},
-                 h.get("partner_conditional_class"))
+    return _atom(
+        cid,
+        c.get(cid) or {},
+        ("partner_stratification_class", "n_partner_deficient", "partner_stratification_q"),
+        {"sample_context": "cell_line", "stratum": "partner_deficient"},
+        h.get("partner_conditional_class"),
+    )
 
 
 def _chem_atom(h, c):
     cid = "prism-crispr-concordance"
-    return _atom(cid, c.get(cid) or {},
-                 ("crispr_prism_concordance_class", "n_compounds_evaluated", "n_dual_responders",
-                  "best_spearman_r_crispr", "best_spearman_r_rnai"),
-                 {"sample_context": "cell_line", "stratum": "pan_cancer"},
-                 h.get("prism_concordance_class"))
+    return _atom(
+        cid,
+        c.get(cid) or {},
+        (
+            "crispr_prism_concordance_class",
+            "n_compounds_evaluated",
+            "n_dual_responders",
+            "best_spearman_r_crispr",
+            "best_spearman_r_rnai",
+        ),
+        {"sample_context": "cell_line", "stratum": "pan_cancer"},
+        h.get("prism_concordance_class"),
+    )
 
 
 DEPENDENCY_CLAIM_SPEC = [
     ClaimSpec("DEP", "genetic dependency", _dep_signal, _dep_corroboration, _INFORMS["DEP"], _dep_atom),
     ClaimSpec("SEL", "context-selectivity", _sel_signal, _sel_corroboration, _INFORMS["SEL"], _sel_atom),
-    ClaimSpec("COND", "conditional / synthetic-lethal", _cond_signal, _cond_corroboration, _INFORMS["COND"], _cond_atom),
+    ClaimSpec(
+        "COND", "conditional / synthetic-lethal", _cond_signal, _cond_corroboration, _INFORMS["COND"], _cond_atom
+    ),
     ClaimSpec("CHEM", "chemical-genetic confirmation", _chem_signal, _chem_corroboration, _INFORMS["CHEM"], _chem_atom),
 ]
 
@@ -262,7 +306,8 @@ _DISCLAIMER = (
     "confirmation), each signal×corroboration. Claims are NOT additive; a weak SEL does not degrade a "
     "strong DEP. Reliability carries the confidence annotations functional-requirement already separates "
     "from its verdict (CRISPR×RNAi concordance, Broad↔Sanger cross-consortium replication, omics-"
-    "predictability). Never feeds the dependency_verdict.")
+    "predictability). Never feeds the dependency_verdict."
+)
 
 
 def dependency_claim_vector(headline: dict, cards: list) -> dict:
@@ -281,37 +326,48 @@ def dependency_key_signals(headline: dict, cards: list) -> dict:
         bits = [f"CRISPR {h.get('crispr_call')}"]
         if h.get("rnai_call"):
             bits.append(f"RNAi {h['rnai_call']}")
-        cite = "[CRISPR + RNAi distributions" + ("; Broad↔Sanger cross-consortium]" if cc == "concordant_dependent" else "]")
+        cite = "[CRISPR + RNAi distributions" + (
+            "; Broad↔Sanger cross-consortium]" if cc == "concordant_dependent" else "]"
+        )
         tail = " — independently corroborated across consortia" if cc == "concordant_dependent" else ""
         return f"Genetic dependency — {', '.join(bits)}{tail} {cite}"
 
     def sup_sel(claim):
-        return (f"Lineage-selective dependency ({h.get('lineage_selectivity')}, "
-                f"{h.get('n_lineages_evaluated')} lineages) [dependency-lineage-selectivity]")
+        return (
+            f"Lineage-selective dependency ({h.get('lineage_selectivity')}, "
+            f"{h.get('n_lineages_evaluated')} lineages) [dependency-lineage-selectivity]"
+        )
 
     def sup_cond(claim):
-        return (f"Partner-conditional (synthetic-lethal) dependency — {h.get('partner_conditional_class')} "
-                f"[partner-conditional-dependency]")
+        return (
+            f"Partner-conditional (synthetic-lethal) dependency — {h.get('partner_conditional_class')} "
+            f"[partner-conditional-dependency]"
+        )
 
     def sup_chem(claim):
-        return (f"Chemical-genetic confirmation — {h.get('prism_concordance_class')} across "
-                f"{h.get('n_compounds_evaluated')} PRISM compounds [prism-crispr-concordance]")
+        return (
+            f"Chemical-genetic confirmation — {h.get('prism_concordance_class')} across "
+            f"{h.get('n_compounds_evaluated')} PRISM compounds [prism-crispr-concordance]"
+        )
 
     def cav_dep(claim):
         return f"Weak/absent genetic dependency — CRISPR {h.get('crispr_call')} [CRISPR + RNAi distributions]"
 
     def cav_sel(claim):
-        return (f"Not lineage-selective — {h.get('lineage_selectivity')}; the dependency (if any) is not "
-                f"lineage-concentrated [dependency-lineage-selectivity]")
+        return (
+            f"Not lineage-selective — {h.get('lineage_selectivity')}; the dependency (if any) is not "
+            f"lineage-concentrated [dependency-lineage-selectivity]"
+        )
 
     def cav_chem(claim):
         if h.get("prism_concordance_class") == "discordant_off_target_likely":
             return "PRISM compound kill does not track the genetic dependency — likely off-target [prism-crispr-concordance]"
-        return f"Chemical-genetic confirmation thin/absent — {h.get('prism_concordance_class')} [prism-crispr-concordance]"
+        return (
+            f"Chemical-genetic confirmation thin/absent — {h.get('prism_concordance_class')} [prism-crispr-concordance]"
+        )
 
     def head(v, supports):
-        dep, sel, chem, cond = (v["DEP"]["signal"], v["SEL"]["signal"],
-                                v["CHEM"]["signal"], v["COND"]["signal"])
+        dep, sel, chem, cond = (v["DEP"]["signal"], v["SEL"]["signal"], v["CHEM"]["signal"], v["COND"]["signal"])
         # The DEP claim already carries the decisive caveat as its `conflict` (dependency_claims._dep_signal):
         # pan-essential (broad-toxicity liability) or an RNAi non-corroboration. head() must READ it — else a
         # pan-essential (resolved verdict pan_essential_killer, "argues AGAINST") reads as a bare "Strong
@@ -346,7 +402,7 @@ def dependency_key_signals(headline: dict, cards: list) -> dict:
         vec,
         rank_keys=("DEP", "SEL", "COND", "CHEM"),
         support_fns={"DEP": sup_dep, "SEL": sup_sel, "COND": sup_cond, "CHEM": sup_chem},
-        critical_keys=("DEP", "SEL", "CHEM"),   # COND is a positive-only rescue; not a critical caveat axis
+        critical_keys=("DEP", "SEL", "CHEM"),  # COND is a positive-only rescue; not a critical caveat axis
         caveat_fns={"DEP": cav_dep, "SEL": cav_sel, "CHEM": cav_chem},
         headline_fn=head,
     )
@@ -368,9 +424,12 @@ def dependency_key_signals(headline: dict, cards: list) -> dict:
     # omit it, incl. the KRAS/COADREAD unit fixture); fires on the live run (KRAS paralog=strong, NRAS).
     elif h.get("paralog_buffering_class") == "strong":
         _par = h.get("strongest_paralog_symbol")
-        ks["caveat"] = ("Strong paralog buffering" + (f" ({_par})" if _par else "")
-                        + " — the single-gene dependency may be redundancy-masked; combined paralog loss "
-                          "or an upstream pan-family node may be required [paralog-buffering]")
+        ks["caveat"] = (
+            "Strong paralog buffering"
+            + (f" ({_par})" if _par else "")
+            + " — the single-gene dependency may be redundancy-masked; combined paralog loss "
+            "or an upstream pan-family node may be required [paralog-buffering]"
+        )
     # PARTIAL paralog buffer on an ABSENCE verdict (2026-09-04): when CRISPR/RNAi read the target as
     # non-dependent OR discordant AND a paralog exists (even at `partial`), the apparent absence may be a
     # paralog-masking artifact — single-gene KO under-calls a vulnerability that shifts to the redundant
@@ -379,14 +438,15 @@ def dependency_key_signals(headline: dict, cards: list) -> dict:
     # `strong` on any verdict is already caught above. Gated on paralog_buffering_class + dependency_verdict
     # HEADLINE fields → no-op on the KRAS unit fixture (omits both). Verdict-INERT (the resolver's
     # non_dependent_paralog_buffered rung fires only on STRONG buffering; this only surfaces the caveat).
-    elif (h.get("paralog_buffering_class") == "partial"
-          and h.get("dependency_verdict") in _ABSENCE_VERDICTS):
+    elif h.get("paralog_buffering_class") == "partial" and h.get("dependency_verdict") in _ABSENCE_VERDICTS:
         _par = h.get("strongest_paralog_symbol")
-        ks["caveat"] = ("Non-dependent/discordant read, but a paralog buffer"
-                        + (f" ({_par}, partial)" if _par else " (partial)")
-                        + " may under-call a paralog-buffered vulnerability — the absence reflects direct "
-                          "single-gene requirement, not the paralog node; check the paralog synthetic-lethal "
-                          "(COND axis) [paralog-buffering]")
+        ks["caveat"] = (
+            "Non-dependent/discordant read, but a paralog buffer"
+            + (f" ({_par}, partial)" if _par else " (partial)")
+            + " may under-call a paralog-buffered vulnerability — the absence reflects direct "
+            "single-gene requirement, not the paralog node; check the paralog synthetic-lethal "
+            "(COND axis) [paralog-buffering]"
+        )
     return ks
 
 

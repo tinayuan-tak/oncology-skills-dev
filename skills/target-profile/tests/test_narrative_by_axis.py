@@ -8,6 +8,7 @@ Covers: movers (winning driver), dissenters (opposing-sign fired non-driver, per
 flip_conditions carried from the fragility facet's decision_flips (incl. recommendation_flip),
 rule_sentences captioned from the rules file, and VERDICT-INERT non-mutation of sub_results.
 """
+
 from __future__ import annotations
 
 import copy
@@ -28,14 +29,21 @@ _SAFETY_SPEC = {
     ],
 }
 _RULES = {
-    "axis": "test_axis", "rules_id": "t",
+    "axis": "test_axis",
+    "rules_id": "t",
     "rules": [
-        {"rule_id": "safety-killer", "when": {"card_id": "gnomad-lof-constraint", "field": "f", "equals": "x"},
-         "signals": {"small_molecule": "opposing", "degrader": "opposing"},
-         "rationale": "Highly LoF-constrained in gnomAD."},
-        {"rule_id": "safety-ok", "when": {"card_id": "clingen-dosage", "field": "f", "equals": "y"},
-         "signals": {"small_molecule": "supportive", "degrader": "supportive"},
-         "rationale": "Recessive-only: het carriers healthy."},
+        {
+            "rule_id": "safety-killer",
+            "when": {"card_id": "gnomad-lof-constraint", "field": "f", "equals": "x"},
+            "signals": {"small_molecule": "opposing", "degrader": "opposing"},
+            "rationale": "Highly LoF-constrained in gnomAD.",
+        },
+        {
+            "rule_id": "safety-ok",
+            "when": {"card_id": "clingen-dosage", "field": "f", "equals": "y"},
+            "signals": {"small_molecule": "supportive", "degrader": "supportive"},
+            "rationale": "Recessive-only: het carriers healthy.",
+        },
     ],
 }
 
@@ -46,9 +54,11 @@ def _fixture_contracts(tmp_path: Path) -> Path:
     vocab = {
         "enum_id": "nomination_verdict_gate",
         "action_precedence": {"veto": 2, "hold": 1},
-        "gates": [{"sub_skill": "safety", "verdict": "highly_constrained_safety_concern",
-                   "action": "hold", "rationale": "t"}],
-        "positive_signals": [], "positive_contradictions": [],
+        "gates": [
+            {"sub_skill": "safety", "verdict": "highly_constrained_safety_concern", "action": "hold", "rationale": "t"}
+        ],
+        "positive_signals": [],
+        "positive_contradictions": [],
         "positive_tier_config": {"min_dimensions_for_strong": 2, "require_dominant_for_strong": True},
         "contested_threshold": {"fragility_index_min": 0.5},
     }
@@ -60,17 +70,29 @@ def _fixture_contracts(tmp_path: Path) -> Path:
 
 
 def _sub_results():
-    return {"safety": {"skill_dir": "safety", "cards": [
-        {"card_id": "gnomad-lof-constraint", "summary": {"constraint_class": "highly_constrained"}}],
-        "fired": [
-            {"rule_id": "safety-killer", "card_id": "gnomad-lof-constraint",
-             "signals": {"small_molecule": "opposing", "degrader": "opposing"},
-             "rationale": "Highly LoF-constrained in gnomAD.", "killer_message": None},
-            {"rule_id": "safety-ok", "card_id": "clingen-dosage",
-             "signals": {"small_molecule": "supportive", "degrader": "supportive"},
-             "rationale": "Recessive-only: het carriers healthy.", "killer_message": None},
-        ],
-        "verdict": ("highly_constrained_safety_concern", "safety-killer")}}
+    return {
+        "safety": {
+            "skill_dir": "safety",
+            "cards": [{"card_id": "gnomad-lof-constraint", "summary": {"constraint_class": "highly_constrained"}}],
+            "fired": [
+                {
+                    "rule_id": "safety-killer",
+                    "card_id": "gnomad-lof-constraint",
+                    "signals": {"small_molecule": "opposing", "degrader": "opposing"},
+                    "rationale": "Highly LoF-constrained in gnomAD.",
+                    "killer_message": None,
+                },
+                {
+                    "rule_id": "safety-ok",
+                    "card_id": "clingen-dosage",
+                    "signals": {"small_molecule": "supportive", "degrader": "supportive"},
+                    "rationale": "Recessive-only: het carriers healthy.",
+                    "killer_message": None,
+                },
+            ],
+            "verdict": ("highly_constrained_safety_concern", "safety-killer"),
+        }
+    }
 
 
 def test_full_narrative_movers_dissenters_flips_sentences(tmp_path):
@@ -84,7 +106,9 @@ def test_full_narrative_movers_dissenters_flips_sentences(tmp_path):
     assert [(m["rule_id"], m["role"]) for m in n["movers"]] == [("safety-killer", "driver")]
     # dissenters: the reassurance rule opposes the concern on BOTH channels
     assert {(d["rule_id"], d["channel"]) for d in n["dissenters"]} == {
-        ("safety-ok", "small_molecule"), ("safety-ok", "degrader")}
+        ("safety-ok", "small_molecule"),
+        ("safety-ok", "degrader"),
+    }
     # flip_conditions carried from the fragility facet: removing the killer drops to no_safety_concern,
     # crossing the hold boundary → recommendation_flip True
     flips = {f["rule_id"]: f for f in n["flip_conditions"]}

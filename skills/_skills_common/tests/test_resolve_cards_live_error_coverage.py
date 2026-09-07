@@ -12,7 +12,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-SKILLS = Path(__file__).resolve().parents[2]        # skills/
+SKILLS = Path(__file__).resolve().parents[2]  # skills/
 if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
 
@@ -23,8 +23,9 @@ from _skills_common import _live_readers  # noqa: E402
 def test_live_read_error_is_missing_not_available(monkeypatch):
     """A dispatcher that returns a `_live_read_error` dict must be tagged _missing (NOT green), with
     a live_read_error reason, and NOT flagged as an honest data_unavailable."""
-    monkeypatch.setattr(_live_readers, "read_live_summary",
-                        lambda *a, **k: {"_live_read_error": "boom: forced test failure"})
+    monkeypatch.setattr(
+        _live_readers, "read_live_summary", lambda *a, **k: {"_live_read_error": "boom: forced test failure"}
+    )
     out = skc.resolve_cards(["cellline-rna-distribution"], "MYGENE", "COADREAD")
     assert len(out) == 1
     card = out[0]
@@ -46,8 +47,9 @@ def test_real_summary_is_available(monkeypatch):
     """A dispatcher returning a real populated summary is NOT missing (the positive control that the
     _missing tagging isn't just always-True). Assert only coverage state — summary content may be
     reshaped by a per-card preprocessor, which is not what this contract guards."""
-    monkeypatch.setattr(_live_readers, "read_live_summary",
-                        lambda *a, **k: {"expression_class": "broadly_high", "median_tpm": 7.2})
+    monkeypatch.setattr(
+        _live_readers, "read_live_summary", lambda *a, **k: {"expression_class": "broadly_high", "median_tpm": 7.2}
+    )
     out = skc.resolve_cards(["cellline-rna-distribution"], "MYGENE", "COADREAD")
     assert not out[0].get("_missing"), "an available card must not be tagged _missing (key absent or False)"
     assert not out[0].get("_data_unavailable")

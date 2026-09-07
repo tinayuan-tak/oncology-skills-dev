@@ -19,6 +19,7 @@ Pure functions (`_pick_gene_entity`, `_numeric_pmids`, `entity_axis_query`) are 
 courtesy throttle, no API key) and are best-effort — callers fall back to keyword search
 if PubTator is unreachable.
 """
+
 from __future__ import annotations
 
 import json
@@ -29,7 +30,7 @@ import urllib.request
 PUBTATOR_BASE = "https://www.ncbi.nlm.nih.gov/research/pubtator3-api"
 _UA = {"User-Agent": "oncology-skills/1.5 (grounded-substrate entity retrieval)"}
 _TIMEOUT = 30.0
-_DELAY = 0.34   # stay well under NCBI's 3 req/s
+_DELAY = 0.34  # stay well under NCBI's 3 req/s
 
 
 # ------------------------------------------------------------------ pure -----
@@ -57,8 +58,9 @@ def _numeric_pmids(hits: list[dict], limit: int) -> list[str]:
     return out
 
 
-def entity_axis_query(gene_clause: str, disease_terms: str, axis_terms: str,
-                      *, disease_scoped: bool, broad: bool) -> str:
+def entity_axis_query(
+    gene_clause: str, disease_terms: str, axis_terms: str, *, disease_scoped: bool, broad: bool
+) -> str:
     """Build the PubTator query. `gene_clause` is the entity anchor ('@GENE_10873')
     or a fallback symbol clause ('(ME3)'). `broad` drops the axis-term conjunction
     (the soft-fallback used when the tight query starves)."""

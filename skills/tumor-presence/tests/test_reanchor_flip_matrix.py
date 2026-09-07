@@ -10,6 +10,7 @@ as a permanent, credential-less regression matrix so a future ladder edit that r
 The collapsed presence_verdict is a pure function of the fired-rule list via run.py::_verdict, so each
 row is a synthetic fired-set standing in for a real backtest exemplar (the rule_id that each card emits
 is what actually drives the ladder — see CARD_CONTEXT / _EXPRESSION_RANK)."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -36,14 +37,17 @@ _TUMOR_BROAD = _fr("tumor-expression-broadly-high-supportive", "tumor-rna-distri
 _TUMOR_SPARSE = _fr("tumor-expression-broadly-low-neutral", "tumor-rna-distribution")
 
 
-@pytest.mark.parametrize("exemplar,fired,expected", [
-    # FLIP class 1 — cell-line broadly_moderate + tumor broadly-expressed (EPCAM/FOLR1/KRAS/APC/BRAF/NAPSA)
-    ("cellline_moderate_x_tumor_broad", [_CL_MODERATE, _TUMOR_BROAD], "tumor_broadly_expressed"),
-    # FLIP class 2 — cell-line lineage_restricted + tumor broadly-expressed (CDH17/CEACAM5/TACSTD2/DLL3/NECTIN4/MUC13)
-    ("cellline_restricted_x_tumor_broad", [_CL_RESTRICTED, _TUMOR_BROAD], "tumor_broadly_expressed"),
-    # FLIP class 3 — tumor-vs-adjacent modest_up + tumor broadly-expressed (EGFR-LUAD/KRAS-LUAD/NOX1/STEAP1)
-    ("tva_modest_up_x_tumor_broad", [_TVA_MODEST_UP, _TUMOR_BROAD], "tumor_broadly_expressed"),
-])
+@pytest.mark.parametrize(
+    "exemplar,fired,expected",
+    [
+        # FLIP class 1 — cell-line broadly_moderate + tumor broadly-expressed (EPCAM/FOLR1/KRAS/APC/BRAF/NAPSA)
+        ("cellline_moderate_x_tumor_broad", [_CL_MODERATE, _TUMOR_BROAD], "tumor_broadly_expressed"),
+        # FLIP class 2 — cell-line lineage_restricted + tumor broadly-expressed (CDH17/CEACAM5/TACSTD2/DLL3/NECTIN4/MUC13)
+        ("cellline_restricted_x_tumor_broad", [_CL_RESTRICTED, _TUMOR_BROAD], "tumor_broadly_expressed"),
+        # FLIP class 3 — tumor-vs-adjacent modest_up + tumor broadly-expressed (EGFR-LUAD/KRAS-LUAD/NOX1/STEAP1)
+        ("tva_modest_up_x_tumor_broad", [_TVA_MODEST_UP, _TUMOR_BROAD], "tumor_broadly_expressed"),
+    ],
+)
 def test_reanchor_flips_to_tumor_broadly_expressed(exemplar, fired, expected):
     """Backtest flip classes: whenever the tumor tissue reads broadly-expressed, the headline is the
     tumor verdict — the cell-line proxy no longer understates it."""
@@ -51,12 +55,15 @@ def test_reanchor_flips_to_tumor_broadly_expressed(exemplar, fired, expected):
     assert v == expected, f"{exemplar}: expected {expected}, got {v}"
 
 
-@pytest.mark.parametrize("exemplar,fired,expected", [
-    # cell-line broadly_high + tumor broadly-expressed → BOTH high, headline unchanged (MET/ERBB2/MYC/TP53/PARP1)
-    ("both_high_unchanged", [_CL_HIGH, _TUMOR_BROAD], "broadly_high_expression"),
-    # tumor-vs-adjacent strong upregulation dominates (CEACAM5-LUAD/MSLN/HTR1D/TACSTD2-COADREAD)
-    ("strong_up_unchanged", [_CL_RESTRICTED, _TVA_STRONG_UP], "strongly_upregulated_in_tumor"),
-])
+@pytest.mark.parametrize(
+    "exemplar,fired,expected",
+    [
+        # cell-line broadly_high + tumor broadly-expressed → BOTH high, headline unchanged (MET/ERBB2/MYC/TP53/PARP1)
+        ("both_high_unchanged", [_CL_HIGH, _TUMOR_BROAD], "broadly_high_expression"),
+        # tumor-vs-adjacent strong upregulation dominates (CEACAM5-LUAD/MSLN/HTR1D/TACSTD2-COADREAD)
+        ("strong_up_unchanged", [_CL_RESTRICTED, _TVA_STRONG_UP], "strongly_upregulated_in_tumor"),
+    ],
+)
 def test_reanchor_leaves_agreeing_and_strong_cases_unchanged(exemplar, fired, expected):
     """No gratuitous churn: cell-line broadly_high stays at rung 1 (both-high agreement) and a
     tumor-vs-adjacent strong-upregulation still wins outright."""

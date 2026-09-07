@@ -15,6 +15,7 @@ via `run.replay_synthesize` (llm_mode="offline_replay") — exactly as tests/tes
 NO Bedrock / NO S3 / NO credentials, yet the validated dict is exactly what a live run emits.
 CI-liveness: schema unresolvable → SKIP locally, FAIL in CI.
 """
+
 from __future__ import annotations
 
 import os
@@ -35,7 +36,10 @@ if str(SCRIPTS) not in sys.path:
 import drift_golden as dg  # noqa: E402
 
 from _skills_common.data_product_contract import (  # noqa: E402
-    conformance_errors, load_schema, schema_path)
+    conformance_errors,
+    load_schema,
+    schema_path,
+)
 
 
 def _schema_or_gate() -> dict:
@@ -44,8 +48,10 @@ def _schema_or_gate() -> dict:
     schema = load_schema(SKILL, "emit")
     if schema is not None:
         return schema
-    reason = (f"data-product emit schema not found at {schema_path(SKILL, 'emit')} — set "
-              f"TARGET_CONTRACTS_ROOT / land the contracts schema PR first")
+    reason = (
+        f"data-product emit schema not found at {schema_path(SKILL, 'emit')} — set "
+        f"TARGET_CONTRACTS_ROOT / land the contracts schema PR first"
+    )
     if os.environ.get("CI"):
         pytest.fail(reason + " [CI: the data-product ratchet must be live, not skipped]")
     pytest.skip(reason)
@@ -58,9 +64,15 @@ def _fresh_emit() -> dict:
         pytest.skip(f"no frozen golden case at {GOLDEN} — run freeze_drift_golden.py")
     R = load_run_py(SKILL_DIR, "ce_run_data_product")
     case = dg.load_golden_case(GOLDEN)
-    return R.run(case["pkg"], case["risk"], case["meta"]["objective"], case["meta"]["modality"],
-                 case["dossier"], synthesize_fn=R.replay_synthesize(case["replay"]),
-                 llm_mode="offline_replay")
+    return R.run(
+        case["pkg"],
+        case["risk"],
+        case["meta"]["objective"],
+        case["meta"]["modality"],
+        case["dossier"],
+        synthesize_fn=R.replay_synthesize(case["replay"]),
+        llm_mode="offline_replay",
+    )
 
 
 def test_schema_is_wellformed():
@@ -82,7 +94,9 @@ def test_fresh_emit_conforms():
     # bespoke identity (this skill has no headline.skill_report / run_health — do NOT use is_full_decision)
     assert decision["skill"] == SKILL, f"emit skill identity regressed: {decision.get('skill')!r}"
     assert isinstance(decision["verdict"], dict), (
-        "verdict must be the gated OBJECT (proposed_by_agent / computed / gate_ceiling), not a scalar")
+        "verdict must be the gated OBJECT (proposed_by_agent / computed / gate_ceiling), not a scalar"
+    )
     errors = conformance_errors(schema, decision)
     assert not errors, "fresh emit violates the data-product emit schema:\n  " + "\n  ".join(
-        f"{list(e.path)}: {e.message}" for e in errors[:15])
+        f"{list(e.path)}: {e.message}" for e in errors[:15]
+    )

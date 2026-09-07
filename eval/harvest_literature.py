@@ -25,6 +25,7 @@ Usage:
         --snapshot-dir eval/literature-snapshots --build-ledger \
         --calibration-set ../rnd-computational-biology-oncology-target-contracts/vocabularies/known_target_calibration_set.yaml
 """
+
 from __future__ import annotations
 
 import argparse
@@ -66,8 +67,9 @@ def _canonical_symbol(target: str) -> str:
     return TARGET_CANON.get(sym, sym)
 
 
-def harvest_pair(target: str, indication: str, *, literature_scope: str = "all",
-                 model: str | None = None) -> list[dict]:
+def harvest_pair(
+    target: str, indication: str, *, literature_scope: str = "all", model: str | None = None
+) -> list[dict]:
     """Run the fan-out with the --literature lane ON and project each sub-skill into a
     normalized harvest record. Records are only produced for sub-skills whose lane actually
     ran (a skill with no narrator lens, or a lit-native skill, is honestly skipped).
@@ -79,10 +81,13 @@ def harvest_pair(target: str, indication: str, *, literature_scope: str = "all",
     from tp_fanout import _run_sub_skills  # imported lazily so --help needs no skills path
 
     run_symbol = _canonical_symbol(target)
-    sub_results = _run_sub_skills(run_symbol, indication,
-                                  subskill_literature=True,
-                                  subskill_literature_scope=literature_scope,
-                                  synthesis_model=model)
+    sub_results = _run_sub_skills(
+        run_symbol,
+        indication,
+        subskill_literature=True,
+        subskill_literature_scope=literature_scope,
+        synthesis_model=model,
+    )
     records: list[dict] = []
     for short, res in sub_results.items():
         facet = res.get("synthesis_facet") or {}
@@ -92,24 +97,26 @@ def harvest_pair(target: str, indication: str, *, literature_scope: str = "all",
         v, rule = _normalize_verdict(res.get("verdict"))
         fired = res.get("fired") or []
         fired_ids = [f.get("rule_id") for f in fired if isinstance(f, dict)] if fired else []
-        records.append({
-            "target": target,
-            # HGNC symbol the fan-out actually resolved (== target unless an alias was canonicalized).
-            # Audit trail for CASE-011; downstream (build_discordance_ledger) ignores unknown keys.
-            "resolved_symbol": run_symbol,
-            "indication": indication,
-            "skill": res.get("skill_dir") or short,   # skill DIR id (matches atlas-exclusion set)
-            "axis_short": short,
-            "sub_verdict": {
-                "gate": short,
-                "verdict": v,
-                "driving_rule_id": rule,
-                "fired_rule_ids": fired_ids,
-            },
-            "claim_vector": (facet.get("claim_vector") if isinstance(facet, dict) else None),
-            "literature_synthesis": lit,
-            "_provenance": {"model_id": lit.get("_model_id"), "prompt_hash": lit.get("_prompt_hash")},
-        })
+        records.append(
+            {
+                "target": target,
+                # HGNC symbol the fan-out actually resolved (== target unless an alias was canonicalized).
+                # Audit trail for CASE-011; downstream (build_discordance_ledger) ignores unknown keys.
+                "resolved_symbol": run_symbol,
+                "indication": indication,
+                "skill": res.get("skill_dir") or short,  # skill DIR id (matches atlas-exclusion set)
+                "axis_short": short,
+                "sub_verdict": {
+                    "gate": short,
+                    "verdict": v,
+                    "driving_rule_id": rule,
+                    "fired_rule_ids": fired_ids,
+                },
+                "claim_vector": (facet.get("claim_vector") if isinstance(facet, dict) else None),
+                "literature_synthesis": lit,
+                "_provenance": {"model_id": lit.get("_model_id"), "prompt_hash": lit.get("_prompt_hash")},
+            }
+        )
     return records
 
 
@@ -136,6 +143,7 @@ def _pairs_from_calibration(path: str | Path) -> list[tuple[str, str]]:
     and non-specific `multi` indications; de-dupes."""
     try:
         import yaml  # type: ignore
+
         doc = yaml.safe_load(Path(path).read_text()) or {}
     except Exception:  # noqa: BLE001
         return []
@@ -146,7 +154,7 @@ def _pairs_from_calibration(path: str | Path) -> list[tuple[str, str]]:
         if not isinstance(sec, dict):
             continue
         for target, v in sec.items():
-            if "_" in target or "." in target:            # composite / fusion pseudo-target — skip
+            if "_" in target or "." in target:  # composite / fusion pseudo-target — skip
                 continue
             ind = v.get("indication") if isinstance(v, dict) else None
             if not ind or ind == "multi":
@@ -165,10 +173,16 @@ def _snapshot_path(snapshot_dir: Path, target: str, indication: str) -> Path:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--pairs", default=None, help="comma list of TARGET/INDICATION (e.g. KRAS/COADREAD,MET/LUAD)")
-    ap.add_argument("--calibration-set", default=None,
-                    help="known_target_calibration_set.yaml — source of (target,indication) pairs AND calibration_gap tagging")
-    ap.add_argument("--use-calibration-pairs", action="store_true",
-                    help="derive the pair list from --calibration-set (else --pairs is the source)")
+    ap.add_argument(
+        "--calibration-set",
+        default=None,
+        help="known_target_calibration_set.yaml — source of (target,indication) pairs AND calibration_gap tagging",
+    )
+    ap.add_argument(
+        "--use-calibration-pairs",
+        action="store_true",
+        help="derive the pair list from --calibration-set (else --pairs is the source)",
+    )
     ap.add_argument("--literature-scope", choices=["all", "gating"], default="all")
     ap.add_argument("--model", default=None, help="override the lane's Bedrock model id")
     ap.add_argument("--snapshot-dir", default="eval/literature-snapshots")

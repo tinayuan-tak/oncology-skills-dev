@@ -17,6 +17,7 @@ Pins the load-bearing properties:
   (6) shed_caveat fires for a shed + surface-abundant target and is None on membrane-retained.
 All pure (no S3).
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -28,9 +29,15 @@ _M = load_run_py(Path(__file__).resolve().parent.parent, "smf_run_confcaveat")
 
 # ── (1) the SHARP over-call tier — LGR5/GPCR-family pattern ───────────────────────────────────────
 def test_annotation_unconfirmed_fires_on_positive_fit_without_protein_or_precedent():
-    hl = {"fit_class": "TCE_preferred", "family_class": "gpcr", "topology_class": "multi_pass",
-          "surface_confirmation_class": "not_surface", "surface_multimodal_support": "single_modality_negative",
-          "endocytosis_confidence": "unmeasured", "cd_established_io_precedent": False}
+    hl = {
+        "fit_class": "TCE_preferred",
+        "family_class": "gpcr",
+        "topology_class": "multi_pass",
+        "surface_confirmation_class": "not_surface",
+        "surface_multimodal_support": "single_modality_negative",
+        "endocytosis_confidence": "unmeasured",
+        "cd_established_io_precedent": False,
+    }
     c = _M._surface_confirmation_caveat(hl)
     assert c is not None
     assert c["reason"] == "family_topology_annotation_unconfirmed"
@@ -44,9 +51,15 @@ def test_annotation_unconfirmed_fires_on_positive_fit_without_protein_or_precede
 def test_annotation_unconfirmed_adc_favorable_sets_endocytosis_note():
     """A both_viable/ADC_preferred positive that is unconfirmed AND has endocytosis unmeasured sets the
     ADC internalization sub-note (payload delivery unverified)."""
-    hl = {"fit_class": "both_viable", "family_class": "other_surface", "topology_class": "single_pass_type_1",
-          "surface_confirmation_class": "not_surface", "surface_multimodal_support": "discordant",
-          "endocytosis_confidence": "unmeasured", "cd_established_io_precedent": False}
+    hl = {
+        "fit_class": "both_viable",
+        "family_class": "other_surface",
+        "topology_class": "single_pass_type_1",
+        "surface_confirmation_class": "not_surface",
+        "surface_multimodal_support": "discordant",
+        "endocytosis_confidence": "unmeasured",
+        "cd_established_io_precedent": False,
+    }
     c = _M._surface_confirmation_caveat(hl)
     assert c["reason"] == "family_topology_annotation_unconfirmed"
     assert c["endocytosis_unmeasured_for_adc"] is True
@@ -57,9 +70,15 @@ def test_annotation_unconfirmed_adc_favorable_sets_endocytosis_note():
 def test_clinically_precedented_cspa_unconfirmed_when_precedent_present():
     """DLL3-class: not_surface CSPA but endocytosis_confidence=clinically_internalizing (curated ADC
     precedent) → the milder, NON-over-call tier."""
-    hl = {"fit_class": "both_viable", "family_class": "other_surface", "topology_class": "single_pass_type_1",
-          "surface_confirmation_class": "not_surface", "surface_multimodal_support": "discordant",
-          "endocytosis_confidence": "clinically_internalizing", "cd_established_io_precedent": False}
+    hl = {
+        "fit_class": "both_viable",
+        "family_class": "other_surface",
+        "topology_class": "single_pass_type_1",
+        "surface_confirmation_class": "not_surface",
+        "surface_multimodal_support": "discordant",
+        "endocytosis_confidence": "clinically_internalizing",
+        "cd_established_io_precedent": False,
+    }
     c = _M._surface_confirmation_caveat(hl)
     assert c["reason"] == "clinically_precedented_cspa_unconfirmed"
     assert c["clinical_precedent"] is True
@@ -68,40 +87,68 @@ def test_clinically_precedented_cspa_unconfirmed_when_precedent_present():
 
 
 def test_cd_io_precedent_also_counts_as_clinical_precedent():
-    hl = {"fit_class": "TCE_preferred", "family_class": "cd_molecule", "topology_class": "single_pass_type_1",
-          "surface_confirmation_class": "not_surface", "surface_multimodal_support": "discordant",
-          "endocytosis_confidence": "unmeasured", "cd_established_io_precedent": True}
+    hl = {
+        "fit_class": "TCE_preferred",
+        "family_class": "cd_molecule",
+        "topology_class": "single_pass_type_1",
+        "surface_confirmation_class": "not_surface",
+        "surface_multimodal_support": "discordant",
+        "endocytosis_confidence": "unmeasured",
+        "cd_established_io_precedent": True,
+    }
     c = _M._surface_confirmation_caveat(hl)
     assert c["reason"] == "clinically_precedented_cspa_unconfirmed"
 
 
 # ── (3) a CONFIRMED positive is NEVER caveated (byte-stable on ERBB2/MSLN) ────────────────────────
 def test_confirmed_high_surface_never_caveated():
-    hl = {"fit_class": "both_viable", "surface_confirmation_class": "confirmed_high",
-          "surface_multimodal_support": "corroborated_surface", "endocytosis_confidence": "clinically_internalizing"}
+    hl = {
+        "fit_class": "both_viable",
+        "surface_confirmation_class": "confirmed_high",
+        "surface_multimodal_support": "corroborated_surface",
+        "endocytosis_confidence": "clinically_internalizing",
+    }
     assert _M._surface_confirmation_caveat(hl) is None
 
 
 def test_corroborated_multimodal_never_caveated_even_without_cspa_class():
-    hl = {"fit_class": "ADC_preferred", "surface_confirmation_class": None,
-          "surface_multimodal_support": "corroborated_surface", "endocytosis_confidence": "unmeasured"}
+    hl = {
+        "fit_class": "ADC_preferred",
+        "surface_confirmation_class": None,
+        "surface_multimodal_support": "corroborated_surface",
+        "endocytosis_confidence": "unmeasured",
+    }
     assert _M._surface_confirmation_caveat(hl) is None
 
 
 # ── (4) negative / gap fit_class is NEVER caveated (byte-stable on WT1 neither_viable) ─────────────
 def test_negative_and_gap_fit_never_caveated():
-    for fc in ("neither_viable", "data_unavailable", "insufficient", "modality_ambiguous",
-               "isoform_dependent_undefined", None):
-        hl = {"fit_class": fc, "surface_confirmation_class": "not_surface",
-              "endocytosis_confidence": "unmeasured", "cd_established_io_precedent": False}
+    for fc in (
+        "neither_viable",
+        "data_unavailable",
+        "insufficient",
+        "modality_ambiguous",
+        "isoform_dependent_undefined",
+        None,
+    ):
+        hl = {
+            "fit_class": fc,
+            "surface_confirmation_class": "not_surface",
+            "endocytosis_confidence": "unmeasured",
+            "cd_established_io_precedent": False,
+        }
         assert _M._surface_confirmation_caveat(hl) is None, f"caveat fired on non-positive fit_class {fc!r}"
 
 
 # ── (6) shed_caveat ───────────────────────────────────────────────────────────────────────────────
 def test_shed_caveat_fires_on_clinically_shed_abundant():
-    hl = {"fit_class": "both_viable", "shed_liability_class": "clinically_shed",
-          "measured_shed_class": "not_on_secreted_panel", "shed_serum_marker": "CEA",
-          "surface_density_class": "high"}
+    hl = {
+        "fit_class": "both_viable",
+        "shed_liability_class": "clinically_shed",
+        "measured_shed_class": "not_on_secreted_panel",
+        "shed_serum_marker": "CEA",
+        "surface_density_class": "high",
+    }
     c = _M._shed_caveat(hl)
     assert c is not None
     assert c["reason"] == "clinically_shed_soluble_sink"
@@ -110,29 +157,45 @@ def test_shed_caveat_fires_on_clinically_shed_abundant():
 
 
 def test_shed_caveat_fires_on_measured_media_shed_high():
-    hl = {"fit_class": "both_viable", "shed_liability_class": "not_shed_membrane_retained",
-          "measured_shed_class": "media_shed_high", "surface_density_class": "high"}
+    hl = {
+        "fit_class": "both_viable",
+        "shed_liability_class": "not_shed_membrane_retained",
+        "measured_shed_class": "media_shed_high",
+        "surface_density_class": "high",
+    }
     c = _M._shed_caveat(hl)
     assert c is not None and c["reason"] == "clinically_shed_soluble_sink"
 
 
 def test_shed_caveat_secretome_proxy_is_milder():
-    hl = {"fit_class": "both_viable", "shed_liability_class": "secretome_proxy_shed",
-          "measured_shed_class": "not_on_secreted_panel", "surface_density_class": "moderate"}
+    hl = {
+        "fit_class": "both_viable",
+        "shed_liability_class": "secretome_proxy_shed",
+        "measured_shed_class": "not_on_secreted_panel",
+        "surface_density_class": "moderate",
+    }
     c = _M._shed_caveat(hl)
     assert c is not None and c["reason"] == "secretome_proxy_possible_sink"
 
 
 def test_shed_caveat_none_on_membrane_retained():
-    hl = {"fit_class": "both_viable", "shed_liability_class": "not_shed_membrane_retained",
-          "measured_shed_class": "not_on_secreted_panel", "surface_density_class": "low"}
+    hl = {
+        "fit_class": "both_viable",
+        "shed_liability_class": "not_shed_membrane_retained",
+        "measured_shed_class": "not_on_secreted_panel",
+        "surface_density_class": "low",
+    }
     assert _M._shed_caveat(hl) is None
 
 
 def test_shed_caveat_none_when_not_abundant_and_not_positive():
     """A shed antigen that is neither positive-fit nor surface-abundant → no sink caveat (nothing to sink)."""
-    hl = {"fit_class": "neither_viable", "shed_liability_class": "clinically_shed",
-          "measured_shed_class": "not_on_secreted_panel", "surface_density_class": "very_low"}
+    hl = {
+        "fit_class": "neither_viable",
+        "shed_liability_class": "clinically_shed",
+        "measured_shed_class": "not_on_secreted_panel",
+        "surface_density_class": "very_low",
+    }
     assert _M._shed_caveat(hl) is None
 
 
@@ -140,10 +203,17 @@ def test_shed_caveat_none_when_not_abundant_and_not_positive():
 def test_caveats_are_not_resolver_rule_ids():
     """The new fields are headline keys, not fired rule_ids — the surface_modality resolver keys only on
     fit_class + the safety/density/shed rungs, so a headline caveat cannot move the verdict."""
-    hl = {"fit_class": "TCE_preferred", "family_class": "gpcr", "topology_class": "multi_pass",
-          "surface_confirmation_class": "not_surface", "surface_multimodal_support": "single_modality_negative",
-          "endocytosis_confidence": "unmeasured", "cd_established_io_precedent": False,
-          "shed_liability_class": "clinically_shed", "surface_density_class": "high"}
+    hl = {
+        "fit_class": "TCE_preferred",
+        "family_class": "gpcr",
+        "topology_class": "multi_pass",
+        "surface_confirmation_class": "not_surface",
+        "surface_multimodal_support": "single_modality_negative",
+        "endocytosis_confidence": "unmeasured",
+        "cd_established_io_precedent": False,
+        "shed_liability_class": "clinically_shed",
+        "surface_density_class": "high",
+    }
     scc = _M._surface_confirmation_caveat(hl)
     shed = _M._shed_caveat(hl)
     # both are dicts with a `reason` string — NOT a rule_id token the resolver's when_(all_)fired keys on

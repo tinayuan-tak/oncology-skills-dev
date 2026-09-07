@@ -14,6 +14,7 @@ outside the two vetoes were silently ignored. These tests pin the fix:
   * the active veto set stays EXACTLY 2 (fallback registry) — no new vetoes were added.
   * the hard_gates status block enumerates the COMPLETE declared kill set with per-gate status.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -29,18 +30,18 @@ def _sub(short, verdict, rule="some-rule"):
 
 # --- (a) fail-OPEN is fixed: renamed / unknown / malformed never returns a silent None ---
 
+
 def test_renamed_dependency_veto_does_not_fail_open():
     """A renamed veto token (`not_dependent` for the real `non_dependent`) must NOT slip through
     as a silent permissive pass — it routes to the dependency axis's least-permissive action: veto."""
     forced, hits, _sup = tp._gate_recommendation(_sub("dependency", "not_dependent"))
     assert forced == "veto"
-    assert any(h.get("_fail_closed") and h["fail_closed_reason"] == "unrecognized_verdict"
-               for h in hits)
+    assert any(h.get("_fail_closed") and h["fail_closed_reason"] == "unrecognized_verdict" for h in hits)
 
 
 def test_unknown_safety_token_routes_to_least_permissive_hold():
     forced, hits, _sup = tp._gate_recommendation(_sub("safety", "totally_new_safety_verdict"))
-    assert forced == "hold"           # never None
+    assert forced == "hold"  # never None
     assert any(h.get("_fail_closed") for h in hits)
 
 
@@ -54,14 +55,14 @@ def test_malformed_verdict_tuple_on_gating_axis_fails_closed():
     # A bare string (not a (verdict, rule) tuple) on dependency → veto, not a silent continue.
     forced, hits, _sup = tp._gate_recommendation({"dependency": {"verdict": "a-bare-string"}})
     assert forced == "veto"
-    assert any(h.get("_fail_closed") and h["fail_closed_reason"] == "malformed_verdict"
-               for h in hits)
+    assert any(h.get("_fail_closed") and h["fail_closed_reason"] == "malformed_verdict" for h in hits)
     # A dict-shaped garbled verdict on safety → hold.
     forced2, _h, _s = tp._gate_recommendation({"safety": {"verdict": {"oops": 1}}})
     assert forced2 == "hold"
 
 
 # --- recognized benign verdicts still return None (no over-veto) ---
+
 
 def test_recognized_benign_verdicts_do_not_fail_closed():
     assert tp._gate_recommendation(_sub("safety", "moderately_constrained_safety"))[0] is None
@@ -79,20 +80,19 @@ def test_empty_verdict_on_gating_axis_is_blind_not_failclosed():
 
 # --- (b) non-gating axes never force (F1-safe) ---
 
+
 def test_unknown_token_on_non_gating_axis_does_not_over_veto():
-    for axis in ("selectivity", "surface_modality", "tractability_sm", "genomic_alteration",
-                 "mechanism", "expression"):
+    for axis in ("selectivity", "surface_modality", "tractability_sm", "genomic_alteration", "mechanism", "expression"):
         forced, _h, _s = tp._gate_recommendation(_sub(axis, "some_brand_new_token"))
         assert forced is None, f"non-gating axis {axis} must not force a recommendation"
 
 
 # --- the two real vetoes + KRAS guard still hold ---
 
+
 def test_real_vetoes_still_fire():
-    assert tp._gate_recommendation(_sub("dependency", "pan_essential_killer",
-                                        "pan-essential-killer"))[0] == "veto"
-    assert tp._gate_recommendation(_sub("dependency", "non_dependent",
-                                        "non-dependent-killer"))[0] == "veto"
+    assert tp._gate_recommendation(_sub("dependency", "pan_essential_killer", "pan-essential-killer"))[0] == "veto"
+    assert tp._gate_recommendation(_sub("dependency", "non_dependent", "non-dependent-killer"))[0] == "veto"
 
 
 def test_real_safety_hold_still_fires():
@@ -102,8 +102,10 @@ def test_real_safety_hold_still_fires():
 def test_kras_guard_modality_scoped_surface_kill_does_not_veto():
     """KRAS×COADREAD: a modality-scoped surface kill (neither_viable) alongside a real positive
     dependency must NOT blanket-veto — it forecloses a modality, not the target."""
-    sr = {**_sub("dependency", "concordant_dependent", "concordant-dependent-supportive-dominant"),
-          **_sub("surface_modality", "neither_viable", "s")}
+    sr = {
+        **_sub("dependency", "concordant_dependent", "concordant-dependent-supportive-dominant"),
+        **_sub("surface_modality", "neither_viable", "s"),
+    }
     forced, _h, _s = tp._gate_recommendation(sr)
     assert forced is None
 
@@ -113,17 +115,23 @@ def test_veto_set_is_exactly_two_in_fallback_registry():
     conservative-and-complete source of record — its veto arms are exactly the two killers."""
     veto = {k for k, action in tp._FALLBACK_GATE_VERDICTS.items() if action == "veto"}
     assert veto == {("dependency", "pan_essential_killer"), ("dependency", "non_dependent")}
-    reg_veto = {k for k, disp in tp._FALLBACK_KILL_CAPABLE_VERDICTS.items()
-                if disp == "gated" and tp._FALLBACK_GATE_VERDICTS.get(k) == "veto"}
+    reg_veto = {
+        k
+        for k, disp in tp._FALLBACK_KILL_CAPABLE_VERDICTS.items()
+        if disp == "gated" and tp._FALLBACK_GATE_VERDICTS.get(k) == "veto"
+    }
     assert reg_veto == veto
 
 
 # --- hard_gates: complete declared set with per-gate status ---
 
+
 def test_hard_gates_enumerates_complete_declared_set_with_status():
-    sr = {**_sub("dependency", "pan_essential_killer", "pan-essential-killer"),
-          **_sub("safety", "moderately_constrained_safety"),
-          **_sub("surface_modality", "neither_viable", "s")}
+    sr = {
+        **_sub("dependency", "pan_essential_killer", "pan-essential-killer"),
+        **_sub("safety", "moderately_constrained_safety"),
+        **_sub("surface_modality", "neither_viable", "s"),
+    }
     action, hits, supp = tp._gate_recommendation(sr)
     hg = tp._hard_gates_status(sr, hits, supp)
     by_pair = {(r["short"], r["verdict"]): r for r in hg}
@@ -139,8 +147,7 @@ def test_hard_gates_enumerates_complete_declared_set_with_status():
     assert by_pair[("subtype_fit", "subtype_specific_non_dependence")]["status"] == "excluded"
     # a declared gate whose axis emitted a DIFFERENT verdict → latent (evaluated, dormant)
     assert by_pair[("safety", "highly_constrained_safety_concern")]["status"] == "latent"
-    assert {r["status"] for r in hg} <= {"fired", "suppressed", "excluded", "opposing",
-                                         "blind", "latent"}
+    assert {r["status"] for r in hg} <= {"fired", "suppressed", "excluded", "opposing", "blind", "latent"}
 
 
 def test_subtype_fit_absent_is_scope_excluded_not_blind():
@@ -148,7 +155,7 @@ def test_subtype_fit_absent_is_scope_excluded_not_blind():
     sub_results. It must be `excluded` (scope-foreclosed), never `blind`, so the cross-evidence
     integrator's fail-closed ceiling does NOT blanket-veto approved targets (KRAS/EGFR/BRAF/ERBB2
     all read gate_ceiling=declined ONLY because of a spuriously-blind subtype_fit)."""
-    sr = _sub("dependency", "lineage_selective", "lineage-selective")   # no subtype_fit key
+    sr = _sub("dependency", "lineage_selective", "lineage-selective")  # no subtype_fit key
     _a, hits, supp = tp._gate_recommendation(sr)
     hg = {(r["short"], r["verdict"]): r for r in tp._hard_gates_status(sr, hits, supp)}
     assert hg[("subtype_fit", "subtype_specific_non_dependence")]["status"] == "excluded"
@@ -158,8 +165,10 @@ def test_subtype_fit_present_but_positive_is_latent_not_blind():
     """--subtypes requested, but the queried stratum is positive (a POSITIVE finding yields a
     None verdict, per tp_fanout._subtype_verdict). The axis WAS evaluated → `latent` (dormant),
     still no veto — never `blind`."""
-    sr = {**_sub("dependency", "lineage_selective", "d"),
-          "subtype_fit": {"verdict": None, "scope_subtypes": ["MSI"]}}   # requested, no negative fire
+    sr = {
+        **_sub("dependency", "lineage_selective", "d"),
+        "subtype_fit": {"verdict": None, "scope_subtypes": ["MSI"]},
+    }  # requested, no negative fire
     _a, hits, supp = tp._gate_recommendation(sr)
     hg = {(r["short"], r["verdict"]): r for r in tp._hard_gates_status(sr, hits, supp)}
     assert hg[("subtype_fit", "subtype_specific_non_dependence")]["status"] == "latent"
@@ -169,7 +178,7 @@ def test_genuinely_blind_non_optin_gating_axis_still_blind():
     """The opt-in carve-out is NARROW: a NON-opt-in gating axis (dependency) that is truly absent
     from a run is still `blind` — the fail-closed-on-genuine-coverage-gap semantics are preserved
     for dependency/safety, where absence really could hide a kill."""
-    sr = _sub("safety", "moderately_constrained_safety")   # dependency ABSENT
+    sr = _sub("safety", "moderately_constrained_safety")  # dependency ABSENT
     _a, hits, supp = tp._gate_recommendation(sr)
     hg = {(r["short"], r["verdict"]): r for r in tp._hard_gates_status(sr, hits, supp)}
     assert hg[("dependency", "pan_essential_killer")]["status"] == "blind"

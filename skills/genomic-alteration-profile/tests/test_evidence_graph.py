@@ -12,32 +12,71 @@ specific to genomic-alteration-profile's graph.
 Cards partition 11 verdict-bearing / 12 display-only, and the SNV/CN/FUS/SPL/DEP literature axis→question
 crosswalk resolves. VERDICT-INERT: nothing here touches the genomic_alteration_profile spine.
 """
+
 from __future__ import annotations
 
 import copy
 
 VERDICT_BEARING = {
-    "alteration-role", "amp-expr-stratified-dependency", "copy-number-distribution",
-    "copy-number-stratified-dependency", "dependency-predictability", "functional-gene-state",
-    "fusion-stratified-dependency", "mutation-drug-response", "mutation-hotspot-frequency",
-    "mutation-stratified-dependency", "mutation-type-counts",
+    "alteration-role",
+    "amp-expr-stratified-dependency",
+    "copy-number-distribution",
+    "copy-number-stratified-dependency",
+    "dependency-predictability",
+    "functional-gene-state",
+    "fusion-stratified-dependency",
+    "mutation-drug-response",
+    "mutation-hotspot-frequency",
+    "mutation-stratified-dependency",
+    "mutation-type-counts",
 }
 
 _SYNTH_LIT = {
     "axes": [
-        {"axis_key": "SNV", "literature_read": "supports", "assertion": "KRAS is a recurrent CRC driver.",
-         "agreement_vs_omics": "agree", "confidence": "high",
-         "citations": [{"label": "Wood 2007", "pmid": "17932254", "verified": True}]},
-        {"axis_key": "CN", "literature_read": "mixed", "assertion": "No recurrent focal KRAS CN driver.",
-         "agreement_vs_omics": "agree", "confidence": "moderate", "citations": []},
-        {"axis_key": "FUS", "literature_read": "mixed", "assertion": "KRAS fusions rare.",
-         "agreement_vs_omics": "omics_blind", "confidence": "low", "citations": []},
-        {"axis_key": "SPL", "literature_read": "mixed", "assertion": "No exon-skip driver.",
-         "agreement_vs_omics": "agree", "confidence": "low", "citations": []},
-        {"axis_key": "DEP", "literature_read": "supports", "assertion": "Mutant-KRAS dependency validated.",
-         "agreement_vs_omics": "agree", "confidence": "high", "citations": []},
+        {
+            "axis_key": "SNV",
+            "literature_read": "supports",
+            "assertion": "KRAS is a recurrent CRC driver.",
+            "agreement_vs_omics": "agree",
+            "confidence": "high",
+            "citations": [{"label": "Wood 2007", "pmid": "17932254", "verified": True}],
+        },
+        {
+            "axis_key": "CN",
+            "literature_read": "mixed",
+            "assertion": "No recurrent focal KRAS CN driver.",
+            "agreement_vs_omics": "agree",
+            "confidence": "moderate",
+            "citations": [],
+        },
+        {
+            "axis_key": "FUS",
+            "literature_read": "mixed",
+            "assertion": "KRAS fusions rare.",
+            "agreement_vs_omics": "omics_blind",
+            "confidence": "low",
+            "citations": [],
+        },
+        {
+            "axis_key": "SPL",
+            "literature_read": "mixed",
+            "assertion": "No exon-skip driver.",
+            "agreement_vs_omics": "agree",
+            "confidence": "low",
+            "citations": [],
+        },
+        {
+            "axis_key": "DEP",
+            "literature_read": "supports",
+            "assertion": "Mutant-KRAS dependency validated.",
+            "agreement_vs_omics": "agree",
+            "confidence": "high",
+            "citations": [],
+        },
     ],
-    "blind_spots": [], "overall_consistency": "consistent", "key_divergence": None,
+    "blind_spots": [],
+    "overall_consistency": "consistent",
+    "key_divergence": None,
 }
 
 
@@ -45,8 +84,9 @@ _SYNTH_LIT = {
 def test_fixture_capsules_carry_measurement_type(eg_decision):
     caps = ((eg_decision["headline"].get("evidence_capsules") or {}).get("capsules")) or {}
     assert caps, "fixture headline.evidence_capsules is empty — the hand-rolled main() §3a wiring regressed"
-    assert all(c.get("measurement_type") for c in caps.values()), \
+    assert all(c.get("measurement_type") for c in caps.values()), (
         "a capsule lacks measurement_type — the evidence_graph card↔question join would collapse to Other"
+    )
 
 
 # ── Phase 0 registry sanity ──────────────────────────────────────────────────────────────────────
@@ -54,10 +94,16 @@ def test_questions_registry_loads_six(eg_questions):
     ids = [q["id"] for q in eg_questions]
     # splice is TWO questions: the exon-skip DRIVER (verdict) + a display_only splice-form DYSREGULATION
     # context question (no axis_id) so dysregulation cards don't read as evidence against "no driver".
-    assert ids == ["snv_indel_class", "copy_number_driver", "fusion_driver", "splice_driver",
-                   "splice_dysregulation", "alteration_conferred_dependency"]
+    assert ids == [
+        "snv_indel_class",
+        "copy_number_driver",
+        "fusion_driver",
+        "splice_driver",
+        "splice_dysregulation",
+        "alteration_conferred_dependency",
+    ]
     axes = {q["axis_id"] for q in eg_questions if q.get("axis_id")}
-    assert axes == {"SNV", "CN", "FUS", "SPL", "DEP"}   # splice_dysregulation has NO axis_id
+    assert axes == {"SNV", "CN", "FUS", "SPL", "DEP"}  # splice_dysregulation has NO axis_id
     roles = {q["id"]: q.get("role") for q in eg_questions}
     assert roles["splice_driver"] == "verdict_bearing" and roles["splice_dysregulation"] == "display_only"
     assert next(q for q in eg_questions if q["id"] == "splice_dysregulation").get("axis_id") is None
@@ -82,19 +128,25 @@ def test_reconstruct_questions_and_cards(eg_graph):
     qs = {q["id"]: q for q in eg_graph["questions"]}
     assert len(qs) == 6
     assert set(qs["copy_number_driver"]["card_ids"]) == {
-        "copy-number-distribution", "copy-number-stratified-dependency", "amp-expr-stratified-dependency"}
-    assert set(qs["fusion_driver"]["card_ids"]) == {
-        "fusion-rearrangement-landscape", "fusion-stratified-dependency"}
+        "copy-number-distribution",
+        "copy-number-stratified-dependency",
+        "amp-expr-stratified-dependency",
+    }
+    assert set(qs["fusion_driver"]["card_ids"]) == {"fusion-rearrangement-landscape", "fusion-stratified-dependency"}
     # the DRIVER question anchors ONLY the exon-skip card; the splice-FORM cards route to the display_only
     # dysregulation question so "no driver" is not conflated with "dysregulation present".
     assert set(qs["splice_driver"]["card_ids"]) == {"splice-exon-skip-landscape"}
     # tumor-splice-expression was a duplicate collapsed into tumor-splice-dysregulation (2026-09-06)
     assert set(qs["splice_dysregulation"]["card_ids"]) == {"tumor-splice-dysregulation"}
     assert set(qs["alteration_conferred_dependency"]["card_ids"]) == {
-        "cross-consortium-dependency", "dependency-predictability", "genomic-event-model-match"}
+        "cross-consortium-dependency",
+        "dependency-predictability",
+        "genomic-event-model-match",
+    }
     # the SNV question anchors the driving mutation-stratified-dependency card + the mutation facets
-    assert {"mutation-stratified-dependency", "mutation-type-counts", "mutation-hotspot-frequency"} \
-        <= set(qs["snv_indel_class"]["card_ids"])
+    assert {"mutation-stratified-dependency", "mutation-type-counts", "mutation-hotspot-frequency"} <= set(
+        qs["snv_indel_class"]["card_ids"]
+    )
     # every card joins at least one question (nothing collapses into the "Other" layer)
     assert all(c["question_ids"] for c in eg_graph["cards"])
 

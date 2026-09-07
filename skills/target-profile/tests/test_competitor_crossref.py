@@ -8,11 +8,12 @@ differentiation facet) against the framework's own surface-modality-fit verdict:
   - validated (framework's preferred modality IS the approved competitor modality),
 and that the facet NEVER emits a verdict / recommendation (it is a pure facet).
 """
+
 import sys
 from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
-SKILLS = SCRIPTS.parent.parent          # skills/ — for _skills_common imports pulled in by tp_facets
+SKILLS = SCRIPTS.parent.parent  # skills/ — for _skills_common imports pulled in by tp_facets
 for _p in (str(SCRIPTS), str(SKILLS)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
@@ -37,10 +38,18 @@ def test_dll3_archetype_modality_inversion_is_flagged_contrarian():
         "competitor_approved_agents": ["TARLATAMAB"],
         "competitor_late_stage_non_approved": ["ROVALPITUZUMAB TESIRINE"],
         "competitor_modality_landscape": {
-            "TCE": {"n_programs": 1, "max_clinical_stage": "APPROVAL", "approved": True,
-                    "example_agents": ["TARLATAMAB"]},
-            "ADC": {"n_programs": 1, "max_clinical_stage": "PHASE_3", "approved": False,
-                    "example_agents": ["ROVALPITUZUMAB TESIRINE"]},
+            "TCE": {
+                "n_programs": 1,
+                "max_clinical_stage": "APPROVAL",
+                "approved": True,
+                "example_agents": ["TARLATAMAB"],
+            },
+            "ADC": {
+                "n_programs": 1,
+                "max_clinical_stage": "PHASE_3",
+                "approved": False,
+                "example_agents": ["ROVALPITUZUMAB TESIRINE"],
+            },
         },
     }
     cx = _competitor_crossref_facet(_sub_results(diff, "adc_preferred_tce_unsafe"))
@@ -58,8 +67,7 @@ def test_dll3_archetype_modality_inversion_is_flagged_contrarian():
 
 
 def test_white_space_when_no_competitor():
-    diff = {"competitor_class": "no_known_competitor", "n_competitor_programs": 0,
-            "competitor_modality_landscape": {}}
+    diff = {"competitor_class": "no_known_competitor", "n_competitor_programs": 0, "competitor_modality_landscape": {}}
     cx = _competitor_crossref_facet(_sub_results(diff, "both_viable"))
     assert cx["competition_density"] == "white_space"
     assert cx["modality_contrarian"] is False
@@ -69,18 +77,22 @@ def test_white_space_when_no_competitor():
 def test_validated_when_preferred_modality_is_the_approved_competitor():
     """Framework prefers ADC and an approved ADC competitor exists — validated, not contrarian."""
     diff = {
-        "competitor_class": "approved_competitor", "n_competitor_programs": 1,
+        "competitor_class": "approved_competitor",
+        "n_competitor_programs": 1,
         "competitor_approved_agents": ["SOME-ADC"],
         "competitor_modality_landscape": {
-            "ADC": {"n_programs": 1, "max_clinical_stage": "APPROVAL", "approved": True,
-                    "example_agents": ["SOME-ADC"]},
+            "ADC": {
+                "n_programs": 1,
+                "max_clinical_stage": "APPROVAL",
+                "approved": True,
+                "example_agents": ["SOME-ADC"],
+            },
         },
     }
     cx = _competitor_crossref_facet(_sub_results(diff, "adc_preferred"))
     assert cx["modality_contrarian"] is False
     assert cx["modality_positioning"]["ADC"] == "validated_approved"
-    assert any("crowded at the framework's preferred modality" in h.lower()
-               for h in cx["differentiation_hooks"])
+    assert any("crowded at the framework's preferred modality" in h.lower() for h in cx["differentiation_hooks"])
 
 
 def test_returns_none_when_no_competitor_signal():

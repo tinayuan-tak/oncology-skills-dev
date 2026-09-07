@@ -1,13 +1,14 @@
 """target-profile --reports wiring: tp_reports.write_reports emits report_render bundles, and the
 'reports' kind is registered in tp_emit as an optional BEST_EFFORT artifact (write-set guard passes
 whether or not the render succeeded)."""
+
 import sys
 import types
 from pathlib import Path
 
 HERE = Path(__file__).resolve()
-SKILLS = HERE.parents[2]                 # skills/  (for _skills_common.report_render)
-SCRIPTS = HERE.parents[1] / "scripts"    # target-profile/scripts (for tp_reports, tp_emit)
+SKILLS = HERE.parents[2]  # skills/  (for _skills_common.report_render)
+SCRIPTS = HERE.parents[1] / "scripts"  # target-profile/scripts (for tp_reports, tp_emit)
 for _p in (str(SKILLS), str(SCRIPTS)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
@@ -18,8 +19,16 @@ import tp_reports
 
 
 def _args(**kw):
-    base = dict(emit=None, verdict_only=False, no_figures=False, ground=False,
-                full_package=False, substrate_chain_on=False, reports=None, report_backends=None)
+    base = dict(
+        emit=None,
+        verdict_only=False,
+        no_figures=False,
+        ground=False,
+        full_package=False,
+        substrate_chain_on=False,
+        reports=None,
+        report_backends=None,
+    )
     base.update(kw)
     return types.SimpleNamespace(**base)
 
@@ -55,5 +64,5 @@ def test_expected_artifacts_includes_reports_only_when_flag_set():
 def test_assert_write_set_passes_with_and_without_reports_written():
     args = _args(reports="exec-brief")
     want = set(tp_emit.expected_artifacts(args))
-    tp_emit.assert_write_set(args, want)              # reports written
+    tp_emit.assert_write_set(args, want)  # reports written
     tp_emit.assert_write_set(args, want - {"reports"})  # reports absent (best-effort) → still passes

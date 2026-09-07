@@ -11,6 +11,7 @@ scalar (the per-row detail lives in an array, but a card-level best/strongest sc
 (mutation_cooccurrence + pathway_activity_context are intentionally NOT gauged — no top-level magnitude
 scalar; the class band is their ruler.) Verdict-INERT / display-only.
 """
+
 import sys
 from pathlib import Path
 
@@ -22,18 +23,42 @@ from _skills_common.evidence_salience import SALIENCE_SPECS, build_interpretatio
 
 # mt -> (value_field, kind, a summary exercising it, expected resolved cut anchor value(s))
 _GAUGES = {
-    "chemical_genetic_concordance": ("best_spearman_r_crispr", "graded_band",
-                                     {"best_spearman_r_crispr": 0.42, "crispr_prism_concordance_class": "strongly_concordant"}, [0.10, 0.30]),
-    "dependency_predictability": ("pearson_r_squared_rf", "distance_to_cut",
-                                  {"pearson_r_squared_rf": 0.28, "predictability_class": "predictable"}, [0.16]),
-    "prism_compound_activity": ("median_log2auc_across_compounds", "distance_to_cut",
-                                {"median_log2auc_across_compounds": -0.22, "prism_activity_class": "clinically_active"}, [-0.10]),
-    "combinatorial_ko_dependency": ("strongest_partner_mean_gi", "distance_to_cut",
-                                    {"strongest_partner_mean_gi": -0.4, "combinatorial_dependency_class": "conditional_dependency"}, [-0.25]),
-    "drug_anchored_combination": ("strongest_co_target_shift", "graded_band",
-                                  {"strongest_co_target_shift": -0.6, "combination_opportunity_class": "strong_combination"}, [-0.25, -0.50]),
-    "drug_anchored_resistance": ("strongest_mediator_shift", "graded_band",
-                                 {"strongest_mediator_shift": 0.35, "resistance_emergence_class": "supported_resistance"}, [0.25, 0.50]),
+    "chemical_genetic_concordance": (
+        "best_spearman_r_crispr",
+        "graded_band",
+        {"best_spearman_r_crispr": 0.42, "crispr_prism_concordance_class": "strongly_concordant"},
+        [0.10, 0.30],
+    ),
+    "dependency_predictability": (
+        "pearson_r_squared_rf",
+        "distance_to_cut",
+        {"pearson_r_squared_rf": 0.28, "predictability_class": "predictable"},
+        [0.16],
+    ),
+    "prism_compound_activity": (
+        "median_log2auc_across_compounds",
+        "distance_to_cut",
+        {"median_log2auc_across_compounds": -0.22, "prism_activity_class": "clinically_active"},
+        [-0.10],
+    ),
+    "combinatorial_ko_dependency": (
+        "strongest_partner_mean_gi",
+        "distance_to_cut",
+        {"strongest_partner_mean_gi": -0.4, "combinatorial_dependency_class": "conditional_dependency"},
+        [-0.25],
+    ),
+    "drug_anchored_combination": (
+        "strongest_co_target_shift",
+        "graded_band",
+        {"strongest_co_target_shift": -0.6, "combination_opportunity_class": "strong_combination"},
+        [-0.25, -0.50],
+    ),
+    "drug_anchored_resistance": (
+        "strongest_mediator_shift",
+        "graded_band",
+        {"strongest_mediator_shift": 0.35, "resistance_emergence_class": "supported_resistance"},
+        [0.25, 0.50],
+    ),
 }
 
 

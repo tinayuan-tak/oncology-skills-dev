@@ -7,6 +7,7 @@ as measurement. These tests pin the honesty invariants:
   - every output carries the disclaimer;
   - ranking places off-scale cells as coverage gaps (trailing), NOT as "worst".
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -20,8 +21,7 @@ ov = load_module(MOD, "ordinal_view")
 
 def test_order_preserving():
     """The load-bearing property: the ranks preserve killer < opposing < neutral < supportive."""
-    assert ov.ordinal_of("killer") < ov.ordinal_of("opposing") < ov.ordinal_of("neutral") \
-        < ov.ordinal_of("supportive")
+    assert ov.ordinal_of("killer") < ov.ordinal_of("opposing") < ov.ordinal_of("neutral") < ov.ordinal_of("supportive")
 
 
 def test_absence_is_off_scale_not_a_number():
@@ -38,10 +38,15 @@ def test_unknown_signal_is_none_never_guessed():
 
 
 def test_project_signals_shape_and_disclaimer():
-    view = ov.project_signals({
-        "dependency": "supportive", "selectivity": "opposing",
-        "safety": "insufficient", "surface_modality": "not_applicable", "mechanism": "neutral",
-    })
+    view = ov.project_signals(
+        {
+            "dependency": "supportive",
+            "selectivity": "opposing",
+            "safety": "insufficient",
+            "surface_modality": "not_applicable",
+            "mechanism": "neutral",
+        }
+    )
     assert view["_disclaimer"], "every projection must carry the disclaimer"
     assert "NOT calibrated" in view["_disclaimer"]
     # off-scale cells reported as coverage, not value

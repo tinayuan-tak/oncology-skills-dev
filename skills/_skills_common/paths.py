@@ -11,6 +11,7 @@ Two forms per repo:
   - a `*_root()` helper returning a `Path` resolved at CALL time (env first, else default), for the
     common module-level `X = _root()` capture.
 """
+
 from __future__ import annotations
 
 import os

@@ -6,6 +6,7 @@ no rule + no verdict branch → silent fall-through to insufficient. These tests
 pin EVERY fit_class rule_id → verdict mapping (EXHAUSTIVE over the 6-value fit_class
 vocabulary), so a future fall-through fails CI rather than silently collapsing.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -71,7 +72,8 @@ def test_fit_class_vocabulary_is_exhaustively_handled():
         v, drv = _v(rule_id)
         assert v != "insufficient" or drv is not None, (
             f"fit_class {fit_class} must map to an EXPLICIT verdict (rule {rule_id}), "
-            f"not a silent insufficient fall-through")
+            f"not a silent insufficient fall-through"
+        )
         assert drv == rule_id
 
 
@@ -82,6 +84,7 @@ def test_fit_class_vocabulary_is_exhaustively_handled():
 # (when_all_fired: fit-positive AND a liability rule) refine the call. Pin the biology + the two
 # validated-antigen guardrails (CEACAM5 ADC survives, CD19 not killed by low density).
 # ---------------------------------------------------------------------------
+
 
 def _vv(*rule_ids):
     return smf._verdict([{"rule_id": r} for r in rule_ids])
@@ -118,15 +121,26 @@ def test_therapeutic_window_essential_liability_drops_tce_preserves_adc_2026_08_
     # SAFETY mover (promoted 2026-08-24): the modality-therapeutic-window essential_tissue_liability
     # (CEACAM5 ~558x-window-yet-lung-positive pattern) now moves the verdict — same semantics as the
     # normal-tissue killer: drop TCE, preserve ADC (moderate-tier bystander buffer).
-    assert _vv("both-viable-supportive", "modality-window-essential-liability-tce-opposing")[0] == "adc_preferred_tce_unsafe"
-    assert _vv("tce-preferred-supportive", "modality-window-essential-liability-tce-opposing")[0] == "tce_unsafe_normal_liability"
+    assert (
+        _vv("both-viable-supportive", "modality-window-essential-liability-tce-opposing")[0]
+        == "adc_preferred_tce_unsafe"
+    )
+    assert (
+        _vv("tce-preferred-supportive", "modality-window-essential-liability-tce-opposing")[0]
+        == "tce_unsafe_normal_liability"
+    )
 
 
 def test_exon_window_essential_liability_drops_tce_preserves_adc():
     # SAFETY mover (2026-08-28, distillation assessment): exon-grain essential-window liability mirrors the
     # transcript-window rungs (7/8) at the finer EXON resolution — drop TCE, preserve ADC.
-    assert _vv("both-viable-supportive", "exon-window-essential-liability-tce-opposing")[0] == "adc_preferred_tce_unsafe"
-    assert _vv("tce-preferred-supportive", "exon-window-essential-liability-tce-opposing")[0] == "tce_unsafe_normal_liability"
+    assert (
+        _vv("both-viable-supportive", "exon-window-essential-liability-tce-opposing")[0] == "adc_preferred_tce_unsafe"
+    )
+    assert (
+        _vv("tce-preferred-supportive", "exon-window-essential-liability-tce-opposing")[0]
+        == "tce_unsafe_normal_liability"
+    )
 
 
 def test_pmhc_normal_presentation_vetoes_pmhc_support():
@@ -134,10 +148,26 @@ def test_pmhc_normal_presentation_vetoes_pmhc_support():
     # withdraws the un-earned pmhc_tce_supported promotion → tce_unsafe_normal_liability (the 3-condition
     # veto rung at priority 19/20 outranks the 2-condition pmhc_tce_supported at 21/22).
     assert _vv("neither-viable-killer", "pmhc-iedb-tcell-validated-tce-supportive")[0] == "pmhc_tce_supported"
-    assert smf._verdict([{"rule_id": "neither-viable-killer"}, {"rule_id": "pmhc-iedb-tcell-validated-tce-supportive"},
-                         {"rule_id": "pmhc-broadly-presented-normal-tce-opposing"}])[0] == "tce_unsafe_normal_liability"
-    assert smf._verdict([{"rule_id": "neither-viable-killer"}, {"rule_id": "pmhc-iedb-presented-tce-supportive"},
-                         {"rule_id": "pmhc-broadly-presented-normal-tce-opposing"}])[0] == "tce_unsafe_normal_liability"
+    assert (
+        smf._verdict(
+            [
+                {"rule_id": "neither-viable-killer"},
+                {"rule_id": "pmhc-iedb-tcell-validated-tce-supportive"},
+                {"rule_id": "pmhc-broadly-presented-normal-tce-opposing"},
+            ]
+        )[0]
+        == "tce_unsafe_normal_liability"
+    )
+    assert (
+        smf._verdict(
+            [
+                {"rule_id": "neither-viable-killer"},
+                {"rule_id": "pmhc-iedb-presented-tce-supportive"},
+                {"rule_id": "pmhc-broadly-presented-normal-tce-opposing"},
+            ]
+        )[0]
+        == "tce_unsafe_normal_liability"
+    )
 
 
 def test_tce_antigen_escape_is_an_efficacy_mover_distinct_from_safety_2026_08_24():
@@ -154,8 +184,13 @@ def test_tce_antigen_escape_patient_variable_tempers_not_forecloses_2026_09_04()
     # EFFICACY mover (#979): the MIDDLE escape band (escape_risk_patient_variable) TEMPERS the TCE arm with
     # a patient-selection caveat → OWN positive-caveated verdicts, distinct from the escape_risk_high
     # foreclosure. ADC preserved.
-    assert _vv("both-viable-supportive", "sc-antigen-escape-patient-variable-tce-opposing")[0] == "adc_preferred_tce_patient_variable"
-    assert _vv("tce-preferred-supportive", "sc-antigen-escape-patient-variable-tce-opposing")[0] == "tce_patient_variable"
+    assert (
+        _vv("both-viable-supportive", "sc-antigen-escape-patient-variable-tce-opposing")[0]
+        == "adc_preferred_tce_patient_variable"
+    )
+    assert (
+        _vv("tce-preferred-supportive", "sc-antigen-escape-patient-variable-tce-opposing")[0] == "tce_patient_variable"
+    )
     # an ADC_preferred base is unaffected (escape is a TCE concern only).
     assert _vv("adc-preferred-supportive", "sc-antigen-escape-patient-variable-tce-opposing")[0] == "adc_preferred"
     # DON'T-OVER-PENALIZE: unlike tce_escape_risk (a _SM_NEG negative), the patient_variable tokens are
@@ -168,27 +203,66 @@ def test_tce_antigen_escape_patient_variable_tempers_not_forecloses_2026_09_04()
 def test_patient_variable_ranks_below_high_escape_and_above_density():
     # The escape class is single-valued so the two escape rungs cannot co-fire on live data; the ordering
     # is still priority-pinned. escape_risk_high (harder foreclosure) outranks patient_variable.
-    assert _vv("both-viable-supportive", "sc-antigen-escape-high-tce-opposing",
-               "sc-antigen-escape-patient-variable-tce-opposing")[0] == "adc_preferred_tce_escape_risk"
+    assert (
+        _vv(
+            "both-viable-supportive",
+            "sc-antigen-escape-high-tce-opposing",
+            "sc-antigen-escape-patient-variable-tce-opposing",
+        )[0]
+        == "adc_preferred_tce_escape_risk"
+    )
     # patient_variable (an efficacy TCE caveat) outranks the density caveat.
-    assert _vv("both-viable-supportive", "sc-antigen-escape-patient-variable-tce-opposing",
-               "surface-density-below-tce-floor-measured-downgrade")[0] == "adc_preferred_tce_patient_variable"
+    assert (
+        _vv(
+            "both-viable-supportive",
+            "sc-antigen-escape-patient-variable-tce-opposing",
+            "surface-density-below-tce-floor-measured-downgrade",
+        )[0]
+        == "adc_preferred_tce_patient_variable"
+    )
     # SAFETY still outranks the patient-variable efficacy caveat.
-    assert _vv("both-viable-supportive", "modality-window-essential-liability-tce-opposing",
-               "sc-antigen-escape-patient-variable-tce-opposing")[0] == "adc_preferred_tce_unsafe"
+    assert (
+        _vv(
+            "both-viable-supportive",
+            "modality-window-essential-liability-tce-opposing",
+            "sc-antigen-escape-patient-variable-tce-opposing",
+        )[0]
+        == "adc_preferred_tce_unsafe"
+    )
 
 
 def test_liability_precedence_absence_beats_safety_beats_escape_beats_density():
     # protein-absence (both dead) > TCE-safety downgrade > TCE-efficacy escape > density caveat (first-match).
-    assert _vv("both-viable-supportive", "ihc-not-detected-killer", "shed-ectodomain-clinical-opposing")[0] == "neither_viable"
-    assert _vv("both-viable-supportive", "normal-tissue-essential-bite-killer",
-               "surface-density-below-tce-floor-measured-downgrade")[0] == "adc_preferred_tce_unsafe"
+    assert (
+        _vv("both-viable-supportive", "ihc-not-detected-killer", "shed-ectodomain-clinical-opposing")[0]
+        == "neither_viable"
+    )
+    assert (
+        _vv(
+            "both-viable-supportive",
+            "normal-tissue-essential-bite-killer",
+            "surface-density-below-tce-floor-measured-downgrade",
+        )[0]
+        == "adc_preferred_tce_unsafe"
+    )
     # safety (window-essential) outranks efficacy (escape) when both fire.
-    assert _vv("both-viable-supportive", "modality-window-essential-liability-tce-opposing",
-               "sc-antigen-escape-high-tce-opposing")[0] == "adc_preferred_tce_unsafe"
+    assert (
+        _vv(
+            "both-viable-supportive",
+            "modality-window-essential-liability-tce-opposing",
+            "sc-antigen-escape-high-tce-opposing",
+        )[0]
+        == "adc_preferred_tce_unsafe"
+    )
     # efficacy escape outranks the density caveat.
-    assert _vv("both-viable-supportive", "sc-antigen-escape-high-tce-opposing",
-               "surface-density-below-tce-floor-measured-downgrade")[0] == "adc_preferred_tce_escape_risk"
+    assert (
+        _vv(
+            "both-viable-supportive",
+            "sc-antigen-escape-high-tce-opposing",
+            "surface-density-below-tce-floor-measured-downgrade",
+        )[0]
+        == "adc_preferred_tce_escape_risk"
+    )
 
 
 def test_plain_fit_class_still_byte_stable_without_liabilities():
@@ -210,8 +284,8 @@ def test_plain_fit_class_still_byte_stable_without_liabilities():
 
 # The two newly-reachable rule_ids (surface-intrinsic.rules.yaml):
 _NEWLY_REACHABLE_RULES = [
-    "protein-surface-confirmed-supportive",   # CSPA cell_surface_confirmed
-    "protein-not-surface-opposing",           # CSPA not_surface (measured-negative; NOT killer)
+    "protein-surface-confirmed-supportive",  # CSPA cell_surface_confirmed
+    "protein-not-surface-opposing",  # CSPA not_surface (measured-negative; NOT killer)
     # NOTE (2026-08-09 modality-fit review): shed-ectodomain-clinical-opposing was PROMOTED to a
     # resolver combination rung (→ shed_dominant_opposed) and is therefore NO LONGER signal-only;
     # its verdict-moving behavior is pinned by test_dominant_shed_ectodomain_caveats_the_call above.
@@ -224,28 +298,28 @@ _NEWLY_REACHABLE_RULES = [
     # / tce_escape_risk) 2026-08-24 and is therefore NO LONGER signal-only — pinned by
     # test_tce_antigen_escape_is_an_efficacy_mover_distinct_from_safety_2026_08_24 above. The escape-LOW
     # supportive variant remains signal-only.
-    "sc-antigen-escape-low-tce-supportive",   # escape_risk_low → TCE supportive (signal-only)
+    "sc-antigen-escape-low-tce-supportive",  # escape_risk_low → TCE supportive (signal-only)
     # biologics-augment window arc — modality therapeutic-window (tumor / max-essential-normal). NOTE:
     # the essential-liability rule was PROMOTED to a resolver rung (→ adc_preferred_tce_unsafe /
     # tce_unsafe_normal_liability) 2026-08-24 and is NO LONGER signal-only — pinned by
     # test_therapeutic_window_essential_liability_drops_tce_preserves_adc_2026_08_24 above.
-    "modality-window-clean-supportive",       # clean_window → supportive (signal-only)
-    "modality-window-narrow-opposing",        # narrow_window → opposing (signal-only)
+    "modality-window-clean-supportive",  # clean_window → supportive (signal-only)
+    "modality-window-narrow-opposing",  # narrow_window → opposing (signal-only)
     # enrichment — peptide-centric HLA presentation (bite_tce-only):
-    "pmhc-restricted-presentation-tce-supportive",   # restricted → TCE supportive
+    "pmhc-restricted-presentation-tce-supportive",  # restricted → TCE supportive
     # NOTE (2026-08-28 distillation assessment): pmhc-broadly-presented-normal-tce-opposing was PROMOTED
     # to a resolver veto rung (→ tce_unsafe_normal_liability, priority 19/20; withdraws the un-earned
     # pmhc_tce_supported promotion when the epitope is broadly presented on normal tissue) and is NO LONGER
     # signal-only — pinned by test_pmhc_normal_presentation_vetoes_pmhc_support below.
     # enrichment — modality exon-window (per-exon tumor-vs-normal + heterogeneity flag):
-    "exon-window-heterogeneity-flag-supportive",     # exon_heterogeneity_flag → secondary supportive (hypothesis)
+    "exon-window-heterogeneity-flag-supportive",  # exon_heterogeneity_flag → secondary supportive (hypothesis)
     # NOTE (2026-08-28 distillation assessment): exon-window-essential-liability-tce-opposing was PROMOTED
     # to a resolver rung (→ adc_preferred_tce_unsafe / tce_unsafe_normal_liability, priority 9/10; mirrors the
     # transcript-window rungs at 7/8 at the finer exon grain) and is NO LONGER signal-only — pinned by
     # test_exon_window_essential_liability_drops_tce_preserves_adc below.
     # enrichment — CD/IO-antigen backbone clinical-precedent (supportive-only):
-    "cd-established-io-backbone-supportive",         # established_io_backbone → supportive (important)
-    "cd-antigen-backbone-supportive",                # cd_antigen → supportive (secondary)
+    "cd-established-io-backbone-supportive",  # established_io_backbone → supportive (important)
+    "cd-antigen-backbone-supportive",  # cd_antigen → supportive (secondary)
 ]
 
 
@@ -285,7 +359,8 @@ def test_additive_surface_signals_do_not_move_the_verdict():
             fired = [{"rule_id": base}, {"rule_id": extra}]
             assert smf._verdict(fired) == baseline, (
                 f"additive rule {extra} moved the verdict off {baseline} for base {base} "
-                f"— it must be signal-only (no resolver rung)")
+                f"— it must be signal-only (no resolver rung)"
+            )
 
 
 def test_additive_signals_alone_still_insufficient():
@@ -310,10 +385,14 @@ def test_pmhc_promotes_neither_viable_to_pmhc_tce_supported():
     # THE GAP FIX: surface-dead intracellular oncoprotein + experimentally-validated pMHC epitopes →
     # pmhc_tce_supported (the pMHC-TCE route), outranking the bare neither_viable rung.
     assert _vv("neither-viable-killer", "pmhc-iedb-tcell-validated-tce-supportive") == (
-        "pmhc_tce_supported", "pmhc-iedb-tcell-validated-tce-supportive")
+        "pmhc_tce_supported",
+        "pmhc-iedb-tcell-validated-tce-supportive",
+    )
     # the presented-but-not-T-cell-confirmed class promotes identically (driving_rule names the class).
     assert _vv("neither-viable-killer", "pmhc-iedb-presented-tce-supportive") == (
-        "pmhc_tce_supported", "pmhc-iedb-presented-tce-supportive")
+        "pmhc_tce_supported",
+        "pmhc-iedb-presented-tce-supportive",
+    )
 
 
 def test_bare_neither_viable_without_iedb_is_byte_stable():
@@ -329,7 +408,8 @@ def test_pmhc_never_flips_a_surface_viable_call():
         baseline = smf._verdict([{"rule_id": base}])
         for pmhc in _PMHC_RULES:
             assert _vv(base, pmhc) == baseline, (
-                f"pMHC rule {pmhc} wrongly flipped a surface-viable {baseline} for base {base}")
+                f"pMHC rule {pmhc} wrongly flipped a surface-viable {baseline} for base {base}"
+            )
 
 
 def test_pmhc_rule_alone_is_insufficient():
@@ -341,5 +421,9 @@ def test_pmhc_rule_alone_is_insufficient():
 def test_tcell_validated_outranks_presented_when_both_present():
     # Deterministic tie-break (impossible in practice — the class is single-valued — but priority-pinned):
     # tcell_validated (priority 17) wins over presented (18).
-    assert _vv("neither-viable-killer", "pmhc-iedb-presented-tce-supportive",
-               "pmhc-iedb-tcell-validated-tce-supportive")[1] == "pmhc-iedb-tcell-validated-tce-supportive"
+    assert (
+        _vv("neither-viable-killer", "pmhc-iedb-presented-tce-supportive", "pmhc-iedb-tcell-validated-tce-supportive")[
+            1
+        ]
+        == "pmhc-iedb-tcell-validated-tce-supportive"
+    )

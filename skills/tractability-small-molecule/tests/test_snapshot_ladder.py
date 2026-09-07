@@ -27,6 +27,7 @@ def _fired(*rule_ids):
 
 # --- chemical-genetic tier unchanged (regression) ---
 
+
 def test_triangulated_still_top():
     v, drv = tp._snapshot_legacy_oracle(_fired("e7-triangulated-target-engaged-supportive"))
     assert v == "well_covered"
@@ -38,6 +39,7 @@ def test_chemically_active():
 
 
 # --- E8: structural forward ligandability ---
+
 
 def test_druggable_pocket_is_structurally_ligandable():
     """KRAS-G12C archetype: a hotspot in a druggable pocket, no compound in PRISM."""
@@ -53,18 +55,18 @@ def test_pocket_adjacent_is_structurally_ligandable():
 
 def test_chemical_hit_outranks_structure():
     """A real chemical hit (retrospective) must outrank a mere pocket (forward)."""
-    v, drv = tp._snapshot_legacy_oracle(_fired(
-        "prism-clinically-active-supportive-sm",
-        "hotspot-in-druggable-pocket-sm-supportive-e8"))
+    v, drv = tp._snapshot_legacy_oracle(
+        _fired("prism-clinically-active-supportive-sm", "hotspot-in-druggable-pocket-sm-supportive-e8")
+    )
     assert v == "chemically_active"
 
 
 def test_structure_outranks_chemically_unhit():
     """The whole point: a druggable pocket with no compound is BETTER than
     chemically_unhit — the KRAS-G12C-pre-sotorasib case must not read unhit."""
-    v, drv = tp._snapshot_legacy_oracle(_fired(
-        "prism-no-compounds-found-neutral",
-        "hotspot-in-druggable-pocket-sm-supportive-e8"))
+    v, drv = tp._snapshot_legacy_oracle(
+        _fired("prism-no-compounds-found-neutral", "hotspot-in-druggable-pocket-sm-supportive-e8")
+    )
     assert v == "structurally_ligandable", "a druggable pocket must beat chemically_unhit"
 
 

@@ -6,6 +6,7 @@ the SAME immutable copy-number-distribution card. One change added the surface-a
 card in surface-modality-fit's set. This test proves the divergence at the fired-rules layer (signal
 matrix), NOT the verdict layer (the surface verdict still resolves off adc-tce-modality-fit.fit_class —
 byte-stable). Reads the LIVE target-contracts rules; graceful-skips if not checked out alongside."""
+
 from __future__ import annotations
 
 import sys
@@ -30,17 +31,16 @@ def _amplified_cn_card() -> dict:
     }
 
 
-@pytest.mark.skipif(not (_CONTRACTS / "interpretation-rules").is_dir(),
-                    reason="target-contracts not checked out alongside")
+@pytest.mark.skipif(
+    not (_CONTRACTS / "interpretation-rules").is_dir(), reason="target-contracts not checked out alongside"
+)
 def test_amplification_diverges_across_modality_gates():
     """The SAME amplified copy-number card fires adc/bite_tce/antibody `supportive` on the surface
     axis AND small_molecule/degrader on the intracellular axis — the divergence."""
     cards = [_amplified_cn_card()]
 
-    surface = fired_rules(cards, axis="surface_intrinsic",
-                          card_id_filter=["copy-number-distribution"])
-    intra = fired_rules(cards, axis="intracellular_intrinsic",
-                        card_id_filter=["copy-number-distribution"])
+    surface = fired_rules(cards, axis="surface_intrinsic", card_id_filter=["copy-number-distribution"])
+    intra = fired_rules(cards, axis="intracellular_intrinsic", card_id_filter=["copy-number-distribution"])
 
     # surface axis: the amplification rule fires adc-favorable signals
     surface_signals = {k: v for f in surface for k, v in (f.get("signals") or {}).items()}
@@ -61,14 +61,13 @@ def test_amplification_diverges_across_modality_gates():
     assert set(intra_signals) & {"small_molecule", "degrader"}
 
 
-@pytest.mark.skipif(not (_CONTRACTS / "interpretation-rules").is_dir(),
-                    reason="target-contracts not checked out alongside")
+@pytest.mark.skipif(
+    not (_CONTRACTS / "interpretation-rules").is_dir(), reason="target-contracts not checked out alongside"
+)
 def test_neutral_cn_does_not_emit_surface_supportive():
     """A copy-number-neutral card must NOT fire adc-supportive (no false antigen-density signal)."""
-    cards = [{"card_id": "copy-number-distribution",
-              "summary": {"copy_number_class": "broadly_neutral"}}]
-    surface = fired_rules(cards, axis="surface_intrinsic",
-                          card_id_filter=["copy-number-distribution"])
+    cards = [{"card_id": "copy-number-distribution", "summary": {"copy_number_class": "broadly_neutral"}}]
+    surface = fired_rules(cards, axis="surface_intrinsic", card_id_filter=["copy-number-distribution"])
     surface_signals = {k: v for f in surface for k, v in (f.get("signals") or {}).items()}
     # the neutral rule fires but emits neutral, not supportive
     assert surface_signals.get("adc") != "supportive", surface_signals

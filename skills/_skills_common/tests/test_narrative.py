@@ -6,6 +6,7 @@ same-direction referenced-present), dissenters (opposing-sign fired non-driver, 
 counterfactual flip_conditions incl. a NON-fired rule captioned from the index, rule_sentences
 precedence (fired-inline over index), the modality channel filter, determinism, and non-mutation.
 """
+
 from __future__ import annotations
 
 import sys
@@ -14,12 +15,12 @@ from pathlib import Path
 import pytest
 import yaml
 
-SKILLS = Path(__file__).resolve().parents[2]   # .../skills
+SKILLS = Path(__file__).resolve().parents[2]  # .../skills
 if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
 
-from _skills_common.narrative import build_narrative          # noqa: E402
-from _skills_common.rules_loader import rule_text_index       # noqa: E402
+from _skills_common.narrative import build_narrative  # noqa: E402
+from _skills_common.rules_loader import rule_text_index  # noqa: E402
 
 
 # ---- fixture: a gate "g" with a veto rung above a positive rung, and a rules file carrying the
@@ -36,13 +37,25 @@ _RULES = {
     "axis": "test_axis",
     "rules_id": "test",
     "rules": [
-        {"rule_id": "pos-rule", "when": {"card_id": "cA", "field": "f", "equals": "x"},
-         "signals": {"small_molecule": "supportive"}, "rationale": "Pos file rationale"},
-        {"rule_id": "veto-rule", "when": {"card_id": "cB", "field": "f", "equals": "y"},
-         "signals": {"small_molecule": "killer", "degrader": "killer"},
-         "killer_message": "Veto!", "rationale": "Veto rationale"},
-        {"rule_id": "opp-rule", "when": {"card_id": "cC", "field": "f", "equals": "z"},
-         "signals": {"small_molecule": "opposing"}, "rationale": "Opp rationale"},
+        {
+            "rule_id": "pos-rule",
+            "when": {"card_id": "cA", "field": "f", "equals": "x"},
+            "signals": {"small_molecule": "supportive"},
+            "rationale": "Pos file rationale",
+        },
+        {
+            "rule_id": "veto-rule",
+            "when": {"card_id": "cB", "field": "f", "equals": "y"},
+            "signals": {"small_molecule": "killer", "degrader": "killer"},
+            "killer_message": "Veto!",
+            "rationale": "Veto rationale",
+        },
+        {
+            "rule_id": "opp-rule",
+            "when": {"card_id": "cC", "field": "f", "equals": "z"},
+            "signals": {"small_molecule": "opposing"},
+            "rationale": "Opp rationale",
+        },
     ],
 }
 
@@ -58,25 +71,41 @@ def _fired():
     # pos-rule fired (drives the_positive) with an INLINE rationale that must win over the file text;
     # opp-rule fired but NOT a resolver rung -> a pure signal dissenter.
     return [
-        {"rule_id": "pos-rule", "card_id": "cA", "signals": {"small_molecule": "supportive"},
-         "rationale": "Pos inline rationale", "killer_message": None},
-        {"rule_id": "opp-rule", "card_id": "cC", "signals": {"small_molecule": "opposing"},
-         "rationale": "Opp inline", "killer_message": None},
+        {
+            "rule_id": "pos-rule",
+            "card_id": "cA",
+            "signals": {"small_molecule": "supportive"},
+            "rationale": "Pos inline rationale",
+            "killer_message": None,
+        },
+        {
+            "rule_id": "opp-rule",
+            "card_id": "cC",
+            "signals": {"small_molecule": "opposing"},
+            "rationale": "Opp inline",
+            "killer_message": None,
+        },
     ]
 
 
 @pytest.fixture()
 def contracts(tmp_path):
     _write_contracts(tmp_path)
-    rule_text_index.cache_clear()   # the index is lru_cached on the path arg; keep tests isolated
+    rule_text_index.cache_clear()  # the index is lru_cached on the path arg; keep tests isolated
     yield tmp_path
     rule_text_index.cache_clear()
 
 
 def _build(contracts, **kw):
-    return build_narrative(axis="test_axis", gate="g", fired=_fired(),
-                           verdict="the_positive", driving_rule_id="pos-rule",
-                           contracts_repo=contracts, **kw)
+    return build_narrative(
+        axis="test_axis",
+        gate="g",
+        fired=_fired(),
+        verdict="the_positive",
+        driving_rule_id="pos-rule",
+        contracts_repo=contracts,
+        **kw,
+    )
 
 
 def test_movers_are_driver_only_here(contracts):
@@ -88,10 +117,16 @@ def test_movers_are_driver_only_here(contracts):
 
 def test_dissenters_are_opposing_sign_fired_nondrivers(contracts):
     n = _build(contracts)
-    assert n["dissenters"] == [{
-        "rule_id": "opp-rule", "card_id": "cC", "channel": "small_molecule",
-        "signal": "opposing", "sentence": "Opp inline", "killer_message": None,
-    }]
+    assert n["dissenters"] == [
+        {
+            "rule_id": "opp-rule",
+            "card_id": "cC",
+            "channel": "small_molecule",
+            "signal": "opposing",
+            "sentence": "Opp inline",
+            "killer_message": None,
+        }
+    ]
 
 
 def test_flip_conditions_include_absent_counterfactual(contracts):
@@ -126,30 +161,59 @@ def test_mixed_agree_oppose_referenced_rule_is_dissenter_not_mover(tmp_path):
     ALSO a 'supporting' mover. Guards the fix: previously the mover test excluded only a PURE opposer,
     so a mixed rule was double-classified, and the synthesis read a defeated killer as corroborating
     the degrader-preferred verdict ('non-dependent KILLER for degrader')."""
-    spec = {"default": "D", "resolve": [
-        {"when_fired": "paralog-degrader-preferred", "verdict": "buffered"},
-        {"when_fired": "nd-killer", "verdict": "non_dependent"},
-    ]}
-    rules = {"axis": "dep_axis", "rules_id": "t", "rules": [
-        {"rule_id": "paralog-degrader-preferred", "when": {"card_id": "cP", "field": "f", "equals": "x"},
-         "signals": {"small_molecule": "opposing", "degrader": "supportive"}, "dominant": True,
-         "rationale": "paralog degrader-preferred"},
-        {"rule_id": "nd-killer", "when": {"card_id": "cK", "field": "f", "equals": "y"},
-         "signals": {"small_molecule": "killer", "degrader": "killer"}, "rationale": "nd killer"},
-    ]}
+    spec = {
+        "default": "D",
+        "resolve": [
+            {"when_fired": "paralog-degrader-preferred", "verdict": "buffered"},
+            {"when_fired": "nd-killer", "verdict": "non_dependent"},
+        ],
+    }
+    rules = {
+        "axis": "dep_axis",
+        "rules_id": "t",
+        "rules": [
+            {
+                "rule_id": "paralog-degrader-preferred",
+                "when": {"card_id": "cP", "field": "f", "equals": "x"},
+                "signals": {"small_molecule": "opposing", "degrader": "supportive"},
+                "dominant": True,
+                "rationale": "paralog degrader-preferred",
+            },
+            {
+                "rule_id": "nd-killer",
+                "when": {"card_id": "cK", "field": "f", "equals": "y"},
+                "signals": {"small_molecule": "killer", "degrader": "killer"},
+                "rationale": "nd killer",
+            },
+        ],
+    }
     (tmp_path / "resolvers").mkdir(parents=True, exist_ok=True)
     (tmp_path / "resolvers" / "dep.resolver.yaml").write_text(yaml.safe_dump(spec))
     (tmp_path / "interpretation-rules").mkdir(parents=True, exist_ok=True)
     (tmp_path / "interpretation-rules" / "dep-axis.rules.yaml").write_text(yaml.safe_dump(rules))
     rule_text_index.cache_clear()
     fired = [
-        {"rule_id": "paralog-degrader-preferred", "card_id": "cP",
-         "signals": {"small_molecule": "opposing", "degrader": "supportive"}, "rationale": "paralog"},
-        {"rule_id": "nd-killer", "card_id": "cK",
-         "signals": {"small_molecule": "killer", "degrader": "killer"}, "rationale": "nd killer"},
+        {
+            "rule_id": "paralog-degrader-preferred",
+            "card_id": "cP",
+            "signals": {"small_molecule": "opposing", "degrader": "supportive"},
+            "rationale": "paralog",
+        },
+        {
+            "rule_id": "nd-killer",
+            "card_id": "cK",
+            "signals": {"small_molecule": "killer", "degrader": "killer"},
+            "rationale": "nd killer",
+        },
     ]
-    n = build_narrative(axis="dep_axis", gate="dep", fired=fired, verdict="buffered",
-                        driving_rule_id="paralog-degrader-preferred", contracts_repo=tmp_path)
+    n = build_narrative(
+        axis="dep_axis",
+        gate="dep",
+        fired=fired,
+        verdict="buffered",
+        driving_rule_id="paralog-degrader-preferred",
+        contracts_repo=tmp_path,
+    )
     rule_text_index.cache_clear()
     mover_ids = [m["rule_id"] for m in n["movers"]]
     assert mover_ids == ["paralog-degrader-preferred"], f"nd-killer must NOT be a mover: {mover_ids}"
@@ -167,17 +231,35 @@ def test_rule_text_index_indexes_all_rules_including_nonfiring(contracts):
 def test_deterministic_and_nonmutating(contracts):
     fired = _fired()
     before = [dict(f) for f in fired]
-    a = build_narrative(axis="test_axis", gate="g", fired=fired, verdict="the_positive",
-                        driving_rule_id="pos-rule", contracts_repo=contracts)
-    b = build_narrative(axis="test_axis", gate="g", fired=fired, verdict="the_positive",
-                        driving_rule_id="pos-rule", contracts_repo=contracts)
+    a = build_narrative(
+        axis="test_axis",
+        gate="g",
+        fired=fired,
+        verdict="the_positive",
+        driving_rule_id="pos-rule",
+        contracts_repo=contracts,
+    )
+    b = build_narrative(
+        axis="test_axis",
+        gate="g",
+        fired=fired,
+        verdict="the_positive",
+        driving_rule_id="pos-rule",
+        contracts_repo=contracts,
+    )
     assert a == b
-    assert fired == before   # verdict-INERT / read-only
+    assert fired == before  # verdict-INERT / read-only
 
 
 def test_gateless_skill_reduces_to_driver_no_flips(contracts):
-    n = build_narrative(axis="test_axis", gate=None, fired=_fired(), verdict="the_positive",
-                        driving_rule_id="pos-rule", contracts_repo=contracts)
+    n = build_narrative(
+        axis="test_axis",
+        gate=None,
+        fired=_fired(),
+        verdict="the_positive",
+        driving_rule_id="pos-rule",
+        contracts_repo=contracts,
+    )
     assert [m["rule_id"] for m in n["movers"]] == ["pos-rule"]
-    assert n["flip_conditions"] == []          # no gate -> flips inapplicable
-    assert n["dissenters"][0]["rule_id"] == "opp-rule"   # signal dissent still computed
+    assert n["flip_conditions"] == []  # no gate -> flips inapplicable
+    assert n["dissenters"][0]["rule_id"] == "opp-rule"  # signal dissent still computed

@@ -1,4 +1,5 @@
 """Hermetic tests for loop_health (the discordance-loop precision instrument). No network."""
+
 from __future__ import annotations
 
 import sys
@@ -22,9 +23,9 @@ def test_compute_precision_math():
     }
     m = lh.compute(disp)
     assert m["n_sharp"] == 6
-    assert m["precision_strict"] == round(3 / 6, 3)          # fixed(2)+real_deferred(1)
-    assert m["precision_incl_scope"] == round(4 / 6, 3)       # + scope(1)
-    assert m["noise_rate"] == round(2 / 6, 3)                 # concordant(1)+data_absent(1)
+    assert m["precision_strict"] == round(3 / 6, 3)  # fixed(2)+real_deferred(1)
+    assert m["precision_incl_scope"] == round(4 / 6, 3)  # + scope(1)
+    assert m["noise_rate"] == round(2 / 6, 3)  # concordant(1)+data_absent(1)
     assert m["unknown_disposition"] == []
 
 
@@ -34,9 +35,13 @@ def test_unknown_disposition_flagged():
 
 
 def test_by_skill_grouping():
-    m = lh.compute({"skillA|T|I|X|calibration_gap": "fixed",
-                    "skillA|U|I|Y|calibration_gap": "dismissed_concordant",
-                    "skillB|V|I|Z|calibration_gap": "fixed"})
+    m = lh.compute(
+        {
+            "skillA|T|I|X|calibration_gap": "fixed",
+            "skillA|U|I|Y|calibration_gap": "dismissed_concordant",
+            "skillB|V|I|Z|calibration_gap": "fixed",
+        }
+    )
     assert m["by_skill"]["skillA"] == {"fixed": 1, "dismissed_concordant": 1}
     assert m["by_skill"]["skillB"] == {"fixed": 1}
 
@@ -51,9 +56,9 @@ def test_auto_demoted_excluded_from_n_sharp():
         "d|T|I|X|concordant_over_flag": "auto_demoted_concordant",
     }
     m = lh.compute(disp)
-    assert m["n_sharp"] == 2                                  # 4 dispositions − 2 auto_demoted
+    assert m["n_sharp"] == 2  # 4 dispositions − 2 auto_demoted
     assert m["n_auto_demoted"] == 2
-    assert m["precision_strict"] == round(2 / 2, 3)          # denominator excludes the demoted rows
+    assert m["precision_strict"] == round(2 / 2, 3)  # denominator excludes the demoted rows
     assert m["unknown_disposition"] == []
 
 

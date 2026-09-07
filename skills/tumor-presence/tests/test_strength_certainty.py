@@ -1,4 +1,5 @@
 """tumor-presence (strength, certainty) sidecar — CERTAINTY_MODEL 5th axis (first no-resolver). Verdict-inert."""
+
 from __future__ import annotations
 from pathlib import Path
 
@@ -23,26 +24,30 @@ def _cards(rna_bm=None, n_tumor=None, n_cell=None, sc=None, protein=False):
 
 
 def test_broadly_expressed_rna_protein_concordant_high():
-    sc = tp._strength_certainty(_cards(rna_bm="adequate_proxy", n_tumor=500, sc=3000),
-                                verdict_pair=("tumor_broadly_expressed", "x"))
+    sc = tp._strength_certainty(
+        _cards(rna_bm="adequate_proxy", n_tumor=500, sc=3000), verdict_pair=("tumor_broadly_expressed", "x")
+    )
     assert sc["strength"] == "strong_positive"
-    assert sc["certainty"]["coverage"] == "high"        # n>=100 AND >=2 layers (rna tumor + sc)
+    assert sc["certainty"]["coverage"] == "high"  # n>=100 AND >=2 layers (rna tumor + sc)
     assert sc["certainty"]["corroboration"] == "high"
     assert sc["certainty"]["level"] == "high"
 
 
 def test_poor_proxy_disagrees_low():
-    sc = tp._strength_certainty(_cards(rna_bm="poor_proxy", n_tumor=500, sc=3000),
-                                verdict_pair=("tumor_broadly_expressed", "x"))
-    assert sc["certainty"]["corroboration"] == "low"    # RNA does not predict protein
+    sc = tp._strength_certainty(
+        _cards(rna_bm="poor_proxy", n_tumor=500, sc=3000), verdict_pair=("tumor_broadly_expressed", "x")
+    )
+    assert sc["certainty"]["corroboration"] == "low"  # RNA does not predict protein
     assert sc["certainty"]["level"] == "low"
 
 
 def test_proxy_unmeasured_drops_to_coverage():
-    sc = tp._strength_certainty(_cards(rna_bm=None, n_cell=50),   # cell-line only, no proxy card
-                                verdict_pair=("broadly_high_expression", "x"))
+    sc = tp._strength_certainty(
+        _cards(rna_bm=None, n_cell=50),  # cell-line only, no proxy card
+        verdict_pair=("broadly_high_expression", "x"),
+    )
     assert sc["certainty"]["corroboration"] == "unmeasured"
-    assert sc["certainty"]["level"] == sc["certainty"]["coverage"] == "medium"   # n=50, breadth 1
+    assert sc["certainty"]["level"] == sc["certainty"]["coverage"] == "medium"  # n=50, breadth 1
 
 
 def test_not_informative_forces_low_none():

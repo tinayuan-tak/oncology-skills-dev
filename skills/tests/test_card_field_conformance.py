@@ -10,6 +10,7 @@ and asserts the read key is declared. It caught, e.g., tumor-presence reading
 
 AST-only (no imports, no live reads). Skips cleanly when target-contracts isn't checked out.
 """
+
 from __future__ import annotations
 
 import ast
@@ -48,7 +49,7 @@ def _declared_fields(card_id: str):
         return None
     sf = ((doc.get("outputs") or {}).get("summary_fields")) or []
     fields = set()
-    for x in sf:                       # 95 cards use a flat list of str; 1 (adc-tce) nests dicts
+    for x in sf:  # 95 cards use a flat list of str; 1 (adc-tce) nests dicts
         if isinstance(x, str):
             fields.add(x)
         elif isinstance(x, dict):
@@ -63,17 +64,23 @@ def _literal_field_reads():
         skill = run.relative_to(SKILLS).parts[0]
         tree = ast.parse(run.read_text())
         for node in ast.walk(tree):
-            if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
-                    and node.func.id == "get_card_field" and len(node.args) >= 3
-                    and isinstance(node.args[1], ast.Constant) and isinstance(node.args[1].value, str)
-                    and isinstance(node.args[2], ast.Constant) and isinstance(node.args[2].value, str)):
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id == "get_card_field"
+                and len(node.args) >= 3
+                and isinstance(node.args[1], ast.Constant)
+                and isinstance(node.args[1].value, str)
+                and isinstance(node.args[2], ast.Constant)
+                and isinstance(node.args[2].value, str)
+            ):
                 reads.append((skill, node.args[1].value, node.args[2].value, node.lineno))
     return reads
 
 
 # Legitimate exceptions (a skill reads a field a card emits DYNAMICALLY / not in the declared list).
 # Each MUST carry a why. Empty today — the one known drift was a real bug (fixed), not a waiver.
-_WAIVERS: set[tuple[str, str]] = set()   # {(card_id, field), ...}
+_WAIVERS: set[tuple[str, str]] = set()  # {(card_id, field), ...}
 
 
 @pytest.mark.skipif(_CARDS_DIR is None, reason="target-contracts cards/ not available")
@@ -86,10 +93,11 @@ def test_skill_field_reads_are_declared_by_the_card():
             continue
         if key not in declared and (card_id, key) not in _WAIVERS:
             undeclared.append((skill, card_id, key, lineno))
-    assert not unknown_card, (
-        "get_card_field references a card_id with no card.yaml (typo?): "
-        + "; ".join(f"{s}:{ln} -> {c}" for s, c, ln in unknown_card))
+    assert not unknown_card, "get_card_field references a card_id with no card.yaml (typo?): " + "; ".join(
+        f"{s}:{ln} -> {c}" for s, c, ln in unknown_card
+    )
     assert not undeclared, (
         "get_card_field reads a field NOT in the card's outputs.summary_fields (silent-None drift). "
         "Fix the read, or add the field to the card, or waive with a reason:\n"
-        + "\n".join(f"  {s}:{ln}  {c}.{k}" for s, c, k, ln in undeclared))
+        + "\n".join(f"  {s}:{ln}  {c}.{k}" for s, c, k, ln in undeclared)
+    )

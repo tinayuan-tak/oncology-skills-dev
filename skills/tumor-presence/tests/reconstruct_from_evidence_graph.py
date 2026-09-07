@@ -11,6 +11,7 @@ Usage:
     python reconstruct_from_evidence_graph.py [path/to/decision.json]
 Defaults to the committed EPCAM·COADREAD fixture.
 """
+
 from __future__ import annotations
 
 import json
@@ -49,7 +50,9 @@ def reconstruct(graph: dict) -> str:
                 f"[{by_cit[cid]['label']}"
                 + (f" PMID:{by_cit[cid]['pmid']}" if by_cit[cid].get("pmid") else "")
                 + (" ✓]" if by_cit[cid].get("verified") else "]")
-                for cid in ax.get("citation_ids", []) if cid in by_cit)
+                for cid in ax.get("citation_ids", [])
+                if cid in by_cit
+            )
             lines.append(f"    literature axis {aid}: {ax.get('read')} · {ax.get('agreement_vs_omics')}  {cites}")
         for cid in q["card_ids"]:
             c = by_card[cid]
@@ -67,8 +70,9 @@ def reconstruct(graph: dict) -> str:
 def main(argv):
     path = Path(argv[1]) if len(argv) > 1 else SKILL_DIR / "tests" / "fixtures" / "epcam_coadread_decision.json"
     decision = json.loads(Path(path).read_text())
-    graph = (decision.get("headline", {}).get("evidence_graph")
-             or build_evidence_graph(decision, questions=load_questions(SKILL_DIR)))
+    graph = decision.get("headline", {}).get("evidence_graph") or build_evidence_graph(
+        decision, questions=load_questions(SKILL_DIR)
+    )
     print(reconstruct(graph))
 
 

@@ -11,6 +11,7 @@ Invariant: (run.py CARDS ∪ SUBTYPE_CARDS) ⊆ SKILL.md composition.cards_used,
 has a CARDS constant and a composition block. AST-parses run.py (no import); reads SKILL.md
 front-matter. (cards_used MAY legitimately be a superset — e.g. it also declares subtype-only cards.)
 """
+
 from __future__ import annotations
 
 import ast
@@ -25,11 +26,14 @@ SKILLS_DIR = Path(__file__).resolve().parent.parent
 
 def _list_const(tree: ast.Module, name: str):
     for node in tree.body:
-        if (isinstance(node, ast.Assign) and len(node.targets) == 1
-                and isinstance(node.targets[0], ast.Name) and node.targets[0].id == name
-                and isinstance(node.value, ast.List)):
-            return [e.value for e in node.value.elts
-                    if isinstance(e, ast.Constant) and isinstance(e.value, str)]
+        if (
+            isinstance(node, ast.Assign)
+            and len(node.targets) == 1
+            and isinstance(node.targets[0], ast.Name)
+            and node.targets[0].id == name
+            and isinstance(node.value, ast.List)
+        ):
+            return [e.value for e in node.value.elts if isinstance(e, ast.Constant) and isinstance(e.value, str)]
     return None
 
 
@@ -90,4 +94,5 @@ def test_consumed_cards_are_declared_in_skill_md(name, consumed, declared):
     assert not undeclared, (
         f"{name}: run.py consumes card(s) {undeclared} not declared in SKILL.md "
         f"composition.cards_used. Add them there — an undeclared consumed card is undercounted "
-        f"by cited_by/coverage tooling and can't be governed by on_dependency_status.")
+        f"by cited_by/coverage tooling and can't be governed by on_dependency_status."
+    )

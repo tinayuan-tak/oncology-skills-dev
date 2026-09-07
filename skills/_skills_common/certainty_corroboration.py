@@ -12,6 +12,7 @@ Consumers: `corroboration_cards()` is exercised ONLY by the per-skill
 production path calls it. It lives here (not under tests/) so those 5 skill suites can import it by
 package path; relocating it would fan out across all 5 skill test dirs for marginal package-hygiene gain.
 """
+
 from __future__ import annotations
 
 from pathlib import Path

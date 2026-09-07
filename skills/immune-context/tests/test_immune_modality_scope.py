@@ -2,6 +2,7 @@
 (modality-coverage: the TCE effector arm was previously unwired — immune-context had no _claim_record).
 immune_cold = conditional (efficacy risk, NOT a veto — CIBERSORT is a relative, non-spatial screen).
 Pure over the verdict; no S3/LLM."""
+
 from __future__ import annotations
 from pathlib import Path
 

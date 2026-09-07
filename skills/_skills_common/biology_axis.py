@@ -25,6 +25,7 @@ Read-only, lru-cached. No network, no S3 — pure local vocabulary read. If the
 vocabulary files are unreadable, resolves to `unknown` and never raises (synthesis
 is never allowed to break on a missing steer).
 """
+
 from __future__ import annotations
 
 import os
@@ -49,6 +50,7 @@ def _load_enum(contracts_root: str) -> dict:
     path = Path(contracts_root) / _ENUM_REL
     try:
         import yaml
+
         doc = yaml.safe_load(path.read_text())
     except Exception:  # noqa: BLE001 — never break synthesis on a vocab read
         return {}
@@ -72,6 +74,7 @@ def _load_lookup(contracts_root: str) -> dict:
     path = Path(contracts_root) / _LOOKUP_REL
     try:
         import yaml
+
         doc = yaml.safe_load(path.read_text())
     except Exception:  # noqa: BLE001
         return {}
@@ -84,7 +87,7 @@ def _load_lookup(contracts_root: str) -> dict:
         entry = {
             "axis": axis,
             "rationale": t.get("rationale"),
-            "iter2_note": t.get("iter2_note"),          # present only on multi-axis targets
+            "iter2_note": t.get("iter2_note"),  # present only on multi-axis targets
             "primary_symbol": sym,
         }
         out[sym.strip().upper()] = entry
@@ -148,30 +151,41 @@ def format_axis_governance_block(axis_info: dict) -> str:
     the _prompt_hash provenance."""
     axis = axis_info.get("biology_axis", _UNKNOWN_AXIS)
     plausible = axis_info.get("plausible_modalities") or []
-    lines = ["MODALITY GOVERNANCE (constrains modality talk to stay biologically honest; SECONDARY to "
-             "the integrated relevance case; does NOT change the verdict):"]
+    lines = [
+        "MODALITY GOVERNANCE (constrains modality talk to stay biologically honest; SECONDARY to "
+        "the integrated relevance case; does NOT change the verdict):"
+    ]
     if not axis_info.get("curated"):
         lines.append(
             f"  biology_axis: unknown (target '{axis_info.get('target')}' is not curated in the "
             f"biology-axis lookup). If modality comes up, do NOT assume a class — do not assert surface "
             f"(ADC/TCE/CAR) OR small-molecule/degrader on the basis of axis; reason only from the "
-            f"fired-rule evidence, and note the axis is uncurated.")
+            f"fired-rule evidence, and note the axis is uncurated."
+        )
         return "\n".join(lines)
     plausible_str = ", ".join(plausible) if plausible else "(none defined for this axis)"
     lines.append(f"  biology_axis: {axis}")
     lines.append(f"  plausible_modalities for this axis: {plausible_str}")
     if axis == "intracellular_intrinsic":
-        lines.append("  → WHEN modality is discussed, keep it to small-molecule / degrader. Do NOT "
-                     "assert surface modalities (ADC / T-cell-engager / CAR / antibody) UNLESS a "
-                     "surface-accessibility rule fired that overrides the axis — if none did, surface "
-                     "modalities are not applicable to this intracellular target.")
+        lines.append(
+            "  → WHEN modality is discussed, keep it to small-molecule / degrader. Do NOT "
+            "assert surface modalities (ADC / T-cell-engager / CAR / antibody) UNLESS a "
+            "surface-accessibility rule fired that overrides the axis — if none did, surface "
+            "modalities are not applicable to this intracellular target."
+        )
     elif axis == "surface_intrinsic":
-        lines.append("  → WHEN modality is discussed, surface modalities (ADC / T-cell-engager / "
-                     "antibody) are the plausible set; small-molecule framing needs a tractability rule.")
+        lines.append(
+            "  → WHEN modality is discussed, surface modalities (ADC / T-cell-engager / "
+            "antibody) are the plausible set; small-molecule framing needs a tractability rule."
+        )
     elif axis in ("extrinsic", "mixed"):
-        lines.append(f"  → axis '{axis}' is deferred (microenvironment biology); if modality comes up, "
-                     "reason from the fired-rule evidence and avoid asserting a single tumor-intrinsic class.")
+        lines.append(
+            f"  → axis '{axis}' is deferred (microenvironment biology); if modality comes up, "
+            "reason from the fired-rule evidence and avoid asserting a single tumor-intrinsic class."
+        )
     if axis_info.get("multi_axis") and axis_info.get("multi_axis_note"):
-        lines.append(f"  MULTI-AXIS: this target is genuinely dual — {axis_info['multi_axis_note']} "
-                     "Treat the non-primary modality as secondary (do not erase it).")
+        lines.append(
+            f"  MULTI-AXIS: this target is genuinely dual — {axis_info['multi_axis_note']} "
+            "Treat the non-primary modality as secondary (do not erase it)."
+        )
     return "\n".join(lines)

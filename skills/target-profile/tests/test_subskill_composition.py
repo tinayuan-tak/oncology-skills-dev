@@ -14,6 +14,7 @@ _load_sub_skill_verdict_fn) and drives the real `_run_sub_skills` to prove:
      compose_core's sorted-set convention, which is exactly why the emission must not read it
      from `composition`).
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -35,14 +36,14 @@ _FAKE_CARDS = [{"card_id": "c-present"}, {"card_id": "c-missing", "_missing": Tr
 
 def _install_fakes(monkeypatch):
     monkeypatch.setattr(tp_fanout, "_prewarm_sub_skill_imports", lambda: None)
-    monkeypatch.setattr(tp_fanout, "resolve_cards",
-                        lambda cards, target, indication, **kw: list(_FAKE_CARDS))
-    monkeypatch.setattr(tp_fanout, "fired_rules",
-                        lambda cards, axis, card_id_filter, **kw: list(_FAKE_FIRED))
+    monkeypatch.setattr(tp_fanout, "resolve_cards", lambda cards, target, indication, **kw: list(_FAKE_CARDS))
+    monkeypatch.setattr(tp_fanout, "fired_rules", lambda cards, axis, card_id_filter, **kw: list(_FAKE_FIRED))
+
     # every sub-skill "resolves" to a fixed pair whose verdict encodes its short, so we can
     # assert the pair rode through untouched (a value no real resolver would emit).
     def _fake_loader(short_dir):
         return lambda fired: (f"verdict::{short_dir}", "drv-01")
+
     monkeypatch.setattr(tp_fanout, "_load_sub_skill_verdict_fn", _fake_loader)
 
 
@@ -62,7 +63,7 @@ def test_gated_sub_skill_wraps_decided_verdict(monkeypatch):
     _install_fakes(monkeypatch)
     results = tp._run_sub_skills("KRAS", "COADREAD")
 
-    r = results["dependency"]                       # a GATED short (_SHORT_TO_GATE -> "dependency")
+    r = results["dependency"]  # a GATED short (_SHORT_TO_GATE -> "dependency")
     comp = r["composition"]
     # _fake_loader keys the dir; functional-requirement is the dependency sub-skill dir
     assert comp.primary_gate_verdict == GateVerdict(
@@ -80,7 +81,7 @@ def test_gateless_expression_has_no_primary_but_keeps_verdict(monkeypatch):
     _install_fakes(monkeypatch)
     results = tp._run_sub_skills("KRAS", "COADREAD")
 
-    r = results["expression"]                       # tumor-presence — NOT in _SHORT_TO_GATE
+    r = results["expression"]  # tumor-presence — NOT in _SHORT_TO_GATE
     assert r["composition"].primary_gate_verdict is None
     # its presence verdict is untouched in the legacy field the nomination still emits
     assert r["verdict"] == ("verdict::tumor-presence", "drv-01")
@@ -96,9 +97,9 @@ def test_attach_is_byte_additive_raw_fired_untouched(monkeypatch):
     results = tp._run_sub_skills("KRAS", "COADREAD")
 
     r = results["selectivity"]
-    raw_emitted = [f["rule_id"] for f in r["fired"]]          # what nomination.json writes
-    assert raw_emitted == ["r-b", "r-a", "r-b"] * 6           # 6 fan-out axes, order + dups kept
-    assert raw_emitted != r["composition"].fired_rule_ids     # sorted-set convention differs
+    raw_emitted = [f["rule_id"] for f in r["fired"]]  # what nomination.json writes
+    assert raw_emitted == ["r-b", "r-a", "r-b"] * 6  # 6 fan-out axes, order + dups kept
+    assert raw_emitted != r["composition"].fired_rule_ids  # sorted-set convention differs
     assert r["composition"].fired_rule_ids == ["r-a", "r-b"]
 
 
@@ -111,6 +112,7 @@ def test_attach_is_byte_additive_raw_fired_untouched(monkeypatch):
 # prompt-builder) — and, critically, is NON-GATING (recommendation + confidence
 # byte-identical whether or not it is present).
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def test_target_intrinsic_is_a_gateless_peer_in_the_roster():
     """Structural must-not-gate guarantee: target_intrinsic is in the fan-out roster but
@@ -138,8 +140,8 @@ def test_gateless_none_verdict_short_has_no_primary_and_no_verdict(monkeypatch):
     results = tp._run_sub_skills("KRAS", "COADREAD")
 
     r = results["target_intrinsic"]
-    assert r["verdict"] is None                              # no verdict function → None
-    assert r["composition"].primary_gate_verdict is None     # gateless → empty primary
+    assert r["verdict"] is None  # no verdict function → None
+    assert r["composition"].primary_gate_verdict is None  # gateless → empty primary
     assert isinstance(r["composition"], CompositionResult)
     # its cards/fired audit trail is still carried (descriptive evidence reaches the integrator)
     assert r["composition"].fired_rule_ids == ["r-a", "r-b"]
@@ -149,14 +151,14 @@ def _gateless_none_entry():
     """A minimal sub_result for the target_intrinsic gateless None-verdict short."""
     fired = [{"rule_id": "ti-01", "card_id": "protein-domains-class", "field": "class", "value": "kinase"}]
     cards = [{"card_id": "protein-domains-class", "summary": {"class": "kinase"}}]
-    return {"skill_dir": "target-intrinsic", "cards": cards, "fired": fired, "verdict": None,
-            "composition": None}
+    return {"skill_dir": "target-intrinsic", "cards": cards, "fired": fired, "verdict": None, "composition": None}
 
 
 def test_none_verdict_gateless_short_is_non_gating(monkeypatch):
     """ACCEPTANCE: adding the verdict=None gateless short must NOT change the gate recommendation or
     the positive-tier confidence (recommendation + confidence byte-identical)."""
     import tp_gates
+
     base = {
         "dependency": {"cards": [], "fired": [], "verdict": ("selective_dependency", "dep-01")},
         "selectivity": {"cards": [], "fired": [], "verdict": ("tumor_selective", "sel-01")},
@@ -173,14 +175,19 @@ def test_synthesis_prompt_builder_tolerates_none_verdict_gateless_short():
     """LLM synthesis prompt-builder must render a verdict=None gateless short (no crash) and label it
     honestly as having no rule-fired verdict."""
     import tp_synthesis_prompt
+
     sub_results = {
-        "dependency": {"skill_dir": "functional-requirement", "cards": [], "fired": [],
-                       "verdict": ("selective_dependency", "dep-01")},
+        "dependency": {
+            "skill_dir": "functional-requirement",
+            "cards": [],
+            "fired": [],
+            "verdict": ("selective_dependency", "dep-01"),
+        },
         "target_intrinsic": _gateless_none_entry(),
     }
     prompt = tp_synthesis_prompt._build_user_prompt("KRAS", "COADREAD", sub_results)
     assert "target_intrinsic" in prompt
-    assert "no rule-fired verdict" in prompt          # the None-verdict rendering branch
+    assert "no rule-fired verdict" in prompt  # the None-verdict rendering branch
     # descriptive card evidence still reaches the integrator prompt
     assert "protein-domains-class" in prompt
 
@@ -191,29 +198,29 @@ def test_synthesis_prompt_builder_tolerates_none_verdict_gateless_short():
 # plot_data) instead of re-executing a second live read.
 # ---------------------------------------------------------------------------
 
+
 def _install_capturing_fakes(monkeypatch, captured):
     monkeypatch.setattr(tp_fanout, "_prewarm_sub_skill_imports", lambda: None)
 
     def _cap_resolve(cards, target, indication, **kw):
         captured.append(kw.get("plot_data_root", "__absent__"))
         return list(_FAKE_CARDS)
+
     monkeypatch.setattr(tp_fanout, "resolve_cards", _cap_resolve)
-    monkeypatch.setattr(tp_fanout, "fired_rules",
-                        lambda cards, axis, card_id_filter, **kw: [])
-    monkeypatch.setattr(tp_fanout, "_load_sub_skill_verdict_fn",
-                        lambda sd: (lambda fired: (f"v::{sd}", "drv")))
+    monkeypatch.setattr(tp_fanout, "fired_rules", lambda cards, axis, card_id_filter, **kw: [])
+    monkeypatch.setattr(tp_fanout, "_load_sub_skill_verdict_fn", lambda sd: lambda fired: (f"v::{sd}", "drv"))
 
 
 def test_fanout_forwards_plot_data_root_to_resolve_cards(monkeypatch):
     from pathlib import Path
+
     captured: list = []
     _install_capturing_fakes(monkeypatch, captured)
     root = Path("/tmp/tp-figs")
     tp._run_sub_skills("KRAS", "COADREAD", plot_data_root=root)
     # one resolve_cards call per sub-skill, each given the SAME plot_data_root (the offline-seam wiring)
     assert captured, "expected at least one resolve_cards call"
-    assert all(pdr == root for pdr in captured), (
-        f"plot_data_root not forwarded uniformly: {set(map(str, captured))}")
+    assert all(pdr == root for pdr in captured), f"plot_data_root not forwarded uniformly: {set(map(str, captured))}"
 
 
 def test_fanout_defaults_plot_data_root_none_byte_stable(monkeypatch):

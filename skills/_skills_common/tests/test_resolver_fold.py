@@ -1,10 +1,11 @@
 """Fold interpreter (match_all_reduce) — VERDICT_REPRESENTATION_FOLD.md foundation B. Pins:
-  - first_match (default) is unchanged (regression);
-  - match_all_reduce with priority = ladder index is BYTE-EQUIVALENT to first_match on every input
-    (the by-construction equivalence that lets a resolver flip land with no verdict change);
-  - match_all_reduce is ORDER-INDEPENDENT (shuffling rungs, priorities fixed, changes nothing) — R6;
-  - min-priority wins regardless of position; driving_rule_id fidelity preserved.
+- first_match (default) is unchanged (regression);
+- match_all_reduce with priority = ladder index is BYTE-EQUIVALENT to first_match on every input
+  (the by-construction equivalence that lets a resolver flip land with no verdict change);
+- match_all_reduce is ORDER-INDEPENDENT (shuffling rungs, priorities fixed, changes nothing) — R6;
+- min-priority wins regardless of position; driving_rule_id fidelity preserved.
 """
+
 from __future__ import annotations
 
 import itertools
@@ -26,8 +27,12 @@ _FIRST_MATCH = {"gate": "x", "default": "insufficient", "resolve": _RUNGS}
 
 
 def _with_index_priorities(rungs):
-    return {"gate": "x", "default": "insufficient", "evaluation": "match_all_reduce",
-            "resolve": [{**r, "priority": i} for i, r in enumerate(rungs)]}
+    return {
+        "gate": "x",
+        "default": "insufficient",
+        "evaluation": "match_all_reduce",
+        "resolve": [{**r, "priority": i} for i, r in enumerate(rungs)],
+    }
 
 
 def _fired(*ids):
@@ -63,8 +68,13 @@ def test_match_all_reduce_is_order_independent():
 
 def test_min_priority_wins_regardless_of_position():
     # killer authored LAST but given the top priority (0) still wins over selective (priority 1).
-    spec = {"gate": "x", "default": "insufficient", "evaluation": "match_all_reduce", "resolve": [
-        {"verdict": "selective", "when_any_fired": ["sel-a"], "priority": 1},
-        {"verdict": "killer", "when_fired": "kill-rule", "priority": 0},
-    ]}
+    spec = {
+        "gate": "x",
+        "default": "insufficient",
+        "evaluation": "match_all_reduce",
+        "resolve": [
+            {"verdict": "selective", "when_any_fired": ["sel-a"], "priority": 1},
+            {"verdict": "killer", "when_fired": "kill-rule", "priority": 0},
+        ],
+    }
     assert resolve_verdict(_fired("kill-rule", "sel-a"), spec) == ("killer", "kill-rule")

@@ -51,14 +51,14 @@ from typing import Optional
 # root-relative execution outside the standard layout.
 _VOCAB_ENV_VAR = "ISOFORM_SELECTIVE_TARGETS_YAML"
 _VOCAB_DEFAULT_RELATIVE = (
-    "rnd-computational-biology-oncology-target-contracts/"
-    "vocabularies/isoform_selective_targets.yaml"
+    "rnd-computational-biology-oncology-target-contracts/vocabularies/isoform_selective_targets.yaml"
 )
 
 
 @dataclass(frozen=True)
 class IsoformWarning:
     """Structured warning for a target with a clinically-dominant alt isoform."""
+
     target_symbol: str
     dominant_isoform: str
     variant_type: str
@@ -68,8 +68,8 @@ class IsoformWarning:
     primary_source_doi: str
     primary_source_citation: str
     vocabulary_version: str
-    oncotree_codes: tuple = ()       # indication-scope (vocab v1.1.0): OncoTree codes where the isoform dominates
-    pan_applicable: bool = False     # entry's isoform axis is indication-agnostic (e.g. FGFR2 IIIb/IIIc pan-epithelial)
+    oncotree_codes: tuple = ()  # indication-scope (vocab v1.1.0): OncoTree codes where the isoform dominates
+    pan_applicable: bool = False  # entry's isoform axis is indication-agnostic (e.g. FGFR2 IIIb/IIIc pan-epithelial)
     modality_epitope_impact: str = ""  # mechanism (vocab v1.2.0): ectodomain_ablating | ectodomain_intact | neoepitope | resistance_acquired | ectodomain_isoform_specific | intracellular
     alt_isoform_dominant: bool = False  # dominance (vocab v1.3.0): is the epitope-ablating alt isoform the DOMINANT species? Only then is the hard fit_class suppression honest (see suppresses_fit_class). ERBB2 p95HER2 is a MINORITY fragment → false.
 
@@ -82,9 +82,7 @@ class IsoformWarning:
         ~30% HER2+ gastric, ~10-15% breast) leaves the dominant full-length antigen targetable — the
         gene-level fit STANDS with a high-severity caveat rather than being blanked to undefined (T-DXd
         is approved in HER2+ gastric). v1.3.0 dominance gate; below-suppression entries route to caveat."""
-        return (self.applies_in_indication(indication)
-                and self.suppresses_adc_epitope()
-                and self.alt_isoform_dominant)
+        return self.applies_in_indication(indication) and self.suppresses_adc_epitope() and self.alt_isoform_dominant
 
     def suppresses_adc_epitope(self) -> bool:
         """Does the dominant alt isoform ABLATE the extracellular antibody epitope? (2026-08-14 fix)

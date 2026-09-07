@@ -15,23 +15,39 @@ The verdict spine here is a DOWNGRADE: fit_class=both_viable but a normal-tissue
 so the driving card is the SAFETY card (sc-normal-celltype-expression) — it must still join a question
 (SAFETY), while the verdict-defining fit_class card (adc-tce-modality-fit) joins FIT.
 """
+
 from __future__ import annotations
 
 import copy
 
 # cards that fire a rule in the EPCAM/COADREAD fixture (verdict-bearing) vs the pure display-only facets
 VERDICT_BEARING = {
-    "surface-topology-and-ptm", "surfaceome-family-classification", "surfaceome-cohort-ranking",
-    "adc-tce-modality-fit", "surface-abundance-density", "normal-tissue-liability",
-    "copy-number-distribution", "protein-surface-evidence", "surface-colocalization-avidity",
-    "surface-bulk-pair-selectivity", "tumor-scrna-celltype-expression", "modality-therapeutic-window",
-    "modality-exon-window", "pmhc-epitope-evidence-iedb", "sc-normal-celltype-expression",
+    "surface-topology-and-ptm",
+    "surfaceome-family-classification",
+    "surfaceome-cohort-ranking",
+    "adc-tce-modality-fit",
+    "surface-abundance-density",
+    "normal-tissue-liability",
+    "copy-number-distribution",
+    "protein-surface-evidence",
+    "surface-colocalization-avidity",
+    "surface-bulk-pair-selectivity",
+    "tumor-scrna-celltype-expression",
+    "modality-therapeutic-window",
+    "modality-exon-window",
+    "pmhc-epitope-evidence-iedb",
+    "sc-normal-celltype-expression",
     "cd-antigen-backbone",
 }
 DISPLAY_ONLY = {
-    "structure-features-static", "mutation-stratified-surface", "pathway-stratified-surface",
-    "pmhc-presentation", "rna-protein-concordance-tumor", "sc-surface-normal-safety",
-    "sc-surface-rna-protein-concordance", "shed-ectodomain-liability",
+    "structure-features-static",
+    "mutation-stratified-surface",
+    "pathway-stratified-surface",
+    "pmhc-presentation",
+    "rna-protein-concordance-tumor",
+    "sc-surface-normal-safety",
+    "sc-surface-rna-protein-concordance",
+    "shed-ectodomain-liability",
 }
 
 # surfaceome-cohort-ranking declares NO measurement_type in its card contract, so its capsule
@@ -44,27 +60,66 @@ ORPHAN_NO_MEASUREMENT_TYPE = {"surfaceome-cohort-ranking"}
 # emits FIT/TOPOLOGY/DENSITY/SAFETY/SHED — the SAME axis_labels keys the narrator lens uses)
 _SYNTH_LIT = {
     "axes": [
-        {"axis_key": "FIT", "literature_read": "supports", "assertion": "EPCAM is a clinical ADC/TCE antigen.",
-         "agreement_vs_omics": "agree", "confidence": "high",
-         "citations": [{"label": "Smith 2019", "pmid": "31000000", "verified": True}]},
-        {"axis_key": "TOPOLOGY", "literature_read": "supports", "assertion": "Single-pass type I surface protein.",
-         "agreement_vs_omics": "agree", "confidence": "moderate", "citations": []},
-        {"axis_key": "DENSITY", "literature_read": "mixed", "assertion": "Antigen density reports vary.",
-         "agreement_vs_omics": "omics_blind", "confidence": "low", "citations": []},
-        {"axis_key": "SAFETY", "literature_read": "opposes", "assertion": "Normal epithelium expresses EPCAM.",
-         "agreement_vs_omics": "agree", "confidence": "high", "citations": []},
-        {"axis_key": "SHED", "literature_read": "supports", "assertion": "EpEX shedding reported.",
-         "agreement_vs_omics": "agree", "confidence": "moderate", "citations": []},
+        {
+            "axis_key": "FIT",
+            "literature_read": "supports",
+            "assertion": "EPCAM is a clinical ADC/TCE antigen.",
+            "agreement_vs_omics": "agree",
+            "confidence": "high",
+            "citations": [{"label": "Smith 2019", "pmid": "31000000", "verified": True}],
+        },
+        {
+            "axis_key": "TOPOLOGY",
+            "literature_read": "supports",
+            "assertion": "Single-pass type I surface protein.",
+            "agreement_vs_omics": "agree",
+            "confidence": "moderate",
+            "citations": [],
+        },
+        {
+            "axis_key": "DENSITY",
+            "literature_read": "mixed",
+            "assertion": "Antigen density reports vary.",
+            "agreement_vs_omics": "omics_blind",
+            "confidence": "low",
+            "citations": [],
+        },
+        {
+            "axis_key": "SAFETY",
+            "literature_read": "opposes",
+            "assertion": "Normal epithelium expresses EPCAM.",
+            "agreement_vs_omics": "agree",
+            "confidence": "high",
+            "citations": [],
+        },
+        {
+            "axis_key": "SHED",
+            "literature_read": "supports",
+            "assertion": "EpEX shedding reported.",
+            "agreement_vs_omics": "agree",
+            "confidence": "moderate",
+            "citations": [],
+        },
     ],
-    "blind_spots": [], "overall_consistency": "consistent", "key_divergence": None,
+    "blind_spots": [],
+    "overall_consistency": "consistent",
+    "key_divergence": None,
 }
 
 
 # ── Phase 0 registry sanity ──────────────────────────────────────────────────────────────────────
 def test_questions_registry_loads_eight(eg_questions):
     ids = [q["id"] for q in eg_questions]
-    assert ids == ["modality_fit_call", "topology_read", "density_read", "safety_read", "shed_read",
-                   "pmhc_tce_route", "bispecific_pair", "tce_homogeneity"]
+    assert ids == [
+        "modality_fit_call",
+        "topology_read",
+        "density_read",
+        "safety_read",
+        "shed_read",
+        "pmhc_tce_route",
+        "bispecific_pair",
+        "tce_homogeneity",
+    ]
     # unified axis vocabulary shared with the SURFACE_MODALITY_FIT narrator lens (axis_labels keys)
     axes = {q["axis_id"] for q in eg_questions if q.get("axis_id")}
     assert axes == {"FIT", "TOPOLOGY", "DENSITY", "SAFETY", "SHED"}
@@ -95,20 +150,31 @@ def test_reconstruct_questions_and_cards(eg_graph):
     # the many-to-many card join (measurement_type membership) — the FIT core call anchors the composed
     # fit_class card + its family/backbone/window siblings + the stratified surface CONTEXT cards
     assert set(qs["modality_fit_call"]["card_ids"]) == {
-        "adc-tce-modality-fit", "surfaceome-family-classification", "cd-antigen-backbone",
-        "modality-therapeutic-window", "modality-exon-window", "copy-number-distribution",
-        "mutation-stratified-surface", "pathway-stratified-surface"}
-    assert set(qs["topology_read"]["card_ids"]) == {
-        "surface-topology-and-ptm", "structure-features-static"}
+        "adc-tce-modality-fit",
+        "surfaceome-family-classification",
+        "cd-antigen-backbone",
+        "modality-therapeutic-window",
+        "modality-exon-window",
+        "copy-number-distribution",
+        "mutation-stratified-surface",
+        "pathway-stratified-surface",
+    }
+    assert set(qs["topology_read"]["card_ids"]) == {"surface-topology-and-ptm", "structure-features-static"}
     assert set(qs["density_read"]["card_ids"]) == {
-        "surface-abundance-density", "protein-surface-evidence", "rna-protein-concordance-tumor",
-        "sc-surface-rna-protein-concordance", "tumor-scrna-celltype-expression"}
+        "surface-abundance-density",
+        "protein-surface-evidence",
+        "rna-protein-concordance-tumor",
+        "sc-surface-rna-protein-concordance",
+        "tumor-scrna-celltype-expression",
+    }
     assert set(qs["safety_read"]["card_ids"]) == {
-        "normal-tissue-liability", "sc-normal-celltype-expression", "sc-surface-normal-safety"}
+        "normal-tissue-liability",
+        "sc-normal-celltype-expression",
+        "sc-surface-normal-safety",
+    }
     assert set(qs["shed_read"]["card_ids"]) == {"shed-ectodomain-liability"}
     assert set(qs["pmhc_tce_route"]["card_ids"]) == {"pmhc-presentation", "pmhc-epitope-evidence-iedb"}
-    assert set(qs["bispecific_pair"]["card_ids"]) == {
-        "surface-colocalization-avidity", "surface-bulk-pair-selectivity"}
+    assert set(qs["bispecific_pair"]["card_ids"]) == {"surface-colocalization-avidity", "surface-bulk-pair-selectivity"}
     assert set(qs["tce_homogeneity"]["card_ids"]) == {"tumor-scrna-celltype-expression"}
     # a shared measurement_type materializes both edge directions (rna_protein_concordance on 2 cards)
     for cid in ("rna-protein-concordance-tumor", "sc-surface-rna-protein-concordance"):
@@ -182,4 +248,4 @@ def test_verdict_node_matches_spine(eg_graph, eg_decision):
     # the verdict node id is the composed fit_class (the canonical call), NOT the downgraded token
     assert eg_graph["verdict"]["id"] == eg_decision["headline"]["fit_class"] == "both_viable"
     assert eg_graph["verdict"]["driving_rule_id"] == "sc-normal-high-liability-bite-killer"
-    assert eg_graph["verdict"]["polarity"] == "supportive"   # canonical (positive → supportive)
+    assert eg_graph["verdict"]["polarity"] == "supportive"  # canonical (positive → supportive)

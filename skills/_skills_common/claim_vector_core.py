@@ -24,6 +24,7 @@ WHAT THIS IS NOT: a verdict input. Every claim vector built here is a one-way VI
 already-computed decision; it never feeds a rule, resolver, or gate. The consuming skill owns that
 invariant (its verdict spine stays byte-identical), frozen by that skill's golden/replay test.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -84,8 +85,10 @@ def corr(card, field, smap):
     reads `field` off `card`'s summary, maps it through `smap`, and yields `moderate` when that maps
     to a MEASURED tier (anything other than `unmeasured`), else `unmeasured`. For axes with a single
     relational/evidence source, intra-source presence is the corroboration signal (never a second arm)."""
+
     def fn(h, c):
         return "moderate" if smap.get((c.get(card) or {}).get(field), "unmeasured") != "unmeasured" else "unmeasured"
+
     return fn
 
 
@@ -93,9 +96,11 @@ def signal_from_class(card, field, smap):
     """Single-source signal factory (the most-copied claims-module leaf helper): returns a
     signal_fn(headline, cards_by_id) that reads `field` off `card`'s summary, maps the class through
     `smap` (default 'unmeasured'), and yields (tier, "<card>: <class-or-data_unavailable>", None)."""
+
     def fn(h, c):
         cls = (c.get(card) or {}).get(field)
         return smap.get(cls, "unmeasured"), f"{card}: {cls or 'data_unavailable'}", None
+
     return fn
 
 
@@ -114,18 +119,25 @@ def build_atom(*, card_id, values, read, entity, exclude_fields=()):
     if not vals:
         return None
     excl = set(exclude_fields)
-    return {"read": read, "values": vals,
-            "cite": {"card_id": card_id, "fields": sorted(k for k in vals if k not in excl)},
-            "entity": entity}
+    return {
+        "read": read,
+        "values": vals,
+        "cite": {"card_id": card_id, "fields": sorted(k for k in vals if k not in excl)},
+        "entity": entity,
+    }
 
 
 def build_summary_atom(*, card_id, summary, keys, read, entity, exclude_fields=()):
     """Standard archetype: derive `values` from `summary` over `keys` (non-None, in `keys` order) then
     delegate to build_atom. Reproduces the former per-module `_atom(card_id, summary, keys, entity,
     read)` byte-for-byte (same comprehension, order, None-return)."""
-    return build_atom(card_id=card_id,
-                      values={k: summary[k] for k in keys if summary.get(k) is not None},
-                      read=read, entity=entity, exclude_fields=exclude_fields)
+    return build_atom(
+        card_id=card_id,
+        values={k: summary[k] for k in keys if summary.get(k) is not None},
+        read=read,
+        entity=entity,
+        exclude_fields=exclude_fields,
+    )
 
 
 # ── the spec + builders ──────────────────────────────────────────────────────────────────────────
@@ -143,6 +155,7 @@ class ClaimSpec:
         card is absent, so the axis stays byte-stable (no `evidence_atom` key). Skills opt in per axis;
         an axis with no atom_fn keeps the legacy 5-key shape exactly.
     """
+
     axis_key: str
     label: str
     signal_fn: Callable
@@ -184,9 +197,17 @@ def build_claim_vector(spec: Sequence[ClaimSpec], headline: dict, cards, disclai
     return vec
 
 
-def build_key_signals(claim_vector: dict, *, rank_keys: Sequence[str], support_fns: dict,
-                      critical_keys: Sequence[str], caveat_fns: dict, headline_fn: Callable,
-                      fallback_caveat_fn: Optional[Callable] = None, max_supports: int = 3) -> dict:
+def build_key_signals(
+    claim_vector: dict,
+    *,
+    rank_keys: Sequence[str],
+    support_fns: dict,
+    critical_keys: Sequence[str],
+    caveat_fns: dict,
+    headline_fn: Callable,
+    fallback_caveat_fn: Optional[Callable] = None,
+    max_supports: int = 3,
+) -> dict:
     """A brief, DETERMINISTIC, CITED read over a claim vector (available WITHOUT the LLM).
 
     Generic machinery (SHARED): rank axes by signal tier (desc); keep only the top axes at >= moderate
@@ -194,6 +215,7 @@ def build_key_signals(claim_vector: dict, *, rank_keys: Sequence[str], support_f
     `caveat`; derive a deterministic headline. The domain-specific CITED TEXT is injected per axis via
     support_fns / caveat_fns / headline_fn — closures the skill builds over its own headline + cards.
     A support_fn / caveat_fn returning None drops that line (e.g. no citable numbers)."""
+
     def ordv(k):
         return SIGNAL_ORD.get(claim_vector[k]["signal"])
 
@@ -221,6 +243,19 @@ def build_key_signals(claim_vector: dict, *, rank_keys: Sequence[str], support_f
     return {"headline": headline_fn(claim_vector, supports), "supports": supports, "caveat": caveat}
 
 
-__all__ = ["SIGNAL_ORD", "CORROBORATION_ORD", "ClaimSpec", "build_atom", "build_summary_atom",
-           "build_claim_vector", "build_key_signals",
-           "cards_by_id", "fmt", "sig_ge", "bump_corroboration", "cap_corroboration", "weakest", "corr"]
+__all__ = [
+    "SIGNAL_ORD",
+    "CORROBORATION_ORD",
+    "ClaimSpec",
+    "build_atom",
+    "build_summary_atom",
+    "build_claim_vector",
+    "build_key_signals",
+    "cards_by_id",
+    "fmt",
+    "sig_ge",
+    "bump_corroboration",
+    "cap_corroboration",
+    "weakest",
+    "corr",
+]

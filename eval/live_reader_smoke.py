@@ -15,13 +15,14 @@ resolver_error / a raised read) fails the smoke.
 
 Requires live S3 (AWS creds). Intended for the nightly credentialed job (HAVE_AWS), not PR CI.
 """
+
 from __future__ import annotations
 
 import argparse
 import sys
 from pathlib import Path
 
-_SKILLS = Path(__file__).resolve().parents[1] / "skills"   # eval/ is repo-root; skills/ is its sibling
+_SKILLS = Path(__file__).resolve().parents[1] / "skills"  # eval/ is repo-root; skills/ is its sibling
 for _p in (str(_SKILLS), str(_SKILLS / "target-profile" / "scripts")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
@@ -49,15 +50,14 @@ def _mentions_data_unavailable(card: dict) -> bool:
 
 
 def run(target: str, indication: str) -> int:
-    print(f"[live-smoke] running the full fan-out for {target}/{indication} against LIVE data ...",
-          flush=True)
+    print(f"[live-smoke] running the full fan-out for {target}/{indication} against LIVE data ...", flush=True)
     sub_results = _run_sub_skills(target, indication)
 
-    errors: list[tuple[str, str, str, object]] = []   # (short, card_id, path, error)
+    errors: list[tuple[str, str, str, object]] = []  # (short, card_id, path, error)
     n_cards = 0
     n_unavailable = 0
     for short, res in sub_results.items():
-        for card in (res.get("cards") or []):
+        for card in res.get("cards") or []:
             n_cards += 1
             cid = card.get("card_id", "?")
             for p, e in _find_live_read_errors(card):
@@ -65,12 +65,17 @@ def run(target: str, indication: str) -> int:
             if _mentions_data_unavailable(card):
                 n_unavailable += 1
 
-    print(f"[live-smoke] {len(sub_results)} sub-skills · {n_cards} card reads · "
-          f"{n_unavailable} data_unavailable (info) · {len(errors)} _live_read_error")
+    print(
+        f"[live-smoke] {len(sub_results)} sub-skills · {n_cards} card reads · "
+        f"{n_unavailable} data_unavailable (info) · {len(errors)} _live_read_error"
+    )
     if errors:
-        print(f"::error title=live-reader-smoke::{len(errors)} reader hard-error(s) for "
-              f"{target}/{indication} — a data-shape/shard/manifest change silently broke a live read "
-              f"(the sub-verdict would degrade to insufficient with PR CI still green):", file=sys.stderr)
+        print(
+            f"::error title=live-reader-smoke::{len(errors)} reader hard-error(s) for "
+            f"{target}/{indication} — a data-shape/shard/manifest change silently broke a live read "
+            f"(the sub-verdict would degrade to insufficient with PR CI still green):",
+            file=sys.stderr,
+        )
         for short, cid, p, e in errors:
             print(f"  - {short} / {cid} / {p}: {e}", file=sys.stderr)
         return 1

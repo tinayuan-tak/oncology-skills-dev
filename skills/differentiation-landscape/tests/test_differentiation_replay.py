@@ -21,6 +21,7 @@ Two curated fixtures pin two distinct verdicts that fire on real COADREAD data:
 The frozen fixtures are refreshed by the nightly-live re-freeze (card-behavior-matrix-nightly). Mirror of
 tumor-selectivity's replay.
 """
+
 from __future__ import annotations
 
 import copy
@@ -44,8 +45,7 @@ _COLLAPSED = {None, "", "insufficient", "data_unavailable", "ns"}
 
 
 def _real_summary(s) -> bool:
-    return (isinstance(s, dict) and bool(s)
-            and not s.get("_freeze_error") and not s.get("_dispatcher_returned_none"))
+    return isinstance(s, dict) and bool(s) and not s.get("_freeze_error") and not s.get("_dispatcher_returned_none")
 
 
 def _load_fixture(pair_id: str) -> dict:
@@ -71,15 +71,16 @@ def _decision(pair_id: str, target: str, indication: str) -> dict:
             if not _real_summary(s):
                 return None
             return copy.deepcopy(s)
+
         return _read_live
 
     import tempfile
+
     out_dir = Path(tempfile.mkdtemp(prefix=f"diff-{pair_id}-"))
     mp = pytest.MonkeyPatch()
     mp.delenv("FRAMEWORK_HEALTH_SMOKE", raising=False)
     mp.setattr(skc, "_import_dispatcher", _fake_dispatcher_factory)
-    mp.setattr(sys, "argv", ["run.py", "--target", target, "--indication", indication,
-                             "--out", str(out_dir)])
+    mp.setattr(sys, "argv", ["run.py", "--target", target, "--indication", indication, "--out", str(out_dir)])
     try:
         runpy.run_path(str(RUN_PY), run_name="__main__")
     except SystemExit as e:
@@ -95,7 +96,7 @@ def _decision(pair_id: str, target: str, indication: str) -> dict:
 
 
 # ── the two curated fixtures (pair_id, target, indication, expected_verdict) ──────────────────────
-KRAS  = ("kras_coadread",  "KRAS",  "COADREAD", "both_patterns_present")
+KRAS = ("kras_coadread", "KRAS", "COADREAD", "both_patterns_present")
 FBXW7 = ("fbxw7_coadread", "FBXW7", "COADREAD", "strong_cooccurring")
 ALL = [KRAS, FBXW7]
 
@@ -113,7 +114,8 @@ def test_replay_conforms_to_data_product_schema(pair_id, target, indication, _ex
         pytest.fail(reason + " [CI]") if os.environ.get("CI") else pytest.skip(reason)
     errors = conformance_errors(schema, _decision(pair_id, target, indication))
     assert not errors, f"FRESH {pair_id} emit violates the data-product schema:\n  " + "\n  ".join(
-        f"{list(e.path)}: {e.message}" for e in errors[:15])
+        f"{list(e.path)}: {e.message}" for e in errors[:15]
+    )
 
 
 @pytest.mark.parametrize("pair_id,target,indication,_exp", ALL, ids=[p[1].lower() for p in ALL])
@@ -124,9 +126,11 @@ def test_fixture_is_nonvacuous(pair_id, target, indication, _exp):
     real = [cid for cid, s in frozen.items() if _real_summary(s)]
     assert len(real) >= 2, (
         f"only {len(real)}/{len(frozen)} frozen cards carry a real summary for {pair_id} — refreeze "
-        f"against live S3 (freeze_fixture.py). Real cards: {sorted(real)}")
+        f"against live S3 (freeze_fixture.py). Real cards: {sorted(real)}"
+    )
     assert _real_summary(frozen.get("co-mutation-and-mutual-exclusivity")), (
-        f"the verdict-driving co-mutation-and-mutual-exclusivity card is not real for {pair_id}.")
+        f"the verdict-driving co-mutation-and-mutual-exclusivity card is not real for {pair_id}."
+    )
 
 
 @pytest.mark.parametrize("pair_id,target,indication,expected", ALL, ids=[p[1].lower() for p in ALL])
@@ -138,8 +142,7 @@ def test_verdict_matches_expected(pair_id, target, indication, expected):
     assert d["skill"] == "differentiation-landscape"
     h = d.get("headline") or {}
     v = h.get("differentiation_verdict")
-    assert v == expected, (
-        f"differentiation_verdict={v!r} for {target}/{indication}, expected {expected!r}.")
+    assert v == expected, f"differentiation_verdict={v!r} for {target}/{indication}, expected {expected!r}."
     assert h.get("driving_rule_id"), "resolved a verdict but driving_rule_id is empty — inconsistent spine."
 
 
@@ -151,5 +154,6 @@ def test_cooccurrence_pattern_does_not_collapse():
     h = d.get("headline") or {}
     assert h.get("differentiation_verdict") == "both_patterns_present", (
         f"KRAS resolved {h.get('differentiation_verdict')!r}, not both_patterns_present — the co-mutation "
-        f"reader drifted so the co-occurrence rule stopped firing.")
+        f"reader drifted so the co-occurrence rule stopped firing."
+    )
     assert h.get("differentiation_verdict") not in _COLLAPSED

@@ -18,6 +18,7 @@ Usage (live capture, needs BEDROCK_AWS_PROFILE=cmp-dev):
       --source /tmp/bakeoff-features/KRAS-envfix/evidence_package.json
   python3 freeze_drift_golden.py --all --replay-only    # refreeze expected_spine from frozen replays
 """
+
 from __future__ import annotations
 
 import argparse
@@ -27,7 +28,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-sys.path.insert(0, str(HERE.parent.parent))   # skills/ (for _skills_common)
+sys.path.insert(0, str(HERE.parent.parent))  # skills/ (for _skills_common)
 
 import drift_golden as dg  # noqa: E402
 import run as R  # noqa: E402
@@ -36,10 +37,16 @@ GOLDEN = HERE.parent / "tests" / "fixtures" / "golden"
 
 # case -> (default source evidence_package, objective, modality)
 CASES = {
-    "KRAS-COADREAD": ("/tmp/bakeoff-features/KRAS-envfix/evidence_package.json",
-                      "small-molecule drug target", "small_molecule"),
-    "MARK2-PAAD": ("/tmp/bakeoff-features/MARK2-PAAD/evidence_package.json",
-                   "small-molecule drug target", "small_molecule"),
+    "KRAS-COADREAD": (
+        "/tmp/bakeoff-features/KRAS-envfix/evidence_package.json",
+        "small-molecule drug target",
+        "small_molecule",
+    ),
+    "MARK2-PAAD": (
+        "/tmp/bakeoff-features/MARK2-PAAD/evidence_package.json",
+        "small-molecule drug target",
+        "small_molecule",
+    ),
 }
 
 
@@ -52,6 +59,7 @@ def _capturing_synth():
         resp = real(system, user, name, schema, **kw)
         captured[name] = resp
         return resp
+
     return _synth, captured
 
 
@@ -67,9 +75,12 @@ def freeze_case(case: str, source: str | None, replay_only: bool) -> None:
         full = json.loads(Path(source).read_text())
         trimmed = dg.trim_evidence_package(full)
         pkg_fix.write_text(json.dumps(trimmed, indent=2, default=str))
-        (outd / "meta.json").write_text(json.dumps(
-            {"case": case, "objective": objective, "modality": modality,
-             "source_evidence_package": source}, indent=2))
+        (outd / "meta.json").write_text(
+            json.dumps(
+                {"case": case, "objective": objective, "modality": modality, "source_evidence_package": source},
+                indent=2,
+            )
+        )
     meta = json.loads((outd / "meta.json").read_text())
 
     # 2. capture (or reuse) the two-call LLM replay
@@ -81,24 +92,37 @@ def freeze_case(case: str, source: str | None, replay_only: bool) -> None:
         synth, replay = _capturing_synth()
 
     # run once (live-capture or offline-replay) to drive the pipeline
-    r = R.run(str(pkg_fix), meta.get("risk"), meta["objective"], meta["modality"],
-              meta.get("dossier"),
-              synthesize_fn=synth,
-              llm_mode="offline_replay")   # spine is frozen as an offline-replay result
+    r = R.run(
+        str(pkg_fix),
+        meta.get("risk"),
+        meta["objective"],
+        meta["modality"],
+        meta.get("dossier"),
+        synthesize_fn=synth,
+        llm_mode="offline_replay",
+    )  # spine is frozen as an offline-replay result
     if not replay_only:
         replay_fix.write_text(json.dumps(replay, indent=2, default=str))
         # re-run purely offline from the just-captured replay so the frozen spine matches the
         # exact bytes the drift-CI will replay
-        r = R.run(str(pkg_fix), meta.get("risk"), meta["objective"], meta["modality"],
-                  meta.get("dossier"),
-                  synthesize_fn=R.replay_synthesize(replay), llm_mode="offline_replay")
+        r = R.run(
+            str(pkg_fix),
+            meta.get("risk"),
+            meta["objective"],
+            meta["modality"],
+            meta.get("dossier"),
+            synthesize_fn=R.replay_synthesize(replay),
+            llm_mode="offline_replay",
+        )
 
     # 3. freeze the deterministic spine subset
     spine = dg.deterministic_spine_subset(r)
     (outd / "expected_spine.json").write_text(json.dumps(spine, indent=2, default=str))
-    print(f"[{case}] verdict={spine['computed_verdict']} ceiling={spine['gate_ceiling']} "
-          f"traceability={spine['clause_traceability']} certainty={spine['overall_certainty']} "
-          f"coherence_viol={spine['n_coherence_violations']} promotable={spine['promotable']}")
+    print(
+        f"[{case}] verdict={spine['computed_verdict']} ceiling={spine['gate_ceiling']} "
+        f"traceability={spine['clause_traceability']} certainty={spine['overall_certainty']} "
+        f"coherence_viol={spine['n_coherence_violations']} promotable={spine['promotable']}"
+    )
 
 
 def main(argv=None) -> int:
@@ -106,8 +130,9 @@ def main(argv=None) -> int:
     ap.add_argument("--case", choices=sorted(CASES))
     ap.add_argument("--all", action="store_true")
     ap.add_argument("--source", default=None, help="override source evidence_package.json")
-    ap.add_argument("--replay-only", action="store_true",
-                    help="refreeze expected_spine from the EXISTING llm_replay (no Bedrock)")
+    ap.add_argument(
+        "--replay-only", action="store_true", help="refreeze expected_spine from the EXISTING llm_replay (no Bedrock)"
+    )
     args = ap.parse_args(argv)
     cases = sorted(CASES) if args.all else [args.case] if args.case else []
     if not cases:

@@ -1,5 +1,6 @@
 """target-profile — the cross-gate nomination gate + gate-coverage + positive-tier + gate-scorecard.
 Deterministic nomination spine loaders (declarative policy from target-contracts, conservative fallbacks)."""
+
 from __future__ import annotations
 
 import sys
@@ -23,10 +24,14 @@ from _skills_common.modality_safety import safety_verdict_by_modality
 # The WT-loss / full-KO safety concerns the resolver now emits RAW (the role-proxy scalar downgrade
 # was retired 2026-08-24). exists-safe-modality re-applies the modality-conditional downgrade at the
 # gate: a concern is cleared when the per-modality safety verdict shows an admissible safe channel.
-_SAFETY_WT_LOSS_CONCERNS = frozenset({
-    "highly_constrained_safety_concern", "human_genetics_safety_concern",
-    "pan_essential_broad_tox_concern", "normal_tissue_protein_safety_concern",
-})
+_SAFETY_WT_LOSS_CONCERNS = frozenset(
+    {
+        "highly_constrained_safety_concern",
+        "human_genetics_safety_concern",
+        "pan_essential_broad_tox_concern",
+        "normal_tissue_protein_safety_concern",
+    }
+)
 # An allele-selective escape (small_molecule=conditional) UNCONDITIONALLY clears a fired WT-loss concern
 # — matching the retired resolver downgrade's GoF-only scope. 'no_concern'/'supportive' never legitimately
 # co-occur with a fired concern; excluding them also stops a minimal/empty fired list from spuriously
@@ -37,8 +42,6 @@ _SAFETY_SAFE_ACTIONS = frozenset({"conditional"})
 # Surface-directed biologics channels: WT-loss is not their operative safety axis (they report
 # safety action=not_applicable). Kept in sync with modality_safety.py's not_applicable engagement set.
 _BIOLOGICS_CHANNELS = frozenset({"adc", "bite_tce", "antibody"})
-
-
 
 
 # --- Deterministic recommendation gate --------------------------------------
@@ -76,15 +79,15 @@ _BIOLOGICS_CHANNELS = frozenset({"adc", "bite_tce", "antibody"})
 # pan-essential veto would be a safety regression — so the fallback is
 # conservative-and-complete, and the vocab can only match-or-tighten it.
 _FALLBACK_GATE_VERDICTS: dict[tuple[str, str], str] = {
-    ("dependency", "pan_essential_killer"): "veto",   # non-selective essentiality — no window
-    ("dependency", "non_dependent"): "veto",          # no dependency at all
+    ("dependency", "pan_essential_killer"): "veto",  # non-selective essentiality — no window
+    ("dependency", "non_dependent"): "veto",  # no dependency at all
     ("safety", "highly_constrained_safety_concern"): "hold",  # concern → hold, not veto
     # 2026-08-16: the fallback must be conservative-AND-COMPLETE — it must mirror the ENTIRE
     # gates block, not just the veto arms, so a missing/unparseable vocab still fires every
     # HOLD too (a missing policy silently dropping the human-genetics or subtype hold would be a
     # fail-open). These two were previously vocab-only.
-    ("safety", "human_genetics_safety_concern"): "hold",       # P5 human-genetics WT-loss concern
-    ("safety", "pan_essential_broad_tox_concern"): "hold",     # data-util expansion 2026-08-21 — broad tox
+    ("safety", "human_genetics_safety_concern"): "hold",  # P5 human-genetics WT-loss concern
+    ("safety", "pan_essential_broad_tox_concern"): "hold",  # data-util expansion 2026-08-21 — broad tox
     ("safety", "normal_tissue_protein_safety_concern"): "hold",  # data-util expansion 2026-08-21 — HPA-IHC
     ("subtype_fit", "subtype_specific_non_dependence"): "hold",  # queried subtype has no dependency
 }
@@ -139,39 +142,57 @@ _SCOPE_OPTIN_GATING_AXES: frozenset[str] = frozenset({"subtype_fit"})
 # benign verdict without this set being updated, the gate OVER-clamps (least-permissive) —
 # the SAFE direction (loud, never silent) — and the regression fixtures catch it immediately.
 _RECOGNIZED_GATING_VERDICTS: dict[str, frozenset[str]] = {
-    "dependency": frozenset({
-        "pan_essential_killer", "non_dependent",                      # the two vetoes
-        "concordant_dependent", "lineage_selective", "selective_dependent",
-        "chemical_genetic_confirmed_dependent", "partner_conditional_dependent",
-        "discordant", "broadly_dependent",                            # contradictions
-        "non_dependent_paralog_buffered",                             # veto-rescue (benign)
-        "insufficient", "insufficient_underpowered",
-        "insufficient_underpowered_pan_essential",                    # admissibility guards
-    }),
-    "safety": frozenset({
-        "highly_constrained_safety_concern", "human_genetics_safety_concern",  # the four holds
-        "pan_essential_broad_tox_concern", "normal_tissue_protein_safety_concern",  # data-util expansion 2026-08-21
-        # (the wt_*_mechanism_mismatch downgrade tokens were RETIRED with the scalar role-proxy downgrade,
-        # safety.resolver v2.0.0 — pruned here 2026-09-07; the resolver no longer emits them.)
-        "tolerant_reduced_safety_risk", "moderately_constrained_safety",
-        "data_unavailable", "insufficient",
-    }),
-    "subtype_fit": frozenset({
-        "subtype_specific_non_dependence",                            # the hold
-        "subtype_restricted_dependency",                              # SUPPORTIVE positive + veto-suppressor
-        "insufficient",                                               # (vocab: positive_signals + veto_suppressors,
-        #                                                               NOT gates/kill_capable → recognized, non-gating:
-        #                                                               falls through as a permissive pass, never forces
-        #                                                               hold. Was missing → fail-closed hold on --subtypes
-        #                                                               runs where the subtype tier fired positive.)
-    }),
+    "dependency": frozenset(
+        {
+            "pan_essential_killer",
+            "non_dependent",  # the two vetoes
+            "concordant_dependent",
+            "lineage_selective",
+            "selective_dependent",
+            "chemical_genetic_confirmed_dependent",
+            "partner_conditional_dependent",
+            "discordant",
+            "broadly_dependent",  # contradictions
+            "non_dependent_paralog_buffered",  # veto-rescue (benign)
+            "insufficient",
+            "insufficient_underpowered",
+            "insufficient_underpowered_pan_essential",  # admissibility guards
+        }
+    ),
+    "safety": frozenset(
+        {
+            "highly_constrained_safety_concern",
+            "human_genetics_safety_concern",  # the four holds
+            "pan_essential_broad_tox_concern",
+            "normal_tissue_protein_safety_concern",  # data-util expansion 2026-08-21
+            # (the wt_*_mechanism_mismatch downgrade tokens were RETIRED with the scalar role-proxy downgrade,
+            # safety.resolver v2.0.0 — pruned here 2026-09-07; the resolver no longer emits them.)
+            "tolerant_reduced_safety_risk",
+            "moderately_constrained_safety",
+            "data_unavailable",
+            "insufficient",
+        }
+    ),
+    "subtype_fit": frozenset(
+        {
+            "subtype_specific_non_dependence",  # the hold
+            "subtype_restricted_dependency",  # SUPPORTIVE positive + veto-suppressor
+            "insufficient",  # (vocab: positive_signals + veto_suppressors,
+            #                                                               NOT gates/kill_capable → recognized, non-gating:
+            #                                                               falls through as a permissive pass, never forces
+            #                                                               hold. Was missing → fail-closed hold on --subtypes
+            #                                                               runs where the subtype tier fired positive.)
+        }
+    ),
 }
 
 # The LEAST-PERMISSIVE forced action per gating axis, applied when that axis emits an
 # unrecognized / malformed verdict. dependency's floor is veto (it owns the two vetoes);
 # safety + subtype are hold. Never None.
 _GATING_AXIS_FAILCLOSED_ACTION: dict[str, str] = {
-    "dependency": "veto", "safety": "hold", "subtype_fit": "hold",
+    "dependency": "veto",
+    "safety": "hold",
+    "subtype_fit": "hold",
 }
 
 
@@ -186,12 +207,12 @@ _FALLBACK_KILL_CAPABLE_VERDICTS: dict[tuple[str, str], str] = {
     ("dependency", "broadly_dependent"): "contradiction",
     ("safety", "highly_constrained_safety_concern"): "gated",
     ("safety", "human_genetics_safety_concern"): "gated",
-    ("safety", "pan_essential_broad_tox_concern"): "gated",          # data-util expansion 2026-08-21
-    ("safety", "normal_tissue_protein_safety_concern"): "gated",     # data-util expansion 2026-08-21
+    ("safety", "pan_essential_broad_tox_concern"): "gated",  # data-util expansion 2026-08-21
+    ("safety", "normal_tissue_protein_safety_concern"): "gated",  # data-util expansion 2026-08-21
     ("subtype_fit", "subtype_specific_non_dependence"): "gated",
     ("selectivity", "not_selective"): "contradiction",
     ("selectivity", "discordant_across_comparators"): "contradiction",
-    ("selectivity", "selective_but_broadly_normal"): "contradiction",    # post-resolver clamp KILL (gate v1.10.0)
+    ("selectivity", "selective_but_broadly_normal"): "contradiction",  # post-resolver clamp KILL (gate v1.10.0)
     ("selectivity", "selective_but_stromal_confound"): "contradiction",  # post-resolver clamp KILL (gate v1.10.0)
     ("surface_modality", "neither_viable"): "excluded_modality_scoped",
     ("surface_modality", "adc_preferred_tce_unsafe"): "excluded_modality_scoped",
@@ -222,9 +243,11 @@ def _load_gate_verdicts(contracts_repo: Path | None = None) -> tuple[dict[tuple[
             raise ValueError("empty gates list")
         return mapping, "vocab"
     except Exception as e:  # noqa: BLE001 — any failure → safe conservative fallback
-        print(f"[target-profile] WARN: could not load nomination_verdict_gate vocab "
-              f"({type(e).__name__}: {e}); using hardcoded conservative fallback.",
-              file=sys.stderr)
+        print(
+            f"[target-profile] WARN: could not load nomination_verdict_gate vocab "
+            f"({type(e).__name__}: {e}); using hardcoded conservative fallback.",
+            file=sys.stderr,
+        )
         return dict(_FALLBACK_GATE_VERDICTS), "fallback"
 
 
@@ -252,9 +275,11 @@ def _load_kill_capable_verdicts(
             raise ValueError("empty kill_capable_verdicts")
         return mapping, "vocab"
     except Exception as e:  # noqa: BLE001 — any failure → conservative-and-complete fallback
-        print(f"[target-profile] WARN: could not load kill_capable_verdicts registry "
-              f"({type(e).__name__}: {e}); using hardcoded complete fallback.",
-              file=sys.stderr)
+        print(
+            f"[target-profile] WARN: could not load kill_capable_verdicts registry "
+            f"({type(e).__name__}: {e}); using hardcoded complete fallback.",
+            file=sys.stderr,
+        )
         return dict(_FALLBACK_KILL_CAPABLE_VERDICTS), "fallback"
 
 
@@ -266,10 +291,15 @@ _BIOLOGICS_MODALITIES = {"adc", "bite_tce", "antibody"}
 # Surface_modality fit_class verdicts that mean a surface therapeutic arm is VIABLE — the
 # co-condition that lets the biology-axis downgrade (branch C) fire (a surface antigen with NO viable
 # arm, neither_viable / shed_dominant_opposed, still vetoes). Keep in sync with the vocab block.
-_SURFACE_FAVORABLE_VERDICTS = frozenset({
-    "both_viable", "adc_preferred", "tce_preferred", "adc_preferred_tce_unsafe",
-    "surface_viable_density_caveated",
-})
+_SURFACE_FAVORABLE_VERDICTS = frozenset(
+    {
+        "both_viable",
+        "adc_preferred",
+        "tce_preferred",
+        "adc_preferred_tce_unsafe",
+        "surface_viable_density_caveated",
+    }
+)
 
 # Among the FAVORABLE surface verdicts, the tokens that nonetheless EXPLICITLY foreclose a specific
 # biologics channel — so a WT-loss escape must NOT cite that (foreclosed) channel as a safe modality.
@@ -306,9 +336,11 @@ def _load_veto_suppressors(
         gdvd = data.get("gof_driver_scoped_veto_downgrade", []) or []
         return ctx, msvs, bavd, gdvd, "vocab"
     except Exception as e:  # noqa: BLE001 — any failure → EMPTY (no suppression, veto stands)
-        print(f"[target-profile] WARN: could not load veto suppressors "
-              f"({type(e).__name__}: {e}); suppression DISABLED (full veto stands).",
-              file=sys.stderr)
+        print(
+            f"[target-profile] WARN: could not load veto suppressors "
+            f"({type(e).__name__}: {e}); suppression DISABLED (full veto stands).",
+            file=sys.stderr,
+        )
         return [], [], [], [], "fallback"
 
 
@@ -327,7 +359,7 @@ def _trigger_label(w: dict, present: set, sub_results: dict) -> Optional[str]:
     if "card_id" in w:
         cid, field, value = w.get("card_id"), w.get("field"), w.get("value")
         for r in sub_results.values():
-            for c in (r.get("cards") or []):
+            for c in r.get("cards") or []:
                 if isinstance(c, dict) and c.get("card_id") == cid:
                     if (c.get("summary") or {}).get(field) == value:
                         return f"{cid}.{field}={value}"
@@ -375,6 +407,7 @@ def _suppressed_gate_hits(
     # the malformed sub-verdict already routed to least-permissive upstream).
     def _first(v):
         return v[0] if isinstance(v, (list, tuple)) and len(v) >= 1 and isinstance(v[0], str) else None
+
     present = {(short, _first(r.get("verdict"))) for short, r in sub_results.items()}
     survivors: list[dict] = []
     suppressions: list[dict] = []
@@ -391,8 +424,9 @@ def _suppressed_gate_hits(
             sup = s.get("suppresses", {})
             if (sup.get("sub_skill"), sup.get("verdict")) != key:
                 continue
-            label = next((lbl for w in s.get("when_present", [])
-                          if (lbl := _trigger_label(w, present, sub_results))), None)
+            label = next(
+                (lbl for w in s.get("when_present", []) if (lbl := _trigger_label(w, present, sub_results))), None
+            )
             if label:
                 suppressed_by = {"kind": "context_escape", "trigger": label}
                 break
@@ -428,7 +462,7 @@ def _suppressed_gate_hits(
             _surface_foreclosed = _SURFACE_VERDICT_FORECLOSED_CHANNELS.get(surface_verdict, frozenset())
 
             def _channel_is_safe(ch: str, action: Optional[str]) -> bool:
-                if action in _SAFETY_SAFE_ACTIONS:            # allele-selective SM escape (GoF)
+                if action in _SAFETY_SAFE_ACTIONS:  # allele-selective SM escape (GoF)
                     return True
                 if action == "not_applicable" and ch in _BIOLOGICS_CHANNELS:
                     # WT-loss n/a to a biologic — clears only if that arm is genuinely viable, i.e. the
@@ -457,10 +491,15 @@ def _suppressed_gate_hits(
             dn = d.get("downgrades", {})
             if (dn.get("sub_skill"), dn.get("verdict")) != key:
                 continue
-            if (biology_axis in set(d.get("when_biology_axis_in", []))
-                    and surface_verdict in set(d.get("when_surface_verdict_in", []))):
-                downgrade = {"kind": "biology_axis_downgrade", "to_action": d.get("to_action", "hold"),
-                             "biology_axis": biology_axis, "surface_verdict": surface_verdict}
+            if biology_axis in set(d.get("when_biology_axis_in", [])) and surface_verdict in set(
+                d.get("when_surface_verdict_in", [])
+            ):
+                downgrade = {
+                    "kind": "biology_axis_downgrade",
+                    "to_action": d.get("to_action", "hold"),
+                    "biology_axis": biology_axis,
+                    "surface_verdict": surface_verdict,
+                }
                 break
         # (D) GoF-driver-scoped DOWNGRADE: a confirmed GoF/activating oncogenic driver (neomorphic-
         # enzyme archetype IDH1 R132) with a pooled `non_dependent` read — whole-gene KO != mutant-
@@ -474,8 +513,11 @@ def _suppressed_gate_hits(
                 if (dn.get("sub_skill"), dn.get("verdict")) != key:
                     continue
                 if genomic_verdict in set(d.get("when_genomic_verdict_in", [])):
-                    downgrade = {"kind": "gof_driver_downgrade", "to_action": d.get("to_action", "hold"),
-                                 "genomic_verdict": genomic_verdict}
+                    downgrade = {
+                        "kind": "gof_driver_downgrade",
+                        "to_action": d.get("to_action", "hold"),
+                        "genomic_verdict": genomic_verdict,
+                    }
                     break
         if downgrade:
             survivors.append({**h, "action": downgrade["to_action"], "_downgraded_from": h["action"]})
@@ -486,8 +528,10 @@ def _suppressed_gate_hits(
 
 
 def _gate_recommendation(
-    sub_results: dict, contracts_repo: Path | None = None,
-    modality: Optional[str] = None, biology_axis: Optional[str] = None,
+    sub_results: dict,
+    contracts_repo: Path | None = None,
+    modality: Optional[str] = None,
+    biology_axis: Optional[str] = None,
 ) -> tuple[Optional[str], list[dict], list[dict]]:
     """Deterministically derive a forced overall_recommendation from sub-verdicts.
 
@@ -514,20 +558,35 @@ def _gate_recommendation(
         if not well_formed:
             if short in _GATING_AXES:
                 fc = _GATING_AXIS_FAILCLOSED_ACTION[short]
-                hits.append({"short": short, "verdict": "<malformed>",
-                             "action": fc, "driving_rule_id": None,
-                             "policy_source": policy_source,
-                             "_fail_closed": True, "fail_closed_reason": "malformed_verdict"})
-                print(f"[target-profile] recommendation GATE fail-closed: malformed verdict "
-                      f"{v!r} on gating axis '{short}' → forced least-permissive '{fc}'.",
-                      file=sys.stderr)
+                hits.append(
+                    {
+                        "short": short,
+                        "verdict": "<malformed>",
+                        "action": fc,
+                        "driving_rule_id": None,
+                        "policy_source": policy_source,
+                        "_fail_closed": True,
+                        "fail_closed_reason": "malformed_verdict",
+                    }
+                )
+                print(
+                    f"[target-profile] recommendation GATE fail-closed: malformed verdict "
+                    f"{v!r} on gating axis '{short}' → forced least-permissive '{fc}'.",
+                    file=sys.stderr,
+                )
             continue
         verdict_str, driving_rule_id = v[0], (v[1] if len(v) > 1 else None)
         action = gate_verdicts.get((short, verdict_str))
         if action:
-            hits.append({"short": short, "verdict": verdict_str,
-                         "action": action, "driving_rule_id": driving_rule_id,
-                         "policy_source": policy_source})
+            hits.append(
+                {
+                    "short": short,
+                    "verdict": verdict_str,
+                    "action": action,
+                    "driving_rule_id": driving_rule_id,
+                    "policy_source": policy_source,
+                }
+            )
             continue
         # No gate action matched. FAIL-CLOSED: on a gating axis, an UNRECOGNIZED verdict
         # token (renamed kill, unknown enum) is NOT a silent permissive pass — if the token is not
@@ -536,17 +595,26 @@ def _gate_recommendation(
         # insufficient) fall through exactly as before (no forced action).
         if short in _GATING_AXES and verdict_str not in _RECOGNIZED_GATING_VERDICTS.get(short, frozenset()):
             fc = _GATING_AXIS_FAILCLOSED_ACTION[short]
-            hits.append({"short": short, "verdict": verdict_str,
-                         "action": fc, "driving_rule_id": driving_rule_id,
-                         "policy_source": policy_source,
-                         "_fail_closed": True, "fail_closed_reason": "unrecognized_verdict"})
-            print(f"[target-profile] recommendation GATE fail-closed: unrecognized verdict "
-                  f"'{verdict_str}' on veto-capable axis '{short}' (not in recognized set) → "
-                  f"forced least-permissive '{fc}' (never a silent pass).", file=sys.stderr)
+            hits.append(
+                {
+                    "short": short,
+                    "verdict": verdict_str,
+                    "action": fc,
+                    "driving_rule_id": driving_rule_id,
+                    "policy_source": policy_source,
+                    "_fail_closed": True,
+                    "fail_closed_reason": "unrecognized_verdict",
+                }
+            )
+            print(
+                f"[target-profile] recommendation GATE fail-closed: unrecognized verdict "
+                f"'{verdict_str}' on veto-capable axis '{short}' (not in recognized set) → "
+                f"forced least-permissive '{fc}' (never a silent pass).",
+                file=sys.stderr,
+            )
     # v1.2.0: apply veto suppression (context-escape + modality-scoped) before
     # resolving the forced action. A suppressed veto does not force — but is recorded.
-    hits, suppressions = _suppressed_gate_hits(hits, sub_results, modality, contracts_repo,
-                                               biology_axis=biology_axis)
+    hits, suppressions = _suppressed_gate_hits(hits, sub_results, modality, contracts_repo, biology_axis=biology_axis)
     if not hits:
         return None, [], suppressions
     # .get(a, 0): an action outside {veto, hold} (a vocab typo or a new action a product owner adds —
@@ -559,7 +627,9 @@ def _gate_recommendation(
 
 
 def _hard_gates_status(
-    sub_results: dict, hits: list[dict], suppressions: list[dict],
+    sub_results: dict,
+    hits: list[dict],
+    suppressions: list[dict],
     contracts_repo: Path | None = None,
 ) -> list[dict]:
     """Build the COMPLETE-declared-set hard-gate status block (gate-complete
@@ -596,7 +666,7 @@ def _hard_gates_status(
     rows: list[dict] = []
     for (short, verdict), disposition in sorted(registry.items()):
         live, blind = _live_verdict(short)
-        matched = (live == verdict)
+        matched = live == verdict
         if (short, verdict) in fired_pairs:
             status = "fired"
         elif (short, verdict) in suppressed_pairs:
@@ -615,11 +685,19 @@ def _hard_gates_status(
         elif matched and disposition == "contradiction":
             status = "opposing"
         elif matched and disposition == "gated":
-            status = "fired"   # gated + matched but not in hits (defensive; normally in hits)
+            status = "fired"  # gated + matched but not in hits (defensive; normally in hits)
         else:
             status = "latent"
-        rows.append({"short": short, "verdict": verdict, "disposition": disposition,
-                     "status": status, "live_verdict": live, "policy_source": source})
+        rows.append(
+            {
+                "short": short,
+                "verdict": verdict,
+                "disposition": disposition,
+                "status": status,
+                "live_verdict": live,
+                "policy_source": source,
+            }
+        )
     return rows
 
 
@@ -657,13 +735,13 @@ _V2_GATE_LISTS = ("biology_gates", "modality_fit", "biomarker_facets")
 def _flatten_gate_coverage(data: dict) -> dict:
     """Return {short: entry} for the scorecard/router, accepting v1 (`gates:`) or v2 (three-list).
     v2 card-grain biomarker_facets are EXCLUDED (they are in-section facets, not scorecard rows)."""
-    if "gates" in data:                      # v1 / v1.1.0 flat shape — every entry is a row.
+    if "gates" in data:  # v1 / v1.1.0 flat shape — every entry is a row.
         return {g["short"]: g for g in data["gates"]}
-    by_short: dict = {}                      # v2 three-list shape.
+    by_short: dict = {}  # v2 three-list shape.
     for key in _V2_GATE_LISTS:
         for g in data.get(key, []):
             if key == "biomarker_facets" and g.get("grain", "sub_skill") == "card":
-                continue                     # card-grain facet → rendered in-section, not a row
+                continue  # card-grain facet → rendered in-section, not a row
             by_short[g["short"]] = g
     return by_short
 
@@ -684,9 +762,11 @@ def _load_gate_coverage(contracts_repo: Path | None = None) -> tuple[dict, str]:
             raise ValueError("no gate entries (neither v1 `gates:` nor v2 three-list)")
         return by_short, "vocab"
     except Exception as e:  # noqa: BLE001 — any failure → empty (never a fabricated coverage)
-        print(f"[target-profile] WARN: could not load gate_coverage vocab "
-              f"({type(e).__name__}: {e}); deciding-axis router degrades to a bare note.",
-              file=sys.stderr)
+        print(
+            f"[target-profile] WARN: could not load gate_coverage vocab "
+            f"({type(e).__name__}: {e}); deciding-axis router degrades to a bare note.",
+            file=sys.stderr,
+        )
         return {}, "none"
 
 
@@ -707,7 +787,7 @@ def _run_coverage_for_short(short: str, r: dict, baseline: dict) -> str:
     base = baseline.get(short, {}).get("framework_can_evidence", "blind")
     cards = r.get("cards") or []
     if cards and all(c.get("_missing") for c in cards):
-        return "blind"          # every card for this gate was unavailable this run
+        return "blind"  # every card for this gate was unavailable this run
     return base
 
 
@@ -756,9 +836,11 @@ def _load_positive_signals(
                     pos[(entry["sub_skill"], entry["verdict"])] = entry["weight"]
         return pos, contra, cfg, "vocab"
     except Exception as e:  # noqa: BLE001 — any failure → EMPTY (no positive tier)
-        print(f"[target-profile] WARN: could not load positive_signals vocab "
-              f"({type(e).__name__}: {e}); positive tier DISABLED (LLM confidence stands).",
-              file=sys.stderr)
+        print(
+            f"[target-profile] WARN: could not load positive_signals vocab "
+            f"({type(e).__name__}: {e}); positive tier DISABLED (LLM confidence stands).",
+            file=sys.stderr,
+        )
         return {}, set(), {"min_dimensions_for_strong": 2, "require_dominant_for_strong": True}, "fallback"
 
 
@@ -789,8 +871,14 @@ def _positive_tier(
             continue
         weight = pos_map.get((short, verdict_str))
         if weight:
-            hits.append({"short": short, "verdict": verdict_str, "weight": weight,
-                         "driving_rule_id": v[1] if len(v) > 1 else None})
+            hits.append(
+                {
+                    "short": short,
+                    "verdict": verdict_str,
+                    "weight": weight,
+                    "driving_rule_id": v[1] if len(v) > 1 else None,
+                }
+            )
     if not hits:
         return None, []
     # n_dims counts INDEPENDENT lines of evidence. correlated_dimension_groups (vocab) collapse
@@ -806,8 +894,7 @@ def _positive_tier(
     has_dominant = any(h["weight"] == "dominant" for h in hits)
     min_dims = cfg.get("min_dimensions_for_strong", 2)
     require_dom = cfg.get("require_dominant_for_strong", True)
-    strong_ok = (n_dims >= min_dims and (has_dominant or not require_dom)
-                 and not contradicted)
+    strong_ok = n_dims >= min_dims and (has_dominant or not require_dom) and not contradicted
     tier = "strong" if strong_ok else "moderate"
     return tier, hits
 
@@ -826,19 +913,22 @@ def _positive_tier(
 #   supportive   = verdict in positive_signals (a MEASURED positive)
 #   coverage_gap = insufficient / data_unavailable / None / gate absent this run (we didn't look)
 _SCORECARD_STATUS_ORDER = {"opposing": 0, "supportive": 1, "coverage_gap": 2}
-_COVERAGE_GAP_VERDICTS = {None, "insufficient", "data_unavailable", "not_implemented",
-                          "phase_not_yet_wired"}
+_COVERAGE_GAP_VERDICTS = {None, "insufficient", "data_unavailable", "not_implemented", "phase_not_yet_wired"}
 
 
-def _gate_scorecard(sub_results: dict, deciding_axis: Optional[dict] = None,
-                    contracts_repo: Path | None = None, modality: str | None = None) -> list[dict]:
+def _gate_scorecard(
+    sub_results: dict,
+    deciding_axis: Optional[dict] = None,
+    contracts_repo: Path | None = None,
+    modality: str | None = None,
+) -> list[dict]:
     """Build the 8-gate scorecard rows. Rows come from the gate_coverage REGISTRY (not from
     iterating sub_results), so gates we're blind on this run still render as greyed rows. Status
     reuses the nomination-gate policy so it cannot diverge from the deterministic verdict.
     `modality` is threaded so a modality-scoped surface positive classifies as `supportive`
     (not `coverage_gap`) under an explicit biologics modality — consistent with the gate."""
     baseline, _ = _load_gate_coverage(contracts_repo)
-    kill_map, _ = _load_gate_verdicts(contracts_repo)          # {(short,verdict): action}
+    kill_map, _ = _load_gate_verdicts(contracts_repo)  # {(short,verdict): action}
     positive_map, contradictions, _, _ = _load_positive_signals(contracts_repo, modality=modality)
     deciding_short = None
     if deciding_axis and deciding_axis.get("basis") == "gate_fired":
@@ -870,55 +960,57 @@ def _gate_scorecard(sub_results: dict, deciding_axis: Optional[dict] = None,
         # risk_category (5R dashboard spine) from the contract; fall back to axis if a pre-field
         # contract is live (biology→biological; else the row is uncategorized, grouped under 'other').
         risk_category = meta.get("risk_category") or ("biological" if axis == "biology" else None)
-        rows.append({
-            "short": short,
-            "gate": meta.get("gate"),
-            "gate_name": meta.get("gate_name"),
-            "band": meta.get("band"),
-            "axis": axis,
-            "risk_category": risk_category,
-            "verdict": verdict_str,
-            "driving_rule_id": driving,
-            "status": _status(short, verdict_str),
-            "framework_can_evidence": _run_coverage_for_short(short, r, baseline),
-            "is_deciding": short == deciding_short,
-        })
+        rows.append(
+            {
+                "short": short,
+                "gate": meta.get("gate"),
+                "gate_name": meta.get("gate_name"),
+                "band": meta.get("band"),
+                "axis": axis,
+                "risk_category": risk_category,
+                "verdict": verdict_str,
+                "driving_rule_id": driving,
+                "status": _status(short, verdict_str),
+                "framework_can_evidence": _run_coverage_for_short(short, r, baseline),
+                "is_deciding": short == deciding_short,
+            }
+        )
     # Sort AXIS-primary (biology before modality_fit) so grouping is stable even when v2 modality-fit
     # rows are letterless; then by gate letter (A..H; letterless → 'Z' last within its axis), then
     # band (necessity first) as a stable tiebreak.
     _AXIS_ORDER = {"biology": 0, "modality_fit": 1}
-    rows.sort(key=lambda x: (_AXIS_ORDER.get(x.get("axis"), 2),
-                             str(x.get("gate") or "Z"),
-                             x.get("band") != "necessity"))
+    rows.sort(
+        key=lambda x: (_AXIS_ORDER.get(x.get("axis"), 2), str(x.get("gate") or "Z"), x.get("band") != "necessity")
+    )
     return rows
 
 
 __all__ = [
-    '_BIOLOGICS_MODALITIES',
-    '_CONFIDENCE_RANK',
-    '_COVERAGE_GAP_VERDICTS',
-    '_COVERAGE_RANK',
-    '_FALLBACK_GATE_VERDICTS',
-    '_FALLBACK_KILL_CAPABLE_VERDICTS',
-    '_GATE_ACTION_RANK',
-    '_GATING_AXES',
-    '_GATING_AXIS_FAILCLOSED_ACTION',
-    '_RECOGNIZED_GATING_VERDICTS',
-    '_SCORECARD_STATUS_ORDER',
-    '_TIER_TO_CONFIDENCE',
-    '_V2_GATE_LISTS',
-    '_flatten_gate_coverage',
-    '_gate_recommendation',
-    '_gate_scorecard',
-    '_hard_gates_status',
-    '_load_gate_coverage',
-    '_load_gate_verdicts',
-    '_load_kill_capable_verdicts',
-    '_load_positive_signals',
-    '_load_veto_suppressors',
-    '_positive_tier',
-    '_run_coverage_for_short',
-    '_sub_result_has_signal',
-    '_suppressed_gate_hits',
-    '_trigger_label',
+    "_BIOLOGICS_MODALITIES",
+    "_CONFIDENCE_RANK",
+    "_COVERAGE_GAP_VERDICTS",
+    "_COVERAGE_RANK",
+    "_FALLBACK_GATE_VERDICTS",
+    "_FALLBACK_KILL_CAPABLE_VERDICTS",
+    "_GATE_ACTION_RANK",
+    "_GATING_AXES",
+    "_GATING_AXIS_FAILCLOSED_ACTION",
+    "_RECOGNIZED_GATING_VERDICTS",
+    "_SCORECARD_STATUS_ORDER",
+    "_TIER_TO_CONFIDENCE",
+    "_V2_GATE_LISTS",
+    "_flatten_gate_coverage",
+    "_gate_recommendation",
+    "_gate_scorecard",
+    "_hard_gates_status",
+    "_load_gate_coverage",
+    "_load_gate_verdicts",
+    "_load_kill_capable_verdicts",
+    "_load_positive_signals",
+    "_load_veto_suppressors",
+    "_positive_tier",
+    "_run_coverage_for_short",
+    "_sub_result_has_signal",
+    "_suppressed_gate_hits",
+    "_trigger_label",
 ]

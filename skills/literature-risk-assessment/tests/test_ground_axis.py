@@ -9,6 +9,7 @@ Invariants of the substrate layer:
   - AXIS-PARAMETERIZED: the contract is one structure across axes; safety + dependency are configured
     with different finding nouns/kinds but the same block shape.
 """
+
 from __future__ import annotations
 from pathlib import Path
 
@@ -21,17 +22,25 @@ DET = {"verdict": "wt_human_genetics_mechanism_mismatch", "driving_rule_id": "r"
 
 
 def test_containment_drops_pmids_not_in_corpus():
-    out = {"findings": [{"finding": "Ocular tox", "kind": "eye", "cited_pmids": ["111", "999"]}],
-           "corroborations": [], "contradicts_deterministic": True, "notes": ""}
+    out = {
+        "findings": [{"finding": "Ocular tox", "kind": "eye", "cited_pmids": ["111", "999"]}],
+        "corroborations": [],
+        "contradicts_deterministic": True,
+        "notes": "",
+    }
     g = ga.build_grounded_block(DET, out, {"111"}, corpus_pin={"mindate": "2015"}, n_retrieved=5)
     assert g["findings"][0]["cited_pmids"] == ["111"]
     assert g["confabulated_dropped"] == ["999"]
 
 
 def test_escalate_only_shape_no_risk_score():
-    g = ga.build_grounded_block(DET, {"findings": [], "corroborations": [],
-                                       "contradicts_deterministic": False, "notes": ""},
-                                set(), corpus_pin={}, n_retrieved=0)
+    g = ga.build_grounded_block(
+        DET,
+        {"findings": [], "corroborations": [], "contradicts_deterministic": False, "notes": ""},
+        set(),
+        corpus_pin={},
+        n_retrieved=0,
+    )
     assert g["escalate_only"] is True
     assert "risk_level" not in g and "bin" not in g
     assert g["anchor_verdict"] == DET["verdict"]
@@ -41,9 +50,14 @@ def test_unwraps_structured_output_and_quarantines_uncited_finding():
     # A bare-string finding carries NO citations; under the cite-or-abstain grounding contract it is
     # quarantined into dropped_uncited_findings (never kept as a live escalate-only finding on
     # hallucinated/absent support). A finding whose cited PMID is in the retrieved set is kept.
-    out = {"findings": {"value": ["CRS liability",
-                {"finding": "hepatic", "kind": "liver", "cited_pmids": {"value": ["222"]}}], "_source": "llm"},
-           "corroborations": {"value": []}, "contradicts_deterministic": {"value": True}}
+    out = {
+        "findings": {
+            "value": ["CRS liability", {"finding": "hepatic", "kind": "liver", "cited_pmids": {"value": ["222"]}}],
+            "_source": "llm",
+        },
+        "corroborations": {"value": []},
+        "contradicts_deterministic": {"value": True},
+    }
     g = ga.build_grounded_block(DET, out, {"222"}, corpus_pin={}, n_retrieved=2)
     findings = [f["finding"] for f in g["findings"]]
     assert findings == ["hepatic"]
@@ -56,12 +70,17 @@ def test_severity_passthrough_and_safe_default():
     # a valid severity is carried through verbatim; a missing/off-enum severity defaults to 'moderate'
     # so the pseudo-card bin never crashes or silently escalates. A bare-string (uncited) finding is
     # quarantined out of the live findings list (grounding-integrity: no bin on uncited support).
-    out = {"findings": [
-        {"finding": "Ph3 discontinued", "kind": "x", "severity": "high", "cited_pmids": ["1"]},
-        {"finding": "some context", "kind": "x", "severity": "bogus", "cited_pmids": ["1"]},
-        {"finding": "no severity field", "kind": "x", "cited_pmids": ["1"]},
-        "bare string finding"],
-        "corroborations": [], "contradicts_deterministic": False, "notes": ""}
+    out = {
+        "findings": [
+            {"finding": "Ph3 discontinued", "kind": "x", "severity": "high", "cited_pmids": ["1"]},
+            {"finding": "some context", "kind": "x", "severity": "bogus", "cited_pmids": ["1"]},
+            {"finding": "no severity field", "kind": "x", "cited_pmids": ["1"]},
+            "bare string finding",
+        ],
+        "corroborations": [],
+        "contradicts_deterministic": False,
+        "notes": "",
+    }
     g = ga.build_grounded_block(DET, out, {"1"}, corpus_pin={}, n_retrieved=1)
     sev = [f["severity"] for f in g["findings"]]
     assert sev == ["high", "moderate", "moderate"]
@@ -79,6 +98,7 @@ def test_severity_in_tool_schema_enum():
 
 def test_prompt_abstract_truncation_uses_budget():
     from types import SimpleNamespace
+
     long = "X" * 4000
     abs_ = [SimpleNamespace(pmid="1", title="T", abstract=long)]
     # default budget raised from the original 900
@@ -93,12 +113,12 @@ def test_prompt_abstract_truncation_uses_budget():
 def test_axis_config_has_all_rolled_out_axes_with_complete_framing():
     assert {"safety", "dependency", "selectivity", "surface_modality", "tractability_sm"} <= set(ga.AXIS_CONFIG)
     nouns = {cfg["finding_noun"] for cfg in ga.AXIS_CONFIG.values()}
-    assert len(nouns) == len(ga.AXIS_CONFIG)      # each axis has a DISTINCT finding noun
+    assert len(nouns) == len(ga.AXIS_CONFIG)  # each axis has a DISTINCT finding noun
     for ax, cfg in ga.AXIS_CONFIG.items():
         assert cfg["pubmed_category"] and cfg["kinds"] and cfg["finding_noun"]
-        if cfg.get("pseudo_card"):                    # engine-blind pseudo-card
+        if cfg.get("pseudo_card"):  # engine-blind pseudo-card
             assert cfg["verdict_key"] is None and cfg["cards"] == []
-        else:                                         # engine-anchored axis
+        else:  # engine-anchored axis
             assert cfg["verdict_key"] and cfg["cards"]
 
 
@@ -106,18 +126,22 @@ def test_skills_path_resolves_for_live_imports():
     # regression guard: _SKILLS must point at skills/ so `_skills_common` imports at call time
     # (the merged code used parents[2] = repo root, which broke the live path).
     from pathlib import Path
+
     assert (Path(ga._SKILLS) / "_skills_common").is_dir()
 
 
 def test_deterministic_block_selects_axis_cards():
-    pkg = {"synthesis": {"sub_verdicts": {"dependency": {"verdict": "lineage_selective",
-            "driving_rule_id": "d"}}},
-           "cards": [{"card_id": "dependency-lineage-selectivity", "interpretation_call": "lineage_selective"},
-                     {"card_id": "gnomad-lof-constraint", "interpretation_call": "tolerant"}]}
+    pkg = {
+        "synthesis": {"sub_verdicts": {"dependency": {"verdict": "lineage_selective", "driving_rule_id": "d"}}},
+        "cards": [
+            {"card_id": "dependency-lineage-selectivity", "interpretation_call": "lineage_selective"},
+            {"card_id": "gnomad-lof-constraint", "interpretation_call": "tolerant"},
+        ],
+    }
     d = ga.deterministic_block(pkg, "dependency")
     assert d["verdict"] == "lineage_selective"
-    assert "dependency-lineage-selectivity" in d["cards"]      # dependency card included
-    assert "gnomad-lof-constraint" not in d["cards"]           # safety card excluded from dependency axis
+    assert "dependency-lineage-selectivity" in d["cards"]  # dependency card included
+    assert "gnomad-lof-constraint" not in d["cards"]  # safety card excluded from dependency axis
 
 
 def test_all_indication_conditioned_subskill_axes_configured():
@@ -126,30 +150,55 @@ def test_all_indication_conditioned_subskill_axes_configured():
     # 2026-08-20 into the gateless combination_vulnerability sub-skill (verdict=None), so their verdict_key
     # no longer resolves. This test now DOUBLES AS THE ANTI-DRIFT GUARD: it pins the real covered set AND
     # asserts the orphaned keys stay gone (re-adding one fails here).
-    expected = {"safety", "dependency", "selectivity", "surface_modality", "tractability_sm",
-                "mechanism", "genomic_alteration", "differentiation", "expression"}
+    expected = {
+        "safety",
+        "dependency",
+        "selectivity",
+        "surface_modality",
+        "tractability_sm",
+        "mechanism",
+        "genomic_alteration",
+        "differentiation",
+        "expression",
+    }
     assert expected <= set(ga.AXIS_CONFIG)
     # NOT grounded — deliberately (see module docstring): gateless / not-yet-wired / consolidated-away.
-    for absent in ("target_intrinsic", "combination_vulnerability", "immune_context", "cis_coherence",
-                   "synthetic_lethal_partners", "combinatorial_dependency"):
+    for absent in (
+        "target_intrinsic",
+        "combination_vulnerability",
+        "immune_context",
+        "cis_coherence",
+        "synthetic_lethal_partners",
+        "combinatorial_dependency",
+    ):
         assert absent not in ga.AXIS_CONFIG, (
-            f"{absent!r} must not be a grounded axis (consolidation orphan or deliberately un-grounded)")
+            f"{absent!r} must not be a grounded axis (consolidation orphan or deliberately un-grounded)"
+        )
     # each newly-rolled-out axis anchors to a real sub-verdict (not a pseudo-card) with complete framing
-    for ax in (expected - {"safety", "dependency", "selectivity", "surface_modality", "tractability_sm"}):
+    for ax in expected - {"safety", "dependency", "selectivity", "surface_modality", "tractability_sm"}:
         cfg = ga.AXIS_CONFIG[ax]
-        assert cfg["verdict_key"] == ax and cfg["cards"]           # engine-anchored
+        assert cfg["verdict_key"] == ax and cfg["cards"]  # engine-anchored
         assert not cfg.get("pseudo_card")
-        assert cfg["pubmed_category"] in {"biological", "druggability", "translational",
-                                          "clinical", "safety", "commercial"}
+        assert cfg["pubmed_category"] in {
+            "biological",
+            "druggability",
+            "translational",
+            "clinical",
+            "safety",
+            "commercial",
+        }
         assert "WEAKENING" in cfg["finding_noun"] or "DISCORDANCE" in cfg["finding_noun"]  # escalate-only
 
 
 def test_new_axis_deterministic_block_reads_its_verdict():
     # a mechanism axis reads the mechanism sub-verdict + its cards, ignoring other axes' cards
-    pkg = {"synthesis": {"sub_verdicts": {"mechanism": {"verdict": "well_characterized",
-            "driving_rule_id": "m1"}}},
-           "cards": [{"card_id": "signaling-network-mechanism", "interpretation_call": "clear_moa"},
-                     {"card_id": "gnomad-lof-constraint", "interpretation_call": "tolerant"}]}
+    pkg = {
+        "synthesis": {"sub_verdicts": {"mechanism": {"verdict": "well_characterized", "driving_rule_id": "m1"}}},
+        "cards": [
+            {"card_id": "signaling-network-mechanism", "interpretation_call": "clear_moa"},
+            {"card_id": "gnomad-lof-constraint", "interpretation_call": "tolerant"},
+        ],
+    }
     d = ga.deterministic_block(pkg, "mechanism")
     assert d["verdict"] == "well_characterized"
     assert "signaling-network-mechanism" in d["cards"]
@@ -183,14 +232,16 @@ def test_axis_query_disease_scoping():
     assert "colorectal cancer" not in q_saf and "toxicity" in q_saf
     # the former 'biological'-collision axes now produce DISTINCT queries (synthetic_lethal_partners /
     # combinatorial_dependency removed 2026-08-21 with the consolidation cleanup)
-    qs = {ax: ga._axis_query("FOO", "lung cancer", ax) for ax in
-          ("dependency", "mechanism", "genomic_alteration", "expression")}
-    assert len(set(qs.values())) == 4        # all distinct, not one shared 'biological' query
+    qs = {
+        ax: ga._axis_query("FOO", "lung cancer", ax)
+        for ax in ("dependency", "mechanism", "genomic_alteration", "expression")
+    }
+    assert len(set(qs.values())) == 4  # all distinct, not one shared 'biological' query
 
 
 def test_axis_query_unknown_axis_is_target_only():
     q = ga._axis_query("FOO", "lung cancer", "not_an_axis")
-    assert q == "(FOO) AND ()" or "FOO" in q      # defensive: no crash, gene present
+    assert q == "(FOO) AND ()" or "FOO" in q  # defensive: no crash, gene present
 
 
 # ===================== entity + soft-broaden retrieval widening (2026-08-24) =====================
@@ -219,18 +270,19 @@ def test_retrieval_widening_constants():
 # ===================== engine-aware multi-query angles (2026-08-25) =====================
 def test_keyword_angles_mesh_when_disease_scoped_and_available():
     # disease-scoped axis WITH a MeSH clause -> [tight, MeSH-anchored]; the 2nd angle is the MeSH one
-    angles = ga._keyword_angles("KRAS", "colorectal cancer", "dependency",
-                                '"colorectal neoplasms"[MeSH Terms]', disease_scoped=True)
+    angles = ga._keyword_angles(
+        "KRAS", "colorectal cancer", "dependency", '"colorectal neoplasms"[MeSH Terms]', disease_scoped=True
+    )
     assert len(angles) == 2
-    assert "colorectal cancer" in angles[0] and "dependency" in angles[0].lower()   # tight
-    assert "[MeSH Terms]" in angles[1] and "dependency" in angles[1].lower()          # MeSH precision angle
-    assert angles[0] != angles[1]                                                     # complementary, not identical
+    assert "colorectal cancer" in angles[0] and "dependency" in angles[0].lower()  # tight
+    assert "[MeSH Terms]" in angles[1] and "dependency" in angles[1].lower()  # MeSH precision angle
+    assert angles[0] != angles[1]  # complementary, not identical
 
 
 def test_keyword_angles_broad_fallback_when_no_mesh():
     # no MeSH clause -> 2nd angle is the broad (axis-terms-dropped) recall angle
     angles = ga._keyword_angles("STAG1", "bladder cancer", "dependency", None, disease_scoped=True)
-    assert angles[1] == "(STAG1) AND (bladder cancer)"          # broad
+    assert angles[1] == "(STAG1) AND (bladder cancer)"  # broad
     assert "dependency" in angles[0].lower() and "dependency" not in angles[1].lower()
 
 
@@ -244,7 +296,7 @@ def test_keyword_angles_target_scoped_axis_uses_broad_second():
 def test_interleave_round_robin_and_dedup():
     # round-robin across the three lanes (entity, OT-floor, keyword), first occurrence wins on dedup
     entity = ["e1", "e2", "e3"]
-    ot = ["o1", "e2"]          # e2 overlaps entity -> deduped, keeps entity position
+    ot = ["o1", "e2"]  # e2 overlaps entity -> deduped, keeps entity position
     kw = ["k1"]
     assert ga._interleave(entity, ot, kw) == ["e1", "o1", "k1", "e2", "e3"]
     # a missing/empty lane (e.g. PubTator down or no OT floor) is simply skipped

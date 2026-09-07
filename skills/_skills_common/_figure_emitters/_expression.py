@@ -7,15 +7,19 @@ from __future__ import annotations
 
 from pathlib import Path  # noqa: F401 — type hints (stringized by future-annotations)
 from ._common import (  # shared emitter helpers/constants
-    _ensure_methods_path, _has_live_read_error, _plotly_from, _dge_cell_contrasts,
+    _ensure_methods_path,
+    _has_live_read_error,
+    _plotly_from,
+    _dge_cell_contrasts,
     TARGET_CONTRACTS,
 )
 
 
-
-
 def _emit_expression_distribution(
-    summary: dict, out_dir: Path, target: str, indication: str,
+    summary: dict,
+    out_dir: Path,
+    target: str,
+    indication: str,
 ) -> list[dict]:
     """Emit E3.a figures. Prefer the OFFLINE render seam — if card resolution persisted
     plot_data here (run with plot_data_root), render from it via the method's render_from_plot_data
@@ -31,13 +35,13 @@ def _emit_expression_distribution(
     pd_path = out_dir / "plot_data_expression.parquet"
     if pd_path.exists():
         from methods.depmap_expression_distribution.figures import render_from_plot_data
+
         return render_from_plot_data(pd_path, summary, out_dir, target, indication)
 
     # LEGACY fallback: re-execute the method against live data (pre-migration behavior).
     from methods.depmap_expression_distribution import cli as e3acli
-    tpm_by_model, model_metadata, load_errors = e3acli.load_expression_files(
-        release_pin="26q1", target_symbol=target
-    )
+
+    tpm_by_model, model_metadata, load_errors = e3acli.load_expression_files(release_pin="26q1", target_symbol=target)
     if load_errors or not tpm_by_model:
         return []
     recomputed = e3acli.compute_summary_stats(tpm_by_model, model_metadata)
@@ -46,19 +50,38 @@ def _emit_expression_distribution(
     e3acli.emit_plot_data(tpm_by_model, model_metadata, 1.0, out_dir)
     e3acli.emit_manifest(target, "26q1", recomputed, out_dir, [])
     figures = [
-        {"id": "density_expression", "path": "figure_density_expression.svg",
-         "type": "density_histogram_with_kde", "primary": True},
-        {"id": "lineage_strip_expression", "path": "figure_lineage_strip_expression.svg",
-         "type": "per_lineage_strip_plot", "primary": False},
+        {
+            "id": "density_expression",
+            "path": "figure_density_expression.svg",
+            "type": "density_histogram_with_kde",
+            "primary": True,
+        },
+        {
+            "id": "lineage_strip_expression",
+            "path": "figure_lineage_strip_expression.svg",
+            "type": "per_lineage_strip_plot",
+            "primary": False,
+        },
     ]
-    figures += _plotly_from(e3acli, "emit_plotly_specs", tpm_by_model, model_metadata,
-                            target, recomputed, out_dir, TARGET_CONTRACTS, indication)
+    figures += _plotly_from(
+        e3acli,
+        "emit_plotly_specs",
+        tpm_by_model,
+        model_metadata,
+        target,
+        recomputed,
+        out_dir,
+        TARGET_CONTRACTS,
+        indication,
+    )
     return figures
 
 
-
 def _emit_mutation_type_counts(
-    summary: dict, out_dir: Path, target: str, indication: str,
+    summary: dict,
+    out_dir: Path,
+    target: str,
+    indication: str,
 ) -> list[dict]:
     """Emit E4 mutation-type-counts figures. SUMMARY-DRIVEN (Stage 6): the class + lineage bars are
     pure functions of the card summary (compute_summary_stats output the resolver already produced),
@@ -66,7 +89,7 @@ def _emit_mutation_type_counts(
     if _has_live_read_error(summary):
         return []
     if not summary or summary.get("mutation_landscape_class") == "data_unavailable":
-        return []                                   # honest gap — nothing to plot
+        return []  # honest gap — nothing to plot
     _ensure_methods_path()
     from methods.depmap_mutation_type_counts import cli as e4cli
 
@@ -74,16 +97,26 @@ def _emit_mutation_type_counts(
     e4cli.emit_mutation_class_bar(summary, target, out_dir, TARGET_CONTRACTS)
     e4cli.emit_lineage_class_bar(summary, target, out_dir, TARGET_CONTRACTS)
     return [
-        {"id": "mutation_class_bar", "path": "figure_mutation_class_bar.svg",
-         "type": "stacked_bar_mutation_class", "primary": True},
-        {"id": "mutation_lineage_bar", "path": "figure_mutation_lineage_bar.svg",
-         "type": "per_lineage_stacked_bar_mutation", "primary": False},
+        {
+            "id": "mutation_class_bar",
+            "path": "figure_mutation_class_bar.svg",
+            "type": "stacked_bar_mutation_class",
+            "primary": True,
+        },
+        {
+            "id": "mutation_lineage_bar",
+            "path": "figure_mutation_lineage_bar.svg",
+            "type": "per_lineage_stacked_bar_mutation",
+            "primary": False,
+        },
     ]
 
 
-
 def _emit_cn_distribution(
-    summary: dict, out_dir: Path, target: str, indication: str,
+    summary: dict,
+    out_dir: Path,
+    target: str,
+    indication: str,
 ) -> list[dict]:
     """Emit E3.b copy-number figures. Prefer the OFFLINE render seam (persisted plot_data → method
     render_from_plot_data, no live re-read, cannot diverge from the verdict); fall back to legacy live
@@ -97,10 +130,12 @@ def _emit_cn_distribution(
     pd_path = out_dir / "plot_data_cn.parquet"
     if pd_path.exists():
         from methods.depmap_cn_distribution.figures import render_from_plot_data
+
         return render_from_plot_data(pd_path, summary, out_dir, target, indication)
 
     # LEGACY fallback: re-execute the method against live data (pre-migration behavior).
     from methods.depmap_cn_distribution import cli as e3bcli
+
     cn_by, model_metadata, assay_used, load_errors = e3bcli.load_cn_files("26q1", target)
     if load_errors or not cn_by:
         return []
@@ -111,23 +146,28 @@ def _emit_cn_distribution(
     e3bcli.emit_plot_data(cn_by, model_metadata, out_dir)
     e3bcli.emit_manifest(target, "26q1", recomputed, out_dir, [])
     figures = [
-        {"id": "density_cn", "path": "figure_density_cn.svg",
-         "type": "density_histogram_with_kde", "primary": True},
-        {"id": "lineage_strip_cn", "path": "figure_lineage_strip_cn.svg",
-         "type": "per_lineage_strip_plot", "primary": False},
-        {"id": "waterfall_cn", "path": "figure_waterfall_cn.svg",
-         "type": "ranked_waterfall", "primary": False},
+        {"id": "density_cn", "path": "figure_density_cn.svg", "type": "density_histogram_with_kde", "primary": True},
+        {
+            "id": "lineage_strip_cn",
+            "path": "figure_lineage_strip_cn.svg",
+            "type": "per_lineage_strip_plot",
+            "primary": False,
+        },
+        {"id": "waterfall_cn", "path": "figure_waterfall_cn.svg", "type": "ranked_waterfall", "primary": False},
     ]
     # Interactive twins — from the SAME cn_by + recomputed the SVGs used (no drift). cn gained a plotly
     # twin with the Stage-3 migration; keep the legacy fallback aligned with the offline render seam.
-    figures += _plotly_from(e3bcli, "emit_plotly_specs", cn_by, model_metadata,
-                            target, recomputed, out_dir, TARGET_CONTRACTS)
+    figures += _plotly_from(
+        e3bcli, "emit_plotly_specs", cn_by, model_metadata, target, recomputed, out_dir, TARGET_CONTRACTS
+    )
     return figures
 
 
-
 def _emit_tumor_elevation_breadth(
-    summary: dict, out_dir: Path, target: str, indication: str,
+    summary: dict,
+    out_dir: Path,
+    target: str,
+    indication: str,
 ) -> list[dict]:
     """Emit the pan-cancer by-tissue tumor-vs-normal TPM DISTRIBUTION for the tumor-elevation-breadth
     card. TCGA tumor (per study) + GTEx normal (per tissue) co-plotted on ONE log2(TPM+1) axis, read
@@ -145,26 +185,33 @@ def _emit_tumor_elevation_breadth(
     pd_path = out_dir / "plot_data_pan_cancer_by_tissue.parquet"
     if pd_path.exists():
         from methods.tcga_gtex_tpm_quantiles.figures import render_from_plot_data
+
         return render_from_plot_data(pd_path, summary, out_dir, target, indication)
 
     # LEGACY fallback: re-read the quantile product live (pre-migration behavior); persist for reuse.
     from methods.tcga_gtex_tpm_quantiles import read as tpmq
+
     if tpmq.read_pan_cancer_by_tissue(target).empty:
-        return []                                   # target absent from the quantile product
+        return []  # target absent from the quantile product
     tpmq.emit_by_tissue_distribution(target, out_dir, TARGET_CONTRACTS)
     tpmq.emit_plot_data(target, out_dir)
     figures = [
-        {"id": "pan_cancer_by_tissue_distribution",
-         "path": "figure_pan_cancer_by_tissue_distribution.svg",
-         "type": "pan_cancer_by_tissue_tumor_vs_normal_distribution", "primary": True},
+        {
+            "id": "pan_cancer_by_tissue_distribution",
+            "path": "figure_pan_cancer_by_tissue_distribution.svg",
+            "type": "pan_cancer_by_tissue_tumor_vs_normal_distribution",
+            "primary": True,
+        },
     ]
     figures += _plotly_from(tpmq, "emit_plotly_specs", target, out_dir, TARGET_CONTRACTS)
     return figures
 
 
-
 def _emit_tumor_expression_distribution(
-    summary: dict, out_dir: Path, target: str, indication: str,
+    summary: dict,
+    out_dir: Path,
+    target: str,
+    indication: str,
 ) -> list[dict]:
     """Emit the Q1 per-sample tumor RNA distribution figure (tumor-rna-distribution card):
     tumor (TCGA) vs matched-normal (GTEx) per-sample log2(TPM+1) box+strip with the normal-p95 line
@@ -173,7 +220,7 @@ def _emit_tumor_expression_distribution(
     if _has_live_read_error(summary):
         return []
     if not summary or summary.get("tumor_expression_class") == "data_unavailable":
-        return []                                   # target absent from TCGA long product here
+        return []  # target absent from TCGA long product here
     _ensure_methods_path()
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -181,24 +228,31 @@ def _emit_tumor_expression_distribution(
     pd_path = out_dir / "plot_data_expression_distribution.parquet"
     if pd_path.exists():
         from methods.tcga_gtex_expression_distribution.figures import render_from_plot_data
+
         return render_from_plot_data(pd_path, summary, out_dir, target, indication)
 
     # LEGACY fallback: re-execute the method against live data (pre-migration behavior).
     from methods.tcga_gtex_expression_distribution import cli as exprdist
+
     exprdist.emit_svg(target, indication, summary, out_dir, TARGET_CONTRACTS)
     exprdist.emit_plot_data(target, indication, out_dir)
     figures = [
-        {"id": "expression_distribution_per_sample",
-         "path": "figure_expression_distribution.svg",
-         "type": "per_sample_tumor_normal_distribution", "primary": True},
+        {
+            "id": "expression_distribution_per_sample",
+            "path": "figure_expression_distribution.svg",
+            "type": "per_sample_tumor_normal_distribution",
+            "primary": True,
+        },
     ]
     figures += _plotly_from(exprdist, "emit_plotly_specs", target, indication, out_dir, TARGET_CONTRACTS)
     return figures
 
 
-
 def _emit_sc_tumor_celltype_expression(
-    summary: dict, out_dir: Path, target: str, indication: str,
+    summary: dict,
+    out_dir: Path,
+    target: str,
+    indication: str,
 ) -> list[dict]:
     """Emit the single-cell per-compartment detection bar (tumor-scrna-celltype-expression card):
     cross-donor median detection_fraction per compartment, malignant highlighted. Summary-driven
@@ -206,21 +260,27 @@ def _emit_sc_tumor_celltype_expression(
     if _has_live_read_error(summary):
         return []
     if not summary or summary.get("sc_expression_class") == "data_unavailable":
-        return []                                   # no product / gene absent (honest gap)
+        return []  # no product / gene absent (honest gap)
     _ensure_methods_path()
     from methods.sc_tumor_expression_celltype import cli as sccli
+
     out_dir.mkdir(parents=True, exist_ok=True)
     sccli.emit_compartment_bar(summary, target, out_dir, TARGET_CONTRACTS)
     return [
-        {"id": "sc_compartment_detection",
-         "path": "figure_sc_compartment_detection.svg",
-         "type": "per_compartment_detection_bar", "primary": True},
+        {
+            "id": "sc_compartment_detection",
+            "path": "figure_sc_compartment_detection.svg",
+            "type": "per_compartment_detection_bar",
+            "primary": True,
+        },
     ]
 
 
-
 def _emit_tumor_expression_distribution_subtype(
-    summary: dict, out_dir: Path, target: str, indication: str,
+    summary: dict,
+    out_dir: Path,
+    target: str,
+    indication: str,
 ) -> list[dict]:
     """Emit the subtype panel (tumor-rna-distribution-by-subtype card): one box+strip row per
     molecular subtype, ordered by median, colored by subtype_signal, pooled-median reference line.
@@ -229,7 +289,7 @@ def _emit_tumor_expression_distribution_subtype(
     if _has_live_read_error(summary):
         return []
     if not summary or not summary.get("subtype_axis_available"):
-        return []                                   # no landed shard for this indication (honest)
+        return []  # no landed shard for this indication (honest)
     _ensure_methods_path()
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -237,26 +297,32 @@ def _emit_tumor_expression_distribution_subtype(
     pd_path = out_dir / "plot_data_subtype.parquet"
     if pd_path.exists():
         from methods.tcga_gtex_expression_distribution.figures import render_subtype_from_plot_data
+
         return render_subtype_from_plot_data(pd_path, summary, out_dir, target, indication)
 
     # LEGACY fallback: re-execute the method against live data (pre-migration behavior).
     from methods.tcga_gtex_expression_distribution import cli as exprdist
+
     svg = exprdist.emit_subtype_svg(target, indication, out_dir, TARGET_CONTRACTS)
     if svg is None:
-        return []                                   # axis available but no measured strata
+        return []  # axis available but no measured strata
     figures = [
-        {"id": "expression_distribution_subtype_panel",
-         "path": "figure_expression_distribution_subtype.svg",
-         "type": "per_subtype_distribution_panel", "primary": True},
+        {
+            "id": "expression_distribution_subtype_panel",
+            "path": "figure_expression_distribution_subtype.svg",
+            "type": "per_subtype_distribution_panel",
+            "primary": True,
+        },
     ]
-    figures += _plotly_from(exprdist, "emit_subtype_plotly_specs", target, indication,
-                            out_dir, TARGET_CONTRACTS)
+    figures += _plotly_from(exprdist, "emit_subtype_plotly_specs", target, indication, out_dir, TARGET_CONTRACTS)
     return figures
 
 
-
 def _emit_tumor_vs_normal_percentile_crossing(
-    summary: dict, out_dir: Path, target: str, indication: str,
+    summary: dict,
+    out_dir: Path,
+    target: str,
+    indication: str,
 ) -> list[dict]:
     """Emit the Q2 selectivity figure (tumor-vs-normal-percentile-crossing card): reuses the
     tumor-vs-matched-normal box+strip with the normal-p95 line + fraction-above annotation — the
@@ -273,24 +339,31 @@ def _emit_tumor_vs_normal_percentile_crossing(
     pd_path = out_dir / "plot_data_expression_distribution.parquet"
     if pd_path.exists():
         from methods.tcga_gtex_expression_distribution.figures import render_from_plot_data
+
         return render_from_plot_data(pd_path, summary, out_dir, target, indication)
 
     # LEGACY fallback: re-execute the method against live data (pre-migration behavior).
     from methods.tcga_gtex_expression_distribution import cli as exprdist
+
     # emit_svg reads its own tumor/normal vectors; pass the summary through for the p95 annotation.
     exprdist.emit_svg(target, indication, summary, out_dir, TARGET_CONTRACTS)
     figures = [
-        {"id": "expression_distribution_per_sample",
-         "path": "figure_expression_distribution.svg",
-         "type": "per_sample_tumor_normal_distribution", "primary": True},
+        {
+            "id": "expression_distribution_per_sample",
+            "path": "figure_expression_distribution.svg",
+            "type": "per_sample_tumor_normal_distribution",
+            "primary": True,
+        },
     ]
     figures += _plotly_from(exprdist, "emit_plotly_specs", target, indication, out_dir, TARGET_CONTRACTS)
     return figures
 
 
-
 def _emit_normal_tissue_liability_gtex(
-    summary: dict, out_dir: Path, target: str, indication: str,
+    summary: dict,
+    out_dir: Path,
+    target: str,
+    indication: str,
 ) -> list[dict]:
     """Emit the Q3 normal-tissue liability atlas (normal-tissue-liability-gtex card): per-GTEx-tissue
     median bar, critical organs red, HIGH cutoff line. target-grain (indication ignored by the
@@ -306,25 +379,32 @@ def _emit_normal_tissue_liability_gtex(
     pd_path = out_dir / "plot_data_normal_tissue_atlas.parquet"
     if pd_path.exists():
         from methods.tcga_gtex_expression_distribution.figures import render_liability_from_plot_data
+
         return render_liability_from_plot_data(pd_path, summary, out_dir, target, indication)
 
     # LEGACY fallback: re-execute the method against live data (pre-migration behavior).
     from methods.tcga_gtex_expression_distribution import cli as exprdist
+
     svg = exprdist.emit_liability_svg(target, out_dir, TARGET_CONTRACTS)
     if svg is None:
         return []
     figures = [
-        {"id": "normal_tissue_liability_atlas",
-         "path": "figure_normal_tissue_liability.svg",
-         "type": "normal_tissue_atlas_bar", "primary": True},
+        {
+            "id": "normal_tissue_liability_atlas",
+            "path": "figure_normal_tissue_liability.svg",
+            "type": "normal_tissue_atlas_bar",
+            "primary": True,
+        },
     ]
     figures += _plotly_from(exprdist, "emit_liability_plotly_specs", target, out_dir, TARGET_CONTRACTS)
     return figures
 
 
-
 def _emit_recommended_models(
-    summary: dict, out_dir: Path, target: str, indication: str,
+    summary: dict,
+    out_dir: Path,
+    target: str,
+    indication: str,
 ) -> list[dict]:
     """Emit the Q4 patient↔model correspondence scatter (recommended-models card): DepMap models on
     target TPM (x) vs Chronos (y), screen roles colored, patient tumor IQR shaded, lineage emphasized.
@@ -340,33 +420,39 @@ def _emit_recommended_models(
     pd_path = out_dir / "plot_data_recommended_models.parquet"
     if pd_path.exists():
         from methods.patient_model_expression_correspondence.figures import render_from_plot_data
+
         return render_from_plot_data(pd_path, summary, out_dir, target, indication)
 
     # LEGACY fallback: re-execute the method against live data (pre-migration behavior).
     from methods.patient_model_expression_correspondence import cli as pmc
+
     svg = pmc.emit_svg(target, indication, summary, out_dir, TARGET_CONTRACTS)
     if svg is None:
         return []
     figures = [
-        {"id": "recommended_models_scatter",
-         "path": "figure_recommended_models.svg",
-         "type": "patient_model_correspondence_scatter", "primary": True},
+        {
+            "id": "recommended_models_scatter",
+            "path": "figure_recommended_models.svg",
+            "type": "patient_model_correspondence_scatter",
+            "primary": True,
+        },
     ]
     figures += _plotly_from(pmc, "emit_plotly_specs", target, indication, out_dir, TARGET_CONTRACTS)
     return figures
 
 
-
 def _emit_rna_protein_concordance(
-    summary: dict, out_dir: Path, target: str, indication: str,
+    summary: dict,
+    out_dir: Path,
+    target: str,
+    indication: str,
 ) -> list[dict]:
     """Emit the Q5 RNA↔protein concordance scatter (cellline-rna-protein-concordance card): per-model target
     RNA (x) vs protein (y) with fitted trend + r. Gated on rna_as_biomarker (data_unavailable /
     insufficient → no figure). On _live_read_error → []."""
     if _has_live_read_error(summary):
         return []
-    if not summary or summary.get("rna_as_biomarker") in (None, "data_unavailable",
-                                                          "insufficient_paired_models"):
+    if not summary or summary.get("rna_as_biomarker") in (None, "data_unavailable", "insufficient_paired_models"):
         return []
     _ensure_methods_path()
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -375,33 +461,39 @@ def _emit_rna_protein_concordance(
     pd_path = out_dir / "plot_data_rna_protein.parquet"
     if pd_path.exists():
         from methods.depmap_rna_protein_concordance.figures import render_from_plot_data
+
         return render_from_plot_data(pd_path, summary, out_dir, target, indication)
 
     # LEGACY fallback: re-execute the method against live data (pre-migration behavior).
     from methods.depmap_rna_protein_concordance import cli as rpc
+
     svg = rpc.emit_svg(target, indication, summary, out_dir, TARGET_CONTRACTS)
     if svg is None:
         return []
     figures = [
-        {"id": "rna_protein_concordance_scatter",
-         "path": "figure_rna_protein_concordance.svg",
-         "type": "rna_protein_concordance_scatter", "primary": True},
+        {
+            "id": "rna_protein_concordance_scatter",
+            "path": "figure_rna_protein_concordance.svg",
+            "type": "rna_protein_concordance_scatter",
+            "primary": True,
+        },
     ]
     figures += _plotly_from(rpc, "emit_plotly_specs", target, indication, out_dir, TARGET_CONTRACTS)
     return figures
 
 
-
 def _emit_rna_protein_concordance_tumor(
-    summary: dict, out_dir: Path, target: str, indication: str,
+    summary: dict,
+    out_dir: Path,
+    target: str,
+    indication: str,
 ) -> list[dict]:
     """Emit the Q5 TUMOR RNA↔protein concordance scatter (rna-protein-concordance-tumor card):
     per-tumor RNA (x) vs protein (y) from the matched CPTAC product. Gated on rna_as_biomarker
     (data_unavailable / insufficient_paired_tumors → no figure). On _live_read_error → []."""
     if _has_live_read_error(summary):
         return []
-    if not summary or summary.get("rna_as_biomarker") in (None, "data_unavailable",
-                                                          "insufficient_paired_tumors"):
+    if not summary or summary.get("rna_as_biomarker") in (None, "data_unavailable", "insufficient_paired_tumors"):
         return []
     _ensure_methods_path()
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -410,25 +502,32 @@ def _emit_rna_protein_concordance_tumor(
     pd_path = out_dir / "plot_data_rna_protein_tumor.parquet"
     if pd_path.exists():
         from methods.depmap_rna_protein_concordance.figures import render_tumor_from_plot_data
+
         return render_tumor_from_plot_data(pd_path, summary, out_dir, target, indication)
 
     # LEGACY fallback: re-execute the method against live data (pre-migration behavior).
     from methods.depmap_rna_protein_concordance import cli as rpc
+
     svg = rpc.emit_tumor_svg(target, indication, out_dir, TARGET_CONTRACTS)
     if svg is None:
         return []
     figures = [
-        {"id": "rna_protein_concordance_tumor_scatter",
-         "path": "figure_rna_protein_concordance_tumor.svg",
-         "type": "rna_protein_concordance_tumor_scatter", "primary": True},
+        {
+            "id": "rna_protein_concordance_tumor_scatter",
+            "path": "figure_rna_protein_concordance_tumor.svg",
+            "type": "rna_protein_concordance_tumor_scatter",
+            "primary": True,
+        },
     ]
     figures += _plotly_from(rpc, "emit_tumor_plotly_specs", target, indication, out_dir, TARGET_CONTRACTS)
     return figures
 
 
-
 def _emit_tumor_vs_normal_selectivity(
-    summary: dict, out_dir: Path, target: str, indication: str,
+    summary: dict,
+    out_dir: Path,
+    target: str,
+    indication: str,
 ) -> list[dict]:
     """Emit tumor-vs-normal-selectivity 4-panel figure (v3, four-cell).
 
@@ -451,6 +550,7 @@ def _emit_tumor_vs_normal_selectivity(
     pd_path = out_dir / "plot_data_dge_per_sample.parquet"
     if pd_path.exists():
         from methods.dge_deseq2.figures import render_selectivity_from_plot_data
+
         return render_selectivity_from_plot_data(pd_path, summary, out_dir, target, indication)
 
     # LEGACY fallback: stream per-sample from recount3 live; persist it for reuse (offline next time).
@@ -459,7 +559,8 @@ def _emit_tumor_vs_normal_selectivity(
 
     try:
         per_sample = dge_read.read_per_sample_expression_all_three_groups(
-            target=target, indication=indication,
+            target=target,
+            indication=indication,
         )
     except Exception:
         per_sample = None
@@ -467,27 +568,42 @@ def _emit_tumor_vs_normal_selectivity(
     dge_emit.emit_tumor_vs_normal_selectivity_4panel(
         sensitivity_summary=summary,
         per_sample_data=per_sample,
-        target=target, indication=indication,
-        out_dir=out_dir, target_contracts_dir=TARGET_CONTRACTS,
+        target=target,
+        indication=indication,
+        out_dir=out_dir,
+        target_contracts_dir=TARGET_CONTRACTS,
     )
     dge_emit.emit_plot_data(per_sample, out_dir)
     figures = [
-        {"id": "tumor_vs_normal_selectivity_4panel",
-         "path": "figure_tumor_vs_normal_selectivity_4panel.svg",
-         "type": "box_forest_sensitivity_panel", "primary": True},
+        {
+            "id": "tumor_vs_normal_selectivity_4panel",
+            "path": "figure_tumor_vs_normal_selectivity_4panel.svg",
+            "type": "box_forest_sensitivity_panel",
+            "primary": True,
+        },
     ]
     # Interactive twin — same per_sample_data + the 4-cell contrasts the SVG forest draws
     # (extracted from the SAME sensitivity_summary; no recompute).
     contrasts = _dge_cell_contrasts(summary)
-    figures += _plotly_from(dge_emit, "emit_plotly_specs", per_sample, contrasts,
-                            target, indication, out_dir, TARGET_CONTRACTS,
-                            "tumor_vs_normal")
+    figures += _plotly_from(
+        dge_emit,
+        "emit_plotly_specs",
+        per_sample,
+        contrasts,
+        target,
+        indication,
+        out_dir,
+        TARGET_CONTRACTS,
+        "tumor_vs_normal",
+    )
     return figures
 
 
-
 def _emit_expression_tumor_vs_adjacent(
-    summary: dict, out_dir: Path, target: str, indication: str,
+    summary: dict,
+    out_dir: Path,
+    target: str,
+    indication: str,
 ) -> list[dict]:
     """Emit the DEG figure showing tumor vs adjacent-normal AND tumor vs GTEx-normal.
 
@@ -522,55 +638,86 @@ def _emit_expression_tumor_vs_adjacent(
     if sens is not None:
         try:
             per_sample = dge_read.read_per_sample_expression_all_three_groups(
-                target=target, indication=indication,
+                target=target,
+                indication=indication,
             )
         except Exception:  # noqa: BLE001
             per_sample = None
         dge_emit.emit_tumor_vs_normal_selectivity_4panel(
-            sensitivity_summary=sens, per_sample_data=per_sample,
-            target=target, indication=indication,
-            out_dir=out_dir, target_contracts_dir=TARGET_CONTRACTS,
+            sensitivity_summary=sens,
+            per_sample_data=per_sample,
+            target=target,
+            indication=indication,
+            out_dir=out_dir,
+            target_contracts_dir=TARGET_CONTRACTS,
         )
         figures = [
-            {"id": "tumor_vs_normal_3group",
-             "path": "figure_tumor_vs_normal_selectivity_4panel.svg",
-             "type": "box_forest_sensitivity_panel", "primary": True},
+            {
+                "id": "tumor_vs_normal_3group",
+                "path": "figure_tumor_vs_normal_selectivity_4panel.svg",
+                "type": "box_forest_sensitivity_panel",
+                "primary": True,
+            },
         ]
-        figures += _plotly_from(dge_emit, "emit_plotly_specs", per_sample,
-                                _dge_cell_contrasts(sens), target, indication,
-                                out_dir, TARGET_CONTRACTS, "tumor_vs_normal")
+        figures += _plotly_from(
+            dge_emit,
+            "emit_plotly_specs",
+            per_sample,
+            _dge_cell_contrasts(sens),
+            target,
+            indication,
+            out_dir,
+            TARGET_CONTRACTS,
+            "tumor_vs_normal",
+        )
         return figures
 
     # Fallback: legacy 2-group compound (adjacent only).
     try:
         per_sample = dge_read.read_per_sample_expression_tumor_vs_adjacent(
-            target=target, indication=indication,
+            target=target,
+            indication=indication,
         )
     except Exception:  # noqa: BLE001
         per_sample = None
     dge_emit.emit_tumor_vs_adjacent_compound(
-        summary=summary, per_sample_data=per_sample,
-        target=target, indication=indication,
-        out_dir=out_dir, target_contracts_dir=TARGET_CONTRACTS,
+        summary=summary,
+        per_sample_data=per_sample,
+        target=target,
+        indication=indication,
+        out_dir=out_dir,
+        target_contracts_dir=TARGET_CONTRACTS,
     )
     figures = [
-        {"id": "tumor_vs_adjacent_compound",
-         "path": "figure_tumor_vs_adjacent_compound.svg",
-         "type": "violin_paired_with_significance", "primary": True},
+        {
+            "id": "tumor_vs_adjacent_compound",
+            "path": "figure_tumor_vs_adjacent_compound.svg",
+            "type": "violin_paired_with_significance",
+            "primary": True,
+        },
     ]
     contrasts = []
     if summary.get("log2_fc") is not None:
-        contrasts = [{"label": "tumor vs adj-normal",
-                      "log2_fc": summary["log2_fc"], "q_value": summary.get("q_value")}]
-    figures += _plotly_from(dge_emit, "emit_plotly_specs", per_sample, contrasts,
-                            target, indication, out_dir, TARGET_CONTRACTS,
-                            "tumor_vs_adjacent")
+        contrasts = [{"label": "tumor vs adj-normal", "log2_fc": summary["log2_fc"], "q_value": summary.get("q_value")}]
+    figures += _plotly_from(
+        dge_emit,
+        "emit_plotly_specs",
+        per_sample,
+        contrasts,
+        target,
+        indication,
+        out_dir,
+        TARGET_CONTRACTS,
+        "tumor_vs_adjacent",
+    )
     return figures
 
 
-
 def _emit_expression_purity_confound(
-    summary: dict, out_dir: Path, target: str, indication: str,
+    summary: dict,
+    out_dir: Path,
+    target: str,
+    indication: str,
 ) -> list[dict]:
     """Emit the expression-purity-confound figure (Q9): confound class + expression↔purity
     correlation. Gated on a computed correlation (data_unavailable / insufficient / no-r → []). On
@@ -580,25 +727,33 @@ def _emit_expression_purity_confound(
     if not summary:
         return []
     cls = summary.get("purity_confound_class")
-    if cls in (None, "data_unavailable", "insufficient_paired_samples") \
-            or summary.get("expression_purity_pearson_r") is None:
+    if (
+        cls in (None, "data_unavailable", "insufficient_paired_samples")
+        or summary.get("expression_purity_pearson_r") is None
+    ):
         return []
     _ensure_methods_path()
     from methods.expression_purity_confound import cli as epc
+
     out_dir.mkdir(parents=True, exist_ok=True)
     svg = epc.emit_svg(target, indication, summary, out_dir, TARGET_CONTRACTS)
     if svg is None:
         return []
     return [
-        {"id": "expression_purity_confound_card",
-         "path": "figure_expression_purity_confound.svg",
-         "type": "expression_purity_confound_card", "primary": True},
+        {
+            "id": "expression_purity_confound_card",
+            "path": "figure_expression_purity_confound.svg",
+            "type": "expression_purity_confound_card",
+            "primary": True,
+        },
     ]
 
 
-
 def _emit_expression_clinical_association(
-    summary: dict, out_dir: Path, target: str, indication: str,
+    summary: dict,
+    out_dir: Path,
+    target: str,
+    indication: str,
 ) -> list[dict]:
     """Emit the expression-clinical-association figure (Q11): survival-association class + log-rank
     stats. Gated on a computed log-rank (data_unavailable / insufficient / no-p → []). On
@@ -608,17 +763,20 @@ def _emit_expression_clinical_association(
     if not summary:
         return []
     cls = summary.get("survival_association_class")
-    if cls in (None, "data_unavailable", "insufficient_survival_data") \
-            or summary.get("logrank_p") is None:
+    if cls in (None, "data_unavailable", "insufficient_survival_data") or summary.get("logrank_p") is None:
         return []
     _ensure_methods_path()
     from methods.expression_clinical_association import cli as eca
+
     out_dir.mkdir(parents=True, exist_ok=True)
     svg = eca.emit_svg(target, indication, summary, out_dir, TARGET_CONTRACTS)
     if svg is None:
         return []
     return [
-        {"id": "expression_clinical_association_card",
-         "path": "figure_expression_clinical_association.svg",
-         "type": "expression_clinical_association_card", "primary": True},
+        {
+            "id": "expression_clinical_association_card",
+            "path": "figure_expression_clinical_association.svg",
+            "type": "expression_clinical_association_card",
+            "primary": True,
+        },
     ]

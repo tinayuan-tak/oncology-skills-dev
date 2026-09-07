@@ -2,6 +2,7 @@
 measurement_type from question_hierarchy.yaml (no hand-wired card-ids), confidence = agreement ×
 sample-size. Verdict-INERT: presence_verdict byte-stable. skipif target-contracts absent (needs
 measurement_type lookup)."""
+
 from __future__ import annotations
 
 import copy
@@ -25,8 +26,11 @@ if str(SKILLS_ROOT) not in sys.path:
 
 
 def _contracts_absent():
-    root = Path(os.environ.get("TARGET_CONTRACTS_ROOT",
-                               "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
+    root = Path(
+        os.environ.get(
+            "TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
+        )
+    )
     return not (root / "cards").is_dir()
 
 
@@ -41,6 +45,7 @@ def _headline(tmp_path_factory):
         def _read(cid, t, i, *a, **k):
             s = frozen.get(cid)
             return copy.deepcopy(s) if isinstance(s, dict) and s and not s.get("_freeze_error") else None
+
         return _read
 
     out = tmp_path_factory.mktemp("subgroup")
@@ -69,7 +74,7 @@ def test_subgroups_derived_from_hierarchy(_headline):
     ab = sg["abundance"]
     assert ab["signal"] == "strong"
     assert ab["confidence"] in ("moderate", "high")
-    assert ab["conflict"] is True                                  # cell-line protein bottom-decile level
+    assert ab["conflict"] is True  # cell-line protein bottom-decile level
     # ProCan (the ledger-audit orphan) is now a DERIVED abundance source — no hand-wiring
     assert any(s["card"] == "cellline-protein-abundance-procan" for s in ab["sources"])
     assert sg["malignant_intrinsic"]["signal"] == "strong"
@@ -84,10 +89,10 @@ def test_signal_unified_from_claim_vector(_headline):
     cv = _headline.get("claim_vector") or {}
     ab = sg["abundance"]
     assert ab["signal_source"] == "claim_vector"
-    assert ab["signal"] == cv["A"]["signal"]                       # not the coarse heuristic re-read
+    assert ab["signal"] == cv["A"]["signal"]  # not the coarse heuristic re-read
     claims = {c["axis"]: c for c in ab.get("claims", [])}
-    assert "A" in claims and "evidence_atom" in claims["A"]        # rules→data trace carried through
-    assert len(ab["sources"]) >= 2                                 # cards still corroborate the signal
+    assert "A" in claims and "evidence_atom" in claims["A"]  # rules→data trace carried through
+    assert len(ab["sources"]) >= 2  # cards still corroborate the signal
     assert sg["malignant_intrinsic"]["claims"][0]["axis"] == "C"
     assert sg["generality"]["claims"][0]["axis"] == "D"
 

@@ -5,6 +5,7 @@ test does not depend on the live target-contracts resolver content (which shifts
 single-rule toggle that flips the verdict, a genuinely robust verdict (redundant when_any_fired),
 the no-resolver → None contract, determinism, and non-mutation of the input `fired` list.
 """
+
 from __future__ import annotations
 
 import sys
@@ -12,7 +13,7 @@ from pathlib import Path
 
 import yaml
 
-SKILLS = Path(__file__).resolve().parents[2]   # .../skills
+SKILLS = Path(__file__).resolve().parents[2]  # .../skills
 if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
 
@@ -38,7 +39,7 @@ def test_single_rule_toggle_flips(tmp_path):
     fired = [{"rule_id": "killer-rule"}]
     fa = flip_analysis(fired, "g", contracts_repo=tmp_path)
     assert fa["base_verdict"] == "the_killer"
-    assert fa["n_relevant"] == 3               # killer-rule, pos-a, pos-b
+    assert fa["n_relevant"] == 3  # killer-rule, pos-a, pos-b
     assert not fa["robust"]
     # removing killer-rule falls through to the default → a flip; adding pos-a/pos-b does NOT (killer
     # rung is first and still fires), so exactly one flip.
@@ -50,8 +51,7 @@ def test_single_rule_toggle_flips(tmp_path):
 def test_robust_verdict_has_zero_flips(tmp_path):
     # when_any_fired:[a,b] with BOTH fired — removing either leaves the other firing the same verdict,
     # and there are no absent relevant rules to add. Genuinely robust.
-    _write_resolver(tmp_path, "g", {"default": "D",
-                                    "resolve": [{"when_any_fired": ["a", "b"], "verdict": "P"}]})
+    _write_resolver(tmp_path, "g", {"default": "D", "resolve": [{"when_any_fired": ["a", "b"], "verdict": "P"}]})
     fa = flip_analysis([{"rule_id": "a"}, {"rule_id": "b"}], "g", contracts_repo=tmp_path)
     assert fa["base_verdict"] == "P"
     assert fa["robust"] is True
@@ -88,7 +88,7 @@ def test_non_selectivity_gate_ignores_veto_rule(tmp_path):
     _write_resolver(tmp_path, "g", _KILLER_SPEC)
     fired = [{"rule_id": "killer-rule"}, {"rule_id": "tvn-no-therapeutic-window-veto"}]
     fa = flip_analysis(fired, "g", contracts_repo=tmp_path)
-    assert fa["base_verdict"] == "the_killer"   # unchanged by the (selectivity-only) clamp
+    assert fa["base_verdict"] == "the_killer"  # unchanged by the (selectivity-only) clamp
 
 
 def test_deterministic(tmp_path):
@@ -104,4 +104,4 @@ def test_does_not_mutate_input_fired(tmp_path):
     fired = [{"rule_id": "killer-rule"}]
     before = [dict(f) for f in fired]
     flip_analysis(fired, "g", contracts_repo=tmp_path)
-    assert fired == before   # the scan toggles copies, never the caller's list
+    assert fired == before  # the scan toggles copies, never the caller's list

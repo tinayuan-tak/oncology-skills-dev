@@ -3,6 +3,7 @@ skill_report adoption for mechanism-and-pharmacology (4th GATING adopter, after 
 functional-requirement + tractability-small-molecule). Pins role=gating, call==the resolved verdict
 verbatim, a canonical polarity, an EMPTY question_table (this skill has none), and best-effort degrade.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -23,9 +24,9 @@ def test_headline_emits_gating_skill_report():
     sr = hl.get("skill_report")
     assert isinstance(sr, dict), f"expected a skill_report dict, got {sr!r}"
     assert sr["role"] == "gating"
-    assert sr["call"] == "well_characterized"                    # verbatim verdict — no recompute
+    assert sr["call"] == "well_characterized"  # verbatim verdict — no recompute
     assert sr["polarity"] in ("supportive", "neutral", "opposing", "insufficient", "not_applicable")
-    assert sr["polarity"] != "killer"                            # mechanism has no veto-killer verdict
+    assert sr["polarity"] != "killer"  # mechanism has no veto-killer verdict
     # mechanism NOW has a question_table (component parity) — 5 rows (NETWORK/PHOSPHO/PATHWAY/
     # PERTURBATION/PREDICTABILITY), carried into the skill_report
     assert isinstance(sr["question_table"], list) and len(sr["question_table"]) == 5
@@ -43,6 +44,6 @@ def test_skill_report_fault_degrades_not_aborts(monkeypatch):
 
     monkeypatch.setattr(mech, "build_skill_report", _boom)
     hl = mech._headline(_cards(), [], ("insufficient", None))
-    assert hl["mechanism_verdict"] == "insufficient"             # spine survives the projection fault
+    assert hl["mechanism_verdict"] == "insufficient"  # spine survives the projection fault
     assert hl["skill_report"] is None
     assert hl["_enrichment_errors"]["skill_report"].startswith("ValueError")

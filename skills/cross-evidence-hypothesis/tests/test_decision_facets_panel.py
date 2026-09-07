@@ -2,6 +2,7 @@
 facets): the integrator consumes the remaining synthesis.decision_facets members — surfacing the
 spine's authoritative cross-gate correlation in evidence_independence and rendering fragility /
 competitor / cross-gate into the LLM panel. All verdict-inert (offline; LLM stubbed)."""
+
 from __future__ import annotations
 
 import json
@@ -26,10 +27,19 @@ def _pkg_with_facets():
     pkg["synthesis"]["decision_facets"] = {
         "cross_gate_shared_evidence": {
             "shared_input_cards": {"copy-number-distribution": ["safety", "genomic_alteration"]},
-            "correlated_gate_pairs": [["safety", "genomic_alteration"]]},
-        "fragility": {"contested": True, "acquisition_backlog": [
-            {"axis": "immune_context", "coverage": "low", "action": "acquire",
-             "missing_cards": [{"card_id": "immune-context", "availability_state": "not_wired"}]}]},
+            "correlated_gate_pairs": [["safety", "genomic_alteration"]],
+        },
+        "fragility": {
+            "contested": True,
+            "acquisition_backlog": [
+                {
+                    "axis": "immune_context",
+                    "coverage": "low",
+                    "action": "acquire",
+                    "missing_cards": [{"card_id": "immune-context", "availability_state": "not_wired"}],
+                }
+            ],
+        },
         "competitor_crossref": {"competition_density": "crowded", "modality_validated": True},
     }
     return pkg
@@ -40,17 +50,18 @@ def _stub(system, user, name, schema, **kw):
         return {"edges": [], "principal_tensions": [], "evidence_paths": []}
     return {
         "causal_rationale": {"statement": "x", "citations": ["dependency"]},
-        "therapeutic_hypothesis": {"statement": "x", "modality": "small_molecule",
-                                   "citations": ["dependency"]},
+        "therapeutic_hypothesis": {"statement": "x", "modality": "small_molecule", "citations": ["dependency"]},
         "population": {"statement": "x", "citations": ["dependency"]},
         "therapeutic_window": {"statement": "x", "citations": ["safety"]},
         "evidence_grade": {"overall": "moderate", "per_line": []},
-        "proposed_verdict": "advanceable", "proposed_verdict_reason": "x",
+        "proposed_verdict": "advanceable",
+        "proposed_verdict_reason": "x",
         "go_forth": {"next_evidence": "y"},
     }
 
 
 # =============================== assemble surfaces the facets ======================================
+
 
 def test_assemble_surfaces_decision_facets(tmp_path):
     p = tmp_path / "ep.json"
@@ -63,7 +74,7 @@ def test_assemble_surfaces_decision_facets(tmp_path):
 
 def test_assemble_tolerates_absent_facets(tmp_path):
     p = tmp_path / "ep.json"
-    p.write_text(PKG.read_text())        # fixture has no decision_facets
+    p.write_text(PKG.read_text())  # fixture has no decision_facets
     panel = hc.assemble(str(p), None, None, "small_molecule")
     assert panel["cross_gate_shared_evidence"] == {}
     assert panel["fragility_facet"] == {} and panel["competitor_crossref"] == {}
@@ -71,15 +82,17 @@ def test_assemble_tolerates_absent_facets(tmp_path):
 
 # =============================== P5 — panel rendering =============================================
 
+
 def test_render_decision_facets_present():
-    panel = {"fragility_facet": {"contested": True,
-                                 "acquisition_backlog": [{"axis": "immune_context"}]},
-             "competitor_crossref": {"competition_density": "crowded"},
-             "cross_gate_shared_evidence": {"correlated_gate_pairs": [["safety", "genomic_alteration"]]}}
+    panel = {
+        "fragility_facet": {"contested": True, "acquisition_backlog": [{"axis": "immune_context"}]},
+        "competitor_crossref": {"competition_density": "crowded"},
+        "cross_gate_shared_evidence": {"correlated_gate_pairs": [["safety", "genomic_alteration"]]},
+    }
     block = R._render_decision_facets(panel)
     assert "contested=True" in block
-    assert "immune_context" in block                 # backlog axis surfaced (feeds go_forth)
-    assert "crowded" in block                         # competitor density
+    assert "immune_context" in block  # backlog axis surfaced (feeds go_forth)
+    assert "crowded" in block  # competitor density
     assert "correlated" in block and "safety" in block  # cross-gate correlation surfaced
 
 
@@ -87,24 +100,31 @@ def test_render_surfaces_factored_record_consumers():
     """M4: the per-modality call, over-precision audit, and the acquire-vs-strengthen split reach the
     synthesis prompt (the distinctions the scalar verdict could not carry)."""
     panel = {
-        "fragility_facet": {"contested": False,
-                            "acquisition_backlog": [{"axis": "surface_modality"}],
-                            "underpowered_axes": [{"axis": "selectivity", "action": "strengthen"}]},
-        "modality_fit_by_channel": {"small_molecule": {"fit": "conditional"},
-                                    "degrader": {"fit": "unfavorable"}, "adc": {"fit": "na"}},
+        "fragility_facet": {
+            "contested": False,
+            "acquisition_backlog": [{"axis": "surface_modality"}],
+            "underpowered_axes": [{"axis": "selectivity", "action": "strengthen"}],
+        },
+        "modality_fit_by_channel": {
+            "small_molecule": {"fit": "conditional"},
+            "degrader": {"fit": "unfavorable"},
+            "adc": {"fit": "na"},
+        },
         "magnitude_borderline": [{"axis": "selectivity", "scale": "log2fc", "distance_to_cut": 0.1}],
     }
     block = R._render_decision_facets(panel)
-    assert "STRENGTHEN" in block and "selectivity" in block          # measured-thin split
+    assert "STRENGTHEN" in block and "selectivity" in block  # measured-thin split
     assert "acquisition_backlog" in block and "surface_modality" in block
     assert "modality_fit_by_channel" in block and "conditional" in block and "unfavorable" in block
-    assert "adc" not in block            # 'na' channels are dropped from the per-modality call
+    assert "adc" not in block  # 'na' channels are dropped from the per-modality call
     assert "magnitude_borderline" in block and "knife-edge" in block
 
 
 def test_render_decision_facets_empty_when_absent():
-    assert R._render_decision_facets({"fragility_facet": {}, "competitor_crossref": {},
-                                      "cross_gate_shared_evidence": {}}) == ""
+    assert (
+        R._render_decision_facets({"fragility_facet": {}, "competitor_crossref": {}, "cross_gate_shared_evidence": {}})
+        == ""
+    )
 
 
 def test_panel_block_includes_facets(tmp_path):
@@ -117,6 +137,7 @@ def test_panel_block_includes_facets(tmp_path):
 
 
 # =============================== P4 — result surfacing ============================================
+
 
 def test_run_surfaces_cross_gate_shared_evidence(tmp_path):
     p = tmp_path / "ep.json"

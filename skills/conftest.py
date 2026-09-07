@@ -7,6 +7,7 @@ copy-pasted into every skill's tests/. Fixtures ONLY — no autouse fixtures and
 so merely adding this file changes the behavior of no existing test; a test opts in by naming a
 fixture in its signature.
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -36,9 +37,11 @@ _ensure_skills_on_path()
 
 
 def _contracts_root() -> Path | None:
-    root = Path(os.environ.get(
-        "TARGET_CONTRACTS_ROOT",
-        "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
+    root = Path(
+        os.environ.get(
+            "TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
+        )
+    )
     return root if (root / "cards").is_dir() else None
 
 
@@ -110,8 +113,10 @@ def _check_hierarchy_connectivity(skill_dir: Path) -> None:
         else:
             orphans.append((card, mt))
     unsourced = [k for k, v in sourced.items() if not v]
-    assert not orphans, ("same-question orphans (measure a question this skill owns but bound to "
-                         f"nothing — add to a question, route to a lens, or mark context): {orphans}")
+    assert not orphans, (
+        "same-question orphans (measure a question this skill owns but bound to "
+        f"nothing — add to a question, route to a lens, or mark context): {orphans}"
+    )
     assert not unsourced, f"questions with no source card among CARDS: {unsourced}"
 
 
@@ -162,6 +167,7 @@ def eg_questions(eg_skill_dir) -> list:
     """The skill's canonical questions.yaml registry (via _skills_common.evidence_graph.load_questions)."""
     _ensure_skills_on_path()
     from _skills_common.evidence_graph import load_questions
+
     return load_questions(eg_skill_dir)
 
 
@@ -170,6 +176,7 @@ def eg_graph(eg_decision, eg_questions) -> dict:
     """The additive evidence graph built from (fixture decision + questions registry)."""
     _ensure_skills_on_path()
     from _skills_common.evidence_graph import build_evidence_graph
+
     return build_evidence_graph(eg_decision, questions=eg_questions)
 
 
@@ -179,4 +186,5 @@ def eg_build():
     rebuilds the graph from a decision carrying a synthetic literature_synthesis."""
     _ensure_skills_on_path()
     from _skills_common.evidence_graph import build_evidence_graph
+
     return build_evidence_graph

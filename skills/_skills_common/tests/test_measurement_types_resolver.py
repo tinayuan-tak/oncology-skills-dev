@@ -13,6 +13,7 @@ into any production path; it was retired 2026-09-06 and these guards now read th
 Cross-repo: reads target-contracts. Graceful-skips the registry-dependent assertions when
 target-contracts isn't checked out alongside (isolated CI), mirroring the other cross-repo checks.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -40,6 +41,7 @@ _REGISTRY_REACHABLE = _registered_types() is not None
 
 # ---------- framework-wide pull consistency ----------
 
+
 def _gate_pulls() -> dict:
     """Map skill_dir -> measurement_types_pulled, for every SKILL.md that declares one."""
     out = {}
@@ -61,9 +63,17 @@ def _gate_pulls() -> dict:
 def test_at_least_the_wired_gates_declare_pulls():
     pulls = _gate_pulls()
     # the wired biology gate-views that should each declare a pull now
-    expected = {"functional-requirement", "genomic-alteration-profile", "mechanism-and-pharmacology",
-                "on-target-safety-liability", "tractability-small-molecule", "tumor-presence",
-                "tumor-selectivity", "differentiation-landscape", "surface-modality-fit"}
+    expected = {
+        "functional-requirement",
+        "genomic-alteration-profile",
+        "mechanism-and-pharmacology",
+        "on-target-safety-liability",
+        "tractability-small-molecule",
+        "tumor-presence",
+        "tumor-selectivity",
+        "differentiation-landscape",
+        "surface-modality-fit",
+    }
     missing = expected - set(pulls)
     assert not missing, f"these gate-views do not declare measurement_types_pulled: {sorted(missing)}"
 
@@ -139,14 +149,18 @@ def test_every_used_card_type_is_declared_framework_wide():
     offenders: dict[str, list] = {}
     for skill, used in cards_used.items():
         if skill not in pulls:
-            continue                                   # skill makes no Rule-3 pull declaration → out of scope
+            continue  # skill makes no Rule-3 pull declaration → out of scope
         declared = set(pulls[skill])
-        undeclared = [(cid, c2t[cid]) for cid in used
-                      if c2t.get(cid) is not None
-                      and c2t[cid] not in declared
-                      and (skill, c2t[cid]) not in _WAIVED_UNDECLARED_CARD_TYPES]
+        undeclared = [
+            (cid, c2t[cid])
+            for cid in used
+            if c2t.get(cid) is not None
+            and c2t[cid] not in declared
+            and (skill, c2t[cid]) not in _WAIVED_UNDECLARED_CARD_TYPES
+        ]
         if undeclared:
             offenders[skill] = undeclared
     assert not offenders, (
         "cards used but whose registered measurement_type is NOT in the skill's measurement_types_pulled "
-        f"(the sweep's drift class — declare the type or add a documented waiver): {offenders}")
+        f"(the sweep's drift class — declare the type or add a documented waiver): {offenders}"
+    )

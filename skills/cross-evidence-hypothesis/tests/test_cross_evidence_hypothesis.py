@@ -4,6 +4,7 @@ synthesized fixture carrying the three landed blocks (hard_gates + subtype_resol
 evidence_substrate). Verifies: fail-closed gate-complete clamp respects hard_gates; correlated cards
 discounted; subtype tokens traceable; retrieve-don't-recall + absence-discipline WITH TEETH; degraded
 mode; byte/schema sanity."""
+
 from __future__ import annotations
 
 import json
@@ -58,7 +59,9 @@ def test_ceiling_blind_gated_VETO_axis_fails_closed_to_declined():
     hit = False
     for row in pkg["synthesis"]["recommendation_gate"]["hard_gates"]:
         if row["short"] == "dependency":
-            row["status"] = "blind"; row["live_verdict"] = None; hit = True
+            row["status"] = "blind"
+            row["live_verdict"] = None
+            hit = True
     assert hit, "fixture must carry a dependency hard-gate"
     g = hc.gate_ceiling(pkg)
     assert g["ceiling"] == "declined"
@@ -75,7 +78,8 @@ def test_ceiling_blind_gated_HOLD_axis_fails_closed_to_hold_not_declined():
         if row["short"] == "dependency":
             row["status"] = "latent"
         if row["short"] == "safety":
-            row["status"] = "blind"; row["live_verdict"] = None
+            row["status"] = "blind"
+            row["live_verdict"] = None
     g = hc.gate_ceiling(pkg)
     assert g["ceiling"] == "advanceable_flagged", g
     assert "safety" not in [t.split(":")[0] for t in g["blind_gates"]]  # not a fail-closed veto
@@ -90,7 +94,8 @@ def test_ceiling_fired_safety_gate_is_hold_not_decline():
         if row["short"] == "dependency":
             row["status"] = "latent"
         if row["short"] == "safety":
-            row["status"] = "fired"; row["verdict"] = "highly_constrained_safety_concern"
+            row["status"] = "fired"
+            row["verdict"] = "highly_constrained_safety_concern"
             row["live_verdict"] = "highly_constrained_safety_concern"
     # make the sub-verdict agree so the hold-grade line also sees it
     pkg["synthesis"]["sub_verdicts"]["safety"] = {"verdict": "highly_constrained_safety_concern"}
@@ -106,11 +111,13 @@ def test_ceiling_dependency_veto_excluded_for_surface_biologic():
     pkg = _pkg()
     for row in pkg["synthesis"]["recommendation_gate"]["hard_gates"]:
         if row["short"] == "dependency":
-            row["status"] = "fired"; row["verdict"] = "non_dependent"; row["live_verdict"] = "non_dependent"
+            row["status"] = "fired"
+            row["verdict"] = "non_dependent"
+            row["live_verdict"] = "non_dependent"
         if row["short"] == "safety":
             row["status"] = "latent"
-    assert hc.gate_ceiling(pkg, modality="small_molecule")["ceiling"] == "declined"   # SM: dependency decides
-    g = hc.gate_ceiling(pkg, modality="bite_tce")                                     # TCE: dependency out-of-scope
+    assert hc.gate_ceiling(pkg, modality="small_molecule")["ceiling"] == "declined"  # SM: dependency decides
+    g = hc.gate_ceiling(pkg, modality="bite_tce")  # TCE: dependency out-of-scope
     assert g["ceiling"] != "declined", g
     assert any(t.startswith("dependency:") for t in g["excluded"])
 
@@ -123,7 +130,9 @@ def test_ceiling_non_dependent_mechanism_excluded_for_mutant_selective():
     pkg = _pkg()
     for row in pkg["synthesis"]["recommendation_gate"]["hard_gates"]:
         if row["short"] == "dependency":
-            row["status"] = "fired"; row["verdict"] = "non_dependent"; row["live_verdict"] = "non_dependent"
+            row["status"] = "fired"
+            row["verdict"] = "non_dependent"
+            row["live_verdict"] = "non_dependent"
         if row["short"] == "safety":
             row["status"] = "latent"
     pkg["synthesis"]["sub_verdicts"]["safety"] = {"verdict": "wt_human_genetics_mechanism_mismatch"}
@@ -134,7 +143,8 @@ def test_ceiling_non_dependent_mechanism_excluded_for_mutant_selective():
     # NARROW: pan_essential_killer (no selectivity window) STILL vetoes even when mutant-selective
     for row in pkg["synthesis"]["recommendation_gate"]["hard_gates"]:
         if row["short"] == "dependency":
-            row["verdict"] = "pan_essential_killer"; row["live_verdict"] = "pan_essential_killer"
+            row["verdict"] = "pan_essential_killer"
+            row["live_verdict"] = "pan_essential_killer"
     assert hc.gate_ceiling(pkg, modality="small_molecule")["ceiling"] == "declined"
 
 
@@ -143,8 +153,12 @@ def test_coherence_non_dependent_benign_for_mutant_selective():
     non_dependent WITHOUT it counting as an unsurfaced negative — when the target is mutant-selective
     (safety=wt_*_mechanism_mismatch). Same signal/discriminator as the gate. At BOTH grains (dimension
     + dependency-family card)."""
-    clauses = {"therapeutic_hypothesis": {"support": ["dependency", "pan-cancer-crispr-dependency-distribution"],
-                                          "surfaced": []}}
+    clauses = {
+        "therapeutic_hypothesis": {
+            "support": ["dependency", "pan-cancer-crispr-dependency-distribution"],
+            "surfaced": [],
+        }
+    }
     card_calls = {"pan-cancer-crispr-dependency-distribution": "non_dependent"}
     # mutant-selective → benign, no violation
     conv_ms = {"safety": "wt_human_genetics_mechanism_mismatch", "dependency": "non_dependent"}
@@ -159,8 +173,15 @@ def test_coherence_non_dependent_benign_for_mutant_selective():
 def test_ceiling_opposing_caps_below_advanceable():
     pkg = _pkg()
     pkg["synthesis"]["recommendation_gate"]["hard_gates"].append(
-        {"short": "selectivity", "verdict": "not_selective", "disposition": "contradiction",
-         "status": "opposing", "live_verdict": "not_selective", "policy_source": "vocab"})
+        {
+            "short": "selectivity",
+            "verdict": "not_selective",
+            "disposition": "contradiction",
+            "status": "opposing",
+            "live_verdict": "not_selective",
+            "policy_source": "vocab",
+        }
+    )
     g = hc.gate_ceiling(pkg)
     assert g["ceiling"] == "advanceable_with_caveat"
     assert "selectivity:not_selective" in g["opposing"]
@@ -247,8 +268,7 @@ def test_substrate_discount_lowers_certainty_when_single_substrate():
     the correlated pair no longer inflates certainty."""
     pkg = _pkg()
     # keep ONLY the two cards that share recount3 → one independent substrate, zero untagged
-    pkg["cards"] = [c for c in pkg["cards"]
-                    if c.get("evidence_substrate") == "recount3_tcga_gtex_bulk_rna"]
+    pkg["cards"] = [c for c in pkg["cards"] if c.get("evidence_substrate") == "recount3_tcga_gtex_bulk_rna"]
     ind = hc.substrate_independence(pkg)
     assert ind["n_independent_units"] == 1
     cert = hc.discounted_certainty("moderate", ind["n_independent_units"], [])
@@ -263,8 +283,8 @@ def _surface():
 
 def test_pmid_must_be_exact_member_no_substring_escape():
     surf = _surface()
-    assert hc.check_traceability(["34567890"], surf) == []          # retrieved
-    bad = hc.check_traceability(["99999999"], surf)                 # confabulated
+    assert hc.check_traceability(["34567890"], surf) == []  # retrieved
+    bad = hc.check_traceability(["99999999"], surf)  # confabulated
     assert bad and "99999999" in bad[0]
 
 
@@ -272,7 +292,7 @@ def test_known_card_and_stratum_tokens_traceable():
     surf = _surface()
     assert hc.check_traceability(["crispr-lof-dependency"], surf) == []
     assert hc.check_traceability(["MSS"], surf) == []
-    assert hc.check_traceability(["dependency"], surf) == []        # sub-verdict name
+    assert hc.check_traceability(["dependency"], surf) == []  # sub-verdict name
     # a phrase embedding a known card id passes (non-PMID substring escape)
     assert hc.check_traceability(["tumor-vs-normal-selectivity card"], surf) == []
     # an unknown free-text token is untraceable
@@ -283,24 +303,40 @@ def test_known_card_and_stratum_tokens_traceable():
 def _stub_clean(system, user, name, schema, **kw):
     """A well-behaved model: cites only real spine tokens; proposes advanceable."""
     if name == "cross_edges":
-        return {"edges": [{"type": "corroborates", "from_dimension": "dependency",
-                           "to_dimension": "selectivity", "rationale": "both positive",
-                           "citations": ["dependency", "selectivity"]}],
-                "principal_tensions": [{"statement": "surface not viable",
-                                        "citations": ["surface_modality"]}],
-                "evidence_paths": [{"claim": "MSS dependent population", "leads_to": "population",
-                                    "steps": [{"signal": "dep strong in MSS",
-                                               "citation": "MSS"}]}]}
+        return {
+            "edges": [
+                {
+                    "type": "corroborates",
+                    "from_dimension": "dependency",
+                    "to_dimension": "selectivity",
+                    "rationale": "both positive",
+                    "citations": ["dependency", "selectivity"],
+                }
+            ],
+            "principal_tensions": [{"statement": "surface not viable", "citations": ["surface_modality"]}],
+            "evidence_paths": [
+                {
+                    "claim": "MSS dependent population",
+                    "leads_to": "population",
+                    "steps": [{"signal": "dep strong in MSS", "citation": "MSS"}],
+                }
+            ],
+        }
     return {
         "causal_rationale": {"statement": "KRAS drives MAPK", "citations": ["dependency", "34567890"]},
-        "therapeutic_hypothesis": {"statement": "inhibit KRAS", "modality": "small_molecule",
-                                   "citations": ["dependency", "crispr-lof-dependency"]},
-        "population": {"statement": "MSS COADREAD", "indication": "COADREAD",
-                       "subtype_or_biomarker": "MSS", "citations": ["MSS", "selectivity"]},
-        "therapeutic_window": {"statement": "tolerable", "citations": ["safety"],
-                               "contradicting_citations": []},
-        "evidence_grade": {"overall": "moderate",
-                           "per_line": [{"dimension": "dependency", "strength": "strong"}]},
+        "therapeutic_hypothesis": {
+            "statement": "inhibit KRAS",
+            "modality": "small_molecule",
+            "citations": ["dependency", "crispr-lof-dependency"],
+        },
+        "population": {
+            "statement": "MSS COADREAD",
+            "indication": "COADREAD",
+            "subtype_or_biomarker": "MSS",
+            "citations": ["MSS", "selectivity"],
+        },
+        "therapeutic_window": {"statement": "tolerable", "citations": ["safety"], "contradicting_citations": []},
+        "evidence_grade": {"overall": "moderate", "per_line": [{"dimension": "dependency", "strength": "strong"}]},
         "proposed_verdict": "advanceable",
         "proposed_verdict_reason": "strong dependency + selectivity",
         "go_forth": {"next_evidence": "MSI-H cohort dependency", "value_of_information": "high"},
@@ -313,8 +349,7 @@ def _stub_teeth(system, user, name, schema, **kw):
         return {"edges": [], "principal_tensions": [], "evidence_paths": []}
     return {
         "causal_rationale": {"statement": "driven", "citations": ["differentiation", "88888888"]},
-        "therapeutic_hypothesis": {"statement": "inhibit", "modality": "small_molecule",
-                                   "citations": ["dependency"]},
+        "therapeutic_hypothesis": {"statement": "inhibit", "modality": "small_molecule", "citations": ["dependency"]},
         "population": {"statement": "all", "citations": ["dependency"]},
         "therapeutic_window": {"statement": "ok", "citations": ["safety"]},
         "evidence_grade": {"overall": "moderate", "per_line": []},
@@ -325,8 +360,9 @@ def _stub_teeth(system, user, name, schema, **kw):
 
 
 def test_end_to_end_clean_run_promotable_and_clamped_to_ceiling():
-    r = R.run(str(PKG), str(RISK), "small-molecule drug target", "small_molecule",
-              str(DOSSIER), synthesize_fn=_stub_clean)
+    r = R.run(
+        str(PKG), str(RISK), "small-molecule drug target", "small_molecule", str(DOSSIER), synthesize_fn=_stub_clean
+    )
     # clean hard_gates → ceiling advanceable; proposed advanceable → not clamped
     assert r["verdict"]["gate_ceiling"] == "advanceable"
     assert r["verdict"]["computed"] == "advanceable"
@@ -338,14 +374,15 @@ def test_end_to_end_clean_run_promotable_and_clamped_to_ceiling():
     assert r["evidence_independence"]["correlated_evidence_discounted"] is True
     # surface_modality is out of scope for small_molecule → not a data gap
     assert "surface_modality" not in r["uncertainty"]["data_gaps"]
-    assert "differentiation" in r["uncertainty"]["data_gaps"]   # a real in-scope gap
+    assert "differentiation" in r["uncertainty"]["data_gaps"]  # a real in-scope gap
     # byte/schema sanity: fully JSON-serializable
     json.dumps(r)
 
 
 def test_end_to_end_teeth_block_promotion_and_cap_verdict():
-    r = R.run(str(PKG), str(RISK), "small-molecule drug target", "small_molecule",
-              str(DOSSIER), synthesize_fn=_stub_teeth)
+    r = R.run(
+        str(PKG), str(RISK), "small-molecule drug target", "small_molecule", str(DOSSIER), synthesize_fn=_stub_teeth
+    )
     d = r["defensibility"]
     assert d["promotable"] is False
     assert "untraceable_citations" in d["promotion_blockers"]
@@ -359,8 +396,7 @@ def test_end_to_end_teeth_block_promotion_and_cap_verdict():
 
 
 def test_end_to_end_degraded_mode_when_inputs_missing():
-    r = R.run(str(PKG), None, "small-molecule drug target", "small_molecule",
-              None, synthesize_fn=_stub_clean)
+    r = R.run(str(PKG), None, "small-molecule drug target", "small_molecule", None, synthesize_fn=_stub_clean)
     dm = r["degraded_mode"]
     assert dm["dossier_present"] is False and dm["risk_present"] is False
     assert set(dm["degraded_inputs"]) == {"dossier", "risk"}
@@ -376,18 +412,31 @@ def _substrate_discordant():
     """A per-subskill grounded substrate (ground_axis output): safety axis whose literature
     CONTRADICTS the deterministic verdict, plus a concordant selectivity axis in the BARE-block shape."""
     return {
-        "safety": {"axis": "safety", "deterministic": {"verdict": "tolerant_reduced_safety_risk"},
-                   "grounded": {"findings": [{"finding": "class-wide ocular toxicity reported",
-                                              "kind": "on-target normal-tissue tox",
-                                              "cited_pmids": ["29999999"]}],
-                                "corroborations": [], "contradicts_deterministic": True,
-                                "anchor_verdict": "tolerant_reduced_safety_risk",
-                                "escalate_only": True, "corpus_pin": {"mindate": "2015"}}},
+        "safety": {
+            "axis": "safety",
+            "deterministic": {"verdict": "tolerant_reduced_safety_risk"},
+            "grounded": {
+                "findings": [
+                    {
+                        "finding": "class-wide ocular toxicity reported",
+                        "kind": "on-target normal-tissue tox",
+                        "cited_pmids": ["29999999"],
+                    }
+                ],
+                "corroborations": [],
+                "contradicts_deterministic": True,
+                "anchor_verdict": "tolerant_reduced_safety_risk",
+                "escalate_only": True,
+                "corpus_pin": {"mindate": "2015"},
+            },
+        },
         # BARE grounded block (no {axis, deterministic, grounded} wrapper) — tolerance
-        "selectivity": {"findings": [{"finding": "some normal expression", "kind": "normal-tissue",
-                                      "cited_pmids": ["28888888"]}],
-                        "contradicts_deterministic": False, "anchor_verdict": "selective",
-                        "escalate_only": True},
+        "selectivity": {
+            "findings": [{"finding": "some normal expression", "kind": "normal-tissue", "cited_pmids": ["28888888"]}],
+            "contradicts_deterministic": False,
+            "anchor_verdict": "selective",
+            "escalate_only": True,
+        },
         "junk": "not a dict — must be skipped",
     }
 
@@ -395,8 +444,8 @@ def _substrate_discordant():
 def test_parse_grounded_substrate_shapes_pmids_and_discordance():
     g = hc.parse_grounded_substrate(_substrate_discordant())
     assert g["present"] is True
-    assert g["pmids"] == {"29999999", "28888888"}     # collected across BOTH record shapes
-    assert g["discordant_axes"] == ["safety"]          # only the contradicting axis
+    assert g["pmids"] == {"29999999", "28888888"}  # collected across BOTH record shapes
+    assert g["discordant_axes"] == ["safety"]  # only the contradicting axis
     assert g["n_findings"] == 2
     # absence tolerated
     empty = hc.parse_grounded_substrate(None)
@@ -406,76 +455,99 @@ def test_parse_grounded_substrate_shapes_pmids_and_discordance():
 def test_assemble_folds_grounded_pmids_into_citation_surface():
     """The design-correct literature path: a grounded PMID becomes CITABLE (traceable) ONLY because the
     substrate was fed in natively — proving literature reaches the hypothesis via grounding, not risk."""
-    sub = {"safety": {"grounded": {"findings": [{"finding": "x", "kind": "y",
-                                                 "cited_pmids": ["29999999"]}],
-                                    "contradicts_deterministic": False, "anchor_verdict": "v"}}}
+    sub = {
+        "safety": {
+            "grounded": {
+                "findings": [{"finding": "x", "kind": "y", "cited_pmids": ["29999999"]}],
+                "contradicts_deterministic": False,
+                "anchor_verdict": "v",
+            }
+        }
+    }
     surf = hc.assemble(str(PKG), None, None, "small_molecule", substrate=sub)["citation_surface"]
     assert "29999999" in surf["pmids"]
-    assert hc.check_traceability(["29999999"], surf) == []          # now citable
+    assert hc.check_traceability(["29999999"], surf) == []  # now citable
     # WITHOUT the substrate the same PMID is confabulation (untraceable)
     surf0 = hc.assemble(str(PKG), None, None, "small_molecule")["citation_surface"]
     assert hc.check_traceability(["29999999"], surf0)
 
 
 def test_run_surfaces_grounded_discordance_and_is_escalate_only():
-    base = R.run(str(PKG), str(RISK), "small-molecule drug target", "small_molecule",
-                 str(DOSSIER), synthesize_fn=_stub_clean)
-    withsub = R.run(str(PKG), str(RISK), "small-molecule drug target", "small_molecule",
-                    str(DOSSIER), synthesize_fn=_stub_clean, substrate=_substrate_discordant())
+    base = R.run(
+        str(PKG), str(RISK), "small-molecule drug target", "small_molecule", str(DOSSIER), synthesize_fn=_stub_clean
+    )
+    withsub = R.run(
+        str(PKG),
+        str(RISK),
+        "small-molecule drug target",
+        "small_molecule",
+        str(DOSSIER),
+        synthesize_fn=_stub_clean,
+        substrate=_substrate_discordant(),
+    )
     gs = withsub["grounded_substrate"]
     assert gs["present"] is True and gs["n_findings"] == 2
     assert gs["discordant_axes"] == ["safety"] and gs["n_grounded_pmids"] == 2
     # the engine↔literature discordance is surfaced as a DETERMINISTIC tension
     ts = withsub["hypothesis"]["tensions"]
-    assert any(t.get("source") == "grounded_substrate_discordance" and t.get("axis") == "safety"
-               for t in ts)
+    assert any(t.get("source") == "grounded_substrate_discordance" and t.get("axis") == "safety" for t in ts)
     assert gs["n_discordance_tensions_surfaced"] == 1
     # ESCALATE-ONLY: grounded literature never moves the deterministic ceiling / verdict / promotability
     assert withsub["verdict"]["gate_ceiling"] == base["verdict"]["gate_ceiling"]
     assert withsub["verdict"]["computed"] == base["verdict"]["computed"]
     assert withsub["defensibility"]["promotable"] == base["defensibility"]["promotable"]
     assert withsub["degraded_mode"]["grounded_substrate_present"] is True
-    json.dumps(withsub)   # fully serializable
+    json.dumps(withsub)  # fully serializable
 
 
 def test_run_without_substrate_leaves_grounded_absent_and_stable():
     """No --substrate → grounded_substrate absent, no discordance tension, presence flag False. This is
     the drift-CI invariant: the golden cases pass no substrate, so the deterministic spine is unmoved."""
-    r = R.run(str(PKG), str(RISK), "small-molecule drug target", "small_molecule",
-              str(DOSSIER), synthesize_fn=_stub_clean)
+    r = R.run(
+        str(PKG), str(RISK), "small-molecule drug target", "small_molecule", str(DOSSIER), synthesize_fn=_stub_clean
+    )
     gs = r["grounded_substrate"]
     assert gs["present"] is False and gs["n_findings"] == 0 and gs["discordant_axes"] == []
-    assert not any(t.get("source") == "grounded_substrate_discordance"
-                   for t in r["hypothesis"]["tensions"])
+    assert not any(t.get("source") == "grounded_substrate_discordance" for t in r["hypothesis"]["tensions"])
     assert r["degraded_mode"]["grounded_substrate_present"] is False
 
 
 def _stub_clean_with_skeptic(system, user, name, schema, **kw):
     """_stub_clean, plus a benign skeptic that refutes nothing (every clause survives)."""
     if name == "skeptic_refutation":
-        return {"clauses": []}   # no valid refutations → all clauses survive → score 1.0
+        return {"clauses": []}  # no valid refutations → all clauses survive → score 1.0
     return _stub_clean(system, user, name, schema, **kw)
 
 
 def test_adversarial_off_by_default_leaves_quality_slot_null():
-    r = R.run(str(PKG), str(RISK), "small-molecule drug target", "small_molecule",
-              str(DOSSIER), synthesize_fn=_stub_clean)
+    r = R.run(
+        str(PKG), str(RISK), "small-molecule drug target", "small_molecule", str(DOSSIER), synthesize_fn=_stub_clean
+    )
     # default: the slot is present but null (no skeptic pass, byte-stable to the pre-flag output)
     assert r["quality"]["adversarial_survival"] is None
     assert "adversarial_gate" not in r["quality"]
 
 
 def test_adversarial_flag_populates_quality_slot_and_gate():
-    r = R.run(str(PKG), str(RISK), "small-molecule drug target", "small_molecule",
-              str(DOSSIER), synthesize_fn=_stub_clean_with_skeptic, adversarial=True, n_skeptics=3)
+    r = R.run(
+        str(PKG),
+        str(RISK),
+        "small-molecule drug target",
+        "small_molecule",
+        str(DOSSIER),
+        synthesize_fn=_stub_clean_with_skeptic,
+        adversarial=True,
+        n_skeptics=3,
+    )
     surv = r["quality"]["adversarial_survival"]
     assert surv is not None and surv["score"] == 1.0
     assert surv["n_surviving"] == surv["n_clauses"] and surv["n_clauses"] > 0
     gate = r["quality"]["adversarial_gate"]
     assert gate["passed"] is True and gate["non_surviving_clauses"] == []
     # INTRINSIC-quality: the deterministic spine is identical to the adversarial-off run
-    base = R.run(str(PKG), str(RISK), "small-molecule drug target", "small_molecule",
-                 str(DOSSIER), synthesize_fn=_stub_clean)
+    base = R.run(
+        str(PKG), str(RISK), "small-molecule drug target", "small_molecule", str(DOSSIER), synthesize_fn=_stub_clean
+    )
     assert r["verdict"] == base["verdict"] and r["defensibility"] == base["defensibility"]
 
 
@@ -503,8 +575,9 @@ def test_modality_is_enum_constrained_to_scope():
 
 
 def test_run_surfaces_llm_field_recovery_provenance():
-    r = R.run(str(PKG), str(RISK), "small-molecule drug target", "small_molecule",
-              str(DOSSIER), synthesize_fn=_stub_clean)
+    r = R.run(
+        str(PKG), str(RISK), "small-molecule drug target", "small_molecule", str(DOSSIER), synthesize_fn=_stub_clean
+    )
     rec = r["provenance"]["llm_field_recovery"]
     # clean stubs → no salvage/recovery, but the audit slot is present + shaped for both calls
     assert set(rec.keys()) == {"edges", "hypothesis"}
@@ -513,6 +586,7 @@ def test_run_surfaces_llm_field_recovery_provenance():
 
 def test_skeptic_prompt_is_fenced_and_hash_is_stable():
     import adversarial_survival as AS
+
     assert "EVIDENCE-ONLY GROUNDING" in AS.SKEPTIC_SYSTEM
-    assert AS.skeptic_prompt_hash() == AS.skeptic_prompt_hash()   # deterministic
-    assert len(AS.skeptic_prompt_hash()) == 64                    # sha256 hex
+    assert AS.skeptic_prompt_hash() == AS.skeptic_prompt_hash()  # deterministic
+    assert len(AS.skeptic_prompt_hash()) == 64  # sha256 hex

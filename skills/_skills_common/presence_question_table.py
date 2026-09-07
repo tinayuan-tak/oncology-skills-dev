@@ -20,10 +20,12 @@ plus a SUPPORTING/caveat sub-line drawn from the remaining cards:
 Signal reuses the claim_vector tier vocabulary (strong>moderate>weak>absent/negative, unmeasured);
 Confidence reuses the corroboration vocabulary (high>moderate>low, unmeasured). No new scoring model.
 """
+
 from __future__ import annotations
 from typing import Optional
 
 from _skills_common.question_table_core import cbyid as _cbyid, conf as _conf, row as _row, sig as _sig, _SIG_META
+
 
 # Signal tier → (meter fill 0-5, polarity). Polarity: supports / opposes / neutral / none.
 # ── per-question builders ────────────────────────────────────────────────────────────────────────
@@ -36,8 +38,14 @@ def _q1_abundance(h, c, cv):
     support = f"cell-line RNA: {cl.get('expression_class', 'n/a')}"
     if clp.get("protein_expression_class"):
         support += f" · cell-line protein: {clp.get('protein_expression_class')}"
-    return _row("Q1", "Expressed in cancers at all?", primary, support,
-                _sig(tier, tier), _conf(corr, f"RNA→protein proxy: {corr}"))
+    return _row(
+        "Q1",
+        "Expressed in cancers at all?",
+        primary,
+        support,
+        _sig(tier, tier),
+        _conf(corr, f"RNA→protein proxy: {corr}"),
+    )
 
 
 def _q2_generality(h, c, cv):
@@ -53,8 +61,7 @@ def _q2_generality(h, c, cv):
         primary += f" · RNA {rne}/{rnt} indications"
     conc = h.get("breadth_layer_concordance")
     support = f"RNA↔protein breadth {conc}" if conc else "single-layer breadth"
-    return _row("Q2", "This indication vs other cancers?", primary, support,
-                _sig(tier, tier), _conf("moderate"))
+    return _row("Q2", "This indication vs other cancers?", primary, support, _sig(tier, tier), _conf("moderate"))
 
 
 def _q3_vs_normal(h, c, cv):
@@ -67,15 +74,18 @@ def _q3_vs_normal(h, c, cv):
     nl = c.get("normal-tissue-liability", {}).get("normal_tissue_breadth_class")
     if nl:
         caveats.append(f"HPA normal: {nl}")
-    scn = h.get("sc_normal_expression_class") or c.get("sc-normal-celltype-expression", {}).get("sc_normal_expression_class")
-    scct = h.get("sc_normal_max_det_cell_type") or c.get("sc-normal-celltype-expression", {}).get("max_detection_cell_type")
+    scn = h.get("sc_normal_expression_class") or c.get("sc-normal-celltype-expression", {}).get(
+        "sc_normal_expression_class"
+    )
+    scct = h.get("sc_normal_max_det_cell_type") or c.get("sc-normal-celltype-expression", {}).get(
+        "max_detection_cell_type"
+    )
     if scn:
         caveats.append(f"normal single-cell: {scn}" + (f" (max: {scct})" if scct else ""))
     support = " · ".join(caveats) if caveats else "no normal comparator"
     # polarity: an up signal supports elevation; but surface the window caveat via the support line.
     label = tier + (" ⚠ window" if b.get("conflict") or (nl and "broad" in str(nl)) else "")
-    return _row("Q3", "Elevated vs normals (adjacent + GTEx)?", primary, support,
-                _sig(tier, label), _conf(corr))
+    return _row("Q3", "Elevated vs normals (adjacent + GTEx)?", primary, support, _sig(tier, label), _conf(corr))
 
 
 def _q4_subtype(h, c, cv):
@@ -87,8 +97,9 @@ def _q4_subtype(h, c, cv):
     # HONEST capability grade first: an underpowered/empty axis must NOT read as a differential, even
     # when a single stratum happens to clear the enrichment delta (NSCLC KRAS_G12C / DepMap STAD-PAAD).
     quality = s.get("subtype_axis_quality") or h.get("subtype_axis_quality")
-    if quality in ("unavailable", None) and (not cls or cls in (
-            "data_unavailable", "subtype_axis_unavailable", "no_subtype_axis")):
+    if quality in ("unavailable", None) and (
+        not cls or cls in ("data_unavailable", "subtype_axis_unavailable", "no_subtype_axis")
+    ):
         sig, primary = _sig("unmeasured", "no subtype axis"), "no molecular-subtype axis for this indication"
     elif quality in ("empty", "underpowered"):
         # axis is DEFINED but not usable — say so; never assert a cross-subtype contrast here.
@@ -126,8 +137,13 @@ def _q4_subtype(h, c, cv):
 
 
 # allgene percentile class → signal tier (LEVEL ranks); effect ranks are supporting only.
-_PCT_TIER = {"top_1pct": "strong", "top_decile": "moderate", "mid": "weak",
-             "bottom_decile": "absent", "data_unavailable": "unmeasured"}
+_PCT_TIER = {
+    "top_1pct": "strong",
+    "top_decile": "moderate",
+    "mid": "weak",
+    "bottom_decile": "absent",
+    "data_unavailable": "unmeasured",
+}
 
 
 def _q5_absolute(h, c, cv):
@@ -189,6 +205,7 @@ def presence_question_table(headline: dict, cards: list, claim_vector: Optional[
     """The 7 question rows (each: id, question, primary read, supporting/caveat line, signal, confidence).
     Verdict-inert. `claim_vector` defaults to the one on the headline (`headline['claim_vector']`)."""
     from _skills_common.presence_claims import presence_claim_vector
+
     cv = claim_vector or headline.get("claim_vector") or presence_claim_vector(headline, cards)
     c = _cbyid(cards)
     return [
@@ -230,9 +247,13 @@ QUESTION_TABLE_CSS = (
 )
 
 
-def render_question_table_html(rows: list, verdict: Optional[str] = None, include_css: bool = True,
-                               title: str = "Presence",
-                               signal_header: str = "Signal — supports presence →") -> str:
+def render_question_table_html(
+    rows: list,
+    verdict: Optional[str] = None,
+    include_css: bool = True,
+    title: str = "Presence",
+    signal_header: str = "Signal — supports presence →",
+) -> str:
     """Render a question × (data · Signal meter · Confidence dots) table to self-contained HTML. Shared
     across skills: `title` sets the "<X> at a glance" caption (Presence / Selectivity / Dependency) and
     `signal_header` the Signal column header — both default to presence (back-compat). `include_css`
@@ -247,19 +268,21 @@ def render_question_table_html(rows: list, verdict: Optional[str] = None, includ
         meter = "".join(f'<span class="seg{(" on " + pol) if i < s.get("fill", 0) else ""}"></span>' for i in range(5))
         dots = "".join(f'<span class="dot{" on" if i < cf.get("dots", 0) else ""}"></span>' for i in range(3))
         trs.append(
-            f'<tr><td class="qid">{esc(str(r.get("id","")))}</td>'
-            f'<td class="qq">{esc(str(r.get("question","")))}</td>'
-            f'<td class="qd"><div>{esc(str(r.get("primary","")))}</div>'
-            f'<div class="qsupport">{esc(str(r.get("support","")))}</div></td>'
+            f'<tr><td class="qid">{esc(str(r.get("id", "")))}</td>'
+            f'<td class="qq">{esc(str(r.get("question", "")))}</td>'
+            f'<td class="qd"><div>{esc(str(r.get("primary", "")))}</div>'
+            f'<div class="qsupport">{esc(str(r.get("support", "")))}</div></td>'
             f'<td class="qsig"><span class="meter">{meter}</span>'
-            f'<span class="siglab {pol}">{esc(str(s.get("label","")))}</span></td>'
-            f'<td class="qconf"><span class="dots">{dots}</span></td></tr>')
-    cap = (f'<div class="qtcap">{esc(title)} at a glance'
-           + (f' · verdict <span class="verdict">{esc(str(verdict))}</span>' if verdict else "")
-           + ' <span class="hint">— Signal (strength · polarity) &amp; Confidence '
-             '(corroboration), computed from the claim-vector; verdict-inert.</span></div>')
-    head = (f'<tr><th>Q</th><th>Question</th><th>Data / read</th>'
-            f'<th>{esc(signal_header)}</th><th>Conf</th></tr>')
+            f'<span class="siglab {pol}">{esc(str(s.get("label", "")))}</span></td>'
+            f'<td class="qconf"><span class="dots">{dots}</span></td></tr>'
+        )
+    cap = (
+        f'<div class="qtcap">{esc(title)} at a glance'
+        + (f' · verdict <span class="verdict">{esc(str(verdict))}</span>' if verdict else "")
+        + ' <span class="hint">— Signal (strength · polarity) &amp; Confidence '
+        "(corroboration), computed from the claim-vector; verdict-inert.</span></div>"
+    )
+    head = f"<tr><th>Q</th><th>Question</th><th>Data / read</th><th>{esc(signal_header)}</th><th>Conf</th></tr>"
     css = f"<style>{QUESTION_TABLE_CSS}</style>" if include_css else ""
     return f'{css}{cap}<table class="qtable"><thead>{head}</thead><tbody>{"".join(trs)}</tbody></table>'
 

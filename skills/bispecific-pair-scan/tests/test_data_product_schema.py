@@ -16,6 +16,7 @@ shape/contract lock, and — being gateless — there is no verdict to guard, so
 sound test input). A second case forces the method unimportable to lock the data_unavailable degrade emit.
 CI-liveness: schema unresolvable → SKIP locally, FAIL in CI.
 """
+
 from __future__ import annotations
 
 import json
@@ -36,15 +37,21 @@ RUN_PY = SKILL_DIR / "scripts" / "run.py"
 if str(SKILLS_ROOT) not in sys.path:
     sys.path.insert(0, str(SKILLS_ROOT))
 from _skills_common.data_product_contract import (  # noqa: E402
-    conformance_errors, is_full_decision, load_schema, schema_path)
+    conformance_errors,
+    is_full_decision,
+    load_schema,
+    schema_path,
+)
 
 
 def _schema_or_gate() -> dict:
     schema = load_schema(SKILL)
     if schema is not None:
         return schema
-    reason = (f"data-product schema not found at {schema_path(SKILL)} — set TARGET_CONTRACTS_ROOT / "
-              f"land the contracts schema PR first")
+    reason = (
+        f"data-product schema not found at {schema_path(SKILL)} — set TARGET_CONTRACTS_ROOT / "
+        f"land the contracts schema PR first"
+    )
     if os.environ.get("CI"):
         pytest.fail(reason + " [CI: the ratchet must be live, not skipped]")
     pytest.skip(reason)
@@ -55,16 +62,20 @@ def _scan_partner_set(target, partners, indication, gate):
     """Synthetic ranked pair rows (descending selectivity), one per partner — the shape run.py reads."""
     rows = []
     for i, p in enumerate(partners):
-        rows.append({
-            "partner": p,
-            "selectivity": round(5.0 - i, 1),
-            "tumor_fraction": 1.0,
-            "essential_normal_fraction": 0.2,
-            "call": "tumor_selective",
-            "gate": gate,
-            "_avidity_caveat": ("bulk co-expression is necessary but NOT sufficient for same-cell "
-                                "co-expression; confirm on single-cell / spatial"),
-        })
+        rows.append(
+            {
+                "partner": p,
+                "selectivity": round(5.0 - i, 1),
+                "tumor_fraction": 1.0,
+                "essential_normal_fraction": 0.2,
+                "call": "tumor_selective",
+                "gate": gate,
+                "_avidity_caveat": (
+                    "bulk co-expression is necessary but NOT sufficient for same-cell "
+                    "co-expression; confirm on single-cell / spatial"
+                ),
+            }
+        )
     return rows
 
 
@@ -87,8 +98,9 @@ def _install_method_double(mp, scored: bool) -> None:
         # Keep the REAL analysis-methods `methods` package importable (for methods.catalog_query), then
         # override ONLY pair_selectivity_gate with the in-test double.
         from _skills_common.envelope import ANALYSIS_METHODS_ROOT_DEFAULT
+
         mp.syspath_prepend(os.environ.get("ANALYSIS_METHODS_ROOT", ANALYSIS_METHODS_ROOT_DEFAULT))
-        live_readers._import_method = lambda name: None            # no-op: repo "already on path"
+        live_readers._import_method = lambda name: None  # no-op: repo "already on path"
         pkg = types.ModuleType("methods.pair_selectivity_gate")
         read_mod = types.ModuleType("methods.pair_selectivity_gate.read")
         samecell_mod = types.ModuleType("methods.pair_selectivity_gate.samecell")
@@ -96,24 +108,38 @@ def _install_method_double(mp, scored: bool) -> None:
         samecell_mod.confirm_pair_samecell = _confirm_pair_samecell
         pkg.read = read_mod
         pkg.samecell = samecell_mod
-        for name, mod in (("methods.pair_selectivity_gate", pkg),
-                          ("methods.pair_selectivity_gate.read", read_mod),
-                          ("methods.pair_selectivity_gate.samecell", samecell_mod)):
+        for name, mod in (
+            ("methods.pair_selectivity_gate", pkg),
+            ("methods.pair_selectivity_gate.read", read_mod),
+            ("methods.pair_selectivity_gate.samecell", samecell_mod),
+        ):
             mp.setitem(sys.modules, name, mod)
     else:
+
         def _boom(name):
             raise ImportError(f"forced-test-failure: cannot import method {name}")
+
         live_readers._import_method = _boom
     mp.setitem(sys.modules, "_skills_common._live_readers", live_readers)
 
 
-def _fresh_emit(*, scored: bool, gate: str = "AND",
-                target: str = "EPCAM", indication: str = "COADREAD") -> dict:
+def _fresh_emit(*, scored: bool, gate: str = "AND", target: str = "EPCAM", indication: str = "COADREAD") -> dict:
     out_dir = Path(tempfile.mkdtemp(prefix="bps-dp-"))
     mp = pytest.MonkeyPatch()
     _install_method_double(mp, scored=scored)
-    argv = ["run.py", "--target", target, "--indication", indication, "--gate", gate,
-            "--partners", "CEACAM5,ERBB2", "--out", str(out_dir)]
+    argv = [
+        "run.py",
+        "--target",
+        target,
+        "--indication",
+        indication,
+        "--gate",
+        gate,
+        "--partners",
+        "CEACAM5,ERBB2",
+        "--out",
+        str(out_dir),
+    ]
     mp.setattr(sys, "argv", argv)
     try:
         runpy.run_path(str(RUN_PY), run_name="__main__")
@@ -129,11 +155,13 @@ def _fresh_emit(*, scored: bool, gate: str = "AND",
 def _assert_gateless_descriptive(decision: dict) -> None:
     assert is_full_decision(decision), (
         "emit is not a full decision (missing envelope provenance/run_health/generated_at or "
-        "headline.skill_report) — the emitter regressed")
+        "headline.skill_report) — the emitter regressed"
+    )
     sr = decision["headline"]["skill_report"]
     assert sr["call"] is None, f"gateless ranking must have null call, got {sr['call']!r}"
     assert sr["role"] == "descriptive" and sr["polarity"] == "not_scored", (
-        f"expected descriptive/not_scored spine, got role={sr['role']!r} polarity={sr['polarity']!r}")
+        f"expected descriptive/not_scored spine, got role={sr['role']!r} polarity={sr['polarity']!r}"
+    )
     assert isinstance(sr["honest_phrase"], str) and sr["honest_phrase"], "honest_phrase must be non-empty"
     assert (sr.get("confidence") or {}).get("level"), "confidence.level must be present"
 
@@ -158,7 +186,8 @@ def test_fresh_emit_conforms():
     assert decision["run_health"]["status"] == "ok"
     errors = conformance_errors(schema, decision)
     assert not errors, "fresh emit violates the data-product schema:\n  " + "\n  ".join(
-        f"{list(e.path)}: {e.message}" for e in errors[:15])
+        f"{list(e.path)}: {e.message}" for e in errors[:15]
+    )
 
 
 def test_data_unavailable_emit_conforms():
@@ -172,4 +201,5 @@ def test_data_unavailable_emit_conforms():
     assert (decision["headline"] or {}).get("top_pair") is None, "no pair should be scored on degrade"
     errors = conformance_errors(schema, decision)
     assert not errors, "data_unavailable emit violates the data-product schema:\n  " + "\n  ".join(
-        f"{list(e.path)}: {e.message}" for e in errors[:15])
+        f"{list(e.path)}: {e.message}" for e in errors[:15]
+    )

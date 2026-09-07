@@ -46,7 +46,8 @@ def test_non_dependent_forces_veto():
 
 def test_safety_concern_forces_hold_not_veto():
     forced, hits, _sup = tp._gate_recommendation(
-        _sub("safety", "highly_constrained_safety_concern", "highly-constrained-safety-warning"))
+        _sub("safety", "highly_constrained_safety_concern", "highly-constrained-safety-warning")
+    )
     assert forced == "hold"
 
 
@@ -75,7 +76,7 @@ def test_veto_dominates_hold_when_both_fire():
 
 def test_no_verdict_and_none_verdict_ignored():
     subs = _merge(
-        {"selectivity": {"verdict": None}},          # sub-skill with no verdict fn
+        {"selectivity": {"verdict": None}},  # sub-skill with no verdict fn
         _sub("dependency", "concordant_dependent"),  # supportive, not a gate
     )
     forced, hits, _sup = tp._gate_recommendation(subs)
@@ -84,7 +85,8 @@ def test_no_verdict_and_none_verdict_ignored():
 
 def test_loader_reads_vocab_when_present(tmp_path):
     """_load_gate_verdicts reads the target-contracts vocab and returns source='vocab'."""
-    vocab_dir = tmp_path / "vocabularies"; vocab_dir.mkdir()
+    vocab_dir = tmp_path / "vocabularies"
+    vocab_dir.mkdir()
     (vocab_dir / "nomination_verdict_gate.yaml").write_text(
         "gates:\n"
         "  - {sub_skill: dependency, verdict: pan_essential_killer, action: veto}\n"
@@ -106,7 +108,8 @@ def test_loader_falls_back_conservatively_on_missing_vocab(tmp_path):
 
 
 def test_loader_falls_back_on_malformed_vocab(tmp_path):
-    vocab_dir = tmp_path / "vocabularies"; vocab_dir.mkdir()
+    vocab_dir = tmp_path / "vocabularies"
+    vocab_dir.mkdir()
     (vocab_dir / "nomination_verdict_gate.yaml").write_text("gates: []\n")  # empty → invalid
     mapping, source = tp._load_gate_verdicts(contracts_repo=tmp_path)
     assert source == "fallback"
@@ -124,8 +127,14 @@ def test_gate_uses_fallback_when_vocab_absent(tmp_path):
 def test_clamp_semantics_on_wrapped_output():
     """Simulate the run.py clamp: a killer forces veto over an LLM 'nominate',
     preserving the wrapped {value, _source, ...} shape + marking _gated."""
-    llm_output = {"overall_recommendation": {"value": "nominate", "_source": "llm_synthesized",
-                                             "_model_id": "x", "_prompt_hash": "y"}}
+    llm_output = {
+        "overall_recommendation": {
+            "value": "nominate",
+            "_source": "llm_synthesized",
+            "_model_id": "x",
+            "_prompt_hash": "y",
+        }
+    }
     subs = _sub("dependency", "pan_essential_killer", "pan-essential-killer")
     gate_action, gate_hits, _sup = tp._gate_recommendation(subs)
     assert gate_action == "veto"
@@ -143,34 +152,61 @@ def test_clamp_semantics_on_wrapped_output():
 # Verdict-affecting subtype tier (2026-07-17)
 # ---------------------------------------------------------------------------
 
+
 def _dep_card(rows):
     """A synthetic subgroup-stratified-dependency card_output carrying rows."""
-    return [{"card_id": "subgroup-stratified-dependency",
-             "summary": {"per_subgroup_metrics": rows},
-             "interpretation_call": "x"}]
+    return [
+        {
+            "card_id": "subgroup-stratified-dependency",
+            "summary": {"per_subgroup_metrics": rows},
+            "interpretation_call": "x",
+        }
+    ]
 
 
-_MEASURED_NONDEP = {"stratum": "SUBTYPE_A", "class": "not_dependent",
-                    "evidence_state": "measured", "subgroup_n": 50,
-                    "subgroup_n_floor_met": True, "median_chronos": -0.1}
-_UNDERPOWERED_NONDEP = {"stratum": "SUBTYPE_A", "class": "not_dependent",
-                        "evidence_state": "underpowered", "subgroup_n": 17,
-                        "subgroup_n_floor_met": False, "median_chronos": -0.1}
-_MEASURED_STRONG = {"stratum": "SUBTYPE_B", "class": "strong_dependency",
-                    "evidence_state": "measured", "subgroup_n": 60,
-                    "subgroup_n_floor_met": True, "median_chronos": -1.3}
+_MEASURED_NONDEP = {
+    "stratum": "SUBTYPE_A",
+    "class": "not_dependent",
+    "evidence_state": "measured",
+    "subgroup_n": 50,
+    "subgroup_n_floor_met": True,
+    "median_chronos": -0.1,
+}
+_UNDERPOWERED_NONDEP = {
+    "stratum": "SUBTYPE_A",
+    "class": "not_dependent",
+    "evidence_state": "underpowered",
+    "subgroup_n": 17,
+    "subgroup_n_floor_met": False,
+    "median_chronos": -0.1,
+}
+_MEASURED_STRONG = {
+    "stratum": "SUBTYPE_B",
+    "class": "strong_dependency",
+    "evidence_state": "measured",
+    "subgroup_n": 60,
+    "subgroup_n_floor_met": True,
+    "median_chronos": -1.3,
+}
 # Part-8 Step-3 (POU2F3/SCLC-P): intrinsically-small (n<30, underpowered) but effect-admissible
 # (subgroup_effect_admissible: an effect-size gate, per depmap_chronos) → the SAME positive channel.
-_UNDERPOWERED_STRONG_ADMISSIBLE = {"stratum": "SCLC_P", "class": "strong_dependency",
-                    "evidence_state": "underpowered", "subgroup_n": 5,
-                    "subgroup_n_floor_met": False, "subgroup_effect_admissible": True,
-                    "median_chronos": -1.53}
+_UNDERPOWERED_STRONG_ADMISSIBLE = {
+    "stratum": "SCLC_P",
+    "class": "strong_dependency",
+    "evidence_state": "underpowered",
+    "subgroup_n": 5,
+    "subgroup_n_floor_met": False,
+    "subgroup_effect_admissible": True,
+    "median_chronos": -1.53,
+}
 
 
 def _fire(rows):
     from _skills_common import fired_rules
-    return fired_rules(_dep_card(rows), axis="intracellular_intrinsic",
-                       card_id_filter=["subgroup-stratified-dependency"])
+
+    return fired_rules(
+        _dep_card(rows), axis="intracellular_intrinsic", card_id_filter=["subgroup-stratified-dependency"]
+    )
 
 
 def test_measured_nondependent_subtype_rule_fires_and_names_stratum():
@@ -178,8 +214,7 @@ def test_measured_nondependent_subtype_rule_fires_and_names_stratum():
     subtype = [f for f in fired if f.get("tier") == "subtype"]
     assert subtype, "measured not-dependent stratum should fire the subtype rule"
     assert subtype[0]["matched_stratum"] == "SUBTYPE_A"
-    assert tp._subtype_verdict(fired) == ("subtype_specific_non_dependence",
-                                          "subtype-non-dependence-opposing")
+    assert tp._subtype_verdict(fired) == ("subtype_specific_non_dependence", "subtype-non-dependence-opposing")
 
 
 def test_underpowered_subtype_row_is_inadmissible():
@@ -195,8 +230,7 @@ def test_strong_dependency_subtype_fires_supportive():
     this PR's _subtype_verdict). Supersedes the old one-directional expectation: a strong
     subtype dependency is a genuine (supportive) cross-target signal, not a no-op."""
     fired = _fire([_MEASURED_STRONG])
-    assert tp._subtype_verdict(fired) == ("subtype_restricted_dependency",
-                                          "subtype-restricted-dependency-supportive")
+    assert tp._subtype_verdict(fired) == ("subtype_restricted_dependency", "subtype-restricted-dependency-supportive")
 
 
 def test_underpowered_effect_admissible_strong_fires_supportive():
@@ -210,12 +244,12 @@ def test_underpowered_effect_admissible_strong_fires_supportive():
     assert subtype[0]["matched_stratum"] == "SCLC_P"
     assert tp._subtype_verdict(fired) == (
         "subtype_restricted_dependency",
-        "subtype-restricted-dependency-underpowered-supportive")
+        "subtype-restricted-dependency-underpowered-supportive",
+    )
 
 
 def test_subtype_nondependence_forces_hold():
-    subs = {"subtype_fit": {"verdict": ("subtype_specific_non_dependence",
-                                        "subtype-non-dependence-opposing")}}
+    subs = {"subtype_fit": {"verdict": ("subtype_specific_non_dependence", "subtype-non-dependence-opposing")}}
     forced, hits, _sup = tp._gate_recommendation(subs)
     assert forced == "hold"
     assert hits[0]["short"] == "subtype_fit"
@@ -223,8 +257,10 @@ def test_subtype_nondependence_forces_hold():
 
 def test_subtype_hold_loses_to_dependency_veto():
     """Max-severity ratchet: a subtype hold + a dependency veto → veto."""
-    subs = {"subtype_fit": {"verdict": ("subtype_specific_non_dependence", "r")},
-            "dependency": {"verdict": ("pan_essential_killer", "pan-essential-killer")}}
+    subs = {
+        "subtype_fit": {"verdict": ("subtype_specific_non_dependence", "r")},
+        "dependency": {"verdict": ("pan_essential_killer", "pan-essential-killer")},
+    }
     forced, _, _sup = tp._gate_recommendation(subs)
     assert forced == "veto"
 
@@ -235,8 +271,10 @@ def test_no_subtype_key_is_backward_compatible():
     forces a gate → None. (The former placeholder tokens `dependent`/`ok` were not real resolver
     verdicts; post fail-closed hardening an unrecognized token on a veto-capable axis is clamped,
     so the intent — 'no gate fires' — is expressed with real benign verdicts.)"""
-    subs = {"dependency": {"verdict": ("concordant_dependent", "r")},
-            "safety": {"verdict": ("moderately_constrained_safety", "r")}}
+    subs = {
+        "dependency": {"verdict": ("concordant_dependent", "r")},
+        "safety": {"verdict": ("moderately_constrained_safety", "r")},
+    }
     forced, _, _sup = tp._gate_recommendation(subs)
     assert forced is None
 
@@ -245,10 +283,11 @@ def test_no_subtype_key_is_backward_compatible():
 # Positive tier (PR-C, 2026-07-17) — deterministic confidence FLOOR, F1-safe.
 # ===========================================================================
 
+
 def _dominant_positives():
     return {
-        "dependency":      {"verdict": ("concordant_dependent", "concordant-dependent-supportive-dominant")},
-        "selectivity":     {"verdict": ("strong_tumor_selective", "tvn-strong-selective-supportive")},
+        "dependency": {"verdict": ("concordant_dependent", "concordant-dependent-supportive-dominant")},
+        "selectivity": {"verdict": ("strong_tumor_selective", "tvn-strong-selective-supportive")},
         "tractability_sm": {"verdict": ("well_covered", "e7-triangulated-target-engaged-supportive")},
     }
 
@@ -280,8 +319,10 @@ def test_differentiation_strong_mutex_supportive_grouped_with_genomic():
     assert grp and "genomic_alteration" in grp, "differentiation must be correlated-grouped with genomic_alteration"
     # (3) ANTI-DOUBLE-COUNT: genomic dominant biomarker + differentiation strong_mutex collapse to ONE
     #     dimension → moderate, NOT strong (a single grouped dimension can't meet min_dimensions_for_strong=2)
-    subs = {"genomic_alteration": {"verdict": ("biomarker_stratified_dependency", "r")},
-            "differentiation":     {"verdict": ("strong_mutually_exclusive", "r")}}
+    subs = {
+        "genomic_alteration": {"verdict": ("biomarker_stratified_dependency", "r")},
+        "differentiation": {"verdict": ("strong_mutually_exclusive", "r")},
+    }
     assert tp._positive_tier(subs)[0] == "moderate"
     # (4) differentiation ALONE caps at moderate (supportive, 1 dim) — never mints a nomination
     assert tp._positive_tier({"differentiation": {"verdict": ("strong_mutually_exclusive", "r")}})[0] == "moderate"
@@ -292,8 +333,10 @@ def test_differentiation_strong_mutex_supportive_grouped_with_genomic():
 
 def test_opposing_measured_verdict_blocks_strong():
     """A contradiction (opposing MEASURED verdict) prevents strong even with a dominant."""
-    subs = {"dependency": {"verdict": ("concordant_dependent", "r")},
-            "selectivity": {"verdict": ("not_selective", "r")}}   # contradiction
+    subs = {
+        "dependency": {"verdict": ("concordant_dependent", "r")},
+        "selectivity": {"verdict": ("not_selective", "r")},
+    }  # contradiction
     tier, _ = tp._positive_tier(subs)
     assert tier != "strong"
 
@@ -309,32 +352,42 @@ def test_selectivity_clamp_kill_blocks_strong():
     _, contra_set, _, _ = tp._load_positive_signals()
     if ("selectivity", "selective_but_broadly_normal") not in contra_set:
         pytest.skip("gate vocab predates the selectivity clamp-KILL contradictions (land contracts-first)")
-    subs = _merge(_dominant_positives(),
-                  {"selectivity": {"verdict": ("selective_but_broadly_normal", "tvn-no-therapeutic-window-veto")}})
+    subs = _merge(
+        _dominant_positives(),
+        {"selectivity": {"verdict": ("selective_but_broadly_normal", "tvn-no-therapeutic-window-veto")}},
+    )
     tier, _ = tp._positive_tier(subs)
     assert tier != "strong"
     # the INT-axis clamp KILL is equally a contradiction
-    subs2 = _merge(_dominant_positives(),
-                   {"selectivity": {"verdict": ("selective_but_stromal_confound", "tvn-stromal-confound-veto")}})
+    subs2 = _merge(
+        _dominant_positives(),
+        {"selectivity": {"verdict": ("selective_but_stromal_confound", "tvn-stromal-confound-veto")}},
+    )
     assert tp._positive_tier(subs2)[0] != "strong"
     # but the PRESERVING liability verdict is NOT a contradiction → strong still reachable
-    subs3 = _merge(_dominant_positives(),
-                   {"selectivity": {"verdict": ("selective_with_normal_liability", "tvn-sc-normal-critical-organ-veto")}})
+    subs3 = _merge(
+        _dominant_positives(),
+        {"selectivity": {"verdict": ("selective_with_normal_liability", "tvn-sc-normal-critical-organ-veto")}},
+    )
     assert tp._positive_tier(subs3)[0] == "strong"
 
 
 def test_insufficient_is_not_a_contradiction():
     """insufficient/data_unavailable are absence-of-measurement, NOT opposition —
     they must not block a tier (measured-vs-null discipline)."""
-    subs = {"dependency": {"verdict": ("concordant_dependent", "r")},   # dominant
-            "selectivity": {"verdict": ("insufficient", None)}}         # absence, not contra
+    subs = {
+        "dependency": {"verdict": ("concordant_dependent", "r")},  # dominant
+        "selectivity": {"verdict": ("insufficient", None)},
+    }  # absence, not contra
     tier, _ = tp._positive_tier(subs)
-    assert tier == "moderate"   # 1 positive dim (dependency); insufficient neither helps nor blocks
+    assert tier == "moderate"  # 1 positive dim (dependency); insufficient neither helps nor blocks
 
 
 def test_no_positive_verdicts_returns_none():
-    subs = {"dependency": {"verdict": ("insufficient", None)},
-            "mechanism": {"verdict": ("well_characterized", "r")}}  # mechanism NOT positive-eligible
+    subs = {
+        "dependency": {"verdict": ("insufficient", None)},
+        "mechanism": {"verdict": ("well_characterized", "r")},
+    }  # mechanism NOT positive-eligible
     tier, hits = tp._positive_tier(subs)
     assert tier is None and hits == []
 
@@ -344,10 +397,10 @@ def test_kras_pattern_no_kill_and_strong_tier():
     expression broadly_low) fire NO kill; dependency+selectivity positives → strong.
     This proves KRAS×COADREAD stays nominate AND earns an auditable strong confidence."""
     subs = {
-        "dependency":       {"verdict": ("lineage_selective", "lineage-selective-supportive")},  # supportive
-        "selectivity":      {"verdict": ("strong_tumor_selective", "tvn-strong-selective-supportive")},  # dominant
-        "surface_modality": {"verdict": ("neither_viable", "r")},          # modality-scoped, excluded
-        "expression":       {"verdict": ("broadly_low_expression", "r")},  # modality-scoped, excluded
+        "dependency": {"verdict": ("lineage_selective", "lineage-selective-supportive")},  # supportive
+        "selectivity": {"verdict": ("strong_tumor_selective", "tvn-strong-selective-supportive")},  # dominant
+        "surface_modality": {"verdict": ("neither_viable", "r")},  # modality-scoped, excluded
+        "expression": {"verdict": ("broadly_low_expression", "r")},  # modality-scoped, excluded
     }
     # no kill
     forced, _, _sup = tp._gate_recommendation(subs)
@@ -363,7 +416,7 @@ def test_correlated_expression_selectivity_count_as_one_dim():
     dimension (correlated_dimension_groups), so on their own they cap at `moderate`, NOT `strong`.
     Prevents a declined RNA-only target manufacturing a strong tier from one line counted twice."""
     subs = {
-        "expression":  {"verdict": ("strongly_upregulated_in_tumor", "expression-strong-upregulation-supportive")},
+        "expression": {"verdict": ("strongly_upregulated_in_tumor", "expression-strong-upregulation-supportive")},
         "selectivity": {"verdict": ("strong_tumor_selective", "tvn-strong-selective-supportive")},  # dominant
     }
     tier, hits = tp._positive_tier(subs)
@@ -375,9 +428,9 @@ def test_correlated_group_plus_independent_dim_reaches_strong():
     """A genuinely INDEPENDENT third axis lifts a grouped target back to strong: expression+selectivity
     (1 collapsed dim) + genomic_alteration:biomarker_stratified_dependency (independent dominant) = 2."""
     subs = {
-        "expression":        {"verdict": ("strongly_upregulated_in_tumor", "r")},
-        "selectivity":       {"verdict": ("strong_tumor_selective", "r")},              # dominant, RNA group
-        "genomic_alteration":{"verdict": ("biomarker_stratified_dependency", "r")},     # dominant, independent
+        "expression": {"verdict": ("strongly_upregulated_in_tumor", "r")},
+        "selectivity": {"verdict": ("strong_tumor_selective", "r")},  # dominant, RNA group
+        "genomic_alteration": {"verdict": ("biomarker_stratified_dependency", "r")},  # dominant, independent
     }
     tier, _ = tp._positive_tier(subs)
     assert tier == "strong"
@@ -385,9 +438,11 @@ def test_correlated_group_plus_independent_dim_reaches_strong():
 
 def test_positive_tier_excludes_modality_scoped():
     """surface/expression/mechanism verdicts are NOT positive-eligible even if 'good'."""
-    subs = {"surface_modality": {"verdict": ("adc_favorable", "r")},
-            "expression": {"verdict": ("broadly_high_expression", "r")},
-            "mechanism": {"verdict": ("well_characterized", "r")}}
+    subs = {
+        "surface_modality": {"verdict": ("adc_favorable", "r")},
+        "expression": {"verdict": ("broadly_high_expression", "r")},
+        "mechanism": {"verdict": ("well_characterized", "r")},
+    }
     tier, hits = tp._positive_tier(subs)
     assert tier is None and hits == []
 
@@ -396,15 +451,28 @@ def test_positive_fallback_is_empty_not_permissive(tmp_path):
     """INVERTED safety contract: a vocab with NO positive_signals block → empty
     positive map → no tier, even for a full house of positives (never spurious strong)."""
     import yaml as _yaml
+
     voc = tmp_path / "vocabularies"
     voc.mkdir()
     # a kill-only vocab (no positive_signals) — the pre-1.1.0 shape
-    (voc / "nomination_verdict_gate.yaml").write_text(_yaml.safe_dump({
-        "enum_id": "nomination_verdict_gate", "version": "1.0.0",
-        "action_precedence": {"veto": 2, "hold": 1},
-        "gates": [{"sub_skill": "dependency", "verdict": "non_dependent", "action": "veto",
-                   "rationale": "x", "driving_rule_ids": ["non-dependent-killer"]}],
-    }))
+    (voc / "nomination_verdict_gate.yaml").write_text(
+        _yaml.safe_dump(
+            {
+                "enum_id": "nomination_verdict_gate",
+                "version": "1.0.0",
+                "action_precedence": {"veto": 2, "hold": 1},
+                "gates": [
+                    {
+                        "sub_skill": "dependency",
+                        "verdict": "non_dependent",
+                        "action": "veto",
+                        "rationale": "x",
+                        "driving_rule_ids": ["non-dependent-killer"],
+                    }
+                ],
+            }
+        )
+    )
     pos_map, _, _, source = tp._load_positive_signals(tmp_path)
     assert pos_map == {} and source == "fallback"
     tier, _ = tp._positive_tier(_dominant_positives(), contracts_repo=tmp_path)
@@ -453,8 +521,7 @@ def test_biomarker_stratified_rescues_pooled_non_dependent():
     SUPPRESSED (context-escape) and recorded in provenance."""
     subs = _merge(
         _sub("dependency", "non_dependent", "non-dependent-killer"),
-        _sub("genomic_alteration", "biomarker_stratified_dependency",
-             "mutant-strongly-dependent-supportive"),
+        _sub("genomic_alteration", "biomarker_stratified_dependency", "mutant-strongly-dependent-supportive"),
     )
     forced, hits, sup = tp._gate_recommendation(subs)
     assert forced is None, "biomarker-stratified dependency must suppress the pooled veto"
@@ -467,8 +534,7 @@ def test_biomarker_stratified_rescues_pooled_non_dependent():
 def test_moderate_biomarker_also_suppresses():
     subs = _merge(
         _sub("dependency", "non_dependent", "non-dependent-killer"),
-        _sub("genomic_alteration", "moderate_biomarker_dependency",
-             "mutant-moderately-dependent-supportive"),
+        _sub("genomic_alteration", "moderate_biomarker_dependency", "mutant-moderately-dependent-supportive"),
     )
     forced, hits, sup = tp._gate_recommendation(subs)
     assert forced is None and len(sup) == 1
@@ -480,8 +546,7 @@ def test_biomarker_does_NOT_suppress_pan_essential():
     cannot rescue — the veto must STAND."""
     subs = _merge(
         _sub("dependency", "pan_essential_killer", "pan-essential-killer"),
-        _sub("genomic_alteration", "biomarker_stratified_dependency",
-             "mutant-strongly-dependent-supportive"),
+        _sub("genomic_alteration", "biomarker_stratified_dependency", "mutant-strongly-dependent-supportive"),
     )
     forced, hits, sup = tp._gate_recommendation(subs)
     assert forced == "veto", "pan_essential veto must NOT be suppressed by a stratified signal"
@@ -540,8 +605,7 @@ def test_modality_scope_does_not_suppress_without_declared_modality():
 
 def _sub_with_card(short, verdict, card_id, summary):
     """A sub-result carrying a composed card (for card-field suppressor triggers)."""
-    return {short: {"verdict": (verdict if verdict else None),
-                    "cards": [{"card_id": card_id, "summary": summary}]}}
+    return {short: {"verdict": (verdict if verdict else None), "cards": [{"card_id": card_id, "summary": summary}]}}
 
 
 def test_sl_card_field_suppresses_pooled_non_dependent():
@@ -553,8 +617,12 @@ def test_sl_card_field_suppresses_pooled_non_dependent():
     short was retired 2026-08-20."""
     subs = _merge(
         _sub("dependency", "non_dependent", "non-dependent-killer"),
-        _sub_with_card("combination_vulnerability", None, "synthetic-lethal-partners",
-                       {"sl_partner_class": "has_experimental_sl_partner"}),
+        _sub_with_card(
+            "combination_vulnerability",
+            None,
+            "synthetic-lethal-partners",
+            {"sl_partner_class": "has_experimental_sl_partner"},
+        ),
     )
     forced, hits, sup = tp._gate_recommendation(subs)
     assert forced is None, "an experimental SL partner (card field) must suppress the pooled veto"
@@ -562,7 +630,8 @@ def test_sl_card_field_suppresses_pooled_non_dependent():
     assert len(sup) == 1 and sup[0]["verdict"] == "non_dependent"
     assert sup[0]["suppressed_by"]["kind"] == "context_escape"
     assert sup[0]["suppressed_by"]["trigger"] == (
-        "synthetic-lethal-partners.sl_partner_class=has_experimental_sl_partner")
+        "synthetic-lethal-partners.sl_partner_class=has_experimental_sl_partner"
+    )
 
 
 def test_sl_computational_partner_does_not_suppress():
@@ -570,8 +639,12 @@ def test_sl_computational_partner_does_not_suppress():
     override a measured pooled negative (vocab: has_experimental_sl_partner only)."""
     subs = _merge(
         _sub("dependency", "non_dependent", "non-dependent-killer"),
-        _sub_with_card("combination_vulnerability", None, "synthetic-lethal-partners",
-                       {"sl_partner_class": "has_computational_sl_partner"}),
+        _sub_with_card(
+            "combination_vulnerability",
+            None,
+            "synthetic-lethal-partners",
+            {"sl_partner_class": "has_computational_sl_partner"},
+        ),
     )
     forced, _h, sup = tp._gate_recommendation(subs)
     assert forced == "veto" and sup == []
@@ -582,8 +655,12 @@ def test_sl_card_field_does_not_suppress_pan_essential():
     pan_essential_killer is a distinct failure an SL partner cannot rescue."""
     subs = _merge(
         _sub("dependency", "pan_essential_killer", "pan-essential-killer"),
-        _sub_with_card("combination_vulnerability", None, "synthetic-lethal-partners",
-                       {"sl_partner_class": "has_experimental_sl_partner"}),
+        _sub_with_card(
+            "combination_vulnerability",
+            None,
+            "synthetic-lethal-partners",
+            {"sl_partner_class": "has_experimental_sl_partner"},
+        ),
     )
     forced, _h, sup = tp._gate_recommendation(subs)
     assert forced == "veto" and sup == []
@@ -598,21 +675,23 @@ def test_veto_suppressor_triggers_reference_live_shorts_or_composed_cards():
     supps, _msvs, _bavd, _gdvd, src = tp._load_veto_suppressors()
     assert src == "vocab", "guard needs the real sibling-contracts vocab"
     live_shorts = {sh for _sd, sh in tp.SUB_SKILLS} | {tp.SUBTYPE_SHORT}
-    composed_cards = ({cid for cards in tp.SUB_SKILL_CARDS.values() for cid in cards}
-                      | set(tp.SUBTYPE_CARDS))
+    composed_cards = {cid for cards in tp.SUB_SKILL_CARDS.values() for cid in cards} | set(tp.SUBTYPE_CARDS)
     for s in supps:
         for w in s["when_present"]:
             if "verdict" in w:
                 assert w["sub_skill"] in live_shorts, (
                     f"veto-suppressor verdict-trigger sub_skill {w['sub_skill']!r} is not a live "
-                    f"fan-out short (consolidation orphan — the suppressor can never fire)")
+                    f"fan-out short (consolidation orphan — the suppressor can never fire)"
+                )
             else:
                 assert w["card_id"] in composed_cards, (
                     f"veto-suppressor card-field trigger card_id {w['card_id']!r} is not composed "
-                    f"in any SUB_SKILL_CARDS entry (the suppressor can never fire)")
+                    f"in any SUB_SKILL_CARDS entry (the suppressor can never fire)"
+                )
 
 
 # --- PR-4b: biology-axis-scoped dependency-veto DOWNGRADE (2026-08-24) ---
+
 
 def _surface_antigen_subs(surface_verdict="adc_preferred_tce_unsafe"):
     """A DLL3-shaped fired set: pooled non_dependent (would veto) + a FAVORABLE surface fit."""
@@ -625,8 +704,7 @@ def _surface_antigen_subs(surface_verdict="adc_preferred_tce_unsafe"):
 def test_biology_axis_downgrades_surface_antigen_veto_to_hold():
     """DLL3-class: surface_intrinsic axis + favorable surface fit → the dependency non_dependent VETO
     is DOWNGRADED to hold (surfaces the target, doesn't force-decline it on an irrelevant criterion)."""
-    forced, hits, sup = tp._gate_recommendation(
-        _surface_antigen_subs(), biology_axis="surface_intrinsic")
+    forced, hits, sup = tp._gate_recommendation(_surface_antigen_subs(), biology_axis="surface_intrinsic")
     assert forced == "hold", (forced, hits)
     # the dependency hit survives as a hold (downgraded), recorded in suppressions.
     dep_hit = next(h for h in hits if h["short"] == "dependency")
@@ -638,14 +716,14 @@ def test_biology_axis_downgrade_requires_favorable_surface():
     """Guard: a surface axis with NO viable arm (neither_viable) still VETOES — the favorable-surface
     co-condition prevents rescuing surface-junk."""
     forced, _hits, _sup = tp._gate_recommendation(
-        _surface_antigen_subs("neither_viable"), biology_axis="surface_intrinsic")
+        _surface_antigen_subs("neither_viable"), biology_axis="surface_intrinsic"
+    )
     assert forced == "veto"
 
 
 def test_biology_axis_downgrade_only_for_surface_axis():
     """Guard: an intracellular target with the same fired set still VETOES (downgrade is surface-only)."""
-    forced, _hits, _sup = tp._gate_recommendation(
-        _surface_antigen_subs(), biology_axis="intracellular_intrinsic")
+    forced, _hits, _sup = tp._gate_recommendation(_surface_antigen_subs(), biology_axis="intracellular_intrinsic")
     assert forced == "veto"
 
 
@@ -662,9 +740,11 @@ def test_biology_axis_downgrade_absent_axis_is_backward_compatible():
 # FAVORABLE fit_class (real surface evidence) instead of the curation. These use a SYNTHETIC vocab so
 # the mechanism is proven independent of the companion contracts vocab merge (target-contracts #546).
 
+
 def _vocab_with_unknown(tmp_path):
     """A minimal gate vocab whose downgrade admits biology_axis=unknown (the post-#546 shape)."""
-    voc = tmp_path / "vocabularies"; voc.mkdir()
+    voc = tmp_path / "vocabularies"
+    voc.mkdir()
     (voc / "nomination_verdict_gate.yaml").write_text(
         "gates:\n"
         "  - {sub_skill: dependency, verdict: non_dependent, action: veto}\n"
@@ -683,7 +763,8 @@ def test_uncurated_surface_antigen_downgrades_to_hold(tmp_path):
     fit has its pooled non_dependent VETO downgraded to hold — data-driven off the fit_class, not the
     curated lookup. This is the round-1 T2b fix."""
     forced, hits, sup = tp._gate_recommendation(
-        _surface_antigen_subs(), contracts_repo=_vocab_with_unknown(tmp_path), biology_axis="unknown")
+        _surface_antigen_subs(), contracts_repo=_vocab_with_unknown(tmp_path), biology_axis="unknown"
+    )
     assert forced == "hold", (forced, hits)
     dep_hit = next(h for h in hits if h["short"] == "dependency")
     assert dep_hit["action"] == "hold" and dep_hit.get("_downgraded_from") == "veto"
@@ -694,8 +775,8 @@ def test_uncurated_requires_favorable_surface(tmp_path):
     """Guard preserved for the unknown axis: an uncurated target with NO viable surface arm
     (neither_viable) still VETOES — the favorable-surface co-condition prevents rescuing surface-junk."""
     forced, _hits, _sup = tp._gate_recommendation(
-        _surface_antigen_subs("neither_viable"), contracts_repo=_vocab_with_unknown(tmp_path),
-        biology_axis="unknown")
+        _surface_antigen_subs("neither_viable"), contracts_repo=_vocab_with_unknown(tmp_path), biology_axis="unknown"
+    )
     assert forced == "veto"
 
 
@@ -704,8 +785,8 @@ def test_intracellular_still_vetoes_even_with_unknown_admitted(tmp_path):
     explicitly-classified intracellular_intrinsic target with a favorable surface signal still VETOES
     (an intracellular oncogene with an incidental surface signal is not a surface antigen)."""
     forced, _hits, _sup = tp._gate_recommendation(
-        _surface_antigen_subs(), contracts_repo=_vocab_with_unknown(tmp_path),
-        biology_axis="intracellular_intrinsic")
+        _surface_antigen_subs(), contracts_repo=_vocab_with_unknown(tmp_path), biology_axis="intracellular_intrinsic"
+    )
     assert forced == "veto"
 
 
@@ -715,8 +796,10 @@ def test_intracellular_still_vetoes_even_with_unknown_admitted(tmp_path):
 # mutant-selective inhibition. Keyed on the GENOMIC sub-verdict; synthetic vocab so it's independent of
 # the companion contracts block.
 
+
 def _vocab_with_gof(tmp_path):
-    voc = tmp_path / "vocabularies"; voc.mkdir()
+    voc = tmp_path / "vocabularies"
+    voc.mkdir()
     (voc / "nomination_verdict_gate.yaml").write_text(
         "gates:\n"
         "  - {sub_skill: dependency, verdict: non_dependent, action: veto}\n"
@@ -730,14 +813,15 @@ def _vocab_with_gof(tmp_path):
 
 
 def _gof_subs(dep="non_dependent", genomic="confirmed_driver"):
-    return _merge(_sub("dependency", dep, "non-dependent-killer"),
-                  _sub("genomic_alteration", genomic, "alteration-role-gof-driver-supportive"))
+    return _merge(
+        _sub("dependency", dep, "non-dependent-killer"),
+        _sub("genomic_alteration", genomic, "alteration-role-gof-driver-supportive"),
+    )
 
 
 def test_gof_driver_downgrades_non_dependent_veto_to_hold(tmp_path):
     """IDH1 R132 shape: non_dependent + confirmed_driver (GoF) → the veto is DOWNGRADED to hold."""
-    forced, hits, sup = tp._gate_recommendation(
-        _gof_subs(), contracts_repo=_vocab_with_gof(tmp_path))
+    forced, hits, sup = tp._gate_recommendation(_gof_subs(), contracts_repo=_vocab_with_gof(tmp_path))
     assert forced == "hold", (forced, hits)
     dep_hit = next(h for h in hits if h["short"] == "dependency")
     assert dep_hit["action"] == "hold" and dep_hit.get("_downgraded_from") == "veto"
@@ -746,7 +830,8 @@ def test_gof_driver_downgrades_non_dependent_veto_to_hold(tmp_path):
 
 def test_multi_class_driver_also_downgrades(tmp_path):
     forced, _h, _s = tp._gate_recommendation(
-        _gof_subs(genomic="multi_class_driver"), contracts_repo=_vocab_with_gof(tmp_path))
+        _gof_subs(genomic="multi_class_driver"), contracts_repo=_vocab_with_gof(tmp_path)
+    )
     assert forced == "hold"
 
 
@@ -754,14 +839,16 @@ def test_non_driver_genomic_still_vetoes(tmp_path):
     """GLS/LUAD guard: non_dependent + a NON-driver genomic read (missense_dominant_pattern) still
     VETOES — the downgrade is scoped to GoF-driver verdicts only."""
     forced, _h, _s = tp._gate_recommendation(
-        _gof_subs(genomic="missense_dominant_pattern"), contracts_repo=_vocab_with_gof(tmp_path))
+        _gof_subs(genomic="missense_dominant_pattern"), contracts_repo=_vocab_with_gof(tmp_path)
+    )
     assert forced == "veto"
 
 
 def test_lof_driver_still_vetoes(tmp_path):
     """TSG guard: a LoF driver (confirmed_lof_driver) is NOT a mutant-selective GoF target → veto stands."""
     forced, _h, _s = tp._gate_recommendation(
-        _gof_subs(genomic="confirmed_lof_driver"), contracts_repo=_vocab_with_gof(tmp_path))
+        _gof_subs(genomic="confirmed_lof_driver"), contracts_repo=_vocab_with_gof(tmp_path)
+    )
     assert forced == "veto"
 
 
@@ -769,5 +856,6 @@ def test_gof_downgrade_does_not_touch_pan_essential(tmp_path):
     """MYC guard: pan_essential_killer + confirmed_driver still VETOES (the downgrade targets the
     non_dependent verdict only, never the pan-essential killer)."""
     forced, _h, _s = tp._gate_recommendation(
-        _gof_subs(dep="pan_essential_killer"), contracts_repo=_vocab_with_gof(tmp_path))
+        _gof_subs(dep="pan_essential_killer"), contracts_repo=_vocab_with_gof(tmp_path)
+    )
     assert forced == "veto"

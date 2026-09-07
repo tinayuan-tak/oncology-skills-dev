@@ -61,6 +61,7 @@ class Composition:
     a validation rule; failures raise CompositionError with a message that
     names the offending field.
     """
+
     data_mode: str
     phase: list[str]
     cards_used: list[str]
@@ -84,9 +85,7 @@ def validate(raw: dict, skill_name: Optional[str] = None) -> Composition:
     label = f"skill {skill_name!r}" if skill_name else "composition block"
 
     if not isinstance(raw, dict):
-        raise CompositionError(
-            f"{label}: composition must be a YAML mapping, got {type(raw).__name__}"
-        )
+        raise CompositionError(f"{label}: composition must be a YAML mapping, got {type(raw).__name__}")
 
     def _require(key: str):
         if key not in raw:
@@ -95,24 +94,17 @@ def validate(raw: dict, skill_name: Optional[str] = None) -> Composition:
 
     def _list_of_str(val, key: str) -> list[str]:
         if not isinstance(val, list) or not all(isinstance(x, str) for x in val):
-            raise CompositionError(
-                f"{label}: {key!r} must be a list of strings, got {val!r}"
-            )
+            raise CompositionError(f"{label}: {key!r} must be a list of strings, got {val!r}")
         return val
 
     def _one_of(val, allowed: set, key: str):
         if val not in allowed:
-            raise CompositionError(
-                f"{label}: {key!r} value {val!r} not in {sorted(allowed)}"
-            )
+            raise CompositionError(f"{label}: {key!r} value {val!r} not in {sorted(allowed)}")
 
     def _all_in(vals: list, allowed: set, key: str):
         bad = [v for v in vals if v not in allowed]
         if bad:
-            raise CompositionError(
-                f"{label}: {key!r} contains invalid entries {bad!r}, "
-                f"allowed: {sorted(allowed)}"
-            )
+            raise CompositionError(f"{label}: {key!r} contains invalid entries {bad!r}, allowed: {sorted(allowed)}")
 
     # data_mode
     data_mode = _require("data_mode")
@@ -151,14 +143,11 @@ def validate(raw: dict, skill_name: Optional[str] = None) -> Composition:
     # steps_covered
     steps_raw = _require_or_empty("steps_covered")
     if not isinstance(steps_raw, list) or not all(isinstance(x, int) for x in steps_raw):
-        raise CompositionError(
-            f"{label}: 'steps_covered' must be a list of ints (1-6), got {steps_raw!r}"
-        )
+        raise CompositionError(f"{label}: 'steps_covered' must be a list of ints (1-6), got {steps_raw!r}")
     bad_steps = [s for s in steps_raw if s not in STEPS]
     if bad_steps:
         raise CompositionError(
-            f"{label}: 'steps_covered' contains invalid entries {bad_steps!r}, "
-            f"allowed: {sorted(STEPS)}"
+            f"{label}: 'steps_covered' contains invalid entries {bad_steps!r}, allowed: {sorted(STEPS)}"
         )
 
     # optional_lenses (optional field)
@@ -184,9 +173,7 @@ def validate(raw: dict, skill_name: Optional[str] = None) -> Composition:
             )
         for card_id, behavior in on_dependency_status.items():
             if not isinstance(card_id, str):
-                raise CompositionError(
-                    f"{label}: 'on_dependency_status' key {card_id!r} must be a string"
-                )
+                raise CompositionError(f"{label}: 'on_dependency_status' key {card_id!r} must be a string")
             if behavior not in DEPENDENCY_STATUS_BEHAVIORS:
                 raise CompositionError(
                     f"{label}: 'on_dependency_status[{card_id!r}]' value "
@@ -194,8 +181,7 @@ def validate(raw: dict, skill_name: Optional[str] = None) -> Composition:
                 )
             if card_id not in cards_used:
                 raise CompositionError(
-                    f"{label}: 'on_dependency_status' references card_id "
-                    f"{card_id!r} not in cards_used ({cards_used!r})"
+                    f"{label}: 'on_dependency_status' references card_id {card_id!r} not in cards_used ({cards_used!r})"
                 )
 
     return Composition(
@@ -245,13 +231,9 @@ def validate_skill_md(skill_md_path) -> Composition:
 
     fm = parse_skill_md_frontmatter(skill_md_path)
     if fm is None:
-        raise CompositionError(
-            f"{Path(skill_md_path)}: no YAML front-matter block found"
-        )
+        raise CompositionError(f"{Path(skill_md_path)}: no YAML front-matter block found")
     skill_name = fm.get("name", Path(skill_md_path).parent.name)
     composition = fm.get("composition")
     if composition is None:
-        raise CompositionError(
-            f"skill {skill_name!r}: front-matter missing 'composition' block"
-        )
+        raise CompositionError(f"skill {skill_name!r}: front-matter missing 'composition' block")
     return validate(composition, skill_name=skill_name)

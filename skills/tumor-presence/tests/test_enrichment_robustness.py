@@ -16,6 +16,7 @@ Two coupled failure modes on the VERDICT-INERT enrichment layer, neither covered
 
 All three helpers are verdict-INERT, so these guards never touch the collapsed spine.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -32,9 +33,13 @@ tp = load_run_py(SKILL_DIR, "tp_run_enrich")
 def test_key_signals_null_dge_q_value_no_crash_drops_q_clause():
     """The reproduced crash: a strong_up DGE arm with a finite log2FC but a NULL q_value. Before the
     fix `f"{None:.0e}"` raised TypeError; now the q clause is dropped (not fabricated as `q=0e+00`)."""
-    cards = [{"card_id": "tumor-rna-vs-adjacent",
-              "summary": {"expression_call_class": "strong_up", "log2_fc": 1.5, "q_value": None}}]
-    ks = presence_key_signals({}, cards)   # must NOT raise
+    cards = [
+        {
+            "card_id": "tumor-rna-vs-adjacent",
+            "summary": {"expression_call_class": "strong_up", "log2_fc": 1.5, "q_value": None},
+        }
+    ]
+    ks = presence_key_signals({}, cards)  # must NOT raise
     b = next((s for s in ks["supports"] if "vs adjacent" in s), None)
     assert b is not None and "log2FC 1.5" in b
     assert ", q=" not in b, f"null q_value should drop the q clause, not fabricate one: {b!r}"
@@ -42,8 +47,12 @@ def test_key_signals_null_dge_q_value_no_crash_drops_q_clause():
 
 def test_key_signals_numeric_dge_q_value_is_kept():
     """A real numeric q_value is still rendered (byte-stable happy path)."""
-    cards = [{"card_id": "tumor-rna-vs-adjacent",
-              "summary": {"expression_call_class": "strong_up", "log2_fc": 1.5, "q_value": 1e-6}}]
+    cards = [
+        {
+            "card_id": "tumor-rna-vs-adjacent",
+            "summary": {"expression_call_class": "strong_up", "log2_fc": 1.5, "q_value": 1e-6},
+        }
+    ]
     ks = presence_key_signals({}, cards)
     b = next((s for s in ks["supports"] if "vs adjacent" in s), None)
     assert b is not None and "q=1e-06" in b
@@ -53,11 +62,14 @@ def test_key_signals_keeps_protein_confirmed_at_zero_q_value():
     """L4: a maximally-significant protein BH q-value of exactly 0.0 must KEEP the protein-confirmed
     bit (the old `(x or 1) < 0.05` folded 0.0 -> 1.0 and dropped it for the strongest evidence)."""
     cards = [
-        {"card_id": "tumor-rna-vs-adjacent",
-         "summary": {"expression_call_class": "strong_up", "log2_fc": 1.5, "q_value": 1e-6}},
-        {"card_id": "tumor-protein-abundance-cptac",
-         "summary": {"protein_expression_class": "strong_up", "protein_effect_size": 0.5,
-                     "protein_bh_q_value": 0.0}},
+        {
+            "card_id": "tumor-rna-vs-adjacent",
+            "summary": {"expression_call_class": "strong_up", "log2_fc": 1.5, "q_value": 1e-6},
+        },
+        {
+            "card_id": "tumor-protein-abundance-cptac",
+            "summary": {"protein_expression_class": "strong_up", "protein_effect_size": 0.5, "protein_bh_q_value": 0.0},
+        },
     ]
     ks = presence_key_signals({}, cards)
     b = next(s for s in ks["supports"] if "[DGE + CPTAC]" in s)

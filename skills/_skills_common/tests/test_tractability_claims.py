@@ -1,6 +1,7 @@
 """Unit tests for tractability-small-molecule's claim vector (skills/_skills_common/tractability_claims.py),
 the SIXTH concrete over claim_vector_core. Pins the POSITIVE-valence tiers + citable atoms per axis
 (POTENCY/ACTIVITY/STRUCT/DRUG/DEGRADER). Pure over card summaries — no S3."""
+
 from __future__ import annotations
 
 import sys
@@ -11,36 +12,67 @@ if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
 
 from _skills_common.tractability_claims import (  # noqa: E402
-    small_molecule_claim_vector, small_molecule_key_signals)
+    small_molecule_claim_vector,
+    small_molecule_key_signals,
+)
 
 
 def _cards():
     return [
-        {"card_id": "measured-potency-tractability", "summary": {
-            "measured_bioactivity_class": "potent_measured_ligand", "chembl_best_pchembl": 8.4,
-            "chembl_n_potent_ligands": 37, "best_measured_potency_neglog_m": 8.4}},
-        {"card_id": "prism-compound-activity", "summary": {
-            "prism_activity_class": "clinical_precedent_only", "n_compounds_targeting": 4,
-            "highest_clinical_phase": 4.0}},
-        {"card_id": "structure-features-static", "summary": {
-            "structural_ligandability_class": "experimental_ligandable", "pdb_coverage_class": "strong",
-            "alphafold_confidence_class": "high", "alphafold_plddt_mean": 92.1}},
-        {"card_id": "known-drug-tractability", "summary": {
-            "known_drug_tractability_class": "approved_drug_tractable", "druggability_tier": "Tclin",
-            "has_approved_drug": True, "n_antineoplastic_interactions": 12}},
-        {"card_id": "degradation-feasibility", "summary": {
-            "degradability_feasibility_class": "ubiquitination_substrate", "e3_substrate_evidence": "curated",
-            "n_e3_ligases_literature": 3, "degrader_precedent": "none"}},
+        {
+            "card_id": "measured-potency-tractability",
+            "summary": {
+                "measured_bioactivity_class": "potent_measured_ligand",
+                "chembl_best_pchembl": 8.4,
+                "chembl_n_potent_ligands": 37,
+                "best_measured_potency_neglog_m": 8.4,
+            },
+        },
+        {
+            "card_id": "prism-compound-activity",
+            "summary": {
+                "prism_activity_class": "clinical_precedent_only",
+                "n_compounds_targeting": 4,
+                "highest_clinical_phase": 4.0,
+            },
+        },
+        {
+            "card_id": "structure-features-static",
+            "summary": {
+                "structural_ligandability_class": "experimental_ligandable",
+                "pdb_coverage_class": "strong",
+                "alphafold_confidence_class": "high",
+                "alphafold_plddt_mean": 92.1,
+            },
+        },
+        {
+            "card_id": "known-drug-tractability",
+            "summary": {
+                "known_drug_tractability_class": "approved_drug_tractable",
+                "druggability_tier": "Tclin",
+                "has_approved_drug": True,
+                "n_antineoplastic_interactions": 12,
+            },
+        },
+        {
+            "card_id": "degradation-feasibility",
+            "summary": {
+                "degradability_feasibility_class": "ubiquitination_substrate",
+                "e3_substrate_evidence": "curated",
+                "n_e3_ligases_literature": 3,
+                "degrader_precedent": "none",
+            },
+        },
     ]
 
 
 def test_positive_valence_tiers():
     vec = small_molecule_claim_vector({}, _cards())
-    assert vec["POTENCY"]["signal"] == "strong"        # potent_measured_ligand
-    assert vec["ACTIVITY"]["signal"] == "moderate"     # clinical_precedent_only
-    assert vec["STRUCT"]["signal"] == "strong"         # experimental_ligandable
-    assert vec["DRUG"]["signal"] == "strong"           # approved_drug_tractable
-    assert vec["DEGRADER"]["signal"] == "moderate"     # ubiquitination_substrate
+    assert vec["POTENCY"]["signal"] == "strong"  # potent_measured_ligand
+    assert vec["ACTIVITY"]["signal"] == "moderate"  # clinical_precedent_only
+    assert vec["STRUCT"]["signal"] == "strong"  # experimental_ligandable
+    assert vec["DRUG"]["signal"] == "strong"  # approved_drug_tractable
+    assert vec["DEGRADER"]["signal"] == "moderate"  # ubiquitination_substrate
 
 
 def test_atoms_present_and_citable():
@@ -53,12 +85,15 @@ def test_atoms_present_and_citable():
 
 
 def test_disordered_is_negative_and_gaps_unmeasured():
-    vec = small_molecule_claim_vector({}, [
-        {"card_id": "structure-features-static", "summary": {"structural_ligandability_class": "disordered_low"}},
-        {"card_id": "measured-potency-tractability", "summary": {"measured_bioactivity_class": "data_unavailable"}},
-    ])
-    assert vec["STRUCT"]["signal"] == "negative"       # disordered → measured-against
-    assert vec["POTENCY"]["signal"] == "unmeasured"    # gap
+    vec = small_molecule_claim_vector(
+        {},
+        [
+            {"card_id": "structure-features-static", "summary": {"structural_ligandability_class": "disordered_low"}},
+            {"card_id": "measured-potency-tractability", "summary": {"measured_bioactivity_class": "data_unavailable"}},
+        ],
+    )
+    assert vec["STRUCT"]["signal"] == "negative"  # disordered → measured-against
+    assert vec["POTENCY"]["signal"] == "unmeasured"  # gap
 
 
 def test_atoms_absent_without_cards():
@@ -74,9 +109,15 @@ def _discordant_cards():
     # A real chemical hit that is OFF-TARGET: activity + potency light up, but the concordance is
     # discordant, so the resolver lands druggability_snapshot=discordant (a NEGATIVE verdict).
     return [
-        {"card_id": "measured-potency-tractability", "summary": {"measured_bioactivity_class": "potent_measured_ligand"}},
+        {
+            "card_id": "measured-potency-tractability",
+            "summary": {"measured_bioactivity_class": "potent_measured_ligand"},
+        },
         {"card_id": "prism-compound-activity", "summary": {"prism_activity_class": "clinically_active"}},
-        {"card_id": "structure-features-static", "summary": {"structural_ligandability_class": "experimental_ligandable"}},
+        {
+            "card_id": "structure-features-static",
+            "summary": {"structural_ligandability_class": "experimental_ligandable"},
+        },
     ]
 
 
@@ -91,7 +132,8 @@ def test_key_signals_negative_verdict_does_not_read_tractable():
     # discordant surfaces the off-target caveat even though the positive claim axes have no weak-critical
     disc = small_molecule_key_signals(
         {"druggability_snapshot": "discordant", "prism_crispr_concord": "discordant_off_target_likely"},
-        _discordant_cards())
+        _discordant_cards(),
+    )
     assert "off-target" in disc["headline"].lower()
     assert disc["caveat"] and "off-target" in disc["caveat"].lower()
 
@@ -111,7 +153,7 @@ def test_key_signals_positive_headline_byte_stable():
     """A resolved POSITIVE snapshot keeps the prior binary headline (no regression on the happy path)."""
     ks = small_molecule_key_signals({"druggability_snapshot": "well_covered"}, _cards())
     assert ks["headline"] == "Small-molecule tractable."
-    assert ks["supports"]                                    # strong axes surface
+    assert ks["supports"]  # strong axes surface
 
 
 def test_key_signals_discordant_does_not_read_tractable():
@@ -129,8 +171,7 @@ def test_key_signals_discordant_does_not_read_tractable():
 
 def test_key_signals_intractable_and_unhit_are_negative():
     """structurally_intractable / chemically_unhit also must not read tractable."""
-    for tok, frag in (("structurally_intractable", "intractable"),
-                      ("chemically_unhit", "No compound found")):
+    for tok, frag in (("structurally_intractable", "intractable"), ("chemically_unhit", "No compound found")):
         ks = small_molecule_key_signals({"druggability_snapshot": tok}, _cards())
         assert "tractable" not in ks["headline"].lower() or frag.lower() in ks["headline"].lower()
         assert frag.lower() in ks["headline"].lower()

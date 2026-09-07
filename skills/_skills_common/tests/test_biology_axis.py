@@ -1,5 +1,6 @@
 """biology_axis loader — resolve a target's curated axis + plausible modalities, and render
 the modality-emphasis governance block. Pure local vocabulary read (no network)."""
+
 from __future__ import annotations
 
 import sys
@@ -9,7 +10,8 @@ COMMON_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(COMMON_DIR.parent))  # skills/
 
 from _skills_common.biology_axis import (  # noqa: E402
-    resolve_biology_axis, format_axis_governance_block,
+    resolve_biology_axis,
+    format_axis_governance_block,
 )
 
 
@@ -31,7 +33,7 @@ def test_surface_target_resolves_via_primary_and_alias():
 
 def test_multi_axis_target_is_flagged_not_erased():
     info = resolve_biology_axis("EGFR")
-    assert info["biology_axis"] == "intracellular_intrinsic"   # primary
+    assert info["biology_axis"] == "intracellular_intrinsic"  # primary
     assert info["multi_axis"] is True
     assert info["multi_axis_note"] and "surface" in info["multi_axis_note"].lower()
 
@@ -55,7 +57,7 @@ def test_governance_block_is_secondary_not_foregrounded():
     """Altitude fix: the block must frame modality as SECONDARY, not the lead."""
     block = format_axis_governance_block(resolve_biology_axis("KRAS"))
     assert "SECONDARY to" in block
-    assert "FOREGROUND" not in block   # old foreground-modality framing is gone
+    assert "FOREGROUND" not in block  # old foreground-modality framing is gone
 
 
 def test_governance_block_surface_target_lists_surface_modalities():

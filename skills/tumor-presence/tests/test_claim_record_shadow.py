@@ -1,6 +1,7 @@
 """tumor-presence factored-record SHADOW builder (M1) — the FIRST no-resolver axis. Pins the
 presence_verdict->record mapping, open-world/negative cases, fired-set cross-check, and schema
 conformance (token-pattern only — the no-resolver invariant-C enum is an M3 item). Consumed-by-nothing."""
+
 from __future__ import annotations
 
 import json
@@ -18,8 +19,9 @@ def _fired(*rids):
 
 
 def test_upregulated_supports_measured_positive():
-    rec = pr._claim_record([], fired=_fired("rna-strong-up"),
-                           verdict_pair=("strongly_upregulated_in_tumor", "rna-strong-up"))
+    rec = pr._claim_record(
+        [], fired=_fired("rna-strong-up"), verdict_pair=("strongly_upregulated_in_tumor", "rna-strong-up")
+    )
     assert rec["axis"] == "tumor_presence"
     assert rec["finding"]["direction"] == "supports"
     assert rec["finding"]["availability"] == "measured_positive"
@@ -60,9 +62,16 @@ def test_conforms_to_contract_schema_if_available():
     if schema is None:
         pytest.skip("contracts schema not available")
     from jsonschema import Draft202012Validator
-    for v in ("strongly_upregulated_in_tumor", "modestly_upregulated_in_tumor", "tumor_sparsely_expressed",
-              "strongly_downregulated_in_tumor", "broadly_low_expression", "not_informative",
-              "data_unavailable"):
+
+    for v in (
+        "strongly_upregulated_in_tumor",
+        "modestly_upregulated_in_tumor",
+        "tumor_sparsely_expressed",
+        "strongly_downregulated_in_tumor",
+        "broadly_low_expression",
+        "not_informative",
+        "data_unavailable",
+    ):
         rec = pr._claim_record([], fired=[], verdict_pair=(v, None))
         errs = sorted(Draft202012Validator(schema).iter_errors(rec), key=lambda e: e.path)
         assert not errs, f"{v} -> {[e.message for e in errs]}"

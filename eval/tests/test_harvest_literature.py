@@ -2,6 +2,7 @@
 
 Runs via: pixi run pytest eval/tests/test_harvest_literature.py -q   (from the home checkout).
 """
+
 from __future__ import annotations
 
 import sys
@@ -37,15 +38,22 @@ def test_harvest_pair_projects_records(monkeypatch):
             "synthesis_facet": {
                 "claim_vector": {"DEP": {"signal": "strong", "corroboration": "high"}},
                 "literature_synthesis": {
-                    "overall_consistency": "concordant", "key_divergence": "none",
-                    "axes": [], "blind_spots": [],
-                    "_model_id": "us.anthropic.claude-opus-4-8", "_prompt_hash": "h1",
+                    "overall_consistency": "concordant",
+                    "key_divergence": "none",
+                    "axes": [],
+                    "blind_spots": [],
+                    "_model_id": "us.anthropic.claude-opus-4-8",
+                    "_prompt_hash": "h1",
                 },
             },
         },
         # a skill with no lane (no literature_synthesis) → skipped
-        "target_intrinsic": {"skill_dir": "target-intrinsic", "verdict": None,
-                             "fired": [], "synthesis_facet": {"claim_vector": {}}},
+        "target_intrinsic": {
+            "skill_dir": "target-intrinsic",
+            "verdict": None,
+            "fired": [],
+            "synthesis_facet": {"claim_vector": {}},
+        },
     }
     stub = types.ModuleType("tp_fanout")
     stub._run_sub_skills = lambda *a, **k: fake  # noqa: E731
@@ -55,7 +63,7 @@ def test_harvest_pair_projects_records(monkeypatch):
     assert len(recs) == 1
     r = recs[0]
     assert r["target"] == "KRAS" and r["indication"] == "COADREAD"
-    assert r["skill"] == "functional-requirement"          # skill DIR id, not the short
+    assert r["skill"] == "functional-requirement"  # skill DIR id, not the short
     assert r["sub_verdict"]["verdict"] == "lineage_selective"
     assert r["sub_verdict"]["driving_rule_id"] == "lineage-selective-supportive"
     assert r["sub_verdict"]["fired_rule_ids"] == ["lineage-selective-supportive", "x-neutral"]
@@ -70,8 +78,8 @@ def test_canonical_symbol_maps_aliases():
     assert hl._canonical_symbol("TROP2") == "TACSTD2"
     assert hl._canonical_symbol("BCMA") == "TNFRSF17"
     assert hl._canonical_symbol("CD20") == "MS4A1"
-    assert hl._canonical_symbol(" HER2 ") == "ERBB2"        # whitespace-tolerant
-    assert hl._canonical_symbol("KRAS") == "KRAS"           # already canonical → unchanged
+    assert hl._canonical_symbol(" HER2 ") == "ERBB2"  # whitespace-tolerant
+    assert hl._canonical_symbol("KRAS") == "KRAS"  # already canonical → unchanged
     assert hl._canonical_symbol("NOT_A_GENE") == "NOT_A_GENE"
 
 
@@ -91,9 +99,13 @@ def test_harvest_pair_runs_on_canonical_symbol_but_labels_the_alias(monkeypatch)
                 "fired": [{"rule_id": "prism-clinically-active-supportive-sm"}],
                 "synthesis_facet": {
                     "claim_vector": {},
-                    "literature_synthesis": {"overall_consistency": "concordant",
-                                             "axes": [], "blind_spots": [],
-                                             "_model_id": "m", "_prompt_hash": "h"},
+                    "literature_synthesis": {
+                        "overall_consistency": "concordant",
+                        "axes": [],
+                        "blind_spots": [],
+                        "_model_id": "m",
+                        "_prompt_hash": "h",
+                    },
                 },
             },
         }
@@ -103,10 +115,10 @@ def test_harvest_pair_runs_on_canonical_symbol_but_labels_the_alias(monkeypatch)
     monkeypatch.setitem(sys.modules, "tp_fanout", stub)
 
     recs = hl.harvest_pair("HER2", "BRCA")
-    assert seen["target"] == "ERBB2"                        # fan-out ran on the HGNC symbol
+    assert seen["target"] == "ERBB2"  # fan-out ran on the HGNC symbol
     assert len(recs) == 1
-    assert recs[0]["target"] == "HER2"                      # record keeps the alias label
-    assert recs[0]["resolved_symbol"] == "ERBB2"            # audit trail records the resolution
+    assert recs[0]["target"] == "HER2"  # record keeps the alias label
+    assert recs[0]["resolved_symbol"] == "ERBB2"  # audit trail records the resolution
     assert recs[0]["sub_verdict"]["verdict"] == "chemically_active"
 
 
@@ -123,12 +135,22 @@ def test_harvested_records_feed_the_aggregator(monkeypatch, tmp_path):
             "synthesis_facet": {
                 "claim_vector": {},
                 "literature_synthesis": {
-                    "overall_consistency": "discordant", "key_divergence": "METex14 driver",
-                    "axes": [{"axis_key": "A", "literature_read": "strongly_supports",
-                              "assertion": "METex14 is a validated driver.",
-                              "agreement_vs_omics": "contradicts", "confidence": "high",
-                              "citations": [{"label": "Paik 2020", "pmid": "32469185", "verified": True}]}],
-                    "blind_spots": [], "_model_id": "m", "_prompt_hash": "h"},
+                    "overall_consistency": "discordant",
+                    "key_divergence": "METex14 driver",
+                    "axes": [
+                        {
+                            "axis_key": "A",
+                            "literature_read": "strongly_supports",
+                            "assertion": "METex14 is a validated driver.",
+                            "agreement_vs_omics": "contradicts",
+                            "confidence": "high",
+                            "citations": [{"label": "Paik 2020", "pmid": "32469185", "verified": True}],
+                        }
+                    ],
+                    "blind_spots": [],
+                    "_model_id": "m",
+                    "_prompt_hash": "h",
+                },
             },
         },
     }
@@ -150,9 +172,10 @@ def test_pairs_from_calibration_dict_keyed(tmp_path):
     cal.write_text(
         "reference_profiles:\n  PARP1:\n    indication: OV\n  CDK4_6:\n    indication: BRCA\n"
         "  ADAR1:\n    indication: multi\n"
-        "known_gap_watchlist:\n  MET:\n    indication: LUAD\n")
+        "known_gap_watchlist:\n  MET:\n    indication: LUAD\n"
+    )
     pairs = hl._pairs_from_calibration(cal)
     assert ("PARP1", "OV") in pairs
     assert ("MET", "LUAD") in pairs
-    assert not any(t == "CDK4_6" for t, _ in pairs)     # composite skipped
-    assert not any(i == "multi" for _, i in pairs)      # non-specific indication skipped
+    assert not any(t == "CDK4_6" for t, _ in pairs)  # composite skipped
+    assert not any(i == "multi" for _, i in pairs)  # non-specific indication skipped

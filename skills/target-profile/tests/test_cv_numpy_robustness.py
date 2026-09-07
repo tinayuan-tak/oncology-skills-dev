@@ -6,6 +6,7 @@ fed the selectivity card's log2fc_cell_a/b/c (numpy floats) straight into _cv, s
 strong_tumor_selective target with all three cells populated crashed the whole run. _cv now
 coerces to Python float (and drops bool/NaN).
 """
+
 from __future__ import annotations
 
 import math
@@ -29,13 +30,11 @@ def test_cv_on_numpy_floats_does_not_crash():
 
 def test_cv_matches_python_floats():
     """numpy and python-float inputs give the same CV (coercion is value-preserving)."""
-    assert tp._cv([np.float64(2.0), np.float64(4.0), np.float64(6.0)]) == pytest.approx(
-        tp._cv([2.0, 4.0, 6.0])
-    )
+    assert tp._cv([np.float64(2.0), np.float64(4.0), np.float64(6.0)]) == pytest.approx(tp._cv([2.0, 4.0, 6.0]))
 
 
 def test_cv_excludes_bool_and_nan_and_needs_two():
-    assert tp._cv([True, False, 5.0]) is None          # bools excluded → <2 numerics
-    assert tp._cv([np.float64("nan"), 3.0]) is None      # NaN dropped → <2 numerics
-    assert tp._cv([5.0]) is None                          # <2
-    assert tp._cv([0.0, 0.0]) is None                     # mean 0 → undefined CV
+    assert tp._cv([True, False, 5.0]) is None  # bools excluded → <2 numerics
+    assert tp._cv([np.float64("nan"), 3.0]) is None  # NaN dropped → <2 numerics
+    assert tp._cv([5.0]) is None  # <2
+    assert tp._cv([0.0, 0.0]) is None  # mean 0 → undefined CV

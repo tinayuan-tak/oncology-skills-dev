@@ -29,6 +29,7 @@ the fan-out:
 
 Mirror of the per-skill replays, lifted to the composed fan-out engine.
 """
+
 from __future__ import annotations
 
 import copy
@@ -51,8 +52,7 @@ _TP = load_run_py(SKILL_DIR, "_tp_run_fanout")
 
 
 def _real_summary(s) -> bool:
-    return (isinstance(s, dict) and bool(s)
-            and not s.get("_freeze_error") and not s.get("_dispatcher_returned_none"))
+    return isinstance(s, dict) and bool(s) and not s.get("_freeze_error") and not s.get("_dispatcher_returned_none")
 
 
 def _load_fixture(pair_id: str) -> dict:
@@ -78,8 +78,9 @@ def _fan_out(pair_id: str, target: str, indication: str) -> dict:
         def _read_live(card_id, target_, indication_, *args, **kwargs):
             s = frozen.get(card_id)
             if not _real_summary(s):
-                return None                       # un-frozen card → resolve_cards marks it _missing
+                return None  # un-frozen card → resolve_cards marks it _missing
             return copy.deepcopy(s)
+
         return _read_live
 
     mp = pytest.MonkeyPatch()
@@ -90,8 +91,7 @@ def _fan_out(pair_id: str, target: str, indication: str) -> dict:
     finally:
         mp.undo()
 
-    verdicts = {short: (r.get("verdict")[0] if r.get("verdict") else None)
-                for short, r in sub_results.items()}
+    verdicts = {short: (r.get("verdict")[0] if r.get("verdict") else None) for short, r in sub_results.items()}
     _RESULT_CACHE[pair_id] = verdicts
     return verdicts
 
@@ -106,10 +106,20 @@ def test_fanout_covers_all_sub_skills():
     to SUB_SKILLS as an ADDITIVE non-gate axis). Pinned to len(SUB_SKILLS) so it tracks future adds."""
     v = _fan_out(*TACSTD2)
     assert len(v) == len(_TP.SUB_SKILLS), (
-        f"fan-out produced {len(v)} sub-results, expected {len(_TP.SUB_SKILLS)}: {sorted(v)}")
-    for short in ("expression", "selectivity", "dependency", "genomic_alteration", "safety",
-                  "surface_modality", "tractability_sm", "mechanism", "differentiation",
-                  "combination_vulnerability"):   # relational trio consolidated into combination_vulnerability (2026-08-20)
+        f"fan-out produced {len(v)} sub-results, expected {len(_TP.SUB_SKILLS)}: {sorted(v)}"
+    )
+    for short in (
+        "expression",
+        "selectivity",
+        "dependency",
+        "genomic_alteration",
+        "safety",
+        "surface_modality",
+        "tractability_sm",
+        "mechanism",
+        "differentiation",
+        "combination_vulnerability",
+    ):  # relational trio consolidated into combination_vulnerability (2026-08-20)
         assert short in v, f"sub-skill {short!r} missing from the fan-out results"
 
 
@@ -123,7 +133,8 @@ def test_selectivity_veto_fires_in_the_fanout():
     v = _fan_out(*TACSTD2)
     assert v["selectivity"] == "selective_but_broadly_normal", (
         f"fan-out selectivity={v['selectivity']!r} for TACSTD2, expected selective_but_broadly_normal — "
-        f"the normal-breadth veto stopped firing in the fan-out (silent F1-in-fan-out regression).")
+        f"the normal-breadth veto stopped firing in the fan-out (silent F1-in-fan-out regression)."
+    )
 
 
 def test_genomic_fdr_path_and_safety_downgrade_fire_in_the_fanout():
@@ -138,10 +149,12 @@ def test_genomic_fdr_path_and_safety_downgrade_fire_in_the_fanout():
     v = _fan_out(*KRAS)
     assert v["genomic_alteration"] == "biomarker_stratified_dependency", (
         f"fan-out genomic_alteration={v['genomic_alteration']!r} for KRAS, expected "
-        f"biomarker_stratified_dependency (the G1 FDR-preprocessed fan-out path).")
+        f"biomarker_stratified_dependency (the G1 FDR-preprocessed fan-out path)."
+    )
     assert v["safety"] == "highly_constrained_safety_concern", (
         f"fan-out safety={v['safety']!r} for KRAS, expected the raw highly_constrained_safety_concern "
-        f"(post role-proxy retirement; the modality-conditional downgrade is now at the gate).")
+        f"(post role-proxy retirement; the modality-conditional downgrade is now at the gate)."
+    )
 
 
 def test_unfrozen_sub_skills_degrade_to_insufficient():
@@ -149,8 +162,16 @@ def test_unfrozen_sub_skills_degrade_to_insufficient():
     and must degrade to insufficient (never spuriously resolve a verdict from a stray/misrouted card —
     which would signal a card_id_filter scoping bug in the fan-out)."""
     v = _fan_out(*TACSTD2)
-    for short in ("dependency", "genomic_alteration", "safety", "mechanism", "differentiation",
-                  "tractability_sm", "combination_vulnerability"):   # gateless → None when un-frozen
+    for short in (
+        "dependency",
+        "genomic_alteration",
+        "safety",
+        "mechanism",
+        "differentiation",
+        "tractability_sm",
+        "combination_vulnerability",
+    ):  # gateless → None when un-frozen
         assert v[short] in (None, "insufficient", "combination_insufficient"), (
             f"un-frozen sub-skill {short!r} resolved {v[short]!r} (not insufficient) for the "
-            f"selectivity-scoped TACSTD2 fixture — suspect a card_id_filter scoping leak in the fan-out.")
+            f"selectivity-scoped TACSTD2 fixture — suspect a card_id_filter scoping leak in the fan-out."
+        )

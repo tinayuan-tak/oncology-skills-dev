@@ -1,10 +1,11 @@
 """Test the presence cross-modal reconciliation facet plumbing in the composed target-profile:
-  1. _load_sub_skill_facet_fn returns tumor-presence's _synthesis_facet, and None for a sub-skill
-     that does not expose the hook (the loader is generic + opt-in);
-  2. _presence_facet reads sub_results['expression']['synthesis_facet'] (and is None-safe);
-  3. _build_user_prompt renders the deterministic reconciliation block when a presence_facet is
-     supplied, and omits it otherwise — and the block is explicitly labelled a FACET, not a gate.
+1. _load_sub_skill_facet_fn returns tumor-presence's _synthesis_facet, and None for a sub-skill
+   that does not expose the hook (the loader is generic + opt-in);
+2. _presence_facet reads sub_results['expression']['synthesis_facet'] (and is None-safe);
+3. _build_user_prompt renders the deterministic reconciliation block when a presence_facet is
+   supplied, and omits it otherwise — and the block is explicitly labelled a FACET, not a gate.
 """
+
 from __future__ import annotations
 
 import sys
@@ -33,8 +34,12 @@ def test_facet_loader_is_opt_in():
 
 
 def test_presence_facet_reads_synthesis_facet_from_sub_results():
-    sub_results = {"expression": {"skill_dir": "tumor-presence",
-                                  "synthesis_facet": {"presence_verdict": "tumor_broadly_expressed"}}}
+    sub_results = {
+        "expression": {
+            "skill_dir": "tumor-presence",
+            "synthesis_facet": {"presence_verdict": "tumor_broadly_expressed"},
+        }
+    }
     assert _presence_facet(sub_results) == {"presence_verdict": "tumor_broadly_expressed"}
     # None-safe when absent / no expression sub-skill
     assert _presence_facet({"expression": {}}) is None
@@ -44,22 +49,33 @@ def test_presence_facet_reads_synthesis_facet_from_sub_results():
 def _min_sub_results():
     # _build_user_prompt renders a "Card summaries" section that iterates r["cards"], so every
     # sub-result needs cards + fired (the real fan-out always provides them).
-    return {"expression": {"skill_dir": "tumor-presence", "verdict": ("tumor_broadly_expressed", "r"),
-                           "cards": [], "fired": []}}
+    return {
+        "expression": {
+            "skill_dir": "tumor-presence",
+            "verdict": ("tumor_broadly_expressed", "r"),
+            "cards": [],
+            "fired": [],
+        }
+    }
 
 
 def _facet():
     return {
-        "presence_verdict": "tumor_broadly_expressed", "headline_lens": "bulk_rna/tumor",
+        "presence_verdict": "tumor_broadly_expressed",
+        "headline_lens": "bulk_rna/tumor",
         "cell_line_vs_tumor_discordant": True,
         "presence_interpretation_note": "understates tumor presence",
-        "bulk_rna_proxy_quality": "rna_positive_proxy_partial", "bulk_rna_proxy_quality_source": "tumor",
-        "rna_as_biomarker": "adequate_proxy", "rna_protein_r": 0.86,
-        "rna_as_biomarker_tumor": "partial_proxy", "rna_protein_r_tumor": 0.41,
+        "bulk_rna_proxy_quality": "rna_positive_proxy_partial",
+        "bulk_rna_proxy_quality_source": "tumor",
+        "rna_as_biomarker": "adequate_proxy",
+        "rna_protein_r": 0.86,
+        "rna_as_biomarker_tumor": "partial_proxy",
+        "rna_protein_r_tumor": 0.41,
         "normal_tissue_ihc_breadth_class": "broad_normal_expression",
         "normal_tissue_ihc_essential_flag": True,
         "sc_normal_expression_class": "HIGH_LIABILITY",
-        "sc_normal_max_det_cell_type": "BEST4+ colonocyte", "sc_normal_max_det_fraction": 1.0,
+        "sc_normal_max_det_cell_type": "BEST4+ colonocyte",
+        "sc_normal_max_det_fraction": 1.0,
         "presence_verdict_by_modality": {
             "bulk_rna/tumor": {"verdict": "tumor_broadly_expressed", "evidence_state": "measured"},
             "sc_rna/normal": {"verdict": "HIGH_LIABILITY", "evidence_state": "comparator"},
@@ -91,15 +107,37 @@ def test_prompt_renders_hierarchy_signal_decomposition_when_carried():
     # hand-picked. It is rendered in a SECTION register (no single-lens 'LEAD your narration' framing).
     facet = _facet()
     facet["subgroup_signals"] = {
-        "abundance": {"signal": "strong", "confidence": "high", "n_sources": 2, "n_agree": 2,
-                      "power": "high", "conflict": False,
-                      "sources": [{"card": "tumor-rna-distribution", "tier": "strong", "n": 600,
-                                   "label": "tumor RNA", "conflict": False, "value": "broadly_high"}]},
-        "tumor_elevation": {"signal": "weak", "confidence": "low", "n_sources": 1, "n_agree": 0,
-                            "power": "moderate", "conflict": True, "sources": []},
+        "abundance": {
+            "signal": "strong",
+            "confidence": "high",
+            "n_sources": 2,
+            "n_agree": 2,
+            "power": "high",
+            "conflict": False,
+            "sources": [
+                {
+                    "card": "tumor-rna-distribution",
+                    "tier": "strong",
+                    "n": 600,
+                    "label": "tumor RNA",
+                    "conflict": False,
+                    "value": "broadly_high",
+                }
+            ],
+        },
+        "tumor_elevation": {
+            "signal": "weak",
+            "confidence": "low",
+            "n_sources": 1,
+            "n_agree": 0,
+            "power": "moderate",
+            "conflict": True,
+            "sources": [],
+        },
     }
-    facet["question_table"] = [{"id": "Q3", "question": "Elevated vs normals?",
-                                "signal": {"tier": "weak"}, "confidence": {"tier": "low"}}]
+    facet["question_table"] = [
+        {"id": "Q3", "question": "Elevated vs normals?", "signal": {"tier": "weak"}, "confidence": {"tier": "low"}}
+    ]
     prompt = _build_user_prompt("CEACAM5", "COADREAD", _min_sub_results(), presence_facet=facet)
     assert "Presence signal decomposition" in prompt
     assert "SUB-GROUP SIGNALS" in prompt

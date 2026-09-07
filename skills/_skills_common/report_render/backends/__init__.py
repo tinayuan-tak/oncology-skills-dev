@@ -2,6 +2,7 @@
 `handled_kinds() -> set` and `render(ir) -> str`. Adding a format = registering one factory here;
 no content/selection logic lives in a backend (that is the IR builder's job).
 """
+
 from __future__ import annotations
 
 from ..ir import ReportIR
@@ -26,8 +27,7 @@ BACKENDS: dict = {
 BINARY_BACKENDS: frozenset = frozenset({"pptx"})
 
 # canonical file extension per backend name (for CLI artifact naming).
-EXTENSIONS: dict = {"text": "txt", "markdown": "md", "md": "md", "html": "html",
-                    "json": "json", "pptx": "pptx"}
+EXTENSIONS: dict = {"text": "txt", "markdown": "md", "md": "md", "html": "html", "json": "json", "pptx": "pptx"}
 
 
 def backend_names() -> list:
@@ -55,5 +55,13 @@ def coverage() -> dict:
     return {name: set(factory().handled_kinds()) for name, factory in BACKENDS.items()}
 
 
-__all__ = ["BACKENDS", "BINARY_BACKENDS", "EXTENSIONS", "backend_names", "string_backend_names",
-           "get_backend", "render", "coverage"]
+__all__ = [
+    "BACKENDS",
+    "BINARY_BACKENDS",
+    "EXTENSIONS",
+    "backend_names",
+    "string_backend_names",
+    "get_backend",
+    "render",
+    "coverage",
+]

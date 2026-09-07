@@ -10,6 +10,7 @@ at `nomination.target_report.skill_reports` ({short: skill_report}) with the dec
 `target_report.target_call`. Every read tolerates missing/None (the spine is only partially populated
 today — see docs/UNIFIED_OUTPUT_CONTRACT.md adoption status).
 """
+
 from __future__ import annotations
 
 import re
@@ -37,7 +38,7 @@ class Section:
     role: str
     is_deciding: bool
     blocks: list  # list[Block]; blocks[0] is always the SKILL_HEADER
-    lens: Optional[str] = None    # faceted-view grouping; composed sections → vocab.LENS_SIGNALS
+    lens: Optional[str] = None  # faceted-view grouping; composed sections → vocab.LENS_SIGNALS
 
 
 @dataclass
@@ -45,12 +46,12 @@ class ReportIR:
     target: Optional[str]
     indication: Optional[str]
     spec: ReportSpec
-    header: Block                 # REPORT_HEADER
-    sections: list                # list[Section]
-    about: Optional[Block]        # ABOUT | None
+    header: Block  # REPORT_HEADER
+    sections: list  # list[Section]
+    about: Optional[Block]  # ABOUT | None
     deciding_short: Optional[str]
     overview: list = field(default_factory=list)  # report-level blocks (signals_overview, risk_6dim)
-    banner: Optional[Block] = None                 # SYNTHESIS_BANNER | None — persistent chrome above tabs
+    banner: Optional[Block] = None  # SYNTHESIS_BANNER | None — persistent chrome above tabs
 
     def present_kinds(self) -> set:
         """Every block kind actually present — the parity/coverage contract surface."""
@@ -85,7 +86,7 @@ class ReportIR:
         for lens_id in vocab.LENS_ORDER:
             if buckets.get(lens_id):
                 ordered.append((lens_id, vocab.LENS_TITLE.get(lens_id, lens_id), buckets[lens_id]))
-        for lens_id, items in buckets.items():   # any future lens not in LENS_ORDER, stably last
+        for lens_id, items in buckets.items():  # any future lens not in LENS_ORDER, stably last
             if lens_id not in vocab.LENS_ORDER:
                 ordered.append((lens_id, vocab.LENS_TITLE.get(lens_id, lens_id), items))
         return ordered
@@ -167,18 +168,26 @@ def _figure_blocks(report: dict, eff_level: int, medium: str) -> list:
     out = []
     for f in selected:
         cap = f.get("caption") or f.get("slot") or f.get("kind") or "figure"
-        out.append(Block(vocab.FIGURE, {
-            # NB: 'fig_kind' NOT 'kind' — 'kind' is reserved for the block kind and would shadow it
-            # when a backend serializes {kind, **payload} (enforced by test_no_payload_shadows_kind).
-            "slot": f.get("slot"), "fig_kind": f.get("kind"), "ref": f.get("path"),
-            "caption": cap, "fallback_text": cap, "show_image": show_image,
-        }))
+        out.append(
+            Block(
+                vocab.FIGURE,
+                {
+                    # NB: 'fig_kind' NOT 'kind' — 'kind' is reserved for the block kind and would shadow it
+                    # when a backend serializes {kind, **payload} (enforced by test_no_payload_shadows_kind).
+                    "slot": f.get("slot"),
+                    "fig_kind": f.get("kind"),
+                    "ref": f.get("path"),
+                    "caption": cap,
+                    "fallback_text": cap,
+                    "show_image": show_image,
+                },
+            )
+        )
     return out
 
 
 def _unmeasured(slot: str) -> Block:
-    return Block(vocab.UNMEASURED, {"slot": slot,
-                                    "note": f"{slot.replace('_', ' ')}: not measured / not surfaced"})
+    return Block(vocab.UNMEASURED, {"slot": slot, "note": f"{slot.replace('_', ' ')}: not measured / not surfaced"})
 
 
 # run-dir figure channel: card_figures descriptor `path` is relative to the run's figures/ dir, and the
@@ -187,8 +196,9 @@ def _unmeasured(slot: str) -> Block:
 _FIGURE_BASE = "figures/"
 
 
-def _card_figure_blocks(card_figs: list, eff_level: int, medium: str,
-                        polarity: Optional[str], role: Optional[str]) -> list:
+def _card_figure_blocks(
+    card_figs: list, eff_level: int, medium: str, polarity: Optional[str], role: Optional[str]
+) -> list:
     """Join a section's run-dir card figures (nomination.card_figures) into FIGURE blocks. Each figure
     carries a verdict BADGE derived from the section's spine polarity (the figure-emitter redesign moved
     the verdict OFF the figure onto the composing layer — see vocab.figure_status). L2 shows each card's
@@ -200,25 +210,40 @@ def _card_figure_blocks(card_figs: list, eff_level: int, medium: str,
     status = vocab.figure_status(polarity, role)
     out = []
     for card_id, descs in card_figs:
-        svgs = [d for d in (descs or []) if isinstance(d, dict)
-                and not d.get("dynamic") and str(d.get("path") or "").endswith(".svg")]
+        svgs = [
+            d
+            for d in (descs or [])
+            if isinstance(d, dict) and not d.get("dynamic") and str(d.get("path") or "").endswith(".svg")
+        ]
         dyn = [d for d in (descs or []) if isinstance(d, dict) and d.get("dynamic")]
         if not svgs:
             continue
-        svgs.sort(key=lambda d: 0 if d.get("primary") else 1)   # primary first, else stable
+        svgs.sort(key=lambda d: 0 if d.get("primary") else 1)  # primary first, else stable
         selected = svgs if eff_level >= 3 else svgs[:1]
         for d in selected:
             cap = vocab.humanize_figure_type(d.get("type"), d.get("id"))
             ref = _FIGURE_BASE + str(d["path"]) if d.get("path") else None
-            dref = next((x.get("path") for x in dyn if x.get("id") == d.get("id")),
-                        (dyn[0].get("path") if dyn else None))
-            out.append(Block(vocab.FIGURE, {
-                # 'fig_kind' NOT 'kind' (reserved — see _figure_blocks / test_no_payload_shadows_kind).
-                "slot": None, "fig_kind": d.get("type"), "ref": ref,
-                "caption": cap, "fallback_text": cap, "show_image": show_image,
-                "card_id": card_id, "primary": bool(d.get("primary")), "status": status,
-                "dynamic_ref": (_FIGURE_BASE + str(dref)) if dref else None,
-            }))
+            dref = next(
+                (x.get("path") for x in dyn if x.get("id") == d.get("id")), (dyn[0].get("path") if dyn else None)
+            )
+            out.append(
+                Block(
+                    vocab.FIGURE,
+                    {
+                        # 'fig_kind' NOT 'kind' (reserved — see _figure_blocks / test_no_payload_shadows_kind).
+                        "slot": None,
+                        "fig_kind": d.get("type"),
+                        "ref": ref,
+                        "caption": cap,
+                        "fallback_text": cap,
+                        "show_image": show_image,
+                        "card_id": card_id,
+                        "primary": bool(d.get("primary")),
+                        "status": status,
+                        "dynamic_ref": (_FIGURE_BASE + str(dref)) if dref else None,
+                    },
+                )
+            )
     return out
 
 
@@ -232,7 +257,7 @@ def _card_figure_owner_map(nomination: dict, skill_reports: dict) -> dict:
     for short, sv in (nomination.get("sub_verdicts") or {}).items():
         if not isinstance(sv, dict):
             continue
-        for cid in (sv.get("cards_used") or []):
+        for cid in sv.get("cards_used") or []:
             listers.setdefault(cid, []).append(short)
 
     def _is_gating(short: str) -> bool:
@@ -260,20 +285,22 @@ def _figures_by_owner(nomination: dict, owner_map: dict) -> dict:
     return by
 
 
-def _build_section(short: str, report: dict, spec: ReportSpec, is_deciding: bool,
-                   card_figs: list = ()) -> Section:
+def _build_section(short: str, report: dict, spec: ReportSpec, is_deciding: bool, card_figs: list = ()) -> Section:
     role = report.get("role") or ("gating" if short in vocab.GATING_SHORTS else "descriptive")
     eff = spec.level_int_for(short, is_deciding)
 
-    header = Block(vocab.SKILL_HEADER, {
-        "short": short,
-        "title": vocab.skill_title(short),
-        "role": role,
-        "call": report.get("call"),                    # None for gateless — backend falls back to phrase
-        "polarity": report.get("polarity"),
-        "honest_phrase": report.get("honest_phrase"),
-        "is_deciding": is_deciding,
-    })
+    header = Block(
+        vocab.SKILL_HEADER,
+        {
+            "short": short,
+            "title": vocab.skill_title(short),
+            "role": role,
+            "call": report.get("call"),  # None for gateless — backend falls back to phrase
+            "polarity": report.get("polarity"),
+            "honest_phrase": report.get("honest_phrase"),
+            "is_deciding": is_deciding,
+        },
+    )
     blocks = [header]
 
     # a question_table will render at L2+ when present; it restates the claim-chips, so suppress the
@@ -335,8 +362,7 @@ def _build_section(short: str, report: dict, spec: ReportSpec, is_deciding: bool
         blocks.append(Block(vocab.PHASE_METRICS, {"rows": report["per_phase_metrics"]}))
     if eff >= vocab.TIER[vocab.FIGURE]:
         blocks.extend(_figure_blocks(report, eff, spec.medium))
-        blocks.extend(_card_figure_blocks(card_figs, eff, spec.medium,
-                                          report.get("polarity"), role))
+        blocks.extend(_card_figure_blocks(card_figs, eff, spec.medium, report.get("polarity"), role))
 
     # L3: RICH embedded view (cont.) — per-card dataset→data→rule→verdict chains, then provenance
     if eg_rich and eff >= vocab.TIER[vocab.CARD_CHAIN]:
@@ -353,8 +379,7 @@ def _build_section(short: str, report: dict, spec: ReportSpec, is_deciding: bool
     if eff >= vocab.TIER[vocab.PROVENANCE] and report.get("provenance"):
         blocks.append(Block(vocab.PROVENANCE, {"provenance": report["provenance"]}))
 
-    return Section(short=short, title=vocab.skill_title(short), role=role,
-                   is_deciding=is_deciding, blocks=blocks)
+    return Section(short=short, title=vocab.skill_title(short), role=role, is_deciding=is_deciding, blocks=blocks)
 
 
 # --------------------------------------------------------------------------------------------------
@@ -370,7 +395,7 @@ def _in_scope(short: str, role: str, spec: ReportSpec) -> bool:
 
 def _sort_key(short: str, role: str, polarity: Optional[str], is_deciding: bool, spec: ReportSpec):
     lead_first = 0 if (spec.lead == "deciding_axis" and is_deciding) else 1
-    rank = vocab.polarity_rank(polarity)                 # killer −3 … supportive +2; None off-scale
+    rank = vocab.polarity_rank(polarity)  # killer −3 … supportive +2; None off-scale
     # killers/opposing lead within a role group; off-scale (not_scored/insufficient) trail (not "worst").
     pol_key = (rank is None, rank if rank is not None else 0)
     return (lead_first, vocab.ROLE_RANK.get(role, 9), pol_key, vocab.skill_order_index(short), short)
@@ -391,8 +416,9 @@ def _sort_key(short: str, role: str, polarity: Optional[str], is_deciding: bool,
 _SURFACE_ANTIGEN_THESES = frozenset({"surface_antigen_no_dependency", "amplification_overexpression_antigen"})
 
 
-def _negative_expected_under_thesis(short: str, polarity: Optional[str],
-                                    thesis_primary: Optional[str]) -> Optional[str]:
+def _negative_expected_under_thesis(
+    short: str, polarity: Optional[str], thesis_primary: Optional[str]
+) -> Optional[str]:
     """A short note when a gating skill's MEASURED-NEGATIVE signal is EXPECTED (orthogonal, not opposing)
     under the target's coherence thesis — so the diverging strip does not miscount it "against". The one
     encoded case (mirrors build_target_coherence's caveat + the ordinal-matrix `·`): the dependency axis
@@ -403,11 +429,10 @@ def _negative_expected_under_thesis(short: str, polarity: Optional[str],
     if short != "dependency":
         return None
     rank = vocab.polarity_rank(polarity)
-    if rank is None or rank >= 0:            # only a measured-negative (opposing / killer) is reconciled
+    if rank is None or rank >= 0:  # only a measured-negative (opposing / killer) is reconciled
         return None
     if thesis_primary in _SURFACE_ANTIGEN_THESES:
-        return ("expected for a surface-antigen thesis — orthogonal to the ADC/TCE mechanism, "
-                "not counted against")
+        return "expected for a surface-antigen thesis — orthogonal to the ADC/TCE mechanism, not counted against"
     return None
 
 
@@ -427,33 +452,44 @@ def _signals_overview_block(selected, deciding_short, thesis_primary=None) -> Op
         polarity = report.get("polarity")
         title = vocab.skill_title(short)
         if role != "gating" or polarity in (None, "not_scored"):
-            descriptive.append(title)          # context, not a bar
+            descriptive.append(title)  # context, not a bar
             continue
         expected_note = _negative_expected_under_thesis(short, polarity, thesis_primary)
         prov = report.get("provenance") if isinstance(report.get("provenance"), dict) else {}
-        rows.append({"short": short, "title": title,
-                     # a thesis-expected negative renders + tallies as NEUTRAL (orthogonal, not against);
-                     # the raw polarity + note are carried so a backend can show it was a measured negative.
-                     "polarity": "neutral" if expected_note else polarity,
-                     "level": 0 if expected_note else vocab.polarity_rank(polarity),
-                     "raw_polarity": polarity if expected_note else None,
-                     "expected_note": expected_note,
-                     "call": report.get("call"),
-                     "honest_phrase": report.get("honest_phrase"),  # plain-language, preferred over the snake_case call
-                     # provenance for the "where does this signal come from" context: each bar is one
-                     # sub-skill's verdict rolled up from N evidence cards / M fired rules.
-                     "n_cards": len(prov.get("cards_used") or []),
-                     "n_rules": len(prov.get("fired_rule_ids") or []),
-                     "is_deciding": short == deciding_short})
+        rows.append(
+            {
+                "short": short,
+                "title": title,
+                # a thesis-expected negative renders + tallies as NEUTRAL (orthogonal, not against);
+                # the raw polarity + note are carried so a backend can show it was a measured negative.
+                "polarity": "neutral" if expected_note else polarity,
+                "level": 0 if expected_note else vocab.polarity_rank(polarity),
+                "raw_polarity": polarity if expected_note else None,
+                "expected_note": expected_note,
+                "call": report.get("call"),
+                "honest_phrase": report.get("honest_phrase"),  # plain-language, preferred over the snake_case call
+                # provenance for the "where does this signal come from" context: each bar is one
+                # sub-skill's verdict rolled up from N evidence cards / M fired rules.
+                "n_cards": len(prov.get("cards_used") or []),
+                "n_rules": len(prov.get("fired_rule_ids") or []),
+                "is_deciding": short == deciding_short,
+            }
+        )
     if not rows:
         return None
-    return Block(vocab.SIGNALS_OVERVIEW, {
-        "rows": rows, "descriptive": descriptive,
-        "counts": {"support": sum(1 for r in rows if (r["level"] or 0) > 0),
-                   "neutral": sum(1 for r in rows if r["level"] == 0),
-                   "against": sum(1 for r in rows if (r["level"] or 0) < 0)},
-        "deciding_short": deciding_short,
-    })
+    return Block(
+        vocab.SIGNALS_OVERVIEW,
+        {
+            "rows": rows,
+            "descriptive": descriptive,
+            "counts": {
+                "support": sum(1 for r in rows if (r["level"] or 0) > 0),
+                "neutral": sum(1 for r in rows if r["level"] == 0),
+                "against": sum(1 for r in rows if (r["level"] or 0) < 0),
+            },
+            "deciding_short": deciding_short,
+        },
+    )
 
 
 _RISK6_ORDER = ("biological", "druggability", "safety", "translational", "clinical", "commercial")
@@ -477,7 +513,8 @@ def _risk_6dim_block(risk_6dim) -> Optional[Block]:
         seen = set()
         for d in _RISK6_ORDER:
             if d in risk_6dim:
-                _emit(d, risk_6dim[d]); seen.add(d)
+                _emit(d, risk_6dim[d])
+                seen.add(d)
         for d, v in risk_6dim.items():
             if d not in seen and not str(d).startswith("_"):
                 _emit(d, v)
@@ -517,7 +554,7 @@ def _strip_rule_citations(text: Any) -> tuple:
         return m.group(0)
 
     clean = _CITE_GROUP.sub(_sub, text)
-    clean = re.sub(r"\s+([.,;:)])", r"\1", clean)   # tidy the space a removed citation left before punctuation
+    clean = re.sub(r"\s+([.,;:)])", r"\1", clean)  # tidy the space a removed citation left before punctuation
     clean = re.sub(r"\(\s+", "(", clean)
     clean = re.sub(r"\s{2,}", " ", clean).strip()
     seen, ordered = set(), []
@@ -569,9 +606,16 @@ def _synthesis_block(nomination: dict) -> Optional[Block]:
         if r not in seen:
             seen.add(r)
             citations.append(r)
-    return Block(vocab.SYNTHESIS, {"exec_bullets": exec_bullets, "executive_summary": exec_clean,
-                                   "tension_analysis": tens_clean, "arguments": args_out,
-                                   "citations": citations})
+    return Block(
+        vocab.SYNTHESIS,
+        {
+            "exec_bullets": exec_bullets,
+            "executive_summary": exec_clean,
+            "tension_analysis": tens_clean,
+            "arguments": args_out,
+            "citations": citations,
+        },
+    )
 
 
 def _skill_synthesis_block(narrative: dict) -> Optional[Block]:
@@ -585,8 +629,16 @@ def _skill_synthesis_block(narrative: dict) -> Optional[Block]:
     if not (bullets or verbose):
         return None
     verbose_clean, cites = _strip_rule_citations(verbose) if verbose else (None, [])
-    return Block(vocab.SYNTHESIS, {"exec_bullets": bullets, "executive_summary": verbose_clean,
-                                   "tension_analysis": None, "arguments": None, "citations": cites})
+    return Block(
+        vocab.SYNTHESIS,
+        {
+            "exec_bullets": bullets,
+            "executive_summary": verbose_clean,
+            "tension_analysis": None,
+            "arguments": None,
+            "citations": cites,
+        },
+    )
 
 
 def _coherence_block(tr: dict, nomination: dict) -> Optional[Block]:
@@ -617,14 +669,22 @@ def _row_has_on_scale(row: dict) -> bool:
 
 # drug-delivery channel → reader label, in decision display order (intracellular first, then surface).
 _CHANNEL_LABEL = {
-    "small_molecule": "Small molecule", "degrader": "Degrader", "biologics": "Biologic (generic)",
-    "adc": "ADC", "bite_tce": "T-cell engager (TCE)", "antibody": "Antibody",
+    "small_molecule": "Small molecule",
+    "degrader": "Degrader",
+    "biologics": "Biologic (generic)",
+    "adc": "ADC",
+    "bite_tce": "T-cell engager (TCE)",
+    "antibody": "Antibody",
 }
 _CHANNEL_ORDER = ["small_molecule", "degrader", "biologics", "adc", "bite_tce", "antibody"]
 # per-channel fit → display rank (viable first) + status token (mapped to the reserved status palette).
 _FIT_RANK = {"favorable": 0, "viable": 0, "conditional": 1, "unfavorable": 2}
-_FIT_STATUS = {"favorable": ("viable", "Viable"), "viable": ("viable", "Viable"),
-               "conditional": ("conditional", "Conditional"), "unfavorable": ("unfavorable", "Unfavorable")}
+_FIT_STATUS = {
+    "favorable": ("viable", "Viable"),
+    "viable": ("viable", "Viable"),
+    "conditional": ("conditional", "Conditional"),
+    "unfavorable": ("unfavorable", "Unfavorable"),
+}
 
 
 def _modality_fit_channels(nomination: dict, tr: dict) -> list:
@@ -644,10 +704,13 @@ def _modality_fit_channels(nomination: dict, tr: dict) -> list:
             continue
         fit = d.get("fit")
         masked_by = d.get("masked_by_axis")
-        row = {"channel": ch, "name": _CHANNEL_LABEL.get(ch, ch.replace("_", " ").title()),
-               "limiting_axis": d.get("limiting_axis"),
-               "by_axis": d.get("by_axis") if isinstance(d.get("by_axis"), dict) else {},
-               "masked_by_axis": masked_by}
+        row = {
+            "channel": ch,
+            "name": _CHANNEL_LABEL.get(ch, ch.replace("_", " ").title()),
+            "limiting_axis": d.get("limiting_axis"),
+            "by_axis": d.get("by_axis") if isinstance(d.get("by_axis"), dict) else {},
+            "masked_by_axis": masked_by,
+        }
         if fit in ("not_applicable_by_axis", "not_applicable", None) or masked_by:
             row["status"], row["label"] = "not_applicable", "Not applicable"
             masked.append(row)
@@ -655,8 +718,9 @@ def _modality_fit_channels(nomination: dict, tr: dict) -> list:
             row["status"], row["label"] = _FIT_STATUS.get(fit, ("unfavorable", _humanize_local(fit)))
             row["_rank"] = _FIT_RANK.get(fit, 3)
             applic.append(row)
-    applic.sort(key=lambda r: (r.get("_rank", 3), _CHANNEL_ORDER.index(r["channel"])
-                               if r["channel"] in _CHANNEL_ORDER else 99))
+    applic.sort(
+        key=lambda r: (r.get("_rank", 3), _CHANNEL_ORDER.index(r["channel"]) if r["channel"] in _CHANNEL_ORDER else 99)
+    )
     return applic + masked
 
 
@@ -677,13 +741,17 @@ def _modality_matrix_block(tr: dict, nomination: dict) -> Optional[Block]:
         columns = (mtx.get("axes") or {}).get("columns") or []
     if not channels and not grid_rows:
         return None
-    return Block(vocab.MODALITY_MATRIX, {
-        "channels": channels,                       # the lead: per-modality status readout
-        "columns": columns, "rows": grid_rows,      # the raw ordinal grid → drill-down
-        "legend": (mtx or {}).get("legend") or {},
-        "glyph_legend": vocab.ordinal_glyph_legend(),
-        "disclaimer": (mtx or {}).get("_disclaimer"),
-    })
+    return Block(
+        vocab.MODALITY_MATRIX,
+        {
+            "channels": channels,  # the lead: per-modality status readout
+            "columns": columns,
+            "rows": grid_rows,  # the raw ordinal grid → drill-down
+            "legend": (mtx or {}).get("legend") or {},
+            "glyph_legend": vocab.ordinal_glyph_legend(),
+            "disclaimer": (mtx or {}).get("_disclaimer"),
+        },
+    )
 
 
 def _literature_risk_block(nomination: dict, tr: dict) -> Optional[Block]:
@@ -691,9 +759,16 @@ def _literature_risk_block(nomination: dict, tr: dict) -> Optional[Block]:
     dims = ra.get("dimensions") if isinstance(ra, dict) else None
     if not isinstance(dims, dict) or not dims:
         return None
-    rows = [{"dim": d, "risk_level": v.get("risk_level"), "interpretation": v.get("interpretation"),
-             "pmids": v.get("cited_pmids") or v.get("pmids") or []}
-            for d, v in dims.items() if isinstance(v, dict)]
+    rows = [
+        {
+            "dim": d,
+            "risk_level": v.get("risk_level"),
+            "interpretation": v.get("interpretation"),
+            "pmids": v.get("cited_pmids") or v.get("pmids") or [],
+        }
+        for d, v in dims.items()
+        if isinstance(v, dict)
+    ]
     return Block(vocab.LITERATURE_RISK, {"dims": rows}) if rows else None
 
 
@@ -701,31 +776,45 @@ def _deciding_axis_block(target_call: dict, nomination: dict, deciding_short) ->
     da = (target_call or {}).get("deciding_axis") or nomination.get("deciding_axis")
     if not isinstance(da, dict) or not da:
         return None
-    axis_titles = [vocab.skill_title(a["short"]) for a in (da.get("deciding_axes") or [])
-                   if isinstance(a, dict) and a.get("short")]
-    primary = (vocab.skill_title(deciding_short) if deciding_short
-               else (axis_titles[0] if axis_titles else None))
-    return Block(vocab.DECIDING_AXIS, {
-        "short": deciding_short, "title": primary, "axes": axis_titles,
-        "routing": da.get("routing"), "basis": da.get("basis"),
-    })
+    axis_titles = [
+        vocab.skill_title(a["short"]) for a in (da.get("deciding_axes") or []) if isinstance(a, dict) and a.get("short")
+    ]
+    primary = vocab.skill_title(deciding_short) if deciding_short else (axis_titles[0] if axis_titles else None)
+    return Block(
+        vocab.DECIDING_AXIS,
+        {
+            "short": deciding_short,
+            "title": primary,
+            "axes": axis_titles,
+            "routing": da.get("routing"),
+            "basis": da.get("basis"),
+        },
+    )
 
 
 # map the flip_condition `to_role` prefix → a plain-language direction word.
-_FLIP_DIRECTION = {"kill": "would kill the call", "veto": "would kill the call",
-                   "neutral": "would neutralize the axis", "positive": "would strengthen the call",
-                   "negative": "would weaken the call"}
+_FLIP_DIRECTION = {
+    "kill": "would kill the call",
+    "veto": "would kill the call",
+    "neutral": "would neutralize the axis",
+    "positive": "would strengthen the call",
+    "negative": "would weaken the call",
+}
 # curation priority: what the call RESTS ON, then the ADVERSE flips (kill > neutralize > weaken),
 # then the upside (strengthen). The resolver enumerates every reachable verdict, so an axis like
 # dependency can emit ~10 recommendation-flips — a full dump is noise, not a decision aid.
-_FLIP_DIR_PRIORITY = {"would kill the call": 1, "would neutralize the axis": 2,
-                      "would weaken the call": 3, "would strengthen the call": 4}
+_FLIP_DIR_PRIORITY = {
+    "would kill the call": 1,
+    "would neutralize the axis": 2,
+    "would weaken the call": 3,
+    "would strengthen the call": 4,
+}
 _FLIP_MAX_PER_AXIS = 2
 _FLIP_MAX_TOTAL = 6
 
 
 def _flip_conditions_block(nomination: dict) -> Optional[Block]:
-    """"What would change the call" — the recommendation-FLIPPING counterfactuals per axis, read from
+    """ "What would change the call" — the recommendation-FLIPPING counterfactuals per axis, read from
     narrative_by_axis[axis].flip_conditions. Rendered from the STRUCTURED fields (to_verdict, present,
     to_role) — the dev-note `sentence` is deliberately NOT surfaced (engineering commentary, not reader
     prose). `present=True` = a load-bearing signal the current call rests on (absent it, the call
@@ -746,13 +835,17 @@ def _flip_conditions_block(nomination: dict) -> Optional[Block]:
         if not isinstance(ax, dict):
             continue
         title = vocab.skill_title(short)
-        for fc in (ax.get("flip_conditions") or []):
+        for fc in ax.get("flip_conditions") or []:
             if not isinstance(fc, dict) or not fc.get("recommendation_flip"):
                 continue
             direction = _FLIP_DIRECTION.get(str(fc.get("to_role") or "").split(":")[0])
-            row = {"axis": title, "to_verdict": fc.get("to_verdict"),
-                   "present": bool(fc.get("present")), "direction": direction,
-                   "condition": fc.get("rule_id")}
+            row = {
+                "axis": title,
+                "to_verdict": fc.get("to_verdict"),
+                "present": bool(fc.get("present")),
+                "direction": direction,
+                "condition": fc.get("rule_id"),
+            }
             key = (title, direction)
             cur = reps.get(key)
             if cur is None:
@@ -760,7 +853,7 @@ def _flip_conditions_block(nomination: dict) -> Optional[Block]:
                     axis_order.append(title)
                 reps[key] = row
             elif row["present"] and not cur["present"]:
-                reps[key] = row     # promote the load-bearing representative for this direction
+                reps[key] = row  # promote the load-bearing representative for this direction
     if not reps:
         return None
 
@@ -788,14 +881,17 @@ def _subtype_block(tr: dict) -> Optional[Block]:
     per_subtype = sc.get("per_subtype") or {}
     if verdict in (None, "subtype_axis_unavailable") or (not per_subtype and not n_eval):
         return None
-    return Block(vocab.SUBTYPE, {
-        "verdict": verdict,
-        "n_evaluated": n_eval,
-        "axes_available": sc.get("axes_available") or [],
-        "convergent_subtypes": sc.get("convergent_subtypes") or [],
-        "associated_subtypes": sc.get("associated_subtypes") or [],
-        "subtypes": list(per_subtype.keys()),
-    })
+    return Block(
+        vocab.SUBTYPE,
+        {
+            "verdict": verdict,
+            "n_evaluated": n_eval,
+            "axes_available": sc.get("axes_available") or [],
+            "convergent_subtypes": sc.get("convergent_subtypes") or [],
+            "associated_subtypes": sc.get("associated_subtypes") or [],
+            "subtypes": list(per_subtype.keys()),
+        },
+    )
 
 
 def _biomarker_block(tr: dict) -> Optional[Block]:
@@ -808,21 +904,29 @@ def _biomarker_block(tr: dict) -> Optional[Block]:
     strat = bm.get("stratification_role") if isinstance(bm.get("stratification_role"), dict) else {}
     corr = bm.get("corroboration_role") if isinstance(bm.get("corroboration_role"), dict) else {}
     hyps = []
-    for h in (bm.get("biomarker_hypotheses") or []):
+    for h in bm.get("biomarker_hypotheses") or []:
         if isinstance(h, dict) and h.get("intended_use"):
-            hyps.append({"intended_use": h.get("intended_use"), "basis": h.get("basis"),
-                         "evidence_strength": h.get("evidence_strength")})
-    return Block(vocab.BIOMARKER, {
-        "verdict": bm.get("verdict"),
-        "preferred_assay": bm.get("preferred_assay"),
-        "alteration_role": corr.get("alteration_role"),
-        "mutation_stratification": strat.get("mutation_stratification_class"),
-        "subtype_stratification": strat.get("subtype_stratification_class"),
-        "survival_association": strat.get("survival_association_class"),
-        "rna_as_biomarker": strat.get("rna_as_biomarker"),
-        "intended_uses": bm.get("intended_uses") or [],
-        "hypotheses": hyps,
-    })
+            hyps.append(
+                {
+                    "intended_use": h.get("intended_use"),
+                    "basis": h.get("basis"),
+                    "evidence_strength": h.get("evidence_strength"),
+                }
+            )
+    return Block(
+        vocab.BIOMARKER,
+        {
+            "verdict": bm.get("verdict"),
+            "preferred_assay": bm.get("preferred_assay"),
+            "alteration_role": corr.get("alteration_role"),
+            "mutation_stratification": strat.get("mutation_stratification_class"),
+            "subtype_stratification": strat.get("subtype_stratification_class"),
+            "survival_association": strat.get("survival_association_class"),
+            "rna_as_biomarker": strat.get("rna_as_biomarker"),
+            "intended_uses": bm.get("intended_uses") or [],
+            "hypotheses": hyps,
+        },
+    )
 
 
 # archetype phenotype-mixture key → reader phrase (the "what kind of target IS this" characterization).
@@ -846,18 +950,22 @@ def _target_characterization(tr: dict) -> Optional[dict]:
     mix = arche.get("phenotype_mixture")
     if not isinstance(mix, dict) or not mix:
         return None
-    items = sorted(((k, v) for k, v in mix.items() if isinstance(v, (int, float)) and v >= 0.08),
-                   key=lambda kv: -kv[1])[:3]
+    items = sorted(
+        ((k, v) for k, v in mix.items() if isinstance(v, (int, float)) and v >= 0.08), key=lambda kv: -kv[1]
+    )[:3]
     if not items:
         return None
-    return {"mixture": [{"label": _PHENOTYPE_LABEL.get(k, str(k).replace("_", " ")),
-                         "weight": round(float(v), 2)} for k, v in items]}
+    return {
+        "mixture": [
+            {"label": _PHENOTYPE_LABEL.get(k, str(k).replace("_", " ")), "weight": round(float(v), 2)} for k, v in items
+        ]
+    }
 
 
 # =================================================================================================
 # faceted-rollup builders (PR2): the signals-first spine one level up + the embedded sub-skill view.
 # =================================================================================================
-_TIER_ORDINAL = {"strong": 3, "moderate": 2, "weak": 1, "absent": 0}      # subgroup signal tier → y
+_TIER_ORDINAL = {"strong": 3, "moderate": 2, "weak": 1, "absent": 0}  # subgroup signal tier → y
 _CONF_ORDINAL = {"high": 2, "moderate": 1, "medium": 1, "low": 0, "weak": 0}  # confidence level → x
 
 
@@ -899,8 +1007,10 @@ def _synthesis_banner_block(nomination: dict, target_call: dict) -> Optional[Blo
     mismatch = None
     if _rec_norm(llm_rec) and _rec_norm(det_rec) and _rec_norm(llm_rec) != _rec_norm(det_rec):
         mismatch = {"llm": str(_unwrap(llm_rec)), "deterministic": str(det_rec)}
-    return Block(vocab.SYNTHESIS_BANNER, {"executive_summary": exec_clean, "citations": cites,
-                                          "n_rules": len(cites), "mismatch": mismatch})
+    return Block(
+        vocab.SYNTHESIS_BANNER,
+        {"executive_summary": exec_clean, "citations": cites, "n_rules": len(cites), "mismatch": mismatch},
+    )
 
 
 def _route_synthesis_to_lenses(nomination: dict, skill_reports: dict) -> list:
@@ -918,8 +1028,9 @@ def _route_synthesis_to_lenses(nomination: dict, skill_reports: dict) -> list:
     for short in sorted(skill_reports, key=vocab.skill_order_index):
         rep = skill_reports.get(short)
         prov = (rep.get("provenance") if isinstance(rep, dict) else None) or {}
-        for r in list(prov.get("fired_rule_ids") or []) + \
-                ([prov["driving_rule_id"]] if prov.get("driving_rule_id") else []):
+        for r in list(prov.get("fired_rule_ids") or []) + (
+            [prov["driving_rule_id"]] if prov.get("driving_rule_id") else []
+        ):
             rule_idx.setdefault(str(r), short)
         for c in list(prov.get("cards_used") or []):
             card_idx.setdefault(str(c), short)
@@ -935,10 +1046,10 @@ def _route_synthesis_to_lenses(nomination: dict, skill_reports: dict) -> list:
         return vocab.LENS_DECISION
 
     sentences: list = []
-    for a in (_llm_val(llm, "top_arguments_for") or []):
+    for a in _llm_val(llm, "top_arguments_for") or []:
         if isinstance(a, str):
             sentences.append(("for", a))
-    for a in (_llm_val(llm, "top_arguments_against") or []):
+    for a in _llm_val(llm, "top_arguments_against") or []:
         if isinstance(a, str):
             sentences.append(("against", a))
     tension = _llm_val(llm, "tension_analysis")
@@ -949,7 +1060,7 @@ def _route_synthesis_to_lenses(nomination: dict, skill_reports: dict) -> list:
     for stance, text in sentences:
         lens = _lens_for(text)
         if lens == vocab.LENS_DECISION:
-            continue                       # covered by the consolidated SYNTHESIS block already
+            continue  # covered by the consolidated SYNTHESIS block already
         clean, _ = _strip_rule_citations(text)
         by_lens.setdefault(lens, []).append({"stance": stance, "text": clean})
     blocks = []
@@ -957,7 +1068,7 @@ def _route_synthesis_to_lenses(nomination: dict, skill_reports: dict) -> list:
         notes = by_lens.get(lens)
         if notes:
             b = Block(vocab.SYNTHESIS_NOTE, {"notes": notes})
-            b.lens = lens                  # pre-lensed; build_ir preserves an already-set lens
+            b.lens = lens  # pre-lensed; build_ir preserves an already-set lens
             blocks.append(b)
     return blocks
 
@@ -974,19 +1085,33 @@ def _signals_scatter_block(selected, deciding_short) -> Optional[Block]:
             continue
         rank = vocab.polarity_rank(polarity)
         strength = "strong" if abs(rank or 0) >= 2 else "weak" if abs(rank or 0) == 1 else "absent"
-        pts.append({"short": short, "title": vocab.skill_title(short), "polarity": polarity,
-                    "signal_tier": strength, "signal_y": _TIER_ORDINAL[strength],
-                    "confidence_x": _confidence_ordinal(report.get("confidence")),
-                    "confidence": _confidence_level(report.get("confidence")),
-                    "honest_phrase": report.get("honest_phrase"),
-                    "is_deciding": short == deciding_short})
+        pts.append(
+            {
+                "short": short,
+                "title": vocab.skill_title(short),
+                "polarity": polarity,
+                "signal_tier": strength,
+                "signal_y": _TIER_ORDINAL[strength],
+                "confidence_x": _confidence_ordinal(report.get("confidence")),
+                "confidence": _confidence_level(report.get("confidence")),
+                "honest_phrase": report.get("honest_phrase"),
+                "is_deciding": short == deciding_short,
+            }
+        )
     if not pts:
         return None
-    return Block(vocab.SIGNALS_SCATTER, {
-        "scope": "skills", "points": pts, "deciding_short": deciding_short,
-        "y_ticks": ["absent", "weak", "strong"], "x_ticks": ["low", "moderate", "high"],
-        "y_label": "signal strength", "x_label": "confidence",
-    })
+    return Block(
+        vocab.SIGNALS_SCATTER,
+        {
+            "scope": "skills",
+            "points": pts,
+            "deciding_short": deciding_short,
+            "y_ticks": ["absent", "weak", "strong"],
+            "x_ticks": ["low", "moderate", "high"],
+            "y_label": "signal strength",
+            "x_label": "confidence",
+        },
+    )
 
 
 def _composed_fingerprint_block(tr: dict) -> Optional[Block]:
@@ -1013,38 +1138,47 @@ def _composed_fingerprint_block(tr: dict) -> Optional[Block]:
     # nodes trail in a stable bucket). Within a lane: deciding axis first, then alpha by short.
     by_lens: dict = {}
     for s in skills:
-        by_lens.setdefault(s.get("lens") or "_other", []).append({
-            "short": s.get("short"),
-            "title": vocab.skill_title(s.get("short")),
-            "call": s.get("call"),
-            "polarity": s.get("polarity"),
-            "confidence": s.get("confidence"),
-            "deciding": bool(s.get("deciding")),
-            "literature_consistency": s.get("literature_consistency"),
-        })
+        by_lens.setdefault(s.get("lens") or "_other", []).append(
+            {
+                "short": s.get("short"),
+                "title": vocab.skill_title(s.get("short")),
+                "call": s.get("call"),
+                "polarity": s.get("polarity"),
+                "confidence": s.get("confidence"),
+                "deciding": bool(s.get("deciding")),
+                "literature_consistency": s.get("literature_consistency"),
+            }
+        )
     lanes = []
     for lens in list(vocab.LENS_ORDER) + [l for l in sorted(by_lens) if l not in vocab.LENS_ORDER]:
         rows = by_lens.get(lens)
         if not rows:
             continue
         rows.sort(key=lambda r: (not r["deciding"], r["short"] or ""))
-        lanes.append({"lens": lens,
-                      "title": vocab.LENS_TITLE.get(lens, str(lens).replace("_", " ").title()),
-                      "skills": rows})
+        lanes.append(
+            {"lens": lens, "title": vocab.LENS_TITLE.get(lens, str(lens).replace("_", " ").title()), "skills": rows}
+        )
 
     verdict = eg.get("verdict") if isinstance(eg.get("verdict"), dict) else {}
     conf = verdict.get("confidence") if isinstance(verdict.get("confidence"), dict) else {}
-    dissent = [{"source": e.get("from"), "note": e.get("note"), "resolved_to": e.get("resolved_to")}
-               for e in (eg.get("edges") or [])
-               if isinstance(e, dict) and e.get("type") == "dissent"]
-    return Block(vocab.COMPOSED_FINGERPRINT, {
-        "verdict": {"recommendation": verdict.get("recommendation"),
-                    "confidence": conf.get("level"),
-                    "deciding_shorts": verdict.get("deciding_shorts") or []},
-        "lanes": lanes,
-        "dissent": dissent,
-        "n_skills": len(skills),
-    })
+    dissent = [
+        {"source": e.get("from"), "note": e.get("note"), "resolved_to": e.get("resolved_to")}
+        for e in (eg.get("edges") or [])
+        if isinstance(e, dict) and e.get("type") == "dissent"
+    ]
+    return Block(
+        vocab.COMPOSED_FINGERPRINT,
+        {
+            "verdict": {
+                "recommendation": verdict.get("recommendation"),
+                "confidence": conf.get("level"),
+                "deciding_shorts": verdict.get("deciding_shorts") or [],
+            },
+            "lanes": lanes,
+            "dissent": dissent,
+            "n_skills": len(skills),
+        },
+    )
 
 
 def _subgroup_scatter_block(subgroup_signals: dict) -> Optional[Block]:
@@ -1057,18 +1191,30 @@ def _subgroup_scatter_block(subgroup_signals: dict) -> Optional[Block]:
         if not isinstance(d, dict):
             continue
         tier = str(d.get("signal") or "absent")
-        pts.append({"name": str(sg_id).replace("_", " "), "signal_tier": tier,
-                    "signal_y": _TIER_ORDINAL.get(tier, 0),
-                    "confidence_x": _CONF_ORDINAL.get(str(d.get("confidence") or "").lower()),
-                    "confidence": d.get("confidence"), "conflict": bool(d.get("conflict")),
-                    "n_sources": d.get("n_sources")})
+        pts.append(
+            {
+                "name": str(sg_id).replace("_", " "),
+                "signal_tier": tier,
+                "signal_y": _TIER_ORDINAL.get(tier, 0),
+                "confidence_x": _CONF_ORDINAL.get(str(d.get("confidence") or "").lower()),
+                "confidence": d.get("confidence"),
+                "conflict": bool(d.get("conflict")),
+                "n_sources": d.get("n_sources"),
+            }
+        )
     if not pts:
         return None
-    return Block(vocab.SIGNALS_SCATTER, {
-        "scope": "subgroups", "points": pts,
-        "y_ticks": ["absent", "weak", "moderate", "strong"], "x_ticks": ["low", "moderate", "high"],
-        "y_label": "signal", "x_label": "confidence",
-    })
+    return Block(
+        vocab.SIGNALS_SCATTER,
+        {
+            "scope": "subgroups",
+            "points": pts,
+            "y_ticks": ["absent", "weak", "moderate", "strong"],
+            "x_ticks": ["low", "moderate", "high"],
+            "y_label": "signal",
+            "x_label": "confidence",
+        },
+    )
 
 
 def _subgroup_bands_block(subgroup_signals: dict) -> Optional[Block]:
@@ -1080,10 +1226,17 @@ def _subgroup_bands_block(subgroup_signals: dict) -> Optional[Block]:
     for sg_id, d in subgroup_signals.items():
         if not isinstance(d, dict):
             continue
-        rows.append({"name": str(sg_id).replace("_", " "), "signal": d.get("signal"),
-                     "confidence": d.get("confidence"), "n_sources": d.get("n_sources"),
-                     "n_agree": d.get("n_agree"), "power": d.get("power"),
-                     "conflict": bool(d.get("conflict"))})
+        rows.append(
+            {
+                "name": str(sg_id).replace("_", " "),
+                "signal": d.get("signal"),
+                "confidence": d.get("confidence"),
+                "n_sources": d.get("n_sources"),
+                "n_agree": d.get("n_agree"),
+                "power": d.get("power"),
+                "conflict": bool(d.get("conflict")),
+            }
+        )
     return Block(vocab.SUBGROUP_BANDS, {"sub_groups": rows}) if rows else None
 
 
@@ -1104,24 +1257,43 @@ def _evidence_fingerprint_block(eg: dict) -> Optional[Block]:
     rows = []
     for q in qs:
         cells = []
-        for cid in (q.get("card_ids") or []):
+        for cid in q.get("card_ids") or []:
             c = cards_by_id.get(cid) or {}
             sig = c.get("signal") or {}
-            cells.append({"card_id": cid, "polarity": sig.get("polarity"),
-                          "liability": bool(sig.get("liability")),
-                          "dots": (c.get("confidence") or {}).get("dots"),
-                          "label": sig.get("label") or (c.get("class") or {}).get("value")})
+            cells.append(
+                {
+                    "card_id": cid,
+                    "polarity": sig.get("polarity"),
+                    "liability": bool(sig.get("liability")),
+                    "dots": (c.get("confidence") or {}).get("dots"),
+                    "label": sig.get("label") or (c.get("class") or {}).get("value"),
+                }
+            )
         lit = None
-        for ax_id in (q.get("literature_axis_ids") or []):
+        for ax_id in q.get("literature_axis_ids") or []:
             a = axes_by_id.get(ax_id)
             if a:
-                lit = {"axis_id": ax_id, "read": a.get("read"), "agreement": a.get("agreement_vs_omics"),
-                       "confidence": a.get("confidence"), "cited": bool(a.get("citation_ids"))}
+                lit = {
+                    "axis_id": ax_id,
+                    "read": a.get("read"),
+                    "agreement": a.get("agreement_vs_omics"),
+                    "confidence": a.get("confidence"),
+                    "cited": bool(a.get("citation_ids")),
+                }
                 break
         sg = q.get("signal") or {}
-        rows.append({"id": q.get("id"), "seq": q.get("seq"), "text": q.get("text"),
-                     "polarity": sg.get("polarity"), "tier": sg.get("tier"),
-                     "dots": (q.get("confidence") or {}).get("dots"), "cells": cells, "lit": lit})
+        rows.append(
+            {
+                "id": q.get("id"),
+                "seq": q.get("seq"),
+                "text": q.get("text"),
+                "polarity": sg.get("polarity"),
+                "tier": sg.get("tier"),
+                "dots": (q.get("confidence") or {}).get("dots"),
+                "cells": cells,
+                "lit": lit,
+            }
+        )
     return Block(vocab.EVIDENCE_FINGERPRINT, {"questions": rows})
 
 
@@ -1164,8 +1336,10 @@ def _format_key_evidence(ke: Optional[dict]) -> Optional[str]:
         parts.append(seg)
     strong = next((s for s in strata if s.get("role") == "strongest"), None)
     if ind and strong and strong is not lead:
-        parts.append(f"strongest {strong.get('label')} {_fmt_num(strong.get('value'))}"
-                     + (f" (q={_fmt_num(strong.get('q'))})" if strong.get("q") is not None else ""))
+        parts.append(
+            f"strongest {strong.get('label')} {_fmt_num(strong.get('value'))}"
+            + (f" (q={_fmt_num(strong.get('q'))})" if strong.get("q") is not None else "")
+        )
     omni = ke.get("omnibus") or {}
     if omni.get("value") is not None:
         parts.append(f"{_dg.gloss(omni.get('stat'))[0] or omni.get('stat')}={_fmt_num(omni.get('value'))}")
@@ -1203,21 +1377,32 @@ def _card_chain_block(eg: dict) -> Optional[Block]:
         ke = c.get("key_evidence")
         class_value = (c.get("class") or {}).get("value")
         interp = (ke or {}).get("interpretation") or []
-        layers[mt].append({
-            "id": c.get("id"), "polarity": sig.get("polarity"), "liability": bool(sig.get("liability")),
-            "role": c.get("role"), "class_value": class_value,
-            "description": _dg.card_description(c.get("id"), target, indication),  # plain "what is this card"
-            "reads": _dg.humanize(class_value) or None,                            # class-led "Reads: <class>"
-            "interpretation": interp,                                              # typed reference-frame ruler(s)
-            "gauge": _dg.gauge_string(interp[0]) if interp else None,              # the LEAD ruler in words
-            "gauges": [g for g in (_dg.gauge_string(gv) for gv in interp) if g],   # ALL rulers in words (multi-frame)
-            "n": (c.get("confidence") or {}).get("n"), "dots": (c.get("confidence") or {}).get("dots"),
-            "dataset_ids": chain.get("dataset_ids") or [], "data": chain.get("data") or [],
-            "rule_id": chain.get("rule_id"), "is_driving": bool(chain.get("is_driving")),
-            "contributes": bool(chain.get("contributes_to_verdict")),
-            "key_evidence": ke, "key_evidence_summary": _format_key_evidence(ke)})
-    return Block(vocab.CARD_CHAIN,
-                 {"layers": [{"layer": mt.replace("_", " "), "cards": layers[mt]} for mt in order]})
+        layers[mt].append(
+            {
+                "id": c.get("id"),
+                "polarity": sig.get("polarity"),
+                "liability": bool(sig.get("liability")),
+                "role": c.get("role"),
+                "class_value": class_value,
+                "description": _dg.card_description(c.get("id"), target, indication),  # plain "what is this card"
+                "reads": _dg.humanize(class_value) or None,  # class-led "Reads: <class>"
+                "interpretation": interp,  # typed reference-frame ruler(s)
+                "gauge": _dg.gauge_string(interp[0]) if interp else None,  # the LEAD ruler in words
+                "gauges": [
+                    g for g in (_dg.gauge_string(gv) for gv in interp) if g
+                ],  # ALL rulers in words (multi-frame)
+                "n": (c.get("confidence") or {}).get("n"),
+                "dots": (c.get("confidence") or {}).get("dots"),
+                "dataset_ids": chain.get("dataset_ids") or [],
+                "data": chain.get("data") or [],
+                "rule_id": chain.get("rule_id"),
+                "is_driving": bool(chain.get("is_driving")),
+                "contributes": bool(chain.get("contributes_to_verdict")),
+                "key_evidence": ke,
+                "key_evidence_summary": _format_key_evidence(ke),
+            }
+        )
+    return Block(vocab.CARD_CHAIN, {"layers": [{"layer": mt.replace("_", " "), "cards": layers[mt]} for mt in order]})
 
 
 def _literature_axes_block(eg: dict) -> Optional[Block]:
@@ -1232,23 +1417,37 @@ def _literature_axes_block(eg: dict) -> Optional[Block]:
 
     def _cites(ids):
         out = []
-        for cid in (ids or []):
+        for cid in ids or []:
             c = cites_by_id.get(cid)
             if c:
-                out.append({"label": c.get("label"), "pmid": c.get("pmid"),
-                            "verified": bool(c.get("verified"))})
+                out.append({"label": c.get("label"), "pmid": c.get("pmid"), "verified": bool(c.get("verified"))})
         return out
 
-    axes_out = [{"axis_id": a.get("axis_id"), "read": a.get("read"),
-                 "agreement": a.get("agreement_vs_omics"), "confidence": a.get("confidence"),
-                 "assertion": a.get("assertion"), "question_ids": a.get("question_ids") or [],
-                 "citations": _cites(a.get("citation_ids"))} for a in axes]
-    blind = [{"text": b.get("text"), "why_omics_blind": b.get("why_omics_blind"),
-              "citations": _cites(b.get("citation_ids"))} for b in blind_raw]
-    return Block(vocab.LITERATURE_AXES, {
-        "axes": axes_out, "blind_spots": blind,
-        "overall_consistency": lit.get("overall_consistency"),
-        "key_divergence": lit.get("key_divergence")})
+    axes_out = [
+        {
+            "axis_id": a.get("axis_id"),
+            "read": a.get("read"),
+            "agreement": a.get("agreement_vs_omics"),
+            "confidence": a.get("confidence"),
+            "assertion": a.get("assertion"),
+            "question_ids": a.get("question_ids") or [],
+            "citations": _cites(a.get("citation_ids")),
+        }
+        for a in axes
+    ]
+    blind = [
+        {"text": b.get("text"), "why_omics_blind": b.get("why_omics_blind"), "citations": _cites(b.get("citation_ids"))}
+        for b in blind_raw
+    ]
+    return Block(
+        vocab.LITERATURE_AXES,
+        {
+            "axes": axes_out,
+            "blind_spots": blind,
+            "overall_consistency": lit.get("overall_consistency"),
+            "key_divergence": lit.get("key_divergence"),
+        },
+    )
 
 
 def _cross_cutting_block(nomination: dict, skill_reports: dict) -> Optional[Block]:
@@ -1262,15 +1461,20 @@ def _cross_cutting_block(nomination: dict, skill_reports: dict) -> Optional[Bloc
         if not isinstance(rep, dict):
             continue
         owner_lens = vocab.SKILL_TOPICAL_LENS.get(short)
-        for q in (rep.get("question_table") or []):
+        for q in rep.get("question_table") or []:
             if not isinstance(q, dict):
                 continue
             note = q.get("cross_lens") or q.get("informs_lens")
             if not note:
-                continue                    # only questions explicitly flagged as cross-lens
-            rows.append({"question": q.get("question") or q.get("q") or q.get("label"),
-                         "owner": vocab.skill_title(short), "owner_lens": owner_lens,
-                         "informs": note})
+                continue  # only questions explicitly flagged as cross-lens
+            rows.append(
+                {
+                    "question": q.get("question") or q.get("q") or q.get("label"),
+                    "owner": vocab.skill_title(short),
+                    "owner_lens": owner_lens,
+                    "informs": note,
+                }
+            )
             if len(rows) >= 6:
                 break
         if len(rows) >= 6:
@@ -1278,8 +1482,9 @@ def _cross_cutting_block(nomination: dict, skill_reports: dict) -> Optional[Bloc
     return Block(vocab.CROSS_CUTTING_QUESTIONS, {"rows": rows}) if rows else None
 
 
-def build_ir(nomination: dict, spec: ReportSpec,
-             target: Optional[str] = None, indication: Optional[str] = None) -> ReportIR:
+def build_ir(
+    nomination: dict, spec: ReportSpec, target: Optional[str] = None, indication: Optional[str] = None
+) -> ReportIR:
     """Project a nomination + spec into the presentation IR. Pure, deterministic, fail-soft."""
     nomination = nomination or {}
     tr = nomination.get("target_report") or {}
@@ -1295,26 +1500,30 @@ def build_ir(nomination: dict, spec: ReportSpec,
     # coherence thesis lives at target_report.thesis (full-nest) OR top-level nomination.target_coherence
     # (pre-nest runs) — same fallback _coherence_block uses, so the header + strip reconciliation resolve
     # it in both shapes. Byte-stable on the nested goldens (the fallback never triggers there).
-    _tc = (tr.get("thesis") if isinstance(tr.get("thesis"), dict) else None) \
-        or (nomination.get("target_coherence") if isinstance(nomination.get("target_coherence"), dict) else None)
+    _tc = (tr.get("thesis") if isinstance(tr.get("thesis"), dict) else None) or (
+        nomination.get("target_coherence") if isinstance(nomination.get("target_coherence"), dict) else None
+    )
     _thesis_obj = (_tc or {}).get("thesis") if isinstance(_tc, dict) else None
     _thesis_primary = _thesis_obj.get("primary") if isinstance(_thesis_obj, dict) else None
-    header = Block(vocab.REPORT_HEADER, {
-        "target": target,
-        "indication": indication,
-        "thesis": _thesis_primary if _thesis_primary != "insufficient_thesis" else None,
-        # data-backed "what kind of target is this" (archetype phenotype-mixture) — leads the header so
-        # the target is CHARACTERIZED before the one-word recommendation.
-        "characterization": _target_characterization(tr),
-        "recommendation": target_call.get("recommendation"),
-        "confidence": target_call.get("confidence"),
-        "deciding_axis": target_call.get("deciding_axis"),
-        "deciding_short": deciding_short,
-        "deciding_title": vocab.skill_title(deciding_short) if deciding_short else None,
-        "dissent": target_call.get("dissent") or [],
-        "gate": target_call.get("gate"),
-        "lead": spec.lead,
-    })
+    header = Block(
+        vocab.REPORT_HEADER,
+        {
+            "target": target,
+            "indication": indication,
+            "thesis": _thesis_primary if _thesis_primary != "insufficient_thesis" else None,
+            # data-backed "what kind of target is this" (archetype phenotype-mixture) — leads the header so
+            # the target is CHARACTERIZED before the one-word recommendation.
+            "characterization": _target_characterization(tr),
+            "recommendation": target_call.get("recommendation"),
+            "confidence": target_call.get("confidence"),
+            "deciding_axis": target_call.get("deciding_axis"),
+            "deciding_short": deciding_short,
+            "deciding_title": vocab.skill_title(deciding_short) if deciding_short else None,
+            "dissent": target_call.get("dissent") or [],
+            "gate": target_call.get("gate"),
+            "lead": spec.lead,
+        },
+    )
 
     # select + order sections.
     selected = []
@@ -1326,15 +1535,17 @@ def build_ir(nomination: dict, spec: ReportSpec,
             continue
         selected.append((short, report, role))
 
-    selected.sort(key=lambda t: _sort_key(
-        t[0], t[2], t[1].get("polarity"), t[0] == deciding_short, spec))
+    selected.sort(key=lambda t: _sort_key(t[0], t[2], t[1].get("polarity"), t[0] == deciding_short, spec))
 
     # run-dir figure join: map each produced card figure to its owning section (gating-lister first).
     figs_by_owner = _figures_by_owner(nomination, _card_figure_owner_map(nomination, skill_reports))
 
-    sections = [_build_section(short, report, spec, is_deciding=(short == deciding_short),
-                               card_figs=figs_by_owner.get(short, []))
-                for short, report, role in selected]
+    sections = [
+        _build_section(
+            short, report, spec, is_deciding=(short == deciding_short), card_figs=figs_by_owner.get(short, [])
+        )
+        for short, report, role in selected
+    ]
 
     overview = []
 
@@ -1349,7 +1560,7 @@ def build_ir(nomination: dict, spec: ReportSpec,
     # leads the Decision lens (lens grouping preserves insertion order within a lens). None → not added
     # (pre-index nominations stay byte-stable).
     _add(vocab.COMPOSED_FINGERPRINT, _composed_fingerprint_block(tr))
-    _add(vocab.SIGNALS_SCATTER, _signals_scatter_block(selected, deciding_short))   # leads the Signals lens
+    _add(vocab.SIGNALS_SCATTER, _signals_scatter_block(selected, deciding_short))  # leads the Signals lens
     _add(vocab.SIGNALS_OVERVIEW, _signals_overview_block(selected, deciding_short, _thesis_primary))
     _add(vocab.CROSS_CUTTING_QUESTIONS, _cross_cutting_block(nomination, skill_reports))
     _add(vocab.COHERENCE, _coherence_block(tr, nomination))
@@ -1377,32 +1588,57 @@ def build_ir(nomination: dict, spec: ReportSpec,
         sec.lens = vocab.LENS_SIGNALS
 
     # the persistent advisory synthesis banner is report chrome (above the tabs), not a lens block.
-    banner = (_synthesis_banner_block(nomination, target_call)
-              if spec.level_int >= vocab.TIER[vocab.SYNTHESIS_BANNER] else None)
+    banner = (
+        _synthesis_banner_block(nomination, target_call)
+        if spec.level_int >= vocab.TIER[vocab.SYNTHESIS_BANNER]
+        else None
+    )
 
-    return ReportIR(target=target, indication=indication, spec=spec, header=header,
-                    sections=sections, about=_about_block(spec), deciding_short=deciding_short,
-                    overview=overview, banner=banner)
+    return ReportIR(
+        target=target,
+        indication=indication,
+        spec=spec,
+        header=header,
+        sections=sections,
+        about=_about_block(spec),
+        deciding_short=deciding_short,
+        overview=overview,
+        banner=banner,
+    )
 
 
 def _about_block(spec: ReportSpec) -> Optional[Block]:
     """The honesty legend / spec footer — shown from L1 up (kept off the one-page L0 exec brief)."""
     if spec.level_int < vocab.TIER[vocab.ABOUT]:
         return None
-    return Block(vocab.ABOUT, {
-        "polarity_legend": vocab.polarity_legend(),
-        "spec": {"level": spec.level, "medium": spec.medium,
-                 "scope": list(spec.scope) if isinstance(spec.scope, tuple) else spec.scope,
-                 "lead": spec.lead},
-        "note": ("Signals lead; the call is a subordinate summary. Ordinal polarity is an "
-                 "order-preserving display view, NOT calibrated measurement; 'not scored' / "
-                 "off-scale means context or a coverage gap, not a low score."),
-    })
+    return Block(
+        vocab.ABOUT,
+        {
+            "polarity_legend": vocab.polarity_legend(),
+            "spec": {
+                "level": spec.level,
+                "medium": spec.medium,
+                "scope": list(spec.scope) if isinstance(spec.scope, tuple) else spec.scope,
+                "lead": spec.lead,
+            },
+            "note": (
+                "Signals lead; the call is a subordinate summary. Ordinal polarity is an "
+                "order-preserving display view, NOT calibrated measurement; 'not scored' / "
+                "off-scale means context or a coverage gap, not a low score."
+            ),
+        },
+    )
 
 
-def build_ir_for_skill(skill_report: dict, spec: ReportSpec, *, skill_name: Optional[str] = None,
-                       short: Optional[str] = None, target: Optional[str] = None,
-                       indication: Optional[str] = None) -> ReportIR:
+def build_ir_for_skill(
+    skill_report: dict,
+    spec: ReportSpec,
+    *,
+    skill_name: Optional[str] = None,
+    short: Optional[str] = None,
+    target: Optional[str] = None,
+    indication: Optional[str] = None,
+) -> ReportIR:
     """Project a SINGLE skill's `skill_report` into a one-section report IR (for rendering a standalone
     skill run, e.g. tumor-presence, without a full target_report). No target_call decision header — the
     header is just the target/indication frame; the skill's own call/polarity lead its section. Same
@@ -1410,15 +1646,32 @@ def build_ir_for_skill(skill_report: dict, spec: ReportSpec, *, skill_name: Opti
     skill_report = skill_report or {}
     if short is None:
         short = vocab.skill_short_for_name(skill_name) or skill_name or "skill"
-    header = Block(vocab.REPORT_HEADER, {
-        "target": target, "indication": indication,
-        "recommendation": None, "confidence": None, "deciding_axis": None,
-        "deciding_short": None, "deciding_title": None, "dissent": [], "gate": None,
-        "lead": spec.lead, "single_skill": True,
-    })
+    header = Block(
+        vocab.REPORT_HEADER,
+        {
+            "target": target,
+            "indication": indication,
+            "recommendation": None,
+            "confidence": None,
+            "deciding_axis": None,
+            "deciding_short": None,
+            "deciding_title": None,
+            "dissent": [],
+            "gate": None,
+            "lead": spec.lead,
+            "single_skill": True,
+        },
+    )
     section = _build_section(short, skill_report, spec, is_deciding=False)
-    return ReportIR(target=target, indication=indication, spec=spec, header=header,
-                    sections=[section], about=_about_block(spec), deciding_short=None)
+    return ReportIR(
+        target=target,
+        indication=indication,
+        spec=spec,
+        header=header,
+        sections=[section],
+        about=_about_block(spec),
+        deciding_short=None,
+    )
 
 
 __all__ = ["Block", "Section", "ReportIR", "build_ir", "build_ir_for_skill"]

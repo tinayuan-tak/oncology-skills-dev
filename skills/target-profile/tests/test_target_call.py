@@ -3,6 +3,7 @@
 deciding_axis / gate_scorecard (the four are no longer top-level nomination keys) + target_rollup.block;
 recommendation_gate stays the sole owner of the recommendation value. Pure over synthetic inputs.
 """
+
 from __future__ import annotations
 import sys
 from pathlib import Path
@@ -26,13 +27,12 @@ def test_composes_the_four_spine_objects_and_recommendation_value():
     assert tc["recommendation"] == "hold"
     assert tc["gate"] is rg and tc["confidence"] is ct and tc["deciding_axis"] is da
     assert tc["gate_scorecard"] is sc
-    assert tc["dissent"] == []                       # gate and LLM agree, no block → no dissent
+    assert tc["dissent"] == []  # gate and LLM agree, no block → no dissent
 
 
 def test_dissent_when_gate_overrides_llm():
     rg = {"fired": True, "forced_recommendation": "kill", "llm_recommendation": "nominate", "overridden": True}
-    tc = build_target_call(rg, {"tier": None}, {"basis": "gate_fired"},
-                           overall_recommendation={"value": "kill"})
+    tc = build_target_call(rg, {"tier": None}, {"basis": "gate_fired"}, overall_recommendation={"value": "kill"})
     d = [x for x in tc["dissent"] if x["source"] == "llm_synthesis"]
     assert d and d[0]["resolved_to"] == "kill"
     assert tc["recommendation"] == "kill"
@@ -40,10 +40,16 @@ def test_dissent_when_gate_overrides_llm():
 
 def test_dissent_when_block_fires_but_gate_did_not():
     rg = {"fired": False}
-    rollup = {"block": {"blocked": True, "status": "hard_block",
-                        "blocking_axes": [{"axis": "deliverability", "kind": "no_viable_modality"}]}}
-    tc = build_target_call(rg, {"tier": None}, {"basis": "abstention"},
-                           overall_recommendation={"value": "hold"}, target_rollup=rollup)
+    rollup = {
+        "block": {
+            "blocked": True,
+            "status": "hard_block",
+            "blocking_axes": [{"axis": "deliverability", "kind": "no_viable_modality"}],
+        }
+    }
+    tc = build_target_call(
+        rg, {"tier": None}, {"basis": "abstention"}, overall_recommendation={"value": "hold"}, target_rollup=rollup
+    )
     d = [x for x in tc["dissent"] if x["source"] == "target_rollup.block"]
     assert d and d[0]["blocking_axes"][0]["axis"] == "deliverability"
 

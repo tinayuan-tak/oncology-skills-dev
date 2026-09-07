@@ -46,6 +46,7 @@ ANALYSIS_METHODS_ROOT = Path(
 # Composed-card dependency graph
 # ---------------------------------------------------------------------------
 
+
 def test_composed_card_dependency_graph():
     """The composed adc-tce-modality-fit + surface-abundance-density cards
     declare `derived_from:` upstream card_ids; the upstream cards must exist.
@@ -79,6 +80,7 @@ def test_composed_card_dependency_graph():
 # Lens-conditional field split
 # ---------------------------------------------------------------------------
 
+
 def test_lens_conditional_field_split():
     """adc-tce-modality-fit card must have summary_fields that include BOTH
     bare-string entries (biology-agnostic) AND object entries with
@@ -89,10 +91,7 @@ def test_lens_conditional_field_split():
     fields = data["outputs"]["summary_fields"]
 
     n_bare = sum(1 for f in fields if isinstance(f, str))
-    n_object_lens = sum(
-        1 for f in fields
-        if isinstance(f, dict) and f.get("lens_conditional_on") == "modality"
-    )
+    n_object_lens = sum(1 for f in fields if isinstance(f, dict) and f.get("lens_conditional_on") == "modality")
     assert n_bare >= 3, f"expected biology-agnostic bare fields, got {n_bare}"
     assert n_object_lens >= 4, (
         f"expected >=4 lens_conditional_on=modality fields "
@@ -103,6 +102,7 @@ def test_lens_conditional_field_split():
 # ---------------------------------------------------------------------------
 # Isoform-selective warning
 # ---------------------------------------------------------------------------
+
 
 def test_isoform_selective_warning_fires_on_known_targets():
     """The isoform-selective vocabulary must fire on the 8 clinically-
@@ -121,8 +121,7 @@ def test_isoform_selective_warning_fires_on_known_targets():
         w = check_target(target)
         assert w is not None, f"expected isoform warning for {target}, got None"
         assert expected_isoform_fragment in w.dominant_isoform, (
-            f"{target} warning missing '{expected_isoform_fragment}': "
-            f"got {w.dominant_isoform!r}"
+            f"{target} warning missing '{expected_isoform_fragment}': got {w.dominant_isoform!r}"
         )
 
     # Negative controls
@@ -130,14 +129,13 @@ def test_isoform_selective_warning_fires_on_known_targets():
         assert check_target(target) is None, f"unexpected isoform warning for {target}"
 
     # Coverage: at least 8 targets curated in v1
-    assert len(known_targets()) >= 8, (
-        f"isoform vocabulary should have >= 8 targets; got {len(known_targets())}"
-    )
+    assert len(known_targets()) >= 8, f"isoform vocabulary should have >= 8 targets; got {len(known_targets())}"
 
 
 # ---------------------------------------------------------------------------
 # on_dependency_status validation
 # ---------------------------------------------------------------------------
+
 
 def test_on_dependency_status_field_validates():
     """Composition-schema: on_dependency_status field is optional,
@@ -161,14 +159,16 @@ def test_on_dependency_status_field_validates():
 
     # Invalid behavior value
     from _skills_common.composition_schema import CompositionError
+
     with pytest.raises(CompositionError):
-        validate({**valid, "on_dependency_status": {"normal-tissue-liability": "unknown_behavior"}},
-                 skill_name="test_bad_behavior")
+        validate(
+            {**valid, "on_dependency_status": {"normal-tissue-liability": "unknown_behavior"}},
+            skill_name="test_bad_behavior",
+        )
 
     # References card not in cards_used
     with pytest.raises(CompositionError):
-        validate({**valid, "on_dependency_status": {"some-other-card": "skip_section"}},
-                 skill_name="test_bad_ref")
+        validate({**valid, "on_dependency_status": {"some-other-card": "skip_section"}}, skill_name="test_bad_ref")
 
     # Coverage: all three behavior values are valid
     for behavior in DEPENDENCY_STATUS_BEHAVIORS:
@@ -181,12 +181,15 @@ def test_on_dependency_status_field_validates():
 # SIGNOR MoA ontology coverage
 # ---------------------------------------------------------------------------
 
+
 def test_signor_moa_ontology_classification():
     """21-class MoA taxonomy correctly classifies canonical SIGNOR mechanisms."""
     ANALYSIS_METHODS_ROOT = SKILLS_DIR.parent.parent / "rnd-computational-biology-oncology-analysis-methods"
     sys.path.insert(0, str(ANALYSIS_METHODS_ROOT))
     from methods.signor_mechanism_network.moa_ontology import (
-        classify_edge, known_moa_classes, ONTOLOGY_VERSION,
+        classify_edge,
+        known_moa_classes,
+        ONTOLOGY_VERSION,
     )
 
     assert ONTOLOGY_VERSION == "1.0.0"
@@ -216,6 +219,7 @@ def test_signor_moa_ontology_classification():
 # TMbed license attestation
 # ---------------------------------------------------------------------------
 
+
 def test_tmbed_license_attestation():
     """TMbed's Apache-2.0 license must be attested machine-checkably.
 
@@ -226,9 +230,7 @@ def test_tmbed_license_attestation():
     license posture is attested beside the wrapper in LICENSE_ATTRIBUTION.yaml, which this
     test verifies.
     """
-    attestation = (
-        ANALYSIS_METHODS_ROOT / "methods/topology_predictions_tmbed/LICENSE_ATTRIBUTION.yaml"
-    )
+    attestation = ANALYSIS_METHODS_ROOT / "methods/topology_predictions_tmbed/LICENSE_ATTRIBUTION.yaml"
     assert attestation.exists(), (
         f"TMbed license attestation missing at {attestation} — the tool license must be "
         f"attested in analysis-methods (data-catalog #111->#113: TMbed is a tool, not a source)."
@@ -251,6 +253,7 @@ def test_tmbed_license_attestation():
 # ---------------------------------------------------------------------------
 # Fisher panel-intersect discipline
 # ---------------------------------------------------------------------------
+
 
 def test_panel_intersect_fisher_row_schema():
     """The co-mutation card's row schema must declare pooled_eligible + source
@@ -297,23 +300,24 @@ NEW_CARDS = [
 def test_all_new_cards_validate(card_id):
     """Each of the 11 new cards must validate against card.schema.json."""
     import subprocess
+
     validator = TARGET_CONTRACTS_ROOT / "validators/validate_cards.py"
     card_path = TARGET_CONTRACTS_ROOT / "cards" / f"{card_id}.card.yaml"
 
     result = subprocess.run(
         [sys.executable, str(validator), str(card_path)],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     assert result.returncode == 0, (
-        f"validate_cards.py failed on {card_id}:\n"
-        f"stdout:\n{result.stdout}\n"
-        f"stderr:\n{result.stderr}"
+        f"validate_cards.py failed on {card_id}:\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
     )
 
 
 # ---------------------------------------------------------------------------
 # Modality rubric integrity
 # ---------------------------------------------------------------------------
+
 
 def test_modality_rubric_weights_sum_to_100():
     """ADC + TCE rubric weights must each sum to exactly 100 (invariant for
@@ -341,6 +345,7 @@ def test_modality_rubric_weights_sum_to_100():
 # Clinical-precedent benchmark shape
 # ---------------------------------------------------------------------------
 
+
 def test_a4_dispatcher_runtime_consumer():
     """The shared dispatcher's _apply_on_dependency_status function honors
     the on_dependency_status map — applies skip_section / emit_with_caveat /
@@ -367,14 +372,10 @@ def test_a4_dispatcher_runtime_consumer():
 
     # card-a always present; card-b skipped; card-c retained with caveat
     surviving_ids = {c["card_id"] for c in surviving}
-    assert surviving_ids == {"card-a", "card-c"}, (
-        f"expected {{card-a, card-c}} surviving, got {surviving_ids}"
-    )
+    assert surviving_ids == {"card-a", "card-c"}, f"expected {{card-a, card-c}} surviving, got {surviving_ids}"
     assert skipped == ["card-b"], f"expected ['card-b'] skipped, got {skipped}"
     assert len(caveats) == 1, f"expected 1 caveat, got {len(caveats)}"
-    assert "card-c" in caveats[0], (
-        f"caveat should mention card-c: {caveats[0]}"
-    )
+    assert "card-c" in caveats[0], f"caveat should mention card-c: {caveats[0]}"
 
     # Empty on_dep = no-op (default retain all)
     surviving2, skipped2, caveats2 = _apply_on_dependency_status(cards, {})
@@ -399,18 +400,12 @@ def test_clinical_precedent_benchmark_shape():
 
     # Plan mandate: ~30 ADC + ~20 TCE anchors + few negatives
     assert len(adc_anchors) >= 20, (
-        f"ADC anchor set should have >= 20 targets for the AUROC gate; "
-        f"got {len(adc_anchors)}"
+        f"ADC anchor set should have >= 20 targets for the AUROC gate; got {len(adc_anchors)}"
     )
-    assert len(tce_anchors) >= 15, (
-        f"TCE anchor set should have >= 15 targets; got {len(tce_anchors)}"
-    )
-    assert len(negative_anchors) >= 3, (
-        f"Negative-anchor set should have >= 3 targets; got {len(negative_anchors)}"
-    )
+    assert len(tce_anchors) >= 15, f"TCE anchor set should have >= 15 targets; got {len(tce_anchors)}"
+    assert len(negative_anchors) >= 3, f"Negative-anchor set should have >= 3 targets; got {len(negative_anchors)}"
 
     # AUROC gate must be at least 0.80 per plan
     assert data["verification"]["minimum_auroc"] >= 0.80, (
-        f"minimum_auroc gate must be >= 0.80 per plan; got "
-        f"{data['verification']['minimum_auroc']}"
+        f"minimum_auroc gate must be >= 0.80 per plan; got {data['verification']['minimum_auroc']}"
     )

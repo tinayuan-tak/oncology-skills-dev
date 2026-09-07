@@ -9,6 +9,7 @@ These tests read each resolver's verdict enum and assert the consumer sets stay 
 so the next such omission fails in CI instead of shipping. Skips cleanly when target-contracts is
 not checked out (load_resolver returns None).
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -26,8 +27,9 @@ def _resolver_verdicts(gate: str):
     spec = load_resolver(gate)
     if not isinstance(spec, dict):
         return None
-    vs = {r["verdict"] for r in (spec.get("resolve") or [])
-          if isinstance(r, dict) and isinstance(r.get("verdict"), str)}
+    vs = {
+        r["verdict"] for r in (spec.get("resolve") or []) if isinstance(r, dict) and isinstance(r.get("verdict"), str)
+    }
     if isinstance(spec.get("default"), str):
         vs.add(spec["default"])
     return vs or None
@@ -52,7 +54,8 @@ def test_dependency_verdicts_are_exhaustively_classified():
         f"dependency.resolver.yaml emits verdict(s) {sorted(unclassified)} that "
         f"functional-requirement/run.py classifies as NEITHER a call nor a non-call. Add each to "
         f"_DEPENDENCY_CALL_VERDICTS (a real dependency call) or _NON_CALL_VERDICTS (predictability "
-        f"annotation stays neutral).")
+        f"annotation stays neutral)."
+    )
     stale = (calls | noncalls) - _DEP
     assert not stale, f"consumer lists verdict(s) no longer in dependency.resolver.yaml: {sorted(stale)}"
 
@@ -67,6 +70,8 @@ def test_safety_mechanism_mismatch_set_matches_resolver():
     # resolver emits ZERO *_mechanism_mismatch verdicts and the consumer set is correspondingly empty.
     assert not by_name, (
         f"expected ZERO *_mechanism_mismatch verdicts post-retirement, found {by_name} — a scalar "
-        f"role-proxy downgrade has crept back; modality-conditionality belongs in the per-modality verdict.")
+        f"role-proxy downgrade has crept back; modality-conditionality belongs in the per-modality verdict."
+    )
     assert set(saf._MECHANISM_MISMATCH_VERDICTS) == by_name == set(), (
-        f"_MECHANISM_MISMATCH_VERDICTS {set(saf._MECHANISM_MISMATCH_VERDICTS)} must be empty post-retirement.")
+        f"_MECHANISM_MISMATCH_VERDICTS {set(saf._MECHANISM_MISMATCH_VERDICTS)} must be empty post-retirement."
+    )

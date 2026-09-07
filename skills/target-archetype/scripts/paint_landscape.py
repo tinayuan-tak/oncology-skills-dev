@@ -13,6 +13,7 @@ Usage:
 
 `portfolio_table(atlas, extra=None)` is the pure, testable core (no matplotlib); the PNG is best-effort.
 """
+
 import argparse
 import glob
 import json
@@ -26,8 +27,12 @@ from _skills_common import archetype_core as ac  # noqa: E402
 
 # anchor-phenotype -> colour (dataviz categorical palette), reused for the painted map
 PHENO_COLOR = {
-    "snv_driver": "#e34948", "tsg_loss": "#4a3aa7", "amp_driver": "#eda100",
-    "expression_surface": "#2a78d6", "dependency_essential": "#1baf7a", "control_housekeeping": "#52514e",
+    "snv_driver": "#e34948",
+    "tsg_loss": "#4a3aa7",
+    "amp_driver": "#eda100",
+    "expression_surface": "#2a78d6",
+    "dependency_essential": "#1baf7a",
+    "control_housekeeping": "#52514e",
 }
 
 
@@ -60,48 +65,76 @@ def portfolio_table(atlas: ac.Atlas, extra=None) -> list:
         nov = c.get("novelty") or {}
         miss = c.get("missingness") or {}
         analog = (c.get("nearest_analogs") or [{}])[0]
-        rows.append({
-            "target": tgt, "indication": ind,
-            "dominant_phenotype": dom,
-            "mixture": mix,
-            "inconsistent": bool(nov.get("inconsistent_flag")),
-            "local_outlier": bool(nov.get("local_density_flag")),
-            "hull_residual": nov.get("hull_residual"),
-            "coverage": round((miss.get("n_features_measured") or 0) / (miss.get("n_features_total") or 1), 3),
-            "nearest_analog": analog.get("target"),
-        })
+        rows.append(
+            {
+                "target": tgt,
+                "indication": ind,
+                "dominant_phenotype": dom,
+                "mixture": mix,
+                "inconsistent": bool(nov.get("inconsistent_flag")),
+                "local_outlier": bool(nov.get("local_density_flag")),
+                "hull_residual": nov.get("hull_residual"),
+                "coverage": round((miss.get("n_features_measured") or 0) / (miss.get("n_features_total") or 1), 3),
+                "nearest_analog": analog.get("target"),
+            }
+        )
     return rows
 
 
 def _write_csv(rows: list, path: str):
     import csv
+
     labels = sorted({k for r in rows for k in r["mixture"]})
     with open(path, "w", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["target", "indication", "dominant_phenotype", "coverage", "inconsistent",
-                    "local_outlier", "hull_residual", "nearest_analog"] + [f"m_{l}" for l in labels])
+        w.writerow(
+            [
+                "target",
+                "indication",
+                "dominant_phenotype",
+                "coverage",
+                "inconsistent",
+                "local_outlier",
+                "hull_residual",
+                "nearest_analog",
+            ]
+            + [f"m_{l}" for l in labels]
+        )
         for r in rows:
-            w.writerow([r["target"], r["indication"], r["dominant_phenotype"], r["coverage"],
-                        r["inconsistent"], r["local_outlier"], r["hull_residual"], r["nearest_analog"]]
-                       + [round(r["mixture"].get(l, 0.0), 3) for l in labels])
+            w.writerow(
+                [
+                    r["target"],
+                    r["indication"],
+                    r["dominant_phenotype"],
+                    r["coverage"],
+                    r["inconsistent"],
+                    r["local_outlier"],
+                    r["hull_residual"],
+                    r["nearest_analog"],
+                ]
+                + [round(r["mixture"].get(l, 0.0), 3) for l in labels]
+            )
 
 
 def _paint_png(atlas: ac.Atlas, rows: list, path: str):
     """Best-effort 2D map: PCA(2) of the frozen corpus embedding, painted by dominant phenotype; anchors
     ringed. Only the corpus points (with frozen coords) are plotted; extra targets are in the CSV."""
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import numpy as np
+
     E = np.array(atlas.corpus_emb, float)
     if E.shape[0] < 3 or E.shape[1] < 2:
         return
     # the frozen embedding is PCA-ordered (components are PCA loadings), so columns 0,1 ARE the top-2 PCs —
     # no re-fit needed (keeps this tool numpy+matplotlib-only, no sklearn dependency).
     xy = E[:, :2]
-    dom = [r["dominant_phenotype"] for r in rows[:len(atlas.targets)]]
+    dom = [r["dominant_phenotype"] for r in rows[: len(atlas.targets)]]
     SURF, INK = "#fcfcfb", "#0b0b0b"
-    fig, ax = plt.subplots(figsize=(9, 7), facecolor=SURF); ax.set_facecolor(SURF)
+    fig, ax = plt.subplots(figsize=(9, 7), facecolor=SURF)
+    ax.set_facecolor(SURF)
     for s in ax.spines.values():
         s.set_visible(False)
     seen = set()
@@ -114,16 +147,37 @@ def _paint_png(atlas: ac.Atlas, rows: list, path: str):
     for i in range(len(atlas.targets)):
         key = (atlas.targets[i], atlas.indications[i])
         if key in anchor_idx:
-            ax.scatter(xy[i, 0], xy[i, 1], s=230, facecolor=PHENO_COLOR.get(anchor_idx[key], "#000"),
-                       edgecolor=INK, linewidths=1.8, zorder=5)
-            ax.annotate(atlas.targets[i], xy[i], fontsize=9, fontweight="bold", color=INK,
-                        xytext=(6, 5), textcoords="offset points", zorder=6)
-    ax.set_title(f"Target-signature portfolio landscape (n={len(atlas.targets)}; anchors ringed)",
-                 color=INK, fontsize=12, loc="left")
-    ax.set_xlabel("embed-1", color="#52514e", fontsize=9); ax.set_ylabel("embed-2", color="#52514e", fontsize=9)
+            ax.scatter(
+                xy[i, 0],
+                xy[i, 1],
+                s=230,
+                facecolor=PHENO_COLOR.get(anchor_idx[key], "#000"),
+                edgecolor=INK,
+                linewidths=1.8,
+                zorder=5,
+            )
+            ax.annotate(
+                atlas.targets[i],
+                xy[i],
+                fontsize=9,
+                fontweight="bold",
+                color=INK,
+                xytext=(6, 5),
+                textcoords="offset points",
+                zorder=6,
+            )
+    ax.set_title(
+        f"Target-signature portfolio landscape (n={len(atlas.targets)}; anchors ringed)",
+        color=INK,
+        fontsize=12,
+        loc="left",
+    )
+    ax.set_xlabel("embed-1", color="#52514e", fontsize=9)
+    ax.set_ylabel("embed-2", color="#52514e", fontsize=9)
     ax.tick_params(colors="#52514e", labelsize=8)
     ax.legend(fontsize=8, loc="best", frameon=False)
-    plt.tight_layout(); plt.savefig(path, dpi=140, facecolor=SURF, bbox_inches="tight")
+    plt.tight_layout()
+    plt.savefig(path, dpi=140, facecolor=SURF, bbox_inches="tight")
 
 
 def main():
@@ -143,6 +197,7 @@ def main():
     except Exception as e:  # matplotlib/sklearn optional at paint time
         png_note = f"(skipped PNG: {e})"
     from collections import Counter
+
     dist = Counter(r["dominant_phenotype"] for r in rows)
     print(f"portfolio: {len(rows)} targets  dominant-phenotype dist={dict(dist)}")
     print(f"wrote {a.out_csv}  +  {png_note}")

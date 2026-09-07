@@ -1,5 +1,6 @@
 """Offline guards for the one-shot loop driver (tools/run_full_loop.py). No subprocess, no Bedrock:
 asserts the pure command builders + the stage-1→stage-2 substrate bridge + --dry-run wiring."""
+
 from __future__ import annotations
 
 import sys
@@ -31,15 +32,24 @@ def test_collect_substrate_reads_grounded_files_axis_sorted(tmp_path):
     (tmp_path / "grounded_dependency.json").write_text("{}")
     (tmp_path / "other.json").write_text("{}")  # ignored — not a grounded_ record
     specs = L.collect_substrate(tmp_path)
-    assert specs == [f"dependency={tmp_path/'grounded_dependency.json'}",
-                     f"safety={tmp_path/'grounded_safety.json'}"]
+    assert specs == [
+        f"dependency={tmp_path / 'grounded_dependency.json'}",
+        f"safety={tmp_path / 'grounded_safety.json'}",
+    ]
     assert L.collect_substrate(tmp_path / "does-not-exist") == []
 
 
 def test_hypothesis_cmd_wires_substrate_and_optionals():
     ep = Path("/o") / L.GROUND_DIR / "evidence_package.json"
-    c = L.hypothesis_cmd(PY, ep, ["safety=/o/01-ground/grounded_safety.json"], Path("/o"),
-                         "adc", Path("/d/dossier.json"), "ADC drug target")
+    c = L.hypothesis_cmd(
+        PY,
+        ep,
+        ["safety=/o/01-ground/grounded_safety.json"],
+        Path("/o"),
+        "adc",
+        Path("/d/dossier.json"),
+        "ADC drug target",
+    )
     assert c[c.index("--evidence-package") + 1] == str(ep)
     assert "--substrate" in c and "safety=/o/01-ground/grounded_safety.json" in c
     assert c[c.index("--modality") + 1] == "adc"
@@ -61,8 +71,9 @@ def test_render_cmd_reuses_grounded_dir_and_hypothesis():
 
 
 def test_dry_run_prints_three_stages_and_runs_nothing(capsys, tmp_path):
-    rc = L.main(["--target", "KRAS", "--indication", "COADREAD", "--out", str(tmp_path),
-                 "--ground", "engine", "--dry-run"])
+    rc = L.main(
+        ["--target", "KRAS", "--indication", "COADREAD", "--out", str(tmp_path), "--ground", "engine", "--dry-run"]
+    )
     assert rc == 0
     out = capsys.readouterr().out
     assert "[1 GROUND]" in out and "[2 HYPOTHESIZE]" in out and "[3 RENDER]" in out
@@ -82,14 +93,13 @@ def test_dry_run_includes_dossier_stage_and_wires_it_into_hypothesis(capsys, tmp
     rc = L.main(["--target", "KRAS", "--indication", "COADREAD", "--out", str(tmp_path), "--dry-run"])
     assert rc == 0
     out = capsys.readouterr().out
-    assert "[0 DOSSIER]" in out                              # stage 0 present by default
+    assert "[0 DOSSIER]" in out  # stage 0 present by default
     # the hypothesis stage is handed the produced dossier
     assert "--target-dossier" in out and str(tmp_path / L.DOSSIER_DIR / "decision.json") in out
 
 
 def test_no_dossier_flag_skips_stage_zero(capsys, tmp_path):
-    rc = L.main(["--target", "KRAS", "--indication", "COADREAD", "--out", str(tmp_path),
-                 "--no-dossier", "--dry-run"])
+    rc = L.main(["--target", "KRAS", "--indication", "COADREAD", "--out", str(tmp_path), "--no-dossier", "--dry-run"])
     assert rc == 0
     out = capsys.readouterr().out
     assert "[0 DOSSIER]" not in out and "--target-dossier" not in out

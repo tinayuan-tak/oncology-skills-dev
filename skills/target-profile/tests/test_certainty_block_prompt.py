@@ -9,6 +9,7 @@ Purely additive: omitting `fragility` leaves the prompt in its pre-existing shap
 (renders the prompt string only). The DETERMINISTIC verdict/gate/confidence spine is untouched by
 this change — this test guards the prompt text only, which is exactly the boundary this change moves.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -20,21 +21,25 @@ tp = load_run_py(Path(__file__).resolve().parents[1], "tp_run_certainty")
 
 def _sub_results():
     return {
-        "dependency": {"skill_dir": "functional-requirement",
-                       "cards": [{"card_id": "crispr", "summary": {"x": 1}},
-                                 {"card_id": "rnai", "summary": {"x": 1}}],
-                       "verdict": ("lineage_selective", "lineage-selective-supportive"),
-                       "fired": []},
-        "selectivity": {"skill_dir": "tumor-selectivity",
-                        "cards": [{"card_id": "sel", "summary": {}}],
-                        "verdict": ("strong_tumor_selective", "x"),
-                        "fired": []},
-        "safety": {"skill_dir": "on-target-safety-liability",
-                   # every card missing this run → the axis is blind (coverage gap, not a negative)
-                   "cards": [{"card_id": "gnomad", "summary": {}, "_missing": True,
-                              "_missing_reason": "data_unavailable"}],
-                   "verdict": ("insufficient", None),
-                   "fired": []},
+        "dependency": {
+            "skill_dir": "functional-requirement",
+            "cards": [{"card_id": "crispr", "summary": {"x": 1}}, {"card_id": "rnai", "summary": {"x": 1}}],
+            "verdict": ("lineage_selective", "lineage-selective-supportive"),
+            "fired": [],
+        },
+        "selectivity": {
+            "skill_dir": "tumor-selectivity",
+            "cards": [{"card_id": "sel", "summary": {}}],
+            "verdict": ("strong_tumor_selective", "x"),
+            "fired": [],
+        },
+        "safety": {
+            "skill_dir": "on-target-safety-liability",
+            # every card missing this run → the axis is blind (coverage gap, not a negative)
+            "cards": [{"card_id": "gnomad", "summary": {}, "_missing": True, "_missing_reason": "data_unavailable"}],
+            "verdict": ("insufficient", None),
+            "fired": [],
+        },
     }
 
 
@@ -47,12 +52,27 @@ def _fragility():
         "decision_relevant_axes": ["dependency", "safety", "selectivity"],
         "blind_decision_axes": ["safety"],
         "per_axis": {
-            "dependency": {"gate": "dependency", "has_signal": True, "coverage": "high",
-                           "base_verdict": "lineage_selective", "fragility": 0.5},
-            "selectivity": {"gate": "selectivity", "has_signal": True, "coverage": "medium",
-                            "base_verdict": "strong_tumor_selective", "fragility": 0.0},
-            "safety": {"gate": "safety", "has_signal": False, "coverage": "blind",
-                       "fragility": None, "reason": "blind"},
+            "dependency": {
+                "gate": "dependency",
+                "has_signal": True,
+                "coverage": "high",
+                "base_verdict": "lineage_selective",
+                "fragility": 0.5,
+            },
+            "selectivity": {
+                "gate": "selectivity",
+                "has_signal": True,
+                "coverage": "medium",
+                "base_verdict": "strong_tumor_selective",
+                "fragility": 0.0,
+            },
+            "safety": {
+                "gate": "safety",
+                "has_signal": False,
+                "coverage": "blind",
+                "fragility": None,
+                "reason": "blind",
+            },
         },
     }
 
@@ -79,8 +99,8 @@ def test_certainty_block_shows_missing_card_count():
 
 def test_certainty_block_carries_weakest_link_and_mnar_framing():
     prompt = tp._build_user_prompt("KRAS", "COADREAD", _sub_results(), fragility=_fragility())
-    seg = prompt[prompt.find("### Per-axis how-solid facet"):]
-    seg = seg[:seg.find("### ", 5)] if "### " in seg[5:] else seg
+    seg = prompt[prompt.find("### Per-axis how-solid facet") :]
+    seg = seg[: seg.find("### ", 5)] if "### " in seg[5:] else seg
     assert "WEAKEST-LINK" in seg
     assert "ABSENCE OF EVIDENCE" in seg and "NOT evidence of absence" in seg
     assert "VERDICT-INERT" in seg
@@ -93,8 +113,8 @@ def test_certainty_block_separates_fragility_from_evidence_strength():
     STRUCTURAL property of the resolver ladder, NOT a measure of evidence strength — so a
     flip-fragile-but-concordant negative (MET dependency) is not narrated as evidentiary doubt."""
     prompt = tp._build_user_prompt("KRAS", "COADREAD", _sub_results(), fragility=_fragility())
-    seg = prompt[prompt.find("### Per-axis how-solid facet"):]
-    seg = seg[:seg.find("### ", 5)] if "### " in seg[5:] else seg
+    seg = prompt[prompt.find("### Per-axis how-solid facet") :]
+    seg = seg[: seg.find("### ", 5)] if "### " in seg[5:] else seg
     assert "do NOT conflate" in seg
     assert "CALL-FRAGILITY" in seg
     assert "NOT a measure of evidence strength" in seg
@@ -114,6 +134,7 @@ def test_prompt_backward_compatible_without_fragility():
 def test_certainty_block_empty_per_axis_renders_nothing():
     """A facet with no per_axis (e.g. no decision-relevant axis this run) emits no block rather
     than a header with an empty table."""
-    prompt = tp._build_user_prompt("KRAS", "COADREAD", _sub_results(),
-                                   fragility={"per_axis": {}, "blind_decision_axes": []})
+    prompt = tp._build_user_prompt(
+        "KRAS", "COADREAD", _sub_results(), fragility={"per_axis": {}, "blind_decision_axes": []}
+    )
     assert "### Per-axis how-solid facet" not in prompt

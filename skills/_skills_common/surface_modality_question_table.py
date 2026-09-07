@@ -20,16 +20,29 @@ from typing import Optional
 from _skills_common.question_table_core import sig as _sig, conf as _conf, row as _row  # shared Signal/Confidence vocab
 
 # Explicit per-field value → Signal tier maps (from each card's summary_fields_vocabulary).
-_TOPOLOGY = {"single_pass_type_1": "strong", "single_pass_type_2": "moderate",
-             "single_pass_type_other": "moderate", "multi_pass": "moderate",
-             "gpi_anchored": "moderate", "beta_barrel": "moderate",
-             "no_transmembrane": "absent", "data_unavailable": "unmeasured"}
-_DENSITY = {"high": "strong", "moderate": "moderate", "low": "weak",
-            "very_low": "absent", "unmeasured": "unmeasured"}
-_SHED = {"not_shed_membrane_retained": "strong", "secretome_proxy_shed": "weak",
-         "clinically_shed": "absent", "indeterminate": "unmeasured"}
-_HOMOGENEITY = {"homogeneous": "strong", "moderately_homogeneous": "moderate",
-                "heterogeneous": "absent", "data_unavailable": "unmeasured"}
+_TOPOLOGY = {
+    "single_pass_type_1": "strong",
+    "single_pass_type_2": "moderate",
+    "single_pass_type_other": "moderate",
+    "multi_pass": "moderate",
+    "gpi_anchored": "moderate",
+    "beta_barrel": "moderate",
+    "no_transmembrane": "absent",
+    "data_unavailable": "unmeasured",
+}
+_DENSITY = {"high": "strong", "moderate": "moderate", "low": "weak", "very_low": "absent", "unmeasured": "unmeasured"}
+_SHED = {
+    "not_shed_membrane_retained": "strong",
+    "secretome_proxy_shed": "weak",
+    "clinically_shed": "absent",
+    "indeterminate": "unmeasured",
+}
+_HOMOGENEITY = {
+    "homogeneous": "strong",
+    "moderately_homogeneous": "moderate",
+    "heterogeneous": "absent",
+    "data_unavailable": "unmeasured",
+}
 
 # (row id, sub-question, headline field, value→tier map)
 _ROWS = [
@@ -43,7 +56,7 @@ _ROWS = [
 def _tier(mapping: dict, val) -> str:
     if val in (None, "", "data_unavailable", "unmeasured"):
         return "unmeasured"
-    return mapping.get(str(val), "weak")   # an unrecognized value is a measured-but-weak signal
+    return mapping.get(str(val), "weak")  # an unrecognized value is a measured-but-weak signal
 
 
 def surface_modality_question_table(headline: dict, cards: Optional[list] = None) -> list:
@@ -55,9 +68,16 @@ def surface_modality_question_table(headline: dict, cards: Optional[list] = None
     for qid, question, field, mapping in _ROWS:
         val = h.get(field)
         tier = _tier(mapping, val)
-        rows.append(_row(qid, question, str(val if val not in (None, "") else "—"), "",
-                         _sig(tier, "not measured" if tier == "unmeasured" else str(val)),
-                         _conf("unmeasured" if tier == "unmeasured" else "moderate")))
+        rows.append(
+            _row(
+                qid,
+                question,
+                str(val if val not in (None, "") else "—"),
+                "",
+                _sig(tier, "not measured" if tier == "unmeasured" else str(val)),
+                _conf("unmeasured" if tier == "unmeasured" else "moderate"),
+            )
+        )
     return rows
 
 

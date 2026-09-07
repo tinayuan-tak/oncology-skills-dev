@@ -22,6 +22,7 @@ differs only in its CARDS roster (8 human-genetics/safety cards).
 Usage (from a repo checkout with siblings adjacent, AWS creds present):
     pixi run python skills/on-target-safety-liability/tests/freeze_fixture.py --target KRAS --indication COADREAD
 """
+
 from __future__ import annotations
 
 import argparse
@@ -34,21 +35,21 @@ import yaml
 
 HERE = Path(__file__).resolve().parent
 SKILL_DIR = HERE.parent
-SKILLS = SKILL_DIR.parent                              # .../skills
-for p in (str(SKILLS),):     # _skills_common (incl. rehomed _live_readers) resolves from SKILLS
+SKILLS = SKILL_DIR.parent  # .../skills
+for p in (str(SKILLS),):  # _skills_common (incl. rehomed _live_readers) resolves from SKILLS
     if p not in sys.path:
         sys.path.insert(0, p)
 
-from _skills_common import _import_dispatcher           # noqa: E402
+from _skills_common import _import_dispatcher  # noqa: E402
 
-_FIELD_BYTES_CAP = 3000   # replace list/dict field values larger than this with a compact sentinel
+_FIELD_BYTES_CAP = 3000  # replace list/dict field values larger than this with a compact sentinel
 
 
 def _load_cards_from_runpy() -> list[str]:
     """Import the skill's run.py and return its CARDS literal (single source of truth)."""
     spec = importlib.util.spec_from_file_location("_safety_run", SKILL_DIR / "scripts" / "run.py")
     mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)                         # top-level only; no __main__ side effects
+    spec.loader.exec_module(mod)  # top-level only; no __main__ side effects
     return list(mod.CARDS)
 
 
@@ -74,7 +75,7 @@ def freeze(target: str, indication: str, read_live) -> dict:
     for card in _load_cards_from_runpy():
         try:
             summary = read_live(card, target, indication)
-        except Exception as e:                          # noqa: BLE001 — record, never abort the freeze
+        except Exception as e:  # noqa: BLE001 — record, never abort the freeze
             summary = {"_freeze_error": f"{type(e).__name__}: {e}"}
         frozen[card] = _prune(summary) if summary is not None else {"_dispatcher_returned_none": True}
     return frozen
@@ -84,12 +85,12 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--target", default="KRAS")
     ap.add_argument("--indication", default="COADREAD")
-    ap.add_argument("--out", default=None,
-                    help="fixture path (default fixtures/<target>_<indication>.yaml, lowercased)")
+    ap.add_argument(
+        "--out", default=None, help="fixture path (default fixtures/<target>_<indication>.yaml, lowercased)"
+    )
     args = ap.parse_args()
 
-    out = Path(args.out) if args.out else (
-        HERE / "fixtures" / f"{args.target.lower()}_{args.indication.lower()}.yaml")
+    out = Path(args.out) if args.out else (HERE / "fixtures" / f"{args.target.lower()}_{args.indication.lower()}.yaml")
     if not out.is_absolute():
         out = HERE / out
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -99,13 +100,16 @@ def main() -> int:
     frozen = freeze(args.target, args.indication, read_live)
     out.write_text(yaml.safe_dump(frozen, sort_keys=True, default_flow_style=False))
 
-    errs = {c: s.get("_freeze_error") for c, s in frozen.items()
-            if isinstance(s, dict) and s.get("_freeze_error")}
-    real = [c for c, s in frozen.items()
-            if isinstance(s, dict) and not s.get("_freeze_error")
-            and not s.get("_dispatcher_returned_none") and s]
-    print(f"  wrote {len(frozen)} cards; {len(real)} with a real summary"
-          + (f"; {len(errs)} read-errors: {json.dumps(errs)[:300]}" if errs else ""))
+    errs = {c: s.get("_freeze_error") for c, s in frozen.items() if isinstance(s, dict) and s.get("_freeze_error")}
+    real = [
+        c
+        for c, s in frozen.items()
+        if isinstance(s, dict) and not s.get("_freeze_error") and not s.get("_dispatcher_returned_none") and s
+    ]
+    print(
+        f"  wrote {len(frozen)} cards; {len(real)} with a real summary"
+        + (f"; {len(errs)} read-errors: {json.dumps(errs)[:300]}" if errs else "")
+    )
     return 0
 
 

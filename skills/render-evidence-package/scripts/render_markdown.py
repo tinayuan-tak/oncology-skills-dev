@@ -108,6 +108,7 @@ def render_evidence_package(ep: dict) -> str:
 # Sub-renderers
 # ============================================================================
 
+
 def _render_skill_headlines(syn: dict) -> list[str]:
     """Leading table of each sub-skill's canonical headline block: call · confidence · top tension.
     Reads synthesis.claim_vectors[short].headline_block; returns [] when none carry one (byte-stable
@@ -124,10 +125,14 @@ def _render_skill_headlines(syn: dict) -> list[str]:
         rows.append((short, str(verdict), str(conf), str(tension).replace("|", "\\|")))
     if not rows:
         return []
-    out = ["## Skill Headlines", "",
-           "_Each lens's canonical call, confidence, and sharpest tension (verdict-inert)._", "",
-           "| Skill | Verdict | Confidence | Top tension |",
-           "|---|---|---|---|"]
+    out = [
+        "## Skill Headlines",
+        "",
+        "_Each lens's canonical call, confidence, and sharpest tension (verdict-inert)._",
+        "",
+        "| Skill | Verdict | Confidence | Top tension |",
+        "|---|---|---|---|",
+    ]
     for short, verdict, conf, tension in rows:
         out.append(f"| {short} | {verdict} | {conf} | {tension or '—'} |")
     out.append("")
@@ -163,47 +168,81 @@ def _render_refusal_page(ep: dict) -> list[str]:
     return sections
 
 
-FIT_ICONS = {"strong": "🟢", "moderate": "🟡", "weak": "🟠",
-              "insufficient_evidence": "⚪", "not_viable": "🔴",
-              # A killer-veto card could not be read (read_error / not_wired), so the
-              # safety veto is neither confirmed-fired nor confirmed-clear. The modality is
-              # un-assessable — a data-blocked ⚪, NOT a green pass, even if primaries are positive.
-              "non_concludable": "⚪"}
+FIT_ICONS = {
+    "strong": "🟢",
+    "moderate": "🟡",
+    "weak": "🟠",
+    "insufficient_evidence": "⚪",
+    "not_viable": "🔴",
+    # A killer-veto card could not be read (read_error / not_wired), so the
+    # safety veto is neither confirmed-fired nor confirmed-clear. The modality is
+    # un-assessable — a data-blocked ⚪, NOT a green pass, even if primaries are positive.
+    "non_concludable": "⚪",
+}
 
 # Resolver-verdict vocabulary → icon (Stage 2). Covers the surface_modality,
 # tractability_small_molecule, dependency, genomic_alteration and selectivity gate
 # verdicts. A verdict absent from the map renders with a neutral marker (never crashes).
 VERDICT_ICONS = {
     # --- positive / supported ---
-    "both_viable": "🟢", "adc_preferred": "🟢", "tce_preferred": "🟢", "pmhc_tce_supported": "🟢",
-    "well_covered": "🟢", "chemically_confirmed_genetic": "🟢",
-    "concordant_dependent": "🟢", "chemical_genetic_confirmed_dependent": "🟢",
-    "lineage_selective": "🟢", "selective_dependent": "🟢",
-    "biomarker_stratified_dependency": "🟢", "confirmed_driver": "🟢",
-    "multi_class_driver": "🟢", "strong_tumor_selective": "🟢",
-    "chemically_active": "🟢", "measured_potent_ligand": "🟢",
+    "both_viable": "🟢",
+    "adc_preferred": "🟢",
+    "tce_preferred": "🟢",
+    "pmhc_tce_supported": "🟢",
+    "well_covered": "🟢",
+    "chemically_confirmed_genetic": "🟢",
+    "concordant_dependent": "🟢",
+    "chemical_genetic_confirmed_dependent": "🟢",
+    "lineage_selective": "🟢",
+    "selective_dependent": "🟢",
+    "biomarker_stratified_dependency": "🟢",
+    "confirmed_driver": "🟢",
+    "multi_class_driver": "🟢",
+    "strong_tumor_selective": "🟢",
+    "chemically_active": "🟢",
+    "measured_potent_ligand": "🟢",
     # --- moderate / caveated ---
-    "confirmed_lof_driver": "🟡", "multi_class_lof_driver": "🟡",   # real TSG driver, not an inhibitor green-light
-    "moderate_biomarker_dependency": "🟡", "modest_tumor_selective": "🟡",
-    "field_effect_tumor_selective": "🟡", "partner_conditional_dependent": "🟡",
-    "clinical_precedent_only": "🟡", "structurally_ligandable": "🟡",
-    "surface_viable_density_caveated": "🟡", "shed_dominant_opposed": "🟡",
-    "adc_preferred_tce_unsafe": "🟡", "drug_response_biomarker": "🟡",
-    "recurrent_amplification_driver": "🟡", "recurrent_deletion_driver": "🟡",
-    "recurrent_fusion_driver": "🟡", "lof_dominant_pattern": "🟡",
-    "missense_dominant_pattern": "🟡", "tool_compound_only": "🟡",
-    "weakly_active": "🟠", "broadly_dependent": "🟡", "non_dependent_paralog_buffered": "🟡",
+    "confirmed_lof_driver": "🟡",
+    "multi_class_lof_driver": "🟡",  # real TSG driver, not an inhibitor green-light
+    "moderate_biomarker_dependency": "🟡",
+    "modest_tumor_selective": "🟡",
+    "field_effect_tumor_selective": "🟡",
+    "partner_conditional_dependent": "🟡",
+    "clinical_precedent_only": "🟡",
+    "structurally_ligandable": "🟡",
+    "surface_viable_density_caveated": "🟡",
+    "shed_dominant_opposed": "🟡",
+    "adc_preferred_tce_unsafe": "🟡",
+    "drug_response_biomarker": "🟡",
+    "recurrent_amplification_driver": "🟡",
+    "recurrent_deletion_driver": "🟡",
+    "recurrent_fusion_driver": "🟡",
+    "lof_dominant_pattern": "🟡",
+    "missense_dominant_pattern": "🟡",
+    "tool_compound_only": "🟡",
+    "weakly_active": "🟠",
+    "broadly_dependent": "🟡",
+    "non_dependent_paralog_buffered": "🟡",
     # --- opposing / ambiguous / abstain ---
-    "modality_ambiguous": "⚪", "isoform_dependent_undefined": "⚪",
-    "discordant": "🟠", "discordant_across_comparators": "🟠",
-    "mixed_pattern": "⚪", "passenger_pattern": "⚪",
-    "not_selective": "🟠", "not_informative": "⚪", "data_unavailable": "⚪",
-    "insufficient": "⚪", "insufficient_underpowered": "⚪",
+    "modality_ambiguous": "⚪",
+    "isoform_dependent_undefined": "⚪",
+    "discordant": "🟠",
+    "discordant_across_comparators": "🟠",
+    "mixed_pattern": "⚪",
+    "passenger_pattern": "⚪",
+    "not_selective": "🟠",
+    "not_informative": "⚪",
+    "data_unavailable": "⚪",
+    "insufficient": "⚪",
+    "insufficient_underpowered": "⚪",
     "insufficient_underpowered_pan_essential": "⚪",
-    "structurally_intractable": "🟠", "chemically_unhit": "🟠",
+    "structurally_intractable": "🟠",
+    "chemically_unhit": "🟠",
     # --- foreclosure / killer ---
-    "neither_viable": "🔴", "tce_unsafe_normal_liability": "🔴",
-    "pan_essential_killer": "🔴", "non_dependent": "🔴",
+    "neither_viable": "🔴",
+    "tce_unsafe_normal_liability": "🔴",
+    "pan_essential_killer": "🔴",
+    "non_dependent": "🔴",
 }
 
 
@@ -231,9 +270,7 @@ def _render_gate_verdicts(primary: dict, additional: list[dict]) -> list[str]:
     # Surface the fired-rule set once (shared across the gates resolved from one axis).
     fired = primary.get("fired_rule_ids") or []
     if fired:
-        sections.append(
-            "_Resolved from fired rules: " + ", ".join(f"`{r}`" for r in fired) + "._"
-        )
+        sections.append("_Resolved from fired rules: " + ", ".join(f"`{r}`" for r in fired) + "._")
         sections.append("")
     return sections
 
@@ -272,8 +309,7 @@ def _render_modality_fit_table(fit: list[dict]) -> list[str]:
     sections = []
     sections.append("## Modality Fit Assessment")
     sections.append("")
-    sections.append("_Per-modality fit is a secondary lens on the resolver verdict above, "
-                    "not the verdict itself._")
+    sections.append("_Per-modality fit is a secondary lens on the resolver verdict above, not the verdict itself._")
     sections.append("")
 
     # Collapse 1-modality table to an inline summary line.
@@ -284,14 +320,9 @@ def _render_modality_fit_table(fit: list[dict]) -> list[str]:
         fit_icon = FIT_ICONS.get(fit_level, "")
         ev = _fmt_evidence_cell(entry)
         killers = entry.get("killer_conditions_hit", []) or []
-        killer_line = (
-            f" Killer conditions: {'; '.join(killers)}." if killers else ""
-        )
+        killer_line = f" Killer conditions: {'; '.join(killers)}." if killers else ""
         question = entry.get("headline_decision_question", "")
-        sections.append(
-            f"**{modality}** fit: {fit_icon} **{fit_level}**. "
-            f"Evidence: {ev}.{killer_line}"
-        )
+        sections.append(f"**{modality}** fit: {fit_icon} **{fit_level}**. Evidence: {ev}.{killer_line}")
         if question:
             sections.append("")
             sections.append(f"_Decision question: {question}_")
@@ -307,9 +338,7 @@ def _render_modality_fit_table(fit: list[dict]) -> list[str]:
         killers = entry.get("killer_conditions_hit", []) or []
         killers_cell = "none" if not killers else f"{len(killers)} hit"
         fit_icon = FIT_ICONS.get(fit_level, "")
-        sections.append(
-            f"| **{modality}** | {fit_icon} {fit_level} | {_fmt_evidence_cell(entry)} | {killers_cell} |"
-        )
+        sections.append(f"| **{modality}** | {fit_icon} {fit_level} | {_fmt_evidence_cell(entry)} | {killers_cell} |")
     sections.append("")
 
     sections.append("### Decision Questions Asked")
@@ -343,7 +372,9 @@ def _render_toc(ep: dict, fit: list[dict]) -> list[str]:
         cid = card.get("card_id", "")
         anchor = cid.replace("_", "-")
         interp = card.get("interpretation_call", "")
-        sections.append(f"  - [`{cid}`](#-{anchor}--{interp.lower().replace(' ', '-').replace('—', '').replace('--', '-')[:40]}) — _{interp}_")
+        sections.append(
+            f"  - [`{cid}`](#-{anchor}--{interp.lower().replace(' ', '-').replace('—', '').replace('--', '-')[:40]}) — _{interp}_"
+        )
     # Link the Cards-Without-Evidence section only when it renders. _render_failed_cards_section
     # returns [] unless n_cards_failed is truthy, so gating on availability_state alone produced a
     # dangling anchor for a package with a reasoned-absence card but n_cards_failed == 0. (Those
@@ -379,7 +410,7 @@ def _render_failed_cards_section(ep: dict) -> list[str]:
             f"{n_reasoned} of {n_failed} card(s) that produced no evidence are shown above as "
             f"**reasoned-absence panels** (🚧/🔎) with a typed `availability_state` — "
             f""
-            "`" + "`, `".join(sorted({c['availability_state'] for c in unavailable})) + "`. "
+            "`" + "`, `".join(sorted({c["availability_state"] for c in unavailable})) + "`. "
             "Those are coverage gaps (or, for `insufficient`, a measured absence), not results."
         )
         sections.append("")
@@ -413,10 +444,7 @@ def _render_governance(ep: dict) -> list[str]:
 
     concur = gov.get("concurrence")
     if concur:
-        sections.append(
-            f"- **Concurrence**: {concur.get('state', '?')} "
-            f"(reviewer: `{concur.get('reviewer_id', '?')}`)"
-        )
+        sections.append(f"- **Concurrence**: {concur.get('state', '?')} (reviewer: `{concur.get('reviewer_id', '?')}`)")
     else:
         sections.append("- **Concurrence**: _not recorded_ (exploratory grade only — NOT citable in nominations)")
 
@@ -436,12 +464,12 @@ def _render_governance(ep: dict) -> list[str]:
 # target-contracts/vocabularies/availability_state.enum.yaml.
 _AVAILABILITY_GLOSS = {
     "not_wired": "no live reader is registered for this card yet (framework-coverage gap — "
-                 "the card is a contract/placeholder, not backed by a method). NOT a data finding.",
+    "the card is a contract/placeholder, not backed by a method). NOT a data finding.",
     "data_blocked": "the reader exists but its derived data product is not available yet "
-                    "(coverage gap gated on data acquisition, not the target's biology).",
+    "(coverage gap gated on data acquisition, not the target's biology).",
     "read_error": "the reader was invoked and errored (transient/operational — may resolve on retry).",
     "insufficient": "the reader ran and looked, but the target is genuinely absent from the dataset "
-                    "or below the power floor — a MEASURED coverage gap, not a negative result.",
+    "or below the power floor — a MEASURED coverage gap, not a negative result.",
 }
 
 
@@ -477,8 +505,10 @@ def _render_card_panel(card: dict) -> list[str]:
         sections.append(f"**Reason**: {card.get('availability_reason', '(no reason provided)')}")
         sections.append("")
         if not measured:
-            sections.append("> This is a **coverage gap, not evidence** — do not read the absence "
-                            "as a negative result for the target.")
+            sections.append(
+                "> This is a **coverage gap, not evidence** — do not read the absence "
+                "as a negative result for the target."
+            )
             sections.append("")
         sections.append("---")
         sections.append("")
@@ -682,8 +712,7 @@ def _render_subgroup_panorama_table(rows: list[dict]) -> list[str]:
                 continue
             cols.append(k)
 
-    lines = ["| " + " | ".join(cols) + " |",
-             "|" + "|".join(["---"] * len(cols)) + "|"]
+    lines = ["| " + " | ".join(cols) + " |", "|" + "|".join(["---"] * len(cols)) + "|"]
     for r in rows:
         state = r.get("evidence_state")
         cells = []
@@ -735,17 +764,27 @@ def _render_provenance_footer(ep: dict) -> list[str]:
 # CLI
 # ============================================================================
 
+
 @click.command()
-@click.option("--evidence-package", "ep_path", required=True,
-              type=click.Path(exists=True, dir_okay=False, path_type=Path),
-              help="Path to evidence_package.json (or evidence_package.yaml).")
-@click.option("--out", required=True, type=click.Path(dir_okay=False, path_type=Path),
-              help="Output markdown path (typically dashboard.md).")
+@click.option(
+    "--evidence-package",
+    "ep_path",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    help="Path to evidence_package.json (or evidence_package.yaml).",
+)
+@click.option(
+    "--out",
+    required=True,
+    type=click.Path(dir_okay=False, path_type=Path),
+    help="Output markdown path (typically dashboard.md).",
+)
 def main(ep_path: Path, out: Path) -> int:
     """Render an evidence_package to Stage-1 markdown."""
     with ep_path.open() as f:
         if ep_path.suffix.lower() in (".yaml", ".yml"):
             import yaml as _yaml
+
             ep = _yaml.safe_load(f)
         else:
             ep = json.load(f)

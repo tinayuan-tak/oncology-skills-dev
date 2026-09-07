@@ -4,6 +4,7 @@ override). The two normal-breadth / stromal-confound VETO outcomes must surface 
 `killer` (not the 3-band→canonical `opposing` floor); a positive call maps to `supportive`; best-effort
 degrade preserves the selectivity spine.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -29,7 +30,7 @@ def test_broadly_normal_veto_is_canonical_killer():
     assert isinstance(sr, dict)
     assert sr["role"] == "gating"
     assert sr["call"] == "selective_but_broadly_normal"
-    assert sr["polarity"] == "killer"                    # NOT "opposing"
+    assert sr["polarity"] == "killer"  # NOT "opposing"
 
 
 def test_stromal_confound_veto_is_canonical_killer():
@@ -40,7 +41,7 @@ def test_stromal_confound_veto_is_canonical_killer():
 def test_positive_maps_to_supportive_no_override():
     _hl, sr = _sr("strong_tumor_selective", "selectivity-strong-supportive")
     assert sr["call"] == "strong_tumor_selective"
-    assert sr["polarity"] == "supportive"                # positive → supportive (no killer override)
+    assert sr["polarity"] == "supportive"  # positive → supportive (no killer override)
 
 
 def test_not_selective_is_opposing_not_killer():
@@ -55,7 +56,7 @@ def test_skill_report_fault_degrades_not_aborts(monkeypatch):
 
     monkeypatch.setattr(sel, "build_skill_report", _boom)
     hl = sel._headline(_cards(), [], ("insufficient", None))
-    assert hl["selectivity_class"] == "insufficient"     # spine survives the projection fault
+    assert hl["selectivity_class"] == "insufficient"  # spine survives the projection fault
     assert hl["skill_report"] is None
     assert hl["_enrichment_errors"]["skill_report"].startswith("ValueError")
     assert "skill_report" in sel._SYNTHESIS_FACET_KEYS

@@ -6,6 +6,7 @@ Hermetic: a fixture headline + cards + explicit claim_vector (KRAS/COADREAD-shap
 CRISPR dependency, concordant RNAi, Bowel lineage-selective via the by_scope reduction, chemically
 confirmed, cross-consortium corroborated) exercise the per-question mapping, including the Q2 window
 INVERSION (near pan-essential = tox) and the Q3 preference for the indication-lineage reduction."""
+
 from __future__ import annotations
 
 import sys
@@ -20,31 +21,66 @@ from _skills_common.dependency_question_table import dependency_question_table  
 def _fixture():
     headline = {
         "dependency_verdict": "lineage_selective",
-        "crispr_call": "strongly_selective", "rnai_call": "strongly_selective",
-        "concordance_call": "moderately_concordant_dependent", "lineage_selectivity": "lineage_selective",
-        "paralog_buffering_class": "none", "partner_conditional_class": "no_partner_mapped",
-        "prism_concordance_class": "crispr_confirmed_engagement", "n_compounds_evaluated": 4,
-        "cross_consortium_class": "concordant_dependent", "predictability_class": "own_omics_driven",
-        "pred_dominant_feature_class": "own_expression", "dependency_confidence": "high",
+        "crispr_call": "strongly_selective",
+        "rnai_call": "strongly_selective",
+        "concordance_call": "moderately_concordant_dependent",
+        "lineage_selectivity": "lineage_selective",
+        "paralog_buffering_class": "none",
+        "partner_conditional_class": "no_partner_mapped",
+        "prism_concordance_class": "crispr_confirmed_engagement",
+        "n_compounds_evaluated": 4,
+        "cross_consortium_class": "concordant_dependent",
+        "predictability_class": "own_omics_driven",
+        "pred_dominant_feature_class": "own_expression",
+        "dependency_confidence": "high",
         "n_lineages_evaluated": 26,
         "dependency_verdict_by_scope": {
             "pan_cancer": {"verdict": "lineage_selective"},
-            "indication": {"class": "selective_in_indication", "depmap_lineage": "Bowel",
-                           "q_value": 3.8e-16, "shared_lineage_caveat": False},
-            "subtype": {"class": "not_scoped_this_run"}},
+            "indication": {
+                "class": "selective_in_indication",
+                "depmap_lineage": "Bowel",
+                "q_value": 3.8e-16,
+                "shared_lineage_caveat": False,
+            },
+            "subtype": {"class": "not_scoped_this_run"},
+        },
     }
     cv = {
-        "DEP":  {"signal": "strong", "corroboration": "high", "evidence": "CRISPR strongly_selective; RNAi strongly_selective"},
-        "SEL":  {"signal": "strong", "corroboration": "moderate", "evidence": "lineage enrichment: lineage_selective"},
-        "COND": {"signal": "unmeasured", "corroboration": "unmeasured", "evidence": "partner-conditional: no_partner_mapped"},
-        "CHEM": {"signal": "moderate", "corroboration": "moderate", "evidence": "PRISM×CRISPR: crispr_confirmed_engagement"},
+        "DEP": {
+            "signal": "strong",
+            "corroboration": "high",
+            "evidence": "CRISPR strongly_selective; RNAi strongly_selective",
+        },
+        "SEL": {"signal": "strong", "corroboration": "moderate", "evidence": "lineage enrichment: lineage_selective"},
+        "COND": {
+            "signal": "unmeasured",
+            "corroboration": "unmeasured",
+            "evidence": "partner-conditional: no_partner_mapped",
+        },
+        "CHEM": {
+            "signal": "moderate",
+            "corroboration": "moderate",
+            "evidence": "PRISM×CRISPR: crispr_confirmed_engagement",
+        },
     }
     cards = [
-        {"card_id": "pan-cancer-crispr-dependency-distribution",
-         "summary": {"dep_control_position_class": "between_controls", "selectivity_index": 0.62,
-                     "n_cell_lines_evaluated": 1538, "dep_control_position_context": "selective window"}},
-        {"card_id": "crispr-rnai-dependency-concordance",
-         "summary": {"concordance_class": "moderately_concordant_dependent", "fraction_agree": 0.746, "n_in_both": 556}},
+        {
+            "card_id": "pan-cancer-crispr-dependency-distribution",
+            "summary": {
+                "dep_control_position_class": "between_controls",
+                "selectivity_index": 0.62,
+                "n_cell_lines_evaluated": 1538,
+                "dep_control_position_context": "selective window",
+            },
+        },
+        {
+            "card_id": "crispr-rnai-dependency-concordance",
+            "summary": {
+                "concordance_class": "moderately_concordant_dependent",
+                "fraction_agree": 0.746,
+                "n_in_both": 556,
+            },
+        },
     ]
     return headline, cards, cv
 
@@ -91,7 +127,7 @@ def test_q4_concordance_and_q6_chemical():
 
 def test_q7_corroboration_is_the_confidence_axis():
     r = _by_id(dependency_question_table(*_fixture()))["Q7"]
-    assert r["signal"]["tier"] == "strong"                 # concordant_dependent cross-consortium
+    assert r["signal"]["tier"] == "strong"  # concordant_dependent cross-consortium
     assert "own_omics_driven" in r["support"]
     assert r["confidence"]["tier"] == "high"
 

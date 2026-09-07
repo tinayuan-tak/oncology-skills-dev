@@ -3,6 +3,7 @@
 Guards the collision fix: gene-symbol retrieval must resolve to the GENE entity, not a
 same-string synonym or a non-PubMed identifier.
 """
+
 from __future__ import annotations
 from pathlib import Path
 
@@ -35,25 +36,27 @@ def test_pick_gene_entity_none_when_no_exact_name():
 
 def test_numeric_pmids_drops_non_pubmed_ids_and_caps():
     # entity_lut/PubTator can surface Europe-PMC preprint ids (PPR*/IND*) that don't NCBI-efetch
-    hits = [{"pmid": "36590518"}, {"pmid": "PPR265863"}, {"_id": "IND608568956"},
-            {"pmid": "36813040"}, {"pmid": "37095735"}]
+    hits = [
+        {"pmid": "36590518"},
+        {"pmid": "PPR265863"},
+        {"_id": "IND608568956"},
+        {"pmid": "36813040"},
+        {"pmid": "37095735"},
+    ]
     assert es._numeric_pmids(hits, 10) == ["36590518", "36813040", "37095735"]
-    assert es._numeric_pmids(hits, 1) == ["36590518"]              # limit respected
+    assert es._numeric_pmids(hits, 1) == ["36590518"]  # limit respected
 
 
 def test_entity_axis_query_scoping_and_broaden():
     ez = "@GENE_10873"
     # disease-scoped, tight: entity + disease + axis terms
-    q = es.entity_axis_query(ez, "pancreatic cancer", "toxicity OR normal tissue",
-                             disease_scoped=True, broad=False)
+    q = es.entity_axis_query(ez, "pancreatic cancer", "toxicity OR normal tissue", disease_scoped=True, broad=False)
     assert q == "@GENE_10873 AND (pancreatic cancer) AND (toxicity OR normal tissue)"
     # broad drops the axis-term conjunction (soft-fallback)
-    qb = es.entity_axis_query(ez, "pancreatic cancer", "toxicity OR normal tissue",
-                              disease_scoped=True, broad=True)
+    qb = es.entity_axis_query(ez, "pancreatic cancer", "toxicity OR normal tissue", disease_scoped=True, broad=True)
     assert qb == "@GENE_10873 AND (pancreatic cancer)"
     # target-level axis (not disease-scoped): no disease clause
-    qt = es.entity_axis_query(ez, "pancreatic cancer", "toxicity",
-                              disease_scoped=False, broad=False)
+    qt = es.entity_axis_query(ez, "pancreatic cancer", "toxicity", disease_scoped=False, broad=False)
     assert qt == "@GENE_10873 AND (toxicity)"
     # fallback symbol clause works the same when entity resolution missed
     qs = es.entity_axis_query("(ME3)", "", "toxicity", disease_scoped=False, broad=False)

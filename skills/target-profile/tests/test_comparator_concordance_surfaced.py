@@ -5,6 +5,7 @@ target-profile actually SURFACES it — it's in the selectivity curated PHASE_ME
 BOTH the 'Evidence by question' render and the 'Per-phase evidence' prompt section), and a synthetic
 selectivity summary carrying the field renders its value. Bedrock-free.
 """
+
 from __future__ import annotations
 
 from pathlib import Path

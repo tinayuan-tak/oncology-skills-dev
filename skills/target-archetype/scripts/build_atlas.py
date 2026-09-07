@@ -24,6 +24,7 @@ Usage:
 Governance: labels are PROVISIONAL (panel-derived, partly circular) and back a DESCRIPTIVE, verdict-inert
 companion only — NOT a classifier freeze. Anchor labels reuse the archetype vocabulary so the D1 scorecard
 consumes the mixture unchanged. Ship n as-is (no silent drop of hard pairs)."""
+
 import argparse
 import glob
 import json
@@ -62,8 +63,7 @@ ANCHOR_SETS = {
     # 20%; CLDN18 — not even a kinase — 31%). Activating this cleanly needs the fusion signal made SEPARABLE
     # (e.g. FUS-feature up-weighting in the embedding) first, not just adding exemplars. See
     # project_target_archetype_augment memory.
-    "fusion_driver": [("ALK", "LUAD"), ("ROS1", "LUAD"), ("RET", "THCA"), ("FGFR2", "CHOL"),
-                      ("NTRK1", "THCA")],
+    "fusion_driver": [("ALK", "LUAD"), ("ROS1", "LUAD"), ("RET", "THCA"), ("FGFR2", "CHOL"), ("NTRK1", "THCA")],
 }
 
 
@@ -78,8 +78,13 @@ def _load_panel(path: Path) -> dict:
 
 def _git_sha() -> str:
     try:
-        return subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd=str(SKILLS_DIR),
-                                       stderr=subprocess.DEVNULL).decode().strip()
+        return (
+            subprocess.check_output(
+                ["git", "rev-parse", "--short", "HEAD"], cwd=str(SKILLS_DIR), stderr=subprocess.DEVNULL
+            )
+            .decode()
+            .strip()
+        )
     except Exception:
         return "unknown"
 
@@ -113,8 +118,11 @@ def build(runs_dirs, panel_path: Path, build_date: str, emb_dim: int = 16) -> di
                 if isinstance(v, dict):
                     rules.update(v.get("fired_rule_ids") or [])
             seen.add((tgt, ind))
-            feats.append(feat); targets.append(tgt); indications.append(ind)
-            labels.append(panel.get((tgt, ind), "?")); fingerprints.append(sorted(rules))
+            feats.append(feat)
+            targets.append(tgt)
+            indications.append(ind)
+            labels.append(panel.get((tgt, ind), "?"))
+            fingerprints.append(sorted(rules))
 
     # feature_order = union of claim keys measured in >=2 targets (drop all-NaN/singleton columns)
     cand = sorted({k for f in feats for k in f})
@@ -123,15 +131,17 @@ def build(runs_dirs, panel_path: Path, build_date: str, emb_dim: int = 16) -> di
     X = [[f.get(k) for k in feature_order] for f in feats]
     Xn = np.array([[np.nan if v is None else v for v in row] for row in X], dtype=float)
     mu = np.nanmean(Xn, axis=0)
-    sd = np.nanstd(Xn, axis=0); sd = np.where(sd == 0, 1.0, sd)
+    sd = np.nanstd(Xn, axis=0)
+    sd = np.where(sd == 0, 1.0, sd)
 
     # LINEAR embedding: z-score vs mu/sd, mean-impute missing -> 0 (EXACT runtime transform), then PCA.
     from sklearn.decomposition import PCA
-    Z = (np.where(np.isnan(Xn), mu, Xn) - mu) / sd            # missing -> mean -> z=0
+
+    Z = (np.where(np.isnan(Xn), mu, Xn) - mu) / sd  # missing -> mean -> z=0
     m = min(emb_dim, Z.shape[1], Z.shape[0])
     pca = PCA(n_components=m, random_state=0).fit(Z)
-    components = pca.components_                               # m x d
-    corpus_emb = pca.transform(Z)                             # n x m
+    components = pca.components_  # m x d
+    corpus_emb = pca.transform(Z)  # n x m
 
     # anchors: each label's coord = CENTROID (mean embedding) of its present exemplar-set members
     idx_of = {(t, i): r for r, (t, i) in enumerate(zip(targets, indications))}
@@ -145,15 +155,21 @@ def build(runs_dirs, panel_path: Path, build_date: str, emb_dim: int = 16) -> di
             # so the exemplar spec can carry the target panel forward and the anchor activates once its
             # runs land. A wrongly-typo'd exemplar surfaces the same way (empty → skipped + warned).
             skipped_anchors.append(label)
-            print(f"WARN: anchor '{label}' skipped — no exemplar members present in corpus: {members}",
-                  file=sys.stderr)
+            print(f"WARN: anchor '{label}' skipped — no exemplar members present in corpus: {members}", file=sys.stderr)
             continue
         rows = [idx_of[(t, i)] for (t, i) in present]
         centroid = corpus_emb[rows].mean(axis=0)
-        rep_t, rep_i = present[0]      # canonical representative (shown in payload)
-        anchors.append({"label": label, "target": rep_t, "indication": rep_i,
-                        "coord": [round(float(x), 6) for x in centroid],
-                        "members": [[t, i] for (t, i) in present], "n_members": len(present)})
+        rep_t, rep_i = present[0]  # canonical representative (shown in payload)
+        anchors.append(
+            {
+                "label": label,
+                "target": rep_t,
+                "indication": rep_i,
+                "coord": [round(float(x), 6) for x in centroid],
+                "members": [[t, i] for (t, i) in present],
+                "n_members": len(present),
+            }
+        )
 
     # axis_ref (D1 scorecard z-ref): per-axis corpus mean/std of axis_score (nan-mean of ::signal tiers)
     sig_idx = [j for j, k in enumerate(feature_order) if k.endswith("::signal")]
@@ -165,17 +181,21 @@ def build(runs_dirs, panel_path: Path, build_date: str, emb_dim: int = 16) -> di
             vals = [Xn[r, j] for j in sig_idx if axis_of[j] == ax and not np.isnan(Xn[r, j])]
             if vals:
                 axis_scores[r, a_i] = float(np.mean(vals))
-    ax_mean = np.nanmean(axis_scores, axis=0); ax_std = np.nanstd(axis_scores, axis=0)
+    ax_mean = np.nanmean(axis_scores, axis=0)
+    ax_std = np.nanstd(axis_scores, axis=0)
     ax_std = np.where((ax_std == 0) | np.isnan(ax_std), 1.0, ax_std)
-    axis_ref = {axes[j]: {"mean": round(float(ax_mean[j]), 6), "std": round(float(ax_std[j]), 6)}
-                for j in range(len(axes))}
+    axis_ref = {
+        axes[j]: {"mean": round(float(ax_mean[j]), 6), "std": round(float(ax_std[j]), 6)} for j in range(len(axes))
+    }
 
     doc = {
         "feature_order": feature_order,
         "mu": [round(float(x), 6) for x in mu],
         "sd": [round(float(x), 6) for x in sd],
         "X": X,
-        "targets": targets, "indications": indications, "labels": labels,
+        "targets": targets,
+        "indications": indications,
+        "labels": labels,
         "rule_fingerprints": fingerprints,
         "axis_ref": axis_ref,
         "embedding": {
@@ -193,20 +213,23 @@ def build(runs_dirs, panel_path: Path, build_date: str, emb_dim: int = 16) -> di
             "emb_dim": int(m),
             "classes": sorted(set(labels)),
             "anchor_phenotypes": [a["label"] for a in anchors],
-            "anchor_phenotypes_skipped": skipped_anchors,   # aspirational anchors awaiting exemplar runs
+            "anchor_phenotypes_skipped": skipped_anchors,  # aspirational anchors awaiting exemplar runs
             "corpus": "+".join(os.path.basename(str(r)) for r in runs_dirs),
             "build_date": build_date,
             "build_git_sha": _git_sha(),
             "vectoriser": "archetype_core.claim_features (corroboration low/mod/high fixed)",
-            "note": ("DESCRIPTIVE phenotype-landscape atlas; provisional partly-circular panel labels; NOT "
-                     "a classifier freeze. Anchored convex mixture over curated canonical exemplars. The "
-                     "former outcome/approval-propensity (D2/D3) score was RETIRED."),
+            "note": (
+                "DESCRIPTIVE phenotype-landscape atlas; provisional partly-circular panel labels; NOT "
+                "a classifier freeze. Anchored convex mixture over curated canonical exemplars. The "
+                "former outcome/approval-propensity (D2/D3) score was RETIRED."
+            ),
         },
     }
     # soft_labels: the anchored-mixture DOMINANT phenotype for EVERY corpus target — a data-derived
     # display label so nearest-analogs read meaningfully even where the curated panel label is "?"
     # (106/213 unlabeled). Descriptive only; the curated `labels` field is left untouched.
-    from _skills_common.archetype_core import Atlas   # noqa: E402  (reuse the runtime membership solver)
+    from _skills_common.archetype_core import Atlas  # noqa: E402  (reuse the runtime membership solver)
+
     _a = Atlas(doc)
     soft = []
     for e in _a.corpus_emb:
@@ -229,8 +252,10 @@ def main():
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(doc, separators=(",", ":"), sort_keys=False))
     m = doc["meta"]
-    print(f"wrote {out}  n_targets={m['n_targets']} n_features={m['n_features']} emb_dim={m['emb_dim']} "
-          f"anchors={m['anchor_phenotypes']}")
+    print(
+        f"wrote {out}  n_targets={m['n_targets']} n_features={m['n_features']} emb_dim={m['emb_dim']} "
+        f"anchors={m['anchor_phenotypes']}"
+    )
 
 
 if __name__ == "__main__":

@@ -36,6 +36,7 @@ from botocore.exceptions import ClientError
 
 try:
     from jsonschema import Draft202012Validator
+
     _HAVE_JSONSCHEMA = True
 except ImportError:
     _HAVE_JSONSCHEMA = False
@@ -48,14 +49,14 @@ SCHEMA_PATH = Path(__file__).resolve().parents[3] / "core-artifacts-schema" / "e
 # Eight dimensions (revised 2026-06-15). Naming convention: batch dir = the
 # dimension slug it produces, with indication suffix.
 DIMENSION_BATCH_JOB = {
-    "expression-rna":     "batch/expression_rna_{indication}/run_pipeline.R",
+    "expression-rna": "batch/expression_rna_{indication}/run_pipeline.R",
     "expression-protein": "batch/expression_protein_{indication}/run_pipeline.R",  # planned (CPTAC)
-    "dependency":         "batch/dependency/run_pipeline.py",                       # planned (DepMap)
-    "mutation-profile":   "batch/mutation_profile_{indication}/run_pipeline.py",    # planned (GDC somatic)
-    "survival":           "batch/survival_{indication}/run_pipeline.py",            # planned (GDC clinical)
-    "safety":             "batch/safety/run_pipeline.py",                           # planned (HPA + gnomAD)
-    "target-biology":     "batch/target_biology/run_pipeline.py",                   # planned (UniProt + HPA + SurfaceomeDB)
-    "literature":         "batch/literature/run_pipeline.py",                       # exists (Ming-Ju), v2 schema port pending
+    "dependency": "batch/dependency/run_pipeline.py",  # planned (DepMap)
+    "mutation-profile": "batch/mutation_profile_{indication}/run_pipeline.py",  # planned (GDC somatic)
+    "survival": "batch/survival_{indication}/run_pipeline.py",  # planned (GDC clinical)
+    "safety": "batch/safety/run_pipeline.py",  # planned (HPA + gnomAD)
+    "target-biology": "batch/target_biology/run_pipeline.py",  # planned (UniProt + HPA + SurfaceomeDB)
+    "literature": "batch/literature/run_pipeline.py",  # exists (Ming-Ju), v2 schema port pending
 }
 DIMENSIONS = list(DIMENSION_BATCH_JOB.keys())
 
@@ -102,11 +103,14 @@ def report_one(client, schema, indication, subtype, gene, dimension, as_json: bo
         produced_by = DIMENSION_BATCH_JOB.get(dimension, "(unknown batch job)")
         produced_by = produced_by.format(indication=indication)
         result = {
-            "gene": gene, "indication": indication, "subtype": subtype, "dimension": dimension,
+            "gene": gene,
+            "indication": indication,
+            "subtype": subtype,
+            "dimension": dimension,
             "status": "MISSING",
             "produced_by": produced_by,
             "note": "Artifact does not exist. This skill does not compute it — "
-                    "run the batch job (offline/scheduled) to produce it.",
+            "run the batch job (offline/scheduled) to produce it.",
         }
         if not as_json:
             print(f"[MISSING] {label} — no artifact.")
@@ -137,9 +141,11 @@ def main() -> int:
     p = argparse.ArgumentParser()
     p.add_argument("--gene", required=True)
     p.add_argument("--indication", required=True)
-    p.add_argument("--subtype", default="all",
-                   help="Subtype slug (default 'all' for unstratified). "
-                        "Examples: all, CMS1, CMS4, MSS-RASmut, MSI-H.")
+    p.add_argument(
+        "--subtype",
+        default="all",
+        help="Subtype slug (default 'all' for unstratified). Examples: all, CMS1, CMS4, MSS-RASmut, MSI-H.",
+    )
     g = p.add_mutually_exclusive_group(required=True)
     g.add_argument("--dimension", choices=DIMENSIONS)
     g.add_argument("--all-dimensions", action="store_true")
@@ -153,8 +159,7 @@ def main() -> int:
         print("WARNING: evidence schema not found; skipping validation.", file=sys.stderr)
 
     dims = DIMENSIONS if args.all_dimensions else [args.dimension]
-    results = {d: report_one(client, schema, args.indication, args.subtype, args.gene, d, args.json)
-               for d in dims}
+    results = {d: report_one(client, schema, args.indication, args.subtype, args.gene, d, args.json) for d in dims}
 
     if args.json:
         json.dump(results, sys.stdout, indent=2, default=str)

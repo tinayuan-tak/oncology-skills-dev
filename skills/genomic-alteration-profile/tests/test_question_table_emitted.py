@@ -5,6 +5,7 @@ this pins that it now is, and that a fault in that display-layer projection degr
 `_enrichment_errors` rather than aborting the multi-class genomic spine. (This skill hand-rolls main();
 its headline builder is `_build_headline(cards, verdict, driving, fdr_provenance)`.)
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -33,6 +34,6 @@ def test_question_table_fault_degrades_not_aborts(monkeypatch):
 
     monkeypatch.setattr(gap, "genomic_question_table", _boom)
     hl = gap._build_headline(cards, "multi_class", None, {})
-    assert hl["genomic_alteration_profile"] == "multi_class"   # spine survives
+    assert hl["genomic_alteration_profile"] == "multi_class"  # spine survives
     assert hl["question_table"] is None
     assert hl["_enrichment_errors"]["question_table"].startswith("ValueError")

@@ -57,11 +57,13 @@ def _load_catalog_resolver():
     best-effort and must NEVER block evidence-package emission."""
     import os
     import sys
+
     mrepo = os.environ.get("ANALYSIS_METHODS_ROOT", ANALYSIS_METHODS_ROOT_DEFAULT)
     if mrepo not in sys.path:
         sys.path.insert(0, mrepo)
     try:
         from methods.catalog_query.read import resolve_release, _family_of
+
         return resolve_release, _family_of
     except Exception:  # noqa: BLE001 — no catalog helper → skip head/stale enrichment (digest still emits)
         return None, None
@@ -72,11 +74,13 @@ def _load_manifest_loader():
     (None) when unavailable — the content digest is best-effort and never blocks emission."""
     import os
     import sys
+
     mrepo = os.environ.get("ANALYSIS_METHODS_ROOT", ANALYSIS_METHODS_ROOT_DEFAULT)
     if mrepo not in sys.path:
         sys.path.insert(0, mrepo)
     try:
         from methods.catalog_query.read import load_manifest
+
         return load_manifest
     except Exception:  # noqa: BLE001 — no loader → content digest omitted (id digest still emits)
         return None
@@ -96,6 +100,7 @@ def _known_manifest_ids() -> "set | None":
     Result is byte-identical (same catalog); it just stops re-parsing it."""
     import os
     import sys
+
     mrepo = os.environ.get("ANALYSIS_METHODS_ROOT", ANALYSIS_METHODS_ROOT_DEFAULT)
     if mrepo not in sys.path:
         sys.path.insert(0, mrepo)
@@ -103,6 +108,7 @@ def _known_manifest_ids() -> "set | None":
         # Import the module's canonical DATA_CATALOG / TARGET_CONTRACTS Paths so the lru_cache key
         # matches resolve_release's `load_catalog(root=root, contracts_root=contracts_root)` exactly.
         from methods.catalog_query.read import load_catalog, DATA_CATALOG, TARGET_CONTRACTS
+
         return set(load_catalog(root=DATA_CATALOG, contracts_root=TARGET_CONTRACTS).manifests)
     except Exception:  # noqa: BLE001 — no catalog → skip the indeterminate-staleness refinement
         return None
@@ -119,9 +125,8 @@ def _manifest_content_md5(manifest: dict) -> "str | None":
     files = manifest.get("files")
     if isinstance(files, list) and files:
         import hashlib
-        per_file = sorted(
-            f.get("md5") for f in files if isinstance(f, dict) and f.get("md5")
-        )
+
+        per_file = sorted(f.get("md5") for f in files if isinstance(f, dict) and f.get("md5"))
         if per_file:
             return hashlib.sha256("\n".join(per_file).encode()).hexdigest()[:16]
     return None
@@ -155,9 +160,14 @@ def _refine_product_id_staleness(resolved: dict) -> None:
             entry["stale_indeterminate"] = "product_id_declared_not_concrete_manifest"
 
 
-def resolved_release_governance(card_outputs, data_mode, release_pin,
-                                resolve_release=None, family_of=None,
-                                refine_product_id_staleness: bool = False) -> dict:
+def resolved_release_governance(
+    card_outputs,
+    data_mode,
+    release_pin,
+    resolve_release=None,
+    family_of=None,
+    refine_product_id_staleness: bool = False,
+) -> dict:
     """Governance ENRICHMENT (2026-08-12): derive a release fingerprint from the manifests the run
     ACTUALLY read (cards' provenance.input_manifest_ids), and resolve each data family's current
     catalog HEAD via catalog_query.resolve_release.
@@ -179,12 +189,18 @@ def resolved_release_governance(card_outputs, data_mode, release_pin,
     the false-True is_stale is dropped and a stale_indeterminate marker is added. DEFAULT FALSE so the
     compose-dashboard byte-golden envelope is unchanged (only target-profile's --emit envelope opts in,
     via assemble_evidence_package)."""
-    used = sorted({m for c in card_outputs
-                   if not c.get("excluded_by_applies_when")
-                   for m in ((c.get("provenance") or {}).get("input_manifest_ids") or [])})
+    used = sorted(
+        {
+            m
+            for c in card_outputs
+            if not c.get("excluded_by_applies_when")
+            for m in ((c.get("provenance") or {}).get("input_manifest_ids") or [])
+        }
+    )
     if not used:
         return {}
     import hashlib
+
     out = {"resolved_release_digest": hashlib.sha256("\n".join(used).encode()).hexdigest()[:16]}
     if resolve_release is None or family_of is None:
         resolve_release, family_of = _load_catalog_resolver()
@@ -225,15 +241,21 @@ def resolved_content_digest(card_outputs: list) -> "str | None":
     Computed OUTSIDE resolved_release_governance ON PURPOSE — that function feeds the compose /
     target-profile evidence envelope (byte-golden + engine-equivalence pinned), so it must stay
     unchanged; the content digest is a subskill-decision.json enrichment only."""
-    used = sorted({m for c in card_outputs
-                   if not c.get("excluded_by_applies_when")
-                   for m in ((c.get("provenance") or {}).get("input_manifest_ids") or [])})
+    used = sorted(
+        {
+            m
+            for c in card_outputs
+            if not c.get("excluded_by_applies_when")
+            for m in ((c.get("provenance") or {}).get("input_manifest_ids") or [])
+        }
+    )
     if not used:
         return None
     load_manifest = _load_manifest_loader()
     if load_manifest is None:
         return None
     import hashlib
+
     pairs = []
     for m in used:
         try:
@@ -244,9 +266,13 @@ def resolved_content_digest(card_outputs: list) -> "str | None":
     return hashlib.sha256("\n".join(pairs).encode()).hexdigest()[:16]
 
 
-def build_subskill_provenance(card_outputs: list, data_mode: str, release_pin: "str | None",
-                              skills_repo_sha: str,
-                              resolver_release_pin: "str | None" = None) -> dict:
+def build_subskill_provenance(
+    card_outputs: list,
+    data_mode: str,
+    release_pin: "str | None",
+    skills_repo_sha: str,
+    resolver_release_pin: "str | None" = None,
+) -> dict:
     """The run-level reproducibility block for a subskill's default decision.json / provenance.yaml.
 
     Single-sourced HERE so the subskill default path records the same fingerprint the opt-in
@@ -296,6 +322,7 @@ def _stamp_evidence_substrate(entry: dict) -> None:
         return
     try:
         from .measurement_types import substrate_for_card
+
         mt, substrate = substrate_for_card(card_id)
         if mt:
             entry["measurement_type"] = mt
@@ -305,6 +332,7 @@ def _stamp_evidence_substrate(entry: dict) -> None:
         pass
     try:
         from . import card_input_manifest_ids
+
         req = list(card_input_manifest_ids(card_id))
         if req:
             prov = entry.setdefault("provenance", {"method_calls": [], "input_manifest_ids": []})
@@ -371,9 +399,8 @@ def assemble_evidence_package(
     # disallowed chars with a single '-' (underscores + dashes are allowed, so existing single-token
     # ids like `ep-kras-coadread-...` are byte-unchanged), then collapse repeats and trim.
     package_id = re.sub(
-        r"-+", "-",
-        re.sub(r"[^a-z0-9_-]+", "-",
-               f"ep-{target}-{indication}-{release_pin}-{data_mode}-001".lower())).strip("-")
+        r"-+", "-", re.sub(r"[^a-z0-9_-]+", "-", f"ep-{target}-{indication}-{release_pin}-{data_mode}-001".lower())
+    ).strip("-")
 
     # Determine concurrence absence — ships without concurrence by default.
     # 2026-08-10 fix: do NOT advertise governance.lockfile_ref="lockfile.yaml" —
@@ -387,14 +414,20 @@ def assemble_evidence_package(
     # per-family catalog head + drift, derived from the manifests the run actually read. Best-effort —
     # never blocks emission. Makes release_pin='unpinned' runs distinguishable across catalog releases
     # (the eval-ledger cross-release trend keys on resolved_release_digest).
-    governance.update(resolved_release_governance(
-        card_outputs, data_mode, release_pin,
-        refine_product_id_staleness=refine_product_id_staleness))
+    governance.update(
+        resolved_release_governance(
+            card_outputs, data_mode, release_pin, refine_product_id_staleness=refine_product_id_staleness
+        )
+    )
 
     # Build context block — extract target identity from the target-identity-summary card if present
     target_identity_card = next(
-        (c for c in card_outputs if c.get("card_id") == "target-identity-summary" and not c.get("excluded_by_applies_when")),
-        None
+        (
+            c
+            for c in card_outputs
+            if c.get("card_id") == "target-identity-summary" and not c.get("excluded_by_applies_when")
+        ),
+        None,
     )
     if target_identity_card:
         s = target_identity_card.get("summary", {})
@@ -428,12 +461,14 @@ def assemble_evidence_package(
     cards = []
     for c in card_outputs:
         if c.get("excluded_by_applies_when"):
-            cards.append({
-                "card_id": c["card_id"],
-                "card_version": c.get("card_version", "n/a"),
-                "excluded_by_applies_when": True,
-                "exclusion_reason": c["exclusion_reason"],
-            })
+            cards.append(
+                {
+                    "card_id": c["card_id"],
+                    "card_version": c.get("card_version", "n/a"),
+                    "excluded_by_applies_when": True,
+                    "exclusion_reason": c["exclusion_reason"],
+                }
+            )
         else:
             entry = {
                 "card_id": c["card_id"],
@@ -456,17 +491,21 @@ def assemble_evidence_package(
     # A card whose live reader returned None (unwired) is no longer silently dropped to the
     # n_cards_failed integer — it appears here with a typed availability_state so a consumer
     # (and the deciding-axis router) can distinguish "not built yet" from a measured absence.
-    for u in (unavailable_cards or []):
-        cards.append({
-            "card_id": u["card_id"],
-            "card_version": u.get("card_version", "n/a"),
-            "availability_state": u["availability_state"],
-            "availability_reason": u.get("availability_reason", "unavailable"),
-        })
+    for u in unavailable_cards or []:
+        cards.append(
+            {
+                "card_id": u["card_id"],
+                "card_version": u.get("card_version", "n/a"),
+                "availability_state": u["availability_state"],
+                "availability_reason": u.get("availability_reason", "unavailable"),
+            }
+        )
 
     # Build the top-level evidence_package
-    timestamp = "2026-06-26T00:00:00Z" if deterministic_timestamps else (
-        datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    timestamp = (
+        "2026-06-26T00:00:00Z"
+        if deterministic_timestamps
+        else (datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))
     )
     return {
         "package_id": package_id,

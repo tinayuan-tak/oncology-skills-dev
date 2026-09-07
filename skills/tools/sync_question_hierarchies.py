@@ -13,6 +13,7 @@ hierarchy is edited in ONE place (contracts) and can never silently drift here.
 
 Requires target-contracts on TARGET_CONTRACTS_ROOT; prints a skip notice and exits 0 without it.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -31,11 +32,13 @@ CONTRACTS = Path(
 )
 AXES = CONTRACTS / "vocabularies" / "target_profiling_axes.yaml"
 
-_HEADER = ("# GENERATED from target-contracts vocabularies/target_profiling_axes.yaml "
-           "(question_hierarchies).\n"
-           "# Do NOT hand-edit: edit the governed source there and run "
-           "skills/tools/sync_question_hierarchies.py --write.\n"
-           "# The paired drift test (skills/tests/test_question_hierarchy_drift.py) fails CI on divergence.\n")
+_HEADER = (
+    "# GENERATED from target-contracts vocabularies/target_profiling_axes.yaml "
+    "(question_hierarchies).\n"
+    "# Do NOT hand-edit: edit the governed source there and run "
+    "skills/tools/sync_question_hierarchies.py --write.\n"
+    "# The paired drift test (skills/tests/test_question_hierarchy_drift.py) fails CI on divergence.\n"
+)
 
 
 def contracts_available() -> bool:
@@ -71,8 +74,9 @@ def check() -> list:
         if got is None:
             drift.append(f"{skill}: no committed question_hierarchy.yaml")
             continue
-        if (got.get("sub_groups") != doc["sub_groups"]
-                or (got.get("other_lenses") or None) != (doc.get("other_lenses") or None)):
+        if got.get("sub_groups") != doc["sub_groups"] or (got.get("other_lenses") or None) != (
+            doc.get("other_lenses") or None
+        ):
             drift.append(f"{skill}: question_hierarchy.yaml diverges from contracts source")
     return drift
 

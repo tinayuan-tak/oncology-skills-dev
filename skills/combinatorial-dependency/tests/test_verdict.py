@@ -5,6 +5,7 @@ no_interaction > insufficient), the coverage-gap→insufficient mapping, and the
 no-rule-fired→insufficient default. Also documents the EGFR/ZAP70 spurious-strong-pair
 case as a KNOWN limitation the card's n_lines/p-value carry is designed to catch.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -58,7 +59,6 @@ def test_no_rule_fired_defaults_insufficient():
 
 def test_precedence_constitutive_over_context_if_both_present():
     # defensive: if two class rules somehow both fired, strongest wins
-    v, drv = _verdict(_fired("combo-context-conditional-synthetic-lethal",
-                             "combo-constitutive-synthetic-lethal"))
+    v, drv = _verdict(_fired("combo-context-conditional-synthetic-lethal", "combo-constitutive-synthetic-lethal"))
     assert v == "constitutive_combinatorial_dependency"
     assert drv == "combo-constitutive-synthetic-lethal"

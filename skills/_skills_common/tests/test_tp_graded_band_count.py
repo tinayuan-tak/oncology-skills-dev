@@ -7,6 +7,7 @@
   - tumor_protein_ihc_presence   : distance_to_cut on moderate/strong IHC fraction (moderate cut)
 Verdict-INERT / display-only.
 """
+
 import sys
 from pathlib import Path
 
@@ -42,8 +43,12 @@ def test_graded_band_names_the_strongest_cut_cleared():
 
 def test_count_of_total_reads_count_over_total_past_cut():
     spec = SALIENCE_SPECS["tumor_elevation_breadth"]
-    gv = build_interpretation({}, {"n_cohorts_elevated": 4, "n_cohorts_tested": 6,
-                                   "tumor_elevation_breadth_class": "broadly_elevated"}, spec, None)
+    gv = build_interpretation(
+        {},
+        {"n_cohorts_elevated": 4, "n_cohorts_tested": 6, "tumor_elevation_breadth_class": "broadly_elevated"},
+        spec,
+        None,
+    )
     assert len(gv) == 1 and gv[0]["frame"]["kind"] == "count_of_total"
     assert gv[0]["value"] == 4
     roles = {a["role"]: a["value"] for a in gv[0]["frame"]["anchors"]}
@@ -52,26 +57,38 @@ def test_count_of_total_reads_count_over_total_past_cut():
 
 
 def test_new_distance_to_cut_cards_gauge_and_read_position():
-    p = build_interpretation({}, {"expression_purity_pearson_r": 0.55, "purity_confound_class": "tumor_intrinsic"},
-                             SALIENCE_SPECS["expression_purity_confound"], None)[0]
+    p = build_interpretation(
+        {},
+        {"expression_purity_pearson_r": 0.55, "purity_confound_class": "tumor_intrinsic"},
+        SALIENCE_SPECS["expression_purity_confound"],
+        None,
+    )[0]
     assert p["position"] == "tumor_intrinsic" and p["metric"] == "expression_purity_pearson_r"
-    i = build_interpretation({}, {"fraction_moderate_strong": 0.8, "protein_presence_class": "broadly_detected"},
-                             SALIENCE_SPECS["tumor_protein_ihc_presence"], None)[0]
+    i = build_interpretation(
+        {},
+        {"fraction_moderate_strong": 0.8, "protein_presence_class": "broadly_detected"},
+        SALIENCE_SPECS["tumor_protein_ihc_presence"],
+        None,
+    )[0]
     assert i["position"] == "broadly_detected" and i["scale"]
 
 
 def test_subtype_epsilon_graded_band_fires_only_on_the_by_subtype_card():
     spec = SALIENCE_SPECS["tumor_expression_distribution"]
     # by-subtype summary carries the ε² field → the graded_band fires
-    sub = build_interpretation({}, {"subtype_variance_explained": 0.18,
-                                    "subtype_effect_size_class": "large_subtype_effect"}, spec,
-                               "tumor-rna-distribution-by-subtype")
+    sub = build_interpretation(
+        {},
+        {"subtype_variance_explained": 0.18, "subtype_effect_size_class": "large_subtype_effect"},
+        spec,
+        "tumor-rna-distribution-by-subtype",
+    )
     eps = [g for g in sub if g["metric"] == "subtype_variance_explained"]
     assert len(eps) == 1 and eps[0]["frame"]["kind"] == "graded_band"
     assert "past the 0.14 large cut" in gauge_string(eps[0])
     # main-card summary lacks subtype_variance_explained → the ε² frame drops (byte-stable on the main card)
-    main = build_interpretation({}, {"median_log2tpm": 6.1, "tumor_expression_class": "broadly_high"}, spec,
-                                "tumor-rna-distribution")
+    main = build_interpretation(
+        {}, {"median_log2tpm": 6.1, "tumor_expression_class": "broadly_high"}, spec, "tumor-rna-distribution"
+    )
     assert not any(g["metric"] == "subtype_variance_explained" for g in main)
 
 

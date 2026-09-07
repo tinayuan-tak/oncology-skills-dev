@@ -26,6 +26,7 @@ Usage:
   AWS_PROFILE=cbg python generate_example_gallery.py --skill tumor-presence --target CEACAM5 \
       --indication COADREAD --out DIR
 """
+
 from __future__ import annotations
 
 import argparse
@@ -49,9 +50,9 @@ SKILLS_DIR = Path(os.environ.get("SKILLS_ROOT", str(Path(__file__).resolve().par
 
 # target-contracts (sibling repo) — for the per-card provenance chain (method/measurement/inputs).
 # env-overridable; falls back to the standard sibling checkout.
-TARGET_CONTRACTS = Path(os.environ.get(
-    "TARGET_CONTRACTS_ROOT",
-    str(Path.home() / "rnd-computational-biology-oncology-target-contracts")))
+TARGET_CONTRACTS = Path(
+    os.environ.get("TARGET_CONTRACTS_ROOT", str(Path.home() / "rnd-computational-biology-oncology-target-contracts"))
+)
 
 
 # ---------------------------------------------------------------------------
@@ -76,6 +77,7 @@ def _card_meta() -> dict:
         try:
             import yaml
             import glob as _glob
+
             for f in _glob.glob(str(cards_dir / "*.yaml")):
                 try:
                     d = yaml.safe_load(Path(f).read_text())
@@ -88,8 +90,9 @@ def _card_meta() -> dict:
                     "question": d.get("question"),
                     "measurement_type": d.get("measurement_type") or d.get("measurement"),
                     "methods": [m.get("call") for m in (d.get("methods") or []) if m.get("call")],
-                    "required_inputs": [x.get("product_id") or x.get("card_id")
-                                        for x in (d.get("required_inputs") or [])],
+                    "required_inputs": [
+                        x.get("product_id") or x.get("card_id") for x in (d.get("required_inputs") or [])
+                    ],
                     "sample_context": d.get("sample_context"),
                     "measurement": d.get("measurement") or d.get("measurement_type"),
                     "tier": d.get("tier"),
@@ -109,10 +112,13 @@ def _load_emit_figures_for_card():
         sys.path.insert(0, str(SKILLS_DIR))
     try:
         from _skills_common._figure_emitters import emit_figures_for_card  # noqa: E402
+
         return emit_figures_for_card
     except Exception as e:  # noqa: BLE001 — figures are best-effort; gallery still renders text
-        print(f"[gallery] figure emitters unavailable ({type(e).__name__}: {e}); "
-              f"pages will show summaries + tables only", file=sys.stderr)
+        print(
+            f"[gallery] figure emitters unavailable ({type(e).__name__}: {e}); pages will show summaries + tables only",
+            file=sys.stderr,
+        )
         return None
 
 
@@ -141,6 +147,7 @@ def _plotly_bundle() -> Optional[str]:
     """plotly.js source for inlining (--interactive). ~4.6MB; None if plotly absent."""
     try:
         from plotly.offline import get_plotlyjs
+
         return get_plotlyjs()
     except Exception:  # noqa: BLE001
         return None
@@ -149,8 +156,9 @@ def _plotly_bundle() -> Optional[str]:
 # ---------------------------------------------------------------------------
 # run a subskill (subprocess — isolates each run, no in-process import coupling)
 # ---------------------------------------------------------------------------
-def run_subskill(skill: str, target: str, indication: Optional[str], run_dir: Path,
-                 synthesize: bool = False, figures: bool = True) -> Optional[dict]:
+def run_subskill(
+    skill: str, target: str, indication: Optional[str], run_dir: Path, synthesize: bool = False, figures: bool = True
+) -> Optional[dict]:
     """Invoke skills/<skill>/scripts/run.py --target ... [--indication ...] --out <run_dir>.
     With synthesize=True, adds --synthesize so decision.json carries the LLM relevance narrative
     (needs Bedrock; the subskill degrades gracefully to a note if unavailable). Returns the parsed
@@ -169,8 +177,7 @@ def run_subskill(skill: str, target: str, indication: Optional[str], run_dir: Pa
         cmd += ["--figures"]
     if synthesize:
         cmd += ["--synthesize"]
-    print(f"[gallery] running: {skill} {target}" + (f"/{indication}" if indication else ""),
-          file=sys.stderr)
+    print(f"[gallery] running: {skill} {target}" + (f"/{indication}" if indication else ""), file=sys.stderr)
     try:
         subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=900)
     except subprocess.CalledProcessError as e:
@@ -205,207 +212,390 @@ def run_subskill(skill: str, target: str, indication: Optional[str], run_dir: Pa
 # card_id -> {title, headline (field), metrics [(field,label)]}
 CARD_DISPLAY = {
     "cellline-rna-distribution": {
-        "title": "Cell-line RNA distribution", "headline": "expression_class",
+        "title": "Cell-line RNA distribution",
+        "headline": "expression_class",
         # pan-cancer DepMap panel by design (no single indication) → provenance = panel size / lineages
-        "metrics": [("median_log2tpm_panel", "Median log2TPM"), ("allgene_percentile", "All-gene %ile"),
-                    ("fraction_expressed", "Fraction expressed"), ("control_position_class", "vs controls"),
-                    ("n_cell_lines_evaluated", "n cell lines"), ("n_lineages_evaluated", "n lineages")]},
+        "metrics": [
+            ("median_log2tpm_panel", "Median log2TPM"),
+            ("allgene_percentile", "All-gene %ile"),
+            ("fraction_expressed", "Fraction expressed"),
+            ("control_position_class", "vs controls"),
+            ("n_cell_lines_evaluated", "n cell lines"),
+            ("n_lineages_evaluated", "n lineages"),
+        ],
+    },
     "tumor-rna-vs-adjacent": {
         # PRESENCE view = the ADJACENT-normal DEG contrast (cell A) that drives the call. The GTEx
         # (population-normal, cell C) metrics are DISPLAY-ONLY and are population-normal SELECTIVITY —
         # owned by tumor-selectivity — so they are dropped from the presence curated view (rendered once
         # as a labeled reference in the normal-comparator band). Verdict-inert: no rule keys on gtex_*.
-        "title": "Tumor vs adjacent-normal RNA (DEG)", "headline": "expression_call_class",
-        "metrics": [("log2_fc", "log2FC vs adjacent"), ("q_value", "q vs adjacent"),
-                    ("n_tumor", "n tumor"), ("n_adjacent", "n adjacent")]},
+        "title": "Tumor vs adjacent-normal RNA (DEG)",
+        "headline": "expression_call_class",
+        "metrics": [
+            ("log2_fc", "log2FC vs adjacent"),
+            ("q_value", "q vs adjacent"),
+            ("n_tumor", "n tumor"),
+            ("n_adjacent", "n adjacent"),
+        ],
+    },
     "tumor-protein-abundance-cptac": {
-        "title": "Tumor protein abundance (CPTAC)", "headline": "protein_expression_class",
-        "metrics": [("protein_effect_size", "Effect size (T vs N)"), ("protein_bh_q_value", "q-value"),
-                    ("cohort", "Cohort"), ("n_tumor_samples", "n tumor")]},
+        "title": "Tumor protein abundance (CPTAC)",
+        "headline": "protein_expression_class",
+        "metrics": [
+            ("protein_effect_size", "Effect size (T vs N)"),
+            ("protein_bh_q_value", "q-value"),
+            ("cohort", "Cohort"),
+            ("n_tumor_samples", "n tumor"),
+        ],
+    },
     "cellline-protein-abundance": {
-        "title": "Cell-line protein abundance (DepMap MS)", "headline": "protein_expression_class",
-        "metrics": [("median_log2_abundance_panel", "Median log2 abundance"),
-                    ("fraction_detected", "Fraction detected"), ("n_cell_lines_evaluated", "n cell lines")]},
+        "title": "Cell-line protein abundance (DepMap MS)",
+        "headline": "protein_expression_class",
+        "metrics": [
+            ("median_log2_abundance_panel", "Median log2 abundance"),
+            ("fraction_detected", "Fraction detected"),
+            ("n_cell_lines_evaluated", "n cell lines"),
+        ],
+    },
     "tumor-elevation-breadth": {
-        "title": "Pan-cancer tumor-elevation breadth", "headline": "tumor_elevation_breadth_class",
-        "metrics": [("n_cohorts_elevated", "Cohorts elevated"), ("n_cohorts_tested", "Cohorts tested"),
-                    ("most_elevated_cohorts", "Most elevated")]},
+        "title": "Pan-cancer tumor-elevation breadth",
+        "headline": "tumor_elevation_breadth_class",
+        "metrics": [
+            ("n_cohorts_elevated", "Cohorts elevated"),
+            ("n_cohorts_tested", "Cohorts tested"),
+            ("most_elevated_cohorts", "Most elevated"),
+        ],
+    },
     "tumor-rna-distribution": {
         # PRESENCE view = the per-sample tumor distribution. The GTEx normal band (matched_normal_tissue /
         # n_normal_samples) is a population-normal reference (selectivity framing) → dropped from the
         # presence metrics and rendered once in the normal-comparator band. Verdict-inert.
-        "title": "Tumor RNA distribution (per-sample)", "headline": "tumor_expression_class",
-        "metrics": [("median_log2tpm", "Median log2TPM"), ("allgene_percentile", "All-gene %ile"),
-                    ("control_position_class", "vs controls"),
-                    ("n_tumor_samples", "n tumor (TCGA)"), ("studies", "TCGA studies")]},
+        "title": "Tumor RNA distribution (per-sample)",
+        "headline": "tumor_expression_class",
+        "metrics": [
+            ("median_log2tpm", "Median log2TPM"),
+            ("allgene_percentile", "All-gene %ile"),
+            ("control_position_class", "vs controls"),
+            ("n_tumor_samples", "n tumor (TCGA)"),
+            ("studies", "TCGA studies"),
+        ],
+    },
     "tumor-rna-distribution-by-subtype": {
         # headline = the subtype VERDICT (pan_subtype_uniform / subtype_enriched / …), not the
         # effect-size adjective — that's the field the framework's subgroup-analysis constraint fires on.
-        "title": "RNA by molecular subtype", "headline": "subtype_stratification_class",
-        "metrics": [("subtype_effect_size_class", "Effect size (ε²)"),
-                    ("subtype_variance_explained", "Variance explained (ε²)"),
-                    ("subtype_omnibus_p", "Kruskal–Wallis p"),
-                    ("n_subtypes_measured", "Subtypes measured"),
-                    ("which_subtypes_separate", "High / low")]},
+        "title": "RNA by molecular subtype",
+        "headline": "subtype_stratification_class",
+        "metrics": [
+            ("subtype_effect_size_class", "Effect size (ε²)"),
+            ("subtype_variance_explained", "Variance explained (ε²)"),
+            ("subtype_omnibus_p", "Kruskal–Wallis p"),
+            ("n_subtypes_measured", "Subtypes measured"),
+            ("which_subtypes_separate", "High / low"),
+        ],
+    },
     "expression-purity-confound": {
-        "title": "Tumor-purity confound", "headline": "purity_confound_class",
-        "metrics": [("expression_purity_pearson_r", "Purity Pearson r"), ("median_purity", "Median purity")]},
+        "title": "Tumor-purity confound",
+        "headline": "purity_confound_class",
+        "metrics": [("expression_purity_pearson_r", "Purity Pearson r"), ("median_purity", "Median purity")],
+    },
     "cellline-rna-protein-concordance": {
-        "title": "RNA-vs-protein concordance", "headline": "rna_as_biomarker",
-        "metrics": [("rna_protein_r", "RNA-protein r"), ("n_paired_models", "n paired models")]},
+        "title": "RNA-vs-protein concordance",
+        "headline": "rna_as_biomarker",
+        "metrics": [("rna_protein_r", "RNA-protein r"), ("n_paired_models", "n paired models")],
+    },
     "tumor-scrna-celltype-expression": {
-        "title": "Single-cell per-compartment presence", "headline": "sc_expression_class",
+        "title": "Single-cell per-compartment presence",
+        "headline": "sc_expression_class",
         # provenance FIRST so it's clear the read is indication-specific (atlas + donor/dataset counts)
-        "metrics": [("indication", "Indication"), ("product_id", "Atlas"),
-                    ("malignant_n_donors", "Malignant donors"), ("n_datasets", "Datasets"),
-                    ("n_donor_groups", "Donor groups"),
-                    ("malignant_detection_fraction", "Malignant detection"),
-                    ("top_microenvironment_compartment", "Top microenv. compartment"),
-                    ("n_compartments_measured", "Compartments measured")]},
+        "metrics": [
+            ("indication", "Indication"),
+            ("product_id", "Atlas"),
+            ("malignant_n_donors", "Malignant donors"),
+            ("n_datasets", "Datasets"),
+            ("n_donor_groups", "Donor groups"),
+            ("malignant_detection_fraction", "Malignant detection"),
+            ("top_microenvironment_compartment", "Top microenv. compartment"),
+            ("n_compartments_measured", "Compartments measured"),
+        ],
+    },
     "normal-tissue-liability": {
-        "title": "Normal-tissue expression liability", "headline": "normal_tissue_breadth_class",
-        "metrics": [("n_specific_tissues", "Specific tissues"),
-                    ("n_essential_tissues_with_expression", "Essential tissues w/ expr"),
-                    ("hpa_tissue_specificity", "HPA specificity")]},
+        "title": "Normal-tissue expression liability",
+        "headline": "normal_tissue_breadth_class",
+        "metrics": [
+            ("n_specific_tissues", "Specific tissues"),
+            ("n_essential_tissues_with_expression", "Essential tissues w/ expr"),
+            ("hpa_tissue_specificity", "HPA specificity"),
+        ],
+    },
     "target-identity-summary": {
-        "title": "Target identity", "headline": "resolution_status",
-        "metrics": [("resolved_hgnc_symbol", "HGNC"), ("resolved_uniprot_canonical", "UniProt"),
-                    ("resolved_ensembl_id", "Ensembl")]},
+        "title": "Target identity",
+        "headline": "resolution_status",
+        "metrics": [
+            ("resolved_hgnc_symbol", "HGNC"),
+            ("resolved_uniprot_canonical", "UniProt"),
+            ("resolved_ensembl_id", "Ensembl"),
+        ],
+    },
     "protein-domains-class": {
-        "title": "Protein domains & class", "headline": "protein_features_class",
-        "metrics": [("domain_evidence", "Domain evidence"), ("domain_architecture", "Curated domains"),
-                    ("interpro_domain_architecture", "InterPro domains"), ("protein_class_primary", "Class")]},
+        "title": "Protein domains & class",
+        "headline": "protein_features_class",
+        "metrics": [
+            ("domain_evidence", "Domain evidence"),
+            ("domain_architecture", "Curated domains"),
+            ("interpro_domain_architecture", "InterPro domains"),
+            ("protein_class_primary", "Class"),
+        ],
+    },
     "ppi-interactome": {
-        "title": "Protein-protein interactome", "headline": "interactome_class",
-        "metrics": [("n_high_confidence_interactors", "STRING HC partners"),
-                    ("n_corum_complexes", "CORUM complexes"),
-                    ("physical_interactome_class", "BioGRID physical"),
-                    ("n_physical_interactors", "Physical partners")]},
+        "title": "Protein-protein interactome",
+        "headline": "interactome_class",
+        "metrics": [
+            ("n_high_confidence_interactors", "STRING HC partners"),
+            ("n_corum_complexes", "CORUM complexes"),
+            ("physical_interactome_class", "BioGRID physical"),
+            ("n_physical_interactors", "Physical partners"),
+        ],
+    },
     "signaling-network-mechanism": {
-        "title": "Signaling network & MoA", "headline": "network_class",
-        "metrics": [("n_upstream_regulators", "Upstream regulators"),
-                    ("n_downstream_effectors", "Downstream effectors"), ("moa_classes_present", "MoA classes")]},
+        "title": "Signaling network & MoA",
+        "headline": "network_class",
+        "metrics": [
+            ("n_upstream_regulators", "Upstream regulators"),
+            ("n_downstream_effectors", "Downstream effectors"),
+            ("moa_classes_present", "MoA classes"),
+        ],
+    },
     "phospho-pathway-activity": {
-        "title": "Phospho pathway activity", "headline": "phospho_activity_class",
-        "metrics": [("n_phosphosites", "Phosphosites"), ("max_site_detection_fraction", "Top-site detection"),
-                    ("phospho_exceeds_abundance", "Exceeds abundance")]},
+        "title": "Phospho pathway activity",
+        "headline": "phospho_activity_class",
+        "metrics": [
+            ("n_phosphosites", "Phosphosites"),
+            ("max_site_detection_fraction", "Top-site detection"),
+            ("phospho_exceeds_abundance", "Exceeds abundance"),
+        ],
+    },
     # ── functional-requirement (dependency) cards. Curated so the claim×scope layout renders good
     #    metrics; the *dep_control_* fields carry the INVERTED window semantics (near pan-essential
     #    ceiling = broad-tox liability, NOT a win), surfaced on the CRISPR card.
     "pan-cancer-crispr-dependency-distribution": {
-        "title": "CRISPR dependency (pan-cancer)", "headline": "dependency_class",
-        "metrics": [("median_chronos_panel", "Median Chronos"),
-                    ("fraction_strongly_dependent", "Frac strongly dependent"),
-                    ("selectivity_index", "Selectivity index"),
-                    ("dep_control_position_class", "vs controls (window)"),
-                    ("dep_control_position", "Control position"),
-                    ("n_cell_lines_evaluated", "n cell lines")]},
+        "title": "CRISPR dependency (pan-cancer)",
+        "headline": "dependency_class",
+        "metrics": [
+            ("median_chronos_panel", "Median Chronos"),
+            ("fraction_strongly_dependent", "Frac strongly dependent"),
+            ("selectivity_index", "Selectivity index"),
+            ("dep_control_position_class", "vs controls (window)"),
+            ("dep_control_position", "Control position"),
+            ("n_cell_lines_evaluated", "n cell lines"),
+        ],
+    },
     "pan-cancer-rnai-dependency-distribution": {
-        "title": "RNAi dependency (pan-cancer)", "headline": "rnai_dependency_class",
-        "metrics": [("rnai_median_dep_score", "Median dep score"),
-                    ("rnai_fraction_strongly_dependent", "Frac strongly dependent"),
-                    ("rnai_selectivity_index", "Selectivity index"),
-                    ("rnai_n_cell_lines_evaluated", "n cell lines")]},
+        "title": "RNAi dependency (pan-cancer)",
+        "headline": "rnai_dependency_class",
+        "metrics": [
+            ("rnai_median_dep_score", "Median dep score"),
+            ("rnai_fraction_strongly_dependent", "Frac strongly dependent"),
+            ("rnai_selectivity_index", "Selectivity index"),
+            ("rnai_n_cell_lines_evaluated", "n cell lines"),
+        ],
+    },
     "crispr-rnai-dependency-concordance": {
-        "title": "CRISPR ↔ RNAi concordance", "headline": "concordance_class",
-        "metrics": [("fraction_agree", "Fraction agree"),
-                    ("fraction_dependent_in_both", "Dependent in both"),
-                    ("n_in_both", "n in both assays")]},
+        "title": "CRISPR ↔ RNAi concordance",
+        "headline": "concordance_class",
+        "metrics": [
+            ("fraction_agree", "Fraction agree"),
+            ("fraction_dependent_in_both", "Dependent in both"),
+            ("n_in_both", "n in both assays"),
+        ],
+    },
     "dependency-lineage-selectivity": {
-        "title": "Lineage selectivity", "headline": "enrichment_class",
+        "title": "Lineage selectivity",
+        "headline": "enrichment_class",
         # Axis-3 omnibus (ε²) + which lineages separate; the per-lineage table is a BREAKDOWN_PANEL
-        "metrics": [("n_enriched_lineages", "Enriched lineages"),
-                    ("lineage_omnibus_effect_size_class", "Omnibus effect (ε²)"),
-                    ("lineage_variance_explained", "Variance explained (ε²)"),
-                    ("median_chronos_panel", "Median Chronos (panel)"),
-                    ("n_lineages_evaluated", "n lineages")]},
+        "metrics": [
+            ("n_enriched_lineages", "Enriched lineages"),
+            ("lineage_omnibus_effect_size_class", "Omnibus effect (ε²)"),
+            ("lineage_variance_explained", "Variance explained (ε²)"),
+            ("median_chronos_panel", "Median Chronos (panel)"),
+            ("n_lineages_evaluated", "n lineages"),
+        ],
+    },
     "paralog-buffering": {
-        "title": "Paralog buffering", "headline": "paralog_buffering_class",
-        "metrics": [("strongest_paralog_symbol", "Strongest paralog"),
-                    ("strongest_paralog_delta", "Buffer Δ (dual-KO)"),
-                    ("n_paralogs_functionally_buffering", "Functional paralogs")]},
+        "title": "Paralog buffering",
+        "headline": "paralog_buffering_class",
+        "metrics": [
+            ("strongest_paralog_symbol", "Strongest paralog"),
+            ("strongest_paralog_delta", "Buffer Δ (dual-KO)"),
+            ("n_paralogs_functionally_buffering", "Functional paralogs"),
+        ],
+    },
     "partner-conditional-dependency": {
-        "title": "Partner-conditional (synthetic-lethal)", "headline": "partner_stratification_class",
-        "metrics": [("partner", "Partner gene"), ("deficiency_type", "Deficiency"),
-                    ("delta_chronos_deficient_vs_neutral", "Δ Chronos (def vs neutral)"),
-                    ("partner_stratification_mannwhitney_q", "q (stratification)"),
-                    ("n_partner_deficient", "n partner-deficient")]},
+        "title": "Partner-conditional (synthetic-lethal)",
+        "headline": "partner_stratification_class",
+        "metrics": [
+            ("partner", "Partner gene"),
+            ("deficiency_type", "Deficiency"),
+            ("delta_chronos_deficient_vs_neutral", "Δ Chronos (def vs neutral)"),
+            ("partner_stratification_mannwhitney_q", "q (stratification)"),
+            ("n_partner_deficient", "n partner-deficient"),
+        ],
+    },
     "prism-crispr-concordance": {
-        "title": "Chemical-genetic confirmation (PRISM)", "headline": "crispr_prism_concordance_class",
-        "metrics": [("best_spearman_r_crispr", "Best r (CRISPR)"),
-                    ("best_spearman_r_rnai", "Best r (RNAi)"),
-                    ("n_dual_responders", "Dual responders"),
-                    ("n_compounds_evaluated", "n compounds")]},
+        "title": "Chemical-genetic confirmation (PRISM)",
+        "headline": "crispr_prism_concordance_class",
+        "metrics": [
+            ("best_spearman_r_crispr", "Best r (CRISPR)"),
+            ("best_spearman_r_rnai", "Best r (RNAi)"),
+            ("n_dual_responders", "Dual responders"),
+            ("n_compounds_evaluated", "n compounds"),
+        ],
+    },
     "cross-consortium-dependency": {
-        "title": "Cross-consortium (Broad ↔ Sanger)", "headline": "cross_consortium_class",
-        "metrics": [("broad_frac_dependent", "Broad frac dependent"),
-                    ("sanger_frac_dependent", "Sanger frac dependent"),
-                    ("broad_median_chronos", "Broad median Chronos"),
-                    ("sanger_median_chronos", "Sanger median Chronos")]},
+        "title": "Cross-consortium (Broad ↔ Sanger)",
+        "headline": "cross_consortium_class",
+        "metrics": [
+            ("broad_frac_dependent", "Broad frac dependent"),
+            ("sanger_frac_dependent", "Sanger frac dependent"),
+            ("broad_median_chronos", "Broad median Chronos"),
+            ("sanger_median_chronos", "Sanger median Chronos"),
+        ],
+    },
     "dependency-predictability": {
-        "title": "Omics-predictability of the dependency", "headline": "predictability_class",
-        "metrics": [("pred_dominant_feature_class", "Dominant feature"),
-                    ("pearson_r_squared_rf", "R² (RF)"),
-                    ("pred_n_cell_lines_evaluated", "n cell lines")]},
+        "title": "Omics-predictability of the dependency",
+        "headline": "predictability_class",
+        "metrics": [
+            ("pred_dominant_feature_class", "Dominant feature"),
+            ("pearson_r_squared_rf", "R² (RF)"),
+            ("pred_n_cell_lines_evaluated", "n cell lines"),
+        ],
+    },
     "expression-dependency-correlation": {
-        "title": "mRNA ↔ dependency (biomarker)", "headline": "correlation_class",
-        "metrics": [("pearson_r", "Pearson r"),
-                    ("delta_chronos_top_vs_bottom_quartile", "Δ Chronos (hi vs lo expr)"),
-                    ("n_cell_lines_evaluated", "n cell lines")]},
+        "title": "mRNA ↔ dependency (biomarker)",
+        "headline": "correlation_class",
+        "metrics": [
+            ("pearson_r", "Pearson r"),
+            ("delta_chronos_top_vs_bottom_quartile", "Δ Chronos (hi vs lo expr)"),
+            ("n_cell_lines_evaluated", "n cell lines"),
+        ],
+    },
     "abundance-dependency": {
-        "title": "Protein abundance ↔ dependency (biomarker)", "headline": "abundance_dependency_class",
-        "metrics": [("protein_dependency_pearson_r", "Pearson r"),
-                    ("abundance_layer", "Proteomics layer"),
-                    ("n_paired_models", "n paired models")]},
+        "title": "Protein abundance ↔ dependency (biomarker)",
+        "headline": "abundance_dependency_class",
+        "metrics": [
+            ("protein_dependency_pearson_r", "Pearson r"),
+            ("abundance_layer", "Proteomics layer"),
+            ("n_paired_models", "n paired models"),
+        ],
+    },
     "recommended-models": {
-        "title": "Patient ↔ model correspondence", "headline": "correspondence_class",
-        "metrics": [("n_positive_models_in_lineage", "Positive models in lineage"),
-                    ("n_positive_models", "Positive models"),
-                    ("depmap_lineage", "DepMap lineage")]},
+        "title": "Patient ↔ model correspondence",
+        "headline": "correspondence_class",
+        "metrics": [
+            ("n_positive_models_in_lineage", "Positive models in lineage"),
+            ("n_positive_models", "Positive models"),
+            ("depmap_lineage", "DepMap lineage"),
+        ],
+    },
     "organoid-crispr-dependency": {
-        "title": "Organoid-native dependency", "headline": "organoid_dependency_class",
-        "metrics": [("median_gene_effect", "Median gene effect"),
-                    ("frac_strongly_dependent", "Frac strongly dependent"),
-                    ("n_models_screened", "n organoid models")]},
+        "title": "Organoid-native dependency",
+        "headline": "organoid_dependency_class",
+        "metrics": [
+            ("median_gene_effect", "Median gene effect"),
+            ("frac_strongly_dependent", "Frac strongly dependent"),
+            ("n_models_screened", "n organoid models"),
+        ],
+    },
     "subgroup-stratified-dependency": {
         # headline = the descriptive panorama pattern; per-stratum table is a BREAKDOWN_PANEL
-        "title": "Dependency by molecular subgroup", "headline": "subtype_dependency_pattern",
-        "metrics": [("cross_subgroup_delta_dependency", "Cross-subgroup Δ"),
-                    ("n_subgroups_with_data", "Subgroups w/ data"),
-                    ("max_subgroup_dependency", "Max subgroup dep"),
-                    ("min_subgroup_dependency", "Min subgroup dep")]},
+        "title": "Dependency by molecular subgroup",
+        "headline": "subtype_dependency_pattern",
+        "metrics": [
+            ("cross_subgroup_delta_dependency", "Cross-subgroup Δ"),
+            ("n_subgroups_with_data", "Subgroups w/ data"),
+            ("max_subgroup_dependency", "Max subgroup dep"),
+            ("min_subgroup_dependency", "Min subgroup dep"),
+        ],
+    },
 }
 
 # class value -> chip color category (good/neutral/weak/unavailable) for the at-a-glance strip.
-_POS = {"broadly_high", "strongly_upregulated", "lineage_restricted", "strongly_supports", "hub",
-        "phospho_active", "above_all_positives", "broad", "broadly_tumor_elevated", "physical_hub",
-        "well_characterized", "modest_up", "multi_domain", "supports",
-        # a target that separates BY subtype (enriched/restricted in some strata) is the informative case
-        "subtype_enriched", "subtype_restricted", "subtype_differential",
-        # ── dependency (functional-requirement). The therapeutic-WINDOW wins are green; note the
-        #    INVERSION — common_essential (pan-essential) is NOT here (it is a broad-tox liability →
-        #    neutral). strongly_selective is the sought-after selective dependency.
-        "strongly_selective", "strongly_concordant_dependent", "moderately_concordant_dependent",
-        "lineage_selective", "partner_conditional_strongly_dependent",
-        "partner_conditional_moderately_dependent", "triangulated_target_engaged",
-        "crispr_confirmed_engagement", "concordant_dependent", "own_omics_driven",
-        "strong_negative", "protein_predicts_dependency", "well_modeled_in_lineage",
-        "selective_organoid_dependency", "between_controls",
-        "subgroup_specific_dependency"}
-_WEAK = {"not_informative", "no_curated_domain", "data_unavailable", "not_phosphoprotein",
-         "no_high_confidence_interactors", "neutral_uninformative", "argues_against", "sparse",
-         "not_tumor_elevated", "ns", "subtype_axis_unavailable", "no_subtype_axis",
-         # depleted = an UNfavorable deviation from pooled; muted so it reads distinct from uniform
-         # (neutral) yet not as the sought-after enriched/restricted signal (good/green)
-         "subtype_depleted",
-         # ── dependency: absent / uninformative / off-target reads (muted)
-         "non_dependent", "non_dependent_underpowered", "common_essential_underpowered",
-         "no_lineage_enrichment", "not_partner_stratified", "no_partner_mapped",
-         "insufficient_partner_deficient_rate", "discordant", "discordant_off_target_likely",
-         "thin_evidence", "no_protein_dependency_link", "insufficient_paired_models",
-         "poorly_modeled", "not_organoid_dependent", "rare_organoid_dependency",
-         "no_correlation", "positive_anomaly", "unpredictable", "no_paralog",
-         "not_informative"}
+_POS = {
+    "broadly_high",
+    "strongly_upregulated",
+    "lineage_restricted",
+    "strongly_supports",
+    "hub",
+    "phospho_active",
+    "above_all_positives",
+    "broad",
+    "broadly_tumor_elevated",
+    "physical_hub",
+    "well_characterized",
+    "modest_up",
+    "multi_domain",
+    "supports",
+    # a target that separates BY subtype (enriched/restricted in some strata) is the informative case
+    "subtype_enriched",
+    "subtype_restricted",
+    "subtype_differential",
+    # ── dependency (functional-requirement). The therapeutic-WINDOW wins are green; note the
+    #    INVERSION — common_essential (pan-essential) is NOT here (it is a broad-tox liability →
+    #    neutral). strongly_selective is the sought-after selective dependency.
+    "strongly_selective",
+    "strongly_concordant_dependent",
+    "moderately_concordant_dependent",
+    "lineage_selective",
+    "partner_conditional_strongly_dependent",
+    "partner_conditional_moderately_dependent",
+    "triangulated_target_engaged",
+    "crispr_confirmed_engagement",
+    "concordant_dependent",
+    "own_omics_driven",
+    "strong_negative",
+    "protein_predicts_dependency",
+    "well_modeled_in_lineage",
+    "selective_organoid_dependency",
+    "between_controls",
+    "subgroup_specific_dependency",
+}
+_WEAK = {
+    "not_informative",
+    "no_curated_domain",
+    "data_unavailable",
+    "not_phosphoprotein",
+    "no_high_confidence_interactors",
+    "neutral_uninformative",
+    "argues_against",
+    "sparse",
+    "not_tumor_elevated",
+    "ns",
+    "subtype_axis_unavailable",
+    "no_subtype_axis",
+    # depleted = an UNfavorable deviation from pooled; muted so it reads distinct from uniform
+    # (neutral) yet not as the sought-after enriched/restricted signal (good/green)
+    "subtype_depleted",
+    # ── dependency: absent / uninformative / off-target reads (muted)
+    "non_dependent",
+    "non_dependent_underpowered",
+    "common_essential_underpowered",
+    "no_lineage_enrichment",
+    "not_partner_stratified",
+    "no_partner_mapped",
+    "insufficient_partner_deficient_rate",
+    "discordant",
+    "discordant_off_target_likely",
+    "thin_evidence",
+    "no_protein_dependency_link",
+    "insufficient_paired_models",
+    "poorly_modeled",
+    "not_organoid_dependent",
+    "rare_organoid_dependency",
+    "no_correlation",
+    "positive_anomaly",
+    "unpredictable",
+    "no_paralog",
+    "not_informative",
+}
 
 
 # Some cards carry a per-stratum BREAKDOWN (a list-of-dicts in the summary — e.g. one row per
@@ -419,26 +609,46 @@ _WEAK = {"not_informative", "no_curated_domain", "data_unavailable", "not_phosph
 #   columns : [(row_key, display_label)] to show, in order
 BREAKDOWN_PANELS = {
     "tumor-rna-distribution-by-subtype": {
-        "title": "Per-subtype expression", "field": "per_subgroup_metrics",
-        "label": "stratum_id", "signal": "subtype_signal",
-        "columns": [("n_tumor_samples", "n"), ("median_log2tpm", "Median log2TPM"),
-                    ("tumor_expression_class", "Class"),
-                    ("fraction_tumor_above_normal_p95", "Frac > normal p95"),
-                    ("subtype_signal", "Subtype signal")]},
+        "title": "Per-subtype expression",
+        "field": "per_subgroup_metrics",
+        "label": "stratum_id",
+        "signal": "subtype_signal",
+        "columns": [
+            ("n_tumor_samples", "n"),
+            ("median_log2tpm", "Median log2TPM"),
+            ("tumor_expression_class", "Class"),
+            ("fraction_tumor_above_normal_p95", "Frac > normal p95"),
+            ("subtype_signal", "Subtype signal"),
+        ],
+    },
     # dependency — the enriched-lineage hits (the SEL scope rung: which lineages carry the dependency)
     "dependency-lineage-selectivity": {
-        "title": "Enriched lineages (dependency)", "field": "enriched_lineages",
-        "label": "lineage", "signal": "",
-        "columns": [("n", "n lines"), ("median_chronos", "Median Chronos"),
-                    ("effect_size", "Effect size"), ("q_value", "q-value"),
-                    ("delta_vs_rest", "Δ vs rest")]},
+        "title": "Enriched lineages (dependency)",
+        "field": "enriched_lineages",
+        "label": "lineage",
+        "signal": "",
+        "columns": [
+            ("n", "n lines"),
+            ("median_chronos", "Median Chronos"),
+            ("effect_size", "Effect size"),
+            ("q_value", "q-value"),
+            ("delta_vs_rest", "Δ vs rest"),
+        ],
+    },
     # dependency — the per-molecular-subgroup panorama (only present on the --subtypes path); the
     # signal column is the per-stratum dependency class, and evidence_state guards underpowered strata.
     "subgroup-stratified-dependency": {
-        "title": "Per-subgroup dependency", "field": "per_subgroup_metrics",
-        "label": "stratum", "signal": "class",
-        "columns": [("subgroup_n", "n"), ("median_chronos", "Median Chronos"),
-                    ("class", "Class"), ("evidence_state", "Power")]},
+        "title": "Per-subgroup dependency",
+        "field": "per_subgroup_metrics",
+        "label": "stratum",
+        "signal": "class",
+        "columns": [
+            ("subgroup_n", "n"),
+            ("median_chronos", "Median Chronos"),
+            ("class", "Class"),
+            ("evidence_state", "Power"),
+        ],
+    },
 }
 
 
@@ -466,8 +676,9 @@ def _headline_field(cid: str, summary: dict) -> Optional[str]:
     for k, v in summary.items():
         if k.startswith("_"):
             continue
-        if (k.endswith("_class") or (k.endswith("_call") and not isinstance(v, bool))) and \
-                not isinstance(v, (dict, list)):
+        if (k.endswith("_class") or (k.endswith("_call") and not isinstance(v, bool))) and not isinstance(
+            v, (dict, list)
+        ):
             return k
     return None
 
@@ -671,9 +882,9 @@ def _csv_table(csv_path: Path, max_rows: int = 12) -> str:
         return ""
     head = "".join(f"<th>{_esc(c)}</th>" for c in rows[0])
     body = ""
-    for r in rows[1:max_rows + 1]:
+    for r in rows[1 : max_rows + 1]:
         body += "<tr>" + "".join(f"<td>{_esc(c)}</td>" for c in r) + "</tr>"
-    extra = f'<div class="cardmeta">… {len(rows)-1-max_rows} more rows</div>' if len(rows) - 1 > max_rows else ""
+    extra = f'<div class="cardmeta">… {len(rows) - 1 - max_rows} more rows</div>' if len(rows) - 1 > max_rows else ""
     return f"<table><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table>{extra}"
 
 
@@ -688,9 +899,11 @@ def _card_figures_html(run_dir: Path, fig_descriptors: list, interactive: bool) 
                 try:
                     spec = spec_path.read_text()
                     fid = f.get("id", "fig")
-                    out.append(f'<div class="plotly-fig" id="pf_{_esc(fid)}"></div>'
-                               f'<script type="application/json" class="plotly-spec" '
-                               f'data-target="pf_{_esc(fid)}">{spec}</script>')
+                    out.append(
+                        f'<div class="plotly-fig" id="pf_{_esc(fid)}"></div>'
+                        f'<script type="application/json" class="plotly-spec" '
+                        f'data-target="pf_{_esc(fid)}">{spec}</script>'
+                    )
                     continue
                 except Exception:  # noqa: BLE001
                     pass
@@ -720,8 +933,11 @@ def _card_headline_html(cid: str, summary: dict, missing: bool) -> tuple:
     hf = _headline_field(cid, summary)
     val = summary.get(hf) if hf else None
     if missing or val is None:
-        return ('<div class="headline"><span class="chip weak">data unavailable</span></div>',
-                "weak", "data_unavailable")
+        return (
+            '<div class="headline"><span class="chip weak">data unavailable</span></div>',
+            "weak",
+            "data_unavailable",
+        )
     kind = _chip_kind(val)
     return (f'<div class="headline"><span class="chip {kind}">{_esc(val)}</span></div>', kind, val)
 
@@ -744,8 +960,10 @@ def _key_metrics_html(cid: str, summary: dict) -> str:
                 break
     if not pairs:
         return ""
-    cells = "".join(f'<div class="metric"><span class="ml">{_esc(l)}</span>'
-                    f'<span class="mv">{_esc(_fmt_val(v))}</span></div>' for l, v in pairs)
+    cells = "".join(
+        f'<div class="metric"><span class="ml">{_esc(l)}</span><span class="mv">{_esc(_fmt_val(v))}</span></div>'
+        for l, v in pairs
+    )
     return f'<div class="metrics">{cells}</div>'
 
 
@@ -774,8 +992,10 @@ def _breakdown_panel_html(cid: str, summary: dict) -> str:
             else:
                 cells += f"<td>{_esc(_fmt_val(v))}</td>"
         body += f"<tr><td><b>{ident}</b></td>{cells}</tr>"
-    return (f'<div class="cardmeta">{_esc(spec.get("title", "Breakdown"))}</div>'
-            f'<table class="breakdown"><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table>')
+    return (
+        f'<div class="cardmeta">{_esc(spec.get("title", "Breakdown"))}</div>'
+        f'<table class="breakdown"><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table>'
+    )
 
 
 def _full_details_html(cid: str, summary: dict, tables_dir: Path) -> str:
@@ -787,9 +1007,10 @@ def _full_details_html(cid: str, summary: dict, tables_dir: Path) -> str:
     form_html = ""
     if has_form:
         form_tbl = _summary_table({k: v for k, v in summary.items() if _is_molecular_form_field(k)})
-        form_html = ('<div class="cardmeta"><b>Molecular-form detail</b> (isoform dominance / splicing) '
-                     '— verdict-inert; describes WHICH transcript is expressed, not presence level.</div>'
-                     + form_tbl)
+        form_html = (
+            '<div class="cardmeta"><b>Molecular-form detail</b> (isoform dominance / splicing) '
+            "— verdict-inert; describes WHICH transcript is expressed, not presence level.</div>" + form_tbl
+        )
     csv_html = ""
     if tables_dir.exists():
         for csvf in sorted(tables_dir.glob(f"{cid}_*.csv")):
@@ -797,7 +1018,7 @@ def _full_details_html(cid: str, summary: dict, tables_dir: Path) -> str:
     inner = body + form_html + csv_html
     if not inner:
         return ""
-    return f'<details><summary>show all fields + tables</summary>{inner}</details>'
+    return f"<details><summary>show all fields + tables</summary>{inner}</details>"
 
 
 def _fill_template(text: Optional[str], target: str, indication: str) -> Optional[str]:
@@ -805,16 +1026,21 @@ def _fill_template(text: Optional[str], target: str, indication: str) -> Optiona
     run's real values so the Measurement tab reads cleanly instead of showing raw {target.symbol}."""
     if not text:
         return text
-    reps = {"{target.symbol}": target, "{target}": target,
-            "{indication.label}": indication, "{indication.oncotree_code}": indication,
-            "{indication}": indication}
+    reps = {
+        "{target.symbol}": target,
+        "{target}": target,
+        "{indication.label}": indication,
+        "{indication.oncotree_code}": indication,
+        "{indication}": indication,
+    }
     for k, v in reps.items():
         text = text.replace(k, str(v))
     return text
 
 
-def _flow_tabs_html(cid: str, summary: dict, fired_for_card: list, uid: str,
-                    target: str = "", indication: str = "") -> str:
+def _flow_tabs_html(
+    cid: str, summary: dict, fired_for_card: list, uid: str, target: str = "", indication: str = ""
+) -> str:
     """Per-card 'chain of flow' as CSS-only radio tabs: Data → Method → Measurement → Rules → Verdict.
     Reconstructed from card metadata (target-contracts) + the run's fired_rules + _data_source."""
     meta = _card_meta().get(cid, {})
@@ -830,53 +1056,83 @@ def _flow_tabs_html(cid: str, summary: dict, fired_for_card: list, uid: str,
     # DATA: catalogued inputs + which manifest actually served this run
     data_html = ""
     if inputs:
-        data_html += "<div class='tabrow'><span class='tk'>Catalogued inputs</span><span>" + \
-            ", ".join(f"<code>{_esc(i)}</code>" for i in inputs) + "</span></div>"
+        data_html += (
+            "<div class='tabrow'><span class='tk'>Catalogued inputs</span><span>"
+            + ", ".join(f"<code>{_esc(i)}</code>" for i in inputs)
+            + "</span></div>"
+        )
     if ds:
-        data_html += f"<div class='tabrow'><span class='tk'>Served this run</span><span><code>{_esc(ds)}</code></span></div>"
+        data_html += (
+            f"<div class='tabrow'><span class='tk'>Served this run</span><span><code>{_esc(ds)}</code></span></div>"
+        )
     # METHOD
-    method_html = "".join(f"<div class='tabrow'><span class='tk'>Method</span><span><code>{_esc(m)}</code></span></div>"
-                          for m in methods)
+    method_html = "".join(
+        f"<div class='tabrow'><span class='tk'>Method</span><span><code>{_esc(m)}</code></span></div>" for m in methods
+    )
     # MEASUREMENT
     meas_html = ""
     if mtype:
-        meas_html += f"<div class='tabrow'><span class='tk'>Measurement type</span><span><code>{_esc(mtype)}</code></span></div>"
+        meas_html += (
+            f"<div class='tabrow'><span class='tk'>Measurement type</span><span><code>{_esc(mtype)}</code></span></div>"
+        )
     if question:
         meas_html += f"<div class='tabrow'><span class='tk'>Question</span><span>{_esc(question)}</span></div>"
     # RULES: fired rules on this card (field=value + rationale)
     if fired_for_card:
         rules_html = "".join(
             f"<div class='tabrow'><span class='tk'><code>{_esc(r.get('rule_id'))}</code>"
-            + (" <b>(driving)</b>" if r.get("dominant") else "") + "</span><span>"
+            + (" <b>(driving)</b>" if r.get("dominant") else "")
+            + "</span><span>"
             f"{_esc(r.get('field'))} = <b>{_esc(r.get('value'))}</b>"
-            + (f"<br><span class='muted'>{_esc(r.get('rationale_summary'))}</span>" if r.get("rationale_summary") else "")
+            + (
+                f"<br><span class='muted'>{_esc(r.get('rationale_summary'))}</span>"
+                if r.get("rationale_summary")
+                else ""
+            )
             + "</span></div>"
-            for r in fired_for_card)
+            for r in fired_for_card
+        )
     else:
         rules_html = "<div class='tabempty'>No verdict-ladder rules fired on this card (display-only facet).</div>"
     # VERDICT: the dominant fired rule → its class value
     dom = next((r for r in fired_for_card if r.get("dominant")), None)
     if dom:
-        verdict_html = (f"<div class='tabrow'><span class='tk'>Driving rule</span>"
-                        f"<span><code>{_esc(dom.get('rule_id'))}</code> → <b>{_esc(dom.get('value'))}</b></span></div>")
+        verdict_html = (
+            f"<div class='tabrow'><span class='tk'>Driving rule</span>"
+            f"<span><code>{_esc(dom.get('rule_id'))}</code> → <b>{_esc(dom.get('value'))}</b></span></div>"
+        )
     elif fired_for_card:
-        verdict_html = ("<div class='tabempty'>Rules fired but none is the driving verdict — this card "
-                        "informs context, not the headline call (one-directional gate).</div>")
+        verdict_html = (
+            "<div class='tabempty'>Rules fired but none is the driving verdict — this card "
+            "informs context, not the headline call (one-directional gate).</div>"
+        )
     else:
         verdict_html = "<div class='tabempty'>Descriptive card — contributes context, emits no verdict.</div>"
 
-    tabs = [("Data", data_html), ("Method", method_html), ("Measurement", meas_html),
-            ("Rules", rules_html), ("Verdict", verdict_html)]
+    tabs = [
+        ("Data", data_html),
+        ("Method", method_html),
+        ("Measurement", meas_html),
+        ("Rules", rules_html),
+        ("Verdict", verdict_html),
+    ]
     # Layout: ALL radios first, then a single label ROW, then a panels container. The CSS
     # `.tabin:nth-of-type(k):checked ~ .tabpanels > .tabpanel:nth-child(k)` shows the matching panel —
     # so labels form one clean tab BAR and exactly one panel shows below (no interleaved stack).
     radios = "".join(
-        f'<input type="radio" name="tabs_{uid}" id="t_{uid}_{i}" class="tabin"{" checked" if i==0 else ""}>'
-        for i in range(len(tabs)))
-    labels = '<div class="tabbar">' + "".join(
-        f'<label for="t_{uid}_{i}" class="tablabel">{name}</label>' for i, (name, _) in enumerate(tabs)) + '</div>'
-    panels = '<div class="tabpanels">' + "".join(
-        f'<div class="tabpanel">{_panel(body)}</div>' for _, body in tabs) + '</div>'
+        f'<input type="radio" name="tabs_{uid}" id="t_{uid}_{i}" class="tabin"{" checked" if i == 0 else ""}>'
+        for i in range(len(tabs))
+    )
+    labels = (
+        '<div class="tabbar">'
+        + "".join(f'<label for="t_{uid}_{i}" class="tablabel">{name}</label>' for i, (name, _) in enumerate(tabs))
+        + "</div>"
+    )
+    panels = (
+        '<div class="tabpanels">'
+        + "".join(f'<div class="tabpanel">{_panel(body)}</div>' for _, body in tabs)
+        + "</div>"
+    )
     return f'<div class="flowtabs">{radios}{labels}{panels}</div>'
 
 
@@ -896,8 +1152,7 @@ def _skill_hero_html(run_dir: Path) -> str:
     figs_dir = run_dir / "figures"
     if not figs_dir.is_dir():
         return ""
-    svgs = sorted(p for p in figs_dir.glob("figure_*.svg")
-                  if p.is_file() and p.name not in _HERO_OWNED_ELSEWHERE)
+    svgs = sorted(p for p in figs_dir.glob("figure_*.svg") if p.is_file() and p.name not in _HERO_OWNED_ELSEWHERE)
     if not svgs:
         return ""
     blocks = []
@@ -908,14 +1163,25 @@ def _skill_hero_html(run_dir: Path) -> str:
             continue
     if not blocks:
         return ""
-    return ('<div class="lab" style="margin:18px 0 6px">Overall view '
-            '<span class="hint">— skill-level summary graphic</span></div>'
-            '<div class="hero">' + "".join(blocks) + '</div>')
+    return (
+        '<div class="lab" style="margin:18px 0 6px">Overall view '
+        '<span class="hint">— skill-level summary graphic</span></div>'
+        '<div class="hero">' + "".join(blocks) + "</div>"
+    )
 
 
-def _card_block_html(c: dict, run_dir: Path, fig_map: dict, interactive: bool, fired_by_card: dict,
-                     tables_dir: Path, target: str, indication: str, uid: str,
-                     open_: bool = False) -> str:
+def _card_block_html(
+    c: dict,
+    run_dir: Path,
+    fig_map: dict,
+    interactive: bool,
+    fired_by_card: dict,
+    tables_dir: Path,
+    target: str,
+    indication: str,
+    uid: str,
+    open_: bool = False,
+) -> str:
     """The full collapsible block for one resolved card: headline chip + key metrics + per-stratum
     breakdown + figures + Data→…→Verdict flow tabs + full-field drill-down. Factored out of render_page
     so the flat cardlist AND the scope-hierarchical presence / dependency claim layouts render cards
@@ -924,23 +1190,24 @@ def _card_block_html(c: dict, run_dir: Path, fig_map: dict, interactive: bool, f
     summary = c.get("summary") or {}
     missing = c.get("_missing", False)
     _, kind, hval = _card_headline_html(cid, summary, missing)
-    out = [f'<details class="card"{" open" if open_ else ""} id="c_{_esc(cid)}">',
-           f'<summary class="cardhead"><span class="ctitle">{_esc(_card_title(cid))}</span>'
-           f'<span class="chip {kind}">{_esc(hval)}</span></summary>',
-           '<div class="cardbody">']
+    out = [
+        f'<details class="card"{" open" if open_ else ""} id="c_{_esc(cid)}">',
+        f'<summary class="cardhead"><span class="ctitle">{_esc(_card_title(cid))}</span>'
+        f'<span class="chip {kind}">{_esc(hval)}</span></summary>',
+        '<div class="cardbody">',
+    ]
     if missing:
         reason = c.get("_missing_reason") or summary.get("_data_note") or "measured gap"
         out.append(f'<div class="unavail">Data unavailable — {_esc(reason)}</div>')
     else:
         out.append(_key_metrics_html(cid, summary))
-        out.append(_breakdown_panel_html(cid, summary))   # per-stratum table (e.g. subtype)
+        out.append(_breakdown_panel_html(cid, summary))  # per-stratum table (e.g. subtype)
     figs = _card_figures_html(run_dir, fig_map.get(cid, []), interactive)
     if figs:
         out.append(f'<div class="figwrap">{figs}</div>')
-    out.append(_flow_tabs_html(cid, summary, fired_by_card.get(cid, []), uid=uid,
-                               target=target, indication=indication))
+    out.append(_flow_tabs_html(cid, summary, fired_by_card.get(cid, []), uid=uid, target=target, indication=indication))
     out.append(_full_details_html(cid, summary, tables_dir))
-    out.append('</div></details>')
+    out.append("</div></details>")
     return "".join(out)
 
 
@@ -975,50 +1242,75 @@ _COORD_FALLBACK = {"cellline-rna-distribution": ("cell_line", "bulk_rna", "pan-c
 # Section order + framing (sample_context is the row axis); the rung LABELS per section (cell-line's
 # middle rung is `lineage`, the cell-line analog of `indication`); data-type order + labels.
 _SECTION_POLICY = [
-    {"ctx": "tumor", "title": "Patient tumor — the answer", "polarity": "want-high",
-     "note": "The primary presence read: is the target expressed in the actual tumor tissue?",
-     "rungs": ["pan-cancer", "indication", "subtype"]},
-    {"ctx": "cell_line", "title": "Cell-line models — the proxy", "polarity": "want-high",
-     "note": "A 2D-culture proxy for tumor expression — read against the tumor lens. Lineage is the "
-             "cell-line analog of indication.",
-     "rungs": ["pan-cancer", "lineage", "subtype"]},
+    {
+        "ctx": "tumor",
+        "title": "Patient tumor — the answer",
+        "polarity": "want-high",
+        "note": "The primary presence read: is the target expressed in the actual tumor tissue?",
+        "rungs": ["pan-cancer", "indication", "subtype"],
+    },
+    {
+        "ctx": "cell_line",
+        "title": "Cell-line models — the proxy",
+        "polarity": "want-high",
+        "note": "A 2D-culture proxy for tumor expression — read against the tumor lens. Lineage is the "
+        "cell-line analog of indication.",
+        "rungs": ["pan-cancer", "lineage", "subtype"],
+    },
 ]
 _DATATYPE_ORDER = ["bulk_rna", "bulk_protein_ms", "sc_rna"]
-_DATATYPE_LABEL = {"bulk_rna": "Bulk RNA", "bulk_protein_ms": "Bulk protein (MS)",
-                   "sc_rna": "Single-cell RNA", "protein_ihc": "IHC"}
+_DATATYPE_LABEL = {
+    "bulk_rna": "Bulk RNA",
+    "bulk_protein_ms": "Bulk protein (MS)",
+    "sc_rna": "Single-cell RNA",
+    "protein_ihc": "IHC",
+}
 
 # Cards that PROJECT a compact rung at a cell OTHER than their coordinate home (spanning roll-ups + the
 # cell-line lineage sub-view). Keyed by the (ctx, data_type, rung) the projection appears at.
 _PROJECTIONS = {
     ("tumor", "bulk_rna", "pan-cancer"): {
         "card": "tumor-elevation-breadth",
-        "fields": [("rna_tumor_elevation_breadth_class", "Breadth class"),
-                   ("rna_tumor_elevation_n_indications_elevated", "Indic. elevated"),
-                   ("rna_tumor_elevation_n_indications_tested", "tested")],
+        "fields": [
+            ("rna_tumor_elevation_breadth_class", "Breadth class"),
+            ("rna_tumor_elevation_n_indications_elevated", "Indic. elevated"),
+            ("rna_tumor_elevation_n_indications_tested", "tested"),
+        ],
         "note": "K-of-N tumor-elevation breadth across indications — a PREVALENCE estimand, not a "
-                "per-sample distribution. Full card under Bulk protein."},
+        "per-sample distribution. Full card under Bulk protein.",
+    },
     ("cell_line", "bulk_rna", "lineage"): {
         "card": "cellline-rna-distribution",
-        "fields": [("n_lineages_evaluated", "Lineages evaluated"),
-                   ("n_lineage_restricted_lineages", "Lineage-restricted")],
+        "fields": [
+            ("n_lineages_evaluated", "Lineages evaluated"),
+            ("n_lineage_restricted_lineages", "Lineage-restricted"),
+        ],
         "note": "Lineage = the cell-line analog of indication; per-lineage rows live in the card's "
-                "per_lineage_stats table (full card at pan-cancer above)."},
+        "per_lineage_stats table (full card at pan-cancer above).",
+    },
 }
 # Typed-empty slots — an expected (ctx, data_type, rung) with no card, distinguished honestly. `None`
 # suppresses the slot entirely (not expected).
 _TYPED_EMPTY = {
-    ("tumor", "bulk_protein_ms", "subtype"): {"type": "not-yet-built",
-        "note": "Tumor protein × subtype — awaiting a per-sample CPTAC protein reader."},
-    ("tumor", "sc_rna", "pan-cancer"): {"type": "not-yet-built", "note": "Pan-cancer single-cell tumor atlas not wired."},
+    ("tumor", "bulk_protein_ms", "subtype"): {
+        "type": "not-yet-built",
+        "note": "Tumor protein × subtype — awaiting a per-sample CPTAC protein reader.",
+    },
+    ("tumor", "sc_rna", "pan-cancer"): {
+        "type": "not-yet-built",
+        "note": "Pan-cancer single-cell tumor atlas not wired.",
+    },
     ("tumor", "sc_rna", "subtype"): {"type": "not-yet-built", "note": "Subtype-resolved single-cell not wired."},
-    ("cell_line", "sc_rna", "pan-cancer"): {"type": "not-applicable-by-design",
-        "note": "No cell-line single-cell layer (by design)."},
+    ("cell_line", "sc_rna", "pan-cancer"): {
+        "type": "not-applicable-by-design",
+        "note": "No cell-line single-cell layer (by design).",
+    },
 }
 # Per-card caveats surfaced above the card block.
 _CARD_CAVEAT = {
-    "cellline-rna-distribution-by-subtype":
-        "Grouped by DepMap DRIVER subtype (genotype) — NOT the tumor molecular taxonomy (CMS…). "
-        "Cross-lens subtype alignment awaits a cell-line molecular-subtype product."}
+    "cellline-rna-distribution-by-subtype": "Grouped by DepMap DRIVER subtype (genotype) — NOT the tumor molecular taxonomy (CMS…). "
+    "Cross-lens subtype alignment awaits a cell-line molecular-subtype product."
+}
 # Cross-lens RELATION cards (RNA↔protein concordance) — belong to no single cell; own band.
 _PRESENCE_CROSS_LENS = [
     ("cellline-rna-protein-concordance", "Cell-line RNA ↔ protein concordance"),
@@ -1054,26 +1346,41 @@ def _proj_box_html(card: Optional[dict], spec: dict) -> str:
     for field, label in spec.get("fields", []):
         v = summary.get(field)
         if v is not None:
-            rows += (f'<div class="metric"><span class="ml">{_esc(label)}</span>'
-                     f'<span class="mv">{_esc(_fmt_val(v))}</span></div>')
+            rows += (
+                f'<div class="metric"><span class="ml">{_esc(label)}</span>'
+                f'<span class="mv">{_esc(_fmt_val(v))}</span></div>'
+            )
     note = spec.get("note", "")
     if missing and not rows:
         return f'<div class="emptybox"><span class="etype">not measured</span>{_esc(note)}</div>'
-    return (f'<div class="projbox"><div class="metrics">{rows}</div>'
-            + (f'<div class="rungrole">{_esc(note)}</div>' if note else "") + '</div>')
+    return (
+        f'<div class="projbox"><div class="metrics">{rows}</div>'
+        + (f'<div class="rungrole">{_esc(note)}</div>' if note else "")
+        + "</div>"
+    )
 
 
 def _empty_box_html(spec: dict) -> str:
-    return (f'<div class="emptybox"><span class="etype">{_esc(spec.get("type", "gap"))}</span>'
-            f'{_esc(spec.get("note", ""))}</div>')
+    return (
+        f'<div class="emptybox"><span class="etype">{_esc(spec.get("type", "gap"))}</span>'
+        f"{_esc(spec.get('note', ''))}</div>"
+    )
 
 
 def _ref_box_html(spec: dict) -> str:
     return f'<div class="refbox">{_esc(spec.get("note", ""))}</div>'
 
 
-def _presence_scope_html(decision: dict, run_dir: Path, fig_map: dict, interactive: bool,
-                         fired_by_card: dict, tables_dir: Path, target: str, indication: str) -> str:
+def _presence_scope_html(
+    decision: dict,
+    run_dir: Path,
+    fig_map: dict,
+    interactive: bool,
+    fired_by_card: dict,
+    tables_dir: Path,
+    target: str,
+    indication: str,
+) -> str:
     """The scope-hierarchical presence layout: sample-context sections → data-type subsections → a
     coordinate-placed scope ladder (pan-cancer → indication|lineage → subtype). Placement is DRIVEN by
     each card's declared coordinate (`_card_coord`); the policy dicts add only order, spanning
@@ -1114,9 +1421,11 @@ def _presence_scope_html(decision: dict, run_dir: Path, fig_map: dict, interacti
         c = cards_by_id[cid]
         o = _SCOPE_ORD.get(scope, 1)
         role = "leads" if open_ else ("backing (broader)" if o < qord else "drill-down (narrower)")
-        parts = [f'<div class="rung{" leads" if open_ else ""}">'
-                 f'<span class="scopetag{" leads" if open_ else ""}">{_esc(rung_label)}</span>'
-                 f'<span class="rungrole">{_esc(role)}</span>']
+        parts = [
+            f'<div class="rung{" leads" if open_ else ""}">'
+            f'<span class="scopetag{" leads" if open_ else ""}">{_esc(rung_label)}</span>'
+            f'<span class="rungrole">{_esc(role)}</span>'
+        ]
         if cid in _CARD_CAVEAT:
             parts.append(f'<div class="caveat">{_esc(_CARD_CAVEAT[cid])}</div>')
         # Always-visible subtype decomposition at indication depth: promote the per-stratum breakdown
@@ -1124,32 +1433,52 @@ def _presence_scope_html(decision: dict, run_dir: Path, fig_map: dict, interacti
         if scope == "subtype" and qord < 2 and not c.get("_missing", False):
             bp = _breakdown_panel_html(cid, c.get("summary") or {})
             if bp:
-                parts.append('<div class="cardmeta"><b>How the indication read decomposes across '
-                             'subtypes</b> (verdict-inert unless a subtype query leads)</div>' + bp)
-        parts.append(_card_block_html(c, run_dir, fig_map, interactive, fired_by_card, tables_dir,
-                                      target, indication, uid=f"p{nonlocal_uid[0]}", open_=open_))
-        parts.append('</div>')
+                parts.append(
+                    '<div class="cardmeta"><b>How the indication read decomposes across '
+                    "subtypes</b> (verdict-inert unless a subtype query leads)</div>" + bp
+                )
+        parts.append(
+            _card_block_html(
+                c,
+                run_dir,
+                fig_map,
+                interactive,
+                fired_by_card,
+                tables_dir,
+                target,
+                indication,
+                uid=f"p{nonlocal_uid[0]}",
+                open_=open_,
+            )
+        )
+        parts.append("</div>")
         return "".join(parts)
 
     out = []
     for sec in _SECTION_POLICY:
         ctx, rungs = sec["ctx"], sec["rungs"]
         # which data-types to show for this context: any with a placed card, a projection, or a typed-empty
-        dts = [dt for dt in _DATATYPE_ORDER
-               if any((ctx, dt, r) in grid for r in rungs)
-               or any((ctx, dt, r) in _PROJECTIONS for r in rungs)
-               or any(_TYPED_EMPTY.get((ctx, dt, r)) for r in rungs)]
+        dts = [
+            dt
+            for dt in _DATATYPE_ORDER
+            if any((ctx, dt, r) in grid for r in rungs)
+            or any((ctx, dt, r) in _PROJECTIONS for r in rungs)
+            or any(_TYPED_EMPTY.get((ctx, dt, r)) for r in rungs)
+        ]
         if not dts:
             continue
         wl = " want-low" if sec["polarity"] == "want-low" else ""
-        out.append(f'<div class="ctxsec{wl}"><div class="ctxhead"><div class="ct">{_esc(sec["title"])}</div>'
-                   f'<div class="cn">{_esc(sec["note"])}</div></div>')
+        out.append(
+            f'<div class="ctxsec{wl}"><div class="ctxhead"><div class="ct">{_esc(sec["title"])}</div>'
+            f'<div class="cn">{_esc(sec["note"])}</div></div>'
+        )
         for dt in dts:
             out.append(f'<div class="subsec"><div class="dt">{_esc(_DATATYPE_LABEL.get(dt, dt))}</div>')
             # headline rung = deepest rung with a PRESENT card that is ≤ query depth (else shallowest);
             # a resolved-but-missing card is rendered as a named gap, never the headline.
-            card_ords = [_SCOPE_ORD.get(r, 1) for r in rungs
-                         if any(_present(cid) for cid in grid.get((ctx, dt, r), []))]
+            card_ords = [
+                _SCOPE_ORD.get(r, 1) for r in rungs if any(_present(cid) for cid in grid.get((ctx, dt, r), []))
+            ]
             le = [o for o in card_ords if o <= qord]
             headline_ord = max(le) if le else (min(card_ords) if card_ords else None)
             for r in rungs:
@@ -1160,42 +1489,75 @@ def _presence_scope_html(decision: dict, run_dir: Path, fig_map: dict, interacti
                         out.append(_render_card(cid, open_=leads, scope=r, rung_label=r))
                 elif (ctx, dt, r) in _PROJECTIONS:
                     p = _PROJECTIONS[(ctx, dt, r)]
-                    out.append(f'<div class="rung"><span class="scopetag">{_esc(r)}</span>'
-                               + _proj_box_html(cards_by_id.get(p["card"]), p) + '</div>')
+                    out.append(
+                        f'<div class="rung"><span class="scopetag">{_esc(r)}</span>'
+                        + _proj_box_html(cards_by_id.get(p["card"]), p)
+                        + "</div>"
+                    )
                 elif _TYPED_EMPTY.get((ctx, dt, r)):
-                    out.append(f'<div class="rung"><span class="scopetag">{_esc(r)}</span>'
-                               + _empty_box_html(_TYPED_EMPTY[(ctx, dt, r)]) + '</div>')
-            out.append('</div>')  # .subsec
-        out.append('</div>')  # .ctxsec
+                    out.append(
+                        f'<div class="rung"><span class="scopetag">{_esc(r)}</span>'
+                        + _empty_box_html(_TYPED_EMPTY[(ctx, dt, r)])
+                        + "</div>"
+                    )
+            out.append("</div>")  # .subsec
+        out.append("</div>")  # .ctxsec
 
     # Normal-tissue comparator band (want-low): reference notes + the normal cards.
     if normal_ids or _NORMAL_REF_NOTES:
-        out.append('<div class="ctxsec want-low"><div class="ctxhead"><div class="ct">'
-                   'Normal-tissue comparator — reference only</div><div class="cn">Want-LOW. '
-                   'Reference / therapeutic-window framing — NOT a selectivity or safety verdict '
-                   '(selectivity owned by tumor-selectivity; safety by on-target-safety-liability).'
-                   '</div></div><div class="subsec">')
+        out.append(
+            '<div class="ctxsec want-low"><div class="ctxhead"><div class="ct">'
+            'Normal-tissue comparator — reference only</div><div class="cn">Want-LOW. '
+            "Reference / therapeutic-window framing — NOT a selectivity or safety verdict "
+            "(selectivity owned by tumor-selectivity; safety by on-target-safety-liability)."
+            '</div></div><div class="subsec">'
+        )
         for note in _NORMAL_REF_NOTES:
             out.append(_ref_box_html({"note": note}))
         for cid in normal_ids:
             if _present(cid):
                 uid[0] += 1
-                out.append(_card_block_html(cards_by_id[cid], run_dir, fig_map, interactive,
-                                            fired_by_card, tables_dir, target, indication, uid=f"n{uid[0]}"))
-        out.append('</div></div>')
+                out.append(
+                    _card_block_html(
+                        cards_by_id[cid],
+                        run_dir,
+                        fig_map,
+                        interactive,
+                        fired_by_card,
+                        tables_dir,
+                        target,
+                        indication,
+                        uid=f"n{uid[0]}",
+                    )
+                )
+        out.append("</div></div>")
 
     # Cross-lens relations band (RNA↔protein concordance — belong to no single cell).
     rel = []
     for cid, title in _PRESENCE_CROSS_LENS:
         if _present(cid):
             uid[0] += 1
-            rel.append(f'<div class="ct">{_esc(title)}</div>'
-                       + _card_block_html(cards_by_id[cid], run_dir, fig_map, interactive,
-                                          fired_by_card, tables_dir, target, indication, uid=f"x{uid[0]}"))
+            rel.append(
+                f'<div class="ct">{_esc(title)}</div>'
+                + _card_block_html(
+                    cards_by_id[cid],
+                    run_dir,
+                    fig_map,
+                    interactive,
+                    fired_by_card,
+                    tables_dir,
+                    target,
+                    indication,
+                    uid=f"x{uid[0]}",
+                )
+            )
     if rel:
-        out.append('<div class="crosslens"><div class="dt" style="border:none">Cross-lens agreement '
-                   '<span class="hint">— RNA↔protein concordance (relations between lenses)</span></div>'
-                   + "".join(rel) + '</div>')
+        out.append(
+            '<div class="crosslens"><div class="dt" style="border:none">Cross-lens agreement '
+            '<span class="hint">— RNA↔protein concordance (relations between lenses)</span></div>'
+            + "".join(rel)
+            + "</div>"
+        )
 
     # Catch-all: any resolved card the layout did not place — nothing silently drops.
     leftovers = [cid for cid in unplaced if _present(cid)]
@@ -1203,9 +1565,20 @@ def _presence_scope_html(decision: dict, run_dir: Path, fig_map: dict, interacti
         out.append('<div class="crosslens"><div class="dt" style="border:none">Other cards</div>')
         for cid in leftovers:
             uid[0] += 1
-            out.append(_card_block_html(cards_by_id[cid], run_dir, fig_map, interactive,
-                                        fired_by_card, tables_dir, target, indication, uid=f"o{uid[0]}"))
-        out.append('</div>')
+            out.append(
+                _card_block_html(
+                    cards_by_id[cid],
+                    run_dir,
+                    fig_map,
+                    interactive,
+                    fired_by_card,
+                    tables_dir,
+                    target,
+                    indication,
+                    uid=f"o{uid[0]}",
+                )
+            )
+        out.append("</div>")
     return "".join(out)
 
 
@@ -1215,9 +1588,12 @@ def _scope_breadcrumb_html(decision: dict, indication: str) -> str:
     active = "subtype" if depth == "subtype" else ("indication" if depth == "indication" else "pan-cancer")
     rungs = [("pan-cancer", "pan-cancer"), ("indication", indication or "indication"), ("subtype", "subtype")]
     inner = ' <span class="off">›</span> '.join(
-        f'<span class="{"on" if key == active else "off"}">{_esc(lbl)}</span>' for key, lbl in rungs)
-    return (f'<div class="crumb">Query scope: {inner} '
-            f'<span class="hint">— the rung at this scope leads; broader = backing, narrower = drill-down</span></div>')
+        f'<span class="{"on" if key == active else "off"}">{_esc(lbl)}</span>' for key, lbl in rungs
+    )
+    return (
+        f'<div class="crumb">Query scope: {inner} '
+        f'<span class="hint">— the rung at this scope leads; broader = backing, narrower = drill-down</span></div>'
+    )
 
 
 def _question_table_html(decision: dict, h: dict) -> str:
@@ -1230,8 +1606,8 @@ def _question_table_html(decision: dict, h: dict) -> str:
     try:
         if str(SKILLS_DIR) not in sys.path:
             sys.path.insert(0, str(SKILLS_DIR))
-        from _skills_common.presence_question_table import (presence_question_table,
-                                                            render_question_table_html)
+        from _skills_common.presence_question_table import presence_question_table, render_question_table_html
+
         skill = decision.get("skill", "")
         # per-skill caption title + verdict field + signal-header (default = presence, back-compat)
         title, verdict, sig_hdr = "Presence", h.get("presence_verdict"), "Signal — supports presence →"
@@ -1256,30 +1632,35 @@ def _question_table_html(decision: dict, h: dict) -> str:
         elif skill == "surface-modality-fit":
             title, verdict = "Surface modality", h.get("fit_class")
             sig_hdr = "Signal — modality-favorable →"
-        rows = h.get("question_table")           # emitted by the skill (generic, preferred)
-        if not rows:                             # fallback: recompute the table live, per skill
+        rows = h.get("question_table")  # emitted by the skill (generic, preferred)
+        if not rows:  # fallback: recompute the table live, per skill
             if skill == "functional-requirement":
                 from _skills_common.dependency_question_table import dependency_question_table
+
                 rows = dependency_question_table(h, decision.get("cards", []))
             elif skill == "genomic-alteration-profile":
                 from _skills_common.genomic_question_table import genomic_question_table
+
                 rows = genomic_question_table(h, decision.get("cards", []))
             elif skill == "tractability-small-molecule":
                 from _skills_common.tractability_sm_question_table import tractability_sm_question_table
+
                 rows = tractability_sm_question_table(h, decision.get("cards", []))
             elif skill == "synthetic-lethal-partners":
                 from _skills_common.sl_question_table import sl_question_table
+
                 rows = sl_question_table(h, decision.get("cards", []))
             elif skill == "on-target-safety-liability":
                 from _skills_common.safety_question_table import safety_question_table
+
                 rows = safety_question_table(h, decision.get("cards", []))
             elif skill == "surface-modality-fit":
                 from _skills_common.surface_modality_question_table import surface_modality_question_table
+
                 rows = surface_modality_question_table(h, decision.get("cards", []))
             else:
                 rows = presence_question_table(h, decision.get("cards", []))
-        return render_question_table_html(rows, verdict=verdict, include_css=True,
-                                          title=title, signal_header=sig_hdr)
+        return render_question_table_html(rows, verdict=verdict, include_css=True, title=title, signal_header=sig_hdr)
     except Exception as e:  # noqa: BLE001 — the table is additive; never break the page
         print(f"[gallery] question table unavailable ({type(e).__name__}: {e})", file=sys.stderr)
         return ""
@@ -1293,25 +1674,44 @@ def _question_table_html(decision: dict, h: dict) -> str:
 # Any card not placed here falls into a trailing "Other evidence" group — nothing is dropped.
 #   (claim_code, title, hint, [card_ids])
 _DEP_CLAIM_SECTIONS = [
-    ("DEP", "Genetic dependency",
-     "is loss-of-function lethal? — CRISPR + RNAi + their agreement",
-     ["pan-cancer-crispr-dependency-distribution", "pan-cancer-rnai-dependency-distribution",
-      "crispr-rnai-dependency-concordance"]),
-    ("SEL", "Context-selectivity",
-     "therapeutic window (vs pan-essential ceiling — near it = tox liability) + which lineage",
-     ["dependency-lineage-selectivity"]),
-    ("COND", "Conditional / synthetic-lethal",
-     "does a pooled-negative hide a partner- or paralog-conditional dependency?",
-     ["paralog-buffering", "partner-conditional-dependency"]),
-    ("CHEM", "Chemical-genetic confirmation",
-     "does compound kill track the genetic dependency?",
-     ["prism-crispr-concordance"]),
+    (
+        "DEP",
+        "Genetic dependency",
+        "is loss-of-function lethal? — CRISPR + RNAi + their agreement",
+        [
+            "pan-cancer-crispr-dependency-distribution",
+            "pan-cancer-rnai-dependency-distribution",
+            "crispr-rnai-dependency-concordance",
+        ],
+    ),
+    (
+        "SEL",
+        "Context-selectivity",
+        "therapeutic window (vs pan-essential ceiling — near it = tox liability) + which lineage",
+        ["dependency-lineage-selectivity"],
+    ),
+    (
+        "COND",
+        "Conditional / synthetic-lethal",
+        "does a pooled-negative hide a partner- or paralog-conditional dependency?",
+        ["paralog-buffering", "partner-conditional-dependency"],
+    ),
+    (
+        "CHEM",
+        "Chemical-genetic confirmation",
+        "does compound kill track the genetic dependency?",
+        ["prism-crispr-concordance"],
+    ),
 ]
 # CONFIDENCE band (verdict-inert corroboration; annotates the DEP call, does not resolve it)
 _DEP_CONFIDENCE_CARDS = ["cross-consortium-dependency", "dependency-predictability"]
 # patient-selection FOLD (verdict-inert biomarker/model facets)
-_DEP_FACET_CARDS = ["expression-dependency-correlation", "abundance-dependency",
-                    "recommended-models", "organoid-crispr-dependency"]
+_DEP_FACET_CARDS = [
+    "expression-dependency-correlation",
+    "abundance-dependency",
+    "recommended-models",
+    "organoid-crispr-dependency",
+]
 # molecular-subgroup drill-down (only present on the --subtypes path)
 _DEP_SUBTYPE_CARDS = ["subgroup-stratified-dependency"]
 
@@ -1335,30 +1735,48 @@ def _dep_claim_strip_html(headline: dict) -> str:
         sig = claim.get("signal", "unmeasured")
         corr = claim.get("corroboration", "unmeasured")
         conflict = claim.get("conflict")
-        kind = "good" if str(sig) in _POS or str(sig) in ("strong", "moderate") else \
-               ("weak" if str(sig) in ("absent", "unmeasured", "negative") else "neutral")
+        kind = (
+            "good"
+            if str(sig) in _POS or str(sig) in ("strong", "moderate")
+            else ("weak" if str(sig) in ("absent", "unmeasured", "negative") else "neutral")
+        )
         title = _esc(claim.get("informs", code))
         chips.append(
             f'<div class="claim" title="{title}">'
-            f'<div class="claimhd"><b>{code}</b> <span class="hint">{_esc(claim.get("evidence",""))}</span></div>'
+            f'<div class="claimhd"><b>{code}</b> <span class="hint">{_esc(claim.get("evidence", ""))}</span></div>'
             f'<div><span class="chip {kind}">{_esc(sig)}</span>'
             f'<span class="corrob">corrob: {_esc(corr)}</span></div>'
-            + (f'<div class="conflict">⚠ {_esc(conflict)}</div>' if conflict else '')
-            + '</div>')
+            + (f'<div class="conflict">⚠ {_esc(conflict)}</div>' if conflict else "")
+            + "</div>"
+        )
     head = ""
     if isinstance(ks, dict) and ks.get("headline"):
         sup = "".join(f"<li>{_esc(s)}</li>" for s in (ks.get("supports") or []))
         cav = f'<div class="conflict">⚠ {_esc(ks["caveat"])}</div>' if ks.get("caveat") else ""
-        head = (f'<div class="claim-read"><b>{_esc(ks["headline"])}</b>'
-                + (f'<ul>{sup}</ul>' if sup else '') + cav + '</div>')
-    return ('<div class="lab" style="margin:18px 0 6px">Dependency claims '
-            '<span class="hint">— DEP genetic-dependency · SEL context-selectivity · '
-            'COND conditional-SL · CHEM chemical-genetic (signal × corroboration; not additive)</span></div>'
-            f'{head}<div class="claimstrip">' + "".join(chips) + '</div>')
+        head = (
+            f'<div class="claim-read"><b>{_esc(ks["headline"])}</b>'
+            + (f"<ul>{sup}</ul>" if sup else "")
+            + cav
+            + "</div>"
+        )
+    return (
+        '<div class="lab" style="margin:18px 0 6px">Dependency claims '
+        '<span class="hint">— DEP genetic-dependency · SEL context-selectivity · '
+        "COND conditional-SL · CHEM chemical-genetic (signal × corroboration; not additive)</span></div>"
+        f'{head}<div class="claimstrip">' + "".join(chips) + "</div>"
+    )
 
 
-def _render_dependency_layout(decision: dict, run_dir: Path, fig_map: dict, fired_by_card: dict,
-                              tables_dir: Path, target: str, indication: str, interactive: bool) -> str:
+def _render_dependency_layout(
+    decision: dict,
+    run_dir: Path,
+    fig_map: dict,
+    fired_by_card: dict,
+    tables_dir: Path,
+    target: str,
+    indication: str,
+    interactive: bool,
+) -> str:
     """functional-requirement claim×scope layout (renderer-only; verdict-inert). Claim sections
     (DEP/SEL/COND/CHEM) → confidence band → patient-selection fold → molecular-subgroup drill-down →
     trailing 'Other evidence' catch-all so no card is dropped."""
@@ -1376,62 +1794,92 @@ def _render_dependency_layout(decision: dict, run_dir: Path, fig_map: dict, fire
         rows = "".join(
             f'<div class="metric"><span class="ml">{_esc(_prettify(k))}</span>'
             f'<span class="mv">{_esc(_fmt_val(v.get("verdict") if isinstance(v, dict) else v))}</span></div>'
-            for k, v in by_scope.items())
-        parts.append('<div class="lab" style="margin:18px 0 6px">Verdict by scope '
-                     '<span class="hint">— pooled pan-cancer vs the queried indication lineage vs '
-                     'molecular subgroup</span></div>'
-                     f'<div class="metrics scopegrid">{rows}</div>')
+            for k, v in by_scope.items()
+        )
+        parts.append(
+            '<div class="lab" style="margin:18px 0 6px">Verdict by scope '
+            '<span class="hint">— pooled pan-cancer vs the queried indication lineage vs '
+            "molecular subgroup</span></div>"
+            f'<div class="metrics scopegrid">{rows}</div>'
+        )
 
     def _section(title: str, hint: str, card_ids: list, note: str = "") -> None:
         nonlocal idx
         present = [cid for cid in card_ids if cid in by_id]
         if not present:
             return
-        parts.append(f'<div class="claim-sec"><div class="lab" style="margin:16px 0 6px">{_esc(title)} '
-                     f'<span class="hint">— {_esc(hint)}</span></div>')
+        parts.append(
+            f'<div class="claim-sec"><div class="lab" style="margin:16px 0 6px">{_esc(title)} '
+            f'<span class="hint">— {_esc(hint)}</span></div>'
+        )
         if note:
             parts.append(f'<div class="secnote">{_esc(note)}</div>')
         parts.append('<div class="cardlist">')
         for cid in present:
-            parts.append(_card_block_html(by_id[cid], run_dir, fig_map, interactive, fired_by_card,
-                                          tables_dir, target, indication, uid=f"dep{idx}"))
+            parts.append(
+                _card_block_html(
+                    by_id[cid],
+                    run_dir,
+                    fig_map,
+                    interactive,
+                    fired_by_card,
+                    tables_dir,
+                    target,
+                    indication,
+                    uid=f"dep{idx}",
+                )
+            )
             used.add(cid)
             idx += 1
-        parts.append('</div></div>')
+        parts.append("</div></div>")
 
     for code, title, hint, card_ids in _DEP_CLAIM_SECTIONS:
         _section(f"{code} · {title}", hint, card_ids)
         if code == "DEP":
-            _section("Confidence", "independent-consortium + omics corroboration (tunes confidence, "
-                     "not the verdict)", _DEP_CONFIDENCE_CARDS)
-    _section("Biomarker & model context", "patient-selection facets (expression / abundance / "
-             "model correspondence) — additive, verdict-inert", _DEP_FACET_CARDS)
-    _section("Molecular-subgroup panorama", "dependency within this indication's subgroups "
-             "(--subtypes); underpowered strata (n<30) are not over-read", _DEP_SUBTYPE_CARDS)
+            _section(
+                "Confidence",
+                "independent-consortium + omics corroboration (tunes confidence, not the verdict)",
+                _DEP_CONFIDENCE_CARDS,
+            )
+    _section(
+        "Biomarker & model context",
+        "patient-selection facets (expression / abundance / model correspondence) — additive, verdict-inert",
+        _DEP_FACET_CARDS,
+    )
+    _section(
+        "Molecular-subgroup panorama",
+        "dependency within this indication's subgroups (--subtypes); underpowered strata (n<30) are not over-read",
+        _DEP_SUBTYPE_CARDS,
+    )
 
     # catch-all so nothing is silently dropped (typed-empty discipline)
     leftover = [c for c in cards if c.get("card_id") not in used]
     if leftover:
-        parts.append('<div class="claim-sec"><div class="lab" style="margin:16px 0 6px">Other evidence '
-                     '<span class="hint">— cards not mapped to a dependency claim</span></div>'
-                     '<div class="cardlist">')
+        parts.append(
+            '<div class="claim-sec"><div class="lab" style="margin:16px 0 6px">Other evidence '
+            '<span class="hint">— cards not mapped to a dependency claim</span></div>'
+            '<div class="cardlist">'
+        )
         for c in leftover:
-            parts.append(_card_block_html(c, run_dir, fig_map, interactive, fired_by_card,
-                                          tables_dir, target, indication, uid=f"dep{idx}"))
+            parts.append(
+                _card_block_html(
+                    c, run_dir, fig_map, interactive, fired_by_card, tables_dir, target, indication, uid=f"dep{idx}"
+                )
+            )
             idx += 1
-        parts.append('</div></div>')
+        parts.append("</div></div>")
     return "".join(parts)
 
 
 # Scope-of-driving-verdict → (lamp fill, ink, label). The load-bearing genomic scope facet: at what
 # scope the collapsed verdict was earned. Mirrors the selectivity SAFE-lamp palette (green/amber/grey).
 _GENOMIC_SCOPE_LAMP = {
-    "indication_anchored":      ("#0ca30c", "#ffffff", "indication-anchored"),
+    "indication_anchored": ("#0ca30c", "#ffffff", "indication-anchored"),
     "pan_cancer_extrapolation": ("#fab219", "#1a1a19", "pan-cancer extrapolation"),
-    "mixed":                    ("#eab308", "#1a1a19", "mixed (pan-cancer + indication corroboration)"),
-    "subtype_specific":         ("#3730a3", "#ffffff", "subtype-specific"),
-    "not_applicable":           ("#b8bcc2", "#1a1a19", "n/a"),
-    "unclassified":             ("#b8bcc2", "#1a1a19", "unclassified"),
+    "mixed": ("#eab308", "#1a1a19", "mixed (pan-cancer + indication corroboration)"),
+    "subtype_specific": ("#3730a3", "#ffffff", "subtype-specific"),
+    "not_applicable": ("#b8bcc2", "#1a1a19", "n/a"),
+    "unclassified": ("#b8bcc2", "#1a1a19", "unclassified"),
 }
 _GENOMIC_CLASS_LABEL = {"snv_indel": "SNV/indel", "copy_number": "copy-number", "fusion": "fusion"}
 
@@ -1468,15 +1916,17 @@ def _genomic_hero_html(decision: dict, h: dict) -> str:
         cv = entry.get("verdict") or "—"
         measured = entry.get("evidence_state") == "measured"
         kind = "good" if (cls == dclass and measured) else ("neutral" if measured else "weak")
-        drives = ' ◄ drives' if cls == dclass else ''
-        class_chips.append(f'<span class="chip {kind}" title="{_esc(cls)}">'
-                           f'{_GENOMIC_CLASS_LABEL[cls]}: {_esc(str(cv))}{drives}</span>')
+        drives = " ◄ drives" if cls == dclass else ""
+        class_chips.append(
+            f'<span class="chip {kind}" title="{_esc(cls)}">{_GENOMIC_CLASS_LABEL[cls]}: {_esc(str(cv))}{drives}</span>'
+        )
 
     scope_chips = []
     for sk, slabel in (("pan_cancer", "pan-cancer"), ("indication", "indication"), ("subtype", "subtype")):
         present = bool((by_scope.get(sk) or {}).get("evidence_present"))
-        scope_chips.append(f'<span class="chip {"good" if present else "weak"}">'
-                           f'{slabel}: {"evidence" if present else "none"}</span>')
+        scope_chips.append(
+            f'<span class="chip {"good" if present else "weak"}">{slabel}: {"evidence" if present else "none"}</span>'
+        )
 
     return (
         '<div class="lab" style="margin:18px 0 6px">Genomic alteration at a glance '
@@ -1487,10 +1937,9 @@ def _genomic_hero_html(decision: dict, h: dict) -> str:
         '<div style="margin-bottom:10px">'
         f'<span style="display:inline-block;padding:3px 12px;border-radius:20px;font-weight:700;'
         f'background:{fill};color:{ink}">scope: {scope_label}</span></div>'
-        '<div style="margin-bottom:6px"><span class="hint">class mix — </span>'
-        + " ".join(class_chips) + '</div>'
-        '<div><span class="hint">evidence by scope — </span>' + " ".join(scope_chips) + '</div>'
-        '</div>'
+        '<div style="margin-bottom:6px"><span class="hint">class mix — </span>' + " ".join(class_chips) + "</div>"
+        '<div><span class="hint">evidence by scope — </span>' + " ".join(scope_chips) + "</div>"
+        "</div>"
     )
 
 
@@ -1501,15 +1950,22 @@ def render_page(decision: dict, run_dir: Path, fig_map: dict, interactive: bool)
     target = decision.get("target", "?")
     indication = decision.get("indication") or "target-grain"
     h = decision.get("headline", {}) or {}
-    verdict = h.get("presence_verdict") or h.get("verdict") or h.get("mechanism_verdict") \
-        or h.get("genomic_alteration_profile") \
+    verdict = (
+        h.get("presence_verdict")
+        or h.get("verdict")
+        or h.get("mechanism_verdict")
+        or h.get("genomic_alteration_profile")
         or next((v for k, v in h.items() if k.endswith("_verdict")), None)
+    )
     driving = h.get("driving_rule_id")
 
-    parts = [f'<h1>{_esc(target)} <span style="color:#889;font-weight:400">· {_esc(skill)}</span></h1>',
-             f'<p class="sub">{_esc(indication)}'
-             + (f' · <span class="verdict">{_esc(verdict)}</span>' if verdict else '')
-             + (f' · rule <code>{_esc(driving)}</code>' if driving else '') + '</p>']
+    parts = [
+        f'<h1>{_esc(target)} <span style="color:#889;font-weight:400">· {_esc(skill)}</span></h1>',
+        f'<p class="sub">{_esc(indication)}'
+        + (f' · <span class="verdict">{_esc(verdict)}</span>' if verdict else "")
+        + (f" · rule <code>{_esc(driving)}</code>" if driving else "")
+        + "</p>",
+    ]
 
     # exec summary — the LLM narrative (if present), as readable paragraphs
     synth = decision.get("llm_synthesis")
@@ -1521,8 +1977,8 @@ def render_page(decision: dict, run_dir: Path, fig_map: dict, interactive: bool)
             val = v.get("value") if isinstance(v, dict) and "value" in v else v
             if val is None:
                 continue
-            parts.append(f'<p><b>{_esc(_prettify(k))}:</b> {_esc(val)}</p>')
-        parts.append('</div>')
+            parts.append(f"<p><b>{_esc(_prettify(k))}:</b> {_esc(val)}</p>")
+        parts.append("</div>")
 
     # skill-level HERO graphic (e.g. tumor-selectivity's evidence strip, tumor-presence's
     # Presence × Context matrix) — a run.py --figures skill_figures_fn emits it at figures/figure_*.svg
@@ -1542,12 +1998,15 @@ def render_page(decision: dict, run_dir: Path, fig_map: dict, interactive: bool)
             if str(SKILLS_DIR) not in sys.path:
                 sys.path.insert(0, str(SKILLS_DIR))
             from _skills_common.presence_matrix import emit_presence_matrix  # noqa: E402
+
             _hero_paths = emit_presence_matrix(decision, run_dir / "figures")
             _hero_svg = next((_inline_svg(p) for p in _hero_paths if p.suffix == ".svg"), None)
             if _hero_svg:
-                parts.append('<div class="lab" style="margin:18px 0 6px">Presence × context '
-                             '<span class="hint">— where RNA / protein / single-cell agree or '
-                             'disagree, framed against normal tissue (deterministic VIEW)</span></div>')
+                parts.append(
+                    '<div class="lab" style="margin:18px 0 6px">Presence × context '
+                    '<span class="hint">— where RNA / protein / single-cell agree or '
+                    "disagree, framed against normal tissue (deterministic VIEW)</span></div>"
+                )
                 parts.append(f'<div class="hero-matrix" style="max-width:640px">{_hero_svg}</div>')
         except Exception as e:  # noqa: BLE001 — hero is best-effort; the page still renders
             print(f"[gallery] presence hero unavailable ({type(e).__name__}: {e})", file=sys.stderr)
@@ -1567,26 +2026,34 @@ def render_page(decision: dict, run_dir: Path, fig_map: dict, interactive: bool)
         # LEADING view: the 7-question × (data · signal · confidence) summary table — one glance.
         parts.append(_question_table_html(decision, h))
         # Detailed evidence, demoted to a drill-down: the scope-hierarchical layout.
-        parts.append('<details class="drill"><summary class="drillhead">Detailed evidence by lens &amp; '
-                     'scope <span class="hint">— sample context → data type → pan-cancer / indication '
-                     '(lineage) / subtype; the rung at your query scope leads. Display only.</span>'
-                     '</summary><div class="drillbody">')
+        parts.append(
+            '<details class="drill"><summary class="drillhead">Detailed evidence by lens &amp; '
+            'scope <span class="hint">— sample context → data type → pan-cancer / indication '
+            "(lineage) / subtype; the rung at your query scope leads. Display only.</span>"
+            '</summary><div class="drillbody">'
+        )
         parts.append(_scope_breadcrumb_html(decision, indication))
-        parts.append(_presence_scope_html(decision, run_dir, fig_map, interactive, fired_by_card,
-                                          tables_dir, target, indication))
-        parts.append('</div></details>')
+        parts.append(
+            _presence_scope_html(decision, run_dir, fig_map, interactive, fired_by_card, tables_dir, target, indication)
+        )
+        parts.append("</div></details>")
     elif skill == "functional-requirement":
         # LEADING view: the 7-question dependency summary table via the SHARED generic renderer (reads
         # headline['question_table'] the skill emits). The DEP/SEL/COND/CHEM claim×scope layout is
         # demoted to a drill-down below.
         parts.append(_question_table_html(decision, h))
-        parts.append('<details class="drill"><summary class="drillhead">Detailed evidence by dependency '
-                     'claim <span class="hint">— DEP genetic-dependency / SEL context-selectivity / '
-                     'COND conditional-SL / CHEM chemical-genetic; click a row to expand. Display only.'
-                     '</span></summary><div class="drillbody">')
-        parts.append(_render_dependency_layout(decision, run_dir, fig_map, fired_by_card,
-                                               tables_dir, target, indication, interactive))
-        parts.append('</div></details>')
+        parts.append(
+            '<details class="drill"><summary class="drillhead">Detailed evidence by dependency '
+            'claim <span class="hint">— DEP genetic-dependency / SEL context-selectivity / '
+            "COND conditional-SL / CHEM chemical-genetic; click a row to expand. Display only."
+            '</span></summary><div class="drillbody">'
+        )
+        parts.append(
+            _render_dependency_layout(
+                decision, run_dir, fig_map, fired_by_card, tables_dir, target, indication, interactive
+            )
+        )
+        parts.append("</div></details>")
     elif skill == "genomic-alteration-profile" and cards:
         # LEADING view: the per-alteration-class question × (signal · confidence) table — the
         # presence-consistent hero (shared render_question_table_html), decomposing the canonical
@@ -1595,102 +2062,139 @@ def render_page(decision: dict, run_dir: Path, fig_map: dict, interactive: bool)
         parts.append(_question_table_html(decision, h))
         parts.append(_genomic_hero_html(decision, h))
         # Detailed evidence, demoted to a drill-down: the flat per-card list (same _card_block_html).
-        parts.append('<details class="drill"><summary class="drillhead">Detailed evidence '
-                     '<span class="hint">— per-card: the SNV / copy-number / fusion classes + '
-                     'dependency / recurrence / role + cohort context; click a row to expand. '
-                     'Display only.</span></summary><div class="drillbody">')
+        parts.append(
+            '<details class="drill"><summary class="drillhead">Detailed evidence '
+            '<span class="hint">— per-card: the SNV / copy-number / fusion classes + '
+            "dependency / recurrence / role + cohort context; click a row to expand. "
+            'Display only.</span></summary><div class="drillbody">'
+        )
         parts.append('<div class="cardlist">')
         for idx, c in enumerate(cards):
-            parts.append(_card_block_html(c, run_dir, fig_map, interactive, fired_by_card, tables_dir,
-                                          target, indication, uid=f"{idx}"))
-        parts.append('</div></div></details>')
+            parts.append(
+                _card_block_html(
+                    c, run_dir, fig_map, interactive, fired_by_card, tables_dir, target, indication, uid=f"{idx}"
+                )
+            )
+        parts.append("</div></div></details>")
     elif skill == "tumor-selectivity" and cards:
         # LEADING view: the 8-question × (data · signal · confidence) selectivity table (WIN-drives /
         # SAFE-gates), rendered from the emitted headline['question_table'] via the shared renderer.
         parts.append(_question_table_html(decision, h))
         # Detailed evidence, demoted to a drill-down: the flat per-card list (same _card_block_html).
-        parts.append('<details class="drill"><summary class="drillhead">Detailed evidence '
-                     '<span class="hint">— per-card: axis-A + veto instruments + additive facets; '
-                     'click a row to expand. Display only.</span></summary><div class="drillbody">')
+        parts.append(
+            '<details class="drill"><summary class="drillhead">Detailed evidence '
+            '<span class="hint">— per-card: axis-A + veto instruments + additive facets; '
+            'click a row to expand. Display only.</span></summary><div class="drillbody">'
+        )
         parts.append('<div class="cardlist">')
         for idx, c in enumerate(cards):
-            parts.append(_card_block_html(c, run_dir, fig_map, interactive, fired_by_card, tables_dir,
-                                          target, indication, uid=f"{idx}"))
-        parts.append('</div></div></details>')
+            parts.append(
+                _card_block_html(
+                    c, run_dir, fig_map, interactive, fired_by_card, tables_dir, target, indication, uid=f"{idx}"
+                )
+            )
+        parts.append("</div></div></details>")
     elif skill == "tractability-small-molecule" and cards:
         # LEADING view: the Compound / Concordance / Structure / Known-drug question table (shared
         # renderer) — the chemical-genetic analog of the presence/selectivity heroes. Detailed
         # per-card evidence follows as a drill-down (same _card_block_html).
         parts.append(_question_table_html(decision, h))
-        parts.append('<details class="drill"><summary class="drillhead">Detailed evidence '
-                     '<span class="hint">— per-card: PRISM activity / chemical-genetic concordance / '
-                     'structure / known-drug / degrader lens; click a row to expand. Display only.</span>'
-                     '</summary><div class="drillbody">')
+        parts.append(
+            '<details class="drill"><summary class="drillhead">Detailed evidence '
+            '<span class="hint">— per-card: PRISM activity / chemical-genetic concordance / '
+            "structure / known-drug / degrader lens; click a row to expand. Display only.</span>"
+            '</summary><div class="drillbody">'
+        )
         parts.append('<div class="cardlist">')
         for idx, c in enumerate(cards):
-            parts.append(_card_block_html(c, run_dir, fig_map, interactive, fired_by_card, tables_dir,
-                                          target, indication, uid=f"{idx}"))
-        parts.append('</div></div></details>')
+            parts.append(
+                _card_block_html(
+                    c, run_dir, fig_map, interactive, fired_by_card, tables_dir, target, indication, uid=f"{idx}"
+                )
+            )
+        parts.append("</div></div></details>")
     elif skill == "synthetic-lethal-partners" and cards:
         # LEADING view: the compact Partner / Support SL table (shared renderer) — a thin single-card
         # skill, so a small honest hero. Detailed per-card evidence follows as a drill-down.
         parts.append(_question_table_html(decision, h))
-        parts.append('<details class="drill"><summary class="drillhead">Detailed evidence '
-                     '<span class="hint">— per-card: SynLethDB SL partners + evidence tier; '
-                     'click a row to expand. Display only.</span></summary><div class="drillbody">')
+        parts.append(
+            '<details class="drill"><summary class="drillhead">Detailed evidence '
+            '<span class="hint">— per-card: SynLethDB SL partners + evidence tier; '
+            'click a row to expand. Display only.</span></summary><div class="drillbody">'
+        )
         parts.append('<div class="cardlist">')
         for idx, c in enumerate(cards):
-            parts.append(_card_block_html(c, run_dir, fig_map, interactive, fired_by_card, tables_dir,
-                                          target, indication, uid=f"{idx}"))
-        parts.append('</div></div></details>')
+            parts.append(
+                _card_block_html(
+                    c, run_dir, fig_map, interactive, fired_by_card, tables_dir, target, indication, uid=f"{idx}"
+                )
+            )
+        parts.append("</div></div></details>")
     elif skill == "surface-modality-fit" and cards:
         # LEADING view: the surface-modality question table (Surface / Density / ADC / TCE) via the
         # shared renderer — the biologics analog of the presence/selectivity heroes. Detailed
         # per-card evidence follows as a drill-down (same _card_block_html).
         parts.append(_question_table_html(decision, h))
-        parts.append('<details class="drill"><summary class="drillhead">Detailed evidence '
-                     '<span class="hint">— per-card: topology / family / density / shed / homogeneity '
-                     '/ pMHC / normal-tissue window; click a row to expand. Display only.</span>'
-                     '</summary><div class="drillbody">')
+        parts.append(
+            '<details class="drill"><summary class="drillhead">Detailed evidence '
+            '<span class="hint">— per-card: topology / family / density / shed / homogeneity '
+            "/ pMHC / normal-tissue window; click a row to expand. Display only.</span>"
+            '</summary><div class="drillbody">'
+        )
         parts.append('<div class="cardlist">')
         for idx, c in enumerate(cards):
-            parts.append(_card_block_html(c, run_dir, fig_map, interactive, fired_by_card, tables_dir,
-                                          target, indication, uid=f"{idx}"))
-        parts.append('</div></div></details>')
+            parts.append(
+                _card_block_html(
+                    c, run_dir, fig_map, interactive, fired_by_card, tables_dir, target, indication, uid=f"{idx}"
+                )
+            )
+        parts.append("</div></div></details>")
     elif skill == "on-target-safety-liability" and cards:
         # LEADING view: the 5-leg human-genetics safety table (Constraint / Burden / Dosage / Mouse-KO
         # / ClinVar) via the shared renderer — strong = LoF-tolerant (safe), absent = a liability.
         # Detailed per-card evidence follows as a drill-down (same _card_block_html).
         parts.append(_question_table_html(decision, h))
-        parts.append('<details class="drill"><summary class="drillhead">Detailed evidence '
-                     '<span class="hint">— per-card: gnomAD constraint / gene-burden / ClinGen dosage '
-                     '/ mouse-KO / ClinVar / GTEx normal-tissue; click a row to expand. Display only.'
-                     '</span></summary><div class="drillbody">')
+        parts.append(
+            '<details class="drill"><summary class="drillhead">Detailed evidence '
+            '<span class="hint">— per-card: gnomAD constraint / gene-burden / ClinGen dosage '
+            "/ mouse-KO / ClinVar / GTEx normal-tissue; click a row to expand. Display only."
+            '</span></summary><div class="drillbody">'
+        )
         parts.append('<div class="cardlist">')
         for idx, c in enumerate(cards):
-            parts.append(_card_block_html(c, run_dir, fig_map, interactive, fired_by_card, tables_dir,
-                                          target, indication, uid=f"{idx}"))
-        parts.append('</div></div></details>')
+            parts.append(
+                _card_block_html(
+                    c, run_dir, fig_map, interactive, fired_by_card, tables_dir, target, indication, uid=f"{idx}"
+                )
+            )
+        parts.append("</div></div></details>")
     else:
         # ONE unified "Evidence at a glance" section: the table of cards IS the collapsible list.
         # Each row = title + headline chip (collapsed); click to expand INLINE → key metrics + the
         # shrunk-but-vector-crisp plot + the Data→…→Verdict flow tabs + full-field drill-down.
-        parts.append('<div class="lab" style="margin:18px 0 6px">Evidence at a glance '
-                     '<span class="hint">— click a row to expand</span></div>')
+        parts.append(
+            '<div class="lab" style="margin:18px 0 6px">Evidence at a glance '
+            '<span class="hint">— click a row to expand</span></div>'
+        )
         parts.append('<div class="cardlist">')
         for idx, c in enumerate(cards):
-            parts.append(_card_block_html(c, run_dir, fig_map, interactive, fired_by_card, tables_dir,
-                                          target, indication, uid=f"{idx}"))
-        parts.append('</div>')
+            parts.append(
+                _card_block_html(
+                    c, run_dir, fig_map, interactive, fired_by_card, tables_dir, target, indication, uid=f"{idx}"
+                )
+            )
+        parts.append("</div>")
 
-    boot = _ZOOM_JS   # click-to-enlarge lightbox (static SVG); always present
+    boot = _ZOOM_JS  # click-to-enlarge lightbox (static SVG); always present
     if interactive:
         bundle = _plotly_bundle()
         if bundle:
             boot += f"<script>{bundle}</script>{_PLOTLY_BOOT}"
-    return (f'<!DOCTYPE html><html><head><meta charset="utf-8">'
-            f'<title>{_esc(target)} · {_esc(skill)}</title><style>{_CSS}</style></head>'
-            f'<body><div class="wrap">{"".join(parts)}</div>{boot}</body></html>')
+    return (
+        f'<!DOCTYPE html><html><head><meta charset="utf-8">'
+        f"<title>{_esc(target)} · {_esc(skill)}</title><style>{_CSS}</style></head>"
+        f'<body><div class="wrap">{"".join(parts)}</div>{boot}</body></html>'
+    )
 
 
 def _slug(*parts) -> str:
@@ -1703,6 +2207,7 @@ def _slug(*parts) -> str:
 def _load_config(path: Optional[str], skill, target, indication) -> list[dict]:
     if path:
         import yaml
+
         doc = yaml.safe_load(Path(path).read_text())
         return doc["examples"] if isinstance(doc, dict) else doc
     if skill and target:
@@ -1726,7 +2231,7 @@ def fig_map_from_existing(run_dir: Path) -> dict:
         for svg in sorted(card_dir.glob("*.svg")):
             d = {"id": svg.stem, "path": svg.relative_to(run_dir).as_posix(), "primary": True}
             if svg.with_suffix(".plotly.json").exists():
-                d["dynamic"] = True          # interactive twin available
+                d["dynamic"] = True  # interactive twin available
             descs.append(d)
         if descs:
             fig_map[card_dir.name] = descs
@@ -1735,8 +2240,11 @@ def fig_map_from_existing(run_dir: Path) -> dict:
 
 def _verdict_label(skill: str, decision: dict) -> str:
     h = decision.get("headline", {}) or {}
-    v = (h.get("presence_verdict") or h.get("verdict")
-         or next((vv for k, vv in h.items() if k.endswith("_verdict")), None))
+    v = (
+        h.get("presence_verdict")
+        or h.get("verdict")
+        or next((vv for k, vv in h.items() if k.endswith("_verdict")), None)
+    )
     if v:
         return v
     return "descriptive" if skill == "target-intrinsic" else "profile (see cards)"
@@ -1745,14 +2253,16 @@ def _verdict_label(skill: str, decision: dict) -> str:
 def _write_index(out: Path, index_rows: list, interactive: bool) -> None:
     tr = "".join(
         f"<tr><td>{_esc(s)}</td><td>{_esc(t)}</td><td>{_esc(i)}</td><td>{_esc(v)}</td>"
-        f"<td>{'<a href=\"'+_esc(f)+'\">view</a>' if f else '—'}</td></tr>"
-        for s, t, i, v, f in index_rows)
-    idx = (f'<!DOCTYPE html><html><head><meta charset="utf-8"><title>Subskill example gallery</title>'
-           f'<style>{_CSS}</style></head><body><div class="wrap"><h1>Subskill example gallery</h1>'
-           f'<p class="sub">{len(index_rows)} example run(s)'
-           + (' · interactive' if interactive else ' · static') + '</p>'
-           f'<table class="idx"><thead><tr><th>skill</th><th>target</th><th>indication</th>'
-           f'<th>verdict</th><th></th></tr></thead><tbody>{tr}</tbody></table></div></body></html>')
+        f"<td>{'<a href="' + _esc(f) + '">view</a>' if f else '—'}</td></tr>"
+        for s, t, i, v, f in index_rows
+    )
+    idx = (
+        f'<!DOCTYPE html><html><head><meta charset="utf-8"><title>Subskill example gallery</title>'
+        f'<style>{_CSS}</style></head><body><div class="wrap"><h1>Subskill example gallery</h1>'
+        f'<p class="sub">{len(index_rows)} example run(s)' + (" · interactive" if interactive else " · static") + "</p>"
+        f'<table class="idx"><thead><tr><th>skill</th><th>target</th><th>indication</th>'
+        f"<th>verdict</th><th></th></tr></thead><tbody>{tr}</tbody></table></div></body></html>"
+    )
     (out / "index.html").write_text(idx)
     print(f"[gallery] index.html written → {out}/index.html", file=sys.stderr)
 
@@ -1771,15 +2281,15 @@ def _render_from_existing(run_dirs: list, out: Path, interactive: bool) -> int:
             index_rows.append(("?", str(run_dir), "—", "NO decision.json", None))
             continue
         decision = json.loads(dec_path.read_text())
-        skill = decision.get("skill"); target = decision.get("target")
+        skill = decision.get("skill")
+        target = decision.get("target")
         indication = decision.get("indication")
         fig_map = fig_map_from_existing(run_dir)
         page = render_page(decision, run_dir, fig_map, interactive)
-        (run_dir / "dashboard.html").write_text(page)          # co-located with the package
+        (run_dir / "dashboard.html").write_text(page)  # co-located with the package
         fname = _slug(skill, target, indication or "target") + ".html"
-        (out / fname).write_text(page)                          # gallery copy
-        index_rows.append((skill, target, indication or "target-grain",
-                           _verdict_label(skill, decision), fname))
+        (out / fname).write_text(page)  # gallery copy
+        index_rows.append((skill, target, indication or "target-grain", _verdict_label(skill, decision), fname))
         print(f"[gallery] {run_dir}/dashboard.html ({len(fig_map)} cards w/ figures)", file=sys.stderr)
     _write_index(out, index_rows, interactive)
     return 0
@@ -1788,22 +2298,33 @@ def _render_from_existing(run_dirs: list, out: Path, interactive: bool) -> int:
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--config", default=None, help="examples.yaml (list of {skill,target,indication})")
-    ap.add_argument("--skill", default=None); ap.add_argument("--target", default=None)
+    ap.add_argument("--skill", default=None)
+    ap.add_argument("--target", default=None)
     ap.add_argument("--indication", default=None)
     # single canonical output dir by default (avoid proliferating gallery dirs across runs); a run
     # OVERWRITES the same dir in place. Override with --out for a throwaway variant.
     ap.add_argument("--out", type=Path, default=Path.home() / "dev" / "example-gallery")
-    ap.add_argument("--interactive", action="store_true",
-                    help="embed interactive plotly (inlines ~4.6MB plotly.js/file; real browser only)")
-    ap.add_argument("--synthesize", action="store_true",
-                    help="pass --synthesize to each subskill so the page includes the LLM relevance "
-                         "narrative (needs Bedrock; degrades to a note if unavailable)")
-    ap.add_argument("--from-run-dir", action="append", default=None,
-                    help="Render HTML from an EXISTING data-package dir (decision.json + figures/) "
-                         "WITHOUT re-running the skill; writes <run_dir>/dashboard.html + a gallery "
-                         "copy/index at --out. Repeatable. Ignores --synthesize (uses the package's "
-                         "existing llm_synthesis). This is the render-from-existing path used to layer "
-                         "HTML onto already-published skill-runs packages.")
+    ap.add_argument(
+        "--interactive",
+        action="store_true",
+        help="embed interactive plotly (inlines ~4.6MB plotly.js/file; real browser only)",
+    )
+    ap.add_argument(
+        "--synthesize",
+        action="store_true",
+        help="pass --synthesize to each subskill so the page includes the LLM relevance "
+        "narrative (needs Bedrock; degrades to a note if unavailable)",
+    )
+    ap.add_argument(
+        "--from-run-dir",
+        action="append",
+        default=None,
+        help="Render HTML from an EXISTING data-package dir (decision.json + figures/) "
+        "WITHOUT re-running the skill; writes <run_dir>/dashboard.html + a gallery "
+        "copy/index at --out. Repeatable. Ignores --synthesize (uses the package's "
+        "existing llm_synthesis). This is the render-from-existing path used to layer "
+        "HTML onto already-published skill-runs packages.",
+    )
     args = ap.parse_args(argv)
 
     # render-from-existing mode: no skill re-run, no emitters — consume packages as-is.
@@ -1844,8 +2365,11 @@ def main(argv=None) -> int:
         fname = _slug(skill, target, indication or "target") + ".html"
         (args.out / fname).write_text(page)
         h = decision.get("headline", {}) or {}
-        verdict = (h.get("presence_verdict") or h.get("verdict")
-                   or next((v for k, v in h.items() if k.endswith("_verdict")), None))
+        verdict = (
+            h.get("presence_verdict")
+            or h.get("verdict")
+            or next((v for k, v in h.items() if k.endswith("_verdict")), None)
+        )
         if not verdict:
             # verdict-free skills (target-intrinsic = descriptive; genomic-alteration-profile emits a
             # multi-class profile, not a single headline verdict) → a readable label, not a blank dash.

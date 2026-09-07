@@ -2,6 +2,7 @@
 STRONGLY paralog-buffered target → degrader-preferred, SM caveated (mirrors the
 strong-paralog-buffering-degrader-preferred rule). Previously paralog-buffering reached no modality
 channel. Pure over synthetic cards."""
+
 from __future__ import annotations
 from pathlib import Path
 
@@ -16,7 +17,8 @@ def _cards(cls):
 
 def test_strong_buffering_prefers_degrader_caveats_sm():
     assert m._dep_modality_scope(_cards("strong")) == {
-        "_refinements": {"degrader": "favorable", "small_molecule": "conditional"}}
+        "_refinements": {"degrader": "favorable", "small_molecule": "conditional"}
+    }
 
 
 def test_non_strong_buffering_is_silent():

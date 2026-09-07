@@ -27,6 +27,7 @@ Plus a direct guard on the field-drift bug: the chemical-fact headline fields mu
 The frozen fixtures are refreshed by the nightly-live re-freeze (card-behavior-matrix-nightly). Mirror of
 tumor-selectivity's replay.
 """
+
 from __future__ import annotations
 
 import copy
@@ -50,14 +51,19 @@ if str(SKILLS_ROOT) not in sys.path:
 _COLLAPSED = {None, "", "insufficient"}
 # The positive tractability outcomes the resolver can emit (grep of tractability_small_molecule.resolver.yaml).
 _TRACTABLE = {
-    "well_covered", "chemically_confirmed_genetic", "chemically_active", "measured_potent_ligand",
-    "structurally_ligandable", "tool_compound_only", "clinical_precedent_only", "weakly_active",
+    "well_covered",
+    "chemically_confirmed_genetic",
+    "chemically_active",
+    "measured_potent_ligand",
+    "structurally_ligandable",
+    "tool_compound_only",
+    "clinical_precedent_only",
+    "weakly_active",
 }
 
 
 def _real_summary(s) -> bool:
-    return (isinstance(s, dict) and bool(s)
-            and not s.get("_freeze_error") and not s.get("_dispatcher_returned_none"))
+    return isinstance(s, dict) and bool(s) and not s.get("_freeze_error") and not s.get("_dispatcher_returned_none")
 
 
 def _load_fixture(pair_id: str) -> dict:
@@ -83,15 +89,16 @@ def _decision(pair_id: str, target: str, indication: str) -> dict:
             if not _real_summary(s):
                 return None
             return copy.deepcopy(s)
+
         return _read_live
 
     import tempfile
+
     out_dir = Path(tempfile.mkdtemp(prefix=f"tsm-{pair_id}-"))
     mp = pytest.MonkeyPatch()
     mp.delenv("FRAMEWORK_HEALTH_SMOKE", raising=False)
     mp.setattr(skc, "_import_dispatcher", _fake_dispatcher_factory)
-    mp.setattr(sys, "argv", ["run.py", "--target", target, "--indication", indication,
-                             "--out", str(out_dir)])
+    mp.setattr(sys, "argv", ["run.py", "--target", target, "--indication", indication, "--out", str(out_dir)])
     try:
         runpy.run_path(str(RUN_PY), run_name="__main__")
     except SystemExit as e:
@@ -107,8 +114,8 @@ def _decision(pair_id: str, target: str, indication: str) -> dict:
 
 
 # ── the three curated fixtures (pair_id, target, indication, expected_verdict) ────────────────────
-EGFR  = ("egfr_coadread",  "EGFR",  "COADREAD", "well_covered")
-BRAF  = ("braf_coadread",  "BRAF",  "COADREAD", "chemically_active")
+EGFR = ("egfr_coadread", "EGFR", "COADREAD", "well_covered")
+BRAF = ("braf_coadread", "BRAF", "COADREAD", "chemically_active")
 FOXA1 = ("foxa1_coadread", "FOXA1", "COADREAD", "structurally_ligandable")
 ALL = [EGFR, BRAF, FOXA1]
 
@@ -126,7 +133,8 @@ def test_replay_conforms_to_data_product_schema(pair_id, target, indication, _ex
         pytest.fail(reason + " [CI]") if os.environ.get("CI") else pytest.skip(reason)
     errors = conformance_errors(schema, _decision(pair_id, target, indication))
     assert not errors, f"FRESH {pair_id} emit violates the data-product schema:\n  " + "\n  ".join(
-        f"{list(e.path)}: {e.message}" for e in errors[:15])
+        f"{list(e.path)}: {e.message}" for e in errors[:15]
+    )
 
 
 @pytest.mark.parametrize("pair_id,target,indication,_exp", ALL, ids=[p[1].lower() for p in ALL])
@@ -137,7 +145,8 @@ def test_fixture_is_nonvacuous(pair_id, target, indication, _exp):
     real = [cid for cid, s in frozen.items() if _real_summary(s)]
     assert len(real) >= 5, (
         f"only {len(real)}/{len(frozen)} frozen cards carry a real summary for {pair_id} — refreeze "
-        f"against live S3 (freeze_fixture.py). Real cards: {sorted(real)}")
+        f"against live S3 (freeze_fixture.py). Real cards: {sorted(real)}"
+    )
 
 
 @pytest.mark.parametrize("pair_id,target,indication,expected", ALL, ids=[p[1].lower() for p in ALL])
@@ -151,9 +160,9 @@ def test_verdict_matches_expected(pair_id, target, indication, expected):
     v = h.get("druggability_snapshot")
     assert v not in _COLLAPSED, (
         f"druggability_snapshot={v!r} collapsed for {target}/{indication} — a rule stopped firing "
-        f"(reader field rename?).")
-    assert v == expected, (
-        f"druggability_snapshot={v!r} for {target}/{indication}, expected {expected!r}.")
+        f"(reader field rename?)."
+    )
+    assert v == expected, f"druggability_snapshot={v!r} for {target}/{indication}, expected {expected!r}."
     assert h.get("driving_rule_id"), "resolved a verdict but driving_rule_id is empty — inconsistent spine."
 
 
@@ -165,7 +174,8 @@ def test_egfr_triangulated_top_rung():
     h = d.get("headline") or {}
     assert h.get("druggability_snapshot") == "well_covered", (
         f"EGFR resolved {h.get('druggability_snapshot')!r}, not well_covered — a chemical/genetic/"
-        f"structural leg's reader drifted so the triangulation rung stopped firing.")
+        f"structural leg's reader drifted so the triangulation rung stopped firing."
+    )
     assert h.get("druggability_snapshot") in _TRACTABLE
 
 
@@ -179,23 +189,23 @@ def test_headline_block_present_and_consistent(pair_id, target, indication, expe
     h = d.get("headline") or {}
     # the block built (best-effort emitter must have succeeded on real data)
     assert not (h.get("_enrichment_errors") or {}).get("headline_block"), (
-        f"headline_block degraded for {target}: {(h.get('_enrichment_errors') or {}).get('headline_block')}")
+        f"headline_block degraded for {target}: {(h.get('_enrichment_errors') or {}).get('headline_block')}"
+    )
     block = h.get("headline_block")
     assert isinstance(block, dict) and block, f"no headline_block emitted for {target}"
     # canonical verdict.call tracks the druggability spine (single source of truth)
     verdict = block.get("verdict") or {}
     assert verdict.get("call") == h.get("druggability_snapshot") == expected
     assert verdict.get("gate") == "tractability_sm"
-    assert verdict.get("polarity") == "positive"       # all three curated fixtures are tractable rungs
-    assert verdict.get("phrase")                        # a human phrase was produced
+    assert verdict.get("polarity") == "positive"  # all three curated fixtures are tractable rungs
+    assert verdict.get("phrase")  # a human phrase was produced
     # confidence is one of the canonical tiers
     assert (block.get("confidence") or {}).get("level") in {"strong", "moderate", "weak", "insufficient"}
     # deterministic headline_text present
     assert isinstance(block.get("headline_text"), str) and block["headline_text"].endswith(".")
     # hero surfaces exactly the 5 declared claim axes, in order
     hero = block.get("hero") or {}
-    assert [a.get("key") for a in (hero.get("axes") or [])] == \
-        ["POTENCY", "ACTIVITY", "STRUCT", "DRUG", "DEGRADER"]
+    assert [a.get("key") for a in (hero.get("axes") or [])] == ["POTENCY", "ACTIVITY", "STRUCT", "DRUG", "DEGRADER"]
 
 
 @pytest.mark.parametrize("pair_id,target,indication,_exp", [EGFR, BRAF], ids=["egfr", "braf"])
@@ -207,7 +217,9 @@ def test_chemical_fact_headline_fields_resolve(pair_id, target, indication, _exp
     h = _decision(pair_id, target, indication).get("headline") or {}
     assert h.get("prism_activity_class") not in (None, "", "data_unavailable"), (
         f"{target} prism_activity_class is empty — the T5.1 wrong-field-name drift has reappeared "
-        f"(headline reads a key the prism-compound-activity method no longer emits).")
+        f"(headline reads a key the prism-compound-activity method no longer emits)."
+    )
     assert h.get("prism_crispr_concord") not in (None, "", "data_unavailable"), (
         f"{target} prism_crispr_concord is empty — the T5.1 wrong-field-name drift has reappeared "
-        f"(headline reads a key the prism-crispr-concordance method no longer emits).")
+        f"(headline reads a key the prism-crispr-concordance method no longer emits)."
+    )

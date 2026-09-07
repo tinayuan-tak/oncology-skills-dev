@@ -21,10 +21,10 @@ from _skills_common.question_table_core import sig as _sig, conf as _conf, row a
 
 # Per-class row: (display id, sub-question). Order mirrors the alteration-class ladder.
 _CLASS_Q = [
-    ("snv_indel",   ("SNV",    "Recurrent SNV/indel driver, or biomarker-stratified dependency?")),
-    ("copy_number", ("CN",     "Copy-number driver — focal amplification or deletion?")),
-    ("fusion",      ("Fusion", "Recurrent fusion / rearrangement driver?")),
-    ("splice",      ("Splice", "Recurrent exon-skipping driver (e.g. METex14)?")),
+    ("snv_indel", ("SNV", "Recurrent SNV/indel driver, or biomarker-stratified dependency?")),
+    ("copy_number", ("CN", "Copy-number driver — focal amplification or deletion?")),
+    ("fusion", ("Fusion", "Recurrent fusion / rearrangement driver?")),
+    ("splice", ("Splice", "Recurrent exon-skipping driver (e.g. METex14)?")),
 ]
 
 _POSITIVE_STRONG = ("recurrent", "driver", "amplif", "focal_amp", "deletion", "homozygous")
@@ -60,9 +60,15 @@ def _class_conf(entry: dict) -> dict:
 
 def _support(entry: dict) -> str:
     bits = []
-    for k in ("recurrence_class", "patient_class", "stratified_dependency_class",
-              "amp_expr_dependency_class", "genie_sv_recurrence_class",
-              "event_id", "n_depmap_carriers"):   # splice-class support fields
+    for k in (
+        "recurrence_class",
+        "patient_class",
+        "stratified_dependency_class",
+        "amp_expr_dependency_class",
+        "genie_sv_recurrence_class",
+        "event_id",
+        "n_depmap_carriers",
+    ):  # splice-class support fields
         val = (entry or {}).get(k)
         if val and val != "data_unavailable":
             bits.append(f"{k.replace('_class', '').replace('_', ' ')}: {val}")
@@ -77,8 +83,16 @@ def genomic_question_table(headline: dict, cards: Optional[list] = None) -> list
     rows = []
     for cls, (qid, question) in _CLASS_Q:
         entry = by_class.get(cls) or {}
-        rows.append(_row(qid, question, str(entry.get("verdict") or "—"),
-                         _support(entry), _class_signal(entry), _class_conf(entry)))
+        rows.append(
+            _row(
+                qid,
+                question,
+                str(entry.get("verdict") or "—"),
+                _support(entry),
+                _class_signal(entry),
+                _class_conf(entry),
+            )
+        )
     return rows
 
 

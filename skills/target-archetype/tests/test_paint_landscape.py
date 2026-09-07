@@ -1,4 +1,5 @@
 """Guards for the portfolio-landscape painter (offline analysis tool; DESCRIPTIVE, verdict-inert)."""
+
 import importlib.util
 import sys
 from pathlib import Path
@@ -6,7 +7,7 @@ from pathlib import Path
 SKILLS_DIR = Path(__file__).resolve().parents[2]
 if str(SKILLS_DIR) not in sys.path:
     sys.path.insert(0, str(SKILLS_DIR))
-from _skills_common.archetype_core import Atlas   # noqa: E402
+from _skills_common.archetype_core import Atlas  # noqa: E402
 
 ATLAS = Path(__file__).resolve().parents[1] / "atlas" / "atlas.json"
 PAINT = Path(__file__).resolve().parents[1] / "scripts" / "paint_landscape.py"
@@ -14,7 +15,8 @@ PAINT = Path(__file__).resolve().parents[1] / "scripts" / "paint_landscape.py"
 
 def _paint():
     spec = importlib.util.spec_from_file_location("paint_landscape", PAINT)
-    m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
     return m
 
 
@@ -25,8 +27,8 @@ def test_portfolio_table_covers_corpus_with_soft_mixtures():
     assert len(rows) == len(atlas.targets)
     anchor_labels = {a["label"] for a in atlas.anchors}
     for r in rows:
-        assert r["dominant_phenotype"] in anchor_labels          # dominant is an anchor phenotype
-        assert abs(sum(r["mixture"].values()) - 1.0) < 1e-2       # convex mixture
+        assert r["dominant_phenotype"] in anchor_labels  # dominant is an anchor phenotype
+        assert abs(sum(r["mixture"].values()) - 1.0) < 1e-2  # convex mixture
         assert 0.0 <= r["coverage"] <= 1.0
         assert isinstance(r["inconsistent"], bool)
 

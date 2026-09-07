@@ -9,6 +9,7 @@ CD19-safety is the point: the demotion requires BOTH orthogonal cards to contrad
 dependency (both agree, or a single card is absent/agrees) is NEVER demoted. Verdict-INERT to the
 nomination spine (the composed gate reads the raw resolve_verdict_for_gate output, not this emitted word).
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -41,23 +42,39 @@ def test_retains_when_cards_agree():
 #    says non_dependent for the WT gene, but V600E is a validated dependency). CD19-safety hinges on this. ──
 def test_retains_when_only_one_card_contradicts():
     # cross contradicts, event absent/agrees → retain
-    assert gap.reconcile_genomic_verdict(
-        "biomarker_stratified_dependency", _h("concordant_non_dependent", None)) == "biomarker_stratified_dependency"
-    assert gap.reconcile_genomic_verdict(
-        "biomarker_stratified_dependency", _h("concordant_non_dependent", "event_matched_dependent_in_lineage")
-    ) == "biomarker_stratified_dependency"
+    assert (
+        gap.reconcile_genomic_verdict("biomarker_stratified_dependency", _h("concordant_non_dependent", None))
+        == "biomarker_stratified_dependency"
+    )
+    assert (
+        gap.reconcile_genomic_verdict(
+            "biomarker_stratified_dependency", _h("concordant_non_dependent", "event_matched_dependent_in_lineage")
+        )
+        == "biomarker_stratified_dependency"
+    )
     # event contradicts, cross agrees/absent → retain
-    assert gap.reconcile_genomic_verdict(
-        "moderate_biomarker_dependency", _h("concordant_dependent", "event_matched_not_dependent")
-    ) == "moderate_biomarker_dependency"
+    assert (
+        gap.reconcile_genomic_verdict(
+            "moderate_biomarker_dependency", _h("concordant_dependent", "event_matched_not_dependent")
+        )
+        == "moderate_biomarker_dependency"
+    )
 
 
 # ── RETAIN: only the dependency FAMILY is reconciled — driver/recurrence/passenger words pass through. ──
 def test_non_dependency_verdicts_pass_through():
     both_oppose = _h("concordant_non_dependent", "event_matched_not_dependent")
-    for v in ("multi_class_driver", "confirmed_lof_driver", "recurrent_snv_driver",
-              "recurrent_amplification_driver", "missense_dominant_pattern", "passenger_pattern",
-              "mixed_pattern", "insufficient", None):
+    for v in (
+        "multi_class_driver",
+        "confirmed_lof_driver",
+        "recurrent_snv_driver",
+        "recurrent_amplification_driver",
+        "missense_dominant_pattern",
+        "passenger_pattern",
+        "mixed_pattern",
+        "insufficient",
+        None,
+    ):
         assert gap.reconcile_genomic_verdict(v, both_oppose) == v
 
 

@@ -4,6 +4,7 @@ Per CERTAINTY_MODEL.md, certainty needs NO outcome labels: it's a property of th
 So we assert the construction rules directly — well-powered + concordant → high; thin-n →
 low coverage; discordant → low corroboration; insufficient verdict → low. Additive + verdict-inert.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -49,7 +50,7 @@ def _all_decision_cards_present():
 def test_certainty_weakest_link_by_construction(monkeypatch):
     vals = {"n_cell_lines_evaluated": 40, "fraction_strongly_dependent": 0.6}
     monkeypatch.setattr(rc, "get_card_field", lambda cards, cid, f: vals.get(f))
-    full = _all_decision_cards_present()   # all decision cards available → unknown_mass 0.0
+    full = _all_decision_cards_present()  # all decision cards available → unknown_mass 0.0
 
     # well-powered + cross-consortium replicated → high
     sc = rc._dependency_strength_certainty(full, "strongly_dependent", "concordant_dependent")
@@ -103,7 +104,15 @@ def test_corroboration_is_verdict_disjoint(monkeypatch):
     monkeypatch.setattr(rc, "get_card_field", lambda cards, cid, f: vals.get(f))
     full = _all_decision_cards_present()
     # corroboration varies with cross_consortium_class …
-    assert rc._dependency_strength_certainty(full, "lineage_selective", "concordant_dependent")["certainty"]["corroboration"] == "high"
-    assert rc._dependency_strength_certainty(full, "lineage_selective", "discordant")["certainty"]["corroboration"] == "low"
+    assert (
+        rc._dependency_strength_certainty(full, "lineage_selective", "concordant_dependent")["certainty"][
+            "corroboration"
+        ]
+        == "high"
+    )
+    assert (
+        rc._dependency_strength_certainty(full, "lineage_selective", "discordant")["certainty"]["corroboration"]
+        == "low"
+    )
     # … and the function no longer reads the concordance card at all for corroboration.
     assert not hasattr(rc, "_corroboration_from_concordance")

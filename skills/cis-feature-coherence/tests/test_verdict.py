@@ -5,6 +5,7 @@ cis_coherence.resolver.yaml) and reproduces the deterministic 2×2 cross-tab (le
 leg-2 dependency-coupling), plus the honest-abstention default. This is the skills-layer integration
 golden; the target-contracts side has its own resolver golden (test_cis_coherence_resolver.py).
 """
+
 from __future__ import annotations
 
 from pathlib import Path

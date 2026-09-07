@@ -5,6 +5,7 @@ tiered/scoped selection the human backends see, as data. It handles every block 
 (each block serializes to `{kind, ...payload}`), so it can never silently drop a new kind — the
 coverage test still asserts this. Output is deterministic (sort_keys) so snapshots are byte-stable.
 """
+
 from __future__ import annotations
 
 import json
@@ -66,9 +67,13 @@ class JsonBackend:
         lenses = ir.lenses()
         if lenses:
             obj["lenses"] = [
-                {"id": lid, "title": title,
-                 "items": [({"section": it.short} if kind == "section" else {"block": it.kind})
-                           for kind, it in items]}
+                {
+                    "id": lid,
+                    "title": title,
+                    "items": [
+                        ({"section": it.short} if kind == "section" else {"block": it.kind}) for kind, it in items
+                    ],
+                }
                 for lid, title, items in lenses
             ]
         return obj

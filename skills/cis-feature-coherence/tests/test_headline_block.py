@@ -9,6 +9,7 @@ A coherent_cis_driver call (CN → expression → dependency) is the one clearly
 so — this skill being VERDICT-INERT / coherence-classifying — that verdict must colour the badge polarity
 `positive` while every other class stays `neutral`.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -27,19 +28,36 @@ def _cards():
     expression → dependency (strong correlation), amp∩overexpr conjoint addiction, silencing uncoupled,
     and a TCGA patient arm that AGREES with the cell-line cis-dosage call."""
     return [
-        {"card_id": "cis-feature-expression-coherence",
-         "summary": {"cis_dosage_class": "cn_dosage_coupled_strong", "cn_expr_spearman_r": 0.62,
-                     "cn_expr_spearman_p": 1e-6, "n_amplified": 40, "n_cell_lines_evaluated": 120}},
-        {"card_id": "cellline-methylation-expression-coherence",
-         "summary": {"methylation_silencing_class": "methylation_uncoupled", "n_hypermethylated": 3}},
-        {"card_id": "expression-dependency-correlation",
-         "summary": {"correlation_class": "strong_negative", "pearson_r": -0.55,
-                     "n_cell_lines_evaluated": 118}},
-        {"card_id": "amp-expr-stratified-dependency",
-         "summary": {"amp_expr_stratification_class": "amplified_overexpressed_strongly_dependent",
-                     "delta_chronos_amp_expr_vs_rest": -0.6, "n_amplified_overexpressed": 22}},
-        {"card_id": "patient-cis-coherence",
-         "summary": {"patient_cis_dosage_class": "cn_dosage_coupled_strong", "n_cases_expression": 300}},
+        {
+            "card_id": "cis-feature-expression-coherence",
+            "summary": {
+                "cis_dosage_class": "cn_dosage_coupled_strong",
+                "cn_expr_spearman_r": 0.62,
+                "cn_expr_spearman_p": 1e-6,
+                "n_amplified": 40,
+                "n_cell_lines_evaluated": 120,
+            },
+        },
+        {
+            "card_id": "cellline-methylation-expression-coherence",
+            "summary": {"methylation_silencing_class": "methylation_uncoupled", "n_hypermethylated": 3},
+        },
+        {
+            "card_id": "expression-dependency-correlation",
+            "summary": {"correlation_class": "strong_negative", "pearson_r": -0.55, "n_cell_lines_evaluated": 118},
+        },
+        {
+            "card_id": "amp-expr-stratified-dependency",
+            "summary": {
+                "amp_expr_stratification_class": "amplified_overexpressed_strongly_dependent",
+                "delta_chronos_amp_expr_vs_rest": -0.6,
+                "n_amplified_overexpressed": 22,
+            },
+        },
+        {
+            "card_id": "patient-cis-coherence",
+            "summary": {"patient_cis_dosage_class": "cn_dosage_coupled_strong", "n_cases_expression": 300},
+        },
         {"card_id": "cellline-isoform-dominance", "summary": {}},
         {"card_id": "cellline-isoform-expression", "summary": {}},
     ]
@@ -52,7 +70,8 @@ def test_headline_block_present_and_consistent_for_coherent_cis_driver():
     # the spine the headline projects over is untouched (byte-additive: no degrade key on the happy path)
     assert hl.get("cis_coherence_verdict") == "coherent_cis_driver"
     assert "headline_block" not in (hl.get("_enrichment_errors") or {}), (
-        f"headline_block DEGRADED: {(hl.get('_enrichment_errors') or {}).get('headline_block')}")
+        f"headline_block DEGRADED: {(hl.get('_enrichment_errors') or {}).get('headline_block')}"
+    )
 
     block = hl.get("headline_block")
     assert isinstance(block, dict), "headline_block missing or not a dict (degraded projection)"
@@ -71,7 +90,8 @@ def test_headline_block_present_and_consistent_for_coherent_cis_driver():
 
     # a coherent cis-driven addiction is the one clearly FAVORABLE coherence class → positive badge
     assert verdict.get("polarity") == "positive", (
-        f"a coherent_cis_driver call must colour the badge positive; got {verdict.get('polarity')!r}")
+        f"a coherent_cis_driver call must colour the badge positive; got {verdict.get('polarity')!r}"
+    )
 
     # deterministic headline text is always available
     assert isinstance(block.get("headline_text"), str) and block["headline_text"]
@@ -80,7 +100,11 @@ def test_headline_block_present_and_consistent_for_coherent_cis_driver():
 def test_verdict_inert_polarity_defaults_neutral():
     """Every coherence class OTHER than coherent_cis_driver is a verdict-inert classification with no
     directional drug call → neutral badge."""
-    for v in ("expressed_cis_coupled_inert", "dependency_without_cis_dosage",
-              "cis_uncoupled_no_dependency", "insufficient_cis_coherence"):
+    for v in (
+        "expressed_cis_coupled_inert",
+        "dependency_without_cis_dosage",
+        "cis_uncoupled_no_dependency",
+        "insufficient_cis_coherence",
+    ):
         assert _cis_coherence_verdict_polarity(v) == "neutral"
     assert _cis_coherence_verdict_polarity("coherent_cis_driver") == "positive"

@@ -17,9 +17,12 @@ def _headline():
     return {
         "genomic_alteration_profile": "recurrent_snv_driver",
         "genomic_alteration_by_class": {
-            "snv_indel": {"verdict": "recurrent_snv_driver", "evidence_state": "measured",
-                          "recurrence_class": "top_1pct",
-                          "stratified_dependency_class": "biomarker_stratified_dependency"},
+            "snv_indel": {
+                "verdict": "recurrent_snv_driver",
+                "evidence_state": "measured",
+                "recurrence_class": "top_1pct",
+                "stratified_dependency_class": "biomarker_stratified_dependency",
+            },
             "copy_number": {"verdict": "neutral_cn", "evidence_state": "measured"},
             "fusion": {"verdict": "data_unavailable", "evidence_state": "data_unavailable"},
         },
@@ -51,6 +54,7 @@ def test_absent_by_class_yields_full_unmeasured_ladder():
 
 
 def test_renders_html_via_shared_renderer():
-    html = render_question_table_html(genomic_question_table(_headline()),
-                                      verdict="recurrent_snv_driver", title="Genomic alteration")
+    html = render_question_table_html(
+        genomic_question_table(_headline()), verdict="recurrent_snv_driver", title="Genomic alteration"
+    )
     assert "<table" in html and "Genomic alteration at a glance" in html and "recurrent_snv_driver" in html

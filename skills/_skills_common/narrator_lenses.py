@@ -6,21 +6,26 @@ on-target-safety-liability (verdict, polarity-inverted). All 18 lenses now live 
 below (the 14 hierarchy skills + target-archetype, literature-context, synthetic-lethal-partners, and
 combinatorial-dependency).
 """
+
 from __future__ import annotations
 from _skills_common.narrator_engine import LensConfig
 
 FUNCTIONAL_REQUIREMENT = LensConfig(
     name="functional-requirement",
     thesis="how much the DEPENDENCY lens informs whether the target is worth pursuing — a SELECTIVE genetic "
-           "dependency supports it, a pan-essential read argues AGAINST (broad tox), non-dependent is "
-           "uninformative — and, critically, whether the call is CORROBORATED across the independent "
-           "perturbation channels (CRISPR-KO + RNAi + PRISM chemical-genetic + Broad↔Sanger cross-consortium) "
-           "or rests on a single screen, and whether it is buffered by a redundant PARALOG (single-gene KO can "
-           "under-call a real dependency).",
+    "dependency supports it, a pan-essential read argues AGAINST (broad tox), non-dependent is "
+    "uninformative — and, critically, whether the call is CORROBORATED across the independent "
+    "perturbation channels (CRISPR-KO + RNAi + PRISM chemical-genetic + Broad↔Sanger cross-consortium) "
+    "or rests on a single screen, and whether it is buffered by a redundant PARALOG (single-gene KO can "
+    "under-call a real dependency).",
     relevance_prompt="judge how much the dependency lens supports pursuing this target in this indication; "
-                     "foreground the SELECTIVE-vs-PAN-ESSENTIAL distinction and any CRISPR/RNAi disagreement.",
-    axis_labels={"DEP": "genetic dependency", "SEL": "context-selectivity",
-                 "COND": "conditional/SL", "CHEM": "chemical-genetic"},
+    "foreground the SELECTIVE-vs-PAN-ESSENTIAL distinction and any CRISPR/RNAi disagreement.",
+    axis_labels={
+        "DEP": "genetic dependency",
+        "SEL": "context-selectivity",
+        "COND": "conditional/SL",
+        "CHEM": "chemical-genetic",
+    },
     scope_exclusions=("therapeutic modality", "expression/abundance as a presence claim", "mutation frequency"),
     # NARRATOR RULE: lead with cross-channel corroboration (the quorum), then selective-vs-pan-essential,
     # then paralog buffering, then the two data-shape reconciliations — the things a single-card read hides.
@@ -42,63 +47,67 @@ FUNCTIONAL_REQUIREMENT = LensConfig(
         "held at a coverage-gap verdict (measurement_caveat) is decisive-but-unconfirmed, not measured-"
         "absent; (3) the pooled verdict is TARGET-GRAIN — when indication_scope_note is present the queried "
         "indication is NOT the enriched lineage, so report the indication-scope answer "
-        "(dependency_verdict_by_scope.indication), not the target-grain token."),
+        "(dependency_verdict_by_scope.indication), not the target-grain token."
+    ),
     mode="verdict",
-    verdict_key="dependency_verdict",   # the RESOLVED dependency verdict token; else the collapsed-verdict
-                                        # prompt line fell through to driving_rule_id (a rule-id string, e.g.
-                                        # "lineage-selective-supportive") — mirrors the TUMOR_PRESENCE /
-                                        # TUMOR_SELECTIVITY fix (the FR headline key is dependency_verdict).
+    verdict_key="dependency_verdict",  # the RESOLVED dependency verdict token; else the collapsed-verdict
+    # prompt line fell through to driving_rule_id (a rule-id string, e.g.
+    # "lineage-selective-supportive") — mirrors the TUMOR_PRESENCE /
+    # TUMOR_SELECTIVITY fix (the FR headline key is dependency_verdict).
 )
 
 ON_TARGET_SAFETY = LensConfig(
     name="on-target-safety-liability",
     thesis="whether the target is intolerant of loss-of-function in humans — i.e. the ON-TARGET SAFETY "
-           "LIABILITY of a full-KO modality (degrader / RNA / full-inhibition SM) — corroborated across the "
-           "human-genetics legs (gnomAD constraint, gene-burden, ClinGen dosage, ClinVar germline "
-           "pathogenicity, mouse-KO), DepMap pan-essentiality, and — where drugs already engage the target — "
-           "the ON-TARGET CLINICAL PHARMACOVIGILANCE precedent (which toxicity classes / boxed warnings the "
-           "target's own drugs carry), naming the specific mouse-KO ORGAN systems and clinical toxicity "
-           "CLASSES rather than a bare verdict.",
+    "LIABILITY of a full-KO modality (degrader / RNA / full-inhibition SM) — corroborated across the "
+    "human-genetics legs (gnomAD constraint, gene-burden, ClinGen dosage, ClinVar germline "
+    "pathogenicity, mouse-KO), DepMap pan-essentiality, and — where drugs already engage the target — "
+    "the ON-TARGET CLINICAL PHARMACOVIGILANCE precedent (which toxicity classes / boxed warnings the "
+    "target's own drugs carry), naming the specific mouse-KO ORGAN systems and clinical toxicity "
+    "CLASSES rather than a bare verdict.",
     relevance_prompt="judge the on-target safety LIABILITY of full loss-of-function for this target. The "
-                     "scalar verdict is the HONEST raw WT-loss concern; the mutant-selective downgrade is "
-                     "MODALITY-CONDITIONAL, realised in the per-modality safety verdict (an allele-selective "
-                     "small molecule may spare WT protein), NOT applied to the scalar verdict — do not narrate "
-                     "the scalar concern as downgraded. Where present, foreground the specific on-target "
-                     "clinical toxicity CLASSES (pharmacovigilance) and mouse-KO ORGAN systems.",
+    "scalar verdict is the HONEST raw WT-loss concern; the mutant-selective downgrade is "
+    "MODALITY-CONDITIONAL, realised in the per-modality safety verdict (an allele-selective "
+    "small molecule may spare WT protein), NOT applied to the scalar verdict — do not narrate "
+    "the scalar concern as downgraded. Where present, foreground the specific on-target "
+    "clinical toxicity CLASSES (pharmacovigilance) and mouse-KO ORGAN systems.",
     axis_labels={"PHARMACOVIGILANCE": "on-target clinical pharmacovigilance"},
     scope_exclusions=("tumor presence/abundance", "efficacy", "modality choice beyond full-KO tolerability"),
     polarity_note="signal = strength of the LIABILITY. High gnomAD constraint, broad normal-tissue expression, "
-                  "germline pathogenicity, haploinsufficiency, and pan-essentiality are STRONG liability; a "
-                  "strongly_selective dependency is REASSURING (LOW broad-tox liability), not support. When a "
-                  "PHARMACOVIGILANCE signal is present, LEAD with the specific on-target clinical toxicity "
-                  "classes / boxed warnings — but treat it as CONFOUNDED CONTEXT (on- vs off-target cannot be "
-                  "separated; corroboration is capped): it orients, it is never itself the verdict.",
+    "germline pathogenicity, haploinsufficiency, and pan-essentiality are STRONG liability; a "
+    "strongly_selective dependency is REASSURING (LOW broad-tox liability), not support. When a "
+    "PHARMACOVIGILANCE signal is present, LEAD with the specific on-target clinical toxicity "
+    "classes / boxed warnings — but treat it as CONFOUNDED CONTEXT (on- vs off-target cannot be "
+    "separated; corroboration is capped): it orients, it is never itself the verdict.",
     relevance_enum=("high_liability", "moderate_liability_with_caveats", "low_liability", "insufficient_evidence"),
     mode="verdict",
-    verdict_key="safety_verdict",   # the RESOLVED safety verdict token (run.py headline key); else the
-                                    # collapsed-verdict prompt line fell through to driving_rule_id (a rule-id
-                                    # string, e.g. "highly-constrained-safety-warning") — mirrors the
-                                    # TUMOR_PRESENCE / TUMOR_SELECTIVITY / FUNCTIONAL_REQUIREMENT fix.
+    verdict_key="safety_verdict",  # the RESOLVED safety verdict token (run.py headline key); else the
+    # collapsed-verdict prompt line fell through to driving_rule_id (a rule-id
+    # string, e.g. "highly-constrained-safety-warning") — mirrors the
+    # TUMOR_PRESENCE / TUMOR_SELECTIVITY / FUNCTIONAL_REQUIREMENT fix.
 )
 
 TUMOR_PRESENCE = LensConfig(
     name="tumor-presence",
     thesis="how much the EXPRESSION/PRESENCE lens informs whether the target is a relevant drug target — "
-           "abundant + tumor-elevated/selective supports it; merely present but ubiquitous is uninformative "
-           "and (when the normal comparators read HIGH_LIABILITY) flags a therapeutic-window liability whose "
-           "VERDICT is owned by the tumor-selectivity + on-target-safety lenses — note the hand-off, do not "
-           "adjudicate the window here — WHILE distinguishing a MALIGNANT-CELL PROTEIN-CONFIRMED presence "
-           "(CPTAC/cell-line-MS or HPA-IHC protein + a single-cell malignant-compartment attribution) from "
-           "a target that merely reads present off BULK RNA, a pan-cancer CELL-LINE annotation, or a "
-           "STROMAL/immune compartment WITHOUT confirmed malignant-cell protein (the bulk-RNA-over-calls-"
-           "malignant-protein inflation — the FAP/stromal-marker analog), and from a ubiquitous/housekeeping "
-           "level that reads present but is not tumor-ELEVATED.",
+    "abundant + tumor-elevated/selective supports it; merely present but ubiquitous is uninformative "
+    "and (when the normal comparators read HIGH_LIABILITY) flags a therapeutic-window liability whose "
+    "VERDICT is owned by the tumor-selectivity + on-target-safety lenses — note the hand-off, do not "
+    "adjudicate the window here — WHILE distinguishing a MALIGNANT-CELL PROTEIN-CONFIRMED presence "
+    "(CPTAC/cell-line-MS or HPA-IHC protein + a single-cell malignant-compartment attribution) from "
+    "a target that merely reads present off BULK RNA, a pan-cancer CELL-LINE annotation, or a "
+    "STROMAL/immune compartment WITHOUT confirmed malignant-cell protein (the bulk-RNA-over-calls-"
+    "malignant-protein inflation — the FAP/stromal-marker analog), and from a ubiquitous/housekeeping "
+    "level that reads present but is not tumor-ELEVATED.",
     relevance_prompt="judge how much the presence evidence supports this target's relevance in this cancer "
-                     "(indication and, where measured, subtype grain).",
+    "(indication and, where measured, subtype grain).",
     axis_labels={"A": "abundance", "B": "tumor-elevation", "C": "malignant-intrinsic", "D": "generality"},
-    scope_exclusions=("therapeutic modality", "surface accessibility",
-                      "the normal-tissue-liability VERDICT (owned by tumor-selectivity / on-target-safety) — "
-                      "note the hand-off but do not make the window call"),
+    scope_exclusions=(
+        "therapeutic modality",
+        "surface accessibility",
+        "the normal-tissue-liability VERDICT (owned by tumor-selectivity / on-target-safety) — "
+        "note the hand-off but do not make the window call",
+    ),
     # NARRATOR RULE: lead with malignant-cell-PROTEIN-CONFIRMED vs bulk-RNA/cell-line-ANNOTATED presence,
     # then the compartment confound, then present-vs-tumor-elevated — the three things the one-word
     # collapsed verdict hides — with the window/surface/safety verdicts as breadcrumbs.
@@ -118,77 +127,101 @@ TUMOR_PRESENCE = LensConfig(
         "(`protein_confirmed_malignant_present`/`clinically_precedented_antigen_present`, e.g. a GPI-"
         "anchored antigen the Gygi TMT panel under-reads but ProCan/IHC recover) is NOT an over-call. "
         "Surface accessibility (surface-modality-fit) and normal-tissue safety severity (on-target-"
-        "safety) are breadcrumbs, never the presence call."),
+        "safety) are breadcrumbs, never the presence call."
+    ),
     mode="verdict",
-    verdict_key="presence_verdict",   # the collapsed word lives here (was mis-read as driving_rule_id)
+    verdict_key="presence_verdict",  # the collapsed word lives here (was mis-read as driving_rule_id)
 )
 
 TUMOR_SELECTIVITY = LensConfig(
     name="tumor-selectivity",
     thesis="whether the target is TUMOR-SELECTIVE enough to open a therapeutic window (tumor-enriched vs "
-           "normal tissue), the decisive axis being the normal-tissue comparator — and, critically, whether "
-           "that window is CORROBORATED across independent platforms (bulk-RNA comparators, tumor-vs-normal "
-           "PROTEIN by CPTAC/TPHP mass-spec, and in-situ SPATIAL region-RNA) or is only a HIGH-NORMAL-"
-           "BASELINE FIELD EFFECT (tumor≈adjacent-normal but tumor>distant-normal — a genuine but NARROW window).",
+    "normal tissue), the decisive axis being the normal-tissue comparator — and, critically, whether "
+    "that window is CORROBORATED across independent platforms (bulk-RNA comparators, tumor-vs-normal "
+    "PROTEIN by CPTAC/TPHP mass-spec, and in-situ SPATIAL region-RNA) or is only a HIGH-NORMAL-"
+    "BASELINE FIELD EFFECT (tumor≈adjacent-normal but tumor>distant-normal — a genuine but NARROW window).",
     relevance_prompt="judge the tumor-selectivity / therapeutic-window support for this target.",
-    axis_labels={"WIN": "therapeutic window", "DIST": "normal-tissue distribution",
-                 "INT": "tumor-intrinsic", "SAFE": "safety"},
-    scope_exclusions=("absolute abundance as presence", "therapeutic modality",
-                      "on-target safety severity / nomination call"),
+    axis_labels={
+        "WIN": "therapeutic window",
+        "DIST": "normal-tissue distribution",
+        "INT": "tumor-intrinsic",
+        "SAFE": "safety",
+    },
+    scope_exclusions=(
+        "absolute abundance as presence",
+        "therapeutic modality",
+        "on-target safety severity / nomination call",
+    ),
     # NARRATOR RULE: lead with cross-platform corroboration of the window, then the field-effect vs
     # wide-window distinction, then the normal-tissue liability — the three things the RNA-only class hides.
-    polarity_note=("LEAD by stating whether INDEPENDENT platforms corroborate the RNA tumor-vs-normal "
-                   "window: name the PROTEIN-layer (CPTAC/TPHP MS) and in-situ SPATIAL agreement or "
-                   "disagreement explicitly, and distinguish a high-normal-baseline FIELD EFFECT "
-                   "(adjacent-normal flat/down, distant-normal up) from a broadly wide window. A "
-                   "critical-organ normal-tissue liability (SAFE negative) NARROWS the window regardless "
-                   "of tumor-side signal strength — never let a strong tumor-side signal mask it."),
+    polarity_note=(
+        "LEAD by stating whether INDEPENDENT platforms corroborate the RNA tumor-vs-normal "
+        "window: name the PROTEIN-layer (CPTAC/TPHP MS) and in-situ SPATIAL agreement or "
+        "disagreement explicitly, and distinguish a high-normal-baseline FIELD EFFECT "
+        "(adjacent-normal flat/down, distant-normal up) from a broadly wide window. A "
+        "critical-organ normal-tissue liability (SAFE negative) NARROWS the window regardless "
+        "of tumor-side signal strength — never let a strong tumor-side signal mask it."
+    ),
     mode="verdict",
-    verdict_key="selectivity_class",   # the RESOLVED (post-veto) class token; else the collapsed-verdict
-                                       # prompt line fell through to driving_rule_id (a rule-id string),
-                                       # e.g. "tvn-...-veto" — mirrors the TUMOR_PRESENCE fix.
+    verdict_key="selectivity_class",  # the RESOLVED (post-veto) class token; else the collapsed-verdict
+    # prompt line fell through to driving_rule_id (a rule-id string),
+    # e.g. "tvn-...-veto" — mirrors the TUMOR_PRESENCE fix.
 )
 
 GENOMIC_ALTERATION = LensConfig(
     name="genomic-alteration-profile",
     thesis="HOW the target is genomically altered (SNV/indel, copy-number, fusion, or a mix), which "
-           "alteration CLASS carries the signal (not a single 'is it a driver' call), and the variant-level "
-           "clinical interpretation of the target's own alterations — oncogenicity and any CIViC-annotated "
-           "THERAPY-RESISTANCE alleles (e.g. a mutation that is a negative predictive biomarker for a "
-           "targeted agent), surfaced in the DEP claim's actionability read.",
+    "alteration CLASS carries the signal (not a single 'is it a driver' call), and the variant-level "
+    "clinical interpretation of the target's own alterations — oncogenicity and any CIViC-annotated "
+    "THERAPY-RESISTANCE alleles (e.g. a mutation that is a negative predictive biomarker for a "
+    "targeted agent), surfaced in the DEP claim's actionability read.",
     relevance_prompt="judge how the genomic-alteration evidence supports this target, naming which class "
-                     "drives and surfacing any variant-level therapy-resistance actionability.",
-    axis_labels={"SNV": "SNV/indel", "CN": "copy-number", "FUS": "fusion",
-                 "SPL": "splice exon-skip", "DEP": "alteration-conferred dependency"},
+    "drives and surfacing any variant-level therapy-resistance actionability.",
+    axis_labels={
+        "SNV": "SNV/indel",
+        "CN": "copy-number",
+        "FUS": "fusion",
+        "SPL": "splice exon-skip",
+        "DEP": "alteration-conferred dependency",
+    },
     scope_exclusions=("therapeutic modality", "expression as presence"),
     mode="verdict",
-    verdict_key="genomic_alteration_profile",   # the RESOLVED multi-class verdict token (run.py headline
-                                                # key); else the collapsed-verdict fallback lands on the
-                                                # <name>_verdict guess ("genomic_alteration_profile_verdict"
-                                                # — note the extra "_verdict") which MISSES the real key
-                                                # `genomic_alteration_profile`, then falls through to
-                                                # driving_rule_id (a rule-id string, e.g.
-                                                # "mutant-strongly-dependent-supportive"). genomic-alteration
-                                                # was the LAST verdict-skill left behind; mirrors the
-                                                # presence/selectivity/safety/functional-requirement/
-                                                # surface-modality-fit contract.
+    verdict_key="genomic_alteration_profile",  # the RESOLVED multi-class verdict token (run.py headline
+    # key); else the collapsed-verdict fallback lands on the
+    # <name>_verdict guess ("genomic_alteration_profile_verdict"
+    # — note the extra "_verdict") which MISSES the real key
+    # `genomic_alteration_profile`, then falls through to
+    # driving_rule_id (a rule-id string, e.g.
+    # "mutant-strongly-dependent-supportive"). genomic-alteration
+    # was the LAST verdict-skill left behind; mirrors the
+    # presence/selectivity/safety/functional-requirement/
+    # surface-modality-fit contract.
 )
 
 SURFACE_MODALITY_FIT = LensConfig(
     name="surface-modality-fit",
     thesis="whether the surface biology supports a BIOLOGICS modality — ADC-favorable, TCE-favorable, both, "
-           "or neither — from topology, surfaceome family, density, and normal-tissue/shedding liabilities, "
-           "WHILE distinguishing a CONFIRMED cell-surface protein (measured surface proteomics / IHC / flow + "
-           "measured or clinically-precedented internalization) from a target that merely reads surface-"
-           "accessible off surfaceome-FAMILY membership or an RNA/predicted-topology prior WITHOUT confirmed "
-           "cell-surface protein (the surface annotation-INFLATION trap), and flagging a SHED ectodomain "
-           "(soluble-antigen sink) that can make a surface-abundant antigen a poor ADC/TCE substrate.",
+    "or neither — from topology, surfaceome family, density, and normal-tissue/shedding liabilities, "
+    "WHILE distinguishing a CONFIRMED cell-surface protein (measured surface proteomics / IHC / flow + "
+    "measured or clinically-precedented internalization) from a target that merely reads surface-"
+    "accessible off surfaceome-FAMILY membership or an RNA/predicted-topology prior WITHOUT confirmed "
+    "cell-surface protein (the surface annotation-INFLATION trap), and flagging a SHED ectodomain "
+    "(soluble-antigen sink) that can make a surface-abundant antigen a poor ADC/TCE substrate.",
     relevance_prompt="judge the biologics surface-modality fit (ADC / TCE / both / neither), and whether the "
-                     "surface call rests on CONFIRMED cell-surface protein or only on family/RNA annotation.",
-    axis_labels={"FIT": "modality fit", "TOPOLOGY": "topology/accessibility", "DENSITY": "surface density",
-                 "SAFETY": "normal-tissue safety", "SHED": "shedding"},
-    scope_exclusions=("small-molecule tractability (tractability-small-molecule)", "intracellular mechanism",
-                      "expression-as-presence (tumor-presence)", "safety severity (on-target-safety)"),
+    "surface call rests on CONFIRMED cell-surface protein or only on family/RNA annotation.",
+    axis_labels={
+        "FIT": "modality fit",
+        "TOPOLOGY": "topology/accessibility",
+        "DENSITY": "surface density",
+        "SAFETY": "normal-tissue safety",
+        "SHED": "shedding",
+    },
+    scope_exclusions=(
+        "small-molecule tractability (tractability-small-molecule)",
+        "intracellular mechanism",
+        "expression-as-presence (tumor-presence)",
+        "safety severity (on-target-safety)",
+    ),
     # NARRATOR RULE: lead with whether the surface call is CONFIRMED (measured cell-surface protein +
     # internalization) or rests on family/RNA/topology ANNOTATION; then the shed soluble-sink caveat; then
     # the normal-tissue-surface TCE veto and the ADC-vs-TCE split — the confirmed-vs-annotated distinction a
@@ -220,31 +253,40 @@ SURFACE_MODALITY_FIT = LensConfig(
         "DOWNGRADE not a veto (CD19 is a validated low-density antigen). Small-molecule tractability, "
         "genetic-dependency magnitude, expression-as-presence, and safety SEVERITY are verdict-inert "
         "breadcrumbs here — hand off to tractability-small-molecule, functional-requirement, tumor-presence, "
-        "and on-target-safety."),
+        "and on-target-safety."
+    ),
     mode="verdict",
-    verdict_key="surface_modality_verdict",   # the RESOLVED surface-modality verdict token (run.py headline
-                                              # key); else the collapsed-verdict fallback lands on the
-                                              # <name>_verdict guess ("surface_modality_fit_verdict" — note
-                                              # the extra "fit") which MISSES the real key, then on
-                                              # driving_rule_id (a rule-id string). Mirrors the
-                                              # presence/selectivity/safety/functional-requirement contract.
+    verdict_key="surface_modality_verdict",  # the RESOLVED surface-modality verdict token (run.py headline
+    # key); else the collapsed-verdict fallback lands on the
+    # <name>_verdict guess ("surface_modality_fit_verdict" — note
+    # the extra "fit") which MISSES the real key, then on
+    # driving_rule_id (a rule-id string). Mirrors the
+    # presence/selectivity/safety/functional-requirement contract.
 )
 
 TRACTABILITY_SM = LensConfig(
     name="tractability-small-molecule",
     thesis="whether the target looks druggable by a SMALL MOLECULE — is there a compound that DIRECTLY "
-           "engages it (with measured binding potency + cellular activity), does that chemical signal AGREE "
-           "with the genetic dependency (chemical-genetic concordance = on-target; discordant = off-target), "
-           "and is there a ligandable POCKET even absent a known compound — WHILE distinguishing a direct "
-           "target-engaging compound from an INDIRECT / pathway / downstream compound merely tabulated "
-           "against the gene by DGIdb/ChEMBL (the druggability-inflation trap that makes an undruggable TF/"
-           "scaffold read druggable off raw interaction counts).",
+    "engages it (with measured binding potency + cellular activity), does that chemical signal AGREE "
+    "with the genetic dependency (chemical-genetic concordance = on-target; discordant = off-target), "
+    "and is there a ligandable POCKET even absent a known compound — WHILE distinguishing a direct "
+    "target-engaging compound from an INDIRECT / pathway / downstream compound merely tabulated "
+    "against the gene by DGIdb/ChEMBL (the druggability-inflation trap that makes an undruggable TF/"
+    "scaffold read druggable off raw interaction counts).",
     relevance_prompt="judge the small-molecule tractability (DIRECT chemical engagement + structural "
-                     "ligandability), and whether the chemical signal agrees with the genetic dependency.",
-    axis_labels={"POTENCY": "binding potency", "ACTIVITY": "cellular activity", "STRUCT": "structural ligandability",
-                 "DRUG": "drug/tool compound", "DEGRADER": "degrader handle"},
-    scope_exclusions=("biologics/surface modality (surface-modality-fit)", "expression as presence",
-                      "genetic-dependency magnitude (functional-requirement)"),
+    "ligandability), and whether the chemical signal agrees with the genetic dependency.",
+    axis_labels={
+        "POTENCY": "binding potency",
+        "ACTIVITY": "cellular activity",
+        "STRUCT": "structural ligandability",
+        "DRUG": "drug/tool compound",
+        "DEGRADER": "degrader handle",
+    },
+    scope_exclusions=(
+        "biologics/surface modality (surface-modality-fit)",
+        "expression as presence",
+        "genetic-dependency magnitude (functional-requirement)",
+    ),
     # NARRATOR RULE: lead with DIRECT engagement + chemical-genetic agreement, then the DGIdb/ChEMBL
     # inflation caveat, then structural ligandability — the direct-vs-indirect distinction a one-word
     # verdict hides.
@@ -267,33 +309,37 @@ TRACTABILITY_SM = LensConfig(
         "not pocket tractability (a flat PPI-groove target scores high coverage with no druggable pocket) "
         "and measured disorder is SM-opposing. Degrader feasibility and biologics/surface routes are a "
         "verdict-inert breadcrumb here — hand off to functional-requirement (degrader efficacy / paralog) "
-        "and surface-modality-fit (biologics)."),
+        "and surface-modality-fit (biologics)."
+    ),
     mode="verdict",
-    verdict_key="druggability_snapshot",         # the headline key holding the resolved snapshot token
-                                                 # (NOT the legacy <name>_verdict guess, which would be
-                                                 # "tractability_small_molecule_verdict" and MISS it →
-                                                 # fall through to driving_rule_id, a rule-id string).
-                                                 # Mirrors presence/selectivity/FR/safety/surface/genomic;
-                                                 # tractability-small-molecule was the last one left behind.
+    verdict_key="druggability_snapshot",  # the headline key holding the resolved snapshot token
+    # (NOT the legacy <name>_verdict guess, which would be
+    # "tractability_small_molecule_verdict" and MISS it →
+    # fall through to driving_rule_id, a rule-id string).
+    # Mirrors presence/selectivity/FR/safety/surface/genomic;
+    # tractability-small-molecule was the last one left behind.
 )
 
 IMMUNE_CONTEXT = LensConfig(
     name="immune-context",
     thesis="the immune/TME context for a T-cell-engager (TCE) effector arm — is the indication immune-HOT "
-           "(a CD8 effector infiltrate to redirect) — WHILE distinguishing a SPATIALLY-CONFIRMED, functional "
-           "INFLAMED infiltrate (tumor-nest CD8 — TCE-favorable) from a BULK-CIBERSORT-FRACTION-ANNOTATED CD8 "
-           "read that a RELATIVE, reference-model-dependent, non-spatial, function-blind deconvolution CANNOT "
-           "localize (inflamed vs immune-EXCLUDED stroma/margin vs DESERT) or verify as functional-vs-"
-           "exhausted, and from a cohort-MEDIAN that hides per-patient heterogeneity (the bulk-CD8-fraction-"
-           "over-calls-spatial-infiltration trap). The effector-arm companion to surface-modality-fit "
-           "(antigen); a TCE needs BOTH.",
+    "(a CD8 effector infiltrate to redirect) — WHILE distinguishing a SPATIALLY-CONFIRMED, functional "
+    "INFLAMED infiltrate (tumor-nest CD8 — TCE-favorable) from a BULK-CIBERSORT-FRACTION-ANNOTATED CD8 "
+    "read that a RELATIVE, reference-model-dependent, non-spatial, function-blind deconvolution CANNOT "
+    "localize (inflamed vs immune-EXCLUDED stroma/margin vs DESERT) or verify as functional-vs-"
+    "exhausted, and from a cohort-MEDIAN that hides per-patient heterogeneity (the bulk-CD8-fraction-"
+    "over-calls-spatial-infiltration trap). The effector-arm companion to surface-modality-fit "
+    "(antigen); a TCE needs BOTH.",
     relevance_prompt="judge whether there is a CD8 effector context to support a TCE effector arm, and "
-                     "whether an immune-hot/intermediate call is spatially/orthogonally CONFIRMED or rests "
-                     "only on a bulk CIBERSORT deconvolution fraction.",
+    "whether an immune-hot/intermediate call is spatially/orthogonally CONFIRMED or rests "
+    "only on a bulk CIBERSORT deconvolution fraction.",
     axis_labels={"IMMUNE": "CD8 / immune infiltration"},
-    scope_exclusions=("surface antigen accessibility (owned by surface-modality-fit)",
-                      "small-molecule tractability", "expression-as-presence (tumor-presence)",
-                      "genetic dependency (functional-requirement)"),
+    scope_exclusions=(
+        "surface antigen accessibility (owned by surface-modality-fit)",
+        "small-molecule tractability",
+        "expression-as-presence (tumor-presence)",
+        "genetic dependency (functional-requirement)",
+    ),
     # NARRATOR RULE: lead with whether the immune-hot/intermediate call is SPATIALLY-CONFIRMED (or at least
     # orthogonally corroborated by the absolute H&E-DL TIL) or rests only on a bulk CIBERSORT FRACTION; then
     # the inflamed-vs-excluded-vs-desert localization caveat + the presence-vs-exhaustion caveat; then the
@@ -326,7 +372,8 @@ IMMUNE_CONTEXT = LensConfig(
         "per-patient join is a deferred v2 facet). Surface antigen accessibility, small-molecule "
         "tractability, dependency, and expression are verdict-inert breadcrumbs — hand off to "
         "surface-modality-fit (the antigen arm this effector arm composes with), tractability-small-molecule, "
-        "functional-requirement, and tumor-presence."),
+        "functional-requirement, and tumor-presence."
+    ),
     mode="verdict",
     # The collapsed-verdict line reads the RESOLVED effector-context token from this declared headline key.
     # Without it, the fallback relies on the legacy `<name>_verdict` guess ("immune-context" →
@@ -339,21 +386,28 @@ IMMUNE_CONTEXT = LensConfig(
 DIFFERENTIATION_LANDSCAPE = LensConfig(
     name="differentiation-landscape",
     thesis="what patient-selection / combination-biology hypotheses the co-mutation, stemness, node-leverage "
-           "and prognostic landscape support for this target, WHILE distinguishing a BIOLOGICALLY-ESTABLISHED "
-           "co-mutation / mutual-exclusivity relationship (shared pathway, functional cooperation, a validated "
-           "patient-selection biomarker) from a STATISTICALLY-significant-but-CONFOUNDED association — the "
-           "panel-intersect Fisher scan carries no TMB / MSI / molecular-subtype covariate, so a q-significant "
-           "pair can be a mutation-BURDEN (MSI-H / hypermutation) passenger co-occurrence, a lineage/subtype "
-           "restriction, a near-universal-driver marginal-frequency artifact, or a tiny-effect / panel-"
-           "ineligible pair rather than a biological interaction (the co-mutation over-calls-biology trap).",
+    "and prognostic landscape support for this target, WHILE distinguishing a BIOLOGICALLY-ESTABLISHED "
+    "co-mutation / mutual-exclusivity relationship (shared pathway, functional cooperation, a validated "
+    "patient-selection biomarker) from a STATISTICALLY-significant-but-CONFOUNDED association — the "
+    "panel-intersect Fisher scan carries no TMB / MSI / molecular-subtype covariate, so a q-significant "
+    "pair can be a mutation-BURDEN (MSI-H / hypermutation) passenger co-occurrence, a lineage/subtype "
+    "restriction, a near-universal-driver marginal-frequency artifact, or a tiny-effect / panel-"
+    "ineligible pair rather than a biological interaction (the co-mutation over-calls-biology trap).",
     relevance_prompt="judge how the differentiation-landscape evidence informs patient-selection / positioning, "
-                     "separating a biologically-established co-mutation / exclusivity from a statistically-"
-                     "significant-but-TMB/lineage-confounded association.",
-    axis_labels={"COMUT": "co-mutation / mutual-exclusivity", "SURVIVAL": "subtype survival",
-                 "PROGNOSIS": "prognostic association", "NODE": "pathway node-leverage"},
-    scope_exclusions=("therapeutic modality", "dependency magnitude (owned by functional-requirement)",
-                      "synthetic-lethal / dependency call (functional-requirement + combination-and-vulnerability)",
-                      "therapeutic-window / normal-tissue safety (tumor-selectivity + on-target-safety)"),
+    "separating a biologically-established co-mutation / exclusivity from a statistically-"
+    "significant-but-TMB/lineage-confounded association.",
+    axis_labels={
+        "COMUT": "co-mutation / mutual-exclusivity",
+        "SURVIVAL": "subtype survival",
+        "PROGNOSIS": "prognostic association",
+        "NODE": "pathway node-leverage",
+    },
+    scope_exclusions=(
+        "therapeutic modality",
+        "dependency magnitude (owned by functional-requirement)",
+        "synthetic-lethal / dependency call (functional-requirement + combination-and-vulnerability)",
+        "therapeutic-window / normal-tissue safety (tumor-selectivity + on-target-safety)",
+    ),
     # NARRATOR RULE: lead with biologically-ESTABLISHED vs statistically-significant-but-CONFOUNDED, name the
     # TMB/MSI + subtype + panel-eligibility confounders and effect-size-vs-significance, hand off SL/window.
     polarity_note=(
@@ -382,7 +436,8 @@ DIFFERENTIATION_LANDSCAPE = LensConfig(
         "vs mutually-exclusive; worse vs better survival) is a pattern TYPE, not good/bad — every verdict is "
         "neutral. The dependency / synthetic-lethal call is owned by functional-requirement + "
         "combination-and-vulnerability, and the therapeutic-window / safety call by tumor-selectivity + "
-        "on-target-safety — verdict-inert breadcrumbs here."),
+        "on-target-safety — verdict-inert breadcrumbs here."
+    ),
     mode="verdict",
     # The collapsed-verdict line reads the RESOLVED differentiation token (both_patterns_present /
     # strong_cooccurring / strong_mutually_exclusive / …) from this declared headline key. Without it,
@@ -398,20 +453,28 @@ DIFFERENTIATION_LANDSCAPE = LensConfig(
 MECHANISM_PHARMACOLOGY = LensConfig(
     name="mechanism-and-pharmacology",
     thesis="the signaling-network mechanism + candidate MoA hooks + PD-marker suggestions — how well the "
-           "target's mechanism is characterized and what it implies for SM/degrader/glue programs, WHILE "
-           "distinguishing an INDICATION-OPERATIVE, functionally-validated mechanism from a CONTEXT-FREE "
-           "CURATED edge aggregate (a curated SIGNOR/Reactome/CollecTRI edge is tissue-agnostic — its "
-           "presence does NOT prove the MoA DRIVES this indication), and flagging when has_actionable_moa "
-           "rests on a generic curated edge or a low-weighted PREDICTION lane (kinome-atlas / co-essentiality) "
-           "rather than a curated-and-validated, directly-druggable mechanism (the actionable-MoA "
-           "annotation-INFLATION trap).",
+    "target's mechanism is characterized and what it implies for SM/degrader/glue programs, WHILE "
+    "distinguishing an INDICATION-OPERATIVE, functionally-validated mechanism from a CONTEXT-FREE "
+    "CURATED edge aggregate (a curated SIGNOR/Reactome/CollecTRI edge is tissue-agnostic — its "
+    "presence does NOT prove the MoA DRIVES this indication), and flagging when has_actionable_moa "
+    "rests on a generic curated edge or a low-weighted PREDICTION lane (kinome-atlas / co-essentiality) "
+    "rather than a curated-and-validated, directly-druggable mechanism (the actionable-MoA "
+    "annotation-INFLATION trap).",
     relevance_prompt="give the mechanism / MoA-hook context read for this target (descriptive; no nomination "
-                     "call), separating an indication-operative validated mechanism from a context-free "
-                     "curated / prediction-lane aggregate.",
-    axis_labels={"NETWORK": "signaling network", "PHOSPHO": "phospho activity", "PATHWAY": "pathway activity",
-                 "PERTURBATION": "drug-perturbation MoA", "PREDICTABILITY": "dependency predictability"},
-    scope_exclusions=("nomination verdict", "therapeutic modality selection",
-                      "small-molecule directness (tractability-small-molecule)"),
+    "call), separating an indication-operative validated mechanism from a context-free "
+    "curated / prediction-lane aggregate.",
+    axis_labels={
+        "NETWORK": "signaling network",
+        "PHOSPHO": "phospho activity",
+        "PATHWAY": "pathway activity",
+        "PERTURBATION": "drug-perturbation MoA",
+        "PREDICTABILITY": "dependency predictability",
+    },
+    scope_exclusions=(
+        "nomination verdict",
+        "therapeutic modality selection",
+        "small-molecule directness (tractability-small-molecule)",
+    ),
     # NARRATOR RULE: lead with curated-vs-operative + curated-vs-predicted PROVENANCE and the actionable-MoA
     # inflation caveat — the annotation-density / context-free distinction the one-word network_class hides.
     polarity_note=(
@@ -435,7 +498,8 @@ MECHANISM_PHARMACOLOGY = LensConfig(
         "driver), not proof of no mechanism. PHOSPHO (measured activation beyond abundance) is the one "
         "decision-grade positive signal. Small-molecule DIRECTNESS, dependency magnitude, and modality "
         "selection are verdict-inert breadcrumbs — hand off to tractability-small-molecule, "
-        "functional-requirement, and surface-modality-fit."),
+        "functional-requirement, and surface-modality-fit."
+    ),
     mode="descriptive",
     # DESCRIPTIVE mode still builds a COLLAPSED VERDICT prompt line, and mechanism-and-pharmacology DOES emit
     # a resolved token (`mechanism_verdict`: well_characterized / partial / sparse / has_pd_marker / …) — so it
@@ -454,23 +518,30 @@ MECHANISM_PHARMACOLOGY = LensConfig(
 CIS_FEATURE_COHERENCE = LensConfig(
     name="cis-feature-coherence",
     thesis="whether the locus→expression→dependency chain is COHERENT (cis copy-number dosage coupling at "
-           "BOTH mRNA and PROTEIN, methylation silencing, expression↔dependency, conjoint amp∩overexpr "
-           "addiction) — a data-integrity / mechanism-plausibility context, WHILE distinguishing a CAUSAL, "
-           "dosage-driven, functionally-validated cis-DRIVER / TARGETED epigenetic silencing from a merely "
-           "STATISTICALLY-correlated chain: a CN↔mRNA cis-coupling can be a CO-AMPLIFIED PASSENGER bystander "
-           "in a focal driver amplicon (a gene FLANKING the real driver — a 17q12 ERBB2 neighbour "
-           "GRB7/STARD3/MIEN1, an 8q24 MYC neighbour, an 11q13 CCND1 neighbour: dosage-coupled at mRNA but "
-           "dosage-BUFFERED at protein), and a methylation↔low-expression correlation can be a CIMP / global-"
-           "hypermethylation LINEAGE passenger rather than a targeted silencing of THIS gene (the cis-"
-           "correlation-over-calls-a-causal-cis-driver trap).",
+    "BOTH mRNA and PROTEIN, methylation silencing, expression↔dependency, conjoint amp∩overexpr "
+    "addiction) — a data-integrity / mechanism-plausibility context, WHILE distinguishing a CAUSAL, "
+    "dosage-driven, functionally-validated cis-DRIVER / TARGETED epigenetic silencing from a merely "
+    "STATISTICALLY-correlated chain: a CN↔mRNA cis-coupling can be a CO-AMPLIFIED PASSENGER bystander "
+    "in a focal driver amplicon (a gene FLANKING the real driver — a 17q12 ERBB2 neighbour "
+    "GRB7/STARD3/MIEN1, an 8q24 MYC neighbour, an 11q13 CCND1 neighbour: dosage-coupled at mRNA but "
+    "dosage-BUFFERED at protein), and a methylation↔low-expression correlation can be a CIMP / global-"
+    "hypermethylation LINEAGE passenger rather than a targeted silencing of THIS gene (the cis-"
+    "correlation-over-calls-a-causal-cis-driver trap).",
     relevance_prompt="give the cis-feature-coherence context read (descriptive; no nomination call), separating "
-                     "a causal-validated cis-driver / targeted-silencing from a statistically-correlated / "
-                     "co-amplified-passenger / dosage-buffered / CIMP-confounded chain.",
-    axis_labels={"CIS_DOSAGE": "cis copy-number dosage", "SILENCING": "methylation silencing",
-                 "EXPR_DEP": "expression↔dependency", "CONJOINT": "amp∩overexpr addiction"},
-    scope_exclusions=("nomination verdict", "copy-number / amplification FREQUENCY + alteration CLASS "
-                      "(genomic-alteration-profile)", "single-target dependency MAGNITUDE "
-                      "(functional-requirement)", "expression / abundance PRESENCE claim (tumor-presence)"),
+    "a causal-validated cis-driver / targeted-silencing from a statistically-correlated / "
+    "co-amplified-passenger / dosage-buffered / CIMP-confounded chain.",
+    axis_labels={
+        "CIS_DOSAGE": "cis copy-number dosage",
+        "SILENCING": "methylation silencing",
+        "EXPR_DEP": "expression↔dependency",
+        "CONJOINT": "amp∩overexpr addiction",
+    },
+    scope_exclusions=(
+        "nomination verdict",
+        "copy-number / amplification FREQUENCY + alteration CLASS (genomic-alteration-profile)",
+        "single-target dependency MAGNITUDE (functional-requirement)",
+        "expression / abundance PRESENCE claim (tumor-presence)",
+    ),
     # NARRATOR RULE: lead with causal-validated cis-driver / targeted-silencing vs statistically-correlated /
     # co-amplified-passenger / dosage-buffered / CIMP-confounded, weigh the mRNA-vs-protein dosage SLOPE RATIO,
     # and breadcrumb the frequency / magnitude / presence hand-offs.
@@ -502,7 +573,8 @@ CIS_FEATURE_COHERENCE = LensConfig(
         "facet is the corroboration (context_generalization_caveat). The alteration FREQUENCY + class is owned "
         "by genomic-alteration-profile, the dependency MAGNITUDE by functional-requirement, and the "
         "expression/abundance PRESENCE by tumor-presence — verdict-inert breadcrumbs here. Every coherence class "
-        "is a DESCRIPTIVE pattern, not a drug call; this lens never mints or moves a nomination."),
+        "is a DESCRIPTIVE pattern, not a drug call; this lens never mints or moves a nomination."
+    ),
     mode="descriptive",
     # DESCRIPTIVE mode STILL builds a COLLAPSED VERDICT prompt line, and — unlike combination-and-vulnerability
     # / target-intrinsic (truly tokenless) — this skill supplies verdict_fn=_verdict and emits a RESOLVED token
@@ -521,23 +593,29 @@ CIS_FEATURE_COHERENCE = LensConfig(
 COMBINATION_VULNERABILITY = LensConfig(
     name="combination-and-vulnerability",
     thesis="the relational (gene×gene) opportunities — synthetic-lethal partners, measured dual-KO "
-           "co-dependencies, combination co-targets that become MORE essential under inhibition, chemical "
-           "drug×drug synergy, and resistance mediators that RESCUE — as a RANKED PARTNER TABLE, "
-           "distinguishing a CLINICALLY / FUNCTIONALLY-VALIDATED, druggable relationship (BRCA↔PARP, "
-           "WRN↔MSI, KRAS↔SHP2/SOS1) from a merely STATISTICAL relational signal (a curated SynLethDB edge, "
-           "a DepMap co-essentiality delta, a paralog GI, a drug-anchor screen delta) that OVER-CALLS a "
-           "portable, druggable synthetic lethality — a pan-essential co-fitness, a cell-line/lineage "
-           "artifact, a non-replicating single-screen hit, or a genetic-KO SL whose partner is an "
-           "undruggable scaffold (KO ≠ pharmacological inhibition).",
+    "co-dependencies, combination co-targets that become MORE essential under inhibition, chemical "
+    "drug×drug synergy, and resistance mediators that RESCUE — as a RANKED PARTNER TABLE, "
+    "distinguishing a CLINICALLY / FUNCTIONALLY-VALIDATED, druggable relationship (BRCA↔PARP, "
+    "WRN↔MSI, KRAS↔SHP2/SOS1) from a merely STATISTICAL relational signal (a curated SynLethDB edge, "
+    "a DepMap co-essentiality delta, a paralog GI, a drug-anchor screen delta) that OVER-CALLS a "
+    "portable, druggable synthetic lethality — a pan-essential co-fitness, a cell-line/lineage "
+    "artifact, a non-replicating single-screen hit, or a genetic-KO SL whose partner is an "
+    "undruggable scaffold (KO ≠ pharmacological inhibition).",
     relevance_prompt="give the combination / vulnerability context read (descriptive ranked-partner annex; "
-                     "no nomination call). Foreground whether the TOP-ranked partner is validated vs a "
-                     "statistical / cell-line / pan-essential over-call.",
-    axis_labels={"SL": "synthetic-lethal", "CODEP": "paralog dual-KO co-dependency",
-                 "COMBO": "combination co-target", "SYNERGY": "chemical drug×drug synergy",
-                 "RESISTANCE": "resistance mediators"},
-    scope_exclusions=("single-target nomination verdict",
-                      "the single-target dependency MAGNITUDE (owned by functional-requirement)",
-                      "the druggability of a partner (owned by tractability-small-molecule / surface-modality-fit)"),
+    "no nomination call). Foreground whether the TOP-ranked partner is validated vs a "
+    "statistical / cell-line / pan-essential over-call.",
+    axis_labels={
+        "SL": "synthetic-lethal",
+        "CODEP": "paralog dual-KO co-dependency",
+        "COMBO": "combination co-target",
+        "SYNERGY": "chemical drug×drug synergy",
+        "RESISTANCE": "resistance mediators",
+    },
+    scope_exclusions=(
+        "single-target nomination verdict",
+        "the single-target dependency MAGNITUDE (owned by functional-requirement)",
+        "the druggability of a partner (owned by tractability-small-molecule / surface-modality-fit)",
+    ),
     # NARRATOR RULE: this is a DESCRIPTIVE ranked-partner annex (gateless — no nomination call). LEAD by
     # separating a clinically/functionally-CORROBORATED partner from a statistically-ANNOTATED one, then
     # name the four inflation modes, with the dependency-magnitude + druggability hand-offs as breadcrumbs.
@@ -559,28 +637,31 @@ COMBINATION_VULNERABILITY = LensConfig(
         "caveat); (d) a resistance-RESCUE hit is a monitoring LIABILITY / hypothesis, not a combination "
         "win. The single-target dependency MAGNITUDE is owned by functional-requirement and the "
         "druggability call by tractability-small-molecule / surface-modality-fit — breadcrumb, do not "
-        "adjudicate them here. NEVER invent partner symbols, screen deltas, PMIDs, or NCTs."),
+        "adjudicate them here. NEVER invent partner symbols, screen deltas, PMIDs, or NCTs."
+    ),
     mode="descriptive",
 )
 
 TARGET_INTRINSIC = LensConfig(
     name="target-intrinsic",
     thesis="the indication-INDEPENDENT intrinsic target dossier — protein family/class, fold + pockets + "
-           "ligandability, surfaceome family, localization/biophysics, germline LoF constraint, and "
-           "tractability precedent — distinguishing an EXPERIMENTALLY-CONFIRMED actionable intrinsic "
-           "property (a co-crystallised druggable pocket with a bound ligand / an approved drug — BRAF, "
-           "EGFR, KRAS-G12C) from a PREDICTED or HOMOLOGY-ANNOTATED one (a computational / AlphaFold pocket "
-           "with no co-crystal, a family/surfaceome-class membership assigned by homology, or a "
-           "population-genetic / OT-composite META-SCORE) that OVER-CALLS confirmed function or "
-           "druggability — annotation depth / significance ≠ actionability.",
+    "ligandability, surfaceome family, localization/biophysics, germline LoF constraint, and "
+    "tractability precedent — distinguishing an EXPERIMENTALLY-CONFIRMED actionable intrinsic "
+    "property (a co-crystallised druggable pocket with a bound ligand / an approved drug — BRAF, "
+    "EGFR, KRAS-G12C) from a PREDICTED or HOMOLOGY-ANNOTATED one (a computational / AlphaFold pocket "
+    "with no co-crystal, a family/surfaceome-class membership assigned by homology, or a "
+    "population-genetic / OT-composite META-SCORE) that OVER-CALLS confirmed function or "
+    "druggability — annotation depth / significance ≠ actionability.",
     relevance_prompt="give the intrinsic target-biology context read (descriptive dossier; no nomination "
-                     "call). Foreground whether the actionability-relevant intrinsic signal is "
-                     "EXPERIMENTALLY confirmed vs computationally / homology annotated.",
+    "call). Foreground whether the actionability-relevant intrinsic signal is "
+    "EXPERIMENTALLY confirmed vs computationally / homology annotated.",
     axis_labels={"MODALITY_ROUTING": "modality routing", "TRACTABILITY_PRECEDENT": "tractability precedent"},
-    scope_exclusions=("indication-conditioned nomination verdict",
-                      "the SM druggability call (owned by tractability-small-molecule)",
-                      "the biologics surface-fit call (owned by surface-modality-fit)",
-                      "the on-target safety verdict (owned by on-target-safety-liability)"),
+    scope_exclusions=(
+        "indication-conditioned nomination verdict",
+        "the SM druggability call (owned by tractability-small-molecule)",
+        "the biologics surface-fit call (owned by surface-modality-fit)",
+        "the on-target safety verdict (owned by on-target-safety-liability)",
+    ),
     # NARRATOR RULE: this is a DESCRIPTIVE indication-INDEPENDENT dossier (gateless — no nomination call).
     # LEAD by separating an EXPERIMENTALLY-confirmed intrinsic property from a PREDICTED / HOMOLOGY-annotated
     # one, then name the inflation modes the raw dossier cannot self-distinguish.
@@ -608,29 +689,36 @@ TARGET_INTRINSIC = LensConfig(
         "(Tdark = understudied, not adverse; KRAS was called 'undruggable' pre-2013). The SM-druggability "
         "call is owned by tractability-small-molecule, the biologics surface-fit call by surface-modality-"
         "fit, and the safety verdict by on-target-safety-liability — breadcrumb, do not adjudicate them "
-        "here. NEVER invent a PDB ID, pocket, ligand, PMID, or numeric ligandability score."),
+        "here. NEVER invent a PDB ID, pocket, ligand, PMID, or numeric ligandability score."
+    ),
     mode="descriptive",
 )
 
 TRANSLATIONAL_READINESS = LensConfig(
     name="translational-readiness",
     thesis="how translationally READY the target is — whether PUBLIC patient-derived models can preclinically "
-           "validate it: are HCMI patient-derived models AVAILABLE in the indication, does an available model "
-           "carry THIS target's ALTERATION (genotype-matched), does the dependency reproduce EX-VIVO in "
-           "patient-derived 3D CRISPR ORGANOIDS, and does tractability reproduce IN-VIVO in Novartis PDXE PDX "
-           "population drug-response trials — distinguishing a FAITHFUL, on-target, adequately-powered "
-           "preclinical-validation precedent (a canonical faithfulness-validated PDX/organoid model — ERBB2/HER2 "
-           "PDX, EGFR-mutant, BRAF) from a merely AVAILABLE / genotype-matched / small-cohort or "
-           "attribution-confounded PDX-responder read that OVER-CALLS actual translational validatability.",
+    "validate it: are HCMI patient-derived models AVAILABLE in the indication, does an available model "
+    "carry THIS target's ALTERATION (genotype-matched), does the dependency reproduce EX-VIVO in "
+    "patient-derived 3D CRISPR ORGANOIDS, and does tractability reproduce IN-VIVO in Novartis PDXE PDX "
+    "population drug-response trials — distinguishing a FAITHFUL, on-target, adequately-powered "
+    "preclinical-validation precedent (a canonical faithfulness-validated PDX/organoid model — ERBB2/HER2 "
+    "PDX, EGFR-mutant, BRAF) from a merely AVAILABLE / genotype-matched / small-cohort or "
+    "attribution-confounded PDX-responder read that OVER-CALLS actual translational validatability.",
     relevance_prompt="give the translational-readiness context read (descriptive preclinical-validatability "
-                     "dossier; no nomination call). Foreground whether the readiness rests on a FAITHFUL, "
-                     "on-target, adequately-powered model precedent vs an availability-only / genotype-only / "
-                     "small-cohort / attribution-confounded over-call.",
-    axis_labels={"MODEL": "patient-derived model availability", "GENOTYPE": "genotype-matched model",
-                 "ORGANOID": "organoid ex-vivo dependency", "PDX": "PDX in-vivo drug response"},
-    scope_exclusions=("single-target nomination verdict",
-                      "the dependency MAGNITUDE / in-vitro cell-line dependency (owned by functional-requirement)",
-                      "the small-molecule chemical-genetic tractability call (owned by tractability-small-molecule)"),
+    "dossier; no nomination call). Foreground whether the readiness rests on a FAITHFUL, "
+    "on-target, adequately-powered model precedent vs an availability-only / genotype-only / "
+    "small-cohort / attribution-confounded over-call.",
+    axis_labels={
+        "MODEL": "patient-derived model availability",
+        "GENOTYPE": "genotype-matched model",
+        "ORGANOID": "organoid ex-vivo dependency",
+        "PDX": "PDX in-vivo drug response",
+    },
+    scope_exclusions=(
+        "single-target nomination verdict",
+        "the dependency MAGNITUDE / in-vitro cell-line dependency (owned by functional-requirement)",
+        "the small-molecule chemical-genetic tractability call (owned by tractability-small-molecule)",
+    ),
     # NARRATOR RULE: this is a DESCRIPTIVE preclinical-validatability dossier (gateless — no nomination call).
     # LEAD by separating a FAITHFUL, on-target, adequately-powered model precedent from an availability-only /
     # genotype-only / small-cohort / attribution-confounded over-call, then name the five inflation modes, with
@@ -655,35 +743,42 @@ TRANSLATIONAL_READINESS = LensConfig(
         "COVERAGE-bounded readiness, not a complete one (coverage_generalization_caveat). The single-target "
         "dependency MAGNITUDE is owned by functional-requirement and the small-molecule tractability call by "
         "tractability-small-molecule — breadcrumb, do not adjudicate them here. NEVER invent model IDs, responder "
-        "fractions, PMIDs, or NCTs."),
+        "fractions, PMIDs, or NCTs."
+    ),
     mode="descriptive",
 )
 
 TARGET_ARCHETYPE = LensConfig(
     name="target-archetype",
     thesis="the META cross-skill target-signature LANDSCAPE read — where the target sits as a SOFT PHENOTYPE "
-           "MIXTURE (a convex membership to curated canonical anchors: KRAS=GoF-driver, VHL=TSG, ERBB2=amp, "
-           "EPCAM=surface, AURKA=dependency, GAPDH=control — a DISTRIBUTION, never a hard label), which "
-           "reference targets it is most like (nearest ANALOGS), how its fired-rule fingerprint matches "
-           "precedent, whether its signature fits no canonical mix (NOVELTY = hull-residual), and a glass-box "
-           "D1 nomination-READINESS scorecard — WHILE distinguishing a HIGH-STABILITY, LOW-MISSINGNESS mixture "
-           "dominated by an independently-established canonical anchor from an OVER-CONFIDENT phenotype/analog/"
-           "readiness read that the mixture's OWN axis-jackknife STABILITY, its MISSINGNESS map, label "
-           "CIRCULARITY (the anchors/reference labels are curated + partly circular), or the ILLUSTRATIVE-not-"
-           "learned scorecard weights do NOT support.",
+    "MIXTURE (a convex membership to curated canonical anchors: KRAS=GoF-driver, VHL=TSG, ERBB2=amp, "
+    "EPCAM=surface, AURKA=dependency, GAPDH=control — a DISTRIBUTION, never a hard label), which "
+    "reference targets it is most like (nearest ANALOGS), how its fired-rule fingerprint matches "
+    "precedent, whether its signature fits no canonical mix (NOVELTY = hull-residual), and a glass-box "
+    "D1 nomination-READINESS scorecard — WHILE distinguishing a HIGH-STABILITY, LOW-MISSINGNESS mixture "
+    "dominated by an independently-established canonical anchor from an OVER-CONFIDENT phenotype/analog/"
+    "readiness read that the mixture's OWN axis-jackknife STABILITY, its MISSINGNESS map, label "
+    "CIRCULARITY (the anchors/reference labels are curated + partly circular), or the ILLUSTRATIVE-not-"
+    "learned scorecard weights do NOT support.",
     relevance_prompt="give the phenotype-landscape context read (descriptive signature map; NO classification "
-                     "and NO nomination call). Foreground whether the dominant phenotype / nearest analog / "
-                     "readiness read is a HIGH-STABILITY, LOW-MISSINGNESS, independently-established signal or "
-                     "an over-call driven by low jackknife stability, missingness-distortion, label "
-                     "circularity, or illustrative-not-learned scorecard weights.",
-    axis_labels={"PHENOTYPE": "dominant phenotype mixture", "ANALOG": "nearest reference analog",
-                 "PRECEDENT": "rule-fingerprint precedent", "NOVELTY": "hull-residual novelty",
-                 "READINESS": "D1 nomination-readiness scorecard"},
-    scope_exclusions=("any single-target nomination / classification verdict (this layer is descriptive + "
-                      "verdict-INERT, never a gate)",
-                      "the per-axis evidence calls themselves (owned by the 14 fan-out sub-skills — "
-                      "tumor-presence / functional-requirement / genomic-alteration / surface-modality-fit / …)",
-                      "assigning a HARD single-phenotype label (only the soft mixture is honest)"),
+    "and NO nomination call). Foreground whether the dominant phenotype / nearest analog / "
+    "readiness read is a HIGH-STABILITY, LOW-MISSINGNESS, independently-established signal or "
+    "an over-call driven by low jackknife stability, missingness-distortion, label "
+    "circularity, or illustrative-not-learned scorecard weights.",
+    axis_labels={
+        "PHENOTYPE": "dominant phenotype mixture",
+        "ANALOG": "nearest reference analog",
+        "PRECEDENT": "rule-fingerprint precedent",
+        "NOVELTY": "hull-residual novelty",
+        "READINESS": "D1 nomination-readiness scorecard",
+    },
+    scope_exclusions=(
+        "any single-target nomination / classification verdict (this layer is descriptive + "
+        "verdict-INERT, never a gate)",
+        "the per-axis evidence calls themselves (owned by the 14 fan-out sub-skills — "
+        "tumor-presence / functional-requirement / genomic-alteration / surface-modality-fit / …)",
+        "assigning a HARD single-phenotype label (only the soft mixture is honest)",
+    ),
     # NARRATOR RULE: this is a DESCRIPTIVE META signature MAP (cardless; gateless — no nomination/classification
     # call). LEAD by separating a HIGH-STABILITY, LOW-MISSINGNESS, canonical-anchor-dominant mixture from a
     # low-stability / missingness-distorted / label-circular / illustrative-weight OVER-CALL, then name the five
@@ -714,7 +809,8 @@ TARGET_ARCHETYPE = LensConfig(
         "anchors are curated + partly circular and the fusion_driver anchor is DEFERRED (a trial re-freeze bled "
         "RTK-ness into non-fusion RTKs). The per-axis evidence calls are owned by the 14 fan-out sub-skills — "
         "breadcrumb, do not adjudicate them here. NEVER invent an anchor, analog symbol, mixture weight, "
-        "scorecard number, or PMID."),
+        "scorecard number, or PMID."
+    ),
     mode="descriptive",
     # TOKENLESS descriptive lens (like COMBINATION_VULNERABILITY / TARGET_INTRINSIC): the companion emits NO
     # collapsed verdict token (verdict=None, no resolved rung), so NO verdict_key — the collapsed-verdict prompt
@@ -726,28 +822,33 @@ TARGET_ARCHETYPE = LensConfig(
 LITERATURE_CONTEXT = LensConfig(
     name="literature-context",
     thesis="what the PUBLISHED LITERATURE SAYS about the target in the indication — the co-occurrence VOLUME "
-           "(how much is written), the RECENCY, the top CITED STATEMENTS, and the typed relation DIRECTION "
-           "(PubTator3 BioREx associate/cause/inhibit/stimulate/…) — as a DESCRIPTIVE citation context, NOT a "
-           "validated/causal/mechanistic claim, WHILE distinguishing a CANONICAL, VALIDATED, DIRECTION-CORRECT "
-           "target–indication relationship (KRAS/CRC, ERBB2/breast, EGFR/lung, VHL/ccRCC — high volume AND a "
-           "consistent mechanistically-correct relation) from an OVER-CONFIDENT validated/causal/direction-correct "
-           "read that the raw co-occurrence VOLUME or the AUTOMATED relation direction does NOT support: a high "
-           "count is CITATION / ATTENTION / STUDY bias (well-studied genes accrue mentions; a pleiotropic gene "
-           "co-occurs across many diseases as a passenger — VOLUME ≠ VALIDATION), and a BioREx typed edge is "
-           "ML-extracted from often a SINGLE sentence (mis-typed / conflicting / context-free — DIRECTION ≠ "
-           "validated mechanism).",
+    "(how much is written), the RECENCY, the top CITED STATEMENTS, and the typed relation DIRECTION "
+    "(PubTator3 BioREx associate/cause/inhibit/stimulate/…) — as a DESCRIPTIVE citation context, NOT a "
+    "validated/causal/mechanistic claim, WHILE distinguishing a CANONICAL, VALIDATED, DIRECTION-CORRECT "
+    "target–indication relationship (KRAS/CRC, ERBB2/breast, EGFR/lung, VHL/ccRCC — high volume AND a "
+    "consistent mechanistically-correct relation) from an OVER-CONFIDENT validated/causal/direction-correct "
+    "read that the raw co-occurrence VOLUME or the AUTOMATED relation direction does NOT support: a high "
+    "count is CITATION / ATTENTION / STUDY bias (well-studied genes accrue mentions; a pleiotropic gene "
+    "co-occurs across many diseases as a passenger — VOLUME ≠ VALIDATION), and a BioREx typed edge is "
+    "ML-extracted from often a SINGLE sentence (mis-typed / conflicting / context-free — DIRECTION ≠ "
+    "validated mechanism).",
     relevance_prompt="give the cited-literature CONTEXT read (descriptive; NO nomination call and NO causal/"
-                     "mechanistic call). Foreground the top CITED STATEMENTS + whether a high co-occurrence "
-                     "volume / a typed relation direction reflects a canonical validated relationship or "
-                     "citation-bias / pleiotropy / automated-extraction over-call.",
-    axis_labels={"VOLUME": "co-occurrence volume", "RECENCY": "recent activity",
-                 "RELATION": "typed relation direction"},
-    scope_exclusions=("any nomination / prioritization verdict (this layer is CONTEXT-tier + verdict-INERT, "
-                      "NEVER a gate — RISK_ASSESSMENT_INTEGRATION.md §4)",
-                      "the mechanistic / causal MoA call (owned by mechanism-and-pharmacology)",
-                      "the 6-dimension literature RISK read (owned by literature-risk-assessment)",
-                      "the target–indication association's biological validity (co-occurrence describes what is "
-                      "WRITTEN, not what is TRUE)"),
+    "mechanistic call). Foreground the top CITED STATEMENTS + whether a high co-occurrence "
+    "volume / a typed relation direction reflects a canonical validated relationship or "
+    "citation-bias / pleiotropy / automated-extraction over-call.",
+    axis_labels={
+        "VOLUME": "co-occurrence volume",
+        "RECENCY": "recent activity",
+        "RELATION": "typed relation direction",
+    },
+    scope_exclusions=(
+        "any nomination / prioritization verdict (this layer is CONTEXT-tier + verdict-INERT, "
+        "NEVER a gate — RISK_ASSESSMENT_INTEGRATION.md §4)",
+        "the mechanistic / causal MoA call (owned by mechanism-and-pharmacology)",
+        "the 6-dimension literature RISK read (owned by literature-risk-assessment)",
+        "the target–indication association's biological validity (co-occurrence describes what is "
+        "WRITTEN, not what is TRUE)",
+    ),
     # NARRATOR RULE: this is a DESCRIPTIVE cited-literature CONTEXT read (gateless — no nomination/causal call).
     # LEAD with the top CITED STATEMENTS (the substance), then separate a canonical validated relationship from a
     # volume-inflation / automated-relation / pleiotropy over-call, then name the inflation modes the raw
@@ -778,7 +879,8 @@ LITERATURE_CONTEXT = LensConfig(
         "pleiotropic target mentioned across many diseases (the TP53 pattern — nonspecific). The mechanistic / "
         "causal call is owned by mechanism-and-pharmacology and the RISK read by literature-risk-assessment — "
         "breadcrumb, do not adjudicate them here. Attribute every claim to a specific pmid from top_cited; NEVER "
-        "invent a PMID, statement, relation type, or count."),
+        "invent a PMID, statement, relation type, or count."
+    ),
     mode="descriptive",
     # TOKENLESS descriptive lens (like COMBINATION_VULNERABILITY / TARGET_INTRINSIC / TRANSLATIONAL_READINESS /
     # TARGET_ARCHETYPE): literature-context supplies verdict_fn=None and emits NO collapsed verdict token — so
@@ -790,21 +892,23 @@ LITERATURE_CONTEXT = LensConfig(
 SYNTHETIC_LETHAL_PARTNERS = LensConfig(
     name="synthetic-lethal-partners",
     thesis="whether the target has a CURATED synthetic-lethal partner (SynLethDB) — an experimentally-supported "
-           "SL partner is a combination OPPORTUNITY (a co-target whose loss/inhibition is lethal only when the "
-           "target is lost), and its measured ABSENCE is neutral (not a negative for the target itself) — WHILE "
-           "distinguishing a CLINICALLY / FUNCTIONALLY VALIDATED, portable, druggable synthetic lethality "
-           "(BRCA↔PARP, WRN↔MSI, SMARCA4↔SMARCA2) from a COMPUTATIONAL-only / context-aggregated CURATED edge "
-           "that OVER-CALLS a validated druggable SL: a predicted SynLethDB edge is the lowest evidence tier, a "
-           "curated edge is aggregated across contexts and may not hold in THIS indication (the SL "
-           "reproducibility problem), and a genetic-KO-derived SL OVER-CALLS druggability (KO ≠ partial "
-           "pharmacological inhibition; a scaffold partner needs a DEGRADER).",
+    "SL partner is a combination OPPORTUNITY (a co-target whose loss/inhibition is lethal only when the "
+    "target is lost), and its measured ABSENCE is neutral (not a negative for the target itself) — WHILE "
+    "distinguishing a CLINICALLY / FUNCTIONALLY VALIDATED, portable, druggable synthetic lethality "
+    "(BRCA↔PARP, WRN↔MSI, SMARCA4↔SMARCA2) from a COMPUTATIONAL-only / context-aggregated CURATED edge "
+    "that OVER-CALLS a validated druggable SL: a predicted SynLethDB edge is the lowest evidence tier, a "
+    "curated edge is aggregated across contexts and may not hold in THIS indication (the SL "
+    "reproducibility problem), and a genetic-KO-derived SL OVER-CALLS druggability (KO ≠ partial "
+    "pharmacological inhibition; a scaffold partner needs a DEGRADER).",
     relevance_prompt="judge whether the target has a curated synthetic-lethal partner worth pursuing as a "
-                     "combination opportunity, and whether the SL is clinically/functionally VALIDATED vs a "
-                     "computational-only / context-aggregated curated edge.",
+    "combination opportunity, and whether the SL is clinically/functionally VALIDATED vs a "
+    "computational-only / context-aggregated curated edge.",
     axis_labels={"SL": "curated synthetic-lethal partner"},
-    scope_exclusions=("the single-target dependency MAGNITUDE (owned by functional-requirement)",
-                      "the MEASURED paralog dual-KO co-dependency (owned by combinatorial-dependency)",
-                      "the druggability of the partner (owned by tractability-small-molecule / surface-modality-fit)"),
+    scope_exclusions=(
+        "the single-target dependency MAGNITUDE (owned by functional-requirement)",
+        "the MEASURED paralog dual-KO co-dependency (owned by combinatorial-dependency)",
+        "the druggability of the partner (owned by tractability-small-molecule / surface-modality-fit)",
+    ),
     # NARRATOR RULE: an SL partner is an OPPORTUNITY (a partner SUPPORTS a combination strategy; absence is
     # neutral, never a negative for the target). LEAD with clinically/functionally-VALIDATED vs computational/
     # curated-context-unconfirmed, then name the inflation modes the curated edge cannot self-distinguish.
@@ -825,32 +929,35 @@ SYNTHETIC_LETHAL_PARTNERS = LensConfig(
         "a KO-SL OVER-CALLS druggability and a scaffold / non-catalytic partner (STAG1, SMARCA2, ARID1B) needs "
         "a DEGRADER not an inhibitor. The single-target dependency MAGNITUDE is owned by functional-requirement "
         "and the druggability call by tractability-small-molecule — breadcrumb, do not adjudicate them here. "
-        "NEVER invent a partner symbol, evidence tier, or PMID."),
+        "NEVER invent a partner symbol, evidence tier, or PMID."
+    ),
     mode="verdict",
-    verdict_key="sl_partner_verdict",   # the RESOLVED SL-partner verdict token (run.py headline key); else the
-                                        # collapsed-verdict fallback lands on the legacy <name>_verdict guess
-                                        # ("synthetic_lethal_partners_verdict") which MISSES the real key,
-                                        # then falls through to driving_rule_id (a rule-id string). Mirrors the
-                                        # presence/selectivity/FR/safety verdict-lens contract.
+    verdict_key="sl_partner_verdict",  # the RESOLVED SL-partner verdict token (run.py headline key); else the
+    # collapsed-verdict fallback lands on the legacy <name>_verdict guess
+    # ("synthetic_lethal_partners_verdict") which MISSES the real key,
+    # then falls through to driving_rule_id (a rule-id string). Mirrors the
+    # presence/selectivity/FR/safety verdict-lens contract.
 )
 
 COMBINATORIAL_DEPENDENCY = LensConfig(
     name="combinatorial-dependency",
     thesis="whether the target is a MEASURED combinatorial (paralog dual-KO) dependency — a genetic-buffering "
-           "synthetic lethality where loss of one paralog makes the other essential — and whether it is "
-           "CONSTITUTIVE (broad, portable) or CONTEXT / GENOTYPE-CONDITIONAL, seeing paralog co-dependencies "
-           "(CDK4/CDK6-class, KAT6A/KAT6B, MARK2/MARK3) that single-KO screens MISS, WHILE distinguishing a "
-           "canonical, orthogonally-VALIDATED paralog SL (SMARCA4↔SMARCA2, STAG2↔STAG1, ARID1A↔ARID1B) from a "
-           "statistical DepMap ParalogV2 genetic-interaction score that OVER-CALLS a portable, druggable SL: a "
-           "GI can be a pan-essential core-fitness co-dependency, a lineage/context-restricted or single-screen "
-           "artifact, or a genetic-KO SL whose scaffold partner is undruggable (KO ≠ pharmacological inhibition).",
+    "synthetic lethality where loss of one paralog makes the other essential — and whether it is "
+    "CONSTITUTIVE (broad, portable) or CONTEXT / GENOTYPE-CONDITIONAL, seeing paralog co-dependencies "
+    "(CDK4/CDK6-class, KAT6A/KAT6B, MARK2/MARK3) that single-KO screens MISS, WHILE distinguishing a "
+    "canonical, orthogonally-VALIDATED paralog SL (SMARCA4↔SMARCA2, STAG2↔STAG1, ARID1A↔ARID1B) from a "
+    "statistical DepMap ParalogV2 genetic-interaction score that OVER-CALLS a portable, druggable SL: a "
+    "GI can be a pan-essential core-fitness co-dependency, a lineage/context-restricted or single-screen "
+    "artifact, or a genetic-KO SL whose scaffold partner is undruggable (KO ≠ pharmacological inhibition).",
     relevance_prompt="judge whether the target is a measured combinatorial (paralog dual-KO) dependency worth "
-                     "pursuing, whether it is constitutive vs context-conditional, and whether it is an "
-                     "orthogonally-validated paralog SL vs a statistical / pan-essential / cell-line GI.",
+    "pursuing, whether it is constitutive vs context-conditional, and whether it is an "
+    "orthogonally-validated paralog SL vs a statistical / pan-essential / cell-line GI.",
     axis_labels={"CODEP": "paralog dual-KO co-dependency"},
-    scope_exclusions=("the single-gene dependency MAGNITUDE (owned by functional-requirement)",
-                      "the CURATED SynLethDB SL annotation (owned by synthetic-lethal-partners)",
-                      "the druggability of the partner (owned by tractability-small-molecule / surface-modality-fit)"),
+    scope_exclusions=(
+        "the single-gene dependency MAGNITUDE (owned by functional-requirement)",
+        "the CURATED SynLethDB SL annotation (owned by synthetic-lethal-partners)",
+        "the druggability of the partner (owned by tractability-small-molecule / surface-modality-fit)",
+    ),
     # NARRATOR RULE: a paralog co-dependency is an OPPORTUNITY. LEAD with constitutive-vs-context-conditional +
     # orthogonally-validated-vs-statistical, then name the inflation modes the raw GI score cannot self-distinguish.
     polarity_note=(
@@ -873,21 +980,39 @@ COMBINATORIAL_DEPENDENCY = LensConfig(
         "scaffold / non-catalytic partner (STAG1, SMARCA2, ARID1B) needs a DEGRADER not an inhibitor. The "
         "single-gene dependency MAGNITUDE is owned by functional-requirement and the druggability call by "
         "tractability-small-molecule — breadcrumb, do not adjudicate them here. NEVER invent a paralog partner "
-        "symbol, GI score, lineage count, or PMID."),
+        "symbol, GI score, lineage count, or PMID."
+    ),
     mode="verdict",
-    verdict_key="combinatorial_dependency_verdict",   # the RESOLVED (self-contained) combinatorial verdict
-                                                      # token; else the legacy <name>_verdict guess
-                                                      # ("combinatorial_dependency_verdict") HAPPENS to match —
-                                                      # declared for robustness/consistency with the fleet.
+    verdict_key="combinatorial_dependency_verdict",  # the RESOLVED (self-contained) combinatorial verdict
+    # token; else the legacy <name>_verdict guess
+    # ("combinatorial_dependency_verdict") HAPPENS to match —
+    # declared for robustness/consistency with the fleet.
 )
 
 # Registry for the dispatcher / fan-out lookup by skill name — the 14 hierarchy skills + the NON-standard
 # companions: target-archetype (cardless META), literature-context (literature-native cited-evidence peer),
 # and the two STANDALONE relational skills whose cards feed the combination-and-vulnerability annex
 # (synthetic-lethal-partners: curated SynLethDB SL; combinatorial-dependency: measured paralog dual-KO GI).
-LENSES = {L.name: L for L in (
-    FUNCTIONAL_REQUIREMENT, ON_TARGET_SAFETY, TUMOR_PRESENCE, TUMOR_SELECTIVITY, GENOMIC_ALTERATION,
-    SURFACE_MODALITY_FIT, TRACTABILITY_SM, IMMUNE_CONTEXT, DIFFERENTIATION_LANDSCAPE,
-    MECHANISM_PHARMACOLOGY, CIS_FEATURE_COHERENCE, COMBINATION_VULNERABILITY, TARGET_INTRINSIC,
-    TRANSLATIONAL_READINESS, TARGET_ARCHETYPE, LITERATURE_CONTEXT,
-    SYNTHETIC_LETHAL_PARTNERS, COMBINATORIAL_DEPENDENCY)}
+LENSES = {
+    L.name: L
+    for L in (
+        FUNCTIONAL_REQUIREMENT,
+        ON_TARGET_SAFETY,
+        TUMOR_PRESENCE,
+        TUMOR_SELECTIVITY,
+        GENOMIC_ALTERATION,
+        SURFACE_MODALITY_FIT,
+        TRACTABILITY_SM,
+        IMMUNE_CONTEXT,
+        DIFFERENTIATION_LANDSCAPE,
+        MECHANISM_PHARMACOLOGY,
+        CIS_FEATURE_COHERENCE,
+        COMBINATION_VULNERABILITY,
+        TARGET_INTRINSIC,
+        TRANSLATIONAL_READINESS,
+        TARGET_ARCHETYPE,
+        LITERATURE_CONTEXT,
+        SYNTHETIC_LETHAL_PARTNERS,
+        COMBINATORIAL_DEPENDENCY,
+    )
+}

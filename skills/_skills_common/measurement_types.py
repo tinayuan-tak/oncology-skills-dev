@@ -13,6 +13,7 @@ Cross-repo: reads target-contracts. Graceful — all helpers are best-effort and
 the registry is unreachable (a skills-only checkout) or a card/type is untagged; they never raise, so a
 skills-only checkout never hard-fails.
 """
+
 from __future__ import annotations
 
 import os
@@ -21,10 +22,7 @@ from pathlib import Path
 from typing import Optional
 
 _REGISTRY_ENV_VAR = "MEASUREMENT_TYPES_YAML"
-_REGISTRY_DEFAULT_RELATIVE = (
-    "rnd-computational-biology-oncology-target-contracts/"
-    "vocabularies/measurement_types.yaml"
-)
+_REGISTRY_DEFAULT_RELATIVE = "rnd-computational-biology-oncology-target-contracts/vocabularies/measurement_types.yaml"
 
 
 def _resolve_registry_path() -> Optional[Path]:
@@ -51,6 +49,7 @@ def _resolve_registry_path() -> Optional[Path]:
 def _load_registry() -> Optional[dict]:
     """Parse the registry once. None if unreachable (skills-only checkout)."""
     import yaml
+
     path = _resolve_registry_path()
     if path is None:
         return None
@@ -72,6 +71,7 @@ def _load_registry() -> Optional[dict]:
 # HTR1D expression<->selectivity trap). All helpers are best-effort: None/empty when the registry is
 # unreachable (a skills-only checkout) or the card/type is untagged — never raise.
 
+
 @lru_cache(maxsize=1)
 def _card_to_type_map() -> dict:
     """{card_id -> measurement_type} from the registry's per-type `cards:` back-refs.
@@ -82,7 +82,7 @@ def _card_to_type_map() -> dict:
         return {}
     out: dict = {}
     for mt, spec in (doc.get("measurement_types") or {}).items():
-        for cid in ((spec or {}).get("cards") or []):
+        for cid in (spec or {}).get("cards") or []:
             out[cid] = mt
     return out
 

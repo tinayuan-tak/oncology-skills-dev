@@ -9,13 +9,14 @@ VERDICT_REPRESENTATION_MIGRATION.md):
      the nomination `sub_verdicts`.
 S3-free: pure over the loader + assembler + synthetic sub_results.
 """
+
 from __future__ import annotations
 
 import sys
 from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
-SKILLS = SCRIPTS.parent.parent                       # skills/ — tp_fanout imports _skills_common
+SKILLS = SCRIPTS.parent.parent  # skills/ — tp_fanout imports _skills_common
 for _p in (str(SKILLS), str(SCRIPTS)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
@@ -26,7 +27,7 @@ from tp_facets import _claim_record_shadow_by_axis  # noqa: E402
 
 def test_claim_record_loader_is_opt_in():
     for axis in ("genomic-alteration-profile", "tumor-selectivity"):
-        _load_sub_skill_verdict_fn(axis)                 # warm the module cache
+        _load_sub_skill_verdict_fn(axis)  # warm the module cache
         assert callable(_load_sub_skill_claim_record_fn(axis)), f"{axis} should expose _claim_record"
     # a sub-skill without the hook returns None (loader never fabricates one). Negative control =
     # target-intrinsic, a DESCRIPTIVE gateless fan-out member (no _verdict, no gate) that will never
@@ -42,15 +43,15 @@ def test_loaded_hook_produces_a_schema_shaped_record():
     rec = fn([], fired=[], verdict_pair=("data_unavailable", None))
     assert rec["axis"] == "selectivity"
     assert set(rec["finding"]) == {"state", "direction", "magnitude", "availability"}
-    assert rec["finding"]["state"] == "unknown"          # open-world invariant honored end-to-end
+    assert rec["finding"]["state"] == "unknown"  # open-world invariant honored end-to-end
 
 
 def test_assembler_collects_present_and_skips_absent():
     sub_results = {
         "genomic_alteration": {"claim_record_shadow": {"axis": "genomic_alteration", "finding": {}}},
         "selectivity": {"claim_record_shadow": {"axis": "selectivity", "finding": {}}},
-        "mechanism": {"claim_record_shadow": None},       # opted out
-        "safety": {},                                     # key entirely absent
+        "mechanism": {"claim_record_shadow": None},  # opted out
+        "safety": {},  # key entirely absent
     }
     out = _claim_record_shadow_by_axis(sub_results)
     assert set(out) == {"genomic_alteration", "selectivity"}

@@ -17,6 +17,7 @@ nonzero exit so it can gate CI:
 Usage:
   python3 atlas_health.py [--atlas atlas/atlas.json] [--package-dir <full-package-run>] [--tol 1e-3]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -25,7 +26,7 @@ from pathlib import Path
 
 SKILLS_DIR = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(SKILLS_DIR))
-sys.path.insert(0, str(Path(__file__).resolve().parent))    # for the sibling corpus_io module
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # for the sibling corpus_io module
 from _skills_common.archetype_core import Atlas, vocabulary_drift  # noqa: E402
 from corpus_io import claim_vectors_for_run  # noqa: E402
 
@@ -69,14 +70,25 @@ def check(atlas: Atlas, package_dir: Path | None = None, tol: float = 1e-3) -> t
         worst = max(worst, dev)
         if dev > tol:
             n_bad += 1
-    results.append({"check": "embedding_integrity", "status": "PASS" if n_bad == 0 else "FAIL",
-                    "detail": f"{len(atlas.X)} rows, worst_dev={worst:.2e} (tol={tol:.0e}), n_over_tol={n_bad}"})
+    results.append(
+        {
+            "check": "embedding_integrity",
+            "status": "PASS" if n_bad == 0 else "FAIL",
+            "detail": f"{len(atlas.X)} rows, worst_dev={worst:.2e} (tol={tol:.0e}), n_over_tol={n_bad}",
+        }
+    )
 
     # 2. provenance completeness
     missing_prov = [f for f in _PROV_FIELDS if not atlas.meta.get(f)]
-    results.append({"check": "provenance", "status": "PASS" if not missing_prov else "FAIL",
-                    "detail": ("all present: " + ", ".join(_PROV_FIELDS)) if not missing_prov
-                    else f"missing meta fields: {missing_prov}"})
+    results.append(
+        {
+            "check": "provenance",
+            "status": "PASS" if not missing_prov else "FAIL",
+            "detail": ("all present: " + ", ".join(_PROV_FIELDS))
+            if not missing_prov
+            else f"missing meta fields: {missing_prov}",
+        }
+    )
 
     # 3. vocabulary drift (optional) — FAIL-CLOSED on an empty harvest. vocabulary_drift computes
     # missing = live_keys - frozen_keys and covered = (not missing); so an EMPTY live set yields
@@ -88,11 +100,18 @@ def check(atlas: Atlas, package_dir: Path | None = None, tol: float = 1e-3) -> t
     if package_dir is not None:
         drift = vocabulary_drift(atlas, _read_claim_vectors(package_dir))
         if drift["n_live"] == 0:
-            results.append({"check": "vocabulary_drift", "status": "FAIL",
-                            "detail": (f"empty harvest: no claim vectors under {package_dir} "
-                                       f"(evidence_package.json → synthesis.claim_vectors, or legacy "
-                                       f"subskills/*/package.json) — the vocab-drift guard cannot run "
-                                       f"(package-layout drift?); refusing to vacuously PASS")})
+            results.append(
+                {
+                    "check": "vocabulary_drift",
+                    "status": "FAIL",
+                    "detail": (
+                        f"empty harvest: no claim vectors under {package_dir} "
+                        f"(evidence_package.json → synthesis.claim_vectors, or legacy "
+                        f"subskills/*/package.json) — the vocab-drift guard cannot run "
+                        f"(package-layout drift?); refusing to vacuously PASS"
+                    ),
+                }
+            )
         else:
             # Subtract keys excluded from the atlas vocabulary BY DECISION → they are not drift.
             excluded = tuple(atlas.meta.get("atlas_excluded_namespaces") or _DEFAULT_EXCLUDED_NAMESPACES)
@@ -101,10 +120,17 @@ def check(atlas: Atlas, package_dir: Path | None = None, tol: float = 1e-3) -> t
             covered = not missing
             axes = sorted({k.split("::", 1)[0] for k in missing})
             excl_note = f" ({n_excluded} excluded-by-decision)" if n_excluded else ""
-            results.append({"check": "vocabulary_drift", "status": "PASS" if covered else "FAIL",
-                            "detail": (f"{drift['n_live']} live keys all covered{excl_note}" if covered
-                                       else f"{len(missing)} live keys absent from atlas (axes: {axes}) "
-                                            f"→ re-freeze{excl_note}")})
+            results.append(
+                {
+                    "check": "vocabulary_drift",
+                    "status": "PASS" if covered else "FAIL",
+                    "detail": (
+                        f"{drift['n_live']} live keys all covered{excl_note}"
+                        if covered
+                        else f"{len(missing)} live keys absent from atlas (axes: {axes}) → re-freeze{excl_note}"
+                    ),
+                }
+            )
 
     ok = all(r["status"] == "PASS" for r in results)
     return results, ok

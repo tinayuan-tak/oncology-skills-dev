@@ -33,7 +33,10 @@ from typing import Optional
 from _skills_common.paths import analysis_methods_root, target_contracts_root
 
 METHODS_REPO = analysis_methods_root()
-DATA_CATALOG_LIBS = Path(os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")) / "libs"
+DATA_CATALOG_LIBS = (
+    Path(os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"))
+    / "libs"
+)
 _TARGET_CONTRACTS_ROOT = target_contracts_root()
 
 
@@ -51,6 +54,7 @@ def _load_internalizing_antigens_cached(contracts_root: str) -> frozenset:
     path = Path(contracts_root) / "vocabularies" / "internalizing_antigen_targets.yaml"
     try:
         import yaml
+
         doc = yaml.safe_load(path.read_text())
         return frozenset((doc or {}).get("entries", {}).keys())
     except Exception:  # noqa: BLE001 — never break the dispatcher on a vocab read
@@ -74,6 +78,7 @@ def _load_biologics_precedent_targets_cached(contracts_root: str) -> frozenset:
     path = Path(contracts_root) / "vocabularies" / "biologics_precedent_targets.yaml"
     try:
         import yaml
+
         doc = yaml.safe_load(path.read_text())
         return frozenset((doc or {}).get("entries", {}).keys())
     except Exception:  # noqa: BLE001 — never break the dispatcher on a vocab read
@@ -97,10 +102,13 @@ def _load_biologics_precedent_modalities_cached(contracts_root: str) -> dict:
     path = Path(contracts_root) / "vocabularies" / "biologics_precedent_targets.yaml"
     try:
         import yaml
+
         entries = (yaml.safe_load(path.read_text()) or {}).get("entries", {}) or {}
-        return {g: (v.get("modality") or "biologic")
-                for g, v in entries.items()
-                if isinstance(v, dict) and bool(v.get("biologics_only", False))}
+        return {
+            g: (v.get("modality") or "biologic")
+            for g, v in entries.items()
+            if isinstance(v, dict) and bool(v.get("biologics_only", False))
+        }
     except Exception:  # noqa: BLE001 — never break the caveat on a vocab read
         return {}
 
@@ -121,6 +129,7 @@ def _load_surface_secreted_antigens_cached(contracts_root: str) -> frozenset:
     path = Path(contracts_root) / "vocabularies" / "surface_secreted_antigen_targets.yaml"
     try:
         import yaml
+
         doc = yaml.safe_load(path.read_text())
         return frozenset((doc or {}).get("entries", {}).keys())
     except Exception:  # noqa: BLE001 — never break the reader on a vocab read
@@ -175,10 +184,14 @@ def _dispatch_expression_tumor_vs_adjacent(target: str, indication: str) -> Opti
         summary = dge_module.read_dge_gene_row(target=target, manifest_id="coadread-dge-df06320")
         if summary is None:
             return {
-                "log2_fc": None, "q_value": None,
-                "tumor_mean_tpm": None, "adjacent_mean_tpm": None,
-                "n_tumor": None, "n_adjacent": None,
-                "gtex_log2_fc": None, "gtex_q_value": None,
+                "log2_fc": None,
+                "q_value": None,
+                "tumor_mean_tpm": None,
+                "adjacent_mean_tpm": None,
+                "n_tumor": None,
+                "n_adjacent": None,
+                "gtex_log2_fc": None,
+                "gtex_q_value": None,
                 "_data_note": f"target {target!r} not present in coadread-dge-df06320 DGE table",
             }
         # Supplementary GTEx contrast for the tri-group DISPLAY only. The COADREAD verdict stays on
@@ -197,17 +210,23 @@ def _dispatch_expression_tumor_vs_adjacent(target: str, indication: str) -> Opti
     sen = dge_module.read_tumor_vs_normal_sensitivity_gene_row(target, indication)
     if sen is None:
         return {
-            "log2_fc": None, "q_value": None,
-            "tumor_mean_tpm": None, "adjacent_mean_tpm": None,
-            "n_tumor": None, "n_adjacent": None,
-            "gtex_log2_fc": None, "gtex_q_value": None,
+            "log2_fc": None,
+            "q_value": None,
+            "tumor_mean_tpm": None,
+            "adjacent_mean_tpm": None,
+            "n_tumor": None,
+            "n_adjacent": None,
+            "gtex_log2_fc": None,
+            "gtex_q_value": None,
             # NOTE: deliberately NO descriptive_stats_unavailable flag on this TOTAL no-data branch —
             # the whole read is absent (log2_fc=None + _data_note), so the flag would be redundant AND
             # would break the skip_if_no_data guard, which keys "no data" on `_data_note present AND all
             # non-underscore fields None`. The flag's job is to mark the sensitivity-SUCCESS case
             # (verdict present, descriptive means/n NOT carried) — see that branch below.
-            "_data_note": (f"no tumor-vs-adjacent product for {target!r} in "
-                           f"{indication.lower()}-dge-tumor-vs-normal-sensitivity-v1"),
+            "_data_note": (
+                f"no tumor-vs-adjacent product for {target!r} in "
+                f"{indication.lower()}-dge-tumor-vs-normal-sensitivity-v1"
+            ),
         }
     # 2026-08-11: emit expression_call_class on the non-COADREAD path too.
     # The COADREAD branch (read_dge_gene_row) emits expression_call_class via
@@ -218,7 +237,7 @@ def _dispatch_expression_tumor_vs_adjacent(target: str, indication: str) -> Opti
     # rules (strong-downregulation / not-informative) everywhere except COADREAD. Reuse the SAME
     # classifier over the SAME two fields the COADREAD path uses (cell A = tumor vs adjacent-normal),
     # so the two indication paths become emit-consistent.
-    log2_fc = sen.get("log2fc_cell_a")            # cell A = TCGA tumor vs adjacent-normal
+    log2_fc = sen.get("log2fc_cell_a")  # cell A = TCGA tumor vs adjacent-normal
     q_value = sen.get("q_value_cell_a")
     # _classify_expression_call lives in the method's `read` submodule and is NOT re-exported at the
     # package level (__all__), so reach it via .read — the same module read_dge_gene_row comes from.
@@ -233,8 +252,10 @@ def _dispatch_expression_tumor_vs_adjacent(target: str, indication: str) -> Opti
         # unchanged, so presence_verdict is byte-stable (Phase-A/Phase-B boundary preserved).
         "gtex_log2_fc": sen.get("log2fc_cell_c"),
         "gtex_q_value": sen.get("q_value_cell_c"),
-        "tumor_mean_tpm": None, "adjacent_mean_tpm": None,   # not carried by sensitivity product
-        "n_tumor": None, "n_adjacent": None,
+        "tumor_mean_tpm": None,
+        "adjacent_mean_tpm": None,  # not carried by sensitivity product
+        "n_tumor": None,
+        "n_adjacent": None,
         # 2026-08-13: the sensitivity product carries only the
         # log2_fc/q verdict fields, NOT the tumor/adjacent descriptive means + sample counts (structurally
         # None above). Flag that gap EXPLICITLY so a downstream reader treats absent means/n as "not
@@ -293,20 +314,31 @@ def _dispatch_genomic_instability_state(target: str, indication: str) -> Optiona
                 out.setdefault(k, None)
             out[class_key] = "data_unavailable"
 
-    _merge_axis("wgd_summary_for_indication",
-                ("wgd_class", "wgd_fraction", "n_wgd_samples", "median_ploidy",
-                 "median_purity", "wgd_context"), "wgd_class")
-    _merge_axis("msi_summary_for_indication",
-                ("msi_class", "msi_high_fraction", "n_msi_high", "msi_context"), "msi_class")
+    _merge_axis(
+        "wgd_summary_for_indication",
+        ("wgd_class", "wgd_fraction", "n_wgd_samples", "median_ploidy", "median_purity", "wgd_context"),
+        "wgd_class",
+    )
+    _merge_axis(
+        "msi_summary_for_indication", ("msi_class", "msi_high_fraction", "n_msi_high", "msi_context"), "msi_class"
+    )
     # MODEL-side MSI (DepMap MSIsensor) — all-lineage complement; covers NSCLC/PAAD that patient labels miss.
-    _merge_axis("model_msi_summary_for_indication",
-                ("model_msi_class", "model_msi_high_fraction", "n_model_msi_high",
-                 "model_msi_context"), "model_msi_class")
+    _merge_axis(
+        "model_msi_summary_for_indication",
+        ("model_msi_class", "model_msi_high_fraction", "n_model_msi_high", "model_msi_context"),
+        "model_msi_class",
+    )
     # MODEL mutational-signature (DepMap SBS): MMR-sig cross-validates MSI + weak SBS3-HRD proxy.
-    _merge_axis("model_signature_summary_for_indication",
-                ("model_mmr_signature_class", "model_mmr_signature_high_fraction",
-                 "model_hrd_signature_present_fraction", "model_signature_context"),
-                "model_mmr_signature_class")
+    _merge_axis(
+        "model_signature_summary_for_indication",
+        (
+            "model_mmr_signature_class",
+            "model_mmr_signature_high_fraction",
+            "model_hrd_signature_present_fraction",
+            "model_signature_context",
+        ),
+        "model_mmr_signature_class",
+    )
     # PATIENT HRD genomic-SCAR arm (scope-coherence Phase 4): the ACTIONABLE segment-based HRD read
     # (ABSOLUTE segtabs, Myriad myChoice >= 42), complementing the WEAK SBS3 model proxy above. The
     # method emits hrd_class/hrd_high_fraction/... which we REMAP to hrd_scar_* so the field names stay
@@ -405,7 +437,7 @@ def _dispatch_splice_exon_skip_landscape(target: str, indication: str) -> Option
 #     when the axis IS a mutation stratum, not for the molecular MSI/sidedness axes.
 #   - dependency uses the DepMap shard (cell-line ModelIDs carry MSI status directly).
 _MUTATION_ASSIGNMENTS_MANIFEST = {
-    "COADREAD": "tcga-subgroup-assignments-coadread-v1",   # directly-tagged: MSI_H/MSS/sidedness/CMS/CIMP
+    "COADREAD": "tcga-subgroup-assignments-coadread-v1",  # directly-tagged: MSI_H/MSS/sidedness/CMS/CIMP
 }
 # Line-of-therapy strata live in a DIFFERENT sample universe (GENIE-BPC, not TCGA) and
 # recompute frequency from the GENIE registry MAF, not MC3. The panorama dispatcher partitions
@@ -413,8 +445,8 @@ _MUTATION_ASSIGNMENTS_MANIFEST = {
 # shard + the genie_registry MAF. Rows from the two universes are never merged into one
 # comparison (each carries its source_cohort); the card's caveats already mandate that.
 _MUTATION_LOT_ASSIGNMENTS_MANIFEST = {
-    "COADREAD": "genie-bpc-subgroup-assignments-coadread-v1",   # GENIE-BPC LOT_1L_only/LOT_2L/LOT_3Lplus (1,176)
-    "NSCLC": "genie-bpc-subgroup-assignments-nsclc-v1",         # GENIE-BPC LOT_1L_only/LOT_2L/LOT_3Lplus (1,093)
+    "COADREAD": "genie-bpc-subgroup-assignments-coadread-v1",  # GENIE-BPC LOT_1L_only/LOT_2L/LOT_3Lplus (1,176)
+    "NSCLC": "genie-bpc-subgroup-assignments-nsclc-v1",  # GENIE-BPC LOT_1L_only/LOT_2L/LOT_3Lplus (1,093)
 }
 # LOT strata are identified by id prefix (the catalog tags them applicable_data_sources:[genie_bpc]).
 _LOT_STRATUM_PREFIX = "LOT_"
@@ -424,7 +456,10 @@ _DEPENDENCY_ASSIGNMENTS_MANIFEST = {
 
 
 def _dispatch_subgroup_stratified_mutation_frequency(
-    target: str, indication: str, subgroups: list, subgroup_assignments_manifest: str,
+    target: str,
+    indication: str,
+    subgroups: list,
+    subgroup_assignments_manifest: str,
 ) -> Optional[dict]:
     """Route subgroup-stratified-mutation-frequency to the per-sample panorama builder,
     PARTITIONING requested strata by data-source axis.
@@ -454,29 +489,43 @@ def _dispatch_subgroup_stratified_mutation_frequency(
             # No molecular/TCGA shard for this indication (e.g. NSCLC ships only a GENIE-BPC LOT
             # shard) — emit an honest per-axis data-note instead of calling the builder with a
             # null manifest; the LOT arm below still serves the LOT_* strata.
-            panoramas.append({"per_subgroup_metrics": [], "_data_note":
-                f"molecular strata {molecular_strata} requested but no molecular subgroup-"
-                f"assignments shard for indication={indication!r}"})
+            panoramas.append(
+                {
+                    "per_subgroup_metrics": [],
+                    "_data_note": f"molecular strata {molecular_strata} requested but no molecular subgroup-"
+                    f"assignments shard for indication={indication!r}",
+                }
+            )
         else:
-            panoramas.append(hotspot_module.build_mutation_frequency_panorama(
-                target=target, indication=indication,
-                subgroups=molecular_strata,
-                subgroup_assignments_manifest=subgroup_assignments_manifest,
-            ))
+            panoramas.append(
+                hotspot_module.build_mutation_frequency_panorama(
+                    target=target,
+                    indication=indication,
+                    subgroups=molecular_strata,
+                    subgroup_assignments_manifest=subgroup_assignments_manifest,
+                )
+            )
     # LOT axis → the GENIE-BPC shard + genie_registry MAF (different sample universe).
     if lot_strata:
         lot_manifest = _MUTATION_LOT_ASSIGNMENTS_MANIFEST.get(indication)
         if lot_manifest is None:
-            panoramas.append({"per_subgroup_metrics": [], "_data_note":
-                f"LOT strata requested but no GENIE-BPC LOT shard for indication={indication!r} "
-                f"(iter-1 ships COADREAD only)"})
+            panoramas.append(
+                {
+                    "per_subgroup_metrics": [],
+                    "_data_note": f"LOT strata requested but no GENIE-BPC LOT shard for indication={indication!r} "
+                    f"(iter-1 ships COADREAD only)",
+                }
+            )
         else:
-            panoramas.append(hotspot_module.build_mutation_frequency_panorama(
-                target=target, indication=indication,
-                subgroups=lot_strata,
-                subgroup_assignments_manifest=lot_manifest,
-                maf_source="genie_registry",
-            ))
+            panoramas.append(
+                hotspot_module.build_mutation_frequency_panorama(
+                    target=target,
+                    indication=indication,
+                    subgroups=lot_strata,
+                    subgroup_assignments_manifest=lot_manifest,
+                    maf_source="genie_registry",
+                )
+            )
 
     if not panoramas:
         return {"per_subgroup_metrics": []}
@@ -496,6 +545,7 @@ def _dispatch_subgroup_stratified_mutation_frequency(
     # on any mixed molecular+LOT call. Recompute the SAME delta_reducer the builder uses (over
     # overall_mutation_frequency, label='frequency') across the union so the reducer scalars survive.
     from methods.subgroup_common.panorama import delta_reducer  # methods repo already on sys.path
+
     out = {"per_subgroup_metrics": merged_metrics}
     out.update(delta_reducer(merged_metrics, metric_key="overall_mutation_frequency", label="frequency"))
     if notes:
@@ -504,7 +554,10 @@ def _dispatch_subgroup_stratified_mutation_frequency(
 
 
 def _dispatch_subgroup_stratified_dependency(
-    target: str, indication: str, subgroups: list, subgroup_assignments_manifest: str,
+    target: str,
+    indication: str,
+    subgroups: list,
+    subgroup_assignments_manifest: str,
 ) -> Optional[dict]:
     """Route subgroup-stratified-dependency to the per-sample (per-ModelID) panorama builder.
 
@@ -522,7 +575,10 @@ def _dispatch_subgroup_stratified_dependency(
 
 
 def _dispatch_subgroup_stratified_copy_number(
-    target: str, indication: str, subgroups: list, subgroup_assignments_manifest: str,
+    target: str,
+    indication: str,
+    subgroups: list,
+    subgroup_assignments_manifest: str,
 ) -> Optional[dict]:
     """Route subgroup-stratified-copy-number to the per-sample GISTIC panorama builder.
 
@@ -532,17 +588,24 @@ def _dispatch_subgroup_stratified_copy_number(
     PATIENT grain before the join). Descriptive — no signal. TCGA-patient (GISTIC) only, so it uses the
     molecular TCGA assignments shard (no LOT/GENIE split, unlike the mutation-frequency panorama)."""
     if subgroup_assignments_manifest is None:
-        return {"per_subgroup_metrics": [], "_data_note":
-                f"no molecular subgroup-assignments shard for indication={indication!r}"}
+        return {
+            "per_subgroup_metrics": [],
+            "_data_note": f"no molecular subgroup-assignments shard for indication={indication!r}",
+        }
     cn_module = _import_method("tcga_patient_cn.stratified")
     return cn_module.build_copy_number_panorama(
-        target=target, indication=indication,
-        subgroups=subgroups, subgroup_assignments_manifest=subgroup_assignments_manifest,
+        target=target,
+        indication=indication,
+        subgroups=subgroups,
+        subgroup_assignments_manifest=subgroup_assignments_manifest,
     )
 
 
 def _dispatch_subgroup_stratified_fusion(
-    target: str, indication: str, subgroups: list, subgroup_assignments_manifest: str,
+    target: str,
+    indication: str,
+    subgroups: list,
+    subgroup_assignments_manifest: str,
 ) -> Optional[dict]:
     """Route subgroup-stratified-fusion to the per-sample fusion-consensus panorama builder.
 
@@ -551,12 +614,16 @@ def _dispatch_subgroup_stratified_fusion(
     stratum patients (patient-grain join). Descriptive — no signal. TCGA-tissue only (molecular shard).
     Usually underpowered per stratum (documented on the card); the reader names that gap honestly."""
     if subgroup_assignments_manifest is None:
-        return {"per_subgroup_metrics": [], "_data_note":
-                f"no molecular subgroup-assignments shard for indication={indication!r}"}
+        return {
+            "per_subgroup_metrics": [],
+            "_data_note": f"no molecular subgroup-assignments shard for indication={indication!r}",
+        }
     fusion_module = _import_method("tcga_fusion_consensus.stratified")
     return fusion_module.build_fusion_panorama(
-        target=target, indication=indication,
-        subgroups=subgroups, subgroup_assignments_manifest=subgroup_assignments_manifest,
+        target=target,
+        indication=indication,
+        subgroups=subgroups,
+        subgroup_assignments_manifest=subgroup_assignments_manifest,
     )
 
 
@@ -605,6 +672,7 @@ def _dispatch_target_identity_summary(target: str, indication: str) -> Optional[
     # when the target is not in the lookup (surfaced honestly, per the card caveat).
     try:
         from _skills_common.biology_axis import resolve_biology_axis
+
         axis_info = resolve_biology_axis(t.hgnc.primary_symbol)
     except Exception:  # noqa: BLE001 — axis is display context; never fail identity resolution on it
         axis_info = {"biology_axis": "unknown", "curated": False}
@@ -690,8 +758,9 @@ def _dispatch_phospho_pathway_activity(target: str, indication: str) -> Optional
 #   3. Returns the method's summary dict unchanged
 
 
-def _dispatch_expression_distribution(target: str, indication: str,
-                                      plot_data_out: Optional[Path] = None) -> Optional[dict]:
+def _dispatch_expression_distribution(
+    target: str, indication: str, plot_data_out: Optional[Path] = None
+) -> Optional[dict]:
     """Dispatcher: route cellline-rna-distribution card (E3.a) to
     methods/depmap_expression_distribution/read.py.
 
@@ -721,14 +790,20 @@ def _dispatch_expression_distribution(target: str, indication: str,
         out["isoform_context"] = iso.get("isoform_context")
     except Exception:  # noqa: BLE001 — additive facet; a failure degrades, never breaks the read
         out.setdefault("isoform_expression_class", "data_unavailable")
-        for k in ("dominant_isoform_fraction", "n_expressed_isoforms", "dominant_isoform",
-                  "isoform_n_models", "isoform_context"):
+        for k in (
+            "dominant_isoform_fraction",
+            "n_expressed_isoforms",
+            "dominant_isoform",
+            "isoform_n_models",
+            "isoform_context",
+        ):
             out.setdefault(k, None)
     return out
 
 
-def _dispatch_tumor_expression_distribution(target: str, indication: str,
-                                            plot_data_out: Optional[Path] = None) -> Optional[dict]:
+def _dispatch_tumor_expression_distribution(
+    target: str, indication: str, plot_data_out: Optional[Path] = None
+) -> Optional[dict]:
     """Dispatcher: route tumor-rna-distribution card (Q1) to
     methods/tcga_gtex_expression_distribution/cli.py::build_summary.
 
@@ -747,21 +822,35 @@ def _dispatch_tumor_expression_distribution(target: str, indication: str,
     try:
         ss_mod = _import_method("tcga_spliceseq_psi")
         ss = ss_mod.spliceseq_summary_for_gene(target, indication)
-        for k in ("splicing_dysregulation_class", "n_splice_events", "max_event_psi_std",
-                  "median_event_psi_std", "n_variable_events", "n_tumor_shifted_events",
-                  "dominant_event_splice_type", "splicing_context"):
+        for k in (
+            "splicing_dysregulation_class",
+            "n_splice_events",
+            "max_event_psi_std",
+            "median_event_psi_std",
+            "n_variable_events",
+            "n_tumor_shifted_events",
+            "dominant_event_splice_type",
+            "splicing_context",
+        ):
             out[k] = ss.get(k)
     except Exception:  # noqa: BLE001 — additive facet; a failure degrades, never breaks the read
         out.setdefault("splicing_dysregulation_class", "data_unavailable")
-        for k in ("n_splice_events", "max_event_psi_std", "median_event_psi_std",
-                  "n_variable_events", "n_tumor_shifted_events", "dominant_event_splice_type",
-                  "splicing_context"):
+        for k in (
+            "n_splice_events",
+            "max_event_psi_std",
+            "median_event_psi_std",
+            "n_variable_events",
+            "n_tumor_shifted_events",
+            "dominant_event_splice_type",
+            "splicing_context",
+        ):
             out.setdefault(k, None)
     return out
 
 
-def _dispatch_tumor_expression_distribution_subtype(target: str, indication: str,
-                                                    plot_data_out: Optional[Path] = None) -> Optional[dict]:
+def _dispatch_tumor_expression_distribution_subtype(
+    target: str, indication: str, plot_data_out: Optional[Path] = None
+) -> Optional[dict]:
     """Dispatcher: route tumor-rna-distribution-by-subtype card (target_subtype grain) to
     methods/tcga_gtex_expression_distribution/cli.py::build_subtype_panorama.
 
@@ -779,8 +868,8 @@ def _dispatch_tumor_expression_distribution_subtype(target: str, indication: str
 # lockstep with the card's applies_when as new --data-source depmap shards land.
 _CELLLINE_SUBTYPE_ASSIGNMENTS = {
     "COADREAD": "depmap-subgroup-assignments-coadread-v1",
-    "COAD":     "depmap-subgroup-assignments-coadread-v1",
-    "READ":     "depmap-subgroup-assignments-coadread-v1",
+    "COAD": "depmap-subgroup-assignments-coadread-v1",
+    "READ": "depmap-subgroup-assignments-coadread-v1",
 }
 
 
@@ -794,9 +883,13 @@ def _dispatch_cellline_expression_distribution_subtype(target: str, indication: 
     false (honest)."""
     manifest = _CELLLINE_SUBTYPE_ASSIGNMENTS.get((indication or "").upper())
     if manifest is None:
-        return {"subtype_axis_available": False, "n_subtypes_measured": 0,
-                "subtype_stratification_class": None, "spotlight_subtype": None,
-                "per_subgroup_metrics": []}
+        return {
+            "subtype_axis_available": False,
+            "n_subtypes_measured": 0,
+            "subtype_stratification_class": None,
+            "spotlight_subtype": None,
+            "per_subgroup_metrics": [],
+        }
     read_mod = _import_method("depmap_expression_distribution.read")
     scoping = _import_method("subgroup_common.scoping")
     strata = sorted(scoping.load_assignments(manifest)["stratum_id"].unique().tolist())
@@ -808,8 +901,8 @@ def _dispatch_cellline_expression_distribution_subtype(target: str, indication: 
 # lockstep with the card's applies_when + the method's INDICATION_TO_CPTAC_ASSIGNMENT_MANIFEST.
 _TUMOR_PROTEIN_SUBTYPE_ASSIGNMENTS = {
     "COADREAD": "cptac-subgroup-assignments-coadread-v1",
-    "COAD":     "cptac-subgroup-assignments-coadread-v1",
-    "READ":     "cptac-subgroup-assignments-coadread-v1",
+    "COAD": "cptac-subgroup-assignments-coadread-v1",
+    "READ": "cptac-subgroup-assignments-coadread-v1",
 }
 
 
@@ -823,9 +916,13 @@ def _dispatch_tumor_protein_distribution_subtype(target: str, indication: str) -
     for the indication → subtype_axis_available:false (honest)."""
     manifest = _TUMOR_PROTEIN_SUBTYPE_ASSIGNMENTS.get((indication or "").upper())
     if manifest is None:
-        return {"subtype_axis_available": False, "subtype_axis_quality": "unavailable",
-                "n_subtypes_measured": 0, "subtype_stratification_class": None,
-                "per_subgroup_metrics": []}
+        return {
+            "subtype_axis_available": False,
+            "subtype_axis_quality": "unavailable",
+            "n_subtypes_measured": 0,
+            "subtype_stratification_class": None,
+            "per_subgroup_metrics": [],
+        }
     read_mod = _import_method("cptac_protein_distribution.read")
     scoping = _import_method("subgroup_common.scoping")
     strata = sorted(scoping.load_assignments(manifest)["stratum_id"].unique().tolist())
@@ -903,8 +1000,9 @@ def _dispatch_pathway_stratified_surface(target: str, indication: str) -> Option
     return mod.read_pathway_stratified_surface(target, indication=indication)
 
 
-def _dispatch_tumor_vs_normal_percentile_crossing(target: str, indication: str,
-                                                  plot_data_out: Optional[Path] = None) -> Optional[dict]:
+def _dispatch_tumor_vs_normal_percentile_crossing(
+    target: str, indication: str, plot_data_out: Optional[Path] = None
+) -> Optional[dict]:
     """Dispatcher: route tumor-vs-normal-percentile-crossing card (Q2, Gate B) to
     methods/tcga_gtex_expression_distribution/cli.py::build_selectivity_crossing_summary.
 
@@ -942,8 +1040,9 @@ def _dispatch_selectivity_by_subgroup(target: str, indication: str, subgroups=No
     return mod.read_stratified_tumor_vs_normal_selectivity(target, indication)
 
 
-def _dispatch_normal_tissue_liability_gtex(target: str, indication: str,
-                                           plot_data_out: Optional[Path] = None) -> Optional[dict]:
+def _dispatch_normal_tissue_liability_gtex(
+    target: str, indication: str, plot_data_out: Optional[Path] = None
+) -> Optional[dict]:
     """Dispatcher: route normal-tissue-liability-gtex card (Q3, Safety + surface-modality-fit) to
     methods/tcga_gtex_expression_distribution/cli.py::build_normal_liability_summary.
 
@@ -954,8 +1053,7 @@ def _dispatch_normal_tissue_liability_gtex(target: str, indication: str,
     return mod.build_normal_liability_summary(target, indication, plot_data_out=plot_data_out)
 
 
-def _dispatch_recommended_models(target: str, indication: str,
-                                 plot_data_out: Optional[Path] = None) -> Optional[dict]:
+def _dispatch_recommended_models(target: str, indication: str, plot_data_out: Optional[Path] = None) -> Optional[dict]:
     """Dispatcher: route recommended-models card (Q4, patient↔model expression correspondence) to
     methods/patient_model_expression_correspondence/cli.py::build_summary.
 
@@ -965,8 +1063,9 @@ def _dispatch_recommended_models(target: str, indication: str,
     return mod.build_summary(target, indication, plot_data_out=plot_data_out)
 
 
-def _dispatch_rna_protein_concordance(target: str, indication: str,
-                                      plot_data_out: Optional[Path] = None) -> Optional[dict]:
+def _dispatch_rna_protein_concordance(
+    target: str, indication: str, plot_data_out: Optional[Path] = None
+) -> Optional[dict]:
     """Dispatcher: route cellline-rna-protein-concordance card (Q5) to
     methods/depmap_rna_protein_concordance/cli.py::build_summary.
 
@@ -976,8 +1075,9 @@ def _dispatch_rna_protein_concordance(target: str, indication: str,
     return mod.build_summary(target, indication, plot_data_out=plot_data_out)
 
 
-def _dispatch_rna_protein_concordance_tumor(target: str, indication: str,
-                                            plot_data_out: Optional[Path] = None) -> Optional[dict]:
+def _dispatch_rna_protein_concordance_tumor(
+    target: str, indication: str, plot_data_out: Optional[Path] = None
+) -> Optional[dict]:
     """Dispatcher: route rna-protein-concordance-tumor card (Q5 tumor arm) to
     methods/depmap_rna_protein_concordance/cli.py::build_tumor_summary.
 
@@ -1071,8 +1171,7 @@ def _dispatch_sc_surface_normal_safety(target: str, indication: str) -> Optional
     return mod.build_summary(target, indication)
 
 
-def _dispatch_cn_distribution(target: str, indication: str,
-                              plot_data_out: Optional[Path] = None) -> Optional[dict]:
+def _dispatch_cn_distribution(target: str, indication: str, plot_data_out: Optional[Path] = None) -> Optional[dict]:
     """Dispatcher: route copy-number-distribution card (E3.b) to methods/depmap_cn_distribution.
 
     WES-primary + WGS-fallback for the CELL-LINE arm (copy_number_class — verdict-driving, pan-cancer;
@@ -1095,9 +1194,15 @@ def _dispatch_cn_distribution(target: str, indication: str,
     out = dict(cn_module.read_cn_distribution(**_cn_kw))
     # patient_focal_cn_class is REQUIRED: it's the field the CN-consensus verdict rules
     # (cn-patient-focal-amplified/deleted-supportive) fire on — without it the rescue can't trigger.
-    _PCN_KEYS = ("patient_copy_number_class", "patient_focal_cn_class",
-                 "patient_amplified_fraction", "patient_high_amp_fraction",
-                 "patient_deleted_fraction", "patient_homdel_fraction", "patient_cn_context")
+    _PCN_KEYS = (
+        "patient_copy_number_class",
+        "patient_focal_cn_class",
+        "patient_amplified_fraction",
+        "patient_high_amp_fraction",
+        "patient_deleted_fraction",
+        "patient_homdel_fraction",
+        "patient_cn_context",
+    )
     try:
         pcn = _import_method("tcga_patient_cn").patient_cn_summary_for_gene(target, indication)
         for k in _PCN_KEYS:
@@ -1116,6 +1221,7 @@ def _dispatch_cn_distribution(target: str, indication: str,
 # read.py::read_target_summary(). Hybrid cache-then-compute pattern lives in
 # the method's read.py — dispatchers stay thin.
 # -----------------------------------------------------------------------------
+
 
 def _dispatch_signaling_network_mechanism(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: signaling-network-mechanism card → COMPOSED Phase-D output
@@ -1157,7 +1263,8 @@ def _dispatch_degradation_feasibility(target: str, indication: str) -> Optional[
     is_surface_protein = family.get("is_surface_protein")
     mod = _import_method("degradation_feasibility")
     return mod.degradation_feasibility_for_gene(
-        target, surface_family_class=surface_family_class, is_surface_protein=is_surface_protein)
+        target, surface_family_class=surface_family_class, is_surface_protein=is_surface_protein
+    )
 
 
 # _dispatch_ppi_interactome REMOVED (2026-08-11): the ppi-interactome card now declares
@@ -1186,6 +1293,7 @@ def _dispatch_surface_topology_and_ptm(target: str, indication: str) -> Optional
     out = dict(mod.read_target_summary(target=target, indication=indication) or {})
     try:
         from _skills_common.isoform_selective_targets import check_target, vocabulary_version
+
         # Card-declared provenance field — emit UNCONDITIONALLY (the vocab version is target-independent),
         # so a target with no isoform warning still carries it (was previously set only inside the
         # warning branch → MISSING on the common no-warning path; card-review emission-guard gap).
@@ -1199,7 +1307,7 @@ def _dispatch_surface_topology_and_ptm(target: str, indication: str) -> Optional
             out["isoform_selective_dominant_isoform"] = warning.dominant_isoform
             out["vocabulary_version_isoform"] = warning.vocabulary_version
             if not warning.applies_in_indication(indication):
-                out["isoform_selective_offcontext"] = True       # off-context: annotation only — fit_class preserved
+                out["isoform_selective_offcontext"] = True  # off-context: annotation only — fit_class preserved
                 out["isoform_selective_offcontext_indication"] = indication
             elif warning.suppresses_fit_class(indication):
                 # DOMINANCE-AWARE (2026-08-24, v1.3.0): in-context AND ectodomain-ablating AND the alt
@@ -1259,8 +1367,7 @@ def _dispatch_surface_abundance_density(target: str, indication: str) -> Optiona
         mod = _import_method("cptac_protein_deg")
         summary = mod.read_abundance_density_summary(target=target, indication=indication) or {}
     except Exception as e:  # noqa: BLE001 — Tier-2 is the broad ESTIMATE; degrade it, keep Tier-1
-        summary = {"surface_density_class": "unmeasured",
-                   "_tier2_estimate_error": f"{type(e).__name__}: {e}"}
+        summary = {"surface_density_class": "unmeasured", "_tier2_estimate_error": f"{type(e).__name__}: {e}"}
 
     # Tier-1 absolute anchor (namespaced; independent of Tier-2 — computed in its own try so a Tier-2
     # failure never suppresses the calibrated value). Does not disturb the Tier-2 grade-D fields.
@@ -1282,22 +1389,24 @@ def _dispatch_surface_abundance_density(target: str, indication: str) -> Optiona
         floor_verdict = "above_tce_floor_below_adc"
     else:
         floor_verdict = "below_tce_floor"
-    summary.update({
-        "absolute_density_class": abs_.get("absolute_density_class"),
-        "absolute_copies_per_cell": value,
-        "absolute_density_grade": grade,
-        "absolute_measurement_semantics": abs_.get("measurement_semantics_best"),
-        "absolute_n_measurements": abs_.get("n_admissible_measurements"),
-        "density_floor_verdict": floor_verdict,
-        # Additive ProCan absolute-abundance PROXY (verdict-INERT). read_absolute_density ALWAYS returns
-        # these 4 (defaulting to data_unavailable for a non-ProCan target), and the card declares them —
-        # but this dispatcher's field cherry-pick dropped them, so the surface-abundance-density emission
-        # guard flagged them MISSING for non-ProCan targets (e.g. MSLN/PAAD). Pass them through.
-        "absolute_abundance_proxy_class": abs_.get("absolute_abundance_proxy_class"),
-        "absolute_abundance_proxy_percentile": abs_.get("absolute_abundance_proxy_percentile"),
-        "absolute_abundance_proxy_source": abs_.get("absolute_abundance_proxy_source"),
-        "absolute_abundance_proxy_note": abs_.get("absolute_abundance_proxy_note"),
-    })
+    summary.update(
+        {
+            "absolute_density_class": abs_.get("absolute_density_class"),
+            "absolute_copies_per_cell": value,
+            "absolute_density_grade": grade,
+            "absolute_measurement_semantics": abs_.get("measurement_semantics_best"),
+            "absolute_n_measurements": abs_.get("n_admissible_measurements"),
+            "density_floor_verdict": floor_verdict,
+            # Additive ProCan absolute-abundance PROXY (verdict-INERT). read_absolute_density ALWAYS returns
+            # these 4 (defaulting to data_unavailable for a non-ProCan target), and the card declares them —
+            # but this dispatcher's field cherry-pick dropped them, so the surface-abundance-density emission
+            # guard flagged them MISSING for non-ProCan targets (e.g. MSLN/PAAD). Pass them through.
+            "absolute_abundance_proxy_class": abs_.get("absolute_abundance_proxy_class"),
+            "absolute_abundance_proxy_percentile": abs_.get("absolute_abundance_proxy_percentile"),
+            "absolute_abundance_proxy_source": abs_.get("absolute_abundance_proxy_source"),
+            "absolute_abundance_proxy_note": abs_.get("absolute_abundance_proxy_note"),
+        }
+    )
     return summary
 
 
@@ -1310,6 +1419,7 @@ def _dispatch_pmhc_presentation(target: str, indication: str) -> Optional[dict]:
     """
     _import_method("pmhc_presentation")  # ensures the analysis-methods repo is on sys.path
     from methods.pmhc_presentation import read_pmhc_presentation
+
     return read_pmhc_presentation(target=target, indication=indication)
 
 
@@ -1322,6 +1432,7 @@ def _dispatch_modality_therapeutic_window(target: str, indication: str) -> Optio
     """
     _import_method("tcga_gtex_tpm_quantiles")  # ensures the analysis-methods repo is on sys.path
     from methods.tcga_gtex_tpm_quantiles import window as _window
+
     return _window.read_modality_window(target=target, indication=indication)
 
 
@@ -1334,6 +1445,7 @@ def _dispatch_exon_window(target: str, indication: str) -> Optional[dict]:
     """
     _import_method("exon_window")  # ensures the analysis-methods repo is on sys.path
     from methods.exon_window import read as _exon
+
     return _exon.read_exon_window(target=target, indication=indication)
 
 
@@ -1394,8 +1506,7 @@ def _dispatch_adc_tce_modality_fit(target: str, indication: str) -> Optional[dic
     # ever carries it) > curated clinical precedent > unmeasured. `clinically_internalizing` is a
     # distinct, honestly-labeled tier (NOT conflated with a measured motif count).
     if endo_measured:
-        endocytosis_confidence = ("high" if endo_high_conf >= 3
-                                  else "moderate" if endo_high_conf >= 1 else "low")
+        endocytosis_confidence = "high" if endo_high_conf >= 3 else "moderate" if endo_high_conf >= 1 else "low"
     elif clinically_internalizing:
         endocytosis_confidence = "clinically_internalizing"
     else:
@@ -1424,8 +1535,8 @@ def _dispatch_adc_tce_modality_fit(target: str, indication: str) -> Optional[dic
         # GPI branch: no cytoplasmic tail → endocytosis/turnover machinery absent. TCE + naked-antibody
         # favorable (stable surface display); ADC-viable when the ECD is large AND internalization is
         # clinically precedented (FOLR1/Elahere) — a GPI antigen is NOT auto-ADC (no default internalization).
-        adc_favorable = (ec_length >= 200 and clinically_internalizing)
-        tce_favorable = (ec_length >= 100)
+        adc_favorable = ec_length >= 200 and clinically_internalizing
+        tce_favorable = ec_length >= 100
         if adc_favorable and tce_favorable:
             fit_class = "both_viable"
         elif adc_favorable:
@@ -1441,7 +1552,7 @@ def _dispatch_adc_tce_modality_fit(target: str, indication: str) -> Optional[dic
         # ADC-favorability rests on the two LIVE topology inputs; the endocytosis term is satisfied
         # by EITHER a MEASURED motif signal (>=3) OR curated clinical-ADC precedent (Rank-2), and
         # ABSTAINS (doesn't veto) only when endocytosis is genuinely unmeasured AND uncurated.
-        adc_topology_ok = (tm_count == 1 and ec_length >= 200)
+        adc_topology_ok = tm_count == 1 and ec_length >= 200
         # endo_ok satisfied by: curated clinical-ADC precedent (regulatory FACT of internalization —
         # outranks a motif-count heuristic), OR a measured motif signal (>=3), OR — when endocytosis
         # is genuinely unmeasured AND uncurated — abstention (don't veto on a coverage gap, Rank-1).
@@ -1452,13 +1563,13 @@ def _dispatch_adc_tce_modality_fit(target: str, indication: str) -> Optional[dic
         elif endo_measured:
             endo_ok = endo_high_conf >= 3
         else:
-            endo_ok = True                            # unmeasured + uncurated → abstain, don't veto (Rank-1)
+            endo_ok = True  # unmeasured + uncurated → abstain, don't veto (Rank-1)
         adc_favorable = adc_topology_ok and endo_ok
         # TCE: bridges T-cell to tumor surface — endocytosis irrelevant. Low ubiquitination preferred
         # (high ubiq → fast internalization → target lost before engagement). Same discipline: an
         # UNMEASURED ubiquitination count must not veto (abstain, don't fail).
-        ubiq_ok = (n_ubiq <= 3) if ubiq_measured else True           # unmeasured → abstain, don't veto
-        tce_favorable = (tm_count >= 1 and ec_length >= 100 and ubiq_ok)
+        ubiq_ok = (n_ubiq <= 3) if ubiq_measured else True  # unmeasured → abstain, don't veto
+        tce_favorable = tm_count >= 1 and ec_length >= 100 and ubiq_ok
         if adc_favorable and tce_favorable:
             fit_class = "both_viable"
         elif adc_favorable:
@@ -1478,9 +1589,9 @@ def _dispatch_adc_tce_modality_fit(target: str, indication: str) -> Optional[dic
     return {
         "fit_class": fit_class,
         "fit_rationale": f"tm_count={tm_count}, ec_length={ec_length}, "
-                         f"endo_motif_hc={endo_high_conf if endo_measured else 'unmeasured'}, "
-                         f"n_ubiq={n_ubiq if ubiq_measured else 'unmeasured'}"
-                         + (", GPI-anchored (TMbed-invisible surface antigen rescued)" if gpi_surface_accessible else ""),
+        f"endo_motif_hc={endo_high_conf if endo_measured else 'unmeasured'}, "
+        f"n_ubiq={n_ubiq if ubiq_measured else 'unmeasured'}"
+        + (", GPI-anchored (TMbed-invisible surface antigen rescued)" if gpi_surface_accessible else ""),
         # GPI-anchor rescue provenance: surfaced so a GPI-driven surface call is auditable
         # (the topology_class stays no_transmembrane — TMbed can't see the anchor — but fit_class is
         # computed on the ECD as a surface antigen). is_gpi_anchored is the curated UniProt LIPID fact.
@@ -1527,8 +1638,7 @@ def _dispatch_adc_tce_modality_fit(target: str, indication: str) -> Optional[dic
     }
 
 
-_BREADTH_ELEVATED_CLASSES = frozenset({"broadly_tumor_elevated", "multi_tumor_elevated",
-                                       "single_tumor_elevated"})
+_BREADTH_ELEVATED_CLASSES = frozenset({"broadly_tumor_elevated", "multi_tumor_elevated", "single_tumor_elevated"})
 
 
 def _breadth_layer_concordance(protein_class: Optional[str], rna_class: Optional[str]) -> str:
@@ -1557,7 +1667,7 @@ def _breadth_layer_concordance(protein_class: Optional[str], rna_class: Optional
     r_gap = rna_class in (None, "data_unavailable")
 
     if p_gap and r_gap:
-        return "single_layer"        # neither layer had data — degenerate; concordance untested
+        return "single_layer"  # neither layer had data — degenerate; concordance untested
     if p_elev and r_elev:
         return "concordant"
     if p_elev and r_measured_neg:
@@ -1565,12 +1675,12 @@ def _breadth_layer_concordance(protein_class: Optional[str], rna_class: Optional
     if r_elev and p_measured_neg:
         return "discordant"
     if p_elev and r_gap:
-        return "protein_only"        # protein elevated; RNA a coverage gap (not a negative)
+        return "protein_only"  # protein elevated; RNA a coverage gap (not a negative)
     if r_elev and p_gap:
-        return "rna_only"            # RNA elevated; protein a coverage gap (CPTAC's 10 vs RNA's 27)
+        return "rna_only"  # RNA elevated; protein a coverage gap (CPTAC's 10 vs RNA's 27)
     # remaining: at least one measured-negative, neither elevated → not an elevation call
     if p_gap != r_gap:
-        return "single_layer"        # exactly one layer had data, and it was a measured negative
+        return "single_layer"  # exactly one layer had data, and it was a measured negative
     # both measured, both not-elevated → they AGREE the target is NOT elevated. This is a MEASURED
     # negative agreement, NOT the `concordant` ELEVATION call (which the card reserves for "both
     # elevated — strongest breadth call"); labeling it `concordant` would read as elevation.
@@ -1602,8 +1712,7 @@ def _dispatch_tumor_elevation_breadth(target: str, indication: str) -> Optional[
         rna = _import_method("dge_deseq2").read_rna_tumor_elevation_breadth(target=target) or {}
     except Exception as e:
         # RNA layer unreachable — surface an honest data_unavailable envelope, don't fail the card.
-        rna = {"rna_tumor_elevation_breadth_class": "data_unavailable",
-               "_rna_read_error": f"{type(e).__name__}: {e}"}
+        rna = {"rna_tumor_elevation_breadth_class": "data_unavailable", "_rna_read_error": f"{type(e).__name__}: {e}"}
 
     # The RNA reader emits GENERIC field names (n_indications_tested, ...); the card contract
     # (tumor-elevation-breadth.card.yaml) declares them rna_-PREFIXED so they never
@@ -1618,8 +1727,8 @@ def _dispatch_tumor_elevation_breadth(target: str, indication: str) -> Optional[
     }
     rna_ns = {_RNA_FIELD_MAP.get(k, k): v for k, v in rna.items()}
 
-    merged = dict(protein)                       # protein fields (incl. the PRIMARY class) verbatim
-    merged.update(rna_ns)                        # rna_-namespaced fields are disjoint — no clobber
+    merged = dict(protein)  # protein fields (incl. the PRIMARY class) verbatim
+    merged.update(rna_ns)  # rna_-namespaced fields are disjoint — no clobber
     merged["breadth_layer_concordance"] = _breadth_layer_concordance(
         protein.get("tumor_elevation_breadth_class"),
         rna.get("rna_tumor_elevation_breadth_class"),
@@ -1687,12 +1796,14 @@ def _dispatch_mouse_ko_phenotype(target: str, indication: str) -> Optional[dict]
         return summary
     try:
         impc = _import_method("impc_mouse_ko_phenotype.read").read_impc_mouse_ko_phenotype(target, indication)
-        summary.update({
-            "impc_ko_phenotype_class": impc.get("ko_phenotype_class"),
-            "impc_viability_class": impc.get("impc_viability_class"),
-            "impc_top_level_systems": impc.get("top_level_systems"),
-            "impc_orthology_confidence": impc.get("orthology_confidence"),
-        })
+        summary.update(
+            {
+                "impc_ko_phenotype_class": impc.get("ko_phenotype_class"),
+                "impc_viability_class": impc.get("impc_viability_class"),
+                "impc_top_level_systems": impc.get("top_level_systems"),
+                "impc_orthology_confidence": impc.get("orthology_confidence"),
+            }
+        )
     except Exception as exc:  # noqa: BLE001 — verdict-inert corroboration; never abort the OT-MGI spine
         summary.setdefault("_corroboration_errors", {})["impc"] = f"{type(exc).__name__}: {exc}"
     return summary
@@ -1744,10 +1855,17 @@ def _dispatch_immune_context(target: str, indication: str) -> Optional[dict]:
     out = dict(mod.read_immune_context(indication=indication))
     try:
         from methods.immune_context.antigen_conditioned import read_antigen_conditioned
+
         ac = read_antigen_conditioned(target, indication)
-        for k in ("antigen_conditioned_call", "cd8_fraction_antigen_high", "cd8_fraction_antigen_low",
-                  "cd8_high_minus_low", "antigen_high_immune_context_class", "join_fraction",
-                  "n_patients_joined"):
+        for k in (
+            "antigen_conditioned_call",
+            "cd8_fraction_antigen_high",
+            "cd8_fraction_antigen_low",
+            "cd8_high_minus_low",
+            "antigen_high_immune_context_class",
+            "join_fraction",
+            "n_patients_joined",
+        ):
             if k in ac:
                 out[k] = ac[k]
     except Exception as e:  # noqa: BLE001 - v1 class stands even if the v2 join is unavailable
@@ -1765,18 +1883,18 @@ CARD_DISPATCHERS = {
     "functional-gene-state": _dispatch_functional_gene_state,
     "genomic-event-model-match": _dispatch_genomic_event_model_match,
     "fusion-rearrangement-landscape": _dispatch_fusion_rearrangement_landscape,
-    "splice-exon-skip-landscape": _dispatch_splice_exon_skip_landscape,   # genomic splice-exon-skip axis (CASE-002)
+    "splice-exon-skip-landscape": _dispatch_splice_exon_skip_landscape,  # genomic splice-exon-skip axis (CASE-002)
     "cellline-rna-distribution": _dispatch_expression_distribution,
     "tumor-rna-distribution": _dispatch_tumor_expression_distribution,
     "tumor-rna-distribution-by-subtype": _dispatch_tumor_expression_distribution_subtype,
     "cellline-rna-distribution-by-subtype": _dispatch_cellline_expression_distribution_subtype,
     "tumor-protein-distribution-by-subtype": _dispatch_tumor_protein_distribution_subtype,  # CPTAC MSI protein panorama
-    "tumor-scrna-celltype-expression": _dispatch_sc_tumor_celltype_expression,   # sc_rna/tumor bucket (single-cell per-compartment presence)
-    "sc-normal-celltype-expression": _dispatch_sc_normal_celltype_expression,    # sc_rna/normal SAFETY COMPARATOR bucket
-    "known-drug-tractability": _dispatch_known_drug_tractability,                 # DGIdb pharmacology leg
-    "measured-potency-tractability": _dispatch_measured_potency_tractability,     # ChEMBL/BindingDB MEASURED potency leg
-    "mutation-stratified-surface": _dispatch_mutation_stratified_surface,         # mutant-subset surface window
-    "pathway-stratified-surface": _dispatch_pathway_stratified_surface,           # tumor-state-high surface window
+    "tumor-scrna-celltype-expression": _dispatch_sc_tumor_celltype_expression,  # sc_rna/tumor bucket (single-cell per-compartment presence)
+    "sc-normal-celltype-expression": _dispatch_sc_normal_celltype_expression,  # sc_rna/normal SAFETY COMPARATOR bucket
+    "known-drug-tractability": _dispatch_known_drug_tractability,  # DGIdb pharmacology leg
+    "measured-potency-tractability": _dispatch_measured_potency_tractability,  # ChEMBL/BindingDB MEASURED potency leg
+    "mutation-stratified-surface": _dispatch_mutation_stratified_surface,  # mutant-subset surface window
+    "pathway-stratified-surface": _dispatch_pathway_stratified_surface,  # tumor-state-high surface window
     "tumor-vs-normal-percentile-crossing": _dispatch_tumor_vs_normal_percentile_crossing,
     "tumor-vs-normal-percentile-crossing-by-subtype": _dispatch_selectivity_crossing_subtype,  # Phase B: per-stratum crossing panorama
     "normal-tissue-liability-gtex": _dispatch_normal_tissue_liability_gtex,
@@ -1786,15 +1904,15 @@ CARD_DISPATCHERS = {
     "sc-surface-rna-protein-concordance": _dispatch_sc_surface_concordance,
     "surface-colocalization-avidity": _dispatch_surface_colocalization_avidity,
     "surface-bulk-pair-selectivity": _dispatch_surface_bulk_pair_selectivity,
-    "spatial-tumor-normal-colocalization": _dispatch_spatial_tumor_normal_colocalization,   # in-situ spatial neighbourhood (CosMx CRC; immune_excluded / normal_epithelium_adjacent)
-    "spatial-surface-protein-abundance": _dispatch_spatial_surface_protein_abundance,       # in-situ region PROTEIN (GeoMx DSP; tumour_enriched / tme_enriched)
-    "spatial-region-rna-expression": _dispatch_spatial_region_rna_expression,               # in-situ region RNA (GeoMx DSP WTA; tumour_enriched_rna / tme_enriched_rna; corroborating presence)
+    "spatial-tumor-normal-colocalization": _dispatch_spatial_tumor_normal_colocalization,  # in-situ spatial neighbourhood (CosMx CRC; immune_excluded / normal_epithelium_adjacent)
+    "spatial-surface-protein-abundance": _dispatch_spatial_surface_protein_abundance,  # in-situ region PROTEIN (GeoMx DSP; tumour_enriched / tme_enriched)
+    "spatial-region-rna-expression": _dispatch_spatial_region_rna_expression,  # in-situ region RNA (GeoMx DSP WTA; tumour_enriched_rna / tme_enriched_rna; corroborating presence)
     "sc-surface-normal-safety": _dispatch_sc_surface_normal_safety,
     "abundance-dependency": _dispatch_abundance_dependency,
     "expression-purity-confound": _dispatch_expression_purity_confound,
     "expression-clinical-association": _dispatch_expression_clinical_association,
-    "alteration-clinical-association": _dispatch_alteration_clinical_association,   # Q11-alteration (2026-08-20): OS by target mutation status
-    "subtype-survival-association": _dispatch_subtype_survival_association,         # Q2-subtype (2026-08-20): OS across molecular subtypes
+    "alteration-clinical-association": _dispatch_alteration_clinical_association,  # Q11-alteration (2026-08-20): OS by target mutation status
+    "subtype-survival-association": _dispatch_subtype_survival_association,  # Q2-subtype (2026-08-20): OS across molecular subtypes
     "phospho-pathway-activity": _dispatch_phospho_pathway_activity,
     "copy-number-distribution": _dispatch_cn_distribution,
     # 2026-07-09: 11 Phase D/E/F/G card dispatchers
@@ -1816,11 +1934,11 @@ CARD_DISPATCHERS = {
     "combinatorial-dependency": _dispatch_combinatorial_dependency,
     "combo-crispr-screen": _dispatch_combo_crispr_screen,
     "resistance-emergence-signature": _dispatch_resistance_emergence_signature,
-    "target-safety-prioritisation": _dispatch_target_safety_prioritisation,   # OT safety context
-    "gene-burden-safety": _dispatch_gene_burden_safety,                        # OT rare-variant burden, verdict-moving
-    "clingen-dosage": _dispatch_clingen_dosage,                                # ClinGen dosage sensitivity, verdict-moving
-    "mouse-ko-phenotype": _dispatch_mouse_ko_phenotype,                        # mouse-KO normal-physiology, developmental-guardrailed
-    "clinvar-pathogenicity-safety": _dispatch_clinvar_pathogenicity,           # ClinVar germline-pathogenic, verdict-moving
+    "target-safety-prioritisation": _dispatch_target_safety_prioritisation,  # OT safety context
+    "gene-burden-safety": _dispatch_gene_burden_safety,  # OT rare-variant burden, verdict-moving
+    "clingen-dosage": _dispatch_clingen_dosage,  # ClinGen dosage sensitivity, verdict-moving
+    "mouse-ko-phenotype": _dispatch_mouse_ko_phenotype,  # mouse-KO normal-physiology, developmental-guardrailed
+    "clinvar-pathogenicity-safety": _dispatch_clinvar_pathogenicity,  # ClinVar germline-pathogenic, verdict-moving
     "immune-context": _dispatch_immune_context,
     # NOTE: a pure-passthrough card needs NO entry here — read_live_summary falls
     # back to the generic dispatcher driven by the card_spec's `module`/`entrypoint`. Add a bespoke
@@ -1835,15 +1953,14 @@ CARD_DISPATCHERS = {
 # card_id is present AND subgroups are in scope. Value = (dispatcher, indication→manifest map).
 PANORAMA_DISPATCHERS = {
     "subgroup-stratified-mutation-frequency": (
-        _dispatch_subgroup_stratified_mutation_frequency, _MUTATION_ASSIGNMENTS_MANIFEST),
-    "subgroup-stratified-dependency": (
-        _dispatch_subgroup_stratified_dependency, _DEPENDENCY_ASSIGNMENTS_MANIFEST),
+        _dispatch_subgroup_stratified_mutation_frequency,
+        _MUTATION_ASSIGNMENTS_MANIFEST,
+    ),
+    "subgroup-stratified-dependency": (_dispatch_subgroup_stratified_dependency, _DEPENDENCY_ASSIGNMENTS_MANIFEST),
     # CN + fusion subtype panoramas: both are TCGA-patient-tissue, so they
     # reuse the molecular TCGA assignments shard (no LOT/GENIE split — that split is mutation-only).
-    "subgroup-stratified-copy-number": (
-        _dispatch_subgroup_stratified_copy_number, _MUTATION_ASSIGNMENTS_MANIFEST),
-    "subgroup-stratified-fusion": (
-        _dispatch_subgroup_stratified_fusion, _MUTATION_ASSIGNMENTS_MANIFEST),
+    "subgroup-stratified-copy-number": (_dispatch_subgroup_stratified_copy_number, _MUTATION_ASSIGNMENTS_MANIFEST),
+    "subgroup-stratified-fusion": (_dispatch_subgroup_stratified_fusion, _MUTATION_ASSIGNMENTS_MANIFEST),
 }
 
 # DUAL-GRAIN cards: a SINGLE card_id that carries BOTH a pooled scalar reader (CARD_DISPATCHERS) AND a
@@ -1858,10 +1975,14 @@ DUAL_GRAIN_SUBGROUP_DISPATCHERS = {
 }
 
 
-def read_live_summary(card_id: str, target: str, indication: str,
-                       subgroup_context: Optional[dict] = None,
-                       data_context: Optional[dict] = None,
-                       plot_data_root: Optional[Path] = None) -> Optional[dict]:
+def read_live_summary(
+    card_id: str,
+    target: str,
+    indication: str,
+    subgroup_context: Optional[dict] = None,
+    data_context: Optional[dict] = None,
+    plot_data_root: Optional[Path] = None,
+) -> Optional[dict]:
     """Dispatch a live-read for the named card to its corresponding method module.
 
     Two dispatch paths:
@@ -1902,14 +2023,19 @@ def read_live_summary(card_id: str, target: str, indication: str,
         # (e.g. NSCLC ships only the GENIE-BPC LOT shard). Only bail when there is NO shard of
         # EITHER kind — otherwise call the dispatcher, which partitions strata by axis and emits
         # its own per-axis data-notes for whichever arm lacks a shard.
-        _has_lot_shard = (card_id == "subgroup-stratified-mutation-frequency"
-                          and _MUTATION_LOT_ASSIGNMENTS_MANIFEST.get(indication) is not None)
+        _has_lot_shard = (
+            card_id == "subgroup-stratified-mutation-frequency"
+            and _MUTATION_LOT_ASSIGNMENTS_MANIFEST.get(indication) is not None
+        )
         if manifest_id is None and not _has_lot_shard:
-            return {"_data_note": f"no subgroup-assignments shard for indication={indication!r} "
-                                  f"(iter-1b ships COADREAD only)"}
+            return {
+                "_data_note": f"no subgroup-assignments shard for indication={indication!r} "
+                f"(iter-1b ships COADREAD only)"
+            }
         try:
-            return dispatcher(target=target, indication=indication,
-                              subgroups=subgroups, subgroup_assignments_manifest=manifest_id)
+            return dispatcher(
+                target=target, indication=indication, subgroups=subgroups, subgroup_assignments_manifest=manifest_id
+            )
         except Exception as e:
             return {"_live_read_error": str(e)}
 
@@ -1929,8 +2055,7 @@ def read_live_summary(card_id: str, target: str, indication: str,
         # data-driven path. If the card_spec's method declares a `module` + `entrypoint`, invoke it
         # directly, so a new pure-passthrough card needs NO hand-written _dispatch_* function. Returns
         # None only when the card has no generic wiring either (genuinely unwired → caller stubs/fails).
-        return _generic_dispatch(card_id, target, indication, data_context=_dctx,
-                                 plot_data_root=plot_data_root)
+        return _generic_dispatch(card_id, target, indication, data_context=_dctx, plot_data_root=plot_data_root)
     try:
         # Forward data_context ONLY to dispatchers whose signature declares it (release-aware
         # readers); single-release dispatchers keep the (target, indication) signature untouched.
@@ -1938,6 +2063,7 @@ def read_live_summary(card_id: str, target: str, indication: str,
         # that declare it, so card RESOLUTION persists plot_data. Inert for dispatchers that don't.
         kwargs = {"target": target, "indication": indication}
         import inspect
+
         try:
             params = inspect.signature(dispatcher).parameters
             _accepts_var_kw = any(p.kind == p.VAR_KEYWORD for p in params.values())
@@ -1952,9 +2078,13 @@ def read_live_summary(card_id: str, target: str, indication: str,
         return {"_live_read_error": str(e)}
 
 
-def _generic_dispatch(card_id: str, target: str, indication: str,
-                      data_context: Optional[dict] = None,
-                      plot_data_root: Optional[Path] = None) -> Optional[dict]:
+def _generic_dispatch(
+    card_id: str,
+    target: str,
+    indication: str,
+    data_context: Optional[dict] = None,
+    plot_data_root: Optional[Path] = None,
+) -> Optional[dict]:
     """Data-driven dispatch: resolve (module, entrypoint) from the card_spec's first method
     and call it as fn(target=, indication=). This collapses the ~30 pure-passthrough dispatchers
     (mod = _import_method(X); return mod.read_Y(target=, indication=)) into card_spec data, so a new
@@ -1971,6 +2101,7 @@ def _generic_dispatch(card_id: str, target: str, indication: str,
     silently read the DEFAULT release (the pin never reached the data-access layer). Readers that
     declare neither are called with just (target, indication) — byte-stable with the pre-fix path."""
     import yaml
+
     card_path = _TARGET_CONTRACTS_ROOT / "cards" / f"{card_id}.card.yaml"
     if not card_path.exists():
         return None
@@ -1981,7 +2112,7 @@ def _generic_dispatch(card_id: str, target: str, indication: str,
     methods = spec.get("methods") or []
     method = next((m for m in methods if isinstance(m, dict) and m.get("entrypoint")), None)
     if method is None:
-        return None   # no generic wiring for this card → genuinely unwired
+        return None  # no generic wiring for this card → genuinely unwired
     # module defaults to the `call` slug with hyphens→underscores when not explicitly declared.
     module_path = method.get("module") or (method.get("call", "").replace("-", "_"))
     entrypoint = method["entrypoint"]
@@ -1996,6 +2127,7 @@ def _generic_dispatch(card_id: str, target: str, indication: str,
         # reader still propagates (caught below as a structured error) — we never blanket-retry.
         kwargs = {"target": target, "indication": indication}
         import inspect
+
         try:
             params = inspect.signature(fn).parameters
             accepts_var_kw = any(p.kind == p.VAR_KEYWORD for p in params.values())

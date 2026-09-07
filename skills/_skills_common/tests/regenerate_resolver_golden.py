@@ -22,6 +22,7 @@ Usage:
   --check : do not write; print the would-be per-gate row counts + assert the coverage-preservation
             invariant (every co-emission set reproduces via the live spec; counts match the model).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -32,11 +33,11 @@ import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-SKILLS = HERE.parents[1]           # .../skills
+SKILLS = HERE.parents[1]  # .../skills
 SNAPSHOT = HERE / "resolver_golden_snapshots.json"
-CONTRACTS = Path(os.environ.get(
-    "TARGET_CONTRACTS_ROOT",
-    "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
+CONTRACTS = Path(
+    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+)
 
 if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
@@ -71,12 +72,10 @@ def build_gate_table(gate: str, rule_ids: list[str], rule_index: dict) -> dict:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--check", action="store_true",
-                    help="print counts + verify, do not write the JSON")
+    ap.add_argument("--check", action="store_true", help="print counts + verify, do not write the JSON")
     args = ap.parse_args(argv)
 
-    shipped = sorted(p.stem.replace(".resolver", "")
-                     for p in (CONTRACTS / "resolvers").glob("*.resolver.yaml"))
+    shipped = sorted(p.stem.replace(".resolver", "") for p in (CONTRACTS / "resolvers").glob("*.resolver.yaml"))
     rule_index = _coemit.load_rule_index(CONTRACTS)
 
     # keep the existing rule_ids lists (they define each gate's full rung set + order)
@@ -88,11 +87,12 @@ def main(argv=None) -> int:
         if gate not in existing:
             raise RuntimeError(
                 f"gate {gate!r} has no rule_ids list in the snapshot yet — add it manually first "
-                f"(the full ordered rung set), then regenerate.")
+                f"(the full ordered rung set), then regenerate."
+            )
         rule_ids = existing[gate]["rule_ids"]
         table = build_gate_table(gate, rule_ids, rule_index)
         out[gate] = {"rule_ids": rule_ids, "enumeration": "coemission", "table": table}
-        print(f"{gate:<28} {len(rule_ids):>8} {len(table):>12,} {2**len(rule_ids):>12,}")
+        print(f"{gate:<28} {len(rule_ids):>8} {len(table):>12,} {2 ** len(rule_ids):>12,}")
 
     if args.check:
         total = sum(len(v["table"]) for v in out.values())

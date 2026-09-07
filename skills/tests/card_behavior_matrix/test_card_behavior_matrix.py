@@ -12,6 +12,7 @@ Offline: replays fixtures frozen by freeze.py (run against live S3). A nightly-l
 to catch drift. Assertions are class-BUCKET / state level, never numeric bytes (re-pin robust) and
 never the resolver verdict (would test the framework against itself). Skips a pair with no fixture.
 """
+
 from __future__ import annotations
 
 import sys
@@ -45,14 +46,14 @@ def _observed(summary, field):
         return "data_unavailable", None
     if "requires resolved subgroups" in str(summary.get("_data_note", "")):
         return "not_in_scope", None
-    if field == "per_subgroup_metrics":                  # subtype/panorama card
+    if field == "per_subgroup_metrics":  # subtype/panorama card
         rows = summary.get("per_subgroup_metrics") or []
         measured = [r for r in rows if isinstance(r, dict) and r.get("evidence_state") == "measured"]
         if measured:
             return "value", "subtype_measured"
         if rows:
-            return "value", "subtype_no_signal"          # strata present, none measured (real negative)
-        return "data_unavailable", None                  # empty panorama → no shard / broken join
+            return "value", "subtype_no_signal"  # strata present, none measured (real negative)
+        return "data_unavailable", None  # empty panorama → no shard / broken join
     v = summary.get(field) if field else _primary_class_value(summary)
     if v is None or _is_data_unavailable(v):
         return "data_unavailable", v if isinstance(v, str) else None
@@ -64,7 +65,7 @@ def _cells():
     for pair in _MATRIX["pairs"]:
         fx = _FIXTURES / f"{pair['id']}.yaml"
         if not fx.exists():
-            continue                                     # not yet frozen — skip (nightly/freeze.py populates)
+            continue  # not yet frozen — skip (nightly/freeze.py populates)
         frozen = yaml.safe_load(fx.read_text()) or {}
         for cell in pair["expect"]:
             out.append((pair["id"], cell["card"], cell, frozen.get(cell["card"])))
@@ -75,21 +76,21 @@ _CELLS = _cells()
 
 
 @pytest.mark.skipif(not _CELLS, reason="no frozen fixtures yet (run freeze.py against live S3)")
-@pytest.mark.parametrize("pair_id,card,cell,summary", _CELLS,
-                         ids=[f"{p}:{c}" for p, c, _cell, _s in _CELLS])
+@pytest.mark.parametrize("pair_id,card,cell,summary", _CELLS, ids=[f"{p}:{c}" for p, c, _cell, _s in _CELLS])
 def test_card_behavior(pair_id, card, cell, summary):
-    match = cell["match"]                                # list[str] | "data_unavailable" | "not_in_scope"
+    match = cell["match"]  # list[str] | "data_unavailable" | "not_in_scope"
     obs_state, obs_cls = _observed(summary, cell.get("field"))
     if match in ("data_unavailable", "not_in_scope"):
         assert obs_state == match, (
             f"{pair_id}:{card} expected {match} but observed {obs_state} (class={obs_cls!r}). "
-            f"A wrong null-flavor here is exactly the silent-death class the matrix guards.")
-    else:                                                # value-set: informative / measured_negative
+            f"A wrong null-flavor here is exactly the silent-death class the matrix guards."
+        )
+    else:  # value-set: informative / measured_negative
         assert obs_state == "value", (
             f"{pair_id}:{card} expected a real class in {match} but the card was {obs_state} "
-            f"(dead reader / wrong null?).")
-        assert obs_cls in match, (
-            f"{pair_id}:{card} class {obs_cls!r} not in expected {match}")
+            f"(dead reader / wrong null?)."
+        )
+        assert obs_cls in match, f"{pair_id}:{card} class {obs_cls!r} not in expected {match}"
 
 
 def test_matrix_is_nonvacuous():
@@ -103,9 +104,14 @@ def test_matrix_is_nonvacuous():
 # these specific pairs to carry a fixture — a missing one FAILS (not skips), making the gap visible.
 _REQUIRED_PAIRS = {
     # negative controls
-    "gapdh_coadread", "or2t35_coadread",
+    "gapdh_coadread",
+    "or2t35_coadread",
     # canonical positives
-    "dll3_sclc", "folr1_ov", "erbb2_brca", "alk_nsclc", "ceacam5_coadread",
+    "dll3_sclc",
+    "folr1_ov",
+    "erbb2_brca",
+    "alk_nsclc",
+    "ceacam5_coadread",
 }
 
 
@@ -114,10 +120,11 @@ def test_control_and_canonical_pairs_have_fixtures():
     # the required set must actually be declared in the matrix (guards a rename drifting the floor)
     missing_from_matrix = _REQUIRED_PAIRS - declared
     assert not missing_from_matrix, (
-        f"required control/canonical pairs not declared in matrix.yaml: {sorted(missing_from_matrix)}")
-    missing_fixtures = sorted(
-        pid for pid in _REQUIRED_PAIRS if not (_FIXTURES / f"{pid}.yaml").exists())
+        f"required control/canonical pairs not declared in matrix.yaml: {sorted(missing_from_matrix)}"
+    )
+    missing_fixtures = sorted(pid for pid in _REQUIRED_PAIRS if not (_FIXTURES / f"{pid}.yaml").exists())
     assert not missing_fixtures, (
         f"required control/canonical pairs lack a frozen fixture: {missing_fixtures}. "
         f"Run freeze.py (live S3) for them — these negative controls + canonical positives MUST run "
-        f"(a missing fixture would silently skip the exact silent-death guard the matrix exists for).")
+        f"(a missing fixture would silently skip the exact silent-death guard the matrix exists for)."
+    )

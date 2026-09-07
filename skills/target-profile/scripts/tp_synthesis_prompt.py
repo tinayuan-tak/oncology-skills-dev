@@ -1,5 +1,6 @@
 """target-profile — Tier-3 LLM synthesis prompt assembly: system prompt, forced structured tool,
 and the deterministic user-prompt builder (card summaries + ordinal matrix slice)."""
+
 from __future__ import annotations
 
 import json
@@ -15,8 +16,6 @@ if _SCRIPTS_DIR not in sys.path:
 
 from _skills_common import EVIDENCE_ONLY_DIRECTIVE as _EVIDENCE_ONLY_DIRECTIVE, ordinal_view
 from _skills_common.signals_first import render_signal_summary
-
-
 
 
 # --- LLM synthesis ----------------------------------------------------------
@@ -69,8 +68,7 @@ _SYSTEM_PROMPT = (
     "discuss modality, RESPECT it — do not propose ADC/T-cell-engager/CAR for an intracellular target "
     "(or small-molecule-occupancy for a purely surface antigen) unless a fired rule overrides the axis. "
     "The block keeps modality talk biologically honest; it does NOT make modality the lead, and it never "
-    "changes the deterministic verdict or recommendation (the gate owns those)."
-    + _EVIDENCE_ONLY_DIRECTIVE
+    "changes the deterministic verdict or recommendation (the gate owns those)." + _EVIDENCE_ONLY_DIRECTIVE
 )
 
 # Cross-cutting plain-language legend for the metrics the COMPOSED synthesis may cite across lenses.
@@ -78,37 +76,55 @@ _SYSTEM_PROMPT = (
 # accurate, byte-stable reference independent of the LLM's inline glosses. Superset of the per-lens
 # METRIC_LEGENDs in _skills_common/synthesis_*.py (this composed view spans all lenses).
 _METRIC_LEGEND = {
-    "chronos_score": ("CRISPR knockout fitness score (dependency lens). 0 = knockout does not affect "
-                      "growth; ~ -1 = a typically essential gene; more negative = stronger dependency. "
-                      "A pan-essential-level score is a broad-toxicity liability, not a target win."),
-    "log2_fold_change": ("log2 of a ratio (e.g. tumour vs normal expression). +1 = 2x higher, 0 = no "
-                         "difference. Used by the expression/selectivity lenses."),
-    "allgene_percentile": ("Where a target ranks among ALL genes in the same cohort (0-100) — the "
-                           "'relative to what?' frame for abundance (presence) or fold-change "
-                           "(selectivity)."),
-    "epsilon_squared": ("ε² (epsilon-squared): the fraction of a signal's variation across a grouping "
-                        "(molecular subtype, or lineage for dependency) that the grouping explains, "
-                        "0-1. ~0.06 moderate, ~0.14 large. Large = concentrated in a subgroup."),
-    "driver_recurrence_percentile": ("Where a gene's mutation recurrence ranks among all mutated genes "
-                                     "in the indication (mutation lens). High = recurrent beyond the "
-                                     "passenger background; frequency is not function."),
-    "alteration_role": ("Curated functional call (OncoKB x IntOGen): GoF (activating oncogene), LoF "
-                        "(tumour suppressor), predictive_biomarker, or passenger."),
-    "fit_class": ("Surface-modality-fit verdict: ADC_preferred / TCE_preferred / both_viable / "
-                  "neither_viable — whether surface biology (topology, family) supports a biologics "
-                  "modality. Distinct from the small-molecule tractability call."),
-    "ordinal_matrix": ("A gate x modality reprojection of the same signals into order-preserving "
-                       "ordinals — NOT a calibrated score; never summed or averaged. Off-scale cells "
-                       "(insufficient / not_applicable) are coverage gaps, not low scores."),
-    "verdict_fragility": ("Flip-stability (fragility facet): re-runs the deterministic resolver over "
-                          "single-rule-perturbed fired sets. target_index = worst-case fraction of a "
-                          "gate's verdict-movable rules whose toggle changes the DECISION ROLE (how "
-                          "solid each axis's CALL is). recommendation_fragility_index = worst-case whose "
-                          "toggle crosses the KILL boundary (how solid the GO/NO-GO is) — this drives "
-                          "the `contested` banner. 0 = robust. Blind (un-evidenced) axes are a coverage "
-                          "gap tracked separately, not folded in. A structural sensitivity measure — NOT "
-                          "a probability the target succeeds, never summed/averaged, never moves the "
-                          "recommendation."),
+    "chronos_score": (
+        "CRISPR knockout fitness score (dependency lens). 0 = knockout does not affect "
+        "growth; ~ -1 = a typically essential gene; more negative = stronger dependency. "
+        "A pan-essential-level score is a broad-toxicity liability, not a target win."
+    ),
+    "log2_fold_change": (
+        "log2 of a ratio (e.g. tumour vs normal expression). +1 = 2x higher, 0 = no "
+        "difference. Used by the expression/selectivity lenses."
+    ),
+    "allgene_percentile": (
+        "Where a target ranks among ALL genes in the same cohort (0-100) — the "
+        "'relative to what?' frame for abundance (presence) or fold-change "
+        "(selectivity)."
+    ),
+    "epsilon_squared": (
+        "ε² (epsilon-squared): the fraction of a signal's variation across a grouping "
+        "(molecular subtype, or lineage for dependency) that the grouping explains, "
+        "0-1. ~0.06 moderate, ~0.14 large. Large = concentrated in a subgroup."
+    ),
+    "driver_recurrence_percentile": (
+        "Where a gene's mutation recurrence ranks among all mutated genes "
+        "in the indication (mutation lens). High = recurrent beyond the "
+        "passenger background; frequency is not function."
+    ),
+    "alteration_role": (
+        "Curated functional call (OncoKB x IntOGen): GoF (activating oncogene), LoF "
+        "(tumour suppressor), predictive_biomarker, or passenger."
+    ),
+    "fit_class": (
+        "Surface-modality-fit verdict: ADC_preferred / TCE_preferred / both_viable / "
+        "neither_viable — whether surface biology (topology, family) supports a biologics "
+        "modality. Distinct from the small-molecule tractability call."
+    ),
+    "ordinal_matrix": (
+        "A gate x modality reprojection of the same signals into order-preserving "
+        "ordinals — NOT a calibrated score; never summed or averaged. Off-scale cells "
+        "(insufficient / not_applicable) are coverage gaps, not low scores."
+    ),
+    "verdict_fragility": (
+        "Flip-stability (fragility facet): re-runs the deterministic resolver over "
+        "single-rule-perturbed fired sets. target_index = worst-case fraction of a "
+        "gate's verdict-movable rules whose toggle changes the DECISION ROLE (how "
+        "solid each axis's CALL is). recommendation_fragility_index = worst-case whose "
+        "toggle crosses the KILL boundary (how solid the GO/NO-GO is) — this drives "
+        "the `contested` banner. 0 = robust. Blind (un-evidenced) axes are a coverage "
+        "gap tracked separately, not folded in. A structural sensitivity measure — NOT "
+        "a probability the target succeeds, never summed/averaged, never moves the "
+        "recommendation."
+    ),
 }
 
 
@@ -123,32 +139,49 @@ def _build_synthesis_tool() -> dict:
         ),
         "type": "object",
         "required": [
-            "exec_bullets", "executive_summary", "tension_analysis",
-            "top_arguments_for", "top_arguments_against",
-            "overall_recommendation", "confidence",
+            "exec_bullets",
+            "executive_summary",
+            "tension_analysis",
+            "top_arguments_for",
+            "top_arguments_against",
+            "overall_recommendation",
+            "confidence",
         ],
         "properties": {
             "exec_bullets": {
-                "type": "array", "minItems": 1, "maxItems": 6,
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 6,
                 "description": (
                     "PRIMARY: <=6 crisp executive bullets reasoning ACROSS the sub-skills — each carrying "
                     "the SALIENT grounded datum from a sub-skill's KEY EVIDENCE (the indication/strongest "
                     "stratum effect WITH its q/p, the omnibus, the driving categorical) and weaving a "
                     "corroborating/contrasting literature citation where present. Connect >=2 signals per "
                     "bullet (corroboration, tension, or modality implication). Anchor each to real "
-                    "card_id/rule_id tokens from the Per-verdict narrative block; <=~40 words; scientific voice."),
+                    "card_id/rule_id tokens from the Per-verdict narrative block; <=~40 words; scientific voice."
+                ),
                 "items": {
-                    "type": "object", "additionalProperties": False,
+                    "type": "object",
+                    "additionalProperties": False,
                     "required": ["text", "polarity", "cites"],
                     "properties": {
                         "text": {"type": "string"},
-                        "polarity": {"type": "string",
-                                     "enum": ["supportive", "opposing", "neutral", "killer", "not_applicable"]},
-                        "cites": {"type": "object", "additionalProperties": False,
-                                  "properties": {
-                                      "card_ids": {"type": "array", "items": {"type": "string"}},
-                                      "question_ids": {"type": "array", "items": {"type": "string"}},
-                                      "citation_ids": {"type": "array", "items": {"type": "string"}}}}}}},
+                        "polarity": {
+                            "type": "string",
+                            "enum": ["supportive", "opposing", "neutral", "killer", "not_applicable"],
+                        },
+                        "cites": {
+                            "type": "object",
+                            "additionalProperties": False,
+                            "properties": {
+                                "card_ids": {"type": "array", "items": {"type": "string"}},
+                                "question_ids": {"type": "array", "items": {"type": "string"}},
+                                "citation_ids": {"type": "array", "items": {"type": "string"}},
+                            },
+                        },
+                    },
+                },
+            },
             "executive_summary": {
                 "type": "string",
                 "description": (
@@ -174,15 +207,18 @@ def _build_synthesis_tool() -> dict:
                 "type": "array",
                 "items": {"type": "string"},
                 "maxItems": 5,
-                "description": ("Up to 5 strongest positive arguments; each cites its "
-                                "supporting [rule_id]/[card_id] anchor inline."),
+                "description": (
+                    "Up to 5 strongest positive arguments; each cites its supporting [rule_id]/[card_id] anchor inline."
+                ),
             },
             "top_arguments_against": {
                 "type": "array",
                 "items": {"type": "string"},
                 "maxItems": 5,
-                "description": ("Up to 5 strongest negative arguments; each cites its "
-                                "[rule_id]/[card_id] anchor inline (a dissenter, veto, or gap)."),
+                "description": (
+                    "Up to 5 strongest negative arguments; each cites its "
+                    "[rule_id]/[card_id] anchor inline (a dissenter, veto, or gap)."
+                ),
             },
             "citations": {
                 "type": "array",
@@ -190,11 +226,15 @@ def _build_synthesis_tool() -> dict:
                     "type": "object",
                     "required": ["claim", "anchors"],
                     "properties": {
-                        "claim": {"type": "string",
-                                  "description": "the argument / tension this supports"},
-                        "anchors": {"type": "array", "items": {"type": "string"},
-                                    "description": ("rule_id and/or card_id tokens (from the "
-                                                    "Per-verdict narrative block) that back the claim")},
+                        "claim": {"type": "string", "description": "the argument / tension this supports"},
+                        "anchors": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": (
+                                "rule_id and/or card_id tokens (from the "
+                                "Per-verdict narrative block) that back the claim"
+                            ),
+                        },
                     },
                 },
                 "description": (
@@ -239,8 +279,8 @@ def _render_matrix_slice_for_prompt(ordinal_matrix: dict) -> list[str]:
         "flat verdict list flattens. A cell can differ from the resolved verdict (the cell is the "
         "raw signal; the verdict is the ordered-precedence decision). The verdict is the decision; "
         "the matrix is for modality reasoning only. Do NOT sum or average the ordinals.",
-        "Scale: " + ", ".join(f"{k}={v:+d}" for k, v in sorted(leg["on_scale"].items(),
-                                                               key=lambda t: -t[1]))
+        "Scale: "
+        + ", ".join(f"{k}={v:+d}" for k, v in sorted(leg["on_scale"].items(), key=lambda t: -t[1]))
         + f"; off-scale (coverage, not a low score): {', '.join(leg['off_scale'])}; `·` = no signal.",
         "",
         "| gate | " + " | ".join(cols) + " |",
@@ -260,16 +300,50 @@ def _render_matrix_slice_for_prompt(ordinal_matrix: dict) -> list[str]:
 # about). Substring-matched against summary keys. Scalars always survive; only genuinely-oversized
 # UNKNOWN lists get sampled.
 _LOAD_BEARING_SUMMARY_KEY_PARTS = (
-    "median", "percentile", "_pct", "p95", "p99", "p5", "p25", "p75",
-    "fraction", "frac_", "coefficient_of_variation", "cov", "distribution_pattern",
-    "log2fc", "log2_fc", "effect_size", "q_value", "bh_q", "class", "n_tumor", "n_normal",
-    "n_cohorts", "n_indications", "concordance", "correlation", "enrich", "above_normal",
-    "tumor_median", "normal_median", "detectable", "expressed",
+    "median",
+    "percentile",
+    "_pct",
+    "p95",
+    "p99",
+    "p5",
+    "p25",
+    "p75",
+    "fraction",
+    "frac_",
+    "coefficient_of_variation",
+    "cov",
+    "distribution_pattern",
+    "log2fc",
+    "log2_fc",
+    "effect_size",
+    "q_value",
+    "bh_q",
+    "class",
+    "n_tumor",
+    "n_normal",
+    "n_cohorts",
+    "n_indications",
+    "concordance",
+    "correlation",
+    "enrich",
+    "above_normal",
+    "tumor_median",
+    "normal_median",
+    "detectable",
+    "expressed",
     # per-entity evidence TABLES (the rows ARE the decision evidence — keep top-N, don't drop):
-    "lineage", "per_", "stats", "models", "elevated", "tissues", "cohorts", "indications",
-    "subtype", "recommended",
+    "lineage",
+    "per_",
+    "stats",
+    "models",
+    "elevated",
+    "tissues",
+    "cohorts",
+    "indications",
+    "subtype",
+    "recommended",
 )
-_PROMPT_CARD_CHAR_CAP = 3000   # raised from 1200; only bites on pathological output
+_PROMPT_CARD_CHAR_CAP = 3000  # raised from 1200; only bites on pathological output
 
 
 def _format_card_summary_for_prompt(summary: dict) -> str:
@@ -283,6 +357,7 @@ def _format_card_summary_for_prompt(summary: dict) -> str:
         noise only);
       - `_`-prefixed provenance keys are still dropped (not decision evidence);
       - a generous per-card cap (3000) only trims pathological output."""
+
     def _is_scalar(v):
         return v is None or isinstance(v, (str, int, float, bool))
 
@@ -298,7 +373,7 @@ def _format_card_summary_for_prompt(summary: dict) -> str:
             out[k] = v
         elif isinstance(v, list):
             if _load_bearing(k):
-                out[k] = v[:8]                      # keep the decision rows
+                out[k] = v[:8]  # keep the decision rows
             elif len(v) > 8:
                 out[f"{k}_len"] = len(v)
                 out[f"{k}_sample"] = v[:3]
@@ -326,7 +401,7 @@ def _render_certainty_block(fragility: dict, sub_results: dict) -> list[str]:
     'unresolved gap'. WEAKEST-LINK (do not average across axes) and the MNAR discipline (a blind
     axis is absence-of-evidence, not a negative) are stated so the LLM does not scalarize or
     mis-read a coverage gap as a finding."""
-    per_axis = (fragility.get("per_axis") or {})
+    per_axis = fragility.get("per_axis") or {}
     if not per_axis:
         return []
     lines = [
@@ -362,12 +437,14 @@ def _render_certainty_block(fragility: dict, sub_results: dict) -> list[str]:
     lines.append(
         f"- worst call-fragility (target_index): {ti} ; worst GO/NO-GO fragility "
         f"(recommendation_fragility_index): {rfi} ; contested: {contested}. 0 = robust; None = no "
-        "flippable/evidenced axis.")
+        "flippable/evidenced axis."
+    )
     blind = fragility.get("blind_decision_axes") or []
     if blind:
         lines.append(
             f"- BLIND decision-relevant axes (measured GAP, not a negative — widen uncertainty and "
-            f"say the evidence is thin here, do NOT read as a null result): {blind}")
+            f"say the evidence is thin here, do NOT read as a null result): {blind}"
+        )
     lines.append(
         "  NOTE: VERDICT-INERT — this facet does NOT move the recommendation, the gate, or the "
         "audited confidence tier. Use it ONLY to calibrate how confident the executive_summary / "
@@ -375,7 +452,8 @@ def _render_certainty_block(fragility: dict, sub_results: dict) -> list[str]:
         "axis = 'evidence is limited here' (go measure more); a FLIP-FRAGILE axis with complete "
         "coverage = 'the call is solid but rests on a sensitive rule boundary' (a scoring caveat, "
         "not an evidence gap). Fragility is a structural sensitivity measure, NOT a probability the "
-        "target succeeds and NOT a statement about evidence strength; never sum/average it.")
+        "target succeeds and NOT a statement about evidence strength; never sum/average it."
+    )
     return lines
 
 
@@ -383,21 +461,29 @@ def _render_certainty_block(fragility: dict, sub_results: dict) -> list[str]:
 # narration LEADS with and frames off-mode negatives as expected — it NEVER changes the verdict,
 # recommendation, gate, or audited confidence tier (all clamped deterministically in run.main).
 _MODE_STEER = {
-    "cis_feature": ("Selection basis = a molecular FEATURE (a biomarker: mutation / fusion / amp+GoF / "
-                    "pocket / neo-epitope). LEAD the narrative with the genomic-alteration + dependency + "
-                    "tractability story. Treat a weak surface/abundance read as EXPECTED (a cis-feature "
-                    "target need not be over-abundant) — NOT a disqualifier."),
-    "abundance": ("Selection basis = selective OVER-ABUNDANCE (an expression/density cutoff). LEAD with "
-                  "presence + selectivity + surface-modality + normal-tissue safety. Treat a `non_dependent` "
-                  "read as EXPECTED (an ADC/TCE antigen need not be a genetic dependency); note that "
-                  "declaring the biologics `--modality` lets the modality-scoped veto-suppression apply."),
-    "mixed": ("BOTH modes fire — narrate the cis handle AND the abundance readout as MUTUALLY REINFORCING "
-              "(e.g. amplification is simultaneously the biomarker and the density driver; EGFR/MET serve "
-              "both SM and ADC). Do NOT bury either story."),
-    "dependency_relational": ("No positive cis handle and not over-abundant — actioned via a PARTNER/CONTEXT "
-                              "(LoF-driver → MDM2/synthetic-lethal; partner-conditional SL; lineage/paralog "
-                              "co-dependency). LEAD with dependency + SL/combinatorial; patient-selection = "
-                              "the partner/context biomarker, not the target's own lesion or abundance."),
+    "cis_feature": (
+        "Selection basis = a molecular FEATURE (a biomarker: mutation / fusion / amp+GoF / "
+        "pocket / neo-epitope). LEAD the narrative with the genomic-alteration + dependency + "
+        "tractability story. Treat a weak surface/abundance read as EXPECTED (a cis-feature "
+        "target need not be over-abundant) — NOT a disqualifier."
+    ),
+    "abundance": (
+        "Selection basis = selective OVER-ABUNDANCE (an expression/density cutoff). LEAD with "
+        "presence + selectivity + surface-modality + normal-tissue safety. Treat a `non_dependent` "
+        "read as EXPECTED (an ADC/TCE antigen need not be a genetic dependency); note that "
+        "declaring the biologics `--modality` lets the modality-scoped veto-suppression apply."
+    ),
+    "mixed": (
+        "BOTH modes fire — narrate the cis handle AND the abundance readout as MUTUALLY REINFORCING "
+        "(e.g. amplification is simultaneously the biomarker and the density driver; EGFR/MET serve "
+        "both SM and ADC). Do NOT bury either story."
+    ),
+    "dependency_relational": (
+        "No positive cis handle and not over-abundant — actioned via a PARTNER/CONTEXT "
+        "(LoF-driver → MDM2/synthetic-lethal; partner-conditional SL; lineage/paralog "
+        "co-dependency). LEAD with dependency + SL/combinatorial; patient-selection = "
+        "the partner/context biomarker, not the target's own lesion or abundance."
+    ),
     # `insufficient` deliberately has NO steer → emits no block → the prompt is unchanged from pre-Phase-2
     # (neutral == today). This is the common case for uncurated / signal-thin targets.
 }
@@ -418,7 +504,8 @@ def format_mode_governance_block(mode_facet: Optional[dict]) -> str:
     conf = mode_facet.get("confidence")
     parts = [
         "### Actionability mode (post-hoc, EMPHASIS ONLY — never changes the verdict)",
-        f"dominant={dominant}" + (f", secondary={secondary}" if secondary else "")
+        f"dominant={dominant}"
+        + (f", secondary={secondary}" if secondary else "")
         + f" (arm tiers: {arms}; confidence={conf}).",
         steer,
         "This is ORTHOGONAL to the biology_axis (where the drug acts) and never suppresses a fired "
@@ -435,35 +522,40 @@ def _render_narrative_block(narrative_by_axis: Optional[dict]) -> list[str]:
     it never moves the recommendation; it makes the narration TRACEABLE to the deterministic engine."""
     if not narrative_by_axis:
         return []
-    out = ["", "### Per-verdict narrative — the CITEABLE reasoning trace (deterministic)",
-           "For each axis below: what SET the verdict (movers), what fired AGAINST it and lost "
-           "(dissenters), and the single rule-toggles that would FLIP it. When you write an argument "
-           "for/against or a tension, CITE the specific driver inline in square brackets — [rule_id] "
-           "and/or [card_id] — using ONLY anchors listed here. Do NOT cite anchors not listed."]
+    out = [
+        "",
+        "### Per-verdict narrative — the CITEABLE reasoning trace (deterministic)",
+        "For each axis below: what SET the verdict (movers), what fired AGAINST it and lost "
+        "(dissenters), and the single rule-toggles that would FLIP it. When you write an argument "
+        "for/against or a tension, CITE the specific driver inline in square brackets — [rule_id] "
+        "and/or [card_id] — using ONLY anchors listed here. Do NOT cite anchors not listed.",
+    ]
     for short, n in narrative_by_axis.items():
         if not isinstance(n, dict):
             continue
         v, drv = n.get("verdict"), n.get("driving_rule_id")
         out.append(f"- **{short}**: `{v}`" + (f" — set by [{drv}]" if drv else ""))
-        for m in (n.get("movers") or []):
+        for m in n.get("movers") or []:
             if m.get("role") == "driver":
                 continue
             out.append(f"    · also supports: [{m.get('rule_id')}] (card [{m.get('card_id')}])")
         by_rule: dict = {}
-        for d in (n.get("dissenters") or []):
+        for d in n.get("dissenters") or []:
             by_rule.setdefault(d.get("rule_id"), {"channels": [], "sentence": d.get("sentence") or ""})
             by_rule[d.get("rule_id")]["channels"].append(d.get("channel"))
         for rid, info in by_rule.items():
             chans = ", ".join(c for c in info["channels"] if c)
             out.append(f"    · DESPITE (dissent on {chans}): [{rid}] — {info['sentence']}")
-        for f in (n.get("flip_conditions") or []):
+        for f in n.get("flip_conditions") or []:
             cond = "drop" if f.get("present") else "add"
             rec = " [crosses GO/NO-GO]" if f.get("recommendation_flip") else ""
             out.append(f"    · flips to `{f.get('to_verdict')}` if you {cond} [{f.get('rule_id')}]{rec}")
-        for g in (n.get("gaps") or []):
+        for g in n.get("gaps") or []:
             if g.get("kind") == "acquire":
                 cids = ", ".join(c.get("card_id") for c in (g.get("missing_cards") or []) if c.get("card_id"))
-                out.append(f"    · GAP (acquire — held by ignorance, not a measured negative): {cids or 'missing data'}")
+                out.append(
+                    f"    · GAP (acquire — held by ignorance, not a measured negative): {cids or 'missing data'}"
+                )
             elif g.get("kind") == "strengthen":
                 out.append("    · GAP (strengthen — measured but underpowered)")
     return out
@@ -490,18 +582,18 @@ def _render_risk_6dim_block(risk_6dim: Optional[dict]) -> Optional[str]:
         b = c.get("bin")
         label = "insufficient_evidence (engine-blind — a gap, not low risk)" if b == "ENGINE-BLIND" else b
         chain = c.get("chain") or []
-        driver = (f"{chain[0][0]}: {chain[0][1]}" if chain and len(chain[0]) >= 2
-                  else (c.get("pillar") or ""))
+        driver = f"{chain[0][0]}: {chain[0][1]}" if chain and len(chain[0]) >= 2 else (c.get("pillar") or "")
         disc = " ⚠ literature-discordant" if c.get("engine_literature_discordance") else ""
         rows.append(f"- **{d}**: `{label}`{disc} — {driver}")
     if not rows:
         return None
-    return ("### 6-dimension risk roll-up (deterministic `risk_6dim`; a FACET, not a gate)\n"
-            "Governance-category (AstraZeneca 5R) view of the SAME deterministic sub-verdicts, worst-case "
-            "per category. VERDICT-INERT — use it to frame WHERE the residual risk concentrates and to "
-            "structure the tension analysis; it NEVER moves the recommendation (`target_call` owns that). "
-            "`insufficient_evidence` = no wired engine leg (an honest gap), NOT low risk.\n"
-            + "\n".join(rows))
+    return (
+        "### 6-dimension risk roll-up (deterministic `risk_6dim`; a FACET, not a gate)\n"
+        "Governance-category (AstraZeneca 5R) view of the SAME deterministic sub-verdicts, worst-case "
+        "per category. VERDICT-INERT — use it to frame WHERE the residual risk concentrates and to "
+        "structure the tension analysis; it NEVER moves the recommendation (`target_call` owns that). "
+        "`insufficient_evidence` = no wired engine leg (an honest gap), NOT low risk.\n" + "\n".join(rows)
+    )
 
 
 def _ke_oneliner(ke: dict) -> str:
@@ -518,13 +610,15 @@ def _ke_oneliner(ke: dict) -> str:
         return f"{v:.4g}" if isinstance(v, float) else str(v)
 
     parts, strata = [], (ke.get("top_strata") or [])
-    lead = next((s for s in strata if s.get("role") == "indication"), None) \
-        or next((s for s in strata if s.get("role") == "strongest"), None)
+    lead = next((s for s in strata if s.get("role") == "indication"), None) or next(
+        (s for s in strata if s.get("role") == "strongest"), None
+    )
     eff = ke.get("effect") or {}
     interp = ke.get("interpretation") or []
     if interp:
         # LEAD with the pre-gauged reference-frame reading so the composed bullet copies the framing
         from _skills_common import display_gloss
+
         gs = display_gloss.gauge_string(interp[0])
         if gs:
             parts.append(gs)
@@ -552,7 +646,7 @@ def _render_subskill_key_evidence(sub_results: dict) -> str:
     indication-resolved data points the composed exec_bullets must ground in. Empty when no graphs carried."""
     lines = []
     for short, r in (sub_results or {}).items():
-        eg = ((((r or {}).get("synthesis_facet") or {}).get("skill_report") or {}).get("evidence_graph"))
+        eg = (((r or {}).get("synthesis_facet") or {}).get("skill_report") or {}).get("evidence_graph")
         if not isinstance(eg, dict):
             continue
         cards = [c for c in (eg.get("cards") or []) if isinstance(c, dict) and c.get("key_evidence")]
@@ -563,8 +657,10 @@ def _render_subskill_key_evidence(sub_results: dict) -> str:
                 lines.append(f"  · {short}/{c.get('id')}: {s}")
     if not lines:
         return ""
-    return ("### KEY EVIDENCE (per sub-skill — the decisive grounded data points behind the sub-verdicts; "
-            "LEAD each exec_bullet with these, carrying the effect WITH its q/p + the omnibus)\n" + "\n".join(lines))
+    return (
+        "### KEY EVIDENCE (per sub-skill — the decisive grounded data points behind the sub-verdicts; "
+        "LEAD each exec_bullet with these, carrying the effect WITH its q/p + the omnibus)\n" + "\n".join(lines)
+    )
 
 
 def _render_presence_facet_block(pf: dict) -> list[str]:
@@ -573,10 +669,12 @@ def _render_presence_facet_block(pf: dict) -> list[str]:
     lines: list[str] = []
     lines.append("")
     lines.append("### Presence cross-modal reconciliation facet (deterministic; a FACET, not a gate)")
-    lines.append("Per-(measurement, sample_context) presence sub-verdicts — the decomposition "
-                 "BEHIND the one-word presence verdict. Read the DISAGREEMENTS across rows: an "
-                 "RNA-high / protein-absent split, or a tumor-present / normal-tissue-present "
-                 "split, is the decision-relevant tension (modality choice; therapeutic window).")
+    lines.append(
+        "Per-(measurement, sample_context) presence sub-verdicts — the decomposition "
+        "BEHIND the one-word presence verdict. Read the DISAGREEMENTS across rows: an "
+        "RNA-high / protein-absent split, or a tumor-present / normal-tissue-present "
+        "split, is the decision-relevant tension (modality choice; therapeutic window)."
+    )
     pvm = pf.get("presence_verdict_by_modality") or {}
     if pvm:
         lines.append("| measurement / context | sub-verdict | evidence |")
@@ -595,40 +693,51 @@ def _render_presence_facet_block(pf: dict) -> list[str]:
             f"- TYPED presence_state (read THIS, not the one word): present=`{ps.get('present')}` "
             f"abundance=`{ps.get('abundance_level')}` elevated_vs_normal=`{ps.get('elevated_vs_normal')}` "
             f"malignant_intrinsic=`{ps.get('malignant_intrinsic')}` breadth=`{ps.get('breadth')}`"
-            + ("  ⚠ protein↔RNA CONFLICT" if ps.get("conflict") else ""))
-    lines.append(f"- collapsed presence verdict (compressed label): `{pf.get('presence_verdict')}` "
-                 f"(headline lens: {pf.get('headline_lens')})")
+            + ("  ⚠ protein↔RNA CONFLICT" if ps.get("conflict") else "")
+        )
+    lines.append(
+        f"- collapsed presence verdict (compressed label): `{pf.get('presence_verdict')}` "
+        f"(headline lens: {pf.get('headline_lens')})"
+    )
     if pf.get("cell_line_vs_tumor_discordant"):
         lines.append(f"- ⚠ cell-line-vs-tumor DISCORDANT: {pf.get('presence_interpretation_note')}")
     # RNA-as-protein-proxy quality (both arms, side-by-side) — qualifies an RNA-only presence claim.
-    lines.append(f"- RNA→protein proxy quality: `{pf.get('bulk_rna_proxy_quality')}` "
-                 f"(source: {pf.get('bulk_rna_proxy_quality_source')}; cell-line arm "
-                 f"{pf.get('rna_as_biomarker')} r={pf.get('rna_protein_r')}, tumor arm "
-                 f"{pf.get('rna_as_biomarker_tumor')} r={pf.get('rna_protein_r_tumor')}). "
-                 f"A poor/partial proxy means RNA presence needs protein confirmation before a "
-                 f"biologics read.")
+    lines.append(
+        f"- RNA→protein proxy quality: `{pf.get('bulk_rna_proxy_quality')}` "
+        f"(source: {pf.get('bulk_rna_proxy_quality_source')}; cell-line arm "
+        f"{pf.get('rna_as_biomarker')} r={pf.get('rna_protein_r')}, tumor arm "
+        f"{pf.get('rna_as_biomarker_tumor')} r={pf.get('rna_protein_r_tumor')}). "
+        f"A poor/partial proxy means RNA presence needs protein confirmation before a "
+        f"biologics read."
+    )
     # NORMAL-TISSUE comparators — window FRAMING (safety verdict owned by on-target-safety-liability).
-    lines.append(f"- normal-tissue comparators (WINDOW framing, NOT the safety verdict): "
-                 f"HPA-IHC breadth `{pf.get('normal_tissue_ihc_breadth_class')}` "
-                 f"(essential-tissue flag: {pf.get('normal_tissue_ihc_essential_flag')}); "
-                 f"scRNA-normal `{pf.get('sc_normal_expression_class')}` "
-                 f"(max in {pf.get('sc_normal_max_det_cell_type')} @ "
-                 f"{pf.get('sc_normal_max_det_fraction')}).")
+    lines.append(
+        f"- normal-tissue comparators (WINDOW framing, NOT the safety verdict): "
+        f"HPA-IHC breadth `{pf.get('normal_tissue_ihc_breadth_class')}` "
+        f"(essential-tissue flag: {pf.get('normal_tissue_ihc_essential_flag')}); "
+        f"scRNA-normal `{pf.get('sc_normal_expression_class')}` "
+        f"(max in {pf.get('sc_normal_max_det_cell_type')} @ "
+        f"{pf.get('sc_normal_max_det_fraction')})."
+    )
     # Hierarchy-derived sub-group + per-question signal decomposition (the narrator-input contract's
     # structural signals, read from the SAME facet keys the single-lens presence narrator uses). Flows
     # STRUCTURALLY off presence_facet — no fields hand-picked here. VERDICT-INERT. Empty → skipped.
     _sig_summary = render_signal_summary(pf)
     if _sig_summary:
         lines.append("")
-        lines.append("Presence signal decomposition (deterministic; hierarchy-derived sub-group "
-                     "signals + per-question read behind the collapsed presence verdict — read it to "
-                     "see WHICH sub-group/question carries or contradicts the presence call):")
+        lines.append(
+            "Presence signal decomposition (deterministic; hierarchy-derived sub-group "
+            "signals + per-question read behind the collapsed presence verdict — read it to "
+            "see WHICH sub-group/question carries or contradicts the presence call):"
+        )
         lines.append(_sig_summary)
-    lines.append("  NOTE: presence is VERDICT-INERT to the nomination gate — this facet does NOT "
-                 "move the recommendation. Its role is to surface cross-modal tension the "
-                 "one-word presence verdict hides, and to frame tumor presence AGAINST the "
-                 "normal-tissue window (the therapeutic-window verdict is owned by "
-                 "on-target-safety-liability / tumor-selectivity, weighed via their sub-verdicts).")
+    lines.append(
+        "  NOTE: presence is VERDICT-INERT to the nomination gate — this facet does NOT "
+        "move the recommendation. Its role is to surface cross-modal tension the "
+        "one-word presence verdict hides, and to frame tumor presence AGAINST the "
+        "normal-tissue window (the therapeutic-window verdict is owned by "
+        "on-target-safety-liability / tumor-selectivity, weighed via their sub-verdicts)."
+    )
     return lines
 
 
@@ -638,12 +747,10 @@ def _render_biomarker_facet_block(bf: dict) -> list[str]:
     lines: list[str] = []
     lines.append("")
     lines.append("### Biomarker convergence facet (deterministic; a FACET, not a gate)")
-    lines.append(f"- facet verdict: `{bf.get('verdict')}`  |  preferred assay: "
-                 f"`{bf.get('preferred_assay')}`")
+    lines.append(f"- facet verdict: `{bf.get('verdict')}`  |  preferred assay: `{bf.get('preferred_assay')}`")
     corr = {k: v for k, v in (bf.get("corroboration_role") or {}).items() if v is not None}
     strat = {k: v for k, v in (bf.get("stratification_role") or {}).items() if v is not None}
-    lines.append(f"- corroboration (→ confidence in biology verdicts): "
-                 f"{corr if corr else 'none reachable'}")
+    lines.append(f"- corroboration (→ confidence in biology verdicts): {corr if corr else 'none reachable'}")
     lines.append(f"- stratification (→ patient selection): {strat if strat else 'none reachable'}")
     # surface the QUANTITATIVE strengths behind the classes (from the `quantitative` block)
     # so the narration reports HOW STRONG each biomarker signal is, not just its bucket. Each stat
@@ -651,19 +758,23 @@ def _render_biomarker_facet_block(bf: dict) -> list[str]:
     quant = {k: v for k, v in (bf.get("quantitative") or {}).items() if v}
     if quant:
         lines.append(f"- quantitative strength (raw statistics behind the classes above): {quant}")
-        lines.append("  METRIC GLOSS (interpret in plain language; report with scale + direction): "
-                     "hotspot_mannwhitney_q = FDR-adjusted p that mutant vs WT Chronos differ (lower "
-                     "= more separated); hotspot_effect_size = rank-biserial (0-1, higher = cleaner "
-                     "mutant-vs-WT dependency split); delta_chronos_* = mutant-minus-WT median "
-                     "Chronos (more negative = mutant lines more dependent); pearson_r/spearman = "
-                     "expression↔dependency correlation (negative = higher expression, more "
-                     "dependent); fraction_agree = CRISPR/RNAi concordance rate; rna_protein_r = "
-                     "how well RNA proxies protein (higher = RNA is an adequate assay); logrank_p = "
-                     "expression↔survival separation. These quantify the STRATIFICATION / "
-                     "CORROBORATION strength; they predict DEPENDENCY, not proven drug response.")
-    lines.append("  NOTE: this facet may RAISE CONFIDENCE (corroboration) or define the "
-                 "patient-selection population (stratification); it must NEVER by itself justify "
-                 "a `nominate` — the deterministic gate owns the recommendation.")
+        lines.append(
+            "  METRIC GLOSS (interpret in plain language; report with scale + direction): "
+            "hotspot_mannwhitney_q = FDR-adjusted p that mutant vs WT Chronos differ (lower "
+            "= more separated); hotspot_effect_size = rank-biserial (0-1, higher = cleaner "
+            "mutant-vs-WT dependency split); delta_chronos_* = mutant-minus-WT median "
+            "Chronos (more negative = mutant lines more dependent); pearson_r/spearman = "
+            "expression↔dependency correlation (negative = higher expression, more "
+            "dependent); fraction_agree = CRISPR/RNAi concordance rate; rna_protein_r = "
+            "how well RNA proxies protein (higher = RNA is an adequate assay); logrank_p = "
+            "expression↔survival separation. These quantify the STRATIFICATION / "
+            "CORROBORATION strength; they predict DEPENDENCY, not proven drug response."
+        )
+    lines.append(
+        "  NOTE: this facet may RAISE CONFIDENCE (corroboration) or define the "
+        "patient-selection population (stratification); it must NEVER by itself justify "
+        "a `nominate` — the deterministic gate owns the recommendation."
+    )
     return lines
 
 
@@ -673,36 +784,40 @@ def _render_subtype_facet_block(sf: dict) -> list[str]:
     lines: list[str] = []
     lines.append("")
     lines.append("### Subtype convergence facet (deterministic; a FACET, not a gate)")
-    lines.append(f"- facet verdict: `{sf.get('verdict')}`  |  axes available: "
-                 f"{sf.get('axes_available') or 'none'}  |  subtypes evaluated: "
-                 f"{sf.get('n_subtypes_evaluated')}")
+    lines.append(
+        f"- facet verdict: `{sf.get('verdict')}`  |  axes available: "
+        f"{sf.get('axes_available') or 'none'}  |  subtypes evaluated: "
+        f"{sf.get('n_subtypes_evaluated')}"
+    )
     conv = sf.get("convergent_subtypes") or []
     if conv:
-        lines.append(f"- CONVERGENT subtypes (>=2 measured axes → cross-axis patient-selection "
-                     f"strata): {conv}")
+        lines.append(f"- CONVERGENT subtypes (>=2 measured axes → cross-axis patient-selection strata): {conv}")
         for st in conv:
             b = (sf.get("per_subtype") or {}).get(st, {})
-            lines.append(f"    - {st}: measured on {b.get('axes_measured')} "
-                         f"(metrics: {b.get('metrics')})")
+            lines.append(f"    - {st}: measured on {b.get('axes_measured')} (metrics: {b.get('metrics')})")
     else:
         lines.append("- no subtype converges >=2 measured axes on the SAME id this run")
     assoc = sf.get("associated_subtypes") or []
     if assoc:
-        lines.append("- ASSOCIATED strata (different strata, each measured on its own axis, linked "
-                     "by a subtype-registry association — RELATED, not the same stratum):")
+        lines.append(
+            "- ASSOCIATED strata (different strata, each measured on its own axis, linked "
+            "by a subtype-registry association — RELATED, not the same stratum):"
+        )
         for a in assoc:
             bridge = " [CROSS-COHORT bridge: DepMap↔TCGA — interpret cautiously]" if a.get("cohort_bridge") else ""
-            lines.append(f"    - {a['from']} {a['relationship']} {a['to']} "
-                         f"({a['from_axes_measured']} ↔ {a['to_axes_measured']}){bridge}")
-    lines.append("  NOTE: subtype convergence/association defines a PATIENT-SELECTION population + may "
-                 "raise confidence; it must NEVER by itself justify a `nominate`. An ASSOCIATED pair "
-                 "is a WEAK, registry-bridged link (e.g. MSI_H-dependency ↔ CMS1-expression) — the two "
-                 "strata are biologically related, NOT identical; a cohort_bridge crosses DepMap↔TCGA. "
-                 "subtype_axis_unavailable = no subtype shard for this indication (a P2 coverage gap), "
-                 "not a measured negative.")
+            lines.append(
+                f"    - {a['from']} {a['relationship']} {a['to']} "
+                f"({a['from_axes_measured']} ↔ {a['to_axes_measured']}){bridge}"
+            )
+    lines.append(
+        "  NOTE: subtype convergence/association defines a PATIENT-SELECTION population + may "
+        "raise confidence; it must NEVER by itself justify a `nominate`. An ASSOCIATED pair "
+        "is a WEAK, registry-bridged link (e.g. MSI_H-dependency ↔ CMS1-expression) — the two "
+        "strata are biologically related, NOT identical; a cohort_bridge crosses DepMap↔TCGA. "
+        "subtype_axis_unavailable = no subtype shard for this indication (a P2 coverage gap), "
+        "not a measured negative."
+    )
     return lines
-
-
 
 
 def _build_user_prompt(
@@ -742,6 +857,7 @@ def _build_user_prompt(
     ]
     if axis_info is not None:
         from _skills_common.biology_axis import format_axis_governance_block
+
         lines.append("")
         lines.append(format_axis_governance_block(axis_info))
     _mode_block = format_mode_governance_block(actionability_mode)
@@ -751,19 +867,16 @@ def _build_user_prompt(
     if modality:
         lines.append(f"Modality lens (post-hoc, reweight narrative): {modality}")
     if therapeutic_hypothesis:
-        lines.append(f"Therapeutic hypothesis (post-hoc, reweight narrative): "
-                     f"{therapeutic_hypothesis}")
+        lines.append(f"Therapeutic hypothesis (post-hoc, reweight narrative): {therapeutic_hypothesis}")
     lines.append("")
     lines.append("### Sub-verdicts (deterministic, rule-fired)")
     for short, r in sub_results.items():
         v = r["verdict"]
         if v is None:
-            lines.append(f"- **{short}** ({r['skill_dir']}): "
-                         f"no rule-fired verdict (skill relies on raw metrics)")
+            lines.append(f"- **{short}** ({r['skill_dir']}): no rule-fired verdict (skill relies on raw metrics)")
         else:
             verdict_str, driving_rule = v
-            lines.append(f"- **{short}** ({r['skill_dir']}): "
-                         f"`{verdict_str}` (driving rule: {driving_rule})")
+            lines.append(f"- **{short}** ({r['skill_dir']}): `{verdict_str}` (driving rule: {driving_rule})")
     lines.append("")
     _ke_block = _render_subskill_key_evidence(sub_results)
     if _ke_block:
@@ -776,20 +889,28 @@ def _build_user_prompt(
     if competitor_crossref is not None:
         cx = competitor_crossref
         lines.append("### Competitor cross-reference facet (deterministic; a FACET, not a gate)")
-        lines.append("Open Targets competitor field vs the framework's OWN surface-modality-fit verdict. "
-                     "VERDICT-INERT — it never moves the recommendation; use it to frame COMPETITIVE "
-                     "POSITIONING and to sanity-check the framework's modality call against clinical precedent.")
-        lines.append(f"- competition density: `{cx.get('competition_density')}` "
-                     f"(competitor_class: {cx.get('competitor_class')}; "
-                     f"{cx.get('n_competitor_programs')} program(s); scope: {cx.get('competitor_indication_scope')})")
-        lines.append(f"- framework preferred surface modality: {cx.get('framework_preferred_modality')} "
-                     f"(surface-modality-fit verdict: `{cx.get('surface_modality_verdict')}`); "
-                     f"approved competitor modality/ies: {cx.get('competitor_modalities_approved')}")
+        lines.append(
+            "Open Targets competitor field vs the framework's OWN surface-modality-fit verdict. "
+            "VERDICT-INERT — it never moves the recommendation; use it to frame COMPETITIVE "
+            "POSITIONING and to sanity-check the framework's modality call against clinical precedent."
+        )
+        lines.append(
+            f"- competition density: `{cx.get('competition_density')}` "
+            f"(competitor_class: {cx.get('competitor_class')}; "
+            f"{cx.get('n_competitor_programs')} program(s); scope: {cx.get('competitor_indication_scope')})"
+        )
+        lines.append(
+            f"- framework preferred surface modality: {cx.get('framework_preferred_modality')} "
+            f"(surface-modality-fit verdict: `{cx.get('surface_modality_verdict')}`); "
+            f"approved competitor modality/ies: {cx.get('competitor_modalities_approved')}"
+        )
         if cx.get("modality_contrarian"):
-            lines.append("- ⚠ modality_contrarian=TRUE: the framework's preferred modality is NOT the "
-                         "approved clinical modality here — treat the surface-modality-fit call as CONTESTED "
-                         "by real-world precedent and weigh this in the recommendation narrative.")
-        for hook in (cx.get("differentiation_hooks") or []):
+            lines.append(
+                "- ⚠ modality_contrarian=TRUE: the framework's preferred modality is NOT the "
+                "approved clinical modality here — treat the surface-modality-fit call as CONTESTED "
+                "by real-world precedent and weigh this in the recommendation narrative."
+            )
+        for hook in cx.get("differentiation_hooks") or []:
             lines.append(f"  - hook: {hook}")
         lines.append("")
     if fragility is not None:
@@ -866,8 +987,7 @@ _ANCHOR_TOKEN_RE = re.compile(r"\[([^\[\]]+)\]")
 # (>=1 hyphen, no spaces). This excludes numeric refs ([1]), UPPER_SNAKE stratum labels (MSI_H), and
 # prose asides in brackets, which are not rule/card anchors and must not be mis-flagged.
 _ID_LIKE_RE = re.compile(r"^[A-Za-z0-9]+(-[A-Za-z0-9]+)+$")
-_PROSE_ANCHOR_FIELDS = ("executive_summary", "tension_analysis",
-                        "top_arguments_for", "top_arguments_against")
+_PROSE_ANCHOR_FIELDS = ("executive_summary", "tension_analysis", "top_arguments_for", "top_arguments_against")
 
 
 def _uv_field(v):
@@ -884,25 +1004,25 @@ def _allowed_anchor_set(narrative_by_axis: Optional[dict], sub_results: Optional
             continue
         if n.get("driving_rule_id"):
             allowed.add(n["driving_rule_id"])
-        for m in (n.get("movers") or []):
+        for m in n.get("movers") or []:
             allowed.update(x for x in (m.get("rule_id"), m.get("card_id")) if x)
-        for d in (n.get("dissenters") or []):
+        for d in n.get("dissenters") or []:
             allowed.update(x for x in (d.get("rule_id"), d.get("card_id")) if x)
-        for f in (n.get("flip_conditions") or []):
+        for f in n.get("flip_conditions") or []:
             if f.get("rule_id"):
                 allowed.add(f["rule_id"])
         for rid, info in (n.get("rule_sentences") or {}).items():
             allowed.add(rid)
             if isinstance(info, dict) and info.get("card_id"):
                 allowed.add(info["card_id"])
-        for g in (n.get("gaps") or []):
-            for mc in (g.get("missing_cards") or []):
+        for g in n.get("gaps") or []:
+            for mc in g.get("missing_cards") or []:
                 if mc.get("card_id"):
                     allowed.add(mc["card_id"])
     for r in (sub_results or {}).values():
-        for f in (r.get("fired") or []):
+        for f in r.get("fired") or []:
             allowed.update(x for x in (f.get("rule_id"), f.get("card_id")) if x)
-        for c in (r.get("cards") or []):
+        for c in r.get("cards") or []:
             if c.get("card_id"):
                 allowed.add(c["card_id"])
     return allowed
@@ -921,8 +1041,9 @@ def _extract_id_anchors(text: Any) -> set:
     return out
 
 
-def validate_synthesis_anchors(llm_output: Optional[dict], narrative_by_axis: Optional[dict],
-                               sub_results: Optional[dict]) -> dict:
+def validate_synthesis_anchors(
+    llm_output: Optional[dict], narrative_by_axis: Optional[dict], sub_results: Optional[dict]
+) -> dict:
     """Verdict-INERT audit: flag bracketed [rule_id]/[card_id] anchors in the LLM prose + the structured
     `citations` that are NOT in the deterministic anchor set (possible hallucinated citations). Returns
     the audit block for the caller to attach; it never edits prose and never moves a verdict."""
@@ -932,17 +1053,17 @@ def validate_synthesis_anchors(llm_output: Optional[dict], narrative_by_axis: Op
     for field in _PROSE_ANCHOR_FIELDS:
         v = _uv_field((llm_output or {}).get(field))
         found: set = set()
-        for t in (v if isinstance(v, list) else [v]):
+        for t in v if isinstance(v, list) else [v]:
             found |= _extract_id_anchors(t)
         cited |= found
         inv = sorted(a for a in found if a not in allowed)
         if inv:
             invented_by_field[field] = inv
     cit_found: set = set()
-    for c in (_uv_field((llm_output or {}).get("citations")) or []):
+    for c in _uv_field((llm_output or {}).get("citations")) or []:
         c = _uv_field(c)
         if isinstance(c, dict):
-            for a in (_uv_field(c.get("anchors")) or []):
+            for a in _uv_field(c.get("anchors")) or []:
                 if isinstance(a, str):
                     for part in re.split(r"[,/]", a):
                         p = part.strip()
@@ -959,20 +1080,22 @@ def validate_synthesis_anchors(llm_output: Optional[dict], narrative_by_axis: Op
         "invented_anchors": invented,
         "n_invented": len(invented),
         "invented_by_field": invented_by_field,
-        "_note": ("verdict-INERT audit: bracketed [rule_id]/[card_id] anchors in the LLM "
-                  "prose/citations absent from the deterministic narrative block (possible "
-                  "hallucinated citations). Does NOT alter the verdict, recommendation, or prose."),
+        "_note": (
+            "verdict-INERT audit: bracketed [rule_id]/[card_id] anchors in the LLM "
+            "prose/citations absent from the deterministic narrative block (possible "
+            "hallucinated citations). Does NOT alter the verdict, recommendation, or prose."
+        ),
     }
 
 
 __all__ = [
-    '_LOAD_BEARING_SUMMARY_KEY_PARTS',
-    '_METRIC_LEGEND',
-    '_PROMPT_CARD_CHAR_CAP',
-    '_SYSTEM_PROMPT',
-    '_build_synthesis_tool',
-    '_build_user_prompt',
-    '_format_card_summary_for_prompt',
-    '_render_matrix_slice_for_prompt',
-    'validate_synthesis_anchors',
+    "_LOAD_BEARING_SUMMARY_KEY_PARTS",
+    "_METRIC_LEGEND",
+    "_PROMPT_CARD_CHAR_CAP",
+    "_SYSTEM_PROMPT",
+    "_build_synthesis_tool",
+    "_build_user_prompt",
+    "_format_card_summary_for_prompt",
+    "_render_matrix_slice_for_prompt",
+    "validate_synthesis_anchors",
 ]

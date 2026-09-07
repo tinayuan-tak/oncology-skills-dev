@@ -5,6 +5,7 @@ pins that it now is, and that a fault in that display-layer projection degrades 
 `_enrichment_errors` rather than aborting the sl_partner spine (a nomination-gate veto-suppressor whose
 verdict must survive any display-layer fault).
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -32,6 +33,6 @@ def test_question_table_fault_degrades_not_aborts(monkeypatch):
 
     monkeypatch.setattr(sl, "sl_question_table", _boom)
     hl = sl._headline(cards, [], ("has_experimental_sl_partner", "some-rule"))
-    assert hl["sl_partner_verdict"] == "has_experimental_sl_partner"   # spine survives
+    assert hl["sl_partner_verdict"] == "has_experimental_sl_partner"  # spine survives
     assert hl["question_table"] is None
     assert hl["_enrichment_errors"]["question_table"].startswith("ValueError")

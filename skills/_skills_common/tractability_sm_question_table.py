@@ -18,22 +18,42 @@ from typing import Optional
 
 from _skills_common.question_table_core import sig as _sig, conf as _conf, row as _row  # shared Signal/Confidence vocab
 
-_PRISM = {"clinically_active": "strong", "clinical_precedent_only": "strong",
-          "tool_compound_only": "moderate", "weakly_active": "weak",
-          "no_compounds_found": "absent", "data_unavailable": "unmeasured"}
-_CONCORD = {"triangulated_target_engaged": "strong", "crispr_confirmed_engagement": "strong",
-            "rnai_confirmed_engagement": "moderate", "mixed_engagement": "weak",
-            "discordant_off_target_likely": "absent", "thin_evidence": "unmeasured",
-            "data_unavailable": "unmeasured"}
+_PRISM = {
+    "clinically_active": "strong",
+    "clinical_precedent_only": "strong",
+    "tool_compound_only": "moderate",
+    "weakly_active": "weak",
+    "no_compounds_found": "absent",
+    "data_unavailable": "unmeasured",
+}
+_CONCORD = {
+    "triangulated_target_engaged": "strong",
+    "crispr_confirmed_engagement": "strong",
+    "rnai_confirmed_engagement": "moderate",
+    "mixed_engagement": "weak",
+    "discordant_off_target_likely": "absent",
+    "thin_evidence": "unmeasured",
+    "data_unavailable": "unmeasured",
+}
 _STRUCT = {"strong": "strong", "partial": "moderate", "af_only": "weak", "none": "absent"}
-_KNOWN = {"approved_drug_tractable": "strong", "clinically_actionable": "strong",
-          "druggable_genome": "moderate", "interaction_only": "weak",
-          "category_only": "weak", "no_known_drug_evidence": "absent"}
+_KNOWN = {
+    "approved_drug_tractable": "strong",
+    "clinically_actionable": "strong",
+    "druggable_genome": "moderate",
+    "interaction_only": "weak",
+    "category_only": "weak",
+    "no_known_drug_evidence": "absent",
+}
 
 # (row id, sub-question, headline field, value→tier map)
 _ROWS = [
     ("Compound", "Is there an active small-molecule compound (PRISM)?", "prism_activity_class", _PRISM),
-    ("Concordance", "Does compound-kill agree with the genetic dependency (chemical-genetic)?", "prism_crispr_concord", _CONCORD),
+    (
+        "Concordance",
+        "Does compound-kill agree with the genetic dependency (chemical-genetic)?",
+        "prism_crispr_concord",
+        _CONCORD,
+    ),
     ("Structure", "Is there a ligandable pocket (PDB / AlphaFold)?", "pdb_coverage_class", _STRUCT),
     ("Known-drug", "Known-drug / druggable-genome prior?", "known_drug_tractability", _KNOWN),
 ]
@@ -54,9 +74,16 @@ def tractability_sm_question_table(headline: dict, cards: Optional[list] = None)
     for qid, question, field, mapping in _ROWS:
         val = h.get(field)
         tier = _tier(mapping, val)
-        rows.append(_row(qid, question, str(val if val not in (None, "") else "—"), "",
-                         _sig(tier, "not measured" if tier == "unmeasured" else str(val)),
-                         _conf("unmeasured" if tier == "unmeasured" else "moderate")))
+        rows.append(
+            _row(
+                qid,
+                question,
+                str(val if val not in (None, "") else "—"),
+                "",
+                _sig(tier, "not measured" if tier == "unmeasured" else str(val)),
+                _conf("unmeasured" if tier == "unmeasured" else "moderate"),
+            )
+        )
     return rows
 
 

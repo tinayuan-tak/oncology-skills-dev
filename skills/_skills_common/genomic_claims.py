@@ -24,33 +24,58 @@ Verdict-INERT: reads the ALREADY-computed headline; never feeds the genomic_alte
 inputs come from `headline` (its `genomic_alteration_by_class` block + the guard-covered _HEADLINE_FIELDS
 lifts); the `cards` param is accepted for contract-uniformity but unused.
 """
+
 from __future__ import annotations
 
-from _skills_common.claim_vector_core import (ClaimSpec, build_claim_vector, build_key_signals,
-                                              SIGNAL_ORD, bump_corroboration, sig_ge)
+from _skills_common.claim_vector_core import (
+    ClaimSpec,
+    build_claim_vector,
+    build_key_signals,
+    SIGNAL_ORD,
+    bump_corroboration,
+    sig_ge,
+)
 
 # ── enum → tier maps (grounded in the target-contracts card summary_fields_vocabulary) ────────────
 # driver_recurrence_class / pooled_driver_recurrence_class / genie_sv_recurrence_class (percentile bands)
-_RECURRENCE_SIGNAL = {"top_1pct": "strong", "top_decile": "moderate", "mid": "weak",
-                      "bottom_decile": "absent", "data_unavailable": "unmeasured"}
+_RECURRENCE_SIGNAL = {
+    "top_1pct": "strong",
+    "top_decile": "moderate",
+    "mid": "weak",
+    "bottom_decile": "absent",
+    "data_unavailable": "unmeasured",
+}
 # copy_number_class / patient_copy_number_class
-_CN_SIGNAL = {"recurrently_amplified": "moderate", "recurrently_deleted": "moderate",
-              "mixed": "weak", "broadly_neutral": "absent", "data_unavailable": "unmeasured"}
+_CN_SIGNAL = {
+    "recurrently_amplified": "moderate",
+    "recurrently_deleted": "moderate",
+    "mixed": "weak",
+    "broadly_neutral": "absent",
+    "data_unavailable": "unmeasured",
+}
 _CN_FOCAL_POS = {"recurrent_focal_amplification", "recurrent_focal_deletion"}
 # fusion_class
-_FUS_SIGNAL = {"recurrent_fusion_driver": "strong", "sporadic_fusion": "weak",
-               # #983: a moderate_promiscuous fusion at a focally-amplified locus, demoted to an amplicon
-               # PASSENGER by the copy-number gate (card preprocessor). A measured SV but NOT a competent
-               # driver → WEAK (never absent: the rearrangement is real; never strong: it is a passenger).
-               "promiscuous_amplicon_fusion": "weak",
-               "no_recurrent_fusion": "absent", "data_unavailable": "unmeasured"}
+_FUS_SIGNAL = {
+    "recurrent_fusion_driver": "strong",
+    "sporadic_fusion": "weak",
+    # #983: a moderate_promiscuous fusion at a focally-amplified locus, demoted to an amplicon
+    # PASSENGER by the copy-number gate (card preprocessor). A measured SV but NOT a competent
+    # driver → WEAK (never absent: the rearrangement is real; never strong: it is a passenger).
+    "promiscuous_amplicon_fusion": "weak",
+    "no_recurrent_fusion": "absent",
+    "data_unavailable": "unmeasured",
+}
 # splice_exon_skip_class (splice-exon-skip-landscape) — curated oncogenic exon-skip DRIVER (METex14).
 # Card vocab: recurrent_splice_driver | splice_event_off_indication | no_registered_event | data_unavailable.
 # A registered event OFF its curated oncogenic indication, and the common no-curated-event case, both read as a
 # measured floor (`absent`) for "is this a splice-exon-skip driver HERE"; only a missing/failed read is `unmeasured`.
 # (Prior map keyed a dead `no_exon_skip` class the card never emits; the real classes fell through the else-branch.)
-_SPLICE_SIGNAL = {"recurrent_splice_driver": "strong", "splice_event_off_indication": "absent",
-                  "no_registered_event": "absent", "data_unavailable": "unmeasured"}
+_SPLICE_SIGNAL = {
+    "recurrent_splice_driver": "strong",
+    "splice_event_off_indication": "absent",
+    "no_registered_event": "absent",
+    "data_unavailable": "unmeasured",
+}
 
 
 def _spl_tier(cls):
@@ -58,30 +83,44 @@ def _spl_tier(cls):
     non-driver class → its mapped floor. Shared by `_spl_signal` and `_spl_corroboration` so the two can never
     disagree on what counts as measured (the historical signal=absent / corrob=? asymmetry)."""
     return _SPLICE_SIGNAL.get(cls, "unmeasured" if cls in (None, "data_unavailable") else "absent")
+
+
 # the four stratified-dependency classes → "does the ALTERATION-positive subgroup selectively depend?"
 # POSITIVE (alteration-positive dependent) vs NEGATIVE (WT/neutral dependent = alteration doesn't confer)
 _STRAT_SIGNAL = {
-    "mutant_strongly_dependent": "strong", "mutant_moderately_dependent": "moderate",
-    "amplified_strongly_dependent": "strong", "amplified_moderately_dependent": "moderate",
-    "fusion_positive_strongly_dependent": "strong", "fusion_positive_moderately_dependent": "moderate",
-    "amplified_overexpressed_strongly_dependent": "strong", "amplified_overexpressed_moderately_dependent": "moderate",
+    "mutant_strongly_dependent": "strong",
+    "mutant_moderately_dependent": "moderate",
+    "amplified_strongly_dependent": "strong",
+    "amplified_moderately_dependent": "moderate",
+    "fusion_positive_strongly_dependent": "strong",
+    "fusion_positive_moderately_dependent": "moderate",
+    "amplified_overexpressed_strongly_dependent": "strong",
+    "amplified_overexpressed_moderately_dependent": "moderate",
     # WT/neutral/negative dependent → the alteration does NOT confer the dependency
-    "wt_strongly_dependent": "absent", "neutral_strongly_dependent": "absent",
-    "fusion_negative_strongly_dependent": "absent", "amp_expr_negative_more_dependent": "absent",
+    "wt_strongly_dependent": "absent",
+    "neutral_strongly_dependent": "absent",
+    "fusion_negative_strongly_dependent": "absent",
+    "amp_expr_negative_more_dependent": "absent",
     # measured, not stratified by the alteration
-    "not_mutation_stratified": "absent", "not_cn_stratified": "absent",
-    "not_fusion_stratified": "absent", "not_amp_expr_stratified": "absent",
+    "not_mutation_stratified": "absent",
+    "not_cn_stratified": "absent",
+    "not_fusion_stratified": "absent",
+    "not_amp_expr_stratified": "absent",
     # underpowered = gap, NOT absent
-    "insufficient_mutation_rate": "unmeasured", "insufficient_amplification_rate": "unmeasured",
-    "insufficient_fusion_rate": "unmeasured", "insufficient_amp_expr_rate": "unmeasured",
+    "insufficient_mutation_rate": "unmeasured",
+    "insufficient_amplification_rate": "unmeasured",
+    "insufficient_fusion_rate": "unmeasured",
+    "insufficient_amp_expr_rate": "unmeasured",
     "data_unavailable": "unmeasured",
 }
 # mutation-drug-response.drug_response_stratification_class → DEP corroboration (pharmacology)
 _DRUG_CORR = {
-    "mutant_strongly_drug_sensitive": "high", "mutant_moderately_drug_sensitive": "moderate",
+    "mutant_strongly_drug_sensitive": "high",
+    "mutant_moderately_drug_sensitive": "moderate",
     "mutant_drug_resistant": "low",
     "not_drug_response_stratified": "moderate",
-    "insufficient_mutant_or_drug_data": "unmeasured", "no_on_target_compound": "unmeasured",
+    "insufficient_mutant_or_drug_data": "unmeasured",
+    "no_on_target_compound": "unmeasured",
     "data_unavailable": "unmeasured",
 }
 _INDICATION_SCOPES = {"within_indication", "within_indication_mut_vs_pan_wt"}
@@ -99,8 +138,13 @@ _INFORMS = {
 # curated driver-role class (alteration-role card) → driver-confidence signal. Class-AGNOSTIC (it does not
 # say which alteration class drives), so it is its OWN claim, not folded into SNV/CN/FUS: a curated driver
 # with NO cohort recurrence would otherwise be invisible (the recurrence-keyed SNV signal reads `absent`).
-_ROLE_SIGNAL = {"direct_driver_gof": "strong", "direct_driver_lof": "strong",
-                "predictive_biomarker": "moderate", "passenger": "absent", "data_unavailable": "unmeasured"}
+_ROLE_SIGNAL = {
+    "direct_driver_gof": "strong",
+    "direct_driver_lof": "strong",
+    "predictive_biomarker": "moderate",
+    "passenger": "absent",
+    "data_unavailable": "unmeasured",
+}
 
 
 def _role_signal(h, c):
@@ -131,14 +175,16 @@ def _f(v, nd=0):
 # ── the four claims (signal_fn -> (tier, evidence, conflict); corroboration_fn -> tier) ───────────
 def _snv_signal(h, c):
     bc = _by_class(h).get("snv_indel") or {}
-    landscape = bc.get("verdict")   # mutation_landscape_class
+    landscape = bc.get("verdict")  # mutation_landscape_class
     if landscape == "no_mutations":
         return "absent", "no SNV/indel mutations in cohort", None
     rec = h.get("pooled_driver_recurrence_class") or h.get("driver_recurrence_class") or bc.get("recurrence_class")
     sig = _RECURRENCE_SIGNAL.get(rec, "unmeasured")
-    ev = (f"SNV: {landscape or 'data_unavailable'}, recurrence {rec or 'data_unavailable'}"
-          + (f" ({_f((h.get('pooled_mutation_frequency') or h.get('overall_mutation_frequency') or 0) * 100, 1)}% freq)"
-             if isinstance(h.get("pooled_mutation_frequency") or h.get("overall_mutation_frequency"), (int, float)) else ""))
+    ev = f"SNV: {landscape or 'data_unavailable'}, recurrence {rec or 'data_unavailable'}" + (
+        f" ({_f((h.get('pooled_mutation_frequency') or h.get('overall_mutation_frequency') or 0) * 100, 1)}% freq)"
+        if isinstance(h.get("pooled_mutation_frequency") or h.get("overall_mutation_frequency"), (int, float))
+        else ""
+    )
     return sig, ev, None
 
 
@@ -151,15 +197,15 @@ def _snv_corroboration(h, c):
     genie = h.get("genie_driver_recurrence_class")
     base = "moderate"
     if n_cohorts and n_cohorts >= 2:
-        base = bump_corroboration(base, True)   # independent multi-cohort recurrence
+        base = bump_corroboration(base, True)  # independent multi-cohort recurrence
     if genie in ("bottom_decile",) and rec in ("top_1pct", "top_decile"):
-        base = "low"                            # WES says driver, panel says not — disagreement
+        base = "low"  # WES says driver, panel says not — disagreement
     return base
 
 
 def _cn_signal(h, c):
     bc = _by_class(h).get("copy_number") or {}
-    cls = bc.get("verdict")   # copy_number_class (cell-line)
+    cls = bc.get("verdict")  # copy_number_class (cell-line)
     sig = _CN_SIGNAL.get(cls, "unmeasured")
     focal = h.get("patient_focal_cn_class")
     if focal in _CN_FOCAL_POS:
@@ -184,23 +230,29 @@ def _cn_corroboration(h, c):
     amp = cls == "recurrently_amplified"
     deld = cls == "recurrently_deleted"
     if (amp and focal == "recurrent_focal_amplification") or (deld and focal == "recurrent_focal_deletion"):
-        return "high"         # cell-line + patient-tumour agree on direction
+        return "high"  # cell-line + patient-tumour agree on direction
     if focal in ("focal_neutral",) and cls in ("recurrently_amplified", "recurrently_deleted"):
-        return "low"          # cell-line recurrent but patient tumour focal-neutral — disagreement
+        return "low"  # cell-line recurrent but patient tumour focal-neutral — disagreement
     return "moderate"
 
 
 def _fus_signal(h, c):
     bc = _by_class(h).get("fusion") or {}
-    cls = bc.get("verdict")   # fusion_class
+    cls = bc.get("verdict")  # fusion_class
     sig = _FUS_SIGNAL.get(cls, "unmeasured")
     # #983 COPY-NUMBER GATE (upstream, card preprocessor): a moderate_promiscuous fusion at a recurrently
     # focally-AMPLIFIED locus is demoted to `promiscuous_amplicon_fusion` (an amplicon passenger, not a
     # competent driver) BEFORE rules fire — so it fires no driver rung and drops out of the multi-class
     # framing. Here it reads WEAK with an explicit rationale (a real SV, but a passenger).
     if cls == "promiscuous_amplicon_fusion":
-        return "weak", ("fusion: promiscuous_amplicon_fusion (copy-number-gated — a moderate_promiscuous SV "
-                        "at a focally-amplified locus: an amplicon passenger, not a competent fusion driver)"), None
+        return (
+            "weak",
+            (
+                "fusion: promiscuous_amplicon_fusion (copy-number-gated — a moderate_promiscuous SV "
+                "at a focally-amplified locus: an amplicon passenger, not a competent fusion driver)"
+            ),
+            None,
+        )
     # VERDICT-INERT confidence-aware downgrade: a `recurrent_fusion_driver` call flagged
     # `fusion_recurrence_confidence == moderate_promiscuous` rests on a promiscuous recurrence with NO
     # recurrent partner — the mixed bucket that also catches amplicon-artifact SVs at amplified oncogenes.
@@ -216,7 +268,7 @@ def _fus_signal(h, c):
 
 def _spl_signal(h, c):
     bc = _by_class(h).get("splice") or {}
-    cls = bc.get("verdict")   # splice_exon_skip_class
+    cls = bc.get("verdict")  # splice_exon_skip_class
     sig = _spl_tier(cls)
     ev = f"splice exon-skip: {cls or 'data_unavailable'}" + (f" ({bc.get('event_id')})" if bc.get("event_id") else "")
     return sig, ev, None
@@ -243,8 +295,13 @@ def _fus_corroboration(h, c):
 
 
 # GENIE-SV recurrence percentile → corroboration tier (top bands corroborate; low band doesn't)
-_RECURRENCE_SIGNAL_TO_CORR = {"top_1pct": "high", "top_decile": "high", "mid": "moderate",
-                              "bottom_decile": "low", "data_unavailable": "moderate"}
+_RECURRENCE_SIGNAL_TO_CORR = {
+    "top_1pct": "high",
+    "top_decile": "high",
+    "mid": "moderate",
+    "bottom_decile": "low",
+    "data_unavailable": "moderate",
+}
 
 
 def _resistance_actionability(h) -> str | None:
@@ -269,7 +326,7 @@ def _resistance_actionability(h) -> str | None:
         if not isinstance(v, dict):
             continue
         n_alleles += 1
-        for combo in (v.get("therapies") or []):
+        for combo in v.get("therapies") or []:
             # a CIViC "therapies" entry can be a combination ("Panitumumab,Cetuximab"); count each agent
             for t in str(combo).split(","):
                 t = t.strip()
@@ -278,8 +335,10 @@ def _resistance_actionability(h) -> str | None:
     if not n_alleles or not therapies:
         return None
     top = sorted(therapies, key=lambda t: (-therapies[t], t))[:3]
-    return (f"CIViC therapy-resistance: {n_alleles} allele(s) annotated resistant to {len(therapies)} "
-            f"therapies (top: {', '.join(top)}) [variant-level-interpretation]")
+    return (
+        f"CIViC therapy-resistance: {n_alleles} allele(s) annotated resistant to {len(therapies)} "
+        f"therapies (top: {', '.join(top)}) [variant-level-interpretation]"
+    )
 
 
 def _dep_signal(h, c):
@@ -308,8 +367,12 @@ def _dep_corroboration(h, c):
     drug = h.get("drug_response_stratification_class")
     base = _DRUG_CORR.get(drug, "unmeasured")
     # within-indication (not a pan-cancer extrapolation) localisation raises confidence
-    scopes = [h.get("stratified_evidence_scope"), h.get("cn_stratified_evidence_scope"),
-              h.get("fusion_stratified_evidence_scope"), h.get("amp_expr_stratified_evidence_scope")]
+    scopes = [
+        h.get("stratified_evidence_scope"),
+        h.get("cn_stratified_evidence_scope"),
+        h.get("fusion_stratified_evidence_scope"),
+        h.get("amp_expr_stratified_evidence_scope"),
+    ]
     if base in ("moderate", "low") and any(s in _INDICATION_SCOPES for s in scopes):
         base = bump_corroboration(base, True)
     return base
@@ -332,41 +395,74 @@ def _gatom(card_id: str, summary: dict, keys: tuple, entity: dict, read) -> dict
 
 def _snv_atom(h, c):
     cid = "mutation-hotspot-frequency"
-    return _gatom(cid, c.get(cid) or {},
-                  ("driver_recurrence_class", "pooled_mutation_frequency", "overall_mutation_frequency",
-                   "pooled_driver_recurrence_percentile", "driver_recurrence_percentile",
-                   "n_samples_in_indication", "n_samples_mutated"),
-                  {"measurement_type": "mutation_hotspot_recurrence", "grain": "target_indication"},
-                  (h.get("pooled_driver_recurrence_class") or h.get("driver_recurrence_class")))
+    return _gatom(
+        cid,
+        c.get(cid) or {},
+        (
+            "driver_recurrence_class",
+            "pooled_mutation_frequency",
+            "overall_mutation_frequency",
+            "pooled_driver_recurrence_percentile",
+            "driver_recurrence_percentile",
+            "n_samples_in_indication",
+            "n_samples_mutated",
+        ),
+        {"measurement_type": "mutation_hotspot_recurrence", "grain": "target_indication"},
+        (h.get("pooled_driver_recurrence_class") or h.get("driver_recurrence_class")),
+    )
 
 
 def _cn_atom(h, c):
     cid = "copy-number-distribution"
-    return _gatom(cid, c.get(cid) or {},
-                  ("copy_number_class", "cn_distribution_shape", "cn_median_panel", "cn_p95_panel",
-                   "cn_fraction_deep_deletion", "patient_focal_cn_class"),
-                  {"measurement_type": "copy_number_alteration", "sample_context": "cell_line"},
-                  (c.get(cid) or {}).get("copy_number_class"))
+    return _gatom(
+        cid,
+        c.get(cid) or {},
+        (
+            "copy_number_class",
+            "cn_distribution_shape",
+            "cn_median_panel",
+            "cn_p95_panel",
+            "cn_fraction_deep_deletion",
+            "patient_focal_cn_class",
+        ),
+        {"measurement_type": "copy_number_alteration", "sample_context": "cell_line"},
+        (c.get(cid) or {}).get("copy_number_class"),
+    )
 
 
 def _fus_atom(h, c):
     cid = "fusion-rearrangement-landscape"
-    return _gatom(cid, c.get(cid) or {},
-                  ("fusion_class", "n_samples_with_fusion", "genie_sv_frequency",
-                   "genie_sv_recurrence_percentile"),
-                  {"measurement_type": "fusion_rearrangement", "grain": "target_indication"},
-                  (c.get(cid) or {}).get("fusion_class"))
+    return _gatom(
+        cid,
+        c.get(cid) or {},
+        ("fusion_class", "n_samples_with_fusion", "genie_sv_frequency", "genie_sv_recurrence_percentile"),
+        {"measurement_type": "fusion_rearrangement", "grain": "target_indication"},
+        (c.get(cid) or {}).get("fusion_class"),
+    )
 
 
 def _gdep_atom(h, c):
     cid = "mutation-stratified-dependency"
-    return _gatom(cid, c.get(cid) or {},
-                  ("mutation_stratification_class", "delta_chronos_hotspot_mut_vs_wt",
-                   "median_chronos_hotspot_mutant", "median_chronos_hotspot_wildtype",
-                   "hotspot_mannwhitney_q", "n_hotspot_mutant", "n_hotspot_wildtype", "evidence_scope"),
-                  {"measurement_type": "mutation_stratified_dependency", "sample_context": "cell_line",
-                   "stratum": "hotspot_mutant_vs_wt"},
-                  (c.get(cid) or {}).get("mutation_stratification_class"))
+    return _gatom(
+        cid,
+        c.get(cid) or {},
+        (
+            "mutation_stratification_class",
+            "delta_chronos_hotspot_mut_vs_wt",
+            "median_chronos_hotspot_mutant",
+            "median_chronos_hotspot_wildtype",
+            "hotspot_mannwhitney_q",
+            "n_hotspot_mutant",
+            "n_hotspot_wildtype",
+            "evidence_scope",
+        ),
+        {
+            "measurement_type": "mutation_stratified_dependency",
+            "sample_context": "cell_line",
+            "stratum": "hotspot_mutant_vs_wt",
+        },
+        (c.get(cid) or {}).get("mutation_stratification_class"),
+    )
 
 
 GENOMIC_CLAIM_SPEC = [
@@ -392,7 +488,8 @@ _DISCLAIMER = (
     "each signal×corroboration. Claims are NOT additive; genomic-alteration is a MIX — a strong CN does "
     "not degrade a weak SNV, and the strongest class is what drives. DEP asks whether the ALTERATION "
     "confers a genetic dependency (a WT/neutral-dependent signal is `absent` here). corroboration is a "
-    "within-claim support tier, NOT the axis certainty. Never feeds the genomic_alteration verdict.")
+    "within-claim support tier, NOT the axis certainty. Never feeds the genomic_alteration verdict."
+)
 
 
 def genomic_claim_vector(headline: dict, cards: list) -> dict:
@@ -412,8 +509,10 @@ def genomic_key_signals(headline: dict, cards: list) -> dict:
 
     def sup_cn(claim):
         bc = _by_class(h).get("copy_number") or {}
-        return (f"Copy-number driver — {bc.get('verdict')} (patient-focal {h.get('patient_focal_cn_class')}) "
-                f"[copy-number-distribution]")
+        return (
+            f"Copy-number driver — {bc.get('verdict')} (patient-focal {h.get('patient_focal_cn_class')}) "
+            f"[copy-number-distribution]"
+        )
 
     def sup_fus(claim):
         return f"Fusion driver — {(_by_class(h).get('fusion') or {}).get('verdict')} [fusion-rearrangement-landscape]"
@@ -421,12 +520,17 @@ def genomic_key_signals(headline: dict, cards: list) -> dict:
     def sup_spl(claim):
         bc = _by_class(h).get("splice") or {}
         n = bc.get("n_depmap_carriers")
-        return (f"Splice exon-skip driver — {bc.get('verdict')} ({bc.get('event_id') or 'event'}"
-                + (f", {n} DepMap carriers" if n is not None else "") + ") [splice-exon-skip-landscape]")
+        return (
+            f"Splice exon-skip driver — {bc.get('verdict')} ({bc.get('event_id') or 'event'}"
+            + (f", {n} DepMap carriers" if n is not None else "")
+            + ") [splice-exon-skip-landscape]"
+        )
 
     def sup_dep(claim):
-        return (f"Alteration confers a dependency — {vec['DEP']['evidence'].split('= ')[-1]} "
-                f"(drug-response {h.get('drug_response_stratification_class')}) [stratified-dependency + drug-response]")
+        return (
+            f"Alteration confers a dependency — {vec['DEP']['evidence'].split('= ')[-1]} "
+            f"(drug-response {h.get('drug_response_stratification_class')}) [stratified-dependency + drug-response]"
+        )
 
     def cav_snv(claim):
         return f"Not a recurrent SNV driver — {h.get('pooled_driver_recurrence_class') or h.get('driver_recurrence_class')} recurrence [mutation-hotspot-frequency]"
@@ -465,7 +569,10 @@ def genomic_key_signals(headline: dict, cards: list) -> dict:
             # as an UNCONFIRMED caveat here rather than asserted as a clean biomarker-stratified
             # dependency, so this most-read summary line can't over-read the verdict.
             if h.get("genomic_alteration_profile") == "biomarker_dependency_unconfirmed":
-                base = base.rstrip(".") + " — biomarker dependency UNCONFIRMED (orthogonal KO-dependency evidence contradicts)."
+                base = (
+                    base.rstrip(".")
+                    + " — biomarker dependency UNCONFIRMED (orthogonal KO-dependency evidence contradicts)."
+                )
             else:
                 base = base.rstrip(".") + ", biomarker-stratified dependency."
         return base

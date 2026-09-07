@@ -14,6 +14,7 @@ single place that knows both shapes, so a future layout change is fixed in one s
 
 Pure stdlib, read-only, best-effort (a malformed run yields {} rather than raising).
 """
+
 from __future__ import annotations
 
 import glob
@@ -34,7 +35,7 @@ def claim_vectors_for_run(run_dir) -> dict:
     ep = run / "evidence_package.json"
     if ep.exists():
         try:
-            syn = (json.loads(ep.read_text()).get("synthesis") or {})
+            syn = json.loads(ep.read_text()).get("synthesis") or {}
         except (ValueError, OSError):
             syn = {}
         out: dict = {}

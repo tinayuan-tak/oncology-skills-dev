@@ -77,10 +77,7 @@ def emit_placeholder(
         "required_cards": required_cards,
         "unwired_cards": unwired_cards,
         "data_gaps": data_gaps,
-        "backlog_reference": (
-            backlog_reference or
-            "See ~/.claude/plans/deep-foraging-thompson.md §'Gaps + backlog'."
-        ),
+        "backlog_reference": (backlog_reference or "See ~/.claude/plans/deep-foraging-thompson.md §'Gaps + backlog'."),
     }
 
     decision_path = out_dir / "decision.json"

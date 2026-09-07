@@ -8,6 +8,7 @@ KRAS/COADREAD resolves `both_patterns_present` (co-occurring drivers AND mutuall
 differentiation-landscape is DESCRIPTIVE (the verdict tier encodes pattern STRENGTH; direction lives in
 the claim atoms), so the badge polarity is `neutral` — the discriminating polarity check for this skill.
 """
+
 from __future__ import annotations
 
 import copy
@@ -33,8 +34,7 @@ _AXIS_KEYS = ["COMUT", "SURVIVAL", "PROGNOSIS", "NODE"]
 
 
 def _real_summary(s) -> bool:
-    return (isinstance(s, dict) and bool(s)
-            and not s.get("_freeze_error") and not s.get("_dispatcher_returned_none"))
+    return isinstance(s, dict) and bool(s) and not s.get("_freeze_error") and not s.get("_dispatcher_returned_none")
 
 
 def _decision(pair_id: str, target: str, indication: str) -> dict:
@@ -51,14 +51,14 @@ def _decision(pair_id: str, target: str, indication: str) -> dict:
             if not _real_summary(s):
                 return None
             return copy.deepcopy(s)
+
         return _read_live
 
     out_dir = Path(tempfile.mkdtemp(prefix=f"diff-hl-{pair_id}-"))
     mp = pytest.MonkeyPatch()
     mp.delenv("FRAMEWORK_HEALTH_SMOKE", raising=False)
     mp.setattr(skc, "_import_dispatcher", _fake_dispatcher_factory)
-    mp.setattr(sys, "argv", ["run.py", "--target", target, "--indication", indication,
-                             "--out", str(out_dir)])
+    mp.setattr(sys, "argv", ["run.py", "--target", target, "--indication", indication, "--out", str(out_dir)])
     try:
         runpy.run_path(str(RUN_PY), run_name="__main__")
     except SystemExit as e:
@@ -81,9 +81,11 @@ def test_headline_block_present_and_consistent():
     # the spine the headline projects over
     differentiation_verdict = h.get("differentiation_verdict")
     assert differentiation_verdict == "both_patterns_present", (
-        f"fixture no longer exercises both_patterns_present (got {differentiation_verdict!r}) — refreeze.")
+        f"fixture no longer exercises both_patterns_present (got {differentiation_verdict!r}) — refreeze."
+    )
     assert "headline_block" not in (h.get("_enrichment_errors") or {}), (
-        f"headline_block DEGRADED: {(h.get('_enrichment_errors') or {}).get('headline_block')}")
+        f"headline_block DEGRADED: {(h.get('_enrichment_errors') or {}).get('headline_block')}"
+    )
 
     block = h.get("headline_block")
     assert isinstance(block, dict), "headline_block missing or not a dict (degraded projection)"
@@ -102,7 +104,8 @@ def test_headline_block_present_and_consistent():
 
     # DESCRIPTIVE: no verdict is a clean program-desirability call → neutral badge.
     assert verdict.get("polarity") == "neutral", (
-        f"a DESCRIPTIVE differentiation verdict must colour the badge neutral; got {verdict.get('polarity')!r}")
+        f"a DESCRIPTIVE differentiation verdict must colour the badge neutral; got {verdict.get('polarity')!r}"
+    )
 
     # deterministic headline text is always available
     assert isinstance(block.get("headline_text"), str) and block["headline_text"]

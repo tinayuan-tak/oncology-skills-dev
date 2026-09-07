@@ -5,6 +5,7 @@ provenance.resolved_releases[<fam>].resolution_error (it must never sink emissio
 run_health never read it, so a run whose DGE family failed to resolve its head still reported
 status='ok'. `_provenance_warnings` surfaces it as a DISTINCT run_health signal (it does NOT flip
 status — a head-resolution failure is a governance gap, not a missing verdict card)."""
+
 from __future__ import annotations
 
 import sys
@@ -18,14 +19,18 @@ import _skills_common.dispatcher as D  # noqa: E402
 
 
 def test_warns_on_resolution_error():
-    prov = {"resolved_releases": {
-        "luad-dge-tumor-vs-normal-sensitivity": {"used": ["x"], "head": None,
-                                                 "resolution_error": "ReleaseResolutionError: no head"},
-        "cptac-protein": {"used": ["y"], "head": "cptac-protein-v3", "is_stale": False},
-    }}
+    prov = {
+        "resolved_releases": {
+            "luad-dge-tumor-vs-normal-sensitivity": {
+                "used": ["x"],
+                "head": None,
+                "resolution_error": "ReleaseResolutionError: no head",
+            },
+            "cptac-protein": {"used": ["y"], "head": "cptac-protein-v3", "is_stale": False},
+        }
+    }
     warns = D._provenance_warnings(prov)
-    assert warns == [{"family": "luad-dge-tumor-vs-normal-sensitivity",
-                      "error": "ReleaseResolutionError: no head"}]
+    assert warns == [{"family": "luad-dge-tumor-vs-normal-sensitivity", "error": "ReleaseResolutionError: no head"}]
 
 
 def test_clean_provenance_yields_empty_list():
@@ -40,9 +45,11 @@ def test_missing_or_empty_provenance_is_safe():
 
 
 def test_multiple_errors_sorted_by_family():
-    prov = {"resolved_releases": {
-        "zeta": {"resolution_error": "E: z"},
-        "alpha": {"resolution_error": "E: a"},
-    }}
+    prov = {
+        "resolved_releases": {
+            "zeta": {"resolution_error": "E: z"},
+            "alpha": {"resolution_error": "E: a"},
+        }
+    }
     fams = [w["family"] for w in D._provenance_warnings(prov)]
     assert fams == ["alpha", "zeta"]

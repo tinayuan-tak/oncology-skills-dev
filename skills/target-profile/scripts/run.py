@@ -45,45 +45,68 @@ if _SCRIPTS_DIR not in sys.path:
 # stays the CLI entrypoint + orchestration (main); everything else lives in the tp_*
 # modules and is re-exported here so the module's public surface — and every test that
 # reaches into it (run._biomarker_facet, run.SUB_SKILL_CARDS, ...) — is byte-identical.
-from tp_common import *              # noqa: F401,F403
+from tp_common import *  # noqa: F401,F403
 from tp_common import SKILL_NAME, SKILL_VERSION, _framework_model_version
-from tp_fanout import *              # noqa: F401,F403
+from tp_fanout import *  # noqa: F401,F403
 from tp_fanout import SUB_SKILLS, _run_sub_skills, _skipped_synthesis_output
-from tp_gates import *               # noqa: F401,F403
-from tp_gates import (               # names main() calls directly
-    _CONFIDENCE_RANK, _TIER_TO_CONFIDENCE, _gate_recommendation, _gate_scorecard,
-    _hard_gates_status, _positive_tier,
+from tp_gates import *  # noqa: F401,F403
+from tp_gates import (  # names main() calls directly
+    _CONFIDENCE_RANK,
+    _TIER_TO_CONFIDENCE,
+    _gate_recommendation,
+    _gate_scorecard,
+    _hard_gates_status,
+    _positive_tier,
 )
-from tp_facets import *              # noqa: F401,F403
+from tp_facets import *  # noqa: F401,F403
 from tp_facets import (
     _actionability_mode_facet,
-    _addressable_population_facet, _biomarker_facet, _certainty_by_axis, _competitor_crossref_facet,
+    _addressable_population_facet,
+    _biomarker_facet,
+    _certainty_by_axis,
+    _competitor_crossref_facet,
     _skill_reports_by_short,
-    _modality_fit_by_channel, _magnitude_borderline,
+    _modality_fit_by_channel,
+    _magnitude_borderline,
     _deciding_axis,
     _cross_gate_shared_evidence,
-    _fragility_facet, _narrative_by_axis, _heterogeneity_facet, _modality_conjunction_facet, _ordinal_matrix, _presence_facet,
-    _subtype_facet, _backfill_subtype_spine,
-    build_target_rollup, build_target_coherence, build_target_call, build_target_report,
+    _fragility_facet,
+    _narrative_by_axis,
+    _heterogeneity_facet,
+    _modality_conjunction_facet,
+    _ordinal_matrix,
+    _presence_facet,
+    _subtype_facet,
+    _backfill_subtype_spine,
+    build_target_rollup,
+    build_target_coherence,
+    build_target_call,
+    build_target_report,
 )
-from tp_synthesis_prompt import *    # noqa: F401,F403
-from tp_synthesis_prompt import (_SYSTEM_PROMPT, _METRIC_LEGEND, _build_synthesis_tool,
-                                  _build_user_prompt, validate_synthesis_anchors)
+from tp_synthesis_prompt import *  # noqa: F401,F403
+from tp_synthesis_prompt import (
+    _SYSTEM_PROMPT,
+    _METRIC_LEGEND,
+    _build_synthesis_tool,
+    _build_user_prompt,
+    validate_synthesis_anchors,
+)
+
 # tp_render_md + tp_render_html RETIRED 2026-09-03 (Wave-3): the default md/html render path is
 # report_render (PR #963); run.py no longer calls either legacy renderer. `_risk_rows_from_rollup` (the
 # category/level/driver row projection) was re-homed to _skills_common/risk_projection in #970 — re-exposed
 # here so `tp._risk_rows_from_rollup` stays available to the risk-parity guards that read it off this module.
 from _skills_common.risk_projection import _risk_rows_from_rollup  # noqa: F401
-from tp_evidence_package import *    # noqa: F401,F403
+from tp_evidence_package import *  # noqa: F401,F403
 from tp_evidence_package import (
     _validation_summary_from_sub_results,
     _write_evidence_package,
 )
-from tp_figures import *             # noqa: F401,F403
+from tp_figures import *  # noqa: F401,F403
 from tp_figures import emit_figures, resolve_figures_root
-from tp_emit import *                # noqa: F401,F403
+from tp_emit import *  # noqa: F401,F403
 from tp_emit import write_artifact, assert_write_set
-from tp_manifest import *            # noqa: F401,F403
+from tp_manifest import *  # noqa: F401,F403
 from tp_manifest import write_full_package
 
 # _skills_common symbols invoked directly by main() (modality_lens preserved from the
@@ -92,21 +115,41 @@ from _skills_common import synthesize_structured
 from _skills_common.envelope import build_governance
 
 
-
-
 # Canonical modality tokens (target-contracts vocabularies/modality.enum.yaml) + natural-language
 # aliases. The gate veto-suppression + positive-tier + modality_lens all key on the canonical set, so
 # an un-normalized token silently matches nothing. Keep in sync with the enum if new modalities land.
-_CANONICAL_MODALITIES = frozenset({
-    "small_molecule", "degrader", "adc", "bite_tce", "antibody", "bispecific_non_tce", "cell_therapy",
-})
+_CANONICAL_MODALITIES = frozenset(
+    {
+        "small_molecule",
+        "degrader",
+        "adc",
+        "bite_tce",
+        "antibody",
+        "bispecific_non_tce",
+        "cell_therapy",
+    }
+)
 _MODALITY_ALIASES = {
-    "sm": "small_molecule", "small-molecule": "small_molecule", "inhibitor": "small_molecule",
-    "protac": "degrader", "glue": "degrader", "molecular_glue": "degrader", "molecular-glue": "degrader",
-    "bite": "bite_tce", "tce": "bite_tce", "t-cell-engager": "bite_tce", "tcell_engager": "bite_tce",
-    "bispecific": "bite_tce", "bispecific_tce": "bite_tce",
-    "mab": "antibody", "monoclonal": "antibody", "naked_antibody": "antibody",
-    "car-t": "cell_therapy", "cart": "cell_therapy", "car_t": "cell_therapy", "cart_cell": "cell_therapy",
+    "sm": "small_molecule",
+    "small-molecule": "small_molecule",
+    "inhibitor": "small_molecule",
+    "protac": "degrader",
+    "glue": "degrader",
+    "molecular_glue": "degrader",
+    "molecular-glue": "degrader",
+    "bite": "bite_tce",
+    "tce": "bite_tce",
+    "t-cell-engager": "bite_tce",
+    "tcell_engager": "bite_tce",
+    "bispecific": "bite_tce",
+    "bispecific_tce": "bite_tce",
+    "mab": "antibody",
+    "monoclonal": "antibody",
+    "naked_antibody": "antibody",
+    "car-t": "cell_therapy",
+    "cart": "cell_therapy",
+    "car_t": "cell_therapy",
+    "cart_cell": "cell_therapy",
 }
 
 
@@ -122,16 +165,19 @@ def _normalize_modality(raw: str) -> Optional[str]:
         return key
     if key in _MODALITY_ALIASES:
         return _MODALITY_ALIASES[key]
-    print(f"[target-profile] WARN: --modality {raw!r} is not a recognized modality "
-          f"(canonical: {sorted(_CANONICAL_MODALITIES)}); ignoring the modality lens.",
-          file=sys.stderr)
+    print(
+        f"[target-profile] WARN: --modality {raw!r} is not a recognized modality "
+        f"(canonical: {sorted(_CANONICAL_MODALITIES)}); ignoring the modality lens.",
+        file=sys.stderr,
+    )
     return None
 
 
 # The AWS account that owns the onc-compbio derived-products bucket every sub-skill reads from
 # (the cbg profile → 557690623046). Overridable (comma-list) for other authorized accounts via env.
 _ONC_COMPBIO_ACCOUNT_IDS = frozenset(
-    a.strip() for a in os.environ.get("ONC_COMPBIO_ACCOUNT_IDS", "557690623046").split(",") if a.strip())
+    a.strip() for a in os.environ.get("ONC_COMPBIO_ACCOUNT_IDS", "557690623046").split(",") if a.strip()
+)
 
 
 def _preflight_data_access() -> "tuple[bool, str]":
@@ -146,15 +192,19 @@ def _preflight_data_access() -> "tuple[bool, str]":
     try:
         import boto3
         from botocore.config import Config
-        ident = boto3.client("sts", config=Config(connect_timeout=5, read_timeout=5,
-                                                   retries={"max_attempts": 2})).get_caller_identity()
+
+        ident = boto3.client(
+            "sts", config=Config(connect_timeout=5, read_timeout=5, retries={"max_attempts": 2})
+        ).get_caller_identity()
         acct = ident.get("Account")
     except Exception as e:  # noqa: BLE001 — any resolution failure is a preflight fail, never a crash
         return False, f"could not resolve AWS identity ({type(e).__name__}: {e})"
     prof = os.environ.get("AWS_PROFILE", "<default-chain>")
     if acct not in _ONC_COMPBIO_ACCOUNT_IDS:
-        return False, (f"AWS identity resolves to account {acct} (AWS_PROFILE={prof}), NOT an "
-                       f"onc-compbio account {sorted(_ONC_COMPBIO_ACCOUNT_IDS)}")
+        return False, (
+            f"AWS identity resolves to account {acct} (AWS_PROFILE={prof}), NOT an "
+            f"onc-compbio account {sorted(_ONC_COMPBIO_ACCOUNT_IDS)}"
+        )
     return True, f"account {acct} (AWS_PROFILE={prof})"
 
 
@@ -190,9 +240,12 @@ def _synthesize_or_degrade(system_prompt: str, user_prompt: str, tool_schema: di
     except Exception as e:  # noqa: BLE001 — advisory synthesis; never break the deterministic spine
         out = _skipped_synthesis_output()
         out["_synthesis_error"] = f"{type(e).__name__}: {e}"
-        print(f"[target-profile] WARNING: Bedrock synthesis failed ({type(e).__name__}: {e}); "
-              "emitting the deterministic verdict spine WITHOUT narration (fail-closed). "
-              "The nomination/verdict is unaffected.", file=sys.stderr)
+        print(
+            f"[target-profile] WARNING: Bedrock synthesis failed ({type(e).__name__}: {e}); "
+            "emitting the deterministic verdict spine WITHOUT narration (fail-closed). "
+            "The nomination/verdict is unaffected.",
+            file=sys.stderr,
+        )
         return out
 
 
@@ -204,154 +257,244 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     ap.add_argument("--target", required=True)
     ap.add_argument("--indication", required=True)
     ap.add_argument("--out", required=True, type=Path)
-    ap.add_argument("--subtypes", default=None,
-                    help="Comma-separated molecular subgroup ids to scope the "
-                         "profile to (e.g. 'MSI_H,MSS'). When set, the subtype "
-                         "tier is evaluated: a MEASURED, floor-cleared subtype "
-                         "that is NOT a dependency holds the nomination. Omit for "
-                         "a whole-cohort profile (backward-compatible default).")
-    ap.add_argument("--modality", default=None,
-                    help="OPTIONAL post-hoc modality lens. Canonical values (modality.enum.yaml): "
-                         "small_molecule, degrader, adc, bite_tce, antibody, bispecific_non_tce, "
-                         "cell_therapy. Common aliases are normalized (e.g. bite/tce/bispecific -> "
-                         "bite_tce, protac/glue -> degrader, car-t -> cell_therapy); an UNKNOWN token "
-                         "warns and is ignored (never a silent no-op).")
-    ap.add_argument("--release-pin", default=None,
-                    help="OPTIONAL data release_pin to STAMP into governance/provenance for "
-                         "reproducibility (parity with compose-dashboard). Pass-through only: "
-                         "target-profile reads live and does NOT auto-resolve the release — absent "
-                         "this flag the pin is recorded as 'unpinned' (honest, never fabricated). "
-                         "Auto-resolution is a deferred data-catalog follow-on.")
-    ap.add_argument("--therapeutic-hypothesis", default=None,
-                    help="OPTIONAL therapeutic hypothesis (line-of-therapy, "
-                         "patient state, clinical goal). Reshapes LLM "
-                         "narrative; sub-verdicts unchanged.")
-    ap.add_argument("--no-figures", action="store_true",
-                    help="VERDICT-ONLY mode: skip per-card figure emission + the interactive HTML "
-                         "(the 4.6MB inlined plotly.js + the figure double-read). Emits "
-                         "nomination.json + target_profile.md + provenance + a STATIC (no-JS) HTML. "
-                         "The deterministic verdict spine is byte-identical to a full run — figures "
-                         "never feed the verdict. Use for fast iteration / re-runs; render later via "
-                         "the deferred-render path. (Perf Stage 1, 2026-07-23.)")
-    ap.add_argument("--full-package", action="store_true",
-                    help="Self-contained REVIEW bundle: a normal run PLUS the deterministic "
-                         "evidence_package.json + a per-sub-skill package under subskills/<short>/"
-                         "package.json + a MANIFEST (.json/.md) index tying every artifact together. "
-                         "Additive + verdict-inert; for team review where all outputs must persist in "
-                         "one portable tree. Pairs well with --self-contained.")
-    ap.add_argument("--reports", default=None, metavar="PRESETS",
-                    help="Also emit report_render bundles from the nomination: a comma-separated list "
-                         "of presets (exec-brief,reviewer-dossier,deck,full), written to "
-                         "<out>/reports/report_<preset>.<ext>. Additive + verdict-inert + best-effort "
-                         "(a render failure never aborts the run). e.g. --reports exec-brief,deck")
-    ap.add_argument("--report-backends", default=None, metavar="BACKENDS",
-                    help="Comma-separated backends for --reports (default: markdown,html,json; add "
-                         "'pptx' for a pandoc deck, 'text' for plain text).")
-    ap.add_argument("--self-contained", action="store_true",
-                    help="Render target_profile.html as a fully OFFLINE, portable artifact: per-card "
-                         "figures embed as inline base64 SVG data-URIs (no interactive Plotly, no CDN "
-                         "fetch), so it renders in any webview / can be shared or served from S3 with "
-                         "no network. Default (omit) keeps the interactive Plotly+CDN embed. "
-                         "Verdict-inert; the .md/nomination spine is unchanged.")
+    ap.add_argument(
+        "--subtypes",
+        default=None,
+        help="Comma-separated molecular subgroup ids to scope the "
+        "profile to (e.g. 'MSI_H,MSS'). When set, the subtype "
+        "tier is evaluated: a MEASURED, floor-cleared subtype "
+        "that is NOT a dependency holds the nomination. Omit for "
+        "a whole-cohort profile (backward-compatible default).",
+    )
+    ap.add_argument(
+        "--modality",
+        default=None,
+        help="OPTIONAL post-hoc modality lens. Canonical values (modality.enum.yaml): "
+        "small_molecule, degrader, adc, bite_tce, antibody, bispecific_non_tce, "
+        "cell_therapy. Common aliases are normalized (e.g. bite/tce/bispecific -> "
+        "bite_tce, protac/glue -> degrader, car-t -> cell_therapy); an UNKNOWN token "
+        "warns and is ignored (never a silent no-op).",
+    )
+    ap.add_argument(
+        "--release-pin",
+        default=None,
+        help="OPTIONAL data release_pin to STAMP into governance/provenance for "
+        "reproducibility (parity with compose-dashboard). Pass-through only: "
+        "target-profile reads live and does NOT auto-resolve the release — absent "
+        "this flag the pin is recorded as 'unpinned' (honest, never fabricated). "
+        "Auto-resolution is a deferred data-catalog follow-on.",
+    )
+    ap.add_argument(
+        "--therapeutic-hypothesis",
+        default=None,
+        help="OPTIONAL therapeutic hypothesis (line-of-therapy, "
+        "patient state, clinical goal). Reshapes LLM "
+        "narrative; sub-verdicts unchanged.",
+    )
+    ap.add_argument(
+        "--no-figures",
+        action="store_true",
+        help="VERDICT-ONLY mode: skip per-card figure emission + the interactive HTML "
+        "(the 4.6MB inlined plotly.js + the figure double-read). Emits "
+        "nomination.json + target_profile.md + provenance + a STATIC (no-JS) HTML. "
+        "The deterministic verdict spine is byte-identical to a full run — figures "
+        "never feed the verdict. Use for fast iteration / re-runs; render later via "
+        "the deferred-render path. (Perf Stage 1, 2026-07-23.)",
+    )
+    ap.add_argument(
+        "--full-package",
+        action="store_true",
+        help="Self-contained REVIEW bundle: a normal run PLUS the deterministic "
+        "evidence_package.json + a per-sub-skill package under subskills/<short>/"
+        "package.json + a MANIFEST (.json/.md) index tying every artifact together. "
+        "Additive + verdict-inert; for team review where all outputs must persist in "
+        "one portable tree. Pairs well with --self-contained.",
+    )
+    ap.add_argument(
+        "--reports",
+        default=None,
+        metavar="PRESETS",
+        help="Also emit report_render bundles from the nomination: a comma-separated list "
+        "of presets (exec-brief,reviewer-dossier,deck,full), written to "
+        "<out>/reports/report_<preset>.<ext>. Additive + verdict-inert + best-effort "
+        "(a render failure never aborts the run). e.g. --reports exec-brief,deck",
+    )
+    ap.add_argument(
+        "--report-backends",
+        default=None,
+        metavar="BACKENDS",
+        help="Comma-separated backends for --reports (default: markdown,html,json; add "
+        "'pptx' for a pandoc deck, 'text' for plain text).",
+    )
+    ap.add_argument(
+        "--self-contained",
+        action="store_true",
+        help="Render target_profile.html as a fully OFFLINE, portable artifact: per-card "
+        "figures embed as inline base64 SVG data-URIs (no interactive Plotly, no CDN "
+        "fetch), so it renders in any webview / can be shared or served from S3 with "
+        "no network. Default (omit) keeps the interactive Plotly+CDN embed. "
+        "Verdict-inert; the .md/nomination spine is unchanged.",
+    )
     # Per-sub-skill LLM narration rides the SAME default-on substrate umbrella as ground/risk/hypothesis:
     # ON by default, OFF under --no-substrate / --no-synthesis / --verdict-only / --emit. Each
     # narrator-bearing sub-skill's single-lens narration is persisted under subskills/<short>/package.json
     # (llm_synthesis). Best-effort + VERDICT-INERT (a Bedrock failure degrades to a note; the deterministic
     # spine is unaffected). No dedicated flag — the substrate umbrella governs it.
-    ap.add_argument("--no-synthesis", action="store_true",
-                    help="Skip the Tier-3 Bedrock LLM synthesis (executive-summary / tension / "
-                         "recommendation narrative). The deterministic verdict spine — sub-verdicts, "
-                         "recommendation gate, positive tier, deciding axis, scorecard, facets — is "
-                         "computed independently of the LLM and stays byte-identical to a full run. "
-                         "nomination.json marks llm_synthesis._synthesis_skipped; the report shows a "
-                         "note in place of the narrative. Removes the serial, non-cacheable network tail.")
-    ap.add_argument("--verdict-only", action="store_true",
-                    help="Umbrella fast/CI/iteration mode: implies --no-synthesis AND --no-figures. "
-                         "Emits the deterministic nomination (nomination.json + a narrative-free "
-                         "target_profile.md + provenance) with no Bedrock call and no figure/panel "
-                         "render. The verdict spine is byte-identical to a full run.")
+    ap.add_argument(
+        "--no-synthesis",
+        action="store_true",
+        help="Skip the Tier-3 Bedrock LLM synthesis (executive-summary / tension / "
+        "recommendation narrative). The deterministic verdict spine — sub-verdicts, "
+        "recommendation gate, positive tier, deciding axis, scorecard, facets — is "
+        "computed independently of the LLM and stays byte-identical to a full run. "
+        "nomination.json marks llm_synthesis._synthesis_skipped; the report shows a "
+        "note in place of the narrative. Removes the serial, non-cacheable network tail.",
+    )
+    ap.add_argument(
+        "--verdict-only",
+        action="store_true",
+        help="Umbrella fast/CI/iteration mode: implies --no-synthesis AND --no-figures. "
+        "Emits the deterministic nomination (nomination.json + a narrative-free "
+        "target_profile.md + provenance) with no Bedrock call and no figure/panel "
+        "render. The verdict spine is byte-identical to a full run.",
+    )
     # --- rich embedded views: per-subskill narrative + literature carried into each embedded evidence_graph ---
-    ap.add_argument("--rich-embedded", action=argparse.BooleanOptionalAction, default=True,
-                    help="Run each sub-skill's LLM narrative AND literature lane in the fan-out and carry "
-                         "them into that sub-skill's embedded evidence_graph, so the composed dashboard's "
-                         "embedded sub-skill views match a standalone `--synthesize --literature` run "
-                         "(narrative + literature axes + verified citations). DEFAULT ON. Cost: up to 14x "
-                         "Bedrock narration + 14x (EuropePMC/PubTator retrieval + Bedrock literature-"
-                         "synthesis) — use --no-rich-embedded (or --verdict-only) for a fast, Bedrock-lean "
-                         "run (omics-rich embedded + one top-level narrative). AUTO-OFF whenever top-level "
-                         "synthesis is suppressed (--no-synthesis / --verdict-only / --emit). "
-                         "VERDICT-INERT + display-only: the deterministic spine stays byte-identical.")
-    ap.add_argument("--synthesize-subskills", action=argparse.BooleanOptionalAction, default=None,
-                    help="Override --rich-embedded for the per-subskill NARRATIVE only (embedded "
-                         "narrative). Default follows --rich-embedded.")
-    ap.add_argument("--subskill-literature", action=argparse.BooleanOptionalAction, default=None,
-                    help="Override --rich-embedded for the per-subskill LITERATURE lane only (embedded "
-                         "literature axes + citations). Default follows --rich-embedded.")
-    ap.add_argument("--subskill-literature-scope", choices=["all", "gating"], default="all",
-                    help="Which sub-skills run the per-subskill literature lane when enabled: 'all' "
-                         "(default) or 'gating' (the 8 gating axes only — cheaper).")
-    ap.add_argument("--profile-timers", action="store_true",
-                    help="Emit per-sub-skill READ vs FIGURE-EMIT wall-clock timings to stderr "
-                         "(instrumentation only; zero effect on artifacts). (Perf Stage 0.)")
-    ap.add_argument("--emit", choices=["nomination", "evidence-package"], default="nomination",
-                    help="Output shape. 'nomination' (default) → nomination.json + target_profile.md "
-                         "+ provenance (the biologist-facing narrated profile). 'evidence-package' → "
-                         "a deterministic, LLM-free evidence_package.json envelope (the same machine-"
-                         "facing shape compose-dashboard emits), assembled from the SAME per-sub-skill "
-                         "verdict spine. evidence-package implies --no-synthesis + --no-figures and "
-                         "emits no nomination.json / md / html.")
-    ap.add_argument("--risk-assessment", default=None, type=Path,
-                    help="OPTIONAL: path to a literature-risk-assessment risk_assessment.json. When "
-                         "given, its 6-dimension literature RISK read is rendered on the HTML dashboard "
-                         "as a visually-separate, explicitly-labeled CONTEXT-TIER panel (non-reproducible; "
-                         "never a verdict input — RISK_ASSESSMENT_INTEGRATION.md §4). Display-only.")
-    ap.add_argument("--grounded-dir", default=None, type=Path,
-                    help="OPTIONAL: directory of per-axis grounded_<axis>.json records "
-                         "(literature-risk-assessment/ground_axis). Each subskill section whose axis has "
-                         "a record shows its escalate-only, PMID-cited literature findings inline. "
-                         "Display-only; never a verdict input.")
-    ap.add_argument("--ground", nargs="?", const="engine", default=None, metavar="AXES",
-                    help="AUTO-GROUND (fanout-integration): after the fan-out, run "
-                         "literature-risk-assessment/ground_axis over the assembled evidence_package to "
-                         "PRODUCE per-axis grounded_<axis>.json (escalate-only, PMID-cited literature "
-                         "findings) in --out — feeding BOTH the inline HTML render AND downstream "
-                         "--substrate (risk_rollup [3A] + cross-evidence-hypothesis [3B]). Value: "
-                         "'engine' (default: the 5 engine axes), 'all' (+ clinical/commercial "
-                         "pseudo-cards), or a comma-list (e.g. safety,dependency). Requires Bedrock + "
-                         "network (BEDROCK_AWS_PROFILE); VERDICT-INERT + best-effort. Off by default "
-                         "(a run without --ground is byte-identical + makes no network call).")
-    ap.add_argument("--ground-indication", default=None, metavar="TERM",
-                    help="OPTIONAL natural-language disease term for --ground's PubMed retrieval (e.g. "
-                         "'colorectal cancer'). ground_axis searches PubMed by term, so an OncoTree code "
-                         "(--indication COADREAD) retrieves almost nothing; pass the disease name here. "
-                         "Defaults to --indication when omitted. Affects ONLY grounding retrieval — the "
-                         "fan-out / verdict spine still key on --indication.")
-    ap.add_argument("--risk-rollup", default=None, type=Path,
-                    help="OPTIONAL: path to a risk_rollup.json (literature-risk-assessment/risk_rollup [3A]). "
-                         "Renders the DETERMINISTIC, reproducible 'Risk by category' 5R lead table (the "
-                         "committee glance) — modality-conditioned bins that are a pure function of the "
-                         "sub-verdicts; the LLM/literature never sets a bin. Display-only.")
-    ap.add_argument("--hypothesis", default=None, type=Path,
-                    help="OPTIONAL: path to a cross-evidence-hypothesis hypothesis.json. When given, the "
-                         "gate-clamped, cited 6-part hypothesis REPLACES the original Tier-3 LLM "
-                         "executive-summary + tension synthesis on the HTML dashboard (the cross-evidence "
-                         "integrator is a meta-layer above target-profile). Display-only; the deterministic "
-                         "recommendation stays the header top-line.")
-    ap.add_argument("--ab-suppress-fragility-prompt", action="store_true",
-                    help="A/B CONTROL ARM (Phase-0 certainty-layer gate): suppress the per-axis "
-                         "how-solid (certainty) block in the synthesis prompt only. Verdict-INERT — "
-                         "the fragility facet is still computed and written to nomination.json, and "
-                         "the deterministic recommendation/confidence spine is byte-identical; this "
-                         "flag changes ONLY what the LLM narration sees, so an A/B run can measure "
-                         "the block's effect on the prose. Not for production use.")
-    ap.add_argument("--allow-degraded-data", action="store_true",
-                    help="Escape hatch: SKIP the data-access preflight (STS account check for the "
-                         "onc-compbio derived-products account). By DEFAULT a run whose AWS identity "
-                         "is NOT the onc-compbio account aborts non-zero — because every live card "
-                         "read would silently come back empty (all-`insufficient` verdicts, exit 0), "
-                         "which would quietly invalidate an at-scale batch. Pass this ONLY for an "
-                         "intentional cache-only / offline run. (env TARGET_PROFILE_SKIP_PREFLIGHT=1 "
-                         "has the same effect.)")
+    ap.add_argument(
+        "--rich-embedded",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Run each sub-skill's LLM narrative AND literature lane in the fan-out and carry "
+        "them into that sub-skill's embedded evidence_graph, so the composed dashboard's "
+        "embedded sub-skill views match a standalone `--synthesize --literature` run "
+        "(narrative + literature axes + verified citations). DEFAULT ON. Cost: up to 14x "
+        "Bedrock narration + 14x (EuropePMC/PubTator retrieval + Bedrock literature-"
+        "synthesis) — use --no-rich-embedded (or --verdict-only) for a fast, Bedrock-lean "
+        "run (omics-rich embedded + one top-level narrative). AUTO-OFF whenever top-level "
+        "synthesis is suppressed (--no-synthesis / --verdict-only / --emit). "
+        "VERDICT-INERT + display-only: the deterministic spine stays byte-identical.",
+    )
+    ap.add_argument(
+        "--synthesize-subskills",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Override --rich-embedded for the per-subskill NARRATIVE only (embedded "
+        "narrative). Default follows --rich-embedded.",
+    )
+    ap.add_argument(
+        "--subskill-literature",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Override --rich-embedded for the per-subskill LITERATURE lane only (embedded "
+        "literature axes + citations). Default follows --rich-embedded.",
+    )
+    ap.add_argument(
+        "--subskill-literature-scope",
+        choices=["all", "gating"],
+        default="all",
+        help="Which sub-skills run the per-subskill literature lane when enabled: 'all' "
+        "(default) or 'gating' (the 8 gating axes only — cheaper).",
+    )
+    ap.add_argument(
+        "--profile-timers",
+        action="store_true",
+        help="Emit per-sub-skill READ vs FIGURE-EMIT wall-clock timings to stderr "
+        "(instrumentation only; zero effect on artifacts). (Perf Stage 0.)",
+    )
+    ap.add_argument(
+        "--emit",
+        choices=["nomination", "evidence-package"],
+        default="nomination",
+        help="Output shape. 'nomination' (default) → nomination.json + target_profile.md "
+        "+ provenance (the biologist-facing narrated profile). 'evidence-package' → "
+        "a deterministic, LLM-free evidence_package.json envelope (the same machine-"
+        "facing shape compose-dashboard emits), assembled from the SAME per-sub-skill "
+        "verdict spine. evidence-package implies --no-synthesis + --no-figures and "
+        "emits no nomination.json / md / html.",
+    )
+    ap.add_argument(
+        "--risk-assessment",
+        default=None,
+        type=Path,
+        help="OPTIONAL: path to a literature-risk-assessment risk_assessment.json. When "
+        "given, its 6-dimension literature RISK read is rendered on the HTML dashboard "
+        "as a visually-separate, explicitly-labeled CONTEXT-TIER panel (non-reproducible; "
+        "never a verdict input — RISK_ASSESSMENT_INTEGRATION.md §4). Display-only.",
+    )
+    ap.add_argument(
+        "--grounded-dir",
+        default=None,
+        type=Path,
+        help="OPTIONAL: directory of per-axis grounded_<axis>.json records "
+        "(literature-risk-assessment/ground_axis). Each subskill section whose axis has "
+        "a record shows its escalate-only, PMID-cited literature findings inline. "
+        "Display-only; never a verdict input.",
+    )
+    ap.add_argument(
+        "--ground",
+        nargs="?",
+        const="engine",
+        default=None,
+        metavar="AXES",
+        help="AUTO-GROUND (fanout-integration): after the fan-out, run "
+        "literature-risk-assessment/ground_axis over the assembled evidence_package to "
+        "PRODUCE per-axis grounded_<axis>.json (escalate-only, PMID-cited literature "
+        "findings) in --out — feeding BOTH the inline HTML render AND downstream "
+        "--substrate (risk_rollup [3A] + cross-evidence-hypothesis [3B]). Value: "
+        "'engine' (default: the 5 engine axes), 'all' (+ clinical/commercial "
+        "pseudo-cards), or a comma-list (e.g. safety,dependency). Requires Bedrock + "
+        "network (BEDROCK_AWS_PROFILE); VERDICT-INERT + best-effort. Off by default "
+        "(a run without --ground is byte-identical + makes no network call).",
+    )
+    ap.add_argument(
+        "--ground-indication",
+        default=None,
+        metavar="TERM",
+        help="OPTIONAL natural-language disease term for --ground's PubMed retrieval (e.g. "
+        "'colorectal cancer'). ground_axis searches PubMed by term, so an OncoTree code "
+        "(--indication COADREAD) retrieves almost nothing; pass the disease name here. "
+        "Defaults to --indication when omitted. Affects ONLY grounding retrieval — the "
+        "fan-out / verdict spine still key on --indication.",
+    )
+    ap.add_argument(
+        "--risk-rollup",
+        default=None,
+        type=Path,
+        help="OPTIONAL: path to a risk_rollup.json (literature-risk-assessment/risk_rollup [3A]). "
+        "Renders the DETERMINISTIC, reproducible 'Risk by category' 5R lead table (the "
+        "committee glance) — modality-conditioned bins that are a pure function of the "
+        "sub-verdicts; the LLM/literature never sets a bin. Display-only.",
+    )
+    ap.add_argument(
+        "--hypothesis",
+        default=None,
+        type=Path,
+        help="OPTIONAL: path to a cross-evidence-hypothesis hypothesis.json. When given, the "
+        "gate-clamped, cited 6-part hypothesis REPLACES the original Tier-3 LLM "
+        "executive-summary + tension synthesis on the HTML dashboard (the cross-evidence "
+        "integrator is a meta-layer above target-profile). Display-only; the deterministic "
+        "recommendation stays the header top-line.",
+    )
+    ap.add_argument(
+        "--ab-suppress-fragility-prompt",
+        action="store_true",
+        help="A/B CONTROL ARM (Phase-0 certainty-layer gate): suppress the per-axis "
+        "how-solid (certainty) block in the synthesis prompt only. Verdict-INERT — "
+        "the fragility facet is still computed and written to nomination.json, and "
+        "the deterministic recommendation/confidence spine is byte-identical; this "
+        "flag changes ONLY what the LLM narration sees, so an A/B run can measure "
+        "the block's effect on the prose. Not for production use.",
+    )
+    ap.add_argument(
+        "--allow-degraded-data",
+        action="store_true",
+        help="Escape hatch: SKIP the data-access preflight (STS account check for the "
+        "onc-compbio derived-products account). By DEFAULT a run whose AWS identity "
+        "is NOT the onc-compbio account aborts non-zero — because every live card "
+        "read would silently come back empty (all-`insufficient` verdicts, exit 0), "
+        "which would quietly invalidate an at-scale batch. Pass this ONLY for an "
+        "intentional cache-only / offline run. (env TARGET_PROFILE_SKIP_PREFLIGHT=1 "
+        "has the same effect.)",
+    )
     # DEFAULT-ON grounded-substrate chain (2026-08-26). After the fan-out, a full nomination run now
     # AUTO-RUNS the two-projection chain over the assembled evidence_package: ground_axis → risk_rollup
     # [3A] + the 6-dim literature risk_assessment + cross-evidence-hypothesis [3B]. All three are
@@ -362,19 +505,29 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     # the offline/fast/machine modes (--no-synthesis / --verdict-only / --emit evidence-package), which
     # stay byte-identical. An explicit --ground / --risk-assessment / --risk-rollup / --hypothesis / a
     # --grounded-dir file always takes precedence over the auto-produced artifact.
-    ap.add_argument("--no-substrate", action="store_true",
-                    help="Opt OUT of the DEFAULT-ON grounded-substrate chain (ground_axis → risk_rollup "
-                         "[3A] + 6-dim literature risk_assessment + cross-evidence-hypothesis [3B]). "
-                         "Restores the offline, network-free, byte-identical run. The chain is "
-                         "display-only / verdict-INERT either way.")
-    ap.add_argument("--no-ground", action="store_true",
-                    help="Granular opt-out: skip only the auto-grounding leg (no ground_axis PubMed "
-                         "retrieval). risk_rollup/hypothesis then run without grounded findings.")
-    ap.add_argument("--no-risk", action="store_true",
-                    help="Granular opt-out: skip the risk_rollup [3A] + 6-dim literature risk_assessment "
-                         "legs (the hypothesis, if on, then has no --risk input).")
-    ap.add_argument("--no-hypothesis", action="store_true",
-                    help="Granular opt-out: skip the cross-evidence-hypothesis [3B] leg.")
+    ap.add_argument(
+        "--no-substrate",
+        action="store_true",
+        help="Opt OUT of the DEFAULT-ON grounded-substrate chain (ground_axis → risk_rollup "
+        "[3A] + 6-dim literature risk_assessment + cross-evidence-hypothesis [3B]). "
+        "Restores the offline, network-free, byte-identical run. The chain is "
+        "display-only / verdict-INERT either way.",
+    )
+    ap.add_argument(
+        "--no-ground",
+        action="store_true",
+        help="Granular opt-out: skip only the auto-grounding leg (no ground_axis PubMed "
+        "retrieval). risk_rollup/hypothesis then run without grounded findings.",
+    )
+    ap.add_argument(
+        "--no-risk",
+        action="store_true",
+        help="Granular opt-out: skip the risk_rollup [3A] + 6-dim literature risk_assessment "
+        "legs (the hypothesis, if on, then has no --risk input).",
+    )
+    ap.add_argument(
+        "--no-hypothesis", action="store_true", help="Granular opt-out: skip the cross-evidence-hypothesis [3B] leg."
+    )
     return ap
 
 
@@ -421,16 +574,17 @@ def main() -> int:
     if not (args.allow_degraded_data or os.environ.get("TARGET_PROFILE_SKIP_PREFLIGHT")):
         _pf_ok, _pf_detail = _preflight_data_access()
         if not _pf_ok:
-            print("\n" + "=" * 78 +
-                  "\n[target-profile] DATA-ACCESS PREFLIGHT FAILED — aborting (exit 3).\n"
-                  f"  {_pf_detail}\n"
-                  "  Every sub-skill reads derived products from the onc-compbio bucket; without\n"
-                  "  access, ALL verdicts silently degrade to `insufficient` (a hollow profile).\n"
-                  "  FIX:   ensure the ambient AWS creds resolve to an onc-compbio account\n"
-                  f"         {sorted(_ONC_COMPBIO_ACCOUNT_IDS)} — e.g. a SageMaker execution role in\n"
-                  "         that account (no profile needed), or on a local box `export AWS_PROFILE=cbg`.\n"
-                  "  Offline/cache-only run? pass --allow-degraded-data to skip this check.\n"
-                  + "=" * 78, file=sys.stderr)
+            print(
+                "\n" + "=" * 78 + "\n[target-profile] DATA-ACCESS PREFLIGHT FAILED — aborting (exit 3).\n"
+                f"  {_pf_detail}\n"
+                "  Every sub-skill reads derived products from the onc-compbio bucket; without\n"
+                "  access, ALL verdicts silently degrade to `insufficient` (a hollow profile).\n"
+                "  FIX:   ensure the ambient AWS creds resolve to an onc-compbio account\n"
+                f"         {sorted(_ONC_COMPBIO_ACCOUNT_IDS)} — e.g. a SageMaker execution role in\n"
+                "         that account (no profile needed), or on a local box `export AWS_PROFILE=cbg`.\n"
+                "  Offline/cache-only run? pass --allow-degraded-data to skip this check.\n" + "=" * 78,
+                file=sys.stderr,
+            )
             _restore_run_log()
             return 3
         print(f"[target-profile] data-access preflight OK — {_pf_detail}", file=sys.stderr)
@@ -477,9 +631,14 @@ def main() -> int:
     # artifact (file always wins, handled below). The grounded substrate feeds BOTH the inline render and
     # the two projections.
     from tp_grounding import plan_substrate
+
     _plan = plan_substrate(
-        no_substrate=args.no_substrate, no_synthesis=args.no_synthesis, emit=args.emit,
-        ground=args.ground, no_ground=args.no_ground, no_risk=args.no_risk,
+        no_substrate=args.no_substrate,
+        no_synthesis=args.no_synthesis,
+        emit=args.emit,
+        ground=args.ground,
+        no_ground=args.no_ground,
+        no_risk=args.no_risk,
         no_hypothesis=args.no_hypothesis,
     )
     substrate_chain_on = _plan["chain_on"]
@@ -490,9 +649,12 @@ def main() -> int:
     run_ground, ground_spec = _plan["run_ground"], _plan["ground_spec"]
     run_risk, run_hypothesis = _plan["run_risk"], _plan["run_hypothesis"]
     if substrate_chain_on:
-        print(f"[target-profile] grounded-substrate chain ON (ground={run_ground}, risk={run_risk}, "
-              f"hypothesis={run_hypothesis}); display-only/verdict-inert, needs Bedrock+PubMed. "
-              "Pass --no-substrate for an offline byte-identical run.", file=sys.stderr)
+        print(
+            f"[target-profile] grounded-substrate chain ON (ground={run_ground}, risk={run_risk}, "
+            f"hypothesis={run_hypothesis}); display-only/verdict-inert, needs Bedrock+PubMed. "
+            "Pass --no-substrate for an offline byte-identical run.",
+            file=sys.stderr,
+        )
 
     invoked_lenses: dict = {}
     if args.modality:
@@ -501,8 +663,10 @@ def main() -> int:
         invoked_lenses["therapeutic_hypothesis"] = args.therapeutic_hypothesis
 
     # 1. Fan out to sub-skills.
-    print(f"[target-profile] Running {len(SUB_SKILLS)} sub-skills for "
-          f"{args.target} in {args.indication}...", file=sys.stderr)
+    print(
+        f"[target-profile] Running {len(SUB_SKILLS)} sub-skills for {args.target} in {args.indication}...",
+        file=sys.stderr,
+    )
     subtypes = [s.strip() for s in args.subtypes.split(",") if s.strip()] if args.subtypes else None
     # Figure Stage 3 (offline seam activation): on a figures-emitting run, persist each card's plot_data
     # DURING resolution into figures/cards/<card_id>/ so the figure emitters render OFFLINE from it
@@ -526,20 +690,25 @@ def main() -> int:
     _lit = args.subskill_literature if args.subskill_literature is not None else _rich
     _subskill_literature = bool(_lit) and not args.no_synthesis
     if _subskill_literature or _subskill_narrative:
-        print(f"[target-profile] rich embedded views: narrative={_subskill_narrative} "
-              f"literature={_subskill_literature} (scope={args.subskill_literature_scope}); "
-              f"needs Bedrock+network, VERDICT-INERT. Use --no-rich-embedded for a fast run.",
-              file=sys.stderr)
-    sub_results = _run_sub_skills(args.target, args.indication, subtypes=subtypes,
-                                  profile_timers=args.profile_timers,
-                                  plot_data_root=plot_data_root,
-                                  synthesize_subskills=_subskill_narrative,
-                                  subskill_literature=_subskill_literature,
-                                  subskill_literature_scope=args.subskill_literature_scope,
-                                  synthesis_model=getattr(args, "synthesis_model", None))
+        print(
+            f"[target-profile] rich embedded views: narrative={_subskill_narrative} "
+            f"literature={_subskill_literature} (scope={args.subskill_literature_scope}); "
+            f"needs Bedrock+network, VERDICT-INERT. Use --no-rich-embedded for a fast run.",
+            file=sys.stderr,
+        )
+    sub_results = _run_sub_skills(
+        args.target,
+        args.indication,
+        subtypes=subtypes,
+        profile_timers=args.profile_timers,
+        plot_data_root=plot_data_root,
+        synthesize_subskills=_subskill_narrative,
+        subskill_literature=_subskill_literature,
+        subskill_literature_scope=args.subskill_literature_scope,
+        synthesis_model=getattr(args, "synthesis_model", None),
+    )
     if args.profile_timers:
-        print(f"[perf] === fan-out total {time.perf_counter() - _fanout_t0:6.1f}s ===",
-              file=sys.stderr)
+        print(f"[perf] === fan-out total {time.perf_counter() - _fanout_t0:6.1f}s ===", file=sys.stderr)
     for short, r in sub_results.items():
         v = r["verdict"]
         verdict_str = v[0] if v else "(no verdict)"
@@ -674,20 +843,23 @@ def main() -> int:
     nomination_predictive_score = None
     try:
         from _skills_common import archetype_core
+
         _atlas_path = Path(__file__).resolve().parents[2] / "target-archetype" / "atlas" / "atlas.json"
         if _atlas_path.exists():
             _atlas = archetype_core.Atlas.load(_atlas_path)
             archetype_companion = archetype_core.companion_from_sub_results(sub_results, _atlas)
             nomination_scorecard_facet = archetype_core.scorecard_from_sub_results(
-                sub_results, _atlas, companion=archetype_companion)
+                sub_results, _atlas, companion=archetype_companion
+            )
     except Exception:
-        archetype_companion = None            # verdict-inert facets — never fail the flagship on an error
+        archetype_companion = None  # verdict-inert facets — never fail the flagship on an error
         nomination_scorecard_facet = None
 
     # Biology-axis (resolved early so it can also MASK the per-modality view below). Curated axis +
     # plausible modalities; uncurated → axis=unknown. NEVER raises. SLOT-2 emphasis only; the
     # deterministic verdict + gate recommendation are untouched.
     from _skills_common.biology_axis import resolve_biology_axis
+
     axis_info = resolve_biology_axis(args.target)
 
     # M4 modality-fit-by-channel: roll up the records' modality_scope into a PER-CHANNEL favorability
@@ -700,8 +872,7 @@ def main() -> int:
     # target_rollup.v1 + target_coherence.v1 — the VERDICT-INERT distillation layer (7-axis roll-up +
     # negative block; thesis/coherence lens). Additive keys in nomination.json; never touch the spine.
     # subtype_facet is threaded in so the roll-up can surface subtype signals prominently.
-    target_rollup = build_target_rollup(sub_results, modality_fit_by_channel,
-                                        subtype_facet=subtype_facet)
+    target_rollup = build_target_rollup(sub_results, modality_fit_by_channel, subtype_facet=subtype_facet)
     target_coherence = build_target_coherence(sub_results, target_rollup)
 
     # M4 coarsen-magnitude: flag axes whose categorical call HARD-CUTS a continuous value that barely
@@ -718,21 +889,29 @@ def main() -> int:
     # to a "synthesis skipped" note.
     if args.no_synthesis:
         llm_output = _skipped_synthesis_output()
-        print("[target-profile] --verdict-only/--no-synthesis: skipped Bedrock synthesis "
-              "(deterministic verdict spine is authoritative)", file=sys.stderr)
+        print(
+            "[target-profile] --verdict-only/--no-synthesis: skipped Bedrock synthesis "
+            "(deterministic verdict spine is authoritative)",
+            file=sys.stderr,
+        )
     else:
-        print(f"[target-profile] Invoking Bedrock synthesis (biology_axis={axis_info['biology_axis']})...",
-              file=sys.stderr)
+        print(
+            f"[target-profile] Invoking Bedrock synthesis (biology_axis={axis_info['biology_axis']})...",
+            file=sys.stderr,
+        )
         # ABSORB (feed-only): the advisory synthesis NARRATES the deterministic 6-dim governance risk
         # roll-up. Computed here as a DETERMINISTIC-only view (grounded_by_axis=None, no file write) — it
         # is grounding-INVARIANT (grounding never moves a bin since the 2026-09-03 demotion), so this
         # pre-synthesis view has bins identical to the artifact risk_rollup computed post-grounding below.
         # Best-effort (None on failure → the prompt simply omits the block). VERDICT-INERT.
         from tp_grounding import build_risk_6dim
+
         risk_6dim_for_synthesis = build_risk_6dim(sub_results, args.modality, None, out_dir=None)
         tool_schema = _build_synthesis_tool()
         user_prompt = _build_user_prompt(
-            args.target, args.indication, sub_results,
+            args.target,
+            args.indication,
+            sub_results,
             modality=args.modality,
             therapeutic_hypothesis=args.therapeutic_hypothesis,
             ordinal_matrix=ordinal_matrix,
@@ -758,26 +937,30 @@ def main() -> int:
             # Verdict-INERT audit: flag any bracketed [rule_id]/[card_id] anchors the model cited that
             # are NOT in the deterministic narrative/fired/card anchor set (possible hallucinated
             # citations). Fail-visible (records, never strips); does not touch the verdict/recommendation.
-            llm_output["_anchor_validation"] = validate_synthesis_anchors(
-                llm_output, narrative_by_axis, sub_results)
+            llm_output["_anchor_validation"] = validate_synthesis_anchors(llm_output, narrative_by_axis, sub_results)
             _inv = llm_output["_anchor_validation"]["n_invented"]
             if _inv:
-                print(f"[target-profile] NOTE: {_inv} synthesis citation anchor(s) not in the "
-                      f"narrative block (possible hallucination): "
-                      f"{llm_output['_anchor_validation']['invented_anchors']}", file=sys.stderr)
+                print(
+                    f"[target-profile] NOTE: {_inv} synthesis citation anchor(s) not in the "
+                    f"narrative block (possible hallucination): "
+                    f"{llm_output['_anchor_validation']['invented_anchors']}",
+                    file=sys.stderr,
+                )
 
     # 2b. Deterministic recommendation gate. A killer sub-verdict FORCES the
     # recommendation regardless of what the LLM chose — the auditable rule wins.
     # We clamp the wrapped {value, _source, ...} in place and record the override
     # in nomination.json + provenance so the gate is never silent.
     gate_action, gate_hits, gate_suppressions = _gate_recommendation(
-        sub_results, modality=args.modality, biology_axis=axis_info.get("biology_axis"))
-    recommendation_gate = {"fired": bool(gate_action),
-                           "suppressed_vetoes": gate_suppressions}
+        sub_results, modality=args.modality, biology_axis=axis_info.get("biology_axis")
+    )
+    recommendation_gate = {"fired": bool(gate_action), "suppressed_vetoes": gate_suppressions}
     if gate_suppressions:
-        print(f"[target-profile] recommendation gate SUPPRESSED "
-              f"{[s['short']+':'+s['verdict']+' via '+s['suppressed_by']['kind'] for s in gate_suppressions]}",
-              file=sys.stderr)
+        print(
+            f"[target-profile] recommendation gate SUPPRESSED "
+            f"{[s['short'] + ':' + s['verdict'] + ' via ' + s['suppressed_by']['kind'] for s in gate_suppressions]}",
+            file=sys.stderr,
+        )
     confidence_tier = {"tier": None}
     if gate_action:
         rec = llm_output.get("overall_recommendation")
@@ -794,15 +977,18 @@ def main() -> int:
             rec["value"] = gate_action
             rec["_gated"] = True  # mark the value as rule-forced, not LLM-chosen
         else:
-            llm_output["overall_recommendation"] = {
-                "value": gate_action, "_source": "recommendation_gate"}
-        print(f"[target-profile] recommendation GATE fired: forced '{gate_action}' "
-              f"(LLM said '{llm_value}') via {[h['short']+':'+h['verdict'] for h in gate_hits]}",
-              file=sys.stderr)
+            llm_output["overall_recommendation"] = {"value": gate_action, "_source": "recommendation_gate"}
+        print(
+            f"[target-profile] recommendation GATE fired: forced '{gate_action}' "
+            f"(LLM said '{llm_value}') via {[h['short'] + ':' + h['verdict'] for h in gate_hits]}",
+            file=sys.stderr,
+        )
         if any(h.get("_fail_closed") for h in gate_hits):
-            print("[target-profile] NOTE: recommendation was FAIL-CLOSED (an unrecognized/malformed "
-                  "verdict on a veto-capable axis routed to least-permissive — never a silent pass).",
-                  file=sys.stderr)
+            print(
+                "[target-profile] NOTE: recommendation was FAIL-CLOSED (an unrecognized/malformed "
+                "verdict on a veto-capable axis routed to least-permissive — never a silent pass).",
+                file=sys.stderr,
+            )
     else:
         # NO kill fired → the positive tier may raise a deterministic confidence
         # FLOOR. F1-safe: this branch is unreachable when a kill fired; it touches
@@ -819,30 +1005,35 @@ def main() -> int:
                     conf["value"] = floor
                     conf["_floored_by_positive_tier"] = True
                 else:
-                    llm_output["confidence"] = {
-                        "value": floor, "_source": "positive_tier"}
+                    llm_output["confidence"] = {"value": floor, "_source": "positive_tier"}
                 confidence_tier["floored_from"] = llm_conf
                 confidence_tier["floored_to"] = floor
-            print(f"[target-profile] positive tier: {tier} "
-                  f"(dims={sorted({h['short'] for h in pos_hits})}); "
-                  f"confidence floor {floor}", file=sys.stderr)
+            print(
+                f"[target-profile] positive tier: {tier} "
+                f"(dims={sorted({h['short'] for h in pos_hits})}); "
+                f"confidence floor {floor}",
+                file=sys.stderr,
+            )
 
     # Gate-complete ceiling: attach the COMPLETE declared hard-gate set with per-gate
     # fired/suppressed/excluded/blind status. Additive — reads the resolved gate state, forces
     # nothing; flows into nomination.json + evidence_package via recommendation_gate.
-    recommendation_gate["hard_gates"] = _hard_gates_status(
-        sub_results, gate_hits, gate_suppressions)
+    recommendation_gate["hard_gates"] = _hard_gates_status(sub_results, gate_hits, gate_suppressions)
 
     # Deciding-axis router: name the load-bearing gate + whether the framework can
     # evidence it. Reports (never predicts): a fired gate is the deciding axis; on abstention,
     # the unevidenced necessity gates are the routing instruction. Purely additive — reads the
     # already-resolved gate/positive state, touches no verdict.
     deciding_axis = _deciding_axis(
-        sub_results, gate_action, gate_hits,
+        sub_results,
+        gate_action,
+        gate_hits,
         positive_hits=confidence_tier.get("hits", []) or [],
     )
-    print(f"[target-profile] deciding axis [{deciding_axis['basis']}]: "
-          f"{deciding_axis.get('routing', '')}", file=sys.stderr)
+    print(
+        f"[target-profile] deciding axis [{deciding_axis['basis']}]: {deciding_axis.get('routing', '')}",
+        file=sys.stderr,
+    )
 
     # Gate scorecard (deterministic, top-of-report): 8-gate rows from the gate registry, 4-state
     # status reusing the nomination-gate policy. Also emitted in nomination.json.
@@ -851,9 +1042,14 @@ def main() -> int:
     # over the spine objects just built (recommendation_gate/confidence_tier/deciding_axis/scorecard) +
     # target_rollup.block, adding the authoritative recommendation value + a dissent block. Verdict-inert;
     # recommendation_gate stays the sole owner. The spine keys remain top-level until renderers migrate.
-    target_call = build_target_call(recommendation_gate, confidence_tier, deciding_axis, scorecard,
-                                    overall_recommendation=llm_output.get("overall_recommendation"),
-                                    target_rollup=target_rollup)
+    target_call = build_target_call(
+        recommendation_gate,
+        confidence_tier,
+        deciding_axis,
+        scorecard,
+        overall_recommendation=llm_output.get("overall_recommendation"),
+        target_rollup=target_rollup,
+    )
 
     # 5-field validation_summary — the shared evidence-package writer's contract, composed from
     # target-profile's card-read model (passed = card returned usable data; failed = absent/not-wired
@@ -872,20 +1068,27 @@ def main() -> int:
     ep_path = None
     if args.emit == "evidence-package" or args.ground or args.full_package or substrate_chain_on:
         ep_path = _write_evidence_package(
-            args=args, sub_results=sub_results, gate_action=gate_action,
-            recommendation_gate=recommendation_gate, confidence_tier=confidence_tier,
-            deciding_axis=deciding_axis, validation_summary=validation_summary,
+            args=args,
+            sub_results=sub_results,
+            gate_action=gate_action,
+            recommendation_gate=recommendation_gate,
+            confidence_tier=confidence_tier,
+            deciding_axis=deciding_axis,
+            validation_summary=validation_summary,
             # subtype-first-class-evidence (Option A): populate context.subgroup_spec + the
             # subtype_resolved block ONLY when the run is subtype-scoped (byte-stable default).
-            subtypes=subtypes, subtype_facet=subtype_facet,
+            subtypes=subtypes,
+            subtype_facet=subtype_facet,
             # verdict-INERT decision facets (previously nomination.json-only) into synthesis.decision_facets
             # + the composed modality into context, so the cross-evidence integrator can consume them.
             certainty_by_axis=certainty_by_axis,
             cross_gate_shared_evidence=cross_gate_shared_evidence,
-            fragility=fragility, competitor_crossref=competitor_crossref,
+            fragility=fragility,
+            competitor_crossref=competitor_crossref,
             # factored-record consumers (M4): per-modality favorability + over-precision audit, so the
             # cross-evidence integrator sees per-MODALITY calls + magnitude fragility, not just the scalar.
-            modality_fit_by_channel=modality_fit_by_channel, magnitude_borderline=magnitude_borderline,
+            modality_fit_by_channel=modality_fit_by_channel,
+            magnitude_borderline=magnitude_borderline,
             modality=args.modality,
         )
         _written.add("evidence_package")
@@ -901,16 +1104,25 @@ def main() -> int:
     if run_ground and ep_path is not None:
         try:
             from tp_grounding import resolve_axes, auto_ground
+
             axes = resolve_axes(ground_spec)
-            print(f"[target-profile] auto-grounding axes {axes} over {ep_path.name} "
-                  f"(indication term {ground_ind!r}; verdict-inert)...", file=sys.stderr)
+            print(
+                f"[target-profile] auto-grounding axes {axes} over {ep_path.name} "
+                f"(indication term {ground_ind!r}; verdict-inert)...",
+                file=sys.stderr,
+            )
             produced = auto_ground(args.target, ground_ind, ep_path, args.out, axes)
             grounded_by_axis.update(produced)
-            print(f"[target-profile] auto-grounded {sorted(produced)} → grounded_<axis>.json in {args.out}",
-                  file=sys.stderr)
+            print(
+                f"[target-profile] auto-grounded {sorted(produced)} → grounded_<axis>.json in {args.out}",
+                file=sys.stderr,
+            )
         except Exception as e:  # noqa: BLE001 — grounding is substrate/display context, never blocks a run
-            print(f"[target-profile] WARN: auto-grounding failed ({type(e).__name__}: {e}); "
-                  "continuing without grounded substrate", file=sys.stderr)
+            print(
+                f"[target-profile] WARN: auto-grounding failed ({type(e).__name__}: {e}); "
+                "continuing without grounded substrate",
+                file=sys.stderr,
+            )
 
     # The LLM literature risk read (display-only / verdict-INERT; NON-reproducible). Best-effort + gated
     # by run_risk (needs Bedrock/network). The DETERMINISTIC risk_6dim moved OUT of this network gate — it
@@ -918,6 +1130,7 @@ def main() -> int:
     # read one deterministic source even offline. An explicit --risk-assessment file wins.
     if run_risk and ep_path is not None:
         from tp_grounding import auto_risk_assessment
+
         if risk_assessment is None:
             risk_assessment = auto_risk_assessment(args.target, ground_ind, ep_path, args.out)
         # NOTE: the verdict-INERT cited gene×indication literature card is no longer written here as a
@@ -929,9 +1142,12 @@ def main() -> int:
     # produced just above. Best-effort; an explicit --hypothesis file wins.
     if run_hypothesis and ep_path is not None and hypothesis is None:
         from tp_grounding import auto_hypothesis
+
         risk_path = Path(args.out) / "risk_assessment.json"
         hypothesis = auto_hypothesis(
-            ep_path, args.out, modality=args.modality,
+            ep_path,
+            args.out,
+            modality=args.modality,
             risk_path=(str(risk_path) if risk_assessment is not None else None),
             grounded_by_axis=grounded_by_axis,
         )
@@ -940,7 +1156,7 @@ def main() -> int:
     # skipping every nomination-oriented render (composite panel / md / html / nomination.json /
     # provenance). The spine it reads is byte-identical to a nomination run.
     if args.emit == "evidence-package":
-        assert_write_set(args, _written)   # envelope-only write-set (evidence_package recorded above)
+        assert_write_set(args, _written)  # envelope-only write-set (evidence_package recorded above)
         print(f"[target-profile] wrote {ep_path} (evidence-package; deterministic, LLM-free)")
         print(f"Recommendation: {gate_action or '(no gate fired)'}")
         _restore_run_log()
@@ -953,6 +1169,7 @@ def main() -> int:
     # explicit --risk-rollup file (loaded near the top) wins. Verdict-INERT; target_call stays sole gate.
     if risk_rollup is None:
         from tp_grounding import build_risk_6dim
+
         risk_rollup = build_risk_6dim(sub_results, args.modality, grounded_by_axis, args.out)
 
     # 3a. Emit figures via the single orchestrator (tp_figures): composite panel (skipped under
@@ -979,22 +1196,36 @@ def main() -> int:
     # Additive target-profile annotation (does NOT alter the shared 3-key core → no schema drift):
     governance["_note"] = (
         "target-profile reads live data; release auto-resolution is a deferred data-catalog "
-        "follow-on, so release_pin is 'unpinned' unless supplied via --release-pin.")
+        "follow-on, so release_pin is 'unpinned' unless supplied via --release-pin."
+    )
 
     # target_report.v1 (docs/UNIFIED_OUTPUT_CONTRACT.md) — ADDITIVE unified per-target object composed by
     # REFERENCE over the target-level facets built above (target_call + the rollups). Verdict-inert;
     # target_call owns the recommendation. The originals stay top-level until consumers migrate to read
     # target_report; this is the scaffold the later consolidation collapses into.
     target_report = build_target_report(
-        target_call=target_call, target_rollup=target_rollup, target_coherence=target_coherence,
-        ordinal_matrix=ordinal_matrix, modality_fit_by_channel=modality_fit_by_channel,
-        modality_conjunction=modality_conjunction, risk_rollup=risk_rollup, subtype_facet=subtype_facet,
-        biomarker_facet=biomarker_facet, fragility=fragility, heterogeneity=heterogeneity,
-        cross_gate_shared_evidence=cross_gate_shared_evidence, magnitude_borderline=magnitude_borderline,
-        certainty_by_axis=certainty_by_axis, addressable_population=addressable_population,
-        actionability_mode=actionability_mode, competitor_crossref=competitor_crossref,
-        archetype_companion=archetype_companion, nomination_scorecard=nomination_scorecard_facet,
-        nomination_predictive_score=nomination_predictive_score, skill_reports=skill_reports)
+        target_call=target_call,
+        target_rollup=target_rollup,
+        target_coherence=target_coherence,
+        ordinal_matrix=ordinal_matrix,
+        modality_fit_by_channel=modality_fit_by_channel,
+        modality_conjunction=modality_conjunction,
+        risk_rollup=risk_rollup,
+        subtype_facet=subtype_facet,
+        biomarker_facet=biomarker_facet,
+        fragility=fragility,
+        heterogeneity=heterogeneity,
+        cross_gate_shared_evidence=cross_gate_shared_evidence,
+        magnitude_borderline=magnitude_borderline,
+        certainty_by_axis=certainty_by_axis,
+        addressable_population=addressable_population,
+        actionability_mode=actionability_mode,
+        competitor_crossref=competitor_crossref,
+        archetype_companion=archetype_companion,
+        nomination_scorecard=nomination_scorecard_facet,
+        nomination_predictive_score=nomination_predictive_score,
+        skill_reports=skill_reports,
+    )
 
     nomination = {
         "skill": SKILL_NAME,
@@ -1106,17 +1337,30 @@ def main() -> int:
     # (preset "full"), reading the nomination's skill_report[] spine. md is required by the write-set;
     # html is BEST-EFFORT (mirrors the legacy try/except — a render failure must never abort the run).
     from _skills_common.report_render import render_report as _render_report
-    write_artifact(args.out, "markdown",
-                   _render_report(nomination, preset="full", backend="markdown",
-                                  target=args.target, indication=args.indication), _written)
+
+    write_artifact(
+        args.out,
+        "markdown",
+        _render_report(nomination, preset="full", backend="markdown", target=args.target, indication=args.indication),
+        _written,
+    )
     try:
-        write_artifact(args.out, "html",
-                       _render_report(nomination, preset="full", backend="html",
-                                      target=args.target, indication=args.indication,
-                                      # asset_root = the run dir → the html backend INLINES figure SVGs
-                                      # (data-URIs) so target_profile.html is self-contained and renders
-                                      # in any viewer, not only a browser opened from the run dir.
-                                      asset_root=args.out), _written)
+        write_artifact(
+            args.out,
+            "html",
+            _render_report(
+                nomination,
+                preset="full",
+                backend="html",
+                target=args.target,
+                indication=args.indication,
+                # asset_root = the run dir → the html backend INLINES figure SVGs
+                # (data-URIs) so target_profile.html is self-contained and renders
+                # in any viewer, not only a browser opened from the run dir.
+                asset_root=args.out,
+            ),
+            _written,
+        )
         print(f"[target-profile] wrote {args.out}/target_profile.html (report_render)", file=sys.stderr)
     except Exception as e:  # noqa: BLE001
         print(f"[target-profile] WARN: report_render HTML failed: {e}", file=sys.stderr)
@@ -1144,10 +1388,16 @@ def main() -> int:
             "target_profile.html",
             "nomination.json",
             "run.log",
-        ] + ([] if args.no_figures else [
-            "figures/target_profile_at_a_glance.png",
-            "figures/target_profile_at_a_glance.svg",
-        ]) + [f"grounded_{ax}.json" for ax in sorted(grounded_by_axis)],
+        ]
+        + (
+            []
+            if args.no_figures
+            else [
+                "figures/target_profile_at_a_glance.png",
+                "figures/target_profile_at_a_glance.svg",
+            ]
+        )
+        + [f"grounded_{ax}.json" for ax in sorted(grounded_by_axis)],
         # fanout-integration: the per-axis grounded substrate ACTUALLY produced this run. Keyed on
         # grounded_by_axis (non-empty), NOT args.ground: the grounded-substrate chain is DEFAULT-ON
         # (SKILL_VERSION 1.2.0), so a normal run auto-produces grounded_<axis>.json via run_ground
@@ -1165,9 +1415,11 @@ def main() -> int:
     if getattr(args, "reports", None):
         try:
             import tp_reports
+
             presets = [p.strip() for p in args.reports.split(",") if p.strip()]
-            backends = ([b.strip() for b in args.report_backends.split(",") if b.strip()]
-                        if args.report_backends else None)
+            backends = (
+                [b.strip() for b in args.report_backends.split(",") if b.strip()] if args.report_backends else None
+            )
             _written |= tp_reports.write_reports(args.out, nomination, presets, backends)
         except Exception:
             pass  # best-effort: never let report rendering abort the run
@@ -1181,23 +1433,38 @@ def main() -> int:
     if args.full_package:
         try:
             mpath = write_full_package(
-                args.out, target=args.target, indication=args.indication, sub_results=sub_results,
-                skill_name=SKILL_NAME, skill_version=SKILL_VERSION,
-                generated_at=provenance["generated_at"], subtypes=subtypes, modality=args.modality,
-                has_figures=not args.no_figures, has_evidence_package=ep_path is not None,
-                has_narrative=True)
-            print(f"[target-profile] --full-package: wrote per-sub-skill packages + {mpath.name} "
-                  f"(+ MANIFEST.md); evidence_package.json {'present' if ep_path else 'ABSENT'}")
+                args.out,
+                target=args.target,
+                indication=args.indication,
+                sub_results=sub_results,
+                skill_name=SKILL_NAME,
+                skill_version=SKILL_VERSION,
+                generated_at=provenance["generated_at"],
+                subtypes=subtypes,
+                modality=args.modality,
+                has_figures=not args.no_figures,
+                has_evidence_package=ep_path is not None,
+                has_narrative=True,
+            )
+            print(
+                f"[target-profile] --full-package: wrote per-sub-skill packages + {mpath.name} "
+                f"(+ MANIFEST.md); evidence_package.json {'present' if ep_path else 'ABSENT'}"
+            )
         except Exception as e:  # noqa: BLE001 — persistence side-artifact must never break the run
-            print(f"[target-profile] WARN: --full-package manifest failed "
-                  f"({type(e).__name__}: {e}); core artifacts already written", file=sys.stderr)
+            print(
+                f"[target-profile] WARN: --full-package manifest failed "
+                f"({type(e).__name__}: {e}); core artifacts already written",
+                file=sys.stderr,
+            )
 
     print(f"[target-profile] wrote {args.out}/target_profile.md")
     print(f"[target-profile] wrote {args.out}/nomination.json")
     print(f"[target-profile] wrote {args.out}/provenance.yaml")
     print()
+
     def _unwrap(raw):
         return raw.get("value") if isinstance(raw, dict) else raw
+
     print(f"Recommendation: {_unwrap(llm_output.get('overall_recommendation'))}")
     print(f"Confidence:     {_unwrap(llm_output.get('confidence'))}")
     _restore_run_log()

@@ -9,6 +9,7 @@ every block kind's rendering; `handled_kinds()` is the full vocabulary transitiv
 .pptx zip), so it is a BINARY backend (see backends.BINARY_BACKENDS): stdout printing is unsupported —
 callers must write to a file.
 """
+
 from __future__ import annotations
 
 import os
@@ -32,14 +33,17 @@ class PptxBackend:
         if not pandoc:
             raise RuntimeError(
                 "the pptx backend needs `pandoc` on PATH (markdown→pptx conversion); "
-                "install pandoc, or use the 'html' backend for a slide-style deck.")
+                "install pandoc, or use the 'html' backend for a slide-style deck."
+            )
         tmp = None
         try:
             with tempfile.NamedTemporaryFile(suffix=".pptx", delete=False) as tf:
                 tmp = tf.name
             subprocess.run(
                 [pandoc, "-f", "markdown", "-t", "pptx", "--slide-level=2", "-o", tmp],
-                input=md.encode("utf-8"), check=True, capture_output=True,
+                input=md.encode("utf-8"),
+                check=True,
+                capture_output=True,
             )
             with open(tmp, "rb") as fh:
                 return fh.read()

@@ -12,6 +12,7 @@ These tests pin (with both method reads monkeypatched — no S3):
     the honesty-spine invariant;
   - the RNA read degrading (raises) does not fail the card — protein breadth still returns.
 """
+
 from __future__ import annotations
 
 import sys
@@ -19,12 +20,13 @@ from pathlib import Path
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(SKILL_DIR / "scripts"))
-sys.path.insert(0, str(SKILL_DIR.parent))     # skills/ — _live_readers rehomed to _skills_common
+sys.path.insert(0, str(SKILL_DIR.parent))  # skills/ — _live_readers rehomed to _skills_common
 
 from _skills_common import _live_readers as lr  # noqa: E402
 
 
 # --- the pure concordance helper -----------------------------------------------------------
+
 
 def test_concordance_both_elevated_is_concordant():
     assert lr._breadth_layer_concordance("broadly_tumor_elevated", "multi_tumor_elevated") == "concordant"
@@ -59,16 +61,17 @@ def test_concordance_both_measured_negative_is_concordant_not_elevated():
     # both layers MEASURED + both not_tumor_elevated: they agree the target is NOT elevated.
     # This is a MEASURED negative agreement — NOT `concordant` (reserved for "both elevated —
     # strongest breadth call"); a consumer must not read a non-elevated target as elevated.
-    assert (lr._breadth_layer_concordance("not_tumor_elevated", "not_tumor_elevated")
-            == "concordant_not_elevated")
+    assert lr._breadth_layer_concordance("not_tumor_elevated", "not_tumor_elevated") == "concordant_not_elevated"
 
 
 # --- the dispatcher fusion -----------------------------------------------------------------
 
+
 def _patch_readers(monkeypatch, protein_ret, rna_ret=None, rna_raises=False):
     class _ProteinMod:
         @staticmethod
-        def read_tumor_elevation_breadth(target): return protein_ret
+        def read_tumor_elevation_breadth(target):
+            return protein_ret
 
     class _RnaMod:
         @staticmethod
@@ -79,17 +82,25 @@ def _patch_readers(monkeypatch, protein_ret, rna_ret=None, rna_raises=False):
 
     def _fake_import(name):
         return _ProteinMod if name == "cptac_protein_deg" else _RnaMod
+
     monkeypatch.setattr(lr, "_import_method", _fake_import)
 
 
 def test_dispatcher_merges_both_layers_and_stamps_concordance(monkeypatch):
-    protein = {"tumor_elevation_breadth_class": "broadly_tumor_elevated",
-               "n_cohorts_elevated": 5, "n_cohorts_tested": 8}
+    protein = {
+        "tumor_elevation_breadth_class": "broadly_tumor_elevated",
+        "n_cohorts_elevated": 5,
+        "n_cohorts_tested": 8,
+    }
     # RNA reader emits GENERIC field names (n_indications_*) — the dispatcher must namespace
     # them to the card's rna_-prefixed contract fields.
-    rna = {"rna_tumor_elevation_breadth_class": "multi_tumor_elevated",
-           "n_indications_elevated": 6, "n_indications_tested": 27,
-           "fraction_elevated": 0.22, "most_elevated_indications": [{"indication": "LUAD"}]}
+    rna = {
+        "rna_tumor_elevation_breadth_class": "multi_tumor_elevated",
+        "n_indications_elevated": 6,
+        "n_indications_tested": 27,
+        "fraction_elevated": 0.22,
+        "most_elevated_indications": [{"indication": "LUAD"}],
+    }
     _patch_readers(monkeypatch, protein, rna)
     out = lr._dispatch_tumor_elevation_breadth("EPCAM", "COADREAD")
     # protein PRIMARY class + n_cohorts_* preserved verbatim

@@ -4,13 +4,14 @@ Every wired skill routes through `run_wired_skill`, which installs this tee so i
 narration is mirrored to `<out>/run.log` (per-line UTC-stamped) as a durable audit trail.
 These are offline guards on the tee mechanics — no S3, no dispatcher, no main() invocation.
 """
+
 from __future__ import annotations
 
 import sys
 from pathlib import Path
 
-SKILL_DIR = Path(__file__).resolve().parent.parent            # skills/_skills_common
-sys.path.insert(0, str(SKILL_DIR.parent))                     # skills/ on path
+SKILL_DIR = Path(__file__).resolve().parent.parent  # skills/_skills_common
+sys.path.insert(0, str(SKILL_DIR.parent))  # skills/ on path
 
 from _skills_common import run_log  # noqa: E402
 
@@ -35,7 +36,7 @@ def test_tee_captures_both_streams_with_stamps_and_header(tmp_path):
     out_lines = [ln for ln in log.splitlines() if " OUT " in ln and "hello from stdout" in ln]
     err_lines = [ln for ln in log.splitlines() if " ERR " in ln and "a warning" in ln]
     assert out_lines and err_lines
-    assert out_lines[0].startswith("20") and out_lines[0][10] == "T"   # ISO-8601 UTC stamp prefix
+    assert out_lines[0].startswith("20") and out_lines[0][10] == "T"  # ISO-8601 UTC stamp prefix
 
 
 def test_live_stream_is_preserved(tmp_path, capsys):
@@ -53,7 +54,7 @@ def test_install_is_idempotent_no_tee_stacking(tmp_path):
     try:
         run_log.install_run_log(d1)
         print("first run only")
-        run_log.install_run_log(d2)      # re-install WITHOUT restoring — must self-tear-down d1
+        run_log.install_run_log(d2)  # re-install WITHOUT restoring — must self-tear-down d1
         print("second run only")
     finally:
         run_log.restore_run_log()
@@ -70,8 +71,8 @@ def test_teardown_is_clobber_safe_when_stream_swapped(tmp_path):
     try:
         run_log.install_run_log(tmp_path)
         swapped = _Sink()
-        sys.stdout = swapped            # simulate an external swap of the stream
-        run_log.restore_run_log()       # must leave the swapped stream in place
+        sys.stdout = swapped  # simulate an external swap of the stream
+        run_log.restore_run_log()  # must leave the swapped stream in place
         assert sys.stdout is swapped
     finally:
         sys.stdout = orig
@@ -81,7 +82,7 @@ def test_teardown_is_clobber_safe_when_stream_swapped(tmp_path):
 def test_restore_is_safe_to_call_twice(tmp_path):
     run_log.install_run_log(tmp_path)
     run_log.restore_run_log()
-    run_log.restore_run_log()           # no exception on a second teardown
+    run_log.restore_run_log()  # no exception on a second teardown
 
 
 def test_open_failure_degrades_without_raising(tmp_path, capsys):
@@ -89,7 +90,7 @@ def test_open_failure_degrades_without_raising(tmp_path, capsys):
     blocker = tmp_path / "blocker"
     blocker.write_text("x")
     orig_out, orig_err = sys.stdout, sys.stderr
-    ok = run_log.install_run_log(blocker / "sub")   # parent is a file → OSError
+    ok = run_log.install_run_log(blocker / "sub")  # parent is a file → OSError
     assert ok is False
     assert sys.stdout is orig_out and sys.stderr is orig_err
     assert "could not open" in capsys.readouterr().err

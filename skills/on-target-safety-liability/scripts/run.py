@@ -25,6 +25,7 @@ from _skills_common.headline_hero import emit_headline_hero
 from _skills_common.subgroup_derivation import make_value_classifier
 from _skills_common.narrator_engine import make_synthesize_fn
 from _skills_common.narrator_lenses import ON_TARGET_SAFETY as _SAFETY_LENS
+
 # OPTIONAL (--literature) verdict-INERT LLM literature lane — the same shared fleet module wired into
 # genomic-alteration #982 / functional-requirement #987 / tumor-presence #965 / tumor-selectivity #968.
 # This skill uses run_wired_skill, so Phase-5 is a ONE-LINER: pass literature_fn=make_literature_fn(...)
@@ -39,16 +40,30 @@ from _skills_common.literature_retrieval import default_retrieve, verify_citatio
 # the polarity INVERSION vs the dependency lens: a strongly_selective dependency is REASSURING for safety
 # (low broad-tox liability) → weak, whereas pan-essential/broad = strong liability. default_classify fallback.
 _SAFETY_VALUE_TIERS = {
-    "highly_constrained": "strong", "moderately_constrained": "moderate", "unconstrained": "absent",
-    "broadly_expressed_normal": "strong", "broad_normal_expression": "strong",
-    "selective_normal_expression": "moderate", "restricted_normal_expression": "weak",
-    "germline_pathogenic": "strong", "germline_likely_pathogenic": "moderate", "germline_benign": "absent",
-    "autosomal_dominant_loss": "strong", "haploinsufficient": "strong", "recessive_only": "weak",
-    "lof_risk_phenotype": "strong", "no_burden_signal": "absent",
-    "lethal": "strong", "developmental_only": "moderate", "no_ko_phenotype": "absent",
+    "highly_constrained": "strong",
+    "moderately_constrained": "moderate",
+    "unconstrained": "absent",
+    "broadly_expressed_normal": "strong",
+    "broad_normal_expression": "strong",
+    "selective_normal_expression": "moderate",
+    "restricted_normal_expression": "weak",
+    "germline_pathogenic": "strong",
+    "germline_likely_pathogenic": "moderate",
+    "germline_benign": "absent",
+    "autosomal_dominant_loss": "strong",
+    "haploinsufficient": "strong",
+    "recessive_only": "weak",
+    "lof_risk_phenotype": "strong",
+    "no_burden_signal": "absent",
+    "lethal": "strong",
+    "developmental_only": "moderate",
+    "no_ko_phenotype": "absent",
     # pan-essentiality-as-safety: broadly essential = broad-tox liability; SELECTIVE = reassuring (low liability)
-    "broad_nonselective": "strong", "pan_essential": "strong",
-    "strongly_selective": "weak", "moderately_selective": "weak", "not_essential": "absent",
+    "broad_nonselective": "strong",
+    "pan_essential": "strong",
+    "strongly_selective": "weak",
+    "moderately_selective": "weak",
+    "not_essential": "absent",
 }
 from _skills_common.resolver import resolve_or_raise
 from _skills_common.modality_safety import safety_verdict_by_modality
@@ -56,124 +71,126 @@ from _skills_common.narrative import build_narrative
 
 
 SKILL_NAME = "on-target-safety-liability"
-SKILL_VERSION = "1.18.0"   # 1.18.0 (2026-09-07, CASE-009 literature-discordance loop): +VERDICT-INERT pharmacovigilance_scope_caveat — clarifies drug_warning_class='no_warning' = no OT-registered FDA warning among engaging drugs, NOT absence of on-target toxicity (mechanism-based dose-limiting tox — TLS/cytopenias/neuropathy — often not boxed). Fires only on the measured-negative no_warning state; verdict/resolver/golden/replay byte-stable.
-                          # 1.17.0 (2026-09-04): +OPTIONAL --literature lane (verdict-INERT LLM literature synthesis, Europe-PMC-grounded + PMID-verified via the shared _skills_common.literature_synthesis; run_wired_skill one-liner) mirroring genomic #982 / FR #987 / TP #965 / TS #968. + VERDICT-INERT signal-surfacing of the rich safety sub-fields the capsule projection ignored: a new PHARMACOVIGILANCE claim axis (on-target FDA warnings + toxicity classes of target-engaging drugs — OT drug-warning ⋈ MoA + OnSIDES boxed ADEs; confounded CONTEXT, corroboration capped, orients-not-holds), MOUSE_KO claim evidence += affected organ systems (organ_classes), CLINVAR claim evidence += confident germline-pathogenic variant count. PHARMACOVIGILANCE is LEFT OUT of the safety HeadlineSpec.axis_keys so headline_block/confidence/hero + the golden-oracle resolver + test_safety_replay verdict fixtures stay BYTE-STABLE. Verdict spine untouched.   # 1.16.0 (2026-08-28): + shet-lof-intolerance (continuous GeneBayes s_het, VERDICT-INERT complement to gnomAD constraint).   # 1.15.0: NET-NEW capsule-driven narrator (had none). Verdict-INERT.   # 1.14.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.  # 1.13.0 (2026-08-26): emit per-verdict `narrative` (movers/dissenters/
-                          # flip_conditions/rule_sentences) in the headline — VERDICT-INERT, best-effort
-                          # (Stage B of the interpretability workstream; safety pilot). Verdict byte-stable.
-                          # 1.12.0 (2026-08-25): compose onsides-adverse-event-safety (OnSIDES
-                          # drug-label ADE, per-MedDRA-term incl. boxed-warning severity) — VERDICT-INERT
-                          # DISPLAY card, finer-grained than drug-warning-safety. Gene attribution is a
-                          # FUZZY drug-name->gene join (~63% match) + per-MedDRA-term grain (no per-organ,
-                          # MedDRA license), so it is context-only, never a resolver rung. Verdict byte-stable.
-                          # 1.11.0 (2026-08-21): compose drug-warning-safety (OT pharmacovigilance
-                          # CONTEXT) — VERDICT-INERT, closes the P5 drug_warning placeholder axis
-                          # (only colocalisation remains). Verdict byte-stable (no resolver rung).
-                          # NOTE: stamped into provenance.yaml — MUST equal SKILL.md metadata.version
-                          # (guarded by skills/tests/test_version_parity.py).
-                          # 1.10.0 (2026-08-21): data-utilization expansion — compose pan-cancer-crispr-
-                          # dependency-distribution (pan-essential broad-tox HOLD) + normal-tissue-liability
-                          # (HPA-IHC essential-tissue protein HOLD); + recessive-only reassurance leg (via
-                          # safety.resolver 1.5.0). +2 headline/claim axes (PAN_ESSENTIAL, NORMAL_TISSUE).
-                          # 1.8.0: compose copy-number-distribution to activate the
-                          # amplification guard. run.py constant was left at 1.7.0 while SKILL.md
-                          # advanced to 1.8.0 (2026-08-17 version-parity reconciliation).
-                          # 1.4.0: + human-genetics leg — target-safety-prioritisation (OT context)
-                          # + gene-burden-safety (OT rare-variant burden LoF-tolerance; verdict-moving
-                          # rule resolver-wired).
-                          # 1.3.0: + alteration-role for mutant-selective mechanism-conditioning of
-                          # the WT gnomAD-constraint concern (activating-driver-role-safety-context)
+SKILL_VERSION = "1.18.0"  # 1.18.0 (2026-09-07, CASE-009 literature-discordance loop): +VERDICT-INERT pharmacovigilance_scope_caveat — clarifies drug_warning_class='no_warning' = no OT-registered FDA warning among engaging drugs, NOT absence of on-target toxicity (mechanism-based dose-limiting tox — TLS/cytopenias/neuropathy — often not boxed). Fires only on the measured-negative no_warning state; verdict/resolver/golden/replay byte-stable.
+# 1.17.0 (2026-09-04): +OPTIONAL --literature lane (verdict-INERT LLM literature synthesis, Europe-PMC-grounded + PMID-verified via the shared _skills_common.literature_synthesis; run_wired_skill one-liner) mirroring genomic #982 / FR #987 / TP #965 / TS #968. + VERDICT-INERT signal-surfacing of the rich safety sub-fields the capsule projection ignored: a new PHARMACOVIGILANCE claim axis (on-target FDA warnings + toxicity classes of target-engaging drugs — OT drug-warning ⋈ MoA + OnSIDES boxed ADEs; confounded CONTEXT, corroboration capped, orients-not-holds), MOUSE_KO claim evidence += affected organ systems (organ_classes), CLINVAR claim evidence += confident germline-pathogenic variant count. PHARMACOVIGILANCE is LEFT OUT of the safety HeadlineSpec.axis_keys so headline_block/confidence/hero + the golden-oracle resolver + test_safety_replay verdict fixtures stay BYTE-STABLE. Verdict spine untouched.   # 1.16.0 (2026-08-28): + shet-lof-intolerance (continuous GeneBayes s_het, VERDICT-INERT complement to gnomAD constraint).   # 1.15.0: NET-NEW capsule-driven narrator (had none). Verdict-INERT.   # 1.14.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.  # 1.13.0 (2026-08-26): emit per-verdict `narrative` (movers/dissenters/
+# flip_conditions/rule_sentences) in the headline — VERDICT-INERT, best-effort
+# (Stage B of the interpretability workstream; safety pilot). Verdict byte-stable.
+# 1.12.0 (2026-08-25): compose onsides-adverse-event-safety (OnSIDES
+# drug-label ADE, per-MedDRA-term incl. boxed-warning severity) — VERDICT-INERT
+# DISPLAY card, finer-grained than drug-warning-safety. Gene attribution is a
+# FUZZY drug-name->gene join (~63% match) + per-MedDRA-term grain (no per-organ,
+# MedDRA license), so it is context-only, never a resolver rung. Verdict byte-stable.
+# 1.11.0 (2026-08-21): compose drug-warning-safety (OT pharmacovigilance
+# CONTEXT) — VERDICT-INERT, closes the P5 drug_warning placeholder axis
+# (only colocalisation remains). Verdict byte-stable (no resolver rung).
+# NOTE: stamped into provenance.yaml — MUST equal SKILL.md metadata.version
+# (guarded by skills/tests/test_version_parity.py).
+# 1.10.0 (2026-08-21): data-utilization expansion — compose pan-cancer-crispr-
+# dependency-distribution (pan-essential broad-tox HOLD) + normal-tissue-liability
+# (HPA-IHC essential-tissue protein HOLD); + recessive-only reassurance leg (via
+# safety.resolver 1.5.0). +2 headline/claim axes (PAN_ESSENTIAL, NORMAL_TISSUE).
+# 1.8.0: compose copy-number-distribution to activate the
+# amplification guard. run.py constant was left at 1.7.0 while SKILL.md
+# advanced to 1.8.0 (2026-08-17 version-parity reconciliation).
+# 1.4.0: + human-genetics leg — target-safety-prioritisation (OT context)
+# + gene-burden-safety (OT rare-variant burden LoF-tolerance; verdict-moving
+# rule resolver-wired).
+# 1.3.0: + alteration-role for mutant-selective mechanism-conditioning of
+# the WT gnomAD-constraint concern (activating-driver-role-safety-context)
 
 CARDS = [
     "gnomad-lof-constraint",
-    "shet-lof-intolerance",           # (2026-08-28) — CONTINUOUS dominant-LoF selection coefficient
-                                      # (GeneBayes s_het, Zeng 2024). The continuous complement to the
-                                      # binary gnomAD pLI/LOEUF constraint call — catches dosage-sensitive
-                                      # small genes constraint misses. VERDICT-INERT (fires no rule, not in
-                                      # the safety resolver) → spine byte-stable; a corroboration/confidence
-                                      # annotation. Verdict-bearing rung is a deferred backtest-gated follow-up.
-    "target-safety-prioritisation",   # (2026-07-24) — OT 26.06 engineered target-priority
-                                      # scores as safety-orienting CONTEXT (safety-event / genetic-
-                                      # constraint / mouse-KO bands). VERDICT-INERT: no warning, no
-                                      # resolver reference — it orients the reader alongside the
-                                      # authoritative gnomAD constraint call; the verdict-moving human-
-                                      # genetics signals arrive in the gene_burden/clingen/
-                                      # mouse_phenotype legs. Spine byte-stable.
-    "normal-tissue-liability-gtex",   # Q3 — GTEx normal-tissue atlas (critical-organ liability +
-                                      # breadth). Its normal-liability-* rules emit SM/degrader
-                                      # opposing on critical_organ_liability (on-target-off-tumor for
-                                      # full-KO modalities); supportive on restricted_normal. Additive
-                                      # signal — the safety RESOLVER stays keyed to gnomAD (byte-stable).
-    "alteration-role",                # 2026-07-23 — mechanism CONTEXT for the modality-conditional WT-loss
-                                      # reading. Its activating-driver-role-safety-context rule fires on
-                                      # functional_direction==activating but is now ORPHAN in the safety
-                                      # resolver (the role-proxy DOWNGRADE was retired v2.0.0, 2026-08-24).
-                                      # functional_direction feeds the per-modality safety verdict
-                                      # (small_molecule=conditional: a GoF driver drugged mutant-selectively
-                                      # spares the WT protein) + the claim_vector — NOT a scalar downgrade.
-    "clinvar-pathogenicity-safety",   # (2026-07-24) — ClinVar germline-pathogenic
-                                      # variants. germline_pathogenic -> clinvar-germline-pathogenic-
-                                      # safety-warning (SM/degrader opposing, 4th corroborating germline
-                                      # leg). SOMATIC guardrailed out. Resolver-wired (safety 1.3.0).
-    "mouse-ko-phenotype",             # (2026-07-24) — mouse-KO normal-physiology safety.
-                                      # lethal_ko (adult/postnatal) -> mouse-ko-lethal-safety-warning
-                                      # (SM/degrader opposing, INFERRED-tier caution); developmental_
-                                      # only -> neutral (the guardrail). Resolver-wired.
-    "clingen-dosage",                 # (2026-07-24) — ClinGen dosage sensitivity. dosage_
-                                      # sensitivity_class=autosomal_dominant_loss -> clingen-dominant-
-                                      # loss-safety-warning (SM/degrader opposing, haploinsufficiency
-                                      # full-KO concern). Verdict-moving rule resolver-wired.
-    "gene-burden-safety",             # (2026-07-24) — population rare-variant BURDEN LoF-
-                                      # tolerance (OT 26.06). burden_safety_class=lof_risk_phenotype ->
-                                      # gene-burden-lof-safety-warning (SM/degrader opposing, the full-KO
-                                      # WT-loss safety signal); protective -> drug-positive. Resolver-wired
-                                      # (human_genetics_safety_concern when_any_fired).
-    "copy-number-distribution",       # (cards review 2026-08-17) — was the AMPLIFICATION guard for the
-                                      # retired resolver GROUP-0 downgrade. The dispatcher enriches this card
-                                      # with patient_focal_cn_class (TCGA GISTIC); its copy-number-amplified-
-                                      # oncogene-safety-context rule is now ORPHAN (role-proxy downgrade
-                                      # retired v2.0.0). Near-dead composition, retained as amplification
-                                      # context only.
-    "functional-gene-state",          # (PR-4c 2026-08-24) — RARELY-ALTERED guard. functional_state_
-                                      # class==rarely_altered fires functional-gene-state-rarely-altered-
-                                      # neutral (now ORPHAN in the resolver); the disqualifier moved to the
-                                      # per-modality safety verdict — a rarely-altered oncogene (MCL1, pan-
-                                      # inhibited) keeps small_molecule=hold so exists-safe-modality does NOT
-                                      # clear the WT-loss concern (replaces the retired GROUP-0b guard).
+    "shet-lof-intolerance",  # (2026-08-28) — CONTINUOUS dominant-LoF selection coefficient
+    # (GeneBayes s_het, Zeng 2024). The continuous complement to the
+    # binary gnomAD pLI/LOEUF constraint call — catches dosage-sensitive
+    # small genes constraint misses. VERDICT-INERT (fires no rule, not in
+    # the safety resolver) → spine byte-stable; a corroboration/confidence
+    # annotation. Verdict-bearing rung is a deferred backtest-gated follow-up.
+    "target-safety-prioritisation",  # (2026-07-24) — OT 26.06 engineered target-priority
+    # scores as safety-orienting CONTEXT (safety-event / genetic-
+    # constraint / mouse-KO bands). VERDICT-INERT: no warning, no
+    # resolver reference — it orients the reader alongside the
+    # authoritative gnomAD constraint call; the verdict-moving human-
+    # genetics signals arrive in the gene_burden/clingen/
+    # mouse_phenotype legs. Spine byte-stable.
+    "normal-tissue-liability-gtex",  # Q3 — GTEx normal-tissue atlas (critical-organ liability +
+    # breadth). Its normal-liability-* rules emit SM/degrader
+    # opposing on critical_organ_liability (on-target-off-tumor for
+    # full-KO modalities); supportive on restricted_normal. Additive
+    # signal — the safety RESOLVER stays keyed to gnomAD (byte-stable).
+    "alteration-role",  # 2026-07-23 — mechanism CONTEXT for the modality-conditional WT-loss
+    # reading. Its activating-driver-role-safety-context rule fires on
+    # functional_direction==activating but is now ORPHAN in the safety
+    # resolver (the role-proxy DOWNGRADE was retired v2.0.0, 2026-08-24).
+    # functional_direction feeds the per-modality safety verdict
+    # (small_molecule=conditional: a GoF driver drugged mutant-selectively
+    # spares the WT protein) + the claim_vector — NOT a scalar downgrade.
+    "clinvar-pathogenicity-safety",  # (2026-07-24) — ClinVar germline-pathogenic
+    # variants. germline_pathogenic -> clinvar-germline-pathogenic-
+    # safety-warning (SM/degrader opposing, 4th corroborating germline
+    # leg). SOMATIC guardrailed out. Resolver-wired (safety 1.3.0).
+    "mouse-ko-phenotype",  # (2026-07-24) — mouse-KO normal-physiology safety.
+    # lethal_ko (adult/postnatal) -> mouse-ko-lethal-safety-warning
+    # (SM/degrader opposing, INFERRED-tier caution); developmental_
+    # only -> neutral (the guardrail). Resolver-wired.
+    "clingen-dosage",  # (2026-07-24) — ClinGen dosage sensitivity. dosage_
+    # sensitivity_class=autosomal_dominant_loss -> clingen-dominant-
+    # loss-safety-warning (SM/degrader opposing, haploinsufficiency
+    # full-KO concern). Verdict-moving rule resolver-wired.
+    "gene-burden-safety",  # (2026-07-24) — population rare-variant BURDEN LoF-
+    # tolerance (OT 26.06). burden_safety_class=lof_risk_phenotype ->
+    # gene-burden-lof-safety-warning (SM/degrader opposing, the full-KO
+    # WT-loss safety signal); protective -> drug-positive. Resolver-wired
+    # (human_genetics_safety_concern when_any_fired).
+    "copy-number-distribution",  # (cards review 2026-08-17) — was the AMPLIFICATION guard for the
+    # retired resolver GROUP-0 downgrade. The dispatcher enriches this card
+    # with patient_focal_cn_class (TCGA GISTIC); its copy-number-amplified-
+    # oncogene-safety-context rule is now ORPHAN (role-proxy downgrade
+    # retired v2.0.0). Near-dead composition, retained as amplification
+    # context only.
+    "functional-gene-state",  # (PR-4c 2026-08-24) — RARELY-ALTERED guard. functional_state_
+    # class==rarely_altered fires functional-gene-state-rarely-altered-
+    # neutral (now ORPHAN in the resolver); the disqualifier moved to the
+    # per-modality safety verdict — a rarely-altered oncogene (MCL1, pan-
+    # inhibited) keeps small_molecule=hold so exists-safe-modality does NOT
+    # clear the WT-loss concern (replaces the retired GROUP-0b guard).
     "pan-cancer-crispr-dependency-distribution",  # (data-util expansion 2026-08-21) — DepMap pan-
-                                      # essentiality as a BROAD-TOX safety signal. dependency_class==
-                                      # common_essential fires pan-essential-broad-tox-safety-warning
-                                      # (safety.resolver 1.5.0) → pan_essential_broad_tox_concern HOLD:
-                                      # a full-KO modality abrogates an essential function in NORMAL
-                                      # tissue too. Same card the dependency skill vetoes as
-                                      # pan_essential_killer (no window); here it is the SAFETY reading.
-                                      # The modality-conditional read (mutant-selective sparing) lives in
-                                      # the per-modality safety verdict, not a scalar-verdict downgrade.
-    "normal-tissue-liability",        # (data-util expansion 2026-08-21) — HPA-IHC protein normal-tissue
-                                      # liability. essential_tissue_flag==present fires normal-tissue-
-                                      # protein-liability-safety-warning → normal_tissue_protein_safety_
-                                      # concern HOLD: the intracellular (SM/degrader) reading of the same
-                                      # card surface-modality-fit uses for its BiTE/TCE killer. This is
-                                      # PROTEIN-level critical-organ liability; the GTEx card above is
-                                      # RNA-breadth. No mutant-selective downgrade (full-KO hits WT).
-    "drug-warning-safety",            # (2026-08-21) — OT pharmacovigilance CONTEXT: do drugs that ENGAGE
-                                      # the target carry FDA black-box / withdrawn warnings (drug_warning ⋈
-                                      # drug_mechanism_of_action)? VERDICT-INERT (no resolver rung; like
-                                      # target-safety-prioritisation) — a confounded on-target signal that
-                                      # ORIENTS, never HOLDs. Closes the P5 drug_warning placeholder axis.
-    "onsides-adverse-event-safety",   # (2026-08-25) — OnSIDES drug-label ADE CONTEXT: per-MedDRA-term
-                                      # adverse-effect profile (incl. boxed-warning severity) of drugs that
-                                      # ENGAGE the target, finer-grained than the drug-warning boolean above.
-                                      # VERDICT-INERT (no resolver rung): the gene attribution is a FUZZY
-                                      # drug-name->gene join (~63% match; DGIdb directional recall-union so
-                                      # drug-level + class-wide — cannot separate on- from off-target) and
-                                      # per-MedDRA-TERM grain only (per-organ/SOC needs a MedDRA license).
-                                      # ORIENTS, never HOLDs. Same posture as drug-warning-safety.
+    # essentiality as a BROAD-TOX safety signal. dependency_class==
+    # common_essential fires pan-essential-broad-tox-safety-warning
+    # (safety.resolver 1.5.0) → pan_essential_broad_tox_concern HOLD:
+    # a full-KO modality abrogates an essential function in NORMAL
+    # tissue too. Same card the dependency skill vetoes as
+    # pan_essential_killer (no window); here it is the SAFETY reading.
+    # The modality-conditional read (mutant-selective sparing) lives in
+    # the per-modality safety verdict, not a scalar-verdict downgrade.
+    "normal-tissue-liability",  # (data-util expansion 2026-08-21) — HPA-IHC protein normal-tissue
+    # liability. essential_tissue_flag==present fires normal-tissue-
+    # protein-liability-safety-warning → normal_tissue_protein_safety_
+    # concern HOLD: the intracellular (SM/degrader) reading of the same
+    # card surface-modality-fit uses for its BiTE/TCE killer. This is
+    # PROTEIN-level critical-organ liability; the GTEx card above is
+    # RNA-breadth. No mutant-selective downgrade (full-KO hits WT).
+    "drug-warning-safety",  # (2026-08-21) — OT pharmacovigilance CONTEXT: do drugs that ENGAGE
+    # the target carry FDA black-box / withdrawn warnings (drug_warning ⋈
+    # drug_mechanism_of_action)? VERDICT-INERT (no resolver rung; like
+    # target-safety-prioritisation) — a confounded on-target signal that
+    # ORIENTS, never HOLDs. Closes the P5 drug_warning placeholder axis.
+    "onsides-adverse-event-safety",  # (2026-08-25) — OnSIDES drug-label ADE CONTEXT: per-MedDRA-term
+    # adverse-effect profile (incl. boxed-warning severity) of drugs that
+    # ENGAGE the target, finer-grained than the drug-warning boolean above.
+    # VERDICT-INERT (no resolver rung): the gene attribution is a FUZZY
+    # drug-name->gene join (~63% match; DGIdb directional recall-union so
+    # drug-level + class-wide — cannot separate on- from off-target) and
+    # per-MedDRA-TERM grain only (per-organ/SOC needs a MedDRA license).
+    # ORIENTS, never HOLDs. Same posture as drug-warning-safety.
 ]
 
-QUESTION = ("Is {target} highly constrained against loss-of-function "
-            "variants in the gnomAD population, and what does this imply "
-            "for on-target safety of full-KO modalities (degrader, RNA "
-            "therapeutic, full-inhibition SM) in {indication}?")
+QUESTION = (
+    "Is {target} highly constrained against loss-of-function "
+    "variants in the gnomAD population, and what does this imply "
+    "for on-target safety of full-KO modalities (degrader, RNA "
+    "therapeutic, full-inhibition SM) in {indication}?"
+)
 
 PARTIAL_STATUS_NOTE = (
     "on-target-safety-liability now integrates a FIVE-leg human-genetics safety axis, all "
@@ -203,6 +220,7 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     the former if-chain by the golden-oracle test. A missing spec raises (the resolver is
     the source of truth — no silent fallback to a stale copy, which would reintroduce drift)."""
     return resolve_or_raise(fired, "safety")
+
 
 # The mutant-selective DOWNGRADE verdicts — a WT-constraint / human-genetics concern that is
 # largely nullified for an allele-selective mechanism. Every such verdict must carry the
@@ -235,30 +253,36 @@ _MECHANISM_MISMATCH_VERDICTS = frozenset()
 #     → "neutral" (grey).
 _SAFETY_VERDICT_PHRASE = {
     # safety CONCERNS (nomination HOLDs) — undesirable for a full-KO modality
-    "highly_constrained_safety_concern":     "Highly LoF-constrained — safety concern",
-    "human_genetics_safety_concern":         "Human-genetics safety concern",
-    "pan_essential_broad_tox_concern":       "Pan-essential — broad-tox safety concern",
-    "normal_tissue_protein_safety_concern":  "Essential-tissue protein — safety concern",
+    "highly_constrained_safety_concern": "Highly LoF-constrained — safety concern",
+    "human_genetics_safety_concern": "Human-genetics safety concern",
+    "pan_essential_broad_tox_concern": "Pan-essential — broad-tox safety concern",
+    "normal_tissue_protein_safety_concern": "Essential-tissue protein — safety concern",
     # (mutant-selective downgrade RETIRED 2026-08-24 — modality-conditionality now in the per-modality
     #  safety verdict + tp_gates exists-safe-modality; the resolver emits the raw concern, no mismatch token)
     # tolerant / reduced-risk
-    "tolerant_reduced_safety_risk":          "LoF-tolerant — reduced safety risk",
+    "tolerant_reduced_safety_risk": "LoF-tolerant — reduced safety risk",
     # equivocal mid-band + gaps
-    "moderately_constrained_safety":         "Moderately LoF-constrained (equivocal)",
-    "data_unavailable":                      "Data unavailable",
-    "insufficient":                          "Insufficient evidence",
+    "moderately_constrained_safety": "Moderately LoF-constrained (equivocal)",
+    "data_unavailable": "Data unavailable",
+    "insufficient": "Insufficient evidence",
 }
 
 # Verdict → program-desirability polarity (see the POLARITY note above). Reused by the hero-badge colour;
 # never a gate.
-_SAFETY_CONCERN_VERDICTS = frozenset({
-    "highly_constrained_safety_concern", "human_genetics_safety_concern",
-    "pan_essential_broad_tox_concern", "normal_tissue_protein_safety_concern",
-})
-_SAFETY_REASSURING_VERDICTS = frozenset({
-    "tolerant_reduced_safety_risk",
-    # (mutant-selective mismatch downgrades RETIRED 2026-08-24 — see _MECHANISM_MISMATCH_VERDICTS)
-})
+_SAFETY_CONCERN_VERDICTS = frozenset(
+    {
+        "highly_constrained_safety_concern",
+        "human_genetics_safety_concern",
+        "pan_essential_broad_tox_concern",
+        "normal_tissue_protein_safety_concern",
+    }
+)
+_SAFETY_REASSURING_VERDICTS = frozenset(
+    {
+        "tolerant_reduced_safety_risk",
+        # (mutant-selective mismatch downgrades RETIRED 2026-08-24 — see _MECHANISM_MISMATCH_VERDICTS)
+    }
+)
 
 
 def _safety_verdict_polarity(v) -> str:
@@ -278,18 +302,28 @@ def _safety_tension_extra(headline: dict):
     modality — a pan-target degrader / WT-hitting inhibitor re-exposes the WT-loss concern. Surfaced only
     when the verdict is a downgrade (mechanism_conditioning_note is set)."""
     if headline.get("mechanism_conditioning_note"):
-        return {"text": ("the downgraded WT-loss safety concern is CONDITIONAL on an allele-selective "
-                         "modality — a pan-target degrader / WT-hitting inhibitor re-exposes it"),
-                "source": "mechanism_conditioning_note", "severity": 3}
+        return {
+            "text": (
+                "the downgraded WT-loss safety concern is CONDITIONAL on an allele-selective "
+                "modality — a pan-target degrader / WT-hitting inhibitor re-exposes it"
+            ),
+            "source": "mechanism_conditioning_note",
+            "severity": 3,
+        }
     return None
 
 
 _SAFETY_HEADLINE_SPEC = HeadlineSpec(
     gate="safety",
-    axis_labels={"CONSTRAINT": "gnomAD LoF constraint", "BURDEN": "population gene-burden",
-                 "DOSAGE": "ClinGen dosage", "CLINVAR": "germline pathogenicity",
-                 "MOUSE_KO": "mouse-KO phenotype", "PAN_ESSENTIAL": "DepMap pan-essentiality",
-                 "NORMAL_TISSUE": "normal-tissue protein (HPA-IHC)"},
+    axis_labels={
+        "CONSTRAINT": "gnomAD LoF constraint",
+        "BURDEN": "population gene-burden",
+        "DOSAGE": "ClinGen dosage",
+        "CLINVAR": "germline pathogenicity",
+        "MOUSE_KO": "mouse-KO phenotype",
+        "PAN_ESSENTIAL": "DepMap pan-essentiality",
+        "NORMAL_TISSUE": "normal-tissue protein (HPA-IHC)",
+    },
     axis_keys=("CONSTRAINT", "BURDEN", "DOSAGE", "CLINVAR", "MOUSE_KO", "PAN_ESSENTIAL", "NORMAL_TISSUE"),
     critical_axes=("CONSTRAINT",),
     verdict_label=lambda v: _SAFETY_VERDICT_PHRASE.get(v, str(v).replace("_", " ").strip().capitalize()),
@@ -302,10 +336,15 @@ def _build_headline_block(headline: dict) -> dict:
     verdict + the verdict-inert claim_vector / key_signals; never moves the spine. No CERTAINTY_MODEL
     sidecar is emitted by this skill, so confidence is derived from the claim vector's corroboration."""
     v = headline.get("safety_verdict")
-    return build_headline(headline, headline.get("claim_vector"), headline.get("key_signals"),
-                          spec=_SAFETY_HEADLINE_SPEC, verdict_token=v,
-                          driving_rule_id=headline.get("driving_rule_id"),
-                          verdict_polarity=_safety_verdict_polarity(v))
+    return build_headline(
+        headline,
+        headline.get("claim_vector"),
+        headline.get("key_signals"),
+        spec=_SAFETY_HEADLINE_SPEC,
+        verdict_token=v,
+        driving_rule_id=headline.get("driving_rule_id"),
+        verdict_polarity=_safety_verdict_polarity(v),
+    )
 
 
 # ── FACTORED-RECORD SHADOW (M1) — the SAFETY per-axis builder, and the axis that best exercises the
@@ -315,30 +354,44 @@ def _build_headline_block(headline: dict) -> dict:
 #    carries that per-channel from safety_verdict_by_modality(fired) — the honest replacement for the
 #    retired GoF-role-proxy downgrade. VERDICT-INERT: surfaced by the fan-out into
 #    decision.claim_record_shadow.safety, consumed by NOTHING. Mirrors the other axes' _claim_record.
-_SAFETY_CONCERNS = frozenset({
-    "highly_constrained_safety_concern", "human_genetics_safety_concern",
-    "normal_tissue_protein_safety_concern", "pan_essential_broad_tox_concern",
-})
+_SAFETY_CONCERNS = frozenset(
+    {
+        "highly_constrained_safety_concern",
+        "human_genetics_safety_concern",
+        "normal_tissue_protein_safety_concern",
+        "pan_essential_broad_tox_concern",
+    }
+)
 _SAFETY_OPEN_WORLD = {"data_unavailable", None}
 # the verdict-driving concern instruments — coverage/unknown_mass are computed over these
-_SAFETY_DECISION_CARDS = ("gnomad-lof-constraint", "normal-tissue-liability-gtex",
-                          "clinvar-pathogenicity-safety", "mouse-ko-phenotype", "clingen-dosage",
-                          "gene-burden-safety", "pan-cancer-crispr-dependency-distribution",
-                          "normal-tissue-liability")
+_SAFETY_DECISION_CARDS = (
+    "gnomad-lof-constraint",
+    "normal-tissue-liability-gtex",
+    "clinvar-pathogenicity-safety",
+    "mouse-ko-phenotype",
+    "clingen-dosage",
+    "gene-burden-safety",
+    "pan-cancer-crispr-dependency-distribution",
+    "normal-tissue-liability",
+)
 # safety_verdict_by_modality action -> the record's modality_scope value
-_SAFETY_ACTION_TO_SCOPE = {"hold": "unfavorable", "conditional": "conditional",
-                           "supportive": "favorable", "no_concern": "favorable",
-                           "not_applicable": "na"}
+_SAFETY_ACTION_TO_SCOPE = {
+    "hold": "unfavorable",
+    "conditional": "conditional",
+    "supportive": "favorable",
+    "no_concern": "favorable",
+    "not_applicable": "na",
+}
 
 
 def _safety_availability(v) -> str:
     if v in _SAFETY_OPEN_WORLD:
-        return "not_wired"                       # open-world → assembler forces unknown/neutral
+        return "not_wired"  # open-world → assembler forces unknown/neutral
     if v == "insufficient":
         return "insufficient"
     if v == "tolerant_reduced_safety_risk":
-        return "measured_negative"               # measured, concern ABSENT (reassuring)
-    return "measured_positive"                   # a measured safety concern present
+        return "measured_negative"  # measured, concern ABSENT (reassuring)
+    return "measured_positive"  # a measured safety concern present
 
 
 def _safety_finding(v):
@@ -348,20 +401,27 @@ def _safety_finding(v):
     if v == "moderately_constrained_safety":
         return "opposes", "moderate"
     if v == "tolerant_reduced_safety_risk":
-        return "supports", "none"                # reduced risk supports nomination
-    return "neutral", "none"                     # insufficient / open-world
+        return "supports", "none"  # reduced risk supports nomination
+    return "neutral", "none"  # insufficient / open-world
 
 
 def _safety_certainty(cards) -> dict:
     """Coverage-only certainty (CERTAINTY_MODEL): safety has NO verdict-disjoint corroborator — every
     independent constraint line already drives the verdict — so corroboration is `unmeasured` and
     level == coverage. Coverage/unknown_mass over the concern instruments (_SAFETY_DECISION_CARDS)."""
-    present = sum(1 for cid in _SAFETY_DECISION_CARDS
-                  if (card_summary(cards, cid) and not card_summary(cards, cid).get("_missing")))
+    present = sum(
+        1
+        for cid in _SAFETY_DECISION_CARDS
+        if (card_summary(cards, cid) and not card_summary(cards, cid).get("_missing"))
+    )
     frac = present / len(_SAFETY_DECISION_CARDS)
     coverage = "high" if frac >= 0.66 else ("medium" if frac >= 0.33 else "low")
-    return {"level": coverage, "coverage": coverage, "corroboration": "unmeasured",
-            "unknown_mass": round(1.0 - frac, 4)}
+    return {
+        "level": coverage,
+        "coverage": coverage,
+        "corroboration": "unmeasured",
+        "unknown_mass": round(1.0 - frac, 4),
+    }
 
 
 def _safety_modality_scope(fired) -> dict | None:
@@ -379,7 +439,7 @@ def _safety_modality_scope(fired) -> dict | None:
     sm = scope("small_molecule")
     if sm:
         out["small_molecule"] = sm
-    bio = scope("rna") or scope("degrader")      # the engages-WT biologic represents the base
+    bio = scope("rna") or scope("degrader")  # the engages-WT biologic represents the base
     if bio:
         out["biologics"] = bio
     refinements = {}
@@ -421,14 +481,16 @@ def _pharmacovigilance_scope_caveat(hl: dict) -> str | None:
     context axis). Surfaced by the literature↔deterministic discordance loop (eval/CASE_LOG.md CASE-009)."""
     if hl.get("drug_warning_class") != "no_warning":
         return None
-    return ("PHARMACOVIGILANCE SCOPE: drug_warning_class='no_warning' means target-engaging drugs were "
-            "assessed and none carry an OT-registered FDA warning (black-box / withdrawn / other) — it does "
-            "NOT establish absence of on-target toxicity. Mechanism-based, dose-limiting clinical "
-            "liabilities (e.g. tumor-lysis syndrome, cytopenias, peripheral neuropathy) are common for "
-            "approved on-target agents yet are frequently not boxed warnings, so they fall outside this "
-            "axis's coarse OT drug-warning + OnSIDES-boxed scope. This axis ORIENTS, never HOLDs — consult "
-            "toxicity_classes / OnSIDES ADE terms and the literature lane (--literature) for the full "
-            "on-target adverse-effect profile.")
+    return (
+        "PHARMACOVIGILANCE SCOPE: drug_warning_class='no_warning' means target-engaging drugs were "
+        "assessed and none carry an OT-registered FDA warning (black-box / withdrawn / other) — it does "
+        "NOT establish absence of on-target toxicity. Mechanism-based, dose-limiting clinical "
+        "liabilities (e.g. tumor-lysis syndrome, cytopenias, peripheral neuropathy) are common for "
+        "approved on-target agents yet are frequently not boxed warnings, so they fall outside this "
+        "axis's coarse OT drug-warning + OnSIDES-boxed scope. This axis ORIENTS, never HOLDs — consult "
+        "toxicity_classes / OnSIDES ADE terms and the literature lane (--literature) for the full "
+        "on-target adverse-effect profile."
+    )
 
 
 def _headline(cards, fired, verdict_pair):
@@ -436,77 +498,83 @@ def _headline(cards, fired, verdict_pair):
     # Mechanism-conditioning context: when the verdict is the mutant-selective downgrade, surface WHY
     # (the activating driver role) + the conditionality caveat so a consumer isn't left guessing.
     functional_direction = get_card_field(cards, "alteration-role", "functional_direction")
-    is_mismatch = (v in _MECHANISM_MISMATCH_VERDICTS)
+    is_mismatch = v in _MECHANISM_MISMATCH_VERDICTS
     hl = {
-        "safety_verdict":   v,
-        "driving_rule_id":  drv,
+        "safety_verdict": v,
+        "driving_rule_id": drv,
         "constraint_class": get_card_field(cards, "gnomad-lof-constraint", "constraint_class"),
-        "pli_score":        get_card_field(cards, "gnomad-lof-constraint", "pli_score"),
-        "loeuf_score":      get_card_field(cards, "gnomad-lof-constraint", "loeuf_score"),
-        "mis_z_score":      get_card_field(cards, "gnomad-lof-constraint", "mis_z_score"),
-        "syn_z_score":      get_card_field(cards, "gnomad-lof-constraint", "syn_z_score"),
-        "obs_lof_count":    get_card_field(cards, "gnomad-lof-constraint", "obs_lof_count"),
-        "exp_lof_count":    get_card_field(cards, "gnomad-lof-constraint", "exp_lof_count"),
+        "pli_score": get_card_field(cards, "gnomad-lof-constraint", "pli_score"),
+        "loeuf_score": get_card_field(cards, "gnomad-lof-constraint", "loeuf_score"),
+        "mis_z_score": get_card_field(cards, "gnomad-lof-constraint", "mis_z_score"),
+        "syn_z_score": get_card_field(cards, "gnomad-lof-constraint", "syn_z_score"),
+        "obs_lof_count": get_card_field(cards, "gnomad-lof-constraint", "obs_lof_count"),
+        "exp_lof_count": get_card_field(cards, "gnomad-lof-constraint", "exp_lof_count"),
         # Continuous dominant-LoF selection (GeneBayes s_het, 2026-08-28) — the continuous complement to
         # the binary constraint_class; catches dosage-sensitive small genes pLI/LOEUF miss. VERDICT-INERT
         # (fires no rule); surfaced for LLM/reviewer as corroboration of the constraint call.
-        "shet_class":       get_card_field(cards, "shet-lof-intolerance", "shet_class"),
-        "shet_score":       get_card_field(cards, "shet-lof-intolerance", "shet_score"),
-        "shet_lower_95":    get_card_field(cards, "shet-lof-intolerance", "shet_lower_95"),
-        "shet_upper_95":    get_card_field(cards, "shet-lof-intolerance", "shet_upper_95"),
+        "shet_class": get_card_field(cards, "shet-lof-intolerance", "shet_class"),
+        "shet_score": get_card_field(cards, "shet-lof-intolerance", "shet_score"),
+        "shet_lower_95": get_card_field(cards, "shet-lof-intolerance", "shet_lower_95"),
+        "shet_upper_95": get_card_field(cards, "shet-lof-intolerance", "shet_upper_95"),
         # Human OBSERVED-KO (2026-08-07) — the DIRECT-observation complement to
         # constraint: obs_hom_lof counts healthy humans HOMOZYGOUS for a predicted-LoF variant
         # (natural knockouts). natural_ko_observed = full loss tolerated in the population →
         # strong on-target safety reassurance for a full-KO modality (degrader/RNA), where
         # pLI/LOEUF only INFER intolerance. Additive/verdict-inert; surfaced for LLM/reviewer.
         "human_ko_observed_class": get_card_field(cards, "gnomad-lof-constraint", "human_ko_observed_class"),
-        "obs_hom_lof_count":       get_card_field(cards, "gnomad-lof-constraint", "obs_hom_lof_count"),
+        "obs_hom_lof_count": get_card_field(cards, "gnomad-lof-constraint", "obs_hom_lof_count"),
         # human-genetics rare-variant burden (verdict-moving)
         "burden_safety_class": get_card_field(cards, "gene-burden-safety", "burden_safety_class"),
-        "burden_min_pvalue":   get_card_field(cards, "gene-burden-safety", "min_pvalue"),
-        "burden_top_disease":  get_card_field(cards, "gene-burden-safety", "top_disease"),
+        "burden_min_pvalue": get_card_field(cards, "gene-burden-safety", "min_pvalue"),
+        "burden_top_disease": get_card_field(cards, "gene-burden-safety", "top_disease"),
         # ClinGen dosage sensitivity (verdict-moving)
         "dosage_sensitivity_class": get_card_field(cards, "clingen-dosage", "dosage_sensitivity_class"),
-        "dosage_top_disease":       get_card_field(cards, "clingen-dosage", "top_disease"),
+        "dosage_top_disease": get_card_field(cards, "clingen-dosage", "top_disease"),
         # Germline INHERITANCE MODE (2026-08-06) — the in-hand OMIM-style KO-safety facet: recessive_only
         # = het carriers healthy → full-KO REASSURANCE the dominant-focused dosage class understates.
         # Additive/verdict-inert; surfaced for the LLM/reviewer beside the dosage call.
         "germline_inheritance_mode": get_card_field(cards, "clingen-dosage", "germline_inheritance_mode"),
         # mouse-KO normal-physiology (verdict-moving)
         "mouse_ko_phenotype_class": get_card_field(cards, "mouse-ko-phenotype", "ko_phenotype_class"),
-        "mouse_ko_top_lethal":      get_card_field(cards, "mouse-ko-phenotype", "top_lethal_label"),
+        "mouse_ko_top_lethal": get_card_field(cards, "mouse-ko-phenotype", "top_lethal_label"),
         # affected ORGAN SYSTEMS on knockout (2026-09-04 signal-surfacing) — the rich mouse-KO sub-field the
         # capsule projection ignored (class + top_lethal only). Folded into the MOUSE_KO claim evidence so
         # the narrator names WHICH organ systems a full KO perturbs. VERDICT-INERT.
-        "mouse_ko_organ_systems":   get_card_field(cards, "mouse-ko-phenotype", "organ_classes"),
+        "mouse_ko_organ_systems": get_card_field(cards, "mouse-ko-phenotype", "organ_classes"),
         # ClinVar germline-pathogenicity
         "clinvar_pathogenic_class": get_card_field(cards, "clinvar-pathogenicity-safety", "clinvar_pathogenic_class"),
-        "clinvar_top_disease":      get_card_field(cards, "clinvar-pathogenicity-safety", "top_disease"),
+        "clinvar_top_disease": get_card_field(cards, "clinvar-pathogenicity-safety", "top_disease"),
         # confident germline-pathogenic variant COUNT (2026-09-04 signal-surfacing) — the rich ClinVar
         # sub-field the capsule projection ignored (class + top_disease only). Folded into the CLINVAR claim
         # evidence so the narrator can say "N confident germline-pathogenic variants". VERDICT-INERT.
-        "clinvar_n_pathogenic_germline_confident": get_card_field(cards, "clinvar-pathogenicity-safety", "n_pathogenic_germline_confident"),
+        "clinvar_n_pathogenic_germline_confident": get_card_field(
+            cards, "clinvar-pathogenicity-safety", "n_pathogenic_germline_confident"
+        ),
         # DepMap pan-essentiality — BROAD-TOX safety leg (verdict-moving via pan-essential-broad-tox-
         # safety-warning). common_essential = required across the whole panel → normal-tissue tox for
         # a full-KO modality (the SAFETY reading of the same signal the dependency skill vetoes).
-        "dependency_class":   get_card_field(cards, "pan-cancer-crispr-dependency-distribution", "dependency_class"),
-        "pan_essential_score": get_card_field(cards, "pan-cancer-crispr-dependency-distribution", "pan_essential_score"),
+        "dependency_class": get_card_field(cards, "pan-cancer-crispr-dependency-distribution", "dependency_class"),
+        "pan_essential_score": get_card_field(
+            cards, "pan-cancer-crispr-dependency-distribution", "pan_essential_score"
+        ),
         # HPA-IHC protein normal-tissue liability — verdict-moving via normal-tissue-protein-liability-
         # safety-warning (essential_tissue_flag==present → essential-tissue on-target-off-tumor tox).
-        "essential_tissue_flag":              get_card_field(cards, "normal-tissue-liability", "essential_tissue_flag"),
-        "essential_tissues_flagged":          get_card_field(cards, "normal-tissue-liability", "essential_tissues_flagged"),
-        "normal_tissue_breadth_class":        get_card_field(cards, "normal-tissue-liability", "normal_tissue_breadth_class"),
+        "essential_tissue_flag": get_card_field(cards, "normal-tissue-liability", "essential_tissue_flag"),
+        "essential_tissues_flagged": get_card_field(cards, "normal-tissue-liability", "essential_tissues_flagged"),
+        "normal_tissue_breadth_class": get_card_field(cards, "normal-tissue-liability", "normal_tissue_breadth_class"),
         # OT pharmacovigilance CONTEXT (verdict-inert): do drugs engaging the target carry black-box /
         # withdrawn warnings? Orients the reader; no resolver rung reads these.
-        "drug_warning_class":                 get_card_field(cards, "drug-warning-safety", "drug_warning_class"),
-        "drug_warning_has_black_box":         get_card_field(cards, "drug-warning-safety", "has_black_box"),
-        "drug_warning_toxicity_classes":      get_card_field(cards, "drug-warning-safety", "toxicity_classes"),
+        "drug_warning_class": get_card_field(cards, "drug-warning-safety", "drug_warning_class"),
+        "drug_warning_has_black_box": get_card_field(cards, "drug-warning-safety", "has_black_box"),
+        "drug_warning_toxicity_classes": get_card_field(cards, "drug-warning-safety", "toxicity_classes"),
         # OnSIDES drug-label ADE CONTEXT (verdict-inert): per-MedDRA-term adverse-effect profile (incl.
         # boxed-warning severity) of drugs engaging the target — fuzzy drug-name->gene join, per-term
         # grain. Orients the reader; no resolver rung reads these.
-        "onsides_ade_class":                  get_card_field(cards, "onsides-adverse-event-safety", "onsides_ade_class"),
-        "onsides_has_boxed_warning":          get_card_field(cards, "onsides-adverse-event-safety", "has_boxed_warning"),
-        "onsides_example_boxed_warning_terms": get_card_field(cards, "onsides-adverse-event-safety", "example_boxed_warning_terms"),
+        "onsides_ade_class": get_card_field(cards, "onsides-adverse-event-safety", "onsides_ade_class"),
+        "onsides_has_boxed_warning": get_card_field(cards, "onsides-adverse-event-safety", "has_boxed_warning"),
+        "onsides_example_boxed_warning_terms": get_card_field(
+            cards, "onsides-adverse-event-safety", "example_boxed_warning_terms"
+        ),
         # mutant-selective conditioning (2026-07-23)
         "alteration_functional_direction": functional_direction,
         "mechanism_conditioning_note": (
@@ -514,7 +582,9 @@ def _headline(cards, fired, verdict_pair):
             "driver typically drugged MUTANT-SELECTIVELY, so the WT-constraint safety concern is "
             "largely nullified (the therapy spares WT protein in normal tissue). CONDITIONAL on an "
             "allele-selective modality — a pan-target degrader / WT-hitting inhibitor re-exposes it."
-        ) if is_mismatch else None,
+        )
+        if is_mismatch
+        else None,
     }
     # verdict-INERT claim-vector projection (5th concrete over claim_vector_core) — the SIGNAL
     # decomposition + citable liability atoms the composed target-profile fan-out surfaces to the
@@ -541,8 +611,7 @@ def _headline(cards, fired, verdict_pair):
     # deterministic, citeable substrate both the dashboard "why this verdict" panel and the Tier-3
     # synthesis consume. Best-effort: a build fault must never discard the safety spine.
     try:
-        hl["narrative"] = build_narrative(axis="safety", gate="safety", fired=fired,
-                                          verdict=v, driving_rule_id=drv)
+        hl["narrative"] = build_narrative(axis="safety", gate="safety", fired=fired, verdict=v, driving_rule_id=drv)
     except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
         hl.setdefault("_enrichment_errors", {})["narrative"] = f"{type(exc).__name__}: {exc}"
         hl["narrative"] = None
@@ -597,16 +666,29 @@ def _headline(cards, fired, verdict_pair):
 
 # ── OPTIONAL cross-modal synthesis facet (lifts the claim_vector to the composed target-profile) ────
 _SYNTHESIS_FACET_KEYS = (
-    "safety_verdict", "driving_rule_id",
-    "constraint_class", "burden_safety_class", "dosage_sensitivity_class",
-    "clinvar_pathogenic_class", "clinvar_n_pathogenic_germline_confident",
-    "mouse_ko_phenotype_class", "mouse_ko_organ_systems",
-    "dependency_class", "pan_essential_score", "essential_tissue_flag", "normal_tissue_breadth_class",
-    "drug_warning_class", "drug_warning_has_black_box", "drug_warning_toxicity_classes",
+    "safety_verdict",
+    "driving_rule_id",
+    "constraint_class",
+    "burden_safety_class",
+    "dosage_sensitivity_class",
+    "clinvar_pathogenic_class",
+    "clinvar_n_pathogenic_germline_confident",
+    "mouse_ko_phenotype_class",
+    "mouse_ko_organ_systems",
+    "dependency_class",
+    "pan_essential_score",
+    "essential_tissue_flag",
+    "normal_tissue_breadth_class",
+    "drug_warning_class",
+    "drug_warning_has_black_box",
+    "drug_warning_toxicity_classes",
     # CASE-009: scope clarifier — 'no_warning' ≠ no on-target toxicity (verdict-INERT)
     "pharmacovigilance_scope_caveat",
-    "human_ko_observed_class", "germline_inheritance_mode", "alteration_functional_direction",
-    "claim_vector", "key_signals",
+    "human_ko_observed_class",
+    "germline_inheritance_mode",
+    "alteration_functional_direction",
+    "claim_vector",
+    "key_signals",
     # the per-question (data·signal·confidence) rows — rendered as the leading table by target-profile too
     "question_table",
     # the canonical headline (verdict + confidence + top tension) — text + hero payload for every consumer
@@ -630,31 +712,33 @@ def _synthesis_facet(cards, fired, verdict_pair):
         "(CONSTRAINT / BURDEN / DOSAGE / CLINVAR / MOUSE_KO) — a strong signal is a safety CONCERN, not a "
         "win; the scalar safety VERDICT is owned by the safety resolver, not this projection. The mutant-"
         "selective-GoF WT-loss downgrade is MODALITY-CONDITIONAL (realised in the per-modality safety "
-        "verdict, safety_verdict_by_modality), NOT applied to the scalar verdict.")
+        "verdict, safety_verdict_by_modality), NOT applied to the scalar verdict."
+    )
     return facet
 
 
 if __name__ == "__main__":
-    sys.exit(run_wired_skill(
-        skill_name=SKILL_NAME,
-        skill_version=SKILL_VERSION,
-        cards=CARDS,
-        axis="intracellular_intrinsic",
-        question=QUESTION,
-        verdict_fn=_verdict,
-        headline_fn=_headline,
-        # Skill-level graphics (opt-in --figures): the canonical headline hero. Additive / display-only.
-        skill_figures_fn=emit_headline_hero,
-        partial_status_note=PARTIAL_STATUS_NOTE,
-        # Signals-first: tuned sub-group reader for the safety-LIABILITY vocabulary (note the polarity
-        # inversion vs the dependency lens). Verdict-INERT.
-        subgroup_classify=make_value_classifier(_SAFETY_VALUE_TIERS),
-        # NET-NEW single-lens narrator (this skill had none → --synthesize was a no-op). Generic
-        # capsule-driven engine + the safety LensConfig (LIABILITY polarity). Two-slot / verdict-inert.
-        synthesize_fn=make_synthesize_fn(_SAFETY_LENS),
-        # OPT-IN (--literature) verdict-INERT literature lane (Europe-PMC-grounded + PMID-verified). One-liner
-        # because run_wired_skill owns the seam (dispatcher 8a-iii); NEVER alters the spine (byte-identical
-        # without the flag). Routes each safety literature axis back to this skill (it OWNS the WT-loss call).
-        literature_fn=make_literature_fn(_SAFETY_LENS, retrieve_fn=default_retrieve,
-                                         verify_fn=verify_citations),
-    ))
+    sys.exit(
+        run_wired_skill(
+            skill_name=SKILL_NAME,
+            skill_version=SKILL_VERSION,
+            cards=CARDS,
+            axis="intracellular_intrinsic",
+            question=QUESTION,
+            verdict_fn=_verdict,
+            headline_fn=_headline,
+            # Skill-level graphics (opt-in --figures): the canonical headline hero. Additive / display-only.
+            skill_figures_fn=emit_headline_hero,
+            partial_status_note=PARTIAL_STATUS_NOTE,
+            # Signals-first: tuned sub-group reader for the safety-LIABILITY vocabulary (note the polarity
+            # inversion vs the dependency lens). Verdict-INERT.
+            subgroup_classify=make_value_classifier(_SAFETY_VALUE_TIERS),
+            # NET-NEW single-lens narrator (this skill had none → --synthesize was a no-op). Generic
+            # capsule-driven engine + the safety LensConfig (LIABILITY polarity). Two-slot / verdict-inert.
+            synthesize_fn=make_synthesize_fn(_SAFETY_LENS),
+            # OPT-IN (--literature) verdict-INERT literature lane (Europe-PMC-grounded + PMID-verified). One-liner
+            # because run_wired_skill owns the seam (dispatcher 8a-iii); NEVER alters the spine (byte-identical
+            # without the flag). Routes each safety literature axis back to this skill (it OWNS the WT-loss call).
+            literature_fn=make_literature_fn(_SAFETY_LENS, retrieve_fn=default_retrieve, verify_fn=verify_citations),
+        )
+    )

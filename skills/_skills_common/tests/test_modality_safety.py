@@ -2,6 +2,7 @@
 
 Reads the merged L0/L1 contracts (modality.enum.yaml::wt_engagement +
 wt_loss_safety_conditioning.yaml) from TARGET_CONTRACTS_ROOT. Pure/deterministic."""
+
 import sys
 from pathlib import Path
 
@@ -52,7 +53,7 @@ def test_no_concern_fired():
 
 def test_protective_only_derisks_engages_wt():
     v = safety_verdict_by_modality([{"rule_id": "gene-burden-protective-favorable"}])
-    assert v["degrader"]["action"] == "supportive"       # full KO de-risked by protective genetics
+    assert v["degrader"]["action"] == "supportive"  # full KO de-risked by protective genetics
     assert v["rna_therapeutic"]["action"] == "supportive"
     assert v["small_molecule"]["action"] == "no_concern"  # conditional channel: protective not asserted
 

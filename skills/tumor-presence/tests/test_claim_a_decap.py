@@ -7,6 +7,7 @@ the calibrated all-gene percentile LEAD when it beats the anchor (pct >= 95), le
 percentiles on the anchor floor. VERDICT-INERT — claim_vector never feeds presence_verdict; the golden
 spine + replay suites prove the collapsed verdict is byte-stable.
 """
+
 from __future__ import annotations
 
 import copy
@@ -31,8 +32,13 @@ from _skills_common.presence_claims import _claim_A  # noqa: E402
 
 
 def _c(control_position, pct, med=9.6):
-    return {"tumor-rna-distribution": {"control_position": control_position,
-                                       "allgene_percentile": pct, "median_log2tpm": med}}
+    return {
+        "tumor-rna-distribution": {
+            "control_position": control_position,
+            "allgene_percentile": pct,
+            "median_log2tpm": med,
+        }
+    }
 
 
 def test_within_positives_top_percentile_is_strong():
@@ -73,6 +79,7 @@ def _epcam_headline(tmp_path_factory):
             if not (isinstance(s, dict) and s and not s.get("_freeze_error")):
                 return None
             return copy.deepcopy(s)
+
         return _read
 
     out = tmp_path_factory.mktemp("claim-a-decap")
@@ -96,4 +103,5 @@ def test_epcam_claim_a_strong_and_verdict_stable(_epcam_headline):
     a = (_epcam_headline.get("claim_vector") or {}).get("A") or {}
     assert a.get("signal") == "strong", f"claim A signal={a.get('signal')!r}, expected strong (de-cap)"
     assert _epcam_headline.get("presence_verdict") == "tumor_broadly_expressed", (
-        "presence_verdict moved — the claim-A enrichment must be verdict-inert")
+        "presence_verdict moved — the claim-A enrichment must be verdict-inert"
+    )

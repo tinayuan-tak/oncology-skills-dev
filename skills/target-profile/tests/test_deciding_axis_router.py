@@ -7,6 +7,7 @@ axis; on abstention it lists unevidenced gates) and never PREDICTS a single axis
 They also pin that it is purely additive — it reads already-resolved state and returns a block,
 touching no verdict — and that per-run coverage DOWNGRADES (never upgrades) the static baseline.
 """
+
 from __future__ import annotations
 
 import os
@@ -14,8 +15,9 @@ from pathlib import Path
 
 from _test_support import load_run_py
 
-CONTRACTS = Path(os.environ.get("TARGET_CONTRACTS_ROOT",
-                                "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
+CONTRACTS = Path(
+    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+)
 
 tp = load_run_py(Path(__file__).resolve().parents[1], "tp_run")
 
@@ -26,7 +28,8 @@ def _sr(**verdicts):
     out = {}
     for short, v in verdicts.items():
         out[short] = {
-            "skill_dir": short, "cards": [{"card_id": f"{short}-card"}],
+            "skill_dir": short,
+            "cards": [{"card_id": f"{short}-card"}],
             "fired": [{"rule_id": f"{short}-rule"}] if v else [],
             "verdict": (v, f"{short}-rule") if v else None,
         }
@@ -35,12 +38,13 @@ def _sr(**verdicts):
 
 # ---------- basis 1: a gate FIRED → the deciding axis is that gate (known, not predicted) ----------
 
+
 def test_fired_gate_is_the_deciding_axis_captured():
     sr = _sr(dependency="non_dependent", expression="broadly_high")
-    gate_hits = [{"short": "dependency", "verdict": "non_dependent", "action": "veto",
-                  "driving_rule_id": "non-dependent-killer"}]
-    da = tp._deciding_axis(sr, gate_action="veto", gate_hits=gate_hits, positive_hits=[],
-                           contracts_repo=CONTRACTS)
+    gate_hits = [
+        {"short": "dependency", "verdict": "non_dependent", "action": "veto", "driving_rule_id": "non-dependent-killer"}
+    ]
+    da = tp._deciding_axis(sr, gate_action="veto", gate_hits=gate_hits, positive_hits=[], contracts_repo=CONTRACTS)
     assert da["basis"] == "gate_fired"
     assert da["deciding_axis"]["short"] == "dependency"
     assert da["deciding_axis"]["gate"] == "C"
@@ -54,10 +58,15 @@ def test_veto_axis_without_lettered_gate_does_not_render_gate_none():
     # safety is a VETO axis: it has a gate NAME but no lettered gate id in gate_coverage → the routing
     # must not read "decided by gate None (…)" (the MYC/AR/WRN gate-forced-hold artifact).
     sr = _sr(dependency="concordant_dependent")
-    gate_hits = [{"short": "safety", "verdict": "highly_constrained_safety_concern", "action": "hold",
-                  "driving_rule_id": "highly-constrained-safety-warning"}]
-    da = tp._deciding_axis(sr, gate_action="hold", gate_hits=gate_hits, positive_hits=[],
-                           contracts_repo=CONTRACTS)
+    gate_hits = [
+        {
+            "short": "safety",
+            "verdict": "highly_constrained_safety_concern",
+            "action": "hold",
+            "driving_rule_id": "highly-constrained-safety-warning",
+        }
+    ]
+    da = tp._deciding_axis(sr, gate_action="hold", gate_hits=gate_hits, positive_hits=[], contracts_repo=CONTRACTS)
     assert da["basis"] == "gate_fired"
     assert da["deciding_axis"]["short"] == "safety"
     routing = da["routing"]
@@ -71,11 +80,11 @@ def test_veto_axis_without_lettered_gate_does_not_render_gate_none():
 
 # ---------- basis 2: a positive tier → strongest positive dimension is load-bearing ----------
 
+
 def test_positive_tier_names_supporting_axes():
     sr = _sr(dependency="concordant_dependent", selectivity="strong_tumor_selective")
     pos_hits = [{"short": "dependency"}, {"short": "selectivity"}]
-    da = tp._deciding_axis(sr, gate_action=None, gate_hits=[], positive_hits=pos_hits,
-                           contracts_repo=CONTRACTS)
+    da = tp._deciding_axis(sr, gate_action=None, gate_hits=[], positive_hits=pos_hits, contracts_repo=CONTRACTS)
     assert da["basis"] == "positive_signal"
     shorts = {r["short"] for r in da["deciding_axes"]}
     assert shorts == {"dependency", "selectivity"}
@@ -83,12 +92,12 @@ def test_positive_tier_names_supporting_axes():
 
 # ---------- basis 3: abstention → list the unevidenced NECESSITY gates first ----------
 
+
 def test_abstention_lists_unevidenced_gates_necessity_first():
     # dependency evidenced; surface_modality (sufficiency, baseline blind) + safety (sufficiency)
     # + mechanism (necessity) unevidenced.
     sr = _sr(dependency="concordant_dependent", surface_modality=None, safety=None, mechanism=None)
-    da = tp._deciding_axis(sr, gate_action=None, gate_hits=[], positive_hits=[],
-                           contracts_repo=CONTRACTS)
+    da = tp._deciding_axis(sr, gate_action=None, gate_hits=[], positive_hits=[], contracts_repo=CONTRACTS)
     assert da["basis"] == "abstention_coverage_gaps"
     unev = da["unevidenced_gates"]
     shorts = [g["short"] for g in unev]
@@ -103,13 +112,18 @@ def test_abstention_lists_unevidenced_gates_necessity_first():
 
 # ---------- per-run coverage DOWNGRADES (never upgrades) the static baseline ----------
 
+
 def test_all_cards_missing_downgrades_to_blind():
     """dependency baseline is `partial`; if every dependency card came back _missing this run,
     the per-run coverage is `blind` (we could not look), not the baseline partial."""
-    sr = {"dependency": {"skill_dir": "functional-requirement",
-                         "cards": [{"card_id": "crispr", "_missing": True},
-                                   {"card_id": "rnai", "_missing": True}],
-                         "fired": [], "verdict": None}}
+    sr = {
+        "dependency": {
+            "skill_dir": "functional-requirement",
+            "cards": [{"card_id": "crispr", "_missing": True}, {"card_id": "rnai", "_missing": True}],
+            "fired": [],
+            "verdict": None,
+        }
+    }
     baseline, _ = tp._load_gate_coverage(CONTRACTS)
     assert baseline["dependency"]["framework_can_evidence"] == "partial"  # static
     assert tp._run_coverage_for_short("dependency", sr["dependency"], baseline) == "blind"  # per-run
@@ -133,11 +147,13 @@ def test_surface_modality_baseline_is_blind_or_partial():
 
 # ---------- degrade safely when the vocab is absent ----------
 
+
 def test_missing_vocab_degrades_to_bare_note_not_fabricated_coverage(tmp_path):
     """With no gate_coverage.yaml, the router must not invent a coverage claim — it returns a
     bare abstention note (empty baseline → source 'none')."""
     sr = _sr(dependency=None)
-    da = tp._deciding_axis(sr, gate_action=None, gate_hits=[], positive_hits=[],
-                           contracts_repo=tmp_path)  # tmp_path has no vocabularies/
+    da = tp._deciding_axis(
+        sr, gate_action=None, gate_hits=[], positive_hits=[], contracts_repo=tmp_path
+    )  # tmp_path has no vocabularies/
     assert da["coverage_source"] == "none"
     assert da["basis"] == "abstention_coverage_gaps"

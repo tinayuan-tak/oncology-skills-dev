@@ -12,45 +12,77 @@ flags with killer polarity. The skill's signal is INVERSE-valence (strength of a
 highly-constrained gene reads as an "absent"/opposing signal on the "is this leg safe?" hero. VERDICT-INERT:
 nothing here touches the safety_verdict spine.
 """
+
 from __future__ import annotations
 
 import copy
 
 # cards that fire a rule in the KRAS/COADREAD fixture (verdict-bearing) vs the pure display-only facets
 VERDICT_BEARING = {
-    "gnomad-lof-constraint", "gene-burden-safety", "clingen-dosage", "mouse-ko-phenotype",
-    "clinvar-pathogenicity-safety", "pan-cancer-crispr-dependency-distribution",
-    "normal-tissue-liability-gtex", "alteration-role", "copy-number-distribution",
+    "gnomad-lof-constraint",
+    "gene-burden-safety",
+    "clingen-dosage",
+    "mouse-ko-phenotype",
+    "clinvar-pathogenicity-safety",
+    "pan-cancer-crispr-dependency-distribution",
+    "normal-tissue-liability-gtex",
+    "alteration-role",
+    "copy-number-distribution",
     "functional-gene-state",
 }
 DISPLAY_ONLY = {
-    "shet-lof-intolerance", "target-safety-prioritisation", "normal-tissue-liability",
-    "drug-warning-safety", "onsides-adverse-event-safety",
+    "shet-lof-intolerance",
+    "target-safety-prioritisation",
+    "normal-tissue-liability",
+    "drug-warning-safety",
+    "onsides-adverse-event-safety",
 }
 
 # a synthetic literature_synthesis keyed by the safety lens' SOLE axis LETTER (what make_literature_fn
 # emits — ON_TARGET_SAFETY.axis_labels is PHARMACOVIGILANCE-only)
 _SYNTH_LIT = {
     "axes": [
-        {"axis_key": "PHARMACOVIGILANCE", "literature_read": "mixed",
-         "assertion": "RAS/MEK-pathway agents carry on-target dermatologic + GI class toxicity.",
-         "agreement_vs_omics": "omics_blind", "confidence": "moderate",
-         "citations": [{"label": "Smith 2021", "pmid": "33333333", "verified": True}]},
+        {
+            "axis_key": "PHARMACOVIGILANCE",
+            "literature_read": "mixed",
+            "assertion": "RAS/MEK-pathway agents carry on-target dermatologic + GI class toxicity.",
+            "agreement_vs_omics": "omics_blind",
+            "confidence": "moderate",
+            "citations": [{"label": "Smith 2021", "pmid": "33333333", "verified": True}],
+        },
     ],
-    "blind_spots": [], "overall_consistency": "consistent", "key_divergence": None,
+    "blind_spots": [],
+    "overall_consistency": "consistent",
+    "key_divergence": None,
 }
 
 
 # ── Phase 0 registry sanity ──────────────────────────────────────────────────────────────────────
 def test_questions_registry_loads_nine(eg_questions):
     ids = [q["id"] for q in eg_questions]
-    assert ids == ["constraint_read", "burden_read", "dosage_read", "mouse_ko_read", "clinvar_read",
-                   "pan_essential_read", "normal_tissue_read", "pharmacovigilance_context",
-                   "mechanism_context"]
+    assert ids == [
+        "constraint_read",
+        "burden_read",
+        "dosage_read",
+        "mouse_ko_read",
+        "clinvar_read",
+        "pan_essential_read",
+        "normal_tissue_read",
+        "pharmacovigilance_context",
+        "mechanism_context",
+    ]
     # unified axis vocabulary: the 7 question-hierarchy sub_group axes + the sole lens axis
     axes = {q["axis_id"] for q in eg_questions if q.get("axis_id")}
-    assert axes == {"CONSTRAINT", "BURDEN", "DOSAGE", "CLINVAR", "MOUSE_KO", "PAN_ESSENTIAL",
-                    "NORMAL_TISSUE", "PHARMACOVIGILANCE"}
+    assert axes == {
+        "CONSTRAINT",
+        "BURDEN",
+        "DOSAGE",
+        "CLINVAR",
+        "MOUSE_KO",
+        "PAN_ESSENTIAL",
+        "NORMAL_TISSUE",
+        "PHARMACOVIGILANCE",
+    }
     # the 5 human-genetics legs anchor to the emitted safety_question_table rows by legacy_id
     legacy = {q["id"]: q.get("legacy_id") for q in eg_questions}
     assert legacy["constraint_read"] == "Constraint" and legacy["clinvar_read"] == "ClinVar"
@@ -76,20 +108,21 @@ def test_reconstruct_questions_signal_confidence_and_cards(eg_graph):
     # "is this leg LoF-tolerant (safe)?" question (from the emitted safety_question_table row)
     assert qs["constraint_read"]["signal"]["tier"] == "absent"
     assert qs["constraint_read"]["signal"]["polarity"] == "opposing"
-    assert qs["clinvar_read"]["signal"]["polarity"] == "opposing"      # germline_pathogenic → liability
-    assert qs["mouse_ko_read"]["signal"]["polarity"] == "supportive"   # developmental_only → tolerant
+    assert qs["clinvar_read"]["signal"]["polarity"] == "opposing"  # germline_pathogenic → liability
+    assert qs["mouse_ko_read"]["signal"]["polarity"] == "supportive"  # developmental_only → tolerant
     # the constraint question anchors BOTH the gnomAD driver AND the s_het complement
     assert set(qs["constraint_read"]["card_ids"]) == {"gnomad-lof-constraint", "shet-lof-intolerance"}
     # the normal-tissue question anchors the GTEx-RNA + HPA-protein breadth pair
-    assert set(qs["normal_tissue_read"]["card_ids"]) == {
-        "normal-tissue-liability", "normal-tissue-liability-gtex"}
+    assert set(qs["normal_tissue_read"]["card_ids"]) == {"normal-tissue-liability", "normal-tissue-liability-gtex"}
     # the pharmacovigilance question anchors the two verdict-inert clinical-precedent cards
-    assert set(qs["pharmacovigilance_context"]["card_ids"]) == {
-        "drug-warning-safety", "onsides-adverse-event-safety"}
+    assert set(qs["pharmacovigilance_context"]["card_ids"]) == {"drug-warning-safety", "onsides-adverse-event-safety"}
     # the mechanism-context question mops up the modality-conditioning + priority context cards
     assert set(qs["mechanism_context"]["card_ids"]) == {
-        "alteration-role", "copy-number-distribution", "functional-gene-state",
-        "target-safety-prioritisation"}
+        "alteration-role",
+        "copy-number-distribution",
+        "functional-gene-state",
+        "target-safety-prioritisation",
+    }
     # the additive legs carry no leading-table row (empty signal), but still anchor their cards
     assert qs["pan_essential_read"]["signal"]["tier"] is None
     assert qs["pan_essential_read"]["card_ids"] == ["pan-cancer-crispr-dependency-distribution"]
@@ -148,8 +181,7 @@ def test_liability_class_card_is_flagged_killer(eg_decision, eg_questions, eg_bu
     # KRAS itself has no liability-CLASS card; inject a critical_organ_liability normal-tissue read to
     # exercise the builder's liability path + confirm the dashboard renders the killer/liability glyph.
     d = copy.deepcopy(eg_decision)
-    d["headline"]["evidence_capsules"]["capsules"]["normal-tissue-liability-gtex"]["class"] = \
-        "critical_organ_liability"
+    d["headline"]["evidence_capsules"]["capsules"]["normal-tissue-liability-gtex"]["class"] = "critical_organ_liability"
     g = eg_build(d, questions=eg_questions)
     c = next(x for x in g["cards"] if x["id"] == "normal-tissue-liability-gtex")
     assert c["signal"]["liability"] is True

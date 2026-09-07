@@ -6,6 +6,7 @@ prediction/homology over-call, the annotation/meta-score tier, the None byte-sta
 DUAL-PATH contract (both _headline and the self-contained _synthesis_facet must declare target/indication
 and carry the two new fields — the facet dict is target-intrinsic's fan-out carrier).
 """
+
 from __future__ import annotations
 
 import inspect
@@ -25,12 +26,17 @@ def _cards(**by_card):
 
 # ── the caveat builder (pure) ────────────────────────────────────────────────────────────────────
 
+
 def test_guard_experimental_ligandable_is_not_demoted():
     """experimental_ligandable (co-crystal) → MILDER experimentally_confirmed_intrinsic_property guard —
     NOT flagged as inflated (the BRAF/EGFR/KRAS-G12C class)."""
-    f = {"structural_ligandability_class": "experimental_ligandable", "has_experimental_cocrystal": True,
-         "ot_prioritisation_status": "scored", "ot_genetic_band": "unfavorable"}
-    cav = RUN._intrinsic_confirmation_caveat("CTNNB1", f)   # NOT in crosswalk → guard via experimental only
+    f = {
+        "structural_ligandability_class": "experimental_ligandable",
+        "has_experimental_cocrystal": True,
+        "ot_prioritisation_status": "scored",
+        "ot_genetic_band": "unfavorable",
+    }
+    cav = RUN._intrinsic_confirmation_caveat("CTNNB1", f)  # NOT in crosswalk → guard via experimental only
     assert cav["reason"] == "experimentally_confirmed_intrinsic_property"
     # the OT double-count is surfaced as an orientation residual, never escalated
     assert "double-count" in cav["note"].lower()
@@ -44,15 +50,20 @@ def test_guard_crosswalk_is_data_blind_tolerant():
         f = {"structural_ligandability_class": "predicted_ligandable", "has_experimental_cocrystal": False}
         cav = RUN._intrinsic_confirmation_caveat(sym, f)
         assert cav["reason"] == "experimentally_confirmed_intrinsic_property", (
-            f"{sym} demoted despite the validated-property crosswalk (data-blind guard failed): {cav}")
+            f"{sym} demoted despite the validated-property crosswalk (data-blind guard failed): {cav}"
+        )
 
 
 def test_sharp_predicted_ligandable_is_the_driver_over_call():
     """predicted_ligandable / annotation_ligandable with NO co-crystal → SHARP
     predicted_structure_or_homology_annotated_unconfirmed (the MYC / TRIB1 driver)."""
     for tok in ("predicted_ligandable", "annotation_ligandable"):
-        f = {"structural_ligandability_class": tok, "has_experimental_cocrystal": False,
-             "alphafold_confidence_class": "low", "ligandability_disorder_class": "highly_disordered"}
+        f = {
+            "structural_ligandability_class": tok,
+            "has_experimental_cocrystal": False,
+            "alphafold_confidence_class": "low",
+            "ligandability_disorder_class": "highly_disordered",
+        }
         cav = RUN._intrinsic_confirmation_caveat("MYC", f)
         assert cav["reason"] == "predicted_structure_or_homology_annotated_unconfirmed", (tok, cav)
         assert "co-crystal" in cav["note"].lower()
@@ -60,8 +71,12 @@ def test_sharp_predicted_ligandable_is_the_driver_over_call():
 
 def test_sharp_predicted_surface_over_call():
     """is_surface_protein=True with NO experimental HPA plasma-membrane (SURFY/IUPHAR homology) → SHARP."""
-    f = {"structural_ligandability_class": "no_ligandability_signal", "is_surface_protein": True,
-         "source_hpa_plasma_membrane": False, "surface_protein_family": "kinase_surface"}
+    f = {
+        "structural_ligandability_class": "no_ligandability_signal",
+        "is_surface_protein": True,
+        "source_hpa_plasma_membrane": False,
+        "surface_protein_family": "kinase_surface",
+    }
     cav = RUN._intrinsic_confirmation_caveat("SOMEGENE", f)
     assert cav["reason"] == "predicted_structure_or_homology_annotated_unconfirmed"
     assert "surface" in cav["note"].lower() or "topology" in cav["note"].lower()
@@ -70,10 +85,14 @@ def test_sharp_predicted_surface_over_call():
 def test_annotation_score_tier_double_count_and_significance():
     """No structural actionability signal, but meta-scores / annotation density present → the
     annotation_score_or_double_counted orientation tier (significance ≠ actionability)."""
-    f = {"structural_ligandability_class": "no_ligandability_signal",
-         "ot_prioritisation_status": "scored", "ot_genetic_band": "unfavorable",
-         "gnomad_constraint_class": "highly_constrained", "go_annotation_class": "well_annotated",
-         "tdl_class": "Tbio"}
+    f = {
+        "structural_ligandability_class": "no_ligandability_signal",
+        "ot_prioritisation_status": "scored",
+        "ot_genetic_band": "unfavorable",
+        "gnomad_constraint_class": "highly_constrained",
+        "go_annotation_class": "well_annotated",
+        "tdl_class": "Tbio",
+    }
     cav = RUN._intrinsic_confirmation_caveat("SOMEGENE", f)
     assert cav["reason"] == "annotation_score_or_double_counted"
     assert "double-count" in cav["note"].lower() and "actionability" in cav["note"].lower()
@@ -95,8 +114,11 @@ def test_disordered_low_is_not_an_over_call():
 
 
 def test_provenance_double_count_and_confirmed_flag():
-    f = {"structural_ligandability_class": "experimental_ligandable",
-         "ot_prioritisation_status": "scored", "ot_mouse_ko_band": "unfavorable"}
+    f = {
+        "structural_ligandability_class": "experimental_ligandable",
+        "ot_prioritisation_status": "scored",
+        "ot_mouse_ko_band": "unfavorable",
+    }
     prov = RUN._intrinsic_provenance("BRAF", f)
     assert prov["ot_composite_double_counts_dedicated_cards"] is True
     assert prov["experimentally_confirmed_actionable_property"] is True
@@ -115,6 +137,7 @@ def test_crosswalk_is_a_set_literal_not_tuple():
 
 # ── the DUAL-PATH contract (headline + self-contained facet) ───────────────────────────────────────
 
+
 def test_headline_and_facet_declare_target_and_indication():
     """Both readers must declare target + indication so the dispatcher (headline_fn) and tp_fanout
     (_synthesis_facet) signature-introspection passes the symbol for the crosswalk guard."""
@@ -127,21 +150,29 @@ def test_headline_and_facet_declare_target_and_indication():
 def test_tolerant_reader_does_not_raise_on_absent_card():
     """The composed facet resolves only 8 cards; the caveat's field reader must tolerate the absent
     structure/surfaceome/safety cards (get_card_field would otherwise raise KeyError)."""
-    cards = _cards(**{"target-development-level": {"tdl_class": "Tchem"},
-                      "gene-ontology-annotation": {"annotation_class": "well_annotated"}})
+    cards = _cards(
+        **{
+            "target-development-level": {"tdl_class": "Tchem"},
+            "gene-ontology-annotation": {"annotation_class": "well_annotated"},
+        }
+    )
     f = RUN._intrinsic_actionability_fields(cards)
-    assert f["structural_ligandability_class"] is None      # absent card → None, not a raise
+    assert f["structural_ligandability_class"] is None  # absent card → None, not a raise
     assert f["tdl_class"] == "Tchem" and f["go_annotation_class"] == "well_annotated"
 
 
 def test_facet_carries_caveat_and_provenance_and_guard_survives_thin_composed_cards():
     """The self-contained _synthesis_facet (target-intrinsic's fan-out carrier) must attach both fields,
     and a validated symbol must stay GUARDED even on the thin 8-card composed subset (structure absent)."""
-    cards = _cards(**{"domain-modality-relevance": {"modality_implication_class": "inhibitor_sufficient"},
-                      "target-development-level": {"tdl_class": "Tclin"},
-                      "gene-ontology-annotation": {"annotation_class": "well_annotated"},
-                      "ppi-interactome": {"interactome_class": "hub"},
-                      "measured-potency-tractability": {"measured_bioactivity_class": "potent_measured_ligand"}})
+    cards = _cards(
+        **{
+            "domain-modality-relevance": {"modality_implication_class": "inhibitor_sufficient"},
+            "target-development-level": {"tdl_class": "Tclin"},
+            "gene-ontology-annotation": {"annotation_class": "well_annotated"},
+            "ppi-interactome": {"interactome_class": "hub"},
+            "measured-potency-tractability": {"measured_bioactivity_class": "potent_measured_ligand"},
+        }
+    )
     facet = RUN._synthesis_facet(cards, [], None, target="BRAF", indication="COADREAD")
     assert "intrinsic_confirmation_caveat" in facet and "intrinsic_provenance" in facet
     assert facet["intrinsic_confirmation_caveat"]["reason"] == "experimentally_confirmed_intrinsic_property"

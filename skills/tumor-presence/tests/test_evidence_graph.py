@@ -9,6 +9,7 @@ graph — the 9/8 role partition, reconstructed signal/confidence/cards, the axi
 the driving-card chain, canonical-polarity + liability flags, and schema validation. VERDICT-INERT:
 nothing here touches the presence_verdict spine.
 """
+
 from __future__ import annotations
 
 import json
@@ -20,14 +21,24 @@ import pytest
 
 # ── the 9/8 role partition (spec §7.4 + appendix) ──
 VERDICT_BEARING = {
-    "cellline-rna-distribution", "tumor-rna-vs-adjacent", "tumor-rna-distribution",
-    "cellline-protein-abundance", "tumor-elevation-breadth", "tumor-scrna-celltype-expression",
-    "expression-purity-confound", "cellline-rna-protein-concordance", "sc-normal-celltype-expression",
+    "cellline-rna-distribution",
+    "tumor-rna-vs-adjacent",
+    "tumor-rna-distribution",
+    "cellline-protein-abundance",
+    "tumor-elevation-breadth",
+    "tumor-scrna-celltype-expression",
+    "expression-purity-confound",
+    "cellline-rna-protein-concordance",
+    "sc-normal-celltype-expression",
 }
 DISPLAY_ONLY = {
-    "tumor-protein-abundance-cptac", "cellline-protein-abundance-procan", "hpa-pathology-cancer-ihc",
-    "rna-protein-concordance-tumor", "tumor-rna-distribution-by-subtype",
-    "cellline-rna-distribution-by-subtype", "tumor-protein-distribution-by-subtype",
+    "tumor-protein-abundance-cptac",
+    "cellline-protein-abundance-procan",
+    "hpa-pathology-cancer-ihc",
+    "rna-protein-concordance-tumor",
+    "tumor-rna-distribution-by-subtype",
+    "cellline-rna-distribution-by-subtype",
+    "tumor-protein-distribution-by-subtype",
     "normal-tissue-liability",
 }
 
@@ -35,8 +46,15 @@ DISPLAY_ONLY = {
 # ── Phase 0 registry sanity ──────────────────────────────────────────────────────────────────────
 def test_questions_registry_loads_seven(eg_questions):
     ids = [q["id"] for q in eg_questions]
-    assert ids == ["expressed_at_all", "vs_other_cancers", "elevated_vs_normal", "subtypes_differ",
-                   "absolute_abundance", "rna_protein_agree", "malignant_intrinsic"]
+    assert ids == [
+        "expressed_at_all",
+        "vs_other_cancers",
+        "elevated_vs_normal",
+        "subtypes_differ",
+        "absolute_abundance",
+        "rna_protein_agree",
+        "malignant_intrinsic",
+    ]
     # unified axis vocabulary present incl. the missing presence axis B (tumor-vs-normal)
     axes = {q["axis_id"] for q in eg_questions if q.get("axis_id")}
     assert axes == {"A", "B", "C", "D"}
@@ -58,19 +76,30 @@ def test_reconstruct_questions_signal_confidence_and_cards(eg_graph):
     # signal + confidence readable off the graph (no prose parsing)
     assert qs["expressed_at_all"]["signal"]["tier"] == "strong"
     assert qs["expressed_at_all"]["confidence"]["level"] == "moderate"
-    assert qs["elevated_vs_normal"]["signal"]["polarity"] == "opposing"   # canonical (was legacy "opposes")
+    assert qs["elevated_vs_normal"]["signal"]["polarity"] == "opposing"  # canonical (was legacy "opposes")
     assert qs["subtypes_differ"]["signal"]["tier"] == "uniform"
     assert qs["malignant_intrinsic"]["confidence"]["level"] == "high"
     # each question's card list (the many-to-many join) matches the curated dashboard exactly
     assert set(qs["expressed_at_all"]["card_ids"]) == {
-        "tumor-rna-distribution", "hpa-pathology-cancer-ihc", "cellline-rna-distribution",
-        "cellline-protein-abundance", "cellline-protein-abundance-procan", "tumor-protein-abundance-cptac"}
+        "tumor-rna-distribution",
+        "hpa-pathology-cancer-ihc",
+        "cellline-rna-distribution",
+        "cellline-protein-abundance",
+        "cellline-protein-abundance-procan",
+        "tumor-protein-abundance-cptac",
+    }
     assert set(qs["elevated_vs_normal"]["card_ids"]) == {
-        "tumor-rna-vs-adjacent", "tumor-protein-abundance-cptac", "normal-tissue-liability",
-        "sc-normal-celltype-expression"}
+        "tumor-rna-vs-adjacent",
+        "tumor-protein-abundance-cptac",
+        "normal-tissue-liability",
+        "sc-normal-celltype-expression",
+    }
     assert set(qs["subtypes_differ"]["card_ids"]) == {
-        "tumor-rna-distribution-by-subtype", "cellline-rna-distribution-by-subtype",
-        "tumor-protein-distribution-by-subtype", "expression-purity-confound"}
+        "tumor-rna-distribution-by-subtype",
+        "cellline-rna-distribution-by-subtype",
+        "tumor-protein-distribution-by-subtype",
+        "expression-purity-confound",
+    }
     # a card appearing in TWO questions (many-to-many) is materialized both directions
     assert set(qs["absolute_abundance"]["card_ids"]) >= {"tumor-rna-distribution"}
     trd = next(c for c in eg_graph["cards"] if c["id"] == "tumor-rna-distribution")
@@ -82,7 +111,7 @@ def test_literature_axis_crosswalk_including_axis_B(eg_graph):
     axes = {ax["axis_id"]: ax for ax in eg_graph["literature"]["axes"]}
     assert set(axes) == {"A", "B", "C", "D"}
     assert axes["A"]["question_ids"] == ["expressed_at_all", "absolute_abundance"]
-    assert axes["B"]["question_ids"] == ["elevated_vs_normal"]          # the missing link
+    assert axes["B"]["question_ids"] == ["elevated_vs_normal"]  # the missing link
     assert axes["C"]["question_ids"] == ["malignant_intrinsic"]
     assert axes["D"]["question_ids"] == ["vs_other_cancers"]
     assert axes["B"]["read"] == "mixed" and axes["B"]["agreement_vs_omics"] == "agree"
@@ -115,7 +144,7 @@ def test_driving_card_chain(eg_graph):
 def test_verdict_node_matches_spine(eg_graph, eg_decision):
     assert eg_graph["verdict"]["id"] == eg_decision["headline"]["presence_verdict"] == "tumor_broadly_expressed"
     assert eg_graph["verdict"]["driving_rule_id"] == "tumor-expression-broadly-high-supportive"
-    assert eg_graph["verdict"]["polarity"] == "supportive"   # canonical (was legacy "positive")
+    assert eg_graph["verdict"]["polarity"] == "supportive"  # canonical (was legacy "positive")
 
 
 # ── P1: one canonical polarity vocabulary + orthogonal liability flag (docs/COMPOSED_EVIDENCE_GRAPH_ROLLUP.md §6)
@@ -147,8 +176,9 @@ def _contracts_schema_path() -> Path | None:
     candidates = []
     if root:
         candidates.append(Path(root) / "schemas" / "evidence_graph.schema.json")
-    candidates.append(Path.home() / "rnd-computational-biology-oncology-target-contracts"
-                      / "schemas" / "evidence_graph.schema.json")
+    candidates.append(
+        Path.home() / "rnd-computational-biology-oncology-target-contracts" / "schemas" / "evidence_graph.schema.json"
+    )
     for c in candidates:
         if c.exists():
             return c

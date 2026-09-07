@@ -14,6 +14,7 @@ These tests make both couplings CI-enforced (fail on drift → conscious update)
 only; no runtime change). The follow-on the review notes (have the loader READ action_precedence rather
 than duplicate it) is optional — this guard makes the duplication safe until then.
 """
+
 from __future__ import annotations
 
 import sys
@@ -52,7 +53,8 @@ def test_every_vocab_veto_hold_gate_is_in_skills_gating_constants():
             problems.append(f"sub_skill {ss!r} has no _GATING_AXIS_FAILCLOSED_ACTION")
     assert not problems, (
         "vocab veto/hold gates drifted from the skills gating constants (add the missing sub_skill/verdict "
-        "to tp_gates.py — a vocab-only gate is NOT fail-closed-guarded):\n  " + "\n  ".join(problems))
+        "to tp_gates.py — a vocab-only gate is NOT fail-closed-guarded):\n  " + "\n  ".join(problems)
+    )
 
 
 def test_gate_action_rank_matches_vocab_action_precedence():
@@ -63,10 +65,12 @@ def test_gate_action_rank_matches_vocab_action_precedence():
     vocab_prec = {str(k): int(v) for k, v in (_vocab().get("action_precedence", {}) or {}).items()}
     assert dict(tp_gates._GATE_ACTION_RANK) == vocab_prec, (
         f"tp_gates._GATE_ACTION_RANK {dict(tp_gates._GATE_ACTION_RANK)} != vocab {vocab_prec} — the loader "
-        f"did not pick up the vocab.")
+        f"did not pick up the vocab."
+    )
     assert dict(tp_gates._FALLBACK_GATE_ACTION_RANK) == vocab_prec, (
         f"_FALLBACK_GATE_ACTION_RANK {dict(tp_gates._FALLBACK_GATE_ACTION_RANK)} drifted from vocab "
-        f"{vocab_prec} — update the fallback so an unreadable-vocab run still ranks veto>hold correctly.")
+        f"{vocab_prec} — update the fallback so an unreadable-vocab run still ranks veto>hold correctly."
+    )
 
 
 def test_gating_axis_supportive_and_suppressor_verdicts_are_recognized():
@@ -83,19 +87,23 @@ def test_gating_axis_supportive_and_suppressor_verdicts_are_recognized():
     gating = tp_gates._GATING_AXES
     referenced: set[tuple[str, str]] = set()
     for block in ("positive_signals", "positive_signals_modality_scoped"):
-        for e in (v.get(block) or []):
+        for e in v.get(block) or []:
             if isinstance(e, dict) and e.get("sub_skill") in gating and e.get("verdict"):
                 referenced.add((e["sub_skill"], e["verdict"]))
-    for s in (v.get("veto_suppressors") or []):
-        for wp in (s.get("when_present") or []):
+    for s in v.get("veto_suppressors") or []:
+        for wp in s.get("when_present") or []:
             if isinstance(wp, dict) and wp.get("sub_skill") in gating and wp.get("verdict"):
                 referenced.add((wp["sub_skill"], wp["verdict"]))
-    missing = [f"{ss}:{vd}" for (ss, vd) in sorted(referenced)
-               if vd not in tp_gates._RECOGNIZED_GATING_VERDICTS.get(ss, frozenset())]
+    missing = [
+        f"{ss}:{vd}"
+        for (ss, vd) in sorted(referenced)
+        if vd not in tp_gates._RECOGNIZED_GATING_VERDICTS.get(ss, frozenset())
+    ]
     assert not missing, (
         "vocab declares supportive/suppressor verdicts for gating axes that are NOT in "
         "_RECOGNIZED_GATING_VERDICTS — the recommendation gate will fail-closed (force hold/veto) on "
-        "them (add each to tp_gates.py):\n  " + "\n  ".join(missing))
+        "them (add each to tp_gates.py):\n  " + "\n  ".join(missing)
+    )
 
 
 def test_gating_constants_are_internally_complete():
@@ -123,9 +131,11 @@ def test_subtype_fit_emitter_tokens_are_recognized_and_declared_in_vocab():
     import tp_fanout  # noqa: E402  (SCRIPTS already on sys.path)
 
     hold = tp_fanout._subtype_verdict(
-        [{"tier": "subtype", "signals": {"subtype_fit_genomic": "opposing"}, "rule_id": "r-neg"}])
+        [{"tier": "subtype", "signals": {"subtype_fit_genomic": "opposing"}, "rule_id": "r-neg"}]
+    )
     positive = tp_fanout._subtype_verdict(
-        [{"tier": "subtype", "signals": {"subtype_fit_genomic": "supportive"}, "rule_id": "r-pos"}])
+        [{"tier": "subtype", "signals": {"subtype_fit_genomic": "supportive"}, "rule_id": "r-pos"}]
+    )
     assert hold and positive, "emitter did not produce both subtype_fit tokens — stale test fixture"
     emitted = {hold[0], positive[0]}
     short = tp_fanout.SUBTYPE_SHORT  # "subtype_fit"
@@ -135,27 +145,29 @@ def test_subtype_fit_emitter_tokens_are_recognized_and_declared_in_vocab():
     assert emitted <= recognized, (
         f"tp_fanout._subtype_verdict emits {sorted(emitted - recognized)} NOT in "
         f"_RECOGNIZED_GATING_VERDICTS[{short!r}] — the recommendation gate will fail-close (hold) on it. "
-        f"Update tp_gates.py to match the emitter.")
+        f"Update tp_gates.py to match the emitter."
+    )
 
     # (2) emitter ↔ gate vocab: every emitted token must be declared for this axis somewhere.
     v = _vocab()
     declared: set[str] = set()
-    for g in (v.get("gates") or []):
+    for g in v.get("gates") or []:
         if g.get("sub_skill") == short and g.get("verdict"):
             declared.add(g["verdict"])
-    for e in ((v.get("kill_capable_verdicts") or {}).get(short) or []):
+    for e in (v.get("kill_capable_verdicts") or {}).get(short) or []:
         if isinstance(e, dict) and e.get("verdict"):
             declared.add(e["verdict"])
     for block in ("positive_signals", "positive_signals_modality_scoped"):
-        for e in (v.get(block) or []):
+        for e in v.get(block) or []:
             if isinstance(e, dict) and e.get("sub_skill") == short and e.get("verdict"):
                 declared.add(e["verdict"])
-    for s in (v.get("veto_suppressors") or []):
-        for wp in (s.get("when_present") or []):
+    for s in v.get("veto_suppressors") or []:
+        for wp in s.get("when_present") or []:
             if isinstance(wp, dict) and wp.get("sub_skill") == short and wp.get("verdict"):
                 declared.add(wp["verdict"])
     missing = emitted - declared
     assert not missing, (
         f"tp_fanout._subtype_verdict emits {sorted(missing)} that the gate vocab never declares for "
         f"{short!r} (gates/kill_capable_verdicts/positive_signals/veto_suppressors) — an emitted token no "
-        f"gate rule references. Add it to nomination_verdict_gate.yaml or fix the emitter.")
+        f"gate rule references. Add it to nomination_verdict_gate.yaml or fix the emitter."
+    )

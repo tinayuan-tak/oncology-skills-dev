@@ -2,6 +2,7 @@
 the TWELFTH concrete. Pins the 4 leg tiers, the DISTINCTIVE cross-grain patient-agreement corroboration
 (bump/cap), the wrong-direction `negative` tiers + conflicts, and the invariant=unmeasured (not absent)
 discipline. Pure."""
+
 from __future__ import annotations
 
 import sys
@@ -12,23 +13,42 @@ if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
 
 from _skills_common.cis_coherence_claims import (  # noqa: E402
-    cis_coherence_claim_vector)
+    cis_coherence_claim_vector,
+)
 
 
 def _cards():
     return [
-        {"card_id": "cis-feature-expression-coherence", "summary": {
-            "cis_dosage_class": "cn_dosage_coupled_strong", "cn_expr_spearman_r": 0.78,
-            "cn_expr_spearman_p": 1e-9, "delta_log2tpm_amplified_vs_neutral": 2.1, "n_amplified": 24,
-            "evidence_scope": "within_indication"}},
-        {"card_id": "cellline-methylation-expression-coherence", "summary": {
-            "methylation_silencing_class": "silencing_coupled_moderate", "silencing_driver": "promoter_hypermeth",
-            "n_hypermethylated": 15}},
-        {"card_id": "expression-dependency-correlation", "summary": {
-            "correlation_class": "strong_negative", "pearson_r": -0.61, "n_cell_lines_evaluated": 40}},
-        {"card_id": "amp-expr-stratified-dependency", "summary": {
-            "amp_expr_stratification_class": "amplified_overexpressed_strongly_dependent",
-            "delta_chronos_amp_expr_vs_rest": -0.5}},
+        {
+            "card_id": "cis-feature-expression-coherence",
+            "summary": {
+                "cis_dosage_class": "cn_dosage_coupled_strong",
+                "cn_expr_spearman_r": 0.78,
+                "cn_expr_spearman_p": 1e-9,
+                "delta_log2tpm_amplified_vs_neutral": 2.1,
+                "n_amplified": 24,
+                "evidence_scope": "within_indication",
+            },
+        },
+        {
+            "card_id": "cellline-methylation-expression-coherence",
+            "summary": {
+                "methylation_silencing_class": "silencing_coupled_moderate",
+                "silencing_driver": "promoter_hypermeth",
+                "n_hypermethylated": 15,
+            },
+        },
+        {
+            "card_id": "expression-dependency-correlation",
+            "summary": {"correlation_class": "strong_negative", "pearson_r": -0.61, "n_cell_lines_evaluated": 40},
+        },
+        {
+            "card_id": "amp-expr-stratified-dependency",
+            "summary": {
+                "amp_expr_stratification_class": "amplified_overexpressed_strongly_dependent",
+                "delta_chronos_amp_expr_vs_rest": -0.5,
+            },
+        },
     ]
 
 
@@ -63,12 +83,15 @@ def test_wrong_direction_is_negative_with_conflict():
 
 
 def test_invariant_is_unmeasured_not_absent():
-    vec = cis_coherence_claim_vector({}, [
-        {"card_id": "cis-feature-expression-coherence", "summary": {"cis_dosage_class": "cn_invariant_panel"}},
-        {"card_id": "expression-dependency-correlation", "summary": {"correlation_class": "no_correlation"}},
-    ])
-    assert vec["CIS_DOSAGE"]["signal"] == "unmeasured"   # untestable panel → resolver abstains (not absent)
-    assert vec["EXPR_DEP"]["signal"] == "absent"          # measured no-correlation
+    vec = cis_coherence_claim_vector(
+        {},
+        [
+            {"card_id": "cis-feature-expression-coherence", "summary": {"cis_dosage_class": "cn_invariant_panel"}},
+            {"card_id": "expression-dependency-correlation", "summary": {"correlation_class": "no_correlation"}},
+        ],
+    )
+    assert vec["CIS_DOSAGE"]["signal"] == "unmeasured"  # untestable panel → resolver abstains (not absent)
+    assert vec["EXPR_DEP"]["signal"] == "absent"  # measured no-correlation
 
 
 def test_atoms_present_and_absent():

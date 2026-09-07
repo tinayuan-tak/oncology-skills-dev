@@ -24,20 +24,27 @@ normal-breadth veto. The CEACAM5/TACSTD2 offline replay guard freezes selectivit
 All inputs are read from `headline` (populated by run.py::_headline via card_summary/get_card_field);
 the `cards` param is accepted for contract-uniformity but unused here.
 """
+
 from __future__ import annotations
 
-from _skills_common.claim_vector_core import (ClaimSpec, build_claim_vector, build_key_signals,
-                                              bump_corroboration, cap_corroboration, sig_ge)
+from _skills_common.claim_vector_core import (
+    ClaimSpec,
+    build_claim_vector,
+    build_key_signals,
+    bump_corroboration,
+    cap_corroboration,
+    sig_ge,
+)
 
 # ── enum → tier maps (grounded in the target-contracts card summary_fields_vocabulary) ────────────
 # tumor-vs-normal-selectivity.selectivity_class (raw pre-veto tumor-vs-origin class)
 _WIN_SIGNAL = {
     "strong_tumor_selective": "strong",
     "modest_tumor_selective": "moderate",
-    "field_effect_tumor_selective": "weak",       # selective vs DISTANT normal, not adjacent → weak window
-    "selective_but_broadly_normal": "weak",        # selective signal but broad normal → window liability
+    "field_effect_tumor_selective": "weak",  # selective vs DISTANT normal, not adjacent → weak window
+    "selective_but_broadly_normal": "weak",  # selective signal but broad normal → window liability
     "discordant_across_comparators": "weak",
-    "not_selective": "absent",                     # a MEASURED negative
+    "not_selective": "absent",  # a MEASURED negative
     "not_informative": "unmeasured",
     "data_unavailable": "unmeasured",
 }
@@ -53,7 +60,7 @@ _DIST_SIGNAL = {
 _INT_SIGNAL = {
     "malignant_broadly_detected": "strong",
     "malignant_subset_detected": "moderate",
-    "microenvironment_dominant": "negative",       # signal is stroma-driven → a FALSE selectivity window
+    "microenvironment_dominant": "negative",  # signal is stroma-driven → a FALSE selectivity window
     "broadly_low": "absent",
     "data_unavailable": "unmeasured",
 }
@@ -102,16 +109,27 @@ def _protein_window_quorum(h) -> dict:
     n_disc = sum(r == _PROTEIN_CONTRADICTED for r in measured)
     plat = "platform" if n == 1 else "platforms"
     if n_disc:
-        return {"status": "contradicted", "n_measured": n, "cap": "low",
-                "note": f"protein layer CONTRADICTS the RNA window (tumor-vs-normal protein down; {n_disc}/{n} MS {plat})"}
-    if n_conc == n:                                          # every measured platform confirms
+        return {
+            "status": "contradicted",
+            "n_measured": n,
+            "cap": "low",
+            "note": f"protein layer CONTRADICTS the RNA window (tumor-vs-normal protein down; {n_disc}/{n} MS {plat})",
+        }
+    if n_conc == n:  # every measured platform confirms
         return {"status": "corroborated", "n_measured": n, "cap": None, "note": None}
-    if n_conc:                                               # some confirm, some silent
-        return {"status": "mixed", "n_measured": n, "cap": "moderate",
-                "note": f"protein corroboration MIXED — {n_conc}/{n} MS {plat} confirm the RNA window"}
-    return {"status": "not_corroborated", "n_measured": n,   # all measured platforms non-significant
-            "cap": "low" if n >= 2 else "moderate",
-            "note": f"protein layer does NOT corroborate the RNA window (not significant on {n} MS {plat})"}
+    if n_conc:  # some confirm, some silent
+        return {
+            "status": "mixed",
+            "n_measured": n,
+            "cap": "moderate",
+            "note": f"protein corroboration MIXED — {n_conc}/{n} MS {plat} confirm the RNA window",
+        }
+    return {
+        "status": "not_corroborated",
+        "n_measured": n,  # all measured platforms non-significant
+        "cap": "low" if n >= 2 else "moderate",
+        "note": f"protein layer does NOT corroborate the RNA window (not significant on {n} MS {plat})",
+    }
 
 
 def _field_effect_note(c) -> str | None:
@@ -125,8 +143,10 @@ def _field_effect_note(c) -> str | None:
     if not isinstance(a, (int, float)) or not isinstance(cc, (int, float)):
         return None
     if a <= 0.5 and cc >= 1.0 and (cc - a) >= 1.0:
-        return (f"high-normal-baseline field effect: tumor≈adjacent-normal (log2FC {a:.1f}) "
-                f"but tumor>distant-normal (log2FC {cc:.1f})")
+        return (
+            f"high-normal-baseline field effect: tumor≈adjacent-normal (log2FC {a:.1f}) "
+            f"but tumor>distant-normal (log2FC {cc:.1f})"
+        )
     return None
 
 
@@ -139,19 +159,21 @@ def _win_signal(h, c):
         conflict = "normal comparators DISAGREE on the tumor-vs-normal direction"
     elif cls == "selective_but_broadly_normal":
         conflict = "selective vs origin but broadly expressed in normal — therapeutic-window liability"
-    ev = (f"tumor-vs-normal: {cls or 'data_unavailable'}, max|log2FC|={_f(h.get('max_abs_log2fc'), 1)}, "
-          f"{h.get('cells_supporting')}/{h.get('cells_ran')} comparators")
+    ev = (
+        f"tumor-vs-normal: {cls or 'data_unavailable'}, max|log2FC|={_f(h.get('max_abs_log2fc'), 1)}, "
+        f"{h.get('cells_supporting')}/{h.get('cells_ran')} comparators"
+    )
     # Adjacent-vs-distant field-effect signature (surfaces the per-comparator split the class collapses).
     fe = _field_effect_note(c)
     if fe:
         ev += f"; {fe}"
-        conflict = (f"{conflict} ({fe})" if conflict else fe)
+        conflict = f"{conflict} ({fe})" if conflict else fe
     # PROTEIN-layer corroboration quorum (CPTAC + TPHP): an RNA window the protein layer fails to
     # corroborate (or contradicts) is a weaker window — surface it as a WIN conflict. The tier cap is
     # applied in _win_corroboration. Verdict-INERT.
     pq = _protein_window_quorum(h)
     if pq["note"]:
-        conflict = (f"{conflict}; {pq['note']}" if conflict else pq["note"])
+        conflict = f"{conflict}; {pq['note']}" if conflict else pq["note"]
     return sig, ev, conflict
 
 
@@ -169,11 +191,11 @@ def _win_corroboration(h, c):
     # (corroboration tier only; selectivity_class + the resolver — which never key on this — untouched).
     conc = h.get("comparator_concordance")
     if conc == "single_comparator":
-        base = cap_corroboration(base, "moderate")   # one independent comparator family; count inflated
+        base = cap_corroboration(base, "moderate")  # one independent comparator family; count inflated
     elif conc == "discordant":
-        base = cap_corroboration(base, "low")         # the two families disagree
+        base = cap_corroboration(base, "low")  # the two families disagree
     if h.get("discordant"):
-        base = cap_corroboration(base, "low")   # disagreeing comparators cap corroboration
+        base = cap_corroboration(base, "low")  # disagreeing comparators cap corroboration
     # PROTEIN-layer quorum: an independent proteomic platform that FAILS to corroborate (or CONTRADICTS)
     # the RNA tumor-vs-normal window caps the WIN corroboration (2 non-corroborating platforms → low;
     # 1 → moderate; a significant OPPOSITE direction → low). A fully corroborating protein layer imposes
@@ -189,8 +211,9 @@ def _win_corroboration(h, c):
 def _dist_signal(h, c):
     cls = h.get("percentile_crossing_class")
     fa = h.get("fraction_tumor_above_normal_p95")
-    ev = (f"per-sample crossing: {cls or 'data_unavailable'}"
-          + (f", {_f((fa or 0) * 100, 0)}% of tumours > normal p95" if isinstance(fa, (int, float)) else ""))
+    ev = f"per-sample crossing: {cls or 'data_unavailable'}" + (
+        f", {_f((fa or 0) * 100, 0)}% of tumours > normal p95" if isinstance(fa, (int, float)) else ""
+    )
     return _DIST_SIGNAL.get(cls, "unmeasured"), ev, None
 
 
@@ -200,7 +223,7 @@ def _dist_corroboration(h, c):
     ov = h.get("distribution_overlap_tumor_normal")
     if not isinstance(ov, (int, float)):
         return "moderate"
-    return "high" if ov <= 0.3 else "moderate" if ov <= 0.6 else "low"   # low overlap = clean separation
+    return "high" if ov <= 0.3 else "moderate" if ov <= 0.6 else "low"  # low overlap = clean separation
 
 
 def _int_signal(h, c):
@@ -211,17 +234,20 @@ def _int_signal(h, c):
     if purity == "microenvironment_confounded":
         conflict = "bulk selectivity may be microenvironment-confounded (purity) — the signal is not clearly tumor-cell-intrinsic"
         if sig_ge(sig, "moderate"):
-            sig = "weak"   # purity contradicts an apparent intrinsic single-cell signal → downgrade
-    ev = (f"single-cell: {cls or 'data_unavailable'}, malignant frac {_f(h.get('sc_malignant_detection_fraction'))}, "
-          f"CAF={h.get('sc_caf_vs_malignant_class')}, purity={purity}")
+            sig = "weak"  # purity contradicts an apparent intrinsic single-cell signal → downgrade
+    ev = (
+        f"single-cell: {cls or 'data_unavailable'}, malignant frac {_f(h.get('sc_malignant_detection_fraction'))}, "
+        f"CAF={h.get('sc_caf_vs_malignant_class')}, purity={purity}"
+    )
     # In-situ SPATIAL region-RNA is a deconvolution-free read of the SAME malignant-compartment question.
     # Surface it in the evidence, and flag a conflict when it DISAGREES with an apparent intrinsic signal.
     spatial = h.get("spatial_rna_class")
     if spatial and spatial != "data_unavailable":
         ev += f", in-situ spatial={spatial}"
         if spatial == "tme_enriched_rna" and sig_ge(sig, "moderate"):
-            conflict = conflict or ("in-situ spatial RNA is TME-enriched — the malignant-compartment "
-                                    "attribution is not confirmed spatially")
+            conflict = conflict or (
+                "in-situ spatial RNA is TME-enriched — the malignant-compartment attribution is not confirmed spatially"
+            )
     return sig, ev, conflict
 
 
@@ -230,7 +256,7 @@ def _int_corroboration(h, c):
         return "unmeasured"
     caf, purity = h.get("sc_caf_vs_malignant_class"), h.get("purity_confound_class")
     if caf == "caf_dominant" or purity == "microenvironment_confounded":
-        return "low"     # a disagreeing arm (stroma-dominant / purity-confounded) caps corroboration
+        return "low"  # a disagreeing arm (stroma-dominant / purity-confounded) caps corroboration
     agree = caf in ("malignant_dominant", "caf_low") and purity in ("tumor_intrinsic", "purity_independent")
     base = "high" if agree else "moderate"
     # QUORUM: in-situ spatial region-RNA is an INDEPENDENT, deconvolution-free arm of the same
@@ -251,23 +277,31 @@ def _int_corroboration(h, c):
 # therapeutic window. The SAFE claim axis must not contradict that KILL by reading `strong` off a clean
 # sc-normal side (the B1-02 bug), so a fired window arm floors the SAFE signal at `negative`.
 def _window_veto_fired(h) -> bool:
-    return (h.get("therapeutic_window_class") == "no_therapeutic_window"
-            or h.get("full_normal_window_class") == "no_full_normal_window")
+    return (
+        h.get("therapeutic_window_class") == "no_therapeutic_window"
+        or h.get("full_normal_window_class") == "no_full_normal_window"
+    )
 
 
 def _safe_signal(h, c):
     cls = h.get("sc_normal_safety_essential_class")
     sig = _SAFE_SIGNAL.get(cls, "unmeasured")
-    conflict = ("critical-organ normal expression — therapeutic-window veto (safety verdict owned by "
-                "on-target-safety-liability)" if cls == "critical_organ_liability" else None)
+    conflict = (
+        "critical-organ normal expression — therapeutic-window veto (safety verdict owned by "
+        "on-target-safety-liability)"
+        if cls == "critical_organ_liability"
+        else None
+    )
     # Normal-breadth WINDOW veto (modality-therapeutic-window): no therapeutic window vs the worst
     # critical/full normal is a normal-side refutation of the whole window. SAFE cannot read a positive
     # signal against a resolved KILL, so floor it at `negative`. Read from the headline, which the
     # tumor-selectivity _headline now populates via the modality-therapeutic-window fetch.
     if _window_veto_fired(h):
         sig = "negative"
-        conflict = conflict or ("no therapeutic window vs the worst critical/full normal — "
-                                "normal-breadth window veto (the housekeeping / broadly-normal KILL)")
+        conflict = conflict or (
+            "no therapeutic window vs the worst critical/full normal — "
+            "normal-breadth window veto (the housekeeping / broadly-normal KILL)"
+        )
     # 4th normal-breadth arm (quantitative normal-PROTEIN abundance, TPHP DIA-MS): a broad_and_abundant
     # normal-protein read is a MEASURED normal-side liability the single-cell-RNA side can miss, so the SAFE
     # claim must not read a clean signal against it — floor at `negative` (a strong liability, same tier as
@@ -275,16 +309,20 @@ def _safe_signal(h, c):
     # _TPHP_NORMAL_PROTEIN_VETO_RULE → selective_with_normal_liability), NOT the housekeeping KILL, so it
     # carries its own named-liability note rather than the window-veto KILL text. Read from cards_by_id
     # (the class is not in the headline). Was invisible to the SAFE claim (_window_veto_fired ignored it).
-    if (c.get("normal-tissue-protein-abundance-tphp") or {}).get("tphp_normal_protein_liability_class") == "broad_and_abundant" \
-            and sig != "negative":
+    if (c.get("normal-tissue-protein-abundance-tphp") or {}).get(
+        "tphp_normal_protein_liability_class"
+    ) == "broad_and_abundant" and sig != "negative":
         sig = "negative"
-        conflict = conflict or ("broad + abundant normal-tissue protein (TPHP DIA-MS) — a named "
-                                "normal-protein liability the single-cell-RNA side can miss "
-                                "(selectivity-preserving; safety verdict owned by on-target-safety-liability)")
-    ev = (f"normal-tissue: {cls or 'data_unavailable'}, sc_normal={h.get('sc_normal_expression_class')}, "
-          f"{h.get('sc_normal_n_cell_types_above_20pct')} normal cell-types >20%"
-          + (f", therapeutic_window={h.get('therapeutic_window_class')}"
-             if h.get("therapeutic_window_class") else ""))
+        conflict = conflict or (
+            "broad + abundant normal-tissue protein (TPHP DIA-MS) — a named "
+            "normal-protein liability the single-cell-RNA side can miss "
+            "(selectivity-preserving; safety verdict owned by on-target-safety-liability)"
+        )
+    ev = (
+        f"normal-tissue: {cls or 'data_unavailable'}, sc_normal={h.get('sc_normal_expression_class')}, "
+        f"{h.get('sc_normal_n_cell_types_above_20pct')} normal cell-types >20%"
+        + (f", therapeutic_window={h.get('therapeutic_window_class')}" if h.get("therapeutic_window_class") else "")
+    )
     return sig, ev, conflict
 
 
@@ -320,40 +358,70 @@ def _satom(card_id: str, summary: dict, keys: tuple, entity: dict, read) -> dict
 
 def _win_atom(h, c):
     cid = "tumor-vs-normal-selectivity"
-    return _satom(cid, c.get(cid) or {},
-                  ("selectivity_class", "max_abs_log2fc", "cells_supporting", "cells_ran",
-                   "comparator_concordance", "dominant_direction"),
-                  {"measurement_type": "tumor_vs_normal_selectivity", "sample_context": "tumor"},
-                  (c.get(cid) or {}).get("selectivity_class"))
+    return _satom(
+        cid,
+        c.get(cid) or {},
+        (
+            "selectivity_class",
+            "max_abs_log2fc",
+            "cells_supporting",
+            "cells_ran",
+            "comparator_concordance",
+            "dominant_direction",
+        ),
+        {"measurement_type": "tumor_vs_normal_selectivity", "sample_context": "tumor"},
+        (c.get(cid) or {}).get("selectivity_class"),
+    )
 
 
 def _dist_atom(h, c):
     cid = "tumor-vs-normal-percentile-crossing"
-    return _satom(cid, c.get(cid) or {},
-                  ("selectivity_class", "fraction_tumor_above_normal_p95",
-                   "distribution_overlap_tumor_normal", "n_tumor_samples", "n_normal_samples"),
-                  {"measurement_type": "tumor_vs_normal_percentile_crossing", "sample_context": "tumor"},
-                  (c.get(cid) or {}).get("selectivity_class"))
+    return _satom(
+        cid,
+        c.get(cid) or {},
+        (
+            "selectivity_class",
+            "fraction_tumor_above_normal_p95",
+            "distribution_overlap_tumor_normal",
+            "n_tumor_samples",
+            "n_normal_samples",
+        ),
+        {"measurement_type": "tumor_vs_normal_percentile_crossing", "sample_context": "tumor"},
+        (c.get(cid) or {}).get("selectivity_class"),
+    )
 
 
 def _int_atom(h, c):
     cid = "tumor-scrna-celltype-expression"
-    return _satom(cid, c.get(cid) or {},
-                  ("sc_expression_class", "malignant_detection_fraction", "caf_vs_malignant_class",
-                   "top_microenvironment_compartment", "malignant_n_donors"),
-                  {"measurement_type": "sc_tumor_celltype_expression", "sample_context": "tumor",
-                   "grain": "single_cell"},
-                  (c.get(cid) or {}).get("sc_expression_class"))
+    return _satom(
+        cid,
+        c.get(cid) or {},
+        (
+            "sc_expression_class",
+            "malignant_detection_fraction",
+            "caf_vs_malignant_class",
+            "top_microenvironment_compartment",
+            "malignant_n_donors",
+        ),
+        {"measurement_type": "sc_tumor_celltype_expression", "sample_context": "tumor", "grain": "single_cell"},
+        (c.get(cid) or {}).get("sc_expression_class"),
+    )
 
 
 def _safe_atom(h, c):
     cid = "sc-normal-celltype-expression"
-    return _satom(cid, c.get(cid) or {},
-                  ("sc_normal_safety_essential_class", "sc_normal_expression_class",
-                   "n_cell_types_above_20pct", "max_detection_fraction"),
-                  {"measurement_type": "sc_normal_celltype_expression", "sample_context": "normal",
-                   "grain": "single_cell"},
-                  (c.get(cid) or {}).get("sc_normal_safety_essential_class"))
+    return _satom(
+        cid,
+        c.get(cid) or {},
+        (
+            "sc_normal_safety_essential_class",
+            "sc_normal_expression_class",
+            "n_cell_types_above_20pct",
+            "max_detection_fraction",
+        ),
+        {"measurement_type": "sc_normal_celltype_expression", "sample_context": "normal", "grain": "single_cell"},
+        (c.get(cid) or {}).get("sc_normal_safety_essential_class"),
+    )
 
 
 SELECTIVITY_CLAIM_SPEC = [
@@ -369,7 +437,8 @@ _DISCLAIMER = (
     "each signal×corroboration. Claims are NOT additive; a weak WIN does not degrade a strong INT. "
     "SAFE is therapeutic-window FRAMING — the safety verdict is owned by on-target-safety-liability. "
     "corroboration is a within-claim support tier, NOT the axis certainty. Never feeds the "
-    "selectivity_class or the normal-breadth veto.")
+    "selectivity_class or the normal-breadth veto."
+)
 
 
 def selectivity_claim_vector(headline: dict, cards: list) -> dict:
@@ -384,21 +453,29 @@ def selectivity_key_signals(headline: dict, cards: list) -> dict:
     h = headline
 
     def sup_win(claim):
-        return (f"Tumor-selective vs normal — {h.get('axis_a_selectivity_class')} "
-                f"(max|log2FC| {_f(h.get('max_abs_log2fc'), 1)}, {h.get('cells_supporting')}/{h.get('cells_ran')} comparators) "
-                f"[tumor-vs-normal-selectivity]")
+        return (
+            f"Tumor-selective vs normal — {h.get('axis_a_selectivity_class')} "
+            f"(max|log2FC| {_f(h.get('max_abs_log2fc'), 1)}, {h.get('cells_supporting')}/{h.get('cells_ran')} comparators) "
+            f"[tumor-vs-normal-selectivity]"
+        )
 
     def sup_dist(claim):
-        return (f"Distributionally separated — {_f((h.get('fraction_tumor_above_normal_p95') or 0) * 100, 0)}% of tumours "
-                f"> normal p95 (overlap {_f(h.get('distribution_overlap_tumor_normal'))}) [percentile-crossing]")
+        return (
+            f"Distributionally separated — {_f((h.get('fraction_tumor_above_normal_p95') or 0) * 100, 0)}% of tumours "
+            f"> normal p95 (overlap {_f(h.get('distribution_overlap_tumor_normal'))}) [percentile-crossing]"
+        )
 
     def sup_int(claim):
-        return (f"Tumor-cell-intrinsic — {_f((h.get('sc_malignant_detection_fraction') or 0) * 100, 0)}% of malignant cells, "
-                f"{h.get('sc_caf_vs_malignant_class')} (purity {h.get('purity_confound_class')}) [single-cell + purity]")
+        return (
+            f"Tumor-cell-intrinsic — {_f((h.get('sc_malignant_detection_fraction') or 0) * 100, 0)}% of malignant cells, "
+            f"{h.get('sc_caf_vs_malignant_class')} (purity {h.get('purity_confound_class')}) [single-cell + purity]"
+        )
 
     def cav_win(claim):
-        return (f"Weak tumor-vs-adjacent window — {h.get('axis_a_selectivity_class')} "
-                f"({h.get('cells_supporting')}/{h.get('cells_ran')} comparators agree) [tumor-vs-normal-selectivity]")
+        return (
+            f"Weak tumor-vs-adjacent window — {h.get('axis_a_selectivity_class')} "
+            f"({h.get('cells_supporting')}/{h.get('cells_ran')} comparators agree) [tumor-vs-normal-selectivity]"
+        )
 
     def cav_dist(claim):
         return f"Poor distributional separation — {h.get('percentile_crossing_class')} [percentile-crossing]"
@@ -409,12 +486,13 @@ def selectivity_key_signals(headline: dict, cards: list) -> dict:
         return f"Weak tumor-cell-intrinsic signal — {h.get('sc_tumor_expression_class')} [single-cell]"
 
     def cav_safe(claim):
-        return (f"Normal-tissue expression → therapeutic-window liability — {h.get('sc_normal_safety_essential_class')} "
-                f"(sc_normal {h.get('sc_normal_expression_class')}) [sc-normal comparators]")
+        return (
+            f"Normal-tissue expression → therapeutic-window liability — {h.get('sc_normal_safety_essential_class')} "
+            f"(sc_normal {h.get('sc_normal_expression_class')}) [sc-normal comparators]"
+        )
 
     def head(v, supports):
-        win, dist, intr, safe = (v["WIN"]["signal"], v["DIST"]["signal"],
-                                 v["INT"]["signal"], v["SAFE"]["signal"])
+        win, dist, intr, safe = (v["WIN"]["signal"], v["DIST"]["signal"], v["INT"]["signal"], v["SAFE"]["signal"])
         # A normal-tissue liability (SAFE negative) is only a "Selective signal, but …" headline when a
         # selective signal ACTUALLY exists (WIN or DIST >= moderate). Without this gate the SAFE-negative
         # branch fired FIRST unconditionally, so measured-negative / discordant targets whose only

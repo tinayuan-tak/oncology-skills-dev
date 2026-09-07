@@ -12,6 +12,7 @@ ontology is updated too.
 Cross-repo: reads the ontology from TARGET_CONTRACTS_ROOT. Graceful-skip only if the contracts checkout
 is absent (isolated CI); otherwise it ENFORCES.
 """
+
 from __future__ import annotations
 
 import ast
@@ -21,10 +22,10 @@ from pathlib import Path
 import pytest
 import yaml
 
-_SKILLS = Path(__file__).resolve().parents[2]                       # .../skills
-_CONTRACTS = Path(os.environ.get(
-    "TARGET_CONTRACTS_ROOT",
-    "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
+_SKILLS = Path(__file__).resolve().parents[2]  # .../skills
+_CONTRACTS = Path(
+    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+)
 _AXES = _CONTRACTS / "vocabularies" / "target_profiling_axes.yaml"
 
 # Skills exempt from reverse-coverage: target-intrinsic DISPLAYS cards homed in sibling skills (its
@@ -70,7 +71,7 @@ def test_every_consumed_card_is_anchored_in_a_question():
         if not skill or skill in _EXEMPT_SKILLS or not s.get("questions"):
             continue
         cards = _run_py_cards(skill)
-        if not cards:                                  # skill dir absent / no CARDS → nothing to check
+        if not cards:  # skill dir absent / no CARDS → nothing to check
             continue
         checked += 1
         missing = sorted(cards - _answered_by(s))

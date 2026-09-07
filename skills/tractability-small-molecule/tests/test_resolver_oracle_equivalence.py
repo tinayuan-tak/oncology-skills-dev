@@ -10,6 +10,7 @@ interpreter finds (primary checkout on main once TC #219 merges); if the spec is
 before merge), the delegating _snapshot RAISES — the test then SKIPS with a clear reason rather than
 red-flagging an unmerged-contract state. The exhaustive frozen guarantee also lives in the shared
 _skills_common/tests/test_resolver_golden_snapshots.py (whose table was generated from this same oracle)."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -25,20 +26,20 @@ RULE_IDS = [
     "e7-triangulated-target-engaged-supportive",
     "e7-crispr-confirmed-supportive-sm",
     "prism-clinically-active-supportive-sm",
-    "known-drug-approved-antineoplastic-sm-supportive",   # E-known-drug: approved -> chemically_active
-    "measured-chembl-approved-sm-supportive",             # WS-E: ChEMBL phase>=4 -> chemically_active
-    "measured-chembl-clinical-precedent-sm-supportive",   # WS-E: ChEMBL phase 1-3 -> clinical_precedent_only (authoritative)
-    "prism-clinical-precedent-only-weak-supportive-sm",   # T1.2: clinical annotation, no measured activity
+    "known-drug-approved-antineoplastic-sm-supportive",  # E-known-drug: approved -> chemically_active
+    "measured-chembl-approved-sm-supportive",  # WS-E: ChEMBL phase>=4 -> chemically_active
+    "measured-chembl-clinical-precedent-sm-supportive",  # WS-E: ChEMBL phase 1-3 -> clinical_precedent_only (authoritative)
+    "prism-clinical-precedent-only-weak-supportive-sm",  # T1.2: clinical annotation, no measured activity
     "prism-tool-compound-only-weak-supportive-sm",
     "prism-weakly-active-weak-supportive-sm",
     "e7-discordant-off-target-warning",
-    "measured-potent-ligand-sm-supportive",               # T3.1: ChEMBL/BindingDB potent MEASURED series
+    "measured-potent-ligand-sm-supportive",  # T3.1: ChEMBL/BindingDB potent MEASURED series
     "ligandability-experimental-sm-supportive",
     "hotspot-in-druggable-pocket-sm-supportive-e8",
     "structure-pocket-adjacent-sm-supportive",
     "ligandability-predicted-sm-supportive",
-    "known-drug-druggable-category-sm-supportive",        # E-known-drug: category -> structurally_ligandable
-    "measured-weak-ligand-sm-supportive",                 # T3.1: weak measured activity -> structurally_ligandable
+    "known-drug-druggable-category-sm-supportive",  # E-known-drug: category -> structurally_ligandable
+    "measured-weak-ligand-sm-supportive",  # T3.1: weak measured activity -> structurally_ligandable
     "structure-low-confidence-sm-opposing",
     "ligandability-disordered-sm-opposing",
     "prism-no-compounds-found-neutral",
@@ -64,17 +65,20 @@ def _resolver_available() -> bool:
 
 def test_resolver_matches_if_chain_oracle_for_all_combos():
     if not _resolver_available():
-        pytest.skip("tractability_small_molecule resolver spec not resolvable "
-                    "(TC contract PR not merged into the checkout yet) — equivalence covered by "
-                    "the shared resolver_golden_snapshots table once merged.")
+        pytest.skip(
+            "tractability_small_molecule resolver spec not resolvable "
+            "(TC contract PR not merged into the checkout yet) — equivalence covered by "
+            "the shared resolver_golden_snapshots table once merged."
+        )
     n = len(RULE_IDS)
     mismatches = []
-    for bits in range(2 ** n):
+    for bits in range(2**n):
         fired = [{"rule_id": RULE_IDS[i]} for i in range(n) if bits & (1 << i)]
-        got = tp._snapshot(fired)                     # delegates to the resolver
-        exp = tp._snapshot_legacy_oracle(fired)       # the retained if-chain oracle
+        got = tp._snapshot(fired)  # delegates to the resolver
+        exp = tp._snapshot_legacy_oracle(fired)  # the retained if-chain oracle
         if got != exp:
             mismatches.append((sorted(r["rule_id"] for r in fired), exp, got))
     assert not mismatches, (
         f"{len(mismatches)}/{2**n} combos DIVERGED between the resolver and the if-chain oracle. "
-        f"First: {mismatches[:3]}")
+        f"First: {mismatches[:3]}"
+    )

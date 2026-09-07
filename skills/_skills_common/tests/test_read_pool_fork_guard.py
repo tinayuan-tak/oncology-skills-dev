@@ -7,6 +7,7 @@ a worker thread. _read_cards_process guards against this: it forks ONLY from the
 SINGLE-threaded process, else transparently uses the thread pool. These tests pin all THREE arms of
 that guard (single-threaded main forks; off-main falls back; multithreaded-main falls back) without
 actually forking (a fake process context stands in for the real fork pool)."""
+
 from __future__ import annotations
 
 import multiprocessing
@@ -22,6 +23,7 @@ import _skills_common as skc
 class _FakePool:
     """Stand-in for a multiprocessing fork Pool — its .map tags each result 'PROC' so a test can tell
     the fork branch ran, without spawning a real process under pytest."""
+
     def __init__(self, processes=None):
         self.processes = processes
 
@@ -45,9 +47,12 @@ def _install_fakes(monkeypatch):
     branches are distinguishable by their return values."""
     monkeypatch.setattr(multiprocessing, "get_context", lambda method: _FakeCtx())
     monkeypatch.setattr(
-        skc, "_read_cards_threaded",
-        lambda card_ids, target, indication, subgroup_context, max_workers, plot_data_root=None:
-            [f"THREAD:{c}" for c in card_ids])
+        skc,
+        "_read_cards_threaded",
+        lambda card_ids, target, indication, subgroup_context, max_workers, plot_data_root=None: [
+            f"THREAD:{c}" for c in card_ids
+        ],
+    )
 
 
 def test_forks_on_single_threaded_main(monkeypatch):
@@ -73,7 +78,8 @@ def test_falls_back_to_threads_off_main_thread(monkeypatch):
     t.start()
     t.join()
     assert result["out"] == ["THREAD:a", "THREAD:b"], (
-        "off the main thread the fork pool must fall back to threads (fork-from-thread deadlock guard)")
+        "off the main thread the fork pool must fall back to threads (fork-from-thread deadlock guard)"
+    )
 
 
 def test_falls_back_when_main_thread_is_multithreaded(monkeypatch):
@@ -82,5 +88,4 @@ def test_falls_back_when_main_thread_is_multithreaded(monkeypatch):
     _install_fakes(monkeypatch)
     monkeypatch.setattr(threading, "active_count", lambda: 3)
     out = skc._read_cards_process(["a", "b"], "TGT", "IND", None, 8)
-    assert out == ["THREAD:a", "THREAD:b"], (
-        "a multithreaded main thread must NOT fork — fall back to the thread pool")
+    assert out == ["THREAD:a", "THREAD:b"], "a multithreaded main thread must NOT fork — fall back to the thread pool"

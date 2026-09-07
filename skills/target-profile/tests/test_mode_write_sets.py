@@ -1,5 +1,6 @@
 """PR-2 — tp_emit single sink. Pins the per-mode artifact write-set (MODE_WRITE_SETS) so a run mode can
 never silently gain or drop a dashboard/spine artifact. Pure logic (no S3/render)."""
+
 from __future__ import annotations
 
 import types
@@ -10,7 +11,7 @@ import pytest
 from _test_support import load_run_py
 
 load_run_py(Path(__file__).resolve().parents[1], "tp_run_emit")  # bootstraps scripts/ onto sys.path
-import tp_emit          # noqa: E402
+import tp_emit  # noqa: E402
 
 
 def _args(**kw):
@@ -58,7 +59,7 @@ def test_assert_write_set_tracks_written_not_disk():
     # keys on the run-scoped `written` set, NOT files on disk. Required = expected − best-effort(html).
     # missing a required kind → raises.
     with pytest.raises(AssertionError):
-        tp_emit.assert_write_set(_args(), {"nomination", "markdown"})            # missing provenance
+        tp_emit.assert_write_set(_args(), {"nomination", "markdown"})  # missing provenance
     # required present, html omitted (best-effort) → OK.
     tp_emit.assert_write_set(_args(), {"nomination", "markdown", "provenance"})
     # html present too → still OK (within expected).

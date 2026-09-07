@@ -33,36 +33,54 @@ never re-computes the verdict (owned by the shared safety resolver). Verdict-INE
 computed safety _headline; the EGFR/FLT3 replay guards freeze the safety verdict byte-stable with or
 without this.
 """
+
 from __future__ import annotations
 
-from _skills_common.claim_vector_core import (ClaimSpec, build_claim_vector, build_key_signals,
-                                              bump_corroboration, cap_corroboration, sig_ge)
+from _skills_common.claim_vector_core import (
+    ClaimSpec,
+    build_claim_vector,
+    build_key_signals,
+    bump_corroboration,
+    cap_corroboration,
+    sig_ge,
+)
 
 # ── enum → LIABILITY tier maps (grounded in the target-contracts card summary_fields_vocabulary) ────
 _CONSTRAINT_SIGNAL = {
-    "highly_constrained": "strong", "moderately_constrained": "moderate",
-    "tolerant": "absent",                    # MEASURED: LoF-tolerant → no constraint concern
+    "highly_constrained": "strong",
+    "moderately_constrained": "moderate",
+    "tolerant": "absent",  # MEASURED: LoF-tolerant → no constraint concern
     "indeterminate": "unmeasured",
 }
 _BURDEN_SIGNAL = {
-    "lof_risk_phenotype": "strong", "direction_unresolved": "weak",
-    "protective": "negative",                # MEASURED opposite direction (LoF protective) → not a liability
-    "no_burden_signal": "absent", "insufficient": "unmeasured",
+    "lof_risk_phenotype": "strong",
+    "direction_unresolved": "weak",
+    "protective": "negative",  # MEASURED opposite direction (LoF protective) → not a liability
+    "no_burden_signal": "absent",
+    "insufficient": "unmeasured",
 }
 _DOSAGE_SIGNAL = {
-    "autosomal_dominant_loss": "strong",     # haploinsufficiency
-    "unresolved": "weak", "dosage_sufficient": "absent",
-    "no_clingen_entry": "unmeasured", "insufficient": "unmeasured",
+    "autosomal_dominant_loss": "strong",  # haploinsufficiency
+    "unresolved": "weak",
+    "dosage_sufficient": "absent",
+    "no_clingen_entry": "unmeasured",
+    "insufficient": "unmeasured",
 }
 _CLINVAR_SIGNAL = {
-    "germline_pathogenic": "strong", "germline_pathogenic_low_review": "moderate",
-    "somatic_only": "weak",                  # somatic, not germline-LoF → weaker on-target-safety read
-    "no_pathogenic_signal": "absent", "no_clinvar_entry": "unmeasured", "insufficient": "unmeasured",
+    "germline_pathogenic": "strong",
+    "germline_pathogenic_low_review": "moderate",
+    "somatic_only": "weak",  # somatic, not germline-LoF → weaker on-target-safety read
+    "no_pathogenic_signal": "absent",
+    "no_clinvar_entry": "unmeasured",
+    "insufficient": "unmeasured",
 }
 _MOUSEKO_SIGNAL = {
-    "lethal_ko": "strong", "severe_organ_phenotype": "strong",
-    "developmental_only": "moderate",        # developmental lethality — less relevant to adult dosing
-    "mild_phenotype": "weak", "no_phenotype": "absent", "insufficient": "unmeasured",
+    "lethal_ko": "strong",
+    "severe_organ_phenotype": "strong",
+    "developmental_only": "moderate",  # developmental lethality — less relevant to adult dosing
+    "mild_phenotype": "weak",
+    "no_phenotype": "absent",
+    "insufficient": "unmeasured",
 }
 # DepMap pan-essentiality as a BROAD-TOX liability (data-util expansion 2026-08-21): common_essential =
 # required across the whole panel → a full-KO agent kills normal cells too. A SELECTIVE dependency
@@ -70,17 +88,18 @@ _MOUSEKO_SIGNAL = {
 # concern. Underpowered rungs are a coverage gap.
 _PANESS_SIGNAL = {
     "common_essential": "strong",
-    "broadly_dependent": "moderate",          # dependent in many (not pan) lineages — partial breadth
+    "broadly_dependent": "moderate",  # dependent in many (not pan) lineages — partial breadth
     "common_essential_underpowered": "weak",
-    "strongly_selective": "absent",           # MEASURED: selective → a window exists (not a broad-tox liability)
-    "non_dependent": "absent", "non_dependent_underpowered": "unmeasured",
+    "strongly_selective": "absent",  # MEASURED: selective → a window exists (not a broad-tox liability)
+    "non_dependent": "absent",
+    "non_dependent_underpowered": "unmeasured",
     "data_unavailable": "unmeasured",
 }
 # HPA-IHC essential-tissue protein liability (data-util expansion 2026-08-21): protein detected in a
 # curated essential normal tissue → on-target-off-tumor tox for a full-KO SM/degrader. Scalar flag.
 _NORMALTISSUE_SIGNAL = {
-    "present": "strong",                      # essential-tissue protein expression
-    "absent": "absent",                       # MEASURED: no essential-tissue expression
+    "present": "strong",  # essential-tissue protein expression
+    "absent": "absent",  # MEASURED: no essential-tissue expression
 }
 # On-target clinical PHARMACOVIGILANCE (2026-09-04 literature/signal-surfacing): do drugs that ENGAGE the
 # target carry FDA black-box / withdrawn warnings, and what toxicity CLASSES (OT drug-warning ⋈ MoA +
@@ -92,12 +111,12 @@ _NORMALTISSUE_SIGNAL = {
 # scalar safety verdict does not read it; matches the drug-warning-safety / onsides-adverse-event-safety
 # cards' no-resolver-rung posture). A withdrawn / black-box class is a STRONG clinical liability SIGNAL.
 _PHARMACOVIGILANCE_SIGNAL = {
-    "withdrawn_drug":    "strong",            # an engaging drug was WITHDRAWN (strongest pharmacovigilance flag)
-    "black_box_warned":  "strong",            # an engaging drug carries an FDA black-box warning
-    "other_warning":     "moderate",          # engaging drug(s) warned, neither withdrawn nor black-box
-    "no_warning":        "absent",            # MEASURED: engaging drug(s) exist, none warned
-    "no_targeted_drug":  "unmeasured",        # coverage gap: no OT-MoA drug engages the target
-    "insufficient":      "unmeasured",
+    "withdrawn_drug": "strong",  # an engaging drug was WITHDRAWN (strongest pharmacovigilance flag)
+    "black_box_warned": "strong",  # an engaging drug carries an FDA black-box warning
+    "other_warning": "moderate",  # engaging drug(s) warned, neither withdrawn nor black-box
+    "no_warning": "absent",  # MEASURED: engaging drug(s) exist, none warned
+    "no_targeted_drug": "unmeasured",  # coverage gap: no OT-MoA drug engages the target
+    "insufficient": "unmeasured",
 }
 
 _INFORMS = {
@@ -109,7 +128,7 @@ _INFORMS = {
     "PAN_ESSENTIAL": "DepMap pan-essentiality — broad normal-tissue tox of full loss (no therapeutic window)",
     "NORMAL_TISSUE": "HPA-IHC essential-tissue protein — on-target-off-tumor liability for a full-KO agent",
     "PHARMACOVIGILANCE": "on-target clinical pharmacovigilance — FDA warnings / toxicity classes of drugs "
-                         "that engage the target (confounded CONTEXT, orients not holds)",
+    "that engage the target (confounded CONTEXT, orients not holds)",
 }
 # EVERY claim is a LIABILITY: a strong signal is a RISK the safety VERDICT owns, not a nomination win.
 _LIABILITY_NOTE = " (LIABILITY — a strong signal is a safety CONCERN; verdict owned by the safety resolver)"
@@ -132,11 +151,15 @@ def _constraint_signal(h, c):
     # scalar downgrade was retired (safety.resolver 2.0.0); it now lives in the per-modality safety verdict,
     # NOT the scalar. Surfaced here as a tension (tier unchanged — this is the SIGNAL, not the verdict).
     if sig_ge(sig, "moderate") and h.get("alteration_functional_direction") == "activating":
-        conflict = ("activating (GoF) driver: the WT LoF-constraint concern is MODALITY-CONDITIONAL — an "
-                    "allele-selective small molecule may spare WT protein (see the per-modality safety "
-                    "verdict); the scalar safety verdict is the raw concern and is NOT downgraded")
-    ev = (f"gnomAD: {cls or 'data_unavailable'}, pLI={_f(h.get('pli_score'))}, LOEUF={_f(h.get('loeuf_score'))}, "
-          f"obs/exp LoF={h.get('obs_lof_count')}/{_f(h.get('exp_lof_count'), 1)}")
+        conflict = (
+            "activating (GoF) driver: the WT LoF-constraint concern is MODALITY-CONDITIONAL — an "
+            "allele-selective small molecule may spare WT protein (see the per-modality safety "
+            "verdict); the scalar safety verdict is the raw concern and is NOT downgraded"
+        )
+    ev = (
+        f"gnomAD: {cls or 'data_unavailable'}, pLI={_f(h.get('pli_score'))}, LOEUF={_f(h.get('loeuf_score'))}, "
+        f"obs/exp LoF={h.get('obs_lof_count')}/{_f(h.get('exp_lof_count'), 1)}"
+    )
     return sig, ev, conflict
 
 
@@ -153,13 +176,17 @@ def _constraint_corr(h, c):
     # corroboration, a CONTRADICTING s_het (gnomAD-constrained yet LoF-tolerant) caps it. Previously this was
     # pinned 'high' on pLI+LOEUF presence ALONE — a dead-constant column; s_het makes it carry real
     # cross-source agreement. Verdict-INERT (the safety verdict is the resolver's, not this projection's).
-    base = "moderate" if isinstance(h.get("pli_score"), (int, float)) and isinstance(h.get("loeuf_score"), (int, float)) else "low"
+    base = (
+        "moderate"
+        if isinstance(h.get("pli_score"), (int, float)) and isinstance(h.get("loeuf_score"), (int, float))
+        else "low"
+    )
     shet = h.get("shet_class")
-    if shet in _SHET_CONSTRAINED:                       # independent agreeing arm → moderate→high (low→moderate)
+    if shet in _SHET_CONSTRAINED:  # independent agreeing arm → moderate→high (low→moderate)
         return bump_corroboration(base, True)
     if shet in _SHET_TOLERANT and sig_ge(_CONSTRAINT_SIGNAL.get(h.get("constraint_class")), "moderate"):
-        return cap_corroboration(base, "low")           # gnomAD-constrained but s_het-tolerant → conflict caps
-    return base                                         # s_het indeterminate / absent → single-source base
+        return cap_corroboration(base, "low")  # gnomAD-constrained but s_het-tolerant → conflict caps
+    return base  # s_het indeterminate / absent → single-source base
 
 
 def _burden_signal(h, c):
@@ -182,7 +209,11 @@ def _dosage_signal(h, c):
 
 
 def _dosage_corr(h, c):
-    return "moderate" if _DOSAGE_SIGNAL.get(h.get("dosage_sensitivity_class"), "unmeasured") != "unmeasured" else "unmeasured"
+    return (
+        "moderate"
+        if _DOSAGE_SIGNAL.get(h.get("dosage_sensitivity_class"), "unmeasured") != "unmeasured"
+        else "unmeasured"
+    )
 
 
 def _clinvar_signal(h, c):
@@ -198,7 +229,11 @@ def _clinvar_signal(h, c):
 
 
 def _clinvar_corr(h, c):
-    return "moderate" if _CLINVAR_SIGNAL.get(h.get("clinvar_pathogenic_class"), "unmeasured") != "unmeasured" else "unmeasured"
+    return (
+        "moderate"
+        if _CLINVAR_SIGNAL.get(h.get("clinvar_pathogenic_class"), "unmeasured") != "unmeasured"
+        else "unmeasured"
+    )
 
 
 def _mouseko_signal(h, c):
@@ -214,7 +249,11 @@ def _mouseko_signal(h, c):
 
 
 def _mouseko_corr(h, c):
-    return "moderate" if _MOUSEKO_SIGNAL.get(h.get("mouse_ko_phenotype_class"), "unmeasured") != "unmeasured" else "unmeasured"
+    return (
+        "moderate"
+        if _MOUSEKO_SIGNAL.get(h.get("mouse_ko_phenotype_class"), "unmeasured") != "unmeasured"
+        else "unmeasured"
+    )
 
 
 def _paness_signal(h, c):
@@ -224,15 +263,19 @@ def _paness_signal(h, c):
     # mechanism conditioning (mirrors CONSTRAINT): for a mutant-selective GoF, WT-sparing makes the
     # broad-tox concern MODALITY-CONDITIONAL. Retired from the scalar verdict; now per-modality only.
     if sig_ge(sig, "moderate") and h.get("alteration_functional_direction") == "activating":
-        conflict = ("activating (GoF) driver: the broad-tox pan-essential concern is MODALITY-CONDITIONAL — "
-                    "an allele-selective small molecule may spare WT in normal tissue (see the per-modality "
-                    "safety verdict); the scalar safety verdict is the raw concern and is NOT downgraded")
+        conflict = (
+            "activating (GoF) driver: the broad-tox pan-essential concern is MODALITY-CONDITIONAL — "
+            "an allele-selective small molecule may spare WT in normal tissue (see the per-modality "
+            "safety verdict); the scalar safety verdict is the raw concern and is NOT downgraded"
+        )
     ev = f"DepMap: {cls or 'data_unavailable'}, pan_essential_score={_f(h.get('pan_essential_score'))}"
     return sig, ev, conflict
 
 
 def _paness_corr(h, c):
-    return "high" if _PANESS_SIGNAL.get(h.get("dependency_class"), "unmeasured") not in ("unmeasured",) else "unmeasured"
+    return (
+        "high" if _PANESS_SIGNAL.get(h.get("dependency_class"), "unmeasured") not in ("unmeasured",) else "unmeasured"
+    )
 
 
 # When the ESSENTIAL-tissue flag is indeterminate (`unknown`) but the card DID measure normal-tissue
@@ -251,8 +294,10 @@ def _normaltissue_sig(h) -> str:
 
 
 def _normaltissue_signal(h, c):
-    ev = (f"HPA-IHC: essential_tissue_flag={h.get('essential_tissue_flag') or 'data_unavailable'}, "
-          f"tissues={h.get('essential_tissues_flagged')}, breadth={h.get('normal_tissue_breadth_class')}")
+    ev = (
+        f"HPA-IHC: essential_tissue_flag={h.get('essential_tissue_flag') or 'data_unavailable'}, "
+        f"tissues={h.get('essential_tissues_flagged')}, breadth={h.get('normal_tissue_breadth_class')}"
+    )
     return _normaltissue_sig(h), ev, None
 
 
@@ -270,18 +315,19 @@ def _normaltissue_corr(h, c):
     sig = _normaltissue_sig(h)
     if sig == "unmeasured":
         return "unmeasured"
-    hpa_liability = sig_ge(sig, "moderate")          # present/broad = liability; absent = clean
+    hpa_liability = sig_ge(sig, "moderate")  # present/broad = liability; absent = clean
     gtex = (c.get("normal-tissue-liability-gtex") or {}).get("liability_class")
     if gtex in _GTEX_LIABILITY:
         return bump_corroboration("moderate", True) if hpa_liability else cap_corroboration("moderate", "low")
     if gtex in _GTEX_CLEAN:
         return bump_corroboration("moderate", True) if not hpa_liability else cap_corroboration("moderate", "low")
-    return "moderate"                                # GTEx unavailable / indeterminate → single-source base
+    return "moderate"  # GTEx unavailable / indeterminate → single-source base
 
 
 _PHARMACOVIGILANCE_CAVEAT = (
     "CONFOUNDED on-target-vs-off-target (drug-name→gene join, class-wide recall) — pharmacovigilance "
-    "CONTEXT that ORIENTS the reader; the scalar safety verdict does not read it")
+    "CONTEXT that ORIENTS the reader; the scalar safety verdict does not read it"
+)
 
 
 def _pharmacovigilance_signal(h, c):
@@ -311,8 +357,9 @@ def _pharmacovigilance_signal(h, c):
 
 
 def _pharmacovigilance_corr(h, c):
-    measured = (_PHARMACOVIGILANCE_SIGNAL.get(h.get("drug_warning_class"), "unmeasured") != "unmeasured"
-                or bool(h.get("onsides_has_boxed_warning")))
+    measured = _PHARMACOVIGILANCE_SIGNAL.get(h.get("drug_warning_class"), "unmeasured") != "unmeasured" or bool(
+        h.get("onsides_has_boxed_warning")
+    )
     # CAP at `moderate` — the on/off-target confound means a black-box hit is never a high-corroboration read.
     return "moderate" if measured else "unmeasured"
 
@@ -327,76 +374,161 @@ def _atom(card_id, summary, keys, entity, read):
 
 def _constraint_atom(h, c):
     cid = "gnomad-lof-constraint"
-    return _atom(cid, c.get(cid) or {},
-                 ("constraint_class", "pli_score", "loeuf_score", "mis_z_score",
-                  "obs_lof_count", "exp_lof_count"),
-                 {"measurement_type": "gnomad_lof_constraint", "grain": "target", "valence": "liability"},
-                 (c.get(cid) or {}).get("constraint_class"))
+    return _atom(
+        cid,
+        c.get(cid) or {},
+        ("constraint_class", "pli_score", "loeuf_score", "mis_z_score", "obs_lof_count", "exp_lof_count"),
+        {"measurement_type": "gnomad_lof_constraint", "grain": "target", "valence": "liability"},
+        (c.get(cid) or {}).get("constraint_class"),
+    )
 
 
 def _burden_atom(h, c):
     cid = "gene-burden-safety"
-    return _atom(cid, c.get(cid) or {}, ("burden_safety_class", "min_pvalue", "top_disease"),
-                 {"measurement_type": "gene_burden_safety", "grain": "target", "valence": "liability"},
-                 (c.get(cid) or {}).get("burden_safety_class"))
+    return _atom(
+        cid,
+        c.get(cid) or {},
+        ("burden_safety_class", "min_pvalue", "top_disease"),
+        {"measurement_type": "gene_burden_safety", "grain": "target", "valence": "liability"},
+        (c.get(cid) or {}).get("burden_safety_class"),
+    )
 
 
 def _dosage_atom(h, c):
     cid = "clingen-dosage"
-    return _atom(cid, c.get(cid) or {}, ("dosage_sensitivity_class", "germline_inheritance_mode", "top_disease"),
-                 {"measurement_type": "dosage_sensitivity_safety", "grain": "target", "valence": "liability"},
-                 (c.get(cid) or {}).get("dosage_sensitivity_class"))
+    return _atom(
+        cid,
+        c.get(cid) or {},
+        ("dosage_sensitivity_class", "germline_inheritance_mode", "top_disease"),
+        {"measurement_type": "dosage_sensitivity_safety", "grain": "target", "valence": "liability"},
+        (c.get(cid) or {}).get("dosage_sensitivity_class"),
+    )
 
 
 def _clinvar_atom(h, c):
     cid = "clinvar-pathogenicity-safety"
-    return _atom(cid, c.get(cid) or {}, ("clinvar_pathogenic_class", "top_disease"),
-                 {"measurement_type": "clinvar_germline_pathogenicity_safety", "grain": "target", "valence": "liability"},
-                 (c.get(cid) or {}).get("clinvar_pathogenic_class"))
+    return _atom(
+        cid,
+        c.get(cid) or {},
+        ("clinvar_pathogenic_class", "top_disease"),
+        {"measurement_type": "clinvar_germline_pathogenicity_safety", "grain": "target", "valence": "liability"},
+        (c.get(cid) or {}).get("clinvar_pathogenic_class"),
+    )
 
 
 def _mouseko_atom(h, c):
     cid = "mouse-ko-phenotype"
-    return _atom(cid, c.get(cid) or {}, ("ko_phenotype_class", "top_lethal_label"),
-                 {"measurement_type": "mouse_ko_phenotype_safety", "grain": "target", "valence": "liability"},
-                 (c.get(cid) or {}).get("ko_phenotype_class"))
+    return _atom(
+        cid,
+        c.get(cid) or {},
+        ("ko_phenotype_class", "top_lethal_label"),
+        {"measurement_type": "mouse_ko_phenotype_safety", "grain": "target", "valence": "liability"},
+        (c.get(cid) or {}).get("ko_phenotype_class"),
+    )
 
 
 def _paness_atom(h, c):
     cid = "pan-cancer-crispr-dependency-distribution"
-    return _atom(cid, c.get(cid) or {}, ("dependency_class", "pan_essential_score", "distribution_shape"),
-                 {"measurement_type": "crispr_lof_dependency", "grain": "target", "valence": "liability"},
-                 (c.get(cid) or {}).get("dependency_class"))
+    return _atom(
+        cid,
+        c.get(cid) or {},
+        ("dependency_class", "pan_essential_score", "distribution_shape"),
+        {"measurement_type": "crispr_lof_dependency", "grain": "target", "valence": "liability"},
+        (c.get(cid) or {}).get("dependency_class"),
+    )
 
 
 def _normaltissue_atom(h, c):
     cid = "normal-tissue-liability"
-    return _atom(cid, c.get(cid) or {}, ("essential_tissue_flag", "essential_tissues_flagged", "normal_tissue_breadth_class"),
-                 {"measurement_type": "normal_tissue_protein_breadth", "grain": "target", "valence": "liability"},
-                 (c.get(cid) or {}).get("essential_tissue_flag"))
+    return _atom(
+        cid,
+        c.get(cid) or {},
+        ("essential_tissue_flag", "essential_tissues_flagged", "normal_tissue_breadth_class"),
+        {"measurement_type": "normal_tissue_protein_breadth", "grain": "target", "valence": "liability"},
+        (c.get(cid) or {}).get("essential_tissue_flag"),
+    )
 
 
 def _pharmacovigilance_atom(h, c):
     cid = "drug-warning-safety"
-    return _atom(cid, c.get(cid) or {}, ("drug_warning_class", "has_black_box", "toxicity_classes",
-                                         "warning_types", "n_targeted_warned_drugs"),
-                 {"measurement_type": "drug_warning_safety", "grain": "target", "valence": "liability"},
-                 (c.get(cid) or {}).get("drug_warning_class"))
+    return _atom(
+        cid,
+        c.get(cid) or {},
+        ("drug_warning_class", "has_black_box", "toxicity_classes", "warning_types", "n_targeted_warned_drugs"),
+        {"measurement_type": "drug_warning_safety", "grain": "target", "valence": "liability"},
+        (c.get(cid) or {}).get("drug_warning_class"),
+    )
 
 
 SAFETY_CLAIM_SPEC = [
-    ClaimSpec("CONSTRAINT", "gnomAD LoF constraint", _constraint_signal, _constraint_corr, _INFORMS["CONSTRAINT"] + _LIABILITY_NOTE, _constraint_atom),
-    ClaimSpec("BURDEN", "population gene-burden", _burden_signal, _burden_corr, _INFORMS["BURDEN"] + _LIABILITY_NOTE, _burden_atom),
-    ClaimSpec("DOSAGE", "ClinGen dosage sensitivity", _dosage_signal, _dosage_corr, _INFORMS["DOSAGE"] + _LIABILITY_NOTE, _dosage_atom),
-    ClaimSpec("CLINVAR", "germline pathogenicity", _clinvar_signal, _clinvar_corr, _INFORMS["CLINVAR"] + _LIABILITY_NOTE, _clinvar_atom),
-    ClaimSpec("MOUSE_KO", "mouse-KO phenotype", _mouseko_signal, _mouseko_corr, _INFORMS["MOUSE_KO"] + _LIABILITY_NOTE, _mouseko_atom),
-    ClaimSpec("PAN_ESSENTIAL", "DepMap pan-essentiality", _paness_signal, _paness_corr, _INFORMS["PAN_ESSENTIAL"] + _LIABILITY_NOTE, _paness_atom),
-    ClaimSpec("NORMAL_TISSUE", "HPA-IHC essential-tissue protein", _normaltissue_signal, _normaltissue_corr, _INFORMS["NORMAL_TISSUE"] + _LIABILITY_NOTE, _normaltissue_atom),
+    ClaimSpec(
+        "CONSTRAINT",
+        "gnomAD LoF constraint",
+        _constraint_signal,
+        _constraint_corr,
+        _INFORMS["CONSTRAINT"] + _LIABILITY_NOTE,
+        _constraint_atom,
+    ),
+    ClaimSpec(
+        "BURDEN",
+        "population gene-burden",
+        _burden_signal,
+        _burden_corr,
+        _INFORMS["BURDEN"] + _LIABILITY_NOTE,
+        _burden_atom,
+    ),
+    ClaimSpec(
+        "DOSAGE",
+        "ClinGen dosage sensitivity",
+        _dosage_signal,
+        _dosage_corr,
+        _INFORMS["DOSAGE"] + _LIABILITY_NOTE,
+        _dosage_atom,
+    ),
+    ClaimSpec(
+        "CLINVAR",
+        "germline pathogenicity",
+        _clinvar_signal,
+        _clinvar_corr,
+        _INFORMS["CLINVAR"] + _LIABILITY_NOTE,
+        _clinvar_atom,
+    ),
+    ClaimSpec(
+        "MOUSE_KO",
+        "mouse-KO phenotype",
+        _mouseko_signal,
+        _mouseko_corr,
+        _INFORMS["MOUSE_KO"] + _LIABILITY_NOTE,
+        _mouseko_atom,
+    ),
+    ClaimSpec(
+        "PAN_ESSENTIAL",
+        "DepMap pan-essentiality",
+        _paness_signal,
+        _paness_corr,
+        _INFORMS["PAN_ESSENTIAL"] + _LIABILITY_NOTE,
+        _paness_atom,
+    ),
+    ClaimSpec(
+        "NORMAL_TISSUE",
+        "HPA-IHC essential-tissue protein",
+        _normaltissue_signal,
+        _normaltissue_corr,
+        _INFORMS["NORMAL_TISSUE"] + _LIABILITY_NOTE,
+        _normaltissue_atom,
+    ),
     # verdict-INERT clinical pharmacovigilance CONTEXT (2026-09-04) — surfaces the on-target toxicity classes
     # / boxed-warning ADEs the capsule projection carried but the narrator never led with. Confounded →
     # corroboration capped, never a resolver HOLD (see _pharmacovigilance_signal). Left OUT of the safety
     # HeadlineSpec.axis_keys so headline_block/confidence/hero stay byte-stable.
-    ClaimSpec("PHARMACOVIGILANCE", "on-target clinical pharmacovigilance", _pharmacovigilance_signal, _pharmacovigilance_corr, _INFORMS["PHARMACOVIGILANCE"] + _CONTEXT_NOTE, _pharmacovigilance_atom),
+    ClaimSpec(
+        "PHARMACOVIGILANCE",
+        "on-target clinical pharmacovigilance",
+        _pharmacovigilance_signal,
+        _pharmacovigilance_corr,
+        _INFORMS["PHARMACOVIGILANCE"] + _CONTEXT_NOTE,
+        _pharmacovigilance_atom,
+    ),
 ]
 
 _DISCLAIMER = (
@@ -408,7 +540,8 @@ _DISCLAIMER = (
     "protective burden is `negative`. Claims are NOT averaged. Never feeds the safety verdict (owned by "
     "the shared safety resolver) — PHARMACOVIGILANCE is doubly inert (on/off-target-confounded CONTEXT that "
     "orients, never holds). The mutant-selective-GoF WT-loss downgrade is MODALITY-CONDITIONAL — "
-    "realised in the per-modality safety verdict (safety_verdict_by_modality), not the scalar verdict.")
+    "realised in the per-modality safety verdict (safety_verdict_by_modality), not the scalar verdict."
+)
 
 
 def safety_claim_vector(headline: dict, cards: list) -> dict:
@@ -424,26 +557,41 @@ def safety_key_signals(headline: dict, cards: list) -> dict:
     h = headline
 
     def sup(k):
-        lbl = {"CONSTRAINT": f"LoF-constrained (pLI {_f(h.get('pli_score'))}, LOEUF {_f(h.get('loeuf_score'))}) [gnomad-lof-constraint]",
-               "BURDEN": f"Population LoF-risk phenotype ({h.get('burden_top_disease')}) [gene-burden-safety]",
-               "DOSAGE": f"Haploinsufficient / dosage-sensitive ({h.get('germline_inheritance_mode')}) [clingen-dosage]",
-               "CLINVAR": f"Germline-pathogenic variants ({h.get('clinvar_top_disease')}) [clinvar-pathogenicity-safety]",
-               "MOUSE_KO": f"KO phenotype: {h.get('mouse_ko_phenotype_class')} ({h.get('mouse_ko_top_lethal')}) [mouse-ko-phenotype]",
-               "PAN_ESSENTIAL": f"Pan-essential: {h.get('dependency_class')} (broad normal-tissue tox) [pan-cancer-crispr-dependency-distribution]",
-               "NORMAL_TISSUE": f"Essential-tissue protein ({h.get('essential_tissues_flagged')}) [normal-tissue-liability]",
-               "PHARMACOVIGILANCE": f"On-target clinical warnings: {h.get('drug_warning_class')} ({h.get('drug_warning_toxicity_classes')}) [drug-warning-safety]"}
+        lbl = {
+            "CONSTRAINT": f"LoF-constrained (pLI {_f(h.get('pli_score'))}, LOEUF {_f(h.get('loeuf_score'))}) [gnomad-lof-constraint]",
+            "BURDEN": f"Population LoF-risk phenotype ({h.get('burden_top_disease')}) [gene-burden-safety]",
+            "DOSAGE": f"Haploinsufficient / dosage-sensitive ({h.get('germline_inheritance_mode')}) [clingen-dosage]",
+            "CLINVAR": f"Germline-pathogenic variants ({h.get('clinvar_top_disease')}) [clinvar-pathogenicity-safety]",
+            "MOUSE_KO": f"KO phenotype: {h.get('mouse_ko_phenotype_class')} ({h.get('mouse_ko_top_lethal')}) [mouse-ko-phenotype]",
+            "PAN_ESSENTIAL": f"Pan-essential: {h.get('dependency_class')} (broad normal-tissue tox) [pan-cancer-crispr-dependency-distribution]",
+            "NORMAL_TISSUE": f"Essential-tissue protein ({h.get('essential_tissues_flagged')}) [normal-tissue-liability]",
+            "PHARMACOVIGILANCE": f"On-target clinical warnings: {h.get('drug_warning_class')} ({h.get('drug_warning_toxicity_classes')}) [drug-warning-safety]",
+        }
         return lambda claim: lbl.get(k)
 
-    _KEYS = ("CONSTRAINT", "BURDEN", "DOSAGE", "CLINVAR", "MOUSE_KO", "PAN_ESSENTIAL", "NORMAL_TISSUE",
-             "PHARMACOVIGILANCE")
+    _KEYS = (
+        "CONSTRAINT",
+        "BURDEN",
+        "DOSAGE",
+        "CLINVAR",
+        "MOUSE_KO",
+        "PAN_ESSENTIAL",
+        "NORMAL_TISSUE",
+        "PHARMACOVIGILANCE",
+    )
     return build_key_signals(
-        vec, rank_keys=_KEYS,
+        vec,
+        rank_keys=_KEYS,
         support_fns={k: sup(k) for k in _KEYS},
         critical_keys=("CONSTRAINT", "BURDEN", "DOSAGE", "PAN_ESSENTIAL"),
-        caveat_fns={}, headline_fn=lambda v, s: (
-            "Human-genetics safety LIABILITY present." if s else
-            "No strong safety liability signal (or largely unmeasured)."),
-        fallback_caveat_fn=lambda: None)
+        caveat_fns={},
+        headline_fn=lambda v, s: (
+            "Human-genetics safety LIABILITY present."
+            if s
+            else "No strong safety liability signal (or largely unmeasured)."
+        ),
+        fallback_caveat_fn=lambda: None,
+    )
 
 
 __all__ = ["safety_claim_vector", "safety_key_signals", "SAFETY_CLAIM_SPEC"]

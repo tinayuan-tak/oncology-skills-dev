@@ -1,4 +1,5 @@
 """Guards for the role-recovery coherence-QC (offline analysis tool; DESCRIPTIVE, verdict-inert)."""
+
 import csv
 import importlib.util
 import sys
@@ -7,7 +8,7 @@ from pathlib import Path
 SKILLS_DIR = Path(__file__).resolve().parents[2]
 if str(SKILLS_DIR) not in sys.path:
     sys.path.insert(0, str(SKILLS_DIR))
-from _skills_common.archetype_core import Atlas   # noqa: E402
+from _skills_common.archetype_core import Atlas  # noqa: E402
 
 ATLAS = Path(__file__).resolve().parents[1] / "atlas" / "atlas.json"
 CQC = Path(__file__).resolve().parents[1] / "scripts" / "coherence_qc.py"
@@ -16,7 +17,8 @@ ROLES = Path(__file__).resolve().parent / "fixtures" / "oncokb_roles.csv"
 
 def _mod():
     spec = importlib.util.spec_from_file_location("coherence_qc", CQC)
-    m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
     return m
 
 
@@ -46,7 +48,7 @@ def test_role_head_is_de_circularized_no_genomic_features():
     m = _mod()
     atlas = Atlas.load(ATLAS)
     dc = [k for k in atlas.feature_order if k.split("::")[0] != m.DECIRC_DROP_AXIS]
-    assert len(dc) < len(atlas.feature_order)                 # genomic features were dropped
+    assert len(dc) < len(atlas.feature_order)  # genomic features were dropped
     assert not any(k.split("::")[0] == "genomic_alteration" for k in dc)
 
 
@@ -58,6 +60,7 @@ def test_empty_roles_degrades_gracefully():
 
 def _surface():
     import csv
+
     p = Path(__file__).resolve().parent / "fixtures" / "cspa_surface.csv"
     return {r["target"]: r["surface"] for r in csv.DictReader(open(p))}
 
@@ -80,15 +83,22 @@ def test_heads_registry_is_de_circularized_per_head():
     m = _mod()
     assert set(m.HEADS) >= {"role", "surface"}
     assert m.HEADS["role"]["drop_axis"] == "genomic_alteration"
-    assert m.HEADS["surface"]["drop_axis"] == "surface_modality"   # de-circ removes the surface-fed axis
+    assert m.HEADS["surface"]["drop_axis"] == "surface_modality"  # de-circ removes the surface-fed axis
 
 
 def _pred():
     import csv
+
     p = Path(__file__).resolve().parents[1] / "tests" / "fixtures" / "depmap_predictability.csv"
-    return {r["target"]: {"predictability_class": r["predictability_class"], "r2_rf": r["r2_rf"],
-                          "dominant_feature_class": r["dominant_feature_class"]}
-            for r in csv.DictReader(open(p)) if r["predictability_class"] != "not_evaluated"}
+    return {
+        r["target"]: {
+            "predictability_class": r["predictability_class"],
+            "r2_rf": r["r2_rf"],
+            "dominant_feature_class": r["dominant_feature_class"],
+        }
+        for r in csv.DictReader(open(p))
+        if r["predictability_class"] != "not_evaluated"
+    }
 
 
 def test_dependency_predictability_annotation():

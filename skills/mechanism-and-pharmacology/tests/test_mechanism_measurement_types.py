@@ -6,6 +6,7 @@ This test pins the declaration: every pulled type resolves to a key in vocabular
 and — the anti-drift guard — every card the gate USES maps to a type it DECLARES it pulls. Graceful-skip
 when target-contracts is absent. Mirror of surface-modality-fit / genomic-alteration-profile.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -39,7 +40,7 @@ def test_gate_declares_measurement_types_pulled():
     pulled = _pulled()
     assert pulled, "mechanism-and-pharmacology must declare composition.measurement_types_pulled (Rule 3)"
     assert "signaling_network_mechanism" in pulled
-    assert "pathway_activity_context" in pulled   # regression: the omitted PROGENy type must stay declared
+    assert "pathway_activity_context" in pulled  # regression: the omitted PROGENy type must stay declared
 
 
 def test_pulled_types_are_registered_in_the_vocab():
@@ -63,7 +64,9 @@ def test_every_used_card_maps_to_a_pulled_type():
             card_to_type[cid] = mtype
     pulled = set(_pulled())
     cards_used = _skill_frontmatter()["composition"].get("cards_used") or []
-    undeclared = [(cid, card_to_type[cid]) for cid in cards_used
-                  if card_to_type.get(cid) is not None and card_to_type[cid] not in pulled]
-    assert not undeclared, (
-        f"cards used but whose measurement_type is not in measurement_types_pulled: {undeclared}")
+    undeclared = [
+        (cid, card_to_type[cid])
+        for cid in cards_used
+        if card_to_type.get(cid) is not None and card_to_type[cid] not in pulled
+    ]
+    assert not undeclared, f"cards used but whose measurement_type is not in measurement_types_pulled: {undeclared}"

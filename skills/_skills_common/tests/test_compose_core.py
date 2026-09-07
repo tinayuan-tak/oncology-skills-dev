@@ -11,6 +11,7 @@ compose-dashboard's tests/test_engine_equivalence.py + tests/test_end_to_end.py,
 run THROUGH resolve_gate_spine. This file guards the type contract Stage 1b (target-profile)
 will build against, and stays offline / resolver-free.
 """
+
 from __future__ import annotations
 
 import sys
@@ -52,8 +53,7 @@ def test_gate_verdict_as_dict_shape_and_key_order():
 
 def test_gate_verdict_allows_none_driving_rule():
     """driving_rule_id is legitimately None for some resolver outcomes."""
-    gv = GateVerdict(gate="selectivity", verdict="not_selective",
-                     driving_rule_id=None, fired_rule_ids=[])
+    gv = GateVerdict(gate="selectivity", verdict="not_selective", driving_rule_id=None, fired_rule_ids=[])
     assert gv.as_dict()["driving_rule_id"] is None
 
 
@@ -150,7 +150,10 @@ def test_subskill_composition_gateless_has_no_primary():
 def test_subskill_composition_no_verdict_fn():
     """verdict_pair=None (sub-skill exposes no verdict function) → empty primary."""
     comp = subskill_composition(
-        card_outputs=[], fired=[], gate="dependency", verdict_pair=None,
+        card_outputs=[],
+        fired=[],
+        gate="dependency",
+        verdict_pair=None,
     )
     assert comp.primary_gate_verdict is None
     assert comp.fired_rule_ids == []
@@ -180,23 +183,31 @@ from _skills_common.selectivity_veto import apply_normal_breadth_veto  # noqa: E
 
 def test_apply_normal_breadth_veto_downgrades_selective_on_any_arm():
     fired = [{"rule_id": "tvn-no-full-normal-window-veto", "card_id": "modality-therapeutic-window"}]
-    assert apply_normal_breadth_veto("strong_tumor_selective", "tvn-strong-selective-supportive", fired) \
-        == ("selective_but_broadly_normal", "tvn-no-full-normal-window-veto")
+    assert apply_normal_breadth_veto("strong_tumor_selective", "tvn-strong-selective-supportive", fired) == (
+        "selective_but_broadly_normal",
+        "tvn-no-full-normal-window-veto",
+    )
 
 
 def test_apply_normal_breadth_veto_precedence_label_when_multiple_fire():
-    fired = [{"rule_id": "tvn-sc-normal-critical-organ-veto"},
-             {"rule_id": "tvn-no-therapeutic-window-veto"}]  # essential-window takes label precedence
-    assert apply_normal_breadth_veto("modest_tumor_selective", "x", fired) \
-        == ("selective_but_broadly_normal", "tvn-no-therapeutic-window-veto")
+    fired = [
+        {"rule_id": "tvn-sc-normal-critical-organ-veto"},
+        {"rule_id": "tvn-no-therapeutic-window-veto"},
+    ]  # essential-window takes label precedence
+    assert apply_normal_breadth_veto("modest_tumor_selective", "x", fired) == (
+        "selective_but_broadly_normal",
+        "tvn-no-therapeutic-window-veto",
+    )
 
 
 def test_apply_normal_breadth_veto_sc_normal_arm_yields_liability():
     """The sc-normal SPLIT: the critical-organ arm ALONE (no window veto) produces the selectivity-
     PRESERVING selective_with_normal_liability, not the housekeeping selective_but_broadly_normal KILL."""
     fired = [{"rule_id": "tvn-sc-normal-critical-organ-veto", "card_id": "sc-normal-celltype-expression"}]
-    assert apply_normal_breadth_veto("strong_tumor_selective", "tvn-strong-selective-supportive", fired) \
-        == ("selective_with_normal_liability", "tvn-sc-normal-critical-organ-veto")
+    assert apply_normal_breadth_veto("strong_tumor_selective", "tvn-strong-selective-supportive", fired) == (
+        "selective_with_normal_liability",
+        "tvn-sc-normal-critical-organ-veto",
+    )
 
 
 def test_apply_normal_breadth_veto_noop_when_not_selective_or_no_veto():
@@ -204,8 +215,10 @@ def test_apply_normal_breadth_veto_noop_when_not_selective_or_no_veto():
     # non-selective verdict is never downgraded
     assert apply_normal_breadth_veto("not_selective", "r", veto) == ("not_selective", "r")
     # selective but NO veto fired → unchanged
-    assert apply_normal_breadth_veto("strong_tumor_selective", "r", [{"rule_id": "other"}]) \
-        == ("strong_tumor_selective", "r")
+    assert apply_normal_breadth_veto("strong_tumor_selective", "r", [{"rule_id": "other"}]) == (
+        "strong_tumor_selective",
+        "r",
+    )
 
 
 def test_resolve_gate_spine_applies_selectivity_veto(monkeypatch):
@@ -214,9 +227,15 @@ def test_resolve_gate_spine_applies_selectivity_veto(monkeypatch):
     standalone skill + target-profile fan-out. Monkeypatches the resolver + fired so it stays offline."""
     veto_fired = [{"rule_id": "tvn-no-therapeutic-window-veto", "card_id": "modality-therapeutic-window"}]
     monkeypatch.setattr(_skc, "fired_rules", lambda *a, **k: veto_fired)
-    monkeypatch.setattr(_skc, "resolve_verdict_for_gate",
-                        lambda fired, gate, **k: ("strong_tumor_selective", "tvn-strong-selective-supportive")
-                        if gate == "selectivity" else ("selective_dependency", "dep-01"))
+    monkeypatch.setattr(
+        _skc,
+        "resolve_verdict_for_gate",
+        lambda fired, gate, **k: (
+            ("strong_tumor_selective", "tvn-strong-selective-supportive")
+            if gate == "selectivity"
+            else ("selective_dependency", "dep-01")
+        ),
+    )
     cards = [{"card_id": "tumor-vs-normal-selectivity"}, {"card_id": "modality-therapeutic-window"}]
     # selectivity gate → clamped
     res = resolve_gate_spine(cards, headline_gate="selectivity", rules=[], contracts_root="/x")
@@ -231,16 +250,31 @@ def test_resolve_gate_spine_applies_selectivity_veto(monkeypatch):
 # target-profile --emit) BEFORE fired_rules — previously it lived only in the skill's main() and both
 # composed paths bypassed it, over-crediting biomarker_stratified_dependency (the nomination veto-suppressor).
 
+
 def _gap_multiclass_cards():
     return [
-        {"card_id": "mutation-stratified-dependency",
-         "summary": {"mutation_stratification_class": "mutant_strongly_dependent", "hotspot_mannwhitney_p": 0.03}},
-        {"card_id": "copy-number-stratified-dependency",
-         "summary": {"cn_stratification_class": "amplified_strongly_dependent", "cn_stratification_mannwhitney_p": 0.03}},
-        {"card_id": "fusion-stratified-dependency",
-         "summary": {"fusion_stratification_class": "not_fusion_stratified", "fusion_stratification_mannwhitney_p": 0.90}},
-        {"card_id": "amp-expr-stratified-dependency",
-         "summary": {"amp_expr_stratification_class": "not_amp_expr_stratified", "amp_expr_mannwhitney_p": 0.90}},
+        {
+            "card_id": "mutation-stratified-dependency",
+            "summary": {"mutation_stratification_class": "mutant_strongly_dependent", "hotspot_mannwhitney_p": 0.03},
+        },
+        {
+            "card_id": "copy-number-stratified-dependency",
+            "summary": {
+                "cn_stratification_class": "amplified_strongly_dependent",
+                "cn_stratification_mannwhitney_p": 0.03,
+            },
+        },
+        {
+            "card_id": "fusion-stratified-dependency",
+            "summary": {
+                "fusion_stratification_class": "not_fusion_stratified",
+                "fusion_stratification_mannwhitney_p": 0.90,
+            },
+        },
+        {
+            "card_id": "amp-expr-stratified-dependency",
+            "summary": {"amp_expr_stratification_class": "not_amp_expr_stratified", "amp_expr_mannwhitney_p": 0.90},
+        },
     ]
 
 

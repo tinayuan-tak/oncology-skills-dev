@@ -53,10 +53,12 @@ from _skills_common._live_readers import (
 )
 from conftest import skip_if_no_data  # shared live-S3 skip guard
 
-_CONTRACTS = Path(os.environ.get(
-    "TARGET_CONTRACTS_ROOT",
-    "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
-))
+_CONTRACTS = Path(
+    os.environ.get(
+        "TARGET_CONTRACTS_ROOT",
+        "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
+    )
+)
 _CARDS_DIR = _CONTRACTS / "cards"
 
 
@@ -65,12 +67,21 @@ _CARDS_DIR = _CONTRACTS / "cards"
 # branch and legitimately emits fewer summary_fields — the MISSING-field check is relaxed. These are
 # ALSO always-allowed vocab values (a card need not re-declare `data_unavailable` in every vocab).
 DATA_UNAVAILABLE_MARKERS = {
-    "data_unavailable", "no_match", "no_data", "not_applicable", "not_evaluated",
-    "not_measured", "unmeasured", "insufficient", "unavailable", "absent",
+    "data_unavailable",
+    "no_match",
+    "no_data",
+    "not_applicable",
+    "not_evaluated",
+    "not_measured",
+    "unmeasured",
+    "insufficient",
+    "unavailable",
+    "absent",
     # card-specific abstain classes (documented in the card vocab as honest no-signal states):
-    "no_partner_mapped", "no_target_event",
+    "no_partner_mapped",
+    "no_target_event",
     "not_surface_density_whole_cell_estimate",
-    "not_phosphoprotein",   # phospho-pathway-activity abstains here (target has no CPTAC phosphosites)
+    "not_phosphoprotein",  # phospho-pathway-activity abstains here (target has no CPTAC phosphosites)
 }
 
 
@@ -122,9 +133,14 @@ KNOWN_EMISSION_DEBT: dict[str, set[str]] = {}
 # subgroup scope is in play. The pooled scalar reader we call here does not — and should not — emit them.
 CONDITIONAL_FIELDS: dict[str, set[str]] = {
     "tumor-vs-normal-selectivity": {
-        "per_subgroup_metrics", "subgroup_axis", "n_subgroups_with_data",
-        "max_subgroup_log2fc", "min_subgroup_log2fc", "cross_subgroup_delta_log2fc",
-        "selectivity_class_by_subgroup", "cross_subgroup_selectivity_divergence",
+        "per_subgroup_metrics",
+        "subgroup_axis",
+        "n_subgroups_with_data",
+        "max_subgroup_log2fc",
+        "min_subgroup_log2fc",
+        "cross_subgroup_delta_log2fc",
+        "selectivity_class_by_subgroup",
+        "cross_subgroup_selectivity_divergence",
         "any_subgroup_strong_selective",
     },
     # A boolean flag the reader sets ONLY on the pan-lineage-fallback CAP branch
@@ -165,9 +181,7 @@ def _wired_card_ids() -> list[str]:
             continue
         if "placeholder_not_wired" in (spec.get("status") or ""):
             continue
-        has_entrypoint = any(
-            isinstance(m, dict) and m.get("entrypoint") for m in (spec.get("methods") or [])
-        )
+        has_entrypoint = any(isinstance(m, dict) and m.get("entrypoint") for m in (spec.get("methods") or []))
         if cid in CARD_DISPATCHERS or has_entrypoint:
             ids.append(cid)
     return ids
@@ -185,14 +199,12 @@ def _emission_problems(card_id: str, target: str, indication: str, result: dict)
     spec = _load_card(card_id)
     out = spec.get("outputs") or {}
     summary_fields = _normalize_summary_fields(out.get("summary_fields") or [])
-    vocab = {k: v for k, v in (out.get("summary_fields_vocabulary") or {}).items()
-             if isinstance(v, list)}
+    vocab = {k: v for k, v in (out.get("summary_fields_vocabulary") or {}).items() if isinstance(v, list)}
 
     # DEGENERATE / ABSTAIN branch: a vocab field emitting a documented no-data/abstain value means the
     # reader legitimately emits fewer fields — relax the presence check for this read (task §3).
     on_degenerate_branch = any(
-        isinstance(result.get(f), str) and result[f].lower() in DATA_UNAVAILABLE_MARKERS
-        for f in vocab
+        isinstance(result.get(f), str) and result[f].lower() in DATA_UNAVAILABLE_MARKERS for f in vocab
     )
     conditional = CONDITIONAL_FIELDS.get(card_id, set())
 
@@ -210,7 +222,7 @@ def _emission_problems(card_id: str, target: str, indication: str, result: dict)
             continue
         allowed_lc = {str(a).lower() for a in allowed} | DATA_UNAVAILABLE_MARKERS
         value = result[field]
-        for v in (value if isinstance(value, list) else [value]):
+        for v in value if isinstance(value, list) else [value]:
             if isinstance(v, str) and v.lower() not in allowed_lc:
                 problems.append(f"OUT_OF_VOCAB {field}={v!r}")
     return problems
@@ -252,7 +264,8 @@ def test_card_emits_declared_summary_fields(card_id):
     if not novel and problems:
         pytest.xfail(f"{card_id}: tracked emission debt (KNOWN_EMISSION_DEBT): {sorted(problems)}")
     assert not novel, (
-        f"{card_id} ({target}/{indication}) card-contract gap:\n  " + "\n  ".join(novel)
+        f"{card_id} ({target}/{indication}) card-contract gap:\n  "
+        + "\n  ".join(novel)
         + "\n(fix in target-contracts: align outputs.summary_fields / summary_fields_vocabulary with "
         "the live reader, OR make the reader emit the declared field. If genuinely deferred, add to "
         "KNOWN_EMISSION_DEBT with a rationale.)"

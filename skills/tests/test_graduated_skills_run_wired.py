@@ -47,31 +47,31 @@ _ALWAYS_WIRED = [
     "tumor-presence",
     "tumor-selectivity",
     "functional-requirement",
-    "genomic-alteration-profile",        # reframed from mutation-profile 2026-07-14
-    "tractability-small-molecule",       # split from tractability-and-modality 2026-07-14
-    "surface-modality-fit",              # split from tractability-and-modality 2026-07-14 (partial)
-    "mechanism-and-pharmacology",       # graduated
-    "differentiation-landscape",         # graduated
-    "on-target-safety-liability",        # graduated
-    "surfaceome-cohort-ranking",         # no target arg required
-    "target-intrinsic",                  # indication-INDEPENDENT dossier; descriptive/verdict-free,
-                                         # so it is in the SHAPE+status list but NOT _MUST_FIRE_ON_KRAS_COADREAD
-                                         # (it mints no verdict by design). Added 2026-08-11 prod-readiness pass.
-    "cis-feature-coherence",             # cis-coherence Stage 1 (2026-08-20); dedicated self-contained axis,
-                                         # VERDICT-INERT at composition. Wired end-to-end (card→depmap_cis_dosage
-                                         # →cis_coherence resolver). Also in _MUST_FIRE (fires coherent_cis_driver
-                                         # on KRAS/COADREAD with the local DepMap cache).
+    "genomic-alteration-profile",  # reframed from mutation-profile 2026-07-14
+    "tractability-small-molecule",  # split from tractability-and-modality 2026-07-14
+    "surface-modality-fit",  # split from tractability-and-modality 2026-07-14 (partial)
+    "mechanism-and-pharmacology",  # graduated
+    "differentiation-landscape",  # graduated
+    "on-target-safety-liability",  # graduated
+    "surfaceome-cohort-ranking",  # no target arg required
+    "target-intrinsic",  # indication-INDEPENDENT dossier; descriptive/verdict-free,
+    # so it is in the SHAPE+status list but NOT _MUST_FIRE_ON_KRAS_COADREAD
+    # (it mints no verdict by design). Added 2026-08-11 prod-readiness pass.
+    "cis-feature-coherence",  # cis-coherence Stage 1 (2026-08-20); dedicated self-contained axis,
+    # VERDICT-INERT at composition. Wired end-to-end (card→depmap_cis_dosage
+    # →cis_coherence resolver). Also in _MUST_FIRE (fires coherent_cis_driver
+    # on KRAS/COADREAD with the local DepMap cache).
     # 2026-08-30 graduation-gate coverage sweep — three compositional data-package skills that were
     # wired/partial but never in this shape gate (verified to run exit-0 + emit decision.json on
     # KRAS/COADREAD with the standard argv). All DESCRIPTIVE / gateless (verdict=None or additive), so
     # SHAPE-only here, NOT _MUST_FIRE (they mint no nomination verdict by design — like target-intrinsic).
-    "immune-context",                    # TCE effector-arm; gateless additive (indication-level v1).
-    "combination-and-vulnerability",     # consolidated relational annex; verdict=None descriptive.
-    "translational-readiness",           # HCMI model-availability; descriptive (verdict=None).
-    "literature-context",                # cited-literature-evidence (OT europepmc + PubTator3); descriptive
-                                         # (verdict=None). Wired 2026-09-02 — promotes the former
-                                         # cited_literature_evidence.json tp_grounding side-channel to a
-                                         # first-class fan-out member. SHAPE-only (mints no verdict).
+    "immune-context",  # TCE effector-arm; gateless additive (indication-level v1).
+    "combination-and-vulnerability",  # consolidated relational annex; verdict=None descriptive.
+    "translational-readiness",  # HCMI model-availability; descriptive (verdict=None).
+    "literature-context",  # cited-literature-evidence (OT europepmc + PubTator3); descriptive
+    # (verdict=None). Wired 2026-09-02 — promotes the former
+    # cited_literature_evidence.json tp_grounding side-channel to a
+    # first-class fan-out member. SHAPE-only (mints no verdict).
     # patient-population-and-access DELETED 2026-07-14 (prevalence folded into
     # genomic-alteration-profile; was a thin re-projection of one shared card).
 ]
@@ -136,17 +136,25 @@ def test_run_py_dispatcher_emits_matching_status(skill_name: str, tmp_path):
     # optional --target). Adapt argv accordingly.
     if skill_name == "surfaceome-cohort-ranking":
         argv = [
-            sys.executable, str(run_py),
-            "--indication", "COADREAD",
-            "--target", "KRAS",  # optional but supported
-            "--out", str(out_dir),
+            sys.executable,
+            str(run_py),
+            "--indication",
+            "COADREAD",
+            "--target",
+            "KRAS",  # optional but supported
+            "--out",
+            str(out_dir),
         ]
     else:
         argv = [
-            sys.executable, str(run_py),
-            "--target", "KRAS",
-            "--indication", "COADREAD",
-            "--out", str(out_dir),
+            sys.executable,
+            str(run_py),
+            "--target",
+            "KRAS",
+            "--indication",
+            "COADREAD",
+            "--out",
+            str(out_dir),
         ]
 
     # 180s (was 60s): the large multi-card dossiers (e.g. target-intrinsic, 19 cards; surface-modality-fit)
@@ -191,8 +199,7 @@ def test_run_py_dispatcher_emits_matching_status(skill_name: str, tmp_path):
     # Positive wired-shape check: `skill`, `cards`, `fired_rules` keys present
     for key in ("skill", "target", "indication"):
         assert key in decision, (
-            f"{skill_name}: decision.json missing key '{key}'. The "
-            f"canonical wired-skill contract requires this key."
+            f"{skill_name}: decision.json missing key '{key}'. The canonical wired-skill contract requires this key."
         )
 
     # `skill` field must match SKILL.md's name (drift catcher).
@@ -227,12 +234,12 @@ _MUST_FIRE_ON_KRAS_COADREAD = [
     "tumor-presence",
     "tumor-selectivity",
     "functional-requirement",
-    "genomic-alteration-profile",       # reframed from mutation-profile
-    "tractability-small-molecule",      # SM half of the tractability split
+    "genomic-alteration-profile",  # reframed from mutation-profile
+    "tractability-small-molecule",  # SM half of the tractability split
     "mechanism-and-pharmacology",
     "differentiation-landscape",
-    "cis-feature-coherence",            # fires coherent_cis_driver on KRAS/COADREAD (CN↔expr cis-dosage
-                                        # coupled r~0.44 + amp∩overexpr more dependent) — real DepMap signal.
+    "cis-feature-coherence",  # fires coherent_cis_driver on KRAS/COADREAD (CN↔expr cis-dosage
+    # coupled r~0.44 + amp∩overexpr more dependent) — real DepMap signal.
 ]
 
 
@@ -254,23 +261,23 @@ def test_wired_skill_fires_on_reference_target(skill_name: str, tmp_path):
 
     out_dir = tmp_path / f"fire-{skill_name}"
     argv = [
-        sys.executable, str(run_py),
-        "--target", "KRAS", "--indication", "COADREAD",
-        "--out", str(out_dir),
+        sys.executable,
+        str(run_py),
+        "--target",
+        "KRAS",
+        "--indication",
+        "COADREAD",
+        "--out",
+        str(out_dir),
     ]
     result = subprocess.run(argv, capture_output=True, text=True, timeout=120)
-    assert result.returncode == 0, (
-        f"{skill_name}: run.py exited {result.returncode}.\n{result.stderr}"
-    )
+    assert result.returncode == 0, f"{skill_name}: run.py exited {result.returncode}.\n{result.stderr}"
     decision = json.loads((out_dir / "decision.json").read_text())
 
     cards = decision.get("cards") or []
     available = [c for c in cards if not c.get("_missing")]
     if cards and not available:
-        pytest.skip(
-            f"{skill_name}: all cards _missing on KRAS/COADREAD "
-            f"(data availability, not a decision-layer bug)."
-        )
+        pytest.skip(f"{skill_name}: all cards _missing on KRAS/COADREAD (data availability, not a decision-layer bug).")
 
     fired = decision.get("fired_rules") or []
     headline = decision.get("headline") or {}
@@ -282,8 +289,7 @@ def test_wired_skill_fires_on_reference_target(skill_name: str, tmp_path):
     # not silently miss a skill's verdict (and rot when a 7th skill is added).
     SENTINELS = (None, "insufficient", "data_unavailable")
     verdict_fields = {
-        k: v for k, v in headline.items()
-        if (k.endswith("_verdict") or k.endswith("_class")) and isinstance(v, str)
+        k: v for k, v in headline.items() if (k.endswith("_verdict") or k.endswith("_class")) and isinstance(v, str)
     }
     # Also honor a plain top-level `verdict` if a skill uses that.
     if isinstance(decision.get("verdict"), str):
@@ -321,10 +327,7 @@ def test_wired_skill_fires_on_reference_target(skill_name: str, tmp_path):
     # "no_*" verdict can never be silently swallowed.
     comp = validate_skill_md(skill_md)
     rules_scope = set(comp.rules_scope)
-    verdict_bearing = (
-        set(comp.cards_used) if "all" in rules_scope
-        else (rules_scope & set(comp.cards_used))
-    )
+    verdict_bearing = set(comp.cards_used) if "all" in rules_scope else (rules_scope & set(comp.cards_used))
     if not verdict_bearing:
         # Defensive: a skill with no declarable rules_scope -> treat every
         # consumed card as verdict-bearing so the guard never loses teeth.
@@ -334,7 +337,10 @@ def test_wired_skill_fires_on_reference_target(skill_name: str, tmp_path):
     # this, splice-exon-skip-landscape's no_registered_event (real, S3-free) would be the lone
     # "informative" card in a creds-less env and defeat the skip guard (KRAS/COADREAD has no METex14).
     absence_class_values = set(SENTINELS) | {
-        "", "no_partner_mapped", "no_registered_event", "splice_event_off_indication",
+        "",
+        "no_partner_mapped",
+        "no_registered_event",
+        "splice_event_off_indication",
     }
 
     def _card_has_informative_verdict_data(card: dict) -> bool:
@@ -342,18 +348,13 @@ def test_wired_skill_fires_on_reference_target(skill_name: str, tmp_path):
         `*_class`/`*_verdict` summary fields holds a non-absence value (mirrors
         the headline verdict extraction above, applied to the card summary)."""
         summary = card.get("summary") or {}
-        class_vals = [
-            v for k, v in summary.items()
-            if (k.endswith("_class") or k.endswith("_verdict"))
-        ]
-        return any(
-            isinstance(v, str) and v not in absence_class_values for v in class_vals
-        )
+        class_vals = [v for k, v in summary.items() if (k.endswith("_class") or k.endswith("_verdict"))]
+        return any(isinstance(v, str) and v not in absence_class_values for v in class_vals)
 
     vb_informative = [
-        c for c in available
-        if (c.get("card_id") or c.get("id")) in verdict_bearing
-        and _card_has_informative_verdict_data(c)
+        c
+        for c in available
+        if (c.get("card_id") or c.get("id")) in verdict_bearing and _card_has_informative_verdict_data(c)
     ]
 
     if not fired and not has_real_verdict and not vb_informative:

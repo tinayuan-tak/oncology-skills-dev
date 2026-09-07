@@ -1,6 +1,7 @@
 """tumor-presence emits the unified skill_report (Wave-3, DESCRIPTIVE-role reference impl):
 role=descriptive → polarity=not_scored, excluded from gate math; call = the reconciled presence_verdict.
 """
+
 from __future__ import annotations
 from pathlib import Path
 
@@ -20,9 +21,9 @@ def test_presence_emits_descriptive_skill_report():
     sr = hl.get("skill_report")
     assert isinstance(sr, dict)
     assert sr["role"] == "descriptive"
-    assert sr["polarity"] == "not_scored"                 # descriptive is never scored
-    assert sr["call"] == hl.get("presence_verdict")       # reconciled verdict verbatim
-    assert isinstance(sr["question_table"], list)         # presence has a question_table
+    assert sr["polarity"] == "not_scored"  # descriptive is never scored
+    assert sr["call"] == hl.get("presence_verdict")  # reconciled verdict verbatim
+    assert isinstance(sr["question_table"], list)  # presence has a question_table
     assert "skill_report" in tp._SYNTHESIS_FACET_KEYS
 
 

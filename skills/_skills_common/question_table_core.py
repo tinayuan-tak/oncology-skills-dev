@@ -8,6 +8,7 @@ Verdict-INERT: these shape the DISPLAY table (the leading per-question signal/co
 never a rule, resolver, or gate. Each skill still declares its own `_sig` / `_SIG_META` (whose
 tier vocab and polarity genuinely differ per skill); only the generic pieces live here.
 """
+
 from __future__ import annotations
 
 # Union of the per-skill confidence dots-maps. `.get(tier, 0)` is safe for every caller: a skill
@@ -28,20 +29,26 @@ def conf(tier: str, label: str = "") -> dict:
 
 def row(qid, question, primary, support, signal, confidence):
     """One question-table row in the shared shape."""
-    return {"id": qid, "question": question, "primary": primary, "support": support,
-            "signal": signal, "confidence": confidence}
+    return {
+        "id": qid,
+        "question": question,
+        "primary": primary,
+        "support": support,
+        "signal": signal,
+        "confidence": confidence,
+    }
 
 
 # The supports/opposes signal meter (tier -> (ordinal fill, polarity)). Single source for the
 # presence ladder + the gating skills that mirror its Signal vocabulary (genomic, tractability-sm,
 # safety, surface-modality, sl); the cv-driven DESCRIPTIVE tables use their own `informs` meter.
 _SIG_META = {
-    "strong":     (5, "supports"),
-    "moderate":   (3, "supports"),
-    "weak":       (2, "supports"),
-    "uniform":    (0, "neutral"),     # present but no between-stratum variation (Q4)
-    "absent":     (1, "opposes"),     # measured floor
-    "negative":   (1, "opposes"),     # measured against (e.g. microenvironment-dominant)
+    "strong": (5, "supports"),
+    "moderate": (3, "supports"),
+    "weak": (2, "supports"),
+    "uniform": (0, "neutral"),  # present but no between-stratum variation (Q4)
+    "absent": (1, "opposes"),  # measured floor
+    "negative": (1, "opposes"),  # measured against (e.g. microenvironment-dominant)
     "unmeasured": (0, "none"),
 }
 
@@ -56,8 +63,13 @@ def sig(tier: str, label: str) -> dict:
 # it powers — the shared body of the descriptive skills' question tables (immune-context, mechanism,
 # translational-readiness, target-intrinsic, cis-feature-coherence, combination-and-vulnerability,
 # literature-context; differentiation appends a bespoke row). Each skill supplies only its _QUESTIONS.
-_SIG_META_INFORMS = {"strong": (5, "informs"), "moderate": (3, "informs"), "weak": (2, "informs"),
-                     "absent": (1, "informs"), "unmeasured": (0, "none")}
+_SIG_META_INFORMS = {
+    "strong": (5, "informs"),
+    "moderate": (3, "informs"),
+    "weak": (2, "informs"),
+    "absent": (1, "informs"),
+    "unmeasured": (0, "none"),
+}
 
 
 def _sig_informs(tier: str, label: str) -> dict:

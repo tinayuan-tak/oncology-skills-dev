@@ -12,6 +12,7 @@ figures + the granular per-sub-skill / per-card substrate — tied together by a
 never has to know that the granular data lives in nomination.json / evidence_package.json rather than
 under figures/.
 """
+
 from __future__ import annotations
 
 import json
@@ -40,31 +41,35 @@ def _subskill_package(short: str, r: dict, figures_dir: Path) -> dict:
     # drove the verdict). The flat fired_rule_ids alone loses the card linkage. Verdict-inert
     # projection of the SAME `fired` list the fan-out already computed — nothing re-resolved.
     fired_rules_out: list[dict] = []
-    for f in (r.get("fired") or []):
+    for f in r.get("fired") or []:
         if not isinstance(f, dict):
             continue
         rid = f.get("rule_id")
-        fired_rules_out.append({
-            "rule_id": rid,
-            "card_id": f.get("card_id"),
-            "tier": f.get("tier"),
-            "signals": f.get("signals"),
-            "is_driving": rid is not None and rid == driving_rule_id,
-        })
+        fired_rules_out.append(
+            {
+                "rule_id": rid,
+                "card_id": f.get("card_id"),
+                "tier": f.get("tier"),
+                "signals": f.get("signals"),
+                "is_driving": rid is not None and rid == driving_rule_id,
+            }
+        )
     cards_out: list[dict] = []
-    for c in (r.get("cards") or []):
+    for c in r.get("cards") or []:
         if not isinstance(c, dict):
             continue
         cid = c.get("card_id")
         summary = c.get("summary") or {}
-        cards_out.append({
-            "card_id": cid,
-            "card_version": c.get("card_version", "n/a"),
-            "missing": bool(c.get("_missing")),
-            "data_source": summary.get("_data_source"),
-            "summary": summary,
-            "figures": _card_figures(figures_dir, cid) if cid else [],
-        })
+        cards_out.append(
+            {
+                "card_id": cid,
+                "card_version": c.get("card_version", "n/a"),
+                "missing": bool(c.get("_missing")),
+                "data_source": summary.get("_data_source"),
+                "summary": summary,
+                "figures": _card_figures(figures_dir, cid) if cid else [],
+            }
+        )
     return {
         "sub_skill": short,
         "verdict": v[0] if v else None,
@@ -82,11 +87,21 @@ def _subskill_package(short: str, r: dict, figures_dir: Path) -> dict:
     }
 
 
-def write_full_package(out_dir: Path, *, target: str, indication: str, sub_results: dict,
-                       skill_name: str, skill_version: str, generated_at: str,
-                       subtypes: Optional[list], modality: Optional[str],
-                       has_figures: bool, has_evidence_package: bool,
-                       has_narrative: bool) -> Path:
+def write_full_package(
+    out_dir: Path,
+    *,
+    target: str,
+    indication: str,
+    sub_results: dict,
+    skill_name: str,
+    skill_version: str,
+    generated_at: str,
+    subtypes: Optional[list],
+    modality: Optional[str],
+    has_figures: bool,
+    has_evidence_package: bool,
+    has_narrative: bool,
+) -> Path:
     """Write subskills/<short>/package.json for every sub-skill + MANIFEST.json + MANIFEST.md.
 
     Returns the MANIFEST.json path. Best-effort per sub-skill (a malformed carrier is skipped, never
@@ -106,14 +121,16 @@ def write_full_package(out_dir: Path, *, target: str, indication: str, sub_resul
         pkg_path.parent.mkdir(parents=True, exist_ok=True)
         pkg_path.write_text(json.dumps(pkg, indent=2, default=str))
         n_fig = sum(len(c["figures"]) for c in pkg["cards"])
-        sub_index.append({
-            "sub_skill": short,
-            "verdict": pkg["verdict"],
-            "driving_rule_id": pkg["driving_rule_id"],
-            "package": f"subskills/{short}/package.json",
-            "n_cards": pkg["n_cards"],
-            "n_figures": n_fig,
-        })
+        sub_index.append(
+            {
+                "sub_skill": short,
+                "verdict": pkg["verdict"],
+                "driving_rule_id": pkg["driving_rule_id"],
+                "package": f"subskills/{short}/package.json",
+                "n_cards": pkg["n_cards"],
+                "n_figures": n_fig,
+            }
+        )
 
     n_fig_total = len([p for p in figures_dir.rglob("*") if p.is_file()]) if figures_dir.is_dir() else 0
 
@@ -160,21 +177,37 @@ def write_full_package(out_dir: Path, *, target: str, indication: str, sub_resul
         "",
     ]
     labels = {
-        "narrative_markdown": "Narrative (markdown)", "narrative_html": "Narrative (HTML)",
-        "machine_nomination": "Machine record — nomination", "machine_evidence_package":
-        "Machine envelope — evidence package (per-card summaries)", "provenance": "Provenance",
-        "hero_figure": "Hero figure", "run_log": "Run log",
+        "narrative_markdown": "Narrative (markdown)",
+        "narrative_html": "Narrative (HTML)",
+        "machine_nomination": "Machine record — nomination",
+        "machine_evidence_package": "Machine envelope — evidence package (per-card summaries)",
+        "provenance": "Provenance",
+        "hero_figure": "Hero figure",
+        "run_log": "Run log",
     }
     for k, v in manifest["artifacts"].items():
         lines.append(f"- **{labels.get(k, k)}** — [{v}]({v})")
-    lines += ["", "## Sub-skill packages", "",
-              "| Sub-skill | Verdict | Driving rule | Cards | Figures | Package |",
-              "|---|---|---|---|---|---|"]
+    lines += [
+        "",
+        "## Sub-skill packages",
+        "",
+        "| Sub-skill | Verdict | Driving rule | Cards | Figures | Package |",
+        "|---|---|---|---|---|---|",
+    ]
     for s in sub_index:
-        lines.append(f"| {s['sub_skill']} | {s['verdict'] or '—'} | {s['driving_rule_id'] or '—'} | "
-                     f"{s['n_cards']} | {s['n_figures']} | [{s['package']}]({s['package']}) |")
-    lines += ["", f"Total figure files: {n_fig_total}", "",
-              "## Where the data lives", "", manifest["where_the_data_lives"], ""]
+        lines.append(
+            f"| {s['sub_skill']} | {s['verdict'] or '—'} | {s['driving_rule_id'] or '—'} | "
+            f"{s['n_cards']} | {s['n_figures']} | [{s['package']}]({s['package']}) |"
+        )
+    lines += [
+        "",
+        f"Total figure files: {n_fig_total}",
+        "",
+        "## Where the data lives",
+        "",
+        manifest["where_the_data_lives"],
+        "",
+    ]
     (out_dir / "MANIFEST.md").write_text("\n".join(lines))
     return manifest_json
 

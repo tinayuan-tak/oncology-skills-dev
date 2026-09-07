@@ -29,6 +29,7 @@ record. See `load_corpus`.
 
 OUTPUT `eval/discordance_ledger.json`: ranked rows + a per-class / per-skill summary.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -39,13 +40,13 @@ from pathlib import Path
 from typing import Iterable
 
 # --- Gap taxonomy (see the plan §Component 1). Higher weight = higher review priority. -------
-GAP_CALIBRATION = "calibration_gap"          # contradicts on a ground-truth target -> false-negative candidate
-GAP_VERDICT_RULE = "verdict_rule_gap"        # verified contradicts -> resolver/card/method fix candidate
-GAP_BLIND_SPOT = "blind_spot_gap"            # omics cannot measure the signal -> data/axis need
-GAP_STALENESS = "staleness_gap"             # axis the atlas has no anchor for -> atlas session
+GAP_CALIBRATION = "calibration_gap"  # contradicts on a ground-truth target -> false-negative candidate
+GAP_VERDICT_RULE = "verdict_rule_gap"  # verified contradicts -> resolver/card/method fix candidate
+GAP_BLIND_SPOT = "blind_spot_gap"  # omics cannot measure the signal -> data/axis need
+GAP_STALENESS = "staleness_gap"  # axis the atlas has no anchor for -> atlas session
 GAP_CONFABULATION = "confabulation_or_unverified"  # unverified/non-reproducible -> discard
-GAP_CONCORDANT_OVERFLAG = "concordant_over_flag"   # lane's own overall_consistency==concordant but a lone
-                                                   # axis says contradicts -> internal over-flag -> demote
+GAP_CONCORDANT_OVERFLAG = "concordant_over_flag"  # lane's own overall_consistency==concordant but a lone
+# axis says contradicts -> internal over-flag -> demote
 
 _SEVERITY = {
     GAP_CALIBRATION: 5,
@@ -53,7 +54,7 @@ _SEVERITY = {
     GAP_BLIND_SPOT: 3,
     GAP_STALENESS: 2,
     GAP_CONFABULATION: 1,
-    GAP_CONCORDANT_OVERFLAG: 1,   # discard tier alongside confabulation; NON-actionable, NON-sharp
+    GAP_CONCORDANT_OVERFLAG: 1,  # discard tier alongside confabulation; NON-actionable, NON-sharp
 }
 
 # Axes the frozen target-archetype atlas has no anchor for (sourced from the atlas-rebuild
@@ -122,9 +123,15 @@ def _axis_measured(atom) -> "bool | None":
     return atom.get("signal") not in _UNMEASURED_SIGNALS
 
 
-def _classify(agreement: str, n_verified: int, is_blind: bool, atlas_excluded: bool,
-              in_calibration: bool, claim_measured: "bool | None",
-              overall_concordant: bool = False) -> tuple[str, str]:
+def _classify(
+    agreement: str,
+    n_verified: int,
+    is_blind: bool,
+    atlas_excluded: bool,
+    in_calibration: bool,
+    claim_measured: "bool | None",
+    overall_concordant: bool = False,
+) -> tuple[str, str]:
     """Deterministic gap-class assignment. Returns (gap_class, why).
 
     CLAIM-VECTOR ALIGNMENT: the literature lane compares against a per-AXIS claim signal, not the
@@ -145,23 +152,43 @@ def _classify(agreement: str, n_verified: int, is_blind: bool, atlas_excluded: b
     collisions. Placed AFTER the UNMEASURED check so a genuine coverage gap still routes to blind-spot."""
     if is_blind:
         if atlas_excluded:
-            return GAP_STALENESS, "literature signal on an axis the frozen atlas has no anchor for (route to atlas session)"
+            return (
+                GAP_STALENESS,
+                "literature signal on an axis the frozen atlas has no anchor for (route to atlas session)",
+            )
         return GAP_BLIND_SPOT, "literature reports a signal the omics in this package cannot measure (data/axis need)"
     if agreement == "contradicts":
         if n_verified < 1:
-            return GAP_CONFABULATION, "contradicts with no VERIFIED citation — non-reproducible LLM read; discard unless a source is confirmed"
+            return (
+                GAP_CONFABULATION,
+                "contradicts with no VERIFIED citation — non-reproducible LLM read; discard unless a source is confirmed",
+            )
         if claim_measured is False:
             if atlas_excluded:
-                return GAP_STALENESS, "literature 'contradicts' an UNMEASURED claim axis the atlas has no anchor for (coverage/atlas)"
-            return GAP_BLIND_SPOT, "literature 'contradicts' a claim axis whose omics signal is UNMEASURED — a coverage gap, not a verdict contradiction"
+                return (
+                    GAP_STALENESS,
+                    "literature 'contradicts' an UNMEASURED claim axis the atlas has no anchor for (coverage/atlas)",
+                )
+            return (
+                GAP_BLIND_SPOT,
+                "literature 'contradicts' a claim axis whose omics signal is UNMEASURED — a coverage gap, not a verdict contradiction",
+            )
         if overall_concordant:
-            return GAP_CONCORDANT_OVERFLAG, ("lane's own overall_consistency is 'concordant' — an isolated axis "
-                                             "'contradicts' against a concordant summary is an internal over-flag "
-                                             "(literature and omics agree in aggregate); demoted below the "
-                                             "sharp/actionable set")
+            return GAP_CONCORDANT_OVERFLAG, (
+                "lane's own overall_consistency is 'concordant' — an isolated axis "
+                "'contradicts' against a concordant summary is an internal over-flag "
+                "(literature and omics agree in aggregate); demoted below the "
+                "sharp/actionable set"
+            )
         if in_calibration:
-            return GAP_CALIBRATION, "verified literature contradicts a MEASURED claim axis on a GROUND-TRUTH target — candidate false-negative; anchor a calibration assertion"
-        return GAP_VERDICT_RULE, "verified literature contradicts a MEASURED claim axis — candidate rule/card/method gap"
+            return (
+                GAP_CALIBRATION,
+                "verified literature contradicts a MEASURED claim axis on a GROUND-TRUTH target — candidate false-negative; anchor a calibration assertion",
+            )
+        return (
+            GAP_VERDICT_RULE,
+            "verified literature contradicts a MEASURED claim axis — candidate rule/card/method gap",
+        )
     # agree / extends and not blind -> not a gap (concordant); surfaced only in summary counts.
     return "", ""
 
@@ -194,46 +221,78 @@ def build_rows(record: dict, calibration_targets: set[str] | None = None) -> lis
         # actually compared against), and classify on measured-ness — not on the reduced verdict.
         atom = _claim_atom(claim_vector, axis_key) if not is_blind else None
         claim_measured = _axis_measured(atom)
-        gap_class, why = _classify(agreement, n_ver, is_blind, atlas_excluded, in_calibration, claim_measured,
-                                   overall_concordant=(overall == "concordant"))
+        gap_class, why = _classify(
+            agreement,
+            n_ver,
+            is_blind,
+            atlas_excluded,
+            in_calibration,
+            claim_measured,
+            overall_concordant=(overall == "concordant"),
+        )
         if not gap_class:
             return
-        rows.append({
-            "target": target, "indication": indication, "skill": skill,
-            "axis_key": axis_key,
-            "gap_class": gap_class, "severity": _SEVERITY[gap_class], "why": why,
-            "agreement_vs_omics": agreement, "literature_read": lit_read,
-            "assertion": assertion, "confidence": confidence,
-            "overall_consistency": overall, "key_divergence": key_div,
-            # per-AXIS claim match (the correct resolution) — the omics signal/corroboration the lane
-            # compared against; `sub_verdict` is retained as CONTEXT/priority only, not the match target.
-            "claim_signal": (atom or {}).get("signal") if isinstance(atom, dict) else None,
-            "claim_corroboration": (atom or {}).get("corroboration") if isinstance(atom, dict) else None,
-            "claim_measured": claim_measured,
-            "sub_verdict": verdict, "driving_rule_id": driving,
-            "n_verified_citations": n_ver, "n_citations": n_tot,
-            "confabulation_risk": (agreement == "contradicts" and n_ver < 1),
-            "citations": list(citations or []),
-            "in_calibration_set": in_calibration,
-            "provenance": {"model_id": prov.get("model_id") or lit.get("_model_id"),
-                           "prompt_hash": prov.get("prompt_hash") or lit.get("_prompt_hash")},
-        })
+        rows.append(
+            {
+                "target": target,
+                "indication": indication,
+                "skill": skill,
+                "axis_key": axis_key,
+                "gap_class": gap_class,
+                "severity": _SEVERITY[gap_class],
+                "why": why,
+                "agreement_vs_omics": agreement,
+                "literature_read": lit_read,
+                "assertion": assertion,
+                "confidence": confidence,
+                "overall_consistency": overall,
+                "key_divergence": key_div,
+                # per-AXIS claim match (the correct resolution) — the omics signal/corroboration the lane
+                # compared against; `sub_verdict` is retained as CONTEXT/priority only, not the match target.
+                "claim_signal": (atom or {}).get("signal") if isinstance(atom, dict) else None,
+                "claim_corroboration": (atom or {}).get("corroboration") if isinstance(atom, dict) else None,
+                "claim_measured": claim_measured,
+                "sub_verdict": verdict,
+                "driving_rule_id": driving,
+                "n_verified_citations": n_ver,
+                "n_citations": n_tot,
+                "confabulation_risk": (agreement == "contradicts" and n_ver < 1),
+                "citations": list(citations or []),
+                "in_calibration_set": in_calibration,
+                "provenance": {
+                    "model_id": prov.get("model_id") or lit.get("_model_id"),
+                    "prompt_hash": prov.get("prompt_hash") or lit.get("_prompt_hash"),
+                },
+            }
+        )
 
     for ax in lit.get("axes") or []:
         if not isinstance(ax, dict):
             continue
         agreement = ax.get("agreement_vs_omics")
-        _emit(ax.get("axis_key"), agreement, ax.get("literature_read"),
-              ax.get("assertion"), ax.get("confidence"), ax.get("citations"),
-              is_blind=agreement in _BLIND_AGREEMENTS)
+        _emit(
+            ax.get("axis_key"),
+            agreement,
+            ax.get("literature_read"),
+            ax.get("assertion"),
+            ax.get("confidence"),
+            ax.get("citations"),
+            is_blind=agreement in _BLIND_AGREEMENTS,
+        )
 
     # blind_spots[] are literature-only signals the omics CANNOT measure by construction.
     for bs in lit.get("blind_spots") or []:
         if not isinstance(bs, dict):
             continue
-        _emit("blind_spot", "omics_blind", "not_addressed",
-              f"{bs.get('signal', '')}: {bs.get('why_omics_blind', '')}".strip(": "),
-              None, bs.get("citations"), is_blind=True)
+        _emit(
+            "blind_spot",
+            "omics_blind",
+            "not_addressed",
+            f"{bs.get('signal', '')}: {bs.get('why_omics_blind', '')}".strip(": "),
+            None,
+            bs.get("citations"),
+            is_blind=True,
+        )
 
     return rows
 
@@ -253,8 +312,15 @@ def build_ledger(corpus_path: str | Path, calibration_targets: set[str] | None =
     for rec in records:
         rows.extend(build_rows(rec, calibration_targets))
     # Rank: severity desc, then verified-citation count desc, then (skill, target) for stability.
-    rows.sort(key=lambda r: (-r["severity"], -r["n_verified_citations"],
-                             str(r["skill"]), str(r["target"]), str(r["axis_key"])))
+    rows.sort(
+        key=lambda r: (
+            -r["severity"],
+            -r["n_verified_citations"],
+            str(r["skill"]),
+            str(r["target"]),
+            str(r["axis_key"]),
+        )
+    )
     by_class: dict[str, int] = {}
     by_skill: dict[str, int] = {}
     for r in rows:
@@ -262,7 +328,7 @@ def build_ledger(corpus_path: str | Path, calibration_targets: set[str] | None =
         by_skill[r["skill"]] = by_skill.get(r["skill"], 0) + 1
     actionable = [r for r in rows if r["gap_class"] in (GAP_CALIBRATION, GAP_VERDICT_RULE, GAP_BLIND_SPOT)]
     return {
-        "schema": "discordance_ledger/v2",   # v2: claim-vector-axis aligned (per-axis claim match, not verdict)
+        "schema": "discordance_ledger/v2",  # v2: claim-vector-axis aligned (per-axis claim match, not verdict)
         "generated_at": _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds"),
         "corpus": str(corpus_path),
         "corpus_fingerprint": _corpus_fingerprint(corpus_path),
@@ -271,7 +337,7 @@ def build_ledger(corpus_path: str | Path, calibration_targets: set[str] | None =
         "n_actionable": len(actionable),
         "summary": {"by_gap_class": by_class, "by_skill": by_skill},
         "governance": "escalate-only; annotation-only; literature not citable in nominations "
-                      "(RISK_ASSESSMENT_INTEGRATION.md). This ledger is a review queue.",
+        "(RISK_ASSESSMENT_INTEGRATION.md). This ledger is a review queue.",
         "rows": rows,
     }
 
@@ -279,8 +345,13 @@ def build_ledger(corpus_path: str | Path, calibration_targets: set[str] | None =
 # The ground-truth sections whose entries are KEYED BY TARGET SYMBOL. A `contradicts` on any of
 # these is a candidate against a curated outcome → calibration_gap. `known_gap_watchlist` is the
 # most valuable source: documented false-negatives the framework is expected to miss today.
-_CALIBRATION_SECTIONS = ("reference_profiles", "known_gap_watchlist", "positive_controls",
-                         "abstention_cases", "selectivity_cases")
+_CALIBRATION_SECTIONS = (
+    "reference_profiles",
+    "known_gap_watchlist",
+    "positive_controls",
+    "abstention_cases",
+    "selectivity_cases",
+)
 
 
 def _load_calibration_targets(path: str | Path | None) -> set[str]:
@@ -294,6 +365,7 @@ def _load_calibration_targets(path: str | Path | None) -> set[str]:
         return set()
     try:
         import yaml  # type: ignore
+
         doc = yaml.safe_load(p.read_text()) or {}
     except Exception:  # noqa: BLE001 — never let ground-truth loading break the ledger
         return set()
@@ -301,8 +373,8 @@ def _load_calibration_targets(path: str | Path | None) -> set[str]:
     for section in _CALIBRATION_SECTIONS:
         sec = doc.get(section)
         if isinstance(sec, dict):
-            out.update(str(k) for k in sec)                       # keyed-by-target (the real schema)
-        elif isinstance(sec, list):                               # tolerate a list-of-dicts variant
+            out.update(str(k) for k in sec)  # keyed-by-target (the real schema)
+        elif isinstance(sec, list):  # tolerate a list-of-dicts variant
             for entry in sec:
                 if isinstance(entry, dict):
                     t = entry.get("target") or entry.get("gene") or entry.get("symbol")
@@ -314,8 +386,9 @@ def _load_calibration_targets(path: str | Path | None) -> set[str]:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--corpus", required=True, help="JSON list, directory of records, or single record")
-    ap.add_argument("--calibration-set", default=None,
-                    help="optional known_target_calibration_set.yaml to tag calibration_gap rows")
+    ap.add_argument(
+        "--calibration-set", default=None, help="optional known_target_calibration_set.yaml to tag calibration_gap rows"
+    )
     ap.add_argument("--out", default=None, help="write ledger JSON here (default: stdout only)")
     a = ap.parse_args(argv)
     ledger = build_ledger(a.corpus, _load_calibration_targets(a.calibration_set))

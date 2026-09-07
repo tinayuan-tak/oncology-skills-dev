@@ -5,12 +5,13 @@ unmeasured axis is a hatched gap (never a zero-length bar), the verdict phrase +
 emit_headline_hero writes the {svg,json} artifacts (png best-effort). Pure — no S3, no matplotlib needed
 for the SVG/JSON assertions.
 """
+
 from __future__ import annotations
 
 import sys
 from pathlib import Path
 
-SKILLS = Path(__file__).resolve().parents[2]        # skills/
+SKILLS = Path(__file__).resolve().parents[2]  # skills/
 if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
 
@@ -24,13 +25,23 @@ HERO = {
     "axes": [
         {"key": "A", "label": "abundance", "signal": "strong", "corroboration": "high", "conflict": False},
         {"key": "B", "label": "tumor-elevation", "signal": "moderate", "corroboration": "moderate", "conflict": True},
-        {"key": "C", "label": "malignant-intrinsic", "signal": "unmeasured", "corroboration": "unmeasured", "conflict": False},
+        {
+            "key": "C",
+            "label": "malignant-intrinsic",
+            "signal": "unmeasured",
+            "corroboration": "unmeasured",
+            "conflict": False,
+        },
         {"key": "D", "label": "generality", "signal": "strong", "corroboration": "low", "conflict": False},
     ],
 }
-BLOCK = {"verdict": HERO["verdict"], "confidence": HERO["confidence"],
-         "top_tension": HERO["tension"], "headline_text": "Present (low abundance) — moderate confidence.",
-         "hero": HERO}
+BLOCK = {
+    "verdict": HERO["verdict"],
+    "confidence": HERO["confidence"],
+    "top_tension": HERO["tension"],
+    "headline_text": "Present (low abundance) — moderate confidence.",
+    "hero": HERO,
+}
 
 
 def test_svg_renders_offline_with_verdict_and_confidence():
@@ -50,7 +61,7 @@ def test_unmeasured_axis_is_hatched_gap_not_zero_bar():
 
 def test_conflict_axis_marked():
     svg = render_headline_hero_svg(HERO, "EPCAM", "COADREAD")
-    assert "⚠" in svg                       # B carries a conflict → warning glyph
+    assert "⚠" in svg  # B carries a conflict → warning glyph
 
 
 def test_emit_writes_artifacts(tmp_path):

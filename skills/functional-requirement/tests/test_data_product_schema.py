@@ -8,6 +8,7 @@ static-golden check skips it; the load-bearing conformance is the FRESH replay e
 
 CI-liveness: schema unresolvable → SKIP locally, FAIL in CI (env CI set).
 """
+
 from __future__ import annotations
 
 import json
@@ -25,15 +26,21 @@ GOLDEN = SKILL_DIR / "tests" / "fixtures" / "kras_coadread_decision.json"
 if str(SKILLS_ROOT) not in sys.path:
     sys.path.insert(0, str(SKILLS_ROOT))
 from _skills_common.data_product_contract import (  # noqa: E402
-    conformance_errors, is_full_decision, load_schema, schema_path)
+    conformance_errors,
+    is_full_decision,
+    load_schema,
+    schema_path,
+)
 
 
 def _schema_or_gate() -> dict:
     schema = load_schema(SKILL)
     if schema is not None:
         return schema
-    reason = (f"data-product schema not found at {schema_path(SKILL)} — set TARGET_CONTRACTS_ROOT / "
-              f"land the contracts schema PR first")
+    reason = (
+        f"data-product schema not found at {schema_path(SKILL)} — set TARGET_CONTRACTS_ROOT / "
+        f"land the contracts schema PR first"
+    )
     if os.environ.get("CI"):
         pytest.fail(reason + " [CI: the ratchet must be live, not skipped]")
     pytest.skip(reason)
@@ -56,4 +63,5 @@ def test_static_golden_conforms():
         pytest.skip("golden is a trimmed fixture (not a full decision) — see the replay conformance test")
     errors = conformance_errors(schema, decision)
     assert not errors, "static golden violates the data-product schema:\n  " + "\n  ".join(
-        f"{list(e.path)}: {e.message}" for e in errors[:15])
+        f"{list(e.path)}: {e.message}" for e in errors[:15]
+    )

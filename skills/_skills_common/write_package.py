@@ -90,10 +90,7 @@ def write_package(
         "target": target,
         "indication": indication,
         "skill": skill_name,
-        "cards": {
-            c["card_id"]: c.get("summary", {}) or {}
-            for c in card_outputs
-        },
+        "cards": {c["card_id"]: c.get("summary", {}) or {} for c in card_outputs},
     }
     summary_path = out_dir / "summary.yaml"
     summary_path.write_text(yaml.safe_dump(summary_doc, sort_keys=False))
@@ -103,9 +100,9 @@ def write_package(
     for card in card_outputs:
         cid = card["card_id"]
         s = card.get("summary") or {}
-        scalars = {k: v for k, v in s.items()
-                   if not k.startswith("_")
-                   and isinstance(v, (int, float, str, bool, type(None)))}
+        scalars = {
+            k: v for k, v in s.items() if not k.startswith("_") and isinstance(v, (int, float, str, bool, type(None)))
+        }
         if not scalars:
             continue
         csv_path = tables_dir / f"{cid}_summary_stats.csv"
@@ -157,7 +154,7 @@ def write_package(
             # Populated even for the many readers that never stamp `_data_source` themselves, so the
             # audit anchor names real manifest ids for every card — not just the ~40% that stamp.
             "input_manifest_ids": (c.get("provenance") or {}).get("input_manifest_ids", []),
-            "_missing": bool(c.get("_missing")),   # match card_output + cards_missing key
+            "_missing": bool(c.get("_missing")),  # match card_output + cards_missing key
         }
         if c.get("_missing_reason"):
             entry["_missing_reason"] = c["_missing_reason"]
@@ -175,8 +172,7 @@ def write_package(
         # per-family drift) — mirrors decision.json['provenance'], single-sourced upstream.
         "governance": (decision or {}).get("provenance", {}),
         "cards_resolved": [c["card_id"] for c in card_outputs],
-        "cards_missing": [c["card_id"] for c in card_outputs
-                          if c.get("_missing")],
+        "cards_missing": [c["card_id"] for c in card_outputs if c.get("_missing")],
         "data_provenance": data_provenance,
         "artefacts": {
             "decision_json": str(decision_path.name),

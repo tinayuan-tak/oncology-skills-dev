@@ -35,128 +35,129 @@ from _skills_common.headline_core import build_headline, HeadlineSpec
 from _skills_common.headline_hero import emit_headline_hero
 from _skills_common.skill_report import build_skill_report, ROLE_GATING
 from _skills_common.subgroup_derivation import make_value_classifier
+
 # Read-only reuse of the shared target-contracts path (NOT modifying scope.py — collision-safe).
 from _skills_common.scope import DEFAULT_CONTRACTS_REPO
 
 
 SKILL_NAME = "functional-requirement"
-SKILL_VERSION = "1.9.0"   # 1.9.0 (2026-09-04): verdict-INERT surfacing — indication_scope_note (target-grain positive enriched outside the queried indication) + partial-paralog caveat on absence verdicts.   # 1.8.0 (2026-09-03): --literature lane + verdict-INERT signal enrichment (measurement_caveat, concordance_scope_note, PRISM DEP-quorum, paralog caveat, polarity_note).   # 1.7.0 (2026-08-28): migrate narrator to generic capsule-driven engine. Verdict-INERT.   # 1.6.0 (2026-08-27): tuned signals-first sub-group reader (dependency-vocab
-                          #        value→tier map + paralog-buffering confidence-only). Verdict-INERT.
-                          # 1.5.0 (2026-08-21): emit the existing per-question question_table into the headline
-                          # 1.4.0 (2026-08-13): production review — offline recorded-fixture replay drift
-                          #        guard (test_functional_requirement_replay.py) + SKILL.md parity
-                          #        (rules_scope: -dependency-predictability [verdict-inert], +partner-conditional-
-                          #        dependency [verdict-bearing]; measurement_types += partner_conditional +
-                          #        cross_consortium; 11->13 card count). Verdict spine byte-stable.
-                          # 1.3.1 (2026-08-08): fix 2 headline field-name drift bugs — rnai_call read
-                          #        `dependency_class` (card emits `rnai_dependency_class`) + lineage_selectivity
-                          #        read `lineage_selectivity_class` (card emits `enrichment_class`); both were
-                          #        silently None despite live data. Display-only — verdict spine byte-stable.
-                          # 1.3.0: opt-in --subtypes DESCRIPTIVE dependency-by-molecular-subgroup
-                          #        panorama (subgroup-stratified-dependency; e.g. MSI_H vs MSS).
-                          #        Verdict-inert (touches no rung); byte-stable without the flag.
-                          # 1.2.0: opt-in --synthesize LLM narration (dependency lens) — two-slot,
-                          #        verdict-inert; FULL evidence set + Axis-2 controls + Axis-3 omnibus.
+SKILL_VERSION = "1.9.0"  # 1.9.0 (2026-09-04): verdict-INERT surfacing — indication_scope_note (target-grain positive enriched outside the queried indication) + partial-paralog caveat on absence verdicts.   # 1.8.0 (2026-09-03): --literature lane + verdict-INERT signal enrichment (measurement_caveat, concordance_scope_note, PRISM DEP-quorum, paralog caveat, polarity_note).   # 1.7.0 (2026-08-28): migrate narrator to generic capsule-driven engine. Verdict-INERT.   # 1.6.0 (2026-08-27): tuned signals-first sub-group reader (dependency-vocab
+#        value→tier map + paralog-buffering confidence-only). Verdict-INERT.
+# 1.5.0 (2026-08-21): emit the existing per-question question_table into the headline
+# 1.4.0 (2026-08-13): production review — offline recorded-fixture replay drift
+#        guard (test_functional_requirement_replay.py) + SKILL.md parity
+#        (rules_scope: -dependency-predictability [verdict-inert], +partner-conditional-
+#        dependency [verdict-bearing]; measurement_types += partner_conditional +
+#        cross_consortium; 11->13 card count). Verdict spine byte-stable.
+# 1.3.1 (2026-08-08): fix 2 headline field-name drift bugs — rnai_call read
+#        `dependency_class` (card emits `rnai_dependency_class`) + lineage_selectivity
+#        read `lineage_selectivity_class` (card emits `enrichment_class`); both were
+#        silently None despite live data. Display-only — verdict spine byte-stable.
+# 1.3.0: opt-in --subtypes DESCRIPTIVE dependency-by-molecular-subgroup
+#        panorama (subgroup-stratified-dependency; e.g. MSI_H vs MSS).
+#        Verdict-inert (touches no rung); byte-stable without the flag.
+# 1.2.0: opt-in --synthesize LLM narration (dependency lens) — two-slot,
+#        verdict-inert; FULL evidence set + Axis-2 controls + Axis-3 omnibus.
 
 CARDS = [
     "pan-cancer-crispr-dependency-distribution",
     "pan-cancer-rnai-dependency-distribution",
     "crispr-rnai-dependency-concordance",
-    "dependency-lineage-selectivity",           # TARGET-GRAIN by design: enrichment_class
-                                                # =lineage_selective fires if ANY lineage is enriched, NOT
-                                                # necessarily the queried indication's lineage. So the
-                                                # lineage_selective VERDICT means "selective to some
-                                                # lineage", and the indication-MATCH is done in the LLM
-                                                # synthesis layer (per-indication lookup over
-                                                # per_lineage_stats), NOT the machine verdict (FR review,
-                                                # 2026-08-13). A future indication-conditioned verdict would
-                                                # be a grain change (needs a nomination-side decision).
-    "paralog-buffering",                        # COMPOUND-ONLY veto-suppressor: strong-paralog-buffering-
-                                                # degrader-preferred moves the verdict ONLY via the
-                                                # `when_all` rung (non-dependent-killer AND this) →
-                                                # non_dependent_paralog_buffered. On any positive/pan-ess
-                                                # call it is verdict-INERT and only sets modality_scope
-                                                # (degrader-preferred). Not a standalone verdict input.
-    "partner-conditional-dependency",           # (2026-08-09) — VERDICT-BEARING synthetic-
-                                                # lethality rescue. Does dependency stratify by a
-                                                # PARTNER gene's deficiency (WRN×MSI, PARP1×HRD)? Its
-                                                # partner-conditional-{strongly,moderately}-dependent
-                                                # rules fire partner_conditional_dependent in
-                                                # dependency.resolver — a distinct verdict that RESCUES
-                                                # a pooled non_dependent veto (mirrors the paralog-
-                                                # buffered rescue), one-directional. Whole-cohort
-                                                # (target-only); the MODERATE tier IS rescue-firing for
-                                                # this family (WRN×MSI = -0.41). Also in target-profile
-                                                # SUB_SKILL_CARDS[functional-requirement].
-    "prism-crispr-concordance",                 # chemical-genetic CONFIRMATION arm (gate C,
-                                                # 2026-07-20). Its triangulated_target_engaged
-                                                # class fires e7-triangulated-target-engaged-supportive, which
-                                                # the dependency resolver now reads as
-                                                # chemical_genetic_confirmed_dependent (a positive-only,
-                                                # veto-safe confirmation). The card is ALSO in tractability-
-                                                # small-molecule's CARDS ("a compound was found") — one
-                                                # measurement routes many-to-many to gates; each gate's
-                                                # resolver/snapshot reads only its own rule_ids.
-    "cross-consortium-dependency",              # Project Score (2026-08-10) — gate-C CORROBORATION: does
-                                                # Sanger Project Score AGREE with Broad Achilles on the
-                                                # dependency? Two independent consortia agreeing > CRISPR×RNAi
-                                                # (both Broad). ADDITIVE, verdict-inert (raises confidence;
-                                                # feeds NO resolver rung).
-    "dependency-predictability",                # Gate-C (2026-07-21) — META-evidence
-                                                # ("how omics-predictable is this dependency, and by what?").
-                                                # Composed so it RUNS; it feeds a CONFIDENCE ANNOTATION only
-                                                # (dependency_confidence_note), NEVER the verdict/resolver.
-                                                # predictability is about a dependency call, not a call itself.
-    "expression-dependency-correlation",        # Gate-C biomarker facet (2026-07-22): "expression
-                                                # predicts dependency" (patient-selection). Was ORPHANED —
-                                                # present in target-profile's render maps (title/role/
-                                                # reports_into) + has a live dispatcher, but was in NO
-                                                # sub-skill CARDS, so correlation_class never computed +
-                                                # rendered empty. Render-only facet (its expression-biomarker-*
-                                                # rules feed NO resolver — verdict-inert), grouped with the
-                                                # dependency stratification facets. Also added to
-                                                # target-profile SUB_SKILL_CARDS[functional-requirement].
-    "abundance-dependency",                     # Q7 PROTEIN arm of expression-as-biomarker-of-dependency
-                                                # (2026-07-22): "protein abundance predicts dependency".
-                                                # Sibling of expression-dependency-correlation (RNA arm) —
-                                                # composed alongside it so the biomarker facet can compare
-                                                # RNA vs protein (preferred_assay). ADDITIVE render-only facet
-                                                # (abundance-dependency-* rules feed NO resolver → dependency
-                                                # verdict byte-stable). Biology axis; no modality facet.
-    "recommended-models",                       # Q4 patient↔model correspondence (2026-07-22). Routes to
-                                                # Gate C as MODEL-BACKED-DEPENDENCY corroboration (its
-                                                # master-plan Patient-pop/Q10 home was deleted). Its
-                                                # recommended-models-* rules emit SM/degrader supportive on
-                                                # well_modeled (a screenable, model-backed dependency basis);
-                                                # ADDITIVE — feed NO resolver ladder → dependency verdict
-                                                # byte-stable. Also in target-profile SUB_SKILL_CARDS.
-    "genomic-event-model-match",                # GENOTYPE-matched patient↔model facet (cross-wire,
-                                                # 2026-08-19). Complements recommended-models (expression-
-                                                # similarity) with genotype IDENTITY: which DepMap models
-                                                # carry the SAME functional event in the target as the
-                                                # indication's tumors, and are those models dependent? Built
-                                                # + homed in genomic-alteration-profile; cross-wired here for
-                                                # a sharper patient-selection read. ADDITIVE, verdict-INERT —
-                                                # its event-correspondence rules are genomic (NOT dependency-*),
-                                                # so FR's dependency-rule filter drops them from the verdict.
-    "organoid-crispr-dependency",               # Organoid-native Chronos facet (2026-08-18). The organoid
-                                                # READING of the same screens (OrganoidGeneEffect.csv, 114
-                                                # GI-dominated organoid models, normalized within-organoid).
-                                                # Its organoid-{selective,broad}-dependency-supportive rules
-                                                # emit SM/degrader SUPPORTIVE; pan-essential/rare/not-dependent
-                                                # NEUTRAL; data_unavailable insufficient. ADDITIVE — feeds NO
-                                                # resolver ladder → dependency verdict byte-stable (the small
-                                                # GI-skewed cohort corroborates a positive dependency but is
-                                                # NEVER a trusted independent veto; the pan-cancer card owns
-                                                # the killer). Target-grain; indication accepted-not-consumed.
-    "coessential-module",                       # Co-essential-module CONFIDENCE facet (2026-08-19) — the
-                                                # enrichment-review item (depmap-coessentiality-26q1-v1 was
-                                                # orphaned). Is the dependency embedded in a COHERENT co-essential
-                                                # module (complex/pathway partners) or ISOLATED? A module-anchored
-                                                # call is more mechanism-credible. VERDICT-INERT — feeds NO resolver
-                                                # rung; folds into dependency_confidence_note (sibling of cross-
-                                                # consortium + predictability). Generic-dispatch wired via the
-                                                # card's methods.entrypoint. Target-grain; indication not consumed.
+    "dependency-lineage-selectivity",  # TARGET-GRAIN by design: enrichment_class
+    # =lineage_selective fires if ANY lineage is enriched, NOT
+    # necessarily the queried indication's lineage. So the
+    # lineage_selective VERDICT means "selective to some
+    # lineage", and the indication-MATCH is done in the LLM
+    # synthesis layer (per-indication lookup over
+    # per_lineage_stats), NOT the machine verdict (FR review,
+    # 2026-08-13). A future indication-conditioned verdict would
+    # be a grain change (needs a nomination-side decision).
+    "paralog-buffering",  # COMPOUND-ONLY veto-suppressor: strong-paralog-buffering-
+    # degrader-preferred moves the verdict ONLY via the
+    # `when_all` rung (non-dependent-killer AND this) →
+    # non_dependent_paralog_buffered. On any positive/pan-ess
+    # call it is verdict-INERT and only sets modality_scope
+    # (degrader-preferred). Not a standalone verdict input.
+    "partner-conditional-dependency",  # (2026-08-09) — VERDICT-BEARING synthetic-
+    # lethality rescue. Does dependency stratify by a
+    # PARTNER gene's deficiency (WRN×MSI, PARP1×HRD)? Its
+    # partner-conditional-{strongly,moderately}-dependent
+    # rules fire partner_conditional_dependent in
+    # dependency.resolver — a distinct verdict that RESCUES
+    # a pooled non_dependent veto (mirrors the paralog-
+    # buffered rescue), one-directional. Whole-cohort
+    # (target-only); the MODERATE tier IS rescue-firing for
+    # this family (WRN×MSI = -0.41). Also in target-profile
+    # SUB_SKILL_CARDS[functional-requirement].
+    "prism-crispr-concordance",  # chemical-genetic CONFIRMATION arm (gate C,
+    # 2026-07-20). Its triangulated_target_engaged
+    # class fires e7-triangulated-target-engaged-supportive, which
+    # the dependency resolver now reads as
+    # chemical_genetic_confirmed_dependent (a positive-only,
+    # veto-safe confirmation). The card is ALSO in tractability-
+    # small-molecule's CARDS ("a compound was found") — one
+    # measurement routes many-to-many to gates; each gate's
+    # resolver/snapshot reads only its own rule_ids.
+    "cross-consortium-dependency",  # Project Score (2026-08-10) — gate-C CORROBORATION: does
+    # Sanger Project Score AGREE with Broad Achilles on the
+    # dependency? Two independent consortia agreeing > CRISPR×RNAi
+    # (both Broad). ADDITIVE, verdict-inert (raises confidence;
+    # feeds NO resolver rung).
+    "dependency-predictability",  # Gate-C (2026-07-21) — META-evidence
+    # ("how omics-predictable is this dependency, and by what?").
+    # Composed so it RUNS; it feeds a CONFIDENCE ANNOTATION only
+    # (dependency_confidence_note), NEVER the verdict/resolver.
+    # predictability is about a dependency call, not a call itself.
+    "expression-dependency-correlation",  # Gate-C biomarker facet (2026-07-22): "expression
+    # predicts dependency" (patient-selection). Was ORPHANED —
+    # present in target-profile's render maps (title/role/
+    # reports_into) + has a live dispatcher, but was in NO
+    # sub-skill CARDS, so correlation_class never computed +
+    # rendered empty. Render-only facet (its expression-biomarker-*
+    # rules feed NO resolver — verdict-inert), grouped with the
+    # dependency stratification facets. Also added to
+    # target-profile SUB_SKILL_CARDS[functional-requirement].
+    "abundance-dependency",  # Q7 PROTEIN arm of expression-as-biomarker-of-dependency
+    # (2026-07-22): "protein abundance predicts dependency".
+    # Sibling of expression-dependency-correlation (RNA arm) —
+    # composed alongside it so the biomarker facet can compare
+    # RNA vs protein (preferred_assay). ADDITIVE render-only facet
+    # (abundance-dependency-* rules feed NO resolver → dependency
+    # verdict byte-stable). Biology axis; no modality facet.
+    "recommended-models",  # Q4 patient↔model correspondence (2026-07-22). Routes to
+    # Gate C as MODEL-BACKED-DEPENDENCY corroboration (its
+    # master-plan Patient-pop/Q10 home was deleted). Its
+    # recommended-models-* rules emit SM/degrader supportive on
+    # well_modeled (a screenable, model-backed dependency basis);
+    # ADDITIVE — feed NO resolver ladder → dependency verdict
+    # byte-stable. Also in target-profile SUB_SKILL_CARDS.
+    "genomic-event-model-match",  # GENOTYPE-matched patient↔model facet (cross-wire,
+    # 2026-08-19). Complements recommended-models (expression-
+    # similarity) with genotype IDENTITY: which DepMap models
+    # carry the SAME functional event in the target as the
+    # indication's tumors, and are those models dependent? Built
+    # + homed in genomic-alteration-profile; cross-wired here for
+    # a sharper patient-selection read. ADDITIVE, verdict-INERT —
+    # its event-correspondence rules are genomic (NOT dependency-*),
+    # so FR's dependency-rule filter drops them from the verdict.
+    "organoid-crispr-dependency",  # Organoid-native Chronos facet (2026-08-18). The organoid
+    # READING of the same screens (OrganoidGeneEffect.csv, 114
+    # GI-dominated organoid models, normalized within-organoid).
+    # Its organoid-{selective,broad}-dependency-supportive rules
+    # emit SM/degrader SUPPORTIVE; pan-essential/rare/not-dependent
+    # NEUTRAL; data_unavailable insufficient. ADDITIVE — feeds NO
+    # resolver ladder → dependency verdict byte-stable (the small
+    # GI-skewed cohort corroborates a positive dependency but is
+    # NEVER a trusted independent veto; the pan-cancer card owns
+    # the killer). Target-grain; indication accepted-not-consumed.
+    "coessential-module",  # Co-essential-module CONFIDENCE facet (2026-08-19) — the
+    # enrichment-review item (depmap-coessentiality-26q1-v1 was
+    # orphaned). Is the dependency embedded in a COHERENT co-essential
+    # module (complex/pathway partners) or ISOLATED? A module-anchored
+    # call is more mechanism-credible. VERDICT-INERT — feeds NO resolver
+    # rung; folds into dependency_confidence_note (sibling of cross-
+    # consortium + predictability). Generic-dispatch wired via the
+    # card's methods.entrypoint. Target-grain; indication not consumed.
 ]
 
 # SUBTYPE axis (2026-08-06) — kept OUT of the scalar CARDS list ON PURPOSE, mirroring
@@ -184,10 +185,10 @@ _SUBGROUP_N_FLOOR = 30
 # subgroup-stratified-dependency per-stratum `class` → subtype-scope verdict term (Phase 4). A powered,
 # MEASURED stratum yields a real call; everything else is inadmissible (underpowered / insufficient).
 _SUBGROUP_CLASS_TO_VERDICT = {
-    "strong_dependency":   "dependent",
+    "strong_dependency": "dependent",
     "moderate_dependency": "moderately_dependent",
-    "not_dependent":       "not_dependent",
-    "insufficient":        "insufficient",
+    "not_dependent": "not_dependent",
+    "insufficient": "insufficient",
 }
 
 
@@ -203,10 +204,10 @@ def _subtype_scope_verdict(per_subgroup: list) -> dict:
         if not stratum:
             continue
         n = r.get("subgroup_n")
-        powered = (r.get("evidence_state") == "measured"
-                   and isinstance(n, (int, float)) and n >= _SUBGROUP_N_FLOOR)
-        by_stratum[stratum] = (_SUBGROUP_CLASS_TO_VERDICT.get(r.get("class"), "insufficient")
-                               if powered else "underpowered")
+        powered = r.get("evidence_state") == "measured" and isinstance(n, (int, float)) and n >= _SUBGROUP_N_FLOOR
+        by_stratum[stratum] = (
+            _SUBGROUP_CLASS_TO_VERDICT.get(r.get("class"), "insufficient") if powered else "underpowered"
+        )
     # NB: set literals (not tuples) for these membership tests — a ("x","y") tuple would false-match the
     # cross-skill rule-id drift guard's (rule_id, verdict) precedence-tuple regex (test_no_reference_drift).
     admissible = {s: v for s, v in by_stratum.items() if v not in {"underpowered", "insufficient"}}
@@ -224,8 +225,7 @@ def _subtype_scope_verdict(per_subgroup: list) -> dict:
     return {"by_stratum": by_stratum, "n_admissible": len(admissible), "headline": headline}
 
 
-def _resolve_dependency_subtype_panorama(target: str, indication: str | None,
-                                         subtypes: list) -> dict:
+def _resolve_dependency_subtype_panorama(target: str, indication: str | None, subtypes: list) -> dict:
     """DESCRIPTIVE dependency-by-subgroup panorama — resolve subgroup-stratified-dependency across
     the requested strata (e.g. MSI_H, MSS). Mirrors genomic-alteration's _resolve_subtype_panorama:
     the card is a PANORAMA dispatcher, so it needs subgroup_context.resolved_strata_ids threaded or
@@ -236,12 +236,9 @@ def _resolve_dependency_subtype_panorama(target: str, indication: str | None,
     is byte-stable whether or not --subtypes is passed. Reads the card's ACTUAL emitted field names
     (per_subgroup_metrics rows: stratum/class/evidence_state/median_chronos/subgroup_n;
     cross_subgroup_delta_dependency reducer)."""
-    subgroup_context = {"resolved_strata_ids": list(subtypes),
-                        "catalog_status": "resolved_active"}
-    sub_cards = resolve_cards(SUBTYPE_CARDS, target, indication,
-                              subgroup_context=subgroup_context)
-    dep = next((c for c in sub_cards
-                if c["card_id"] == "subgroup-stratified-dependency"), None)
+    subgroup_context = {"resolved_strata_ids": list(subtypes), "catalog_status": "resolved_active"}
+    sub_cards = resolve_cards(SUBTYPE_CARDS, target, indication, subgroup_context=subgroup_context)
+    dep = next((c for c in sub_cards if c["card_id"] == "subgroup-stratified-dependency"), None)
     summary = (dep or {}).get("summary") or {}
     per_subgroup = summary.get("per_subgroup_metrics") or []
     # Only MEASURED strata are admissible for comparison (underpowered/absent are inadmissible —
@@ -263,62 +260,79 @@ def _resolve_dependency_subtype_panorama(target: str, indication: str | None,
         "cards": sub_cards,
         "scope_subtypes": list(subtypes),
         "subtype_dependency_panorama": {
-            "subtype_dependency_pattern":       pattern,   # display-only flavor, NOT a verdict
+            "subtype_dependency_pattern": pattern,  # display-only flavor, NOT a verdict
             # Phase 4: the SUBTYPE-scope verdict (power-gated per-stratum dependency call). This is the
             # authoritative `subtype` rung of dependency_verdict_by_scope — it lives HERE (not in
             # _headline) because the dispatcher resolves the --subtypes panorama AFTER headline_fn and
             # merges this block into the headline. Verdict-inert to the pooled spine.
-            "subtype_verdict":                  _subtype_scope_verdict(per_subgroup),
-            "n_subgroups_with_data":            summary.get("n_subgroups_with_data"),
-            "max_subgroup_dependency":          summary.get("max_subgroup_dependency"),
-            "min_subgroup_dependency":          summary.get("min_subgroup_dependency"),
-            "cross_subgroup_delta_dependency":  delta,
-            "measured_strata":                  [r.get("stratum") for r in measured],
+            "subtype_verdict": _subtype_scope_verdict(per_subgroup),
+            "n_subgroups_with_data": summary.get("n_subgroups_with_data"),
+            "max_subgroup_dependency": summary.get("max_subgroup_dependency"),
+            "min_subgroup_dependency": summary.get("min_subgroup_dependency"),
+            "cross_subgroup_delta_dependency": delta,
+            "measured_strata": [r.get("stratum") for r in measured],
             # surface per-stratum class + power so an underpowered stratum is never over-read
-            "per_stratum":                      [{"stratum": r.get("stratum"),
-                                                  "class": r.get("class"),
-                                                  "evidence_state": r.get("evidence_state"),
-                                                  "median_chronos": r.get("median_chronos"),
-                                                  "subgroup_n": r.get("subgroup_n")}
-                                                 for r in per_subgroup],
+            "per_stratum": [
+                {
+                    "stratum": r.get("stratum"),
+                    "class": r.get("class"),
+                    "evidence_state": r.get("evidence_state"),
+                    "median_chronos": r.get("median_chronos"),
+                    "subgroup_n": r.get("subgroup_n"),
+                }
+                for r in per_subgroup
+            ],
             "_missing": bool(dep is None or dep.get("_missing")),
             "_missing_reason": (dep or {}).get("_missing_reason"),
         },
     }
 
+
 # The verdicts that ARE a real dependency call (positive or veto) — the ones a predictability
 # confidence note meaningfully sharpens. On insufficient/discordant/underpowered verdicts the
 # note stays neutral (there is no call to be confident in).
-_DEPENDENCY_CALL_VERDICTS = frozenset({
-    "concordant_dependent", "lineage_selective", "selective_dependent",
-    "chemical_genetic_confirmed_dependent", "broadly_dependent",
-    "non_dependent", "non_dependent_paralog_buffered", "pan_essential_killer",
-    # partner_conditional_dependent IS a real dependency call (a partner-conditional
-    # dependency that escapes a pooled non_dependent veto). It was added to dependency.resolver.yaml
-    # but never here, so its predictability-confidence annotation was wrongly suppressed.
-    "partner_conditional_dependent",
-})
+_DEPENDENCY_CALL_VERDICTS = frozenset(
+    {
+        "concordant_dependent",
+        "lineage_selective",
+        "selective_dependent",
+        "chemical_genetic_confirmed_dependent",
+        "broadly_dependent",
+        "non_dependent",
+        "non_dependent_paralog_buffered",
+        "pan_essential_killer",
+        # partner_conditional_dependent IS a real dependency call (a partner-conditional
+        # dependency that escapes a pooled non_dependent veto). It was added to dependency.resolver.yaml
+        # but never here, so its predictability-confidence annotation was wrongly suppressed.
+        "partner_conditional_dependent",
+    }
+)
 
 # The complement: verdicts that are NOT a dependency call (predictability annotation stays neutral).
 # Together with _DEPENDENCY_CALL_VERDICTS these must EXHAUSTIVELY PARTITION dependency.resolver.yaml's
 # verdict enum — the Guard-A test (skills/tests/test_resolver_verdict_consumers.py) fails if the
 # resolver grows a verdict that neither set classifies, so a new verdict can't silently fall through
 # the "not a call" branch again.
-_NON_CALL_VERDICTS = frozenset({
-    "discordant",
-    "insufficient",
-    "insufficient_underpowered",
-    "insufficient_underpowered_pan_essential",
-})
+_NON_CALL_VERDICTS = frozenset(
+    {
+        "discordant",
+        "insufficient",
+        "insufficient_underpowered",
+        "insufficient_underpowered_pan_essential",
+    }
+)
 
 
 # Confidence ladder (low→high) for the cross-consortium corroboration lift below.
 _CONFIDENCE_LADDER = ("unknown", "standard", "moderate", "high")
 
 
-def _dependency_confidence_note(verdict: str, predictability_class: str | None,
-                                cross_consortium_class: str | None = None,
-                                coessential_module_class: str | None = None) -> dict:
+def _dependency_confidence_note(
+    verdict: str,
+    predictability_class: str | None,
+    cross_consortium_class: str | None = None,
+    coessential_module_class: str | None = None,
+) -> dict:
     """Gate-C: a CONFIDENCE ANNOTATION over the dependency verdict. NEVER changes
     the verdict or the resolver. Composed from THREE independent meta-signals:
 
@@ -340,21 +354,29 @@ def _dependency_confidence_note(verdict: str, predictability_class: str | None,
     Returns {confidence, note} where confidence ∈ {high, moderate, standard, unknown}. Annotates only
     on an actual dependency call (_DEPENDENCY_CALL_VERDICTS); otherwise `standard` with no meta-claim."""
     if verdict not in _DEPENDENCY_CALL_VERDICTS:
-        return {"confidence": "standard",
-                "note": "Predictability annotation applies only to an actual dependency call."}
+        return {
+            "confidence": "standard",
+            "note": "Predictability annotation applies only to an actual dependency call.",
+        }
     pc = predictability_class
     if pc == "own_omics_driven":
         conf = "high"
-        note = ("Dependency is predictable from the target's own omics "
-                "(biomarker-hypothesis-bearing) — higher confidence in the call.")
+        note = (
+            "Dependency is predictable from the target's own omics "
+            "(biomarker-hypothesis-bearing) — higher confidence in the call."
+        )
     elif pc == "context_or_driver_dependent":
         conf = "moderate"
-        note = ("Dependency is omics-predictable, but from lineage/driver context rather "
-                "than the target's own features — the biomarker is the context.")
+        note = (
+            "Dependency is omics-predictable, but from lineage/driver context rather "
+            "than the target's own features — the biomarker is the context."
+        )
     elif pc in ("weakly_predictable", "unpredictable"):
         conf = "standard"
-        note = ("Dependency is not well explained by omics — the call rests on the genetic "
-                "evidence itself; no omics biomarker handle (not a verdict downgrade).")
+        note = (
+            "Dependency is not well explained by omics — the call rests on the genetic "
+            "evidence itself; no omics biomarker handle (not a verdict downgrade)."
+        )
     else:  # data_unavailable or absent
         conf = "unknown"
         note = "Predictability not computed for this target (E5 precompute coverage gap)."
@@ -362,27 +384,35 @@ def _dependency_confidence_note(verdict: str, predictability_class: str | None,
     # Independent cross-consortium corroboration (Broad Achilles vs Sanger Project Score).
     if cross_consortium_class == "concordant_dependent":
         if _CONFIDENCE_LADDER.index(conf) < _CONFIDENCE_LADDER.index("moderate"):
-            conf = "moderate"   # independent-consortium replication is itself a confidence handle
-        note += (" Independently corroborated across consortia "
-                 "(Broad Achilles + Sanger Project Score agree).")
+            conf = "moderate"  # independent-consortium replication is itself a confidence handle
+        note += " Independently corroborated across consortia (Broad Achilles + Sanger Project Score agree)."
     elif cross_consortium_class == "discordant":
-        note += (" CAUTION: an independent consortium (Sanger Project Score) does NOT corroborate "
-                 "the Broad dependency call — a confidence caveat, not a veto.")
+        note += (
+            " CAUTION: an independent consortium (Sanger Project Score) does NOT corroborate "
+            "the Broad dependency call — a confidence caveat, not a veto."
+        )
 
     # Co-essential-module coherence (mechanism-anchoring corroboration).
     if coessential_module_class == "in_coherent_module":
         if _CONFIDENCE_LADDER.index(conf) < _CONFIDENCE_LADDER.index("moderate"):
-            conf = "moderate"   # a module-anchored dependency is itself a mechanism-credibility handle
-        note += (" Module-anchored — the dependency sits in a coherent co-essential module "
-                 "(complex/pathway partners co-essential across cell lines).")
+            conf = "moderate"  # a module-anchored dependency is itself a mechanism-credibility handle
+        note += (
+            " Module-anchored — the dependency sits in a coherent co-essential module "
+            "(complex/pathway partners co-essential across cell lines)."
+        )
     elif coessential_module_class == "isolated_dependency":
-        note += (" Note: the dependency is NOT co-essential with a coherent module "
-                 "(isolated) — a mechanism-anchoring caveat, not a veto.")
+        note += (
+            " Note: the dependency is NOT co-essential with a coherent module "
+            "(isolated) — a mechanism-anchoring caveat, not a veto."
+        )
     return {"confidence": conf, "note": note}
 
-QUESTION = ("Is {target} a genetic dependency in {indication}, and how does "
-            "the call hold up across CRISPR, RNAi, concordance, lineage-"
-            "selectivity, and paralog-buffering views?")
+
+QUESTION = (
+    "Is {target} a genetic dependency in {indication}, and how does "
+    "the call hold up across CRISPR, RNAi, concordance, lineage-"
+    "selectivity, and paralog-buffering views?"
+)
 
 
 def _verdict(fired: list[dict]) -> tuple[str, str | None]:
@@ -393,11 +423,16 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     the source of truth — no silent fallback to a stale copy, which would reintroduce drift)."""
     return resolve_or_raise(fired, "dependency")
 
+
 # ── (strength, certainty) emission — reference axis (CERTAINTY_MODEL.md dependency worked
 #    example). ADDITIVE + verdict-inert: computed from the crispr card's numeric provenance the
 #    verdict already consumed; never alters dependency_verdict. certainty needs NO outcome labels.
-_DEP_STRONG_POS = {"strongly_dependent", "broadly_dependent", "concordant_dependent",
-                   "chemical_genetic_confirmed_dependent"}
+_DEP_STRONG_POS = {
+    "strongly_dependent",
+    "broadly_dependent",
+    "concordant_dependent",
+    "chemical_genetic_confirmed_dependent",
+}
 _DEP_MOD_POS = {"lineage_selective", "selective_dependent", "partner_conditional_dependent"}
 _DEP_NEG = {"non_dependent", "non_dependent_paralog_buffered", "discordant"}
 _DEP_INSUFF = {"insufficient", "insufficient_underpowered", "insufficient_underpowered_pan_essential", None}
@@ -425,7 +460,7 @@ def _dependency_strength(verdict) -> str:
     if verdict in _DEP_MOD_POS:
         return "moderate_positive"
     if verdict == "pan_essential_killer":
-        return "broad_nonselective"   # strong magnitude, low SELECTIVE value (routes to tox)
+        return "broad_nonselective"  # strong magnitude, low SELECTIVE value (routes to tox)
     if verdict in _DEP_NEG:
         return "negative"
     return "none"
@@ -452,7 +487,7 @@ def _corroboration_from_cross_consortium(cross_consortium_class) -> str:
         return "low"
     if c == "single_consortium_only":
         return "medium"
-    return "unmeasured"   # data_unavailable / absent → no verdict-disjoint comparator this run
+    return "unmeasured"  # data_unavailable / absent → no verdict-disjoint comparator this run
 
 
 def _unknown_mass(cards) -> float:
@@ -493,21 +528,31 @@ def _dependency_strength_certainty(cards, verdict, cross_consortium_class) -> di
     coverage = _coverage_from_n(n)
     corroboration = _corroboration_from_cross_consortium(cross_consortium_class)
     components = [coverage] + ([corroboration] if corroboration != "unmeasured" else [])
-    level = min(components, key=lambda c: _ORD[c])   # weakest-link over MEASURED components
+    level = min(components, key=lambda c: _ORD[c])  # weakest-link over MEASURED components
     if verdict in _DEP_INSUFF:
         level = "low"
     from _skills_common.signals_first import certainty_composite
+
     strength = _dependency_strength(verdict)
     return {
         "strength": strength,
-        "certainty": {"level": level, "coverage": coverage, "corroboration": corroboration,
-                      "unknown_mass": _unknown_mass(cards)},
+        "certainty": {
+            "level": level,
+            "coverage": coverage,
+            "corroboration": corroboration,
+            "unknown_mass": _unknown_mass(cards),
+        },
         # continuous portfolio-ranking primitive (verdict-inert; a NAMED projection, not canonical)
         "composite": certainty_composite(strength, level),
-        "composite_basis": ("certainty-discounted dependency strength = peak signal tier × weakest-link "
-                            "certainty; a NAMED [0,1] portfolio-ranking projection, not a canonical verdict"),
-        "provenance": {"n_cell_lines_evaluated": n, "fraction_strongly_dependent": frac,
-                       "cross_consortium_class": cross_consortium_class},
+        "composite_basis": (
+            "certainty-discounted dependency strength = peak signal tier × weakest-link "
+            "certainty; a NAMED [0,1] portfolio-ranking projection, not a canonical verdict"
+        ),
+        "provenance": {
+            "n_cell_lines_evaluated": n,
+            "fraction_strongly_dependent": frac,
+            "cross_consortium_class": cross_consortium_class,
+        },
         "_model_ref": "CERTAINTY_MODEL.md#dependency",
     }
 
@@ -532,23 +577,28 @@ def _strength_certainty(cards, fired=None, verdict_pair=None):
 #    IS a genuine dependency (direction=supports, strong) — its non-selective TOXICITY downside is a
 #    SAFETY-axis concern, not this finding's valence (finding ⊥ interpretation).
 _DEP_OPEN_WORLD = {None}
-_DEP_STRENGTH_TO_LEVEL = {"strong_positive": "strong", "moderate_positive": "moderate",
-                          "broad_nonselective": "strong", "negative": "moderate", "none": "none"}
+_DEP_STRENGTH_TO_LEVEL = {
+    "strong_positive": "strong",
+    "moderate_positive": "moderate",
+    "broad_nonselective": "strong",
+    "negative": "moderate",
+    "none": "none",
+}
 
 
 def _dep_availability(v) -> str:
     if v in _DEP_OPEN_WORLD:
-        return "not_wired"                       # no verdict at all → open-world
+        return "not_wired"  # no verdict at all → open-world
     if v in ("insufficient", "insufficient_underpowered", "insufficient_underpowered_pan_essential"):
-        return "insufficient"                    # measured but underpowered
+        return "insufficient"  # measured but underpowered
     if v in _DEP_NEG:
-        return "measured_negative"               # measured non-dependence / discordant
-    return "measured_positive"                   # a measured dependency (incl. pan_essential_killer)
+        return "measured_negative"  # measured non-dependence / discordant
+    return "measured_positive"  # a measured dependency (incl. pan_essential_killer)
 
 
 def _dep_direction(v) -> str:
     if v in _DEP_STRONG_POS or v in _DEP_MOD_POS or v == "pan_essential_killer":
-        return "supports"                        # a genuine functional requirement
+        return "supports"  # a genuine functional requirement
     if v in _DEP_NEG:
         return "opposes"
     return "neutral"
@@ -565,7 +615,7 @@ def _dep_modality_scope(cards) -> "dict | None":
     try:
         cls = get_card_field(cards, "paralog-buffering", "paralog_buffering_class")
     except KeyError:
-        return None                 # paralog-buffering card absent → silent (best-effort, verdict-inert)
+        return None  # paralog-buffering card absent → silent (best-effort, verdict-inert)
     if cls == "strong":
         return {"_refinements": {"degrader": "favorable", "small_molecule": "conditional"}}
     return None
@@ -587,9 +637,12 @@ def _claim_record(cards, fired=None, verdict_pair=None) -> dict:
         state=(v or "insufficient"),
         direction=_dep_direction(v),
         availability=_dep_availability(v),
-        magnitude=magnitude_for_card(cards, "pan-cancer-crispr-dependency-distribution",
-                                     "crispr_lof_dependency",
-                                     _DEP_STRENGTH_TO_LEVEL.get(_dependency_strength(v), "none")),
+        magnitude=magnitude_for_card(
+            cards,
+            "pan-cancer-crispr-dependency-distribution",
+            "crispr_lof_dependency",
+            _DEP_STRENGTH_TO_LEVEL.get(_dependency_strength(v), "none"),
+        ),
         modality_scope=_dep_modality_scope(cards),
         certainty=certainty,
         fired=fired,
@@ -605,12 +658,12 @@ def _claim_record(cards, fired=None, verdict_pair=None) -> dict:
 # lineage (crosswalk) and emits `dependency_verdict_by_scope` {pan_cancer, indication, subtype}. ADDITIVE +
 # verdict-INERT: the pooled dependency_verdict is byte-stable (frozen by the KRAS/COADREAD replay guard);
 # no resolver rung is touched.
-_LINEAGE_DEPENDENCY_CUT = -0.5     # DepMap-standard Chronos threshold for "dependent" (median)
-_LINEAGE_UNDERPOWER_FLOOR = 5      # mirrors the card's min_cell_lines_in_lineage
+_LINEAGE_DEPENDENCY_CUT = -0.5  # DepMap-standard Chronos threshold for "dependent" (median)
+_LINEAGE_UNDERPOWER_FLOOR = 5  # mirrors the card's min_cell_lines_in_lineage
 # DepMap coarse lineages SHARED by >1 iDAS indication → a coarse-lineage read confounds them; the true
 # split needs depmap_oncotree_lineage (per-oncotree-sublineage stats — analysis-methods follow-on). We
 # reduce at coarse lineage and TAG the caveat rather than pretend precision we don't have.
-_SHARED_DEPMAP_LINEAGES = {"Lung", "Esophagus/Stomach"}   # SCLC/NSCLC ; STAD/ESCA
+_SHARED_DEPMAP_LINEAGES = {"Lung", "Esophagus/Stomach"}  # SCLC/NSCLC ; STAD/ESCA
 
 
 @functools.lru_cache(maxsize=1)
@@ -622,13 +675,19 @@ def _indication_lineage_map() -> dict:
     sublineage-aware reduction that de-confounds the shared coarse DepMap lineage; absent otherwise."""
     try:
         import yaml
+
         path = DEFAULT_CONTRACTS_REPO / "vocabularies" / "indication_crosswalk.yaml"
         data = yaml.safe_load(path.read_text()) or {}
-        return {e["canonical_code"]: {"depmap_lineage": e.get("depmap_lineage"),
-                                      "depmap_oncotree_lineage": e.get("depmap_oncotree_lineage"),
-                                      "depmap_oncotree_codes": e.get("depmap_oncotree_codes")}
-                for e in data.get("indications", []) if e.get("canonical_code")}
-    except Exception:   # noqa: BLE001 — additive/verdict-inert; absence must not break the spine
+        return {
+            e["canonical_code"]: {
+                "depmap_lineage": e.get("depmap_lineage"),
+                "depmap_oncotree_lineage": e.get("depmap_oncotree_lineage"),
+                "depmap_oncotree_codes": e.get("depmap_oncotree_codes"),
+            }
+            for e in data.get("indications", [])
+            if e.get("canonical_code")
+        }
+    except Exception:  # noqa: BLE001 — additive/verdict-inert; absence must not break the spine
         return {}
 
 
@@ -658,8 +717,9 @@ def _sublineage_read(cards, codes: list) -> dict | None:
         "median_chronos": round(wmed, 4),
         "fraction_strongly_dependent": round(wfrac, 4),
         "matched_codes": sorted(r["oncotree_code"] for r in matched),
-        "per_code": [{"oncotree_code": r["oncotree_code"], "n": r["n"],
-                      "median_chronos": r["median_chronos"]} for r in matched],
+        "per_code": [
+            {"oncotree_code": r["oncotree_code"], "n": r["n"], "median_chronos": r["median_chronos"]} for r in matched
+        ],
     }
 
 
@@ -682,10 +742,19 @@ def _indication_lineage_read(cards, indication) -> dict:
     + the crosswalk. Returns a typed read {scope:'indication', class, ...}; class ∈
     {selective_in_indication, dependent_not_enriched, not_dependent_in_indication, underpowered,
     not_in_panel, data_unavailable}. NEVER raises; NEVER touches dependency_verdict."""
-    read = {"scope": "indication", "indication": indication, "depmap_lineage": None,
-            "class": "data_unavailable", "is_enriched": False,
-            "median_chronos": None, "n": None, "q_value": None, "effect_size": None,
-            "shared_lineage_caveat": False, "_note": None}
+    read = {
+        "scope": "indication",
+        "indication": indication,
+        "depmap_lineage": None,
+        "class": "data_unavailable",
+        "is_enriched": False,
+        "median_chronos": None,
+        "n": None,
+        "q_value": None,
+        "effect_size": None,
+        "shared_lineage_caveat": False,
+        "_note": None,
+    }
     if not indication:
         read["_note"] = "no indication in query (target-grain run) — indication rung not computed"
         return read
@@ -706,24 +775,40 @@ def _indication_lineage_read(cards, indication) -> dict:
     if read["shared_lineage_caveat"] and codes:
         sub = _sublineage_read(cards, codes)
         if sub is not None:
-            read["shared_lineage_caveat"] = False   # resolved at sublineage grain
+            read["shared_lineage_caveat"] = False  # resolved at sublineage grain
             read["sublineage_resolved"] = True
             read["matched_oncotree_codes"] = sub["matched_codes"]
             read["per_oncotree_code"] = sub["per_code"]
             n, med = sub["n"], sub["median_chronos"]
             read.update(median_chronos=med, n=n)
             if n < _LINEAGE_UNDERPOWER_FLOOR:
-                read.update(**{"class": "underpowered",
-                               "_note": f"{indication} sublineage {sub['matched_codes']} n={n} (< floor)"})
+                read.update(
+                    **{
+                        "class": "underpowered",
+                        "_note": f"{indication} sublineage {sub['matched_codes']} n={n} (< floor)",
+                    }
+                )
             elif med <= _LINEAGE_DEPENDENCY_CUT:
-                read.update(**{"class": "dependent_not_enriched",
-                               "_note": (f"{indication} sublineage-resolved (codes {sub['matched_codes']}, "
-                                         f"n={n}): n-weighted median {med:.2f} — dependent, de-confounded "
-                                         f"from the shared {lineage} lineage")})
+                read.update(
+                    **{
+                        "class": "dependent_not_enriched",
+                        "_note": (
+                            f"{indication} sublineage-resolved (codes {sub['matched_codes']}, "
+                            f"n={n}): n-weighted median {med:.2f} — dependent, de-confounded "
+                            f"from the shared {lineage} lineage"
+                        ),
+                    }
+                )
             else:
-                read.update(**{"class": "not_dependent_in_indication",
-                               "_note": (f"{indication} sublineage-resolved (codes {sub['matched_codes']}, "
-                                         f"n={n}): n-weighted median {med:.2f} above the dependency cut")})
+                read.update(
+                    **{
+                        "class": "not_dependent_in_indication",
+                        "_note": (
+                            f"{indication} sublineage-resolved (codes {sub['matched_codes']}, "
+                            f"n={n}): n-weighted median {med:.2f} above the dependency cut"
+                        ),
+                    }
+                )
             return read
 
     def _row(rows, key):
@@ -736,9 +821,16 @@ def _indication_lineage_read(cards, indication) -> dict:
 
     # 1) queried lineage is a SIGNIFICANT enrichment hit → the dependency IS selective to this indication
     if enriched is not None:
-        read.update(**{"class": "selective_in_indication", "is_enriched": True,
-                       "median_chronos": enriched.get("median_chronos"), "n": enriched.get("n"),
-                       "q_value": enriched.get("q_value"), "effect_size": enriched.get("effect_size")})
+        read.update(
+            **{
+                "class": "selective_in_indication",
+                "is_enriched": True,
+                "median_chronos": enriched.get("median_chronos"),
+                "n": enriched.get("n"),
+                "q_value": enriched.get("q_value"),
+                "effect_size": enriched.get("effect_size"),
+            }
+        )
         read["_note"] = f"{lineage} is a significant lineage-selective hit for this dependency"
         return read
     # 2) present in the full per-lineage table but not an enrichment hit → classify by median depth
@@ -748,11 +840,19 @@ def _indication_lineage_read(cards, indication) -> dict:
         if isinstance(n, (int, float)) and n < _LINEAGE_UNDERPOWER_FLOOR:
             read.update(**{"class": "underpowered", "_note": f"{lineage} has n={n} (< floor)"})
         elif isinstance(med, (int, float)) and med <= _LINEAGE_DEPENDENCY_CUT:
-            read.update(**{"class": "dependent_not_enriched",
-                           "_note": f"{lineage} is dependent (median {med:.2f}) but not lineage-selectively so"})
+            read.update(
+                **{
+                    "class": "dependent_not_enriched",
+                    "_note": f"{lineage} is dependent (median {med:.2f}) but not lineage-selectively so",
+                }
+            )
         else:
-            read.update(**{"class": "not_dependent_in_indication",
-                           "_note": f"{lineage}: median Chronos {med} above the dependency cut"})
+            read.update(
+                **{
+                    "class": "not_dependent_in_indication",
+                    "_note": f"{lineage}: median Chronos {med} above the dependency cut",
+                }
+            )
         return read
     # 3) enriched_lineages had no hit AND the full table is unavailable (fixture placeholder) or the
     #    lineage is genuinely absent from the panel — distinguish only when the table is a real list.
@@ -760,8 +860,10 @@ def _indication_lineage_read(cards, indication) -> dict:
     if isinstance(pls, list):
         read.update(**{"class": "not_in_panel", "_note": f"{lineage} not among screened lineages"})
     else:
-        read["_note"] = (f"{lineage} not an enrichment hit; full per-lineage table unavailable this run "
-                         "(cannot distinguish not-dependent from absent)")
+        read["_note"] = (
+            f"{lineage} not an enrichment hit; full per-lineage table unavailable this run "
+            "(cannot distinguish not-dependent from absent)"
+        )
     return read
 
 
@@ -771,14 +873,20 @@ def _dependency_verdict_by_scope(cards, verdict_pair) -> dict:
     (Phase 4 populates it from the --subtypes panorama, which is resolved on a separate dispatcher path)."""
     v, drv = verdict_pair or ("insufficient", None)
     return {
-        "pan_cancer": {"verdict": v, "driving_rule_id": drv,
-                       "_note": "pooled target-grain verdict (the byte-stable dependency_verdict)"},
+        "pan_cancer": {
+            "verdict": v,
+            "driving_rule_id": drv,
+            "_note": "pooled target-grain verdict (the byte-stable dependency_verdict)",
+        },
         "indication": _indication_lineage_read(cards, _infer_indication(cards)),
-        "subtype": {"scope": "subtype", "class": "not_scoped_this_run",
-                    "_note": "pass --subtypes to resolve the molecular-subgroup verdict; when passed, the "
-                             "authoritative power-gated subtype verdict is emitted at "
-                             "headline.subtype_dependency_panorama.subtype_verdict (resolved after this "
-                             "placeholder — see _subtype_scope_verdict)"},
+        "subtype": {
+            "scope": "subtype",
+            "class": "not_scoped_this_run",
+            "_note": "pass --subtypes to resolve the molecular-subgroup verdict; when passed, the "
+            "authoritative power-gated subtype verdict is emitted at "
+            "headline.subtype_dependency_panorama.subtype_verdict (resolved after this "
+            "placeholder — see _subtype_scope_verdict)",
+        },
     }
 
 
@@ -794,21 +902,21 @@ def _dependency_verdict_by_scope(cards, verdict_pair) -> dict:
 # phrase for each, with a prettify fallback for any future addition.
 _DEPENDENCY_VERDICT_PHRASE = {
     # positive dependency calls
-    "concordant_dependent":                    "Genetic dependency (CRISPR + RNAi concordant)",
-    "broadly_dependent":                       "Broadly dependent",
-    "lineage_selective":                       "Lineage-selective dependency",
-    "selective_dependent":                     "Selective genetic dependency",
-    "partner_conditional_dependent":           "Partner-conditional (synthetic-lethal) dependency",
-    "chemical_genetic_confirmed_dependent":    "Dependency, chemically confirmed",
+    "concordant_dependent": "Genetic dependency (CRISPR + RNAi concordant)",
+    "broadly_dependent": "Broadly dependent",
+    "lineage_selective": "Lineage-selective dependency",
+    "selective_dependent": "Selective genetic dependency",
+    "partner_conditional_dependent": "Partner-conditional (synthetic-lethal) dependency",
+    "chemical_genetic_confirmed_dependent": "Dependency, chemically confirmed",
     # pan-essential — a real dependency, but a broad-toxicity liability (low selective window)
-    "pan_essential_killer":                    "Pan-essential (broad-toxicity liability)",
+    "pan_essential_killer": "Pan-essential (broad-toxicity liability)",
     # measured negatives
-    "non_dependent":                           "Not a genetic dependency",
-    "non_dependent_paralog_buffered":          "Not dependent (paralog-buffered)",
-    "discordant":                              "Discordant dependency evidence",
+    "non_dependent": "Not a genetic dependency",
+    "non_dependent_paralog_buffered": "Not dependent (paralog-buffered)",
+    "discordant": "Discordant dependency evidence",
     # coverage gaps
-    "insufficient":                            "Insufficient evidence",
-    "insufficient_underpowered":               "Insufficient evidence (underpowered)",
+    "insufficient": "Insufficient evidence",
+    "insufficient_underpowered": "Insufficient evidence (underpowered)",
     "insufficient_underpowered_pan_essential": "Insufficient / underpowered (pan-essential)",
 }
 
@@ -828,10 +936,14 @@ def _dependency_verdict_polarity(v) -> str:
 
 _DEPENDENCY_HEADLINE_SPEC = HeadlineSpec(
     gate="dependency",
-    axis_labels={"DEP": "genetic dependency", "SEL": "context-selectivity",
-                 "COND": "conditional / synthetic-lethal", "CHEM": "chemical-genetic confirmation"},
+    axis_labels={
+        "DEP": "genetic dependency",
+        "SEL": "context-selectivity",
+        "COND": "conditional / synthetic-lethal",
+        "CHEM": "chemical-genetic confirmation",
+    },
     axis_keys=("DEP", "SEL", "COND", "CHEM"),
-    critical_axes=("DEP",),   # DEP (is loss of the target lethal?) is THE decision-critical axis
+    critical_axes=("DEP",),  # DEP (is loss of the target lethal?) is THE decision-critical axis
     verdict_label=lambda v: _DEPENDENCY_VERDICT_PHRASE.get(v, str(v).replace("_", " ").strip().capitalize()),
     # No cross-cutting flag beyond the claim_vector conflicts + key_signals caveat: the sharpest FR
     # tensions (pan-essential broad-tox, RNAi non-corroboration of CRISPR, PRISM off-target) are already
@@ -860,11 +972,16 @@ def _build_headline_block(headline: dict) -> dict:
     dependency_verdict + the verdict-inert claim_vector / key_signals; FR's strength_certainty sidecar is
     the authoritative confidence. Never moves the spine."""
     v = headline.get("dependency_verdict")
-    return build_headline(headline, headline.get("claim_vector"), headline.get("key_signals"),
-                          spec=_DEPENDENCY_HEADLINE_SPEC, verdict_token=v,
-                          driving_rule_id=headline.get("driving_rule_id"),
-                          verdict_polarity=_dependency_verdict_polarity(v),
-                          certainty=_headline_certainty(headline))
+    return build_headline(
+        headline,
+        headline.get("claim_vector"),
+        headline.get("key_signals"),
+        spec=_DEPENDENCY_HEADLINE_SPEC,
+        verdict_token=v,
+        driving_rule_id=headline.get("driving_rule_id"),
+        verdict_polarity=_dependency_verdict_polarity(v),
+        certainty=_headline_certainty(headline),
+    )
 
 
 # ── verdict-INERT signal-surfacing flags (2026-09-03 enrichment) ──────────────────────────────────
@@ -878,8 +995,9 @@ _DECISIVE_DEP_CALLS = frozenset({"common_essential", "strongly_selective", "broa
 # An UNMEASURED arm — a coverage gap, distinct from a measured floor (`non_dependent`).
 _UNMEASURED_ARM = frozenset({"data_unavailable", None})
 # The coverage-gap verdicts the resolver returns when it cannot make a call.
-_COVERAGE_GAP_VERDICTS = frozenset({"insufficient", "insufficient_underpowered",
-                                    "insufficient_underpowered_pan_essential"})
+_COVERAGE_GAP_VERDICTS = frozenset(
+    {"insufficient", "insufficient_underpowered", "insufficient_underpowered_pan_essential"}
+)
 
 
 def _measurement_caveat(verdict, crispr_call, rnai_call) -> str | None:
@@ -894,14 +1012,18 @@ def _measurement_caveat(verdict, crispr_call, rnai_call) -> str | None:
     crispr_decisive = crispr_call in _DECISIVE_DEP_CALLS
     rnai_decisive = rnai_call in _DECISIVE_DEP_CALLS
     if rnai_decisive and crispr_call in _UNMEASURED_ARM:
-        return (f"RNAi indicates a dependency ({rnai_call}) but the trusted CRISPR arm is UNMEASURED "
-                "(absent from the screen panel) — the resolver holds the verdict at a coverage gap "
-                "because RNAi alone (seed/off-target-prone) never carries a positive call. The signal is "
-                "decisive-but-unconfirmed, NOT measured-absent; re-run when CRISPR coverage lands.")
+        return (
+            f"RNAi indicates a dependency ({rnai_call}) but the trusted CRISPR arm is UNMEASURED "
+            "(absent from the screen panel) — the resolver holds the verdict at a coverage gap "
+            "because RNAi alone (seed/off-target-prone) never carries a positive call. The signal is "
+            "decisive-but-unconfirmed, NOT measured-absent; re-run when CRISPR coverage lands."
+        )
     if crispr_decisive and rnai_call in _UNMEASURED_ARM:
-        return (f"CRISPR indicates a dependency ({crispr_call}) but the orthogonal RNAi arm is UNMEASURED "
-                "— the call rests on a single perturbation channel (no orthogonal-LoF corroboration). "
-                "Decisive-but-single-arm, NOT measured-absent.")
+        return (
+            f"CRISPR indicates a dependency ({crispr_call}) but the orthogonal RNAi arm is UNMEASURED "
+            "— the call rests on a single perturbation channel (no orthogonal-LoF corroboration). "
+            "Decisive-but-single-arm, NOT measured-absent."
+        )
     return None
 
 
@@ -915,12 +1037,14 @@ def _concordance_scope_note(concordance_call, crispr_call, rnai_call) -> str | N
     if concordance_call not in ("moderately_concordant_non_dependent", "strongly_concordant_non_dependent"):
         return None
     if crispr_call in _DECISIVE_DEP_CALLS and rnai_call in _DECISIVE_DEP_CALLS:
-        return ("The CRISPR↔RNAi concordance card reads "
-                f"`{concordance_call}`, but BOTH distribution cards independently score the target as a "
-                f"selective/dependent class (CRISPR {crispr_call}, RNAi {rnai_call}). That label reflects "
-                "the POOLED per-line agreement (most pan-cancer lines are non-dependent — the expected "
-                "signature of a lineage-selective dependency), NOT a cross-modality contradiction: read it "
-                "as corroboration of the selective pattern, not evidence against the dependency.")
+        return (
+            "The CRISPR↔RNAi concordance card reads "
+            f"`{concordance_call}`, but BOTH distribution cards independently score the target as a "
+            f"selective/dependent class (CRISPR {crispr_call}, RNAi {rnai_call}). That label reflects "
+            "the POOLED per-line agreement (most pan-cancer lines are non-dependent — the expected "
+            "signature of a lineage-selective dependency), NOT a cross-modality contradiction: read it "
+            "as corroboration of the selective pattern, not evidence against the dependency."
+        )
     return None
 
 
@@ -950,10 +1074,12 @@ def _indication_scope_note(verdict, by_scope) -> str | None:
     indication = ind.get("indication") or "this indication"
     med = ind.get("median_chronos")
     med_s = f" (median Chronos {med:.2f})" if isinstance(med, (int, float)) else ""
-    return (f"The pooled dependency_verdict ('{verdict}') is TARGET-GRAIN — selective to SOME lineage, not "
-            f"necessarily {indication}. For the queried {lineage} lineage the dependency reads "
-            f"`{ind.get('class')}`{med_s}: the pooled positive is enriched OUTSIDE this indication. Read the "
-            "indication answer from dependency_verdict_by_scope.indication, NOT the target-grain token.")
+    return (
+        f"The pooled dependency_verdict ('{verdict}') is TARGET-GRAIN — selective to SOME lineage, not "
+        f"necessarily {indication}. For the queried {lineage} lineage the dependency reads "
+        f"`{ind.get('class')}`{med_s}: the pooled positive is enriched OUTSIDE this indication. Read the "
+        "indication answer from dependency_verdict_by_scope.indication, NOT the target-grain token."
+    )
 
 
 def _headline(cards, fired, verdict_pair):
@@ -961,46 +1087,42 @@ def _headline(cards, fired, verdict_pair):
     predictability_class = get_card_field(cards, "dependency-predictability", "predictability_class")
     cross_consortium_class = get_card_field(cards, "cross-consortium-dependency", "cross_consortium_class")
     coessential_module_class = get_card_field(cards, "coessential-module", "coessential_module_class")
-    confidence = _dependency_confidence_note(v, predictability_class, cross_consortium_class,
-                                             coessential_module_class)
+    confidence = _dependency_confidence_note(v, predictability_class, cross_consortium_class, coessential_module_class)
     hl = {
-        "dependency_verdict":       v,
-        "driving_rule_id":          drv,
+        "dependency_verdict": v,
+        "driving_rule_id": drv,
         # (strength, certainty) — CERTAINTY_MODEL #dependency reference axis. ADDITIVE + verdict-inert.
         # corroboration is Broad↔Sanger cross-consortium (verdict-DISJOINT), NOT CRISPR↔RNAi concordance
         # (which resolves the verdict). See _dependency_strength_certainty.
-        "strength_certainty":       _dependency_strength_certainty(cards, v, cross_consortium_class),
-        "crispr_call":              get_card_field(cards, "pan-cancer-crispr-dependency-distribution",
-                                          "dependency_class"),
-        "rnai_call":                get_card_field(cards, "pan-cancer-rnai-dependency-distribution",
-                                          "rnai_dependency_class"),   # 2026-08-08 fix: card emits rnai_dependency_class (prefixed), not dependency_class → was silently None
-
-        "concordance_call":         get_card_field(cards, "crispr-rnai-dependency-concordance",
-                                          "concordance_class"),
-        "lineage_selectivity":      get_card_field(cards, "dependency-lineage-selectivity",
-                                          "enrichment_class"),   # 2026-08-08 fix: card emits enrichment_class (the rule keys on it too); lineage_selectivity_class never existed → was silently None
-
-        "paralog_buffering_class":  get_card_field(cards, "paralog-buffering",
-                                          "paralog_buffering_class"),
-        "strongest_paralog_symbol": get_card_field(cards, "paralog-buffering",
-                                          "strongest_paralog_symbol"),
+        "strength_certainty": _dependency_strength_certainty(cards, v, cross_consortium_class),
+        "crispr_call": get_card_field(cards, "pan-cancer-crispr-dependency-distribution", "dependency_class"),
+        "rnai_call": get_card_field(
+            cards, "pan-cancer-rnai-dependency-distribution", "rnai_dependency_class"
+        ),  # 2026-08-08 fix: card emits rnai_dependency_class (prefixed), not dependency_class → was silently None
+        "concordance_call": get_card_field(cards, "crispr-rnai-dependency-concordance", "concordance_class"),
+        "lineage_selectivity": get_card_field(
+            cards, "dependency-lineage-selectivity", "enrichment_class"
+        ),  # 2026-08-08 fix: card emits enrichment_class (the rule keys on it too); lineage_selectivity_class never existed → was silently None
+        "paralog_buffering_class": get_card_field(cards, "paralog-buffering", "paralog_buffering_class"),
+        "strongest_paralog_symbol": get_card_field(cards, "paralog-buffering", "strongest_paralog_symbol"),
         # Gate-C: predictability CONFIDENCE annotation over the verdict —
         # additive; the verdict + driving_rule_id above are untouched.
-        "predictability_class":     predictability_class,
-        "pred_dominant_feature_class": get_card_field(cards, "dependency-predictability",
-                                            "pred_dominant_feature_class"),
+        "predictability_class": predictability_class,
+        "pred_dominant_feature_class": get_card_field(
+            cards, "dependency-predictability", "pred_dominant_feature_class"
+        ),
         # Independent-consortium corroboration (Broad Achilles vs Sanger Project Score), 2026-08-12.
         # Folded into dependency_confidence above (concordant_dependent RAISES confidence; discordant
         # adds a caveat) AND surfaced here so the narrative can cite it. VERDICT-INERT — the card
         # fires no resolver rung; it only tunes gate-C confidence (was computed but consumed by nothing).
-        "cross_consortium_class":   cross_consortium_class,
+        "cross_consortium_class": cross_consortium_class,
         # Co-essential-module coherence (2026-08-19) — mechanism-anchoring CONFIDENCE facet (enrichment
         # review #1; was orphaned). Folded into dependency_confidence above (in_coherent_module RAISES;
         # isolated adds a caveat) AND surfaced here for the narrative. VERDICT-INERT — no resolver rung.
         "coessential_module_class": coessential_module_class,
-        "n_coessential_partners":   get_card_field(cards, "coessential-module", "n_strong_partners"),
+        "n_coessential_partners": get_card_field(cards, "coessential-module", "n_strong_partners"),
         "strongest_coessential_partner": get_card_field(cards, "coessential-module", "strongest_partner_symbol"),
-        "dependency_confidence":    confidence["confidence"],
+        "dependency_confidence": confidence["confidence"],
         "dependency_confidence_note": confidence["note"],
         # Q4 patient↔model correspondence — model-backed-dependency corroboration (render facet):
         "model_correspondence_class": get_card_field(cards, "recommended-models", "correspondence_class"),
@@ -1016,12 +1138,16 @@ def _headline(cards, fired, verdict_pair):
         # read here via get_card_field so the headline-fields drift guard covers them (the reliability
         # numerics ride alongside). crispr_call/rnai_call/concordance_call/lineage_selectivity/
         # cross_consortium_class/predictability_class above already supply DEP+SEL; these add COND+CHEM.
-        "partner_conditional_class": get_card_field(cards, "partner-conditional-dependency", "partner_stratification_class"),
-        "n_partner_deficient":       get_card_field(cards, "partner-conditional-dependency", "n_partner_deficient"),
-        "partner_stratification_q":  get_card_field(cards, "partner-conditional-dependency", "partner_stratification_mannwhitney_q"),
-        "prism_concordance_class":   get_card_field(cards, "prism-crispr-concordance", "crispr_prism_concordance_class"),
-        "n_compounds_evaluated":     get_card_field(cards, "prism-crispr-concordance", "n_compounds_evaluated"),
-        "n_lineages_evaluated":      get_card_field(cards, "dependency-lineage-selectivity", "n_lineages_evaluated"),
+        "partner_conditional_class": get_card_field(
+            cards, "partner-conditional-dependency", "partner_stratification_class"
+        ),
+        "n_partner_deficient": get_card_field(cards, "partner-conditional-dependency", "n_partner_deficient"),
+        "partner_stratification_q": get_card_field(
+            cards, "partner-conditional-dependency", "partner_stratification_mannwhitney_q"
+        ),
+        "prism_concordance_class": get_card_field(cards, "prism-crispr-concordance", "crispr_prism_concordance_class"),
+        "n_compounds_evaluated": get_card_field(cards, "prism-crispr-concordance", "n_compounds_evaluated"),
+        "n_lineages_evaluated": get_card_field(cards, "dependency-lineage-selectivity", "n_lineages_evaluated"),
     }
     # Verdict-INERT signal-surfacing flags (2026-09-03). Both are None on the KRAS-shaped positive /
     # both-arms-measured case except concordance_scope_note (which fires for KRAS — pooled non-dependent
@@ -1107,20 +1233,32 @@ def _headline(cards, fired, verdict_pair):
 # sidecar is the certainty half. VERDICT-INERT: the fan-out treats an absent facet
 # as no-facet; nothing here enters `fired` or the resolver.
 _SYNTHESIS_FACET_KEYS = (
-    "dependency_verdict", "driving_rule_id",
-    "crispr_call", "rnai_call", "concordance_call",
-    "lineage_selectivity", "paralog_buffering_class", "strongest_paralog_symbol",
+    "dependency_verdict",
+    "driving_rule_id",
+    "crispr_call",
+    "rnai_call",
+    "concordance_call",
+    "lineage_selectivity",
+    "paralog_buffering_class",
+    "strongest_paralog_symbol",
     # conditional-SL + chemical-genetic confirmation (the COND / CHEM claim inputs)
-    "partner_conditional_class", "prism_concordance_class",
+    "partner_conditional_class",
+    "prism_concordance_class",
     # confidence annotations FR separates from its verdict (narrative context; the numeric certainty
     # roll-up lives in certainty_by_axis, not here)
-    "predictability_class", "cross_consortium_class", "coessential_module_class",
-    "dependency_confidence", "dependency_confidence_note",
+    "predictability_class",
+    "cross_consortium_class",
+    "coessential_module_class",
+    "dependency_confidence",
+    "dependency_confidence_note",
     # biomarker render facets (patient-selection context)
-    "model_correspondence_class", "event_correspondence_class", "abundance_dependency_class",
+    "model_correspondence_class",
+    "event_correspondence_class",
+    "abundance_dependency_class",
     # the modality-blind claim vector SIGNAL decomposition + brief cited read (this subskill's
     # within-lens integration; the cross-lens layer reads the per-claim SIGNALS, not a certainty)
-    "claim_vector", "key_signals",
+    "claim_vector",
+    "key_signals",
     # scope-parameterized read (Phase 3) — pooled pan-cancer vs the QUERIED indication's lineage;
     # lets the composed synthesis cite the indication answer instead of the pan-cancer one. Verdict-inert.
     "dependency_verdict_by_scope",
@@ -1134,7 +1272,8 @@ _SYNTHESIS_FACET_KEYS = (
     # verdict-INERT signal-surfacing flags (2026-09-03): coverage-asymmetry caveat (decisive single-arm
     # signal held at a coverage-gap verdict) + pooled-scope concordance reconciliation. Fed to the
     # narrator so the synthesis cites them deterministically instead of re-deriving them.
-    "measurement_caveat", "concordance_scope_note",
+    "measurement_caveat",
+    "concordance_scope_note",
     # indication-scope divergence flag (2026-09-04): a positive pooled verdict enriched OUTSIDE the
     # queried indication (target-grain vs indication-lineage). Verdict-inert.
     "indication_scope_note",
@@ -1152,12 +1291,12 @@ def _synthesis_facet(cards, fired, verdict_pair):
         "dependency verdict is owned by the shared resolver and is verdict-inert to this projection). "
         "claim_vector is the SIGNAL decomposition — DEP genetic-dependency / SEL context-selectivity / "
         "COND conditional-SL / CHEM chemical-genetic-confirmation, each a signal tier. The per-axis "
-        "certainty roll-up is the separate certainty_by_axis sidecar, not this facet.")
+        "certainty roll-up is the separate certainty_by_axis sidecar, not this facet."
+    )
     return facet
 
 
-def _llm_synthesis(cards, fired, verdict_pair, target, indication,
-                   model_id=None, subtype=None):
+def _llm_synthesis(cards, fired, verdict_pair, target, indication, model_id=None, subtype=None):
     """Fan-out opt-in (mirrors _synthesis_facet): return this lens's provenance-tagged
     llm_synthesis block for the COMPOSED target-profile run. Builds the SAME minimal decision the
     narrator consumes standalone ({target, indication, headline, cards}) from the fan-out's already-
@@ -1165,9 +1304,10 @@ def _llm_synthesis(cards, fired, verdict_pair, target, indication,
     effort + VERDICT-INERT: never enters fired/verdict/cards — a failure is the caller's to swallow."""
     headline = _headline(cards, fired, verdict_pair)
     decision = {
-        "target": target, "indication": indication, "headline": headline,
-        "cards": [{"card_id": c.get("card_id"), "summary": c.get("summary") or {}}
-                  for c in cards],
+        "target": target,
+        "indication": indication,
+        "headline": headline,
+        "cards": [{"card_id": c.get("card_id"), "summary": c.get("summary") or {}} for c in cards],
     }
     # Narrate through the SAME generic capsule-driven engine + dependency LensConfig the standalone
     # --synthesize path uses (make_synthesize_fn(_FR_LENS) at the run_wired_skill call). The prior call
@@ -1188,27 +1328,46 @@ def _llm_synthesis(cards, fired, verdict_pair, target, indication,
 # passed to the dispatcher's central subgroup wiring; VERDICT-INERT (the dependency spine is untouched).
 _FR_VALUE_TIERS = {
     # CRISPR / RNAi loss-of-function dependency magnitude (crispr_lof / rnai_lof / organoid)
-    "strongly_selective": "strong", "moderately_selective": "moderate", "weakly_selective": "weak",
-    "lineage_selective": "strong",            # selective essentiality in the lineage = strong within-indication
-    "broad_nonselective": "strong", "pan_essential": "strong",   # pan-essential = strong dependency (selectivity is a separate axis)
-    "not_selective": "absent", "non_dependent": "absent", "not_dependent": "absent",
-    "broad_organoid_dependency": "strong", "selective_organoid_dependency": "moderate",
-    "lineage_organoid_dependency": "moderate", "no_organoid_dependency": "absent",
+    "strongly_selective": "strong",
+    "moderately_selective": "moderate",
+    "weakly_selective": "weak",
+    "lineage_selective": "strong",  # selective essentiality in the lineage = strong within-indication
+    "broad_nonselective": "strong",
+    "pan_essential": "strong",  # pan-essential = strong dependency (selectivity is a separate axis)
+    "not_selective": "absent",
+    "non_dependent": "absent",
+    "not_dependent": "absent",
+    "broad_organoid_dependency": "strong",
+    "selective_organoid_dependency": "moderate",
+    "lineage_organoid_dependency": "moderate",
+    "no_organoid_dependency": "absent",
     # CRISPR↔RNAi + cross-consortium concordance (agreement × dependency)
-    "concordant_dependent": "strong", "moderately_concordant_dependent": "moderate",
-    "moderately_concordant_non_dependent": "weak", "concordant_non_dependent": "absent",
-    "discordant": "weak", "discordant_non_dependent": "weak",
+    "concordant_dependent": "strong",
+    "moderately_concordant_dependent": "moderate",
+    "moderately_concordant_non_dependent": "weak",
+    "concordant_non_dependent": "absent",
+    "discordant": "weak",
+    "discordant_non_dependent": "weak",
     # Chemical-genetic confirmation (PRISM × CRISPR)
-    "triangulated_target_engaged": "strong", "partially_triangulated": "moderate",
-    "not_triangulated": "absent", "no_chemical_confirmation": "absent",
+    "triangulated_target_engaged": "strong",
+    "partially_triangulated": "moderate",
+    "not_triangulated": "absent",
+    "no_chemical_confirmation": "absent",
     # Conditional / synthetic-lethal partner
-    "partner_conditional_dependency": "strong", "no_partner_mapped": "absent",
+    "partner_conditional_dependency": "strong",
+    "no_partner_mapped": "absent",
     # SEL — context-selectivity biomarker facets (expression/abundance↔dependency, model correspondence)
-    "strong_negative": "strong", "moderate_negative": "moderate", "weak_negative": "weak",
-    "strong_protein_dependency_link": "strong", "moderate_protein_dependency_link": "moderate",
-    "weak_protein_dependency_link": "weak", "no_protein_dependency_link": "absent",
-    "well_modeled_in_lineage": "strong", "partially_modeled_in_lineage": "moderate",
-    "poorly_modeled_in_lineage": "weak", "no_model_in_lineage": "absent",
+    "strong_negative": "strong",
+    "moderate_negative": "moderate",
+    "weak_negative": "weak",
+    "strong_protein_dependency_link": "strong",
+    "moderate_protein_dependency_link": "moderate",
+    "weak_protein_dependency_link": "weak",
+    "no_protein_dependency_link": "absent",
+    "well_modeled_in_lineage": "strong",
+    "partially_modeled_in_lineage": "moderate",
+    "poorly_modeled_in_lineage": "weak",
+    "no_model_in_lineage": "absent",
 }
 # paralog-buffering (mt: paralog_buffering) is a CONFIDENCE caveat, not a dependency-magnitude source.
 # A falsy spec marks a measurement_type confidence-only so derive_subgroups skips it from the signal.
@@ -1216,38 +1375,40 @@ _FR_SUBGROUP_READER = {"paralog_buffering": None}
 
 
 if __name__ == "__main__":
-    sys.exit(run_wired_skill(
-        skill_name=SKILL_NAME,
-        skill_version=SKILL_VERSION,
-        cards=CARDS,
-        axis="intracellular_intrinsic",
-        question=QUESTION,
-        verdict_fn=_verdict,
-        headline_fn=_headline,
-        # Opt-in --synthesize narrates through the DEPENDENCY lens (its own tool schema + prompt,
-        # foregrounding the selective-vs-pan-essential distinction). Two-slot / verdict-inert: the
-        # dispatcher attaches decision['llm_synthesis'] as a sibling key AFTER the spine is composed,
-        # so it is structurally impossible for the narration to alter dependency_verdict. Without this
-        # synthesize_fn the dispatcher would fall back to the PRESENCE narrator (wrong lens).
-        # MIGRATED to the generic capsule-driven narrator engine + the dependency LensConfig (was the
-        # bespoke synthesize_dependency). Same two-slot / verdict-inert contract; now reads the evidence
-        # capsules (bounded raw data) alongside the signal vector.
-        synthesize_fn=make_synthesize_fn(_FR_LENS),
-        # Opt-in --literature: a VERDICT-INERT literature corroboration/contradiction lane. Attaches
-        # decision['literature_synthesis'] (Europe PMC → PubTator3 fallback grounding + a post-synthesis
-        # verify_citations pass) and feeds the --synthesize narrator. The _LENS_QUERY_TERMS entry for
-        # "functional-requirement" (genetic dependency / essential gene / CRISPR knockout / RNA
-        # interference) is already declared in literature_retrieval.py. Same two-slot / spine-untouched
-        # contract as --synthesize (dispatcher attaches it after the deterministic decision is composed).
-        literature_fn=make_literature_fn(_FR_LENS, retrieve_fn=default_retrieve, verify_fn=verify_citations),
-        # Opt-in --subtypes resolves the DESCRIPTIVE dependency-by-molecular-subgroup panorama
-        # (subgroup-stratified-dependency; e.g. MSI_H vs MSS). Verdict-inert: its cards touch no
-        # resolver rung, so the dependency verdict is byte-identical without --subtypes.
-        subtype_panorama_fn=_resolve_dependency_subtype_panorama,
-        # Skill-level graphics (opt-in --figures): the canonical headline hero. Additive / display-only.
-        skill_figures_fn=emit_headline_hero,
-        # Signals-first: tuned sub-group reader for the dependency vocabulary (correct polarity +
-        # paralog-buffering as confidence-only). Verdict-INERT — feeds subgroup_signals / the narrator.
-        subgroup_reader_spec=_FR_SUBGROUP_READER,
-        subgroup_classify=make_value_classifier(_FR_VALUE_TIERS),
-    ))
+    sys.exit(
+        run_wired_skill(
+            skill_name=SKILL_NAME,
+            skill_version=SKILL_VERSION,
+            cards=CARDS,
+            axis="intracellular_intrinsic",
+            question=QUESTION,
+            verdict_fn=_verdict,
+            headline_fn=_headline,
+            # Opt-in --synthesize narrates through the DEPENDENCY lens (its own tool schema + prompt,
+            # foregrounding the selective-vs-pan-essential distinction). Two-slot / verdict-inert: the
+            # dispatcher attaches decision['llm_synthesis'] as a sibling key AFTER the spine is composed,
+            # so it is structurally impossible for the narration to alter dependency_verdict. Without this
+            # synthesize_fn the dispatcher would fall back to the PRESENCE narrator (wrong lens).
+            # MIGRATED to the generic capsule-driven narrator engine + the dependency LensConfig (was the
+            # bespoke synthesize_dependency). Same two-slot / verdict-inert contract; now reads the evidence
+            # capsules (bounded raw data) alongside the signal vector.
+            synthesize_fn=make_synthesize_fn(_FR_LENS),
+            # Opt-in --literature: a VERDICT-INERT literature corroboration/contradiction lane. Attaches
+            # decision['literature_synthesis'] (Europe PMC → PubTator3 fallback grounding + a post-synthesis
+            # verify_citations pass) and feeds the --synthesize narrator. The _LENS_QUERY_TERMS entry for
+            # "functional-requirement" (genetic dependency / essential gene / CRISPR knockout / RNA
+            # interference) is already declared in literature_retrieval.py. Same two-slot / spine-untouched
+            # contract as --synthesize (dispatcher attaches it after the deterministic decision is composed).
+            literature_fn=make_literature_fn(_FR_LENS, retrieve_fn=default_retrieve, verify_fn=verify_citations),
+            # Opt-in --subtypes resolves the DESCRIPTIVE dependency-by-molecular-subgroup panorama
+            # (subgroup-stratified-dependency; e.g. MSI_H vs MSS). Verdict-inert: its cards touch no
+            # resolver rung, so the dependency verdict is byte-identical without --subtypes.
+            subtype_panorama_fn=_resolve_dependency_subtype_panorama,
+            # Skill-level graphics (opt-in --figures): the canonical headline hero. Additive / display-only.
+            skill_figures_fn=emit_headline_hero,
+            # Signals-first: tuned sub-group reader for the dependency vocabulary (correct polarity +
+            # paralog-buffering as confidence-only). Verdict-INERT — feeds subgroup_signals / the narrator.
+            subgroup_reader_spec=_FR_SUBGROUP_READER,
+            subgroup_classify=make_value_classifier(_FR_VALUE_TIERS),
+        )
+    )

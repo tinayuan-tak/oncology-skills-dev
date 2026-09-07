@@ -11,6 +11,7 @@ is outside the byte-stable snapshot).
 
 Bedrock-free / render-free: parses the SUB_SKILLS literal via ast and reads PHASE_META directly.
 """
+
 from __future__ import annotations
 
 import ast
@@ -18,7 +19,7 @@ from pathlib import Path
 
 from _test_support import load_module
 
-SKILLS = Path(__file__).resolve().parents[2]           # .../skills
+SKILLS = Path(__file__).resolve().parents[2]  # .../skills
 # SUB_SKILLS moved from run.py to tp_fanout.py in the 2026-08-16 god-module split.
 COMPOSER = SKILLS / "target-profile" / "scripts" / "tp_fanout.py"
 PANEL = SKILLS / "_skills_common" / "composite_panel.py"
@@ -53,4 +54,5 @@ def test_phase_meta_sub_keys_are_reachable():
     assert not unreachable, (
         f"PHASE_META sub_keys not present in SUB_SKILLS short names {sorted(shorts)}: {unreachable}. "
         "A stale key renders that badge blank on every target. Update PHASE_META (and the matching "
-        "branch in _metric_lines_for) to the composer's current short name.")
+        "branch in _metric_lines_for) to the composer's current short name."
+    )

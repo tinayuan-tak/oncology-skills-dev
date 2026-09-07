@@ -13,6 +13,7 @@ FAILED OPEN; here the ceiling consumes synthesis.recommendation_gate.hard_gates 
 complete fail-closed hard-gate set) and is fail-closed + gate-complete. Subtype
 and evidence_substrate consumption are new.
 """
+
 from __future__ import annotations
 
 import json
@@ -22,14 +23,21 @@ from typing import Optional
 
 # --- verdict permissiveness rank; the computed verdict is min(proposed, ceiling) by this order ------
 VERDICT_RANK = {
-    "declined": 0, "needs_data": 1, "advanceable_flagged": 2,
-    "conditional_on_biomarker": 3, "advanceable_with_caveat": 4, "advanceable": 5,
+    "declined": 0,
+    "needs_data": 1,
+    "advanceable_flagged": 2,
+    "conditional_on_biomarker": 3,
+    "advanceable_with_caveat": 4,
+    "advanceable": 5,
 }
 RANK_VERDICT = {v: k for k, v in VERDICT_RANK.items()}
 
 # Safety hold-grade sub-verdicts (a hold, not a kill) → ceiling caps at advanceable_flagged.
-SAFETY_HOLD = {"human_genetics_safety_concern", "moderately_constrained_safety",
-               "moderately_constrained_safety_concern"}
+SAFETY_HOLD = {
+    "human_genetics_safety_concern",
+    "moderately_constrained_safety",
+    "moderately_constrained_safety_concern",
+}
 # Safety hard-kill tokens (kept for the hard_gates-ABSENT fallback path only).
 SAFETY_KILL = {"intolerant_lof_killer", "highly_constrained_safety_concern"}
 
@@ -48,134 +56,256 @@ DIMENSION_CARDS: dict[str, frozenset[str]] = {
     # combinatorial_dependency / combination_opportunity / synthetic_lethal_partners RETIRED 2026-08-20:
     # the standalone relational shorts were consolidated into combination_vulnerability (the four relational
     # cards are all composed under combination-and-vulnerability now). Their cards live on under this one dim.
-    "combination_vulnerability": frozenset({   # mirrors SUB_SKILL_CARDS[combination-and-vulnerability]
-        "synthetic-lethal-partners", "combinatorial-dependency",
-        "combo-crispr-screen", "combo-chemical-synergy", "resistance-emergence-signature"}),  # CONSOLIDATED relational annex (gateless)
-    "cis_coherence": frozenset({
-        "cis-feature-expression-coherence", "cis-feature-protein-coherence",  # mRNA + PROTEIN GoF leg-1
-        "cellline-methylation-expression-coherence",
-        "expression-dependency-correlation", "abundance-dependency",  # mRNA + PROTEIN leg-2
-        "amp-expr-stratified-dependency", "patient-cis-coherence",
-        "cellline-isoform-dominance", "cellline-isoform-expression"}),   # +R10 molecular-form facets; mirrors SUB_SKILL_CARDS[cis-feature-coherence]
-    "dependency": frozenset({
-        "abundance-dependency", "crispr-rnai-dependency-concordance", "cross-consortium-dependency",
-        "dependency-lineage-selectivity", "expression-dependency-correlation",
-        "pan-cancer-crispr-dependency-distribution", "pan-cancer-rnai-dependency-distribution",
-        "paralog-buffering", "partner-conditional-dependency", "prism-crispr-concordance",
-        "recommended-models", "organoid-crispr-dependency", "coessential-module",
-        # 2026-08-20 facet-parity: mirror SUB_SKILL_CARDS[functional-requirement] which regained these
-        # two (_headline reads them; see the fan-out fix). genomic-event-model-match is ALSO a
-        # genomic_alteration card — a card may live in >1 dimension.
-        "dependency-predictability", "genomic-event-model-match"}),
-    "differentiation": frozenset({
-        "co-mutation-and-mutual-exclusivity", "expression-clinical-association",
-        "pathway-node-leverage", "precog-prognostic-association", "stemness-context",
-        "alteration-clinical-association", "subtype-survival-association",
-        "clinical-precedent",   # (2026-08-21) added to SUB_SKILL_CARDS[differentiation-landscape]
-        "competitor-landscape"}),   # (2026-08-24) Open Targets competitor field; added to SUB_SKILL_CARDS[differentiation-landscape]
-    "expression": frozenset({
-        "cellline-protein-abundance", "cellline-protein-abundance-procan", "cellline-rna-distribution", "cellline-rna-protein-concordance",
-        "expression-purity-confound", "tumor-elevation-breadth", "tumor-protein-abundance-cptac",
-        "tumor-rna-distribution", "tumor-rna-distribution-by-subtype", "tumor-rna-vs-adjacent",
-        "tumor-scrna-celltype-expression",
-        # 2026-08-20 facet-parity: mirror SUB_SKILL_CARDS[tumor-presence] which regained these 4
-        # (strictly read by presence _headline; see the fan-out composer fix).
-        "cellline-rna-distribution-by-subtype", "normal-tissue-liability",
-        "rna-protein-concordance-tumor", "sc-normal-celltype-expression",
-        # 2026-08-26: CPTAC-protein subtype panorama added to SUB_SKILL_CARDS[tumor-presence] (#676).
-        "tumor-protein-distribution-by-subtype",
-        # 2026-08-28: HPA antibody IHC protein-in-tumor (protein_ihc/tumor bucket) added to
-        # SUB_SKILL_CARDS[tumor-presence]; mirror here (DIMENSION_CARDS drift guard).
-        "hpa-pathology-cancer-ihc"}),
-    "genomic_alteration": frozenset({
-        "alteration-role", "amp-expr-stratified-dependency", "copy-number-distribution",
-        "copy-number-stratified-dependency", "ddr-deficiency-context", "functional-gene-state",
-        "fusion-rearrangement-landscape", "fusion-stratified-dependency", "genomic-event-model-match",
-        "splice-exon-skip-landscape",   # CASE-002 verdict-driving splice axis; mirrors SUB_SKILL_CARDS[genomic-alteration-profile]
-        "genomic-instability-state", "mutation-drug-response", "mutation-hotspot-frequency",
-        "mutation-stratified-dependency", "mutation-type-counts", "mutational-signature-context",
-        "oncogenic-pathway-alteration", "target-clonality", "variant-level-interpretation",
-        "variant-effect-mave-mavedb",   # MAVEdb MEASURED variant-effect facet; mirrors SUB_SKILL_CARDS[genomic-alteration-profile] (verdict-inert)
-        # 2026-08-20 facet-parity: mirror SUB_SKILL_CARDS[genomic-alteration-profile] which regained
-        # these two dependency-confidence cards (lifted by genomic _HEADLINE_FIELDS/_lift_field).
-        "cross-consortium-dependency", "dependency-predictability",
-        "tumor-splice-dysregulation"}),   # +R10 splice-form facet; mirrors SUB_SKILL_CARDS[genomic-alteration-profile] (tumor-splice-expression dedup'd 2026-09-06)
-    "mechanism": frozenset({
-        "pathway-activity-context", "phospho-pathway-activity", "signaling-network-mechanism",
-        "tahoe-drug-perturbation",
-        # dependency-predictability added to SUB_SKILL_CARDS[mechanism-and-pharmacology] (facet-parity,
-        # claim-vector rollout 2026-08-20), so this mirror must carry it (test_dimension_cards_matches_spine).
-        "dependency-predictability"}),
-    "safety": frozenset({
-        "alteration-role", "clingen-dosage", "clinvar-pathogenicity-safety", "copy-number-distribution",
-        "gene-burden-safety", "gnomad-lof-constraint", "shet-lof-intolerance", "mouse-ko-phenotype",
-        "normal-tissue-liability-gtex", "target-safety-prioritisation", "drug-warning-safety",
-        # data-util expansion 2026-08-21 — added to SUB_SKILL_CARDS[on-target-safety-liability]
-        # (pan-essential broad-tox + HPA-IHC essential-tissue protein HOLD legs); mirror must carry them.
-        "pan-cancer-crispr-dependency-distribution", "normal-tissue-liability",
-        # PR-4c 2026-08-24 — rarely-altered guard (GROUP-0b); mirror must carry it.
-        "functional-gene-state",
-        # 2026-08-25 — OnSIDES drug-label ADE CONTEXT (verdict-inert display); added to
-        # SUB_SKILL_CARDS[on-target-safety-liability], mirror must carry it.
-        "onsides-adverse-event-safety"}),
-    "selectivity": frozenset({
-        "expression-purity-confound", "modality-therapeutic-window", "sc-normal-celltype-expression",
-        "surface-abundance-density", "tumor-vs-normal-percentile-crossing",
-        "tumor-vs-normal-selectivity",
-        # 2026-08-25 — the QUANTITATIVE normal-tissue PROTEIN comparator (TPHP DIA-MS) added to
-        # SUB_SKILL_CARDS[tumor-selectivity] (tp_fanout), so this mirror must carry it too
-        # (test_dimension_cards_matches_spine). Verdict-inert in tumor-selectivity.
-        "normal-tissue-protein-abundance-tphp",
-        # 2026-08-25 — the TPHP DIA-MS RNA→PROTEIN tumor-vs-normal corroboration facet (parallel to
-        # tumor-protein-abundance-cptac), added to SUB_SKILL_CARDS[tumor-selectivity] (tp_fanout), so
-        # this mirror must carry it too (test_dimension_cards_matches_spine). Verdict-inert.
-        "tumor-vs-normal-protein-abundance-tphp",
-        # v1.9.0 tumor-side single-cell + spatial facets — added to SUB_SKILL_CARDS[tumor-selectivity]
-        # (tp_fanout) so this mirror must carry them too (test_dimension_cards_matches_spine). Verdict-
-        # inert in tumor-selectivity; here they let the integrator credit a sc/spatial-surfaced tension.
-        "tumor-scrna-celltype-expression", "spatial-region-rna-expression",
-        "spatial-tumor-normal-colocalization", "spatial-surface-protein-abundance"}),
-    "surface_modality": frozenset({
-        "adc-tce-modality-fit", "cd-antigen-backbone", "copy-number-distribution",
-        "modality-exon-window", "modality-therapeutic-window", "mutation-stratified-surface",
-        "normal-tissue-liability", "pathway-stratified-surface", "pmhc-presentation",
-        "protein-surface-evidence", "rna-protein-concordance-tumor", "sc-normal-celltype-expression",
-        # revived single-cell surface facets (dead-card resolution 2026-08-19) — added to
-        # SUB_SKILL_CARDS[surface-modality-fit], so this mirror must carry them (test_dimension_cards_matches_spine).
-        "sc-surface-normal-safety", "sc-surface-rna-protein-concordance",
-        # tumor-scrna-celltype-expression added to SUB_SKILL_CARDS[surface-modality-fit] (claim-vector
-        # rollout 2026-08-20 — facet-parity), so this mirror must carry it too (test_dimension_cards_matches_spine).
-        "tumor-scrna-celltype-expression",
-        # surface-colocalization-avidity added to SUB_SKILL_CARDS[surface-modality-fit] (wired live
-        # 2026-08-20 — same-cell avidity + tumor-vs-normal selectivity window), so this mirror must
-        # carry it too (test_dimension_cards_matches_spine).
-        "surface-colocalization-avidity",
-        "shed-ectodomain-liability", "structure-features-static", "surface-abundance-density",
-        "surface-topology-and-ptm", "surfaceome-family-classification",
-        "surfaceome-cohort-ranking",     # REVIVE role-2 (mirrors SUB_SKILL_CARDS[surface-modality-fit])
-        "surface-bulk-pair-selectivity", # bulk pair-selectivity facet (mirrors SUB_SKILL_CARDS)
-        "pmhc-epitope-evidence-iedb"}), # 2026-08-25 IEDB pMHC epitope ground truth (mirrors SUB_SKILL_CARDS[surface-modality-fit]; verdict-inert display)
-    "immune_context": frozenset({"immune-context",
-                                # mirrors SUB_SKILL_CARDS[immune-context] incl. the 3 VERDICT-INERT
-                                # TME/immune display cards wired 2026-08-25 (spine-parity guard).
-                                "myeloid-compartment-expression-cheng",
-                                "caf-compartment-expression-luo",
-                                "ici-response-association", "tcga-til-fraction-saltz", "ici-response-imvigor210"}),
-    "target_intrinsic": frozenset({
-        "domain-modality-relevance", "gene-ontology-annotation", "ppi-interactome",
-        "protein-domains-class", "reactome-pathway-membership", "target-development-level",
-        "measured-potency-tractability",
-        "target-identity-summary"}),
-    "tractability_sm": frozenset({
-        "degradation-feasibility", "dependency-predictability", "gdsc-drug-activity",
-        "known-drug-tractability", "measured-potency-tractability", "prism-compound-activity",
-        "prism-crispr-concordance", "structure-features-static"}),
+    "combination_vulnerability": frozenset(
+        {  # mirrors SUB_SKILL_CARDS[combination-and-vulnerability]
+            "synthetic-lethal-partners",
+            "combinatorial-dependency",
+            "combo-crispr-screen",
+            "combo-chemical-synergy",
+            "resistance-emergence-signature",
+        }
+    ),  # CONSOLIDATED relational annex (gateless)
+    "cis_coherence": frozenset(
+        {
+            "cis-feature-expression-coherence",
+            "cis-feature-protein-coherence",  # mRNA + PROTEIN GoF leg-1
+            "cellline-methylation-expression-coherence",
+            "expression-dependency-correlation",
+            "abundance-dependency",  # mRNA + PROTEIN leg-2
+            "amp-expr-stratified-dependency",
+            "patient-cis-coherence",
+            "cellline-isoform-dominance",
+            "cellline-isoform-expression",
+        }
+    ),  # +R10 molecular-form facets; mirrors SUB_SKILL_CARDS[cis-feature-coherence]
+    "dependency": frozenset(
+        {
+            "abundance-dependency",
+            "crispr-rnai-dependency-concordance",
+            "cross-consortium-dependency",
+            "dependency-lineage-selectivity",
+            "expression-dependency-correlation",
+            "pan-cancer-crispr-dependency-distribution",
+            "pan-cancer-rnai-dependency-distribution",
+            "paralog-buffering",
+            "partner-conditional-dependency",
+            "prism-crispr-concordance",
+            "recommended-models",
+            "organoid-crispr-dependency",
+            "coessential-module",
+            # 2026-08-20 facet-parity: mirror SUB_SKILL_CARDS[functional-requirement] which regained these
+            # two (_headline reads them; see the fan-out fix). genomic-event-model-match is ALSO a
+            # genomic_alteration card — a card may live in >1 dimension.
+            "dependency-predictability",
+            "genomic-event-model-match",
+        }
+    ),
+    "differentiation": frozenset(
+        {
+            "co-mutation-and-mutual-exclusivity",
+            "expression-clinical-association",
+            "pathway-node-leverage",
+            "precog-prognostic-association",
+            "stemness-context",
+            "alteration-clinical-association",
+            "subtype-survival-association",
+            "clinical-precedent",  # (2026-08-21) added to SUB_SKILL_CARDS[differentiation-landscape]
+            "competitor-landscape",
+        }
+    ),  # (2026-08-24) Open Targets competitor field; added to SUB_SKILL_CARDS[differentiation-landscape]
+    "expression": frozenset(
+        {
+            "cellline-protein-abundance",
+            "cellline-protein-abundance-procan",
+            "cellline-rna-distribution",
+            "cellline-rna-protein-concordance",
+            "expression-purity-confound",
+            "tumor-elevation-breadth",
+            "tumor-protein-abundance-cptac",
+            "tumor-rna-distribution",
+            "tumor-rna-distribution-by-subtype",
+            "tumor-rna-vs-adjacent",
+            "tumor-scrna-celltype-expression",
+            # 2026-08-20 facet-parity: mirror SUB_SKILL_CARDS[tumor-presence] which regained these 4
+            # (strictly read by presence _headline; see the fan-out composer fix).
+            "cellline-rna-distribution-by-subtype",
+            "normal-tissue-liability",
+            "rna-protein-concordance-tumor",
+            "sc-normal-celltype-expression",
+            # 2026-08-26: CPTAC-protein subtype panorama added to SUB_SKILL_CARDS[tumor-presence] (#676).
+            "tumor-protein-distribution-by-subtype",
+            # 2026-08-28: HPA antibody IHC protein-in-tumor (protein_ihc/tumor bucket) added to
+            # SUB_SKILL_CARDS[tumor-presence]; mirror here (DIMENSION_CARDS drift guard).
+            "hpa-pathology-cancer-ihc",
+        }
+    ),
+    "genomic_alteration": frozenset(
+        {
+            "alteration-role",
+            "amp-expr-stratified-dependency",
+            "copy-number-distribution",
+            "copy-number-stratified-dependency",
+            "ddr-deficiency-context",
+            "functional-gene-state",
+            "fusion-rearrangement-landscape",
+            "fusion-stratified-dependency",
+            "genomic-event-model-match",
+            "splice-exon-skip-landscape",  # CASE-002 verdict-driving splice axis; mirrors SUB_SKILL_CARDS[genomic-alteration-profile]
+            "genomic-instability-state",
+            "mutation-drug-response",
+            "mutation-hotspot-frequency",
+            "mutation-stratified-dependency",
+            "mutation-type-counts",
+            "mutational-signature-context",
+            "oncogenic-pathway-alteration",
+            "target-clonality",
+            "variant-level-interpretation",
+            "variant-effect-mave-mavedb",  # MAVEdb MEASURED variant-effect facet; mirrors SUB_SKILL_CARDS[genomic-alteration-profile] (verdict-inert)
+            # 2026-08-20 facet-parity: mirror SUB_SKILL_CARDS[genomic-alteration-profile] which regained
+            # these two dependency-confidence cards (lifted by genomic _HEADLINE_FIELDS/_lift_field).
+            "cross-consortium-dependency",
+            "dependency-predictability",
+            "tumor-splice-dysregulation",
+        }
+    ),  # +R10 splice-form facet; mirrors SUB_SKILL_CARDS[genomic-alteration-profile] (tumor-splice-expression dedup'd 2026-09-06)
+    "mechanism": frozenset(
+        {
+            "pathway-activity-context",
+            "phospho-pathway-activity",
+            "signaling-network-mechanism",
+            "tahoe-drug-perturbation",
+            # dependency-predictability added to SUB_SKILL_CARDS[mechanism-and-pharmacology] (facet-parity,
+            # claim-vector rollout 2026-08-20), so this mirror must carry it (test_dimension_cards_matches_spine).
+            "dependency-predictability",
+        }
+    ),
+    "safety": frozenset(
+        {
+            "alteration-role",
+            "clingen-dosage",
+            "clinvar-pathogenicity-safety",
+            "copy-number-distribution",
+            "gene-burden-safety",
+            "gnomad-lof-constraint",
+            "shet-lof-intolerance",
+            "mouse-ko-phenotype",
+            "normal-tissue-liability-gtex",
+            "target-safety-prioritisation",
+            "drug-warning-safety",
+            # data-util expansion 2026-08-21 — added to SUB_SKILL_CARDS[on-target-safety-liability]
+            # (pan-essential broad-tox + HPA-IHC essential-tissue protein HOLD legs); mirror must carry them.
+            "pan-cancer-crispr-dependency-distribution",
+            "normal-tissue-liability",
+            # PR-4c 2026-08-24 — rarely-altered guard (GROUP-0b); mirror must carry it.
+            "functional-gene-state",
+            # 2026-08-25 — OnSIDES drug-label ADE CONTEXT (verdict-inert display); added to
+            # SUB_SKILL_CARDS[on-target-safety-liability], mirror must carry it.
+            "onsides-adverse-event-safety",
+        }
+    ),
+    "selectivity": frozenset(
+        {
+            "expression-purity-confound",
+            "modality-therapeutic-window",
+            "sc-normal-celltype-expression",
+            "surface-abundance-density",
+            "tumor-vs-normal-percentile-crossing",
+            "tumor-vs-normal-selectivity",
+            # 2026-08-25 — the QUANTITATIVE normal-tissue PROTEIN comparator (TPHP DIA-MS) added to
+            # SUB_SKILL_CARDS[tumor-selectivity] (tp_fanout), so this mirror must carry it too
+            # (test_dimension_cards_matches_spine). Verdict-inert in tumor-selectivity.
+            "normal-tissue-protein-abundance-tphp",
+            # 2026-08-25 — the TPHP DIA-MS RNA→PROTEIN tumor-vs-normal corroboration facet (parallel to
+            # tumor-protein-abundance-cptac), added to SUB_SKILL_CARDS[tumor-selectivity] (tp_fanout), so
+            # this mirror must carry it too (test_dimension_cards_matches_spine). Verdict-inert.
+            "tumor-vs-normal-protein-abundance-tphp",
+            # v1.9.0 tumor-side single-cell + spatial facets — added to SUB_SKILL_CARDS[tumor-selectivity]
+            # (tp_fanout) so this mirror must carry them too (test_dimension_cards_matches_spine). Verdict-
+            # inert in tumor-selectivity; here they let the integrator credit a sc/spatial-surfaced tension.
+            "tumor-scrna-celltype-expression",
+            "spatial-region-rna-expression",
+            "spatial-tumor-normal-colocalization",
+            "spatial-surface-protein-abundance",
+        }
+    ),
+    "surface_modality": frozenset(
+        {
+            "adc-tce-modality-fit",
+            "cd-antigen-backbone",
+            "copy-number-distribution",
+            "modality-exon-window",
+            "modality-therapeutic-window",
+            "mutation-stratified-surface",
+            "normal-tissue-liability",
+            "pathway-stratified-surface",
+            "pmhc-presentation",
+            "protein-surface-evidence",
+            "rna-protein-concordance-tumor",
+            "sc-normal-celltype-expression",
+            # revived single-cell surface facets (dead-card resolution 2026-08-19) — added to
+            # SUB_SKILL_CARDS[surface-modality-fit], so this mirror must carry them (test_dimension_cards_matches_spine).
+            "sc-surface-normal-safety",
+            "sc-surface-rna-protein-concordance",
+            # tumor-scrna-celltype-expression added to SUB_SKILL_CARDS[surface-modality-fit] (claim-vector
+            # rollout 2026-08-20 — facet-parity), so this mirror must carry it too (test_dimension_cards_matches_spine).
+            "tumor-scrna-celltype-expression",
+            # surface-colocalization-avidity added to SUB_SKILL_CARDS[surface-modality-fit] (wired live
+            # 2026-08-20 — same-cell avidity + tumor-vs-normal selectivity window), so this mirror must
+            # carry it too (test_dimension_cards_matches_spine).
+            "surface-colocalization-avidity",
+            "shed-ectodomain-liability",
+            "structure-features-static",
+            "surface-abundance-density",
+            "surface-topology-and-ptm",
+            "surfaceome-family-classification",
+            "surfaceome-cohort-ranking",  # REVIVE role-2 (mirrors SUB_SKILL_CARDS[surface-modality-fit])
+            "surface-bulk-pair-selectivity",  # bulk pair-selectivity facet (mirrors SUB_SKILL_CARDS)
+            "pmhc-epitope-evidence-iedb",
+        }
+    ),  # 2026-08-25 IEDB pMHC epitope ground truth (mirrors SUB_SKILL_CARDS[surface-modality-fit]; verdict-inert display)
+    "immune_context": frozenset(
+        {
+            "immune-context",
+            # mirrors SUB_SKILL_CARDS[immune-context] incl. the 3 VERDICT-INERT
+            # TME/immune display cards wired 2026-08-25 (spine-parity guard).
+            "myeloid-compartment-expression-cheng",
+            "caf-compartment-expression-luo",
+            "ici-response-association",
+            "tcga-til-fraction-saltz",
+            "ici-response-imvigor210",
+        }
+    ),
+    "target_intrinsic": frozenset(
+        {
+            "domain-modality-relevance",
+            "gene-ontology-annotation",
+            "ppi-interactome",
+            "protein-domains-class",
+            "reactome-pathway-membership",
+            "target-development-level",
+            "measured-potency-tractability",
+            "target-identity-summary",
+        }
+    ),
+    "tractability_sm": frozenset(
+        {
+            "degradation-feasibility",
+            "dependency-predictability",
+            "gdsc-drug-activity",
+            "known-drug-tractability",
+            "measured-potency-tractability",
+            "prism-compound-activity",
+            "prism-crispr-concordance",
+            "structure-features-static",
+        }
+    ),
     # 2026-08-31 — translational-readiness wired into the fan-out as a GATELESS DESCRIPTIVE peer
     # (verdict=None, absent from _SHORT_TO_GATE), so this mirror must carry its 3 EXCLUSIVE cards
     # (organoid-crispr-dependency is NOT re-listed — it already reaches tp via the dependency dim).
     # Keeps DIMENSION_CARDS == SUB_SKILL_CARDS ∘ SUB_SKILLS (test_dimension_cards_matches_spine).
-    "translational_readiness": frozenset({
-        "target-model-availability", "target-genotype-matched-model", "target-pdx-drug-response"}),
+    "translational_readiness": frozenset(
+        {"target-model-availability", "target-genotype-matched-model", "target-pdx-drug-response"}
+    ),
     # 2026-09-02 — literature-context wired into the fan-out as a GATELESS DESCRIPTIVE peer
     # (verdict=None, absent from _SHORT_TO_GATE), so this mirror must carry its single card
     # (test_dimension_cards_matches_spine). Promotes the former cited_literature_evidence.json side-channel.
@@ -190,8 +320,17 @@ _DIM_CARD_NORMS: dict[str, frozenset[str]] = {
 }
 
 # coverage-gap verdicts: a line in one of these states carries NO evidentiary weight (absence-discipline)
-GAP_VERDICTS = {None, "insufficient", "data_unavailable", "not_assessed", "not_informative",
-                "no_data", "not_evaluated", "insufficient_data", "insufficient_evidence"}
+GAP_VERDICTS = {
+    None,
+    "insufficient",
+    "data_unavailable",
+    "not_assessed",
+    "not_informative",
+    "no_data",
+    "not_evaluated",
+    "insufficient_data",
+    "insufficient_evidence",
+}
 
 # MEASURED-NEGATIVE sub-verdicts (distinct from GAP_VERDICTS, which are absence): a line that was
 # evaluated and returned a NEGATIVE call. A positive-thesis clause may not cite one of these as
@@ -201,19 +340,36 @@ GAP_VERDICTS = {None, "insufficient", "data_unavailable", "not_assessed", "not_i
 # (strongly_selective_dependency, strong_tumor_selective, lineage_selective, discordant_*) do NOT match.
 NEGATIVE_SIGNAL_VERDICTS = {
     # dependency / functional-requirement
-    "non_dependent", "non_dependent_paralog_buffered", "not_a_dependency", "non_essential",
+    "non_dependent",
+    "non_dependent_paralog_buffered",
+    "not_a_dependency",
+    "non_essential",
     # selectivity / tumor-vs-normal
-    "not_selective", "selective_but_broadly_normal", "not_tumor_selective",
+    "not_selective",
+    "selective_but_broadly_normal",
+    "not_tumor_selective",
     # surface / modality fit
     "neither_viable",
     # synthetic-lethal / combinatorial / partner-conditional
-    "no_partner_mapped", "no_experimental_sl_partner", "no_sl_partner",
+    "no_partner_mapped",
+    "no_experimental_sl_partner",
+    "no_sl_partner",
     "no_combinatorial_dependency",
     # genomic-alteration
-    "passenger_pattern", "not_altered", "no_recurrent_alteration",
+    "passenger_pattern",
+    "not_altered",
+    "no_recurrent_alteration",
 }
-_NEGATIVE_STEMS = ("non_dependent", "no_partner", "no_experimental_sl", "no_sl_partner",
-                   "not_selective", "neither_viable", "no_combinatorial", "passenger")
+_NEGATIVE_STEMS = (
+    "non_dependent",
+    "no_partner",
+    "no_experimental_sl",
+    "no_sl_partner",
+    "not_selective",
+    "neither_viable",
+    "no_combinatorial",
+    "passenger",
+)
 CERTAINTY_RANK = {"low": 0, "moderate": 1, "high": 2}
 RANK_CERTAINTY = {v: k for k, v in CERTAINTY_RANK.items()}
 
@@ -223,18 +379,18 @@ RANK_CERTAINTY = {v: k for k, v in CERTAINTY_RANK.items()}
 # turn on small-molecule tractability). Out-of-scope dims are excluded from data-gaps + certainty +
 # the in-scope decision set, so an irrelevant axis never degrades a hypothesis for the wrong modality.
 MODALITY_SCOPE: dict[str, set] = {
-    "small_molecule":   {"surface_modality", "immune_context"},
-    "degrader":         {"surface_modality", "immune_context"},
-    "molecular_glue":   {"surface_modality", "immune_context"},
-    "rna_therapeutic":  {"surface_modality", "tractability_sm", "immune_context"},
+    "small_molecule": {"surface_modality", "immune_context"},
+    "degrader": {"surface_modality", "immune_context"},
+    "molecular_glue": {"surface_modality", "immune_context"},
+    "rna_therapeutic": {"surface_modality", "tractability_sm", "immune_context"},
     # SURFACE / LIGAND biologics: the therapeutic basis is surface presentation / ligand neutralization,
     # NOT a cell-intrinsic genetic dependency. So the dependency-FAMILY axes are out-of-scope — a
     # `dependency:non_dependent` (or SL/combinatorial) reading must NOT veto a surface target (e.g. an
     # approved ADC/TCE antigen like DLL3/NECTIN4 that is not itself a fitness dependency). tractability_sm
     # (small-molecule chemistry) is likewise out-of-scope.
-    "adc":              {"tractability_sm", "dependency", "combination_vulnerability", "immune_context"},
-    "bite_tce":         {"tractability_sm", "dependency", "combination_vulnerability"},
-    "antibody":         {"tractability_sm", "dependency", "combination_vulnerability", "immune_context"},
+    "adc": {"tractability_sm", "dependency", "combination_vulnerability", "immune_context"},
+    "bite_tce": {"tractability_sm", "dependency", "combination_vulnerability"},
+    "antibody": {"tractability_sm", "dependency", "combination_vulnerability", "immune_context"},
     "modality_agnostic": set(),
 }
 
@@ -289,11 +445,34 @@ def out_of_scope_dims(modality: str) -> set:
 # cards never match, so an in-scope primary-thesis violation — e.g. MARK2's SL-vs-no_partner — is
 # NEVER excluded).
 _MODALITY_DIMENSION_CARD_TOKENS: dict[str, tuple] = {
-    "surface_modality": ("surface", "surfaceome", "adc", "tce", "bite", "topology", "cd_antigen",
-                         "shed_ectodomain", "pmhc", "cspa", "internalizing", "modality_fit",
-                         "modality_therapeutic_window", "modality_exon_window", "biologic"),
-    "tractability_sm": ("tractability", "known_drug", "measured_potency", "structure_features",
-                        "ligandability", "dgidb", "pocket", "kinome", "prism"),
+    "surface_modality": (
+        "surface",
+        "surfaceome",
+        "adc",
+        "tce",
+        "bite",
+        "topology",
+        "cd_antigen",
+        "shed_ectodomain",
+        "pmhc",
+        "cspa",
+        "internalizing",
+        "modality_fit",
+        "modality_therapeutic_window",
+        "modality_exon_window",
+        "biologic",
+    ),
+    "tractability_sm": (
+        "tractability",
+        "known_drug",
+        "measured_potency",
+        "structure_features",
+        "ligandability",
+        "dgidb",
+        "pocket",
+        "kinome",
+        "prism",
+    ),
 }
 
 
@@ -374,10 +553,10 @@ def safety_action_for_modality(sv: dict, modality: Optional[str]) -> Optional[st
 # absent on TSG/loss-of-function drivers and on the highly_constrained dangerous-FPs (MYC, STAG1), so it
 # does not re-admit them. NARROW by design: only `non_dependent`-family verdicts are conditioned;
 # `pan_essential_killer` (no selectivity window) stays a genuine veto.
-_MUTANT_SELECTIVE_SAFETY = frozenset({"wt_human_genetics_mechanism_mismatch",
-                                      "wt_constraint_mechanism_mismatch"})
-_NON_DEPENDENT_TOKENS = frozenset({"non_dependent", "non_dependent_paralog_buffered",
-                                   "not_a_dependency", "non_essential"})
+_MUTANT_SELECTIVE_SAFETY = frozenset({"wt_human_genetics_mechanism_mismatch", "wt_constraint_mechanism_mismatch"})
+_NON_DEPENDENT_TOKENS = frozenset(
+    {"non_dependent", "non_dependent_paralog_buffered", "not_a_dependency", "non_essential"}
+)
 
 
 # --- FAIL-CLOSED, GATE-COMPLETE ceiling — consumes recommendation_gate.hard_gates ------------
@@ -404,24 +583,32 @@ def gate_ceiling(pkg: dict, modality: Optional[str] = None) -> dict:
     scan (never the prototype's fail-open behaviour)."""
     syn = pkg.get("synthesis")
     if not isinstance(syn, dict) or not isinstance(syn.get("sub_verdicts"), dict):
-        return {"ceiling": "declined", "reason": "package has no parseable synthesis.sub_verdicts "
-                "(schema-invalid) — fail-closed", "fail_closed": True, "hard_gates_present": False,
-                "active_vetoes": [], "blind_gates": [], "opposing": [], "excluded": [],
-                "safety_verdict": None, "safety_modality_action": None,
-                "safety_modality_cleared": False}
+        return {
+            "ceiling": "declined",
+            "reason": "package has no parseable synthesis.sub_verdicts (schema-invalid) — fail-closed",
+            "fail_closed": True,
+            "hard_gates_present": False,
+            "active_vetoes": [],
+            "blind_gates": [],
+            "opposing": [],
+            "excluded": [],
+            "safety_verdict": None,
+            "safety_modality_action": None,
+            "safety_modality_cleared": False,
+        }
     sv = syn["sub_verdicts"]
     safety = _sv_verdict(sv, "safety")
     rg = syn.get("recommendation_gate") or {}
     hard_gates = rg.get("hard_gates")
-    oos = out_of_scope_dims(modality) if modality else set()   # dims out-of-scope for this modality
-    mutant_selective = safety in _MUTANT_SELECTIVE_SAFETY      # mechanism-conditions the dependency veto
+    oos = out_of_scope_dims(modality) if modality else set()  # dims out-of-scope for this modality
+    mutant_selective = safety in _MUTANT_SELECTIVE_SAFETY  # mechanism-conditions the dependency veto
     # MODALITY×SAFETY: the per-modality safety action for THIS channel. When it clears (== conditional,
     # the spine's sole safe action), the blanket hold-grade safety cap below is modality-cleared — a
     # scalar `safety` hold no longer caps a channel the spine's own exists_safe_modality would suppress.
     safety_action = safety_action_for_modality(sv, modality)
     safety_modality_cleared = safety_action in _SAFETY_MODALITY_SAFE_ACTIONS
 
-    signals: list[tuple[int, str]] = []   # (ceiling_rank, reason)
+    signals: list[tuple[int, str]] = []  # (ceiling_rank, reason)
     active_vetoes, blind_gates, opposing, excluded = [], [], [], []
 
     if isinstance(hard_gates, list) and hard_gates:
@@ -433,7 +620,7 @@ def gate_ceiling(pkg: dict, modality: Optional[str] = None) -> dict:
             disp = row.get("disposition")
             status = row.get("status")
             tag = f"{short}:{verdict}"
-            axis_oos = short in oos   # e.g. dependency is out-of-scope for a surface/ligand biologic
+            axis_oos = short in oos  # e.g. dependency is out-of-scope for a surface/ligand biologic
             if status == "fired":
                 if axis_oos:
                     # the axis does not decide this modality — surfaced, does NOT veto the ceiling
@@ -450,27 +637,25 @@ def gate_ceiling(pkg: dict, modality: Optional[str] = None) -> dict:
                         signals.append((VERDICT_RANK["declined"], f"hard-gate fired ({tag})"))
                 else:
                     # HOLD-grade axis (safety / subtype_fit) fired → a HOLD, not a kill
-                    signals.append((VERDICT_RANK["advanceable_flagged"],
-                                    f"hold-grade gate fired ({tag})"))
+                    signals.append((VERDICT_RANK["advanceable_flagged"], f"hold-grade gate fired ({tag})"))
             elif status == "blind" and disp == "gated":
                 if axis_oos:
-                    excluded.append(tag)      # not in scope this run → not a coverage gap
+                    excluded.append(tag)  # not in scope this run → not a coverage gap
                 elif short in _VETO_GATE_AXES and mutant_selective:
                     # dependency axis does not decide a mutant-selective driver → mechanism-excluded
                     excluded.append(tag)
                 elif short in _VETO_GATE_AXES:
                     # a VETO-capable axis produced no verdict → cannot rule the veto out → fail closed
                     blind_gates.append(tag)
-                    signals.append((VERDICT_RANK["declined"],
-                                    f"fail-closed: veto-capable axis blind ({short})"))
+                    signals.append((VERDICT_RANK["declined"], f"fail-closed: veto-capable axis blind ({short})"))
                 else:
                     # a HOLD-grade axis blind → fail-closed to a HOLD, not a decline
-                    signals.append((VERDICT_RANK["advanceable_flagged"],
-                                    f"fail-closed hold-grade axis blind ({short})"))
+                    signals.append(
+                        (VERDICT_RANK["advanceable_flagged"], f"fail-closed hold-grade axis blind ({short})")
+                    )
             elif status == "opposing":
                 opposing.append(tag)
-                signals.append((VERDICT_RANK["advanceable_with_caveat"],
-                                f"opposing measured evidence ({tag})"))
+                signals.append((VERDICT_RANK["advanceable_with_caveat"], f"opposing measured evidence ({tag})"))
             elif status == "excluded":
                 excluded.append(tag)  # modality-scoped foreclosure — surfaced, no blanket veto
         hard_gates_present = True
@@ -479,8 +664,7 @@ def gate_ceiling(pkg: dict, modality: Optional[str] = None) -> dict:
         hard_gates_present = False
         if bool(rg.get("fired")) and not (rg.get("suppressed_vetoes")):
             active_vetoes.append("recommendation_gate")
-            signals.append((VERDICT_RANK["declined"],
-                            f"recommendation_gate fired ({rg.get('verdict') or 'veto'})"))
+            signals.append((VERDICT_RANK["declined"], f"recommendation_gate fired ({rg.get('verdict') or 'veto'})"))
         # scan the veto-capable sub-verdicts for kill tokens the prototype ignored — DEPENDENCY only
         # (the sole veto axis), and only when dependency is in scope for the modality.
         dep = _sv_verdict(sv, "dependency")
@@ -502,18 +686,22 @@ def gate_ceiling(pkg: dict, modality: Optional[str] = None) -> dict:
         signals.append((VERDICT_RANK["advanceable_flagged"], f"safety hold-grade ({safety})"))
 
     if not signals:
-        ceiling_rank, reason = VERDICT_RANK["advanceable"], (
-            "no fired/blind hard gate on the deterministic spine")
+        ceiling_rank, reason = VERDICT_RANK["advanceable"], ("no fired/blind hard gate on the deterministic spine")
     else:
         ceiling_rank, reason = min(signals, key=lambda s: s[0])
-    return {"ceiling": RANK_VERDICT[ceiling_rank], "reason": reason,
-            "fail_closed": bool(blind_gates) or ceiling_rank == VERDICT_RANK["declined"]
-            and not active_vetoes,
-            "hard_gates_present": hard_gates_present,
-            "active_vetoes": active_vetoes, "blind_gates": blind_gates,
-            "opposing": opposing, "excluded": excluded, "safety_verdict": safety,
-            "safety_modality_action": safety_action,
-            "safety_modality_cleared": safety_modality_cleared}
+    return {
+        "ceiling": RANK_VERDICT[ceiling_rank],
+        "reason": reason,
+        "fail_closed": bool(blind_gates) or ceiling_rank == VERDICT_RANK["declined"] and not active_vetoes,
+        "hard_gates_present": hard_gates_present,
+        "active_vetoes": active_vetoes,
+        "blind_gates": blind_gates,
+        "opposing": opposing,
+        "excluded": excluded,
+        "safety_verdict": safety,
+        "safety_modality_action": safety_action,
+        "safety_modality_cleared": safety_modality_cleared,
+    }
 
 
 def clamp(proposed: Optional[str], ceiling: str) -> tuple:
@@ -533,8 +721,14 @@ def parse_subtype_resolved(pkg: dict) -> dict:
     subgroup_n_floor_met=False is surfaced but flagged so the agent must not credit it."""
     block = pkg.get("subtype_resolved")
     if not isinstance(block, dict):
-        return {"present": False, "requested_strata": [], "available_strata": [],
-                "per_stratum": [], "stratum_tokens": set(), "convergence_facet": None}
+        return {
+            "present": False,
+            "requested_strata": [],
+            "available_strata": [],
+            "per_stratum": [],
+            "stratum_tokens": set(),
+            "convergence_facet": None,
+        }
     per_stratum = block.get("per_stratum") or []
     stratum_tokens: set = set()
     strata_summary = []
@@ -546,20 +740,23 @@ def parse_subtype_resolved(pkg: dict) -> dict:
             stratum_tokens.add(str(st))
         axes = rec.get("axes") or {}
         floor_ok = {}
-        for ax, adata in (axes.items() if isinstance(axes, dict) else []):
+        for ax, adata in axes.items() if isinstance(axes, dict) else []:
             if isinstance(adata, dict):
                 floor_ok[ax] = bool(adata.get("subgroup_n_floor_met"))
         strata_summary.append({"stratum": st, "axes": axes, "n_floor_met_by_axis": floor_ok})
     # also allow citing the requested/available stratum names + the axis names
-    for s in (block.get("requested_strata") or []):
+    for s in block.get("requested_strata") or []:
         stratum_tokens.add(str(s))
-    for s in (block.get("available_strata") or []):
+    for s in block.get("available_strata") or []:
         stratum_tokens.add(str(s))
-    return {"present": True,
-            "requested_strata": list(block.get("requested_strata") or []),
-            "available_strata": list(block.get("available_strata") or []),
-            "per_stratum": strata_summary, "stratum_tokens": stratum_tokens,
-            "convergence_facet": block.get("convergence_facet")}
+    return {
+        "present": True,
+        "requested_strata": list(block.get("requested_strata") or []),
+        "available_strata": list(block.get("available_strata") or []),
+        "per_stratum": strata_summary,
+        "stratum_tokens": stratum_tokens,
+        "convergence_facet": block.get("convergence_facet"),
+    }
 
 
 # --- evidence-substrate correlated-evidence discount ---------
@@ -588,10 +785,15 @@ def substrate_independence(pkg: dict) -> dict:
     n_distinct_substrates = len(by_substrate)
     # effective independent units: each substrate counts once + each untagged card its own unit
     n_independent = n_distinct_substrates + len(untagged)
-    return {"by_substrate": by_substrate, "correlated_groups": correlated_groups,
-            "untagged_cards": untagged, "n_distinct_substrates": n_distinct_substrates,
-            "n_untagged_cards": len(untagged), "n_independent_units": n_independent,
-            "correlated_evidence_discounted": bool(correlated_groups)}
+    return {
+        "by_substrate": by_substrate,
+        "correlated_groups": correlated_groups,
+        "untagged_cards": untagged,
+        "n_distinct_substrates": n_distinct_substrates,
+        "n_untagged_cards": len(untagged),
+        "n_independent_units": n_independent,
+        "correlated_evidence_discounted": bool(correlated_groups),
+    }
 
 
 # --- data gaps + weakest-link certainty (ported) + substrate/degradation discount -------------------
@@ -612,7 +814,7 @@ def parse_certainty_by_axis(pkg: dict) -> dict:
     """Project synthesis.decision_facets.certainty_by_axis into {short: level} where level is the spine's
     weakest-link per-axis certainty (CERTAINTY_MODEL: min(coverage, corroboration)) normalized onto the
     integrator's {low, moderate, high} rank. Tolerates absence (older package / no axis opted in) → {}."""
-    facets = ((pkg.get("synthesis") or {}).get("decision_facets") or {})
+    facets = (pkg.get("synthesis") or {}).get("decision_facets") or {}
     cba = facets.get("certainty_by_axis")
     if not isinstance(cba, dict):
         return {}
@@ -620,8 +822,7 @@ def parse_certainty_by_axis(pkg: dict) -> dict:
     for short, rec in cba.items():
         if not isinstance(rec, dict):
             continue
-        lvl = ((rec.get("certainty") or {}).get("level") if isinstance(rec.get("certainty"), dict)
-               else None)
+        lvl = (rec.get("certainty") or {}).get("level") if isinstance(rec.get("certainty"), dict) else None
         norm = _SPINE_CERTAINTY_TO_RANK.get(str(lvl).lower()) if lvl is not None else None
         if norm:
             out[short] = norm
@@ -659,7 +860,7 @@ def gate_independence(cross_gate_shared_evidence: Optional[dict], supporting_gat
     out-of-scope / gap gate from spuriously collapsing the count."""
     if not isinstance(cross_gate_shared_evidence, dict) or not cross_gate_shared_evidence:
         return {"present": False, "n_independent_gate_groups": None, "correlated_gate_pairs": []}
-    gates = list(dict.fromkeys(supporting_gates))       # de-dup, preserve order
+    gates = list(dict.fromkeys(supporting_gates))  # de-dup, preserve order
     parent = {g: g for g in gates}
 
     def _find(x):
@@ -669,20 +870,20 @@ def gate_independence(cross_gate_shared_evidence: Optional[dict], supporting_gat
         return x
 
     used_pairs = []
-    for pair in (cross_gate_shared_evidence.get("correlated_gate_pairs") or []):
+    for pair in cross_gate_shared_evidence.get("correlated_gate_pairs") or []:
         if not (isinstance(pair, (list, tuple)) and len(pair) == 2):
             continue
         a, b = pair
-        if a in parent and b in parent:                 # both ends are supporting decision gates
+        if a in parent and b in parent:  # both ends are supporting decision gates
             used_pairs.append([a, b])
             parent[_find(a)] = _find(b)
     n_groups = len({_find(g) for g in gates}) if gates else 0
-    return {"present": True, "n_independent_gate_groups": n_groups,
-            "correlated_gate_pairs": used_pairs}
+    return {"present": True, "n_independent_gate_groups": n_groups, "correlated_gate_pairs": used_pairs}
 
 
-def discounted_certainty(base: str, n_independent_units: int, degraded_inputs: list,
-                         n_independent_gate_groups: Optional[int] = None) -> dict:
+def discounted_certainty(
+    base: str, n_independent_units: int, degraded_inputs: list, n_independent_gate_groups: Optional[int] = None
+) -> dict:
     """Apply the orthogonal certainty caps AFTER the weakest-link base (
     'the correlated-evidence discount is applied before certainty is reported'):
       - independence cap: < 2 independent EVIDENCE units → cap `low` (all corroboration is one
@@ -707,10 +908,14 @@ def discounted_certainty(base: str, n_independent_units: int, degraded_inputs: l
         cap = min(cap, CERTAINTY_RANK["low"])
         reasons.append(f"degraded inputs: {sorted(degraded_inputs)}")
     final_rank = min(CERTAINTY_RANK.get(base, 0), cap)
-    return {"base": base, "final": RANK_CERTAINTY[final_rank],
-            "capped": final_rank < CERTAINTY_RANK.get(base, 0), "cap_reasons": reasons,
-            "effective_independent_units": effective_units,
-            "independence_unit_kind": unit_kind}
+    return {
+        "base": base,
+        "final": RANK_CERTAINTY[final_rank],
+        "capped": final_rank < CERTAINTY_RANK.get(base, 0),
+        "cap_reasons": reasons,
+        "effective_independent_units": effective_units,
+        "independence_unit_kind": unit_kind,
+    }
 
 
 # --- retrieve-don't-recall + clause-traceability WITH TEETH ------------------------------
@@ -729,8 +934,13 @@ def check_traceability(clause_citations: list, surface: dict) -> list:
     PMIDs (a self-invented PMID is confabulation). Non-PMID tokens (card_ids / sub-verdict names /
     rule_ids / dossier fields / stratum tokens) may match by normalized-exact or by embedding a
     known specific (>=6 char) token, so a legit phrase like "copy-number-distribution card" passes."""
-    valid = (surface["card_ids"] | surface["sub_verdicts"] | surface["rule_ids"]
-             | surface.get("dossier_fields", set()) | surface.get("strata", set()))
+    valid = (
+        surface["card_ids"]
+        | surface["sub_verdicts"]
+        | surface["rule_ids"]
+        | surface.get("dossier_fields", set())
+        | surface.get("strata", set())
+    )
     valid_norm = {_norm(t) for t in valid}
     valid_sub = {_norm(t) for t in valid if len(str(t)) >= 6}
     allowed_pmids = {str(p).strip() for p in surface.get("pmids", set())}
@@ -766,8 +976,7 @@ def check_traceability(clause_citations: list, surface: dict) -> list:
 # deliberately EXEMPT from the negative-signal rule: its job is to weigh liabilities, so citing a
 # negative safety / selectivity line there is honest framing, not an incoherent positive assertion.
 POSITIVE_THESIS_CLAUSES = ("causal_rationale", "therapeutic_hypothesis", "population")
-ALL_SUPPORT_CLAUSES = ("causal_rationale", "therapeutic_hypothesis", "population",
-                       "therapeutic_window")
+ALL_SUPPORT_CLAUSES = ("causal_rationale", "therapeutic_hypothesis", "population", "therapeutic_window")
 
 # INTRINSIC CROSS-CARD CONTRADICTIONS — a small, GENERAL registry of thesis families that a
 # NEGATIVE/absent SIBLING line measuring the SAME biology undercuts. These are the cases where the
@@ -780,8 +989,13 @@ INTRINSIC_CONTRADICTIONS = [
     {
         "label": "combination_or_sl_strategy_without_mapped_partner",
         # a clause resting on these positive SL/combination lines as its actionable strategy ...
-        "asserts": {"synthetic-lethal-partners", "combinatorial-dependency",
-                    "synthetic_lethal_partners", "combinatorial_dependency", "combination_vulnerability"},
+        "asserts": {
+            "synthetic-lethal-partners",
+            "combinatorial-dependency",
+            "synthetic_lethal_partners",
+            "combinatorial_dependency",
+            "combination_vulnerability",
+        },
         # ... is contradicted when a partner-mapping line is present with a no-partner call.
         "contradicted_by": {
             "partner-conditional-dependency": {"no_partner_mapped", "no_sl_partner"},
@@ -802,8 +1016,15 @@ def is_negative_verdict(v) -> bool:
     return any(n.startswith(s) or s in n for s in _NEGATIVE_STEMS)
 
 
-def coherence_violations(clauses: dict, conviction: dict, edges: list, tensions: list,
-                         present_norm: set, out_of_scope=None, card_calls: dict = None) -> dict:
+def coherence_violations(
+    clauses: dict,
+    conviction: dict,
+    edges: list,
+    tensions: list,
+    present_norm: set,
+    out_of_scope=None,
+    card_calls: dict = None,
+) -> dict:
     """INTRA-PACKAGE COHERENCE (the root-cause fix): the integrator may not assert a positive
     claim on a signal that ANOTHER present package signal contradicts, UNLESS the clause surfaces the
     tension. Enforced FOUR ways:
@@ -843,8 +1064,12 @@ def coherence_violations(clauses: dict, conviction: dict, edges: list, tensions:
     _dep_norms = {_norm("dependency")} | _DIM_CARD_NORMS.get(_norm("dependency"), frozenset())
 
     def _mechanism_benign(tok_norm: str, verdict) -> bool:
-        return (mutant_selective and tok_norm in _dep_norms
-                and isinstance(verdict, str) and _norm(verdict) in {_norm(x) for x in _NON_DEPENDENT_TOKENS})
+        return (
+            mutant_selective
+            and tok_norm in _dep_norms
+            and isinstance(verdict, str)
+            and _norm(verdict) in {_norm(x) for x in _NON_DEPENDENT_TOKENS}
+        )
 
     # measured-negative SIGNALS keyed by normalized token → (display_name, verdict). Covers both
     # sub-verdict dimensions and card-grain interpretation calls. OUT-OF-SCOPE-modality signals are
@@ -866,14 +1091,13 @@ def coherence_violations(clauses: dict, conviction: dict, edges: list, tensions:
         value_by_norm.setdefault(_norm(cid), call)
 
     conflict_edges = []  # (norm_a, norm_b) pairs the agent typed as contradicts / tensions_with
-    for e in (edges or []):
+    for e in edges or []:
         if isinstance(e, dict) and e.get("type") in ("contradicts", "tensions_with"):
             a, b = _norm(e.get("from_dimension", "")), _norm(e.get("to_dimension", ""))
             if a and b and a != b:
                 conflict_edges.append((a, b))
 
-    tension_tok_sets = [{_norm(c) for c in (t.get("citations") or [])}
-                        for t in (tensions or []) if isinstance(t, dict)]
+    tension_tok_sets = [{_norm(c) for c in (t.get("citations") or [])} for t in (tensions or []) if isinstance(t, dict)]
 
     def _expand(tok):
         """A normalized token → itself PLUS its member-card norms if it is a sub-verdict DIMENSION.
@@ -899,47 +1123,74 @@ def coherence_violations(clauses: dict, conviction: dict, edges: list, tensions:
         if key in POSITIVE_THESIS_CLAUSES:
             for nd, (name, verdict) in neg_norm.items():
                 if nd in support and not _surfaced_in(nd, surfaced) and not _surfaced_as_tension(nd):
-                    found.append({
-                        "type": "negative_signal_asserted", "dimension": name, "verdict": verdict,
-                        "detail": (f"cites '{name}' (measured-negative verdict '{verdict}') as SUPPORT "
-                                   "without surfacing it as a tension (move to contradicting_citations "
-                                   "or a principal tension)")})
+                    found.append(
+                        {
+                            "type": "negative_signal_asserted",
+                            "dimension": name,
+                            "verdict": verdict,
+                            "detail": (
+                                f"cites '{name}' (measured-negative verdict '{verdict}') as SUPPORT "
+                                "without surfacing it as a tension (move to contradicting_citations "
+                                "or a principal tension)"
+                            ),
+                        }
+                    )
         # (b) agent contradicts/tensions_with edge enforced on this clause's own citations
         for a, b in conflict_edges:
             for x, y in ((a, b), (b, a)):
-                if _oos(x) or _oos(y):     # tension touches an out-of-scope-modality axis → not a cap
+                if _oos(x) or _oos(y):  # tension touches an out-of-scope-modality axis → not a cap
                     continue
                 # Surfaced if y is in the clause's contradicting_citations OR any principal tension —
                 # at EITHER grain (the dimension token OR any of its member cards). Requiring the SAME
                 # tension to cite both x and y (the old _tension_covers) false-fired when the LLM
                 # surfaced the contradicting dimension via its cards in a standalone tension.
-                if (x in support and y in present_norm and y not in support
-                        and not _surfaced_in(y, surfaced) and not _surfaced_as_tension(y)):
-                    found.append({
-                        "type": "edge_contradiction_unsurfaced", "asserted": x, "contradicted_by": y,
-                        "detail": (f"cites '{x}' as support while its OWN typed edge marks '{y}' as "
-                                   f"contradicting/tensioning it, and '{y}' is present but unsurfaced")})
+                if (
+                    x in support
+                    and y in present_norm
+                    and y not in support
+                    and not _surfaced_in(y, surfaced)
+                    and not _surfaced_as_tension(y)
+                ):
+                    found.append(
+                        {
+                            "type": "edge_contradiction_unsurfaced",
+                            "asserted": x,
+                            "contradicted_by": y,
+                            "detail": (
+                                f"cites '{x}' as support while its OWN typed edge marks '{y}' as "
+                                f"contradicting/tensioning it, and '{y}' is present but unsurfaced"
+                            ),
+                        }
+                    )
         # (c) intrinsic cross-card contradiction (present-but-uncited negative sibling)
         if key in POSITIVE_THESIS_CLAUSES:
             for rule in INTRINSIC_CONTRADICTIONS:
                 asserts_n = {_norm(a) for a in rule["asserts"]}
                 rested_on = sorted(t for t in (asserts_n & support) if not _oos(t))
-                if not rested_on:     # the asserted thesis is entirely out-of-scope for this modality
+                if not rested_on:  # the asserted thesis is entirely out-of-scope for this modality
                     continue
-                seen_sig: set = set()   # dedup registry keys that normalize identically
+                seen_sig: set = set()  # dedup registry keys that normalize identically
                 for sig, negvals in rule["contradicted_by"].items():
                     sig_n = _norm(sig)
-                    if sig_n in seen_sig or _oos(sig_n):   # skip an out-of-scope contradicting sibling
+                    if sig_n in seen_sig or _oos(sig_n):  # skip an out-of-scope contradicting sibling
                         continue
                     val = value_by_norm.get(sig_n)
                     if val in negvals and not _surfaced_in(sig_n, surfaced) and not _surfaced_as_tension(sig_n):
                         seen_sig.add(sig_n)
-                        found.append({
-                            "type": "intrinsic_contradiction", "label": rule["label"],
-                            "rested_on": rested_on, "contradicted_by": sig, "verdict": val,
-                            "detail": (f"rests on {rested_on} but '{sig}' is present with '{val}' "
-                                       f"({rule['label']}) and is not surfaced — the strategy is "
-                                       "internally unsupported")})
+                        found.append(
+                            {
+                                "type": "intrinsic_contradiction",
+                                "label": rule["label"],
+                                "rested_on": rested_on,
+                                "contradicted_by": sig,
+                                "verdict": val,
+                                "detail": (
+                                    f"rests on {rested_on} but '{sig}' is present with '{val}' "
+                                    f"({rule['label']}) and is not surfaced — the strategy is "
+                                    "internally unsupported"
+                                ),
+                            }
+                        )
         if found:
             violations[key] = found
     return violations
@@ -958,20 +1209,24 @@ def surface_coherence_tensions(coherence_v: dict) -> list:
     for clause_key, viols in (coherence_v or {}).items():
         for v in viols:
             if v["type"] == "negative_signal_asserted":
-                stmt = (f"clause '{clause_key}' rests on '{v['dimension']}', whose measured verdict "
-                        f"'{v['verdict']}' does not support it")
+                stmt = (
+                    f"clause '{clause_key}' rests on '{v['dimension']}', whose measured verdict "
+                    f"'{v['verdict']}' does not support it"
+                )
                 cites = [v["dimension"]]
             elif v["type"] == "intrinsic_contradiction":
-                stmt = (f"clause '{clause_key}' rests on {v['rested_on']} but '{v['contradicted_by']}' "
-                        f"is present with '{v['verdict']}' ({v['label']}) — the strategy has no "
-                        "actionable support")
+                stmt = (
+                    f"clause '{clause_key}' rests on {v['rested_on']} but '{v['contradicted_by']}' "
+                    f"is present with '{v['verdict']}' ({v['label']}) — the strategy has no "
+                    "actionable support"
+                )
                 cites = list(v["rested_on"]) + [v["contradicted_by"]]
             else:  # edge_contradiction_unsurfaced
-                stmt = (f"clause '{clause_key}' rests on '{v['asserted']}' while '{v['contradicted_by']}' "
-                        "contradicts it")
+                stmt = f"clause '{clause_key}' rests on '{v['asserted']}' while '{v['contradicted_by']}' contradicts it"
                 cites = [v["asserted"], v["contradicted_by"]]
-            out_tensions.append({"statement": stmt, "citations": cites, "clause": clause_key,
-                                 "source": "integrator_coherence_guard"})
+            out_tensions.append(
+                {"statement": stmt, "citations": cites, "clause": clause_key, "source": "integrator_coherence_guard"}
+            )
     return out_tensions
 
 
@@ -994,15 +1249,14 @@ def parse_grounded_substrate(substrate: Optional[dict]) -> dict:
     confab-containment in build_grounded_block (unretrieved PMIDs were dropped), so they are trusted
     here as the retrieved-and-cited set."""
     if not isinstance(substrate, dict) or not substrate:
-        return {"present": False, "per_axis": [], "pmids": set(),
-                "discordant_axes": [], "n_findings": 0}
+        return {"present": False, "per_axis": [], "pmids": set(), "discordant_axes": [], "n_findings": 0}
     per_axis, pmids, discordant, n_findings = [], set(), [], 0
     for axis, rec in substrate.items():
         if not isinstance(rec, dict):
             continue
         g = rec.get("grounded", rec) or {}
         findings = []
-        for f in (g.get("findings") or g.get("liability_findings") or []):
+        for f in g.get("findings") or g.get("liability_findings") or []:
             if not isinstance(f, dict):
                 f = {"finding": f, "kind": "", "cited_pmids": []}
             cp = [str(p) for p in (f.get("cited_pmids") or [])]
@@ -1012,17 +1266,34 @@ def parse_grounded_substrate(substrate: Optional[dict]) -> dict:
         contra = bool(g.get("contradicts_deterministic"))
         if contra:
             discordant.append(axis)
-        per_axis.append({"axis": axis, "anchor_verdict": g.get("anchor_verdict"),
-                         "findings": findings, "corroborations": g.get("corroborations") or [],
-                         "contradicts_deterministic": contra, "corpus_pin": g.get("corpus_pin"),
-                         "escalate_only": bool(g.get("escalate_only", True))})
-    return {"present": True, "per_axis": per_axis, "pmids": pmids,
-            "discordant_axes": discordant, "n_findings": n_findings}
+        per_axis.append(
+            {
+                "axis": axis,
+                "anchor_verdict": g.get("anchor_verdict"),
+                "findings": findings,
+                "corroborations": g.get("corroborations") or [],
+                "contradicts_deterministic": contra,
+                "corpus_pin": g.get("corpus_pin"),
+                "escalate_only": bool(g.get("escalate_only", True)),
+            }
+        )
+    return {
+        "present": True,
+        "per_axis": per_axis,
+        "pmids": pmids,
+        "discordant_axes": discordant,
+        "n_findings": n_findings,
+    }
 
 
 # --- panel assembly + citation surface --------------------------------------------------------------
-def assemble(pkg_path: str, risk_path: Optional[str], dossier_path: Optional[str],
-             modality: str, substrate: Optional[dict] = None) -> dict:
+def assemble(
+    pkg_path: str,
+    risk_path: Optional[str],
+    dossier_path: Optional[str],
+    modality: str,
+    substrate: Optional[dict] = None,
+) -> dict:
     """Assemble the panel + citation surface the two LLM calls reason over. READ-ONLY consumer:
     parses the target-profile evidence_package + optional target-intrinsic dossier + optional 6-dim
     risk read; never modifies any emitting skill."""
@@ -1036,8 +1307,9 @@ def assemble(pkg_path: str, risk_path: Optional[str], dossier_path: Optional[str
     dossier, dossier_fields, dossier_present = {}, set(), False
     if dossier_path and Path(dossier_path).exists():
         dd = json.loads(Path(dossier_path).read_text())
-        dossier = {k: _uv(v) for k, v in (dd.get("headline") or {}).items()
-                   if k not in ("cards_available", "cards_missing")}
+        dossier = {
+            k: _uv(v) for k, v in (dd.get("headline") or {}).items() if k not in ("cards_available", "cards_missing")
+        }
         dossier_fields = set(dossier.keys())
         card_ids |= {c.get("card_id") for c in dd.get("cards", []) if isinstance(c, dict)}
         dossier_present = True
@@ -1054,8 +1326,11 @@ def assemble(pkg_path: str, risk_path: Optional[str], dossier_path: Optional[str
     if risk_path and Path(risk_path).exists():
         rd = json.loads(Path(risk_path).read_text()).get("dimensions", {})
         for dim, v in rd.items():
-            risk[dim] = {"risk_level": v.get("risk_level"), "justification": v.get("justification"),
-                         "cited_pmids": v.get("cited_pmids", [])}
+            risk[dim] = {
+                "risk_level": v.get("risk_level"),
+                "justification": v.get("justification"),
+                "cited_pmids": v.get("cited_pmids", []),
+            }
             allowed_pmids.update(str(p) for p in v.get("cited_pmids", []))
         risk_present = True
 
@@ -1073,12 +1348,19 @@ def assemble(pkg_path: str, risk_path: Optional[str], dossier_path: Optional[str
     # verdict-INERT DECISION FACETS (synthesis.decision_facets, stamped by the spine — #744): the
     # spine's authoritative cross-gate correlation + flip-fragility + competitor cross-ref. Surfaced for
     # the panel + the evidence_independence record; NEVER touches the deterministic ceiling.
-    decision_facets = (syn.get("decision_facets") or {})
+    decision_facets = syn.get("decision_facets") or {}
     return {
-        "pkg": pkg, "conviction": conviction, "risk": risk, "context": ctx,
-        "dossier": dossier, "subtype": subtype, "substrate": substrate_ind,
-        "grounded_substrate": grounded, "grounded_substrate_present": grounded["present"],
-        "dossier_present": dossier_present, "risk_present": risk_present,
+        "pkg": pkg,
+        "conviction": conviction,
+        "risk": risk,
+        "context": ctx,
+        "dossier": dossier,
+        "subtype": subtype,
+        "substrate": substrate_ind,
+        "grounded_substrate": grounded,
+        "grounded_substrate_present": grounded["present"],
+        "dossier_present": dossier_present,
+        "risk_present": risk_present,
         "modality": modality,
         # the spine's authoritative cross-gate shared-evidence view (which gate verdicts share an input
         # card = correlated, not independent corroboration), the flip-fragility facet, and the competitor
@@ -1096,10 +1378,15 @@ def assemble(pkg_path: str, risk_path: Optional[str], dossier_path: Optional[str
         "claim_vectors": syn.get("claim_vectors") or {},
         "citation_surface": {
             "card_ids": {c for c in card_ids if c},
-            "sub_verdicts": set(sv.keys()), "rule_ids": rule_ids,
-            "pmids": allowed_pmids, "dossier_fields": dossier_fields,
+            "sub_verdicts": set(sv.keys()),
+            "rule_ids": rule_ids,
+            "pmids": allowed_pmids,
+            "dossier_fields": dossier_fields,
             "strata": set(subtype["stratum_tokens"]),
         },
-        "cards_brief": {c.get("card_id"): _uv(c.get("interpretation_call"))
-                        for c in pkg.get("cards", []) if isinstance(c, dict) and c.get("card_id")},
+        "cards_brief": {
+            c.get("card_id"): _uv(c.get("interpretation_call"))
+            for c in pkg.get("cards", [])
+            if isinstance(c, dict) and c.get("card_id")
+        },
     }

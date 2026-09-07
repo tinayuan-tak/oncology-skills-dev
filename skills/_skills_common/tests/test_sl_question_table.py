@@ -13,19 +13,34 @@ from _skills_common.presence_question_table import render_question_table_html
 
 
 def test_experimental_partner_strong():
-    rows = {r["id"]: r for r in sl_question_table({
-        "sl_partner_verdict": "experimental_sl_partner",
-        "sl_partner_class": "has_experimental_sl_partner",
-        "sl_partner_count": 12, "n_experimental_partners": 3, "best_evidence_tier": "experimental"})}
+    rows = {
+        r["id"]: r
+        for r in sl_question_table(
+            {
+                "sl_partner_verdict": "experimental_sl_partner",
+                "sl_partner_class": "has_experimental_sl_partner",
+                "sl_partner_count": 12,
+                "n_experimental_partners": 3,
+                "best_evidence_tier": "experimental",
+            }
+        )
+    }
     assert [k for k in ("Partner", "Support")] == ["Partner", "Support"]
     assert rows["Partner"]["signal"]["tier"] == "strong"
     assert rows["Support"]["signal"]["tier"] == "strong"
 
 
 def test_computational_only_is_weaker():
-    rows = {r["id"]: r for r in sl_question_table({
-        "sl_partner_class": "has_computational_sl_partner",
-        "sl_partner_count": 4, "best_evidence_tier": "computational"})}
+    rows = {
+        r["id"]: r
+        for r in sl_question_table(
+            {
+                "sl_partner_class": "has_computational_sl_partner",
+                "sl_partner_count": 4,
+                "best_evidence_tier": "computational",
+            }
+        )
+    }
     assert rows["Partner"]["signal"]["tier"] == "moderate"
     assert rows["Support"]["signal"]["tier"] == "weak"
 
@@ -40,5 +55,7 @@ def test_no_partner_support_row_unmeasured():
 def test_renders_html():
     html = render_question_table_html(
         sl_question_table({"sl_partner_class": "has_experimental_sl_partner", "best_evidence_tier": "experimental"}),
-        verdict="experimental_sl_partner", title="Synthetic-lethal partners")
+        verdict="experimental_sl_partner",
+        title="Synthetic-lethal partners",
+    )
     assert "<table" in html and "Synthetic-lethal partners at a glance" in html

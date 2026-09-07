@@ -5,6 +5,7 @@ Hermetic: a fixture headline + cards + an explicit claim_vector (so the test doe
 claim_vector's own computation details) exercise the per-question mapping and the CEACAM5-shaped story
 (strong abundance, comparator-discordance window caveat, uniform subtypes, top-1% absolute, malignant-
 intrinsic)."""
+
 from __future__ import annotations
 
 import sys
@@ -20,29 +21,67 @@ def _fixture():
     headline = {"presence_verdict": "tumor_broadly_expressed"}
     cv = {
         "A": {"signal": "strong", "corroboration": "moderate", "evidence": "anchored: top 1% all-gene"},
-        "B": {"signal": "moderate", "corroboration": "moderate", "evidence": "CPTAC:up; RNA-DGE:flat",
-              "conflict": "comparator discordance: CPTAC elevated but RNA-DGE flat"},
-        "C": {"signal": "strong", "corroboration": "high",
-              "evidence": "malignant_broadly_detected (malignant frac 0.76, n=446 donors)"},
+        "B": {
+            "signal": "moderate",
+            "corroboration": "moderate",
+            "evidence": "CPTAC:up; RNA-DGE:flat",
+            "conflict": "comparator discordance: CPTAC elevated but RNA-DGE flat",
+        },
+        "C": {
+            "signal": "strong",
+            "corroboration": "high",
+            "evidence": "malignant_broadly_detected (malignant frac 0.76, n=446 donors)",
+        },
         "D": {"signal": "strong", "corroboration": "moderate", "evidence": "breadth broadly_tumor_elevated"},
         "homogeneity": "homogeneous",
     }
     cards = [
-        {"card_id": "cellline-rna-distribution", "summary": {"expression_class": "lineage_restricted",
-                                                             "allgene_percentile": 29.6, "allgene_percentile_class": "mid"}},
+        {
+            "card_id": "cellline-rna-distribution",
+            "summary": {
+                "expression_class": "lineage_restricted",
+                "allgene_percentile": 29.6,
+                "allgene_percentile_class": "mid",
+            },
+        },
         {"card_id": "cellline-protein-abundance", "summary": {}, "_missing": True},
-        {"card_id": "tumor-rna-distribution", "summary": {"allgene_percentile": 99.9, "allgene_percentile_class": "top_1pct"}},
-        {"card_id": "tumor-rna-vs-adjacent", "summary": {"allgene_percentile": 27.7, "allgene_percentile_class": "mid"}},
-        {"card_id": "tumor-protein-abundance-cptac", "summary": {"allgene_percentile": 99.7, "allgene_percentile_class": "top_1pct"}},
-        {"card_id": "tumor-rna-distribution-by-subtype", "summary": {"subtype_stratification_class": "pan_subtype_uniform",
-                                                                     "n_subtypes_measured": 14, "n_subtypes_enriched": 0}},
-        {"card_id": "cellline-rna-distribution-by-subtype", "summary": {"subtype_stratification_class": "pan_subtype_uniform"}},
+        {
+            "card_id": "tumor-rna-distribution",
+            "summary": {"allgene_percentile": 99.9, "allgene_percentile_class": "top_1pct"},
+        },
+        {
+            "card_id": "tumor-rna-vs-adjacent",
+            "summary": {"allgene_percentile": 27.7, "allgene_percentile_class": "mid"},
+        },
+        {
+            "card_id": "tumor-protein-abundance-cptac",
+            "summary": {"allgene_percentile": 99.7, "allgene_percentile_class": "top_1pct"},
+        },
+        {
+            "card_id": "tumor-rna-distribution-by-subtype",
+            "summary": {
+                "subtype_stratification_class": "pan_subtype_uniform",
+                "n_subtypes_measured": 14,
+                "n_subtypes_enriched": 0,
+            },
+        },
+        {
+            "card_id": "cellline-rna-distribution-by-subtype",
+            "summary": {"subtype_stratification_class": "pan_subtype_uniform"},
+        },
         {"card_id": "normal-tissue-liability", "summary": {"normal_tissue_breadth_class": "broad_normal_expression"}},
-        {"card_id": "sc-normal-celltype-expression", "summary": {"sc_normal_expression_class": "HIGH_LIABILITY",
-                                                                 "max_detection_cell_type": "BEST4+ colonocyte"}},
-        {"card_id": "rna-protein-concordance-tumor", "summary": {"rna_as_biomarker": "partial_proxy",
-                                                                 "rna_protein_r": 0.41, "n_paired_tumors": 90}},
-        {"card_id": "cellline-rna-protein-concordance", "summary": {"rna_as_biomarker": "adequate_proxy", "rna_protein_r": 0.74}},
+        {
+            "card_id": "sc-normal-celltype-expression",
+            "summary": {"sc_normal_expression_class": "HIGH_LIABILITY", "max_detection_cell_type": "BEST4+ colonocyte"},
+        },
+        {
+            "card_id": "rna-protein-concordance-tumor",
+            "summary": {"rna_as_biomarker": "partial_proxy", "rna_protein_r": 0.41, "n_paired_tumors": 90},
+        },
+        {
+            "card_id": "cellline-rna-protein-concordance",
+            "summary": {"rna_as_biomarker": "adequate_proxy", "rna_protein_r": 0.74},
+        },
         {"card_id": "expression-purity-confound", "summary": {"purity_confound_class": "purity_independent"}},
     ]
     return headline, cards, cv

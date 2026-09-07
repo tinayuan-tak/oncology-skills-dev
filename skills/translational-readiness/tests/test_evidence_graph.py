@@ -14,6 +14,7 @@ dependency card fires means that ONE card projects as a `verdict_bearing` CARD (
 though the SKILL bears no verdict; the other three legs are display_only. VERDICT-INERT: nothing here
 touches a spine (there is none).
 """
+
 from __future__ import annotations
 
 import copy
@@ -23,36 +24,63 @@ import copy
 # translational legs fire no rule (the skill is gateless) and are display_only.
 VERDICT_BEARING = {"organoid-crispr-dependency"}
 DISPLAY_ONLY = {
-    "target-model-availability", "target-genotype-matched-model", "target-pdx-drug-response",
+    "target-model-availability",
+    "target-genotype-matched-model",
+    "target-pdx-drug-response",
 }
 
 # a synthetic literature_synthesis keyed by the translational-readiness lens axis LETTERS
 # (narrator_lenses.TRANSLATIONAL_READINESS.axis_labels keys — what make_literature_fn emits)
 _SYNTH_LIT = {
     "axes": [
-        {"axis_key": "MODEL", "literature_read": "supports",
-         "assertion": "HCMI patient-derived colorectal models are available.",
-         "agreement_vs_omics": "agree", "confidence": "high",
-         "citations": [{"label": "Vlachogiannis 2018", "pmid": "29472484", "verified": True}]},
-        {"axis_key": "GENOTYPE", "literature_read": "supports",
-         "assertion": "KRAS-mutant colorectal organoids exist.",
-         "agreement_vs_omics": "agree", "confidence": "moderate", "citations": []},
-        {"axis_key": "ORGANOID", "literature_read": "mixed",
-         "assertion": "Organoid dependency partially reproduces.",
-         "agreement_vs_omics": "omics_blind", "confidence": "low", "citations": []},
-        {"axis_key": "PDX", "literature_read": "supports",
-         "assertion": "PDXE regressions reported for KRAS-directed agents.",
-         "agreement_vs_omics": "agree", "confidence": "high", "citations": []},
+        {
+            "axis_key": "MODEL",
+            "literature_read": "supports",
+            "assertion": "HCMI patient-derived colorectal models are available.",
+            "agreement_vs_omics": "agree",
+            "confidence": "high",
+            "citations": [{"label": "Vlachogiannis 2018", "pmid": "29472484", "verified": True}],
+        },
+        {
+            "axis_key": "GENOTYPE",
+            "literature_read": "supports",
+            "assertion": "KRAS-mutant colorectal organoids exist.",
+            "agreement_vs_omics": "agree",
+            "confidence": "moderate",
+            "citations": [],
+        },
+        {
+            "axis_key": "ORGANOID",
+            "literature_read": "mixed",
+            "assertion": "Organoid dependency partially reproduces.",
+            "agreement_vs_omics": "omics_blind",
+            "confidence": "low",
+            "citations": [],
+        },
+        {
+            "axis_key": "PDX",
+            "literature_read": "supports",
+            "assertion": "PDXE regressions reported for KRAS-directed agents.",
+            "agreement_vs_omics": "agree",
+            "confidence": "high",
+            "citations": [],
+        },
     ],
-    "blind_spots": [], "overall_consistency": "consistent", "key_divergence": None,
+    "blind_spots": [],
+    "overall_consistency": "consistent",
+    "key_divergence": None,
 }
 
 
 # ── Phase 0 registry sanity ──────────────────────────────────────────────────────────────────────
 def test_questions_registry_loads_four(eg_questions):
     ids = [q["id"] for q in eg_questions]
-    assert ids == ["models_available", "genotype_matched_model_carries_alteration",
-                   "organoid_ex_vivo_dependency", "pdx_in_vivo_response"]
+    assert ids == [
+        "models_available",
+        "genotype_matched_model_carries_alteration",
+        "organoid_ex_vivo_dependency",
+        "pdx_in_vivo_response",
+    ]
     # unified axis vocabulary shared with the translational-readiness narrator lens
     axes = {q["axis_id"] for q in eg_questions if q.get("axis_id")}
     assert axes == {"MODEL", "GENOTYPE", "ORGANOID", "PDX"}
@@ -104,10 +132,12 @@ def test_literature_axis_crosswalk(eg_decision, eg_questions, eg_build):
     assert axes["ORGANOID"]["question_ids"] == ["organoid_ex_vivo_dependency"]
     assert axes["PDX"]["question_ids"] == ["pdx_in_vivo_response"]
     # crosswalk materialized on the question node too — all four `context` questions own their axis
-    for qid, axis in (("models_available", "MODEL"),
-                      ("genotype_matched_model_carries_alteration", "GENOTYPE"),
-                      ("organoid_ex_vivo_dependency", "ORGANOID"),
-                      ("pdx_in_vivo_response", "PDX")):
+    for qid, axis in (
+        ("models_available", "MODEL"),
+        ("genotype_matched_model_carries_alteration", "GENOTYPE"),
+        ("organoid_ex_vivo_dependency", "ORGANOID"),
+        ("pdx_in_vivo_response", "PDX"),
+    ):
         q = next(q for q in g["questions"] if q["id"] == qid)
         assert q["literature_axis_ids"] == [axis]
     # citations hoisted + referentially intact
@@ -123,7 +153,7 @@ def test_card_chains(eg_graph):
     org = by_card["organoid-crispr-dependency"]
     assert org["chain"]["rule_id"] == "organoid-broad-dependency-supportive"
     assert org["chain"]["contributes_to_verdict"] is True
-    assert org["chain"]["is_driving"] is False        # gateless — there is no driving card
+    assert org["chain"]["is_driving"] is False  # gateless — there is no driving card
     assert org["rule_ids"] == ["organoid-broad-dependency-supportive"]
     # a display-only leg never invents a rule
     pdx = by_card["target-pdx-drug-response"]

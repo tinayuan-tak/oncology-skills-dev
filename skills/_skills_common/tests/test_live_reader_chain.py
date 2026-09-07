@@ -31,14 +31,16 @@ import yaml
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(SKILL_DIR / "scripts"))
-sys.path.insert(0, str(SKILL_DIR.parent))     # skills/ — _live_readers rehomed to _skills_common
+sys.path.insert(0, str(SKILL_DIR.parent))  # skills/ — _live_readers rehomed to _skills_common
 
 from _skills_common._live_readers import CARD_DISPATCHERS, read_live_summary  # noqa: E402
 
-_CONTRACTS = Path(os.environ.get(
-    "TARGET_CONTRACTS_ROOT",
-    "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
-))
+_CONTRACTS = Path(
+    os.environ.get(
+        "TARGET_CONTRACTS_ROOT",
+        "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
+    )
+)
 
 
 def _is_wired(card_id: str) -> bool:
@@ -74,7 +76,7 @@ CARDS_WITH_DISPATCHERS = [
     ("mutation-stratified-dependency", "KRAS", "COADREAD"),
     ("mutation-hotspot-frequency", "KRAS", "COADREAD"),
     ("tumor-rna-vs-adjacent", "KRAS", "COADREAD"),
-    ("protein-surface-evidence", "EGFR", "COADREAD"),   # CSPA surface_confirmation live provider
+    ("protein-surface-evidence", "EGFR", "COADREAD"),  # CSPA surface_confirmation live provider
 ]
 
 
@@ -116,9 +118,7 @@ def test_chain_trace_returns_structured(card_id, target, indication):
         f"Dispatcher for {card_id!r} returned None — should return a summary dict "
         f"or a dict with _live_read_error key, never None."
     )
-    assert isinstance(result, dict), (
-        f"Dispatcher for {card_id!r} returned {type(result).__name__}, expected dict."
-    )
+    assert isinstance(result, dict), f"Dispatcher for {card_id!r} returned {type(result).__name__}, expected dict."
 
     # Either real summary OR structured error
     has_error = "_live_read_error" in result
@@ -138,10 +138,10 @@ def test_chain_trace_returns_structured(card_id, target, indication):
     if has_error:
         err_str = str(result.get("_live_read_error", ""))
         WIRING_BUG_SIGNATURES = [
-            "has no attribute",           # AttributeError from a missing re-export
-            "cannot import",              # ImportError from a missing module
-            "No module named",            # ModuleNotFoundError from bad sys.path
-            "is not a package",           # bad submodule qualification
+            "has no attribute",  # AttributeError from a missing re-export
+            "cannot import",  # ImportError from a missing module
+            "No module named",  # ModuleNotFoundError from bad sys.path
+            "is not a package",  # bad submodule qualification
         ]
         for sig in WIRING_BUG_SIGNATURES:
             assert sig not in err_str, (
@@ -224,19 +224,24 @@ import unittest.mock as _mock  # noqa: E402
 from _skills_common import _live_readers as _lr  # noqa: E402
 
 
-@pytest.mark.parametrize("log2fc,q,expected", [
-    (2.1, 1e-4, "strong_upregulation"),     # rank #2 rule expression-strong-upregulation-supportive
-    (0.8, 1e-3, "modest_upregulation"),
-    (-2.0, 1e-4, "strong_downregulation"),  # degrader-killer rule — was silently dropped off-COADREAD
-    (0.1, 0.9, "not_informative"),
-])
+@pytest.mark.parametrize(
+    "log2fc,q,expected",
+    [
+        (2.1, 1e-4, "strong_upregulation"),  # rank #2 rule expression-strong-upregulation-supportive
+        (0.8, 1e-3, "modest_upregulation"),
+        (-2.0, 1e-4, "strong_downregulation"),  # degrader-killer rule — was silently dropped off-COADREAD
+        (0.1, 0.9, "not_informative"),
+    ],
+)
 def test_non_coadread_emits_expression_call_class(log2fc, q, expected):
     """The non-COADREAD path must emit expression_call_class classified by the SAME function the
     COADREAD path uses, so the 6 tumor-rna-vs-adjacent rules can fire off-COADREAD."""
     fake_dge = _mock.MagicMock()
     # the dispatcher calls read_tumor_vs_normal_sensitivity_gene_row at the PACKAGE level ...
     fake_dge.read_tumor_vs_normal_sensitivity_gene_row.return_value = {
-        "log2fc_cell_a": log2fc, "q_value_cell_a": q, "cells_ran": 4,
+        "log2fc_cell_a": log2fc,
+        "q_value_cell_a": q,
+        "cells_ran": 4,
         "dominant_direction": "up" if log2fc > 0 else "down",
         "_data_source": "luad-dge-tumor-vs-normal-sensitivity-v1",
     }
@@ -256,8 +261,11 @@ def test_non_coadread_flags_descriptive_stats_unavailable():
     makes the descriptive-stats gap explicit rather than silently reading None as zero/missing."""
     fake_dge = _mock.MagicMock()
     fake_dge.read_tumor_vs_normal_sensitivity_gene_row.return_value = {
-        "log2fc_cell_a": 2.1, "q_value_cell_a": 1e-4, "cells_ran": 4,
-        "dominant_direction": "up", "_data_source": "luad-dge-tumor-vs-normal-sensitivity-v1",
+        "log2fc_cell_a": 2.1,
+        "q_value_cell_a": 1e-4,
+        "cells_ran": 4,
+        "dominant_direction": "up",
+        "_data_source": "luad-dge-tumor-vs-normal-sensitivity-v1",
     }
     fake_dge.read._classify_expression_call = _lr._import_method("dge_deseq2").read._classify_expression_call
     with _mock.patch.object(_lr, "_import_method", return_value=fake_dge):
@@ -316,8 +324,9 @@ def _skill_cards(run_py: Path) -> list[str]:
         if isinstance(node, ast.Assign):
             for tgt in node.targets:
                 if isinstance(tgt, ast.Name) and tgt.id == "CARDS" and isinstance(node.value, (ast.List, ast.Tuple)):
-                    return [el.value for el in node.value.elts
-                            if isinstance(el, ast.Constant) and isinstance(el.value, str)]
+                    return [
+                        el.value for el in node.value.elts if isinstance(el, ast.Constant) and isinstance(el.value, str)
+                    ]
     return []
 
 
@@ -331,10 +340,12 @@ def _iter_skill_card_pairs():
 import os  # noqa: E402
 import yaml  # noqa: E402
 
-_CONTRACTS_ROOT = Path(os.environ.get(
-    "TARGET_CONTRACTS_ROOT",
-    "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
-))
+_CONTRACTS_ROOT = Path(
+    os.environ.get(
+        "TARGET_CONTRACTS_ROOT",
+        "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
+    )
+)
 
 
 def _card_has_generic_wiring(card_id: str) -> bool:
@@ -356,11 +367,7 @@ def test_every_skill_card_has_a_dispatcher(skill, card_id):
     CARD_DISPATCHERS/PANORAMA_DISPATCHERS entry, OR (T11) via the generic dispatcher when the
     card_spec declares module+entrypoint. A card with none of these resolves to None → _missing →
     run_health degraded (the bug this catches)."""
-    routable = (
-        card_id in CARD_DISPATCHERS
-        or card_id in PANORAMA_DISPATCHERS
-        or _card_has_generic_wiring(card_id)
-    )
+    routable = card_id in CARD_DISPATCHERS or card_id in PANORAMA_DISPATCHERS or _card_has_generic_wiring(card_id)
     assert routable, (
         f"skill {skill!r} lists card {card_id!r} in its CARDS roster, but it is NOT routable: no "
         f"entry in CARD_DISPATCHERS / PANORAMA_DISPATCHERS, and its card_spec declares no method "
@@ -378,15 +385,24 @@ def test_dual_grain_selectivity_routes_to_subgroup_only_with_strata(monkeypatch)
     """The follow-on wiring: tumor-vs-normal-selectivity carries BOTH a pooled reader and a per-subgroup
     panorama reader on ONE card_id. With strata in scope → the subgroup reader; WITHOUT strata → the
     pooled read must be UNAFFECTED (the dual-grain arm must not short-circuit it, unlike PANORAMA_DISPATCHERS)."""
-    monkeypatch.setitem(_lr_dg.DUAL_GRAIN_SUBGROUP_DISPATCHERS, "tumor-vs-normal-selectivity",
-                        lambda target, indication, subgroups: {"_routed": "subgroup", "subgroups": subgroups})
-    monkeypatch.setitem(_lr_dg.CARD_DISPATCHERS, "tumor-vs-normal-selectivity",
-                        lambda target, indication: {"_routed": "pooled"})
+    monkeypatch.setitem(
+        _lr_dg.DUAL_GRAIN_SUBGROUP_DISPATCHERS,
+        "tumor-vs-normal-selectivity",
+        lambda target, indication, subgroups: {"_routed": "subgroup", "subgroups": subgroups},
+    )
+    monkeypatch.setitem(
+        _lr_dg.CARD_DISPATCHERS, "tumor-vs-normal-selectivity", lambda target, indication: {"_routed": "pooled"}
+    )
     # strata in scope → subgroup panorama reader
-    r = _lr_dg.read_live_summary("tumor-vs-normal-selectivity", "CEACAM5", "COADREAD",
-                                 subgroup_context={"resolved_strata_ids": ["CMS1", "CMS2"]})
+    r = _lr_dg.read_live_summary(
+        "tumor-vs-normal-selectivity", "CEACAM5", "COADREAD", subgroup_context={"resolved_strata_ids": ["CMS1", "CMS2"]}
+    )
     assert r.get("_routed") == "subgroup" and r.get("subgroups") == ["CMS1", "CMS2"]
     # NO strata → pooled read preserved (the crux — dual-grain must NOT break the pooled path)
     assert _lr_dg.read_live_summary("tumor-vs-normal-selectivity", "CEACAM5", "COADREAD").get("_routed") == "pooled"
-    assert _lr_dg.read_live_summary("tumor-vs-normal-selectivity", "CEACAM5", "COADREAD",
-                                    subgroup_context={"resolved_strata_ids": []}).get("_routed") == "pooled"
+    assert (
+        _lr_dg.read_live_summary(
+            "tumor-vs-normal-selectivity", "CEACAM5", "COADREAD", subgroup_context={"resolved_strata_ids": []}
+        ).get("_routed")
+        == "pooled"
+    )

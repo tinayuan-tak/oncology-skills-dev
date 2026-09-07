@@ -7,6 +7,7 @@ to a key in vocabularies/measurement_types.yaml (a typo'd/removed type would mak
 claim no provider could ever satisfy). Graceful-skip when target-contracts is absent (isolated CI),
 mirroring the figure-emitter registry check.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -43,7 +44,7 @@ def test_gate_declares_measurement_types_pulled():
     pulled = _pulled()
     assert pulled, "surface-modality-fit must declare composition.measurement_types_pulled (Rule 3)"
     # the surface gate's biology: residency + topology + family + density + modality-fit
-    assert "surface_confirmation" in pulled          # the CSPA/HPA claim (pulled even while data-blocked)
+    assert "surface_confirmation" in pulled  # the CSPA/HPA claim (pulled even while data-blocked)
     assert "adc_tce_modality_fit" in pulled
 
 

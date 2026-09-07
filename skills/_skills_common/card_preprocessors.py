@@ -14,6 +14,7 @@ that the skill's main(), target-profile's fan-out, AND resolve_gate_spine all ca
 correction travels to all three paths identically. Preprocessors MUTATE cards in place (matching the
 skill's historical semantics) and return a provenance dict.
 """
+
 from __future__ import annotations
 
 # (card_id, class_field, p_field, firing_classes, demoted_class) — the genomic-alteration stratified-
@@ -21,15 +22,34 @@ from __future__ import annotations
 # INDEPENDENT Mann-Whitney test at its own per-card alpha; across the family the per-card alpha is
 # uncorrected. Moved here from genomic-alteration-profile/run.py so all paths share ONE definition.
 _STRATIFIED_FAMILY = [
-    ("mutation-stratified-dependency", "mutation_stratification_class", "hotspot_mannwhitney_p",
-     {"mutant_strongly_dependent", "mutant_moderately_dependent"}, "not_mutation_stratified"),
-    ("copy-number-stratified-dependency", "cn_stratification_class", "cn_stratification_mannwhitney_p",
-     {"amplified_strongly_dependent", "amplified_moderately_dependent"}, "not_cn_stratified"),
-    ("fusion-stratified-dependency", "fusion_stratification_class", "fusion_stratification_mannwhitney_p",
-     {"fusion_positive_strongly_dependent", "fusion_positive_moderately_dependent"}, "not_fusion_stratified"),
-    ("amp-expr-stratified-dependency", "amp_expr_stratification_class", "amp_expr_mannwhitney_p",
-     {"amplified_overexpressed_strongly_dependent", "amplified_overexpressed_moderately_dependent"},
-     "not_amp_expr_stratified"),
+    (
+        "mutation-stratified-dependency",
+        "mutation_stratification_class",
+        "hotspot_mannwhitney_p",
+        {"mutant_strongly_dependent", "mutant_moderately_dependent"},
+        "not_mutation_stratified",
+    ),
+    (
+        "copy-number-stratified-dependency",
+        "cn_stratification_class",
+        "cn_stratification_mannwhitney_p",
+        {"amplified_strongly_dependent", "amplified_moderately_dependent"},
+        "not_cn_stratified",
+    ),
+    (
+        "fusion-stratified-dependency",
+        "fusion_stratification_class",
+        "fusion_stratification_mannwhitney_p",
+        {"fusion_positive_strongly_dependent", "fusion_positive_moderately_dependent"},
+        "not_fusion_stratified",
+    ),
+    (
+        "amp-expr-stratified-dependency",
+        "amp_expr_stratification_class",
+        "amp_expr_mannwhitney_p",
+        {"amplified_overexpressed_strongly_dependent", "amplified_overexpressed_moderately_dependent"},
+        "not_amp_expr_stratified",
+    ),
 ]
 
 
@@ -66,15 +86,28 @@ def apply_family_wise_fdr(cards: list[dict], alpha: float = 0.05) -> dict:
             continue
         summ = c.get("summary") or {}
         cls, p = summ.get(class_field), summ.get(p_field)
-        if isinstance(p, (int, float)):   # a valid p → this class was TESTED (fired or not)
-            tested.append({"card_id": card_id, "class_field": class_field, "p": float(p),
-                           "fired": cls in firing_classes, "demoted": demoted, "summary": summ})
+        if isinstance(p, (int, float)):  # a valid p → this class was TESTED (fired or not)
+            tested.append(
+                {
+                    "card_id": card_id,
+                    "class_field": class_field,
+                    "p": float(p),
+                    "fired": cls in firing_classes,
+                    "demoted": demoted,
+                    "summary": summ,
+                }
+            )
     firing = [t for t in tested if t["fired"]]
     if len(firing) < 2:
-        return {"family_size": len(tested), "n_firing": len(firing),
-                "tested": [t["card_id"] for t in tested], "demoted": [],
-                "family_wise_q": {}, "corrected": False}
-    qs = _bh_qvalues([t["p"] for t in tested])   # m = TESTED classes, not the firing subset
+        return {
+            "family_size": len(tested),
+            "n_firing": len(firing),
+            "tested": [t["card_id"] for t in tested],
+            "demoted": [],
+            "family_wise_q": {},
+            "corrected": False,
+        }
+    qs = _bh_qvalues([t["p"] for t in tested])  # m = TESTED classes, not the firing subset
     demoted, fam_q = [], {}
     for t, q in zip(tested, qs):
         fam_q[t["card_id"]] = round(q, 6)
@@ -83,9 +116,14 @@ def apply_family_wise_fdr(cards: list[dict], alpha: float = 0.05) -> dict:
             t["summary"]["_family_wise_fdr_demoted"] = True
             t["summary"]["_family_wise_q"] = round(q, 6)
             demoted.append(t["card_id"])
-    return {"family_size": len(tested), "n_firing": len(firing),
-            "tested": [t["card_id"] for t in tested], "demoted": demoted,
-            "family_wise_q": fam_q, "corrected": True}
+    return {
+        "family_size": len(tested),
+        "n_firing": len(firing),
+        "tested": [t["card_id"] for t in tested],
+        "demoted": demoted,
+        "family_wise_q": fam_q,
+        "corrected": True,
+    }
 
 
 def apply_promiscuous_amplicon_fusion_demotion(cards: list[dict]) -> dict:
@@ -108,17 +146,26 @@ def apply_promiscuous_amplicon_fusion_demotion(cards: list[dict]) -> dict:
     if not fus:
         return {"demoted": False, "reason": "no_fusion_card"}
     fsum = fus.get("summary") or {}
-    csum = ((by.get("copy-number-distribution") or {}).get("summary") or {})
-    if (fsum.get("fusion_class") == "recurrent_fusion_driver"
-            and fsum.get("fusion_recurrence_confidence") == "moderate_promiscuous"
-            and csum.get("patient_focal_cn_class") == "recurrent_focal_amplification"):
+    csum = (by.get("copy-number-distribution") or {}).get("summary") or {}
+    if (
+        fsum.get("fusion_class") == "recurrent_fusion_driver"
+        and fsum.get("fusion_recurrence_confidence") == "moderate_promiscuous"
+        and csum.get("patient_focal_cn_class") == "recurrent_focal_amplification"
+    ):
         fsum["fusion_class"] = "promiscuous_amplicon_fusion"
         fsum["_amplicon_fusion_demoted"] = True
-        return {"demoted": True, "from": "recurrent_fusion_driver", "to": "promiscuous_amplicon_fusion",
-                "co_signal": "recurrent_focal_amplification"}
-    return {"demoted": False, "fusion_class": fsum.get("fusion_class"),
-            "fusion_recurrence_confidence": fsum.get("fusion_recurrence_confidence"),
-            "patient_focal_cn_class": csum.get("patient_focal_cn_class")}
+        return {
+            "demoted": True,
+            "from": "recurrent_fusion_driver",
+            "to": "promiscuous_amplicon_fusion",
+            "co_signal": "recurrent_focal_amplification",
+        }
+    return {
+        "demoted": False,
+        "fusion_class": fsum.get("fusion_class"),
+        "fusion_recurrence_confidence": fsum.get("fusion_recurrence_confidence"),
+        "patient_focal_cn_class": csum.get("patient_focal_cn_class"),
+    }
 
 
 _SURFACE_POSITIVE_FIT = frozenset({"ADC_preferred", "TCE_preferred", "both_viable"})
@@ -152,15 +199,24 @@ def derive_surface_confirmation_state(cards: list[dict]) -> dict:
         return {"applied": True, "state": "not_applicable", "fit_class": fit}
     pse = (by.get("protein-surface-evidence") or {}).get("summary") or {}
     cd = (by.get("cd-antigen-backbone") or {}).get("summary") or {}
-    confirmed = (pse.get("surface_confirmation_class") in _SURFACE_CONFIRMED_CSPA
-                 or pse.get("surface_multimodal_support") == "corroborated_surface")
-    precedented = (adc.get("endocytosis_confidence") == "clinically_internalizing"
-                   or bool(adc.get("biologics_precedented"))
-                   or bool(cd.get("established_io_precedent")))
+    confirmed = (
+        pse.get("surface_confirmation_class") in _SURFACE_CONFIRMED_CSPA
+        or pse.get("surface_multimodal_support") == "corroborated_surface"
+    )
+    precedented = (
+        adc.get("endocytosis_confidence") == "clinically_internalizing"
+        or bool(adc.get("biologics_precedented"))
+        or bool(cd.get("established_io_precedent"))
+    )
     state = "confirmed_protein" if confirmed else "clinically_precedented" if precedented else "annotation_only"
     adc["surface_confirmation_state"] = state
-    return {"applied": True, "state": state, "fit_class": fit,
-            "confirmed_protein": confirmed, "clinically_precedented": precedented}
+    return {
+        "applied": True,
+        "state": state,
+        "fit_class": fit,
+        "confirmed_protein": confirmed,
+        "clinically_precedented": precedented,
+    }
 
 
 def _surface_modality_preprocess(cards: list[dict]) -> dict:
@@ -175,8 +231,10 @@ def _genomic_alteration_preprocess(cards: list[dict]) -> dict:
     copy-number-gated promiscuous-amplicon fusion demotion. The two mutate disjoint cards; provenance is
     namespaced. (The skill's hand-rolled main() calls the two functions directly — the demotion is
     idempotent, so standalone and composed converge on the same cards.)"""
-    return {"family_wise_fdr": apply_family_wise_fdr(cards),
-            "amplicon_fusion_demotion": apply_promiscuous_amplicon_fusion_demotion(cards)}
+    return {
+        "family_wise_fdr": apply_family_wise_fdr(cards),
+        "amplicon_fusion_demotion": apply_promiscuous_amplicon_fusion_demotion(cards),
+    }
 
 
 # Per-gate registry: gate → preprocessor(cards) -> provenance. Applied before fired_rules in ALL paths.

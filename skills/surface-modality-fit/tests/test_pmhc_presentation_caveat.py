@@ -19,6 +19,7 @@ Pins the load-bearing properties:
   (6) VERDICT-INERT — it is a pure function of the headline, never a resolver input.
 All pure (no S3).
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -58,20 +59,23 @@ def test_fires_on_intermediate_presentation_pmhc_supported():
 
 # ── (2) None on the CLEAN restricted pMHC target (NY-ESO-1/MAGE-A4) ───────────────────────────────
 def test_none_on_restricted_presentation():
-    assert _M._pmhc_presentation_caveat(_hl(pmhc_presentation_class="restricted_presentation",
-                                            pmhc_n_normal_tissues=1)) is None
+    assert (
+        _M._pmhc_presentation_caveat(_hl(pmhc_presentation_class="restricted_presentation", pmhc_n_normal_tissues=1))
+        is None
+    )
 
 
 # ── (3) None on broadly_presented_normal (the resolver already withdrew the positive) ─────────────
 def test_none_on_broadly_presented_normal():
-    assert _M._pmhc_presentation_caveat(_hl(pmhc_presentation_class="broadly_presented_normal",
-                                            pmhc_n_normal_tissues=22)) is None
+    assert (
+        _M._pmhc_presentation_caveat(_hl(pmhc_presentation_class="broadly_presented_normal", pmhc_n_normal_tissues=22))
+        is None
+    )
 
 
 # ── (4) None on not_observed (weak-negative candidate) ────────────────────────────────────────────
 def test_none_on_not_observed():
-    assert _M._pmhc_presentation_caveat(_hl(pmhc_presentation_class="not_observed",
-                                            pmhc_n_normal_tissues=0)) is None
+    assert _M._pmhc_presentation_caveat(_hl(pmhc_presentation_class="not_observed", pmhc_n_normal_tissues=0)) is None
 
 
 # ── (5) None when the verdict is NOT the pMHC route (additive pMHC signal on a surface-viable call) ─

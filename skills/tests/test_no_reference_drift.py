@@ -47,10 +47,15 @@ RULES_DIR = CONTRACTS / "interpretation-rules"
 # unrelated `("positive","negative")` polarity tuple that Pattern B would mis-read as a dangling
 # rule-id. It gets its own precise, runtime-dict guard below (test_immune_context_rule_map_ids_exist).
 _VERDICT_SKILLS = [
-    "tumor-presence", "tumor-selectivity", "functional-requirement",
-    "mechanism-and-pharmacology", "genomic-alteration-profile",
-    "differentiation-landscape", "tractability-small-molecule",
-    "surface-modality-fit", "on-target-safety-liability",
+    "tumor-presence",
+    "tumor-selectivity",
+    "functional-requirement",
+    "mechanism-and-pharmacology",
+    "genomic-alteration-profile",
+    "differentiation-landscape",
+    "tractability-small-molecule",
+    "surface-modality-fit",
+    "on-target-safety-liability",
 ]
 
 
@@ -131,11 +136,11 @@ def test_risk_table_and_phase_metric_short_keys_exist_in_sub_skills():
     # governance categories (no dropped dim). The shorts the projection reads (safety/dependency/
     # mechanism/surface_modality/selectivity/tractability_sm) are the SUB_SKILLS shorts.
     from _skills_common.risk_projection import deterministic_bins
+
     dims = deterministic_bins({"synthesis": {"sub_verdicts": {}}, "cards": []}, "small_molecule")
     rows = tp._risk_rows_from_rollup(dims)
     cats = {c for c, _, _ in rows}
-    assert cats == {"biological", "druggability", "translational",
-                    "clinical", "safety", "commercial"}
+    assert cats == {"biological", "druggability", "translational", "clinical", "safety", "commercial"}
 
 
 def test_subtype_short_only_appears_when_scoped():
@@ -163,4 +168,5 @@ def test_immune_context_rule_map_ids_exist():
     dangling = mapped - known
     assert not dangling, (
         "immune-context _RULE_TO_VERDICT references rule_ids not in any rules file "
-        f"(silent immune_hot/cold -> insufficient drift): {sorted(dangling)}")
+        f"(silent immune_hot/cold -> insufficient drift): {sorted(dangling)}"
+    )

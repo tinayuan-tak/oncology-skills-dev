@@ -2,6 +2,7 @@
 from the target-profile evidence_package. assemble() surfaces them; _panel_block() renders the atom
 VALUES so the reasoner sees more than the verdict label, each value citable by its card_id. Pure /
 offline (no Bedrock)."""
+
 from __future__ import annotations
 
 import json
@@ -20,29 +21,40 @@ R = load_run_py(SCRIPTS.parent, "ce_run_claim_vector")
 _ATOM = {
     "read": "strongly_selective",
     "values": {"bimodality_coefficient": 0.70, "fraction_strongly_dependent": 0.176},
-    "cite": {"card_id": "pan-cancer-crispr-dependency-distribution",
-             "fields": ["bimodality_coefficient", "fraction_strongly_dependent"]},
-    "entity": {"measurement_type": "crispr_lof_dependency", "sample_context": "cell_line",
-               "stratum": "pan_cancer"},
+    "cite": {
+        "card_id": "pan-cancer-crispr-dependency-distribution",
+        "fields": ["bimodality_coefficient", "fraction_strongly_dependent"],
+    },
+    "entity": {"measurement_type": "crispr_lof_dependency", "sample_context": "cell_line", "stratum": "pan_cancer"},
 }
 
 
 def _pkg(with_cv=True):
     syn = {
-        "sub_verdicts": {"dependency": {"verdict": "selective_dependency",
-                                        "fired_rule_ids": ["dep-01"]}},
+        "sub_verdicts": {"dependency": {"verdict": "selective_dependency", "fired_rule_ids": ["dep-01"]}},
         "recommendation_gate": {},
     }
     if with_cv:
-        syn["claim_vectors"] = {"dependency": {
-            "claim_vector": {"DEP": {"signal": "strong", "corroboration": "high",
-                                     "evidence": "CRISPR strongly_selective", "conflict": None,
-                                     "informs": "dep", "evidence_atom": _ATOM}},
-            "key_signals": {"headline": "Strong genetic dependency."}}}
-    return {"synthesis": syn,
-            "cards": [{"card_id": "pan-cancer-crispr-dependency-distribution",
-                       "interpretation_call": "informative"}],
-            "context": {"target": "KRAS", "indication": "COADREAD"}}
+        syn["claim_vectors"] = {
+            "dependency": {
+                "claim_vector": {
+                    "DEP": {
+                        "signal": "strong",
+                        "corroboration": "high",
+                        "evidence": "CRISPR strongly_selective",
+                        "conflict": None,
+                        "informs": "dep",
+                        "evidence_atom": _ATOM,
+                    }
+                },
+                "key_signals": {"headline": "Strong genetic dependency."},
+            }
+        }
+    return {
+        "synthesis": syn,
+        "cards": [{"card_id": "pan-cancer-crispr-dependency-distribution", "interpretation_call": "informative"}],
+        "context": {"target": "KRAS", "indication": "COADREAD"},
+    }
 
 
 def _assemble(tmp_path, with_cv=True):
@@ -65,8 +77,8 @@ def test_panel_block_renders_atom_values(tmp_path):
     panel = _assemble(tmp_path)
     text, tgt, ind, _sub = R._panel_block(panel, "small-molecule drug target")
     assert "claim-vector signal decomposition" in text
-    assert "bimodality_coefficient" in text                       # the numeric value reaches the prompt
-    assert "pan-cancer-crispr-dependency-distribution" in text    # citable card_id present
+    assert "bimodality_coefficient" in text  # the numeric value reaches the prompt
+    assert "pan-cancer-crispr-dependency-distribution" in text  # citable card_id present
     assert tgt == "KRAS" and ind == "COADREAD"
 
 

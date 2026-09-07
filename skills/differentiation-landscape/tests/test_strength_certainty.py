@@ -1,5 +1,6 @@
 """differentiation (strength, certainty) sidecar — CERTAINTY_MODEL. Coverage+unknown_mass only
 (corroboration unmeasured until the TCGA<->GENIE per-source concordance field is emitted). Verdict-inert."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -10,17 +11,19 @@ diff = load_run_py(Path(__file__).resolve().parent.parent, "diff_run_strength")
 
 
 def _cards(n_pairs=None):
-    return [{"card_id": "co-mutation-and-mutual-exclusivity",
-             "summary": {"n_pairs_panel_intersect_eligible": n_pairs}}] if n_pairs is not None else \
-           [{"card_id": "co-mutation-and-mutual-exclusivity", "summary": {}}]
+    return (
+        [{"card_id": "co-mutation-and-mutual-exclusivity", "summary": {"n_pairs_panel_intersect_eligible": n_pairs}}]
+        if n_pairs is not None
+        else [{"card_id": "co-mutation-and-mutual-exclusivity", "summary": {}}]
+    )
 
 
 def test_strong_pattern_well_powered():
     sc = diff._strength_certainty(_cards(n_pairs=80), verdict_pair=("strong_cooccurring", "x"))
-    assert sc["strength"] == "strong_pattern"          # pattern TYPE, informational (not good/bad)
-    assert sc["certainty"]["coverage"] == "high"        # 80 poolable pairs
+    assert sc["strength"] == "strong_pattern"  # pattern TYPE, informational (not good/bad)
+    assert sc["certainty"]["coverage"] == "high"  # 80 poolable pairs
     assert sc["certainty"]["corroboration"] == "unmeasured"
-    assert sc["certainty"]["level"] == "high"           # = coverage (corroboration drops out)
+    assert sc["certainty"]["level"] == "high"  # = coverage (corroboration drops out)
     assert sc["certainty"]["unknown_mass"] == 0.0
 
 

@@ -7,6 +7,7 @@ in Stage 1.
 No LLM dependency — pure HTTP. Uses the public NCBI E-utilities API
 (no API key required for moderate usage).
 """
+
 from __future__ import annotations
 
 import json
@@ -23,36 +24,20 @@ EUTILS_BASE = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
 # of risk_assessment_template_{disease}.md. The {gene} and {disease}
 # placeholders get filled in at search time.
 SEARCH_PATTERNS_BY_CATEGORY = {
-    'biological': (
-        '({gene}) AND ({disease}) AND '
-        '(validation OR knockdown OR knockout OR CRISPR OR genetic association)'
+    "biological": (
+        "({gene}) AND ({disease}) AND (validation OR knockdown OR knockout OR CRISPR OR genetic association)"
     ),
-    'druggability': (
-        '({gene}) AND '
-        '(drug target OR inhibitor OR antibody OR small molecule OR crystal structure)'
-    ),
-    'translational': (
-        '({gene}) AND ({disease}) AND '
-        '(biomarker OR PDX OR organoid OR animal model)'
-    ),
-    'clinical': (
-        '({gene}) AND ({disease}) AND '
-        '(clinical trial OR patient OR phase I OR phase II)'
-    ),
-    'safety': (
-        '({gene}) AND '
-        '(toxicity OR adverse OR normal tissue OR knockout mouse)'
-    ),
-    'commercial': (
-        '({gene}) AND ({disease}) AND '
-        '(therapeutic OR drug development OR competitive)'
-    ),
+    "druggability": ("({gene}) AND (drug target OR inhibitor OR antibody OR small molecule OR crystal structure)"),
+    "translational": ("({gene}) AND ({disease}) AND (biomarker OR PDX OR organoid OR animal model)"),
+    "clinical": ("({gene}) AND ({disease}) AND (clinical trial OR patient OR phase I OR phase II)"),
+    "safety": ("({gene}) AND (toxicity OR adverse OR normal tissue OR knockout mouse)"),
+    "commercial": ("({gene}) AND ({disease}) AND (therapeutic OR drug development OR competitive)"),
 }
 
 # Disease search-term expansions for PubMed.
 DISEASE_TERMS = {
-    'crc': 'CRC OR colorectal cancer OR colon cancer OR rectal cancer',
-    'nsclc': 'NSCLC OR lung cancer OR lung adenocarcinoma OR LUAD OR LUSC',
+    "crc": "CRC OR colorectal cancer OR colon cancer OR rectal cancer",
+    "nsclc": "NSCLC OR lung cancer OR lung adenocarcinoma OR LUAD OR LUSC",
 }
 
 
@@ -73,17 +58,19 @@ def gene_search_term(gene: str) -> str:
 @dataclass(frozen=True)
 class PubMedAbstract:
     """One abstract record from PubMed efetch."""
+
     pmid: str
     title: str
     abstract: str
     journal: str
     year: int | None
-    category: str   # which of the 6 risk categories returned this PMID
+    category: str  # which of the 6 risk categories returned this PMID
 
 
 @dataclass(frozen=True)
 class PubMedSearchResult:
     """Per-category search results for a single (gene, disease) query."""
+
     gene: str
     disease: str
     abstracts_by_category: dict[str, list[PubMedAbstract]] = field(default_factory=dict)
@@ -92,6 +79,7 @@ class PubMedSearchResult:
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def search_pubmed(
     gene: str,
@@ -124,20 +112,17 @@ def search_pubmed(
     """
     disease = disease.strip().lower()
     if disease not in DISEASE_TERMS:
-        raise ValueError(
-            f"disease must be one of {sorted(DISEASE_TERMS)}; got {disease!r}"
-        )
+        raise ValueError(f"disease must be one of {sorted(DISEASE_TERMS)}; got {disease!r}")
 
     disease_terms = DISEASE_TERMS[disease]
     result = PubMedSearchResult(gene=gene, disease=disease)
     abstracts_by_cat: dict[str, list[PubMedAbstract]] = {}
 
-    gene_term = gene_search_term(gene)   # entity/title-qualified — never a bare ambiguous symbol
+    gene_term = gene_search_term(gene)  # entity/title-qualified — never a bare ambiguous symbol
     for category, pattern in SEARCH_PATTERNS_BY_CATEGORY.items():
         query = pattern.format(gene=gene_term, disease=disease_terms)
         # esearch → list of PMIDs
-        pmids = _esearch(query, retmax=abstracts_per_category, timeout_s=timeout_s,
-                         mindate=mindate, maxdate=maxdate)
+        pmids = _esearch(query, retmax=abstracts_per_category, timeout_s=timeout_s, mindate=mindate, maxdate=maxdate)
         time.sleep(request_delay_s)
         if not pmids:
             abstracts_by_cat[category] = []
@@ -150,7 +135,9 @@ def search_pubmed(
     # `dataclass(frozen=True)` blocks attribute assignment, so build a
     # fresh instance with the populated dict.
     return PubMedSearchResult(
-        gene=gene, disease=disease, abstracts_by_category=abstracts_by_cat,
+        gene=gene,
+        disease=disease,
+        abstracts_by_category=abstracts_by_cat,
     )
 
 
@@ -158,38 +145,43 @@ def search_pubmed(
 # Internal: E-utilities calls
 # ---------------------------------------------------------------------------
 
-def _esearch(query: str, *, retmax: int, timeout_s: float,
-             mindate: str | None = None, maxdate: str | None = None) -> list[str]:
+
+def _esearch(
+    query: str, *, retmax: int, timeout_s: float, mindate: str | None = None, maxdate: str | None = None
+) -> list[str]:
     """Return up to `retmax` PMIDs for a query. When mindate/maxdate are given, bounds the
     publication-date window (datetype=pdat) so the corpus is pinnable/reproducible — the fix
     for the unbounded-corpus reproducibility gap (RISK_ASSESSMENT_INTEGRATION.md)."""
     params = {
-        'db': 'pubmed',
-        'term': query,
-        'retmax': str(retmax),
-        'retmode': 'json',
-        'sort': 'relevance',
+        "db": "pubmed",
+        "term": query,
+        "retmax": str(retmax),
+        "retmode": "json",
+        "sort": "relevance",
     }
     if mindate and maxdate:
-        params['datetype'] = 'pdat'
-        params['mindate'] = str(mindate)
-        params['maxdate'] = str(maxdate)
+        params["datetype"] = "pdat"
+        params["mindate"] = str(mindate)
+        params["maxdate"] = str(maxdate)
     url = f"{EUTILS_BASE}/esearch.fcgi?" + urllib.parse.urlencode(params)
     raw = _http_get(url, timeout_s=timeout_s)
     data = json.loads(raw)
-    return list(data.get('esearchresult', {}).get('idlist', []))
+    return list(data.get("esearchresult", {}).get("idlist", []))
 
 
 def _efetch_abstracts(
-    pmids: Iterable[str], *, category: str, timeout_s: float,
+    pmids: Iterable[str],
+    *,
+    category: str,
+    timeout_s: float,
 ) -> list[PubMedAbstract]:
     """Fetch and parse abstract records for a list of PMIDs."""
-    pmid_str = ','.join(pmids)
+    pmid_str = ",".join(pmids)
     params = {
-        'db': 'pubmed',
-        'id': pmid_str,
-        'rettype': 'abstract',
-        'retmode': 'text',
+        "db": "pubmed",
+        "id": pmid_str,
+        "rettype": "abstract",
+        "retmode": "text",
     }
     url = f"{EUTILS_BASE}/efetch.fcgi?" + urllib.parse.urlencode(params)
     raw = _http_get(url, timeout_s=timeout_s)
@@ -198,9 +190,9 @@ def _efetch_abstracts(
 
 def _http_get(url: str, *, timeout_s: float) -> str:
     """GET with explicit timeout. Returns body as str."""
-    req = urllib.request.Request(url, headers={'User-Agent': 'oncology-skills/1.4'})
+    req = urllib.request.Request(url, headers={"User-Agent": "oncology-skills/1.4"})
     with urllib.request.urlopen(req, timeout=timeout_s) as fh:
-        return fh.read().decode('utf-8', errors='replace')
+        return fh.read().decode("utf-8", errors="replace")
 
 
 # ---------------------------------------------------------------------------
@@ -230,17 +222,17 @@ def _http_get(url: str, *, timeout_s: float) -> str:
 #   PMCID: PMCxxxxxxx
 #   PMID: NNNNNNNN
 
-_PMID_RE = re.compile(r'^PMID:\s*(\d+)', re.MULTILINE)
+_PMID_RE = re.compile(r"^PMID:\s*(\d+)", re.MULTILINE)
 _JOURNAL_LINE_RE = re.compile(
     # First line of record: "1. Journal. YYYY ..."
-    r'^\d+\.\s+([^.]+?)\.\s+(\d{4})\b',
+    r"^\d+\.\s+([^.]+?)\.\s+(\d{4})\b",
 )
 
 
 def _parse_efetch_text(text: str, *, category: str) -> list[PubMedAbstract]:
     """Parse the plain-text output of efetch into PubMedAbstract records."""
     # Records separated by blank-line-then-numbered-line boundary.
-    records = re.split(r'\n\n(?=\d+\.\s+[A-Z])', text.strip())
+    records = re.split(r"\n\n(?=\d+\.\s+[A-Z])", text.strip())
     abstracts: list[PubMedAbstract] = []
     for rec in records:
         pmid_match = _PMID_RE.search(rec)
@@ -249,10 +241,11 @@ def _parse_efetch_text(text: str, *, category: str) -> list[PubMedAbstract]:
         pmid = pmid_match.group(1)
 
         # First-line journal + year — line starts with "N. Journal. YYYY".
-        journal = ''
+        journal = ""
         year: int | None = None
         first_line_match = re.match(
-            r'^(\d+\.\s+)?([^.\n]+?)\.\s+(\d{4})\b', rec,
+            r"^(\d+\.\s+)?([^.\n]+?)\.\s+(\d{4})\b",
+            rec,
         )
         if first_line_match:
             journal = first_line_match.group(2).strip()
@@ -263,14 +256,16 @@ def _parse_efetch_text(text: str, *, category: str) -> list[PubMedAbstract]:
 
         title = _extract_title(rec)
         abstract = _extract_abstract_body(rec)
-        abstracts.append(PubMedAbstract(
-            pmid=pmid,
-            title=title,
-            abstract=abstract,
-            journal=journal,
-            year=year,
-            category=category,
-        ))
+        abstracts.append(
+            PubMedAbstract(
+                pmid=pmid,
+                title=title,
+                abstract=abstract,
+                journal=journal,
+                year=year,
+                category=category,
+            )
+        )
     return abstracts
 
 
@@ -283,12 +278,12 @@ def _extract_title(record_body: str) -> str:
     """
     # Drop the first numbered-line block (journal + DOI). Find first
     # blank line and start from there.
-    blocks = re.split(r'\n\s*\n', record_body, maxsplit=2)
+    blocks = re.split(r"\n\s*\n", record_body, maxsplit=2)
     if len(blocks) < 2:
-        return ''
+        return ""
     title_block = blocks[1].strip()
     # Title can span multiple lines; collapse to one.
-    return re.sub(r'\s+', ' ', title_block)
+    return re.sub(r"\s+", " ", title_block)
 
 
 def _extract_abstract_body(record_body: str) -> str:
@@ -300,12 +295,19 @@ def _extract_abstract_body(record_body: str) -> str:
     metadata marker (Author info, Erratum in, Comment in, ©, DOI:,
     Conflict of interest, Keywords:, etc.) and isn't the title.
     """
-    blocks = re.split(r'\n\s*\n', record_body)
+    blocks = re.split(r"\n\s*\n", record_body)
     # Discard blocks that are metadata.
     metadata_starts = (
-        'Author information:', 'Erratum in', 'Comment in',
-        '©', 'DOI:', 'PMCID:', 'PMID:', 'Conflict of interest',
-        'Keywords:', 'Copyright',
+        "Author information:",
+        "Erratum in",
+        "Comment in",
+        "©",
+        "DOI:",
+        "PMCID:",
+        "PMID:",
+        "Conflict of interest",
+        "Keywords:",
+        "Copyright",
     )
     # Skip the first 2 blocks (journal-DOI line, title).
     candidates = []
@@ -316,12 +318,12 @@ def _extract_abstract_body(record_body: str) -> str:
         if any(b.startswith(prefix) for prefix in metadata_starts):
             continue
         # Author lines start with "Lastname F" pattern; skip.
-        if re.match(r'^[A-Z][a-z]+\s+[A-Z]', b) and '(' in b[:40]:
+        if re.match(r"^[A-Z][a-z]+\s+[A-Z]", b) and "(" in b[:40]:
             continue
         candidates.append(b)
     if not candidates:
-        return ''
+        return ""
     # Take the longest candidate — abstracts are usually longer than
     # contributor lists or short notes.
     longest = max(candidates, key=len)
-    return re.sub(r'\s+', ' ', longest)
+    return re.sub(r"\s+", " ", longest)

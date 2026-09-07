@@ -6,6 +6,7 @@ BARE. Each now carries a distance_to_cut reference_frame gauging that rank again
 allgene_top_decile cut, with the resolver band (allgene_percentile_class) read verbatim as the position.
 Verdict-INERT / display-only.
 """
+
 import sys
 from pathlib import Path
 
@@ -14,20 +15,25 @@ if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
 
 from _skills_common.evidence_salience import (  # noqa: E402
-    SALIENCE_SPECS, build_interpretation, contract_threshold,
+    SALIENCE_SPECS,
+    build_interpretation,
+    contract_threshold,
 )
 
 # measurement_type -> (card_id, a representative summary carrying the rank + its band)
 _TP_PERCENTILE_METERS = {
     "cell_line_rna_expression": (
         "cellline-rna-distribution",
-        {"allgene_percentile": 96.4, "allgene_percentile_class": "top_decile"}),
+        {"allgene_percentile": 96.4, "allgene_percentile_class": "top_decile"},
+    ),
     "tumor_expression_distribution": (
         "tumor-rna-distribution",
-        {"allgene_percentile": 88.1, "allgene_percentile_class": "upper_range"}),
+        {"allgene_percentile": 88.1, "allgene_percentile_class": "upper_range"},
+    ),
     "cell_line_protein_abundance": (
         "cellline-protein-abundance",
-        {"allgene_percentile": 45.0, "allgene_percentile_class": "mid_range"}),
+        {"allgene_percentile": 45.0, "allgene_percentile_class": "mid_range"},
+    ),
 }
 
 
@@ -71,5 +77,6 @@ def test_ruler_gauges_the_rank_reads_position_verbatim_and_resolves_the_cut():
 def test_absent_rank_yields_no_bare_frame():
     for mt in _TP_PERCENTILE_METERS:
         # a distribution card with no allgene_percentile (e.g. the by-subtype sibling) emits no ruler
-        assert build_interpretation({}, {"allgene_percentile_class": "top_decile"}, SALIENCE_SPECS[mt]) == [], \
+        assert build_interpretation({}, {"allgene_percentile_class": "top_decile"}, SALIENCE_SPECS[mt]) == [], (
             f"{mt}: emitted a frame with a position but no value"
+        )

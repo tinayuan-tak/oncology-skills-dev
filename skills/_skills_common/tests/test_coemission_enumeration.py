@@ -5,6 +5,7 @@ fired-sets are physically possible, so its grouping + soundness rules must be pi
 of any live rules file. Uses synthetic rule-indices (no target-contracts dependency here) plus one
 live smoke against the real rules to catch a rules-file that becomes ungroupable.
 """
+
 from __future__ import annotations
 
 import os
@@ -36,9 +37,9 @@ def test_group_members_never_coemit_but_field_can_be_none():
     sets = CO.coemission_fired_sets_for_gate(["a", "b", "c"], idx)
     # 3 group states (none / a / b) x 2 free states (off / on c) = 6
     assert len(sets) == 6
-    assert frozenset() in sets                    # field takes an unmatched value AND c off
-    assert frozenset(["a", "b"]) not in sets       # a,b mutually exclusive -> never co-emit
-    assert frozenset(["a", "c"]) in sets           # cross-group co-emission is fine
+    assert frozenset() in sets  # field takes an unmatched value AND c off
+    assert frozenset(["a", "b"]) not in sets  # a,b mutually exclusive -> never co-emit
+    assert frozenset(["a", "c"]) in sets  # cross-group co-emission is fine
 
 
 def test_lone_value_rule_on_its_own_field_is_free():
@@ -48,7 +49,7 @@ def test_lone_value_rule_on_its_own_field_is_free():
     assert groups == []
     assert set(free) == {"a", "b"}
     sets = CO.coemission_fired_sets_for_gate(["a", "b"], idx)
-    assert len(sets) == 4                          # full 2^2 — both independent
+    assert len(sets) == 4  # full 2^2 — both independent
 
 
 def test_in_and_equals_on_same_field_group_if_disjoint():
@@ -86,18 +87,22 @@ def test_live_rules_are_groupable():
     """Smoke: the REAL interpretation-rules must remain groupable (no overlapping value-sets on a
     shared field). If a future rules edit breaks this, the golden harness would raise — catch it here
     with a clearer message."""
-    contracts = Path(os.environ.get(
-        "TARGET_CONTRACTS_ROOT",
-        "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
+    contracts = Path(
+        os.environ.get(
+            "TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
+        )
+    )
     if not (contracts / "interpretation-rules").is_dir():
         pytest.skip("target-contracts interpretation-rules not available")
     idx = CO.load_rule_index(contracts)
     resolvers = sorted((contracts / "resolvers").glob("*.resolver.yaml"))
     assert resolvers, "no resolver specs found"
     import yaml
+
     for spec_path in resolvers:
         spec = yaml.safe_load(spec_path.read_text())
-        rule_ids = sorted({rung.get("when_fired") for rung in spec.get("resolve", [])
-                           if rung.get("when_fired")} & set(idx))
+        rule_ids = sorted(
+            {rung.get("when_fired") for rung in spec.get("resolve", []) if rung.get("when_fired")} & set(idx)
+        )
         # build_exclusivity_groups must not raise for any shipped gate's known rule_ids
         CO.build_exclusivity_groups(rule_ids, idx)

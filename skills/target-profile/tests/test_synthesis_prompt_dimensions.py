@@ -6,13 +6,14 @@ fan-out]) and OMITTED live ones (surface_modality, synthetic_lethal_partners, co
 target_intrinsic, cis_coherence). A stale prompt mis-primes the reasoner (asks for dimensions that don't
 exist; never mentions ones that do). This pins it to the current fan-out so it can't re-drift silently.
 """
+
 from __future__ import annotations
 
 import sys
 from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
-SKILLS = Path(__file__).resolve().parent.parent.parent   # for _skills_common
+SKILLS = Path(__file__).resolve().parent.parent.parent  # for _skills_common
 sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(SKILLS))
 
@@ -30,6 +31,12 @@ def test_live_dimensions_mentioned_in_prompt():
     """The prompt must name the current fan-out dimensions (at least the ones added/renamed since the
     original 10-dimension list)."""
     low = _SYSTEM_PROMPT.lower()
-    for live in ("genomic alteration", "surface/modality", "synthetic-lethal",
-                 "combinatorial dependency", "cis-coherence", "target-intrinsic"):
+    for live in (
+        "genomic alteration",
+        "surface/modality",
+        "synthetic-lethal",
+        "combinatorial dependency",
+        "cis-coherence",
+        "target-intrinsic",
+    ):
         assert live in low, f"live fan-out dimension {live!r} missing from _SYSTEM_PROMPT"

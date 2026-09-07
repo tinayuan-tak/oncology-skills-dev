@@ -8,13 +8,14 @@ plumbing WITHOUT any S3/method dependency:
   2. _emit_card_figures calls the registry once per NON-missing card and skips missing cards;
   3. figure emission is best-effort — a raising emitter never breaks the run.
 """
+
 from __future__ import annotations
 
 import sys
 import types
 from pathlib import Path
 
-SKILLS = Path(__file__).resolve().parents[2]        # skills/
+SKILLS = Path(__file__).resolve().parents[2]  # skills/
 if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
 
@@ -31,10 +32,14 @@ def test_write_package_collects_nested_and_flat_figures(tmp_path):
     (tmp_path / "figures" / "flat_legacy.svg").write_text("<svg/>")
 
     written = write_package(
-        out_dir=tmp_path, decision={"provenance": {}},
+        out_dir=tmp_path,
+        decision={"provenance": {}},
         card_outputs=[{"card_id": "cellline-rna-distribution", "summary": {}}],
-        target="EPCAM", indication="COADREAD",
-        skill_name="tumor-presence", skill_version="1.7.0", invoked_lenses={},
+        target="EPCAM",
+        indication="COADREAD",
+        skill_name="tumor-presence",
+        skill_version="1.7.0",
+        invoked_lenses={},
     )
     names = {p.name for p in written["figures"]}
     assert "figure_density_expression.svg" in names, "nested per-card figure not collected"
@@ -60,8 +65,7 @@ def test_emit_card_figures_calls_registry_and_skips_missing(tmp_path, monkeypatc
         return [{"id": "x", "path": f"cards/{card_id}/figure_x.svg"}]
 
     _fake_registry(monkeypatch, emit)
-    cards = [{"card_id": "a", "summary": {}},
-             {"card_id": "b", "summary": {}, "_missing": True}]   # missing → skipped
+    cards = [{"card_id": "a", "summary": {}}, {"card_id": "b", "summary": {}, "_missing": True}]  # missing → skipped
     n = D._emit_card_figures(cards, tmp_path, "EPCAM", "COADREAD")
     assert n == 1, "should emit for exactly the one non-missing card"
     assert calls == ["a"], "missing card must be skipped"

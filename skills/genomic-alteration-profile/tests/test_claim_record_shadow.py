@@ -2,6 +2,7 @@
 genomic_alteration verdict onto the factored record. Pins the M1 cross-check (provenance.fired_rule_ids
 == the resolver fired set), the driver/passenger/open-world mappings, and — when the sibling contracts
 repo is checked out — full conformance to claim_record.schema.json. Consumed-by-nothing / verdict-inert."""
+
 from __future__ import annotations
 
 import json
@@ -39,8 +40,8 @@ def test_passenger_is_measured_negative_opposes():
 def test_data_unavailable_is_open_world_noncommittal():
     rec = ga._claim_record([], fired=[], verdict_pair=("data_unavailable", None))
     f = rec["finding"]
-    assert f["availability"] == "not_wired"        # open-world
-    assert f["state"] == "unknown" and f["direction"] == "neutral"   # ignorance != negation
+    assert f["availability"] == "not_wired"  # open-world
+    assert f["state"] == "unknown" and f["direction"] == "neutral"  # ignorance != negation
     assert rec["provenance"]["fired_rule_ids"] == []
 
 
@@ -71,8 +72,14 @@ def test_conforms_to_contract_schema_if_available():
     if schema is None:
         pytest.skip("contracts repo / claim_record.schema.json not available on this runner")
     from jsonschema import Draft202012Validator
-    for vp in [("multi_class_driver", "r"), ("passenger_pattern", "r"),
-               ("data_unavailable", None), ("insufficient", None), ("confirmed_lof_driver", "r")]:
+
+    for vp in [
+        ("multi_class_driver", "r"),
+        ("passenger_pattern", "r"),
+        ("data_unavailable", None),
+        ("insufficient", None),
+        ("confirmed_lof_driver", "r"),
+    ]:
         rec = ga._claim_record([], fired=_fired("r") if vp[1] else [], verdict_pair=vp)
         errs = sorted(Draft202012Validator(schema).iter_errors(rec), key=lambda e: e.path)
         assert not errs, f"{vp} -> schema errors: {[e.message for e in errs]}"

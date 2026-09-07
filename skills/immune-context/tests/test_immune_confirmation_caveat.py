@@ -18,6 +18,7 @@ Live panel these fixtures mirror (2026-09-04 baseline reads):
   LIHC/KIRC + Saltz data_unavailable → bulk_fraction_spatially_unconfirmed (no orthogonal check);
   GBM immune_cold → None (byte-stable negative path).
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -28,13 +29,20 @@ ic = load_run_py(Path(__file__).resolve().parent.parent, "ic_run_caveat")
 
 
 def _cards(immune_class, cd8, til_class=None, til_pct=None, til_n=None):
-    ic_card = {"card_id": "immune-context",
-               "summary": {"immune_context_class": immune_class, "median_cd8_fraction": cd8,
-                           "median_total_t_cell_fraction": (cd8 or 0) * 2, "n_samples": 400,
-                           "tumor_studies": ["TCGA-XXXX"]}}
-    saltz = {"card_id": "tcga-til-fraction-saltz",
-             "summary": {"til_fraction_class": til_class, "median_til_percentage": til_pct,
-                         "n_samples": til_n}}
+    ic_card = {
+        "card_id": "immune-context",
+        "summary": {
+            "immune_context_class": immune_class,
+            "median_cd8_fraction": cd8,
+            "median_total_t_cell_fraction": (cd8 or 0) * 2,
+            "n_samples": 400,
+            "tumor_studies": ["TCGA-XXXX"],
+        },
+    }
+    saltz = {
+        "card_id": "tcga-til-fraction-saltz",
+        "summary": {"til_fraction_class": til_class, "median_til_percentage": til_pct, "n_samples": til_n},
+    }
     return [ic_card, saltz]
 
 
@@ -56,7 +64,7 @@ def test_skcm_hot_til_intermediate_is_orthogonally_corroborated_and_spared():
     cav = hl["immune_confirmation_caveat"]
     assert cav and cav["reason"] == "orthogonally_corroborated", cav
     assert "not an over-call of density" in cav["detail"].lower()
-    assert "presence != function" in cav["detail"].lower()   # hot class → exhaustion sub-note
+    assert "presence != function" in cav["detail"].lower()  # hot class → exhaustion sub-note
     # spared: no alarming spatially-unconfirmed top-tension
     tension = (hl["headline_block"] or {}).get("top_tension") or {}
     assert tension.get("source") != "immune_confirmation_caveat"
@@ -69,7 +77,7 @@ def test_blca_intermediate_til_high_is_orthogonally_corroborated_but_localizatio
     hl = _hl("immune_intermediate", 0.110, _INT, til_class="til_high", til_pct=6.1, til_n=410)
     cav = hl["immune_confirmation_caveat"]
     assert cav["reason"] == "orthogonally_corroborated"
-    assert "presence != function" not in cav["detail"].lower()   # not a hot class → no exhaustion sub-note
+    assert "presence != function" not in cav["detail"].lower()  # not a hot class → no exhaustion sub-note
     assert hl["spatial_localization_caveat"] and "excluded" in hl["spatial_localization_caveat"].lower()
 
 
@@ -129,9 +137,12 @@ def test_verdict_spine_byte_stable_across_all_tiers():
         ("immune_cold", 0.041, _COLD, "data_unavailable"),
     ]:
         hl = _hl(cls, cd8, rule, til_class=til)
-        expected = {"immune_hot": "immune_hot", "immune_intermediate": "immune_intermediate",
-                    "immune_cold": "immune_cold"}[cls]
-        assert hl["immune_context_verdict"] == expected   # verdict token unchanged by the enrichment
+        expected = {
+            "immune_hot": "immune_hot",
+            "immune_intermediate": "immune_intermediate",
+            "immune_cold": "immune_cold",
+        }[cls]
+        assert hl["immune_context_verdict"] == expected  # verdict token unchanged by the enrichment
 
 
 # ── immune_provenance quorum ─────────────────────────────────────────────────────────────────────────────

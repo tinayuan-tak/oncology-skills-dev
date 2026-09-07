@@ -20,6 +20,7 @@ WHAT THIS IS NOT — and the honesty discipline that makes it safe (plan gap #3)
 Every public function stamps an explicit `_disclaimer` into its output so a downstream consumer
 (or an LLM prompt) cannot lose the labeling.
 """
+
 from __future__ import annotations
 
 from typing import Optional
@@ -30,15 +31,17 @@ _ORDINAL: dict[str, Optional[int]] = {
     "supportive": 2,
     "neutral": 0,
     "opposing": -1,
-    "killer": -3,          # strictly below opposing: a killer vetoes, an opposing signal only weakens
+    "killer": -3,  # strictly below opposing: a killer vetoes, an opposing signal only weakens
     "insufficient": None,  # OFF-SCALE — coverage gap, never a number
     "not_applicable": None,  # OFF-SCALE — not on this axis for this target/modality
 }
 
-_DISCLAIMER = ("ORDINAL VIEW — an order-preserving projection of categorical signals for display "
-               "and ranking ONLY. NOT calibrated measurement (gaps between ranks are not metric); "
-               "NOT a verdict input; insufficient/not_applicable are off-scale (coverage gaps, not "
-               "low scores). The categorical signal is the source of truth.")
+_DISCLAIMER = (
+    "ORDINAL VIEW — an order-preserving projection of categorical signals for display "
+    "and ranking ONLY. NOT calibrated measurement (gaps between ranks are not metric); "
+    "NOT a verdict input; insufficient/not_applicable are off-scale (coverage gaps, not "
+    "low scores). The categorical signal is the source of truth."
+)
 
 
 def ordinal_of(signal: Optional[str]) -> Optional[int]:
@@ -68,8 +71,7 @@ def project_signals(signal_by_key: dict) -> dict:
     # Rank on-scale cells high→low; off-scale cells trail (stable, by key) — they are NOT
     # ranked as "worst", they are simply not on the axis.
     on_scale_keys = [k for k in signal_by_key if cells[k]["ordinal"] is not None]
-    ordered = sorted(on_scale_keys, key=lambda k: (-cells[k]["ordinal"], str(k))) \
-        + sorted(off_scale, key=str)
+    ordered = sorted(on_scale_keys, key=lambda k: (-cells[k]["ordinal"], str(k))) + sorted(off_scale, key=str)
     return {
         "cells": cells,
         "ordered": ordered,

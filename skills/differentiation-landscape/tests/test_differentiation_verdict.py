@@ -6,6 +6,7 @@ Shipped with NO tests despite being the skill whose historical rename bug (coocc
 `ns` maps to the `ns` verdict, NOT a silent `insufficient` (the exact bug that regressed).
 Manual precursor to the gap-#5 exhaustiveness validator.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -20,6 +21,7 @@ def _v(*rule_ids):
 
 
 # --- every rung maps (exhaustive over the cooccurrence_class vocabulary) ----
+
 
 def test_all_precedence_rungs_map_to_distinct_verdicts():
     expected = {

@@ -26,6 +26,7 @@ Scoring (nomination-level, from `synthesis.recommendation_gate.forced_recommenda
     predicts, it is surfaced (a curated label the live framework has outgrown → flip the calibration
     entry; or a regression → investigate).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -38,15 +39,19 @@ import time
 from pathlib import Path
 
 _SIBLINGS = Path.home()
-SKILLS_ROOT = Path(os.environ.get("CLAUDE_ONCOLOGY_SKILLS_ROOT",
-                                  _SIBLINGS / "rnd-computational-biology-oncology-claude-oncology-skills"))
-CONTRACTS_ROOT = Path(os.environ.get("TARGET_CONTRACTS_ROOT",
-                                     _SIBLINGS / "rnd-computational-biology-oncology-target-contracts"))
+SKILLS_ROOT = Path(
+    os.environ.get(
+        "CLAUDE_ONCOLOGY_SKILLS_ROOT", _SIBLINGS / "rnd-computational-biology-oncology-claude-oncology-skills"
+    )
+)
+CONTRACTS_ROOT = Path(
+    os.environ.get("TARGET_CONTRACTS_ROOT", _SIBLINGS / "rnd-computational-biology-oncology-target-contracts")
+)
 RUN_PY = SKILLS_ROOT / "skills" / "target-profile" / "scripts" / "run.py"
 CAL_SET = CONTRACTS_ROOT / "vocabularies" / "known_target_calibration_set.yaml"
 
 EVAL_DIR = Path(__file__).resolve().parent
-PKG_DIR = EVAL_DIR / "known-target-packages"          # gitignored (generated, large)
+PKG_DIR = EVAL_DIR / "known-target-packages"  # gitignored (generated, large)
 OUT_PATH = EVAL_DIR / "known_target_panel_report.json"
 
 # Single-source the deciding-axis→family classifier from the discrimination harness (the same map that
@@ -54,9 +59,11 @@ OUT_PATH = EVAL_DIR / "known_target_panel_report.json"
 try:
     sys.path.insert(0, str(CONTRACTS_ROOT / "validators"))
     from validate_framework_discrimination import deciding_axis_family as _deciding_axis_family
-except Exception:                                     # harness unavailable → degrade to a single bucket
+except Exception:  # harness unavailable → degrade to a single bucket
+
     def _deciding_axis_family(axis: str) -> str:
         return f"unclassified: {axis}"
+
 
 # Target symbol the resolver accepts (profile key -> HGNC-canonical gene symbol). Composite /
 # non-gene keys are SKIPPED (reported as out-of-scope, never silently passed).
@@ -65,24 +72,56 @@ except Exception:                                     # harness unavailable → 
 # non-canonical ALIAS misses it and falls through to the uncached full-CSV S3 read
 # (~564MB, re-read per card × stratum) — the CASE-007 slowness. The 4 chronically-slow targets
 # (SCD1/CD20/HIF2A/ADAR1) were ALL aliases; mapping them to HGNC canonical restores the fast path.
-TARGET_CANON = {"HER2": "ERBB2", "TROP2": "TACSTD2", "BCMA": "TNFRSF17", "TACSTD1": "EPCAM",
-                "SCD1": "SCD", "CD20": "MS4A1", "HIF2A": "EPAS1", "ADAR1": "ADAR"}
+TARGET_CANON = {
+    "HER2": "ERBB2",
+    "TROP2": "TACSTD2",
+    "BCMA": "TNFRSF17",
+    "TACSTD1": "EPCAM",
+    "SCD1": "SCD",
+    "CD20": "MS4A1",
+    "HIF2A": "EPAS1",
+    "ADAR1": "ADAR",
+}
 _COMPOSITE = {  # multi-gene or non-gene profile keys — not a single-target run
-    "CLDN18.2_LRRC15", "EGFR_cMET_VEGF", "MARK2_3", "CDK4_6", "MLLT1_3", "KAT2A_B",
-    "POSTN_PDL1", "CTHRC1_PDL1", "panRAF_MEK_FAK", "CA19_9", "CLDN18.2",
+    "CLDN18.2_LRRC15",
+    "EGFR_cMET_VEGF",
+    "MARK2_3",
+    "CDK4_6",
+    "MLLT1_3",
+    "KAT2A_B",
+    "POSTN_PDL1",
+    "CTHRC1_PDL1",
+    "panRAF_MEK_FAK",
+    "CA19_9",
+    "CLDN18.2",
 }
 
 # curated indication -> resolvable OncoTree code. None = coverage gap (no framework cohort, e.g. heme).
 # 'multi' and target-level (safety/druggability) profiles map to a well-covered default (cohort-invariant
 # for those axes). Heme indications with no solid cohort become honest coverage gaps.
 IND_MAP = {
-    "multi": "COADREAD", "COADREAD": "COADREAD", "CRC": "COADREAD",
-    "NSCLC": "LUAD", "LUAD": "LUAD", "SCLC": "SCLC",
-    "PAAD": "PAAD", "OV": "OV", "BRCA": "BRCA", "TNBC": "BRCA",
-    "SKCM": "SKCM", "prostate": "PRAD", "urothelial": "BLCA", "GI": "STAD",
-    "lymphoma": "DLBC", "RCC": "COADREAD",   # KIRC not a curated cohort; RCC profile is license-blocked/oos anyway
+    "multi": "COADREAD",
+    "COADREAD": "COADREAD",
+    "CRC": "COADREAD",
+    "NSCLC": "LUAD",
+    "LUAD": "LUAD",
+    "SCLC": "SCLC",
+    "PAAD": "PAAD",
+    "OV": "OV",
+    "BRCA": "BRCA",
+    "TNBC": "BRCA",
+    "SKCM": "SKCM",
+    "prostate": "PRAD",
+    "urothelial": "BLCA",
+    "GI": "STAD",
+    "lymphoma": "DLBC",
+    "RCC": "COADREAD",  # KIRC not a curated cohort; RCC profile is license-blocked/oos anyway
     # heme with no solid framework cohort -> coverage gap
-    "MM": None, "CLL_AML": None, "AML": None, "BALL": None, "heme": None,
+    "MM": None,
+    "CLL_AML": None,
+    "AML": None,
+    "BALL": None,
+    "heme": None,
 }
 
 
@@ -99,6 +138,7 @@ def _tally(vals) -> dict:
 
 def load_profiles() -> dict:
     import yaml
+
     spec = yaml.safe_load(CAL_SET.read_text())
     return spec.get("reference_profiles") or {}
 
@@ -108,6 +148,7 @@ def load_decoys() -> dict:
     Separate from reference_profiles by design (the discrimination harness ignores them so they can't
     dilute blind_rate); the panel scores them for specificity."""
     import yaml
+
     spec = yaml.safe_load(CAL_SET.read_text())
     return spec.get("decoy_controls") or {}
 
@@ -135,9 +176,12 @@ def score_decoys(decoys: dict, pkg_dir: Path) -> dict:
         hit = reco != "nominate"
         rows.append({**row, "status": "scored", "reco": reco, "hit": hit})
     scored = [r for r in rows if r["status"] == "scored"]
-    return {"n": len(scored), "pass": sum(1 for r in scored if r["hit"]),
-            "failures": [f"{r['target']} → nominate (specificity FP)" for r in scored if not r["hit"]],
-            "rows": rows}
+    return {
+        "n": len(scored),
+        "pass": sum(1 for r in scored if r["hit"]),
+        "failures": [f"{r['target']} → nominate (specificity FP)" for r in scored if not r["hit"]],
+        "rows": rows,
+    }
 
 
 def resolve_job(name: str, prof: dict):
@@ -153,14 +197,14 @@ def resolve_job(name: str, prof: dict):
 
 
 # --- outcome semantics -------------------------------------------------------------------------
-_POSITIVE = {"approved_class", "advanced", "active"}        # framework must not hard-veto these
+_POSITIVE = {"approved_class", "advanced", "active"}  # framework must not hard-veto these
 _NEGATIVE = {"declined", "declined_ph3"}
 # severities the discrimination harness tracks; we score the two actionable error classes.
 _SCORED_SEV = {"validated_lane", "silent_false_negative", "dangerous_false_positive"}
 
 
 def _forced_reco(pkg: dict):
-    return (((pkg.get("synthesis") or {}).get("recommendation_gate") or {}).get("forced_recommendation"))
+    return ((pkg.get("synthesis") or {}).get("recommendation_gate") or {}).get("forced_recommendation")
 
 
 def _dep_verdict(pkg: dict):
@@ -211,7 +255,7 @@ def extract_signal_ledger(pkg: dict) -> dict:
     counts = {"positive": 0, "negative": 0, "context": 0}
     for axis, sv in sub.items():
         verdict = (sv or {}).get("verdict")
-        for rid in ((sv or {}).get("fired_rule_ids") or []):
+        for rid in (sv or {}).get("fired_rule_ids") or []:
             pol = _rule_polarity(rid)
             counts[pol] += 1
             if pol == "positive":
@@ -219,20 +263,22 @@ def extract_signal_ledger(pkg: dict) -> dict:
             elif pol == "negative":
                 # gate status of the axis verdict this negative belongs to
                 if (axis, verdict) in surviving:
-                    status = "surviving"          # drove a hold/veto
+                    status = "surviving"  # drove a hold/veto
                 elif (axis, verdict) in suppressed:
-                    status = "suppressed"         # fired but cleared (modality/context escape)
+                    status = "suppressed"  # fired but cleared (modality/context escape)
                 else:
-                    status = "within_axis"        # shaped the axis verdict, not a gate kill
+                    status = "within_axis"  # shaped the axis verdict, not a gate kill
                 negative.append({"axis": axis, "rule_id": rid, "gate_status": status})
 
     n_surviving = sum(1 for n in negative if n["gate_status"] == "surviving")
     return {
         "positive": positive,
         "negative": negative,
-        "counts": {**counts,
-                   "negative_surviving": n_surviving,
-                   "negative_suppressed": sum(1 for n in negative if n["gate_status"] == "suppressed")},
+        "counts": {
+            **counts,
+            "negative_surviving": n_surviving,
+            "negative_suppressed": sum(1 for n in negative if n["gate_status"] == "suppressed"),
+        },
         "gate_surviving_verdicts": sorted(f"{s}:{v}" for s, v in surviving),
         "gate_suppressed_verdicts": sorted(f"{s}:{v}" for s, v in suppressed),
     }
@@ -269,7 +315,7 @@ def extract_signal_vector(pkg: dict) -> dict:
     cvs = syn.get("claim_vectors") or {}
 
     ct = syn.get("confidence_tier")
-    conf_tier = ct.get("tier") if isinstance(ct, dict) else ct   # dict {tier, hits} -> scalar
+    conf_tier = ct.get("tier") if isinstance(ct, dict) else ct  # dict {tier, hits} -> scalar
 
     # LIVE deciding-axis coverage — the crux of substrate-sufficiency: for the axes that DECIDE this
     # target, can the framework actually evidence them? (blind/partial/captured). Already computed in
@@ -304,7 +350,8 @@ def extract_signal_vector(pkg: dict) -> dict:
         "confidence_tier": conf_tier,
         "deciding_axis_capture": deciding_capture,
         "primary_gate_verdict": (syn.get("primary_gate_verdict") or {}).get("verdict")
-            if isinstance(syn.get("primary_gate_verdict"), dict) else syn.get("primary_gate_verdict"),
+        if isinstance(syn.get("primary_gate_verdict"), dict)
+        else syn.get("primary_gate_verdict"),
         "gate_verdicts": {ax: (v or {}).get("verdict") for ax, v in sub.items()},
         "per_axis_signal": per_axis,
         "substrate_summary": {
@@ -318,11 +365,17 @@ def extract_signal_vector(pkg: dict) -> dict:
 
 def score_profile(name: str, prof: dict, pkg) -> dict:
     (job, reason) = resolve_job(name, prof)
-    row = {"target": name, "indication": prof.get("indication"), "modality": prof.get("modality"),
-           "outcome": prof.get("outcome"), "severity": prof.get("severity"),
-           "curated_agreement": prof.get("agreement"), "deciding_axis": prof.get("deciding_axis"),
-           "curated_coverage": prof.get("deciding_axis_coverage"),
-           "deciding_axis_family": _deciding_axis_family(prof.get("deciding_axis") or "")}
+    row = {
+        "target": name,
+        "indication": prof.get("indication"),
+        "modality": prof.get("modality"),
+        "outcome": prof.get("outcome"),
+        "severity": prof.get("severity"),
+        "curated_agreement": prof.get("agreement"),
+        "deciding_axis": prof.get("deciding_axis"),
+        "curated_coverage": prof.get("deciding_axis_coverage"),
+        "deciding_axis_family": _deciding_axis_family(prof.get("deciding_axis") or ""),
+    }
     if job is None:
         return {**row, "status": "out_of_scope", "reason": reason, "reco": None}
     row["emit_target"], row["code"] = job
@@ -332,7 +385,7 @@ def score_profile(name: str, prof: dict, pkg) -> dict:
     # Capture the FULL signal vector (substrate), not just the collapsed word.
     sv = extract_signal_vector(pkg)
     row["signal_vector"] = sv
-    row["signal_ledger"] = extract_signal_ledger(pkg)   # positive vs negative signals
+    row["signal_ledger"] = extract_signal_ledger(pkg)  # positive vs negative signals
     row["subtype_signal"] = extract_subtype_signal(pkg)  # subtype_fit + resolved (subtype-primary)
     reco = sv["recommendation"]
     row["reco"] = reco
@@ -346,13 +399,23 @@ def score_profile(name: str, prof: dict, pkg) -> dict:
     if outcome in _POSITIVE:
         # a hard veto of a validated / eventually-right target is the silent-FN failure
         hit = reco != "veto"
-        return {**row, "status": "scored", "class": "must_not_hard_veto", "hit": hit,
-                "fresh_error": None if hit else "fresh_silent_false_negative"}
+        return {
+            **row,
+            "status": "scored",
+            "class": "must_not_hard_veto",
+            "hit": hit,
+            "fresh_error": None if hit else "fresh_silent_false_negative",
+        }
     if outcome in _NEGATIVE:
         # a confident nominate of a declined target is the dangerous-FP failure
         hit = reco != "nominate"
-        return {**row, "status": "scored", "class": "must_not_nominate", "hit": hit,
-                "fresh_error": None if hit else "fresh_dangerous_false_positive"}
+        return {
+            **row,
+            "status": "scored",
+            "class": "must_not_nominate",
+            "hit": hit,
+            "fresh_error": None if hit else "fresh_dangerous_false_positive",
+        }
     return {**row, "status": "reported_unscored"}
 
 
@@ -390,9 +453,12 @@ def score_all(profiles: dict, pkg_dir: Path) -> dict:
 
     scored = [r for r in rows if r.get("status") == "scored"]
     hits = [r for r in scored if r.get("hit")]
-    fresh_errors = [f"{r['target']}/{r.get('code')} [{r['modality']}] {r['fresh_error']} "
-                    f"(reco={r['reco']}, dep={r.get('dependency_verdict')})"
-                    for r in scored if r.get("fresh_error")]
+    fresh_errors = [
+        f"{r['target']}/{r.get('code')} [{r['modality']}] {r['fresh_error']} "
+        f"(reco={r['reco']}, dep={r.get('dependency_verdict')})"
+        for r in scored
+        if r.get("fresh_error")
+    ]
     drifts = [f"{r['target']}/{r.get('code')}: {d}" for r in rows if (d := _drift(r))]
     by_status: dict = {}
     for r in rows:
@@ -407,15 +473,13 @@ def score_all(profiles: dict, pkg_dir: Path) -> dict:
         # deciding-axis capture across the panel: the substrate-sufficiency headline — a target whose
         # deciding axis the framework is BLIND to is one it can't truly reason about, however confident
         # the collapsed word looks.
-        deciding_bands = _tally(band for v in with_sv
-                                for band in v["deciding_axis_capture"].values())
+        deciding_bands = _tally(band for v in with_sv for band in v["deciding_axis_capture"].values())
         substrate = {
             "n_with_vector": n,
             "avg_axes": round(sum(v["substrate_summary"]["n_axes"] for v in with_sv) / n, 1),
             "avg_measured": round(sum(v["substrate_summary"]["n_measured"] for v in with_sv) / n, 1),
             "avg_strong": round(sum(v["substrate_summary"]["n_strong"] for v in with_sv) / n, 1),
-            "any_conflict_rate": round(
-                sum(1 for v in with_sv if v["substrate_summary"]["n_conflicted"]) / n, 3),
+            "any_conflict_rate": round(sum(1 for v in with_sv if v["substrate_summary"]["n_conflicted"]) / n, 3),
             "recommendation_tally": _tally(v["recommendation"] for v in with_sv),
             "confidence_tally": _tally(v["confidence_tier"] for v in with_sv),
             "deciding_axis_capture_tally": deciding_bands,
@@ -432,8 +496,9 @@ def score_all(profiles: dict, pkg_dir: Path) -> dict:
             continue
         fam = r.get("deciding_axis_family") or "unclassified"
         bands = set((r["signal_vector"].get("deciding_axis_capture") or {}).values())
-        f = capture_by_family.setdefault(fam, {"n": 0, "curated_blind": 0, "live_any_captured": 0,
-                                               "live_any_partial_or_captured": 0})
+        f = capture_by_family.setdefault(
+            fam, {"n": 0, "curated_blind": 0, "live_any_captured": 0, "live_any_partial_or_captured": 0}
+        )
         f["n"] += 1
         if r.get("curated_coverage") in ("blind", "license_blocked", "out_of_scope"):
             f["curated_blind"] += 1
@@ -472,8 +537,11 @@ def score_all(profiles: dict, pkg_dir: Path) -> dict:
         "source": str(CAL_SET),
         "n_profiles": len(profiles),
         "by_status": by_status,
-        "scored": {"n": len(scored), "hit": len(hits),
-                   "accuracy": round(len(hits) / len(scored), 3) if scored else None},
+        "scored": {
+            "n": len(scored),
+            "hit": len(hits),
+            "accuracy": round(len(hits) / len(scored), 3) if scored else None,
+        },
         "signal_substrate": substrate,
         "signal_ledger_rollup": signal_ledger_rollup,
         "capture_by_family": capture_by_family,
@@ -510,12 +578,22 @@ def emit_packages(profiles: dict, pkg_dir: Path, timeout: int, only: set | None)
     for i, ((et, code), (modality, subtype)) in enumerate(sorted(jobs.items()), 1):
         out = pkg_dir / f"_emit__{et}__{_slug(code)}"
         out.mkdir(exist_ok=True)
-        argv = [sys.executable, str(RUN_PY), "--target", et, "--indication", code,
-                "--emit", "evidence-package", "--out", str(out)]
+        argv = [
+            sys.executable,
+            str(RUN_PY),
+            "--target",
+            et,
+            "--indication",
+            code,
+            "--emit",
+            "evidence-package",
+            "--out",
+            str(out),
+        ]
         if modality:
-            argv += ["--modality", str(modality)]   # run.py normalizes; unrecognized → warn + ignore
+            argv += ["--modality", str(modality)]  # run.py normalizes; unrecognized → warn + ignore
         if subtype:
-            argv += ["--subtypes", str(subtype)]     # subtype-primary targets → subtype_fit tier
+            argv += ["--subtypes", str(subtype)]  # subtype-primary targets → subtype_fit tier
         t0 = time.time()
         try:
             r = subprocess.run(argv, env=env, capture_output=True, text=True, timeout=timeout)
@@ -527,7 +605,7 @@ def emit_packages(profiles: dict, pkg_dir: Path, timeout: int, only: set | None)
                 status = f"FAIL rc={r.returncode} {(r.stderr or '')[-120:].strip()}"
         except subprocess.TimeoutExpired:
             status = "TIMEOUT"
-        print(f"  [{i}/{len(jobs)}] {et}/{code} ({time.time()-t0:.0f}s) {status}", flush=True)
+        print(f"  [{i}/{len(jobs)}] {et}/{code} ({time.time() - t0:.0f}s) {status}", flush=True)
 
 
 def main(argv=None) -> int:
@@ -546,8 +624,12 @@ def main(argv=None) -> int:
         emit_packages(profiles, args.packages_dir, args.timeout, only)
         # decoys share the emit machinery — treat each as a 1-profile job (indication + modality).
         if decoys:
-            emit_packages({k: {**v, "modality": v.get("modality")} for k, v in decoys.items()},
-                          args.packages_dir, args.timeout, only)
+            emit_packages(
+                {k: {**v, "modality": v.get("modality")} for k, v in decoys.items()},
+                args.packages_dir,
+                args.timeout,
+                only,
+            )
 
     report = score_all(profiles, args.packages_dir)
     report["decoy_specificity"] = score_decoys(decoys, args.packages_dir)
@@ -559,30 +641,40 @@ def main(argv=None) -> int:
     print(f"  scored (recommendation gate): {s['hit']}/{s['n']} hit (acc={s['accuracy']})")
     sub = report.get("signal_substrate")
     if sub:
-        print(f"  signal substrate ({sub['n_with_vector']} vectors): "
-              f"avg {sub['avg_measured']}/{sub['avg_axes']} axes measured, "
-              f"{sub['avg_strong']} strong, conflict-rate {sub['any_conflict_rate']}")
+        print(
+            f"  signal substrate ({sub['n_with_vector']} vectors): "
+            f"avg {sub['avg_measured']}/{sub['avg_axes']} axes measured, "
+            f"{sub['avg_strong']} strong, conflict-rate {sub['any_conflict_rate']}"
+        )
         print(f"    recommendations: {sub['recommendation_tally']}   confidence: {sub['confidence_tally']}")
         print(f"    deciding-axis capture: {sub['deciding_axis_capture_tally']}")
     cbf = report.get("capture_by_family")
     if cbf:
         print("  deciding-axis capture BY FAMILY (curated-blind → live-captured; the fidelity gap map):")
         for fam, f in cbf.items():
-            print(f"    {f['live_any_captured']:>2}/{f['curated_blind']:<2} curated-blind captured live"
-                  f"  ({f['n']} targets)  {fam}")
+            print(
+                f"    {f['live_any_captured']:>2}/{f['curated_blind']:<2} curated-blind captured live"
+                f"  ({f['n']} targets)  {fam}"
+            )
     lr = report.get("signal_ledger_rollup")
     if lr:
-        print(f"  signal ledger ({lr['n_with_ledger']} targets): avg {lr['avg_positive']} positive / "
-              f"{lr['avg_negative']} negative signals; negatives {lr['total_negative_surviving']} surviving "
-              f"(drove hold/veto) vs {lr['total_negative_suppressed']} suppressed (modality-cleared)")
+        print(
+            f"  signal ledger ({lr['n_with_ledger']} targets): avg {lr['avg_positive']} positive / "
+            f"{lr['avg_negative']} negative signals; negatives {lr['total_negative_surviving']} surviving "
+            f"(drove hold/veto) vs {lr['total_negative_suppressed']} suppressed (modality-cleared)"
+        )
     sr = report.get("subtype_rollup")
     if sr:
-        print(f"  subtype-primary ({sr['n_subtype_scoped']} scoped): {sr['n_captured']} captured a "
-              f"subtype_fit verdict; verdicts {sr['verdict_tally']}")
+        print(
+            f"  subtype-primary ({sr['n_subtype_scoped']} scoped): {sr['n_captured']} captured a "
+            f"subtype_fit verdict; verdicts {sr['verdict_tally']}"
+        )
     dc = report.get("decoy_specificity")
     if dc and dc["n"]:
-        print(f"  decoy specificity: {dc['pass']}/{dc['n']} held (non-targets NOT nominated)"
-              + ("" if not dc["failures"] else f" — FAILURES: {dc['failures']}"))
+        print(
+            f"  decoy specificity: {dc['pass']}/{dc['n']} held (non-targets NOT nominated)"
+            + ("" if not dc["failures"] else f" — FAILURES: {dc['failures']}")
+        )
     for e in report["fresh_errors"]:
         print(f"    FRESH-ERROR {e}")
     for d in report["drift_vs_curated"]:

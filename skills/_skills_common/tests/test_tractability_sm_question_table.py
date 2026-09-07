@@ -15,10 +15,10 @@ from _skills_common.presence_question_table import render_question_table_html
 def _headline():
     return {
         "druggability_snapshot": "chemically_active_concordant",
-        "prism_activity_class": "clinically_active",                 # active compound → strong
-        "prism_crispr_concord": "triangulated_target_engaged",       # engaged → strong
-        "pdb_coverage_class": "partial",                             # partial structure → moderate
-        "known_drug_tractability": "approved_drug_tractable",        # approved → strong
+        "prism_activity_class": "clinically_active",  # active compound → strong
+        "prism_crispr_concord": "triangulated_target_engaged",  # engaged → strong
+        "pdb_coverage_class": "partial",  # partial structure → moderate
+        "known_drug_tractability": "approved_drug_tractable",  # approved → strong
     }
 
 
@@ -31,21 +31,27 @@ def test_signal_tiers():
     rows = {r["id"]: r for r in tractability_sm_question_table(_headline())}
     assert rows["Compound"]["signal"]["tier"] == "strong"
     assert rows["Concordance"]["signal"]["tier"] == "strong"
-    assert rows["Structure"]["signal"]["tier"] == "moderate"       # partial
+    assert rows["Structure"]["signal"]["tier"] == "moderate"  # partial
     assert rows["Known-drug"]["signal"]["tier"] == "strong"
 
 
 def test_negative_and_gap():
-    h = {"prism_activity_class": "no_compounds_found", "prism_crispr_concord": "discordant_off_target_likely",
-         "pdb_coverage_class": "none"}  # known_drug field absent → named gap
+    h = {
+        "prism_activity_class": "no_compounds_found",
+        "prism_crispr_concord": "discordant_off_target_likely",
+        "pdb_coverage_class": "none",
+    }  # known_drug field absent → named gap
     rows = {r["id"]: r for r in tractability_sm_question_table(h)}
-    assert rows["Compound"]["signal"]["tier"] == "absent"          # no compound
-    assert rows["Concordance"]["signal"]["tier"] == "absent"       # discordant → off-target
-    assert rows["Structure"]["signal"]["tier"] == "absent"         # none
-    assert rows["Known-drug"]["signal"]["tier"] == "unmeasured"    # absent field
+    assert rows["Compound"]["signal"]["tier"] == "absent"  # no compound
+    assert rows["Concordance"]["signal"]["tier"] == "absent"  # discordant → off-target
+    assert rows["Structure"]["signal"]["tier"] == "absent"  # none
+    assert rows["Known-drug"]["signal"]["tier"] == "unmeasured"  # absent field
 
 
 def test_renders_html_via_shared_renderer():
-    html = render_question_table_html(tractability_sm_question_table(_headline()),
-                                      verdict="chemically_active_concordant", title="Small-molecule tractability")
+    html = render_question_table_html(
+        tractability_sm_question_table(_headline()),
+        verdict="chemically_active_concordant",
+        title="Small-molecule tractability",
+    )
     assert "<table" in html and "Small-molecule tractability at a glance" in html

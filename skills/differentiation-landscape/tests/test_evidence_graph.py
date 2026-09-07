@@ -15,6 +15,7 @@ GATELESS / verdict-INERT: differentiation-landscape runs mode=verdict and DOES e
 (both_patterns_present) with a driving_rule_id, but the token is DESCRIPTIVE and moves no nomination
 gate — nothing here touches the differentiation_verdict spine.
 """
+
 from __future__ import annotations
 
 import copy
@@ -23,41 +24,72 @@ import copy
 # display-only facets (fired no rule). Only the co-mutation card drives the differentiation token; the
 # expression / alteration / subtype cards fire NEUTRAL facet rules (feed no resolver); the rest none.
 VERDICT_BEARING = {
-    "co-mutation-and-mutual-exclusivity", "expression-clinical-association",
-    "alteration-clinical-association", "subtype-survival-association",
+    "co-mutation-and-mutual-exclusivity",
+    "expression-clinical-association",
+    "alteration-clinical-association",
+    "subtype-survival-association",
 }
 DISPLAY_ONLY = {
-    "stemness-context", "precog-prognostic-association", "pathway-node-leverage",
-    "clinical-precedent", "competitor-landscape",
+    "stemness-context",
+    "precog-prognostic-association",
+    "pathway-node-leverage",
+    "clinical-precedent",
+    "competitor-landscape",
 }
 
 # a synthetic literature_synthesis keyed by the differentiation lens axis LETTERS (what make_literature_fn
 # emits: narrator_lenses.DIFFERENTIATION_LANDSCAPE.axis_labels COMUT/SURVIVAL/PROGNOSIS/NODE)
 _SYNTH_LIT = {
     "axes": [
-        {"axis_key": "COMUT", "literature_read": "supports",
-         "assertion": "KRAS co-mutates with APC/TP53 in colorectal cancer.",
-         "agreement_vs_omics": "agree", "confidence": "high",
-         "citations": [{"label": "Vogelstein 2013", "pmid": "23539594", "verified": True}]},
-        {"axis_key": "SURVIVAL", "literature_read": "mixed",
-         "assertion": "CMS molecular subtypes stratify overall survival.",
-         "agreement_vs_omics": "agree", "confidence": "moderate", "citations": []},
-        {"axis_key": "PROGNOSIS", "literature_read": "supports",
-         "assertion": "KRAS-mutant expression is prognostic in some cohorts.",
-         "agreement_vs_omics": "mixed", "confidence": "low", "citations": []},
-        {"axis_key": "NODE", "literature_read": "supports",
-         "assertion": "KRAS is a dominant MAPK-pathway node.",
-         "agreement_vs_omics": "agree", "confidence": "high", "citations": []},
+        {
+            "axis_key": "COMUT",
+            "literature_read": "supports",
+            "assertion": "KRAS co-mutates with APC/TP53 in colorectal cancer.",
+            "agreement_vs_omics": "agree",
+            "confidence": "high",
+            "citations": [{"label": "Vogelstein 2013", "pmid": "23539594", "verified": True}],
+        },
+        {
+            "axis_key": "SURVIVAL",
+            "literature_read": "mixed",
+            "assertion": "CMS molecular subtypes stratify overall survival.",
+            "agreement_vs_omics": "agree",
+            "confidence": "moderate",
+            "citations": [],
+        },
+        {
+            "axis_key": "PROGNOSIS",
+            "literature_read": "supports",
+            "assertion": "KRAS-mutant expression is prognostic in some cohorts.",
+            "agreement_vs_omics": "mixed",
+            "confidence": "low",
+            "citations": [],
+        },
+        {
+            "axis_key": "NODE",
+            "literature_read": "supports",
+            "assertion": "KRAS is a dominant MAPK-pathway node.",
+            "agreement_vs_omics": "agree",
+            "confidence": "high",
+            "citations": [],
+        },
     ],
-    "blind_spots": [], "overall_consistency": "consistent", "key_divergence": None,
+    "blind_spots": [],
+    "overall_consistency": "consistent",
+    "key_divergence": None,
 }
 
 
 # ── Phase 0 registry sanity ──────────────────────────────────────────────────────────────────────
 def test_questions_registry_loads_five(eg_questions):
     ids = [q["id"] for q in eg_questions]
-    assert ids == ["comut_landscape", "subtype_survival", "prognostic_stratification",
-                   "node_leverage", "clinical_precedent"]
+    assert ids == [
+        "comut_landscape",
+        "subtype_survival",
+        "prognostic_stratification",
+        "node_leverage",
+        "clinical_precedent",
+    ]
     # unified axis vocabulary shared with the differentiation narrator lens
     # (narrator_lenses.DIFFERENTIATION_LANDSCAPE.axis_labels)
     axes = {q["axis_id"] for q in eg_questions if q.get("axis_id")}
@@ -89,14 +121,16 @@ def test_reconstruct_questions_signal_confidence_and_cards(eg_graph):
     qs = {q["id"]: q for q in eg_graph["questions"]}
     assert len(qs) == 5
     # the co-mutation question carries the driving rule + a supportive read off the graph (no prose)
-    assert qs["comut_landscape"]["signal"]["polarity"] == "informs"   # question_table Signal is descriptive
+    assert qs["comut_landscape"]["signal"]["polarity"] == "informs"  # question_table Signal is descriptive
     assert qs["comut_landscape"]["confidence"]["level"] == "moderate"
     # the many-to-many card join (measurement_type membership)
     assert set(qs["comut_landscape"]["card_ids"]) == {"co-mutation-and-mutual-exclusivity"}
     assert set(qs["subtype_survival"]["card_ids"]) == {"subtype-survival-association"}
     assert set(qs["prognostic_stratification"]["card_ids"]) == {
-        "expression-clinical-association", "precog-prognostic-association",
-        "alteration-clinical-association"}
+        "expression-clinical-association",
+        "precog-prognostic-association",
+        "alteration-clinical-association",
+    }
     assert set(qs["node_leverage"]["card_ids"]) == {"stemness-context", "pathway-node-leverage"}
     assert set(qs["clinical_precedent"]["card_ids"]) == {"clinical-precedent", "competitor-landscape"}
     # the subtype-survival question has no emitted question_table row → null signal (legacy_id omitted)
@@ -124,8 +158,12 @@ def test_literature_axis_crosswalk(eg_decision, eg_questions, eg_build):
     q = next(q for q in g["questions"] if q["id"] == "clinical_precedent")
     assert q["literature_axis_ids"] == []
     # crosswalk materialized on the axis-owning question nodes
-    for qid, ax in (("comut_landscape", "COMUT"), ("subtype_survival", "SURVIVAL"),
-                    ("prognostic_stratification", "PROGNOSIS"), ("node_leverage", "NODE")):
+    for qid, ax in (
+        ("comut_landscape", "COMUT"),
+        ("subtype_survival", "SURVIVAL"),
+        ("prognostic_stratification", "PROGNOSIS"),
+        ("node_leverage", "NODE"),
+    ):
         node = next(q for q in g["questions"] if q["id"] == qid)
         assert node["literature_axis_ids"] == [ax]
     # citations hoisted + referentially intact

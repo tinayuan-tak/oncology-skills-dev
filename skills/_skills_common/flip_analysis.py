@@ -17,6 +17,7 @@ verdict (every other fired rule is verdict-inert; toggling it is provably a no-o
 ``robust`` therefore means "no single verdict-movable rule toggle flips the call", not "no
 combination". A distance-k scan is a future extension; the honest label is carried in the output.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -26,8 +27,7 @@ from .reachability import resolver_referenced_rule_ids
 from .selectivity_veto import SELECTIVITY_GATE, apply_normal_breadth_veto
 
 
-def flip_analysis(fired: list[dict], gate: str,
-                  contracts_repo: Path | None = None) -> dict | None:
+def flip_analysis(fired: list[dict], gate: str, contracts_repo: Path | None = None) -> dict | None:
     """Single-rule flip scan for one gate's verdict.
 
     Args:

@@ -3,6 +3,7 @@
 Pins: (1) partner-set default = clinical seeds when --partners omitted; (2) ranked headline top_pair;
 (3) graceful data_unavailable when the method degrades; (4) the avidity caveat is carried through.
 """
+
 from __future__ import annotations
 
 import sys
@@ -25,6 +26,7 @@ def test_run_scan_degrades_to_unavailable_on_method_error(monkeypatch):
     # an honest empty/data_unavailable contract instead of crashing. (Was a tautology: it monkeypatched
     # _run_scan to itself and asserted a hand-built literal, testing nothing.)
     import types
+
     fake_live_readers = types.ModuleType("_skills_common._live_readers")
 
     def _boom(method_name):
@@ -40,7 +42,8 @@ def test_run_scan_degrades_to_unavailable_on_method_error(monkeypatch):
     assert scan["n_pairs_scored"] == 0, "a method-import failure must yield 0 scored pairs (data_unavailable)"
     assert scan["ranked_pairs"] == [], "no fabricated pairs on a degrade"
     assert scan["load_error"] and "forced-test-failure" in scan["load_error"], (
-        f"the real load_error must carry the raised failure, got {scan['load_error']!r}")
+        f"the real load_error must carry the raised failure, got {scan['load_error']!r}"
+    )
     # the partner count is still honestly reported (the input, not a scored result)
     assert scan["n_partners_scanned"] == 3
 
@@ -60,5 +63,6 @@ def test_clinical_seed_set_has_no_duplicate_or_alias_genes():
     seeds = bps.CLINICAL_SEED_ANTIGENS
     dups = sorted({g for g in seeds if seeds.count(g) > 1})
     assert not dups, f"duplicate seed antigens: {dups}"
-    assert not ("PSMA" in seeds and "FOLH1" in seeds), \
+    assert not ("PSMA" in seeds and "FOLH1" in seeds), (
         "PSMA is an alias of the HGNC symbol FOLH1 — list the gene once (FOLH1), not both"
+    )

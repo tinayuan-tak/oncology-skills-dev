@@ -31,6 +31,7 @@ Two curated fixtures pin BOTH sides of the veto conjunction end-to-end:
 The frozen fixtures are refreshed by the nightly-live re-freeze (card-behavior-matrix-nightly), which
 guards the snapshots themselves against reader drift. Mirror of tumor-presence's replay.
 """
+
 from __future__ import annotations
 
 import copy
@@ -68,8 +69,7 @@ _SELECTIVE_OUTCOMES = _AXIS_A_SELECTIVE | {"selective_but_broadly_normal", "sele
 
 def _real_summary(s) -> bool:
     """A frozen entry is a REAL reader summary (not a freeze/dispatcher error, not empty)."""
-    return (isinstance(s, dict) and bool(s)
-            and not s.get("_freeze_error") and not s.get("_dispatcher_returned_none"))
+    return isinstance(s, dict) and bool(s) and not s.get("_freeze_error") and not s.get("_dispatcher_returned_none")
 
 
 def _load_fixture(pair_id: str) -> dict:
@@ -95,20 +95,21 @@ def _decision(pair_id: str, target: str, indication: str) -> dict:
         def _read_live(card_id, target_, indication_, *args, **kwargs):
             s = frozen.get(card_id)
             if not _real_summary(s):
-                return None                       # → resolve_cards marks the card _missing (honest)
-            return copy.deepcopy(s)               # deepcopy: run.py must not mutate the shared fixture
+                return None  # → resolve_cards marks the card _missing (honest)
+            return copy.deepcopy(s)  # deepcopy: run.py must not mutate the shared fixture
+
         return _read_live
 
     import tempfile
+
     out_dir = Path(tempfile.mkdtemp(prefix=f"ts-{pair_id}-"))
     mp = pytest.MonkeyPatch()
-    mp.delenv("FRAMEWORK_HEALTH_SMOKE", raising=False)   # else resolve_cards short-circuits to stubs
+    mp.delenv("FRAMEWORK_HEALTH_SMOKE", raising=False)  # else resolve_cards short-circuits to stubs
     mp.setattr(skc, "_import_dispatcher", _fake_dispatcher_factory)
-    mp.setattr(sys, "argv", ["run.py", "--target", target, "--indication", indication,
-                             "--out", str(out_dir)])
+    mp.setattr(sys, "argv", ["run.py", "--target", target, "--indication", indication, "--out", str(out_dir)])
     try:
         runpy.run_path(str(RUN_PY), run_name="__main__")
-    except SystemExit as e:                        # run.py ends in sys.exit(run_wired_skill(...))
+    except SystemExit as e:  # run.py ends in sys.exit(run_wired_skill(...))
         assert e.code in (0, None), f"run.py exited non-zero ({e.code}) on the {pair_id} replay"
     finally:
         mp.undo()
@@ -125,8 +126,7 @@ CEACAM5 = ("ceacam5_coadread", "CEACAM5", "COADREAD")
 TACSTD2 = ("tacstd2_coadread", "TACSTD2", "COADREAD")
 
 
-@pytest.mark.parametrize("pair_id,target,indication", [CEACAM5, TACSTD2],
-                         ids=["ceacam5", "tacstd2"])
+@pytest.mark.parametrize("pair_id,target,indication", [CEACAM5, TACSTD2], ids=["ceacam5", "tacstd2"])
 def test_replay_conforms_to_data_product_schema(pair_id, target, indication):
     """LOAD-BEARING output-drift guard: the FRESH run.py emit must validate against the finalized
     data-product schema (the static kras golden is trimmed, so this — not it — is the conformance
@@ -141,11 +141,11 @@ def test_replay_conforms_to_data_product_schema(pair_id, target, indication):
         pytest.fail(reason + " [CI]") if os.environ.get("CI") else pytest.skip(reason)
     errors = conformance_errors(schema, _decision(pair_id, target, indication))
     assert not errors, f"FRESH {pair_id} emit violates the data-product schema:\n  " + "\n  ".join(
-        f"{list(e.path)}: {e.message}" for e in errors[:15])
+        f"{list(e.path)}: {e.message}" for e in errors[:15]
+    )
 
 
-@pytest.mark.parametrize("pair_id,target,indication", [CEACAM5, TACSTD2],
-                         ids=["ceacam5", "tacstd2"])
+@pytest.mark.parametrize("pair_id,target,indication", [CEACAM5, TACSTD2], ids=["ceacam5", "tacstd2"])
 def test_fixture_is_nonvacuous(pair_id, target, indication):
     """Guard against a stale/broken freeze reading green: both curated pairs resolve all 10 cards, so
     require >=5 to carry a real summary. A freeze that silently produced errors/empties fails here."""
@@ -153,11 +153,11 @@ def test_fixture_is_nonvacuous(pair_id, target, indication):
     real = [cid for cid, s in frozen.items() if _real_summary(s)]
     assert len(real) >= 5, (
         f"only {len(real)}/{len(frozen)} frozen cards carry a real summary for {pair_id} — refreeze "
-        f"against live S3 (freeze_fixture.py). Real cards: {sorted(real)}")
+        f"against live S3 (freeze_fixture.py). Real cards: {sorted(real)}"
+    )
 
 
-@pytest.mark.parametrize("pair_id,target,indication", [CEACAM5, TACSTD2],
-                         ids=["ceacam5", "tacstd2"])
+@pytest.mark.parametrize("pair_id,target,indication", [CEACAM5, TACSTD2], ids=["ceacam5", "tacstd2"])
 def test_verdict_does_not_collapse(pair_id, target, indication):
     """THE VERDICT-PATH DRIFT GUARD (the half no synthetic test covers): rules fire over the REAL
     frozen summaries. Both curated targets are strongly tumor-associated in COADREAD, so the resolved
@@ -170,10 +170,12 @@ def test_verdict_does_not_collapse(pair_id, target, indication):
     assert cls not in _COLLAPSED, (
         f"selectivity_class={cls!r} collapsed for {target}/{indication} — suspect a rule that stopped "
         f"firing because a reader renamed a field it keys on (the false-negative collapse this replay "
-        f"exists to catch).")
+        f"exists to catch)."
+    )
     assert cls in _SELECTIVE_OUTCOMES, (
         f"selectivity_class={cls!r} is not a selective outcome for {target}/{indication} "
-        f"(expected one of {sorted(_SELECTIVE_OUTCOMES)}).")
+        f"(expected one of {sorted(_SELECTIVE_OUTCOMES)})."
+    )
     assert h.get("driving_rule_id"), "resolved a verdict but driving_rule_id is empty — inconsistent spine."
 
 
@@ -185,13 +187,16 @@ def test_clean_target_retains_selectivity_no_false_veto():
     h = d.get("headline") or {}
     assert h.get("selectivity_class") in _AXIS_A_SELECTIVE, (
         f"CEACAM5 resolved {h.get('selectivity_class')!r}, not an axis-A selective class — a veto "
-        f"wrongly downgraded a clean-window target (or the axis-A rule stopped firing).")
+        f"wrongly downgraded a clean-window target (or the axis-A rule stopped firing)."
+    )
     assert h.get("selectivity_class") == h.get("axis_a_selectivity_class"), (
         f"CEACAM5 resolved {h.get('selectivity_class')!r} != raw axis-A {h.get('axis_a_selectivity_class')!r} "
-        f"— a normal-breadth veto fired on a clean-window target (false downgrade).")
+        f"— a normal-breadth veto fired on a clean-window target (false downgrade)."
+    )
     fired = {r.get("rule_id") for r in d.get("fired_rules", [])}
     assert not (fired & _VETO_RULES), (
-        f"a normal-breadth veto rule fired for clean-window CEACAM5: {sorted(fired & _VETO_RULES)}.")
+        f"a normal-breadth veto rule fired for clean-window CEACAM5: {sorted(fired & _VETO_RULES)}."
+    )
 
 
 def test_broadly_normal_target_is_downgraded_by_veto():
@@ -204,19 +209,22 @@ def test_broadly_normal_target_is_downgraded_by_veto():
     h = d.get("headline") or {}
     assert h.get("axis_a_selectivity_class") in _AXIS_A_SELECTIVE, (
         f"TACSTD2 raw axis-A class is {h.get('axis_a_selectivity_class')!r}, not selective — the "
-        f"fixture no longer exercises the veto (axis-A rule drift?); refreeze/re-curate.")
+        f"fixture no longer exercises the veto (axis-A rule drift?); refreeze/re-curate."
+    )
     assert h.get("selectivity_class") == "selective_but_broadly_normal", (
         f"TACSTD2 resolved {h.get('selectivity_class')!r}, expected selective_but_broadly_normal — the "
         f"normal-breadth veto stopped firing over the real summaries (SILENT VETO DEATH → a broadly-"
-        f"normal gene would nominate as tumor_selective).")
+        f"normal gene would nominate as tumor_selective)."
+    )
     assert h.get("selectivity_class") != h.get("axis_a_selectivity_class"), (
-        "the veto downgrade must change the class vs the raw axis-A call (else the clamp is a no-op).")
+        "the veto downgrade must change the class vs the raw axis-A call (else the clamp is a no-op)."
+    )
     assert h.get("driving_rule_id") in _VETO_RULES, (
-        f"TACSTD2 driving_rule_id={h.get('driving_rule_id')!r} is not a normal-breadth veto rule.")
+        f"TACSTD2 driving_rule_id={h.get('driving_rule_id')!r} is not a normal-breadth veto rule."
+    )
 
 
-@pytest.mark.parametrize("pair_id,target,indication", [CEACAM5, TACSTD2],
-                         ids=["ceacam5", "tacstd2"])
+@pytest.mark.parametrize("pair_id,target,indication", [CEACAM5, TACSTD2], ids=["ceacam5", "tacstd2"])
 def test_headline_block_present_and_wellformed(pair_id, target, indication):
     """The canonical HEADLINE block (verdict + confidence + top tension) is emitted, non-degraded, and
     carries the RESOLVED selectivity_class + a confidence level + the four WIN/DIST/INT/SAFE claim axes
@@ -228,11 +236,12 @@ def test_headline_block_present_and_wellformed(pair_id, target, indication):
     assert isinstance(block, dict) and block, f"headline_block missing/empty on the {pair_id} replay"
     # non-degraded: the best-effort enrich must not have caught an exception building the block
     assert "headline_block" not in (h.get("_enrichment_errors") or {}), (
-        f"headline_block degraded: {(h.get('_enrichment_errors') or {}).get('headline_block')!r}")
+        f"headline_block degraded: {(h.get('_enrichment_errors') or {}).get('headline_block')!r}"
+    )
     # verdict-inert: the block's canonical verdict == the skill's own resolved selectivity_class
     assert block["verdict"]["call"] == h.get("selectivity_class")
     assert block["verdict"]["gate"] == "selectivity"
-    assert block["verdict"]["phrase"]                      # a curated human phrase, never empty
+    assert block["verdict"]["phrase"]  # a curated human phrase, never empty
     assert block["verdict"]["polarity"] in {"positive", "negative", "neutral"}
     # confidence in the canonical vocabulary
     assert block["confidence"]["level"] in {"strong", "moderate", "weak", "insufficient"}
@@ -252,11 +261,11 @@ def test_headline_block_veto_surfaces_normal_breadth_tension():
     assert block["verdict"]["polarity"] == "negative"
     tension = block.get("top_tension") or {}
     assert tension.get("source") == "normal_breadth_veto", (
-        f"expected the normal-breadth veto to win the tension slot for TROP2, got {tension!r}")
+        f"expected the normal-breadth veto to win the tension slot for TROP2, got {tension!r}"
+    )
 
 
-@pytest.mark.parametrize("pair_id,target,indication", [CEACAM5, TACSTD2],
-                         ids=["ceacam5", "tacstd2"])
+@pytest.mark.parametrize("pair_id,target,indication", [CEACAM5, TACSTD2], ids=["ceacam5", "tacstd2"])
 def test_headline_resolves_broadly(pair_id, target, indication):
     """Headline drift floor: a reader field-name drift that silently nulled a block of `_headline`
     reads would collapse many values to None. Both pairs resolve ~40/41 headline fields; a
@@ -265,4 +274,5 @@ def test_headline_resolves_broadly(pair_id, target, indication):
     non_null = [k for k, v in h.items() if v not in (None, "", [], "data_unavailable")]
     assert len(non_null) >= 20, (
         f"only {len(non_null)}/{len(h)} headline fields resolved for {target}/{indication} — suspect a "
-        f"reader field-name drift (_headline get -> None). Non-null keys: {sorted(non_null)}")
+        f"reader field-name drift (_headline get -> None). Non-null keys: {sorted(non_null)}"
+    )

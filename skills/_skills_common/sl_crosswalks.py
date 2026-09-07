@@ -13,6 +13,7 @@ SynLethDB edge, a DepMap paralog GI, a co-essentiality delta) OVER-CALLS a CLINI
 VALIDATED, PORTABLE, DRUGGABLE synthetic lethality. The VALIDATED_* maps are the MILDER false-demote guard
 (a canonical validated SL is NOT an over-call); the PAN_ESSENTIAL / SCAFFOLD sets drive the SHARP tiers.
 """
+
 from __future__ import annotations
 
 # NORMALISE the OncoTree code so the COADREAD crosswalks also match the COAD / READ sub-codes.
@@ -29,36 +30,56 @@ def norm_ind(indication) -> str:
 # caveats: these are NOT over-calls. DISCLAIMED / non-exhaustive; an absent (target, indication) degrades to a
 # data-derived tier or None.
 VALIDATED_COMBINATION_PRECEDENT = {
-    ("BRCA1", "BRCA"): ("Canonical, clinically-APPROVED synthetic lethality: BRCA-deficiency ↔ PARP1 "
-                        "(Bryant 2005 PMID 15829966; Farmer 2005 PMID 15829967; clinical PoC Fong 2009 "
-                        "PMID 19553641; OlympiAD PMID 28578601). NOT a statistical over-call — approved "
-                        "PARP inhibitors (olaparib/talazoparib)."),
-    ("BRCA2", "BRCA"): ("Canonical, clinically-APPROVED synthetic lethality: BRCA-deficiency ↔ PARP1 "
-                        "(Bryant 2005 PMID 15829966; Farmer 2005 PMID 15829967; EMBRACA PMID 30110579). "
-                        "NOT a statistical over-call — approved PARP inhibitors."),
-    ("BRCA1", "OV"):   ("Canonical, clinically-APPROVED synthetic lethality: BRCA ↔ PARP1 in ovarian "
-                        "cancer (SOLO-1 maintenance PMID 30345884; Fong 2009 PMID 19553641). NOT an over-call."),
-    ("BRCA2", "OV"):   ("Canonical, clinically-APPROVED synthetic lethality: BRCA ↔ PARP1 in ovarian "
-                        "cancer (SOLO-1 PMID 30345884). NOT an over-call."),
-    ("WRN", "COADREAD"): ("Validated-context synthetic lethality: WRN helicase ↔ microsatellite-instability "
-                          "(MSI-H/dMMR) (Chan 2019 PMID 30971823; Project Score Behan 2019 PMID 30971826; "
-                          "mechanism — expanded TA repeats — van Wietmarschen 2020 PMID 32999459). Clinical "
-                          "WRN-helicase inhibitor HRO761 (Ferretti 2024 PMID 38658754; NCT05838768). NOT an "
-                          "over-call — orthogonally validated + in first-in-human trials. NB the SL is with "
-                          "MSI STATUS, not the RECQL-family paralogs the DepMap table ranks."),
-    ("WRN", "STAD"):   ("Validated-context WRN ↔ MSI-H synthetic lethality (Chan 2019 PMID 30971823); WRN "
-                        "inhibitors in MSI-H solid-tumour trials (HRO761 PMID 38658754)."),
-    ("WRN", "UCEC"):   ("Validated-context WRN ↔ MSI-H synthetic lethality (Chan 2019 PMID 30971823); WRN "
-                        "inhibitors in MSI-H solid-tumour trials (HRO761 PMID 38658754)."),
-    ("KRAS", "COADREAD"): ("Functionally-validated combination biology: KRAS ↔ SHP2/PTPN11 (Ruess 2018 PMID "
-                           "29808009; Mainardi 2018 PMID 29808006; Nichols 2018 PMID 30104724) + SOS1 "
-                           "(BI-3406, Hofmann 2021 PMID 32816843); NF1 loss is a mechanistically-clean "
-                           "resistance mediator (Awad 2021 PMID 34161704). Leading clinical KRASi combination "
-                           "strategy (not yet approved) — NOT a statistical over-call."),
-    ("KRAS", "PAAD"):  ("Functionally-validated KRAS ↔ SHP2/PTPN11 + SOS1 combination biology (Ruess/Mainardi "
-                        "2018 PMID 29808009/29808006; Nichols 2018 PMID 30104724). NOT an over-call."),
-    ("KRAS", "LUAD"):  ("Functionally-validated KRAS ↔ SHP2/PTPN11 + SOS1 combination biology (Mainardi 2018 "
-                        "PMID 29808006 — SHP2 required for KRAS-mutant NSCLC in vivo). NOT an over-call."),
+    ("BRCA1", "BRCA"): (
+        "Canonical, clinically-APPROVED synthetic lethality: BRCA-deficiency ↔ PARP1 "
+        "(Bryant 2005 PMID 15829966; Farmer 2005 PMID 15829967; clinical PoC Fong 2009 "
+        "PMID 19553641; OlympiAD PMID 28578601). NOT a statistical over-call — approved "
+        "PARP inhibitors (olaparib/talazoparib)."
+    ),
+    ("BRCA2", "BRCA"): (
+        "Canonical, clinically-APPROVED synthetic lethality: BRCA-deficiency ↔ PARP1 "
+        "(Bryant 2005 PMID 15829966; Farmer 2005 PMID 15829967; EMBRACA PMID 30110579). "
+        "NOT a statistical over-call — approved PARP inhibitors."
+    ),
+    ("BRCA1", "OV"): (
+        "Canonical, clinically-APPROVED synthetic lethality: BRCA ↔ PARP1 in ovarian "
+        "cancer (SOLO-1 maintenance PMID 30345884; Fong 2009 PMID 19553641). NOT an over-call."
+    ),
+    ("BRCA2", "OV"): (
+        "Canonical, clinically-APPROVED synthetic lethality: BRCA ↔ PARP1 in ovarian "
+        "cancer (SOLO-1 PMID 30345884). NOT an over-call."
+    ),
+    ("WRN", "COADREAD"): (
+        "Validated-context synthetic lethality: WRN helicase ↔ microsatellite-instability "
+        "(MSI-H/dMMR) (Chan 2019 PMID 30971823; Project Score Behan 2019 PMID 30971826; "
+        "mechanism — expanded TA repeats — van Wietmarschen 2020 PMID 32999459). Clinical "
+        "WRN-helicase inhibitor HRO761 (Ferretti 2024 PMID 38658754; NCT05838768). NOT an "
+        "over-call — orthogonally validated + in first-in-human trials. NB the SL is with "
+        "MSI STATUS, not the RECQL-family paralogs the DepMap table ranks."
+    ),
+    ("WRN", "STAD"): (
+        "Validated-context WRN ↔ MSI-H synthetic lethality (Chan 2019 PMID 30971823); WRN "
+        "inhibitors in MSI-H solid-tumour trials (HRO761 PMID 38658754)."
+    ),
+    ("WRN", "UCEC"): (
+        "Validated-context WRN ↔ MSI-H synthetic lethality (Chan 2019 PMID 30971823); WRN "
+        "inhibitors in MSI-H solid-tumour trials (HRO761 PMID 38658754)."
+    ),
+    ("KRAS", "COADREAD"): (
+        "Functionally-validated combination biology: KRAS ↔ SHP2/PTPN11 (Ruess 2018 PMID "
+        "29808009; Mainardi 2018 PMID 29808006; Nichols 2018 PMID 30104724) + SOS1 "
+        "(BI-3406, Hofmann 2021 PMID 32816843); NF1 loss is a mechanistically-clean "
+        "resistance mediator (Awad 2021 PMID 34161704). Leading clinical KRASi combination "
+        "strategy (not yet approved) — NOT a statistical over-call."
+    ),
+    ("KRAS", "PAAD"): (
+        "Functionally-validated KRAS ↔ SHP2/PTPN11 + SOS1 combination biology (Ruess/Mainardi "
+        "2018 PMID 29808009/29808006; Nichols 2018 PMID 30104724). NOT an over-call."
+    ),
+    ("KRAS", "LUAD"): (
+        "Functionally-validated KRAS ↔ SHP2/PTPN11 + SOS1 combination biology (Mainardi 2018 "
+        "PMID 29808006 — SHP2 required for KRAS-mutant NSCLC in vivo). NOT an over-call."
+    ),
 }
 
 # Canonical PARALOG synthetic-lethal pairs — a CONSTITUTIVE genetic-buffering SL (loss of one paralog makes
@@ -69,32 +90,59 @@ VALIDATED_COMBINATION_PRECEDENT = {
 # so membership here must NOT suppress the druggability caveat (which keys only on
 # VALIDATED_COMBINATION_PRECEDENT). key target -> (paralog_partner, detail).
 VALIDATED_PARALOG_SL = {
-    "SMARCA4": ("SMARCA2", "Canonical paralog synthetic lethality: SMARCA4(BRG1)-loss ↔ SMARCA2(BRM) "
-                "(Oike 2013 PMID 23872584; Hoffman 2014 PMID 24520176). NOT a statistical over-call — "
-                "orthogonally validated; SMARCA2 needs a DEGRADER (PROTAC Farnaby 2019 PMID 31178587). NB "
-                "DepMap ParalogV2 UNDER-calls this pair (reads no_interaction) — the guard is data-blind-tolerant."),
-    "SMARCA2": ("SMARCA4", "Canonical paralog synthetic lethality: SMARCA2 ↔ SMARCA4 (Hoffman 2014 PMID "
-                "24520176). NOT an over-call."),
-    "ARID1A":  ("ARID1B", "Canonical paralog synthetic lethality: ARID1A-loss ↔ ARID1B (Helming 2014 PMID "
-                "24562383). NOT an over-call — ARID1B is a non-enzymatic BAF scaffold (degrader / PPI modality)."),
-    "ARID1B":  ("ARID1A", "Canonical paralog synthetic lethality: ARID1B ↔ ARID1A (Helming 2014 PMID "
-                "24562383). NOT an over-call."),
-    "STAG2":   ("STAG1", "Canonical paralog synthetic lethality: STAG2-mutant ↔ STAG1 (van der Lelij 2017 "
-                "PMID 28691904; Benedetti 2017 PMID 28430577). NOT a statistical over-call — genetically "
-                "validated; STAG1 is a HEAT-repeat cohesin SCAFFOLD (no catalytic pocket → a DEGRADER is required)."),
-    "STAG1":   ("STAG2", "Canonical paralog synthetic lethality: STAG1 ↔ STAG2 (van der Lelij 2017 PMID "
-                "28691904). NOT an over-call."),
-    "CDK4":    ("CDK6", "Canonical paralog co-dependency / functional redundancy: CDK4 ↔ CDK6 (cyclin D–CDK4/6–"
-                "RB axis) — recovered as an SL paralog pair (Parrish 2021 PMID 34469736), and the therapeutic "
-                "paradigm is deliberately DUAL CDK4/6 inhibition (palbociclib class). NOT a statistical "
-                "over-call. NB the partner is DRUGGABLE (a small-molecule CDK4/6 inhibitor, not a degrader) — so "
-                "CDK4/CDK6 are absent from the scaffold-undruggable set (KO IS reproduced by inhibition here)."),
-    "CDK6":    ("CDK4", "Canonical paralog co-dependency: CDK6 ↔ CDK4 (dual CDK4/6 inhibition; Parrish 2021 "
-                "PMID 34469736). NOT an over-call — druggable (CDK4/6 inhibitor)."),
-    "VPS4A":   ("VPS4B", "Canonical deleted-paralog synthetic lethality: VPS4A ↔ VPS4B (well-established "
-                "18q/VPS4B-loss paralog dependency; PMID-verification pending — not cited from this arc's review)."),
-    "VPS4B":   ("VPS4A", "Canonical deleted-paralog synthetic lethality: VPS4B-loss ↔ VPS4A (PMID-verification "
-                "pending — not cited from this arc's review)."),
+    "SMARCA4": (
+        "SMARCA2",
+        "Canonical paralog synthetic lethality: SMARCA4(BRG1)-loss ↔ SMARCA2(BRM) "
+        "(Oike 2013 PMID 23872584; Hoffman 2014 PMID 24520176). NOT a statistical over-call — "
+        "orthogonally validated; SMARCA2 needs a DEGRADER (PROTAC Farnaby 2019 PMID 31178587). NB "
+        "DepMap ParalogV2 UNDER-calls this pair (reads no_interaction) — the guard is data-blind-tolerant.",
+    ),
+    "SMARCA2": (
+        "SMARCA4",
+        "Canonical paralog synthetic lethality: SMARCA2 ↔ SMARCA4 (Hoffman 2014 PMID 24520176). NOT an over-call.",
+    ),
+    "ARID1A": (
+        "ARID1B",
+        "Canonical paralog synthetic lethality: ARID1A-loss ↔ ARID1B (Helming 2014 PMID "
+        "24562383). NOT an over-call — ARID1B is a non-enzymatic BAF scaffold (degrader / PPI modality).",
+    ),
+    "ARID1B": (
+        "ARID1A",
+        "Canonical paralog synthetic lethality: ARID1B ↔ ARID1A (Helming 2014 PMID 24562383). NOT an over-call.",
+    ),
+    "STAG2": (
+        "STAG1",
+        "Canonical paralog synthetic lethality: STAG2-mutant ↔ STAG1 (van der Lelij 2017 "
+        "PMID 28691904; Benedetti 2017 PMID 28430577). NOT a statistical over-call — genetically "
+        "validated; STAG1 is a HEAT-repeat cohesin SCAFFOLD (no catalytic pocket → a DEGRADER is required).",
+    ),
+    "STAG1": (
+        "STAG2",
+        "Canonical paralog synthetic lethality: STAG1 ↔ STAG2 (van der Lelij 2017 PMID 28691904). NOT an over-call.",
+    ),
+    "CDK4": (
+        "CDK6",
+        "Canonical paralog co-dependency / functional redundancy: CDK4 ↔ CDK6 (cyclin D–CDK4/6–"
+        "RB axis) — recovered as an SL paralog pair (Parrish 2021 PMID 34469736), and the therapeutic "
+        "paradigm is deliberately DUAL CDK4/6 inhibition (palbociclib class). NOT a statistical "
+        "over-call. NB the partner is DRUGGABLE (a small-molecule CDK4/6 inhibitor, not a degrader) — so "
+        "CDK4/CDK6 are absent from the scaffold-undruggable set (KO IS reproduced by inhibition here).",
+    ),
+    "CDK6": (
+        "CDK4",
+        "Canonical paralog co-dependency: CDK6 ↔ CDK4 (dual CDK4/6 inhibition; Parrish 2021 "
+        "PMID 34469736). NOT an over-call — druggable (CDK4/6 inhibitor).",
+    ),
+    "VPS4A": (
+        "VPS4B",
+        "Canonical deleted-paralog synthetic lethality: VPS4A ↔ VPS4B (well-established "
+        "18q/VPS4B-loss paralog dependency; PMID-verification pending — not cited from this arc's review).",
+    ),
+    "VPS4B": (
+        "VPS4A",
+        "Canonical deleted-paralog synthetic lethality: VPS4B-loss ↔ VPS4A (PMID-verification "
+        "pending — not cited from this arc's review).",
+    ),
 }
 
 # Curated common-essential / pan-essential machinery — a co-dependency with one of these is a CORE-FITNESS
@@ -102,13 +150,50 @@ VALIDATED_PARALOG_SL = {
 # druggable SL (Hart CEG/CEG2 2015/2017 PMID 26627737/28655737; Behan Project Score demotes these PMID
 # 30971826). Prefix match covers ribosome (RPL/RPS/MRPL/MRPS), proteasome (PSM), translation (EIF/EEF),
 # RNA-pol (POLR), spliceosome (SNRN/SNRP/PRPF); the explicit set adds named core essentials. DISCLAIMED.
-PAN_ESSENTIAL_PREFIXES = ("RPL", "RPS", "MRPL", "MRPS", "PSM", "EIF", "EEF", "POLR",
-                          "SNRN", "SNRP", "PRPF", "NDUF")
+PAN_ESSENTIAL_PREFIXES = ("RPL", "RPS", "MRPL", "MRPS", "PSM", "EIF", "EEF", "POLR", "SNRN", "SNRP", "PRPF", "NDUF")
 PAN_ESSENTIAL_GENES = {
-    "SF3B1", "SF3A1", "U2AF1", "U2AF2", "XAB2", "AQR", "HSPA9", "RUVBL1", "RUVBL2", "RAN", "RANGAP1",
-    "NACA", "CCT2", "TCP1", "VCP", "RRM1", "RRM2", "POLD1", "POLE", "PCNA", "RPA1", "RPA2",
-    "CDK1", "PLK1", "AURKA", "AURKB", "KIF11", "BUB1B", "TOP2A", "ANAPC", "CDC20", "MYC", "MAX",
-    "SNRPD1", "SNRPD2", "SNRPD3", "COPB1", "COPB2", "COPA", "SEC61A1", "NUP", "GAPDH",
+    "SF3B1",
+    "SF3A1",
+    "U2AF1",
+    "U2AF2",
+    "XAB2",
+    "AQR",
+    "HSPA9",
+    "RUVBL1",
+    "RUVBL2",
+    "RAN",
+    "RANGAP1",
+    "NACA",
+    "CCT2",
+    "TCP1",
+    "VCP",
+    "RRM1",
+    "RRM2",
+    "POLD1",
+    "POLE",
+    "PCNA",
+    "RPA1",
+    "RPA2",
+    "CDK1",
+    "PLK1",
+    "AURKA",
+    "AURKB",
+    "KIF11",
+    "BUB1B",
+    "TOP2A",
+    "ANAPC",
+    "CDC20",
+    "MYC",
+    "MAX",
+    "SNRPD1",
+    "SNRPD2",
+    "SNRPD3",
+    "COPB1",
+    "COPB2",
+    "COPA",
+    "SEC61A1",
+    "NUP",
+    "GAPDH",
 }
 
 
@@ -147,9 +232,14 @@ def validated_paralog_sl(target):
 
 
 __all__ = [
-    "COMBO_IND_ALIAS", "norm_ind",
-    "VALIDATED_COMBINATION_PRECEDENT", "VALIDATED_PARALOG_SL",
-    "PAN_ESSENTIAL_PREFIXES", "PAN_ESSENTIAL_GENES", "is_pan_essential",
+    "COMBO_IND_ALIAS",
+    "norm_ind",
+    "VALIDATED_COMBINATION_PRECEDENT",
+    "VALIDATED_PARALOG_SL",
+    "PAN_ESSENTIAL_PREFIXES",
+    "PAN_ESSENTIAL_GENES",
+    "is_pan_essential",
     "SCAFFOLD_UNDRUGGABLE_PARTNERS",
-    "validated_combination_precedent", "validated_paralog_sl",
+    "validated_combination_precedent",
+    "validated_paralog_sl",
 ]

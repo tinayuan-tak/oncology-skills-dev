@@ -5,6 +5,7 @@ AND on its within-panel position. The schema already types key_evidence.interpre
 verifies the builder projects every frame, drops frames whose value is absent, and stays back-compatible
 with a single dict frame. Verdict-INERT / display-only.
 """
+
 import sys
 from pathlib import Path
 
@@ -14,12 +15,22 @@ if str(SKILLS) not in sys.path:
 
 from _skills_common.evidence_salience import build_interpretation  # noqa: E402
 
-_PERCENTILE_FRAME = {"kind": "distance_to_cut", "value_field": "allgene_percentile", "scale": "percentile",
-                     "position_field": "allgene_percentile_class"}
-_PANEL_FRAME = {"kind": "floor_cut_ceiling", "value_field": "median_log2tpm_panel", "scale": "log2tpm",
-                "position_field": "expression_class",
-                "anchors": [{"role": "floor", "field": "p5_log2tpm_panel", "label": "p5"},
-                            {"role": "ceiling", "field": "p95_log2tpm_panel", "label": "p95"}]}
+_PERCENTILE_FRAME = {
+    "kind": "distance_to_cut",
+    "value_field": "allgene_percentile",
+    "scale": "percentile",
+    "position_field": "allgene_percentile_class",
+}
+_PANEL_FRAME = {
+    "kind": "floor_cut_ceiling",
+    "value_field": "median_log2tpm_panel",
+    "scale": "log2tpm",
+    "position_field": "expression_class",
+    "anchors": [
+        {"role": "floor", "field": "p5_log2tpm_panel", "label": "p5"},
+        {"role": "ceiling", "field": "p95_log2tpm_panel", "label": "p95"},
+    ],
+}
 
 
 def _spec(*frames):
@@ -27,9 +38,14 @@ def _spec(*frames):
 
 
 def test_list_frame_projects_every_measured_ruler():
-    summary = {"allgene_percentile": 96.4, "allgene_percentile_class": "top_decile",
-               "median_log2tpm_panel": 6.2, "expression_class": "broadly_expressed",
-               "p5_log2tpm_panel": 0.1, "p95_log2tpm_panel": 8.0}
+    summary = {
+        "allgene_percentile": 96.4,
+        "allgene_percentile_class": "top_decile",
+        "median_log2tpm_panel": 6.2,
+        "expression_class": "broadly_expressed",
+        "p5_log2tpm_panel": 0.1,
+        "p95_log2tpm_panel": 8.0,
+    }
     gv = build_interpretation({}, summary, _spec(_PERCENTILE_FRAME, _PANEL_FRAME))
     assert len(gv) == 2, f"expected two rulers, got {[g['metric'] for g in gv]}"
     assert [g["metric"] for g in gv] == ["allgene_percentile", "median_log2tpm_panel"]  # order preserved

@@ -3,6 +3,7 @@ the target decision as a node/edge graph (composed analog of the per-subskill de
 A PURE PROJECTION over target_report — verdict + skill nodes + typed cross-lens edges that reference existing
 rollups by `ref`. Verdict-inert / display-only.
 """
+
 import json
 import os
 import sys
@@ -21,26 +22,51 @@ def _target_report() -> dict:
     return {
         "schema": "target_report.v1",
         "skill_reports": {
-            "safety": {"role": "gating", "call": "highly_constrained_safety_concern", "polarity": "killer",
-                       "confidence": {"level": "moderate"},
-                       "evidence_graph": {"literature": {"overall_consistency": "concordant"}}},
-            "dependency": {"role": "gating", "call": "selective_dependency", "polarity": "supportive",
-                           "confidence": {"level": "high"}},
-            "expression": {"role": "gating", "call": "tumor_broadly_expressed", "polarity": "supportive",
-                           "confidence": {"level": "moderate"}},
+            "safety": {
+                "role": "gating",
+                "call": "highly_constrained_safety_concern",
+                "polarity": "killer",
+                "confidence": {"level": "moderate"},
+                "evidence_graph": {"literature": {"overall_consistency": "concordant"}},
+            },
+            "dependency": {
+                "role": "gating",
+                "call": "selective_dependency",
+                "polarity": "supportive",
+                "confidence": {"level": "high"},
+            },
+            "expression": {
+                "role": "gating",
+                "call": "tumor_broadly_expressed",
+                "polarity": "supportive",
+                "confidence": {"level": "moderate"},
+            },
         },
         "target_call": {
-            "recommendation": "hold", "confidence": {"level": "moderate"},
-            "deciding_axis": {"basis": "gate_fired",
-                              "deciding_axis": {"short": "safety", "gate": None, "gate_name": "On-target safety"}},
-            "dissent": [{"source": "target_rollup.block",
-                         "detail": "dependency supportive overruled by safety", "resolved_to": "hold"}],
+            "recommendation": "hold",
+            "confidence": {"level": "moderate"},
+            "deciding_axis": {
+                "basis": "gate_fired",
+                "deciding_axis": {"short": "safety", "gate": None, "gate_name": "On-target safety"},
+            },
+            "dissent": [
+                {
+                    "source": "target_rollup.block",
+                    "detail": "dependency supportive overruled by safety",
+                    "resolved_to": "hold",
+                }
+            ],
         },
-        "risk_6dim": {"safety": {"pillar": "Right Safety", "bin": "HIGH"},
-                      "biological": {"pillar": "Right Target", "bin": "LOW"}},
-        "modality_fit": {"by_channel": {
-            "small_molecule": {"fit": "unfavorable", "limiting_axis": "safety", "by_axis": {}},
-            "adc": {"fit": "na", "limiting_axis": None, "by_axis": {}}}},
+        "risk_6dim": {
+            "safety": {"pillar": "Right Safety", "bin": "HIGH"},
+            "biological": {"pillar": "Right Target", "bin": "LOW"},
+        },
+        "modality_fit": {
+            "by_channel": {
+                "small_molecule": {"fit": "unfavorable", "limiting_axis": "safety", "by_axis": {}},
+                "adc": {"fit": "na", "limiting_axis": None, "by_axis": {}},
+            }
+        },
         "subtype_convergence": {"convergent_subtypes": ["MSI_H"]},
     }
 
@@ -57,7 +83,7 @@ def test_verdict_and_skill_nodes(eg):
     nodes = {s["short"]: s for s in eg["skills"]}
     assert set(nodes) == {"safety", "dependency", "expression"}
     assert nodes["safety"]["deciding"] is True
-    assert nodes["safety"]["lens"] == "risk"                    # SKILL_TOPICAL_LENS
+    assert nodes["safety"]["lens"] == "risk"  # SKILL_TOPICAL_LENS
     assert nodes["safety"]["has_evidence_graph"] is True
     assert nodes["safety"]["literature_consistency"] == "concordant"
     assert nodes["dependency"]["lens"] == "signals"
@@ -85,17 +111,20 @@ def test_typed_referential_integrity(eg):
     shorts = {s["short"] for s in eg["skills"]}
     for e in eg["edges"]:
         if e["type"] == "deciding_axis":
-            assert e["to"] in shorts                            # deciding edge targets a real skill node
+            assert e["to"] in shorts  # deciding edge targets a real skill node
         if e["type"] == "modality_fit" and e["from"] is not None:
-            assert e["from"] in shorts                          # limiting axis is a real skill node
+            assert e["from"] in shorts  # limiting axis is a real skill node
 
 
 def test_build_target_report_attaches_the_index():
     tr = _target_report()
     report = build_target_report(
-        target_call=tr["target_call"], skill_reports=tr["skill_reports"],
-        risk_rollup=tr["risk_6dim"], modality_fit_by_channel=tr["modality_fit"]["by_channel"],
-        subtype_facet=tr["subtype_convergence"])
+        target_call=tr["target_call"],
+        skill_reports=tr["skill_reports"],
+        risk_rollup=tr["risk_6dim"],
+        modality_fit_by_channel=tr["modality_fit"]["by_channel"],
+        subtype_facet=tr["subtype_convergence"],
+    )
     assert isinstance(report.get("evidence_graph"), dict)
     assert report["evidence_graph"]["schema"] == "composed_evidence_graph.v1"
     assert report["evidence_graph"]["verdict"]["recommendation"] == "hold"
@@ -114,4 +143,5 @@ def test_validates_against_contracts_schema(eg):
     if not schema_path or not schema_path.exists():
         pytest.skip("composed_evidence_graph.schema.json not found (pin TARGET_CONTRACTS_ROOT)")
     import jsonschema
+
     jsonschema.validate(eg, json.loads(schema_path.read_text()))

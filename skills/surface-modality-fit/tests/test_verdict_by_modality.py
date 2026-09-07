@@ -13,6 +13,7 @@ Pins the load-bearing properties:
   (4) the arms ride in the headline_block hero payload (rendered surface), the 5 evidence axes untouched.
 All pure (no S3).
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -27,8 +28,9 @@ def test_every_resolver_token_is_mapped():
     """The set of mapped tokens must cover every verdict the surface_modality resolver can emit — the
     union of run.py's own strength buckets (which enumerate the vocab). A token missing from the map
     would silently project to all-insufficient (an honest but lossy fallback we must not hit blindly)."""
-    resolver_tokens = (_M._SM_STRONG_POS | _M._SM_MOD_POS | _M._SM_WEAK_POS | _M._SM_NEG
-                       | {t for t in _M._SM_NONE if t is not None})
+    resolver_tokens = (
+        _M._SM_STRONG_POS | _M._SM_MOD_POS | _M._SM_WEAK_POS | _M._SM_NEG | {t for t in _M._SM_NONE if t is not None}
+    )
     mapped = set(_M._VERDICT_ARMS)
     missing = resolver_tokens - mapped
     assert not missing, f"resolver tokens missing a per-modality-arm mapping: {sorted(missing)}"
@@ -69,7 +71,7 @@ def test_density_and_shed_hit_every_binder_arm():
 def test_projection_is_pure_function_of_token():
     a = _M._surface_verdict_by_modality("adc_preferred_tce_unsafe")
     b = _M._surface_verdict_by_modality("adc_preferred_tce_unsafe")
-    assert a == b and a is not b   # fresh dict per call, deterministic
+    assert a == b and a is not b  # fresh dict per call, deterministic
 
 
 # ── (4) the arms ride in the headline_block hero, evidence axes untouched ────────────────────────
@@ -79,8 +81,9 @@ def test_arms_surface_in_headline_block_hero():
         "surface_modality_verdict_by_modality": _M._surface_verdict_by_modality("adc_preferred_tce_unsafe"),
         "fit_class": "both_viable",
         "driving_rule_id": "sc-normal-high-liability-bite-killer",
-        "claim_vector": {k: {"signal": "strong", "corroboration": "high"} for k in
-                         ("FIT", "TOPOLOGY", "DENSITY", "SAFETY", "SHED")},
+        "claim_vector": {
+            k: {"signal": "strong", "corroboration": "high"} for k in ("FIT", "TOPOLOGY", "DENSITY", "SAFETY", "SHED")
+        },
         "key_signals": {},
     }
     blk = _M._build_headline_block(headline)

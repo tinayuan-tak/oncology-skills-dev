@@ -28,6 +28,7 @@ class — never a passenger_pattern / insufficient collapse. The frozen fixtures
 nightly-live re-freeze (card-behavior-matrix-nightly), which guards the snapshots themselves against reader
 drift. Mirror of the tumor-selectivity and tumor-presence replay tests.
 """
+
 from __future__ import annotations
 
 import copy
@@ -57,18 +58,24 @@ _COLLAPSED = {None, "", "insufficient", "data_unavailable", "passenger_pattern"}
 # The positive driver classes the genomic_alteration resolver can emit (grep of
 # resolvers/genomic_alteration.resolver.yaml). A known driver must resolve to one of these.
 _DRIVER_OUTCOMES = {
-    "confirmed_driver", "multi_class_driver", "biomarker_stratified_dependency",
-    "moderate_biomarker_dependency", "recurrent_amplification_driver",
-    "recurrent_deletion_driver", "recurrent_fusion_driver", "drug_response_biomarker",
-    "missense_dominant_pattern", "lof_dominant_pattern", "mixed_pattern",
+    "confirmed_driver",
+    "multi_class_driver",
+    "biomarker_stratified_dependency",
+    "moderate_biomarker_dependency",
+    "recurrent_amplification_driver",
+    "recurrent_deletion_driver",
+    "recurrent_fusion_driver",
+    "drug_response_biomarker",
+    "missense_dominant_pattern",
+    "lof_dominant_pattern",
+    "mixed_pattern",
     "recurrent_snv_driver",
 }
 
 
 def _real_summary(s) -> bool:
     """A frozen entry is a REAL reader summary (not a freeze/dispatcher error, not empty)."""
-    return (isinstance(s, dict) and bool(s)
-            and not s.get("_freeze_error") and not s.get("_dispatcher_returned_none"))
+    return isinstance(s, dict) and bool(s) and not s.get("_freeze_error") and not s.get("_dispatcher_returned_none")
 
 
 def _load_fixture(pair_id: str) -> dict:
@@ -94,20 +101,21 @@ def _decision(pair_id: str, target: str, indication: str) -> dict:
         def _read_live(card_id, target_, indication_, *args, **kwargs):
             s = frozen.get(card_id)
             if not _real_summary(s):
-                return None                       # → resolve_cards marks the card _missing (honest)
-            return copy.deepcopy(s)               # deepcopy: run.py must not mutate the shared fixture
+                return None  # → resolve_cards marks the card _missing (honest)
+            return copy.deepcopy(s)  # deepcopy: run.py must not mutate the shared fixture
+
         return _read_live
 
     import tempfile
+
     out_dir = Path(tempfile.mkdtemp(prefix=f"gap-{pair_id}-"))
     mp = pytest.MonkeyPatch()
-    mp.delenv("FRAMEWORK_HEALTH_SMOKE", raising=False)   # else resolve_cards short-circuits to stubs
+    mp.delenv("FRAMEWORK_HEALTH_SMOKE", raising=False)  # else resolve_cards short-circuits to stubs
     mp.setattr(skc, "_import_dispatcher", _fake_dispatcher_factory)
-    mp.setattr(sys, "argv", ["run.py", "--target", target, "--indication", indication,
-                             "--out", str(out_dir)])
+    mp.setattr(sys, "argv", ["run.py", "--target", target, "--indication", indication, "--out", str(out_dir)])
     try:
         runpy.run_path(str(RUN_PY), run_name="__main__")
-    except SystemExit as e:                        # run.py ends in sys.exit(main())
+    except SystemExit as e:  # run.py ends in sys.exit(main())
         assert e.code in (0, None), f"run.py exited non-zero ({e.code}) on the {pair_id} replay"
     finally:
         mp.undo()
@@ -139,7 +147,8 @@ def test_replay_conforms_to_data_product_schema(pair_id, target, indication):
         pytest.fail(reason + " [CI]") if os.environ.get("CI") else pytest.skip(reason)
     errors = conformance_errors(schema, _decision(pair_id, target, indication))
     assert not errors, f"FRESH {pair_id} emit violates the data-product schema:\n  " + "\n  ".join(
-        f"{list(e.path)}: {e.message}" for e in errors[:15])
+        f"{list(e.path)}: {e.message}" for e in errors[:15]
+    )
 
 
 @pytest.mark.parametrize("pair_id,target,indication", [KRAS, BRAF], ids=["kras", "braf"])
@@ -152,7 +161,8 @@ def test_fixture_is_nonvacuous(pair_id, target, indication):
     real = [cid for cid, s in frozen.items() if _real_summary(s)]
     assert len(real) >= 10, (
         f"only {len(real)}/{len(frozen)} frozen cards carry a real summary for {pair_id} — refreeze "
-        f"against live S3 (freeze_fixture.py). Real cards: {sorted(real)}")
+        f"against live S3 (freeze_fixture.py). Real cards: {sorted(real)}"
+    )
 
 
 @pytest.mark.parametrize("pair_id,target,indication", [KRAS, BRAF], ids=["kras", "braf"])
@@ -169,10 +179,12 @@ def test_verdict_does_not_collapse(pair_id, target, indication):
     assert cls not in _COLLAPSED, (
         f"genomic_alteration_profile={cls!r} collapsed for {target}/{indication} — suspect a rule that "
         f"stopped firing because a reader renamed a field it keys on (the driver→passenger false-negative "
-        f"this replay exists to catch).")
+        f"this replay exists to catch)."
+    )
     assert cls in _DRIVER_OUTCOMES, (
         f"genomic_alteration_profile={cls!r} is not a positive driver class for known driver "
-        f"{target}/{indication} (expected one of {sorted(_DRIVER_OUTCOMES)}).")
+        f"{target}/{indication} (expected one of {sorted(_DRIVER_OUTCOMES)})."
+    )
     assert h.get("driving_rule_id"), "resolved a verdict but driving_rule_id is empty — inconsistent spine."
 
 
@@ -186,7 +198,8 @@ def test_headline_resolves_broadly(pair_id, target, indication):
     non_null = [k for k, v in h.items() if v not in (None, "", [], "data_unavailable")]
     assert len(non_null) >= 15, (
         f"only {len(non_null)}/{len(h)} headline fields resolved for {target}/{indication} — suspect a "
-        f"reader field-name drift (headline get -> None). Non-null keys: {sorted(non_null)}")
+        f"reader field-name drift (headline get -> None). Non-null keys: {sorted(non_null)}"
+    )
 
 
 # ── canonical HEADLINE block (verdict + confidence + top tension) ─────────────────────────────────
@@ -204,7 +217,8 @@ def test_headline_block_present_and_non_degraded(pair_id, target, indication):
     h = d.get("headline") or {}
     # the projection must not have degraded to an enrichment error
     assert (h.get("_enrichment_errors") or {}).get("headline_block") is None, (
-        f"headline_block degraded for {target}/{indication}: {h.get('_enrichment_errors')}")
+        f"headline_block degraded for {target}/{indication}: {h.get('_enrichment_errors')}"
+    )
     block = h.get("headline_block")
     assert isinstance(block, dict), f"no headline_block dict for {target}/{indication}"
 
@@ -212,7 +226,7 @@ def test_headline_block_present_and_non_degraded(pair_id, target, indication):
     verdict = block.get("verdict") or {}
     assert verdict.get("call") == h.get("genomic_alteration_profile")
     assert verdict.get("gate") == "genomic_alteration"
-    assert verdict.get("phrase")            # a human phrase was assigned
+    assert verdict.get("phrase")  # a human phrase was assigned
     assert verdict.get("polarity") in {"positive", "negative", "neutral"}
 
     # confidence.level is a valid tier

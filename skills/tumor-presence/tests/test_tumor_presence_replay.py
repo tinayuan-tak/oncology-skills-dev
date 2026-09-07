@@ -22,6 +22,7 @@ present in colorectal tumor (a stable measured-positive), in the single indicati
 bucket coverage (paired tumor-adjacent RNA, CPTAC COAD protein, single-cell, subtype shard). All 14
 cards resolve and 5 of 7 buckets are measured, giving the strongest possible drift floor.
 """
+
 from __future__ import annotations
 
 import copy
@@ -55,8 +56,7 @@ def _load_fixture() -> dict:
 
 def _real_summary(s) -> bool:
     """A frozen entry is a REAL reader summary (not a freeze/dispatcher error, not empty)."""
-    return (isinstance(s, dict) and bool(s)
-            and not s.get("_freeze_error") and not s.get("_dispatcher_returned_none"))
+    return isinstance(s, dict) and bool(s) and not s.get("_freeze_error") and not s.get("_dispatcher_returned_none")
 
 
 def _rna_presence_positive() -> frozenset:
@@ -77,19 +77,19 @@ def epcam_decision(tmp_path_factory):
         def _read_live(card_id, target, indication, *args, **kwargs):
             s = frozen.get(card_id)
             if not _real_summary(s):
-                return None                       # → resolve_cards marks the card _missing (honest)
-            return copy.deepcopy(s)               # deepcopy: run.py must not mutate the shared fixture
+                return None  # → resolve_cards marks the card _missing (honest)
+            return copy.deepcopy(s)  # deepcopy: run.py must not mutate the shared fixture
+
         return _read_live
 
     out_dir = tmp_path_factory.mktemp("tp-epcam-replay")
     mp = pytest.MonkeyPatch()
-    mp.delenv("FRAMEWORK_HEALTH_SMOKE", raising=False)   # else resolve_cards short-circuits to stubs
+    mp.delenv("FRAMEWORK_HEALTH_SMOKE", raising=False)  # else resolve_cards short-circuits to stubs
     mp.setattr(skc, "_import_dispatcher", _fake_dispatcher_factory)
-    mp.setattr(sys, "argv", ["run.py", "--target", "EPCAM", "--indication", "COADREAD",
-                             "--out", str(out_dir)])
+    mp.setattr(sys, "argv", ["run.py", "--target", "EPCAM", "--indication", "COADREAD", "--out", str(out_dir)])
     try:
         runpy.run_path(str(RUN_PY), run_name="__main__")
-    except SystemExit as e:                        # run.py ends in sys.exit(run_wired_skill(...))
+    except SystemExit as e:  # run.py ends in sys.exit(run_wired_skill(...))
         assert e.code in (0, None), f"run.py exited non-zero ({e.code}) on the frozen EPCAM replay"
     finally:
         mp.undo()
@@ -107,7 +107,8 @@ def test_fixture_is_nonvacuous():
     real = [cid for cid, s in frozen.items() if _real_summary(s)]
     assert len(real) >= 12, (
         f"only {len(real)}/{len(frozen)} frozen cards carry a real summary — refreeze against live "
-        f"S3 (freeze_fixture.py). Real cards: {sorted(real)}")
+        f"S3 (freeze_fixture.py). Real cards: {sorted(real)}"
+    )
 
 
 def test_replay_conforms_to_data_product_schema(epcam_decision):
@@ -124,7 +125,8 @@ def test_replay_conforms_to_data_product_schema(epcam_decision):
         pytest.fail(reason + " [CI]") if os.environ.get("CI") else pytest.skip(reason)
     errors = conformance_errors(schema, epcam_decision)
     assert not errors, "FRESH replay emit violates the data-product schema:\n  " + "\n  ".join(
-        f"{list(e.path)}: {e.message}" for e in errors[:15])
+        f"{list(e.path)}: {e.message}" for e in errors[:15]
+    )
 
 
 def test_replay_verdict_resolves_positive(epcam_decision):
@@ -139,9 +141,11 @@ def test_replay_verdict_resolves_positive(epcam_decision):
         f"presence_verdict={verdict!r} is not a measured-positive RNA call for EPCAM/COADREAD — "
         f"suspect a rule that stopped firing because a reader renamed a field it keys on "
         f"(the false-negative collapse this replay exists to catch). driving_rule_id="
-        f"{headline.get('driving_rule_id')!r}.")
+        f"{headline.get('driving_rule_id')!r}."
+    )
     assert headline.get("driving_rule_id"), (
-        "presence_verdict resolved positive but driving_rule_id is empty — inconsistent verdict spine.")
+        "presence_verdict resolved positive but driving_rule_id is empty — inconsistent verdict spine."
+    )
 
 
 def test_replay_per_modality_buckets_measured(epcam_decision):
@@ -153,11 +157,13 @@ def test_replay_per_modality_buckets_measured(epcam_decision):
     backbone = pm.get("bulk_rna/cell_line") or {}
     assert backbone.get("evidence_state") == "measured", (
         f"bulk_rna/cell_line bucket is {backbone.get('evidence_state')!r}, not 'measured' — the RNA "
-        f"backbone that drives EPCAM's presence verdict stopped firing (reader/rule drift).")
+        f"backbone that drives EPCAM's presence verdict stopped firing (reader/rule drift)."
+    )
     measured = [k for k, b in pm.items() if isinstance(b, dict) and b.get("evidence_state") == "measured"]
     assert len(measured) >= 4, (
         f"only {len(measured)} measured buckets ({sorted(measured)}) for EPCAM/COADREAD (expected 5) "
-        f"— a block of rules stopped firing over the real summaries.")
+        f"— a block of rules stopped firing over the real summaries."
+    )
 
 
 def test_replay_sc_heterogeneity_fields_wired(epcam_decision):
@@ -166,14 +172,24 @@ def test_replay_sc_heterogeneity_fields_wired(epcam_decision):
     before the fields existed — the nightly live re-freeze populates real values). When the fixture DOES
     carry a value, the escape class must be a member of the declared vocabulary."""
     h = epcam_decision.get("headline") or {}
-    for k in ("sc_within_tumor_coverage_class", "sc_inter_donor_consistency_class",
-              "sc_tce_antigen_escape_class", "sc_malignant_detection_donor_iqr",
-              "sc_fraction_donors_broadly_detecting"):
+    for k in (
+        "sc_within_tumor_coverage_class",
+        "sc_inter_donor_consistency_class",
+        "sc_tce_antigen_escape_class",
+        "sc_malignant_detection_donor_iqr",
+        "sc_fraction_donors_broadly_detecting",
+    ):
         assert k in h, f"{k} not surfaced into the presence headline (sc-heterogeneity wiring drift)"
     esc = h.get("sc_tce_antigen_escape_class")
     if esc is not None:
-        assert esc in {"escape_risk_low", "escape_risk_moderate", "escape_risk_patient_variable",
-                       "escape_risk_high", "coverage_high_donor_underpowered", "data_unavailable"}
+        assert esc in {
+            "escape_risk_low",
+            "escape_risk_moderate",
+            "escape_risk_patient_variable",
+            "escape_risk_high",
+            "coverage_high_donor_underpowered",
+            "data_unavailable",
+        }
 
 
 def test_replay_cptac_standardized_effect_wired(epcam_decision):
@@ -181,8 +197,12 @@ def test_replay_cptac_standardized_effect_wired(epcam_decision):
     headline. EPCAM/COADREAD CPTAC is `ns` with a tiny raw effect (0.065) — the standardized class is
     `negligible` (Cohen's d ~0.16), recovered via the p-value approximation on the current product."""
     h = epcam_decision.get("headline") or {}
-    for k in ("protein_effect_standardized_class", "protein_effect_cohens_d",
-              "protein_effect_standardized_t", "protein_effect_standardized_method"):
+    for k in (
+        "protein_effect_standardized_class",
+        "protein_effect_cohens_d",
+        "protein_effect_standardized_t",
+        "protein_effect_standardized_method",
+    ):
         assert k in h, f"{k} not surfaced into the presence headline (cptac-standardized wiring drift)"
     assert h.get("protein_effect_standardized_class") == "negligible"
     assert h.get("protein_effect_standardized_method") == "pvalue_zscore_approx"
@@ -204,10 +224,11 @@ def test_replay_robustness_guards_wired(epcam_decision):
     h = epcam_decision.get("headline") or {}
     assert h.get("abundance_floor_flag") == "adequate_abundance", (
         f"expected adequate_abundance (#980 surface-class re-anchor: lone Gygi bottom-decile recovered by "
-        f"ProCan for the EPCAM surface antigen); got {h.get('abundance_floor_flag')!r}")
+        f"ProCan for the EPCAM surface antigen); got {h.get('abundance_floor_flag')!r}"
+    )
     assert not (h.get("abundance_floor_low_lenses") or []), (
-        "a surface-class re-anchor to adequate leaves NO low lenses (Gygi-low is a class under-read, "
-        "not a floor)")
+        "a surface-class re-anchor to adequate leaves NO low lenses (Gygi-low is a class under-read, not a floor)"
+    )
     assert h.get("presence_headline_conflict") is False
     assert h.get("presence_headline_conflict_note") is None
     assert h.get("presence_abundance_is_relative") is True
@@ -222,7 +243,8 @@ def test_replay_headline_resolves_broadly(epcam_decision):
     non_null = [k for k, v in headline.items() if v not in (None, "", [], "data_unavailable")]
     assert len(non_null) >= 30, (
         f"only {len(non_null)}/{len(headline)} headline fields resolved for the frozen EPCAM replay — "
-        f"suspect a reader field-name drift (get_card_field -> None). Non-null keys: {sorted(non_null)}")
+        f"suspect a reader field-name drift (get_card_field -> None). Non-null keys: {sorted(non_null)}"
+    )
 
 
 def test_replay_headline_block_populated_and_verdict_inert(epcam_decision):
@@ -240,17 +262,20 @@ def test_replay_headline_block_populated_and_verdict_inert(epcam_decision):
     h = epcam_decision.get("headline") or {}
     assert "headline_block" not in (h.get("_enrichment_errors") or {}), (
         f"headline_block degraded on the canonical EPCAM replay: "
-        f"{(h.get('_enrichment_errors') or {}).get('headline_block')}")
+        f"{(h.get('_enrichment_errors') or {}).get('headline_block')}"
+    )
     blk = h.get("headline_block")
     assert isinstance(blk, dict), "no headline_block on the EPCAM replay"
     assert blk["verdict"]["call"] == h.get("presence_verdict")
     assert blk["verdict"]["gate"] == "presence" and blk["verdict"]["phrase"]
     assert blk["verdict"]["driving_rule_id"] == h.get("driving_rule_id")  # verdict-inert echo, not override
-    assert blk["confidence"]["level"] in ("strong", "moderate", "weak")   # measured — never insufficient here
+    assert blk["confidence"]["level"] in ("strong", "moderate", "weak")  # measured — never insufficient here
     assert [a["key"] for a in blk["hero"]["axes"]] == ["A", "B", "C", "D"]
     assert blk["headline_text"].endswith(".")
     # the demoted single-lens floor must NOT be the headline tension; the honest tension is the
     # tumor-vs-normal-elevation caveat (or another real axis conflict), never the spurious abundance floor.
     _tt = (blk.get("top_tension") or {}).get("text", "").lower()
     assert blk["top_tension"], "a top tension should still surface"
-    assert "bottom-decile" not in _tt, f"the demoted single-lens abundance floor must not lead the headline; got {_tt!r}"
+    assert "bottom-decile" not in _tt, (
+        f"the demoted single-lens abundance floor must not lead the headline; got {_tt!r}"
+    )
