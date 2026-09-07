@@ -59,6 +59,13 @@ outputs:
     - fusion_stratification_mannwhitney_p
     - fusion_stratification_mannwhitney_q            # single test → q == p (no multi-tier BH)
     - fusion_stratification_effect_size              # rank-biserial correlation
+    # === Alteration-confound annotation (VERDICT-INERT; symbol-union v1 has no partner-orientation) ===
+    # Only populated on a fusion-positive-dependent class: what fraction of the fusion-positive lines
+    # ALSO carry a target hotspot/damaging mutation OR focal amplification — i.e. the fusion-stratified
+    # dependency may be an artefact of the underlying alteration, not the fusion (KRAS/COADREAD: 8/13).
+    - fusion_stratification_confound                 # alteration_confounded | alteration_independent | not_applicable | unassessed
+    - fusion_positive_altered_overlap_fraction       # |fusion+ ∩ (mutant ∪ focal-amp)| / |fusion+| (None off a positive-dep class)
+    - n_fusion_positive_altered                      # count of fusion+ lines that are also target-altered
     # === Categorical (Tier-2 vocabulary; drives interpretation-rules) ===
     - fusion_stratification_class
     # Indication-conditioning provenance -- scope of the stratified call:
@@ -68,6 +75,7 @@ outputs:
 
   summary_fields_vocabulary:
     evidence_scope: [within_indication, within_indication_mut_vs_pan_wt, pan_lineage_evidence_only, pan_no_indication]   # consumed by fusion-positive-indication-scoped-context: only indication-scoped evidence earns a biomarker verdict (scope-coherence Phase 1)
+    fusion_stratification_confound: [alteration_confounded, alteration_independent, not_applicable, unassessed]   # VERDICT-INERT; no rule reads it (majority target-altered overlap ≥ 0.5 → confounded)
     fusion_stratification_class:
       - fusion_positive_strongly_dependent           # fusion-positive median chronos significantly < negative (delta <= -0.5); fusion-addiction
       - fusion_positive_moderately_dependent         # significant but smaller effect (delta <= -0.2)
