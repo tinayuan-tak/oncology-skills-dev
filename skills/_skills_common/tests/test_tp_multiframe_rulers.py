@@ -30,9 +30,13 @@ _MULTIFRAME = {
          "median_log2tpm_panel": 6.2, "expression_class": "broadly_expressed",
          "p5_log2tpm_panel": 0.1, "p95_log2tpm_panel": 8.0}),
     "tumor_expression_distribution": (
-        [("allgene_percentile", "distance_to_cut"), ("median_log2tpm", "distance_to_cut")],
+        # 3 frames: pan-cancer rank + within-tumor median (both fire on the main card) + subtype ε²
+        # graded_band (fires only on the by-subtype card). This synthetic summary carries all three fields.
+        [("allgene_percentile", "distance_to_cut"), ("median_log2tpm", "distance_to_cut"),
+         ("subtype_variance_explained", "graded_band")],
         {"allgene_percentile": 99.9, "allgene_percentile_class": "top_1pct",
-         "median_log2tpm": 6.1, "tumor_expression_class": "broadly_high"}),
+         "median_log2tpm": 6.1, "tumor_expression_class": "broadly_high",
+         "subtype_variance_explained": 0.18, "subtype_effect_size_class": "large_subtype_effect"}),
     "cell_line_protein_abundance": (
         [("allgene_percentile", "distance_to_cut"), ("median_log2_abundance_panel", "floor_cut_ceiling")],
         {"allgene_percentile": 3.8, "allgene_percentile_class": "bottom_decile",

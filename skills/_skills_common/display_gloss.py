@@ -128,6 +128,7 @@ METRIC_GLOSS: dict = {
     "n_cohorts_elevated": ("cohorts with tumor elevation", "count"),
     "expression_purity_pearson_r": ("expression ↔ tumor-purity correlation", "Pearson r"),
     "fraction_moderate_strong": ("fraction of patients with moderate/strong IHC", "fraction"),
+    "subtype_variance_explained": ("subtype variance explained (ε²)", "ε²"),
     "sig_all_cells": ("significant across all comparator cells", None),
     "normal_p95_log2tpm": ("normal-tissue 95th-percentile expression", "log2 TPM"),
     "distribution_overlap_tumor_normal": ("tumor-normal distribution overlap", "overlap"),

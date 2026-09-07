@@ -60,6 +60,21 @@ def test_new_distance_to_cut_cards_gauge_and_read_position():
     assert i["position"] == "broadly_detected" and i["scale"]
 
 
+def test_subtype_epsilon_graded_band_fires_only_on_the_by_subtype_card():
+    spec = SALIENCE_SPECS["tumor_expression_distribution"]
+    # by-subtype summary carries the ε² field → the graded_band fires
+    sub = build_interpretation({}, {"subtype_variance_explained": 0.18,
+                                    "subtype_effect_size_class": "large_subtype_effect"}, spec,
+                               "tumor-rna-distribution-by-subtype")
+    eps = [g for g in sub if g["metric"] == "subtype_variance_explained"]
+    assert len(eps) == 1 and eps[0]["frame"]["kind"] == "graded_band"
+    assert "past the 0.14 large cut" in gauge_string(eps[0])
+    # main-card summary lacks subtype_variance_explained → the ε² frame drops (byte-stable on the main card)
+    main = build_interpretation({}, {"median_log2tpm": 6.1, "tumor_expression_class": "broadly_high"}, spec,
+                                "tumor-rna-distribution")
+    assert not any(g["metric"] == "subtype_variance_explained" for g in main)
+
+
 def test_no_value_yields_no_bare_frame_for_new_kinds():
     for mt in ("tumor_elevation_breadth", "expression_purity_confound", "tumor_protein_ihc_presence"):
         assert build_interpretation({}, {}, SALIENCE_SPECS[mt], None) == [], f"{mt}: emitted a bare frame"

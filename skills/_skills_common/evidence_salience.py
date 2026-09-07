@@ -389,10 +389,19 @@ _SECONDARY_FRAMES = {
                     {"role": "ceiling", "field": "p95_log2tpm_panel", "label": "panel_p95"}],
         "cut": {"card_id": "cellline-rna-distribution", "threshold": "highly_expressed_threshold_log2tpm",
                 "label": "highly_expressed_cut"}},
-    "tumor_expression_distribution": {
-        "kind": "distance_to_cut", "value_field": "median_log2tpm", "scale": "log2tpm",
-        "position_field": "tumor_expression_class",
-        "cut": {"card_id": "tumor-rna-distribution", "threshold": "high_log2tpm", "label": "high_expression_cut"}},
+    # tumor_expression_distribution serves BOTH tumor-rna-distribution (main) AND its by-subtype sibling.
+    # (1) within-tumor median position — fires on the main card. (2) subtype ε² effect-size graded_band —
+    # fires ONLY on the by-subtype card (which alone carries subtype_variance_explained; the main card lacks
+    # it → build_interpretation drops that frame). So one shared spec gauges the subtype-panorama omnibus
+    # effect ("large subtype effect — ε² 0.18, past the 0.14 large cut") without a schema change.
+    "tumor_expression_distribution": [
+        {"kind": "distance_to_cut", "value_field": "median_log2tpm", "scale": "log2tpm",
+         "position_field": "tumor_expression_class",
+         "cut": {"card_id": "tumor-rna-distribution", "threshold": "high_log2tpm", "label": "high_expression_cut"}},
+        {"kind": "graded_band", "value_field": "subtype_variance_explained", "scale": "variance_explained",
+         "position_field": "subtype_effect_size_class",
+         "cuts": [{"card_id": "tumor-rna-distribution-by-subtype", "threshold": "subtype_effect_moderate", "label": "moderate"},
+                  {"card_id": "tumor-rna-distribution-by-subtype", "threshold": "subtype_effect_large", "label": "large"}]}],
     "cell_line_protein_abundance": {
         "kind": "floor_cut_ceiling", "value_field": "median_log2_abundance_panel", "scale": "log2_abundance",
         "position_field": "protein_expression_class",
@@ -406,17 +415,18 @@ _SECONDARY_FRAMES = {
         "anchors": [{"role": "comparator", "field": "top_microenvironment_detection_fraction",
                      "label": "microenvironment"}]},
 }
-for _mt, _frame in _SECONDARY_FRAMES.items():
+for _mt, _extra in _SECONDARY_FRAMES.items():
     _spec = SALIENCE_SPECS.get(_mt)
     if _spec is None:
         continue
+    _new = _extra if isinstance(_extra, list) else [_extra]   # a mt may append >1 secondary frame
     _rf = _spec.get("reference_frame")
     if _rf is None:
-        _spec["reference_frame"] = [_frame]
+        _spec["reference_frame"] = list(_new)
     elif isinstance(_rf, list):
-        _rf.append(_frame)
+        _rf.extend(_new)
     else:
-        _spec["reference_frame"] = [_rf, _frame]
+        _spec["reference_frame"] = [_rf, *_new]
 
 
 def spec_for(measurement_type):
