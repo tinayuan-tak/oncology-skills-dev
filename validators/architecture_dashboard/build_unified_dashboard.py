@@ -22,6 +22,7 @@ CONSUMES both data sources without modifying the probe:
     loaded from a health JSON on disk.
 Upstream into the framework_health package once the probe rework lands.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -41,8 +42,10 @@ def compute_or_load_health(tc: Path, out_dir: Path, prefer_compute: bool = True)
     if prefer_compute:
         try:
             import sys
+
             sys.path.insert(0, str(tc))
             from validators.framework_health import build_framework_health as B, probe
+
             roots = probe.default_roots()
             report = B.generate(roots)
             report["generated_at"] = _dt.datetime.now(_dt.timezone.utc).isoformat()
@@ -75,9 +78,9 @@ def load_coverage(dp_root: Path) -> dict | None:
     return {
         "generated_at": cat.get("generated_at"),
         "summary": cat.get("summary", {}),
-        "grid": cat.get("coverage", {}),          # {lanes, cells, grid}
+        "grid": cat.get("coverage", {}),  # {lanes, cells, grid}
         "firings": cat.get("card_firings", {}),
-        "profiles": cat.get("profiles", {}),      # cell -> published-profile pointers (link target)
+        "profiles": cat.get("profiles", {}),  # cell -> published-profile pointers (link target)
     }
 
 
@@ -102,14 +105,17 @@ def merge(graph: dict, health: dict | None) -> dict:
             "n_cards_live": s.get("n_cards_live"),
             "declared_status": (s.get("declared") or {}).get("status"),
         }
-    cards = {c["card_id"]: {
-        "card_health": c.get("card_health"),
-        "has_live_reader": c.get("has_live_reader"),
-        "fires_in_real_package": c.get("fires_in_real_package"),
-        "is_orphan": c.get("is_orphan"),
-        "consumers": c.get("consumers", []),
-        "reason_text": c.get("reason_text"),
-    } for c in health.get("cards", [])}
+    cards = {
+        c["card_id"]: {
+            "card_health": c.get("card_health"),
+            "has_live_reader": c.get("has_live_reader"),
+            "fires_in_real_package": c.get("fires_in_real_package"),
+            "is_orphan": c.get("is_orphan"),
+            "consumers": c.get("consumers", []),
+            "reason_text": c.get("reason_text"),
+        }
+        for c in health.get("cards", [])
+    }
     graph["health"] = {
         "generated_at": health.get("generated_at"),
         "summary": health.get("summary", {}),
@@ -125,14 +131,21 @@ def main():
     ap.add_argument("--tc", default=str(A.DEFAULTS["tc"]))
     ap.add_argument("--sk", default=str(A.DEFAULTS["sk"]))
     ap.add_argument("--dc", default=str(A.DEFAULTS["dc"]))
-    ap.add_argument("--dp", default=str(A.DEFAULTS.get("dp") or
-                    (Path(A.DEFAULTS["tc"]).parent / "rnd-computational-biology-oncology-data-products")),
-                    help="data-products checkout (reads its root catalog.json for the Coverage tab)")
+    ap.add_argument(
+        "--dp",
+        default=str(
+            A.DEFAULTS.get("dp") or (Path(A.DEFAULTS["tc"]).parent / "rnd-computational-biology-oncology-data-products")
+        ),
+        help="data-products checkout (reads its root catalog.json for the Coverage tab)",
+    )
     ap.add_argument("--out", default=str(HOME / "dev/framework-runs/architecture-explorer/framework_dashboard.html"))
     ap.add_argument("--json", default=str(HOME / "dev/framework-runs/architecture-explorer/framework_dashboard.json"))
     ap.add_argument("--no-compute-health", action="store_true", help="load health JSON instead of recomputing")
-    ap.add_argument("--check", action="store_true",
-                    help="CI drift-guard: recompute and fail (exit 1) if the committed JSON is stale; writes nothing")
+    ap.add_argument(
+        "--check",
+        action="store_true",
+        help="CI drift-guard: recompute and fail (exit 1) if the committed JSON is stale; writes nothing",
+    )
     args = ap.parse_args()
 
     out_dir = Path(args.out).parent
@@ -140,8 +153,7 @@ def main():
 
     health = compute_or_load_health(Path(args.tc), out_dir, prefer_compute=not args.no_compute_health)
     hpath = out_dir / "health_current.json"
-    graph = A.build(Path(args.tc), Path(args.sk), Path(args.dc),
-                    health_json_path=(hpath if hpath.exists() else None))
+    graph = A.build(Path(args.tc), Path(args.sk), Path(args.dc), health_json_path=(hpath if hpath.exists() else None))
     graph = merge(graph, health)
     graph["coverage"] = load_coverage(Path(args.dp))  # OUTPUT layer (registry catalog.json)
 
@@ -154,6 +166,7 @@ def main():
 
     if args.check:
         import sys
+
         p = Path(args.json)
         if not p.exists():
             print(f"  MISSING {p.name} — run without --check to generate.", file=sys.stderr)
@@ -164,8 +177,11 @@ def main():
             print(f"  UNREADABLE {p.name}: {e}", file=sys.stderr)
             sys.exit(1)
         if _stable(prior) != _stable(graph):
-            print(f"  STALE {p.name} — committed dashboard differs from computed wiring/health; "
-                  f"regenerate with: python3 build_unified_dashboard.py", file=sys.stderr)
+            print(
+                f"  STALE {p.name} — committed dashboard differs from computed wiring/health; "
+                f"regenerate with: python3 build_unified_dashboard.py",
+                file=sys.stderr,
+            )
             sys.exit(1)
         print(f"  OK {p.name} (fresh — wiring + health match on-disk)")
         sys.exit(0)
@@ -176,18 +192,25 @@ def main():
     s = graph["summary"]
     hs = (graph.get("health") or {}).get("summary", {})
     import os
-    print(f"\n✓ UNIFIED dashboard: {s['n_skills']} skills · {s['n_cards']} cards · "
-          f"{s['n_datasets']} datasets · {s['n_resolvers']} resolvers")
+
+    print(
+        f"\n✓ UNIFIED dashboard: {s['n_skills']} skills · {s['n_cards']} cards · "
+        f"{s['n_datasets']} datasets · {s['n_resolvers']} resolvers"
+    )
     if hs:
-        print(f"  health: {hs.get('verdict_tally')} · {hs.get('n_drift_flags')} drift ({hs.get('n_error_drift')} error)")
+        print(
+            f"  health: {hs.get('verdict_tally')} · {hs.get('n_drift_flags')} drift ({hs.get('n_error_drift')} error)"
+        )
     cv = graph.get("coverage")
     if cv:
         cs = cv["summary"]
-        print(f"  coverage: {cs.get('n_entries')} outputs · {cs.get('n_cells')} cells "
-              f"({cs.get('n_cells_governed')} gov / {cs.get('n_cells_exploratory_only')} exp-only) · "
-              f"cards fired governed {cs.get('n_cards_fired_governed')} "
-              f"(+{cs.get('n_cards_fired_exploratory_only')} exploratory-only)")
-    print(f"  HTML → {args.out}  ({os.path.getsize(args.out)//1024} KB)")
+        print(
+            f"  coverage: {cs.get('n_entries')} outputs · {cs.get('n_cells')} cells "
+            f"({cs.get('n_cells_governed')} gov / {cs.get('n_cells_exploratory_only')} exp-only) · "
+            f"cards fired governed {cs.get('n_cards_fired_governed')} "
+            f"(+{cs.get('n_cards_fired_exploratory_only')} exploratory-only)"
+        )
+    print(f"  HTML → {args.out}  ({os.path.getsize(args.out) // 1024} KB)")
 
 
 if __name__ == "__main__":

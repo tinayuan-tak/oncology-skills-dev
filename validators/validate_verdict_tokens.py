@@ -45,6 +45,7 @@ CLI:
   python validators/validate_verdict_tokens.py \
       --gate vocabularies/nomination_verdict_gate.yaml --resolvers resolvers/
 """
+
 from __future__ import annotations
 
 import argparse
@@ -147,8 +148,7 @@ def _iter_gate_tokens(gate_spec: dict):
             yield block, sub, verd
 
 
-def validate_verdict_tokens(gate_spec: dict,
-                            emitted: dict[str, set[str]]) -> VerdictTokenReport:
+def validate_verdict_tokens(gate_spec: dict, emitted: dict[str, set[str]]) -> VerdictTokenReport:
     """Pure check: every enforced (sub_skill, verdict) must be CASE-EXACT in its
     resolver's emitted verdict set. Unmapped sub_skills → UNCHECKED (warning)."""
     report = VerdictTokenReport()
@@ -162,18 +162,25 @@ def validate_verdict_tokens(gate_spec: dict,
         if verd not in verdict_set:
             # Case-insensitive near-match makes the R1 casing bug unmistakable in the message.
             casing_hit = next((e for e in verdict_set if e.lower() == str(verd).lower()), None)
-            hint = (f" (case mismatch — resolver emits `{casing_hit}`)" if casing_hit
-                    else f" (resolver emits: {sorted(verdict_set)})")
-            consequence = ("documents a verdict the resolver never emits — INERT guard"
-                           if block in EXCLUSION_BLOCKS
-                           else "the gate entry can NEVER fire")
+            hint = (
+                f" (case mismatch — resolver emits `{casing_hit}`)"
+                if casing_hit
+                else f" (resolver emits: {sorted(verdict_set)})"
+            )
+            consequence = (
+                "documents a verdict the resolver never emits — INERT guard"
+                if block in EXCLUSION_BLOCKS
+                else "the gate entry can NEVER fire"
+            )
             report.add_error(
                 f"UNMATCHED_VERDICT [{block}]: (sub_skill={sub!r}, verdict={verd!r}) is not "
-                f"emitted CASE-EXACT by resolver `{gate}` — {consequence}{hint}.")
+                f"emitted CASE-EXACT by resolver `{gate}` — {consequence}{hint}."
+            )
     for sub in sorted(report.unchecked_subskills):
         report.add_warning(
             f"UNCHECKED sub_skill `{sub}`: no resolver emits its verdicts (advisory-only axis) — "
-            f"its gate-verdict tokens are NOT consistency-checked.")
+            f"its gate-verdict tokens are NOT consistency-checked."
+        )
     return report
 
 
@@ -199,11 +206,13 @@ def validate(gate_path: Path, resolvers_dir: Path) -> VerdictTokenReport:
 
 def _main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--gate", type=Path,
-                    default=Path("vocabularies/nomination_verdict_gate.yaml"),
-                    help="Path to nomination_verdict_gate.yaml")
-    ap.add_argument("--resolvers", type=Path, default=Path("resolvers/"),
-                    help="Directory of *.resolver.yaml")
+    ap.add_argument(
+        "--gate",
+        type=Path,
+        default=Path("vocabularies/nomination_verdict_gate.yaml"),
+        help="Path to nomination_verdict_gate.yaml",
+    )
+    ap.add_argument("--resolvers", type=Path, default=Path("resolvers/"), help="Directory of *.resolver.yaml")
     args = ap.parse_args(argv)
 
     report = validate(args.gate, args.resolvers)
@@ -215,8 +224,10 @@ def _main(argv=None) -> int:
     for e in report.errors:
         print(f"    [ERROR]   {e}")
     status = "OK" if report.ok else "FAIL"
-    print(f"\nSummary: [{status}] {len(report.errors)} error(s), {len(report.warnings)} warning(s); "
-          f"unchecked sub_skills: {sorted(report.unchecked_subskills) or 'none'}.")
+    print(
+        f"\nSummary: [{status}] {len(report.errors)} error(s), {len(report.warnings)} warning(s); "
+        f"unchecked sub_skills: {sorted(report.unchecked_subskills) or 'none'}."
+    )
     return 0 if report.ok else 1
 
 

@@ -17,6 +17,7 @@ until the snapshot is consciously regenerated. Low-churn — no per-rule schema 
   python validators/build_rule_role_partition.py               # regenerate the snapshot
   python validators/build_rule_role_partition.py --self-check  # CI: fail if the committed snapshot drifted
 """
+
 from __future__ import annotations
 
 import argparse
@@ -65,10 +66,12 @@ def compute_partition() -> dict:
     gating = sorted(r for r in rules if r in gating_refs)
     display = sorted(r for r in rules if r not in gating_refs)
     return {
-        "_doc": ("M5 rule-role partition (VERDICT_REPRESENTATION move #5). gating = referenced by a "
-                 "resolver rung (verdict-driving); display = referenced by NO resolver (annotation-only: "
-                 "claim-vector / key-signal / figure input). Regenerate with "
-                 "build_rule_role_partition.py; --self-check gates drift."),
+        "_doc": (
+            "M5 rule-role partition (VERDICT_REPRESENTATION move #5). gating = referenced by a "
+            "resolver rung (verdict-driving); display = referenced by NO resolver (annotation-only: "
+            "claim-vector / key-signal / figure input). Regenerate with "
+            "build_rule_role_partition.py; --self-check gates drift."
+        ),
         "counts": {"total": len(rules), "gating": len(gating), "display": len(display)},
         "gating": gating,
         "display": display,
@@ -89,15 +92,20 @@ def self_check() -> tuple[bool, list[str]]:
         cset, fset = set(committed.get(key) or []), set(fresh[key])
         if cset != fset:
             added, removed = sorted(fset - cset), sorted(cset - fset)
-            errs.append(f"{key} drift: +{added or '[]'} -{removed or '[]'} "
-                        f"(a rule changed resolver-consumption; regenerate the snapshot consciously)")
+            errs.append(
+                f"{key} drift: +{added or '[]'} -{removed or '[]'} "
+                f"(a rule changed resolver-consumption; regenerate the snapshot consciously)"
+            )
     return (not errs), errs
 
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--self-check", action="store_true",
-                    help="CI-safe: fail if the committed partition drifted from the live contracts")
+    ap.add_argument(
+        "--self-check",
+        action="store_true",
+        help="CI-safe: fail if the committed partition drifted from the live contracts",
+    )
     args = ap.parse_args(argv)
 
     if args.self_check:
@@ -112,8 +120,10 @@ def main(argv=None) -> int:
     PARTITION_PATH.parent.mkdir(parents=True, exist_ok=True)
     PARTITION_PATH.write_text(_emit_yaml(partition))
     c = partition["counts"]
-    print(f"wrote {PARTITION_PATH.relative_to(ROOT)} — {c['gating']} gating / {c['display']} display "
-          f"({100 * c['display'] // c['total']}% annotation-only) of {c['total']} rules.")
+    print(
+        f"wrote {PARTITION_PATH.relative_to(ROOT)} — {c['gating']} gating / {c['display']} display "
+        f"({100 * c['display'] // c['total']}% annotation-only) of {c['total']} rules."
+    )
     return 0
 
 

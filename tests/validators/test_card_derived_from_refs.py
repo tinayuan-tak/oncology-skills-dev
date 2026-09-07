@@ -9,6 +9,7 @@ description down-scoped to match).
 Hermetic: synthetic card dirs written to tmp; the alias map is monkeypatched so the tests don't
 depend on the vocab's evolving contents. One integration test asserts the REAL tree is clean.
 """
+
 from __future__ import annotations
 
 import importlib.util

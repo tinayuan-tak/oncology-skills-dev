@@ -2,6 +2,7 @@
 
 Fails the build (CI) on an unglossed token — so "easy to understand" cannot silently drift.
 """
+
 from _util import builder, load_committed
 
 

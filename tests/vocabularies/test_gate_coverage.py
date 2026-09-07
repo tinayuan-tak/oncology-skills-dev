@@ -12,6 +12,7 @@ docs/design/GATE_MODEL_V2_MEMO.md. These tests assert:
   - the coverage tokens still match the calibration vocabulary,
   - translational is declared unbuilt + blind.
 """
+
 import yaml
 from pathlib import Path
 
@@ -28,19 +29,27 @@ GRAINS = {"sub_skill", "card"}
 MODALITIES = {"small_molecule", "degrader", "adc", "bite_tce", "antibody"}
 # Drug-discovery risk categories (5R-anchored) — the dashboard's presentation spine. Every gate
 # declares which category it rolls up into. See docs/design/RISK_CATEGORY_DASHBOARD_SPINE.md.
-RISK_CATEGORIES = {"biological", "biomarker", "druggability", "safety",
-                   "translational", "clinical", "commercial"}
+RISK_CATEGORIES = {"biological", "biomarker", "druggability", "safety", "translational", "clinical", "commercial"}
 
 # The sub-verdict slots the target-profile composer emits (SUB_SKILLS shorts + subtype_fit). Every
 # one must resolve to a ROW entry (biology gate, modality-fit gate, or sub_skill-grain facet).
 SUB_SKILL_SHORTS = {
-    "expression", "selectivity", "dependency", "synthetic_lethal_partners", "mechanism",
-    "genomic_alteration", "differentiation", "tractability_sm", "surface_modality", "safety",
+    "expression",
+    "selectivity",
+    "dependency",
+    "synthetic_lethal_partners",
+    "mechanism",
+    "genomic_alteration",
+    "differentiation",
+    "tractability_sm",
+    "surface_modality",
+    "safety",
     "subtype_fit",
 }
 
 
 # --- helpers: mirror the skills-side _flatten_gate_coverage grain rule -------
+
 
 def _row_entries():
     """The entries that become scorecard rows: biology_gates + modality_fit + sub_skill-grain
@@ -55,6 +64,7 @@ def _all_facets():
 
 
 # --- shape + version ---------------------------------------------------------
+
 
 def test_wellformed_three_list_v2():
     assert COV["enum_id"] == "gate_coverage"
@@ -99,6 +109,7 @@ def test_altered_gate_split_out_of_v1_overload():
 
 # --- biomarker facets --------------------------------------------------------
 
+
 def test_facets_carry_grain_role_and_reports_into():
     for f in _all_facets():
         assert f.get("grain") in GRAINS, f"{f['short']}: bad/missing grain {f.get('grain')!r}"
@@ -112,8 +123,9 @@ def test_every_gate_declares_a_valid_risk_category():
     presentation spine). Data-driven surfacing keys off this: a category shows iff a member
     sub-skill fired. Every entry must therefore carry a valid risk_category."""
     for g in COV["biology_gates"] + COV["modality_fit"] + COV["biomarker_facets"]:
-        assert g.get("risk_category") in RISK_CATEGORIES, \
+        assert g.get("risk_category") in RISK_CATEGORIES, (
             f"{g['short']}: bad/missing risk_category {g.get('risk_category')!r}"
+        )
 
 
 def test_risk_category_axis_alignment():
@@ -157,6 +169,7 @@ def test_sub_skill_facets_are_rows_card_facets_are_not():
 
 # --- router join contract ----------------------------------------------------
 
+
 def test_every_sub_skill_short_resolves_to_a_row():
     """The router must never encounter a composer sub-verdict with no coverage row."""
     covered = {g["short"] for g in _row_entries()}
@@ -176,5 +189,6 @@ def test_headline_fidelity_most_sufficiency_is_not_captured():
     sufficiency (modality-fit) gates are NOT captured."""
     suff = list(COV["modality_fit"])
     not_captured = [g for g in suff if g["framework_can_evidence"] != "captured"]
-    assert len(not_captured) >= len(suff) // 2, \
+    assert len(not_captured) >= len(suff) // 2, (
         "expected most modality-fit gates to be partial/blind/license_blocked (the fidelity fact)"
+    )

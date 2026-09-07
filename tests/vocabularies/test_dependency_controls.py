@@ -10,6 +10,7 @@ depleted than non-essentials) is pinned so a mis-curated entry (e.g. a positive 
 with a ~0 Chronos) can't slip in. Live Chronos reads are exercised in the method's
 tests; this pins the pure vocab + its ordering invariant (no S3).
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -84,7 +85,8 @@ def test_inversion_ordering_positives_below_negatives(vocab):
     neg = [s["empirical_median_chronos_26q1"] for s in vocab["negative_controls"].values()]
     assert max(pos) < min(neg), (
         f"pan-essential ceiling (max {max(pos)}) must sit BELOW the non-essential floor "
-        f"(min {min(neg)}) on the Chronos scale — the inversion invariant")
+        f"(min {min(neg)}) on the Chronos scale — the inversion invariant"
+    )
 
 
 def test_no_shared_genes_between_bands(vocab):

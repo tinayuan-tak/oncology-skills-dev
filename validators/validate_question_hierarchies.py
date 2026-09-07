@@ -16,6 +16,7 @@ whole section:
 VERDICT-NEUTRAL: taxonomy only; no resolver/gate logic. Exit 0 = clean; 1 = a connectivity/reference
 defect (with the offending skill/question named).
 """
+
 from __future__ import annotations
 
 import sys
@@ -64,13 +65,11 @@ def validate() -> list:
                     errors.append(f"{skill}/{sgid}/{qid}: question declares no measurement_types")
                 for t in mts:
                     if t not in known_types:
-                        errors.append(f"{skill}/{sgid}/{qid}: measurement_type {t!r} "
-                                      f"not in measurement_types.yaml")
+                        errors.append(f"{skill}/{sgid}/{qid}: measurement_type {t!r} not in measurement_types.yaml")
         for lens in spec.get("other_lenses") or []:
             for t in lens.get("measurement_types") or []:
                 if t not in known_types:
-                    errors.append(f"{skill}: other_lens measurement_type {t!r} "
-                                  f"not in measurement_types.yaml")
+                    errors.append(f"{skill}: other_lens measurement_type {t!r} not in measurement_types.yaml")
     return errors
 
 
@@ -82,8 +81,10 @@ def main() -> int:
             print(f"  - {e}")
         return 1
     hierarchies, _, _ = _load()
-    print(f"validate_question_hierarchies: OK — {len(hierarchies)} skills, "
-          "every question sourced by a known measurement_type")
+    print(
+        f"validate_question_hierarchies: OK — {len(hierarchies)} skills, "
+        "every question sourced by a known measurement_type"
+    )
     return 0
 
 

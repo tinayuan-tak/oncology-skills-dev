@@ -15,6 +15,7 @@ Usage:
 The --check mode is the in-sync ratchet: a hand-edit of a generated file, or an un-regenerated edit
 to the spine/envelope/pins, fails CI.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -98,8 +99,7 @@ def generate_all(check: bool) -> int:
             out.write_text(rendered)
             print(f"wrote {out.relative_to(SCHEMAS.parent)}")
     if check and drift:
-        print(f"OUT OF SYNC (regenerate: python validators/gen_skill_output_schemas.py): {drift}",
-              file=sys.stderr)
+        print(f"OUT OF SYNC (regenerate: python validators/gen_skill_output_schemas.py): {drift}", file=sys.stderr)
         return 1
     if check:
         print(f"in sync: {len(_pin_files())} per-skill schema(s)")

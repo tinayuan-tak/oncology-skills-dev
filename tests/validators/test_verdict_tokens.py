@@ -7,6 +7,7 @@ Asserts both directions:
       vs the resolver's lowercase `adc_preferred`) is FLAGGED, along with the plain-typo,
       stale-verdict, and no-false-positive-on-advisory-axis cases.
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -18,7 +19,8 @@ REPO = Path(__file__).resolve().parents[2]
 
 def _load():
     spec = importlib.util.spec_from_file_location(
-        "validate_verdict_tokens", REPO / "validators" / "validate_verdict_tokens.py")
+        "validate_verdict_tokens", REPO / "validators" / "validate_verdict_tokens.py"
+    )
     m = importlib.util.module_from_spec(spec)
     sys.modules["validate_verdict_tokens"] = m
     spec.loader.exec_module(m)
@@ -31,9 +33,9 @@ _EMITTED = VT.emitted_verdicts_by_gate(REPO / "resolvers")
 
 # --- (a) the shipped tree is clean ---
 
+
 def test_shipped_gate_is_clean():
-    report = VT.validate(REPO / "vocabularies" / "nomination_verdict_gate.yaml",
-                         REPO / "resolvers")
+    report = VT.validate(REPO / "vocabularies" / "nomination_verdict_gate.yaml", REPO / "resolvers")
     assert report.ok, f"shipped nomination_verdict_gate must be token-consistent: {report.errors}"
     # And it actually exercised the check (guards against a vacuous pass if parsing broke).
     assert report.checked_count > 0
@@ -41,8 +43,14 @@ def test_shipped_gate_is_clean():
 
 def test_resolvers_expose_expected_gates():
     # Sanity: the emitted-set index really discovered the resolvers we depend on.
-    for gate in ("dependency", "safety", "selectivity", "genomic_alteration",
-                 "surface_modality", "tractability_small_molecule"):
+    for gate in (
+        "dependency",
+        "safety",
+        "selectivity",
+        "genomic_alteration",
+        "surface_modality",
+        "tractability_small_molecule",
+    ):
         assert gate in _EMITTED and _EMITTED[gate], f"missing emitted verdicts for gate {gate}"
     # The R1 site: surface_modality emits the LOWERCASE tokens.
     assert {"adc_preferred", "tce_preferred"} <= _EMITTED["surface_modality"]
@@ -50,12 +58,17 @@ def test_resolvers_expose_expected_gates():
 
 # --- (b1) the R1 casing bug is flagged ---
 
+
 def test_miscased_verdict_is_flagged():
     # The exact R1 bug: TitleCase in the gate, lowercase in the resolver.
     gate_spec = {
         "positive_signals_modality_scoped": [
-            {"sub_skill": "surface_modality", "verdict": "ADC_preferred",
-             "weight": "dominant", "when_modality_in": ["adc"]},
+            {
+                "sub_skill": "surface_modality",
+                "verdict": "ADC_preferred",
+                "weight": "dominant",
+                "when_modality_in": ["adc"],
+            },
         ],
     }
     report = VT.validate_verdict_tokens(gate_spec, _EMITTED)
@@ -66,6 +79,7 @@ def test_miscased_verdict_is_flagged():
 
 
 # --- (b2) a plain typo is flagged ---
+
 
 def test_typo_verdict_is_flagged():
     gate_spec = {
@@ -80,11 +94,12 @@ def test_typo_verdict_is_flagged():
 
 # --- (b3) a stale verdict (no resolver emits it) is flagged in the `gates` block too ---
 
+
 def test_stale_gate_verdict_is_flagged():
     gate_spec = {
         "gates": [
             {"sub_skill": "dependency", "verdict": "pan_essential_killer", "action": "veto"},  # real
-            {"sub_skill": "safety", "verdict": "retired_safety_verdict", "action": "hold"},     # stale
+            {"sub_skill": "safety", "verdict": "retired_safety_verdict", "action": "hold"},  # stale
         ],
     }
     report = VT.validate_verdict_tokens(gate_spec, _EMITTED)
@@ -95,6 +110,7 @@ def test_stale_gate_verdict_is_flagged():
 
 
 # --- no false positive: a real token passes; advisory-only axes are UNCHECKED not errored ---
+
 
 def test_valid_token_passes():
     gate_spec = {
@@ -114,7 +130,7 @@ def test_advisory_subskill_is_unchecked_not_errored():
         ],
     }
     report = VT.validate_verdict_tokens(gate_spec, _EMITTED)
-    assert report.ok, report.errors               # advisory axis → not an error
+    assert report.ok, report.errors  # advisory axis → not an error
     assert "expression" in report.unchecked_subskills
     assert report.checked_count == 0
 
@@ -126,6 +142,7 @@ def test_tractability_sm_alias_resolves():
 
 
 # --- (b4) exclusion blocks are now enforced (fix #5, 2026-08-15) — would have caught bug #2 ---
+
 
 def test_exclusion_blocks_are_enforced():
     # The two excluded_* documentation blocks are in the enforced set.
@@ -139,8 +156,8 @@ def test_stale_excluded_positive_token_is_flagged():
     # adc_preferred/tce_preferred). Before this fix that inert guard passed silently.
     gate_spec = {
         "excluded_positive_modality_scoped": [
-            {"sub_skill": "surface_modality", "verdict": "adc_favorable"},   # stale — never emitted
-            {"sub_skill": "surface_modality", "verdict": "adc_preferred"},   # real
+            {"sub_skill": "surface_modality", "verdict": "adc_favorable"},  # stale — never emitted
+            {"sub_skill": "surface_modality", "verdict": "adc_preferred"},  # real
         ],
     }
     report = VT.validate_verdict_tokens(gate_spec, _EMITTED)
@@ -159,8 +176,8 @@ def test_valid_exclusion_tokens_pass():
             {"sub_skill": "surface_modality", "verdict": "neither_viable"},  # real
         ],
         "excluded_positive_modality_scoped": [
-            {"sub_skill": "surface_modality", "verdict": "tce_preferred"},   # real
-            {"sub_skill": "mechanism", "verdict": "well_characterized"},     # real
+            {"sub_skill": "surface_modality", "verdict": "tce_preferred"},  # real
+            {"sub_skill": "mechanism", "verdict": "well_characterized"},  # real
         ],
     }
     report = VT.validate_verdict_tokens(gate_spec, _EMITTED)

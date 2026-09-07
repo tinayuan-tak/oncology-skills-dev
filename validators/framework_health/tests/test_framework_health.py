@@ -24,7 +24,9 @@ import pytest
 
 from validators.framework_health import probe, rollup, render_html
 from validators.framework_health.build_framework_health import (
-    stable_projection, self_check, compute_delta,
+    stable_projection,
+    self_check,
+    compute_delta,
 )
 
 
@@ -32,13 +34,13 @@ from validators.framework_health.build_framework_health import (
 # 1 + 2. AST literal / dict-key extraction excludes comments & commented tails
 # ---------------------------------------------------------------------------
 def test_dict_keys_exclude_commented_tail():
-    src = textwrap.dedent('''
+    src = textwrap.dedent("""
         CARD_DISPATCHERS = {
             "live-a": fn_a,
             "live-b": fn_b,
             # "commented-c": fn_c,   <- a commented example tail, must be excluded
         }
-    ''')
+    """)
     tree = ast.parse(src)
     keys = probe._find_dict_keys(tree, "CARD_DISPATCHERS")
     assert keys == ["live-a", "live-b"]
@@ -46,12 +48,12 @@ def test_dict_keys_exclude_commented_tail():
 
 
 def test_cards_list_literal_strips_inline_comments():
-    src = textwrap.dedent('''
+    src = textwrap.dedent("""
         CARDS = [
             "card-one",     # a facet card
             "card-two",     # another
         ]
-    ''')
+    """)
     tree = ast.parse(src)
     assert probe._find_assign_literal(tree, "CARDS") == ["card-one", "card-two"]
 
@@ -62,31 +64,43 @@ def test_cards_in_runpy_unions_subtype_cards(tmp_path):
     cards_in_runpy must union SUBTYPE_CARDS so the cards_used↔run.py check doesn't false-flag it."""
     run = tmp_path / "scripts" / "run.py"
     run.parent.mkdir(parents=True)
-    run.write_text(textwrap.dedent('''
+    run.write_text(
+        textwrap.dedent("""
         CARDS = ["mutation-type-counts", "copy-number-distribution"]
         SUBTYPE_CARDS = ["subgroup-stratified-mutation-frequency"]
-    '''))
+    """)
+    )
     # Mirror probe.probe_run_py's cards_in_runpy union (CARDS + SUBTYPE_CARDS).
     tree = ast.parse(run.read_text())
     cards = probe._find_assign_literal(tree, "CARDS")
     sub = probe._find_assign_literal(tree, "SUBTYPE_CARDS")
     union = [str(c) for c in cards] + [str(c) for c in sub if str(c) not in [str(x) for x in cards]]
     assert "subgroup-stratified-mutation-frequency" in union
-    assert set(union) == {"mutation-type-counts", "copy-number-distribution",
-                          "subgroup-stratified-mutation-frequency"}
+    assert set(union) == {"mutation-type-counts", "copy-number-distribution", "subgroup-stratified-mutation-frequency"}
 
 
 def test_drift_no_mismatch_when_subtype_card_in_cards_used():
     """The end-to-end guard: a FOCUSED skill declaring a subtype panorama card in cards_used +
     SUBTYPE_CARDS (surfaced via cards_in_runpy) must NOT raise declared_cards_mismatch_runpy."""
     skill = {
-        "declared": {"status": "wired",
-                     "cards_used": ["mutation-type-counts", "copy-number-distribution",
-                                    "subgroup-stratified-mutation-frequency"]},
-        "derived": {"kind": "FOCUSED", "has_entrypoint": True,
-                    # cards_in_runpy already unioned SUBTYPE_CARDS (the probe fix):
-                    "cards_in_runpy": ["mutation-type-counts", "copy-number-distribution",
-                                       "subgroup-stratified-mutation-frequency"]},
+        "declared": {
+            "status": "wired",
+            "cards_used": [
+                "mutation-type-counts",
+                "copy-number-distribution",
+                "subgroup-stratified-mutation-frequency",
+            ],
+        },
+        "derived": {
+            "kind": "FOCUSED",
+            "has_entrypoint": True,
+            # cards_in_runpy already unioned SUBTYPE_CARDS (the probe fix):
+            "cards_in_runpy": [
+                "mutation-type-counts",
+                "copy-number-distribution",
+                "subgroup-stratified-mutation-frequency",
+            ],
+        },
     }
     flags = rollup.compute_drift(skill, cards=[])
     assert not any(f["code"] == "declared_cards_mismatch_runpy" for f in flags)
@@ -116,7 +130,8 @@ def test_dispatcher_method_imports_resolves_real_module(tmp_path):
     # Current dispatcher location (compose-dashboard retired #654 → _skills_common/).
     lr = tmp_path / "skills" / "_skills_common"
     lr.mkdir(parents=True)
-    (lr / "_live_readers.py").write_text(textwrap.dedent('''
+    (lr / "_live_readers.py").write_text(
+        textwrap.dedent("""
         def _dispatch_x(target, indication):
             mod = _import_method("dge_deseq2")
             return mod.read(target)
@@ -127,7 +142,8 @@ def test_dispatcher_method_imports_resolves_real_module(tmp_path):
             "card-x": _dispatch_x,
             "card-y": _dispatch_y,
         }
-    '''))
+    """)
+    )
     got = probe.dispatcher_method_imports(tmp_path)
     assert got == {"card-x": "dge_deseq2", "card-y": "opentargets_clingen.read"}
 
@@ -138,22 +154,27 @@ def test_probe_card_uses_dispatcher_not_stale_label(tmp_path):
     that differs from the dispatcher is NOT stale (label→module fix, 2026-08-18) —
     the label is a human handle, not a package claim."""
     (tmp_path / "cards").mkdir()
-    (tmp_path / "cards" / "c.card.yaml").write_text(textwrap.dedent('''
+    (tmp_path / "cards" / "c.card.yaml").write_text(
+        textwrap.dedent("""
         card_id: c
         methods:
           - call: totally-stale-label
         measurement_type: mt
-    '''))
+    """)
+    )
     methods = tmp_path / "methods"
     (methods / "methods" / "real_module").mkdir(parents=True)
     (methods / "methods" / "real_module" / "read.py").write_text("def read(): pass")
     out = probe.probe_card(
-        "c", tmp_path, methods,
-        live_ids={"c"}, fired_ids=set(),
-        dispatch_modules={"c": "real_module.read"},   # dispatcher routes to the REAL module
+        "c",
+        tmp_path,
+        methods,
+        live_ids={"c"},
+        fired_ids=set(),
+        dispatch_modules={"c": "real_module.read"},  # dispatcher routes to the REAL module
     )
-    assert out["method_dir_exists"] is True          # resolved via dispatcher, suffix stripped
-    assert out["stale_method_label"] is False        # no module: field -> no package claim -> not stale
+    assert out["method_dir_exists"] is True  # resolved via dispatcher, suffix stripped
+    assert out["stale_method_label"] is False  # no module: field -> no package claim -> not stale
     assert out["method_call"] == "totally-stale-label"
 
 
@@ -167,27 +188,33 @@ def test_probe_card_flags_stale_only_on_declared_module_mismatch(tmp_path):
     (methods / "methods" / "real_module" / "read.py").write_text("def read(): pass")
 
     # (a) friendly label differs, module: AGREES with dispatcher -> NOT stale
-    (tmp_path / "cards" / "ok.card.yaml").write_text(textwrap.dedent('''
+    (tmp_path / "cards" / "ok.card.yaml").write_text(
+        textwrap.dedent("""
         card_id: ok
         methods:
           - call: friendly-alias-lookup
             module: real_module
         measurement_type: mt
-    '''))
-    ok = probe.probe_card("ok", tmp_path, methods, live_ids={"ok"}, fired_ids=set(),
-                          dispatch_modules={"ok": "real_module.read"})
+    """)
+    )
+    ok = probe.probe_card(
+        "ok", tmp_path, methods, live_ids={"ok"}, fired_ids=set(), dispatch_modules={"ok": "real_module.read"}
+    )
     assert ok["stale_method_label"] is False
 
     # (b) declared module: genuinely disagrees with the dispatcher -> STALE
-    (tmp_path / "cards" / "bad.card.yaml").write_text(textwrap.dedent('''
+    (tmp_path / "cards" / "bad.card.yaml").write_text(
+        textwrap.dedent("""
         card_id: bad
         methods:
           - call: whatever
             module: wrong_package
         measurement_type: mt
-    '''))
-    bad = probe.probe_card("bad", tmp_path, methods, live_ids={"bad"}, fired_ids=set(),
-                           dispatch_modules={"bad": "real_module.read"})
+    """)
+    )
+    bad = probe.probe_card(
+        "bad", tmp_path, methods, live_ids={"bad"}, fired_ids=set(), dispatch_modules={"bad": "real_module.read"}
+    )
     assert bad["stale_method_label"] is True
 
 
@@ -198,23 +225,28 @@ def test_probe_card_honors_declared_module_for_resolver_routed(tmp_path):
     the label abbreviates the module (depmap-cn-stratified vs depmap_cn_dependency),
     so guessing from the label found no dir and mislabeled a working card broken."""
     (tmp_path / "cards").mkdir()
-    (tmp_path / "cards" / "c.card.yaml").write_text(textwrap.dedent('''
+    (tmp_path / "cards" / "c.card.yaml").write_text(
+        textwrap.dedent("""
         card_id: c
         methods:
           - call: depmap-cn-stratified          # de-kebabs to depmap_cn_stratified (NO such dir)
             module: depmap_cn_dependency         # the REAL backing package
             entrypoint: read_cn_stratified_dependency
         measurement_type: mt
-    '''))
+    """)
+    )
     methods = tmp_path / "methods"
     (methods / "methods" / "depmap_cn_dependency").mkdir(parents=True)
     (methods / "methods" / "depmap_cn_dependency" / "read.py").write_text("def read(): pass")
     out = probe.probe_card(
-        "c", tmp_path, methods,
-        live_ids=set(), fired_ids=set(),         # no dispatcher, never fired -> resolver-routed
+        "c",
+        tmp_path,
+        methods,
+        live_ids=set(),
+        fired_ids=set(),  # no dispatcher, never fired -> resolver-routed
         dispatch_modules={},
     )
-    assert out["method_dir_exists"] is True       # resolved from module:, not the kebab label
+    assert out["method_dir_exists"] is True  # resolved from module:, not the kebab label
     assert out["method_has_read"] is True
     # A card with a BUILT backing method + no CARD_DISPATCHERS entry routes through the GENERIC
     # dispatcher (card_spec module/entrypoint) — it HAS a working reader, just unproven in a governed
@@ -234,16 +266,18 @@ def test_catalog_manifests_registers_product_id_alias(tmp_path):
     derived.mkdir(parents=True)
     (tmp_path / "manifests" / "sources").mkdir(parents=True)
     # Per-indication manifest whose id != its logical product_id
-    (derived / "coadread-dge-df06320.yaml").write_text(textwrap.dedent('''
+    (derived / "coadread-dge-df06320.yaml").write_text(
+        textwrap.dedent("""
         id: coadread-dge-df06320
         product_id: expression-rna-tumor-vs-adjacent
         provider: takeda
-    '''))
+    """)
+    )
     cat = probe.catalog_manifests(tmp_path)
     # Both the real id AND the product_id alias resolve
-    assert "coadread-dge-df06320" in cat                       # real manifest id
-    assert "expression-rna-tumor-vs-adjacent" in cat           # product_id alias
-    assert cat["coadread-dge-df06320"].get("is_product_alias") is None   # real id, not an alias
+    assert "coadread-dge-df06320" in cat  # real manifest id
+    assert "expression-rna-tumor-vs-adjacent" in cat  # product_id alias
+    assert cat["coadread-dge-df06320"].get("is_product_alias") is None  # real id, not an alias
     assert cat["expression-rna-tumor-vs-adjacent"]["is_product_alias"] is True
 
 
@@ -267,26 +301,57 @@ CARD_CASES = [
     # (signals, expected_verdict, expected_reason_id)
     ({"card_yaml_exists": False}, "broken", "card-missing-yaml"),
     ({"card_yaml_exists": True, "fires_in_real_package": True}, "live", "card-live-fired"),
-    ({"card_yaml_exists": True, "fires_in_real_package": False, "is_placeholder": True},
-     "placeholder", "card-placeholder"),
-    ({"card_yaml_exists": True, "fires_in_real_package": False, "has_live_reader": False,
-      "method_dir_exists": False}, "broken", "card-no-path"),
-    ({"card_yaml_exists": True, "fires_in_real_package": False, "has_live_reader": True,
-      "method_dir_exists": False}, "broken", "card-registered-method-unbuilt"),
-    ({"card_yaml_exists": True, "fires_in_real_package": False, "has_live_reader": True,
-      "method_dir_exists": True}, "wired", "card-reader-never-fires"),
+    (
+        {"card_yaml_exists": True, "fires_in_real_package": False, "is_placeholder": True},
+        "placeholder",
+        "card-placeholder",
+    ),
+    (
+        {
+            "card_yaml_exists": True,
+            "fires_in_real_package": False,
+            "has_live_reader": False,
+            "method_dir_exists": False,
+        },
+        "broken",
+        "card-no-path",
+    ),
+    (
+        {"card_yaml_exists": True, "fires_in_real_package": False, "has_live_reader": True, "method_dir_exists": False},
+        "broken",
+        "card-registered-method-unbuilt",
+    ),
+    (
+        {"card_yaml_exists": True, "fires_in_real_package": False, "has_live_reader": True, "method_dir_exists": True},
+        "wired",
+        "card-reader-never-fires",
+    ),
     # Generic dispatcher: no bespoke CARD_DISPATCHERS entry, but a BUILT backing method exists
     # (routed via card_spec module/entrypoint) → wired, NOT blocked/partial. Pins the blocked-30 fix
     # + the 2026-08-31 partial→wired split (reader-exists-never-fired is WIRED, not a defect).
-    ({"card_yaml_exists": True, "fires_in_real_package": False, "has_live_reader": False,
-      "method_dir_exists": True}, "wired", "card-generic-dispatch-never-fires"),
+    (
+        {"card_yaml_exists": True, "fires_in_real_package": False, "has_live_reader": False, "method_dir_exists": True},
+        "wired",
+        "card-generic-dispatch-never-fires",
+    ),
     # No reader AND declared backing method module absent → broken (card-no-path).
-    ({"card_yaml_exists": True, "fires_in_real_package": False, "has_live_reader": False,
-      "method_dir_exists": False}, "broken", "card-no-path"),
+    (
+        {
+            "card_yaml_exists": True,
+            "fires_in_real_package": False,
+            "has_live_reader": False,
+            "method_dir_exists": False,
+        },
+        "broken",
+        "card-no-path",
+    ),
     # Genuine coverage gap: no reader, no method DECLARED at all (method_dir_exists unprobed/None)
     # → blocked. This is the honest remaining meaning of `blocked` after the generic-dispatch fix.
-    ({"card_yaml_exists": True, "fires_in_real_package": False, "has_live_reader": False},
-     "blocked", "card-no-reader-no-fire"),
+    (
+        {"card_yaml_exists": True, "fires_in_real_package": False, "has_live_reader": False},
+        "blocked",
+        "card-no-reader-no-fire",
+    ),
 ]
 
 
@@ -301,15 +366,20 @@ def test_fires_dominates_missing_method():
     """The reliability-precedence fix: a card that FIRED is live even if its
     method-dir probe would say missing."""
     rules = rollup.load_rules()
-    signals = {"card_yaml_exists": True, "fires_in_real_package": True,
-               "has_live_reader": True, "method_dir_exists": False}
+    signals = {
+        "card_yaml_exists": True,
+        "fires_in_real_package": True,
+        "has_live_reader": True,
+        "method_dir_exists": False,
+    }
     verdict, reason = rollup._resolve(rules["card_health"], signals)
     assert verdict == "live" and reason == "card-live-fired"
 
 
 def _skill_for_rollup(cards):
     return {
-        "name": "s", "declared": {"status": None, "prose_markers": [], "rules_scope": []},
+        "name": "s",
+        "declared": {"status": None, "prose_markers": [], "rules_scope": []},
         "derived": {"kind": "FOCUSED", "has_entrypoint": True, "test_count": 1},
     }
 
@@ -321,16 +391,14 @@ def test_ready_unproven_vs_production_ready():
 
     # all core cards partial (readers work, nothing fired) -> ready_unproven, and the
     # reason must NOT claim cards are live.
-    partial_cards = [{"card_id": "c1", "card_health": "partial"},
-                     {"card_id": "c2", "card_health": "partial"}]
+    partial_cards = [{"card_id": "c1", "card_health": "partial"}, {"card_id": "c2", "card_health": "partial"}]
     node = rollup.roll_up_skill(_skill_for_rollup(partial_cards), partial_cards, [], rules)
     assert node["health_verdict"] == "ready_unproven"
     assert "live" not in node["reason_text"].lower() or "readers work" in node["reason_text"].lower()
     assert "no core card has fired" in node["reason_text"]
 
     # ≥1 core card fired -> production_ready (proven)
-    fired_cards = [{"card_id": "c1", "card_health": "live"},
-                   {"card_id": "c2", "card_health": "partial"}]
+    fired_cards = [{"card_id": "c1", "card_health": "live"}, {"card_id": "c2", "card_health": "partial"}]
     node2 = rollup.roll_up_skill(_skill_for_rollup(fired_cards), fired_cards, [], rules)
     assert node2["health_verdict"] == "production_ready"
     assert "fired in a real package" in node2["reason_text"]
@@ -338,9 +406,9 @@ def test_ready_unproven_vs_production_ready():
 
 def test_match_operators():
     ctx = {"a": 1, "b": {"c": "x"}, "k": "partial"}
-    assert rollup._match({}, ctx) is True                       # empty always matches
+    assert rollup._match({}, ctx) is True  # empty always matches
     assert rollup._match({"a": 1}, ctx) is True
-    assert rollup._match({"b.c": "x"}, ctx) is True             # dotted path
+    assert rollup._match({"b.c": "x"}, ctx) is True  # dotted path
     assert rollup._match({"k__in": ["partial", "wired"]}, ctx) is True
     assert rollup._match({"a__truthy": True}, ctx) is True
     assert rollup._match({"all": [{"a": 1}, {"b.c": "x"}]}, ctx) is True
@@ -355,7 +423,7 @@ def test_stable_projection_excludes_volatile():
     base = {"schema_version": "1.0.0", "summary": {"n_skills": 3}, "skills": []}
     a = {**base, "generated_at": "2026-01-01T00:00:00Z", "roots": {"x": "/a"}, "root_shas": {"x": "aaa"}}
     b = {**base, "generated_at": "2099-12-31T23:59:59Z", "roots": {"x": "/b"}, "root_shas": {"x": "zzz"}}
-    assert stable_projection(a) == stable_projection(b)   # only volatile fields differ
+    assert stable_projection(a) == stable_projection(b)  # only volatile fields differ
 
 
 def test_stable_projection_detects_real_change():
@@ -372,7 +440,7 @@ def test_stable_projection_excludes_delta():
     base = {"schema_version": "1.0.0", "summary": {"n_skills": 3}, "skills": []}
     a = {**base, "generated_at": "t", "roots": {}, "root_shas": {}, "delta": {"n_skills": 2}}
     b = {**base, "generated_at": "t", "roots": {}, "root_shas": {}, "delta": {"n_skills": -5}}
-    assert stable_projection(a) == stable_projection(b)   # differing deltas don't move the projection
+    assert stable_projection(a) == stable_projection(b)  # differing deltas don't move the projection
 
 
 # ---------------------------------------------------------------------------
@@ -381,9 +449,14 @@ def test_stable_projection_excludes_delta():
 def _report(n_skills, n_cards, skills, cards, verdict_tally=None, n_drift=0, n_err=0):
     return {
         "generated_at": "2026-01-01T00:00:00Z",
-        "summary": {"n_skills": n_skills, "n_cards": n_cards, "n_drift_flags": n_drift,
-                    "n_error_drift": n_err, "verdict_tally": verdict_tally or {},
-                    "card_health_tally": {}},
+        "summary": {
+            "n_skills": n_skills,
+            "n_cards": n_cards,
+            "n_drift_flags": n_drift,
+            "n_error_drift": n_err,
+            "verdict_tally": verdict_tally or {},
+            "card_health_tally": {},
+        },
         "skills": [{"name": s} for s in skills],
         "cards": [{"card_id": c} for c in cards],
     }
@@ -410,10 +483,20 @@ def test_delta_ribbon_empty_without_prior():
 
 
 def test_delta_ribbon_renders_moves_and_names():
-    report = {"delta": {"has_prior": True, "prior_generated_at": "2026-08-04T00:00:00Z",
-                        "n_skills": 2, "n_cards": 5, "n_drift_flags": -3, "n_error_drift": 0,
-                        "skills_added": ["catalog-query"], "skills_removed": [],
-                        "cards_added": ["a", "b"], "cards_removed": []}}
+    report = {
+        "delta": {
+            "has_prior": True,
+            "prior_generated_at": "2026-08-04T00:00:00Z",
+            "n_skills": 2,
+            "n_cards": 5,
+            "n_drift_flags": -3,
+            "n_error_drift": 0,
+            "skills_added": ["catalog-query"],
+            "skills_removed": [],
+            "cards_added": ["a", "b"],
+            "cards_removed": [],
+        }
+    }
     html = render_html._delta_ribbon(report)
     assert "Since last run" in html and "2026-08-04" in html
     assert "2 skills" in html and "5 cards" in html and "3 drift flags" in html
@@ -430,12 +513,14 @@ def test_consumed_but_no_spec_is_info_not_warn():
 
 
 def test_fix_next_only_actionable_and_ordered():
-    report = {"drift_index": [
-        {"skill": "s1", "code": "dataset_ref_not_in_catalog", "severity": "warn", "detail": "d"},
-        {"skill": "s2", "code": "dataset_ref_not_in_catalog", "severity": "warn", "detail": "d"},
-        {"skill": "s3", "code": "status_wired_no_entrypoint", "severity": "error", "detail": "d"},
-        {"skill": "s4", "code": "card_consumed_but_no_spec", "severity": "info", "detail": "d"},
-    ]}
+    report = {
+        "drift_index": [
+            {"skill": "s1", "code": "dataset_ref_not_in_catalog", "severity": "warn", "detail": "d"},
+            {"skill": "s2", "code": "dataset_ref_not_in_catalog", "severity": "warn", "detail": "d"},
+            {"skill": "s3", "code": "status_wired_no_entrypoint", "severity": "error", "detail": "d"},
+            {"skill": "s4", "code": "card_consumed_but_no_spec", "severity": "info", "detail": "d"},
+        ]
+    }
     html = render_html._fix_next(report)
     # error sorts above the more-numerous warn (severity beats count)
     assert html.index("status_wired_no_entrypoint") < html.index("dataset_ref_not_in_catalog")
@@ -444,14 +529,14 @@ def test_fix_next_only_actionable_and_ordered():
 
 
 def test_fix_next_empty_state():
-    html = render_html._fix_next({"drift_index": [
-        {"skill": "s", "code": "stale_method_label", "severity": "info", "detail": "d"}]})
+    html = render_html._fix_next(
+        {"drift_index": [{"skill": "s", "code": "stale_method_label", "severity": "info", "detail": "d"}]}
+    )
     assert "Nothing actionable" in html
 
 
 def test_skill_actionability_floats_drift_first():
-    drifting = {"name": "z-drift", "health_verdict": "partial",
-                "drift_flags": [{"severity": "error"}]}
+    drifting = {"name": "z-drift", "health_verdict": "partial", "drift_flags": [{"severity": "error"}]}
     clean = {"name": "a-ready", "health_verdict": "production_ready", "drift_flags": []}
     # despite alphabetical order putting a-ready first, drifting sorts ahead
     assert render_html._skill_actionability(drifting) < render_html._skill_actionability(clean)
@@ -461,12 +546,15 @@ def test_skill_actionability_floats_drift_first():
 # 6b. --self-check: CI-safe integrity check that needs NO sibling repos
 # ---------------------------------------------------------------------------
 def _minimal_report(card_health="live", verdict="production_ready"):
-    card = {"card_id": "c", "card_yaml_exists": True, "fires_in_real_package": True,
-            "card_health": card_health}
+    card = {"card_id": "c", "card_yaml_exists": True, "fires_in_real_package": True, "card_health": card_health}
     skill = {"name": "s", "cards": [card], "health_verdict": verdict}
-    return {"schema_version": "1.0.0",
-            "summary": {"verdict_tally": {verdict: 1}},
-            "skills": [skill], "registry_drift": {}, "drift_index": []}
+    return {
+        "schema_version": "1.0.0",
+        "summary": {"verdict_tally": {verdict: 1}},
+        "skills": [skill],
+        "registry_drift": {},
+        "drift_index": [],
+    }
 
 
 def test_self_check_passes_on_consistent_artifact(tmp_path):
@@ -523,10 +611,16 @@ def test_list_all_card_ids(tmp_path):
 def test_self_check_validates_cards_section(tmp_path):
     """A cards[] section with a non-rederivable card or bad orphan flag must fail."""
     rep = _minimal_report()
-    rep["cards"] = [{
-        "card_id": "orphan-x", "card_yaml_exists": True, "fires_in_real_package": True,
-        "card_health": "live", "n_consumers": 0, "is_orphan": True,
-    }]
+    rep["cards"] = [
+        {
+            "card_id": "orphan-x",
+            "card_yaml_exists": True,
+            "fires_in_real_package": True,
+            "card_health": "live",
+            "n_consumers": 0,
+            "is_orphan": True,
+        }
+    ]
     rep["summary"]["card_health_tally"] = {"live": 1}
     p = tmp_path / "framework_health.json"
     p.write_text(json.dumps(rep))
@@ -560,24 +654,34 @@ def test_committed_artifact_has_cards_section_with_orphans():
 # ---------------------------------------------------------------------------
 def _mk_skill(name, verdict="production_ready", gate=None, bound=True, cards=None):
     return {
-        "name": name, "health_verdict": verdict,
+        "name": name,
+        "health_verdict": verdict,
         "derived": {"kind": "FOCUSED", "resolver_gate": gate, "resolver_bound": bound},
-        "risk_category": None, "cards": cards or [],
+        "risk_category": None,
+        "cards": cards or [],
     }
 
 
 def test_build_graph_layers_and_edges():
     skills = [_mk_skill("skill-a", gate="dependency")]
-    cards = [{"card_id": "card-a", "card_health": "live", "consumers": ["skill-a"],
-              "dispatch_module": "meth_a.read", "method_dir_exists": True, "is_orphan": False,
-              "measurement_type": "mt"}]
+    cards = [
+        {
+            "card_id": "card-a",
+            "card_health": "live",
+            "consumers": ["skill-a"],
+            "dispatch_module": "meth_a.read",
+            "method_dir_exists": True,
+            "is_orphan": False,
+            "measurement_type": "mt",
+        }
+    ]
     g = rollup.build_graph(skills, cards)
     ids = {n["id"] for n in g["nodes"]}
     assert ids == {"skill:skill-a", "resolver:dependency", "card:card-a", "method:meth_a"}
     rels = {(e["src"], e["dst"], e["rel"]) for e in g["edges"]}
     assert ("skill:skill-a", "resolver:dependency", "resolves_via") in rels
     assert ("skill:skill-a", "card:card-a", "consumes") in rels
-    assert ("card:card-a", "method:meth_a", "backed_by") in rels   # .read suffix stripped
+    assert ("card:card-a", "method:meth_a", "backed_by") in rels  # .read suffix stripped
     assert g["layer_counts"] == {"skill": 1, "resolver": 1, "card": 1, "method": 1}
 
 
@@ -596,9 +700,12 @@ def test_build_graph_no_dangling_edges():
 
 def test_self_check_catches_dangling_edge(tmp_path):
     rep = _minimal_report()
-    rep["graph"] = {"nodes": [{"id": "skill:x", "layer": "skill"}],
-                    "edges": [{"src": "skill:x", "dst": "card:ghost", "rel": "consumes"}],
-                    "n_nodes": 1, "n_edges": 1}
+    rep["graph"] = {
+        "nodes": [{"id": "skill:x", "layer": "skill"}],
+        "edges": [{"src": "skill:x", "dst": "card:ghost", "rel": "consumes"}],
+        "n_nodes": 1,
+        "n_edges": 1,
+    }
     p = tmp_path / "framework_health.json"
     p.write_text(json.dumps(rep))
     ok, errs = self_check(p)
@@ -612,7 +719,8 @@ def test_catalog_manifests_scan(tmp_path):
     for kind in ("sources", "derived"):
         (tmp_path / "manifests" / kind).mkdir(parents=True)
     (tmp_path / "manifests" / "sources" / "ds-a.yaml").write_text(
-        "id: ds-a\nprovider: acme\nversion: v1\ntotal_size_bytes: 1024\n")
+        "id: ds-a\nprovider: acme\nversion: v1\ntotal_size_bytes: 1024\n"
+    )
     cat = probe.catalog_manifests(tmp_path)
     assert "ds-a" in cat and cat["ds-a"]["kind"] == "source" and cat["ds-a"]["provider"] == "acme"
 
@@ -630,7 +738,7 @@ def test_catalog_manifests_registers_resolver_release(tmp_path):
     cat = probe.catalog_manifests(tmp_path)
     assert "target-id-resolver-release" in cat
     assert cat["target-id-resolver-release"]["kind"] == "resolver_release"
-    assert cat["target-id-resolver-release"]["version"] == "resolver_v1.0.0"   # newest pin
+    assert cat["target-id-resolver-release"]["version"] == "resolver_v1.0.0"  # newest pin
     assert cat["target-id-resolver-release"]["file_count"] == 2
 
 
@@ -671,9 +779,8 @@ def test_catalog_manifests_no_subgroup_catalog_dir_is_safe(tmp_path):
 def test_self_produced_scan_card_is_not_broken(tmp_path):
     """A scan-hook skill emits a card named after itself with no contract YAML — that is
     `self_produced`, NOT `broken`. Signal = card_id ∈ skill_names AND no YAML."""
-    (tmp_path / "cards").mkdir()   # deliberately NO scan-x.card.yaml
-    sig = probe.probe_card("scan-x", tmp_path, tmp_path, set(), set(),
-                           skill_names={"scan-x", "other-skill"})
+    (tmp_path / "cards").mkdir()  # deliberately NO scan-x.card.yaml
+    sig = probe.probe_card("scan-x", tmp_path, tmp_path, set(), set(), skill_names={"scan-x", "other-skill"})
     assert sig["card_yaml_exists"] is False
     assert sig["is_self_produced_skill_card"] is True
     rolled = rollup.roll_up_card(sig, rollup.load_rules())
@@ -684,8 +791,7 @@ def test_missing_card_not_matching_a_skill_stays_broken(tmp_path):
     """Guard the narrow signal: a no-YAML card whose id is NOT a skill name is a genuine
     broken ref, still `broken` (self_produced must not swallow real breakage)."""
     (tmp_path / "cards").mkdir()
-    sig = probe.probe_card("totally-missing", tmp_path, tmp_path, set(), set(),
-                           skill_names={"scan-x"})
+    sig = probe.probe_card("totally-missing", tmp_path, tmp_path, set(), set(), skill_names={"scan-x"})
     assert sig["is_self_produced_skill_card"] is False
     rolled = rollup.roll_up_card(sig, rollup.load_rules())
     assert rolled["card_health"] == "broken", rolled["card_health"]
@@ -695,10 +801,13 @@ def test_probe_card_dataset_exact_and_prefix_match(tmp_path):
     (tmp_path / "cards").mkdir()
     (tmp_path / "cards" / "c.card.yaml").write_text(
         "card_id: c\nrequired_inputs:\n  - product_id: depmap-predictability\n"
-        "  - product_id: exact-ds\nmethods:\n  - call: m\n")
-    methods = tmp_path / "methods"; (methods / "methods").mkdir(parents=True)
-    out = probe.probe_card("c", tmp_path, methods, set(), set(), {},
-                           catalog_ids={"exact-ds", "depmap-predictability-26q1-v2"})
+        "  - product_id: exact-ds\nmethods:\n  - call: m\n"
+    )
+    methods = tmp_path / "methods"
+    (methods / "methods").mkdir(parents=True)
+    out = probe.probe_card(
+        "c", tmp_path, methods, set(), set(), {}, catalog_ids={"exact-ds", "depmap-predictability-26q1-v2"}
+    )
     ds = {d["product_id"]: d for d in out["datasets"]}
     assert ds["exact-ds"]["matched_by"] == "exact" and ds["exact-ds"]["in_catalog"]
     assert ds["depmap-predictability"]["matched_by"] == "prefix"
@@ -707,9 +816,9 @@ def test_probe_card_dataset_exact_and_prefix_match(tmp_path):
 
 def test_probe_card_dataset_broken_ref(tmp_path):
     (tmp_path / "cards").mkdir()
-    (tmp_path / "cards" / "c.card.yaml").write_text(
-        "card_id: c\nrequired_inputs:\n  - product_id: ghost-ds\n")
-    methods = tmp_path / "methods"; (methods / "methods").mkdir(parents=True)
+    (tmp_path / "cards" / "c.card.yaml").write_text("card_id: c\nrequired_inputs:\n  - product_id: ghost-ds\n")
+    methods = tmp_path / "methods"
+    (methods / "methods").mkdir(parents=True)
     out = probe.probe_card("c", tmp_path, methods, set(), set(), {}, catalog_ids={"real-ds"})
     d = out["datasets"][0]
     assert d["product_id"] == "ghost-ds" and not d["in_catalog"] and d["matched_by"] is None
@@ -717,8 +826,9 @@ def test_probe_card_dataset_broken_ref(tmp_path):
 
 def test_self_check_catches_inconsistent_dataset_flags(tmp_path):
     rep = _minimal_report()
-    rep["datasets"] = [{"product_id": "x", "in_catalog": True, "n_consumers": 0,
-                        "is_orphan": False, "is_broken_ref": False}]  # should be orphan=True
+    rep["datasets"] = [
+        {"product_id": "x", "in_catalog": True, "n_consumers": 0, "is_orphan": False, "is_broken_ref": False}
+    ]  # should be orphan=True
     p = tmp_path / "framework_health.json"
     p.write_text(json.dumps(rep))
     ok, errs = self_check(p)
@@ -731,6 +841,7 @@ def test_self_documenting_glosses_present():
     definition, and every drift code mapped to a readable label. Guards against the
     self-documentation silently regressing."""
     from validators.framework_health import render_html, rollup
+
     # 1. every drift code carries a readable label + a severity
     for code in rollup.DRIFT_SEVERITY:
         assert code in render_html.DRIFT_CODE_LABEL, f"drift code {code} has no readable label"
@@ -749,38 +860,62 @@ def test_render_expands_p4_and_severity_inline():
     """A full render must surface the plain-language severity key and the modality-routing
     (P4) expansion inline — not leave them as bare jargon."""
     from validators.framework_health import render_html
+
     report = {
-        "summary": {"n_skills": 1, "verdict_tally": {"partial": 1}, "n_error_drift": 0,
-                    "n_unregistered_skills": 0, "n_cards": 1, "card_health_tally": {"partial": 1},
-                    "modality_routing_tally": {"not_required": 1}, "n_p4_required_cards": 0,
-                    "n_p4_declared_cards": 0, "n_p4_missing_cards": 0, "n_p4_drift_cards": 0,
-                    "n_datasets_in_catalog": 0, "n_orphan_cards": 0, "n_cards_consumed_but_no_spec": 0,
-                    "n_orphan_datasets": 0, "n_broken_dataset_refs": 0, "n_datasets": 0},
+        "summary": {
+            "n_skills": 1,
+            "verdict_tally": {"partial": 1},
+            "n_error_drift": 0,
+            "n_unregistered_skills": 0,
+            "n_cards": 1,
+            "card_health_tally": {"partial": 1},
+            "modality_routing_tally": {"not_required": 1},
+            "n_p4_required_cards": 0,
+            "n_p4_declared_cards": 0,
+            "n_p4_missing_cards": 0,
+            "n_p4_drift_cards": 0,
+            "n_datasets_in_catalog": 0,
+            "n_orphan_cards": 0,
+            "n_cards_consumed_but_no_spec": 0,
+            "n_orphan_datasets": 0,
+            "n_broken_dataset_refs": 0,
+            "n_datasets": 0,
+        },
         "registry_drift": {"unregistered": []},
-        "skills": [{"name": "s", "declared": {"status": "partial"}, "derived": {"kind": "FOCUSED",
-                    "resolver_bound": False, "test_count": 1}, "cards": [], "drift_flags": [],
-                    "health_verdict": "partial", "health_reason": "x", "reason_text": "r",
-                    "risk_category": None}],
-        "cards": [], "datasets": [],
+        "skills": [
+            {
+                "name": "s",
+                "declared": {"status": "partial"},
+                "derived": {"kind": "FOCUSED", "resolver_bound": False, "test_count": 1},
+                "cards": [],
+                "drift_flags": [],
+                "health_verdict": "partial",
+                "health_reason": "x",
+                "reason_text": "r",
+                "risk_category": None,
+            }
+        ],
+        "cards": [],
+        "datasets": [],
         "graph": {"nodes": [], "edges": [], "layer_counts": {}, "n_nodes": 0, "n_edges": 0},
         "drift_index": [],
     }
     html = render_html.render(report)
-    assert "modality routing" in html.lower()          # P4 relabeled
-    assert "roadmap" in html.lower()                     # P4 framed as a roadmap term
-    assert "not a defect" in html                        # info-severity clarified
-    assert "stranded on the biology axis" in html        # full P4 definition present
+    assert "modality routing" in html.lower()  # P4 relabeled
+    assert "roadmap" in html.lower()  # P4 framed as a roadmap term
+    assert "not a defect" in html  # info-severity clarified
+    assert "stranded on the biology axis" in html  # full P4 definition present
 
 
 def test_access_cost_bands():
     """Static access-cost bands from size × file-count × consumers (no network/timing)."""
-    GB = 1024 ** 3
+    GB = 1024**3
     ac = rollup._access_cost
-    assert ac(None, 10, 5) == "unknown"                 # no size → can't estimate
-    assert ac(30 * GB, 100, 5) == "high"                # ≥20GB consumed
-    assert ac(5 * GB, 100, 2) == "moderate"             # ≥2GB consumed
-    assert ac(0.5 * GB, 10, 3) == "low"                 # small
-    assert ac(3 * GB, 5000, 4) == "high"                # file sprawl bumps ≥2GB → high
+    assert ac(None, 10, 5) == "unknown"  # no size → can't estimate
+    assert ac(30 * GB, 100, 5) == "high"  # ≥20GB consumed
+    assert ac(5 * GB, 100, 2) == "moderate"  # ≥2GB consumed
+    assert ac(0.5 * GB, 10, 3) == "low"  # small
+    assert ac(3 * GB, 5000, 4) == "high"  # file sprawl bumps ≥2GB → high
     # unconsumed heavy data is demoted (not a framework access concern)
     assert ac(30 * GB, 100, 0) == "high_unused"
     assert ac(5 * GB, 100, 0) == "moderate_unused"
@@ -788,27 +923,38 @@ def test_access_cost_bands():
 
 def test_missing_sort_key_flag_scoping():
     """missing_sort_key fires ONLY for consumed + in-catalog + sizeable + no-sort-key."""
-    GB = 1024 ** 3
+    GB = 1024**3
+
     # build two dataset dicts through the real rollup path via a tiny catalog fixture would be
     # heavy; assert the rule inline mirrors build_health (kept in lockstep by self_check).
     def flag(in_cat, n, hsk, size):
         return bool(in_cat and n > 0 and hsk is False and (size or 0) >= rollup._SORT_KEY_SIZE_FLOOR)
-    assert flag(True, 3, False, 5 * GB) is True          # consumed, big, no key → flag
-    assert flag(True, 0, False, 5 * GB) is False         # unconsumed → no flag
-    assert flag(True, 3, True, 5 * GB) is False          # has a key → no flag
-    assert flag(True, 3, False, 0.1 * GB) is False       # below size floor → no flag
-    assert flag(False, 3, False, 5 * GB) is False        # not in catalog → no flag
+
+    assert flag(True, 3, False, 5 * GB) is True  # consumed, big, no key → flag
+    assert flag(True, 0, False, 5 * GB) is False  # unconsumed → no flag
+    assert flag(True, 3, True, 5 * GB) is False  # has a key → no flag
+    assert flag(True, 3, False, 0.1 * GB) is False  # below size floor → no flag
+    assert flag(False, 3, False, 5 * GB) is False  # not in catalog → no flag
 
 
 def test_self_check_catches_bad_access_cost(tmp_path):
     """A dataset whose recorded access_cost doesn't re-derive from its inputs must fail."""
     rep = _minimal_report()
-    GB = 1024 ** 3
-    rep["datasets"] = [{"product_id": "big", "in_catalog": True, "n_consumers": 5,
-                        "is_orphan": False, "is_broken_ref": False,
-                        "size_bytes": 30 * GB, "file_count": 100,
-                        "access_cost": "low",           # WRONG — 30GB consumed re-derives to 'high'
-                        "has_sort_key": False, "missing_sort_key": True}]
+    GB = 1024**3
+    rep["datasets"] = [
+        {
+            "product_id": "big",
+            "in_catalog": True,
+            "n_consumers": 5,
+            "is_orphan": False,
+            "is_broken_ref": False,
+            "size_bytes": 30 * GB,
+            "file_count": 100,
+            "access_cost": "low",  # WRONG — 30GB consumed re-derives to 'high'
+            "has_sort_key": False,
+            "missing_sort_key": True,
+        }
+    ]
     p = tmp_path / "framework_health.json"
     p.write_text(json.dumps(rep))
     ok, errs = self_check(p)
@@ -837,12 +983,23 @@ def test_subskill_run_health_reader(tmp_path):
     # present → the subskills map
     sd = tmp_path / "skills" / "_skills_common"
     sd.mkdir(parents=True)
-    (sd / "subskill_health.json").write_text(json.dumps({"subskills": {
-        "tumor-presence": {"skill_name": "tumor-presence", "smoke": "clean",
-                           "run_health": {"status": "ok", "read_secs": 0.0}},
-        "genomic-alteration-profile": {"skill_name": "genomic-alteration-profile",
-                                       "smoke": "clean_uninstrumented"},
-    }}))
+    (sd / "subskill_health.json").write_text(
+        json.dumps(
+            {
+                "subskills": {
+                    "tumor-presence": {
+                        "skill_name": "tumor-presence",
+                        "smoke": "clean",
+                        "run_health": {"status": "ok", "read_secs": 0.0},
+                    },
+                    "genomic-alteration-profile": {
+                        "skill_name": "genomic-alteration-profile",
+                        "smoke": "clean_uninstrumented",
+                    },
+                }
+            }
+        )
+    )
     got = probe.subskill_run_health(tmp_path)
     assert got["tumor-presence"]["smoke"] == "clean"
     assert got["genomic-alteration-profile"]["smoke"] == "clean_uninstrumented"
@@ -859,8 +1016,10 @@ def test_rollup_attaches_runs_clean(monkeypatch, tmp_path):
         pytest.skip("skills repo not present")
     # Force the reader to a known fixture so the test is deterministic regardless of what's
     # checked out in the sibling skills repo.
-    fake = {"tumor-presence": {"smoke": "clean", "run_health": {"status": "ok"}},
-            "functional-requirement": {"smoke": "error", "smoke_reason": "exit 1"}}
+    fake = {
+        "tumor-presence": {"smoke": "clean", "run_health": {"status": "ok"}},
+        "functional-requirement": {"smoke": "error", "smoke_reason": "exit 1"},
+    }
     monkeypatch.setattr(probe, "subskill_run_health", lambda _root: fake)
     body = rollup.build_health(roots)
     by_name = {n["name"]: n for n in body["skills"]}
@@ -882,26 +1041,56 @@ def test_render_runs_clean_column_and_graceful_absence():
     """The skill matrix carries a 'runs clean?' column; when every skill is 'unknown'
     (artifact absent) the extra summary strip is SUPPRESSED (no noise), rendering '—'."""
     from validators.framework_health import render_html
-    base_skill = {"name": "s", "health_verdict": "partial", "health_reason": "x", "reason_text": "r",
-                  "declared": {"status": "partial", "prose_markers": []},
-                  "derived": {"kind": "FOCUSED", "resolver_bound": False, "test_count": 1},
-                  "cards": [], "drift_flags": [], "risk_category": None, "run_health": None}
+
+    base_skill = {
+        "name": "s",
+        "health_verdict": "partial",
+        "health_reason": "x",
+        "reason_text": "r",
+        "declared": {"status": "partial", "prose_markers": []},
+        "derived": {"kind": "FOCUSED", "resolver_bound": False, "test_count": 1},
+        "cards": [],
+        "drift_flags": [],
+        "risk_category": None,
+        "run_health": None,
+    }
+
     def _report(runs_clean):
         sk = {**base_skill, "runs_clean": runs_clean}
         rct = {}
         for s in [sk]:
             rct[s["runs_clean"]] = rct.get(s["runs_clean"], 0) + 1
-        return {"summary": {"n_skills": 1, "verdict_tally": {"partial": 1}, "n_error_drift": 0,
-                            "n_unregistered_skills": 0, "runs_clean_tally": rct,
-                            "n_runs_clean": rct.get("clean", 0), "n_runs_clean_error": rct.get("error", 0),
-                            "n_cards": 0, "card_health_tally": {}, "modality_routing_tally": {},
-                            "n_p4_required_cards": 0, "n_p4_declared_cards": 0, "n_p4_missing_cards": 0,
-                            "n_p4_drift_cards": 0, "n_datasets_in_catalog": 0, "n_orphan_cards": 0,
-                            "n_cards_consumed_but_no_spec": 0, "n_orphan_datasets": 0,
-                            "n_broken_dataset_refs": 0, "n_datasets": 0},
-                "registry_drift": {"unregistered": []}, "skills": [sk], "cards": [], "datasets": [],
-                "graph": {"nodes": [], "edges": [], "layer_counts": {}, "n_nodes": 0, "n_edges": 0},
-                "drift_index": []}
+        return {
+            "summary": {
+                "n_skills": 1,
+                "verdict_tally": {"partial": 1},
+                "n_error_drift": 0,
+                "n_unregistered_skills": 0,
+                "runs_clean_tally": rct,
+                "n_runs_clean": rct.get("clean", 0),
+                "n_runs_clean_error": rct.get("error", 0),
+                "n_cards": 0,
+                "card_health_tally": {},
+                "modality_routing_tally": {},
+                "n_p4_required_cards": 0,
+                "n_p4_declared_cards": 0,
+                "n_p4_missing_cards": 0,
+                "n_p4_drift_cards": 0,
+                "n_datasets_in_catalog": 0,
+                "n_orphan_cards": 0,
+                "n_cards_consumed_but_no_spec": 0,
+                "n_orphan_datasets": 0,
+                "n_broken_dataset_refs": 0,
+                "n_datasets": 0,
+            },
+            "registry_drift": {"unregistered": []},
+            "skills": [sk],
+            "cards": [],
+            "datasets": [],
+            "graph": {"nodes": [], "edges": [], "layer_counts": {}, "n_nodes": 0, "n_edges": 0},
+            "drift_index": [],
+        }
+
     # column header always present
     assert "runs clean?" in render_html.render(_report("unknown"))
     # Use a caption-ONLY phrase to distinguish the summary strip from the always-present
@@ -918,49 +1107,75 @@ def test_matrix_css_has_no_overflow_hidden_clip():
     expanded drill-down (the nested cards table grows a detail row past the table
     box and gets cut off). See the drill-down-clip fix."""
     from validators.framework_health import render_html
+
     css = render_html._CSS
     import re
-    m = re.search(r'\.matrix\{([^}]*)\}', css)
+
+    m = re.search(r"\.matrix\{([^}]*)\}", css)
     assert m, ".matrix rule not found"
-    assert "overflow:hidden" not in m.group(1), \
+    assert "overflow:hidden" not in m.group(1), (
         ".matrix must not clip — overflow:hidden hides expanded drill-down content"
+    )
 
 
 def test_drilldown_table_present_and_closed_in_render():
     """The skill drill-down must emit a fully-closed cards table for a card-consuming
     skill (structural guard that the detail renders end to end)."""
     from validators.framework_health import render_html
+
     n = {
-        "name": "s", "health_verdict": "partial", "health_reason": "x", "reason_text": "r",
+        "name": "s",
+        "health_verdict": "partial",
+        "health_reason": "x",
+        "reason_text": "r",
         "declared": {"status": "wired", "prose_markers": []},
-        "derived": {"kind": "FOCUSED", "resolver_gate": "g", "resolver_bound": True,
-                    "test_count": 1, "cards_in_runpy": ["c1"]},
+        "derived": {
+            "kind": "FOCUSED",
+            "resolver_gate": "g",
+            "resolver_bound": True,
+            "test_count": 1,
+            "cards_in_runpy": ["c1"],
+        },
         "drift_flags": [],
-        "cards": [{"card_id": "c1", "card_health": "live", "has_live_reader": True,
-                   "fires_in_real_package": True, "measurement_type": "mt",
-                   "dispatch_module": "m.read", "reason_text": "r",
-                   "datasets": [{"product_id": "d1", "in_catalog": True, "matched_by": "exact"},
-                                {"product_id": "d2", "in_catalog": False, "matched_by": None}]}],
+        "cards": [
+            {
+                "card_id": "c1",
+                "card_health": "live",
+                "has_live_reader": True,
+                "fires_in_real_package": True,
+                "measurement_type": "mt",
+                "dispatch_module": "m.read",
+                "reason_text": "r",
+                "datasets": [
+                    {"product_id": "d1", "in_catalog": True, "matched_by": "exact"},
+                    {"product_id": "d2", "in_catalog": False, "matched_by": None},
+                ],
+            }
+        ],
         "risk_category": None,
     }
     detail = render_html._skill_detail(n)
-    assert detail.count("<table") == detail.count("</table>")   # balanced
-    assert 'class="dscell"' in detail                            # datasets cell present
-    assert "d1" in detail and "d2" in detail                     # both datasets rendered
+    assert detail.count("<table") == detail.count("</table>")  # balanced
+    assert 'class="dscell"' in detail  # datasets cell present
+    assert "d1" in detail and "d2" in detail  # both datasets rendered
 
 
 def test_dashboard_spec_card_ids_scan(tmp_path):
-    d = tmp_path / "dashboards"; d.mkdir()
+    d = tmp_path / "dashboards"
+    d.mkdir()
     (d / "a.dashboard_spec.yaml").write_text(
-        "dashboard_id: spec-a\nrequired_cards:\n  - card_id: c1\noptional_cards:\n  - card_id: c2\n")
+        "dashboard_id: spec-a\nrequired_cards:\n  - card_id: c1\noptional_cards:\n  - card_id: c2\n"
+    )
     got = probe.dashboard_spec_card_ids(tmp_path)
     assert got == {"c1": ["spec-a"], "c2": ["spec-a"]}
 
 
 def test_consumed_but_no_spec_drift(tmp_path):
     # a real card, consumed by a skill, in no spec -> flagged; placeholder/missing not flagged
-    skill = {"declared": {"status": "wired", "prose_markers": []},
-             "derived": {"kind": "FOCUSED", "has_entrypoint": True, "cards_in_runpy": []}}
+    skill = {
+        "declared": {"status": "wired", "prose_markers": []},
+        "derived": {"kind": "FOCUSED", "has_entrypoint": True, "cards_in_runpy": []},
+    }
     cards = [
         {"card_id": "in-spec", "card_yaml_exists": True, "is_placeholder": False},
         {"card_id": "no-spec", "card_yaml_exists": True, "is_placeholder": False},
@@ -972,18 +1187,28 @@ def test_consumed_but_no_spec_drift(tmp_path):
     assert "card_consumed_but_no_spec" in codes
     detail = codes["card_consumed_but_no_spec"]["detail"]
     assert "no-spec" in detail
-    assert "in-spec" not in detail            # it IS in a spec
-    assert "placeholder-card" not in detail   # placeholder excluded
+    assert "in-spec" not in detail  # it IS in a spec
+    assert "placeholder-card" not in detail  # placeholder excluded
 
 
 def test_self_check_catches_bad_spec_flag(tmp_path):
     rep = _minimal_report()
-    rep["cards"] = [{"card_id": "x", "card_yaml_exists": True, "fires_in_real_package": True,
-                     "card_health": "live", "n_consumers": 1, "is_orphan": False,
-                     "in_dashboard_spec": True, "consumed_but_no_spec": True}]  # inconsistent
+    rep["cards"] = [
+        {
+            "card_id": "x",
+            "card_yaml_exists": True,
+            "fires_in_real_package": True,
+            "card_health": "live",
+            "n_consumers": 1,
+            "is_orphan": False,
+            "in_dashboard_spec": True,
+            "consumed_but_no_spec": True,
+        }
+    ]  # inconsistent
     rep["summary"]["verdict_tally"] = {"production_ready": 1}
     rep["skills"] = [{"name": "s", "cards": rep["cards"], "health_verdict": "production_ready"}]
-    p = tmp_path / "framework_health.json"; p.write_text(json.dumps(rep))
+    p = tmp_path / "framework_health.json"
+    p.write_text(json.dumps(rep))
     ok, errs = self_check(p)
     assert not ok and any("consumed_but_no_spec" in e for e in errs)
 
@@ -1017,10 +1242,10 @@ def _write_skill(tmp_path, name, skill_md, run_py=None):
 
 def test_missing_status_field_is_detected(tmp_path):
     d = _write_skill(
-        tmp_path, "no-status",
+        tmp_path,
+        "no-status",
         skill_md="---\nname: no-status\ncomposition:\n  cards_used: []\n---\nbody\n",
-        run_py="from _skills_common.dispatcher import run_wired_skill\n"
-               "resolve_verdict_for_gate(f, 'dependency')\n",
+        run_py="from _skills_common.dispatcher import run_wired_skill\nresolve_verdict_for_gate(f, 'dependency')\n",
     )
     sig = probe.probe_skill(d)
     assert sig["declared"]["status"] is None
@@ -1030,7 +1255,8 @@ def test_missing_status_field_is_detected(tmp_path):
 
 def test_placeholder_skill_classified(tmp_path):
     d = _write_skill(
-        tmp_path, "ph",
+        tmp_path,
+        "ph",
         skill_md="---\nname: ph\nstatus: not_wired\n---\nPLACEHOLDER SKILL\n",
         run_py="from _skills_common import emit_placeholder\nemit_placeholder()\n",
     )
@@ -1042,13 +1268,14 @@ def test_placeholder_skill_classified(tmp_path):
 def test_prose_markers_are_advisory_only(tmp_path):
     """A skill body mentioning 'placeholder' (describing others) must not set status."""
     d = _write_skill(
-        tmp_path, "px",
+        tmp_path,
+        "px",
         skill_md="---\nname: px\nstatus: wired\n---\nfans out; some are placeholder still\n",
         run_py="SUB_SKILLS = [('a','a')]\n",
     )
     sig = probe.probe_skill(d)
     assert sig["declared"]["status"] == "wired"
-    assert "placeholder" in sig["declared"]["prose_markers"]   # detected but advisory
+    assert "placeholder" in sig["declared"]["prose_markers"]  # detected but advisory
 
 
 def test_entrypoint_fallback_non_runpy(tmp_path):
@@ -1090,12 +1317,13 @@ def _p4_card(tmp_path, card_id, measurement_type=None, modality_relevance=None):
 
 
 def test_modality_relevant_types_vocab_anchored(tmp_path):
-    _write_vocab(tmp_path, {"routes_sm": ["small_molecule", "degrader"],
-                            "routes_surface": ["adc", "bite_tce"],
-                            "biology_only": None})
+    _write_vocab(
+        tmp_path,
+        {"routes_sm": ["small_molecule", "degrader"], "routes_surface": ["adc", "bite_tce"], "biology_only": None},
+    )
     mt = probe.modality_relevant_types(tmp_path)
     assert mt == {"routes_sm": ["small_molecule", "degrader"], "routes_surface": ["adc", "bite_tce"]}
-    assert "biology_only" not in mt   # a type without modality_relevance is NOT a routing type
+    assert "biology_only" not in mt  # a type without modality_relevance is NOT a routing type
 
 
 def test_modality_relevant_types_none_when_vocab_absent(tmp_path):
@@ -1105,9 +1333,9 @@ def test_modality_relevant_types_none_when_vocab_absent(tmp_path):
 
 def _routing(tmp_path, card_id, mtype, mr, vocab):
     _p4_card(tmp_path, card_id, mtype, mr)
-    methods = tmp_path / "methods"; (methods / "methods").mkdir(parents=True, exist_ok=True)
-    out = probe.probe_card(card_id, tmp_path, methods, set(), set(), {},
-                           modality_types=vocab)
+    methods = tmp_path / "methods"
+    (methods / "methods").mkdir(parents=True, exist_ok=True)
+    out = probe.probe_card(card_id, tmp_path, methods, set(), set(), {}, modality_types=vocab)
     return out["modality_routing"]
 
 
@@ -1126,7 +1354,8 @@ def test_probe_card_modality_routing_verdicts(tmp_path):
 def test_probe_card_modality_routing_unknown_when_vocab_none(tmp_path):
     # modality_types=None (vocab-absent isolated checkout) → 'unknown', never a false verdict.
     _p4_card(tmp_path, "c", "routes_sm", None)
-    methods = tmp_path / "methods"; (methods / "methods").mkdir(parents=True, exist_ok=True)
+    methods = tmp_path / "methods"
+    (methods / "methods").mkdir(parents=True, exist_ok=True)
     out = probe.probe_card("c", tmp_path, methods, set(), set(), {}, modality_types=None)
     assert out["modality_routing"] == "unknown"
 
@@ -1134,7 +1363,8 @@ def test_probe_card_modality_routing_unknown_when_vocab_none(tmp_path):
 def test_probe_card_modality_routing_not_applicable_for_missing_yaml(tmp_path):
     # A consumed card id with NO .card.yaml on disk → not_applicable (kept out of the P4 tally's
     # real states; it's a card-existence problem, surfaced via card_health).
-    methods = tmp_path / "methods"; (methods / "methods").mkdir(parents=True, exist_ok=True)
+    methods = tmp_path / "methods"
+    (methods / "methods").mkdir(parents=True, exist_ok=True)
     (tmp_path / "cards").mkdir(exist_ok=True)
     out = probe.probe_card("ghost", tmp_path, methods, set(), set(), {}, modality_types={})
     assert out["card_yaml_exists"] is False
@@ -1142,8 +1372,10 @@ def test_probe_card_modality_routing_not_applicable_for_missing_yaml(tmp_path):
 
 
 def test_modality_relevance_drift_flag_in_compute_drift():
-    skill = {"declared": {"status": "wired", "prose_markers": []},
-             "derived": {"kind": "FOCUSED", "has_entrypoint": True, "cards_in_runpy": []}}
+    skill = {
+        "declared": {"status": "wired", "prose_markers": []},
+        "derived": {"kind": "FOCUSED", "has_entrypoint": True, "cards_in_runpy": []},
+    }
     cards = [
         {"card_id": "a", "modality_routing": "missing", "card_yaml_exists": True, "is_placeholder": False},
         {"card_id": "b", "modality_routing": "drift", "card_yaml_exists": True, "is_placeholder": False},
@@ -1159,16 +1391,25 @@ def test_modality_relevance_drift_flag_in_compute_drift():
 
 def test_self_check_validates_p4_tally(tmp_path):
     rep = _minimal_report()
-    rep["cards"] = [{"card_id": "x", "card_yaml_exists": True, "fires_in_real_package": True,
-                     "card_health": "live", "n_consumers": 1, "is_orphan": False,
-                     "modality_routing": "declared"}]
+    rep["cards"] = [
+        {
+            "card_id": "x",
+            "card_yaml_exists": True,
+            "fires_in_real_package": True,
+            "card_health": "live",
+            "n_consumers": 1,
+            "is_orphan": False,
+            "modality_routing": "declared",
+        }
+    ]
     rep["summary"]["card_health_tally"] = {"live": 1}
     rep["summary"]["modality_routing_tally"] = {"declared": 1}
     rep["summary"]["n_p4_required_cards"] = 1
     rep["summary"]["n_p4_declared_cards"] = 1
     rep["summary"]["n_p4_missing_cards"] = 0
     rep["summary"]["n_p4_drift_cards"] = 0
-    p = tmp_path / "framework_health.json"; p.write_text(json.dumps(rep))
+    p = tmp_path / "framework_health.json"
+    p.write_text(json.dumps(rep))
     ok, errs = self_check(p)
     assert ok, errs
     # corrupt the tally → caught
@@ -1215,14 +1456,16 @@ def test_dormant_pending_data_card_is_placeholder_not_broken(tmp_path):
     card-placeholder), NOT `broken` (rung card-no-path). Pins the lineage-restriction-evidence
     fix."""
     (tmp_path / "cards").mkdir()
-    (tmp_path / "cards" / "dormant-x.card.yaml").write_text(textwrap.dedent('''
+    (tmp_path / "cards" / "dormant-x.card.yaml").write_text(
+        textwrap.dedent("""
         card_id: dormant-x
         status: dormant_pending_data
         methods:
           - call: some-unbuilt-aggregator
         outputs:
           summary_fields: [x_class]
-    '''))
+    """)
+    )
     sig = probe.probe_card("dormant-x", tmp_path, tmp_path, set(), set())
     assert sig["is_placeholder"] is True
     assert sig["placeholder_reason"] == "status:dormant_pending_data"

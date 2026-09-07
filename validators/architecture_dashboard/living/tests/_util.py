@@ -1,4 +1,5 @@
 """Shared test helpers: locate + load the committed framework_atlas.json and import the builder."""
+
 from __future__ import annotations
 
 import json
@@ -7,9 +8,9 @@ from pathlib import Path
 
 import pytest
 
-_LIVING = Path(__file__).resolve().parent.parent           # .../living
-_ARCH = _LIVING.parent                                     # .../architecture_dashboard
-_REPO = _ARCH.parent.parent                                # target-contracts repo root
+_LIVING = Path(__file__).resolve().parent.parent  # .../living
+_ARCH = _LIVING.parent  # .../architecture_dashboard
+_REPO = _ARCH.parent.parent  # target-contracts repo root
 COMMITTED_JSON = _REPO / "health" / "framework_atlas.json"
 
 for p in (str(_ARCH), str(_LIVING)):
@@ -25,4 +26,5 @@ def load_committed() -> dict:
 
 def builder():
     import build_living_doc  # noqa: E402  (arch/living on path)
+
     return build_living_doc

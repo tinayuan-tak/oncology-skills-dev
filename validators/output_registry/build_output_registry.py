@@ -25,6 +25,7 @@ Usage:
 `--generated-at` is passed in explicitly (no wall-clock read) so the artifact is reproducible
 and diffable; omit it and the stamp is left as "unstamped".
 """
+
 from __future__ import annotations
 
 import argparse
@@ -59,32 +60,34 @@ def _governed_entries(dp_root: str) -> list[dict]:
         # producing sha lives in generated_by "skills/compose-dashboard@<sha>"
         gb = d.get("generated_by") or ""
         sha = gb.split("@")[-1] if "@" in gb else None
-        out.append({
-            "tier": "governed",
-            "source": "evidence_package",
-            "target": tgt,
-            "indication": ind,
-            "cell": f"{tgt}/{ind}",
-            "lane": "governed",                       # single all-axis compose package
-            "skill": "compose-dashboard",
-            "verdict_key": "headline",
-            "verdict": syn.get("headline"),
-            "data_mode": gov.get("data_mode"),
-            "release_pin": gov.get("release_pin"),
-            "generated_at": gen,
-            "date": gen[:10] if gen else "undated",
-            "producing_sha": sha,
-            "producing_sha_is_placeholder": sha in {"0a1b2c3", None},
-            "n_cards_passed": vs.get("n_cards_passed"),
-            "n_cards_total": vs.get("n_cards_attempted"),
-            "status": None,
-            "package_id": d.get("package_id"),
-            "location": os.path.relpath(os.path.dirname(f), dp_root),
-            "modality_fit": [
-                {"modality": m.get("modality"), "fit_level": m.get("fit_level")}
-                for m in (syn.get("modality_fit_assessment") or [])
-            ],
-        })
+        out.append(
+            {
+                "tier": "governed",
+                "source": "evidence_package",
+                "target": tgt,
+                "indication": ind,
+                "cell": f"{tgt}/{ind}",
+                "lane": "governed",  # single all-axis compose package
+                "skill": "compose-dashboard",
+                "verdict_key": "headline",
+                "verdict": syn.get("headline"),
+                "data_mode": gov.get("data_mode"),
+                "release_pin": gov.get("release_pin"),
+                "generated_at": gen,
+                "date": gen[:10] if gen else "undated",
+                "producing_sha": sha,
+                "producing_sha_is_placeholder": sha in {"0a1b2c3", None},
+                "n_cards_passed": vs.get("n_cards_passed"),
+                "n_cards_total": vs.get("n_cards_attempted"),
+                "status": None,
+                "package_id": d.get("package_id"),
+                "location": os.path.relpath(os.path.dirname(f), dp_root),
+                "modality_fit": [
+                    {"modality": m.get("modality"), "fit_level": m.get("fit_level")}
+                    for m in (syn.get("modality_fit_assessment") or [])
+                ],
+            }
+        )
     return out
 
 
@@ -93,29 +96,31 @@ def _exploratory_entries(index_runs: list[dict]) -> list[dict]:
     out = []
     for r in index_runs:
         tgt, ind = r.get("target"), r.get("indication")
-        out.append({
-            "tier": "exploratory",
-            "source": "skill_run",
-            "target": tgt,
-            "indication": ind,
-            "cell": f"{tgt}/{ind}",
-            "lane": r.get("skill"),                   # one lane per skill
-            "skill": r.get("skill"),
-            "verdict_key": r.get("verdict_key"),
-            "verdict": r.get("verdict"),
-            "data_mode": r.get("data_mode"),
-            "release_pin": r.get("resolved_release_digest"),
-            "generated_at": r.get("generated_at"),
-            "date": r.get("date"),
-            "producing_sha": r.get("skills_repo_sha"),
-            "producing_sha_is_placeholder": False,
-            "n_cards_passed": r.get("n_cards_fired"),
-            "n_cards_total": r.get("n_cards_consumed"),
-            "status": r.get("status"),
-            "package_id": None,
-            "location": r.get("s3_uri"),
-            "modality_fit": [],
-        })
+        out.append(
+            {
+                "tier": "exploratory",
+                "source": "skill_run",
+                "target": tgt,
+                "indication": ind,
+                "cell": f"{tgt}/{ind}",
+                "lane": r.get("skill"),  # one lane per skill
+                "skill": r.get("skill"),
+                "verdict_key": r.get("verdict_key"),
+                "verdict": r.get("verdict"),
+                "data_mode": r.get("data_mode"),
+                "release_pin": r.get("resolved_release_digest"),
+                "generated_at": r.get("generated_at"),
+                "date": r.get("date"),
+                "producing_sha": r.get("skills_repo_sha"),
+                "producing_sha_is_placeholder": False,
+                "n_cards_passed": r.get("n_cards_fired"),
+                "n_cards_total": r.get("n_cards_consumed"),
+                "status": r.get("status"),
+                "package_id": None,
+                "location": r.get("s3_uri"),
+                "modality_fit": [],
+            }
+        )
     return out
 
 
@@ -158,12 +163,13 @@ def _exploratory_card_firings(run_entries: list[dict]) -> dict[str, list[str]]:
                 continue
             rid = (r.get("s3_key") or uri).rstrip("/").split("/")[-1]
             dst = Path(td) / "d.json"
-            res = subprocess.run(["aws", "s3", "cp", uri.rstrip("/") + "/decision.json", str(dst)],
-                                 capture_output=True, text=True)
+            res = subprocess.run(
+                ["aws", "s3", "cp", uri.rstrip("/") + "/decision.json", str(dst)], capture_output=True, text=True
+            )
             if res.returncode != 0 or not dst.exists():
                 continue
             try:
-                rh = (json.loads(dst.read_text()).get("run_health") or {})
+                rh = json.loads(dst.read_text()).get("run_health") or {}
             except Exception:
                 continue
             for cid in rh.get("cards_fired") or []:
@@ -178,12 +184,19 @@ def _card_firings(dp_root: str, run_entries: list[dict]) -> dict:
     gov = _governed_card_firings(dp_root)
     exp = _exploratory_card_firings(run_entries)
     all_cards = sorted(set(gov) | set(exp))
-    index = {c: {"governed": sorted(gov.get(c, [])), "exploratory": sorted(exp.get(c, [])),
-                 "fired_governed": c in gov, "fired_any": True} for c in all_cards}
+    index = {
+        c: {
+            "governed": sorted(gov.get(c, [])),
+            "exploratory": sorted(exp.get(c, [])),
+            "fired_governed": c in gov,
+            "fired_any": True,
+        }
+        for c in all_cards
+    }
     return {
         "by_card": index,
-        "fired_card_ids_governed": sorted(gov),   # == probe.fired_card_ids(products) glob
-        "fired_card_ids_any": all_cards,           # governed ∪ exploratory (the merged signal)
+        "fired_card_ids_governed": sorted(gov),  # == probe.fired_card_ids(products) glob
+        "fired_card_ids_any": all_cards,  # governed ∪ exploratory (the merged signal)
         "n_governed": len(gov),
         "n_exploratory_only": len(set(exp) - set(gov)),
     }
@@ -194,8 +207,7 @@ def _load_skill_runs_index(ref: str) -> list[dict]:
     if ref.startswith("s3://"):
         with tempfile.TemporaryDirectory() as td:
             dst = Path(td) / "index.json"
-            subprocess.run(["aws", "s3", "cp", ref, str(dst)], check=True,
-                           capture_output=True, text=True)
+            subprocess.run(["aws", "s3", "cp", ref, str(dst)], check=True, capture_output=True, text=True)
             return json.loads(dst.read_text()).get("runs", [])
     return json.loads(Path(ref).read_text()).get("runs", [])
 
@@ -213,8 +225,12 @@ def _coverage(entries: list[dict]) -> dict:
             hits = [e for e in entries if e["cell"] == cell and e["lane"] == lane]
             if hits:
                 h = max(hits, key=lambda e: e.get("date") or "")  # newest wins the cell
-                grid[cell][lane] = {"verdict": h["verdict"], "date": h["date"],
-                                    "location": h["location"], "tier": h["tier"]}
+                grid[cell][lane] = {
+                    "verdict": h["verdict"],
+                    "date": h["date"],
+                    "location": h["location"],
+                    "tier": h["tier"],
+                }
     targets = sorted({e["target"] for e in entries})
     indications = sorted({e["indication"] for e in entries})
     gov_cells = {e["cell"] for e in entries if e["tier"] == "governed"}
@@ -235,8 +251,8 @@ def _coverage(entries: list[dict]) -> dict:
             "n_cells_exploratory_only": len(exp_cells - gov_cells),
             "n_cells_both": len(gov_cells & exp_cells),
             "placeholder_sha_packages": sorted(
-                e["package_id"] for e in entries
-                if e["tier"] == "governed" and e["producing_sha_is_placeholder"]),
+                e["package_id"] for e in entries if e["tier"] == "governed" and e["producing_sha_is_placeholder"]
+            ),
         },
     }
 
@@ -244,40 +260,54 @@ def _coverage(entries: list[dict]) -> dict:
 # ----------------------------------------------------------------------------- render md
 def _render_catalog_md(entries: list[dict], cov: dict, stamp: str) -> str:
     s = cov["summary"]
-    L = ["# Output registry — CATALOG", "",
-         "Derived cross-tier index of every standardized framework output. "
-         "**Autogenerated — do not edit by hand** (re-run `build_output_registry.py`). "
-         "Supersedes the per-target `INDEX.md`'s, which each cover only the governed tier for one target.",
-         "",
-         f"_generated_at_: `{stamp}`", "",
-         f"- **{s['n_entries']}** outputs · **{s['n_governed']}** governed · "
-         f"**{s['n_exploratory']}** exploratory",
-         f"- **{s['n_cells']}** target×indication cells · {s['n_cells_governed']} governed · "
-         f"{s['n_cells_exploratory_only']} exploratory-only · {s['n_cells_both']} in both tiers",
-         f"- coverage: {s['n_targets']} targets × {s['n_indications']} indications",
-         ""]
+    L = [
+        "# Output registry — CATALOG",
+        "",
+        "Derived cross-tier index of every standardized framework output. "
+        "**Autogenerated — do not edit by hand** (re-run `build_output_registry.py`). "
+        "Supersedes the per-target `INDEX.md`'s, which each cover only the governed tier for one target.",
+        "",
+        f"_generated_at_: `{stamp}`",
+        "",
+        f"- **{s['n_entries']}** outputs · **{s['n_governed']}** governed · **{s['n_exploratory']}** exploratory",
+        f"- **{s['n_cells']}** target×indication cells · {s['n_cells_governed']} governed · "
+        f"{s['n_cells_exploratory_only']} exploratory-only · {s['n_cells_both']} in both tiers",
+        f"- coverage: {s['n_targets']} targets × {s['n_indications']} indications",
+        "",
+    ]
     if s["placeholder_sha_packages"]:
-        L += ["> ⚠ **Provenance gap:** these governed packages carry a placeholder producing-sha "
-              f"(`0a1b2c3`), so they don't record the real producing commit: "
-              f"{', '.join('`'+p+'`' for p in s['placeholder_sha_packages'])}.", ""]
+        L += [
+            "> ⚠ **Provenance gap:** these governed packages carry a placeholder producing-sha "
+            f"(`0a1b2c3`), so they don't record the real producing commit: "
+            f"{', '.join('`' + p + '`' for p in s['placeholder_sha_packages'])}.",
+            "",
+        ]
     # coverage grid
-    L += ["## Coverage grid", "",
-          "| cell | " + " | ".join(cov["lanes"]) + " |",
-          "|---|" + "|".join(["---"] * len(cov["lanes"])) + "|"]
+    L += [
+        "## Coverage grid",
+        "",
+        "| cell | " + " | ".join(cov["lanes"]) + " |",
+        "|---|" + "|".join(["---"] * len(cov["lanes"])) + "|",
+    ]
     for cell in cov["cells"]:
         row = [f"`{cell}`"]
         for lane in cov["lanes"]:
             c = cov["grid"][cell].get(lane)
             row.append(f"`{c['verdict']}`" if c and c.get("verdict") else ("✓" if c else "·"))
         L.append("| " + " | ".join(row) + " |")
-    L += ["", "## All outputs", "",
-          "| tier | target | indication | lane | verdict | date | data_mode | cards | location |",
-          "|---|---|---|---|---|---|---|---|---|"]
+    L += [
+        "",
+        "## All outputs",
+        "",
+        "| tier | target | indication | lane | verdict | date | data_mode | cards | location |",
+        "|---|---|---|---|---|---|---|---|---|",
+    ]
     for e in sorted(entries, key=lambda x: (x["tier"], x["cell"], x["lane"])):
-        cards = (f"{e['n_cards_passed']}/{e['n_cards_total']}"
-                 if e["n_cards_total"] is not None else "—")
-        L.append(f"| {e['tier']} | {e['target']} | {e['indication']} | {e['lane']} | "
-                 f"`{e['verdict']}` | {e['date']} | {e['data_mode']} | {cards} | `{e['location']}` |")
+        cards = f"{e['n_cards_passed']}/{e['n_cards_total']}" if e["n_cards_total"] is not None else "—"
+        L.append(
+            f"| {e['tier']} | {e['target']} | {e['indication']} | {e['lane']} | "
+            f"`{e['verdict']}` | {e['date']} | {e['data_mode']} | {cards} | `{e['location']}` |"
+        )
     L.append("")
     return "\n".join(L)
 
@@ -311,44 +341,52 @@ def _chip(c: dict) -> str:
         return '<span class="dash">·</span>'
     cls = "gov" if c["tier"] == "governed" else "exp"
     v = html.escape(str(c.get("verdict") or "✓"))
-    return f'<span class="chip {cls}" title="{v} ({html.escape(c.get("date",""))})">{v}</span>'
+    return f'<span class="chip {cls}" title="{v} ({html.escape(c.get("date", ""))})">{v}</span>'
 
 
 def _render_html(entries: list[dict], cov: dict, stamp: str) -> str:
     s = cov["summary"]
-    tiles = [("outputs", s["n_entries"]), ("governed", s["n_governed"]),
-             ("exploratory", s["n_exploratory"]), ("cells", s["n_cells"]),
-             ("exploratory-only", s["n_cells_exploratory_only"]), ("both tiers", s["n_cells_both"])]
-    tile_html = "".join(f'<div class="tile"><div class="n">{n}</div><div class="l">{l}</div></div>'
-                        for l, n in tiles)
+    tiles = [
+        ("outputs", s["n_entries"]),
+        ("governed", s["n_governed"]),
+        ("exploratory", s["n_exploratory"]),
+        ("cells", s["n_cells"]),
+        ("exploratory-only", s["n_cells_exploratory_only"]),
+        ("both tiers", s["n_cells_both"]),
+    ]
+    tile_html = "".join(f'<div class="tile"><div class="n">{n}</div><div class="l">{l}</div></div>' for l, n in tiles)
     warn = ""
     if s["placeholder_sha_packages"]:
-        warn = ('<div class="warn"><b>Provenance gap:</b> '
-                + str(len(s["placeholder_sha_packages"])) +
-                ' governed package(s) carry a placeholder producing-sha (<code>0a1b2c3</code>): '
-                + ", ".join("<code>" + html.escape(p) + "</code>"
-                            for p in s["placeholder_sha_packages"]) + "</div>")
+        warn = (
+            '<div class="warn"><b>Provenance gap:</b> '
+            + str(len(s["placeholder_sha_packages"]))
+            + " governed package(s) carry a placeholder producing-sha (<code>0a1b2c3</code>): "
+            + ", ".join("<code>" + html.escape(p) + "</code>" for p in s["placeholder_sha_packages"])
+            + "</div>"
+        )
     # grid
-    head = "".join(f"<th>{html.escape('governed (compose)' if l=='governed' else l)}</th>"
-                   for l in cov["lanes"])
+    head = "".join(f"<th>{html.escape('governed (compose)' if l == 'governed' else l)}</th>" for l in cov["lanes"])
     rows = []
     for cell in cov["cells"]:
         tds = "".join(f"<td>{_chip(cov['grid'][cell].get(l))}</td>" for l in cov["lanes"])
         rows.append(f'<tr><td class="cell">{html.escape(cell)}</td>{tds}</tr>')
-    grid = (f'<table><thead><tr><th>target / indication</th>{head}</tr></thead>'
-            f'<tbody>{"".join(rows)}</tbody></table>')
-    legend = ('<p class="legend">'
-              '<span class="chip gov">governed</span> concurrence-reviewed evidence package · '
-              '<span class="chip exp">exploratory</span> ungoverned dev run · '
-              '<span class="dash">·</span> no output yet</p>')
-    return (f'<!DOCTYPE html><html><head><meta charset="utf-8">'
-            f'<title>Framework output registry</title><style>{_CSS}</style></head><body><div class="wrap">'
-            f'<h1>Framework output registry — coverage</h1>'
-            f'<p class="sub">Derived from the data-products repo (governed) + skill-runs S3 '
-            f'(exploratory). Generated {html.escape(stamp)}.</p>'
-            f'{warn}<div class="tiles">{tile_html}</div>'
-            f'<h2>Coverage grid</h2>{grid}{legend}'
-            f'</div></body></html>')
+    grid = f"<table><thead><tr><th>target / indication</th>{head}</tr></thead><tbody>{''.join(rows)}</tbody></table>"
+    legend = (
+        '<p class="legend">'
+        '<span class="chip gov">governed</span> concurrence-reviewed evidence package · '
+        '<span class="chip exp">exploratory</span> ungoverned dev run · '
+        '<span class="dash">·</span> no output yet</p>'
+    )
+    return (
+        f'<!DOCTYPE html><html><head><meta charset="utf-8">'
+        f'<title>Framework output registry</title><style>{_CSS}</style></head><body><div class="wrap">'
+        f"<h1>Framework output registry — coverage</h1>"
+        f'<p class="sub">Derived from the data-products repo (governed) + skill-runs S3 '
+        f"(exploratory). Generated {html.escape(stamp)}.</p>"
+        f'{warn}<div class="tiles">{tile_html}</div>'
+        f"<h2>Coverage grid</h2>{grid}{legend}"
+        f"</div></body></html>"
+    )
 
 
 # ----------------------------------------------------------------------------- main
@@ -370,16 +408,20 @@ def build(dp_root: str, skill_runs_index: str, out: str, stamp: str) -> dict:
     entries = _governed_entries(dp_root) + _exploratory_entries(runs)
     cov = _coverage(entries)
     firings = _card_firings(dp_root, runs)
-    profiles = _load_profiles(dp_root)   # cell -> published-profile pointers (release_url, s3)
+    profiles = _load_profiles(dp_root)  # cell -> published-profile pointers (release_url, s3)
     cov["summary"]["n_cards_fired_governed"] = firings["n_governed"]
     cov["summary"]["n_cards_fired_exploratory_only"] = firings["n_exploratory_only"]
     cov["summary"]["n_published_profiles"] = len(profiles)
-    catalog = {"generated_at": stamp, "schema_version": 3,
-               "sources": {"data_products": dp_root, "skill_runs_index": skill_runs_index},
-               "summary": cov["summary"], "coverage": {k: cov[k] for k in ("lanes", "cells", "grid")},
-               "card_firings": firings,
-               "profiles": profiles,
-               "entries": entries}
+    catalog = {
+        "generated_at": stamp,
+        "schema_version": 3,
+        "sources": {"data_products": dp_root, "skill_runs_index": skill_runs_index},
+        "summary": cov["summary"],
+        "coverage": {k: cov[k] for k in ("lanes", "cells", "grid")},
+        "card_firings": firings,
+        "profiles": profiles,
+        "entries": entries,
+    }
     outp = Path(out)
     outp.mkdir(parents=True, exist_ok=True)
     (outp / "catalog.json").write_text(json.dumps(catalog, indent=2, default=str))
@@ -391,19 +433,25 @@ def build(dp_root: str, skill_runs_index: str, out: str, stamp: str) -> dict:
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--data-products", required=True, help="path to a data-products checkout")
-    ap.add_argument("--skill-runs-index", required=True,
-                    help="local path OR s3:// uri to skill-runs/index.json")
+    ap.add_argument("--skill-runs-index", required=True, help="local path OR s3:// uri to skill-runs/index.json")
     ap.add_argument("--out", default="./registry")
-    ap.add_argument("--generated-at", default="unstamped",
-                    help="ISO timestamp stamped into the artifact (passed in for reproducibility)")
+    ap.add_argument(
+        "--generated-at",
+        default="unstamped",
+        help="ISO timestamp stamped into the artifact (passed in for reproducibility)",
+    )
     a = ap.parse_args()
     cat = build(a.data_products, a.skill_runs_index, a.out, a.generated_at)
     s = cat["summary"]
-    print(f"✓ registry: {s['n_entries']} outputs "
-          f"({s['n_governed']} governed / {s['n_exploratory']} exploratory) across "
-          f"{s['n_cells']} cells → {a.out}/{{catalog.json,CATALOG.md,coverage.html}}")
-    print(f"  cells: {s['n_cells_governed']} governed · {s['n_cells_exploratory_only']} "
-          f"exploratory-only · {s['n_cells_both']} both")
+    print(
+        f"✓ registry: {s['n_entries']} outputs "
+        f"({s['n_governed']} governed / {s['n_exploratory']} exploratory) across "
+        f"{s['n_cells']} cells → {a.out}/{{catalog.json,CATALOG.md,coverage.html}}"
+    )
+    print(
+        f"  cells: {s['n_cells_governed']} governed · {s['n_cells_exploratory_only']} "
+        f"exploratory-only · {s['n_cells_both']} both"
+    )
     if s["placeholder_sha_packages"]:
         print(f"  ⚠ {len(s['placeholder_sha_packages'])} governed package(s) with placeholder sha")
 

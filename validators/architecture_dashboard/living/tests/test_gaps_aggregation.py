@@ -1,4 +1,5 @@
 """Gaps tab: normalized records, tally consistency, and validator wiring."""
+
 from _util import load_committed
 
 _REQUIRED_KEYS = {"severity", "gap_type", "component_type", "component_id", "code", "message", "source"}

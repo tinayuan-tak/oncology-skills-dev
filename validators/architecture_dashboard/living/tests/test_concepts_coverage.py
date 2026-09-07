@@ -1,4 +1,5 @@
 """Every component type resolves a schema shape, a real example, and an inventory count."""
+
 import yaml
 from pathlib import Path
 

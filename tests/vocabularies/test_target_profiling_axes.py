@@ -12,6 +12,7 @@ per-skill `phase:` letters). These tests pin:
   - reports_into / conditioned_by / refines edges name real shorts (no dangling refs),
   - the scientific_gaps backlog enumerates exactly the non-`captured` axes.
 """
+
 import yaml
 from pathlib import Path
 
@@ -51,11 +52,20 @@ def _gate_coverage_coverage():
 
 # --- shape + version ---------------------------------------------------------
 
+
 def test_wellformed_and_versioned():
     assert AX["enum_id"] == "target_profiling_axes"
     assert str(AX["version"]) == "1.1.0"
-    for key in ("questions", "conditioner_axes", "biomarker_facets", "coverage_vocab",
-                "bands", "homing_rule", "scientific_gaps", "supersedes"):
+    for key in (
+        "questions",
+        "conditioner_axes",
+        "biomarker_facets",
+        "coverage_vocab",
+        "bands",
+        "homing_rule",
+        "scientific_gaps",
+        "supersedes",
+    ):
         assert AX[key], f"{key} must be present + non-empty"
     assert set(AX["bands"]) == BANDS
 
@@ -98,8 +108,9 @@ def test_equivalence_no_coverage_regression_vs_gate_coverage_v2():
             continue
         exp = _SUPERSEDE_UPGRADES.get(s)
         assert exp == (g[s], a[s]), f"undocumented coverage change {s}: v2={g[s]} ontology={a[s]}"
-        assert _COVERAGE_ORDER[a[s]] > _COVERAGE_ORDER[g[s]], \
+        assert _COVERAGE_ORDER[a[s]] > _COVERAGE_ORDER[g[s]], (
             f"{s}: a supersede-correction must UPGRADE, not downgrade ({g[s]}→{a[s]})"
+        )
 
 
 def test_review_fixes_applied():
@@ -115,12 +126,17 @@ def test_review_fixes_applied():
 
 # --- conditioner axes --------------------------------------------------------
 
+
 def test_conditioner_axes_present():
     # The three original orthogonal refinements + the two blind conditioners the card-audit
     # (2026-08-21) surfaced (genetic_ancestry, disease_setting). Pinned as an exact set so any
     # further conditioner axis is a conscious, reviewed addition — not silent drift.
     assert _conditioner_ids() == {
-        "modality", "subtype", "molecular_form", "genetic_ancestry", "disease_setting",
+        "modality",
+        "subtype",
+        "molecular_form",
+        "genetic_ancestry",
+        "disease_setting",
     }
 
 
@@ -154,6 +170,7 @@ def test_conditioned_by_names_real_conditioners():
 
 # --- edges + facets ----------------------------------------------------------
 
+
 def test_reports_into_and_facets_name_real_questions():
     qs = _question_shorts()
     for q in AX["questions"]:
@@ -173,6 +190,7 @@ def test_biomarker_facets_ported_from_gate_coverage():
 
 # --- scientific gaps backlog -------------------------------------------------
 
+
 def test_skill_objectives_wellformed():
     """Every skill declares an objective + a primary_axis that is a real question short (or null for
     descriptive/extrinsic skills). The user's per-skill scientific-objective requirement."""
@@ -185,8 +203,14 @@ def test_skill_objectives_wellformed():
         pa = s.get("primary_axis", "__missing__")
         assert pa is None or pa in qs, f"{s['skill']}: primary_axis {pa!r} not a real question"
     # the nomination-spine skills must all declare an objective
-    for core in ("tumor-presence", "tumor-selectivity", "functional-requirement",
-                 "genomic-alteration-profile", "surface-modality-fit", "on-target-safety-liability"):
+    for core in (
+        "tumor-presence",
+        "tumor-selectivity",
+        "functional-requirement",
+        "genomic-alteration-profile",
+        "surface-modality-fit",
+        "on-target-safety-liability",
+    ):
         assert core in seen, f"{core}: missing a skill objective"
 
 
@@ -212,7 +236,7 @@ def _real_card_ids():
     alias_path = REPO / "vocabularies" / "card_id_aliases.yaml"
     if alias_path.exists():
         adoc = yaml.safe_load(alias_path.read_text()) or {}
-        for entry in (adoc.get("aliases") or []):
+        for entry in adoc.get("aliases") or []:
             if isinstance(entry, dict) and entry.get("from"):
                 ids.add(entry["from"])
     return ids
@@ -264,8 +288,9 @@ def test_relational_trio_consolidated_into_the_relational_axis():
     longer appear as standalone skill_objectives, the consolidated owner must carry the relational
     axis, and the retirement must be recorded in the relational_consolidation annex."""
     by_skill = {s["skill"]: s for s in AX["skill_objectives"]}
-    assert by_skill["combination-and-vulnerability"]["primary_axis"] == "combination_vulnerability", \
+    assert by_skill["combination-and-vulnerability"]["primary_axis"] == "combination_vulnerability", (
         "the consolidated skill must own the relational axis"
+    )
     trio = {"synthetic-lethal-partners", "combinatorial-dependency", "combo-and-resistance"}
     lingering = trio & set(by_skill)
     assert not lingering, f"retired relational trio should not be standalone skill_objectives: {lingering}"
@@ -294,8 +319,7 @@ def test_scientific_gaps_cover_every_hard_gap_axis():
     (`blind` or `license_blocked`) — the axes the framework genuinely cannot evidence.
     `partial` axes (wired but thin) may be enumerated but are not required."""
     gap_axes = {g["axis"] for g in AX["scientific_gaps"]}
-    hard = {q["short"] for q in AX["questions"]
-            if q["framework_can_evidence"] in {"blind", "license_blocked"}}
+    hard = {q["short"] for q in AX["questions"] if q["framework_can_evidence"] in {"blind", "license_blocked"}}
     missing = hard - gap_axes
     assert not missing, f"hard-gap questions missing from scientific_gaps: {missing}"
     # every gap entry names a real axis (question short OR a conditioner id)

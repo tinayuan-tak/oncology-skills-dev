@@ -15,6 +15,7 @@ Reads three sibling repos (target-contracts, claude-oncology-skills, data-catalo
 and OPTIONALLY overlays health/framework_health.json for live/broken status. Emits ONE
 self-contained HTML (inline CSS+JS, no CDN) so a colleague can open the file directly.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -67,7 +68,8 @@ def build_manifest_index(dc: Path) -> dict:
             "version": d.get("version"),
             "license": d.get("license"),
             "s3_uri": d.get("s3_uri"),
-            "format": d.get("format") or (d.get("files", [{}])[0].get("format") if isinstance(d.get("files"), list) and d["files"] else None),
+            "format": d.get("format")
+            or (d.get("files", [{}])[0].get("format") if isinstance(d.get("files"), list) and d["files"] else None),
             "size_bytes": d.get("size_bytes") or d.get("total_size_bytes"),
             "sort_key": (d.get("parameters") or {}).get("sort_key") if isinstance(d.get("parameters"), dict) else None,
             "derived_from": d.get("derived_from") or [],
@@ -87,24 +89,42 @@ def add_nonmanifest_resources(dc: "Path", idx: dict) -> None:
     if scat.exists():
         inds = sorted(d.name for d in scat.iterdir() if d.is_dir())
         idx["subgroup-catalog"] = {
-            "resolved_id": "subgroup-catalog", "kind": "subgroup-catalog (non-manifest)",
-            "provider": "target-contracts", "version": None, "license": "internal",
-            "s3_uri": None, "format": "yaml", "size_bytes": None, "sort_key": None,
-            "derived_from": [], "manifest_path": "subgroup-catalogs/",
-            "description": ("Per-indication molecular-subgroup catalogs (atomic strata + composite "
-                            f"cohorts). Indications: {', '.join(inds)}."),
+            "resolved_id": "subgroup-catalog",
+            "kind": "subgroup-catalog (non-manifest)",
+            "provider": "target-contracts",
+            "version": None,
+            "license": "internal",
+            "s3_uri": None,
+            "format": "yaml",
+            "size_bytes": None,
+            "sort_key": None,
+            "derived_from": [],
+            "manifest_path": "subgroup-catalogs/",
+            "description": (
+                "Per-indication molecular-subgroup catalogs (atomic strata + composite "
+                f"cohorts). Indications: {', '.join(inds)}."
+            ),
             "resolution": "non-manifest resource",
         }
     rrel = dc / "resolver-releases"
     if rrel.exists():
         vers = sorted(p.stem for p in rrel.glob("*.yaml"))
         idx["target-id-resolver-release"] = {
-            "resolved_id": "target-id-resolver-release", "kind": "resolver-release (non-manifest)",
-            "provider": "data-catalog", "version": (vers[-1] if vers else None), "license": "internal",
-            "s3_uri": None, "format": "yaml", "size_bytes": None, "sort_key": None,
-            "derived_from": [], "manifest_path": "resolver-releases/",
-            "description": ("Versioned target-id resolver release (HGNC/Ensembl/UniProt/NCBI/mygene "
-                            f"data-pins). Releases: {', '.join(vers)}."),
+            "resolved_id": "target-id-resolver-release",
+            "kind": "resolver-release (non-manifest)",
+            "provider": "data-catalog",
+            "version": (vers[-1] if vers else None),
+            "license": "internal",
+            "s3_uri": None,
+            "format": "yaml",
+            "size_bytes": None,
+            "sort_key": None,
+            "derived_from": [],
+            "manifest_path": "resolver-releases/",
+            "description": (
+                "Versioned target-id resolver release (HGNC/Ensembl/UniProt/NCBI/mygene "
+                f"data-pins). Releases: {', '.join(vers)}."
+            ),
             "resolution": "non-manifest resource",
         }
 
@@ -115,26 +135,31 @@ def add_nonmanifest_resources(dc: "Path", idx: dict) -> None:
 GAP_NOTES = {
     "hpa-normal-tissue-expression": {
         "category": "derivation-needed",
-        "note": ("HPA normal-tissue signal. The underlying data IS cataloged as hpa-v25-1 "
-                 "(master tables), but HPA v25 dropped the standalone normal_tissue.tsv — this "
-                 "product needs a derived extraction from the monolithic master file."),
+        "note": (
+            "HPA normal-tissue signal. The underlying data IS cataloged as hpa-v25-1 "
+            "(master tables), but HPA v25 dropped the standalone normal_tissue.tsv — this "
+            "product needs a derived extraction from the monolithic master file."
+        ),
     },
     "surfaceome-cohort-ranking-per-indication-v1": {
         "category": "on-S3-uncataloged",
-        "note": ("Per-indication derived product. The method reads "
-                 "s3://onc-compbio/data-catalog/derived/surfaceome-cohort-ranking-per-indication-v1/ "
-                 "and falls back to data_unavailable; built on-demand per indication, no manifest "
-                 "in manifests/derived/. (Card's skill is dropped from the target-profile fan-out.)"),
+        "note": (
+            "Per-indication derived product. The method reads "
+            "s3://onc-compbio/data-catalog/derived/surfaceome-cohort-ranking-per-indication-v1/ "
+            "and falls back to data_unavailable; built on-demand per indication, no manifest "
+            "in manifests/derived/. (Card's skill is dropped from the target-profile fan-out.)"
+        ),
     },
     "literature-snapshot": {
         "category": "not-landed",
-        "note": ("No data landed. clinical-precedent + functional-blockade-rationale are placeholder "
-                 "cards; the literature/clinical-evidence source is not resolved."),
+        "note": (
+            "No data landed. clinical-precedent + functional-blockade-rationale are placeholder "
+            "cards; the literature/clinical-evidence source is not resolved."
+        ),
     },
     "tempus-rwd-stratified-expression": {
         "category": "commercial",
-        "note": ("Tempus real-world data (CRC-only iter-1). Commercial licensing not resolved — "
-                 "not landed."),
+        "note": ("Tempus real-world data (CRC-only iter-1). Commercial licensing not resolved — not landed."),
     },
 }
 
@@ -143,10 +168,44 @@ GAP_NOTES = {
 # to distinguish an indication-parameterized product ('coadread-dge-…', a pin for a
 # {indication}-templated family) from a genuinely single-scope product.
 _INDICATION_TOKENS = {
-    "acc", "blca", "brca", "cesc", "coad", "coadread", "esca", "gbm", "hnsc", "kich",
-    "kirc", "kirp", "lgg", "lihc", "luad", "lusc", "nsclc", "ov", "paad", "pcpg", "prad",
-    "read", "sclc", "skcm", "stad", "tgct", "thca", "ucec", "ucs", "pancan", "aml", "dlbc",
-    "laml", "meso", "chol", "uvm", "thym", "sarc",
+    "acc",
+    "blca",
+    "brca",
+    "cesc",
+    "coad",
+    "coadread",
+    "esca",
+    "gbm",
+    "hnsc",
+    "kich",
+    "kirc",
+    "kirp",
+    "lgg",
+    "lihc",
+    "luad",
+    "lusc",
+    "nsclc",
+    "ov",
+    "paad",
+    "pcpg",
+    "prad",
+    "read",
+    "sclc",
+    "skcm",
+    "stad",
+    "tgct",
+    "thca",
+    "ucec",
+    "ucs",
+    "pancan",
+    "aml",
+    "dlbc",
+    "laml",
+    "meso",
+    "chol",
+    "uvm",
+    "thym",
+    "sarc",
 }
 
 
@@ -171,22 +230,49 @@ def resolve_dataset(product_id: str, idx: dict) -> dict:
     """Exact match, else longest-prefix (release-pinned families e.g. depmap-consortium-26q1)."""
     if product_id in idx:
         rec = idx[product_id]
-        return {**rec, "product_id": product_id, "in_catalog": True, "matched_by": "exact",
-                "resolution": rec.get("resolution", "manifest"), "gap_category": None, "gap_note": None}
+        return {
+            **rec,
+            "product_id": product_id,
+            "in_catalog": True,
+            "matched_by": "exact",
+            "resolution": rec.get("resolution", "manifest"),
+            "gap_category": None,
+            "gap_note": None,
+        }
     # prefix: a card names 'depmap-consortium-26q1' but only '-rnai'/'-crispr' variants are cataloged
     cands = [k for k in idx if k.startswith(product_id) or product_id.startswith(k)]
     if cands:
         best = max(cands, key=len)
         rec = idx[best]
-        return {**rec, "product_id": product_id, "in_catalog": True, "matched_by": "prefix",
-                "resolution": rec.get("resolution", "manifest"), "gap_category": None, "gap_note": None}
+        return {
+            **rec,
+            "product_id": product_id,
+            "in_catalog": True,
+            "matched_by": "prefix",
+            "resolution": rec.get("resolution", "manifest"),
+            "gap_category": None,
+            "gap_note": None,
+        }
     gap = GAP_NOTES.get(product_id, {})
-    return {"product_id": product_id, "in_catalog": False, "matched_by": None,
-            "resolved_id": None, "kind": None, "provider": None, "license": None,
-            "s3_uri": None, "format": None, "size_bytes": None, "sort_key": None,
-            "derived_from": [], "description": "", "manifest_path": None,
-            "resolution": "uncataloged", "gap_category": gap.get("category"),
-            "gap_note": gap.get("note")}
+    return {
+        "product_id": product_id,
+        "in_catalog": False,
+        "matched_by": None,
+        "resolved_id": None,
+        "kind": None,
+        "provider": None,
+        "license": None,
+        "s3_uri": None,
+        "format": None,
+        "size_bytes": None,
+        "sort_key": None,
+        "derived_from": [],
+        "description": "",
+        "manifest_path": None,
+        "resolution": "uncataloged",
+        "gap_category": gap.get("category"),
+        "gap_note": gap.get("note"),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -227,7 +313,7 @@ def parse_skill(md_path: Path) -> dict | None:
 def _first_sentence(desc: str) -> str:
     desc = " ".join(desc.split())
     # first sentence up to a period followed by space+capital or quote-close
-    m = re.search(r'^(.{20,240}?[.?!])(\s|$)', desc)
+    m = re.search(r"^(.{20,240}?[.?!])(\s|$)", desc)
     return (m.group(1) if m else desc[:200]).strip()
 
 
@@ -245,7 +331,8 @@ def parse_target_profile_fanout(md_path: Path, skill_names: set) -> list:
     seen, ded = set(), []
     for s in out:
         if s not in seen:
-            seen.add(s); ded.append(s)
+            seen.add(s)
+            ded.append(s)
     return ded
 
 
@@ -266,22 +353,31 @@ def parse_card(p: Path) -> dict:
         "sample_context": d.get("sample_context"),
         "required_inputs": [
             {"product_id": ri.get("product_id"), "release_pin": ri.get("release_pin")}
-            for ri in (d.get("required_inputs") or []) if isinstance(ri, dict)
+            for ri in (d.get("required_inputs") or [])
+            if isinstance(ri, dict)
         ],
         "methods": [
             {"call": mm.get("call"), "args": mm.get("args") or {}}
-            for mm in (d.get("methods") or []) if isinstance(mm, dict)
+            for mm in (d.get("methods") or [])
+            if isinstance(mm, dict)
         ],
         "summary_fields": outputs.get("summary_fields") or [],
         "vocabulary": outputs.get("summary_fields_vocabulary") or {},
         "figures": [
-            {"id": f.get("id"), "type": f.get("type"), "description": (f.get("description") or "")[:300], "primary": bool(f.get("primary"))}
-            for f in figs if isinstance(f, dict)
+            {
+                "id": f.get("id"),
+                "type": f.get("type"),
+                "description": (f.get("description") or "")[:300],
+                "primary": bool(f.get("primary")),
+            }
+            for f in figs
+            if isinstance(f, dict)
         ],
         "thresholds": d.get("thresholds") or {},
         "warning_predicates": [
             {"warning_id": w.get("warning_id"), "if": w.get("if"), "message": w.get("message")}
-            for w in (d.get("warning_predicates") or []) if isinstance(w, dict)
+            for w in (d.get("warning_predicates") or [])
+            if isinstance(w, dict)
         ],
         "caveats": d.get("caveats") or [],
     }
@@ -351,8 +447,12 @@ def parse_resolvers(tc: Path) -> tuple[dict, dict]:
             verdicts.append({"verdict": v, "refs": refs})
             for rid in refs:
                 rule_to_verdicts.setdefault(rid, []).append({"gate": gate, "verdict": v})
-        resolvers[gate] = {"gate": gate, "version": d.get("version"), "verdicts": verdicts,
-                           "n_verdicts": len({x["verdict"] for x in verdicts})}
+        resolvers[gate] = {
+            "gate": gate,
+            "version": d.get("version"),
+            "verdicts": verdicts,
+            "n_verdicts": len({x["verdict"] for x in verdicts}),
+        }
     return resolvers, rule_to_verdicts
 
 
@@ -369,30 +469,36 @@ def parse_axes(tc: Path) -> dict | None:
     for q in d.get("questions", []):
         if not isinstance(q, dict):
             continue
-        qs.append({
-            "short": q.get("short"),
-            "question": q.get("question"),
-            "band": q.get("band"),
-            "risk_category": q.get("risk_category"),
-            "home_skill": q.get("home_skill"),
-            "foreign_consumers": q.get("foreign_consumers") or [],
-            "coverage": q.get("framework_can_evidence"),
-            "modality_relevance": q.get("modality_relevance") or [],
-            "receives_facets": q.get("receives_facets") or [],
-            "reports_into": q.get("reports_into") or [],
-            "conditioned_by": q.get("conditioned_by") or [],
-            "status": q.get("status"),
-            "characterization_only": bool(q.get("characterization_only")),
-            "unit_of_analysis": q.get("unit_of_analysis"),
-            "coverage_note": (q.get("coverage_note") or "").strip(),
-            "evidences": (q.get("evidences") or "").strip(),
-            "legacy_letters": q.get("legacy_letters") or {},
-        })
+        qs.append(
+            {
+                "short": q.get("short"),
+                "question": q.get("question"),
+                "band": q.get("band"),
+                "risk_category": q.get("risk_category"),
+                "home_skill": q.get("home_skill"),
+                "foreign_consumers": q.get("foreign_consumers") or [],
+                "coverage": q.get("framework_can_evidence"),
+                "modality_relevance": q.get("modality_relevance") or [],
+                "receives_facets": q.get("receives_facets") or [],
+                "reports_into": q.get("reports_into") or [],
+                "conditioned_by": q.get("conditioned_by") or [],
+                "status": q.get("status"),
+                "characterization_only": bool(q.get("characterization_only")),
+                "unit_of_analysis": q.get("unit_of_analysis"),
+                "coverage_note": (q.get("coverage_note") or "").strip(),
+                "evidences": (q.get("evidences") or "").strip(),
+                "legacy_letters": q.get("legacy_letters") or {},
+            }
+        )
     conds = []
     for c in d.get("conditioner_axes", []):
         if isinstance(c, dict):
-            conds.append({"id": c.get("id") or c.get("short"),
-                          "note": (c.get("note") or c.get("description") or c.get("what") or "").strip()[:240]})
+            conds.append(
+                {
+                    "id": c.get("id") or c.get("short"),
+                    "note": (c.get("note") or c.get("description") or c.get("what") or "").strip()[:240],
+                }
+            )
         elif isinstance(c, str):
             conds.append({"id": c, "note": ""})
     return {
@@ -448,7 +554,7 @@ def build(tc: Path, sk: Path, dc: Path, health_json_path: "Path|None" = None) ->
             health["skill"] = {s["name"]: s.get("health_verdict") for s in hj.get("skills", [])}
             health["card"] = {c["card_id"]: c.get("card_health") for c in hj.get("cards", [])}
             health["generated_at"] = hj.get("generated_at")
-            print(f"  overlaid health status from {hpath.name} ({health.get('generated_at','')[:10]})")
+            print(f"  overlaid health status from {hpath.name} ({health.get('generated_at', '')[:10]})")
         except Exception as e:
             print(f"  ! health overlay skipped: {e}")
 
@@ -515,7 +621,7 @@ def build(tc: Path, sk: Path, dc: Path, health_json_path: "Path|None" = None) ->
         s["verdict_bearing_cards"] = vb
         s["display_cards"] = disp
         s["gates"] = sorted(gates)
-        s["is_composed_root"] = (sname == "target-profile")
+        s["is_composed_root"] = sname == "target-profile"
         s["fanout"] = fanout if sname == "target-profile" else []
         s["health"] = health.get("skill", {}).get(sname)
         s["n_cards"] = len(s["cards_used"])
@@ -524,8 +630,14 @@ def build(tc: Path, sk: Path, dc: Path, health_json_path: "Path|None" = None) ->
     def _sha(path: Path):
         try:
             import subprocess
-            return subprocess.check_output(["git", "-C", str(path), "rev-parse", "--short", "HEAD"],
-                                           stderr=subprocess.DEVNULL).decode().strip()
+
+            return (
+                subprocess.check_output(
+                    ["git", "-C", str(path), "rev-parse", "--short", "HEAD"], stderr=subprocess.DEVNULL
+                )
+                .decode()
+                .strip()
+            )
         except Exception:
             return None
 
@@ -577,11 +689,13 @@ def main():
     with open(args.out, "w") as fh:
         fh.write(html_str)
     s = graph["summary"]
-    print(f"\n✓ {s['n_skills']} skills · {s['n_cards']} cards "
-          f"({s['n_verdict_bearing_cards']} verdict-bearing) · "
-          f"{s['n_datasets']} datasets ({s['n_broken_refs']} uncataloged) · "
-          f"{s['n_resolvers']} resolvers / {s['n_verdicts']} verdicts")
-    print(f"  HTML  → {args.out}  ({os.path.getsize(args.out)//1024} KB)")
+    print(
+        f"\n✓ {s['n_skills']} skills · {s['n_cards']} cards "
+        f"({s['n_verdict_bearing_cards']} verdict-bearing) · "
+        f"{s['n_datasets']} datasets ({s['n_broken_refs']} uncataloged) · "
+        f"{s['n_resolvers']} resolvers / {s['n_verdicts']} verdicts"
+    )
+    print(f"  HTML  → {args.out}  ({os.path.getsize(args.out) // 1024} KB)")
     print(f"  JSON  → {args.json}")
 
 

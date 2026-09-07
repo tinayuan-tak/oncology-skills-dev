@@ -5,6 +5,7 @@ FAILS a deliberately-broken synthetic vocab: missing evidence_tier, dangling der
 multi-provider-without-policy, unknown grain, self-reference, and a derived cycle. Hermetic —
 synthetic vocabs written to tmp; the real-vocab test guards the shipped file.
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -44,8 +45,10 @@ def _base_doc(**type_overrides) -> dict:
     types.update(type_overrides)
     return {
         "schema_version": 1,
-        "entity_grain_vocabulary": {"target": {"partition_required": False},
-                                    "target_lineage": {"partition_required": False}},
+        "entity_grain_vocabulary": {
+            "target": {"partition_required": False},
+            "target_lineage": {"partition_required": False},
+        },
         "measurement_types": types,
     }
 
@@ -56,6 +59,7 @@ def _errs(r):
 
 # ---------- the real shipped vocab is clean ----------
 
+
 def test_real_vocabulary_is_clean():
     r = VM.validate(REPO / "vocabularies" / "measurement_types.yaml", REPO / "cards")
     assert r.ok, _errs(r)
@@ -63,69 +67,110 @@ def test_real_vocabulary_is_clean():
 
 # ---------- each governance rule is enforced ----------
 
+
 def test_missing_evidence_tier_fails(tmp_path):
-    doc = _base_doc(bad={"claim": "x", "entity_grains": ["target"],
-                         "providers": [{"kind": "dataset", "source": "s"}]})  # no evidence_tier
+    doc = _base_doc(
+        bad={"claim": "x", "entity_grains": ["target"], "providers": [{"kind": "dataset", "source": "s"}]}
+    )  # no evidence_tier
     r = VM.validate(_write(tmp_path, doc), None)
     assert not r.ok and "evidence_tier" in _errs(r)
 
 
 def test_dangling_derived_input_fails(tmp_path):
-    doc = _base_doc(deriv={"claim": "x", "entity_grains": ["target"],
-                           "providers": [{"kind": "derived_from", "inputs": ["nonexistent_type"],
-                                          "method": "m", "evidence_tier": "measured"}]})
+    doc = _base_doc(
+        deriv={
+            "claim": "x",
+            "entity_grains": ["target"],
+            "providers": [
+                {"kind": "derived_from", "inputs": ["nonexistent_type"], "method": "m", "evidence_tier": "measured"}
+            ],
+        }
+    )
     r = VM.validate(_write(tmp_path, doc), None)
     assert not r.ok and "dangling DAG edge" in _errs(r)
 
 
 def test_multi_provider_without_policy_fails(tmp_path):
-    doc = _base_doc(twop={"claim": "x", "entity_grains": ["target"],
-                          "providers": [
-                              {"kind": "dataset", "source": "a", "evidence_tier": "measured"},
-                              {"kind": "dataset", "source": "b", "evidence_tier": "inferred"}]})
+    doc = _base_doc(
+        twop={
+            "claim": "x",
+            "entity_grains": ["target"],
+            "providers": [
+                {"kind": "dataset", "source": "a", "evidence_tier": "measured"},
+                {"kind": "dataset", "source": "b", "evidence_tier": "inferred"},
+            ],
+        }
+    )
     r = VM.validate(_write(tmp_path, doc), None)
     assert not r.ok and "multi_provider_policy" in _errs(r)
 
 
 def test_multi_provider_with_policy_passes(tmp_path):
-    doc = _base_doc(twop={"claim": "x", "entity_grains": ["target"],
-                          "multi_provider_policy": "tier_dominant",
-                          "providers": [
-                              {"kind": "dataset", "source": "a", "evidence_tier": "measured"},
-                              {"kind": "dataset", "source": "b", "evidence_tier": "inferred"}]})
+    doc = _base_doc(
+        twop={
+            "claim": "x",
+            "entity_grains": ["target"],
+            "multi_provider_policy": "tier_dominant",
+            "providers": [
+                {"kind": "dataset", "source": "a", "evidence_tier": "measured"},
+                {"kind": "dataset", "source": "b", "evidence_tier": "inferred"},
+            ],
+        }
+    )
     r = VM.validate(_write(tmp_path, doc), None)
     assert r.ok, _errs(r)
 
 
 def test_unknown_grain_fails(tmp_path):
-    doc = _base_doc(g={"claim": "x", "entity_grains": ["target_galaxy"],
-                       "providers": [{"kind": "dataset", "source": "s", "evidence_tier": "measured"}]})
+    doc = _base_doc(
+        g={
+            "claim": "x",
+            "entity_grains": ["target_galaxy"],
+            "providers": [{"kind": "dataset", "source": "s", "evidence_tier": "measured"}],
+        }
+    )
     r = VM.validate(_write(tmp_path, doc), None)
     assert not r.ok and "not in entity_grain_vocabulary" in _errs(r)
 
 
 def test_self_referential_derived_fails(tmp_path):
-    doc = _base_doc(selfref={"claim": "x", "entity_grains": ["target"],
-                             "providers": [{"kind": "derived_from", "inputs": ["selfref"],
-                                            "method": "m", "evidence_tier": "measured"}]})
+    doc = _base_doc(
+        selfref={
+            "claim": "x",
+            "entity_grains": ["target"],
+            "providers": [{"kind": "derived_from", "inputs": ["selfref"], "method": "m", "evidence_tier": "measured"}],
+        }
+    )
     r = VM.validate(_write(tmp_path, doc), None)
     assert not r.ok and "self-referential" in _errs(r)
 
 
 def test_derived_cycle_detected(tmp_path):
     doc = _base_doc(
-        a={"claim": "a", "entity_grains": ["target"],
-           "providers": [{"kind": "derived_from", "inputs": ["b"], "method": "m", "evidence_tier": "measured"}]},
-        b={"claim": "b", "entity_grains": ["target"],
-           "providers": [{"kind": "derived_from", "inputs": ["a"], "method": "m", "evidence_tier": "measured"}]},
+        a={
+            "claim": "a",
+            "entity_grains": ["target"],
+            "providers": [{"kind": "derived_from", "inputs": ["b"], "method": "m", "evidence_tier": "measured"}],
+        },
+        b={
+            "claim": "b",
+            "entity_grains": ["target"],
+            "providers": [{"kind": "derived_from", "inputs": ["a"], "method": "m", "evidence_tier": "measured"}],
+        },
     )
     r = VM.validate(_write(tmp_path, doc), None)
     assert not r.ok and "CYCLE" in _errs(r)
 
 
 def test_dangling_card_backref_fails(tmp_path):
-    doc = _base_doc(t={"claim": "x", "entity_grains": ["target"], "cards": ["no-such-card"],
-                       "providers": [{"kind": "dataset", "source": "s", "evidence_tier": "measured"}]})
+    doc = _base_doc(
+        t={
+            "claim": "x",
+            "entity_grains": ["target"],
+            "cards": ["no-such-card"],
+            "providers": [{"kind": "dataset", "source": "s", "evidence_tier": "measured"}],
+        }
+    )
     # cards dir = the tmp (empty) → known_cards is an empty set, so the backref dangles
     (tmp_path / "cards").mkdir()
     r = VM.validate(_write(tmp_path, doc), tmp_path / "cards")
@@ -133,6 +178,7 @@ def test_dangling_card_backref_fails(tmp_path):
 
 
 # ---------- evidence_substrate (Rule 7, independence-before-certainty) ----------
+
 
 def test_unknown_evidence_substrate_fails(tmp_path):
     doc = _base_doc()
@@ -153,13 +199,21 @@ def test_dataset_type_declares_valid_substrate_passes(tmp_path):
 
 def test_derived_type_inherits_input_substrate_passes(tmp_path):
     """A derived type whose declared substrate IS carried by a derived_from input is valid."""
-    doc = _base_doc(strat={
-        "claim": "mutation-stratified dependency",
-        "entity_grains": ["target"],
-        "evidence_substrate": "depmap_crispr_chronos",
-        "providers": [{"kind": "derived_from", "inputs": ["crispr_lof_dependency"],
-                       "method": "stratified", "evidence_tier": "measured"}],
-    })
+    doc = _base_doc(
+        strat={
+            "claim": "mutation-stratified dependency",
+            "entity_grains": ["target"],
+            "evidence_substrate": "depmap_crispr_chronos",
+            "providers": [
+                {
+                    "kind": "derived_from",
+                    "inputs": ["crispr_lof_dependency"],
+                    "method": "stratified",
+                    "evidence_tier": "measured",
+                }
+            ],
+        }
+    )
     doc["evidence_substrates"] = {"depmap_crispr_chronos": {"description": "d"}}
     doc["measurement_types"]["crispr_lof_dependency"]["evidence_substrate"] = "depmap_crispr_chronos"
     r = VM.validate(_write(tmp_path, doc), None)
@@ -168,15 +222,25 @@ def test_derived_type_inherits_input_substrate_passes(tmp_path):
 
 def test_derived_type_invents_substrate_absent_from_lineage_fails(tmp_path):
     """A derived type cannot claim a substrate none of its inputs carry (Rule 7)."""
-    doc = _base_doc(strat={
-        "claim": "stratified dependency claiming a substrate its lineage does not touch",
-        "entity_grains": ["target"],
-        "evidence_substrate": "recount3_tcga_gtex_bulk_rna",
-        "providers": [{"kind": "derived_from", "inputs": ["crispr_lof_dependency"],
-                       "method": "stratified", "evidence_tier": "measured"}],
-    })
-    doc["evidence_substrates"] = {"depmap_crispr_chronos": {"description": "d"},
-                                  "recount3_tcga_gtex_bulk_rna": {"description": "d"}}
+    doc = _base_doc(
+        strat={
+            "claim": "stratified dependency claiming a substrate its lineage does not touch",
+            "entity_grains": ["target"],
+            "evidence_substrate": "recount3_tcga_gtex_bulk_rna",
+            "providers": [
+                {
+                    "kind": "derived_from",
+                    "inputs": ["crispr_lof_dependency"],
+                    "method": "stratified",
+                    "evidence_tier": "measured",
+                }
+            ],
+        }
+    )
+    doc["evidence_substrates"] = {
+        "depmap_crispr_chronos": {"description": "d"},
+        "recount3_tcga_gtex_bulk_rna": {"description": "d"},
+    }
     doc["measurement_types"]["crispr_lof_dependency"]["evidence_substrate"] = "depmap_crispr_chronos"
     r = VM.validate(_write(tmp_path, doc), None)
     assert not r.ok and "no derived_from input carries it" in _errs(r)
@@ -185,15 +249,24 @@ def test_derived_type_invents_substrate_absent_from_lineage_fails(tmp_path):
 def test_derived_type_transitive_substrate_inheritance_passes(tmp_path):
     """Substrate inheritance walks the transitive input closure through an untagged intermediate."""
     doc = _base_doc(
-        mid={"claim": "intermediate derived, untagged",
-             "entity_grains": ["target"],
-             "providers": [{"kind": "derived_from", "inputs": ["crispr_lof_dependency"],
-                            "method": "m", "evidence_tier": "measured"}]},
-        leaf={"claim": "leaf derived, inherits through the untagged intermediate",
-              "entity_grains": ["target"],
-              "evidence_substrate": "depmap_crispr_chronos",
-              "providers": [{"kind": "derived_from", "inputs": ["mid"],
-                             "method": "m", "evidence_tier": "measured"}]},
+        mid={
+            "claim": "intermediate derived, untagged",
+            "entity_grains": ["target"],
+            "providers": [
+                {
+                    "kind": "derived_from",
+                    "inputs": ["crispr_lof_dependency"],
+                    "method": "m",
+                    "evidence_tier": "measured",
+                }
+            ],
+        },
+        leaf={
+            "claim": "leaf derived, inherits through the untagged intermediate",
+            "entity_grains": ["target"],
+            "evidence_substrate": "depmap_crispr_chronos",
+            "providers": [{"kind": "derived_from", "inputs": ["mid"], "method": "m", "evidence_tier": "measured"}],
+        },
     )
     doc["evidence_substrates"] = {"depmap_crispr_chronos": {"description": "d"}}
     doc["measurement_types"]["crispr_lof_dependency"]["evidence_substrate"] = "depmap_crispr_chronos"

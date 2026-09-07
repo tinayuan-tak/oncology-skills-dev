@@ -8,16 +8,23 @@ those; don't hand-set margins, colors, or fonts.
 ## How to build a figure
 
 ```python
-import sys; sys.path.insert(0, "<target-contracts>/plot_styles")
+import sys
+
+sys.path.insert(0, "<target-contracts>/plot_styles")
 import takeda_palette as pal
 
-with pal.figure_frame(target, indication, view="tumor vs. normal expression",
-                      out_path=svg_path, kind="single",
-                      provenance="TCGA COADREAD tumor · GTEx Colon normal · recount3 / GENCODE v26",
-                      takeaway="74% of COADREAD tumors express EPCAM above the normal 95th percentile.") as F:
-    F.ax.boxplot(...)                       # draw the DATA (identity colors, see below)
+with pal.figure_frame(
+    target,
+    indication,
+    view="tumor vs. normal expression",
+    out_path=svg_path,
+    kind="single",
+    provenance="TCGA COADREAD tumor · GTEx Colon normal · recount3 / GENCODE v26",
+    takeaway="74% of COADREAD tumors express EPCAM above the normal 95th percentile.",
+) as F:
+    F.ax.boxplot(...)  # draw the DATA (identity colors, see below)
     F.axis_label("x", "Expression", "log2(TPM + 1)")
-    F.n_on_boxes([822, 669])                # distribution plots: n on the boxes, bottom-row first
+    F.n_on_boxes([822, 669])  # distribution plots: n on the boxes, bottom-row first
 ```
 
 `figure_frame` owns figsize, margins, and the title/provenance/takeaway bands, and saves the SVG on

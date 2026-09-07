@@ -12,6 +12,7 @@ pan-lineage-only evidence falls through to the confirmed_driver / *_dominant_pat
 This pins the harmonized structure (all four gated) so a future edit can't silently un-gate one sibling.
 The behavioral old→new flip is golden-tested in test_genomic_resolver_ordering.py.
 Sibling of test_genomic_ampexpr_scope_gate.py (kept for its MARK2/PAAD provenance)."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -25,14 +26,30 @@ RULES = yaml.safe_load((_ROOT / "interpretation-rules" / "intracellular-intrinsi
 
 # (class, {strong,moderate} driver rule ids, gate rule id, card id) for all four stratified siblings.
 _FAMILIES = [
-    ("mutation", {"mutant-strongly-dependent-supportive", "mutant-moderately-dependent-supportive"},
-     "mutant-indication-scoped-context", "mutation-stratified-dependency"),
-    ("copy_number", {"cn-amplified-strongly-dependent-supportive", "cn-amplified-moderately-dependent-supportive"},
-     "cn-amplified-indication-scoped-context", "copy-number-stratified-dependency"),
-    ("fusion", {"fusion-positive-strongly-dependent-supportive", "fusion-positive-moderately-dependent-supportive"},
-     "fusion-positive-indication-scoped-context", "fusion-stratified-dependency"),
-    ("amp_expr", {"amp-expr-strongly-dependent-supportive", "amp-expr-moderately-dependent-supportive"},
-     "amp-expr-indication-scoped-context", "amp-expr-stratified-dependency"),
+    (
+        "mutation",
+        {"mutant-strongly-dependent-supportive", "mutant-moderately-dependent-supportive"},
+        "mutant-indication-scoped-context",
+        "mutation-stratified-dependency",
+    ),
+    (
+        "copy_number",
+        {"cn-amplified-strongly-dependent-supportive", "cn-amplified-moderately-dependent-supportive"},
+        "cn-amplified-indication-scoped-context",
+        "copy-number-stratified-dependency",
+    ),
+    (
+        "fusion",
+        {"fusion-positive-strongly-dependent-supportive", "fusion-positive-moderately-dependent-supportive"},
+        "fusion-positive-indication-scoped-context",
+        "fusion-stratified-dependency",
+    ),
+    (
+        "amp_expr",
+        {"amp-expr-strongly-dependent-supportive", "amp-expr-moderately-dependent-supportive"},
+        "amp-expr-indication-scoped-context",
+        "amp-expr-stratified-dependency",
+    ),
 ]
 
 
@@ -40,7 +57,8 @@ _FAMILIES = [
 def test_biomarker_rungs_require_indication_scope(cls, driver_rules, gate, card_id):
     """Every biomarker rung keyed on this class's dependency rule must also require the class's scope gate."""
     rungs = [
-        r for r in RESOLVER["resolve"]
+        r
+        for r in RESOLVER["resolve"]
         if driver_rules & set(r.get("when_all_fired", []) or ([r["when_fired"]] if r.get("when_fired") else []))
     ]
     assert rungs, f"expected {cls} biomarker rungs in the genomic resolver"
@@ -49,10 +67,12 @@ def test_biomarker_rungs_require_indication_scope(cls, driver_rules, gate, card_
         assert gate in waf, (
             f"{cls} biomarker rung {r.get('verdict')} (driving_rule={r.get('driving_rule')}) keys on a {cls} "
             f"dependency rule but does NOT require {gate!r} — a PAN-LINEAGE {cls} dependency could be promoted "
-            f"to an indication-level biomarker verdict. Gate the rung via when_all_fired.")
+            f"to an indication-level biomarker verdict. Gate the rung via when_all_fired."
+        )
         # driving_rule must stay explicit so the interpreter's rids[-1] fallback doesn't name the gate.
         assert r.get("driving_rule") in driver_rules, (
-            f"{cls} gated rung must set driving_rule to the dependency rule (not the scope gate).")
+            f"{cls} gated rung must set driving_rule to the dependency rule (not the scope gate)."
+        )
 
 
 @pytest.mark.parametrize("cls,driver_rules,gate,card_id", _FAMILIES, ids=[f[0] for f in _FAMILIES])
@@ -62,7 +82,8 @@ def test_scope_gate_rule_is_indication_scoped(cls, driver_rules, gate, card_id):
     when = g["when"]
     assert when["card_id"] == card_id and when["field"] == "evidence_scope"
     assert set(when["in"]) == {"within_indication", "within_indication_mut_vs_pan_wt"}, (
-        f"{gate} must admit ONLY within-indication scopes; admitting a pan_* scope would defeat the gate.")
+        f"{gate} must admit ONLY within-indication scopes; admitting a pan_* scope would defeat the gate."
+    )
 
 
 @pytest.mark.parametrize("cls,driver_rules,gate,card_id", _FAMILIES, ids=[f[0] for f in _FAMILIES])
@@ -71,5 +92,9 @@ def test_evidence_scope_vocabulary_declared(cls, driver_rules, gate, card_id):
     card = yaml.safe_load((_ROOT / "cards" / f"{card_id}.card.yaml").read_text())
     vocab = card["outputs"]["summary_fields_vocabulary"]
     assert "evidence_scope" in vocab, f"{card_id} must declare evidence_scope vocabulary for the scope gate"
-    assert {"within_indication", "within_indication_mut_vs_pan_wt",
-            "pan_lineage_evidence_only", "pan_no_indication"} <= set(vocab["evidence_scope"])
+    assert {
+        "within_indication",
+        "within_indication_mut_vs_pan_wt",
+        "pan_lineage_evidence_only",
+        "pan_no_indication",
+    } <= set(vocab["evidence_scope"])

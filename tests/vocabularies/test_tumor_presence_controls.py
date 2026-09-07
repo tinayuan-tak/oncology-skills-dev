@@ -6,6 +6,7 @@ lineage_marker negative must be EXCLUDED in its own lineage and APPLICABLE elsew
 The percentile reads are exercised live elsewhere; this pins the vocab + the pure
 applicability logic that governs which negatives are valid per indication.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -30,8 +31,7 @@ def vocab():
 @pytest.fixture(scope="module")
 def crosswalk_tissues():
     data = yaml.safe_load(CROSSWALK.read_text())
-    return {str(i["canonical_code"]).upper(): i.get("gtex_normal_tissue")
-            for i in data.get("indications", [])}
+    return {str(i["canonical_code"]).upper(): i.get("gtex_normal_tissue") for i in data.get("indications", [])}
 
 
 # ---- structural integrity ----
@@ -69,8 +69,8 @@ def test_negative_controls_wellformed(vocab):
 
 def test_has_housekeeping_ceiling_and_silent_floor(vocab):
     roles = {spec.get("role") for spec in (vocab.get("negative_controls") or {}).values()}
-    assert "housekeeping" in roles   # a ceiling anchor
-    assert "silent" in roles          # a floor anchor
+    assert "housekeeping" in roles  # a ceiling anchor
+    assert "silent" in roles  # a floor anchor
     assert "lineage_marker" in roles  # the indication-matching case
 
 
@@ -84,7 +84,8 @@ def test_lineage_marker_lineages_resolve_in_crosswalk(vocab, crosswalk_tissues):
             lin = spec.get("negative_except_lineage")
             assert lin in valid_tissues, (
                 f"{sym} negative_except_lineage={lin!r} is not a gtex_normal_tissue in "
-                f"indication_crosswalk.yaml ({sorted(valid_tissues)}) — exclusion can never fire")
+                f"indication_crosswalk.yaml ({sorted(valid_tissues)}) — exclusion can never fire"
+            )
 
 
 def test_sftpc_is_lung_lineage_marker(vocab):

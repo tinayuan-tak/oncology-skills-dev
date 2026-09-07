@@ -6,6 +6,7 @@ are the load-bearing claims and are tested against local fixtures.
 
 Run: pytest validators/output_registry/tests/ -q
 """
+
 from __future__ import annotations
 
 import json
@@ -29,9 +30,12 @@ def _write_pkg(root: Path, target: str, ind: str, cards: list[tuple[str, str | N
 
 # --- generator: governed firing index mirrors the probe's pass-state semantics ---------
 def test_governed_firings_only_counts_fired_states(tmp_path):
-    _write_pkg(tmp_path, "BRAF", "SKCM",
-               [("a", "pass"), ("b", "passed_with_warnings"), ("c", "fail"),
-                ("d", None), ("e", "passed")])
+    _write_pkg(
+        tmp_path,
+        "BRAF",
+        "SKCM",
+        [("a", "pass"), ("b", "passed_with_warnings"), ("c", "fail"), ("d", None), ("e", "passed")],
+    )
     gov = R._governed_card_firings(str(tmp_path))
     assert set(gov) == {"a", "b", "e"}
     assert gov["a"] == ["ep-braf-skcm-unpinned-latest_approved-001"]
@@ -63,9 +67,10 @@ def test_fired_any_absent_registry_degrades_to_glob(tmp_path):
 
 def test_fired_any_uses_registry_superset(tmp_path):
     _write_pkg(tmp_path, "BRAF", "SKCM", [("a", "pass")])
-    (tmp_path / "catalog.json").write_text(json.dumps({"card_firings": {
-        "fired_card_ids_governed": ["a"], "fired_card_ids_any": ["a", "z"]}}))
-    assert probe.fired_card_ids(tmp_path) == {"a"}          # governed glob unchanged
+    (tmp_path / "catalog.json").write_text(
+        json.dumps({"card_firings": {"fired_card_ids_governed": ["a"], "fired_card_ids_any": ["a", "z"]}})
+    )
+    assert probe.fired_card_ids(tmp_path) == {"a"}  # governed glob unchanged
     assert probe.fired_card_ids_any(tmp_path) == {"a", "z"}  # exploratory-lit 'z' added
 
 
@@ -79,11 +84,9 @@ def test_registry_card_firings_none_when_malformed(tmp_path):
 # --- probe_card: fires_in_any_run is additive; fires_in_real_package stays governed ----
 def test_probe_card_fires_in_any_run_additive(tmp_path):
     # 'z' fired only in an exploratory run (in fired_any_ids, not in fired_ids)
-    card = probe.probe_card(
-        "z", tmp_path, tmp_path, live_ids=set(), fired_ids={"a"},
-        fired_any_ids={"a", "z"})
-    assert card["fires_in_real_package"] is False   # not in a governed package
-    assert card["fires_in_any_run"] is True         # but fired in a real run
+    card = probe.probe_card("z", tmp_path, tmp_path, live_ids=set(), fired_ids={"a"}, fired_any_ids={"a", "z"})
+    assert card["fires_in_real_package"] is False  # not in a governed package
+    assert card["fires_in_any_run"] is True  # but fired in a real run
 
 
 def test_probe_card_fires_in_any_defaults_to_governed(tmp_path):

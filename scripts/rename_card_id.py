@@ -19,6 +19,7 @@ Usage:
   # also rename the card YAML file + a card dir if named after the id:
   python scripts/rename_card_id.py --old ... --new ... --apply --rename-files
 """
+
 from __future__ import annotations
 
 import argparse
@@ -57,13 +58,17 @@ def main(argv=None) -> int:
     ap.add_argument("--old", required=True)
     ap.add_argument("--new", required=True)
     ap.add_argument("--apply", action="store_true", help="write changes (default: dry-run)")
-    ap.add_argument("--rename-files", action="store_true",
-                    help="also rename a <old>.card.yaml file + any dir named exactly <old>")
-    ap.add_argument("--commit", action="store_true",
-                    help="git-stage EXACTLY the files this tool edited/renamed (per repo) + commit. "
-                         "Requires --apply. Never stages a file the tool did not touch (fixes the "
-                         "too-broad/too-narrow `git add` error class) and never pushes (run guards + "
-                         "push by hand). Uses --message or a standard default.")
+    ap.add_argument(
+        "--rename-files", action="store_true", help="also rename a <old>.card.yaml file + any dir named exactly <old>"
+    )
+    ap.add_argument(
+        "--commit",
+        action="store_true",
+        help="git-stage EXACTLY the files this tool edited/renamed (per repo) + commit. "
+        "Requires --apply. Never stages a file the tool did not touch (fixes the "
+        "too-broad/too-narrow `git add` error class) and never pushes (run guards + "
+        "push by hand). Uses --message or a standard default.",
+    )
     ap.add_argument("--message", default=None, help="commit message (with --commit)")
     ap.add_argument("--home", default=str(Path.home()))
     ap.add_argument("--repos", nargs="*", default=DEFAULT_REPOS)
@@ -92,8 +97,10 @@ def main(argv=None) -> int:
             repo = rel.parts[0]
             edited_by_repo.setdefault(repo, []).append(p)
 
-    print(f"\n{'APPLIED' if args.apply else 'DRY-RUN'}: {total_hits} occurrence(s) across "
-          f"{total_files} file(s) for {args.old!r} -> {args.new!r}")
+    print(
+        f"\n{'APPLIED' if args.apply else 'DRY-RUN'}: {total_hits} occurrence(s) across "
+        f"{total_files} file(s) for {args.old!r} -> {args.new!r}"
+    )
 
     # File renames (card YAML + design doc) — tracked so --commit stages the rename too.
     renamed_by_repo: dict[str, list[tuple[Path, Path]]] = {r: [] for r in args.repos}
@@ -112,6 +119,7 @@ def main(argv=None) -> int:
 
     if args.commit and args.apply:
         import subprocess
+
         for repo in args.repos:
             root = home / repo
             paths = [str(p.relative_to(root)) for p in edited_by_repo.get(repo, [])]
@@ -119,13 +127,25 @@ def main(argv=None) -> int:
                 paths += [str(src.relative_to(root)), str(dest.relative_to(root))]
             if not paths:
                 continue
-            msg = args.message or (f"rename card_id {args.old} -> {args.new} "
-                                   f"(word-boundary-safe; {repo.split('-')[-1]} slice)")
+            msg = args.message or (
+                f"rename card_id {args.old} -> {args.new} (word-boundary-safe; {repo.split('-')[-1]} slice)"
+            )
             # stage EXACTLY the tool's files (git add -A <paths> handles the deletions from renames)
             subprocess.run(["git", "-C", str(root), "add", "-A", "--", *paths], check=True)
-            subprocess.run(["git", "-C", str(root), "commit", "-q", "-m", msg,
-                            "-m", "Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"],
-                           check=True)
+            subprocess.run(
+                [
+                    "git",
+                    "-C",
+                    str(root),
+                    "commit",
+                    "-q",
+                    "-m",
+                    msg,
+                    "-m",
+                    "Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+                ],
+                check=True,
+            )
             print(f"  [{repo}] committed {len(paths)} path(s) — NOT pushed (run guards + push by hand)")
 
     if not args.apply:

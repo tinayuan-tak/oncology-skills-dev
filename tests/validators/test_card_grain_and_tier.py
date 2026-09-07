@@ -35,6 +35,7 @@ VC = _load("validate_cards")
 
 # ---------- fixtures ----------
 
+
 def _base_card(**overrides) -> dict:
     """A minimally schema-valid leaf card. Overrides merge shallowly."""
     card = {
@@ -63,6 +64,7 @@ def _errors(report) -> str:
 
 
 # ---------- GRAIN: panorama must bind a per-sample reader ----------
+
 
 def test_panorama_field_on_aggregate_reader_fails(tmp_path):
     """The trap: declares per_subgroup_metrics but binds an aggregate method."""
@@ -136,8 +138,12 @@ def test_blocked_status_without_field_passes(tmp_path):
     card = _base_card(
         methods=[{"call": "dge-deseq2"}],
         required_inputs=[{"product_id": "dge-tumor-vs-adjacent"}],
-        subgroup_stratification={"eligible": True, "status": "blocked_needs_per_sample_reader",
-                                 "axes": ["msi_status"], "rationale": "aggregate substrate; needs per-sample reader"},
+        subgroup_stratification={
+            "eligible": True,
+            "status": "blocked_needs_per_sample_reader",
+            "axes": ["msi_status"],
+            "rationale": "aggregate substrate; needs per-sample reader",
+        },
         outputs={"summary_fields": ["log2fc_tumor_vs_adjacent"]},
     )
     report = _validate(tmp_path, card)
@@ -145,6 +151,7 @@ def test_blocked_status_without_field_passes(tmp_path):
 
 
 # ---------- TIER: target-tier cards never stratify ----------
+
 
 def test_tier_target_with_stratification_block_fails(tmp_path):
     card = _base_card(
@@ -175,20 +182,27 @@ def test_tier_target_plain_passes(tmp_path):
 
 # ---------- Regression: the real shipped cards behave ----------
 
-@pytest.mark.parametrize("card_id", [
-    "subgroup-stratified-mutation-frequency",
-    "subgroup-stratified-dependency",
-])
+
+@pytest.mark.parametrize(
+    "card_id",
+    [
+        "subgroup-stratified-mutation-frequency",
+        "subgroup-stratified-dependency",
+    ],
+)
 def test_shipped_live_cards_pass(card_id):
     """The 2 new live panorama cards validate clean against the real schema."""
     report = VC.validate_card_file(REPO / "cards" / f"{card_id}.card.yaml")
     assert report.ok, _errors(report)
 
 
-@pytest.mark.parametrize("card_id", [
-    "subgroup-stratified-expression",
-    "rwd-stratified-expression",
-])
+@pytest.mark.parametrize(
+    "card_id",
+    [
+        "subgroup-stratified-expression",
+        "rwd-stratified-expression",
+    ],
+)
 def test_fixed_traps_now_pass(card_id):
     """The 2 formerly-trapped cards are now correctly blocked and validate clean."""
     report = VC.validate_card_file(REPO / "cards" / f"{card_id}.card.yaml")

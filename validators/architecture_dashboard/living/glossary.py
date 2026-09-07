@@ -14,6 +14,7 @@ Exhaustive-by-construction: `build_glossary(graph, roots)` indexes the FULL toke
 the graph (all cards/rules/verdicts/gates/measurement_types), so coverage is total and the
 test verifies completeness against those same graph-derived sets.
 """
+
 from __future__ import annotations
 
 import re
@@ -96,23 +97,38 @@ def build_glossary(graph: dict, roots: dict) -> dict:
     here = Path(__file__).resolve().parent
     hand = _load_yaml(here / "glossary.yaml")
 
-    g: dict[str, dict] = {k: {} for k in
-                          ("card", "rule", "verdict", "gate", "measurement_type",
-                           "severity", "gap_type", "status", "component_type")}
+    g: dict[str, dict] = {
+        k: {}
+        for k in (
+            "card",
+            "rule",
+            "verdict",
+            "gate",
+            "measurement_type",
+            "severity",
+            "gap_type",
+            "status",
+            "component_type",
+        )
+    }
 
     # ---- hand-authored enums (severity / gap_type / status / component_type / gate seeds)
     for kind in ("severity", "gap_type", "status", "component_type", "gate"):
         for token, rec in (hand.get(kind) or {}).items():
-            g[kind][token] = {"label": rec.get("label") or humanize(token),
-                              "plain_english": rec.get("plain_english") or "",
-                              "source": "glossary.yaml"}
+            g[kind][token] = {
+                "label": rec.get("label") or humanize(token),
+                "plain_english": rec.get("plain_english") or "",
+                "source": "glossary.yaml",
+            }
 
     # ---- cards: gloss from the card `question`
     for cid, c in (graph.get("cards") or {}).items():
         q = c.get("question")
-        g["card"][cid] = {"label": humanize(cid),
-                          "plain_english": _first_sentence(q) if q else humanize(cid),
-                          "source": "card.question" if q else "humanize"}
+        g["card"][cid] = {
+            "label": humanize(cid),
+            "plain_english": _first_sentence(q) if q else humanize(cid),
+            "source": "card.question" if q else "humanize",
+        }
 
     # ---- measurement_types: from registry description, else humanize
     mt_desc = _measurement_type_descriptions(tc)
@@ -121,37 +137,36 @@ def build_glossary(graph: dict, roots: dict) -> dict:
         if c.get("measurement_type"):
             mtypes.add(c["measurement_type"])
     for mt in mtypes:
-        g["measurement_type"][mt] = {"label": humanize(mt),
-                                     "plain_english": mt_desc.get(mt, humanize(mt)),
-                                     "source": "measurement_types.yaml" if mt in mt_desc else "humanize"}
+        g["measurement_type"][mt] = {
+            "label": humanize(mt),
+            "plain_english": mt_desc.get(mt, humanize(mt)),
+            "source": "measurement_types.yaml" if mt in mt_desc else "humanize",
+        }
 
     # ---- gates + verdicts: from resolvers
     for gate, r in (graph.get("resolvers") or {}).items():
         if gate not in g["gate"]:
-            g["gate"][gate] = {"label": humanize(gate), "plain_english": humanize(gate),
-                               "source": "humanize"}
+            g["gate"][gate] = {"label": humanize(gate), "plain_english": humanize(gate), "source": "humanize"}
         for v in r.get("verdicts") or []:
             tok = v.get("verdict")
             if tok and tok not in g["verdict"]:
-                g["verdict"][tok] = {"label": humanize(tok),
-                                     "plain_english": _verdict_plain(tok),
-                                     "source": "derived"}
+                g["verdict"][tok] = {"label": humanize(tok), "plain_english": _verdict_plain(tok), "source": "derived"}
 
     # ---- rules: synthesize from the graph's parsed rule dicts
     for c in (graph.get("cards") or {}).values():
         for rule in c.get("rules") or []:
             rid = rule.get("rule_id")
             if rid and rid not in g["rule"]:
-                g["rule"][rid] = {"label": humanize(rid),
-                                  "plain_english": _rule_plain(rule),
-                                  "source": "rule"}
+                g["rule"][rid] = {"label": humanize(rid), "plain_english": _rule_plain(rule), "source": "rule"}
 
     # ---- overrides last (hand-authored verdict/measurement_type/card win over derived)
     for kind in ("verdict", "measurement_type", "card", "rule"):
         for token, rec in (hand.get(kind) or {}).items():
-            g[kind][token] = {"label": rec.get("label") or humanize(token),
-                              "plain_english": rec.get("plain_english") or "",
-                              "source": "glossary.yaml"}
+            g[kind][token] = {
+                "label": rec.get("label") or humanize(token),
+                "plain_english": rec.get("plain_english") or "",
+                "source": "glossary.yaml",
+            }
     return g
 
 

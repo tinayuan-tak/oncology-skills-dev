@@ -53,6 +53,7 @@ def _base_artifact(indication: str) -> dict:
 
 # ---------- indication field: oneOf(OncoTree code | TARGET_LEVEL) ----------
 
+
 def _indication_subschema() -> dict:
     """Isolate the indication property subschema for focused validation."""
     return EVIDENCE_SCHEMA["properties"]["indication"]
@@ -77,14 +78,8 @@ def test_indication_is_oneof_not_bare_pattern():
     """
     sub = _indication_subschema()
     assert "oneOf" in sub, "indication must use oneOf(OncoTree code | TARGET_LEVEL)"
-    consts = [
-        branch.get("const")
-        for branch in sub["oneOf"]
-        if "const" in branch
-    ]
-    assert "TARGET_LEVEL" in consts, (
-        "TARGET_LEVEL must be a reserved const branch in the indication oneOf"
-    )
+    consts = [branch.get("const") for branch in sub["oneOf"] if "const" in branch]
+    assert "TARGET_LEVEL" in consts, "TARGET_LEVEL must be a reserved const branch in the indication oneOf"
 
 
 def test_target_level_not_ambiguous_against_pattern_branch():
@@ -102,8 +97,7 @@ def test_target_level_not_ambiguous_against_pattern_branch():
 
 def test_full_artifact_with_target_level_validates():
     """A complete evidence artifact using TARGET_LEVEL validates end-to-end."""
-    jsonschema.validate(instance=_base_artifact("TARGET_LEVEL"),
-                        schema=EVIDENCE_SCHEMA)
+    jsonschema.validate(instance=_base_artifact("TARGET_LEVEL"), schema=EVIDENCE_SCHEMA)
 
 
 def test_full_artifact_with_oncotree_code_validates():
@@ -113,9 +107,9 @@ def test_full_artifact_with_oncotree_code_validates():
 
 # ---------- products.yaml: every target_level product declares the sentinel ----------
 
+
 def _target_level_products() -> list[dict]:
-    return [p for p in PRODUCTS["products"]
-            if p.get("indication_scope") == "target_level"]
+    return [p for p in PRODUCTS["products"] if p.get("indication_scope") == "target_level"]
 
 
 def test_target_level_products_exist():
@@ -135,13 +129,8 @@ def test_every_target_level_product_declares_sentinel():
     """RP6 enforcement: every indication_scope=target_level product must declare
     indication_sentinel: TARGET_LEVEL. This is the CI gate that stops a new
     target-level product from silently inventing its own placeholder."""
-    offenders = [
-        p["id"] for p in _target_level_products()
-        if p.get("indication_sentinel") != "TARGET_LEVEL"
-    ]
-    assert not offenders, (
-        f"target_level products missing indication_sentinel: TARGET_LEVEL: {offenders}"
-    )
+    offenders = [p["id"] for p in _target_level_products() if p.get("indication_sentinel") != "TARGET_LEVEL"]
+    assert not offenders, f"target_level products missing indication_sentinel: TARGET_LEVEL: {offenders}"
 
 
 def test_no_indication_scoped_product_declares_sentinel():
@@ -150,10 +139,8 @@ def test_no_indication_scoped_product_declares_sentinel():
     An indication-scoped product declaring the sentinel would be a modeling
     error (it has a real indication)."""
     offenders = [
-        p["id"] for p in PRODUCTS["products"]
-        if p.get("indication_scope") != "target_level"
-        and "indication_sentinel" in p
+        p["id"]
+        for p in PRODUCTS["products"]
+        if p.get("indication_scope") != "target_level" and "indication_sentinel" in p
     ]
-    assert not offenders, (
-        f"non-target_level products must NOT declare indication_sentinel: {offenders}"
-    )
+    assert not offenders, f"non-target_level products must NOT declare indication_sentinel: {offenders}"

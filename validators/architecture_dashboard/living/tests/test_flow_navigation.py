@@ -1,4 +1,5 @@
 """Flow diagrams: multiple altitudes present, and the zoom navigation is internally valid."""
+
 from _util import load_committed
 
 
@@ -34,8 +35,9 @@ def test_wire_schematics_present_and_filled():
     scs = [lv for lv in levels if lv.get("schematic")]
     assert len(scs) >= 5, f"expected >= 5 wire schematics, got {len(scs)}"
     for lv in scs:
-        assert "«" not in lv["schematic"] and "»" not in lv["schematic"], \
+        assert "«" not in lv["schematic"] and "»" not in lv["schematic"], (
             f"{lv['id']}: unfilled token placeholder in schematic"
+        )
 
 
 def test_overview_drills_into_detail_levels():

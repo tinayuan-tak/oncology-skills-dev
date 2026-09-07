@@ -1,6 +1,7 @@
 """M5 rule-role partition — the verdict-inert rules as an EXPLICIT display channel. Pins that the
 committed snapshot is a well-formed, non-overlapping partition of EVERY rule, matches the live
 contracts (no drift), and that gating rules are exactly those a resolver references."""
+
 from __future__ import annotations
 
 import sys

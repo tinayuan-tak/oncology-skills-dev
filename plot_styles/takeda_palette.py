@@ -19,14 +19,14 @@ from __future__ import annotations
 
 # ===== Okabe-Ito 8-color palette (colorblind-safe; deuteranopia/protanopia compatible) =====
 OKABE_ITO = [
-    "#E69F00",   # orange
-    "#56B4E9",   # sky blue
-    "#009E73",   # bluish green
-    "#F0E442",   # yellow
-    "#0072B2",   # blue
-    "#D55E00",   # vermillion
-    "#CC79A7",   # reddish purple
-    "#000000",   # black
+    "#E69F00",  # orange
+    "#56B4E9",  # sky blue
+    "#009E73",  # bluish green
+    "#F0E442",  # yellow
+    "#0072B2",  # blue
+    "#D55E00",  # vermillion
+    "#CC79A7",  # reddish purple
+    "#000000",  # black
 ]
 
 # ===== Canonical lineage → fixed color map (consistency across all cards) =====
@@ -36,42 +36,39 @@ OKABE_ITO = [
 # Colors chosen from Okabe-Ito + Tol Colorblind + ColorBrewer for colorblind safety.
 LINEAGE_COLORS = {
     # ==== Tier-1: priority-indication anchors (Okabe-Ito, high-recognition) ====
-    "Bowel": "#D55E00",              # vermillion — COADREAD anchor
-    "Lung": "#E69F00",               # orange — NSCLC + SCLC (collapsed in OncotreeLineage)
-    "Pancreas": "#009E73",           # bluish green — PDAC anchor
+    "Bowel": "#D55E00",  # vermillion — COADREAD anchor
+    "Lung": "#E69F00",  # orange — NSCLC + SCLC (collapsed in OncotreeLineage)
+    "Pancreas": "#009E73",  # bluish green — PDAC anchor
     "Esophagus/Stomach": "#CC79A7",  # reddish purple — GC anchor (canonical OncotreeLineage)
-    "Breast": "#56B4E9",             # sky blue
-
+    "Breast": "#56B4E9",  # sky blue
     # ==== Tier-2: common cancer types (Tol-Bright / ColorBrewer accents) ====
-    "Liver": "#88CCEE",              # light blue-teal
-    "CNS/Brain": "#332288",          # dark indigo (distinct from any blue tier-1)
-    "Skin": "#DDCC77",               # tan
-    "Ovary/Fallopian Tube": "#AA4499", # magenta-purple
-    "Prostate": "#117733",           # dark green (distinct from Pancreas' bluish-green)
-    "Kidney": "#882255",             # burgundy
-    "Lymphoid": "#44AA99",           # teal
-    "Myeloid": "#999933",            # olive
-    "Bladder/Urinary Tract": "#661100", # dark brown-red
-
+    "Liver": "#88CCEE",  # light blue-teal
+    "CNS/Brain": "#332288",  # dark indigo (distinct from any blue tier-1)
+    "Skin": "#DDCC77",  # tan
+    "Ovary/Fallopian Tube": "#AA4499",  # magenta-purple
+    "Prostate": "#117733",  # dark green (distinct from Pancreas' bluish-green)
+    "Kidney": "#882255",  # burgundy
+    "Lymphoid": "#44AA99",  # teal
+    "Myeloid": "#999933",  # olive
+    "Bladder/Urinary Tract": "#661100",  # dark brown-red
     # ==== Tier-3: less-common but present in panels ====
-    "Head and Neck": "#6699CC",       # dusty blue
-    "Bone": "#CC6677",                # rose
-    "Soft Tissue": "#DDDDDD",         # very light grey (distinguishable from default)
-    "Cervix": "#994455",              # muted plum
-    "Uterus": "#EE99AA",              # pink
-    "Thyroid": "#004488",             # deep navy
-    "Biliary Tract": "#AA7744",       # amber-brown
-    "Pleura": "#77AADD",              # pale steel-blue
-    "Eye": "#BBCC33",                 # yellow-green
-    "Peripheral Nervous System": "#DDDD77", # pale yellow-olive
-    "Fibroblast": "#B0B0B0",          # medium grey (fibroblast controls)
-    "Testis": "#6B4C93",              # violet
-    "Ampulla of Vater": "#7FCC97",    # sea foam
-    "Vulva/Vagina": "#EEBBEE",        # light pink
-    "Normal": "#000000",              # black (normal cell line reference — always visible)
-    "Muscle": "#663333",              # muted mahogany
-    "Adrenal Gland": "#DD8855",       # copper
-
+    "Head and Neck": "#6699CC",  # dusty blue
+    "Bone": "#CC6677",  # rose
+    "Soft Tissue": "#DDDDDD",  # very light grey (distinguishable from default)
+    "Cervix": "#994455",  # muted plum
+    "Uterus": "#EE99AA",  # pink
+    "Thyroid": "#004488",  # deep navy
+    "Biliary Tract": "#AA7744",  # amber-brown
+    "Pleura": "#77AADD",  # pale steel-blue
+    "Eye": "#BBCC33",  # yellow-green
+    "Peripheral Nervous System": "#DDDD77",  # pale yellow-olive
+    "Fibroblast": "#B0B0B0",  # medium grey (fibroblast controls)
+    "Testis": "#6B4C93",  # violet
+    "Ampulla of Vater": "#7FCC97",  # sea foam
+    "Vulva/Vagina": "#EEBBEE",  # light pink
+    "Normal": "#000000",  # black (normal cell line reference — always visible)
+    "Muscle": "#663333",  # muted mahogany
+    "Adrenal Gland": "#DD8855",  # copper
     # ==== Legacy lowercase aliases (backward-compat for synthetic-lineage code paths) ====
     "colorectal": "#D55E00",
     "lung_nsclc": "#E69F00",
@@ -80,16 +77,28 @@ LINEAGE_COLORS = {
     "gastric": "#CC79A7",
     "breast": "#56B4E9",
     "skin": "#DDCC77",
-    "Stomach": "#CC79A7",             # bare "Stomach" kept as legacy; real data uses "Esophagus/Stomach"
+    "Stomach": "#CC79A7",  # bare "Stomach" kept as legacy; real data uses "Esophagus/Stomach"
 }
-LINEAGE_DEFAULT_COLOR = "#999999"   # grey — used only when explicit fallback requested
+LINEAGE_DEFAULT_COLOR = "#999999"  # grey — used only when explicit fallback requested
 
 # Extended palette for hash-based deterministic assignment of un-mapped lineages
 # (colorblind-friendly; visually distinguishable from tier-1/2/3 mapped colors).
 _HASH_FALLBACK_PALETTE = [
-    "#5C4D66", "#3F5A50", "#8A5A44", "#4B738C", "#6E4A6E",
-    "#8E7B39", "#3E7B7E", "#7A5E4A", "#5B7A4A", "#7E4A5B",
-    "#4A7A6E", "#6E5B4A", "#4A6E7A", "#7A6E4A", "#4A4A7A",
+    "#5C4D66",
+    "#3F5A50",
+    "#8A5A44",
+    "#4B738C",
+    "#6E4A6E",
+    "#8E7B39",
+    "#3E7B7E",
+    "#7A5E4A",
+    "#5B7A4A",
+    "#7E4A5B",
+    "#4A7A6E",
+    "#6E5B4A",
+    "#4A6E7A",
+    "#7A6E4A",
+    "#4A4A7A",
 ]
 
 # ===== Reference-line styles for figure overlays =====
@@ -99,19 +108,19 @@ REFLINE_NEUTRAL = {
     "linewidth": 1.0,
     "alpha": 0.7,
 }
-REFLINE_KILLER = {                  # for "this threshold kills the modality"
-    "color": "#B22222",             # deep red
+REFLINE_KILLER = {  # for "this threshold kills the modality"
+    "color": "#B22222",  # deep red
     "linestyle": "--",
     "linewidth": 1.5,
     "alpha": 0.9,
 }
-REFLINE_GOOD = {                    # for "this threshold supports the modality"
-    "color": "#228B22",             # forest green
+REFLINE_GOOD = {  # for "this threshold supports the modality"
+    "color": "#228B22",  # forest green
     "linestyle": ":",
     "linewidth": 1.5,
     "alpha": 0.9,
 }
-REFLINE_NOMINAL = {                 # neutral guideline (e.g., Chronos = 0)
+REFLINE_NOMINAL = {  # neutral guideline (e.g., Chronos = 0)
     "color": "#999999",
     "linestyle": "-",
     "linewidth": 0.8,
@@ -119,7 +128,7 @@ REFLINE_NOMINAL = {                 # neutral guideline (e.g., Chronos = 0)
 }
 
 # ===== Diverging color map for effect-size / log2FC visualizations =====
-DIVERGING_CMAP = "RdBu_r"           # red-blue reversed; red=negative, blue=positive
+DIVERGING_CMAP = "RdBu_r"  # red-blue reversed; red=negative, blue=positive
 # ===== Sequential color map for Chronos heatmaps =====
 SEQUENTIAL_DEPENDENCY_CMAP = "viridis"
 
@@ -158,7 +167,7 @@ FIGSIZE_SQUARE = (3.5, 3.5)
 
 
 # ===== Chronos thresholds (DepMap-published conventions, used as reference lines) =====
-CHRONOS_STRONG_DEPENDENCY = -1.0    # "common essentials" cutoff per DepMap
+CHRONOS_STRONG_DEPENDENCY = -1.0  # "common essentials" cutoff per DepMap
 CHRONOS_MODERATE_DEPENDENCY = -0.5
 CHRONOS_NO_DEPENDENCY = 0.0
 
@@ -191,31 +200,44 @@ NORMAL_FILL, NORMAL_LINE = "#A9C5DB", "#5B7F99"
 # reader-facing word. Hues validated against white; keep distinct from the diverging
 # DATA ramp so a negative log2FC bar is never misread as a killer badge.
 VERDICT_STATUS = {
-    "supportive":     {"fill": "#1A7F5A", "ink": "#0E4A34", "icon": "●", "label": "SUPPORTS"},
-    "neutral":        {"fill": "#5B7F99", "ink": "#33505F", "icon": "◐", "label": "NEUTRAL"},
-    "opposing":       {"fill": "#C0603A", "ink": "#7A2C20", "icon": "▲", "label": "AGAINST"},
-    "killer":         {"fill": "#B2182B", "ink": "#6B0F1A", "icon": "✕", "label": "KILLER"},
-    "insufficient":   {"fill": "#9AA3AB", "ink": "#5A626A", "icon": "○", "label": "INSUFFICIENT"},
+    "supportive": {"fill": "#1A7F5A", "ink": "#0E4A34", "icon": "●", "label": "SUPPORTS"},
+    "neutral": {"fill": "#5B7F99", "ink": "#33505F", "icon": "◐", "label": "NEUTRAL"},
+    "opposing": {"fill": "#C0603A", "ink": "#7A2C20", "icon": "▲", "label": "AGAINST"},
+    "killer": {"fill": "#B2182B", "ink": "#6B0F1A", "icon": "✕", "label": "KILLER"},
+    "insufficient": {"fill": "#9AA3AB", "ink": "#5A626A", "icon": "○", "label": "INSUFFICIENT"},
     "not_applicable": {"fill": "#C9CED3", "ink": "#7D8288", "icon": "–", "label": "N/A"},
     # context/descriptive figures with no fired rule — an honest "no call", not a grey killer.
-    "context":        {"fill": "#EDEFF2", "ink": "#5A626A", "icon": "◇", "label": "CONTEXT"},
+    "context": {"fill": "#EDEFF2", "ink": "#5A626A", "icon": "◇", "label": "CONTEXT"},
 }
 
 # Display precedence when a card fires several rules: a co-fired killer dominates a
 # co-fired supportive (mirrors the ordinal-matrix cell rule); among positives the
 # stronger signal shows; off-scale ranks lowest.
-_STATUS_SEVERITY = {"killer": 4, "opposing": 3, "supportive": 2, "neutral": 1,
-                    "insufficient": 0, "not_applicable": 0, "context": -1}
+_STATUS_SEVERITY = {
+    "killer": 4,
+    "opposing": 3,
+    "supportive": 2,
+    "neutral": 1,
+    "insufficient": 0,
+    "not_applicable": 0,
+    "context": -1,
+}
 
 # Readable rule_id-suffix mnemonic → signal. This is the FALLBACK used when the
 # caller cannot pass the rule contract's authoritative `signals:` object; the
 # suffix convention is enforced across the presence/expression rule sets.
 _RULE_SUFFIX_TO_SIGNAL = [
-    ("-veto", "killer"), ("-killer", "killer"),
-    ("-opposing", "opposing"), ("-against", "opposing"), ("-caution", "opposing"),
-    ("-supportive", "supportive"), ("-support", "supportive"),
-    ("-neutral", "neutral"), ("-informative", "neutral"),
-    ("-insufficient", "insufficient"), ("-unmeasured", "insufficient"),
+    ("-veto", "killer"),
+    ("-killer", "killer"),
+    ("-opposing", "opposing"),
+    ("-against", "opposing"),
+    ("-caution", "opposing"),
+    ("-supportive", "supportive"),
+    ("-support", "supportive"),
+    ("-neutral", "neutral"),
+    ("-informative", "neutral"),
+    ("-insufficient", "insufficient"),
+    ("-unmeasured", "insufficient"),
 ]
 
 
@@ -319,17 +341,36 @@ def axis_label(ax, which, concept, scale=None):
     if which == "x":
         ax.set_xlabel(concept, fontsize=11.5, labelpad=6, color=INK_SECONDARY)
         if scale:
-            ax.annotate(scale, xy=(0.5, 0), xytext=(0, -34), xycoords="axes fraction",
-                        textcoords="offset points", ha="center", va="top",
-                        fontsize=8.5, color=INK_MUTED, annotation_clip=False)
+            ax.annotate(
+                scale,
+                xy=(0.5, 0),
+                xytext=(0, -34),
+                xycoords="axes fraction",
+                textcoords="offset points",
+                ha="center",
+                va="top",
+                fontsize=8.5,
+                color=INK_MUTED,
+                annotation_clip=False,
+            )
     else:
         # concept sits OUTER (labelpad past the tick labels); the muted scale sits to its RIGHT (inner,
         # between concept and ticks) — reads as a sub-label of the main concept, not a separate outer line.
         ax.set_ylabel(concept, fontsize=11.5, labelpad=34, color=INK_SECONDARY)
         if scale:
-            ax.annotate(scale, xy=(0, 0.5), xytext=(-36, 0), xycoords="axes fraction",
-                        textcoords="offset points", ha="center", va="center", rotation=90,
-                        fontsize=8.5, color=INK_MUTED, annotation_clip=False)
+            ax.annotate(
+                scale,
+                xy=(0, 0.5),
+                xytext=(-36, 0),
+                xycoords="axes fraction",
+                textcoords="offset points",
+                ha="center",
+                va="center",
+                rotation=90,
+                fontsize=8.5,
+                color=INK_MUTED,
+                annotation_clip=False,
+            )
 
 
 # ============================================================================
@@ -343,9 +384,9 @@ from pathlib import Path as _Path
 # margin via kwargs, or pass make_ax=False and build their own gridspec (title/provenance/takeaway
 # + save still apply on exit).
 _FRAME_LAYOUT = {
-    "single":  {"figsize": FIGSIZE_DOUBLE_COLUMN,          "top": 0.82, "bottom": 0.245, "left": 0.16, "right": 0.965},
-    "scatter": {"figsize": FIGSIZE_DOUBLE_COLUMN,          "top": 0.82, "bottom": 0.245, "left": 0.16, "right": 0.965},
-    "tall":    {"figsize": (FIGSIZE_DOUBLE_COLUMN[0], 4.4),"top": 0.78, "bottom": 0.220, "left": 0.16, "right": 0.965},
+    "single": {"figsize": FIGSIZE_DOUBLE_COLUMN, "top": 0.82, "bottom": 0.245, "left": 0.16, "right": 0.965},
+    "scatter": {"figsize": FIGSIZE_DOUBLE_COLUMN, "top": 0.82, "bottom": 0.245, "left": 0.16, "right": 0.965},
+    "tall": {"figsize": (FIGSIZE_DOUBLE_COLUMN[0], 4.4), "top": 0.78, "bottom": 0.220, "left": 0.16, "right": 0.965},
 }
 _STYLE_PATH = _Path(__file__).parent / "takeda_oncology.mplstyle"
 
@@ -364,9 +405,24 @@ class figure_frame:
     make_ax=False → frame makes only the styled fig (caller adds its own gridspec, e.g. multi-panel);
     the title/provenance/takeaway + save still happen on exit. `indication=None` → target-grain title."""
 
-    def __init__(self, target, indication, view, *, out_path, provenance=None, takeaway=None,
-                 kind="single", make_ax=True, title_x=0.10, figsize=None,
-                 top=None, bottom=None, left=None, right=None):
+    def __init__(
+        self,
+        target,
+        indication,
+        view,
+        *,
+        out_path,
+        provenance=None,
+        takeaway=None,
+        kind="single",
+        make_ax=True,
+        title_x=0.10,
+        figsize=None,
+        top=None,
+        bottom=None,
+        left=None,
+        right=None,
+    ):
         self.target, self.indication, self.view = target, indication, view
         self.out_path = _Path(out_path)
         self.provenance_text, self.takeaway_text = provenance, takeaway
@@ -383,8 +439,10 @@ class figure_frame:
 
     def __enter__(self):
         import matplotlib
+
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
+
         if _STYLE_PATH.exists():
             try:
                 plt.style.use(str(_STYLE_PATH))
@@ -403,11 +461,20 @@ class figure_frame:
         """Annotate per-group n on a horizontal box/strip plot (row i sits at data-y i+1); `counts`
         bottom-row first. This is the captured 'n on the boxes' pattern for distribution figures."""
         for i, n in enumerate(counts):
-            self.ax.annotate(f"n = {n}", xy=(0.012, i + 1 + 0.31), xycoords=("axes fraction", "data"),
-                             ha="left", va="bottom", fontsize=7.5, color=INK_MUTED, zorder=4)
+            self.ax.annotate(
+                f"n = {n}",
+                xy=(0.012, i + 1 + 0.31),
+                xycoords=("axes fraction", "data"),
+                ha="left",
+                va="bottom",
+                fontsize=7.5,
+                color=INK_MUTED,
+                zorder=4,
+            )
 
     def __exit__(self, exc_type, exc, tb):
         import matplotlib.pyplot as plt
+
         if exc_type is None:
             # Title/provenance/takeaway y default to the ~3.5in-tuned fractions. For a TALL figure
             # those fixed fractions drift into the plot, so position them by ABSOLUTE inches instead
@@ -432,14 +499,26 @@ def verdict_badge(fig, status, *, loc="upper right", pad=0.012):
     renders a quiet grey tag."""
     if not status:
         return
-    icon, label, fill, ink = status.get("icon", ""), status.get("label", ""), \
-        status.get("fill", "#EDEFF2"), status.get("ink", "#5A626A")
+    icon, label, fill, ink = (
+        status.get("icon", ""),
+        status.get("label", ""),
+        status.get("fill", "#EDEFF2"),
+        status.get("ink", "#5A626A"),
+    )
     x, ha = (1 - pad, "right") if "right" in loc else (pad, "left")
     y, va = (1 - pad, "top") if "upper" in loc else (pad, "bottom")
-    fig.text(x, y, f" {icon}  {label} ", ha=ha, va=va, fontsize=9, weight="bold",
-             color="#FFFFFF" if status.get("signal") not in ("context", "not_applicable") else ink,
-             bbox=dict(boxstyle="round,pad=0.45", facecolor=fill, edgecolor=ink, linewidth=1.0),
-             zorder=1000)
+    fig.text(
+        x,
+        y,
+        f" {icon}  {label} ",
+        ha=ha,
+        va=va,
+        fontsize=9,
+        weight="bold",
+        color="#FFFFFF" if status.get("signal") not in ("context", "not_applicable") else ink,
+        bbox=dict(boxstyle="round,pad=0.45", facecolor=fill, edgecolor=ink, linewidth=1.0),
+        zorder=1000,
+    )
 
 
 def takeaway(fig, text, *, x=0.10, y=None):
@@ -466,11 +545,21 @@ def plotly_verdict_badge(fig, status):
         return fig
     signal = status.get("signal")
     txtcolor = "#FFFFFF" if signal not in ("context", "not_applicable") else status.get("ink")
-    fig.add_annotation(x=1.0, y=1.12, xref="paper", yref="paper", xanchor="right", yanchor="top",
-                       text=f"{status.get('icon','')}  <b>{status.get('label','')}</b>",
-                       showarrow=False, font=dict(size=12, color=txtcolor),
-                       bgcolor=status.get("fill"), bordercolor=status.get("ink"), borderwidth=1,
-                       borderpad=4)
+    fig.add_annotation(
+        x=1.0,
+        y=1.12,
+        xref="paper",
+        yref="paper",
+        xanchor="right",
+        yanchor="top",
+        text=f"{status.get('icon', '')}  <b>{status.get('label', '')}</b>",
+        showarrow=False,
+        font=dict(size=12, color=txtcolor),
+        bgcolor=status.get("fill"),
+        bordercolor=status.get("ink"),
+        borderwidth=1,
+        borderpad=4,
+    )
     return fig
 
 
@@ -478,16 +567,25 @@ def plotly_takeaway(fig, text, status=None):
     """Add the one-line takeaway under a plotly figure (paper-coords annotation)."""
     if not text:
         return fig
-    fig.add_annotation(x=0.0, y=-0.22, xref="paper", yref="paper", xanchor="left", yanchor="top",
-                       text=f"<b>Takeaway</b>  {text}", showarrow=False, align="left",
-                       font=dict(size=11, color="#33383D"))
+    fig.add_annotation(
+        x=0.0,
+        y=-0.22,
+        xref="paper",
+        yref="paper",
+        xanchor="left",
+        yanchor="top",
+        text=f"<b>Takeaway</b>  {text}",
+        showarrow=False,
+        align="left",
+        font=dict(size=11, color="#33383D"),
+    )
     return fig
 
 
 # ===== Provenance text helper =====
-def figure_metadata_block(card_id: str, framework_version: str,
-                           target: str, indication: str,
-                           generated_at: str) -> dict:
+def figure_metadata_block(
+    card_id: str, framework_version: str, target: str, indication: str, generated_at: str
+) -> dict:
     """Return a small metadata dict for embedding into SVG <title>/<desc> for audit trail.
     Used by matplotlib via fig.suptitle or fig._suptitle, or via SVG post-processing."""
     return {

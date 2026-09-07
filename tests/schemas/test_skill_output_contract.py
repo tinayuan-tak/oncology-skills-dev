@@ -13,6 +13,7 @@ generator (a hand-edit or an un-regenerated source edit fails here). Glob-based,
 schema is auto-covered. (Instance conformance — a skill's emitted decision.json against its schema — is
 ratcheted in the skills repo, where the goldens/replays live.)
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -84,4 +85,5 @@ def test_generated_schemas_in_sync():
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     assert mod.generate_all(check=True) == 0, (
-        "generated per-skill schemas are OUT OF SYNC — run: python validators/gen_skill_output_schemas.py")
+        "generated per-skill schemas are OUT OF SYNC — run: python validators/gen_skill_output_schemas.py"
+    )

@@ -14,6 +14,7 @@ multi-word lineages (e.g. `Head_and_Neck` for the real Model.csv "Head and Neck"
 the membership check normalizes "_"→" " before comparing — the bogus "Stomach" fails
 either way (there is no "Stomach" in the set even after normalization).
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -27,14 +28,44 @@ CROSSWALK = REPO / "vocabularies" / "indication_crosswalk.yaml"
 
 # The 34 non-null OncotreeLineage categories in DepMap 26Q1 Model.csv (frozen from a
 # live load 2026-08-16). Mirrors the analysis-methods canonical-map guard.
-MODEL_CSV_26Q1_LINEAGES = frozenset({
-    "Adrenal Gland", "Ampulla of Vater", "Biliary Tract", "Bladder/Urinary Tract",
-    "Bone", "Bowel", "Breast", "CNS/Brain", "Cervix", "Embryonal", "Esophagus/Stomach",
-    "Eye", "Fibroblast", "Hair", "Head and Neck", "Kidney", "Liver", "Lung", "Lymphoid",
-    "Muscle", "Myeloid", "Normal", "Other", "Ovary/Fallopian Tube", "Pancreas",
-    "Peripheral Nervous System", "Pleura", "Prostate", "Skin", "Soft Tissue", "Testis",
-    "Thyroid", "Uterus", "Vulva/Vagina",
-})
+MODEL_CSV_26Q1_LINEAGES = frozenset(
+    {
+        "Adrenal Gland",
+        "Ampulla of Vater",
+        "Biliary Tract",
+        "Bladder/Urinary Tract",
+        "Bone",
+        "Bowel",
+        "Breast",
+        "CNS/Brain",
+        "Cervix",
+        "Embryonal",
+        "Esophagus/Stomach",
+        "Eye",
+        "Fibroblast",
+        "Hair",
+        "Head and Neck",
+        "Kidney",
+        "Liver",
+        "Lung",
+        "Lymphoid",
+        "Muscle",
+        "Myeloid",
+        "Normal",
+        "Other",
+        "Ovary/Fallopian Tube",
+        "Pancreas",
+        "Peripheral Nervous System",
+        "Pleura",
+        "Prostate",
+        "Skin",
+        "Soft Tissue",
+        "Testis",
+        "Thyroid",
+        "Uterus",
+        "Vulva/Vagina",
+    }
+)
 
 
 def _load():
@@ -59,15 +90,17 @@ def test_stad_depmap_lineage_is_esophagus_stomach():
 
 def test_no_indication_maps_to_the_bogus_stomach_lineage():
     doc = _load()
-    offenders = [i["canonical_code"] for i in doc["indications"]
-                 if _norm(i.get("depmap_lineage", "")) == "Stomach"]
+    offenders = [i["canonical_code"] for i in doc["indications"] if _norm(i.get("depmap_lineage", "")) == "Stomach"]
     assert not offenders, f'"Stomach" is not a DepMap 26Q1 lineage; offenders: {offenders}'
 
 
 def test_every_depmap_lineage_is_a_real_model_csv_lineage():
     doc = _load()
-    bad = {i["canonical_code"]: i["depmap_lineage"] for i in doc["indications"]
-           if i.get("depmap_lineage") and _norm(i["depmap_lineage"]) not in MODEL_CSV_26Q1_LINEAGES}
+    bad = {
+        i["canonical_code"]: i["depmap_lineage"]
+        for i in doc["indications"]
+        if i.get("depmap_lineage") and _norm(i["depmap_lineage"]) not in MODEL_CSV_26Q1_LINEAGES
+    }
     assert not bad, f"depmap_lineage values absent from DepMap 26Q1 Model.csv: {bad}"
 
 
@@ -75,12 +108,12 @@ def test_every_indication_has_mesh_ids_well_formed():
     """The mesh_ids lane (indication -> MeSH descriptor ids; the disease_mesh key of the PubTator
     gene-disease-relations product) must be present and well-formed on every indication."""
     import re
+
     doc = _load()
     mesh_re = re.compile(r"^MESH:[CD]\d+$")
     missing = [i["canonical_code"] for i in doc["indications"] if not i.get("mesh_ids")]
     assert not missing, f"indications missing a mesh_ids lane: {missing}"
-    bad = {i["canonical_code"]: [m for m in i["mesh_ids"] if not mesh_re.match(str(m))]
-           for i in doc["indications"]}
+    bad = {i["canonical_code"]: [m for m in i["mesh_ids"] if not mesh_re.match(str(m))] for i in doc["indications"]}
     bad = {k: v for k, v in bad.items() if v}
     assert not bad, f"malformed mesh_ids (expect MESH:D#### / MESH:C####): {bad}"
 
@@ -93,6 +126,7 @@ def test_crosswalk_agrees_with_analysis_methods_canonical_map():
     if not am.exists():
         pytest.skip("sibling analysis-methods repo not on disk")
     import sys
+
     if str(am) not in sys.path:
         sys.path.insert(0, str(am))
     try:

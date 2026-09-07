@@ -1,4 +1,5 @@
 """actionability_mode_lookup vocabulary tests — curated overrides for the derived actionability_mode facet."""
+
 import yaml
 from pathlib import Path
 
@@ -19,7 +20,7 @@ def test_each_override_wellformed():
         assert o["hgnc_symbol"] and o["hgnc_symbol"] not in seen  # unique symbols
         seen.add(o["hgnc_symbol"])
         assert o["mode"] in _MODES
-        assert o.get("rationale") and o.get("anchor")             # curation discipline
+        assert o.get("rationale") and o.get("anchor")  # curation discipline
 
 
 def test_documented_duals_are_mixed():

@@ -5,6 +5,7 @@ adc-tce-modality-fit dispatcher (upgrades ADC-precedent antigens from endocytosi
 'unmeasured' → 'clinically_internalizing'). Positive-only: absence = unchanged 'unmeasured', never
 'non-internalizing'. Pins structure + the canonical approved-ADC anchors + per-entry provenance.
 """
+
 from __future__ import annotations
 
 from pathlib import Path

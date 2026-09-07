@@ -25,6 +25,7 @@ Public API:
 The `plot_styles` subpackage ships the shared figure palette (importable) + the
 matplotlib style file (package data).
 """
+
 from __future__ import annotations
 
 from .loader import (

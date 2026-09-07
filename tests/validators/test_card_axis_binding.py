@@ -12,6 +12,7 @@ assert:
 Hermetic: synthetic card dicts written to tmp YAML, validated against the real card.schema.json +
 the real vocabularies/target_profiling_axes.yaml.
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -67,72 +68,101 @@ def test_no_binding_blocks_is_clean(tmp_path):
 
 
 def test_valid_consumed_by_is_clean(tmp_path):
-    card = _base_card(consumed_by=[
-        {"skill": "genomic-alteration-profile", "lens": "genomic_alteration",
-         "role": "verdict", "verdict_source": "resolver"},
-        {"skill": "on-target-safety-liability", "lens": "safety",
-         "role": "verdict", "verdict_source": "resolver",
-         "compose_reason": "activating-driver-role-safety-context rung"},
-    ])
+    card = _base_card(
+        consumed_by=[
+            {
+                "skill": "genomic-alteration-profile",
+                "lens": "genomic_alteration",
+                "role": "verdict",
+                "verdict_source": "resolver",
+            },
+            {
+                "skill": "on-target-safety-liability",
+                "lens": "safety",
+                "role": "verdict",
+                "verdict_source": "resolver",
+                "compose_reason": "activating-driver-role-safety-context rung",
+            },
+        ]
+    )
     r = _validate(tmp_path, card)
     assert r.ok, _errs(r)
 
 
 def test_self_contained_lens_sentinel_accepted(tmp_path):
     """Inline-verdict hosts (tumor-presence etc.) have no gate short → `self_contained`."""
-    card = _base_card(consumed_by=[
-        {"skill": "tumor-presence", "lens": "self_contained",
-         "role": "verdict", "verdict_source": "inline"}])
+    card = _base_card(
+        consumed_by=[
+            {"skill": "tumor-presence", "lens": "self_contained", "role": "verdict", "verdict_source": "inline"}
+        ]
+    )
     r = _validate(tmp_path, card)
     assert r.ok, _errs(r)
 
 
 def test_conditioner_lens_accepted(tmp_path):
     """A conditioner id (e.g. molecular_form) is a valid lens too."""
-    card = _base_card(consumed_by=[
-        {"skill": "tumor-presence", "lens": "molecular_form",
-         "role": "display", "verdict_source": "none"}])
+    card = _base_card(
+        consumed_by=[{"skill": "tumor-presence", "lens": "molecular_form", "role": "display", "verdict_source": "none"}]
+    )
     r = _validate(tmp_path, card)
     assert r.ok, _errs(r)
 
 
 def test_bogus_lens_is_error(tmp_path):
-    card = _base_card(consumed_by=[
-        {"skill": "tumor-presence", "lens": "not_a_real_axis",
-         "role": "display", "verdict_source": "none"}])
+    card = _base_card(
+        consumed_by=[
+            {"skill": "tumor-presence", "lens": "not_a_real_axis", "role": "display", "verdict_source": "none"}
+        ]
+    )
     r = _validate(tmp_path, card)
     assert not r.ok and "CONSUMED_BY_LENS" in _errs(r), _errs(r)
 
 
 def test_role_verdict_requires_real_verdict_source(tmp_path):
     """Schema if/then: role:verdict with verdict_source:none is a structural error."""
-    card = _base_card(consumed_by=[
-        {"skill": "tumor-presence", "lens": "expression",
-         "role": "verdict", "verdict_source": "none"}])
+    card = _base_card(
+        consumed_by=[{"skill": "tumor-presence", "lens": "expression", "role": "verdict", "verdict_source": "none"}]
+    )
     r = _validate(tmp_path, card)
     assert not r.ok, "role:verdict + verdict_source:none must fail schema"
 
 
 def test_valid_axis_edge_is_clean(tmp_path):
-    card = _base_card(axis_edge={
-        "anchor": "crispr_lof_dependency", "partner": "mutation_status",
-        "edge_kind": "stratified_dependency", "reports_into": "dependency"})
+    card = _base_card(
+        axis_edge={
+            "anchor": "crispr_lof_dependency",
+            "partner": "mutation_status",
+            "edge_kind": "stratified_dependency",
+            "reports_into": "dependency",
+        }
+    )
     r = _validate(tmp_path, card)
     assert r.ok, _errs(r)
 
 
 def test_axis_edge_bogus_reports_into_is_error(tmp_path):
-    card = _base_card(axis_edge={
-        "anchor": "crispr_lof_dependency", "partner": "mutation_status",
-        "edge_kind": "stratified_dependency", "reports_into": "not_a_question"})
+    card = _base_card(
+        axis_edge={
+            "anchor": "crispr_lof_dependency",
+            "partner": "mutation_status",
+            "edge_kind": "stratified_dependency",
+            "reports_into": "not_a_question",
+        }
+    )
     r = _validate(tmp_path, card)
     assert not r.ok and "AXIS_EDGE_REPORTS_INTO" in _errs(r), _errs(r)
 
 
 def test_axis_edge_reports_into_rejects_conditioner(tmp_path):
     """reports_into must be a QUESTION short, not a conditioner id."""
-    card = _base_card(axis_edge={
-        "anchor": "paralog_family", "partner": "dependency_outcome",
-        "edge_kind": "paralog", "reports_into": "molecular_form"})
+    card = _base_card(
+        axis_edge={
+            "anchor": "paralog_family",
+            "partner": "dependency_outcome",
+            "edge_kind": "paralog",
+            "reports_into": "molecular_form",
+        }
+    )
     r = _validate(tmp_path, card)
     assert not r.ok and "AXIS_EDGE_REPORTS_INTO" in _errs(r), _errs(r)

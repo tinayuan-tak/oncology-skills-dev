@@ -11,6 +11,7 @@ a self-contained first-match interpreter that mirrors claude-oncology-skills/_sk
 VERDICT-INERT: cis_coherence is a dedicated self-contained axis (like combination_opportunity), NOT in
 the skills gating axes. This golden pins the classification only; no nomination gate depends on it.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -21,12 +22,12 @@ REPO = Path(__file__).resolve().parents[2]
 SPEC = yaml.safe_load((REPO / "resolvers" / "cis_coherence.resolver.yaml").read_text())
 
 # leg tokens (fired by interpretation-rules/cis-coherence.rules.yaml)
-DOSAGE_COUPLED = "cis-dosage-coupled-supportive"          # leg-1 +
-DOSAGE_UNCOUPLED = "cis-dosage-uncoupled-neutral"         # leg-1 - (measured, CN-independent)
-DEP_CORR = "cis-expr-dependency-coupled-supportive"       # leg-2 + (correlation leg)
-DEP_ABSENT = "cis-expr-dependency-absent-neutral"         # leg-2 - (no expr->dep)
-DEP_CONJOINT = "cis-conjoint-dependent-supportive"        # leg-2 + (amp-expr conjoint leg)
-SILENCING = "cis-silencing-coupled-supportive"            # LoF arm: methylation → low expression
+DOSAGE_COUPLED = "cis-dosage-coupled-supportive"  # leg-1 +
+DOSAGE_UNCOUPLED = "cis-dosage-uncoupled-neutral"  # leg-1 - (measured, CN-independent)
+DEP_CORR = "cis-expr-dependency-coupled-supportive"  # leg-2 + (correlation leg)
+DEP_ABSENT = "cis-expr-dependency-absent-neutral"  # leg-2 - (no expr->dep)
+DEP_CONJOINT = "cis-conjoint-dependent-supportive"  # leg-2 + (amp-expr conjoint leg)
+SILENCING = "cis-silencing-coupled-supportive"  # LoF arm: methylation → low expression
 
 
 def resolve(*fired_ids: str) -> tuple[str, str | None]:
@@ -50,6 +51,7 @@ def resolve(*fired_ids: str) -> tuple[str, str | None]:
 
 
 # --- the four cross-tab cells -------------------------------------------------
+
 
 def test_coupled_and_dependent_is_coherent_cis_driver():
     """leg-1 coupled + leg-2 dependent (either leg) → coherent_cis_driver, cis-dosage as driver.
@@ -78,6 +80,7 @@ def test_uncoupled_and_absent_is_cis_uncoupled_no_dependency():
 
 # --- coherent wins first-match when BOTH leg-2 signals fire (no double-count) --
 
+
 def test_coherent_wins_when_both_leg2_signals_fire():
     # Conjoint + correlation both present with a coupled leg-1 → still one coherent_cis_driver.
     assert resolve(DOSAGE_COUPLED, DEP_CONJOINT, DEP_CORR) == ("coherent_cis_driver", DOSAGE_COUPLED)
@@ -90,6 +93,7 @@ def test_coherent_wins_over_inert_when_dep_present_and_absent_both_fire():
 
 
 # --- honest abstention: any leg untestable/unmeasured -> default --------------
+
 
 def test_epigenetic_silencing_is_standalone_lof_arm():
     """The silencing leg fires coherent_epigenetic_silencing on its own (no dependency leg): a silenced

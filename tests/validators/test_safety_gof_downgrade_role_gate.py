@@ -15,6 +15,7 @@ activating signal (a TSG with a spurious IntOGen 'Act') again earned the small_m
 allele_selective_required_role_rules pins oncogene-role-safety-context as a REQUIRED co-gate. These
 tests now pin the co-gate in its new (contract) home instead of the retired resolver rungs.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -44,7 +45,8 @@ def test_every_gof_downgrade_requires_oncogene_role():
     required = cond.get("allele_selective_required_role_rules") or []
     assert "oncogene-role-safety-context" in required, (
         "allele_selective_required_role_rules must pin oncogene-role-safety-context — else a TSG with a "
-        f"spurious IntOGen 'Act' label earns the WT-loss small_molecule escape. Got: {required}")
+        f"spurious IntOGen 'Act' label earns the WT-loss small_molecule escape. Got: {required}"
+    )
     # the eligibility signals it co-gates must themselves still be declared
     elig = cond.get("allele_selective_eligibility_rules") or []
     assert "activating-driver-role-safety-context" in elig, elig
@@ -87,4 +89,5 @@ def test_amplified_gof_disqualifies_allele_selective_escape():
     disq = cond.get("allele_selective_disqualifier_rules") or []
     assert _AMP_GUARD in disq, (
         f"{_AMP_GUARD} must be an allele_selective_disqualifier — else an amplification-driven oncogene "
-        f"(whose drug hits WT protein) wrongly earns the WT-loss escape. Got: {disq}")
+        f"(whose drug hits WT protein) wrongly earns the WT-loss escape. Got: {disq}"
+    )

@@ -17,6 +17,7 @@ gate" treatment. These tests pin the schema half:
   - a stratum below its n-floor is representable (subgroup_n_floor_met:false) — the absence-discipline
     the SOFT-context invariant rests on.
 """
+
 import json
 from pathlib import Path
 
@@ -28,8 +29,10 @@ VALIDATOR = Draft202012Validator(PKG_SCHEMA)
 
 
 def _errors(instance):
-    return [f"[{'.'.join(str(p) for p in e.absolute_path) or '<root>'}] {e.message}"
-            for e in VALIDATOR.iter_errors(instance)]
+    return [
+        f"[{'.'.join(str(p) for p in e.absolute_path) or '<root>'}] {e.message}"
+        for e in VALIDATOR.iter_errors(instance)
+    ]
 
 
 def _base_ep(**overrides):
@@ -49,8 +52,10 @@ def _base_ep(**overrides):
             "data_mode": "exploratory",
             "release_pin": "unpinned",
             "validation_summary": {
-                "n_cards_attempted": 1, "n_cards_passed": 1,
-                "n_cards_passed_with_warnings": 0, "n_cards_failed": 0,
+                "n_cards_attempted": 1,
+                "n_cards_passed": 1,
+                "n_cards_passed_with_warnings": 0,
+                "n_cards_failed": 0,
                 "n_cards_excluded_by_applies_when": 0,
             },
         },
@@ -112,6 +117,7 @@ def _populated_subtype_resolved():
 
 # ---------- optional / backward-compat ----------
 
+
 def test_default_envelope_without_block_validates():
     """Default (no-strata) runs OMIT the block and must still validate — additive, non-breaking."""
     assert _errors(_base_ep()) == []
@@ -127,6 +133,7 @@ def test_top_level_rejects_unknown_key_but_accepts_subtype_resolved():
 
 # ---------- populated block ----------
 
+
 def test_populated_block_validates_with_strata_subgroup_spec():
     ep = _base_ep(subtype_resolved=_populated_subtype_resolved())
     ep["context"]["subgroup_spec"] = ["MSI_H", "MSS"]  # no longer hardcoded null
@@ -141,6 +148,7 @@ def test_below_floor_stratum_is_representable():
 
 
 # ---------- required-field enforcement ----------
+
 
 def test_block_requires_per_stratum():
     block = _populated_subtype_resolved()

@@ -4,6 +4,7 @@ Reuses the Miller-columns CSS+JS from render_arch (imported, not duplicated) for
 Explorer tab; renders Overview / Health / Cards / Datasets as Python-generated static
 HTML from the merged graph (arch wiring + framework_health overlay). One palette, one build.
 """
+
 from __future__ import annotations
 
 import html
@@ -14,10 +15,25 @@ import render_arch  # reuse Miller-columns CSS + behavior
 
 # ---- palette (Python side; mirrors render_arch JS `C`) --------------------
 GREEN, AMBER, RED, GREY, PURPLE, TEAL, DARK = (
-    "#0ca30c", "#fab219", "#c0392b", "#898781", "#6c5aa8", "#199e70", "#52514e")
-VERDICT_COLOR = {"production_ready": GREEN, "ready_unproven": TEAL, "operational": TEAL,
-                 "partial": AMBER, "placeholder": GREY, "broken_or_drift": RED,
-                 "wired": GREEN, "not_wired": GREY, "unknown": GREY}
+    "#0ca30c",
+    "#fab219",
+    "#c0392b",
+    "#898781",
+    "#6c5aa8",
+    "#199e70",
+    "#52514e",
+)
+VERDICT_COLOR = {
+    "production_ready": GREEN,
+    "ready_unproven": TEAL,
+    "operational": TEAL,
+    "partial": AMBER,
+    "placeholder": GREY,
+    "broken_or_drift": RED,
+    "wired": GREEN,
+    "not_wired": GREY,
+    "unknown": GREY,
+}
 CARD_COLOR = {"live": GREEN, "partial": AMBER, "blocked": "#b8860b", "placeholder": GREY, "broken": RED}
 SEV_COLOR = {"error": RED, "warn": AMBER, "info": PURPLE}
 RES_COLOR = {"manifest": GREEN, "non-manifest resource": AMBER, "uncataloged": RED}
@@ -43,7 +59,8 @@ def _dot(color, t=""):
 def _strip(items):
     parts = "".join(
         f'<span class="stat"><span class="hdot" style="background:{c}"></span><b>{n}</b> {_esc(l)}</span>'
-        for l, n, c in items)
+        for l, n, c in items
+    )
     return f'<div class="strip">{parts}</div>'
 
 
@@ -61,28 +78,42 @@ def _overview(g):
     ready = vt.get("production_ready", 0)
     partial = vt.get("partial", 0)
     err = hs.get("n_error_drift", 0)
-    hero = (f'<b>{s["n_skills"]}</b> skills · <b>{s["n_cards"]}</b> cards '
-            f'(<b>{s["n_verdict_bearing_cards"]}</b> verdict-bearing) · '
-            f'<b>{s["n_datasets"]}</b> datasets · <b>{s["n_resolvers"]}</b> resolvers / '
-            f'<b>{s["n_verdicts"]}</b> verdicts. '
-            f'{ready} production-ready, {partial} partial, <b style="color:{"#ffb3a7" if err else "#7fe0a0"}">'
-            f'{err} error-drift</b>.')
+    hero = (
+        f"<b>{s['n_skills']}</b> skills · <b>{s['n_cards']}</b> cards "
+        f"(<b>{s['n_verdict_bearing_cards']}</b> verdict-bearing) · "
+        f"<b>{s['n_datasets']}</b> datasets · <b>{s['n_resolvers']}</b> resolvers / "
+        f"<b>{s['n_verdicts']}</b> verdicts. "
+        f'{ready} production-ready, {partial} partial, <b style="color:{"#ffb3a7" if err else "#7fe0a0"}">'
+        f"{err} error-drift</b>."
+    )
 
     # skill verdict strip (clickable → Health)
-    skill_strip = _strip([
-        ("production-ready", vt.get("production_ready", 0), GREEN),
-        ("ready (unproven)", vt.get("ready_unproven", 0), TEAL),
-        ("partial", vt.get("partial", 0), AMBER),
-        ("placeholder", vt.get("placeholder", 0), GREY),
-        ("drift", vt.get("broken_or_drift", 0), RED),
-    ]) if vt else '<div class="captn">no health data loaded</div>'
+    skill_strip = (
+        _strip(
+            [
+                ("production-ready", vt.get("production_ready", 0), GREEN),
+                ("ready (unproven)", vt.get("ready_unproven", 0), TEAL),
+                ("partial", vt.get("partial", 0), AMBER),
+                ("placeholder", vt.get("placeholder", 0), GREY),
+                ("drift", vt.get("broken_or_drift", 0), RED),
+            ]
+        )
+        if vt
+        else '<div class="captn">no health data loaded</div>'
+    )
 
-    card_strip = _strip([
-        ("live", cht.get("live", 0), GREEN),
-        ("partial", cht.get("partial", 0), AMBER),
-        ("blocked", cht.get("blocked", 0), "#b8860b"),
-        ("broken", cht.get("broken", 0), RED),
-    ]) if cht else ""
+    card_strip = (
+        _strip(
+            [
+                ("live", cht.get("live", 0), GREEN),
+                ("partial", cht.get("partial", 0), AMBER),
+                ("blocked", cht.get("blocked", 0), "#b8860b"),
+                ("broken", cht.get("broken", 0), RED),
+            ]
+        )
+        if cht
+        else ""
+    )
 
     # dataset resolution strip
     res_tally = {"manifest": 0, "non-manifest resource": 0, "uncataloged": 0}
@@ -91,27 +122,32 @@ def _overview(g):
         res_tally[d.get("resolution", "uncataloged")] = res_tally.get(d.get("resolution", "uncataloged"), 0) + 1
         if (d.get("family") or {}).get("is_family"):
             fam += 1
-    ds_strip = _strip([
-        ("in manifest", res_tally["manifest"], GREEN),
-        ("non-manifest resource", res_tally["non-manifest resource"], AMBER),
-        ("uncataloged", res_tally["uncataloged"], RED),
-        ("indication families", fam, TEAL),
-    ])
+    ds_strip = _strip(
+        [
+            ("in manifest", res_tally["manifest"], GREEN),
+            ("non-manifest resource", res_tally["non-manifest resource"], AMBER),
+            ("uncataloged", res_tally["uncataloged"], RED),
+            ("indication families", fam, TEAL),
+        ]
+    )
 
     # coverage frontier
     blocked = cht.get("blocked", 0)
     uncat = [d for d in g["datasets"].values() if not d["in_catalog"]]
     frontier = (
         '<div class="panel"><h3>Coverage frontier <span class="sub">— honest backlog, not drift</span></h3>'
-        f'<p>{blocked} <b>blocked cards</b> (declared measurements with no live reader yet) · '
-        f'{vt.get("partial",0)} <b>partial skills</b> (data not fully landed) · '
-        f'{len(uncat)} <b>uncataloged dataset refs</b>:</p><ul class="frontier">')
+        f"<p>{blocked} <b>blocked cards</b> (declared measurements with no live reader yet) · "
+        f"{vt.get('partial', 0)} <b>partial skills</b> (data not fully landed) · "
+        f'{len(uncat)} <b>uncataloged dataset refs</b>:</p><ul class="frontier">'
+    )
     for d in sorted(uncat, key=lambda d: d["product_id"]):
         gc = d.get("gap_category") or "uncataloged"
         note = d.get("gap_note") or ""
-        frontier += (f'<li>{_chip(gc, RED)} <b>{_esc(d["product_id"])}</b> '
-                     f'<span class="consumers">→ {len(d["consumed_by_cards"])} card(s)</span>'
-                     f'<div class="frnote">{_esc(note)}</div></li>')
+        frontier += (
+            f"<li>{_chip(gc, RED)} <b>{_esc(d['product_id'])}</b> "
+            f'<span class="consumers">→ {len(d["consumed_by_cards"])} card(s)</span>'
+            f'<div class="frnote">{_esc(note)}</div></li>'
+        )
     frontier += "</ul></div>"
 
     # fix-next (drift warn+error grouped by code)
@@ -126,11 +162,13 @@ def _overview(g):
         for code, items in sorted(by.items(), key=lambda kv: -len(kv[1])):
             sev = items[0]["severity"]
             who = ", ".join(sorted({d.get("skill") or d.get("card") or "" for d in items}))
-            fix += (f'<tr><td>{_chip(str(len(items)), SEV_COLOR.get(sev, PURPLE))}</td>'
-                    f'<td><code>{_esc(code)}</code></td><td class="consumers">{_esc(who)}</td></tr>')
+            fix += (
+                f"<tr><td>{_chip(str(len(items)), SEV_COLOR.get(sev, PURPLE))}</td>"
+                f'<td><code>{_esc(code)}</code></td><td class="consumers">{_esc(who)}</td></tr>'
+            )
         fix += "</tbody></table>"
     else:
-        fix += '<p>No error/warn drift outstanding. ✓</p>'
+        fix += "<p>No error/warn drift outstanding. ✓</p>"
     fix += "</div>"
 
     # tiles → tabs
@@ -138,25 +176,35 @@ def _overview(g):
         '<div class="tiles">'
         f'<div class="tile" onclick="showTab(\'explorer\')"><div class="tn">{s["n_skills"]}</div>'
         '<div class="tl">Skills → Explorer</div><div class="td">click through the wiring: skill → cards → datasets · methods · outputs · rules → verdict</div></div>'
-        f'<div class="tile" onclick="showTab(\'health\')"><div class="tn">{vt.get("partial",0)+vt.get("broken_or_drift",0)}</div>'
+        f'<div class="tile" onclick="showTab(\'health\')"><div class="tn">{vt.get("partial", 0) + vt.get("broken_or_drift", 0)}</div>'
         '<div class="tl">to watch → Health</div><div class="td">derived health, drift, runs-clean, fix-next queue</div></div>'
         f'<div class="tile" onclick="showTab(\'cards\')"><div class="tn">{s["n_cards"]}</div>'
         '<div class="tl">Cards</div><div class="td">every card: inputs, outputs, rules, verdict, health</div></div>'
         f'<div class="tile" onclick="showTab(\'datasets\')"><div class="tn">{s["n_datasets"]}</div>'
         '<div class="tl">Datasets</div><div class="td">catalog resolution, indication families, coverage gaps</div></div>'
-        + (f'<div class="tile" onclick="showTab(\'coverage\')"><div class="tn">'
-           f'{(g.get("coverage") or {}).get("summary", {}).get("n_cells", 0)}</div>'
-           '<div class="tl">Outputs → Coverage</div><div class="td">what the framework has produced: '
-           'governed + exploratory outputs, coverage grid, liveness signal</div></div>'
-           if g.get("coverage") else '')
-        + '</div>')
+        + (
+            f'<div class="tile" onclick="showTab(\'coverage\')"><div class="tn">'
+            f"{(g.get('coverage') or {}).get('summary', {}).get('n_cells', 0)}</div>"
+            '<div class="tl">Outputs → Coverage</div><div class="td">what the framework has produced: '
+            "governed + exploratory outputs, coverage grid, liveness signal</div></div>"
+            if g.get("coverage")
+            else ""
+        )
+        + "</div>"
+    )
 
     return (
         f'<div class="hero">{hero}</div>'
         + tiles
-        + '<h2>Skills — health</h2>' + skill_strip + card_strip
-        + '<h2>Datasets — catalog resolution</h2>' + ds_strip
-        + '<div class="grid2">' + fix + frontier + '</div>'
+        + "<h2>Skills — health</h2>"
+        + skill_strip
+        + card_strip
+        + "<h2>Datasets — catalog resolution</h2>"
+        + ds_strip
+        + '<div class="grid2">'
+        + fix
+        + frontier
+        + "</div>"
     )
 
 
@@ -182,25 +230,30 @@ def _health(g):
             dbadge = ""
             if drift:
                 worst = max((d["severity"] for d in drift), key=lambda x: {"error": 3, "warn": 2, "info": 1}.get(x, 0))
-                dbadge = _chip(f"⚠{len(drift)}", SEV_COLOR.get(worst, PURPLE),
-                               "; ".join(f'{d["severity"]}:{d["code"]}' for d in drift))
+                dbadge = _chip(
+                    f"⚠{len(drift)}",
+                    SEV_COLOR.get(worst, PURPLE),
+                    "; ".join(f"{d['severity']}:{d['code']}" for d in drift),
+                )
             rc = s.get("runs_clean")
             rc_cell = "—" if rc in (None, "unknown") else _chip(rc, GREEN if rc.startswith("clean") else RED)
             body += (
                 f'<tr><td class="nm">{_esc(name)}</td>'
-                f'<td>{_chip(v, VERDICT_COLOR.get(v, GREY), s.get("reason_text"))}</td>'
-                f'<td>{rc_cell}</td>'
+                f"<td>{_chip(v, VERDICT_COLOR.get(v, GREY), s.get('reason_text'))}</td>"
+                f"<td>{rc_cell}</td>"
                 f'<td class="consumers">{_esc(s.get("declared_status") or "—")}</td>'
-                f'<td>{_esc(s.get("kind") or "—")}</td>'
-                f'<td>{"✓" if s.get("resolver_bound") else "—"}</td>'
-                f'<td>{_esc(s.get("test_count") or 0)}</td>'
-                f'<td>{s.get("n_cards_live") or 0}/{s.get("n_cards") or 0}</td>'
-                f'<td>{dbadge}</td></tr>')
+                f"<td>{_esc(s.get('kind') or '—')}</td>"
+                f"<td>{'✓' if s.get('resolver_bound') else '—'}</td>"
+                f"<td>{_esc(s.get('test_count') or 0)}</td>"
+                f"<td>{s.get('n_cards_live') or 0}/{s.get('n_cards') or 0}</td>"
+                f"<td>{dbadge}</td></tr>"
+            )
     return (
         '<table class="tbl matrix"><thead><tr>'
-        '<th>skill</th><th>derived health</th><th>runs clean?</th><th>declared</th>'
-        '<th>kind</th><th>resolver</th><th>tests</th><th>cards live</th><th>drift</th>'
-        '</tr></thead><tbody>' + body + '</tbody></table>')
+        "<th>skill</th><th>derived health</th><th>runs clean?</th><th>declared</th>"
+        "<th>kind</th><th>resolver</th><th>tests</th><th>cards live</th><th>drift</th>"
+        "</tr></thead><tbody>" + body + "</tbody></table>"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -222,20 +275,22 @@ def _cards(g):
             ch = c.get("health")
             nv = len(c.get("verdicts") or [])
             vb = _chip(f"{nv}▸verdict", PURPLE) if nv else '<span class="consumers">inert</span>'
-            method = (c["methods"][0]["call"] if c.get("methods") else "—")
+            method = c["methods"][0]["call"] if c.get("methods") else "—"
             cons = c.get("consumers") or []
             body += (
                 f'<tr><td class="nm">{_esc(c["card_id"])}</td>'
-                f'<td>{_chip(ch, CARD_COLOR.get(ch, GREY)) if ch else "—"}</td>'
-                f'<td>{vb}</td>'
-                f'<td>{_esc(c.get("measurement_type") or "—")}</td>'
-                f'<td><code>{_esc(method)}</code></td>'
-                f'<td>{len(c.get("datasets") or [])}</td>'
-                f'<td class="consumers">{len(cons)} {_esc(", ".join(cons[:3]))}{"…" if len(cons)>3 else ""}</td></tr>')
+                f"<td>{_chip(ch, CARD_COLOR.get(ch, GREY)) if ch else '—'}</td>"
+                f"<td>{vb}</td>"
+                f"<td>{_esc(c.get('measurement_type') or '—')}</td>"
+                f"<td><code>{_esc(method)}</code></td>"
+                f"<td>{len(c.get('datasets') or [])}</td>"
+                f'<td class="consumers">{len(cons)} {_esc(", ".join(cons[:3]))}{"…" if len(cons) > 3 else ""}</td></tr>'
+            )
     return (
         '<table class="tbl"><thead><tr><th>card</th><th>health</th><th>verdict</th>'
-        '<th>measurement_type</th><th>method</th><th>datasets</th><th>consumed by</th>'
-        '</tr></thead><tbody>' + body + '</tbody></table>')
+        "<th>measurement_type</th><th>method</th><th>datasets</th><th>consumed by</th>"
+        "</tr></thead><tbody>" + body + "</tbody></table>"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -273,16 +328,18 @@ def _datasets(g):
             gap = _chip(d["gap_category"], RED) if d.get("gap_category") else ""
             body += (
                 f'<tr><td class="nm">{_esc(d["product_id"])} {gap}</td>'
-                f'<td>{_chip(d.get("resolution","?"), RES_COLOR.get(d.get("resolution"), GREY))}</td>'
-                f'<td>{_esc(d.get("kind") or "—")}</td>'
-                f'<td>{fam_cell}</td>'
-                f'<td>{_fmt_bytes(d.get("size_bytes"))}</td>'
+                f"<td>{_chip(d.get('resolution', '?'), RES_COLOR.get(d.get('resolution'), GREY))}</td>"
+                f"<td>{_esc(d.get('kind') or '—')}</td>"
+                f"<td>{fam_cell}</td>"
+                f"<td>{_fmt_bytes(d.get('size_bytes'))}</td>"
                 f'<td class="consumers">{len(d.get("consumed_by_cards") or [])} card(s) · '
-                f'{len(d.get("consumed_by_skills") or [])} skill(s)</td></tr>')
+                f"{len(d.get('consumed_by_skills') or [])} skill(s)</td></tr>"
+            )
     return (
         '<table class="tbl"><thead><tr><th>dataset (product_id)</th><th>resolution</th>'
-        '<th>kind</th><th>family</th><th>size</th><th>consumed by</th>'
-        '</tr></thead><tbody>' + body + '</tbody></table>')
+        "<th>kind</th><th>family</th><th>size</th><th>consumed by</th>"
+        "</tr></thead><tbody>" + body + "</tbody></table>"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -327,8 +384,7 @@ h2{font-size:14px;margin:16px 0 6px}
 """
 
 
-COV_COLOR = {"captured": GREEN, "partial": AMBER, "blind": RED,
-             "license_blocked": PURPLE, "out_of_scope": GREY}
+COV_COLOR = {"captured": GREEN, "partial": AMBER, "blind": RED, "license_blocked": PURPLE, "out_of_scope": GREY}
 
 
 def _axis_skill_pill(g, name):
@@ -337,9 +393,11 @@ def _axis_skill_pill(g, name):
         return "—"
     sk = (g.get("skills") or {}).get(name)
     nc = f" · {sk['n_cards']}c" if sk else ""
-    return (f'<span class="pill" title="open in Explorer" '
-            f'onclick="showTab(\'explorer\');setMode(\'skill\');selSkill(\'{_esc(name)}\')">'
-            f'{_esc(name)}{nc}</span>')
+    return (
+        f'<span class="pill" title="open in Explorer" '
+        f"onclick=\"showTab('explorer');setMode('skill');selSkill('{_esc(name)}')\">"
+        f"{_esc(name)}{nc}</span>"
+    )
 
 
 def _axes(g):
@@ -357,7 +415,9 @@ def _axes(g):
             cov = q.get("coverage")
             badges = ""
             if q.get("characterization_only"):
-                badges += " " + _chip("advisory", GREY, "characterization-only — does not move the deterministic verdict")
+                badges += " " + _chip(
+                    "advisory", GREY, "characterization-only — does not move the deterministic verdict"
+                )
             if q.get("status"):
                 badges += " " + _chip(q["status"], PURPLE)
             fr = []
@@ -369,28 +429,31 @@ def _axes(g):
             rows += (
                 f'<tr><td class="nm">{_esc(q.get("short"))}{badges}'
                 f'<div class="muted">{_esc(q.get("question"))}</div></td>'
-                f'<td>{_chip(cov or "—", COV_COLOR.get(cov, GREY), note)}</td>'
-                f'<td>{_axis_skill_pill(g, q.get("home_skill"))}</td>'
-                f'<td>{" ".join(_axis_skill_pill(g, c) for c in (q.get("foreign_consumers") or [])) or "<span class=muted>—</span>"}</td>'
+                f"<td>{_chip(cov or '—', COV_COLOR.get(cov, GREY), note)}</td>"
+                f"<td>{_axis_skill_pill(g, q.get('home_skill'))}</td>"
+                f"<td>{' '.join(_axis_skill_pill(g, c) for c in (q.get('foreign_consumers') or [])) or '<span class=muted>—</span>'}</td>"
                 f'<td class="muted">{_esc("; ".join(fr) or "—")}</td>'
-                f'<td class="muted">{_esc(", ".join(q.get("conditioned_by") or []) or "—")}</td></tr>')
+                f'<td class="muted">{_esc(", ".join(q.get("conditioned_by") or []) or "—")}</td></tr>'
+            )
         return rows
 
     def band_table(band):
-        return ('<table class="tbl"><thead><tr><th>axis · question</th><th>coverage</th>'
-                '<th>home skill</th><th>foreign consumers</th><th>facets / reports-into</th>'
-                f'<th>conditioned by</th></tr></thead><tbody>{band_rows(band)}</tbody></table>')
+        return (
+            '<table class="tbl"><thead><tr><th>axis · question</th><th>coverage</th>'
+            "<th>home skill</th><th>foreign consumers</th><th>facets / reports-into</th>"
+            f"<th>conditioned by</th></tr></thead><tbody>{band_rows(band)}</tbody></table>"
+        )
 
     conds = ax.get("conditioner_axes") or []
     cond_html = " ".join(_chip(c["id"], TEAL, c.get("note", "")) for c in conds) or "—"
     return (
         f'<p class="muted">Canonical objective→axis→card ontology '
-        f'(<code>target_profiling_axes v{_esc(ax.get("version"))}</code>) — the decision questions a full '
-        f'target profile must answer, the evidence axis for each, its framework coverage standing, and the '
-        f'home / foreign skills that report into it. Click a skill to open it in the Explorer.</p>'
+        f"(<code>target_profiling_axes v{_esc(ax.get('version'))}</code>) — the decision questions a full "
+        f"target profile must answer, the evidence axis for each, its framework coverage standing, and the "
+        f"home / foreign skills that report into it. Click a skill to open it in the Explorer.</p>"
         f'<div class="strip"><b>coverage:</b> {legend}</div>'
-        f'<h2>Necessity — “is this real, actionable biology?” (ANY-OF, modality-independent)</h2>{band_table("necessity")}'
-        f'<h2>Sufficiency — “will it become a drug in this modality?” (per-lens)</h2>{band_table("sufficiency")}'
+        f"<h2>Necessity — “is this real, actionable biology?” (ANY-OF, modality-independent)</h2>{band_table('necessity')}"
+        f"<h2>Sufficiency — “will it become a drug in this modality?” (per-lens)</h2>{band_table('sufficiency')}"
         f'<h2>Conditioner axes — refine the questions, but are not themselves questions</h2><div style="margin:6px 0">{cond_html}</div>'
     )
 
@@ -403,50 +466,62 @@ def _coverage(g):
     coverage grid, plus the card-firing signal that feeds framework_health."""
     C = g.get("coverage")
     if not C:
-        return ('<div class="empty">no output registry found — commit <code>catalog.json</code> at '
-                'the data-products root (generated by validators/output_registry) to populate this tab</div>')
+        return (
+            '<div class="empty">no output registry found — commit <code>catalog.json</code> at '
+            "the data-products root (generated by validators/output_registry) to populate this tab</div>"
+        )
     s = C.get("summary", {})
     grid = C.get("grid", {})
     fr = C.get("firings", {})
-    profiles = C.get("profiles", {})   # cell -> {release_url, s3_prefix, ...}
+    profiles = C.get("profiles", {})  # cell -> {release_url, s3_prefix, ...}
     lanes = grid.get("lanes", [])
     cells = grid.get("cells", [])
     G = grid.get("grid", {})
     gen = _esc(str(C.get("generated_at", ""))[:19])
 
-    top = _strip([
-        ("outputs", s.get("n_entries", 0), PURPLE),
-        ("governed", s.get("n_governed", 0), GREEN),
-        ("exploratory", s.get("n_exploratory", 0), AMBER),
-        ("cells", s.get("n_cells", 0), TEAL),
-        ("exploratory-only", s.get("n_cells_exploratory_only", 0), AMBER),
-        ("both tiers", s.get("n_cells_both", 0), GREEN),
-    ])
+    top = _strip(
+        [
+            ("outputs", s.get("n_entries", 0), PURPLE),
+            ("governed", s.get("n_governed", 0), GREEN),
+            ("exploratory", s.get("n_exploratory", 0), AMBER),
+            ("cells", s.get("n_cells", 0), TEAL),
+            ("exploratory-only", s.get("n_cells_exploratory_only", 0), AMBER),
+            ("both tiers", s.get("n_cells_both", 0), GREEN),
+        ]
+    )
 
     # signal-merge callout — the cards feeding framework_health.fires_in_any_run
     gov = set(fr.get("fired_card_ids_governed") or [])
     anyr = set(fr.get("fired_card_ids_any") or [])
     added = sorted(anyr - gov)
-    sig = ('<div class="panel"><h3>Liveness signal merge '
-           '<span class="sub">— feeds framework_health <code>fires_in_any_run</code></span></h3>'
-           f'<p><b>{len(gov)}</b> cards fired in governed packages · <b>{len(anyr)}</b> in ANY real run '
-           '(governed ∪ exploratory).</p>')
+    sig = (
+        '<div class="panel"><h3>Liveness signal merge '
+        '<span class="sub">— feeds framework_health <code>fires_in_any_run</code></span></h3>'
+        f"<p><b>{len(gov)}</b> cards fired in governed packages · <b>{len(anyr)}</b> in ANY real run "
+        "(governed ∪ exploratory).</p>"
+    )
     if added:
-        sig += (f'<p class="consumers">+{len(added)} card(s) proven live in exploratory runs only '
-                '(invisible to the governed-package signal):</p><ul class="frontier">')
+        sig += (
+            f'<p class="consumers">+{len(added)} card(s) proven live in exploratory runs only '
+            '(invisible to the governed-package signal):</p><ul class="frontier">'
+        )
         for c in added:
             n = len(((fr.get("by_card") or {}).get(c) or {}).get("exploratory") or [])
-            sig += (f'<li>{_chip("◐ exploratory", AMBER)} <b>{_esc(c)}</b> '
-                    f'<span class="consumers">— {n} run(s)</span></li>')
+            sig += (
+                f'<li>{_chip("◐ exploratory", AMBER)} <b>{_esc(c)}</b> <span class="consumers">— {n} run(s)</span></li>'
+            )
         sig += "</ul>"
     sig += "</div>"
 
-    frontier = ('<div class="panel"><h3>Promotion backlog <span class="sub">— exploratory → governed</span></h3>'
-                f'<p>{s.get("n_cells_exploratory_only", 0)} target×indication cell(s) exist only as '
-                'exploratory runs — candidates to promote into governed evidence packages.</p></div>')
+    frontier = (
+        '<div class="panel"><h3>Promotion backlog <span class="sub">— exploratory → governed</span></h3>'
+        f"<p>{s.get('n_cells_exploratory_only', 0)} target×indication cell(s) exist only as "
+        "exploratory runs — candidates to promote into governed evidence packages.</p></div>"
+    )
 
     def _lane_hdr(l):
         return "governed (compose)" if l == "governed" else l
+
     head = "".join(f"<th>{_esc(_lane_hdr(l))}</th>" for l in lanes)
     rows = ""
     for cell in cells:
@@ -458,23 +533,28 @@ def _coverage(g):
             else:
                 col = GREEN if c.get("tier") == "governed" else AMBER
                 v = str(c.get("verdict") or "✓")
-                tds += f'<td>{_chip(v[:48], col, v)}</td>'
+                tds += f"<td>{_chip(v[:48], col, v)}</td>"
         # link the cell to its published full target-profile when one exists (catalog keys T-I)
         prof = profiles.get(cell.replace("/", "-"))
         url = prof.get("release_url") if isinstance(prof, dict) else None
-        cell_cell = (f'<a href="{_esc(url)}" title="open full target profile">{_esc(cell)} ▸</a>'
-                     if url else _esc(cell))
+        cell_cell = f'<a href="{_esc(url)}" title="open full target profile">{_esc(cell)} ▸</a>' if url else _esc(cell)
         rows += f'<tr><td class="nm">{cell_cell}</td>{tds}</tr>'
-    table = (f'<table class="tbl matrix"><thead><tr><th>target / indication</th>{head}</tr></thead>'
-             f'<tbody>{rows}</tbody></table>')
+    table = (
+        f'<table class="tbl matrix"><thead><tr><th>target / indication</th>{head}</tr></thead>'
+        f"<tbody>{rows}</tbody></table>"
+    )
 
     return (
         '<p class="muted">Every standardized output the framework has produced, across both tiers — '
-        '<b>governed</b> concurrence-reviewed evidence packages and <b>exploratory</b> skill-runs. '
-        f'Derived from the output registry (data-products <code>catalog.json</code>). Snapshot {gen}.</p>'
+        "<b>governed</b> concurrence-reviewed evidence packages and <b>exploratory</b> skill-runs. "
+        f"Derived from the output registry (data-products <code>catalog.json</code>). Snapshot {gen}.</p>"
         + top
-        + '<div class="grid2">' + sig + frontier + '</div>'
-        + '<h2>Coverage grid — target × indication × output lane</h2>' + table
+        + '<div class="grid2">'
+        + sig
+        + frontier
+        + "</div>"
+        + "<h2>Coverage grid — target × indication × output lane</h2>"
+        + table
     )
 
 
@@ -491,7 +571,7 @@ def render_html(graph: dict) -> str:
 <title>Framework Dashboard</title>
 <style>{MILLER_CSS}{_UNIFIED_CSS}</style></head><body>
 <header><h1>Framework Dashboard</h1>
-<span class="meta">{s['n_skills']} skills · {s['n_cards']} cards · {s['n_datasets']} datasets · {s['n_resolvers']} resolvers/{s['n_verdicts']} verdicts</span>
+<span class="meta">{s["n_skills"]} skills · {s["n_cards"]} cards · {s["n_datasets"]} datasets · {s["n_resolvers"]} resolvers/{s["n_verdicts"]} verdicts</span>
 <div class="orient">One product: <b>Overview</b> → drill into wiring (<b>Explorer</b>), status (<b>Health</b>), <b>Cards</b>, <b>Datasets</b>. Arch generated {agen} · health {hgen} · {shas}</div>
 </header>
 <div class="utabs">

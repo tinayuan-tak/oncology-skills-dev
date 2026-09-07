@@ -5,6 +5,7 @@ Reuses every renderer, helper, palette, and the Miller/JS from render_unified + 
 the baked-in legibility layer (`_tok`): every machine token is shown as a human label with the
 raw id secondary (a "show raw ids" toggle reveals them) and its plain-English gloss as a tooltip.
 """
+
 from __future__ import annotations
 
 import json
@@ -19,8 +20,17 @@ if str(_ARCH) not in sys.path:
 import render_arch  # noqa: E402
 import render_unified as U  # noqa: E402
 from render_unified import (  # noqa: E402
-    AMBER, RED, GREY, PURPLE, TEAL, SEV_COLOR, _esc, _chip, _strip,
-    MILLER_CSS, _UNIFIED_CSS,
+    AMBER,
+    RED,
+    GREY,
+    PURPLE,
+    TEAL,
+    SEV_COLOR,
+    _esc,
+    _chip,
+    _strip,
+    MILLER_CSS,
+    _UNIFIED_CSS,
 )
 
 try:
@@ -31,9 +41,16 @@ except Exception:  # when run as a bare module (sys.path insert), fall back
 
 
 # component_type -> glossary kind for token lookup
-_COMP_KIND = {"card": "card", "interpretation_rule": "rule", "resolver": "gate",
-              "evidence_package": None, "source_manifest": None, "skill": None,
-              "framework": None, "method": None}
+_COMP_KIND = {
+    "card": "card",
+    "interpretation_rule": "rule",
+    "resolver": "gate",
+    "evidence_package": None,
+    "source_manifest": None,
+    "skill": None,
+    "framework": None,
+    "method": None,
+}
 
 
 def _tok(graph, kind, token, mono=True):
@@ -54,9 +71,11 @@ def _tok(graph, kind, token, mono=True):
 # GAPS (primary tab)
 # --------------------------------------------------------------------------- #
 _SEV_ORDER = ["error", "warn", "info"]
-_SEV_LABEL = {"error": "Errors — broken wiring (fix first)",
-              "warn": "Warnings — drifting / incomplete",
-              "info": "Coverage gaps & backlog — honest missing pieces"}
+_SEV_LABEL = {
+    "error": "Errors — broken wiring (fix first)",
+    "warn": "Warnings — drifting / incomplete",
+    "info": "Coverage gaps & backlog — honest missing pieces",
+}
 
 
 def _gaps(graph):
@@ -66,20 +85,23 @@ def _gaps(graph):
     run = G.get("validators_run") or []
 
     if not items:
-        return ('<p class="muted">No gaps found — every validator, health signal, and coverage '
-                'check is clean. ✓</p>')
+        return '<p class="muted">No gaps found — every validator, health signal, and coverage check is clean. ✓</p>'
 
-    top = _strip([
-        ("errors", s.get("n_error", 0), RED),
-        ("warnings", s.get("n_warn", 0), AMBER),
-        ("info / backlog", s.get("n_info", 0), PURPLE),
-        ("validators run", len(run), TEAL),
-    ])
-    intro = ('<p class="muted">One ranked view of every missing or broken piece the framework '
-             'detects — aggregated from the gap-detection validators, the health rollup, and the '
-             'coverage registry, so you do not have to read scattered CI logs. '
-             '<b>Errors</b> break the build; <b>warnings</b> are drift; <b>info</b> are honest '
-             'coverage gaps, not defects. Hover any row for the plain-language meaning.</p>')
+    top = _strip(
+        [
+            ("errors", s.get("n_error", 0), RED),
+            ("warnings", s.get("n_warn", 0), AMBER),
+            ("info / backlog", s.get("n_info", 0), PURPLE),
+            ("validators run", len(run), TEAL),
+        ]
+    )
+    intro = (
+        '<p class="muted">One ranked view of every missing or broken piece the framework '
+        "detects — aggregated from the gap-detection validators, the health rollup, and the "
+        "coverage registry, so you do not have to read scattered CI logs. "
+        "<b>Errors</b> break the build; <b>warnings</b> are drift; <b>info</b> are honest "
+        "coverage gaps, not defects. Hover any row for the plain-language meaning.</p>"
+    )
 
     by_sev = {}
     for r in items:
@@ -90,21 +112,25 @@ def _gaps(graph):
         rows = by_sev.get(sev, [])
         if not rows:
             continue
-        body += (f'<tr class="grp"><td colspan="5">{_chip(sev, SEV_COLOR.get(sev, PURPLE))} '
-                 f'{_esc(_SEV_LABEL[sev])} ({len(rows)})</td></tr>')
+        body += (
+            f'<tr class="grp"><td colspan="5">{_chip(sev, SEV_COLOR.get(sev, PURPLE))} '
+            f"{_esc(_SEV_LABEL[sev])} ({len(rows)})</td></tr>"
+        )
         for r in rows:
             kind = _COMP_KIND.get(r["component_type"])
-            comp = _tok(graph, kind, r["component_id"]) if r["component_id"] else \
-                _chip(r["component_type"], GREY)
+            comp = _tok(graph, kind, r["component_id"]) if r["component_id"] else _chip(r["component_type"], GREY)
             body += (
-                f'<tr><td>{_tok(graph, "gap_type", r["gap_type"], mono=False)}</td>'
-                f'<td>{_chip(r["component_type"], GREY)}</td>'
+                f"<tr><td>{_tok(graph, 'gap_type', r['gap_type'], mono=False)}</td>"
+                f"<td>{_chip(r['component_type'], GREY)}</td>"
                 f'<td class="nm">{comp}</td>'
-                f'<td>{_esc(r["message"])}</td>'
+                f"<td>{_esc(r['message'])}</td>"
                 f'<td class="consumers"><code class="rawid">{_esc(r["source"])}</code>'
-                f'<span class="tokplain">{_esc(r["source"])}</span></td></tr>')
-    table = ('<table class="tbl"><thead><tr><th>gap</th><th>component</th><th>which</th>'
-             '<th>what &amp; why</th><th>found by</th></tr></thead><tbody>' + body + '</tbody></table>')
+                f'<span class="tokplain">{_esc(r["source"])}</span></td></tr>'
+            )
+    table = (
+        '<table class="tbl"><thead><tr><th>gap</th><th>component</th><th>which</th>'
+        "<th>what &amp; why</th><th>found by</th></tr></thead><tbody>" + body + "</tbody></table>"
+    )
     return top + intro + table
 
 
@@ -119,19 +145,33 @@ def _schema_block(sch):
         req = '<b class="req">required</b>' if f.get("required") else '<span class="muted">optional</span>'
         enum = ""
         if f.get("enum"):
-            enum = '<div class="enum">' + " ".join(_chip(e, GREY) for e in f["enum"]) + '</div>'
-        rows += (f'<tr><td class="nm"><code>{_esc(f["name"])}</code></td>'
-                 f'<td class="muted">{_esc(f.get("type") or "")}</td><td>{req}</td>'
-                 f'<td class="muted">{_esc(f.get("desc") or "")}{enum}</td></tr>')
+            enum = '<div class="enum">' + " ".join(_chip(e, GREY) for e in f["enum"]) + "</div>"
+        rows += (
+            f'<tr><td class="nm"><code>{_esc(f["name"])}</code></td>'
+            f'<td class="muted">{_esc(f.get("type") or "")}</td><td>{req}</td>'
+            f'<td class="muted">{_esc(f.get("desc") or "")}{enum}</td></tr>'
+        )
     branch_html = ""
     if sch.get("branches"):
-        branch_html = ('<p class="muted">Tagged union — one of: ' +
-                       " · ".join("{" + ", ".join(_esc(k) for k in b) + "}" for b in sch["branches"]) + "</p>")
-    path = f'<div class="captn">schema: <code>{_esc(sch.get("path") or "?")}</code> ' \
-           f'({sch.get("n_props", 0)} properties, {len(sch.get("required", []))} required)</div>'
-    return (path + branch_html +
-            ('<table class="tbl"><thead><tr><th>field</th><th>type</th><th></th><th>notes</th></tr>'
-             '</thead><tbody>' + rows + '</tbody></table>' if rows else ""))
+        branch_html = (
+            '<p class="muted">Tagged union — one of: '
+            + " · ".join("{" + ", ".join(_esc(k) for k in b) + "}" for b in sch["branches"])
+            + "</p>"
+        )
+    path = (
+        f'<div class="captn">schema: <code>{_esc(sch.get("path") or "?")}</code> '
+        f"({sch.get('n_props', 0)} properties, {len(sch.get('required', []))} required)</div>"
+    )
+    return (
+        path
+        + branch_html
+        + (
+            '<table class="tbl"><thead><tr><th>field</th><th>type</th><th></th><th>notes</th></tr>'
+            "</thead><tbody>" + rows + "</tbody></table>"
+            if rows
+            else ""
+        )
+    )
 
 
 def _example_block(ex):
@@ -144,8 +184,11 @@ def _example_block(ex):
         if isinstance(v, (dict, list)):
             v = json.dumps(v, separators=(",", ": "))
         rows += f'<tr><td class="nm"><code>{_esc(k)}</code></td><td>{_esc(v)}</td></tr>'
-    tbl = ('<table class="tbl"><tbody>' + rows + '</tbody></table>') if rows else \
-        '<div class="muted">(no load-bearing fields surfaced)</div>'
+    tbl = (
+        ('<table class="tbl"><tbody>' + rows + "</tbody></table>")
+        if rows
+        else '<div class="muted">(no load-bearing fields surfaced)</div>'
+    )
     return src + tbl
 
 
@@ -153,10 +196,12 @@ def _concepts(graph):
     C = graph.get("concepts") or []
     if not C:
         return '<div class="empty">no concepts (concepts.yaml missing?)</div>'
-    intro = ('<p class="muted">The building blocks, from raw dataset to composed output. Each block: '
-             'what it IS, its <b>schema</b> shape, a <b>real example</b> harvested live from the repos, '
-             'and where it is defined. This is the conceptual companion to the Explorer (which shows how '
-             'specific instances are wired together).</p>')
+    intro = (
+        '<p class="muted">The building blocks, from raw dataset to composed output. Each block: '
+        "what it IS, its <b>schema</b> shape, a <b>real example</b> harvested live from the repos, "
+        "and where it is defined. This is the conceptual companion to the Explorer (which shows how "
+        "specific instances are wired together).</p>"
+    )
     blocks = ""
     for i, c in enumerate(C):
         di = c.get("defined_in") or {}
@@ -190,9 +235,11 @@ def _narrative(graph):
     byc = N.get("by_component") or {}
     if not docs:
         return '<div class="empty">no design docs indexed</div>'
-    intro = (f'<p class="muted">{N.get("n_docs", 0)} design docs '
-             f'({N.get("n_keyed", 0)} keyed to a component). The prose behind the contracts — '
-             'grouped by the component each explains. Links open the source markdown.</p>')
+    intro = (
+        f'<p class="muted">{N.get("n_docs", 0)} design docs '
+        f"({N.get('n_keyed', 0)} keyed to a component). The prose behind the contracts — "
+        "grouped by the component each explains. Links open the source markdown.</p>"
+    )
     # component order = concepts order, then "general"
     comp_order = [c["id"] for c in (graph.get("concepts") or [])] + ["general"]
     seen = set()
@@ -201,8 +248,7 @@ def _narrative(graph):
         stems = byc.get(comp)
         if not stems:
             continue
-        lbl = ((graph.get("glossary") or {}).get("component_type") or {}).get(comp, {}).get("label") \
-            or humanize(comp)
+        lbl = ((graph.get("glossary") or {}).get("component_type") or {}).get(comp, {}).get("label") or humanize(comp)
         body += f'<h2>{_esc(lbl)}</h2><div class="doclist">'
         for stem in stems:
             if (comp, stem) in seen:
@@ -211,32 +257,45 @@ def _narrative(graph):
             d = docs.get(stem)
             if not d:
                 continue
-            body += (f'<div class="doccard"><div class="docttl">{_esc(d["title"])} '
-                     f'<span class="rawid">{_esc(d["repo"])}/{_esc(d["path"])}</span></div>'
-                     f'<div class="docsum muted">{_esc(d["summary"])}</div></div>')
-        body += '</div>'
+            body += (
+                f'<div class="doccard"><div class="docttl">{_esc(d["title"])} '
+                f'<span class="rawid">{_esc(d["repo"])}/{_esc(d["path"])}</span></div>'
+                f'<div class="docsum muted">{_esc(d["summary"])}</div></div>'
+            )
+        body += "</div>"
     return intro + body
 
 
 # --------------------------------------------------------------------------- #
 # FLOW — the workflow schema diagrams at multiple altitudes
 # --------------------------------------------------------------------------- #
-_KIND_COLOR = {"source_manifest": TEAL, "derived_manifest": TEAL, "method": "#199e70",
-               "card": PURPLE, "interpretation_rule": AMBER, "resolver": RED,
-               "skill": "#2b6cb0", "evidence_package": GREY}
+_KIND_COLOR = {
+    "source_manifest": TEAL,
+    "derived_manifest": TEAL,
+    "method": "#199e70",
+    "card": PURPLE,
+    "interpretation_rule": AMBER,
+    "resolver": RED,
+    "skill": "#2b6cb0",
+    "evidence_package": GREY,
+}
 
 
 def _pnode(graph, st):
     kc = _KIND_COLOR.get(st.get("kind"), GREY)
     badge = st.get("component_label") or st.get("kind") or ""
-    jump = (" onclick=\"event.stopPropagation();showTab('concepts')\" "
-            "title=\"see this component in Concepts\""
-            if st.get("concept_present") else "")
+    jump = (
+        ' onclick="event.stopPropagation();showTab(\'concepts\')" title="see this component in Concepts"'
+        if st.get("concept_present")
+        else ""
+    )
     tokchip = ""
     if st.get("token") and st.get("token_gloss"):
         tg = st["token_gloss"]
-        tokchip = (f'<div class="ptok" title="{_esc(tg.get("plain_english"))}">'
-                   f'{_esc(tg.get("label"))}<code class="rawid">{_esc(st["token"])}</code></div>')
+        tokchip = (
+            f'<div class="ptok" title="{_esc(tg.get("plain_english"))}">'
+            f'{_esc(tg.get("label"))}<code class="rawid">{_esc(st["token"])}</code></div>'
+        )
     ex = f'<div class="pex">{_esc(st["example"])}</div>' if st.get("example") else ""
     art = f'<div class="part">▸ {_esc(st["artifact"])}</div>' if st.get("artifact") else ""
     # zoom-in: a stage that expands into another level is clickable
@@ -246,11 +305,13 @@ def _pnode(graph, st):
         zoom = '<div class="pzoom">⤢ zoom in</div>'
         cls = "pnode drillable"
         onclick = f' onclick="selFlow({drill})" title="zoom into this abstraction"'
-    return (f'<div class="{cls}" style="border-top:3px solid {kc}"{onclick}>'
-            f'<div class="pbadge" style="color:{kc}"{jump}>{_esc(badge)}</div>'
-            f'<div class="ptitle">{_esc(st["label"])}</div>'
-            f'<div class="pplain">{_esc(st["plain"])}</div>'
-            f'{tokchip}{ex}{art}{zoom}</div>')
+    return (
+        f'<div class="{cls}" style="border-top:3px solid {kc}"{onclick}>'
+        f'<div class="pbadge" style="color:{kc}"{jump}>{_esc(badge)}</div>'
+        f'<div class="ptitle">{_esc(st["label"])}</div>'
+        f'<div class="pplain">{_esc(st["plain"])}</div>'
+        f"{tokchip}{ex}{art}{zoom}</div>"
+    )
 
 
 def _lane(lane):
@@ -258,12 +319,13 @@ def _lane(lane):
         return ""
     steps = "".join(f"<li>{_esc(s)}</li>" for s in lane.get("steps", []))
     di = lane.get("drill_idx")
-    zoom = (f'<button class="lanezoom" onclick="selFlow({di})">⤢ zoom into this lane</button>'
-            if di is not None else "")
-    return (f'<div class="lane"><div class="laneup">▲ from <b>{_esc(lane.get("from"))}</b></div>'
-            f'<div class="lanehd">{_esc(lane.get("label"))}{zoom}</div>'
-            f'<ul class="lanesteps">{steps}</ul>'
-            f'<div class="laneinv">{_esc(lane.get("invariant"))}</div></div>')
+    zoom = f'<button class="lanezoom" onclick="selFlow({di})">⤢ zoom into this lane</button>' if di is not None else ""
+    return (
+        f'<div class="lane"><div class="laneup">▲ from <b>{_esc(lane.get("from"))}</b></div>'
+        f'<div class="lanehd">{_esc(lane.get("label"))}{zoom}</div>'
+        f'<ul class="lanesteps">{steps}</ul>'
+        f'<div class="laneinv">{_esc(lane.get("invariant"))}</div></div>'
+    )
 
 
 def _pipeline(graph, lv):
@@ -274,19 +336,25 @@ def _pipeline(graph, lv):
 def _hub(graph, lv):
     c = lv["center"]
     kc = _KIND_COLOR.get(c.get("kind"), PURPLE)
-    vb = _chip("verdict-bearing" if lv.get("verdict_bearing") else "verdict-inert",
-               PURPLE if lv.get("verdict_bearing") else GREY)
-    center = (f'<div class="hubcenter" style="border:2px solid {kc}">'
-              f'<div class="pbadge" style="color:{kc}" onclick="showTab(\'concepts\')">'
-              f'{_esc(c.get("component_label"))}</div>'
-              f'<div class="ptitle">{_esc(c["label"])}</div>'
-              f'<div class="pplain">{_esc(c["plain"])}</div>{vb}</div>')
+    vb = _chip(
+        "verdict-bearing" if lv.get("verdict_bearing") else "verdict-inert",
+        PURPLE if lv.get("verdict_bearing") else GREY,
+    )
+    center = (
+        f'<div class="hubcenter" style="border:2px solid {kc}">'
+        f'<div class="pbadge" style="color:{kc}" onclick="showTab(\'concepts\')">'
+        f"{_esc(c.get('component_label'))}</div>"
+        f'<div class="ptitle">{_esc(c["label"])}</div>'
+        f'<div class="pplain">{_esc(c["plain"])}</div>{vb}</div>'
+    )
     sats = ""
     for s in lv["satellites"]:
         kc2 = _KIND_COLOR.get(s.get("kind"), GREY)
-        items = "".join(f'<li><code>{_esc(i)}</code></li>' for i in s["items"])
-        sats += (f'<div class="hubsat" style="border-left:3px solid {kc2}">'
-                 f'<div class="satrole">{_esc(s["role"])}</div><ul>{items}</ul></div>')
+        items = "".join(f"<li><code>{_esc(i)}</code></li>" for i in s["items"])
+        sats += (
+            f'<div class="hubsat" style="border-left:3px solid {kc2}">'
+            f'<div class="satrole">{_esc(s["role"])}</div><ul>{items}</ul></div>'
+        )
     return f'<div class="hub">{center}<div class="hubsats">{sats}</div></div>'
 
 
@@ -296,14 +364,22 @@ def _flow(graph):
     if not levels:
         return '<div class="empty">no flow model</div>'
     w = F.get("worked") or {}
-    intro = ('<p class="muted">The framework at different zoom levels — pick an altitude. The '
-             f'concrete values trace one real slice (<b>{_esc(w.get("target"))}</b> in '
-             f'<b>{_esc(w.get("indication"))}</b>, {_esc(w.get("gate"))} gate); the tokens are real '
-             'contract ids (a self-check fails if any goes stale). Click a component badge to open '
-             'it in Concepts.</p>')
-    pick = '<div class="flowpick">' + "".join(
-        f'<button class="flowbtn{" active" if i == 0 else ""}" id="flowbtn-{i}" '
-        f'onclick="selFlow({i})">{_esc(lv["title"])}</button>' for i, lv in enumerate(levels)) + '</div>'
+    intro = (
+        '<p class="muted">The framework at different zoom levels — pick an altitude. The '
+        f"concrete values trace one real slice (<b>{_esc(w.get('target'))}</b> in "
+        f"<b>{_esc(w.get('indication'))}</b>, {_esc(w.get('gate'))} gate); the tokens are real "
+        "contract ids (a self-check fails if any goes stale). Click a component badge to open "
+        "it in Concepts.</p>"
+    )
+    pick = (
+        '<div class="flowpick">'
+        + "".join(
+            f'<button class="flowbtn{" active" if i == 0 else ""}" id="flowbtn-{i}" '
+            f'onclick="selFlow({i})">{_esc(lv["title"])}</button>'
+            for i, lv in enumerate(levels)
+        )
+        + "</div>"
+    )
     panes = ""
     for i, lv in enumerate(levels):
         body = _hub(graph, lv) if lv.get("layout") == "hub" else _pipeline(graph, lv)
@@ -311,28 +387,33 @@ def _flow(graph):
         crumb = ""
         if lv.get("parent_idx") is not None:
             pt = levels[lv["parent_idx"]]["title"]
-            crumb += (f'<button class="crumb up" onclick="selFlow({lv["parent_idx"]})">'
-                      f'↑ zoom out · {_esc(pt)}</button>')
+            crumb += f'<button class="crumb up" onclick="selFlow({lv["parent_idx"]})">↑ zoom out · {_esc(pt)}</button>'
         for ch in lv.get("child_idx") or []:
-            crumb += (f'<button class="crumb down" onclick="selFlow({ch["idx"]})">'
-                      f'⤢ {_esc(ch["title"])}</button>')
+            crumb += f'<button class="crumb down" onclick="selFlow({ch["idx"]})">⤢ {_esc(ch["title"])}</button>'
         crumb_html = f'<div class="crumbs">{crumb}</div>' if crumb else ""
         # a level with a wire schematic gets a schematic ⇄ boxes toggle (schematic leads on card level)
         if lv.get("schematic"):
             lead = bool(lv.get("default_schem"))
-            tog = (f'<div class="viewtog">'
-                   f'<button class="vbtn{" active" if lead else ""}" id="vbtn-schem-{i}" '
-                   f'onclick="flowView({i},\'schem\')">◫ schematic</button>'
-                   f'<button class="vbtn{"" if lead else " active"}" id="vbtn-boxes-{i}" '
-                   f'onclick="flowView({i},\'boxes\')">▤ boxes</button></div>')
-            content = (tog
-                       + f'<div class="fv fv-schem{" on" if lead else ""}" id="fvs-{i}">'
-                       + _schematic_pre(lv["schematic"]) + '</div>'
-                       + f'<div class="fv fv-boxes{"" if lead else " on"}" id="fvb-{i}">{body}</div>')
+            tog = (
+                f'<div class="viewtog">'
+                f'<button class="vbtn{" active" if lead else ""}" id="vbtn-schem-{i}" '
+                f"onclick=\"flowView({i},'schem')\">◫ schematic</button>"
+                f'<button class="vbtn{"" if lead else " active"}" id="vbtn-boxes-{i}" '
+                f"onclick=\"flowView({i},'boxes')\">▤ boxes</button></div>"
+            )
+            content = (
+                tog
+                + f'<div class="fv fv-schem{" on" if lead else ""}" id="fvs-{i}">'
+                + _schematic_pre(lv["schematic"])
+                + "</div>"
+                + f'<div class="fv fv-boxes{"" if lead else " on"}" id="fvb-{i}">{body}</div>'
+            )
         else:
             content = body
-        panes += (f'<div class="flvl{" active" if i == 0 else ""}" id="flvl-{i}">'
-                  f'{crumb_html}<div class="flsub">{_esc(lv.get("subtitle"))}</div>{content}</div>')
+        panes += (
+            f'<div class="flvl{" active" if i == 0 else ""}" id="flvl-{i}">'
+            f'{crumb_html}<div class="flsub">{_esc(lv.get("subtitle"))}</div>{content}</div>'
+        )
     return intro + pick + panes
 
 
@@ -432,8 +513,10 @@ def render_html(graph: dict) -> str:
 
     gaps_badge = ""
     if gs.get("n_error") or gs.get("n_warn"):
-        gaps_badge = f' <span class="tabbadge" style="background:{RED if gs.get("n_error") else AMBER}">' \
-                     f'{gs.get("n_error", 0)}!·{gs.get("n_warn", 0)}⚠</span>'
+        gaps_badge = (
+            f' <span class="tabbadge" style="background:{RED if gs.get("n_error") else AMBER}">'
+            f"{gs.get('n_error', 0)}!·{gs.get('n_warn', 0)}⚠</span>"
+        )
 
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -442,7 +525,7 @@ def render_html(graph: dict) -> str:
 .tabbadge{{color:#fff;border-radius:9px;padding:0 6px;font-size:10px;font-weight:700}}
 </style></head><body>
 <header><h1>Framework Atlas</h1>
-<span class="meta">{s['n_skills']} skills · {s['n_cards']} cards · {s['n_datasets']} datasets · {s['n_resolvers']} resolvers/{s['n_verdicts']} verdicts</span>
+<span class="meta">{s["n_skills"]} skills · {s["n_cards"]} cards · {s["n_datasets"]} datasets · {s["n_resolvers"]} resolvers/{s["n_verdicts"]} verdicts</span>
 <div class="orient">Auto-generated from the contracts. <b>Gaps</b> = missing/broken pieces · <b>Concepts</b> = the building blocks + schemas + real examples · <b>Explorer</b> = the wiring · <b>Docs</b> = the prose. Generated {agen} · health {hgen} · {shas}</div>
 </header>
 <div class="utabs">

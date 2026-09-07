@@ -6,6 +6,7 @@ normal_tissue_* ↔ normal) — the type already fixes the sample context, so a 
 defect that would mis-bucket the per-modality sub-verdict. Optional field: no sample_context → no
 check. Hermetic (synthetic card dicts).
 """
+
 from __future__ import annotations
 
 import importlib
@@ -26,14 +27,17 @@ def _load(m):
 
 
 import importlib.util  # noqa: E402
+
 VC = _load("validate_cards")
 
 
 def _base(**ov):
     c = {
-        "card_id": "synthetic-sc-card", "version": "1.0.0",
+        "card_id": "synthetic-sc-card",
+        "version": "1.0.0",
         "question": "Synthetic card for {target.symbol} in {indication.label}?",
-        "applies_when": [], "required_inputs": [{"product_id": "x"}],
+        "applies_when": [],
+        "required_inputs": [{"product_id": "x"}],
         "methods": [{"call": "depmap-chronos"}],
         "outputs": {"summary_fields": ["f"]},
         "caveats": ["A caveat long enough to satisfy the minLength constraint."],
@@ -54,21 +58,37 @@ def _errs(r):
 
 
 def test_consistent_cell_line_passes(tmp_path):
-    r = _v(tmp_path, _base(measurement_type="cell_line_rna_expression", sample_context="cell_line",
-                           entity_grains=["target", "target_lineage"]))
+    r = _v(
+        tmp_path,
+        _base(
+            measurement_type="cell_line_rna_expression",
+            sample_context="cell_line",
+            entity_grains=["target", "target_lineage"],
+        ),
+    )
     assert "SAMPLE_CONTEXT_MISMATCH" not in _errs(r)
 
 
 def test_consistent_tumor_passes(tmp_path):
-    r = _v(tmp_path, _base(measurement_type="tumor_vs_adjacent_expression", sample_context="tumor",
-                           entity_grains=["target_indication"]))
+    r = _v(
+        tmp_path,
+        _base(
+            measurement_type="tumor_vs_adjacent_expression", sample_context="tumor", entity_grains=["target_indication"]
+        ),
+    )
     assert "SAMPLE_CONTEXT_MISMATCH" not in _errs(r)
 
 
 def test_mismatch_is_error(tmp_path):
     # cell_line_* type but sample_context: tumor → contradiction
-    r = _v(tmp_path, _base(measurement_type="cell_line_rna_expression", sample_context="tumor",
-                           entity_grains=["target", "target_lineage"]))
+    r = _v(
+        tmp_path,
+        _base(
+            measurement_type="cell_line_rna_expression",
+            sample_context="tumor",
+            entity_grains=["target", "target_lineage"],
+        ),
+    )
     assert not r.ok and "SAMPLE_CONTEXT_MISMATCH" in _errs(r)
 
 
@@ -92,13 +112,18 @@ def test_context_without_matching_prefix_is_skipped(tmp_path):
 
 
 def test_bad_sample_context_value_rejected_by_schema(tmp_path):
-    r = _v(tmp_path, _base(sample_context="xenograft"))   # not in the enum
+    r = _v(tmp_path, _base(sample_context="xenograft"))  # not in the enum
     assert not r.ok and "STRUCTURAL" in _errs(r)
 
 
 def test_real_stamped_cards_are_consistent():
     """The 5 cards stamped this slice validate clean on the sample_context check."""
-    for cid in ["cellline-rna-distribution", "cellline-protein-abundance", "tumor-rna-vs-adjacent",
-                "tumor-protein-abundance-cptac", "tumor-vs-normal-selectivity"]:
+    for cid in [
+        "cellline-rna-distribution",
+        "cellline-protein-abundance",
+        "tumor-rna-vs-adjacent",
+        "tumor-protein-abundance-cptac",
+        "tumor-vs-normal-selectivity",
+    ]:
         r = VC.validate_card_file(REPO / "cards" / f"{cid}.card.yaml")
         assert "SAMPLE_CONTEXT_MISMATCH" not in _errs(r), f"{cid}: {_errs(r)}"

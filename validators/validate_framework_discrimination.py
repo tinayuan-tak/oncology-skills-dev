@@ -17,6 +17,7 @@ false-positive clear?), not argued.
 Run:  python3 validators/validate_framework_discrimination.py [--json] [--set <path>]
       Exits non-zero if the curated metrics regress past the documented floors (--check).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -37,15 +38,15 @@ _DEFAULT_SET = Path(__file__).resolve().parent.parent / "vocabularies" / "known_
 # Documented regression FLOORS (the framework must not get WORSE on known targets). Current values as of
 # the 2026-08-14 curation; a fix that improves discrimination raises these. --check enforces them.
 _FLOORS = {
-    "max_dangerous_false_positives": 4,   # ADAR1 / RBM39 / CLDN18.2_LRRC15 / EGFR_cMET_VEGF
+    "max_dangerous_false_positives": 4,  # ADAR1 / RBM39 / CLDN18.2_LRRC15 / EGFR_cMET_VEGF
     # The DRUG-BACKED regression floor: silent-FNs whose clinical outcome is an APPROVED drug — the
     # unambiguous losses (the framework would veto a marketed drug's target). This is the meaningful
     # "would-veto-a-drug" guard. Program-status silent-FNs (advanced/active) are reported separately
     # and deliberately NOT floored: "advanced as a Takeda program" != "high-quality target" — e.g.
     # MARK2/3 advanced organizationally but never beat YAP/TAZ on efficacy, so counting it as a
     # framework loss (and flooring against it) would calibrate the guard on unvalidated labels.
-    "max_approved_silent_false_negatives": 5,   # PARP1 / BCL2 / XPO1 / PSMB5 / CDK4_6
-    "max_silent_false_negatives": 12,     # total (approved + advanced/active); informational soft guard
+    "max_approved_silent_false_negatives": 5,  # PARP1 / BCL2 / XPO1 / PSMB5 / CDK4_6
+    "max_silent_false_negatives": 12,  # total (approved + advanced/active); informational soft guard
     "min_approved_agreement_rate": 0.25,  # currently 5/18 = 0.28
 }
 
@@ -101,12 +102,16 @@ def compute_metrics(profiles: dict) -> dict:
     # program is program-status, not a validated quality signal, so it must not be conflated with a
     # drug loss (nor flooded into the drug-backed regression guard).
     sfn_by_outcome = {
-        "positive_approved": [k for k, v in items
-                              if v.get("severity") == "silent_false_negative"
-                              and outcome_class(v["outcome"]) == "positive_approved"],
-        "advanced_active": [k for k, v in items
-                            if v.get("severity") == "silent_false_negative"
-                            and outcome_class(v["outcome"]) == "advanced_active"],
+        "positive_approved": [
+            k
+            for k, v in items
+            if v.get("severity") == "silent_false_negative" and outcome_class(v["outcome"]) == "positive_approved"
+        ],
+        "advanced_active": [
+            k
+            for k, v in items
+            if v.get("severity") == "silent_false_negative" and outcome_class(v["outcome"]) == "advanced_active"
+        ],
     }
 
     blind = [v for _, v in items if v.get("deciding_axis_coverage") == "blind"]
@@ -139,21 +144,29 @@ def render_report(m: dict) -> str:
     L.append("")
     L.append("DECIDING-AXIS COVERAGE (is the framework even reading the axis that decided the target?):")
     L.append(f"  {m['by_deciding_axis_coverage']}")
-    L.append(f"  → BLIND on the deciding axis for {int(round(m['blind_rate']*100))}% of known targets.")
+    L.append(f"  → BLIND on the deciding axis for {int(round(m['blind_rate'] * 100))}% of known targets.")
     L.append("")
     L.append(f"APPROVED-DRUG DISCRIMINATION (n={m['n_approved']}):")
-    L.append(f"  deciding-axis CAPTURED rate: {m['approved_deciding_axis_capture_rate']}  "
-             f"(the axis that made it a drug is one the framework reads)")
+    L.append(
+        f"  deciding-axis CAPTURED rate: {m['approved_deciding_axis_capture_rate']}  "
+        f"(the axis that made it a drug is one the framework reads)"
+    )
     L.append(f"  verdict AGREES-with-outcome rate: {m['approved_verdict_agreement_rate']}")
     L.append("")
     L.append("ERROR INVENTORY (the actionable failure list):")
-    L.append(f"  dangerous false-positives ({len(m['dangerous_false_positives'])}) — framework would ADVANCE a clinical FAILURE:")
+    L.append(
+        f"  dangerous false-positives ({len(m['dangerous_false_positives'])}) — framework would ADVANCE a clinical FAILURE:"
+    )
     L.append(f"    {m['dangerous_false_positives']}")
     sfn_by = m["silent_false_negatives_by_outcome"]
-    L.append(f"  silent false-negatives ({len(m['silent_false_negatives'])}) — framework would VETO a validated target:")
+    L.append(
+        f"  silent false-negatives ({len(m['silent_false_negatives'])}) — framework would VETO a validated target:"
+    )
     L.append(f"    approved-drug losses (DRUG-BACKED, floored) [{len(sfn_by['positive_approved'])}]:")
     L.append(f"      {sfn_by['positive_approved']}")
-    L.append(f"    advanced/active (program-status, PENDING RE-GRADE — NOT floored) [{len(sfn_by['advanced_active'])}]:")
+    L.append(
+        f"    advanced/active (program-status, PENDING RE-GRADE — NOT floored) [{len(sfn_by['advanced_active'])}]:"
+    )
     L.append(f"      {sfn_by['advanced_active']}")
     L.append("")
     L.append("LOAD-BEARINGNESS — which MISSING axis costs the most blind known targets (build-priority order):")
@@ -167,13 +180,19 @@ def check_floors(m: dict) -> list:
     """Return a list of regression violations against the documented floors (empty = OK)."""
     v = []
     if len(m["dangerous_false_positives"]) > _FLOORS["max_dangerous_false_positives"]:
-        v.append(f"dangerous_false_positives {len(m['dangerous_false_positives'])} > floor {_FLOORS['max_dangerous_false_positives']}")
+        v.append(
+            f"dangerous_false_positives {len(m['dangerous_false_positives'])} > floor {_FLOORS['max_dangerous_false_positives']}"
+        )
     n_approved_sfn = len(m["silent_false_negatives_by_outcome"]["positive_approved"])
     if n_approved_sfn > _FLOORS["max_approved_silent_false_negatives"]:
-        v.append(f"approved_silent_false_negatives {n_approved_sfn} > floor {_FLOORS['max_approved_silent_false_negatives']} "
-                 f"(a marketed-drug target would be vetoed)")
+        v.append(
+            f"approved_silent_false_negatives {n_approved_sfn} > floor {_FLOORS['max_approved_silent_false_negatives']} "
+            f"(a marketed-drug target would be vetoed)"
+        )
     if len(m["silent_false_negatives"]) > _FLOORS["max_silent_false_negatives"]:
-        v.append(f"silent_false_negatives {len(m['silent_false_negatives'])} > floor {_FLOORS['max_silent_false_negatives']}")
+        v.append(
+            f"silent_false_negatives {len(m['silent_false_negatives'])} > floor {_FLOORS['max_silent_false_negatives']}"
+        )
     rate = m["approved_verdict_agreement_rate"]
     if rate is not None and rate < _FLOORS["min_approved_agreement_rate"]:
         v.append(f"approved_verdict_agreement_rate {rate} < floor {_FLOORS['min_approved_agreement_rate']}")

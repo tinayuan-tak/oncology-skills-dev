@@ -9,6 +9,7 @@ reverse adds:
 
 Hermetic: synthetic vocab + cards dirs written to tmp. Two integration tests assert the real tree.
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -62,8 +63,10 @@ def _vocab(cards_list, grains=("target",)) -> dict:
 
 
 def _run(tmp_path: Path, vocab: dict, cards: list[dict]):
-    vd = tmp_path / "vocab"; vd.mkdir()
-    cd = tmp_path / "cards"; cd.mkdir()
+    vd = tmp_path / "vocab"
+    vd.mkdir()
+    cd = tmp_path / "cards"
+    cd.mkdir()
     (vd / "measurement_types.yaml").write_text(yaml.safe_dump(vocab))
     for c in cards:
         (cd / f"{c['card_id']}.card.yaml").write_text(yaml.safe_dump(c))
@@ -101,6 +104,7 @@ def test_concordant_backref_is_clean(tmp_path):
 
 
 # ---------- regression guards on the real tree (would have caught the fixed drifts) ----------
+
 
 def test_real_vocab_reverse_backref_is_consistent():
     r = VMT.validate(REPO / "vocabularies" / "measurement_types.yaml", REPO / "cards")

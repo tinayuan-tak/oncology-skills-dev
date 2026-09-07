@@ -4,6 +4,7 @@ Pins that (1) the shipped hand-authored examples are BOTH schema-valid AND satis
 intra-record invariants, and (2) each invariant actually FAILS a crafted violation — so the
 validator is a real guard, not a rubber stamp, before any skill emits the record at M1.
 """
+
 import copy
 import json
 import sys
@@ -24,6 +25,7 @@ EMITTED = vcr.emitted_verdicts_by_gate(RESOLVERS)
 
 
 # ---------- schema well-formedness + shipped examples ----------
+
 
 def test_schema_is_valid_draft202012():
     Draft202012Validator.check_schema(SCHEMA)
@@ -48,6 +50,7 @@ def _run_one(rec):
 
 # ---------- invariant A: open-world => non-committal finding ----------
 
+
 def test_open_world_must_be_unknown_state():
     rec = _load("claim_record.selectivity.open_world.example.yaml")
     bad = copy.deepcopy(rec)
@@ -66,15 +69,17 @@ def test_open_world_must_be_neutral_direction():
 
 # ---------- invariant B: no bare numbers ----------
 
+
 def test_value_requires_scale():
     rec = _load("claim_record.genomic_alteration.example.yaml")
     bad = copy.deepcopy(rec)
-    bad["finding"]["magnitude"]["scale"] = None      # value stays set, scale nulled
+    bad["finding"]["magnitude"]["scale"] = None  # value stays set, scale nulled
     r = _run_one(bad)
     assert not r.ok and any("BARE_NUMBER" in e for e in r.errors)
 
 
 # ---------- invariant C: finding.state in the axis resolver's emitted set ----------
+
 
 def test_state_must_be_emitted_by_resolver():
     rec = _load("claim_record.genomic_alteration.example.yaml")
@@ -87,7 +92,7 @@ def test_state_must_be_emitted_by_resolver():
 def test_no_resolver_axis_is_unchecked_not_error():
     rec = _load("claim_record.genomic_alteration.example.yaml")
     probe = copy.deepcopy(rec)
-    probe["axis"] = "expression"                     # a no-resolver inline axis
+    probe["axis"] = "expression"  # a no-resolver inline axis
     probe["finding"]["state"] = "anything_goes_here"
     probe["provenance"]["legacy_verdict"] = "anything_goes_here"  # keep invariant E satisfied
     r = _run_one(probe)
@@ -97,10 +102,11 @@ def test_no_resolver_axis_is_unchecked_not_error():
 
 # ---------- invariant D: certainty.level <= ordinal min(coverage, corroboration), DOWNGRADE-ONLY ----------
 
+
 def test_unmeasured_corroboration_level_bounded_by_coverage():
-    rec = _load("claim_record.safety.example.yaml")           # coverage=medium, corrob=unmeasured
+    rec = _load("claim_record.safety.example.yaml")  # coverage=medium, corrob=unmeasured
     bad = copy.deepcopy(rec)
-    bad["certainty"]["level"] = "high"                        # high > coverage (medium) — over-claim
+    bad["certainty"]["level"] = "high"  # high > coverage (medium) — over-claim
     r = _run_one(bad)
     assert not r.ok and any("CERTAINTY_LEVEL" in e for e in r.errors)
 
@@ -108,18 +114,19 @@ def test_unmeasured_corroboration_level_bounded_by_coverage():
 def test_level_may_not_exceed_ordinal_min():
     rec = _load("claim_record.genomic_alteration.example.yaml")  # high/high/high => high
     bad = copy.deepcopy(rec)
-    bad["certainty"]["coverage"] = "low"                        # min(low, high) = low, but level says high
+    bad["certainty"]["coverage"] = "low"  # min(low, high) = low, but level says high
     r = _run_one(bad)
     assert not r.ok and any("CERTAINTY_LEVEL" in e for e in r.errors)
 
 
 # ---------- invariant E: provenance.legacy_verdict is the M2 render-equivalence anchor ----------
 
+
 def test_measured_state_must_match_legacy_verdict():
-    rec = _load("claim_record.genomic_alteration.example.yaml")   # measured; legacy==state
+    rec = _load("claim_record.genomic_alteration.example.yaml")  # measured; legacy==state
     assert _run_one(rec).ok
     bad = copy.deepcopy(rec)
-    bad["provenance"]["legacy_verdict"] = "some_other_token"      # measured state must equal legacy
+    bad["provenance"]["legacy_verdict"] = "some_other_token"  # measured state must equal legacy
     r = _run_one(bad)
     assert not r.ok and any("LEGACY_VERDICT" in e for e in r.errors)
 
@@ -134,6 +141,6 @@ def test_downgrade_below_min_is_allowed():
     # a skill may legitimately downgrade level BELOW the min (e.g. 'low' on a none-verdict) — not an error
     rec = _load("claim_record.genomic_alteration.example.yaml")  # coverage=high, corrob=high
     ok = copy.deepcopy(rec)
-    ok["certainty"]["level"] = "low"                             # downgrade — allowed
+    ok["certainty"]["level"] = "low"  # downgrade — allowed
     r = _run_one(ok)
     assert r.ok, f"a downgrade below the ordinal min must be allowed, got: {r.errors}"

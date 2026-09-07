@@ -39,8 +39,7 @@ def test_conservative_veto_set():
     scope creep that would over-veto)."""
     v = _load()
     veto = {(g["sub_skill"], g["verdict"]) for g in v["gates"] if g["action"] == "veto"}
-    assert veto == {("dependency", "pan_essential_killer"),
-                    ("dependency", "non_dependent")}
+    assert veto == {("dependency", "pan_essential_killer"), ("dependency", "non_dependent")}
 
 
 def test_safety_is_hold_not_veto():
@@ -51,8 +50,9 @@ def test_safety_is_hold_not_veto():
     # is a product decision to escalate, never a default target-foreclosing veto) — assert the
     # PROPERTY across all safety entries, not a brittle count.
     assert len(safety) >= 1
-    assert all(g["action"] == "hold" for g in safety), \
+    assert all(g["action"] == "hold" for g in safety), (
         f"every safety gate must be hold, not veto: {[(g['verdict'], g['action']) for g in safety]}"
+    )
 
 
 def test_excluded_modality_scoped_not_in_gates():
@@ -71,6 +71,7 @@ def test_excluded_modality_scoped_not_in_gates():
 # ---------------------------------------------------------------------------
 # Positive tier (v1.1.0, 2026-07-17)
 # ---------------------------------------------------------------------------
+
 
 def test_positive_tier_blocks_present_and_well_formed():
     v = _load()
@@ -120,24 +121,35 @@ def test_positives_only_from_cross_target_axes():
     # strong_cooccurring stay advisory (combination CONTEXT, not target-quality). GROUPED with
     # genomic_alteration+cis_coherence (correlated_dimension_groups) so it corroborates confidence but
     # never independently mints `strong`.
-    allowed = {"dependency", "selectivity", "tractability_sm", "genomic_alteration", "expression",
-               "subtype_fit", "cis_coherence", "differentiation"}
+    allowed = {
+        "dependency",
+        "selectivity",
+        "tractability_sm",
+        "genomic_alteration",
+        "expression",
+        "subtype_fit",
+        "cis_coherence",
+        "differentiation",
+    }
     used = {p["sub_skill"] for p in v["positive_signals"]}
     assert used <= allowed, f"positive from disallowed axis: {used - allowed}"
     # cis_coherence is positive-eligible ONLY for the coherent-cis-driver verdict (same guard shape
     # as expression/subtype_fit — the inert/uncoupled cis verdicts must never leak into positives).
     cis_pos = {p["verdict"] for p in v["positive_signals"] if p["sub_skill"] == "cis_coherence"}
-    assert cis_pos <= {"coherent_cis_driver"}, \
+    assert cis_pos <= {"coherent_cis_driver"}, (
         f"only coherent_cis_driver may be a cis_coherence positive; got {cis_pos}"
+    )
     # expression is positive-eligible ONLY for the target-intrinsic verdict, never the modality-scoped one.
     expr_pos = {p["verdict"] for p in v["positive_signals"] if p["sub_skill"] == "expression"}
-    assert expr_pos <= {"strongly_upregulated_in_tumor"}, \
+    assert expr_pos <= {"strongly_upregulated_in_tumor"}, (
         f"only the target-intrinsic expression verdict may be a positive; got {expr_pos}"
+    )
     # subtype_fit is positive-eligible ONLY for the measured subtype-restricted dependency (the
     # negative subtype hold must never leak into positives — same guard shape as expression).
     subtype_pos = {p["verdict"] for p in v["positive_signals"] if p["sub_skill"] == "subtype_fit"}
-    assert subtype_pos <= {"subtype_restricted_dependency"}, \
+    assert subtype_pos <= {"subtype_restricted_dependency"}, (
         f"only subtype_restricted_dependency may be a subtype_fit positive; got {subtype_pos}"
+    )
     excl = {(e["sub_skill"], e["verdict"]) for e in v["excluded_positive_modality_scoped"]}
     # the modality-scoped/advisory positives are explicitly documented as excluded.
     # 2026-08-15: the surface_modality tokens must be the ones the resolver ACTUALLY
@@ -149,7 +161,7 @@ def test_positives_only_from_cross_target_axes():
     assert ("surface_modality", "adc_favorable") not in excl
     assert ("surface_modality", "tce_favorable") not in excl
     assert ("mechanism", "well_characterized") in excl
-    assert ("expression", "broadly_high_expression") in excl   # modality-scoped expression stays OUT
+    assert ("expression", "broadly_high_expression") in excl  # modality-scoped expression stays OUT
     # and the excluded modality-scoped verdict must NOT also appear as a positive (no contradiction)
     pos = {(p["sub_skill"], p["verdict"]) for p in v["positive_signals"]}
     assert ("expression", "broadly_high_expression") not in pos
@@ -158,6 +170,7 @@ def test_positives_only_from_cross_target_axes():
 # ---------------------------------------------------------------------------
 # Veto suppression (v1.2.0, 2026-07-17) — backtest-driven gate-C correction
 # ---------------------------------------------------------------------------
+
 
 def test_veto_suppressors_well_formed_and_conservative():
     """Context-escape suppressors must (a) be well-formed, (b) only suppress
@@ -168,15 +181,15 @@ def test_veto_suppressors_well_formed_and_conservative():
     assert isinstance(supps, list) and supps
     for s in supps:
         assert set(s["suppresses"]) == {"sub_skill", "verdict"}
-        assert s["suppresses"]["verdict"] == "non_dependent", (
-            "context-escape must not suppress pan_essential_killer")
+        assert s["suppresses"]["verdict"] == "non_dependent", "context-escape must not suppress pan_essential_killer"
         assert s["when_present"] and s["rationale"].strip()
         # Each when_present trigger is EITHER a verdict-tuple form ({sub_skill, verdict}) OR a
         # CARD-FIELD form ({card_id, field, value} — 2026-08-21, for a signal on a card under a
         # GATELESS sub-skill). No other shape is valid.
         for w in s["when_present"]:
             assert set(w) == {"sub_skill", "verdict"} or set(w) == {"card_id", "field", "value"}, (
-                f"veto-suppressor trigger must be a verdict-tuple or card-field trigger, got {set(w)}")
+                f"veto-suppressor trigger must be a verdict-tuple or card-field trigger, got {set(w)}"
+            )
     # Two suppressor CLASSES (by design), distinguished by whether the trigger also
     # nominates:
     #  (1) rescue-and-nominate — the biomarker-stratified trigger both suppresses the
@@ -184,10 +197,10 @@ def test_veto_suppressors_well_formed_and_conservative():
     #  (2) rescue-to-insufficient — the SynLethDB curated-SL trigger suppresses the veto
     #      to `insufficient` but is ANNOTATION, not measurement, so it must NEVER be a
     #      positive_signal (a curated SL relationship does not nominate a target).
-    verdict_triggers = {(w["sub_skill"], w["verdict"])
-                        for s in supps for w in s["when_present"] if "verdict" in w}
-    cardfield_triggers = {(w["card_id"], w["field"], w["value"])
-                          for s in supps for w in s["when_present"] if "card_id" in w}
+    verdict_triggers = {(w["sub_skill"], w["verdict"]) for s in supps for w in s["when_present"] if "verdict" in w}
+    cardfield_triggers = {
+        (w["card_id"], w["field"], w["value"]) for s in supps for w in s["when_present"] if "card_id" in w
+    }
     pos = {(p["sub_skill"], p["verdict"]) for p in v["positive_signals"]}
     # (1) the biomarker trigger IS a positive
     assert ("genomic_alteration", "biomarker_stratified_dependency") in verdict_triggers
@@ -197,10 +210,12 @@ def test_veto_suppressors_well_formed_and_conservative():
     #     the old verdict-tuple form could never match; the signal lives on the card field). It remains
     #     annotation-not-measurement, so it is (trivially) not a positive_signal.
     assert ("synthetic-lethal-partners", "sl_partner_class", "has_experimental_sl_partner") in cardfield_triggers, (
-        "the SynLethDB curated-SL veto-suppressor trigger must be present as a card-field trigger")
+        "the SynLethDB curated-SL veto-suppressor trigger must be present as a card-field trigger"
+    )
     assert ("synthetic_lethal_partners", "has_experimental_sl_partner") not in verdict_triggers, (
         "the retired synthetic_lethal_partners verdict-tuple trigger must be gone (it can never match "
-        "a gateless sub-skill's verdict)")
+        "a gateless sub-skill's verdict)"
+    )
 
 
 def test_modality_scoped_veto_suppression_biologics_only():
@@ -216,7 +231,8 @@ def test_modality_scoped_veto_suppression_biologics_only():
         assert m["suppresses"]["sub_skill"] == "dependency"
         suppressed_verdicts.add(m["suppresses"]["verdict"])
         assert set(m["when_modality_in"]) <= biologics, (
-            "dependency veto must NOT be suppressed for SM/degrader modalities")
+            "dependency veto must NOT be suppressed for SM/degrader modalities"
+        )
     # both dependency veto arms are suppressed for biologics
     assert suppressed_verdicts == {"non_dependent", "pan_essential_killer"}
 
@@ -226,13 +242,13 @@ def test_gates_still_unchanged_by_v1_2_0():
     stable (suppression is applied by the loader, not by removing a gate)."""
     v = _load()
     veto = {(g["sub_skill"], g["verdict"]) for g in v["gates"] if g["action"] == "veto"}
-    assert veto == {("dependency", "pan_essential_killer"),
-                    ("dependency", "non_dependent")}
+    assert veto == {("dependency", "pan_essential_killer"), ("dependency", "non_dependent")}
 
 
 # ---------------------------------------------------------------------------
 # Contested threshold (v1.4.0, 2026-08-12) — verdict-INERT fragility banner
 # ---------------------------------------------------------------------------
+
 
 def test_contested_threshold_well_formed_and_inert():
     """The contested_threshold stanza feeds the target-profile FRAGILITY facet ONLY. It must be a
@@ -243,15 +259,13 @@ def test_contested_threshold_well_formed_and_inert():
     ct = v.get("contested_threshold")
     assert isinstance(ct, dict), "contested_threshold must be a mapping"
     fim = ct.get("fragility_index_min")
-    assert isinstance(fim, (int, float)) and 0.0 <= fim <= 1.0, \
-        "fragility_index_min must be a fraction in [0,1]"
+    assert isinstance(fim, (int, float)) and 0.0 <= fim <= 1.0, "fragility_index_min must be a fraction in [0,1]"
     # inert: it declares no (sub_skill, verdict) — it cannot participate in gate/positive resolution.
     assert "sub_skill" not in ct and "verdict" not in ct
 
     # v1.4.0 adds ONLY this stanza; the kill veto set stays byte-stable (regression guard).
     veto = {(g["sub_skill"], g["verdict"]) for g in v["gates"] if g["action"] == "veto"}
-    assert veto == {("dependency", "pan_essential_killer"),
-                    ("dependency", "non_dependent")}
+    assert veto == {("dependency", "pan_essential_killer"), ("dependency", "non_dependent")}
 
 
 # ---------------------------------------------------------------------------
@@ -259,6 +273,7 @@ def test_contested_threshold_well_formed_and_inert():
 # surface_modality resolver's EMITTED (lowercase) verdicts, else the case-
 # sensitive gate loader never matches them (the entries would be dead).
 # ---------------------------------------------------------------------------
+
 
 def _resolver_surface_verdicts() -> set[str]:
     rp = REPO / "resolvers" / "surface_modality.resolver.yaml"
@@ -282,9 +297,11 @@ def test_modality_scoped_positive_verdicts_match_resolver_casing():
         # TitleCase drift (TCE_preferred/ADC_preferred) would be a DEAD entry the loader never matches.
         assert p["verdict"] in resolver_verdicts, (
             f"modality-scoped positive verdict {p['verdict']!r} is not emitted by the "
-            f"surface_modality resolver {sorted(resolver_verdicts)} — casing/name drift makes it dead")
-        assert p["verdict"] == p["verdict"].lower(), \
+            f"surface_modality resolver {sorted(resolver_verdicts)} — casing/name drift makes it dead"
+        )
+        assert p["verdict"] == p["verdict"].lower(), (
             f"surface verdicts are emitted lowercase; {p['verdict']!r} is mis-cased"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -293,10 +310,10 @@ def test_modality_scoped_positive_verdicts_match_resolver_casing():
 # when_any_fired set (ClinVar was missing).
 # ---------------------------------------------------------------------------
 
+
 def test_human_genetics_driving_rules_match_resolver_when_any():
     v = _load()
-    gate = next(g for g in v["gates"]
-                if g["sub_skill"] == "safety" and g["verdict"] == "human_genetics_safety_concern")
+    gate = next(g for g in v["gates"] if g["sub_skill"] == "safety" and g["verdict"] == "human_genetics_safety_concern")
     gate_rules = set(gate["driving_rule_ids"])
     assert "clinvar-germline-pathogenic-safety-warning" in gate_rules
     # cross-check against the resolver's when_any_fired for the same verdict
@@ -306,8 +323,8 @@ def test_human_genetics_driving_rules_match_resolver_when_any():
     # SAME verdict ABOVE the raw provenance rung, so a bare `verdict ==` next() now grabs a
     # when_all_fired rung first. Select the rung that actually carries when_any_fired — that is
     # the raw provenance rung whose fired-set this test cross-checks against the gate.
-    hg = next(r for r in rungs
-              if r.get("verdict") == "human_genetics_safety_concern" and "when_any_fired" in r)
+    hg = next(r for r in rungs if r.get("verdict") == "human_genetics_safety_concern" and "when_any_fired" in r)
     assert set(hg["when_any_fired"]) == gate_rules, (
         f"gate driving_rule_ids {sorted(gate_rules)} must equal the resolver's when_any_fired "
-        f"{sorted(hg['when_any_fired'])} for full provenance")
+        f"{sorted(hg['when_any_fired'])} for full provenance"
+    )

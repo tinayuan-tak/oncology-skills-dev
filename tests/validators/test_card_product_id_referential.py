@@ -6,6 +6,7 @@ tracked roadmap gap, not a schema violation) and GRACEFUL-SKIPS when the sibling
 absent (a checkout-only CI runner can't distinguish a valid manifest id from a typo). Hermetic: the
 manifest-id / product-id sets are monkeypatched so the tests don't depend on the sibling's contents.
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -73,8 +74,7 @@ def test_product_id_resolving_to_manifest_is_clean(tmp_path, monkeypatch):
 def test_product_id_resolving_to_registered_product_is_clean(tmp_path, monkeypatch):
     """The products.yaml registry is the second legitimate namespace (not just manifests)."""
     _catalog(monkeypatch, {"other-v1"}, {"expression-rna-tumor-vs-adjacent"})
-    r = _validate(tmp_path, _base_card(
-        required_inputs=[{"product_id": "expression-rna-tumor-vs-adjacent"}]))
+    r = _validate(tmp_path, _base_card(required_inputs=[{"product_id": "expression-rna-tumor-vs-adjacent"}]))
     assert r.ok, _errs(r)
     assert "PRODUCT_ID_UNRESOLVED" not in _warns(r)
 

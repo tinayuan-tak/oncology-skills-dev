@@ -29,6 +29,7 @@ Usage:
 
 Exit: 0 = matches snapshot; 1 = drift (a card gained/lost resolver consumption) or missing snapshot.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -66,7 +67,7 @@ def rule_to_card() -> dict[str, str]:
     for f in sorted(RULES_DIR.glob("*.rules.yaml")):
         doc = _load(f)
         rules = doc.get("rules", doc) if isinstance(doc, dict) else doc
-        for r in (rules or []):
+        for r in rules or []:
             if not isinstance(r, dict) or not r.get("rule_id"):
                 continue
             when = r.get("when") or {}
@@ -82,7 +83,7 @@ def resolver_referenced_rules() -> dict[str, set[str]]:
     for f in sorted(RESOLVERS_DIR.glob("*.resolver.yaml")):
         doc = _load(f)
         gate = (doc.get("gate") if isinstance(doc, dict) else None) or f.stem
-        for rung in (doc.get("resolve") or []):
+        for rung in doc.get("resolve") or []:
             for k in _RUNG_KEYS:
                 v = rung.get(k)
                 ids = [v] if isinstance(v, str) else list(v or [])
@@ -102,10 +103,7 @@ def compute() -> dict:
         d = detail.setdefault(cid, {"resolvers": set(), "rules": set()})
         d["resolvers"] |= gates
         d["rules"].add(rid)
-    consumed = {
-        cid: {"resolvers": sorted(d["resolvers"]), "rules": sorted(d["rules"])}
-        for cid, d in detail.items()
-    }
+    consumed = {cid: {"resolvers": sorted(d["resolvers"]), "rules": sorted(d["rules"])} for cid, d in detail.items()}
     return {
         "resolver_consumed_cards": sorted(consumed),
         "detail": {k: consumed[k] for k in sorted(consumed)},
@@ -115,6 +113,7 @@ def compute() -> dict:
 class _Report:
     """Minimal .errors/.warnings surface so aggregators (e.g. the living-doc gaps tab) can
     call this validator in-process, matching the other validators' report shape."""
+
     def __init__(self):
         self.errors: list[str] = []
         self.warnings: list[str] = []
@@ -190,8 +189,10 @@ def main() -> int:
             print(f"  NEWLY resolver-consumed (a card became verdict-bearing): {gained}", file=sys.stderr)
         if lost:
             print(f"  NO LONGER resolver-consumed (a card's verdict rung went dead?): {lost}", file=sys.stderr)
-        print("  If intended, regenerate: python validators/validate_card_resolver_consumption.py --write",
-              file=sys.stderr)
+        print(
+            "  If intended, regenerate: python validators/validate_card_resolver_consumption.py --write",
+            file=sys.stderr,
+        )
         return 1
     print(f"OK: {len(cur_set)} resolver-consumed cards match the committed snapshot.")
     return 0

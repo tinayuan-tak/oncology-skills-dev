@@ -4,6 +4,7 @@ Complements test_known_target_calibration.py (per-target gate assertions) with t
 discrimination metrics + a REGRESSION guard: the framework must not get worse on known targets, and
 the curated headline numbers are pinned so a silent calibration-set edit that changes them is caught.
 """
+
 from __future__ import annotations
 
 import sys
@@ -93,13 +94,16 @@ def test_load_bearingness_ranks_surface_antigen_first(metrics):
     assert load[top_family] >= 10
 
 
-@pytest.mark.parametrize("axis,expected_fragment", [
-    ("synthetic_lethal_BRCA_HRD", "synthetic_lethal"),
-    ("pan_essential_with_window", "cell_state_window"),
-    ("E2_antigen_density_CDx", "surface_antigen_biology"),
-    ("interferon_IO_context", "IO / TME"),
-    ("V600E_addiction", "captured_lane"),
-])
+@pytest.mark.parametrize(
+    "axis,expected_fragment",
+    [
+        ("synthetic_lethal_BRCA_HRD", "synthetic_lethal"),
+        ("pan_essential_with_window", "cell_state_window"),
+        ("E2_antigen_density_CDx", "surface_antigen_biology"),
+        ("interferon_IO_context", "IO / TME"),
+        ("V600E_addiction", "captured_lane"),
+    ],
+)
 def test_deciding_axis_family_classification(axis, expected_fragment):
     assert expected_fragment in H.deciding_axis_family(axis)
 

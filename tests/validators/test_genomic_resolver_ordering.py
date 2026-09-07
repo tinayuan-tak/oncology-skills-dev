@@ -14,6 +14,7 @@ are all UNCHANGED). Evaluated with a self-contained first-match interpreter that
 claude-oncology-skills/_skills_common/resolver.py::resolve_verdict — the ONE engine the
 skills call — so this test is the target-contracts-side golden for the shipped spec.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -21,8 +22,7 @@ from pathlib import Path
 import yaml
 
 REPO = Path(__file__).resolve().parents[2]
-SPEC = yaml.safe_load(
-    (REPO / "resolvers" / "genomic_alteration.resolver.yaml").read_text())
+SPEC = yaml.safe_load((REPO / "resolvers" / "genomic_alteration.resolver.yaml").read_text())
 
 
 def resolve(*fired_ids: str) -> tuple[str, str | None]:
@@ -47,17 +47,21 @@ def resolve(*fired_ids: str) -> tuple[str, str | None]:
 
 # --- item B: the fix ------------------------------------------------------
 
+
 def test_no_mutations_with_cn_unavailable_is_insufficient_not_passenger():
     # DOUBLE data-gap: mutation says "rarely mutated / no signal" AND CN is not measured.
     # Must be an HONEST coverage gap, not a substantive passenger call.
     verdict, drv = resolve("mut-no-mutations-neutral", "cn-data-unavailable-insufficient")
     assert verdict == "insufficient", (
-        "no-mutations x CN-unavailable is a double data-gap → insufficient, NOT passenger_pattern")
+        "no-mutations x CN-unavailable is a double data-gap → insufficient, NOT passenger_pattern"
+    )
     assert drv == "cn-data-unavailable-insufficient", (
-        "the CN coverage gap is the provenance anchor for the insufficient call")
+        "the CN coverage gap is the provenance anchor for the insufficient call"
+    )
 
 
 # --- narrow-scope guards: neighbouring behaviour is UNCHANGED -------------
+
 
 def test_no_mutations_alone_still_passenger():
     # Mutation measured-neutral, CN NOT unavailable → passenger_pattern stands (existing pin).
@@ -73,15 +77,17 @@ def test_no_mutations_with_measured_neutral_cn_still_passenger():
 def test_cn_driver_still_beats_passenger():
     # A real CN driver + no mutations still names the CN driver (no regression to the guard).
     assert resolve("cn-recurrently-amplified-supportive", "mut-no-mutations-neutral") == (
-        "recurrent_amplification_driver", "cn-recurrently-amplified-supportive")
+        "recurrent_amplification_driver",
+        "cn-recurrently-amplified-supportive",
+    )
 
 
 def test_fusion_driver_still_beats_passenger_even_with_cn_unavailable():
     # A recurrently-rearranged oncogene with no mutations AND unmeasured CN is still a fusion driver,
     # not swallowed by the new guard (fusion rung precedes both the guard and passenger).
-    assert resolve("fusion-landscape-recurrent-driver-supportive",
-                   "mut-no-mutations-neutral", "cn-data-unavailable-insufficient")[0] == (
-        "recurrent_fusion_driver")
+    assert resolve(
+        "fusion-landscape-recurrent-driver-supportive", "mut-no-mutations-neutral", "cn-data-unavailable-insufficient"
+    )[0] == ("recurrent_fusion_driver")
 
 
 def test_mixed_pattern_unaffected_by_guard():
@@ -101,32 +107,54 @@ def test_nothing_fired_is_default_insufficient():
 # and an ISOLATED pan-lineage dependency (no recurrence/role/landscape support in-indication) drops to
 # insufficient (honest — no indication-level evidence). Realistic co-signals accompany each class.
 
+
 def test_within_indication_dependency_retains_biomarker_all_classes():
     """The gate FIRES (evidence_scope within_indication) → the biomarker rung stands. KRAS/BRAF COADREAD
     (both mutation-strong @ within_indication) live here — they retain their verdict under the gate."""
-    assert resolve("mutant-strongly-dependent-supportive", "mutant-indication-scoped-context",
-                   "mut-missense-dominant-supportive", "alteration-role-gof-driver-supportive") == (
-        "biomarker_stratified_dependency", "mutant-strongly-dependent-supportive")
-    assert resolve("cn-amplified-strongly-dependent-supportive", "cn-amplified-indication-scoped-context",
-                   "cn-recurrently-amplified-supportive")[0] == "biomarker_stratified_dependency"
-    assert resolve("fusion-positive-strongly-dependent-supportive", "fusion-positive-indication-scoped-context",
-                   "fusion-landscape-recurrent-driver-supportive")[0] == "biomarker_stratified_dependency"
+    assert resolve(
+        "mutant-strongly-dependent-supportive",
+        "mutant-indication-scoped-context",
+        "mut-missense-dominant-supportive",
+        "alteration-role-gof-driver-supportive",
+    ) == ("biomarker_stratified_dependency", "mutant-strongly-dependent-supportive")
+    assert (
+        resolve(
+            "cn-amplified-strongly-dependent-supportive",
+            "cn-amplified-indication-scoped-context",
+            "cn-recurrently-amplified-supportive",
+        )[0]
+        == "biomarker_stratified_dependency"
+    )
+    assert (
+        resolve(
+            "fusion-positive-strongly-dependent-supportive",
+            "fusion-positive-indication-scoped-context",
+            "fusion-landscape-recurrent-driver-supportive",
+        )[0]
+        == "biomarker_stratified_dependency"
+    )
 
 
 def test_pan_lineage_dependency_with_cosignals_downgrades_to_driver_not_biomarker():
     """The gate is ABSENT (pan_lineage_evidence_only) → the biomarker rung fails when_all_fired and the
     call falls to the next positive-driver rung. Still a driver, no longer an indication biomarker."""
     # mutation: → confirmed_driver (mut shape + role)
-    assert resolve("mutant-strongly-dependent-supportive",
-                   "mut-missense-dominant-supportive", "alteration-role-gof-driver-supportive") == (
-        "confirmed_driver", "mut-missense-dominant-supportive")
+    assert resolve(
+        "mutant-strongly-dependent-supportive",
+        "mut-missense-dominant-supportive",
+        "alteration-role-gof-driver-supportive",
+    ) == ("confirmed_driver", "mut-missense-dominant-supportive")
     # copy-number: → confirmed_driver (CN recurrence + role)
-    assert resolve("cn-amplified-strongly-dependent-supportive",
-                   "cn-recurrently-amplified-supportive", "alteration-role-gof-driver-supportive") == (
-        "confirmed_driver", "cn-recurrently-amplified-supportive")
+    assert resolve(
+        "cn-amplified-strongly-dependent-supportive",
+        "cn-recurrently-amplified-supportive",
+        "alteration-role-gof-driver-supportive",
+    ) == ("confirmed_driver", "cn-recurrently-amplified-supportive")
     # fusion: → recurrent_fusion_driver (landscape recurrence)
-    assert resolve("fusion-positive-strongly-dependent-supportive",
-                   "fusion-landscape-recurrent-driver-supportive")[0] == "recurrent_fusion_driver"
+    assert (
+        resolve("fusion-positive-strongly-dependent-supportive", "fusion-landscape-recurrent-driver-supportive")[0]
+        == "recurrent_fusion_driver"
+    )
 
 
 def test_isolated_pan_lineage_dependency_is_insufficient():
@@ -139,11 +167,14 @@ def test_isolated_pan_lineage_dependency_is_insufficient():
 
 # --- scope-coherence Phase 2: recurrent_snv_driver (pooled patient recurrence → verdict) ----------
 
+
 def test_snv_recurrence_alone_is_recurrent_snv_driver():
     # A top-1% pooled-recurrent SNV with no dependency / variant-class / CN / fusion signal → the SNV
     # landscape-recurrence driver (the honest floor for recurrence-only SNV drivers).
     assert resolve("snv-recurrence-top-driver-supportive") == (
-        "recurrent_snv_driver", "snv-recurrence-top-driver-supportive")
+        "recurrent_snv_driver",
+        "snv-recurrence-top-driver-supportive",
+    )
 
 
 def test_variant_class_pattern_outranks_snv_recurrence():
@@ -154,12 +185,20 @@ def test_variant_class_pattern_outranks_snv_recurrence():
 def test_cn_and_fusion_landscape_outrank_snv_recurrence():
     # recurrent_snv_driver is LAST in tier 6 — a dually-altered gene keeps its CN/fusion verdict.
     assert resolve("cn-recurrently-amplified-supportive", "snv-recurrence-top-driver-supportive")[0] == (
-        "recurrent_amplification_driver")
+        "recurrent_amplification_driver"
+    )
     assert resolve("fusion-landscape-recurrent-driver-supportive", "snv-recurrence-top-driver-supportive")[0] == (
-        "recurrent_fusion_driver")
+        "recurrent_fusion_driver"
+    )
 
 
 def test_dependency_outranks_snv_recurrence():
     # A within-indication KO-dependency (tier 1) wins over recurrence.
-    assert resolve("mutant-strongly-dependent-supportive", "mutant-indication-scoped-context",
-                   "snv-recurrence-top-driver-supportive")[0] == "biomarker_stratified_dependency"
+    assert (
+        resolve(
+            "mutant-strongly-dependent-supportive",
+            "mutant-indication-scoped-context",
+            "snv-recurrence-top-driver-supportive",
+        )[0]
+        == "biomarker_stratified_dependency"
+    )

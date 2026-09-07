@@ -18,6 +18,7 @@ Ratchet (mirrors analysis-methods' reader-absence discipline):
   * A STALE baseline entry (the field was re-homed — e.g. after the Phase 3b isoform/splice card split)
     is reported so the ledger stays honest; delete it from _BASELINE when that happens.
 """
+
 from __future__ import annotations
 
 import glob
@@ -73,10 +74,14 @@ def find_molform_violations() -> dict:
 
 # BASELINE — the 2 known residual cards' molecular-form fields. Burn down when Phase 3b re-homes them
 # (isoform → a target-intrinsic card; splice → a tumor-splicing card); then delete the matching entries.
-_ISOFORM_REASON = ("isoform-dominance rides on cellline-rna-distribution; re-home to a dedicated "
-                   "target-intrinsic isoform card (Phase 3b) — verdict-inert.")
-_SPLICE_REASON = ("splice-dysregulation rides on tumor-rna-distribution; re-home to a dedicated "
-                  "tumor-splicing card (Phase 3b) — verdict-inert.")
+_ISOFORM_REASON = (
+    "isoform-dominance rides on cellline-rna-distribution; re-home to a dedicated "
+    "target-intrinsic isoform card (Phase 3b) — verdict-inert."
+)
+_SPLICE_REASON = (
+    "splice-dysregulation rides on tumor-rna-distribution; re-home to a dedicated "
+    "tumor-splicing card (Phase 3b) — verdict-inert."
+)
 _BASELINE: dict[str, str] = {
     "cellline-rna-distribution::isoform_expression_class": _ISOFORM_REASON,
     "cellline-rna-distribution::dominant_isoform_fraction": _ISOFORM_REASON,
@@ -102,7 +107,8 @@ def test_no_new_molecular_form_violations():
     assert not new, (
         "New molecular-form summary_field(s) on a non-molecular-form-typed bulk_rna card — a card should "
         "own ONE concept. Move them to a dedicated molecular-form card (or, if the card IS molecular-form, "
-        "register its measurement_type in _MOLECULAR_FORM_TYPES):\n  " + "\n  ".join(new))
+        "register its measurement_type in _MOLECULAR_FORM_TYPES):\n  " + "\n  ".join(new)
+    )
 
 
 def test_concept_baseline_not_stale():
@@ -112,7 +118,8 @@ def test_concept_baseline_not_stale():
     stale = sorted(set(_BASELINE) - current)
     assert not stale, (
         "Stale molecular-form baseline entrie(s) — no longer detected (re-homed / renamed). Delete them "
-        "from _BASELINE in this test:\n  " + "\n  ".join(stale))
+        "from _BASELINE in this test:\n  " + "\n  ".join(stale)
+    )
 
 
 def test_baseline_entries_have_reasons():

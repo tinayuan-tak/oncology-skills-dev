@@ -13,11 +13,11 @@ from __future__ import annotations
 
 import html
 
-from .rollup import DRIFT_SEVERITY   # code -> severity, to color the drift-code glossary
+from .rollup import DRIFT_SEVERITY  # code -> severity, to color the drift-code glossary
 
 # Status color ramp (from the coverage-matrix slide palette).
 _GREEN, _AMBER, _RED, _GREY, _PURPLE = "#0ca30c", "#fab219", "#c0392b", "#898781", "#6c5aa8"
-_TEAL = "#199e70"   # ready_unproven: works-but-not-yet-fired (distinct from proven green)
+_TEAL = "#199e70"  # ready_unproven: works-but-not-yet-fired (distinct from proven green)
 
 SKILL_COLORS = {
     "production_ready": _GREEN,
@@ -28,7 +28,7 @@ SKILL_COLORS = {
 }
 CARD_COLORS = {
     "live": _GREEN,
-    "wired": "#8fbf5f",   # muted green — has a resolvable reader, awaiting first governed firing (not a defect)
+    "wired": "#8fbf5f",  # muted green — has a resolvable reader, awaiting first governed firing (not a defect)
     "partial": _AMBER,
     "blocked": "#b8860b",
     "placeholder": _GREY,
@@ -44,8 +44,11 @@ SEVERITY_GLOSS = {
     "warn": "a real gap to fix, but it does NOT break the verdict",
     "info": "not a defect — a roadmap/coverage signal (something true and worth surfacing; no one did anything wrong)",
 }
-SEVERITY_LABEL = {"error": "error (breaks verdict)", "warn": "warn (fix, non-breaking)",
-                  "info": "info (roadmap, not a defect)"}
+SEVERITY_LABEL = {
+    "error": "error (breaks verdict)",
+    "warn": "warn (fix, non-breaking)",
+    "info": "info (roadmap, not a defect)",
+}
 
 # Every drift code → a plain-language sentence (the "full relabel": show a readable label,
 # keep the machine code as a secondary breadcrumb). Keeps the UI legible without renaming the
@@ -67,11 +70,13 @@ DRIFT_CODE_LABEL = {
 
 # One-line definition of "P4" — the roadmap term used for the modality-routing lens, expanded
 # everywhere it appears so a reader needn't know the master-sequencing plan.
-P4_GLOSS = ("P4 = the roadmap’s modality-vector layer: each card declares modality_relevance — "
-            "which drug modalities (small-molecule, degrader, ADC, TCE, antibody) its evidence "
-            "informs — so its signal routes to the right modality-fit gate instead of being "
-            "stranded on the biology axis. This lens is metadata PARALLEL to health; it never "
-            "changes a card’s health.")
+P4_GLOSS = (
+    "P4 = the roadmap’s modality-vector layer: each card declares modality_relevance — "
+    "which drug modalities (small-molecule, degrader, ADC, TCE, antibody) its evidence "
+    "informs — so its signal routes to the right modality-fit gate instead of being "
+    "stranded on the biology axis. This lens is metadata PARALLEL to health; it never "
+    "changes a card’s health."
+)
 
 # Plain-language glosses shown on hover (title=) so outsiders needn't learn the vocab.
 SKILL_GLOSS = {
@@ -93,12 +98,12 @@ CARD_GLOSS = {
 
 # P4 modality-vector lens (routing metadata, PARALLEL to card_health — never affects it).
 MODALITY_COLORS = {
-    "declared": _GREEN,       # routes to a modality-fit gate AND declares its vector
-    "not_required": _GREY,    # biology-axis type, correctly silent
-    "missing": _RED,          # routes but declares nothing — stranded (validator ERROR state)
-    "drift": _AMBER,          # declares values outside its type's routing set (validator WARNING)
+    "declared": _GREEN,  # routes to a modality-fit gate AND declares its vector
+    "not_required": _GREY,  # biology-axis type, correctly silent
+    "missing": _RED,  # routes but declares nothing — stranded (validator ERROR state)
+    "drift": _AMBER,  # declares values outside its type's routing set (validator WARNING)
     "not_applicable": _GREY,  # no card yaml on disk
-    "unknown": _GREY,         # vocab unavailable (isolated checkout)
+    "unknown": _GREY,  # vocab unavailable (isolated checkout)
 }
 MODALITY_GLOSS = {
     "declared": "measurement_type routes to a modality-fit gate (SM/degrader/ADC/TCE/antibody) and the card declares modality_relevance",
@@ -112,12 +117,20 @@ MODALITY_GLOSS = {
 
 # STATIC access-cost lens colors/labels/gloss (a metadata-derived proxy — NOT a live read).
 ACCESS_COST_COLORS = {
-    "high": _RED, "moderate": _AMBER, "low": _GREEN,
-    "high_unused": _GREY, "moderate_unused": _GREY, "unknown": _GREY,
+    "high": _RED,
+    "moderate": _AMBER,
+    "low": _GREEN,
+    "high_unused": _GREY,
+    "moderate_unused": _GREY,
+    "unknown": _GREY,
 }
 ACCESS_COST_LABEL = {
-    "high": "high", "moderate": "moderate", "low": "low",
-    "high_unused": "high (unused)", "moderate_unused": "moderate (unused)", "unknown": "size unknown",
+    "high": "high",
+    "moderate": "moderate",
+    "low": "low",
+    "high_unused": "high (unused)",
+    "moderate_unused": "moderate (unused)",
+    "unknown": "size unknown",
 }
 ACCESS_COST_GLOSS = {
     "high": "large (≥20GB, or ≥2GB across many files) AND consumed by a card — an access-optimization payoff",
@@ -130,8 +143,12 @@ ACCESS_COST_GLOSS = {
 
 # "RUNS CLEAN?" tier — deterministic offline smoke of each subskill's real run.py (NO live data).
 RUNS_CLEAN_COLORS = {"clean": _GREEN, "clean_uninstrumented": _TEAL, "error": _RED, "unknown": _GREY}
-RUNS_CLEAN_LABEL = {"clean": "runs clean", "clean_uninstrumented": "runs (uninstrumented)",
-                    "error": "run error", "unknown": "not smoked"}
+RUNS_CLEAN_LABEL = {
+    "clean": "runs clean",
+    "clean_uninstrumented": "runs (uninstrumented)",
+    "error": "run error",
+    "unknown": "not smoked",
+}
 RUNS_CLEAN_GLOSS = {
     "clean": "real run.py executes end-to-end under a stubbed-reader smoke (offline, no live data) + emits run_health",
     "clean_uninstrumented": "runs clean but hand-rolls main() (no run_wired_skill) → no run_health record",
@@ -156,30 +173,33 @@ def _skill_row(n: dict) -> str:
     # Drift arrow if declared vs derived disagree.
     drift_badge = ""
     if n["drift_flags"]:
-        worst = max((d["severity"] for d in n["drift_flags"]),
-                    key=lambda s: {"error": 3, "warn": 2, "info": 1}.get(s, 0))
+        worst = max(
+            (d["severity"] for d in n["drift_flags"]), key=lambda s: {"error": 3, "warn": 2, "info": 1}.get(s, 0)
+        )
         drift_badge = _chip(f"⚠ {len(n['drift_flags'])}", SEVERITY_COLORS.get(worst, _PURPLE))
     n_cards = len(n["cards"])
     n_live = sum(1 for c in n["cards"] if c["card_health"] == "live")
     # "runs clean?" smoke result (deterministic offline). 'unknown' renders as a quiet dash so
     # the column reads clean when the skills artifact isn't in this checkout.
     rc = n.get("runs_clean", "unknown")
-    rc_cell = ("—" if rc == "unknown"
-               else _chip(RUNS_CLEAN_LABEL.get(rc, rc), RUNS_CLEAN_COLORS.get(rc, _GREY),
-                          RUNS_CLEAN_GLOSS.get(rc)))
+    rc_cell = (
+        "—"
+        if rc == "unknown"
+        else _chip(RUNS_CLEAN_LABEL.get(rc, rc), RUNS_CLEAN_COLORS.get(rc, _GREY), RUNS_CLEAN_GLOSS.get(rc))
+    )
     return (
         f'<tr class="skrow" onclick="tog(this)">'
         f'<td class="nm">{_esc(n["name"])}</td>'
-        f'<td>{_esc(n.get("risk_category") or "—")}</td>'
-        f'<td>{_chip(v, SKILL_COLORS.get(v, _GREY), SKILL_GLOSS.get(v))}</td>'
-        f'<td>{rc_cell}</td>'
+        f"<td>{_esc(n.get('risk_category') or '—')}</td>"
+        f"<td>{_chip(v, SKILL_COLORS.get(v, _GREY), SKILL_GLOSS.get(v))}</td>"
+        f"<td>{rc_cell}</td>"
         f'<td class="declared">{_esc(dec_status)}</td>'
-        f'<td>{_esc(der["kind"])}</td>'
-        f'<td>{"✓" if der["resolver_bound"] else "—"}</td>'
-        f'<td>{_esc(der.get("test_count", 0))}</td>'
-        f'<td>{n_live}/{n_cards}</td>'
-        f'<td>{drift_badge}</td>'
-        f'</tr>'
+        f"<td>{_esc(der['kind'])}</td>"
+        f"<td>{'✓' if der['resolver_bound'] else '—'}</td>"
+        f"<td>{_esc(der.get('test_count', 0))}</td>"
+        f"<td>{n_live}/{n_cards}</td>"
+        f"<td>{drift_badge}</td>"
+        f"</tr>"
     )
 
 
@@ -193,9 +213,13 @@ def _skill_detail(n: dict) -> str:
             ok = d.get("in_catalog")
             mark = "✓" if ok else "✗"
             col = _GREEN if ok else _RED
-            tip = ("in catalog" if d.get("matched_by") == "exact"
-                   else f"resolved by prefix → {d.get('resolved_id')}" if d.get("matched_by") == "prefix"
-                   else "NOT in data-catalog")
+            tip = (
+                "in catalog"
+                if d.get("matched_by") == "exact"
+                else f"resolved by prefix → {d.get('resolved_id')}"
+                if d.get("matched_by") == "prefix"
+                else "NOT in data-catalog"
+            )
             bits.append(f"<span style='color:{col}' title='{_esc(tip)}'>{mark}</span> {_esc(d['product_id'])}")
         return "<br>".join(bits)
 
@@ -203,37 +227,40 @@ def _skill_detail(n: dict) -> str:
     for c in sorted(n["cards"], key=lambda c: c["card_id"]):
         ch = c["card_health"]
         cards_html += (
-            f'<tr><td>{_esc(c["card_id"])}</td>'
-            f'<td>{_chip(ch, CARD_COLORS.get(ch, _GREY), CARD_GLOSS.get(ch))}</td>'
-            f'<td>{"✓" if c["has_live_reader"] else "—"}</td>'
+            f"<tr><td>{_esc(c['card_id'])}</td>"
+            f"<td>{_chip(ch, CARD_COLORS.get(ch, _GREY), CARD_GLOSS.get(ch))}</td>"
+            f"<td>{'✓' if c['has_live_reader'] else '—'}</td>"
             f'<td title="✓ fired in a governed package · ◐ fired in exploratory runs only">'
-            f'{"✓" if c["fires_in_real_package"] else ("◐" if c.get("fires_in_any_run") else "—")}</td>'
-            f'<td>{_esc(c.get("measurement_type") or "—")}</td>'
-            f'<td>{_esc((c.get("dispatch_module") or c.get("method_call") or "—").split(".")[0])}</td>'
+            f"{'✓' if c['fires_in_real_package'] else ('◐' if c.get('fires_in_any_run') else '—')}</td>"
+            f"<td>{_esc(c.get('measurement_type') or '—')}</td>"
+            f"<td>{_esc((c.get('dispatch_module') or c.get('method_call') or '—').split('.')[0])}</td>"
             f'<td class="dscell">{_datasets_cell(c)}</td></tr>'
         )
     drift_html = ""
     for d in n["drift_flags"]:
         drift_html += (
-            f'<li>{_chip(d["severity"], SEVERITY_COLORS.get(d["severity"], _PURPLE))} '
-            f'<b>{_esc(d["code"])}</b> — {_esc(d["detail"])}</li>'
+            f"<li>{_chip(d['severity'], SEVERITY_COLORS.get(d['severity'], _PURPLE))} "
+            f"<b>{_esc(d['code'])}</b> — {_esc(d['detail'])}</li>"
         )
     return (
         f'<tr class="detail" style="display:none"><td colspan="10"><div class="det">'
         f'<p class="why"><b>Verdict:</b> {_chip(n["health_verdict"], SKILL_COLORS.get(n["health_verdict"], _GREY), SKILL_GLOSS.get(n["health_verdict"]))} '
         f'— {_esc(n["reason_text"])} <span class="rid">({_esc(n["health_reason"])})</span></p>'
         + (f'<p><b>Drift flags:</b></p><ul class="drift">{drift_html}</ul>' if drift_html else "")
-        + (f'<p class="why"><b>Cards → method → datasets</b> (the full dependency chain this skill pulls):</p>'
-           f'<table class="cards"><thead><tr><th>card</th><th>health</th><th>live reader</th>'
-           f'<th>fires in real pkg</th><th>measurement_type</th><th>method</th><th>datasets (product_id · ✓ in catalog)</th></tr></thead>'
-           f'<tbody>{cards_html}</tbody></table>' if cards_html else "<p><i>consumes no cards</i></p>")
-        + '</div></td></tr>'
+        + (
+            f'<p class="why"><b>Cards → method → datasets</b> (the full dependency chain this skill pulls):</p>'
+            f'<table class="cards"><thead><tr><th>card</th><th>health</th><th>live reader</th>'
+            f"<th>fires in real pkg</th><th>measurement_type</th><th>method</th><th>datasets (product_id · ✓ in catalog)</th></tr></thead>"
+            f"<tbody>{cards_html}</tbody></table>"
+            if cards_html
+            else "<p><i>consumes no cards</i></p>"
+        )
+        + "</div></td></tr>"
     )
 
 
 # Skill-verdict actionability rank — higher sorts first (what to fix next).
-_VERDICT_RANK = {"broken_or_drift": 4, "partial": 3, "ready_unproven": 2,
-                 "placeholder": 1, "production_ready": 0}
+_VERDICT_RANK = {"broken_or_drift": 4, "partial": 3, "ready_unproven": 2, "placeholder": 1, "production_ready": 0}
 
 
 def _skill_actionability(n: dict) -> tuple:
@@ -257,11 +284,11 @@ def _matrix(report: dict) -> str:
             body += _skill_row(n) + _skill_detail(n)
     return (
         '<table class="matrix"><thead><tr>'
-        '<th>skill</th><th>risk category</th><th>DERIVED health</th>'
+        "<th>skill</th><th>risk category</th><th>DERIVED health</th>"
         '<th title="deterministic offline smoke of the real run.py — does the compute path run clean?">runs clean?</th>'
-        '<th>DECLARED status</th>'
-        '<th>kind</th><th>resolver</th><th>tests</th><th>cards live</th><th>drift</th>'
-        '</tr></thead><tbody>' + body + '</tbody></table>'
+        "<th>DECLARED status</th>"
+        "<th>kind</th><th>resolver</th><th>tests</th><th>cards live</th><th>drift</th>"
+        "</tr></thead><tbody>" + body + "</tbody></table>"
     )
 
 
@@ -269,7 +296,7 @@ def _severity_key() -> str:
     """Inline, always-visible legend defining the three drift severities — so 'info'
     is never mistaken for a defect. Rendered as a caption line under section headers."""
     bits = " · ".join(
-        f'{_chip(sev, SEVERITY_COLORS[sev], SEVERITY_GLOSS[sev])} {_esc(SEVERITY_GLOSS[sev])}'
+        f"{_chip(sev, SEVERITY_COLORS[sev], SEVERITY_GLOSS[sev])} {_esc(SEVERITY_GLOSS[sev])}"
         for sev in ("error", "warn", "info")
     )
     return f'<div class="sevkey">{bits}</div>'
@@ -280,22 +307,27 @@ def _drift_li(d: dict) -> str:
     severity chip carrying its plain-language meaning on hover."""
     sev = d["severity"]
     label = DRIFT_CODE_LABEL.get(d["code"], d["code"])
-    return (f'<li>{_chip(SEVERITY_LABEL.get(sev, sev), SEVERITY_COLORS.get(sev, _PURPLE), SEVERITY_GLOSS.get(sev))} '
-            f'<b>{_esc(d["skill"])}</b> — {_esc(label)} '
-            f'<code class="driftcode">{_esc(d["code"])}</code><br>'
-            f'<span class="driftdetail">{_esc(d["detail"])}</span></li>')
+    return (
+        f"<li>{_chip(SEVERITY_LABEL.get(sev, sev), SEVERITY_COLORS.get(sev, _PURPLE), SEVERITY_GLOSS.get(sev))} "
+        f"<b>{_esc(d['skill'])}</b> — {_esc(label)} "
+        f'<code class="driftcode">{_esc(d["code"])}</code><br>'
+        f'<span class="driftdetail">{_esc(d["detail"])}</span></li>'
+    )
 
 
 def _drift_code_glossary() -> str:
     """Every drift code → readable label + its severity chip + the machine code, sorted
     error→warn→info so the reader sees breaking codes first. Feeds the always-visible glossary."""
-    rows = sorted(DRIFT_CODE_LABEL.items(),
-                  key=lambda kv: (-_SEV_RANK.get(DRIFT_SEVERITY.get(kv[0], "info"), 0), kv[0]))
+    rows = sorted(
+        DRIFT_CODE_LABEL.items(), key=lambda kv: (-_SEV_RANK.get(DRIFT_SEVERITY.get(kv[0], "info"), 0), kv[0])
+    )
     out = ""
     for code, label in rows:
         sev = DRIFT_SEVERITY.get(code, "info")
-        out += (f'<li>{_chip(sev, SEVERITY_COLORS.get(sev, _PURPLE), SEVERITY_GLOSS.get(sev))} '
-                f'<b>{_esc(label)}</b> <code class="driftcode">{_esc(code)}</code></li>')
+        out += (
+            f"<li>{_chip(sev, SEVERITY_COLORS.get(sev, _PURPLE), SEVERITY_GLOSS.get(sev))} "
+            f'<b>{_esc(label)}</b> <code class="driftcode">{_esc(code)}</code></li>'
+        )
     return out
 
 
@@ -303,28 +335,31 @@ def _alerts(report: dict) -> str:
     errs = [d for d in report["drift_index"] if d["severity"] == "error"]
     warns = [d for d in report["drift_index"] if d["severity"] == "warn"]
     if not errs and not warns:
-        return ('<div class="banner ok">No error- or warn-severity drift detected. '
-                '(info-level items are roadmap/coverage signals, not defects — see the Cards tab.)</div>')
+        return (
+            '<div class="banner ok">No error- or warn-severity drift detected. '
+            "(info-level items are roadmap/coverage signals, not defects — see the Cards tab.)</div>"
+        )
 
     # Errors are actionable → always visible. Warns fold into a <details> (native,
     # no JS), with a per-code breakdown in the summary so the gist reads collapsed.
-    err_html = f'<ul>{"".join(_drift_li(d) for d in errs)}</ul>' if errs else ""
+    err_html = f"<ul>{''.join(_drift_li(d) for d in errs)}</ul>" if errs else ""
     warns_block = ""
     if warns:
         by_code: dict[str, int] = {}
         for d in warns:
             by_code[d["code"]] = by_code.get(d["code"], 0) + 1
-        breakdown = " · ".join(f"{n} × {DRIFT_CODE_LABEL.get(code, code)}"
-                               for code, n in sorted(by_code.items()))
+        breakdown = " · ".join(f"{n} × {DRIFT_CODE_LABEL.get(code, code)}" for code, n in sorted(by_code.items()))
         warns_block = (
             f'<details class="warns"><summary>{len(warns)} warnings '
             f'<span class="brk">({breakdown})</span></summary>'
-            f'<ul>{"".join(_drift_li(d) for d in warns)}</ul></details>'
+            f"<ul>{''.join(_drift_li(d) for d in warns)}</ul></details>"
         )
-    return (f'<div class="banner alert"><h3>⚠ Drift &amp; alerts '
-            f'({len(errs)} error, {len(warns)} warn) '
-            f'<span class="hdrnote">— severity ≠ badness; see key below</span></h3>'
-            f'{_severity_key()}{err_html}{warns_block}</div>')
+    return (
+        f'<div class="banner alert"><h3>⚠ Drift &amp; alerts '
+        f"({len(errs)} error, {len(warns)} warn) "
+        f'<span class="hdrnote">— severity ≠ badness; see key below</span></h3>'
+        f"{_severity_key()}{err_html}{warns_block}</div>"
+    )
 
 
 _SEV_RANK = {"error": 3, "warn": 2, "info": 1}
@@ -351,13 +386,14 @@ def _fix_next(report: dict) -> str:
     di = report.get("drift_index", [])
     actionable = [d for d in di if d["severity"] in ("error", "warn")]
     if not actionable:
-        return ('<div class="panel"><h3>✓ Fix-next</h3>'
-                '<p>No error- or warn-severity items. Nothing actionable is outstanding.</p></div>')
+        return (
+            '<div class="panel"><h3>✓ Fix-next</h3>'
+            "<p>No error- or warn-severity items. Nothing actionable is outstanding.</p></div>"
+        )
     by_code: dict[str, list] = {}
     for d in actionable:
         by_code.setdefault(d["code"], []).append(d)
-    ordered = sorted(by_code.items(),
-                     key=lambda kv: (-_SEV_RANK.get(kv[1][0]["severity"], 0), -len(kv[1]), kv[0]))
+    ordered = sorted(by_code.items(), key=lambda kv: (-_SEV_RANK.get(kv[1][0]["severity"], 0), -len(kv[1]), kv[0]))
     rows = ""
     for code, items in ordered:
         sev = items[0]["severity"]
@@ -365,16 +401,16 @@ def _fix_next(report: dict) -> str:
         # collect the distinct component ids this code implicates (skills + any card
         # ids named in the detail are already in the detail; show the skills here).
         skills = sorted({d["skill"] for d in items if d.get("skill")})
-        who = ", ".join(skills[:6]) + (f" +{len(skills)-6} more" if len(skills) > 6 else "")
+        who = ", ".join(skills[:6]) + (f" +{len(skills) - 6} more" if len(skills) > 6 else "")
         rows += (
-            f'<tr><td>{_chip(str(len(items)), SEVERITY_COLORS.get(sev, _PURPLE))}</td>'
+            f"<tr><td>{_chip(str(len(items)), SEVERITY_COLORS.get(sev, _PURPLE))}</td>"
             f'<td><b>{_esc(action)}</b><div class="pcode">{_esc(code)}</div></td>'
             f'<td class="consumers">{_esc(who) or "—"}</td></tr>'
         )
     return (
         '<div class="panel"><h3>Fix-next — the actionable queue (error + warn, most-impactful first)</h3>'
         '<table class="punch"><thead><tr><th>n</th><th>action · code</th><th>affected skills</th>'
-        '</tr></thead><tbody>' + rows + '</tbody></table></div>'
+        "</tr></thead><tbody>" + rows + "</tbody></table></div>"
     )
 
 
@@ -392,52 +428,66 @@ def _delta_ribbon(report: dict) -> str:
         col = _GREEN if n > 0 else _RED
         return f'<span style="color:{col}">{arrow} {abs(n)} {noun}</span>'
 
-    bits = [x for x in (
-        _mv(d.get("n_skills", 0), "skills"),
-        _mv(d.get("n_cards", 0), "cards"),
-        _mv(d.get("n_drift_flags", 0), "drift flags"),
-        _mv(d.get("n_error_drift", 0), "error drift"),
-    ) if x]
+    bits = [
+        x
+        for x in (
+            _mv(d.get("n_skills", 0), "skills"),
+            _mv(d.get("n_cards", 0), "cards"),
+            _mv(d.get("n_drift_flags", 0), "drift flags"),
+            _mv(d.get("n_error_drift", 0), "error drift"),
+        )
+        if x
+    ]
     named = []
     if d.get("skills_added"):
-        named.append(f'+skills: {_esc(", ".join(d["skills_added"]))}')
+        named.append(f"+skills: {_esc(', '.join(d['skills_added']))}")
     if d.get("skills_removed"):
-        named.append(f'−skills: {_esc(", ".join(d["skills_removed"]))}')
+        named.append(f"−skills: {_esc(', '.join(d['skills_removed']))}")
     if d.get("cards_added"):
         ca = d["cards_added"]
-        named.append(f'+{len(ca)} card' + ("s" if len(ca) != 1 else "")
-                     + f': {_esc(", ".join(ca[:8]))}' + (" …" if len(ca) > 8 else ""))
+        named.append(
+            f"+{len(ca)} card"
+            + ("s" if len(ca) != 1 else "")
+            + f": {_esc(', '.join(ca[:8]))}"
+            + (" …" if len(ca) > 8 else "")
+        )
     when = _esc((d.get("prior_generated_at") or "")[:10])
     body = " · ".join(bits) if bits else "no count changes"
     named_html = ("<div class='dnamed'>" + " · ".join(named) + "</div>") if named else ""
-    return (f'<div class="delta"><b>Since last run</b> ({when}): {body}{named_html}</div>')
+    return f'<div class="delta"><b>Since last run</b> ({when}): {body}{named_html}</div>'
 
 
 def _summary_cards(report: dict) -> str:
     s = report["summary"]
     t = s["verdict_tally"]
-    strip = _stat_strip([
-        ("ready", t.get("production_ready", 0), _GREEN),
-        ("ready (unproven)", t.get("ready_unproven", 0), _TEAL),
-        ("partial", t.get("partial", 0), _AMBER),
-        ("placeholder", t.get("placeholder", 0), _GREY),
-        ("drift", t.get("broken_or_drift", 0), _RED),
-        ("error drift", s["n_error_drift"], _PURPLE),
-        ("unregistered", s["n_unregistered_skills"], _GREY),
-    ])
+    strip = _stat_strip(
+        [
+            ("ready", t.get("production_ready", 0), _GREEN),
+            ("ready (unproven)", t.get("ready_unproven", 0), _TEAL),
+            ("partial", t.get("partial", 0), _AMBER),
+            ("placeholder", t.get("placeholder", 0), _GREY),
+            ("drift", t.get("broken_or_drift", 0), _RED),
+            ("error drift", s["n_error_drift"], _PURPLE),
+            ("unregistered", s["n_unregistered_skills"], _GREY),
+        ]
+    )
     # "runs clean?" tier — only surface it when the smoke artifact is actually present
     # (else every skill is 'unknown' and the strip would be noise).
     rct = s.get("runs_clean_tally", {})
     if any(k != "unknown" for k in rct):
-        strip += _stat_strip([
-            ("runs clean", rct.get("clean", 0), _GREEN),
-            ("runs (uninstrumented)", rct.get("clean_uninstrumented", 0), _TEAL),
-            ("run error", rct.get("error", 0), _RED),
-        ])
-        strip += ('<div class="captn"><b>Runs clean?</b> — a DETERMINISTIC OFFLINE smoke of each '
-                  'subskill\'s real run.py (card readers stubbed; NO live data). Answers "does the '
-                  'compute path execute end-to-end?" — the per-subskill liveness the incidental '
-                  'compose-dashboard packages can\'t give. Absent → column reads "—" (not smoked here).</div>')
+        strip += _stat_strip(
+            [
+                ("runs clean", rct.get("clean", 0), _GREEN),
+                ("runs (uninstrumented)", rct.get("clean_uninstrumented", 0), _TEAL),
+                ("run error", rct.get("error", 0), _RED),
+            ]
+        )
+        strip += (
+            '<div class="captn"><b>Runs clean?</b> — a DETERMINISTIC OFFLINE smoke of each '
+            "subskill's real run.py (card readers stubbed; NO live data). Answers \"does the "
+            'compute path execute end-to-end?" — the per-subskill liveness the incidental '
+            'compose-dashboard packages can\'t give. Absent → column reads "—" (not smoked here).</div>'
+        )
     return strip
 
 
@@ -447,9 +497,11 @@ def _registry_panel(report: dict) -> str:
     if not unreg:
         return '<div class="panel"><h3>Registry vs disk</h3><p>All skills registered.</p></div>'
     lis = "".join(f"<li>{_esc(x)}</li>" for x in unreg)
-    return (f'<div class="panel"><h3>Registry vs disk drift</h3>'
-            f'<p>{len(unreg)} skill(s) on disk but absent from '
-            f'<code>.claude-plugin/marketplace.json</code>:</p><ul class="cols">{lis}</ul></div>')
+    return (
+        f'<div class="panel"><h3>Registry vs disk drift</h3>'
+        f"<p>{len(unreg)} skill(s) on disk but absent from "
+        f'<code>.claude-plugin/marketplace.json</code>:</p><ul class="cols">{lis}</ul></div>'
+    )
 
 
 _CSS = """
@@ -579,9 +631,11 @@ def _cards_table(report: dict) -> str:
     def _row(c: dict, orphan: bool = False) -> str:
         ch = c["card_health"]
         consumers = c.get("consumers") or []
-        cons_txt = ("<span class='consumers'>— orphan: no skill consumes</span>"
-                    if not consumers else
-                    f"<span class='consumers'>{_esc(', '.join(consumers))}</span>")
+        cons_txt = (
+            "<span class='consumers'>— orphan: no skill consumes</span>"
+            if not consumers
+            else f"<span class='consumers'>{_esc(', '.join(consumers))}</span>"
+        )
         method = c.get("dispatch_module") or c.get("method_call") or "—"
         cls = " class='orphan'" if orphan else ""
         # spec-coverage cell: which dashboard_spec(s) list it, or a red "no spec" flag
@@ -615,9 +669,11 @@ def _cards_table(report: dict) -> str:
     if orphans:
         n_dead = sum(1 for c in orphans if not c.get("is_staged_orphan"))
         n_staged = sum(1 for c in orphans if c.get("is_staged_orphan"))
-        body += (f"<tr class='grp'><td colspan='9'>ORPHAN CARDS — defined on disk, consumed by no skill "
-                 f"({len(orphans)}: {n_dead} DEAD ⚠, {n_staged} staged placeholder/dormant forward-declarations) "
-                 f"— dead = should have a consumer but doesn't; staged = awaiting data + wiring by design</td></tr>")
+        body += (
+            f"<tr class='grp'><td colspan='9'>ORPHAN CARDS — defined on disk, consumed by no skill "
+            f"({len(orphans)}: {n_dead} DEAD ⚠, {n_staged} staged placeholder/dormant forward-declarations) "
+            f"— dead = should have a consumer but doesn't; staged = awaiting data + wiring by design</td></tr>"
+        )
         for c in sorted(orphans, key=lambda c: c["card_id"]):
             body += _row(c, orphan=True)
     for h in health_order:
@@ -656,19 +712,28 @@ def _datasets_table(report: dict) -> str:
     catalog_only = [d for d in ds if d["n_consumers"] == 0 and d["in_catalog"]]
 
     def _row(d: dict) -> str:
-        badge = (_chip("in catalog", _GREEN) if d["in_catalog"] else _chip("NOT in catalog", _RED))
+        badge = _chip("in catalog", _GREEN) if d["in_catalog"] else _chip("NOT in catalog", _RED)
         kind = d.get("kind") or "—"
         cons = d.get("consumed_by_cards") or []
-        cons_txt = (f"<span class='consumers'>{_esc(', '.join(cons))}</span>" if cons
-                    else "<span class='consumers'>— used by no card</span>")
+        cons_txt = (
+            f"<span class='consumers'>{_esc(', '.join(cons))}</span>"
+            if cons
+            else "<span class='consumers'>— used by no card</span>"
+        )
         # STATIC access-cost cell: cost band chip + a sort-key indicator (✓ optimized /
         # ⚠ none = expensive to query when consumed). Neither is a live measurement.
         ac = d.get("access_cost")
-        cost_cell = _chip(ACCESS_COST_LABEL.get(ac, ac or "—"),
-                          ACCESS_COST_COLORS.get(ac, _GREY), ACCESS_COST_GLOSS.get(ac)) if ac else "—"
+        cost_cell = (
+            _chip(ACCESS_COST_LABEL.get(ac, ac or "—"), ACCESS_COST_COLORS.get(ac, _GREY), ACCESS_COST_GLOSS.get(ac))
+            if ac
+            else "—"
+        )
         hsk = d.get("has_sort_key")
         if d.get("missing_sort_key"):
-            sk = "<span style='color:%s' title='consumed + large + no sort/partition key → expensive to query'>⚠ no sort-key</span>" % _RED
+            sk = (
+                "<span style='color:%s' title='consumed + large + no sort/partition key → expensive to query'>⚠ no sort-key</span>"
+                % _RED
+            )
         elif hsk is True:
             sk = "<span style='color:%s' title='declares a query_optimization sort/partition key'>✓</span>" % _GREEN
         else:
@@ -684,17 +749,21 @@ def _datasets_table(report: dict) -> str:
     ncol = 7
     body = ""
     if broken:
-        body += (f"<tr class='grp'><td colspan='{ncol}'>⚠ REFERENCED BUT NOT IN CATALOG — a card names a "
-                 f"product_id with no manifest ({len(broken)}): not-yet-landed data, or a resource "
-                 f"tracked outside manifests/ (resolver-releases, subgroup-catalogs)</td></tr>")
+        body += (
+            f"<tr class='grp'><td colspan='{ncol}'>⚠ REFERENCED BUT NOT IN CATALOG — a card names a "
+            f"product_id with no manifest ({len(broken)}): not-yet-landed data, or a resource "
+            f"tracked outside manifests/ (resolver-releases, subgroup-catalogs)</td></tr>"
+        )
         for d in sorted(broken, key=lambda d: d["product_id"]):
             body += _row(d)
     # Consumed datasets sorted by access cost (heaviest first) — the actionable order.
     body += f"<tr class='grp'><td colspan='{ncol}'>CONSUMED BY CARDS — the framework's active data footprint ({len(consumed)}); heaviest-to-access first</td></tr>"
     for d in sorted(consumed, key=lambda d: (-(d.get("size_bytes") or 0), d["product_id"])):
         body += _row(d)
-    body += (f"<tr class='grp'><td colspan='{ncol}'>CATALOG AT LARGE — cataloged, not consumed by any card "
-             f"({len(catalog_only)}); org-wide inventory, not a framework gap</td></tr>")
+    body += (
+        f"<tr class='grp'><td colspan='{ncol}'>CATALOG AT LARGE — cataloged, not consumed by any card "
+        f"({len(catalog_only)}); org-wide inventory, not a framework gap</td></tr>"
+    )
     for d in sorted(catalog_only, key=lambda d: d["product_id"]):
         body += _row(d)
 
@@ -708,19 +777,27 @@ def _datasets_table(report: dict) -> str:
 
 def _dataset_summary_cards(report: dict) -> str:
     s = report["summary"]
-    strip = _stat_strip([
-        ("in catalog", s.get("n_datasets_in_catalog", 0), _GREEN),
-        ("consumed by cards", sum(1 for d in report.get("datasets", []) if d["n_consumers"] > 0 and d["in_catalog"]), _PURPLE),
-        ("broken refs", s.get("n_broken_dataset_refs", 0), _RED),
-        ("catalog, unused", s.get("n_orphan_datasets", 0), _GREY),
-        ("high access-cost", s.get("n_datasets_high_access_cost", 0), _RED),
-        ("consumed, no sort-key", s.get("n_datasets_missing_sort_key", 0), _AMBER),
-    ])
-    caption = ('<div class="captn"><b>Access cost</b> is a STATIC proxy from manifest metadata '
-               '(size × file-count × consumers) — <i>not</i> a measured read latency. '
-               '“no sort-key” flags a large, consumed dataset whose manifest declares no '
-               'query_optimization key (the ~4× sorted-read/pushdown lever). Real timing would need '
-               'runtime instrumentation — deliberately out of this offline probe.</div>')
+    strip = _stat_strip(
+        [
+            ("in catalog", s.get("n_datasets_in_catalog", 0), _GREEN),
+            (
+                "consumed by cards",
+                sum(1 for d in report.get("datasets", []) if d["n_consumers"] > 0 and d["in_catalog"]),
+                _PURPLE,
+            ),
+            ("broken refs", s.get("n_broken_dataset_refs", 0), _RED),
+            ("catalog, unused", s.get("n_orphan_datasets", 0), _GREY),
+            ("high access-cost", s.get("n_datasets_high_access_cost", 0), _RED),
+            ("consumed, no sort-key", s.get("n_datasets_missing_sort_key", 0), _AMBER),
+        ]
+    )
+    caption = (
+        '<div class="captn"><b>Access cost</b> is a STATIC proxy from manifest metadata '
+        "(size × file-count × consumers) — <i>not</i> a measured read latency. "
+        "“no sort-key” flags a large, consumed dataset whose manifest declares no "
+        "query_optimization key (the ~4× sorted-read/pushdown lever). Real timing would need "
+        "runtime instrumentation — deliberately out of this offline probe.</div>"
+    )
     return strip + caption
 
 
@@ -728,9 +805,14 @@ def _card_summary_cards(report: dict) -> str:
     s = report["summary"]
     t = s.get("card_health_tally", {})
     return _stat_strip(
-        [(h, t.get(h, 0), CARD_COLORS[h]) for h in ("live", "partial", "blocked", "placeholder", "broken", "self_produced")]
-        + [("orphan cards", s.get("n_orphan_cards", 0), _RED),
-           ("consumed, no spec", s.get("n_cards_consumed_but_no_spec", 0), _RED)]
+        [
+            (h, t.get(h, 0), CARD_COLORS[h])
+            for h in ("live", "partial", "blocked", "placeholder", "broken", "self_produced")
+        ]
+        + [
+            ("orphan cards", s.get("n_orphan_cards", 0), _RED),
+            ("consumed, no spec", s.get("n_cards_consumed_but_no_spec", 0), _RED),
+        ]
     )
 
 
@@ -745,13 +827,15 @@ def _p4_summary_cards(report: dict) -> str:
     dec = s.get("n_p4_declared_cards", 0)
     mt = s.get("modality_routing_tally", {})
     coverage = f"{dec}/{req} declared" if req else "0/0"
-    strip = _stat_strip([
-        (f"modality routing · {coverage}", mt.get("declared", 0), _GREEN),
-        ("missing (stranded)", s.get("n_p4_missing_cards", 0), _RED),
-        ("drift", s.get("n_p4_drift_cards", 0), _AMBER),
-        ("not required (biology-axis)", mt.get("not_required", 0), _GREY),
-    ])
-    caption = (f'<div class="captn"><b>Modality routing (roadmap “P4”)</b> — {_esc(P4_GLOSS)}</div>')
+    strip = _stat_strip(
+        [
+            (f"modality routing · {coverage}", mt.get("declared", 0), _GREEN),
+            ("missing (stranded)", s.get("n_p4_missing_cards", 0), _RED),
+            ("drift", s.get("n_p4_drift_cards", 0), _AMBER),
+            ("not required (biology-axis)", mt.get("not_required", 0), _GREY),
+        ]
+    )
+    caption = f'<div class="captn"><b>Modality routing (roadmap “P4”)</b> — {_esc(P4_GLOSS)}</div>'
     return strip + caption
 
 
@@ -787,42 +871,53 @@ def _graph_svg(report: dict) -> str:
             y = top + i * (node_h + v_gap) + node_h / 2
             pos[n["id"]] = (col_x[ly], y)
 
-    parts = [f'<svg viewBox="0 0 {width} {height}" width="100%" '
-             f'style="max-width:{width}px" font-family="inherit" id="fh-graph">']
+    parts = [
+        f'<svg viewBox="0 0 {width} {height}" width="100%" '
+        f'style="max-width:{width}px" font-family="inherit" id="fh-graph">'
+    ]
 
     # Column headers.
     for ly in layers:
-        parts.append(f'<text x="{col_x[ly] + node_w/2}" y="40" text-anchor="middle" '
-                     f'font-size="13" font-weight="700" fill="#0b0b0b">{titles[ly]} '
-                     f'<tspan fill="#898781" font-weight="400">({len(by_layer[ly])})</tspan></text>')
+        parts.append(
+            f'<text x="{col_x[ly] + node_w / 2}" y="40" text-anchor="middle" '
+            f'font-size="13" font-weight="700" fill="#0b0b0b">{titles[ly]} '
+            f'<tspan fill="#898781" font-weight="400">({len(by_layer[ly])})</tspan></text>'
+        )
 
     # Edges first (under nodes). Cubic curve from right edge of src to left edge of dst.
     for e in g["edges"]:
         if e["src"] not in pos or e["dst"] not in pos:
             continue
-        x1, y1 = pos[e["src"]]; x2, y2 = pos[e["dst"]]
+        x1, y1 = pos[e["src"]]
+        x2, y2 = pos[e["dst"]]
         x1 += node_w  # exit right side of source box
         mx = (x1 + x2) / 2
         parts.append(
             f'<path d="M{x1:.0f},{y1:.0f} C{mx:.0f},{y1:.0f} {mx:.0f},{y2:.0f} {x2:.0f},{y2:.0f}" '
             f'fill="none" stroke="#c9c8c1" stroke-width="0.7" opacity="0.55" '
-            f'data-s="{_esc(e["src"])}" data-d="{_esc(e["dst"])}" class="fh-edge"/>')
+            f'data-s="{_esc(e["src"])}" data-d="{_esc(e["dst"])}" class="fh-edge"/>'
+        )
 
     # Nodes.
     for n in g["nodes"]:
         x, yc = pos[n["id"]]
         y = yc - node_h / 2
         col = _NODE_COLOR.get(n.get("health"), _GREY)
-        ring = ' stroke="#c0392b" stroke-width="2" stroke-dasharray="3,2"' if n.get("is_orphan") else ' stroke="#00000022" stroke-width="0.5"'
+        ring = (
+            ' stroke="#c0392b" stroke-width="2" stroke-dasharray="3,2"'
+            if n.get("is_orphan")
+            else ' stroke="#00000022" stroke-width="0.5"'
+        )
         label = n["label"]
         disp = label if len(label) <= 22 else label[:21] + "…"
         parts.append(
             f'<g class="fh-node" data-id="{_esc(n["id"])}">'
             f'<rect x="{x:.0f}" y="{y:.0f}" width="{node_w}" height="{node_h}" rx="4" '
             f'fill="{col}"{ring}><title>{_esc(label)} · {_esc(n.get("health") or "—")}'
-            f'{" · ORPHAN" if n.get("is_orphan") else ""}</title></rect>'
-            f'<text x="{x+6:.0f}" y="{yc+3.5:.0f}" font-size="9.5" fill="#fff" '
-            f'style="pointer-events:none">{_esc(disp)}</text></g>')
+            f"{' · ORPHAN' if n.get('is_orphan') else ''}</title></rect>"
+            f'<text x="{x + 6:.0f}" y="{yc + 3.5:.0f}" font-size="9.5" fill="#fff" '
+            f'style="pointer-events:none">{_esc(disp)}</text></g>'
+        )
 
     parts.append("</svg>")
     return "".join(parts)
@@ -831,11 +926,11 @@ def _graph_svg(report: dict) -> str:
 def _graph_legend() -> str:
     return (
         '<div class="panel"><h3>Reading the graph</h3>'
-        '<p>Data flows <b>right → left</b>: a skill (left) resolves a verdict via its '
-        '<b>resolver</b>, pulling <b>cards</b>, each backed by a <b>method</b> (right). '
-        'Edges: skill—consumes→card, card—backed_by→method, skill—resolves_via→resolver. '
+        "<p>Data flows <b>right → left</b>: a skill (left) resolves a verdict via its "
+        "<b>resolver</b>, pulling <b>cards</b>, each backed by a <b>method</b> (right). "
+        "Edges: skill—consumes→card, card—backed_by→method, skill—resolves_via→resolver. "
         'Nodes are colored by health; <b style="color:#c0392b">red-dashed cards</b> are orphans '
-        '(no skill consumes). Hover any node to highlight its connections.</p></div>'
+        "(no skill consumes). Hover any node to highlight its connections.</p></div>"
     )
 
 
@@ -858,7 +953,7 @@ def _headline(report: dict) -> str:
         bits.append(f"<b>{placeholder}</b> placeholder")
     if broken:
         bits.append(f"<b style='color:#ffb3a7'>{broken}</b> drift")
-    res_txt = (f"Reasoning engine fully wired ({n_res}/{n_res} resolvers); " if n_res else "")
+    res_txt = f"Reasoning engine fully wired ({n_res}/{n_res} resolvers); " if n_res else ""
     return f"{res_txt}{'; '.join(bits)}."
 
 
@@ -867,19 +962,23 @@ def _stat_strip(items: list[tuple]) -> str:
     items = [(label, count, color), ...]"""
     parts = []
     for lbl, num, col in items:
-        parts.append(f'<span class="stat"><span class="dot" style="background:{col}"></span>'
-                     f'<b>{num}</b> {_esc(lbl)}</span>')
+        parts.append(
+            f'<span class="stat"><span class="dot" style="background:{col}"></span><b>{num}</b> {_esc(lbl)}</span>'
+        )
     return f'<div class="strip">{"".join(parts)}</div>'
 
 
 def render(report: dict) -> str:
     s = report["summary"]
     gen = report.get("generated_at", "")
-    subtitle = (f'{s["n_skills"]} skills · {s.get("n_cards", 0)} cards · '
-                f'{s.get("n_datasets_in_catalog", 0)} datasets · {_esc(gen[:10])}')
+    subtitle = (
+        f"{s['n_skills']} skills · {s.get('n_cards', 0)} cards · "
+        f"{s.get('n_datasets_in_catalog', 0)} datasets · {_esc(gen[:10])}"
+    )
     # A stable hash of the projection is embedded for HTML-staleness detection.
     from .build_framework_health import stable_projection  # local import avoids cycle at module load
     import hashlib
+
     health_hash = hashlib.sha256(stable_projection(report).encode()).hexdigest()[:16]
     return f"""<!doctype html>
 <!-- health-hash: {health_hash} -->
@@ -930,14 +1029,14 @@ def render(report: dict) -> str:
 </div>
 
 <div class="panel"><h3>How to read this dashboard — glossary</h3>
-<p><b>Skill health:</b> {' '.join(_chip(k, v) for k, v in SKILL_COLORS.items())}</p>
-<p><b>Card health:</b> {' '.join(_chip(k, v) for k, v in CARD_COLORS.items())}</p>
+<p><b>Skill health:</b> {" ".join(_chip(k, v) for k, v in SKILL_COLORS.items())}</p>
+<p><b>Card health:</b> {" ".join(_chip(k, v) for k, v in CARD_COLORS.items())}</p>
 <p><b>broken</b> = no path to data (no reader + no backing method, never fires);
 <b>blocked</b> = no live reader (honest gap); <b>partial</b> = reader exists but hasn't fired in a real package yet;
 <b>live</b> = has fired (passed/warned) in a real evidence package; <b>orphan</b> = card defined on disk but consumed by no skill (unclaimed measurement).</p>
 
 <h3>Drift severity — <span class="hdrnote">severity is about IMPACT, not badness</span></h3>
-<p>{' '.join(_chip(SEVERITY_LABEL[s], SEVERITY_COLORS[s]) for s in ("error", "warn", "info"))}</p>
+<p>{" ".join(_chip(SEVERITY_LABEL[s], SEVERITY_COLORS[s]) for s in ("error", "warn", "info"))}</p>
 <p><b>error</b> = {_esc(SEVERITY_GLOSS["error"])}; <b>warn</b> = {_esc(SEVERITY_GLOSS["warn"])};
 <b>info</b> = {_esc(SEVERITY_GLOSS["info"])}. Only error + warn appear in the Fix-next queue; info items are shown for transparency.</p>
 
@@ -946,7 +1045,7 @@ def render(report: dict) -> str:
 
 <h3>Modality routing <span class="hdrnote">(roadmap term “P4”)</span></h3>
 <p>{_esc(P4_GLOSS)}</p>
-<p>{' '.join(_chip(k, v) for k, v in MODALITY_COLORS.items() if k not in ("not_applicable", "unknown"))}</p>
+<p>{" ".join(_chip(k, v) for k, v in MODALITY_COLORS.items() if k not in ("not_applicable", "unknown"))}</p>
 <p><b>declared</b> = measurement_type routes to a modality-fit gate (small-molecule/degrader/ADC/TCE/antibody) and the card declares its vector;
 <b>not required</b> = biology-axis type, correctly silent; <b>missing</b> = routes but declares nothing (stranded — validator error);
 <b>drift</b> = declares values outside its type's routing set. Routing is metadata PARALLEL to health — it never changes a card's health.</p>

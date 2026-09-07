@@ -1,6 +1,7 @@
 """Guard: every rule_id in wt_loss_safety_conditioning.yaml must exist in the
 interpretation-rules, and the concern/protective buckets must be disjoint.
 Prevents the sidecar going stale under a rule rename (Layer-1 of VERDICT_REPRESENTATION.md)."""
+
 from pathlib import Path
 import glob
 import yaml
@@ -11,7 +12,7 @@ REPO = Path(__file__).resolve().parents[2]
 def _all_rule_ids():
     ids = set()
     for p in glob.glob(str(REPO / "interpretation-rules" / "*.rules.yaml")):
-        for r in (yaml.safe_load(open(p)).get("rules") or []):
+        for r in yaml.safe_load(open(p)).get("rules") or []:
             ids.add(r["rule_id"])
     return ids
 
@@ -23,10 +24,12 @@ def _sidecar():
 def test_all_referenced_rule_ids_exist():
     known = _all_rule_ids()
     sc = _sidecar()
-    referenced = (list(sc.get("concern_rules") or [])
-                  + list(sc.get("protective_rules") or [])
-                  + list(sc.get("allele_selective_eligibility_rules") or [])
-                  + list(sc.get("allele_selective_disqualifier_rules") or []))
+    referenced = (
+        list(sc.get("concern_rules") or [])
+        + list(sc.get("protective_rules") or [])
+        + list(sc.get("allele_selective_eligibility_rules") or [])
+        + list(sc.get("allele_selective_disqualifier_rules") or [])
+    )
     missing = [r for r in referenced if r not in known]
     assert not missing, f"wt_loss_safety_conditioning references non-existent rule_ids: {missing}"
 

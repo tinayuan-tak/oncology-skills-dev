@@ -41,21 +41,21 @@ import yaml
 from jsonschema import Draft202012Validator
 
 
-SCHEMA_PATH = Path(__file__).resolve().parent.parent / 'schemas' / 'card.schema.json'
-PRODUCTS_PATH = Path(__file__).resolve().parent.parent / 'vocabularies' / 'products.yaml'
+SCHEMA_PATH = Path(__file__).resolve().parent.parent / "schemas" / "card.schema.json"
+PRODUCTS_PATH = Path(__file__).resolve().parent.parent / "vocabularies" / "products.yaml"
 # Sibling data-catalog checkout, for the required_inputs[].product_id referential-integrity check.
 # A product_id resolves against EITHER a data-catalog manifest id OR a registered products.yaml
 # product id (the two legitimate namespaces). Located via env, defaulting to the sibling path;
 # graceful-skip when absent (e.g. the checkout-only contracts-validate runner) — mirrors the
 # _SKILLS_REPO figure-emission sibling pattern so the check never false-fails in isolated CI.
-_DATA_CATALOG_REPO = Path(os.environ.get(
-    "DATA_CATALOG_ROOT",
-    "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"))
+_DATA_CATALOG_REPO = Path(
+    os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
+)
 
 # Recognized CEL-subset operators and reserved tokens (B1 § compose-dashboard subsection 2)
-RECOGNIZED_OPERATORS = {'==', '!=', '>=', '<=', '>', '<', '&&', '||', '!', 'in'}
+RECOGNIZED_OPERATORS = {"==", "!=", ">=", "<=", ">", "<", "&&", "||", "!", "in"}
 # Predicate-allowed top-level identifiers (the context object's roots + summary fields)
-RECOGNIZED_CONTEXT_ROOTS = {'target', 'indication', 'subgroup_spec', 'release_pin', 'data_mode'}
+RECOGNIZED_CONTEXT_ROOTS = {"target", "indication", "subgroup_spec", "release_pin", "data_mode"}
 
 # Grain-check (subgroup-panorama layer, 2026-07-16). A card that enumerates a
 # target's evidence ACROSS molecular subgroups (declares per_subgroup_metrics or
@@ -67,39 +67,39 @@ RECOGNIZED_CONTEXT_ROOTS = {'target', 'indication', 'subgroup_spec', 'release_pi
 # module ships a @subgroup_iterable read_stratified_* reader + build_*_panorama.
 # When a new per-sample stratified reader lands, add its `call` here.
 PER_SAMPLE_STRATIFIABLE_CALLS = {
-    'gdc-somatic-hotspot',   # methods/gdc_somatic_hotspot: read_stratified_mutation_frequency + build_mutation_frequency_panorama
-    'depmap-chronos',        # methods/depmap_chronos: read_stratified_dependency + build_dependency_panorama
-    'tcga-patient-cn',       # methods/tcga_patient_cn/stratified: read_stratified_copy_number + build_copy_number_panorama
-                             # (recomputes GISTIC amp/del fractions WITHIN each stratum member-set; patient-grain join)
-    'tcga-fusion-consensus', # methods/tcga_fusion_consensus/stratified: read_stratified_fusion + build_fusion_panorama
-                             # (per-stratum fusion recurrence; assayed-denominator ∩ stratum, patient-grain join)
-    'tcga-gtex-expression-distribution',  # methods/tcga_gtex_expression_distribution: read_tumor_expression_subtype_landscape
-                                          # recomputes the per-sample distribution WITHIN each stratum member-set
-                                          # (UUID→barcode→stratum bridge), NOT an emit-time aggregate — AM #82.
-    'dge-tumor-vs-normal-selectivity-by-subgroup',  # methods/dge_deseq2: read_stratified_tumor_vs_normal_selectivity
-                                          # HONEST per-stratum recomputation, but EMIT-TIME not read-time: the
-                                          # sensitivity-by-subgroup product ran a full DESeq2 fit WITHIN each
-                                          # stratum's tumor set (steps/07_stratified_four_cell_driver.R). The
-                                          # reader returns genuine per-stratum log2FC — NOT a whole-cohort
-                                          # aggregate re-sliced — so it satisfies the honesty invariant this
-                                          # allowlist protects. (Distinct from the three above, which recompute
-                                          # from per-sample source data at read time.) — 2026-08-18.
-    'depmap-expression-distribution',     # methods/depmap_expression_distribution: read_stratified_expression +
-                                          # build_expression_subtype_panorama — recomputes the cell-line RNA
-                                          # distribution WITHIN each DepMap-shard stratum member-set (ModelID-keyed,
-                                          # no barcode bridge), reusing subgroup_common.panorama.build_panorama.
-    'cptac-protein-distribution',         # methods/cptac_protein_distribution: read_stratified_protein +
-                                          # build_protein_subtype_panorama — recomputes the CPTAC tumor-protein
-                                          # (log2-ratio) distribution WITHIN each stratum member-set of the CPTAC
-                                          # assignment shard (aliquot-keyed, aliquot->case bridge), reusing
-                                          # subgroup_common.panorama.build_panorama. — 2026-08-21.
+    "gdc-somatic-hotspot",  # methods/gdc_somatic_hotspot: read_stratified_mutation_frequency + build_mutation_frequency_panorama
+    "depmap-chronos",  # methods/depmap_chronos: read_stratified_dependency + build_dependency_panorama
+    "tcga-patient-cn",  # methods/tcga_patient_cn/stratified: read_stratified_copy_number + build_copy_number_panorama
+    # (recomputes GISTIC amp/del fractions WITHIN each stratum member-set; patient-grain join)
+    "tcga-fusion-consensus",  # methods/tcga_fusion_consensus/stratified: read_stratified_fusion + build_fusion_panorama
+    # (per-stratum fusion recurrence; assayed-denominator ∩ stratum, patient-grain join)
+    "tcga-gtex-expression-distribution",  # methods/tcga_gtex_expression_distribution: read_tumor_expression_subtype_landscape
+    # recomputes the per-sample distribution WITHIN each stratum member-set
+    # (UUID→barcode→stratum bridge), NOT an emit-time aggregate — AM #82.
+    "dge-tumor-vs-normal-selectivity-by-subgroup",  # methods/dge_deseq2: read_stratified_tumor_vs_normal_selectivity
+    # HONEST per-stratum recomputation, but EMIT-TIME not read-time: the
+    # sensitivity-by-subgroup product ran a full DESeq2 fit WITHIN each
+    # stratum's tumor set (steps/07_stratified_four_cell_driver.R). The
+    # reader returns genuine per-stratum log2FC — NOT a whole-cohort
+    # aggregate re-sliced — so it satisfies the honesty invariant this
+    # allowlist protects. (Distinct from the three above, which recompute
+    # from per-sample source data at read time.) — 2026-08-18.
+    "depmap-expression-distribution",  # methods/depmap_expression_distribution: read_stratified_expression +
+    # build_expression_subtype_panorama — recomputes the cell-line RNA
+    # distribution WITHIN each DepMap-shard stratum member-set (ModelID-keyed,
+    # no barcode bridge), reusing subgroup_common.panorama.build_panorama.
+    "cptac-protein-distribution",  # methods/cptac_protein_distribution: read_stratified_protein +
+    # build_protein_subtype_panorama — recomputes the CPTAC tumor-protein
+    # (log2-ratio) distribution WITHIN each stratum member-set of the CPTAC
+    # assignment shard (aliquot-keyed, aliquot->case bridge), reusing
+    # subgroup_common.panorama.build_panorama. — 2026-08-21.
 }
 
 # The list-typed summary field names that signal a card emits a per-subgroup
 # panorama. Both spellings are in use: `per_subgroup_metrics` (molecular-subgroup
 # cards) and `per_stratum_metrics` (the RWD line-of-therapy card). Either implies
 # a per-sample stratified reader is required.
-PANORAMA_RECORD_FIELDS = {'per_subgroup_metrics', 'per_stratum_metrics'}
+PANORAMA_RECORD_FIELDS = {"per_subgroup_metrics", "per_stratum_metrics"}
 
 # Figure-emission check (viz-coverage, 2026-07-20; re-pointed at the live registry).
 # A card that DECLARES a `figure:`/`figures:` must have a live-path FIGURE EMITTER —
@@ -114,9 +114,11 @@ PANORAMA_RECORD_FIELDS = {'per_subgroup_metrics', 'per_stratum_metrics'}
 # the skills repo (graceful-skip if the sibling repo is absent, e.g. isolated CI).
 # This replaces an earlier method-`call:`-keyed heuristic: the live producer is the
 # registry, not the analysis-methods emit_* (which serve the batch/precompute path).
-_SKILLS_REPO = Path(os.environ.get(
-    "CLAUDE_ONCOLOGY_SKILLS_ROOT",
-    "/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills"))
+_SKILLS_REPO = Path(
+    os.environ.get(
+        "CLAUDE_ONCOLOGY_SKILLS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills"
+    )
+)
 # The CARD_FIGURE_EMITTERS registry literal. As of the figure-consolidation Stage-4 split the
 # monolith `_figure_emitters.py` became a package: the registry now lives in
 # `_figure_emitters/_registry.py`. We try the package form first, then fall back to the legacy
@@ -126,8 +128,8 @@ _SKILLS_SCRIPTS = _SKILLS_REPO / "skills" / "compose-dashboard" / "scripts"
 _FIGURE_EMITTERS_CANDIDATES = (
     # Rehomed to _skills_common (2026-08-21) off the retiring compose-dashboard skill.
     _SKILLS_REPO / "skills" / "_skills_common" / "_figure_emitters" / "_registry.py",
-    _SKILLS_SCRIPTS / "_figure_emitters" / "_registry.py",   # pre-rehome package under compose-dashboard
-    _SKILLS_SCRIPTS / "_figure_emitters.py",                 # legacy monolith
+    _SKILLS_SCRIPTS / "_figure_emitters" / "_registry.py",  # pre-rehome package under compose-dashboard
+    _SKILLS_SCRIPTS / "_figure_emitters.py",  # legacy monolith
 )
 
 # Measurement-type check (DATA_TO_SKILL_CONTRACT.md, 2026-07-21). A card's identity is
@@ -136,12 +138,11 @@ _FIGURE_EMITTERS_CANDIDATES = (
 # not an error. A card WITH one must name a type registered in vocabularies/measurement_types.yaml
 # (else ERROR — a typo'd/unregistered type is a real defect). This is the machine-check that makes
 # the pull-routing registry honest: every declared type resolves to a governed vocabulary entry.
-_MEASUREMENT_TYPES_PATH = (Path(__file__).resolve().parent.parent / 'vocabularies'
-                           / 'measurement_types.yaml')
-_RULES_DIR = Path(__file__).resolve().parent.parent / 'interpretation-rules'
+_MEASUREMENT_TYPES_PATH = Path(__file__).resolve().parent.parent / "vocabularies" / "measurement_types.yaml"
+_RULES_DIR = Path(__file__).resolve().parent.parent / "interpretation-rules"
 # The 5 modality lenses a rule's signals{} dict can carry (matches card.schema.json modality_relevance
 # enum + the per-rule signal keys in interpretation-rules/*.rules.yaml).
-_MODALITY_SIGNAL_KEYS = frozenset({'small_molecule', 'degrader', 'adc', 'bite_tce', 'antibody'})
+_MODALITY_SIGNAL_KEYS = frozenset({"small_molecule", "degrader", "adc", "bite_tce", "antibody"})
 
 
 @functools.lru_cache(maxsize=1)
@@ -159,20 +160,20 @@ def _card_modality_signals() -> Optional[dict[str, set[str]]]:
     if not _RULES_DIR.exists():
         return None
     out: dict[str, set[str]] = {}
-    for rules_file in sorted(_RULES_DIR.glob('*.rules.yaml')):
+    for rules_file in sorted(_RULES_DIR.glob("*.rules.yaml")):
         try:
             with rules_file.open() as f:
                 doc = yaml.safe_load(f) or {}
         except yaml.YAMLError:
             continue
-        for rule in (doc.get('rules') or []):
+        for rule in doc.get("rules") or []:
             if not isinstance(rule, dict):
                 continue
-            when = rule.get('when') or {}
-            card_id = when.get('card_id') if isinstance(when, dict) else None
+            when = rule.get("when") or {}
+            card_id = when.get("card_id") if isinstance(when, dict) else None
             if not card_id:
                 continue
-            signals = rule.get('signals') or {}
+            signals = rule.get("signals") or {}
             emitted = {k for k in signals if k in _MODALITY_SIGNAL_KEYS} if isinstance(signals, dict) else set()
             out.setdefault(card_id, set()).update(emitted)
     return out
@@ -190,7 +191,7 @@ def _registered_measurement_types() -> Optional[set[str]]:
             doc = yaml.safe_load(f) or {}
     except yaml.YAMLError:
         return None
-    types = doc.get('measurement_types')
+    types = doc.get("measurement_types")
     if not isinstance(types, dict):
         return None
     return set(types.keys())
@@ -210,18 +211,16 @@ def _modality_relevant_types() -> Optional[set[str]]:
             doc = yaml.safe_load(f) or {}
     except yaml.YAMLError:
         return None
-    types = doc.get('measurement_types')
+    types = doc.get("measurement_types")
     if not isinstance(types, dict):
         return None
-    return {name for name, entry in types.items()
-            if isinstance(entry, dict) and entry.get('modality_relevance')}
+    return {name for name, entry in types.items() if isinstance(entry, dict) and entry.get("modality_relevance")}
 
 
-_AXES_PATH = (Path(__file__).resolve().parent.parent / 'vocabularies'
-              / 'target_profiling_axes.yaml')
+_AXES_PATH = Path(__file__).resolve().parent.parent / "vocabularies" / "target_profiling_axes.yaml"
 # The `self_contained` sentinel: a consumed_by.lens value for hosts that resolve their verdict
 # inline (no gate short) — see target_profiling_axes.yaml homing_rule / skill_objectives role_note.
-_LENS_SENTINELS = frozenset({'self_contained'})
+_LENS_SENTINELS = frozenset({"self_contained"})
 
 
 @functools.lru_cache(maxsize=1)
@@ -236,12 +235,11 @@ def _ontology_axis_shorts() -> Optional[set[str]]:
             doc = yaml.safe_load(f) or {}
     except yaml.YAMLError:
         return None
-    questions = doc.get('questions')
+    questions = doc.get("questions")
     if not isinstance(questions, list):
         return None
-    shorts = {q.get('short') for q in questions if isinstance(q, dict) and q.get('short')}
-    shorts |= {c.get('id') for c in (doc.get('conditioner_axes') or [])
-               if isinstance(c, dict) and c.get('id')}
+    shorts = {q.get("short") for q in questions if isinstance(q, dict) and q.get("short")}
+    shorts |= {c.get("id") for c in (doc.get("conditioner_axes") or []) if isinstance(c, dict) and c.get("id")}
     return shorts
 
 
@@ -253,14 +251,13 @@ def _question_shorts_only() -> Optional[set[str]]:
         doc = yaml.safe_load(_AXES_PATH.read_text()) or {}
     except yaml.YAMLError:
         return None
-    questions = doc.get('questions')
+    questions = doc.get("questions")
     if not isinstance(questions, list):
         return None
-    return {q.get('short') for q in questions if isinstance(q, dict) and q.get('short')}
+    return {q.get("short") for q in questions if isinstance(q, dict) and q.get("short")}
 
 
-_CARD_ID_ALIASES_PATH = (Path(__file__).resolve().parent.parent / 'vocabularies'
-                         / 'card_id_aliases.yaml')
+_CARD_ID_ALIASES_PATH = Path(__file__).resolve().parent.parent / "vocabularies" / "card_id_aliases.yaml"
 
 
 @functools.lru_cache(maxsize=1)
@@ -279,9 +276,9 @@ def _card_id_aliases() -> dict[str, str]:
     except yaml.YAMLError:
         return {}
     out: dict[str, str] = {}
-    for entry in (doc.get('aliases') or []):
-        if isinstance(entry, dict) and entry.get('from') and entry.get('to'):
-            out[entry['from']] = entry['to']
+    for entry in doc.get("aliases") or []:
+        if isinstance(entry, dict) and entry.get("from") and entry.get("to"):
+            out[entry["from"]] = entry["to"]
     return out
 
 
@@ -298,11 +295,10 @@ def _measurement_type_entity_grains() -> Optional[dict[str, set[str]]]:
             doc = yaml.safe_load(f) or {}
     except yaml.YAMLError:
         return None
-    types = doc.get('measurement_types')
+    types = doc.get("measurement_types")
     if not isinstance(types, dict):
         return None
-    return {name: set(entry.get('entity_grains') or [])
-            for name, entry in types.items() if isinstance(entry, dict)}
+    return {name: set(entry.get("entity_grains") or []) for name, entry in types.items() if isinstance(entry, dict)}
 
 
 @functools.lru_cache(maxsize=1)
@@ -361,56 +357,66 @@ KNOWN_FIGURE_DEBT = {
     # in compose-dashboard CARD_FIGURE_EMITTERS (SK #151, backed by AM #89), so the card passes the
     # figure check on its own (not waived).
     # driver / differentiation / mechanism:
-    'mutation-hotspot-frequency', 'co-mutation-and-mutual-exclusivity',
-    'signaling-network-mechanism',
+    "mutation-hotspot-frequency",
+    "co-mutation-and-mutual-exclusivity",
+    "signaling-network-mechanism",
     # genomic alteration-class CLEARED 2026-07-22 — _emit_alteration_role is registered in
     # compose-dashboard CARD_FIGURE_EMITTERS (SK #152, backed by AM #90), so the card passes the
     # figure check on its own (not waived).
     # dependency-hardening + subgroup panels:
-    'paralog-buffering', 'subgroup-stratified-mutation-frequency',
-    'synthetic-lethal-partners',   # figure backfill deferred (viz-debt queue)
-    'subgroup-stratified-dependency', 'subgroup-stratified-expression',
-    'copy-number-stratified-dependency',   # A1a (2026-08-06) — amp-vs-neutral strip emitter deferred (viz-debt queue)
-    'fusion-stratified-dependency',   # A1-fusion (2026-08-06) — fusion-vs-negative strip emitter deferred (viz-debt queue)
-    'amp-expr-stratified-dependency',   # A1 amp-expr (2026-08-06) — conjoint amp+overexpr strip emitter deferred (viz-debt queue)
-    'alteration-clinical-association',   # Q11-alteration (2026-08-20) — OS-by-mutation-status card; emit_svg in method cli, skills CARD_FIGURE_EMITTERS registration deferred (viz-debt queue)
-    'subtype-survival-association',   # Q2-subtype (2026-08-20) — OS-across-subtypes card; emit_svg in method cli, skills CARD_FIGURE_EMITTERS registration deferred (viz-debt queue)
-    'oncogenic-pathway-alteration',   # Sanchez-Vega (2026-08-10) — pathway-alteration bar emitter deferred (viz-debt queue)
-    'stemness-context',   # Malta 2018 (2026-08-10) — stemness distribution emitter deferred (viz-debt queue)
-    'target-development-level',   # Pharos/IDG (2026-08-10) — TDL tier bar emitter deferred (viz-debt queue)
-    'cross-consortium-dependency',   # Project Score (2026-08-10) — Broad-vs-Sanger concordance emitter deferred (viz-debt queue)
-    'partner-conditional-dependency',   # Track PC (2026-08-09) — partner-deficient-vs-neutral strip emitter deferred (viz-debt queue)
-    'ddr-deficiency-context',   # Track PI (2026-08-09) — HRD-context strip/bar emitter deferred (viz-debt queue)
-    'pathway-activity-context',   # Track PROGENy (2026-08-10) — pathway-activity bar/heatmap emitter deferred (viz-debt queue)
-    'precog-prognostic-association',   # PRECOG (2026-08-10) — meta-Z prognostic strip/forest emitter deferred (viz-debt queue)
-    'competitor-landscape',   # Open Targets competitor field (2026-08-24) — method runs (opentargets_competitor_landscape); competitor_landscape_table emitter deferred (viz-debt queue), like sibling clinical-precedent
+    "paralog-buffering",
+    "subgroup-stratified-mutation-frequency",
+    "synthetic-lethal-partners",  # figure backfill deferred (viz-debt queue)
+    "subgroup-stratified-dependency",
+    "subgroup-stratified-expression",
+    "copy-number-stratified-dependency",  # A1a (2026-08-06) — amp-vs-neutral strip emitter deferred (viz-debt queue)
+    "fusion-stratified-dependency",  # A1-fusion (2026-08-06) — fusion-vs-negative strip emitter deferred (viz-debt queue)
+    "amp-expr-stratified-dependency",  # A1 amp-expr (2026-08-06) — conjoint amp+overexpr strip emitter deferred (viz-debt queue)
+    "alteration-clinical-association",  # Q11-alteration (2026-08-20) — OS-by-mutation-status card; emit_svg in method cli, skills CARD_FIGURE_EMITTERS registration deferred (viz-debt queue)
+    "subtype-survival-association",  # Q2-subtype (2026-08-20) — OS-across-subtypes card; emit_svg in method cli, skills CARD_FIGURE_EMITTERS registration deferred (viz-debt queue)
+    "oncogenic-pathway-alteration",  # Sanchez-Vega (2026-08-10) — pathway-alteration bar emitter deferred (viz-debt queue)
+    "stemness-context",  # Malta 2018 (2026-08-10) — stemness distribution emitter deferred (viz-debt queue)
+    "target-development-level",  # Pharos/IDG (2026-08-10) — TDL tier bar emitter deferred (viz-debt queue)
+    "cross-consortium-dependency",  # Project Score (2026-08-10) — Broad-vs-Sanger concordance emitter deferred (viz-debt queue)
+    "partner-conditional-dependency",  # Track PC (2026-08-09) — partner-deficient-vs-neutral strip emitter deferred (viz-debt queue)
+    "ddr-deficiency-context",  # Track PI (2026-08-09) — HRD-context strip/bar emitter deferred (viz-debt queue)
+    "pathway-activity-context",  # Track PROGENy (2026-08-10) — pathway-activity bar/heatmap emitter deferred (viz-debt queue)
+    "precog-prognostic-association",  # PRECOG (2026-08-10) — meta-Z prognostic strip/forest emitter deferred (viz-debt queue)
+    "competitor-landscape",  # Open Targets competitor field (2026-08-24) — method runs (opentargets_competitor_landscape); competitor_landscape_table emitter deferred (viz-debt queue), like sibling clinical-precedent
     # surface tier + shed:
-    'shed-ectodomain-liability', 'surface-topology-and-ptm',
-    'surfaceome-family-classification', 'surfaceome-cohort-ranking',
-    'structure-features-static',
+    "shed-ectodomain-liability",
+    "surface-topology-and-ptm",
+    "surfaceome-family-classification",
+    "surfaceome-cohort-ranking",
+    "structure-features-static",
     # data-blocked (no runnable method yet, but the card declares a figure):
-    'antigen-prevalence', 'clinical-precedent', 'lineage-restriction-evidence',
-    'protein-surface-evidence', 'surface-abundance-density', 'adc-tce-modality-fit',
-    'fusion-rearrangement-landscape', 'rwd-stratified-expression',
+    "antigen-prevalence",
+    "clinical-precedent",
+    "lineage-restriction-evidence",
+    "protein-surface-evidence",
+    "surface-abundance-density",
+    "adc-tce-modality-fit",
+    "fusion-rearrangement-landscape",
+    "rwd-stratified-expression",
     # card-audit delta landing (2026-08-21): placeholder_not_wired cards that declare a figure but
     # have no product/method built yet (same data-blocked class as antigen-prevalence above).
-    'temporal-setting-expression-shift',   # setting_shift_bar — no setting-annotated cohort reader landed
-    'antigen-internalization',             # internalization_turnover_panel — no internalization/turnover product
-    'antigen-prevalence-protein',          # protein_prevalence_curve_with_thresholds — no CPTAC protein-prevalence product
-    'target-identity-summary',
-    'modality-therapeutic-window',   # figure modality_window_tumor_vs_essential_normal declared at card
-                                     # creation (2026-08-06) but emitter never registered — pre-existing
-                                     # viz-debt (was failing on main before this edit); waived on the
-                                     # convention here. Emitter backfill deferred to the viz-debt queue.
+    "temporal-setting-expression-shift",  # setting_shift_bar — no setting-annotated cohort reader landed
+    "antigen-internalization",  # internalization_turnover_panel — no internalization/turnover product
+    "antigen-prevalence-protein",  # protein_prevalence_curve_with_thresholds — no CPTAC protein-prevalence product
+    "target-identity-summary",
+    "modality-therapeutic-window",  # figure modality_window_tumor_vs_essential_normal declared at card
+    # creation (2026-08-06) but emitter never registered — pre-existing
+    # viz-debt (was failing on main before this edit); waived on the
+    # convention here. Emitter backfill deferred to the viz-debt queue.
     # tumor-elevation-breadth CLEARED 2026-07-22: the pan-cancer by-tissue TPM distribution
     # emitter (_emit_tumor_elevation_breadth, drawing from tcga-gtex-tpm-tissue-quantiles-v1)
     # is now registered in CARD_FIGURE_EMITTERS — passes the check, not waived.
     # combo axes + immune/pMHC (added 2026-08-08): declare a figure but their emitter is not yet
     # registered in compose-dashboard _figure_emitters.py CARD_FIGURE_EMITTERS. Tracked viz-debt.
-    'combo-crispr-screen',            # figure emitter not yet registered in compose-dashboard _figure_emitters.py
-    'combinatorial-dependency',       # figure emitter not yet registered in compose-dashboard _figure_emitters.py
-    'immune-context',                 # figure emitter not yet registered in compose-dashboard _figure_emitters.py (pre-existing)
-    'pmhc-presentation',              # figure emitter not yet registered in compose-dashboard _figure_emitters.py (pre-existing)
+    "combo-crispr-screen",  # figure emitter not yet registered in compose-dashboard _figure_emitters.py
+    "combinatorial-dependency",  # figure emitter not yet registered in compose-dashboard _figure_emitters.py
+    "immune-context",  # figure emitter not yet registered in compose-dashboard _figure_emitters.py (pre-existing)
+    "pmhc-presentation",  # figure emitter not yet registered in compose-dashboard _figure_emitters.py (pre-existing)
 }
 
 
@@ -438,38 +444,38 @@ def _structural_check(spec: dict, report: ValidationReport, schema: dict) -> Non
     """Layer 1: JSON Schema validation against card.schema.json."""
     validator = Draft202012Validator(schema)
     for err in validator.iter_errors(spec):
-        path = '.'.join(str(p) for p in err.absolute_path) or '<root>'
-        report.add_error(f'STRUCTURAL [{path}]: {err.message}')
+        path = ".".join(str(p) for p in err.absolute_path) or "<root>"
+        report.add_error(f"STRUCTURAL [{path}]: {err.message}")
 
 
 def _threshold_ref_check(spec: dict, report: ValidationReport) -> None:
     """Layer 2a: every THRESHOLD.<name> reference must exist in thresholds: block."""
-    declared = set((spec.get('thresholds') or {}).keys())
+    declared = set((spec.get("thresholds") or {}).keys())
     referenced: set[str] = set()
 
     def scan_predicate(pred: str, where: str) -> None:
-        for match in re.finditer(r'THRESHOLD\.([a-z_][a-z0-9_]*)', pred):
+        for match in re.finditer(r"THRESHOLD\.([a-z_][a-z0-9_]*)", pred):
             name = match.group(1)
             referenced.add(name)
             if name not in declared:
                 report.add_error(
-                    f'THRESHOLD_REF [{where}]: predicate references undeclared threshold '
-                    f'`THRESHOLD.{name}`. Declared thresholds: {sorted(declared) or "(none)"}.'
+                    f"THRESHOLD_REF [{where}]: predicate references undeclared threshold "
+                    f"`THRESHOLD.{name}`. Declared thresholds: {sorted(declared) or '(none)'}."
                 )
 
-    for i, pred in enumerate(spec.get('applies_when', [])):
-        scan_predicate(pred, f'applies_when[{i}]')
-    for i, hint in enumerate(spec.get('interpretation_hints', [])):
-        scan_predicate(hint.get('if', ''), f'interpretation_hints[{i}].if')
-    for i, wp in enumerate(spec.get('warning_predicates', []) or []):
-        scan_predicate(wp.get('if', ''), f'warning_predicates[{i}].if')
+    for i, pred in enumerate(spec.get("applies_when", [])):
+        scan_predicate(pred, f"applies_when[{i}]")
+    for i, hint in enumerate(spec.get("interpretation_hints", [])):
+        scan_predicate(hint.get("if", ""), f"interpretation_hints[{i}].if")
+    for i, wp in enumerate(spec.get("warning_predicates", []) or []):
+        scan_predicate(wp.get("if", ""), f"warning_predicates[{i}].if")
 
     # Inverse check: declared thresholds that no predicate references (warning, not error)
     unused = declared - referenced
     if unused:
         report.add_warning(
-            f'THRESHOLD_UNUSED: thresholds {sorted(unused)} declared but never referenced '
-            f'by any predicate. Remove from thresholds: block or use them.'
+            f"THRESHOLD_UNUSED: thresholds {sorted(unused)} declared but never referenced "
+            f"by any predicate. Remove from thresholds: block or use them."
         )
 
 
@@ -484,38 +490,38 @@ def _shallow_predicate_check(spec: dict, report: ValidationReport) -> None:
 
     def lint_predicate(pred: str, where: str) -> None:
         if not pred.strip():
-            report.add_error(f'PREDICATE [{where}]: empty predicate.')
+            report.add_error(f"PREDICATE [{where}]: empty predicate.")
             return
         # Balanced parens
         depth = 0
         for c in pred:
-            if c == '(':
+            if c == "(":
                 depth += 1
-            elif c == ')':
+            elif c == ")":
                 depth -= 1
                 if depth < 0:
-                    report.add_error(f'PREDICATE [{where}]: unbalanced parens (close before open).')
+                    report.add_error(f"PREDICATE [{where}]: unbalanced parens (close before open).")
                     return
         if depth != 0:
-            report.add_error(f'PREDICATE [{where}]: unbalanced parens (depth {depth} at end).')
+            report.add_error(f"PREDICATE [{where}]: unbalanced parens (depth {depth} at end).")
         # Python-isms that aren't valid CEL operators
         for pattern, display, suggested in (
-            (r'\band\b', 'and', '&&'),
-            (r'\bor\b', 'or', '||'),
-            (r'\bnot\s', 'not', '!'),
+            (r"\band\b", "and", "&&"),
+            (r"\bor\b", "or", "||"),
+            (r"\bnot\s", "not", "!"),
         ):
             if re.search(pattern, pred):
                 report.add_error(
-                    f'PREDICATE [{where}]: uses Python-style operator `{display}`; '
-                    f'CEL-subset requires `{suggested}` instead.'
+                    f"PREDICATE [{where}]: uses Python-style operator `{display}`; "
+                    f"CEL-subset requires `{suggested}` instead."
                 )
 
-    for i, pred in enumerate(spec.get('applies_when', [])):
-        lint_predicate(pred, f'applies_when[{i}]')
-    for i, hint in enumerate(spec.get('interpretation_hints', [])):
-        lint_predicate(hint.get('if', ''), f'interpretation_hints[{i}].if')
-    for i, wp in enumerate(spec.get('warning_predicates', []) or []):
-        lint_predicate(wp.get('if', ''), f'warning_predicates[{i}].if')
+    for i, pred in enumerate(spec.get("applies_when", [])):
+        lint_predicate(pred, f"applies_when[{i}]")
+    for i, hint in enumerate(spec.get("interpretation_hints", [])):
+        lint_predicate(hint.get("if", ""), f"interpretation_hints[{i}].if")
+    for i, wp in enumerate(spec.get("warning_predicates", []) or []):
+        lint_predicate(wp.get("if", ""), f"warning_predicates[{i}].if")
 
 
 def _summary_field_names(spec: dict) -> set[str]:
@@ -524,13 +530,13 @@ def _summary_field_names(spec: dict) -> set[str]:
     ({name, lens_conditional_on?, description?}). Introduced 2026-07-08 with
     the lens-conditional field split.
     """
-    raw = spec.get('outputs', {}).get('summary_fields', [])
+    raw = spec.get("outputs", {}).get("summary_fields", [])
     names: set[str] = set()
     for entry in raw:
         if isinstance(entry, str):
             names.add(entry)
-        elif isinstance(entry, dict) and 'name' in entry:
-            names.add(entry['name'])
+        elif isinstance(entry, dict) and "name" in entry:
+            names.add(entry["name"])
     return names
 
 
@@ -539,10 +545,10 @@ def _data_catalog_manifest_ids() -> Optional[set[str]]:
     """The set of manifest ids in the sibling data-catalog (source + derived). A manifest id is the
     yaml filename stem (== its `id:` field). Returns None if the sibling checkout is absent (→ the
     product_id check graceful-skips; a checkout-only CI runner has no data-catalog)."""
-    manifests = _DATA_CATALOG_REPO / 'manifests'
+    manifests = _DATA_CATALOG_REPO / "manifests"
     if not manifests.is_dir():
         return None
-    return {p.name[:-len('.yaml')] for p in manifests.glob('*/*.yaml')}
+    return {p.name[: -len(".yaml")] for p in manifests.glob("*/*.yaml")}
 
 
 @functools.lru_cache(maxsize=1)
@@ -556,10 +562,10 @@ def _registered_product_ids() -> set[str]:
             doc = yaml.safe_load(f) or {}
     except yaml.YAMLError:
         return set()
-    products = doc.get('products') if isinstance(doc, dict) else None
+    products = doc.get("products") if isinstance(doc, dict) else None
     if not isinstance(products, list):
         return set()
-    return {p['id'] for p in products if isinstance(p, dict) and 'id' in p}
+    return {p["id"] for p in products if isinstance(p, dict) and "id" in p}
 
 
 def _required_inputs_product_id_check(spec: dict, report: ValidationReport) -> None:
@@ -578,18 +584,19 @@ def _required_inputs_product_id_check(spec: dict, report: ValidationReport) -> N
     if manifest_ids is None:
         return  # data-catalog sibling absent → cannot resolve manifest ids; skip (never false-fail)
     known = manifest_ids | _registered_product_ids()
-    for i, ri in enumerate(spec.get('required_inputs', []) or []):
+    for i, ri in enumerate(spec.get("required_inputs", []) or []):
         if not isinstance(ri, dict):
             continue
-        pid = ri.get('product_id')
-        if not isinstance(pid, str) or not pid or '{' in pid:
+        pid = ri.get("product_id")
+        if not isinstance(pid, str) or not pid or "{" in pid:
             continue  # missing/templated product_ids are handled by structural + compose-time checks
         if pid not in known:
             report.add_warning(
-                f'PRODUCT_ID_UNRESOLVED [required_inputs[{i}]]: product_id {pid!r} matches no '
-                f'data-catalog manifest id and no vocabularies/products.yaml product id — a '
-                f'typo/renamed/truncated manifest ref or an un-materialized product. A reader will '
-                f'return _live_read_error and the verdict will silently degrade to insufficient.')
+                f"PRODUCT_ID_UNRESOLVED [required_inputs[{i}]]: product_id {pid!r} matches no "
+                f"data-catalog manifest id and no vocabularies/products.yaml product id — a "
+                f"typo/renamed/truncated manifest ref or an un-materialized product. A reader will "
+                f"return _live_read_error and the verdict will silently degrade to insufficient."
+            )
 
 
 def _composed_card_semantics_check(spec: dict, report: ValidationReport) -> None:
@@ -608,13 +615,13 @@ def _composed_card_semantics_check(spec: dict, report: ValidationReport) -> None
     The prior warning fired on all three, breaking --strict-warnings CI.
     Only the empty-neither error remains (the A1 semantic invariant).
     """
-    required_inputs = spec.get('required_inputs', [])
-    derived_from = spec.get('derived_from', [])
+    required_inputs = spec.get("required_inputs", [])
+    derived_from = spec.get("derived_from", [])
     if not required_inputs and not derived_from:
         report.add_error(
-            'COMPOSED_CARD [required_inputs]: empty required_inputs is only '
-            'valid when derived_from is declared (composed-card semantics). '
-            'Leaf cards must reference at least one product_id.'
+            "COMPOSED_CARD [required_inputs]: empty required_inputs is only "
+            "valid when derived_from is declared (composed-card semantics). "
+            "Leaf cards must reference at least one product_id."
         )
 
 
@@ -625,24 +632,24 @@ def _interpretation_summary_field_check(spec: dict, report: ValidationReport) ->
     may reference helper functions or thresholds only.
     """
     summary_fields = _summary_field_names(spec)
-    for i, hint in enumerate(spec.get('interpretation_hints', [])):
-        pred = hint.get('if', '')
-        referenced_idents = set(re.findall(r'\b([a-z_][a-z0-9_]*)\b', pred))
+    for i, hint in enumerate(spec.get("interpretation_hints", [])):
+        pred = hint.get("if", "")
+        referenced_idents = set(re.findall(r"\b([a-z_][a-z0-9_]*)\b", pred))
         # Exclude reserved tokens + literals + threshold-reference (THRESHOLD.foo)
-        reserved = {'true', 'false', 'null', 'and', 'or', 'not', 'in', 'abs', 'THRESHOLD'}
+        reserved = {"true", "false", "null", "and", "or", "not", "in", "abs", "THRESHOLD"}
         candidate_fields = referenced_idents - reserved
         if not (candidate_fields & summary_fields):
             # No summary field referenced — likely OK only if predicate references THRESHOLD only
-            if 'THRESHOLD.' not in pred:
+            if "THRESHOLD." not in pred:
                 report.add_warning(
-                    f'INTERPRETATION [interpretation_hints[{i}].if]: references no declared '
-                    f'summary_field ({sorted(summary_fields)}). Predicate: {pred!r}'
+                    f"INTERPRETATION [interpretation_hints[{i}].if]: references no declared "
+                    f"summary_field ({sorted(summary_fields)}). Predicate: {pred!r}"
                 )
 
 
 def _method_calls(spec: dict) -> list[str]:
     """The `call:` names declared in the card's methods: block."""
-    return [m.get('call') for m in spec.get('methods', []) if isinstance(m, dict) and m.get('call')]
+    return [m.get("call") for m in spec.get("methods", []) if isinstance(m, dict) and m.get("call")]
 
 
 def _grain_and_tier_check(spec: dict, report: ValidationReport) -> None:
@@ -663,53 +670,53 @@ def _grain_and_tier_check(spec: dict, report: ValidationReport) -> None:
       carry a subgroup_stratification block or declare per_subgroup_metrics —
       stratifying it is noise (filter 1 of the two-filter card-selection rule).
     """
-    tier = spec.get('tier')
-    strat = spec.get('subgroup_stratification') or {}
-    strat_status = strat.get('status')
+    tier = spec.get("tier")
+    strat = spec.get("subgroup_stratification") or {}
+    strat_status = strat.get("status")
     summary_names = _summary_field_names(spec)
-    record_schemas = spec.get('outputs', {}).get('summary_fields_record_schemas', {}) or {}
+    record_schemas = spec.get("outputs", {}).get("summary_fields_record_schemas", {}) or {}
     panorama_fields = (summary_names | set(record_schemas)) & PANORAMA_RECORD_FIELDS
     declares_panorama = bool(panorama_fields)
     calls = _method_calls(spec)
     has_per_sample_reader = any(c in PER_SAMPLE_STRATIFIABLE_CALLS for c in calls)
 
     # TIER invariant: target-tier cards never stratify.
-    if tier == 'target':
+    if tier == "target":
         if strat:
             report.add_error(
-                'GRAIN_TIER [subgroup_stratification]: card is `tier: target` '
-                '(scope-invariant target evidence) but declares a '
-                'subgroup_stratification block. Target-tier cards never stratify '
-                '(two-filter rule, filter 1). Remove the block or change the tier.'
+                "GRAIN_TIER [subgroup_stratification]: card is `tier: target` "
+                "(scope-invariant target evidence) but declares a "
+                "subgroup_stratification block. Target-tier cards never stratify "
+                "(two-filter rule, filter 1). Remove the block or change the tier."
             )
         if declares_panorama:
             report.add_error(
-                f'GRAIN_TIER [outputs]: card is `tier: target` but declares '
-                f'{sorted(panorama_fields)}. Target-tier evidence does not vary by '
-                f'subgroup; per-subgroup enumeration is noise on a target-tier card.'
+                f"GRAIN_TIER [outputs]: card is `tier: target` but declares "
+                f"{sorted(panorama_fields)}. Target-tier evidence does not vary by "
+                f"subgroup; per-subgroup enumeration is noise on a target-tier card."
             )
 
     # GRAIN invariant: a live/panorama card must bind a per-sample stratified reader.
-    claims_live = (strat_status == 'live') or declares_panorama
+    claims_live = (strat_status == "live") or declares_panorama
     if claims_live and not has_per_sample_reader:
         report.add_error(
-            f'GRAIN [methods]: card declares a subgroup panorama '
-            f'(status={strat_status!r}, panorama field(s)={sorted(panorama_fields)}) '
-            f'but its method call(s) {calls} are NOT per-sample stratifiable. A '
-            f'panorama must recompute the metric WITHIN each stratum member-set; '
-            f'an emit-time aggregate cannot. Bind one of '
-            f'{sorted(PER_SAMPLE_STRATIFIABLE_CALLS)}, or set '
-            f'subgroup_stratification.status: blocked_needs_per_sample_reader and '
-            f'drop the panorama field until a per-sample reader ships.'
+            f"GRAIN [methods]: card declares a subgroup panorama "
+            f"(status={strat_status!r}, panorama field(s)={sorted(panorama_fields)}) "
+            f"but its method call(s) {calls} are NOT per-sample stratifiable. A "
+            f"panorama must recompute the metric WITHIN each stratum member-set; "
+            f"an emit-time aggregate cannot. Bind one of "
+            f"{sorted(PER_SAMPLE_STRATIFIABLE_CALLS)}, or set "
+            f"subgroup_stratification.status: blocked_needs_per_sample_reader and "
+            f"drop the panorama field until a per-sample reader ships."
         )
 
     # A blocked card must NOT still be declaring the panorama field (the trap).
-    if strat_status == 'blocked_needs_per_sample_reader' and declares_panorama:
+    if strat_status == "blocked_needs_per_sample_reader" and declares_panorama:
         report.add_error(
-            f'GRAIN [outputs]: card is tagged '
-            f'subgroup_stratification.status: blocked_needs_per_sample_reader but '
-            f'still declares {sorted(panorama_fields)}. A blocked card cannot emit '
-            f'per-subgroup records — drop the field until a per-sample reader is bound.'
+            f"GRAIN [outputs]: card is tagged "
+            f"subgroup_stratification.status: blocked_needs_per_sample_reader but "
+            f"still declares {sorted(panorama_fields)}. A blocked card cannot emit "
+            f"per-subgroup records — drop the field until a per-sample reader is bound."
         )
 
 
@@ -729,22 +736,22 @@ def _blocked_subtype_status_check(spec: dict, report: ValidationReport) -> None:
     subgroup status ALONE would force those live cards non-wired and break the required-cards gate, so the
     check is scoped to `tier: subtype` (identity-is-the-panorama) cards only.
     """
-    if spec.get('tier') != 'subtype':
+    if spec.get("tier") != "subtype":
         return
-    strat = spec.get('subgroup_stratification') or {}
-    if strat.get('status') != 'blocked_needs_per_sample_reader':
+    strat = spec.get("subgroup_stratification") or {}
+    if strat.get("status") != "blocked_needs_per_sample_reader":
         return
-    card_id = spec.get('card_id', '<unknown>')
+    card_id = spec.get("card_id", "<unknown>")
     # status DEFAULTS to `wired` when omitted (schema) — both omitted and explicit `wired` are the defect.
-    status = spec.get('status')
-    if status is None or status == 'wired':
+    status = spec.get("status")
+    if status is None or status == "wired":
         report.add_error(
-            f'BLOCKED_SUBTYPE_STATUS: card `{card_id}` is `tier: subtype` with '
-            f'subgroup_stratification.status: blocked_needs_per_sample_reader — its per-subgroup panorama '
-            f'(the card\'s entire identity) cannot be produced, so it is NOT live. A subtype-tier card '
-            f'that cannot emit its panorama MUST declare an explicit non-`wired` top-level status '
-            f'(dormant_pending_data / placeholder_not_wired); omitting it defaults to `wired`, which '
-            f'falsely claims the card produces and lets the required-cards gate treat it as must-produce.'
+            f"BLOCKED_SUBTYPE_STATUS: card `{card_id}` is `tier: subtype` with "
+            f"subgroup_stratification.status: blocked_needs_per_sample_reader — its per-subgroup panorama "
+            f"(the card's entire identity) cannot be produced, so it is NOT live. A subtype-tier card "
+            f"that cannot emit its panorama MUST declare an explicit non-`wired` top-level status "
+            f"(dormant_pending_data / placeholder_not_wired); omitting it defaults to `wired`, which "
+            f"falsely claims the card produces and lets the required-cards gate treat it as must-produce."
         )
 
 
@@ -761,11 +768,11 @@ def _figure_emission_check(spec: dict, report: ValidationReport) -> None:
     debt be worked down. WARNING (not error) for cards ON the waiver — surfaced as
     tracked debt on every run.
     """
-    outputs = spec.get('outputs') or {}
-    declares_figure = bool(outputs.get('figure') or outputs.get('figures'))
+    outputs = spec.get("outputs") or {}
+    declares_figure = bool(outputs.get("figure") or outputs.get("figures"))
     if not declares_figure:
         return
-    card_id = spec.get('card_id', '<unknown>')
+    card_id = spec.get("card_id", "<unknown>")
     emitters = _registered_figure_emitters()
     if emitters is None:
         return  # skills repo unreachable — graceful skip, never a false failure
@@ -774,18 +781,18 @@ def _figure_emission_check(spec: dict, report: ValidationReport) -> None:
         return
     if card_id in KNOWN_FIGURE_DEBT:
         report.add_warning(
-            f'FIGURE_DEBT: card `{card_id}` declares a figure but has NO emitter in '
-            f'compose-dashboard CARD_FIGURE_EMITTERS (tracked viz-debt, audit 2026-07-20). '
-            f'Add a `_emit_{card_id.replace("-", "_")}` to _figure_emitters.py + register it '
-            f'to clear (then drop from KNOWN_FIGURE_DEBT).'
+            f"FIGURE_DEBT: card `{card_id}` declares a figure but has NO emitter in "
+            f"compose-dashboard CARD_FIGURE_EMITTERS (tracked viz-debt, audit 2026-07-20). "
+            f"Add a `_emit_{card_id.replace('-', '_')}` to _figure_emitters.py + register it "
+            f"to clear (then drop from KNOWN_FIGURE_DEBT)."
         )
         return
     report.add_error(
-        f'FIGURE_DECLARED_NOT_EMITTED: card `{card_id}` declares a figure but has no '
-        f'emitter registered in compose-dashboard CARD_FIGURE_EMITTERS and is not on the '
-        f'KNOWN_FIGURE_DEBT waiver. Register a figure emitter for it, or add it to '
-        f'KNOWN_FIGURE_DEBT with a tracked-debt rationale. New cards must not silently '
-        f'declare a figure nothing produces.'
+        f"FIGURE_DECLARED_NOT_EMITTED: card `{card_id}` declares a figure but has no "
+        f"emitter registered in compose-dashboard CARD_FIGURE_EMITTERS and is not on the "
+        f"KNOWN_FIGURE_DEBT waiver. Register a figure emitter for it, or add it to "
+        f"KNOWN_FIGURE_DEBT with a tracked-debt rationale. New cards must not silently "
+        f"declare a figure nothing produces."
     )
 
 
@@ -804,14 +811,14 @@ def _measurement_type_check(spec: dict, report: ValidationReport) -> None:
       - entity_grains present: each grain must parse as a grain token (schema already enforces the
         pattern; here we additionally forbid the empty string slipping through as a lone value).
     """
-    mtype = spec.get('measurement_type')
-    card_id = spec.get('card_id', '<unknown>')
+    mtype = spec.get("measurement_type")
+    card_id = spec.get("card_id", "<unknown>")
     if mtype is None:
         report.add_warning(
-            f'MEASUREMENT_TYPE_MISSING: card `{card_id}` does not declare a `measurement_type` '
-            f'(DATA_TO_SKILL_CONTRACT Rule 1). Tracked migration debt — pre-existing cards are '
-            f'un-migrated; NEW cards must declare their measurement_type + register it in '
-            f'vocabularies/measurement_types.yaml.'
+            f"MEASUREMENT_TYPE_MISSING: card `{card_id}` does not declare a `measurement_type` "
+            f"(DATA_TO_SKILL_CONTRACT Rule 1). Tracked migration debt — pre-existing cards are "
+            f"un-migrated; NEW cards must declare their measurement_type + register it in "
+            f"vocabularies/measurement_types.yaml."
         )
         return
     registered = _registered_measurement_types()
@@ -819,10 +826,10 @@ def _measurement_type_check(spec: dict, report: ValidationReport) -> None:
         return  # vocab file absent (net-new / mid-migration checkout) — graceful skip, never false-fail
     if mtype not in registered:
         report.add_error(
-            f'MEASUREMENT_TYPE_UNREGISTERED: card `{card_id}` declares measurement_type '
-            f'`{mtype}` which is NOT a key in vocabularies/measurement_types.yaml. Register the '
-            f'type (per the concordance test, Rule 2) or fix the name — the pull resolver matches '
-            f'gates to providers by this key, so an unregistered type is invisible to every gate.'
+            f"MEASUREMENT_TYPE_UNREGISTERED: card `{card_id}` declares measurement_type "
+            f"`{mtype}` which is NOT a key in vocabularies/measurement_types.yaml. Register the "
+            f"type (per the concordance test, Rule 2) or fix the name — the pull resolver matches "
+            f"gates to providers by this key, so an unregistered type is invisible to every gate."
         )
         return
 
@@ -832,7 +839,7 @@ def _measurement_type_check(spec: dict, report: ValidationReport) -> None:
     # for that grain, so promising it on the card is a false capability claim. Only checked when BOTH the
     # card AND the type declare entity_grains (migration-safe: an un-migrated card/type is skipped). Graceful-
     # skip when the vocab is unreadable.
-    card_grains = spec.get('entity_grains')
+    card_grains = spec.get("entity_grains")
     type_grains_map = _measurement_type_entity_grains()
     if card_grains and type_grains_map is not None:
         ceiling = type_grains_map.get(mtype)
@@ -840,12 +847,12 @@ def _measurement_type_check(spec: dict, report: ValidationReport) -> None:
             over = set(card_grains) - ceiling
             if over:
                 report.add_error(
-                    f'ENTITY_GRAINS_CEILING: card `{card_id}` advertises entity_grain(s) {sorted(over)} '
-                    f'that its measurement_type `{mtype}` cannot emit (type ceiling = {sorted(ceiling)}, '
-                    f'Rule 5). A card must SELECT a grain within its substrate\'s ceiling — advertising a '
-                    f'coarser/finer grain the substrate can\'t produce is a false capability claim (the '
-                    f'runtime returns data_unavailable for it). Drop the grain or widen the type\'s '
-                    f'entity_grains in vocabularies/measurement_types.yaml.'
+                    f"ENTITY_GRAINS_CEILING: card `{card_id}` advertises entity_grain(s) {sorted(over)} "
+                    f"that its measurement_type `{mtype}` cannot emit (type ceiling = {sorted(ceiling)}, "
+                    f"Rule 5). A card must SELECT a grain within its substrate's ceiling — advertising a "
+                    f"coarser/finer grain the substrate can't produce is a false capability claim (the "
+                    f"runtime returns data_unavailable for it). Drop the grain or widen the type's "
+                    f"entity_grains in vocabularies/measurement_types.yaml."
                 )
 
 
@@ -868,21 +875,22 @@ def _sample_context_check(spec: dict, report: ValidationReport) -> None:
     A card that declares BOTH and disagrees is a real defect (the skill's per-modality grouping would
     bucket it wrong). No sample_context → nothing to check (optional field). No measurement_type, or a
     prefix not in the map → skip (can't infer the expected context)."""
-    ctx = spec.get('sample_context')
+    ctx = spec.get("sample_context")
     if ctx is None:
         return
-    card_id = spec.get('card_id', '<unknown>')
-    mtype = spec.get('measurement_type')
+    card_id = spec.get("card_id", "<unknown>")
+    mtype = spec.get("measurement_type")
     if not mtype:
         return
     for prefix, expected in _MEASUREMENT_TYPE_CONTEXT_PREFIX.items():
         if mtype.startswith(prefix):
             if ctx != expected:
                 report.add_error(
-                    f'SAMPLE_CONTEXT_MISMATCH: card `{card_id}` declares sample_context `{ctx}` but '
-                    f'its measurement_type `{mtype}` implies `{expected}` (prefix `{prefix}`). The two '
-                    f'axes are orthogonal in general, but the type already fixes the sample context — '
-                    f'a disagreement would mis-bucket the per-modality sub-verdict. Fix one.')
+                    f"SAMPLE_CONTEXT_MISMATCH: card `{card_id}` declares sample_context `{ctx}` but "
+                    f"its measurement_type `{mtype}` implies `{expected}` (prefix `{prefix}`). The two "
+                    f"axes are orthogonal in general, but the type already fixes the sample context — "
+                    f"a disagreement would mis-bucket the per-modality sub-verdict. Fix one."
+                )
             return
 
 
@@ -905,37 +913,41 @@ def _modality_relevance_check(spec: dict, report: ValidationReport) -> None:
         WARNING (the card claims a lens the type's routing doesn't list — likely drift).
     Migration-safe: no measurement_type on the card, or vocab absent → graceful skip (the
     measurement_type check already warns on the missing-type case)."""
-    card_id = spec.get('card_id', '<unknown>')
-    mtype = spec.get('measurement_type')
+    card_id = spec.get("card_id", "<unknown>")
+    mtype = spec.get("measurement_type")
     if not mtype:
         return
     relevant = _modality_relevant_types()
     if relevant is None:
         return  # vocab absent — graceful skip
-    card_mr = spec.get('modality_relevance')
+    card_mr = spec.get("modality_relevance")
     if mtype in relevant and not card_mr:
         report.add_warning(
-            f'MODALITY_RELEVANCE_MISSING: card `{card_id}` has measurement_type `{mtype}`, which is '
-            f'declared modality-relevant in vocabularies/measurement_types.yaml. Consider adding an '
-            f'ADVISORY `modality_relevance: [...]` annotation naming the modality-fit gate(s) this '
-            f'card informs. NOTE: this is documentation only — evidence routing is driven by the '
-            f'per-rule signals{{}} dict, not this field, so omitting it does NOT strand the card.')
+            f"MODALITY_RELEVANCE_MISSING: card `{card_id}` has measurement_type `{mtype}`, which is "
+            f"declared modality-relevant in vocabularies/measurement_types.yaml. Consider adding an "
+            f"ADVISORY `modality_relevance: [...]` annotation naming the modality-fit gate(s) this "
+            f"card informs. NOTE: this is documentation only — evidence routing is driven by the "
+            f"per-rule signals{{}} dict, not this field, so omitting it does NOT strand the card."
+        )
         return
     # optional consistency: card's declared lenses should be within the type's routing set
     if mtype in relevant and card_mr:
         try:
             with _MEASUREMENT_TYPES_PATH.open() as f:
-                type_mr = set((yaml.safe_load(f) or {}).get('measurement_types', {})
-                              .get(mtype, {}).get('modality_relevance') or [])
+                type_mr = set(
+                    (yaml.safe_load(f) or {}).get("measurement_types", {}).get(mtype, {}).get("modality_relevance")
+                    or []
+                )
         except (OSError, yaml.YAMLError):
             type_mr = set()
         extra = set(card_mr) - type_mr if type_mr else set()
         if extra:
             report.add_warning(
-                f'MODALITY_RELEVANCE_DRIFT: card `{card_id}` declares modality_relevance lens(es) '
-                f'{sorted(extra)} not in its measurement_type `{mtype}` routing set {sorted(type_mr)}. '
-                f'The card claims a modality gate the type does not route to — align the card + the '
-                f'vocab entry.')
+                f"MODALITY_RELEVANCE_DRIFT: card `{card_id}` declares modality_relevance lens(es) "
+                f"{sorted(extra)} not in its measurement_type `{mtype}` routing set {sorted(type_mr)}. "
+                f"The card claims a modality gate the type does not route to — align the card + the "
+                f"vocab entry."
+            )
 
     # DECLARED-RELEVANT-BUT-MUTE (2026-08-06 — the P4-deferred governance cross-check). The field
     # modality_relevance is DECLARATION metadata; the ACTUAL router is the per-rule signals{} dict.
@@ -949,16 +961,17 @@ def _modality_relevance_check(spec: dict, report: ValidationReport) -> None:
     if mtype in relevant and card_mr:
         sig_map = _card_modality_signals()
         if sig_map is not None and card_id in sig_map:
-            emitted = sig_map[card_id]                       # modalities this card's rules actually emit
+            emitted = sig_map[card_id]  # modalities this card's rules actually emit
             mute = [m for m in card_mr if m not in emitted]  # declared lenses with no signal-carrying rule
             if mute:
                 report.add_warning(
-                    f'MODALITY_RELEVANCE_MUTE: card `{card_id}` declares modality_relevance {sorted(card_mr)} '
-                    f'but its interpretation rules emit signals only for {sorted(emitted) or "no modality"}; '
-                    f'lens(es) {sorted(mute)} are DECLARED-RELEVANT-BUT-MUTE — no rule carries that '
-                    f'modality\'s signal, so the card\'s evidence cannot route to that modality gate '
-                    f'(the real router is the per-rule signals{{}} dict, not the declaration). Add a rule '
-                    f'emitting the {sorted(mute)} signal, or drop the lens from modality_relevance.')
+                    f"MODALITY_RELEVANCE_MUTE: card `{card_id}` declares modality_relevance {sorted(card_mr)} "
+                    f"but its interpretation rules emit signals only for {sorted(emitted) or 'no modality'}; "
+                    f"lens(es) {sorted(mute)} are DECLARED-RELEVANT-BUT-MUTE — no rule carries that "
+                    f"modality's signal, so the card's evidence cannot route to that modality gate "
+                    f"(the real router is the per-rule signals{{}} dict, not the declaration). Add a rule "
+                    f"emitting the {sorted(mute)} signal, or drop the lens from modality_relevance."
+                )
 
 
 def _axis_binding_check(spec: dict, report: ValidationReport) -> None:
@@ -970,25 +983,27 @@ def _axis_binding_check(spec: dict, report: ValidationReport) -> None:
     Graceful-skip if the ontology is absent (mid-migration checkout). role:verdict⇒verdict_source is
     enforced by the JSON Schema; not re-checked here."""
     lens_ok = _ontology_axis_shorts()
-    consumed_by = spec.get('consumed_by')
+    consumed_by = spec.get("consumed_by")
     if isinstance(consumed_by, list) and lens_ok is not None:
         valid_lens = lens_ok | _LENS_SENTINELS
         for i, entry in enumerate(consumed_by):
             if not isinstance(entry, dict):
                 continue
-            lens = entry.get('lens')
+            lens = entry.get("lens")
             if lens is not None and lens not in valid_lens:
                 report.add_error(
-                    f'CONSUMED_BY_LENS: consumed_by[{i}].lens {lens!r} is not a question short, '
-                    f'conditioner id, or `self_contained` in target_profiling_axes.yaml')
-    axis_edge = spec.get('axis_edge')
+                    f"CONSUMED_BY_LENS: consumed_by[{i}].lens {lens!r} is not a question short, "
+                    f"conditioner id, or `self_contained` in target_profiling_axes.yaml"
+                )
+    axis_edge = spec.get("axis_edge")
     q_only = _question_shorts_only()
     if isinstance(axis_edge, dict) and q_only is not None:
-        ri = axis_edge.get('reports_into')
+        ri = axis_edge.get("reports_into")
         if ri is not None and ri not in q_only:
             report.add_error(
-                f'AXIS_EDGE_REPORTS_INTO: axis_edge.reports_into {ri!r} is not a question short '
-                f'in target_profiling_axes.yaml')
+                f"AXIS_EDGE_REPORTS_INTO: axis_edge.reports_into {ri!r} is not a question short "
+                f"in target_profiling_axes.yaml"
+            )
 
 
 def validate_card_file(path: str | Path, schema: dict | None = None) -> ValidationReport:
@@ -996,16 +1011,16 @@ def validate_card_file(path: str | Path, schema: dict | None = None) -> Validati
     path = Path(path)
     report = ValidationReport(card_path=str(path))
     if not path.exists():
-        report.add_error(f'FILE_NOT_FOUND: {path}')
+        report.add_error(f"FILE_NOT_FOUND: {path}")
         return report
     try:
         with path.open() as f:
             spec = yaml.safe_load(f)
     except yaml.YAMLError as e:
-        report.add_error(f'YAML_PARSE: {e}')
+        report.add_error(f"YAML_PARSE: {e}")
         return report
     if not isinstance(spec, dict):
-        report.add_error(f'YAML_SHAPE: expected mapping at top level, got {type(spec).__name__}')
+        report.add_error(f"YAML_SHAPE: expected mapping at top level, got {type(spec).__name__}")
         return report
     if schema is None:
         schema = _load_schema()
@@ -1031,20 +1046,20 @@ def validate_directory(dir_path: str | Path) -> list[ValidationReport]:
     dir_path = Path(dir_path)
     schema = _load_schema()
     reports = []
-    for path in sorted(dir_path.rglob('*.card.yaml')):
+    for path in sorted(dir_path.rglob("*.card.yaml")):
         reports.append(validate_card_file(path, schema=schema))
     return reports
 
 
 def _format_report(report: ValidationReport) -> str:
-    lines = [f'  {report.card_path}']
+    lines = [f"  {report.card_path}"]
     for err in report.errors:
-        lines.append(f'    [ERROR]   {err}')
+        lines.append(f"    [ERROR]   {err}")
     for warn in report.warnings:
-        lines.append(f'    [WARNING] {warn}')
+        lines.append(f"    [WARNING] {warn}")
     if report.ok and not report.warnings:
-        lines.append('    [OK]')
-    return '\n'.join(lines)
+        lines.append("    [OK]")
+    return "\n".join(lines)
 
 
 def validate_derived_from_refs(cards_dir: Path) -> list[str]:
@@ -1058,17 +1073,17 @@ def validate_derived_from_refs(cards_dir: Path) -> list[str]:
     card set + the alias map). No-op on an empty/absent dir."""
     cards_dir = Path(cards_dir)
     live: set[str] = set()
-    derived_edges: list[tuple[str, str]] = []   # (referencing_card_id, upstream_card_id)
-    for p in sorted(cards_dir.rglob('*.card.yaml')):
+    derived_edges: list[tuple[str, str]] = []  # (referencing_card_id, upstream_card_id)
+    for p in sorted(cards_dir.rglob("*.card.yaml")):
         try:
             doc = yaml.safe_load(p.read_text()) or {}
         except yaml.YAMLError:
             continue
-        cid = doc.get('card_id')
+        cid = doc.get("card_id")
         if cid:
             live.add(cid)
-        for entry in (doc.get('derived_from') or []):
-            up = (entry or {}).get('card_id') if isinstance(entry, dict) else None
+        for entry in doc.get("derived_from") or []:
+            up = (entry or {}).get("card_id") if isinstance(entry, dict) else None
             if up:
                 derived_edges.append((cid or p.name, up))
     aliases = _card_id_aliases()
@@ -1084,12 +1099,14 @@ def validate_derived_from_refs(cards_dir: Path) -> list[str]:
             problems.append(
                 f"[ERROR] card '{referencing}': derived_from references '{upstream}', a historical alias "
                 f"whose target '{aliased_to}' is not a live card in cards/ (stale alias — fix the alias "
-                f"target or the reference).")
+                f"target or the reference)."
+            )
         else:
             problems.append(
                 f"[ERROR] card '{referencing}': derived_from references '{upstream}' which is neither a "
                 f"live card_id in cards/ nor a historical alias in vocabularies/card_id_aliases.yaml "
-                f"(unresolvable upstream — a composed card cannot read a card that does not exist).")
+                f"(unresolvable upstream — a composed card cannot read a card that does not exist)."
+            )
     return problems
 
 
@@ -1103,24 +1120,25 @@ def validate_verdict_card_summary_schema_coverage(cards_dir: Path) -> list[str]:
     a missing schema with: python validators/gen_summary_schemas.py --only <card>. No-op if the snapshot
     is absent (graceful, mirrors the other sibling/cross-ref checks)."""
     cards_dir = Path(cards_dir)
-    snapshot = cards_dir.parent / 'coverage' / 'card_resolver_consumption.yaml'
-    methods_dir = cards_dir.parent / 'schemas' / 'methods'
+    snapshot = cards_dir.parent / "coverage" / "card_resolver_consumption.yaml"
+    methods_dir = cards_dir.parent / "schemas" / "methods"
     if not snapshot.is_file():
         return []
     try:
-        verdict_cards = (yaml.safe_load(snapshot.read_text()) or {}).get('resolver_consumed_cards') or []
+        verdict_cards = (yaml.safe_load(snapshot.read_text()) or {}).get("resolver_consumed_cards") or []
     except yaml.YAMLError:
         return []
-    existing = {p.name[:-len('.card.yaml')] for p in cards_dir.glob('*.card.yaml')}
+    existing = {p.name[: -len(".card.yaml")] for p in cards_dir.glob("*.card.yaml")}
     problems: list[str] = []
     for c in sorted(verdict_cards):
         if c not in existing:
             continue  # a snapshot entry with no card file is the resolver-consumption validator's concern
-        if not (methods_dir / f'{c}.summary.schema.json').is_file():
+        if not (methods_dir / f"{c}.summary.schema.json").is_file():
             problems.append(
                 f"[ERROR] SUMMARY_SCHEMA_MISSING: verdict-bearing card '{c}' has no "
                 f"schemas/methods/{c}.summary.schema.json (the method->card summary shape contract). "
-                f"Generate it: python validators/gen_summary_schemas.py --only {c}")
+                f"Generate it: python validators/gen_summary_schemas.py --only {c}"
+            )
     return problems
 
 
@@ -1133,39 +1151,41 @@ def validate_dashboard_required_cards(cards_dir: Path) -> list[str]:
     contract should declare them up front). Also warns if a placeholder_cards entry is actually
     status=wired (mislabel). Reads dashboards/ as a sibling of the cards dir; no-op if absent."""
     cards_dir = Path(cards_dir)
-    dashboards_dir = cards_dir.parent / 'dashboards'
+    dashboards_dir = cards_dir.parent / "dashboards"
     if not dashboards_dir.is_dir():
         return []
     status_by_card: dict[str, str] = {}
-    for p in cards_dir.rglob('*.card.yaml'):
+    for p in cards_dir.rglob("*.card.yaml"):
         try:
             doc = yaml.safe_load(p.read_text()) or {}
         except yaml.YAMLError:
             continue
-        cid = doc.get('card_id')
+        cid = doc.get("card_id")
         if cid:
-            status_by_card[cid] = doc.get('status', 'wired')
+            status_by_card[cid] = doc.get("status", "wired")
     problems: list[str] = []
-    for dpath in sorted(dashboards_dir.glob('*.dashboard_spec.yaml')):
+    for dpath in sorted(dashboards_dir.glob("*.dashboard_spec.yaml")):
         try:
             dash = yaml.safe_load(dpath.read_text()) or {}
         except yaml.YAMLError:
             continue
-        did = dash.get('dashboard_id', dpath.name)
-        for entry in (dash.get('required_cards') or []):
-            cid = (entry or {}).get('card_id')
-            st = status_by_card.get(cid, 'wired')
-            if st != 'wired':
+        did = dash.get("dashboard_id", dpath.name)
+        for entry in dash.get("required_cards") or []:
+            cid = (entry or {}).get("card_id")
+            st = status_by_card.get(cid, "wired")
+            if st != "wired":
                 problems.append(
                     f"[ERROR] {did}: required_cards references '{cid}' whose card.status is "
-                    f"'{st}' (not wired) — move it to placeholder_cards (required_cards must produce).")
-        for entry in (dash.get('placeholder_cards') or []):
-            cid = (entry or {}).get('card_id')
-            st = status_by_card.get(cid, 'wired')
-            if cid in status_by_card and st == 'wired':
+                    f"'{st}' (not wired) — move it to placeholder_cards (required_cards must produce)."
+                )
+        for entry in dash.get("placeholder_cards") or []:
+            cid = (entry or {}).get("card_id")
+            st = status_by_card.get(cid, "wired")
+            if cid in status_by_card and st == "wired":
                 problems.append(
                     f"[WARNING] {did}: placeholder_cards lists '{cid}' but its card.status is 'wired' "
-                    f"— a wired card belongs in required_cards/optional_cards.")
+                    f"— a wired card belongs in required_cards/optional_cards."
+                )
     return problems
 
 
@@ -1178,22 +1198,22 @@ def validate_modality_module_card_refs(cards_dir: Path) -> list[str]:
     dormant_pending_data (the modality_module schema explicitly allows aspirational data-blocked cards),
     so status is NOT enforced here — only existence of a contract. No-op if the modules dir is absent."""
     cards_dir = Path(cards_dir)
-    modules_dir = cards_dir.parent / 'dashboards' / 'modality-modules'
+    modules_dir = cards_dir.parent / "dashboards" / "modality-modules"
     if not modules_dir.is_dir():
         return []
     real: set[str] = set()
-    for p in cards_dir.rglob('*.card.yaml'):
+    for p in cards_dir.rglob("*.card.yaml"):
         try:
             d = yaml.safe_load(p.read_text()) or {}
         except yaml.YAMLError:
             continue
-        if d.get('card_id'):
-            real.add(d['card_id'])
+        if d.get("card_id"):
+            real.add(d["card_id"])
 
     def _card_ids(node) -> set[str]:
         out: set[str] = set()
         if isinstance(node, dict):
-            cid = node.get('card_id')
+            cid = node.get("card_id")
             if isinstance(cid, str):
                 out.add(cid)
             for v in node.values():
@@ -1204,33 +1224,30 @@ def validate_modality_module_card_refs(cards_dir: Path) -> list[str]:
         return out
 
     problems: list[str] = []
-    for mp in sorted(modules_dir.glob('*.module.yaml')):
+    for mp in sorted(modules_dir.glob("*.module.yaml")):
         try:
             m = yaml.safe_load(mp.read_text()) or {}
         except yaml.YAMLError:
             continue
-        mid = m.get('modality_module', mp.name)
+        mid = m.get("modality_module", mp.name)
         for cid in sorted(_card_ids(m)):
             if cid not in real:
                 problems.append(
                     f"[ERROR] modality-module '{mid}': references card '{cid}' which has no card "
-                    f"contract in cards/ (phantom reference — create a card spec or fix the id).")
+                    f"contract in cards/ (phantom reference — create a card spec or fix the id)."
+                )
     return problems
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description='Validate iter-1 card_spec YAML files against card.schema.json + cross-reference rules.'
+        description="Validate iter-1 card_spec YAML files against card.schema.json + cross-reference rules."
     )
     parser.add_argument(
-        'path',
-        help='Path to a single card_spec YAML file, or a directory containing *.card.yaml files (searched recursively).'
+        "path",
+        help="Path to a single card_spec YAML file, or a directory containing *.card.yaml files (searched recursively).",
     )
-    parser.add_argument(
-        '--strict-warnings',
-        action='store_true',
-        help='Treat warnings as errors (CI mode).'
-    )
+    parser.add_argument("--strict-warnings", action="store_true", help="Treat warnings as errors (CI mode).")
     args = parser.parse_args(argv)
     target = Path(args.path)
 
@@ -1239,7 +1256,7 @@ def main(argv: list[str] | None = None) -> int:
     else:
         reports = [validate_card_file(target)]
 
-    print('validate_cards.py results:')
+    print("validate_cards.py results:")
     n_ok, n_err, n_warn = 0, 0, 0
     for r in reports:
         print(_format_report(r))
@@ -1250,21 +1267,27 @@ def main(argv: list[str] | None = None) -> int:
         if r.warnings:
             n_warn += 1
     print()
-    print(f'Summary: {len(reports)} card_spec(s); {n_ok} clean, {n_err} with errors, {n_warn} with warnings.')
+    print(f"Summary: {len(reports)} card_spec(s); {n_ok} clean, {n_err} with errors, {n_warn} with warnings.")
 
     # Dashboard required_cards ↔ card.status cross-check (2026-08-12): a non-wired card in required_cards
     # is an error (belongs in placeholder_cards). Runs only for a directory target (needs the card set).
-    dashboard_problems = (validate_dashboard_required_cards(target)
-                          + validate_modality_module_card_refs(target)
-                          + validate_derived_from_refs(target)
-                          + validate_verdict_card_summary_schema_coverage(target)) if target.is_dir() else []
-    dash_errors = [p for p in dashboard_problems if p.startswith('[ERROR]')]
-    dash_warnings = [p for p in dashboard_problems if p.startswith('[WARNING]')]
+    dashboard_problems = (
+        (
+            validate_dashboard_required_cards(target)
+            + validate_modality_module_card_refs(target)
+            + validate_derived_from_refs(target)
+            + validate_verdict_card_summary_schema_coverage(target)
+        )
+        if target.is_dir()
+        else []
+    )
+    dash_errors = [p for p in dashboard_problems if p.startswith("[ERROR]")]
+    dash_warnings = [p for p in dashboard_problems if p.startswith("[WARNING]")]
     if dashboard_problems:
         print()
-        print('Cross-card checks (required_cards<->status, modality-module refs, derived_from reachability):')
+        print("Cross-card checks (required_cards<->status, modality-module refs, derived_from reachability):")
         for p in dashboard_problems:
-            print(f'  {p}')
+            print(f"  {p}")
 
     if any(not r.ok for r in reports) or dash_errors:
         return 1
@@ -1273,5 +1296,5 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

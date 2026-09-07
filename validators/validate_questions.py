@@ -18,6 +18,7 @@ Usage:
   python validators/validate_questions.py                 # all skills' questions.yaml (+ resolution)
   python validators/validate_questions.py path/to/questions.yaml ...
 """
+
 from __future__ import annotations
 
 import argparse
@@ -32,13 +33,16 @@ from jsonschema import Draft202012Validator
 REPO = Path(__file__).resolve().parent.parent
 SCHEMA_PATH = REPO / "schemas" / "questions.schema.json"
 CARDS_DIR = REPO / "cards"
-SKILLS_REPO = Path(os.environ.get(
-    "CLAUDE_ONCOLOGY_SKILLS_ROOT",
-    "/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills"))
+SKILLS_REPO = Path(
+    os.environ.get(
+        "CLAUDE_ONCOLOGY_SKILLS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills"
+    )
+)
 
 
 def _load_schema() -> dict:
     import json
+
     return json.loads(SCHEMA_PATH.read_text())
 
 
@@ -66,10 +70,10 @@ def validate_questions_file(path: Path, schema: dict, valid_mts: set) -> list:
         errs.append(f"STRUCTURAL [{loc}]: {e.message}")
     # cross-ref: every declared measurement_type resolves to a real card (skip if cards absent)
     if valid_mts:
-        for q in (doc.get("questions") or []):
+        for q in doc.get("questions") or []:
             if not isinstance(q, dict):
                 continue
-            for mt in (q.get("measurement_types") or []):
+            for mt in q.get("measurement_types") or []:
                 if mt not in valid_mts:
                     errs.append(f"UNRESOLVED [{q.get('id')}]: measurement_type '{mt}' matches no card contract")
     return errs
@@ -89,8 +93,11 @@ def main(argv: list | None = None) -> int:
         pattern = str(SKILLS_REPO / "skills" / "*" / "questions.yaml")
         targets = sorted(Path(p) for p in glob.glob(pattern))
         if not targets:
-            print(f"⚠ no questions.yaml found under {SKILLS_REPO} — skipping (sibling repo absent). "
-                  f"Schema well-formedness OK.", file=sys.stderr)
+            print(
+                f"⚠ no questions.yaml found under {SKILLS_REPO} — skipping (sibling repo absent). "
+                f"Schema well-formedness OK.",
+                file=sys.stderr,
+            )
             return 0
 
     valid_mts = _card_measurement_types()

@@ -1,4 +1,5 @@
 """The committed framework_atlas.json must be internally self-consistent (CI-safe, no siblings)."""
+
 from _util import builder, load_committed
 
 

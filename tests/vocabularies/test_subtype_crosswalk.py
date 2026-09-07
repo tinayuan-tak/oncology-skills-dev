@@ -7,6 +7,7 @@ Asserts the registry is well-formed and STAYS IN SYNC with the data-catalog subg
 - cohort tokens are from the known data-source set.
 The catalog-sync check is skipped gracefully if the sibling data-catalog repo isn't on disk.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -49,12 +50,15 @@ def test_associations_reference_declared_strata_and_valid_relationships():
     for ind in doc["indications"]:
         declared = {s for ax in ind["axes"] for s in ax["strata"]}
         for assoc in ind.get("associations", []) or []:
-            assert assoc["relationship"] in _REL_TYPES, \
+            assert assoc["relationship"] in _REL_TYPES, (
                 f"{ind['canonical_code']}: bad relationship {assoc['relationship']!r}"
-            assert assoc["from"] in declared, \
+            )
+            assert assoc["from"] in declared, (
                 f"{ind['canonical_code']}: association 'from' {assoc['from']!r} not a declared stratum"
-            assert assoc["to"] in declared, \
+            )
+            assert assoc["to"] in declared, (
                 f"{ind['canonical_code']}: association 'to' {assoc['to']!r} not a declared stratum"
+            )
 
 
 def test_no_stratum_id_duplicated_across_axes_within_indication():
@@ -63,8 +67,7 @@ def test_no_stratum_id_duplicated_across_axes_within_indication():
         seen = {}
         for ax in ind["axes"]:
             for s in ax["strata"]:
-                assert s not in seen, \
-                    f"{ind['canonical_code']}: stratum {s!r} in both {seen.get(s)} and {ax['axis']}"
+                assert s not in seen, f"{ind['canonical_code']}: stratum {s!r} in both {seen.get(s)} and {ax['axis']}"
                 seen[s] = ax["axis"]
 
 
@@ -74,6 +77,7 @@ def test_registry_strata_exist_in_catalog():
     registry from drifting into phantom ids). A registry id absent from the catalog = a stale entry."""
     doc = _load()
     import glob
+
     for ind in doc["indications"]:
         code = ind["canonical_code"]
         cat_files = glob.glob(str(DATA_CATALOG / "subgroup-catalogs" / code / "*.yaml"))
@@ -83,5 +87,4 @@ def test_registry_strata_exist_in_catalog():
         catalog_ids = {s["id"] for s in cat.get("atomic_strata", [])}
         for ax in ind["axes"]:
             for s in ax["strata"]:
-                assert s in catalog_ids, \
-                    f"{code}: registry stratum {s!r} ({ax['axis']}) not in catalog {cat_files[0]}"
+                assert s in catalog_ids, f"{code}: registry stratum {s!r} ({ax['axis']}) not in catalog {cat_files[0]}"

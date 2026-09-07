@@ -28,9 +28,7 @@ def test_every_product_declares_core_artifact_path_template():
 def test_template_uses_core_artifacts_prefix():
     for p in PRODUCTS:
         t = p["core_artifact_path_template"]
-        assert t.startswith("s3://onc-compbio/core-artifacts/"), (
-            f"{p['id']}: unexpected prefix {t!r}"
-        )
+        assert t.startswith("s3://onc-compbio/core-artifacts/"), f"{p['id']}: unexpected prefix {t!r}"
         assert t.endswith(".evidence.json"), f"{p['id']}: must end .evidence.json ({t!r})"
         assert "{gene}" in t, f"{p['id']}: template must include {{gene}} token ({t!r})"
 
@@ -49,9 +47,7 @@ def test_pan_cancer_products_use_PAN_CANCER_sentinel():
     for p in PRODUCTS:
         if p.get("indication_scope") == "pan_cancer":
             t = p["core_artifact_path_template"]
-            assert "/PAN_CANCER/all/" in t, (
-                f"{p['id']}: pan_cancer product must path under /PAN_CANCER/all/ ({t!r})"
-            )
+            assert "/PAN_CANCER/all/" in t, f"{p['id']}: pan_cancer product must path under /PAN_CANCER/all/ ({t!r})"
 
 
 def test_indication_scoped_products_use_INDICATION_token():
@@ -60,15 +56,11 @@ def test_indication_scoped_products_use_INDICATION_token():
     for p in PRODUCTS:
         if p.get("indication_scope") in scoped:
             t = p["core_artifact_path_template"]
-            assert "{INDICATION}" in t, (
-                f"{p['id']}: indication-scoped product must keep {{INDICATION}} token ({t!r})"
-            )
+            assert "{INDICATION}" in t, f"{p['id']}: indication-scoped product must keep {{INDICATION}} token ({t!r})"
 
 
 def test_dimension_appears_in_template_path():
     """The dimension segment must match the product's declared dimension."""
     for p in PRODUCTS:
         t = p["core_artifact_path_template"]
-        assert f"/{p['dimension']}/" in t, (
-            f"{p['id']}: dimension {p['dimension']!r} not in path ({t!r})"
-        )
+        assert f"/{p['dimension']}/" in t, f"{p['id']}: dimension {p['dimension']!r} not in path ({t!r})"

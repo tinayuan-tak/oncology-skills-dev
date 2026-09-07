@@ -42,7 +42,9 @@ import yaml
 
 REPO = Path(__file__).resolve().parent.parent
 COVERAGE_DIR = REPO / "coverage"
-DEFAULT_CATALOG_REPO = Path(os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"))
+DEFAULT_CATALOG_REPO = Path(
+    os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
+)
 # Where locally-emitted products live (session cache). Phase-2b/c will add the
 # published-manifest path; the generator reads whichever is present.
 DEFAULT_PRODUCTS_ROOT = Path.home() / ".cache" / "framework-subgroup-pipeline" / "subgroup-assignments"
@@ -127,10 +129,15 @@ def build_matrix(indication: str, catalog_repo: Path, products_root: Path) -> di
             else:
                 status = "data_blocked"
                 n = None
-            rows.append({
-                "stratum": sid, "data_source": src, "status": status,
-                "n_samples": n, "subtype_defining_data": stratum.get("subtype_defining_data"),
-            })
+            rows.append(
+                {
+                    "stratum": sid,
+                    "data_source": src,
+                    "status": status,
+                    "n_samples": n,
+                    "subtype_defining_data": stratum.get("subtype_defining_data"),
+                }
+            )
 
     return {
         "indication": indication,
@@ -155,8 +162,9 @@ def main(argv=None) -> int:
     parser.add_argument("--all", action="store_true", help="every catalog under the catalog repo")
     parser.add_argument("--catalog-repo", type=Path, default=DEFAULT_CATALOG_REPO)
     parser.add_argument("--products-root", type=Path, default=DEFAULT_PRODUCTS_ROOT)
-    parser.add_argument("--check", action="store_true",
-                        help="fail if the committed matrix differs from freshly computed")
+    parser.add_argument(
+        "--check", action="store_true", help="fail if the committed matrix differs from freshly computed"
+    )
     args = parser.parse_args(argv)
 
     if args.all:

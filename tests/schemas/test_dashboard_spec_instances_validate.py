@@ -9,6 +9,7 @@ on disk validates, so cap-drift (or any other schema violation) fails a PR forev
 
 Companion: the CI wiring adds this test's directory to the workflow.
 """
+
 import json
 from pathlib import Path
 
@@ -40,8 +41,7 @@ def test_dashboard_spec_validates(spec_path):
 def test_largest_spec_exceeds_old_cap():
     """Regression anchor: at least one shipped spec has >20 required_cards (the old cap),
     proving the raised cap is load-bearing and this test would have caught the original bug."""
-    max_required = max(len(yaml.safe_load(p.read_text()).get("required_cards", []))
-                       for p in DASHBOARD_SPECS)
+    max_required = max(len(yaml.safe_load(p.read_text()).get("required_cards", [])) for p in DASHBOARD_SPECS)
     assert max_required > 20, (
         "no spec exceeds the old cap of 20 — if specs shrank, this anchor can be removed; "
         f"observed max required_cards = {max_required}"

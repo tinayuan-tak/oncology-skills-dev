@@ -63,6 +63,7 @@ SCHEMA_PATH = Path(__file__).resolve().parent.parent / "schemas" / "interpretati
 @dataclass
 class ValidationReport:
     """Result of validating one rules file. errors block CI; warnings are advisory."""
+
     rules_file: Path
     errors: list[str] = dc_field(default_factory=list)
     warnings: list[str] = dc_field(default_factory=list)
@@ -81,7 +82,7 @@ def _load_yaml(path: Path) -> dict:
 def _build_card_index(cards_dir: Path) -> dict[str, dict]:
     """Load every *.card.yaml in cards_dir, index by card_id. Reused across rules."""
     idx = {}
-    for card_path in sorted(cards_dir.rglob("*.card.yaml")):   # recursive — parity with validate_cards.py (C2)
+    for card_path in sorted(cards_dir.rglob("*.card.yaml")):  # recursive — parity with validate_cards.py (C2)
         try:
             spec = _load_yaml(card_path)
         except Exception as e:
@@ -262,8 +263,7 @@ def validate_rules_file(rules_path: Path, cards_dir: Path) -> ValidationReport:
         # Check 2: card_id reachable?
         if card_id not in card_idx:
             report.errors.append(
-                f"[{rule_id}] references card_id={card_id!r} but no card_spec at "
-                f"{cards_dir}/{card_id}.card.yaml"
+                f"[{rule_id}] references card_id={card_id!r} but no card_spec at {cards_dir}/{card_id}.card.yaml"
             )
             continue
 
@@ -274,7 +274,7 @@ def validate_rules_file(rules_path: Path, cards_dir: Path) -> ValidationReport:
             report.errors.append(
                 f"[{rule_id}] references field={field_name!r} on card={card_id!r} "
                 f"but card's outputs.summary_fields does not include it. "
-                f"Card emits: {(card_spec.get('outputs',{}) or {}).get('summary_fields',[])}"
+                f"Card emits: {(card_spec.get('outputs', {}) or {}).get('summary_fields', [])}"
             )
             continue
 
@@ -284,8 +284,7 @@ def validate_rules_file(rules_path: Path, cards_dir: Path) -> ValidationReport:
         # summary_fields_vocabulary) doesn't apply. Verify the matched keys exist
         # in the field's summary_fields_record_schemas instead.
         if in_record is not None:
-            record_schemas = (card_spec.get("outputs", {}) or {}).get(
-                "summary_fields_record_schemas", {}) or {}
+            record_schemas = (card_spec.get("outputs", {}) or {}).get("summary_fields_record_schemas", {}) or {}
             rec_schema = record_schemas.get(field_name)
             if rec_schema is None:
                 report.errors.append(
@@ -341,8 +340,7 @@ def validate_rules_file(rules_path: Path, cards_dir: Path) -> ValidationReport:
         emits_killer = any(s == "killer" for s in signals.values())
         if emits_killer and not rule.get("killer_message"):
             report.errors.append(
-                f"[{rule_id}] emits a killer signal but has no killer_message. "
-                f"Required by schema; double-checked here."
+                f"[{rule_id}] emits a killer signal but has no killer_message. Required by schema; double-checked here."
             )
 
     return report
@@ -350,8 +348,10 @@ def validate_rules_file(rules_path: Path, cards_dir: Path) -> ValidationReport:
 
 def _print_report(report: ValidationReport, verbose: bool = False) -> None:
     status = "✓" if report.ok else "✗"
-    print(f"{status} {report.rules_file.name}: {report.rules_checked} rules, "
-          f"{len(report.errors)} errors, {len(report.warnings)} warnings")
+    print(
+        f"{status} {report.rules_file.name}: {report.rules_checked} rules, "
+        f"{len(report.errors)} errors, {len(report.warnings)} warnings"
+    )
     for err in report.errors:
         print(f"  ERROR: {err}")
     if verbose or report.errors:
@@ -361,12 +361,13 @@ def _print_report(report: ValidationReport, verbose: bool = False) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Validate Tier-2 interpretation-rules files.")
-    parser.add_argument("--rules", required=True, type=Path,
-                         help="Path to a *.rules.yaml file OR a directory of rules files.")
-    parser.add_argument("--cards", required=True, type=Path,
-                         help="Path to target-contracts/cards/ (directory of *.card.yaml).")
-    parser.add_argument("-v", "--verbose", action="store_true",
-                         help="Show warnings even when no errors.")
+    parser.add_argument(
+        "--rules", required=True, type=Path, help="Path to a *.rules.yaml file OR a directory of rules files."
+    )
+    parser.add_argument(
+        "--cards", required=True, type=Path, help="Path to target-contracts/cards/ (directory of *.card.yaml)."
+    )
+    parser.add_argument("-v", "--verbose", action="store_true", help="Show warnings even when no errors.")
     args = parser.parse_args(argv)
 
     rules_path = args.rules

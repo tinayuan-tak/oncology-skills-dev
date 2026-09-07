@@ -32,6 +32,7 @@ CLI:
       --schema schemas/claim_record.schema.json \
       --examples docs/design/examples/ --resolvers resolvers/
 """
+
 from __future__ import annotations
 
 import argparse
@@ -66,8 +67,7 @@ class ClaimRecordReport:
         self.warnings.append(m)
 
 
-def _invariants(rec: dict, where: str, emitted: dict[str, set[str]],
-                report: ClaimRecordReport) -> None:
+def _invariants(rec: dict, where: str, emitted: dict[str, set[str]], report: ClaimRecordReport) -> None:
     """Apply the four cross-field invariants to one already-schema-valid record."""
     axis = rec.get("axis")
     finding = rec.get("finding", {})
@@ -81,18 +81,21 @@ def _invariants(rec: dict, where: str, emitted: dict[str, set[str]],
         if state != _UNKNOWN_STATE:
             report.add_error(
                 f"{where}: OPEN_WORLD_STATE — availability={availability!r} is open-world so "
-                f"finding.state must be {_UNKNOWN_STATE!r}, got {state!r} (ignorance != negation).")
+                f"finding.state must be {_UNKNOWN_STATE!r}, got {state!r} (ignorance != negation)."
+            )
         if direction != "neutral":
             report.add_error(
                 f"{where}: OPEN_WORLD_DIRECTION — availability={availability!r} is open-world so "
                 f"finding.direction must be 'neutral', got {direction!r} (a not_wired record "
-                f"cannot carry a valence).")
+                f"cannot carry a valence)."
+            )
 
     # B. no bare numbers.
     if mag.get("value") is not None and mag.get("scale") is None:
         report.add_error(
             f"{where}: BARE_NUMBER — magnitude.value={mag.get('value')!r} is set but "
-            f"magnitude.scale is null (a measured value must name its unit/scale).")
+            f"magnitude.scale is null (a measured value must name its unit/scale)."
+        )
 
     # E. M2 render-equivalence anchor: a MEASURED finding renders to its own state (the token survives
     #    as a field), so provenance.legacy_verdict — when present — must equal a non-'unknown' state.
@@ -102,7 +105,8 @@ def _invariants(rec: dict, where: str, emitted: dict[str, set[str]],
     if legacy is not None and state != _UNKNOWN_STATE and legacy != state:
         report.add_error(
             f"{where}: LEGACY_VERDICT — finding.state={state!r} is measured (not 'unknown') so "
-            f"provenance.legacy_verdict must equal it, got {legacy!r} (render-equivalence would break).")
+            f"provenance.legacy_verdict must equal it, got {legacy!r} (render-equivalence would break)."
+        )
 
     # C. finding.state membership in the axis resolver's emitted verdict set.
     if state != _UNKNOWN_STATE:
@@ -112,7 +116,8 @@ def _invariants(rec: dict, where: str, emitted: dict[str, set[str]],
         elif state not in verdicts:
             report.add_error(
                 f"{where}: UNKNOWN_STATE — finding.state={state!r} is not a verdict resolver "
-                f"`{axis}` emits (emits: {sorted(verdicts)}).")
+                f"`{axis}` emits (emits: {sorted(verdicts)})."
+            )
 
     # D. certainty.level must not EXCEED the ordinal min(coverage, corroboration) — DOWNGRADE-ONLY.
     # corroboration is the ordinal {low,medium,high,unmeasured} the shipped CERTAINTY_MODEL hooks emit;
@@ -122,18 +127,20 @@ def _invariants(rec: dict, where: str, emitted: dict[str, set[str]],
     # without false-failing a valid downgrade.
     cert = rec.get("certainty", {})
     level, coverage, corrob = cert.get("level"), cert.get("coverage"), cert.get("corroboration")
-    measured = [x for x in (coverage, corrob) if x in _CERT_ORD]   # 'unmeasured' excluded
+    measured = [x for x in (coverage, corrob) if x in _CERT_ORD]  # 'unmeasured' excluded
     if level in _CERT_ORD and measured:
         ceiling = min(measured, key=lambda x: _CERT_ORD[x])
         if _CERT_ORD[level] > _CERT_ORD[ceiling]:
             report.add_error(
                 f"{where}: CERTAINTY_LEVEL — level={level!r} EXCEEDS min(coverage={coverage!r}, "
                 f"corroboration={corrob!r})={ceiling!r} (certainty is downgrade-only; a strong level "
-                f"cannot outrank its weakest measured component).")
+                f"cannot outrank its weakest measured component)."
+            )
 
 
-def validate_record(rec: dict, where: str, schema: dict, validator_cls,
-                    emitted: dict[str, set[str]], report: ClaimRecordReport) -> None:
+def validate_record(
+    rec: dict, where: str, schema: dict, validator_cls, emitted: dict[str, set[str]], report: ClaimRecordReport
+) -> None:
     """Schema-validate one record, then (only if schema-clean) apply the invariants."""
     schema_errors = sorted(validator_cls(schema).iter_errors(rec), key=lambda e: e.path)
     if schema_errors:
@@ -160,6 +167,7 @@ def validate(schema_path: Path, examples_dir: Path, resolvers_dir: Path) -> Clai
         return report
     try:
         from jsonschema import Draft202012Validator as validator_cls
+
         validator_cls.check_schema(schema)
     except Exception as e:  # noqa: BLE001 — surface any schema-meta or import problem as one error
         report.add_error(f"SCHEMA_META: {schema_path} is not a valid Draft 2020-12 schema: {e}")
@@ -173,7 +181,8 @@ def validate(schema_path: Path, examples_dir: Path, resolvers_dir: Path) -> Clai
     if not files:
         report.add_error(
             f"NO_EXAMPLES: no claim_record.*.yaml under {examples_dir}. M0 requires at least one "
-            f"hand-authored example so the schema is exercised.")
+            f"hand-authored example so the schema is exercised."
+        )
         return report
 
     for fp in files:
@@ -192,7 +201,8 @@ def validate(schema_path: Path, examples_dir: Path, resolvers_dir: Path) -> Clai
     for axis in sorted(report.unchecked_axes):
         report.add_warning(
             f"UNCHECKED axis `{axis}`: no resolver emits verdicts for it (no-resolver inline axis) — "
-            f"finding.state enum NOT checked (invariant C skipped for this axis).")
+            f"finding.state enum NOT checked (invariant C skipped for this axis)."
+        )
     return report
 
 

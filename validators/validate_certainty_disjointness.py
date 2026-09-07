@@ -20,6 +20,7 @@ Usage:
     python validators/validate_certainty_disjointness.py
     python validators/validate_certainty_disjointness.py --contracts-root .
 """
+
 from __future__ import annotations
 
 import argparse
@@ -91,7 +92,8 @@ def validate(contracts_root: Path) -> list[str]:
                 errors.append(
                     f"[{gate}] no resolver at {resolver_path} AND no verdict_precedence_augment[{gate}] — "
                     f"an inline-verdict (no-resolver) gate MUST declare its verdict-precedence cards under "
-                    f"verdict_precedence_augment so disjointness is checkable.")
+                    f"verdict_precedence_augment so disjointness is checkable."
+                )
                 continue
             verdict_cards = set(aug)
         else:
@@ -108,7 +110,8 @@ def validate(contracts_root: Path) -> list[str]:
                 f"[{gate}] DISJOINTNESS VIOLATION: corroboration card(s) {sorted(overlap)} ALSO drive the "
                 f"verdict (they back a rule_id in {gate}.resolver.yaml's ladder). A corroboration source "
                 f"must be verdict-disjoint (CERTAINTY_MODEL §2) — else certainty double-counts the verdict. "
-                f"Move the verdict-disjoint signal here, or drop this card from corroboration_by_gate.")
+                f"Move the verdict-disjoint signal here, or drop this card from corroboration_by_gate."
+            )
     return errors
 
 

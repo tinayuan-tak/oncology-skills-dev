@@ -41,7 +41,9 @@ import yaml
 from jsonschema import Draft202012Validator
 
 SCHEMA_PATH = Path(__file__).resolve().parent.parent / "schemas" / "subgroup_assignment.schema.json"
-DEFAULT_CATALOG_REPO = Path(os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"))
+DEFAULT_CATALOG_REPO = Path(
+    os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
+)
 
 # data_source → catalog expected_n_* field suffix. The COADREAD catalog carries
 # expected_n_tcga_coadread etc.; DepMap uses expected_n_depmap. Divergence beyond
@@ -120,8 +122,7 @@ def _check_strata_vs_catalog(manifest: dict, catalog: dict, report: ValidationRe
         sid = row["subgroup_id"]
         if sid not in atomic:
             report.add_error(
-                f"strata_summary references '{sid}' which is not an atomic_stratum in "
-                f"catalog {catalog.get('id')}."
+                f"strata_summary references '{sid}' which is not an atomic_stratum in catalog {catalog.get('id')}."
             )
             continue
         stratum = atomic[sid]
@@ -131,7 +132,7 @@ def _check_strata_vs_catalog(manifest: dict, catalog: dict, report: ValidationRe
         got = row["n_samples"]
         if got == 0 or abs(got - expected) > _EXPECTED_N_TOLERANCE * expected:
             report.add_warning(
-                f"stratum '{sid}': emitted n={got} diverges >{int(_EXPECTED_N_TOLERANCE*100)}% "
+                f"stratum '{sid}': emitted n={got} diverges >{int(_EXPECTED_N_TOLERANCE * 100)}% "
                 f"from catalog {exp_fields[0]}={expected}. Possible join loss, wrong-lineage "
                 f"shard, or stale catalog estimate — verify."
             )
@@ -159,9 +160,7 @@ def validate_manifest_file(
         return report  # cross-checks assume a well-formed manifest
 
     # (2) Cross-reference
-    catalog_path = _find_catalog(
-        manifest["subgroup_catalog_ref"], manifest["indication"], catalog_repo
-    )
+    catalog_path = _find_catalog(manifest["subgroup_catalog_ref"], manifest["indication"], catalog_repo)
     if catalog_path is None:
         report.add_warning(
             f"catalog '{manifest['subgroup_catalog_ref']}' not found under "
@@ -180,8 +179,7 @@ def validate_directory(root: str | Path, catalog_repo: Path | None = None) -> li
     root = Path(root)
     schema = _load_schema()
     return [
-        validate_manifest_file(p, catalog_repo=catalog_repo, schema=schema)
-        for p in sorted(root.rglob("manifest.yaml"))
+        validate_manifest_file(p, catalog_repo=catalog_repo, schema=schema) for p in sorted(root.rglob("manifest.yaml"))
     ]
 
 

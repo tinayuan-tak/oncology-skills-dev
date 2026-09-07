@@ -58,10 +58,10 @@ DRIFT_SEVERITY = {
 # provenance first — see the access-cost plan). This lens answers the adjacent,
 # statically-answerable question: which consumed data is big/unoptimized to query.
 # ---------------------------------------------------------------------------
-_GB = 1024 ** 3
-_SORT_KEY_SIZE_FLOOR = 1 * _GB      # below this, a missing sort-key isn't worth flagging
-_ACCESS_COST_HIGH_GB = 20           # >= → high (a heavy dataset)
-_ACCESS_COST_MODERATE_GB = 2        # >= → moderate
+_GB = 1024**3
+_SORT_KEY_SIZE_FLOOR = 1 * _GB  # below this, a missing sort-key isn't worth flagging
+_ACCESS_COST_HIGH_GB = 20  # >= → high (a heavy dataset)
+_ACCESS_COST_MODERATE_GB = 2  # >= → moderate
 
 
 def _tally(nodes: list[dict], key: str) -> dict[str, int]:
@@ -162,9 +162,7 @@ def load_rules() -> dict:
 # ---------------------------------------------------------------------------
 def roll_up_card(card_signals: dict, rules: dict) -> dict:
     verdict, reason_id = _resolve(rules["card_health"], card_signals)
-    reason_text = next(
-        (r["reason"] for r in rules["card_health"] if r["id"] == reason_id), ""
-    )
+    reason_text = next((r["reason"] for r in rules["card_health"] if r["id"] == reason_id), "")
     return {**card_signals, "card_health": verdict, "health_reason": reason_id, "reason_text": reason_text}
 
 
@@ -177,8 +175,9 @@ def compute_drift(skill: dict, cards: list[dict], spec_cards: dict | None = None
     def add(code: str, detail: str) -> None:
         flags.append({"code": code, "severity": DRIFT_SEVERITY.get(code, "info"), "detail": detail})
 
-    declared_wired = (dec.get("status") == "wired") or ("wired" in (dec.get("prose_markers") or [])
-                                                         and dec.get("status") not in ("not_wired", "partial"))
+    declared_wired = (dec.get("status") == "wired") or (
+        "wired" in (dec.get("prose_markers") or []) and dec.get("status") not in ("not_wired", "partial")
+    )
 
     # status:wired but no entrypoint
     if declared_wired and not der["has_entrypoint"]:
@@ -188,8 +187,7 @@ def compute_drift(skill: dict, cards: list[dict], spec_cards: dict | None = None
     if declared_wired:
         broken = [c["card_id"] for c in cards if c.get("card_health") == "broken"]
         if broken:
-            add("status_wired_card_broken",
-                f"declared wired but consumed card(s) broken: {', '.join(sorted(broken))}")
+            add("status_wired_card_broken", f"declared wired but consumed card(s) broken: {', '.join(sorted(broken))}")
 
     # declared cards_used vs run.py CARDS mismatch (COMPOSED skills use SUB_SKILL_CARDS, skip)
     if der["kind"] == "FOCUSED":
@@ -198,45 +196,60 @@ def compute_drift(skill: dict, cards: list[dict], spec_cards: dict | None = None
         if used and runpy and used != runpy:
             only_used = sorted(used - runpy)
             only_runpy = sorted(runpy - used)
-            add("declared_cards_mismatch_runpy",
-                f"SKILL.md cards_used vs run.py CARDS differ (only in SKILL.md: {only_used}; only in run.py: {only_runpy})")
+            add(
+                "declared_cards_mismatch_runpy",
+                f"SKILL.md cards_used vs run.py CARDS differ (only in SKILL.md: {only_used}; only in run.py: {only_runpy})",
+            )
 
     # missing status field entirely (has an entrypoint + composition but no status)
     if der["has_entrypoint"] and dec.get("status") is None and der["kind"] not in ("PLACEHOLDER",):
         add("missing_status_field", "no machine-readable status: field in SKILL.md frontmatter")
 
     # card registered in live map but never fires (info-level, surfaced per skill)
-    never = [c["card_id"] for c in cards
-             if c.get("has_live_reader") and not c.get("fires_in_real_package")
-             and c.get("card_health") != "broken"]
+    never = [
+        c["card_id"]
+        for c in cards
+        if c.get("has_live_reader") and not c.get("fires_in_real_package") and c.get("card_health") != "broken"
+    ]
     if never:
-        add("card_registered_never_fires",
-            f"consumed card(s) have a live reader but never fired in a real package: {', '.join(sorted(never))}")
+        add(
+            "card_registered_never_fires",
+            f"consumed card(s) have a live reader but never fired in a real package: {', '.join(sorted(never))}",
+        )
 
     # Stale methods.call label: the card claims a method the dispatcher does not import.
     stale = [c["card_id"] for c in cards if c.get("stale_method_label")]
     if stale:
-        add("stale_method_label",
-            f"card methods.call label differs from the dispatcher's actual import: {', '.join(sorted(stale))}")
+        add(
+            "stale_method_label",
+            f"card methods.call label differs from the dispatcher's actual import: {', '.join(sorted(stale))}",
+        )
 
     # Broken data reference: a consumed card names a product_id absent from the catalog.
-    missing_ds = sorted({d["product_id"] for c in cards for d in c.get("datasets", [])
-                         if not d.get("in_catalog")})
+    missing_ds = sorted({d["product_id"] for c in cards for d in c.get("datasets", []) if not d.get("in_catalog")})
     if missing_ds:
-        add("dataset_ref_not_in_catalog",
-            f"consumed card(s) reference dataset product_id(s) not in the data-catalog: {', '.join(missing_ds)}")
+        add(
+            "dataset_ref_not_in_catalog",
+            f"consumed card(s) reference dataset product_id(s) not in the data-catalog: {', '.join(missing_ds)}",
+        )
 
     # Spec-coverage gap: cards this skill consumes that are in NO dashboard_spec, so
     # they can never fire in an emitted package (the emission path pulls from a spec).
     # Only flag cards that actually EXIST (a missing/placeholder card is a different
     # problem already surfaced). This is the skill/spec divergence.
-    no_spec = sorted({c["card_id"] for c in cards
-                      if c.get("card_yaml_exists") and not c.get("is_placeholder")
-                      and c["card_id"] not in spec_cards})
+    no_spec = sorted(
+        {
+            c["card_id"]
+            for c in cards
+            if c.get("card_yaml_exists") and not c.get("is_placeholder") and c["card_id"] not in spec_cards
+        }
+    )
     if no_spec:
-        add("card_consumed_but_no_spec",
+        add(
+            "card_consumed_but_no_spec",
             f"consumed card(s) are in NO dashboard_spec — cannot fire in an emitted "
-            f"package until added to a spec: {', '.join(no_spec)}")
+            f"package until added to a spec: {', '.join(no_spec)}",
+        )
 
     # P4 modality-vector: a consumed card whose measurement_type ROUTES to a modality-fit gate
     # but does not declare modality_relevance is stranded on the biology axis (mirrors the
@@ -244,14 +257,18 @@ def compute_drift(skill: dict, cards: list[dict], spec_cards: dict | None = None
     # drift (validator warning). Skips the `unknown` verdict (vocab-absent isolated checkout).
     mr_missing = sorted({c["card_id"] for c in cards if c.get("modality_routing") == "missing"})
     if mr_missing:
-        add("modality_relevance_missing",
+        add(
+            "modality_relevance_missing",
             f"consumed card(s) route to a modality-fit gate but declare no modality_relevance "
-            f"(stranded on the biology axis; P4): {', '.join(mr_missing)}")
+            f"(stranded on the biology axis; P4): {', '.join(mr_missing)}",
+        )
     mr_drift = sorted({c["card_id"] for c in cards if c.get("modality_routing") == "drift"})
     if mr_drift:
-        add("modality_relevance_drift",
+        add(
+            "modality_relevance_drift",
             f"consumed card(s) declare modality_relevance values outside their measurement_type's "
-            f"routing set: {', '.join(mr_drift)}")
+            f"routing set: {', '.join(mr_drift)}",
+        )
 
     return flags
 
@@ -335,9 +352,9 @@ def build_health(roots: dict[str, Path]) -> dict:
     # Merged liveness: cards fired in ANY real run (governed ∪ exploratory) from the committed
     # output registry; == fired_ids when no registry catalog is present (graceful degrade).
     fired_any_ids = probe.fired_card_ids_any(roots["products"])
-    ss_map = probe.sub_skill_map(roots["skills"])           # skill_dir -> short
+    ss_map = probe.sub_skill_map(roots["skills"])  # skill_dir -> short
     gcov = probe.gate_coverage_by_short(roots["contracts"])  # short -> coverage entry
-    catalog = probe.catalog_manifests(roots["catalog"])      # product_id -> manifest meta
+    catalog = probe.catalog_manifests(roots["catalog"])  # product_id -> manifest meta
     catalog_ids = set(catalog)
     modality_types = probe.modality_relevant_types(roots["contracts"])  # P4: type -> routing set (None if vocab absent)
     spec_cards = probe.dashboard_spec_card_ids(roots["contracts"])  # card_id -> [spec names]
@@ -352,9 +369,16 @@ def build_health(roots: dict[str, Path]) -> dict:
     def probe_card_cached(cid: str) -> dict:
         if cid not in _card_cache:
             _card_cache[cid] = probe.probe_card(
-                cid, roots["contracts"], roots["methods"],
-                live_ids, fired_ids, dispatch_modules, catalog_ids, modality_types,
-                fired_any_ids=fired_any_ids, skill_names=set(skill_names),
+                cid,
+                roots["contracts"],
+                roots["methods"],
+                live_ids,
+                fired_ids,
+                dispatch_modules,
+                catalog_ids,
+                modality_types,
+                fired_any_ids=fired_any_ids,
+                skill_names=set(skill_names),
             )
         # Return a shallow copy: callers augment the dict (consumers, is_orphan, …)
         # and mutating the cached original would leak fields across the two loops.
@@ -366,8 +390,9 @@ def build_health(roots: dict[str, Path]) -> dict:
     for name in skill_names:
         sig = probe.probe_skill(skills_dir / name)
         # Cards a skill consumes: union of declared cards_used + run.py CARDS.
-        card_ids = sorted(set(sig["declared"].get("cards_used") or [])
-                          | set(sig["derived"].get("cards_in_runpy") or []))
+        card_ids = sorted(
+            set(sig["declared"].get("cards_used") or []) | set(sig["derived"].get("cards_in_runpy") or [])
+        )
         cards = [roll_up_card(probe_card_cached(cid), rules) for cid in card_ids]
         drift = compute_drift(sig, cards, spec_cards)
         node = roll_up_skill(sig, cards, drift, rules)
@@ -380,8 +405,8 @@ def build_health(roots: dict[str, Path]) -> dict:
         # data). One of: clean | clean_uninstrumented | error | unknown (absent from the harness
         # output, e.g. a non-wired/support skill or the artifact isn't present in this checkout).
         rh = run_health.get(name)
-        node["runs_clean"] = (rh.get("smoke") if rh else "unknown")
-        node["run_health"] = (rh.get("run_health") if rh else None)  # status + cards + timings (or None)
+        node["runs_clean"] = rh.get("smoke") if rh else "unknown"
+        node["run_health"] = rh.get("run_health") if rh else None  # status + cards + timings (or None)
         skill_nodes.append(node)
 
     reg = probe.registry_drift(roots["skills"], skill_names)
@@ -406,7 +431,7 @@ def build_health(roots: dict[str, Path]) -> dict:
         cn = roll_up_card(probe_card_cached(cid), rules)
         cn["consumers"] = sorted(consumers.get(cid, []))
         cn["n_consumers"] = len(cn["consumers"])
-        cn["is_orphan"] = (cn["n_consumers"] == 0)  # on disk but pulled by no skill
+        cn["is_orphan"] = cn["n_consumers"] == 0  # on disk but pulled by no skill
         # A placeholder/dormant card is unconsumed BY DESIGN (a staged forward-declaration awaiting its
         # data + skill-wiring, often already declared in a dashboard_spec) → STAGED, not a dead orphan.
         # Separated so the dead-orphan alarm counts only cards that SHOULD have a consumer but don't.
@@ -416,7 +441,7 @@ def build_health(roots: dict[str, Path]) -> dict:
         # Coverage gap: a card consumed by ≥1 skill but in NO dashboard_spec can
         # never fire in an emitted package (emission pulls from a spec). Distinct
         # from "unfired-but-in-spec" — this is a spec/skill divergence, not a run gap.
-        cn["consumed_but_no_spec"] = (cn["n_consumers"] > 0 and not cn["in_dashboard_spec"])
+        cn["consumed_but_no_spec"] = cn["n_consumers"] > 0 and not cn["in_dashboard_spec"]
         card_nodes.append(cn)
 
     card_tally: dict[str, int] = {}
@@ -435,14 +460,17 @@ def build_health(roots: dict[str, Path]) -> dict:
     card_level_p4_drift: list[dict] = []
     for c in card_nodes:
         if c["is_orphan"] and c["modality_routing"] in ("missing", "drift"):
-            code = ("modality_relevance_missing" if c["modality_routing"] == "missing"
-                    else "modality_relevance_drift")
-            card_level_p4_drift.append({
-                "skill": None, "card_id": c["card_id"], "code": code,
-                "severity": DRIFT_SEVERITY[code],
-                "detail": f"orphan card {c['card_id']} (pulled by no skill) has modality_routing="
-                          f"{c['modality_routing']} — P4 non-compliance invisible in the skill view",
-            })
+            code = "modality_relevance_missing" if c["modality_routing"] == "missing" else "modality_relevance_drift"
+            card_level_p4_drift.append(
+                {
+                    "skill": None,
+                    "card_id": c["card_id"],
+                    "code": code,
+                    "severity": DRIFT_SEVERITY[code],
+                    "detail": f"orphan card {c['card_id']} (pulled by no skill) has modality_routing="
+                    f"{c['modality_routing']} — P4 non-compliance invisible in the skill view",
+                }
+            )
 
     # -----------------------------------------------------------------------
     # DATASET-CENTRIC view: every data product (catalog manifest ∪ every
@@ -483,7 +511,7 @@ def build_health(roots: dict[str, Path]) -> dict:
             "n_derived_from": len(meta.get("derived_from") or []),
             "consumed_by_cards": consumers,
             "n_consumers": n_cons,
-            "is_orphan": in_cat and not consumers,       # cataloged, no card pulls it
+            "is_orphan": in_cat and not consumers,  # cataloged, no card pulls it
             # all consumers are placeholder cards → a not-yet-built product is expected, not broken.
             "all_consumers_placeholder": bool(consumers) and all(cid in _placeholder_ids for cid in consumers),
             "has_sort_key": has_sort_key,
@@ -500,7 +528,10 @@ def build_health(roots: dict[str, Path]) -> dict:
         # upstream releases (which method readers load by their own logic). Not flagged for orphans
         # (nobody queries them) or tiny/unsized datasets.
         node["missing_sort_key"] = bool(
-            in_cat and meta.get("kind") == "derived" and n_cons > 0 and has_sort_key is False
+            in_cat
+            and meta.get("kind") == "derived"
+            and n_cons > 0
+            and has_sort_key is False
             and (size_b or 0) >= _SORT_KEY_SIZE_FLOOR
         )
         dataset_nodes.append(node)
@@ -511,10 +542,7 @@ def build_health(roots: dict[str, Path]) -> dict:
     tally: dict[str, int] = {}
     for n in skill_nodes:
         tally[n["health_verdict"]] = tally.get(n["health_verdict"], 0) + 1
-    all_drift = [
-        {"skill": n["name"], **d}
-        for n in skill_nodes for d in n["drift_flags"]
-    ]
+    all_drift = [{"skill": n["name"], **d} for n in skill_nodes for d in n["drift_flags"]]
     # Append orphan-card P4 drift (skill=None) so an orphan's non-compliance is never invisible.
     all_drift.extend(card_level_p4_drift)
 
@@ -536,10 +564,8 @@ def build_health(roots: dict[str, Path]) -> dict:
             "card_health_tally": card_tally,
             # P4 modality-vector lens (routing metadata, parallel to card_health):
             "modality_routing_tally": modality_tally,
-            "n_p4_required_cards": sum(v for k, v in modality_tally.items()
-                                       if k in ("declared", "missing", "drift")),
-            "n_p4_declared_cards": sum(v for k, v in modality_tally.items()
-                                       if k in ("declared", "drift")),
+            "n_p4_required_cards": sum(v for k, v in modality_tally.items() if k in ("declared", "missing", "drift")),
+            "n_p4_declared_cards": sum(v for k, v in modality_tally.items() if k in ("declared", "drift")),
             "n_p4_missing_cards": modality_tally.get("missing", 0),
             "n_p4_drift_cards": modality_tally.get("drift", 0),
             # DEAD orphans only: on-disk cards nothing consumes AND not a staged placeholder/dormant
@@ -577,52 +603,65 @@ _LAYERS = {"skill": 0, "resolver": 1, "card": 2, "method": 3}
 
 
 def build_graph(skill_nodes: list[dict], card_nodes: list[dict]) -> dict:
-    nodes: dict[str, dict] = {}   # id -> node (dedup)
+    nodes: dict[str, dict] = {}  # id -> node (dedup)
     edges: list[dict] = []
 
     def add_node(nid: str, layer: str, label: str, health: str | None = None, meta: dict | None = None):
         if nid not in nodes:
-            nodes[nid] = {"id": nid, "layer": layer, "label": label,
-                          "health": health, **(meta or {})}
+            nodes[nid] = {"id": nid, "layer": layer, "label": label, "health": health, **(meta or {})}
 
     # Skills + their resolver edge.
     for n in skill_nodes:
         sid = f"skill:{n['name']}"
-        add_node(sid, "skill", n["name"], n["health_verdict"],
-                 {"kind": n["derived"].get("kind"), "risk_category": n.get("risk_category")})
+        add_node(
+            sid,
+            "skill",
+            n["name"],
+            n["health_verdict"],
+            {"kind": n["derived"].get("kind"), "risk_category": n.get("risk_category")},
+        )
         gate = n["derived"].get("resolver_gate")
         if gate:
             rid = f"resolver:{gate}"
-            add_node(rid, "resolver", gate,
-                     "live" if n["derived"].get("resolver_bound") else "broken")
+            add_node(rid, "resolver", gate, "live" if n["derived"].get("resolver_bound") else "broken")
             edges.append({"src": sid, "dst": rid, "rel": "resolves_via"})
 
     # Cards + method backing + card→consuming-skill edges.
     for c in card_nodes:
         cid = f"card:{c['card_id']}"
-        add_node(cid, "card", c["card_id"], c["card_health"],
-                 {"is_orphan": c.get("is_orphan", False),
-                  "measurement_type": c.get("measurement_type")})
+        add_node(
+            cid,
+            "card",
+            c["card_id"],
+            c["card_health"],
+            {"is_orphan": c.get("is_orphan", False), "measurement_type": c.get("measurement_type")},
+        )
         for sk in c.get("consumers", []):
             edges.append({"src": f"skill:{sk}", "dst": cid, "rel": "consumes"})
         mod = c.get("dispatch_module")
         if mod:
-            top = mod.split(".")[0]                # strip .read/.cli suffix
+            top = mod.split(".")[0]  # strip .read/.cli suffix
             mid = f"method:{top}"
-            add_node(mid, "method", top,
-                     "live" if c.get("method_dir_exists") else "broken")
+            add_node(mid, "method", top, "live" if c.get("method_dir_exists") else "broken")
             edges.append({"src": cid, "dst": mid, "rel": "backed_by"})
 
     # Deterministic ordering: by (layer, id) for nodes, by tuple for edges.
     node_list = sorted(nodes.values(), key=lambda n: (_LAYERS.get(n["layer"], 9), n["id"]))
     edge_list = sorted(edges, key=lambda e: (e["src"], e["dst"], e["rel"]))
     # De-dupe edges (a method backing many cards can repeat skill→card→method chains).
-    seen = set(); deduped = []
+    seen = set()
+    deduped = []
     for e in edge_list:
         k = (e["src"], e["dst"], e["rel"])
         if k not in seen:
-            seen.add(k); deduped.append(e)
+            seen.add(k)
+            deduped.append(e)
 
     counts = {layer: sum(1 for n in node_list if n["layer"] == layer) for layer in _LAYERS}
-    return {"nodes": node_list, "edges": deduped,
-            "layer_counts": counts, "n_nodes": len(node_list), "n_edges": len(deduped)}
+    return {
+        "nodes": node_list,
+        "edges": deduped,
+        "layer_counts": counts,
+        "n_nodes": len(node_list),
+        "n_edges": len(deduped),
+    }

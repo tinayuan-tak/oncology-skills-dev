@@ -11,6 +11,7 @@ The palette module (`takeda_palette.py`) physically lives at the contracts-repo 
 than duplicate 178 lines, this subpackage loads that canonical file by location and
 re-exports its public names — one source of truth, two import paths.
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -28,9 +29,7 @@ def mplstyle_path() -> Path:
 def _load_canonical_palette():
     """Import the canonical plot_styles/takeda_palette.py by file location."""
     palette_file = contracts_root() / "plot_styles" / "takeda_palette.py"
-    spec = importlib.util.spec_from_file_location(
-        "oncology_target_contracts.plot_styles.takeda_palette", palette_file
-    )
+    spec = importlib.util.spec_from_file_location("oncology_target_contracts.plot_styles.takeda_palette", palette_file)
     if spec is None or spec.loader is None:
         raise ImportError(f"cannot load takeda_palette from {palette_file}")
     mod = importlib.util.module_from_spec(spec)

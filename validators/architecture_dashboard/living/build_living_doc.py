@@ -16,6 +16,7 @@ writes a committed JSON feed guarded two ways:
 stdlib + pyyaml + json; bare-python (no pixi). Run:
   python3 -m validators.architecture_dashboard.living.build_living_doc [--check|--self-check]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -33,8 +34,7 @@ import build_unified_dashboard as UD  # noqa: E402
 
 # living modules — work both as a package (-m) and as bare imports
 try:
-    from . import (concepts as _concepts, gaps as _gaps, narrative as _narrative,
-                   glossary as _glossary, flow as _flow)
+    from . import concepts as _concepts, gaps as _gaps, narrative as _narrative, glossary as _glossary, flow as _flow
     from .render_living import render_html
 except Exception:  # pragma: no cover - bare-path fallback
     sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -46,12 +46,11 @@ except Exception:  # pragma: no cover - bare-path fallback
     from render_living import render_html  # type: ignore
 
 HOME = Path.home()
-DEFAULT_JSON = _ARCH.parent.parent / "health" / "framework_atlas.json"   # <tc>/health/framework_atlas.json
+DEFAULT_JSON = _ARCH.parent.parent / "health" / "framework_atlas.json"  # <tc>/health/framework_atlas.json
 DEFAULT_HTML = _ARCH.parent.parent / "health" / "framework_atlas.html"
 
 
-def assemble(tc: Path, sk: Path, dc: Path, dp: Path, out_dir: Path,
-             compute_health: bool = True) -> dict:
+def assemble(tc: Path, sk: Path, dc: Path, dp: Path, out_dir: Path, compute_health: bool = True) -> dict:
     """Full build (needs siblings)."""
     health = UD.compute_or_load_health(tc, out_dir, prefer_compute=compute_health)
     hpath = out_dir / "health_current.json"
@@ -59,12 +58,11 @@ def assemble(tc: Path, sk: Path, dc: Path, dp: Path, out_dir: Path,
     graph = UD.merge(graph, health)
     graph["coverage"] = UD.load_coverage(dp)
 
-    roots = {"target_contracts": str(tc), "skills": str(sk),
-             "data_catalog": str(dc), "data_products": str(dp)}
+    roots = {"target_contracts": str(tc), "skills": str(sk), "data_catalog": str(dc), "data_products": str(dp)}
     # order matters: glossary needs the wiring; concepts/gaps/narrative are independent
     graph["glossary"] = _glossary.build_glossary(graph, roots)
     graph["concepts"] = _concepts.build_concepts(graph, roots)
-    graph["flow"] = _flow.build_flow(graph)          # needs concepts + glossary
+    graph["flow"] = _flow.build_flow(graph)  # needs concepts + glossary
     graph["gaps"] = _gaps.build_gaps(graph, roots)
     graph["narrative"] = _narrative.build_narrative(roots)
     graph["framework_atlas_version"] = "1.0.0"
@@ -75,8 +73,7 @@ def stable_projection(graph: dict) -> str:
     """The drift-guarded projection for --check: WIRING + CONCEPTS structure only. Strip
     time-varying snapshots (health, coverage, gaps, timestamps, shas)."""
     g2 = json.loads(json.dumps(graph, default=str))
-    for k in ("generated_at", "root_shas", "health_overlay_at", "health", "coverage",
-              "gaps", "narrative", "glossary"):
+    for k in ("generated_at", "root_shas", "health_overlay_at", "health", "coverage", "gaps", "narrative", "glossary"):
         g2.pop(k, None)
     # Concepts: guard the contract-derived STRUCTURE only. The example VALUES and inventory
     # counts are harvested live from the sibling repos (a manifest's git_commit, an evidence
@@ -85,15 +82,16 @@ def stable_projection(graph: dict) -> str:
     # --check tracks structure, not sibling churn (avoids false-positive STALE).
     for c in g2.get("concepts") or []:
         ex = c.get("example") or {}
-        c["example"] = {"resolved": ex.get("resolved"),
-                        "field_keys": sorted((ex.get("fields") or {}).keys())}
+        c["example"] = {"resolved": ex.get("resolved"), "field_keys": sorted((ex.get("fields") or {}).keys())}
         di = c.get("defined_in") or {}
-        c["defined_in"] = {"repo": di.get("repo"), "glob": di.get("glob"),
-                           "resolved": di.get("count") not in (None, 0)}
+        c["defined_in"] = {"repo": di.get("repo"), "glob": di.get("glob"), "resolved": di.get("count") not in (None, 0)}
         sch = c.get("schema") or {}
-        c["schema"] = {"path": sch.get("path"), "required": sorted(sch.get("required") or []),
-                       "field_names": sorted(f.get("name") for f in (sch.get("fields") or []) if f.get("name")),
-                       "error": bool(sch.get("error"))}
+        c["schema"] = {
+            "path": sch.get("path"),
+            "required": sorted(sch.get("required") or []),
+            "field_names": sorted(f.get("name") for f in (sch.get("fields") or []) if f.get("name")),
+            "error": bool(sch.get("error")),
+        }
     # Flow: schematics embed live example values too; keep only ids + layout + schematic presence.
     for lv in g2.get("flow", {}).get("levels") or []:
         for vol in ("stages", "center", "schematic", "lane", "subtitle"):
@@ -120,8 +118,10 @@ def self_check(graph: dict) -> list[str]:
         if not c.get("narration"):
             errs.append(f"concept {cid}: missing narration")
         if (c.get("defined_in") or {}).get("count") in (None, 0):
-            errs.append(f"concept {cid}: inventory count is {c.get('defined_in', {}).get('count')} "
-                        "(regenerate with all four sibling repos present)")
+            errs.append(
+                f"concept {cid}: inventory count is {c.get('defined_in', {}).get('count')} "
+                "(regenerate with all four sibling repos present)"
+            )
     # gaps: tally consistency
     G = graph.get("gaps") or {}
     items = G.get("items") or []
@@ -183,8 +183,11 @@ def glossary_coverage_errors(graph: dict) -> list[str]:
 
     cards = graph.get("cards") or {}
     need("card", cards.keys(), "cards")
-    need("measurement_type", {c.get("measurement_type") for c in cards.values() if c.get("measurement_type")},
-         "card.measurement_type")
+    need(
+        "measurement_type",
+        {c.get("measurement_type") for c in cards.values() if c.get("measurement_type")},
+        "card.measurement_type",
+    )
     rule_ids, verdicts = set(), set()
     for c in cards.values():
         for r in c.get("rules") or []:
@@ -209,15 +212,22 @@ def main(argv=None) -> int:
     ap.add_argument("--tc", default=str(A.DEFAULTS["tc"]))
     ap.add_argument("--sk", default=str(A.DEFAULTS["sk"]))
     ap.add_argument("--dc", default=str(A.DEFAULTS["dc"]))
-    ap.add_argument("--dp", default=str(Path(A.DEFAULTS["tc"]).parent /
-                    "rnd-computational-biology-oncology-data-products"))
+    ap.add_argument(
+        "--dp", default=str(Path(A.DEFAULTS["tc"]).parent / "rnd-computational-biology-oncology-data-products")
+    )
     ap.add_argument("--json", default=str(DEFAULT_JSON))
     ap.add_argument("--out", default=str(DEFAULT_HTML))
     ap.add_argument("--no-compute-health", action="store_true")
-    ap.add_argument("--check", action="store_true",
-                    help="local drift-guard: recompute (needs siblings), fail if committed JSON stale")
-    ap.add_argument("--self-check", action="store_true",
-                    help="CI-safe: validate the committed JSON's internal consistency (no siblings)")
+    ap.add_argument(
+        "--check",
+        action="store_true",
+        help="local drift-guard: recompute (needs siblings), fail if committed JSON stale",
+    )
+    ap.add_argument(
+        "--self-check",
+        action="store_true",
+        help="CI-safe: validate the committed JSON's internal consistency (no siblings)",
+    )
     args = ap.parse_args(argv)
 
     if args.self_check:
@@ -236,16 +246,19 @@ def main(argv=None) -> int:
             for e in errs[:40]:
                 print(f"    - {e}", file=sys.stderr)
             return 1
-        print(f"  OK {p.name} (self-consistent: "
-              f"{len(graph.get('concepts') or [])} concepts · "
-              f"{(graph.get('gaps') or {}).get('summary', {}).get('n_gaps', 0)} gaps · "
-              f"glossary complete)")
+        print(
+            f"  OK {p.name} (self-consistent: "
+            f"{len(graph.get('concepts') or [])} concepts · "
+            f"{(graph.get('gaps') or {}).get('summary', {}).get('n_gaps', 0)} gaps · "
+            f"glossary complete)"
+        )
         return 0
 
     out_dir = Path(args.out).parent
     out_dir.mkdir(parents=True, exist_ok=True)
-    graph = assemble(Path(args.tc), Path(args.sk), Path(args.dc), Path(args.dp), out_dir,
-                     compute_health=not args.no_compute_health)
+    graph = assemble(
+        Path(args.tc), Path(args.sk), Path(args.dc), Path(args.dp), out_dir, compute_health=not args.no_compute_health
+    )
 
     if args.check:
         p = Path(args.json)
@@ -258,9 +271,11 @@ def main(argv=None) -> int:
             print(f"  UNREADABLE {p.name}: {e}", file=sys.stderr)
             return 1
         if stable_projection(prior) != stable_projection(graph):
-            print(f"  STALE {p.name} — committed living doc differs from computed wiring/concepts; "
-                  f"regenerate with: python3 -m validators.architecture_dashboard.living.build_living_doc",
-                  file=sys.stderr)
+            print(
+                f"  STALE {p.name} — committed living doc differs from computed wiring/concepts; "
+                f"regenerate with: python3 -m validators.architecture_dashboard.living.build_living_doc",
+                file=sys.stderr,
+            )
             return 1
         print(f"  OK {p.name} (fresh — wiring + concepts match on-disk)")
         return 0
@@ -268,14 +283,17 @@ def main(argv=None) -> int:
     Path(args.json).write_text(json.dumps(graph, separators=(",", ":")))
     Path(args.out).write_text(render_html(graph))
     g = graph["gaps"]["summary"]
-    print(f"\n✓ Framework Atlas: {len(graph['concepts'])} component types · "
-          f"{g['n_gaps']} gaps ({g['n_error']} error / {g['n_warn']} warn / {g['n_info']} info) · "
-          f"{graph['narrative']['n_docs']} docs · glossary "
-          f"{sum(len(v) for v in graph['glossary'].values())} tokens")
+    print(
+        f"\n✓ Framework Atlas: {len(graph['concepts'])} component types · "
+        f"{g['n_gaps']} gaps ({g['n_error']} error / {g['n_warn']} warn / {g['n_info']} info) · "
+        f"{graph['narrative']['n_docs']} docs · glossary "
+        f"{sum(len(v) for v in graph['glossary'].values())} tokens"
+    )
     print(f"  validators run: {', '.join(graph['gaps']['validators_run']) or '(none)'}")
     import os
+
     print(f"  JSON → {args.json}")
-    print(f"  HTML → {args.out}  ({os.path.getsize(args.out)//1024} KB)")
+    print(f"  HTML → {args.out}  ({os.path.getsize(args.out) // 1024} KB)")
     return 0
 
 

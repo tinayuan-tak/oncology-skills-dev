@@ -8,6 +8,7 @@ alteration-role DRIVER rule (gof-supportive or lof-neutral). This pins that gate
 can't return. (Recurrence is deliberately NOT gated — mutation-hotspot-frequency has a data_unavailable
 bin that would demote genuine drivers, §2e.)
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -31,7 +32,8 @@ def test_shape_driven_multiclass_rungs_require_alteration_role():
         assert waf & _ROLE_RULES, (
             f"multi_class rung {r.get('when_all_fired')} keys on a variant-SHAPE driver rule but has NO "
             f"alteration-role driver co-signal — a passenger (missense-dominant shape, no driver role) "
-            f"could be called multi_class_driver. Add gof-driver-supportive / lof-driver-neutral.")
+            f"could be called multi_class_driver. Add gof-driver-supportive / lof-driver-neutral."
+        )
 
 
 def test_multiclass_precedes_confirmed_driver():
@@ -40,14 +42,20 @@ def test_multiclass_precedes_confirmed_driver():
     single-class confirmed_driver), and both must sit BELOW the stratified biomarker verdict and
     ABOVE the drug_response pattern layer."""
     import yaml
+
     rungs = yaml.safe_load(RESOLVER.read_text())["resolve"]
 
     def first(v):
         return next((i for i, r in enumerate(rungs) if r.get("verdict") == v), None)
 
-    bm, mc, cd, dr = (first("biomarker_stratified_dependency"), first("multi_class_driver"),
-                      first("confirmed_driver"), first("drug_response_biomarker"))
+    bm, mc, cd, dr = (
+        first("biomarker_stratified_dependency"),
+        first("multi_class_driver"),
+        first("confirmed_driver"),
+        first("drug_response_biomarker"),
+    )
     assert None not in (bm, mc, cd, dr), (bm, mc, cd, dr)
     assert bm < mc < cd < dr, (
         f"first-match order must be biomarker({bm}) < multi_class({mc}) < confirmed_driver({cd}) "
-        f"< drug_response({dr}) — else EGFR-style dually-altered drivers collapse to confirmed_driver.")
+        f"< drug_response({dr}) — else EGFR-style dually-altered drivers collapse to confirmed_driver."
+    )

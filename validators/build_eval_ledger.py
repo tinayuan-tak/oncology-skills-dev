@@ -40,6 +40,7 @@ Mirrors validators/framework_health/build_framework_health.py:
   python validators/build_eval_ledger.py --self-check            # CI-safe integrity of committed artifact
   python validators/build_eval_ledger.py --skills-repo P --products-root Q
 """
+
 from __future__ import annotations
 
 import argparse
@@ -76,8 +77,7 @@ def _unwrap(v):
 def row_key(r: dict) -> str:
     """Stable identity of an eval row. release_pin makes cross-release rows distinct (once real pins
     exist); source separates the target-profile and compose-dashboard emissions of the same target."""
-    return "|".join(str(r.get(k) or "") for k in
-                    ("target", "indication", "release_pin", "framework_version", "source"))
+    return "|".join(str(r.get(k) or "") for k in ("target", "indication", "release_pin", "framework_version", "source"))
 
 
 _REPO_PREFIX = "rnd-computational-biology-oncology-"
@@ -89,7 +89,7 @@ def _rel(path: Path) -> str:
     parts = path.parts
     for i, seg in enumerate(parts):
         if seg.startswith(_REPO_PREFIX):
-            return "/".join((seg[len(_REPO_PREFIX):], *parts[i + 1:]))
+            return "/".join((seg[len(_REPO_PREFIX) :], *parts[i + 1 :]))
     return str(path)
 
 
@@ -99,18 +99,20 @@ def row_from_nomination(path: Path, nm: dict) -> dict:
     for axis, d in (nm.get("sub_verdicts") or {}).items():
         frs = d.get("fired_rule_ids") or []
         fired_all.update(frs)
-        sub_verdicts.append({
-            "axis": axis, "verdict": d.get("verdict"), "driving_rule_id": d.get("driving_rule_id"),
-            "fired_rule_ids": frs,
-            "cards_used": d.get("cards_used") or [],       # present on runs >= skills #390
-            "cards_missing": d.get("cards_missing") or [],
-        })
+        sub_verdicts.append(
+            {
+                "axis": axis,
+                "verdict": d.get("verdict"),
+                "driving_rule_id": d.get("driving_rule_id"),
+                "fired_rule_ids": frs,
+                "cards_used": d.get("cards_used") or [],  # present on runs >= skills #390
+                "cards_missing": d.get("cards_missing") or [],
+            }
+        )
     # fragility is being relocated from the top-level nomination key onto target_report.robustness.fragility
     # (skills Wave-3 legacy-facet retirement). Read the top-level key first (current runs), else fall back to
     # the target_report nest (post-retirement runs) — the SAME object, so the ledger row is unchanged either way.
-    frag = (nm.get("fragility")
-            or ((nm.get("target_report") or {}).get("robustness") or {}).get("fragility")
-            or {})
+    frag = nm.get("fragility") or ((nm.get("target_report") or {}).get("robustness") or {}).get("fragility") or {}
     return {
         "source": "target_profile",
         "artifact_path": _rel(path),
@@ -121,12 +123,18 @@ def row_from_nomination(path: Path, nm: dict) -> dict:
         "framework_version": nm.get("skill_version"),
         "generated_at": nm.get("generated_at"),
         "recommendation": _unwrap((nm.get("llm_synthesis") or {}).get("overall_recommendation")),
-        "fragility": ({"target_index": frag.get("target_index"),
-                       "recommendation_fragility_index": frag.get("recommendation_fragility_index"),
-                       "contested": frag.get("contested")} if frag else None),
+        "fragility": (
+            {
+                "target_index": frag.get("target_index"),
+                "recommendation_fragility_index": frag.get("recommendation_fragility_index"),
+                "contested": frag.get("contested"),
+            }
+            if frag
+            else None
+        ),
         "sub_verdicts": sub_verdicts,
         "fired_rule_ids": sorted(fired_all),
-        "input_manifest_ids": [],   # nomination.json does not carry manifest ids (evidence_package does)
+        "input_manifest_ids": [],  # nomination.json does not carry manifest ids (evidence_package does)
     }
 
 
@@ -138,9 +146,13 @@ def row_from_evidence_package(path: Path, ep: dict) -> dict:
         if c.get("excluded_by_applies_when"):
             continue
         manifest_ids.update((c.get("provenance") or {}).get("input_manifest_ids") or [])
-        card_calls.append({"card_id": c.get("card_id"),
-                           "validation_state": c.get("validation_state"),
-                           "interpretation_call": c.get("interpretation_call")})
+        card_calls.append(
+            {
+                "card_id": c.get("card_id"),
+                "validation_state": c.get("validation_state"),
+                "interpretation_call": c.get("interpretation_call"),
+            }
+        )
     return {
         "source": "evidence_package",
         "artifact_path": _rel(path),
@@ -151,8 +163,9 @@ def row_from_evidence_package(path: Path, ep: dict) -> dict:
         # Governance release fingerprint (2026-08-12): the run's DATA state, resolved from the
         # manifests it read. Makes the cross-release trend meaningful when release_pin is 'unpinned'.
         "resolved_release_digest": gov.get("resolved_release_digest"),
-        "n_stale_families": sum(1 for v in (gov.get("resolved_releases") or {}).values()
-                                if isinstance(v, dict) and v.get("is_stale")),
+        "n_stale_families": sum(
+            1 for v in (gov.get("resolved_releases") or {}).values() if isinstance(v, dict) and v.get("is_stale")
+        ),
         "framework_version": ep.get("framework_version"),
         "generated_at": ep.get("generated_at"),
         # evidence_package synthesis is card-grain (headline/caveats/modality_fit) with no single
@@ -161,7 +174,7 @@ def row_from_evidence_package(path: Path, ep: dict) -> dict:
         "fragility": None,
         "card_calls": card_calls,
         "fired_rule_ids": [],
-        "input_manifest_ids": sorted(manifest_ids),   # FEDERATION KEY to the data-product / discovery graph
+        "input_manifest_ids": sorted(manifest_ids),  # FEDERATION KEY to the data-product / discovery graph
     }
 
 
@@ -179,17 +192,17 @@ def row_from_scan(path: Path, sc: dict) -> dict:
     return {
         "source": sc.get("method") or "scan",
         "artifact_path": _rel(path),
-        "target": sc.get("target_scope") or "ALL",          # scan scope, not a single target
+        "target": sc.get("target_scope") or "ALL",  # scan scope, not a single target
         "indication": sc.get("indication_scope") or "discovery",
-        "release_pin": "unpinned",                            # scans read live products
+        "release_pin": "unpinned",  # scans read live products
         "data_mode": "live_latest",
         "framework_version": sc.get("method_version"),
-        "generated_at": None,                                 # sidecar carries no wall-clock (byte-stable)
+        "generated_at": None,  # sidecar carries no wall-clock (byte-stable)
         "recommendation": None,
         "fragility": None,
         "n_hits": sc.get("n_hits"),
         "nominated_target_indications": sc.get("nominated_target_indications") or [],
-        "fired_rule_ids": [],                                 # discovery scan: no resolver rules
+        "fired_rule_ids": [],  # discovery scan: no resolver rules
         "input_manifest_ids": sorted(sc.get("input_manifest_ids") or []),  # FEDERATION KEY
     }
 
@@ -245,14 +258,18 @@ def build_indexes(rows: list[dict]) -> dict:
             if rk not in by_manifest[mid]:
                 by_manifest[mid].append(rk)
         ti = f"{r.get('target')}|{r.get('indication')}"
-        by_ti.setdefault(ti, []).append({
-            "release_pin": r.get("release_pin"), "source": r.get("source"),
-            # data fingerprint: distinguishes runs across catalog releases when release_pin is 'unpinned'
-            "resolved_release_digest": r.get("resolved_release_digest"),
-            "recommendation": r.get("recommendation"),
-            "contested": (r.get("fragility") or {}).get("contested"),
-            "generated_at": r.get("generated_at"), "row_key": rk,
-        })
+        by_ti.setdefault(ti, []).append(
+            {
+                "release_pin": r.get("release_pin"),
+                "source": r.get("source"),
+                # data fingerprint: distinguishes runs across catalog releases when release_pin is 'unpinned'
+                "resolved_release_digest": r.get("resolved_release_digest"),
+                "recommendation": r.get("recommendation"),
+                "contested": (r.get("fragility") or {}).get("contested"),
+                "generated_at": r.get("generated_at"),
+                "row_key": rk,
+            }
+        )
     return {
         "n_rows": len(rows),
         "n_rules_indexed": len(by_rule),
@@ -314,7 +331,7 @@ def _resolve_roots(args) -> dict[str, Path]:
         roots["skills"] = Path(args.skills_repo)
     if args.products_root:
         roots["products"] = Path(args.products_root)
-        roots["scans"] = Path(args.products_root)   # scans default to the products tree
+        roots["scans"] = Path(args.products_root)  # scans default to the products tree
     if args.scans_root:
         roots["scans"] = Path(args.scans_root)
     return roots
@@ -322,17 +339,25 @@ def _resolve_roots(args) -> dict[str, Path]:
 
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description="Build/check the eval ledger (portfolio memory).")
-    p.add_argument("--check", action="store_true",
-                   help="fail (exit 1) if the committed ledger is stale vs freshly computed "
-                        "(needs sibling repos present — local/manual guard)")
-    p.add_argument("--self-check", action="store_true",
-                   help="CI-safe: validate the committed artifact's internal integrity only "
-                        "(no sibling-repo probes)")
+    p.add_argument(
+        "--check",
+        action="store_true",
+        help="fail (exit 1) if the committed ledger is stale vs freshly computed "
+        "(needs sibling repos present — local/manual guard)",
+    )
+    p.add_argument(
+        "--self-check",
+        action="store_true",
+        help="CI-safe: validate the committed artifact's internal integrity only (no sibling-repo probes)",
+    )
     p.add_argument("--skills-repo", type=Path)
     p.add_argument("--products-root", type=Path)
-    p.add_argument("--scans-root", type=Path,
-                   help="root to scan for discovery-scan federation sidecars "
-                        "(*.input_manifest_ids.json); defaults to the products root")
+    p.add_argument(
+        "--scans-root",
+        type=Path,
+        help="root to scan for discovery-scan federation sidecars "
+        "(*.input_manifest_ids.json); defaults to the products root",
+    )
     args = p.parse_args(argv)
 
     if args.self_check:
@@ -355,15 +380,15 @@ def main(argv=None) -> int:
 
     if args.check:
         if not LEDGER_PATH.exists() or not INDEX_PATH.exists():
-            print(f"  MISSING {LEDGER_PATH.name}/{INDEX_PATH.name} — run without --check to generate.",
-                  file=sys.stderr)
+            print(f"  MISSING {LEDGER_PATH.name}/{INDEX_PATH.name} — run without --check to generate.", file=sys.stderr)
             return 1
         prior_rows = [json.loads(ln) for ln in LEDGER_PATH.read_text().splitlines() if ln.strip()]
         prior_index = json.loads(INDEX_PATH.read_text())
         prior_index.pop("built_at", None)
         if stable_projection(prior_rows, prior_index) != fresh:
-            print(f"  STALE {LEDGER_PATH.name}/{INDEX_PATH.name} — committed ledger differs; regenerate.",
-                  file=sys.stderr)
+            print(
+                f"  STALE {LEDGER_PATH.name}/{INDEX_PATH.name} — committed ledger differs; regenerate.", file=sys.stderr
+            )
             return 1
         print(f"  OK {LEDGER_PATH.name} (fresh)")
         return 0
@@ -372,8 +397,10 @@ def main(argv=None) -> int:
     LEDGER_PATH.write_text("".join(json.dumps(r, sort_keys=True, default=str) + "\n" for r in rows))
     index_out = {"built_at": datetime.datetime.now(datetime.timezone.utc).isoformat(), **index}
     INDEX_PATH.write_text(json.dumps(index_out, indent=2, sort_keys=True, default=str))
-    print(f"  wrote {LEDGER_PATH.relative_to(CONTRACTS_REPO)}: {index['n_rows']} rows "
-          f"({index['n_target_indications']} target×indication, {index['n_rules_indexed']} rules indexed)")
+    print(
+        f"  wrote {LEDGER_PATH.relative_to(CONTRACTS_REPO)}: {index['n_rows']} rows "
+        f"({index['n_target_indications']} target×indication, {index['n_rules_indexed']} rules indexed)"
+    )
     return 0
 
 

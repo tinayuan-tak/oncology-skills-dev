@@ -30,6 +30,7 @@ CM = _load("build_subgroup_coverage_matrix")
 
 # ---------- fixtures ----------
 
+
 def _catalog(tmp: Path, indication="COADREAD") -> Path:
     ind_dir = tmp / "subgroup-catalogs" / indication
     ind_dir.mkdir(parents=True)
@@ -38,12 +39,14 @@ def _catalog(tmp: Path, indication="COADREAD") -> Path:
         "indication": indication,
         "version": "2026-Q2",
         "atomic_strata": [
-            {"id": "MSI_H", "applicable_data_sources": ["tcga", "depmap"],
-             "expected_n_tcga_coadread": 40, "subtype_defining_data": "genomic"},
-            {"id": "MSS", "applicable_data_sources": ["tcga", "depmap"],
-             "expected_n_tcga_coadread": 200},
-            {"id": "KRAS_G12C", "applicable_data_sources": ["tcga"],
-             "expected_n_tcga_coadread": 20},
+            {
+                "id": "MSI_H",
+                "applicable_data_sources": ["tcga", "depmap"],
+                "expected_n_tcga_coadread": 40,
+                "subtype_defining_data": "genomic",
+            },
+            {"id": "MSS", "applicable_data_sources": ["tcga", "depmap"], "expected_n_tcga_coadread": 200},
+            {"id": "KRAS_G12C", "applicable_data_sources": ["tcga"], "expected_n_tcga_coadread": 20},
             {"id": "right_sided", "applicable_data_sources": ["tcga"]},
         ],
     }
@@ -56,8 +59,7 @@ def _sha(p: Path) -> str:
     return hashlib.sha256(p.read_bytes()).hexdigest()
 
 
-def _manifest(tmp: Path, catalog_path: Path, pin: str | None = None, strata=None,
-              data_source="tcga") -> Path:
+def _manifest(tmp: Path, catalog_path: Path, pin: str | None = None, strata=None, data_source="tcga") -> Path:
     """A schema-valid-ish manifest (the validator loads the real schema)."""
     strata = strata or [
         {"subgroup_id": "MSI_H", "n_samples": 38, "derivation_source": "directly_tagged_clinical"},
@@ -74,26 +76,30 @@ def _manifest(tmp: Path, catalog_path: Path, pin: str | None = None, strata=None
         "subgroup_catalog_content_pin": pin if pin is not None else _sha(catalog_path),
         "assigner_method": "subgroup_assigner_directly_tagged",
         "parquet_s3_uri": "s3://onc-compbio/data-catalog/derived/subgroup-assignments/COADREAD/tcga/2026-Q2/assignments.parquet",
-        "parquet_schema": {"columns": [
-            {"name": "sample_id", "type": "string"},
-            {"name": "patient_id", "type": "string", "nullable": True},
-            {"name": "stratum_id", "type": "string"},
-            {"name": "is_member", "type": "bool", "nullable": True},
-            {"name": "derivation_value", "type": "string"},
-        ]},
+        "parquet_schema": {
+            "columns": [
+                {"name": "sample_id", "type": "string"},
+                {"name": "patient_id", "type": "string", "nullable": True},
+                {"name": "stratum_id", "type": "string"},
+                {"name": "is_member", "type": "bool", "nullable": True},
+                {"name": "derivation_value", "type": "string"},
+            ]
+        },
         "n_samples_total": 276,
         "strata_summary": strata,
         "generated_at": "2026-07-16T16:00:00Z",
         "generated_by": "methods/subgroup_assigner_directly_tagged@abc1234",
         "schema_version": 1,
     }
-    d = tmp / "products" / f"{data_source}-x" ; d.mkdir(parents=True)
+    d = tmp / "products" / f"{data_source}-x"
+    d.mkdir(parents=True)
     p = d / "manifest.yaml"
     p.write_text(yaml.safe_dump(m))
     return p
 
 
 # ---------- validator ----------
+
 
 def test_valid_fresh_manifest_ok(tmp_path):
     cat = _catalog(tmp_path)
@@ -113,7 +119,7 @@ def test_stale_content_pin_is_error(tmp_path):
 
 def test_edit_catalog_makes_manifest_stale(tmp_path):
     cat = _catalog(tmp_path)
-    mani = _manifest(tmp_path, cat)      # pin matches
+    mani = _manifest(tmp_path, cat)  # pin matches
     assert V.validate_manifest_file(mani, catalog_repo=tmp_path).ok
     cat.write_text(cat.read_text() + "\n# in-place edit\n")  # 6th-edit scenario
     r = V.validate_manifest_file(mani, catalog_repo=tmp_path)
@@ -122,9 +128,13 @@ def test_edit_catalog_makes_manifest_stale(tmp_path):
 
 def test_unknown_stratum_is_error(tmp_path):
     cat = _catalog(tmp_path)
-    mani = _manifest(tmp_path, cat, strata=[
-        {"subgroup_id": "NOT_IN_CATALOG", "n_samples": 10, "derivation_source": "directly_tagged_clinical"},
-    ])
+    mani = _manifest(
+        tmp_path,
+        cat,
+        strata=[
+            {"subgroup_id": "NOT_IN_CATALOG", "n_samples": 10, "derivation_source": "directly_tagged_clinical"},
+        ],
+    )
     r = V.validate_manifest_file(mani, catalog_repo=tmp_path)
     assert not r.ok
     assert any("not an atomic_stratum" in e for e in r.errors)
@@ -148,6 +158,7 @@ def test_missing_catalog_warns_not_errors(tmp_path):
 
 
 # ---------- coverage matrix ----------
+
 
 def test_matrix_status_vocabulary(tmp_path):
     cat = _catalog(tmp_path)

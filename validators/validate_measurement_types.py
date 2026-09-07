@@ -28,6 +28,7 @@ rot:
 Usage:
   python validate_measurement_types.py --vocab vocabularies/measurement_types.yaml --cards cards/
 """
+
 from __future__ import annotations
 
 import argparse
@@ -61,7 +62,7 @@ def _known_card_ids(cards_dir: Path) -> set[str] | None:
     if not cards_dir.exists():
         return None
     ids = set()
-    for p in cards_dir.rglob("*.card.yaml"):   # recursive — parity with validate_cards.py (C2)
+    for p in cards_dir.rglob("*.card.yaml"):  # recursive — parity with validate_cards.py (C2)
         try:
             spec = yaml.safe_load(p.read_text()) or {}
         except yaml.YAMLError:
@@ -140,7 +141,7 @@ def _has_cycle(types: dict) -> list[str]:
             if color[dep] == GRAY:
                 # cycle: everything from dep's position on the stack
                 if dep in stack:
-                    in_cycle.update(stack[stack.index(dep):])
+                    in_cycle.update(stack[stack.index(dep) :])
             elif color[dep] == WHITE:
                 dfs(dep, stack)
         stack.pop()
@@ -201,16 +202,19 @@ def validate(vocab_path: Path, cards_dir: Path | None) -> Report:
             r.err(f"[{name}] has no providers (a type must declare at least one)")
         # Rule: >1 provider requires a conflict policy
         if len(providers) > 1 and spec.get("multi_provider_policy") not in VALID_POLICIES:
-            r.err(f"[{name}] has {len(providers)} providers but no valid multi_provider_policy "
-                  f"(need one of {sorted(VALID_POLICIES)}) — averaging/pick-one is forbidden (Rule 5)")
+            r.err(
+                f"[{name}] has {len(providers)} providers but no valid multi_provider_policy "
+                f"(need one of {sorted(VALID_POLICIES)}) — averaging/pick-one is forbidden (Rule 5)"
+            )
         if spec.get("multi_provider_policy") and spec["multi_provider_policy"] not in VALID_POLICIES:
             r.err(f"[{name}] multi_provider_policy `{spec['multi_provider_policy']}` invalid")
 
         for i, p in enumerate(providers):
             tier = p.get("evidence_tier")
             if tier not in VALID_TIERS:
-                r.err(f"[{name}] provider #{i} evidence_tier `{tier}` invalid "
-                      f"(mandatory; one of {sorted(VALID_TIERS)})")
+                r.err(
+                    f"[{name}] provider #{i} evidence_tier `{tier}` invalid (mandatory; one of {sorted(VALID_TIERS)})"
+                )
             kind = p.get("kind")
             if kind == "derived_from":
                 inputs = p.get("inputs") or []
@@ -220,8 +224,10 @@ def validate(vocab_path: Path, cards_dir: Path | None) -> Report:
                     if inp == name:
                         r.err(f"[{name}] derived_from input is self-referential")
                     elif inp not in keys:
-                        r.err(f"[{name}] derived_from input `{inp}` is not a registered "
-                              f"measurement_type (dangling DAG edge, Rule 4)")
+                        r.err(
+                            f"[{name}] derived_from input `{inp}` is not a registered "
+                            f"measurement_type (dangling DAG edge, Rule 4)"
+                        )
             elif kind != "dataset":
                 r.err(f"[{name}] provider #{i} kind `{kind}` must be `dataset` or `derived_from`")
 
@@ -230,15 +236,19 @@ def validate(vocab_path: Path, cards_dir: Path | None) -> Report:
         substrate = spec.get("evidence_substrate")
         if substrate is not None:
             if not isinstance(substrate, str) or substrate not in substrate_vocab:
-                r.err(f"[{name}] evidence_substrate `{substrate}` is not a key in the "
-                      f"`evidence_substrates` controlled vocab {sorted(substrate_vocab)}")
+                r.err(
+                    f"[{name}] evidence_substrate `{substrate}` is not a key in the "
+                    f"`evidence_substrates` controlled vocab {sorted(substrate_vocab)}"
+                )
             elif any(p.get("kind") == "derived_from" for p in providers):
                 lineage_subs = _transitive_input_substrates(name, types)
                 if substrate not in lineage_subs:
-                    r.err(f"[{name}] declares evidence_substrate `{substrate}` but no derived_from "
-                          f"input carries it (lineage substrates: {sorted(lineage_subs) or 'none'}) — "
-                          f"a derived type inherits its dominant input's substrate; it cannot invent "
-                          f"one its lineage does not touch (Rule 7).")
+                    r.err(
+                        f"[{name}] declares evidence_substrate `{substrate}` but no derived_from "
+                        f"input carries it (lineage substrates: {sorted(lineage_subs) or 'none'}) — "
+                        f"a derived type inherits its dominant input's substrate; it cannot invent "
+                        f"one its lineage does not touch (Rule 7)."
+                    )
 
         # Card back-refs resolve (only when cards/ is available)
         if known_cards is not None:
@@ -252,10 +262,12 @@ def validate(vocab_path: Path, cards_dir: Path | None) -> Report:
                     # is wrong). One-way membership checks let this pass silently.
                     declared = card_mt.get(cid)
                     if declared != name:
-                        r.err(f"[{name}] cards back-ref `{cid}` declares "
-                              f"measurement_type={declared!r} (expected `{name}`) — the registry lists it "
-                              f"as a view of `{name}` but the card disagrees. Set the card's "
-                              f"measurement_type or fix the back-ref.")
+                        r.err(
+                            f"[{name}] cards back-ref `{cid}` declares "
+                            f"measurement_type={declared!r} (expected `{name}`) — the registry lists it "
+                            f"as a view of `{name}` but the card disagrees. Set the card's "
+                            f"measurement_type or fix the back-ref."
+                        )
 
     # C4 Arm 1 (card -> registry): every card whose measurement_type is a registered type MUST appear in
     # that type's `cards:` list (skip un-migrated cards that declare no measurement_type — nothing to
@@ -266,9 +278,11 @@ def validate(vocab_path: Path, cards_dir: Path | None) -> Report:
                 continue
             listed = types[mt].get("cards") or []
             if cid not in listed:
-                r.err(f"[{mt}] card `{cid}` declares measurement_type `{mt}` but is NOT in "
-                      f"`{mt}.cards` — add it to the type's back-ref list (Rule 2 concordance is "
-                      f"bidirectional).")
+                r.err(
+                    f"[{mt}] card `{cid}` declares measurement_type `{mt}` but is NOT in "
+                    f"`{mt}.cards` — add it to the type's back-ref list (Rule 2 concordance is "
+                    f"bidirectional)."
+                )
 
     cyclic = _has_cycle(types)
     if cyclic:
@@ -279,11 +293,10 @@ def validate(vocab_path: Path, cards_dir: Path | None) -> Report:
 
 def _main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[1])
-    ap.add_argument("--vocab", type=Path,
-                    default=Path(__file__).resolve().parent.parent
-                    / "vocabularies" / "measurement_types.yaml")
-    ap.add_argument("--cards", type=Path,
-                    default=Path(__file__).resolve().parent.parent / "cards")
+    ap.add_argument(
+        "--vocab", type=Path, default=Path(__file__).resolve().parent.parent / "vocabularies" / "measurement_types.yaml"
+    )
+    ap.add_argument("--cards", type=Path, default=Path(__file__).resolve().parent.parent / "cards")
     args = ap.parse_args(argv)
     r = validate(args.vocab, args.cards)
     print("validate_measurement_types.py results:")
@@ -292,8 +305,7 @@ def _main(argv=None) -> int:
     for w in r.warnings:
         print(f"  [WARNING] {w}")
     types = (yaml.safe_load(args.vocab.read_text()) or {}).get("measurement_types") or {}
-    print(f"\nSummary: {len(types)} measurement_type(s); "
-          f"{'OK' if r.ok else str(len(r.errors)) + ' error(s)'}.")
+    print(f"\nSummary: {len(types)} measurement_type(s); {'OK' if r.ok else str(len(r.errors)) + ' error(s)'}.")
     return 0 if r.ok else 1
 
 

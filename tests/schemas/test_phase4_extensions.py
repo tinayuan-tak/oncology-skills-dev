@@ -23,6 +23,7 @@ CARD_SCHEMA = json.loads((REPO / "schemas" / "card.schema.json").read_text())
 
 # ---------- Rule schema extensions ----------
 
+
 def _base_rules_doc(rule):
     return {
         "rules_id": "test-rules",
@@ -182,6 +183,7 @@ def test_when_oneOf_still_enforced():
 
 # ---------- Card schema extensions ----------
 
+
 def _base_card(**overrides):
     base = {
         "card_id": "test-card",
@@ -221,9 +223,7 @@ def test_summary_fields_record_schemas_optional():
             "scope_id": "string",
             "subgroup_n": "integer",
             "subgroup_n_floor_met": "boolean",
-            "expression_class": {
-                "enum": ["broadly_high", "broadly_moderate", "lineage_restricted", "broadly_low"]
-            },
+            "expression_class": {"enum": ["broadly_high", "broadly_moderate", "lineage_restricted", "broadly_low"]},
         }
     }
     jsonschema.validate(instance=card, schema=CARD_SCHEMA)

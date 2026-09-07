@@ -6,6 +6,7 @@
     gate's verdict (dependency's CRISPR↔RNAi concordance, which resolves concordant_dependent) must error.
     This is the anti-regression pin: a green validator that can't fail is worthless.
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -38,10 +39,12 @@ def test_validator_catches_a_verdict_driving_corroboration(tmp_path, monkeypatch
     (tmp_path / "interpretation-rules").symlink_to(REPO / "interpretation-rules")
     (tmp_path / "vocabularies" / "certainty_corroboration.yaml").write_text(
         "enum_id: certainty_corroboration\nversion: 1.0.0\n"
-        "corroboration_by_gate:\n  dependency:\n    - crispr-rnai-dependency-concordance\n")
+        "corroboration_by_gate:\n  dependency:\n    - crispr-rnai-dependency-concordance\n"
+    )
     errors = m.validate(tmp_path)
     assert any("DISJOINTNESS VIOLATION" in e and "dependency" in e for e in errors), (
-        f"validator failed to catch a verdict-driving corroboration card; errors={errors}")
+        f"validator failed to catch a verdict-driving corroboration card; errors={errors}"
+    )
 
 
 def test_unknown_gate_is_flagged(tmp_path):
@@ -50,6 +53,7 @@ def test_unknown_gate_is_flagged(tmp_path):
     (tmp_path / "resolvers").mkdir()
     (tmp_path / "interpretation-rules").mkdir()
     (tmp_path / "vocabularies" / "certainty_corroboration.yaml").write_text(
-        "corroboration_by_gate:\n  no_such_gate:\n    - some-card\n")
+        "corroboration_by_gate:\n  no_such_gate:\n    - some-card\n"
+    )
     errors = m.validate(tmp_path)
     assert any("no resolver" in e for e in errors)

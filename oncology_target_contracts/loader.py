@@ -12,6 +12,7 @@ The loaders mirror the exact read patterns existing consumers use
 caller uses this API or its own current reader. This package is ADDITIVE — it does not
 change how any existing consumer reads today.
 """
+
 from __future__ import annotations
 
 import os
@@ -22,9 +23,7 @@ from typing import Optional
 import yaml
 
 _ENV = "TARGET_CONTRACTS_ROOT"
-_CANONICAL_DEFAULT = Path(
-    "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
-)
+_CANONICAL_DEFAULT = Path("/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
 
 # The package lives at <contracts-repo-root>/oncology_target_contracts/, so the repo
 # root — where cards/, resolvers/, schemas/, vocabularies/, dashboards/ live — is the

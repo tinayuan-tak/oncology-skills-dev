@@ -63,11 +63,9 @@ def list_skill_names(skills_root: Path) -> list[str]:
     if not sd.is_dir():
         return []
     return sorted(
-        d.name for d in sd.iterdir()
-        if d.is_dir()
-        and not d.name.startswith(".")
-        and d.name not in _NON_SKILL_DIRS
-        and (d / "SKILL.md").exists()
+        d.name
+        for d in sd.iterdir()
+        if d.is_dir() and not d.name.startswith(".") and d.name not in _NON_SKILL_DIRS and (d / "SKILL.md").exists()
     )
 
 
@@ -87,6 +85,7 @@ def _find_entrypoint(skill_dir: Path) -> Optional[Path]:
         if pys:
             return pys[0]
     return None
+
 
 # Prose maturity markers detected in SKILL.md bodies (declared-intent signal only —
 # NOT authoritative; the derived probes decide actual health).
@@ -202,9 +201,7 @@ def parse_skill_md(skill_dir: Path) -> dict:
     if isinstance(fm, dict):
         comp = fm.get("composition") or {}
         # status/phase may be top-level, under composition, or under metadata.
-        out["declared_status"] = (
-            fm.get("status") or comp.get("status") or (fm.get("metadata") or {}).get("status")
-        )
+        out["declared_status"] = fm.get("status") or comp.get("status") or (fm.get("metadata") or {}).get("status")
         out["declared_phase"] = fm.get("phase") or comp.get("phase")
         cu = comp.get("cards_used") or fm.get("cards_used") or []
         out["cards_used"] = [str(c) for c in cu] if isinstance(cu, list) else []
@@ -294,16 +291,14 @@ def probe_skill(skill_dir: Path) -> dict:
         der["kind"] = "COMPOSED"
         # A composed skill's fan-out list is itself a probe target (count vs declared).
         der["fanout_count"] = len(sub_skills)
-        der["fanout_members"] = [
-            (list(x)[0] if isinstance(x, (list, tuple)) else str(x)) for x in sub_skills
-        ]
+        der["fanout_members"] = [(list(x)[0] if isinstance(x, (list, tuple)) else str(x)) for x in sub_skills]
     elif gate is not None:
         der["kind"] = "FOCUSED"
     elif _calls_function(tree, "run_wired_skill"):
         der["kind"] = "FOCUSED"  # wired dispatcher without an own resolver gate
     else:
         # Non-verdict skills: distinguish by the entrypoint name / known roles.
-        ep = (run_py.name if run_py else "")
+        ep = run_py.name if run_py else ""
         if name in ("compose-dashboard", "render-evidence-package") or "compose" in ep or "render" in ep:
             der["kind"] = "ORCHESTRATION"
         elif name == "query-target-evidence" or "query" in ep:
@@ -484,8 +479,10 @@ def catalog_manifests(catalog_root: Path) -> dict[str, dict]:
             # never time an actual read (that would break the offline/deterministic
             # contract the whole dashboard rests on).
             qo = m.get("query_optimization") or {}
-            has_sort_key = bool(isinstance(qo, dict) and (qo.get("sort_columns") or qo.get("sort_key")
-                                                          or qo.get("primary_filter_column")))
+            has_sort_key = bool(
+                isinstance(qo, dict)
+                and (qo.get("sort_columns") or qo.get("sort_key") or qo.get("primary_filter_column"))
+            )
             meta = {
                 "kind": "source" if kind == "sources" else "derived",
                 "provider": m.get("provider"),
@@ -495,7 +492,7 @@ def catalog_manifests(catalog_root: Path) -> dict[str, dict]:
                 "file_count": m.get("file_count"),
                 "system_of_record": m.get("system_of_record"),
                 "derived_from": m.get("derived_from") or [],
-                "has_sort_key": has_sort_key,   # static access-latency lever (query_optimization declared?)
+                "has_sort_key": has_sort_key,  # static access-latency lever (query_optimization declared?)
             }
             out[mid] = meta
             # Register the logical registry product as an alias key. Multiple
@@ -521,15 +518,19 @@ def catalog_manifests(catalog_root: Path) -> dict[str, dict]:
                 rm = yaml.safe_load(newest.read_text()) or {}
             except yaml.YAMLError:
                 rm = {}
-            out.setdefault("target-id-resolver-release", {
-                "kind": "resolver_release",
-                "provider": rm.get("provider"),
-                "version": rm.get("resolver_release") or newest.name[:-5],
-                "license": rm.get("license"),
-                "size_bytes": None, "file_count": len(releases),
-                "system_of_record": rm.get("system_of_record"),
-                "derived_from": [],
-            })
+            out.setdefault(
+                "target-id-resolver-release",
+                {
+                    "kind": "resolver_release",
+                    "provider": rm.get("provider"),
+                    "version": rm.get("resolver_release") or newest.name[:-5],
+                    "license": rm.get("license"),
+                    "size_bytes": None,
+                    "file_count": len(releases),
+                    "system_of_record": rm.get("system_of_record"),
+                    "derived_from": [],
+                },
+            )
 
     # subgroup-catalogs/ is likewise a first-class catalog artifact tracked OUTSIDE manifests/
     # (per-indication molecular-subgroup catalogs at subgroup-catalogs/<INDICATION>/<release>.yaml,
@@ -540,16 +541,19 @@ def catalog_manifests(catalog_root: Path) -> dict[str, dict]:
     if sc_dir.is_dir():
         catalog_files = sorted(sc_dir.glob("*/*.yaml"))
         if catalog_files:
-            out.setdefault("subgroup-catalog", {
-                "kind": "subgroup_catalog",
-                "provider": None,
-                "version": None,
-                "license": None,
-                "size_bytes": None,
-                "file_count": len(catalog_files),
-                "system_of_record": None,
-                "derived_from": [],
-            })
+            out.setdefault(
+                "subgroup-catalog",
+                {
+                    "kind": "subgroup_catalog",
+                    "provider": None,
+                    "version": None,
+                    "license": None,
+                    "size_bytes": None,
+                    "file_count": len(catalog_files),
+                    "system_of_record": None,
+                    "derived_from": [],
+                },
+            )
 
     # Real manifest ids take precedence over product_id aliases on collision.
     for k, v in aliases.items():
@@ -607,9 +611,9 @@ def probe_card(
         "placeholder_reason": None,
         "measurement_type": None,
         "has_live_reader": card_id in live_ids,
-        "method_call": None,           # card's declared label (may be stale)
+        "method_call": None,  # card's declared label (may be stale)
         "dispatch_module": dispatch_modules.get(card_id),  # what the dispatcher imports
-        "method_dir_exists": None,     # authoritative: does the dispatcher's module exist?
+        "method_dir_exists": None,  # authoritative: does the dispatcher's module exist?
         "method_has_read": None,
         "stale_method_label": False,
         "fires_in_real_package": card_id in fired_ids,
@@ -617,11 +621,10 @@ def probe_card(
         # governed evidence packages UNION exploratory skill-runs. Additive to
         # fires_in_real_package (which stays governed-only + byte-stable); when no
         # registry is wired, fired_any_ids is None and this equals fires_in_real_package.
-        "fires_in_any_run": card_id in (fired_any_ids
-                                        if fired_any_ids is not None else fired_ids),
-        "datasets": [],                # required_inputs product_ids + catalog status
+        "fires_in_any_run": card_id in (fired_any_ids if fired_any_ids is not None else fired_ids),
+        "datasets": [],  # required_inputs product_ids + catalog status
         # P4 modality-vector lens (routing metadata, parallel to card_health):
-        "modality_relevance": None,    # the card's declared routing set (or None if absent)
+        "modality_relevance": None,  # the card's declared routing set (or None if absent)
         "modality_routing": "unknown",  # declared|not_required|missing|drift|not_applicable|unknown — see below
     }
     card = _load_card_yaml(card_id, contracts_root)
@@ -629,7 +632,7 @@ def probe_card(
         # No .card.yaml on disk. Either a broken ref / not-yet-authored id (→ broken), OR a
         # self-produced scan-hook output whose card_id IS a skill name (→ self_produced, not broken —
         # its "product" is the skill's own live computation, no contract YAML expected).
-        out["is_self_produced_skill_card"] = (skill_names is not None and card_id in skill_names)
+        out["is_self_produced_skill_card"] = skill_names is not None and card_id in skill_names
         # routing is not applicable — a missing/self-produced card is not a P4 non-compliance.
         out["modality_routing"] = "not_applicable"
         return out
@@ -642,7 +645,7 @@ def probe_card(
     # first, then a prefix fallback — recording HOW it matched so a bare id-convention
     # mismatch (matched_by=prefix) isn't conflated with a genuinely absent dataset.
     ds = []
-    for ri in (card.get("required_inputs") or []):
+    for ri in card.get("required_inputs") or []:
         if isinstance(ri, dict) and ri.get("product_id"):
             pid = str(ri["product_id"]).split("#")[0].strip()  # strip trailing inline comment
             if pid in catalog_ids:
@@ -650,8 +653,14 @@ def probe_card(
             else:
                 pref = sorted(c for c in catalog_ids if c.startswith(pid + "-"))
                 matched_by, resolved = ("prefix", pref[0]) if pref else (None, None)
-            ds.append({"product_id": pid, "in_catalog": matched_by is not None,
-                       "matched_by": matched_by, "resolved_id": resolved})
+            ds.append(
+                {
+                    "product_id": pid,
+                    "in_catalog": matched_by is not None,
+                    "matched_by": matched_by,
+                    "resolved_id": resolved,
+                }
+            )
     out["datasets"] = ds
 
     status = card.get("status")

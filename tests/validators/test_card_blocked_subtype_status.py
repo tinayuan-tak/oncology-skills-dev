@@ -9,6 +9,7 @@ subgroup FEATURE is blocked and the card is genuinely live (tumor-rna-vs-adjacen
 
 Hermetic synthetic cards + a guard on the real subgroup-stratified-expression card.
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -73,14 +74,14 @@ def test_subtype_blocked_with_wired_status_errors(tmp_path):
 
 
 def test_subtype_blocked_with_dormant_status_is_clean(tmp_path):
-    r = _validate(tmp_path, _base_card(tier="subtype", status="dormant_pending_data",
-                                       subgroup_stratification=_BLOCKED))
+    r = _validate(tmp_path, _base_card(tier="subtype", status="dormant_pending_data", subgroup_stratification=_BLOCKED))
     assert "BLOCKED_SUBTYPE_STATUS" not in _errs(r)
 
 
 def test_subtype_blocked_with_placeholder_status_is_clean(tmp_path):
-    r = _validate(tmp_path, _base_card(tier="subtype", status="placeholder_not_wired",
-                                       subgroup_stratification=_BLOCKED))
+    r = _validate(
+        tmp_path, _base_card(tier="subtype", status="placeholder_not_wired", subgroup_stratification=_BLOCKED)
+    )
     assert "BLOCKED_SUBTYPE_STATUS" not in _errs(r)
 
 
@@ -95,5 +96,6 @@ def test_real_subgroup_stratified_expression_declares_nonwired_status():
     """Regression guard on the shipped card: it must carry an explicit non-wired status."""
     doc = yaml.safe_load((REPO / "cards" / "subgroup-stratified-expression.card.yaml").read_text())
     assert doc.get("subgroup_stratification", {}).get("status") == "blocked_needs_per_sample_reader"
-    assert doc.get("status") in {"dormant_pending_data", "placeholder_not_wired"}, \
+    assert doc.get("status") in {"dormant_pending_data", "placeholder_not_wired"}, (
         "blocked subtype-tier card must declare an explicit non-wired status"
+    )

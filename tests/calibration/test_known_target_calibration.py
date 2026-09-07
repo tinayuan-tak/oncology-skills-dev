@@ -40,9 +40,13 @@ VETO_VERDICTS = {"non_dependent", "pan_essential_killer"}
 SELECTIVITY_VETO_VERDICT = "selective_but_broadly_normal"
 # Disposition tags for selectivity_cases entries (documentation taxonomy; asserted well-formed).
 _SELECTIVITY_DISPOSITIONS = {
-    "clean_positive", "over_veto_false_negative", "window_veto_cohort_confounded",
-    "discordant_flag", "not_selective_control", "true_negative_veto",
-    "selective_with_liability_correct",   # Phase S: sc-normal over-veto FIXED → named-organ liability
+    "clean_positive",
+    "over_veto_false_negative",
+    "window_veto_cohort_confounded",
+    "discordant_flag",
+    "not_selective_control",
+    "true_negative_veto",
+    "selective_with_liability_correct",  # Phase S: sc-normal over-veto FIXED → named-organ liability
 }
 
 
@@ -58,8 +62,7 @@ def _load_snapshot(name: str) -> dict:
 
 def _all_entries(fixtures: dict):
     """Yield (bucket, name, entry) across all fixture buckets."""
-    for bucket in ("positive_controls", "known_gap_watchlist", "abstention_cases",
-                   "selectivity_cases"):
+    for bucket in ("positive_controls", "known_gap_watchlist", "abstention_cases", "selectivity_cases"):
         for name, entry in (fixtures.get(bucket) or {}).items():
             yield bucket, name, entry
 
@@ -68,6 +71,7 @@ def _all_entries(fixtures: dict):
 # Fixture-set integrity (the config itself must stay well-formed)
 # ---------------------------------------------------------------------------
 
+
 def test_fixture_set_loads_and_versioned():
     f = _load_fixtures()
     assert f["version"] and f["depmap_release_pin"]
@@ -75,8 +79,7 @@ def test_fixture_set_loads_and_versioned():
 
 
 def test_every_entry_well_formed():
-    valid_types = {"must_not_veto", "abstention_expected", "known_gap_expected_fail",
-                   "selectivity_verdict_expected"}
+    valid_types = {"must_not_veto", "abstention_expected", "known_gap_expected_fail", "selectivity_verdict_expected"}
     for bucket, name, e in _all_entries(_load_fixtures()):
         assert e.get("indication"), f"{name}: missing indication"
         assert e.get("assertion_type") in valid_types, f"{name}: bad assertion_type {e.get('assertion_type')!r}"
@@ -93,22 +96,23 @@ def test_selectivity_cases_well_formed():
     future fix is a clean diff."""
     for name, e in (_load_fixtures().get("selectivity_cases") or {}).items():
         assert e.get("assertion_type") == "selectivity_verdict_expected", (
-            f"{name}: selectivity_cases entry must be selectivity_verdict_expected")
+            f"{name}: selectivity_cases entry must be selectivity_verdict_expected"
+        )
         assert e.get("expected_selectivity_class"), f"{name}: missing expected_selectivity_class"
-        assert e.get("disposition") in _SELECTIVITY_DISPOSITIONS, (
-            f"{name}: bad disposition {e.get('disposition')!r}")
+        assert e.get("disposition") in _SELECTIVITY_DISPOSITIONS, f"{name}: bad disposition {e.get('disposition')!r}"
         if e["disposition"] in {"over_veto_false_negative", "discordant_flag"}:
-            assert e.get("should_be"), (
-                f"{name}: {e['disposition']} must name `should_be` (the flip target)")
+            assert e.get("should_be"), f"{name}: {e['disposition']} must name `should_be` (the flip target)"
         # true_negative_veto entries assert the veto SHOULD fire
         if e["disposition"] == "true_negative_veto":
             assert e["expected_selectivity_class"] == SELECTIVITY_VETO_VERDICT, (
-                f"{name}: a true_negative_veto must expect {SELECTIVITY_VETO_VERDICT!r}")
+                f"{name}: a true_negative_veto must expect {SELECTIVITY_VETO_VERDICT!r}"
+            )
 
 
 # ---------------------------------------------------------------------------
 # The calibration assertions (parametrized over measured entries)
 # ---------------------------------------------------------------------------
+
 
 def _measured_entries():
     out = []
@@ -129,8 +133,8 @@ def test_known_target_calibration(bucket, name, entry):
         verdict = headline.get("dependency_verdict")
         assert verdict is not None, f"{name}: no dependency_verdict in snapshot"
         assert verdict not in VETO_VERDICTS, (
-            f"{name}: NECESSITY VIOLATION — approved target reads veto verdict "
-            f"{verdict!r} (osimertinib-guard failure)")
+            f"{name}: NECESSITY VIOLATION — approved target reads veto verdict {verdict!r} (osimertinib-guard failure)"
+        )
         # also honor an explicit not-in list if provided
         for bad in entry.get("expected_verdict_not_in", []):
             assert verdict != bad, f"{name}: verdict {verdict!r} is in expected_verdict_not_in"
@@ -141,10 +145,12 @@ def test_known_target_calibration(bucket, name, entry):
         v = headline.get("surface_modality_verdict")
         assert v == entry.get("expected_surface_modality_verdict", "insufficient"), (
             f"{name}: ABSTENTION VIOLATION — surface verdict {v!r}, expected insufficient "
-            f"(a data-blocked axis must abstain, not fabricate a nomination)")
+            f"(a data-blocked axis must abstain, not fabricate a nomination)"
+        )
         # fit_class must be null/None when abstaining
         assert headline.get("fit_class") in (None, "null"), (
-            f"{name}: fit_class {headline.get('fit_class')!r} should be null when abstaining")
+            f"{name}: fit_class {headline.get('fit_class')!r} should be null when abstaining"
+        )
 
     elif atype == "known_gap_expected_fail":
         # KNOWN GAP: an ADVANCED program the framework currently false-negatives.
@@ -156,10 +162,10 @@ def test_known_target_calibration(bucket, name, entry):
         assert verdict == exp, (
             f"{name}: known-gap watch verdict changed: {verdict!r} != expected {exp!r}. "
             f"If a fix (e.g. Phase-2 context-SL) landed, update the fixture "
-            f"(assertion_type→must_not_veto, expected_after_context_sl).")
+            f"(assertion_type→must_not_veto, expected_after_context_sl)."
+        )
         drv = headline.get("driving_rule_id")
-        assert drv == entry.get("expected_driving_rule_current"), (
-            f"{name}: driving rule changed: {drv!r}")
+        assert drv == entry.get("expected_driving_rule_current"), f"{name}: driving rule changed: {drv!r}"
 
     elif atype == "selectivity_verdict_expected":
         # SELECTIVITY gate: pin headline.selectivity_class to the CURRENT measured value (a
@@ -174,7 +180,8 @@ def test_known_target_calibration(bucket, name, entry):
         assert sc == exp, (
             f"{name}: selectivity_class drifted: {sc!r} != expected {exp!r}. If a veto/robustness "
             f"fix landed, update expected_selectivity_class (over_veto/discordant entries flip to "
-            f"their `should_be` + disposition→clean_positive).")
+            f"their `should_be` + disposition→clean_positive)."
+        )
         exp_drv = entry.get("expected_driving_rule_current")
         if exp_drv is not None:
             drv = headline.get("driving_rule_id")
@@ -184,6 +191,7 @@ def test_known_target_calibration(bucket, name, entry):
 # ---------------------------------------------------------------------------
 # Coverage report (informational — always passes; documents what's measured)
 # ---------------------------------------------------------------------------
+
 
 def test_calibration_coverage_report(capsys):
     f = _load_fixtures()
@@ -196,8 +204,7 @@ def test_calibration_coverage_report(capsys):
         else:
             pending += 1
     with capsys.disabled():
-        print(f"\n[calibration] measured={measured} pending(reasoned-only)={pending} "
-              f"by_assertion_type={by_type}")
+        print(f"\n[calibration] measured={measured} pending(reasoned-only)={pending} by_assertion_type={by_type}")
     assert measured >= 1  # the suite is not empty of measured anchors
 
 
@@ -211,8 +218,7 @@ def test_calibration_coverage_report(capsys):
 # clean, reviewable diff.
 
 _COVERAGE_VOCAB = {"captured", "partial", "blind", "license_blocked", "out_of_scope"}
-_SEVERITY_VOCAB = {"dangerous_false_positive", "silent_false_negative",
-                   "honest_blind", "validated_lane"}
+_SEVERITY_VOCAB = {"dangerous_false_positive", "silent_false_negative", "honest_blind", "validated_lane"}
 
 
 def _reference_profiles():
@@ -225,9 +231,9 @@ def test_reference_profiles_present_and_well_formed():
     for name, e in rp.items():
         assert e.get("deciding_axis"), f"{name}: missing deciding_axis"
         assert e.get("deciding_axis_coverage") in _COVERAGE_VOCAB, (
-            f"{name}: bad deciding_axis_coverage {e.get('deciding_axis_coverage')!r}")
-        assert e.get("severity") in _SEVERITY_VOCAB, (
-            f"{name}: bad severity {e.get('severity')!r}")
+            f"{name}: bad deciding_axis_coverage {e.get('deciding_axis_coverage')!r}"
+        )
+        assert e.get("severity") in _SEVERITY_VOCAB, f"{name}: bad severity {e.get('severity')!r}"
         assert e.get("agreement"), f"{name}: missing agreement"
 
 
@@ -248,6 +254,7 @@ def test_reference_profile_severity_consistency():
 def test_reference_profile_coverage_report(capsys):
     rp = _reference_profiles()
     import collections
+
     sev = collections.Counter(e["severity"] for e in rp.values())
     cov = collections.Counter(e["deciding_axis_coverage"] for e in rp.values())
     with capsys.disabled():

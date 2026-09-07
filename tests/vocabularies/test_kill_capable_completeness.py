@@ -42,7 +42,8 @@ def _load():
 
 def _load_verdict_tokens_module():
     spec = importlib.util.spec_from_file_location(
-        "validate_verdict_tokens", REPO / "validators" / "validate_verdict_tokens.py")
+        "validate_verdict_tokens", REPO / "validators" / "validate_verdict_tokens.py"
+    )
     m = importlib.util.module_from_spec(spec)
     sys.modules["validate_verdict_tokens"] = m
     spec.loader.exec_module(m)
@@ -70,6 +71,7 @@ def _classification_sets(v):
 
 # ---------------------------------------------------------------------------
 
+
 def test_registry_well_formed():
     v = _load()
     reg = v["kill_capable_verdicts"]
@@ -77,8 +79,8 @@ def test_registry_well_formed():
     for sub_skill, verdict, disposition in _registry_entries(v):
         assert sub_skill and verdict, f"malformed registry entry under {sub_skill!r}"
         assert disposition in _VALID_DISPOSITIONS, (
-            f"({sub_skill}, {verdict}) has disposition {disposition!r} "
-            f"∉ {sorted(_VALID_DISPOSITIONS)}")
+            f"({sub_skill}, {verdict}) has disposition {disposition!r} ∉ {sorted(_VALID_DISPOSITIONS)}"
+        )
     # No duplicate (sub_skill, verdict) pairs.
     pairs = [(s, verd) for s, verd, _ in _registry_entries(v)]
     assert len(pairs) == len(set(pairs)), f"duplicate registry entries: {pairs}"
@@ -89,14 +91,14 @@ def test_disposition_matches_classification():
     a kill verdict can never be tagged one way and filed another (or filed nowhere)."""
     v = _load()
     gated, excluded, contra = _classification_sets(v)
-    by_disposition = {"gated": gated, "excluded_modality_scoped": excluded,
-                      "contradiction": contra}
+    by_disposition = {"gated": gated, "excluded_modality_scoped": excluded, "contradiction": contra}
     for sub_skill, verdict, disposition in _registry_entries(v):
         expected_set = by_disposition[disposition]
         assert (sub_skill, verdict) in expected_set, (
             f"({sub_skill}, {verdict}) is registered as {disposition!r} but is NOT present in the "
             f"corresponding classification block — a kill verdict must be EXPLICITLY classified, "
-            f"never silently ignored (§6.6 fail-open)")
+            f"never silently ignored (§6.6 fail-open)"
+        )
 
 
 def test_registry_verdicts_are_emitted():
@@ -111,7 +113,8 @@ def test_registry_verdicts_are_emitted():
         checked += 1
         assert verdict in _EMITTED[gate], (
             f"kill_capable_verdicts entry ({sub_skill}, {verdict}) is NOT emitted case-exact by "
-            f"resolver `{gate}` (emits: {sorted(_EMITTED[gate])}) — a rename orphaned a kill verdict")
+            f"resolver `{gate}` (emits: {sorted(_EMITTED[gate])}) — a rename orphaned a kill verdict"
+        )
     assert checked > 0, "no registry verdicts were resolver-checked (crosswalk broke?)"
 
 
@@ -132,7 +135,8 @@ def test_registry_covers_all_classified_negatives():
             missing.add((sub_skill, verdict))
     assert not missing, (
         f"classified kill verdicts absent from kill_capable_verdicts: {sorted(missing)} — "
-        f"every resolver-backed negative must be in the registry")
+        f"every resolver-backed negative must be in the registry"
+    )
 
 
 def test_two_vetoes_and_gates_unchanged():
@@ -140,10 +144,8 @@ def test_two_vetoes_and_gates_unchanged():
     cross-target killers and the gates block is byte-stable (guards scope creep / over-veto)."""
     v = _load()
     veto = {(g["sub_skill"], g["verdict"]) for g in v["gates"] if g["action"] == "veto"}
-    assert veto == {("dependency", "pan_essential_killer"),
-                    ("dependency", "non_dependent")}
+    assert veto == {("dependency", "pan_essential_killer"), ("dependency", "non_dependent")}
     # Every registry `gated` entry is present in gates, and vice-versa for resolver-backed gates.
     gated = {(g["sub_skill"], g["verdict"]) for g in v["gates"]}
     reg_gated = {(s, verd) for s, verd, d in _registry_entries(v) if d == "gated"}
-    assert reg_gated == gated, (
-        f"registry `gated` set {sorted(reg_gated)} must equal the gates block {sorted(gated)}")
+    assert reg_gated == gated, f"registry `gated` set {sorted(reg_gated)} must equal the gates block {sorted(gated)}"

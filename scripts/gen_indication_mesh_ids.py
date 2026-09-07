@@ -15,6 +15,7 @@ supplementary C-record terms resolve to their preferred descriptor and are cover
 Usage:  python scripts/gen_indication_mesh_ids.py         # apply MESH_IDS to the crosswalk (ruamel round-trip)
         python scripts/gen_indication_mesh_ids.py --regenerate   # re-resolve from NCBI, then apply
 """
+
 from __future__ import annotations
 import sys
 from pathlib import Path
@@ -50,25 +51,31 @@ MESH_IDS = {
 def _regenerate() -> dict:
     import json, time, urllib.request, urllib.parse
     import yaml
+
     base = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/"
 
     def meshid(term):
         q = urllib.parse.urlencode({"db": "mesh", "term": f'"{term}"[MeSH Terms]', "retmode": "json"})
-        uid = json.loads(urllib.request.urlopen(base + "esearch.fcgi?" + q, timeout=30).read()
-                         ).get("esearchresult", {}).get("idlist", [])
+        uid = (
+            json.loads(urllib.request.urlopen(base + "esearch.fcgi?" + q, timeout=30).read())
+            .get("esearchresult", {})
+            .get("idlist", [])
+        )
         if not uid:
             return None
         time.sleep(0.34)
-        s = json.loads(urllib.request.urlopen(base + f"esummary.fcgi?db=mesh&id={uid[0]}&retmode=json",
-                                              timeout=30).read())
+        s = json.loads(
+            urllib.request.urlopen(base + f"esummary.fcgi?db=mesh&id={uid[0]}&retmode=json", timeout=30).read()
+        )
         return s["result"][uid[0]].get("ds_meshui")
 
     cw = yaml.safe_load(CROSSWALK.read_text())
     out = {}
     for e in cw["indications"]:
         ids = set()
-        for term in (e.get("mesh_terms") or []):
-            mid = meshid(term); time.sleep(0.34)
+        for term in e.get("mesh_terms") or []:
+            mid = meshid(term)
+            time.sleep(0.34)
             if mid:
                 ids.add(f"MESH:{mid}")
         out[e["canonical_code"]] = sorted(ids)
@@ -80,13 +87,13 @@ def main(argv=None):
     mapping = _regenerate() if "--regenerate" in argv else MESH_IDS
 
     from ruamel.yaml import YAML
+
     yaml = YAML()
     yaml.preserve_quotes = True
     yaml.width = 4096
-    yaml.indent(mapping=2, sequence=4, offset=2)   # match the file's existing '  - key' list style
+    yaml.indent(mapping=2, sequence=4, offset=2)  # match the file's existing '  - key' list style
     # emit explicit `null` (not blank) so the diff stays minimal vs the original file
-    yaml.representer.add_representer(
-        type(None), lambda r, d: r.represent_scalar("tag:yaml.org,2002:null", "null"))
+    yaml.representer.add_representer(type(None), lambda r, d: r.represent_scalar("tag:yaml.org,2002:null", "null"))
     doc = yaml.load(CROSSWALK.read_text())
     doc["version"] = "1.3.0"
     n = 0

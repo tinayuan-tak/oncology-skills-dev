@@ -4,6 +4,7 @@ Pure renderer: embeds the graph as JSON and ships a small vanilla-JS Miller-colu
 UI (Finder-style click-through). No CDN, no build step. Palette matches
 validators/framework_health so the explorer reads as a sibling of the health dashboard.
 """
+
 from __future__ import annotations
 
 import html
@@ -14,20 +15,26 @@ def render_html(graph: dict) -> str:
     data_json = json.dumps(graph, separators=(",", ":"))
     s = graph["summary"]
     ov = graph.get("health_overlay_at")
-    ov_note = (f'· health status overlaid ({html.escape(str(ov)[:10])})' if ov
-               else '· no health overlay (status dots hidden)')
-    subtitle = (f'{s["n_skills"]} skills · {s["n_cards"]} cards '
-                f'({s["n_verdict_bearing_cards"]} verdict-bearing) · '
-                f'{s["n_datasets"]} datasets ({s["n_datasets_in_catalog"]} in catalog) · '
-                f'{s["n_resolvers"]} resolvers / {s["n_verdicts"]} verdicts {ov_note}')
+    ov_note = (
+        f"· health status overlaid ({html.escape(str(ov)[:10])})" if ov else "· no health overlay (status dots hidden)"
+    )
+    subtitle = (
+        f"{s['n_skills']} skills · {s['n_cards']} cards "
+        f"({s['n_verdict_bearing_cards']} verdict-bearing) · "
+        f"{s['n_datasets']} datasets ({s['n_datasets_in_catalog']} in catalog) · "
+        f"{s['n_resolvers']} resolvers / {s['n_verdicts']} verdicts {ov_note}"
+    )
     shas = graph.get("root_shas", {})
-    sha_note = " · ".join(f'{k}@{v}' for k, v in shas.items() if v)
+    sha_note = " · ".join(f"{k}@{v}" for k, v in shas.items() if v)
     return (
-        _HTML_HEAD
-        .replace("__SUBTITLE__", html.escape(subtitle))
+        _HTML_HEAD.replace("__SUBTITLE__", html.escape(subtitle))
         .replace("__GEN__", html.escape(str(graph.get("generated_at", ""))[:19]))
         .replace("__SHAS__", html.escape(sha_note))
-        + "<script>\nconst DATA = " + data_json + ";\n" + _JS + "\n</script>\n</body></html>"
+        + "<script>\nconst DATA = "
+        + data_json
+        + ";\n"
+        + _JS
+        + "\n</script>\n</body></html>"
     )
 
 

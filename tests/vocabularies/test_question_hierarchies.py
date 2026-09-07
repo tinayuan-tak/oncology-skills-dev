@@ -2,6 +2,7 @@
 (sub-group → question → measurement_type), consolidated here as the single source of truth from which
 each skill's question_hierarchy.yaml is generated (skills-repo drift-CI). These tests pin connectivity
 + references so a measurement_type rename can no longer silently orphan a question."""
+
 import sys
 from pathlib import Path
 
@@ -32,7 +33,7 @@ def test_axis_mapped_and_auxiliary_split():
     aux = {s for s, spec in QH.items() if spec.get("axis") is None}
     assert aux == _AUX, f"auxiliary (axis:null) skills unexpected: {aux}"
     assert len(mapped) == 10
-    for s in mapped:                                    # a mapped axis must be a real canonical axis
+    for s in mapped:  # a mapped axis must be a real canonical axis
         assert QH[s]["axis"] in AXIS_SHORTS
 
 

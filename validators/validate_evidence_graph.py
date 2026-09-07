@@ -29,6 +29,7 @@ Usage:
   # referential_integrity_errors so all 14 skills validate identically):
   from validate_evidence_graph import validate_graph, referential_integrity_errors
 """
+
 from __future__ import annotations
 
 import argparse
@@ -77,26 +78,25 @@ def referential_integrity_errors(graph: dict) -> list[str]:
     q_ids = {q.get("id") for q in (g.get("questions") or []) if isinstance(q, dict)}
     ds_ids = {d.get("id") for d in (g.get("datasets") or []) if isinstance(d, dict)}
     cite_ids = {c.get("id") for c in (g.get("citations") or []) if isinstance(c, dict)}
-    axis_ids = {a.get("axis_id") for a in ((g.get("literature") or {}).get("axes") or [])
-                if isinstance(a, dict)}
+    axis_ids = {a.get("axis_id") for a in ((g.get("literature") or {}).get("axes") or []) if isinstance(a, dict)}
 
     def _chk(ids, universe, where):
-        for i in (ids or []):
+        for i in ids or []:
             if i is not None and i not in universe:
                 errs.append(f"REFERENTIAL [{where}]: id '{i}' does not resolve to a node")
 
-    for q in (g.get("questions") or []):
+    for q in g.get("questions") or []:
         if not isinstance(q, dict):
             continue
         qid = q.get("id")
         _chk(q.get("card_ids"), card_ids, f"question[{qid}].card_ids")
         _chk(q.get("rule_ids"), rule_ids, f"question[{qid}].rule_ids")
         _chk(q.get("literature_axis_ids"), axis_ids, f"question[{qid}].literature_axis_ids")
-        for ref in (q.get("evidence_refs") or []):
+        for ref in q.get("evidence_refs") or []:
             if isinstance(ref, dict):
                 _chk([ref.get("card_id")], card_ids, f"question[{qid}].evidence_refs.card_id")
 
-    for c in (g.get("cards") or []):
+    for c in g.get("cards") or []:
         if not isinstance(c, dict):
             continue
         cid = c.get("id")
@@ -109,21 +109,21 @@ def referential_integrity_errors(graph: dict) -> list[str]:
             _chk([chain.get("rule_id")], rule_ids, f"card[{cid}].chain.rule_id")
         ke = c.get("key_evidence") or {}
         conflict = (ke or {}).get("conflict") or {}
-        for o in (conflict.get("other") or []):
+        for o in conflict.get("other") or []:
             if isinstance(o, dict) and o.get("card") is not None:
                 _chk([o.get("card")], card_ids, f"card[{cid}].key_evidence.conflict.other.card")
 
-    for r in (g.get("rules") or []):
+    for r in g.get("rules") or []:
         if isinstance(r, dict) and r.get("card_id") is not None:
             _chk([r.get("card_id")], card_ids, f"rule[{r.get('id')}].card_id")
 
     lit = g.get("literature") or {}
-    for ax in (lit.get("axes") or []):
+    for ax in lit.get("axes") or []:
         if not isinstance(ax, dict):
             continue
         _chk(ax.get("question_ids"), q_ids, f"literature.axes[{ax.get('axis_id')}].question_ids")
         _chk(ax.get("citation_ids"), cite_ids, f"literature.axes[{ax.get('axis_id')}].citation_ids")
-    for bs in (lit.get("blind_spots") or []):
+    for bs in lit.get("blind_spots") or []:
         if isinstance(bs, dict):
             _chk(bs.get("citation_ids"), cite_ids, "literature.blind_spots.citation_ids")
 
@@ -178,7 +178,9 @@ def _load_graph(path: Path, from_decision: bool) -> dict:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Validate evidence_graph objects (schema + referential integrity).")
     ap.add_argument("paths", nargs="*", help="graph JSON files (or decision.json — the nested graph is auto-detected)")
-    ap.add_argument("--decision", action="store_true", help="treat inputs as decision.json and extract .headline.evidence_graph")
+    ap.add_argument(
+        "--decision", action="store_true", help="treat inputs as decision.json and extract .headline.evidence_graph"
+    )
     ap.add_argument("--self-check", action="store_true", help="validate the bundled example fixture")
     args = ap.parse_args(argv)
 

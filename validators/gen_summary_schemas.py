@@ -27,6 +27,7 @@ Usage:
       [--fixtures <skills>/skills/compose-dashboard/tests/fixtures/stubs/] \\
       [--only card-id-1 --only card-id-2]   # default: all cards
 """
+
 from __future__ import annotations
 
 import argparse
@@ -40,8 +41,13 @@ DEFAULT_CARDS = REPO / "cards"
 DEFAULT_OUT = REPO / "schemas" / "methods"
 # Best-effort default fixtures location (sibling skills repo); harvesting is optional.
 DEFAULT_FIXTURES = (
-    REPO.parent / "rnd-computational-biology-oncology-claude-oncology-skills"
-    / "skills" / "compose-dashboard" / "tests" / "fixtures" / "stubs"
+    REPO.parent
+    / "rnd-computational-biology-oncology-claude-oncology-skills"
+    / "skills"
+    / "compose-dashboard"
+    / "tests"
+    / "fixtures"
+    / "stubs"
 )
 
 _ID_BASE = "https://schemas.onetakeda.oncology/target-contracts/methods"
@@ -106,8 +112,14 @@ def _prop_schema(field: str, vocab: dict, records: dict, observed_types: set[str
 
 
 def _map_declared_type(decl: str) -> str:
-    return {"int": "integer", "float": "number", "str": "string",
-            "bool": "boolean", "list": "array", "dict": "object"}.get(str(decl), "string")
+    return {
+        "int": "integer",
+        "float": "number",
+        "str": "string",
+        "bool": "boolean",
+        "list": "array",
+        "dict": "object",
+    }.get(str(decl), "string")
 
 
 def build_schema(card_id: str, card_spec: dict, observed: dict[str, set]) -> dict:
@@ -115,8 +127,7 @@ def build_schema(card_id: str, card_spec: dict, observed: dict[str, set]) -> dic
     # summary_fields entries are usually plain strings, but a card may use the richer dict form
     # {name, lens_conditional_on, description, ...} (e.g. adc-tce-modality-fit's modality-conditional
     # grade fields). Normalize either form to the field NAME (vocab/record_schemas are name-keyed).
-    fields = [f["name"] if isinstance(f, dict) else f
-              for f in (outputs.get("summary_fields", []) or [])]
+    fields = [f["name"] if isinstance(f, dict) else f for f in (outputs.get("summary_fields", []) or [])]
     fields = [f for f in fields if isinstance(f, str)]
     vocab = outputs.get("summary_fields_vocabulary", {}) or {}
     records = outputs.get("summary_fields_record_schemas", {}) or {}
@@ -125,10 +136,7 @@ def build_schema(card_id: str, card_spec: dict, observed: dict[str, set]) -> dic
     # catches emitted fields a card_spec forgot to declare — surfaced as properties, not required).
     all_fields = list(dict.fromkeys(fields + list(observed.keys())))
 
-    properties = {
-        f: _prop_schema(f, vocab, records, observed.get(f, set()))
-        for f in all_fields
-    }
+    properties = {f: _prop_schema(f, vocab, records, observed.get(f, set())) for f in all_fields}
 
     # required: EMPTY in v1. Empirically (validated against the stub fixtures) real summaries do
     # NOT reliably emit even the primary *_class field — the declared summary_fields set is a
@@ -162,8 +170,12 @@ def main() -> int:
     ap.add_argument("--cards", type=Path, default=DEFAULT_CARDS)
     ap.add_argument("--out", type=Path, default=DEFAULT_OUT)
     ap.add_argument("--fixtures", type=Path, default=DEFAULT_FIXTURES)
-    ap.add_argument("--only", action="append", default=None,
-                    help="Restrict generation to these card_ids (repeatable). Default: all cards.")
+    ap.add_argument(
+        "--only",
+        action="append",
+        default=None,
+        help="Restrict generation to these card_ids (repeatable). Default: all cards.",
+    )
     args = ap.parse_args()
 
     observed_all = _harvest_observed(args.fixtures)
@@ -185,8 +197,10 @@ def main() -> int:
         out_path = args.out / f"{card_id}.summary.schema.json"
         out_path.write_text(json.dumps(schema, indent=2) + "\n")
         n_written += 1
-        print(f"[gen] {card_id}: {len(schema['properties'])} fields, "
-              f"required={schema['required']}, observed={'yes' if card_id in observed_all else 'no'}")
+        print(
+            f"[gen] {card_id}: {len(schema['properties'])} fields, "
+            f"required={schema['required']}, observed={'yes' if card_id in observed_all else 'no'}"
+        )
     print(f"\nWrote {n_written} summary schema(s) → {args.out}")
     return 0
 

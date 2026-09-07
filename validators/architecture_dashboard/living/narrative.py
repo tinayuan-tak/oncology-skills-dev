@@ -6,6 +6,7 @@ Titles, first-paragraph summaries, and links are GENERATED; keying is the only h
 
 Links out (no inlining) — the docs are GitHub-flavored markdown.
 """
+
 from __future__ import annotations
 
 import re
@@ -55,9 +56,13 @@ def _index_dir(root: Path, subdir: str, repo_tag: str) -> dict:
         except Exception:
             continue
         stem = p.stem
-        out[stem] = {"stem": stem, "title": _title(txt, stem),
-                     "summary": _first_para(txt),
-                     "repo": repo_tag, "path": str(p.relative_to(root))}
+        out[stem] = {
+            "stem": stem,
+            "title": _title(txt, stem),
+            "summary": _first_para(txt),
+            "repo": repo_tag,
+            "path": str(p.relative_to(root)),
+        }
     return out
 
 
@@ -80,8 +85,12 @@ def build_narrative(roots: dict) -> dict:
         comps = keying.get(stem, [])
         rec = {**rec, "components": comps}
         doc_list.append(rec)
-        for c in (comps or ["general"]):
+        for c in comps or ["general"]:
             by_component.setdefault(c, []).append(stem)
 
-    return {"docs": doc_list, "by_component": by_component,
-            "n_docs": len(doc_list), "n_keyed": sum(1 for r in doc_list if r["components"])}
+    return {
+        "docs": doc_list,
+        "by_component": by_component,
+        "n_docs": len(doc_list),
+        "n_keyed": sum(1 for r in doc_list if r["components"]),
+    }

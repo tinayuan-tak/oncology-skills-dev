@@ -17,6 +17,7 @@ individually guarded: a validator that cannot run in this environment degrades t
 info-level `validator_unavailable` finding rather than breaking the build. `build_gaps`
 returns `{items, summary, validators_run}` so the coverage test can assert wiring.
 """
+
 from __future__ import annotations
 
 import sys
@@ -26,9 +27,15 @@ _SEV_RANK = {"error": 3, "warn": 2, "info": 1}
 
 
 def _rec(severity, gap_type, component_type, component_id, message, source, code=None):
-    return {"severity": severity, "gap_type": gap_type, "component_type": component_type,
-            "component_id": component_id or "", "code": code or gap_type,
-            "message": " ".join(str(message or "").split())[:400], "source": source}
+    return {
+        "severity": severity,
+        "gap_type": gap_type,
+        "component_type": component_type,
+        "component_id": component_id or "",
+        "code": code or gap_type,
+        "message": " ".join(str(message or "").split())[:400],
+        "source": source,
+    }
 
 
 # --------------------------------------------------------------------------- #
@@ -43,10 +50,17 @@ def _import_validators(tc: Path):
         if p not in sys.path:
             sys.path.insert(0, p)
     mods = {}
-    names = ["validate_cards", "validate_interpretation_rules", "validate_resolvers",
-             "validate_verdict_tokens", "validate_measurement_types",
-             "validate_certainty_disjointness", "validate_fold_migration",
-             "validate_claim_record", "validate_card_resolver_consumption"]
+    names = [
+        "validate_cards",
+        "validate_interpretation_rules",
+        "validate_resolvers",
+        "validate_verdict_tokens",
+        "validate_measurement_types",
+        "validate_certainty_disjointness",
+        "validate_fold_migration",
+        "validate_claim_record",
+        "validate_card_resolver_consumption",
+    ]
     for n in names:
         try:
             mods[n] = __import__(f"validators.{n}", fromlist=[n])
@@ -91,8 +105,9 @@ def _validator_gaps(tc: Path, dc: Path | None) -> tuple[list, list]:
             records.append(_rec(sev, gap_type, comp_type, id_fn(msg), msg, name))
 
     def unavailable(name, e):
-        records.append(_rec("info", "validator_unavailable", "framework", name,
-                            f"{name} could not run here: {e}", name))
+        records.append(
+            _rec("info", "validator_unavailable", "framework", name, f"{name} could not run here: {e}", name)
+        )
 
     # -- cards (per-file)
     m = mods.get("validate_cards")
@@ -103,9 +118,8 @@ def _validator_gaps(tc: Path, dc: Path | None) -> tuple[list, list]:
             for p in sorted((tc / "cards").glob("*.card.yaml")):
                 rep = m.validate_card_file(p, schema)
                 for sev, msg in _report_lines(rep):
-                    lines.append((sev, f"{p.stem.replace('.card','')}: {msg}"))
-            emit("validate_cards", "card_structural", "card", lines,
-                 id_fn=lambda msg: msg.split(":", 1)[0])
+                    lines.append((sev, f"{p.stem.replace('.card', '')}: {msg}"))
+            emit("validate_cards", "card_structural", "card", lines, id_fn=lambda msg: msg.split(":", 1)[0])
         except Exception as e:
             unavailable("validate_cards", e)
 
@@ -117,9 +131,14 @@ def _validator_gaps(tc: Path, dc: Path | None) -> tuple[list, list]:
             for p in sorted((tc / "interpretation-rules").glob("*.rules.yaml")):
                 rep = m.validate_rules_file(p, tc / "cards")
                 for sev, msg in _report_lines(rep):
-                    lines.append((sev, f"{p.stem.replace('.rules','')}: {msg}"))
-            emit("validate_interpretation_rules", "dead_rule", "interpretation_rule", lines,
-                 id_fn=lambda msg: msg.split(":", 1)[0])
+                    lines.append((sev, f"{p.stem.replace('.rules', '')}: {msg}"))
+            emit(
+                "validate_interpretation_rules",
+                "dead_rule",
+                "interpretation_rule",
+                lines,
+                id_fn=lambda msg: msg.split(":", 1)[0],
+            )
         except Exception as e:
             unavailable("validate_interpretation_rules", e)
 
@@ -133,8 +152,7 @@ def _validator_gaps(tc: Path, dc: Path | None) -> tuple[list, list]:
                 gate = Path(getattr(r, "path", "")).stem.replace(".resolver", "")
                 for sev, msg in _report_lines(r):
                     lines.append((sev, f"{gate}: {msg}"))
-            emit("validate_resolvers", "dangling_rung", "resolver", lines,
-                 id_fn=lambda msg: msg.split(":", 1)[0])
+            emit("validate_resolvers", "dangling_rung", "resolver", lines, id_fn=lambda msg: msg.split(":", 1)[0])
         except Exception as e:
             unavailable("validate_resolvers", e)
 
@@ -160,8 +178,7 @@ def _validator_gaps(tc: Path, dc: Path | None) -> tuple[list, list]:
     m = mods.get("validate_certainty_disjointness")
     if m:
         try:
-            emit("validate_certainty_disjointness", "certainty_double_count", "card",
-                 _report_lines(m.validate(tc)))
+            emit("validate_certainty_disjointness", "certainty_double_count", "card", _report_lines(m.validate(tc)))
         except Exception as e:
             unavailable("validate_certainty_disjointness", e)
 
@@ -169,8 +186,7 @@ def _validator_gaps(tc: Path, dc: Path | None) -> tuple[list, list]:
     m = mods.get("validate_fold_migration")
     if m:
         try:
-            emit("validate_fold_migration", "fold_migration", "resolver",
-                 _report_lines(m.validate(tc / "resolvers")))
+            emit("validate_fold_migration", "fold_migration", "resolver", _report_lines(m.validate(tc / "resolvers")))
         except Exception as e:
             unavailable("validate_fold_migration", e)
 
@@ -178,8 +194,9 @@ def _validator_gaps(tc: Path, dc: Path | None) -> tuple[list, list]:
     m = mods.get("validate_claim_record")
     if m:
         try:
-            rep = m.validate(tc / "schemas" / "claim_record.schema.json",
-                             tc / "docs" / "design" / "examples", tc / "resolvers")
+            rep = m.validate(
+                tc / "schemas" / "claim_record.schema.json", tc / "docs" / "design" / "examples", tc / "resolvers"
+            )
             emit("validate_claim_record", "claim_record", "evidence_package", _report_lines(rep))
         except Exception as e:
             unavailable("validate_claim_record", e)
@@ -211,24 +228,49 @@ def _graph_gaps(graph: dict) -> list:
         sev = d.get("severity") or "info"
         comp_id = d.get("skill") or d.get("card") or ""
         comp_type = "skill" if d.get("skill") else ("card" if d.get("card") else "framework")
-        records.append(_rec(sev, "skill_drift" if comp_type == "skill" else "card_structural",
-                            comp_type, comp_id, d.get("detail") or d.get("code"),
-                            "framework_health", code=d.get("code")))
+        records.append(
+            _rec(
+                sev,
+                "skill_drift" if comp_type == "skill" else "card_structural",
+                comp_type,
+                comp_id,
+                d.get("detail") or d.get("code"),
+                "framework_health",
+                code=d.get("code"),
+            )
+        )
 
     # health card flags: orphan / placeholder / broken
     for cid, c in (H.get("cards") or {}).items():
         ch = c.get("card_health")
         if c.get("is_orphan"):
-            records.append(_rec("warn", "orphan_card", "card", cid,
-                                "card on disk but no skill consumes it", "framework_health"))
+            records.append(
+                _rec("warn", "orphan_card", "card", cid, "card on disk but no skill consumes it", "framework_health")
+            )
         if ch in ("placeholder", "blocked"):
-            records.append(_rec("info", "placeholder_card", "card", cid,
-                                c.get("reason_text") or f"card health = {ch}", "framework_health",
-                                code=f"card_{ch}"))
+            records.append(
+                _rec(
+                    "info",
+                    "placeholder_card",
+                    "card",
+                    cid,
+                    c.get("reason_text") or f"card health = {ch}",
+                    "framework_health",
+                    code=f"card_{ch}",
+                )
+            )
         elif ch == "broken":
-            records.append(_rec("error", "card_structural", "card", cid,
-                                c.get("reason_text") or "card health = broken", "framework_health",
-                                code="card_broken"))
+            records.append(
+                _rec(
+                    "error",
+                    "card_structural",
+                    "card",
+                    cid,
+                    c.get("reason_text") or "card health = broken",
+                    "framework_health",
+                    code="card_broken",
+                )
+            )
 
     # Explorer: uncataloged dataset refs (broken vs planned) with GAP_NOTES category
     for pid, d in (graph.get("datasets") or {}).items():
@@ -236,22 +278,46 @@ def _graph_gaps(graph: dict) -> list:
             cat = d.get("gap_category")
             # a bare uncataloged ref with no note is a broken ref; a categorized one is a known gap
             if cat:
-                records.append(_rec("info", "uncataloged_dataset", "source_manifest", pid,
-                                    f"[{cat}] {d.get('gap_note') or ''}", "explorer",
-                                    code=f"uncataloged_{cat}"))
+                records.append(
+                    _rec(
+                        "info",
+                        "uncataloged_dataset",
+                        "source_manifest",
+                        pid,
+                        f"[{cat}] {d.get('gap_note') or ''}",
+                        "explorer",
+                        code=f"uncataloged_{cat}",
+                    )
+                )
             else:
-                records.append(_rec("warn", "broken_dataset_ref", "source_manifest", pid,
-                                    f"card names product_id with no catalog record "
-                                    f"(→ {len(d.get('consumed_by_cards') or [])} card(s))", "explorer"))
+                records.append(
+                    _rec(
+                        "warn",
+                        "broken_dataset_ref",
+                        "source_manifest",
+                        pid,
+                        f"card names product_id with no catalog record "
+                        f"(→ {len(d.get('consumed_by_cards') or [])} card(s))",
+                        "explorer",
+                    )
+                )
 
     # coverage: promotion backlog
     cov = graph.get("coverage") or {}
     n_exp = (cov.get("summary") or {}).get("n_cells_exploratory_only")
     if n_exp:
-        records.append(_rec("info", "coverage_backlog", "evidence_package", "",
-                            f"{n_exp} target×indication cell(s) exist only as exploratory runs — "
-                            "candidates to promote to governed packages", "coverage",
-                            code="promotion_backlog"))
+        records.append(
+            _rec(
+                "info",
+                "coverage_backlog",
+                "evidence_package",
+                "",
+                f"{n_exp} target×indication cell(s) exist only as exploratory runs — "
+                "candidates to promote to governed packages",
+                "coverage",
+                code="promotion_backlog",
+            )
+        )
     return records
 
 
@@ -289,10 +355,13 @@ def build_gaps(graph: dict, roots: dict) -> dict:
 
     return {
         "items": items,
-        "summary": {"n_gaps": len(items),
-                    "n_error": by_sev.get("error", 0),
-                    "n_warn": by_sev.get("warn", 0),
-                    "n_info": by_sev.get("info", 0),
-                    "by_severity": by_sev, "by_type": by_type},
+        "summary": {
+            "n_gaps": len(items),
+            "n_error": by_sev.get("error", 0),
+            "n_warn": by_sev.get("warn", 0),
+            "n_info": by_sev.get("info", 0),
+            "by_severity": by_sev,
+            "by_type": by_type,
+        },
         "validators_run": vrun,
     }

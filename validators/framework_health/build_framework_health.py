@@ -46,7 +46,9 @@ def _git_sha(repo: Path) -> str | None:
     try:
         out = subprocess.run(
             ["git", "-C", str(repo), "rev-parse", "--short", "HEAD"],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
         return out.stdout.strip() or None if out.returncode == 0 else None
     except (OSError, subprocess.SubprocessError):
@@ -72,8 +74,7 @@ def compute_delta(prior: dict | None, fresh_body: dict) -> dict | None:
 
     def _tally_delta(key: str) -> dict:
         pt, ft = ps.get(key, {}) or {}, fs.get(key, {}) or {}
-        return {k: ft.get(k, 0) - pt.get(k, 0)
-                for k in sorted(set(pt) | set(ft)) if ft.get(k, 0) != pt.get(k, 0)}
+        return {k: ft.get(k, 0) - pt.get(k, 0) for k in sorted(set(pt) | set(ft)) if ft.get(k, 0) != pt.get(k, 0)}
 
     return {
         "has_prior": True,
@@ -100,10 +101,10 @@ def generate(roots: dict[str, Path], prior: dict | None = None) -> dict:
     body = rollup.build_health(roots)
     return {
         "schema_version": SCHEMA_VERSION,
-        "generated_at": "<stamped-at-write>",   # set at write time; excluded from --check
+        "generated_at": "<stamped-at-write>",  # set at write time; excluded from --check
         "roots": {k: str(v) for k, v in roots.items()},
         "root_shas": {k: _git_sha(v) for k, v in roots.items()},
-        "delta": compute_delta(prior, body),     # volatile: relative to the prior artifact
+        "delta": compute_delta(prior, body),  # volatile: relative to the prior artifact
         **body,
     }
 
@@ -162,18 +163,21 @@ def self_check(report_path: Path) -> tuple[bool, list[str]]:
             errs.append(f"[{n.get('name')}] invalid health_verdict '{v}'")
         for c in n.get("cards", []):
             if c.get("card_health") not in _CARD_HEALTHS:
-                errs.append(f"[{n.get('name')}/{c.get('card_id')}] invalid card_health "
-                            f"'{c.get('card_health')}'")
+                errs.append(f"[{n.get('name')}/{c.get('card_id')}] invalid card_health '{c.get('card_health')}'")
             # Re-roll each card from its own recorded signals — determinism guard.
             got, _ = rollup._resolve(rules["card_health"], c)
             if got != c.get("card_health"):
-                errs.append(f"[{n.get('name')}/{c.get('card_id')}] card_health '{c.get('card_health')}' "
-                            f"does not re-derive from its signals (got '{got}') — regenerate")
+                errs.append(
+                    f"[{n.get('name')}/{c.get('card_id')}] card_health '{c.get('card_health')}' "
+                    f"does not re-derive from its signals (got '{got}') — regenerate"
+                )
 
     # 3. Summary tally must match the skills list it summarizes.
     if rep["summary"].get("verdict_tally") != tally:
-        errs.append(f"summary.verdict_tally {rep['summary'].get('verdict_tally')} "
-                    f"disagrees with per-skill count {tally} — regenerate")
+        errs.append(
+            f"summary.verdict_tally {rep['summary'].get('verdict_tally')} "
+            f"disagrees with per-skill count {tally} — regenerate"
+        )
 
     # 4. Card-centric section (if present): enum conformance + re-derivation +
     #    orphan-flag consistency + tally agreement.
@@ -187,12 +191,14 @@ def self_check(report_path: Path) -> tuple[bool, list[str]]:
                 errs.append(f"[card {c.get('card_id')}] invalid card_health '{ch}'")
             got, _ = rollup._resolve(rules["card_health"], c)
             if got != ch:
-                errs.append(f"[card {c.get('card_id')}] card_health '{ch}' does not "
-                            f"re-derive (got '{got}') — regenerate")
+                errs.append(
+                    f"[card {c.get('card_id')}] card_health '{ch}' does not re-derive (got '{got}') — regenerate"
+                )
             if c.get("is_orphan") != (c.get("n_consumers", 0) == 0):
                 errs.append(f"[card {c.get('card_id')}] is_orphan disagrees with n_consumers")
             if "is_staged_orphan" in c and c.get("is_staged_orphan") != (
-                    c.get("is_orphan") and bool(c.get("is_placeholder"))):
+                c.get("is_orphan") and bool(c.get("is_placeholder"))
+            ):
                 errs.append(f"[card {c.get('card_id')}] is_staged_orphan inconsistent")
         if rep["summary"].get("card_health_tally") != ctally:
             errs.append("summary.card_health_tally disagrees with per-card count — regenerate")
@@ -209,19 +215,26 @@ def self_check(report_path: Path) -> tuple[bool, list[str]]:
             if d.get("is_broken_ref") != ((not d.get("in_catalog")) and d.get("n_consumers", 0) > 0 and not _apc):
                 errs.append(f"[dataset {d.get('product_id')}] is_broken_ref inconsistent")
             if "is_pending_ref" in d and d.get("is_pending_ref") != (
-                    (not d.get("in_catalog")) and d.get("n_consumers", 0) > 0 and bool(_apc)):
+                (not d.get("in_catalog")) and d.get("n_consumers", 0) > 0 and bool(_apc)
+            ):
                 errs.append(f"[dataset {d.get('product_id')}] is_pending_ref inconsistent")
             # Access-cost lens (only for artifacts that carry it): re-derive the band + the
             # missing-sort-key flag from the recorded static inputs — the determinism guard.
             if "access_cost" in d:
                 got = rollup._access_cost(d.get("size_bytes"), d.get("file_count"), d.get("n_consumers", 0))
                 if got != d.get("access_cost"):
-                    errs.append(f"[dataset {d.get('product_id')}] access_cost '{d.get('access_cost')}' "
-                                f"does not re-derive (got '{got}') — regenerate")
+                    errs.append(
+                        f"[dataset {d.get('product_id')}] access_cost '{d.get('access_cost')}' "
+                        f"does not re-derive (got '{got}') — regenerate"
+                    )
             if "missing_sort_key" in d:
-                expect = bool(d.get("in_catalog") and d.get("kind") == "derived" and d.get("n_consumers", 0) > 0
-                              and d.get("has_sort_key") is False
-                              and (d.get("size_bytes") or 0) >= rollup._SORT_KEY_SIZE_FLOOR)
+                expect = bool(
+                    d.get("in_catalog")
+                    and d.get("kind") == "derived"
+                    and d.get("n_consumers", 0) > 0
+                    and d.get("has_sort_key") is False
+                    and (d.get("size_bytes") or 0) >= rollup._SORT_KEY_SIZE_FLOOR
+                )
                 if d.get("missing_sort_key") != expect:
                     errs.append(f"[dataset {d.get('product_id')}] missing_sort_key inconsistent")
 
@@ -230,7 +243,7 @@ def self_check(report_path: Path) -> tuple[bool, list[str]]:
     for c in rep.get("cards", []):
         if "consumed_but_no_spec" not in c:
             continue
-        expect = (c.get("n_consumers", 0) > 0 and not c.get("in_dashboard_spec"))
+        expect = c.get("n_consumers", 0) > 0 and not c.get("in_dashboard_spec")
         if c.get("consumed_but_no_spec") != expect:
             errs.append(f"[card {c.get('card_id')}] consumed_but_no_spec inconsistent")
 
@@ -277,8 +290,10 @@ def self_check(report_path: Path) -> tuple[bool, list[str]]:
 def _resolve_roots(args) -> dict[str, Path]:
     roots = probe.default_roots()
     for key, val in (
-        ("skills", args.skills_repo), ("methods", args.methods_repo),
-        ("products", args.products_root), ("catalog", args.catalog_repo),
+        ("skills", args.skills_repo),
+        ("methods", args.methods_repo),
+        ("products", args.products_root),
+        ("catalog", args.catalog_repo),
         ("contracts", args.contracts_repo),
     ):
         if val:
@@ -288,12 +303,18 @@ def _resolve_roots(args) -> dict[str, Path]:
 
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description="Build/check the framework-health dashboard.")
-    p.add_argument("--check", action="store_true",
-                   help="fail (exit 1) if the committed dashboard is stale vs freshly computed "
-                        "(needs sibling repos present — local/manual guard)")
-    p.add_argument("--self-check", action="store_true",
-                   help="CI-safe: validate the committed artifact's internal integrity only "
-                        "(no sibling-repo probes); use in checkout-only CI")
+    p.add_argument(
+        "--check",
+        action="store_true",
+        help="fail (exit 1) if the committed dashboard is stale vs freshly computed "
+        "(needs sibling repos present — local/manual guard)",
+    )
+    p.add_argument(
+        "--self-check",
+        action="store_true",
+        help="CI-safe: validate the committed artifact's internal integrity only "
+        "(no sibling-repo probes); use in checkout-only CI",
+    )
     p.add_argument("--skills-repo", type=Path)
     p.add_argument("--methods-repo", type=Path)
     p.add_argument("--products-root", type=Path)
@@ -331,26 +352,27 @@ def main(argv=None) -> int:
 
     if args.check:
         if prior is None:
-            print(f"  MISSING/UNREADABLE {JSON_PATH.name} — run without --check to generate.",
-                  file=sys.stderr)
+            print(f"  MISSING/UNREADABLE {JSON_PATH.name} — run without --check to generate.", file=sys.stderr)
             return 1
         if stable_projection(prior) != fresh_projection:
-            print(f"  STALE {JSON_PATH.name} — committed dashboard differs from computed; regenerate.",
-                  file=sys.stderr)
+            print(f"  STALE {JSON_PATH.name} — committed dashboard differs from computed; regenerate.", file=sys.stderr)
             return 1
         print(f"  OK {JSON_PATH.name} (fresh)")
         return 0
 
     # Generate mode: stamp the timestamp now, write JSON + HTML.
     import datetime
+
     report["generated_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
     HEALTH_DIR.mkdir(parents=True, exist_ok=True)
     JSON_PATH.write_text(json.dumps(report, indent=2, default=str))
     s = report["summary"]
-    print(f"  wrote {JSON_PATH.relative_to(probe.CONTRACTS_REPO)}: "
-          f"{s['n_skills']} skills, tally={s['verdict_tally']}, "
-          f"{s['n_drift_flags']} drift flags ({s['n_error_drift']} error), "
-          f"{s['n_unregistered_skills']} unregistered")
+    print(
+        f"  wrote {JSON_PATH.relative_to(probe.CONTRACTS_REPO)}: "
+        f"{s['n_skills']} skills, tally={s['verdict_tally']}, "
+        f"{s['n_drift_flags']} drift flags ({s['n_error_drift']} error), "
+        f"{s['n_unregistered_skills']} unregistered"
+    )
     if not args.json_only:
         html = render_html.render(report)
         HTML_PATH.write_text(html)

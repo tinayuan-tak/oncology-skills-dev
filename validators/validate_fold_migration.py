@@ -12,6 +12,7 @@ new or hand-edited resolver cannot silently regress it:
 
 CLI: python validators/validate_fold_migration.py --resolvers resolvers/
 """
+
 from __future__ import annotations
 
 import argparse
@@ -31,22 +32,28 @@ def validate(resolvers_dir: Path) -> tuple[bool, list[str]]:
         name = Path(p).name
         spec = yaml.safe_load(Path(p).read_text()) or {}
         if spec.get("evaluation") != "match_all_reduce":
-            errs.append(f"{name}: evaluation={spec.get('evaluation')!r} — the Fold is complete; every "
-                        f"resolver must be 'match_all_reduce' (first_match is retired to a test oracle).")
+            errs.append(
+                f"{name}: evaluation={spec.get('evaluation')!r} — the Fold is complete; every "
+                f"resolver must be 'match_all_reduce' (first_match is retired to a test oracle)."
+            )
             continue
         rungs = spec.get("resolve") or []
         priorities = []
         for i, rung in enumerate(rungs):
             pr = rung.get("priority")
             if not isinstance(pr, int):
-                errs.append(f"{name}: rung #{i} (verdict={rung.get('verdict')!r}) has no integer "
-                            f"`priority` — match_all_reduce needs one on every rung.")
+                errs.append(
+                    f"{name}: rung #{i} (verdict={rung.get('verdict')!r}) has no integer "
+                    f"`priority` — match_all_reduce needs one on every rung."
+                )
             else:
                 priorities.append(pr)
         dupes = {x for x in priorities if priorities.count(x) > 1}
         if dupes:
-            errs.append(f"{name}: duplicate priorities {sorted(dupes)} — priorities must be UNIQUE so "
-                        f"match-all-then-reduce picks a single min (no positional ambiguity).")
+            errs.append(
+                f"{name}: duplicate priorities {sorted(dupes)} — priorities must be UNIQUE so "
+                f"match-all-then-reduce picks a single min (no positional ambiguity)."
+            )
     return (not errs), errs
 
 

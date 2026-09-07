@@ -18,6 +18,7 @@ byte-for-byte across all fired-set combinations. This validator is the STATIC co
 CLI:
   python validators/validate_resolvers.py --resolvers resolvers/ --rules interpretation-rules/
 """
+
 from __future__ import annotations
 
 import argparse
@@ -69,8 +70,7 @@ def _rung_rule_ids(rung: dict) -> list[str]:
     return []
 
 
-def validate_resolver_file(path: Path, known_rule_ids: set[str],
-                           schema: dict | None = None) -> ResolverReport:
+def validate_resolver_file(path: Path, known_rule_ids: set[str], schema: dict | None = None) -> ResolverReport:
     report = ResolverReport(path=str(path))
     try:
         spec = yaml.safe_load(path.read_text())
@@ -97,25 +97,28 @@ def validate_resolver_file(path: Path, known_rule_ids: set[str],
                 report.add_error(
                     f"DANGLING_RUNG [resolve[{i}] verdict={rung.get('verdict')!r}]: "
                     f"rule_id `{rid}` is not declared in any interpretation-rules file — "
-                    f"a dead rung that can never fire (typo / renamed rule?).")
+                    f"a dead rung that can never fire (typo / renamed rule?)."
+                )
         dr = rung.get("driving_rule")
         if dr is not None and dr not in rung_ids:
             report.add_error(
                 f"BAD_DRIVING_RULE [resolve[{i}] verdict={rung.get('verdict')!r}]: "
-                f"driving_rule `{dr}` is not one of this rung's own rule_ids {rung_ids}.")
+                f"driving_rule `{dr}` is not one of this rung's own rule_ids {rung_ids}."
+            )
 
     # (4) explicit default (schema already requires it; explicit message)
     if not spec.get("default"):
-        report.add_error("MISSING_DEFAULT: a resolver must declare an explicit `default` "
-                         "verdict (this is what proves there is no silent fall-through).")
+        report.add_error(
+            "MISSING_DEFAULT: a resolver must declare an explicit `default` "
+            "verdict (this is what proves there is no silent fall-through)."
+        )
     return report
 
 
 def validate_dir(resolvers_dir: Path, rules_dir: Path) -> list[ResolverReport]:
     known = _all_rule_ids(rules_dir)
     schema = json.loads(SCHEMA_PATH.read_text())
-    return [validate_resolver_file(p, known, schema)
-            for p in sorted(resolvers_dir.glob("*.resolver.yaml"))]
+    return [validate_resolver_file(p, known, schema) for p in sorted(resolvers_dir.glob("*.resolver.yaml"))]
 
 
 def _main(argv=None) -> int:
@@ -130,13 +133,16 @@ def _main(argv=None) -> int:
         status = "OK" if (r.ok and not r.warnings) else ("WARN" if r.ok else "FAIL")
         print(f"  [{status}] {Path(r.path).name}")
         for e in r.errors:
-            print(f"    [ERROR]   {e}"); ok = False
+            print(f"    [ERROR]   {e}")
+            ok = False
         for w in r.warnings:
             print(f"    [WARNING] {w}")
     n = len(reports)
-    print(f"\nSummary: {n} resolver(s); "
-          f"{sum(1 for r in reports if r.ok and not r.warnings)} clean, "
-          f"{sum(1 for r in reports if not r.ok)} with errors.")
+    print(
+        f"\nSummary: {n} resolver(s); "
+        f"{sum(1 for r in reports if r.ok and not r.warnings)} clean, "
+        f"{sum(1 for r in reports if not r.ok)} with errors."
+    )
     return 0 if ok else 1
 
 

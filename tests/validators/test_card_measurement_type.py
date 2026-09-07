@@ -12,6 +12,7 @@ evolving contents.
 
 Hermetic: synthetic card dicts written to tmp YAML, validated against the real card.schema.json.
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -66,23 +67,22 @@ def _warns(r) -> str:
 
 # ---------- schema: the new fields are optional + additive ----------
 
+
 def test_card_without_measurement_type_is_schema_valid(tmp_path):
     """Backward-compat: a pre-migration card (no measurement_type/entity_grains) still validates."""
     report = _validate(tmp_path, _base_card())
-    assert report.ok, _errs(report)   # no ERROR; warnings are fine
+    assert report.ok, _errs(report)  # no ERROR; warnings are fine
 
 
 def test_card_with_measurement_type_and_grains_is_schema_valid(tmp_path, monkeypatch):
-    monkeypatch.setattr(VC, "_registered_measurement_types",
-                        lambda: {"crispr_lof_dependency"})
+    monkeypatch.setattr(VC, "_registered_measurement_types", lambda: {"crispr_lof_dependency"})
     # This test asserts grain-SCHEMA validity, not modality routing. Isolate it from the P4 Tier-3
     # modality_relevance enforcement (2026-07-24) — which reads the REAL vocab, where
     # crispr_lof_dependency is now stamped modality-relevant — by stubbing the modality-relevant set
     # empty, exactly as it already stubs the registered-type set. (The enforcement itself is covered
     # by test_modality_relevance_*.)
     monkeypatch.setattr(VC, "_modality_relevant_types", lambda: set())
-    card = _base_card(measurement_type="crispr_lof_dependency",
-                      entity_grains=["target", "target_lineage"])
+    card = _base_card(measurement_type="crispr_lof_dependency", entity_grains=["target", "target_lineage"])
     report = _validate(tmp_path, card)
     assert report.ok, _errs(report)
 
@@ -104,15 +104,15 @@ def test_empty_entity_grains_rejected_by_schema(tmp_path):
 
 # ---------- migration-safe check behavior ----------
 
+
 def test_missing_measurement_type_is_warning_not_error(tmp_path):
     report = _validate(tmp_path, _base_card())
-    assert report.ok                                    # WARNING, not error
+    assert report.ok  # WARNING, not error
     assert "MEASUREMENT_TYPE_MISSING" in _warns(report)
 
 
 def test_registered_measurement_type_is_clean(tmp_path, monkeypatch):
-    monkeypatch.setattr(VC, "_registered_measurement_types",
-                        lambda: {"crispr_lof_dependency", "surface_confirmation"})
+    monkeypatch.setattr(VC, "_registered_measurement_types", lambda: {"crispr_lof_dependency", "surface_confirmation"})
     # isolate the modality-relevance check (P4, 2026-07-23): this test exercises ONLY the
     # measurement-type-registered check, so hold the modality-relevant set empty — otherwise the real
     # vocab (where surface_confirmation IS modality-relevant) would leak in and require the field.
@@ -124,8 +124,7 @@ def test_registered_measurement_type_is_clean(tmp_path, monkeypatch):
 
 
 def test_unregistered_measurement_type_is_error(tmp_path, monkeypatch):
-    monkeypatch.setattr(VC, "_registered_measurement_types",
-                        lambda: {"crispr_lof_dependency"})
+    monkeypatch.setattr(VC, "_registered_measurement_types", lambda: {"crispr_lof_dependency"})
     report = _validate(tmp_path, _base_card(measurement_type="typoed_claim"))
     assert not report.ok
     assert "MEASUREMENT_TYPE_UNREGISTERED" in _errs(report)
@@ -142,6 +141,7 @@ def test_graceful_skip_when_vocab_absent(tmp_path, monkeypatch):
 
 # ---------- the real vocab file, once it exists, parses + is self-consistent ----------
 
+
 def test_real_vocab_registered_types_are_loadable():
     """If vocabularies/measurement_types.yaml exists, it parses to a non-empty type set (guards
     against a malformed vocab silently disabling the check)."""
@@ -151,6 +151,7 @@ def test_real_vocab_registered_types_are_loadable():
     assert isinstance(reg, set) and reg, "measurement_types.yaml present but yielded no types"
     # every key is a valid snake_case token (mirrors the schema pattern on the card side)
     import re
+
     for t in reg:
         assert re.fullmatch(r"[a-z][a-z0-9_]*[a-z0-9]", t), f"bad measurement_type key: {t!r}"
 
@@ -158,6 +159,7 @@ def test_real_vocab_registered_types_are_loadable():
 # ---------- modality_relevance check (P4, 2026-07-23) ----------
 # A card whose measurement_type is MODALITY-RELEVANT (its vocab entry declares modality_relevance)
 # must carry a top-level modality_relevance array. Anchored to the vocab, not a hardcoded list.
+
 
 def test_modality_relevant_type_without_field_is_advisory_warning(tmp_path, monkeypatch):
     # DEMOTED 2026-08-09 (modality-fit review): modality_relevance is advisory (0 behavioral readers;
@@ -173,8 +175,10 @@ def test_modality_relevant_type_without_field_is_advisory_warning(tmp_path, monk
 def test_modality_relevant_type_with_field_is_clean(tmp_path, monkeypatch):
     monkeypatch.setattr(VC, "_registered_measurement_types", lambda: {"surface_confirmation"})
     monkeypatch.setattr(VC, "_modality_relevant_types", lambda: {"surface_confirmation"})
-    report = _validate(tmp_path, _base_card(measurement_type="surface_confirmation",
-                                            modality_relevance=["adc", "bite_tce", "antibody"]))
+    report = _validate(
+        tmp_path,
+        _base_card(measurement_type="surface_confirmation", modality_relevance=["adc", "bite_tce", "antibody"]),
+    )
     assert report.ok, _errs(report)
     assert "MODALITY_RELEVANCE_MISSING" not in _errs(report)
 
@@ -201,6 +205,7 @@ def test_modality_relevance_enum_enforced_by_schema(tmp_path):
 # This is a WARNING (roadmap gap, not a contract violation), fires only when the card HAS rules, and
 # never touches a verdict. _card_modality_signals is monkeypatched for hermeticity.
 
+
 def _mute_setup(monkeypatch):
     monkeypatch.setattr(VC, "_registered_measurement_types", lambda: {"surface_confirmation"})
     monkeypatch.setattr(VC, "_modality_relevant_types", lambda: {"surface_confirmation"})
@@ -209,23 +214,26 @@ def _mute_setup(monkeypatch):
 def test_declared_lens_with_no_signal_rule_is_mute_warning(tmp_path, monkeypatch):
     """Card declares [adc, bite_tce] but its rules emit only adc → bite_tce is MUTE → warning."""
     _mute_setup(monkeypatch)
-    monkeypatch.setattr(VC, "_card_modality_signals",
-                        lambda: {"synthetic-test-card": {"adc"}})
-    report = _validate(tmp_path, _base_card(measurement_type="surface_confirmation",
-                                            modality_relevance=["adc", "bite_tce"]))
-    assert report.ok, _errs(report)                      # WARNING, never an error
+    monkeypatch.setattr(VC, "_card_modality_signals", lambda: {"synthetic-test-card": {"adc"}})
+    report = _validate(
+        tmp_path, _base_card(measurement_type="surface_confirmation", modality_relevance=["adc", "bite_tce"])
+    )
+    assert report.ok, _errs(report)  # WARNING, never an error
     assert "MODALITY_RELEVANCE_MUTE" in _warns(report)
     assert "bite_tce" in _warns(report)
-    assert "adc" not in _warns(report).split("MODALITY_RELEVANCE_MUTE")[1].split("lens(es)")[1]  # adc is realised, not muted
+    assert (
+        "adc" not in _warns(report).split("MODALITY_RELEVANCE_MUTE")[1].split("lens(es)")[1]
+    )  # adc is realised, not muted
 
 
 def test_all_declared_lenses_realised_is_clean(tmp_path, monkeypatch):
     """Every declared lens has a signal-emitting rule → no mute warning."""
     _mute_setup(monkeypatch)
-    monkeypatch.setattr(VC, "_card_modality_signals",
-                        lambda: {"synthetic-test-card": {"adc", "bite_tce", "antibody"}})
-    report = _validate(tmp_path, _base_card(measurement_type="surface_confirmation",
-                                            modality_relevance=["adc", "bite_tce", "antibody"]))
+    monkeypatch.setattr(VC, "_card_modality_signals", lambda: {"synthetic-test-card": {"adc", "bite_tce", "antibody"}})
+    report = _validate(
+        tmp_path,
+        _base_card(measurement_type="surface_confirmation", modality_relevance=["adc", "bite_tce", "antibody"]),
+    )
     assert report.ok, _errs(report)
     assert "MODALITY_RELEVANCE_MUTE" not in _warns(report)
 
@@ -234,10 +242,12 @@ def test_card_with_no_rules_is_not_flagged_mute(tmp_path, monkeypatch):
     """A pure-data facet with NO rule (absent from the signal map) reaches gates via reports_into,
     not signals — it must NOT be flagged mute (that would be a false positive)."""
     _mute_setup(monkeypatch)
-    monkeypatch.setattr(VC, "_card_modality_signals",
-                        lambda: {"some-other-card": {"adc"}})   # synthetic-test-card absent → has no rules
-    report = _validate(tmp_path, _base_card(measurement_type="surface_confirmation",
-                                            modality_relevance=["adc", "bite_tce"]))
+    monkeypatch.setattr(
+        VC, "_card_modality_signals", lambda: {"some-other-card": {"adc"}}
+    )  # synthetic-test-card absent → has no rules
+    report = _validate(
+        tmp_path, _base_card(measurement_type="surface_confirmation", modality_relevance=["adc", "bite_tce"])
+    )
     assert report.ok, _errs(report)
     assert "MODALITY_RELEVANCE_MUTE" not in _warns(report)
 
@@ -246,8 +256,9 @@ def test_mute_check_graceful_skip_when_rules_absent(tmp_path, monkeypatch):
     """Rules dir unreadable (None) → the mute check skips rather than false-flagging."""
     _mute_setup(monkeypatch)
     monkeypatch.setattr(VC, "_card_modality_signals", lambda: None)
-    report = _validate(tmp_path, _base_card(measurement_type="surface_confirmation",
-                                            modality_relevance=["adc", "bite_tce"]))
+    report = _validate(
+        tmp_path, _base_card(measurement_type="surface_confirmation", modality_relevance=["adc", "bite_tce"])
+    )
     assert report.ok, _errs(report)
     assert "MODALITY_RELEVANCE_MUTE" not in _warns(report)
 
@@ -268,6 +279,7 @@ def test_card_modality_signals_reads_real_rules():
 # A card may not advertise an entity_grain its measurement_type's substrate cannot emit (Rule 5). Only
 # checked when BOTH card and type declare entity_grains (migration-safe). _measurement_type_entity_grains
 # is monkeypatched for hermeticity.
+
 
 def _grain_setup(monkeypatch, ceiling):
     monkeypatch.setattr(VC, "_registered_measurement_types", lambda: {"toy_type"})
@@ -311,6 +323,5 @@ def test_grain_check_graceful_skip_when_vocab_absent(tmp_path, monkeypatch):
 def test_real_cards_respect_entity_grains_ceiling():
     """Regression guard: no shipped card advertises a grain outside its measurement_type's ceiling."""
     reports = VC.validate_directory(REPO / "cards")
-    offenders = [r.card_path for r in reports
-                 if any("ENTITY_GRAINS_CEILING" in e for e in r.errors)]
+    offenders = [r.card_path for r in reports if any("ENTITY_GRAINS_CEILING" in e for e in r.errors)]
     assert not offenders, f"cards breaching the entity_grains ceiling: {offenders}"
