@@ -54,6 +54,7 @@ _INFORMS = {
     "DENSITY": "antigen abundance — surface copies/cell density (ADC/TCE payload-floor viability)",
     "SAFETY": "normal-tissue window — restricted normal expression is favourable; broad is a LIABILITY",
     "SHED": "ectodomain shedding — membrane-retained is favourable; clinically-shed is a LIABILITY (sink / decoy)",
+    "PMHC": "pMHC-TCE route — peptide-MHC epitope evidence (IEDB) for a TCR-mimetic engager the folded-surface ladder cannot see (an INTRACELLULAR target can still be a TCE target)",
 }
 
 
@@ -103,6 +104,34 @@ def _fit_corr(h, c):
             return cap_corroboration(base, "low")
     return base
 
+# pMHC-TCE route (peptide-MHC): the FIT/TOPOLOGY claims read the FOLDED-surface ladder (adc-tce-modality-fit
+# reads neither_viable for an intracellular target), so an intracellular target with validated pMHC epitopes
+# — a real TCR-mimetic TCE route (ERBB2/NY-ESO-1/MAGE archetype) — was invisible to the claim vector (the
+# route lived only in the skill's verdict SNAPSHOT). This claim reads the RAW IEDB epitope evidence
+# (pmhc_epitope_evidence_class, in the headline — NOT the snapshot/verdict), corroborated by the independent
+# HLA-ligand-atlas presentation (pmhc_presentation_class). Verdict-INERT.
+_PMHC_SIGNAL = {"tcell_validated": "strong", "presented_not_tcell_confirmed": "moderate",
+                "no_positive_epitopes": "absent", "not_observed": "absent", "data_unavailable": "unmeasured"}
+_PMHC_PRESENTED = {"restricted_presentation", "intermediate_presentation", "broadly_presented_normal"}
+
+
+def _pmhc_signal(h, c):
+    cls = h.get("pmhc_epitope_evidence_class")
+    sig = _PMHC_SIGNAL.get(cls, "unmeasured")
+    n = h.get("pmhc_epitope_n_epitopes")
+    ev = f"pMHC epitope evidence: {cls or 'data_unavailable'}" + (f", {n} epitopes" if n else "")
+    return sig, ev, None
+
+
+def _pmhc_corr(h, c):
+    # only a POSITIVE epitope signal carries corroboration. Independent HLA-ligand-atlas PRESENTATION
+    # (pmhc-presentation, a distinct product from the IEDB epitope evidence) confirms the peptide is
+    # actually presented on MHC → bumps to high; else single-source moderate.
+    if _PMHC_SIGNAL.get(h.get("pmhc_epitope_evidence_class"), "unmeasured") in ("unmeasured", "absent"):
+        return "unmeasured"
+    return "high" if h.get("pmhc_presentation_class") in _PMHC_PRESENTED else "moderate"
+
+
 SURFACE_CLAIM_SPEC = [
     ClaimSpec("FIT", "ADC/TCE modality fit", _sig(_C_FIT, "fit_class", _FIT_SIGNAL),
               _fit_corr, _INFORMS["FIT"],
@@ -130,11 +159,13 @@ SURFACE_CLAIM_SPEC = [
               _mk_atom(_C_SHED, "shed_liability_class",
                        ("shed_liability_class", "shed_evidence_tier", "serum_marker", "shed_product",
                         "shedding_protease", "measured_shed_class", "media_mean_npx"), _E_SHED)),
+    # pMHC-TCE route — reads the headline pmhc fields directly (custom fn, not the _sig card factory).
+    ClaimSpec("PMHC", "pMHC-TCE route", _pmhc_signal, _pmhc_corr, _INFORMS["PMHC"]),
 ]
 
 _DISCLAIMER = (
     "Modality-blind, verdict-INERT projection of the surface-modality-fit cards into orthogonal claims "
-    "(FIT / TOPOLOGY / DENSITY / SAFETY / SHED), each signal×corroboration. UNIFORM valence: a strong "
+    "(FIT / TOPOLOGY / DENSITY / SAFETY / SHED / PMHC), each signal×corroboration. UNIFORM valence: a strong "
     "signal is a BETTER surface-modality substrate; a MEASURED adverse read (broad normal expression, "
     "clinically-shed ectodomain) is `negative` (a real liability); a measured no-substrate read is "
     "`absent`; `unmeasured` is a data gap. Claims are NOT averaged; never feeds the surface verdict.")
