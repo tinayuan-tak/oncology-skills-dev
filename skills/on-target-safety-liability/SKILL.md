@@ -2,15 +2,16 @@
 name: on-target-safety-liability
 description: |
   Phase-G skill — on-target safety liability from HUMAN GENETICS: gnomAD LoF
-  constraint + a 5-leg human-genetics axis (Open Targets 26.06: gene-burden,
-  ClinGen dosage, mouse-KO phenotype, ClinVar pathogenicity, target-priority)
-  + GTEx normal-tissue breadth. The scalar verdict is the HONEST raw WT-loss
+  constraint + a 4-leg human-genetics HOLD axis (Open Targets 26.06: gene-burden,
+  ClinGen dominant-loss dosage, mouse-KO phenotype, ClinVar pathogenicity) + GTEx
+  normal-tissue breadth. (OT target-priority is orienting CONTEXT, verdict-inert —
+  not one of the 4 HOLD legs.) The scalar verdict is the HONEST raw WT-loss
   concern; for an activating (GoF) driver the mutant-selective downgrade is
   MODALITY-CONDITIONAL and lives in the per-modality safety verdict
   (safety_verdict_by_modality), not the scalar (resolver role-proxy downgrade
   retired v2.0.0). Plus (data-utilization expansion 2026-08-21)
   DepMap pan-essentiality (broad-tox HOLD), HPA-IHC essential-tissue protein
-  (HOLD), ClinGen recessive-only reassurance, and OT drug-warning pharmacovigilance context. 11 cards;
+  (HOLD), ClinGen recessive-only reassurance, and OT drug-warning pharmacovigilance context. 15 cards;
   verdict via the shared declarative resolver (safety.resolver.yaml).
 
   Question this skill answers:
@@ -23,7 +24,7 @@ description: |
   carried by the per-modality safety verdict, not a scalar-verdict downgrade.
 
   History: graduated not_wired → partial 2026-07-08 (gnomAD leg, PR #79 + the
-  gnomad_constraint method, merged AM #41 2026-07-19). Grew 2→8 cards over the
+  gnomad_constraint method, merged AM #41 2026-07-19). Grew 2→15 cards over the
   P5 human-genetics-as-safety build (Slices 1-5, 2026-07-24). Stays `partial`
   because two axes remain placeholder (see status note).
 
@@ -44,7 +45,7 @@ metadata:
 composition:
   data_mode: derived_read
   phase: [G]
-  cards_used:                          # synced to run.py CARDS 2026-08-05 (P5 human-genetics axis grew this 2→8)
+  cards_used:                          # synced to run.py CARDS (P5 human-genetics + data-util expansion grew this to 15)
     - gnomad-lof-constraint            # Wired 2026-07-08 (Layer 6e)
     - shet-lof-intolerance             # 2026-08-28 — continuous GeneBayes s_het; VERDICT-INERT complement to gnomAD constraint
     - target-safety-prioritisation     # P5 composite safety-prioritisation
@@ -151,45 +152,47 @@ composition:
 
 ## What this skill does
 
-Given a target, it assembles a HUMAN-GENETICS safety picture across 8 cards and
-resolves a `safety_verdict` via the shared declarative resolver
-(`resolvers/safety.resolver.yaml`). The verdict-moving legs:
+Given a target, it assembles a WT-loss safety picture across 15 cards and resolves a
+scalar `safety_verdict` via the shared declarative resolver
+(`resolvers/safety.resolver.yaml`), plus a per-modality `safety_verdict_by_modality`.
 
-  1. **gnomad-lof-constraint** — population LoF intolerance (pLI, LOEUF, mis_z →
-     constraint_class). LIVE (method `gnomad_constraint`, streams gnomAD v4.1).
-  2. **gene-burden-safety** — rare-variant BURDEN LoF signal (Open Targets 26.06).
-  3. **clingen-dosage** — ClinGen haploinsufficiency / triplosensitivity.
-  4. **mouse-ko-phenotype** — IMPC mouse-KO normal-physiology phenotype (lethality).
-  5. **clinvar-pathogenicity-safety** — ClinVar germline pathogenicity.
-  6. **target-safety-prioritisation** — OT composite target-priority (context).
+**Scalar-verdict-driving legs** (a rung in safety.resolver.yaml — the honest raw WT-loss concern):
+  1. **gnomad-lof-constraint** — population LoF intolerance (pLI, LOEUF, mis_z → constraint_class);
+     `highly_constrained` (p0), `moderately_constrained` (p5), `tolerant` (p4), data_unavailable (p7).
+  2. **pan-cancer-crispr-dependency-distribution** — DepMap pan-essentiality → `pan_essential_broad_tox_concern` (p1).
+  3. **normal-tissue-liability** — HPA-IHC essential-tissue protein → `normal_tissue_protein_safety_concern` (p2).
+  4–7. **human-genetics HOLD (p3, when_any of 4 legs)**: **gene-burden-safety** (OT rare-variant burden),
+     **clingen-dosage** (dominant-loss; recessive-only is a p6 *reassurance*), **clinvar-pathogenicity-safety**
+     (germline pathogenic), **mouse-ko-phenotype** (IMPC KO-lethal).
 
-  Plus two conditioning/context inputs:
-  7. **normal-tissue-liability-gtex** — GTEx normal-tissue RNA breadth
-     (critical-organ liability). NOTE: this is the GTEx-RNA leg; HPA-IHC
-     normal-tissue liability was re-homed to surface-modality-fit.
-  8. **alteration-role** — mechanism CONTEXT: for an activating GoF role the
-     WT-constraint concern is MODALITY-CONDITIONAL (a mutant-selective agent
-     need not fully inhibit the WT gene). This downgrade was RETIRED from the
-     scalar resolver (v2.0.0, 2026-08-24) and now lives in the per-modality
-     safety verdict (`safety_verdict_by_modality`), not the scalar.
+**Per-modality instruments** (feed `safety_verdict_by_modality`, NOT the scalar — the role-proxy scalar
+downgrade was RETIRED v2.0.0):
+  8. **alteration-role** — GoF/LoF direction: an activating (GoF) role makes the WT-constraint concern
+     MODALITY-CONDITIONAL (an allele-selective agent spares WT) → small_molecule=conditional; eligibility.
+  9. **copy-number-distribution** / 10. **functional-gene-state** — GROUP-0/0b disqualifiers that block the
+     allele-selective escape for amplified (ERBB2/MDM2) / rarely-altered targets.
+  gene-burden PROTECTIVE + clingen-recessive-only also condition the per-modality call.
 
-The rules engine maps each card's categorical to per-modality safety signals
-(e.g. highly_constrained → warning for a full-KO modality; tolerant →
-supportive), and the resolver combines them into the scalar `safety_verdict` +
-`driving_rule_id` (the raw WT-loss concern); the modality-conditional
-downgrade is realised separately in `safety_verdict_by_modality`.
+**Context / display (verdict-inert)**: 11. **target-safety-prioritisation** (OT composite priority),
+12. **shet-lof-intolerance** (continuous s_het, corroborates constraint), 13. **normal-tissue-liability-gtex**
+(GTEx-RNA breadth; emits per-modality signals only), 14. **drug-warning-safety** + 15. **onsides-adverse-event-safety**
+(pharmacovigilance CONTEXT; the CASE-009 `pharmacovigilance_scope_caveat` reads these — never a rung).
+
+The rules engine maps each card's categorical to per-modality safety signals (e.g. highly_constrained →
+warning for a full-KO modality; tolerant → supportive); the resolver combines them into the scalar
+`safety_verdict` + `driving_rule_id` (the raw WT-loss concern); the GoF modality-conditional downgrade is
+realised separately in `safety_verdict_by_modality`.
 
 ## What this skill does NOT do (yet) — why status is `partial`
 
-- **Not yet exercised end-to-end:** all 8 readers are BUILT, but they have not
-  yet fired in an emitted evidence package / been added to a dashboard_spec
-  (framework-health flags this as "reader-live-never-fired"). The wiring is
-  live; the package-level exercise is pending.
-- **Normal-tissue liability is GTEx-RNA only:** the HPA-IHC normal-tissue
-  liability card + protein-surface-evidence were RE-HOMED to
-  surface-modality-fit (protein-surface-evidence is LIVE there as
-  `surface_confirmation` via the CSPA reader). This skill carries the GTEx-RNA
-  breadth leg (`normal-tissue-liability-gtex`), not the IHC one.
+- **Not yet exercised end-to-end:** the 15 readers are BUILT and fire live; the
+  package-level dashboard_spec exercise is pending.
+- **Two normal-tissue legs:** this skill carries BOTH the GTEx-RNA breadth leg
+  (`normal-tissue-liability-gtex`, per-modality signals only) AND — since the
+  data-utilization expansion (2026-08-21) — the HPA-IHC essential-tissue-protein
+  leg (`normal-tissue-liability`), which DOES drive a scalar rung
+  (`normal_tissue_protein_safety_concern`, p2). (protein-surface-evidence remains
+  homed in surface-modality-fit.)
 - **On-target clinical-precedent / trial-outcome:** external trial-outcome feed
   licensing pending — no card in the runtime set.
 
@@ -198,7 +201,7 @@ downgrade is realised separately in `safety_verdict_by_modality`.
 ```
 <out>/
 ├── decision.json                 # safety_verdict + driving_rule_id + fired rules
-├── summary.yaml                  # per-card summary_fields (8 cards)
+├── summary.yaml                  # per-card summary_fields (15 cards)
 ├── tables/                       # per-card CSVs (emitted for cards that resolve)
 └── provenance.yaml               # data_provenance (manifest IDs) + partial-status notice
 ```
@@ -227,7 +230,7 @@ when no drug is approved / the gene is un-phenotyped. Both NEVER alter the verdi
 
 ## Roadmap to `wired`
 
-1. Exercise the 8-card set in an emitted evidence package + add to a
+1. Exercise the 15-card set in an emitted evidence package + add to a
    dashboard_spec (clears the "reader-live-never-fired" health flag).
 2. Add an on-target clinical-precedent card (external trial-outcome feed
    licensing).

@@ -157,9 +157,10 @@ _RECOGNIZED_GATING_VERDICTS: dict[str, frozenset[str]] = {
         "insufficient_underpowered_pan_essential",                    # admissibility guards
     }),
     "safety": frozenset({
-        "highly_constrained_safety_concern", "human_genetics_safety_concern",  # the (now four) holds
+        "highly_constrained_safety_concern", "human_genetics_safety_concern",  # the four holds
         "pan_essential_broad_tox_concern", "normal_tissue_protein_safety_concern",  # data-util expansion 2026-08-21
-        "wt_constraint_mechanism_mismatch", "wt_human_genetics_mechanism_mismatch",
+        # (the wt_*_mechanism_mismatch downgrade tokens were RETIRED with the scalar role-proxy downgrade,
+        # safety.resolver v2.0.0 — pruned here 2026-09-07; the resolver no longer emits them.)
         "tolerant_reduced_safety_risk", "moderately_constrained_safety",
         "data_unavailable", "insufficient",
     }),
