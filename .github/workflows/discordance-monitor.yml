@@ -1,0 +1,123 @@
+name: Weekly Literature-Discordance Monitor
+
+# The MONITORED-CADENCE half of the literature↔deterministic discordance loop (eval/DISCORDANCE_LOOP.md).
+# Re-harvests the --literature lane across the known-target calibration set, rebuilds the claim-vector-
+# aligned ledger (eval/build_discordance_ledger.py v2), and DIFFS the SHARP candidate gaps (calibration_gap
+# + verdict_rule_gap) against the committed baseline (eval/discordance_baseline.json). NEW sharp gaps =
+# discordances that appeared since the last run (a framework change, a data refresh, or the literature
+# moving) → surfaced as a ::warning + an uploaded artifact for human triage (CASE_LOG + baseline prune).
+#
+# ADVISORY, NOT A HARD GATE: the lane is a non-reproducible Opus read, so a NEW row can be LLM noise as
+# easily as a real gap — this monitor is a REVIEW QUEUE (escalate-only), never a merge blocker and never a
+# verdict change (literature stays citable_in_nominations:false — RISK_ASSESSMENT_INTEGRATION.md).
+#
+# WEEKLY (not nightly): a full calibration-set harvest is ~dozens of pairs x the gating lanes (~hundreds of
+# Opus calls) — too heavy to run every night, and discordances move on a slow cadence.
+#
+# CREDENTIAL GATING (honest-scaffold, mirrors card-behavior-matrix-nightly): needs BOTH live S3 (readers)
+# AND Bedrock-invoke (the Opus lane) on the assumed role. Until AWS_ROLE_TO_ASSUME is provisioned WITH
+# bedrock:InvokeModel, the harvest is SKIPPED and the job is a no-op notice (never false-reddens).
+
+on:
+  schedule:
+    - cron: "23 8 * * 1"        # 08:23 UTC every Monday
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  harvest-and-diff:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      HAVE_AWS: ${{ secrets.AWS_ROLE_TO_ASSUME != '' }}
+      ANALYSIS_METHODS_ROOT: ${{ github.workspace }}/rnd-computational-biology-oncology-analysis-methods
+      TARGET_CONTRACTS_ROOT: ${{ github.workspace }}/rnd-computational-biology-oncology-target-contracts
+      DATA_CATALOG_ROOT: ${{ github.workspace }}/rnd-computational-biology-oncology-data-catalog
+      AWS_PROFILE: cbg
+      BEDROCK_AWS_PROFILE: cmp-dev
+    steps:
+      - name: Checkout skills
+        uses: actions/checkout@v4
+        with:
+          path: rnd-computational-biology-oncology-claude-oncology-skills
+
+      - name: Checkout analysis-methods
+        uses: actions/checkout@v4
+        with:
+          repository: oneTakeda/rnd-computational-biology-oncology-analysis-methods
+          ref: main
+          path: rnd-computational-biology-oncology-analysis-methods
+          token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
+
+      - name: Checkout target-contracts
+        uses: actions/checkout@v4
+        with:
+          repository: oneTakeda/rnd-computational-biology-oncology-target-contracts
+          ref: main
+          path: rnd-computational-biology-oncology-target-contracts
+          token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
+
+      - name: Checkout data-catalog
+        uses: actions/checkout@v4
+        with:
+          repository: oneTakeda/rnd-computational-biology-oncology-data-catalog
+          ref: main
+          path: rnd-computational-biology-oncology-data-catalog
+          token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
+
+      - name: Set up pixi
+        uses: prefix-dev/setup-pixi@v0.8.1
+        with:
+          pixi-version: v0.70.2
+          cache: true
+          manifest-path: rnd-computational-biology-oncology-claude-oncology-skills/pixi.toml
+
+      - name: Configure AWS credentials (OIDC assume-role — needs S3 + bedrock:InvokeModel)
+        if: env.HAVE_AWS == 'true'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: us-east-1
+
+      - name: Harvest --literature over the calibration set + build the v2 ledger
+        if: env.HAVE_AWS == 'true'
+        working-directory: rnd-computational-biology-oncology-claude-oncology-skills
+        run: |
+          pixi run python eval/harvest_literature.py \
+            --use-calibration-pairs \
+            --calibration-set ../rnd-computational-biology-oncology-target-contracts/vocabularies/known_target_calibration_set.yaml \
+            --literature-scope gating \
+            --snapshot-dir eval/literature-snapshots \
+            --build-ledger --ledger-out /tmp/discordance_ledger.json
+
+      - name: Diff SHARP gaps vs the committed baseline (advisory)
+        if: env.HAVE_AWS == 'true'
+        working-directory: rnd-computational-biology-oncology-claude-oncology-skills
+        run: |
+          pixi run python eval/diff_discordance_ledger.py \
+            --ledger /tmp/discordance_ledger.json \
+            --baseline eval/discordance_baseline.json \
+            --out /tmp/discordance_diff.json
+          NEW=$(python3 -c "import json;print(json.load(open('/tmp/discordance_diff.json'))['n_new'])")
+          if [ "$NEW" != "0" ]; then
+            echo "::warning title=discordance-monitor::${NEW} NEW sharp literature↔deterministic discordance(s) since the baseline — download the artifact, triage into eval/CASE_LOG.md, then prune eval/discordance_baseline.json. Advisory only (non-reproducible lane; never a verdict change)."
+          else
+            echo "no NEW sharp discordances vs baseline"
+          fi
+
+      - name: No-creds notice
+        if: env.HAVE_AWS != 'true'
+        run: echo "::warning title=discordance-monitor::AWS_ROLE_TO_ASSUME not set (or lacks bedrock:InvokeModel) — skipping the live harvest. Provision the OIDC role with S3 + Bedrock to enable the weekly discordance monitor."
+
+      - name: Upload ledger + diff
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: discordance-monitor
+          path: |
+            /tmp/discordance_ledger.json
+            /tmp/discordance_diff.json
+          if-no-files-found: ignore

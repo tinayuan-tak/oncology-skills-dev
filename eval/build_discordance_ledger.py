@@ -92,9 +92,42 @@ def _is_atlas_excluded(skill: str, text: str) -> bool:
     return any(h in low for h in _ATLAS_EXCLUDED_HINTS)
 
 
-def _classify(agreement: str, n_verified: int, is_blind: bool,
-              atlas_excluded: bool, in_calibration: bool) -> tuple[str, str]:
-    """Deterministic gap-class assignment. Returns (gap_class, why)."""
+# claim-vector axis signal tiers that count as MEASURED. Per the fleet SIGNAL_ORD convention a measured
+# floor (`absent`) or a wrong-direction result (`negative`) is STILL measured; only `unmeasured` / missing
+# / `data_unavailable` is a genuine gap.
+_UNMEASURED_SIGNALS = {None, "", "unmeasured", "data_unavailable", "not_measured"}
+
+
+def _claim_atom(claim_vector, axis_key):
+    """The claim-vector atom {signal, corroboration, ...} for a lane axis_key, or None. The lane's
+    axis_key IS the claim-axis key (DEP/SEL/COMUT/SURVIVAL/DRUG/…). Tolerant of the two shapes seen
+    across skills: a flat {AXIS: {...}} dict OR a nested {"claim_vector": {AXIS: {...}}} wrapper."""
+    cv = claim_vector
+    if isinstance(cv, dict) and isinstance(cv.get("claim_vector"), dict):
+        cv = cv["claim_vector"]
+    if not isinstance(cv, dict) or axis_key is None:
+        return None
+    atom = cv.get(axis_key)
+    return atom if isinstance(atom, dict) else None
+
+
+def _axis_measured(atom) -> "bool | None":
+    """True if the claim axis carries a MEASURED signal, False if positively unmeasured, None if there
+    is no matching claim atom (then we cannot check → trust the lane, preserving prior behavior)."""
+    if not isinstance(atom, dict):
+        return None
+    return atom.get("signal") not in _UNMEASURED_SIGNALS
+
+
+def _classify(agreement: str, n_verified: int, is_blind: bool, atlas_excluded: bool,
+              in_calibration: bool, claim_measured: "bool | None") -> tuple[str, str]:
+    """Deterministic gap-class assignment. Returns (gap_class, why).
+
+    CLAIM-VECTOR ALIGNMENT: the literature lane compares against a per-AXIS claim signal, not the
+    reduced verdict — so a `contradicts` is a real per-axis gap only when that claim axis was MEASURED.
+    When the claim atom is positively UNMEASURED (claim_measured is False) the literature cannot
+    contradict an absent signal → it is a blind-spot / coverage gap, not a verdict contradiction. When
+    there is no matching claim atom (claim_measured is None) we cannot check and preserve prior behavior."""
     if is_blind:
         if atlas_excluded:
             return GAP_STALENESS, "literature signal on an axis the frozen atlas has no anchor for (route to atlas session)"
@@ -102,9 +135,13 @@ def _classify(agreement: str, n_verified: int, is_blind: bool,
     if agreement == "contradicts":
         if n_verified < 1:
             return GAP_CONFABULATION, "contradicts with no VERIFIED citation — non-reproducible LLM read; discard unless a source is confirmed"
+        if claim_measured is False:
+            if atlas_excluded:
+                return GAP_STALENESS, "literature 'contradicts' an UNMEASURED claim axis the atlas has no anchor for (coverage/atlas)"
+            return GAP_BLIND_SPOT, "literature 'contradicts' a claim axis whose omics signal is UNMEASURED — a coverage gap, not a verdict contradiction"
         if in_calibration:
-            return GAP_CALIBRATION, "verified literature contradicts the verdict on a GROUND-TRUTH target — candidate false-negative; anchor a calibration assertion"
-        return GAP_VERDICT_RULE, "verified literature contradicts the deterministic verdict — candidate rule/card/method gap"
+            return GAP_CALIBRATION, "verified literature contradicts a MEASURED claim axis on a GROUND-TRUTH target — candidate false-negative; anchor a calibration assertion"
+        return GAP_VERDICT_RULE, "verified literature contradicts a MEASURED claim axis — candidate rule/card/method gap"
     # agree / extends and not blind -> not a gap (concordant); surfaced only in summary counts.
     return "", ""
 
@@ -125,6 +162,7 @@ def build_rows(record: dict, calibration_targets: set[str] | None = None) -> lis
     overall = lit.get("overall_consistency")
     key_div = lit.get("key_divergence")
     prov = record.get("_provenance") or {}
+    claim_vector = record.get("claim_vector")
     in_calibration = (target or "").upper() in {t.upper() for t in calibration_targets}
 
     rows: list[dict] = []
@@ -132,7 +170,11 @@ def build_rows(record: dict, calibration_targets: set[str] | None = None) -> lis
     def _emit(axis_key, agreement, lit_read, assertion, confidence, citations, is_blind):
         n_ver, n_tot = _citation_support(citations)
         atlas_excluded = _is_atlas_excluded(skill, f"{assertion} {axis_key}")
-        gap_class, why = _classify(agreement, n_ver, is_blind, atlas_excluded, in_calibration)
+        # CLAIM-VECTOR ALIGNMENT: join the lane axis to its claim-vector atom (the omics signal the lane
+        # actually compared against), and classify on measured-ness — not on the reduced verdict.
+        atom = _claim_atom(claim_vector, axis_key) if not is_blind else None
+        claim_measured = _axis_measured(atom)
+        gap_class, why = _classify(agreement, n_ver, is_blind, atlas_excluded, in_calibration, claim_measured)
         if not gap_class:
             return
         rows.append({
@@ -142,6 +184,11 @@ def build_rows(record: dict, calibration_targets: set[str] | None = None) -> lis
             "agreement_vs_omics": agreement, "literature_read": lit_read,
             "assertion": assertion, "confidence": confidence,
             "overall_consistency": overall, "key_divergence": key_div,
+            # per-AXIS claim match (the correct resolution) — the omics signal/corroboration the lane
+            # compared against; `sub_verdict` is retained as CONTEXT/priority only, not the match target.
+            "claim_signal": (atom or {}).get("signal") if isinstance(atom, dict) else None,
+            "claim_corroboration": (atom or {}).get("corroboration") if isinstance(atom, dict) else None,
+            "claim_measured": claim_measured,
             "sub_verdict": verdict, "driving_rule_id": driving,
             "n_verified_citations": n_ver, "n_citations": n_tot,
             "confabulation_risk": (agreement == "contradicts" and n_ver < 1),
@@ -194,7 +241,7 @@ def build_ledger(corpus_path: str | Path, calibration_targets: set[str] | None =
         by_skill[r["skill"]] = by_skill.get(r["skill"], 0) + 1
     actionable = [r for r in rows if r["gap_class"] in (GAP_CALIBRATION, GAP_VERDICT_RULE, GAP_BLIND_SPOT)]
     return {
-        "schema": "discordance_ledger/v1",
+        "schema": "discordance_ledger/v2",   # v2: claim-vector-axis aligned (per-axis claim match, not verdict)
         "generated_at": _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds"),
         "corpus": str(corpus_path),
         "corpus_fingerprint": _corpus_fingerprint(corpus_path),

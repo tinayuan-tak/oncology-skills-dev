@@ -137,3 +137,46 @@ def test_load_calibration_targets_dict_keyed(tmp_path):
         "positive_controls:\n  KRAS:\n    indication: COADREAD\n")
     got = bdl._load_calibration_targets(cal)
     assert {"PARP1", "DLL3", "MET", "SMARCA2", "KRAS"} <= got
+
+
+# ── claim-vector-axis alignment (v2) ────────────────────────────────────────────────────────────
+def _rec_with_claim(axis_signal):
+    """A contradicts row on axis 'A' with a claim_vector whose atom A has the given signal."""
+    rec = _record()
+    rec["claim_vector"] = {"A": {"signal": axis_signal, "corroboration": "high"}}
+    rec["literature_synthesis"]["axes"] = [_axis("contradicts", verified=True)]  # axis_key='A'
+    return rec
+
+
+def test_measured_claim_axis_contradicts_is_verdict_rule_gap():
+    rows = bdl.build_rows(_rec_with_claim("strong"))
+    assert rows[0]["gap_class"] == bdl.GAP_VERDICT_RULE
+    assert rows[0]["claim_signal"] == "strong" and rows[0]["claim_measured"] is True
+
+
+def test_absent_is_still_measured_contradiction():
+    # a measured floor 'absent' still counts as MEASURED (omics measured no-signal; lit says there is one)
+    rows = bdl.build_rows(_rec_with_claim("absent"))
+    assert rows[0]["gap_class"] == bdl.GAP_VERDICT_RULE and rows[0]["claim_measured"] is True
+
+
+def test_unmeasured_claim_axis_downgrades_contradicts_to_blind_spot():
+    # positively UNMEASURED claim axis → literature cannot contradict an absent signal → blind_spot
+    rows = bdl.build_rows(_rec_with_claim("unmeasured"))
+    assert rows[0]["gap_class"] == bdl.GAP_BLIND_SPOT and rows[0]["claim_measured"] is False
+
+
+def test_no_claim_vector_preserves_prior_behavior():
+    # record without a claim_vector → cannot check → trust the lane (contradicts stays verdict_rule)
+    rec = _record()
+    rec["literature_synthesis"]["axes"] = [_axis("contradicts", verified=True)]
+    rows = bdl.build_rows(rec)  # no claim_vector key
+    assert rows[0]["gap_class"] == bdl.GAP_VERDICT_RULE and rows[0]["claim_measured"] is None
+
+
+def test_nested_claim_vector_shape_is_unwrapped():
+    rec = _record()
+    rec["claim_vector"] = {"claim_vector": {"A": {"signal": "unmeasured"}}}
+    rec["literature_synthesis"]["axes"] = [_axis("contradicts", verified=True)]
+    rows = bdl.build_rows(rec)
+    assert rows[0]["claim_measured"] is False and rows[0]["gap_class"] == bdl.GAP_BLIND_SPOT

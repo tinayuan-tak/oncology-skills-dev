@@ -8,7 +8,38 @@ target-contracts `docs/design/RISK_ASSESSMENT_INTEGRATION.md`).
 ```
 harvest (--literature)  →  discordance ledger  →  triage  →  fix (card/rule/method)  →  scorecard
    Component 2               Component 1          Component 3     normal channel          the judge
+                                  │
+                                  └─ diff vs baseline  →  NEW sharp gaps  →  (weekly monitor)
+                                     Component 4            review queue
 ```
+
+## The matching resolution is the CLAIM-VECTOR AXIS, not the verdict (ledger v2)
+
+The `--literature` lane computes `agreement_vs_omics` **per claim-vector axis** (DEP/SEL/COMUT/
+SURVIVAL/DRUG/…), comparing against that axis's omics signal — NOT against the reduced gate verdict.
+So the ledger joins each lane axis to its **claim atom** (`build_discordance_ledger._claim_atom`;
+the lane's `axis_key` IS the claim-axis key) and classifies on the atom's measured-ness:
+- a `contradicts` against a **measured** claim axis (signal present, incl. a measured floor `absent`
+  / wrong-direction `negative`) + a verified citation → a real per-axis gap (calibration/verdict_rule);
+- a `contradicts` against a **positively unmeasured** claim axis → blind-spot (you can't contradict an
+  absent signal), not a verdict contradiction;
+- no matching claim atom → cannot check → prior behavior (trust the lane).
+
+Each row carries `claim_signal` / `claim_corroboration` / `claim_measured`. The **verdict** is retained
+only as CONTEXT/priority (a contradiction on the axis that drove the gate is higher-stakes than one on a
+context axis). This is why every landed fix (CASE-007 COMUT, 008 DRUG, 009 PHARMACOVIGILANCE, 010
+SURVIVAL) was per-axis — the axis is the actionable unit.
+
+## Component 4 — the monitored cadence
+
+`eval/diff_discordance_ledger.py` diffs a fresh ledger's SHARP gaps (calibration_gap + verdict_rule_gap
+— blind/staleness drift run-to-run under the LLM lane, so they are trended by COUNT only) against
+`eval/discordance_baseline.json` (the sharp keys seen as of the last run). It surfaces NEW (appeared →
+triage), RESOLVED (fix landed → prune the baseline), and coarse count deltas. The weekly
+`.github/workflows/discordance-monitor.yml` re-harvests the calibration set, rebuilds the v2 ledger, and
+diffs — emitting a `::warning` + artifact on NEW sharp gaps (advisory review queue; gated on the OIDC
+role having S3 + Bedrock, skip-safe until then). Regenerate the baseline after a triage pass with
+`diff_discordance_ledger.py --write-baseline`.
 
 ## Component 1 — the ledger (this branch, offline + byte-safe)
 
