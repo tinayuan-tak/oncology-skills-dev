@@ -281,3 +281,21 @@ def test_temporal_caveat_none_on_negative_and_absent_paths():
         {"cooccurrence_class": "strong_mutually_exclusive"}, target="MET", indication="LUAD") is None
     # field-absent-safe
     assert m._cooccurrence_temporal_context_caveat({}, target="MET", indication="LUAD") is None
+
+
+# ── the SURVIVAL expression-vs-mutation scope caveat (CASE-010) ────────────────────────────────────
+def test_survival_scope_caveat_fires_on_directional_expression():
+    m = load_run_py(SKILL_DIR, "_diff_survival_helpers")
+    for cls in ("expression_high_better_survival", "expression_high_worse_survival"):
+        cav = m._survival_direction_scope_caveat({"survival_association_class": cls})
+        assert cav and cav["reason"] == "survival_is_expression_not_mutation_outcome"
+        assert cav["tier"] == "scope" and cav["false_demote_guarded"] is False
+        assert "EXPRESSION" in cav["detail"] and "mutation" in cav["detail"].lower()
+
+
+def test_survival_scope_caveat_none_on_nondirectional_and_absent():
+    m = load_run_py(SKILL_DIR, "_diff_survival_helpers")
+    for cls in ("no_prognostic_association", "no_survival_association",
+                "subtype_stratifies_survival", "data_unavailable", None):
+        assert m._survival_direction_scope_caveat({"survival_association_class": cls}) is None
+    assert m._survival_direction_scope_caveat({}) is None

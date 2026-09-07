@@ -147,6 +147,31 @@ Curated labels drift; the collapsed word hides modality-conditioning; verify aga
 - **Status:** TRIAGED / CONFIRMED real. Method+card fix QUEUED (cross-repo). This entry is the
   propose-only output of the discordance loop's first triage; no gate/verdict change.
 
+### CASE-010 — full-sweep ledger FINISH: remaining 14 calibration_gap rows triaged (2026-09-07)
+Disposition of every remaining calibration_gap row after CASE-007/008/009 (the full 37-pair sweep
+ledger `~/dev/discordance_full_sweep_ledger_2026-09-07.json`). One clean fix + 13 dismiss/defer.
+- **FIXED (verdict-INERT):** `differentiation-landscape` KRAS/COADREAD SURVIVAL — omics
+  `expression_high_better_survival` vs literature KRAS-*mutation*→worse-outcome. Generalizable
+  EXPRESSION-vs-MUTATION direction confound → `_survival_direction_scope_caveat` (v1.12.0): fires on a
+  directional expression-survival class, clarifies the axis is mRNA-expression↔survival, not
+  mutation-outcome. Target-agnostic; verdict/golden/replay byte-stable.
+- **DISMISSED — literature CONCORDANT with the verdict (lane over-flagged a sub-axis):**
+  - functional-requirement STEAP1/prostate, CEACAM5/NSCLC, DLL3/SCLC (all SEL, `non_dependent`): each is a
+    lineage-restricted surface ANTIGEN (biologics target), NOT a genetic dependency — `non_dependent` is
+    CORRECT; literature agrees. tumor-selectivity DLL3/SCLC (`selective_with_normal_liability`): literature
+    cites DLL3's low normal expression = good therapeutic index → concordant. surface STEAP1/prostate FIT
+    (`pmhc_tce_supported`) + FOLR1/OV TOPOLOGY (`adc_preferred_tce_unsafe`): verdicts already match the
+    surface biology the literature describes.
+- **DISMISSED — `data_unavailable` omics (coverage gap; cannot "contradict" an absent signal):**
+  differentiation CHEK1/COADREAD (SURVIVAL), HIF2A/RCC (NODE); mechanism-and-pharmacology TROP2/TNBC
+  (PERTURBATION — ADC biologics), HER2/BRCA (PHOSPHO — HER2 is a validated phospho-RTK; real coverage gap,
+  DEFERRED: wiring a phospho card is a data build); mechanism XPO1/MM (`partial` — cautious, honest).
+- **DEFERRED — real but weak/needs-data:** surface NOX1/CRC SAFETY (`pmhc_tce_supported`) — NOX1 is broadly
+  normal-expressed (colon epithelium/vasculature), a TCE safety concern; only 1 verified cite + would need a
+  normal-expression flag the surface skill's normal-tissue leg should carry. QUEUED as a data-coverage item.
+- **Meta:** of 32 calibration_gaps, **4 real fixes** (CASE-007 + 008 + 009-caveat + 010-caveat) and
+  **~10 dismissed as concordant/scope + ~4 deferred-for-data** + 128 staleness→atlas. Ledger FINISHED.
+
 ### CASE-009 — on-target-safety PHARMACOVIGILANCE `no_warning` vs literature on-target toxicity — MOSTLY SCOPE-MISMATCH; scope caveat added (full-sweep, 2026-09-07)
 - **Surfaced by:** the full 37-pair sweep — the on-target-safety-liability calibration_gap cluster (4):
   BCL2/CLL_AML, PSMB5/MM, XPO1/MM, PARP1/OV. Each: PHARMACOVIGILANCE axis `drug_warning_class=no_warning`

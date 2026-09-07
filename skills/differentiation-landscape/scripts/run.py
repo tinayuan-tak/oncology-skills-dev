@@ -45,7 +45,8 @@ from _skills_common.claim_record import assemble_claim_record
 
 
 SKILL_NAME = "differentiation-landscape"
-SKILL_VERSION = "1.11.0"  # 1.11.0 (2026-09-07, CASE-007 literature-discordance loop): add verdict-INERT
+SKILL_VERSION = "1.12.0"  # 1.12.0 (2026-09-07, CASE-010 literature-discordance loop): add verdict-INERT survival_direction_scope_caveat — the SURVIVAL axis is mRNA-EXPRESSION↔survival, NOT mutation-outcome; for a mutational driver the direction can differ/invert (KRAS-mutant CRC). Fires only on directional expression-survival classes; verdict/resolver/golden/replay byte-stable.
+                          # 1.11.0 (2026-09-07, CASE-007 literature-discordance loop): add verdict-INERT
                           #        cooccurrence_temporal_context_caveat — a curated acquired-bypass (target,indication)
                           #        co-occurring with a first-line-TKI driver (EGFR/ALK/ROS1) is flagged as likely
                           #        acquired-bypass, not de-novo co-driver (MET/LUAD). Verdict/resolver/golden byte-stable.
@@ -438,6 +439,35 @@ def _cooccurring_tki_partners(hl: dict) -> list:
     return out
 
 
+# EXPRESSION↔survival classes carrying a DIRECTION — the survival axis is an mRNA-expression prognostic
+# split, NOT a mutation-outcome association; for a mutational/activating driver the two can differ or even
+# invert. The scope caveat fires on these to prevent that misread.
+_EXPRESSION_SURVIVAL_DIRECTIONAL = {"expression_high_better_survival", "expression_high_worse_survival"}
+
+
+def _survival_direction_scope_caveat(hl: dict) -> dict | None:
+    """VERDICT-INERT scope clarifier (eval/CASE_LOG.md CASE-010): the SURVIVAL axis is an
+    mRNA-EXPRESSION↔survival association (this target's expression level high-vs-low), NOT a mutation-outcome
+    association. For a mutational / activating driver the expression→survival direction can DIFFER FROM — even
+    INVERT — the clinical MUTATION→outcome association (KRAS-mutant CRC: mutation → worse outcome, yet an
+    expression-high-vs-low split can read better-survival). Fires ONLY on a directional expression-survival
+    class; None for no_(prognostic|survival)_association / subtype_stratifies / absent → byte-stable. Never
+    enters the resolver (survival is a render facet, feeds no rung)."""
+    cls = hl.get("survival_association_class")
+    if cls not in _EXPRESSION_SURVIVAL_DIRECTIONAL:
+        return None
+    return {"reason": "survival_is_expression_not_mutation_outcome", "tier": "scope",
+            "false_demote_guarded": False,
+            "detail": (f"The SURVIVAL axis is an mRNA-EXPRESSION↔survival association (class={cls}: this "
+                       "target's expression level high-vs-low), NOT a mutation-outcome association. For a "
+                       "mutational / activating driver the expression→survival direction can DIFFER FROM — even "
+                       "INVERT — the clinical MUTATION→outcome association (e.g. KRAS-mutant CRC: mutation "
+                       "associates with WORSE outcome, while an expression-high-vs-low split can read "
+                       "better-survival). Interpret as an expression-prognostic signal, not the mutation's "
+                       "clinical prognosis; confirm the mutation-outcome direction from the literature lane "
+                       "(--literature).")}
+
+
 def _cooccurrence_temporal_context_caveat(hl: dict, target=None, indication=None) -> dict | None:
     """VERDICT-INERT temporal-context caveat: for a curated acquired-bypass (target, indication) whose
     co-occurrence signal includes a first-line-TKI driver partner, flag that a pooled cross-sectional
@@ -764,6 +794,14 @@ def _headline(cards, fired, verdict_pair, target=None, indication=None):
     except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
         hl.setdefault("_enrichment_errors", {})["cooccurrence_temporal_context_caveat"] = f"{type(exc).__name__}: {exc}"
         hl["cooccurrence_temporal_context_caveat"] = None
+    # SURVIVAL axis is EXPRESSION↔survival, NOT mutation-outcome (CASE-010): for a mutational/activating
+    # driver the expression→survival direction can differ/invert vs the clinical mutation→outcome. Fires
+    # only on a directional expression-survival class; None otherwise → byte-stable. Verdict-INERT.
+    try:
+        hl["survival_direction_scope_caveat"] = _survival_direction_scope_caveat(hl)
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
+        hl.setdefault("_enrichment_errors", {})["survival_direction_scope_caveat"] = f"{type(exc).__name__}: {exc}"
+        hl["survival_direction_scope_caveat"] = None
     # Canonical HEADLINE block (verdict + confidence + top tension) — the concise, consumer-facing headline
     # message as deterministic text + a renderer-agnostic hero payload. A verdict-INERT projection over the
     # claim_vector / key_signals just built. Best-effort: a formatting/read fault must NEVER discard the
@@ -825,6 +863,8 @@ _SYNTHESIS_FACET_KEYS = (
     "clonality_caveat",
     # temporal-context ≠ de-novo co-driver (CASE-007; verdict-inert, curated acquired-bypass path):
     "cooccurrence_temporal_context_caveat",
+    # survival axis = EXPRESSION↔survival, not mutation-outcome (CASE-010; verdict-inert scope clarifier):
+    "survival_direction_scope_caveat",
     # the per-question (data·signal·confidence) rows — rendered as the leading table by target-profile too
     "question_table",
     # the canonical headline (verdict + confidence + top tension) — text + hero payload for every consumer
