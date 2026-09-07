@@ -49,6 +49,13 @@ def _frames(mt):
     return [rf] if isinstance(rf, dict) else []
 
 
+def _cuts(rf):
+    """Every cut dict on a frame: the single `cut` (distance_to_cut / floor_cut_ceiling / count_of_total)
+    plus the `cuts` ladder (graded_band)."""
+    return ([rf["cut"]] if isinstance(rf.get("cut"), dict) else []) + \
+           [c for c in (rf.get("cuts") or []) if isinstance(c, dict)]
+
+
 def test_every_verdict_bearing_type_is_gaugeable():
     bad = [mt for mt, s in SALIENCE_SPECS.items() if not (s.get("direction") or s.get("categorical"))]
     assert not bad, f"measurement_types with neither a direction (numeric ruler) nor categorical: {bad}"
@@ -62,39 +69,42 @@ def test_reference_frame_is_wellformed(mt):
         assert rf.get("value_field"), f"{mt}: reference_frame needs a value_field"
         assert rf.get("scale"), f"{mt}: reference_frame needs a scale (no bare number)"
         assert SALIENCE_SPECS[mt].get("direction"), f"{mt}: reference_frame needs a direction to orient the gauge"
-        assert rf.get("kind") in ("percentile", "floor_cut_ceiling", "comparator_delta", "distance_to_cut"), \
+        assert rf.get("kind") in ("percentile", "floor_cut_ceiling", "comparator_delta", "distance_to_cut",
+                                  "graded_band", "count_of_total"), \
             f"{mt}: unknown frame kind {rf.get('kind')!r}"
+        if rf.get("kind") == "graded_band":
+            assert len(_cuts(rf)) >= 2, f"{mt}: graded_band needs >=2 cut anchors (the ladder)"
+        if rf.get("kind") == "count_of_total":
+            assert rf.get("total_field"), f"{mt}: count_of_total needs a total_field (the denominator)"
 
 
 @pytest.mark.parametrize("mt", sorted(mt for mt, s in SALIENCE_SPECS.items() if s.get("reference_frame")))
 def test_reference_frame_fields_are_real_summary_fields(mt):
     for rf in _frames(mt):
-        card_id = (rf.get("cut") or {}).get("card_id")
+        card_id = next((c.get("card_id") for c in _cuts(rf) if c.get("card_id")), None)
         if not card_id:
-            continue  # no cut.card_id to anchor the summary-field sync check for this frame
+            continue  # no cut card to anchor the summary-field sync check for this frame
         sf = _card_summary_fields(card_id)
         if sf is None:
             pytest.skip("contracts checkout absent (set TARGET_CONTRACTS_ROOT)")
-        named = [rf.get("value_field"), rf.get("distance_field"), rf.get("position_field")]
+        named = [rf.get("value_field"), rf.get("distance_field"), rf.get("position_field"), rf.get("total_field")]
         named += [a.get("field") for a in (rf.get("anchors") or []) if isinstance(a, dict)]
         missing = sorted(f for f in named if f and f not in sf)
         assert not missing, f"{mt}: reference_frame fields not in {card_id} outputs.summary_fields: {missing}"
 
 
 @pytest.mark.parametrize("mt", sorted(mt for mt, s in SALIENCE_SPECS.items()
-                                      if any((f or {}).get("cut") for f in (
+                                      if any(_cuts(f) for f in (
                                           s["reference_frame"] if isinstance(s.get("reference_frame"), list)
-                                          else [s.get("reference_frame")]))))
+                                          else [s.get("reference_frame")]) if isinstance(f, dict))))
 def test_reference_frame_cut_resolves_to_a_real_threshold(mt):
     for rf in _frames(mt):
-        cut = rf.get("cut")
-        if not isinstance(cut, dict):
-            continue
-        if _card_summary_fields(cut.get("card_id")) is None:
-            pytest.skip("contracts checkout absent (set TARGET_CONTRACTS_ROOT)")
-        v = contract_threshold(cut.get("card_id"), cut.get("threshold"))
-        assert v is not None, (f"{mt}: cut {cut.get('threshold')!r} does not resolve to a numeric key in "
-                               f"{cut.get('card_id')} thresholds: (single-source it from the contract)")
+        for cut in _cuts(rf):
+            if _card_summary_fields(cut.get("card_id")) is None:
+                pytest.skip("contracts checkout absent (set TARGET_CONTRACTS_ROOT)")
+            v = contract_threshold(cut.get("card_id"), cut.get("threshold"))
+            assert v is not None, (f"{mt}: cut {cut.get('threshold')!r} does not resolve to a numeric key in "
+                                   f"{cut.get('card_id')} thresholds: (single-source it from the contract)")
 
 
 def test_significance_field_added_for_mutation_stratified_is_real():

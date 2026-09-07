@@ -43,7 +43,7 @@ _MULTIFRAME = {
         {"protein_effect_size": 1.05, "protein_expression_class": "elevated",
          "allgene_percentile": 91.0, "allgene_percentile_class": "top_decile"}),
     "tumor_vs_adjacent_expression": (
-        [("log2_fc", "distance_to_cut"), ("allgene_percentile", "distance_to_cut")],
+        [("log2_fc", "graded_band"), ("allgene_percentile", "distance_to_cut")],
         {"log2_fc": 1.2, "expression_call_class": "elevated",
          "allgene_percentile": 88.0, "allgene_percentile_class": "upper_range"}),
     "sc_tumor_celltype_expression": (

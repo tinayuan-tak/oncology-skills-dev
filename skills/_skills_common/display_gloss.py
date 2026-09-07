@@ -124,6 +124,10 @@ METRIC_GLOSS: dict = {
     "median_log2tpm": ("median tumor expression", "log2 TPM"),
     "median_log2tpm_panel": ("median cell-line expression (panel)", "log2 TPM"),
     "median_log2_abundance_panel": ("median cell-line protein abundance (panel)", "log2"),
+    "fraction_elevated": ("fraction of cohorts with tumor elevation", "fraction"),
+    "n_cohorts_elevated": ("cohorts with tumor elevation", "count"),
+    "expression_purity_pearson_r": ("expression ↔ tumor-purity correlation", "Pearson r"),
+    "fraction_moderate_strong": ("fraction of patients with moderate/strong IHC", "fraction"),
     "sig_all_cells": ("significant across all comparator cells", None),
     "normal_p95_log2tpm": ("normal-tissue 95th-percentile expression", "log2 TPM"),
     "distribution_overlap_tumor_normal": ("tumor-normal distribution overlap", "overlap"),
@@ -287,6 +291,34 @@ def gauge_string(gv: dict) -> str:
         if ps and cut.get("value") is not None:
             seg += f", {ps} the {_fmt_num(cut['value'])} cut"
         pos = gv.get("position")   # lead with the banded call when present (mirrors floor_cut_ceiling)
+        return f"{humanize(pos).lower()} — {seg}" if pos else seg
+
+    if kind == "graded_band":
+        # value read against a ladder of >=2 cut anchors: name the STRONGEST cut it clears (e.g. "past the
+        # 1.5 strong cut"), else the nearest one it falls short of ("short of the 0.5 modest cut").
+        seg = head
+        cuts = [a for a in (frame.get("anchors") or [])
+                if a.get("role") == "cut" and isinstance(a.get("value"), (int, float)) and not isinstance(a.get("value"), bool)]
+        stronger_first = _norm_direction(direction) in ("lower_is_stronger", "lower_is_worse")
+        cuts.sort(key=lambda a: a["value"], reverse=stronger_first)  # weakest → strongest cut
+        passed = [a for a in cuts if _past_or_short(value, a["value"], direction) == "past"]
+        if passed:
+            top = passed[-1]
+            seg += f", past the {_fmt_num(top['value'])} {_anchor_label(top)} cut"
+        elif cuts:
+            seg += f", short of the {_fmt_num(cuts[0]['value'])} {_anchor_label(cuts[0])} cut"
+        pos = gv.get("position")
+        return f"{humanize(pos).lower()} — {seg}" if pos else seg
+
+    if kind == "count_of_total":
+        total = anchors.get("total") or {}
+        seg = f"{_fmt_num(value)} of {_fmt_num(total['value'])}" if total.get("value") is not None else _fmt_num(value)
+        if gv.get("scale"):
+            seg += f" {gv['scale']}"
+        ps = _past_or_short(value, cut.get("value"), direction)
+        if ps and cut.get("value") is not None:
+            seg += f", {ps} the {_fmt_num(cut['value'])} cut"
+        pos = gv.get("position")
         return f"{humanize(pos).lower()} — {seg}" if pos else seg
 
     if kind == "percentile":

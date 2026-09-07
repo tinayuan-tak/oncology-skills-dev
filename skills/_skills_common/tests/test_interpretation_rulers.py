@@ -84,23 +84,23 @@ def test_tumor_vs_adjacent_distance_to_cut_ruler():
     interp = build_interpretation({}, _tumor_vs_adjacent_summary(),
                                   SALIENCE_SPECS["tumor_vs_adjacent_expression"],
                                   card_id="tumor-rna-vs-adjacent")
-    assert len(interp) == 1
-    gv = interp[0]
+    # tumor-vs-adjacent now gauges log2FC on a GRADED BAND (modest 0.5 / strong 1.5); no allgene_percentile
+    # in this summary → the appended percentile companion drops out, leaving the one graded_band ruler.
+    gv = next(g for g in interp if g["frame"]["kind"] == "graded_band")
     assert gv["metric"] == "log2_fc" and gv["value"] == 1.732 and gv["scale"] == "log2FC"
     assert gv["direction"] == "higher_is_stronger"
     assert gv["position"] == "strong_upregulation"                    # band READ VERBATIM
     assert gv["position_source"] == "expression_call_class"
-    assert gv["frame"]["kind"] == "distance_to_cut"
     words = dg.gauge_string(gv)
     assert words.startswith("strong upregulation — ")                 # leads with the banded call
-    # the cut single-sources from the card thresholds:; assert it only when the (contracts-first) key
-    # resolves, so this stays green through the cross-repo lockstep window.
-    cut = contract_threshold("tumor-rna-vs-adjacent", "modest_upregulation_log2fc")
-    if cut is not None:
-        assert cut == 0.5
-        roles = {a["role"]: a["value"] for a in gv["frame"]["anchors"]}
-        assert roles.get("cut") == 0.5
-        assert "past the 0.5 cut" in words                            # 1.732 >= 0.5 → past (higher_is_stronger)
+    # both cuts single-source from the card thresholds:; assert only when the keys resolve (lockstep window).
+    modest = contract_threshold("tumor-rna-vs-adjacent", "modest_upregulation_log2fc")
+    strong = contract_threshold("tumor-rna-vs-adjacent", "strong_upregulation_log2fc")
+    if modest is not None and strong is not None:
+        assert (modest, strong) == (0.5, 1.5)
+        cut_vals = sorted(a["value"] for a in gv["frame"]["anchors"] if a["role"] == "cut")
+        assert cut_vals == [0.5, 1.5]                                 # the modest+strong ladder
+        assert "past the 1.5 strong cut" in words                    # 1.732 clears the strong cut
 
 
 # ── safety gnomad LOEUF distance_to_cut (first SAFETY-axis reference_frame; LOWER = more constrained) ──

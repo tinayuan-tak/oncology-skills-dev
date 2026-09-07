@@ -159,16 +159,16 @@ SALIENCE_SPECS: dict = {
     "tumor_vs_adjacent_expression": {
         "effect_field": "log2_fc", "significance_field": "q_value", "direction": "higher_is_stronger",
         "categorical": ["expression_call_class"],
-        # STAGE-2 PILOT ruler #3 (first distance_to_cut consumer): tumor-vs-adjacent log2FC gauged against
-        # the elevated-call cut (modest_upregulation_log2fc = 0.5, the flat→elevated boundary — mirrors the
-        # crispr pilot gauging the PRIMARY call threshold). value NAMES log2_fc; the band
-        # (expression_call_class) is READ VERBATIM as the position so the ordinal never contradicts the
-        # marker; the cut single-sources from the card thresholds (contracts-first: b47f5d4).
+        # tumor-vs-adjacent log2FC on a GRADED BAND: the card has TWO named call cuts (modest 0.5 →
+        # elevated, strong 1.5 → strongly elevated), so the ruler reads the ladder ("strongly elevated —
+        # log2FC 2.1, past the 1.5 strong cut") instead of a single flat/elevated boundary. value NAMES
+        # log2_fc; the band (expression_call_class) is READ VERBATIM as the position; both cuts single-source
+        # from the card thresholds. A percentile companion is appended by _SECONDARY_FRAMES.
         "reference_frame": {
-            "kind": "distance_to_cut", "value_field": "log2_fc", "scale": "log2FC",
+            "kind": "graded_band", "value_field": "log2_fc", "scale": "log2FC",
             "position_field": "expression_call_class",
-            "cut": {"card_id": "tumor-rna-vs-adjacent", "threshold": "modest_upregulation_log2fc",
-                    "label": "elevated_cut"}}},
+            "cuts": [{"card_id": "tumor-rna-vs-adjacent", "threshold": "modest_upregulation_log2fc", "label": "modest"},
+                     {"card_id": "tumor-rna-vs-adjacent", "threshold": "strong_upregulation_log2fc", "label": "strong"}]}},
     "tumor_protein_abundance": {
         "effect_field": "protein_effect_size", "significance_field": "protein_bh_q_value", "direction": "higher_is_stronger",
         "categorical": ["protein_expression_class"]},
@@ -207,6 +207,38 @@ SALIENCE_SPECS: dict = {
             "position_field": "allgene_percentile_class",
             "cut": {"card_id": "cellline-protein-abundance", "threshold": "allgene_top_decile",
                     "label": "pan_cancer_top_decile"}}},
+    # tumor-elevation-breadth — a K-of-N breadth count, gauged on count_of_total: "elevated in 4 of 6
+    # cohorts, past the 3-cohort breadth cut". value = n_cohorts_elevated; the total_field gives the
+    # denominator; the cut single-sources broadly_elevated_min_cohorts. position = the breadth class.
+    "tumor_elevation_breadth": {
+        "effect_field": "fraction_elevated", "n_field": "n_cohorts_tested", "direction": "higher_is_stronger",
+        "categorical": ["tumor_elevation_breadth_class", "rna_tumor_elevation_breadth_class"],
+        "reference_frame": {
+            "kind": "count_of_total", "value_field": "n_cohorts_elevated", "scale": "cohorts",
+            "position_field": "tumor_elevation_breadth_class", "total_field": "n_cohorts_tested",
+            "cut": {"card_id": "tumor-elevation-breadth", "threshold": "broadly_elevated_min_cohorts",
+                    "label": "breadth_cut"}}},
+    # expression-purity-confound (display) — is the tumor signal intrinsic or a stromal-purity confound?
+    # distance_to_cut on the purity↔expression correlation vs the intrinsic_r cut (0.3): a positive r past
+    # the cut reads tumor-intrinsic; a negative r (toward confound_r -0.3) reads stromal confound. position
+    # = purity_confound_class READ VERBATIM.
+    "expression_purity_confound": {
+        "effect_field": "expression_purity_pearson_r", "n_field": "n_paired_samples", "direction": "higher_is_stronger",
+        "categorical": ["purity_confound_class"],
+        "reference_frame": {
+            "kind": "distance_to_cut", "value_field": "expression_purity_pearson_r", "scale": "pearson_r",
+            "position_field": "purity_confound_class",
+            "cut": {"card_id": "expression-purity-confound", "threshold": "intrinsic_r", "label": "intrinsic_cut"}}},
+    # hpa-pathology-cancer-ihc (display) — antibody IHC protein-in-tumor. distance_to_cut on the
+    # moderate/strong staining fraction vs the moderate-detection cut (0.66). position = protein_presence_class.
+    "tumor_protein_ihc_presence": {
+        "effect_field": "fraction_moderate_strong", "n_field": "n_patients_total", "direction": "higher_is_stronger",
+        "categorical": ["protein_presence_class"],
+        "reference_frame": {
+            "kind": "distance_to_cut", "value_field": "fraction_moderate_strong", "scale": "fraction",
+            "position_field": "protein_presence_class",
+            "cut": {"card_id": "hpa-pathology-cancer-ihc", "threshold": "ihc_detected_moderate_max_fraction",
+                    "label": "moderate_ihc_cut"}}},
 
     # surface-modality-fit (§3.6)
     "sc_normal_surface_protein": {
@@ -220,7 +252,15 @@ SALIENCE_SPECS: dict = {
         "effect_field": "max_mean_clr", "n_field": "n_celltypes_surface_displaying", "direction": "higher_is_worse",
         "categorical": ["sc_surface_normal_class"]},
     "rna_protein_concordance": {
-        "effect_field": "rna_protein_r", "n_field": "n_paired_tumors", "direction": "higher_is_stronger"},
+        "effect_field": "rna_protein_r", "n_field": "n_paired_tumors", "direction": "higher_is_stronger",
+        # RNA↔protein correlation on a GRADED BAND: the card names two concordance cuts (moderate 0.4,
+        # strong 0.7), so "strongly concordant — r 0.74, past the 0.7 strong cut" reads the ladder rather
+        # than a single 0.4 boundary. Replaces the former single distance_to_cut batch meter (value_field
+        # unchanged = rna_protein_r → the atlas numeric feature stays byte-stable).
+        "reference_frame": {
+            "kind": "graded_band", "value_field": "rna_protein_r", "scale": "pearson_r",
+            "cuts": [{"card_id": "cellline-rna-protein-concordance", "threshold": "moderate_concordance_r", "label": "moderate"},
+                     {"card_id": "cellline-rna-protein-concordance", "threshold": "strong_concordance_r", "label": "strong"}]}},
 
     # tractability-small-molecule (§3.7)
     "prism_compound_activity": {
@@ -313,7 +353,7 @@ _BATCH_DISTANCE_TO_CUT_METERS = {
     "crispr_rnai_concordance":    ("fraction_agree", "fraction", "crispr-rnai-dependency-concordance", "strongly_concordant_fraction_threshold"),
     "normal_tissue_rna_breadth":  ("highest_tissue_median", "log2tpm", "normal-tissue-liability-gtex", "high_log2tpm"),
     "tumor_protein_abundance":    ("protein_effect_size", "protein_effect", "tumor-protein-abundance-cptac", "modest_up_effect"),
-    "rna_protein_concordance":    ("rna_protein_r", "pearson_r", "cellline-rna-protein-concordance", "moderate_concordance_r"),
+    # (rna_protein_concordance graduated to an inline graded_band ruler — see its spec above)
 }
 for _mt, (_vf, _sc, _card, _cut) in _BATCH_DISTANCE_TO_CUT_METERS.items():
     _spec = SALIENCE_SPECS.get(_mt)
@@ -466,8 +506,14 @@ def _project_frame(rf: dict, cap: dict, summary: dict, direction, card_id, contr
         av = _read_num_field(a.get("field"), summary, cap)
         if av is not None:
             anchors.append({"role": a.get("role"), "label": a.get("label"), "value": sig_round(av)})
-    cut = rf.get("cut")
-    if isinstance(cut, dict):
+    # total denominator (count_of_total): a named summary field → a `total` anchor (the "of N")
+    total = _read_num_field(rf.get("total_field"), summary, cap)
+    if total is not None:
+        anchors.append({"role": "total", "label": rf.get("total_field"), "value": sig_round(total)})
+    # single cut (distance_to_cut / floor_cut_ceiling / count_of_total) OR a ladder of cuts (graded_band)
+    for cut in ([rf["cut"]] if isinstance(rf.get("cut"), dict) else []) + list(rf.get("cuts") or []):
+        if not isinstance(cut, dict):
+            continue
         cv = contract_threshold(cut.get("card_id") or card_id, cut.get("threshold"), contracts_repo)
         if cv is not None:
             anchors.append({"role": "cut", "label": cut.get("label") or cut.get("threshold"),

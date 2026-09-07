@@ -21,7 +21,7 @@ _SAMPLE = {
     "crispr_rnai_concordance": ({"fraction_agree": 0.8}, 0.85),
     "normal_tissue_rna_breadth": ({"highest_tissue_median": 6.5}, 5.672),
     "tumor_protein_abundance": ({"protein_effect_size": 1.2}, 0.5),
-    "rna_protein_concordance": ({"rna_protein_r": 0.6}, 0.4),
+    # (rna_protein_concordance graduated to an inline graded_band — covered by the graded-band tests)
 }
 
 
