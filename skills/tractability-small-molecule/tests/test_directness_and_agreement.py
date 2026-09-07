@@ -118,3 +118,33 @@ def test_headline_flags_none_when_empty():
     h = tp._headline(_cards(), fired=[], verdict_pair=("insufficient", None))
     assert h["directness_caveat"] is None
     assert h["chemical_genetic_agreement"] is None
+
+
+# ── _sm_modality_mismatch_caveat (CASE-008) ─────────────────────────────────────────────────────────
+def test_modality_mismatch_fires_for_biologics_approved_antigen():
+    """DLL3/STEAP1/FOLR1/NECTIN4/CEACAM5: an approved-drug annotation on a biologics-approved antigen
+    must fire the modality-mismatch caveat naming the biologic modality."""
+    for gene, mod in [("DLL3", "tce"), ("STEAP1", "tce"), ("FOLR1", "adc"),
+                      ("NECTIN4", "adc"), ("CEACAM5", "adc_tce")]:
+        c = tp._sm_modality_mismatch_caveat({"has_approved_drug": True, "n_antineoplastic_interactions": 3},
+                                            target=gene)
+        assert c is not None, gene
+        assert "MODALITY MISMATCH" in c and f"modality={mod}" in c
+        assert "3 antineoplastic interactions" in c
+
+
+def test_modality_mismatch_none_without_approved_drug():
+    # biologics-approved target but no approved-drug annotation present → nothing to inflate → None
+    assert tp._sm_modality_mismatch_caveat({"has_approved_drug": False}, target="DLL3") is None
+    assert tp._sm_modality_mismatch_caveat({}, target="DLL3") is None
+
+
+def test_modality_mismatch_none_for_small_molecule_target():
+    # a bona-fide SM target (not in the biologics crosswalk) never fires, even with an approved drug
+    for gene in ("KRAS", "EGFR", "BRAF", "HER3", None):
+        assert tp._sm_modality_mismatch_caveat({"has_approved_drug": True}, target=gene) is None
+
+
+def test_modality_mismatch_is_headline_key_and_faceted():
+    # wired into _headline output + carried in the composed facet (verdict-INERT surfacing)
+    assert "sm_modality_mismatch_caveat" in tp._SYNTHESIS_FACET_KEYS

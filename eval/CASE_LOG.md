@@ -147,6 +147,43 @@ Curated labels drift; the collapsed word hides modality-conditioning; verify aga
 - **Status:** TRIAGED / CONFIRMED real. Method+card fix QUEUED (cross-repo). This entry is the
   propose-only output of the discordance loop's first triage; no gate/verdict change.
 
+### CASE-008 — tractability-small-molecule credits SM tractability from a BIOLOGICS approval — FIXED verdict-INERT (full-sweep, 2026-09-07)
+- **Surfaced by:** the FULL 37-pair calibration sweep (`eval/harvest_literature.py` →
+  `build_discordance_ledger.py`; ledger `~/dev/discordance_full_sweep_ledger_2026-09-07.json`). The
+  single largest calibration_gap cluster: **13 of 32** rows are `tractability-small-molecule`.
+- **Triage — the 13 split into THREE mechanisms (not one):**
+  1. **Biologics-approval → SM inflation (the fix target):** DLL3, STEAP1, FOLR1, NECTIN4, CEACAM5 — the
+     DRUG axis credits SM tractability from an approved BIOLOGIC (tarlatamab TCE; mirvetuximab / enfortumab
+     vedotin / tusamitamab ADCs; STEAP1 TCE). Verified lit (≥2–4 cites) states every approved agent is a
+     biologic and no approved SM binder exists.
+  2. **PRISM coverage false-NEGATIVE (opposite direction):** HER2/BRCA reads `chemically_unhit` despite
+     approved SM TKIs (lapatinib/neratinib/tucatinib) — a chemical-genetic under-credit, NOT inflation.
+     Separate gap (PRISM/ChEMBL coverage), not addressed here.
+  3. **Approval-status / indication-floor noise:** IDO1 (SM-directed but not approved), NLRP3 (heme floor
+     under-credit), XPO1 DEGRADER axis, KIF11 (arguably honest `discordant`). Not modality mismatch.
+- **Root cause (mechanism 1):** the DGIdb `known-drug-tractability` card + `dgidb_drug_gene` method are
+  **modality-BLIND** — `has_approved_drug` tabulates the approved biologic against the gene with no drug-TYPE
+  field. So a biologics-approved antigen can fire the DRUG rung
+  (`known-drug-approved-antineoplastic-sm-supportive` → `chemically_active`) or otherwise read as
+  SM-druggable. (`structurally_ligandable` for DLL3/STEAP1 comes from the STRUCTURE card, independent of the
+  drug annotation — the DRUG-axis over-credit is the modality-mismatch tell either way.)
+- **Fix (LANDED, verdict-INERT):** `_sm_modality_mismatch_caveat` in `skills/tractability-small-molecule/`
+  (v3.10.0) — fires for a curated biologics-approved antigen (`_BIOLOGICS_APPROVED_NONSM`, seeded from
+  `target-contracts/vocabularies/biologics_precedent_targets.yaml`: DLL3/STEAP1=tce, FOLR1/NECTIN4=adc,
+  CEACAM5=adc_tce, …) WHEN `has_approved_drug` is true, naming the biologic modality and that the DRUG
+  annotation is NOT SM-tractability evidence. Mirrors the in-skill `_directness_caveat` (annotation-vs-direct)
+  — this is annotation-vs-MODALITY. Verdict/resolver/golden/replay **byte-stable** (37 tests green; golden
+  2/2); target signature-introspected in `_headline`/`_synthesis_facet`. Retires the display-inflation for
+  the 5-target cluster at once.
+- **Why NOT a verdict flip (yet):** the honest verdict-moving fix (demote biologics-only SM tractability)
+  needs a real drug-modality field on the card + method (DGIdb has none) → curated crosswalk + resolver/rule
+  change + golden regen + a backtest that flips the BRAF replay fixture — a cross-repo build. PROPOSED as the
+  deeper follow-up; the caveat is the landable, byte-stable first step.
+- **Proposed ratchet / follow-ups:** (i) wire a live reader for `biologics_precedent_targets.yaml` (replace
+  the curated in-run.py set); (ii) verdict-moving modality-aware DRUG signal (cross-repo); (iii) the HER2
+  PRISM-coverage false-negative (mechanism 2) is a distinct queued gap.
+- **Status:** FIXED (verdict-INERT caveat). Deeper verdict-moving fix + reader-wiring QUEUED.
+
 ### CASE-006 — CNDP2-COADREAD neomorphic-GoF silent-FN — CONFIRMED (full-panel, 2026-09-02)
 - Full-panel sweep flagged the one genuine fresh miss: `CNDP2/COADREAD [small_molecule] → veto`
   (`dependency:non_dependent`). CNDP2 is an `active` program; its deciding axis is a **neomorphic

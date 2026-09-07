@@ -293,6 +293,20 @@ _ANNOTATION_DRIVEN_RUNGS = frozenset({
 _DIRECT_ENGAGEMENT_PRISM = frozenset({"clinically_active"})
 _DIRECT_ENGAGEMENT_CONCORD = frozenset({"triangulated_target_engaged", "crispr_confirmed_engagement"})
 
+# Targets whose APPROVED / clinically-advanced agent is a BIOLOGIC (ADC / TCE / CAR), NOT a small
+# molecule. The DGIdb known-drug annotation (has_approved_drug) is MODALITY-BLIND — it tabulates the
+# approved biologic and can inflate the DRUG axis into a small-molecule-tractability signal. Seeded
+# (curated) from the canonical modality-tagged vocabulary
+# target-contracts/vocabularies/biologics_precedent_targets.yaml; a live reader is a follow-up
+# (wiring it needs the shared _skills_common loader, out of this skill's scope). DISCLAIMED /
+# non-exhaustive; an absent target → None (byte-stable). Surfaced by the literature↔deterministic
+# discordance loop (eval/CASE_LOG.md CASE-008; DLL3/STEAP1/FOLR1/NECTIN4/CEACAM5).
+_BIOLOGICS_APPROVED_NONSM = {
+    "DLL3": "tce", "STEAP1": "tce", "FOLR1": "adc", "NECTIN4": "adc", "CEACAM5": "adc_tce",
+    "ERBB2": "adc_tce", "TACSTD2": "adc", "TROP2": "adc", "MSLN": "adc_tce", "CD22": "adc",
+    "CD79B": "adc", "TNFRSF17": "tce_car", "FOLH1": "tce_car", "GPC3": "car",
+}
+
 
 def _directness_caveat(snapshot, driving_rule_id, prism_activity_class, prism_crispr_concord,
                        known_drug_class=None, n_antineoplastic=None) -> str | None:
@@ -319,6 +333,33 @@ def _directness_caveat(snapshot, driving_rule_id, prism_activity_class, prism_cr
             "is dominated by INDIRECT / pathway / downstream compounds, so this can read druggable with no "
             "direct binder in existence — treat as looks-druggable-but-UNCONFIRMED, not confirmed direct "
             "druggability. Confirm target-directness from the literature lane (--literature).")
+
+
+def _sm_modality_mismatch_caveat(hl: dict, target=None) -> str | None:
+    """Name the MODALITY-mismatch druggability-inflation risk (VERDICT-INERT): for a target whose
+    approved/precedented agent is a BIOLOGIC (ADC/TCE/CAR), the DGIdb known-drug annotation
+    (has_approved_drug) is modality-blind and can credit the DRUG axis as small-molecule tractability
+    when NO approved small molecule exists. Complements _directness_caveat (which flags annotation-vs-
+    direct engagement); this flags annotation-vs-MODALITY. Fires only when an approved drug is present
+    AND the target is a curated biologics-approved antigen; None otherwise → byte-stable. Never enters
+    fired/resolver — reports WHY the DRUG signal may be modality-mismatched; never changes the verdict."""
+    gene = (target or "").upper().strip()
+    modality = _BIOLOGICS_APPROVED_NONSM.get(gene)
+    if modality is None:
+        return None
+    if hl.get("has_approved_drug") is not True:
+        return None                                     # no approved-drug annotation to inflate → None
+    n = hl.get("n_antineoplastic_interactions")
+    n_txt = f" ({n} antineoplastic interactions)" if isinstance(n, int) else ""
+    return (f"MODALITY MISMATCH: {gene}'s approved / clinically-precedented agent is a BIOLOGIC "
+            f"(modality={modality} — antibody-drug conjugate / T-cell engager / CAR), NOT a small "
+            f"molecule. The DGIdb known-drug annotation (has_approved_drug=true{n_txt}) is "
+            "modality-BLIND — it tabulates that biologic against the gene, which can inflate the DRUG "
+            "axis into a small-molecule-tractability signal even though NO approved small molecule "
+            "engages this target. Treat any positive DRUG-axis / known-drug contribution here as "
+            "biologics-precedent, NOT evidence of small-molecule druggability; confirm a direct "
+            "small-molecule binder from the structure/potency axes or the literature lane (--literature). "
+            "Source: biologics_precedent_targets.yaml (curated).")
 
 
 # ── CHEMICAL-GENETIC AGREEMENT arm (verdict-INERT) ───────────────────────────────────────────────────
@@ -388,7 +429,8 @@ def _build_headline_block(headline: dict) -> dict:
 
 
 SKILL_NAME = "tractability-small-molecule"
-SKILL_VERSION = "3.9.1"   # 3.9.1 (2026-09-04): VERDICT-INERT — set structural_ligandability_class + has_druggable_pocket + ligandability_disorder_class in _headline (declared-but-unset facet debt).     # 3.9.0 (2026-09-04): VERDICT-MOVING annotation_only_indirect — consume the resolver v1.5.0 directness gate (approved-drug rung now requires DIRECT engagement; indirect/sparse DGIdb roster → annotation_only_indirect). Depends AM dgidb v0.2.0 + TC resolver v1.5.0.     # 3.8.0 (2026-09-04): --literature lane + verdict-INERT surfacing (directness_caveat = DGIdb/ChEMBL druggability-inflation flag; chemical_genetic_agreement arm; TRACTABILITY_SM thesis + polarity_note). Spine byte-stable.     # 3.7.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.     # 3.6.0 (2026-08-27): tuned signals-first sub-group reader (tractability vocab). Verdict-INERT.
+SKILL_VERSION = "3.10.0"  # 3.10.0 (2026-09-07, CASE-008 literature-discordance loop): VERDICT-INERT sm_modality_mismatch_caveat — a biologics-approved antigen (ADC/TCE/CAR; curated _BIOLOGICS_APPROVED_NONSM seeded from biologics_precedent_targets.yaml) whose modality-blind DGIdb known-drug annotation can inflate the DRUG axis into SM tractability. Fires on has_approved_drug + curated target; spine/resolver/golden byte-stable. target signature-introspected in _headline/_synthesis_facet.
+                          # 3.9.1 (2026-09-04): VERDICT-INERT — set structural_ligandability_class + has_druggable_pocket + ligandability_disorder_class in _headline (declared-but-unset facet debt).     # 3.9.0 (2026-09-04): VERDICT-MOVING annotation_only_indirect — consume the resolver v1.5.0 directness gate (approved-drug rung now requires DIRECT engagement; indirect/sparse DGIdb roster → annotation_only_indirect). Depends AM dgidb v0.2.0 + TC resolver v1.5.0.     # 3.8.0 (2026-09-04): --literature lane + verdict-INERT surfacing (directness_caveat = DGIdb/ChEMBL druggability-inflation flag; chemical_genetic_agreement arm; TRACTABILITY_SM thesis + polarity_note). Spine byte-stable.     # 3.7.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.     # 3.6.0 (2026-08-27): tuned signals-first sub-group reader (tractability vocab). Verdict-INERT.
                             # 3.5.0 (2026-08-21): emit existing per-question question_table into the headline
                             # 3.4.0/3.1.0 +E8; +known-drug; +degradation; +T1.1/T1.2/T3.1
                             #   (discordant reorder, clinical_precedent_only, measured-potency card).
@@ -542,7 +584,7 @@ def _degrader_snapshot(fired: list[dict]) -> tuple[str, str | None]:
     return "insufficient", None
 
 
-def _headline(cards, fired, verdict_pair):
+def _headline(cards, fired, verdict_pair, target=None):
     v, drv = verdict_pair or ("insufficient", None)
     degrader_class, degrader_drv = _degrader_snapshot(fired)
     hl = {
@@ -620,6 +662,13 @@ def _headline(cards, fired, verdict_pair):
                                                  known_drug_class=hl.get("known_drug_tractability"),
                                                  n_antineoplastic=hl.get("n_antineoplastic_interactions"))
     hl["chemical_genetic_agreement"] = _chemical_genetic_agreement(hl.get("prism_crispr_concord"))
+    # (3) sm_modality_mismatch_caveat (CASE-008): the DGIdb known-drug annotation is modality-BLIND, so
+    # a biologics-approved antigen (DLL3/STEAP1/FOLR1/NECTIN4/CEACAM5 — ADC/TCE/CAR) can inflate the DRUG
+    # axis into an SM-tractability signal. Fires only for a curated biologics-approved target WITH an
+    # approved-drug annotation; None otherwise → byte-stable (KRAS/EGFR/FOXA1 fixtures untouched).
+    # Verdict-INERT (a headline key; never enters fired/resolver). target is signature-introspected by the
+    # dispatcher + fan-out (mirrors differentiation).
+    hl["sm_modality_mismatch_caveat"] = _sm_modality_mismatch_caveat(hl, target=target)
 
     # The canonical HEADLINE block is a verdict-INERT projection over the claim_vector / key_signals just
     # built. Run it best-effort: a formatting/read fault must NEVER discard the druggability spine already
@@ -681,6 +730,8 @@ _SYNTHESIS_FACET_KEYS = (
     # verdict-INERT surfacing flags (2026-09-04): the DGIdb/ChEMBL druggability-inflation caveat + the
     # explicit chemical-genetic AGREEMENT arm (mirrors FR measurement_caveat / concordance_scope_note).
     "directness_caveat", "chemical_genetic_agreement",
+    # CASE-008: modality-mismatch druggability-inflation (biologics-approved antigen; verdict-INERT)
+    "sm_modality_mismatch_caveat",
     # the per-question (data·signal·confidence) rows — rendered as the leading table by target-profile too
     "question_table",
     # the canonical headline (verdict + confidence + top tension) — text + hero payload for every consumer
@@ -691,11 +742,13 @@ _SYNTHESIS_FACET_KEYS = (
 )
 
 
-def _synthesis_facet(cards, fired, verdict_pair):
+def _synthesis_facet(cards, fired, verdict_pair, target=None):
     """Compact, VERDICT-INERT small-molecule-tractability facet for the composed target-profile
     synthesis. Reuses _headline (single source) + returns the claim_vector (POTENCY/ACTIVITY/STRUCT/
-    DRUG/DEGRADER, POSITIVE valence) + its citable atoms. Never moves the verdict; safe to omit."""
-    h = _headline(cards, fired, verdict_pair)
+    DRUG/DEGRADER, POSITIVE valence) + its citable atoms. Never moves the verdict; safe to omit.
+    target is signature-introspected by the fan-out so the CASE-008 sm_modality_mismatch_caveat
+    (keyed on the biologics-approved crosswalk) reaches the composed profile."""
+    h = _headline(cards, fired, verdict_pair, target=target)
     facet = {k: h.get(k) for k in _SYNTHESIS_FACET_KEYS}
     facet["_facet_note"] = ("Deterministic small-molecule tractability facet; claim_vector is a "
                             "POSITIVE-valence druggability decomposition. Verdict owned by the "
@@ -710,7 +763,7 @@ def _llm_synthesis(cards, fired, verdict_pair, target, indication,
     narrator consumes standalone ({target, indication, headline, cards}) from the fan-out's already-
     resolved cards + this skill's _headline, then narrates through its OWN lens synthesizer. Best-
     effort + VERDICT-INERT: never enters fired/verdict/cards — a failure is the caller's to swallow."""
-    headline = _headline(cards, fired, verdict_pair)
+    headline = _headline(cards, fired, verdict_pair, target=target)
     decision = {
         "target": target, "indication": indication, "headline": headline,
         "cards": [{"card_id": c.get("card_id"), "summary": c.get("summary") or {}}
