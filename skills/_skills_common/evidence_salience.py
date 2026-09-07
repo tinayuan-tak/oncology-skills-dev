@@ -172,6 +172,41 @@ SALIENCE_SPECS: dict = {
     "tumor_protein_abundance": {
         "effect_field": "protein_effect_size", "significance_field": "protein_bh_q_value", "direction": "higher_is_stronger",
         "categorical": ["protein_expression_class"]},
+    # ── tumor-presence DISTRIBUTION cards: pan-cancer allgene-percentile rulers (tranche #1) ──────────
+    # These three measurement_types previously carried NO salience spec at all (key_evidence fell back to the
+    # capsule heuristic + no ruler). Each distribution card independently carries the SAME decisive facet: a
+    # pan-cancer rank of the target's panel/tumor median among ALL ~20k genes (allgene_percentile, 0-100) with
+    # a named top-decile cut (allgene_top_decile = 90). That rank was emitted BARE; here it becomes a
+    # distance_to_cut ruler ("top decile — pan-cancer expression rank 96 %ile, past the 90 cut"). value +
+    # position (allgene_percentile_class) are READ VERBATIM; the cut single-sources the card threshold. The
+    # spec also NAMES each card's median effect_field + resolver class band so key_evidence stops guessing.
+    # DISPLAY-ONLY / verdict-INERT. (The by-subtype sibling shares tumor_expression_distribution but carries
+    # no top-level allgene_percentile → build_interpretation omits the ruler there; it is gauged via the
+    # SUBTYPE_SPECS omnibus path instead.)
+    "cell_line_rna_expression": {
+        "effect_field": "median_log2tpm_panel", "n_field": "n_cell_lines_evaluated", "direction": "higher_is_stronger",
+        "categorical": ["expression_class", "allgene_percentile_class", "control_position_class"],
+        "reference_frame": {
+            "kind": "distance_to_cut", "value_field": "allgene_percentile", "scale": "percentile",
+            "position_field": "allgene_percentile_class",
+            "cut": {"card_id": "cellline-rna-distribution", "threshold": "allgene_top_decile",
+                    "label": "pan_cancer_top_decile"}}},
+    "tumor_expression_distribution": {
+        "effect_field": "median_log2tpm", "n_field": "n_tumor_samples", "direction": "higher_is_stronger",
+        "categorical": ["tumor_expression_class", "allgene_percentile_class", "control_position_class"],
+        "reference_frame": {
+            "kind": "distance_to_cut", "value_field": "allgene_percentile", "scale": "percentile",
+            "position_field": "allgene_percentile_class",
+            "cut": {"card_id": "tumor-rna-distribution", "threshold": "allgene_top_decile",
+                    "label": "pan_cancer_top_decile"}}},
+    "cell_line_protein_abundance": {
+        "effect_field": "median_log2_abundance_panel", "n_field": "n_cell_lines_evaluated", "direction": "higher_is_stronger",
+        "categorical": ["protein_expression_class", "allgene_percentile_class"],
+        "reference_frame": {
+            "kind": "distance_to_cut", "value_field": "allgene_percentile", "scale": "percentile",
+            "position_field": "allgene_percentile_class",
+            "cut": {"card_id": "cellline-protein-abundance", "threshold": "allgene_top_decile",
+                    "label": "pan_cancer_top_decile"}}},
 
     # surface-modality-fit (§3.6)
     "sc_normal_surface_protein": {
