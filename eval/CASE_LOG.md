@@ -305,7 +305,7 @@ ledger `~/dev/discordance_full_sweep_ledger_2026-09-07.json`). One clean fix + 1
   Deeper (deferred): a broader on-target-toxicity signal beyond OT boxed-warnings would need a new data
   source (e.g. per-drug ADE severity ⋈ target) — out of scope for this axis's coarse OT feed.
 
-### CASE-008 — tractability-small-molecule credits SM tractability from a BIOLOGICS approval — FIXED verdict-INERT (full-sweep, 2026-09-07)
+### CASE-008 — tractability-small-molecule credits SM tractability from a BIOLOGICS approval — FIXED + GRADUATED to a verdict-moving DRUG-axis modality gate (full-sweep, 2026-09-07)
 - **Surfaced by:** the FULL 37-pair calibration sweep (`eval/harvest_literature.py` →
   `build_discordance_ledger.py`; ledger `~/dev/discordance_full_sweep_ledger_2026-09-07.json`). The
   single largest calibration_gap cluster: **13 of 32** rows are `tractability-small-molecule`.
@@ -336,14 +336,31 @@ ledger `~/dev/discordance_full_sweep_ledger_2026-09-07.json`). One clean fix + 1
   — this is annotation-vs-MODALITY. Verdict/resolver/golden/replay **byte-stable** (37 tests green; golden
   2/2); target signature-introspected in `_headline`/`_synthesis_facet`. Retires the display-inflation for
   the 5-target cluster at once.
-- **Why NOT a verdict flip (yet):** the honest verdict-moving fix (demote biologics-only SM tractability)
-  needs a real drug-modality field on the card + method (DGIdb has none) → curated crosswalk + resolver/rule
-  change + golden regen + a backtest that flips the BRAF replay fixture — a cross-repo build. PROPOSED as the
-  deeper follow-up; the caveat is the landable, byte-stable first step.
-- **Proposed ratchet / follow-ups:** (i) wire a live reader for `biologics_precedent_targets.yaml` (replace
-  the curated in-run.py set); (ii) verdict-moving modality-aware DRUG signal (cross-repo); (iii) the HER2
-  PRISM-coverage false-negative (mechanism 2) is a distinct queued gap.
-- **Status:** FIXED (verdict-INERT caveat). Deeper verdict-moving fix + reader-wiring QUEUED.
+- **GRADUATED (2026-09-07, verdict-moving DRUG-axis signal, cross-repo):** the caveat is now backed by a
+  real modality-aware DRUG signal. AM `dgidb_drug_gene` v0.3.0 (#581) reads the curated
+  `biologics_precedent_targets.yaml` crosswalk and emits `approved_drug_modality` + a new
+  `approved_biologic_only` value on `approved_drug_engagement_class`; TC (#672) adds the card fields, the
+  rule `known-drug-approved-biologic-only-sm-not-supportive`, and the resolver v1.6.0 rung that routes a
+  biologics-only approval's DRUG axis to `annotation_only_indirect` INSTEAD of the SM-supportive
+  approved-drug rung. Skills v3.11.0 consumes the field; `_sm_modality_mismatch_caveat` now keys on the
+  reader's authoritative `approved_drug_modality` (curated set = fallback) and reads as a CONFIRMATION when
+  the gate fired.
+- **CORRECTION to the earlier "flips the BRAF replay fixture" framing:** verified against LIVE DGIdb, the
+  gate is VERDICT-STABLE for the 5 calibration targets — their SM verdicts are driven by the STRUCTURE
+  predicted-pocket card (DLL3/STEAP1 → `structurally_ligandable`) or the e7 off-target read
+  (FOLR1/NECTIN4/CEACAM5 → `discordant`), NOT the approved-drug rung (the pre-existing directness gate had
+  already demoted it). The gate moves the DRUG-axis FIRED signal only (CEACAM5 was `approved_direct` via 8
+  false-direct records → now `approved_biologic_only`; DLL3/FOLR1/NECTIN4 were `approved_indirect_only`) —
+  byte-level golden regen, top-line verdict unchanged. BRAF (a genuine SM target, no `biologics_only` flag)
+  stays `approved_direct` → `chemically_active`; its replay fixture is UNAFFECTED. FAIL-SAFE / osimertinib
+  guard: EGFR/ERBB2/MET (dual-modality, in the vocab) + FOLH1/PSMA (SM radioligand) carry no flag → never
+  demoted; KRAS/EGFR/BRAF untouched.
+- **Proposed ratchet / follow-ups:** (i) #07 wire a shared live reader replacing the residual curated
+  `_BIOLOGICS_APPROVED_NONSM` in-run.py set (now a fallback only); (ii) the HER2 PRISM-coverage
+  false-negative (mechanism 2) is a distinct queued gap.
+- **Status:** FIXED + GRADUATED (verdict-moving DRUG-axis signal, verdict-stable for the calibration set).
+  AM #581 + TC #672 merged; skills v3.11.0. Regression-locked by the AM dgidb reader tests, the skills
+  modality-gate + golden/replay suites, and the DLL3/CEACAM5 `tractability_modality_note` calibration anchors.
 
 ### CASE-006 — CNDP2-COADREAD neomorphic-GoF silent-FN — CONFIRMED (full-panel, 2026-09-02)
 - Full-panel sweep flagged the one genuine fresh miss: `CNDP2/COADREAD [small_molecule] → veto`

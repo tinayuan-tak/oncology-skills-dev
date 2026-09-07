@@ -336,30 +336,43 @@ def _directness_caveat(snapshot, driving_rule_id, prism_activity_class, prism_cr
 
 
 def _sm_modality_mismatch_caveat(hl: dict, target=None) -> str | None:
-    """Name the MODALITY-mismatch druggability-inflation risk (VERDICT-INERT): for a target whose
-    approved/precedented agent is a BIOLOGIC (ADC/TCE/CAR), the DGIdb known-drug annotation
-    (has_approved_drug) is modality-blind and can credit the DRUG axis as small-molecule tractability
-    when NO approved small molecule exists. Complements _directness_caveat (which flags annotation-vs-
-    direct engagement); this flags annotation-vs-MODALITY. Fires only when an approved drug is present
-    AND the target is a curated biologics-approved antigen; None otherwise → byte-stable. Never enters
-    fired/resolver — reports WHY the DRUG signal may be modality-mismatched; never changes the verdict."""
+    """Name the MODALITY-mismatch on the DRUG axis (VERDICT-INERT surface): for a target whose approved
+    agent is a BIOLOGIC (ADC/TCE/CAR), DGIdb's has_approved_drug is modality-blind and can credit the
+    DRUG axis as small-molecule tractability. As of CASE-008 the modality gate is now VERDICT-LEVEL — the
+    reader emits approved_drug_modality=biologic and approved_drug_engagement_class=approved_biologic_only,
+    and the resolver routes the DRUG axis to annotation_only_indirect. So this string is now a CONFIRMATION
+    that the gate fired (not just a warning): it names the biologic modality and reports that the DRUG-axis
+    over-credit HAS been suppressed. Prefers the reader's authoritative approved_drug_modality; falls back
+    to the curated _BIOLOGICS_APPROVED_NONSM set only when the card field is unavailable (a stale-contract
+    or degraded run). Fires only when an approved drug is present AND the target is biologics-only; None
+    otherwise → byte-stable. Never enters fired/resolver — it explains the DRUG-axis modality read."""
     gene = (target or "").upper().strip()
-    modality = _BIOLOGICS_APPROVED_NONSM.get(gene)
-    if modality is None:
-        return None
-    if hl.get("has_approved_drug") is not True:
-        return None                                     # no approved-drug annotation to inflate → None
+    card_modality = hl.get("approved_drug_modality")          # authoritative reader signal
+    # authoritative path: the reader classified the approved drug's modality
+    if card_modality == "biologic":
+        modality = hl.get("approved_drug_modality_tag") or _BIOLOGICS_APPROVED_NONSM.get(gene) or "biologic"
+    elif card_modality in ("small_molecule_or_unknown", "not_applicable"):
+        return None                                           # reader says not a biologics-only approval
+    else:
+        # card field unavailable (degraded/stale contract) → fall back to the curated set + has_approved
+        modality = _BIOLOGICS_APPROVED_NONSM.get(gene)
+        if modality is None or hl.get("has_approved_drug") is not True:
+            return None
+    gated = (hl.get("approved_drug_engagement_class") == "approved_biologic_only")
     n = hl.get("n_antineoplastic_interactions")
     n_txt = f" ({n} antineoplastic interactions)" if isinstance(n, int) else ""
-    return (f"MODALITY MISMATCH: {gene}'s approved / clinically-precedented agent is a BIOLOGIC "
+    lead = ("MODALITY GATE FIRED" if gated else "MODALITY MISMATCH")
+    tail = ("The modality gate has SUPPRESSED this over-credit: approved_drug_engagement_class="
+            "approved_biologic_only routes the DRUG axis to annotation_only_indirect (a catalogued "
+            "approved agent, but not a small molecule), so it no longer contributes SM-supportive "
+            "evidence." if gated else
+            "Treat any positive DRUG-axis / known-drug contribution here as biologics-precedent, NOT "
+            "evidence of small-molecule druggability.")
+    return (f"{lead}: {gene}'s approved / clinically-precedented agent is a BIOLOGIC "
             f"(modality={modality} — antibody-drug conjugate / T-cell engager / CAR), NOT a small "
-            f"molecule. The DGIdb known-drug annotation (has_approved_drug=true{n_txt}) is "
-            "modality-BLIND — it tabulates that biologic against the gene, which can inflate the DRUG "
-            "axis into a small-molecule-tractability signal even though NO approved small molecule "
-            "engages this target. Treat any positive DRUG-axis / known-drug contribution here as "
-            "biologics-precedent, NOT evidence of small-molecule druggability; confirm a direct "
-            "small-molecule binder from the structure/potency axes or the literature lane (--literature). "
-            "Source: biologics_precedent_targets.yaml (curated).")
+            f"molecule. DGIdb's known-drug annotation (has_approved_drug=true{n_txt}) is modality-BLIND. "
+            f"{tail} Confirm a direct small-molecule binder from the structure/potency axes or the "
+            "literature lane (--literature). Source: biologics_precedent_targets.yaml (curated).")
 
 
 # ── CHEMICAL-GENETIC AGREEMENT arm (verdict-INERT) ───────────────────────────────────────────────────
@@ -429,7 +442,8 @@ def _build_headline_block(headline: dict) -> dict:
 
 
 SKILL_NAME = "tractability-small-molecule"
-SKILL_VERSION = "3.10.0"  # 3.10.0 (2026-09-07, CASE-008 literature-discordance loop): VERDICT-INERT sm_modality_mismatch_caveat — a biologics-approved antigen (ADC/TCE/CAR; curated _BIOLOGICS_APPROVED_NONSM seeded from biologics_precedent_targets.yaml) whose modality-blind DGIdb known-drug annotation can inflate the DRUG axis into SM tractability. Fires on has_approved_drug + curated target; spine/resolver/golden byte-stable. target signature-introspected in _headline/_synthesis_facet.
+SKILL_VERSION = "3.11.0"  # 3.11.0 (2026-09-07, CASE-008 graduation, VERDICT-MOVING signal-vector): consume the new AM/TC modality gate — reader emits approved_drug_modality + approved_biologic_only; resolver v1.6.0 rung known-drug-approved-biologic-only-sm-not-supportive routes a biologics-only approved antigen's DRUG axis to annotation_only_indirect (stops the SM-supportive approved-drug rung). _sm_modality_mismatch_caveat now keys on the reader's authoritative approved_drug_modality (curated set = fallback) and becomes a CONFIRMATION when the gate fired. Legacy oracle mirrors the new rung. DRUG-axis fired signal moves for biologics antigens (CEACAM5/DLL3/FOLR1/NECTIN4); top-line verdict STABLE for the calibration set (STRUCT/e7-driven). Golden/replay regenerated.
+                          # 3.10.0 (2026-09-07, CASE-008 literature-discordance loop): VERDICT-INERT sm_modality_mismatch_caveat — a biologics-approved antigen (ADC/TCE/CAR; curated _BIOLOGICS_APPROVED_NONSM seeded from biologics_precedent_targets.yaml) whose modality-blind DGIdb known-drug annotation can inflate the DRUG axis into SM tractability. Fires on has_approved_drug + curated target; spine/resolver/golden byte-stable. target signature-introspected in _headline/_synthesis_facet.
                           # 3.9.1 (2026-09-04): VERDICT-INERT — set structural_ligandability_class + has_druggable_pocket + ligandability_disorder_class in _headline (declared-but-unset facet debt).     # 3.9.0 (2026-09-04): VERDICT-MOVING annotation_only_indirect — consume the resolver v1.5.0 directness gate (approved-drug rung now requires DIRECT engagement; indirect/sparse DGIdb roster → annotation_only_indirect). Depends AM dgidb v0.2.0 + TC resolver v1.5.0.     # 3.8.0 (2026-09-04): --literature lane + verdict-INERT surfacing (directness_caveat = DGIdb/ChEMBL druggability-inflation flag; chemical_genetic_agreement arm; TRACTABILITY_SM thesis + polarity_note). Spine byte-stable.     # 3.7.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.     # 3.6.0 (2026-08-27): tuned signals-first sub-group reader (tractability vocab). Verdict-INERT.
                             # 3.5.0 (2026-08-21): emit existing per-question question_table into the headline
                             # 3.4.0/3.1.0 +E8; +known-drug; +degradation; +T1.1/T1.2/T3.1
@@ -550,6 +564,12 @@ def _snapshot_legacy_oracle(fired: list[dict]) -> tuple[str, str | None]:
     # negative, above chemically_unhit. Byte-in-sync with resolvers/tractability_small_molecule.resolver.yaml.
     if "known-drug-approved-indirect-only-sm-weak" in fired_by_id:
         return "annotation_only_indirect", "known-drug-approved-indirect-only-sm-weak"
+    # MODALITY gate (2026-09-07, CASE-008): a biologics-only antigen (approved ADC/TCE/CAR/mAb, no approved
+    # SM) → approved_biologic_only fires this rung INSTEAD of the SM-supportive approved-drug rung; maps to
+    # the SAME annotation_only_indirect verdict (a catalogued approved agent, just not a small molecule).
+    # Byte-in-sync with resolvers/tractability_small_molecule.resolver.yaml.
+    if "known-drug-approved-biologic-only-sm-not-supportive" in fired_by_id:
+        return "annotation_only_indirect", "known-drug-approved-biologic-only-sm-not-supportive"
     if "prism-no-compounds-found-neutral" in fired_by_id:
         return "chemically_unhit", "prism-no-compounds-found-neutral"
     return "insufficient", None
@@ -645,6 +665,11 @@ def _headline(cards, fired, verdict_pair, target=None):
         "known_drug_tractability":   get_card_field(cards, "known-drug-tractability", "known_drug_tractability_class"),
         "has_approved_drug":         get_card_field(cards, "known-drug-tractability", "has_approved_drug"),
         "n_antineoplastic_interactions": get_card_field(cards, "known-drug-tractability", "n_antineoplastic_interactions"),
+        # MODALITY read (CASE-008): the reader's authoritative drug-modality classification + the
+        # resolver-keyed engagement class (approved_biologic_only when the gate fired).
+        "approved_drug_engagement_class": get_card_field(cards, "known-drug-tractability", "approved_drug_engagement_class"),
+        "approved_drug_modality":    get_card_field(cards, "known-drug-tractability", "approved_drug_modality"),
+        "approved_drug_modality_tag": get_card_field(cards, "known-drug-tractability", "approved_drug_modality_tag"),
     }
     # verdict-INERT claim-vector projection (6th concrete) — POTENCY/ACTIVITY/STRUCT/DRUG/DEGRADER
     # signal decomposition + citable atoms the composed fan-out lifts to the cross-evidence agent.
