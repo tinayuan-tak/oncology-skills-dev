@@ -7,9 +7,11 @@ description: |
   (SIGNOR + CollecTRI + Reactome) and classified into a 21-class MoA ontology.
 
   The network is composed on-read (methods/mechanism_composed) from the SIGNOR
-  Jul2026 source release plus the CollecTRI and Reactome curated edge sets;
-  lower-weighted kinome-atlas prediction and DepMap co-essentiality lanes are
-  carried alongside (never merged into network_class). It does NOT read OmniPath.
+  Jul2026 source release plus the CollecTRI curated edge set; the `network_class`
+  edge COUNT is SIGNOR + CollecTRI only — Reactome is layered as pathway CONTEXT
+  (membership/MoA), NOT counted in the edge total. Lower-weighted kinome-atlas
+  prediction and DepMap co-essentiality lanes are carried alongside (never merged
+  into network_class). It does NOT read OmniPath.
 
   Question this skill answers:
   For {target} in {indication}, what upstream regulators + downstream

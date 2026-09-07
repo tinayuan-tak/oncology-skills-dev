@@ -101,8 +101,7 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
 #    surfaced by the fan-out into decision.claim_record_shadow.mechanism, consumed by NOTHING.
 #    Mechanism has no verdict-disjoint corroborator (CERTAINTY_MODEL: unmeasured) → minimal coverage-only
 #    certainty. Mirrors the other axes' hook.
-_MECH_LEVEL = {"well_characterized": "strong", "has_pd_marker": "moderate", "partial": "moderate",
-               "sparse": "weak"}
+_MECH_LEVEL = {"well_characterized": "strong", "partial": "moderate", "sparse": "weak"}
 
 
 def _mech_availability(v) -> str:
@@ -110,11 +109,11 @@ def _mech_availability(v) -> str:
         return "not_wired"
     if v == "insufficient":
         return "insufficient"
-    return "measured_positive"                   # well_characterized / has_pd_marker / partial / sparse
+    return "measured_positive"                   # well_characterized / partial / sparse
 
 
 def _mech_direction(v) -> str:
-    if v in ("well_characterized", "has_pd_marker", "partial", "sparse"):
+    if v in ("well_characterized", "partial", "sparse"):
         return "supports"                        # any degree of mechanistic understanding supports
     return "neutral"
 
@@ -231,8 +230,10 @@ def _predictability_mechanism_facet(cards):
 # ── canonical HEADLINE block (verdict + confidence + top tension) ────────────────────────────────
 # mechanism-and-pharmacology's declaration for the shared headline_core builder. This skill is largely
 # DESCRIPTIVE: the mechanism_verdict is a signaling-network CHARACTERIZATION class (well_characterized /
-# partial / sparse / has_pd_marker / data_unavailable / insufficient), and — per mechanism_claims.py —
-# NETWORK is ANNOTATION DENSITY (SIGNOR/Reactome edge count = curation, NOT target biology, capped at
+# partial / sparse / data_unavailable / insufficient — the has_pd_marker verdict was removed 2026-09-07,
+# resolver v1.2.0, as a structurally-dead rung; the PD marker survives as headline.has_pd_marker), and —
+# per mechanism_claims.py — NETWORK is ANNOTATION DENSITY (curated edge count = curation, NOT target
+# biology, capped at
 # moderate). So none of these rungs is a favorable/unfavorable target-quality CALL; every rung is coloured
 # NEUTRAL (there is no clear positive/negative program signal to encode). Verdict-INERT — a one-way
 # projection over the already-computed headline (mechanism_verdict stays byte-stable, frozen by the
@@ -243,7 +244,6 @@ _MECHANISM_VERDICT_PHRASE = {
     "well_characterized": "Well-characterized signaling network",
     "partial":            "Partially-characterized signaling network",
     "sparse":             "Sparse signaling network",
-    "has_pd_marker":      "PD-marker candidate present",
     "data_unavailable":   "Data unavailable",
     "insufficient":       "Insufficient evidence",
 }

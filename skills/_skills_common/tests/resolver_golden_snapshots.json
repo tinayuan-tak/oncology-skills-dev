@@ -16614,12 +16614,12 @@
     null
    ],
    "has-pd-marker-supportive": [
-    "has_pd_marker",
-    "has-pd-marker-supportive"
+    "insufficient",
+    null
    ],
    "has-pd-marker-supportive,mechanism-data-unavailable-insufficient": [
-    "has_pd_marker",
-    "has-pd-marker-supportive"
+    "data_unavailable",
+    "mechanism-data-unavailable-insufficient"
    ],
    "has-pd-marker-supportive,mechanism-partial-neutral": [
     "partial",
