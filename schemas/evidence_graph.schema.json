@@ -313,17 +313,17 @@
         "frame": {
           "type": ["object", "null"],
           "additionalProperties": false,
-          "description": "The reference frame the value is placed on. kind selects which anchors are meaningful: percentile (min/max implicit) | floor_cut_ceiling (floor/cut/ceiling, uses `position`) | comparator_delta (comparator baseline, offset = distance_to_cut = the delta) | distance_to_cut (cut, signed offset).",
+          "description": "The reference frame the value is placed on. kind selects which anchors are meaningful: percentile (min/max implicit) | floor_cut_ceiling (floor/cut/ceiling, uses `position`) | comparator_delta (comparator baseline, offset = distance_to_cut = the delta) | distance_to_cut (cut, signed offset) | graded_band (>=2 ordered cut anchors, e.g. modest+strong, value read against the ladder) | count_of_total (value is a count, a `total` anchor gives the denominator + a `cut` anchor the count threshold, e.g. elevated in 4 of 6 cohorts past the 3 cut).",
           "properties": {
-            "kind": {"type": ["string", "null"], "enum": ["percentile", "floor_cut_ceiling", "comparator_delta", "distance_to_cut", null]},
+            "kind": {"type": ["string", "null"], "enum": ["percentile", "floor_cut_ceiling", "comparator_delta", "distance_to_cut", "graded_band", "count_of_total", null]},
             "anchors": {
               "type": "array",
-              "description": "The named reference points on the frame (a floor, a cut, a ceiling, a comparator baseline). role is the frame slot; value is sig_round'd.",
+              "description": "The named reference points on the frame (a floor, a cut, a ceiling, a comparator baseline, a total denominator). role is the frame slot; value is sig_round'd.",
               "items": {
                 "type": "object",
                 "additionalProperties": false,
                 "properties": {
-                  "role": {"type": ["string", "null"], "description": "floor | cut | ceiling | comparator | min | max | ..."},
+                  "role": {"type": ["string", "null"], "description": "floor | cut | ceiling | comparator | total | min | max | ..."},
                   "label": {"type": ["string", "null"], "description": "The summary field / human label this anchor came from (e.g. non_essential_floor)."},
                   "value": {"type": ["number", "integer", "null"]}
                 }
