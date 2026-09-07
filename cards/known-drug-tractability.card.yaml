@@ -21,7 +21,8 @@
 # gap, never evidence of undruggability (measured-vs-null discipline).
 
 card_id: known-drug-tractability
-version: 1.1.0   # +directness metadata (n_direct_interactions / direct_engagement_class / approved_drug_engagement_class) from dgidb-drug-target-directional-v1 — gates the approved-drug rung on DIRECT engagement
+version: 1.2.0   # +MODALITY metadata (approved_drug_modality / approved_drug_modality_tag) from the curated biologics_precedent_targets.yaml crosswalk + approved_biologic_only value on approved_drug_engagement_class — gates the approved-drug rung on MODALITY (a biologics-only approval must not mint SM tractability; CASE-008)
+                 # 1.1.0: +directness metadata (n_direct_interactions / direct_engagement_class / approved_drug_engagement_class) from dgidb-drug-target-directional-v1 — gates the approved-drug rung on DIRECT engagement
 question: "Has a small-molecule drug been catalogued against {target.symbol} (approved / antineoplastic), and is it in a recognized druggable-genome category?"
 
 tier: target   # known-drug + druggable-category are properties of the gene, independent of indication. Never stratifies.
@@ -50,9 +51,13 @@ outputs:
     # ── DIRECTNESS metadata (v1.1.0) — from dgidb-drug-target-directional-v1 (interaction_types) ──
     - n_direct_interactions              # int|null — TYPED direct-SM interactions (inhibitor/antagonist/binder/…); null = unmeasured
     - direct_engagement_class            # categorical (see vocabulary) — the directness read
-    - approved_drug_engagement_class     # categorical (see vocabulary) — RESOLVER-KEYED approved-drug directness gate
+    - approved_drug_engagement_class     # categorical (see vocabulary) — RESOLVER-KEYED approved-drug directness+MODALITY gate
+    # ── MODALITY metadata (v1.2.0) — from the curated biologics_precedent_targets.yaml crosswalk ──
+    - approved_drug_modality             # categorical (see vocabulary) — is the approved drug a biologic (ADC/TCE/CAR) vs small-molecule/unknown?
+    - approved_drug_modality_tag         # string|null — raw crosswalk modality tag (adc/tce/adc_tce/car/...) when biologic, else null
     - known_drug_context                 # string — human-readable rationale (audit / LLM)
     - directness_context                 # string — human-readable directness rationale (audit / LLM)
+    - modality_context                   # string|null — human-readable modality-mismatch rationale (audit / LLM)
     - method_version
 
   summary_fields_vocabulary:
@@ -68,10 +73,15 @@ outputs:
       - sparse_direct                    # 1-4 typed-direct interactions — a weak/uncorroborated direct hit
       - indirect_or_untyped_only         # 0 typed-direct — interactions (if any) are indirect/untyped
       - unmeasured                       # directional product unread (transient) — directness not established
-    approved_drug_engagement_class:      # RESOLVER-KEYED: gates the approved-drug rung on directness
+    approved_drug_engagement_class:      # RESOLVER-KEYED: gates the approved-drug rung on directness + MODALITY
+      - approved_biologic_only           # approved drug is a BIOLOGIC (biologics-only antigen) — NOT SM tractability (CASE-008); precedence over direct/indirect
       - approved_direct                  # approved drug + DIRECT engagement (or unmeasured — fail toward prior)
       - approved_indirect_only           # approved drug BUT roster is indirect/sparse — annotation-driven, not direct
       - not_approved                     # no approved-drug flag (approved rung never applied)
+    approved_drug_modality:              # is the approved drug a biologic vs small-molecule/unknown (from biologics_precedent_targets.yaml)
+      - biologic                         # biologics-only antigen (ADC/TCE/CAR/mAb) with an approved drug — the DRUG flag is a biologic
+      - small_molecule_or_unknown        # approved drug present but NOT a biologics-only antigen (genuine/dual SM target, or absent from crosswalk)
+      - not_applicable                   # no approved-drug flag to characterise
 
 warning_predicates:
   - warning_id: no_known_drug_evidence
@@ -93,6 +103,12 @@ caveats:
     Absence is a COVERAGE GAP, never undruggability (measured-vs-null discipline). no_known_drug_evidence
     means the gene is not in DGIdb, not that it cannot be drugged. approved_drug_tractable is hoisted
     above clinically_actionable (an approved drug is the harder pharmacology fact).
+  - |
+    MODALITY (v1.2.0, CASE-008): has_approved_drug is modality-BLIND. A biologics-only antigen (approved
+    ADC/TCE/CAR/mAb, no approved SM; biologics_precedent_targets.yaml biologics_only: true) resolves
+    approved_drug_engagement_class=approved_biologic_only, gating off the SM-supportive approved-drug rung.
+    Fail-safe: dual-modality SM targets (EGFR/ERBB2/MET) + FOLH1/PSMA carry no flag → never demoted
+    (osimertinib guard); absence of the flag = prior behaviour.
   - |
     STALENESS: the DGIdb source (dgidb-2026-06b) self-reports Data version Dec-2023 / DGIdb v5.0.11
     despite the 2026 release tag — a repackaging, not fresh curation. Treat the drug-gene + category

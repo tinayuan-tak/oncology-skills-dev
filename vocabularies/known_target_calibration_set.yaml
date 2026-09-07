@@ -220,6 +220,11 @@ selectivity_cases:
     expected_selectivity_class: field_effect_tumor_selective
     disposition: clean_positive
     note: "GTEx field-cancerization arm carries it (A/B discordant); no veto fired (clean_window; sc origin_tissue_liability does NOT veto). The reference positive."
+    # CASE-008 tractability MODALITY-gate anchor (the false-DIRECT leak case). CEACAM5 carries 8 typed-
+    # "direct" DGIdb records (mistyped antibody/other), so the directness proxy alone reads approved_direct
+    # → would fire the SM-supportive approved-drug rung (chemically_active). The modality gate overrides:
+    # biologics_only: true → approved_biologic_only, so the DRUG axis routes to annotation_only_indirect.
+    tractability_modality_note: "SM-tractability DRUG axis: CEACAM5's approved agents are ADCs / a CEAxCD3 TCE (BIOLOGICS); no approved small molecule. The directness proxy leaks (8 false-direct records → approved_direct), so the CASE-008 modality gate is what demotes it (approved_biologic_only). SM verdict itself is unchanged (discordant, driven by the e7 off-target read); the gate fixes the DRUG-axis signal."
 
   KLK3:
     indication: PRAD
@@ -255,6 +260,9 @@ selectivity_cases:
     expected_driving_rule_current: tvn-sc-normal-critical-organ-veto
     disposition: selective_with_liability_correct
     note: "FIXED by Phase S (sc-normal veto split, skills #554 + contracts #417). Was over_veto_false_negative (selective_but_broadly_normal); now selective_with_normal_liability — the approved drug reads SELECTIVE with a named forebrain-neuron liability, no longer lumped with housekeeping. The named-organ SAFETY severity is owned by on-target-safety-liability."
+    # CASE-008 tractability MODALITY-gate anchor (verdict-INERT for the SM verdict; no assertion_type/snapshot
+    # here — the executable regression-lock is the AM dgidb reader tests + the skills tractability golden/replay).
+    tractability_modality_note: "SM-tractability DRUG axis: DLL3's approved agent is the DLL3xCD3 TCE tarlatamab (a BIOLOGIC), so the modality-blind DGIdb known-drug annotation must NOT credit small-molecule tractability. Regression-locked by the CASE-008 modality gate (biologics_precedent_targets.yaml biologics_only: true → approved_drug_engagement_class=approved_biologic_only → the SM-supportive approved-drug rung is gated off, routing the DRUG axis to annotation_only_indirect). The SM verdict is unchanged (structurally_ligandable, driven by the STRUCTURE predicted-pocket card); this gate fixes the DRUG-axis signal, not the top-line verdict."
 
   ERBB2:
     indication: BRCA

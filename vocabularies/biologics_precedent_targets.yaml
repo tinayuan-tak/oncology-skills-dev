@@ -50,8 +50,20 @@
 #
 # schema: entries is a gene-keyed map; each value carries a modality tag + a one-line
 # grounded note (approved/clinical agent + PMID/NCT where available).
+#
+# `biologics_only: true` (v1.1.0, CASE-008 — the SM-tractability modality gate):
+#   Marks an antigen whose approved / clinically-advanced agents are ALL biologics (ADC/TCE/CAR/mAb)
+#   with NO approved or clinical target-engaging SMALL MOLECULE. The DGIdb known-drug reader
+#   (analysis-methods dgidb_drug_gene) consumes this flag: a `biologics_only` target with an approved
+#   drug resolves approved_drug_engagement_class=approved_biologic_only, so the SM-supportive
+#   approved-drug rung is gated OFF (a biologics-only approval must not mint small-molecule tractability).
+#   The gate is FAIL-SAFE / positive-only — it fires ONLY on this explicit flag. Dual-modality targets
+#   with an approved small molecule (EGFR — osimertinib; ERBB2 — tucatinib/lapatinib/neratinib; MET —
+#   capmatinib/tepotinib) and FOLH1/PSMA (the small-molecule radioligand PSMA-617 genuinely engages the
+#   target) carry NO flag and are NEVER demoted (the osimertinib guard). Absence of the flag = prior
+#   modality-blind behaviour. Independent of the surface-modality-fit consumer, which reads only the keys.
 
-version: "1.0.0"
+version: "1.1.0"
 owner: ryan.abo@takeda.com
 
 entries:
@@ -61,55 +73,71 @@ entries:
     note: "T-DXd/T-DM1 ADCs approved (DESTINY-Gastric01, Shitara 2020 NEJM PMID 32469182); HER2xCD3 TCEs clinical."
   ERBB3:
     modality: adc
+    biologics_only: true
     note: "Patritumab deruxtecan (HER3-DXd) late-clinical ADC (HERTHENA-Lung01)."
   TACSTD2:
     modality: adc
+    biologics_only: true
     note: "TROP2 ADC sacituzumab govitecan approved (ASCENT)."
   NECTIN4:
     modality: adc
+    biologics_only: true
     note: "Enfortumab vedotin approved (EV-301)."
   FOLR1:
     modality: adc
+    biologics_only: true
     note: "Mirvetuximab soravtansine (Elahere) approved, FRalpha-high ovarian (MIRASOL)."
   CEACAM5:
     modality: adc_tce
+    biologics_only: true
     note: "Tusamitamab ravtansine (late-clinical ADC, Gazzah 2022); cibisatamab CEAxCD3 TCE clinical."
   MSLN:
     modality: adc_tce
+    biologics_only: true
     note: "Anetumab ravtansine ADC (phase 2); multiple mesothelin TCE/CAR programs clinical."
   CD22:
     modality: adc
+    biologics_only: true
     note: "Inotuzumab ozogamicin approved (INO-VATE ALL)."
   CD79B:
     modality: adc
+    biologics_only: true
     note: "Polatuzumab vedotin approved (POLARIX)."
   # ── validated TCE / CAR antigens whose ADC is absent/failed (the widening beyond the ADC vocab) ──
   DLL3:
     modality: tce
+    biologics_only: true
     note: "DLL3xCD3 TCE tarlatamab APPROVED for SCLC (DeLLphi-301, Ahn 2023 NEJM PMID 37861218). ADC Rova-T failed on payload TI, NOT target — so DLL3 is validated-surface but absent from the ADC-internalizing vocab."
   MS4A1:
     modality: tce
+    biologics_only: true
     note: "CD20 — rituximab (approved mAb) + CD20xCD3 TCEs mosunetuzumab/epcoritamab/glofitamab approved."
   TNFRSF17:
     modality: tce_car
+    biologics_only: true
     note: "BCMA — CAR-T ide-cel/cilta-cel + TCE teclistamab/elranatamab approved (multiple myeloma)."
   GPRC5D:
     modality: tce
+    biologics_only: true
     note: "GPRC5DxCD3 TCE talquetamab approved (MonumenTAL-1)."
   FCRL5:
     modality: tce
+    biologics_only: true
     note: "FCRH5 — cevostamab FCRL5xCD3 TCE clinical (multiple myeloma)."
   GPC3:
     modality: car
+    biologics_only: true
     note: "Glypican-3 CAR-T clinical in hepatocellular carcinoma (GPI-anchored surface antigen)."
   FOLH1:
     modality: tce_car
     note: "PSMA — approved radioligand (Pluvicto) + PSMAxCD3 TCE and CAR-T clinical (prostate)."
   STEAP1:
     modality: tce
+    biologics_only: true
     note: "STEAP1xCD3 TCE xaluritamig (AMG 509) clinical in metastatic prostate."
   CLDN18:
     modality: mab_car
+    biologics_only: true
     note: "CLDN18.2 — zolbetuximab (approved mAb, gastric, SPOTLIGHT/GLOW); CLDN18.2 CAR-T and ADC clinical."
   EGFR:
     modality: adc_tce
@@ -119,4 +147,5 @@ entries:
     note: "Telisotuzumab vedotin (Teliso-V) late-clinical MET ADC (LUMINOSITY)."
   EPCAM:
     modality: tce
+    biologics_only: true
     note: "EpCAMxCD3 TCE catumaxomab historically approved (malignant ascites); EpCAM CAR clinical."

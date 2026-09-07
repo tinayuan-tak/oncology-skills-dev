@@ -10,7 +10,7 @@
 # defensible against biology + therapeutic-development practice.
 
 rules_id: intracellular-intrinsic
-version: 1.1.0
+version: 1.2.0   # +known-drug-approved-biologic-only-sm-not-supportive (CASE-008 modality gate)
 axis: intracellular_intrinsic
 schema_version: 1
 
@@ -2464,6 +2464,37 @@ rules:
       indirect — direct small-molecule engagement is NOT established. Maps to the annotation_only_indirect
       verdict rung (below the structural positives, above chemically_unhit — there ARE catalogued
       compounds, just not direct ones). SM-scoped; confirm target-directness from the literature.
+
+  # MODALITY GATE (2026-09-07, CASE-008). The DGIdb has_approved_drug flag is modality-BLIND, so a
+  # biologics-only antigen (approved ADC/TCE/CAR/mAb, NO approved small molecule) can otherwise credit
+  # the DRUG axis as SM tractability. The reader now resolves approved_drug_engagement_class=
+  # approved_biologic_only for such a target (biologics_precedent_targets.yaml biologics_only: true),
+  # which takes PRECEDENCE over approved_direct/indirect — so this rung fires INSTEAD of the SM-supportive
+  # approved-drug rung (or the indirect rung). NEUTRAL, not supportive: a biologics-only approval is NOT
+  # evidence of small-molecule druggability. Maps to the SAME annotation_only_indirect verdict rung as the
+  # indirect-roster rule (below the structural positives, above chemically_unhit — there IS a catalogued
+  # approved agent, just not a small molecule) — no new verdict string, so the nomination gate is unchanged.
+  # FAIL-SAFE: dual-modality SM targets (EGFR/ERBB2/MET) + FOLH1/PSMA carry no biologics_only flag → they
+  # keep approved_direct and this rung never fires for them (the osimertinib guard).
+  - rule_id: known-drug-approved-biologic-only-sm-not-supportive
+    when:
+      card_id: known-drug-tractability
+      field: approved_drug_engagement_class
+      equals: approved_biologic_only
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      An approved drug is catalogued against this target in DGIdb, BUT the approved / clinically-advanced
+      agent is a BIOLOGIC (antibody-drug conjugate / T-cell engager / CAR / mAb) engaging an extracellular
+      epitope — NOT a target-engaging small molecule, and NO approved small molecule exists (curated
+      biologics_precedent_targets.yaml, biologics_only: true; DLL3 TCE tarlatamab, FOLR1/NECTIN4 ADCs,
+      CEACAM5 ADC/TCE). DGIdb's has_approved_drug is modality-blind, so without this gate the biologic
+      inflates the DRUG axis into a small-molecule-tractability signal. NEUTRAL, not supportive: the honest
+      read is biologics-precedented-NOT-SM. Maps to the annotation_only_indirect verdict rung (a catalogued
+      approved agent, but not a direct small molecule). Takes precedence over the directness classification,
+      so a biologics antigen with false-direct DGIdb records (CEACAM5's 8 mistyped interactions) is still
+      demoted. SM-scoped. Dual-modality SM targets (EGFR/ERBB2/MET) are NOT flagged and never reach here.
 
   - rule_id: known-drug-druggable-category-sm-supportive
     when:
