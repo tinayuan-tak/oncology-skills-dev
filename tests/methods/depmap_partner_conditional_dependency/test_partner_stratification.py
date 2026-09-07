@@ -123,6 +123,16 @@ def test_partner_map_carries_keap1_nfe2l2_lof_entry():
     assert any(e["partner"] == "KEAP1" and e["deficiency_type"] == "lof_mutation" for e in pm["NFE2L2"])
 
 
+def test_partner_map_carries_vhl_epas1_lof_entry():
+    """Discordance-loop CASE-014: VHL-loss → HIF-2α (EPAS1) addiction (belzutifan-validated ccRCC). VHL is
+    a conditioning variable via the lof_mutation arm; EPAS1 is the curated target (live DepMap 26q1 probe:
+    delta -0.066, q 2.1e-3, rank-biserial 0.32, n=28 VHL-LoF / 1510 neutral →
+    partner_conditional_moderately_dependent). Rescues the pooled non_dependent FN."""
+    pm = load_partner_map()
+    assert "EPAS1" in pm, "VHL/EPAS1 partner-conditional entry missing"
+    assert any(e["partner"] == "VHL" and e["deficiency_type"] == "lof_mutation" for e in pm["EPAS1"])
+
+
 def test_effect_size_path_recovers_modest_delta_sl():
     """The PRMT5×MTAP / SMARCA2×SMARCA4 shape: a REAL synthetic-lethal contrast whose median-delta is
     modest (misses the -0.2 floor) but whose rank-biserial effect size is moderate (>=0.30) and the

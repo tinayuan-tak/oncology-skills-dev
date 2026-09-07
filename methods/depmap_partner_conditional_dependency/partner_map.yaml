@@ -86,3 +86,26 @@ partners:
         0.42, n=27 KEAP1-LoF / 1511 neutral → partner_conditional_moderately_dependent. Makes KEAP1 a
         conditioning variable so an NFE2L2 profile in KEAP1-mutant context reads the conditional
         dependency instead of a pooled non_dependent (which the gate would veto).
+
+  # ── VHL-loss → HIF-2α (EPAS1) addiction (lof_mutation arm, 2026-09-07, discordance-loop CASE-014) ──
+  # VHL loss-of-function stabilizes HIF-2α/EPAS1 (VHL is HIF-2α's E3-ligase substrate-adaptor), so
+  # VHL-null cells become selectively HIF-2α-ADDICTED — the canonical VHL-deficient ccRCC vulnerability,
+  # clinically validated by belzutifan. Surfaced by the literature↔deterministic discordance loop
+  # (skills eval/CASE_LOG.md CASE-014): pooled pan-line CRISPR reads EPAS1 non_dependent because the
+  # HIF-2α dependency is CONDITIONAL on VHL loss (ccRCC is near-uniformly VHL-null, so there is no
+  # in-RCC-panel contrast — the conditional signal is only visible pan-cancer). Curated AFTER a live
+  # DepMap 26q1 probe over the VHL-LoF stratum confirmed a MEASURABLE signal (same discipline as the
+  # WRN×MSI anchor + the NFE2L2×KEAP1 entry):
+  #   EPAS1:  delta -0.066, mann-whitney q 2.1e-3, rank-biserial 0.32, n=28 VHL-LoF / 1510 neutral
+  #           → partner_conditional_moderately_dependent (moderate via the rank-biserial arm; the
+  #           absolute delta is modest — HIF-2α addiction is context/in-vivo-heavy in 2D CRISPR).
+  EPAS1:
+    - partner: VHL
+      deficiency_type: lof_mutation
+      note: >
+        VHL-LoF → HIF-2α (EPAS1) stabilization → HIF-2α addiction (canonical VHL-deficient ccRCC; the
+        belzutifan target). Live DepMap 26q1 probe over the VHL-LoF stratum: delta -0.066 Chronos,
+        mann-whitney q 2.1e-3, rank-biserial 0.32, n=28 VHL-LoF / 1510 neutral →
+        partner_conditional_moderately_dependent. Makes VHL a conditioning variable so an EPAS1 profile
+        in VHL-null context (e.g. ccRCC) reads the conditional dependency instead of a pooled
+        non_dependent (which the gate would veto). Rescues the CASE-014 known-gap false-negative.
