@@ -58,3 +58,31 @@ def test_verdict_is_card_own_call_not_rederived():
     cards = [_card("copy-number-distribution", copy_number_class="focal_amplification")]
     bc = gap._genomic_alteration_by_class(cards)
     assert bc["copy_number"]["verdict"] == "focal_amplification"
+
+
+def test_fusion_class_surfaces_alteration_confound():
+    """The KRAS/COADREAD legibility fix: a fusion-positive-dependent call whose fusion+ lines are
+    majority target-altered carries fusion_stratification_confound=alteration_confounded from the card;
+    by_class.fusion must surface it as stratified_dependency_confound (VERDICT-INERT — the collapsed
+    verdict is unchanged)."""
+    cards = [
+        _card("fusion-rearrangement-landscape", fusion_class="no_recurrent_fusion",
+              genie_sv_recurrence_class="data_unavailable"),
+        _card("fusion-stratified-dependency",
+              fusion_stratification_class="fusion_positive_moderately_dependent",
+              fusion_stratification_confound="alteration_confounded"),
+    ]
+    bc = gap._genomic_alteration_by_class(cards)
+    assert bc["fusion"]["stratified_dependency_class"] == "fusion_positive_moderately_dependent"
+    assert bc["fusion"]["stratified_dependency_confound"] == "alteration_confounded"
+
+
+def test_fusion_confound_absent_when_card_omits_it():
+    """Backward-compatible: a fusion card without the confound field (pre-#580 emit) surfaces
+    stratified_dependency_confound=None (absent secondary field), never fabricated."""
+    cards = [
+        _card("fusion-rearrangement-landscape", fusion_class="recurrent_fusion_driver"),
+        _card("fusion-stratified-dependency", fusion_stratification_class="not_fusion_stratified"),
+    ]
+    bc = gap._genomic_alteration_by_class(cards)
+    assert bc["fusion"]["stratified_dependency_confound"] is None

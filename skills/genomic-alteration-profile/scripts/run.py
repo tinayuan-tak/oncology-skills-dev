@@ -210,6 +210,10 @@ _ALTERATION_CLASS_FIELDS: dict[str, tuple] = {
     "fusion": (
         ("fusion-rearrangement-landscape", "fusion_class"),
         {"stratified_dependency_class": ("fusion-stratified-dependency", "fusion_stratification_class"),
+         # VERDICT-INERT confound flag: on a fusion-positive-dependent call, is the fusion+ set MAJORITY
+         # target-altered (mutation ∪ focal amp)? → the dependency may be the alteration's, not the fusion's
+         # (KRAS/COADREAD alteration_confounded, 8/13). Surfaced so "which class drives" carries the caveat.
+         "stratified_dependency_confound": ("fusion-stratified-dependency", "fusion_stratification_confound"),
          "genie_sv_recurrence_class": ("fusion-rearrangement-landscape", "genie_sv_recurrence_class")},
     ),
     # SPLICE exon-skipping — the fourth alteration class, graduated to VERDICT-DRIVING in v2.13.0
