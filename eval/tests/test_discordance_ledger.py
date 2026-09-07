@@ -180,3 +180,45 @@ def test_nested_claim_vector_shape_is_unwrapped():
     rec["literature_synthesis"]["axes"] = [_axis("contradicts", verified=True)]
     rows = bdl.build_rows(rec)
     assert rows[0]["claim_measured"] is False and rows[0]["gap_class"] == bdl.GAP_BLIND_SPOT
+
+
+# ── concordant-over-flag cross-check (guard-tightening) ──────────────────────────────────────────
+def test_overall_concordant_demotes_axis_contradicts():
+    """A lane whose OWN overall_consistency=='concordant' but with a lone axis 'contradicts' is an
+    internal over-flag → demote out of the sharp/actionable set (the dominant dismissed_concordant noise)."""
+    rec = _rec_with_claim("strong")                       # a MEASURED axis (would be a verdict_rule gap)
+    rec["literature_synthesis"]["overall_consistency"] = "concordant"
+    rows = bdl.build_rows(rec, calibration_targets={"KRAS"})
+    assert rows[0]["gap_class"] == bdl.GAP_CONCORDANT_OVERFLAG
+    assert rows[0]["severity"] == 1                        # discard tier
+    assert rows[0]["overall_consistency"] == "concordant"
+
+
+def test_partially_concordant_does_not_demote():
+    """The demotion keys ONLY off the lane's own 'concordant' summary — a partially_concordant lane
+    (where the axis contradiction is plausibly the real divergence) is untouched (MET/COMUT, PARP1/COND)."""
+    rec = _rec_with_claim("strong")
+    rec["literature_synthesis"]["overall_consistency"] = "partially_concordant"
+    rows = bdl.build_rows(rec, calibration_targets={"KRAS"})
+    assert rows[0]["gap_class"] == bdl.GAP_CALIBRATION     # unchanged from prior behavior
+
+
+def test_concordant_summary_does_not_hijack_unmeasured_coverage_gap():
+    """Placement guard: a positively-UNMEASURED axis must still route to blind_spot even under a
+    'concordant' lane summary — a coverage gap is not a concordant over-flag."""
+    rec = _rec_with_claim("unmeasured")
+    rec["literature_synthesis"]["overall_consistency"] = "concordant"
+    rows = bdl.build_rows(rec)
+    assert rows[0]["gap_class"] == bdl.GAP_BLIND_SPOT
+
+
+def test_concordant_over_flag_is_non_actionable_and_non_sharp(tmp_path):
+    """The demoted class is excluded from the actionable set and from the diff-monitor SHARP keys."""
+    import diff_discordance_ledger as ddl
+    rec = _rec_with_claim("strong")
+    rec["literature_synthesis"]["overall_consistency"] = "concordant"
+    p = tmp_path / "corpus.json"
+    p.write_text(json.dumps([rec]))
+    ledger = bdl.build_ledger(p, calibration_targets={"KRAS"})
+    assert ledger["n_actionable"] == 0
+    assert ddl.sharp_keys(ledger) == set()

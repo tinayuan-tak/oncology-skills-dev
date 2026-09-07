@@ -1,13 +1,12 @@
 {
   "schema": "discordance_baseline/v1",
-  "generated_at": "2026-09-07T15:50:03+00:00",
+  "generated_at": "2026-09-07T16:20:17+00:00",
   "corpus_fingerprint": "583e151e85f4d624",
   "keys": [
     "differentiation-landscape|CHEK1|COADREAD|SURVIVAL|calibration_gap",
     "differentiation-landscape|KRAS|COADREAD|SURVIVAL|calibration_gap",
     "differentiation-landscape|MET|LUAD|COMUT|calibration_gap",
     "functional-requirement|CEACAM5|NSCLC|SEL|calibration_gap",
-    "functional-requirement|DLL3|SCLC|SEL|calibration_gap",
     "functional-requirement|HIF2A|RCC|DEP|calibration_gap",
     "functional-requirement|HIF2A|RCC|SEL|calibration_gap",
     "functional-requirement|PARP1|OV|COND|calibration_gap",
@@ -18,9 +17,7 @@
     "on-target-safety-liability|PSMB5|MM|PHARMACOVIGILANCE|calibration_gap",
     "on-target-safety-liability|XPO1|MM|PHARMACOVIGILANCE|calibration_gap",
     "surface-modality-fit|BCMA|MM|SHED|calibration_gap",
-    "surface-modality-fit|FOLR1|OV|TOPOLOGY|calibration_gap",
     "surface-modality-fit|NOX1|CRC|SAFETY|calibration_gap",
-    "surface-modality-fit|SCD1|CRC|DENSITY|calibration_gap",
     "surface-modality-fit|STEAP1|prostate|FIT|calibration_gap",
     "tractability-small-molecule|BCMA|MM|DRUG|calibration_gap",
     "tractability-small-molecule|CD20|lymphoma|DRUG|calibration_gap",
@@ -37,14 +34,14 @@
     "tractability-small-molecule|SCD1|CRC|ACTIVITY|calibration_gap",
     "tractability-small-molecule|STEAP1|prostate|DRUG|calibration_gap",
     "tractability-small-molecule|TROP2|TNBC|STRUCT|calibration_gap",
-    "tractability-small-molecule|XPO1|MM|DEGRADER|calibration_gap",
     "tumor-selectivity|BCMA|MM|SAFE|calibration_gap",
     "tumor-selectivity|DLL3|SCLC|SAFE|calibration_gap"
   ],
   "counts": {
-    "calibration_gap": 37,
+    "calibration_gap": 33,
     "blind_spot_gap": 1129,
     "staleness_gap": 129,
+    "concordant_over_flag": 4,
     "confabulation_or_unverified": 7
   },
   "note": "SHARP (calibration_gap + verdict_rule_gap) keys seen as of this build; the monitor flags NEW sharp keys. Prune a key here when its gap is fixed/dismissed (CASE_LOG)."

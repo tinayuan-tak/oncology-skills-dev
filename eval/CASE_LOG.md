@@ -36,6 +36,42 @@ Dangerous false-positives to keep pinned: ADAR1, CLDN18.2_LRRC15, EGFR_cMET_VEGF
 
 ## Open cases
 
+### CASE-013 — discordance-loop guard-tightening: auto-demote the dominant `dismissed_concordant` noise — LANDED (verdict-INERT, eval-only, 2026-09-07)
+- **Surfaced by:** `LOOP_HEALTH.md` (the loop's own precision instrument). The dominant NOISE source in the
+  sharp candidate-gap set was `dismissed_concordant` (10 of 14 noise rows) — the `--literature` lane flags a
+  sub-axis `contradicts` even though its own holistic read of the (target, indication) agrees. LOOP_HEALTH
+  named the "next guard tightening" as a direction cross-check.
+- **Determination — a `claim_signal`-direction cross-check is NOT viable; the lane's own summary IS:** I
+  cross-tabbed every sharp row's `claim_signal` × `literature_read` × disposition over the pinned 37-pair
+  corpus. Direction alone does not separate noise from real gaps: `absent`+supporting-lit appears in BOTH
+  `dismissed_concordant` (STEAP1/SEL) and `real_deferred` (PARP1/COND, an HRD-conditional SL the COND axis
+  under-calls) and `dismissed_scope` (pharmacovig); `strong`+supporting-lit appears in BOTH concordant noise
+  and a real FIXED gap (MET/COMUT, the CASE-007 temporal-context miss). Any direction rule that catches the
+  noise also demotes a REAL gap. The ONE field-clean discriminator is the lane's OWN
+  `overall_consistency == concordant`: it occurs on exactly 4 sharp rows, ALL noise, with **0 collisions**
+  against any `fixed`/`real_deferred`/`dismissed_scope` row (those are all `partially_concordant`/`insufficient`).
+- **Fix (LANDED):** new gap class `concordant_over_flag` (severity 1, non-actionable, non-sharp) in
+  `eval/build_discordance_ledger.py`. `_classify` now takes `overall_concordant` and, for a verified
+  `contradicts` on a MEASURED axis, returns `concordant_over_flag` when the lane's `overall_consistency` is
+  `concordant` — an isolated axis contradiction against a concordant summary is an internal over-flag. Placed
+  AFTER the unmeasured-axis check (a genuine coverage gap still routes to `blind_spot`). The row is still
+  EMITTED (review-queue) but leaves the `calibration/verdict_rule` SHARP set the monitor diffs and the
+  `actionable` set. Literature stays `citable_in_nominations: false`; no verdict/resolver/card/method touch.
+- **Effect (pinned corpus, fingerprint `583e151e85f4d624`):** 4 rows demote out of sharp — `functional-requirement|DLL3|SCLC|SEL`,
+  `surface-modality-fit|FOLR1|OV|TOPOLOGY`, `tractability-small-molecule|XPO1|MM|DEGRADER`,
+  `surface-modality-fit|SCD1|CRC|DENSITY` (the last previously untriaged; `not_addressed` lit + concordant
+  summary → concordant noise). Baseline regenerated **37 → 33 sharp keys** (`eval/discordance_baseline.json`);
+  re-diff clean (0 NEW / 0 RESOLVED). `LOOP_HEALTH.md`: n_sharp 32→29, precision_strict 0.438→**0.483**,
+  precision_incl_scope 0.562→**0.621**, noise_rate 0.438→**0.379**; 3 manual `dismissed_concordant` triage
+  rows graduated to `auto_demoted_concordant` (excluded from n_sharp).
+- **Ratchet:** 4 new hermetic tests in `eval/tests/test_discordance_ledger.py` (demote on concordant summary;
+  NO demote on `partially_concordant` — MET/PARP1 protection; concordant summary does NOT hijack an unmeasured
+  coverage gap; demoted class is non-actionable + non-sharp) + updated `test_loop_health.py`
+  (`auto_demoted` excluded from n_sharp; committed dispositions n_sharp==29). Full `eval/tests/` suite: 38 passed.
+- **Residual (by design):** the `partially_concordant` `dismissed_concordant` rows stay in the queue —
+  separating them from real gaps needs biology the lane fields do not carry, and a broader rule would demote
+  a real gap. This guard trades coverage for a provable no-false-demote invariant.
+
 ### CASE-011 — HER2/BRCA tractability `chemically_unhit` — HARVEST gene-alias artifact, NOT a skill FN — FIXED (2026-09-07)
 - **Surfaced by:** the full-sweep ledger (`~/dev/discordance_full_sweep_ledger_2026-09-07.json`) —
   `tractability-small-molecule | HER2 | BRCA` reads `chemically_unhit` (driving rule

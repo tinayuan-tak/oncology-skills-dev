@@ -21,7 +21,12 @@ from pathlib import Path
 REAL = ("fixed", "real_deferred")
 SCOPE = ("dismissed_scope",)
 NOISE = ("dismissed_concordant", "dismissed_data_absent")
-_ALL = REAL + SCOPE + NOISE
+# Rows the concordant-over-flag GUARD now removes from the sharp set automatically (build_discordance_ledger
+# gap_class concordant_over_flag). They graduated from a MANUAL dismissed_concordant triage into the
+# deterministic ledger guard, so they are EXCLUDED from n_sharp — precision measures what still reaches the
+# reviewer, and the guard's own noise-reduction is reported as auto_demoted separately.
+AUTO_DEMOTED = ("auto_demoted_concordant",)
+_ALL = REAL + SCOPE + NOISE + AUTO_DEMOTED
 
 
 def _skill_axis(key: str) -> tuple[str, str]:
@@ -39,11 +44,13 @@ def load_dispositions(path: str | Path) -> dict:
 
 
 def compute(dispositions: dict) -> dict:
-    n = len(dispositions)
     counts = collections.Counter(dispositions.values())
     real = sum(counts.get(d, 0) for d in REAL)
     scope = sum(counts.get(d, 0) for d in SCOPE)
     noise = sum(counts.get(d, 0) for d in NOISE)
+    auto_demoted = sum(counts.get(d, 0) for d in AUTO_DEMOTED)
+    # n_sharp = rows that still reach the reviewer as sharp candidates; the guard-demoted rows no longer do.
+    n = len(dispositions) - auto_demoted
     by_skill: dict[str, collections.Counter] = collections.defaultdict(collections.Counter)
     for key, disp in dispositions.items():
         by_skill[_skill_axis(key)[0]][disp] += 1
@@ -53,6 +60,7 @@ def compute(dispositions: dict) -> dict:
 
     return {
         "n_sharp": n,
+        "n_auto_demoted": auto_demoted,
         "counts": dict(counts),
         "precision_strict": _rate(real),
         "precision_incl_scope": _rate(real + scope),
@@ -72,6 +80,8 @@ def render_md(m: dict) -> str:
          f"- **precision_strict** (fixed + real_deferred): **{m['precision_strict']}**",
          f"- **precision_incl_scope** (+ scope caveats, honest wins): **{m['precision_incl_scope']}**",
          f"- **noise_rate** (concordant over-flag + data-absent): **{m['noise_rate']}**",
+         f"- **auto_demoted** (concordant-over-flag guard removed upstream, excluded from n_sharp): "
+         f"**{m['n_auto_demoted']}**",
          "",
          "## Disposition counts",
          "",
@@ -88,11 +98,18 @@ def render_md(m: dict) -> str:
           "",
           "- The **containment guard is working**: 0 confabulation rows reached the sharp set (the "
           "`≥1 verified citation` rule filters non-reproducible LLM contradictions upstream).",
-          "- The dominant NOISE source is **`dismissed_concordant`** — the lane flags `contradicts` on an "
-          "axis whose omics signal already AGREES with the literature direction. The ledger-v2 "
-          "claim-vector alignment now carries `claim_signal` per row, so the next guard tightening is to "
-          "AUTO-DEMOTE a lane `contradicts` whose claim atom already matches the literature direction "
-          "(direction cross-check), cutting this noise without touching the verdict.",
+          "- The dominant NOISE source was **`dismissed_concordant`** — the lane flags `contradicts` on an "
+          "axis while its own holistic read agrees. **LANDED (guard-tightening):** `build_discordance_ledger` "
+          "now AUTO-DEMOTES a lane `contradicts` to the non-sharp `concordant_over_flag` class whenever the "
+          "lane's OWN `overall_consistency == concordant` — an isolated axis contradiction against a "
+          "concordant summary is an internal over-flag. This keys off the lane's self-consistency, NOT a "
+          "`claim_signal`-direction heuristic: direction alone is not separable here (`absent`+supporting-lit "
+          "and `strong`+supporting-lit each occur in BOTH real gaps — MET/COMUT, PARP1/COND — and concordant "
+          "noise), whereas `overall_consistency==concordant` isolates the noise with 0 real-gap collisions on "
+          "the pinned 37-row corpus (4 rows demoted: DLL3/SEL, FOLR1/TOPOLOGY, XPO1/DEGRADER, SCD1/DENSITY). "
+          "Verdict-INERT; literature untouched. Residual `dismissed_concordant` (lane `partially_concordant`) "
+          "stays in the queue by design — separating those requires biology the lane fields do not carry, and "
+          "a broader rule would demote real gaps.",
           "- `dismissed_scope` (pharmacovigilance, CASE-009) are honest measured-axis contradictions the "
           "verdict already covers conservatively — resolved with scope caveats, counted separately.",
           "",

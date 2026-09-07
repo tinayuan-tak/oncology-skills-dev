@@ -41,13 +41,31 @@ def test_by_skill_grouping():
     assert m["by_skill"]["skillB"] == {"fixed": 1}
 
 
+def test_auto_demoted_excluded_from_n_sharp():
+    """A guard-demoted (concordant_over_flag) row no longer reaches the reviewer as sharp — it is
+    excluded from n_sharp and the precision denominators, and reported as auto_demoted."""
+    disp = {
+        "a|T|I|X|calibration_gap": "fixed",
+        "b|T|I|X|calibration_gap": "real_deferred",
+        "c|T|I|X|concordant_over_flag": "auto_demoted_concordant",
+        "d|T|I|X|concordant_over_flag": "auto_demoted_concordant",
+    }
+    m = lh.compute(disp)
+    assert m["n_sharp"] == 2                                  # 4 dispositions − 2 auto_demoted
+    assert m["n_auto_demoted"] == 2
+    assert m["precision_strict"] == round(2 / 2, 3)          # denominator excludes the demoted rows
+    assert m["unknown_disposition"] == []
+
+
 def test_committed_dispositions_load_and_are_all_known():
-    """The shipped loop_dispositions.yaml must parse and use only known disposition tokens."""
+    """The shipped loop_dispositions.yaml must parse and use only known disposition tokens; the
+    concordant-over-flag guard now removes 3 rows from the sharp set (auto_demoted_concordant)."""
     disp = lh.load_dispositions(_EVAL / "loop_dispositions.yaml")
     assert len(disp) == 32
     m = lh.compute(disp)
     assert m["unknown_disposition"] == []
-    assert m["n_sharp"] == 32
+    assert m["n_auto_demoted"] == 3
+    assert m["n_sharp"] == 29
 
 
 def test_render_md_contains_governance_and_precision():

@@ -10,9 +10,14 @@
 #                              is already conservative; resolved with a scope caveat (not a bug)
 #   dismissed_concordant     - literature actually AGREES with the verdict; the lane over-flagged a sub-axis
 #   dismissed_data_absent    - the omics axis was data_unavailable; literature cannot contradict an absent signal
+#   auto_demoted_concordant  - the concordant-over-flag GUARD now removes this row from the sharp set
+#                              automatically (lane overall_consistency==concordant + a lone axis contradicts →
+#                              gap_class concordant_over_flag). No longer counted in n_sharp — the manual
+#                              dismissed_concordant triage graduated into the deterministic ledger guard.
 #
 # "real" (numerator of strict precision) = fixed + real_deferred.
 # "noise" = dismissed_concordant + dismissed_data_absent. "scope" is reported separately (borderline-honest).
+# auto_demoted_concordant rows are EXCLUDED from n_sharp (the guard drops them upstream of the sharp set).
 
 version: 1
 snapshot: discordance_full_sweep_2026-09-07
@@ -22,7 +27,7 @@ dispositions:
   "differentiation-landscape|CHEK1|COADREAD|SURVIVAL|calibration_gap":    {disposition: dismissed_data_absent, case: CASE-010}
   "differentiation-landscape|HIF2A|RCC|NODE|calibration_gap":             {disposition: dismissed_data_absent, case: CASE-010}
   "functional-requirement|CEACAM5|NSCLC|SEL|calibration_gap":            {disposition: dismissed_concordant, case: CASE-010}
-  "functional-requirement|DLL3|SCLC|SEL|calibration_gap":               {disposition: dismissed_concordant, case: CASE-010}
+  "functional-requirement|DLL3|SCLC|SEL|concordant_over_flag":          {disposition: auto_demoted_concordant, case: CASE-013, note: "overall_consistency==concordant; lit=surface-antigen selectivity, not dependency-selectivity"}
   "functional-requirement|STEAP1|prostate|SEL|calibration_gap":          {disposition: dismissed_concordant, case: CASE-010}
   "functional-requirement|PARP1|OV|COND|calibration_gap":               {disposition: real_deferred, case: CASE-010, note: "HRD/BRCA-conditional SL dependency the COND axis under-calls; partner-conditional stratification follow-up"}
   "mechanism-and-pharmacology|HER2|BRCA|PHOSPHO|calibration_gap":         {disposition: real_deferred, case: CASE-010, note: "HER2 validated phospho-RTK; phospho card coverage gap"}
@@ -32,7 +37,7 @@ dispositions:
   "on-target-safety-liability|PARP1|OV|PHARMACOVIGILANCE|calibration_gap":     {disposition: dismissed_scope, case: CASE-009}
   "on-target-safety-liability|PSMB5|MM|PHARMACOVIGILANCE|calibration_gap":     {disposition: dismissed_scope, case: CASE-009}
   "on-target-safety-liability|XPO1|MM|PHARMACOVIGILANCE|calibration_gap":      {disposition: dismissed_scope, case: CASE-009}
-  "surface-modality-fit|FOLR1|OV|TOPOLOGY|calibration_gap":              {disposition: dismissed_concordant, case: CASE-010}
+  "surface-modality-fit|FOLR1|OV|TOPOLOGY|concordant_over_flag":         {disposition: auto_demoted_concordant, case: CASE-013, note: "overall_consistency==concordant; lit supports surface fit, concordant with verdict"}
   "surface-modality-fit|STEAP1|prostate|FIT|calibration_gap":            {disposition: dismissed_concordant, case: CASE-010}
   "surface-modality-fit|NOX1|CRC|SAFETY|calibration_gap":               {disposition: real_deferred, case: CASE-012, note: "broadly normal-expressed antigen vs positive TCE verdict; verify normal-expression data then veto arm"}
   "tractability-small-molecule|DLL3|SCLC|DRUG|calibration_gap":          {disposition: fixed, case: CASE-008}
@@ -47,5 +52,5 @@ dispositions:
   "tractability-small-molecule|IDO1|SKCM|DRUG|calibration_gap":          {disposition: dismissed_concordant, case: CASE-008, note: "SM-directed (epacadostat) — tractable is right; only the 'approved' status is over-stated"}
   "tractability-small-molecule|KIF11|COADREAD|ACTIVITY|calibration_gap":  {disposition: dismissed_concordant, case: CASE-008, note: "discordant_off_target verdict is honest"}
   "tractability-small-molecule|NLRP3|heme|ACTIVITY|calibration_gap":      {disposition: dismissed_data_absent, case: CASE-008, note: "heme-indication measured floor no_compounds_found; SM inhibitors exist pan-indication"}
-  "tractability-small-molecule|XPO1|MM|DEGRADER|calibration_gap":         {disposition: dismissed_concordant, case: CASE-008, note: "DEGRADER axis minor; selinexor is an occupancy inhibitor"}
+  "tractability-small-molecule|XPO1|MM|DEGRADER|concordant_over_flag":    {disposition: auto_demoted_concordant, case: CASE-013, note: "overall_consistency==concordant; DEGRADER axis minor, selinexor is an occupancy inhibitor"}
   "tumor-selectivity|DLL3|SCLC|SAFE|calibration_gap":                   {disposition: dismissed_concordant, case: CASE-010, note: "literature cites DLL3 low normal expr = good therapeutic index — concordant with selective"}

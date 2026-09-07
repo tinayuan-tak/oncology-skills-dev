@@ -44,6 +44,8 @@ GAP_VERDICT_RULE = "verdict_rule_gap"        # verified contradicts -> resolver/
 GAP_BLIND_SPOT = "blind_spot_gap"            # omics cannot measure the signal -> data/axis need
 GAP_STALENESS = "staleness_gap"             # axis the atlas has no anchor for -> atlas session
 GAP_CONFABULATION = "confabulation_or_unverified"  # unverified/non-reproducible -> discard
+GAP_CONCORDANT_OVERFLAG = "concordant_over_flag"   # lane's own overall_consistency==concordant but a lone
+                                                   # axis says contradicts -> internal over-flag -> demote
 
 _SEVERITY = {
     GAP_CALIBRATION: 5,
@@ -51,6 +53,7 @@ _SEVERITY = {
     GAP_BLIND_SPOT: 3,
     GAP_STALENESS: 2,
     GAP_CONFABULATION: 1,
+    GAP_CONCORDANT_OVERFLAG: 1,   # discard tier alongside confabulation; NON-actionable, NON-sharp
 }
 
 # Axes the frozen target-archetype atlas has no anchor for (sourced from the atlas-rebuild
@@ -120,14 +123,26 @@ def _axis_measured(atom) -> "bool | None":
 
 
 def _classify(agreement: str, n_verified: int, is_blind: bool, atlas_excluded: bool,
-              in_calibration: bool, claim_measured: "bool | None") -> tuple[str, str]:
+              in_calibration: bool, claim_measured: "bool | None",
+              overall_concordant: bool = False) -> tuple[str, str]:
     """Deterministic gap-class assignment. Returns (gap_class, why).
 
     CLAIM-VECTOR ALIGNMENT: the literature lane compares against a per-AXIS claim signal, not the
     reduced verdict — so a `contradicts` is a real per-axis gap only when that claim axis was MEASURED.
     When the claim atom is positively UNMEASURED (claim_measured is False) the literature cannot
     contradict an absent signal → it is a blind-spot / coverage gap, not a verdict contradiction. When
-    there is no matching claim atom (claim_measured is None) we cannot check and preserve prior behavior."""
+    there is no matching claim atom (claim_measured is None) we cannot check and preserve prior behavior.
+
+    CONCORDANT-OVER-FLAG CROSS-CHECK (guard-tightening, LOOP_HEALTH 'next tightening'): the lane emits its
+    OWN holistic `overall_consistency` for the (target,indication,skill). When that summary is `concordant`
+    — the lane itself judged literature and omics to AGREE in aggregate — an isolated axis marked
+    `contradicts` is an INTERNAL over-flag (the aggregate direction already matches), not a real gap. Demote
+    it below the sharp/actionable set (still emitted as a review-queue row, just non-sharp) so it stops
+    inflating the dominant `dismissed_concordant` noise. We key off the lane's own summary rather than a
+    claim_signal-direction heuristic BECAUSE direction alone is not separable on this corpus — `absent`+
+    supporting-lit and `strong`+supporting-lit each appear in BOTH real gaps (MET/COMUT, PARP1/COND) and
+    concordant noise; only the lane's `overall_consistency==concordant` isolates the noise with 0 real-gap
+    collisions. Placed AFTER the UNMEASURED check so a genuine coverage gap still routes to blind-spot."""
     if is_blind:
         if atlas_excluded:
             return GAP_STALENESS, "literature signal on an axis the frozen atlas has no anchor for (route to atlas session)"
@@ -139,6 +154,11 @@ def _classify(agreement: str, n_verified: int, is_blind: bool, atlas_excluded: b
             if atlas_excluded:
                 return GAP_STALENESS, "literature 'contradicts' an UNMEASURED claim axis the atlas has no anchor for (coverage/atlas)"
             return GAP_BLIND_SPOT, "literature 'contradicts' a claim axis whose omics signal is UNMEASURED — a coverage gap, not a verdict contradiction"
+        if overall_concordant:
+            return GAP_CONCORDANT_OVERFLAG, ("lane's own overall_consistency is 'concordant' — an isolated axis "
+                                             "'contradicts' against a concordant summary is an internal over-flag "
+                                             "(literature and omics agree in aggregate); demoted below the "
+                                             "sharp/actionable set")
         if in_calibration:
             return GAP_CALIBRATION, "verified literature contradicts a MEASURED claim axis on a GROUND-TRUTH target — candidate false-negative; anchor a calibration assertion"
         return GAP_VERDICT_RULE, "verified literature contradicts a MEASURED claim axis — candidate rule/card/method gap"
@@ -174,7 +194,8 @@ def build_rows(record: dict, calibration_targets: set[str] | None = None) -> lis
         # actually compared against), and classify on measured-ness — not on the reduced verdict.
         atom = _claim_atom(claim_vector, axis_key) if not is_blind else None
         claim_measured = _axis_measured(atom)
-        gap_class, why = _classify(agreement, n_ver, is_blind, atlas_excluded, in_calibration, claim_measured)
+        gap_class, why = _classify(agreement, n_ver, is_blind, atlas_excluded, in_calibration, claim_measured,
+                                   overall_concordant=(overall == "concordant"))
         if not gap_class:
             return
         rows.append({

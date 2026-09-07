@@ -72,11 +72,23 @@ pixi run python eval/build_discordance_ledger.py \
 | `blind_spot_gap` | `omics_blind` / `omics_unavailable` / a `blind_spots[]` entry | data-catalog / new card / new axis |
 | `staleness_gap` | blind-spot on an axis the frozen atlas has no anchor for | **atlas session** (`atlas-rebuild`) |
 | `confabulation_or_unverified` | `contradicts` with **no verified citation** | discard (non-reproducible LLM read) |
+| `concordant_over_flag` | verified `contradicts` on a MEASURED axis, but the lane's OWN `overall_consistency == concordant` | demote (internal over-flag; non-sharp) |
 
 **Containment guard:** a `contradicts` read is only a real-gap candidate when it carries a
 verified citation — mirrors `literature-risk-assessment/scripts/risk_rollup.py`
 (`engine_literature_discordance`, escalate-only). Concordant (`agree`/`extends`) axes yield no
 row.
+
+**Concordant-over-flag cross-check (guard-tightening):** when the lane's holistic
+`overall_consistency` is `concordant` — the lane itself judged literature and omics to AGREE in
+aggregate — a lone axis marked `contradicts` is an internal over-flag, not a real gap, so it is
+demoted to the non-sharp `concordant_over_flag` class (it stays a review-queue row but leaves the
+`calibration/verdict_rule` sharp set the monitor diffs). This keys off the lane's own self-consistency
+rather than a `claim_signal`-direction heuristic: direction alone does not separate noise from real
+gaps on the calibration corpus (`absent`+supporting-lit and `strong`+supporting-lit each appear in BOTH
+real gaps — MET/COMUT, PARP1/COND — and concordant noise), whereas `overall_consistency==concordant`
+isolates the noise with **0 real-gap collisions**. It fires only AFTER the unmeasured-axis check, so a
+genuine coverage gap still routes to `blind_spot`. See CASE-013 + `LOOP_HEALTH.md`.
 
 ## Component 2 — the harvest (`harvest_literature.py`, live)
 
