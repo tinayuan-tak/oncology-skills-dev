@@ -3568,32 +3568,32 @@
     "cooccurrence-data-unavailable-insufficient"
    ],
    "cooccurrence-data-unavailable-insufficient,has-cooccurring-driver-supportive": [
-    "has_cooccurring_driver",
-    "has-cooccurring-driver-supportive"
+    "data_unavailable",
+    "cooccurrence-data-unavailable-insufficient"
    ],
    "cooccurrence-modest-cooccurring-neutral": [
     "modest_cooccurring",
     "cooccurrence-modest-cooccurring-neutral"
    ],
    "cooccurrence-modest-cooccurring-neutral,has-cooccurring-driver-supportive": [
-    "has_cooccurring_driver",
-    "has-cooccurring-driver-supportive"
+    "modest_cooccurring",
+    "cooccurrence-modest-cooccurring-neutral"
    ],
    "cooccurrence-modest-mutually-exclusive-neutral": [
     "modest_mutually_exclusive",
     "cooccurrence-modest-mutually-exclusive-neutral"
    ],
    "cooccurrence-modest-mutually-exclusive-neutral,has-cooccurring-driver-supportive": [
-    "has_cooccurring_driver",
-    "has-cooccurring-driver-supportive"
+    "modest_mutually_exclusive",
+    "cooccurrence-modest-mutually-exclusive-neutral"
    ],
    "cooccurrence-ns-neutral": [
     "ns",
     "cooccurrence-ns-neutral"
    ],
    "cooccurrence-ns-neutral,has-cooccurring-driver-supportive": [
-    "has_cooccurring_driver",
-    "has-cooccurring-driver-supportive"
+    "ns",
+    "cooccurrence-ns-neutral"
    ],
    "cooccurrence-strong-supportive": [
     "strong_cooccurring",
@@ -3604,8 +3604,8 @@
     "cooccurrence-strong-supportive"
    ],
    "has-cooccurring-driver-supportive": [
-    "has_cooccurring_driver",
-    "has-cooccurring-driver-supportive"
+    "insufficient",
+    null
    ],
    "has-cooccurring-driver-supportive,strong-mutual-exclusivity-supportive": [
     "strong_mutually_exclusive",

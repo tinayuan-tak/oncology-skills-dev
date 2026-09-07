@@ -177,7 +177,6 @@ _DIFFERENTIATION_VERDICT_PHRASE = {
     "both_patterns_present":     "Co-occurring + mutually-exclusive partners",
     "strong_cooccurring":        "Strong co-mutation landscape",
     "strong_mutually_exclusive": "Strong mutual-exclusivity landscape",
-    "has_cooccurring_driver":    "Co-occurring driver present",
     "modest_cooccurring":        "Modest co-mutation signal",
     "modest_mutually_exclusive": "Modest mutual-exclusivity signal",
     "ns":                        "No significant co-mutation pattern",
@@ -600,7 +599,7 @@ def _build_headline_block(headline: dict) -> dict:
 #    magnitude (co-occurrence vs mutual-exclusivity is a pattern TYPE, not good/bad — informational).
 _DIFF_ORD = {"low": 0, "medium": 1, "high": 2}
 _DIFF_STRONG = {"strong_cooccurring", "strong_mutually_exclusive", "both_patterns_present"}
-_DIFF_MOD = {"has_cooccurring_driver", "modest_cooccurring", "modest_mutually_exclusive"}
+_DIFF_MOD = {"modest_cooccurring", "modest_mutually_exclusive"}  # has_cooccurring_driver removed (dead rung, resolver v1.2.0)
 _DIFF_NONE = {"ns", "data_unavailable", "insufficient", None}
 
 

@@ -26,7 +26,6 @@ def test_all_precedence_rungs_map_to_distinct_verdicts():
         "cooccurrence-both-patterns-supportive": "both_patterns_present",
         "strong-mutual-exclusivity-supportive": "strong_mutually_exclusive",
         "cooccurrence-strong-supportive": "strong_cooccurring",
-        "has-cooccurring-driver-supportive": "has_cooccurring_driver",
         "cooccurrence-modest-cooccurring-neutral": "modest_cooccurring",
         "cooccurrence-modest-mutually-exclusive-neutral": "modest_mutually_exclusive",
         "cooccurrence-ns-neutral": "ns",
@@ -34,6 +33,14 @@ def test_all_precedence_rungs_map_to_distinct_verdicts():
     }
     for rule_id, verdict in expected.items():
         assert _v(rule_id) == (verdict, rule_id), f"{rule_id} must map to {verdict}"
+
+
+def test_has_cooccurring_driver_rung_removed_falls_to_default():
+    """The has_cooccurring_driver rung was removed as structurally dead (resolver v1.2.0): the reader
+    couples has_cooccurring_driver=True to the strong/both cooccurrence_class, so a shape rung always
+    co-fired and outranked it (won 0 across the panel). has-cooccurring-driver-supportive on its own —
+    a fired-set unreachable from the real reader — now falls to the resolver default `insufficient`."""
+    assert _v("has-cooccurring-driver-supportive") == ("insufficient", None)
 
 
 def test_ns_is_not_silently_insufficient_regression():

@@ -265,6 +265,31 @@ def test_single_dominant_is_moderate_not_strong():
     assert tier == "moderate"
 
 
+def test_differentiation_strong_mutex_supportive_grouped_with_genomic():
+    """gate v1.11.0 (BACKTEST): differentiation:strong_mutually_exclusive is a SUPPORTIVE positive that
+    floors confidence but is GROUPED with genomic_alteration+cis_coherence, so it can NEVER be the 2nd
+    independent dimension that manufactures `strong` (it re-reads the driver-hood genomic already counts —
+    anti-double-count). Skips until the contracts-first vocab change lands."""
+    pos_map, _contra, cfg, _src = tp._load_positive_signals()
+    if ("differentiation", "strong_mutually_exclusive") not in pos_map:
+        pytest.skip("gate vocab predates the differentiation positive (land contracts-first)")
+    # (1) supportive, not dominant
+    assert pos_map[("differentiation", "strong_mutually_exclusive")] == "supportive"
+    # (2) correlated-grouped with genomic_alteration
+    grp = next((g for g in (cfg.get("correlated_dimension_groups") or []) if "differentiation" in g), None)
+    assert grp and "genomic_alteration" in grp, "differentiation must be correlated-grouped with genomic_alteration"
+    # (3) ANTI-DOUBLE-COUNT: genomic dominant biomarker + differentiation strong_mutex collapse to ONE
+    #     dimension → moderate, NOT strong (a single grouped dimension can't meet min_dimensions_for_strong=2)
+    subs = {"genomic_alteration": {"verdict": ("biomarker_stratified_dependency", "r")},
+            "differentiation":     {"verdict": ("strong_mutually_exclusive", "r")}}
+    assert tp._positive_tier(subs)[0] == "moderate"
+    # (4) differentiation ALONE caps at moderate (supportive, 1 dim) — never mints a nomination
+    assert tp._positive_tier({"differentiation": {"verdict": ("strong_mutually_exclusive", "r")}})[0] == "moderate"
+    # (5) it does NOT block an independently-strong target (adds a grouped dim, doesn't subtract)
+    subs2 = _merge(_dominant_positives(), {"differentiation": {"verdict": ("strong_mutually_exclusive", "r")}})
+    assert tp._positive_tier(subs2)[0] == "strong"
+
+
 def test_opposing_measured_verdict_blocks_strong():
     """A contradiction (opposing MEASURED verdict) prevents strong even with a dominant."""
     subs = {"dependency": {"verdict": ("concordant_dependent", "r")},

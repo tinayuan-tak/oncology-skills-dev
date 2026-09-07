@@ -67,8 +67,12 @@ run_health` (+ optional synthesis). Contractual headline fields: `differentiatio
 ## 4. Contract & versioning (what is locked)
 
 Pinned by the generated, self-contained `differentiation-landscape.decision.schema.json` (gating-scalar
-pins: `role: gating` + the 9-value `differentiation_verdict`/`call` enum = the differentiation resolver
-set = `_DIFFERENTIATION_VERDICT_PHRASE`; no run.py mints; no polarity const; no bucket map).
+pins: `role: gating` + the 8-value `differentiation_verdict`/`call` enum = the differentiation resolver
+set = `_DIFFERENTIATION_VERDICT_PHRASE` (has_cooccurring_driver removed as a dead rung, resolver v1.2.0);
+no run.py mints; no polarity const; no bucket map). NOTE `role: gating` — as of gate v1.11.0 the
+strong_mutually_exclusive verdict is a SUPPORTIVE positive_signal (grouped with genomic_alteration+
+cis_coherence so it raises confidence but never independently mints `strong`); the other verdicts remain
+advisory (reach the LLM synthesis + hypothesis agent, not the deterministic recommendation).
 
 CI: fresh-replay conformance (`test_differentiation_replay.py`), schema-well-formedness +
 static-golden-if-full (`tests/test_data_product_schema.py`, CI-fail-not-skip), cross-skill coverage
