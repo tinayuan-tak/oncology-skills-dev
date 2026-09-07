@@ -35,7 +35,7 @@ import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Optional
 
 import yaml
 from jsonschema import Draft202012Validator
@@ -1043,7 +1043,7 @@ def _format_report(report: ValidationReport) -> str:
     for warn in report.warnings:
         lines.append(f'    [WARNING] {warn}')
     if report.ok and not report.warnings:
-        lines.append(f'    [OK]')
+        lines.append('    [OK]')
     return '\n'.join(lines)
 
 

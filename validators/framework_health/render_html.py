@@ -12,7 +12,6 @@ dashboard reads as the same family as the framework deck.
 from __future__ import annotations
 
 import html
-import json
 
 from .rollup import DRIFT_SEVERITY   # code -> severity, to color the drift-code glossary
 

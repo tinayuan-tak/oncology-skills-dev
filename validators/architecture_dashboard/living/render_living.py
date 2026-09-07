@@ -19,7 +19,7 @@ if str(_ARCH) not in sys.path:
 import render_arch  # noqa: E402
 import render_unified as U  # noqa: E402
 from render_unified import (  # noqa: E402
-    GREEN, AMBER, RED, GREY, PURPLE, TEAL, SEV_COLOR, _esc, _chip, _strip,
+    AMBER, RED, GREY, PURPLE, TEAL, SEV_COLOR, _esc, _chip, _strip,
     MILLER_CSS, _UNIFIED_CSS,
 )
 
@@ -229,8 +229,8 @@ _KIND_COLOR = {"source_manifest": TEAL, "derived_manifest": TEAL, "method": "#19
 def _pnode(graph, st):
     kc = _KIND_COLOR.get(st.get("kind"), GREY)
     badge = st.get("component_label") or st.get("kind") or ""
-    jump = (f" onclick=\"event.stopPropagation();showTab('concepts')\" "
-            f"title=\"see this component in Concepts\""
+    jump = (" onclick=\"event.stopPropagation();showTab('concepts')\" "
+            "title=\"see this component in Concepts\""
             if st.get("concept_present") else "")
     tokchip = ""
     if st.get("token") and st.get("token_gloss"):
@@ -267,7 +267,7 @@ def _lane(lane):
 
 
 def _pipeline(graph, lv):
-    nodes = f'<span class="parrow">▸</span>'.join(_pnode(graph, st) for st in lv["stages"])
+    nodes = '<span class="parrow">▸</span>'.join(_pnode(graph, st) for st in lv["stages"])
     return f'<div class="pipe">{nodes}</div>' + _lane(lv.get("lane"))
 
 

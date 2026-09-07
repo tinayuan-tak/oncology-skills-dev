@@ -789,7 +789,6 @@ def test_access_cost_bands():
 def test_missing_sort_key_flag_scoping():
     """missing_sort_key fires ONLY for consumed + in-catalog + sizeable + no-sort-key."""
     GB = 1024 ** 3
-    from validators.framework_health import probe
     # build two dataset dicts through the real rollup path via a tiny catalog fixture would be
     # heavy; assert the rule inline mirrors build_health (kept in lockstep by self_check).
     def flag(in_cat, n, hsk, size):

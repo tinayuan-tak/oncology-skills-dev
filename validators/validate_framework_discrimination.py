@@ -137,7 +137,7 @@ def render_report(m: dict) -> str:
     L.append(f"Curated known-target cohort: {m['n_targets']} targets")
     L.append(f"  by clinical outcome: {m['by_outcome']}")
     L.append("")
-    L.append(f"DECIDING-AXIS COVERAGE (is the framework even reading the axis that decided the target?):")
+    L.append("DECIDING-AXIS COVERAGE (is the framework even reading the axis that decided the target?):")
     L.append(f"  {m['by_deciding_axis_coverage']}")
     L.append(f"  → BLIND on the deciding axis for {int(round(m['blind_rate']*100))}% of known targets.")
     L.append("")
@@ -146,7 +146,7 @@ def render_report(m: dict) -> str:
              f"(the axis that made it a drug is one the framework reads)")
     L.append(f"  verdict AGREES-with-outcome rate: {m['approved_verdict_agreement_rate']}")
     L.append("")
-    L.append(f"ERROR INVENTORY (the actionable failure list):")
+    L.append("ERROR INVENTORY (the actionable failure list):")
     L.append(f"  dangerous false-positives ({len(m['dangerous_false_positives'])}) — framework would ADVANCE a clinical FAILURE:")
     L.append(f"    {m['dangerous_false_positives']}")
     sfn_by = m["silent_false_negatives_by_outcome"]
@@ -156,7 +156,7 @@ def render_report(m: dict) -> str:
     L.append(f"    advanced/active (program-status, PENDING RE-GRADE — NOT floored) [{len(sfn_by['advanced_active'])}]:")
     L.append(f"      {sfn_by['advanced_active']}")
     L.append("")
-    L.append(f"LOAD-BEARINGNESS — which MISSING axis costs the most blind known targets (build-priority order):")
+    L.append("LOAD-BEARINGNESS — which MISSING axis costs the most blind known targets (build-priority order):")
     for fam, n in m["blind_axis_load_bearingness"].items():
         L.append(f"  {n:3}  {fam}")
     L.append("=" * 78)

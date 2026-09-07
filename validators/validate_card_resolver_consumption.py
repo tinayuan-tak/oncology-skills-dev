@@ -32,7 +32,6 @@ Exit: 0 = matches snapshot; 1 = drift (a card gained/lost resolver consumption) 
 from __future__ import annotations
 
 import argparse
-import glob
 import sys
 from pathlib import Path
 

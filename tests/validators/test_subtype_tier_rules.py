@@ -18,9 +18,7 @@ Hermetic: fabricates rules in tmp + validates against the real schema + cards/.
 from __future__ import annotations
 
 import importlib.util
-import os
 import sys
-import tempfile
 from pathlib import Path
 
 import yaml

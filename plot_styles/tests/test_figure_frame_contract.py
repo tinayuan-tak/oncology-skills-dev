@@ -95,7 +95,6 @@ def test_axis_label_is_concept_first():
 
 
 def test_figure_frame_target_grain_title_has_no_indication():
-    import matplotlib.pyplot as plt
     with pal.figure_frame("EPCAM", None, "normal-tissue protein footprint",
                           out_path=Path("/tmp/_frame_tg.svg"), kind="tall", make_ax=False) as F:
         fig = F.fig

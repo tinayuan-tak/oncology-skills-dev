@@ -24,7 +24,7 @@ def _mod():
 
 def test_committed_manifest_is_disjoint():
     errors = _mod().validate(REPO)
-    assert errors == [], f"certainty corroboration is NOT verdict-disjoint:\n" + "\n".join(errors)
+    assert errors == [], "certainty corroboration is NOT verdict-disjoint:\n" + "\n".join(errors)
 
 
 def test_validator_catches_a_verdict_driving_corroboration(tmp_path, monkeypatch):

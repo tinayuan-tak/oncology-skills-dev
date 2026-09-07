@@ -11,7 +11,6 @@ import importlib.util
 import sys
 from pathlib import Path
 
-import pytest
 import yaml
 
 REPO = Path(__file__).resolve().parents[2]

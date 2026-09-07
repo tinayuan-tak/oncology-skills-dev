@@ -19,7 +19,6 @@ import json
 from pathlib import Path
 
 import jsonschema
-import pytest
 
 REPO = Path(__file__).resolve().parents[2]
 CHRONOS = json.loads(
