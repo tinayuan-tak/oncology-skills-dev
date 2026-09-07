@@ -29,6 +29,7 @@ but repackaged). See the data-catalog source manifest dgidb-2026-06b.
 """
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Optional
@@ -42,9 +43,32 @@ PRODUCT_MANIFEST_ID = "dgidb-drug-gene-per-gene-v1"
 # target (BRAF 44, BTK 64, IDH1 10) from an undruggable TF/scaffold whose interactions are all indirect
 # (CTNNB1 1, MYC 0). Reading it is additive: `known_drug_tractability_class` is UNCHANGED (Design B2).
 DIRECTIONAL_MANIFEST_ID = "dgidb-drug-target-directional-v1"
-METHOD_VERSION = "0.2.0"   # 0.2.0 (2026-09-04): + directness metadata (n_direct_interactions,
+METHOD_VERSION = "0.3.0"   # 0.3.0 (2026-09-07, CASE-008 verdict-moving): + MODALITY signal
+                           # (approved_drug_modality) from the curated biologics_precedent_targets.yaml
+                           # crosswalk (via TARGET_CONTRACTS_ROOT). A BIOLOGICS-ONLY approved antigen
+                           # (no approved SM) now resolves approved_drug_engagement_class=approved_biologic_only
+                           # (new; takes precedence over approved_direct/indirect) so the resolver's
+                           # SM-supportive approved-drug rung can be gated on modality. known_drug_tractability_class
+                           # UNCHANGED. Dual-modality targets (EGFR/ERBB2/MET) carry NO biologics_only flag in the vocab and
+                           # are NOT demoted — the osimertinib guard.
+                           # 0.2.0 (2026-09-04): + directness metadata (n_direct_interactions,
                            # direct_engagement_class, approved_drug_engagement_class) from the directional
                            # product; known_drug_tractability_class UNCHANGED. Additive/verdict-inert here.
+
+# ── MODALITY crosswalk (CASE-008) ────────────────────────────────────────────────────────────────
+# DGIdb's has_approved_drug is modality-BLIND — it tabulates an approved drug of ANY modality against the
+# gene, so a biologics-only antigen (DLL3 TCE, FOLR1/NECTIN4 ADC) can credit the DRUG axis as small-
+# molecule tractability. The pragmatic modality source is the curated target-contracts crosswalk
+# biologics_precedent_targets.yaml (entries carry a `modality:` tag + an explicit `biologics_only:` flag).
+# The gate is FAIL-SAFE / positive-only: a target is demoted ONLY when its entry carries
+# `biologics_only: true`. Dual-modality targets with an approved small molecule (EGFR/ERBB2/MET) carry NO
+# such flag and are NEVER demoted (the osimertinib guard); an entry with the flag absent, or an
+# unreadable/absent crosswalk → prior modality-blind behaviour (byte-stable). So this reader can land
+# BEFORE the vocab is flagged with zero behaviour change.
+DEFAULT_TARGET_CONTRACTS = Path(
+    os.environ.get("TARGET_CONTRACTS_ROOT",
+                   "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
+BIOLOGICS_PRECEDENT_VOCAB_RELPATH = "vocabularies/biologics_precedent_targets.yaml"
 
 # The DGIdb interaction_type tokens that denote a DIRECT small-molecule engaging mechanism (the compound
 # ACTS ON the target). Excludes antibody / vaccine (not SM) and untyped/other records (which do not
@@ -63,6 +87,42 @@ DIRECT_SM_INTERACTION_TYPES = frozenset({
 # IDH1 10, MAP2K1 31, MET 65, STAT3 11, and TP53 6 via mutant-p53 reactivators) and demotes the
 # undruggable-TF/scaffold inflation (CTNNB1 1, MYC 0, MYCN 0, GATA3 0, MECOM 0, SMARCA4 2, WRN 0).
 DIRECT_ENGAGEMENT_MIN = 5
+
+
+@lru_cache(maxsize=1)
+def _load_biologics_precedent(target_contracts_dir: str = None) -> dict:
+    """Curated biologics-precedent crosswalk (entries keyed by HGNC symbol; each value carries
+    `modality` + optional `biologics_only`). {} on any failure — an unreadable vocab must never break the
+    DGIdb read (fail toward prior modality-blind behaviour)."""
+    import yaml
+    path = Path(target_contracts_dir or DEFAULT_TARGET_CONTRACTS) / BIOLOGICS_PRECEDENT_VOCAB_RELPATH
+    try:
+        return (yaml.safe_load(path.read_text()) or {}).get("entries", {}) or {}
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+def _biologic_precedent_for(sym: str, target_contracts_dir: str = None) -> Optional[dict]:
+    """Crosswalk entry for one gene ({modality, biologics_only, ...}) or None if the target is not a
+    curated biologics-precedent antigen (or the vocab is unreadable)."""
+    entry = _load_biologics_precedent(target_contracts_dir).get((sym or "").strip().upper())
+    return entry if isinstance(entry, dict) else None
+
+
+def _approved_drug_modality(has_approved: bool, precedent: Optional[dict]) -> tuple[str, Optional[str]]:
+    """(approved_drug_modality, biologic_modality_tag). Characterises the MODALITY of the approved drug
+    behind DGIdb's has_approved_drug flag using the curated crosswalk:
+      not_applicable            — no approved-drug flag (nothing to characterise)
+      biologic                  — has_approved AND the target is a BIOLOGICS-ONLY antigen (in the
+                                  crosswalk with biologics_only: true) — the DRUG flag is a biologic
+      small_molecule_or_unknown — has_approved but NOT biologics-only (a genuine/dual SM target, or a
+                                  target absent from the crosswalk — DGIdb cannot tell, assume SM/unknown)
+    The second element is the raw modality tag (adc/tce/...) when biologic, else None."""
+    if not has_approved:
+        return "not_applicable", None
+    if precedent is not None and bool(precedent.get("biologics_only", False)):
+        return "biologic", (precedent.get("modality") or "biologic")
+    return "small_molecule_or_unknown", None
 
 
 def _read_dgidb_row(target: str) -> Optional[dict]:
@@ -139,13 +199,24 @@ def _direct_engagement_class(n_direct: Optional[int]) -> str:
     return "indirect_or_untyped_only"   # zero typed-direct — interactions (if any) are indirect/untyped
 
 
-def _approved_drug_engagement_class(has_approved: bool, direct_class: str) -> str:
-    """The RESOLVER-KEYED field (Design B2): fuse the approved-drug flag with directness so the resolver
-    can gate the approved rung WITHOUT the reader touching known_drug_tractability_class. `unmeasured`
-    directness is treated as approved_direct (do NOT demote on a transient read failure — fail toward the
-    prior behaviour). Non-approved genes → not_approved (the approved rung never fired for them anyway)."""
+def _approved_drug_engagement_class(has_approved: bool, direct_class: str,
+                                    is_biologics_only: bool = False) -> str:
+    """The RESOLVER-KEYED field (Design B2): fuse the approved-drug flag with directness + MODALITY so the
+    resolver can gate the approved rung WITHOUT the reader touching known_drug_tractability_class.
+      approved_biologic_only — has_approved AND the target is a BIOLOGICS-ONLY antigen (CASE-008): the
+                               approved drug is a biologic (ADC/TCE/CAR), NOT a small molecule, so it must
+                               not credit SM tractability. Takes PRECEDENCE over direct/indirect — a
+                               biologics antigen with false-direct DGIdb records (CEACAM5, 8 mistyped
+                               interactions) is still biologics-only. Dual-modality SM targets
+                               (EGFR/ERBB2/MET; no biologics_only flag) are NOT biologics-only → unaffected.
+      approved_direct        — approved drug + DIRECT engagement (>=5 typed) or directness unmeasured
+                               (fail toward the prior behaviour on a transient read failure).
+      approved_indirect_only — approved drug catalogued, but the roster is indirect/sparse.
+    Non-approved genes → not_approved (the approved rung never fired for them anyway)."""
     if not has_approved:
         return "not_approved"
+    if is_biologics_only:
+        return "approved_biologic_only"
     if direct_class in ("direct_typed", "unmeasured"):
         return "approved_direct"
     return "approved_indirect_only"     # approved drug catalogued, but the roster is indirect/sparse
@@ -168,12 +239,21 @@ def _classify(row: Optional[dict]) -> str:
     return "no_known_drug_evidence"
 
 
+_UNSET = object()
+
+
 def known_drug_tractability_for_gene(target: str, dgidb_row: Optional[dict] = None,
-                                     directional_rows: Optional[list] = None) -> dict:
+                                     directional_rows: Optional[list] = None,
+                                     biologic_precedent=_UNSET,
+                                     target_contracts_dir: Optional[str] = None) -> dict:
     """Per-target known-drug / druggable-category tractability. dgidb_row / directional_rows may be
     injected for tests (directional_rows=None triggers a live directional read unless dgidb_row is
     injected, in which case the live read is skipped and directness is left UNMEASURED for unit tests
-    that only exercise the rollup)."""
+    that only exercise the rollup).
+
+    biologic_precedent (CASE-008): the curated crosswalk entry ({modality, biologics_only} | None). Pass it
+    to inject the modality signal in tests; leave UNSET for a live crosswalk read (skipped when dgidb_row
+    was injected, matching the directional-read convention → modality unread for pure-rollup unit tests)."""
     sym = (target or "").strip().upper()
     row = dgidb_row if dgidb_row is not None else _read_dgidb_row(sym)
     klass = _classify(row)
@@ -185,7 +265,15 @@ def known_drug_tractability_for_gene(target: str, dgidb_row: Optional[dict] = No
     n_direct = _count_direct(directional_rows)
     direct_class = _direct_engagement_class(n_direct)
     has_approved = bool((row or {}).get("has_approved_drug", False))
-    approved_engagement = _approved_drug_engagement_class(has_approved, direct_class)
+    # MODALITY (CASE-008): resolve the curated biologics-precedent crosswalk. Skip the live read when
+    # dgidb_row was injected (pure-rollup unit-test path) unless the caller injected biologic_precedent.
+    if biologic_precedent is _UNSET:
+        precedent = _biologic_precedent_for(sym, target_contracts_dir) if dgidb_row is None else None
+    else:
+        precedent = biologic_precedent
+    approved_modality, biologic_modality_tag = _approved_drug_modality(has_approved, precedent)
+    is_biologics_only = approved_modality == "biologic"
+    approved_engagement = _approved_drug_engagement_class(has_approved, direct_class, is_biologics_only)
     return {
         "known_drug_tractability_class": klass,
         "druggability_tier": (row or {}).get("druggability_tier"),      # DGIdb-native tier (passthrough)
@@ -199,12 +287,27 @@ def known_drug_tractability_for_gene(target: str, dgidb_row: Optional[dict] = No
         # ── DIRECTNESS metadata (additive; drives the resolver directness gate in target-contracts) ──
         "n_direct_interactions": n_direct,                    # typed DIRECT-SM interactions (None=unmeasured)
         "direct_engagement_class": direct_class,              # direct_typed / sparse_direct / indirect_or_untyped_only / unmeasured
-        "approved_drug_engagement_class": approved_engagement,  # RESOLVER-KEYED: approved_direct / approved_indirect_only / not_approved
+        "approved_drug_engagement_class": approved_engagement,  # RESOLVER-KEYED: approved_biologic_only / approved_direct / approved_indirect_only / not_approved
+        # ── MODALITY metadata (CASE-008; drives the resolver modality gate in target-contracts) ──
+        "approved_drug_modality": approved_modality,          # biologic / small_molecule_or_unknown / not_applicable
+        "approved_drug_modality_tag": biologic_modality_tag,  # raw crosswalk tag (adc/tce/...) when biologic, else None
         "known_drug_context": _context(sym, klass, row),
         "directness_context": _directness_context(sym, klass, n_direct, approved_engagement),
+        "modality_context": _modality_context(sym, approved_modality, biologic_modality_tag),
         "method_version": METHOD_VERSION,
         "_data_source": PRODUCT_MANIFEST_ID,
     }
+
+
+def _modality_context(sym, approved_modality, tag) -> Optional[str]:
+    """Human line explaining the MODALITY read — surfaces WHY a biologics-only antigen's approved-drug
+    flag is NOT small-molecule tractability evidence (the CASE-008 modality mismatch)."""
+    if approved_modality == "biologic":
+        return (f"{sym}: the approved/precedented agent is a BIOLOGIC (modality={tag} — antibody-drug "
+                "conjugate / T-cell engager / CAR), NOT a small molecule. DGIdb's has_approved_drug is "
+                "modality-blind, so this DRUG-axis signal is biologics-precedent, NOT evidence of "
+                "small-molecule druggability (biologics_precedent_targets.yaml, curated).")
+    return None
 
 
 def _directness_context(sym, klass, n_direct, approved_engagement) -> Optional[str]:

@@ -131,3 +131,81 @@ def test_braf_shape_approved_direct():
         directional_rows=_dir_rows(*(["inhibitor"] * 44)))
     assert s["n_direct_interactions"] == 44
     assert s["approved_drug_engagement_class"] == "approved_direct"
+
+
+# ── MODALITY gate (CASE-008) ─────────────────────────────────────────────────────────────────────
+# A BIOLOGICS-ONLY approved antigen (curated crosswalk entry with biologics_only: true) must resolve
+# approved_drug_engagement_class=approved_biologic_only regardless of DGIdb direct-count, so the
+# resolver's SM-supportive approved-drug rung can be gated on modality. Dual-modality SM targets
+# (EGFR/ERBB2/MET; NO biologics_only flag) are NEVER demoted — the osimertinib guard.
+
+def test_biologics_only_demotes_even_when_falsely_direct():
+    # CEACAM5 shape: an approved ADC/TCE + 8 typed-"direct" (mistyped antibody) records → the directness
+    # proxy would call it approved_direct, but the modality gate overrides to approved_biologic_only.
+    s = known_drug_tractability_for_gene(
+        "CEACAM5", dgidb_row=_row(has_approved_drug=True, n_approved_drug_interactions=3,
+                                  n_drug_interactions=20, n_antineoplastic_interactions=9),
+        directional_rows=_dir_rows(*(["inhibitor"] * 8)),
+        biologic_precedent={"modality": "adc_tce", "biologics_only": True})
+    assert s["n_direct_interactions"] == 8                       # directness proxy WOULD say direct
+    assert s["approved_drug_engagement_class"] == "approved_biologic_only"   # modality overrides
+    assert s["approved_drug_modality"] == "biologic"
+    assert s["approved_drug_modality_tag"] == "adc_tce"
+    assert "biologic" in s["modality_context"].lower()
+
+
+def test_biologics_only_demotes_indirect_case():
+    # DLL3/FOLR1 shape: approved biologic + sparse/indirect roster. Without the gate → approved_indirect_only;
+    # with it → approved_biologic_only (the more accurate modality label).
+    s = known_drug_tractability_for_gene(
+        "DLL3", dgidb_row=_row(has_approved_drug=True, n_approved_drug_interactions=2, n_drug_interactions=6),
+        directional_rows=_dir_rows("inhibitor", "antibody"),
+        biologic_precedent={"modality": "tce", "biologics_only": True})
+    assert s["n_direct_interactions"] == 1
+    assert s["approved_drug_engagement_class"] == "approved_biologic_only"
+    assert s["approved_drug_modality"] == "biologic"
+
+
+def test_dual_modality_sm_target_not_demoted_osimertinib_guard():
+    # EGFR shape: a genuine SM target that ALSO has approved biologics (in the crosswalk, but NO
+    # biologics_only flag). The fail-safe positive-only gate must NOT demote it.
+    s = known_drug_tractability_for_gene(
+        "EGFR", dgidb_row=_row(has_approved_drug=True, n_approved_drug_interactions=200,
+                               n_drug_interactions=549),
+        directional_rows=_dir_rows(*(["inhibitor"] * 40)),
+        biologic_precedent={"modality": "adc_tce"})   # crosswalk hit but biologics_only absent
+    assert s["approved_drug_engagement_class"] == "approved_direct"     # UNCHANGED
+    assert s["approved_drug_modality"] == "small_molecule_or_unknown"
+    assert s["approved_drug_modality_tag"] is None
+    assert s["modality_context"] is None
+
+
+def test_not_in_crosswalk_unchanged():
+    # KRAS: not a biologics-precedent antigen → prior behaviour, byte-stable.
+    s = known_drug_tractability_for_gene(
+        "KRAS", dgidb_row=_row(has_approved_drug=True, n_approved_drug_interactions=113,
+                               n_drug_interactions=165),
+        directional_rows=_dir_rows(*(["inhibitor"] * 43)),
+        biologic_precedent=None)
+    assert s["approved_drug_engagement_class"] == "approved_direct"
+    assert s["approved_drug_modality"] == "small_molecule_or_unknown"
+
+
+def test_no_approved_drug_modality_not_applicable():
+    s = known_drug_tractability_for_gene(
+        "STEAP1", dgidb_row=_row(is_druggable_genome=True, n_drug_interactions=3),
+        directional_rows=_dir_rows("inhibitor"),
+        biologic_precedent={"modality": "tce", "biologics_only": True})
+    assert s["has_approved_drug"] is False
+    assert s["approved_drug_engagement_class"] == "not_approved"       # no approved drug to gate
+    assert s["approved_drug_modality"] == "not_applicable"
+    assert s["modality_context"] is None
+
+
+def test_injected_row_without_precedent_leaves_modality_unread():
+    # dgidb_row injected + biologic_precedent UNSET → no live crosswalk read (pure-rollup unit path).
+    s = known_drug_tractability_for_gene(
+        "DLL3", dgidb_row=_row(has_approved_drug=True, n_drug_interactions=6),
+        directional_rows=_dir_rows("inhibitor"))
+    assert s["approved_drug_modality"] == "small_molecule_or_unknown"   # unread → not demoted
+    assert s["approved_drug_engagement_class"] in ("approved_direct", "approved_indirect_only")
