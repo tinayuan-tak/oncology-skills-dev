@@ -139,6 +139,13 @@ def _dep_corroboration(h, c):
     # omics-predictability meta-signal: own-omics-driven is a biomarker handle → confidence
     if h.get("predictability_class") == "own_omics_driven":
         base = bump_corroboration(base, True)
+    # paralog buffering (2026-09-06): a STRONG redundant paralog is a competing explanation that LOWERS
+    # confidence in the dependency CALL — a present dependency may be masked/compensated (Dede 2020;
+    # Parrish 2021) or need combined paralog loss to be fully realised. Independent of the CRISPR/RNAi/PRISM
+    # arms above → caps corroboration (the non_dependent_paralog_buffered rung owns the verdict; this makes
+    # the buffering visible to the claim projection instead of a key_signals caveat string only). Verdict-INERT.
+    if h.get("paralog_buffering_class") == "strong":
+        base = cap_corroboration(base, "moderate")
     return base
 
 
