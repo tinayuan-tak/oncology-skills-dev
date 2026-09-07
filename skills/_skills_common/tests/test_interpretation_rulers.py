@@ -169,9 +169,11 @@ def test_build_key_evidence_promotes_interpretation():
 
 
 def test_unspecced_type_emits_no_interpretation_byte_stable():
-    # a measurement_type without a reference_frame carries no interpretation (goldens stay byte-identical)
-    ke = _build_key_evidence({"measurement_type": "rnai_lof_dependency"},
-                             {"rnai_median_dep_score": -0.8})
+    # a measurement_type without a reference_frame carries no interpretation (goldens stay byte-identical).
+    # Use a CATEGORICAL-ONLY spec (effect_field=None → never gaugeable as a numeric ruler): clinvar germline
+    # pathogenicity. (rnai_lof_dependency was the old example but now carries a distance_to_cut ruler.)
+    ke = _build_key_evidence({"measurement_type": "clinvar_germline_pathogenicity_safety"},
+                             {"n_pathogenic_germline": 3})
     assert not (ke or {}).get("interpretation")
 
 

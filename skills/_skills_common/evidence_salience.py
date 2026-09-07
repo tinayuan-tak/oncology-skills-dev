@@ -252,6 +252,35 @@ SUBTYPE_SPECS: dict = {
 }
 
 
+# ── batch meter rollout: attach distance_to_cut reference_frames to the remaining spec axes whose card
+# already NAMES a usable cut (no target-contracts round-trip). Kept as a table + loop (not 12 inlined
+# frames) for reviewability. value_field = the spec's effect_field (already a summary_field of the same
+# card); the cut single-sources that card's named threshold; direction is already declared on each spec.
+# DISPLAY-ONLY / verdict-INERT — like every reference_frame, the ruler omits gracefully when the value is
+# absent (so data-sparse axes such as the combination legs simply carry no gauge until measured).
+# (immune_context is deliberately EXCLUDED: its cd8_high_minus_low is a DELTA, not comparable to the
+# fraction cuts on that card — a scale mismatch — and the signal is indication-level anyway.)
+# Only axes whose effect_field is a TOP-LEVEL summary_field of the card qualify (governance invariant 3):
+# the 7 dropped candidates (prism median_log2auc, chemical spearman_r_crispr, predictability r2,
+# combination mean_gi/mean_effect_shift, cooccurrence log2_odds_ratio) carry their magnitude in a per-strata
+# / per-compound / per-partner array or a computed field, not a single card-level summary value, so they
+# have no clean scalar to gauge here (they stay class-only until a scalar summary field exists).
+_BATCH_DISTANCE_TO_CUT_METERS = {
+    # measurement_type: (value_field, scale, cut_card_id, cut_threshold_key)
+    "rnai_lof_dependency":        ("rnai_median_dep_score", "demeter2", "pan-cancer-rnai-dependency-distribution", "moderately_dependent_threshold_demeter"),
+    "crispr_rnai_concordance":    ("fraction_agree", "fraction", "crispr-rnai-dependency-concordance", "strongly_concordant_fraction_threshold"),
+    "normal_tissue_rna_breadth":  ("highest_tissue_median", "log2tpm", "normal-tissue-liability-gtex", "high_log2tpm"),
+    "tumor_protein_abundance":    ("protein_effect_size", "protein_effect", "tumor-protein-abundance-cptac", "modest_up_effect"),
+    "rna_protein_concordance":    ("rna_protein_r", "pearson_r", "cellline-rna-protein-concordance", "moderate_concordance_r"),
+}
+for _mt, (_vf, _sc, _card, _cut) in _BATCH_DISTANCE_TO_CUT_METERS.items():
+    _spec = SALIENCE_SPECS.get(_mt)
+    if _spec is not None and not _spec.get("reference_frame"):
+        _spec["reference_frame"] = {
+            "kind": "distance_to_cut", "value_field": _vf, "scale": _sc,
+            "cut": {"card_id": _card, "threshold": _cut, "label": _cut}}
+
+
 def spec_for(measurement_type):
     return SALIENCE_SPECS.get(measurement_type) if measurement_type else None
 
