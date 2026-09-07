@@ -36,7 +36,7 @@ Dangerous false-positives to keep pinned: ADAR1, CLDN18.2_LRRC15, EGFR_cMET_VEGF
 
 ## Open cases
 
-### CASE-014 — functional-requirement EPAS1/HIF2A/RCC reads `non_dependent` vs belzutifan-validated VHL-conditional dependency — REAL biomarker-conditional FN; calibration known-gap anchored (discordance follow-up, 2026-09-07)
+### CASE-014 — functional-requirement EPAS1/HIF2A/RCC `non_dependent` vs belzutifan-validated VHL-conditional dependency — REAL biomarker-conditional FN — ✅ RESOLVED (verdict-moving fix landed, 2026-09-07)
 - **Surfaced by:** the CASE-011 re-harvest de-masking (`~/dev/discordance_full_sweep_ledger_2026-09-07.json`;
   the HIF2A→EPAS1 alias fix removed the phantom data-unavailable and exposed the real signal). functional-requirement
   `EPAS1 | RCC` reads `sub_verdict = non_dependent` (driving `non-dependent-killer`); claim `DEP = absent` (moderate),
@@ -61,12 +61,25 @@ Dangerous false-positives to keep pinned: ADAR1, CLDN18.2_LRRC15, EGFR_cMET_VEGF
   upgrade to `measured: true` when captured. DISTINCT from the pre-existing `reference_profiles` HIF2A/RCC anchor
   (which frames the OVERALL nomination as `clinical_precedent`/`license_blocked` honest_blind — the Cortellis wall);
   this pins the dependency-axis FN specifically.
-- **Fix path (deferred data-build):** wire a VHL-status-stratified dependency lane (DepMap VHL mutation status × a
-  pan-cancer conditional stratum) into functional-requirement's `partner-conditional-dependency` / biomarker-stratified
-  card; when it lands, flip the watchlist entry to `must_not_veto`. Mostly WIRE (DepMap already carries VHL status),
-  not ACQUIRE. Escalate-only; literature not citable.
-- **Status:** DOCUMENTED + calibration known-gap ANCHORED (contracts #676). Snapshot capture + the conditional lane
-  are the deferred follow-ups.
+- **✅ FIX LANDED (verdict-moving) — the deferred data-build turned out to already exist:** the conditional lane the
+  gap needed is the existing `depmap_partner_conditional_dependency` method — it just lacked an `EPAS1→VHL` map entry.
+  A live DepMap 26q1 probe over the VHL-LoF stratum confirmed the signal is REAL and powered:
+  **delta -0.066 Chronos, mann-whitney q 2.1e-3, rank-biserial 0.32, n=28 VHL-LoF / 1510 neutral →
+  `partner_conditional_moderately_dependent`** (moderate via the rank-biserial arm; modest absolute delta, consistent
+  with HIF-2α addiction being context/in-vivo-heavy in 2D CRISPR). Adding `EPAS1: [{partner: VHL,
+  deficiency_type: lof_mutation}]` to `partner_map.yaml` (analysis-methods PR #582) was sufficient — the dependency
+  resolver already rescues `partner_conditional_moderately_dependent` ABOVE the `non_dependent` rung, so NO resolver
+  change was needed. Live functional-requirement re-run (post-#582) confirms the flip:
+  **`non_dependent` → `partner_conditional_dependent`** (driving `partner-conditional-moderately-dependent-supportive`).
+- **Ratchet — flipped to `must_not_veto` measured:true (contracts PR #677):** the CASE-014 `known_gap_watchlist` EPAS1
+  entry now asserts EPAS1/RCC must NOT hit a gate-C dependency veto, locked by the captured
+  `epas1_rcc.functional-requirement.json` snapshot. Supersedes the reasoned-only anchor from #676.
+- **Cross-repo landed:** AM #582 (partner_map EPAS1×VHL + lock test) → TC #677 (watchlist flip + snapshot). Only EPAS1
+  affected (no prior partner map); low blast radius, data-justified (p=0.002), belzutifan-validated. Literature stayed
+  OUT of the verdict — the in-data VHL-conditional signal carries it.
+- **Status:** ✅ RESOLVED. The gate-C `non_dependent` FN is closed; EPAS1/RCC reads `partner_conditional_dependent`
+  and is regression-locked. Distinct from the reference_profiles HIF2A/RCC licensing-blind anchor (Cortellis wall),
+  which remains an honest-blind clinical-precedent coverage gap (out of scope here).
 
 ### Regression-lock verification pass — discordance-loop fixes CASE-007…013 (2026-09-07)
 Ran the full loop-level regression lock against **clean trunk** (skills worktree off `v2-architecture` @ b2de9bd;
