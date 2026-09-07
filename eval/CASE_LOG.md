@@ -283,7 +283,7 @@ ledger `~/dev/discordance_full_sweep_ledger_2026-09-07.json`). One clean fix + 1
 - **Meta:** of 32 calibration_gaps, **4 real fixes** (CASE-007 + 008 + 009-caveat + 010-caveat) and
   **~10 dismissed as concordant/scope + ~4 deferred-for-data** + 128 staleness→atlas. Ledger FINISHED.
 
-### CASE-012 — surface-modality-fit pMHC-TCE arm is BLIND to normal-tissue expression liability — verdict-moving RULE gap, data present (discordance follow-up, 2026-09-07)
+### CASE-012 — surface-modality-fit pMHC-TCE arm normal-tissue liability — RESOLVED via verdict-INERT intermediate-PRESENTATION caveat (expression-clamp thesis overturned) (discordance follow-up, 2026-09-07)
 - **Surfaced by:** the full 37-pair sweep (`~/dev/discordance_full_sweep_ledger_2026-09-07.json`), NOX1/CRC
   `surface-modality-fit` SAFETY row — `sub_verdict=pmhc_tce_supported` (rule `pmhc-iedb-presented-tce-supportive`),
   literature (1 verified cite, Stalin 2023 PMID 38137406) states NOX1 is NOT tumor-restricted (constitutive in
@@ -337,6 +337,38 @@ ledger `~/dev/discordance_full_sweep_ledger_2026-09-07.json`). One clean fix + 1
   (`fix/surface-scnormal-killer-refine` → PR #1173, CEACAM5 window-driven repoint) — the resolver is no longer
   contended, so the proposed clamp rungs are now UNBLOCKED for a clean follow-up build (verify STEAP1/prostate +
   CEACAM5 non-regression, regen surface golden, full suite).
+- **RESOLUTION (2026-09-07, follow-up build) — the expression-clamp plan above was OVERTURNED by live verify;
+  landed a modality-appropriate PRESENTATION caveat instead.** Running the live methods against the post-#1173
+  trunk overturned the "expression RULE gap → flip NOX1" thesis on three counts:
+  1. **NOX1/CRC fires NO hard-veto signal under the current framework.** HPA: `essential_tissue_flag=absent`,
+     `normal_tissue_breadth_class=not_detected_in_normal` (bulk floor misses it → even a *supportive* signal).
+     sc-normal: `sc_normal_safety_essential_class=origin_tissue_liability` — colon is CRC's ORIGIN tissue, and
+     #1173 repointed `sc-normal-high-liability-bite-killer` from blunt `HIGH_LIABILITY` to organ-aware
+     `critical_organ_liability` (essential expression in a NON-origin critical organ). Origin-tissue expression
+     is deliberately window-arbitrated, NOT vetoed (backtested on CEACAM5). So the proposed clamp would NOT even
+     have flipped NOX1.
+  2. **The proposed clamp would have REGRESSED the flagship pMHC target WT1.** WT1/COADREAD =
+     `critical_organ_liability` (driver: glomerular-capsule epithelium = kidney), so pairing the expression
+     killers into the pMHC route flips WT1 `pmhc_tce_supported → tce_unsafe_normal_liability` — breaking the
+     WT1 replay fixture and rejecting the framework's own canonical pMHC exemplar (WT1 is named in the resolver
+     3b comment; it is a validated clinical TCR-T/vaccine/TCE target).
+  3. **Expression is the WRONG safety axis for the pMHC modality.** The TCR-mimetic pMHC route EXISTS for
+     self-antigens with some normal expression (WT1/PRAME/MAGE); its correct safety axis is immunopeptidome
+     PRESENTATION breadth (`pmhc-broadly-presented-normal-tce-opposing`), not RNA/protein expression. The
+     original "gap" is largely by design.
+  **The genuine, modality-appropriate gap** is the MIDDLE presentation band: the presentation veto is binary
+  (fires only at `broadly_presented_normal` ≥ atlas Q3), so `intermediate_presentation` (Q1–Q3) is uncaveated.
+  NOX1 = `intermediate_presentation`, presented on **8 normal tissues** (colon + small intestine + bone marrow +
+  lung/spleen/thymus/testis/cerebellum) via HLA-Ligand-Atlas — a real on-target/off-tumor liability the binary
+  veto misses. **LANDED (verdict-INERT):** `surface-modality-fit` v1.10.0 `_pmhc_presentation_caveat` — fires on
+  `pmhc_tce_supported` + `intermediate_presentation`, names the sensitive normal tissues (GI/marrow/vital-organ),
+  calls for a tumor-vs-normal presentation differential; None on restricted (NY-ESO-1/MAGE-A4/STEAP1 clean) /
+  broad (already vetoed) / non-pMHC verdicts. Fires additively for WT1/PRAME/KRAS (all intermediate) WITHOUT
+  moving their verdicts. Spine/resolver/replay byte-stable (6 new tests + 120 surface-suite green). NOX1/CRC
+  verdict UNCHANGED (`pmhc_tce_supported`) — correct by design (origin-tissue window) — now carrying the
+  presentation caveat. NO calibration flip (NOX1 is not a hard-veto target); the earlier expression-clamp
+  proposal + its target-contracts branch were DISCARDED.
+- **Status:** RESOLVED — verdict-INERT presentation caveat landed (v1.10.0); expression-clamp thesis retired.
 
 ### CASE-009 — on-target-safety PHARMACOVIGILANCE `no_warning` vs literature on-target toxicity — MOSTLY SCOPE-MISMATCH; scope caveat added (full-sweep, 2026-09-07)
 - **Surfaced by:** the full 37-pair sweep — the on-target-safety-liability calibration_gap cluster (4):

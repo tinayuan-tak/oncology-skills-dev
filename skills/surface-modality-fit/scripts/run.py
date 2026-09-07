@@ -221,7 +221,7 @@ def _build_headline_block(headline: dict) -> dict:
 
 
 SKILL_NAME = "surface-modality-fit"
-SKILL_VERSION = "1.9.0"   # 1.9.0 (2026-09-04) Phase-6 VERDICT-MOVING: consume the TC surface_annotation_only_unconfirmed verdict (resolver v1.7.0). Cross-card surface_confirmation_state derived by the NEW surface_modality card preprocessor (registered + run_wired_skill preprocess_gate); _compose_adc_tce_fit emits biologics_precedented (widened ADC/TCE/CAR crosswalk). A positive fit_class resting on family/predicted-topology annotation w/o confirmed protein or clinical precedent → NON-NOMINATING caveat. DLL3/CEACAM5 spared (clinically_precedented). Depends TC #631.   # 1.8.0 (2026-09-04): --literature lane + VERDICT-INERT surfacing (surface_confirmation_caveat = surfaceome-family/RNA/predicted-topology annotation-INFLATION flag when a positive fit_class lacks confirmed cell-surface protein; endocytosis-unmeasured ADC sub-note; shed_caveat soluble-antigen-sink arm; SURFACE_MODALITY_FIT thesis + polarity_note). Spine byte-stable (resolver keys only on fit_class + safety/density/shed rungs).   # 1.7.0 (2026-09-04, #979): consume the MIDDLE antigen-escape band (escape_risk_patient_variable) — VERDICT-MOVING: two positive-caveated verdicts (adc_preferred_tce_patient_variable / tce_patient_variable) temper the TCE arm without foreclosing it.   # 1.6.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.5.0 (2026-08-27): tuned signals-first sub-group reader (surface-modality vocab). Verdict-INERT.
+SKILL_VERSION = "1.10.0"   # 1.10.0 (2026-09-07, CASE-012) VERDICT-INERT: pmhc_presentation_caveat — a pmhc_tce_supported call whose epitope is presented on an INTERMEDIATE breadth of normal tissues (Q1–Q3, below the broadly_presented_normal veto) is flagged (NOX1/CRC: colon+small-intestine+marrow). Presentation-axis (modality-appropriate), not expression; names the on-target/off-tumor liability the binary veto misses, without foreclosing the route (NY-ESO-1/MAGE-A4 restricted → no caveat). Spine/resolver/replay byte-stable.   # 1.9.0 (2026-09-04) Phase-6 VERDICT-MOVING: consume the TC surface_annotation_only_unconfirmed verdict (resolver v1.7.0). Cross-card surface_confirmation_state derived by the NEW surface_modality card preprocessor (registered + run_wired_skill preprocess_gate); _compose_adc_tce_fit emits biologics_precedented (widened ADC/TCE/CAR crosswalk). A positive fit_class resting on family/predicted-topology annotation w/o confirmed protein or clinical precedent → NON-NOMINATING caveat. DLL3/CEACAM5 spared (clinically_precedented). Depends TC #631.   # 1.8.0 (2026-09-04): --literature lane + VERDICT-INERT surfacing (surface_confirmation_caveat = surfaceome-family/RNA/predicted-topology annotation-INFLATION flag when a positive fit_class lacks confirmed cell-surface protein; endocytosis-unmeasured ADC sub-note; shed_caveat soluble-antigen-sink arm; SURFACE_MODALITY_FIT thesis + polarity_note). Spine byte-stable (resolver keys only on fit_class + safety/density/shed rungs).   # 1.7.0 (2026-09-04, #979): consume the MIDDLE antigen-escape band (escape_risk_patient_variable) — VERDICT-MOVING: two positive-caveated verdicts (adc_preferred_tce_patient_variable / tce_patient_variable) temper the TCE arm without foreclosing it.   # 1.6.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.5.0 (2026-08-27): tuned signals-first sub-group reader (surface-modality vocab). Verdict-INERT.
                           # 1.4.0 (2026-08-21): emit existing per-question question_table into the headline; 1.3.0 +sc-surface-normal-safety +sc-surface-rna-protein-concordance
 
 # VERDICT-RELEVANT vs ENRICHMENT: the surface_modality resolver (v1.1.0, 2026-08-09) keys on the
@@ -705,6 +705,63 @@ def _shed_caveat(hl) -> dict | None:
             "serum_marker": marker, "detail": detail}
 
 
+# Critical/essential normal cell types whose peptide presentation carries a first-order on-target/off-tumor
+# risk for a CD3 pMHC-TCE (GI epithelium, hematopoietic/lymphoid, vital solid organs). Used ONLY to
+# escalate the caveat's emphasis when the intermediate-presentation tissues INCLUDE one of these — the
+# caveat itself fires on ANY intermediate presentation; this list just names the concern. Lower-cased,
+# substring-matched against the HLA-Ligand-Atlas normal_tissues_presented labels.
+_PMHC_SENSITIVE_NORMAL_TISSUES = (
+    "bone marrow", "colon", "small intestine", "lung", "liver", "kidney", "heart", "esophagus",
+    "stomach", "spleen", "lymph node", "thymus", "pancreas",
+)
+
+
+def _pmhc_presentation_caveat(hl) -> dict | None:
+    """Surface the INTERMEDIATE normal-presentation liability that the pMHC-TCE positive does not encode.
+
+    The pMHC-TCE route (verdict `pmhc_tce_supported`) is the framework's ONE positive for a folded-surface-
+    dead intracellular oncoprotein, and its ONLY normal-tissue safety clamp is the immunopeptidome-BREADTH
+    veto (`pmhc-broadly-presented-normal-tce-opposing`), which fires only at `broadly_presented_normal`
+    (>= atlas Q3 normal tissues). That leaves the MIDDLE band — `intermediate_presentation` (Q1–Q3 normal
+    tissues) — uncaveated: a peptide presented on several normal tissues (e.g. NOX1 on colon + small
+    intestine + bone marrow) still reads a clean `pmhc_tce_supported`. This is the correct modality-
+    appropriate axis (presentation, NOT RNA/protein expression — the pMHC modality exists FOR self-antigens
+    with some normal expression), but the binary veto misses the middle. VERDICT-INERT: names the liability
+    so the reader confirms a tumor-vs-normal presentation DIFFERENTIAL (peptide-level selectivity, HLA
+    allele coverage) before advancing. It does NOT foreclose the route (NY-ESO-1/MAGE-A4 = restricted, no
+    caveat; broadly-presented already moves the verdict via the resolver). None on any non-intermediate
+    class or non-pMHC verdict → byte-stable for the clean pMHC targets and every surface-viable call."""
+    if hl.get("surface_modality_verdict") != "pmhc_tce_supported":
+        return None
+    if hl.get("pmhc_presentation_class") != "intermediate_presentation":
+        return None
+    n_tissues = hl.get("pmhc_n_normal_tissues")
+    tissues_raw = hl.get("pmhc_normal_tissues_presented") or ""
+    tissues = [t.strip() for t in str(tissues_raw).split(";") if t.strip()]
+    sensitive = [t for t in tissues
+                 if any(s in t.lower() for s in _PMHC_SENSITIVE_NORMAL_TISSUES)]
+    detail = (
+        f"pMHC-TCE is SUPPORTED (folded surface dead; IEDB epitope evidence) but the peptide is presented "
+        f"on {n_tissues} normal tissue(s) via HLA-Ligand-Atlas (pmhc_presentation_class="
+        f"intermediate_presentation"
+        + (f"; incl. {', '.join(sensitive)}" if sensitive else "")
+        + "). This is the MIDDLE presentation band — below the broadly_presented_normal (>= atlas Q3) "
+        "threshold that withdraws the pMHC positive, so no veto fires — yet a peptide on several normal "
+        "tissues is a real on-target/off-tumor risk for a CD3-redirecting TCE. The pMHC arm is scored on "
+        "presentation breadth (the modality-appropriate axis), not RNA/protein expression, so this is a "
+        "CAVEAT not a veto: confirm a tumor-vs-normal presentation DIFFERENTIAL (peptide-level abundance, "
+        "HLA allele restriction) before advancing. Restricted-presentation pMHC targets (NY-ESO-1/MAGE-A4) "
+        "carry no such caveat.")
+    return {
+        "reason": "pmhc_intermediate_normal_presentation",
+        "pmhc_presentation_class": "intermediate_presentation",
+        "n_normal_tissues": n_tissues,
+        "normal_tissues_presented": tissues,
+        "sensitive_normal_tissues": sensitive,
+        "detail": detail,
+    }
+
+
 def _headline(cards, fired, verdict_pair):
     v, drv = verdict_pair or ("insufficient", None)
     hl = {
@@ -807,6 +864,7 @@ def _headline(cards, fired, verdict_pair):
         # (normal-presentation liability). Additive; verdict byte-stable. not_observed = weak-negative candidate.
         "pmhc_presentation_class":        get_card_field(cards, "pmhc-presentation", "pmhc_presentation_class"),
         "pmhc_n_normal_tissues":          get_card_field(cards, "pmhc-presentation", "n_normal_tissues_presented"),
+        "pmhc_normal_tissues_presented":  get_card_field(cards, "pmhc-presentation", "normal_tissues_presented"),
         "pmhc_hla_class":                 get_card_field(cards, "pmhc-presentation", "hla_class"),
         # EXPERIMENTALLY-VALIDATED pMHC epitope evidence (pmhc-epitope-evidence-iedb) — the IEDB positive-assay
         # ground-truth companion to pmhc-presentation. VERDICT-BEARING 2026-08-25: its rules (pmhc-iedb-tcell-
@@ -916,6 +974,11 @@ def _headline(cards, fired, verdict_pair):
     # the safety/density/shed rungs, never on a headline key).
     hl["surface_confirmation_caveat"] = _surface_confirmation_caveat(hl)
     hl["shed_caveat"] = _shed_caveat(hl)
+    # (3) pmhc_presentation_caveat (CASE-012): a pmhc_tce_supported call whose peptide is presented on an
+    # INTERMEDIATE breadth of normal tissues (Q1–Q3) — below the broadly_presented_normal veto — so the
+    # binary presentation veto misses it. VERDICT-INERT (None on restricted/broad/not_observed and on any
+    # non-pMHC verdict) → resolver + spine goldens + replay verdicts byte-stable.
+    hl["pmhc_presentation_caveat"] = _pmhc_presentation_caveat(hl)
     # Canonical HEADLINE block (verdict + confidence + top tension) — the concise, consumer-facing
     # headline message, as deterministic text + a renderer-agnostic hero payload. A verdict-INERT
     # projection over the claim_vector / key_signals just built; best-effort (a build fault degrades to
@@ -976,6 +1039,9 @@ _SYNTHESIS_FACET_KEYS = (
     # synthesis so the biologics call foregrounds confirmed-vs-annotated surface protein.
     "surface_confirmation_class", "surface_multimodal_support", "endocytosis_confidence",
     "surface_confirmation_caveat", "shed_caveat",
+    # VERDICT-INERT (v1.10.0, CASE-012): the pMHC intermediate-normal-presentation caveat — a
+    # pmhc_tce_supported call whose peptide is presented on Q1–Q3 normal tissues (below the broad veto).
+    "pmhc_presentation_caveat",
     "surface_confirmation_state",   # Phase-6 (VERDICT-MOVING): the derived annotation-inflation state driving surface_annotation_only_unconfirmed
     "surfaceome_cohort_rank_class",
     "bulk_pair_best_and_partner", "bulk_pair_best_and_selectivity",
