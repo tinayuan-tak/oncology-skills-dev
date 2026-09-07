@@ -217,8 +217,65 @@ ledger `~/dev/discordance_full_sweep_ledger_2026-09-07.json`). One clean fix + 1
 - **DEFERRED — real but weak/needs-data:** surface NOX1/CRC SAFETY (`pmhc_tce_supported`) — NOX1 is broadly
   normal-expressed (colon epithelium/vasculature), a TCE safety concern; only 1 verified cite + would need a
   normal-expression flag the surface skill's normal-tissue leg should carry. QUEUED as a data-coverage item.
+  **↳ SUPERSEDED by [[CASE-012]] (2026-09-07): NOT a data-coverage gap — the normal signal IS present
+  (sc-normal-celltype colon), it is a resolver RULE gap. See CASE-012.**
 - **Meta:** of 32 calibration_gaps, **4 real fixes** (CASE-007 + 008 + 009-caveat + 010-caveat) and
   **~10 dismissed as concordant/scope + ~4 deferred-for-data** + 128 staleness→atlas. Ledger FINISHED.
+
+### CASE-012 — surface-modality-fit pMHC-TCE arm is BLIND to normal-tissue expression liability — verdict-moving RULE gap, data present (discordance follow-up, 2026-09-07)
+- **Surfaced by:** the full 37-pair sweep (`~/dev/discordance_full_sweep_ledger_2026-09-07.json`), NOX1/CRC
+  `surface-modality-fit` SAFETY row — `sub_verdict=pmhc_tce_supported` (rule `pmhc-iedb-presented-tce-supportive`),
+  literature (1 verified cite, Stalin 2023 PMID 38137406) states NOX1 is NOT tumor-restricted (constitutive in
+  normal colonic epithelium + vasculature, its physiological ROS/host-defense niche). Was deferred at triage
+  (thin lit) under [[CASE-010]] as a "data-coverage item" — this case corrects that framing.
+- **Determination — DATA IS PRESENT (outcome 2, a RULE gap, NOT a coverage gap):** the normal-colon liability
+  is carried by the `sc-normal-celltype-expression` card (products `sc-normal-celltype-expression-colon-v1` +
+  `-large-intestine-v1`, field `sc_normal_expression_class`). Live query of the colon product for NOX1:
+  `early colonocyte` median_det **0.662** / expressing_donor_fraction **1.00** (34 donors, 3 datasets),
+  `intestinal crypt stem cell of colon` 0.569 / 1.00 (9 datasets), transit-amplifying/absorptive/secretory
+  0.23–0.31. These CLEAR the `HIGH_LIABILITY` threshold (`median_det>0.50 AND expressing_donor_fraction>0.70`
+  in ≥1 normal cell type — `interpretation-rules/surface-intrinsic.rules.yaml` sc-normal rationale), so the
+  rule `sc-normal-high-liability-bite-killer` **fires**. (Bulk GTEx colon MISSES it — median ~0.9 TPM, mean
+  skewed high — classic enterocyte-compartment dilution; hence NOT a bulk-floor `not_detected_in_normal` call.
+  Confirmed entirely in-data; no literature needed in the verdict.)
+- **The structural hole (`target-contracts/resolvers/surface_modality.resolver.yaml`):** `pmhc_tce_supported`
+  fires ONLY paired with `neither-viable-killer` (folded-surface-dead route, rungs at priority 23/24). The
+  bulk/sc normal-tissue killers (`normal-tissue-essential-bite-killer`, `sc-normal-high-liability-bite-killer`)
+  are wired ONLY to surface-VIABLE fit_classes (`both-viable-supportive` / `tce-preferred-supportive`, rungs
+  priority 3–10). No `when_all_fired` rung pairs `neither-viable-killer` + a pMHC-supportive rule + a
+  normal-tissue killer, so those killers — though they FIRE — cannot enter any pMHC combination. The ONLY
+  normal-tissue clamp on the pMHC arm is `pmhc-broadly-presented-normal-tce-opposing` (priority 21/22), which
+  reads HLA-Ligand-Atlas immunopeptidome BREADTH, not RNA/protein expression — so a constitutively
+  normal-expressed antigen with no broadly-presented benign epitope is invisible to the pMHC verdict.
+- **PROPOSED FIX (verdict-moving, DEFERRED — not landed; a live parallel session `fix/surface-scnormal-killer-refine`
+  is mid-flight on this exact resolver + sc-normal killer, land after it settles to avoid a golden clobber):**
+  add clamp rungs to `surface_modality.resolver.yaml` mirroring the existing 21/22 (3b') pMHC-presentation
+  veto, so the fired sc/bulk normal-tissue killer withdraws the un-earned pMHC promotion:
+  ```yaml
+  # (3b'') pMHC-TCE arm normal-EXPRESSION liability withdrawal (mirrors 3b' immunopeptidome-breadth veto)
+  - {verdict: tce_unsafe_normal_liability, when_all_fired: [neither-viable-killer, pmhc-iedb-tcell-validated-tce-supportive, sc-normal-high-liability-bite-killer], driving_rule: sc-normal-high-liability-bite-killer, priority: 19}
+  - {verdict: tce_unsafe_normal_liability, when_all_fired: [neither-viable-killer, pmhc-iedb-presented-tce-supportive,        sc-normal-high-liability-bite-killer], driving_rule: sc-normal-high-liability-bite-killer, priority: 20}
+  - {verdict: tce_unsafe_normal_liability, when_all_fired: [neither-viable-killer, pmhc-iedb-tcell-validated-tce-supportive, normal-tissue-essential-bite-killer], driving_rule: normal-tissue-essential-bite-killer, priority: 19}
+  - {verdict: tce_unsafe_normal_liability, when_all_fired: [neither-viable-killer, pmhc-iedb-presented-tce-supportive,        normal-tissue-essential-bite-killer], driving_rule: normal-tissue-essential-bite-killer, priority: 20}
+  ```
+  (priority <23 so the clamp outranks the `pmhc_tce_supported` rungs; lower number = higher precedence, per the
+  resolver's own 21/22-over-23/24 convention.) Then bump resolver `version`, regenerate the surface golden via
+  `skills/_skills_common/tests/regenerate_resolver_golden.py` (append the driving rule_ids to the surface_modality
+  `rule_ids` list first if absent), run the FULL skills suite + offline replay (a verdict-contract change fans out
+  across golden snapshots + synthetic fired-sets). Expected flip: NOX1/CRC `pmhc_tce_supported → tce_unsafe_normal_liability`.
+- **Backtest guard (must-not-regress):** the fix is TCE-arm-only and preserves ADC (mirrors the design note —
+  CEACAM5, a validated ADC target with normal-gut expression, must survive as `adc_preferred_tce_unsafe`, not be
+  killed on both arms). Any pMHC target whose normal expression is genuinely tumor-restricted keeps
+  `pmhc_tce_supported` (sc-normal killer does not fire). STEAP1/prostate `pmhc_tce_supported` (per CASE-010) must
+  be re-checked against the sc-normal-celltype prostate product before landing.
+- **Calibration:** if landed, anchor NOX1/CRC in `target-contracts/vocabularies/known_target_calibration_set.yaml`
+  as a surface `tce_unsafe_normal_liability` / normal-liability expectation (escalate-only; literature stays OUT
+  of the verdict — the in-data sc-normal signal carries it).
+- **Status:** DOCUMENTED + PROPOSAL READY, fix DEFERRED per coordination. Determination: **rule gap, data present**
+  — supersedes the CASE-010 "data-coverage" deferral. UPDATE (same day): the blocking parallel session merged
+  (`fix/surface-scnormal-killer-refine` → PR #1173, CEACAM5 window-driven repoint) — the resolver is no longer
+  contended, so the proposed clamp rungs are now UNBLOCKED for a clean follow-up build (verify STEAP1/prostate +
+  CEACAM5 non-regression, regen surface golden, full suite).
 
 ### CASE-009 — on-target-safety PHARMACOVIGILANCE `no_warning` vs literature on-target toxicity — MOSTLY SCOPE-MISMATCH; scope caveat added (full-sweep, 2026-09-07)
 - **Surfaced by:** the full 37-pair sweep — the on-target-safety-liability calibration_gap cluster (4):
