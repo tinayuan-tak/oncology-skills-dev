@@ -125,8 +125,9 @@ partners:
         APC-LoF → β-catenin (CTNNB1) stabilization → WNT/β-catenin addiction (marquee APC-mutant CRC
         dependency). Live DepMap 26q1 probe over the APC-LoF stratum: delta -0.881 Chronos, mann-whitney
         q 3.2e-37, rank-biserial 0.76, n=100 APC-LoF / 1438 neutral (median -1.004 vs -0.123) →
-        partner_conditional_strongly_dependent. Makes APC a conditioning variable so a CTNNB1 profile in
-        APC-null context (CRC) reads the strong conditional dependency instead of a pooled non_dependent.
+        partner_conditional_strongly_dependent. NOTE: CTNNB1 already reads a genuine selective dependency
+        (crispr+rnai strongly_selective → lineage_selective) so this lane CORROBORATES rather than rescues;
+        it is the safety net if the selective signal weakens, and enriches the claim vector.
 
   # ── Hippo/TEAD: NF2-loss → YAP/TAZ-TEAD addiction (lof_mutation arm, 2026-09-07, discovery sweep) ────
   # NF2 (merlin) loss releases the Hippo brake, driving YAP/TAZ-TEAD transcriptional addiction — the
@@ -143,7 +144,9 @@ partners:
         NF2-LoF → Hippo de-repression → YAP/TAZ-TEAD addiction (NF2-mutant mesothelioma; the druggable
         Hippo node, TEAD-palmitoylation inhibitors VT3989/IK-930). Live DepMap 26q1 probe over the
         NF2-LoF stratum: delta -0.247 Chronos, mann-whitney q 2.3e-4, rank-biserial 0.34, n=36 NF2-LoF /
-        1502 neutral → partner_conditional_moderately_dependent. NF2 is the conditioning variable.
+        1502 neutral → partner_conditional_moderately_dependent. NF2 is the conditioning variable. NOTE:
+        TEAD1/MESO already reads non-veto (rescued to lineage_selective by lineage-selectivity), so this
+        lane CORROBORATES rather than drives the verdict; the signal is real + additive.
   WWTR1:
     - partner: NF2
       deficiency_type: lof_mutation
@@ -151,4 +154,6 @@ partners:
         NF2-LoF → TAZ (WWTR1) addiction, the Hippo effector arm (paired with TEAD1; carries the signal
         the paralog-buffered YAP1 arm does not). Live DepMap 26q1 probe over the NF2-LoF stratum: delta
         -0.251 Chronos, mann-whitney q 4.4e-4, rank-biserial 0.32, n=36 NF2-LoF / 1502 neutral →
-        partner_conditional_moderately_dependent.
+        partner_conditional_moderately_dependent. NOTE: WWTR1/MESO already reads non-veto (rescued to
+        non_dependent_paralog_buffered by YAP1 paralog-buffering), so this lane CORROBORATES rather than
+        drives the verdict.
