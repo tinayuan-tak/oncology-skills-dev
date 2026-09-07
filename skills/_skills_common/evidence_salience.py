@@ -349,23 +349,18 @@ def contract_threshold(card_id, key, contracts_repo: str | None = None):
         return None
 
 
-def build_interpretation(cap: dict, summary: dict, spec: dict | None = None,
-                         card_id: str | None = None, contracts_repo: str | None = None) -> list:
-    """Project spec['reference_frame'] → key_evidence.interpretation[] (list of gauged_value). Deterministic
-    (sig_round every number; absent layer omitted, never null-filled); [] when no frame or no value present.
-    Enforces 'no bare number': a value is emitted only with a non-null scale."""
-    cap = cap or {}
-    summary = summary or {}
-    spec = spec or {}
-    rf = spec.get("reference_frame")
+def _project_frame(rf: dict, cap: dict, summary: dict, direction, card_id, contracts_repo) -> dict | None:
+    """Project ONE reference_frame dict → a single gauged_value, or None when its value is absent (so a
+    frame whose metric is not measured drops out, never null-fills). Enforces 'no bare number'
+    (value ⇒ scale). Extracted so build_interpretation can iterate a LIST of frames on one card."""
     if not isinstance(rf, dict):
-        return []
+        return None
     value = _read_num_field(rf.get("value_field"), summary, cap)
     scale = rf.get("scale")
     if value is None or not scale:            # no bare frame without a value+scale
-        return []
+        return None
     gv = {"metric": rf.get("value_field"), "value": sig_round(value), "scale": scale,
-          "direction": spec.get("direction"), "frame": {"kind": rf.get("kind"), "anchors": []}}
+          "direction": direction, "frame": {"kind": rf.get("kind"), "anchors": []}}
     pos = _read_str_field(rf.get("position_field"), summary, cap)   # READ VERBATIM (never recomputed)
     if pos is not None:
         gv["position"] = pos
@@ -387,7 +382,30 @@ def build_interpretation(cap: dict, summary: dict, spec: dict | None = None,
             anchors.append({"role": "cut", "label": cut.get("label") or cut.get("threshold"),
                             "value": sig_round(cv)})
     gv["frame"]["anchors"] = anchors
-    return [gv]
+    return gv
+
+
+def build_interpretation(cap: dict, summary: dict, spec: dict | None = None,
+                         card_id: str | None = None, contracts_repo: str | None = None) -> list:
+    """Project spec['reference_frame'] → key_evidence.interpretation[] (list of gauged_value). Deterministic
+    (sig_round every number; absent layer omitted, never null-filled); [] when no frame or no value present.
+    Enforces 'no bare number': a value is emitted only with a non-null scale.
+
+    `reference_frame` is a dict OR a list of dicts — one card can carry >1 ruler (e.g. a distribution card
+    gauged BOTH on its pan-cancer rank AND on its within-panel position). Frames are projected in order;
+    frames whose value is absent drop out (a partially-measured card still emits the rulers it can)."""
+    cap = cap or {}
+    summary = summary or {}
+    spec = spec or {}
+    direction = spec.get("direction")
+    rf = spec.get("reference_frame")
+    frames = rf if isinstance(rf, list) else [rf]
+    out = []
+    for frame in frames:
+        gv = _project_frame(frame, cap, summary, direction, card_id, contracts_repo)
+        if gv is not None:
+            out.append(gv)
+    return out
 
 
 # ── indication → acceptable stratum labels (the canonical INDICATION_TO_* crosswalk) ─────────────────
