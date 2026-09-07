@@ -36,6 +36,31 @@ Dangerous false-positives to keep pinned: ADAR1, CLDN18.2_LRRC15, EGFR_cMET_VEGF
 
 ## Open cases
 
+### Regression-lock verification pass — discordance-loop fixes CASE-007…013 (2026-09-07)
+Ran the full loop-level regression lock against **clean trunk** (skills worktree off `v2-architecture` @ b2de9bd;
+target-contracts clean `main` @ 7028540) — NOT the dirty home checkout — to confirm every landed discordance fix is
+asserted where CI catches a regression.
+- **`eval/run_scorecard.py`** — the 4 regression-relevant steps are GREEN: `calibration` PASS, `discrimination` PASS,
+  `known_target_panel` (signal-vector score-only) PASS, `eval_ledger` PASS. The 2 RED steps — `framework_health` and
+  `runs_clean_smoke` — are **STALE-dashboard structural checks** (committed `framework_health.json` / `subskill_health.json`
+  differ from computed); a KNOWN pre-existing trunk condition (health/atlas staleness track), NOT a discordance regression
+  and NOT caused by CASE-007…013 (all eval/ + verdict-INERT headline-field changes). Out of scope here → owned by the
+  health/atlas-rebuild track.
+- **Each fix is regression-locked** (hermetic tests, run with worktree `--rootdir/--confcutdir`):
+  - CASE-007 `cooccurrence_temporal_context_caveat` + CASE-010 `survival_direction_scope_caveat` →
+    `differentiation-landscape/tests/test_cooccurrence_confidence_caveat.py` (27 passed) + MET `differentiation_note`
+    present in `target-contracts/vocabularies/known_target_calibration_set.yaml` (and the calibration suite PASSED).
+  - CASE-008 modality gate / `sm_modality_mismatch_caveat` → `tractability-small-molecule/tests/test_modality_gate.py`
+    (11) + `test_directness_and_agreement.py` (12 passed).
+  - CASE-009 `pharmacovigilance_scope_caveat` → `on-target-safety-liability/tests/test_pharmacovigilance_scope_caveat.py`
+    (3 passed).
+  - CASE-013 `concordant_over_flag` guard → `eval/tests/` (38 passed).
+- **Verdict spines byte-stable:** the caveats are verdict-INERT headline fields (not resolver rungs), and the
+  `calibration` suite — which loads the resolver-golden regression snapshots — PASSED, confirming the goldens are intact.
+- **Monitor baseline clean:** rebuilt the ledger over the pinned `eval/literature-snapshots/` and diffed vs
+  `eval/discordance_baseline.json` (33 sharp keys) → **0 NEW / 0 RESOLVED**, all count deltas 0 — the committed baseline
+  matches the current triaged set. **Conclusion: the loop's gains are locked.**
+
 ### CASE-013 — discordance-loop guard-tightening: auto-demote the dominant `dismissed_concordant` noise — LANDED (verdict-INERT, eval-only, 2026-09-07)
 - **Surfaced by:** `LOOP_HEALTH.md` (the loop's own precision instrument). The dominant NOISE source in the
   sharp candidate-gap set was `dismissed_concordant` (10 of 14 noise rows) — the `--literature` lane flags a
