@@ -156,4 +156,65 @@ def read_fusion_stratified_dependency(target: str, indication: Optional[str] = N
         f = {m: v for m, v in fusion_by_model.items() if m in c}
         return _cli.compute_fusion_stratification(c, f)
 
-    return apply_lineage_ladder(_compute, "fusion_stratification_class", model_metadata, indication)
+    result = apply_lineage_ladder(_compute, "fusion_stratification_class", model_metadata, indication)
+    # VERDICT-INERT confound annotation: symbol-union fusion involvement (v1) does not require the
+    # target be the in-frame retained partner, so a fusion-positive dependency can be an ARTEFACT of the
+    # fusion+ lines ALSO carrying an activating ALTERATION (mutation or amplification) in the target —
+    # they are dependent for the alteration, not the fusion. The KRAS/COADREAD case: 13 fusion+ lines,
+    # delta -0.55, yet 8/13 (61.5%) carry a KRAS hotspot/damaging mutation OR focal amplification, and
+    # KRAS fusions are not real drivers. Fires ONLY on a fusion-positive-dependent class; a REAL fusion
+    # driver (e.g. NTRK/ALK/ROS1) has fusion+ lines that are NOT target-mutant/amplified (the fusion IS
+    # the driver) → low overlap → alteration_independent, correctly not flagged. Fail-soft. Never changes
+    # fusion_stratification_class (no rule reads these fields).
+    result.update(_fusion_alteration_confound(fusion_by_model, chronos_by_model, target,
+                                              result.get("fusion_stratification_class")))
+    return result
+
+
+# Fraction of analyzed fusion-positive lines that must ALSO carry a target alteration (mutation OR focal
+# amplification) for the fusion-stratified dependency to be flagged confounded — a principled MAJORITY
+# criterion (>50% of the fusion+ arm is the altered arm). Verdict-inert.
+_FUSION_CONFOUND_OVERLAP_MIN = 0.5
+
+
+def _fusion_alteration_confound(fusion_by_model: dict, chronos_by_model: dict, target: str,
+                                fusion_class: Optional[str]) -> dict:
+    """Overlap of the analyzed fusion-positive set with the target's ALTERED set (hotspot/damaging
+    mutation ∪ focal amplification). Only meaningful on a fusion-positive-dependent call; otherwise
+    `not_applicable`. Fail-soft → `unassessed` when BOTH alteration lanes are unreadable."""
+    positive_dep = fusion_class in ("fusion_positive_strongly_dependent",
+                                    "fusion_positive_moderately_dependent")
+    _null = {"fusion_positive_altered_overlap_fraction": None, "n_fusion_positive_altered": None}
+    if not positive_dep:
+        return {"fusion_stratification_confound": "not_applicable", **_null}
+    # analyzed fusion-positive lines = fusion+ AND Chronos-screened (the stratification universe)
+    fus_pos = {m for m, v in fusion_by_model.items() if v and m in chronos_by_model}
+    if not fus_pos:
+        return {"fusion_stratification_confound": "unassessed", **_null}
+    altered: set = set()
+    ok = False
+    try:  # mutation arm (hotspot ∪ damaging)
+        from methods.depmap_mutation_dependency.cli import load_mutation_data
+        hotspot, damaging, mut_errs = load_mutation_data("26q1", target)
+        if hotspot or damaging:
+            altered |= {m for m in fus_pos if hotspot.get(m) or damaging.get(m)}
+            ok = True
+    except Exception:  # noqa: BLE001 — verdict-inert; a lane failure must not break the fusion read
+        pass
+    try:  # amplification arm (focal high-level, same cut the CN-stratified card uses)
+        from methods.depmap_cn_distribution import cli as _cncli
+        from methods.depmap_cn_dependency.cli import FOCAL_AMP_HIGH
+        cn_by, _meta, _assay, cn_errs = _cncli.load_cn_files(release_pin="26q1", target_symbol=target)
+        if cn_by and not cn_errs:
+            altered |= {m for m in fus_pos if cn_by.get(m, 0) > FOCAL_AMP_HIGH}
+            ok = True
+    except Exception:  # noqa: BLE001
+        pass
+    if not ok:
+        return {"fusion_stratification_confound": "unassessed", **_null}
+    frac = len(altered) / len(fus_pos)
+    confound = ("alteration_confounded" if frac >= _FUSION_CONFOUND_OVERLAP_MIN
+                else "alteration_independent")
+    return {"fusion_stratification_confound": confound,
+            "fusion_positive_altered_overlap_fraction": round(frac, 4),
+            "n_fusion_positive_altered": len(altered)}

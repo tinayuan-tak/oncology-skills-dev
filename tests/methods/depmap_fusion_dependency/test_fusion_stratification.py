@@ -96,3 +96,80 @@ def test_fusion_negative_more_dependent_is_never_mislabeled_positive_dependent()
     assert s["fusion_stratification_class"] == "fusion_negative_strongly_dependent"
     assert s["fusion_stratification_mannwhitney_q_reverse"] < 0.05
     assert s["delta_chronos_fusion_positive_vs_negative"] > 0   # negative arm more dependent → positive delta
+
+
+# ── fusion↔alteration confound annotation (verdict-inert; mutation ∪ focal amplification overlap) ──
+from methods.depmap_fusion_dependency.read import _fusion_alteration_confound  # noqa: E402
+
+
+def _fusion_universe(n_pos, n_neg):
+    """chronos_by_model + fusion_by_model with n_pos fusion+ / n_neg fusion- ACH ids."""
+    chronos, fusion = {}, {}
+    for i in range(n_pos):
+        m = f"ACH-{i:05d}"; chronos[m] = -0.8; fusion[m] = True
+    for j in range(n_neg):
+        m = f"ACH-9{j:04d}"; chronos[m] = 0.0; fusion[m] = False
+    return chronos, fusion
+
+
+def _patch_alterations(monkeypatch, mutant_ids=(), amplified_ids=(), mut_fail=False, cn_fail=False):
+    def fake_load_mutation_data(release_pin, target_symbol):
+        if mut_fail:
+            return {}, {}, [{"_live_read_error": "x"}]
+        return ({m: True for m in mutant_ids}, {}, [])
+    def fake_load_cn_files(release_pin, target_symbol):
+        if cn_fail:
+            return {}, {}, None, [{"_live_read_error": "x"}]
+        return ({m: 3.0 for m in amplified_ids}, {}, "assay", [])
+    monkeypatch.setattr("methods.depmap_mutation_dependency.cli.load_mutation_data",
+                        fake_load_mutation_data, raising=False)
+    monkeypatch.setattr("methods.depmap_cn_distribution.cli.load_cn_files",
+                        fake_load_cn_files, raising=False)
+
+
+def test_confound_flags_majority_altered_fusion_positive(monkeypatch):
+    """The KRAS shape: a fusion-positive-dependent call whose fusion+ lines are MAJORITY target-altered
+    (mutation ∪ focal amp ≥ 50%) → alteration_confounded (verdict-inert)."""
+    chronos, fusion = _fusion_universe(13, 300)
+    fpos = sorted(m for m, v in fusion.items() if v)
+    _patch_alterations(monkeypatch, mutant_ids=fpos[:6], amplified_ids=fpos[6:8])  # 8/13 = 0.615
+    r = _fusion_alteration_confound(fusion, chronos, "KRAS", "fusion_positive_strongly_dependent")
+    assert r["fusion_stratification_confound"] == "alteration_confounded"
+    assert r["fusion_positive_altered_overlap_fraction"] == 0.6154 and r["n_fusion_positive_altered"] == 8
+
+
+def test_confound_independent_when_minority_altered(monkeypatch):
+    """A REAL fusion driver: fusion+ lines are the driver, NOT target-mutant/amplified → minority overlap
+    → alteration_independent (the flag must NOT fire on a genuine fusion dependency)."""
+    chronos, fusion = _fusion_universe(20, 300)
+    fpos = sorted(m for m, v in fusion.items() if v)
+    _patch_alterations(monkeypatch, mutant_ids=fpos[:2], amplified_ids=fpos[2:3])  # 3/20 = 0.15
+    r = _fusion_alteration_confound(fusion, chronos, "NTRK1", "fusion_positive_strongly_dependent")
+    assert r["fusion_stratification_confound"] == "alteration_independent"
+    assert r["fusion_positive_altered_overlap_fraction"] == 0.15
+
+
+def test_confound_not_applicable_on_non_positive_class(monkeypatch):
+    chronos, fusion = _fusion_universe(13, 300)
+    _patch_alterations(monkeypatch, mutant_ids=[])
+    r = _fusion_alteration_confound(fusion, chronos, "KRAS", "not_fusion_stratified")
+    assert r["fusion_stratification_confound"] == "not_applicable"
+    assert r["fusion_positive_altered_overlap_fraction"] is None
+
+
+def test_confound_unassessed_when_both_alteration_lanes_fail(monkeypatch):
+    chronos, fusion = _fusion_universe(13, 300)
+    _patch_alterations(monkeypatch, mut_fail=True, cn_fail=True)
+    r = _fusion_alteration_confound(fusion, chronos, "KRAS", "fusion_positive_moderately_dependent")
+    assert r["fusion_stratification_confound"] == "unassessed"
+
+
+def test_confound_uses_one_lane_when_other_fails(monkeypatch):
+    """Fail-soft is per-lane: if CN is unreadable but mutation loads, the overlap still computes from the
+    mutation lane (ok=True) rather than degrading to unassessed."""
+    chronos, fusion = _fusion_universe(10, 300)
+    fpos = sorted(m for m, v in fusion.items() if v)
+    _patch_alterations(monkeypatch, mutant_ids=fpos[:6], cn_fail=True)  # 6/10 = 0.6, CN down
+    r = _fusion_alteration_confound(fusion, chronos, "KRAS", "fusion_positive_strongly_dependent")
+    assert r["fusion_stratification_confound"] == "alteration_confounded"
+    assert r["fusion_positive_altered_overlap_fraction"] == 0.6
