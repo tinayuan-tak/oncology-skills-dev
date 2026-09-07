@@ -36,6 +36,38 @@ Dangerous false-positives to keep pinned: ADAR1, CLDN18.2_LRRC15, EGFR_cMET_VEGF
 
 ## Open cases
 
+### CASE-014 — functional-requirement EPAS1/HIF2A/RCC reads `non_dependent` vs belzutifan-validated VHL-conditional dependency — REAL biomarker-conditional FN; calibration known-gap anchored (discordance follow-up, 2026-09-07)
+- **Surfaced by:** the CASE-011 re-harvest de-masking (`~/dev/discordance_full_sweep_ledger_2026-09-07.json`;
+  the HIF2A→EPAS1 alias fix removed the phantom data-unavailable and exposed the real signal). functional-requirement
+  `EPAS1 | RCC` reads `sub_verdict = non_dependent` (driving `non-dependent-killer`); claim `DEP = absent` (moderate),
+  `SEL = absent` (high), `COND = unmeasured`. Literature (verified) contradicts DEP: EPAS1/HIF-2α is THE canonical
+  oncogenic driver of VHL-deficient ccRCC, and belzutifan (approved HIF-2α antagonist) is on-mechanism clinical
+  validation; the COND lane assertion is explicit — "HIF2α addiction is CONDITIONAL on VHL loss."
+- **Determination — a REAL biomarker-conditional dependency FN (not noise, not a caveat), but the omics is HONEST:**
+  the framework reads `non_dependent` because 2D pan-line DepMap CRISPR/RNAi genuinely under-represents this
+  dependency — EPAS1/HIF-2α addiction is in-vivo / VHL-loss-conditional, and the partner-conditional `COND` axis is
+  UNMEASURED for EPAS1×VHL. Critically, ccRCC is near-uniformly VHL-null, so there is **no in-panel VHL-WT contrast**
+  to compute a conditional stratum from — the conditional lane cannot be built from the RCC-restricted panel alone
+  (it needs a pan-cancer VHL-status stratification). Same CLASS as [[CASE-010]] PARP1/COND (HRD-conditional) and the
+  known_gap_watchlist entries MET/LUAD (`biomarker_conditional`, METex14) + SMARCA2/LUAD (`partner_conditional_sl`).
+- **Not a resolver-rule bug:** `non-dependent-killer` firing on a flat pan-line distribution is correct behavior;
+  the gap is a MISSING conditional-dependency measurement, not a mis-firing rule. Literature stays OUT of the verdict.
+- **Ratchet (LANDED):** target-contracts PR #676 — a `known_gap_watchlist` entry `EPAS1` (keyed by HGNC per the
+  [[CASE-011]] alias lesson), `dependency_mode: biomarker_conditional`, `biomarker: VHL_loss`,
+  `assertion_type: known_gap_expected_fail`, `expected_verdict_current: non_dependent` /
+  `expected_driving_rule_current: non-dependent-killer`, flip target
+  `expected_after_vhl_conditional: [biomarker_stratified_dependency, conditional_dependent, insufficient]`.
+  `measured: false` (reasoned-only) — the live `epas1_rcc.functional-requirement.json` snapshot needs a cbg `--emit`;
+  upgrade to `measured: true` when captured. DISTINCT from the pre-existing `reference_profiles` HIF2A/RCC anchor
+  (which frames the OVERALL nomination as `clinical_precedent`/`license_blocked` honest_blind — the Cortellis wall);
+  this pins the dependency-axis FN specifically.
+- **Fix path (deferred data-build):** wire a VHL-status-stratified dependency lane (DepMap VHL mutation status × a
+  pan-cancer conditional stratum) into functional-requirement's `partner-conditional-dependency` / biomarker-stratified
+  card; when it lands, flip the watchlist entry to `must_not_veto`. Mostly WIRE (DepMap already carries VHL status),
+  not ACQUIRE. Escalate-only; literature not citable.
+- **Status:** DOCUMENTED + calibration known-gap ANCHORED (contracts #676). Snapshot capture + the conditional lane
+  are the deferred follow-ups.
+
 ### Regression-lock verification pass — discordance-loop fixes CASE-007…013 (2026-09-07)
 Ran the full loop-level regression lock against **clean trunk** (skills worktree off `v2-architecture` @ b2de9bd;
 target-contracts clean `main` @ 7028540) — NOT the dirty home checkout — to confirm every landed discordance fix is
