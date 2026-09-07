@@ -78,6 +78,13 @@ outputs:
       - approved_indirect_only           # ChEMBL approved BUT indirect/sparse roster -> does NOT inflate (undruggable-TF fix)
       - not_chembl_approved              # ChEMBL max_phase < 4 / absent (the approved rung never applied)
 
+thresholds:
+  potent_neglog_m: 6.0     # -log10(M) >= 6  ==  <= 1 uM — the canonical small-molecule potency / druggability
+                           # cut (matches best_measured_potency_neglog_m's inline convention). Named as a
+                           # threshold so the interpretation-encoding reference-frame ruler single-sources this
+                           # cut (evidence_salience SALIENCE_SPECS[measured_potency_tractability]) instead of
+                           # re-hardcoding it. DISPLAY-ONLY consumer; no rule keys on it.
+
 warning_predicates:
   - warning_id: measured_potency_data_unavailable
     if: "measured_bioactivity_class == 'data_unavailable'"
