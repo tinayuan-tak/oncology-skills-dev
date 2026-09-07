@@ -47,8 +47,8 @@ outputs:
     - network_class                         # PRIMARY categorical: well_characterized | partial | sparse | data_unavailable
     - n_upstream_regulators                 # count of distinct upstream partners
     - n_downstream_effectors                # count of distinct downstream partners
-    - upstream_regulators                   # list<struct: partner_uniprot_ac, partner_symbol, raw_mechanism, moa_class, modality_relevance>
-    - downstream_effectors                  # list<struct: partner_uniprot_ac, partner_symbol, raw_mechanism, moa_class, pd_marker_relevance>
+    - upstream_regulators                   # list<struct: partner_uniprot_ac, partner_gene_symbol, raw_mechanism, moa_class, modality_relevance>
+    - downstream_effectors                  # list<struct: partner_uniprot_ac, partner_gene_symbol, raw_mechanism, moa_class, pd_marker_relevance>
     - moa_classes_present                   # list<string> — unique MoA classes hit by upstream partners
     - pd_marker_classes_present             # list<string> — unique MoA classes hit by downstream partners
     - has_actionable_moa                    # bool — >= 1 upstream partner with modality_relevance intersect actionable_modalities

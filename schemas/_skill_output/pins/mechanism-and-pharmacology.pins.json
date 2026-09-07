@@ -9,7 +9,6 @@
         "well_characterized",
         "partial",
         "sparse",
-        "has_pd_marker",
         "insufficient",
         "data_unavailable"
       ]

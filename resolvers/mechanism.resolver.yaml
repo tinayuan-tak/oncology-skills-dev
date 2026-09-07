@@ -1,13 +1,16 @@
 # mechanism-and-pharmacology (Gate D) verdict resolver (gap #5, 2026-07-20).
 # Declarative transcription of skills/mechanism-and-pharmacology/scripts/run.py::_verdict.
-# NETWORK SHAPE resolves BEFORE the PD-marker flag (2026-07-17): has_pd_marker fires
-# whenever >=1 downstream effector exists, which is also true for sparse/partial networks —
-# so if it outranked sparse, a sparse network with any PD marker would bury the sparse
-# OPPOSING warning. Network shape is the primary read; the PD marker is a secondary
-# annotation. This ordering is exactly why the visible precedence ladder matters.
+# NETWORK SHAPE is the sole verdict axis. The former `has_pd_marker` rung (priority 3) was
+# STRUCTURALLY DEAD and REMOVED (2026-09-07, v1.2.0): has-pd-marker-supportive fires iff
+# n_downstream >= 1, but n_downstream >= 1 forces network_class ∈ {well_characterized, partial,
+# sparse} (never data_unavailable), so a shape rung (priority 0-2) ALWAYS co-fired and outranked
+# it — the has_pd_marker verdict could never win (proven; won 0/7 across the panel). The PD marker
+# remains surfaced non-verdictally as headline.has_pd_marker + pd_marker_classes_present (a
+# secondary annotation, like alteration-role), so nothing is lost. (Its original ordering rationale
+# — protecting a sparse OPPOSING warning — was also stale: `sparse` is now NEUTRAL, not opposing.)
 gate: mechanism
-version: 1.1.0
-description: Signaling-network mechanism precedence — network shape before PD-marker flag.
+version: 1.2.0
+description: Signaling-network mechanism precedence — network shape is the sole verdict axis.
 resolve:
   - verdict: well_characterized
     when_fired: mechanism-well-characterized-supportive
@@ -18,11 +21,8 @@ resolve:
   - verdict: sparse
     when_fired: mechanism-sparse-warning
     priority: 2
-  - verdict: has_pd_marker
-    when_fired: has-pd-marker-supportive
-    priority: 3
   - verdict: data_unavailable
     when_fired: mechanism-data-unavailable-insufficient
-    priority: 4
+    priority: 3
 default: insufficient
 evaluation: match_all_reduce
