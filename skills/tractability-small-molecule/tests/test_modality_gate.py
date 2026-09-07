@@ -122,3 +122,21 @@ def test_caveat_curated_fallback_when_card_field_absent():
         {"has_approved_drug": True}, target="DLL3") is not None            # DLL3 ∈ curated set
     assert tp._sm_modality_mismatch_caveat(
         {"has_approved_drug": True}, target="BRAF") is None                # BRAF ∉ curated set → None
+
+
+# ── #07: live biologics-only vocab reader (replaces the hardcoded fallback) ───────────────────────
+def test_live_loader_covers_biologics_only_and_excludes_dual_sm():
+    from _skills_common._live_readers import _load_biologics_precedent_modalities
+    m = _load_biologics_precedent_modalities()
+    # biologics-only antigens present with their modality tag
+    assert m.get("DLL3") == "tce" and m.get("CEACAM5") == "adc_tce" and m.get("FOLR1") == "adc"
+    # osimertinib guard: dual-modality SM targets + the SM-radioligand PSMA are EXCLUDED
+    for g in ("EGFR", "ERBB2", "MET", "FOLH1"):
+        assert g not in m, f"{g} must NOT be biologics_only (has approved/SM-radioligand chemistry)"
+
+
+def test_caveat_live_fallback_excludes_dual_modality_target():
+    # The DRIFT fix: on the degraded fallback path (card field absent), the LIVE vocab read must NOT
+    # caveat ERBB2 (dual-modality — approved SM tucatinib/lapatinib), unlike the coarse hardcoded set.
+    assert tp._sm_modality_mismatch_caveat({"has_approved_drug": True}, target="ERBB2") is None
+    assert tp._sm_modality_mismatch_caveat({"has_approved_drug": True}, target="DLL3") is not None

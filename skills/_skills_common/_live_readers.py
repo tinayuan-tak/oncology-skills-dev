@@ -81,6 +81,31 @@ def _load_biologics_precedent_targets_cached(contracts_root: str) -> frozenset:
         return frozenset()
 
 
+def _load_biologics_precedent_modalities() -> dict:
+    """CASE-008 (#07): the BIOLOGICS-ONLY subset of biologics_precedent_targets.yaml mapped gene → modality
+    tag (adc/tce/adc_tce/car/...). ONLY entries flagged `biologics_only: true` (an approved biologic with NO
+    approved small molecule) — the same positive-only gate the AM dgidb reader keys on, so EGFR/ERBB2/MET
+    (dual-modality SM, no flag) and FOLH1/PSMA are correctly EXCLUDED (the osimertinib guard). Replaces the
+    hardcoded _BIOLOGICS_APPROVED_NONSM in tractability-small-molecule so new vocab entries are covered
+    automatically. Read-only, lru-cached, never raises — {} on an unreadable vocab (the caveat then falls to
+    its own hardcoded fail-safe). Distinct from _load_biologics_precedent_targets (the SUPERSET key set the
+    surface skill consumes)."""
+    return _load_biologics_precedent_modalities_cached(str(_TARGET_CONTRACTS_ROOT))
+
+
+@__import__("functools").lru_cache(maxsize=4)
+def _load_biologics_precedent_modalities_cached(contracts_root: str) -> dict:
+    path = Path(contracts_root) / "vocabularies" / "biologics_precedent_targets.yaml"
+    try:
+        import yaml
+        entries = (yaml.safe_load(path.read_text()) or {}).get("entries", {}) or {}
+        return {g: (v.get("modality") or "biologic")
+                for g, v in entries.items()
+                if isinstance(v, dict) and bool(v.get("biologics_only", False))}
+    except Exception:  # noqa: BLE001 — never break the caveat on a vocab read
+        return {}
+
+
 def _load_surface_secreted_antigens() -> frozenset:
     """The curated surface/secreted-antigen gene set (target-contracts vocab
     surface_secreted_antigen_targets.yaml, #980). Cell-surface / secreted antigens of the class
