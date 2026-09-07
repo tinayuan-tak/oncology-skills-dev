@@ -36,7 +36,7 @@ without this.
 from __future__ import annotations
 
 from _skills_common.claim_vector_core import (ClaimSpec, build_claim_vector, build_key_signals,
-                                              cap_corroboration, sig_ge)
+                                              bump_corroboration, cap_corroboration, sig_ge)
 
 # ── enum → LIABILITY tier maps (grounded in the target-contracts card summary_fields_vocabulary) ────
 _CONSTRAINT_SIGNAL = {
@@ -140,11 +140,26 @@ def _constraint_signal(h, c):
     return sig, ev, conflict
 
 
+# s_het (GeneBayes) classes that AGREE with a gnomAD-constrained call vs the one that CONTRADICTS it.
+_SHET_CONSTRAINED = {"high_intolerance", "moderate_intolerance"}
+_SHET_TOLERANT = {"tolerant"}
+
+
 def _constraint_corr(h, c):
     if _CONSTRAINT_SIGNAL.get(h.get("constraint_class"), "unmeasured") == "unmeasured":
         return "unmeasured"
-    # pLI + LOEUF present = a well-powered constraint read
-    return "high" if isinstance(h.get("pli_score"), (int, float)) and isinstance(h.get("loeuf_score"), (int, float)) else "moderate"
+    # gnomAD pLI+LOEUF is ONE source → base corroboration. s_het (GeneBayes dominant-LoF selection
+    # coefficient, Zeng 2024) is a genuinely INDEPENDENT second arm: an AGREEING s_het (intolerant) bumps
+    # corroboration, a CONTRADICTING s_het (gnomAD-constrained yet LoF-tolerant) caps it. Previously this was
+    # pinned 'high' on pLI+LOEUF presence ALONE — a dead-constant column; s_het makes it carry real
+    # cross-source agreement. Verdict-INERT (the safety verdict is the resolver's, not this projection's).
+    base = "moderate" if isinstance(h.get("pli_score"), (int, float)) and isinstance(h.get("loeuf_score"), (int, float)) else "low"
+    shet = h.get("shet_class")
+    if shet in _SHET_CONSTRAINED:                       # independent agreeing arm → moderate→high (low→moderate)
+        return bump_corroboration(base, True)
+    if shet in _SHET_TOLERANT and sig_ge(_CONSTRAINT_SIGNAL.get(h.get("constraint_class")), "moderate"):
+        return cap_corroboration(base, "low")           # gnomAD-constrained but s_het-tolerant → conflict caps
+    return base                                         # s_het indeterminate / absent → single-source base
 
 
 def _burden_signal(h, c):
