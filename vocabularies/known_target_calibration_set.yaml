@@ -123,6 +123,10 @@ known_gap_watchlist:
     expected_driving_rule_current: non-dependent-killer
     expected_after_metex14: [biomarker_stratified_dependency, conditional_dependent, insufficient]  # flip when a METex14 classifier strata-fies the dependency
     note: "Biomarker-conditional false-negative (analogue of SMARCA2/LUAD). Pan-line CRISPR/RNAi reads strongly_concordant_non_dependent because METex14 skipping — a splice-site event in ~3% of LUAD — is invisible to the missense/hotspot-centric genomics + the pan-line dependency distribution. MET is APPROVED in LUAD, so the gate-C non_dependent veto is WRONG. Flips to must_not_veto once a METex14 classifier stratifies mutation-stratified-dependency (KNOWN_ISSUES-2026-08-26 MET-LUAD DATA-GAP; mostly WIRE from depmap MAF splice-site + CIViC METex14 + isoform/exon index, not ACQUIRE)."
+    # SEPARATE axis (differentiation-landscape), surfaced by the literature↔deterministic discordance loop
+    # (skills eval/CASE_LOG.md CASE-007). Verdict-INERT — NOT a nomination-gate assertion, so no
+    # assertion_type/snapshot here; recorded as the regression-lock anchor for the caveat fix.
+    differentiation_note: "Co-mutation reads strong_cooccurring, but de-novo MET drivers in LUAD are largely mutually exclusive with EGFR/ALK/ROS1 — MET co-occurrence is chiefly an ACQUIRED EGFR-TKI bypass (secondary MET amplification), a temporal/treatment-context association the cross-sectional cooccurrence_fisher_pancohort (no treatment axis) cannot separate from a de-novo co-driver. Regression-locked by the verdict-INERT cooccurrence_temporal_context_caveat (skills PR #1151, differentiation-landscape v1.11.0) + its hermetic tests; expected co-mutation reading = bypass-context / mutually-exclusive, NOT a de-novo patient-selection co-mutation."
 
   MARK2:
     indication: PAAD
