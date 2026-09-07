@@ -63,6 +63,53 @@ def test_harvest_pair_projects_records(monkeypatch):
     assert r["_provenance"]["model_id"] == "us.anthropic.claude-opus-4-8"
 
 
+def test_canonical_symbol_maps_aliases():
+    """The calibration-set alias KEYS resolve to their HGNC-canonical gene symbol; canonical /
+    unknown symbols pass through unchanged (CASE-011)."""
+    assert hl._canonical_symbol("HER2") == "ERBB2"
+    assert hl._canonical_symbol("TROP2") == "TACSTD2"
+    assert hl._canonical_symbol("BCMA") == "TNFRSF17"
+    assert hl._canonical_symbol("CD20") == "MS4A1"
+    assert hl._canonical_symbol(" HER2 ") == "ERBB2"        # whitespace-tolerant
+    assert hl._canonical_symbol("KRAS") == "KRAS"           # already canonical → unchanged
+    assert hl._canonical_symbol("NOT_A_GENE") == "NOT_A_GENE"
+
+
+def test_harvest_pair_runs_on_canonical_symbol_but_labels_the_alias(monkeypatch):
+    """CASE-011 regression: the fan-out is invoked on the HGNC symbol (ERBB2), so gene-keyed
+    readers resolve, while the emitted record stays LABELLED with the calibration alias (HER2) —
+    calibration_gap tagging + the snapshot filename remain keyed by the display symbol."""
+    seen = {}
+
+    def _capture(target, indication, **kw):
+        seen["target"] = target
+        seen["indication"] = indication
+        return {
+            "tractability_sm": {
+                "skill_dir": "tractability-small-molecule",
+                "verdict": ("chemically_active", "prism-clinically-active-supportive-sm"),
+                "fired": [{"rule_id": "prism-clinically-active-supportive-sm"}],
+                "synthesis_facet": {
+                    "claim_vector": {},
+                    "literature_synthesis": {"overall_consistency": "concordant",
+                                             "axes": [], "blind_spots": [],
+                                             "_model_id": "m", "_prompt_hash": "h"},
+                },
+            },
+        }
+
+    stub = types.ModuleType("tp_fanout")
+    stub._run_sub_skills = _capture
+    monkeypatch.setitem(sys.modules, "tp_fanout", stub)
+
+    recs = hl.harvest_pair("HER2", "BRCA")
+    assert seen["target"] == "ERBB2"                        # fan-out ran on the HGNC symbol
+    assert len(recs) == 1
+    assert recs[0]["target"] == "HER2"                      # record keeps the alias label
+    assert recs[0]["resolved_symbol"] == "ERBB2"            # audit trail records the resolution
+    assert recs[0]["sub_verdict"]["verdict"] == "chemically_active"
+
+
 def test_harvested_records_feed_the_aggregator(monkeypatch, tmp_path):
     """End-to-end (offline): harvest → snapshot → build_discordance_ledger."""
     import build_discordance_ledger as bdl

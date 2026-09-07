@@ -48,14 +48,38 @@ def _normalize_verdict(verdict) -> tuple[str | None, str | None]:
     return None, None
 
 
+def _canonical_symbol(target: str) -> str:
+    """Map a display/alias symbol (the calibration-set KEY, e.g. HER2/TROP2/BCMA/CD20) to the
+    HGNC-canonical gene symbol the gene-keyed data products are keyed by (ERBB2/TACSTD2/TNFRSF17/
+    MS4A1). Single-sources run_known_target_panel.TARGET_CANON so the harvest resolves the SAME
+    symbol as the nomination backtest — WITHOUT this, the fan-out queried every gene-keyed reader
+    (PRISM/DGIdb/ChEMBL/structure) with an ALIAS that matches no HGNC row, so each gene-keyed axis
+    read a spurious data-unavailable / no-compounds-found and the ledger logged a phantom
+    calibration_gap (CASE-011: HER2/BRCA tractability read chemically_unhit via
+    prism-no-compounds-found-neutral, though the resolved ERBB2 run reads chemically_active with 37
+    PRISM compounds + 201 DGIdb approved interactions). Canonical / unknown symbols pass through."""
+    try:
+        from run_known_target_panel import TARGET_CANON
+    except Exception:  # noqa: BLE001 — a canon-map import fault must never abort a harvest
+        TARGET_CANON = {}
+    sym = (target or "").strip()
+    return TARGET_CANON.get(sym, sym)
+
+
 def harvest_pair(target: str, indication: str, *, literature_scope: str = "all",
                  model: str | None = None) -> list[dict]:
     """Run the fan-out with the --literature lane ON and project each sub-skill into a
     normalized harvest record. Records are only produced for sub-skills whose lane actually
-    ran (a skill with no narrator lens, or a lit-native skill, is honestly skipped)."""
+    ran (a skill with no narrator lens, or a lit-native skill, is honestly skipped).
+
+    The fan-out runs on the HGNC-canonical symbol (see _canonical_symbol) so gene-keyed readers
+    resolve; the record keeps `target` = the ORIGINAL display/alias symbol (the calibration-set
+    key) so calibration_gap tagging + the snapshot filename stay keyed by that symbol, mirroring
+    run_known_target_panel (curated `name` vs resolved `emit_target`)."""
     from tp_fanout import _run_sub_skills  # imported lazily so --help needs no skills path
 
-    sub_results = _run_sub_skills(target, indication,
+    run_symbol = _canonical_symbol(target)
+    sub_results = _run_sub_skills(run_symbol, indication,
                                   subskill_literature=True,
                                   subskill_literature_scope=literature_scope,
                                   synthesis_model=model)
@@ -70,6 +94,9 @@ def harvest_pair(target: str, indication: str, *, literature_scope: str = "all",
         fired_ids = [f.get("rule_id") for f in fired if isinstance(f, dict)] if fired else []
         records.append({
             "target": target,
+            # HGNC symbol the fan-out actually resolved (== target unless an alias was canonicalized).
+            # Audit trail for CASE-011; downstream (build_discordance_ledger) ignores unknown keys.
+            "resolved_symbol": run_symbol,
             "indication": indication,
             "skill": res.get("skill_dir") or short,   # skill DIR id (matches atlas-exclusion set)
             "axis_short": short,

@@ -36,6 +36,54 @@ Dangerous false-positives to keep pinned: ADAR1, CLDN18.2_LRRC15, EGFR_cMET_VEGF
 
 ## Open cases
 
+### CASE-011 — HER2/BRCA tractability `chemically_unhit` — HARVEST gene-alias artifact, NOT a skill FN — FIXED (2026-09-07)
+- **Surfaced by:** the full-sweep ledger (`~/dev/discordance_full_sweep_ledger_2026-09-07.json`) —
+  `tractability-small-molecule | HER2 | BRCA` reads `chemically_unhit` (driving rule
+  `prism-no-compounds-found-neutral`) across DRUG + ACTIVITY, tagged `calibration_gap` (verified lit:
+  approved HER2 TKIs lapatinib/neratinib/tucatinib). Originally queued as CASE-008 **mechanism 2**
+  ("PRISM/ChEMBL coverage false-negative"). **That triage was wrong** — it is not a data-coverage gap.
+- **Root cause (named):** `eval/harvest_literature.py` ran the fan-out on the calibration-set **KEY**
+  verbatim — `HER2` — with **no** HGNC canonicalization. Every gene-keyed reader keys on the HGNC symbol
+  (`dgidb_drug_gene.read` filters `gene_symbol == target.upper()`; PRISM / `measured_potency_tractability` /
+  structure likewise), and the alias `HER2` matches **no** `ERBB2` row → each gene-keyed axis read a spurious
+  `data_unavailable` / no-compounds-found. The verdict is a phantom: harvest snapshot
+  `eval/literature-snapshots/HER2__BRCA.json` fired only `*-data-unavailable-insufficient` /
+  `prism-no-compounds-found-neutral` / `*-no-coverage` rules.
+- **Proof it's the symbol, not coverage:** the properly-resolved run reads a strong TRUE POSITIVE.
+  `eval/known-target-packages/ERBB2__brca.json` (the panel canonicalizes HER2→ERBB2 via
+  `run_known_target_panel.TARGET_CANON`): `prism-compound-activity = clinically_active` (37 compounds:
+  afatinib/neratinib/tucatinib/lapatinib/pyrotinib), `known-drug-tractability = approved_drug_tractable`
+  (201 approved / 224 antineoplastic DGIdb interactions), `measured-potency = potent_measured_ligand`
+  (ChEMBL 2728 potent, phase=approved), `structure = experimental_ligandable`. Resolver →
+  `prism-clinically-active-supportive-sm` (priority 3) → **`chemically_active`**. Direct standalone re-run
+  confirms: `--target HER2` → `insufficient` (nothing resolves); `--target ERBB2` → resolves cards
+  (`structurally_ligandable` even offline; `chemically_active` with S3/PRISM).
+- **Scope of the bug (not just HER2):** the harvest iterated the SAME aliased calibration KEYS the panel
+  canonicalizes — **HER2, TROP2, BCMA, CD20, SCD1, HIF2A, ADAR1** — so every gene-keyed axis for all 7
+  was silently mis-harvested. This inflates the ledger's `blind_spot_gap` / `calibration_gap` counts with
+  phantom rows fleet-wide (a review-queue integrity issue, beyond CASE-011's HER2 instance).
+- **Fix (LANDED, eval-only, verdict/golden/replay BYTE-STABLE):** `harvest_literature._canonical_symbol`
+  single-sources `run_known_target_panel.TARGET_CANON`; `harvest_pair` runs the fan-out on the HGNC symbol
+  while keeping the record `target` = the display/alias key (so calibration_gap tagging + the snapshot
+  filename stay keyed by the calibration symbol — mirrors the panel's `name` vs `emit_target`). Records now
+  carry `resolved_symbol` for audit. The tractability SKILL, its resolver, golden, and replay fixtures are
+  **untouched** — no verdict moved (the ERBB2 verdict was already correct). 4 new hermetic tests
+  (`test_canonical_symbol_maps_aliases`, `test_harvest_pair_runs_on_canonical_symbol_but_labels_the_alias`);
+  `eval/tests/` 28/28 green.
+- **NO calibration anchor added:** this is NOT a genuine `known_gap_expected_fail` — the framework gets
+  HER2/ERBB2 SM-tractability RIGHT on the canonical symbol. Adding a `should_be` anchor would encode a
+  harness artifact as truth. (HER2 already sits in `reference_profiles`.)
+- **Follow-up (needs Bedrock + `AWS_PROFILE=cbg`):** re-harvest the 7 aliased pairs (`HER2/BRCA`, `TROP2/…`,
+  `BCMA/…`, `CD20/…`, `SCD1/…`, `HIF2A/…`, `ADAR1/…`) to refresh `eval/literature-snapshots/*` + rebuild the
+  ledger; the HER2 tractability rows should drop out of the calibration_gap set (→ `chemically_active`,
+  concordant). Corrects CASE-008 mechanism 2 (there is no HER2 PRISM-coverage gap to close).
+- **Deeper hardening (proposed, out of scope):** the gene-keyed readers classify an *unresolvable* symbol as
+  an affirmative "no compounds found" (`prism-no-compounds-found-neutral` → `chemically_unhit`) rather than a
+  coverage-gap `insufficient` — an absent-vs-unresolved conflation. Alias→HGNC resolution in the reader/
+  dispatcher layer (vs each harness's curated `TARGET_CANON`) would be the robust cross-repo fix, but it is
+  verdict-moving with wide golden fan-out; keep it as a follow-up, not part of this eval-only fix.
+- **Status:** FIXED (harvest canonicalization landed). Corpus/ledger re-harvest QUEUED (credentialed).
+
 ### CASE-001 — surface-antigen TOPOLOGY killer — DEMOTED by live data (2026-09-02)
 - **Original hypothesis:** add a multi-TM/ion-channel topology-killer to surface-modality-fit,
   subordinate to clinical precedent — flip GRIN2D (calibration said `framework_abstains_correctly`,
@@ -211,7 +259,10 @@ ledger `~/dev/discordance_full_sweep_ledger_2026-09-07.json`). One clean fix + 1
      biologic and no approved SM binder exists.
   2. **PRISM coverage false-NEGATIVE (opposite direction):** HER2/BRCA reads `chemically_unhit` despite
      approved SM TKIs (lapatinib/neratinib/tucatinib) — a chemical-genetic under-credit, NOT inflation.
-     Separate gap (PRISM/ChEMBL coverage), not addressed here.
+     Separate gap (PRISM/ChEMBL coverage), not addressed here. **[CORRECTED by CASE-011 (2026-09-07): this
+     was NOT a PRISM/ChEMBL coverage gap — it was a harvest gene-alias artifact. The harvest ran on the
+     un-canonicalized alias `HER2`; the resolved `ERBB2` run reads `chemically_active` (37 PRISM compounds,
+     201 DGIdb approved). Fixed in `harvest_literature.py`.]**
   3. **Approval-status / indication-floor noise:** IDO1 (SM-directed but not approved), NLRP3 (heme floor
      under-credit), XPO1 DEGRADER axis, KIF11 (arguably honest `discordant`). Not modality mismatch.
 - **Root cause (mechanism 1):** the DGIdb `known-drug-tractability` card + `dgidb_drug_gene` method are
