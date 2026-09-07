@@ -128,6 +128,19 @@ known_gap_watchlist:
     # assertion_type/snapshot here; recorded as the regression-lock anchor for the caveat fix.
     differentiation_note: "Co-mutation reads strong_cooccurring, but de-novo MET drivers in LUAD are largely mutually exclusive with EGFR/ALK/ROS1 — MET co-occurrence is chiefly an ACQUIRED EGFR-TKI bypass (secondary MET amplification), a temporal/treatment-context association the cross-sectional cooccurrence_fisher_pancohort (no treatment axis) cannot separate from a de-novo co-driver. Regression-locked by the verdict-INERT cooccurrence_temporal_context_caveat (skills PR #1151, differentiation-landscape v1.11.0) + its hermetic tests; expected co-mutation reading = bypass-context / mutually-exclusive, NOT a de-novo patient-selection co-mutation."
 
+  EPAS1:                               # HIF2A / HIF-2α (HGNC=EPAS1; keyed by HGNC per the CASE-011 alias lesson)
+    indication: RCC
+    modality: small_molecule           # belzutifan (HIF-2α antagonist), approved in VHL-associated ccRCC
+    outcome: approved_class            # belzutifan approved; the canonical VHL-loss oncogenic dependency
+    dependency_mode: biomarker_conditional   # dependency is conditional on VHL loss (VHL-null stabilizes HIF-2α)
+    biomarker: VHL_loss
+    assertion_type: known_gap_expected_fail
+    measured: false                    # reasoned-only — snapshot capture pending a live cbg --emit (epas1_rcc.functional-requirement.json)
+    expected_verdict_current: non_dependent
+    expected_driving_rule_current: non-dependent-killer
+    expected_after_vhl_conditional: [biomarker_stratified_dependency, conditional_dependent, insufficient]  # flip when a VHL-status classifier stratifies the dependency
+    note: "Biomarker-conditional false-negative (analogue of MET/LUAD + SMARCA2/LUAD), surfaced by the literature↔deterministic discordance loop (skills eval/CASE_LOG.md CASE-014). functional-requirement reads non_dependent because 2D pan-line DepMap CRISPR/RNAi under-represents an in-vivo / VHL-loss-conditional dependency, and the partner-conditional COND axis is UNMEASURED for EPAS1×VHL — ccRCC is near-uniformly VHL-null, so there is no in-panel VHL-WT contrast to compute the conditional stratum. EPAS1/HIF-2α is APPROVED (belzutifan) in VHL-deficient ccRCC, so the gate-C non_dependent veto is a documented miss. DISTINCT from the reference_profiles HIF2A/RCC anchor (which frames the OVERALL nomination as clinical_precedent/license_blocked honest_blind — the Cortellis wall); this entry pins the DEPENDENCY-axis FN specifically. Flips to must_not_veto when a VHL-status-stratified dependency lane lands (mostly WIRE from DepMap VHL mutation status + a pan-cancer conditional stratum, not ACQUIRE). Reasoned-only until the live snapshot is captured."
+
   MARK2:
     indication: PAAD
     modality: small_molecule
