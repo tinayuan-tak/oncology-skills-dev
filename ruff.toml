@@ -1,3 +1,11 @@
 line-length = 120
 target-version = "py313"
 extend-exclude = ["*.md"]
+
+[lint]
+# Phase 3 gate: pyflakes bug rules (undefined names, unused imports/vars, redefinitions).
+# F821 (undefined-name) is IGNORED — this codebase pervasively uses quoted forward-ref
+# annotations (`-> "pd.DataFrame"`) with lazy in-function imports, which F821 false-flags.
+# Bugbear (B) + style families (I/UP/SIM/…) are deferred to the Phase 4 ratchet.
+select = ["F"]
+ignore = ["F821"]
