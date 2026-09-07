@@ -21,6 +21,7 @@ resolver and stays byte-stable with or without this projection.
 from __future__ import annotations
 
 from _skills_common.claim_vector_core import (ClaimSpec, build_claim_vector, build_key_signals,
+                                              bump_corroboration, cap_corroboration, sig_ge,
                                               corr as _corr, signal_from_class as _sig)
 
 # ── enum → substrate-strength tier maps (grounded in the target-contracts summary vocabularies) ──────
@@ -77,9 +78,34 @@ _E_T = {"measurement_type": "surface_protein_biophysics", "grain": "target"}
 _E_SAFE = {"measurement_type": "normal_tissue_surface_liability", "grain": "target", "valence": "liability"}
 _E_SHED = {"measurement_type": "ectodomain_shedding_liability", "grain": "target", "valence": "liability"}
 
+# single-cell within-tumour antigen-escape classes (tce_antigen_escape_class) that CORROBORATE a viable
+# surface-modality call (homogeneous antigen) vs CONTRADICT it (escape reservoir / patient-variable).
+_ESCAPE_HOMOGENEOUS = {"escape_risk_low"}
+_ESCAPE_HETEROGENEOUS = {"escape_risk_high", "escape_risk_patient_variable"}
+
+
+def _fit_corr(h, c):
+    """FIT corroboration: the composed adc-tce-modality-fit call (topology+family, the signal source) is the
+    base; single-cell within-tumour antigen homogeneity (tce_antigen_escape_class, from
+    tumor-scrna-celltype-expression, already in the headline) is a genuinely INDEPENDENT second arm that
+    qualifies a VIABLE modality call — a homogeneous antigen (escape_risk_low) bumps corroboration, an escape
+    reservoir / patient-variable antigen caps it. Only qualifies a viable (>= moderate) fit; a neither_viable
+    call is not corroborated by homogeneity. Was the single-source _corr proxy (dead-constant). Verdict-INERT."""
+    fit_tier = _FIT_SIGNAL.get((c.get(_C_FIT) or {}).get("fit_class"), "unmeasured")
+    if fit_tier == "unmeasured":
+        return "unmeasured"
+    base = "moderate"
+    if sig_ge(fit_tier, "moderate"):                 # only a VIABLE fit call is qualified by antigen homogeneity
+        escape = h.get("tce_antigen_escape_class")
+        if escape in _ESCAPE_HOMOGENEOUS:
+            return bump_corroboration(base, True)
+        if escape in _ESCAPE_HETEROGENEOUS:
+            return cap_corroboration(base, "low")
+    return base
+
 SURFACE_CLAIM_SPEC = [
     ClaimSpec("FIT", "ADC/TCE modality fit", _sig(_C_FIT, "fit_class", _FIT_SIGNAL),
-              _corr(_C_FIT, "fit_class", _FIT_SIGNAL), _INFORMS["FIT"],
+              _fit_corr, _INFORMS["FIT"],
               _mk_atom(_C_FIT, "fit_class",
                        ("fit_class", "fit_rationale", "endocytosis_confidence", "surface_family_class",
                         "is_adc_topology_favorable", "is_tce_topology_favorable"), _E_TI)),
