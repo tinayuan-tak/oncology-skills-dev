@@ -2948,6 +2948,10 @@ rules:
     signals:
       small_molecule: supportive
       degrader: supportive
+    # `dominant` governs this rule's precedence in the SKILL's own signal tally only. The COMPOSED
+    # nomination gate reads the nomination_verdict_gate.yaml vocab weight — strong_mutually_exclusive is a
+    # `supportive` positive_signal (grouped with genomic_alteration+cis_coherence) as of gate v1.11.0 —
+    # NOT this flag.
     dominant: true
     rationale: |
       Target has strong mutually-exclusive partners at q<0.001, log2_or<-1.
@@ -2987,6 +2991,9 @@ rules:
     signals:
       small_molecule: supportive
       degrader: supportive
+    # `dominant` = skill-internal signal precedence only. both_patterns_present is NOT wired into the
+    # composed nomination gate (it is combination/co-occurrence CONTEXT, not target-quality) — advisory,
+    # despite this flag. Only strong_mutually_exclusive is a gate positive (v1.11.0).
     dominant: true
     rationale: |
       Target has BOTH strong co-occurring (q<0.001, log2_or>1) AND strong

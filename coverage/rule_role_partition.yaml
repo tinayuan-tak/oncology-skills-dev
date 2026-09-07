@@ -3,8 +3,8 @@ _doc: 'M5 rule-role partition (VERDICT_REPRESENTATION move #5). gating = referen
   figure input). Regenerate with build_rule_role_partition.py; --self-check gates drift.'
 counts:
   total: 414
-  gating: 130
-  display: 284
+  gating: 129
+  display: 285
 gating:
 - adc-preferred-supportive
 - alteration-role-gof-driver-supportive
@@ -53,7 +53,6 @@ gating:
 - fusion-positive-moderately-dependent-supportive
 - fusion-positive-strongly-dependent-supportive
 - gene-burden-lof-safety-warning
-- has-cooccurring-driver-supportive
 - highly-constrained-safety-warning
 - hotspot-in-druggable-pocket-sm-supportive-e8
 - ihc-not-detected-killer
@@ -236,6 +235,7 @@ display:
 - gene-burden-protective-favorable
 - gpcr-adc-concern
 - gpi-anchored-adc-concern
+- has-cooccurring-driver-supportive
 - has-pd-marker-supportive
 - ihc-high-supportive
 - ihc-low-opposing

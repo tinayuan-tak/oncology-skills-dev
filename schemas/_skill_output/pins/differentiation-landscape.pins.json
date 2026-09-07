@@ -9,7 +9,6 @@
         "both_patterns_present",
         "strong_cooccurring",
         "strong_mutually_exclusive",
-        "has_cooccurring_driver",
         "modest_cooccurring",
         "modest_mutually_exclusive",
         "ns",

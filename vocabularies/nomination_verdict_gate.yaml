@@ -26,7 +26,8 @@
 # Adding a modality-scoped killer here would regress that golden.
 
 enum_id: nomination_verdict_gate
-version: 1.10.0  # 1.10.0 (2026-09-06): + selectivity POST-RESOLVER clamp KILLs (selective_but_broadly_normal, selective_but_stromal_confound) as contradictions in kill_capable_verdicts + positive_contradictions, so a composed selectivity KILL blocks `strong` (was display-only — advisory→silent-degradation gap). Backed by selectivity.resolver.yaml clamp_verdicts (folded into emitted_verdicts_by_gate). selective_with_normal_liability is preserving → NOT a contradiction.
+version: 1.11.0  # 1.11.0 (2026-09-07): + differentiation:strong_mutually_exclusive as a SUPPORTIVE positive_signal, GROUPED with [genomic_alteration, cis_coherence] (driver-inference re-read → confidence raise, never an independent `strong`-manufacturing line). Wires the formerly advisory-in-gate differentiation axis. Backtest-gated.
+                 # 1.10.0 (2026-09-06): + selectivity POST-RESOLVER clamp KILLs (selective_but_broadly_normal, selective_but_stromal_confound) as contradictions in kill_capable_verdicts + positive_contradictions, so a composed selectivity KILL blocks `strong` (was display-only — advisory→silent-degradation gap). Backed by selectivity.resolver.yaml clamp_verdicts (folded into emitted_verdicts_by_gate). selective_with_normal_liability is preserving → NOT a contradiction.
                  # 1.9.0 (2026-09-04, #979): + surface_modality adc_preferred_tce_patient_variable / tce_patient_variable
                  #   to positive_signals_modality_scoped (TCE arm dominant→supportive temper; escape-insensitive arms
                  #   stay dominant) + to biology_axis_scoped_veto_downgrade.when_surface_verdict_in (favorable-surface
@@ -506,6 +507,15 @@ positive_signals:
   # twice. coherent_epigenetic_silencing is deliberately NOT a positive (a silenced gene is turned OFF —
   # an SL hypothesis, not a druggable-dependency nomination). See cis_coherence.resolver.yaml.
   - {sub_skill: cis_coherence,   verdict: coherent_cis_driver,            weight: supportive}
+  # differentiation GRADUATION (2026-09-07): strong_mutually_exclusive = the target's mutations are
+  # strongly mutually-exclusive with established driver partner(s) — a classic DRIVER-INFERENCE +
+  # patient-selection signal (functional redundancy in a shared pathway implies the target is itself a
+  # genuine driver). SUPPORTIVE, not dominant, and GROUPED with genomic_alteration + cis_coherence below:
+  # the driver-hood it corroborates is largely a re-read of what genomic_alteration's alteration-role /
+  # biomarker rungs already count, so it raises confidence without being a 2nd INDEPENDENT line that
+  # manufactures `strong`. Only strong_mutually_exclusive is wired (both_patterns_present / strong_cooccurring
+  # are combination/co-occurrence CONTEXT, not target-quality); the neutral/gap verdicts stay advisory.
+  - {sub_skill: differentiation, verdict: strong_mutually_exclusive,      weight: supportive}
 
 # Modality-scoped positives (2026-08-14): under an EXPLICIT biologics modality, a
 # favorable surface-modality verdict IS a target positive — symmetric to
@@ -590,7 +600,11 @@ positive_tier_config:
     # min_dimensions_for_strong test, so a coherent cis-driver corroborates confidence but cannot be the
     # 2nd independent line that manufactures `strong`. dependency stays independent (Chronos KO is a
     # distinct measurement) — only the amplification re-read is grouped.
-    - [genomic_alteration, cis_coherence]
+    # differentiation:strong_mutually_exclusive joins this group (2026-09-07): mutual-exclusivity-with-
+    # drivers corroborates the SAME driver-hood the genomic_alteration alteration-role/biomarker rungs
+    # already count, so it collapses to ONE dimension for min_dimensions_for_strong — a supportive
+    # confidence raise, never the 2nd independent line that manufactures `strong`.
+    - [genomic_alteration, cis_coherence, differentiation]
 
 # Documented exclusions from the positive set (symmetric to excluded_modality_scoped
 # for kills) — so a future edit doesn't "helpfully" add a modality-scoped positive.

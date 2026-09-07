@@ -113,8 +113,15 @@ def test_positives_only_from_cross_target_axes():
     # cis-driver (the target's own CN dosage predicts its own expression AND it is dependency-
     # coupled) is a genuine TARGET-INTRINSIC cross-target requirement, positive-eligible ONLY for
     # coherent_cis_driver — the inert/uncoupled cis verdicts never nominate.
+    # differentiation added v1.11.0 (2026-09-07, differentiation deep-dive): strong_mutually_exclusive
+    # is a genuine CROSS-TARGET requirement — the target's mutations are strongly mutually-exclusive with
+    # established driver partner(s) across the pan-cohort Fisher scan, a driver-inference + patient-
+    # selection signal. Positive-eligible ONLY for strong_mutually_exclusive; both_patterns_present /
+    # strong_cooccurring stay advisory (combination CONTEXT, not target-quality). GROUPED with
+    # genomic_alteration+cis_coherence (correlated_dimension_groups) so it corroborates confidence but
+    # never independently mints `strong`.
     allowed = {"dependency", "selectivity", "tractability_sm", "genomic_alteration", "expression",
-               "subtype_fit", "cis_coherence"}
+               "subtype_fit", "cis_coherence", "differentiation"}
     used = {p["sub_skill"] for p in v["positive_signals"]}
     assert used <= allowed, f"positive from disallowed axis: {used - allowed}"
     # cis_coherence is positive-eligible ONLY for the coherent-cis-driver verdict (same guard shape
