@@ -36,6 +36,36 @@ Dangerous false-positives to keep pinned: ADAR1, CLDN18.2_LRRC15, EGFR_cMET_VEGF
 
 ## Open cases
 
+### CASE-016 — Takeda ONC composed backtest Phase 3 (surface/biologics): the gate's decision-attribution is dependency+safety-dominated; surface biology MODULATES but never DECIDES (2026-09-08)
+- **Surfaced by:** the per-axis backtest (CASE-015 tool) over the surface/biologics cohort (14 targets, composed
+  `--verdict-only`). **Axis-attribution match = 0.0 (0/14)**: the ground-truth `deciding_axis` is `surface`
+  (E2/density/topology) for all 14, but the framework's composed gate DECIDES on `dependency` (13) or `safety`
+  (ERBB2). Combined with Phase 2 (dependency cohort, 0.18 — decided on `safety` 9/11), the unified picture:
+  **the composed nomination gate is dependency+safety-attribution-dominated across the whole portfolio.**
+- **Determination — NOT hard-veto false-negatives; conservative-by-design (mechanism understood):** the surface
+  biology DOES participate — for an approved ADC antigen (DLL3/FOLR1/NECTIN4/CEACAM5/TACSTD2) the dependency
+  `non_dependent` VETO is DOWNGRADED to a HOLD via `biology_axis_downgrade` (surface_verdict=adc_preferred_*), and
+  the safety concern is suppressed by `exists_safe_modality` (adc/antibody channels). So the framework does NOT
+  hard-veto biologics winners (consistent with the intended gate-C modality-scoping) — but it lands on HOLD, not
+  GO, because the DECIDING axis is still the intracellular `dependency: non_dependent` (a surface antigen is not a
+  genetic dependency). CD22 fully passes (context_escape: has_experimental_sl_partner). GRIN2D veto = correct
+  true-negative (ion-channel topology). NOX1 advanced→veto is the one worth a second look.
+- **The structural point (design question, NOT a bug):** the gate PRECEDENCE is dependency-veto + safety-hold
+  first; the surface/biologics thesis can only DOWNGRADE those, never become the DECIDING axis. So the framework
+  structurally cannot emit a clean GO on a pure surface antigen — at best `hold: surface-viable non-dependency`.
+  For a framework meant to nominate biologics targets, whether surface should be able to DECIDE a GO (not just
+  downgrade) is a product/gate-policy decision — DEFERRED to the user (verdict-moving, mirrors the pan-essential
+  + modality-conditional-safety adjudications: the conservative hold is the safe default).
+- **Unified backtest conclusion (Phases 1-3):** the composed gate avoids hard-veto false-negatives (via
+  downgrades/suppressors/context-escape) but is calibrated CONSERVATIVE — it lands on HOLD rather than GO for most
+  known advanced/approved targets because each has some non-clean axis (dependency non_dependent, safety WT-loss).
+  The per-axis backtest quantifies WHY per target. This is calibrated conservatism, not a defect.
+- **Tool fix (this PR):** `eval/backtest_per_axis.py` family-mapper bug — the `window` token in the dependency
+  pattern mis-mapped surface descriptors (`B2_window_E2_density`, `F_restricted_GI_window`) to dependency; surface
+  is now matched FIRST. + 4 HGNC→ref-key aliases (ERBB2→HER2, MS4A1→CD20, TNFRSF17→BCMA, TACSTD2→TROP2).
+- **Status:** Phases 1-3 DONE. Phase 4 (remainder ~23) would confirm the pattern (optional). The GO-on-surface
+  gate-policy question + NOX1 veto re-check are OPEN (user call).
+
 ### CASE-015 — Takeda ONC composed backtest: the nomination is SAFETY-axis-dominated (per-axis attribution) — mostly DEFENSIBLE + a per-axis backtest tool (2026-09-08)
 - **Surfaced by:** the Takeda ONC backtest (c). Re-ran the composed target-profile (`--verdict-only`, 90s/target
   vs ~20min with default grounding+Bedrock) over the dependency/SL cohort, then scored it PER CLAIM-VECTOR AXIS

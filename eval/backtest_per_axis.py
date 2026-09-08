@@ -26,8 +26,11 @@ from pathlib import Path
 # (free text, e.g. partner_conditional_SL_SMARCA4) and the composed deciding-axis SHORT (a sub-skill id,
 # e.g. 'safety') map into, so the two are comparable. Order matters (first match wins).
 _DESC_FAMILY = [
-    (r"SL|synthetic|paralog|partner|circuit|reciprocal|addiction|pan_essential|window|buffered|proteotoxic|dependenc", "dependency"),
+    # SURFACE is checked FIRST: surface descriptors are specific (E2/A2/B2/F_/density/...) and some embed the
+    # token 'window' (e.g. B2_window_E2_density, F_restricted_GI_window) which the dependency pattern below
+    # also matches — surface must win those. (Bugfix 2026-09-08: 'window' had mis-mapped surface→dependency.)
     (r"E2|A2|B2|F_|density|internaliz|topology|shed|glycan|avidity|bispecific|antigen|surface", "surface"),
+    (r"SL|synthetic|paralog|partner|circuit|reciprocal|addiction|pan_essential|window|buffered|proteotoxic|dependenc", "dependency"),
     (r"constrained|normal_liability|normal_tissue|safety|cardiotox|no_therapeutic_window", "safety"),
     (r"covalent|pocket|switch|druggable|tractab|SM_dependency", "tractability"),
     (r"mutation|ITD|V600|hotspot|amplif|fusion", "genomic"),
@@ -62,7 +65,9 @@ def _outcome_polarity(outcome: str) -> str:
 
 
 # reference_profiles keys some targets as compound / non-HGNC symbols; map the run target → ref key.
-_REF_ALIAS = {"CDK4": "CDK4_6", "CDK6": "CDK4_6", "MARK2": "MARK2_3", "MARK3": "MARK2_3", "EPAS1": "HIF2A"}
+_REF_ALIAS = {"CDK4": "CDK4_6", "CDK6": "CDK4_6", "MARK2": "MARK2_3", "MARK3": "MARK2_3", "EPAS1": "HIF2A",
+              # HGNC run-symbol → reference_profiles alias key (surface/biologics cohort)
+              "ERBB2": "HER2", "MS4A1": "CD20", "TNFRSF17": "BCMA", "TACSTD2": "TROP2"}
 
 
 def _load_reference_profiles(cal_path: str | Path) -> dict:
