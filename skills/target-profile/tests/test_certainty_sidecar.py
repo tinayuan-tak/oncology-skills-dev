@@ -17,8 +17,8 @@ SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
-from tp_fanout import _load_sub_skill_certainty_fn, _load_sub_skill_verdict_fn  # noqa: E402
 from tp_facets import _certainty_by_axis  # noqa: E402
+from tp_fanout import _load_sub_skill_certainty_fn, _load_sub_skill_verdict_fn  # noqa: E402
 
 
 def test_certainty_loader_is_opt_in():

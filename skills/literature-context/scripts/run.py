@@ -24,15 +24,14 @@ from pathlib import Path
 SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
-from _skills_common.dispatcher import run_wired_skill
 from _skills_common import get_card_field
-from _skills_common.narrator_engine import make_synthesize_fn
-from _skills_common.narrator_lenses import LITERATURE_CONTEXT as _LENS
+from _skills_common.dispatcher import run_wired_skill
+from _skills_common.headline_core import HeadlineSpec, build_headline
 from _skills_common.literature_context_claims import literature_context_claim_vector, literature_context_key_signals
 from _skills_common.literature_context_question_table import literature_context_question_table
-from _skills_common.headline_core import build_headline, HeadlineSpec
-from _skills_common.skill_report import build_skill_report, ROLE_DESCRIPTIVE
-
+from _skills_common.narrator_engine import make_synthesize_fn
+from _skills_common.narrator_lenses import LITERATURE_CONTEXT as _LENS
+from _skills_common.skill_report import ROLE_DESCRIPTIVE, build_skill_report
 
 SKILL_NAME = "literature-context"
 SKILL_VERSION = "1.1.0"  # 1.1.0 (2026-09-05, literature-and-claims arc, 2nd NON-standard skill after

@@ -15,7 +15,6 @@ from typing import Optional
 
 from _skills_common.question_table_core import build_cv_question_table
 
-
 _QUESTIONS = [
     ("Q1", "Does copy-number drive expression (cis-dosage coupling)?", "CIS_DOSAGE"),
     ("Q2", "Does promoter methylation silence expression?", "SILENCING"),

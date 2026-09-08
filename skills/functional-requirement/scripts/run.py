@@ -21,24 +21,23 @@ from pathlib import Path
 SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
-from _skills_common.dispatcher import run_wired_skill
-from _skills_common import get_card_field, resolve_cards, _summary_is_unavailable
-from _skills_common.resolver import resolve_or_raise
+from _skills_common import _summary_is_unavailable, get_card_field, resolve_cards
 from _skills_common.claim_record import assemble_claim_record, magnitude_for_card
-from _skills_common.narrator_engine import make_synthesize_fn
-from _skills_common.narrator_lenses import FUNCTIONAL_REQUIREMENT as _FR_LENS
-from _skills_common.literature_synthesis import make_literature_fn
-from _skills_common.literature_retrieval import default_retrieve, verify_citations
 from _skills_common.dependency_claims import dependency_claim_vector, dependency_key_signals
 from _skills_common.dependency_question_table import dependency_question_table
-from _skills_common.headline_core import build_headline, HeadlineSpec
+from _skills_common.dispatcher import run_wired_skill
+from _skills_common.headline_core import HeadlineSpec, build_headline
 from _skills_common.headline_hero import emit_headline_hero
-from _skills_common.skill_report import build_skill_report, ROLE_GATING
-from _skills_common.subgroup_derivation import make_value_classifier
+from _skills_common.literature_retrieval import default_retrieve, verify_citations
+from _skills_common.literature_synthesis import make_literature_fn
+from _skills_common.narrator_engine import make_synthesize_fn
+from _skills_common.narrator_lenses import FUNCTIONAL_REQUIREMENT as _FR_LENS
+from _skills_common.resolver import resolve_or_raise
 
 # Read-only reuse of the shared target-contracts path (NOT modifying scope.py — collision-safe).
 from _skills_common.scope import DEFAULT_CONTRACTS_REPO
-
+from _skills_common.skill_report import ROLE_GATING, build_skill_report
+from _skills_common.subgroup_derivation import make_value_classifier
 
 SKILL_NAME = "functional-requirement"
 SKILL_VERSION = "1.9.0"  # 1.9.0 (2026-09-04): verdict-INERT surfacing — indication_scope_note (target-grain positive enriched outside the queried indication) + partial-paralog caveat on absence verdicts.   # 1.8.0 (2026-09-03): --literature lane + verdict-INERT signal enrichment (measurement_caveat, concordance_scope_note, PRISM DEP-quorum, paralog caveat, polarity_note).   # 1.7.0 (2026-08-28): migrate narrator to generic capsule-driven engine. Verdict-INERT.   # 1.6.0 (2026-08-27): tuned signals-first sub-group reader (dependency-vocab

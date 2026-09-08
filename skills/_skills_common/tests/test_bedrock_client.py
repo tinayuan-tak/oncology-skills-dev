@@ -13,17 +13,15 @@ import os
 from unittest.mock import patch
 
 import pytest
-
 from _skills_common.bedrock_client import (
+    FRAMEWORK_EXTRACTION_MODEL,
+    FRAMEWORK_MODEL_VERSION,
+    FRAMEWORK_SYNTHESIS_MODEL,
     BedrockAuthError,
     ModelConfig,
     _refresh_hint,
     get_bedrock_client,
-    FRAMEWORK_SYNTHESIS_MODEL,
-    FRAMEWORK_EXTRACTION_MODEL,
-    FRAMEWORK_MODEL_VERSION,
 )
-
 
 # --- ModelConfig: env-var defaults ------------------------------------------
 

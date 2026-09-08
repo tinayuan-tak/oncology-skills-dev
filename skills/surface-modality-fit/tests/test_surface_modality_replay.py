@@ -135,6 +135,7 @@ def test_replay_conforms_to_data_product_schema(pair_id, target, indication, _ex
     data-product schema. Confirms both fit_class (skill_report.call) and the resolved
     surface_modality_verdict conform (static golden trimmed → this is the conformance target). CI-fail-not-skip."""
     import os
+
     from _skills_common.data_product_contract import conformance_errors, load_schema, schema_path
 
     schema = load_schema("surface-modality-fit")

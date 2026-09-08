@@ -20,7 +20,7 @@ The whole vector is GATED by `cited_evidence_status`: `no_evidence` → the axes
 
 from __future__ import annotations
 
-from _skills_common.claim_vector_core import ClaimSpec, build_claim_vector, build_key_signals, build_atom
+from _skills_common.claim_vector_core import ClaimSpec, build_atom, build_claim_vector, build_key_signals
 
 _C_LIT = "cited-literature-evidence"
 

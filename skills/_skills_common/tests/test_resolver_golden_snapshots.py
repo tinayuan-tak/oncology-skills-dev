@@ -38,7 +38,6 @@ import os
 from pathlib import Path
 
 import pytest
-
 from _test_support import load_module
 
 # Load the shared modules (resolver.py, coemission.py) RELATIVE TO THIS TEST FILE so the harness runs

@@ -5,9 +5,9 @@ measurement_type lookup)."""
 
 from __future__ import annotations
 
+import contextlib
 import copy
 import io
-import contextlib
 import json
 import os
 import runpy

@@ -38,9 +38,9 @@ SKILLS_DIR = Path(__file__).resolve().parents[2]  # .../skills
 sys.path.insert(0, str(SKILLS_DIR))
 from _skills_common.archetype_core import (  # noqa: E402
     Atlas,
+    _attach_archetype_caveats,
     claim_features,
     nomination_scorecard,
-    _attach_archetype_caveats,
 )
 
 SKILL_NAME = "target-archetype"
@@ -218,8 +218,8 @@ def _build_decision(companion: dict, scorecard: dict, target, indication) -> dic
 
 
 def _run_literature(decision: dict, model_id):
-    from _skills_common.literature_synthesis import make_literature_fn
     from _skills_common.literature_retrieval import default_retrieve, verify_citations
+    from _skills_common.literature_synthesis import make_literature_fn
     from _skills_common.narrator_lenses import TARGET_ARCHETYPE
 
     lit_fn = make_literature_fn(TARGET_ARCHETYPE, retrieve_fn=default_retrieve, verify_fn=verify_citations)

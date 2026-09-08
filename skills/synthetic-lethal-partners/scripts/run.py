@@ -21,25 +21,26 @@ from pathlib import Path
 SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
-from _skills_common.dispatcher import run_wired_skill
 from _skills_common import get_card_field
-from _skills_common.resolver import resolve_or_raise
 from _skills_common.claim_record import assemble_claim_record
-from _skills_common.sl_question_table import sl_question_table
-from _skills_common.headline_core import build_headline, HeadlineSpec
-from _skills_common.skill_report import build_skill_report, ROLE_DESCRIPTIVE
+from _skills_common.dispatcher import run_wired_skill
+from _skills_common.headline_core import HeadlineSpec, build_headline
+from _skills_common.literature_retrieval import default_retrieve, verify_citations
+from _skills_common.literature_synthesis import make_literature_fn
 from _skills_common.narrator_engine import make_synthesize_fn
 from _skills_common.narrator_lenses import SYNTHETIC_LETHAL_PARTNERS as _LENS
-from _skills_common.literature_synthesis import make_literature_fn
-from _skills_common.literature_retrieval import default_retrieve, verify_citations
+from _skills_common.resolver import resolve_or_raise
+from _skills_common.skill_report import ROLE_DESCRIPTIVE, build_skill_report
 from _skills_common.sl_crosswalks import (
-    validated_combination_precedent,
-    validated_paralog_sl,
-    norm_ind as _norm_ind,
     VALIDATED_COMBINATION_PRECEDENT,
     VALIDATED_PARALOG_SL,
+    validated_combination_precedent,
+    validated_paralog_sl,
 )
-
+from _skills_common.sl_crosswalks import (
+    norm_ind as _norm_ind,
+)
+from _skills_common.sl_question_table import sl_question_table
 
 SKILL_NAME = "synthetic-lethal-partners"
 SKILL_VERSION = "1.1.0"  # 1.1.0 (2026-09-05, literature-and-claims arc, item #3): CREATE the

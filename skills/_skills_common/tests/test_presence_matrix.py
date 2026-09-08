@@ -16,14 +16,14 @@ if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
 
 from _skills_common.presence_matrix import (  # noqa: E402
-    build_matrix_cells,
-    render_presence_matrix_svg,
-    emit_presence_matrix,
-    _tier_of,
-    _status_of,
-    _wrap_two_lines,
-    _short_verdict,
     _sc_detail,
+    _short_verdict,
+    _status_of,
+    _tier_of,
+    _wrap_two_lines,
+    build_matrix_cells,
+    emit_presence_matrix,
+    render_presence_matrix_svg,
 )
 
 

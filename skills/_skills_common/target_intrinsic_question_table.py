@@ -14,7 +14,6 @@ from typing import Optional
 
 from _skills_common.question_table_core import build_cv_question_table
 
-
 _QUESTIONS = [
     ("Q1", "Do the target's domains / family imply a modality route (SM / degrader / biologic)?", "MODALITY_ROUTING"),
     ("Q2", "What is the target's development-level precedent (Pharos / IDG Tclin→Tdark)?", "TRACTABILITY_PRECEDENT"),

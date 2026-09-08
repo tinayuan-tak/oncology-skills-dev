@@ -5,19 +5,23 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from _skills_common.translational_readiness_claims import (  # noqa: E402
-    translational_readiness_claim_vector as tr_cv,
-    translational_readiness_key_signals as tr_ks,
-)
-from _skills_common.translational_readiness_question_table import (  # noqa: E402
-    translational_readiness_question_table as tr_qt,
-)
 from _skills_common.literature_context_claims import (  # noqa: E402
     literature_context_claim_vector as lc_cv,
+)
+from _skills_common.literature_context_claims import (
     literature_context_key_signals as lc_ks,
 )
 from _skills_common.literature_context_question_table import (  # noqa: E402
     literature_context_question_table as lc_qt,
+)
+from _skills_common.translational_readiness_claims import (  # noqa: E402
+    translational_readiness_claim_vector as tr_cv,
+)
+from _skills_common.translational_readiness_claims import (
+    translational_readiness_key_signals as tr_ks,
+)
+from _skills_common.translational_readiness_question_table import (  # noqa: E402
+    translational_readiness_question_table as tr_qt,
 )
 
 

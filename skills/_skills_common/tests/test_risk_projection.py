@@ -15,9 +15,9 @@ if str(COMMON.parent) not in sys.path:
     sys.path.insert(0, str(COMMON.parent))  # skills/
 
 from _skills_common.risk_projection import (  # noqa: E402
-    deterministic_bins,
-    assemble_risk_package,
     _mod,
+    assemble_risk_package,
+    deterministic_bins,
 )
 
 

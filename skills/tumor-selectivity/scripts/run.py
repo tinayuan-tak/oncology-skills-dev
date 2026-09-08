@@ -18,28 +18,28 @@ SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common import card_summary, resolve_cards
-from _skills_common.dispatcher import run_wired_skill
-from _skills_common.narrator_engine import make_synthesize_fn
-from _skills_common.narrator_lenses import TUMOR_SELECTIVITY as _LENS
-
-# OPTIONAL --literature lane (shared, verdict-INERT): the published-literature read + live Europe-PMC
-# grounding + PMID verification. Reused read-only from _skills_common (landed via the tumor-presence
-# literature arc); NOT re-implemented here.
-from _skills_common.literature_synthesis import make_literature_fn
-from _skills_common.literature_retrieval import default_retrieve, verify_citations
-from _skills_common.resolver import resolve_or_raise
 from _skills_common.claim_record import assemble_claim_record
-from _skills_common.selectivity_claims import selectivity_claim_vector, selectivity_key_signals
-from _skills_common.selectivity_question_table import selectivity_question_table
-from _skills_common.selectivity_hero import emit_selectivity_hero
+from _skills_common.dispatcher import run_wired_skill
 
 # The SHARED canonical HEADLINE layer (verdict + confidence + top-tension), mirroring the merged
 # tumor-presence / functional-requirement exemplars. build_headline is a verdict-INERT projection over
 # the already-computed selectivity_class + claim_vector / key_signals; emit_headline_hero renders the
 # offline figure_headline_hero.* twin (COMPLEMENTS emit_selectivity_hero — both fire under --figures).
-from _skills_common.headline_core import build_headline, HeadlineSpec
-from _skills_common.skill_report import build_skill_report, ROLE_GATING
+from _skills_common.headline_core import HeadlineSpec, build_headline
 from _skills_common.headline_hero import emit_headline_hero
+from _skills_common.literature_retrieval import default_retrieve, verify_citations
+
+# OPTIONAL --literature lane (shared, verdict-INERT): the published-literature read + live Europe-PMC
+# grounding + PMID verification. Reused read-only from _skills_common (landed via the tumor-presence
+# literature arc); NOT re-implemented here.
+from _skills_common.literature_synthesis import make_literature_fn
+from _skills_common.narrator_engine import make_synthesize_fn
+from _skills_common.narrator_lenses import TUMOR_SELECTIVITY as _LENS
+from _skills_common.resolver import resolve_or_raise
+from _skills_common.selectivity_claims import selectivity_claim_vector, selectivity_key_signals
+from _skills_common.selectivity_hero import emit_selectivity_hero
+from _skills_common.selectivity_question_table import selectivity_question_table
+from _skills_common.skill_report import ROLE_GATING, build_skill_report
 from _skills_common.subgroup_derivation import make_value_classifier
 
 # ─── Signals-first sub-group reader (verdict-INERT) ──────────────────────────────────────────────
@@ -78,21 +78,20 @@ _SELECTIVITY_VALUE_TIERS = {
 # identical clamp. The names are re-exported here for this skill's own tests + local readability.
 from _skills_common.selectivity_veto import (  # noqa: F401
     _AXIS_A_SELECTIVE,
-    _NORMAL_BREADTH_VETO_RULES,
-    _SELECTIVITY_VETO_PRECEDENCE,
-    _WINDOW_VETO_RULE,
+    _CPTAC_UP_RULES,
     _FULL_NORMAL_VETO_RULE,
+    _NORMAL_BREADTH_VETO_RULES,
+    _POP_NORMAL_UP_RULES,
+    _PROTEIN_POPULATION_RESCUE_DRIVER,
+    _RESCUE_ELIGIBLE,
     _SC_NORMAL_VETO_RULE,
-    _STROMAL_CONFOUND_VETO_RULE,
+    _SELECTIVITY_VETO_PRECEDENCE,
     _STROMAL_CONFOUND_VERDICT,
+    _STROMAL_CONFOUND_VETO_RULE,
+    _WINDOW_VETO_RULE,
     apply_normal_breadth_veto,
     apply_protein_population_rescue,
-    _PROTEIN_POPULATION_RESCUE_DRIVER,
-    _CPTAC_UP_RULES,
-    _POP_NORMAL_UP_RULES,
-    _RESCUE_ELIGIBLE,
 )
-
 
 SKILL_NAME = "tumor-selectivity"
 # This constant is stamped into provenance.yaml and MUST equal SKILL.md metadata.version

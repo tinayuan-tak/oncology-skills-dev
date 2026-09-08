@@ -5,10 +5,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 from tp_common import _CONTRACTS_REPO
 from tp_fanout import SUBTYPE_SHORT
-
 
 _SUBTYPE_INPUTS = [
     ("expression", "tumor-rna-distribution-by-subtype", "expression"),

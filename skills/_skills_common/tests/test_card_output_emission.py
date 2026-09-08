@@ -45,7 +45,6 @@ from pathlib import Path
 
 import pytest
 import yaml
-
 from _skills_common._live_readers import (
     CARD_DISPATCHERS,
     PANORAMA_DISPATCHERS,

@@ -23,7 +23,6 @@ from itertools import combinations
 from pathlib import Path
 
 import pytest
-
 from _test_support import load_run_py
 
 tp = load_run_py(Path(__file__).resolve().parent.parent, "tp_run_ladder")
@@ -126,7 +125,6 @@ def _live_intracellular_rule_ids():
     """The rule_ids DEFINED in the shared intracellular-intrinsic interpretation-rules (target-contracts).
     Returns None when the sibling contracts checkout is absent (checkout-only CI) so callers can skip."""
     import yaml
-
     from _skills_common.paths import target_contracts_root
 
     path = target_contracts_root() / "interpretation-rules" / "intracellular-intrinsic.rules.yaml"

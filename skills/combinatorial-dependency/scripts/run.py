@@ -30,19 +30,18 @@ sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common import card_summary
 from _skills_common.dispatcher import run_wired_skill
-from _skills_common.headline_core import build_headline, HeadlineSpec
-from _skills_common.skill_report import build_skill_report, ROLE_DESCRIPTIVE
+from _skills_common.headline_core import HeadlineSpec, build_headline
+from _skills_common.literature_retrieval import default_retrieve, verify_citations
+from _skills_common.literature_synthesis import make_literature_fn
 from _skills_common.narrator_engine import make_synthesize_fn
 from _skills_common.narrator_lenses import COMBINATORIAL_DEPENDENCY as _LENS
-from _skills_common.literature_synthesis import make_literature_fn
-from _skills_common.literature_retrieval import default_retrieve, verify_citations
+from _skills_common.skill_report import ROLE_DESCRIPTIVE, build_skill_report
 from _skills_common.sl_crosswalks import (
-    validated_paralog_sl,
-    is_pan_essential,
-    VALIDATED_PARALOG_SL,
     SCAFFOLD_UNDRUGGABLE_PARTNERS,
+    VALIDATED_PARALOG_SL,
+    is_pan_essential,
+    validated_paralog_sl,
 )
-
 
 SKILL_NAME = "combinatorial-dependency"
 SKILL_VERSION = "1.1.0"  # 1.1.0 (2026-09-05, literature-and-claims arc, item #4): CREATE the

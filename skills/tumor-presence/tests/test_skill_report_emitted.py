@@ -3,6 +3,7 @@ role=descriptive → polarity=not_scored, excluded from gate math; call = the re
 """
 
 from __future__ import annotations
+
 from pathlib import Path
 
 from _test_support import load_run_py

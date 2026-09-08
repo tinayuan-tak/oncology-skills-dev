@@ -26,18 +26,18 @@ from pathlib import Path
 SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
+from _skills_common import get_card_field
 from _skills_common.dispatcher import run_wired_skill
+from _skills_common.headline_core import HeadlineSpec, build_headline
+from _skills_common.headline_hero import emit_headline_hero
+from _skills_common.literature_retrieval import default_retrieve, verify_citations
+from _skills_common.literature_synthesis import make_literature_fn
 from _skills_common.narrator_engine import make_synthesize_fn
 from _skills_common.narrator_lenses import TARGET_INTRINSIC as _LENS
-from _skills_common.literature_synthesis import make_literature_fn
-from _skills_common.literature_retrieval import default_retrieve, verify_citations
-from _skills_common import get_card_field
-from _skills_common.target_intrinsic_question_table import target_intrinsic_question_table
-from _skills_common.target_intrinsic_claims import target_intrinsic_claim_vector, target_intrinsic_key_signals
-from _skills_common.headline_core import build_headline, HeadlineSpec
-from _skills_common.skill_report import build_skill_report, ROLE_DESCRIPTIVE
-from _skills_common.headline_hero import emit_headline_hero
+from _skills_common.skill_report import ROLE_DESCRIPTIVE, build_skill_report
 from _skills_common.subgroup_derivation import make_value_classifier
+from _skills_common.target_intrinsic_claims import target_intrinsic_claim_vector, target_intrinsic_key_signals
+from _skills_common.target_intrinsic_question_table import target_intrinsic_question_table
 
 # Signals-first sub-group VALUE→TIER map (VERDICT-INERT; feeds ONLY the --figures subgroup-signal panel,
 # never the spine / claim_vector / narrator). Stated for target-intrinsic's OWN LIVE card vocabulary so a

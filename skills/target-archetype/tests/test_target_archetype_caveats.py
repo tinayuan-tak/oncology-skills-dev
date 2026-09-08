@@ -12,6 +12,7 @@ carry + decision-builder tests use the real frozen atlas + a synthetic sub_resul
 2-string tuples (reference-drift guard). Asserts the calibration the DETERMINISTIC panel showed live."""
 
 from __future__ import annotations
+
 import importlib.util
 import sys
 from pathlib import Path
@@ -25,7 +26,7 @@ if str(SKILLS_DIR) not in sys.path:
 
 from _skills_common import archetype_core as ac  # noqa: E402
 from _skills_common.archetype_core import Atlas  # noqa: E402
-from _skills_common.narrator_lenses import TARGET_ARCHETYPE, LENSES  # noqa: E402
+from _skills_common.narrator_lenses import LENSES, TARGET_ARCHETYPE  # noqa: E402
 
 ATLAS_PATH = SKILL_DIR / "atlas" / "atlas.json"
 
@@ -234,7 +235,7 @@ def test_target_archetype_lens_registered_descriptive():
 
 
 def test_target_archetype_query_terms_and_cap():
-    from _skills_common.literature_retrieval import _LENS_QUERY_TERMS, _LENS_MAX_TERMS, _lens_terms
+    from _skills_common.literature_retrieval import _LENS_MAX_TERMS, _LENS_QUERY_TERMS, _lens_terms
 
     assert "target-archetype" in _LENS_QUERY_TERMS
     assert _LENS_MAX_TERMS["target-archetype"] == 10

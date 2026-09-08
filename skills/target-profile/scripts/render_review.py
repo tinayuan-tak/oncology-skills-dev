@@ -45,7 +45,8 @@ try:
 except Exception:  # noqa: BLE001
     _risk_rows = None
 try:
-    from _skills_common.risk_projection import deterministic_bins as _det_bins, _mod as _mod_norm
+    from _skills_common.risk_projection import _mod as _mod_norm
+    from _skills_common.risk_projection import deterministic_bins as _det_bins
 except Exception:  # noqa: BLE001
     _det_bins = None
     _mod_norm = None

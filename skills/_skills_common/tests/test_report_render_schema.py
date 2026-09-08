@@ -5,9 +5,8 @@ import json
 from pathlib import Path
 
 import pytest
-
-from _skills_common.report_render._fixtures import make_nomination, make_null_heavy_nomination
 from _skills_common.report_render import PRESETS, build_ir, resolve_spec
+from _skills_common.report_render._fixtures import make_nomination, make_null_heavy_nomination
 from _skills_common.report_render.backends.json_backend import JsonBackend
 
 SKILLS = Path(__file__).resolve().parents[2]  # skills/

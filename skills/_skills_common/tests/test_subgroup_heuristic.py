@@ -17,10 +17,10 @@ if str(SKILLS) not in sys.path:
 
 from _skills_common.subgroup_derivation import (  # noqa: E402
     _heuristic_reader,
-    subgroup_signals_for,
-    make_value_classifier,
-    derive_subgroups,
     default_classify,
+    derive_subgroups,
+    make_value_classifier,
+    subgroup_signals_for,
 )
 
 

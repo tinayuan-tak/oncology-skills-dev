@@ -94,9 +94,9 @@ def _import_bedrock_client():
     the anthropic[bedrock] extra isn't installed (surfaced by get_bedrock_client).
     """
     from _skills_common.bedrock_client import (  # noqa: F401
-        get_bedrock_client,
-        ModelConfig,
         BedrockAuthError,
+        ModelConfig,
+        get_bedrock_client,
     )
 
     return get_bedrock_client, ModelConfig, BedrockAuthError

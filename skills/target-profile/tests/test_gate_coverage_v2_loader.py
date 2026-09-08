@@ -18,7 +18,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import yaml
-
 from _test_support import load_run_py
 
 tp = load_run_py(Path(__file__).resolve().parents[1], "tp_v2loader")

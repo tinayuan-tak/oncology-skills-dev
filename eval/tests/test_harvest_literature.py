@@ -124,8 +124,9 @@ def test_harvest_pair_runs_on_canonical_symbol_but_labels_the_alias(monkeypatch)
 
 def test_harvested_records_feed_the_aggregator(monkeypatch, tmp_path):
     """End-to-end (offline): harvest → snapshot → build_discordance_ledger."""
-    import build_discordance_ledger as bdl
     import json
+
+    import build_discordance_ledger as bdl
 
     fake = {
         "genomic_alteration": {

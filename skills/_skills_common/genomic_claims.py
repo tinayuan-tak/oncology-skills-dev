@@ -28,10 +28,10 @@ lifts); the `cards` param is accepted for contract-uniformity but unused.
 from __future__ import annotations
 
 from _skills_common.claim_vector_core import (
+    SIGNAL_ORD,
     ClaimSpec,
     build_claim_vector,
     build_key_signals,
-    SIGNAL_ORD,
     bump_corroboration,
     sig_ge,
 )

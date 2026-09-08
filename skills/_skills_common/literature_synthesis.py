@@ -29,16 +29,17 @@ defaults to unverified. This keeps the lane honest and replayable while leaving 
 """
 
 from __future__ import annotations
-from typing import Callable, Optional
 
-# Reuse the fleet lens contract so the literature lane and the narrator share axes/thesis/scope.
-from _skills_common.narrator_engine import LensConfig
+from typing import Callable, Optional
 
 # SIGNAL_ORD is the fleet's canonical measured-vs-gap contract: a measured tier (strong/moderate/weak/
 # absent/negative) maps to an int, while `unmeasured` (a GAP) maps to None. We ground the agreement lane
 # on it so a MEASURED axis — including a measured floor (`absent`) or a wrong-direction result
 # (`negative`) — can never be mislabeled omics_unavailable.
 from _skills_common.claim_vector_core import SIGNAL_ORD
+
+# Reuse the fleet lens contract so the literature lane and the narrator share axes/thesis/scope.
+from _skills_common.narrator_engine import LensConfig
 
 _LIT_READ = ("strongly_supports", "supports", "mixed", "contradicts", "not_addressed")
 _AGREE = ("agree", "extends", "contradicts", "omics_blind", "omics_unavailable")

@@ -5,7 +5,6 @@ from __future__ import annotations
 
 from tp_common import _first_card_summary_field
 
-
 _BIOMARKER_INPUTS = {
     # short (sub-skill) : list of (summary_field, role) it contributes
     "genomic_alteration": [

@@ -19,7 +19,6 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import yaml
-
 from _skills_common.compose_core import subskill_composition
 from _test_support import load_run_py
 

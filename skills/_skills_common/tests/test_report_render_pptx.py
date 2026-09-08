@@ -12,8 +12,8 @@ SKILLS = Path(__file__).resolve().parents[2]  # skills/
 if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
 
-from _skills_common.report_render._fixtures import make_nomination
 from _skills_common.report_render import PRESETS, render_report
+from _skills_common.report_render._fixtures import make_nomination
 
 pytestmark = pytest.mark.skipif(shutil.which("pandoc") is None, reason="pandoc not on PATH")
 

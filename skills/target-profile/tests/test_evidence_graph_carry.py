@@ -13,11 +13,10 @@ replay expectations (the carry is additive / display-only). Verdict-INERT throug
 import copy
 from pathlib import Path
 
-import pytest
-import yaml
-
 import _skills_common as skc
+import pytest
 import tp_fanout as TP
+import yaml
 
 _FIX = Path(__file__).resolve().parent / "fixtures"
 

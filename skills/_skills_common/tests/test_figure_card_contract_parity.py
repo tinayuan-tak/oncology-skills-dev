@@ -28,10 +28,10 @@ _TC = Path(
 )
 
 import _figure_emitters as fe  # noqa: E402
-from methods.depmap_expression_distribution import cli as e3cli  # noqa: E402
 from methods.depmap_chronos_distribution import cli as chr_cli  # noqa: E402
-from methods.depmap_demeter_distribution import cli as rnai_cli  # noqa: E402
 from methods.depmap_cn_distribution import cli as cn_cli  # noqa: E402
+from methods.depmap_demeter_distribution import cli as rnai_cli  # noqa: E402
+from methods.depmap_expression_distribution import cli as e3cli  # noqa: E402
 from methods.depmap_protein_abundance import cli as prot_cli  # noqa: E402
 
 

@@ -14,17 +14,12 @@ from pathlib import Path
 SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
-from _skills_common.dispatcher import run_wired_skill
-from _skills_common import get_card_field, card_summary
+from _skills_common import card_summary, get_card_field
 from _skills_common.claim_record import assemble_claim_record
-from _skills_common.safety_claims import safety_claim_vector, safety_key_signals
-from _skills_common.skill_report import build_skill_report, ROLE_GATING
-from _skills_common.safety_question_table import safety_question_table
-from _skills_common.headline_core import build_headline, HeadlineSpec
+from _skills_common.dispatcher import run_wired_skill
+from _skills_common.headline_core import HeadlineSpec, build_headline
 from _skills_common.headline_hero import emit_headline_hero
-from _skills_common.subgroup_derivation import make_value_classifier
-from _skills_common.narrator_engine import make_synthesize_fn
-from _skills_common.narrator_lenses import ON_TARGET_SAFETY as _SAFETY_LENS
+from _skills_common.literature_retrieval import default_retrieve, verify_citations
 
 # OPTIONAL (--literature) verdict-INERT LLM literature lane — the same shared fleet module wired into
 # genomic-alteration #982 / functional-requirement #987 / tumor-presence #965 / tumor-selectivity #968.
@@ -33,7 +28,12 @@ from _skills_common.narrator_lenses import ON_TARGET_SAFETY as _SAFETY_LENS
 # --synthesize narrator). Grounded in Europe PMC (PubTator3 fallback via default_retrieve; the safety
 # lens query terms live in literature_retrieval._LENS_QUERY_TERMS) + PMID-verified via verify_citations.
 from _skills_common.literature_synthesis import make_literature_fn
-from _skills_common.literature_retrieval import default_retrieve, verify_citations
+from _skills_common.narrator_engine import make_synthesize_fn
+from _skills_common.narrator_lenses import ON_TARGET_SAFETY as _SAFETY_LENS
+from _skills_common.safety_claims import safety_claim_vector, safety_key_signals
+from _skills_common.safety_question_table import safety_question_table
+from _skills_common.skill_report import ROLE_GATING, build_skill_report
+from _skills_common.subgroup_derivation import make_value_classifier
 
 # Signals-first sub-group reader (VERDICT-INERT). Thesis: on-target safety LIABILITY — signal = strength
 # of the liability, so high constraint / broad normal expression / germline pathogenicity → strong. NOTE
@@ -65,10 +65,9 @@ _SAFETY_VALUE_TIERS = {
     "moderately_selective": "weak",
     "not_essential": "absent",
 }
-from _skills_common.resolver import resolve_or_raise
 from _skills_common.modality_safety import safety_verdict_by_modality
 from _skills_common.narrative import build_narrative
-
+from _skills_common.resolver import resolve_or_raise
 
 SKILL_NAME = "on-target-safety-liability"
 SKILL_VERSION = "1.18.0"  # 1.18.0 (2026-09-07, CASE-009 literature-discordance loop): +VERDICT-INERT pharmacovigilance_scope_caveat — clarifies drug_warning_class='no_warning' = no OT-registered FDA warning among engaging drugs, NOT absence of on-target toxicity (mechanism-based dose-limiting tox — TLS/cytopenias/neuropathy — often not boxed). Fires only on the measured-negative no_warning state; verdict/resolver/golden/replay byte-stable.

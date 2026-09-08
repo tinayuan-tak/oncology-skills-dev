@@ -13,10 +13,10 @@ if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
 
 from _skills_common.evidence_salience import (  # noqa: E402
+    _BATCH_DISTANCE_TO_CUT_METERS,
     SALIENCE_SPECS,
     build_interpretation,
     contract_threshold,
-    _BATCH_DISTANCE_TO_CUT_METERS,
 )
 
 # one representative in-range value per batched axis + the cut we expect to resolve from the card

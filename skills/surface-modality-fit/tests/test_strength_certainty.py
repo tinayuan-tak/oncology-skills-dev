@@ -1,6 +1,7 @@
 """surface_modality (strength, certainty) sidecar — CERTAINTY_MODEL 4th axis. Verdict-inert."""
 
 from __future__ import annotations
+
 from pathlib import Path
 
 from _test_support import load_run_py

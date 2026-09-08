@@ -14,8 +14,8 @@ Pins:
 from __future__ import annotations
 
 from _skills_common import literature_synthesis as lit
-from _skills_common.narrator_lenses import TUMOR_PRESENCE as LENS
 from _skills_common import narrator_engine as ne
+from _skills_common.narrator_lenses import TUMOR_PRESENCE as LENS
 
 
 def _decision():

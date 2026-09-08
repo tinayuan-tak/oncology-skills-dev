@@ -22,38 +22,38 @@ _AM = os.environ.get(
 sys.path.insert(0, _AM)
 
 import _figure_emitters as fe  # noqa: E402
-from methods.depmap_expression_distribution import cli as e3cli  # noqa: E402
-from methods.depmap_expression_distribution.figures import render_from_plot_data  # noqa: E402
-from methods.depmap_chronos_distribution import cli as chr_cli  # noqa: E402
-from methods.depmap_chronos_distribution import figures as chr_fig  # noqa: E402
-from methods.depmap_demeter_distribution import cli as rnai_cli  # noqa: E402
-from methods.depmap_demeter_distribution import figures as rnai_fig  # noqa: E402
-from methods.depmap_cn_distribution import cli as cn_cli  # noqa: E402
-from methods.depmap_cn_distribution import figures as cn_fig  # noqa: E402
-from methods.depmap_protein_abundance import cli as prot_cli  # noqa: E402
-from methods.depmap_protein_abundance import figures as prot_fig  # noqa: E402
-from methods.depmap_chronos import cli as chr2_cli  # noqa: E402  (card2 dependency-lineage-selectivity)
-from methods.depmap_chronos import figures as chr2_fig  # noqa: E402
-from methods.depmap_expression_dependency import cli as c4_cli  # noqa: E402  (card4)
-from methods.depmap_expression_dependency import figures as c4_fig  # noqa: E402
-from methods.depmap_crispr_rnai_concordance import cli as c1c_cli  # noqa: E402  (card1c)
-from methods.depmap_crispr_rnai_concordance import figures as c1c_fig  # noqa: E402
-from methods.depmap_mutation_dependency import cli as c3_cli  # noqa: E402  (card3)
-from methods.depmap_mutation_dependency import figures as c3_fig  # noqa: E402
-from methods.depmap_cis_dosage import cli as cis_cli  # noqa: E402  (cis-feature-expression-coherence)
-from methods.depmap_cis_dosage import figures as cis_fig  # noqa: E402
-from methods.tcga_gtex_expression_distribution import figures as tcga_fig  # noqa: E402
-from methods.tcga_gtex_expression_distribution import read as tcga_read  # noqa: E402
-from methods.depmap_rna_protein_concordance import figures as rp_fig  # noqa: E402
-from methods.depmap_rna_protein_concordance import read as rp_read  # noqa: E402
-from methods.patient_model_expression_correspondence import figures as pm_fig  # noqa: E402
-from methods.patient_model_expression_correspondence import read as pm_read  # noqa: E402
-from methods.tcga_gtex_tpm_quantiles import figures as breadth_fig  # noqa: E402
-from methods.tcga_gtex_tpm_quantiles import read as breadth_read  # noqa: E402
 from methods.cptac_protein_deg import figures as cptac_fig  # noqa: E402
 from methods.cptac_protein_deg import read as cptac_read  # noqa: E402
+from methods.depmap_chronos import cli as chr2_cli  # noqa: E402  (card2 dependency-lineage-selectivity)
+from methods.depmap_chronos import figures as chr2_fig  # noqa: E402
+from methods.depmap_chronos_distribution import cli as chr_cli  # noqa: E402
+from methods.depmap_chronos_distribution import figures as chr_fig  # noqa: E402
+from methods.depmap_cis_dosage import cli as cis_cli  # noqa: E402  (cis-feature-expression-coherence)
+from methods.depmap_cis_dosage import figures as cis_fig  # noqa: E402
+from methods.depmap_cn_distribution import cli as cn_cli  # noqa: E402
+from methods.depmap_cn_distribution import figures as cn_fig  # noqa: E402
+from methods.depmap_crispr_rnai_concordance import cli as c1c_cli  # noqa: E402  (card1c)
+from methods.depmap_crispr_rnai_concordance import figures as c1c_fig  # noqa: E402
+from methods.depmap_demeter_distribution import cli as rnai_cli  # noqa: E402
+from methods.depmap_demeter_distribution import figures as rnai_fig  # noqa: E402
+from methods.depmap_expression_dependency import cli as c4_cli  # noqa: E402  (card4)
+from methods.depmap_expression_dependency import figures as c4_fig  # noqa: E402
+from methods.depmap_expression_distribution import cli as e3cli  # noqa: E402
+from methods.depmap_expression_distribution.figures import render_from_plot_data  # noqa: E402
+from methods.depmap_mutation_dependency import cli as c3_cli  # noqa: E402  (card3)
+from methods.depmap_mutation_dependency import figures as c3_fig  # noqa: E402
+from methods.depmap_protein_abundance import cli as prot_cli  # noqa: E402
+from methods.depmap_protein_abundance import figures as prot_fig  # noqa: E402
+from methods.depmap_rna_protein_concordance import figures as rp_fig  # noqa: E402
+from methods.depmap_rna_protein_concordance import read as rp_read  # noqa: E402
 from methods.dge_deseq2 import figures as dge_fig  # noqa: E402
 from methods.dge_deseq2 import read as dge_read  # noqa: E402
+from methods.patient_model_expression_correspondence import figures as pm_fig  # noqa: E402
+from methods.patient_model_expression_correspondence import read as pm_read  # noqa: E402
+from methods.tcga_gtex_expression_distribution import figures as tcga_fig  # noqa: E402
+from methods.tcga_gtex_expression_distribution import read as tcga_read  # noqa: E402
+from methods.tcga_gtex_tpm_quantiles import figures as breadth_fig  # noqa: E402
+from methods.tcga_gtex_tpm_quantiles import read as breadth_read  # noqa: E402
 
 
 def _write_rp_points(name):

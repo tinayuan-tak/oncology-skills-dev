@@ -21,7 +21,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 
-
 # Color palette — muted, print-safe, colorblind-considered.
 VERDICT_COLORS = {
     # Strong-supportive (green family)

@@ -51,14 +51,13 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from . import (
-    resolve_cards,
     fired_rules,
-    modality_lens,
     make_decision_json,
+    modality_lens,
+    resolve_cards,
     write_package,
 )
 from .run_log import install_run_log, restore_run_log
-
 
 # Types
 VerdictFn = Callable[[list[dict]], tuple[str, Optional[str]]]
@@ -817,7 +816,7 @@ def run_wired_skill(
     # explicit-reader version) wins. VERDICT-INERT, best-effort — one edit wires the whole fleet.
     if isinstance(headline, dict):
         try:
-            from _skills_common.subgroup_derivation import subgroup_signals_for, default_classify
+            from _skills_common.subgroup_derivation import default_classify, subgroup_signals_for
 
             _skill_dir = Path(__file__).resolve().parent.parent / skill_name
             if (_skill_dir / "question_hierarchy.yaml").exists():

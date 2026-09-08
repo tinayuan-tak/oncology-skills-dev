@@ -26,8 +26,8 @@ plus data_quality_flags — generic mis-bind / direction-inversion contradiction
 
 from __future__ import annotations
 
-from _skills_common.subgroup_derivation import _card_capsule_contract, _card_meta, default_classify, _TIERV
-from _skills_common.evidence_salience import spec_for, indication_stratum_aliases, sig_round
+from _skills_common.evidence_salience import indication_stratum_aliases, sig_round, spec_for
+from _skills_common.subgroup_derivation import _TIERV, _card_capsule_contract, _card_meta, default_classify
 
 _R = 4  # float precision (hash-stability)
 _STRATUM_LABELS = ("oncotree_code", "lineage", "stratum_id", "stratum", "subgroup", "cohort", "subtype")

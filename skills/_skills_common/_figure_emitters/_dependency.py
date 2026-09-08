@@ -6,11 +6,12 @@ Part of the _skills_common figure-emitter package (rehomed off the retired compo
 from __future__ import annotations
 
 from pathlib import Path  # noqa: F401 — type hints (stringized by future-annotations)
+
 from ._common import (  # shared emitter helpers/constants
+    TARGET_CONTRACTS,
     _ensure_methods_path,
     _has_live_read_error,
     _plotly_from,
-    TARGET_CONTRACTS,
 )
 
 
@@ -457,8 +458,8 @@ def _emit_card3_mutation_stratified_dependency(
         return render_from_plot_data(pd_path, summary, out_dir, target, indication)
 
     # LEGACY fallback: re-execute the method against live data (pre-migration behavior).
-    from methods.depmap_mutation_dependency import cli as c3cli
     from methods.depmap_chronos_distribution import cli as c1cli
+    from methods.depmap_mutation_dependency import cli as c3cli
 
     chronos_by_model, model_metadata, load_errors = c1cli.load_depmap_files(release_pin="26q1", target_symbol=target)
     if load_errors or not chronos_by_model:

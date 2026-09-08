@@ -10,12 +10,12 @@ Pure caveat tests use synthetic headline dicts (no card / no resolver / no LLM).
 tuples (reference-drift guard)."""
 
 from __future__ import annotations
+
 from pathlib import Path
 
 import pytest
-
+from _skills_common.narrator_lenses import LENSES, SYNTHETIC_LETHAL_PARTNERS
 from _test_support import load_run_py
-from _skills_common.narrator_lenses import SYNTHETIC_LETHAL_PARTNERS, LENSES
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
 

@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from _skills_common.presence_claims import presence_state_phrase, presence_key_signals
+from _skills_common.presence_claims import presence_key_signals, presence_state_phrase
 
 
 def test_phrase_covers_each_state():

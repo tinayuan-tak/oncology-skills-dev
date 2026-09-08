@@ -24,7 +24,6 @@ import re
 from pathlib import Path
 
 import yaml
-
 from _test_support import load_run_py
 
 SKILLS_DIR = Path(__file__).resolve().parent.parent

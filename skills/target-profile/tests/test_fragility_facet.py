@@ -20,7 +20,6 @@ import copy
 from pathlib import Path
 
 import yaml
-
 from _test_support import load_run_py
 
 run = load_run_py(Path(__file__).resolve().parents[1], "tp_run_frag")
@@ -215,6 +214,7 @@ def test_short_to_gate_maps_to_real_resolvers():
     explicit map (short `tractability_sm` → gate `tractability_small_molecule`). Skips if the live
     contracts checkout is unavailable."""
     import os
+
     import pytest
     from _skills_common.reachability import resolver_referenced_rule_ids
 

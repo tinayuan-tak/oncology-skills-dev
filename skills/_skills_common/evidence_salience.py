@@ -826,6 +826,7 @@ def contract_threshold(card_id, key, contracts_repo: str | None = None):
         return None
     try:
         import yaml
+
         from _skills_common.paths import target_contracts_root
 
         base = Path(contracts_repo) if contracts_repo else target_contracts_root()

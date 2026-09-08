@@ -8,6 +8,7 @@ combinatorial-dependency).
 """
 
 from __future__ import annotations
+
 from _skills_common.narrator_engine import LensConfig
 
 FUNCTIONAL_REQUIREMENT = LensConfig(

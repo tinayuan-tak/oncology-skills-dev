@@ -28,7 +28,11 @@ from _skills_common.claim_vector_core import (
     bump_corroboration,
     cap_corroboration,
     sig_ge,
+)
+from _skills_common.claim_vector_core import (
     corr as _corr,
+)
+from _skills_common.claim_vector_core import (
     signal_from_class as _sig,
 )
 

@@ -42,7 +42,6 @@ from pathlib import Path
 
 import pytest
 import yaml
-
 from _test_support import load_run_py
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
@@ -133,6 +132,7 @@ def test_replay_conforms_to_data_product_schema(pair_id, target, indication):
     target). CEACAM5 = field_effect_tumor_selective, TACSTD2 = the veto-KILL selective_but_broadly_normal;
     both must conform (full envelope + skill_report, dynamic gating polarity). CI-fail-not-skip."""
     import os
+
     from _skills_common.data_product_contract import conformance_errors, load_schema, schema_path
 
     schema = load_schema("tumor-selectivity")

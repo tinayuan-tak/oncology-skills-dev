@@ -11,8 +11,8 @@ from _test_support import load_run_py
 tp = load_run_py(
     Path(__file__).resolve().parents[1], "tp_run_fig"
 )  # bootstraps scripts/ + _skills_common onto sys.path
-import tp_figures  # noqa: E402
 import _skills_common.headline_hero as hh  # noqa: E402
+import tp_figures  # noqa: E402
 
 
 def test_emit_subskill_heros_writes_file_per_headline_block(tmp_path, monkeypatch):

@@ -4,6 +4,7 @@ recurrent_snv_subclonal_uncertain, while clonal / clonality-unavailable / role-c
 SNVs keep recurrent_snv_driver. Deterministic resolver test (no data / no Bedrock)."""
 
 from __future__ import annotations
+
 import sys
 from pathlib import Path
 

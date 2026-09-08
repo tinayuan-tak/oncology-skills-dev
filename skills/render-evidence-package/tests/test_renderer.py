@@ -19,18 +19,16 @@ import json
 import sys
 from pathlib import Path
 
-
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(SCRIPTS_DIR))
 
 from scripts.render_markdown import (  # noqa: E402
-    render_evidence_package,
-    _render_toc,
+    FIT_ICONS,
     _fmt_evidence_cell,
     _render_modality_fit_table,
-    FIT_ICONS,
+    _render_toc,
+    render_evidence_package,
 )
-
 
 # ============================================================================
 # Hand-authored evidence_package fixtures

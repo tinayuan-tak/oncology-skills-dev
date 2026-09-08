@@ -11,6 +11,7 @@ if target-contracts is unavailable (no measurement_type lookup), returns {} (spi
 """
 
 from __future__ import annotations
+
 import functools
 import re
 from typing import Callable
@@ -395,8 +396,9 @@ def subgroup_signals_for(skill_dir, cards, reader_spec=None, classify=default_cl
     heuristic reader unless a per-skill reader_spec is given. Best-effort — returns {} on any fault
     (verdict-inert; never breaks the spine)."""
     try:
-        import yaml
         from pathlib import Path as _P
+
+        import yaml
 
         hier = yaml.safe_load((_P(skill_dir) / "question_hierarchy.yaml").read_text()) or {}
         sg = derive_subgroups(hier, cards, reader_spec, classify)

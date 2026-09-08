@@ -11,6 +11,7 @@ Invariants of the substrate layer:
 """
 
 from __future__ import annotations
+
 from pathlib import Path
 
 from _test_support import load_module

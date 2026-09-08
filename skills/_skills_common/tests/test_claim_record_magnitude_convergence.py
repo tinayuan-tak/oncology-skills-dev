@@ -13,7 +13,7 @@ SKILLS = Path(__file__).resolve().parents[2]
 if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
 
-from _skills_common.claim_record import assemble_claim_record, magnitude_from_interpretation, magnitude_for_card
+from _skills_common.claim_record import assemble_claim_record, magnitude_for_card, magnitude_from_interpretation
 
 
 def test_from_interpretation_comparator_delta_keeps_surfaced_delta():

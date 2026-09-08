@@ -20,10 +20,9 @@ import os
 from pathlib import Path
 from types import SimpleNamespace
 
-from jsonschema import Draft202012Validator
-
 from _skills_common.compose_core import subskill_composition
 from _test_support import load_run_py
+from jsonschema import Draft202012Validator
 
 CONTRACTS = Path(
     os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")

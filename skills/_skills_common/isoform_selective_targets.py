@@ -46,7 +46,6 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
-
 # Canonical vocabulary location. Overridable via env var for tests + repo-
 # root-relative execution outside the standard layout.
 _VOCAB_ENV_VAR = "ISOFORM_SELECTIVE_TARGETS_YAML"

@@ -116,7 +116,7 @@ def test_synthesize_runs_verify_fn(monkeypatch):
 
 # ── per-subskill query SPECIFICITY + VARIATIONS ─────────────────────────────────────────────────────
 def test_query_variations_are_lens_specific():
-    from _skills_common.narrator_lenses import TUMOR_SELECTIVITY, TUMOR_PRESENCE
+    from _skills_common.narrator_lenses import TUMOR_PRESENCE, TUMOR_SELECTIVITY
 
     vs_sel = lr._build_query_variations("EPCAM", "COADREAD", TUMOR_SELECTIVITY)
     # a broad recall query + a lens-specific precision query

@@ -9,8 +9,8 @@ SKILLS = Path(__file__).resolve().parents[2]  # skills/
 if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
 
-from _skills_common.report_render._fixtures import make_nomination
 from _skills_common.report_render import build_ir, render_report, resolve_spec, vocab
+from _skills_common.report_render._fixtures import make_nomination
 from _skills_common.report_render.ir import _strip_rule_citations
 
 

@@ -1,6 +1,7 @@
 """tumor-presence (strength, certainty) sidecar — CERTAINTY_MODEL 5th axis (first no-resolver). Verdict-inert."""
 
 from __future__ import annotations
+
 from pathlib import Path
 
 from _test_support import load_run_py

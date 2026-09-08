@@ -8,7 +8,6 @@ import json
 from pathlib import Path
 
 import pytest
-
 from _test_support import load_run_py
 
 diff = load_run_py(Path(__file__).resolve().parent.parent, "diff_run_claim_shadow")

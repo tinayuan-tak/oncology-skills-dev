@@ -13,12 +13,13 @@ synthesize_structured. All narrators are now LensConfig entries in narrator_lens
 """
 
 from __future__ import annotations
+
 from dataclasses import dataclass, field
 from typing import Optional
 
+from _skills_common.evidence_capsule import emit_capsules
 from _skills_common.llm import EVIDENCE_ONLY_DIRECTIVE as _EVIDENCE_ONLY_DIRECTIVE
 from _skills_common.signals_first import render_narrator_signals
-from _skills_common.evidence_capsule import emit_capsules
 
 
 @dataclass

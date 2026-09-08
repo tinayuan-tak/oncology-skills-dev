@@ -217,7 +217,7 @@ def build_risk_6dim(
     standalone render_review tool). Best-effort + VERDICT-INERT: any failure degrades to None and never
     blocks a run. modality None → small_molecule."""
     try:
-        from _skills_common.risk_projection import assemble_risk_package, deterministic_bins, _mod
+        from _skills_common.risk_projection import _mod, assemble_risk_package, deterministic_bins
 
         pkg = assemble_risk_package(sub_results)
         if grounded_by_axis:

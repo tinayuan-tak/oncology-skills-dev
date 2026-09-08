@@ -9,8 +9,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))  # skills/ for _skills_common
 
-from _skills_common.safety_question_table import safety_question_table
 from _skills_common.presence_question_table import render_question_table_html
+from _skills_common.safety_question_table import safety_question_table
 
 
 def _safe_headline():

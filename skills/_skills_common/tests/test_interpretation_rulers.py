@@ -13,8 +13,8 @@ SKILLS = Path(__file__).resolve().parents[2]
 if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
 
-from _skills_common.evidence_salience import SALIENCE_SPECS, build_interpretation
 from _skills_common.evidence_graph import _build_key_evidence
+from _skills_common.evidence_salience import SALIENCE_SPECS, build_interpretation
 
 
 # ── crispr floor_cut_ceiling (fields live in summary AND capsule n_basis/numeric_anchors) ────────────

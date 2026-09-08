@@ -30,7 +30,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Callable, Optional, Sequence
 
-from _skills_common.claim_vector_core import SIGNAL_ORD, CORROBORATION_ORD, weakest
+from _skills_common.claim_vector_core import CORROBORATION_ORD, SIGNAL_ORD, weakest
 
 # Confidence tiers, ordinal (strong > moderate > weak > insufficient). `insufficient` is the coverage
 # floor — the honest "we can't say" when nothing decision-critical is measured (distinct from a weak

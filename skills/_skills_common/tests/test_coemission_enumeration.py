@@ -12,7 +12,6 @@ import os
 from pathlib import Path
 
 import pytest
-
 from _test_support import load_module
 
 SKILLS = Path(__file__).resolve().parents[2]

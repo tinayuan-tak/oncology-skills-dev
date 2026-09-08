@@ -7,7 +7,6 @@ import types
 from pathlib import Path
 
 import pytest
-
 from _test_support import load_run_py
 
 load_run_py(Path(__file__).resolve().parents[1], "tp_run_emit")  # bootstraps scripts/ onto sys.path

@@ -17,8 +17,9 @@ import sys
 from pathlib import Path
 
 from . import backend_names, build_ir_auto, resolve_spec
-from .backends import BINARY_BACKENDS, EXTENSIONS, render as render_ir
-from .spec import LEVELS, MEDIA, LEADS, PRESETS
+from .backends import BINARY_BACKENDS, EXTENSIONS
+from .backends import render as render_ir
+from .spec import LEADS, LEVELS, MEDIA, PRESETS
 
 
 def _parse_scope(s):

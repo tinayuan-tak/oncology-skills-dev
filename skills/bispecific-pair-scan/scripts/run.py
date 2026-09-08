@@ -32,9 +32,9 @@ SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common import make_decision_json, write_package
-from _skills_common.skill_report import build_skill_report, ROLE_DESCRIPTIVE
 from _skills_common.envelope import build_subskill_provenance
 from _skills_common.gitmeta import skills_repo_sha
+from _skills_common.skill_report import ROLE_DESCRIPTIVE, build_skill_report
 
 SKILL_NAME = "bispecific-pair-scan"
 SKILL_VERSION = "1.0.0"

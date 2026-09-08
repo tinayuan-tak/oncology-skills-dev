@@ -24,21 +24,21 @@ from pathlib import Path
 SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
+from _skills_common import card_summary, get_card_field
+from _skills_common.claim_record import assemble_claim_record
 from _skills_common.dispatcher import run_wired_skill
+from _skills_common.headline_core import HeadlineSpec, build_headline
+from _skills_common.headline_hero import emit_headline_hero
+from _skills_common.literature_retrieval import default_retrieve, verify_citations
+from _skills_common.literature_synthesis import make_literature_fn
 from _skills_common.narrator_engine import make_synthesize_fn
 from _skills_common.narrator_lenses import SURFACE_MODALITY_FIT as _LENS
-from _skills_common import get_card_field, card_summary
-from _skills_common.resolver import resolve_or_raise
-from _skills_common.claim_record import assemble_claim_record
 from _skills_common.reachability import verdict_relevant_cards
+from _skills_common.resolver import resolve_or_raise
+from _skills_common.skill_report import ROLE_GATING, build_skill_report
+from _skills_common.subgroup_derivation import make_value_classifier
 from _skills_common.surface_claims import surface_claim_vector, surface_key_signals
 from _skills_common.surface_modality_question_table import surface_modality_question_table
-from _skills_common.headline_core import build_headline, HeadlineSpec
-from _skills_common.skill_report import build_skill_report, ROLE_GATING
-from _skills_common.headline_hero import emit_headline_hero
-from _skills_common.subgroup_derivation import make_value_classifier
-from _skills_common.literature_synthesis import make_literature_fn
-from _skills_common.literature_retrieval import default_retrieve, verify_citations
 
 # ─── Signals-first sub-group reader (verdict-INERT) ──────────────────────────────────────────────
 # The fleet-default heuristic tags this lens's strongest POSITIVE fit signals (both_viable, high /
@@ -83,7 +83,6 @@ _SURFACE_VALUE_TIERS = {
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from orthogonality import score_orthogonality  # noqa: E402 — skill-local facet
-
 
 # ── canonical HEADLINE block (verdict + confidence + top tension) ────────────────────────────────
 # The surface-modality declaration for the shared headline_core builder: the 5 surface claim axes

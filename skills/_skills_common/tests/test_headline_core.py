@@ -22,8 +22,8 @@ from _skills_common.headline_core import (  # noqa: E402
     HeadlineSpec,
     build_headline,
     derive_confidence,
-    rank_tension,
     headline_hero_plot_data,
+    rank_tension,
 )
 
 SPEC = HeadlineSpec(

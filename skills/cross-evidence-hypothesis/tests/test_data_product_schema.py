@@ -23,7 +23,6 @@ import sys
 from pathlib import Path
 
 import pytest
-
 from _test_support import load_run_py  # skills/ is on sys.path via skills/conftest.py
 
 SKILL = "cross-evidence-hypothesis"
@@ -34,7 +33,6 @@ GOLDEN = SKILL_DIR / "tests" / "fixtures" / "golden" / "KRAS-COADREAD"
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 import drift_golden as dg  # noqa: E402
-
 from _skills_common.data_product_contract import (  # noqa: E402
     conformance_errors,
     load_schema,

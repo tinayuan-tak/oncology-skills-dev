@@ -5,11 +5,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from _skills_common.skill_report import (  # noqa: E402
+    ROLE_DESCRIPTIVE,
+    ROLE_GATING,
+    ROLE_INERT,
     build_skill_report,
     canonical_polarity,
-    ROLE_GATING,
-    ROLE_DESCRIPTIVE,
-    ROLE_INERT,
 )
 
 _HB = {

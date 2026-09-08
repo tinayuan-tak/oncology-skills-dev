@@ -2,7 +2,9 @@
 Deterministic, no Bedrock. Verdict-INERT projection over resolved cards."""
 
 from __future__ import annotations
-import json, sys
+
+import json
+import sys
 from pathlib import Path
 
 SKILLS = Path(__file__).resolve().parents[2]

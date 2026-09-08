@@ -221,6 +221,7 @@ def test_tumor_vs_adjacent_coadread_uses_legacy_manifest():
 # fire for 26/27 indications (silent driving_rule_id drift + dropped degrader-killer rules).
 # These are HERMETIC (mock the dge module) so they run without S3.
 import unittest.mock as _mock  # noqa: E402
+
 from _skills_common import _live_readers as _lr  # noqa: E402
 
 
@@ -338,6 +339,7 @@ def _iter_skill_card_pairs():
 
 
 import os  # noqa: E402
+
 import yaml  # noqa: E402
 
 _CONTRACTS_ROOT = Path(

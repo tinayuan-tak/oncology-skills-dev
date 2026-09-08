@@ -15,7 +15,7 @@ for _p in (str(SKILLS), str(SCRIPTS)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from tp_synthesis_prompt import _render_risk_6dim_block, _build_user_prompt  # noqa: E402
+from tp_synthesis_prompt import _build_user_prompt, _render_risk_6dim_block  # noqa: E402
 
 
 def _dims():

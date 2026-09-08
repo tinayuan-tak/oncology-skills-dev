@@ -62,7 +62,7 @@ def _load_catalog_resolver():
     if mrepo not in sys.path:
         sys.path.insert(0, mrepo)
     try:
-        from methods.catalog_query.read import resolve_release, _family_of
+        from methods.catalog_query.read import _family_of, resolve_release
 
         return resolve_release, _family_of
     except Exception:  # noqa: BLE001 — no catalog helper → skip head/stale enrichment (digest still emits)
@@ -107,7 +107,7 @@ def _known_manifest_ids() -> "set | None":
     try:
         # Import the module's canonical DATA_CATALOG / TARGET_CONTRACTS Paths so the lru_cache key
         # matches resolve_release's `load_catalog(root=root, contracts_root=contracts_root)` exactly.
-        from methods.catalog_query.read import load_catalog, DATA_CATALOG, TARGET_CONTRACTS
+        from methods.catalog_query.read import DATA_CATALOG, TARGET_CONTRACTS, load_catalog
 
         return set(load_catalog(root=DATA_CATALOG, contracts_root=TARGET_CONTRACTS).manifests)
     except Exception:  # noqa: BLE001 — no catalog → skip the indeterminate-staleness refinement

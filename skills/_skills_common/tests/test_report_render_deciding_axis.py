@@ -9,10 +9,9 @@ SKILLS = Path(__file__).resolve().parents[2]
 if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
 
-from _skills_common.report_render._fixtures import make_nomination
 from _skills_common.report_render import build_ir, render_report, resolve_spec, vocab
+from _skills_common.report_render._fixtures import make_nomination
 from _skills_common.report_render.ir import _deciding_short
-
 
 # the real ERBB2×BRCA shape: a framework-blind lens leads the list, the gated+evidenced driver follows.
 _ERBB2_DA = {

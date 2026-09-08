@@ -22,18 +22,18 @@ SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common import card_summary
-from _skills_common.dispatcher import run_wired_skill
-from _skills_common.narrator_engine import make_synthesize_fn
-from _skills_common.narrator_lenses import CIS_FEATURE_COHERENCE as _LENS
-from _skills_common.literature_synthesis import make_literature_fn
-from _skills_common.literature_retrieval import default_retrieve, verify_citations
-from _skills_common.resolver import resolve_or_raise
-from _skills_common.claim_record import assemble_claim_record
 from _skills_common.cis_coherence_claims import cis_coherence_claim_vector, cis_coherence_key_signals
 from _skills_common.cis_coherence_question_table import cis_coherence_question_table
-from _skills_common.headline_core import build_headline, HeadlineSpec
-from _skills_common.skill_report import build_skill_report, ROLE_INERT
+from _skills_common.claim_record import assemble_claim_record
+from _skills_common.dispatcher import run_wired_skill
+from _skills_common.headline_core import HeadlineSpec, build_headline
 from _skills_common.headline_hero import emit_headline_hero
+from _skills_common.literature_retrieval import default_retrieve, verify_citations
+from _skills_common.literature_synthesis import make_literature_fn
+from _skills_common.narrator_engine import make_synthesize_fn
+from _skills_common.narrator_lenses import CIS_FEATURE_COHERENCE as _LENS
+from _skills_common.resolver import resolve_or_raise
+from _skills_common.skill_report import ROLE_INERT, build_skill_report
 from _skills_common.subgroup_derivation import make_value_classifier
 
 # Signals-first sub-group reader (VERDICT-INERT). Thesis: cis locus→expression→dependency coherence.

@@ -5,6 +5,7 @@ renders it. Verdict-inert: a projection over the headline + claim_vector.
 """
 
 from __future__ import annotations
+
 import sys
 from pathlib import Path
 
@@ -12,9 +13,9 @@ SKILLS = Path(__file__).resolve().parents[2]
 if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
 
-from _skills_common.selectivity_question_table import selectivity_question_table  # noqa: E402
-from _skills_common.selectivity_claims import selectivity_claim_vector  # noqa: E402
 from _skills_common.presence_question_table import render_question_table_html  # noqa: E402 (shared renderer)
+from _skills_common.selectivity_claims import selectivity_claim_vector  # noqa: E402
+from _skills_common.selectivity_question_table import selectivity_question_table  # noqa: E402
 
 
 def _ceacam5_headline():

@@ -16,17 +16,17 @@ from pathlib import Path
 SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
-from _skills_common.dispatcher import run_wired_skill
-from _skills_common.narrator_engine import make_synthesize_fn
-from _skills_common.narrator_lenses import DIFFERENTIATION_LANDSCAPE as _LENS
-from _skills_common.literature_synthesis import make_literature_fn
-from _skills_common.literature_retrieval import default_retrieve, verify_citations
 from _skills_common import get_card_field
 from _skills_common.differentiation_claims import differentiation_claim_vector, differentiation_key_signals
-from _skills_common.headline_core import build_headline, HeadlineSpec
-from _skills_common.skill_report import build_skill_report, ROLE_GATING
 from _skills_common.differentiation_question_table import differentiation_question_table
+from _skills_common.dispatcher import run_wired_skill
+from _skills_common.headline_core import HeadlineSpec, build_headline
 from _skills_common.headline_hero import emit_headline_hero
+from _skills_common.literature_retrieval import default_retrieve, verify_citations
+from _skills_common.literature_synthesis import make_literature_fn
+from _skills_common.narrator_engine import make_synthesize_fn
+from _skills_common.narrator_lenses import DIFFERENTIATION_LANDSCAPE as _LENS
+from _skills_common.skill_report import ROLE_GATING, build_skill_report
 from _skills_common.subgroup_derivation import make_value_classifier
 
 # Signals-first sub-group reader (VERDICT-INERT). Thesis: a differentiation signal exists (co-mutation
@@ -48,9 +48,8 @@ _DIFFERENTIATION_VALUE_TIERS = {
     "no_survival_association": "absent",
     "subtype_stratifies_survival": "strong",
 }
-from _skills_common.resolver import resolve_or_raise
 from _skills_common.claim_record import assemble_claim_record
-
+from _skills_common.resolver import resolve_or_raise
 
 SKILL_NAME = "differentiation-landscape"
 SKILL_VERSION = "1.12.0"  # 1.12.0 (2026-09-07, CASE-010 literature-discordance loop): add verdict-INERT survival_direction_scope_caveat — the SURVIVAL axis is mRNA-EXPRESSION↔survival, NOT mutation-outcome; for a mutational driver the direction can differ/invert (KRAS-mutant CRC). Fires only on directional expression-survival classes; verdict/resolver/golden/replay byte-stable.

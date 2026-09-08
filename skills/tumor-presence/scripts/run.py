@@ -41,32 +41,31 @@ from pathlib import Path
 SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
-from _skills_common.dispatcher import run_wired_skill
-from _skills_common.narrator_engine import make_synthesize_fn
-from _skills_common.literature_synthesis import make_literature_fn
-from _skills_common.literature_retrieval import europe_pmc_retrieve, verify_citations
-from _skills_common.narrator_lenses import TUMOR_PRESENCE as _LENS
 from _skills_common import get_card_field, resolve_cards
 from _skills_common._live_readers import _load_surface_secreted_antigens
 from _skills_common.claim_record import assemble_claim_record
-from _skills_common.presence_matrix import emit_presence_matrix
+from _skills_common.dispatcher import run_wired_skill
+from _skills_common.headline_core import HeadlineSpec, build_headline
+from _skills_common.headline_hero import emit_headline_hero
+from _skills_common.literature_retrieval import europe_pmc_retrieve, verify_citations
+from _skills_common.literature_synthesis import make_literature_fn
+from _skills_common.narrator_engine import make_synthesize_fn
+from _skills_common.narrator_lenses import TUMOR_PRESENCE as _LENS
+from _skills_common.presence_cardboard_figure import emit_card_board_figure
 from _skills_common.presence_claims import (
+    derive_presence_state,
     presence_claim_vector,
     presence_claim_vector_by_subtype,
     presence_key_signals,
-    derive_presence_state,
-    presence_strength_from_state,
     presence_state_phrase,
+    presence_strength_from_state,
 )
-from _skills_common.presence_question_table import presence_question_table
-from _skills_common.headline_core import build_headline, HeadlineSpec
-from _skills_common.skill_report import build_skill_report, ROLE_DESCRIPTIVE
-from _skills_common.headline_hero import emit_headline_hero
-from _skills_common.subgroup_figure import emit_subgroup_figure
 from _skills_common.presence_claims_figure import emit_claim_vector_figure
+from _skills_common.presence_matrix import emit_presence_matrix
+from _skills_common.presence_question_table import presence_question_table
 from _skills_common.presence_subtype_figure import emit_subtype_refinement_figure
-from _skills_common.presence_cardboard_figure import emit_card_board_figure
-
+from _skills_common.skill_report import ROLE_DESCRIPTIVE, build_skill_report
+from _skills_common.subgroup_figure import emit_subgroup_figure
 
 # ── --subtypes panorama (opt-in, verdict-INERT) ───────────────────────────────────────────────────
 # Power floor mirroring subgroup_common/panorama.py SUBGROUP_N_FLOOR + the card's min_n_required.

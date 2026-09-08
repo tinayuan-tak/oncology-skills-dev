@@ -5,6 +5,7 @@ the local mapping (e.g. --no-substrate). Pure over synthetic inputs.
 """
 
 from __future__ import annotations
+
 import sys
 from pathlib import Path
 

@@ -20,8 +20,8 @@ os.environ.setdefault(
 )
 
 from _skills_common.reachability import (  # noqa: E402
-    verdict_relevant_cards,
     resolver_referenced_rule_ids,
+    verdict_relevant_cards,
 )
 from _skills_common.resolver import resolve_verdict_for_gate  # noqa: E402
 

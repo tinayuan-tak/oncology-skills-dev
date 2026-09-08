@@ -24,7 +24,6 @@ from pathlib import Path
 
 import pandas as pd
 
-
 METHODS_REPO = Path(
     os.environ.get("ANALYSIS_METHODS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods")
 )
@@ -448,8 +447,8 @@ def test_q5_rna_protein_concordance_figure_emission(tmp_path, monkeypatch):
 
 def test_q5_tumor_concordance_figure_emission(tmp_path, monkeypatch):
     """Q5 TUMOR concordance scatter; gated on rna_as_biomarker. Monkeypatch the matched-cohort reader."""
-    import pandas as pd
     import methods.depmap_rna_protein_concordance.read as rpr
+    import pandas as pd
 
     rows = [
         {

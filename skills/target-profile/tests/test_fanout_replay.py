@@ -38,7 +38,6 @@ from pathlib import Path
 
 import pytest
 import yaml
-
 from _test_support import load_run_py
 
 SKILL_DIR = Path(__file__).resolve().parent.parent

@@ -106,6 +106,7 @@ def test_replay_conforms_to_data_product_schema(pair_id, target, indication, _ex
     """LOAD-BEARING output-drift guard: the FRESH run.py emit must validate against the finalized
     data-product schema (static golden trimmed → this is the conformance target). CI-fail-not-skip."""
     import os
+
     from _skills_common.data_product_contract import conformance_errors, load_schema, schema_path
 
     schema = load_schema("differentiation-landscape")

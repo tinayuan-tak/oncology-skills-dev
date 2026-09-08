@@ -42,18 +42,18 @@ from typing import Optional
 
 import yaml
 
+from .composite_panel import render_composite_panel  # noqa: F401 — public re-export
+from .composition_schema import Composition, CompositionError, validate_skill_md  # noqa: F401 — public re-export
+from .composition_schema import validate as validate_composition
+from .llm import EVIDENCE_ONLY_DIRECTIVE, synthesize_structured  # noqa: F401 — public re-export
+from .placeholder import emit_placeholder  # noqa: F401 — public re-export
+from .resolver import load_resolver, resolve_or_raise, resolve_verdict, resolve_verdict_for_gate  # noqa: F401
 from .rules_loader import (
     TARGET_CONTRACTS,
-    load_interpretation_rules,
     filter_rules_by_card_ids,
+    load_interpretation_rules,
 )
 from .write_package import write_package  # noqa: F401 — public re-export
-from .resolver import resolve_verdict, resolve_verdict_for_gate, resolve_or_raise, load_resolver  # noqa: F401
-from .composition_schema import Composition, CompositionError, validate as validate_composition, validate_skill_md  # noqa: F401 — public re-export
-from .llm import synthesize_structured, EVIDENCE_ONLY_DIRECTIVE  # noqa: F401 — public re-export
-from .placeholder import emit_placeholder  # noqa: F401 — public re-export
-from .composite_panel import render_composite_panel  # noqa: F401 — public re-export
-
 
 # --- environment discovery -------------------------------------------------
 

@@ -25,7 +25,8 @@ Verdict-INERT: reads the already-computed _headline (+ source cards) and never f
 
 from __future__ import annotations
 
-from _skills_common.claim_vector_core import ClaimSpec, build_claim_vector, build_key_signals, corr as _plain_corr
+from _skills_common.claim_vector_core import ClaimSpec, build_claim_vector, build_key_signals
+from _skills_common.claim_vector_core import corr as _plain_corr
 
 _CIS_DOSAGE_SIGNAL = {
     "cn_dosage_coupled_strong": "strong",

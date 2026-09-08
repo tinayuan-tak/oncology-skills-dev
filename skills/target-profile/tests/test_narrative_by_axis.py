@@ -15,7 +15,6 @@ import copy
 from pathlib import Path
 
 import yaml
-
 from _skills_common.rules_loader import rule_text_index
 from _test_support import load_run_py
 

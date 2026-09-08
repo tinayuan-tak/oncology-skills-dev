@@ -22,9 +22,14 @@ Confidence reuses the corroboration vocabulary (high>moderate>low, unmeasured). 
 """
 
 from __future__ import annotations
+
 from typing import Optional
 
-from _skills_common.question_table_core import cbyid as _cbyid, conf as _conf, row as _row, sig as _sig, _SIG_META
+from _skills_common.question_table_core import _SIG_META
+from _skills_common.question_table_core import cbyid as _cbyid
+from _skills_common.question_table_core import conf as _conf
+from _skills_common.question_table_core import row as _row
+from _skills_common.question_table_core import sig as _sig
 
 
 # Signal tier → (meter fill 0-5, polarity). Polarity: supports / opposes / neutral / none.

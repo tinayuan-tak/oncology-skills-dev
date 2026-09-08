@@ -151,6 +151,7 @@ def _build_corporate_http_client():
         return None
     try:
         import ssl
+
         import httpx
     except ImportError:
         return None

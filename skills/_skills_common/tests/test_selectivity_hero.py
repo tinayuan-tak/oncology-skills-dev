@@ -18,8 +18,8 @@ if str(SKILLS) not in sys.path:
 
 from _skills_common.selectivity_hero import (  # noqa: E402
     build_selectivity_axes,
-    render_selectivity_hero_svg,
     emit_selectivity_hero,
+    render_selectivity_hero_svg,
 )
 
 

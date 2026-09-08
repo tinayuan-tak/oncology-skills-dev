@@ -16,12 +16,10 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-
 COMMON_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(COMMON_DIR.parent))  # skills/
 
 from _skills_common import llm as LLM  # noqa: E402
-
 
 _SCHEMA = {
     "type": "object",

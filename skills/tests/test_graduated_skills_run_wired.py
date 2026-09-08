@@ -37,7 +37,6 @@ sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.composition_schema import validate_skill_md
 
-
 # Skills to verify. Excludes non-compositional legacy skills that predate
 # the composition contract (compose-dashboard, query-target-evidence,
 # render-evidence-package). Excludes the

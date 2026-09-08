@@ -26,9 +26,10 @@ from pathlib import Path
 SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
-from _skills_common import resolve_cards, card_summary
-from _skills_common.resolver import resolve_or_raise
-from _skills_common.claim_record import assemble_claim_record
+from _skills_common import card_summary, resolve_cards
+from _skills_common.card_preprocessors import (
+    _bh_qvalues,
+)
 
 # The family-wise FDR across the stratified-dependency classes is single-sourced in
 # _skills_common.card_preprocessors so all three resolution paths apply it identically:
@@ -36,15 +37,15 @@ from _skills_common.claim_record import assemble_claim_record
 # apply_family_wise_fdr is used by main(); _bh_qvalues is re-exported for this skill's tests.
 from _skills_common.card_preprocessors import (  # noqa: F401
     apply_family_wise_fdr as _apply_family_wise_fdr,
-    _bh_qvalues,
+)
+from _skills_common.card_preprocessors import (
     apply_promiscuous_amplicon_fusion_demotion as _apply_amplicon_fusion_demotion,
 )
+from _skills_common.claim_record import assemble_claim_record
+from _skills_common.dispatcher import run_wired_skill
 from _skills_common.genomic_claims import genomic_claim_vector, genomic_key_signals
 from _skills_common.genomic_question_table import genomic_question_table
-from _skills_common.subgroup_derivation import make_value_classifier, subgroup_signals_for
-from _skills_common.narrator_engine import make_synthesize_fn, narrate as _narrate
-from _skills_common.narrator_lenses import GENOMIC_ALTERATION as _LENS
-from _skills_common.dispatcher import run_wired_skill
+from _skills_common.literature_retrieval import default_retrieve, verify_citations
 
 # OPTIONAL (--literature) verdict-INERT LLM literature lane, reusing the shared fleet module (the same
 # make_literature_fn wired into tumor-presence #965 / tumor-selectivity #968). Passed to
@@ -53,7 +54,11 @@ from _skills_common.dispatcher import run_wired_skill
 # live in literature_retrieval._LENS_QUERY_TERMS) + PMID-verified via verify_citations. The lens's
 # SNV/CN/FUS/DEP axis_labels match the genomic claim_vector, so the prompt is grounded on the right axes.
 from _skills_common.literature_synthesis import make_literature_fn
-from _skills_common.literature_retrieval import default_retrieve, verify_citations
+from _skills_common.narrator_engine import make_synthesize_fn
+from _skills_common.narrator_engine import narrate as _narrate
+from _skills_common.narrator_lenses import GENOMIC_ALTERATION as _LENS
+from _skills_common.resolver import resolve_or_raise
+from _skills_common.subgroup_derivation import make_value_classifier, subgroup_signals_for
 
 _LITERATURE_FN = make_literature_fn(_LENS, retrieve_fn=default_retrieve, verify_fn=verify_citations)
 
@@ -117,8 +122,8 @@ _GENOMIC_VALUE_TIERS = {
     "recurrent_splice_driver": "strong",
     "no_exon_skip": "absent",
 }
-from _skills_common.headline_core import build_headline, HeadlineSpec
-from _skills_common.skill_report import build_skill_report, ROLE_GATING
+from _skills_common.headline_core import HeadlineSpec, build_headline
+from _skills_common.skill_report import ROLE_GATING, build_skill_report
 
 SKILL_NAME = "genomic-alteration-profile"
 SKILL_VERSION = "2.17.0"  # 2.17.0 (2026-09-06): MIGRATED off the hand-rolled main() onto the shared run_wired_skill dispatcher (the last hand-rolled fan-out main) via 3 additive dispatcher hooks — preprocess_provenance→headline_fn, subtype_merge_fn, claim_record_fn. Verdict spine + headline byte-IDENTICAL on the whole-cohort path. Fleet-alignment deltas (all verdict-INERT): run_health adopts the fleet shape (+read/compute/total_secs, provenance_warnings, cards_skipped_a4) + a `consolidation` key is added; the headline-hero figure is now --figures-gated (fleet convention); on --subtypes the panorama cards get whole-cohort capsules (fleet convention) so their evidence_graph nodes render at base detail (panorama block itself byte-identical).   # 2.16.0 (2026-09-04, #983): COPY-NUMBER GATE completing the fusion over-read fix — a moderate_promiscuous recurrent_fusion_driver at a recurrently focally-AMPLIFIED locus (copy-number-distribution.patient_focal_cn_class == recurrent_focal_amplification) is demoted (card preprocessor, all paths) to promiscuous_amplicon_fusion → fires NO driver rung + drops out of the multi-class framing (amplicon passenger, ERBB2/STAD-class), while not-amplified promiscuous kinase fusions (ROS1/NTRK1/FGFR2) are SPARED. The v2.15.0 claim-vector downgrade now covers the not-focally-amplified half (MET/LUAD). VERDICT-MOVING only for the amplified amplicon-passenger subset (amplification-driver rung already carries their verdict).   # +SPLICE as a first-class alteration member of the signals-first layer: genomic_alteration_by_class['splice'], a SPL claim-vector axis (genomic_claims), a question-table row, key_signals driver-naming, and the GENOMIC_ALTERATION lens axis_labels — so a splice_exon_skip_driver (METex14) verdict is NAMED by the decomposition/narrator (was invisible → the layer led with SNV/fusion). + VERDICT-INERT confidence-aware FUS downgrade: a recurrent_fusion_driver flagged fusion_recurrence_confidence==moderate_promiscuous downgrades strong->weak in the claim vector (MET/LUAD promiscuous n=3, contradicted by literature) so the signals-first headline stops over-reading it — resolver rung untouched (#983). HeadlineSpec hero (SNV/CN/FUS/DEP) deliberately unchanged → headline_block/confidence byte-stable. Surfaced by the KRAS-vs-MET literature-benchmark review.   # 2.14.0: +OPTIONAL --literature lane (verdict-INERT LLM literature synthesis, Europe-PMC-grounded + PMID-verified, scoped to SNV/CN/FUS/DEP; reuses _skills_common.literature_synthesis) wired in the hand-rolled main(), mirroring tumor-presence #965 / tumor-selectivity #968. + VERDICT-INERT claim-vector enrichment: CIViC therapy-resistance actionability (variant-level-interpretation.civic_resistance_variants) folded into the DEP claim's rendered evidence + LensConfig thesis, so the narrator surfaces a negative-predictive-biomarker allele (e.g. KRAS→anti-EGFR in COADREAD) it previously missed (capsule projection never surfaced resistance_variants). Verdict spine byte-stable.   # 2.13.0: +splice-exon-skip-landscape (CASE-002): curated exon-skip DRIVER (METex14) oncogenic in-indication + live DepMap carriers fires splice_exon_skip_driver (genomic resolver 1.8.0), so MET/LUAD reads a splice-skipping driver not a neutral missense_dominant_pattern (signal-vector fidelity; veto already resolved).   # 2.12.0: +reconcile_genomic_verdict: EMITTED-verdict alignment with the signal package (biomarker-dependency demotes to biomarker_dependency_unconfirmed when BOTH KO-dependency confidence cards contradict). Verdict-INERT to nomination (gate reads raw ladder). Mirrors tumor-presence #860.   # 2.11.0: +recurrent_snv_subclonal_uncertain (backtest-gated subclonal-recurrence demotion; contracts genomic_alteration 1.7.0)   # 2.10.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 2.9.0 (2026-08-27): wire signals-first sub-group signals (hand-rolled main bypassed

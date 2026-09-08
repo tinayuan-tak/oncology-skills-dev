@@ -103,6 +103,7 @@ def test_replay_conforms_to_data_product_schema(egfr_decision):
     data-product schema. Confirms the gateless-descriptive shape (skill_report.call null, role
     descriptive) + the PANCANCER/indication envelope. CI-fail-not-skip."""
     import os
+
     from _skills_common.data_product_contract import conformance_errors, load_schema, schema_path
 
     schema = load_schema("target-intrinsic")

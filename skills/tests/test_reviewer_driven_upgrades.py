@@ -141,7 +141,7 @@ def test_on_dependency_status_field_validates():
     """Composition-schema: on_dependency_status field is optional,
     validates when present, references only cards in cards_used.
     """
-    from _skills_common.composition_schema import validate, DEPENDENCY_STATUS_BEHAVIORS
+    from _skills_common.composition_schema import DEPENDENCY_STATUS_BEHAVIORS, validate
 
     valid = {
         "data_mode": "derived_read",
@@ -187,9 +187,9 @@ def test_signor_moa_ontology_classification():
     ANALYSIS_METHODS_ROOT = SKILLS_DIR.parent.parent / "rnd-computational-biology-oncology-analysis-methods"
     sys.path.insert(0, str(ANALYSIS_METHODS_ROOT))
     from methods.signor_mechanism_network.moa_ontology import (
+        ONTOLOGY_VERSION,
         classify_edge,
         known_moa_classes,
-        ONTOLOGY_VERSION,
     )
 
     assert ONTOLOGY_VERSION == "1.0.0"

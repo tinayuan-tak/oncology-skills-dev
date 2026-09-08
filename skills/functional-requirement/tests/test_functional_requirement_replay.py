@@ -22,7 +22,6 @@ from pathlib import Path
 
 import pytest
 import yaml
-
 from _test_support import load_run_py
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
@@ -94,6 +93,7 @@ def test_replay_conforms_to_data_product_schema(kras_decision):
     data-product schema (the static golden is trimmed, so this — not it — is the conformance target).
     Catches a dropped required key / flipped role / an undeclared dependency_verdict token. CI-fail-not-skip."""
     import os
+
     from _skills_common.data_product_contract import conformance_errors, load_schema, schema_path
 
     schema = load_schema("functional-requirement")

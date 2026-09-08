@@ -10,8 +10,8 @@ COMMON_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(COMMON_DIR.parent))  # skills/
 
 from _skills_common.biology_axis import (  # noqa: E402
-    resolve_biology_axis,
     format_axis_governance_block,
+    resolve_biology_axis,
 )
 
 

@@ -15,7 +15,6 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-
 from _test_support import load_module
 
 SKILLS = Path(__file__).resolve().parents[2]  # the skills/ dir (this test is skills/_skills_common/tests/)

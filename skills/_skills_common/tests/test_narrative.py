@@ -22,7 +22,6 @@ if str(SKILLS) not in sys.path:
 from _skills_common.narrative import build_narrative  # noqa: E402
 from _skills_common.rules_loader import rule_text_index  # noqa: E402
 
-
 # ---- fixture: a gate "g" with a veto rung above a positive rung, and a rules file carrying the
 # human text (rationale/killer_message) for every rule_id — including opp-rule (a fired dissenter
 # not referenced by the resolver) and veto-rule (referenced but NOT fired: a counterfactual).

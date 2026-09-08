@@ -11,7 +11,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-
 from _test_support import load_run_py
 
 gap = load_run_py(Path(__file__).resolve().parent.parent, "gap_run_fdr")

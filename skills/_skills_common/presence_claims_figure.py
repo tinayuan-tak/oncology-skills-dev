@@ -9,14 +9,21 @@ decision['headline']['claim_vector'] — deterministic and cheap.
 """
 
 from __future__ import annotations
+
 import json
 from pathlib import Path
 
 from _skills_common.figure_palette import (
-    esc as _esc,
-    SIG_TIER as _SIG_TIER,
-    TIER_FILL as _TIER_FILL,
     REL_DOTS as _REL_DOTS,
+)
+from _skills_common.figure_palette import (
+    SIG_TIER as _SIG_TIER,
+)
+from _skills_common.figure_palette import (
+    TIER_FILL as _TIER_FILL,
+)
+from _skills_common.figure_palette import (
+    esc as _esc,
 )
 
 _CLAIM = [("A", "abundance"), ("B", "tumor-elevation"), ("C", "malignant-intrinsic"), ("D", "generality")]

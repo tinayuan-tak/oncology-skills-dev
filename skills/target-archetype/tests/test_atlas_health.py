@@ -8,7 +8,7 @@ from pathlib import Path
 SKILLS_DIR = Path(__file__).resolve().parents[2]
 if str(SKILLS_DIR) not in sys.path:
     sys.path.insert(0, str(SKILLS_DIR))
-from _skills_common.archetype_core import Atlas, vocabulary_drift, claim_features  # noqa: E402
+from _skills_common.archetype_core import Atlas, claim_features, vocabulary_drift  # noqa: E402
 
 ATLAS = Path(__file__).resolve().parents[1] / "atlas" / "atlas.json"
 HEALTH = Path(__file__).resolve().parents[1] / "scripts" / "atlas_health.py"

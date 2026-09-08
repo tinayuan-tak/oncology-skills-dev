@@ -28,7 +28,6 @@ from typing import Optional
 
 from _skills_common.question_table_core import build_cv_question_table
 
-
 _QUESTIONS = [
     ("Q1", "Signaling-network topology + MoA hooks (upstream regulators / downstream effectors)?", "NETWORK"),
     ("Q2", "Phospho-activity — measured activation / signaling-state (beyond abundance)?", "PHOSPHO"),

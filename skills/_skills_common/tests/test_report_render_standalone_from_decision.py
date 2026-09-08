@@ -15,8 +15,8 @@ SKILLS = Path(__file__).resolve().parents[2]
 if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
 
-from _skills_common.report_render import render_skill_report, build_ir_auto, resolve_spec, vocab
 from _skills_common.report_render import backends as be
+from _skills_common.report_render import build_ir_auto, render_skill_report, resolve_spec, vocab
 
 # reuse the P3 sample graph builder
 from _skills_common.tests.test_report_render_evidence_graph_blocks import _graph

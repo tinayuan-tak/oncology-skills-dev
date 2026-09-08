@@ -25,10 +25,13 @@ identical table. No new scoring model.
 """
 
 from __future__ import annotations
+
 from typing import Optional
 
 from _skills_common.claim_vector_core import fmt as _f
-from _skills_common.question_table_core import cbyid as _cbyid, conf as _conf, row as _row
+from _skills_common.question_table_core import cbyid as _cbyid
+from _skills_common.question_table_core import conf as _conf
+from _skills_common.question_table_core import row as _row
 
 # Signal tier → (meter fill 0-5, polarity). Polarity: supports / opposes / neutral / none.
 _SIG_META = {

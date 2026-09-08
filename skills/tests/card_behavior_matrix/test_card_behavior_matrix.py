@@ -26,7 +26,7 @@ SKILLS = HERE.parent.parent
 if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
 
-from _skills_common import _primary_class_value, _is_data_unavailable  # noqa: E402
+from _skills_common import _is_data_unavailable, _primary_class_value  # noqa: E402
 
 _MATRIX = yaml.safe_load((HERE / "matrix.yaml").read_text())
 _FIXTURES = HERE / "fixtures"

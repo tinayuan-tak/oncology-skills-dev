@@ -199,10 +199,10 @@ def _narrative_cites(text: str, card_ids: set, rule_ids: set) -> tuple:
 
 # ── key_evidence promotion (the decisive-data-point substrate) ──────────────────────────────────────
 from _skills_common.evidence_salience import (  # noqa: E402
-    spec_for,
-    sig_round,
     SUBTYPE_SPECS,
     build_interpretation,
+    sig_round,
+    spec_for,
 )
 
 _KE_R = 4

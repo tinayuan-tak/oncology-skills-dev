@@ -13,7 +13,6 @@ if str(SKILLS) not in sys.path:
 
 from _skills_common.subgroup_derivation import overlay_claim_signals  # noqa: E402
 
-
 HIER_DEFAULT = {"sub_groups": [{"id": "DEP"}, {"id": "SEL"}]}  # axis_key == sub_group id
 HIER_MAPPED = {
     "sub_groups": [

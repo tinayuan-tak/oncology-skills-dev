@@ -10,9 +10,9 @@ spine + replay suites prove the collapsed verdict is byte-stable.
 
 from __future__ import annotations
 
+import contextlib
 import copy
 import io
-import contextlib
 import json
 import runpy
 import sys

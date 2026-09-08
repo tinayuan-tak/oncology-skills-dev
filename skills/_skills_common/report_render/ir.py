@@ -17,9 +17,9 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
-from . import vocab
 from .. import display_gloss as _dg  # plain-language readings (metric gloss + direction + card description)
-from .spec import ReportSpec, SCOPE_ALL, SCOPE_GATING
+from . import vocab
+from .spec import SCOPE_ALL, SCOPE_GATING, ReportSpec
 
 
 @dataclass

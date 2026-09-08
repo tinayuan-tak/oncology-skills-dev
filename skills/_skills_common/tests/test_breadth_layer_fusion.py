@@ -24,7 +24,6 @@ sys.path.insert(0, str(SKILL_DIR.parent))  # skills/ — _live_readers rehomed t
 
 from _skills_common import _live_readers as lr  # noqa: E402
 
-
 # --- the pure concordance helper -----------------------------------------------------------
 
 

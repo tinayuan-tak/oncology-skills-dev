@@ -75,8 +75,9 @@ def _card_meta() -> dict:
     cards_dir = TARGET_CONTRACTS / "cards"
     if cards_dir.is_dir():
         try:
-            import yaml
             import glob as _glob
+
+            import yaml
 
             for f in _glob.glob(str(cards_dir / "*.yaml")):
                 try:

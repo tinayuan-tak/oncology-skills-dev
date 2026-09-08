@@ -22,6 +22,7 @@ composed target-profile fan-out reads.
 """
 
 from __future__ import annotations
+
 import re
 from typing import Optional
 
@@ -29,7 +30,9 @@ from typing import Optional
 # COUPLED — e.g. the abundance-floor downgrades corroboration AND raises a conflict together — so the
 # ClaimSpec signal_fn/corroboration_fn split does not fit cleanly). But it shares the core PRIMITIVES
 # (ordinal scale, card indexer, number formatter) so those can never drift from the fleet contract.
-from _skills_common.claim_vector_core import SIGNAL_ORD as _SIG_ORD, cards_by_id as _by_id, fmt as _f
+from _skills_common.claim_vector_core import SIGNAL_ORD as _SIG_ORD
+from _skills_common.claim_vector_core import cards_by_id as _by_id
+from _skills_common.claim_vector_core import fmt as _f
 
 CLAIM_NAME = {"A": "abundance", "B": "tumor-elevation", "C": "malignant-intrinsic", "D": "generality"}
 # light-touch routing (which downstream lens each claim informs) — NOT a gate.

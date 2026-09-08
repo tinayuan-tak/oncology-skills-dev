@@ -24,10 +24,10 @@ _HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(_HERE))  # local pubmed_search
 sys.path.insert(0, str(_HERE.parents[1]))  # skills/  → _skills_common
 import pubmed_search as ps  # noqa: E402
-from _skills_common.llm import synthesize_structured, EVIDENCE_ONLY_DIRECTIVE  # noqa: E402
+from _skills_common.llm import EVIDENCE_ONLY_DIRECTIVE, synthesize_structured  # noqa: E402
 
 try:
-    from _skills_common.bedrock_client import FRAMEWORK_SYNTHESIS_MODEL, FRAMEWORK_MODEL_VERSION
+    from _skills_common.bedrock_client import FRAMEWORK_MODEL_VERSION, FRAMEWORK_SYNTHESIS_MODEL
 except Exception:  # pragma: no cover
     FRAMEWORK_SYNTHESIS_MODEL, FRAMEWORK_MODEL_VERSION = "unknown", "unknown"
 

@@ -15,7 +15,7 @@ SKILLS = Path(__file__).resolve().parents[2]  # skills/
 if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
 
-from _skills_common.headline_hero import render_headline_hero_svg, emit_headline_hero  # noqa: E402
+from _skills_common.headline_hero import emit_headline_hero, render_headline_hero_svg  # noqa: E402
 
 HERO = {
     "kind": "headline_hero",

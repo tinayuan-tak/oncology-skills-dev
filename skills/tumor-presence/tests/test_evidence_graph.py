@@ -18,7 +18,6 @@ from pathlib import Path
 
 import pytest
 
-
 # ── the 9/8 role partition (spec §7.4 + appendix) ──
 VERDICT_BEARING = {
     "cellline-rna-distribution",

@@ -6,7 +6,7 @@ working. Emitters live in tier modules; the registry + dispatch live in `_regist
 helpers in `_common`.
 """
 
+from ._common import _dge_cell_contrasts, _plotly_from  # test-surface + shared helpers
 from ._registry import CARD_FIGURE_EMITTERS, emit_figures_for_card
-from ._common import _plotly_from, _dge_cell_contrasts  # test-surface + shared helpers
 
 __all__ = ["CARD_FIGURE_EMITTERS", "emit_figures_for_card", "_plotly_from", "_dge_cell_contrasts"]

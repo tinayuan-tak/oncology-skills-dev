@@ -19,7 +19,7 @@ vectoriser + the reader chips); they are never a gate and are never averaged.
 
 from __future__ import annotations
 
-from _skills_common.claim_vector_core import ClaimSpec, build_claim_vector, build_key_signals, build_atom
+from _skills_common.claim_vector_core import ClaimSpec, build_atom, build_claim_vector, build_key_signals
 
 # ── class → signal-tier maps (grounded in each composed card's emitted vocabulary) ─────────────────
 # MODEL: HCMI model-availability coverage (hcmi_model_availability._availability_class thresholds).

@@ -45,10 +45,54 @@ if _SCRIPTS_DIR not in sys.path:
 # stays the CLI entrypoint + orchestration (main); everything else lives in the tp_*
 # modules and is re-exported here so the module's public surface — and every test that
 # reaches into it (run._biomarker_facet, run.SUB_SKILL_CARDS, ...) — is byte-identical.
+# _skills_common symbols invoked directly by main() (modality_lens preserved from the
+# pre-split import surface).
+from _skills_common import synthesize_structured
+from _skills_common.envelope import build_governance
+
+# tp_render_md + tp_render_html RETIRED 2026-09-03 (Wave-3): the default md/html render path is
+# report_render (PR #963); run.py no longer calls either legacy renderer. `_risk_rows_from_rollup` (the
+# category/level/driver row projection) was re-homed to _skills_common/risk_projection in #970 — re-exposed
+# here so `tp._risk_rows_from_rollup` stays available to the risk-parity guards that read it off this module.
+from _skills_common.risk_projection import _risk_rows_from_rollup  # noqa: F401
 from tp_common import *  # noqa: F401,F403
 from tp_common import SKILL_NAME, SKILL_VERSION, _framework_model_version
+from tp_emit import *  # noqa: F401,F403
+from tp_emit import assert_write_set, write_artifact
+from tp_evidence_package import *  # noqa: F401,F403
+from tp_evidence_package import (
+    _validation_summary_from_sub_results,
+    _write_evidence_package,
+)
+from tp_facets import *  # noqa: F401,F403
+from tp_facets import (
+    _actionability_mode_facet,
+    _addressable_population_facet,
+    _backfill_subtype_spine,
+    _biomarker_facet,
+    _certainty_by_axis,
+    _competitor_crossref_facet,
+    _cross_gate_shared_evidence,
+    _deciding_axis,
+    _fragility_facet,
+    _heterogeneity_facet,
+    _magnitude_borderline,
+    _modality_conjunction_facet,
+    _modality_fit_by_channel,
+    _narrative_by_axis,
+    _ordinal_matrix,
+    _presence_facet,
+    _skill_reports_by_short,
+    _subtype_facet,
+    build_target_call,
+    build_target_coherence,
+    build_target_report,
+    build_target_rollup,
+)
 from tp_fanout import *  # noqa: F401,F403
 from tp_fanout import SUB_SKILLS, _run_sub_skills, _skipped_synthesis_output
+from tp_figures import *  # noqa: F401,F403
+from tp_figures import emit_figures, resolve_figures_root
 from tp_gates import *  # noqa: F401,F403
 from tp_gates import (  # names main() calls directly
     _CONFIDENCE_RANK,
@@ -58,62 +102,16 @@ from tp_gates import (  # names main() calls directly
     _hard_gates_status,
     _positive_tier,
 )
-from tp_facets import *  # noqa: F401,F403
-from tp_facets import (
-    _actionability_mode_facet,
-    _addressable_population_facet,
-    _biomarker_facet,
-    _certainty_by_axis,
-    _competitor_crossref_facet,
-    _skill_reports_by_short,
-    _modality_fit_by_channel,
-    _magnitude_borderline,
-    _deciding_axis,
-    _cross_gate_shared_evidence,
-    _fragility_facet,
-    _narrative_by_axis,
-    _heterogeneity_facet,
-    _modality_conjunction_facet,
-    _ordinal_matrix,
-    _presence_facet,
-    _subtype_facet,
-    _backfill_subtype_spine,
-    build_target_rollup,
-    build_target_coherence,
-    build_target_call,
-    build_target_report,
-)
+from tp_manifest import *  # noqa: F401,F403
+from tp_manifest import write_full_package
 from tp_synthesis_prompt import *  # noqa: F401,F403
 from tp_synthesis_prompt import (
-    _SYSTEM_PROMPT,
     _METRIC_LEGEND,
+    _SYSTEM_PROMPT,
     _build_synthesis_tool,
     _build_user_prompt,
     validate_synthesis_anchors,
 )
-
-# tp_render_md + tp_render_html RETIRED 2026-09-03 (Wave-3): the default md/html render path is
-# report_render (PR #963); run.py no longer calls either legacy renderer. `_risk_rows_from_rollup` (the
-# category/level/driver row projection) was re-homed to _skills_common/risk_projection in #970 — re-exposed
-# here so `tp._risk_rows_from_rollup` stays available to the risk-parity guards that read it off this module.
-from _skills_common.risk_projection import _risk_rows_from_rollup  # noqa: F401
-from tp_evidence_package import *  # noqa: F401,F403
-from tp_evidence_package import (
-    _validation_summary_from_sub_results,
-    _write_evidence_package,
-)
-from tp_figures import *  # noqa: F401,F403
-from tp_figures import emit_figures, resolve_figures_root
-from tp_emit import *  # noqa: F401,F403
-from tp_emit import write_artifact, assert_write_set
-from tp_manifest import *  # noqa: F401,F403
-from tp_manifest import write_full_package
-
-# _skills_common symbols invoked directly by main() (modality_lens preserved from the
-# pre-split import surface).
-from _skills_common import synthesize_structured
-from _skills_common.envelope import build_governance
-
 
 # Canonical modality tokens (target-contracts vocabularies/modality.enum.yaml) + natural-language
 # aliases. The gate veto-suppression + positive-tier + modality_lens all key on the canonical set, so
@@ -214,7 +212,8 @@ def _preflight_data_access() -> "tuple[bool, str]":
 # A full run narrates its backend via ~33 `[target-profile] …` prints (fan-out, gate firing, Bedrock
 # call, figure emission, WARNs); the tee mirrors that to a timestamped, greppable run.log that travels
 # with the artifact tree (listed in provenance.yaml). Verdict-inert; best-effort.
-from _skills_common.run_log import install_run_log as _install_run_log, restore_run_log as _restore_run_log
+from _skills_common.run_log import install_run_log as _install_run_log
+from _skills_common.run_log import restore_run_log as _restore_run_log
 
 
 def _synthesize_or_degrade(system_prompt: str, user_prompt: str, tool_schema: dict) -> dict:
@@ -1103,7 +1102,7 @@ def main() -> int:
     ground_ind = args.ground_indication or args.indication
     if run_ground and ep_path is not None:
         try:
-            from tp_grounding import resolve_axes, auto_ground
+            from tp_grounding import auto_ground, resolve_axes
 
             axes = resolve_axes(ground_spec)
             print(

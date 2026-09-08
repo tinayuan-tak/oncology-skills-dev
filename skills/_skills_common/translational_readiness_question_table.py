@@ -24,7 +24,6 @@ from typing import Optional
 
 from _skills_common.question_table_core import build_cv_question_table
 
-
 _QUESTIONS = [
     ("Q1", "Are patient-derived (HCMI) models available to preclinically validate the nomination?", "MODEL"),
     ("Q2", "Does an available patient-derived model carry a functional alteration in THIS target?", "GENOTYPE"),

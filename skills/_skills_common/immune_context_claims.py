@@ -17,7 +17,7 @@ calibration) — this projection is the citable-atom surface for the cross-evide
 
 from __future__ import annotations
 
-from _skills_common.claim_vector_core import ClaimSpec, build_claim_vector, build_key_signals, build_atom
+from _skills_common.claim_vector_core import ClaimSpec, build_atom, build_claim_vector, build_key_signals
 
 _IMMUNE_SIGNAL = {
     "immune_hot": "strong",

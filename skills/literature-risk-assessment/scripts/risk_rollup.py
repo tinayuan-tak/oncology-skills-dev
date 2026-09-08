@@ -47,15 +47,15 @@ if str(_SKILLS) not in sys.path:
 # The deterministic core, re-homed to the shared layer (single source of truth). Re-exported here so
 # `import risk_rollup as rr; rr.deterministic_bins` (validate_gold + tests) and the CLI keep working.
 from _skills_common.risk_projection import (  # noqa: E402,F401
-    RANK,
-    INV,
-    SURFACE,
     AXIS_TO_DIM,
-    _mod,
-    _sv,
+    INV,
+    RANK,
+    SURFACE,
     _calls,
     _card,
+    _mod,
     _q,
+    _sv,
     deterministic_bins,
 )
 
@@ -88,7 +88,8 @@ def project(pkg: dict, modality: str, substrate: dict | None = None) -> dict:
 
 
 if __name__ == "__main__":
-    import argparse, json
+    import argparse
+    import json
 
     ap = argparse.ArgumentParser()
     ap.add_argument("--evidence-package", required=True)

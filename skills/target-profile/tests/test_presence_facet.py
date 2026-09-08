@@ -15,8 +15,8 @@ SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
-from tp_fanout import _load_sub_skill_facet_fn, _load_sub_skill_verdict_fn  # noqa: E402
 from tp_facets import _presence_facet  # noqa: E402
+from tp_fanout import _load_sub_skill_facet_fn, _load_sub_skill_verdict_fn  # noqa: E402
 from tp_synthesis_prompt import _build_user_prompt  # noqa: E402
 
 

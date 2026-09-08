@@ -14,12 +14,10 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-
 COMMON_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(COMMON_DIR.parent))  # skills/
 
 from _skills_common.dispatcher import _apply_on_dependency_status
-
 
 # ---------------------------------------------------------------------------
 # Test 1 — resolve_cards output carries _missing (not bare missing)
@@ -141,7 +139,7 @@ def test_data_unavailable_detected_on_topic_specific_class_field():
     """_summary_is_unavailable must recognize data_unavailable in a topic-specific *_class
     field (dependency_class, cn_stratification_class, fit_class, …), not only the 3 legacy
     primaries (selectivity_class/class/interpretation_call)."""
-    from _skills_common import _summary_is_unavailable, _data_unavailable_field
+    from _skills_common import _data_unavailable_field, _summary_is_unavailable
 
     for field in ("dependency_class", "cn_stratification_class", "fit_class", "concordance_class"):
         summary = {field: "data_unavailable"}

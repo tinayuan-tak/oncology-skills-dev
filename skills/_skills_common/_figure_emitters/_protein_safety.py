@@ -6,11 +6,12 @@ Part of the _skills_common figure-emitter package (rehomed off the retired compo
 from __future__ import annotations
 
 from pathlib import Path  # noqa: F401 — type hints (stringized by future-annotations)
+
 from ._common import (  # shared emitter helpers/constants
+    TARGET_CONTRACTS,
     _ensure_methods_path,
     _has_live_read_error,
     _plotly_from,
-    TARGET_CONTRACTS,
 )
 
 

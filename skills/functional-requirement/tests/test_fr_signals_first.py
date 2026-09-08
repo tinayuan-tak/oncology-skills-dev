@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from _skills_common.signals_first import render_signal_vector, certainty_composite
+from _skills_common.signals_first import certainty_composite, render_signal_vector
 from _test_support import load_run_py
 
 

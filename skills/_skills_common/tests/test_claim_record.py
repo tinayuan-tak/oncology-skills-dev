@@ -13,9 +13,9 @@ import pytest
 SKILLS = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(SKILLS))
 from _skills_common.claim_record import (  # noqa: E402
+    OPEN_WORLD_AVAILABILITY,
     assemble_claim_record,
     render_verdict,
-    OPEN_WORLD_AVAILABILITY,
 )
 
 _CERT = {"level": "medium", "coverage": "medium", "corroboration": "unmeasured", "unknown_mass": 0.0}

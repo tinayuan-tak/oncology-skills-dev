@@ -12,49 +12,48 @@ from typing import Callable
 
 from ._dependency import (
     _emit_card1_pan_cancer_dependency_distribution,
-    _emit_card2_dependency_lineage_selectivity,
-    _emit_card4_expression_dependency_correlation,
-    _emit_cis_feature_expression_coherence,
     _emit_card1b_pan_cancer_rnai_dependency_distribution,
     _emit_card1c_crispr_rnai_concordance,
+    _emit_card2_dependency_lineage_selectivity,
     _emit_card3_mutation_stratified_dependency,
+    _emit_card4_expression_dependency_correlation,
+    _emit_cis_feature_expression_coherence,
     _emit_dependency_predictability,
+    _emit_organoid_crispr_dependency,
     _emit_prism_compound_activity,
     _emit_prism_crispr_concordance,
-    _emit_organoid_crispr_dependency,
 )
 from ._expression import (
-    _emit_expression_distribution,
-    _emit_mutation_type_counts,
     _emit_cn_distribution,
-    _emit_tumor_elevation_breadth,
-    _emit_tumor_expression_distribution,
-    _emit_sc_tumor_celltype_expression,
-    _emit_tumor_expression_distribution_subtype,
-    _emit_tumor_vs_normal_percentile_crossing,
+    _emit_expression_clinical_association,
+    _emit_expression_distribution,
+    _emit_expression_purity_confound,
+    _emit_expression_tumor_vs_adjacent,
+    _emit_mutation_type_counts,
     _emit_normal_tissue_liability_gtex,
     _emit_recommended_models,
     _emit_rna_protein_concordance,
     _emit_rna_protein_concordance_tumor,
+    _emit_sc_tumor_celltype_expression,
+    _emit_tumor_elevation_breadth,
+    _emit_tumor_expression_distribution,
+    _emit_tumor_expression_distribution_subtype,
+    _emit_tumor_vs_normal_percentile_crossing,
     _emit_tumor_vs_normal_selectivity,
-    _emit_expression_tumor_vs_adjacent,
-    _emit_expression_purity_confound,
-    _emit_expression_clinical_association,
-)
-from ._protein_safety import (
-    _emit_protein_abundance_celline,
-    _emit_protein_presence_cptac,
-    _emit_gnomad_lof_constraint,
-    _emit_normal_tissue_liability,
 )
 from ._genomic import (
+    _emit_abundance_dependency,
     _emit_alteration_role,
     _emit_functional_gene_state,
     _emit_genomic_event_model_match,
-    _emit_abundance_dependency,
     _emit_phospho_pathway_activity,
 )
-
+from ._protein_safety import (
+    _emit_gnomad_lof_constraint,
+    _emit_normal_tissue_liability,
+    _emit_protein_abundance_celline,
+    _emit_protein_presence_cptac,
+)
 
 CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = {
     "tumor-rna-distribution": _emit_tumor_expression_distribution,

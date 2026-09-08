@@ -18,8 +18,8 @@ SKILL_DIR = Path(__file__).resolve().parent.parent  # skills/compose-dashboard
 sys.path.insert(0, str(SKILL_DIR / "scripts"))  # for _live_readers
 sys.path.insert(0, str(SKILL_DIR.parent))  # skills/ — for _skills_common
 
-from _skills_common import _live_readers as lr  # noqa: E402
 import _skills_common as skc  # noqa: E402
+from _skills_common import _live_readers as lr  # noqa: E402
 
 
 def test_plot_data_aware_dispatcher_receives_per_card_dir(monkeypatch, tmp_path):

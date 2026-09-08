@@ -5,6 +5,7 @@ recommendation_gate stays the sole owner of the recommendation value. Pure over 
 """
 
 from __future__ import annotations
+
 import sys
 from pathlib import Path
 

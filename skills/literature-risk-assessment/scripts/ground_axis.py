@@ -30,6 +30,7 @@ Output = the `grounded` block of a substrate record consumed by both the risk ro
 """
 
 from __future__ import annotations
+
 import re
 import sys
 from pathlib import Path
@@ -537,8 +538,8 @@ def _retrieve_pmids(
     All lanes best-effort: PubTator down / analysis-methods absent -> that lane contributes nothing.
     Query/dedup/interleave logic is pure and unit-tested.
     """
-    import pubmed_search as ps
     import entity_search as es
+    import pubmed_search as ps
 
     terms, disease_scoped = AXIS_PUBMED_TERMS.get(axis, ("", True))
 
@@ -580,6 +581,7 @@ def ground_axis(
 ) -> dict:
     """LIVE: load the axis's deterministic block, retrieve literature, produce the grounded block."""
     import json
+
     import pubmed_search as ps
     from _skills_common.llm import synthesize_structured
 
@@ -620,7 +622,8 @@ def ground_axis(
 
 
 if __name__ == "__main__":
-    import argparse, json
+    import argparse
+    import json
 
     ap = argparse.ArgumentParser()
     ap.add_argument("--target", required=True)

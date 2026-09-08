@@ -7,7 +7,6 @@ import os
 import sys
 from pathlib import Path
 
-
 SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 for _p in (str(Path(__file__).resolve().parent), str(SKILLS_DIR)):
     if _p not in sys.path:

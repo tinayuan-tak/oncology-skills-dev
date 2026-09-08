@@ -27,7 +27,11 @@ from _skills_common.claim_vector_core import (
     ClaimSpec,
     build_claim_vector,
     build_key_signals,
+)
+from _skills_common.claim_vector_core import (
     corr as _corr,
+)
+from _skills_common.claim_vector_core import (
     signal_from_class as _sig,
 )
 

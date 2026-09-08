@@ -9,12 +9,12 @@ Covers the VERDICT-INERT enrichment over the measured DepMap ParalogV2 combinato
 Pure caveat tests use synthetic headline dicts (no card / no LLM). SET literals, not 2-string tuples."""
 
 from __future__ import annotations
+
 from pathlib import Path
 
 import pytest
-
-from _test_support import load_run_py
 from _skills_common.narrator_lenses import COMBINATORIAL_DEPENDENCY, LENSES
+from _test_support import load_run_py
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
 

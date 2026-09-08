@@ -22,8 +22,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .resolver import load_resolver, resolve_verdict
 from .reachability import resolver_referenced_rule_ids
+from .resolver import load_resolver, resolve_verdict
 from .selectivity_veto import SELECTIVITY_GATE, apply_normal_breadth_veto
 
 

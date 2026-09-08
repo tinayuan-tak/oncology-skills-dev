@@ -2,6 +2,7 @@
 composition; target_call owns the recommendation. Pure over synthetic inputs."""
 
 from __future__ import annotations
+
 import sys
 from pathlib import Path
 
@@ -11,7 +12,7 @@ for _p in (str(SKILLS), str(SCRIPTS)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from tp_facets import build_target_report, build_skill_report_rollup, _skill_reports_by_short  # noqa: E402
+from tp_facets import _skill_reports_by_short, build_skill_report_rollup, build_target_report  # noqa: E402
 
 
 def test_schema_and_slot_references():

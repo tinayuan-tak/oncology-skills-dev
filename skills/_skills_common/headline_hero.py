@@ -14,15 +14,22 @@ backend failure degrades to SVG+JSON only.
 """
 
 from __future__ import annotations
+
 import json
 from pathlib import Path
 from typing import Optional
 
 from _skills_common.figure_palette import (
-    esc as _esc,
-    SIG_TIER as _SIG_TIER,
-    TIER_FILL as _TIER_FILL,
     REL_DOTS as _REL_DOTS,
+)
+from _skills_common.figure_palette import (
+    SIG_TIER as _SIG_TIER,
+)
+from _skills_common.figure_palette import (
+    TIER_FILL as _TIER_FILL,
+)
+from _skills_common.figure_palette import (
+    esc as _esc,
 )
 
 _CONF_PIPS = {"strong": 3, "moderate": 2, "weak": 1, "insufficient": 0}

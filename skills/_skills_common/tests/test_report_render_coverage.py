@@ -8,9 +8,9 @@ SKILLS = Path(__file__).resolve().parents[2]  # skills/
 if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
 
-from _skills_common.report_render._fixtures import make_nomination, make_null_heavy_nomination
 from _skills_common.report_render import backends as be
 from _skills_common.report_render import build_ir, resolve_spec, vocab
+from _skills_common.report_render._fixtures import make_nomination, make_null_heavy_nomination
 
 
 def test_every_backend_handles_every_block_kind():

@@ -16,7 +16,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Optional
 
-
 # --- Enum values ------------------------------------------------------------
 
 DATA_MODES = {"live_read", "derived_read", "batch_compute", "catalog_read"}
@@ -207,6 +206,7 @@ def parse_skill_md_frontmatter(skill_md_path) -> Optional[dict]:
     this framework already follows.
     """
     from pathlib import Path
+
     import yaml
 
     text = Path(skill_md_path).read_text()

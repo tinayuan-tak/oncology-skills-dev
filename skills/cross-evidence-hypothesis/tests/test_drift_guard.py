@@ -28,7 +28,6 @@ import sys
 from pathlib import Path
 
 import pytest
-
 from _test_support import load_run_py
 
 SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"

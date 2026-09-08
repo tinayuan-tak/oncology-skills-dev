@@ -6,12 +6,13 @@ Part of the _skills_common figure-emitter package (rehomed off the retired compo
 from __future__ import annotations
 
 from pathlib import Path  # noqa: F401 — type hints (stringized by future-annotations)
+
 from ._common import (  # shared emitter helpers/constants
+    TARGET_CONTRACTS,
+    _dge_cell_contrasts,
     _ensure_methods_path,
     _has_live_read_error,
     _plotly_from,
-    _dge_cell_contrasts,
-    TARGET_CONTRACTS,
 )
 
 
@@ -554,8 +555,8 @@ def _emit_tumor_vs_normal_selectivity(
         return render_selectivity_from_plot_data(pd_path, summary, out_dir, target, indication)
 
     # LEGACY fallback: stream per-sample from recount3 live; persist it for reuse (offline next time).
-    from methods.dge_deseq2 import read as dge_read
     from methods.dge_deseq2 import emit as dge_emit
+    from methods.dge_deseq2 import read as dge_read
 
     try:
         per_sample = dge_read.read_per_sample_expression_all_three_groups(
@@ -618,8 +619,8 @@ def _emit_expression_tumor_vs_adjacent(
     if _has_live_read_error(summary):
         return []
     _ensure_methods_path()
-    from methods.dge_deseq2 import read as dge_read
     from methods.dge_deseq2 import emit as dge_emit
+    from methods.dge_deseq2 import read as dge_read
 
     out_dir.mkdir(parents=True, exist_ok=True)
 

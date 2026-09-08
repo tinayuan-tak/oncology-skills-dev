@@ -21,7 +21,24 @@ from _skills_common import ordinal_view
 from _skills_common.flip_analysis import flip_analysis
 from _skills_common.narrative import build_narrative
 from tp_common import _CONTRACTS_REPO
-from tp_fanout import SUBTYPE_SHORT, _SHORT_TO_GATE, _CONFIDENCE_AXIS_TO_GATE
+from tp_facets_biomarker import (  # re-export the split-out biomarker cluster
+    _BIOMARKER_INPUTS,
+    _BIOMARKER_QUANT,
+    _biomarker_facet,
+    _biomarker_quantitative,
+    _classify_biomarker_best_roles,
+)
+from tp_facets_subtype import (  # re-export the split-out subtype/subgroup cluster
+    _SUBTYPE_INPUTS,
+    _backfill_subtype_spine,
+    _first_card_per_subgroup,
+    _load_subtype_crosswalk,
+    _rollup_subtype_block,
+    _subgroup_flip_view,
+    _subtype_facet,
+    _subtype_stratum_key,
+)
+from tp_fanout import _CONFIDENCE_AXIS_TO_GATE, _SHORT_TO_GATE, SUBTYPE_SHORT
 from tp_gates import (
     _COVERAGE_RANK,
     _load_gate_coverage,
@@ -29,23 +46,6 @@ from tp_gates import (
     _load_positive_signals,
     _run_coverage_for_short,
     _sub_result_has_signal,
-)
-from tp_facets_biomarker import (  # re-export the split-out biomarker cluster
-    _BIOMARKER_INPUTS,
-    _BIOMARKER_QUANT,
-    _biomarker_quantitative,
-    _classify_biomarker_best_roles,
-    _biomarker_facet,
-)
-from tp_facets_subtype import (  # re-export the split-out subtype/subgroup cluster
-    _SUBTYPE_INPUTS,
-    _first_card_per_subgroup,
-    _backfill_subtype_spine,
-    _subtype_stratum_key,
-    _load_subtype_crosswalk,
-    _subtype_facet,
-    _subgroup_flip_view,
-    _rollup_subtype_block,
 )
 
 

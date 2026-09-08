@@ -18,20 +18,19 @@ if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
 
 from _skills_common.claim_vector_core import (  # noqa: E402
-    SIGNAL_ORD,
     CORROBORATION_ORD,
+    SIGNAL_ORD,
     ClaimSpec,
+    build_atom,
     build_claim_vector,
     build_key_signals,
+    build_summary_atom,
     bump_corroboration,
     cap_corroboration,
-    weakest,
-    sig_ge,
     cards_by_id,
-    build_atom,
-    build_summary_atom,
+    sig_ge,
+    weakest,
 )
-
 
 # ── shared evidence-atom builder (Group D 2026-08-21 — the single build_atom all 13 axes delegate to) ──
 _ENTITY = {"measurement_type": "dependency_score", "grain": "target_indication"}

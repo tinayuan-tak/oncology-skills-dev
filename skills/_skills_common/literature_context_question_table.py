@@ -22,7 +22,6 @@ from typing import Optional
 
 from _skills_common.question_table_core import build_cv_question_table
 
-
 _QUESTIONS = [
     ("Q1", "How much is written about this gene × indication (co-occurrence volume)?", "VOLUME"),
     ("Q2", "Is the cited literature recent / currently active?", "RECENCY"),

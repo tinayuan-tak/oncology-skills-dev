@@ -33,10 +33,10 @@ from _skills_common.claim_vector_core import (
     ClaimSpec,
     build_claim_vector,
     build_key_signals,
+    build_summary_atom,
     bump_corroboration,
     cap_corroboration,
     sig_ge,
-    build_summary_atom,
 )
 
 # ── enum → tier maps (grounded in the target-contracts card summary_fields_vocabulary) ────────────

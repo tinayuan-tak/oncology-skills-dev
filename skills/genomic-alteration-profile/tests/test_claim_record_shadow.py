@@ -9,7 +9,6 @@ import json
 from pathlib import Path
 
 import pytest
-
 from _test_support import load_run_py
 
 ga = load_run_py(Path(__file__).resolve().parent.parent, "ga_run_claim")

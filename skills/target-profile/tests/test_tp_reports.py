@@ -13,9 +13,9 @@ for _p in (str(SKILLS), str(SCRIPTS)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from _skills_common.report_render._fixtures import make_nomination
 import tp_emit
 import tp_reports
+from _skills_common.report_render._fixtures import make_nomination
 
 
 def _args(**kw):

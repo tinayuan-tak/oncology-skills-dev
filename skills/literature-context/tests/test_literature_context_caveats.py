@@ -14,6 +14,7 @@ Pure caveat/provenance tests use synthetic headline dicts (no S3 / no card / no 
 2-string tuples (reference-drift guard). Asserts the calibration the DETERMINISTIC panel shows live."""
 
 from __future__ import annotations
+
 import importlib.util
 import sys
 from pathlib import Path
@@ -25,7 +26,7 @@ SKILLS_DIR = SKILL_DIR.parent
 if str(SKILLS_DIR) not in sys.path:
     sys.path.insert(0, str(SKILLS_DIR))
 
-from _skills_common.narrator_lenses import LITERATURE_CONTEXT, LENSES  # noqa: E402
+from _skills_common.narrator_lenses import LENSES, LITERATURE_CONTEXT  # noqa: E402
 
 
 def _run_module():

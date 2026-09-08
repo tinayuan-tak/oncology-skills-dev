@@ -21,8 +21,8 @@ for _p in (str(SKILLS), str(SCRIPTS)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from tp_fanout import _load_sub_skill_claim_record_fn, _load_sub_skill_verdict_fn  # noqa: E402
 from tp_facets import _claim_record_shadow_by_axis  # noqa: E402
+from tp_fanout import _load_sub_skill_claim_record_fn, _load_sub_skill_verdict_fn  # noqa: E402
 
 
 def test_claim_record_loader_is_opt_in():

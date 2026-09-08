@@ -12,20 +12,20 @@ import time
 from pathlib import Path
 from typing import Any, Optional
 
-
 _SCRIPTS_DIR = str(Path(__file__).resolve().parent)
 if _SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, _SCRIPTS_DIR)
 
-from _skills_common import resolve_cards, fired_rules
-from _skills_common.evidence_graph import attach_evidence_graph
-from _skills_common.compose_core import subskill_composition
-from _skills_common.card_preprocessors import preprocess_cards_for_gate
-from _skills_common.subgroup_derivation import subgroup_signals_for
-from _skills_common.literature_synthesis import make_literature_fn
-from _skills_common.literature_retrieval import default_retrieve, verify_citations
+from _skills_common import fired_rules, resolve_cards
 from _skills_common import narrator_lenses as _narrator_lenses
-from _skills_common.narrator_engine import LensConfig as _LensConfig, make_synthesize_fn
+from _skills_common.card_preprocessors import preprocess_cards_for_gate
+from _skills_common.compose_core import subskill_composition
+from _skills_common.evidence_graph import attach_evidence_graph
+from _skills_common.literature_retrieval import default_retrieve, verify_citations
+from _skills_common.literature_synthesis import make_literature_fn
+from _skills_common.narrator_engine import LensConfig as _LensConfig
+from _skills_common.narrator_engine import make_synthesize_fn
+from _skills_common.subgroup_derivation import subgroup_signals_for
 from tp_common import SKILLS_DIR
 
 # Central per-skill narrator/literature lens registry, auto-collected by `LensConfig.name` (== the skill

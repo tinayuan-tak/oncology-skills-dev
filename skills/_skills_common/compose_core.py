@@ -108,12 +108,12 @@ def resolve_gate_spine(
     # Lazy import (skills/ dir already on sys.path via the caller's shim) — mirrors the
     # exact import the inline implementation used, so name resolution is identical.
     from _skills_common import fired_rules, resolve_verdict_for_gate
+    from _skills_common.card_preprocessors import preprocess_cards_for_gate
     from _skills_common.selectivity_veto import (
         SELECTIVITY_GATE,
         apply_normal_breadth_veto,
         apply_protein_population_rescue,
     )
-    from _skills_common.card_preprocessors import preprocess_cards_for_gate
 
     normed = [dict(c, _missing=True) if c.get("excluded_by_applies_when") else c for c in card_outputs]
     # G1 (2026-08-13): apply any registered per-gate CARD PREPROCESSOR (e.g. the genomic-alteration

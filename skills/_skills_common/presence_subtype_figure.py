@@ -11,10 +11,12 @@ stratum. Reads only the decision headline — deterministic and cheap.
 """
 
 from __future__ import annotations
+
 import json
 from pathlib import Path
 
-from _skills_common.figure_palette import esc as _esc, TIER_FILL as _FILL
+from _skills_common.figure_palette import TIER_FILL as _FILL
+from _skills_common.figure_palette import esc as _esc
 
 _TIER = {"strong": 3, "moderate": 2, "weak": 1, "absent": 0, "unmeasured": None}
 # _FILL is the shared signal palette (figure_palette.TIER_FILL), imported above — this figure uses the

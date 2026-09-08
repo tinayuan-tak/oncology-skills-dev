@@ -139,6 +139,7 @@ def test_replay_conforms_to_data_product_schema(pair_id, target, indication):
     so the fresh emit is a full envelope. Catches a dropped required key / an undeclared
     genomic_alteration_profile token. Static golden is trimmed → this is the conformance target."""
     import os
+
     from _skills_common.data_product_contract import conformance_errors, load_schema, schema_path
 
     schema = load_schema("genomic-alteration-profile")

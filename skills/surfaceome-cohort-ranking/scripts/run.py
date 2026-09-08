@@ -23,11 +23,11 @@ from pathlib import Path
 SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
-from _skills_common import make_decision_json, write_package, card_input_manifest_ids
-from _skills_common.headline_core import build_headline, HeadlineSpec
-from _skills_common.skill_report import build_skill_report, ROLE_DESCRIPTIVE
+from _skills_common import card_input_manifest_ids, make_decision_json, write_package
 from _skills_common.envelope import build_subskill_provenance
 from _skills_common.gitmeta import skills_repo_sha
+from _skills_common.headline_core import HeadlineSpec, build_headline
+from _skills_common.skill_report import ROLE_DESCRIPTIVE, build_skill_report
 
 SKILL_NAME = "surfaceome-cohort-ranking"
 SKILL_VERSION = "1.1.0"

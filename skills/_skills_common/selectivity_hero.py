@@ -30,15 +30,16 @@ import json
 from pathlib import Path
 from typing import Optional
 
+from _skills_common.figure_palette import esc as _esc
+
 # The axis-A "selective" set is single-sourced in selectivity_veto (the veto owns which verdicts are
 # downgradable); the hero reads it so the "window open" tile can never drift from the clamp's view.
 from _skills_common.selectivity_veto import (
     _AXIS_A_SELECTIVE,
-    _VETO_VERDICT,
     _LIABILITY_VERDICT,
     _STROMAL_CONFOUND_VERDICT,
+    _VETO_VERDICT,
 )
-from _skills_common.figure_palette import esc as _esc
 
 # --- verdict → banner status (the resolved selectivity_class) --------------------------------------
 # Green tiers = a supported tumor-over-normal window; red = window CLOSED by the normal-breadth veto;

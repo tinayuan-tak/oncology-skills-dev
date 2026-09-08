@@ -12,13 +12,13 @@ SKILLS = Path(__file__).resolve().parents[2]
 if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
 
-from _skills_common.feature_vectoriser import (  # noqa: E402
-    build_feature_vector,
-    numeric_features,
-    numeric_feature_specs,
-)
 from _skills_common.archetype_core import claim_features  # noqa: E402
 from _skills_common.evidence_salience import SALIENCE_SPECS  # noqa: E402
+from _skills_common.feature_vectoriser import (  # noqa: E402
+    build_feature_vector,
+    numeric_feature_specs,
+    numeric_features,
+)
 
 
 def test_numeric_specs_track_reference_frame_value_fields():

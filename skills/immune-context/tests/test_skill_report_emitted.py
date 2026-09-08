@@ -1,6 +1,7 @@
 """immune-context emits the unified skill_report (Wave-3, DESCRIPTIVE role → polarity=not_scored)."""
 
 from __future__ import annotations
+
 from pathlib import Path
 
 from _test_support import load_run_py

@@ -18,8 +18,7 @@ import json
 from pathlib import Path
 
 import pytest
-
-from _skills_common.evidence_graph import build_evidence_graph, load_questions, assert_evidence_graph_valid
+from _skills_common.evidence_graph import assert_evidence_graph_valid, build_evidence_graph, load_questions
 
 SKILLS_DIR = Path(__file__).resolve().parents[1]
 

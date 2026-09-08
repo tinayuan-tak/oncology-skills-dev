@@ -8,6 +8,7 @@ best-effort ([] when no subgroup_signals). House palette (validated; conflict=st
 """
 
 from __future__ import annotations
+
 import json
 from pathlib import Path
 

@@ -15,7 +15,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-
 from _skills_common.resolver import load_resolver
 from _test_support import load_run_py
 

@@ -8,11 +8,10 @@ CARD_FIGURE_EMITTERS, _plotly_from, _dge_cell_contrasts).
 """
 
 from __future__ import annotations
-import os
 
+import os
 import sys
 from pathlib import Path  # noqa: F401
-
 
 METHODS_REPO = Path(
     os.environ.get("ANALYSIS_METHODS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods")

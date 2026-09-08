@@ -10,7 +10,6 @@ SKILLS = Path(__file__).resolve().parents[2]  # skills/
 if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
 
-from _skills_common.report_render._fixtures import make_decision_json, make_nomination
 from _skills_common.report_render import (
     build_ir_auto,
     build_ir_for_skill,
@@ -18,6 +17,7 @@ from _skills_common.report_render import (
     resolve_spec,
     string_backend_names,
 )
+from _skills_common.report_render._fixtures import make_decision_json, make_nomination
 
 
 def test_build_ir_for_skill_makes_one_section_with_resolved_title():

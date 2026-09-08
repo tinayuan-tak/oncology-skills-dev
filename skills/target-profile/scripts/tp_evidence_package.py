@@ -7,13 +7,12 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-
 _SCRIPTS_DIR = str(Path(__file__).resolve().parent)
 if _SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, _SCRIPTS_DIR)
 
 from _skills_common import resolve_cards
-from tp_common import SKILLS_DIR, SKILL_NAME, _CONTRACTS_REPO
+from tp_common import _CONTRACTS_REPO, SKILL_NAME, SKILLS_DIR
 
 
 def _claim_vectors_from_sub_results(sub_results: dict) -> dict:
@@ -288,8 +287,8 @@ def _subtype_resolved_block(sub_results: dict, subtypes: list, subtype_facet: Op
     Called ONLY when subtypes were requested (byte-stable default otherwise)."""
     # subtype cards resolve under SUBTYPE_SHORT in production (composed inline in tp_fanout); tolerate
     # the per-gate short too (matches synthetic test fixtures) — mirrors _subtype_facet's lookup.
-    from tp_fanout import SUBTYPE_SHORT  # local import: avoid an import cycle at module load
     from tp_facets import _first_card_per_subgroup, _subtype_stratum_key
+    from tp_fanout import SUBTYPE_SHORT  # local import: avoid an import cycle at module load
 
     per_stratum_map: dict = {}
     available: set = set()
@@ -357,8 +356,8 @@ def _write_evidence_package(
     primary/additional split AND the full per-sub-skill sub_verdicts — all sourced from the
     CompositionResult on each sub-skill (r["composition"]); NO re-resolution.
     """
+    from _skills_common.dispatcher import _availability_state_for, _envelope_card_present
     from _skills_common.envelope import assemble_evidence_package
-    from _skills_common.dispatcher import _envelope_card_present, _availability_state_for
     from _skills_common.gitmeta import skills_repo_sha
 
     # 1. Union the sub-skills' cards by card_id (a card may compose under >1 lens; keep first),

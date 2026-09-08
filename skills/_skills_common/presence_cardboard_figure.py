@@ -10,6 +10,7 @@ means 'high in normal tissue'. Reads only decision['cards'] + headline — deter
 """
 
 from __future__ import annotations
+
 import json
 from pathlib import Path
 
