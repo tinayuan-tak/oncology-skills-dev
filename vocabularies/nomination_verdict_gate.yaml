@@ -26,7 +26,8 @@
 # Adding a modality-scoped killer here would regress that golden.
 
 enum_id: nomination_verdict_gate
-version: 1.14.0  # 1.14.0 (2026-09-08): + contradiction_reconcilers block — a genomic biomarker_stratified_dependency RECONCILES (drops) the selectivity selective_but_broadly_normal CONTRADICTION (the no-window KILL is bulk-RNA÷critical-organ, which dilutes an amp/biomarker-selected window — HER2/FGFR2/HER3). Surfaced by the IDAS backtest (ERBB2/STAD = T-DXd APPROVED, vetoed on no-window). Applied at positive-tier strong-block + gate scorecard + synthesis role; keeps the KILL for no-amp housekeeping (TROP2/GAPDH). Verdict-moving; golden regen + grounded verify.
+version: 1.15.0  # 1.15.0 (2026-09-08): + surface-fit contradiction_reconciler — a FAVORABLE surface_modality fit (ADC/TCE surface antigen) RECONCILES (drops) the selectivity selective_but_broadly_normal KILL, because the therapeutic window is modality-engineered (payload/DAR/avidity), NOT the bulk tumor÷normal-organ RNA ratio. Fires on default/no-modality runs (favorable fit = the surface-antigen evidence). Reconciles ERBB3/TACSTD2/MUC17; STANDS for secreted (VEGFA) + intracellular (CDK2) targets (no viable surface arm). Drops the contradiction only (no positive_signal) → safety axis remains the guardrail → lands at hold, never a manufactured strong. Same INVERTED-FALLBACK contract as (1). Verdict-moving; golden regen + grounded verify.
+# 1.14.0 (2026-09-08): + contradiction_reconcilers block — a genomic biomarker_stratified_dependency RECONCILES (drops) the selectivity selective_but_broadly_normal CONTRADICTION (the no-window KILL is bulk-RNA÷critical-organ, which dilutes an amp/biomarker-selected window — HER2/FGFR2/HER3). Surfaced by the IDAS backtest (ERBB2/STAD = T-DXd APPROVED, vetoed on no-window). Applied at positive-tier strong-block + gate scorecard + synthesis role; keeps the KILL for no-amp housekeeping (TROP2/GAPDH). Verdict-moving; golden regen + grounded verify.
                  # 1.13.0 (2026-09-08): + modality_ambiguous to biology_axis_scoped_veto_downgrade.when_surface_verdict_in — IDAS-seed experiment found GPRC5D/MM (talquetamab, APPROVED) + CLDN18.2/STAD (zolbetuximab, APPROVED) HARD-VETOED on dependency:non_dependent because their surface fit reads modality_ambiguous (GPCR multi-TM / claudin topology the surface-fit can't resolve), which was NOT in the downgrade set. An ambiguous (not-dead) surface signal on an intracellular non-dependency should HOLD, not hard-veto — neither_viable/shed_dominant_opposed still veto (genuine surface-junk). Verdict-moving (GPRC5D/CLDN18.2 veto→hold); golden regen + backtest.
                  # 1.12.0 (2026-09-08): + pmhc_tce_supported to biology_axis_scoped_veto_downgrade.when_surface_verdict_in — SYNC FIX (Takeda ONC backtest CASE-016/NOX1): v1.8.0 added pmhc_tce_supported to positive_signals_modality_scoped but NOT to the veto-downgrade set, so a pMHC-TCE-viable antigen (NOX1/CRC, advanced) got HARD-VETOED on dependency:non_dependent instead of downgraded to hold like the ADC-preferred verdicts. Now a viable pMHC-TCE surface arm downgrades the intracellular-dependency veto→hold (consistent with adc_preferred_tce_unsafe). Verdict-moving (NOX1 veto→hold); golden regen + backtest.
                  # 1.11.0 (2026-09-07): + differentiation:strong_mutually_exclusive as a SUPPORTIVE positive_signal, GROUPED with [genomic_alteration, cis_coherence] (driver-inference re-read → confidence raise, never an independent `strong`-manufacturing line). Wires the formerly advisory-in-gate differentiation axis. Backtest-gated.
@@ -323,6 +324,41 @@ contradiction_reconcilers:
       FGFR2/STAD). KEEPS the KILL for targets with NO amp/biomarker conditioning (true housekeeping —
       TROP2/GAPDH salivary-gland archetype). Does NOT itself nominate (no positive_signal) — the
       biomarker-stratified dependency already carries the positive tier.
+
+  # (2) SURFACE-ANTIGEN modality-engineered window (2026-09-08). A SECOND basis on which the bulk-RNA
+  # no-therapeutic-window KILL is measured on the wrong axis: for an ADC / T-cell-engager surface antigen,
+  # the therapeutic index is engineered by the MODALITY (payload potency + DAR + internalization; T-cell
+  # synapse avidity) — it is NOT governed by the bulk tumor-vs-normal-organ RNA ratio the `tvn-no-window`
+  # rule computes. TROP2 (TACSTD2), HER3 (ERBB3), MUC17 are expressed on normal epithelium yet are validated
+  # ADC/TCE targets (Trodelvy/Dato-DXd, patritumab-DXd) precisely because the modality creates the window.
+  # DATA-DRIVEN co-condition, NOT a --modality flag (the IDAS backtest ran default/no-modality): fires only
+  # when the live surface_modality fit is FAVORABLE — the SAME favorable-fit set that gates
+  # biology_axis_scoped_veto_downgrade — which is minted only from real surface topology + surfaceome-family
+  # signal. This BOUNDS false-positives exactly as that downgrade does: a secreted ligand (VEGFA →
+  # shed/neither_viable) or an intracellular target (CDK2 → neither_viable) has NO favorable surface arm, so
+  # its no-window KILL correctly STANDS. Drops the contradiction (stops the auto-KILL) so the surface + the
+  # independent on-target-SAFETY axis decide the disposition; carries no positive_signal, so it cannot
+  # manufacture a nomination on its own — the residual safety/surface liabilities still land the target at
+  # hold rather than a green-lit strong.
+  - reconciles: {sub_skill: selectivity, verdict: selective_but_broadly_normal}
+    when_present:
+      - {sub_skill: surface_modality, verdict: both_viable}
+      - {sub_skill: surface_modality, verdict: adc_preferred}
+      - {sub_skill: surface_modality, verdict: tce_preferred}
+      - {sub_skill: surface_modality, verdict: adc_preferred_tce_unsafe}
+      - {sub_skill: surface_modality, verdict: adc_preferred_tce_escape_risk}
+      - {sub_skill: surface_modality, verdict: adc_preferred_tce_patient_variable}
+      - {sub_skill: surface_modality, verdict: tce_patient_variable}
+      - {sub_skill: surface_modality, verdict: surface_viable_density_caveated}
+    rationale: |
+      Symmetric to reconciler (1) but keyed on a FAVORABLE surface_modality fit instead of a genomic
+      biomarker: an ADC/TCE surface antigen's therapeutic window is modality-engineered (payload/DAR/
+      internalization; T-cell avidity), NOT the bulk tumor÷normal-organ RNA ratio the no-window KILL
+      computes. Fires on default runs (no --modality) because a FAVORABLE fit_class is itself the
+      surface-antigen evidence. Reconciles ERBB3/LUAD, TACSTD2/TNBC, MUC17/STAD; STANDS for secreted
+      (VEGFA) and intracellular (CDK2) targets whose surface arm is not viable. Drops the contradiction
+      only — no positive_signal — so the on-target-safety axis remains the guardrail and the target lands
+      at hold, never a manufactured strong.
 
 # NOTE: suppresses only `non_dependent` (dilution artifact), NOT `pan_essential_killer`
 # (a too-essential target is not rescued by a stratified signal — different failure).
