@@ -36,6 +36,37 @@ Dangerous false-positives to keep pinned: ADAR1, CLDN18.2_LRRC15, EGFR_cMET_VEGF
 
 ## Open cases
 
+### CASE-015 — Takeda ONC composed backtest: the nomination is SAFETY-axis-dominated (per-axis attribution) — mostly DEFENSIBLE + a per-axis backtest tool (2026-09-08)
+- **Surfaced by:** the Takeda ONC backtest (c). Re-ran the composed target-profile (`--verdict-only`, 90s/target
+  vs ~20min with default grounding+Bedrock) over the dependency/SL cohort, then scored it PER CLAIM-VECTOR AXIS
+  (`eval/backtest_per_axis.py`) — consistent with the ledger-v2 claim-vector-axis design (not verdict-vs-outcome).
+- **Finding — axis-attribution mismatch:** on the 11-target dependency/SL cohort the framework DECIDES on the
+  `safety` axis 9/11 times, but the ground-truth `deciding_axis` (reference_profiles) is `dependency` — **axis-
+  attribution match = 0.18 (2/11)** (only PSMB5/XPO1 match: dependency=pan_essential veto). The dependency FNs we
+  rescued (SMARCA2→partner_conditional_dependent, EPAS1, MARK2/3, CDS2/SKP2/CDK4/6) all read non-veto on the
+  dependency axis, but the composed call is HELD by `safety` (`highly_constrained_safety_concern` /
+  `normal_tissue_protein_safety_concern`). The verdict-level backtest says "held"; the per-axis backtest says
+  "held on a DIFFERENT axis than the program's actual thesis."
+- **Determination — mostly DEFENSIBLE, NOT a bug (same shape as the pan-essential adjudication):** the composed
+  gate ALREADY has a modality-conditional safety suppressor (`exists_safe_modality`, tp_gates.py) — it correctly
+  SUPPRESSES the safety hold when a WT-sparing modality exists (BCL2→`safe_channels:[small_molecule]`→pass; KRAS,
+  CTNNB1 pass) and HOLDS when none does (SMARCA2 advanced as a DEGRADER = destroys WT SMARCA2 → real WT-loss risk;
+  its window is SMARCA4-mutant SELECTIVITY, a dependency/context argument, not a WT-sparing modality). Holding a
+  full-KO/degrader of a gnomAD-constrained gene pending a demonstrated window is a defensible conservative call.
+- **Narrow residual (debatable, deferred, verdict-moving):** `exists_safe_modality` keys on WT-SPARING modality;
+  it does NOT model CONTEXT-CONDITIONAL normal-tissue tolerance (e.g. SMARCA4-intact normal cells tolerate SMARCA2
+  loss; VHL-intact normal cells have little HIF2α to inhibit). A "context_conditional_safety_window" suppressor
+  could soften these holds — but it loosens a safety gate on constrained genes (false-positive risk). DEFERRED to
+  a user design decision; the conservative hold is the safe default.
+- **Tool landed:** `eval/backtest_per_axis.py` — reusable per-claim-vector-axis backtest scorer (axis-attribution
+  match + per-axis capture + outcome polarity) over composed `nomination.json` files vs reference_profiles. Run:
+  `python eval/backtest_per_axis.py --nominations '<dir>/*/nomination.json' --calibration-set <cal.yaml>`.
+- **Also queued (separate defect):** the composed `--emit` evidence_package envelope FAILS
+  `evidence_package.schema` validation for the `translational_readiness` + `literature_context` claim-vectors
+  (6 errors; non-fatal — target_profile.md/nomination.json still emit). A real schema/emitter mismatch to fix.
+- **Status:** composed backtest phases 1-2 DONE (dependency/SL cohort, per-axis scored). Phases 3 (surface/
+  biologics) + 4 (remainder) + the context-conditional-safety extension are OPEN (user's call).
+
 ### CASE-014 — functional-requirement EPAS1/HIF2A/RCC `non_dependent` vs belzutifan-validated VHL-conditional dependency — REAL biomarker-conditional FN — ✅ RESOLVED (verdict-moving fix landed, 2026-09-07)
 - **Surfaced by:** the CASE-011 re-harvest de-masking (`~/dev/discordance_full_sweep_ledger_2026-09-07.json`;
   the HIF2A→EPAS1 alias fix removed the phantom data-unavailable and exposed the real signal). functional-requirement
