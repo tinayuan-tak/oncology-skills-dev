@@ -14,6 +14,7 @@ outcome?", this asks the sharper per-axis question:
 INPUT: a directory of composed `nomination.json` files (target-profile --verdict-only output) + the
 reference_profiles section of known_target_calibration_set.yaml. READ-ONLY; emits a JSON + a table.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -30,7 +31,10 @@ _DESC_FAMILY = [
     # token 'window' (e.g. B2_window_E2_density, F_restricted_GI_window) which the dependency pattern below
     # also matches — surface must win those. (Bugfix 2026-09-08: 'window' had mis-mapped surface→dependency.)
     (r"E2|A2|B2|F_|density|internaliz|topology|shed|glycan|avidity|bispecific|antigen|surface", "surface"),
-    (r"SL|synthetic|paralog|partner|circuit|reciprocal|addiction|pan_essential|window|buffered|proteotoxic|dependenc", "dependency"),
+    (
+        r"SL|synthetic|paralog|partner|circuit|reciprocal|addiction|pan_essential|window|buffered|proteotoxic|dependenc",
+        "dependency",
+    ),
     (r"constrained|normal_liability|normal_tissue|safety|cardiotox|no_therapeutic_window", "safety"),
     (r"covalent|pocket|switch|druggable|tractab|SM_dependency", "tractability"),
     (r"mutation|ITD|V600|hotspot|amplif|fusion", "genomic"),
@@ -40,10 +44,17 @@ _DESC_FAMILY = [
 ]
 # composed deciding-axis SHORT (sub-skill id) -> family
 _SHORT_FAMILY = {
-    "dependency": "dependency", "safety": "safety", "surface_modality": "surface",
-    "tractability_sm": "tractability", "genomic_alteration": "genomic", "immune_context": "immune_tme",
-    "differentiation": "genomic", "mechanism": "tractability", "selectivity": "surface",
-    "expression": "surface", "cis_coherence": "genomic",
+    "dependency": "dependency",
+    "safety": "safety",
+    "surface_modality": "surface",
+    "tractability_sm": "tractability",
+    "genomic_alteration": "genomic",
+    "immune_context": "immune_tme",
+    "differentiation": "genomic",
+    "mechanism": "tractability",
+    "selectivity": "surface",
+    "expression": "surface",
+    "cis_coherence": "genomic",
 }
 
 
@@ -58,20 +69,30 @@ def _family_of_descriptor(desc: str) -> str:
 def _outcome_polarity(outcome: str) -> str:
     o = (outcome or "").lower()
     if o in ("approved_class", "advanced", "active"):
-        return "positive"          # should NOT hit a clean veto (hold may be defensible)
+        return "positive"  # should NOT hit a clean veto (hold may be defensible)
     if o in ("declined", "killed"):
-        return "negative"          # veto/hold is the correct call
+        return "negative"  # veto/hold is the correct call
     return "unknown"
 
 
 # reference_profiles keys some targets as compound / non-HGNC symbols; map the run target → ref key.
-_REF_ALIAS = {"CDK4": "CDK4_6", "CDK6": "CDK4_6", "MARK2": "MARK2_3", "MARK3": "MARK2_3", "EPAS1": "HIF2A",
-              # HGNC run-symbol → reference_profiles alias key (surface/biologics cohort)
-              "ERBB2": "HER2", "MS4A1": "CD20", "TNFRSF17": "BCMA", "TACSTD2": "TROP2"}
+_REF_ALIAS = {
+    "CDK4": "CDK4_6",
+    "CDK6": "CDK4_6",
+    "MARK2": "MARK2_3",
+    "MARK3": "MARK2_3",
+    "EPAS1": "HIF2A",
+    # HGNC run-symbol → reference_profiles alias key (surface/biologics cohort)
+    "ERBB2": "HER2",
+    "MS4A1": "CD20",
+    "TNFRSF17": "BCMA",
+    "TACSTD2": "TROP2",
+}
 
 
 def _load_reference_profiles(cal_path: str | Path) -> dict:
     import yaml  # type: ignore
+
     return (yaml.safe_load(Path(cal_path).read_text()) or {}).get("reference_profiles") or {}
 
 
@@ -82,27 +103,32 @@ def score_target(nom: dict, ref: dict) -> dict:
     sub = nom.get("sub_verdicts") or {}
     # framework's composed DECIDING axis (the sub-skill that forced the recommendation), if any
     deciding_short = None
-    for x in (gate.get("triggered_by") or []):
+    for x in gate.get("triggered_by") or []:
         deciding_short = x.get("short")
         break
-    if deciding_short is None:                      # passed: no veto/hold fired
-        for x in (gate.get("suppressed_vetoes") or []):
-            deciding_short = x.get("short")         # the axis that WOULD have fired but was suppressed
+    if deciding_short is None:  # passed: no veto/hold fired
+        for x in gate.get("suppressed_vetoes") or []:
+            deciding_short = x.get("short")  # the axis that WOULD have fired but was suppressed
             break
     fw_family = _SHORT_FAMILY.get(deciding_short, f"none/{deciding_short}")
     ref_family = _family_of_descriptor(ref.get("deciding_axis"))
-    rec = gate.get("forced_recommendation")         # hold/veto/None
+    rec = gate.get("forced_recommendation")  # hold/veto/None
     pol = _outcome_polarity(ref.get("outcome"))
     # per-axis capture: measured (has a verdict) vs blind/insufficient/None
     per_axis = {}
-    for short, v in (sub.items() if isinstance(sub, dict) else []):
+    for short, v in sub.items() if isinstance(sub, dict) else []:
         verdict = v.get("verdict") if isinstance(v, dict) else v
         per_axis[short] = verdict
     return {
-        "outcome": ref.get("outcome"), "outcome_polarity": pol,
-        "ref_deciding_axis": ref.get("deciding_axis"), "ref_family": ref_family,
-        "ref_agreement": ref.get("agreement"), "ref_coverage": ref.get("deciding_axis_coverage"),
-        "composed_recommendation": rec, "composed_deciding_short": deciding_short, "fw_family": fw_family,
+        "outcome": ref.get("outcome"),
+        "outcome_polarity": pol,
+        "ref_deciding_axis": ref.get("deciding_axis"),
+        "ref_family": ref_family,
+        "ref_agreement": ref.get("agreement"),
+        "ref_coverage": ref.get("deciding_axis_coverage"),
+        "composed_recommendation": rec,
+        "composed_deciding_short": deciding_short,
+        "fw_family": fw_family,
         # THE per-axis test: did the framework decide on the same axis FAMILY as ground truth?
         "axis_attribution_match": (fw_family == ref_family) if deciding_short else None,
         "per_axis_verdicts": per_axis,
@@ -136,8 +162,10 @@ def main(argv=None) -> int:
     }
     print(f"{'target':10} {'outcome':13} {'ref_family':13} {'fw_family':13} {'rec':6} axis_match")
     for t, r in sorted(rows.items()):
-        print(f"{t:10} {str(r['outcome']):13} {str(r['ref_family']):13} {str(r['fw_family']):13} "
-              f"{str(r['composed_recommendation']):6} {r['axis_attribution_match']}")
+        print(
+            f"{t:10} {str(r['outcome']):13} {str(r['ref_family']):13} {str(r['fw_family']):13} "
+            f"{str(r['composed_recommendation']):6} {r['axis_attribution_match']}"
+        )
     print(f"\naxis-attribution match rate: {report['axis_attribution_match_rate']} ({matched}/{scored})")
     if a.out:
         Path(a.out).write_text(json.dumps(report, indent=2))
