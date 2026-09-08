@@ -238,7 +238,7 @@
             "fields": {"type": "array", "items": {"type": "string"}, "description": "The sorted value keys that are citable fields (list-valued keys are omitted here but kept in `values`)."}
           }
         },
-        "entity": {"type": "object", "description": "Measurement-type / grain identity of the source."}
+        "entity": {"type": ["string", "object"], "description": "Grain identity of the source: either a coarse grain TOKEN (e.g. 'target' / 'indication' / 'gene_indication', as translational_readiness + literature_context emit) OR a typed identity OBJECT (e.g. {measurement_type, sample_context}). Both are valid; the object-only pin previously failed the token-emitting axes."}
       }
     },
     "headline_block": {
