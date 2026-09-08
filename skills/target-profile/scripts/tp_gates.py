@@ -369,6 +369,50 @@ def _trigger_label(w: dict, present: set, sub_results: dict) -> Optional[str]:
     return None
 
 
+def _verdict_token(v) -> Optional[str]:
+    """The bare verdict string from a sub-result's `verdict` ((verdict, driving_rule) tuple / list)."""
+    return v[0] if isinstance(v, (list, tuple)) and len(v) >= 1 and isinstance(v[0], str) else None
+
+
+def _load_contradiction_reconcilers(contracts_repo: Path | None = None) -> list:
+    """Load the cross-axis `contradiction_reconcilers` block from the gate vocab. A reconciler DROPS a
+    CONTRADICTION verdict (distinct from veto_suppressors, which suppress a dependency VETO/HOLD action)
+    when a co-present verdict on another axis proves it is measured on the wrong basis. CONSERVATIVE
+    FALLBACK: [] on any failure — nothing reconciled, the contradiction stands (gate stays conservative)."""
+    repo = contracts_repo or _CONTRACTS_REPO
+    path = repo / "vocabularies" / "nomination_verdict_gate.yaml"
+    try:
+        return yaml.safe_load(path.read_text()).get("contradiction_reconcilers", []) or []
+    except Exception as e:  # noqa: BLE001 — any failure → EMPTY (nothing reconciled; contradiction stands)
+        print(
+            f"[target-profile] WARN: could not load contradiction_reconcilers "
+            f"({type(e).__name__}: {e}); reconciliation DISABLED (contradictions stand).",
+            file=sys.stderr,
+        )
+        return []
+
+
+def _reconciled_contradiction_keys(sub_results: dict, contracts_repo: Path | None = None) -> set:
+    """Return the {(short, verdict)} contradiction keys to RECONCILE (drop) given the live cross-axis
+    sub-verdicts. A key reconciles only when (a) its `reconciles` verdict is actually PRESENT and (b) a
+    `when_present` trigger fires. Fail-closed: empty set on any failure. Callers subtract this from the
+    contradiction set so the deterministic strong-block, the gate scorecard, and the synthesis role all
+    move together (a reconciled contradiction no longer blocks `strong` nor reads as opposing)."""
+    recs = _load_contradiction_reconcilers(contracts_repo)
+    if not recs:
+        return set()
+    present = {(short, _verdict_token(r.get("verdict"))) for short, r in sub_results.items() if isinstance(r, dict)}
+    out: set = set()
+    for rc in recs:
+        rec = rc.get("reconciles") or {}
+        key = (rec.get("sub_skill"), rec.get("verdict"))
+        if key not in present:  # only reconcile a contradiction that actually fired
+            continue
+        if any(_trigger_label(w, present, sub_results) for w in (rc.get("when_present") or [])):
+            out.add(key)
+    return out
+
+
 def _suppressed_gate_hits(
     hits: list[dict],
     sub_results: dict,
@@ -647,12 +691,18 @@ def _hard_gates_status(
                    foreclosure that deliberately did NOT blanket-veto).
       opposing   — a `contradiction` verdict matched live (opposing measured evidence; blocks
                    `strong`, not a veto).
+      reconciled — a `contradiction` verdict matched live but a cross-axis reconciler dropped it
+                   (a co-present verdict proved it is measured on the wrong basis). NON-opposing —
+                   keeps this view consistent with the scorecard + positive-tier, which also
+                   subtract the reconciled set, so the deterministic call and the LLM's hard-gate
+                   view move together (was: still showed `opposing` here → an inconsistency).
       blind      — the axis produced NO verdict this run (coverage gap — could not evaluate).
       latent     — the axis WAS evaluated but did not emit this kill verdict (declared, dormant).
     """
     registry, source = _load_kill_capable_verdicts(contracts_repo)
     fired_pairs = {(h["short"], h["verdict"]) for h in hits}
     suppressed_pairs = {(s["short"], s["verdict"]) for s in suppressions}
+    reconciled_pairs = _reconciled_contradiction_keys(sub_results, contracts_repo)
 
     def _live_verdict(short: str):
         r = sub_results.get(short)
@@ -683,7 +733,7 @@ def _hard_gates_status(
         elif matched and disposition == "excluded_modality_scoped":
             status = "excluded"
         elif matched and disposition == "contradiction":
-            status = "opposing"
+            status = "reconciled" if (short, verdict) in reconciled_pairs else "opposing"
         elif matched and disposition == "gated":
             status = "fired"  # gated + matched but not in hits (defensive; normally in hits)
         else:
@@ -859,6 +909,10 @@ def _positive_tier(
     pos_map, contra_set, cfg, _src = _load_positive_signals(contracts_repo, modality=modality)
     if not pos_map:
         return None, []
+    # CROSS-AXIS RECONCILE: drop contradictions a co-present verdict proves are measured on the wrong
+    # basis (e.g. selectivity selective_but_broadly_normal when genomic biomarker_stratified_dependency —
+    # the bulk-RNA no-window read dilutes an amp-selected window). Fail-closed (empty → nothing dropped).
+    contra_set = contra_set - _reconciled_contradiction_keys(sub_results, contracts_repo)
     hits: list[dict] = []
     contradicted = False
     for short, r in sub_results.items():
@@ -930,6 +984,9 @@ def _gate_scorecard(
     baseline, _ = _load_gate_coverage(contracts_repo)
     kill_map, _ = _load_gate_verdicts(contracts_repo)  # {(short,verdict): action}
     positive_map, contradictions, _, _ = _load_positive_signals(contracts_repo, modality=modality)
+    # cross-axis reconcile (same as the recommendation gate) so the scorecard's opposing status can't
+    # disagree with the deterministic call — a reconciled contradiction is no longer 'opposing'.
+    contradictions = contradictions - _reconciled_contradiction_keys(sub_results, contracts_repo)
     deciding_short = None
     if deciding_axis and deciding_axis.get("basis") == "gate_fired":
         deciding_short = (deciding_axis.get("deciding_axis") or {}).get("short")

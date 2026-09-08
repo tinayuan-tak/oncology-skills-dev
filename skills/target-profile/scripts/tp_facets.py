@@ -44,6 +44,7 @@ from tp_gates import (
     _load_gate_coverage,
     _load_gate_verdicts,
     _load_positive_signals,
+    _reconciled_contradiction_keys,
     _run_coverage_for_short,
     _sub_result_has_signal,
 )
@@ -835,6 +836,7 @@ def _fragility_facet(
     keeping the fragility scan consistent with what the gate/positive tier actually reads."""
     gate_map, _gsrc = _load_gate_verdicts(contracts_repo)
     pos_map, contra_set, _cfg, _psrc = _load_positive_signals(contracts_repo, modality=modality)
+    contra_set = contra_set - _reconciled_contradiction_keys(sub_results, contracts_repo)  # cross-axis reconcile
     baseline, _covsrc = _load_gate_coverage(contracts_repo)
 
     # Decision-relevant axes = every sub_skill short the gate / positive / contradiction vocab reads.

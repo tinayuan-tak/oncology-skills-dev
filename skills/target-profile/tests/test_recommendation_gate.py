@@ -858,3 +858,94 @@ def test_gof_downgrade_does_not_touch_pan_essential(tmp_path):
         _gof_subs(dep="pan_essential_killer"), contracts_repo=_vocab_with_gof(tmp_path)
     )
     assert forced == "veto"
+
+
+def test_contradiction_reconciler_drops_amp_conditional_selectivity_kill(monkeypatch):
+    """Cross-axis reconciler (IDAS/ERBB2 selectivity FN): a genomic biomarker_stratified_dependency
+    RECONCILES (drops) the selectivity selective_but_broadly_normal CONTRADICTION — the no-window KILL is
+    bulk-RNA÷critical-organ, which dilutes an amp-selected window (HER2/ERBB2, FGFR2). Hermetic: inject the
+    reconciler config so the test does not depend on the live vocab."""
+    import tp_gates as tpg  # the reconciler helpers live in tp_gates (run.py does not re-export them)
+
+    cfg = [
+        {
+            "reconciles": {"sub_skill": "selectivity", "verdict": "selective_but_broadly_normal"},
+            "when_present": [{"sub_skill": "genomic_alteration", "verdict": "biomarker_stratified_dependency"}],
+        }
+    ]
+    monkeypatch.setattr(tpg, "_load_contradiction_reconcilers", lambda *a, **k: cfg)
+    amp = _merge(
+        _sub("selectivity", "selective_but_broadly_normal"),
+        _sub("genomic_alteration", "biomarker_stratified_dependency"),
+    )
+    assert tpg._reconciled_contradiction_keys(amp) == {("selectivity", "selective_but_broadly_normal")}
+    # no amp trigger → the contradiction STANDS (true-housekeeping KILL preserved: TROP2/GAPDH)
+    noamp = _merge(
+        _sub("selectivity", "selective_but_broadly_normal"), _sub("genomic_alteration", "missense_dominant_pattern")
+    )
+    assert tpg._reconciled_contradiction_keys(noamp) == set()
+    # reconciled selectivity verdict absent → nothing to reconcile
+    clean = _merge(
+        _sub("selectivity", "strong_tumor_selective"), _sub("genomic_alteration", "biomarker_stratified_dependency")
+    )
+    assert tpg._reconciled_contradiction_keys(clean) == set()
+
+
+def test_surface_fit_reconciles_no_window_selectivity_kill(monkeypatch):
+    """Surface-fit reconciler (IDAS ERBB3/TACSTD2/MUC17 FN): a FAVORABLE surface_modality fit RECONCILES
+    (drops) the selectivity selective_but_broadly_normal KILL — for an ADC/TCE surface antigen the window
+    is modality-engineered, NOT the bulk tumor÷normal-organ RNA ratio. Distinct from the amp trigger: these
+    carry a nomination-INERT confirmed_driver genomic verdict, so reconciler (1) does not reach them."""
+    import tp_gates as tpg
+
+    cfg = [
+        {
+            "reconciles": {"sub_skill": "selectivity", "verdict": "selective_but_broadly_normal"},
+            "when_present": [
+                {"sub_skill": "surface_modality", "verdict": "adc_preferred"},
+                {"sub_skill": "surface_modality", "verdict": "adc_preferred_tce_unsafe"},
+            ],
+        }
+    ]
+    monkeypatch.setattr(tpg, "_load_contradiction_reconcilers", lambda *a, **k: cfg)
+    # favorable surface fit (ERBB3/LUAD = adc_preferred_tce_unsafe) → reconciled, even though genomic is
+    # the nomination-inert confirmed_driver family (not biomarker_stratified → amp trigger would NOT fire).
+    adc = _merge(
+        _sub("selectivity", "selective_but_broadly_normal"),
+        _sub("surface_modality", "adc_preferred_tce_unsafe"),
+        _sub("genomic_alteration", "confirmed_driver"),
+    )
+    assert tpg._reconciled_contradiction_keys(adc) == {("selectivity", "selective_but_broadly_normal")}
+    # secreted/intracellular target (VEGFA/CDK2) → surface arm NOT viable → KILL correctly STANDS
+    novia = _merge(_sub("selectivity", "selective_but_broadly_normal"), _sub("surface_modality", "neither_viable"))
+    assert tpg._reconciled_contradiction_keys(novia) == set()
+
+
+def test_hard_gates_status_reconciled_not_opposing(monkeypatch):
+    """Regression for the #1206 gap: _hard_gates_status (the LLM-facing hard-gate view) must mark a
+    reconciled contradiction `reconciled`, NOT `opposing` — otherwise the scorecard/positive-tier (which
+    subtract the reconciled set) disagree with the hard-gate view and the LLM still reads it as opposing."""
+    import tp_gates as tpg
+
+    monkeypatch.setattr(
+        tpg,
+        "_load_contradiction_reconcilers",
+        lambda *a, **k: [
+            {
+                "reconciles": {"sub_skill": "selectivity", "verdict": "selective_but_broadly_normal"},
+                "when_present": [{"sub_skill": "surface_modality", "verdict": "adc_preferred"}],
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        tpg,
+        "_load_kill_capable_verdicts",
+        lambda *a, **k: ({("selectivity", "selective_but_broadly_normal"): "contradiction"}, "test"),
+    )
+    subs = _merge(_sub("selectivity", "selective_but_broadly_normal"), _sub("surface_modality", "adc_preferred"))
+    rows = {(r["short"], r["verdict"]): r["status"] for r in tpg._hard_gates_status(subs, [], [])}
+    assert rows[("selectivity", "selective_but_broadly_normal")] == "reconciled"
+    # no favorable surface → the same contradiction reads `opposing`
+    subs2 = _merge(_sub("selectivity", "selective_but_broadly_normal"), _sub("surface_modality", "neither_viable"))
+    rows2 = {(r["short"], r["verdict"]): r["status"] for r in tpg._hard_gates_status(subs2, [], [])}
+    assert rows2[("selectivity", "selective_but_broadly_normal")] == "opposing"
