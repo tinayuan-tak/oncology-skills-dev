@@ -45,8 +45,12 @@ _FLOORS = {
     # and deliberately NOT floored: "advanced as a Takeda program" != "high-quality target" — e.g.
     # MARK2/3 advanced organizationally but never beat YAP/TAZ on efficacy, so counting it as a
     # framework loss (and flooring against it) would calibrate the guard on unvalidated labels.
-    "max_approved_silent_false_negatives": 5,  # PARP1 / BCL2 / XPO1 / PSMB5 / CDK4_6
-    "max_silent_false_negatives": 12,  # total (approved + advanced/active); informational soft guard
+    # RATCHETED 5→2 (2026-09-08 Takeda ONC backtest): BCL2/CDK4_6 rescued (veto-suppressors → non-veto,
+    # validated_lane) and XPO1/PSMB5 reclassified honest_conservative (pan-essential veto defensible; the
+    # in-vivo window is out-of-scope, DepMap-probe-confirmed). Only PARP1 remains an approved-drug silent-FN
+    # (BRCA-conditional SL invisible to mono-KO CRISPR — trapping). Ratchet locks the gain.
+    "max_approved_silent_false_negatives": 2,  # PARP1 (+1 headroom)
+    "max_silent_false_negatives": 5,  # total now 3 (PARP1 / PELO / RIPK1); +2 headroom (was 12)
     "min_approved_agreement_rate": 0.25,  # currently 5/18 = 0.28
 }
 

@@ -46,7 +46,12 @@ def test_headline_metrics_pinned(metrics):
     # was mislabeled neomorphic_gain_of_function; CNDP2 is WT (no somatic driver) and its actionability
     # is a NON-CELL-AUTONOMOUS secreted-enzyme metabolic dependency conditioned on trans KEAP1-LoF/NRF2-GoF
     # — genuinely out-of-scope (unmeasurable in monoculture DepMap), not a wiring false-negative.
-    assert len(metrics["silent_false_negatives"]) == 11
+    # 11 → 3 (2026-09-08, Takeda ONC dependency-FN backtest): 6 SL-class FNs RESCUED by the veto-suppressor
+    # family and reclassified validated_lane (SMARCA2 partner_conditional_dependent; MARK2_3/BCL2
+    # non_dependent_paralog_buffered; CDS2/SKP2/CDK4_6 lineage_selective) + PSMB5/XPO1 reclassified
+    # honest_conservative (pan-essential veto defensible; in-vivo window out-of-scope, DepMap-probe-confirmed).
+    # Remaining 3: PARP1 (trapping, honest hard-negative), PELO (discordant, circuit-SL uncaptured), RIPK1.
+    assert len(metrics["silent_false_negatives"]) == 3
     # blind on the deciding axis for the large majority of known targets.
     # 0.7 → 0.68 (2026-09-02): WRN (MSI-H synthetic-lethal molecular-subtype anchor) promoted into
     # reference_profiles as a CAPTURED advanced target (framework reads partner_conditional_dependent +
@@ -60,22 +65,28 @@ def test_headline_metrics_pinned(metrics):
     # 0.63 → 0.58 (2026-09-02 round-2): +4 more CAPTURED validated_lane negatives — MCL1 (safety-axis
     # load-bearing despite all-positive efficacy) + WEE1/CHEK1/KIF11 (pan-essential-veto family). 31/53 =
     # 0.585. Same intended direction (specificity-stress negatives the framework correctly declines).
-    assert metrics["blind_rate"] >= 0.58
+    # 0.58 → 0.47 (2026-09-08 Takeda ONC backtest): 6 SL-class FNs left blind — SMARCA2/MARK2_3/BCL2 → captured
+    # (partner/paralog axis now drives the non-veto call), CDS2/SKP2/CDK4_6 → partial (correct non-veto via
+    # lineage-selectivity, the named SL axis still uncaptured). blind 31→25, blind_rate 25/53 = 0.472. Coverage
+    # genuinely improved as the veto-suppressors landed — the intended direction; floor lowered deliberately.
+    assert metrics["blind_rate"] >= 0.47
 
 
 def test_silent_fn_split_by_outcome_trust(metrics):
-    """The 11 silent-FNs are NOT 11 drug losses: only 5 have an approved-drug outcome (unambiguous),
-    the other 6 are advanced/active PROGRAM-STATUS entries whose target quality is unvalidated
-    (e.g. MARK2/3, which never beat YAP/TAZ efficacy). The harness must report them separately so the
-    'would veto a drug' headline — and the regression floor — key off the drug-backed subset only.
-    (2026-09-02: advanced_active 7 → 6 — CNDP2 reclassified out to honest_blind; see test above.)"""
+    """The remaining silent-FNs split by outcome-trust: only the approved-drug subset is the unambiguous
+    'would-veto-a-drug' loss (floored); advanced/active are program-status (unvalidated target quality).
+    (2026-09-08 Takeda ONC backtest: approved subset 5 → 1 — BCL2/XPO1/PSMB5/CDK4_6 rescued or reclassified
+    honest_conservative; only PARP1 remains an approved-drug silent-FN. advanced_active 6 → 2 as SMARCA2/
+    MARK2_3/CDS2/SKP2 were rescued to validated_lane; PELO + RIPK1 remain.)"""
     sfn_by = metrics["silent_false_negatives_by_outcome"]
-    assert set(sfn_by["positive_approved"]) == {"PARP1", "BCL2", "XPO1", "PSMB5", "CDK4_6"}
-    assert len(sfn_by["advanced_active"]) == 6
+    assert set(sfn_by["positive_approved"]) == {"PARP1"}
+    assert len(sfn_by["advanced_active"]) == 2
     # the two subsets partition the total, no leakage into negative_declined
     assert len(sfn_by["positive_approved"]) + len(sfn_by["advanced_active"]) == len(metrics["silent_false_negatives"])
     # home-turf engine: approved-drug deciding-axis capture is very low
-    assert metrics["approved_deciding_axis_capture_rate"] <= 0.1
+    # 0.1 → 0.12 (2026-09-08): BCL2 (approved) flipped to captured — its addiction_MCL1_buffered axis is now
+    # captured by the paralog-buffering suppressor (reads non_dependent_paralog_buffered). 2/18 = 0.111.
+    assert metrics["approved_deciding_axis_capture_rate"] <= 0.12
 
 
 def test_no_regression_against_floors(metrics):

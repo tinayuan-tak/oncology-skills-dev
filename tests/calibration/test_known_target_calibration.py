@@ -218,7 +218,14 @@ def test_calibration_coverage_report(capsys):
 # clean, reviewable diff.
 
 _COVERAGE_VOCAB = {"captured", "partial", "blind", "license_blocked", "out_of_scope"}
-_SEVERITY_VOCAB = {"dangerous_false_positive", "silent_false_negative", "honest_blind", "validated_lane"}
+# honest_conservative (2026-09-08): the framework CORRECTLY vetoes on data it CAN see (e.g. a pan-essential
+# gene is a poor de-novo nomination), but the clinical outcome differs due to an OUT-OF-SCOPE factor the
+# nomination data cannot represent (an in-vivo/pharmacology therapeutic window — PSMB5/bortezomib,
+# XPO1/selinexor). Distinct from silent_false_negative (a fixable framework miss) and honest_blind (the
+# framework can't see the axis at all): here the veto is defensible-by-design. See the PSMB5/XPO1 backtest
+# probe (2026-09-08) — DepMap shows NO MM dependency window, confirming it is not a genetic-dependency signal.
+_SEVERITY_VOCAB = {"dangerous_false_positive", "silent_false_negative", "honest_blind", "validated_lane",
+                   "honest_conservative"}
 
 
 def _reference_profiles():
@@ -249,6 +256,9 @@ def test_reference_profile_severity_consistency():
             assert agr == "framework_false_negative", f"{name}: silent tier but agreement={agr}"
         if sev == "validated_lane":
             assert agr.startswith("agree"), f"{name}: validated_lane but agreement={agr}"
+        if sev == "honest_conservative":
+            assert agr.startswith("framework_conservative"), (
+                f"{name}: honest_conservative tier but agreement={agr} (expected framework_conservative_*)")
 
 
 def test_reference_profile_coverage_report(capsys):
