@@ -22,11 +22,11 @@ from pathlib import Path
 
 import pytest
 
-from validators.framework_health import probe, rollup, render_html
+from validators.framework_health import probe, render_html, rollup
 from validators.framework_health.build_framework_health import (
-    stable_projection,
-    self_check,
     compute_delta,
+    self_check,
+    stable_projection,
 )
 
 

@@ -11,8 +11,8 @@ _PKG = Path(__file__).resolve().parents[1]
 if str(_PKG) not in sys.path:
     sys.path.insert(0, str(_PKG))
 
-import publish_profile as PP  # noqa: E402
 import build_output_registry as R  # noqa: E402
+import publish_profile as PP  # noqa: E402
 
 
 def test_upsert_and_load_roundtrip(tmp_path):

@@ -44,7 +44,8 @@ def compute_or_load_health(tc: Path, out_dir: Path, prefer_compute: bool = True)
             import sys
 
             sys.path.insert(0, str(tc))
-            from validators.framework_health import build_framework_health as B, probe
+            from validators.framework_health import build_framework_health as B
+            from validators.framework_health import probe
 
             roots = probe.default_roots()
             report = B.generate(roots)

@@ -20,17 +20,17 @@ if str(_ARCH) not in sys.path:
 import render_arch  # noqa: E402
 import render_unified as U  # noqa: E402
 from render_unified import (  # noqa: E402
-    AMBER,
-    RED,
-    GREY,
-    PURPLE,
-    TEAL,
-    SEV_COLOR,
-    _esc,
-    _chip,
-    _strip,
-    MILLER_CSS,
     _UNIFIED_CSS,
+    AMBER,
+    GREY,
+    MILLER_CSS,
+    PURPLE,
+    RED,
+    SEV_COLOR,
+    TEAL,
+    _chip,
+    _esc,
+    _strip,
 )
 
 try:

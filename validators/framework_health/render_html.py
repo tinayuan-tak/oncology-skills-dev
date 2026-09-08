@@ -976,8 +976,9 @@ def render(report: dict) -> str:
         f"{s.get('n_datasets_in_catalog', 0)} datasets · {_esc(gen[:10])}"
     )
     # A stable hash of the projection is embedded for HTML-staleness detection.
-    from .build_framework_health import stable_projection  # local import avoids cycle at module load
     import hashlib
+
+    from .build_framework_health import stable_projection  # local import avoids cycle at module load
 
     health_hash = hashlib.sha256(stable_projection(report).encode()).hexdigest()[:16]
     return f"""<!doctype html>

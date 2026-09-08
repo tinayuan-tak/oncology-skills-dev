@@ -1,7 +1,8 @@
 """actionability_mode_lookup vocabulary tests — curated overrides for the derived actionability_mode facet."""
 
-import yaml
 from pathlib import Path
+
+import yaml
 
 REPO = Path(__file__).resolve().parents[2]
 LK = yaml.safe_load((REPO / "vocabularies" / "actionability_mode_lookup.yaml").read_text())

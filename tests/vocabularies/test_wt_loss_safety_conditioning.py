@@ -2,8 +2,9 @@
 interpretation-rules, and the concern/protective buckets must be disjoint.
 Prevents the sidecar going stale under a rule rename (Layer-1 of VERDICT_REPRESENTATION.md)."""
 
-from pathlib import Path
 import glob
+from pathlib import Path
+
 import yaml
 
 REPO = Path(__file__).resolve().parents[2]

@@ -16,7 +16,6 @@ pytest.importorskip("matplotlib")  # rendering test — only where matplotlib is
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # plot_styles/ on path
 import takeda_palette as pal  # noqa: E402
 
-
 # ---- verdict-status binding (status_for_card): the figure↔verdict source of truth ----------------
 
 

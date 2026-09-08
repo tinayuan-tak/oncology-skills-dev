@@ -17,6 +17,7 @@ Usage:  python scripts/gen_indication_mesh_ids.py         # apply MESH_IDS to th
 """
 
 from __future__ import annotations
+
 import sys
 from pathlib import Path
 
@@ -57,7 +58,11 @@ MESH_IDS = {
 
 
 def _regenerate() -> dict:
-    import json, time, urllib.request, urllib.parse
+    import json
+    import time
+    import urllib.parse
+    import urllib.request
+
     import yaml
 
     base = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/"

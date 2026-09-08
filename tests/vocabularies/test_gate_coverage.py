@@ -13,8 +13,9 @@ docs/design/GATE_MODEL_V2_MEMO.md. These tests assert:
   - translational is declared unbuilt + blind.
 """
 
-import yaml
 from pathlib import Path
+
+import yaml
 
 REPO = Path(__file__).resolve().parents[2]
 COV = yaml.safe_load((REPO / "vocabularies" / "gate_coverage.yaml").read_text())

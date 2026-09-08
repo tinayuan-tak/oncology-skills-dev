@@ -11,7 +11,6 @@ if str(_PKG) not in sys.path:
 
 import promote as P  # noqa: E402
 
-
 _CAT = {
     "summary": {"n_cells": 3, "n_cells_governed": 1},
     "coverage": {

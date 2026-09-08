@@ -40,7 +40,6 @@ from typing import Optional
 import yaml
 from jsonschema import Draft202012Validator
 
-
 SCHEMA_PATH = Path(__file__).resolve().parent.parent / "schemas" / "card.schema.json"
 PRODUCTS_PATH = Path(__file__).resolve().parent.parent / "vocabularies" / "products.yaml"
 # Sibling data-catalog checkout, for the required_inputs[].product_id referential-integrity check.

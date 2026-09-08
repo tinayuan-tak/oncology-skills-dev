@@ -23,9 +23,9 @@ reads and silently returns false-`insufficient`) and `AWS_PROFILE=cbg`, output u
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
-import json
 import pytest
 import yaml
 

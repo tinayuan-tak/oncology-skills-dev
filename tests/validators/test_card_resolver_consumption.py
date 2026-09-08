@@ -25,7 +25,8 @@ def _mod():
 def test_snapshot_matches_live_computation():
     """CI drift guard: `python validate_card_resolver_consumption.py` must exit 0 against the
     committed snapshot."""
-    import subprocess, sys
+    import subprocess
+    import sys
 
     r = subprocess.run([sys.executable, str(VALIDATOR)], capture_output=True, text=True)
     assert r.returncode == 0, f"card→resolver consumption drifted:\n{r.stdout}\n{r.stderr}"

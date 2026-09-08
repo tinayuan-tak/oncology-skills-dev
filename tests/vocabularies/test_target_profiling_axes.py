@@ -13,8 +13,9 @@ per-skill `phase:` letters). These tests pin:
   - the scientific_gaps backlog enumerates exactly the non-`captured` axes.
 """
 
-import yaml
 from pathlib import Path
+
+import yaml
 
 REPO = Path(__file__).resolve().parents[2]
 AX = yaml.safe_load((REPO / "vocabularies" / "target_profiling_axes.yaml").read_text())

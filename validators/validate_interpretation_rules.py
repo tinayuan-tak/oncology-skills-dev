@@ -47,15 +47,15 @@ Exit codes:
 from __future__ import annotations
 
 import argparse
+import json
 import sys
-from dataclasses import dataclass, field as dc_field
+from dataclasses import dataclass
+from dataclasses import field as dc_field
 from pathlib import Path
 from typing import Optional
 
 import yaml
 from jsonschema import Draft202012Validator
-import json
-
 
 SCHEMA_PATH = Path(__file__).resolve().parent.parent / "schemas" / "interpretation_rules.schema.json"
 

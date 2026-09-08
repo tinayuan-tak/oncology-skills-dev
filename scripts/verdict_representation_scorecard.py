@@ -19,6 +19,7 @@ Exit code is ALWAYS 0 — this is a health report, not a gate.
 """
 
 from __future__ import annotations
+
 import argparse
 import collections
 import glob

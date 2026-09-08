@@ -12,8 +12,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from validators.output_registry import build_output_registry as R
 from validators.framework_health import probe
+from validators.output_registry import build_output_registry as R
 
 
 def _write_pkg(root: Path, target: str, ind: str, cards: list[tuple[str, str | None]]) -> Path:

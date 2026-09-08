@@ -20,7 +20,6 @@ if str(_PKG) not in sys.path:
 import build_unified_dashboard as B  # noqa: E402
 import render_unified as R  # noqa: E402
 
-
 _FIXTURE = {
     "generated_at": "2026-08-20T00:00:00Z",
     "summary": {

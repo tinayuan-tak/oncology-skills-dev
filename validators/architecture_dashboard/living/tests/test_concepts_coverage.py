@@ -1,8 +1,8 @@
 """Every component type resolves a schema shape, a real example, and an inventory count."""
 
-import yaml
 from pathlib import Path
 
+import yaml
 from _util import load_committed
 
 _SPEC = Path(__file__).resolve().parent.parent / "concepts.yaml"

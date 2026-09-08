@@ -34,15 +34,19 @@ import build_unified_dashboard as UD  # noqa: E402
 
 # living modules — work both as a package (-m) and as bare imports
 try:
-    from . import concepts as _concepts, gaps as _gaps, narrative as _narrative, glossary as _glossary, flow as _flow
+    from . import concepts as _concepts
+    from . import flow as _flow
+    from . import gaps as _gaps
+    from . import glossary as _glossary
+    from . import narrative as _narrative
     from .render_living import render_html
 except Exception:  # pragma: no cover - bare-path fallback
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     import concepts as _concepts  # type: ignore
-    import gaps as _gaps  # type: ignore
-    import narrative as _narrative  # type: ignore
-    import glossary as _glossary  # type: ignore
     import flow as _flow  # type: ignore
+    import gaps as _gaps  # type: ignore
+    import glossary as _glossary  # type: ignore
+    import narrative as _narrative  # type: ignore
     from render_living import render_html  # type: ignore
 
 HOME = Path.home()

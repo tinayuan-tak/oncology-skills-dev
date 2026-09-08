@@ -32,9 +32,9 @@ from pathlib import Path
 # and direct-script invocation (the convention the other validators use).
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-    from validators.framework_health import probe, rollup, render_html
+    from validators.framework_health import probe, render_html, rollup
 else:
-    from . import probe, rollup, render_html
+    from . import probe, render_html, rollup
 
 SCHEMA_VERSION = "1.0.0"
 HEALTH_DIR = probe.CONTRACTS_REPO / "health"

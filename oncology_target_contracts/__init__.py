@@ -30,14 +30,14 @@ from __future__ import annotations
 
 from .loader import (
     contracts_root,
+    iter_card_ids,
     load_card,
-    load_resolver,
+    load_dashboard_spec,
     load_interpretation_rules,
+    load_modality_module,
+    load_resolver,
     load_schema,
     load_vocabulary,
-    load_dashboard_spec,
-    load_modality_module,
-    iter_card_ids,
 )
 
 __all__ = [
