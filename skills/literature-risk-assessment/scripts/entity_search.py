@@ -24,13 +24,38 @@ from __future__ import annotations
 
 import json
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 
 PUBTATOR_BASE = "https://www.ncbi.nlm.nih.gov/research/pubtator3-api"
-_UA = {"User-Agent": "oncology-skills/1.5 (grounded-substrate entity retrieval)"}
+_UA = {"User-Agent": "oncology-skills/1.6 (grounded-substrate entity retrieval)"}
 _TIMEOUT = 30.0
 _DELAY = 0.34  # stay well under NCBI's 3 req/s
+_RETRYABLE_STATUS = frozenset({429, 500, 502, 503, 504})
+
+
+def _get_json(url: str, *, timeout_s: float, max_retries: int = 3):
+    """Best-effort GET → parsed JSON with bounded exponential backoff on transient HTTP 429/5xx and
+    connection errors (PubTator3 rate-limits under load). Returns the decoded JSON, or None on a
+    non-transient error or after retries are exhausted — callers already degrade to keyword search."""
+    delay = 1.0
+    for attempt in range(max_retries + 1):
+        try:
+            req = urllib.request.Request(url, headers=_UA)
+            with urllib.request.urlopen(req, timeout=timeout_s) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+            time.sleep(_DELAY)
+            return data
+        except urllib.error.HTTPError as e:
+            if e.code not in _RETRYABLE_STATUS or attempt >= max_retries:
+                return None
+        except Exception:  # noqa: BLE001 — connection/JSON error: retry a bounded number of times
+            if attempt >= max_retries:
+                return None
+        time.sleep(delay)
+        delay *= 2
+    return None
 
 
 # ------------------------------------------------------------------ pure -----
@@ -75,25 +100,17 @@ def entity_axis_query(
 # --------------------------------------------------------------- network -----
 def resolve_gene_entity(symbol: str, *, timeout_s: float = _TIMEOUT) -> str | None:
     """symbol -> '@GENE_<entrez>' via PubTator autocomplete; None on miss/error."""
-    try:
-        q = urllib.parse.urlencode({"query": symbol, "concept": "gene", "limit": 10})
-        req = urllib.request.Request(f"{PUBTATOR_BASE}/entity/autocomplete/?{q}", headers=_UA)
-        with urllib.request.urlopen(req, timeout=timeout_s) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-        time.sleep(_DELAY)
-        return _pick_gene_entity(data if isinstance(data, list) else data.get("results", []), symbol)
-    except Exception:  # noqa: BLE001 — best-effort; caller falls back to keyword search
+    q = urllib.parse.urlencode({"query": symbol, "concept": "gene", "limit": 10})
+    data = _get_json(f"{PUBTATOR_BASE}/entity/autocomplete/?{q}", timeout_s=timeout_s)
+    if data is None:
         return None
+    return _pick_gene_entity(data if isinstance(data, list) else data.get("results", []), symbol)
 
 
 def pubtator_pmids(query: str, *, retmax: int, timeout_s: float = _TIMEOUT) -> list[str]:
     """Entity-aware relevance search -> list of PubMed PMIDs (numeric only)."""
-    try:
-        q = urllib.parse.urlencode({"text": query})
-        req = urllib.request.Request(f"{PUBTATOR_BASE}/search/?{q}", headers=_UA)
-        with urllib.request.urlopen(req, timeout=timeout_s) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-        time.sleep(_DELAY)
-        return _numeric_pmids(data.get("results") or [], retmax)
-    except Exception:  # noqa: BLE001
+    q = urllib.parse.urlencode({"text": query})
+    data = _get_json(f"{PUBTATOR_BASE}/search/?{q}", timeout_s=timeout_s)
+    if data is None:
         return []
+    return _numeric_pmids(data.get("results") or [], retmax)

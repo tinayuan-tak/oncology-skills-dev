@@ -4,21 +4,110 @@ Stage 0 of the v1.4.0 facts.yaml extractor: turn a (gene, disease) pair
 into structured per-category abstract lists, ready for LLM extraction
 in Stage 1.
 
-No LLM dependency — pure HTTP. Uses the public NCBI E-utilities API
-(no API key required for moderate usage).
+No LLM dependency — pure HTTP. Uses the public NCBI E-utilities API.
+
+Robustness (PR-1, 2026-09-08):
+  - abstract parsing is XML-based (retmode=xml + ElementTree) — structured
+    ArticleTitle / AbstractText (labeled sections joined in order) / PubDate,
+    replacing the fragile regex text parser (kept as a fallback). The old
+    "longest text block" heuristic dropped RESULTS/limitations sections of
+    structured abstracts, exactly where escalating findings live.
+  - honours NCBI_API_KEY (10 req/s vs the anonymous <3 req/s) + NCBI_TOOL /
+    NCBI_EMAIL identification per NCBI's usage policy.
+  - bounded exponential backoff on HTTP 429/5xx (a transient blip previously
+    yielded [] → a dimension silently went not_assessed).
+  - OPTIONAL content-addressed corpus cache: set LITRISK_CACHE_DIR to memoize
+    esearch/efetch response bodies on disk keyed by the request (api_key/tool/
+    email stripped from the key) — the reproducibility pin that defeats
+    PubMed's run-to-run relevance re-ranking. Best-effort: any cache error is
+    swallowed and retrieval proceeds live.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
+import os
 import re
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
+import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Iterable
 
 EUTILS_BASE = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
+
+# NCBI courtesy identification + throughput. An API key raises the rate ceiling from ~3 to 10 req/s
+# and stabilizes throughput; tool+email identify the client per NCBI's E-utilities usage policy.
+NCBI_API_KEY = os.environ.get("NCBI_API_KEY", "").strip()
+NCBI_TOOL = os.environ.get("NCBI_TOOL", "onc-compbio-litrisk").strip()
+NCBI_EMAIL = os.environ.get("NCBI_EMAIL", "").strip()
+# 10 req/s with a key (0.1s), else stay comfortably under the anonymous 3 req/s ceiling (0.34s).
+DEFAULT_REQUEST_DELAY_S = 0.1 if NCBI_API_KEY else 0.34
+
+# Optional on-disk corpus cache (see module docstring). Env-driven for PR-1 (a --cache-dir CLI flag
+# lands with the run.py retrieval unification in PR-2).
+_CACHE_DIR_ENV = "LITRISK_CACHE_DIR"
+# HTTP status codes worth retrying with backoff (transient server / rate-limit).
+_RETRYABLE_STATUS = frozenset({429, 500, 502, 503, 504})
+
+
+def _eutils_params(params: dict) -> dict:
+    """Augment an E-utilities param dict with NCBI courtesy identification (api_key/tool/email) when
+    configured. Pure: returns a new dict, leaves the caller's dict untouched."""
+    out = dict(params)
+    if NCBI_API_KEY:
+        out["api_key"] = NCBI_API_KEY
+    if NCBI_TOOL:
+        out["tool"] = NCBI_TOOL
+    if NCBI_EMAIL:
+        out["email"] = NCBI_EMAIL
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Optional content-addressed cache (best-effort; no-op unless LITRISK_CACHE_DIR set)
+# ---------------------------------------------------------------------------
+
+
+def _cache_dir() -> Path | None:
+    d = os.environ.get(_CACHE_DIR_ENV, "").strip()
+    return Path(d) if d else None
+
+
+def _cache_key(url: str) -> str:
+    """sha256 of the URL with the identity params (api_key/tool/email) stripped, so the SAME logical
+    request (query + dates + retmode) caches identically regardless of who issued it."""
+    parts = urllib.parse.urlsplit(url)
+    q = [(k, v) for k, v in urllib.parse.parse_qsl(parts.query) if k not in ("api_key", "tool", "email")]
+    canon = urllib.parse.urlunsplit((parts.scheme, parts.netloc, parts.path, urllib.parse.urlencode(sorted(q)), ""))
+    return hashlib.sha256(canon.encode("utf-8")).hexdigest()
+
+
+def _cache_read(url: str) -> str | None:
+    d = _cache_dir()
+    if not d:
+        return None
+    try:
+        f = d / f"{_cache_key(url)}.txt"
+        return f.read_text(encoding="utf-8") if f.exists() else None
+    except Exception:  # noqa: BLE001 — cache is best-effort; fall through to a live fetch
+        return None
+
+
+def _cache_write(url: str, body: str) -> None:
+    d = _cache_dir()
+    if not d:
+        return
+    try:
+        d.mkdir(parents=True, exist_ok=True)
+        (d / f"{_cache_key(url)}.txt").write_text(body, encoding="utf-8")
+    except Exception:  # noqa: BLE001 — a write failure must never break retrieval
+        return
+
 
 # Six risk categories matching the workflow + the search-pattern column
 # of risk_assessment_template_{disease}.md. The {gene} and {disease}
@@ -86,7 +175,7 @@ def search_pubmed(
     disease: str,
     *,
     abstracts_per_category: int = 10,
-    request_delay_s: float = 0.34,
+    request_delay_s: float = DEFAULT_REQUEST_DELAY_S,
     timeout_s: float = 30.0,
     mindate: str | None = None,
     maxdate: str | None = None,
@@ -115,7 +204,6 @@ def search_pubmed(
         raise ValueError(f"disease must be one of {sorted(DISEASE_TERMS)}; got {disease!r}")
 
     disease_terms = DISEASE_TERMS[disease]
-    result = PubMedSearchResult(gene=gene, disease=disease)
     abstracts_by_cat: dict[str, list[PubMedAbstract]] = {}
 
     gene_term = gene_search_term(gene)  # entity/title-qualified — never a bare ambiguous symbol
@@ -163,7 +251,7 @@ def _esearch(
         params["datetype"] = "pdat"
         params["mindate"] = str(mindate)
         params["maxdate"] = str(maxdate)
-    url = f"{EUTILS_BASE}/esearch.fcgi?" + urllib.parse.urlencode(params)
+    url = f"{EUTILS_BASE}/esearch.fcgi?" + urllib.parse.urlencode(_eutils_params(params))
     raw = _http_get(url, timeout_s=timeout_s)
     data = json.loads(raw)
     return list(data.get("esearchresult", {}).get("idlist", []))
@@ -175,28 +263,116 @@ def _efetch_abstracts(
     category: str,
     timeout_s: float,
 ) -> list[PubMedAbstract]:
-    """Fetch and parse abstract records for a list of PMIDs."""
-    pmid_str = ",".join(pmids)
-    params = {
-        "db": "pubmed",
-        "id": pmid_str,
-        "rettype": "abstract",
-        "retmode": "text",
-    }
-    url = f"{EUTILS_BASE}/efetch.fcgi?" + urllib.parse.urlencode(params)
-    raw = _http_get(url, timeout_s=timeout_s)
-    return _parse_efetch_text(raw, category=category)
+    """Fetch and parse abstract records for a list of PMIDs.
+
+    Primary path is XML (retmode=xml): structured ArticleTitle + AbstractText (labeled sections joined
+    in order) + PubDate — robust to structured/erratum/multi-section abstracts. The legacy plain-text
+    parser is retained as a FALLBACK: it fires only if the XML fetch/parse raises OR yields zero records
+    for a non-empty PMID list (an anomaly worth a second look), so a real "no records" answer costs no
+    extra request."""
+    pmid_list = [str(p) for p in pmids if str(p).strip()]
+    if not pmid_list:
+        return []
+    pmid_str = ",".join(pmid_list)
+    xml_url = f"{EUTILS_BASE}/efetch.fcgi?" + urllib.parse.urlencode(
+        _eutils_params({"db": "pubmed", "id": pmid_str, "rettype": "abstract", "retmode": "xml"})
+    )
+    try:
+        parsed = _parse_efetch_xml(_http_get(xml_url, timeout_s=timeout_s), category=category)
+        if parsed:
+            return parsed
+    except Exception:  # noqa: BLE001 — degrade to the legacy text parser on any XML fetch/parse failure
+        pass
+    text_url = f"{EUTILS_BASE}/efetch.fcgi?" + urllib.parse.urlencode(
+        _eutils_params({"db": "pubmed", "id": pmid_str, "rettype": "abstract", "retmode": "text"})
+    )
+    return _parse_efetch_text(_http_get(text_url, timeout_s=timeout_s), category=category)
 
 
-def _http_get(url: str, *, timeout_s: float) -> str:
-    """GET with explicit timeout. Returns body as str."""
-    req = urllib.request.Request(url, headers={"User-Agent": "oncology-skills/1.4"})
-    with urllib.request.urlopen(req, timeout=timeout_s) as fh:
-        return fh.read().decode("utf-8", errors="replace")
+def _http_get(url: str, *, timeout_s: float, max_retries: int = 3) -> str:
+    """GET with explicit timeout, bounded exponential backoff on transient HTTP 429/5xx (and connection
+    errors), and an optional content-addressed disk cache (LITRISK_CACHE_DIR). Returns body as str.
+
+    Backoff: a transient rate-limit / server blip previously surfaced as an exception that callers turned
+    into an empty result (a dimension silently → not_assessed). We retry _RETRYABLE_STATUS + URLErrors up
+    to `max_retries` times with 1s→2s→4s sleeps before re-raising."""
+    cached = _cache_read(url)
+    if cached is not None:
+        return cached
+    delay, last_exc = 1.0, None
+    for attempt in range(max_retries + 1):
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "oncology-skills/1.6"})
+            with urllib.request.urlopen(req, timeout=timeout_s) as fh:
+                body = fh.read().decode("utf-8", errors="replace")
+            _cache_write(url, body)
+            return body
+        except urllib.error.HTTPError as e:  # status-bearing: retry only the transient ones
+            last_exc = e
+            if e.code not in _RETRYABLE_STATUS or attempt >= max_retries:
+                raise
+        except urllib.error.URLError as e:  # connection/DNS/timeout: transient, retry
+            last_exc = e
+            if attempt >= max_retries:
+                raise
+        time.sleep(delay)
+        delay *= 2
+    raise last_exc  # unreachable (loop re-raises), but keeps the type-checker honest
 
 
 # ---------------------------------------------------------------------------
-# Internal: efetch text parser
+# Internal: efetch XML parser (primary)
+# ---------------------------------------------------------------------------
+
+
+def _xml_text(el) -> str:
+    """All text within an element (itertext), whitespace-collapsed — so inline markup in a title/abstract
+    (<i>, <sup>, <sub>, MathML) contributes its text rather than being dropped or splitting the string."""
+    if el is None:
+        return ""
+    return re.sub(r"\s+", " ", "".join(el.itertext())).strip()
+
+
+def _parse_efetch_xml(xml_text: str, *, category: str) -> list[PubMedAbstract]:
+    """Parse retmode=xml efetch output into PubMedAbstract records. Joins ALL AbstractText sections in
+    document order (prefixing a section's Label — BACKGROUND/METHODS/RESULTS/CONCLUSIONS — when present),
+    so structured abstracts keep their RESULTS/limitations text. Raises xml.etree ParseError on malformed
+    XML (caller falls back to the text parser)."""
+    root = ET.fromstring(xml_text)
+    out: list[PubMedAbstract] = []
+    for art in root.iter("PubmedArticle"):
+        pmid_el = art.find(".//MedlineCitation/PMID")
+        pmid = (pmid_el.text or "").strip() if pmid_el is not None else ""
+        if not pmid:
+            continue
+        title = _xml_text(art.find(".//Article/ArticleTitle"))
+        parts: list[str] = []
+        for at in art.findall(".//Article/Abstract/AbstractText"):
+            seg = _xml_text(at)
+            if not seg:
+                continue
+            label = at.get("Label")
+            parts.append(f"{label}: {seg}" if label else seg)
+        abstract = " ".join(parts).strip()
+        journal = _xml_text(art.find(".//Article/Journal/Title")) or _xml_text(
+            art.find(".//Article/Journal/ISOAbbreviation")
+        )
+        year: int | None = None
+        y = art.find(".//Article/Journal/JournalIssue/PubDate/Year")
+        if y is not None and (y.text or "").strip().isdigit():
+            year = int(y.text.strip())
+        else:  # MedlineDate fallback (e.g. "2019 Jan-Feb" → 2019)
+            md = art.find(".//Article/Journal/JournalIssue/PubDate/MedlineDate")
+            m = re.search(r"\d{4}", md.text) if (md is not None and md.text) else None
+            year = int(m.group(0)) if m else None
+        out.append(
+            PubMedAbstract(pmid=pmid, title=title, abstract=abstract, journal=journal, year=year, category=category)
+        )
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Internal: efetch text parser (fallback)
 # ---------------------------------------------------------------------------
 
 # efetch returns abstracts as plain text, with each record having this
