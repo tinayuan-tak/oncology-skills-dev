@@ -26,7 +26,8 @@
 # Adding a modality-scoped killer here would regress that golden.
 
 enum_id: nomination_verdict_gate
-version: 1.11.0  # 1.11.0 (2026-09-07): + differentiation:strong_mutually_exclusive as a SUPPORTIVE positive_signal, GROUPED with [genomic_alteration, cis_coherence] (driver-inference re-read → confidence raise, never an independent `strong`-manufacturing line). Wires the formerly advisory-in-gate differentiation axis. Backtest-gated.
+version: 1.12.0  # 1.12.0 (2026-09-08): + pmhc_tce_supported to biology_axis_scoped_veto_downgrade.when_surface_verdict_in — SYNC FIX (Takeda ONC backtest CASE-016/NOX1): v1.8.0 added pmhc_tce_supported to positive_signals_modality_scoped but NOT to the veto-downgrade set, so a pMHC-TCE-viable antigen (NOX1/CRC, advanced) got HARD-VETOED on dependency:non_dependent instead of downgraded to hold like the ADC-preferred verdicts. Now a viable pMHC-TCE surface arm downgrades the intracellular-dependency veto→hold (consistent with adc_preferred_tce_unsafe). Verdict-moving (NOX1 veto→hold); golden regen + backtest.
+                 # 1.11.0 (2026-09-07): + differentiation:strong_mutually_exclusive as a SUPPORTIVE positive_signal, GROUPED with [genomic_alteration, cis_coherence] (driver-inference re-read → confidence raise, never an independent `strong`-manufacturing line). Wires the formerly advisory-in-gate differentiation axis. Backtest-gated.
                  # 1.10.0 (2026-09-06): + selectivity POST-RESOLVER clamp KILLs (selective_but_broadly_normal, selective_but_stromal_confound) as contradictions in kill_capable_verdicts + positive_contradictions, so a composed selectivity KILL blocks `strong` (was display-only — advisory→silent-degradation gap). Backed by selectivity.resolver.yaml clamp_verdicts (folded into emitted_verdicts_by_gate). selective_with_normal_liability is preserving → NOT a contradiction.
                  # 1.9.0 (2026-09-04, #979): + surface_modality adc_preferred_tce_patient_variable / tce_patient_variable
                  #   to positive_signals_modality_scoped (TCE arm dominant→supportive temper; escape-insensitive arms
@@ -384,7 +385,7 @@ biology_axis_scoped_veto_downgrade:
   - downgrades: {sub_skill: dependency, verdict: non_dependent}
     to_action: hold
     when_biology_axis_in: [surface_intrinsic, unknown]
-    when_surface_verdict_in: [both_viable, adc_preferred, tce_preferred, adc_preferred_tce_unsafe, adc_preferred_tce_escape_risk, adc_preferred_tce_patient_variable, tce_patient_variable, surface_viable_density_caveated]
+    when_surface_verdict_in: [both_viable, adc_preferred, tce_preferred, adc_preferred_tce_unsafe, adc_preferred_tce_escape_risk, adc_preferred_tce_patient_variable, tce_patient_variable, surface_viable_density_caveated, pmhc_tce_supported]
     rationale: |
       A surface antigen with a FAVORABLE surface_modality fit is engaged via antigen binding, so a
       pooled pan-cancer `non_dependent` is not a trusted reason to VETO — it is downgraded to `hold`,
