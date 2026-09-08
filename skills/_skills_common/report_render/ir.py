@@ -285,9 +285,17 @@ def _figures_by_owner(nomination: dict, owner_map: dict) -> dict:
     return by
 
 
-def _build_section(short: str, report: dict, spec: ReportSpec, is_deciding: bool, card_figs: list = ()) -> Section:
+def _build_section(
+    short: str, report: dict, spec: ReportSpec, is_deciding: bool, card_figs: list = (), reconciled_shorts=frozenset()
+) -> Section:
     role = report.get("role") or ("gating" if short in vocab.GATING_SHORTS else "descriptive")
     eff = spec.level_int_for(short, is_deciding)
+
+    # COMPOSED cross-axis reconciliation: a measured-negative CONTRADICTION the gate retired renders as
+    # NEUTRAL (glyph •) with the raw polarity + note retained — reframed, never hidden — so the per-axis
+    # header glyph + figure badge agree with the gate/scorecard/LLM. Empty set on the standalone path.
+    _recon_note = _reconciled_note(short, report.get("polarity"), reconciled_shorts)
+    _eff_polarity = "neutral" if _recon_note else report.get("polarity")
 
     header = Block(
         vocab.SKILL_HEADER,
@@ -296,7 +304,9 @@ def _build_section(short: str, report: dict, spec: ReportSpec, is_deciding: bool
             "title": vocab.skill_title(short),
             "role": role,
             "call": report.get("call"),  # None for gateless — backend falls back to phrase
-            "polarity": report.get("polarity"),
+            "polarity": _eff_polarity,
+            "raw_polarity": report.get("polarity") if _recon_note else None,
+            "reconciled_note": _recon_note,
             "honest_phrase": report.get("honest_phrase"),
             "is_deciding": is_deciding,
         },
@@ -362,7 +372,7 @@ def _build_section(short: str, report: dict, spec: ReportSpec, is_deciding: bool
         blocks.append(Block(vocab.PHASE_METRICS, {"rows": report["per_phase_metrics"]}))
     if eff >= vocab.TIER[vocab.FIGURE]:
         blocks.extend(_figure_blocks(report, eff, spec.medium))
-        blocks.extend(_card_figure_blocks(card_figs, eff, spec.medium, report.get("polarity"), role))
+        blocks.extend(_card_figure_blocks(card_figs, eff, spec.medium, _eff_polarity, role))
 
     # L3: RICH embedded view (cont.) — per-card dataset→data→rule→verdict chains, then provenance
     if eg_rich and eff >= vocab.TIER[vocab.CARD_CHAIN]:
@@ -436,7 +446,32 @@ def _negative_expected_under_thesis(
     return None
 
 
-def _signals_overview_block(selected, deciding_short, thesis_primary=None) -> Optional[Block]:
+_RECONCILED_NOTE = (
+    "reconciled by a cross-axis signal (a co-present axis proves it is measured on the wrong basis) — "
+    "not counted against"
+)
+
+
+def _reconciled_note(short: str, polarity: Optional[str], reconciled_shorts) -> Optional[str]:
+    """A note when a gating axis's MEASURED-NEGATIVE was retired by the COMPOSED cross-axis reconciler
+    (`target_call.gate.hard_gates` status == 'reconciled' — e.g. the selectivity no-window KILL reconciled
+    by an ADC/TCE surface fit or an amp/biomarker-stratified dependency). Sibling to
+    `_negative_expected_under_thesis`: it reuses the SAME neutral/raw_polarity de-escalation so the rendered
+    ⛔/▽ glyph, the diverging-strip tally, and the scatter agree with the deterministic gate + the LLM.
+    De-escalates a negative ONLY, never invents a positive. COMPOSED-ONLY: `reconciled_shorts` is empty on
+    the standalone `build_ir_for_skill` path (which carries no gate), so standalone reports keep the honest
+    ⛔. Returns None otherwise."""
+    if short not in (reconciled_shorts or frozenset()):
+        return None
+    rank = vocab.polarity_rank(polarity)
+    if rank is None or rank >= 0:  # only a measured-negative (opposing / killer) is reconciled
+        return None
+    return _RECONCILED_NOTE
+
+
+def _signals_overview_block(
+    selected, deciding_short, thesis_primary=None, reconciled_shorts=frozenset()
+) -> Optional[Block]:
     """The lead diverging-strip: one row per SCORED skill (gating, on-scale polarity), descriptive
     peers as a footnote. Signal polarity is the spine's canonical `skill_report.polarity` (killer-aware)
     — cleaner than parsing driving-rule-id suffixes. Carries the ordinal level for the bar length.
@@ -454,7 +489,11 @@ def _signals_overview_block(selected, deciding_short, thesis_primary=None) -> Op
         if role != "gating" or polarity in (None, "not_scored"):
             descriptive.append(title)  # context, not a bar
             continue
-        expected_note = _negative_expected_under_thesis(short, polarity, thesis_primary)
+        # thesis-expected OR composed-reconciled negative → same neutral/raw de-escalation (both reframe,
+        # never hide). Composed reconciliation is dormant on standalone runs (reconciled_shorts empty).
+        expected_note = _negative_expected_under_thesis(short, polarity, thesis_primary) or _reconciled_note(
+            short, polarity, reconciled_shorts
+        )
         prov = report.get("provenance") if isinstance(report.get("provenance"), dict) else {}
         rows.append(
             {
@@ -1073,7 +1112,7 @@ def _route_synthesis_to_lenses(nomination: dict, skill_reports: dict) -> list:
     return blocks
 
 
-def _signals_scatter_block(selected, deciding_short) -> Optional[Block]:
+def _signals_scatter_block(selected, deciding_short, reconciled_shorts=frozenset()) -> Optional[Block]:
     """Report-level signal × confidence scatter — one point per SCORED gating skill. Position is honest:
     x = confidence (low/moderate/high), y = signal STRENGTH tier; DIRECTION (supports vs against vs killer)
     is carried by colour + glyph (CVD-safe: position is strength, not direction). Leads the Signals lens,
@@ -1083,6 +1122,12 @@ def _signals_scatter_block(selected, deciding_short) -> Optional[Block]:
         polarity = report.get("polarity")
         if role != "gating" or polarity in (None, "not_scored"):
             continue
+        # composed-reconciled measured-negative → neutral dot (raw retained), consistent with the header
+        # glyph + diverging strip. Dormant on standalone (reconciled_shorts empty).
+        _recon_note = _reconciled_note(short, polarity, reconciled_shorts)
+        _raw_polarity = polarity if _recon_note else None
+        if _recon_note:
+            polarity = "neutral"
         rank = vocab.polarity_rank(polarity)
         strength = "strong" if abs(rank or 0) >= 2 else "weak" if abs(rank or 0) == 1 else "absent"
         pts.append(
@@ -1090,6 +1135,8 @@ def _signals_scatter_block(selected, deciding_short) -> Optional[Block]:
                 "short": short,
                 "title": vocab.skill_title(short),
                 "polarity": polarity,
+                "raw_polarity": _raw_polarity,
+                "reconciled_note": _recon_note,
                 "signal_tier": strength,
                 "signal_y": _TIER_ORDINAL[strength],
                 "confidence_x": _confidence_ordinal(report.get("confidence")),
@@ -1114,7 +1161,7 @@ def _signals_scatter_block(selected, deciding_short) -> Optional[Block]:
     )
 
 
-def _composed_fingerprint_block(tr: dict) -> Optional[Block]:
+def _composed_fingerprint_block(tr: dict, reconciled_shorts=frozenset()) -> Optional[Block]:
     """The composed at-a-glance grid — the FIRST renderer of the composed_evidence_graph index
     (target_report.evidence_graph, #1068). A PURE PROJECTION of that index: the whole decision as a
     lens-grouped skill grid (each skill's call/polarity/confidence + a deciding badge + a literature-
@@ -1138,12 +1185,18 @@ def _composed_fingerprint_block(tr: dict) -> Optional[Block]:
     # nodes trail in a stable bucket). Within a lane: deciding axis first, then alpha by short.
     by_lens: dict = {}
     for s in skills:
+        # composed-reconciled measured-negative → neutral (raw retained), consistent with the header glyph /
+        # strip / scatter. This grid reads the evidence-graph index polarity (a distinct source), so it needs
+        # its own de-escalation. Dormant on standalone (reconciled_shorts empty).
+        _recon_note = _reconciled_note(s.get("short"), s.get("polarity"), reconciled_shorts)
         by_lens.setdefault(s.get("lens") or "_other", []).append(
             {
                 "short": s.get("short"),
                 "title": vocab.skill_title(s.get("short")),
                 "call": s.get("call"),
-                "polarity": s.get("polarity"),
+                "polarity": "neutral" if _recon_note else s.get("polarity"),
+                "raw_polarity": s.get("polarity") if _recon_note else None,
+                "reconciled_note": _recon_note,
                 "confidence": s.get("confidence"),
                 "deciding": bool(s.get("deciding")),
                 "literature_consistency": s.get("literature_consistency"),
@@ -1496,6 +1549,16 @@ def build_ir(
 
     deciding_short = _deciding_short(target_call.get("deciding_axis"), set(skill_reports))
 
+    # COMPOSED cross-axis reconciled axes: shorts whose measured-negative contradiction the gate RETIRED
+    # (target_call.gate.hard_gates status == 'reconciled'). De-escalates the rendered glyph/strip/scatter
+    # to neutral so they agree with the gate + LLM. Empty for standalone (build_ir_for_skill has no gate),
+    # so this is structurally composed-only and byte-stable on any run with no reconciliation.
+    reconciled_shorts = frozenset(
+        row.get("short")
+        for row in ((target_call.get("gate") or {}).get("hard_gates") or [])
+        if isinstance(row, dict) and row.get("status") == "reconciled" and row.get("short")
+    )
+
     # header (the decision) — always present, tier 0.
     # coherence thesis lives at target_report.thesis (full-nest) OR top-level nomination.target_coherence
     # (pre-nest runs) — same fallback _coherence_block uses, so the header + strip reconciliation resolve
@@ -1542,7 +1605,12 @@ def build_ir(
 
     sections = [
         _build_section(
-            short, report, spec, is_deciding=(short == deciding_short), card_figs=figs_by_owner.get(short, [])
+            short,
+            report,
+            spec,
+            is_deciding=(short == deciding_short),
+            card_figs=figs_by_owner.get(short, []),
+            reconciled_shorts=reconciled_shorts,
         )
         for short, report, role in selected
     ]
@@ -1559,9 +1627,9 @@ def build_ir(
     # composed at-a-glance grid from the target_report.evidence_graph index (#1068) — added first so it
     # leads the Decision lens (lens grouping preserves insertion order within a lens). None → not added
     # (pre-index nominations stay byte-stable).
-    _add(vocab.COMPOSED_FINGERPRINT, _composed_fingerprint_block(tr))
-    _add(vocab.SIGNALS_SCATTER, _signals_scatter_block(selected, deciding_short))  # leads the Signals lens
-    _add(vocab.SIGNALS_OVERVIEW, _signals_overview_block(selected, deciding_short, _thesis_primary))
+    _add(vocab.COMPOSED_FINGERPRINT, _composed_fingerprint_block(tr, reconciled_shorts))
+    _add(vocab.SIGNALS_SCATTER, _signals_scatter_block(selected, deciding_short, reconciled_shorts))  # Signals lens
+    _add(vocab.SIGNALS_OVERVIEW, _signals_overview_block(selected, deciding_short, _thesis_primary, reconciled_shorts))
     _add(vocab.CROSS_CUTTING_QUESTIONS, _cross_cutting_block(nomination, skill_reports))
     _add(vocab.COHERENCE, _coherence_block(tr, nomination))
     _add(vocab.SYNTHESIS, _synthesis_block(nomination))
