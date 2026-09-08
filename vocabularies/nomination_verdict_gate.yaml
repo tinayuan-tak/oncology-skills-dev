@@ -26,7 +26,8 @@
 # Adding a modality-scoped killer here would regress that golden.
 
 enum_id: nomination_verdict_gate
-version: 1.13.0  # 1.13.0 (2026-09-08): + modality_ambiguous to biology_axis_scoped_veto_downgrade.when_surface_verdict_in — IDAS-seed experiment found GPRC5D/MM (talquetamab, APPROVED) + CLDN18.2/STAD (zolbetuximab, APPROVED) HARD-VETOED on dependency:non_dependent because their surface fit reads modality_ambiguous (GPCR multi-TM / claudin topology the surface-fit can't resolve), which was NOT in the downgrade set. An ambiguous (not-dead) surface signal on an intracellular non-dependency should HOLD, not hard-veto — neither_viable/shed_dominant_opposed still veto (genuine surface-junk). Verdict-moving (GPRC5D/CLDN18.2 veto→hold); golden regen + backtest.
+version: 1.14.0  # 1.14.0 (2026-09-08): + contradiction_reconcilers block — a genomic biomarker_stratified_dependency RECONCILES (drops) the selectivity selective_but_broadly_normal CONTRADICTION (the no-window KILL is bulk-RNA÷critical-organ, which dilutes an amp/biomarker-selected window — HER2/FGFR2/HER3). Surfaced by the IDAS backtest (ERBB2/STAD = T-DXd APPROVED, vetoed on no-window). Applied at positive-tier strong-block + gate scorecard + synthesis role; keeps the KILL for no-amp housekeeping (TROP2/GAPDH). Verdict-moving; golden regen + grounded verify.
+                 # 1.13.0 (2026-09-08): + modality_ambiguous to biology_axis_scoped_veto_downgrade.when_surface_verdict_in — IDAS-seed experiment found GPRC5D/MM (talquetamab, APPROVED) + CLDN18.2/STAD (zolbetuximab, APPROVED) HARD-VETOED on dependency:non_dependent because their surface fit reads modality_ambiguous (GPCR multi-TM / claudin topology the surface-fit can't resolve), which was NOT in the downgrade set. An ambiguous (not-dead) surface signal on an intracellular non-dependency should HOLD, not hard-veto — neither_viable/shed_dominant_opposed still veto (genuine surface-junk). Verdict-moving (GPRC5D/CLDN18.2 veto→hold); golden regen + backtest.
                  # 1.12.0 (2026-09-08): + pmhc_tce_supported to biology_axis_scoped_veto_downgrade.when_surface_verdict_in — SYNC FIX (Takeda ONC backtest CASE-016/NOX1): v1.8.0 added pmhc_tce_supported to positive_signals_modality_scoped but NOT to the veto-downgrade set, so a pMHC-TCE-viable antigen (NOX1/CRC, advanced) got HARD-VETOED on dependency:non_dependent instead of downgraded to hold like the ADC-preferred verdicts. Now a viable pMHC-TCE surface arm downgrades the intracellular-dependency veto→hold (consistent with adc_preferred_tce_unsafe). Verdict-moving (NOX1 veto→hold); golden regen + backtest.
                  # 1.11.0 (2026-09-07): + differentiation:strong_mutually_exclusive as a SUPPORTIVE positive_signal, GROUPED with [genomic_alteration, cis_coherence] (driver-inference re-read → confidence raise, never an independent `strong`-manufacturing line). Wires the formerly advisory-in-gate differentiation axis. Backtest-gated.
                  # 1.10.0 (2026-09-06): + selectivity POST-RESOLVER clamp KILLs (selective_but_broadly_normal, selective_but_stromal_confound) as contradictions in kill_capable_verdicts + positive_contradictions, so a composed selectivity KILL blocks `strong` (was display-only — advisory→silent-degradation gap). Backed by selectivity.resolver.yaml clamp_verdicts (folded into emitted_verdicts_by_gate). selective_with_normal_liability is preserving → NOT a contradiction.
@@ -296,6 +297,33 @@ kill_capable_verdicts:
 # is a sampling artifact, not a trusted negative. When the rescue verdict is present
 # the pooled dependency veto is suppressed (the target routes to the positive tier
 # via the biomarker-stratified positive_signal above). Rescues EGFR/IDH1/FLT3.
+# CROSS-AXIS CONTRADICTION RECONCILERS (2026-09-08). DISTINCT from veto_suppressors (which suppress a
+# dependency VETO/HOLD gate action): a reconciler removes a CONTRADICTION verdict (a kill_capable
+# `disposition: contradiction` / positive_contradiction that blocks `strong` and reads as opposing to
+# the synthesis) when a co-present verdict on ANOTHER axis proves the contradiction is measured on the
+# wrong basis. INVERTED FALLBACK, same as suppressors: a missing/malformed block reconciles NOTHING (the
+# contradiction stands) — a reconciler can only ever make the gate LESS conservative when its trigger is
+# genuinely present, never silently. Applied everywhere the contradiction is read (positive-tier
+# strong-block, gate scorecard opposing status, per-axis synthesis role) so the deterministic call AND the
+# LLM's view move together.
+contradiction_reconcilers:
+  - reconciles: {sub_skill: selectivity, verdict: selective_but_broadly_normal}
+    when_present:
+      - {sub_skill: genomic_alteration, verdict: biomarker_stratified_dependency}
+      - {sub_skill: genomic_alteration, verdict: moderate_biomarker_dependency}
+    rationale: |
+      The no-therapeutic-window / broadly-normal selectivity KILL is computed as BULK tumor RNA ÷ the
+      worst of 15 critical normal organs — which DILUTES the therapeutic window for an AMPLIFICATION /
+      biomarker-selected target (HER2/ERBB2, FGFR2, ERBB3): the real window lives in the amp+ / biomarker+
+      stratum (assessed by CDx/IHC in practice), not the pan-cohort bulk average. When the genomic axis
+      reports a biomarker-stratified (amplification-conditional) dependency, the bulk-RNA broadly-normal
+      read is NOT a trusted contradiction → reconcile it (drop from the contradiction set) so it no longer
+      blocks `strong` nor reads as unopposed opposing evidence to the synthesis. Surfaced by the IDAS
+      backtest (ERBB2/STAD = trastuzumab-deruxtecan APPROVED, hard-vetoed on no-window; also ERBB3/LUAD,
+      FGFR2/STAD). KEEPS the KILL for targets with NO amp/biomarker conditioning (true housekeeping —
+      TROP2/GAPDH salivary-gland archetype). Does NOT itself nominate (no positive_signal) — the
+      biomarker-stratified dependency already carries the positive tier.
+
 # NOTE: suppresses only `non_dependent` (dilution artifact), NOT `pan_essential_killer`
 # (a too-essential target is not rescued by a stratified signal — different failure).
 veto_suppressors:
