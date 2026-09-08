@@ -1055,6 +1055,10 @@ def _narrative_by_axis(
             {"kind": "strengthen", "availability": g.get("availability"), "missing_cards": []}
         )
 
+    # Cross-axis reconciled contradictions (same set the gate drops): stamp the per-axis trace so the
+    # 'why this verdict' panel + Tier-3 narrative block read a reconciled contradiction as retired, not
+    # opposing — consistent with _hard_gates_status/_gate_scorecard. Fail-closed empty.
+    reconciled = _reconciled_contradiction_keys(sub_results, contracts_repo)
     out: dict = {}
     for short, ax in per_axis.items():
         gaps = gaps_by_axis.get(short)
@@ -1074,6 +1078,8 @@ def _narrative_by_axis(
                 )
             except Exception:  # noqa: BLE001 — verdict-inert projection; a build fault must not abort
                 continue
+            if (short, ax.get("base_verdict")) in reconciled:
+                out[short]["reconciled_contradiction"] = True
         elif gaps:
             # blind / no-resolver axis with an outstanding acquire/strengthen task: gap-only narrative
             # so the dashboard still surfaces "go measure X" (ignorance != a measured negative).

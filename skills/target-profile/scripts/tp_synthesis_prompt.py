@@ -534,6 +534,11 @@ def _render_narrative_block(narrative_by_axis: Optional[dict]) -> list[str]:
             continue
         v, drv = n.get("verdict"), n.get("driving_rule_id")
         out.append(f"- **{short}**: `{v}`" + (f" — set by [{drv}]" if drv else ""))
+        if n.get("reconciled_contradiction"):
+            out.append(
+                "    · RECONCILED (cross-axis): this contradiction was retired by the gate (a co-present "
+                "axis proves it is measured on the wrong basis) — do NOT read it as opposing or decisive."
+            )
         for m in n.get("movers") or []:
             if m.get("role") == "driver":
                 continue
@@ -819,6 +824,55 @@ def _render_subtype_facet_block(sf: dict) -> list[str]:
     return lines
 
 
+def _render_reconciled_block(sub_results: dict) -> list[str]:
+    """Tell the reasoner which CONTRADICTION sub-verdicts were RECONCILED by a cross-axis reconciler,
+    so it does not read them as unopposed opposing evidence or hang a veto on them. This is the SAME
+    reconciliation the deterministic gate applies (`_hard_gates_status` marks these `reconciled` not
+    `opposing`; the scorecard + positive-tier drop them) — surfaced to Tier-3 so the LLM's call moves
+    WITH the gate instead of re-litigating a contradiction the gate already retired. Without this, the
+    LLM still reads the raw sub-verdict + the fired KILLER rule and can call a reconciled axis decisive
+    (observed: ERBB3/LUAD — 'selectivity veto owns the call' though the gate reconciled it). Fail-closed:
+    empty block on any failure (nothing claimed reconciled)."""
+    try:
+        from tp_gates import (
+            _load_contradiction_reconcilers,
+            _reconciled_contradiction_keys,
+            _trigger_label,
+            _verdict_token,
+        )
+
+        keys = _reconciled_contradiction_keys(sub_results)
+        if not keys:
+            return []
+        recs = _load_contradiction_reconcilers()
+        present = {(short, _verdict_token(r.get("verdict"))) for short, r in sub_results.items() if isinstance(r, dict)}
+    except Exception:  # noqa: BLE001 — any failure → no reconciliation surfaced (contradictions stand)
+        return []
+    lines = ["### Reconciled contradictions (cross-axis — do NOT treat as unopposed kills)"]
+    lines.append(
+        "The deterministic gate RECONCILED the contradiction sub-verdict(s) below: a co-present verdict on "
+        "another axis proves the contradiction is measured on the wrong basis (e.g. the bulk-RNA no-window "
+        "selectivity KILL is diluted for an amp/biomarker-selected or ADC/TCE-surface target whose window is "
+        "stratum- or modality-engineered), so the gate no longer counts it as opposing (hard-gate status = "
+        "`reconciled`; dropped from the strong-block + scorecard). Do NOT hang the recommendation on a "
+        "reconciled contradiction or read it as a veto — weigh only the UNreconciled evidence:"
+    )
+    for short, verdict in sorted(keys):
+        trigs: list[str] = []
+        for rc in recs:
+            rec = rc.get("reconciles") or {}
+            if (rec.get("sub_skill"), rec.get("verdict")) != (short, verdict):
+                continue
+            for w in rc.get("when_present") or []:
+                lbl = _trigger_label(w, present, sub_results)
+                if lbl:
+                    trigs.append(lbl)
+        why = f" — reconciled by {', '.join(sorted(set(trigs)))}" if trigs else ""
+        lines.append(f"- **{short}** `{verdict}` → RECONCILED{why}")
+    lines.append("")
+    return lines
+
+
 def _build_user_prompt(
     target: str,
     indication: str,
@@ -877,6 +931,7 @@ def _build_user_prompt(
             verdict_str, driving_rule = v
             lines.append(f"- **{short}** ({r['skill_dir']}): `{verdict_str}` (driving rule: {driving_rule})")
     lines.append("")
+    lines.extend(_render_reconciled_block(sub_results))
     _ke_block = _render_subskill_key_evidence(sub_results)
     if _ke_block:
         lines.append(_ke_block)

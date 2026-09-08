@@ -77,6 +77,63 @@ def test_user_prompt_includes_narrative_block():
     assert "Per-verdict narrative" in up and "CITE" in up
 
 
+_RECONCILER_CFG = [
+    {
+        "reconciles": {"sub_skill": "selectivity", "verdict": "selective_but_broadly_normal"},
+        "when_present": [{"sub_skill": "surface_modality", "verdict": "adc_preferred_tce_unsafe"}],
+    }
+]
+
+
+def test_reconciled_block_names_trigger_and_directs_not_to_veto(monkeypatch):
+    """The prompt must tell the LLM which contradictions the gate RECONCILED (so it stops calling a
+    reconciled axis decisive — the ERBB3/LUAD 'selectivity veto owns the call' failure). Names the
+    reconciling co-present axis; empty when nothing reconciles."""
+    import tp_gates as tpg
+
+    monkeypatch.setattr(tpg, "_load_contradiction_reconcilers", lambda *a, **k: _RECONCILER_CFG)
+    sr = {
+        "selectivity": {
+            "verdict": ("selective_but_broadly_normal", "tvn-no-therapeutic-window-veto"),
+            "skill_dir": "tumor-selectivity",
+            "cards": [],
+            "fired": [],
+        },
+        "surface_modality": {
+            "verdict": ("adc_preferred_tce_unsafe", "adc-fit"),
+            "skill_dir": "surface-modality-fit",
+            "cards": [],
+            "fired": [],
+        },
+    }
+    block = "\n".join(tp._render_reconciled_block(sr))
+    assert "Reconciled contradictions" in block and "do NOT" in block
+    assert "selectivity" in block and "surface_modality:adc_preferred_tce_unsafe" in block
+    # and it is wired into the assembled prompt
+    assert "Reconciled contradictions" in tp._build_user_prompt("ERBB3", "LUAD", sr)
+    # nothing reconciled → no block (fail-closed / clean-selectivity)
+    assert tp._render_reconciled_block({"selectivity": {"verdict": ("strong_tumor_selective", "r")}}) == []
+
+
+def test_narrative_block_surfaces_reconciled_contradiction():
+    """A per-axis entry stamped reconciled_contradiction renders the RECONCILED note in the trace."""
+    nba = {
+        "selectivity": {
+            "verdict": "selective_but_broadly_normal",
+            "driving_rule_id": "tvn-no-therapeutic-window-veto",
+            "reconciled_contradiction": True,
+            "movers": [],
+            "dissenters": [],
+            "flip_conditions": [],
+        }
+    }
+    block = "\n".join(tp._render_narrative_block(nba))
+    assert "RECONCILED (cross-axis)" in block and "do NOT read it as opposing" in block
+    # absent the stamp, no note
+    nba["selectivity"].pop("reconciled_contradiction")
+    assert "RECONCILED (cross-axis)" not in "\n".join(tp._render_narrative_block(nba))
+
+
 def test_tool_schema_requests_citations_but_keeps_them_optional():
     tool = tp._build_synthesis_tool()
     props, req = tool["properties"], tool["required"]
