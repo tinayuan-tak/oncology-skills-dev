@@ -789,6 +789,71 @@ def test_intracellular_still_vetoes_even_with_unknown_admitted(tmp_path):
     assert forced == "veto"
 
 
+# --- 2026-09-08: EXTRINSIC / MIXED axis admitted (immune-checkpoint FN, CD274/PD-L1) ---
+# A curated extrinsic (TME/immune/stromal) or mixed target engaged by antibody BLOCKADE (PD-L1=mixed,
+# PD-1/CTLA4=extrinsic) is orthogonal to a tumor-intrinsic non_dependent, exactly like a surface antigen.
+# Fixes a CURATION PENALTY: an uncurated checkpoint (unknown) already downgraded, but a curated one
+# (mixed/extrinsic) was locked out. Synthetic vocab so the mechanism is proven independent of the
+# companion contracts merge (target-contracts #694).
+
+
+def _vocab_with_extrinsic(tmp_path):
+    """A minimal gate vocab whose downgrade admits extrinsic + mixed (the post-#694 shape)."""
+    voc = tmp_path / "vocabularies"
+    voc.mkdir()
+    (voc / "nomination_verdict_gate.yaml").write_text(
+        "gates:\n"
+        "  - {sub_skill: dependency, verdict: non_dependent, action: veto}\n"
+        "biology_axis_scoped_veto_downgrade:\n"
+        "  - downgrades: {sub_skill: dependency, verdict: non_dependent}\n"
+        "    to_action: hold\n"
+        "    when_biology_axis_in: [surface_intrinsic, unknown, extrinsic, mixed]\n"
+        "    when_surface_verdict_in: [both_viable, adc_preferred, tce_preferred, "
+        "adc_preferred_tce_unsafe, adc_preferred_tce_escape_risk, surface_viable_density_caveated]\n"
+    )
+    return tmp_path
+
+
+def test_mixed_axis_checkpoint_downgrades_to_hold(tmp_path):
+    """CD274/PD-L1 pattern: a curated `mixed` checkpoint with a favorable surface fit has its pooled
+    non_dependent VETO downgraded to hold (engaged by antibody blockade, not a tumor-intrinsic
+    dependency) — the curation-penalty fix."""
+    forced, hits, sup = tp._gate_recommendation(
+        _surface_antigen_subs(), contracts_repo=_vocab_with_extrinsic(tmp_path), biology_axis="mixed"
+    )
+    assert forced == "hold", (forced, hits)
+    dep_hit = next(h for h in hits if h["short"] == "dependency")
+    assert dep_hit["action"] == "hold" and dep_hit.get("_downgraded_from") == "veto"
+    assert any(s["suppressed_by"]["kind"] == "biology_axis_downgrade" for s in sup)
+
+
+def test_extrinsic_axis_checkpoint_downgrades_to_hold(tmp_path):
+    """PD-1/CTLA4 pattern: a curated `extrinsic` checkpoint with a favorable surface fit downgrades too."""
+    forced, _hits, _sup = tp._gate_recommendation(
+        _surface_antigen_subs(), contracts_repo=_vocab_with_extrinsic(tmp_path), biology_axis="extrinsic"
+    )
+    assert forced == "hold"
+
+
+def test_extrinsic_requires_favorable_surface(tmp_path):
+    """Bound intact: an extrinsic target with NO viable surface arm (a secreted ligand → neither_viable)
+    still VETOES — the favorable-surface co-condition is unchanged."""
+    forced, _hits, _sup = tp._gate_recommendation(
+        _surface_antigen_subs("neither_viable"),
+        contracts_repo=_vocab_with_extrinsic(tmp_path),
+        biology_axis="extrinsic",
+    )
+    assert forced == "veto"
+
+
+def test_intracellular_still_vetoes_with_extrinsic_admitted(tmp_path):
+    """CRITICAL guard: admitting extrinsic/mixed must NOT loosen the intracellular exclusion."""
+    forced, _hits, _sup = tp._gate_recommendation(
+        _surface_antigen_subs(), contracts_repo=_vocab_with_extrinsic(tmp_path), biology_axis="intracellular_intrinsic"
+    )
+    assert forced == "veto"
+
+
 # --- Round-2 (2026-08-25): GoF-DRIVER-scoped dependency-veto downgrade (neomorphic GoF, e.g. IDH1) ---
 # The neomorphic/intracellular slice the surface downgrade can't reach: a confirmed GoF driver
 # (alteration-role GoF) with a pooled non_dependent read should HOLD, not VETO — whole-gene KO !=
