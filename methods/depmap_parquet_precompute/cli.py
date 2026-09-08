@@ -37,7 +37,6 @@ from typing import Optional
 
 import click
 
-
 DEPMAP_S3_BUCKET = "onc-compbio"
 DEPMAP_SOURCE_PREFIX_CRISPR = "data-catalog/sources/depmap-consortium/dmc-26q1"
 DEPMAP_SOURCE_PREFIX_RNAI = "data-catalog/sources/depmap-consortium/dmc-26q1-rnai"

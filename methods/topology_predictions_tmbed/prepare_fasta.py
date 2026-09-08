@@ -26,7 +26,6 @@ from pathlib import Path
 
 from Bio import SwissProt
 
-
 AMBIGUOUS = re.compile(r"[UZOB]")
 
 

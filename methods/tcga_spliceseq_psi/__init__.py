@@ -26,6 +26,6 @@ from __future__ import annotations
 METHOD_VERSION = "0.1.0"
 
 from .read import (  # noqa: E402,F401
-    spliceseq_summary_for_gene,
     build_spliceseq_psi_table,
+    spliceseq_summary_for_gene,
 )

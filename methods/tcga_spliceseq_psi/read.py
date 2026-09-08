@@ -106,9 +106,10 @@ def _read_from_product(target: str, indication: str) -> Optional[dict]:
         from pathlib import Path as _P
 
         _sys.path.insert(0, str(_P(__file__).resolve().parent.parent))
-        from methods.catalog_query.read import bucket_key_for
-        import pyarrow.parquet as pq
         import pyarrow.fs as fs
+        import pyarrow.parquet as pq
+
+        from methods.catalog_query.read import bucket_key_for
 
         bucket, key = bucket_key_for(PRODUCT_MANIFEST_ID)
         tbl = pq.read_table(
@@ -219,9 +220,10 @@ def build_spliceseq_psi_table(local_dir: Optional[str] = None, tissues: Optional
     composite indications (COADREAD, NSCLC, AML). Gene-sorted output.
 
     local_dir: dir of extracted/zipped PSI files (tests / avoid re-download); else streams S3."""
+    from collections import defaultdict
+
     import numpy as np
     import pyarrow as pa
-    from collections import defaultdict
 
     tissues = tissues or sorted({t for s in _INDICATION_TISSUE.values() for t in s})
 

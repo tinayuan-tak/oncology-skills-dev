@@ -56,8 +56,8 @@ def load_shet_row(gene_symbol: str) -> Optional[dict]:
     """Return the per-gene s_het row (dict) or None if the gene is absent. Pushdown on gene_symbol.
     A genuine 404 -> None (honest data_unavailable, latched); transient/creds -> raise."""
     global _DERIVED_STATUS
-    import pyarrow.parquet as pq
     import pyarrow.compute as pc
+    import pyarrow.parquet as pq
 
     key = (gene_symbol or "").upper().strip()
     if not key:

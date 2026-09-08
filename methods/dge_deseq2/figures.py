@@ -53,6 +53,7 @@ def _reconstruct_per_sample(plot_data: "Union[str, Path, object]") -> Optional[d
     """Rebuild the per_sample_data dict (read_per_sample_expression_all_three_groups shape) from the
     persisted long parquet. NO recount3 re-stream. Returns None when there are no rows."""
     import math
+
     import pandas as pd
 
     df = plot_data if hasattr(plot_data, "columns") else pd.read_parquet(Path(plot_data))

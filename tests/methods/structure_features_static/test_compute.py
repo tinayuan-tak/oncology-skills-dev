@@ -17,15 +17,14 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from methods.structure_features_static.compute import (  # noqa: E402
-    parse_hgvsp_residue,
     aggregate_plddt,
-    per_domain_plddt,
-    pdb_coverage,
-    pocket_adjacency,
     build_row,
     parse_cif_plddt,
+    parse_hgvsp_residue,
+    pdb_coverage,
+    per_domain_plddt,
+    pocket_adjacency,
 )
-
 
 # ---------- CIF per-residue pLDDT parse (pure text, no structure lib) ----------
 # Minimal AlphaFold-style _atom_site loop: 3 residues, one CA each, B-factor = pLDDT.
@@ -247,6 +246,7 @@ def test_coerce_id_list_handles_ndarray_list_str_none():
     'truth value ambiguous'. _coerce_id_list must normalise ndarray/list/tuple/str/None → list.
     This bug shipped in read.py (never hit until the derived product existed) — B0 publish caught it."""
     import numpy as np
+
     from methods.structure_features_static.read import _coerce_id_list
 
     assert _coerce_id_list(np.array(["1ABC", "2DEF"])) == ["1ABC", "2DEF"]  # the failing case

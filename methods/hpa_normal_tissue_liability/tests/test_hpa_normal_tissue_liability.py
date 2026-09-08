@@ -18,7 +18,6 @@ sys.path.insert(0, str(METHODS_REPO))
 from methods.hpa_normal_tissue_liability import cli as hc  # noqa: E402
 from methods.hpa_normal_tissue_liability import read as hc_read  # noqa: E402
 
-
 # --- breadth classifier (pure) --------------------------------------------
 
 

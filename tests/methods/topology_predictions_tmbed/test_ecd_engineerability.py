@@ -16,10 +16,10 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from methods.topology_predictions_tmbed.classify import (  # noqa: E402
+    ECD_AMPLE_EPITOPE_AREA,
+    ECD_ENGINEERABLE_FLOOR,
     classify_ecd_engineerability,
     compute_summary,
-    ECD_ENGINEERABLE_FLOOR,
-    ECD_AMPLE_EPITOPE_AREA,
 )
 
 

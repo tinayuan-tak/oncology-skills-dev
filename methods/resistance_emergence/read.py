@@ -58,9 +58,10 @@ def _read_rows(target: str) -> Optional[tuple]:
         import sys as _sys
 
         _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-        from methods.catalog_query.read import bucket_key_for
-        import pyarrow.parquet as pq
         import pyarrow.fs as fs
+        import pyarrow.parquet as pq
+
+        from methods.catalog_query.read import bucket_key_for
 
         bucket, key = bucket_key_for(PRODUCT_MANIFEST_ID)
         tbl = pq.read_table(f"{bucket}/{key}", filesystem=fs.S3FileSystem(), filters=[("inhibited_target", "=", sym)])

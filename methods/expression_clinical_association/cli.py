@@ -1,10 +1,10 @@
 """CLI + emitter for expression_clinical_association (Q11 — expression-survival association)."""
 
 from __future__ import annotations
-import os
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 

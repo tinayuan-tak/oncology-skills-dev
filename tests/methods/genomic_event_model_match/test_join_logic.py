@@ -12,9 +12,9 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from methods.genomic_event_model_match.read import (  # noqa: E402
+    _classify_event_correspondence,
     _patient_dominant_event,
     _screen_role,
-    _classify_event_correspondence,
 )
 
 

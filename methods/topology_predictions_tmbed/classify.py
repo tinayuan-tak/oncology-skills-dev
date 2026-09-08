@@ -159,6 +159,7 @@ def _read_parquet_s3(bucket, key):
     the ENTIRE payload AND sidecar on every read_target_summary call — the one in-family reader
     paying the whole-object cost repeatedly."""
     import io
+
     import boto3
     import pandas as pd
 

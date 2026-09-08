@@ -1,6 +1,7 @@
 """oncogenic_pathway_alteration — hermetic tests (synthetic per-(pathway x indication) frame, no S3)."""
 
 from __future__ import annotations
+
 import sys
 from pathlib import Path
 

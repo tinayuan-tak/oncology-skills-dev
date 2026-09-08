@@ -16,7 +16,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from tcga_fusion_consensus.cli import build_consensus  # noqa: E402
 
-
 CANONICAL_COLS = [
     "sample_key",
     "gene_symbol",

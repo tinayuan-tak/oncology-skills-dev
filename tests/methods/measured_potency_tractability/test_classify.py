@@ -15,11 +15,11 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from methods.measured_potency_tractability.read import (  # noqa: E402
+    POTENT_SERIES_MIN,
+    classify_chembl_approved_engagement,
+    classify_chembl_clinical_phase,
     classify_measured_bioactivity,
     measured_potency_for_gene,
-    POTENT_SERIES_MIN,
-    classify_chembl_clinical_phase,
-    classify_chembl_approved_engagement,
 )
 
 
@@ -134,8 +134,9 @@ def test_series_threshold_boundary():
 
 
 # ── RD1: a TRANSIENT load failure must NOT poison the lru_cache (must be retried) ───────────────
-import pytest  # noqa: E402
 import pandas as pd  # noqa: E402
+import pytest  # noqa: E402
+
 import methods.measured_potency_tractability.read as _R  # noqa: E402
 
 

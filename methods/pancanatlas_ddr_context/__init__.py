@@ -15,4 +15,4 @@ VERDICT-INERT context facet: no resolver rung. Surfaces the cohort HRD prior alo
 verdict-moving partner-conditional dependency analysis; it does NOT itself move a verdict.
 """
 
-from .read import read_ddr_deficiency_context, METHOD_VERSION  # noqa: F401
+from .read import METHOD_VERSION, read_ddr_deficiency_context  # noqa: F401

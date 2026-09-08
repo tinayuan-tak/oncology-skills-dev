@@ -1,6 +1,7 @@
 """Hermetic tests for opentargets_literature_floor — pure aggregator (no S3)."""
 
 from __future__ import annotations
+
 import sys
 from pathlib import Path
 
@@ -9,10 +10,10 @@ if str(AM) not in sys.path:
     sys.path.insert(0, str(AM))
 
 from methods.opentargets_literature_floor.read import (  # noqa: E402
-    aggregate_literature,
-    _canonical_indication,
-    _axis_tokens,
     _axis_match,
+    _axis_tokens,
+    _canonical_indication,
+    aggregate_literature,
 )
 
 

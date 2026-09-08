@@ -10,6 +10,7 @@ No S3 access required.
 """
 
 from __future__ import annotations
+
 import sys
 from pathlib import Path
 

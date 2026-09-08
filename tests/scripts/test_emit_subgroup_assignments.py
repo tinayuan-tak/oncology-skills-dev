@@ -196,8 +196,8 @@ def test_aml_adjunct_sources_have_no_data_source_arg():
     """Fix 2: the SOURCE_TO_ASSIGNER data_source_arg for the adjunct sources is None (not 'tcga'),
     so the mapping itself no longer misrepresents them as loadable TCGA shards."""
     from scripts.emit_subgroup_assignments import (
-        SOURCE_TO_ASSIGNER,
         _SOURCES_WITHOUT_DISTINCT_LOADER,
+        SOURCE_TO_ASSIGNER,
     )
 
     assert _SOURCES_WITHOUT_DISTINCT_LOADER == {"beataml_maf", "target_aml_maf"}

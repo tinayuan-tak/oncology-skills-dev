@@ -58,7 +58,6 @@ import time
 from pathlib import Path
 from typing import Iterable
 
-
 DEFAULT_AWS_PROFILE = "cbg"
 S3_BUCKET = "onc-compbio"
 GENIE_PREFIX = "data-catalog/sources/synapse/genie-public-v19-0"

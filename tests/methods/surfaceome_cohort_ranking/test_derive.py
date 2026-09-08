@@ -6,9 +6,9 @@ import pandas as pd
 from methods.surfaceome_cohort_ranking.derive import (
     CPTAC_COHORT_MAP,
     OUTPUT_COLUMNS,
-    rank_indication,
     _cell_pairs,
     _cohort_rank_class,
+    rank_indication,
 )
 
 

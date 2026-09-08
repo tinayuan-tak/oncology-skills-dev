@@ -182,6 +182,7 @@ def test_builder_table_schema():
 
 def test_builder_missing_column_raises():
     import pytest
+
     from methods.exon_skip_carrier.build import splice_rows_from_maf
 
     bad = [["Hugo_Symbol", "Start_Position", "Variant_Classification", "ModelID"]]  # no Chromosome

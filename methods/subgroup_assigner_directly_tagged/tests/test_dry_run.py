@@ -415,9 +415,9 @@ def test_depmap_eso_gastric_lineage_and_organ_split():
     and be disambiguated by an OncotreeSubtype organ substring — else each shard
     was empty. ESCA also gains the esophageal histology map."""
     from methods.subgroup_assigner_directly_tagged.cli import (
+        _DEPMAP_ONCOTREE_TO_HISTOLOGY,
         INDICATION_TO_DEPMAP_LINEAGE,
         INDICATION_TO_DEPMAP_ORGAN,
-        _DEPMAP_ONCOTREE_TO_HISTOLOGY,
     )
 
     # both eso + gastric point at the real combined lineage
@@ -441,6 +441,7 @@ def test_depmap_oncotree_to_histology_and_site_mapping():
     Before the fix the column was absent → is_member=null for every DepMap row.
     Maps land the real categoricals; unmapped subtypes stay NaN (tri-value null)."""
     import pandas as pd
+
     from methods.subgroup_assigner_directly_tagged.cli import _DEPMAP_ONCOTREE_TO_HISTOLOGY, _DEPMAP_ONCOTREE_TO_SITE
 
     subt = pd.Series(

@@ -19,8 +19,8 @@ REPO = Path(__file__).resolve().parents[3]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
-from methods.tcga_gtex_expression_distribution import stats as S  # noqa: E402
 from methods.tcga_gtex_expression_distribution import read as R  # noqa: E402
+from methods.tcga_gtex_expression_distribution import stats as S  # noqa: E402
 
 
 # ---- stats primitives ----
@@ -352,7 +352,8 @@ def test_subtype_compute_all_spotlight_one(monkeypatch):
 # ---- CLI emission (monkeypatched readers, no S3) ----
 def test_cli_emits_full_bar(tmp_path, monkeypatch):
     """CLI emits Tier1 summary.json + Tier2 plot_data + Tier3 SVG + plotly + manifest w/ plotly slot."""
-    import importlib, json
+    import importlib
+    import json
 
     pytest.importorskip("matplotlib")
     pytest.importorskip("pyarrow")

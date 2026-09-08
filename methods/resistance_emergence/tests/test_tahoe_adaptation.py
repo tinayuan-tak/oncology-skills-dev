@@ -68,9 +68,10 @@ def test_no_induced_when_all_suppressed():
 
 def test_verdict_inert_integration(monkeypatch):
     """The Tahoe sub-signal attaches as facet fields but the PRIMARY resistance class is unchanged."""
-    from methods.resistance_emergence import read as R
     import pyarrow.fs as fs
     import pyarrow.parquet as pq
+
+    from methods.resistance_emergence import read as R
 
     class _T:
         def __init__(self, rows):

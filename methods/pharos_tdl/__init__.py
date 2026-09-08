@@ -6,4 +6,4 @@ gap via a CC0 route. FACET-ONLY (bibliometric novelty → verdict-inert, never a
 Live: EGFR/KRAS=Tclin, TP53/MARK3=Tchem, WRN=Tbio.
 """
 
-from .read import read_pharos_tdl, METHOD_VERSION  # noqa: F401
+from .read import METHOD_VERSION, read_pharos_tdl  # noqa: F401

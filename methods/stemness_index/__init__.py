@@ -13,4 +13,4 @@ Per-indication rollup (median mRNAsi + stemness_class relative to the pan-cancer
 stemness_class ∈ {stem_high, stem_intermediate, stem_low, data_unavailable}. VERDICT-INERT.
 """
 
-from .read import read_stemness_index, METHOD_VERSION  # noqa: F401
+from .read import METHOD_VERSION, read_stemness_index  # noqa: F401

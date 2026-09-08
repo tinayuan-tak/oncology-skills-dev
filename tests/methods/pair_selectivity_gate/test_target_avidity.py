@@ -14,9 +14,9 @@ if str(REPO) not in sys.path:
 
 pd = pytest.importorskip("pandas")
 
-from methods.pair_selectivity_gate import samecell as S  # noqa: E402
-from methods.pair_selectivity_gate import normal as N  # noqa: E402
 from methods.pair_selectivity_gate import cli as C  # noqa: E402
+from methods.pair_selectivity_gate import normal as N  # noqa: E402
+from methods.pair_selectivity_gate import samecell as S  # noqa: E402
 
 
 def _normal_cube_clean():

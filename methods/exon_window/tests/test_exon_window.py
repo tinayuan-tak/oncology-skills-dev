@@ -14,6 +14,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO))
 import pandas as pd  # noqa: E402
+
 from methods.exon_window import classify as c  # noqa: E402
 
 

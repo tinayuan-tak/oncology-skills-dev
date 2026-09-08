@@ -20,4 +20,4 @@ Verdict path (target-contracts): the amplified_*_dependent classes fire cn-ampli
 rules → genomic_alteration.resolver reuses the EXISTING biomarker_stratified_dependency verdict.
 """
 
-from .read import read_cn_stratified_dependency, METHOD_VERSION  # noqa: F401
+from .read import METHOD_VERSION, read_cn_stratified_dependency  # noqa: F401

@@ -19,8 +19,8 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from methods.depmap_amp_expr_dependency.cli import (  # noqa: E402
-    compute_amp_expr_stratification,
     FOCAL_AMP_HIGH,
+    compute_amp_expr_stratification,
 )
 
 

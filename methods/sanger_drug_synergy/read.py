@@ -40,8 +40,8 @@ def _get_s3fs():
 def _read_rows(target: str) -> Optional[list]:
     """Rows for the target (list[dict]) or None on a genuine 404. Pushdown on target_gene.
     Transient/creds → raise (caller degrades gracefully with a breadcrumb)."""
-    import pyarrow.parquet as pq
     import pyarrow.compute as pc
+    import pyarrow.parquet as pq
 
     bucket, key = bucket_key_for(PRODUCT_MANIFEST_ID)
     try:

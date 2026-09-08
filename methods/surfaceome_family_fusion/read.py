@@ -24,7 +24,6 @@ from typing import Optional
 
 from methods.catalog_query.read import bucket_key_for
 
-
 DEFAULT_AWS_PROFILE = "cbg"
 DERIVED_MANIFEST_ID = "surfaceome-family-classification-per-uniprot-v1"
 # bucket + key resolved from the data-catalog manifest (single source of truth).

@@ -38,7 +38,8 @@ _NON_GENE_PARTNER_TOKENS = frozenset({"INTERGENIC", "INTRAGENIC", "INTRACHROMOSO
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # methods/ on path for siblings
 
 
-from methods.target_id_sidecar import s3_client as _boto3_client, ensure_aws_profile
+from methods.target_id_sidecar import ensure_aws_profile
+from methods.target_id_sidecar import s3_client as _boto3_client
 
 
 @lru_cache(maxsize=1)
@@ -72,7 +73,7 @@ def _load_sv():
 
 
 def _percentile(value, null_vec, cutoffs=None):
-    from methods.percentile_null import percentile_rank, classify_percentile
+    from methods.percentile_null import classify_percentile, percentile_rank
 
     pct = percentile_rank(value, null_vec)
     return pct, classify_percentile(pct, cutoffs or DEFAULT_CUTOFFS)
@@ -84,8 +85,9 @@ def _sv_samples_by_gene(indication: str):
     was SV-profiled, and its panel covers the gene (else the SV is uncalled for that gene, not WT).
     Returns (gene_samples, covered_counter, n_cohort_sv_profiled)."""
     from collections import Counter, defaultdict
+
+    from methods.genie_panel_coverage.read import load_panel_gene_sets, load_sv_sample_panel_map
     from methods.genie_panel_recurrence.read import _indication_cohort
-    from methods.genie_panel_coverage.read import load_sv_sample_panel_map, load_panel_gene_sets
 
     df = _load_sv()
     if df is None or len(df) == 0:
@@ -131,6 +133,7 @@ def _recurrent_partners(target: str, indication: str) -> list:
     """Partner genes fused to `target` across >= _RECURRENT_PARTNER_MIN distinct samples, count-desc.
     The SV feed uniquely names the counterpart of each breakend (EML4 for ALK, TMPRSS2 for ERG, …)."""
     from collections import defaultdict
+
     from methods.genie_panel_recurrence.read import _indication_cohort
 
     df = _load_sv()

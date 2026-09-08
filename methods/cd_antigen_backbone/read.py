@@ -17,6 +17,7 @@ from functools import lru_cache
 from typing import Optional
 
 from methods.catalog_query.read import bucket_prefix_for
+
 from . import classify as _classify
 
 SOURCE_MANIFEST_ID = "hgnc-gene-group-471-cd-molecules-snapshot-2026-07-08"

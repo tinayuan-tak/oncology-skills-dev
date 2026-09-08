@@ -12,8 +12,8 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from methods.pair_selectivity_gate.derive_batch import (  # noqa: E402
-    derive_bulk_pair_selectivity,
     best_partner_rollup,
+    derive_bulk_pair_selectivity,
 )
 
 I2S = {"COADREAD": ["COAD"]}
@@ -96,7 +96,8 @@ def test_no_self_pairs_and_rollup():
 
 def test_cube_from_frame_assembly():
     import pandas as pd
-    from methods.pair_selectivity_gate.materialize import cube_from_frame, CLINICAL_SEED_ANTIGENS
+
+    from methods.pair_selectivity_gate.materialize import CLINICAL_SEED_ANTIGENS, cube_from_frame
 
     df = pd.DataFrame(
         [

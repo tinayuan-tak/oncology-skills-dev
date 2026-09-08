@@ -5,4 +5,4 @@ The continuous LoF-intolerance signal for on-target-safety-liability, complement
 pLI/LOEUF constraint leg. Higher s_het = more intolerant of heterozygous LoF (dominant-LoF constraint).
 """
 
-from .read import read_target_summary, METHOD_VERSION  # noqa: F401
+from .read import METHOD_VERSION, read_target_summary  # noqa: F401

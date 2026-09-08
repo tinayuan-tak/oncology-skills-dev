@@ -20,6 +20,7 @@ from functools import lru_cache
 from typing import Optional
 
 from methods.catalog_query.read import bucket_key_for, sidecar_bucket_key_for
+
 from . import classify as _classify
 
 DEFAULT_AWS_PROFILE = "cbg"
@@ -31,8 +32,8 @@ METHOD_VERSION = "1.0.0"
 
 
 def _read_parquet(bucket, key):
-    import pyarrow.parquet as pq
     import pyarrow.fs as fs
+    import pyarrow.parquet as pq
 
     s3fs = fs.S3FileSystem(region="us-east-1")  # default cred chain honors AWS_PROFILE=cbg
     return pq.read_table(f"{bucket}/{key}", filesystem=s3fs)
@@ -92,8 +93,8 @@ def _row_for_ac(ac: str) -> Optional[dict]:
     from methods.target_id_sidecar import is_definitively_absent
 
     try:
-        import pyarrow.parquet as pq
         import pyarrow.fs as fs
+        import pyarrow.parquet as pq
 
         s3fs = fs.S3FileSystem(region="us-east-1")
         tbl = pq.read_table(f"{S3_BUCKET}/{PAYLOAD_KEY}", filesystem=s3fs, filters=[("uniprot_id", "==", ac)])

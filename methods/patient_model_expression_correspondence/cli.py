@@ -1,9 +1,9 @@
 """CLI + emitters for Q4 recommended_models (patient↔model expression correspondence)."""
 
 from __future__ import annotations
-import os
 
 import json
+import os
 from pathlib import Path
 from typing import Optional
 

@@ -155,7 +155,9 @@ def test_tumor_arm_concordance(monkeypatch):
 
 
 def test_tumor_emitter(tmp_path, monkeypatch):
-    import importlib, pandas as pd
+    import importlib
+
+    import pandas as pd
 
     pytest.importorskip("matplotlib")
     cli = importlib.import_module("methods.depmap_rna_protein_concordance.cli")

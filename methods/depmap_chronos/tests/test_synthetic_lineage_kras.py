@@ -21,7 +21,6 @@ from pathlib import Path
 import pandas as pd
 import yaml
 
-
 METHODS_REPO = Path("/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods")
 # Portable: was hardcoded to the author's checkout, so the emitter's sys.path.insert(
 # contracts_root/"plot_styles") pointed at a missing dir in CI and `from takeda_palette import`

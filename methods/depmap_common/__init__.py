@@ -24,10 +24,10 @@ large numeric matrices (CRISPRGeneEffect, TPM, CN, DEMETER2, MAF).
 __version__ = "0.1.0"
 
 from .loaders import (
-    load_model_csv,
-    load_model_condition_csv,
-    load_rnai_sample_info,
     clear_all_caches,
+    load_model_condition_csv,
+    load_model_csv,
+    load_rnai_sample_info,
 )
 
 __all__ = [

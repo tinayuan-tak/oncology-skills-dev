@@ -53,14 +53,13 @@ import click
 import pandas as pd
 
 from methods.tcga_fusion_consensus.read import (
-    load_tumorfusions,
-    load_gao_2018,
-    load_cbioportal_all,
-    tumorfusions_assayed_samples,
-    gao_2018_assayed_samples,
     cbioportal_assayed_samples,
+    gao_2018_assayed_samples,
+    load_cbioportal_all,
+    load_gao_2018,
+    load_tumorfusions,
+    tumorfusions_assayed_samples,
 )
-
 
 METHOD_VERSION = "0.1.0"
 

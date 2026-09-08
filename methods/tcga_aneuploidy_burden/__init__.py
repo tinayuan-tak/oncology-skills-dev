@@ -35,10 +35,10 @@ METHOD_VERSION = "0.3.0"
 
 from .read import (  # noqa: E402,F401
     aneuploidy_burden_for_indication,
-    wgd_summary_for_indication,
-    msi_summary_for_indication,
+    hrd_score_for_indication,
     model_msi_summary_for_indication,
     model_signature_summary_for_indication,
-    hrd_score_for_indication,
+    msi_summary_for_indication,
     prewarm,
+    wgd_summary_for_indication,
 )

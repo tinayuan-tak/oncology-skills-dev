@@ -20,6 +20,7 @@ from __future__ import annotations
 from typing import Optional
 
 from methods.catalog_query.read import bucket_key_for
+
 from . import classify as _classify
 
 PRODUCT_MANIFEST_ID = "tcga-gtex-exon-tpm-quantiles-v1"
@@ -57,8 +58,8 @@ def _read_exon_rows_cached(target: str):
         os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
     meta: dict = {}
     try:
-        import pyarrow.parquet as pq
         import pyarrow.fs as fs
+        import pyarrow.parquet as pq
 
         bucket, key = bucket_key_for(PRODUCT_MANIFEST_ID)
         s3fs = fs.S3FileSystem(region="us-east-1")

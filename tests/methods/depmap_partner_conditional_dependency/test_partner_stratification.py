@@ -20,10 +20,10 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from methods.depmap_partner_conditional_dependency.cli import (  # noqa: E402
-    compute_partner_stratification,
-    load_partner_map,
     MODERATE_EFFECT_DELTA,
     STRONG_EFFECT_DELTA,
+    compute_partner_stratification,
+    load_partner_map,
 )
 
 
@@ -191,8 +191,9 @@ def test_effect_size_path_does_not_over_admit_low_effect():
     """Guard: a modest-delta contrast with LOW effect size (high overlap) stays not_partner_stratified —
     the effect-size path admits only genuinely-separated SL, not near-floor noise (the PARP1×BRCA1
     boundary: rank-biserial ~0.28 < 0.30 stays out)."""
-    from methods.depmap_partner_conditional_dependency.cli import MODERATE_EFFECT_RB
     import random
+
+    from methods.depmap_partner_conditional_dependency.cli import MODERATE_EFFECT_RB
 
     rng = random.Random(7)
     # Wide, heavily-overlapping distributions with a small median shift → low rank-biserial.

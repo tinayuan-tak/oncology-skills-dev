@@ -19,7 +19,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from methods.gene_ontology_annotation.read import _load_gaf, _load_obo_names, DEFAULT_AWS_PROFILE
+from methods.gene_ontology_annotation.read import DEFAULT_AWS_PROFILE, _load_gaf, _load_obo_names
 
 _DERIVED_S3_URI = "s3://onc-compbio/data-catalog/derived/go-annotation-per-uniprot-v1/go_annotation_per_uniprot.parquet"
 
@@ -27,6 +27,7 @@ _DERIVED_S3_URI = "s3://onc-compbio/data-catalog/derived/go-annotation-per-unipr
 def build_table():
     """Long DataFrame [uniprot_ac, go_id, namespace, evidence, go_name], sorted by uniprot_ac."""
     import pandas as pd
+
     from methods.target_id_sidecar import ensure_aws_profile
 
     ensure_aws_profile()
@@ -58,8 +59,9 @@ def main():
     print(f"wrote {args.out}: {len(df):,} rows / {df['uniprot_ac'].nunique():,} accessions")
 
     if args.upload:
-        import boto3
         import hashlib
+
+        import boto3
 
         path = _DERIVED_S3_URI.replace("s3://", "", 1)
         bucket, _, key = path.partition("/")

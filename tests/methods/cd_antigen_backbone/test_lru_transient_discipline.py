@@ -35,8 +35,9 @@ class _Body:
 
 
 def test_transient_raises_not_cached(monkeypatch):
-    import boto3
     import json
+
+    import boto3
 
     calls = {"n": 0}
 

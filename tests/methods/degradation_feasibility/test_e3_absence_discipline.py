@@ -16,8 +16,9 @@ REPO = Path(__file__).resolve().parents[3]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
-import methods.catalog_query.read as cqr  # noqa: E402
 import pyarrow.parquet as pq  # noqa: E402
+
+import methods.catalog_query.read as cqr  # noqa: E402
 from methods.degradation_feasibility import read as deg  # noqa: E402
 
 

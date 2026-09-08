@@ -16,8 +16,9 @@ import threading
 from pathlib import Path
 from typing import Optional
 
-from . import stats as _stats
 from methods.catalog_query.read import bucket_key_for, bucket_prefix_for
+
+from . import stats as _stats
 
 DEFAULT_AWS_PROFILE = "cbg"
 S3_BUCKET = "onc-compbio"
@@ -38,8 +39,9 @@ def _symbol_to_ensembl_ids(symbol: str) -> Optional[list]:
     global _SYMBOL_TO_ENSEMBL_MAP
     if _SYMBOL_TO_ENSEMBL_MAP is None:
         try:
-            import boto3
             import io
+
+            import boto3
             import pandas as pd
 
             s3 = boto3.Session(profile_name=DEFAULT_AWS_PROFILE).client("s3")
@@ -186,8 +188,9 @@ def _load_subtype_assignments(indication: str):
     OPTIONAL: absent → base strata only; present-but-unfetchable → base strata only (never fail the
     whole landscape on the genomic add-on). The two shards carry DISJOINT stratum_ids and identical
     schema (sample_id/stratum_id/is_member/...), so a plain row-concat is correct — no dedup needed."""
-    from methods.subgroup_common.loaders import load_assignments
     import pandas as _pd
+
+    from methods.subgroup_common.loaders import load_assignments
 
     key = indication.upper().strip()
     base_manifest = INDICATION_TO_TUMOR_ASSIGNMENT_MANIFEST.get(key)
@@ -415,8 +418,8 @@ def _read_gene_uncached(which: str, target: str):
     This is the UNCACHED read; callers go through _read_gene, which memoizes the result
     per (which, target) for the duration of the process (see _read_gene).
     """
-    import pyarrow.parquet as pq
     import pandas as pd
+    import pyarrow.parquet as pq
 
     # Self-heal any stale full-download residue before we stream (see _sweep_stale_cache).
     # Once per process; a no-op on the common case (only the sidecar present).
@@ -935,13 +938,18 @@ def read_tumor_expression_subtype_landscape(
       n_subtypes_enriched / n_subtypes_measured: rollup counts
     data_unavailable-safe: no shard → subtype_axis_available False + empty landscape.
     """
+    from statistics import median as _median
+
     from methods.subgroup_common.panorama import (
-        evidence_state as _evstate,
-        axis_quality as _axis_quality,
         SUBGROUP_N_FLOOR as _SUBGROUP_N_FLOOR,
     )
+    from methods.subgroup_common.panorama import (
+        axis_quality as _axis_quality,
+    )
+    from methods.subgroup_common.panorama import (
+        evidence_state as _evstate,
+    )
     from methods.subgroup_common.scoping import compute_join_coverage
-    from statistics import median as _median
 
     # Per-stratum tumor-PURITY annotation (ABSOLUTE, PanCanAtlas). Reused loader — same TCGA
     # case-barcode space as the strata. A subtype whose "enrichment" tracks LOW purity is a
@@ -949,7 +957,8 @@ def read_tumor_expression_subtype_landscape(
     # that (esp. CMS4-mesenchymal / immune-high strata). Verdict-inert display annotation; a
     # purity-fetch failure degrades to None (never aborts the panorama).
     try:
-        from methods.expression_purity_confound.read import _load_purity_by_case as _load_purity, _tcga_case as _to_case
+        from methods.expression_purity_confound.read import _load_purity_by_case as _load_purity
+        from methods.expression_purity_confound.read import _tcga_case as _to_case
 
         _purity_by_case = _load_purity()
     except Exception:  # noqa: BLE001 — additive display field; absence is honest, never fatal
@@ -1285,7 +1294,8 @@ def read_tumor_subtype_values(target: str, indication: str) -> dict:
        strata: [ {stratum_id, values: [..], subtype_signal, evidence_state,
                   subgroup_n_floor_met, n} ordered by median ], _note?: str}
     data_unavailable-safe (no shard / target absent → available False)."""
-    from methods.subgroup_common.panorama import evidence_state as _evstate, SUBGROUP_N_FLOOR as _SUBGROUP_N_FLOOR
+    from methods.subgroup_common.panorama import SUBGROUP_N_FLOOR as _SUBGROUP_N_FLOOR
+    from methods.subgroup_common.panorama import evidence_state as _evstate
 
     pooled_vals = read_tumor_samples(target, indication)
     base_manifest = INDICATION_TO_TUMOR_ASSIGNMENT_MANIFEST.get(indication.upper().strip())

@@ -3,5 +3,5 @@ EFFECTOR arm. classify = pure CIBERSORT-fraction → immune-hot/cold classifier;
 Consumed by the immune-context skill (the effector companion to surface-modality-fit).
 """
 
-from .read import read_immune_context  # noqa: E402,F401 — live-dispatcher entry
 from .antigen_conditioned import read_antigen_conditioned  # noqa: E402,F401 — v2 facet entry
+from .read import read_immune_context  # noqa: E402,F401 — live-dispatcher entry

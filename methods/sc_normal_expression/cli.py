@@ -41,8 +41,9 @@ def emit_normal_celltype_liability(summary: dict, target: str, out_dir, target_c
     import matplotlib
 
     matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
     from pathlib import Path as _Path
+
+    import matplotlib.pyplot as plt
 
     out_dir = _Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)

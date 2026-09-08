@@ -16,8 +16,8 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from methods.depmap_methylation_silencing.cli import (  # noqa: E402
-    compute_methylation_silencing,
     HYPERMETHYLATION_THRESHOLD,
+    compute_methylation_silencing,
 )
 
 

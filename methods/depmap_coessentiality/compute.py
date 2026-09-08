@@ -27,7 +27,6 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-
 TOP_K_DEFAULT = 100
 MIN_ABS_R_DEFAULT = 0.20
 

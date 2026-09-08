@@ -28,10 +28,10 @@ from __future__ import annotations
 
 METHOD_VERSION = "0.1.0"
 
-from .events import EXON_SKIP_EVENTS, ExonSkipEvent  # noqa: E402,F401
 from .classify import VariantObs, carriers_for_event  # noqa: E402,F401
+from .events import EXON_SKIP_EVENTS, ExonSkipEvent  # noqa: E402,F401
 from .read import (  # noqa: E402,F401
-    depmap_carriers,
     carriers_from_observations,
+    depmap_carriers,
     exon_skip_landscape_summary,
 )

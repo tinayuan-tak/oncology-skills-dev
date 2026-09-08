@@ -197,9 +197,9 @@ def main(out: Path, no_ensembl: bool):
 
     # Pull paralog indexed data from read.py (triggers S3 cache if needed)
     from methods.depmap_paralog_aggregator.read import (
-        _load_paralog_indexed,
-        _classify_buffering,
         PARALOG_SOURCE_MANIFEST_ID,
+        _classify_buffering,
+        _load_paralog_indexed,
     )
 
     click.echo("  Loading DepMap paralog gene-effect index...", err=True)

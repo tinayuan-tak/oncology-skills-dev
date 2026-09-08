@@ -19,7 +19,11 @@ if str(REPO) not in sys.path:
 
 from methods.tcga_gtex_expression_distribution.read import (  # noqa: E402
     INDICATION_TO_TUMOR_ASSIGNMENT_MANIFEST as BASE,
+)
+from methods.tcga_gtex_expression_distribution.read import (
     INDICATION_TO_TUMOR_MAF_MANIFEST as MAF,
+)
+from methods.tcga_gtex_expression_distribution.read import (
     _load_subtype_assignments,
 )
 

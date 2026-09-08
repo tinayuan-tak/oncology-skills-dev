@@ -36,7 +36,8 @@ _MUTATIONS_PANEL_COLUMN = "mutations"
 _SV_PANEL_COLUMN = "sv"
 
 
-from methods.target_id_sidecar import s3_client as _boto3_client, ensure_aws_profile
+from methods.target_id_sidecar import ensure_aws_profile
+from methods.target_id_sidecar import s3_client as _boto3_client
 
 
 def _parse_gene_panel_file(text: str) -> list[str]:

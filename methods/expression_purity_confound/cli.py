@@ -1,10 +1,10 @@
 """CLI + emitter for expression_purity_confound (Q9 — purity confound flag)."""
 
 from __future__ import annotations
-import os
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -35,6 +35,7 @@ def _pal(contracts_dir):
     """Load the mplstyle + return the takeda_palette module (badge/takeaway/colors). None if absent."""
     try:
         import sys as _sys
+
         import matplotlib.pyplot as plt
 
         style = Path(contracts_dir) / "plot_styles" / "takeda_oncology.mplstyle"

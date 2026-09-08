@@ -1,6 +1,7 @@
 """Hermetic tests for opentargets_europepmc_evidence — pure aggregator (no S3)."""
 
 from __future__ import annotations
+
 import sys
 from pathlib import Path
 
@@ -9,8 +10,8 @@ if str(AM) not in sys.path:
     sys.path.insert(0, str(AM))
 
 from methods.opentargets_europepmc_evidence.read import (  # noqa: E402
-    aggregate_evidence,
     _canonical_indication,
+    aggregate_evidence,
 )
 
 

@@ -17,14 +17,13 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from tcga_fusion_consensus.read import (  # noqa: E402
-    sample_key,
-    load_tumorfusions,
-    load_gao_2018,
-    load_cbioportal_sv,
-    tumorfusions_assayed_samples,
     gao_2018_assayed_samples,
+    load_cbioportal_sv,
+    load_gao_2018,
+    load_tumorfusions,
+    sample_key,
+    tumorfusions_assayed_samples,
 )
-
 
 # ---------- sample_key normalization --------------------------------------
 
@@ -190,7 +189,8 @@ def _cbio_rows():
 
 
 def test_load_cbioportal_sv_schema(tmp_path):
-    import gzip, json
+    import gzip
+    import json
 
     sv_file = tmp_path / "structural_variants.jsonl.gz"
     with gzip.open(sv_file, "wt") as f:
@@ -206,7 +206,8 @@ def test_load_cbioportal_sv_schema(tmp_path):
 
 def test_load_cbioportal_sv_frame_replicated(tmp_path):
     """site2EffectOnFrame should appear on BOTH the 5prime and 3prime rows."""
-    import gzip, json
+    import gzip
+    import json
 
     sv_file = tmp_path / "structural_variants.jsonl.gz"
     with gzip.open(sv_file, "wt") as f:

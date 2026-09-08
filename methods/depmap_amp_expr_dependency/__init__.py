@@ -27,4 +27,4 @@ Composes three live {ModelID -> value} loaders (Chronos + relative CN + log2TPM)
 all already proven in depmap_cn_dependency / depmap_expression_distribution.
 """
 
-from .read import read_amp_expr_dependency, METHOD_VERSION  # noqa: F401
+from .read import METHOD_VERSION, read_amp_expr_dependency  # noqa: F401

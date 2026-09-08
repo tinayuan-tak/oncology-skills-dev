@@ -32,8 +32,8 @@ def _clear_lru():
 
 # ── read_target_summary end-to-end (dispatcher contract) ──────────────────────
 def _patch_pyarrow(monkeypatch, read_table):
-    import pyarrow.parquet as pq
     import pyarrow.fs as fs
+    import pyarrow.parquet as pq
 
     monkeypatch.setattr(fs, "S3FileSystem", lambda **k: object())
     monkeypatch.setattr(pq, "read_table", read_table)

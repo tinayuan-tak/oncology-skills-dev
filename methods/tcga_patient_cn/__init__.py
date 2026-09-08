@@ -21,6 +21,6 @@ from __future__ import annotations
 METHOD_VERSION = "0.1.0"
 
 from .read import (  # noqa: E402,F401
-    patient_cn_summary_for_gene,
     build_patient_cn_table,
+    patient_cn_summary_for_gene,
 )

@@ -5,9 +5,9 @@ Validates the source-config table + dry-run planning without requiring
 network access. Real S3 pulls are exercised in operational runs, not CI.
 """
 
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -105,10 +105,10 @@ def test_marker_paper_hnsc_subtype_and_clinical_enrich():
     """HNSC marker-paper prefetch enriches Bass subtype (from pancan-curated) +
     HPV/site (from clinical). NSCLC composes histology from two cohort files."""
     from scripts.prefetch_marker_paper import (
+        _HNSC_SITE_GROUPING,
+        INDICATION_CLINICAL_ENRICH,
         INDICATION_COHORTS,
         INDICATION_SUBTYPE_ENRICH,
-        INDICATION_CLINICAL_ENRICH,
-        _HNSC_SITE_GROUPING,
     )
 
     # NSCLC = two cohort files with histology labels (multi-histology composition).
@@ -137,9 +137,9 @@ def test_marker_paper_stad_esca_paad_subtype_sources():
     """STAD subtype from pancan-curated (GI. strip); PAAD Moffitt from a per-cohort
     numeric column; ESCA is pancan-only with histology-from-subtype."""
     from scripts.prefetch_marker_paper import (
-        INDICATION_SUBTYPE_ENRICH,
-        INDICATION_PERCOHORT_SUBTYPE,
         INDICATION_PANCAN_ONLY,
+        INDICATION_PERCOHORT_SUBTYPE,
+        INDICATION_SUBTYPE_ENRICH,
     )
 
     # STAD: 'GI.CIN' -> 'CIN' via prefix strip.

@@ -18,7 +18,6 @@ sys.path.insert(0, str(REPO))
 
 from methods.domain_modality_relevance import read as r  # noqa: E402
 
-
 # --- curated override (highest precedence) --------------------------------
 
 _VOCAB = {

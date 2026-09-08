@@ -39,7 +39,6 @@ from functools import lru_cache
 
 from methods.catalog_query.read import bucket_key_for
 
-
 DEFAULT_AWS_PROFILE = "cbg"
 DERIVED_MANIFEST_ID = "kinome-atlas-long-edges-v1"
 # bucket + key resolved from the data-catalog manifest (single source of truth).

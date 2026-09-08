@@ -22,7 +22,7 @@ REPO = Path(__file__).resolve().parents[3]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
-from methods.dge_tcga_gtex_precompute.cli import _welch_deg, _bh_correct  # noqa: E402
+from methods.dge_tcga_gtex_precompute.cli import _bh_correct, _welch_deg  # noqa: E402
 
 
 # ── sign convention: positive log2FC = arm A (tumor) higher ─────────────────

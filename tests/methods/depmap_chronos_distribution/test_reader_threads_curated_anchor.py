@@ -3,6 +3,7 @@ thread DepMap curated core-essential membership into compute_summary_stats, else
 re-anchor is inert in production (defaults to None → fraction-only fallback). Live (needs S3 creds)."""
 
 from __future__ import annotations
+
 import os
 
 import pytest

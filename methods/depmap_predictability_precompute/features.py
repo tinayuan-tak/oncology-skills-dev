@@ -38,7 +38,6 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
-
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -156,8 +155,9 @@ def _read_parquet_full(filename: str) -> pd.DataFrame:
     Uses the shared local-disk cache in depmap_common.parquet — first call in
     a fresh cache pulls from S3, subsequent calls are local reads.
     """
-    from methods.depmap_common.parquet import get_full_matrix_path
     import pyarrow.parquet as pq
+
+    from methods.depmap_common.parquet import get_full_matrix_path
 
     local_path = get_full_matrix_path(filename)
     return pq.read_table(local_path).to_pandas()
@@ -612,7 +612,9 @@ def load_metabolomics() -> pd.DataFrame:
 
 
 def _s3_read_gzipped_tsv(key: str, **read_csv_kwargs) -> pd.DataFrame:
-    import boto3, gzip
+    import gzip
+
+    import boto3
 
     s3 = boto3.client("s3")
     obj = s3.get_object(Bucket=DEPMAP_S3_BUCKET, Key=key)

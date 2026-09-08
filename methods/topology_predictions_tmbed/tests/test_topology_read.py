@@ -18,7 +18,6 @@ sys.path.insert(0, str(METHODS_REPO))
 from methods.topology_predictions_tmbed import classify as tc  # noqa: E402
 from methods.topology_predictions_tmbed import read as tr  # noqa: E402
 
-
 # --- classifier (pure) — the decisive no-go signal ------------------------
 
 

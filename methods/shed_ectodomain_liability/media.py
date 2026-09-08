@@ -57,6 +57,7 @@ def _read_csv_s3(filename: str):
     """Read a proteomics-source CSV from S3 into a DataFrame (boto3 — same idiom as the
     HPA leg in cli.py; avoids an s3fs dependency)."""
     import io
+
     import boto3
 
     ensure_aws_profile()
@@ -96,6 +97,7 @@ def _load_media(media_path: Optional[str] = None):
 def _load_idmap(idmap_path: Optional[str] = None) -> dict:
     """UPPER(HGNC symbol) -> UniProt accession, from the Olink-panel id map. {} if unreadable."""
     import io
+
     import pandas as pd
 
     try:

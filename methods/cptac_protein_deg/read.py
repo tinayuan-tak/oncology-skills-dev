@@ -20,9 +20,9 @@ Falls back to `data_unavailable` gracefully when derived product not on S3.
 """
 
 from __future__ import annotations
+
 import math
 import os
-
 from functools import lru_cache
 from pathlib import Path
 from statistics import NormalDist
@@ -88,7 +88,6 @@ def _standardized_effect(effect_size, p_value, se, n_tumor, n_normal) -> dict:
 from typing import Optional
 
 from methods.catalog_query.read import bucket_key_for
-
 
 DEFAULT_AWS_PROFILE = "cbg"
 DERIVED_MANIFEST_ID = "cptac-protein-tumor-vs-normal-per-cohort-v1"
@@ -385,7 +384,7 @@ def _allgene_effect_percentile(df, cohort: str, effect_size):
 
     Context-matched by construction: the null is the cohort's own slice of the resident
     df (no pooling across cohorts). Zero new I/O — df is already in the lru_cache."""
-    from methods.percentile_null import percentile_rank, classify_percentile
+    from methods.percentile_null import classify_percentile, percentile_rank
 
     try:
         null_vals = df.loc[df["cohort"].str.upper() == cohort, "protein_effect_size"].tolist()
@@ -1183,6 +1182,7 @@ def _hpa_cptac_estimate(target: str, indication: Optional[str] = None) -> dict:
 
 def _load_takeda_style(target_contracts_dir):
     import sys as _sys
+
     import matplotlib.pyplot as plt
 
     style_path = Path(target_contracts_dir) / "plot_styles" / "takeda_oncology.mplstyle"

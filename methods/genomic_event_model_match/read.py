@@ -99,8 +99,8 @@ def read_genomic_event_model_match(target: str, indication: str, release_pin: st
 
     Ranking: genotype-matched models first, then lineage-matched, then dependency strength (more
     dependent first). Each row carries event_match + screen_role + lineage_match."""
-    from methods.functional_gene_state import read_functional_gene_state, read_model_states_per_model
     from methods.depmap_expression_dependency import cli as _dep
+    from methods.functional_gene_state import read_functional_gene_state, read_model_states_per_model
 
     sym = target.upper().strip()
     target_lineage = INDICATION_TO_DEPMAP_LINEAGE.get(indication.upper().strip())

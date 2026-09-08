@@ -37,13 +37,13 @@ read_target_summary aggregates to per-target categorical:
 
 from __future__ import annotations
 
+import threading
 from pathlib import Path
 from typing import Optional
 
-import threading
+from methods.catalog_query.read import bucket_key_for, bucket_prefix_for
 
-from .moa_ontology import classify_edge, ONTOLOGY_VERSION
-from methods.catalog_query.read import bucket_prefix_for, bucket_key_for
+from .moa_ontology import ONTOLOGY_VERSION, classify_edge
 
 DEFAULT_AWS_PROFILE = "cbg"
 SIGNOR_SOURCE_MANIFEST_ID = "signor-jul2026"

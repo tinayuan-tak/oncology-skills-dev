@@ -34,7 +34,6 @@ DEFAULT_AWS_PROFILE = "cbg"
 
 from methods.target_id_sidecar import ensure_aws_profile
 
-
 _S3FS = None
 _S3FS_LOCK = threading.Lock()
 
@@ -100,7 +99,7 @@ def _dge_allgene_percentile(manifest_id: str, log2_fc, cutoffs: dict = None):
     from pathlib import Path as _Path
 
     _sys.path.insert(0, str(_Path(__file__).resolve().parent.parent))  # methods/ on path
-    from methods.percentile_null import percentile_rank, classify_percentile
+    from methods.percentile_null import classify_percentile, percentile_rank
 
     null_vec = _allgene_log2fc_null(manifest_id)
     pct = percentile_rank(log2_fc, null_vec)
@@ -133,7 +132,7 @@ def _dge_sensitivity_cell_percentile(manifest_id: str, s3_uri: str, column: str,
     from pathlib import Path as _Path
 
     _sys.path.insert(0, str(_Path(__file__).resolve().parent.parent))
-    from methods.percentile_null import percentile_rank, classify_percentile
+    from methods.percentile_null import classify_percentile, percentile_rank
 
     null_vec = _sensitivity_cell_null(manifest_id, s3_uri, column)
     pct = percentile_rank(log2fc, null_vec)
@@ -297,7 +296,9 @@ def _load_ensembl_hgnc_map():
     if _ENSEMBL_HGNC_MAP_CACHE is not None:
         return _ENSEMBL_HGNC_MAP_CACHE
     ensure_aws_profile()
-    import boto3, io
+    import io
+
+    import boto3
     import pandas as pd
 
     s3 = boto3.client("s3")
@@ -337,7 +338,10 @@ def _fetch_recount3_metadata(study: str) -> "pd.DataFrame":
     only .merge() the result (which copies), so returning the cached object is safe. maxsize 64 >
     the 33 TCGA studies."""
     ensure_aws_profile()
-    import boto3, gzip, io
+    import gzip
+    import io
+
+    import boto3
     import pandas as pd
 
     s3 = boto3.client("s3")
@@ -365,7 +369,10 @@ def _fetch_recount3_gene_row(study: str, target_ensembl_ids: set[str]) -> "pd.Da
     ID-map returns unversioned. Match on the stem before the '.'.
     """
     ensure_aws_profile()
-    import boto3, gzip, io
+    import gzip
+    import io
+
+    import boto3
     import pandas as pd
 
     s3 = boto3.client("s3")
@@ -415,7 +422,10 @@ def _fetch_recount3_library_sizes(study: str) -> "pd.Series":
     CONSTANT (target-independent), previously re-streamed — a full ~50 MB gz download — on every
     gene. Callers .reset_index()/.merge() the result (both copy), so caching is safe."""
     ensure_aws_profile()
-    import boto3, gzip, io
+    import gzip
+    import io
+
+    import boto3
     import numpy as np
 
     s3 = boto3.client("s3")
@@ -476,7 +486,10 @@ def _fetch_recount3_rpk_sums(
     gene_lengths = load_gene_lengths()  # unversioned Ensembl → bp
 
     ensure_aws_profile()
-    import boto3, gzip, io
+    import gzip
+    import io
+
+    import boto3
     import numpy as np
 
     s3 = boto3.client("s3")
@@ -997,7 +1010,10 @@ INDICATION_TO_GTEX_TISSUE = {
 def _fetch_recount3_gtex_metadata(tissue: str) -> "pd.DataFrame":
     """Fetch GTEx tissue metadata; returns DataFrame with external_id + SMTS + SMTSD."""
     ensure_aws_profile()
-    import boto3, gzip, io
+    import gzip
+    import io
+
+    import boto3
     import pandas as pd
 
     s3 = boto3.client("s3")
@@ -1014,7 +1030,10 @@ def _fetch_recount3_gtex_metadata(tissue: str) -> "pd.DataFrame":
 def _fetch_recount3_gtex_gene_row(tissue: str, target_ensembl_ids: set) -> "pd.DataFrame":
     """Fetch GTEx counts for target's Ensembl-IDs from the gzipped tissue matrix."""
     ensure_aws_profile()
-    import boto3, gzip, io
+    import gzip
+    import io
+
+    import boto3
     import numpy as np
     import pandas as pd
 
@@ -1054,8 +1073,12 @@ def _fetch_recount3_gtex_gene_row(tissue: str, target_ensembl_ids: set) -> "pd.D
 def _fetch_recount3_gtex_library_sizes(tissue: str) -> "pd.Series":
     """GTEx per-sample library sizes for CPM normalization."""
     ensure_aws_profile()
-    import boto3, gzip, io
-    import numpy as np, pandas as pd
+    import gzip
+    import io
+
+    import boto3
+    import numpy as np
+    import pandas as pd
 
     s3 = boto3.client("s3")
     key = f"{RECOUNT3_S3_PREFIX}/gtex/{tissue}/gene_sums/gtex.gene_sums.{tissue}.G026.gz"
@@ -1236,8 +1259,9 @@ def read_per_sample_expression_tumor_vs_adjacent(
     if not target_ensembl_ids:
         return None
 
-    import pandas as pd
     import numpy as np
+    import pandas as pd
+
     from .gene_lengths import load_gene_lengths
 
     gene_lengths = load_gene_lengths()
@@ -1357,7 +1381,7 @@ def _stratum_row_to_card_fields(r) -> dict:
     selectivity_class / comparator_concordance carry identical semantics. Adds
     the subgroup grain fields (stratum_id, subgroup_n, floor_met, evidence_state).
     """
-    from methods.subgroup_common.panorama import evidence_state, SUBGROUP_N_FLOOR
+    from methods.subgroup_common.panorama import SUBGROUP_N_FLOOR, evidence_state
 
     def _num(v):
         # NaN-safe passthrough (pandas NaN → None so the classifier's `x == x`
@@ -1425,6 +1449,7 @@ def read_stratified_tumor_vs_normal_selectivity(
     absence; a transient S3/creds error DOES propagate — RD3 discipline).
     """
     import pyarrow.parquet as pq
+
     from methods.subgroup_common.panorama import delta_reducer
 
     ensure_aws_profile()

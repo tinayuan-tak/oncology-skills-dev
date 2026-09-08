@@ -79,8 +79,8 @@ def _read_summary_rows(target: str) -> Optional[tuple]:
     if sym in _SUMMARY_CACHE:
         return _SUMMARY_CACHE[sym]
     try:
-        import pyarrow.parquet as pq
         import pyarrow.fs as fs
+        import pyarrow.parquet as pq
 
         bucket, _per_line_key, summary_key = _bucket_keys()
         tbl = pq.read_table(
@@ -108,8 +108,8 @@ def _read_pair_lines(target: str, partner: str) -> Optional[list]:
     [] if the pair is absent. The public `lineage_breakdown_for_pair` catches the transient raise at
     its boundary and degrades to a data_unavailable status + breadcrumb (never propagates)."""
     try:
-        import pyarrow.parquet as pq
         import pyarrow.fs as fs
+        import pyarrow.parquet as pq
 
         bucket, per_line_key, _summary_key = _bucket_keys()
         tbl = pq.read_table(

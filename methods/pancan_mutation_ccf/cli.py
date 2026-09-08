@@ -23,8 +23,8 @@ import click
 # REUSE the single-sourced TSS -> TCGA-project -> indication filter + non-synonymous set.
 from methods.gdc_somatic_hotspot.cli import (
     INDICATION_TO_TCGA_PROJECTS,
-    TSS_CODE_TO_TCGA_PROJECT,
     NON_SYNONYMOUS_CLASSES,
+    TSS_CODE_TO_TCGA_PROJECT,
 )
 
 MC3_S3_BUCKET = "onc-compbio"

@@ -10,10 +10,10 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from methods.til_fraction_saltz.read import (  # noqa: E402
+    INDICATION_TO_TCGA_STUDIES,
+    MIN_N,
     _classify,
     read_til_fraction,
-    MIN_N,
-    INDICATION_TO_TCGA_STUDIES,
 )
 
 

@@ -28,10 +28,9 @@ from __future__ import annotations
 import gzip
 import urllib.request
 from pathlib import Path
-
-from methods.catalog_query.read import bucket_key_for, bucket_prefix_for
 from typing import Optional
 
+from methods.catalog_query.read import bucket_key_for, bucket_prefix_for
 
 CACHE_DIR = Path.home() / ".cache" / "framework-gencode-v26"
 CACHE_FILE = CACHE_DIR / "gene_lengths_v26.parquet"
@@ -80,8 +79,9 @@ def _try_s3_fetch(s3_key: str, local_path: Path, expected_md5: str) -> bool:
     design — callers fall back to the live-fetch path.
     """
     try:
-        import boto3
         import os
+
+        import boto3
 
         os.environ.setdefault("AWS_PROFILE", "cbg")
         s3 = boto3.client("s3")

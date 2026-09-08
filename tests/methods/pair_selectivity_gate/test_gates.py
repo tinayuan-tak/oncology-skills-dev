@@ -15,12 +15,12 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from methods.pair_selectivity_gate.gates import (  # noqa: E402
-    _positive_fraction_by_group,
-    reduce_gate,
-    classify_and_selectivity,
-    GATE_POSITIVE_THRESHOLD_TPM,
     AND_GATE_MIN_COFRACTION,
     AVIDITY_CAVEAT,
+    GATE_POSITIVE_THRESHOLD_TPM,
+    _positive_fraction_by_group,
+    classify_and_selectivity,
+    reduce_gate,
 )
 
 HI = GATE_POSITIVE_THRESHOLD_TPM + 5  # clearly positive

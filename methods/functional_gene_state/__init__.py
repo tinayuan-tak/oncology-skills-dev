@@ -56,11 +56,11 @@ Modules:
 
 from __future__ import annotations
 
-from .read import read_functional_gene_state, read_model_states_per_model
 from .classify import (
-    classify_functional_state,
     FUNCTIONAL_STATES,
+    classify_functional_state,
 )
+from .read import read_functional_gene_state, read_model_states_per_model
 
 METHOD_VERSION = (
     "0.2.0"  # +read_model_states_per_model public accessor (for the model-match assembler); arm output byte-stable

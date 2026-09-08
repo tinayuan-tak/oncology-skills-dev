@@ -14,10 +14,9 @@ import pytest
 pytest.importorskip("numpy")
 pytest.importorskip("pandas")
 
-from methods.sc_tumor_expression_celltype import stats as S
-from methods.sc_tumor_expression_celltype import read as R
 from methods.sc_tumor_expression_celltype import cli as C
-
+from methods.sc_tumor_expression_celltype import read as R
+from methods.sc_tumor_expression_celltype import stats as S
 
 # --- fixtures ----------------------------------------------------------------
 

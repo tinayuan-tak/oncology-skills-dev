@@ -26,7 +26,6 @@ from typing import Optional
 
 from methods.catalog_query.read import bucket_prefix_for
 
-
 DEFAULT_AWS_PROFILE = "cbg"
 PARALOG_SOURCE_MANIFEST_ID = "depmap-consortium-26q1-paralogs"
 # bucket + key resolved from the data-catalog manifest (single source of truth).

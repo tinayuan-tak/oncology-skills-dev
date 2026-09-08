@@ -83,10 +83,11 @@ def emit_cn_expression_scatter(
 ) -> None:
     """Scatter of relative CN (x) vs log2TPM (y), lineage-coloured, OLS fit, amplification vline,
     annotated with Spearman r/p + slope. The cis-dosage plot the framework was missing."""
+    from collections import Counter
+
     import matplotlib.pyplot as plt
     import numpy as np
     import pandas as pd
-    from collections import Counter
     from matplotlib.patches import Patch
 
     # Reuse the sibling's shared plot-style loader (mplstyle + palette) — one style source of truth.

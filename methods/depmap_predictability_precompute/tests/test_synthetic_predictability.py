@@ -22,7 +22,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from depmap_predictability_precompute import cli as e5cli  # noqa: E402
 from depmap_predictability_precompute import features as feat  # noqa: E402
 
-
 # ---------- Symbol extraction --------------------------------------------
 
 

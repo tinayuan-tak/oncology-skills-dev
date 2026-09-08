@@ -33,7 +33,6 @@ from pathlib import Path
 
 import click
 
-
 METHOD_DIR = Path(__file__).resolve().parent
 STEPS_DIR = METHOD_DIR / "steps"
 RUN_PIPELINE = STEPS_DIR / "run_pipeline.R"
@@ -177,7 +176,7 @@ def main(
         # downloads to the session cache and returns the DataFrame; we read the
         # cache path it writes so the R driver reads the SAME product the read
         # layer will. This keeps the emit-side and read-side member sets identical.
-        from methods.subgroup_common.loaders import load_assignments, CACHE_ASSIGNMENTS
+        from methods.subgroup_common.loaders import CACHE_ASSIGNMENTS, load_assignments
 
         load_assignments(subgroup_assignments_manifest, data_catalog_repo=catalog_repo)
         subgroup_parquet = str(CACHE_ASSIGNMENTS / subgroup_assignments_manifest / "assignments.parquet")

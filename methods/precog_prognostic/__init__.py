@@ -11,4 +11,4 @@ The crosswalk from PRECOG's 39 idiosyncratic cancer-type columns to framework in
 cli.INDICATION_TO_PRECOG (approximations flagged via precog_indication_approx). VERDICT-INERT.
 """
 
-from .read import read_precog_prognostic, METHOD_VERSION  # noqa: F401
+from .read import METHOD_VERSION, read_precog_prognostic  # noqa: F401

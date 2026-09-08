@@ -124,8 +124,8 @@ def _load_msk_maf(indication: str):
         if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
             return None
         raise
-    import pyarrow.parquet as pq
     import pyarrow.fs as fs
+    import pyarrow.parquet as pq
 
     try:
         tbl = pq.read_table(

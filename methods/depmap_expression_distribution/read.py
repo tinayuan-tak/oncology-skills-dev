@@ -6,21 +6,21 @@ from functools import lru_cache, partial
 from pathlib import Path
 from typing import Optional
 
-from . import cli as _cli
-
 # Cell-line RNA subtype panorama (WS-C): DepMap driver-mutation / molecular-subtype stratification
 # of the cell-line RNA distribution — the cell-line analogue of tumor-rna-distribution-by-subtype.
 # Reuses the substrate-agnostic ModelID-keyed composer (subgroup_common.panorama.build_panorama),
 # exactly as depmap_chronos.build_dependency_panorama does for dependency. DESCRIPTIVE / verdict-inert.
 from methods.subgroup_common.iteration import subgroup_iterable
 from methods.subgroup_common.panorama import (
+    SUBGROUP_N_FLOOR,
+    axis_quality,
     build_panorama,
     delta_reducer,
     evidence_state,
-    axis_quality,
-    SUBGROUP_N_FLOOR,
 )
 from methods.subgroup_common.scoping import resolve_subgroup_cohort
+
+from . import cli as _cli
 
 # DepMap log2(TPM+1) convention (mirrors cli.py).
 _EXPRESSED = 1.0

@@ -44,7 +44,6 @@ from pathlib import Path
 
 import click
 
-
 # Substrate products (both log2(TPM+1) on the recount3 unversioned-Ensembl axis).
 TUMOR_PRODUCT = "sclc-george-tpm-long-v1"  # study='SCLC', 81 tumors
 GTEX_PRODUCT = "gtex-tpm-recount3-long-v1"  # tissue='LUNG' filter → 655 normals
@@ -125,6 +124,7 @@ def _read_long_tpm(manifest_id: str, s3fs, group_col: str, group_val: str):
     [gene_symbol, ensembl_gene_id, sample_id, log2_tpm]. Resolves the S3 URI from
     the data-catalog manifest (single source of truth for the path)."""
     import pyarrow.parquet as pq
+
     from methods.catalog_query.read import s3_uri_for
 
     s3_uri = s3_uri_for(manifest_id)

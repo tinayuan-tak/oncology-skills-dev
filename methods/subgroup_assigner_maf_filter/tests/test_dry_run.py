@@ -128,6 +128,7 @@ def test_sample_level_negation_wildtype():
     for the all-members bug: row-level `!(...)` any-hit marks every mutated sample
     a member (a TP53 row is 'not a KRAS hotspot')."""
     import pandas as pd
+
     from methods.subgroup_assigner_maf_filter.cli import _evaluate_stratum_maf
 
     # 3 samples: S1 has KRAS G12D (mutant), S2 has only TP53 (KRAS-WT),

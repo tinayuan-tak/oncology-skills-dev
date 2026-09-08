@@ -1,6 +1,7 @@
 """Wiring regression: NSCLC/LUAD avidity reads the LuCA same-cell coexpr cube (upgrade from Census)."""
 
 from __future__ import annotations
+
 import sys
 from pathlib import Path
 

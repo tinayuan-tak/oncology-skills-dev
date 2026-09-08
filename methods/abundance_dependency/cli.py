@@ -1,10 +1,10 @@
 """CLI + emitter for abundance_dependency (Q7 — protein abundance → dependency)."""
 
 from __future__ import annotations
-import os
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 

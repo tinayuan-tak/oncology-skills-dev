@@ -16,11 +16,11 @@ if str(REPO) not in sys.path:
 import pytest  # noqa: E402
 
 from methods.pmhc_presentation.classify import (  # noqa: E402
+    _ATLAS_N_TISSUES_QUARTILES,
+    BROAD_MIN_TISSUES,
+    RESTRICTED_MAX_TISSUES,
     classify_pmhc_presentation,
     summarize_pmhc,
-    RESTRICTED_MAX_TISSUES,
-    BROAD_MIN_TISSUES,
-    _ATLAS_N_TISSUES_QUARTILES,
 )
 
 
@@ -103,9 +103,10 @@ def test_quartile_provenance_matches_atlas():
     classify.py — the bands must never silently classify against a stale cutpoint. Credential-less CI
     xfails this (live read degrades); locally with AWS_PROFILE=cbg it validates the provenance claim."""
     import numpy as np
-    import pyarrow.parquet as pq
     import pyarrow.fs as pafs
-    from methods.pmhc_presentation.read import S3_BUCKET, PAYLOAD_KEY
+    import pyarrow.parquet as pq
+
+    from methods.pmhc_presentation.read import PAYLOAD_KEY, S3_BUCKET
 
     s3 = pafs.S3FileSystem(region="us-east-1")
     n = (

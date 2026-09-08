@@ -12,7 +12,7 @@ Modules:
 
 from __future__ import annotations
 
-from .read import read_alteration_clinical_association, classify_alteration_survival_association
+from .read import classify_alteration_survival_association, read_alteration_clinical_association
 
 METHOD_VERSION = "0.1.0"
 

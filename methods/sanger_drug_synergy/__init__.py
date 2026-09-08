@@ -6,4 +6,4 @@ chemical-synergy input to combination-and-vulnerability's new SYNERGY relational
 3-tissue, cell-line — MoA/hypothesis-generating (NOT a dependency).
 """
 
-from .read import read_target_summary, synergy_partners_for_gene, METHOD_VERSION  # noqa: F401
+from .read import METHOD_VERSION, read_target_summary, synergy_partners_for_gene  # noqa: F401

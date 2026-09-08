@@ -12,11 +12,11 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from methods.cptac_protein_distribution.read import (  # noqa: E402
-    _protein_class,
     _classify_subtype_signal,
+    _protein_class,
     _subtype_rollup,
-    read_stratified_protein,
     build_protein_subtype_panorama,
+    read_stratified_protein,
 )
 
 

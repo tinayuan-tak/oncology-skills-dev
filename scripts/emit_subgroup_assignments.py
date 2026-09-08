@@ -61,7 +61,6 @@ from typing import Literal
 import click
 import yaml
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 # Source → (assigner_method_module, data_source_arg) mapping.

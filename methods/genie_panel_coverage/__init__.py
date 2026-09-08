@@ -25,9 +25,9 @@ METHOD_VERSION = "0.1.0"
 
 from .read import (  # noqa: E402,F401
     covered,
-    n_covered_samples,
-    panel_coverage_denominator,
+    load_panel_gene_sets,
     load_sample_panel_map,
     load_sv_sample_panel_map,
-    load_panel_gene_sets,
+    n_covered_samples,
+    panel_coverage_denominator,
 )

@@ -15,7 +15,6 @@ import os
 import numpy as np
 import pytest
 
-
 pytestmark = pytest.mark.skipif(
     os.environ.get("RUN_S3_SMOKE") != "1",
     reason="requires S3 access; set RUN_S3_SMOKE=1 to enable",

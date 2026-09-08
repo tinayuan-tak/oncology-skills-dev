@@ -14,4 +14,4 @@ methylation_uncoupled, methylation_invariant_panel, data_unavailable}. Feeds the
 LoF/silencing arm (coherent_lof_silencing) alongside the amplification-driven cis_dosage leg.
 """
 
-from .read import read_methylation_silencing, METHOD_VERSION  # noqa: F401
+from .read import METHOD_VERSION, read_methylation_silencing  # noqa: F401

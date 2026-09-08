@@ -212,8 +212,8 @@ def _fusion_alteration_confound(
     except Exception:  # noqa: BLE001 — verdict-inert; a lane failure must not break the fusion read
         pass
     try:  # amplification arm (focal high-level, same cut the CN-stratified card uses)
-        from methods.depmap_cn_distribution import cli as _cncli
         from methods.depmap_cn_dependency.cli import FOCAL_AMP_HIGH
+        from methods.depmap_cn_distribution import cli as _cncli
 
         cn_by, _meta, _assay, cn_errs = _cncli.load_cn_files(release_pin="26q1", target_symbol=target)
         if cn_by and not cn_errs:

@@ -15,9 +15,9 @@ streamed-read pattern. Definitive-vs-transient absence discipline so a transient
 """
 
 from __future__ import annotations
+
 import os
 import threading
-
 from functools import lru_cache
 from pathlib import Path
 from typing import Optional
@@ -39,8 +39,9 @@ def _symbol_to_ensembl_ids(symbol: str) -> Optional[list]:
     global _SYMBOL_TO_ENSEMBL_MAP
     if _SYMBOL_TO_ENSEMBL_MAP is None:
         try:
-            import boto3
             import io
+
+            import boto3
             import pandas as pd
 
             s3 = boto3.Session(profile_name=DEFAULT_AWS_PROFILE).client("s3")

@@ -28,6 +28,6 @@ from __future__ import annotations
 METHOD_VERSION = "0.1.0"
 
 from .read import (  # noqa: E402,F401
-    isoform_summary_for_gene,
     build_isoform_table,
+    isoform_summary_for_gene,
 )

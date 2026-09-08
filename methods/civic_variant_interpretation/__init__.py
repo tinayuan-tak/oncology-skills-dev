@@ -33,6 +33,6 @@ from __future__ import annotations
 METHOD_VERSION = "0.1.0"
 
 from .read import (  # noqa: E402,F401
-    civic_interpretation_for_gene,
     build_civic_interpretation_table,
+    civic_interpretation_for_gene,
 )

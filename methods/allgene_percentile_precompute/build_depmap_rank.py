@@ -51,9 +51,9 @@ def _md5_hex(path: Path) -> str:
 
 
 def build(matrix_uri: str):
+    import pandas as pd
     import pyarrow.fs as fs
     import pyarrow.parquet as pq
-    import pandas as pd
 
     t0 = time.time()
     if matrix_uri.startswith("s3://"):

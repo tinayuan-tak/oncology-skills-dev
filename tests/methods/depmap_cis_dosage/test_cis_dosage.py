@@ -18,8 +18,8 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from methods.depmap_cis_dosage.cli import (  # noqa: E402
-    compute_cis_dosage,
     AMPLIFICATION_THRESHOLD,
+    compute_cis_dosage,
 )
 
 

@@ -80,7 +80,6 @@ from typing import Optional
 
 import click
 
-
 DEPMAP_S3_BUCKET = "onc-compbio"
 DEFAULT_OUTPUT_PREFIX = "data-catalog/derived/depmap-prism-activity-v4"
 DERIVED_PRODUCT_ID = "depmap-prism-activity-v4"
@@ -439,6 +438,7 @@ def load_crispr_chronos_for_genes(chronos_parquet_local_path, gene_symbols: set[
     time (~2000 genes) so per-gene concordance loops don't do S3 round-trips.
     """
     import re
+
     import pyarrow.parquet as pq
 
     schema_names = pq.read_schema(str(chronos_parquet_local_path)).names

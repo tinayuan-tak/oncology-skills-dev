@@ -45,7 +45,6 @@ import pandas as pd
 
 from . import features as feat
 
-
 METHOD_DIR = Path(__file__).resolve().parent
 METHOD_VERSION = "0.2.0"
 

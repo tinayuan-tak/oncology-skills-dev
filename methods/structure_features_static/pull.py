@@ -253,8 +253,8 @@ def _load_ac_substrate() -> list:
     import os
 
     os.environ.setdefault("AWS_PROFILE", "cbg")
-    import pyarrow.parquet as pq
     import pyarrow.fs as pafs
+    import pyarrow.parquet as pq
 
     t = pq.read_table(
         "onc-compbio/data-catalog/derived/topology-predictions-tmbed-v1/topology_predictions_tmbed_v1.parquet",
@@ -272,8 +272,8 @@ def _load_domains(ac_gene: list) -> dict:
         import os
 
         os.environ.setdefault("AWS_PROFILE", "cbg")
-        import pyarrow.parquet as pq
         import pyarrow.fs as pafs
+        import pyarrow.parquet as pq
 
         # InterPro product key resolved the same way uniprot_protein_features does.
         from methods.uniprot_protein_features.read import INTERPRO_KEY, S3_BUCKET  # type: ignore
@@ -314,8 +314,8 @@ def _load_hotspots() -> dict:
         import os
 
         os.environ.setdefault("AWS_PROFILE", "cbg")
-        import pyarrow.parquet as pq
         import pyarrow.fs as pafs
+        import pyarrow.parquet as pq
 
         sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
         from methods.gdc_somatic_hotspot import read as hs  # type: ignore

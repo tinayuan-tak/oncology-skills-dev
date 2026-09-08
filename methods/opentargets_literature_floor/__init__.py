@@ -14,4 +14,4 @@ from __future__ import annotations
 
 METHOD_VERSION = "0.1.0"
 
-from .read import read_literature_floor, aggregate_literature  # noqa: E402,F401
+from .read import aggregate_literature, read_literature_floor  # noqa: E402,F401

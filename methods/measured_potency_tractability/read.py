@@ -228,7 +228,7 @@ def measured_potency_for_gene(
     # DIRECTNESS (2026-09-04): count typed direct-SM interactions (reuse the DGIdb directional leg). Live
     # read only when nothing was injected; a transient failure leaves directness unmeasured (fail-safe).
     if directional_direct_count is None and live:
-        from methods.dgidb_drug_gene.read import _read_directional_rows, _count_direct
+        from methods.dgidb_drug_gene.read import _count_direct, _read_directional_rows
 
         directional_direct_count = _count_direct(_read_directional_rows(target))
     chembl_approved_engagement = classify_chembl_approved_engagement(phase_class, directional_direct_count)

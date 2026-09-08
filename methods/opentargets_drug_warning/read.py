@@ -26,7 +26,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from ..opentargets_common import read_entity, symbol_to_ensembl, ot_cli_main
+from ..opentargets_common import ot_cli_main, read_entity, symbol_to_ensembl
 
 METHOD_VERSION = "0.1.0"
 

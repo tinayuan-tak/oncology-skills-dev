@@ -12,10 +12,9 @@ as a derived manifest in data-catalog).
 from __future__ import annotations
 
 import os
+from functools import lru_cache, partial
 from pathlib import Path
 from typing import Optional
-
-from functools import lru_cache, partial
 
 import yaml
 
@@ -67,9 +66,8 @@ INDICATION_TO_GDC_PROJECTS = {
 }
 
 
-from methods.target_id_sidecar import ensure_aws_profile
 from methods.indication_aliases import to_cohort_canonical
-
+from methods.target_id_sidecar import ensure_aws_profile
 
 # --- Derived-manifest resolution ----------------------------------------------
 # The MC3 hotspot aggregate + per-sample MAF are now REGISTERED derived products
@@ -199,7 +197,7 @@ def _driver_recurrence_percentile(aggregate_path: Path, indication, overall_freq
     import sys as _sys
 
     _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # methods/ on path
-    from methods.percentile_null import percentile_rank, classify_percentile
+    from methods.percentile_null import classify_percentile, percentile_rank
 
     null_vec = _allgene_mutation_frequency_null(str(aggregate_path), indication or "")
     pct = percentile_rank(overall_freq, null_vec)

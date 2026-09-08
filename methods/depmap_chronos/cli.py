@@ -34,10 +34,9 @@ from functools import lru_cache
 from io import BytesIO
 from pathlib import Path
 
-from methods.catalog_query.read import bucket_prefix_for, s3_uri_for
-
 import click
 
+from methods.catalog_query.read import bucket_prefix_for, s3_uri_for
 
 METHOD_DIR = Path(__file__).resolve().parent
 METHOD_VERSION = "2.0.0"
@@ -503,9 +502,9 @@ def emit_forest_plot(
         plt.style.use(str(style_path))
     sys.path.insert(0, str(contracts_root / "plot_styles"))
     from takeda_palette import (  # type: ignore
-        get_lineage_color,
-        FIGSIZE_SINGLE_COLUMN_TALL,
         CHRONOS_STRONG_DEPENDENCY,
+        FIGSIZE_SINGLE_COLUMN_TALL,
+        get_lineage_color,
     )
 
     if not per_lineage_records:
@@ -592,8 +591,8 @@ def emit_lineage_strip(
         plt.style.use(str(style_path))
     sys.path.insert(0, str(contracts_root / "plot_styles"))
     from takeda_palette import (  # type: ignore
-        FIGSIZE_DOUBLE_COLUMN,
         CHRONOS_STRONG_DEPENDENCY,
+        FIGSIZE_DOUBLE_COLUMN,
     )
 
     df = pd.DataFrame(merged_data)
@@ -680,7 +679,7 @@ def emit_plotly_specs(
         import plotly.graph_objects as go
 
         sys.path.insert(0, str(contracts_root / "plot_styles"))
-        from takeda_palette import get_lineage_color, CHRONOS_STRONG_DEPENDENCY  # type: ignore
+        from takeda_palette import CHRONOS_STRONG_DEPENDENCY, get_lineage_color  # type: ignore
     except Exception as e:  # noqa: BLE001 — Plotly optional; never block the SVG artifact
         print(f"[depmap_chronos] plotly spec emission skipped: {e}", file=sys.stderr)
         return []

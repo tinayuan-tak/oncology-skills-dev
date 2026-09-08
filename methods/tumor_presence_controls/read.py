@@ -19,8 +19,8 @@ control_position_class of data_unavailable, never a raise into the render path.
 """
 
 from __future__ import annotations
-import os
 
+import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Optional
@@ -162,8 +162,8 @@ def _assemble(target_pct, target_class, pos_pcts, neg_detail, excluded, source_l
 def control_position_tumor(target: str, indication: str, contracts_dir: str = str(DEFAULT_TARGET_CONTRACTS)) -> dict:
     """Control-benchmark position for the tumor-rna-distribution card (per-study tumor
     median rank, allgene-tumor-rank-v1). Indication-matched negatives."""
-    from methods.tcga_gtex_expression_distribution.read import INDICATION_TO_TCGA_STUDIES, _symbol_to_ensembl_ids
     from methods.allgene_percentile_precompute.lookup import tumor_allgene_percentile
+    from methods.tcga_gtex_expression_distribution.read import INDICATION_TO_TCGA_STUDIES, _symbol_to_ensembl_ids
 
     try:
         controls = _load_controls(contracts_dir)

@@ -2,7 +2,9 @@
 broadly_dependent fallback (an over-call). Pure-function unit tests of _classify_dependency."""
 
 from __future__ import annotations
-import importlib.util, sys
+
+import importlib.util
+import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]

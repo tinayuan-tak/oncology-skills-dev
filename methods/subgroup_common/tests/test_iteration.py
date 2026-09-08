@@ -5,7 +5,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from methods.subgroup_common import loaders, iteration
+from methods.subgroup_common import iteration, loaders
 
 
 @pytest.fixture(autouse=True)

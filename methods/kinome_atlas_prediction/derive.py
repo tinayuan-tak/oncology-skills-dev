@@ -57,7 +57,6 @@ from typing import Iterable
 
 import pandas as pd
 
-
 DEFAULT_PERCENTILE_THRESHOLD = 90.0
 
 # Metadata columns from the raw wide-format tables (identifying the SUBSTRATE

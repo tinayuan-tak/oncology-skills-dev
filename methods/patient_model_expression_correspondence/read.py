@@ -7,8 +7,8 @@ patient tumor TARGET distribution, and classify each into a screen role (positiv
 
 from __future__ import annotations
 
-from typing import Optional
 from pathlib import Path
+from typing import Optional
 
 # indication → DepMap OncotreeLineage. SINGLE SOURCE: import the canonical map from
 # depmap_chronos.read rather than forking it here. The prior local fork mapped GC/STAD →

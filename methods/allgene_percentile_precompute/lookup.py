@@ -30,7 +30,7 @@ from typing import Optional, Sequence
 # local copy of the cutoffs if the package layout differs, so this module never hard-
 # fails an import at render time.
 try:
-    from methods.percentile_null import classify_percentile, DEFAULT_CUTOFFS
+    from methods.percentile_null import DEFAULT_CUTOFFS, classify_percentile
 except Exception:  # noqa: BLE001 — keep the accessor importable even if the helper moves
     DEFAULT_CUTOFFS = {"top_1pct": 99.0, "top_decile": 90.0, "bottom_decile": 10.0}
 
@@ -74,8 +74,8 @@ def _build_s3fs():
     """Build a pyarrow S3FileSystem bound to the cbg profile (the bucket denies the default
     role — see feedback_compose_dashboard_aws_profile). Import-local so a non-S3 unit
     test never needs boto3/pyarrow at module import."""
-    import pyarrow.fs as fs
     import boto3
+    import pyarrow.fs as fs
 
     creds = boto3.Session(profile_name=DEFAULT_AWS_PROFILE).get_credentials()
     if creds is not None:

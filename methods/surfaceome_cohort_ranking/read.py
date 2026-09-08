@@ -25,7 +25,6 @@ from __future__ import annotations
 
 from typing import Optional
 
-
 DERIVED_MANIFEST_ID = "surfaceome-cohort-ranking-per-indication-v1"
 
 # Columns consumed downstream (_row_to_summary + the by-indication / best-percentile lookup).
@@ -69,9 +68,10 @@ def _read_gene_rows(target: str) -> Optional[list]:
     if sym in _ROWS_CACHE:
         return _ROWS_CACHE[sym]
     try:
-        from methods.catalog_query.read import bucket_key_for
-        import pyarrow.parquet as pq
         import pyarrow.fs as fs
+        import pyarrow.parquet as pq
+
+        from methods.catalog_query.read import bucket_key_for
 
         bucket, key = bucket_key_for(DERIVED_MANIFEST_ID)
         tbl = pq.read_table(
@@ -110,9 +110,10 @@ def load_indication_ranking(indication: str) -> Optional[list]:
     if _PRODUCT_ABSENT:
         return None
     try:
-        from methods.catalog_query.read import bucket_key_for
-        import pyarrow.parquet as pq
         import pyarrow.fs as fs
+        import pyarrow.parquet as pq
+
+        from methods.catalog_query.read import bucket_key_for
 
         bucket, key = bucket_key_for(DERIVED_MANIFEST_ID)
         tbl = pq.read_table(

@@ -22,8 +22,9 @@ import io
 from functools import lru_cache
 from typing import Optional
 
-from .classify import SampleEvidence, classify_functional_state, summarize_states
 from methods.catalog_query.read import bucket_key_for, bucket_prefix_for, s3_uri_for
+
+from .classify import SampleEvidence, classify_functional_state, summarize_states
 
 # bucket + source-dir prefixes/keys resolved from the data-catalog manifests (single source of
 # truth); rstrip('/') keeps the existing f"{PREFIX}/file" idioms byte-identical.
@@ -576,6 +577,7 @@ def _read_model_methylation(target: str) -> dict:
     Returns {ModelID: bool}. Empty dict when target has no RRBS loci or S3 fails.
     """
     import gzip
+
     import pandas as pd
 
     # Fast path: gene-pushdown from the precomputed product (falls through to the live stream below when

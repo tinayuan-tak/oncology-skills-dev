@@ -15,8 +15,8 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from methods.depmap_common.lineage_ladder import (  # noqa: E402
-    models_in_lineage,
     apply_lineage_ladder,
+    models_in_lineage,
 )
 
 CLS = "mutation_stratification_class"

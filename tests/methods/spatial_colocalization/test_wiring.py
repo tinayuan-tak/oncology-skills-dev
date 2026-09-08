@@ -16,7 +16,6 @@ if str(REPO) not in sys.path:
 from methods.spatial_colocalization import read as SC  # noqa: E402
 from methods.spatial_colocalization import stats as ST  # noqa: E402
 
-
 # ── wiring invariants (no S3) ────────────────────────────────────────────────
 
 

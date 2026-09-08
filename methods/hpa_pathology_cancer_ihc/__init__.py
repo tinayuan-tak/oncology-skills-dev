@@ -7,4 +7,4 @@ data_unavailable. Maps the caller's OncoTree indication -> HPA's 20 broad cancer
 OncoTree; documented granularity loss).
 """
 
-from .read import read_target_summary, METHOD_VERSION  # noqa: F401
+from .read import METHOD_VERSION, read_target_summary  # noqa: F401

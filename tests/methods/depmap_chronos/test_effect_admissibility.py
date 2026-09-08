@@ -6,8 +6,10 @@ A below-n>=30-floor stratum is admissible for the POSITIVE rung iff n>=MIN_N_EFF
 NEGATIVE hold's subgroup_n_floor_met (n>=30) is UNCHANGED — asymmetric by design.
 """
 
-import importlib.util, sys
+import importlib.util
+import sys
 from pathlib import Path
+
 import pandas as pd
 
 _R = Path(__file__).resolve().parents[3] / "methods" / "depmap_chronos" / "read.py"

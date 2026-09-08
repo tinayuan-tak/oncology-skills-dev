@@ -14,9 +14,9 @@ No S3 access required.
 """
 
 from __future__ import annotations
+
 import sys
 from pathlib import Path
-
 
 METHODS_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 sys.path.insert(0, str(METHODS_ROOT))

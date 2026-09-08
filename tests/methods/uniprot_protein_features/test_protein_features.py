@@ -14,7 +14,8 @@ REPO = Path(__file__).resolve().parents[3]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
-from methods.uniprot_protein_features import derive as _d, read as _r  # noqa: E402
+from methods.uniprot_protein_features import derive as _d  # noqa: E402
+from methods.uniprot_protein_features import read as _r
 
 _DAT = (
     "AC   P00001;\nGN   Name=KIN1;\n"

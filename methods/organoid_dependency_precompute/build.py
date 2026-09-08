@@ -65,8 +65,9 @@ def _read_csv(uri: str, **kw):
     import pandas as pd
 
     if uri.startswith("s3://"):
-        import boto3
         from io import BytesIO
+
+        import boto3
 
         bucket, _, key = uri[len("s3://") :].partition("/")
         body = boto3.Session(profile_name="cbg").client("s3").get_object(Bucket=bucket, Key=key)["Body"].read()

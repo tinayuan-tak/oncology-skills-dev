@@ -17,4 +17,4 @@ it never flips presence_verdict.
 
 from __future__ import annotations
 
-from .read import control_position_tumor, control_position_cellline  # noqa: F401
+from .read import control_position_cellline, control_position_tumor  # noqa: F401

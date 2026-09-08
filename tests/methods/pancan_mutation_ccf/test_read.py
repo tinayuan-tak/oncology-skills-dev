@@ -3,7 +3,6 @@ no S3. Guards the read-side contract + the graceful data_unavailable floor."""
 
 from __future__ import annotations
 
-
 import pytest
 
 pd = pytest.importorskip("pandas")

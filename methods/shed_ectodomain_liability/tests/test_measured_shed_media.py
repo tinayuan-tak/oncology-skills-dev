@@ -19,7 +19,6 @@ sys.path.insert(0, str(METHODS_REPO))
 from methods.shed_ectodomain_liability import cli as sc  # noqa: E402
 from methods.shed_ectodomain_liability import media as scm  # noqa: E402
 
-
 # --- synthetic fixtures ----------------------------------------------------
 
 

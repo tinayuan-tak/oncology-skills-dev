@@ -14,4 +14,4 @@ Entry point: methods.tcga_cis_coherence_patient.cli.compute_patient_cis_coherenc
 Card entrypoint (dispatcher convention): read_patient_cis_coherence(target, indication, release_pin).
 """
 
-from .cli import read_patient_cis_coherence, compute_patient_cis_coherence, METHOD_VERSION  # noqa: F401
+from .cli import METHOD_VERSION, compute_patient_cis_coherence, read_patient_cis_coherence  # noqa: F401

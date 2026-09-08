@@ -7,4 +7,4 @@ noise-separation; LINEAGE-SCOPED. See docs/design/PATHWAY_NODE_LEVERAGE_SPEC.md 
 tier: comparative.
 """
 
-from .read import read_node_leverage, METHOD_VERSION  # noqa: F401
+from .read import METHOD_VERSION, read_node_leverage  # noqa: F401

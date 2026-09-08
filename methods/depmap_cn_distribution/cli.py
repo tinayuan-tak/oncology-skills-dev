@@ -42,7 +42,6 @@ import click
 
 from methods.catalog_query.read import bucket_prefix_for, s3_uri_for
 
-
 METHOD_DIR = Path(__file__).resolve().parent
 METHOD_VERSION = "0.1.0"
 
@@ -108,7 +107,7 @@ def load_cn_files(release_pin: str, target_symbol: str) -> tuple[dict, dict, str
 
         # Model.csv + ModelCondition.csv via shared cached loaders. Model.csv (26Q1)
         # does NOT carry ModelConditionID — the bridge lives in ModelCondition.csv.
-        from methods.depmap_common import load_model_csv, load_model_condition_csv
+        from methods.depmap_common import load_model_condition_csv, load_model_csv
 
         model_df = load_model_csv(release_pin)
         model_condition_df = load_model_condition_csv(release_pin)

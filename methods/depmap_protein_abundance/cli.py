@@ -194,8 +194,8 @@ def _load_gygi_abundance_pushdown(accession: str, product_path=None) -> tuple:
 def _load_gygi_abundance_pushdown_live(accession: str) -> tuple:
     """LIVE S3 pushdown, cached per accession (a single small row-group slice). A transient failure
     RAISES and is NOT cached, so a later call retries — lru_cache never memoizes exceptions."""
-    import pyarrow.parquet as pq
     import pyarrow.fs as pafs
+    import pyarrow.parquet as pq
 
     ensure_aws_profile()
     bucket, key = _derived_bucket_key()
@@ -217,8 +217,8 @@ def _load_allgene_null_sidecar(null_path=None) -> tuple:
 
 @lru_cache(maxsize=1)
 def _load_allgene_null_sidecar_live() -> tuple:
-    import pyarrow.parquet as pq
     import pyarrow.fs as pafs
+    import pyarrow.parquet as pq
 
     ensure_aws_profile()
     bucket, key = _derived_bucket_key()
@@ -549,6 +549,7 @@ DEFAULT_TARGET_CONTRACTS = Path(
 def _load_takeda_style(target_contracts_dir: Path):
     """Load the Takeda mplstyle + palette module (mirror depmap_expression_distribution)."""
     import sys as _sys
+
     import matplotlib.pyplot as plt
 
     style_path = target_contracts_dir / "plot_styles" / "takeda_oncology.mplstyle"
@@ -611,7 +612,7 @@ def target_allgene_percentile(median_abund, matrix_path=None, source: str = "gyg
     import sys as _sys
 
     _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # methods/ on path
-    from methods.percentile_null import percentile_rank, classify_percentile
+    from methods.percentile_null import classify_percentile, percentile_rank
 
     null_vec = _all_protein_median_null_olink() if source == "olink_npx" else _all_protein_median_null(matrix_path)
     pct = percentile_rank(median_abund, null_vec)
@@ -1055,7 +1056,8 @@ def load_and_classify(target: str, matrix_path=None, sidecar_path=None, model_pa
 
 
 def _main(argv=None):
-    import argparse, json
+    import argparse
+    import json
 
     ap = argparse.ArgumentParser(description="Cell-line protein-abundance distribution for a target.")
     ap.add_argument("--target", required=True)

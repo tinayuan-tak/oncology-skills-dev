@@ -23,7 +23,6 @@ the Tahoe product via pushdown. Returns a compact adaptation summary for the tar
 
 from __future__ import annotations
 
-
 TAHOE_PRODUCT_MANIFEST_ID = "tahoe-drug-perturbation-per-gene-v1"
 
 # inhibited_target -> the anchor drug string(s) as they appear in Tahoe (substring match).
@@ -56,9 +55,9 @@ METHOD_VERSION = "0.1.0"
 def _fetch_program_rows(drug_substrings: list[str]):
     """Pushdown-read the resistance-program genes, filter to rows whose drug matches any substring.
     Returns a pandas DataFrame or None on read failure."""
-    import pyarrow.parquet as pq
-    import pyarrow.fs as pafs
     import pandas as pd
+    import pyarrow.fs as pafs
+    import pyarrow.parquet as pq
 
     try:
         import sys as _sys

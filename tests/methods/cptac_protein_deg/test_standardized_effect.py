@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import math
 
-from methods.cptac_protein_deg.read import _standardized_effect, _cohens_d_class
+from methods.cptac_protein_deg.read import _cohens_d_class, _standardized_effect
 
 
 def test_exact_moderated_se_path():

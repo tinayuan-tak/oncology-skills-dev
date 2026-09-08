@@ -16,8 +16,8 @@ REPO = Path(__file__).resolve().parents[3]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
-from methods.depmap_expression_distribution import read as R  # noqa: E402
 from methods.depmap_expression_distribution import cli as C  # noqa: E402
+from methods.depmap_expression_distribution import read as R  # noqa: E402
 
 
 def _fake_load(release_pin, target_symbol):

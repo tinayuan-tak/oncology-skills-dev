@@ -65,6 +65,7 @@ def test_selectivity_4panel_tolerates_none_log2cpm(tmp_path):
     hit this. Panel A must filter None like the plotly twin does."""
     import importlib
     from pathlib import Path
+
     import pytest
 
     pytest.importorskip("matplotlib", reason="matplotlib not installed in this env")
@@ -105,6 +106,7 @@ def test_selectivity_4panel_renders_gtex_from_tpm_only(tmp_path):
     selection fix the panel prefers log2_tpm, so the GTEx group renders and the axis is TPM."""
     import importlib
     from pathlib import Path
+
     import pytest
 
     pytest.importorskip("matplotlib", reason="matplotlib not installed in this env")

@@ -14,4 +14,4 @@ Emits oncogenic_pathway_class + frequently_altered_pathways + target_pathway_mem
 target_pathway_alteration. VERDICT-INERT — routes into Mechanism (D) + Altered (E) as advisory context.
 """
 
-from .read import read_oncogenic_pathway_alteration, METHOD_VERSION  # noqa: F401
+from .read import METHOD_VERSION, read_oncogenic_pathway_alteration  # noqa: F401

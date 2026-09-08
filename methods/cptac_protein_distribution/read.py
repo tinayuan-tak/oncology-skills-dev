@@ -7,7 +7,7 @@ from typing import Optional
 import numpy as np
 
 from methods.subgroup_common.iteration import subgroup_iterable
-from methods.subgroup_common.panorama import build_panorama, evidence_state, axis_quality, SUBGROUP_N_FLOOR
+from methods.subgroup_common.panorama import SUBGROUP_N_FLOOR, axis_quality, build_panorama, evidence_state
 
 # indication -> the landed CPTAC subgroup-assignment shard. COADREAD only today (MSI_H/MSS from
 # MMR-IHC). Absent -> subtype_axis_available:false (honest), mirroring the RNA-subtype allowlist.

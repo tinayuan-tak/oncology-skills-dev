@@ -1,6 +1,7 @@
 """Hermetic tests for opentargets_competitor_landscape — pure aggregator + modality classifier (no S3)."""
 
 from __future__ import annotations
+
 import sys
 from pathlib import Path
 
@@ -9,8 +10,8 @@ if str(AM) not in sys.path:
     sys.path.insert(0, str(AM))
 
 from methods.opentargets_competitor_landscape.read import (  # noqa: E402
-    classify_modality,
     aggregate_landscape,
+    classify_modality,
 )
 
 CD3D = "ENSG00000167286"

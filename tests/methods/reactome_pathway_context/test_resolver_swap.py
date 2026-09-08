@@ -23,7 +23,6 @@ if str(REPO) not in sys.path:
 
 from methods.reactome_pathway_context import read as _r  # noqa: E402
 
-
 # --- S3-free fixture: synthetic sidecar + UniProt2Reactome + hierarchy --------------------------
 _U2R = (
     "".join(
@@ -111,6 +110,7 @@ def test_non_inline_targets_now_resolve(target):
 # --- per-AC product read path (perf: pushdown vs whole UniProt2Reactome+hierarchy cold-start) --------
 def test_product_path_reconstructs_ordered_pathways_and_toplevels(tmp_path):
     import pandas as pd
+
     import methods.reactome_pathway_context.read as RE
 
     p = tmp_path / "re.parquet"

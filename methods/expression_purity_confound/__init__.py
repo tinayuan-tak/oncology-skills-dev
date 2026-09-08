@@ -27,7 +27,7 @@ Modules:
 
 from __future__ import annotations
 
-from .read import read_expression_purity_confound, classify_purity_confound
+from .read import classify_purity_confound, read_expression_purity_confound
 
 METHOD_VERSION = "0.1.0"
 

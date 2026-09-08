@@ -27,7 +27,6 @@ from typing import Optional
 
 from methods.catalog_query.read import bucket_prefix_for, sidecar_bucket_key_for
 
-
 DEFAULT_AWS_PROFILE = "cbg"
 REACTOME_SOURCE_MANIFEST_ID = "reactome-v96"
 
@@ -41,7 +40,8 @@ PATHWAYS_RELATION_S3_KEY = f"{_REACTOME_PREFIX}ReactomePathwaysRelation.txt"
 CACHE_DIR = Path.home() / ".cache" / "framework-reactome"
 
 
-from methods.target_id_sidecar import s3_client as _boto3_client, looks_like_uniprot_ac, ensure_aws_profile
+from methods.target_id_sidecar import ensure_aws_profile, looks_like_uniprot_ac
+from methods.target_id_sidecar import s3_client as _boto3_client
 
 
 def _ensure_cached(s3_key: str, cache_filename: str) -> Path:

@@ -37,8 +37,8 @@ _MIN_COVERED = 20
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # methods/ on path for siblings
 
 
-from methods.target_id_sidecar import ensure_aws_profile
 from methods.indication_aliases import to_cohort_canonical
+from methods.target_id_sidecar import ensure_aws_profile
 
 
 @lru_cache(maxsize=8)
@@ -67,8 +67,8 @@ def _load_genie_maf(indication: str):
         if not (is_definitively_absent(e) or isinstance(e, FileNotFoundError)):
             raise
         return None
-    import pyarrow.parquet as pq
     import pyarrow.fs as fs
+    import pyarrow.parquet as pq
 
     try:
         tbl = pq.read_table(
@@ -114,7 +114,7 @@ def _indication_cohort(indication: str) -> tuple:
 
 
 def _percentile(value, null_vec, cutoffs=None):
-    from methods.percentile_null import percentile_rank, classify_percentile
+    from methods.percentile_null import classify_percentile, percentile_rank
 
     pct = percentile_rank(value, null_vec)
     return pct, classify_percentile(pct, cutoffs or DEFAULT_CUTOFFS)
@@ -127,7 +127,7 @@ def _covered_gene_frequencies(indication: str) -> tuple:
     n_covered = samples in this indication whose panel covers the gene (genie_panel_coverage).
     Genes with n_covered < _MIN_COVERED are excluded from the null (too thin to rank).
     Returns a tuple of (gene, freq, n_covered, n_mutated) — hashable/cache-safe."""
-    from methods.genie_panel_coverage.read import load_sample_panel_map, load_panel_gene_sets
+    from methods.genie_panel_coverage.read import load_panel_gene_sets, load_sample_panel_map
 
     indication = to_cohort_canonical(indication)  # LUAD/LUSC -> NSCLC (GENIE CANCER_TYPE grain)
     df = _load_genie_maf(indication)
@@ -164,7 +164,7 @@ def genie_recurrence_for_gene(target: str, indication: str, cutoffs: dict = None
     coverage_gap=True (n_covered==0 → gene on no panel) → percentile None, class data_unavailable
     (NOT frequency 0). n_covered below the min → percentile None (too thin to rank), freq still emitted.
     """
-    from methods.genie_panel_coverage.read import load_sample_panel_map, load_panel_gene_sets
+    from methods.genie_panel_coverage.read import load_panel_gene_sets, load_sample_panel_map
 
     indication = to_cohort_canonical(indication)  # LUAD/LUSC -> NSCLC (GENIE CANCER_TYPE grain)
     df = _load_genie_maf(indication)

@@ -18,4 +18,4 @@ Emits pathway_activity_class + relatively_high/low_pathways + target_pathway_mem
 no resolver rung — sibling of phospho-pathway-activity / signaling-network-mechanism in the Mechanism space.
 """
 
-from .read import read_progeny_pathway_activity, METHOD_VERSION  # noqa: F401
+from .read import METHOD_VERSION, read_progeny_pathway_activity  # noqa: F401

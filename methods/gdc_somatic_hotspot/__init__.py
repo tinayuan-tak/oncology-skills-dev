@@ -13,9 +13,9 @@ this is compute-only — no orchestration logic.
 __version__ = "0.1.0"
 
 from .read import (
+    build_mutation_frequency_panorama,
     read_hotspot_summary,
     read_stratified_mutation_frequency,
-    build_mutation_frequency_panorama,
 )
 
 __all__ = [

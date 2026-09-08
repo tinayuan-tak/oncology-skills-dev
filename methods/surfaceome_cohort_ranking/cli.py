@@ -106,6 +106,7 @@ def _sensitivity_key(indication: str) -> str:
 @click.option("--profile", default=DEFAULT_AWS_PROFILE)
 def main(indication: str, out: Path, min_cells_supporting: int, profile: str):
     import pandas as pd  # noqa: F401
+
     from methods.surfaceome_cohort_ranking.derive import rank_all
 
     os.environ.setdefault("AWS_PROFILE", profile)

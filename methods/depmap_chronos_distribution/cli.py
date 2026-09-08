@@ -43,7 +43,6 @@ import click
 
 from methods.catalog_query.read import bucket_prefix_for, s3_uri_for
 
-
 METHOD_DIR = Path(__file__).resolve().parent
 METHOD_VERSION = "0.2.0"  # 2026-08-08: bimodal_selective now gated on Sarle's bimodality coefficient
 # (BC > 0.555) over the in-memory score vector, replacing the median>-0.5 proxy.
@@ -90,7 +89,7 @@ def _load_curated_common_essentials(release_pin: str = "26q1"):
     present).
     """
     try:
-        from methods.depmap_common.loaders import _fetch_csv, DEPMAP_S3_PREFIX_CRISPR
+        from methods.depmap_common.loaders import DEPMAP_S3_PREFIX_CRISPR, _fetch_csv
 
         df = _fetch_csv(
             f"{DEPMAP_S3_PREFIX_CRISPR}/AchillesCommonEssentialControls.csv",
@@ -251,7 +250,7 @@ def _bimodality_coefficient(scores) -> Optional[float]:
     (the finite-sample correction term divides by (n-2)(n-3)) — the caller then falls back to the
     median-shift routing. Uses scipy for skew/kurtosis (already a method dependency)."""
     import numpy as np
-    from scipy.stats import skew, kurtosis
+    from scipy.stats import kurtosis, skew
 
     x = np.asarray(scores, dtype=float)
     x = x[~np.isnan(x)]
@@ -566,12 +565,12 @@ def emit_waterfall_plot(
         plt.style.use(str(style_path))
     sys.path.insert(0, str(contracts_root / "plot_styles"))
     from takeda_palette import (  # type: ignore
-        get_lineage_color,
-        REFLINE_NEUTRAL,
-        REFLINE_KILLER,
-        REFLINE_NOMINAL,
-        FIGSIZE_DOUBLE_COLUMN,
         CHRONOS_STRONG_DEPENDENCY,
+        FIGSIZE_DOUBLE_COLUMN,
+        REFLINE_KILLER,
+        REFLINE_NEUTRAL,
+        REFLINE_NOMINAL,
+        get_lineage_color,
     )
 
     # Build sorted list
@@ -681,11 +680,11 @@ def emit_histogram_kde_plot(
         plt.style.use(str(style_path))
     sys.path.insert(0, str(contracts_root / "plot_styles"))
     from takeda_palette import (  # type: ignore
-        REFLINE_NEUTRAL,
-        REFLINE_KILLER,
-        REFLINE_NOMINAL,
-        FIGSIZE_SINGLE_COLUMN_TALL,
         CHRONOS_STRONG_DEPENDENCY,
+        FIGSIZE_SINGLE_COLUMN_TALL,
+        REFLINE_KILLER,
+        REFLINE_NEUTRAL,
+        REFLINE_NOMINAL,
     )
 
     try:
@@ -769,7 +768,7 @@ def emit_plotly_specs(
         import plotly.graph_objects as go
 
         sys.path.insert(0, str(contracts_root / "plot_styles"))
-        from takeda_palette import get_lineage_color, CHRONOS_STRONG_DEPENDENCY  # type: ignore
+        from takeda_palette import CHRONOS_STRONG_DEPENDENCY, get_lineage_color  # type: ignore
     except Exception as e:  # noqa: BLE001 — Plotly optional; never block the SVG artifacts
         print(f"[chronos-distribution] plotly spec emission skipped: {e}", file=sys.stderr)
         return []

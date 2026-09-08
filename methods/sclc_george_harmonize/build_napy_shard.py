@@ -60,9 +60,9 @@ def _s3():
 def build():
     """Read the NAPY marker rows from the long product, argmax-assign per sample, melt to a
     tall (sample × stratum, is_member) shard. Returns (assignments_df, summary_dict)."""
-    import pyarrow.parquet as pq
-    import pyarrow.fs as fs
     import pandas as pd
+    import pyarrow.fs as fs
+    import pyarrow.parquet as pq
 
     # pushdown-read only the 4 marker genes (the product is ensembl-sorted; gene_symbol filter
     # still prunes via the row-group stats on the co-sorted symbol column).

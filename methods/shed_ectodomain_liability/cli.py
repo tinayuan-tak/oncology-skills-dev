@@ -80,7 +80,6 @@ HPA_SYSTEMIC_LOCATIONS = {  # secreted, but into a specific compartment (weaker 
 
 from methods.target_id_sidecar import ensure_aws_profile
 
-
 # ---------------------------------------------------------------------------
 # Reliable tier — curated serum-marker crosswalk
 # ---------------------------------------------------------------------------

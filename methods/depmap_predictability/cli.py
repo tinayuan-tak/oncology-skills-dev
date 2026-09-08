@@ -25,19 +25,18 @@ v2 schema exposes:
 """
 
 from __future__ import annotations
-import os
 
 import json
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
 
-from methods.catalog_query.read import s3_uri_for
-
 import click
 
+from methods.catalog_query.read import s3_uri_for
 
 METHOD_DIR = Path(__file__).resolve().parent
 METHOD_VERSION = "0.2.0"

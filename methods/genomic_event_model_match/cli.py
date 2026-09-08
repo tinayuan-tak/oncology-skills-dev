@@ -1,10 +1,10 @@
 """CLI + emitter for genomic_event_model_match (patient↔model genotype-match assembler)."""
 
 from __future__ import annotations
-import os
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 

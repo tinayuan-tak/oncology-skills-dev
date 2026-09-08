@@ -11,4 +11,4 @@ from __future__ import annotations
 
 METHOD_VERSION = "0.1.0"
 
-from .read import read_drug_warning, classify_drug_warning  # noqa: E402,F401
+from .read import classify_drug_warning, read_drug_warning  # noqa: E402,F401

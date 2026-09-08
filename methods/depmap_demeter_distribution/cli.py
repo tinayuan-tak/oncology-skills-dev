@@ -40,7 +40,6 @@ import click
 
 from methods.catalog_query.read import bucket_prefix_for, s3_uri_for
 
-
 METHOD_DIR = Path(__file__).resolve().parent
 METHOD_VERSION = "0.1.0"
 
@@ -396,7 +395,7 @@ def _bimodality_coefficient(scores) -> Optional[float]:
     sibling (depmap_chronos_distribution._bimodality_coefficient). Returns None for n<4 or zero
     variance → caller falls back to median-shift routing."""
     import numpy as np
-    from scipy.stats import skew, kurtosis
+    from scipy.stats import kurtosis, skew
 
     x = np.asarray(scores, dtype=float)
     x = x[~np.isnan(x)]

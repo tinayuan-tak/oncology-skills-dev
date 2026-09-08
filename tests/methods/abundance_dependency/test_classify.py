@@ -5,16 +5,15 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-
 REPO = Path(__file__).resolve().parents[3]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from methods.abundance_dependency.read import (  # noqa: E402
-    classify_abundance_dependency,
     MIN_PAIRED_MODELS,
     STRONG_R,
     WEAK_R,
+    classify_abundance_dependency,
 )
 
 

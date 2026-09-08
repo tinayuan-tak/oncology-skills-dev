@@ -16,7 +16,6 @@ from pathlib import Path
 import pandas as pd
 import yaml
 
-
 METHODS_REPO = Path("/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods")
 CONTRACTS_ROOT = Path("/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
 
@@ -122,8 +121,8 @@ def test_synthetic_braf_v600e_strong_stratification(tmp_path, monkeypatch):
     import sys
 
     sys.path.insert(0, str(METHODS_REPO))
-    import methods.depmap_mutation_dependency.cli as c3cli
     import methods.depmap_chronos_distribution.cli as c1cli
+    import methods.depmap_mutation_dependency.cli as c3cli
 
     # Point BOTH loaders at the synthetic dir
     monkeypatch.setattr(c1cli, "DEPMAP_LOCAL_FALLBACK_DIRS", [fake_depmap])
@@ -231,8 +230,8 @@ def test_synthetic_non_stratified_target(tmp_path, monkeypatch):
     import sys
 
     sys.path.insert(0, str(METHODS_REPO))
-    import methods.depmap_mutation_dependency.cli as c3cli
     import methods.depmap_chronos_distribution.cli as c1cli
+    import methods.depmap_mutation_dependency.cli as c3cli
 
     monkeypatch.setattr(c1cli, "DEPMAP_LOCAL_FALLBACK_DIRS", [fake_depmap])
     monkeypatch.setattr(c3cli, "DEPMAP_LOCAL_FALLBACK_DIRS", [fake_depmap])

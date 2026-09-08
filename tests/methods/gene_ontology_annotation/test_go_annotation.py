@@ -82,6 +82,7 @@ def test_live_egfr_well_annotated():
 # --- per-AC product read path (perf: pushdown vs whole GAF+OBO cold-start) ---------------------------
 def test_product_path_reconstructs_terms_and_names(tmp_path):
     import pandas as pd
+
     import methods.gene_ontology_annotation.read as GO
 
     p = tmp_path / "go.parquet"

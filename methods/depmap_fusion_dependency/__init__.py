@@ -26,4 +26,4 @@ resolution (OmicsFusionFilteredSupplementary.csv) is a v2 upgrade. Failure mode 
 bystander-partner fusion only dilutes toward the null (never a false positive) under the one-sided test.
 """
 
-from .read import read_fusion_stratified_dependency, METHOD_VERSION  # noqa: F401
+from .read import METHOD_VERSION, read_fusion_stratified_dependency  # noqa: F401

@@ -74,6 +74,7 @@ def _sample_to_indication() -> dict:
 
 def build() -> "pandas.DataFrame":
     import pandas as pd
+
     from methods.hgnc_entrez_crosswalk.read import load_entrez_to_symbol
 
     entrez_to_symbol = load_entrez_to_symbol()

@@ -16,7 +16,6 @@ sys.path.insert(0, str(REPO))
 
 from methods.genie_panel_coverage import read as cov  # noqa: E402
 
-
 # Two panels: BIG covers KRAS+TP53+EGFR; SMALL covers only TP53.
 _PANEL_GENES = {
     "BIG": frozenset({"KRAS", "TP53", "EGFR"}),

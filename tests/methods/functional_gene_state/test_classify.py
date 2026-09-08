@@ -12,10 +12,10 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from methods.functional_gene_state.classify import (  # noqa: E402
+    FUNCTIONAL_STATES,
     SampleEvidence,
     classify_functional_state,
     summarize_states,
-    FUNCTIONAL_STATES,
 )
 
 
@@ -160,6 +160,7 @@ def test_methylation_state_upgrade_logic():
 def test_patient_methylation_upgrade_logic():
     """Phase-2b: patient-arm methylation upgrade via _read_patient_arm — no S3, fixture patches."""
     import pandas as pd
+
     from methods.functional_gene_state import read as fgs_read
 
     # Fixture patients: P-A, P-B, P-C, P-D (one per upgrade scenario)
@@ -246,6 +247,7 @@ def test_patient_methylation_upgrade_logic():
 def test_patient_methylation_graceful_degradation():
     """When HM450 parquet is unavailable (_read_patient_methylation returns {}), states are unchanged."""
     import pandas as pd
+
     from methods.functional_gene_state import read as fgs_read
 
     def _mc3(_t):
@@ -305,6 +307,7 @@ def test_patient_methylation_graceful_degradation():
 # ── M1: CCLE RRBS column → ModelID join (punctuated display names must resolve) ─────────────────
 import gzip  # noqa: E402
 import io  # noqa: E402
+
 import methods.functional_gene_state.read as _fgs_read  # noqa: E402
 
 # A Model.csv whose display CellLineName is PUNCTUATED ("NCI-H2126", "DMS 53"); the RRBS columns are

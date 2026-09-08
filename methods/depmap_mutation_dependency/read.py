@@ -17,10 +17,9 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from . import cli as _cli
-
-
 from methods.target_id_sidecar import ensure_aws_profile
+
+from . import cli as _cli
 
 
 def read_mutation_stratified_dependency(

@@ -1,6 +1,7 @@
 """Wiring regression: NSCLC/LUAD point at the LuCA tumor pseudobulk (upgrade from the Census cube)."""
 
 from __future__ import annotations
+
 import sys
 from pathlib import Path
 

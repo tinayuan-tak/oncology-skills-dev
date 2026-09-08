@@ -15,7 +15,7 @@ from pathlib import Path
 _METHODS = Path(__file__).resolve().parents[3] / "methods"
 sys.path.insert(0, str(_METHODS))
 
-from catalog_query.read import _version_key, _family_of  # noqa: E402
+from catalog_query.read import _family_of, _version_key  # noqa: E402
 
 
 def test_v_suffix_double_digit_beats_single_digit():

@@ -77,9 +77,10 @@ def _read_rows(manifest_id: str, filters):
         import sys as _sys
 
         _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-        from methods.catalog_query.read import bucket_key_for
-        import pyarrow.parquet as pq
         import pyarrow.fs as fs
+        import pyarrow.parquet as pq
+
+        from methods.catalog_query.read import bucket_key_for
 
         bucket, key = bucket_key_for(manifest_id)
         return pq.read_table(f"{bucket}/{key}", filesystem=fs.S3FileSystem(), filters=filters).to_pylist()

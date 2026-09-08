@@ -190,7 +190,8 @@ def read_subtype_survival_association(
 
     # 3) build per-stratum arms over patients-with-OS; keep only strata clearing the per-arm floor
     import numpy as np
-    from methods.subgroup_common.panorama import partition_axes, disjoint_arms
+
+    from methods.subgroup_common.panorama import disjoint_arms, partition_axes
 
     arm_data = {}  # sid -> (times, events, members_set)
     per_stratum, dropped = [], []

@@ -48,7 +48,7 @@ def read_patient_methylation_by_case(target: str, indication: str) -> dict[str, 
     Degrades safely: unknown indication or a genuinely-absent annotation table -> unfiltered pan dict
     (the caller's expression intersection still bounds it). Transient/creds errors propagate (via
     _load_sample_cancer_types' own discipline) rather than silently zeroing the methylation leg."""
-    from methods.functional_gene_state.read import _read_patient_methylation, _load_sample_cancer_types
+    from methods.functional_gene_state.read import _load_sample_cancer_types, _read_patient_methylation
     from methods.tcga_patient_cn_per_sample.read import INDICATION_TO_TCGA
 
     meth = _read_patient_methylation(target, indication)

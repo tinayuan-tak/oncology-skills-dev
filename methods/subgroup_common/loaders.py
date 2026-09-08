@@ -35,14 +35,13 @@ in Phase 2b/c manifest wire-in.
 """
 
 from __future__ import annotations
-import os
 
+import os
 import sys
 from functools import lru_cache
 from pathlib import Path
 
 import pandas as pd
-
 
 # ---------- Cache infrastructure -------------------------------------------
 

@@ -348,7 +348,7 @@ def kruskal_epsilon_squared_by_axis(
         driving axis, so consumers reading the flat fields keep working but now see a
         VALID single-axis number rather than a cross-axis pooled artefact.
     """
-    from methods.subgroup_common.panorama import partition_axes, disjoint_arms
+    from methods.subgroup_common.panorama import disjoint_arms, partition_axes
 
     vectors = subtype_vectors or {}
     member_sets = member_sets or {}

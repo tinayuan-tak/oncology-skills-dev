@@ -27,9 +27,9 @@ skill's figure-emitter registry. Follows the Card 1+2 pattern.
 """
 
 from __future__ import annotations
-import os
 
 import json
+import os
 import sys
 from datetime import datetime, timezone
 from io import BytesIO
@@ -43,7 +43,6 @@ from methods.catalog_query.read import bucket_prefix_for, s3_uri_for
 # depmap_chronos.cli). Imported here as INDICATION_LINEAGE — do NOT re-fork it
 # (guarded by tests/methods/depmap_chronos/test_lineage_map_single_source.py).
 from methods.depmap_chronos.read import INDICATION_TO_DEPMAP_LINEAGE as INDICATION_LINEAGE
-
 
 METHOD_DIR = Path(__file__).resolve().parent
 METHOD_VERSION = "0.1.0"
@@ -390,14 +389,14 @@ def _setup_plot_style(contracts_root: Path):
         plt.style.use(str(style_path))
     sys.path.insert(0, str(contracts_root / "plot_styles"))
     from takeda_palette import (  # type: ignore
-        get_lineage_color,
-        REFLINE_NEUTRAL,
-        REFLINE_KILLER,
-        REFLINE_NOMINAL,
+        CHRONOS_STRONG_DEPENDENCY,
         FIGSIZE_DOUBLE_COLUMN,
         FIGSIZE_DOUBLE_COLUMN_TALL,
-        CHRONOS_STRONG_DEPENDENCY,
         LINEAGE_DEFAULT_COLOR,
+        REFLINE_KILLER,
+        REFLINE_NEUTRAL,
+        REFLINE_NOMINAL,
+        get_lineage_color,
     )
 
     return {
@@ -417,10 +416,11 @@ def emit_scatter_regression_plot(
 ) -> None:
     """Primary figure: lineage-colored scatter of expression vs Chronos with OLS line + r/p block.
     Target-indication lineage is emphasized (larger marker + thicker edge)."""
+    from collections import Counter
+
     import matplotlib.pyplot as plt
     import numpy as np
     import pandas as pd
-    from collections import Counter
     from matplotlib.patches import Patch
 
     style = _setup_plot_style(contracts_root)
@@ -572,10 +572,11 @@ def emit_lineage_stratified_scatter(
 ) -> None:
     """Alternate figure: 2×3 small-multiples scatter, one panel per top-6 lineage.
     Reveals whether pan-cancer correlation is uniform or driven by 1-2 lineages."""
+    from collections import Counter
+
     import matplotlib.pyplot as plt
     import numpy as np
     import pandas as pd
-    from collections import Counter
     from scipy import stats
 
     style = _setup_plot_style(contracts_root)

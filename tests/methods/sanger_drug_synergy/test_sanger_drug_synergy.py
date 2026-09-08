@@ -9,7 +9,7 @@ REPO = Path(__file__).resolve().parents[3]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
-from methods.sanger_drug_synergy.read import synergy_partners_for_gene, _classify  # noqa: E402
+from methods.sanger_drug_synergy.read import _classify, synergy_partners_for_gene  # noqa: E402
 
 
 def _row(cls, drug, delta, n_syn=5, n=10, role="anchor", pt="AKT1"):

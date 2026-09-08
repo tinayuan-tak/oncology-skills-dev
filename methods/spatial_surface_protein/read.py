@@ -13,8 +13,9 @@ from __future__ import annotations
 
 from typing import Optional
 
-from . import stats as _stats
 from methods.catalog_query.read import bucket_key_for
+
+from . import stats as _stats
 
 DEFAULT_AWS_PROFILE = "cbg"
 S3_BUCKET = "onc-compbio"

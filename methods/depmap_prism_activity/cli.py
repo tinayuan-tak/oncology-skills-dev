@@ -29,9 +29,9 @@ v3 (2026-07-01, PRISM metric-switch to Log2AUC):
 """
 
 from __future__ import annotations
-import os
 
 import json
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -39,7 +39,6 @@ from typing import Optional
 from urllib.parse import urlparse
 
 import click
-
 
 METHOD_DIR = Path(__file__).resolve().parent
 METHOD_VERSION = "0.3.0"

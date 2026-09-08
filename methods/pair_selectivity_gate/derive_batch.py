@@ -15,8 +15,7 @@ by the interactive scan skill.
 
 from __future__ import annotations
 
-
-from .gates import _positive_fraction_by_group, reduce_gate, _GATES, classify_and_selectivity
+from .gates import _GATES, _positive_fraction_by_group, classify_and_selectivity, reduce_gate
 
 
 def _tumor_studies_for(indication: str, indication_to_studies: dict) -> list:

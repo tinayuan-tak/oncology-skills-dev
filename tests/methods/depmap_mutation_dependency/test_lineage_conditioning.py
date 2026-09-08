@@ -24,6 +24,8 @@ if str(REPO) not in sys.path:
 
 from methods.depmap_mutation_dependency.cli import (  # noqa: E402
     compute_mutation_stratification as C,
+)
+from methods.depmap_mutation_dependency.cli import (
     compute_mutation_stratification_conditioned as CC,
 )
 

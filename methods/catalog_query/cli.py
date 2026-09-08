@@ -27,7 +27,6 @@ from pathlib import Path
 
 from .read import DATA_CATALOG, TARGET_CONTRACTS, load_catalog
 
-
 # ---------------------------------------------------------------------------
 # text renderers (mirror the scoring/emit language of the source of truth)
 # ---------------------------------------------------------------------------

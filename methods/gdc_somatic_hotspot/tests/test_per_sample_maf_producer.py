@@ -24,7 +24,6 @@ sys.path.insert(0, str(REPO))
 
 from methods.gdc_somatic_hotspot import cli  # noqa: E402
 
-
 _MAF_HEADER = "Hugo_Symbol\tVariant_Classification\tHGVSp_Short\tTumor_Sample_Barcode"
 
 

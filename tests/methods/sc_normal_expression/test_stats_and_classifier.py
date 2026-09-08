@@ -9,16 +9,15 @@ Mirrors tests/methods/sc_tumor_expression_celltype/test_stats_and_assembler.py s
 
 from __future__ import annotations
 
-import pytest
 import pandas as pd
+import pytest
 
 pytest.importorskip("numpy")
 pytest.importorskip("pandas")
 
-from methods.sc_normal_expression import stats as S
-from methods.sc_normal_expression import read as R
 from methods.sc_normal_expression import cli as C
-
+from methods.sc_normal_expression import read as R
+from methods.sc_normal_expression import stats as S
 
 # --- fixtures ----------------------------------------------------------------
 

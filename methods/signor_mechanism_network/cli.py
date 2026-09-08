@@ -37,7 +37,7 @@ from pathlib import Path
 
 import click
 
-from .moa_ontology import classify_edge, ONTOLOGY_VERSION
+from .moa_ontology import ONTOLOGY_VERSION, classify_edge
 
 # Reuse the reader's SIGNOR-TSV parser (human TAX_ID filter + header mapping) — one source of truth
 # for which rows exist, so the emitted product and the reader's inline fallback see identical rows.

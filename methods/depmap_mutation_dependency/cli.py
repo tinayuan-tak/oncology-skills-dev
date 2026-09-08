@@ -18,9 +18,9 @@ figure-emitter registry. No underscore prefix.
 """
 
 from __future__ import annotations
-import os
 
 import json
+import os
 import sys
 from datetime import datetime, timezone
 from io import BytesIO
@@ -30,7 +30,6 @@ from typing import Optional
 import click
 
 from methods.catalog_query.read import bucket_prefix_for, s3_uri_for
-
 
 METHOD_DIR = Path(__file__).resolve().parent
 METHOD_VERSION = "0.1.0"
@@ -81,8 +80,8 @@ def _read_mutation_matrix_for_target(release_pin: str, matrix_filename: str, tar
     if mut_path is None:
         try:
             from methods.depmap_common.parquet import (
-                get_hotspot_mutation_column,
                 get_damaging_mutation_column,
+                get_hotspot_mutation_column,
             )
 
             if "Hotspot" in matrix_filename:
@@ -682,10 +681,10 @@ def emit_mut_vs_wt_strip_plot(
         plt.style.use(str(style_path))
     sys.path.insert(0, str(contracts_root / "plot_styles"))
     from takeda_palette import (  # type: ignore
-        REFLINE_NOMINAL,
-        REFLINE_KILLER,
-        FIGSIZE_DOUBLE_COLUMN,
         CHRONOS_STRONG_DEPENDENCY,
+        FIGSIZE_DOUBLE_COLUMN,
+        REFLINE_KILLER,
+        REFLINE_NOMINAL,
     )
 
     fig, ax = plt.subplots(figsize=FIGSIZE_DOUBLE_COLUMN)
@@ -790,7 +789,12 @@ def emit_per_hotspot_chronos_plot(
     if style_path.exists():
         plt.style.use(str(style_path))
     sys.path.insert(0, str(contracts_root / "plot_styles"))
-    from takeda_palette import FIGSIZE_DOUBLE_COLUMN, REFLINE_KILLER, REFLINE_NOMINAL, CHRONOS_STRONG_DEPENDENCY  # type: ignore
+    from takeda_palette import (  # type: ignore
+        CHRONOS_STRONG_DEPENDENCY,
+        FIGSIZE_DOUBLE_COLUMN,
+        REFLINE_KILLER,
+        REFLINE_NOMINAL,
+    )
 
     fig, ax = plt.subplots(figsize=FIGSIZE_DOUBLE_COLUMN)
 

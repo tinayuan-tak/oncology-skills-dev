@@ -27,4 +27,4 @@ conditional SL effect sizes are structurally smaller than oncogene addiction, so
 would rescue nothing real (empirically established 2026-08-09).
 """
 
-from .read import read_partner_conditional_dependency, METHOD_VERSION  # noqa: F401
+from .read import METHOD_VERSION, read_partner_conditional_dependency  # noqa: F401

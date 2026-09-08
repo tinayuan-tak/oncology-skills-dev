@@ -12,10 +12,10 @@ skills (compose-dashboard) and any other client that needs Chronos selectivity.
 __version__ = "0.1.0"
 
 from .read import (
-    read_lineage_selectivity,
     INDICATION_TO_DEPMAP_LINEAGE,
-    read_stratified_dependency,
     build_dependency_panorama,
+    read_lineage_selectivity,
+    read_stratified_dependency,
 )
 
 __all__ = [

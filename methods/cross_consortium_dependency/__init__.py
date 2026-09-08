@@ -8,4 +8,4 @@ than the existing CRISPR×RNAi (both Broad). Both matrices already in the DepMap
 Raises C-confidence, never a killer.
 """
 
-from .read import read_cross_consortium_dependency, METHOD_VERSION  # noqa: F401
+from .read import METHOD_VERSION, read_cross_consortium_dependency  # noqa: F401

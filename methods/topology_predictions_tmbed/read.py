@@ -23,8 +23,9 @@ from __future__ import annotations
 
 from typing import Optional
 
-from . import classify as _classify
 from methods.catalog_query.read import bucket_key_for, sidecar_bucket_key_for
+
+from . import classify as _classify
 
 DERIVED_MANIFEST_ID = "topology-predictions-tmbed-v1"
 # payload + resolver-sidecar keys resolved from the data-catalog manifest (single

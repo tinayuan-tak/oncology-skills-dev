@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from .read import build_arm_calls, build_arm_indication_freq, _patient_of
+from .read import _patient_of, build_arm_calls, build_arm_indication_freq
 
 S3_BUCKET = "onc-compbio"
 _SRC = "data-catalog/sources/gdc-pancanatlas/2018-snapshot-2026-06-27"

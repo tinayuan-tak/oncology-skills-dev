@@ -14,7 +14,6 @@ Enforces:
 
 from methods import normal_tissue_safety_common as eo
 
-
 # --- 1. single-source: each card imports the shared set (identity / equality) ---
 
 

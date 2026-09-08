@@ -18,6 +18,7 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 import pyarrow.parquet as pq  # noqa: E402
+
 from methods.paralog_genetic_interaction import read as para  # noqa: E402
 
 

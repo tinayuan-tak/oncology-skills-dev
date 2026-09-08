@@ -69,7 +69,6 @@ import sys
 import time
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 METHOD_DIR = Path(__file__).resolve().parent
 STEPS_DIR = METHOD_DIR / "steps"

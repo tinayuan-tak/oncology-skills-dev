@@ -14,8 +14,8 @@ if str(REPO) not in sys.path:
 
 pd = pytest.importorskip("pandas")
 
-from methods.sc_surface_normal_safety import read as R  # noqa: E402
 from methods.sc_surface_normal_safety import cli as C  # noqa: E402
+from methods.sc_surface_normal_safety import read as R  # noqa: E402
 
 
 def _rows(pairs):

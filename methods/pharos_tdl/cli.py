@@ -44,8 +44,9 @@ def _load_table():
     produced empty stdout → an opaque parquet-parse error). RAISES on read failure: the table either
     loads or the card honestly errors via the live-read seam (never a silent empty)."""
     import pandas as pd
-    from methods.target_id_sidecar import s3_client
+
     from methods.catalog_query.read import bucket_prefix_for
+    from methods.target_id_sidecar import s3_client
 
     bucket, prefix = bucket_prefix_for(_TDL_SOURCE_MANIFEST_ID)  # manifest s3_uri (dir) → (bucket, key_prefix)
     key = f"{prefix}{_TDL_PARQUET_FILENAME}"

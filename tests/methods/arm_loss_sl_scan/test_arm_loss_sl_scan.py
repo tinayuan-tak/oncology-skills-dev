@@ -11,7 +11,6 @@ from methods.arm_loss_sl_scan.scan import (
 )
 from methods.pancan_arm_cnv.read import gene_arm_map
 
-
 # --- fixtures --------------------------------------------------------------
 
 

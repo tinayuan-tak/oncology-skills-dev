@@ -108,9 +108,10 @@ def _read_target_rows(ensembl_gene_id: str) -> list:
         import sys as _sys
 
         _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-        from methods.catalog_query.read import bucket_key_for
-        import pyarrow.parquet as pq
         import pyarrow.fs as fs
+        import pyarrow.parquet as pq
+
+        from methods.catalog_query.read import bucket_key_for
 
         bucket, key = bucket_key_for(LITERATURE_MANIFEST)
         return pq.read_table(

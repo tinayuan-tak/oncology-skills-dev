@@ -187,8 +187,8 @@ def test_evidence_state_trichotomy(synthetic_env):
 
 def test_floor_flag_true_for_large_stratum(synthetic_env, tmp_path, monkeypatch):
     """subgroup_n_floor_met flips True once a stratum clears SUBGROUP_N_FLOOR."""
-    from methods.subgroup_common import loaders
     from methods.gdc_somatic_hotspot import read as gsh_read
+    from methods.subgroup_common import loaders
 
     # Build a 40-sample cohort, all in one stratum.
     maf_cache = tmp_path / "maf2"

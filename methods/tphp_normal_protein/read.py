@@ -163,6 +163,7 @@ def compute_abundance_floor(product_path=None, percentile: int = ABUNDANCE_FLOOR
     frozen constant. `product_path` (offline seam): a local parquet bypasses S3.
     """
     import statistics
+
     import pyarrow.parquet as pq
 
     cols = ["tissue_class", "median_log2_abundance"]

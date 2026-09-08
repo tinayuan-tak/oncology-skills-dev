@@ -36,15 +36,15 @@ from functools import lru_cache
 from typing import Optional
 
 from methods.catalog_query.read import bucket_key_for, load_manifest
-from methods.target_id_sidecar import ensure_aws_profile
 
 # Reuse the Gygi sibling's summary shape + classifier + symbol->UniProt path (single source of truth).
 from methods.depmap_protein_abundance.cli import (  # noqa: F401
+    _symbol_to_uniprot_map,
     classify_protein_abundance,
     compute_summary,
-    _symbol_to_uniprot_map,
 )
 from methods.percentile_null import classify_percentile, percentile_rank
+from methods.target_id_sidecar import ensure_aws_profile
 
 METHOD_VERSION = "0.1.0"
 DERIVED_PRODUCT_MANIFEST_ID = "procan-cellline-protein-abundance-per-protein-v1"

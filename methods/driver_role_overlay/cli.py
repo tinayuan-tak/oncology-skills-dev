@@ -1,9 +1,9 @@
 """CLI + emitter for the alteration_role overlay (genomic-alteration plan step 1)."""
 
 from __future__ import annotations
-import os
 
 import json
+import os
 from pathlib import Path
 
 from . import read as _read

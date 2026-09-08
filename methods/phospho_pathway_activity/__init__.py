@@ -29,7 +29,7 @@ Modules:
 
 from __future__ import annotations
 
-from .read import read_phospho_pathway_activity, classify_phospho_activity
+from .read import classify_phospho_activity, read_phospho_pathway_activity
 
 METHOD_VERSION = "0.1.0"
 

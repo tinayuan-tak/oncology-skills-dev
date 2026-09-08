@@ -183,6 +183,7 @@ def _load_sample_cancer_types() -> dict:
       * ONLY a genuine NoSuchKey/404 on the annotation object is a real absence -> {}.
     """
     import pandas as pd
+
     from methods.target_id_sidecar import is_definitively_absent
 
     try:
@@ -328,6 +329,7 @@ def _hrd_score_for_indication_live(indication: str) -> dict:
     join, and returns the cohort HRD-high prevalence (score >= 42, Myriad myChoice cutoff) + the
     score distribution. data_unavailable when the file/indication is unresolvable."""
     import numpy as np
+
     from . import hrd as _hrd
 
     codes = INDICATION_TO_TCGA.get(str(indication or "").upper().strip())
@@ -635,7 +637,8 @@ def _load_model_signatures_by_lineage():
     SBS columns are per-model exposure COUNTS → normalized to per-model FRACTIONS (signature /
     that model's total SBS burden) so a hypermutator doesn't dominate. Deduped per ModelID. Empty
     on failure. Returns a dict of lineage → list of (mmr_frac, hrd_frac) tuples."""
-    import pandas as pd, numpy as np
+    import numpy as np
+    import pandas as pd
 
     try:
         sig = pd.read_csv(io.BytesIO(_s3_read_bytes(DEPMAP_SIGNATURE_MATRIX_KEY)))

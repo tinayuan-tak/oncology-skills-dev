@@ -38,8 +38,8 @@ def _parse_s3_uri(uri: str) -> tuple[str, str]:
 def fetch_gene_rows(target: str):
     """Pushdown-read all Tahoe DE rows for one gene_name. Returns a pandas DataFrame (possibly
     empty) or None on read failure."""
-    import pyarrow.parquet as pq
     import pyarrow.fs as pafs
+    import pyarrow.parquet as pq
 
     try:
         import sys as _sys

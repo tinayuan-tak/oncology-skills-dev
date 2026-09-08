@@ -1,7 +1,9 @@
 """depmap_mutation_type_counts.read — library entry for live-mode reads."""
 
 from __future__ import annotations
+
 from typing import Optional
+
 from . import cli as _cli
 
 

@@ -1,6 +1,7 @@
 """stemness_index — hermetic tests (synthetic per-indication frame, no S3)."""
 
 from __future__ import annotations
+
 import sys
 from pathlib import Path
 

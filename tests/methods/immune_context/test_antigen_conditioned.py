@@ -19,8 +19,8 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from methods.immune_context.antigen_conditioned import (  # noqa: E402
-    antigen_conditioned_summary,
     COLD_IN_HIGH_DELTA,
+    antigen_conditioned_summary,
 )
 
 

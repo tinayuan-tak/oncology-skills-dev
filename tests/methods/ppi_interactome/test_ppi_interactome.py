@@ -117,6 +117,7 @@ def test_string_edges_from_product_pushdown(tmp_path):
     """The FAST path: _string_edges_from_product reads the gene-sorted product with a gene_symbol
     pushdown filter, returning symbol-resolved HC edges (no info-map, no stream). S3-free fixture."""
     import pandas as pd
+
     from methods.ppi_interactome import read as _ppi
 
     prod = tmp_path / "string_hc.parquet"

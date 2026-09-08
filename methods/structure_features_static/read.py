@@ -26,7 +26,6 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
-
 # + composite structural_ligandability_class leg (LIVE, from
 # structure-ligandability-per-protein-v1) merged onto the hotspot-adjacency fields.
 METHOD_VERSION = "0.2.0"

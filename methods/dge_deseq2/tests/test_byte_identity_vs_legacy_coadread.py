@@ -34,7 +34,6 @@ from pathlib import Path
 
 import pytest
 
-
 SKILLS_REPO = Path("/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills")
 # Portable: was hardcoded to the author's checkout (never ran off that machine).
 METHODS_REPO = Path(__file__).resolve().parents[3]

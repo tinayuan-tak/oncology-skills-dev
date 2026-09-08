@@ -45,6 +45,7 @@ def _load_footprints_df():
     """Load the per-sample DDR footprints sheet (cache→S3). Returns a DataFrame with columns
     patient_barcode / TCGA sample barcode / disease / subtype / <score columns>."""
     import pandas as pd
+
     from methods.depmap_common.loaders import SESSION_CACHE_DIR
 
     cache = Path(SESSION_CACHE_DIR) / "pancanatlas" / "TCGA_DDR_Data_Resources.xlsx"

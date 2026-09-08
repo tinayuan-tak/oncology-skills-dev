@@ -44,8 +44,9 @@ _DERIVED_S3_URI = (
 
 def _open_ccle_stream():
     """Return a text stream over the CCLE RRBS TSS-1kb gzip (cbg role; frozen-creds trap handled)."""
-    from methods.catalog_query.read import bucket_prefix_for
     import boto3
+
+    from methods.catalog_query.read import bucket_prefix_for
 
     bucket, prefix = bucket_prefix_for(CCLE_SOURCE_MANIFEST_ID)
     key = f"{prefix.rstrip('/')}/{CCLE_RRBS_TSS1KB_FILE}"

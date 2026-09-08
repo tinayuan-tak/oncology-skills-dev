@@ -17,12 +17,13 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
 
 import boto3
+import pandas as pd
 import pyarrow.fs as fs
 import pyarrow.parquet as pq
-import pandas as pd
+
+from methods.normal_tissue_safety_common import SC_NORMAL_ESSENTIAL_TISSUES
 
 from . import stats as _stats
-from methods.normal_tissue_safety_common import SC_NORMAL_ESSENTIAL_TISSUES
 
 DEFAULT_AWS_PROFILE = "cbg"
 S3_BUCKET = "onc-compbio"

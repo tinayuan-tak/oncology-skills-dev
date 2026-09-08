@@ -16,6 +16,7 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 import pyarrow.parquet as pq  # noqa: E402
+
 from methods.ppi_interactome import read as ppi  # noqa: E402
 
 

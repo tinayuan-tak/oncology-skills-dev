@@ -45,7 +45,8 @@ _NS_CODE = {"P": "biological_process", "F": "molecular_function", "C": "cellular
 _EXPERIMENTAL_EVIDENCE = {"EXP", "IDA", "IPI", "IMP", "IGI", "IEP", "HTP", "HDA", "HMP", "HGI", "HEP"}
 
 
-from methods.target_id_sidecar import s3_client as _boto3_client, looks_like_uniprot_ac, ensure_aws_profile
+from methods.target_id_sidecar import ensure_aws_profile, looks_like_uniprot_ac
+from methods.target_id_sidecar import s3_client as _boto3_client
 
 
 @lru_cache(maxsize=1)

@@ -17,9 +17,9 @@ import os
 from typing import Optional
 
 import boto3
+import pandas as pd
 import pyarrow.fs as fs
 import pyarrow.parquet as pq
-import pandas as pd
 
 from methods.catalog_query.read import bucket_key_for
 

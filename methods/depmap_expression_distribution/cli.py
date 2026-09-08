@@ -15,9 +15,9 @@ in 26Q1, NOT boolean — see [feedback_compose_dashboard_execution_modes]).
 """
 
 from __future__ import annotations
-import os
 
 import json
+import os
 import sys
 from datetime import datetime, timezone
 from io import BytesIO
@@ -32,7 +32,6 @@ from methods.catalog_query.read import bucket_prefix_for, s3_uri_for
 # depmap_chronos.cli). Imported here as INDICATION_LINEAGE — do NOT re-fork it
 # (guarded by tests/methods/depmap_chronos/test_lineage_map_single_source.py).
 from methods.depmap_chronos.read import INDICATION_TO_DEPMAP_LINEAGE as INDICATION_LINEAGE
-
 
 METHOD_DIR = Path(__file__).resolve().parent
 METHOD_VERSION = "0.1.0"

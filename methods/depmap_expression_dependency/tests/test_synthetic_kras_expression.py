@@ -20,7 +20,6 @@ from pathlib import Path
 import pandas as pd
 import yaml
 
-
 METHODS_REPO = Path("/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods")
 CONTRACTS_ROOT = Path("/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
 

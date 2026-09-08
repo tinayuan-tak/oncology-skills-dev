@@ -8,6 +8,7 @@ Two contracts:
 """
 
 from __future__ import annotations
+
 import sys
 from pathlib import Path
 
@@ -16,9 +17,9 @@ if str(AM) not in sys.path:
     sys.path.insert(0, str(AM))
 
 from methods.cited_literature_evidence.read import (  # noqa: E402
+    _flatten_for_card,
     build_cited_evidence_card,
     read_cited_literature_evidence,
-    _flatten_for_card,
 )
 
 

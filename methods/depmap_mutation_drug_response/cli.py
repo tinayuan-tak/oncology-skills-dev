@@ -40,8 +40,8 @@ if str(METHODS_REPO) not in sys.path:
     sys.path.insert(0, str(METHODS_REPO))
 
 from methods.depmap_mutation_drug_response.read import (
-    load_on_target_compounds,
     load_drug_response_by_model,
+    load_on_target_compounds,
 )
 
 # Drug-response effect-size thresholds on the Log2AUC scale. Log2AUC is compressed into

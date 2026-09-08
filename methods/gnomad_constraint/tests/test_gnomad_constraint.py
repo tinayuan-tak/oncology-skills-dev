@@ -18,7 +18,6 @@ sys.path.insert(0, str(METHODS_REPO))
 from methods.gnomad_constraint import cli as gc  # noqa: E402
 from methods.gnomad_constraint import read as gc_read  # noqa: E402
 
-
 # --- classifier (pure; the card thresholds) -------------------------------
 
 

@@ -21,9 +21,8 @@ REPO = Path(__file__).resolve().parents[3]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
-from methods.depmap_chronos.read import INDICATION_TO_DEPMAP_LINEAGE  # noqa: E402
 from methods.depmap_chronos import cli as chronos_cli  # noqa: E402
-
+from methods.depmap_chronos.read import INDICATION_TO_DEPMAP_LINEAGE  # noqa: E402
 
 # The 34 non-null OncotreeLineage categories in DepMap 26Q1 Model.csv (frozen from a
 # live load 2026-08-16; the file also carries a "nan"/missing bucket which is not a

@@ -138,8 +138,9 @@ def run_aggregation(
 
     Returns a dict with n_rows, size_bytes, output_uri, elapsed_seconds.
     """
-    import duckdb
     import hashlib
+
+    import duckdb
 
     # Product IDs use hyphenated slugs (e.g. "bone-marrow", "small-intestine"); accept either
     # underscore or hyphen on the CLI and normalize so the S3 keys always resolve.

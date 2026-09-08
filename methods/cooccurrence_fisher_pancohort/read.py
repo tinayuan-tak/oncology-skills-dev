@@ -50,7 +50,6 @@ from __future__ import annotations
 import threading
 from typing import Optional
 
-
 DERIVED_MANIFEST_ID = "pancohort-cooccurrence-fisher-v1"
 
 # Framework indication code → the cohort label(s) the product uses for the VERDICT scope.
@@ -149,8 +148,9 @@ def _read_target_rows(sym: str) -> Optional[list]:
     if sym in _ROWS_CACHE:
         return _ROWS_CACHE[sym]
     try:
-        from methods.catalog_query.read import bucket_key_for
         import pyarrow.parquet as pq
+
+        from methods.catalog_query.read import bucket_key_for
 
         bucket, key = bucket_key_for(DERIVED_MANIFEST_ID)
         tbl = pq.read_table(

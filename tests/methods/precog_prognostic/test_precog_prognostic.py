@@ -14,7 +14,8 @@ REPO = Path(__file__).resolve().parents[3]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
-from methods.precog_prognostic import cli, read as precog_read  # noqa: E402
+from methods.precog_prognostic import cli  # noqa: E402
+from methods.precog_prognostic import read as precog_read
 
 
 def _fake_product():

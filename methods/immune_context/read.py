@@ -19,6 +19,7 @@ from __future__ import annotations
 import threading
 
 from methods.catalog_query.read import bucket_key_for
+
 from . import classify as _classify
 
 DERIVED_MANIFEST_ID = "pancanatlas-cibersort-lm22-per-sample-v1"

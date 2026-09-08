@@ -65,8 +65,8 @@ def _read_gene_rows(target: str, parquet_path=None):
     behaviour — SynLethDB stores native-case HGNC symbols (e.g. `C4orf54`), so an exact
     uppercase equality would silently drop the ~60 orf-genes. `parquet_path` (offline test
     seam) streams a local file instead of S3. Errors propagate to the caller's boundary."""
-    import pyarrow.dataset as ds
     import pyarrow.compute as pc
+    import pyarrow.dataset as ds
 
     want = target.strip().upper()
     expr = pc.equal(pc.utf8_upper(pc.field(PUSHDOWN_KEY)), want)

@@ -59,9 +59,9 @@ def _mc3_gene_counts(indication: str) -> dict:
     """{gene: (n_mut, n_cov)} from the TCGA-MC3 hotspot-frequency aggregate (gene-summary rows). WES →
     n_cov = n_samples_in_indication (every gene covered). Empty on any absence (MC3 not the whole pool)."""
     from methods.gdc_somatic_hotspot.read import (
+        _HOTSPOT_FREQUENCY_MANIFEST,
         _read_product_table,
         _resolve_aggregate_path,
-        _HOTSPOT_FREQUENCY_MANIFEST,
     )
 
     try:
@@ -212,7 +212,7 @@ def pooled_recurrence_for_gene(target: str, indication: str, cutoffs: dict = Non
         pct, cls = None, "data_unavailable"
         note = f"{target} pooled coverage {entry['n_cov']} < {_MIN_COVERED} (too thin to rank)"
     else:
-        from methods.percentile_null import percentile_rank, classify_percentile
+        from methods.percentile_null import classify_percentile, percentile_rank
 
         pct = percentile_rank(freq, null_vec)
         cls = classify_percentile(pct, cutoffs or DEFAULT_CUTOFFS)
@@ -240,7 +240,7 @@ def build_pooled_recurrence_table(indication: str):
     rankable = {g: e for g, e in pooled.items() if e["n_cov"] >= _MIN_COVERED}
     if not rankable:
         return pa.Table.from_pylist([], schema=_schema())
-    from methods.percentile_null import percentile_rank, classify_percentile
+    from methods.percentile_null import classify_percentile, percentile_rank
 
     null_vec = tuple(e["n_mut"] / e["n_cov"] for e in rankable.values())
     n_ranked = len(null_vec)  # == len(null_vec) in pooled_recurrence_for_gene → lets the product-read

@@ -33,7 +33,6 @@ import os
 from pathlib import Path
 from typing import Optional
 
-
 # Indication → TCGA-study + GTEx-tissue mapping (mirrors
 # INDICATION_TO_TCGA_STUDIES + INDICATION_TO_GTEX_TISSUE in read.py).
 # The set below is limited to the 18 indications the batch produced.

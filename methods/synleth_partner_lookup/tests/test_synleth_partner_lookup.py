@@ -18,7 +18,6 @@ sys.path.insert(0, str(METHODS_REPO))
 from methods.synleth_partner_lookup import derive as d  # noqa: E402
 from methods.synleth_partner_lookup import read as r  # noqa: E402
 
-
 # --- evidence tier (pure) --------------------------------------------------
 
 

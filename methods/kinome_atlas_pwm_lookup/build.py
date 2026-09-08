@@ -54,7 +54,6 @@ from pathlib import Path
 
 import pandas as pd
 
-
 # Column header format: "{position:+/-N or 0}{amino_acid}"
 # Examples: "-5P", "+3Y", "0S", "0s" (phospho-Ser at position 0)
 _COL_RE = re.compile(r"^([+-]?\d+)([A-Za-z])$")

@@ -18,10 +18,10 @@ _METHODS = Path(__file__).resolve().parents[3] / "methods"
 sys.path.insert(0, str(_METHODS))
 
 from catalog_query.read import (  # noqa: E402
-    resolve_release,
+    ReleaseResolutionError,
     _family_of,
     load_catalog,
-    ReleaseResolutionError,
+    resolve_release,
 )
 
 # A family known to carry multiple coexisting siblings in the catalog.

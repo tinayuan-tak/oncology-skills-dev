@@ -148,8 +148,8 @@ def load_constraint_row(gene_symbol: str, parquet_path: Optional[str] = None) ->
     parquet_path override is for tests (a synthetic parquet); production reads the
     S3 read-through cache.
     """
-    import pyarrow.parquet as pq
     import pyarrow.compute as pc
+    import pyarrow.parquet as pq
 
     path = parquet_path or _local_cache_path()
     if parquet_path is None and not os.path.exists(path):
@@ -226,8 +226,9 @@ def _human_ko_context(gene_symbol: str, ko_class: str, obs_hom: Optional[int]) -
 def _load_takeda_style(target_contracts_dir):
     """Load the Takeda mplstyle + palette (idempotent). Returns the palette module."""
     import sys as _sys
-    import matplotlib.pyplot as plt
     from pathlib import Path as _Path
+
+    import matplotlib.pyplot as plt
 
     style_path = _Path(target_contracts_dir) / "plot_styles" / "takeda_oncology.mplstyle"
     if style_path.exists():
@@ -250,8 +251,9 @@ def emit_constraint_gauge(summary: dict, target_symbol: str, out_dir, target_con
     import matplotlib
 
     matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
     from pathlib import Path as _Path
+
+    import matplotlib.pyplot as plt
 
     pal = _load_takeda_style(target_contracts_dir)
     out_dir = _Path(out_dir)

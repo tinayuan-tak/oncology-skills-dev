@@ -28,16 +28,15 @@ Overall concordance_class (categorical, drives Tier-2 rules):
 """
 
 from __future__ import annotations
-import os
 
 import json
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
 import click
-
 
 METHOD_DIR = Path(__file__).resolve().parent
 METHOD_VERSION = "0.1.0"

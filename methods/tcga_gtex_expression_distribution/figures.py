@@ -135,8 +135,9 @@ def render_subtype_from_plot_data(
     stratum_id, subtype_signal, log2_tpm; the pooled distribution stored under stratum_id
     '__POOLED__'). Reconstructs the read_tumor_subtype_values() dict and replays it into the
     vector-driven cli.emit_subtype_svg. NO live read."""
-    import pandas as pd
     from statistics import median
+
+    import pandas as pd
 
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)

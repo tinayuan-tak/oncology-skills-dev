@@ -10,8 +10,8 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from methods.hpa_pathology_cancer_ihc.read import (  # noqa: E402
-    read_target_summary,
     INDICATION_TO_HPA_CANCER,
+    read_target_summary,
 )
 
 

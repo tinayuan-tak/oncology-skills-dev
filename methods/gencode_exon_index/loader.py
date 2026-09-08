@@ -17,9 +17,9 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from .build import parse_gtf_to_exon_index
 from methods.catalog_query.read import bucket_key_for, bucket_prefix_for
 
+from .build import parse_gtf_to_exon_index
 
 DERIVED_MANIFEST_ID = "gencode-v26-exon-index-v1"
 GTF_SOURCE_MANIFEST_ID = "gencode-v26-primary-assembly"

@@ -4,7 +4,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[3]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
-from methods.imvigor210_ici_response.read import read_target_summary, _UROTHELIAL_INDICATIONS  # noqa: E402
+from methods.imvigor210_ici_response.read import _UROTHELIAL_INDICATIONS, read_target_summary  # noqa: E402
 
 
 def test_out_of_scope_is_data_unavailable():

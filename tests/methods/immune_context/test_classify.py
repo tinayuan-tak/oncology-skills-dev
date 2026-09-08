@@ -19,11 +19,11 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from methods.immune_context.classify import (  # noqa: E402
+    CD8_FRACTION_COLD_MAX,
+    CD8_FRACTION_HOT_MIN,
+    T_CELL_COLUMNS,
     classify_immune_context,
     summarize_immune_context,
-    CD8_FRACTION_HOT_MIN,
-    CD8_FRACTION_COLD_MAX,
-    T_CELL_COLUMNS,
 )
 
 

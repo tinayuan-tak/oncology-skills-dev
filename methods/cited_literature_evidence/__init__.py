@@ -11,9 +11,9 @@ verdict-inert card. See read.py for the implementation.
 # declared method call. (Convention: a card entrypoint that lives only in a submodule breaks the skills
 # test_generic_routed_card_resolves_to_real_callable guard; mirrors hcmi_model_availability.)
 from .read import (
-    read_cited_literature_evidence,
     build_cited_evidence_card,
     cited_evidence,
+    read_cited_literature_evidence,
 )
 
 __all__ = ["read_cited_literature_evidence", "build_cited_evidence_card", "cited_evidence"]

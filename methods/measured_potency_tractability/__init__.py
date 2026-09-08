@@ -5,6 +5,6 @@ into a measured_bioactivity_class — the missing "is there a POTENT (<=1 uM) ch
 dimension, orthogonal to PRISM cell-line killing, predicted pockets, and the presence-only DGIdb catalogue.
 """
 
-from .read import measured_potency_for_gene, classify_measured_bioactivity
+from .read import classify_measured_bioactivity, measured_potency_for_gene
 
 __all__ = ["measured_potency_for_gene", "classify_measured_bioactivity"]

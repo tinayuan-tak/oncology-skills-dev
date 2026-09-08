@@ -18,8 +18,8 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO))
 import pandas as pd  # noqa: E402
-import pyarrow.parquet as pq  # noqa: E402
 import pyarrow.fs as fs  # noqa: E402
+import pyarrow.parquet as pq  # noqa: E402
 import pytest  # noqa: E402
 
 from methods.exon_window import read as r  # noqa: E402

@@ -1,9 +1,9 @@
 """CLI + emitters for Q5 RNA↔protein concordance (cell-line)."""
 
 from __future__ import annotations
-import os
 
 import json
+import os
 from pathlib import Path
 
 from . import read as _read

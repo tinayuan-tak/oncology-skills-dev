@@ -18,9 +18,9 @@ CLASSIFICATION:
 """
 
 from __future__ import annotations
-import os
 
 import json
+import os
 import sys
 from datetime import datetime, timezone
 from io import BytesIO
@@ -30,7 +30,6 @@ from typing import Optional
 import click
 
 from methods.catalog_query.read import bucket_prefix_for
-
 
 METHOD_DIR = Path(__file__).resolve().parent
 METHOD_VERSION = "0.1.0"

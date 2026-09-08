@@ -22,9 +22,9 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from methods.tcga_gtex_tpm_quantiles.window import (  # noqa: E402
-    compute_window_from_rows,
-    MODALITY_TIER_THRESHOLD,
     CLEAN_WINDOW_RATIO,
+    MODALITY_TIER_THRESHOLD,
+    compute_window_from_rows,
 )
 
 

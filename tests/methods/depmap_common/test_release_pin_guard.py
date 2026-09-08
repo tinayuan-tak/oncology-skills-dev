@@ -26,7 +26,6 @@ if str(REPO) not in sys.path:
 
 from methods.depmap_common import parquet as P  # noqa: E402
 
-
 # Every public loader that accepts release_pin, with a minimal arg tuple (before release_pin).
 _LOADERS = [
     ("get_chronos_column", ("KRAS",)),

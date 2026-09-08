@@ -69,8 +69,8 @@ def read_target_summary(target: str, indication: Optional[str] = None) -> dict:
     if not indication or indication.upper().strip() not in _UROTHELIAL_INDICATIONS:
         # IMvigor210 is metastatic urothelial — do NOT read cross-indication (honest scope ceiling).
         return _empty(f"IMvigor210 is urothelial-only; indication {indication!r} out of scope")
-    import pyarrow.parquet as pq
     import pyarrow.compute as pc
+    import pyarrow.parquet as pq
 
     bucket, key = bucket_key_for(MANIFEST_ID)
     try:

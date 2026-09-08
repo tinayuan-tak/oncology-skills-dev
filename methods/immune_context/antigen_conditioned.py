@@ -21,7 +21,6 @@ Pure stat (antigen_conditioned_summary) is unit-testable on synthetic per-patien
 
 from __future__ import annotations
 
-
 from . import classify as _classify
 
 # antigen-high = top tertile of per-sample antigen TPM within the indication (patient-selection framing).
@@ -169,8 +168,8 @@ def _antigen_tpm_by_uuid_study(target: str):
         uri = s3_uri_for("tcga-tumor-tpm-recount3-long-v1")
     except Exception:  # noqa: BLE001
         return None
-    import pyarrow.parquet as pq
     import pyarrow.fs as fs
+    import pyarrow.parquet as pq
 
     s3fs = fs.S3FileSystem(region="us-east-1")
     tbl = pq.read_table(
@@ -189,7 +188,7 @@ def _antigen_tpm_by_uuid_study(target: str):
 def _join_antigen_tpm(target: str, indication: str, cd8_by_case: dict):
     """Bridge recount3 per-sample antigen TPM (UUID) → barcode (via per-study metadata submitter_id) →
     join to CIBERSORT cd8_by_case. Returns (per_patient rows, join_fraction, n_tpm_samples)."""
-    from methods.dge_deseq2.read import _fetch_recount3_metadata, INDICATION_TO_TCGA_STUDIES
+    from methods.dge_deseq2.read import INDICATION_TO_TCGA_STUDIES, _fetch_recount3_metadata
 
     studies = INDICATION_TO_TCGA_STUDIES.get(indication) or []
     tpm_by_study = _antigen_tpm_by_uuid_study(target)  # {study: {uuid: tpm}}

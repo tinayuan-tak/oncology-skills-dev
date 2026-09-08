@@ -17,9 +17,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .derive_batch import derive_bulk_pair_selectivity
-from .read import TUMOR_MANIFEST_ID, GTEX_MANIFEST_ID, INDICATION_TO_TCGA_STUDIES, _con
 from . import gates as _gates
+from .derive_batch import derive_bulk_pair_selectivity
+from .read import GTEX_MANIFEST_ID, INDICATION_TO_TCGA_STUDIES, TUMOR_MANIFEST_ID, _con
 
 METHOD_VERSION = "0.1.0"
 

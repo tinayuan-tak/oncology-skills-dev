@@ -5,10 +5,10 @@ patient (TCGA) + model (DepMap) state distributions + a target-level headline cl
 """
 
 from __future__ import annotations
-import os
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -47,8 +47,9 @@ def build_summary(target: str, indication: str) -> dict:
 
 
 def _load_style(contracts_dir):
-    import matplotlib.pyplot as plt
     from pathlib import Path as _P
+
+    import matplotlib.pyplot as plt
 
     style = _P(contracts_dir) / "figure-style" / "matplotlibrc"
     if style.exists():

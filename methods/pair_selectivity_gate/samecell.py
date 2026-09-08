@@ -79,8 +79,8 @@ def _read_cube(manifest_id: str):
             return None
         raise
     try:
-        import pyarrow.parquet as pq
         import pyarrow.fs as fs
+        import pyarrow.parquet as pq
 
         s3fs = fs.S3FileSystem(region="us-east-1")
         # uri is s3://bucket/key → strip scheme for pyarrow fs

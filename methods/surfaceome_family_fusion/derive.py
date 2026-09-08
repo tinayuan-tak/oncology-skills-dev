@@ -60,7 +60,6 @@ from typing import Iterable
 
 import pandas as pd
 
-
 DEFAULT_AWS_PROFILE = "cbg"
 S3_BUCKET = "onc-compbio"
 

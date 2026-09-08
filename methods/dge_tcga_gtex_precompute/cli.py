@@ -24,7 +24,6 @@ from pathlib import Path
 
 import click
 
-
 DEPMAP_S3_BUCKET = "onc-compbio"
 RECOUNT3_S3_PREFIX = "data-catalog/sources/recount3/tcga-gtex-2023-01-04"
 ENSEMBL_ID_MAP_S3 = (

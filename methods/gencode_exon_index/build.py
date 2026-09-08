@@ -44,7 +44,6 @@ from pathlib import Path
 
 import pandas as pd
 
-
 # Attribute-extractor: GENCODE v26 mixes quoted string values (`gene_id "ENSG…"`)
 # with unquoted integer values (`exon_number 1;`, `level 2;`). Matching only
 # quoted forms silently drops exon_number and level — see build history.

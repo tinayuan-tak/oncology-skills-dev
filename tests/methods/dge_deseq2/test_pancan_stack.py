@@ -92,8 +92,8 @@ def _patch(monkeypatch):
     # as pq`, and `import a.b as c` binds via getattr(a, "b") once the submodule is imported — so a
     # sys.modules[...] = fake swap is silently bypassed whenever ANOTHER test imported pyarrow.parquet
     # first (order-dependent: green locally, red in CI). setattr on the real modules intercepts every time.
-    import pyarrow.parquet as _pq
     import pyarrow.fs as _fs
+    import pyarrow.parquet as _pq
 
     monkeypatch.setattr(_pq, "read_table", _FakePq.read_table)
     monkeypatch.setattr(_fs, "S3FileSystem", _FakeFs.S3FileSystem)
@@ -192,8 +192,8 @@ def _patch_reader(monkeypatch, rows):
     # as pq`, and `import a.b as c` binds via getattr(a, "b") once the submodule is imported — so a
     # sys.modules[...] = fake swap is silently bypassed whenever ANOTHER test imported pyarrow.parquet
     # first (order-dependent: green locally, red in CI). setattr on the real modules intercepts every time.
-    import pyarrow.parquet as _pq
     import pyarrow.fs as _fs
+    import pyarrow.parquet as _pq
 
     monkeypatch.setattr(_pq, "read_table", _FakePq.read_table)
     monkeypatch.setattr(_fs, "S3FileSystem", _FakeFs.S3FileSystem)

@@ -19,7 +19,6 @@ sys.path.insert(0, str(METHODS_REPO))
 from methods.depmap_protein_abundance import cli as pc  # noqa: E402
 from methods.depmap_protein_abundance import read as pc_read  # noqa: E402
 
-
 # --- classifier (pure) ----------------------------------------------------
 
 

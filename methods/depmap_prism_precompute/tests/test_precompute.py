@@ -12,7 +12,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from depmap_prism_precompute import cli as pc  # noqa: E402
 
-
 # ---------------------------------------------------------------------------
 # Compound-list parsers (unchanged in v3)
 # ---------------------------------------------------------------------------

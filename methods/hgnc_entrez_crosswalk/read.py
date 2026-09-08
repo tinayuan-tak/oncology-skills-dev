@@ -28,6 +28,7 @@ def load_entrez_to_symbol() -> dict:
     broken product, not a data gap. Only a genuine object-absence returns {}.
     """
     import pandas as pd
+
     from methods.target_id_sidecar import is_definitively_absent
 
     ensure_aws_profile()

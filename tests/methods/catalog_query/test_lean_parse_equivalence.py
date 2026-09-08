@@ -13,13 +13,13 @@ consumer, including compose-dashboard's byte-golden evidence-package path — is
 
 from __future__ import annotations
 
-import yaml
 import pytest
+import yaml
 
 from methods.catalog_query.read import (
     DATA_CATALOG,
-    _SafeLoader,
     _lean_load_manifest,
+    _SafeLoader,
 )
 
 

@@ -24,7 +24,6 @@ if str(REPO) not in sys.path:
 from methods.pair_selectivity_gate import samecell as SC  # noqa: E402
 from methods.sc_tumor_expression_celltype import read as TSC  # noqa: E402
 
-
 # ── value invariants (no catalog / no S3) ───────────────────────────────────
 
 

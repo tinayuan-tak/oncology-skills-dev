@@ -14,8 +14,8 @@ if str(REPO) not in sys.path:
 
 pd = pytest.importorskip("pandas")
 
-from methods.sc_surface_concordance import read as R  # noqa: E402
 from methods.sc_surface_concordance import cli as C  # noqa: E402
+from methods.sc_surface_concordance import read as R  # noqa: E402
 
 
 def _row(gene, pear, spear, cls, n_cells=5000, ds="hao-2021-pbmc-3p"):

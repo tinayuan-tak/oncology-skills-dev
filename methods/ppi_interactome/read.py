@@ -66,7 +66,8 @@ _, BIOGRID_PHYSICAL_PRODUCT_KEY = bucket_key_for(BIOGRID_MANIFEST_ID)
 BIOGRID_HUB_DEGREE = 50  # >= this many physical partners → physical hub (mirrors STRING's hub cut)
 
 
-from methods.target_id_sidecar import s3_client as _boto3_client, ensure_aws_profile
+from methods.target_id_sidecar import ensure_aws_profile
+from methods.target_id_sidecar import s3_client as _boto3_client
 
 
 @lru_cache(maxsize=1)

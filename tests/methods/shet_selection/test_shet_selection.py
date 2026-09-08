@@ -10,10 +10,10 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from methods.shet_selection.cli import (  # noqa: E402
-    classify_shet,
-    compute_summary,
     HIGH_INTOLERANCE,
     MODERATE_INTOLERANCE,
+    classify_shet,
+    compute_summary,
 )
 
 

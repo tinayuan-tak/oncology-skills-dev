@@ -172,8 +172,8 @@ def _load_twohit_universe_and_loss(partners: set) -> "tuple":
     patients with >=1 alteration (~all TCGA patients); the tiny fraction of alteration-free
     patients slightly deflates denominators. Acceptable for a CONFIRMATION column (not the FDR
     test). cn_class in {homdel, loss} = the loss events."""
-    import pyarrow.dataset as ds
     import pyarrow.compute as pc
+    import pyarrow.dataset as ds
 
     bucket, key = _bkey("pancan-genomic-two-hit-per-gene-v1")
     dataset = ds.dataset(f"{bucket}/{key}", filesystem=_arrow_fs(), format="parquet")

@@ -46,15 +46,15 @@ from typing import Optional
 
 import pandas as pd
 
-from methods.target_id_sidecar import s3_client
 from methods.depmap_chronos.cli import INDICATION_LINEAGE
-from methods.depmap_paralog_aggregator.read import read_target_summary as _read_paralog_buffering
 from methods.depmap_common.parquet import (
     _find_gene_column,
     _remote_schema_names,
     _remote_uri,
     _stream_table,
 )
+from methods.depmap_paralog_aggregator.read import read_target_summary as _read_paralog_buffering
+from methods.target_id_sidecar import s3_client
 
 METHOD_VERSION = "0.1.0"
 

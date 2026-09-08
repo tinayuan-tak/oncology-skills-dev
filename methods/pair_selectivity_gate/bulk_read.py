@@ -40,9 +40,10 @@ def _read_target_rows(target: str) -> Optional[list]:
         return None
     tgt = (target or "").upper().strip()
     try:
-        from methods.catalog_query.read import bucket_key_for
-        import pyarrow.parquet as pq
         import pyarrow.fs as fs
+        import pyarrow.parquet as pq
+
+        from methods.catalog_query.read import bucket_key_for
 
         bucket, key = bucket_key_for(DERIVED_MANIFEST_ID)
         tbl = pq.read_table(

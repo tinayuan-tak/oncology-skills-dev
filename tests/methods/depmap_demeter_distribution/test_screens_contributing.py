@@ -4,8 +4,12 @@ compute_summary_stats. This pins that (a) compute_summary_stats populates the sc
 sample_info_df, and (b) load_rnai_files now returns it as a 4th element (arity contract)."""
 
 from __future__ import annotations
-import importlib.util, inspect, sys
+
+import importlib.util
+import inspect
+import sys
 from pathlib import Path
+
 import pandas as pd
 
 REPO = Path(__file__).resolve().parents[3]

@@ -16,8 +16,8 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO))
 
-from methods.indication_aliases import to_cohort_canonical  # noqa: E402
 from methods.gdc_somatic_hotspot import read as R  # noqa: E402
+from methods.indication_aliases import to_cohort_canonical  # noqa: E402
 
 
 def test_alias_maps_lung_subcodes_to_nsclc():

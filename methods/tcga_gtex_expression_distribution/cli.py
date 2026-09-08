@@ -13,9 +13,9 @@ Usage:
 """
 
 from __future__ import annotations
-import os
 
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Optional
@@ -619,6 +619,7 @@ def emit_liability_svg(
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import numpy as np
+
     from . import stats as _st
 
     _load_style(contracts_dir)
@@ -667,6 +668,7 @@ def emit_liability_plotly_specs(
         _log(f"[normal-liability] plotly skipped: {e}")
         return []
     import numpy as np
+
     from . import stats as _st
 
     atlas = presampled if presampled is not None else _read.read_all_normal_tissues(target)

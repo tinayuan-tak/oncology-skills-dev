@@ -45,7 +45,6 @@ from pathlib import Path
 
 import click
 
-
 DEPMAP_S3_BUCKET = "onc-compbio"
 OUTPUT_S3_PREFIX = "data-catalog/derived/gtex-tpm-recount3-long-v1"
 

@@ -1,8 +1,10 @@
 """depmap_cn_distribution.read — library entry for live-mode reads."""
 
 from __future__ import annotations
+
 from pathlib import Path
 from typing import Optional
+
 from . import cli as _cli
 
 

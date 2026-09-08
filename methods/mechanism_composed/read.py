@@ -52,13 +52,12 @@ _METHODS_ROOT = Path(__file__).resolve().parent.parent
 if str(_METHODS_ROOT.parent) not in sys.path:
     sys.path.insert(0, str(_METHODS_ROOT.parent))
 
-from methods.signor_mechanism_network.moa_ontology import ONTOLOGY_VERSION
-from methods.signor_mechanism_network import read as signor_read
 from methods.collectri_tf_regulon import read as collectri_read
-from methods.reactome_pathway_context import read as reactome_read
-from methods.kinome_atlas_prediction import read as kinome_atlas_read
 from methods.depmap_coessentiality import read as coessentiality_read
-
+from methods.kinome_atlas_prediction import read as kinome_atlas_read
+from methods.reactome_pathway_context import read as reactome_read
+from methods.signor_mechanism_network import read as signor_read
+from methods.signor_mechanism_network.moa_ontology import ONTOLOGY_VERSION
 
 # Source keys for provenance stamping. Curated sources first; kinome-atlas
 # is PREDICTION so consumers/synthesis should weight it lower.

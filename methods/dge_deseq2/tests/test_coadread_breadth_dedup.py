@@ -10,8 +10,8 @@ These are pure-function tests on the row list (no S3), mirroring the module's un
 """
 
 from methods.dge_deseq2.derive_pancan_stack import (
-    _dedupe_overlapping_indications,
     _COMPOSITE_INDICATIONS,
+    _dedupe_overlapping_indications,
 )
 
 

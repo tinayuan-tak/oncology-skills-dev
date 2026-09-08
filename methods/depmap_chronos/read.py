@@ -21,7 +21,6 @@ from functools import partial
 from pathlib import Path
 from typing import Optional
 
-from . import cli as _cli
 from methods.subgroup_common.iteration import subgroup_iterable
 from methods.subgroup_common.panorama import (
     SUBGROUP_N_FLOOR,
@@ -29,6 +28,8 @@ from methods.subgroup_common.panorama import (
     delta_reducer,
     evidence_state,
 )
+
+from . import cli as _cli
 
 DEFAULT_AWS_PROFILE = "cbg"
 

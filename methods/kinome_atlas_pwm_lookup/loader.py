@@ -20,7 +20,6 @@ from pathlib import Path
 
 from methods.catalog_query.read import bucket_key_for
 
-
 DERIVED_MANIFEST_ID = "kinome-atlas-pwm-lookup-v1"
 # bucket + key resolved from the data-catalog manifest (single source of truth).
 S3_BUCKET, S3_KEY_PARQUET = bucket_key_for(DERIVED_MANIFEST_ID)

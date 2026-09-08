@@ -57,7 +57,9 @@ def test_all_codes_are_real():
     """Every code in the map must be a real CANCER_TYPE in the IntOGen Compendium. Live-gated:
     skips if S3/creds are unavailable (mirrors the other live readers' test discipline)."""
     boto3 = pytest.importorskip("boto3")
-    import io, zipfile, csv
+    import csv
+    import io
+    import zipfile
 
     try:
         s3 = boto3.Session().client("s3")

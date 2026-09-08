@@ -17,6 +17,7 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 import pandas as pd  # noqa: E402
+
 from methods.kinome_atlas_prediction import read as kin  # noqa: E402
 
 

@@ -51,6 +51,7 @@ def _get_s3fs():
     global _S3FS
     if _S3FS is None:
         import pyarrow.fs as fs
+
         from methods.target_id_sidecar import ensure_aws_profile
 
         ensure_aws_profile()
@@ -64,6 +65,7 @@ def _read_gene(target: str):
     pyarrow prunes to the matching row groups). Returns a tuple of (case_barcode, gistic_call,
     cancer_type). Empty tuple only on genuine absence."""
     import pyarrow.parquet as pq
+
     from methods.target_id_sidecar import is_definitively_absent
 
     try:

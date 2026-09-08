@@ -70,7 +70,7 @@ def _msi_high_by_model(release_pin: str) -> dict:
     missing call becomes an honest exclusion rather than a fabricated negative.
     """
     # Reuse the shared cache→local→S3 fetcher (existing infra; not modified here).
-    from methods.depmap_common.loaders import _fetch_csv, DEPMAP_S3_PREFIX_CRISPR
+    from methods.depmap_common.loaders import DEPMAP_S3_PREFIX_CRISPR, _fetch_csv
 
     key = f"{DEPMAP_S3_PREFIX_CRISPR}/OmicsInferredMolecularSubtypes.csv"
     df = _fetch_csv(key, "OmicsInferredMolecularSubtypes.csv", release_pin)
@@ -209,8 +209,9 @@ try:
     @click.option("--out", type=click.Path(file_okay=False, path_type=Path), default=None)
     def main(target, indication, release_pin, out):
         """Compute partner-conditional stratified dependency for TARGET."""
-        from .read import read_partner_conditional_dependency
         import json
+
+        from .read import read_partner_conditional_dependency
 
         summary = read_partner_conditional_dependency(target, indication, release_pin=release_pin)
         click.echo(json.dumps(summary, indent=2, default=str))

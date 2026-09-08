@@ -92,6 +92,7 @@ def _load_sample_cancer_types() -> dict:
       * ONLY a genuine NoSuchKey/404 on the annotation object is a real absence -> {}.
     """
     import pandas as pd
+
     from methods.target_id_sidecar import is_definitively_absent
 
     try:
@@ -121,6 +122,7 @@ def _read_gistic_gene(target: str) -> tuple:
     NoSuchKey/404 on the 589 MB TSV object. A transient / creds / broken-env failure on that read is
     NOT absence -> re-raise so the live-read seam surfaces an honest _live_read_error."""
     import pandas as pd
+
     from methods.target_id_sidecar import is_definitively_absent
 
     try:
@@ -221,9 +223,10 @@ def _read_from_product(target: str, indication: str) -> Optional[dict]:
         from pathlib import Path as _P
 
         _sys.path.insert(0, str(_P(__file__).resolve().parent.parent))
-        from methods.catalog_query.read import bucket_key_for
-        import pyarrow.parquet as pq
         import pyarrow.fs as fs
+        import pyarrow.parquet as pq
+
+        from methods.catalog_query.read import bucket_key_for
 
         bucket, key = bucket_key_for(PRODUCT_MANIFEST_ID)
         tbl = pq.read_table(

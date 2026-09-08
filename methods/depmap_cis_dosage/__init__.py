@@ -22,4 +22,4 @@ cn_invariant_panel, data_unavailable}. Verdict path (target-contracts): the coup
 fire cis-dosage-* rules → cis_coherence.resolver (a VERDICT-INERT, dedicated self-contained axis).
 """
 
-from .read import read_cis_dosage, METHOD_VERSION  # noqa: F401
+from .read import METHOD_VERSION, read_cis_dosage  # noqa: F401

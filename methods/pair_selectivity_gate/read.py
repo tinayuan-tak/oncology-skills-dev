@@ -21,6 +21,7 @@ from functools import lru_cache
 from typing import Optional
 
 from methods.catalog_query.read import s3_uri_for
+
 from . import gates as _gates
 
 DEFAULT_AWS_PROFILE = "cbg"

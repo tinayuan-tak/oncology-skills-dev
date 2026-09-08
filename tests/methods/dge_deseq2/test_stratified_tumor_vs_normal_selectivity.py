@@ -36,7 +36,6 @@ if str(REPO) not in sys.path:
 read = importlib.import_module("methods.dge_deseq2.read")
 from methods.subgroup_common.panorama import SUBGROUP_N_FLOOR  # noqa: E402
 
-
 # ── unit: per-stratum projection reuses the whole-cohort classifier ──────────
 
 

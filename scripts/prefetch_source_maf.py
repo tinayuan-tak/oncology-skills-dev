@@ -45,7 +45,6 @@ from pathlib import Path
 
 import click
 
-
 # --- Source configuration table --------------------------------------------
 # Each source declares: S3 keys, the cache dir, the output-parquet tag, the
 # MAF column names to normalize from, and the filter strategy.

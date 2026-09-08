@@ -35,8 +35,8 @@ Phase 2a.3 of iDAS Subtype Pipeline. NEW method — no prior version.
 """
 
 from __future__ import annotations
-import os
 
+import os
 import sys
 from pathlib import Path
 
@@ -46,7 +46,6 @@ import yaml
 
 from methods.subgroup_common.manifest import emit_assignment_manifest
 from methods.subgroup_common.paths import cache_root
-
 
 METHOD_DIR = Path(__file__).resolve().parent
 METHOD_VERSION = "0.1.0"

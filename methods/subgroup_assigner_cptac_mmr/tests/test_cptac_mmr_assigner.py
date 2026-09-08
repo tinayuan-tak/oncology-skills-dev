@@ -12,12 +12,11 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from methods.subgroup_assigner_cptac_mmr.cli import (  # noqa: E402
-    classify_msi_from_mmr,
-    build_assignments,
-    strata_summary,
     DERIVATION_SOURCE,
+    build_assignments,
+    classify_msi_from_mmr,
+    strata_summary,
 )
-
 
 # ── classify_msi_from_mmr ──────────────────────────────────────────────────────────────────────
 

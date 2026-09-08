@@ -89,9 +89,10 @@ def _read_from_product(target: str) -> Optional[dict]:
         from pathlib import Path as _P
 
         _sys.path.insert(0, str(_P(__file__).resolve().parent.parent))
-        from methods.catalog_query.read import bucket_key_for
-        import pyarrow.parquet as pq
         import pyarrow.fs as fs
+        import pyarrow.parquet as pq
+
+        from methods.catalog_query.read import bucket_key_for
 
         bucket, key = bucket_key_for(PRODUCT_MANIFEST_ID)
         tbl = pq.read_table(

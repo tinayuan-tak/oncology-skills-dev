@@ -229,8 +229,9 @@ def load_and_classify(gene: str, hpa_path=None) -> dict:
 def _load_takeda_style(target_contracts_dir):
     """Load the Takeda mplstyle + palette (idempotent). Returns the palette module."""
     import sys as _sys
-    import matplotlib.pyplot as plt
     from pathlib import Path as _Path
+
+    import matplotlib.pyplot as plt
 
     style_path = _Path(target_contracts_dir) / "plot_styles" / "takeda_oncology.mplstyle"
     if style_path.exists():
@@ -276,8 +277,9 @@ def emit_normal_tissue_bar(summary: dict, target_symbol: str, out_dir, target_co
     import matplotlib
 
     matplotlib.use("Agg")
-    from matplotlib.patches import FancyBboxPatch
     from pathlib import Path as _Path
+
+    from matplotlib.patches import FancyBboxPatch
 
     pal = _load_takeda_style(target_contracts_dir)
     out_dir = _Path(out_dir)
@@ -432,7 +434,8 @@ def emit_normal_tissue_bar(summary: dict, target_symbol: str, out_dir, target_co
 
 
 def _main(argv=None):
-    import argparse, json
+    import argparse
+    import json
 
     ap = argparse.ArgumentParser(description="HPA normal-tissue liability for a target.")
     ap.add_argument("--gene", required=True)

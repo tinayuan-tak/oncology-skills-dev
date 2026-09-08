@@ -18,7 +18,6 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 from methods.pdxe_drug_response import read as R  # noqa: E402
 
-
 _COLS = [
     "gene_symbol",
     "n_treatments",

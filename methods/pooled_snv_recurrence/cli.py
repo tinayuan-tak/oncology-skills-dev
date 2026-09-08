@@ -18,7 +18,7 @@ import os
 import sys
 from pathlib import Path
 
-from .read import build_pooled_recurrence_table, _schema
+from .read import _schema, build_pooled_recurrence_table
 
 S3_BUCKET = "onc-compbio"
 S3_KEY = "data-catalog/derived/pooled-snv-recurrence-v1/recurrence.parquet"

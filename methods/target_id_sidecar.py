@@ -58,8 +58,8 @@ def s3_client(profile: Optional[str] = None):
     fall back to the default credential chain (env / OIDC / instance role), exactly as the bare client
     it replaced did. An explicitly-passed `profile=` still raises if missing (caller asked for it)."""
     import boto3
-    from botocore.exceptions import ProfileNotFound
     from botocore.config import Config
+    from botocore.exceptions import ProfileNotFound
 
     cfg = Config(retries={"max_attempts": 8, "mode": "adaptive"})
     prof = profile or os.environ.get("AWS_PROFILE", DEFAULT_AWS_PROFILE)

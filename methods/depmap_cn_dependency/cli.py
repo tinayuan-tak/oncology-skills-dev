@@ -10,14 +10,14 @@ the mutation path. This module owns only the CN-specific boolean and output fiel
 from __future__ import annotations
 
 from methods.depmap_common.boolean_stratification import (
-    StratificationLabels,
-    mannwhitney_stratification,
-    classify_stratification,
-    STRONG_EFFECT_DELTA,
+    MIN_COMPARATOR_CELLS,
+    MIN_POSITIVE_CELLS,
     MODERATE_EFFECT_DELTA,
     STRATIFICATION_ALPHA,
-    MIN_POSITIVE_CELLS,
-    MIN_COMPARATOR_CELLS,
+    STRONG_EFFECT_DELTA,
+    StratificationLabels,
+    classify_stratification,
+    mannwhitney_stratification,
 )
 
 METHOD_VERSION = "0.1.0"

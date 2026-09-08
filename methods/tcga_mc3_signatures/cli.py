@@ -27,7 +27,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .signatures import SIGNATURE_TO_PROCESS, INFORMATIVE_PROCESSES, NON_BASELINE_PROCESSES
+from .signatures import INFORMATIVE_PROCESSES, NON_BASELINE_PROCESSES, SIGNATURE_TO_PROCESS
 
 METHOD_VERSION = "0.1.0"
 
@@ -72,7 +72,9 @@ def _load_barcode_to_type() -> dict:
     Resolves the source S3 prefix from the catalog manifest (no hand-typed path that can drift)."""
     import io
     import subprocess
+
     import pandas as pd
+
     from methods.catalog_query.read import s3_uri_for
 
     uri = s3_uri_for(_CLINICAL_MANIFEST_ID).rstrip("/") + "/" + _CDR_FILENAME

@@ -1,10 +1,10 @@
 """CLI + emitter for phospho_pathway_activity (Q8 — CPTAC phospho pathway-activity)."""
 
 from __future__ import annotations
-import os
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 

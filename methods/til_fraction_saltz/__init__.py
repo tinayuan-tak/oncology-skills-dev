@@ -6,4 +6,4 @@ til_fraction_class. The ABSOLUTE, morphology-derived corroborator of the immune-
 CD8 hot/cold call. 13-study coverage → data_unavailable elsewhere (fail-closed).
 """
 
-from .read import read_til_fraction, read_target_summary, METHOD_VERSION  # noqa: F401
+from .read import METHOD_VERSION, read_target_summary, read_til_fraction  # noqa: F401

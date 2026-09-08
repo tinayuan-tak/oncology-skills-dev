@@ -12,9 +12,9 @@ Modules:
 from __future__ import annotations
 
 from .read import (
-    read_subtype_survival_association,
     classify_subtype_survival_association,
     multivariate_logrank,
+    read_subtype_survival_association,
 )
 
 METHOD_VERSION = "0.1.0"

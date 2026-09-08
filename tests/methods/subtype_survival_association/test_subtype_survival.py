@@ -11,13 +11,13 @@ REPO = Path(__file__).resolve().parents[3]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
+from methods.expression_clinical_association import read as _eca  # noqa: E402
+from methods.subtype_survival_association import read as _R  # noqa: E402
 from methods.subtype_survival_association.read import (  # noqa: E402
+    MIN_EVENTS,
     classify_subtype_survival_association,
     multivariate_logrank,
-    MIN_EVENTS,
 )
-from methods.subtype_survival_association import read as _R  # noqa: E402
-from methods.expression_clinical_association import read as _eca  # noqa: E402
 
 np = pytest.importorskip("numpy")
 pytest.importorskip("pandas")

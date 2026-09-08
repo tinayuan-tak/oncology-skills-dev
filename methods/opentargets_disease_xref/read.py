@@ -62,7 +62,8 @@ def mesh_ids_for_efo(efo_ids) -> set:
 
 
 def _main(argv=None):
-    import argparse, json
+    import argparse
+    import json
 
     ap = argparse.ArgumentParser(description="MESH ids for a set of OT disease (MONDO/EFO) ids.")
     ap.add_argument("--efo-ids", nargs="+", required=True)

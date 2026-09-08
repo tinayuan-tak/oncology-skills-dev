@@ -14,7 +14,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
-
 # Genetic-only states plus the planned epigenetic states (model-side RRBS landed; patient-side
 # HM450 pending). Consumers should treat this as an OPEN set.
 FUNCTIONAL_STATES = (

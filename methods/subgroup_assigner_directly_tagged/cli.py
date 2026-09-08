@@ -25,8 +25,8 @@ target-contracts docs/design/SAMPLE_ANNOTATION_PLAN.md for Modality A design.
 """
 
 from __future__ import annotations
-import os
 
+import os
 import re
 import sys
 from pathlib import Path
@@ -37,7 +37,6 @@ import yaml
 
 from methods.subgroup_common.manifest import emit_assignment_manifest
 from methods.subgroup_common.paths import cache_root
-
 
 METHOD_DIR = Path(__file__).resolve().parent
 METHOD_VERSION = "0.3.0"  # Phase 2a.1 → 0.3.0 adds fusion-consensus source path

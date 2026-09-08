@@ -5,8 +5,8 @@ computes correlation + detection fractions + the rna_as_biomarker verdict. data_
 from __future__ import annotations
 
 import math
-from typing import Optional
 from pathlib import Path
+from typing import Optional
 
 from methods.catalog_query.read import bucket_key_for
 
@@ -250,8 +250,8 @@ def _read_matched_cohort(cohort: str):
     import pandas as pd
 
     try:
-        import pyarrow.parquet as pq
         import pyarrow.fs as pafs  # was s3fs — the ONLY module importing it; s3fs is absent from
+        import pyarrow.parquet as pq
 
         # pixi.toml so this reader crashed at import in the pixi runtime
         # (cards review 2026-08-17, S2). pyarrow.fs.S3FileSystem is the

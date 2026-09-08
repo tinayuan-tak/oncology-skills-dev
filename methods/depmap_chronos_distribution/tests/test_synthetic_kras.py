@@ -19,7 +19,6 @@ from pathlib import Path
 import pandas as pd
 import yaml
 
-
 METHODS_REPO = Path("/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods")
 CONTRACTS_ROOT = Path("/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
 
@@ -328,6 +327,7 @@ def test_genuine_non_dependent_still_classifies_non_dependent(tmp_path, monkeypa
     """CONTROL: a target non-dependent EVERYWHERE (no concentrated lineage) must
     still classify non_dependent — the guard must not fire spuriously."""
     import sys
+
     import numpy as np
     import pandas as pd
 

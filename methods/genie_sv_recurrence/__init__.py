@@ -18,6 +18,6 @@ from __future__ import annotations
 METHOD_VERSION = "0.1.0"
 
 from .read import (  # noqa: E402,F401
-    genie_sv_recurrence_for_gene,
     build_genie_sv_recurrence_table,
+    genie_sv_recurrence_for_gene,
 )

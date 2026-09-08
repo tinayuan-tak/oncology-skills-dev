@@ -28,14 +28,13 @@ univariate, unadjusted for stage/age, exploratory, multiple-testing-naive.
 
 from __future__ import annotations
 
-
 # Single source of truth for the survival substrate + log-rank engine + thresholds. Referenced via
 # the module (not `from ... import _CDR_LOAD_ERROR`) so the live post-call error value is read.
 from methods.expression_clinical_association import read as _eca
 from methods.gdc_somatic_hotspot.read import (
-    _read_product_table,
-    _mc3_maf_path,
     _PER_SAMPLE_MAF_MANIFEST,
+    _mc3_maf_path,
+    _read_product_table,
 )
 from methods.target_id_sidecar import ensure_aws_profile
 

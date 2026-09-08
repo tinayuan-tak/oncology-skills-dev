@@ -22,10 +22,10 @@ import argparse
 from pathlib import Path
 
 from methods.reactome_pathway_context.read import (
-    _load_uniprot_to_reactome,
-    _load_pathway_hierarchy,
-    _walk_to_top,
     DEFAULT_AWS_PROFILE,
+    _load_pathway_hierarchy,
+    _load_uniprot_to_reactome,
+    _walk_to_top,
 )
 
 _DERIVED_S3_URI = (
@@ -37,6 +37,7 @@ def build_table():
     """Long DataFrame [uniprot_ac, row_order, pathway_id, pathway_name, evidence_code, url,
     top_level_pathway_name], sorted by (uniprot_ac, row_order)."""
     import pandas as pd
+
     from methods.target_id_sidecar import ensure_aws_profile
 
     ensure_aws_profile()
@@ -89,8 +90,9 @@ def main():
     print(f"wrote {args.out}: {len(df):,} rows / {df['uniprot_ac'].nunique():,} accessions")
 
     if args.upload:
-        import boto3
         import hashlib
+
+        import boto3
 
         path = _DERIVED_S3_URI.replace("s3://", "", 1)
         bucket, _, key = path.partition("/")

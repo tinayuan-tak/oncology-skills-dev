@@ -24,7 +24,6 @@ sys.path.insert(0, str(REPO))
 
 import methods.mechanism_composed.read as mc_read
 
-
 # ---------------------------------------------------------------------------
 # Stubs for every sub-reader
 # ---------------------------------------------------------------------------

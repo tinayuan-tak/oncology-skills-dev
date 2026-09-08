@@ -13,8 +13,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path("/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods")))
 from methods.depmap_chronos_distribution.cli import (  # noqa: E402
-    _classify_dependency,
     PAN_ESSENTIAL_MIN_PANEL_N,
+    _classify_dependency,
 )
 
 
