@@ -316,7 +316,7 @@ def _build_section(
             "is_deciding": is_deciding,
             # the standalone-dashboard headline + kv (from the carried graph's collapsed verdict); None
             # when the skill carries no rich graph, so the backend degrades to the lean stitle/phrase.
-            "graph": _skill_graph_header(eg) if eg_rich else None,
+            "graph": _skill_graph_header(eg, report.get("confidence")) if eg_rich else None,
         },
     )
     blocks = [header]
@@ -325,10 +325,12 @@ def _build_section(
     # redundant chips block when the Q&A table shows (dedupe — one decision-useful view per card).
     has_qt = eff >= vocab.TIER[vocab.QUESTION_TABLE] and bool(report.get("question_table"))
 
-    # L1: confidence, tension, claim chips
-    if eff >= vocab.TIER[vocab.CONFIDENCE] and report.get("confidence"):
+    # L1: confidence, tension, claim chips. When the rich sandbox header renders (eg_rich), it already
+    # carries the confidence (level + basis + coverage) and the tension in its kv grid — so the separate
+    # CONFIDENCE / TENSION blocks are suppressed to avoid the duplicate loose lines under the header.
+    if eff >= vocab.TIER[vocab.CONFIDENCE] and report.get("confidence") and not eg_rich:
         blocks.append(Block(vocab.CONFIDENCE, {"confidence": report["confidence"]}))
-    if eff >= vocab.TIER[vocab.TENSION] and report.get("top_tension"):
+    if eff >= vocab.TIER[vocab.TENSION] and report.get("top_tension") and not eg_rich:
         blocks.append(Block(vocab.TENSION, {"tension": report["top_tension"]}))
     if eff >= vocab.TIER[vocab.CLAIM_CHIPS] and not has_qt:
         cb = _chips_block(report, eff)
@@ -1417,13 +1419,15 @@ def _subgroup_bands_block(subgroup_signals: dict) -> Optional[Block]:
 # evidence-graph blocks (P3) — the RICH embedded sub-skill view, projected from the carried
 # skill_report.evidence_graph. Pure projections (no re-derivation); opacity/ordinal live in the backend.
 # --------------------------------------------------------------------------------------------------
-def _skill_graph_header(eg: dict) -> Optional[dict]:
+def _skill_graph_header(eg: dict, report_confidence: Optional[dict] = None) -> Optional[dict]:
     """Compact header summary from a skill's `evidence_graph.verdict` — the standalone-dashboard
     headline sentence + kv-grid inputs: the collapsed call/polarity/driving-rule, the confidence level +
     coverage, the top tension, and the question/card counts. A PURE PROJECTION of the carried graph
     (recomputes nothing); every field degrades to None when the verdict omits it. Verdict-inert display."""
     if not isinstance(eg, dict):
         return None
+    from .backends.text import _gloss_basis  # local: the confidence-basis gloss lives with the text backend
+
     v = eg.get("verdict") if isinstance(eg.get("verdict"), dict) else {}
     conf = v.get("confidence") if isinstance(v.get("confidence"), dict) else {}
     cov = conf.get("coverage") if isinstance(conf.get("coverage"), dict) else {}
@@ -1433,6 +1437,8 @@ def _skill_graph_header(eg: dict) -> Optional[dict]:
         "polarity": v.get("polarity"),
         "driving_rule_id": v.get("driving_rule_id"),
         "confidence_level": conf.get("level"),
+        # basis lives on the skill_report's confidence (not always on the graph verdict's) — fall back to it
+        "confidence_basis": _gloss_basis(conf.get("basis") or (report_confidence or {}).get("basis")),
         "coverage": {
             "n_measured": cov.get("n_measured"),
             "n_axes": cov.get("n_axes"),

@@ -1009,6 +1009,8 @@ class HtmlBackend:
             drv_bits.append(f"<code>{_esc(g['driving_rule_id'])}</code>")
         if conf:
             drv_bits.append(f"<span class='dots'>{_esc(conf)}</span>")
+        if g.get("confidence_basis"):
+            drv_bits.append(f"basis: {_esc(g['confidence_basis'])}")
         if cov.get("n_measured") is not None and cov.get("n_axes") is not None:
             ct = f"coverage {_esc(cov['n_measured'])}/{_esc(cov['n_axes'])} axes"
             if cov.get("n_critical_measured") is not None:
