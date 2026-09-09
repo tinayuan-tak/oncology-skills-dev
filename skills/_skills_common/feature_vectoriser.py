@@ -86,6 +86,58 @@ def numeric_features(numeric_values: dict) -> dict:
     return feats
 
 
+def _first_numeric(*vals) -> Optional[float]:
+    for v in vals:
+        n = _num(v)
+        if n is not None:
+            return n
+    return None
+
+
+def numeric_values_from_package(pkg: dict) -> dict:
+    """Harvest {measurement_type: {value_field: number}} for every metered SALIENCE_SPECS axis from ONE
+    composed evidence_package (build_atlas's per-run input). The metered numeric lives in one of three
+    places in the package, checked in order of directness:
+      1. cards[].summary[value_field]        — keyed by the card's measurement_type (the clean source; most)
+      2. synthesis.claim_vectors[*].claim_vector[*].evidence_atom.values[value_field]  — atom-carried numerics
+      3. synthesis.evidence_capsules[*].capsules[*].n_basis[value_field]                — capsule n_basis
+    (median_chronos_panel, e.g., is not in the crispr card summary but is in its DEP atom / capsule n_basis.)
+    Absent everywhere → the axis is simply not in the result (→ mask 0 downstream). Best-effort, pure."""
+    specs = numeric_feature_specs()
+    pkg = pkg or {}
+    syn = pkg.get("synthesis") or {}
+
+    # index card summaries by measurement_type
+    cards = pkg.get("cards")
+    clist = cards if isinstance(cards, list) else list(cards.values()) if isinstance(cards, dict) else []
+    summ_by_mt = {
+        c.get("measurement_type"): (c.get("summary") or {})
+        for c in clist
+        if isinstance(c, dict) and c.get("measurement_type")
+    }
+
+    # flatten every atom.values dict and every capsule n_basis dict once (value_field names are ~unique)
+    atom_values, n_basis = {}, {}
+    for entry in (syn.get("claim_vectors") or {}).values():
+        cv = entry.get("claim_vector") if isinstance(entry, dict) else None
+        for claim in (cv or {}).values():
+            vals = (claim or {}).get("evidence_atom", {}).get("values") if isinstance(claim, dict) else None
+            if isinstance(vals, dict):
+                atom_values.update(vals)
+    for entry in (syn.get("evidence_capsules") or {}).values():
+        for cap in ((entry or {}).get("capsules") or {}).values():
+            nb = (cap or {}).get("n_basis") if isinstance(cap, dict) else None
+            if isinstance(nb, dict):
+                n_basis.update(nb)
+
+    out: dict = {}
+    for mt, (vf, _dir) in specs.items():
+        val = _first_numeric(summ_by_mt.get(mt, {}).get(vf), atom_values.get(vf), n_basis.get(vf))
+        if val is not None:
+            out[mt] = {vf: val}
+    return out
+
+
 def build_feature_vector(claim_vectors: dict, numeric_values: Optional[dict] = None) -> dict:
     """The extended atlas feature vector for ONE target: ordinal claim features (delegated to
     archetype_core.claim_features) merged with the polarity-signed numeric features + masks. Verdict

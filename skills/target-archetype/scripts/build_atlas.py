@@ -37,7 +37,10 @@ import numpy as np
 
 SKILLS_DIR = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(SKILLS_DIR))
-from _skills_common.archetype_core import claim_features  # noqa: E402
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # sibling corpus_io
+from _skills_common.archetype_core import claim_features  # noqa: E402,F401  (kept for back-compat imports)
+from _skills_common.feature_vectoriser import build_feature_vector, numeric_values_from_package  # noqa: E402
+from corpus_io import claim_vectors_for_run  # noqa: E402
 
 # curated canonical phenotype anchors (label reuses the archetype vocabulary; exemplar = (target, indication)).
 # One well-covered exemplar per drug-target phenotype; the query is a convex mixture of these.
@@ -94,27 +97,37 @@ def build(runs_dirs, panel_path: Path, build_date: str, emb_dim: int = 16) -> di
     feats, targets, indications, labels, fingerprints = [], [], [], [], []
     seen = set()
     for runs in runs_dirs:
-        for sub_dir in sorted(glob.glob(f"{runs}/*/subskills")):
-            run = os.path.dirname(sub_dir)
+        for run in sorted(glob.glob(f"{runs}/*")):
+            if not os.path.isdir(run):
+                continue
+            # claim vectors — layout-tolerant (current evidence_package.json OR legacy subskills/*/package.json)
+            cvs = claim_vectors_for_run(run)
+            if not cvs:
+                continue
+            ep_f = os.path.join(run, "evidence_package.json")
+            pkg = json.load(open(ep_f)) if os.path.exists(ep_f) else None
             nom_f = os.path.join(run, "nomination.json")
-            if not os.path.exists(nom_f):
+            nom = json.load(open(nom_f)) if os.path.exists(nom_f) else {}
+            # target / indication + fired rules: current evidence_package context, else legacy nomination
+            if pkg:
+                ctx = pkg.get("context") or {}
+                t, i = ctx.get("target") or {}, ctx.get("indication") or {}
+                tgt = (t.get("symbol") if isinstance(t, dict) else t) or nom.get("target")
+                ind = (i.get("oncotree_code") if isinstance(i, dict) else i) or nom.get("indication")
+                sub_verdicts = (pkg.get("synthesis") or {}).get("sub_verdicts") or {}
+            else:
+                tgt, ind = nom.get("target"), nom.get("indication")
+                sub_verdicts = nom.get("sub_verdicts") or {}
+            if not tgt or (tgt, ind) in seen:
                 continue
-            nom = json.load(open(nom_f))
-            tgt, ind = nom.get("target"), nom.get("indication")
-            if (tgt, ind) in seen:
-                continue
-            cvs = {}
-            for pkg in glob.glob(f"{sub_dir}/*/package.json"):
-                d = json.load(open(pkg))
-                short = d.get("sub_skill") or os.path.basename(os.path.dirname(pkg))
-                cv = d.get("claim_vector")
-                if isinstance(cv, dict) and cv:
-                    cvs[short] = cv
-            feat = claim_features(cvs)
+            # NUMERIC substrate: harvest the metered value_fields (+ masks) from the composed package.
+            # build_feature_vector merges ordinal claims (claim_features) with the polarity-signed numerics.
+            numeric_values = numeric_values_from_package(pkg) if pkg else {}
+            feat = build_feature_vector(cvs, numeric_values)
             if not feat:
                 continue
             rules = set()
-            for v in (nom.get("sub_verdicts") or {}).values():
+            for v in sub_verdicts.values():
                 if isinstance(v, dict):
                     rules.update(v.get("fired_rule_ids") or [])
             seen.add((tgt, ind))

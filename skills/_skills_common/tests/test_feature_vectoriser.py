@@ -80,3 +80,47 @@ def test_deterministic():
     cvs = {"selectivity": {"WIN": {"signal": "strong", "corroboration": "moderate"}}}
     nums = {"surface_density": {"absolute_copies_per_cell": 5000}}
     assert build_feature_vector(cvs, nums) == build_feature_vector(cvs, nums)
+
+
+# ── numeric harvester over a composed evidence_package (build_atlas's per-run input) ──────────────────
+from _skills_common.feature_vectoriser import numeric_values_from_package  # noqa: E402
+
+
+def _spec_field(mt):
+    return SALIENCE_SPECS[mt]["reference_frame"]["value_field"]
+
+
+def test_harvest_reads_all_three_numeric_locations():
+    # gnomad_lof_constraint's value_field in a card SUMMARY; a dependency value_field in an atom.values;
+    # another in a capsule n_basis — all three should be harvested (the reason the harvester is multi-source).
+    lo = _spec_field("gnomad_lof_constraint")  # loeuf_score
+    dep = _spec_field("crispr_lof_dependency")  # median_chronos_panel (lives in atom/n_basis, not summary)
+    pkg = {
+        "cards": [{"measurement_type": "gnomad_lof_constraint", "summary": {lo: 0.31}}],
+        "synthesis": {
+            "claim_vectors": {"dependency": {"claim_vector": {"DEP": {"evidence_atom": {"values": {dep: -0.46}}}}}},
+            "evidence_capsules": {
+                "safety": {"capsules": {"gene-burden-safety": {"n_basis": {"some_other_metric": 1.0}}}}
+            },
+        },
+    }
+    nv = numeric_values_from_package(pkg)
+    assert nv.get("gnomad_lof_constraint", {}).get(lo) == 0.31  # from card summary
+    assert nv.get("crispr_lof_dependency", {}).get(dep) == -0.46  # from atom.values (summary miss)
+
+
+def test_harvest_absent_axis_is_omitted_then_masked():
+    nv = numeric_values_from_package({"cards": [], "synthesis": {}})
+    assert nv == {}  # nothing measured
+    # build_feature_vector then emits every metered axis's key as None + mask 0 (missingness explicit)
+    fv = build_feature_vector({}, nv)
+    for mt, (vf, _d) in numeric_feature_specs().items():
+        assert fv[f"{mt}::num::{vf}"] is None and fv[f"{mt}::num::{vf}::mask"] == 0.0
+
+
+def test_harvest_polarity_applied_in_build():
+    lo = _spec_field("gnomad_lof_constraint")  # lower_is_stronger → negated in the feature
+    pkg = {"cards": [{"measurement_type": "gnomad_lof_constraint", "summary": {lo: 0.31}}], "synthesis": {}}
+    fv = build_feature_vector({}, numeric_values_from_package(pkg))
+    assert fv["gnomad_lof_constraint::num::loeuf_score"] == -0.31
+    assert fv["gnomad_lof_constraint::num::loeuf_score::mask"] == 1.0
