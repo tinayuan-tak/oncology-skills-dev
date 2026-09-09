@@ -718,8 +718,11 @@ class HtmlBackend:
             )
         if ir.sections:
             secs = "".join(self._emit_section(sec, collapsed=True) for sec in ir.sections)
+            # OPEN by default so the reader immediately SEES all N subskill sections as a scannable list
+            # (each verdict chip + header); the inner per-skill sections stay individually collapsed, so
+            # the page is discoverable without a wall of expanded detail. Density 'Compact' still folds it.
             parts.append(
-                "<details class='fold'><summary>Per-subskill evidence "
+                "<details class='fold' open><summary>Per-subskill evidence "
                 f"<span class='fx'>— the {len(ir.sections)} embedded question-answering views</span>"
                 f"</summary><div class='foldbody'>{secs}</div></details>"
             )
