@@ -14,7 +14,7 @@ from pathlib import Path
 
 SKILLS = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(SKILLS))
-from _skills_common.resolver import resolve_verdict  # noqa: E402
+from _skills_common.resolver import resolve_verdict, resolve_verdict_provenance  # noqa: E402
 
 # a 3-rung ladder (first-match precedence): killer > selective > weak, default insufficient.
 _RUNGS = [
@@ -77,3 +77,26 @@ def test_min_priority_wins_regardless_of_position():
         ],
     }
     assert resolve_verdict(_fired("kill-rule", "sel-a"), spec) == ("killer", "kill-rule")
+
+
+def test_resolve_verdict_provenance_reports_discarded_matches():
+    """D1: resolve_verdict_provenance returns the winner PLUS the matching rungs that LOST — the
+    observability the precedence-review (RFC Class A) needs — while resolve_verdict stays a 2-tuple."""
+    spec = {
+        "gate": "t",
+        "default": "none",
+        "evaluation": "match_all_reduce",
+        "resolve": [
+            {"verdict": "strong", "when_fired": "r_strong", "priority": 0},
+            {"verdict": "weak", "when_fired": "r_weak", "priority": 5},
+            {"verdict": "annotation", "when_fired": "r_annot", "priority": 9},
+        ],
+    }
+    fired = [{"rule_id": "r_weak"}, {"rule_id": "r_annot"}]  # two rungs match; strong does NOT
+    v, drv, discarded = resolve_verdict_provenance(fired, spec)
+    assert (v, drv) == ("weak", "r_weak")  # min-priority match wins
+    assert discarded == [(9, "annotation", "r_annot")]  # the loser is reported
+    # resolve_verdict (hot path) is UNCHANGED — same winner, 2-tuple, no behavior drift
+    assert resolve_verdict(fired, spec) == ("weak", "r_weak")
+    # no match → default, empty discarded
+    assert resolve_verdict_provenance([{"rule_id": "x"}], spec) == ("none", None, [])

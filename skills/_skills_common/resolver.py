@@ -107,6 +107,41 @@ def resolve_verdict(fired: list[dict], spec: dict) -> tuple[str, str | None]:
     return spec["default"], None
 
 
+def resolve_verdict_provenance(
+    fired: list[dict], spec: dict
+) -> tuple[str, str | None, list[tuple[int, str, str | None]]]:
+    """Like resolve_verdict but ALSO returns the matching rungs that LOST to the winner — observability
+    for precedence-review (RFC discordance-taxonomy Class A). Returns
+    (verdict, driving_rule_id, discarded), where discarded = [(priority, verdict, driving_rule_id), ...] for
+    every rung that MATCHED the fired set but did not win. Additive + read-only: resolve_verdict (the hot
+    path used by every skill) is deliberately left UNCHANGED (2-tuple), so this cannot affect any verdict.
+
+    match_all_reduce: winner = min-priority match; discarded = the other matches (priority-sorted).
+    first_match:      winner = first matching rung; discarded = later matching rungs in ladder order."""
+    fired_ids = {r["rule_id"] for r in fired}
+    rungs = spec.get("resolve", [])
+    if spec.get("evaluation") == "match_all_reduce":
+        matches: list[tuple[int, str, str | None]] = []
+        for i, rung in enumerate(rungs):
+            matched, drv = _rung_match(rung, fired_ids)
+            if matched:
+                matches.append((rung.get("priority", i), rung["verdict"], drv))
+        if not matches:
+            return spec["default"], None, []
+        matches.sort(key=lambda m: m[0])  # min priority wins; stable → first-seen breaks ties
+        return matches[0][1], matches[0][2], matches[1:]
+    for i, rung in enumerate(rungs):  # first_match
+        matched, drv = _rung_match(rung, fired_ids)
+        if matched:
+            discarded: list[tuple[int, str, str | None]] = []
+            for j in range(i + 1, len(rungs)):
+                m2, d2 = _rung_match(rungs[j], fired_ids)
+                if m2:
+                    discarded.append((rungs[j].get("priority", j), rungs[j]["verdict"], d2))
+            return rung["verdict"], drv, discarded
+    return spec["default"], None, []
+
+
 def resolve_verdict_for_gate(
     fired: list[dict], gate: str, contracts_repo: Path | None = None
 ) -> Optional[tuple[str, str | None]]:
