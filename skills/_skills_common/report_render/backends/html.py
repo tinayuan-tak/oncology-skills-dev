@@ -42,12 +42,22 @@ _CSS = """
   /* soft tints (status-on-surface, for cell/pill backgrounds) */
   --t-good:rgba(12,163,12,.11); --t-serious:rgba(236,131,90,.15); --t-crit:rgba(208,59,59,.13);
   --t-neutral:rgba(137,135,129,.12); --t-blue:rgba(42,120,214,.10);
-  /* dashboard consolidation tokens (2026-09-09): CVD-safe diverging pair for signed contribution
-     bars (blue supports / orange detracts — never green↔red for series identity), a hold tint, and
-     the omics-vs-literature FACT axis (--det deterministic/omics vs --lit literature; --t-lit = the
-     literature-subordinate tint). Additive; existing status tokens unchanged. */
-  --pos:#2a78d6; --neg:#ec835a; --t-hold:rgba(224,145,42,.14);
-  --det:#1c6fb0; --lit:#7a3fb0; --t-lit:rgba(122,63,176,.12);
+  /* ── design-token JOBS — each var belongs to exactly ONE semantic axis; never reuse across axes ──
+       status     : --good/--warning/--serious/--critical + polarity (--supportive/--opposing/
+                    --killer/--neutral/--none) + recommendation (--go/--hold/--kill). Green↔red,
+                    ALWAYS paired with an icon/label (never color-alone).
+       severity   : the status ramp reused for LOW/MED/HIGH risk tiles (green→amber→red).
+       diverging  : --pos/--neg — signed 0-centred contribution bars, blue↔orange (CVD-safe).
+                    --pos is an ALIAS of --blue (one brand/positive blue, not a third near-blue).
+       omics↔lit  : --det (deterministic/omics fact) vs --lit (literature fact). --lit is a QUIET,
+                    SUBORDINATE tone (literature is verdict-inert); its identity is carried by SHAPE
+                    (litdot = ringed circle vs the omics square) + an agreement glyph, so its hue is
+                    redundant and the det↔lit CVD ΔE sits in the legal WARN band BY DESIGN. Re-hued
+                    off the old saturated purple (#7a3fb0, CVD ΔE 3.5 vs --det — a hard FAIL, and it
+                    competed with the status palette for attention).
+       chrome     : --page/--surface/--ink*/--line/--border/--hair/--muted + the --t-* tints. */
+  --pos:var(--blue); --neg:#ec835a; --t-hold:rgba(224,145,42,.14);
+  --det:#1c6fb0; --lit:#7d6b82; --t-lit:rgba(125,107,130,.12);
 }
 @media (prefers-color-scheme:dark) {
   :root:where(:not([data-theme=light])) {
@@ -57,8 +67,8 @@ _CSS = """
     --opposing:#ec835a; --killer:#e06060; --none:#5f5e57; --hold:#f0a63a;
     --t-good:rgba(12,163,12,.18); --t-serious:rgba(236,131,90,.20); --t-crit:rgba(224,96,96,.20);
     --t-neutral:rgba(143,142,134,.16); --t-blue:rgba(57,135,229,.16);
-    --pos:#3987e5; --neg:#ec835a; --t-hold:rgba(240,166,58,.18);
-    --det:#5aa6e0; --lit:#b48fe0; --t-lit:rgba(180,143,224,.18);
+    --blue:#3987e5; --pos:var(--blue); --neg:#ec835a; --t-hold:rgba(240,166,58,.18);
+    --det:#5aa6e0; --lit:#a99bb0; --t-lit:rgba(169,155,176,.18);
   }
 }
 * { box-sizing:border-box; }

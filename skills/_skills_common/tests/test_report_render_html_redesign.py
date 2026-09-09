@@ -179,3 +179,14 @@ def test_consolidation_design_tokens_present():
         assert tok in h, f"status token regressed: {tok}"
     # the literature dot reads pre-attentively via a --lit ring (two-tone omics/lit)
     assert "border:2px solid var(--lit)" in h
+
+
+def test_token_jobs_lit_requiet_and_pos_alias():
+    """Tier-3 token jobs: --lit is re-hued off the saturated purple (#7a3fb0, CVD ΔE 3.5 vs --det — a
+    hard FAIL) to a quiet SUBORDINATE tone whose identity is carried by shape + an agreement glyph, and
+    --pos is collapsed to an alias of --blue (one brand/positive blue, not a third near-blue). The CSS
+    also declares each token's single semantic axis (status / severity / diverging / omics↔lit / chrome)."""
+    h = render_report(make_nomination(), preset="full", backend="html")
+    assert "--lit:#7d6b82" in h and "--lit:#7a3fb0" not in h  # subordinate re-hue; old purple assignment gone
+    assert "--pos:var(--blue)" in h  # diverging-positive aliases the single brand blue (no third blue)
+    assert "design-token JOBS" in h  # each var's semantic axis is declared in the shared _CSS
