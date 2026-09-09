@@ -111,3 +111,17 @@ def test_secondary_figures_collapse_into_details():
     h = BACKENDS["html"]().render(ir)
     # the fixture's dependency card has a primary + a secondary SVG → a "more figure(s)" disclosure.
     assert "more figure(s)" in h
+
+
+def test_consolidation_design_tokens_present():
+    """Dashboard consolidation Phase 2: the single design system carries the CVD-safe diverging pair
+    (--pos/--neg), the hold tint (--t-hold), and the omics-vs-literature FACT axis (--det/--lit) —
+    additive to the reserved status palette, which must remain."""
+    h = render_report(make_nomination(), preset="full", backend="html")
+    for tok in ("--pos:", "--neg:", "--t-hold:", "--det:", "--lit:", "--t-lit:"):
+        assert tok in h, f"missing consolidation token {tok}"
+    # existing reserved status tokens are NOT renamed/removed
+    for tok in ("--supportive:", "--opposing:", "--killer:", "--good:", "--hold:"):
+        assert tok in h, f"status token regressed: {tok}"
+    # the literature dot reads pre-attentively via a --lit ring (two-tone omics/lit)
+    assert "border:2px solid var(--lit)" in h

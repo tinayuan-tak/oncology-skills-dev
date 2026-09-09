@@ -42,6 +42,12 @@ _CSS = """
   /* soft tints (status-on-surface, for cell/pill backgrounds) */
   --t-good:rgba(12,163,12,.11); --t-serious:rgba(236,131,90,.15); --t-crit:rgba(208,59,59,.13);
   --t-neutral:rgba(137,135,129,.12); --t-blue:rgba(42,120,214,.10);
+  /* dashboard consolidation tokens (2026-09-09): CVD-safe diverging pair for signed contribution
+     bars (blue supports / orange detracts — never green↔red for series identity), a hold tint, and
+     the omics-vs-literature FACT axis (--det deterministic/omics vs --lit literature; --t-lit = the
+     literature-subordinate tint). Additive; existing status tokens unchanged. */
+  --pos:#2a78d6; --neg:#ec835a; --t-hold:rgba(224,145,42,.14);
+  --det:#1c6fb0; --lit:#7a3fb0; --t-lit:rgba(122,63,176,.12);
 }
 @media (prefers-color-scheme:dark) {
   :root:where(:not([data-theme=light])) {
@@ -51,6 +57,8 @@ _CSS = """
     --opposing:#ec835a; --killer:#e06060; --none:#5f5e57; --hold:#f0a63a;
     --t-good:rgba(12,163,12,.18); --t-serious:rgba(236,131,90,.20); --t-crit:rgba(224,96,96,.20);
     --t-neutral:rgba(143,142,134,.16); --t-blue:rgba(57,135,229,.16);
+    --pos:#3987e5; --neg:#ec835a; --t-hold:rgba(240,166,58,.18);
+    --det:#5aa6e0; --lit:#b48fe0; --t-lit:rgba(180,143,224,.18);
   }
 }
 * { box-sizing:border-box; }
@@ -183,7 +191,9 @@ details.skill-collapse > summary .phrase { margin:3px 0 0; }
 .hmcells { display:flex; gap:3px; align-items:center; }
 .hmcell { width:15px; height:15px; border-radius:4px; border:1px solid var(--border); }
 .hmsep { width:1px; height:15px; background:var(--hair); margin:0 3px; }
-.litdot { width:15px; height:15px; border-radius:50%; border:1px solid var(--border); display:inline-flex;
+/* the literature dot's FILL carries agreement (agree/contradicts/omics-blind); its --lit RING signals
+   "this is a literature signal" pre-attentively (the omics-vs-literature two-tone axis). */
+.litdot { width:15px; height:15px; border-radius:50%; border:2px solid var(--lit); display:inline-flex;
           align-items:center; justify-content:center; font-size:9px; color:#fff; font-weight:700; }
 .hmnote { color:var(--muted); font-size:11px; margin-top:8px; }
 .cardln { border:1px solid var(--border); border-radius:7px; background:var(--surface); margin:6px 0; padding:7px 10px; }
