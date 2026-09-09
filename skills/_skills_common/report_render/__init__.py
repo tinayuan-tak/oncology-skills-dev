@@ -131,10 +131,12 @@ def render_skill_report(
     short: Optional[str] = None,
     target: Optional[str] = None,
     indication: Optional[str] = None,
+    asset_root=None,
     **spec_overrides,
 ) -> str:
     """Render a SINGLE skill. `source` may be a standalone decision.json, or a bare skill_report dict
-    (then pass `skill_name`/`short` for a nice title)."""
+    (then pass `skill_name`/`short` for a nice title). `asset_root` (the run dir where `figures/` lives)
+    makes the html backend INLINE figure SVGs → a self-contained page (mirrors render_report)."""
     if spec is None:
         spec = resolve_spec(preset, **spec_overrides)
     elif spec_overrides:
@@ -149,4 +151,4 @@ def render_skill_report(
     ir = build_ir_for_skill(
         report, spec, skill_name=name or skill_name, short=short, target=target, indication=indication
     )
-    return _backends.render(ir, backend)
+    return _backends.render(ir, backend, asset_root=asset_root)

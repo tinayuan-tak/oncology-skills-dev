@@ -169,7 +169,13 @@ details.skill-collapse[open] > summary::before { content:"▾ "; }
 details.skill-collapse > summary .stitle { display:inline-flex; }
 details.skill-collapse > summary .phrase { margin:3px 0 0; }
 .g-neu { color:var(--neutral); font-weight:700; } .g-kil { color:var(--killer); font-weight:700; }
-/* evidence-graph blocks (P3): fingerprint heatmap + dataset→data→rule→verdict chains + literature axes */
+/* evidence-graph blocks (P3): fingerprint heatmap + dataset→data→rule→verdict chains + literature axes.
+   ★ CANONICAL evidence-graph + composed-grid design system (dashboard consolidation, 2026-09-09):
+   this is the SINGLE source for these components — the subskill sandbox (eg-sandbox-genomic.html) and
+   the example-gallery previously copied .hmcell/.litdot/.cardln/.chainline from here. New subskill-
+   dashboard design (metric-gloss, two-tone --det/--lit omics-vs-literature, per-question lit-coherence
+   dots) lands HERE (+ the :root tokens above), NOT in a parallel renderer. Both the composed embedded
+   drill-down and the standalone subskill dashboard render through these classes. */
 .eg-inner { margin:6px 0 2px; }
 .hm { display:flex; flex-wrap:wrap; gap:10px 14px; }
 .hmg { display:flex; flex-direction:column; gap:4px; }

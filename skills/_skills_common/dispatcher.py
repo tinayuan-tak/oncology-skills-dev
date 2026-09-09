@@ -508,6 +508,15 @@ def _build_run_parser() -> argparse.ArgumentParser:
         "never breaks the run. NB: emitters re-read method data from S3, so a --figures "
         "run is materially slower than the deterministic spine.",
     )
+    ap.add_argument(
+        "--no-dashboard",
+        action="store_true",
+        help="Suppress the default-on best-effort per-subskill dashboard.html "
+        "(rendered by report_render from the just-composed decision, incl. its "
+        "headline.evidence_graph). PURELY ADDITIVE + display-only — decision.json is "
+        "byte-identical whether or not the dashboard is written. Use for batch/backtest "
+        "runs that want only the data package.",
+    )
     return ap
 
 
@@ -1055,6 +1064,33 @@ def run_wired_skill(
     print(f"  tables: {len(written['tables'])}  figures: {len(written['figures'])}")
     if skipped_card_ids:
         print(f"  arch A4 skipped: {skipped_card_ids}")
+
+    # 9b. DEFAULT-ON best-effort per-subskill dashboard (report_render, the ONE renderer — same
+    # engine + design system as the composed target_profile.html). Renders the standalone single-skill
+    # view from the just-composed decision (report_render lifts headline.evidence_graph onto the
+    # skill_report, so this carries the rich per-question fingerprint + card chains + literature axes
+    # when --literature ran). DISPLAY-ONLY: reads only the in-memory decision (no S3, no Bedrock);
+    # decision.json is byte-identical. Fail-soft — a render fault degrades to a note, never breaks the
+    # deterministic run (same discipline as the --emit-envelope block below). Opt out with --no-dashboard.
+    if not getattr(args, "no_dashboard", False):
+        try:
+            from _skills_common.report_render import render_skill_report
+
+            _dash = render_skill_report(
+                decision,
+                backend="html",
+                preset="full",
+                target=args.target,
+                indication=_indication,
+                asset_root=(args.out if getattr(args, "figures", False) else None),
+            )
+            (Path(args.out) / "dashboard.html").write_text(_dash, encoding="utf-8")
+            print(f"  dashboard: {args.out}/dashboard.html")
+        except Exception as e:  # noqa: BLE001 — dashboard is additive/display-only; never break the spine
+            print(
+                f"[dispatcher] dashboard render failed ({type(e).__name__}: {e}); decision.json is unaffected.",
+                file=sys.stderr,
+            )
 
     # 10. OPT-IN evidence-package envelope. Default OFF ⇒ this whole block is skipped ⇒
     # zero behavior change for every existing invocation. When set, assemble + write a sibling
