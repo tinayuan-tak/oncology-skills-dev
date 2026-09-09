@@ -63,10 +63,11 @@ def test_all_off_scale_row_is_dropped():
 
 def test_html_matrix_shades_cells_and_collapses_disclaimer():
     h = render_report(make_nomination(), preset="full", backend="html")
-    assert "td class='mx-pos'" in h  # supportive cell shaded
-    assert "td class='mx-killer'" in h or "td class='mx-neg'" in h
-    assert "Per-axis × modality detail" in h  # raw grid + caveats collapsed into <details>
-    assert "not calibrated measurement" in h  # full caveat retained inside the details
+    # v6 gate×modality .matrix: ordinal cells shaded by signal (g=supportive · b=killer/crit · h=mild).
+    assert "td class='g'" in h  # supportive cell shaded
+    assert "td class='b'" in h or "td class='h'" in h
+    assert "Gate × modality matrix" in h  # the comp-bio power object
+    assert "order-preserving ordinal" in h  # the inline ordinal legend retained
 
 
 def test_text_matrix_has_glyph_legend_and_collapsed_caveat():

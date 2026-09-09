@@ -40,9 +40,10 @@ def test_header_carries_archetype_characterization():
     assert char and [m["label"] for m in char["mixture"]][0] == "housekeeping / broadly-essential control"
     assert len(char["mixture"]) == 3  # top-3, weight >= 8% (0.02 dropped)
     h = render_report(nom, preset="full", backend="html", target="MYC", indication="BRCA")
-    assert "Target characterization" in h and "char-chip" in h and "50%" in h
-    # the one-word recommendation is subordinate (a 'rec' line), not a shouty 'badge' pill.
-    assert "Provisional call" in h and "class='rec" in h
+    # v6: the archetype is a fold with soft-membership bars; the lead phenotype + its weight render.
+    assert "Target archetype" in h and "Soft membership" in h and "50%" in h
+    # the recommendation is the hero verdict chip (semantic colour), not a shouty badge pill.
+    assert "vchip" in h
 
 
 # -- signal provenance --------------------------------------------------------------------------
@@ -78,9 +79,9 @@ def test_modality_fit_channel_readout_and_grid_drilldown():
     assert ch["small_molecule"]["status"] in ("unfavorable", "conditional", "viable")
     assert any(c["status"] == "not_applicable" for c in mm.payload["channels"])
     h = render_report(make_nomination(), preset="full", backend="html")
-    assert "Modality fit" in h and "mod-fit" in h and "pill" in h
-    assert "Per-axis × modality detail" in h  # raw grid demoted to a drill-down
-    assert "Modality-fit matrix" not in h  # the old abstract-grid heading is gone
+    # v6 modality view: per-channel viability bars (.mrow/.mbul) + the gate×modality ordinal .matrix.
+    assert "Modality fit" in h and "class='mrow" in h and "class='mbul" in h
+    assert "Gate × modality matrix" in h and "class='matrix'" in h
 
 
 # -- self-contained figure inlining -------------------------------------------------------------
@@ -130,7 +131,7 @@ def test_characterization_surfaces_nearest_analogs():
     c = _target_characterization(nom["target_report"])
     assert [(a["target"], a["indication"]) for a in c["analogs"]] == [("BRAF", "COADREAD"), ("CDK4", "LUAD")]
     h = render_report(nom, preset="full", backend="html")
-    assert "nearest analogs" in h and "BRAF" in h and "CDK4" in h
+    assert "nearest archetype analogs" in h and "BRAF" in h and "CDK4" in h
 
 
 def test_v6_hero_polish_headline_addressable_reconciliation_density():

@@ -321,6 +321,163 @@ details.pklayer[open] > summary::before { content:"▾ "; }
 """.strip()
 
 
+# ── v6 convergence-layer composed dashboard (single-scroll: sticky hero → headline → folds → 3-view
+#    switch → 6-dim spine / modality / lit×omics). Ported wholesale from the approved redesign-v6 mockup,
+#    reusing the SAME :root design tokens already declared in _CSS above (--good/--warning/--critical/
+#    --blue/--go/--hold/--kill/--t-*). Only NEW component classes live here; base selectors already in
+#    _CSS (.card/.headline/.h-pop/.coh-*/body/.wrap/:root) are intentionally NOT re-declared so the
+#    standalone-skill layout is untouched. VERDICT-INERT — display only. ──
+_V6_CSS = """
+.tnum { font-variant-numeric:tabular-nums; }
+h2.sh { font-size:12.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted);
+        margin:26px 0 12px; padding-bottom:7px; border-bottom:1px solid var(--hair); }
+h2.sh .sub { text-transform:none; letter-spacing:0; font-weight:400; color:var(--muted); }
+details.fold { margin:9px 0; border:1px solid var(--border); border-radius:12px; background:var(--surface); }
+details.fold>summary { list-style:none; cursor:pointer; padding:13px 16px; font-size:13px; font-weight:640; color:var(--ink); }
+details.fold>summary::-webkit-details-marker { display:none; }
+details.fold>summary::before { content:"\\25B8  "; color:var(--muted); font-weight:400; }
+details.fold[open]>summary::before { content:"\\25BE  "; }
+details.fold>summary .fx { color:var(--muted); font-weight:400; font-size:11.5px; }
+details.fold .foldbody { padding:0 15px 8px; }
+details.fold .foldbody .card { border:0; padding:4px 0 10px; }
+/* HERO */
+.hero { position:sticky; top:0; z-index:5; background:var(--page); border-bottom:1px solid var(--border);
+        padding:12px 0; margin-bottom:6px; }
+.hgrid { display:grid; grid-template-columns:1.5fr auto 1fr; gap:22px; align-items:center; }
+.h-t { font-size:24px; font-weight:730; letter-spacing:-.01em; margin:0; } .h-t .ind { color:var(--muted); font-weight:500; }
+.h-arche { font-size:11.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:5px 0 5px; }
+.vblock { text-align:center; padding:0 16px; border-left:1px solid var(--border); border-right:1px solid var(--border); }
+.vchip { display:inline-flex; align-items:center; gap:8px; font-size:19px; font-weight:750; padding:6px 17px;
+         border-radius:999px; text-transform:uppercase; }
+.vchip .dot { width:10px; height:10px; border-radius:999px; }
+.vchip.go { background:var(--t-good); color:var(--good); } .vchip.go .dot { background:var(--go); }
+.vchip.hold { background:var(--t-hold); color:var(--hold); } .vchip.hold .dot { background:var(--hold); }
+.vchip.kill { background:var(--t-crit); color:var(--kill); } .vchip.kill .dot { background:var(--kill); }
+.vchip.none { background:var(--t-neutral); color:var(--muted); } .vchip.none .dot { background:var(--none); }
+.vconf { font-size:12px; color:var(--muted); margin-top:6px; } .vconf b { color:var(--ink2); }
+.dimmini { display:flex; flex-direction:column; gap:3px; font-size:10.5px; }
+.dimmini .r { display:grid; grid-template-columns:74px 1fr 30px; gap:6px; align-items:center; }
+.dimmini .mtrack { position:relative; height:5px; background:var(--hair); border-radius:99px; }
+.dimmini .mtrack i { position:absolute; left:0; top:0; bottom:0; border-radius:99px; }
+.dimmini .lv { font-weight:700; font-size:9.5px; text-align:right; }
+.risk-low i { width:22%; background:var(--good); } .risk-low .lv { color:var(--good); }
+.risk-med i { width:55%; background:var(--warning); } .risk-med .lv { color:var(--serious); }
+.risk-high i { width:88%; background:var(--critical); } .risk-high .lv { color:var(--critical); }
+.risk-na i { width:8%; background:var(--none); } .risk-na .lv { color:var(--muted); }
+/* SYNTHESIS (convergence) */
+.synth { display:grid; grid-template-columns:1.6fr 1fr; gap:15px; }
+.exec { display:flex; flex-direction:column; gap:6px; }
+.ebul { display:grid; grid-template-columns:12px 1fr; gap:8px; font-size:12.5px; color:var(--ink2); line-height:1.4; }
+.ebul .pol { width:7px; height:7px; border-radius:50%; margin-top:6px; }
+.ebul.sup .pol { background:var(--good); } .ebul.against .pol { background:var(--serious); }
+.ebul.xev .pol { background:var(--blue); border-radius:2px; }
+.ebul.xev>div { border-top:1px dashed var(--hair); padding-top:7px; }
+.ebul.xev .xk { font-size:9.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--blue); font-weight:700; display:block; }
+.anchor { font-size:10px; color:var(--blue); background:var(--t-blue); border:1px solid var(--border);
+          border-radius:5px; padding:0 5px; cursor:pointer; text-decoration:none; margin-left:4px; }
+.tension { background:var(--t-hold); border:1px solid var(--border); border-radius:11px; padding:11px 13px; }
+.tension .tl { font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); font-weight:700; }
+.tension p { margin:5px 0 0; font-size:12px; color:var(--ink2); }
+/* VIEW SWITCH */
+.views { display:flex; gap:6px; margin:22px 0 4px; }
+.views button { border:1px solid var(--border); background:var(--surface); color:var(--ink2); font-size:13px;
+                font-weight:600; padding:8px 16px; border-radius:10px; cursor:pointer; }
+.views button.on { background:var(--ink); color:var(--page); border-color:var(--ink); }
+.view { display:none; } .view.on { display:block; }
+/* 6-DIM SPINE */
+.dim { border:1px solid var(--border); border-radius:12px; background:var(--surface); margin:9px 0; }
+.dim.blind { border-style:dashed; opacity:.92; }
+.dim>summary { list-style:none; cursor:pointer; display:grid; grid-template-columns:16px 190px 1fr 78px;
+               gap:13px; align-items:center; padding:12px 15px; }
+.dim>summary::-webkit-details-marker { display:none; }
+.dim .caret { color:var(--muted); transition:transform .15s; } .dim[open] .caret { transform:rotate(90deg); }
+.dim .dn { font-size:14px; font-weight:660; }
+.dim .dn .rr { font-size:10.5px; color:var(--muted); font-weight:500; text-transform:uppercase; letter-spacing:.04em; display:block; }
+.dbar { position:relative; height:22px; }
+.dbar .track { position:absolute; left:0; right:0; top:8px; height:7px; background:var(--hair); border-radius:99px; overflow:hidden; }
+.dbar .track i { position:absolute; left:0; top:0; bottom:0; border-radius:99px; }
+.dbar .scale { position:absolute; top:16px; left:0; right:0; display:flex; justify-content:space-between; font-size:8.5px; color:var(--muted); }
+.dlevel { text-align:right; font-size:13px; font-weight:750; }
+.dim.risk-low .dbar .track i { width:22%; background:var(--good); } .dim.risk-low .dlevel { color:var(--good); }
+.dim.risk-med .dbar .track i { width:55%; background:var(--warning); } .dim.risk-med .dlevel { color:var(--serious); }
+.dim.risk-high .dbar .track i { width:88%; background:var(--critical); } .dim.risk-high .dlevel { color:var(--critical); }
+.dim.risk-na .dbar .track i { width:6%; background:var(--none); } .dim.risk-na .dlevel { color:var(--muted); font-size:11px; }
+.dmembers { padding:2px 15px 13px 44px; border-top:1px solid var(--hair); margin-top:2px; padding-top:10px; }
+.mem { display:grid; grid-template-columns:168px 1fr auto; gap:11px; align-items:center; font-size:12px; color:var(--ink2); padding:4px 0; }
+.mem+.mem { border-top:1px solid var(--hair); }
+.mem .mn { color:var(--ink); font-weight:600; } .mem .mn small { display:block; color:var(--muted); font-weight:400; font-size:10.5px; }
+.mem .full { font-size:11px; color:var(--blue); text-decoration:none; white-space:nowrap; } .mem .full:hover { text-decoration:underline; }
+.ctxtag { font-size:9px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); background:var(--t-neutral); border-radius:5px; padding:0 5px; margin-left:5px; }
+.chip { display:inline-flex; gap:5px; font-size:11px; color:var(--ink2); background:var(--page); border:1px solid var(--border); border-radius:999px; padding:1px 8px; margin:1px 3px 0 0; }
+.chip b { color:var(--ink); font-weight:640; } .chip.pos b { color:var(--good); } .chip.neg b { color:var(--kill); }
+.spark { display:inline-block; position:relative; width:70px; height:12px; background:var(--hair); border-radius:3px; vertical-align:middle; }
+.spark .iqr { position:absolute; top:2px; height:8px; background:var(--blue); opacity:.5; border-radius:2px; }
+.spark .med { position:absolute; top:0; width:2px; height:12px; background:var(--blue); }
+.spark .panel { position:absolute; top:0; width:2px; height:12px; background:var(--muted); }
+.blindnote { font-size:11.5px; color:var(--muted); padding:2px 0; }
+.flag { font-size:10px; color:var(--warning); font-weight:650; }
+/* CONVERGENCE LAYER */
+.analogs { font-size:11px; color:var(--muted); margin-top:5px; } .analogs b { color:var(--ink2); }
+.conv { display:flex; flex-direction:column; gap:12px; }
+.causal { display:flex; align-items:stretch; flex-wrap:wrap; gap:2px; }
+.cnode { border:1px solid var(--border); border-radius:9px; background:var(--surface); padding:7px 11px; font-size:11.5px; max-width:180px; }
+.cnode .ct { font-size:9px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); } .cnode b { color:var(--ink); }
+.cnode.sup { border-left:3px solid var(--good); } .cnode.warn { border-left:3px solid var(--serious); }
+.cedge { display:flex; flex-direction:column; justify-content:center; align-items:center; color:var(--muted);
+         padding:0 7px; font-size:9px; text-transform:uppercase; letter-spacing:.03em; }
+.cedge .ar { font-size:16px; line-height:1; color:var(--ink2); }
+.conv .trust { display:flex; flex-wrap:wrap; gap:16px; font-size:11.5px; color:var(--ink2); background:var(--page);
+         border:1px solid var(--border); border-radius:9px; padding:8px 12px; }
+.trust { font-size:10.5px; color:var(--muted); margin-top:7px; }
+.trust .k { color:var(--muted); text-transform:uppercase; font-size:9px; letter-spacing:.04em; margin-right:4px; }
+.trust .ok { color:var(--good); font-weight:650; } .trust .warn { color:var(--serious); font-weight:650; }
+.litctx { border:1px dashed var(--border); border-radius:10px; background:var(--t-neutral); padding:9px 12px; font-size:11.5px; color:var(--ink2); }
+.litctx .lh { font-size:9.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); font-weight:700; }
+.litchip { display:inline-flex; gap:4px; font-size:10px; color:var(--muted); background:var(--surface); border:1px dashed var(--border); border-radius:999px; padding:0 7px; margin:3px 3px 0 0; }
+.dimlit { font-size:10.5px; color:var(--muted); border-top:1px dashed var(--hair); margin-top:6px; padding-top:5px; }
+.headline .call { color:var(--good); font-weight:730; }
+.litmk { font-size:10px; color:var(--muted); border:1px dashed var(--border); border-radius:5px; padding:0 6px; margin-left:7px; font-weight:500; white-space:nowrap; vertical-align:middle; }
+.dn .lit { display:block; font-size:10px; color:var(--muted); font-weight:400; letter-spacing:0; text-transform:none; margin-top:2px; }
+.cites { margin-top:7px; display:flex; flex-direction:column; gap:4px; font-size:11.5px; }
+.cites .cr { color:var(--ink2); } .cite { color:var(--blue); text-decoration:none; font-weight:600; } .cite:hover { text-decoration:underline; }
+.arche { display:grid; grid-template-columns:1.5fr 1fr 1fr; gap:18px; margin-top:6px; }
+.arche-h { font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); font-weight:700; margin-bottom:6px; }
+.arche-x { font-size:12px; color:var(--ink2); margin:0; line-height:1.45; }
+.mrowb, .anrow { display:grid; grid-template-columns:1fr 56px 34px; gap:7px; align-items:center; font-size:11px; color:var(--ink2); margin:3px 0; }
+.mt, .ad { position:relative; height:7px; background:var(--hair); border-radius:99px; } .mt i, .ad i { position:absolute; left:0; top:0; bottom:0; border-radius:99px; }
+.mt i { background:var(--blue); } .ad i { background:var(--muted); }
+/* LIT x OMICS COHERENCE */
+table.cohtab { border-collapse:collapse; width:100%; font-size:12px; }
+table.cohtab th, table.cohtab td { border:1px solid var(--hair); padding:8px 10px; text-align:left; vertical-align:top; }
+table.cohtab th { color:var(--muted); text-transform:uppercase; font-size:9.5px; letter-spacing:.04em; font-weight:600; }
+table.cohtab td:first-child { font-weight:640; color:var(--ink); text-transform:capitalize; }
+.rl-low { background:var(--t-good); } .rl-med { background:var(--t-hold); } .rl-high { background:var(--t-crit); } .rl-na { color:var(--muted); }
+.cohtab .note { color:var(--muted); font-weight:400; font-size:10px; display:block; }
+.aggnote { font-size:11.5px; color:var(--ink2); margin-top:11px; background:var(--page); border:1px solid var(--border); border-radius:9px; padding:10px 12px; }
+/* MODALITY VIEW */
+.mrow { display:grid; grid-template-columns:150px 1fr auto; gap:12px; align-items:center; font-size:12.5px; padding:5px 0; }
+.mrow .mn { font-weight:600; } .mrow.na .mn { color:var(--muted); font-weight:500; }
+.mbul { position:relative; height:12px; background:var(--hair); border-radius:99px; } .mbul i { position:absolute; left:0; top:0; bottom:0; border-radius:99px; }
+.mbul.viable i { width:82%; background:var(--good); } .mbul.conditional i { width:52%; background:var(--hold); } .mbul.unfavorable i { width:24%; background:var(--critical); }
+.mbul.na { opacity:.4; background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,transparent 4px,transparent 8px); }
+.mwhy { color:var(--muted); font-size:11px; }
+.matrix { border-collapse:collapse; font-size:10.5px; margin-top:14px; width:100%; }
+.matrix th, .matrix td { border:1px solid var(--hair); padding:4px 6px; text-align:center; }
+.matrix th { color:var(--muted); font-weight:600; font-size:9.5px; text-transform:uppercase; }
+.matrix td.g { background:var(--t-good); } .matrix td.h { background:var(--t-hold); } .matrix td.b { background:var(--t-crit); }
+.matrix td.n { background:var(--t-neutral); color:var(--muted); } .matrix td.off { color:var(--muted); }
+.matrix td:first-child { text-align:left; color:var(--ink2); }
+.dz { color:var(--muted); font-size:12px; margin:26px 0 0; border-top:1px solid var(--hair); padding-top:12px; }
+@media (max-width:860px) {
+  .hgrid, .synth { grid-template-columns:1fr; }
+  .vblock { border:0; border-top:1px solid var(--border); border-bottom:1px solid var(--border); padding:12px 0; }
+  .dim>summary { grid-template-columns:16px 1fr 60px; }
+  .mem { grid-template-columns:1fr; }
+  .arche { grid-template-columns:1fr; }
+}
+""".strip()
+
+
 class HtmlBackend:
     def __init__(self, asset_root=None):
         # asset_root = the run dir where `figures/` lives. When set, SVGs are INLINED as data-URIs so
@@ -370,7 +527,7 @@ class HtmlBackend:
             "<!doctype html>",
             '<html lang="en"><head><meta charset="utf-8">',
             '<meta name="viewport" content="width=device-width, initial-scale=1">',
-            f"<title>{title}</title><style>{_CSS}\n{_lens_css()}</style></head><body><div class='wrap'>",
+            f"<title>{title}</title><style>{_CSS}\n{_V6_CSS}\n{_lens_css()}</style></head><body><div class='wrap'>",
         ]
         # v6 density control: Compact (collapse all <details>) / Detailed (default) / Expand-all — lets a
         # leadership reader stay high-level and a comp-bio reader open everything, on one page.
@@ -380,60 +537,181 @@ class HtmlBackend:
             "<button data-density='detailed' class='on'>Detailed</button>"
             "<button data-density='all'>Expand all</button></span></div>"
         )
-        # the decision header + the advisory AI synthesis banner are persistent report chrome (above the
-        # lens tabs) — the recommendation + the cross-lens exec summary stay visible on every lens.
-        parts.append(self._wrap_card("".join(self._emit(ir.header)), extra="decision"))
-        if getattr(ir, "banner", None) is not None:
-            parts.append(self._wrap_card("".join(self._emit(ir.banner)), extra="narr"))
         lenses = ir.lenses()
         if lenses:
-            parts.append(self._lens_tabs(lenses))  # faceted composed view: a tab per lens
+            # COMPOSED report → the v6 convergence layout (single scroll: sticky hero → headline →
+            # archetype/convergence folds → 3-view switch). The hero IS the report_header (recommendation +
+            # 6-dim glance); no separate decision card / advisory banner card (their content is woven into
+            # the hero + convergence fold). Verdict-inert — a pure re-projection of the same IR blocks.
+            parts.append(self._v6_composed(ir))
         else:
-            for b in ir.overview:  # flat fallback (standalone / un-lensed IR)
+            # flat fallback (standalone / un-lensed IR): the decision header + advisory banner stay as
+            # persistent chrome cards, then overview blocks + per-skill sections.
+            parts.append(self._wrap_card("".join(self._emit(ir.header)), extra="decision"))
+            if getattr(ir, "banner", None) is not None:
+                parts.append(self._wrap_card("".join(self._emit(ir.banner)), extra="narr"))
+            for b in ir.overview:
                 parts.append(self._wrap_card("".join(self._emit(b))))
             for sec in ir.sections:
                 parts.append(self._emit_section(sec))
         if ir.about is not None:
             parts.append("".join(self._emit(ir.about)))
         parts.append(
-            "<script>(function(){var b=document.querySelector('.density-bar');if(!b)return;"
+            "<script>(function(){var b=document.querySelector('.density-bar');if(b){"
             "b.addEventListener('click',function(e){var t=e.target.closest('button');if(!t)return;"
             "[].forEach.call(b.querySelectorAll('button'),function(x){x.classList.toggle('on',x===t);});"
             "var m=t.getAttribute('data-density');"
             "if(m==='compact'){[].forEach.call(document.querySelectorAll('details'),function(d){d.open=false;});}"
             "else if(m==='all'){[].forEach.call(document.querySelectorAll('details'),function(d){d.open=true;});}"
-            "});})();</script>"
+            "});}"
+            # v6 3-view switch (assess / modality / coherence): toggle .view.on by data-v; anchors jump to
+            # a dimension after switching to the assessment view. Pure DOM toggling (no page reload).
+            "var vb=document.querySelector('.views');if(vb){"
+            "vb.addEventListener('click',function(e){var bt=e.target.closest('button');if(!bt)return;"
+            "[].forEach.call(vb.children,function(x){x.classList.toggle('on',x===bt);});"
+            "['assess','modality','coherence'].forEach(function(v){var el=document.getElementById('v-'+v);"
+            "if(el)el.classList.toggle('on',bt.getAttribute('data-v')===v);});});"
+            "[].forEach.call(document.querySelectorAll('.anchor'),function(a){a.addEventListener('click',function(){"
+            "var ab=vb.querySelector('[data-v=assess]');if(ab)ab.click();});});}"
+            "})();</script>"
         )
         parts.append("</div></body></html>")
         return "\n".join(parts) + "\n"
 
-    def _lens_tabs(self, lenses) -> str:
-        """The faceted lens-switcher: co-equal, full-width panels the reader toggles. Pure-CSS
-        (radio-input + `:checked ~` sibling selectors — no JS, so it renders self-contained in a webview
-        / email / moved file). All panels are in the DOM (only visibility toggles), so every backend
-        surfaces the same content; the non-interactive backends linearize the same lenses as sections."""
-        radios, navs, panels = [], [], []
-        for i, (lid, title, items) in enumerate(lenses):
-            checked = " checked" if i == 0 else ""
-            radios.append(f"<input class='lens-radio' type='radio' name='lens' id='lp-{_esc(lid)}'{checked}>")
-            navs.append(f"<label for='lp-{_esc(lid)}'>{_esc(title)}</label>")
-            body = []
-            for kind, item in items:
-                if kind == "section":
-                    # per-skill sections (Signals lens) collapse into a scannable list of signal rows;
-                    # each expands into the full embedded sub-skill view.
-                    body.append(self._emit_section(item, collapsed=(lid == vocab.LENS_SIGNALS)))
-                else:
-                    body.append(self._wrap_card("".join(self._emit(item))))
-            panels.append(f"<section class='lens-panel ln-{_esc(lid)}'>{''.join(body)}</section>")
+    # -- v6 composed convergence layout --------------------------------------------------------
+    def _v6_composed(self, ir: ReportIR) -> str:
+        """The approved redesign-v6 single-scroll layout, bound to the composed IR blocks. Assembles:
+        sticky hero (report_header) → standout headline → archetype fold → convergence fold (synthesis) →
+        3-view switch → 6-dim spine (risk_6dim) / modality (modality_matrix) / lit×omics (literature_risk).
+        Remaining decision-detail blocks + the 15 per-skill sections are appended as collapsed folds so no
+        composed content is lost. Verdict-inert display projection."""
+        by_kind = {}
+        for b in ir.overview:
+            by_kind.setdefault(b.kind, b)
+        hp = ir.header.payload
+        parts = []
+        # 1) sticky hero + 2) standout headline (both from report_header).
+        parts.extend(self._report_header(hp))
+        # honest LLM-vs-deterministic divergence: when the advisory synthesis leaned differently from the
+        # deterministic call, surface that mismatch as a compact advisory strip (the deterministic call
+        # stands). The full advisory exec summary is otherwise woven into the headline + convergence fold.
+        if getattr(ir, "banner", None) is not None:
+            mm = ir.banner.payload.get("mismatch")
+            if isinstance(mm, dict) and mm.get("deterministic"):
+                parts.append(
+                    "<div class='card narr'><span class='tag'>AI-generated · advisory</span>"
+                    f"<p class='kv mismatch'>⚠ <b>LLM read:</b> {_esc(mm.get('llm'))} · "
+                    f"<b>deterministic call:</b> {_esc(mm['deterministic'])} — mismatch flagged "
+                    "<span class='so-foot'>(the deterministic call stands)</span></p></div>"
+                )
+        # 3) archetype fold (header characterization).
+        af = self._archetype_fold(hp)
+        if af:
+            parts.append(af)
+        # 4) convergence fold (LLM synthesis: causal chain + trust + exec bullets + tension + litctx).
+        syn = by_kind.get(vocab.SYNTHESIS)
+        if syn is not None:
+            conv = "".join(self._emit(syn))
+            if conv.strip():
+                parts.append(
+                    "<details class='fold' open><summary>How the evidence converges "
+                    "<span class='fx'>— cross-evidence causal chain · LLM synthesis · cited literature</span>"
+                    f"</summary><div class='foldbody'><div class='card'>{conv}</div></div></details>"
+                )
+        # 5) the 3-view switch.
+        parts.append(
+            "<div class='views'>"
+            "<button data-v='assess' class='on'>6-Dimension assessment</button>"
+            "<button data-v='modality'>Modality</button>"
+            "<button data-v='coherence'>Literature × omics</button></div>"
+        )
+        # 6) VIEW: 6-dimension spine (risk_6dim rendered as .dim/.dbar/.dmembers).
+        r6 = by_kind.get(vocab.RISK_6DIM)
+        spine = "".join(self._emit(r6)) if r6 is not None else ""
+        parts.append(
+            "<section class='view on' id='v-assess'>"
+            "<h2 class='sh'>Target-validation assessment — 5 R's + translational "
+            "<span class='sub'>· LOW risk = green = good · click a dimension for the signals feeding it</span></h2>"
+            f"{spine}</section>"
+        )
+        # 7) VIEW: modality (modality_matrix rendered as .mrow/.mbul + .matrix).
+        mm = by_kind.get(vocab.MODALITY_MATRIX)
+        mod = "".join(self._emit(mm)) if mm is not None else ""
+        parts.append(f"<section class='view' id='v-modality'>{mod}</section>")
+        # 8) VIEW: literature × omics coherence (literature_risk rendered as .cohtab).
+        lr = by_kind.get(vocab.LITERATURE_RISK)
+        coh = "".join(self._emit(lr)) if lr is not None else ""
+        parts.append(f"<section class='view' id='v-coherence'>{coh}</section>")
+        # decision-detail + per-skill evidence: appended as collapsed folds so nothing the composed IR
+        # carries is dropped from the HTML (the v6 look leads; the depth is one click away).
+        placed = {vocab.SYNTHESIS, vocab.RISK_6DIM, vocab.MODALITY_MATRIX, vocab.LITERATURE_RISK}
+        detail_blocks = [b for b in ir.overview if b.kind not in placed]
+        if detail_blocks:
+            inner = "".join(self._wrap_card("".join(self._emit(b))) for b in detail_blocks)
+            parts.append(
+                "<details class='fold'><summary>Decision detail "
+                "<span class='fx'>— at-a-glance grid · deciding axis · flip conditions · biomarker · "
+                f"subtype · coherence</span></summary><div class='foldbody'>{inner}</div></details>"
+            )
+        if ir.sections:
+            secs = "".join(self._emit_section(sec, collapsed=True) for sec in ir.sections)
+            parts.append(
+                "<details class='fold'><summary>Per-subskill evidence "
+                f"<span class='fx'>— the {len(ir.sections)} embedded question-answering views</span>"
+                f"</summary><div class='foldbody'>{secs}</div></details>"
+            )
+        return "".join(parts)
+
+    def _archetype_fold(self, hp: dict) -> str:
+        """v6 archetype fold: phenotype-class prose + soft-membership bars + nearest-analog bars, from the
+        header characterization (verdict-inert). '' when no archetype characterization is present."""
+        char = hp.get("characterization") or {}
+        membership = char.get("membership") or char.get("mixture") or []
+        analogs = char.get("analogs") or []
+        if not (membership or analogs):
+            return ""
+        lead = membership[0]["label"] if membership else None
+        analog_summary = " · ".join(_esc(a.get("target")) for a in analogs[:3]) if analogs else ""
+        fx = " · ".join(
+            x for x in (f"{_esc(lead)}" if lead else "", f"analogs {analog_summary}" if analog_summary else "") if x
+        )
+        prose = (
+            "A data-driven classification (soft kNN membership against the reference archetype atlas) of "
+            "what KIND of target this is — it routes narrative emphasis and picks comparators. Descriptive "
+            "and verdict-inert."
+        )
+        if lead:
+            prose = f"This target reads as <b>{_esc(lead)}</b>. " + prose
+        mrows = "".join(
+            f"<div class='mrowb'><span>{_esc(m.get('label'))}</span>"
+            f"<span class='mt'><i style='width:{max(2, int(round((m.get('weight') or 0) * 100)))}%'></i></span>"
+            f"<span>{int(round((m.get('weight') or 0) * 100))}%</span></div>"
+            for m in membership[:5]
+        )
+        # nearest-analog bars: smaller distance = more similar → longer bar. Scale to the max shown distance.
+        dists = [a.get("distance") for a in analogs if isinstance(a.get("distance"), (int, float))]
+        dmax = max(dists) if dists else None
+        arows = []
+        for a in analogs[:3]:
+            name = _esc(a.get("target")) + (f" · {_esc(a.get('indication'))}" if a.get("indication") else "")
+            d = a.get("distance")
+            if isinstance(d, (int, float)) and dmax:
+                width = max(6, int(round((1 - (d / (dmax * 1.15))) * 100)))
+                val = f"{d:g}"
+            else:
+                width, val = 40, "—"
+            arows.append(
+                f"<div class='anrow'><span>{name}</span>"
+                f"<span class='ad'><i style='width:{width}%'></i></span><span>{_esc(val)}</span></div>"
+            )
         return (
-            "<div class='lens-tabs'>"
-            + "".join(radios)
-            + "<nav class='lens-nav' role='tablist'>"
-            + "".join(navs)
-            + "</nav>"
-            + "".join(panels)
-            + "</div>"
+            f"<details class='fold'><summary>Target archetype <span class='fx'>— {fx}</span></summary>"
+            "<div class='foldbody'><div class='card arche'>"
+            f"<div><div class='arche-h'>Phenotype class</div><p class='arche-x'>{prose}</p></div>"
+            f"<div><div class='arche-h'>Soft membership</div>{mrows}</div>"
+            "<div><div class='arche-h'>Nearest analogs <span style='font-weight:400;text-transform:none;"
+            f"letter-spacing:0'>(smaller = more similar)</span></div>{''.join(arows)}</div>"
+            "</div></div></details>"
         )
 
     def _emit(self, block: Block) -> list:
@@ -472,17 +750,58 @@ class HtmlBackend:
         return f"<section class='{cls}'>{inner}</section>"
 
     # -- handlers ------------------------------------------------------------------------------
+    _REC_CLASS = {
+        "nominate": "go",
+        "advance": "go",
+        "go": "go",
+        "hold": "hold",
+        "conditional": "hold",
+        "watch": "hold",
+        "kill": "kill",
+        "decline": "kill",
+        "no": "kill",
+        "drop": "kill",
+    }
+
     def _report_header(self, p: dict) -> list:
         tgt, ind = _esc(p.get("target") or "—"), _esc(p.get("indication") or "—")
-        out = [
-            f"<h1>{tgt} <span style='color:var(--muted);font-weight:520'>×</span> {ind}</h1>",
-            "<p class='sub'>Target profile — evidence across 14 subskills; the recommendation is a "
-            "subordinate summary of the signals below.</p>",
+        # standalone single-skill path: a plain target/indication frame (the skill's own call leads its
+        # section) — NOT the composed v6 hero (which needs the target-level recommendation + risk glance).
+        if p.get("single_skill"):
+            return [
+                f"<h1>{tgt} <span style='color:var(--muted);font-weight:520'>×</span> {ind}</h1>",
+                "<p class='sub'>Single-skill evidence view.</p>",
+            ]
+        # ── v6 sticky hero: 3-column (LEFT identity + context pills · CENTER verdict chip · RIGHT 6-dim
+        #    glance) ── followed by the standout headline. Verdict-inert display.
+        left = [f"<h1 class='h-t'>{tgt} <span class='ind'>× {ind}</span></h1>"]
+        char = p.get("characterization") or {}
+        lead_label = (char.get("mixture") or [{}])[0].get("label") if char.get("mixture") else None
+        arche_bits = [
+            x
+            for x in (
+                _esc(lead_label) if lead_label else "",
+                _esc(_humanize(p.get("thesis"))) if p.get("thesis") else "",
+                _esc(_humanize(p.get("coherence_class"))) if p.get("coherence_class") else "",
+            )
+            if x
         ]
-        # v6 STANDOUT statement: the one-sentence pull-together, right under the title.
-        if p.get("overall_statement"):
-            out.append(f"<p class='headline'>{_esc(p['overall_statement'])}</p>")
-        # addressable-population framing (target×indication prevalence) — what makes this a target×indication call.
+        if arche_bits:
+            left.append(f"<div class='h-arche'>{' · '.join(arche_bits)}</div>")
+        analogs = char.get("analogs") or []
+        if analogs:
+            al = " · ".join(f"<b>{_esc(a.get('target'))}</b>" for a in analogs[:3])
+            left.append(f"<div class='analogs'>nearest archetype analogs: {al}</div>")
+        lit = p.get("literature") if isinstance(p.get("literature"), dict) else None
+        if lit and (lit.get("total_comentions") or lit.get("cited_pmids")):
+            tot = lit.get("total_comentions")
+            rec_m = lit.get("recent_comentions")
+            txt = "cited co-mentions"
+            if tot is not None:
+                txt = f"<b>{int(tot):,}</b> cited co-mentions"
+                if rec_m is not None:
+                    txt += f" ({int(rec_m):,} recent)"
+            left.append(f"<div class='analogs'>Literature: {txt} — see Literature × omics view below</div>")
         ap = p.get("addressable_population") if isinstance(p.get("addressable_population"), dict) else {}
         prev = ap.get("biomarker_prevalence")
         if prev is not None:
@@ -499,68 +818,45 @@ class HtmlBackend:
                 )
                 if x
             )
-            out.append(
-                f"<p class='h-pop'>Addressable population <b>{prevpct}</b>" + (f" — {meta}" if meta else "") + "</p>"
+            left.append(
+                f"<div class='h-pop'>Addressable population <b>{prevpct}</b>"
+                + (f" — {meta}" if meta else "")
+                + "</div>"
             )
-        # LEAD with what the target IS (data-backed archetype characterization), before any verdict.
-        char = p.get("characterization") or {}
-        mix = char.get("mixture") or []
-        if mix:
-            chips = "".join(
-                f"<span class='char-chip{' lead' if i == 0 else ''}'>{_esc(m.get('label'))}"
-                f"<span class='w'>{int(round((m.get('weight') or 0) * 100))}%</span></span>"
-                for i, m in enumerate(mix)
+        cp = p.get("clinical_precedent") if isinstance(p.get("clinical_precedent"), dict) else None
+        if cp and cp.get("highest_stage"):
+            left.append(
+                "<div class='h-pop' style='margin-top:6px;background:var(--t-good)'>Clinical precedent — "
+                f"highest stage <b>{_esc(cp['highest_stage'])}</b></div>"
             )
-            analogs = char.get("analogs") or []
-            analog_html = ""
-            if analogs:
-                al = " · ".join(
-                    f"{_esc(a.get('target'))}"
-                    + (f" <span class='w'>({_esc(a.get('indication'))})</span>" if a.get("indication") else "")
-                    for a in analogs
-                )
-                analog_html = f"<div class='char-analogs'>nearest analogs: {al}</div>"
-            out.append(
-                "<div class='char'><div class='lbl'>Target characterization "
-                "(archetype membership vs. reference atlas)</div>" + chips + analog_html + "</div>"
-            )
-        if p.get("thesis"):
-            out.append(
-                f"<p class='kv'><b>Working thesis:</b> {_esc(_humanize(p['thesis']))} "
-                "<span class='prov'>(cross-axis coherence framing)</span></p>"
-            )
+        # CENTER: the verdict chip + confidence + groundedness stamp.
         rec = p.get("recommendation")
+        center = []
         if rec:
-            klass = {
-                "nominate": "go",
-                "advance": "go",
-                "go": "go",
-                "hold": "hold",
-                "conditional": "hold",
-                "watch": "hold",
-                "kill": "kill",
-                "decline": "kill",
-                "no": "kill",
-                "drop": "kill",
-            }.get(str(rec).strip().lower().split()[0], "")
-            dec = (
-                f" <span class='deciding'>deciding: {_esc(p['deciding_title'])}</span>"
-                if p.get("deciding_title")
-                else ""
-            )
+            klass = self._REC_CLASS.get(str(rec).strip().lower().split()[0], "none")
+            center.append(f"<span class='vchip {klass}'><span class='dot'></span>{_esc(_humanize(rec))}</span>")
             ct = _confidence_summary(p.get("confidence"))
-            conf = f" <span class='prov'>· confidence: {_esc(ct)}</span>" if ct else ""
-            out.append(
-                f"<p class='kv'><b>Provisional call:</b> "
-                f"<span class='rec {klass}'><span class='dot'></span>"
-                f"<span class='word'>{_esc(rec)}</span></span>{dec}{conf}</p>"
-            )
-        dissent = p.get("dissent") or []
-        if dissent:
-            items = "".join(f"<li>{_esc(_dissent_summary(d))}</li>" for d in dissent)
-            out.append(f"<p class='kv'><b>Dissent:</b> {len(dissent)} note(s)</p><ul class='chips'>{items}</ul>")
-        # v6 safety-reconciliation TRIPLET: a HIGH-magnitude veto that is suppressed by a spared modality
-        # is one reconciled fact (magnitude → escapable_by → gate suppressed), not two contradicting reads.
+            if ct:
+                center.append(f"<div class='vconf'>confidence <b>{_esc(ct)}</b></div>")
+            gr = p.get("groundedness") if isinstance(p.get("groundedness"), dict) else None
+            if gr and gr.get("n_cited") is not None:
+                center.append(
+                    f"<div class='trust'>✓ synthesis grounded · {_esc(gr['n_cited'])} claims, "
+                    f"{_esc(gr.get('n_invented') or 0)} invented</div>"
+                )
+        center_html = f"<div class='vblock'>{''.join(center)}</div>" if center else ""
+        # RIGHT: the 6-dimension glance (reads the same risk_6dim dims as the assessment spine).
+        right_html = self._dimmini(p.get("risk_dims") or [])
+        out = [
+            "<header class='hero'><div class='hgrid'>"
+            f"<div>{''.join(left)}</div>{center_html}{right_html}"
+            "</div></header>"
+        ]
+        # STANDOUT one-sentence statement, right below the hero.
+        if p.get("overall_statement"):
+            out.append(f"<p class='headline'>{_esc(p['overall_statement'])}</p>")
+        # safety-reconciliation TRIPLET (a HIGH-magnitude veto suppressed by a spared modality is ONE
+        # reconciled fact) — kept as a compact row under the headline.
         gate = p.get("gate") if isinstance(p.get("gate"), dict) else {}
         for v in gate.get("suppressed_vetoes") or []:
             if not isinstance(v, dict):
@@ -579,6 +875,25 @@ class HtmlBackend:
                 "</div>"
             )
         return out
+
+    _DIMMINI_CLASS = {3: "risk-high", 2: "risk-med", 1: "risk-low"}
+    _DIMMINI_LV = {3: "HIGH", 2: "MED", 1: "LOW"}
+
+    def _dimmini(self, dims: list) -> str:
+        """The v6 hero 6-dim glance: one row per risk dimension (label · positioned bar · level), coloured
+        by rank (LOW=green / MED=amber / HIGH=red / unrouted=grey). '' when no dims."""
+        if not dims:
+            return ""
+        rows = []
+        for d in dims:
+            rank = d.get("rank")
+            cls = self._DIMMINI_CLASS.get(rank, "risk-na")
+            lv = self._DIMMINI_LV.get(rank, "unrouted")
+            rows.append(
+                f"<div class='r {cls}'><span>{_esc(str(d.get('dim')).title())}</span>"
+                f"<span class='mtrack'><i></i></span><span class='lv'>{_esc(lv)}</span></div>"
+            )
+        return f"<div class='dimmini'>{''.join(rows)}</div>"
 
     def _skill_header(self, p: dict) -> list:
         glyph = vocab.polarity_glyph(p.get("polarity"))
@@ -735,121 +1050,168 @@ class HtmlBackend:
         foot += "</p>"
         return [f"<h2>Signals across subskills</h2>{lede}<div class='signal-strip'>{svg}</div>{foot}"]
 
+    _DIM_CLASS = {3: "risk-high", 2: "risk-med", 1: "risk-low"}
+    _DIM_LEVEL = {3: "HIGH", 2: "MED", 1: "LOW"}
+
     def _risk_6dim(self, p: dict) -> list:
+        """The v6 6-dimension spine: one `<details class='dim risk-…'>` per dimension — a summary with the
+        dimension name, a positioned low→med→high `.dbar`, and its `.dlevel`; the body `.dmembers` lists
+        the feeding subskill signals (source · plain reading · level) + blind-spots / reconciliation."""
         dims = p.get("dims") or []
         if not dims:
             return []
-        tiles = []
+        out = []
         for d in dims:
             rank = d.get("rank")
-            cls = {3: "rt-high", 2: "rt-med", 1: "rt-low"}.get(rank, "rt-blind")
-            lab = d.get("bin") or "n/e"
-            dim_lab = _esc(str(d.get("dim")).title())
-            tile = f"<div class='rt-dim'>{dim_lab}</div><div class='rt-bin'>{_esc(lab)}</div>"
+            cls = self._DIM_CLASS.get(rank, "risk-na")
+            blind = " blind" if (cls == "risk-na") else ""
+            level = self._DIM_LEVEL.get(rank) or (d.get("bin") if rank is None else None) or "unrouted"
+            name = _esc(str(d.get("dim")).title())
+            role = _esc(str(d.get("dim")))
+            did = f"dim-{role}"
+            summary = (
+                f"<summary><span class='caret'>▸</span>"
+                f"<span class='dn'>{name}<span class='rr'>{role}</span></span>"
+                "<span class='dbar'><span class='track'><i></i></span>"
+                "<span class='scale'><span>low</span><span>med</span><span>high</span></span></span>"
+                f"<span class='dlevel'>{_esc(level)}</span></summary>"
+            )
             members = d.get("members") or []
-            if not members:
-                # engine-blind / no feeding chain → flat tile (no drill-down)
-                tiles.append(f"<div class='risk-tile {cls}'>{tile}</div>")
-                continue
-            # collapsible spine (Ph3a): the tile is the summary; expanding shows the feeding signals
-            # (subskill → dimension crosswalk) + blind spots + mitigation. LOW=green via rt-low.
             mem_rows = "".join(
-                f"<div class='rd-mem'><span class='rd-src'>{_esc(m.get('source'))}</span>"
-                f"<span class='rd-read'>{_esc(m.get('read') or '')}</span>"
-                f"<span class='rd-lv'>{_esc(m.get('level') or '')}</span></div>"
+                f"<div class='mem'><span class='mn'>{_esc(m.get('source'))}"
+                f"<small>{_esc(m.get('source'))}</small></span>"
+                f"<span>{_esc(m.get('read') or '')}</span>"
+                + (
+                    f"<span class='dlevel' style='font-size:11px'>{_esc(m.get('level'))}</span>"
+                    if m.get("level")
+                    else "<span></span>"
+                )
+                + "</div>"
                 for m in members
             )
-            body = f"<div class='rd-body'>{mem_rows}"
+            body = mem_rows
             bs = d.get("blind_spots") or []
             if bs:
                 body += (
-                    "<div class='rd-blind'>⚑ blind spots (omics can't see): "
+                    "<div class='dimlit'>⚑ blind spots (omics can't see): "
                     + _esc(", ".join(str(b) for b in bs))
                     + "</div>"
                 )
             if d.get("mitigation"):
-                body += f"<div class='rd-mit'>mitigation: {_esc(str(d.get('mitigation')))}</div>"
-            body += "</div>"
-            tiles.append(f"<details class='rd'><summary class='risk-tile {cls}'>{tile}</summary>{body}</details>")
-        return [
-            "<h2>Risk by dimension <span class='hint'>— click a dimension for its feeding signals</span></h2>"
-            f"<div class='risk-tiles'>{''.join(tiles)}</div>"
-        ]
+                body += f"<div class='dimlit'>↪ reconciliation: {_esc(str(d.get('mitigation')))}</div>"
+            if not members and not bs and not d.get("mitigation"):
+                body = "<div class='blindnote'>Engine-blind dimension — no feeding signal routed.</div>"
+            out.append(
+                f'<details class="dim {cls}{blind}" id="{did}">{summary}<div class="dmembers">{body}</div></details>'
+            )
+        return ["".join(out)]
+
+    _EBUL_CLASS = {"supportive": "sup", "opposing": "against", "killer": "against", "neutral": "sup"}
 
     def _synthesis(self, p: dict) -> list:
-        out = ["<span class='tag'>AI-generated</span><h2>Synthesis</h2>"]
-        _GLYPH = {"supportive": "△", "opposing": "▽", "killer": "▲", "neutral": "◆", "not_applicable": "·"}
-        _CLS = {"supportive": "g-sup", "opposing": "g-opp", "killer": "g-kill", "neutral": "g-neu"}
-        bullets = p.get("exec_bullets") or []
-        if bullets:
-            lis = []
-            for b in bullets:
-                pol = b.get("polarity")
-                anchors = b.get("cites") or {}
-                ids = (anchors.get("card_ids") or []) + (anchors.get("citation_ids") or [])
-                anc = (f" <span class='ke-anchor'>[{_esc(', '.join(ids[:3]))}]</span>") if ids else ""
-                lis.append(
-                    f"<li><span class='{_CLS.get(pol, 'g-neu')}'>{_GLYPH.get(pol, '•')}</span> "
-                    f"{_esc(b.get('text'))}{anc}</li>"
+        """The v6 convergence block (`.conv`): the cross-evidence causal chain (cnode → cedge → …), the
+        integrator TRUST row, the LLM synthesis (`.exec` polarity bullets + `.tension` central tension),
+        and the cited-literature `.litctx`. Verdict-inert — an advisory second read beside the spine."""
+        conv = []
+        ce = p.get("cross_evidence") or {}
+        chain = ce.get("chain") or []
+        if chain:
+            warn_nodes = {c.get("from") for c in chain if c.get("type") == "contradicts"} | {
+                c.get("to") for c in chain if c.get("type") == "contradicts"
+            }
+
+            def _node(short):
+                ncls = "warn" if short in warn_nodes else "sup"
+                return f"<div class='cnode {ncls}'><div class='ct'></div><b>{_esc(vocab.skill_title(short))}</b></div>"
+
+            steps = []
+            for c in chain:
+                steps.append(_node(c.get("from")))
+                steps.append(
+                    f"<div class='cedge'><span class='ar'>→</span>{_esc(_humanize(c.get('type')) or '')}</div>"
                 )
-            out.append("<ul class='exec-bullets'>" + "".join(lis) + "</ul>")
-        verbose_frag = []
-        if p.get("executive_summary"):
-            verbose_frag.append(f"<p>{_esc(p['executive_summary'])}</p>")
-        if p.get("tension_analysis"):
-            verbose_frag.append(f"<p class='kv'><b>Tensions:</b> {_esc(p['tension_analysis'])}</p>")
-        args = p.get("arguments") or []
-        if args:
-            verbose_frag.append(
-                "<ul class='chips'>" + "".join(f"<li>{_esc(_arg_summary(a))}</li>" for a in args) + "</ul>"
+            if chain[-1].get("to"):
+                steps.append(_node(chain[-1].get("to")))
+            conv.append(f"<div class='causal'>{''.join(steps)}</div>")
+        # TRUST row (cross-evidence defensibility + honest certainty divergence vs the spine).
+        trust = []
+        if ce.get("verdict"):
+            trust.append(f"<span><span class='k'>Cross-evidence verdict</span><b>{_esc(ce['verdict'])}</b></span>")
+        if ce.get("traceable") is not None or ce.get("coherence_violations") is not None:
+            tr = _esc(ce.get("traceable") or "—")
+            cv = _esc(ce.get("coherence_violations") if ce.get("coherence_violations") is not None else "—")
+            trust.append(
+                f"<span><span class='k'>Defensibility</span><span class='ok'>{tr} clauses traceable · "
+                f"{cv} violations</span></span>"
             )
-        if verbose_frag:
-            # bullets lead; the verbose prose is demoted behind an expander (Stage-2 secondary read).
-            if bullets:
-                out.append(
-                    "<details class='full-narrative'><summary>Full narrative</summary>"
-                    + "".join(verbose_frag)
-                    + "</details>"
+        if ce.get("certainty"):
+            lim = f" (weakest link = {_esc(ce['limiting'])})" if ce.get("limiting") else ""
+            trust.append(
+                f"<span><span class='k'>Integrator certainty</span>"
+                f"<span class='warn'>{_esc(_humanize(ce['certainty']))}</span>{lim}</span>"
+            )
+        if trust:
+            conv.append(f"<div class='trust'>{''.join(trust)}</div>")
+        # SYNTHESIS: polarity exec bullets + the integrator independent-read bullet + the central tension.
+        bullets = p.get("exec_bullets") or []
+        ebuls = []
+        for b in bullets:
+            cls = self._EBUL_CLASS.get(b.get("polarity"), "sup")
+            ebuls.append(f"<div class='ebul {cls}'><span class='pol'></span><div>{_esc(b.get('text'))}</div></div>")
+        if ce.get("verdict") or ce.get("certainty"):
+            lim = f" (weakest link: {_esc(ce['limiting'])})" if ce.get("limiting") else ""
+            ebuls.append(
+                "<div class='ebul xev'><span class='pol'></span><div>"
+                "<span class='xk'>Cross-evidence integrator · independent read</span>"
+                f"{_esc(_humanize(ce.get('verdict')) or 'independent read')}, certainty "
+                f"<b>{_esc(_humanize(ce.get('certainty')) or 'n/a')}</b>{lim} — a second opinion surfaced "
+                "beside the composed spine, not reconciled into it.</div></div>"
+            )
+        exec_html = f"<div class='exec'>{''.join(ebuls)}</div>" if ebuls else ""
+        tension_html = ""
+        if p.get("tension_analysis"):
+            tension_html = (
+                f"<div class='tension'><div class='tl'>Central tension</div><p>{_esc(p['tension_analysis'])}</p></div>"
+            )
+        if exec_html or tension_html:
+            conv.append(f"<div class='synth'>{exec_html}{tension_html}</div>")
+        # LITCTX: cited co-mention literature (verdict-inert context).
+        lit = p.get("literature") if isinstance(p.get("literature"), dict) else None
+        if lit and (lit.get("total_comentions") or lit.get("cited_pmids")):
+            head = (
+                "<div class='lh'>Literature — cited co-mentions · VERDICT-INERT (text-mined; informs "
+                "context, never changes the call)</div>"
+            )
+            vol = ""
+            if lit.get("total_comentions") is not None:
+                vol = f"<div style='margin-top:5px'><b>{int(lit['total_comentions']):,}</b> publications co-mention this target + indication"
+                if lit.get("recent_comentions") is not None:
+                    vol += f" (<b>{int(lit['recent_comentions']):,}</b> recent"
+                    vol += f", latest {_esc(lit['latest_year'])}" if lit.get("latest_year") else ""
+                    vol += ")"
+                vol += " — co-occurrence volume, not curated causal support.</div>"
+            cites = ""
+            pmids = lit.get("cited_pmids") or []
+            if pmids:
+                links = "".join(
+                    f"<div class='cr'><a class='cite' href='https://pubmed.ncbi.nlm.nih.gov/{_esc(pm)}' "
+                    f"target='_blank'>PMID {_esc(pm)}</a></div>"
+                    for pm in pmids
                 )
-            else:
-                out.extend(verbose_frag)
-        cites = p.get("citations") or []
-        if cites:
-            # rule-ids lifted out of the prose → a collapsed grounding affordance (hover/expand), so the
-            # executive text reads clean while the provenance stays one click away.
-            codes = "".join(f"<code>{_esc(c)}</code>" for c in cites)
-            out.append(
-                f"<details class='cite-prov'><summary>Grounded in {len(cites)} framework "
+                cites = f"<div class='cites'>{links}</div>"
+            conv.append(f"<div class='litctx'>{head}{vol}{cites}</div>")
+        # grounding provenance: the rule-ids lifted out of the exec prose → a collapsed affordance so the
+        # narrative reads clean while the framework grounding stays one click away.
+        rule_cites = p.get("citations") or []
+        if rule_cites:
+            codes = "".join(f"<code>{_esc(c)}</code>" for c in rule_cites)
+            conv.append(
+                f"<details class='cite-prov'><summary>Grounded in {len(rule_cites)} framework "
                 f"rules</summary>{codes}</details>"
             )
-        ce = p.get("cross_evidence")
-        if ce:
-            chain = ce.get("chain") or []
-            steps = "".join(
-                f"<span class='ce-node'>{_esc(c.get('from'))}</span>"
-                f"<span class='ce-edge'>→ <small>{_esc(c.get('type') or '')}</small></span>"
-                for c in chain
-            )
-            if chain and chain[-1].get("to"):
-                steps += f"<span class='ce-node'>{_esc(chain[-1].get('to'))}</span>"
-            trust = []
-            if ce.get("verdict"):
-                trust.append(f"verdict <b>{_esc(ce['verdict'])}</b>")
-            if ce.get("certainty"):
-                lim = f" (weakest link: {_esc(ce['limiting'])})" if ce.get("limiting") else ""
-                trust.append(f"certainty <b>{_esc(ce['certainty'])}</b>{lim}")
-            if ce.get("traceable"):
-                trust.append(f"{_esc(ce['traceable'])} clauses traceable")
-            if ce.get("coherence_violations") is not None:
-                trust.append(f"{_esc(ce['coherence_violations'])} coherence violations")
-            out.append(
-                "<div class='cross-ev'><div class='ce-lbl'>Cross-evidence integrator · independent read</div>"
-                + (f"<div class='ce-chain'>{steps}</div>" if steps else "")
-                + (f"<div class='ce-trust'>{' · '.join(trust)}</div>" if trust else "")
-                + "<div class='so-foot'>an independent second read, surfaced beside the spine's — not "
-                "reconciled into it.</div></div>"
-            )
-        return out
+        if not conv:
+            return []
+        return [f"<div class='conv'>{''.join(conv)}</div>"]
 
     def _coherence(self, p: dict) -> list:
         # thesis is in the header; this block adds the coherence class + any caveats.
@@ -861,132 +1223,120 @@ class HtmlBackend:
             out.append("<ul class='chips'>" + "".join(f"<li>{_esc(c)}</li>" for c in cav) + "</ul>")
         return out
 
-    _CELL_CLASS = {"supportive": "mx-pos", "neutral": "mx-zero", "opposing": "mx-neg", "killer": "mx-killer"}
-    _MOD_ICON = {"viable": "✓", "conditional": "~", "unfavorable": "✕", "not_applicable": "⊘", "killer": "✕"}
-    _AXIS_STATUS = {
-        "favorable": "viable",
-        "viable": "viable",
-        "conditional": "conditional",
-        "unfavorable": "unfavorable",
-        "killer": "killer",
-        "opposing": "unfavorable",
+    _MOD_COL_SHORT = {
+        "small_molecule": "SM",
+        "degrader": "Degrader",
+        "biologics": "Biologic",
+        "adc": "ADC",
+        "bite_tce": "TCE",
+        "antibody": "Antibody",
     }
+    _MX_CELL = {"supportive": "g", "neutral": "n", "opposing": "h", "killer": "b"}
 
     def _modality_matrix(self, p: dict) -> list:
-        """Per-modality FIT readout (from modality_fit_by_channel) — a status list, not an ordinal grid.
-        The raw gate×modality grid is retained as a drill-down (it keeps the killer-vs-opposing shape)."""
+        """The v6 modality view: per-modality `.mrow` + `.mbul` viability bars (from modality_fit_by_channel),
+        then the gate×modality `.matrix` ordinal grid (comp-bio power object). Verdict-inert display."""
         channels = p.get("channels") or []
         cols, rows = p.get("columns") or [], p.get("rows") or []
         if not channels and not (cols and rows):
             return []
-        out = ["<h2>Modality fit <span class='so-foot'>— which drug format is viable, and why</span></h2>"]
+        out = ["<h2 class='sh'>Modality fit <span class='sub'>· which drug format is viable, and why</span></h2>"]
         if channels:
-            applic = [c for c in channels if c.get("status") != "not_applicable"]
-            na = [c for c in channels if c.get("status") == "not_applicable"]
-            out.append(f"<p class='lede'>{self._mod_lede(applic, na)}</p>")
-            body = [self._mod_row(c) for c in applic]
-            if na:
-                names = " · ".join(c.get("name", "") for c in na)
-                reason = next(
-                    (_humanize(c.get("masked_by_axis")) for c in na if c.get("masked_by_axis")),
-                    "not applicable to this target's biology",
-                )
-                body.append(
-                    f"<div class='mod-row na'><span class='mod-name'>{_esc(names)}</span>"
-                    f"<span class='pill not_applicable'><span class='ic'>⊘</span>Not applicable</span>"
-                    f"<span class='mod-why'>{_esc(reason)}</span></div>"
-                )
-            out.append("<div class='mod-fit'>" + "".join(body) + "</div>")
+            mrows = []
+            for c in channels:
+                st = c.get("status") or "unfavorable"
+                if st == "not_applicable":
+                    reason = _humanize(c.get("masked_by_axis")) or "not applicable to this target's biology"
+                    mrows.append(
+                        f"<div class='mrow na'><span class='mn'>{_esc(c.get('name'))}</span>"
+                        f"<div class='mbul na'></div><span class='mwhy'>not applicable — {_esc(reason)}</span></div>"
+                    )
+                else:
+                    why = c.get("label") or _humanize(st)
+                    if c.get("limiting_axis"):
+                        why = f"{_humanize(st)} — limited by {vocab.skill_title(c['limiting_axis'])}"
+                    mrows.append(
+                        f"<div class='mrow'><span class='mn'>{_esc(c.get('name'))}</span>"
+                        f"<div class='mbul {_esc(st)}'><i></i></div><span class='mwhy'>{_esc(why)}</span></div>"
+                    )
+            out.append(f"<div class='card'>{''.join(mrows)}</div>")
         if cols and rows:
-            out.append(self._modality_grid_details(cols, rows, p))
+            head = "".join(f"<th>{_esc(self._MOD_COL_SHORT.get(c, str(c).replace('_', ' ')))}</th>" for c in cols)
+            trs = []
+            for r in rows:
+                cells = r.get("cells") or {}
+                tds = ""
+                for m in cols:
+                    cell = cells.get(m) or {}
+                    if not cell.get("on_scale"):
+                        tds += "<td class='off'>n/a</td>"
+                    else:
+                        cls = self._MX_CELL.get(cell.get("signal"), "n")
+                        ordv = cell.get("ordinal")
+                        val = f"{ordv:+d}" if isinstance(ordv, int) else _esc(cell.get("signal") or "")
+                        tds += f"<td class='{cls}'>{_esc(val)}</td>"
+                trs.append(f"<tr><td>{_esc(vocab.skill_title(r.get('short')))}</td>{tds}</tr>")
+            legend = f"<p class='blindnote'>{_esc(p['glyph_legend'])}</p>" if p.get("glyph_legend") else ""
+            out.append(
+                "<h2 class='sh'>Gate × modality matrix <span class='sub'>· comp-bio power object — ordinal "
+                "−3…+2, off-scale = n/a</span></h2>"
+                "<div class='card' style='overflow-x:auto'>"
+                f"<table class='matrix'><tr><th>Axis (gate)</th>{head}</tr>{''.join(trs)}</table>{legend}</div>"
+            )
         return out
 
-    def _mod_lede(self, applic: list, na: list) -> str:
-        viable = [c["name"] for c in applic if c.get("status") == "viable"]
-        cond = [c["name"] for c in applic if c.get("status") == "conditional"]
-        if viable:
-            s = f"Viable route(s): <b>{_esc(', '.join(viable))}</b>."
-        elif cond:
-            s = f"No clearly viable format; <b>{_esc(', '.join(cond))}</b> conditional on de-risking."
-        else:
-            s = "No clearly viable format among the applicable modalities."
-        lims = sorted({vocab.skill_title(c["limiting_axis"]) for c in applic if c.get("limiting_axis")})
-        if lims:
-            s += f" Held back by <b>{_esc(', '.join(lims))}</b>."
-        if na:
-            s += f" {len(na)} surface format(s) not applicable to this target's biology."
-        return s
+    _RL_CLASS = {"LOW": "rl-low", "MED": "rl-med", "MEDIUM": "rl-med", "HIGH": "rl-high"}
+    _COH_CELL = {
+        "agree": ("coh-ok", "✓ agree"),
+        "grade-divergence": ("coh-warn", "△ grade divergence"),
+        "contradicts": ("coh-bad", "✗ contradicts"),
+        "literature-only": ("coh-gap", "⚠ literature-only"),
+        "omics-only": ("coh-gap", "⚠ omics-only"),
+    }
 
-    def _mod_row(self, c: dict) -> str:
-        st = c.get("status") or "unfavorable"
-        ic = self._MOD_ICON.get(st, "")
-        why = f"Limited by <b>{_esc(vocab.skill_title(c['limiting_axis']))}</b>" if c.get("limiting_axis") else ""
-        chips = ""
-        for ax, val in (c.get("by_axis") or {}).items():
-            astat = self._AXIS_STATUS.get(val, "unfavorable")
-            chips += (
-                f"<span class='axis-chip {astat}'><span class='ic'>{self._MOD_ICON.get(astat, '')}"
-                f"</span>{_esc(vocab.skill_title(ax))}</span>"
-            )
-        return (
-            f"<div class='mod-row'><span class='mod-name'>{_esc(c.get('name'))}</span>"
-            f"<span class='pill {st}'><span class='ic'>{ic}</span>{_esc(c.get('label'))}</span>"
-            f"<span class='mod-why'>{why} {chips}</span></div>"
-        )
-
-    def _modality_grid_details(self, cols: list, rows: list, p: dict) -> str:
-        from ...ordinal_view import _cell_glyph
-
-        head = "".join(f"<th>{_esc(c)}</th>" for c in cols)
-        trs = []
-        for r in rows:
-            cells = r.get("cells") or {}
-            tds = ""
-            for m in cols:
-                cell = cells.get(m) or {}
-                cls = self._CELL_CLASS.get(cell.get("signal"), "mx-off") if cell.get("on_scale") else "mx-off"
-                tds += f"<td class='{cls}'>{_esc(_cell_glyph(cell))}</td>"
-            trs.append(
-                f"<tr><td>{_esc(vocab.skill_title(r.get('short')))}</td>{tds}"
-                f"<td>{_esc(_humanize(r.get('verdict')) if r.get('verdict') else '—')}</td></tr>"
-            )
-        legend = f"<p class='so-foot'>{_esc(p['glyph_legend'])}</p>" if p.get("glyph_legend") else ""
-        disc = f"<p class='prov'>{_esc(p['disclaimer'])}</p>" if p.get("disclaimer") else ""
-        return (
-            f"<details class='cite-prov'><summary>Per-axis × modality detail (raw ordinal grid + "
-            f"caveats)</summary><table><thead><tr><th>Axis (gate)</th>{head}<th>Verdict</th></tr>"
-            f"</thead><tbody>{''.join(trs)}</tbody></table>{legend}{disc}</details>"
-        )
+    def _rl(self, level) -> str:
+        return self._RL_CLASS.get(str(level or "").upper(), "rl-na")
 
     def _literature_risk(self, p: dict) -> list:
+        """The v6 lit×omics coherence `table.cohtab`: deep-research literature risk (cited PubMed) beside
+        the deterministic omics (risk_6dim), per dimension, with an agreement read + an aggregate note.
+        Literature is VERDICT-INERT context — it corroborates or flags, never overrides."""
         dims = p.get("dims") or []
         if not dims:
             return []
-        _COH = {
-            "agree": "coh-ok",
-            "grade-divergence": "coh-warn",
-            "contradicts": "coh-bad",
-            "literature-only": "coh-gap",
-            "omics-only": "coh-gap",
-        }
         trs = []
+        n_agree = 0
         for d in dims:
-            pm = d.get("pmids") or []
-            pmtxt = f" <span class='prov'>({len(pm)} PMIDs)</span>" if pm else ""
             coh = d.get("coherence") or "—"
+            if coh == "agree":
+                n_agree += 1
+            cc, ctxt = self._COH_CELL.get(coh, ("coh-gap", _esc(coh)))
+            pm = d.get("pmids") or []
+            pmtxt = f" <span class='note'>({len(pm)} PMIDs)</span>" if pm else ""
+            ob = d.get("omics_bin") or "—"
+            rl = d.get("risk_level") or "not_assessed"
+            interp = _esc(d.get("interpretation") or "")
+            interp_short = interp[:220] + ("…" if len(interp) > 220 else "")
             trs.append(
                 f"<tr><td>{_esc(d.get('dim'))}</td>"
-                f"<td>{_esc(d.get('omics_bin') or '—')}</td>"
-                f"<td>{_esc(d.get('risk_level') or 'not_assessed')}{pmtxt}"
-                f"<div class='prov'>{_esc(d.get('interpretation') or '')}</div></td>"
-                f"<td class='{_COH.get(coh, '')}'>{_esc(coh)}</td></tr>"
+                f"<td class='{self._rl(ob)}'>{_esc(ob)}</td>"
+                f"<td class='{self._rl(rl)}'>{_esc(rl)}{pmtxt}"
+                f"<span class='note'>{interp_short}</span></td>"
+                f"<td class='{cc}'>{ctxt}</td></tr>"
             )
+        agg = (
+            f"<div class='aggnote'><b>Aggregate:</b> {n_agree}/{len(dims)} dimension(s) concordant between the "
+            "deterministic omics bin and the deep-research literature grade. Literature is "
+            "<b>verdict-inert context</b> (citable_in_nominations = false) — it corroborates or flags, never "
+            "overrides. Coherence is pre-computed per dimension (contradicts_deterministic + anchor read).</div>"
+        )
         return [
-            "<h2>Literature × omics coherence <span class='so-foot'>— deep-research literature risk "
-            "beside the deterministic omics, per dimension. Literature is context, never a gate.</span></h2>"
-            "<table><thead><tr><th>Dimension</th><th>Omics (deterministic)</th>"
-            "<th>Literature (cited)</th><th>Coherence</th></tr></thead>"
-            f"<tbody>{''.join(trs)}</tbody></table>"
+            "<h2 class='sh'>Literature × omics coherence <span class='sub'>· deep-research literature risk "
+            "(cited PubMed) vs deterministic omics (risk_6dim), per dimension, with agreement</span></h2>"
+            "<div class='card' style='overflow-x:auto'>"
+            "<table class='cohtab'><tr><th>Dimension</th><th>Omics — deterministic (risk_6dim)</th>"
+            "<th>Deep-research literature (cited)</th><th>Coherence</th></tr>"
+            f"{''.join(trs)}</table>{agg}</div>"
         ]
 
     def _deciding_axis(self, p: dict) -> list:
@@ -1654,11 +2004,9 @@ def _signal_strip_svg(rows, deciding_short) -> str:
 
 
 # reuse the text backend's shape-tolerant summarizers (single source, no vocab drift).
-from .text import (
-    _arg_summary,
+from .text import (  # noqa: E402
     _chip_summary,
     _confidence_summary,
-    _dissent_summary,  # noqa: E402
     _humanize,
     _qt_conf,
     _qt_question,

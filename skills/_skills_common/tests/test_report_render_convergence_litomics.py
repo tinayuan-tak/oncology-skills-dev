@@ -36,7 +36,8 @@ def test_lit_omics_coherence_table():
     }
     h = render_report(nom, preset="full", backend="html")
     assert "Literature × omics coherence" in h
-    assert "Omics (deterministic)" in h and "Coherence" in h
+    assert "Omics — deterministic (risk_6dim)" in h and "Coherence" in h
+    assert "cohtab" in h  # the v6 lit×omics coherence table
     assert "PMIDs" in h
     # a coherence verdict per row (omics bin vs literature grade)
     assert any(w in h for w in ("agree", "grade-divergence", "literature-only", "omics-only", "contradicts"))
@@ -58,7 +59,7 @@ def test_cross_evidence_causal_chain_in_synthesis():
     assert "advanceable_flagged" in h and "certainty" in h
     assert "clauses traceable" in h
     assert "dependency" in h  # a causal-chain node
-    assert "cross-ev" in h  # the strip renders
+    assert "class='causal'" in h  # the v6 cross-evidence causal chain renders
 
 
 def test_cross_evidence_absent_when_hypothesis_missing():

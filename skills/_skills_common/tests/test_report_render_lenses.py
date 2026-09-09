@@ -58,9 +58,9 @@ def test_banner_carries_exec_summary_and_flags_llm_mismatch():
     # target_call is "hold", the LLM said "nominate" → mismatch surfaced (deterministic wins).
     assert p["mismatch"] and p["mismatch"]["deterministic"] == "hold" and p["mismatch"]["llm"] == "nominate"
     h = render_report(make_nomination(), preset="full", backend="html")
+    # v6 composed layout surfaces the LLM-vs-deterministic divergence as an advisory strip near the top.
     assert "advisory" in h and "mismatch flagged" in h
-    # the banner is chrome — above the tabs, not inside a panel.
-    assert h.index("class='card narr'") < h.index("class='lens-tabs'")
+    assert h.index("class='card narr'") < h.index("class='views'")  # above the 3-view switch
 
 
 def test_banner_absent_when_no_synthesis():

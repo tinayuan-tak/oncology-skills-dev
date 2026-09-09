@@ -660,10 +660,11 @@ def _cross_evidence_summary(nomination: dict) -> Optional[dict]:
     }
 
 
-def _synthesis_block(nomination: dict) -> Optional[Block]:
+def _synthesis_block(nomination: dict, literature: Optional[dict] = None) -> Optional[Block]:
     """The LLM narrative (advisory / verdict-inert): executive summary + tension analysis + top
     arguments. Sourced from `llm_synthesis` (else the legacy `llm_output`). Inline rule-id citations are
-    stripped from the prose into `citations` (a provenance affordance the backends render collapsed)."""
+    stripped from the prose into `citations` (a provenance affordance the backends render collapsed).
+    `literature` = the cited co-mention summary the v6 convergence litctx renders (verdict-inert)."""
     llm = nomination.get("llm_synthesis") or nomination.get("llm_output") or {}
     if not isinstance(llm, dict):
         return None
@@ -711,6 +712,7 @@ def _synthesis_block(nomination: dict) -> Optional[Block]:
             "arguments": args_out,
             "citations": citations,
             "cross_evidence": cross_evidence,
+            "literature": literature,
         },
     )
 
@@ -1081,13 +1083,31 @@ def _target_characterization(tr: dict) -> Optional[dict]:
     analogs = []
     for a in (arche.get("nearest_analogs") or [])[1:4]:
         if isinstance(a, dict) and a.get("target"):
+            dist = a.get("distance")
             analogs.append(
-                {"target": a.get("target"), "indication": a.get("indication"), "archetype": a.get("archetype_label")}
+                {
+                    "target": a.get("target"),
+                    "indication": a.get("indication"),
+                    "archetype": a.get("archetype_label"),
+                    "distance": round(float(dist), 2)
+                    if isinstance(dist, (int, float)) and not isinstance(dist, bool)
+                    else None,
+                }
             )
+    # soft-membership bars (v6 archetype fold): ALL phenotype components (label + weight), sorted, so the
+    # fold can draw one bar per class — distinct from `mixture` (which is the ≥8% header lead only).
+    membership = [
+        {"label": _PHENOTYPE_LABEL.get(k, str(k).replace("_", " ")), "weight": round(float(v), 2)}
+        for k, v in sorted(
+            ((k, v) for k, v in mix.items() if isinstance(v, (int, float)) and not isinstance(v, bool)),
+            key=lambda kv: -kv[1],
+        )
+    ]
     return {
         "mixture": [
             {"label": _PHENOTYPE_LABEL.get(k, str(k).replace("_", " ")), "weight": round(float(v), 2)} for k, v in items
         ],
+        "membership": membership,
         "analogs": analogs,
     }
 
@@ -1646,6 +1666,75 @@ def _cross_cutting_block(nomination: dict, skill_reports: dict) -> Optional[Bloc
     return Block(vocab.CROSS_CUTTING_QUESTIONS, {"rows": rows}) if rows else None
 
 
+_KV_TOKEN = re.compile(r"([a-z_]+)=([\d,]+)")
+
+
+def _literature_comention_summary(skill_reports: dict, nomination: dict) -> Optional[dict]:
+    """Cited-literature co-mention VOLUME/RECENCY for the v6 hero + convergence litctx — parsed from the
+    literature_context skill_report's machine-formatted `k=v` claim-chip evidence (paper_disease_mentions,
+    recent_mentions, n_diseases), plus a handful of cited PMIDs from the deep-research risk_assessment.
+    VERDICT-INERT context (literature is never a gate). None when no literature signal is present."""
+    lc = (skill_reports or {}).get("literature_context") if isinstance(skill_reports, dict) else None
+    vals: dict = {}
+    latest_year = None
+    if isinstance(lc, dict):
+        for c in lc.get("claim_chips") or []:
+            ev = str((c or {}).get("evidence") or "")
+            for m in _KV_TOKEN.finditer(ev):
+                try:
+                    vals.setdefault(m.group(1), int(m.group(2).replace(",", "")))
+                except ValueError:
+                    pass
+            ym = re.search(r"latest (\d{4})", ev)
+            if ym:
+                latest_year = ym.group(1)
+    pmids: list = []
+    ra = (nomination or {}).get("risk_assessment") or {}
+    for _d, v in (ra.get("dimensions") or {}).items() if isinstance(ra, dict) else []:
+        if not isinstance(v, dict):
+            continue
+        for p in (v.get("cited_pmids") or v.get("pmids") or [])[:3]:
+            if p not in pmids:
+                pmids.append(str(p))
+    total = vals.get("paper_disease_mentions")
+    recent = vals.get("recent_mentions")
+    if not (total or recent or pmids):
+        return None
+    return {
+        "total_comentions": total,
+        "recent_comentions": recent,
+        "n_diseases": vals.get("n_diseases"),
+        "latest_year": latest_year,
+        "cited_pmids": pmids[:6],
+    }
+
+
+def _groundedness_summary(nomination: dict) -> Optional[dict]:
+    """The synthesis-grounding stamp for the v6 hero (`✓ synthesis grounded · N claims, 0 invented`) —
+    read from the LLM synthesis's verdict-INERT anchor-validation audit (n_cited / n_invented). None when
+    the run carried no synthesis or no audit."""
+    llm = (nomination or {}).get("llm_synthesis") or (nomination or {}).get("llm_output") or {}
+    av = llm.get("_anchor_validation") if isinstance(llm, dict) else None
+    if not isinstance(av, dict) or av.get("n_cited") is None:
+        return None
+    return {"n_cited": av.get("n_cited"), "n_invented": av.get("n_invented") or 0}
+
+
+def _clinical_precedent_summary(risk_dims: list) -> Optional[dict]:
+    """Clinical-precedent read for the v6 hero green pill — the `highest_clinical_stage` parsed from the
+    Clinical risk dimension's clinical-precedent feeding member (display-placed context, verdict-inert).
+    None when the clinical dimension carries no precedent member."""
+    for d in risk_dims or []:
+        if d.get("dim") != "clinical":
+            continue
+        for m in d.get("members") or []:
+            read = str(m.get("read") or "")
+            sm = re.search(r"highest_clinical_stage=([A-Za-z0-9_]+)", read)
+            if sm:
+                return {"highest_stage": sm.group(1).replace("_", " ")}
+    return None
+
+
 def build_ir(
     nomination: dict, spec: ReportSpec, target: Optional[str] = None, indication: Optional[str] = None
 ) -> ReportIR:
@@ -1690,6 +1779,15 @@ def build_ir(
             _overall = re.split(r"(?<=[.!?])\s+", _exec.strip(), maxsplit=1)[0]
     if _overall:  # strip inline [rule_id] citations from the headline prose (same as the synthesis block)
         _overall = _strip_rule_citations(_overall)[0]
+    # v6 single-scroll hero enrichment (verdict-inert display context): the 6-dim GLANCE reads the same
+    # deterministic risk_6dim as the assessment spine (built once, shared), the coherence class frames the
+    # archetype line, and the literature co-mention volume + clinical-precedent pill anchor the hero. None
+    # of these enter the decision — they are the SAME payloads the composed blocks already carry.
+    _risk6_block = _risk_6dim_block(tr.get("risk_6dim"))
+    _risk_dims = _risk6_block.payload["dims"] if _risk6_block else []
+    _coh_obj = (_tc or {}).get("coherence") if isinstance(_tc, dict) else None
+    _coherence_class = _coh_obj.get("class") if isinstance(_coh_obj, dict) else _coh_obj
+    _lit_comention = _literature_comention_summary(skill_reports, nomination)
     header = Block(
         vocab.REPORT_HEADER,
         {
@@ -1698,6 +1796,7 @@ def build_ir(
             "overall_statement": _overall,
             "addressable_population": tr.get("addressable_population"),
             "thesis": _thesis_primary if _thesis_primary != "insufficient_thesis" else None,
+            "coherence_class": _coherence_class,
             # data-backed "what kind of target is this" (archetype phenotype-mixture) — leads the header so
             # the target is CHARACTERIZED before the one-word recommendation.
             "characterization": _target_characterization(tr),
@@ -1709,6 +1808,11 @@ def build_ir(
             "dissent": target_call.get("dissent") or [],
             "gate": target_call.get("gate"),
             "lead": spec.lead,
+            # v6 hero right-column: the 6-dim glance (same dims as the assessment-view spine).
+            "risk_dims": _risk_dims,
+            "literature": _lit_comention,
+            "clinical_precedent": _clinical_precedent_summary(_risk_dims),
+            "groundedness": _groundedness_summary(nomination),
         },
     )
 
@@ -1756,8 +1860,8 @@ def build_ir(
     _add(vocab.SIGNALS_OVERVIEW, _signals_overview_block(selected, deciding_short, _thesis_primary, reconciled_shorts))
     _add(vocab.CROSS_CUTTING_QUESTIONS, _cross_cutting_block(nomination, skill_reports))
     _add(vocab.COHERENCE, _coherence_block(tr, nomination))
-    _add(vocab.SYNTHESIS, _synthesis_block(nomination))
-    _add(vocab.RISK_6DIM, _risk_6dim_block(tr.get("risk_6dim")))
+    _add(vocab.SYNTHESIS, _synthesis_block(nomination, _lit_comention))
+    _add(vocab.RISK_6DIM, _risk6_block)
     _add(vocab.BIOMARKER, _biomarker_block(tr))
     _add(vocab.SUBTYPE, _subtype_block(tr))
     _add(vocab.MODALITY_MATRIX, _modality_matrix_block(tr, nomination))

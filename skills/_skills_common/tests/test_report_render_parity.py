@@ -51,7 +51,7 @@ def test_level_gating_of_parity_blocks():
 def test_html_renders_parity_content():
     h = render_report(make_nomination(), preset="full", backend="html")
     assert "Modality fit" in h and "<table" in h
-    assert "AI-generated" in h and "Synthesis" in h
+    assert "AI-generated" in h and "How the evidence converges" in h  # v6 convergence fold
     assert "Literature × omics coherence" in h and "Deciding axis" in h
 
 

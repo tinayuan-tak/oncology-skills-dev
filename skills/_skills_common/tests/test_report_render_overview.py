@@ -67,10 +67,10 @@ def test_risk_6dim_spine_surfaces_feeding_members():
     }
     assert dims["safety"]["blind_spots"] == ["off-target / secondary pharmacology"]
     assert dims["biological"]["members"][0]["source"] == "dependency"
-    # html renders the collapsible spine: keeps risk-tiles/risk-tile, adds details + member rows
+    # v6 assessment spine: one <details class="dim risk-…"> per dimension with a .dbar + feeding .mem rows
     h = "".join(HtmlBackend()._risk_6dim(blk.payload))
-    assert "risk-tiles" in h and "risk-tile" in h  # unchanged glance classes (back-compat)
-    assert "class='rd'" in h and "rd-mem" in h  # collapsible spine + member rows
+    assert 'class="dim risk-high' in h and 'class="dim risk-low' in h  # per-dim tiles, LOW=green
+    assert "dbar" in h and "dmembers" in h and "class='mem'" in h  # positioned bar + member rows
     assert "on-target-safety" in h and "blind spots" in h
 
 
