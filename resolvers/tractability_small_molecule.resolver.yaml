@@ -12,7 +12,7 @@
 #      chemical hit but ABOVE chemically_unhit (the KRAS-G12C-before-sotorasib case).
 #   4. A measured structural NEGATIVE (low-confidence/disordered fold) is an SM-opposing note.
 gate: tractability_small_molecule
-version: 1.6.0   # 2026-09-07 (CASE-008): + known-drug-approved-biologic-only-sm-not-supportive rung (modality gate) — a biologics-only approval routes to annotation_only_indirect instead of the SM-supportive approved-drug rung; no new verdict string.
+version: 1.7.0   # 2026-09-09: REPRIORITIZE known-drug-approved-biologic-only-sm-not-supportive 20->11 so a BIOLOGIC-ONLY approval (annotation_only_indirect) OUTRANKS the STRUCTURAL/predicted-pocket rungs (a predicted/experimental pocket on a biologic-only/extracellular antigen is not a validated SM handle — MSLN/CD79B/DLL3 subskill-read over-called structurally_ligandable). Still BELOW the measured-chemical rungs (0-10: a real SM ligand wins). Intra-axis precedence; structural 11-16 shifted +1 to 12-17, intractable 17-18->18-19, indirect 19->20. Golden regen (126 rows structurally_ligandable/intractable -> annotation_only_indirect).   # 2026-09-07 (CASE-008): + known-drug-approved-biologic-only-sm-not-supportive rung (modality gate) — a biologics-only approval routes to annotation_only_indirect instead of the SM-supportive approved-drug rung; no new verdict string.
                  # 1.5.0: 2026-09-04: + annotation_only_indirect rung (directness gate) — approved-drug rung now requires approved_drug_engagement_class==approved_direct; indirect/sparse roster routes to annotation_only_indirect (undruggable-TF inflation fix)     # T3.1: + measured_potent_ligand tier (ChEMBL/BindingDB measured potency) between chemical-activity and structural
 description: Small-molecule druggability precedence (on-target chemical-genetic E7 > opposing off-target > retrospective chemical activity > MEASURED potency > structural E8 + druggable-category > unhit).
 resolve:
@@ -70,25 +70,25 @@ resolve:
   # the SAME structurally_ligandable verdict, so the ADDITION cannot change any combo that already
   # returned structurally_ligandable — it only rescues combos that previously fell through to
   # chemically_unhit / insufficient (the whole point). Driving-rule id differs (records WHY).
-  - {verdict: structurally_ligandable, when_fired: ligandability-experimental-sm-supportive, priority: 11}
-  - {verdict: structurally_ligandable, when_fired: hotspot-in-druggable-pocket-sm-supportive-e8, priority: 12}
-  - {verdict: structurally_ligandable, when_fired: structure-pocket-adjacent-sm-supportive, priority: 13}
-  - {verdict: structurally_ligandable, when_fired: ligandability-predicted-sm-supportive, priority: 14}
+  - {verdict: structurally_ligandable, when_fired: ligandability-experimental-sm-supportive, priority: 12}
+  - {verdict: structurally_ligandable, when_fired: hotspot-in-druggable-pocket-sm-supportive-e8, priority: 13}
+  - {verdict: structurally_ligandable, when_fired: structure-pocket-adjacent-sm-supportive, priority: 14}
+  - {verdict: structurally_ligandable, when_fired: ligandability-predicted-sm-supportive, priority: 15}
   # E-known-drug (DGIdb): a druggable-CATEGORY membership (CLINICALLY ACTIONABLE / DRUGGABLE GENOME)
   # without an approved drug is a forward druggable-class prior — same tier as a predicted pocket.
-  - {verdict: structurally_ligandable, when_fired: known-drug-druggable-category-sm-supportive, priority: 15}
+  - {verdict: structurally_ligandable, when_fired: known-drug-druggable-category-sm-supportive, priority: 16}
   # T3.1: weak measured activity (a potent hit or two, or sub-potent) is a starting-point handle —
   # same tier as a predicted pocket / druggable category (structurally_ligandable), below a potent
   # measured SERIES (measured_potent_ligand, above) and any retrospective chemical hit.
-  - {verdict: structurally_ligandable, when_fired: measured-weak-ligand-sm-supportive, priority: 16}
-  - {verdict: structurally_intractable, when_fired: structure-low-confidence-sm-opposing, priority: 17}
-  - {verdict: structurally_intractable, when_fired: ligandability-disordered-sm-opposing, priority: 18}
+  - {verdict: structurally_ligandable, when_fired: measured-weak-ligand-sm-supportive, priority: 17}
+  - {verdict: structurally_intractable, when_fired: structure-low-confidence-sm-opposing, priority: 18}
+  - {verdict: structurally_intractable, when_fired: ligandability-disordered-sm-opposing, priority: 19}
   # ANNOTATION-ONLY INDIRECT (2026-09-04, directness gate): an approved drug is catalogued but the DGIdb
   # roster is INDIRECT/sparse (< 5 typed direct interactions) — the undruggable-TF inflation (β-catenin,
   # MYC). Ranked BELOW every genuine positive (chemical/measured/structural) AND below a measured
   # structural NEGATIVE, ABOVE chemically_unhit (there ARE catalogued compounds, just not direct ones).
   # NON-nominating (nomination_verdict_gate.yaml) — must not credit the nomination tractability gate.
-  - {verdict: annotation_only_indirect, when_fired: known-drug-approved-indirect-only-sm-weak, priority: 19}
+  - {verdict: annotation_only_indirect, when_fired: known-drug-approved-indirect-only-sm-weak, priority: 20}
   # MODALITY GATE (2026-09-07, CASE-008): a biologics-only antigen (approved ADC/TCE/CAR/mAb, NO approved
   # small molecule) — the reader sets approved_drug_engagement_class=approved_biologic_only, which fires
   # known-drug-approved-biologic-only-sm-not-supportive INSTEAD of the SM-supportive approved-drug rung
@@ -96,7 +96,7 @@ resolve:
   # a small molecule) — NON-nominating, no new verdict string. Mutually exclusive with the indirect rung
   # above (a target is either approved_biologic_only or approved_indirect_only). Fail-safe: EGFR/ERBB2/MET
   # carry no biologics_only flag → stay approved_direct → never reach here (the osimertinib guard).
-  - {verdict: annotation_only_indirect, when_fired: known-drug-approved-biologic-only-sm-not-supportive, priority: 20}
+  - {verdict: annotation_only_indirect, when_fired: known-drug-approved-biologic-only-sm-not-supportive, priority: 11}
   - {verdict: chemically_unhit, when_fired: prism-no-compounds-found-neutral, priority: 21}
 # ligandability-no-evidence-sm-insufficient carries small_molecule:insufficient and maps to the
 # `default: insufficient` fallthrough — no explicit rung needed (a coverage gap, never a verdict).
