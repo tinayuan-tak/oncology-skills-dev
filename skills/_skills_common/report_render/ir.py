@@ -1659,11 +1659,24 @@ def build_ir(
     )
     _thesis_obj = (_tc or {}).get("thesis") if isinstance(_tc, dict) else None
     _thesis_primary = _thesis_obj.get("primary") if isinstance(_thesis_obj, dict) else None
+    # v6 hero polish: a STANDOUT one-sentence pull-together (first sentence of the LLM executive
+    # summary — a dedicated overall_statement field is preferred when the synthesizer emits one), and
+    # the addressable-population framing (target×indication prevalence). Both verdict-inert display.
+    _llm = nomination.get("llm_synthesis") or nomination.get("llm_output") or {}
+    _overall = _llm_val(_llm, "overall_statement") if isinstance(_llm, dict) else None
+    if not _overall:
+        _exec = _llm_val(_llm, "executive_summary") if isinstance(_llm, dict) else None
+        if isinstance(_exec, str) and _exec.strip():
+            _overall = re.split(r"(?<=[.!?])\s+", _exec.strip(), maxsplit=1)[0]
+    if _overall:  # strip inline [rule_id] citations from the headline prose (same as the synthesis block)
+        _overall = _strip_rule_citations(_overall)[0]
     header = Block(
         vocab.REPORT_HEADER,
         {
             "target": target,
             "indication": indication,
+            "overall_statement": _overall,
+            "addressable_population": tr.get("addressable_population"),
             "thesis": _thesis_primary if _thesis_primary != "insufficient_thesis" else None,
             # data-backed "what kind of target is this" (archetype phenotype-mixture) — leads the header so
             # the target is CHARACTERIZED before the one-word recommendation.

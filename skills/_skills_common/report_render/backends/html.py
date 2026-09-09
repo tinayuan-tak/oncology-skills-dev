@@ -98,6 +98,22 @@ h3 { font-size:14px; font-weight:650; margin:0 0 6px; }
 .char-chip .w { color:var(--muted); font-variant-numeric:tabular-nums; font-size:12px; }
 .char-chip.lead { background:var(--t-blue); border-color:transparent; font-weight:600; }
 .char-analogs { font-size:12px; color:var(--muted); margin-top:4px; } .char-analogs .w { color:var(--muted); }
+/* v6 hero polish: standout statement · addressable-population line · safety-reconciliation triplet · density toggle */
+.headline { font-size:17px; line-height:1.5; font-weight:450; color:var(--ink); margin:12px 0 4px;
+            padding:14px 18px; background:var(--surface); border:1px solid var(--border);
+            border-left:4px solid var(--blue); border-radius:12px; } .headline b { font-weight:700; }
+.h-pop { font-size:13px; color:var(--ink2); background:var(--t-blue); border:1px solid var(--border);
+         border-radius:8px; padding:6px 11px; display:inline-block; margin:2px 0 6px; } .h-pop b { color:var(--ink); }
+.recon { display:flex; flex-wrap:wrap; align-items:center; gap:2px; margin:8px 0; font-size:12.5px; }
+.recon-box { border:1px solid var(--border); border-radius:8px; padding:6px 11px; background:var(--surface); }
+.recon-box .rl { display:block; font-size:9.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); }
+.recon-box b { color:var(--ink); } .recon-box.hi b { color:var(--critical); }
+.recon-box.esc { background:var(--t-good); } .recon-box.esc b { color:var(--good); }
+.recon-arrow { color:var(--muted); padding:0 8px; }
+.density-bar { display:flex; justify-content:flex-end; gap:6px; align-items:center; font-size:12px; color:var(--muted); margin:0 0 10px; }
+.density-bar .seg { display:inline-flex; border:1px solid var(--border); border-radius:999px; overflow:hidden; }
+.density-bar button { border:0; background:var(--surface); color:var(--ink2); font-size:12px; padding:4px 11px; cursor:pointer; }
+.density-bar button.on { background:var(--blue); color:#fff; }
 ul.chips { margin:8px 0; padding-left:20px; } ul.chips li { margin:3px 0; }
 table { border-collapse:collapse; width:100%; margin:10px 0; font-size:14px; }
 th,td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--hair); vertical-align:top; }
@@ -327,6 +343,14 @@ class HtmlBackend:
             '<meta name="viewport" content="width=device-width, initial-scale=1">',
             f"<title>{title}</title><style>{_CSS}\n{_lens_css()}</style></head><body><div class='wrap'>",
         ]
+        # v6 density control: Compact (collapse all <details>) / Detailed (default) / Expand-all — lets a
+        # leadership reader stay high-level and a comp-bio reader open everything, on one page.
+        parts.append(
+            "<div class='density-bar'>density <span class='seg'>"
+            "<button data-density='compact'>Compact</button>"
+            "<button data-density='detailed' class='on'>Detailed</button>"
+            "<button data-density='all'>Expand all</button></span></div>"
+        )
         # the decision header + the advisory AI synthesis banner are persistent report chrome (above the
         # lens tabs) — the recommendation + the cross-lens exec summary stay visible on every lens.
         parts.append(self._wrap_card("".join(self._emit(ir.header)), extra="decision"))
@@ -342,6 +366,15 @@ class HtmlBackend:
                 parts.append(self._emit_section(sec))
         if ir.about is not None:
             parts.append("".join(self._emit(ir.about)))
+        parts.append(
+            "<script>(function(){var b=document.querySelector('.density-bar');if(!b)return;"
+            "b.addEventListener('click',function(e){var t=e.target.closest('button');if(!t)return;"
+            "[].forEach.call(b.querySelectorAll('button'),function(x){x.classList.toggle('on',x===t);});"
+            "var m=t.getAttribute('data-density');"
+            "if(m==='compact'){[].forEach.call(document.querySelectorAll('details'),function(d){d.open=false;});}"
+            "else if(m==='all'){[].forEach.call(document.querySelectorAll('details'),function(d){d.open=true;});}"
+            "});})();</script>"
+        )
         parts.append("</div></body></html>")
         return "\n".join(parts) + "\n"
 
@@ -417,6 +450,29 @@ class HtmlBackend:
             "<p class='sub'>Target profile — evidence across 14 subskills; the recommendation is a "
             "subordinate summary of the signals below.</p>",
         ]
+        # v6 STANDOUT statement: the one-sentence pull-together, right under the title.
+        if p.get("overall_statement"):
+            out.append(f"<p class='headline'>{_esc(p['overall_statement'])}</p>")
+        # addressable-population framing (target×indication prevalence) — what makes this a target×indication call.
+        ap = p.get("addressable_population") if isinstance(p.get("addressable_population"), dict) else {}
+        prev = ap.get("biomarker_prevalence")
+        if prev is not None:
+            try:
+                prevpct = f"{float(prev) * 100:.3g}%"
+            except (TypeError, ValueError):
+                prevpct = _esc(prev)
+            meta = " · ".join(
+                x
+                for x in (
+                    _esc(ap.get("prevalence_source")) if ap.get("prevalence_source") else "",
+                    f"n={_esc(ap.get('n_samples_in_indication'))}" if ap.get("n_samples_in_indication") else "",
+                    _esc(ap.get("addressable_population_class")) if ap.get("addressable_population_class") else "",
+                )
+                if x
+            )
+            out.append(
+                f"<p class='h-pop'>Addressable population <b>{prevpct}</b>" + (f" — {meta}" if meta else "") + "</p>"
+            )
         # LEAD with what the target IS (data-backed archetype characterization), before any verdict.
         char = p.get("characterization") or {}
         mix = char.get("mixture") or []
@@ -474,6 +530,25 @@ class HtmlBackend:
         if dissent:
             items = "".join(f"<li>{_esc(_dissent_summary(d))}</li>" for d in dissent)
             out.append(f"<p class='kv'><b>Dissent:</b> {len(dissent)} note(s)</p><ul class='chips'>{items}</ul>")
+        # v6 safety-reconciliation TRIPLET: a HIGH-magnitude veto that is suppressed by a spared modality
+        # is one reconciled fact (magnitude → escapable_by → gate suppressed), not two contradicting reads.
+        gate = p.get("gate") if isinstance(p.get("gate"), dict) else {}
+        for v in gate.get("suppressed_vetoes") or []:
+            if not isinstance(v, dict):
+                continue
+            by = v.get("suppressed_by") or {}
+            chans = by.get("safe_channels") or []
+            chan_txt = ", ".join(_esc(c) for c in chans) if chans else _esc(by.get("kind") or "a spared modality")
+            out.append(
+                "<div class='recon'>"
+                f"<span class='recon-box hi'><span class='rl'>{_esc(v.get('short') or 'veto')} magnitude</span>"
+                f"<b>{_esc(_humanize(v.get('verdict')) or 'HIGH')}</b></span>"
+                "<span class='recon-arrow'>→</span>"
+                f"<span class='recon-box esc'><span class='rl'>escapable by</span><b>{chan_txt}</b></span>"
+                "<span class='recon-arrow'>→</span>"
+                "<span class='recon-box'><span class='rl'>gate</span><b>veto suppressed</b></span>"
+                "</div>"
+            )
         return out
 
     def _skill_header(self, p: dict) -> list:

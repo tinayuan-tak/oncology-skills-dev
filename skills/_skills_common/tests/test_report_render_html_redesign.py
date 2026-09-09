@@ -133,6 +133,40 @@ def test_characterization_surfaces_nearest_analogs():
     assert "nearest analogs" in h and "BRAF" in h and "CDK4" in h
 
 
+def test_v6_hero_polish_headline_addressable_reconciliation_density():
+    """Ph v6-hero-polish: standout one-sentence statement + addressable-population line + safety
+    reconciliation triplet (magnitude→escapable_by→suppressed) + the density toggle."""
+    nom = make_nomination()
+    nom["llm_synthesis"] = {
+        "executive_summary": {"value": "KRAS is a coherent oncogene-addiction target in COADREAD. Second sentence."}
+    }
+    tr = nom["target_report"]
+    tr["addressable_population"] = {
+        "biomarker_prevalence": 0.435,
+        "prevalence_source": "GENIE",
+        "n_samples_in_indication": 559,
+        "addressable_population_class": "broad",
+    }
+    tr.setdefault("target_call", {})["gate"] = {
+        "suppressed_vetoes": [
+            {
+                "short": "safety",
+                "verdict": "highly_constrained_safety_concern",
+                "suppressed_by": {"kind": "exists_safe_modality", "safe_channels": ["small_molecule"]},
+            }
+        ]
+    }
+    h = render_report(nom, preset="full", backend="html")
+    # standout statement = first sentence
+    assert "class='headline'" in h and "coherent oncogene-addiction target in COADREAD." in h
+    # addressable population line
+    assert "Addressable population" in h and "43.5%" in h and "GENIE" in h
+    # safety reconciliation triplet
+    assert "recon" in h and "escapable by" in h and "small_molecule" in h and "veto suppressed" in h
+    # density toggle
+    assert "density-bar" in h and "Compact" in h and "Expand all" in h
+
+
 def test_consolidation_design_tokens_present():
     """Dashboard consolidation Phase 2: the single design system carries the CVD-safe diverging pair
     (--pos/--neg), the hold tint (--t-hold), and the omics-vs-literature FACT axis (--det/--lit) —
