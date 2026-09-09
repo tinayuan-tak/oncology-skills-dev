@@ -41,6 +41,39 @@ def test_risk_6dim_has_ordered_dims_with_bins():
     assert [d["dim"] for d in r6.payload["dims"]][:2] == ["biological", "druggability"]  # canonical order
 
 
+def test_risk_6dim_spine_surfaces_feeding_members():
+    """Ph3a: each dimension carries its feeding signals (members[], from the dim's chain) so the
+    reader can drill dimension → subskills; html renders them as a collapsible spine (LOW=green)."""
+    from _skills_common.report_render.backends.html import HtmlBackend
+    from _skills_common.report_render.ir import _risk_6dim_block
+
+    r6 = {
+        "safety": {
+            "bin": "HIGH",
+            "chain": [
+                ["on-target-safety", "highly_constrained [LOEUF 0.23]", "HIGH"],
+                ["sc-normal", "HIGH_LIABILITY", "MED"],
+            ],
+            "blind_spots": ["off-target / secondary pharmacology"],
+        },
+        "biological": {"bin": "LOW", "chain": [["dependency", "lineage_selective", "LOW"]]},
+    }
+    blk = _risk_6dim_block(r6)
+    dims = {d["dim"]: d for d in blk.payload["dims"]}
+    assert dims["safety"]["members"][0] == {
+        "source": "on-target-safety",
+        "read": "highly_constrained [LOEUF 0.23]",
+        "level": "HIGH",
+    }
+    assert dims["safety"]["blind_spots"] == ["off-target / secondary pharmacology"]
+    assert dims["biological"]["members"][0]["source"] == "dependency"
+    # html renders the collapsible spine: keeps risk-tiles/risk-tile, adds details + member rows
+    h = "".join(HtmlBackend()._risk_6dim(blk.payload))
+    assert "risk-tiles" in h and "risk-tile" in h  # unchanged glance classes (back-compat)
+    assert "class='rd'" in h and "rd-mem" in h  # collapsible spine + member rows
+    assert "on-target-safety" in h and "blind spots" in h
+
+
 def test_level_gates_overview():
     # signals_overview is L0 (the lead); risk_6dim is L1+
     l0 = _overview_kinds(build_ir(make_nomination(), resolve_spec(level="L0")))

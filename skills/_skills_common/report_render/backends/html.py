@@ -132,6 +132,22 @@ figcaption { color:var(--ink2); font-size:13px; margin-top:5px; }
 .risk-tile.rt-med { border-top-color:var(--warning); } .risk-tile.rt-med .rt-bin { color:var(--serious); }
 .risk-tile.rt-low { border-top-color:var(--good); } .risk-tile.rt-low .rt-bin { color:var(--good); }
 .risk-tile.rt-blind .rt-bin { color:var(--muted); font-size:12px; font-weight:600; }
+/* 6-dimension collapsible spine (consolidation Ph3a): each dim tile is a <details> summary; expanding
+   spans the full grid row and reveals its feeding signals (subskill→dimension crosswalk). */
+.rd { min-width:0; }
+.rd > summary { list-style:none; cursor:pointer; height:100%; }
+.rd > summary::-webkit-details-marker { display:none; }
+.rd[open] { grid-column:1 / -1; }
+.rd[open] > summary.risk-tile { display:flex; align-items:center; justify-content:space-between; gap:12px; text-align:left; }
+.rd-body { border:1px solid var(--border); border-top:none; border-radius:0 0 10px 10px; padding:8px 11px; background:var(--surface); }
+.rd-mem { display:grid; grid-template-columns:minmax(120px,1fr) 2fr auto; gap:10px; align-items:baseline;
+          font-size:12px; padding:4px 0; border-top:1px solid var(--hair); }
+.rd-mem:first-child { border-top:none; }
+.rd-src { font-weight:600; color:var(--ink); }
+.rd-read { color:var(--ink2); }
+.rd-lv { font-size:10px; font-weight:700; letter-spacing:.04em; color:var(--muted); text-transform:uppercase; }
+.rd-blind { font-size:11.5px; color:var(--muted); margin-top:7px; }
+.rd-mit { font-size:11.5px; color:var(--ink2); margin-top:4px; }
 .tag { display:inline-block; font-size:10px; text-transform:uppercase; letter-spacing:.06em;
        font-weight:700; color:var(--muted); border:1px solid var(--border); border-radius:6px;
        padding:1px 7px; margin-bottom:8px; }
@@ -604,11 +620,37 @@ class HtmlBackend:
             rank = d.get("rank")
             cls = {3: "rt-high", 2: "rt-med", 1: "rt-low"}.get(rank, "rt-blind")
             lab = d.get("bin") or "n/e"
-            tiles.append(
-                f"<div class='risk-tile {cls}'><div class='rt-dim'>{_esc(str(d.get('dim')).title())}"
-                f"</div><div class='rt-bin'>{_esc(lab)}</div></div>"
+            dim_lab = _esc(str(d.get("dim")).title())
+            tile = f"<div class='rt-dim'>{dim_lab}</div><div class='rt-bin'>{_esc(lab)}</div>"
+            members = d.get("members") or []
+            if not members:
+                # engine-blind / no feeding chain → flat tile (no drill-down)
+                tiles.append(f"<div class='risk-tile {cls}'>{tile}</div>")
+                continue
+            # collapsible spine (Ph3a): the tile is the summary; expanding shows the feeding signals
+            # (subskill → dimension crosswalk) + blind spots + mitigation. LOW=green via rt-low.
+            mem_rows = "".join(
+                f"<div class='rd-mem'><span class='rd-src'>{_esc(m.get('source'))}</span>"
+                f"<span class='rd-read'>{_esc(m.get('read') or '')}</span>"
+                f"<span class='rd-lv'>{_esc(m.get('level') or '')}</span></div>"
+                for m in members
             )
-        return [f"<h2>Risk by dimension</h2><div class='risk-tiles'>{''.join(tiles)}</div>"]
+            body = f"<div class='rd-body'>{mem_rows}"
+            bs = d.get("blind_spots") or []
+            if bs:
+                body += (
+                    "<div class='rd-blind'>⚑ blind spots (omics can't see): "
+                    + _esc(", ".join(str(b) for b in bs))
+                    + "</div>"
+                )
+            if d.get("mitigation"):
+                body += f"<div class='rd-mit'>mitigation: {_esc(str(d.get('mitigation')))}</div>"
+            body += "</div>"
+            tiles.append(f"<details class='rd'><summary class='risk-tile {cls}'>{tile}</summary>{body}</details>")
+        return [
+            "<h2>Risk by dimension <span class='hint'>— click a dimension for its feeding signals</span></h2>"
+            f"<div class='risk-tiles'>{''.join(tiles)}</div>"
+        ]
 
     def _synthesis(self, p: dict) -> list:
         out = ["<span class='tag'>AI-generated</span><h2>Synthesis</h2>"]

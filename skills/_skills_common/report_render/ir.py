@@ -546,7 +546,34 @@ def _risk_6dim_block(risk_6dim) -> Optional[Block]:
 
     def _emit(dim, v):
         b = str(v.get("bin") or "") if isinstance(v, dict) else (v if isinstance(v, str) else "")
-        dims.append({"dim": dim, "bin": b or None, "rank": _RISK6_RANK.get(b.upper())})
+        # per-dim FEEDING SIGNALS (the collapsible spine, consolidation Ph3a): each dim's `chain` is
+        # the already-computed [source, read, level] list from risk_projection.deterministic_bins —
+        # surface it as members[] so the reader can drill from a dimension to the subskills that set it
+        # (the subskill→dim crosswalk, made visible). Additive; other backends ignore it.
+        members = []
+        blind_spots, mitigation = [], None
+        if isinstance(v, dict):
+            for entry in v.get("chain") or []:
+                if isinstance(entry, (list, tuple)) and entry:
+                    members.append(
+                        {
+                            "source": entry[0],
+                            "read": entry[1] if len(entry) > 1 else None,
+                            "level": entry[2] if len(entry) > 2 else None,
+                        }
+                    )
+            blind_spots = v.get("blind_spots") or []
+            mitigation = v.get("mitigation")
+        dims.append(
+            {
+                "dim": dim,
+                "bin": b or None,
+                "rank": _RISK6_RANK.get(b.upper()),
+                "members": members,
+                "blind_spots": blind_spots,
+                "mitigation": mitigation,
+            }
+        )
 
     if isinstance(risk_6dim, dict):
         seen = set()
