@@ -93,9 +93,19 @@ SKILL_NAME_TO_SHORT: dict[str, str] = {
 }
 
 
+# inverse of SKILL_NAME_TO_SHORT: fan-out short → full skill DIR name (as written on disk / used in the
+# emitted `subskills/<short>/` package). Lets a renderer badge a dim member with its human skill-dir.
+SKILL_SHORT_TO_NAME: dict[str, str] = {short: name for name, short in SKILL_NAME_TO_SHORT.items()}
+
+
 def skill_short_for_name(name) -> Optional[str]:
     """Map a full skill dir name (decision.json `skill`) → fan-out short, or None if unknown."""
     return SKILL_NAME_TO_SHORT.get(name) if isinstance(name, str) else None
+
+
+def skill_dir_for_short(short) -> Optional[str]:
+    """Map a fan-out short → its full skill DIR name (e.g. dependency → functional-requirement), or None."""
+    return SKILL_SHORT_TO_NAME.get(short) if isinstance(short, str) else None
 
 
 def skill_title(short: str) -> str:
@@ -406,9 +416,11 @@ __all__ = [
     "GATING_SHORTS",
     "ROLE_RANK",
     "SKILL_NAME_TO_SHORT",
+    "SKILL_SHORT_TO_NAME",
     "skill_title",
     "skill_order_index",
     "skill_short_for_name",
+    "skill_dir_for_short",
     "BLOCK_KINDS",
     "TIER",
     "CHIP_LIMIT_BY_LEVEL",

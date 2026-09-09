@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 
 from .. import display_gloss as _dg  # plain-language readings (metric gloss + direction + card description)
+from ..risk_projection import AXIS_TO_DIM  # verdict-bearing subskill → risk dim crosswalk (the 6-dim spine)
 from . import vocab
 from .spec import SCOPE_ALL, SCOPE_GATING, ReportSpec
 
@@ -556,32 +557,142 @@ _RISK6_ORDER = ("biological", "druggability", "safety", "translational", "clinic
 # not the lowest risk (same measured-vs-null discipline as ordinal_view's off-scale signals).
 _RISK6_RANK = {"HIGH": 3, "MED": 2, "MEDIUM": 2, "LOW": 1}
 
+# The GATELESS "context" subskills (verdict-inert / descriptive) → the dim they annotate. AXIS_TO_DIM
+# carries the verdict-BEARING subskills (whose bin the deterministic engine sets); these are the
+# additional descriptive companions the assessment spine shows under each dimension, tagged `context`.
+# Placement matches the approved redesign-v6 mockup (#v-assess).
+_CONTEXT_DIM = {
+    "cis_coherence": "biological",
+    "combination_vulnerability": "biological",
+    "target_intrinsic": "druggability",
+    "translational_readiness": "translational",
+    "immune_context": "clinical",
+    "literature_context": "commercial",
+}
 
-def _risk_6dim_block(risk_6dim) -> Optional[Block]:
-    """The deterministic 6-category risk rollup → {dims:[{dim,bin,rank}]}. Reads target_report.risk_6dim
-    ({dim:{bin,…}} or a list); fail-soft on shape. 'rank' None = engine-blind / unrecognized bin."""
+
+def _sentences(text: str, n: int) -> str:
+    """First `n` sentences of a prose rationale, split on sentence-final punctuation followed by a
+    space + capital (so decimals like `0.23` and `q=1e-10` don't split). Fail-soft: returns the whole
+    stripped string when it has < n sentences."""
+    parts = re.split(r"(?<=[.!?])\s+(?=[A-Z(])", text.strip())
+    joined = " ".join(parts[:n]).strip()
+    return joined or text.strip()
+
+
+def _dim_member_reading(report: Any) -> tuple:
+    """A rich plain-language reading for a dim member. Prefers the subskill's evidence_graph narrative
+    rationale (real prose with the anchoring numbers), then its plain-language `honest_phrase`. Returns
+    (reading, is_fallback); reading is None when neither exists → the caller falls back to the class
+    label. NEVER fabricates — only real fields off the subskill's own report."""
+    if not isinstance(report, dict):
+        return None, True
+    eg = report.get("evidence_graph")
+    nar = eg.get("narrative") if isinstance(eg, dict) else None
+    rat = nar.get("rationale") if isinstance(nar, dict) else None
+    if isinstance(rat, str) and rat.strip():
+        return _sentences(rat, 2), False
+    hp = report.get("honest_phrase")
+    if isinstance(hp, str) and hp.strip():
+        return hp.strip(), False
+    return None, True
+
+
+def _risk_6dim_block(
+    risk_6dim, skill_reports: Optional[dict] = None, risk_assessment: Optional[dict] = None
+) -> Optional[Block]:
+    """The deterministic 6-category risk rollup → {dims:[{dim,bin,rank,members,literature,…}]}.
+
+    Reads target_report.risk_6dim ({dim:{bin,chain,…}} or a list); fail-soft on shape. 'rank' None =
+    engine-blind / unrecognized bin. When the composed `skill_reports` are supplied, each dimension
+    enumerates its FULL member set — every verdict-bearing subskill whose AXIS_TO_DIM maps to it, PLUS
+    the gateless `context` companions (_CONTEXT_DIM) — each with a rich plain-language `read` (off the
+    subskill's own evidence_graph, never fabricated) and a `dashboard` deep-link to its standalone
+    `subskills/<short>/dashboard.html` page. Dims whose bin is card-driven (clinical/commercial) also
+    surface their chain driver. `literature` is the verdict-inert per-dim text-mined line (risk_assessment).
+    Without skill_reports (a bare unit call) the members fall back to the chain [source, read, level]."""
     if not risk_6dim:
         return None
+    skill_reports = skill_reports if isinstance(skill_reports, dict) else {}
+    ra_dims = (risk_assessment or {}).get("dimensions") if isinstance(risk_assessment, dict) else None
+    ra_dims = ra_dims if isinstance(ra_dims, dict) else {}
     dims = []
 
-    def _emit(dim, v):
-        b = str(v.get("bin") or "") if isinstance(v, dict) else (v if isinstance(v, str) else "")
-        # per-dim FEEDING SIGNALS (the collapsible spine, consolidation Ph3a): each dim's `chain` is
-        # the already-computed [source, read, level] list from risk_projection.deterministic_bins —
-        # surface it as members[] so the reader can drill from a dimension to the subskills that set it
-        # (the subskill→dim crosswalk, made visible). Additive; other backends ignore it.
-        members = []
-        blind_spots, mitigation = [], None
-        if isinstance(v, dict):
+    def _member(short: str, context: bool) -> dict:
+        rep = skill_reports.get(short)
+        read, fell_back = _dim_member_reading(rep)
+        if read is None:
+            read = str((rep or {}).get("call") or short)  # class-label fallback (no prose available)
+            fell_back = True
+        return {
+            "short": short,
+            "skill_dir": vocab.skill_dir_for_short(short),
+            "read": read,
+            "context": context,
+            "spark": None,  # display-only; populated only when a numeric distribution is already in-data
+            "dashboard": f"subskills/{short}/dashboard.html",
+            "fallback": fell_back,
+        }
+
+    def _dim_members(dim: str, v) -> list:
+        # verdict-bearing (AXIS_TO_DIM) + gateless context companions, present-only, canonical order.
+        out = []
+        axis = sorted((s for s, dd in AXIS_TO_DIM.items() if dd == dim), key=vocab.skill_order_index)
+        ctx = sorted((s for s, dd in _CONTEXT_DIM.items() if dd == dim), key=vocab.skill_order_index)
+        for short in axis:
+            if short in skill_reports:
+                out.append(_member(short, context=False))
+        # card-driven dims (clinical/commercial) have no verdict-bearing subskill report — surface the
+        # chain driver (clinical-precedent / competitor-landscape) that actually set the bin as a member.
+        if not any(not m["context"] for m in out) and isinstance(v, dict):
             for entry in v.get("chain") or []:
                 if isinstance(entry, (list, tuple)) and entry:
-                    members.append(
+                    out.append(
                         {
-                            "source": entry[0],
-                            "read": entry[1] if len(entry) > 1 else None,
+                            "short": str(entry[0]),
+                            "skill_dir": None,
+                            "read": str(entry[1]) if len(entry) > 1 else "",
+                            "context": False,
+                            "spark": None,
+                            "dashboard": None,  # not a fan-out subskill → no standalone page
+                            "fallback": False,
+                        }
+                    )
+        for short in ctx:
+            if short in skill_reports:
+                out.append(_member(short, context=True))
+        # bare unit call (no skill_reports): fall back to the chain [source, read, level] members.
+        if not out and isinstance(v, dict):
+            for entry in v.get("chain") or []:
+                if isinstance(entry, (list, tuple)) and entry:
+                    out.append(
+                        {
+                            "short": str(entry[0]),
+                            "skill_dir": None,
+                            "read": str(entry[1]) if len(entry) > 1 else "",
+                            "context": False,
+                            "spark": None,
+                            "dashboard": None,
+                            "fallback": False,
                             "level": entry[2] if len(entry) > 2 else None,
                         }
                     )
+        return out
+
+    def _literature(dim: str) -> Optional[dict]:
+        rad = ra_dims.get(dim)
+        if not isinstance(rad, dict):
+            return None
+        interp = rad.get("interpretation")
+        if not (isinstance(interp, str) and interp.strip()):
+            return None
+        pmids = rad.get("cited_pmids") or rad.get("pmids") or []
+        return {"interpretation": interp.strip(), "pmids": [str(p) for p in pmids][:6]}
+
+    def _emit(dim, v):
+        b = str(v.get("bin") or "") if isinstance(v, dict) else (v if isinstance(v, str) else "")
+        blind_spots, mitigation = [], None
+        if isinstance(v, dict):
             blind_spots = v.get("blind_spots") or []
             mitigation = v.get("mitigation")
         dims.append(
@@ -589,7 +700,8 @@ def _risk_6dim_block(risk_6dim) -> Optional[Block]:
                 "dim": dim,
                 "bin": b or None,
                 "rank": _RISK6_RANK.get(b.upper()),
-                "members": members,
+                "members": _dim_members(dim, v),
+                "literature": _literature(dim),
                 "blind_spots": blind_spots,
                 "mitigation": mitigation,
             }
@@ -1888,7 +2000,7 @@ def build_ir(
     # deterministic risk_6dim as the assessment spine (built once, shared), the coherence class frames the
     # archetype line, and the literature co-mention volume + clinical-precedent pill anchor the hero. None
     # of these enter the decision — they are the SAME payloads the composed blocks already carry.
-    _risk6_block = _risk_6dim_block(tr.get("risk_6dim"))
+    _risk6_block = _risk_6dim_block(tr.get("risk_6dim"), skill_reports, nomination.get("risk_assessment"))
     _risk_dims = _risk6_block.payload["dims"] if _risk6_block else []
     _coh_obj = (_tc or {}).get("coherence") if isinstance(_tc, dict) else None
     _coherence_class = _coh_obj.get("class") if isinstance(_coh_obj, dict) else _coh_obj

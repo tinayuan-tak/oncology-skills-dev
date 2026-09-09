@@ -1270,10 +1270,25 @@ class HtmlBackend:
     _DIM_CLASS = {3: "risk-high", 2: "risk-med", 1: "risk-low"}
     _DIM_LEVEL = {3: "HIGH", 2: "MED", 1: "LOW"}
 
+    def _mem_row(self, m: dict) -> str:
+        """One `.mem` row: `.mn` (short + optional `context` tag + skill-dir `<small>`), the rich
+        plain-language reading (+ optional `.spark`), and a `full ↗` deep-link to the standalone
+        `subskills/<short>/dashboard.html` page (omitted when the member is not a fan-out subskill)."""
+        name = _esc(str(m.get("short") or ""))
+        ctx = "<span class='ctxtag'>context</span>" if m.get("context") else ""
+        subdir = m.get("skill_dir")
+        small = f"<small>{_esc(str(subdir))}</small>" if subdir else ""
+        spark = str(m.get("spark")) if m.get("spark") else ""  # trusted pre-built spark payload, else none
+        reading = f"{_esc(str(m.get('read') or ''))}{spark}"
+        dash = m.get("dashboard")
+        link = f"<a class='full' href='{_esc(str(dash))}'>full ↗</a>" if dash else "<span></span>"
+        return f"<div class='mem'><span class='mn'>{name}{ctx}{small}</span><span>{reading}</span>{link}</div>"
+
     def _risk_6dim(self, p: dict) -> list:
         """The v6 6-dimension spine: one `<details class='dim risk-…'>` per dimension — a summary with the
-        dimension name, a positioned low→med→high `.dbar`, and its `.dlevel`; the body `.dmembers` lists
-        the feeding subskill signals (source · plain reading · level) + blind-spots / reconciliation."""
+        dimension name, a positioned low→med→high `.dbar`, and its `.dlevel`; the body `.dmembers` is a
+        table of the mapped subskills (short · rich plain-language reading · `full ↗` deep-link), context
+        companions tagged, closed by the verdict-inert text-mined `.dimlit` literature line."""
         dims = p.get("dims") or []
         if not dims:
             return []
@@ -1294,19 +1309,7 @@ class HtmlBackend:
                 f"<span class='dlevel'>{_esc(level)}</span></summary>"
             )
             members = d.get("members") or []
-            mem_rows = "".join(
-                f"<div class='mem'><span class='mn'>{_esc(m.get('source'))}"
-                f"<small>{_esc(m.get('source'))}</small></span>"
-                f"<span>{_esc(m.get('read') or '')}</span>"
-                + (
-                    f"<span class='dlevel' style='font-size:11px'>{_esc(m.get('level'))}</span>"
-                    if m.get("level")
-                    else "<span></span>"
-                )
-                + "</div>"
-                for m in members
-            )
-            body = mem_rows
+            body = "".join(self._mem_row(m) for m in members)
             bs = d.get("blind_spots") or []
             if bs:
                 body += (
@@ -1316,7 +1319,20 @@ class HtmlBackend:
                 )
             if d.get("mitigation"):
                 body += f"<div class='dimlit'>↪ reconciliation: {_esc(str(d.get('mitigation')))}</div>"
-            if not members and not bs and not d.get("mitigation"):
+            lit = d.get("literature")
+            if isinstance(lit, dict) and lit.get("interpretation"):
+                cites = "".join(
+                    f" <a class='cite' href='https://pubmed.ncbi.nlm.nih.gov/{_esc(str(pmid))}' "
+                    f"target='_blank'>PMID {_esc(str(pmid))}</a>"
+                    for pmid in (lit.get("pmids") or [])
+                )
+                body += (
+                    "<div class='dimlit'>📄 Literature (text-mined, verdict-inert): "
+                    + _esc(str(lit.get("interpretation")))
+                    + cites
+                    + "</div>"
+                )
+            if not members and not bs and not d.get("mitigation") and not lit:
                 body = "<div class='blindnote'>Engine-blind dimension — no feeding signal routed.</div>"
             out.append(
                 f'<details class="dim {cls}{blind}" id="{did}">{summary}<div class="dmembers">{body}</div></details>'

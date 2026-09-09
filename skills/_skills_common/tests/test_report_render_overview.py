@@ -42,8 +42,10 @@ def test_risk_6dim_has_ordered_dims_with_bins():
 
 
 def test_risk_6dim_spine_surfaces_feeding_members():
-    """Ph3a: each dimension carries its feeding signals (members[], from the dim's chain) so the
-    reader can drill dimension → subskills; html renders them as a collapsible spine (LOW=green)."""
+    """Each dimension enumerates its FULL member set — every AXIS_TO_DIM verdict-bearing subskill (present
+    in the composed skill_reports) PLUS the gateless `context` companions — each carrying a rich
+    plain-language reading + a `full ↗` deep-link to its standalone subskills/<short>/dashboard.html
+    page. Without skill_reports (a bare call) members fall back to the chain [source, read, level]."""
     from _skills_common.report_render.backends.html import HtmlBackend
     from _skills_common.report_render.ir import _risk_6dim_block
 
@@ -58,20 +60,43 @@ def test_risk_6dim_spine_surfaces_feeding_members():
         },
         "biological": {"bin": "LOW", "chain": [["dependency", "lineage_selective", "LOW"]]},
     }
-    blk = _risk_6dim_block(r6)
-    dims = {d["dim"]: d for d in blk.payload["dims"]}
-    assert dims["safety"]["members"][0] == {
-        "source": "on-target-safety",
-        "read": "highly_constrained [LOEUF 0.23]",
-        "level": "HIGH",
+    # (a) bare call — no skill_reports: members fall back to the chain [source, read, level].
+    bare = {d["dim"]: d for d in _risk_6dim_block(r6).payload["dims"]}
+    assert bare["safety"]["members"][0]["short"] == "on-target-safety"
+    assert bare["safety"]["members"][0]["read"] == "highly_constrained [LOEUF 0.23]"
+    assert bare["safety"]["blind_spots"] == ["off-target / secondary pharmacology"]
+
+    # (b) composed call — with skill_reports: the FULL mapped member set + rich readings + deep-links.
+    skill_reports = {
+        "safety": {"call": "lof_constrained", "honest_phrase": "Highly LoF-constrained"},
+        "selectivity": {"call": "not_selective", "honest_phrase": "Discordant across normal comparators"},
+        "dependency": {"call": "lineage_selective", "honest_phrase": "Lineage-selective dependency"},
+        "mechanism": {"call": "well_characterized", "honest_phrase": "Well-characterized network"},
+        "cis_coherence": {"call": "coherent_cis_addiction"},  # no prose → class-label fallback
     }
-    assert dims["safety"]["blind_spots"] == ["off-target / secondary pharmacology"]
-    assert dims["biological"]["members"][0]["source"] == "dependency"
-    # v6 assessment spine: one <details class="dim risk-…"> per dimension with a .dbar + feeding .mem rows
+    risk_assessment = {"dimensions": {"safety": {"interpretation": "gnomAD LoF-constrained", "cited_pmids": ["1"]}}}
+    blk = _risk_6dim_block(r6, skill_reports, risk_assessment)
+    dims = {d["dim"]: d for d in blk.payload["dims"]}
+    safety_shorts = [m["short"] for m in dims["safety"]["members"]]
+    assert safety_shorts == ["selectivity", "safety"]  # both AXIS_TO_DIM safety subskills, canonical order
+    m_safety = {m["short"]: m for m in dims["safety"]["members"]}["safety"]
+    assert m_safety["skill_dir"] == "on-target-safety-liability"  # short → skill-dir badge
+    assert m_safety["read"] == "Highly LoF-constrained" and m_safety["fallback"] is False  # honest_phrase reading
+    assert m_safety["dashboard"] == "subskills/safety/dashboard.html"  # standalone deep-link
+    assert dims["safety"]["literature"]["interpretation"] == "gnomAD LoF-constrained"
+    bio_members = {m["short"]: m for m in dims["biological"]["members"]}
+    assert "dependency" in bio_members and "mechanism" in bio_members  # verdict-bearing
+    assert bio_members["cis_coherence"]["context"] is True  # gateless companion, tagged context
+    assert bio_members["cis_coherence"]["fallback"] is True  # no prose → class-label fallback (call)
+    assert bio_members["cis_coherence"]["read"] == "coherent_cis_addiction"  # falls back to the class label
+
+    # v6 assessment spine: one <details class="dim risk-…"> per dimension with a .dbar + a .dmembers table.
     h = "".join(HtmlBackend()._risk_6dim(blk.payload))
     assert 'class="dim risk-high' in h and 'class="dim risk-low' in h  # per-dim tiles, LOW=green
     assert "dbar" in h and "dmembers" in h and "class='mem'" in h  # positioned bar + member rows
-    assert "on-target-safety" in h and "blind spots" in h
+    assert "class='full' href='subskills/safety/dashboard.html'" in h  # working deep-link
+    assert "class='ctxtag'" in h and "blind spots" in h  # context tag + blind-spot line
+    assert "text-mined" in h  # verdict-inert literature line
 
 
 def test_level_gates_overview():
