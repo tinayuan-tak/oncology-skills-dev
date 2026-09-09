@@ -1175,8 +1175,6 @@ def main() -> int:
     # --verdict-only) + per-card registry figures + per-sub-skill heros (skipped under --no-figures).
     # Returns a FigureManifest — the ONE source of figure paths the renderers read. Verdict-inert.
     fig = emit_figures(args, sub_results, llm_output, profile_timers=args.profile_timers)
-    figures_dir = fig.figures_dir
-    composite_rel = fig.composite_rel
     card_figures = fig.card_figures
 
     # 3b/3c. target_profile.md + target_profile.html render via the UNIFIED report_render engine
@@ -1329,6 +1327,12 @@ def main() -> int:
         # `dynamic: True` Plotly specs; falls back to the SVG otherwise.
         "card_figures": card_figures,
         "llm_synthesis": llm_output,
+        # CARRY the cross-evidence-hypothesis (3B) into the nomination so the ONE renderer
+        # (report_render) can surface its causal chain + defensibility/uncertainty WITHOUT re-reading
+        # the sibling hypothesis.json (dashboard consolidation). DISPLAY-ONLY / VERDICT-INERT (never
+        # feeds the gate); None when --no-hypothesis / offline. (risk_assessment is already carried
+        # above for the lit×omics coherence view.) Also written as sibling hypothesis.json as before.
+        "hypothesis": hypothesis,
     }
     write_artifact(args.out, "nomination", json.dumps(nomination, indent=2, default=str), _written)
 
