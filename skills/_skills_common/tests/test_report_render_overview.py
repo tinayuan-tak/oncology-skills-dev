@@ -44,8 +44,8 @@ def test_risk_6dim_has_ordered_dims_with_bins():
 def test_risk_6dim_spine_surfaces_feeding_members():
     """Each dimension enumerates its FULL member set — every AXIS_TO_DIM verdict-bearing subskill (present
     in the composed skill_reports) PLUS the gateless `context` companions — each carrying a rich
-    plain-language reading + a `full ↗` deep-link to its standalone subskills/<short>/dashboard.html
-    page. Without skill_reports (a bare call) members fall back to the chain [source, read, level]."""
+    plain-language reading + a `full ↗` same-page anchor (#skill-<short>) into the inlined subskill
+    dashboard. Without skill_reports (a bare call) members fall back to the chain [source, read, level]."""
     from _skills_common.report_render.backends.html import HtmlBackend
     from _skills_common.report_render.ir import _risk_6dim_block
 
@@ -82,7 +82,7 @@ def test_risk_6dim_spine_surfaces_feeding_members():
     m_safety = {m["short"]: m for m in dims["safety"]["members"]}["safety"]
     assert m_safety["skill_dir"] == "on-target-safety-liability"  # short → skill-dir badge
     assert m_safety["read"] == "Highly LoF-constrained" and m_safety["fallback"] is False  # honest_phrase reading
-    assert m_safety["dashboard"] == "subskills/safety/dashboard.html"  # standalone deep-link
+    assert m_safety["dashboard"] == "#skill-safety"  # same-page anchor into the inlined subskill dashboard
     assert dims["safety"]["literature"]["interpretation"] == "gnomAD LoF-constrained"
     bio_members = {m["short"]: m for m in dims["biological"]["members"]}
     assert "dependency" in bio_members and "mechanism" in bio_members  # verdict-bearing
@@ -94,7 +94,7 @@ def test_risk_6dim_spine_surfaces_feeding_members():
     h = "".join(HtmlBackend()._risk_6dim(blk.payload))
     assert 'class="dim risk-high' in h and 'class="dim risk-low' in h  # per-dim tiles, LOW=green
     assert "dbar" in h and "dmembers" in h and "class='mem'" in h  # positioned bar + member rows
-    assert "class='full' href='subskills/safety/dashboard.html'" in h  # working deep-link
+    assert "class='full' href='#skill-safety'" in h  # working same-page anchor
     assert "class='ctxtag'" in h and "blind spots" in h  # context tag + blind-spot line
     assert "text-mined" in h  # verdict-inert literature line
 

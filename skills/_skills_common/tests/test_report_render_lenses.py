@@ -115,13 +115,16 @@ def test_json_exposes_lenses_and_banner():
     assert lids == list(vocab.LENS_ORDER)
 
 
-def test_signals_lens_sections_collapse_deciding_open():
+def test_per_subskill_sections_embed_full_dashboards_inline():
     h = render_report(make_nomination(), preset="full", backend="html")
-    assert "skill-collapse" in h
-    # the deciding axis (safety, killer) opens by default; a non-deciding gating skill stays collapsed.
-    assert "<details class='card pol-killer skill-collapse' open>" in h
-    assert "<details class='card pol-supportive skill-collapse'>" in h  # dependency, closed
-    # the embedded detail (sub-group bands) is still in the DOM inside the collapsed section.
+    # SELF-CONTAINED: each subskill's FULL faithful dashboard is embedded inline in a `.skv` section with
+    # a same-page anchor id (so the 6-dim `full ↗` #skill-<short> links resolve), NOT a collapsed
+    # skill-collapse row and NOT an external subskills/<short>/dashboard.html file.
+    assert "id='skill-safety'" in h and "class='skv'" in h
+    body = h.split("</style>", 1)[1]  # ignore any dead CSS rule names; assert on the rendered DOM
+    assert "skill-collapse" not in body  # no collapsed per-skill rows — full dashboards are inline
+    assert "subskills/safety/dashboard.html" not in body
+    # the embedded detail (sub-group bands) is still in the DOM inside the inlined section.
     assert "Sub-group bands" in h
 
 

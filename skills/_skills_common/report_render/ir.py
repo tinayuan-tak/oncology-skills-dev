@@ -607,8 +607,8 @@ def _risk_6dim_block(
     engine-blind / unrecognized bin. When the composed `skill_reports` are supplied, each dimension
     enumerates its FULL member set — every verdict-bearing subskill whose AXIS_TO_DIM maps to it, PLUS
     the gateless `context` companions (_CONTEXT_DIM) — each with a rich plain-language `read` (off the
-    subskill's own evidence_graph, never fabricated) and a `dashboard` deep-link to its standalone
-    `subskills/<short>/dashboard.html` page. Dims whose bin is card-driven (clinical/commercial) also
+    subskill's own evidence_graph, never fabricated) and a `dashboard` same-page anchor (`#skill-<short>`)
+    into the inlined subskill dashboard on the composed page. Dims whose bin is card-driven (clinical/commercial) also
     surface their chain driver. `literature` is the verdict-inert per-dim text-mined line (risk_assessment).
     Without skill_reports (a bare unit call) the members fall back to the chain [source, read, level]."""
     if not risk_6dim:
@@ -630,7 +630,10 @@ def _risk_6dim_block(
             "read": read,
             "context": context,
             "spark": None,  # display-only; populated only when a numeric distribution is already in-data
-            "dashboard": f"subskills/{short}/dashboard.html",
+            # SAME-PAGE anchor into the inlined subskill dashboard (`<section id="skill-{short}">`), so
+            # the `full ↗` link resolves when the composed target_profile.html is downloaded on its own —
+            # NOT an external `subskills/{short}/dashboard.html` file (which 404s outside the run dir).
+            "dashboard": f"#skill-{short}",
             "fallback": fell_back,
         }
 
@@ -1768,6 +1771,37 @@ def _card_chain_block(eg: dict) -> Optional[Block]:
         qtext = {q.get("id"): (q.get("text") or q.get("id")) for q in questions}
         qmeta = {q.get("id"): q for q in questions}
         qorder = [q.get("id") for q in questions]
+        # per-question literature axes (mockup `questions()`: inline that question's litaxis in its qbody,
+        # matched by the question's literature_axis_ids), so the drill-down carries the literature read
+        # WHERE the question lives — not only in a trailing panel. Verdict-inert display context.
+        lit_axes_by_id = {a.get("axis_id"): a for a in ((eg.get("literature") or {}).get("axes") or [])}
+        lit_cites_by_id = {c.get("id"): c for c in (eg.get("citations") or [])}
+
+        def _q_literature(q: dict) -> list:
+            out = []
+            for aid in q.get("literature_axis_ids") or []:
+                a = lit_axes_by_id.get(aid)
+                if not a:
+                    continue
+                cites = []
+                for cid in a.get("citation_ids") or []:
+                    c = lit_cites_by_id.get(cid)
+                    if c:
+                        cites.append(
+                            {"label": c.get("label"), "pmid": c.get("pmid"), "verified": bool(c.get("verified"))}
+                        )
+                out.append(
+                    {
+                        "axis_id": a.get("axis_id"),
+                        "read": a.get("read"),
+                        "agreement": a.get("agreement_vs_omics"),
+                        "confidence": a.get("confidence"),
+                        "assertion": a.get("assertion"),
+                        "citations": cites,
+                    }
+                )
+            return out
+
         for c in cards:
             qids = c.get("question_ids") or []
             key = qids[0] if qids else "__context__"
@@ -1793,6 +1827,7 @@ def _card_chain_block(eg: dict) -> Optional[Block]:
                     "dots": qconf.get("dots"),
                     "conf_level": qconf.get("level"),
                     "key": " · ".join(key_labels) or ((q.get("prose") or {}).get("primary") or None),
+                    "literature": _q_literature(q),  # inline per-question litaxis (mockup fidelity)
                 }
             )
     else:

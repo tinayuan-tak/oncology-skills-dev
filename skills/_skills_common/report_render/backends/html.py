@@ -551,6 +551,157 @@ table.cohtab td:first-child { font-weight:640; color:var(--ink); text-transform:
 """.strip()
 
 
+# ── STANDALONE subskill-page document chrome: the mockup's :root token set + dark variants + body.
+#    Emitted ONLY on the standalone subskill page (render_skill_report), which loads _SUBSKILL_CSS as its
+#    SOLE stylesheet (never the wide composed _CSS/_V6_CSS) — so the page is 940px/13.5px and pixel-matches
+#    eg-sandbox-genomic.html. NOT emitted on the composed page (where _CSS already declares :root/body). ──
+_SUBSKILL_ROOT_CSS = """
+:root{--page:#f9f9f7;--surface:#fcfcfb;--surface-2:#f3f3ef;--ink:#0b0b0b;--ink2:#52514e;--muted:#898781;
+ --hair:#e1e0d9;--border:rgba(11,11,11,.10);--supportive:#0ca30c;--opposing:#ec835a;--neutral:#8a8781;
+ --killer:#d03b3b;--supportive-bg:#e7f5e7;--warn:#b26a00;--warn-bg:#fcf1db;
+ --det:#1c6fb0;--lit:#7d6b82;
+ --font:system-ui,-apple-system,"Segoe UI",sans-serif}
+@media (prefers-color-scheme:dark){:root:where(:not([data-theme=light])){--page:#0d0d0d;--surface:#1a1a19;--surface-2:#232320;
+ --ink:#fff;--ink2:#c3c2b7;--muted:#9b998f;--hair:#2c2c2a;--border:rgba(255,255,255,.10);--supportive:#31b531;
+ --opposing:#ef9a76;--neutral:#9b988c;--killer:#e05b5b;--supportive-bg:#132a13;--warn:#e6a534;--warn-bg:#2a2113;--det:#5aa6e0;--lit:#a99bb0}}
+:root[data-theme=dark]{--page:#0d0d0d;--surface:#1a1a19;--surface-2:#232320;--ink:#fff;--ink2:#c3c2b7;--muted:#9b998f;--hair:#2c2c2a;--border:rgba(255,255,255,.10);--supportive:#31b531;--opposing:#ef9a76;--neutral:#9b988c;--killer:#e05b5b;--supportive-bg:#132a13;--warn:#e6a534;--warn-bg:#2a2113;--det:#5aa6e0;--lit:#a99bb0}
+:root[data-theme=light]{color-scheme:light;}
+*{box-sizing:border-box}body{margin:0;background:var(--page);color:var(--ink);font:13.5px/1.42 var(--font)}
+.theme-toggle{position:fixed;top:10px;right:12px;z-index:9;font-size:11.5px;color:var(--ink2);background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:4px 9px;cursor:pointer}
+""".strip()
+
+
+# ── the SCOPED subskill sandbox stylesheet — the approved eg-sandbox-genomic.html design, every rule
+#    under `.skv` so it renders the faithful subskill dashboard BOTH standalone (its sole stylesheet) AND
+#    embedded in the composed v6 page WITHOUT touching the composed chrome (only `.skv …` selectors match).
+#    Chrome matches the mockup verbatim (940 wrap · 13.5/1.42 · .card 12×14 r10 · 19px h1 · per-question
+#    inline litaxis). The retained improvements over the mockup: the ring-confidence heatmap (`.hm-c*`
+#    box-shadow weight, NOT opacity) and the --lit two-tone litdot ring (both shared with _CSS). ──
+_SUBSKILL_CSS = """
+.skv{max-width:940px;margin:0 auto;padding:18px 16px 44px;font:13.5px/1.42 var(--font);color:var(--ink);}
+.skv h1{margin:0;font-size:19px;font-weight:640;letter-spacing:0;}
+.skv h2{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin:16px 4px 3px;font-weight:640;}
+.skv h2 .so-foot{text-transform:none;letter-spacing:0;font-weight:400;font-size:11px;}
+.skv .so-foot{color:var(--muted);font-size:11px;}
+.skv code,.skv .mono{font-family:ui-monospace,Menlo,monospace;font-size:10.5px;background:var(--surface-2);padding:1px 4px;border-radius:4px;color:var(--ink2);}
+.skv .card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin:9px 0;}
+.skv .card.narr{border-style:dashed;}
+.skv .muted{color:var(--muted);}
+.skv .section-label,.skv .seclabel{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin:16px 4px 3px;font-weight:640;}
+.skv .eyebrow{color:var(--muted);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;}
+.skv .titlerow{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;}
+.skv .vchip{display:inline-flex;gap:6px;font-weight:660;font-size:12.5px;padding:4px 11px;border-radius:999px;border:1px solid var(--border);background:var(--surface-2);text-transform:none;letter-spacing:0;color:var(--ink);}
+.skv .vchip .deciding{margin-left:2px;}
+.skv .deciding{font-size:11px;color:var(--ink2);background:var(--surface-2);border-radius:6px;padding:1px 7px;margin-left:6px;font-weight:600;}
+.skv .hdr{border-left:4px solid var(--accent,var(--neutral));padding-left:14px;}
+.skv .vline{font-size:15.5px;font-weight:600;color:var(--ink);}
+.skv .headline{font-size:14px;line-height:1.5;font-weight:450;margin:7px 0 3px;padding:0;background:none;border:none;border-radius:0;color:var(--ink);}
+.skv .headline b{font-weight:700;}
+.skv .caveat{color:var(--warn);}
+.skv .phrase{color:var(--ink2);margin:3px 0 12px;}
+.skv .kv{display:grid;grid-template-columns:92px 1fr;gap:2px 12px;margin-top:7px;}
+.skv .kv dt{color:var(--muted);font-size:11.5px;text-transform:uppercase;}
+.skv .kv dd{margin:0;color:var(--ink2);}
+.skv .kv dd b{color:var(--ink);}
+.skv .kv code{font-size:11px;}
+.skv .dots{letter-spacing:1px;color:var(--ink2);font-size:11.5px;white-space:nowrap;}
+.skv .tag{display:inline-block;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border:1px solid var(--border);border-radius:5px;padding:1px 6px;margin-bottom:4px;}
+.skv .bullets{margin:8px 0 4px;padding:0;list-style:none;}
+.skv .bullets li{margin:0 0 7px;padding-left:16px;position:relative;font-size:13px;}
+.skv .bullets li::before{content:"\\25B8";position:absolute;left:0;color:var(--b,var(--neutral));font-weight:700;}
+.skv .fx-det{color:var(--det);}
+.skv .fx-lit{color:var(--lit);}
+.skv .ke-anchor{font-size:10px;color:var(--muted);}
+.skv .legendrow{font-size:11px;color:var(--muted);margin-top:6px;}
+.skv .legendrow b{font-weight:600;}
+.skv .g-sup{color:var(--supportive);font-weight:700;} .skv .g-opp{color:var(--opposing);font-weight:700;}
+.skv .g-kil{color:var(--killer);font-weight:700;} .skv .g-neu{color:var(--neutral);font-weight:700;}
+.skv details.more>summary,.skv details.full-narrative>summary{cursor:pointer;color:var(--ink2);font-size:12px;list-style:none;margin-top:4px;}
+.skv details.cite-prov{color:var(--muted);font-size:12px;margin:6px 0 2px;} .skv details.cite-prov>summary{cursor:pointer;}
+.skv details.cite-prov code{margin:2px 3px 0 0;display:inline-block;}
+/* evidence fingerprint heatmap (ring-confidence retained, NOT opacity) */
+.skv .eg-inner{margin:6px 0 2px;}
+.skv .hm{display:flex;flex-wrap:wrap;gap:10px 14px;}
+.skv .hmg{display:flex;flex-direction:column;gap:4px;}
+.skv .hmglab{font-size:10.5px;color:var(--muted);display:flex;align-items:center;gap:4px;}
+.skv .hmcells{display:flex;gap:5px;align-items:center;flex-wrap:wrap;}
+.skv .hmcell{width:16px;height:16px;border-radius:4px;border:1px solid var(--border);display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:9.5px;font-weight:800;line-height:1;}
+.skv .hm-c3{box-shadow:0 0 0 2px var(--ink2);} .skv .hm-c2{box-shadow:0 0 0 1px var(--muted);}
+.skv .hm-c1{} .skv .hm-c0{opacity:.5;}
+.skv .hm-twin{margin-top:8px;} .skv .hm-twin summary{cursor:pointer;color:var(--muted);font-size:11px;} .skv .hm-twin table{margin:6px 0 0;}
+.skv .hmsep{width:1px;height:16px;background:var(--hair);margin:0 3px;}
+.skv .litdot{width:15px;height:15px;border-radius:50%;border:2px solid var(--lit);display:inline-flex;align-items:center;justify-content:center;font-size:9px;color:#fff;font-weight:700;}
+.skv .hmnote{color:var(--muted);font-size:11px;margin-top:8px;}
+/* per-card dataset→data→rule→verdict chain */
+.skv .cardln{border:1px solid var(--border);border-radius:8px;background:var(--surface);margin:7px 0;padding:8px 11px;}
+.skv .chead{font-size:12.5px;display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:3px;} .skv .chead b{color:var(--ink);}
+.skv .ccchip{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--ink2);background:var(--surface-2);border:1px solid var(--border);border-radius:999px;padding:0 7px;white-space:nowrap;}
+.skv .rbadge{display:inline-block;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;border-radius:4px;padding:1px 5px;margin-right:6px;vertical-align:middle;}
+.skv .rbadge.rb-drv{background:var(--supportive-bg);color:var(--supportive);}
+.skv .rbadge.rb-con{background:var(--surface-2);color:var(--ink2);}
+.skv .rbadge.rb-ctx{background:transparent;color:var(--muted);border:1px solid var(--border);font-weight:700;}
+.skv .mttag{font-size:10px;color:var(--muted);margin-left:7px;}
+.skv .cdesc{font-size:11.5px;color:var(--ink2);line-height:1.5;margin:3px 0 5px;font-style:italic;}
+.skv .cread{font-size:12.5px;color:var(--ink2);margin:3px 0 4px;} .skv .cread b{font-weight:640;}
+.skv .chainline{font-size:11px;line-height:1.7;color:var(--ink2);}
+.skv .chainline .lab{color:var(--muted);text-transform:uppercase;font-size:9px;letter-spacing:.04em;margin-right:2px;}
+.skv .chainline .sep{color:var(--muted);margin:0 4px;} .skv .chainline.keyev .lab{background:var(--surface-2);}
+.skv .kegloss{font-size:11.5px;color:var(--ink2);margin:3px 0;} .skv .kegloss .m{color:var(--det);font-weight:600;} .skv .kegloss .h{color:var(--muted);}
+.skv .ketbl{border-collapse:collapse;margin:4px 0;font-size:11.5px;width:100%;}
+.skv .ketbl td{border-top:1px solid var(--hair);padding:2px 6px;} .skv .ketbl td:first-child{color:var(--muted);}
+.skv .kerole{display:inline-block;font-size:9.5px;text-transform:uppercase;color:var(--muted);border:1px solid var(--border);border-radius:4px;padding:0 5px;margin-left:5px;}
+.skv .pill-drv{background:var(--supportive-bg);color:var(--supportive);border:1px solid var(--border);border-radius:4px;padding:0 5px;font-size:9.5px;font-weight:700;}
+.skv .pill-none{color:var(--muted);font-size:11px;font-style:italic;}
+.skv .cite-pill{display:inline-block;font-size:11px;color:var(--ink2);background:var(--surface-2);border:1px solid var(--border);border-radius:5px;padding:0 5px;margin:0 2px 2px 0;}
+/* reference-frame ruler gauge */
+.skv .gauge{margin:3px 0 5px;}
+.skv .gtrack{position:relative;height:16px;margin:9px 0 2px;}
+.skv .gtrack .grail{position:absolute;top:7px;left:0;right:0;height:2px;background:var(--border);border-radius:2px;}
+.skv .gtick{position:absolute;top:2px;width:1px;height:12px;background:var(--muted);transform:translateX(-50%);}
+.skv .gtick.gcut{background:var(--ink2);height:14px;top:1px;}
+.skv .gtick .gtlab{position:absolute;top:13px;left:50%;transform:translateX(-50%);font-size:8.5px;color:var(--muted);white-space:nowrap;}
+.skv .gmark{position:absolute;top:3px;width:10px;height:10px;border-radius:50%;transform:translateX(-50%);border:1.5px solid var(--surface);box-shadow:0 0 0 1px currentColor;}
+.skv .gmark.gcomp{width:8px;height:8px;top:4px;opacity:.55;}
+.skv .gcap{font-size:11px;color:var(--ink2);}
+/* question drill-down (.qtab / details.qr) */
+.skv .qtab{border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--surface);margin:6px 0;}
+.skv details.qr{border-top:1px solid var(--hair);} .skv details.qr:first-child{border-top:none;}
+.skv details.qr>summary{cursor:pointer;list-style:none;display:grid;grid-template-columns:14px 1fr 92px 104px;gap:10px;align-items:center;padding:8px 13px;}
+.skv details.qr>summary::-webkit-details-marker{display:none;}
+.skv details.qr>summary .qcaret{color:var(--muted);font-weight:700;}
+.skv details.qr[open]>summary .qcaret::before{content:"\\25BE";} .skv details.qr>summary .qcaret::before{content:"\\25B8";}
+.skv .qtitle{font-weight:560;font-size:13px;color:var(--ink);}
+.skv .qkey{color:var(--muted);font-size:11px;margin-top:1px;}
+.skv .qstrip{display:flex;gap:3px;align-items:center;margin-top:4px;flex-wrap:wrap;}
+.skv .qcell{width:11px;height:11px;border-radius:3px;border:1px solid var(--border);}
+.skv .qcell.hm-c3{box-shadow:0 0 0 2px var(--ink2);} .skv .qcell.hm-c2{box-shadow:0 0 0 1px var(--muted);} .skv .qcell.hm-c0{opacity:.5;}
+.skv .qcount{color:var(--muted);font-size:10.5px;margin-left:4px;}
+.skv .meter{width:66px;height:7px;border-radius:4px;background:var(--surface-2);overflow:hidden;border:1px solid var(--border);display:inline-block;vertical-align:middle;}
+.skv .mfill{height:100%;display:block;}
+.skv .qr .lbody{padding:2px 13px 11px 38px;border-top:1px solid var(--hair);background:var(--surface-2);}
+/* measurement-type fallback accordion (gateless / unmapped skills — no question grouping) */
+.skv details.pklayer{border:1px solid var(--border);border-radius:8px;margin:6px 0;background:var(--surface);}
+.skv details.pklayer>summary{cursor:pointer;list-style:none;padding:7px 11px;font-size:12px;font-weight:560;display:flex;justify-content:space-between;gap:8px;}
+.skv details.pklayer>summary::-webkit-details-marker{display:none;}
+.skv details.pklayer>summary::before{content:"\\25B8 ";color:var(--muted);}
+.skv details.pklayer[open]>summary::before{content:"\\25BE ";}
+.skv .pklayer .lbody{padding:0 11px 8px;}
+.skv .ccinline{color:var(--muted);font-size:11.5px;white-space:nowrap;}
+/* literature axis (inline per-question + trailing panel) */
+.skv .litaxis{border-left:3px solid var(--lit);padding:2px 0 2px 9px;margin:7px 0;font-size:12px;}
+.skv .litmeta{color:var(--muted);font-size:10.5px;text-transform:uppercase;}
+.skv .litsum{font-size:12px;color:var(--ink2);}
+.skv .prov,.skv .unmeasured{color:var(--muted);font-size:12px;}
+.skv figure{margin:12px 0;} .skv figure img{max-width:100%;border:1px solid var(--border);border-radius:10px;background:var(--surface);}
+.skv figcaption{color:var(--ink2);font-size:12px;margin-top:5px;}
+.skv .fig-more{margin:6px 0 2px;} .skv .fig-more summary{cursor:pointer;color:var(--muted);font-size:12px;}
+.skv .fig-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;border-radius:999px;padding:2px 9px;margin-right:7px;vertical-align:middle;border:1px solid var(--border);}
+.skv table{border-collapse:collapse;width:100%;margin:8px 0;font-size:11.5px;}
+.skv th,.skv td{text-align:left;padding:4px 6px;border-top:1px solid var(--hair);vertical-align:top;}
+.skv th{color:var(--muted);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.04em;}
+""".strip()
+
+
 class HtmlBackend:
     def __init__(self, asset_root=None):
         # asset_root = the run dir where `figures/` lives. When set, SVGs are INLINED as data-URIs so
@@ -596,23 +747,32 @@ class HtmlBackend:
     # -- structure -----------------------------------------------------------------------------
     def render(self, ir: ReportIR) -> str:
         title = f"Target report — {_esc(ir.target or '—')} × {_esc(ir.indication or '—')}"
-        parts = [
-            "<!doctype html>",
-            '<html lang="en" data-theme="auto"><head><meta charset="utf-8">',
-            '<meta name="viewport" content="width=device-width, initial-scale=1">',
-            f"<title>{title}</title><style>{_CSS}\n{_V6_CSS}\n{_lens_css()}</style></head><body>",
-            # theme toggle: auto → light → dark on <html data-theme> (the dark media-query honours 'auto').
-            '<button class="theme-toggle" onclick="var r=document.documentElement,'
-            "n={auto:'light',light:'dark',dark:'auto'};r.dataset.theme=n[r.dataset.theme||'auto'];"
-            'this.lastChild.textContent=r.dataset.theme;">theme: <span>auto</span></button>',
-            "<div class='wrap'>",
-        ]
         lenses = ir.lenses()
         # STANDALONE per-subskill dashboard (un-lensed single-skill IR): match eg-sandbox-genomic.html —
         # the `.hdr` skill card leads directly (no density bar, no redundant target×indication decision
         # card; the .hdr h1 already carries TARGET · INDICATION + the verdict). The composed report keeps
         # the density control + hero.
         standalone = not lenses and bool(ir.header.payload.get("single_skill"))
+        # STANDALONE loads ONLY the scoped sandbox stylesheet (940px/13.5px, mockup chrome) — never the
+        # wide composed _CSS/_V6_CSS — and wraps its content in `.skv`; the COMPOSED page loads the full
+        # composed chrome PLUS the scoped _SUBSKILL_CSS (which only styles the embedded `.skv` sections).
+        if standalone:
+            style = f"{_SUBSKILL_ROOT_CSS}\n{_SUBSKILL_CSS}"
+            wrap_cls = "skv"
+        else:
+            style = f"{_CSS}\n{_V6_CSS}\n{_lens_css()}\n{_SUBSKILL_CSS}"
+            wrap_cls = "wrap"
+        parts = [
+            "<!doctype html>",
+            '<html lang="en" data-theme="auto"><head><meta charset="utf-8">',
+            '<meta name="viewport" content="width=device-width, initial-scale=1">',
+            f"<title>{title}</title><style>{style}</style></head><body>",
+            # theme toggle: auto → light → dark on <html data-theme> (the dark media-query honours 'auto').
+            '<button class="theme-toggle" onclick="var r=document.documentElement,'
+            "n={auto:'light',light:'dark',dark:'auto'};r.dataset.theme=n[r.dataset.theme||'auto'];"
+            'this.lastChild.textContent=r.dataset.theme;">theme: <span>auto</span></button>',
+            f"<div class='{wrap_cls}'>",
+        ]
         if not standalone:
             # v6 density control: Compact (collapse all <details>) / Detailed (default) / Expand-all — lets a
             # leadership reader stay high-level and a comp-bio reader open everything, on one page.
@@ -744,13 +904,18 @@ class HtmlBackend:
                 f"subtype · coherence</span></summary><div class='foldbody'>{inner}</div></details>"
             )
         if ir.sections:
-            secs = "".join(self._emit_section(sec, collapsed=True) for sec in ir.sections)
-            # OPEN by default so the reader immediately SEES all N subskill sections as a scannable list
-            # (each verdict chip + header); the inner per-skill sections stay individually collapsed, so
-            # the page is discoverable without a wall of expanded detail. Density 'Compact' still folds it.
+            # SELF-CONTAINED: embed each subskill's FULL faithful dashboard INLINE (the SAME render the
+            # standalone subskill page produces), wrapped in `<section id="skill-{short}" class="skv">` so
+            # (a) the scoped sandbox stylesheet styles it exactly like the standalone page and (b) the
+            # 6-dimension `full ↗` links resolve as same-page `#skill-{short}` anchors — no external
+            # `subskills/{short}/dashboard.html` files that 404 when target_profile.html is downloaded alone.
+            secs = "".join(
+                f"<section id='skill-{_esc(sec.short)}' class='skv'>{self._emit_standalone_section(sec)}</section>"
+                for sec in ir.sections
+            )
             parts.append(
                 "<details class='fold' open><summary>Per-subskill evidence "
-                f"<span class='fx'>— the {len(ir.sections)} embedded question-answering views</span>"
+                f"<span class='fx'>— the {len(ir.sections)} embedded question-answering dashboards</span>"
                 f"</summary><div class='foldbody'>{secs}</div></details>"
             )
         return "".join(parts)
@@ -860,6 +1025,24 @@ class HtmlBackend:
             if k in seen:
                 continue
             seen.add(k)
+            # FIGURE grouping (same as _emit_section): the PRIMARY figure per card renders inline; the
+            # rest collapse into one "N more figure(s)" <details> so a card with many plots isn't a dump.
+            if k == vocab.FIGURE:
+                figs = by_kind.get(k, [])
+                primary = [b for b in figs if b.payload.get("primary")]
+                extra = [b for b in figs if not b.payload.get("primary")]
+                for b in primary:
+                    html = "".join(self._emit(b))
+                    if html.strip():
+                        parts.append(self._wrap_card(html))
+                if extra:
+                    inner = "".join("".join(self._emit(b)) for b in extra)
+                    parts.append(
+                        self._wrap_card(
+                            f"<details class='fig-more'><summary>{len(extra)} more figure(s)</summary>{inner}</details>"
+                        )
+                    )
+                continue
             for b in by_kind.get(k, []):
                 html = "".join(self._emit(b))
                 if not html.strip():
@@ -2198,7 +2381,10 @@ class HtmlBackend:
             groups = []
             for i, lyr in enumerate(layers):
                 cards = lyr.get("cards") or []
-                rows = "".join(self._chain_card_row(c) for c in cards)
+                # inline the question's own literature axis (mockup `questions()`): its litaxis leads the
+                # qbody, above the card chains — the literature read WHERE the question lives.
+                lit_html = "".join(self._q_litaxis(a) for a in (lyr.get("literature") or []))
+                rows = lit_html + "".join(self._chain_card_row(c) for c in cards)
                 pol = lyr.get("polarity")
                 color = self._EG_POL_COLOR.get(pol, "var(--neutral)")
                 gcls = self._EG_POL_CLS.get(pol, "g-neu")
@@ -2234,20 +2420,42 @@ class HtmlBackend:
             )
         return out
 
+    @staticmethod
+    def _cite_pills(cites) -> str:
+        out = []
+        for c in cites or []:
+            lbl = c.get("label") or "citation"
+            pmid = f" · PMID {c.get('pmid')}" if c.get("pmid") else ""
+            vf = " ✓" if c.get("verified") else ""
+            out.append(f"<span class='cite-pill'>{_esc(lbl)}{_esc(pmid)}{vf}</span>")
+        return "".join(out)
+
+    # literature-vs-omics agreement → (glyph, colour), the sandbox `coh()` map.
+    _COH_GLYPH = {
+        "agree": ("✓", "var(--supportive)"),
+        "extends": ("✓", "var(--supportive)"),
+        "contradicts": ("✗", "var(--killer)"),
+        "omics_blind": ("≈", "var(--opposing)"),
+        "omics_unavailable": ("≈", "var(--opposing)"),
+    }
+
+    def _q_litaxis(self, a: dict) -> str:
+        """One inline per-question literature axis (mockup `litaxis`): the `Literature` meta label, the
+        agreement glyph (✓ agree · ✗ contradicts · ≈ omics-blind · · none), read · agreement, then the
+        assertion + cite pills. Verdict-inert display context."""
+        cg, cc = self._COH_GLYPH.get(str(a.get("agreement") or "").lower(), ("·", "var(--neutral)"))
+        return (
+            "<div class='litaxis'><span class='litmeta'>Literature</span> "
+            f"<span style='color:{cc};font-weight:700'>{cg}</span> {_esc(a.get('read'))} · "
+            f"{_esc(a.get('agreement'))}<br>{_esc(a.get('assertion') or '')} {self._cite_pills(a.get('citations'))}</div>"
+        )
+
     def _literature_axes(self, p: dict) -> list:
         axes = p.get("axes") or []
         blind = p.get("blind_spots") or []
         if not axes and not blind:
             return []
-
-        def _cite_pills(cites):
-            out = []
-            for c in cites or []:
-                lbl = c.get("label") or "citation"
-                pmid = f" · PMID {c.get('pmid')}" if c.get("pmid") else ""
-                vf = " ✓" if c.get("verified") else ""
-                out.append(f"<span class='cite-pill'>{_esc(lbl)}{_esc(pmid)}{vf}</span>")
-            return "".join(out)
+        _cite_pills = self._cite_pills
 
         rows = []
         for a in axes:
