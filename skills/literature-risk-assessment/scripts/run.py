@@ -23,6 +23,7 @@ from pathlib import Path
 _HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(_HERE))  # local retrieval_lanes / pubmed_search
 sys.path.insert(0, str(_HERE.parents[1]))  # skills/  → _skills_common
+import openfda  # noqa: E402  (openFDA FAERS/label pharmacovigilance — safety-dim annotation)
 import retrieval_lanes as rl  # noqa: E402  (shared 3-lane retriever + disease-vocab resolver)
 from _skills_common.llm import EVIDENCE_ONLY_DIRECTIVE, synthesize_structured  # noqa: E402
 
@@ -144,6 +145,27 @@ def _load_card_anchors(pkg_path):
     return out
 
 
+def _drugs_from_package(pkg_path):
+    """The target→drug hop for the openFDA pharmacovigilance annotation (PR-7). openFDA is drug-keyed, so
+    we resolve the target's drugs from the deterministic clinical-precedent + competitor-landscape cards
+    already in the evidence-package (approved_agents + notable_failures — approved AND failed agents both
+    carry relevant AE signal), deduped case-insensitively. Best-effort: no package/cards → []."""
+    if not pkg_path or not Path(pkg_path).exists():
+        return []
+    d = json.loads(Path(pkg_path).read_text())
+    cards = {c.get("card_id"): (c.get("summary") or {}) for c in d.get("cards", []) if c.get("card_id")}
+    names, seen = [], set()
+    for cid in ("clinical-precedent", "competitor-landscape"):
+        s = cards.get(cid) or {}
+        for field in ("approved_agents", "notable_failures"):
+            for agent in s.get(field) or []:
+                key = str(agent).strip().lower()
+                if key and key not in seen:
+                    seen.add(key)
+                    names.append(str(agent).strip())
+    return names
+
+
 def _recency(abstracts, maxdate):
     """PURE: year-distribution annotation of the retrieved corpus for a dimension — flags a dim resting
     on STALE evidence (all pre-window) or thin coverage. `n_recent_5y` counts the last 5 years up to
@@ -239,6 +261,9 @@ def run(target, indication, pkg_path, mindate="2015", maxdate="2026", per_cat=6,
     # A5: card-derived anchors for the engine-BLIND clinical/commercial dims (clinical-precedent +
     # competitor-landscape cards), so those dims reconcile against the engine's picture like the overlap dims.
     card_anchors = _load_card_anchors(pkg_path)
+    # PR-7: openFDA FAERS/label pharmacovigilance for the SAFETY dim — resolved from the target's drugs
+    # (approved_agents + notable_failures in the same cards). Escalate-only, best-effort; empty w/o a package.
+    pharmacovigilance = openfda.pharmacovigilance(_drugs_from_package(pkg_path))
     # Unified 3-lane retrieval (retrieval_lanes) — the SAME collision-immune + starvation-resistant path
     # ground_axis uses. Replaces the former single-lane ps.search_pubmed keyword search. Disease terms via
     # the shared 40-code crosswalk (resolve_disease_terms), not the retired crc/nsclc DISEASE_TERMS.
@@ -259,7 +284,7 @@ def run(target, indication, pkg_path, mindate="2015", maxdate="2026", per_cat=6,
         # deterministic card summary (A5); the rest are pure-literature.
         anchor = anchors.get(akey) if akey else card_anchors.get(dim)
         if not abstracts:
-            dims[dim] = {
+            entry = {
                 "pillar": pillar,
                 "risk_level": "not_assessed",
                 "justification": "no PubMed abstracts retrieved for this dimension",
@@ -270,6 +295,10 @@ def run(target, indication, pkg_path, mindate="2015", maxdate="2026", per_cat=6,
                 "anchor_verdict": anchor,
                 "n_retrieved": 0,
             }
+            # PV is abstract-independent — surface it on safety even when no safety literature was retrieved.
+            if dim == "safety" and pharmacovigilance:
+                entry["pharmacovigilance"] = pharmacovigilance
+            dims[dim] = entry
             continue
         # Self-consistency: temperature is UNPINNABLE on the framework model, so a single sample carries
         # the model's sampling noise. With n_samples>1 we grade the SAME grounded corpus N times and take
@@ -280,6 +309,8 @@ def run(target, indication, pkg_path, mindate="2015", maxdate="2026", per_cat=6,
         rec = _recency(abstracts, maxdate)  # year-distribution annotation of the retrieved corpus (B-recency)
         if rec:
             entry["recency"] = rec
+        if dim == "safety" and pharmacovigilance:  # PR-7: escalate-only openFDA post-market/label signal
+            entry["pharmacovigilance"] = pharmacovigilance
         dims[dim] = entry
     return {
         "tier": "context",  # NOT a verdict/gate input
