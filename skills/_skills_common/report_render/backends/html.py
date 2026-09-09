@@ -263,6 +263,16 @@ details.skill-collapse > summary .phrase { margin:3px 0 0; }
          gap:8px; margin-bottom:3px; } .chead b { color:var(--ink2); font-weight:600; }
 .ccchip { display:inline-flex; align-items:center; gap:5px; font-size:11px; color:var(--ink2);
           background:var(--page); border:1px solid var(--border); border-radius:999px; padding:0 7px; white-space:nowrap; }
+/* card role badge — separate verdict-drivers from context at a glance (not by reading rule ids) */
+.rbadge { display:inline-block; font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:.04em;
+          border-radius:4px; padding:1px 5px; margin-right:6px; vertical-align:middle; }
+.rbadge.rb-drv { background:var(--t-blue); color:var(--blue); }
+.rbadge.rb-con { background:var(--t-neutral); color:var(--ink2); }
+.rbadge.rb-ctx { background:transparent; color:var(--muted); border:1px solid var(--border); font-weight:700; }
+.mttag { font-size:10px; color:var(--muted); margin-left:7px; } /* the card's data layer (measurement_type) */
+/* literature axis cards read pre-attentively as literature (verdict-inert, subordinate) via a --lit
+   left border — the omics-vs-literature two-tone axis, matching the fingerprint litdot ring. */
+.litaxis { border-left:3px solid var(--lit); }
 .chainline { font-size:11.5px; line-height:1.7; color:var(--ink2); }
 .chainline .lab { color:var(--muted); text-transform:uppercase; font-size:9px; letter-spacing:.04em; margin-right:2px; }
 .chainline .mono, .mono { font-family:ui-monospace,Menlo,monospace; font-size:10.5px; }
@@ -1178,6 +1188,16 @@ class HtmlBackend:
     _HMCELL_GLYPH = {"supportive": "▲", "opposing": "▼", "killer": "✕", "neutral": "•"}
     _HM_CONF_CLS = {3: "hm-c3", 2: "hm-c2", 1: "hm-c1", 0: "hm-c0"}
     _HM_CONF_WORD = {3: "high", 2: "moderate", 1: "low", 0: "n/a"}
+    # literature-vs-omics agreement glyph inside the litdot (concordance at a glance, not the old
+    # “ cited/not mark): ✓ agree · ✗ contradicts · ≈ mixed · · none.
+    _LIT_AGREE_GLYPH = {
+        "agree": "✓",
+        "consistent": "✓",
+        "corroborates": "✓",
+        "contradicts": "✗",
+        "inconsistent": "✗",
+        "mixed": "≈",
+    }
 
     def _eg_color(self, polarity, liability=False) -> str:
         if liability:
@@ -1216,10 +1236,14 @@ class HtmlBackend:
                 lcol = {"agree": "var(--supportive)", "mixed": "var(--opposing)", "contradicts": "var(--killer)"}.get(
                     agr, "var(--neutral)"
                 )
-                mark = "“" if lit.get("cited") else "·"
+                # glyph = literature-vs-omics AGREEMENT (✓ agree · ✗ contradicts · ≈ mixed · · none),
+                # not the old “ cited/not mark — the reader sees concordance at a glance. Cited status
+                # stays in the tooltip + the table twin.
+                mark = self._LIT_AGREE_GLYPH.get(agr, "·")
+                cited = " · cited" if lit.get("cited") else ""
                 litdot = (
                     f"<span class='hmsep'></span><span class='litdot' style='background:{lcol}' "
-                    f"title='literature · {_esc(str(lit.get('read')))} · {_esc(str(agr))}'>{mark}</span>"
+                    f"title='literature · {_esc(str(lit.get('read')))} · {_esc(str(agr))}{cited}'>{mark}</span>"
                 )
             else:
                 litdot = (
@@ -1234,7 +1258,7 @@ class HtmlBackend:
         note = (
             "<div class='hmnote'>card — fill + mark = signal (▲ supportive · ▼ opposing · ✕ "
             "liability/killer · • neutral), ring = confidence (thicker = higher) &nbsp;·&nbsp; ● "
-            "literature (colour = agreement · “ cited · · none)</div>"
+            "literature (✓ agree · ✗ contradicts · ≈ mixed · · none)</div>"
         )
         twin = (
             "<details class='hm-twin'><summary>Table view</summary>"
@@ -1418,8 +1442,17 @@ class HtmlBackend:
                 reads = c.get("reads")
                 reads_line = f"<div class='cread'>Reads: <b class='{gcls}'>{_esc(reads)}</b></div>" if reads else ""
                 gauge = self._gauge(c)  # the reference-frame ruler (support layer)
+                # role badge: separate the verdict-drivers from context at a glance (not rule-id reading)
+                if c.get("is_driving"):
+                    badge = "<span class='rbadge rb-drv'>drives verdict</span>"
+                elif c.get("contributes"):
+                    badge = "<span class='rbadge rb-con'>contributes</span>"
+                else:
+                    badge = "<span class='rbadge rb-ctx'>context</span>"
+                mt = c.get("measurement_type")
+                mttag = f"<span class='mttag'>{_esc(str(mt).replace('_', ' '))}</span>" if mt else ""
                 rows.append(
-                    f"<div class='cardln'><div class='chead'><span><b>{_esc(c.get('id'))}</b></span>"
+                    f"<div class='cardln'><div class='chead'><span>{badge}<b>{_esc(c.get('id'))}</b>{mttag}</span>"
                     f"<span class='ccchip'><span class='{gcls}'>{_esc(gl)}</span>{nfrag}</span></div>"
                     f"{desc_line}{reads_line}{gauge}{ke_line}"
                     f"<div class='chainline'><span class='lab'>ds</span> <span class='mono'>{_esc(ds)}</span>"
@@ -1455,7 +1488,7 @@ class HtmlBackend:
             qs = ", ".join(a.get("question_ids") or [])
             qtag = f" · →{_esc(qs)}" if qs else ""
             rows.append(
-                f"<div class='cardln'><div class='chead'><span>axis {_esc(a.get('axis_id'))} — "
+                f"<div class='cardln litaxis'><div class='chead'><span>axis {_esc(a.get('axis_id'))} — "
                 f"<b>{_esc(a.get('read'))}</b></span><span class='ccchip'><span class='{acls}'>{_esc(agr)}</span>"
                 f" · {_esc(a.get('confidence'))}{qtag}</span></div>"
                 f"{_esc(a.get('assertion') or '')} {_cite_pills(a.get('citations'))}</div>"
@@ -1463,7 +1496,7 @@ class HtmlBackend:
         for b in blind:
             why = f" <span class='so-foot'>{_esc(b.get('why_omics_blind'))}</span>" if b.get("why_omics_blind") else ""
             rows.append(
-                f"<div class='cardln'><div class='chead'><span>blind spot</span></div>"
+                f"<div class='cardln litaxis'><div class='chead'><span>blind spot</span></div>"
                 f"{_esc(b.get('text') or '')}{why} {_cite_pills(b.get('citations'))}</div>"
             )
         oc = p.get("overall_consistency")

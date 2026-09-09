@@ -183,6 +183,22 @@ def test_fingerprint_cell_carries_glyph_ring_and_table_twin():
     assert "Table view" in h and "<th>Confidence</th>" in h  # accessible table twin
 
 
+def test_card_chain_regroups_by_question_with_badges_and_lit_treatment():
+    """Tier-4 subskill regroup: the card drill groups by the QUESTION each card answers (aligned with
+    the question-anchored fingerprint) rather than one-card measurement-type accordions; each card
+    carries a role badge (drives-verdict / contributes / context); the litdot shows an agreement glyph
+    (✓/✗/≈); and literature axis cards read as literature via a --lit left border (litaxis)."""
+    ir = _ir(_skill_report(evidence_graph=_graph()))
+    obj = json.loads(be.render(ir, "json"))
+    ccb = [b for s in obj["sections"] for b in s["blocks"] if b["kind"] == "card_chain"][0]
+    assert ccb["grouped_by"] == "question"  # question-grouped, not measurement_type
+    assert len(ccb["layers"]) == 2  # fixture: expressed_at_all + elevated_vs_normal
+    h = be.render(ir, "html")
+    assert "rbadge" in h and ("drives verdict" in h or "context" in h)  # role badges
+    assert "litaxis" in h and "border-left:3px solid var(--lit)" in h  # literature two-tone
+    assert "✓" in h or "≈" in h  # litdot agreement glyph (fixture has agree + mixed)
+
+
 def test_text_and_json_backends_cover_the_blocks():
     ir = _ir(_skill_report(evidence_graph=_graph()))
     t = be.render(ir, "text")

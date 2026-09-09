@@ -1500,53 +1500,73 @@ def _format_key_evidence(ke: Optional[dict]) -> Optional[str]:
 
 
 def _card_chain_block(eg: dict) -> Optional[Block]:
-    """Per-card dataset→data→rule→verdict chains, grouped by measurement layer (the card's
-    measurement_type). Projection over eg.cards[]; None when the graph carries no cards. Each card also
-    carries its promoted `key_evidence` + a compact `key_evidence_summary` (the decisive grounded datum)."""
+    """Per-card dataset→data→rule→verdict chains, grouped by the QUESTION each card answers (aligning
+    the drill-down with the question-anchored fingerprint above), so a reader drills the question they
+    care about instead of scrolling ~20 one-card measurement-type accordions. Falls back to the card's
+    measurement_type for skills with no question mapping (gateless / hand-rolled). Projection over
+    eg.cards[]; None when the graph carries no cards. Each card carries its promoted `key_evidence` +
+    a compact `key_evidence_summary`, its typed reference-frame interpretation ruler(s), and role flags
+    (is_driving / contributes) so the drill can badge verdict-drivers apart from context."""
     cards = eg.get("cards") or []
     if not cards:
         return None
     # target/indication for the plain-language card description (question: with {target.symbol}/
     # {indication.label} filled). The join lives HERE (report_render), never the pure graph builder.
     target, indication = eg.get("target"), eg.get("indication")
-    layers: dict = {}
-    order: list = []
-    for c in cards:
-        mt = c.get("measurement_type") or "other"
-        if mt not in layers:
-            layers[mt] = []
-            order.append(mt)
+
+    def _card(c: dict) -> dict:
         sig = c.get("signal") or {}
         chain = c.get("chain") or {}
         ke = c.get("key_evidence")
         class_value = (c.get("class") or {}).get("value")
         interp = (ke or {}).get("interpretation") or []
-        layers[mt].append(
-            {
-                "id": c.get("id"),
-                "polarity": sig.get("polarity"),
-                "liability": bool(sig.get("liability")),
-                "role": c.get("role"),
-                "class_value": class_value,
-                "description": _dg.card_description(c.get("id"), target, indication),  # plain "what is this card"
-                "reads": _dg.humanize(class_value) or None,  # class-led "Reads: <class>"
-                "interpretation": interp,  # typed reference-frame ruler(s)
-                "gauge": _dg.gauge_string(interp[0]) if interp else None,  # the LEAD ruler in words
-                "gauges": [
-                    g for g in (_dg.gauge_string(gv) for gv in interp) if g
-                ],  # ALL rulers in words (multi-frame)
-                "n": (c.get("confidence") or {}).get("n"),
-                "dots": (c.get("confidence") or {}).get("dots"),
-                "dataset_ids": chain.get("dataset_ids") or [],
-                "data": chain.get("data") or [],
-                "rule_id": chain.get("rule_id"),
-                "is_driving": bool(chain.get("is_driving")),
-                "contributes": bool(chain.get("contributes_to_verdict")),
-                "key_evidence": ke,
-                "key_evidence_summary": _format_key_evidence(ke),
-            }
-        )
-    return Block(vocab.CARD_CHAIN, {"layers": [{"layer": mt.replace("_", " "), "cards": layers[mt]} for mt in order]})
+        return {
+            "id": c.get("id"),
+            "polarity": sig.get("polarity"),
+            "liability": bool(sig.get("liability")),
+            "role": c.get("role"),
+            "measurement_type": c.get("measurement_type"),  # the data layer, kept as a per-card tag
+            "class_value": class_value,
+            "description": _dg.card_description(c.get("id"), target, indication),  # plain "what is this card"
+            "reads": _dg.humanize(class_value) or None,  # class-led "Reads: <class>"
+            "interpretation": interp,  # typed reference-frame ruler(s)
+            "gauge": _dg.gauge_string(interp[0]) if interp else None,  # the LEAD ruler in words
+            "gauges": [g for g in (_dg.gauge_string(gv) for gv in interp) if g],  # ALL rulers (multi-frame)
+            "n": (c.get("confidence") or {}).get("n"),
+            "dots": (c.get("confidence") or {}).get("dots"),
+            "dataset_ids": chain.get("dataset_ids") or [],
+            "data": chain.get("data") or [],
+            "rule_id": chain.get("rule_id"),
+            "is_driving": bool(chain.get("is_driving")),
+            "contributes": bool(chain.get("contributes_to_verdict")),
+            "key_evidence": ke,
+            "key_evidence_summary": _format_key_evidence(ke),
+        }
+
+    # Group by the card's PRIMARY question (its first question_id) when the skill maps cards to
+    # questions; else fall back to measurement_type (byte-stable for gateless/unmapped skills).
+    by_question = any(c.get("question_ids") for c in cards)
+    layers: dict = {}
+    order: list = []
+    if by_question:
+        qtext = {q.get("id"): (q.get("text") or q.get("id")) for q in (eg.get("questions") or [])}
+        qorder = [q.get("id") for q in (eg.get("questions") or [])]
+        for c in cards:
+            qids = c.get("question_ids") or []
+            key = qids[0] if qids else "__context__"
+            layers.setdefault(key, []).append(_card(c))
+        order = [q for q in qorder if q in layers] + [k for k in layers if k not in set(qorder)]
+        labels = {**qtext, "__context__": "Context / other"}
+        groups = [{"layer": labels.get(k, str(k)), "cards": layers[k]} for k in order]
+    else:
+        for c in cards:
+            mt = c.get("measurement_type") or "other"
+            if mt not in layers:
+                layers[mt] = []
+                order.append(mt)
+            layers[mt].append(_card(c))
+        groups = [{"layer": mt.replace("_", " "), "cards": layers[mt]} for mt in order]
+    return Block(vocab.CARD_CHAIN, {"layers": groups, "grouped_by": "question" if by_question else "measurement_type"})
 
 
 def _literature_axes_block(eg: dict) -> Optional[Block]:
