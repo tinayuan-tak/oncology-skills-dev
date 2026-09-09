@@ -286,7 +286,14 @@ def _figures_by_owner(nomination: dict, owner_map: dict) -> dict:
 
 
 def _build_section(
-    short: str, report: dict, spec: ReportSpec, is_deciding: bool, card_figs: list = (), reconciled_shorts=frozenset()
+    short: str,
+    report: dict,
+    spec: ReportSpec,
+    is_deciding: bool,
+    card_figs: list = (),
+    reconciled_shorts=frozenset(),
+    target: Optional[str] = None,
+    indication: Optional[str] = None,
 ) -> Section:
     role = report.get("role") or ("gating" if short in vocab.GATING_SHORTS else "descriptive")
     eff = spec.level_int_for(short, is_deciding)
@@ -307,6 +314,10 @@ def _build_section(
         {
             "short": short,
             "title": vocab.skill_title(short),
+            # target/indication for the sandbox `.hdr` h1 (`{TARGET} · {INDICATION}`); fall back to the
+            # carried graph's own target/indication so the composed embedded sections also fill the h1.
+            "target": target or (eg.get("target") if isinstance(eg, dict) else None),
+            "indication": indication or (eg.get("indication") if isinstance(eg, dict) else None),
             "role": role,
             "call": report.get("call"),  # None for gateless — backend falls back to phrase
             "polarity": _eff_polarity,
@@ -1933,6 +1944,8 @@ def build_ir(
             is_deciding=(short == deciding_short),
             card_figs=figs_by_owner.get(short, []),
             reconciled_shorts=reconciled_shorts,
+            target=target,
+            indication=indication,
         )
         for short, report, role in selected
     ]
@@ -2052,7 +2065,7 @@ def build_ir_for_skill(
             "single_skill": True,
         },
     )
-    section = _build_section(short, skill_report, spec, is_deciding=False)
+    section = _build_section(short, skill_report, spec, is_deciding=False, target=target, indication=indication)
     return ReportIR(
         target=target,
         indication=indication,

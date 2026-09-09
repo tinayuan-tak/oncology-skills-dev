@@ -33,7 +33,7 @@ def _esc(x) -> str:
 _CSS = """
 :root {
   color-scheme:light;
-  --page:#f4f4f1; --surface:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
+  --page:#f4f4f1; --surface:#fcfcfb; --surface-2:#f3f3ef; --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
   --line:#e6e5df; --border:rgba(11,11,11,0.09); --hair:#ecebe4;
   --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#d03b3b; --blue:#2a78d6;
   /* framework polarity → reserved status palette */
@@ -62,7 +62,7 @@ _CSS = """
 @media (prefers-color-scheme:dark) {
   :root:where(:not([data-theme=light])) {
     color-scheme:dark;
-    --page:#0d0d0d; --surface:#1a1a19; --ink:#ffffff; --ink2:#c3c2b7; --muted:#8f8e86;
+    --page:#0d0d0d; --surface:#1a1a19; --surface-2:#232320; --ink:#ffffff; --ink2:#c3c2b7; --muted:#8f8e86;
     --line:#2c2c2a; --border:rgba(255,255,255,0.10); --hair:#232321;
     --opposing:#ec835a; --killer:#e06060; --none:#5f5e57; --hold:#f0a63a;
     --t-good:rgba(12,163,12,.18); --t-serious:rgba(236,131,90,.20); --t-crit:rgba(224,96,96,.20);
@@ -88,8 +88,6 @@ h3 { font-size:14px; font-weight:650; margin:0 0 6px; }
 .card.pol-neutral { border-left:4px solid var(--neutral); }
 .card.pol-supportive { border-left:4px solid var(--supportive); }
 .decision { background:linear-gradient(180deg,var(--surface),var(--surface)); border-color:var(--border); }
-.stitle { font-size:16px; font-weight:660; margin:0 0 2px; display:flex; align-items:center; gap:9px; }
-.glyph { font-size:15px; }
 .phrase { color:var(--ink2); margin:3px 0 12px; }
 .kv { margin:4px 0; color:var(--ink2); }
 .kv b { color:var(--ink); font-weight:640; }
@@ -227,7 +225,10 @@ details.skill-collapse > summary { cursor:pointer; list-style:none; }
 details.skill-collapse > summary::-webkit-details-marker { display:none; }
 details.skill-collapse > summary::before { content:"▸ "; color:var(--muted); font-weight:700; }
 details.skill-collapse[open] > summary::before { content:"▾ "; }
-details.skill-collapse > summary .stitle { display:inline-flex; }
+/* the collapsed composed summary shows the sandbox `.hdr` header inline (titlerow + eyebrow + h1 +
+   vchip); keep it compact so 15 embedded rows stay scannable. */
+details.skill-collapse > summary .hdr { display:inline-block; border-left:none; padding-left:0; }
+details.skill-collapse > summary .hdr h1 { font-size:15px; }
 details.skill-collapse > summary .phrase { margin:3px 0 0; }
 .g-neu { color:var(--neutral); font-weight:700; } .g-kil { color:var(--killer); font-weight:700; }
 /* evidence-graph blocks (P3): fingerprint heatmap + dataset→data→rule→verdict chains + literature axes.
@@ -258,9 +259,9 @@ details.skill-collapse > summary .phrase { margin:3px 0 0; }
 .litdot { width:15px; height:15px; border-radius:50%; border:2px solid var(--lit); display:inline-flex;
           align-items:center; justify-content:center; font-size:9px; color:#fff; font-weight:700; }
 .hmnote { color:var(--muted); font-size:11px; margin-top:8px; }
-.cardln { border:1px solid var(--border); border-radius:7px; background:var(--surface); margin:6px 0; padding:7px 10px; }
-.chead { font-size:11.5px; color:var(--muted); display:flex; justify-content:space-between; align-items:center;
-         gap:8px; margin-bottom:3px; } .chead b { color:var(--ink2); font-weight:600; }
+.cardln { border:1px solid var(--border); border-radius:8px; background:var(--surface); margin:7px 0; padding:8px 11px; }
+.chead { font-size:12.5px; display:flex; justify-content:space-between; align-items:center;
+         gap:8px; margin-bottom:3px; } .chead b { color:var(--ink); }
 .ccchip { display:inline-flex; align-items:center; gap:5px; font-size:11px; color:var(--ink2);
           background:var(--page); border:1px solid var(--border); border-radius:999px; padding:0 7px; white-space:nowrap; }
 /* card role badge — separate verdict-drivers from context at a glance (not by reading rule ids) */
@@ -273,12 +274,15 @@ details.skill-collapse > summary .phrase { margin:3px 0 0; }
 /* literature axis cards read pre-attentively as literature (verdict-inert, subordinate) via a --lit
    left border — the omics-vs-literature two-tone axis, matching the fingerprint litdot ring. */
 .litaxis { border-left:3px solid var(--lit); }
+.litmeta { color:var(--muted); font-size:10.5px; text-transform:uppercase; }
+/* the standalone literature-panel card wrapper (sandbox litSummary): quiet ink2 body. */
+.litsum { font-size:12px; color:var(--ink2); }
 .chainline { font-size:11.5px; line-height:1.7; color:var(--ink2); }
 .chainline .lab { color:var(--muted); text-transform:uppercase; font-size:9px; letter-spacing:.04em; margin-right:2px; }
 .chainline .mono, .mono { font-family:ui-monospace,Menlo,monospace; font-size:10.5px; }
 .chainline .sep { color:var(--muted); margin:0 4px; }
-.cdesc { font-size:11.5px; color:var(--muted); line-height:1.5; margin:1px 0 3px; }
-.cread { font-size:12px; color:var(--ink2); margin:2px 0 4px; } .cread b { font-weight:640; }
+.cdesc { font-size:11.5px; color:var(--ink2); line-height:1.5; margin:3px 0 5px; font-style:italic; }
+.cread { font-size:12.5px; color:var(--ink2); margin:3px 0 4px; } .cread b { font-weight:640; }
 .chainline.keyev .lab { background:var(--page); }
 .gauge { margin:3px 0 5px; }
 .gtrack { position:relative; height:16px; margin:9px 0 2px; }
@@ -322,11 +326,22 @@ details.pklayer[open] > summary::before { content:"▾ "; }
    graph verdict (call/confidence/polarity/driving-rule/tension). The `.headline` INSIDE .hdr is the
    compact sentence — reset off the report-hero `.headline` (17px blue hero) it would otherwise inherit. */
 .hdr { border-left:4px solid var(--accent,var(--neutral)); padding-left:14px; }
+/* the sandbox `.titlerow` (skill eyebrow + TARGET · INDICATION h1 left, polarity .vchip right). */
+.titlerow { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+.eyebrow { color:var(--muted); font-size:11.5px; letter-spacing:.08em; text-transform:uppercase; }
+.hdr h1 { margin:0; font-size:19px; font-weight:640; letter-spacing:0; }
+/* the sandbox polarity chip — scoped to `.hdr` so it does NOT collide with the composed v6 hero .vchip
+   (a larger go/hold/kill chip with a .dot). Pill: coloured text on the surface-2 tint. */
+.hdr .vchip { display:inline-flex; align-items:center; gap:6px; font-weight:660; font-size:12.5px;
+              padding:4px 11px; border-radius:999px; border:1px solid var(--border);
+              background:var(--surface-2,var(--hair)); text-transform:none; letter-spacing:0; }
+.hdr .vchip .deciding { margin-left:2px; }
+.vline { font-size:15.5px; font-weight:600; color:var(--ink); }
 .hdr .headline { font-size:14px; line-height:1.5; font-weight:450; margin:7px 0 3px; padding:0;
                  background:none; border:none; border-radius:0; color:var(--ink); }
 .hdr .headline b { font-weight:700; } .caveat { color:var(--warning); }
-.kv { display:grid; grid-template-columns:96px 1fr; gap:2px 12px; margin:7px 0 2px; }
-.kv dt { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.04em; }
+.kv { display:grid; grid-template-columns:92px 1fr; gap:2px 12px; margin-top:7px; }
+.kv dt { color:var(--muted); font-size:11.5px; text-transform:uppercase; }
 .kv dd { margin:0; color:var(--ink2); } .kv dd b { color:var(--ink); }
 .kv code { font-size:11px; }
 .dots { letter-spacing:1px; color:var(--ink2); font-size:11.5px; white-space:nowrap; }
@@ -335,7 +350,7 @@ details.pklayer[open] > summary::before { content:"▾ "; }
 .qtab { border:1px solid var(--border); border-radius:10px; overflow:hidden; background:var(--surface); margin:6px 0; }
 details.qr { border-top:1px solid var(--hair); } details.qr:first-child { border-top:none; }
 details.qr > summary { cursor:pointer; list-style:none; display:grid;
-    grid-template-columns:14px 1fr 96px 108px; gap:10px; align-items:center; padding:9px 13px; }
+    grid-template-columns:14px 1fr 92px 104px; gap:10px; align-items:center; padding:8px 13px; }
 details.qr > summary::-webkit-details-marker { display:none; }
 details.qr > summary .qcaret { color:var(--muted); font-weight:700; }
 details.qr[open] > summary .qcaret::before { content:"▾"; } details.qr > summary .qcaret::before { content:"▸"; }
@@ -367,7 +382,7 @@ details.qr[open] > summary .qcaret::before { content:"▾"; } details.qr > summa
     background:var(--surface); border:1px solid var(--border); border-radius:7px; padding:4px 9px; cursor:pointer; }
 :root[data-theme=dark] {
   color-scheme:dark;
-  --page:#0d0d0d; --surface:#1a1a19; --ink:#ffffff; --ink2:#c3c2b7; --muted:#8f8e86;
+  --page:#0d0d0d; --surface:#1a1a19; --surface-2:#232320; --ink:#ffffff; --ink2:#c3c2b7; --muted:#8f8e86;
   --line:#2c2c2a; --border:rgba(255,255,255,0.10); --hair:#232321;
   --opposing:#ec835a; --killer:#e06060; --none:#5f5e57; --hold:#f0a63a;
   --t-good:rgba(12,163,12,.18); --t-serious:rgba(236,131,90,.20); --t-crit:rgba(224,96,96,.20);
@@ -592,15 +607,21 @@ class HtmlBackend:
             'this.lastChild.textContent=r.dataset.theme;">theme: <span>auto</span></button>',
             "<div class='wrap'>",
         ]
-        # v6 density control: Compact (collapse all <details>) / Detailed (default) / Expand-all — lets a
-        # leadership reader stay high-level and a comp-bio reader open everything, on one page.
-        parts.append(
-            "<div class='density-bar'>density <span class='seg'>"
-            "<button data-density='compact'>Compact</button>"
-            "<button data-density='detailed' class='on'>Detailed</button>"
-            "<button data-density='all'>Expand all</button></span></div>"
-        )
         lenses = ir.lenses()
+        # STANDALONE per-subskill dashboard (un-lensed single-skill IR): match eg-sandbox-genomic.html —
+        # the `.hdr` skill card leads directly (no density bar, no redundant target×indication decision
+        # card; the .hdr h1 already carries TARGET · INDICATION + the verdict). The composed report keeps
+        # the density control + hero.
+        standalone = not lenses and bool(ir.header.payload.get("single_skill"))
+        if not standalone:
+            # v6 density control: Compact (collapse all <details>) / Detailed (default) / Expand-all — lets a
+            # leadership reader stay high-level and a comp-bio reader open everything, on one page.
+            parts.append(
+                "<div class='density-bar'>density <span class='seg'>"
+                "<button data-density='compact'>Compact</button>"
+                "<button data-density='detailed' class='on'>Detailed</button>"
+                "<button data-density='all'>Expand all</button></span></div>"
+            )
         if lenses:
             # COMPOSED report → the v6 convergence layout (single scroll: sticky hero → headline →
             # archetype/convergence folds → 3-view switch). The hero IS the report_header (recommendation +
@@ -609,14 +630,20 @@ class HtmlBackend:
             parts.append(self._v6_composed(ir))
         else:
             # flat fallback (standalone / un-lensed IR): the decision header + advisory banner stay as
-            # persistent chrome cards, then overview blocks + per-skill sections.
-            parts.append(self._wrap_card("".join(self._emit(ir.header)), extra="decision"))
+            # persistent chrome cards, then overview blocks + per-skill sections. The STANDALONE single-skill
+            # dashboard drops the redundant target×indication decision card — the `.hdr` skill card leads
+            # (its h1 already carries TARGET · INDICATION), matching the sandbox mockup.
+            if not standalone:
+                parts.append(self._wrap_card("".join(self._emit(ir.header)), extra="decision"))
             if getattr(ir, "banner", None) is not None:
                 parts.append(self._wrap_card("".join(self._emit(ir.banner)), extra="narr"))
             for b in ir.overview:
                 parts.append(self._wrap_card("".join(self._emit(b))))
             for sec in ir.sections:
-                parts.append(self._emit_section(sec))
+                if standalone:
+                    parts.append(self._emit_standalone_section(sec))
+                else:
+                    parts.append(self._emit_section(sec))
         if ir.about is not None:
             parts.append("".join(self._emit(ir.about)))
         parts.append(
@@ -786,6 +813,62 @@ class HtmlBackend:
     def _wrap_card(self, inner: str, extra: str = "") -> str:
         cls = f"card {extra}".strip()
         return f"<section class='{cls}'>{inner}</section>"
+
+    # document order for the STANDALONE sandbox dashboard (eg-sandbox-genomic.html): header card →
+    # evidence fingerprint → narrative → questions (.qtab) → literature. Any block kind not listed keeps
+    # its build order after these. Each maps to how the mockup wraps it (own .card, or the self-bordered
+    # .qtab). Only the standalone path uses this; the composed embedded path is unchanged (_emit_section).
+    _STANDALONE_ORDER = (
+        vocab.EVIDENCE_FINGERPRINT,
+        vocab.SYNTHESIS,
+        vocab.CARD_CHAIN,
+        vocab.LITERATURE_AXES,
+    )
+    # block kinds that render their OWN outer container (e.g. CARD_CHAIN → .qtab) — not wrapped in a card.
+    _STANDALONE_SELF_WRAPPED = frozenset({vocab.CARD_CHAIN})
+
+    def _emit_standalone_section(self, sec: Section) -> str:
+        """The standalone per-subskill dashboard, faithful to eg-sandbox-genomic.html: the `.hdr` header
+        card, then the evidence fingerprint, the two-tone narrative, the question drill (.qtab) and the
+        literature panel — each its OWN card (or self-bordered container), in the mockup's document order.
+        Verdict-inert display; reuses the shared block handlers (so it stays in lock-step with the composed
+        embedded drill-down, which renders the same handlers via _emit_section)."""
+        blocks = sec.blocks or []
+        header = blocks[0] if blocks else None
+        rest = blocks[1:] if blocks else []
+        by_kind: dict = {}
+        for b in rest:
+            by_kind.setdefault(b.kind, []).append(b)
+        ordered_kinds = list(self._STANDALONE_ORDER) + [
+            k for k in (b.kind for b in rest) if k not in self._STANDALONE_ORDER
+        ]
+        seen: set = set()
+        parts = []
+        # 1) header → its own accent .card.hdr — merge `card` onto the .hdr div (mockup: one element, so
+        # the accent spine is flush with the card edge, not inset by the card padding).
+        if header is not None:
+            hhtml = "".join(self._emit(header))
+            if hhtml.startswith('<div class="hdr"') and hhtml.rstrip().endswith("</div>"):
+                head, _, _tail = hhtml.rstrip().rpartition("</div>")
+                hhtml = head.replace('<div class="hdr"', '<section class="card hdr"', 1) + "</section>"
+                parts.append(hhtml)
+            else:
+                parts.append(self._wrap_card(hhtml))
+        # 2..N) the remaining blocks, in mockup order, each in its own card (or self-wrapped for .qtab).
+        narr_cls = {vocab.SYNTHESIS: "narr", vocab.LITERATURE_AXES: "litsum"}
+        for k in ordered_kinds:
+            if k in seen:
+                continue
+            seen.add(k)
+            for b in by_kind.get(k, []):
+                html = "".join(self._emit(b))
+                if not html.strip():
+                    continue
+                if k in self._STANDALONE_SELF_WRAPPED:
+                    parts.append(html)
+                else:
+                    parts.append(self._wrap_card(html, extra=narr_cls.get(k, "")))
+        return "".join(parts)
 
     def _emit_section(self, sec: Section, collapsed: bool = False) -> str:
         blocks = sec.blocks or []
@@ -969,25 +1052,43 @@ class HtmlBackend:
             if p.get("role") in ("descriptive", "inert")
             else vocab.polarity_label(p.get("polarity"))
         )
+        polarity = p.get("polarity")
+        color = self._EG_POL_COLOR.get(polarity, "var(--neutral)")
+        # the sandbox `.hdr` (eg-sandbox-genomic.html `header()`): an accent-spined card whose `.titlerow`
+        # carries the skill eyebrow + `{TARGET} · {INDICATION}` h1 on the left and the polarity `.vchip`
+        # on the right, then the one-sentence `.headline`, then the `.kv` grid (Verdict/Driving/Tension).
+        # The outer .card surface is provided by the enclosing section/details, so this div is `.hdr` only.
+        tgt = p.get("target")
+        ind = p.get("indication")
+        h1 = " · ".join(_esc(x) for x in (tgt, ind) if x) or _esc(p.get("title"))
+        pol_label = _esc((polarity or "").upper()) or _esc(vocab.polarity_label(polarity))
         deciding = " <span class='deciding'>deciding axis</span>" if p.get("is_deciding") else ""
-        color = self._EG_POL_COLOR.get(p.get("polarity"), "var(--neutral)")
-        # the sandbox `.hdr`: accent spine + stitle + one-sentence headline + kv grid (bound to the graph
-        # verdict when carried; degrades to just the stitle/phrase when the skill has no rich graph).
-        out = [
-            f'<div class="hdr" style="--accent:{color}">'
-            f"<div class='stitle'><span class='glyph'>{_esc(glyph)}</span>"
-            f"{_esc(p.get('title'))} — {_esc(verdict)}{deciding}</div>"
-        ]
-        if p.get("honest_phrase"):
-            out.append(f"<div class='phrase'>{_esc(p['honest_phrase'])}</div>")
-        out.extend(self._skill_headline_and_kv(p, verdict))
+        vchip = f'<span class="vchip" style="color:{color}">{_esc(glyph)} {pol_label}{deciding}</span>'
+        titlerow = (
+            '<div class="titlerow"><div>'
+            f'<div class="eyebrow">{_esc(p.get("title"))}</div><h1>{h1}</h1></div>'
+            f"{vchip}</div>"
+        )
+        out = [f'<div class="hdr" style="--accent:{color}">{titlerow}']
+        rn = p.get("reconciled_note")
+        if rn:
+            out.append(f"<div class='phrase'>{_esc(rn)}</div>")
+        headline_kv = self._skill_headline_and_kv(p, verdict)
+        if headline_kv:
+            out.extend(headline_kv)
+        else:
+            # no rich graph → the honest_phrase carries the one-line read (degrade gracefully).
+            if p.get("honest_phrase"):
+                out.append(f"<div class='headline'><b>{_esc(verdict)}</b> — {_esc(p['honest_phrase'])}</div>")
+            out.append(f'<dl class="kv"><dt>Verdict</dt><dd><span class="vline">{_esc(verdict)}</span></dd></dl>')
         out.append("</div>")
         return out
 
     def _skill_headline_and_kv(self, p: dict, verdict: str) -> list:
         """The sandbox one-sentence `.headline` (call + confidence + polarity + driving rule + ⚠ caveat)
         and the `.kv` grid (Verdict / Driving+coverage+q&card counts / Tension), from the carried graph
-        verdict summary. [] when the skill carries no rich graph — the lean stitle/phrase stands alone."""
+        verdict summary. [] when the skill carries no rich graph — the caller then renders a lean
+        headline/vline fallback from the honest_phrase."""
         g = p.get("graph")
         if not isinstance(g, dict):
             return []
@@ -1020,7 +1121,7 @@ class HtmlBackend:
                 ct += f" · {_esc(cov['n_critical_measured'])} critical"
             drv_bits.append(ct)
         drv_bits.append(f"{_esc(g.get('n_questions', 0))} q · {_esc(g.get('n_cards', 0))} cards")
-        rows = [("Verdict", f"<b>{_esc(call)}</b>"), ("Driving", " · ".join(drv_bits))]
+        rows = [("Verdict", f'<span class="vline">{_esc(call)}</span>'), ("Driving", " · ".join(drv_bits))]
         if tension and tension.get("text"):
             sev = f" · sev {_esc(tension['severity'])}" if tension.get("severity") is not None else ""
             rows.append(("Tension", f"<span class='caveat'>⚠ {_esc(tension['text'])}{sev}</span>"))

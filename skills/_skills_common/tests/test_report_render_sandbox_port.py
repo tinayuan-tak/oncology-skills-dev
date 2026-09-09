@@ -138,11 +138,17 @@ def _html() -> str:
 
 def test_header_headline_and_kv_bind_to_graph_verdict():
     h = _html()
-    assert 'class="hdr' in h  # accent header card
+    # the sandbox `.hdr` header structure (eg-sandbox-genomic.html): the accent .card.hdr, a `.titlerow`
+    # with the skill eyebrow + `{TARGET} · {INDICATION}` h1 on the left and the polarity `.vchip` on the
+    # right, then the one-sentence headline, then the `.kv` grid with the verdict `.vline`.
+    assert "hdr" in h and 'class="titlerow"' in h  # accent header card + title row
+    assert 'class="eyebrow"' in h and "<h1>KRAS · COADREAD</h1>" in h  # eyebrow + GENE · INDICATION h1
+    assert 'class="vchip"' in h  # top-right polarity chip
+    assert "stitle" not in h  # the OLD .stitle header line is gone
     assert 'class="headline"' in h  # one-sentence read inside the header
     assert "moderate-confidence supportive call" in h  # confidence + polarity clause
     assert "mutant-strongly-dependent-supportive" in h  # driving rule surfaced
-    assert 'class="kv"' in h  # verdict / driving / tension grid
+    assert 'class="kv"' in h and "vline" in h  # verdict / driving / tension grid + verdict line
     assert "coverage 4/4 axes" in h  # coverage bound
     assert "No recurrent copy-number alteration" in h  # top_tension caveat
 
@@ -183,7 +189,11 @@ def test_render_skill_report_entrypoint_prints_all_sandbox_classes():
     }
     h = _rsr(dec, backend="html", preset="full", skill_name="genomic-alteration-profile")
     for cls in (
-        'class="hdr',
+        "hdr",
+        'class="titlerow"',
+        'class="eyebrow"',
+        'class="vchip"',
+        "vline",
         'class="kv"',
         'class="qtab"',
         'details class="qr"',
@@ -194,6 +204,7 @@ def test_render_skill_report_entrypoint_prints_all_sandbox_classes():
         "fx-det",
     ):
         assert cls in h, f"standalone dashboard missing {cls}"
+    assert "stitle" not in h  # OLD header line retired
 
 
 def test_graph_without_new_fields_degrades_gracefully():
@@ -211,4 +222,4 @@ def test_graph_without_new_fields_degrades_gracefully():
         preset="full",
     )
     assert "None" not in out
-    assert 'class="hdr' in out  # header still renders
+    assert 'class="titlerow"' in out and "hdr" in out  # header still renders (accent .card.hdr + title row)
