@@ -131005,16 +131005,16 @@
     "known-drug-approved-antineoplastic-sm-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-disordered-sm-opposing": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-disordered-sm-opposing,measured-chembl-approved-sm-supportive": [
     "chemically_active",
@@ -131337,20 +131337,20 @@
     "prism-clinically-active-supportive-sm"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-disordered-sm-opposing,prism-no-compounds-found-neutral": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-disordered-sm-opposing,prism-no-compounds-found-neutral,structure-low-confidence-sm-opposing": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-disordered-sm-opposing,prism-no-compounds-found-neutral,structure-low-confidence-sm-opposing,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-disordered-sm-opposing,prism-no-compounds-found-neutral,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-disordered-sm-opposing,prism-tool-compound-only-weak-supportive-sm": [
     "tool_compound_only",
@@ -131385,20 +131385,20 @@
     "prism-weakly-active-weak-supportive-sm"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-disordered-sm-opposing,structure-low-confidence-sm-opposing": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-disordered-sm-opposing,structure-low-confidence-sm-opposing,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-disordered-sm-opposing,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-experimental-sm-supportive": [
-    "structurally_ligandable",
-    "ligandability-experimental-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-experimental-sm-supportive,measured-chembl-approved-sm-supportive": [
     "chemically_active",
@@ -131721,20 +131721,20 @@
     "prism-clinically-active-supportive-sm"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-experimental-sm-supportive,prism-no-compounds-found-neutral": [
-    "structurally_ligandable",
-    "ligandability-experimental-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-experimental-sm-supportive,prism-no-compounds-found-neutral,structure-low-confidence-sm-opposing": [
-    "structurally_ligandable",
-    "ligandability-experimental-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-experimental-sm-supportive,prism-no-compounds-found-neutral,structure-low-confidence-sm-opposing,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "ligandability-experimental-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-experimental-sm-supportive,prism-no-compounds-found-neutral,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "ligandability-experimental-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-experimental-sm-supportive,prism-tool-compound-only-weak-supportive-sm": [
     "tool_compound_only",
@@ -131769,20 +131769,20 @@
     "prism-weakly-active-weak-supportive-sm"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-experimental-sm-supportive,structure-low-confidence-sm-opposing": [
-    "structurally_ligandable",
-    "ligandability-experimental-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-experimental-sm-supportive,structure-low-confidence-sm-opposing,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "ligandability-experimental-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-experimental-sm-supportive,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "ligandability-experimental-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-predicted-sm-supportive": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-predicted-sm-supportive,measured-chembl-approved-sm-supportive": [
     "chemically_active",
@@ -132105,20 +132105,20 @@
     "prism-clinically-active-supportive-sm"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-predicted-sm-supportive,prism-no-compounds-found-neutral": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-predicted-sm-supportive,prism-no-compounds-found-neutral,structure-low-confidence-sm-opposing": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-predicted-sm-supportive,prism-no-compounds-found-neutral,structure-low-confidence-sm-opposing,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-predicted-sm-supportive,prism-no-compounds-found-neutral,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-predicted-sm-supportive,prism-tool-compound-only-weak-supportive-sm": [
     "tool_compound_only",
@@ -132153,16 +132153,16 @@
     "prism-weakly-active-weak-supportive-sm"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-predicted-sm-supportive,structure-low-confidence-sm-opposing": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-predicted-sm-supportive,structure-low-confidence-sm-opposing,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-predicted-sm-supportive,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,measured-chembl-approved-sm-supportive": [
     "chemically_active",
@@ -132485,20 +132485,20 @@
     "prism-clinically-active-supportive-sm"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,prism-no-compounds-found-neutral": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,prism-no-compounds-found-neutral,structure-low-confidence-sm-opposing": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,prism-no-compounds-found-neutral,structure-low-confidence-sm-opposing,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,prism-no-compounds-found-neutral,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,prism-tool-compound-only-weak-supportive-sm": [
     "tool_compound_only",
@@ -132533,20 +132533,20 @@
     "prism-weakly-active-weak-supportive-sm"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,structure-low-confidence-sm-opposing": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,structure-low-confidence-sm-opposing,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,ligandability-disordered-sm-opposing": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,ligandability-disordered-sm-opposing,measured-chembl-approved-sm-supportive": [
     "chemically_active",
@@ -132869,20 +132869,20 @@
     "prism-clinically-active-supportive-sm"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,ligandability-disordered-sm-opposing,prism-no-compounds-found-neutral": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,ligandability-disordered-sm-opposing,prism-no-compounds-found-neutral,structure-low-confidence-sm-opposing": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,ligandability-disordered-sm-opposing,prism-no-compounds-found-neutral,structure-low-confidence-sm-opposing,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,ligandability-disordered-sm-opposing,prism-no-compounds-found-neutral,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,ligandability-disordered-sm-opposing,prism-tool-compound-only-weak-supportive-sm": [
     "tool_compound_only",
@@ -132917,20 +132917,20 @@
     "prism-weakly-active-weak-supportive-sm"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,ligandability-disordered-sm-opposing,structure-low-confidence-sm-opposing": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,ligandability-disordered-sm-opposing,structure-low-confidence-sm-opposing,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,ligandability-disordered-sm-opposing,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,ligandability-experimental-sm-supportive": [
-    "structurally_ligandable",
-    "ligandability-experimental-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,ligandability-experimental-sm-supportive,measured-chembl-approved-sm-supportive": [
     "chemically_active",
@@ -133253,20 +133253,20 @@
     "prism-clinically-active-supportive-sm"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,ligandability-experimental-sm-supportive,prism-no-compounds-found-neutral": [
-    "structurally_ligandable",
-    "ligandability-experimental-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,ligandability-experimental-sm-supportive,prism-no-compounds-found-neutral,structure-low-confidence-sm-opposing": [
-    "structurally_ligandable",
-    "ligandability-experimental-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,ligandability-experimental-sm-supportive,prism-no-compounds-found-neutral,structure-low-confidence-sm-opposing,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "ligandability-experimental-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,ligandability-experimental-sm-supportive,prism-no-compounds-found-neutral,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "ligandability-experimental-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,ligandability-experimental-sm-supportive,prism-tool-compound-only-weak-supportive-sm": [
     "tool_compound_only",
@@ -133301,20 +133301,20 @@
     "prism-weakly-active-weak-supportive-sm"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,ligandability-experimental-sm-supportive,structure-low-confidence-sm-opposing": [
-    "structurally_ligandable",
-    "ligandability-experimental-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,ligandability-experimental-sm-supportive,structure-low-confidence-sm-opposing,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "ligandability-experimental-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,ligandability-experimental-sm-supportive,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "ligandability-experimental-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,ligandability-predicted-sm-supportive": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,ligandability-predicted-sm-supportive,measured-chembl-approved-sm-supportive": [
     "chemically_active",
@@ -133637,20 +133637,20 @@
     "prism-clinically-active-supportive-sm"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,ligandability-predicted-sm-supportive,prism-no-compounds-found-neutral": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,ligandability-predicted-sm-supportive,prism-no-compounds-found-neutral,structure-low-confidence-sm-opposing": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,ligandability-predicted-sm-supportive,prism-no-compounds-found-neutral,structure-low-confidence-sm-opposing,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,ligandability-predicted-sm-supportive,prism-no-compounds-found-neutral,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,ligandability-predicted-sm-supportive,prism-tool-compound-only-weak-supportive-sm": [
     "tool_compound_only",
@@ -133685,16 +133685,16 @@
     "prism-weakly-active-weak-supportive-sm"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,ligandability-predicted-sm-supportive,structure-low-confidence-sm-opposing": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,ligandability-predicted-sm-supportive,structure-low-confidence-sm-opposing,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,ligandability-predicted-sm-supportive,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,measured-chembl-approved-sm-supportive": [
     "chemically_active",
@@ -134017,20 +134017,20 @@
     "prism-clinically-active-supportive-sm"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,prism-no-compounds-found-neutral": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,prism-no-compounds-found-neutral,structure-low-confidence-sm-opposing": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,prism-no-compounds-found-neutral,structure-low-confidence-sm-opposing,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,prism-no-compounds-found-neutral,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,prism-tool-compound-only-weak-supportive-sm": [
     "tool_compound_only",
@@ -134065,16 +134065,16 @@
     "prism-weakly-active-weak-supportive-sm"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,structure-low-confidence-sm-opposing": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,structure-low-confidence-sm-opposing,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-biologic-only-sm-not-supportive,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "hotspot-in-druggable-pocket-sm-supportive-e8"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "hotspot-in-druggable-pocket-sm-supportive-e8,known-drug-approved-indirect-only-sm-weak": [
     "structurally_ligandable",
@@ -143293,12 +143293,12 @@
     "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive": [
-    "structurally_ligandable",
-    "known-drug-druggable-category-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-disordered-sm-opposing": [
-    "structurally_ligandable",
-    "known-drug-druggable-category-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-disordered-sm-opposing,measured-chembl-approved-sm-supportive": [
     "chemically_active",
@@ -143621,20 +143621,20 @@
     "prism-clinically-active-supportive-sm"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-disordered-sm-opposing,prism-no-compounds-found-neutral": [
-    "structurally_ligandable",
-    "known-drug-druggable-category-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-disordered-sm-opposing,prism-no-compounds-found-neutral,structure-low-confidence-sm-opposing": [
-    "structurally_ligandable",
-    "known-drug-druggable-category-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-disordered-sm-opposing,prism-no-compounds-found-neutral,structure-low-confidence-sm-opposing,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "structure-pocket-adjacent-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-disordered-sm-opposing,prism-no-compounds-found-neutral,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "structure-pocket-adjacent-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-disordered-sm-opposing,prism-tool-compound-only-weak-supportive-sm": [
     "tool_compound_only",
@@ -143669,20 +143669,20 @@
     "prism-weakly-active-weak-supportive-sm"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-disordered-sm-opposing,structure-low-confidence-sm-opposing": [
-    "structurally_ligandable",
-    "known-drug-druggable-category-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-disordered-sm-opposing,structure-low-confidence-sm-opposing,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "structure-pocket-adjacent-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-disordered-sm-opposing,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "structure-pocket-adjacent-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-experimental-sm-supportive": [
-    "structurally_ligandable",
-    "ligandability-experimental-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-experimental-sm-supportive,measured-chembl-approved-sm-supportive": [
     "chemically_active",
@@ -144005,20 +144005,20 @@
     "prism-clinically-active-supportive-sm"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-experimental-sm-supportive,prism-no-compounds-found-neutral": [
-    "structurally_ligandable",
-    "ligandability-experimental-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-experimental-sm-supportive,prism-no-compounds-found-neutral,structure-low-confidence-sm-opposing": [
-    "structurally_ligandable",
-    "ligandability-experimental-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-experimental-sm-supportive,prism-no-compounds-found-neutral,structure-low-confidence-sm-opposing,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "ligandability-experimental-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-experimental-sm-supportive,prism-no-compounds-found-neutral,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "ligandability-experimental-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-experimental-sm-supportive,prism-tool-compound-only-weak-supportive-sm": [
     "tool_compound_only",
@@ -144053,20 +144053,20 @@
     "prism-weakly-active-weak-supportive-sm"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-experimental-sm-supportive,structure-low-confidence-sm-opposing": [
-    "structurally_ligandable",
-    "ligandability-experimental-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-experimental-sm-supportive,structure-low-confidence-sm-opposing,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "ligandability-experimental-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-experimental-sm-supportive,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "ligandability-experimental-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-predicted-sm-supportive": [
-    "structurally_ligandable",
-    "ligandability-predicted-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-predicted-sm-supportive,measured-chembl-approved-sm-supportive": [
     "chemically_active",
@@ -144389,20 +144389,20 @@
     "prism-clinically-active-supportive-sm"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-predicted-sm-supportive,prism-no-compounds-found-neutral": [
-    "structurally_ligandable",
-    "ligandability-predicted-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-predicted-sm-supportive,prism-no-compounds-found-neutral,structure-low-confidence-sm-opposing": [
-    "structurally_ligandable",
-    "ligandability-predicted-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-predicted-sm-supportive,prism-no-compounds-found-neutral,structure-low-confidence-sm-opposing,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "structure-pocket-adjacent-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-predicted-sm-supportive,prism-no-compounds-found-neutral,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "structure-pocket-adjacent-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-predicted-sm-supportive,prism-tool-compound-only-weak-supportive-sm": [
     "tool_compound_only",
@@ -144437,16 +144437,16 @@
     "prism-weakly-active-weak-supportive-sm"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-predicted-sm-supportive,structure-low-confidence-sm-opposing": [
-    "structurally_ligandable",
-    "ligandability-predicted-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-predicted-sm-supportive,structure-low-confidence-sm-opposing,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "structure-pocket-adjacent-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,ligandability-predicted-sm-supportive,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "structure-pocket-adjacent-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,measured-chembl-approved-sm-supportive": [
     "chemically_active",
@@ -144769,20 +144769,20 @@
     "prism-clinically-active-supportive-sm"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,prism-no-compounds-found-neutral": [
-    "structurally_ligandable",
-    "known-drug-druggable-category-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,prism-no-compounds-found-neutral,structure-low-confidence-sm-opposing": [
-    "structurally_ligandable",
-    "known-drug-druggable-category-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,prism-no-compounds-found-neutral,structure-low-confidence-sm-opposing,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "structure-pocket-adjacent-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,prism-no-compounds-found-neutral,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "structure-pocket-adjacent-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,prism-tool-compound-only-weak-supportive-sm": [
     "tool_compound_only",
@@ -144817,20 +144817,20 @@
     "prism-weakly-active-weak-supportive-sm"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,structure-low-confidence-sm-opposing": [
-    "structurally_ligandable",
-    "known-drug-druggable-category-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,structure-low-confidence-sm-opposing,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "structure-pocket-adjacent-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,known-drug-druggable-category-sm-supportive,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "structure-pocket-adjacent-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,ligandability-disordered-sm-opposing": [
-    "structurally_intractable",
-    "ligandability-disordered-sm-opposing"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,ligandability-disordered-sm-opposing,measured-chembl-approved-sm-supportive": [
     "chemically_active",
@@ -145153,20 +145153,20 @@
     "prism-clinically-active-supportive-sm"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,ligandability-disordered-sm-opposing,prism-no-compounds-found-neutral": [
-    "structurally_intractable",
-    "ligandability-disordered-sm-opposing"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,ligandability-disordered-sm-opposing,prism-no-compounds-found-neutral,structure-low-confidence-sm-opposing": [
-    "structurally_intractable",
-    "structure-low-confidence-sm-opposing"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,ligandability-disordered-sm-opposing,prism-no-compounds-found-neutral,structure-low-confidence-sm-opposing,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "structure-pocket-adjacent-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,ligandability-disordered-sm-opposing,prism-no-compounds-found-neutral,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "structure-pocket-adjacent-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,ligandability-disordered-sm-opposing,prism-tool-compound-only-weak-supportive-sm": [
     "tool_compound_only",
@@ -145201,20 +145201,20 @@
     "prism-weakly-active-weak-supportive-sm"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,ligandability-disordered-sm-opposing,structure-low-confidence-sm-opposing": [
-    "structurally_intractable",
-    "structure-low-confidence-sm-opposing"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,ligandability-disordered-sm-opposing,structure-low-confidence-sm-opposing,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "structure-pocket-adjacent-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,ligandability-disordered-sm-opposing,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "structure-pocket-adjacent-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,ligandability-experimental-sm-supportive": [
-    "structurally_ligandable",
-    "ligandability-experimental-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,ligandability-experimental-sm-supportive,measured-chembl-approved-sm-supportive": [
     "chemically_active",
@@ -145537,20 +145537,20 @@
     "prism-clinically-active-supportive-sm"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,ligandability-experimental-sm-supportive,prism-no-compounds-found-neutral": [
-    "structurally_ligandable",
-    "ligandability-experimental-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,ligandability-experimental-sm-supportive,prism-no-compounds-found-neutral,structure-low-confidence-sm-opposing": [
-    "structurally_ligandable",
-    "ligandability-experimental-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,ligandability-experimental-sm-supportive,prism-no-compounds-found-neutral,structure-low-confidence-sm-opposing,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "ligandability-experimental-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,ligandability-experimental-sm-supportive,prism-no-compounds-found-neutral,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "ligandability-experimental-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,ligandability-experimental-sm-supportive,prism-tool-compound-only-weak-supportive-sm": [
     "tool_compound_only",
@@ -145585,20 +145585,20 @@
     "prism-weakly-active-weak-supportive-sm"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,ligandability-experimental-sm-supportive,structure-low-confidence-sm-opposing": [
-    "structurally_ligandable",
-    "ligandability-experimental-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,ligandability-experimental-sm-supportive,structure-low-confidence-sm-opposing,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "ligandability-experimental-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,ligandability-experimental-sm-supportive,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "ligandability-experimental-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,ligandability-predicted-sm-supportive": [
-    "structurally_ligandable",
-    "ligandability-predicted-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,ligandability-predicted-sm-supportive,measured-chembl-approved-sm-supportive": [
     "chemically_active",
@@ -145921,20 +145921,20 @@
     "prism-clinically-active-supportive-sm"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,ligandability-predicted-sm-supportive,prism-no-compounds-found-neutral": [
-    "structurally_ligandable",
-    "ligandability-predicted-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,ligandability-predicted-sm-supportive,prism-no-compounds-found-neutral,structure-low-confidence-sm-opposing": [
-    "structurally_ligandable",
-    "ligandability-predicted-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,ligandability-predicted-sm-supportive,prism-no-compounds-found-neutral,structure-low-confidence-sm-opposing,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "structure-pocket-adjacent-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,ligandability-predicted-sm-supportive,prism-no-compounds-found-neutral,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "structure-pocket-adjacent-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,ligandability-predicted-sm-supportive,prism-tool-compound-only-weak-supportive-sm": [
     "tool_compound_only",
@@ -145969,16 +145969,16 @@
     "prism-weakly-active-weak-supportive-sm"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,ligandability-predicted-sm-supportive,structure-low-confidence-sm-opposing": [
-    "structurally_ligandable",
-    "ligandability-predicted-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,ligandability-predicted-sm-supportive,structure-low-confidence-sm-opposing,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "structure-pocket-adjacent-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,ligandability-predicted-sm-supportive,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "structure-pocket-adjacent-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,measured-chembl-approved-sm-supportive": [
     "chemically_active",
@@ -146305,16 +146305,16 @@
     "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,prism-no-compounds-found-neutral,structure-low-confidence-sm-opposing": [
-    "structurally_intractable",
-    "structure-low-confidence-sm-opposing"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,prism-no-compounds-found-neutral,structure-low-confidence-sm-opposing,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "structure-pocket-adjacent-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,prism-no-compounds-found-neutral,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "structure-pocket-adjacent-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,prism-tool-compound-only-weak-supportive-sm": [
     "tool_compound_only",
@@ -146349,16 +146349,16 @@
     "prism-weakly-active-weak-supportive-sm"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,structure-low-confidence-sm-opposing": [
-    "structurally_intractable",
-    "structure-low-confidence-sm-opposing"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,structure-low-confidence-sm-opposing,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "structure-pocket-adjacent-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-biologic-only-sm-not-supportive,structure-pocket-adjacent-sm-supportive": [
-    "structurally_ligandable",
-    "structure-pocket-adjacent-sm-supportive"
+    "annotation_only_indirect",
+    "known-drug-approved-biologic-only-sm-not-supportive"
    ],
    "known-drug-approved-indirect-only-sm-weak": [
     "annotation_only_indirect",

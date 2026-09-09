@@ -634,6 +634,14 @@ def _snapshot_legacy_oracle(fired: list[dict]) -> tuple[str, str | None]:
     #     rungs, above the structural tier. Byte-in-sync with the resolver. ---
     if "measured-potent-ligand-sm-supportive" in fired_by_id:
         return "measured_potent_ligand", "measured-potent-ligand-sm-supportive"
+    # MODALITY gate (v1.7.0, 2026-09-09): a biologics-only antigen (approved ADC/TCE/CAR/mAb, NO approved SM)
+    # → approved_biologic_only. REPRIORITIZED to OUTRANK the structural tier below: a predicted/experimental
+    # pocket on a biologic-only/extracellular antigen is not a validated SM handle, so "the approved agent is
+    # a biologic" beats "a pocket exists" (fixes the structurally_ligandable subskill-read over-call on
+    # MSLN/CD79B/DLL3). Still BELOW the measured-chemical rungs above (a real measured SM ligand wins).
+    # → annotation_only_indirect (catalogued approved agent, not a small molecule). Byte-in-sync w/ resolver.
+    if "known-drug-approved-biologic-only-sm-not-supportive" in fired_by_id:
+        return "annotation_only_indirect", "known-drug-approved-biologic-only-sm-not-supportive"
     # --- Structural / forward ligandability (E8: druggable pocket, no compound yet) ---
     # Ranked below any real chemical hit, above chemically_unhit — a druggable pocket
     # is a positive SM prospect even before a compound exists (the KRAS-G12C fix).
@@ -666,12 +674,6 @@ def _snapshot_legacy_oracle(fired: list[dict]) -> tuple[str, str | None]:
     # negative, above chemically_unhit. Byte-in-sync with resolvers/tractability_small_molecule.resolver.yaml.
     if "known-drug-approved-indirect-only-sm-weak" in fired_by_id:
         return "annotation_only_indirect", "known-drug-approved-indirect-only-sm-weak"
-    # MODALITY gate (2026-09-07, CASE-008): a biologics-only antigen (approved ADC/TCE/CAR/mAb, no approved
-    # SM) → approved_biologic_only fires this rung INSTEAD of the SM-supportive approved-drug rung; maps to
-    # the SAME annotation_only_indirect verdict (a catalogued approved agent, just not a small molecule).
-    # Byte-in-sync with resolvers/tractability_small_molecule.resolver.yaml.
-    if "known-drug-approved-biologic-only-sm-not-supportive" in fired_by_id:
-        return "annotation_only_indirect", "known-drug-approved-biologic-only-sm-not-supportive"
     if "prism-no-compounds-found-neutral" in fired_by_id:
         return "chemically_unhit", "prism-no-compounds-found-neutral"
     return "insufficient", None

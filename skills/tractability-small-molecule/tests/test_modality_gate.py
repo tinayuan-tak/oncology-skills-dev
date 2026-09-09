@@ -81,16 +81,18 @@ def test_resolver_biologic_only_maps_to_annotation_only_indirect():
 
 
 @pytest.mark.skipif(not _resolver_available(), reason="tractability_small_molecule resolver spec not resolvable")
-def test_resolver_biologic_only_loses_to_structural_and_offtarget():
-    # DLL3/STEAP1 shape: a predicted structural pocket co-fires → structurally_ligandable WINS (verdict-stable).
+def test_resolver_biologic_only_beats_structural_but_not_offtarget():
+    # v1.7.0 reprioritization (DLL3/MSLN/CD79B shape): a PREDICTED/experimental structural pocket on a
+    # biologic-only antigen is NOT a validated SM handle, so the biologic-only downgrade now OUTRANKS the
+    # structural rung → annotation_only_indirect (was structurally_ligandable — the subskill-read over-call).
     v, _ = tp._snapshot(
         [
             {"rule_id": "known-drug-approved-biologic-only-sm-not-supportive"},
             {"rule_id": "ligandability-predicted-sm-supportive"},
         ]
     )
-    assert v == "structurally_ligandable"
-    # FOLR1/NECTIN4/CEACAM5 shape: an e7 off-target read co-fires → discordant WINS (verdict-stable).
+    assert v == "annotation_only_indirect"
+    # FOLR1/NECTIN4/CEACAM5 shape: an e7 off-target read (priority 2) still WINS over biologic-only (11).
     v2, _ = tp._snapshot(
         [
             {"rule_id": "known-drug-approved-biologic-only-sm-not-supportive"},
