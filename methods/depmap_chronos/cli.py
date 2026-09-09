@@ -234,6 +234,20 @@ INDICATION_LINEAGE = {
     "AML": "Myeloid",
     "CML": "Myeloid",  # heme (LAML=TCGA code; AML/CML=framework codes)
     "DLBC": "Lymphoid",
+    # TCGA-pancan coverage expansion (2026-09-09; mirrors target-contracts
+    # indication_crosswalk.yaml — values MUST match the crosswalk's depmap_lineage or the
+    # cross-repo agreement test fails). THYM is deliberately absent: DepMap 26Q1 has no
+    # thymus lineage, so the crosswalk carries depmap_lineage: null and no scoping is possible.
+    "ACC": "Adrenal Gland",
+    "CHOL": "Biliary Tract",
+    "KICH": "Kidney",
+    "KIRP": "Kidney",
+    "PCPG": "Adrenal Gland",
+    "SARC": "Soft Tissue",
+    "TGCT": "Testis",
+    "THCA": "Thyroid",
+    "UCS": "Uterus",
+    "MESO": "Pleura",
 }
 
 
@@ -694,8 +708,6 @@ def emit_plotly_specs(
         ys = list(range(len(plotted)))
         labels = [f"{r['lineage']} (n={r['n']})" for r in plotted]
         medians = [r["median_chronos"] for r in plotted]
-        p25 = [r["p25_chronos"] for r in plotted]
-        p75 = [r["p75_chronos"] for r in plotted]
         colors = ["#B22222" if r["lineage"] == target_lineage else get_lineage_color(r["lineage"]) for r in plotted]
         fig = go.Figure()
         # IQR bars as per-row line traces (one shape per lineage keeps hover on the median marker).
