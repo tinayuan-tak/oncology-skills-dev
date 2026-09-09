@@ -1,0 +1,23 @@
+[
+  {
+    "target": "FOLR1",
+    "indication": "ovarian cancer",
+    "axis": "safety",
+    "critical_signal": "ocular|keratopath|cornea|keratit|blurred vision|visual (impair|acuit)",
+    "note": "mirvetuximab soravtansine (FOLR1 ADC) carries a characteristic ocular / corneal toxicity the narrow on-target-safety read misses; retrieval MUST surface the ocular-tox topic."
+  },
+  {
+    "target": "KRAS",
+    "indication": "lung adenocarcinoma",
+    "axis": "dependency",
+    "critical_signal": "resist|adaptive|rebound|reactivat|bypass",
+    "note": "acquired/adaptive resistance to KRAS-G12C inhibitors (sotorasib/adagrasib) is the dependency-weakening signal; retrieval MUST surface the resistance topic."
+  },
+  {
+    "target": "ERBB2",
+    "indication": "gastric cancer",
+    "axis": "safety",
+    "critical_signal": "cardio|cardiac|LVEF|left ventric|heart failure|ejection fraction",
+    "note": "HER2/ERBB2-directed therapy carries a class cardiotoxicity liability; retrieval MUST surface the cardiac-tox topic."
+  }
+]

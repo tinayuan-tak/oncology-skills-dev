@@ -52,14 +52,14 @@ class _Ab:
 
 
 def _only_safety(target, indication, axis, **k):
-    """Frozen retrieval seam (rc.rl.retrieve_axis_abstracts): one retrieved abstract for the safety dim."""
-    return [_Ab("111")] if axis == "safety" else []
+    """Frozen retrieval seam (rc.rl.retrieve_axis): one kept abstract for the safety dim, none dropped."""
+    return {"kept": [_Ab("111")] if axis == "safety" else [], "dropped": []}
 
 
 def test_run_downgrades_grade_with_only_confabulated_citations(monkeypatch):
     # A HIGH grade whose only cited PMID was confabulated (not retrieved) must be downgraded to
     # not_assessed rather than shipping an ungrounded risk level (P0.2 grounding-integrity).
-    monkeypatch.setattr(rc.rl, "retrieve_axis_abstracts", _only_safety)
+    monkeypatch.setattr(rc.rl, "retrieve_axis", _only_safety)
     monkeypatch.setattr(
         rc,
         "synthesize_structured",
@@ -79,7 +79,7 @@ def test_run_downgrades_grade_with_only_confabulated_citations(monkeypatch):
 
 
 def test_run_keeps_grade_with_surviving_citation(monkeypatch):
-    monkeypatch.setattr(rc.rl, "retrieve_axis_abstracts", _only_safety)
+    monkeypatch.setattr(rc.rl, "retrieve_axis", _only_safety)
     monkeypatch.setattr(
         rc,
         "synthesize_structured",

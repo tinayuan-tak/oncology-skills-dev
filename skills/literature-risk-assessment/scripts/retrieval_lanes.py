@@ -21,6 +21,7 @@ Disease vocabulary is unified on Stack A's `_skills_common/literature_retrieval.
 
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -232,6 +233,86 @@ def _retrieve_pmids(
 # retrieval provenance label recorded in corpus_pin by both callers.
 RETRIEVAL_LABEL = "entity_pubtator+ot_literature_floor+keyword_eutils"
 
+# ── Stage-2 relevance gate (PR-3): DETERMINISTIC on-axis / on-target precision filter ──────────────
+# The lanes maximize RECALL (three sources, tight+broad angles); this gate is the PRECISION lever —
+# it drops abstracts that are neither on-axis nor about the target BEFORE they reach the model, so the
+# grounded read is enriched with the RIGHT literature, not merely more of it (e.g. a KRAS nanoparticle-
+# vaccine paper surfaced under the SAFETY query but discussing no toxicity). Verdict-inert CONTEXT +
+# no embeddings in-framework → a deterministic token-match filter (mirrors analysis-methods
+# opentargets_literature_floor `_axis_tokens`/`_axis_match`), never a learned reranker.
+RELEVANCE_FLOOR = 3  # keep at least this many abstracts even if off-axis (never starve the model)
+
+
+def _axis_tokens(axis_terms: str) -> list:
+    """PURE: split an axis OR/AND-clause ('toxicity OR adverse event OR ...') into lowercased phrase
+    tokens for substring matching. Mirrors opentargets_literature_floor._axis_tokens."""
+    if not axis_terms:
+        return []
+    raw = re.split(r"\bOR\b|\bAND\b", str(axis_terms))
+    return [t.strip().lower() for t in raw if t and t.strip()]
+
+
+def _axis_match(text: str, tokens: list) -> int:
+    """PURE: count how many axis phrase-tokens appear (case-insensitive substring) in the text."""
+    if not text or not tokens:
+        return 0
+    s = text.lower()
+    return sum(1 for tok in tokens if tok and tok in s)
+
+
+def relevance_filter(abstracts: list, target: str, axis: str, *, floor: int = RELEVANCE_FLOOR):
+    """PURE precision gate. Partition retrieved abstracts into (kept, dropped):
+      - an abstract is ON-SIGNAL if its title+abstract contains ≥1 axis phrase-token OR names the target
+        (word-boundary, case-insensitive) — those are ALWAYS kept, in their incoming (lane-ranked) order.
+      - genuinely off-topic abstracts (no axis token, no target mention) are dropped — EXCEPT we backfill
+        from them, in order, until at least `floor` abstracts are kept (never starve the model to zero on
+        a thin axis). Each dropped record is {pmid, reason} for the corpus-pin audit trail.
+    Order-preserving; never raises."""
+    tokens = _axis_tokens(AXIS_PUBMED_TERMS.get(axis, ("", True))[0])
+    tgt = (target or "").strip().lower()
+    tgt_re = re.compile(rf"\b{re.escape(tgt)}\b") if tgt else None
+
+    on_signal, off = [], []
+    for a in abstracts:
+        text = f"{getattr(a, 'title', '') or ''} {getattr(a, 'abstract', '') or ''}"
+        hit_axis = _axis_match(text, tokens) > 0
+        hit_tgt = bool(tgt_re.search(text.lower())) if tgt_re else False
+        (on_signal if (hit_axis or hit_tgt) else off).append(a)
+
+    kept = list(on_signal)
+    dropped = []
+    for a in off:
+        if len(kept) < floor:
+            kept.append(a)
+        else:
+            dropped.append({"pmid": getattr(a, "pmid", None), "reason": "off_axis_no_target_match"})
+    return kept, dropped
+
+
+def retrieve_axis(
+    target: str,
+    indication: str,
+    axis: str,
+    *,
+    per_cat: int = 8,
+    mindate: str = "2015",
+    maxdate: str = "2026",
+    relevance_floor: int = RELEVANCE_FLOOR,
+) -> dict:
+    """HIGH-LEVEL seam used by BOTH ground_axis.py and run.py: resolve the disease vocabulary, run the
+    3-lane union, efetch, then apply the Stage-2 relevance gate. Returns
+    {"kept": [PubMedAbstract...], "dropped": [{pmid, reason}...]} — `dropped` is the corpus-pin audit
+    trail of off-topic abstracts the gate removed. One function to monkeypatch in offline tests."""
+    import pubmed_search as ps
+
+    disease_terms = resolve_disease_terms(indication)
+    pmids = _retrieve_pmids(
+        target, disease_terms, axis, per_cat=per_cat, mindate=mindate, maxdate=maxdate, indication=indication
+    )
+    abstracts = ps._efetch_abstracts(pmids, category=axis, timeout_s=30.0) if pmids else []
+    kept, dropped = relevance_filter(abstracts, target, axis, floor=relevance_floor)
+    return {"kept": kept, "dropped": dropped}
+
 
 def retrieve_axis_abstracts(
     target: str,
@@ -242,13 +323,6 @@ def retrieve_axis_abstracts(
     mindate: str = "2015",
     maxdate: str = "2026",
 ) -> list:
-    """HIGH-LEVEL seam used by BOTH ground_axis.py and run.py: resolve the disease vocabulary, run the
-    3-lane union, and efetch the abstract records. Returns a list of pubmed_search.PubMedAbstract (tagged
-    with `category=axis`). One function to monkeypatch in offline tests."""
-    import pubmed_search as ps
-
-    disease_terms = resolve_disease_terms(indication)
-    pmids = _retrieve_pmids(
-        target, disease_terms, axis, per_cat=per_cat, mindate=mindate, maxdate=maxdate, indication=indication
-    )
-    return ps._efetch_abstracts(pmids, category=axis, timeout_s=30.0) if pmids else []
+    """Back-compat thin wrapper over retrieve_axis: returns only the KEPT abstracts (post relevance gate).
+    Callers that want the dropped audit trail (run.py / ground_axis corpus_pin) call retrieve_axis."""
+    return retrieve_axis(target, indication, axis, per_cat=per_cat, mindate=mindate, maxdate=maxdate)["kept"]

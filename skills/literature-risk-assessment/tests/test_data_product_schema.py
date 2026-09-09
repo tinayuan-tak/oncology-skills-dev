@@ -9,7 +9,7 @@ suffix="emit"), and we assert the bespoke identity INLINE — `is_full_decision`
 
 REAL emit, no Bedrock / no network: this is an LLM skill, but `run()` assembles the dict through the
 real emitter code (containment guard + confabulation downgrade + provenance) with only its two external
-I/O boundaries replaced by frozen responses — literature retrieval (`retrieval_lanes.retrieve_axis_abstracts`,
+I/O boundaries replaced by frozen responses — literature retrieval (`retrieval_lanes.retrieve_axis`,
 imported into run.py as `rc.rl`) and the per-dimension model call (`synthesize_structured`). This is the
 sanctioned offline-replay path, not a hand-faked JSON:
 the assertions run against whatever `run()` actually produces. CI-liveness: schema unresolvable → SKIP
@@ -101,7 +101,9 @@ def _fresh_emit(monkeypatch) -> dict:
     as rc.rl) — one function to patch, returning the frozen abstract list per dimension (empty for the three
     dims that exercise the no-abstract → not_assessed path)."""
     retrieved = {"biological": [_Ab("111"), _Ab("222")], "druggability": [_Ab("333")], "safety": [_Ab("444")]}
-    monkeypatch.setattr(rc.rl, "retrieve_axis_abstracts", lambda target, indication, axis, **k: retrieved.get(axis, []))
+    monkeypatch.setattr(
+        rc.rl, "retrieve_axis", lambda target, indication, axis, **k: {"kept": retrieved.get(axis, []), "dropped": []}
+    )
     # non-null anchor_verdict for the overlap dimensions (biological/druggability/safety)
     monkeypatch.setattr(
         rc,

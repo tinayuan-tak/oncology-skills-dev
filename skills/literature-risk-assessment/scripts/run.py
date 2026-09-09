@@ -147,14 +147,14 @@ def run(target, indication, pkg_path, mindate="2015", maxdate="2026", per_cat=6)
 
     dims, corpus = {}, {}
     for dim, (pillar, question, akey) in DIMENSIONS.items():
-        abstracts = rl.retrieve_axis_abstracts(
-            target, indication, dim, per_cat=per_cat, mindate=mindate, maxdate=maxdate
-        )
+        retr = rl.retrieve_axis(target, indication, dim, per_cat=per_cat, mindate=mindate, maxdate=maxdate)
+        abstracts = retr["kept"]  # post Stage-2 relevance gate; off-axis drops logged below
         rpmids = {a.pmid for a in abstracts}
         corpus[dim] = {
             "query": rl._axis_query(target, disease_terms, dim),
             "pmids": sorted(rpmids),
             "retrieval": rl.RETRIEVAL_LABEL,
+            "relevance_dropped": retr["dropped"],
         }
         anchor = anchors.get(akey) if akey else None
         if not abstracts:

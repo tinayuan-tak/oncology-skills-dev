@@ -54,6 +54,7 @@ from _skills_common.llm import EVIDENCE_ONLY_DIRECTIVE  # noqa: E402
 from retrieval_lanes import (  # noqa: E402,F401  (re-export)
     AXIS_PUBMED_TERMS,
     MAX_RETRIEVED,
+    RELEVANCE_FLOOR,
     RETRIEVAL_FLOOR,
     _axis_query,
     _dedup,
@@ -62,7 +63,9 @@ from retrieval_lanes import (  # noqa: E402,F401  (re-export)
     _mesh_disease_clause,
     _ot_floor_pmids,
     _retrieve_pmids,
+    relevance_filter,
     resolve_disease_terms,
+    retrieve_axis,
     retrieve_axis_abstracts,
 )
 
@@ -425,9 +428,10 @@ def ground_axis(
     pkg = json.loads(Path(pkg_path).read_text())
     det = deterministic_block(pkg, axis)
     # Shared 3-lane retriever (retrieval_lanes): entity(PubTator) + OT-floor + keyword(E-utilities),
-    # collision-immune + starvation-resistant. Disease vocabulary resolved via the shared 40-code
-    # crosswalk (resolve_disease_terms), not the retired crc/nsclc DISEASE_TERMS.
-    abstracts = rl.retrieve_axis_abstracts(target, indication, axis, per_cat=per_cat, mindate=mindate, maxdate=maxdate)
+    # collision-immune + starvation-resistant. Disease vocabulary via the shared 40-code crosswalk. The
+    # Stage-2 relevance gate drops off-axis/off-target abstracts (logged in corpus_pin.relevance_dropped).
+    retr = rl.retrieve_axis(target, indication, axis, per_cat=per_cat, mindate=mindate, maxdate=maxdate)
+    abstracts = retr["kept"]
     retrieved = {a.pmid for a in abstracts}
     out = synthesize_structured(
         SYSTEM,
@@ -439,7 +443,12 @@ def ground_axis(
         det,
         out,
         retrieved,
-        corpus_pin={"mindate": mindate, "maxdate": maxdate, "retrieval": rl.RETRIEVAL_LABEL},
+        corpus_pin={
+            "mindate": mindate,
+            "maxdate": maxdate,
+            "retrieval": rl.RETRIEVAL_LABEL,
+            "relevance_dropped": retr["dropped"],
+        },
         n_retrieved=len(abstracts),
     )
     return {"axis": axis, "deterministic": det, "grounded": grounded}
