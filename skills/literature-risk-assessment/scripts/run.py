@@ -21,9 +21,9 @@ import sys
 from pathlib import Path
 
 _HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(_HERE))  # local pubmed_search
+sys.path.insert(0, str(_HERE))  # local retrieval_lanes / pubmed_search
 sys.path.insert(0, str(_HERE.parents[1]))  # skills/  → _skills_common
-import pubmed_search as ps  # noqa: E402
+import retrieval_lanes as rl  # noqa: E402  (shared 3-lane retriever + disease-vocab resolver)
 from _skills_common.llm import EVIDENCE_ONLY_DIRECTIVE, synthesize_structured  # noqa: E402
 
 try:
@@ -139,22 +139,22 @@ def run(target, indication, pkg_path, mindate="2015", maxdate="2026", per_cat=6)
     # defeats the corpus_pin reproducibility artifact. Mirror ground_axis's 2015–2026 default.
     mindate = mindate or "2015"
     maxdate = maxdate or "2026"
-    key = indication.strip().lower()
-    if key not in ps.DISEASE_TERMS:
-        ps.DISEASE_TERMS[key] = indication  # passthrough term for arbitrary indications
-    result = ps.search_pubmed(target, key, abstracts_per_category=per_cat, mindate=mindate, maxdate=maxdate)
-    retrieved = result.abstracts_by_category
     anchors = _load_anchors(pkg_path)
+    # Unified 3-lane retrieval (retrieval_lanes) — the SAME collision-immune + starvation-resistant path
+    # ground_axis uses. Replaces the former single-lane ps.search_pubmed keyword search. Disease terms via
+    # the shared 40-code crosswalk (resolve_disease_terms), not the retired crc/nsclc DISEASE_TERMS.
+    disease_terms = rl.resolve_disease_terms(indication)
 
     dims, corpus = {}, {}
     for dim, (pillar, question, akey) in DIMENSIONS.items():
-        abstracts = retrieved.get(dim, [])
+        abstracts = rl.retrieve_axis_abstracts(
+            target, indication, dim, per_cat=per_cat, mindate=mindate, maxdate=maxdate
+        )
         rpmids = {a.pmid for a in abstracts}
         corpus[dim] = {
-            "query": ps.SEARCH_PATTERNS_BY_CATEGORY[dim].format(
-                gene=ps.gene_search_term(target), disease=ps.DISEASE_TERMS[key]
-            ),
+            "query": rl._axis_query(target, disease_terms, dim),
             "pmids": sorted(rpmids),
+            "retrieval": rl.RETRIEVAL_LABEL,
         }
         anchor = anchors.get(akey) if akey else None
         if not abstracts:

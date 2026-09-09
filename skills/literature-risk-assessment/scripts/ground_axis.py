@@ -45,7 +45,26 @@ if str(_SKILLS) not in sys.path:
 # The shared anti-lore grounding fence (cheap + offline-safe: llm.py imports only stdlib at module
 # level; the anthropic/Bedrock deps are lazy). Appended to SYSTEM so the free-text finding narrative
 # is fenced against prior-knowledge import for a named gene, not just the citations.
+# The multi-lane retriever was extracted to retrieval_lanes.py (PR-2) so ground_axis + the 6-dim risk
+# agent share ONE collision-immune retrieval path. Re-exported here for back-compat: existing callers
+# and tests referencing ground_axis._retrieve_pmids / _axis_query / AXIS_PUBMED_TERMS / RETRIEVAL_FLOOR /
+# MAX_RETRIEVED etc. keep resolving.
+import retrieval_lanes as rl  # noqa: E402
 from _skills_common.llm import EVIDENCE_ONLY_DIRECTIVE  # noqa: E402
+from retrieval_lanes import (  # noqa: E402,F401  (re-export)
+    AXIS_PUBMED_TERMS,
+    MAX_RETRIEVED,
+    RETRIEVAL_FLOOR,
+    _axis_query,
+    _dedup,
+    _interleave,
+    _keyword_angles,
+    _mesh_disease_clause,
+    _ot_floor_pmids,
+    _retrieve_pmids,
+    resolve_disease_terms,
+    retrieve_axis_abstracts,
+)
 
 # Per-axis config. cards = deterministic cards the grounded read contextualizes; pubmed_category = which
 # of the retrieval categories to read; verdict_key = sub_verdicts key; noun/kinds shape the extraction.
@@ -264,13 +283,6 @@ SEVERITY_HIGH = "high"  # a `severity == SEVERITY_HIGH` finding escalates a pseu
 # 1500 — closer to a full structured abstract while staying well within the input budget for ~8 items.
 ABSTRACT_CHARS = 1500
 
-# Retrieval widening (2026-08-24, entity-collision + starvation fix). ground_axis now unions an
-# ENTITY-normalized PubTator lane (avoids the gene-symbol/keyword collision — e.g. ME3 the gene vs
-# "me3" trimethylation) with the keyword E-utilities lane, and soft-broadens EITHER lane when its
-# tight axis-scoped query starves (< RETRIEVAL_FLOOR hits, measured on less-studied targets).
-RETRIEVAL_FLOOR = 3  # below this a lane is "starved" -> retry with the broad query
-MAX_RETRIEVED = 18  # cap the unioned abstract set fed to the model (lanes interleaved)
-
 SYSTEM = (
     "You are a retrieval-grounded analyst. Use ONLY the provided abstracts. Cite ONLY PMIDs that "
     "appear in them. NEVER cite from memory. If the abstracts do not support a finding, do not "
@@ -392,182 +404,6 @@ def _prompt(target, indication, axis, anchor, abstracts, abstract_chars: int = A
     return "\n".join(lines)
 
 
-# TARGETED per-axis PubMed retrieval (follow-up #3). Previously ground_axis reused the shared
-# `pubmed_category` query, so the six target-biology axes (dependency / mechanism / genomic_alteration /
-# synthetic_lethal_partners / combinatorial_dependency / expression) all retrieved the SAME 'biological'
-# abstracts and only the extraction PROMPT differed. Each axis now gets an axis-specific term clause so
-# RETRIEVAL is on-axis too. `disease_scoped=False` for target-LEVEL axes (safety / tractability_sm /
-# surface_modality — gnomAD constraint / structure / surface biology are indication-independent), else
-# the disease is AND-ed in. (pubmed_category is retained for back-compat + the 6-dim risk agent.)
-AXIS_PUBMED_TERMS = {
-    "safety": ("toxicity OR adverse event OR normal tissue OR knockout mouse OR on-target", False),
-    "dependency": ("genetic dependency OR essentiality OR CRISPR knockout OR knockdown OR RNAi", True),
-    "selectivity": ("normal tissue expression OR tumor-specific OR on-target toxicity OR therapeutic window", True),
-    "surface_modality": (
-        "cell surface OR internalization OR shed ectodomain OR antibody-drug conjugate OR surface antigen",
-        False,
-    ),
-    "tractability_sm": ("small molecule OR inhibitor OR druggable OR binding pocket OR crystal structure", False),
-    "mechanism": ("signaling OR pathway OR mechanism OR phosphorylation OR downstream effector", True),
-    "genomic_alteration": ("mutation OR amplification OR deletion OR fusion OR oncogenic driver", True),
-    "differentiation": (
-        "co-mutation OR mutual exclusivity OR prognosis OR molecular subtype OR patient stratification",
-        True,
-    ),
-    "expression": ("expression OR overexpression OR RNA-seq OR protein abundance OR immunohistochemistry", True),
-    "clinical": ("clinical trial OR patient OR phase I OR phase II OR discontinued", True),
-    "commercial": ("therapeutic OR drug development OR competitive landscape OR approved", True),
-}
-
-
-def _axis_query(target: str, disease_terms: str, axis: str, *, broad: bool = False) -> str:
-    """PURE: build the TARGETED PubMed query for an axis — (gene) [AND (disease)] AND (axis terms).
-    Disease is AND-ed only for indication-conditioned axes (AXIS_PUBMED_TERMS[axis][1]).
-    `broad=True` drops the axis-term conjunction (the soft-fallback used when the tight query
-    starves — measured: the tight conjunction returns 0 PMIDs on less-studied targets, e.g.
-    STAG1 safety), keeping only (gene) [AND (disease)]."""
-    terms, disease_scoped = AXIS_PUBMED_TERMS.get(axis, ("", True))
-    if disease_scoped and disease_terms:
-        return f"({target}) AND ({disease_terms})" + ("" if broad else f" AND ({terms})")
-    return f"({target})" + ("" if broad else f" AND ({terms})")
-
-
-def _dedup(pmids) -> list:
-    """PURE: order-preserving de-duplication (entity-lane hits kept ahead of keyword-lane)."""
-    seen, out = set(), []
-    for p in pmids:
-        if p not in seen:
-            seen.add(p)
-            out.append(p)
-    return out
-
-
-def _interleave(*lanes) -> list:
-    """PURE: round-robin merge of ranked lane lists, then de-dup. Round-robin (not concat) so every
-    lane is represented within MAX_RETRIEVED even when an earlier lane is long — the reproducible OT
-    floor is never crowded out by the live lanes (and vice-versa)."""
-    out = []
-    for i in range(max((len(l) for l in lanes), default=0)):
-        for lane in lanes:
-            if i < len(lane):
-                out.append(lane[i])
-    return _dedup(out)
-
-
-# OncoTree/panel subtype code -> crosswalk canonical_code (for the MeSH lookup); mirrors the
-# analysis-methods reader's INDICATION_ALIAS.
-_INDICATION_ALIAS = {"LUAD": "NSCLC", "LUSC": "NSCLC", "DLBCL": "DLBC", "LAML": "AML"}
-
-
-def _mesh_disease_clause(indication: str) -> str | None:
-    """Best-effort: framework indication code -> a PubMed MeSH-anchored disease clause
-    ('"colorectal neoplasms"[MeSH Terms]') from the indication_crosswalk `mesh_terms` lane. Used as
-    the keyword lane's precision ANGLE (MeSH helps E-utilities; it BREAKS PubTator, so entity lane
-    never gets it). None when no crosswalk/lane/term (caller falls back to a broad angle)."""
-    import os
-    from pathlib import Path as _P
-
-    try:
-        import yaml
-
-        root = os.environ.get(
-            "TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
-        )
-        path = _P(root) / "vocabularies" / "indication_crosswalk.yaml"
-        doc = yaml.safe_load(path.read_text()) or {}
-        code = (indication or "").strip().upper()
-        code = _INDICATION_ALIAS.get(code, code)
-        for e in doc.get("indications", []):
-            if str(e.get("canonical_code", "")).upper() == code:
-                mesh = (e.get("mesh_terms") or [None])[0]
-                return f'"{mesh}"[MeSH Terms]' if mesh else None
-    except Exception:  # noqa: BLE001
-        return None
-    return None
-
-
-def _keyword_angles(target: str, disease_terms: str, axis: str, mesh_clause, *, disease_scoped: bool) -> list:
-    """PURE: the keyword lane's TWO complementary query angles — tight (axis terms) + either a
-    MeSH-anchored disease angle (precision; disease-scoped axes with a MeSH term) or a broad angle
-    (recall; drops axis terms). Distinct from the entity lane's tight+broad so the two live lanes
-    ask complementary questions."""
-    angles = [_axis_query(target, disease_terms, axis)]
-    if disease_scoped and mesh_clause:
-        angles.append(_axis_query(target, mesh_clause, axis))
-    else:
-        angles.append(_axis_query(target, disease_terms, axis, broad=True))
-    return angles
-
-
-def _ot_floor_pmids(target: str, indication: str, per_cat: int, axis_terms: str = "") -> list:
-    """OT reproducible-floor lane (best-effort): the pinned, offline, entity-normalized literature
-    floor (analysis-methods opentargets_literature_floor over opentargets-literature-per-target-v2).
-    Never-empty and collision-free where the live keyword lane starves/mis-retrieves; if
-    analysis-methods is unavailable it contributes nothing (live lanes stand). `indication` is the
-    framework OncoTree code (scopes the europepmc sub-lane via the crosswalk efo_ids lane);
-    `axis_terms` re-ranks the floor's rows by axis relevance (v2 reader, best-effort)."""
-    try:
-        from methods.opentargets_literature_floor.read import read_literature_floor
-
-        return list(
-            read_literature_floor(target, indication, top_n=per_cat, axis_terms=axis_terms or None).get("pmids", [])
-            or []
-        )
-    except TypeError:  # older reader without axis_terms — degrade gracefully
-        try:
-            from methods.opentargets_literature_floor.read import read_literature_floor
-
-            return list(read_literature_floor(target, indication, top_n=per_cat).get("pmids", []) or [])
-        except Exception:  # noqa: BLE001
-            return []
-    except Exception:  # noqa: BLE001 — best-effort; missing method/product must not break grounding
-        return []
-
-
-def _retrieve_pmids(
-    target: str, disease_terms: str, axis: str, *, per_cat: int, mindate: str, maxdate: str, indication: str = ""
-) -> list:
-    """Round-robin union of THREE lanes, each submitting TWO engine-aware query ANGLES (union'd).
-
-    - entity lane (PubTator): ANGLE-1 tight (axis terms) + ANGLE-2 broad (recall). Entity-normalized;
-      never gets MeSH (MeSH tagging breaks PubTator).
-    - OT-floor lane: pinned/offline reproducible floor, axis-re-ranked (single "query" = ID join).
-    - keyword lane (E-utilities): ANGLE-1 tight + ANGLE-2 MeSH-anchored disease (MeSH helps PubMed);
-      falls back to a broad angle when no MeSH term. The two live lanes thus ask COMPLEMENTARY
-      questions rather than the identical one.
-    All lanes best-effort: PubTator down / analysis-methods absent -> that lane contributes nothing.
-    Query/dedup/interleave logic is pure and unit-tested.
-    """
-    import entity_search as es
-    import pubmed_search as ps
-
-    terms, disease_scoped = AXIS_PUBMED_TERMS.get(axis, ("", True))
-
-    # -- entity lane (PubTator): tight + broad angles, unioned
-    gene_clause = es.resolve_gene_entity(target) or f"({target})"
-    pt = _dedup(
-        es.pubtator_pmids(
-            es.entity_axis_query(gene_clause, disease_terms, terms, disease_scoped=disease_scoped, broad=False),
-            retmax=per_cat,
-        )
-        + es.pubtator_pmids(
-            es.entity_axis_query(gene_clause, disease_terms, terms, disease_scoped=disease_scoped, broad=True),
-            retmax=per_cat,
-        )
-    )
-
-    # -- OT reproducible-floor lane (offline, entity-normalized, axis-re-ranked; pinned OT release)
-    ot = _ot_floor_pmids(target, indication, per_cat, axis_terms=terms)
-
-    # -- keyword lane (E-utilities): tight + a COMPLEMENTARY 2nd angle (MeSH-anchored, else broad)
-    mesh = _mesh_disease_clause(indication) if disease_scoped else None
-    kw = []
-    for q in _keyword_angles(target, disease_terms, axis, mesh, disease_scoped=disease_scoped):
-        kw = _dedup(kw + ps._esearch(q, retmax=per_cat, timeout_s=30.0, mindate=mindate, maxdate=maxdate))
-
-    return _interleave(list(pt), list(ot), list(kw))[:MAX_RETRIEVED]
-
-
 def ground_axis(
     target: str,
     indication: str,
@@ -582,24 +418,16 @@ def ground_axis(
     """LIVE: load the axis's deterministic block, retrieve literature, produce the grounded block."""
     import json
 
-    import pubmed_search as ps
     from _skills_common.llm import synthesize_structured
 
     if axis not in AXIS_CONFIG:
         raise ValueError(f"axis {axis!r} not configured; have {sorted(AXIS_CONFIG)}")
-    cfg = AXIS_CONFIG[axis]
     pkg = json.loads(Path(pkg_path).read_text())
     det = deterministic_block(pkg, axis)
-    # ENTITY-normalized + keyword retrieval with soft-broaden (2026-08-24). Replaces the single
-    # keyword query, which (a) mis-retrieved on gene-symbol/keyword collisions (ME3 the gene vs
-    # "me3" trimethylation) and (b) starved on less-studied targets. disease_terms = the
-    # DISEASE_TERMS expansion when known, else the raw indication (read-only).
-    key = indication.strip().lower()
-    disease_terms = ps.DISEASE_TERMS.get(key, indication)
-    pmids = _retrieve_pmids(
-        target, disease_terms, axis, per_cat=per_cat, mindate=mindate, maxdate=maxdate, indication=indication
-    )
-    abstracts = ps._efetch_abstracts(pmids, category=axis, timeout_s=30.0) if pmids else []
+    # Shared 3-lane retriever (retrieval_lanes): entity(PubTator) + OT-floor + keyword(E-utilities),
+    # collision-immune + starvation-resistant. Disease vocabulary resolved via the shared 40-code
+    # crosswalk (resolve_disease_terms), not the retired crc/nsclc DISEASE_TERMS.
+    abstracts = rl.retrieve_axis_abstracts(target, indication, axis, per_cat=per_cat, mindate=mindate, maxdate=maxdate)
     retrieved = {a.pmid for a in abstracts}
     out = synthesize_structured(
         SYSTEM,
@@ -611,11 +439,7 @@ def ground_axis(
         det,
         out,
         retrieved,
-        corpus_pin={
-            "mindate": mindate,
-            "maxdate": maxdate,
-            "retrieval": "entity_pubtator+ot_literature_floor+keyword_eutils",
-        },
+        corpus_pin={"mindate": mindate, "maxdate": maxdate, "retrieval": rl.RETRIEVAL_LABEL},
         n_retrieved=len(abstracts),
     )
     return {"axis": axis, "deterministic": det, "grounded": grounded}

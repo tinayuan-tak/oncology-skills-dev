@@ -9,8 +9,9 @@ suffix="emit"), and we assert the bespoke identity INLINE — `is_full_decision`
 
 REAL emit, no Bedrock / no network: this is an LLM skill, but `run()` assembles the dict through the
 real emitter code (containment guard + confabulation downgrade + provenance) with only its two external
-I/O boundaries replaced by frozen responses — PubMed retrieval (`ps.search_pubmed`) and the per-dimension
-model call (`synthesize_structured`). This is the sanctioned offline-replay path, not a hand-faked JSON:
+I/O boundaries replaced by frozen responses — literature retrieval (`retrieval_lanes.retrieve_axis_abstracts`,
+imported into run.py as `rc.rl`) and the per-dimension model call (`synthesize_structured`). This is the
+sanctioned offline-replay path, not a hand-faked JSON:
 the assertions run against whatever `run()` actually produces. CI-liveness: schema unresolvable → SKIP
 locally, FAIL in CI.
 """
@@ -62,11 +63,6 @@ class _Ab:
         self.pmid, self.year, self.title, self.abstract = pmid, 2021, f"title-{pmid}", f"abstract body {pmid}"
 
 
-class _Res:
-    def __init__(self, by_cat):
-        self.abstracts_by_category = by_cat
-
-
 # Frozen per-dimension model responses. Cover every schema-relevant path:
 #   biological  — kept LOW grade with a surviving (retrieved) citation
 #   druggability— kept MEDIUM grade with a surviving citation
@@ -99,12 +95,13 @@ _FROZEN_LLM = {
 
 
 def _fresh_emit(monkeypatch) -> dict:
-    """Produce a REAL emit through run() with the PubMed + LLM boundaries replaced by frozen responses."""
+    """Produce a REAL emit through run() with the retrieval + LLM boundaries replaced by frozen responses.
+
+    Retrieval is now the shared per-axis seam retrieval_lanes.retrieve_axis_abstracts (imported into run.py
+    as rc.rl) — one function to patch, returning the frozen abstract list per dimension (empty for the three
+    dims that exercise the no-abstract → not_assessed path)."""
     retrieved = {"biological": [_Ab("111"), _Ab("222")], "druggability": [_Ab("333")], "safety": [_Ab("444")]}
-    monkeypatch.setattr(rc.ps, "search_pubmed", lambda *a, **k: _Res(retrieved))
-    monkeypatch.setattr(
-        rc.ps, "SEARCH_PATTERNS_BY_CATEGORY", {d: "{gene} {disease}" for d in rc.DIMENSIONS}, raising=False
-    )
+    monkeypatch.setattr(rc.rl, "retrieve_axis_abstracts", lambda target, indication, axis, **k: retrieved.get(axis, []))
     # non-null anchor_verdict for the overlap dimensions (biological/druggability/safety)
     monkeypatch.setattr(
         rc,
