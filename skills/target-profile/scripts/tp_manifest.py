@@ -120,6 +120,33 @@ def write_full_package(
         pkg_path = subskills_dir / short / "package.json"
         pkg_path.parent.mkdir(parents=True, exist_ok=True)
         pkg_path.write_text(json.dumps(pkg, indent=2, default=str))
+        # ALSO render this sub-skill's standalone dashboard.html beside its package (dashboard
+        # consolidation): the SAME report_render engine + design system as the composed
+        # target_profile.html AND a live standalone subskill run — so a composed --full-package run
+        # emits the FULL set (composed dashboard + every subskill dashboard), synchronized, each
+        # openable on its own. Rendered from the carried skill_report (which already has the merged
+        # evidence_graph → the rich fingerprint + chains + literature view). Best-effort / fail-soft;
+        # DISPLAY-ONLY (package.json unaffected). asset_root inlines figure SVGs when --figures ran.
+        dash_rel = None
+        sr = (r.get("synthesis_facet") or {}).get("skill_report")
+        if isinstance(sr, dict):
+            try:
+                from _skills_common.report_render import render_skill_report
+
+                dash_html = render_skill_report(
+                    sr,
+                    backend="html",
+                    preset="full",
+                    short=short,
+                    skill_name=r.get("skill_dir") or short,
+                    target=target,
+                    indication=indication,
+                    asset_root=(out_dir if has_figures else None),
+                )
+                (subskills_dir / short / "dashboard.html").write_text(dash_html, encoding="utf-8")
+                dash_rel = f"subskills/{short}/dashboard.html"
+            except Exception as e:  # noqa: BLE001 — a dashboard is additive; never break the bundle
+                print(f"[target-profile] --full-package: subskill dashboard {short} skipped ({type(e).__name__}: {e})")
         n_fig = sum(len(c["figures"]) for c in pkg["cards"])
         sub_index.append(
             {
@@ -127,6 +154,7 @@ def write_full_package(
                 "verdict": pkg["verdict"],
                 "driving_rule_id": pkg["driving_rule_id"],
                 "package": f"subskills/{short}/package.json",
+                "dashboard": dash_rel,
                 "n_cards": pkg["n_cards"],
                 "n_figures": n_fig,
             }
