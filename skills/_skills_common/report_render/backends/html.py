@@ -241,9 +241,18 @@ details.skill-collapse > summary .phrase { margin:3px 0 0; }
 .hm { display:flex; flex-wrap:wrap; gap:10px 14px; }
 .hmg { display:flex; flex-direction:column; gap:4px; }
 .hmglab { font-size:10.5px; color:var(--muted); display:flex; align-items:center; gap:4px; }
-.hmcells { display:flex; gap:3px; align-items:center; }
-.hmcell { width:15px; height:15px; border-radius:4px; border:1px solid var(--border); }
-.hmsep { width:1px; height:15px; background:var(--hair); margin:0 3px; }
+.hmcells { display:flex; gap:5px; align-items:center; flex-wrap:wrap; }
+/* fill = signal (FULL opacity — never desaturated); the filled mark repeats the signal (secondary,
+   non-hover encoding); the RING weight = confidence (thicker = higher). Confidence was previously
+   opacity, which pushed a low-confidence status hue toward neutral. */
+.hmcell { width:16px; height:16px; border-radius:4px; border:1px solid var(--border);
+          display:inline-flex; align-items:center; justify-content:center;
+          color:#fff; font-size:9.5px; font-weight:800; line-height:1; }
+.hm-c3 { box-shadow:0 0 0 2px var(--ink2); } .hm-c2 { box-shadow:0 0 0 1px var(--muted); }
+.hm-c1 {} .hm-c0 { opacity:.5; }
+.hm-twin { margin-top:8px; } .hm-twin summary { cursor:pointer; color:var(--muted); font-size:11px; }
+.hm-twin table { margin:6px 0 0; }
+.hmsep { width:1px; height:16px; background:var(--hair); margin:0 3px; }
 /* the literature dot's FILL carries agreement (agree/contradicts/omics-blind); its --lit RING signals
    "this is a literature signal" pre-attentively (the omics-vs-literature two-tone axis). */
 .litdot { width:15px; height:15px; border-radius:50%; border:2px solid var(--lit); display:inline-flex;
@@ -1161,6 +1170,14 @@ class HtmlBackend:
     }
     _EG_POL_CLS = {"supportive": "g-sup", "opposing": "g-opp", "killer": "g-kil", "neutral": "g-neu"}
     _EG_DOTS_OPACITY = {3: "1", 2: ".6", 1: ".38", 0: ".3"}
+    # Compact FILLED polarity mark stamped INSIDE each heatmap cell — a secondary (non-colour, non-hover)
+    # encoding of the signal, so the mark is not colour-only (the vocab △/▽ outlines + the ⛔ emoji do
+    # not read at 15px on a coloured fill; vocab is left untouched). Confidence is a discrete RING weight
+    # (thicker = higher), NOT opacity — opacity desaturated a status hue toward neutral, letting a
+    # low-confidence supportive cell read as neutral (the confidence channel corrupting the identity one).
+    _HMCELL_GLYPH = {"supportive": "▲", "opposing": "▼", "killer": "✕", "neutral": "•"}
+    _HM_CONF_CLS = {3: "hm-c3", 2: "hm-c2", 1: "hm-c1", 0: "hm-c0"}
+    _HM_CONF_WORD = {3: "high", 2: "moderate", 1: "low", 0: "n/a"}
 
     def _eg_color(self, polarity, liability=False) -> str:
         if liability:
@@ -1172,15 +1189,27 @@ class HtmlBackend:
         if not qs:
             return []
         groups = []
+        twin_rows = []  # accessible table twin (keyboard / print / screen-reader path — not hover-only)
         for q in qs:
             gcls = self._EG_POL_CLS.get(q.get("polarity"), "g-neu")
             glyph = vocab.polarity_glyph(q.get("polarity"))
+            qtext = q.get("text") or q.get("id") or ""
             cells = []
             for c in q.get("cells") or []:
+                pol = "killer" if c.get("liability") else (c.get("polarity") or "neutral")
                 col = self._eg_color(c.get("polarity"), c.get("liability"))
-                op = self._EG_DOTS_OPACITY.get(c.get("dots") if isinstance(c.get("dots"), int) else -1, ".3")
-                tip = f"{c.get('card_id')} · {c.get('polarity')}" + (" · liability" if c.get("liability") else "")
-                cells.append(f"<span class='hmcell' title='{_esc(tip)}' style='background:{col};opacity:{op}'></span>")
+                dots = c.get("dots") if isinstance(c.get("dots"), int) else -1
+                ccls = self._HM_CONF_CLS.get(dots, "hm-c0")
+                cword = self._HM_CONF_WORD.get(dots, "n/a")
+                cg = self._HMCELL_GLYPH.get(pol, "·")
+                liab = " · liability" if c.get("liability") else ""
+                tip = f"{c.get('card_id')} · {c.get('polarity')} · confidence {cword}{liab}"
+                # fill = signal (FULL opacity, never desaturated); glyph = signal (secondary); ring = confidence
+                cells.append(f"<span class='hmcell {ccls}' title='{_esc(tip)}' style='background:{col}'>{cg}</span>")
+                twin_rows.append(
+                    f"<tr><td>{_esc(qtext)}</td><td class='mono'>{_esc(str(c.get('card_id') or ''))}</td>"
+                    f"<td>{_esc(str(c.get('polarity') or '—'))}{_esc(liab)}</td><td>{_esc(cword)}</td></tr>"
+                )
             lit = q.get("lit")
             if lit:
                 agr = lit.get("agreement") or lit.get("read")
@@ -1197,20 +1226,25 @@ class HtmlBackend:
                     "<span class='hmsep'></span><span class='litdot' style='opacity:.25' "
                     "title='no literature for this question'>·</span>"
                 )
-            lbl = _esc(q.get("text") or q.get("id") or "")
+            lbl = _esc(qtext)
             groups.append(
                 f"<div class='hmg'><div class='hmglab'><span class='{gcls}'>{_esc(glyph)}</span> {lbl}</div>"
                 f"<div class='hmcells'>{''.join(cells)}{litdot}</div></div>"
             )
         note = (
-            "<div class='hmnote'>▪ card — colour = signal (green supportive · amber opposing · red "
-            "liability/killer · grey neutral), opacity = confidence &nbsp;·&nbsp; ● literature "
-            "(colour = agreement · “ cited · · none)</div>"
+            "<div class='hmnote'>card — fill + mark = signal (▲ supportive · ▼ opposing · ✕ "
+            "liability/killer · • neutral), ring = confidence (thicker = higher) &nbsp;·&nbsp; ● "
+            "literature (colour = agreement · “ cited · · none)</div>"
+        )
+        twin = (
+            "<details class='hm-twin'><summary>Table view</summary>"
+            "<table><thead><tr><th>Question</th><th>Card</th><th>Signal</th><th>Confidence</th></tr></thead>"
+            f"<tbody>{''.join(twin_rows)}</tbody></table></details>"
         )
         return [
             "<h2>Evidence fingerprint <span class='so-foot'>— per question: one cell per contributing "
-            "card (colour = signal, opacity = confidence); literature dot colour = agreement</span></h2>"
-            f"<div class='eg-inner'><div class='hm'>{''.join(groups)}</div>{note}</div>"
+            "card (fill+mark = signal, ring = confidence); literature dot colour = agreement</span></h2>"
+            f"<div class='eg-inner'><div class='hm'>{''.join(groups)}</div>{note}{twin}</div>"
         ]
 
     _CFP_LIT_COLOR = {

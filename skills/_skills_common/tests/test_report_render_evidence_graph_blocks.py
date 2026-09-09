@@ -172,6 +172,17 @@ def test_html_renders_fingerprint_chain_and_literature():
     assert "var(--killer)" in h  # liability card rendered as killer
 
 
+def test_fingerprint_cell_carries_glyph_ring_and_table_twin():
+    """Tier-2 hmcell rebuild: each heatmap cell is neither colour-only nor hover-only — it stamps a
+    filled signal mark inside (secondary encoding), encodes confidence as a RING-weight class (not
+    opacity, which desaturated a status hue toward neutral so a low-confidence supportive cell read
+    neutral), and the strip ships an accessible <table> twin (keyboard / print / screen-reader path)."""
+    h = be.render(_ir(_skill_report(evidence_graph=_graph())), "html")
+    assert "hmcell hm-c" in h  # confidence is a ring-weight class ON the cell, not opacity
+    assert any(g in h for g in ("▲", "▼", "•", "✕"))  # filled signal mark stamped in-cell
+    assert "Table view" in h and "<th>Confidence</th>" in h  # accessible table twin
+
+
 def test_text_and_json_backends_cover_the_blocks():
     ir = _ir(_skill_report(evidence_graph=_graph()))
     t = be.render(ir, "text")
