@@ -123,6 +123,16 @@ figcaption { color:var(--ink2); font-size:13px; margin-top:5px; }
 .signal-strip { margin:6px 0; overflow-x:auto; }
 .scatter-wrap { margin:6px 0; overflow-x:auto; }
 .so-foot { color:var(--muted); font-size:13px; margin:10px 0 0; }
+/* lit×omics coherence cell states + cross-evidence convergence strip (consolidation Ph3b/3c) */
+.coh-ok { color:var(--good); font-weight:650; } .coh-warn { color:var(--serious); font-weight:650; }
+.coh-bad { color:var(--critical); font-weight:700; } .coh-gap { color:var(--muted); }
+.cross-ev { border:1px dashed var(--border); border-left:3px solid var(--pos); border-radius:10px;
+            background:var(--surface); padding:10px 13px; margin:10px 0; }
+.cross-ev .ce-lbl { font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--pos); font-weight:700; }
+.cross-ev .ce-chain { margin:6px 0; font-size:12.5px; color:var(--ink2); display:flex; flex-wrap:wrap; align-items:center; gap:4px; }
+.cross-ev .ce-node { border:1px solid var(--border); border-radius:7px; background:var(--page); padding:2px 8px; font-weight:600; color:var(--ink); }
+.cross-ev .ce-edge { color:var(--muted); font-size:11px; } .cross-ev .ce-edge small { text-transform:uppercase; letter-spacing:.03em; }
+.cross-ev .ce-trust { font-size:12px; color:var(--ink2); margin-top:2px; }
 .risk-tiles { display:grid; grid-template-columns:repeat(6,1fr); gap:10px; margin:8px 0 2px; }
 @media (max-width:760px) { .risk-tiles { grid-template-columns:repeat(3,1fr); } }
 .risk-tile { border:1px solid var(--border); border-top-width:3px; border-radius:10px; padding:11px 8px;
@@ -708,6 +718,33 @@ class HtmlBackend:
                 f"<details class='cite-prov'><summary>Grounded in {len(cites)} framework "
                 f"rules</summary>{codes}</details>"
             )
+        ce = p.get("cross_evidence")
+        if ce:
+            chain = ce.get("chain") or []
+            steps = "".join(
+                f"<span class='ce-node'>{_esc(c.get('from'))}</span>"
+                f"<span class='ce-edge'>→ <small>{_esc(c.get('type') or '')}</small></span>"
+                for c in chain
+            )
+            if chain and chain[-1].get("to"):
+                steps += f"<span class='ce-node'>{_esc(chain[-1].get('to'))}</span>"
+            trust = []
+            if ce.get("verdict"):
+                trust.append(f"verdict <b>{_esc(ce['verdict'])}</b>")
+            if ce.get("certainty"):
+                lim = f" (weakest link: {_esc(ce['limiting'])})" if ce.get("limiting") else ""
+                trust.append(f"certainty <b>{_esc(ce['certainty'])}</b>{lim}")
+            if ce.get("traceable"):
+                trust.append(f"{_esc(ce['traceable'])} clauses traceable")
+            if ce.get("coherence_violations") is not None:
+                trust.append(f"{_esc(ce['coherence_violations'])} coherence violations")
+            out.append(
+                "<div class='cross-ev'><div class='ce-lbl'>Cross-evidence integrator · independent read</div>"
+                + (f"<div class='ce-chain'>{steps}</div>" if steps else "")
+                + (f"<div class='ce-trust'>{' · '.join(trust)}</div>" if trust else "")
+                + "<div class='so-foot'>an independent second read, surfaced beside the spine's — not "
+                "reconciled into it.</div></div>"
+            )
         return out
 
     def _coherence(self, p: dict) -> list:
@@ -821,17 +858,30 @@ class HtmlBackend:
         dims = p.get("dims") or []
         if not dims:
             return []
+        _COH = {
+            "agree": "coh-ok",
+            "grade-divergence": "coh-warn",
+            "contradicts": "coh-bad",
+            "literature-only": "coh-gap",
+            "omics-only": "coh-gap",
+        }
         trs = []
         for d in dims:
             pm = d.get("pmids") or []
             pmtxt = f" <span class='prov'>({len(pm)} PMIDs)</span>" if pm else ""
+            coh = d.get("coherence") or "—"
             trs.append(
-                f"<tr><td>{_esc(d.get('dim'))}</td><td>{_esc(d.get('risk_level') or '—')}</td>"
-                f"<td>{_esc(d.get('interpretation') or '')}{pmtxt}</td></tr>"
+                f"<tr><td>{_esc(d.get('dim'))}</td>"
+                f"<td>{_esc(d.get('omics_bin') or '—')}</td>"
+                f"<td>{_esc(d.get('risk_level') or 'not_assessed')}{pmtxt}"
+                f"<div class='prov'>{_esc(d.get('interpretation') or '')}</div></td>"
+                f"<td class='{_COH.get(coh, '')}'>{_esc(coh)}</td></tr>"
             )
         return [
-            "<h2>Literature risk <span class='so-foot'>— context, never a gate</span></h2>"
-            f"<table><thead><tr><th>Dimension</th><th>Risk</th><th>Interpretation</th></tr></thead>"
+            "<h2>Literature × omics coherence <span class='so-foot'>— deep-research literature risk "
+            "beside the deterministic omics, per dimension. Literature is context, never a gate.</span></h2>"
+            "<table><thead><tr><th>Dimension</th><th>Omics (deterministic)</th>"
+            "<th>Literature (cited)</th><th>Coherence</th></tr></thead>"
             f"<tbody>{''.join(trs)}</tbody></table>"
         ]
 

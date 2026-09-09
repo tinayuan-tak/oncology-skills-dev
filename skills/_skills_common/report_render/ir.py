@@ -631,6 +631,35 @@ def _strip_rule_citations(text: Any) -> tuple:
     return clean, ordered
 
 
+def _cross_evidence_summary(nomination: dict) -> Optional[dict]:
+    """Compact cross-evidence-hypothesis read for the convergence layer: the causal chain (edges),
+    the integrator's independent verdict + certainty, and its defensibility (clause traceability).
+    VERDICT-INERT — an independent second read surfaced beside the spine's, never reconciled into it.
+    None when --no-hypothesis / offline (nomination['hypothesis'] absent)."""
+    hyp = nomination.get("hypothesis")
+    if not isinstance(hyp, dict) or not hyp:
+        return None
+    chain = [
+        {"from": e.get("from_dimension"), "to": e.get("to_dimension"), "type": e.get("type")}
+        for e in (hyp.get("edges") or [])
+        if isinstance(e, dict) and e.get("from_dimension") and e.get("to_dimension")
+    ]
+    verdict = (hyp.get("verdict") or {}).get("computed") or (hyp.get("verdict") or {}).get("proposed_by_agent")
+    unc = hyp.get("uncertainty") or {}
+    dfn = hyp.get("defensibility") or {}
+    if not (chain or verdict):
+        return None
+    traceable = f"{dfn.get('n_fully_traceable')}/{dfn.get('n_clauses')}" if dfn.get("n_clauses") is not None else None
+    return {
+        "chain": chain[:6],
+        "verdict": verdict,
+        "certainty": unc.get("overall_certainty"),
+        "limiting": unc.get("limiting_dimension"),
+        "traceable": traceable,
+        "coherence_violations": dfn.get("n_coherence_violations"),
+    }
+
+
 def _synthesis_block(nomination: dict) -> Optional[Block]:
     """The LLM narrative (advisory / verdict-inert): executive summary + tension analysis + top
     arguments. Sourced from `llm_synthesis` (else the legacy `llm_output`). Inline rule-id citations are
@@ -650,7 +679,8 @@ def _synthesis_block(nomination: dict) -> Optional[Block]:
             txt, _ = _strip_rule_citations(b.get("text"))
             exec_bullets.append({"text": txt, "polarity": b.get("polarity"), "cites": b.get("cites") or {}})
     verbose = exec_summary or _llm_val(llm, "rationale") or _llm_val(llm, "context_read")
-    if not (exec_bullets or exec_summary or tension or args or verbose):
+    cross_evidence = _cross_evidence_summary(nomination)  # convergence layer: cross-evidence causal chain + divergence
+    if not (exec_bullets or exec_summary or tension or args or verbose or cross_evidence):
         return None
     exec_clean, c1 = _strip_rule_citations(exec_summary)
     tens_clean, c2 = _strip_rule_citations(tension)
@@ -680,6 +710,7 @@ def _synthesis_block(nomination: dict) -> Optional[Block]:
             "tension_analysis": tens_clean,
             "arguments": args_out,
             "citations": citations,
+            "cross_evidence": cross_evidence,
         },
     )
 
@@ -821,16 +852,39 @@ def _modality_matrix_block(tr: dict, nomination: dict) -> Optional[Block]:
 
 
 def _literature_risk_block(nomination: dict, tr: dict) -> Optional[Block]:
+    """Literature × omics coherence: the deep-research literature 6-dim risk (risk_assessment) beside
+    the deterministic omics 6-dim (risk_6dim), per dimension, with an agreement read. Both are on the
+    SAME six dims; coherence is the literature-risk skill's own `contradicts_deterministic` when present,
+    else a bin-vs-grade comparison. Literature is CONTEXT, never a gate."""
     ra = nomination.get("risk_assessment") or tr.get("literature_risk") or {}
     dims = ra.get("dimensions") if isinstance(ra, dict) else None
     if not isinstance(dims, dict) or not dims:
         return None
+    r6 = tr.get("risk_6dim") if isinstance(tr.get("risk_6dim"), dict) else {}
+
+    def _omics_bin(dim):
+        v = r6.get(dim)
+        return (v.get("bin") if isinstance(v, dict) else None) or None
+
+    def _coherence(dim, lit_level, contradicts):
+        ob = (_omics_bin(dim) or "").upper()
+        ll = (lit_level or "").upper()
+        if contradicts:
+            return "contradicts"
+        if not ll or ll == "NOT_ASSESSED":
+            return "omics-only" if ob and ob != "ENGINE-BLIND" else "—"
+        if not ob or ob == "ENGINE-BLIND":
+            return "literature-only"
+        return "agree" if ob == ll else "grade-divergence"
+
     rows = [
         {
             "dim": d,
+            "omics_bin": _omics_bin(d),
             "risk_level": v.get("risk_level"),
             "interpretation": v.get("interpretation"),
             "pmids": v.get("cited_pmids") or v.get("pmids") or [],
+            "coherence": _coherence(d, v.get("risk_level"), v.get("contradicts_deterministic")),
         }
         for d, v in dims.items()
         if isinstance(v, dict)

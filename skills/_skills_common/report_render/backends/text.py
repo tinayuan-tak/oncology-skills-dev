@@ -342,8 +342,13 @@ class TextBackend:
         dims = p.get("dims") or []
         if not dims:
             return []
-        rows = [[d.get("dim"), d.get("risk_level") or "—", (d.get("interpretation") or "")[:80]] for d in dims]
-        return self._h2("Literature risk (context)") + self._table(["dimension", "risk", "note"], rows)
+        rows = [
+            [d.get("dim"), d.get("omics_bin") or "—", d.get("risk_level") or "not_assessed", d.get("coherence") or "—"]
+            for d in dims
+        ]
+        return self._h2("Literature × omics coherence (context)") + self._table(
+            ["dimension", "omics", "literature", "coherence"], rows
+        )
 
     def _deciding_axis(self, p: dict) -> list:
         axes = p.get("axes") or []

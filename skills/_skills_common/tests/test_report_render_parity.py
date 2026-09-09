@@ -52,12 +52,12 @@ def test_html_renders_parity_content():
     h = render_report(make_nomination(), preset="full", backend="html")
     assert "Modality fit" in h and "<table" in h
     assert "AI-generated" in h and "Synthesis" in h
-    assert "Literature risk" in h and "Deciding axis" in h
+    assert "Literature × omics coherence" in h and "Deciding axis" in h
 
 
 def test_text_and_json_render_parity():
     t = render_report(make_nomination(), preset="full", backend="text")
-    assert "Modality-fit matrix" in t and "Synthesis" in t and "Literature risk" in t
+    assert "Modality-fit matrix" in t and "Synthesis" in t and "Literature × omics coherence" in t
     obj = json.loads(render_report(make_nomination(), preset="full", backend="json"))
     kinds = [b["kind"] for b in obj["overview"]]
     for k in (vocab.SYNTHESIS, vocab.MODALITY_MATRIX, vocab.LITERATURE_RISK):
