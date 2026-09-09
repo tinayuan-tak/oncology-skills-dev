@@ -318,6 +318,64 @@ details.pklayer[open] > summary::before { content:"▾ "; }
 .cfp-dissent { margin-top:11px; font-size:12px; color:var(--ink2); }
 .cfp-dissent .dhead { color:var(--serious); font-weight:700; }
 .cfp-dissent b { color:var(--ink); }
+/* ── standalone subskill-dashboard header (.hdr): a one-sentence read + a kv grid, bound to the carried
+   graph verdict (call/confidence/polarity/driving-rule/tension). The `.headline` INSIDE .hdr is the
+   compact sentence — reset off the report-hero `.headline` (17px blue hero) it would otherwise inherit. */
+.hdr { border-left:4px solid var(--accent,var(--neutral)); padding-left:14px; }
+.hdr .headline { font-size:14px; line-height:1.5; font-weight:450; margin:7px 0 3px; padding:0;
+                 background:none; border:none; border-radius:0; color:var(--ink); }
+.hdr .headline b { font-weight:700; } .caveat { color:var(--warning); }
+.kv { display:grid; grid-template-columns:96px 1fr; gap:2px 12px; margin:7px 0 2px; }
+.kv dt { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.04em; }
+.kv dd { margin:0; color:var(--ink2); } .kv dd b { color:var(--ink); }
+.kv code { font-size:11px; }
+.dots { letter-spacing:1px; color:var(--ink2); font-size:11.5px; white-space:nowrap; }
+/* ── question drill-down (.qtab / details.qr): the per-question <summary> carries a meter (signal tier),
+   confidence dots, a mini qstrip of the question's card signal cells, and an evidence-ref key. */
+.qtab { border:1px solid var(--border); border-radius:10px; overflow:hidden; background:var(--surface); margin:6px 0; }
+details.qr { border-top:1px solid var(--hair); } details.qr:first-child { border-top:none; }
+details.qr > summary { cursor:pointer; list-style:none; display:grid;
+    grid-template-columns:14px 1fr 96px 108px; gap:10px; align-items:center; padding:9px 13px; }
+details.qr > summary::-webkit-details-marker { display:none; }
+details.qr > summary .qcaret { color:var(--muted); font-weight:700; }
+details.qr[open] > summary .qcaret::before { content:"▾"; } details.qr > summary .qcaret::before { content:"▸"; }
+.qtitle { font-weight:560; font-size:13px; color:var(--ink); }
+.qkey { color:var(--muted); font-size:11px; margin-top:1px; }
+.qstrip { display:flex; gap:3px; align-items:center; margin-top:4px; flex-wrap:wrap; }
+.qcell { width:11px; height:11px; border-radius:3px; border:1px solid var(--border); }
+.qcell.hm-c3 { box-shadow:0 0 0 2px var(--ink2); } .qcell.hm-c2 { box-shadow:0 0 0 1px var(--muted); }
+.qcell.hm-c0 { opacity:.5; }
+.qcount { color:var(--muted); font-size:10.5px; margin-left:4px; }
+.meter { width:66px; height:7px; border-radius:4px; background:var(--surface-2,var(--hair));
+         overflow:hidden; border:1px solid var(--border); display:inline-block; vertical-align:middle; }
+.mfill { height:100%; display:block; }
+/* ── split metric-gloss (.kegloss text companion to the visual gauge) + top-strata table (.ketbl) */
+.kegloss { font-size:11.5px; color:var(--ink2); margin:3px 0; }
+.kegloss .m { color:var(--det); font-weight:600; } .kegloss .h { color:var(--muted); }
+.ketbl { border-collapse:collapse; margin:4px 0; font-size:11.5px; width:100%; }
+.ketbl td { border-top:1px solid var(--hair); padding:2px 6px; } .ketbl td:first-child { color:var(--muted); }
+.kerole { display:inline-block; font-size:9.5px; text-transform:uppercase; color:var(--muted);
+          border:1px solid var(--border); border-radius:4px; padding:0 5px; margin-left:5px; }
+/* ── two-tone exec bullets: --det omics clause vs --lit literature clause (verdict-inert narrative) */
+.bullets { margin:8px 0 4px; padding:0; list-style:none; }
+.bullets li { margin:0 0 7px; padding-left:16px; position:relative; font-size:13px; }
+.bullets li::before { content:"▸"; position:absolute; left:0; color:var(--b,var(--neutral)); font-weight:700; }
+.fx-det { color:var(--det); } .fx-lit { color:var(--lit); }
+.legendrow { font-size:11px; color:var(--muted); margin-top:6px; } .legendrow b { font-weight:600; }
+/* ── theme toggle (auto / light / dark via data-theme on <html>) */
+.theme-toggle { position:fixed; top:10px; right:12px; z-index:9; font-size:11.5px; color:var(--ink2);
+    background:var(--surface); border:1px solid var(--border); border-radius:7px; padding:4px 9px; cursor:pointer; }
+:root[data-theme=dark] {
+  color-scheme:dark;
+  --page:#0d0d0d; --surface:#1a1a19; --ink:#ffffff; --ink2:#c3c2b7; --muted:#8f8e86;
+  --line:#2c2c2a; --border:rgba(255,255,255,0.10); --hair:#232321;
+  --opposing:#ec835a; --killer:#e06060; --none:#5f5e57; --hold:#f0a63a;
+  --t-good:rgba(12,163,12,.18); --t-serious:rgba(236,131,90,.20); --t-crit:rgba(224,96,96,.20);
+  --t-neutral:rgba(143,142,134,.16); --t-blue:rgba(57,135,229,.16);
+  --blue:#3987e5; --pos:var(--blue); --neg:#ec835a; --t-hold:rgba(240,166,58,.18);
+  --det:#5aa6e0; --lit:#a99bb0; --t-lit:rgba(169,155,176,.18);
+}
+:root[data-theme=light] { color-scheme:light; }
 """.strip()
 
 
@@ -525,9 +583,14 @@ class HtmlBackend:
         title = f"Target report — {_esc(ir.target or '—')} × {_esc(ir.indication or '—')}"
         parts = [
             "<!doctype html>",
-            '<html lang="en"><head><meta charset="utf-8">',
+            '<html lang="en" data-theme="auto"><head><meta charset="utf-8">',
             '<meta name="viewport" content="width=device-width, initial-scale=1">',
-            f"<title>{title}</title><style>{_CSS}\n{_V6_CSS}\n{_lens_css()}</style></head><body><div class='wrap'>",
+            f"<title>{title}</title><style>{_CSS}\n{_V6_CSS}\n{_lens_css()}</style></head><body>",
+            # theme toggle: auto → light → dark on <html data-theme> (the dark media-query honours 'auto').
+            '<button class="theme-toggle" onclick="var r=document.documentElement,'
+            "n={auto:'light',light:'dark',dark:'auto'};r.dataset.theme=n[r.dataset.theme||'auto'];"
+            'this.lastChild.textContent=r.dataset.theme;">theme: <span>auto</span></button>',
+            "<div class='wrap'>",
         ]
         # v6 density control: Compact (collapse all <details>) / Detailed (default) / Expand-all — lets a
         # leadership reader stay high-level and a comp-bio reader open everything, on one page.
@@ -904,12 +967,60 @@ class HtmlBackend:
             else vocab.polarity_label(p.get("polarity"))
         )
         deciding = " <span class='deciding'>deciding axis</span>" if p.get("is_deciding") else ""
+        color = self._EG_POL_COLOR.get(p.get("polarity"), "var(--neutral)")
+        # the sandbox `.hdr`: accent spine + stitle + one-sentence headline + kv grid (bound to the graph
+        # verdict when carried; degrades to just the stitle/phrase when the skill has no rich graph).
         out = [
+            f'<div class="hdr" style="--accent:{color}">'
             f"<div class='stitle'><span class='glyph'>{_esc(glyph)}</span>"
             f"{_esc(p.get('title'))} — {_esc(verdict)}{deciding}</div>"
         ]
         if p.get("honest_phrase"):
             out.append(f"<div class='phrase'>{_esc(p['honest_phrase'])}</div>")
+        out.extend(self._skill_headline_and_kv(p, verdict))
+        out.append("</div>")
+        return out
+
+    def _skill_headline_and_kv(self, p: dict, verdict: str) -> list:
+        """The sandbox one-sentence `.headline` (call + confidence + polarity + driving rule + ⚠ caveat)
+        and the `.kv` grid (Verdict / Driving+coverage+q&card counts / Tension), from the carried graph
+        verdict summary. [] when the skill carries no rich graph — the lean stitle/phrase stands alone."""
+        g = p.get("graph")
+        if not isinstance(g, dict):
+            return []
+        call = _humanize(g.get("call")) or verdict
+        conf = g.get("confidence_level")
+        pol = g.get("polarity") or p.get("polarity")
+        # headline sentence
+        sent = f"<b>{_esc(call)}</b> — "
+        sent += f"{_esc(conf)}-confidence " if conf else ""
+        sent += f"{_esc(pol)} call" if pol else "call"
+        if g.get("driving_rule_id"):
+            sent += f" (driving: <code>{_esc(g['driving_rule_id'])}</code>)"
+        sent += "."
+        tension = g.get("top_tension") if isinstance(g.get("top_tension"), dict) else None
+        if tension and tension.get("text"):
+            sent += f" <span class='caveat'>⚠ {_esc(tension['text'])}.</span>"
+        out = [f'<div class="headline">{sent}</div>']
+        # kv grid
+        cov = g.get("coverage") if isinstance(g.get("coverage"), dict) else {}
+        drv_bits = []
+        if g.get("driving_rule_id"):
+            drv_bits.append(f"<code>{_esc(g['driving_rule_id'])}</code>")
+        if conf:
+            drv_bits.append(f"<span class='dots'>{_esc(conf)}</span>")
+        if cov.get("n_measured") is not None and cov.get("n_axes") is not None:
+            ct = f"coverage {_esc(cov['n_measured'])}/{_esc(cov['n_axes'])} axes"
+            if cov.get("n_critical_measured") is not None:
+                ct += f" · {_esc(cov['n_critical_measured'])} critical"
+            drv_bits.append(ct)
+        drv_bits.append(f"{_esc(g.get('n_questions', 0))} q · {_esc(g.get('n_cards', 0))} cards")
+        rows = [("Verdict", f"<b>{_esc(call)}</b>"), ("Driving", " · ".join(drv_bits))]
+        if tension and tension.get("text"):
+            sev = f" · sev {_esc(tension['severity'])}" if tension.get("severity") is not None else ""
+            rows.append(("Tension", f"<span class='caveat'>⚠ {_esc(tension['text'])}{sev}</span>"))
+        kv = "".join(f"<dt>{_esc(k)}</dt><dd>{v}</dd>" for k, v in rows)
+        out.append(f'<dl class="kv">{kv}</dl>')
         return out
 
     def _confidence(self, p: dict) -> list:
@@ -1109,6 +1220,16 @@ class HtmlBackend:
     _EBUL_CLASS = {"supportive": "sup", "opposing": "against", "killer": "against", "neutral": "sup"}
 
     def _synthesis(self, p: dict) -> list:
+        """SYNTHESIS is context-aware. The COMPOSED report (mode != 'bullets') renders the v6
+        convergence layout (cross-evidence causal chain + integrator trust row + polarity exec
+        bullets + central tension + cited literature). A STANDALONE subskill (mode == 'bullets')
+        renders the sandbox two-tone AI-generated bullets + verbose expander. One handler, both
+        approved designs, keyed on the block payload the builders set. Verdict-inert."""
+        if p.get("mode") == "bullets":
+            return self._synthesis_bullets(p)
+        return self._synthesis_convergence(p)
+
+    def _synthesis_convergence(self, p: dict) -> list:
         """The v6 convergence block (`.conv`): the cross-evidence causal chain (cnode → cedge → …), the
         integrator TRUST row, the LLM synthesis (`.exec` polarity bullets + `.tension` central tension),
         and the cited-literature `.litctx`. Verdict-inert — an advisory second read beside the spine."""
@@ -1212,6 +1333,94 @@ class HtmlBackend:
         if not conv:
             return []
         return [f"<div class='conv'>{''.join(conv)}</div>"]
+
+    def _synthesis_bullets(self, p: dict) -> list:
+        out = ["<span class='tag'>AI-generated</span><h2>Synthesis</h2>"]
+        _GLYPH = {"supportive": "△", "opposing": "▽", "killer": "▲", "neutral": "◆", "not_applicable": "·"}
+        _CLS = {"supportive": "g-sup", "opposing": "g-opp", "killer": "g-kill", "neutral": "g-neu"}
+        _POLCOL = {
+            "supportive": "var(--supportive)",
+            "opposing": "var(--opposing)",
+            "killer": "var(--killer)",
+            "neutral": "var(--neutral)",
+        }
+        bullets = p.get("exec_bullets") or []
+        if bullets:
+            lis = []
+            for b in bullets:
+                pol = b.get("polarity")
+                anchors = b.get("cites") or {}
+                ids = (anchors.get("card_ids") or []) + (anchors.get("citation_ids") or [])
+                anc = (f" <span class='ke-anchor'>[{_esc(', '.join(ids[:3]))}]</span>") if ids else ""
+                # two-tone: the omics/deterministic clause reads --det, the literature clause --lit
+                # (verdict-inert; the split is a heuristic on the word "literature").
+                lis.append(
+                    f"<li style='--b:{_POLCOL.get(pol, 'var(--neutral)')}'>"
+                    f"<span class='{_CLS.get(pol, 'g-neu')}'>{_GLYPH.get(pol, '•')}</span> "
+                    f"{_two_tone(b.get('text'))}{anc}</li>"
+                )
+            out.append("<ul class='bullets exec-bullets'>" + "".join(lis) + "</ul>")
+            out.append(
+                "<div class='legendrow'><b class='fx-det'>■</b> omics/deterministic fact &nbsp; "
+                "<b class='fx-lit'>■</b> literature fact</div>"
+            )
+        verbose_frag = []
+        if p.get("executive_summary"):
+            verbose_frag.append(f"<p>{_esc(p['executive_summary'])}</p>")
+        if p.get("tension_analysis"):
+            verbose_frag.append(f"<p class='kv'><b>Tensions:</b> {_esc(p['tension_analysis'])}</p>")
+        args = p.get("arguments") or []
+        if args:
+            verbose_frag.append(
+                "<ul class='chips'>" + "".join(f"<li>{_esc(_arg_summary(a))}</li>" for a in args) + "</ul>"
+            )
+        if verbose_frag:
+            # bullets lead; the verbose prose is demoted behind an expander (Stage-2 secondary read).
+            if bullets:
+                out.append(
+                    "<details class='full-narrative'><summary>Full narrative</summary>"
+                    + "".join(verbose_frag)
+                    + "</details>"
+                )
+            else:
+                out.extend(verbose_frag)
+        cites = p.get("citations") or []
+        if cites:
+            # rule-ids lifted out of the prose → a collapsed grounding affordance (hover/expand), so the
+            # executive text reads clean while the provenance stays one click away.
+            codes = "".join(f"<code>{_esc(c)}</code>" for c in cites)
+            out.append(
+                f"<details class='cite-prov'><summary>Grounded in {len(cites)} framework "
+                f"rules</summary>{codes}</details>"
+            )
+        ce = p.get("cross_evidence")
+        if ce:
+            chain = ce.get("chain") or []
+            steps = "".join(
+                f"<span class='ce-node'>{_esc(c.get('from'))}</span>"
+                f"<span class='ce-edge'>→ <small>{_esc(c.get('type') or '')}</small></span>"
+                for c in chain
+            )
+            if chain and chain[-1].get("to"):
+                steps += f"<span class='ce-node'>{_esc(chain[-1].get('to'))}</span>"
+            trust = []
+            if ce.get("verdict"):
+                trust.append(f"verdict <b>{_esc(ce['verdict'])}</b>")
+            if ce.get("certainty"):
+                lim = f" (weakest link: {_esc(ce['limiting'])})" if ce.get("limiting") else ""
+                trust.append(f"certainty <b>{_esc(ce['certainty'])}</b>{lim}")
+            if ce.get("traceable"):
+                trust.append(f"{_esc(ce['traceable'])} clauses traceable")
+            if ce.get("coherence_violations") is not None:
+                trust.append(f"{_esc(ce['coherence_violations'])} coherence violations")
+            out.append(
+                "<div class='cross-ev'><div class='ce-lbl'>Cross-evidence integrator · independent read</div>"
+                + (f"<div class='ce-chain'>{steps}</div>" if steps else "")
+                + (f"<div class='ce-trust'>{' · '.join(trust)}</div>" if trust else "")
+                + "<div class='so-foot'>an independent second read, surfaced beside the spine's — not "
+                "reconciled into it.</div></div>"
+            )
+        return out
 
     def _coherence(self, p: dict) -> list:
         # thesis is in the header; this block adds the coherence class + any caveats.
@@ -1756,63 +1965,150 @@ class HtmlBackend:
             f"{''.join(ticks)}{comp_mark}{mark}</div>{cap}</div>"
         )
 
+    # meter width by the question's signal tier (the sandbox `.mfill` scale) — the bar length reads the
+    # strength at a glance; DIRECTION stays in the polarity glyph + colour (position ≠ direction, CVD-safe).
+    _METER_W = {"strong": 90, "moderate": 60, "weak": 30, "absent": 16, "uniform": 45, "high": 90, "low": 30}
+
+    @staticmethod
+    def _dots_str(n) -> str:
+        n = n if isinstance(n, int) and 0 <= n <= 3 else 0
+        return "●" * n + "○" * (3 - n)
+
+    def _chain_card_row(self, c: dict) -> str:
+        """One card's dataset→data→rule→verdict drill row (shared by the question-grouped `.qr` view and
+        the measurement-type `pklayer` fallback): role badge + signal glyph, plain description, Reads:
+        <class>, the visual gauge, the split metric-gloss (.kegloss) + top-strata table (.ketbl), and the
+        provenance chain line."""
+        key = "killer" if c.get("liability") else c.get("polarity")
+        gl, gcls = vocab.polarity_glyph(key), self._EG_POL_CLS.get(key, "g-neu")
+        ds = " · ".join(c.get("dataset_ids") or []) or "—"
+        data = " · ".join(f"{_esc(d.get('field'))}={_esc(d.get('value'))}" for d in (c.get("data") or [])) or "—"
+        if c.get("rule_id"):
+            drv = "<span class='pill-drv'>DRIVING</span> " if c.get("is_driving") else ""
+            rule = f"{drv}<span class='mono'>{_esc(c.get('rule_id'))}</span>"
+        else:
+            rule = "<span class='pill-none'>display-only · no rule fired</span>"
+        nfrag = f" · n={_esc(c.get('n'))}" if c.get("n") is not None else ""
+        # class-led plain-language order: description → Reads: <class> → gauge → split gloss → chain drill
+        desc = c.get("description")
+        desc_line = f"<div class='cdesc'>{_esc(desc)}</div>" if desc else ""
+        reads = c.get("reads")
+        reads_line = f"<div class='cread'>Reads: <b class='{gcls}'>{_esc(reads)}</b></div>" if reads else ""
+        gauge = self._gauge(c)  # the reference-frame ruler (visual support layer)
+        kegloss = self._kegloss_html(c)  # the TEXT companion (metric label = value · n · stat + help)
+        ketbl = self._ketbl_html(c)  # the top-strata table
+        # the compact narrator-grounding key line (omnibus + categorical + subtype the effect-only
+        # kegloss doesn't carry) — kept as the comprehensive one-liner beside the split gloss.
+        ke = c.get("key_evidence_summary")
+        ke_line = (
+            f"<div class='chainline keyev'><span class='lab'>key</span> <span class='mono'>{_esc(ke)}</span></div>"
+            if ke
+            else ""
+        )
+        if c.get("is_driving"):
+            badge = "<span class='rbadge rb-drv'>drives verdict</span>"
+        elif c.get("contributes"):
+            badge = "<span class='rbadge rb-con'>contributes</span>"
+        else:
+            badge = "<span class='rbadge rb-ctx'>context</span>"
+        mt = c.get("measurement_type")
+        mttag = f"<span class='mttag'>{_esc(str(mt).replace('_', ' '))}</span>" if mt else ""
+        return (
+            f"<div class='cardln'><div class='chead'><span>{badge}<b>{_esc(c.get('id'))}</b>{mttag}</span>"
+            f"<span class='ccchip'><span class='{gcls}'>{_esc(gl)}</span>{nfrag}</span></div>"
+            f"{desc_line}{reads_line}{gauge}{kegloss}{ketbl}{ke_line}"
+            f"<div class='chainline'><span class='lab'>ds</span> <span class='mono'>{_esc(ds)}</span>"
+            f" <span class='sep'>→</span> <span class='lab'>data</span> {data}"
+            f" <span class='sep'>→</span> <span class='lab'>rule</span> {rule}</div></div>"
+        )
+
+    def _kegloss_html(self, c: dict) -> str:
+        """The sandbox split metric-gloss: `<metric label> = <value> · n=… · <stat>=<value>` on the
+        omics tone (--det) + a muted plain-language help line. '' when the card carries no numeric effect
+        (the key_evidence_summary + gauge already cover the categorical cards)."""
+        kg = c.get("kegloss")
+        if not isinstance(kg, dict) or kg.get("value") is None:
+            return ""
+        head = f"<span class='m'>{_esc(kg.get('label'))} = {_esc(kg.get('value'))}</span>"
+        if kg.get("n") is not None:
+            head += f" · n={_esc(kg.get('n'))}"
+        if kg.get("stat") and kg.get("stat_value") is not None:
+            head += f" · {_esc(kg.get('stat'))}={_esc(kg.get('stat_value'))}"
+        help_line = f"<br><span class='h'>{_esc(kg.get('help'))}</span>" if kg.get("help") else ""
+        return f"<div class='kegloss'>{head}{help_line}</div>"
+
+    def _ketbl_html(self, c: dict) -> str:
+        """The key_evidence.top_strata table (.ketbl): indication / strongest / weakest stratum rows."""
+        strata = c.get("top_strata") or []
+        if not strata:
+            return ""
+        rows = []
+        for s in strata:
+            if not isinstance(s, dict):
+                continue
+            role = f"<span class='kerole'>{_esc(s.get('role'))}</span>" if s.get("role") else ""
+            val = _esc(s.get("value"))
+            if s.get("n") is not None:
+                val += f" (n={_esc(s.get('n'))})"
+            if s.get("q") is not None:
+                val += f" · q={_esc(s.get('q'))}"
+            rows.append(f"<tr><td>{_esc(s.get('label'))}{role}</td><td>{val}</td></tr>")
+        return f"<table class='ketbl'>{''.join(rows)}</table>" if rows else ""
+
+    def _qstrip_html(self, cards: list) -> str:
+        """The mini per-card signal strip in a question <summary> — one small cell per contributing card
+        (fill = signal polarity, ring = confidence), echoing the fingerprint at question granularity."""
+        cells = []
+        for c in cards or []:
+            col = self._eg_color(c.get("polarity"), c.get("liability"))
+            dots = c.get("dots") if isinstance(c.get("dots"), int) else -1
+            ccls = self._HM_CONF_CLS.get(dots, "hm-c0")
+            cells.append(f"<span class='qcell {ccls}' style='background:{col}' title='{_esc(c.get('id'))}'></span>")
+        return "".join(cells)
+
     def _card_chain(self, p: dict) -> list:
         layers = p.get("layers") or []
         if not layers:
             return []
         out = ["<p class='section-label'>Cards — dataset → data → rule → verdict</p>"]
+        by_question = p.get("grouped_by") == "question"
+        if by_question:
+            groups = []
+            for i, lyr in enumerate(layers):
+                cards = lyr.get("cards") or []
+                rows = "".join(self._chain_card_row(c) for c in cards)
+                pol = lyr.get("polarity")
+                color = self._EG_POL_COLOR.get(pol, "var(--neutral)")
+                gcls = self._EG_POL_CLS.get(pol, "g-neu")
+                glyph = vocab.polarity_glyph(pol)
+                width = self._METER_W.get(lyr.get("tier"), 50)
+                meter = (
+                    f"<span class='meter'><span class='mfill' style='width:{width}%;background:{color}'></span></span>"
+                )
+                dots = self._dots_str(lyr.get("dots"))
+                conf = _esc(lyr.get("conf_level") or "")
+                key = f"<div class='qkey'>{_esc(lyr.get('key'))}</div>" if lyr.get("key") else ""
+                strip = self._qstrip_html(cards)
+                openattr = " open" if i == 0 else ""
+                groups.append(
+                    f'<details class="qr"{openattr}><summary>'
+                    f"<span class='qcaret'></span>"
+                    f"<div><div class='qtitle'>{_esc(lyr.get('layer'))}</div>{key}"
+                    f"<div class='qstrip'>{strip}<span class='qcount'>{len(cards)} cards</span></div></div>"
+                    f"<div><span class='{gcls}'>{_esc(glyph)}</span> {meter}</div>"
+                    f"<div class='dots'>{dots} {conf}</div>"
+                    f"</summary><div class='lbody'>{rows}</div></details>"
+                )
+            out.append(f'<div class="qtab">{"".join(groups)}</div>')
+            return out
+        # measurement-type fallback (gateless / unmapped skills): the lean accordion, unchanged.
         for lyr in layers:
             cards = lyr.get("cards") or []
-            rows = []
-            for c in cards:
-                key = "killer" if c.get("liability") else c.get("polarity")
-                gl, gcls = vocab.polarity_glyph(key), self._EG_POL_CLS.get(key, "g-neu")
-                ds = " · ".join(c.get("dataset_ids") or []) or "—"
-                data = (
-                    " · ".join(f"{_esc(d.get('field'))}={_esc(d.get('value'))}" for d in (c.get("data") or [])) or "—"
-                )
-                if c.get("rule_id"):
-                    drv = "<span class='pill-drv'>DRIVING</span> " if c.get("is_driving") else ""
-                    rule = f"{drv}<span class='mono'>{_esc(c.get('rule_id'))}</span>"
-                else:
-                    rule = "<span class='pill-none'>display-only · no rule fired</span>"
-                nfrag = f" · n={_esc(c.get('n'))}" if c.get("n") is not None else ""
-                ke = c.get("key_evidence_summary")
-                ke_line = (
-                    (
-                        f"<div class='chainline keyev'><span class='lab'>key</span> "
-                        f"<span class='mono'>{_esc(ke)}</span></div>"
-                    )
-                    if ke
-                    else ""
-                )
-                # class-led plain-language order: description → Reads: <class> → key gauge → chain drill
-                desc = c.get("description")
-                desc_line = f"<div class='cdesc'>{_esc(desc)}</div>" if desc else ""
-                reads = c.get("reads")
-                reads_line = f"<div class='cread'>Reads: <b class='{gcls}'>{_esc(reads)}</b></div>" if reads else ""
-                gauge = self._gauge(c)  # the reference-frame ruler (support layer)
-                # role badge: separate the verdict-drivers from context at a glance (not rule-id reading)
-                if c.get("is_driving"):
-                    badge = "<span class='rbadge rb-drv'>drives verdict</span>"
-                elif c.get("contributes"):
-                    badge = "<span class='rbadge rb-con'>contributes</span>"
-                else:
-                    badge = "<span class='rbadge rb-ctx'>context</span>"
-                mt = c.get("measurement_type")
-                mttag = f"<span class='mttag'>{_esc(str(mt).replace('_', ' '))}</span>" if mt else ""
-                rows.append(
-                    f"<div class='cardln'><div class='chead'><span>{badge}<b>{_esc(c.get('id'))}</b>{mttag}</span>"
-                    f"<span class='ccchip'><span class='{gcls}'>{_esc(gl)}</span>{nfrag}</span></div>"
-                    f"{desc_line}{reads_line}{gauge}{ke_line}"
-                    f"<div class='chainline'><span class='lab'>ds</span> <span class='mono'>{_esc(ds)}</span>"
-                    f" <span class='sep'>→</span> <span class='lab'>data</span> {data}"
-                    f" <span class='sep'>→</span> <span class='lab'>rule</span> {rule}</div></div>"
-                )
+            rows = "".join(self._chain_card_row(c) for c in cards)
             out.append(
                 f"<details class='pklayer'><summary><span>{_esc(lyr.get('layer'))}</span>"
                 f"<span class='ccinline'>{len(cards)} card(s)</span></summary>"
-                f"<div class='lbody'>{''.join(rows)}</div></details>"
+                f"<div class='lbody'>{rows}</div></details>"
             )
         return out
 
@@ -1855,6 +2151,22 @@ class HtmlBackend:
             f"{(' · overall ' + _esc(oc)) if oc else ''}</span></h2>"
         )
         return [head + "".join(rows)]
+
+
+import re as _re
+
+_LIT_SPLIT = _re.compile(r"(literature)", _re.IGNORECASE)
+
+
+def _two_tone(text) -> str:
+    """Split one narrative bullet into an omics clause (--det) + a literature clause (--lit) on the first
+    occurrence of the word "literature" — the sandbox's omics-vs-literature two-tone. No match → the whole
+    clause reads as the omics tone. Escapes each clause; verdict-inert display only."""
+    s = "" if text is None else str(text)
+    m = _LIT_SPLIT.search(s)
+    if not m:
+        return f"<span class='fx-det'>{escape(s)}</span>"
+    return f"<span class='fx-det'>{escape(s[: m.start()])}</span><span class='fx-lit'>{escape(s[m.start() :])}</span>"
 
 
 def _scatter_svg(points, y_ticks, x_ticks) -> str:

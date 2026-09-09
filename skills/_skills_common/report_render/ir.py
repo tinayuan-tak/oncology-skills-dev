@@ -297,6 +297,11 @@ def _build_section(
     _recon_note = _reconciled_note(short, report.get("polarity"), reconciled_shorts)
     _eff_polarity = "neutral" if _recon_note else report.get("polarity")
 
+    # carried claim-graph (P3): rich embedded/standalone view + the standalone-dashboard header summary
+    # (headline sentence + kv grid — the sandbox `.hdr`, bound to eg.verdict, verdict-inert display).
+    eg = report.get("evidence_graph")
+    eg_rich = isinstance(eg, dict) and bool(eg.get("questions"))
+
     header = Block(
         vocab.SKILL_HEADER,
         {
@@ -309,6 +314,9 @@ def _build_section(
             "reconciled_note": _recon_note,
             "honest_phrase": report.get("honest_phrase"),
             "is_deciding": is_deciding,
+            # the standalone-dashboard headline + kv (from the carried graph's collapsed verdict); None
+            # when the skill carries no rich graph, so the backend degrades to the lean stitle/phrase.
+            "graph": _skill_graph_header(eg) if eg_rich else None,
         },
     )
     blocks = [header]
@@ -337,8 +345,7 @@ def _build_section(
     # fallback), render the RICH embedded view (per-question fingerprint here; literature axes + per-card
     # chains below) == the standalone dashboard; the fingerprint SUPERSEDES the lean sub-group
     # scatter/bands. Otherwise fall back to the sub-group scatter/bands. Fail-soft; display-only.
-    eg = report.get("evidence_graph")
-    eg_rich = isinstance(eg, dict) and bool(eg.get("questions"))
+    # (eg / eg_rich computed above, before the header, for the header's graph summary.)
     sg = report.get("subgroup_signals")
     if eg_rich and eff >= vocab.TIER[vocab.EVIDENCE_FINGERPRINT]:
         fp = _evidence_fingerprint_block(eg)
@@ -713,6 +720,7 @@ def _synthesis_block(nomination: dict, literature: Optional[dict] = None) -> Opt
             "citations": citations,
             "cross_evidence": cross_evidence,
             "literature": literature,
+            "mode": "convergence",  # COMPOSED report → v6 convergence layout (see html._synthesis)
         },
     )
 
@@ -736,6 +744,7 @@ def _skill_synthesis_block(narrative: dict) -> Optional[Block]:
             "tension_analysis": None,
             "arguments": None,
             "citations": cites,
+            "mode": "bullets",  # STANDALONE subskill → sandbox two-tone bullets (see html._synthesis)
         },
     )
 
@@ -1408,6 +1417,35 @@ def _subgroup_bands_block(subgroup_signals: dict) -> Optional[Block]:
 # evidence-graph blocks (P3) — the RICH embedded sub-skill view, projected from the carried
 # skill_report.evidence_graph. Pure projections (no re-derivation); opacity/ordinal live in the backend.
 # --------------------------------------------------------------------------------------------------
+def _skill_graph_header(eg: dict) -> Optional[dict]:
+    """Compact header summary from a skill's `evidence_graph.verdict` — the standalone-dashboard
+    headline sentence + kv-grid inputs: the collapsed call/polarity/driving-rule, the confidence level +
+    coverage, the top tension, and the question/card counts. A PURE PROJECTION of the carried graph
+    (recomputes nothing); every field degrades to None when the verdict omits it. Verdict-inert display."""
+    if not isinstance(eg, dict):
+        return None
+    v = eg.get("verdict") if isinstance(eg.get("verdict"), dict) else {}
+    conf = v.get("confidence") if isinstance(v.get("confidence"), dict) else {}
+    cov = conf.get("coverage") if isinstance(conf.get("coverage"), dict) else {}
+    tension = v.get("top_tension") if isinstance(v.get("top_tension"), dict) else {}
+    return {
+        "call": v.get("call") or v.get("id"),
+        "polarity": v.get("polarity"),
+        "driving_rule_id": v.get("driving_rule_id"),
+        "confidence_level": conf.get("level"),
+        "coverage": {
+            "n_measured": cov.get("n_measured"),
+            "n_axes": cov.get("n_axes"),
+            "n_critical_measured": cov.get("n_critical_measured"),
+        },
+        "top_tension": (
+            {"text": tension.get("text"), "severity": tension.get("severity")} if tension.get("text") else None
+        ),
+        "n_questions": len(eg.get("questions") or []),
+        "n_cards": len(eg.get("cards") or []),
+    }
+
+
 def _evidence_fingerprint_block(eg: dict) -> Optional[Block]:
     """Per-question fingerprint == the standalone dashboard's heatmap: one row per question, one cell per
     contributing card (colour = card signal polarity, opacity = confidence — the backend maps dots→opacity),
@@ -1519,6 +1557,31 @@ def _format_key_evidence(ke: Optional[dict]) -> Optional[str]:
     return " · ".join(p for p in parts if p) or None
 
 
+def _kegloss(ke: Optional[dict]) -> Optional[dict]:
+    """The split metric-gloss for a card's key_evidence.effect — the sandbox `.kegloss` TEXT companion to
+    the visual `_gauge` ruler: a metric LABEL = value (+ n + significance stat), and a muted plain-language
+    HELP line (units + direction phrase from display_gloss). Reuses `_dg.gloss`/`_dg.direction_phrase`
+    (one vocabulary with the gauge words + narrator). None when the card carries no numeric effect."""
+    if not isinstance(ke, dict):
+        return None
+    eff = ke.get("effect") or {}
+    if not isinstance(eff, dict) or eff.get("value") is None:
+        return None
+    label, units = _dg.gloss(eff.get("metric"))
+    dp = _dg.direction_phrase(eff.get("direction"))
+    help_line = "; ".join(b for b in (units, dp) if b) or None
+    sig = ke.get("significance") or {}
+    stat = sig.get("stat")
+    return {
+        "label": label or (eff.get("metric") or "effect"),
+        "value": _fmt_num(eff.get("value")),
+        "n": ke.get("n"),
+        "stat": (_dg.gloss(stat)[0] or stat) if stat else None,
+        "stat_value": _fmt_num(sig.get("value")) if sig.get("value") is not None else None,
+        "help": help_line,
+    }
+
+
 def _card_chain_block(eg: dict) -> Optional[Block]:
     """Per-card dataset→data→rule→verdict chains, grouped by the QUESTION each card answers (aligning
     the drill-down with the question-anchored fingerprint above), so a reader drills the question they
@@ -1561,6 +1624,9 @@ def _card_chain_block(eg: dict) -> Optional[Block]:
             "contributes": bool(chain.get("contributes_to_verdict")),
             "key_evidence": ke,
             "key_evidence_summary": _format_key_evidence(ke),
+            # sandbox split metric-gloss (.kegloss text companion) + the top-strata table (.ketbl)
+            "kegloss": _kegloss(ke),
+            "top_strata": (ke or {}).get("top_strata") or [],
         }
 
     # Group by the card's PRIMARY question (its first question_id) when the skill maps cards to
@@ -1569,15 +1635,37 @@ def _card_chain_block(eg: dict) -> Optional[Block]:
     layers: dict = {}
     order: list = []
     if by_question:
-        qtext = {q.get("id"): (q.get("text") or q.get("id")) for q in (eg.get("questions") or [])}
-        qorder = [q.get("id") for q in (eg.get("questions") or [])]
+        questions = eg.get("questions") or []
+        qtext = {q.get("id"): (q.get("text") or q.get("id")) for q in questions}
+        qmeta = {q.get("id"): q for q in questions}
+        qorder = [q.get("id") for q in questions]
         for c in cards:
             qids = c.get("question_ids") or []
             key = qids[0] if qids else "__context__"
             layers.setdefault(key, []).append(_card(c))
         order = [q for q in qorder if q in layers] + [k for k in layers if k not in set(qorder)]
         labels = {**qtext, "__context__": "Context / other"}
-        groups = [{"layer": labels.get(k, str(k)), "cards": layers[k]} for k in order]
+        # each question group carries the question's own signal tier / polarity / confidence dots + a short
+        # evidence-ref key (reused from the fingerprint's question data, not recomputed) so the drill-down
+        # <summary> can render the richer sandbox meter + dots + qstrip + qkey. Absent on unmapped keys.
+        groups = []
+        for k in order:
+            q = qmeta.get(k) or {}
+            sig = q.get("signal") or {}
+            qconf = q.get("confidence") or {}
+            refs = q.get("evidence_refs") or []
+            key_labels = [r.get("label") for r in refs[:3] if isinstance(r, dict) and r.get("label")]
+            groups.append(
+                {
+                    "layer": labels.get(k, str(k)),
+                    "cards": layers[k],
+                    "polarity": sig.get("polarity"),
+                    "tier": sig.get("tier"),
+                    "dots": qconf.get("dots"),
+                    "conf_level": qconf.get("level"),
+                    "key": " · ".join(key_labels) or ((q.get("prose") or {}).get("primary") or None),
+                }
+            )
     else:
         for c in cards:
             mt = c.get("measurement_type") or "other"
