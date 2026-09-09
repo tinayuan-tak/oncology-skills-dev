@@ -32,7 +32,7 @@ indications:
     mesh_terms: ["colorectal neoplasms", "colonic neoplasms", "rectal neoplasms"]   # AACT browse_conditions.downcase_mesh_term
     efo_ids: [MONDO_0002032, MONDO_0002169, MONDO_0002271, MONDO_0005008, MONDO_0005575, MONDO_0024331, MONDO_0044937]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
     display_name: "Colorectal Cancer (CRC)"
-    strategic_bucket: GI-lower
+    strategic_bucket: Gastric
     oncotree_code: COADREAD
     tcga_studies: [TCGA-COAD, TCGA-READ]
     gdc_project_ids: [TCGA-COAD, TCGA-READ]
@@ -118,7 +118,7 @@ indications:
     mesh_terms: ["stomach neoplasms"]   # AACT browse_conditions.downcase_mesh_term
     efo_ids: [MONDO_0001056, MONDO_0004950, MONDO_0005036]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
     display_name: "Gastric Cancer"
-    strategic_bucket: GI-upper
+    strategic_bucket: Gastric
     oncotree_code: STAD
     tcga_studies: [TCGA-STAD]
     gdc_project_ids: [TCGA-STAD]
@@ -139,7 +139,7 @@ indications:
     mesh_terms: ["esophageal neoplasms", "adenocarcinoma of esophagus", "esophageal squamous cell carcinoma"]   # AACT browse_conditions.downcase_mesh_term
     efo_ids: [MONDO_0005028, MONDO_0005580, MONDO_0007576, MONDO_0019086]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
     display_name: "Esophageal Cancer"
-    strategic_bucket: GI-upper
+    strategic_bucket: Gastric
     oncotree_code: ESCA  # (contains both ESCC and EAC — histology stratum distinguishes)
     tcga_studies: [TCGA-ESCA]
     gdc_project_ids: [TCGA-ESCA]
@@ -161,7 +161,7 @@ indications:
     mesh_terms: ["carcinoma, pancreatic ductal", "pancreatic neoplasms"]   # AACT browse_conditions.downcase_mesh_term
     efo_ids: [MONDO_0005184, MONDO_0005192, MONDO_0006047, MONDO_0009831]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
     display_name: "Pancreatic Ductal Adenocarcinoma (PDAC)"
-    strategic_bucket: GI-upper
+    strategic_bucket: Gastric
     oncotree_code: PAAD
     tcga_studies: [TCGA-PAAD]
     gdc_project_ids: [TCGA-PAAD]
@@ -224,7 +224,7 @@ indications:
     mesh_terms: ["breast neoplasms", "triple negative breast neoplasms", "inflammatory breast neoplasms"]
     efo_ids: [MONDO_0004989, MONDO_0005494, MONDO_0007254]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
     display_name: "Breast Cancer"
-    strategic_bucket: Breast
+    strategic_bucket: Other
     oncotree_code: BRCA
     tcga_studies: [TCGA-BRCA]
     gdc_project_ids: [TCGA-BRCA]
@@ -242,7 +242,7 @@ indications:
     mesh_terms: ["prostatic neoplasms", "prostatic neoplasms, castration-resistant"]
     efo_ids: [MONDO_0005082, MONDO_0005159, MONDO_0008315]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
     display_name: "Prostate Adenocarcinoma"
-    strategic_bucket: GU
+    strategic_bucket: Other
     oncotree_code: PRAD
     tcga_studies: [TCGA-PRAD]
     gdc_project_ids: [TCGA-PRAD]
@@ -259,7 +259,7 @@ indications:
     mesh_terms: ["ovarian neoplasms", "carcinoma, ovarian epithelial"]
     efo_ids: [EFO_1001958, MONDO_0005140, MONDO_0005211, MONDO_0008170]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
     display_name: "Ovarian Cancer"
-    strategic_bucket: GYN
+    strategic_bucket: Other
     oncotree_code: OV
     tcga_studies: [TCGA-OV]
     gdc_project_ids: [TCGA-OV]
@@ -276,7 +276,7 @@ indications:
     mesh_terms: ["glioblastoma"]
     efo_ids: [MONDO_0018177]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
     display_name: "Glioblastoma"
-    strategic_bucket: CNS
+    strategic_bucket: Other
     oncotree_code: GBM
     tcga_studies: [TCGA-GBM]
     gdc_project_ids: [TCGA-GBM]
@@ -292,7 +292,7 @@ indications:
     mesh_terms: ["glioma", "oligodendroglioma", "astrocytoma"]
     efo_ids: [MONDO_0016695, MONDO_0019781, MONDO_0021637]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
     display_name: "Low-Grade Glioma"
-    strategic_bucket: CNS
+    strategic_bucket: Other
     oncotree_code: LGG
     tcga_studies: [TCGA-LGG]
     gdc_project_ids: [TCGA-LGG]
@@ -310,7 +310,7 @@ indications:
     mesh_terms: ["melanoma", "melanoma, cutaneous malignant", "uveal melanoma"]
     efo_ids: [MONDO_0005012, MONDO_0005105]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
     display_name: "Skin Cutaneous Melanoma"
-    strategic_bucket: Skin
+    strategic_bucket: Other
     oncotree_code: SKCM
     tcga_studies: [TCGA-SKCM]
     gdc_project_ids: [TCGA-SKCM]
@@ -327,7 +327,7 @@ indications:
     mesh_terms: ["urinary bladder neoplasms", "carcinoma, transitional cell"]
     efo_ids: [MONDO_0004986, MONDO_0005611, MONDO_0006474, MONDO_0040679]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
     display_name: "Bladder Urothelial Carcinoma"
-    strategic_bucket: GU
+    strategic_bucket: Other
     oncotree_code: BLCA
     tcga_studies: [TCGA-BLCA]
     gdc_project_ids: [TCGA-BLCA]
@@ -344,7 +344,7 @@ indications:
     mesh_terms: ["carcinoma, renal cell", "kidney neoplasms"]
     efo_ids: [MONDO_0002367, MONDO_0005005, MONDO_0005086, MONDO_0005549]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
     display_name: "Kidney Renal Clear Cell Carcinoma"
-    strategic_bucket: GU
+    strategic_bucket: Other
     oncotree_code: KIRC
     tcga_studies: [TCGA-KIRC]
     gdc_project_ids: [TCGA-KIRC]
@@ -361,7 +361,7 @@ indications:
     mesh_terms: ["carcinoma, hepatocellular", "liver neoplasms"]
     efo_ids: [MONDO_0002691, MONDO_0007256]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
     display_name: "Hepatocellular Carcinoma"
-    strategic_bucket: GI-upper
+    strategic_bucket: Gastric
     oncotree_code: LIHC
     tcga_studies: [TCGA-LIHC]
     gdc_project_ids: [TCGA-LIHC]
@@ -378,7 +378,7 @@ indications:
     mesh_terms: ["uterine cervical neoplasms"]
     efo_ids: [MONDO_0002974, MONDO_0005131]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
     display_name: "Cervical Cancer"
-    strategic_bucket: GYN
+    strategic_bucket: Other
     oncotree_code: CESC
     tcga_studies: [TCGA-CESC]
     gdc_project_ids: [TCGA-CESC]
@@ -394,7 +394,7 @@ indications:
     mesh_terms: ["endometrial neoplasms", "uterine neoplasms"]
     efo_ids: [MONDO_0002447, MONDO_0002715, MONDO_0005461, MONDO_0006003, MONDO_0011962]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
     display_name: "Uterine Corpus Endometrial Carcinoma"
-    strategic_bucket: GYN
+    strategic_bucket: Other
     oncotree_code: UCEC
     tcga_studies: [TCGA-UCEC]
     gdc_project_ids: [TCGA-UCEC]
@@ -441,7 +441,7 @@ indications:
 
   - canonical_code: BCC
     display_name: Basal Cell Carcinoma
-    strategic_bucket: Skin
+    strategic_bucket: Other
     oncotree_code: BCC
     tcga_studies: []
     gdc_project_ids: []
@@ -458,7 +458,7 @@ indications:
     notes: "Added 2026-09-01 for discovery-register coverage (non-TCGA skin cancer). mesh_ids curated 2026-09-07 (NCBI MeSH: 'carcinoma, basal cell' -> D002280); efo_ids pending."
   - canonical_code: NBL
     display_name: Neuroblastoma
-    strategic_bucket: Pediatric
+    strategic_bucket: Other
     oncotree_code: NBL
     tcga_studies: []
     gdc_project_ids: [TARGET-NBL]
@@ -475,7 +475,7 @@ indications:
     notes: "Added 2026-09-01 for discovery-register coverage (pediatric, non-TCGA; TARGET-NBL). mesh_ids curated 2026-09-07 (NCBI MeSH: 'neuroblastoma' -> D009447); efo_ids pending."
   - canonical_code: UVM
     display_name: Uveal Melanoma
-    strategic_bucket: Ophthalmic
+    strategic_bucket: Other
     oncotree_code: UM
     tcga_studies: [TCGA-UVM]
     gdc_project_ids: [TCGA-UVM]
@@ -510,7 +510,7 @@ indications:
     notes: "Added 2026-09-09 for discovery-register + TCGA-pancan browser coverage (catalog-browser accuracy review #558). oncotree_code uses the TCGA convention (matching KIRC precedent); efo_ids = OLS4-verified MONDO primaries; mesh_ids = NLM-verified descriptors."
   - canonical_code: CHOL
     display_name: Cholangiocarcinoma
-    strategic_bucket: GI-upper
+    strategic_bucket: Gastric
     oncotree_code: CHOL
     tcga_studies: [TCGA-CHOL]
     gdc_project_ids: [TCGA-CHOL]
@@ -527,7 +527,7 @@ indications:
     notes: "Added 2026-09-09 for discovery-register + TCGA-pancan browser coverage (catalog-browser accuracy review #558). oncotree_code uses the TCGA convention (matching KIRC precedent); efo_ids = OLS4-verified MONDO primaries; mesh_ids = NLM-verified descriptors."
   - canonical_code: KICH
     display_name: Kidney Chromophobe
-    strategic_bucket: GU
+    strategic_bucket: Other
     oncotree_code: KICH
     tcga_studies: [TCGA-KICH]
     gdc_project_ids: [TCGA-KICH]
@@ -545,7 +545,7 @@ indications:
     notes: "Added 2026-09-09 for discovery-register + TCGA-pancan browser coverage (catalog-browser accuracy review #558). oncotree_code uses the TCGA convention (matching KIRC precedent); efo_ids = OLS4-verified MONDO primaries; mesh_ids = NLM-verified descriptors."
   - canonical_code: KIRP
     display_name: Kidney Renal Papillary Cell Carcinoma
-    strategic_bucket: GU
+    strategic_bucket: Other
     oncotree_code: KIRP
     tcga_studies: [TCGA-KIRP]
     gdc_project_ids: [TCGA-KIRP]
@@ -598,7 +598,7 @@ indications:
     notes: "Added 2026-09-09 for discovery-register + TCGA-pancan browser coverage (catalog-browser accuracy review #558). oncotree_code uses the TCGA convention (matching KIRC precedent); efo_ids = OLS4-verified MONDO primaries; mesh_ids = NLM-verified descriptors."
   - canonical_code: TGCT
     display_name: Testicular Germ Cell Tumors
-    strategic_bucket: GU
+    strategic_bucket: Other
     oncotree_code: TGCT
     tcga_studies: [TCGA-TGCT]
     gdc_project_ids: [TCGA-TGCT]
@@ -649,7 +649,7 @@ indications:
     notes: "Added 2026-09-09 for discovery-register + TCGA-pancan browser coverage (catalog-browser accuracy review #558). oncotree_code uses the TCGA convention (matching KIRC precedent); efo_ids = OLS4-verified MONDO primaries; mesh_ids = NLM-verified descriptors. depmap_lineage null (no DepMap thymus lineage in 26Q1)."
   - canonical_code: UCS
     display_name: Uterine Carcinosarcoma
-    strategic_bucket: GYN
+    strategic_bucket: Other
     oncotree_code: UCS
     tcga_studies: [TCGA-UCS]
     gdc_project_ids: [TCGA-UCS]
