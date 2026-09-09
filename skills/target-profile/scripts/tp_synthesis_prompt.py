@@ -873,6 +873,46 @@ def _render_reconciled_block(sub_results: dict) -> list[str]:
     return lines
 
 
+def _render_measurement_applicability_block(sub_results: dict) -> list[str]:
+    """MEASUREMENT-APPLICABILITY caveat (RFC discordance-taxonomy Class B): a MEASURED-NEGATIVE dependency
+    read (`non_dependent` / paralog-buffered / discordant) from POOLED pan-cancer CRISPR/RNAi is LIKELY
+    UNDER-SAMPLED when a co-present genomic-alteration DRIVER / biomarker context says the target is
+    oncogenically load-bearing in a stratum the pooled screen dilutes (lineage-/genotype-/fusion-restricted
+    — the KIT/GIST, ABL1/BCR-ABL, CD79B/BCR-signalling pattern). The resolver is CORRECT given the data;
+    this caveat flags the DATA's scope so the reasoner treats the negative as a LOW-CONFIDENCE measurement
+    limitation, not evidence against the target. VERDICT-INERT (prompt-only; the gate's gof/biology-axis
+    downgrades own any verdict move). Fail-closed: empty block on any failure."""
+    try:
+        from tp_gates import _verdict_token
+
+        dep = _verdict_token((sub_results.get("dependency") or {}).get("verdict"))
+        gen = _verdict_token((sub_results.get("genomic_alteration") or {}).get("verdict"))
+    except Exception:  # noqa: BLE001
+        return []
+    _DEP_NEG = {"non_dependent", "non_dependent_paralog_buffered", "discordant"}
+    _GENOMIC_CONTEXT = {
+        "confirmed_driver",
+        "multi_class_driver",
+        "confirmed_lof_driver",
+        "multi_class_lof_driver",
+        "biomarker_stratified_dependency",
+        "moderate_biomarker_dependency",
+    }
+    if dep not in _DEP_NEG or gen not in _GENOMIC_CONTEXT:
+        return []
+    return [
+        "### Measurement-applicability caveat (pooled-screen scope — do NOT read as a target-negative)",
+        f"The dependency axis reads `{dep}` from POOLED pan-cancer CRISPR/RNAi, but genomic_alteration = "
+        f"`{gen}` establishes the target as an oncogenic driver/biomarker. A pooled screen AVERAGES across "
+        "lineages/genotypes and DILUTES a context-restricted dependency (lineage-, mutation-, or "
+        "fusion-conditional — e.g. KIT in GIST, BCR-ABL1 in CML). Treat the negative as a LOW-CONFIDENCE "
+        "MEASUREMENT-SCOPE limitation (the pooled read is on the wrong stratum), NOT as evidence the target "
+        "is dispensable. Do NOT weight the pooled `non_dependent` as an argument against the target; the "
+        "context-restricted dependency it under-samples may be real.",
+        "",
+    ]
+
+
 def _build_user_prompt(
     target: str,
     indication: str,
@@ -932,6 +972,7 @@ def _build_user_prompt(
             lines.append(f"- **{short}** ({r['skill_dir']}): `{verdict_str}` (driving rule: {driving_rule})")
     lines.append("")
     lines.extend(_render_reconciled_block(sub_results))
+    lines.extend(_render_measurement_applicability_block(sub_results))
     _ke_block = _render_subskill_key_evidence(sub_results)
     if _ke_block:
         lines.append(_ke_block)

@@ -142,3 +142,36 @@ def test_tool_schema_requests_citations_but_keeps_them_optional():
     assert "[brackets]" in props["tension_analysis"]["description"]
     # the audit-critical enums are unchanged
     assert props["overall_recommendation"]["enum"] == ["nominate", "hold", "veto", "insufficient_evidence"]
+
+
+def test_measurement_applicability_caveat_dependency_under_sampling():
+    """Class-B caveat: a pooled non_dependent read + a co-present genomic DRIVER → a verdict-INERT
+    'measurement-scope' caveat (KIT/GIST, ABL1 pattern), so the LLM does not read the pooled negative as a
+    target-negative. Silent when there's no driver context (a real negative) or the target IS dependent."""
+    fires = {
+        "dependency": {"verdict": ("non_dependent", "r")},
+        "genomic_alteration": {"verdict": ("multi_class_driver", "r")},
+    }
+    block = "\n".join(tp._render_measurement_applicability_block(fires))
+    assert "Measurement-applicability caveat" in block and "do NOT read as a target-negative" in block
+    assert "non_dependent" in block and "multi_class_driver" in block
+    # no driver context (missense-only) → a real negative, no caveat
+    assert (
+        tp._render_measurement_applicability_block(
+            {
+                "dependency": {"verdict": ("non_dependent", "r")},
+                "genomic_alteration": {"verdict": ("missense_dominant_pattern", "r")},
+            }
+        )
+        == []
+    )
+    # a DEPENDENT target → no caveat
+    assert (
+        tp._render_measurement_applicability_block(
+            {
+                "dependency": {"verdict": ("concordant_dependent", "r")},
+                "genomic_alteration": {"verdict": ("confirmed_driver", "r")},
+            }
+        )
+        == []
+    )
