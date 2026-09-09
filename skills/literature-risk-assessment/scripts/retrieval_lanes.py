@@ -191,14 +191,37 @@ def _ot_floor_pmids(target: str, indication: str, per_cat: int, axis_terms: str 
         return []
 
 
+def _europepmc_pmids(query: str, *, retmax: int) -> list:
+    """Europe PMC lane (best-effort): numeric PMIDs for a query. Reuses Stack A's shared `_search` REST
+    wrapper (result_type='lite' → pmid+title). Complements PubMed abstract-only recall with EPMC's
+    full-text + preprint index; only MED-sourced records carry a numeric PMID (NCBI-efetch-able), so
+    preprint/PPR ids are dropped. HAS_ABSTRACT:Y keeps the hit graded on real abstract text."""
+    try:
+        from _skills_common.literature_retrieval import _search
+
+        data = _search(f"{query} AND (HAS_ABSTRACT:Y)", page_size=retmax, result_type="lite", timeout=30.0)
+        out = []
+        for r in ((data or {}).get("resultList") or {}).get("result") or []:
+            pmid = str(r.get("pmid") or "")
+            if pmid.isdigit():
+                out.append(pmid)
+            if len(out) >= retmax:
+                break
+        return out
+    except Exception:  # noqa: BLE001 — best-effort; EPMC outage / import failure contributes nothing
+        return []
+
+
 def _retrieve_pmids(
     target: str, disease_terms: str, axis: str, *, per_cat: int, mindate: str, maxdate: str, indication: str = ""
 ) -> list:
-    """Round-robin union of THREE lanes, each submitting TWO engine-aware query ANGLES (union'd).
+    """Round-robin union of FOUR lanes, each submitting engine-aware query ANGLES (union'd).
 
     - entity lane (PubTator): tight (axis terms) + broad (recall). Entity-normalized; never gets MeSH.
     - OT-floor lane: pinned/offline reproducible floor, axis-re-ranked.
     - keyword lane (E-utilities): tight + MeSH-anchored disease (else broad). Complementary to the entity lane.
+    - Europe PMC lane: tight + broad (NO MeSH — [MeSH Terms] is PubMed syntax, breaks EPMC); full-text +
+      preprint index complements PubMed abstract-only recall.
     All lanes best-effort. Query/dedup/interleave logic is pure and unit-tested."""
     import entity_search as es
     import pubmed_search as ps
@@ -227,11 +250,16 @@ def _retrieve_pmids(
     for q in _keyword_angles(target, disease_terms, axis, mesh, disease_scoped=disease_scoped):
         kw = _dedup(kw + ps._esearch(q, retmax=per_cat, timeout_s=30.0, mindate=mindate, maxdate=maxdate))
 
-    return _interleave(list(pt), list(ot), list(kw))[:MAX_RETRIEVED]
+    # -- Europe PMC lane: tight + broad angles (no MeSH clause — that is PubMed-only syntax)
+    ep = []
+    for q in (_axis_query(target, disease_terms, axis), _axis_query(target, disease_terms, axis, broad=True)):
+        ep = _dedup(ep + _europepmc_pmids(q, retmax=per_cat))
+
+    return _interleave(list(pt), list(ot), list(kw), list(ep))[:MAX_RETRIEVED]
 
 
 # retrieval provenance label recorded in corpus_pin by both callers.
-RETRIEVAL_LABEL = "entity_pubtator+ot_literature_floor+keyword_eutils"
+RETRIEVAL_LABEL = "entity_pubtator+ot_literature_floor+keyword_eutils+europepmc"
 
 # ── Stage-2 relevance gate (PR-3): DETERMINISTIC on-axis / on-target precision filter ──────────────
 # The lanes maximize RECALL (three sources, tight+broad angles); this gate is the PRECISION lever —
