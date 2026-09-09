@@ -117,6 +117,54 @@ def _load_anchors(pkg_path):
     return {k: (v.get("verdict") if isinstance(v, dict) else None) for k, v in sv.items()}
 
 
+def _load_card_anchors(pkg_path):
+    """Card-derived anchors for the ENGINE-BLIND clinical/commercial dims (A5). The engine has no
+    sub_verdict for these, but the deterministic clinical-precedent (AACT) + competitor-landscape (OT)
+    cards ARE in the evidence-package (the same cards risk_rollup reads). Surface a compact summary as
+    the dimension's anchor so the literature read reconciles against — not silently diverges from — the
+    engine's clinical/commercial picture. Best-effort: absent card → no anchor for that dim."""
+    if not pkg_path or not Path(pkg_path).exists():
+        return {}
+    d = json.loads(Path(pkg_path).read_text())
+    cards = {c.get("card_id"): (c.get("summary") or {}) for c in d.get("cards", []) if c.get("card_id")}
+    out = {}
+    cp = cards.get("clinical-precedent")
+    if cp:
+        out["clinical"] = (
+            f"clinical-precedent: highest_clinical_stage={cp.get('highest_clinical_stage')}, "
+            f"notable_failures={bool(cp.get('notable_failures'))}, "
+            f"n_agents_engaging_target={cp.get('n_agents_engaging_target')}"
+        )
+    cl = cards.get("competitor-landscape")
+    if cl:
+        out["commercial"] = (
+            f"competitor-landscape: competitor_class={cl.get('competitor_class')}, "
+            f"n_competitor_programs={cl.get('n_competitor_programs')}, n_approved={cl.get('n_approved')}"
+        )
+    return out
+
+
+def _recency(abstracts, maxdate):
+    """PURE: year-distribution annotation of the retrieved corpus for a dimension — flags a dim resting
+    on STALE evidence (all pre-window) or thin coverage. `n_recent_5y` counts the last 5 years up to
+    maxdate. None when no abstract carries a year."""
+    years = sorted(a.year for a in abstracts if getattr(a, "year", None))
+    if not years:
+        return None
+    try:
+        cutoff = int(maxdate) - 4  # last 5 years inclusive of maxdate
+    except (TypeError, ValueError):
+        cutoff = years[-1] - 4
+    mid = years[len(years) // 2]
+    return {
+        "n_with_year": len(years),
+        "n_recent_5y": sum(1 for y in years if y >= cutoff),
+        "earliest_year": years[0],
+        "latest_year": years[-1],
+        "median_year": mid,
+    }
+
+
 def _build_prompt(dim, question, abstracts, anchor):
     L = [f"DIMENSION: {dim} — {question}"]
     if anchor:
@@ -188,6 +236,9 @@ def run(target, indication, pkg_path, mindate="2015", maxdate="2026", per_cat=6,
     mindate = mindate or "2015"
     maxdate = maxdate or "2026"
     anchors = _load_anchors(pkg_path)
+    # A5: card-derived anchors for the engine-BLIND clinical/commercial dims (clinical-precedent +
+    # competitor-landscape cards), so those dims reconcile against the engine's picture like the overlap dims.
+    card_anchors = _load_card_anchors(pkg_path)
     # Unified 3-lane retrieval (retrieval_lanes) — the SAME collision-immune + starvation-resistant path
     # ground_axis uses. Replaces the former single-lane ps.search_pubmed keyword search. Disease terms via
     # the shared 40-code crosswalk (resolve_disease_terms), not the retired crc/nsclc DISEASE_TERMS.
@@ -204,7 +255,9 @@ def run(target, indication, pkg_path, mindate="2015", maxdate="2026", per_cat=6,
             "retrieval": rl.RETRIEVAL_LABEL,
             "relevance_dropped": retr["dropped"],
         }
-        anchor = anchors.get(akey) if akey else None
+        # overlap dims anchor to a sub_verdict; the engine-blind clinical/commercial dims anchor to their
+        # deterministic card summary (A5); the rest are pure-literature.
+        anchor = anchors.get(akey) if akey else card_anchors.get(dim)
         if not abstracts:
             dims[dim] = {
                 "pillar": pillar,
@@ -223,7 +276,11 @@ def run(target, indication, pkg_path, mindate="2015", maxdate="2026", per_cat=6,
         # the majority-vote risk_level; the vote dispersion (recorded) is the per-run consistency signal.
         # n_samples==1 is byte-identical to the prior single-call behavior.
         samples = [_grade_dimension(dim, question, abstracts, anchor, rpmids, pillar) for _ in range(n_samples)]
-        dims[dim] = _vote_dimension(samples) if n_samples > 1 else samples[0]
+        entry = _vote_dimension(samples) if n_samples > 1 else samples[0]
+        rec = _recency(abstracts, maxdate)  # year-distribution annotation of the retrieved corpus (B-recency)
+        if rec:
+            entry["recency"] = rec
+        dims[dim] = entry
     return {
         "tier": "context",  # NOT a verdict/gate input
         "target": target,
