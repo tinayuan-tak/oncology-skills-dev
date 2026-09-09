@@ -491,3 +491,193 @@ indications:
       - MESH:D014604
     iter1_status: provisional
     notes: "Added 2026-09-01 for discovery-register coverage (distinct from SKCM cutaneous; TCGA-UVM). mesh_ids curated 2026-09-07 (NCBI MeSH: 'melanoma' -> D008545 + 'uveal neoplasms' -> D014604, the correct uveal-site + melanoma pair; supplementary 'melanoma, intraocular' -> cutaneous D000098943 deliberately excluded); efo_ids pending."
+  - canonical_code: ACC
+    display_name: Adrenocortical Carcinoma
+    strategic_bucket: Other
+    oncotree_code: ACC
+    tcga_studies: [TCGA-ACC]
+    gdc_project_ids: [TCGA-ACC]
+    depmap_lineage: Adrenal Gland
+    depmap_oncotree_lineage: Adrenal Gland
+    cptac_cohort: null
+    gtex_normal_tissue: Adrenal Gland
+    adj_normal_manifest: null
+    mesh_terms: [adrenocortical carcinoma, adrenal cortex neoplasms]
+    efo_ids: [MONDO_0006639]
+    mesh_ids:
+      - MESH:D018268
+    iter1_status: provisional
+    notes: "Added 2026-09-09 for discovery-register + TCGA-pancan browser coverage (catalog-browser accuracy review #558). oncotree_code uses the TCGA convention (matching KIRC precedent); efo_ids = OLS4-verified MONDO primaries; mesh_ids = NLM-verified descriptors."
+  - canonical_code: CHOL
+    display_name: Cholangiocarcinoma
+    strategic_bucket: GI-upper
+    oncotree_code: CHOL
+    tcga_studies: [TCGA-CHOL]
+    gdc_project_ids: [TCGA-CHOL]
+    depmap_lineage: Biliary Tract
+    depmap_oncotree_lineage: Biliary Tract
+    cptac_cohort: null
+    gtex_normal_tissue: null
+    adj_normal_manifest: null
+    mesh_terms: [cholangiocarcinoma, bile duct neoplasms]
+    efo_ids: [MONDO_0019087]
+    mesh_ids:
+      - MESH:D018281
+    iter1_status: provisional
+    notes: "Added 2026-09-09 for discovery-register + TCGA-pancan browser coverage (catalog-browser accuracy review #558). oncotree_code uses the TCGA convention (matching KIRC precedent); efo_ids = OLS4-verified MONDO primaries; mesh_ids = NLM-verified descriptors."
+  - canonical_code: KICH
+    display_name: Kidney Chromophobe
+    strategic_bucket: GU
+    oncotree_code: KICH
+    tcga_studies: [TCGA-KICH]
+    gdc_project_ids: [TCGA-KICH]
+    depmap_lineage: Kidney
+    depmap_oncotree_lineage: Kidney
+    cptac_cohort: null
+    gtex_normal_tissue: Kidney
+    adj_normal_manifest: null
+    mesh_terms: [carcinoma, renal cell, kidney neoplasms]
+    efo_ids: [MONDO_0017885]
+    mesh_ids:
+      - MESH:D002292
+      - MESH:D007680
+    iter1_status: provisional
+    notes: "Added 2026-09-09 for discovery-register + TCGA-pancan browser coverage (catalog-browser accuracy review #558). oncotree_code uses the TCGA convention (matching KIRC precedent); efo_ids = OLS4-verified MONDO primaries; mesh_ids = NLM-verified descriptors."
+  - canonical_code: KIRP
+    display_name: Kidney Renal Papillary Cell Carcinoma
+    strategic_bucket: GU
+    oncotree_code: KIRP
+    tcga_studies: [TCGA-KIRP]
+    gdc_project_ids: [TCGA-KIRP]
+    depmap_lineage: Kidney
+    depmap_oncotree_lineage: Kidney
+    cptac_cohort: null
+    gtex_normal_tissue: Kidney
+    adj_normal_manifest: null
+    mesh_terms: [carcinoma, renal cell, kidney neoplasms]
+    efo_ids: [MONDO_0017884]
+    mesh_ids:
+      - MESH:D002292
+      - MESH:D007680
+    iter1_status: provisional
+    notes: "Added 2026-09-09 for discovery-register + TCGA-pancan browser coverage (catalog-browser accuracy review #558). oncotree_code uses the TCGA convention (matching KIRC precedent); efo_ids = OLS4-verified MONDO primaries; mesh_ids = NLM-verified descriptors."
+  - canonical_code: PCPG
+    display_name: Pheochromocytoma and Paraganglioma
+    strategic_bucket: Other
+    oncotree_code: PCPG
+    tcga_studies: [TCGA-PCPG]
+    gdc_project_ids: [TCGA-PCPG]
+    depmap_lineage: Adrenal Gland
+    depmap_oncotree_lineage: Adrenal Gland
+    cptac_cohort: null
+    gtex_normal_tissue: Adrenal Gland
+    adj_normal_manifest: null
+    mesh_terms: [pheochromocytoma, paraganglioma]
+    efo_ids: [MONDO_0008233, MONDO_0000448]
+    mesh_ids:
+      - MESH:D010673
+      - MESH:D010235
+    iter1_status: provisional
+    notes: "Added 2026-09-09 for discovery-register + TCGA-pancan browser coverage (catalog-browser accuracy review #558). oncotree_code uses the TCGA convention (matching KIRC precedent); efo_ids = OLS4-verified MONDO primaries; mesh_ids = NLM-verified descriptors."
+  - canonical_code: SARC
+    display_name: Sarcoma
+    strategic_bucket: Other
+    oncotree_code: SARC
+    tcga_studies: [TCGA-SARC]
+    gdc_project_ids: [TCGA-SARC]
+    depmap_lineage: Soft Tissue
+    depmap_oncotree_lineage: Soft Tissue
+    cptac_cohort: null
+    gtex_normal_tissue: null
+    adj_normal_manifest: null
+    mesh_terms: [sarcoma]
+    efo_ids: [MONDO_0005089]
+    mesh_ids:
+      - MESH:D012509
+    iter1_status: provisional
+    notes: "Added 2026-09-09 for discovery-register + TCGA-pancan browser coverage (catalog-browser accuracy review #558). oncotree_code uses the TCGA convention (matching KIRC precedent); efo_ids = OLS4-verified MONDO primaries; mesh_ids = NLM-verified descriptors."
+  - canonical_code: TGCT
+    display_name: Testicular Germ Cell Tumors
+    strategic_bucket: GU
+    oncotree_code: TGCT
+    tcga_studies: [TCGA-TGCT]
+    gdc_project_ids: [TCGA-TGCT]
+    depmap_lineage: Testis
+    depmap_oncotree_lineage: Testis
+    cptac_cohort: null
+    gtex_normal_tissue: Testis
+    adj_normal_manifest: null
+    mesh_terms: [testicular neoplasms]
+    efo_ids: [MONDO_0010108]
+    mesh_ids:
+      - MESH:D013736
+    iter1_status: provisional
+    notes: "Added 2026-09-09 for discovery-register + TCGA-pancan browser coverage (catalog-browser accuracy review #558). oncotree_code uses the TCGA convention (matching KIRC precedent); efo_ids = OLS4-verified MONDO primaries; mesh_ids = NLM-verified descriptors."
+  - canonical_code: THCA
+    display_name: Thyroid Carcinoma
+    strategic_bucket: Other
+    oncotree_code: THCA
+    tcga_studies: [TCGA-THCA]
+    gdc_project_ids: [TCGA-THCA]
+    depmap_lineage: Thyroid
+    depmap_oncotree_lineage: Thyroid
+    cptac_cohort: null
+    gtex_normal_tissue: Thyroid
+    adj_normal_manifest: null
+    mesh_terms: [thyroid neoplasms]
+    efo_ids: [MONDO_0015075]
+    mesh_ids:
+      - MESH:D013964
+    iter1_status: provisional
+    notes: "Added 2026-09-09 for discovery-register + TCGA-pancan browser coverage (catalog-browser accuracy review #558). oncotree_code uses the TCGA convention (matching KIRC precedent); efo_ids = OLS4-verified MONDO primaries; mesh_ids = NLM-verified descriptors."
+  - canonical_code: THYM
+    display_name: Thymoma
+    strategic_bucket: Thoracic
+    oncotree_code: THYM
+    tcga_studies: [TCGA-THYM]
+    gdc_project_ids: [TCGA-THYM]
+    depmap_lineage: null
+    depmap_oncotree_lineage: null
+    cptac_cohort: null
+    gtex_normal_tissue: null
+    adj_normal_manifest: null
+    mesh_terms: [thymoma]
+    efo_ids: [MONDO_0006456]
+    mesh_ids:
+      - MESH:D013945
+    iter1_status: provisional
+    notes: "Added 2026-09-09 for discovery-register + TCGA-pancan browser coverage (catalog-browser accuracy review #558). oncotree_code uses the TCGA convention (matching KIRC precedent); efo_ids = OLS4-verified MONDO primaries; mesh_ids = NLM-verified descriptors. depmap_lineage null (no DepMap thymus lineage in 26Q1)."
+  - canonical_code: UCS
+    display_name: Uterine Carcinosarcoma
+    strategic_bucket: GYN
+    oncotree_code: UCS
+    tcga_studies: [TCGA-UCS]
+    gdc_project_ids: [TCGA-UCS]
+    depmap_lineage: Uterus
+    depmap_oncotree_lineage: Uterus
+    cptac_cohort: null
+    gtex_normal_tissue: Uterus
+    adj_normal_manifest: null
+    mesh_terms: [carcinosarcoma]
+    efo_ids: [MONDO_0006485]
+    mesh_ids:
+      - MESH:D002296
+    iter1_status: provisional
+    notes: "Added 2026-09-09 for discovery-register + TCGA-pancan browser coverage (catalog-browser accuracy review #558). oncotree_code uses the TCGA convention (matching KIRC precedent); efo_ids = OLS4-verified MONDO primaries; mesh_ids = NLM-verified descriptors."
+  - canonical_code: MESO
+    display_name: Mesothelioma
+    strategic_bucket: Thoracic
+    oncotree_code: MESO
+    tcga_studies: [TCGA-MESO]
+    gdc_project_ids: [TCGA-MESO]
+    depmap_lineage: Pleura
+    depmap_oncotree_lineage: Pleura
+    cptac_cohort: null
+    gtex_normal_tissue: null
+    adj_normal_manifest: null
+    mesh_terms: [mesothelioma]
+    efo_ids: [MONDO_0005065, MONDO_0003308]
+    mesh_ids:
+      - MESH:D008654
+    iter1_status: provisional
+    notes: "Added 2026-09-09 for discovery-register + TCGA-pancan browser coverage (catalog-browser accuracy review #558). oncotree_code uses the TCGA convention (matching KIRC precedent); efo_ids = OLS4-verified MONDO primaries; mesh_ids = NLM-verified descriptors."
