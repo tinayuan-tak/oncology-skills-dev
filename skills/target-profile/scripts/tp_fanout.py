@@ -136,6 +136,20 @@ def _reconstruct_decision(skill_dir_name, cards, fired, verdict_pair, target, in
             headline = hl_fn(cards, fired, verdict_pair, **kwargs) or {}
         except Exception:  # noqa: BLE001 — headline recompute failed (e.g. missing cards on a gateless skill)
             headline = {}
+    # Attach evidence_capsules exactly as the standalone dispatcher does (dispatcher.py: after the
+    # headline hook, CENTRALLY — not inside the hook). The fan-out only calls the `_headline` hook, so
+    # without this the reconstructed headline has NO capsules → build_evidence_graph reads caps={} →
+    # every card's key_evidence (effect / n / significance / top_strata / raw data rows) AND its typed
+    # reference-frame interpretation rulers come back empty, because _build_key_evidence keys all of
+    # them off the capsule (measurement_type + values live on the capsule, not the card). This restores
+    # the composed drill-downs to standalone parity. VERDICT-INERT / display-only / best-effort.
+    if isinstance(headline, dict):
+        try:
+            from _skills_common.evidence_capsule import emit_capsules
+
+            headline.setdefault("evidence_capsules", emit_capsules(cards, indication))
+        except Exception:  # noqa: BLE001 — verdict-inert projection; never break the fan-out
+            pass
     return {
         "skill": skill_dir_name,
         "target": target,

@@ -100,6 +100,22 @@ def test_carry_is_verdict_inert(kras):
     assert len(kras) == len(TP.SUB_SKILLS)
 
 
+# ── capsules flow into composed key_evidence + interpretation rulers (parity with standalone) ────────
+def test_capsules_flow_into_composed_key_evidence(kras):
+    """Regression: _reconstruct_decision must attach evidence_capsules to the reconstructed headline
+    exactly as the standalone dispatcher does. Without it build_evidence_graph reads caps={} and every
+    card's key_evidence (effect / n / significance / top_strata / raw data rows) AND its typed
+    reference-frame interpretation rulers come back EMPTY in composition — though they populate
+    standalone (capsules carry measurement_type + the gauged values). Display-only / verdict-inert."""
+    graphed = {s: _graph_of(kras, s) for s in kras if _graph_of(kras, s)}
+    with_ke = sum(1 for eg in graphed.values() for c in eg["cards"] if c.get("key_evidence"))
+    assert with_ke >= 10, f"composed cards carry key_evidence on too few cards ({with_ke}) — capsules not attached?"
+    # genomic reaches standalone parity: ≥1 card with a typed reference-frame interpretation ruler
+    g = _graph_of(kras, "genomic_alteration")
+    interp = [c for c in g["cards"] if (c.get("key_evidence") or {}).get("interpretation")]
+    assert interp, "genomic composed graph has no reference-frame interpretation rulers — capsule gap"
+
+
 # ── the _headline loader hook (mirrors _load_sub_skill_facet_fn) ─────────────────────────────────────
 def test_headline_loader_hook():
     assert callable(TP._load_sub_skill_headline_fn("tumor-presence"))
