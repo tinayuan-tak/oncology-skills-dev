@@ -63,8 +63,24 @@ Dangerous false-positives to keep pinned: ADAR1, CLDN18.2_LRRC15, EGFR_cMET_VEGF
 - **Tool fix (this PR):** `eval/backtest_per_axis.py` family-mapper bug — the `window` token in the dependency
   pattern mis-mapped surface descriptors (`B2_window_E2_density`, `F_restricted_GI_window`) to dependency; surface
   is now matched FIRST. + 4 HGNC→ref-key aliases (ERBB2→HER2, MS4A1→CD20, TNFRSF17→BCMA, TACSTD2→TROP2).
-- **Status:** Phases 1-3 DONE. Phase 4 (remainder ~23) would confirm the pattern (optional). The GO-on-surface
-  gate-policy question + NOX1 veto re-check are OPEN (user call).
+- **Phase 4 DONE (remainder/mixed cohort, 18 single-gene targets scored; 8 multi-gene/non-gene compounds —
+  CLDN18.2_LRRC15, CTHRC1_PDL1, EGFR_cMET_VEGF, KAT2A_B, MLLT1_3, POSTN_PDL1, panRAF_MEK_FAK, CA19_9 — not
+  single-target runnable; SCD1 timed out, 1 skip):** axis-attribution match = **0.5 (9/18)** — higher because
+  this cohort is pan-essential/dependency-heavy. MATCHES = the pan-essential DECLINED negatives (CHEK1/KIF11/
+  PLK1/RBM39/WEE1/MMP9 correctly veto on `dependency`; AURKA/MCL1 correctly hold on `safety`) — right call, right
+  axis. MISMATCHES = immune/IO/genomic theses (ADAR/IDO1/NLRP3/RIPK1/EGFR/FLT3/WRN decided on safety or dependency,
+  not their actual axis).
+- **★ UNIFIED 4-PHASE RESULT: axis-attribution match ≈ 0.26 (11/43 scored)** — Phase 2 (dependency/SL) 0.18,
+  Phase 3 (surface/biologics) 0.0, Phase 4 (mixed) 0.50. **The composed gate's decision axis is systematically
+  `dependency`+`safety`; the surface / immune-TME / genomic-context theses MODULATE (downgrade vetoes, get
+  suppressed) but rarely DECIDE.** Calibrated-conservative: strongest on pan-essential negatives (correct
+  true-negatives on the right axis), avoids hard-veto false-negatives (downgrades/suppressors/context-escape), but
+  lands HOLD-not-GO for validated targets whose thesis lives on a non-dependency/non-safety axis. This is the
+  attribution bias the per-axis backtest (eval/backtest_per_axis.py) was built to quantify — not a defect, a
+  calibration/gate-precedence property.
+- **Status:** Takeda ONC composed backtest COMPLETE (phases 1-4). OPEN (user call, verdict-moving): GO-on-surface
+  gate-policy (should surface/immune theses be able to DECIDE a GO, not just downgrade?); context-conditional-
+  safety suppressor (CASE-015); NOX1 advanced→veto re-check; SCD1 re-run (lone timeout).
 
 ### CASE-015 — Takeda ONC composed backtest: the nomination is SAFETY-axis-dominated (per-axis attribution) — mostly DEFENSIBLE + a per-axis backtest tool (2026-09-08)
 - **Surfaced by:** the Takeda ONC backtest (c). Re-ran the composed target-profile (`--verdict-only`, 90s/target
