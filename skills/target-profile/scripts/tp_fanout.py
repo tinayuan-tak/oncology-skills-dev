@@ -103,7 +103,15 @@ def _load_sub_skill_headline_fn(skill_dir_name: str) -> Any:
     if module is None:
         _load_sub_skill_verdict_fn(skill_dir_name)  # populate the module cache
         module = _SUBSKILL_MODULE_CACHE.get(skill_dir_name)
-    return getattr(module, "_headline", None) if module is not None else None
+    # Accept the alt hook name _headline_fn too: genomic-alteration-profile names its headline hook
+    # _headline_fn (passed explicitly to the standalone dispatcher via headline_fn=), so a bare
+    # getattr("_headline") missed it — the composed reconstruction got an EMPTY headline → no claim_vector
+    # → the literature synthesis mis-tagged every genomic axis omics_unavailable → overall insufficient
+    # (genomic literature discordance was UNMEASURABLE composed, though it works standalone). Fall back to
+    # _headline_fn so the composed evidence-graph + per-subskill lit lane get genomic's claim_vector.
+    if module is None:
+        return None
+    return getattr(module, "_headline", None) or getattr(module, "_headline_fn", None)
 
 
 def _reconstruct_decision(skill_dir_name, cards, fired, verdict_pair, target, indication) -> dict:

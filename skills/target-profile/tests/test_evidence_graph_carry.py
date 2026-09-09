@@ -103,5 +103,9 @@ def test_carry_is_verdict_inert(kras):
 # ── the _headline loader hook (mirrors _load_sub_skill_facet_fn) ─────────────────────────────────────
 def test_headline_loader_hook():
     assert callable(TP._load_sub_skill_headline_fn("tumor-presence"))
-    # genomic-alteration-profile has a _synthesis_facet but no _headline → None (graceful: partial graph)
-    assert TP._load_sub_skill_headline_fn("genomic-alteration-profile") is None
+    # genomic-alteration-profile names its hook `_headline_fn` (not `_headline`); the loader must still
+    # find it (fallback), else its claim_vector is starved in composition and its literature synthesis
+    # mis-tags every axis omics_unavailable -> `insufficient` (was previously asserted None, which
+    # enshrined that bug — genomic omics<->literature discordance was unmeasurable composed).
+    _g = TP._load_sub_skill_headline_fn("genomic-alteration-profile")
+    assert callable(_g) and _g.__name__ in ("_headline", "_headline_fn")
