@@ -133,7 +133,55 @@ def _build_prompt(dim, question, abstracts, anchor):
     return "\n".join(L)
 
 
-def run(target, indication, pkg_path, mindate="2015", maxdate="2026", per_cat=6):
+def _grade_dimension(dim, question, abstracts, anchor, rpmids, pillar):
+    """ONE grounded grade of a dimension: synthesize over the retrieved abstracts, apply the containment
+    guard, and apply the confabulation downgrade (a LOW/MED/HIGH backed by ZERO surviving citations is
+    ungrounded by the cite-or-abstain contract → not_assessed, original grade preserved). Returns the
+    per-dimension entry dict. Pure of voting concerns — the self-consistency layer calls it N times."""
+    out = synthesize_structured(SYSTEM, _build_prompt(dim, question, abstracts, anchor), "risk_dimension", TOOL_SCHEMA)
+    good, bad = _contain(_uv(out.get("cited_pmids")), rpmids)  # containment guard
+    risk = _uv(out.get("risk_level"))
+    entry = {
+        "pillar": pillar,
+        "risk_level": risk,
+        "justification": _uv(out.get("justification")),
+        "interpretation": _uv(out.get("interpretation")),
+        "cited_pmids": good,
+        "confabulated_dropped": bad,
+        "contradicts_deterministic": _uv(out.get("contradicts_deterministic")),
+        "anchor_verdict": anchor,
+        "n_retrieved": len(abstracts),
+    }
+    if risk in ("LOW", "MEDIUM", "HIGH") and not good:
+        entry["risk_level"] = "not_assessed"
+        entry["risk_level_pre_containment"] = risk
+        entry["downgraded_reason"] = (
+            "graded_without_surviving_citations: all cited PMIDs were confabulated or none were cited"
+        )
+    return entry
+
+
+# risk ordinal for vote tie-breaking — a tie resolves to the MORE CONSERVATIVE (higher-risk) level, so
+# self-consistency never averages a split HIGH/LOW down to the reassuring side.
+_RISK_ORDER = {"not_assessed": 0, "LOW": 1, "MEDIUM": 2, "HIGH": 3}
+
+
+def _vote_dimension(samples):
+    """Majority-vote N per-dimension grades (post-containment `risk_level`). The modal level wins; ties
+    break toward the higher risk. The representative entry is the FIRST sample at the winning level (so
+    its justification/interpretation/citations are internally consistent with the reported grade). The
+    vote dispersion is recorded as `vote_distribution` + `n_samples` — the per-run consistency artifact."""
+    from collections import Counter
+
+    counts = Counter(s["risk_level"] for s in samples)
+    winner = max(counts, key=lambda lv: (counts[lv], _RISK_ORDER.get(lv, 0)))
+    rep = dict(next(s for s in samples if s["risk_level"] == winner))
+    rep["vote_distribution"] = dict(counts)
+    rep["n_samples"] = len(samples)
+    return rep
+
+
+def run(target, indication, pkg_path, mindate="2015", maxdate="2026", per_cat=6, n_samples=1):
     # Default-bound the corpus window: an UNBOUNDED (None) date range against PubMed's relevance
     # sort makes the retrieved corpus — and therefore the read — non-reproducible run-to-run, which
     # defeats the corpus_pin reproducibility artifact. Mirror ground_axis's 2015–2026 default.
@@ -170,33 +218,12 @@ def run(target, indication, pkg_path, mindate="2015", maxdate="2026", per_cat=6)
                 "n_retrieved": 0,
             }
             continue
-        out = synthesize_structured(
-            SYSTEM, _build_prompt(dim, question, abstracts, anchor), "risk_dimension", TOOL_SCHEMA
-        )
-        good, bad = _contain(_uv(out.get("cited_pmids")), rpmids)  # containment guard
-        risk = _uv(out.get("risk_level"))
-        entry = {
-            "pillar": pillar,
-            "risk_level": risk,
-            "justification": _uv(out.get("justification")),
-            "interpretation": _uv(out.get("interpretation")),
-            "cited_pmids": good,
-            "confabulated_dropped": bad,
-            "contradicts_deterministic": _uv(out.get("contradicts_deterministic")),
-            "anchor_verdict": anchor,
-            "n_retrieved": len(abstracts),
-        }
-        # Confabulation downgrade: a LOW/MEDIUM/HIGH grade with ZERO surviving (retrieved) citations
-        # is ungrounded by this skill's own cite-or-abstain contract — its only support was
-        # hallucinated (all cites dropped) or absent. Downgrade to not_assessed and record the
-        # original grade honestly, rather than shipping a risk level backed by nothing.
-        if risk in ("LOW", "MEDIUM", "HIGH") and not good:
-            entry["risk_level"] = "not_assessed"
-            entry["risk_level_pre_containment"] = risk
-            entry["downgraded_reason"] = (
-                "graded_without_surviving_citations: all cited PMIDs were confabulated or none were cited"
-            )
-        dims[dim] = entry
+        # Self-consistency: temperature is UNPINNABLE on the framework model, so a single sample carries
+        # the model's sampling noise. With n_samples>1 we grade the SAME grounded corpus N times and take
+        # the majority-vote risk_level; the vote dispersion (recorded) is the per-run consistency signal.
+        # n_samples==1 is byte-identical to the prior single-call behavior.
+        samples = [_grade_dimension(dim, question, abstracts, anchor, rpmids, pillar) for _ in range(n_samples)]
+        dims[dim] = _vote_dimension(samples) if n_samples > 1 else samples[0]
     return {
         "tier": "context",  # NOT a verdict/gate input
         "target": target,
@@ -214,6 +241,7 @@ def run(target, indication, pkg_path, mindate="2015", maxdate="2026", per_cat=6)
                 "abstracts_per_category": per_cat,
                 "retrieved": corpus,
             },
+            "n_samples": n_samples,  # self-consistency sampling depth (1 = single grade, no vote)
             "anchored_from_evidence_package": bool(pkg_path),
             "citable_in_nominations": False,  # exploratory-grade (RISK_ASSESSMENT_INTEGRATION.md)
         },
@@ -228,9 +256,16 @@ def main(argv=None) -> int:
     ap.add_argument("--mindate", default="2015", help="publication mindate (YYYY) for a pinnable corpus")
     ap.add_argument("--maxdate", default="2026", help="publication maxdate (YYYY) for a pinnable corpus")
     ap.add_argument("--per-cat", type=int, default=6)
+    ap.add_argument(
+        "--samples",
+        type=int,
+        default=1,
+        help="self-consistency: grade each dimension N times and majority-vote the risk_level "
+        "(temperature is unpinnable on the framework model; default 1 = single grade, no vote)",
+    )
     ap.add_argument("--out", default=None)
     a = ap.parse_args(argv)
-    res = run(a.target, a.indication, a.evidence_package, a.mindate, a.maxdate, a.per_cat)
+    res = run(a.target, a.indication, a.evidence_package, a.mindate, a.maxdate, a.per_cat, n_samples=a.samples)
     out = Path(a.out) if a.out else Path.cwd()
     out.mkdir(parents=True, exist_ok=True)
     dest = out / "risk_assessment.json"
