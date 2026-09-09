@@ -113,6 +113,26 @@ def test_secondary_figures_collapse_into_details():
     assert "more figure(s)" in h
 
 
+def test_characterization_surfaces_nearest_analogs():
+    """Ph3b: the archetype 'what is this LIKE' anchor — nearest_analogs (self-anchor [0] skipped)
+    render in the header characterization."""
+    from _skills_common.report_render.ir import _target_characterization
+
+    nom = make_nomination()
+    nom["target_report"]["archetype"] = {
+        "phenotype_mixture": {"snv_driver": 1.0},
+        "nearest_analogs": [
+            {"target": "KRAS", "indication": "COADREAD", "archetype_label": "snv_driver"},  # self-anchor
+            {"target": "BRAF", "indication": "COADREAD", "archetype_label": "snv_driver"},
+            {"target": "CDK4", "indication": "LUAD", "archetype_label": "amp_driver"},
+        ],
+    }
+    c = _target_characterization(nom["target_report"])
+    assert [(a["target"], a["indication"]) for a in c["analogs"]] == [("BRAF", "COADREAD"), ("CDK4", "LUAD")]
+    h = render_report(nom, preset="full", backend="html")
+    assert "nearest analogs" in h and "BRAF" in h and "CDK4" in h
+
+
 def test_consolidation_design_tokens_present():
     """Dashboard consolidation Phase 2: the single design system carries the CVD-safe diverging pair
     (--pos/--neg), the hold tint (--t-hold), and the omics-vs-literature FACT axis (--det/--lit) —

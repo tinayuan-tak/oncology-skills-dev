@@ -97,6 +97,7 @@ h3 { font-size:14px; font-weight:650; margin:0 0 6px; }
              border:1px solid var(--border); border-radius:999px; background:var(--surface); font-size:13px; }
 .char-chip .w { color:var(--muted); font-variant-numeric:tabular-nums; font-size:12px; }
 .char-chip.lead { background:var(--t-blue); border-color:transparent; font-weight:600; }
+.char-analogs { font-size:12px; color:var(--muted); margin-top:4px; } .char-analogs .w { color:var(--muted); }
 ul.chips { margin:8px 0; padding-left:20px; } ul.chips li { margin:3px 0; }
 table { border-collapse:collapse; width:100%; margin:10px 0; font-size:14px; }
 th,td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--hair); vertical-align:top; }
@@ -415,9 +416,18 @@ class HtmlBackend:
                 f"<span class='w'>{int(round((m.get('weight') or 0) * 100))}%</span></span>"
                 for i, m in enumerate(mix)
             )
+            analogs = char.get("analogs") or []
+            analog_html = ""
+            if analogs:
+                al = " · ".join(
+                    f"{_esc(a.get('target'))}"
+                    + (f" <span class='w'>({_esc(a.get('indication'))})</span>" if a.get("indication") else "")
+                    for a in analogs
+                )
+                analog_html = f"<div class='char-analogs'>nearest analogs: {al}</div>"
             out.append(
                 "<div class='char'><div class='lbl'>Target characterization "
-                "(archetype membership vs. reference atlas)</div>" + chips + "</div>"
+                "(archetype membership vs. reference atlas)</div>" + chips + analog_html + "</div>"
             )
         if p.get("thesis"):
             out.append(

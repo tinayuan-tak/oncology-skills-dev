@@ -1021,10 +1021,20 @@ def _target_characterization(tr: dict) -> Optional[dict]:
     )[:3]
     if not items:
         return None
+    # nearest archetype analogs (the "what is this LIKE" anchor): nearest_analogs is distance-sorted
+    # with the target's own (target, indication) as the self-anchor at [0] — skip it, surface the next
+    # few real analogs. Verdict-inert context, like the mixture.
+    analogs = []
+    for a in (arche.get("nearest_analogs") or [])[1:4]:
+        if isinstance(a, dict) and a.get("target"):
+            analogs.append(
+                {"target": a.get("target"), "indication": a.get("indication"), "archetype": a.get("archetype_label")}
+            )
     return {
         "mixture": [
             {"label": _PHENOTYPE_LABEL.get(k, str(k).replace("_", " ")), "weight": round(float(v), 2)} for k, v in items
-        ]
+        ],
+        "analogs": analogs,
     }
 
 
