@@ -54140,37 +54140,6 @@
    ]
   }
  },
- "synthetic_lethal_partners": {
-  "enumeration": "coemission",
-  "rule_ids": [
-   "sl-experimental-partner-context-conditional",
-   "sl-computational-partner-informational",
-   "sl-no-partner-neutral",
-   "sl-data-unavailable-insufficient"
-  ],
-  "table": {
-   "": [
-    "insufficient",
-    null
-   ],
-   "sl-computational-partner-informational": [
-    "has_computational_sl_partner",
-    "sl-computational-partner-informational"
-   ],
-   "sl-data-unavailable-insufficient": [
-    "data_unavailable",
-    "sl-data-unavailable-insufficient"
-   ],
-   "sl-experimental-partner-context-conditional": [
-    "has_experimental_sl_partner",
-    "sl-experimental-partner-context-conditional"
-   ],
-   "sl-no-partner-neutral": [
-    "no_curated_sl_partner",
-    "sl-no-partner-neutral"
-   ]
-  }
- },
  "tractability_small_molecule": {
   "enumeration": "coemission",
   "rule_ids": [
