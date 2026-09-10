@@ -68,6 +68,9 @@ outputs:
                                                   # (the tumor-selectivity selective_with_normal_liability veto arm)
     - n_adult_tissues_above_abundance_floor       # # adult tissues with median_log2_abundance >= abundance_floor_log2 (Floor-C count)
     - abundance_floor_log2                        # the global per-tissue abundance floor used (log2 MaxLFQ; cached p75)
+    - tphp_vital_organ_liability_class            # T0-3 SAFETY view — is the target abundant in ANY dose-limiting organ (via TPHP_CROSSWALK)
+    - n_vital_organs_above_abundance_floor        # # canonical vital organs with representative-tissue median_log2_abundance >= floor
+    - tphp_vital_organ_abundance                  # list of {organ, tissue, median_log2_abundance, detected, above_abundance_floor}, abundance-sorted
     - n_tissues_detected                          # distinct tissues (adult + fetal) with a quantified value
     - n_adult_tissues_detected                    # distinct ADULT tissues detected (drives the breadth class)
     - n_fetal_groups_detected                     # distinct FETAL germ-layer groups detected (0-4)
@@ -98,6 +101,12 @@ outputs:
                                                   # detects-broadly-at-trace correction (CEACAM5: many tissues detected, few above
                                                   # floor). Does NOT fire the veto.
       - restricted                                # narrow footprint (detected in <35 adult tissues). Does NOT fire the veto.
+      - data_unavailable                          # gene absent / couldn't read — coverage gap, NOT a favorable window.
+    tphp_vital_organ_liability_class:             # T0-3 SAFETY view — dose-limiting-organ PROTEIN presence, orthogonal to breadth
+      - vital_organ_abundant                      # ABUNDANT (>= abundance_floor_log2) in >=1 canonical vital organ — a therapeutic-
+                                                  # window liability the breadth class misses (e.g. CEACAM5: narrow breadth, abundant in liver/adrenal).
+      - vital_organ_low                           # detected in >=1 vital organ but NONE at/above the floor (trace-only).
+      - no_vital_organ_signal                     # not detected in any canonical vital organ in the TPHP panel.
       - data_unavailable                          # gene absent / couldn't read — coverage gap, NOT a favorable window.
     fetal_vs_adult_flag:
       - adult_and_fetal                           # detected in >=1 adult AND >=1 fetal group
