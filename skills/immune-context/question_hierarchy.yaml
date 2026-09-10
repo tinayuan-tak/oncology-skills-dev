@@ -9,6 +9,7 @@ sub_groups:
     measurement_types:
     - immune_context
     - spatial_til_fraction
+    - spatial_colocalization
   - id: ici_response
     measurement_types:
     - ici_response_expression

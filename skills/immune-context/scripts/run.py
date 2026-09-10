@@ -53,7 +53,7 @@ _IMMUNE_VALUE_TIERS = {
 }
 
 SKILL_NAME = "immune-context"
-SKILL_VERSION = "1.6.1"  # 1.6.1 (2026-09-04): VERDICT-INERT display follow-ups — Saltz median_number_of_clusters spatial-aggregation hint (clustered-vs-dispersed TIL, a first spatial proxy the CD8 FRACTION lacks) into immune_provenance; SURFACE the immune-context card's antigen-CONDITIONED join (antigen_conditioned_call / cd8_high_minus_low / antigen_high_immune_context_class — the ONLY target-dependent display fields; addresses the cohort-median heterogeneity blind spot = are the antigen-HIGH patients T-cell-POORER = effector escape) via _cf() defensive getter; data_unavailable when the join is thin. Verdict spine byte-stable. NOTE: the ici-response-imvigor210 display card MISSES a legacy-symbol target (NECTIN4->PVRL4 in the genentech eSet) — a data-product resolver gap, verdict-inert (filed, cross-repo).   # 1.6.0 (2026-09-04): --literature lane (make_literature_fn(IMMUNE_CONTEXT)) + VERDICT-INERT surfacing of the bulk-CD8-fraction annotation-INFLATION (immune_confirmation_caveat: a positive bulk CIBERSORT read resting on a RELATIVE/non-spatial/function-blind fraction w/o spatial or orthogonal-absolute-TIL confirmation — tiers bulk_fraction_til_discordant / bulk_fraction_spatially_unconfirmed / orthogonally_corroborated[false-demote guard]; spatial_localization_caveat inflamed-vs-excluded-vs-desert; immune_provenance quorum) + IMMUNE_CONTEXT thesis + polarity_note (was NONE). Spine byte-stable (gateless; verdict = direct read of immune_context_class).   # 1.4.0 (2026-08-28): + tcga-til-fraction-saltz (absolute H&E-DL TIL corroborator, VERDICT-INERT).   # 1.3.0: capsule-driven narrator via generic engine.   # 1.2.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.   # 1.1.0: + canonical HEADLINE block (verdict + confidence + top tension) &
+SKILL_VERSION = "1.7.0"  # 1.7.0 (2026-09-10): T0-4 — wire spatial-tumor-normal-colocalization (GeoMx/Xenium/CosMx) into the IMMUNE spine. VERDICT-INERT: adds spatial_immune_phenotype (inflamed / excluded / spatial_immune_indeterminate) — the spatial resolution of the inflamed-vs-excluded TCE call the bulk CD8 FRACTION structurally cannot make (the exact gap _spatial_localization_caveat concedes); the spatial bite_tce rules are NOT in _RULE_TO_VERDICT so the gateless immune_context_verdict spine stays byte-stable. data_unavailable outside the ~6 coloc-covered indication families (degrades honestly). Clean three-way inflamed/excluded/DESERT needs an absolute-adjacency desert threshold in the analysis-methods classifier (fast-follow).   # 1.6.1 (2026-09-04): VERDICT-INERT display follow-ups — Saltz median_number_of_clusters spatial-aggregation hint (clustered-vs-dispersed TIL, a first spatial proxy the CD8 FRACTION lacks) into immune_provenance; SURFACE the immune-context card's antigen-CONDITIONED join (antigen_conditioned_call / cd8_high_minus_low / antigen_high_immune_context_class — the ONLY target-dependent display fields; addresses the cohort-median heterogeneity blind spot = are the antigen-HIGH patients T-cell-POORER = effector escape) via _cf() defensive getter; data_unavailable when the join is thin. Verdict spine byte-stable. NOTE: the ici-response-imvigor210 display card MISSES a legacy-symbol target (NECTIN4->PVRL4 in the genentech eSet) — a data-product resolver gap, verdict-inert (filed, cross-repo).   # 1.6.0 (2026-09-04): --literature lane (make_literature_fn(IMMUNE_CONTEXT)) + VERDICT-INERT surfacing of the bulk-CD8-fraction annotation-INFLATION (immune_confirmation_caveat: a positive bulk CIBERSORT read resting on a RELATIVE/non-spatial/function-blind fraction w/o spatial or orthogonal-absolute-TIL confirmation — tiers bulk_fraction_til_discordant / bulk_fraction_spatially_unconfirmed / orthogonally_corroborated[false-demote guard]; spatial_localization_caveat inflamed-vs-excluded-vs-desert; immune_provenance quorum) + IMMUNE_CONTEXT thesis + polarity_note (was NONE). Spine byte-stable (gateless; verdict = direct read of immune_context_class).   # 1.4.0 (2026-08-28): + tcga-til-fraction-saltz (absolute H&E-DL TIL corroborator, VERDICT-INERT).   # 1.3.0: capsule-driven narrator via generic engine.   # 1.2.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.   # 1.1.0: + canonical HEADLINE block (verdict + confidence + top tension) &
 # headline hero — a verdict-INERT projection over the effector-context
 # claim_vector / key_signals. Spine byte-stable (gateless; verdict unchanged).
 
@@ -70,6 +70,13 @@ CARDS = [
     "tcga-til-fraction-saltz",  # absolute H&E-DL TIL fraction (Saltz 2018) — VERDICT-INERT
     # corroborator of the CIBERSORT CD8 hot/cold call (morphology vs
     # RNA deconvolution, same TCGA participants); fires no rule.
+    "spatial-tumor-normal-colocalization",  # T0-4: GeoMx/Xenium/CosMx spatial co-localization — resolves the
+    # INFLAMED (immune adjacent to target-high malignant cells) vs IMMUNE-EXCLUDED (immune segregated to
+    # peritumoral stroma — a TCE liability) call the bulk CD8 FRACTION structurally cannot make (the exact
+    # gap _spatial_localization_caveat concedes). VERDICT-INERT: the spatial-immune bite_tce rules
+    # (surface-intrinsic.rules.yaml) are NOT in _RULE_TO_VERDICT, so the gateless immune_context_verdict
+    # spine stays byte-stable; surfaced as the spatial_immune_phenotype facet. data_unavailable outside the
+    # ~6 coloc-covered indication families (degrades honestly).
 ]
 
 QUESTION = (
@@ -315,18 +322,50 @@ def _immune_confirmation_caveat(headline: dict) -> "dict | None":
     return {"reason": reason, "detail": detail}
 
 
+# T0-4: map the spatial coloc card's malignant-cell-anchored class to the TCE-decisive spatial-immune
+# phenotype. inflamed = immune adjacent to target+ malignant cells (TCE-favourable); excluded = target+
+# tumour DEPLETED of immune neighbours (TCE liability). The clean three-way inflamed/excluded/DESERT call
+# needs an absolute-adjacency desert threshold in the analysis-methods classifier (fast-follow); until then
+# a target that is not immune-anchored (no_spatial_preference / stromal|endothelial|epithelium niche) is
+# reported as spatial_immune_indeterminate, NOT mislabelled desert. Target-DEPENDENT (anchored on target+
+# cells) but VERDICT-INERT.
+_SPATIAL_COLOC_TO_PHENOTYPE = {
+    "immune_niche_colocalized": "inflamed",
+    "immune_excluded": "excluded",
+}
+
+
+def _spatial_immune_phenotype(headline: dict) -> "str | None":
+    """inflamed / excluded / spatial_immune_indeterminate / data_unavailable — the spatial resolution of
+    the CD8 hot/cold call. None only when the coloc card is entirely absent (unmeasured indication)."""
+    cls = headline.get("spatial_coloc_class")
+    if cls in (None, "data_unavailable"):
+        return None
+    return _SPATIAL_COLOC_TO_PHENOTYPE.get(cls, "spatial_immune_indeterminate")
+
+
 def _spatial_localization_caveat(headline: dict) -> "str | None":
     """Names the inflamed-vs-excluded-vs-desert distinction a BULK CD8 fraction cannot make — surfaced on
-    every POSITIVE bulk read (the decisive TCE distinction). Target-independent; verdict-inert; None on the
+    every POSITIVE bulk read (the decisive TCE distinction). Where a spatial coloc product EXISTS for the
+    indication, spatial_immune_phenotype (T0-4) now RESOLVES the inflamed-vs-excluded call and the caveat
+    says so; otherwise it remains a documented gap. Target-independent framing; verdict-inert; None on the
     immune_cold / insufficient paths."""
     if headline.get("immune_context_verdict") not in _POSITIVE_IMMUNE:
         return None
+    pheno = _spatial_immune_phenotype(headline)
+    if pheno in ("inflamed", "excluded"):
+        return (
+            f"a bulk CD8 fraction cannot localise the infiltrate, but spatial co-localization "
+            f"(spatial_immune_phenotype) RESOLVES it here: the target-positive malignant cells are "
+            f"{'in an immune-rich niche — INFLAMED, TCE-favourable' if pheno == 'inflamed' else 'DEPLETED of immune neighbours — IMMUNE-EXCLUDED, a TCE liability (no effector T cells adjacent to redirect)'}."
+        )
     return (
         "a bulk CD8 fraction reports the SHARE of the leukocyte compartment, not the spatial "
         "LOCALIZATION: it cannot distinguish an INFLAMED tumour (CD8 in the malignant nest — "
         "TCE-favourable) from an IMMUNE-EXCLUDED tumour (CD8 trapped in peritumoral stroma / at the "
-        "invasive margin, not touching malignant cells — TCE-UNfavourable) from a DESERT. Resolving it "
-        "needs spatial / multiplex-IHC / pathology, not bulk deconvolution."
+        "invasive margin, not touching malignant cells — TCE-UNfavourable) from a DESERT. No spatial "
+        "co-localization product covers this indication; resolving it needs spatial / multiplex-IHC / "
+        "pathology, not bulk deconvolution."
     )
 
 
@@ -406,6 +445,17 @@ def _headline(cards, fired, verdict_pair):
         "antigen_conditioned_call": _cf(cards, "immune-context", "antigen_conditioned_call"),
         "cd8_high_minus_low": _cf(cards, "immune-context", "cd8_high_minus_low"),
         "antigen_high_immune_context_class": _cf(cards, "immune-context", "antigen_high_immune_context_class"),
+        # T0-4: spatial co-localization reads (GeoMx/Xenium/CosMx) — the target's malignant-cell
+        # neighbourhood pattern. VERDICT-INERT: these resolve the inflamed-vs-excluded call the bulk CD8
+        # fraction cannot (see spatial_immune_phenotype below), but fire no rule mapped in _RULE_TO_VERDICT.
+        # _cf so an absent card (indication with no coloc product) degrades to None, never aborts.
+        "spatial_coloc_class": _cf(cards, "spatial-tumor-normal-colocalization", "spatial_coloc_class"),
+        "spatial_immune_adjacency_fraction": _cf(
+            cards, "spatial-tumor-normal-colocalization", "immune_adjacency_fraction"
+        ),
+        "spatial_top_enriched_compartment": _cf(
+            cards, "spatial-tumor-normal-colocalization", "top_enriched_compartment"
+        ),
     }
     # coarse cross-modality agreement: do the H&E-DL TIL bin and the CIBERSORT CD8 hot/cold call point the
     # same way? None when either is unmeasured. Directional only (different scales).
@@ -439,12 +489,14 @@ def _headline(cards, fired, verdict_pair):
     # mechanism_confirmation_caveat analog). Computed BEFORE the headline_block so the spatial-unconfirmed
     # tier can feed the headline top_tension. Best-effort — a projection fault must never discard the spine.
     try:
+        hl["spatial_immune_phenotype"] = _spatial_immune_phenotype(hl)  # T0-4 (computed before the caveat reads it)
         hl["immune_confirmation_caveat"] = _immune_confirmation_caveat(hl)
         hl["spatial_localization_caveat"] = _spatial_localization_caveat(hl)
         hl["immune_provenance"] = _immune_provenance(hl)
     except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
         hl.setdefault("_enrichment_errors", {})["immune_confirmation"] = f"{type(exc).__name__}: {exc}"
         hl.setdefault("immune_confirmation_caveat", None)
+        hl.setdefault("spatial_immune_phenotype", None)
         hl.setdefault("spatial_localization_caveat", None)
         hl.setdefault("immune_provenance", None)
     # Canonical HEADLINE block (verdict + confidence + top tension) — the concise, consumer-facing
@@ -500,6 +552,12 @@ _SYNTHESIS_FACET_KEYS = (
     # != CD8 function) — the surface_confirmation_caveat / mechanism_confirmation_caveat analog.
     "immune_confirmation_caveat",
     "spatial_localization_caveat",
+    # T0-4 (VERDICT-INERT): spatial co-localization resolution of the inflamed-vs-excluded TCE call the
+    # bulk CD8 fraction cannot make. spatial_immune_phenotype ∈ inflamed/excluded/spatial_immune_indeterminate.
+    "spatial_immune_phenotype",
+    "spatial_coloc_class",
+    "spatial_immune_adjacency_fraction",
+    "spatial_top_enriched_compartment",
     "immune_provenance",
     "claim_vector",
     "key_signals",

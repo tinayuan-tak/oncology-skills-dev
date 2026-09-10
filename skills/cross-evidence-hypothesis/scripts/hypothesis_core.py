@@ -274,6 +274,7 @@ DIMENSION_CARDS: dict[str, frozenset[str]] = {
             "ici-response-association",
             "tcga-til-fraction-saltz",
             "ici-response-imvigor210",
+            "spatial-tumor-normal-colocalization",  # T0-4: spatial inflamed/excluded phenotype; verdict-inert
         }
     ),
     "target_intrinsic": frozenset(

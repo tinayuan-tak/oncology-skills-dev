@@ -43,7 +43,7 @@ questions:
   text: Is the tumor immune-hot — is there a CD8 T-cell effector population to redirect (TCE effector arm)?
   axis_id: IMMUNE
   role: verdict_bearing
-  measurement_types: [immune_context, spatial_til_fraction]
+  measurement_types: [immune_context, spatial_til_fraction, spatial_colocalization]
 - id: ici_response
   seq: 2
   text: Does the target associate with checkpoint-blockade (ICI) response?

@@ -47,4 +47,5 @@ def test_cards_list_includes_immune_context_and_tme_display_cards():
         "ici-response-association",
         "tcga-til-fraction-saltz",  # 2026-08-28 — absolute H&E-DL TIL corroborator (verdict-inert)
         "ici-response-imvigor210",  # 2026-08-28 — urothelial ICI-response + immune phenotype (verdict-inert)
+        "spatial-tumor-normal-colocalization",  # 2026-09-10 T0-4 — spatial inflamed/excluded phenotype (verdict-inert)
     }

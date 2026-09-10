@@ -649,6 +649,7 @@ SUB_SKILL_CARDS = {
         "ici-response-association",
         "tcga-til-fraction-saltz",  # absolute H&E-DL TIL corroborator (Saltz 2018); verdict-inert
         "ici-response-imvigor210",  # urothelial ICI-response + phenotype (IMvigor210); verdict-inert
+        "spatial-tumor-normal-colocalization",  # T0-4: spatial inflamed/excluded resolution of the CD8 call; verdict-inert
     ],
     "combination-and-vulnerability": [  # CONSOLIDATED relational annex (wired 2026-08-20).
         "synthetic-lethal-partners",  # curated SynLethDB SL (summary → synthetic_lethal_summary atom)
