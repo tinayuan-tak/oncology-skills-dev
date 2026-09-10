@@ -47,7 +47,9 @@ licensing unresolved). Absent from `CARDS` + `cards_used`; it is the sole reason
   count is 0 but per-source > 0. Sources: TCGA MC3 (~10k aliquots / 33 types) + GENIE 19.0-public.
   Per-subgroup co-mutation is **BLOCKED** (`blocked_needs_per_sample_reader`).
 - **Clinical-association facets:** ~20 OncoTree codes (`applies_when`); off-list → data_unavailable.
-- **subtype-survival-association:** needs a registered TCGA subtype shard (COADREAD/NSCLC/ESCA/HNSC/PAAD/STAD).
+- **subtype-survival-association:** needs a registered TCGA subtype shard (COADREAD/NSCLC/ESCA/HNSC/PAAD).
+  <!-- #1272: STAD dropped to match the reader's INDICATION_TO_TCGA_SUBTYPE_SHARD. A tcga-subgroup-assignments-stad-v1
+  manifest exists (295 samples, ESCA-compatible schema) — wiring it is a verdict-affecting enhancement, tracked separately. -->
 - **PRECOG:** 39 cancer-type columns, some approximate mappings (`precog_indication_approx`).
 - **clinical-precedent (AACT):** framework `mesh_terms` crosswalk (9 iter-1 indications); off-crosswalk → insufficient.
 - **competitor-landscape:** ChEMBL clinical+approved only (excludes preclinical/undisclosed/patent-stage).

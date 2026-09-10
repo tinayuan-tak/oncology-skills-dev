@@ -74,9 +74,10 @@ spine key → SHARED source (coordinate; major on rename).
   manifest's `query_optimization.notes` still describe the pre-broaden **4-indication / 376-model** HCMI
   state, but the product was expanded to **12 indications / 631 models** on 2026-08-24. Data is current;
   the docs/metadata lag. Reconcile the card + SKILL.md + manifest notes.
-- **Internal alias inconsistency (verdict-inert):** the skill's `_TR_IND_ALIAS` maps `ESCA→GC`, but the
-  reader keeps `ESCA` as its own HCMI product key (96 models). The skill map only keys the curated
-  `_VALIDATED_PRECLINICAL_MODEL` false-demote crosswalk (not the data read), so counts are uncorrupted.
+- **Internal alias inconsistency — RESOLVED (#1272):** `_TR_IND_ALIAS` previously mapped `ESCA→GC` while
+  the reader keeps `ESCA` as its own HCMI product key (96 models). The `ESCA→GC` entry was removed; the
+  map only keys the curated `_VALIDATED_PRECLINICAL_MODEL` crosswalk (no ESCA/GC entry), so this was
+  byte-inert. `STAD→GC` is retained (it matches the reader's `_INDICATION_ALIAS`).
 - **Release-pinned organoid ids** (`organoid-crispr-dependency-26q1-v1`) carry an explicit REFRESH clause
   (re-pin on each DepMap advance) — a maintenance coupling, not a stable alias.
 - **No replay harness:** conformance rests on the frozen full golden (refreeze if the emitted shape changes).

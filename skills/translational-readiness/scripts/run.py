@@ -136,7 +136,9 @@ _TR_IND_ALIAS = {
     "LUAD": "NSCLC",
     "LUSC": "NSCLC",
     "STAD": "GC",
-    "ESCA": "GC",
+    # ESCA→GC removed (#1272): the HCMI reader keeps ESCA as its own product key (96 models,
+    # deep coverage), so folding ESCA→GC here contradicted the reader. Verdict-inert (this map only
+    # keys the curated _VALIDATED_PRECLINICAL_MODEL crosswalk, which has no ESCA/GC entry).
     "COADREAD": "COADREAD",
 }
 
