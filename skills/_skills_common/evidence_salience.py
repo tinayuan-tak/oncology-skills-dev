@@ -590,6 +590,169 @@ SALIENCE_SPECS: dict = {
         "direction": "higher_is_stronger",
         "categorical": ["cooccurrence_class"],
     },
+    # ── verdict-tail specs (2026-09-10): field names VERIFIED against each card's outputs.summary_fields.
+    #    No reference_frame (the key_evidence enrichment is effect/significance/n/categorical/strata); frames
+    #    are a later, threshold-named add. ADDITIVE + display-only. ──────────────────────────────────────
+    # genomic-alteration-profile
+    "cn_stratified_dependency": {
+        "effect_field": "delta_chronos_amplified_vs_neutral",
+        "significance_field": "cn_stratification_mannwhitney_q",
+        "n_field": "n_amplified",
+        "direction": "lower_is_stronger",
+        "categorical": ["cn_stratification_class", "evidence_scope"],
+        "extra_scalars": ["median_chronos_amplified", "median_chronos_neutral", "cn_stratification_effect_size"],
+    },
+    "amp_expr_stratified_dependency": {
+        "effect_field": "delta_chronos_amp_expr_vs_rest",
+        "significance_field": "amp_expr_mannwhitney_q",
+        "n_field": "n_amplified_overexpressed",
+        "direction": "lower_is_stronger",
+        "categorical": ["amp_expr_stratification_class", "evidence_scope"],
+        "extra_scalars": ["median_chronos_amp_expr", "median_chronos_comparator", "amp_expr_effect_size"],
+    },
+    "fusion_stratified_dependency": {
+        "effect_field": "delta_chronos_fusion_positive_vs_negative",
+        "significance_field": "fusion_stratification_mannwhitney_q",
+        "n_field": "n_fusion_positive",
+        "direction": "lower_is_stronger",
+        "categorical": ["fusion_stratification_class", "fusion_stratification_confound", "evidence_scope"],
+        "extra_scalars": ["median_chronos_fusion_positive", "median_chronos_fusion_negative"],
+    },
+    "mutation_hotspot_frequency": {
+        "effect_field": "overall_mutation_frequency",
+        "n_field": "n_covered_pooled",
+        "direction": "higher_is_stronger",
+        "categorical": ["pooled_driver_recurrence_class", "driver_recurrence_class", "genie_driver_recurrence_class"],
+        "extra_scalars": ["pooled_driver_recurrence_percentile", "genie_mutation_frequency", "n_mutated_pooled"],
+    },
+    "mutation_drug_response": {
+        "effect_field": "delta_log2auc_mut_vs_wt",
+        "significance_field": "drug_response_mannwhitney_q",
+        "n_field": "n_mutant",
+        "direction": "lower_is_stronger",
+        "categorical": ["drug_response_stratification_class"],
+        "extra_scalars": ["drug_response_ppv", "drug_response_effect_size", "median_log2auc_mutant"],
+    },
+    "splice_exon_skip": {  # curated-event card: categorical + carrier count, no numeric effect
+        "n_field": "n_depmap_carriers",
+        "categorical": ["splice_exon_skip_class", "driver_direction"],
+    },
+    "fusion_rearrangement": {
+        "effect_field": "fusion_frequency",
+        "n_field": "n_samples_with_fusion",
+        "direction": "higher_is_stronger",
+        "categorical": ["fusion_class", "fusion_recurrence_confidence", "genie_sv_recurrence_class"],
+        "extra_scalars": ["genie_sv_frequency", "genie_sv_recurrence_percentile"],
+    },
+    "variant_level_interpretation": {  # categorical + count + resistance-variant liability strata (label-only)
+        "strata_array": "resistance_variants",
+        "label_field": "variant",
+        "n_field": "n_interpreted_variants",
+        "categorical": ["civic_variant_class", "has_oncogenic_variant"],
+    },
+    # differentiation-landscape (survival: no monotone effect — drive on class + logrank_p + medians)
+    "expression_clinical_association": {
+        "significance_field": "logrank_p",
+        "n_field": "n_patients",
+        "categorical": ["survival_association_class"],
+        "extra_scalars": ["median_ostime_high_days", "median_ostime_low_days", "logrank_chi2"],
+    },
+    "alteration_clinical_association": {
+        "significance_field": "logrank_p",
+        "n_field": "n_patients",
+        "categorical": ["alteration_survival_association_class"],
+        "extra_scalars": ["median_ostime_mutated_days", "median_ostime_wildtype_days", "logrank_chi2"],
+    },
+    "subtype_survival_association": {
+        "strata_array": "per_stratum",
+        "label_field": "stratum",
+        "effect_field": "median_ostime_days",
+        "significance_field": "logrank_p",
+        "n_field": "n_patients",
+        "categorical": ["subtype_survival_association_class"],
+        "extra_scalars": ["logrank_chi2", "logrank_df", "n_admissible_strata"],
+    },
+    # combination-and-vulnerability
+    "synthetic_lethal_partner": {  # categorical + count + partner strata (no per-partner effect — upstream gap)
+        "strata_array": "top_partners",
+        "label_field": "partner",
+        "n_field": "sl_partner_count",
+        "categorical": ["sl_partner_class", "has_experimental_partner", "best_evidence_tier"],
+    },
+    "chemical_combination_synergy": {
+        "effect_field": "strongest_synergy_delta_emax",
+        "n_field": "n_synergy_partners",
+        "direction": "higher_is_stronger",
+        "categorical": ["synergy_opportunity_class"],
+        "extra_scalars": ["strongest_synergy_partner_drug", "strongest_synergy_partner_target"],
+    },
+    # cis-feature-coherence
+    "methylation_silencing_coupling": {
+        "effect_field": "methyl_expr_spearman_r",
+        "significance_field": "methyl_expr_spearman_p",
+        "n_field": "n_cell_lines_evaluated",
+        "direction": "lower_is_stronger",
+        "categorical": ["methylation_silencing_class", "silencing_driver", "evidence_scope"],
+        "extra_scalars": ["subset_median_delta_log2tpm", "methyl_expr_slope_log2tpm_per_methyl"],
+    },
+    "patient_cis_coherence": {
+        "effect_field": "cn_expr_spearman_r",
+        "significance_field": "cn_expr_spearman_p",
+        "n_field": "n_patients_cn_expr",
+        "direction": "higher_is_stronger",
+        "categorical": ["patient_cis_dosage_class", "patient_methylation_silencing_class", "evidence_scope"],
+        "extra_scalars": ["delta_log2tpm_amplified_vs_neutral", "delta_log2tpm_methylated_vs_unmethylated"],
+    },
+    "cis_protein_dosage_coupling": {
+        "effect_field": "cn_prot_spearman_r",
+        "significance_field": "cn_prot_spearman_p",
+        "n_field": "n_paired_models_cn_protein",
+        "direction": "higher_is_stronger",
+        "categorical": ["cis_protein_dosage_class", "evidence_scope"],
+        "extra_scalars": ["delta_log2abundance_amplified_vs_neutral", "cn_prot_slope_log2abundance_per_cn"],
+    },
+    "expression_dependency_correlation": {
+        "effect_field": "pearson_r",
+        "significance_field": "pearson_p",
+        "n_field": "n_cell_lines_evaluated",
+        "direction": "lower_is_stronger",
+        "categorical": ["correlation_class"],
+        "extra_scalars": [
+            "delta_chronos_top_vs_bottom_quartile",
+            "chronos_at_high_expression",
+            "chronos_at_low_expression",
+        ],
+    },
+    "abundance_dependency_correlation": {
+        "effect_field": "protein_dependency_pearson_r",
+        "significance_field": "protein_dependency_pearson_p",
+        "n_field": "n_paired_models",
+        "direction": "lower_is_stronger",
+        "categorical": ["abundance_dependency_class"],
+        "extra_scalars": ["n_dependent_models", "protein_dependency_spearman_r"],
+    },
+    # surface-modality-fit
+    "adc_tce_modality_fit": {  # composed VERDICT card — categorical only (emits no numeric anchor)
+        "categorical": [
+            "fit_class",
+            "endocytosis_confidence",
+            "surface_confirmation_state",
+            "surface_family_class",
+        ],
+    },
+    "modality_window": {
+        "effect_field": "window_ratio_essential",
+        "direction": "higher_is_stronger",
+        "categorical": ["window_class", "therapeutic_window_class", "max_essential_normal_organ", "modality"],
+        "extra_scalars": ["max_essential_normal_tpm", "window_ratio_full_normal", "max_full_normal_tpm"],
+    },
+    "shed_ectodomain_liability": {
+        "effect_field": "media_mean_npx",
+        "n_field": "media_n_lines_detected",
+        "direction": "higher_is_worse",
+        "categorical": ["shed_liability_class", "shed_evidence_tier", "shed_product", "shedding_protease"],
+        "extra_scalars": ["serum_marker", "media_panel_high_npx"],
+    },
 }
 
 # ── subtype-axis salience (§3.16): the parallel omnibus-per-axis / per-subgroup shapes ───────────────
