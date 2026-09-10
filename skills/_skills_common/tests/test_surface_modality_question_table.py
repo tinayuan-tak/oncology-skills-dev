@@ -49,6 +49,17 @@ def test_bad_shed_and_low_density_oppose():
     assert rows["TCE"]["signal"]["tier"] == "unmeasured"  # field absent → named gap
 
 
+def test_no_absolute_measurement_density_is_grey_not_weak_supports_994():
+    # #994: a coverage gap (no absolute density measurement) must render `unmeasured` (grey / polarity
+    # none), NOT fall through to the "weak" default and read as a weak *supports* signal.
+    for token in ("not_surface_density_whole_cell_estimate", "no_absolute_measurement"):
+        rows = {r["id"]: r for r in surface_modality_question_table({"surface_density_class": token})}
+        sig = rows["Density"]["signal"]
+        assert sig["tier"] == "unmeasured", token
+        assert sig["polarity"] == "none", token  # never "supports"
+        assert sig["fill"] == 0, token
+
+
 def test_renders_html_via_shared_renderer():
     html = render_question_table_html(
         surface_modality_question_table(_headline()), verdict="ADC_preferred", title="Surface modality"

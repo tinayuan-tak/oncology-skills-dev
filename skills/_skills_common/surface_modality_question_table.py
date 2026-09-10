@@ -32,7 +32,18 @@ _TOPOLOGY = {
     "no_transmembrane": "absent",
     "data_unavailable": "unmeasured",
 }
-_DENSITY = {"high": "strong", "moderate": "moderate", "low": "weak", "very_low": "absent", "unmeasured": "unmeasured"}
+# A no-absolute-measurement state (#994) is a COVERAGE GAP, not a weak positive: without it, the
+# whole-cell-estimate / no-measurement tokens fall through `_tier`'s "weak" default and render as a
+# weak *supports* signal. Map them to `unmeasured` (grey) so a gap reads as a gap.
+_DENSITY = {
+    "high": "strong",
+    "moderate": "moderate",
+    "low": "weak",
+    "very_low": "absent",
+    "unmeasured": "unmeasured",
+    "not_surface_density_whole_cell_estimate": "unmeasured",
+    "no_absolute_measurement": "unmeasured",
+}
 _SHED = {
     "not_shed_membrane_retained": "strong",
     "secretome_proxy_shed": "weak",
