@@ -153,8 +153,8 @@ QUESTION = (
 PARTIAL_STATUS_NOTE = (
     "differentiation-landscape is status: partial. The clinical-precedent card is now WIRED "
     "(2026-08-21) via public-domain AACT (aact_clinical_precedent) — NO commercial license needed — "
-    "and is produced in the composed dashboards; adding it to THIS focused skill's cards_used is a "
-    "follow-up. patent-landscape remains unwired (PatBase-equivalent licensing pending). This "
+    "and is produced in the composed dashboards AND is composed in THIS focused skill's cards_used "
+    "(v1.5.0). patent-landscape remains unwired (PatBase-equivalent licensing pending). This "
     "skill's own decision still reflects the co-mutation / mutual-exclusivity signal."
 )
 

@@ -73,11 +73,6 @@ spine key → SHARED source (coordinate; major on rename); new facet → no sche
 
 ## 5. Known gaps & notes (non-blocking)
 
-- **Doc-count skew:** SKILL.md front-matter `description:` says "11 cards" and the body says "8 cards / 8
-  readers" — the true roster is **15** (`composition.cards_used` is correct). Doc reconciliation.
-- **Retired-token skew in the nomination gate:** `nomination_verdict_gate.yaml` rationales for two safety
-  verdicts still narrate a `wt_human_genetics_mechanism_mismatch` downgrade — a token retired in
-  safety.resolver v2.0.0. The gate `action`/`driving_rule_ids` are correct; only the prose is stale.
 - **Logical aliases resolved at read time:** `opentargets-26-06` (6 cards, distinct partitions),
   `depmap-consortium-26q1` (3 matrices), `onsides-adverse-event-per-gene-v1` (fuzzy join alias).
 - **No scalar killer:** the WT-loss "kill" is realized as (a) the per-modality `hold` on `engages_wt`

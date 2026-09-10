@@ -95,7 +95,7 @@ When invoked, it emits `decision.json` with:
 - **target-model-availability** (scientific-gap #1, lighter-v1): per-indication HCMI (Human Cancer
   Models Initiative) patient-derived model coverage. INDICATION-level, target-INDEPENDENT translational
   cohort context — "how many patient-derived models exist to validate a target here?" Backed by
-  `hcmi-model-availability-per-indication-v1` (376 models across COADREAD / PAAD / NSCLC / GC).
+  `hcmi-model-availability-per-indication-v1` (631 of 805 models across 12 indications; broadened 2026-08-24).
 - **target-genotype-matched-model** (genotype-matched refinement): the target-DEPENDENT complement —
   "do the available HCMI models CARRY a functional coding alteration in THIS target?" (gene x indication).
   Backed by `hcmi-genotype-matched-model-per-gene-v1` (HCMI-CMDC DR45 WXS aliquot-MAF join on top of the

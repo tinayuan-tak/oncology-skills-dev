@@ -63,12 +63,13 @@ composition:
 
 ## What this skill does
 
-- Fetches the 7 tractability cards via the compose-dashboard live-reader dispatchers:
+- Fetches the 8 tractability cards via the compose-dashboard live-reader dispatchers:
   the 3 chemical-genetic (prism-compound-activity, prism-crispr-concordance,
   dependency-predictability), the structure leg (structure-features-static: forward
   ligandability + LIVE hotspot-adjacency), the DGIdb pharmacology leg (known-drug-
   tractability), the MEASURED-potency leg (measured-potency-tractability: ChEMBL/BindingDB),
-  and the degrader-lens leg (degradation-feasibility).
+  the degrader-lens leg (degradation-feasibility), and the display-only 2nd drug-response
+  platform (gdsc-drug-activity: Sanger GDSC1/2, ORTHOGONAL PRISM corroboration — verdict-inert).
 - Fires the `e7-*` / `prism-*` / `predictability-*` / `ligandability-*` / `known-drug-*` /
   `measured-*` rules.
 - Emits `decision.json` with:

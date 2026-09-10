@@ -46,8 +46,8 @@ composition:
     # unresolved). See NOTE below.
   # DATA_TO_SKILL_CONTRACT Rule 3 — measurement_type claims pulled. patent-landscape has no card/type
   # yet (licensing-blocked placeholder), so it's absent here; clinical_precedent's card is now WIRED
-  # (public-domain AACT) but is NOT YET in THIS skill's cards_used (optional follow-up) — kept as a
-  # declared roadmap pull). expression_clinical_association (Q11) is an ADDITIVE render facet
+  # (public-domain AACT) and IS composed in THIS skill's cards_used (v1.5.0) as a verdict-inert
+  # translational-maturity render facet. expression_clinical_association (Q11) is an ADDITIVE render facet
   # (verdict-inert). 2026-08-14 review: added stemness_context — the stemness-context card (Malta 2018,
   # added 2026-08-10) is in cards_used but its type was omitted here. test_differentiation_measurement_types.py
   # now enforces every used card's type is declared so this cannot silently re-drift.
