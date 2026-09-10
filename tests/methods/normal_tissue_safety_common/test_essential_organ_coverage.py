@@ -60,6 +60,99 @@ def test_sc_normal_covers_brain_and_adrenal():
     assert eo.required_names(eo.SC_NORMAL_CROSSWALK) <= set(eo.SC_NORMAL_ESSENTIAL_TISSUES)
 
 
+def test_tphp_fills_endocrine_vascular_and_flags_pituitary_gap():
+    # T0-3: TPHP DIA-MS PROTEIN resolves the endocrine/vascular/CNS organs HPA-IHC is blind to.
+    # It must represent (non-None) the organs HPA cannot: nerve / muscle / blood / adrenal / thyroid.
+    for organ in ("nerve", "muscle", "blood", "adrenal_gland", "thyroid"):
+        assert eo.HPA_CROSSWALK.get(organ) is None  # HPA substrate gap
+        assert eo.TPHP_CROSSWALK[organ] is not None  # TPHP fills it
+    # It covers 4 of the 5 S1-3 endocrine/vascular/CNS organs (adrenal, thyroid, vasculature, brain) —
+    # the S1-3 required-name coverage invariant holds for what TPHP can represent.
+    req = eo.required_names(eo.TPHP_CROSSWALK)
+    assert {"adrenal gland", "thyroid gland", "artery", "brain"} <= req
+    assert req <= set(eo.TPHP_ESSENTIAL_TISSUES)
+    # pituitary is absent from the 70-tissue TPHP panel → None (a documented substrate gap, like HPA's),
+    # must NOT be silently claimed as covered.
+    assert eo.TPHP_CROSSWALK["pituitary"] is None
+
+
+def test_tphp_names_are_real_tphp_tissues():
+    # every TPHP crosswalk value must be a real organism-part in the 70-tissue adult TPHP panel.
+    _TPHP_ADULT_PANEL = {
+        "adipose tissue",
+        "adrenal gland",
+        "artery",
+        "bladder",
+        "blood",
+        "blood plasma",
+        "blood platelet",
+        "bone",
+        "bone marrow",
+        "brain",
+        "bulbourethral gland",
+        "cartilage",
+        "cochlea",
+        "cornea",
+        "epididymis",
+        "epiglottis",
+        "erythrocyte",
+        "esophagus",
+        "gall bladder",
+        "hair",
+        "heart",
+        "iris",
+        "kidney",
+        "large intestine",
+        "lens",
+        "leukocyte",
+        "liver",
+        "lung",
+        "lymph node",
+        "lymph vessel",
+        "mammary gland",
+        "nerve",
+        "nose",
+        "olfactory epithelium",
+        "outer ear",
+        "ovary",
+        "oviduct",
+        "pancreas",
+        "parathyroid gland",
+        "peritoneum",
+        "plant vessel",
+        "prostate gland",
+        "saliva",
+        "salivary gland",
+        "sclera",
+        "semicircular canal",
+        "seminal vesicle",
+        "seminiferous tubule",
+        "skeletal muscle",
+        "skin",
+        "small intestine",
+        "smooth muscle",
+        "spinal cord",
+        "spleen",
+        "stomach",
+        "tear",
+        "tendon",
+        "testis",
+        "throat",
+        "thymus",
+        "thyroid gland",
+        "tongue",
+        "tonsil",
+        "tympanum",
+        "ureter",
+        "urine",
+        "uterus",
+        "vagina",
+        "vein",
+        "vermiform appendix",
+    }
+    assert set(eo.TPHP_ESSENTIAL_TISSUES) <= _TPHP_ADULT_PANEL
+
+
 # --- 3. names are real (subset of each source's actual vocabulary) ---
 
 

@@ -249,6 +249,81 @@ def test_liability_data_unavailable(tmp_path):
     assert out["n_adult_tissues_above_abundance_floor"] == 0
 
 
+# ── tphp_vital_organ_liability_class (T0-3: dose-limiting-organ protein view) ────────────────────
+# Orthogonal to the pan-tissue BREADTH class: keys on whether the target is ABUNDANT (>= the same
+# calibrated floor) in ANY canonical vital organ, via TPHP_CROSSWALK. TPHP fills the endocrine/vascular
+# organs HPA-IHC is blind to (nerve/muscle/blood/adrenal/thyroid).
+_VITAL_VOCAB = {"vital_organ_abundant", "vital_organ_low", "no_vital_organ_signal", "data_unavailable"}
+
+
+def test_vital_organ_abundant_reachable(tmp_path):
+    """A target abundant (>= floor) in >=1 canonical vital organ → vital_organ_abundant, with the
+    per-organ row mapping the canonical organ to its TPHP organism-part."""
+    rows = [
+        _row("XYZ", "heart", "adult_normal", _FLOOR + 3.0),
+        _row("XYZ", "adrenal gland", "adult_normal", _FLOOR + 1.0),
+        _row("XYZ", "skin", "adult_normal", _FLOOR + 5.0),  # non-vital tissue, ignored by the vital view
+    ]
+    prod = _write_product(tmp_path, rows)
+    out = read.read_target_summary("XYZ", product_path=prod)
+    assert out["tphp_vital_organ_liability_class"] in _VITAL_VOCAB
+    assert out["tphp_vital_organ_liability_class"] == "vital_organ_abundant"
+    assert out["n_vital_organs_above_abundance_floor"] == 2  # heart + adrenal_gland (skin is not vital)
+    va = {r["organ"]: r for r in out["tphp_vital_organ_abundance"]}
+    assert va["heart"]["tissue"] == "heart" and va["heart"]["above_abundance_floor"] is True
+    assert va["adrenal_gland"]["tissue"] == "adrenal gland" and va["adrenal_gland"]["above_abundance_floor"] is True
+    # an undetected-but-representable vital organ is still listed (detected=False), so the view is complete
+    assert va["liver"]["detected"] is False
+    # pituitary is None in TPHP_CROSSWALK (not in the panel) → never listed
+    assert "pituitary" not in va
+
+
+def test_vital_organ_view_orthogonal_to_breadth(tmp_path):
+    """The value-add: a NARROW-breadth target can still be abundant in a vital organ (a therapeutic-
+    window flag the breadth class misses). Detected in only 3 adult tissues (restricted breadth) but
+    abundant in liver → tphp_normal_protein_liability_class=restricted YET vital=vital_organ_abundant."""
+    rows = [
+        _row("NARROW", "liver", "adult_normal", _FLOOR + 4.0),
+        _row("NARROW", "skin", "adult_normal", _FLOOR + 2.0),
+        _row("NARROW", "esophagus", "adult_normal", _FLOOR + 2.0),
+    ]
+    prod = _write_product(tmp_path, rows)
+    out = read.read_target_summary("NARROW", product_path=prod)
+    assert out["tphp_normal_protein_liability_class"] == "restricted"
+    assert out["tphp_vital_organ_liability_class"] == "vital_organ_abundant"
+    assert out["n_vital_organs_above_abundance_floor"] == 1
+
+
+def test_vital_organ_low_when_detected_below_floor(tmp_path):
+    """Detected in a vital organ but BELOW the abundance floor → vital_organ_low (trace-only)."""
+    rows = [_row("TRACE", "kidney", "adult_normal", _FLOOR - 2.0), _row("TRACE", "brain", "adult_normal", _FLOOR - 1.0)]
+    prod = _write_product(tmp_path, rows)
+    out = read.read_target_summary("TRACE", product_path=prod)
+    assert out["tphp_vital_organ_liability_class"] == "vital_organ_low"
+    assert out["n_vital_organs_above_abundance_floor"] == 0
+
+
+def test_no_vital_organ_signal_when_only_non_vital(tmp_path):
+    """Detected only in non-vital tissues (skin/esophagus) → no_vital_organ_signal."""
+    rows = [
+        _row("SKINONLY", "skin", "adult_normal", _FLOOR + 5.0),
+        _row("SKINONLY", "esophagus", "adult_normal", _FLOOR + 5.0),
+    ]
+    prod = _write_product(tmp_path, rows)
+    out = read.read_target_summary("SKINONLY", product_path=prod)
+    assert out["tphp_vital_organ_liability_class"] == "no_vital_organ_signal"
+    assert out["n_vital_organs_above_abundance_floor"] == 0
+
+
+def test_vital_organ_data_unavailable(tmp_path):
+    rows = [_row("EGFR", "liver", "adult_normal", 9.0)]
+    prod = _write_product(tmp_path, rows)
+    out = read.read_target_summary("GHOSTGENE", product_path=prod)
+    assert out["tphp_vital_organ_liability_class"] == "data_unavailable"
+    assert out["n_vital_organs_above_abundance_floor"] == 0
+    assert out["tphp_vital_organ_abundance"] == []
+
+
 def test_compute_abundance_floor_recalibration(tmp_path):
     """compute_abundance_floor recomputes the global per-tissue percentile from the product's own
     distribution (adult tissues only; fetal excluded). The p50 of 1..99 is 50."""

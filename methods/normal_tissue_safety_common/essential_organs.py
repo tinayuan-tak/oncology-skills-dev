@@ -118,11 +118,39 @@ SC_NORMAL_CROSSWALK = {
     "vasculature": None,
 }
 
+# TPHP DIA-MS pan-tissue proteome `tissue` column (SDRF organism-part, lowercase). None = the organ
+# has no organism-part in the 70-tissue adult TPHP panel. TPHP's value for SAFETY is that DIA-MS
+# PROTEIN resolves the endocrine/vascular/CNS organs HPA-IHC's 16-name grouped field is BLIND to:
+# it covers nerve / muscle / blood / adrenal_gland / thyroid (all None in HPA_CROSSWALK) and 4 of the
+# 5 S1_3_REQUIRED_ORGANS (adrenal_gland, thyroid, vasculature, brain) — missing ONLY pituitary, which
+# is absent from the TPHP panel (a data-substrate gap, like HPA's). Scalar convention (one
+# representative organism-part per organ) matches GTEX/HPA/SC; muscle->skeletal muscle and
+# vasculature->artery pick the canonical dose-limiting representative among TPHP's finer parts
+# (smooth muscle / vein / lymph vessel also present but not the crosswalk anchor).
+TPHP_CROSSWALK = {
+    "heart": "heart",
+    "brain": "brain",
+    "liver": "liver",
+    "lung": "lung",
+    "kidney": "kidney",
+    "nerve": "nerve",
+    "muscle": "skeletal muscle",
+    "blood": "blood",
+    "bone_marrow": "bone marrow",
+    "pancreas": "pancreas",
+    "adrenal_gland": "adrenal gland",
+    "thyroid": "thyroid gland",
+    "vasculature": "artery",
+    # Not in the 70-tissue adult TPHP panel (data-substrate gap, NOT a list omission):
+    "pituitary": None,
+}
+
 # --- Derived per-source essential sets (what each card imports). ---
 GTEX_ESSENTIAL_TISSUES = frozenset(v for v in GTEX_CROSSWALK.values() if v)
 HPA_ESSENTIAL_TISSUES = frozenset(v for v in HPA_CROSSWALK.values() if v)
 # order-stable list (sc-normal queries + de-dups against indication-matched tissues in insertion order)
 SC_NORMAL_ESSENTIAL_TISSUES = [v for v in SC_NORMAL_CROSSWALK.values() if v]
+TPHP_ESSENTIAL_TISSUES = frozenset(v for v in TPHP_CROSSWALK.values() if v)
 
 
 def required_names(crosswalk: dict) -> set:

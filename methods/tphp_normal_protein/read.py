@@ -27,9 +27,10 @@ import threading
 from typing import Optional
 
 from methods.catalog_query.read import bucket_key_for
+from methods.normal_tissue_safety_common.essential_organs import TPHP_CROSSWALK
 
 DERIVED_MANIFEST_ID = "normal-tissue-protein-abundance-per-gene-v1"
-METHOD_VERSION = "0.1.0"
+METHOD_VERSION = "0.2.0"  # 0.2.0: + vital-organ safety read (tphp_vital_organ_* via TPHP_CROSSWALK), for T0-3 (on-target-safety wiring)
 
 # Denominators sourced from the derived manifest `parameters` block (n_adult_tissues / n_fetal_groups)
 # — the population of normal-tissue groups the DIA-MS panel spans. Surfaced so a consumer can read
@@ -202,6 +203,9 @@ def _empty_summary() -> dict:
     return {
         "normal_protein_breadth_class": "data_unavailable",
         "tphp_normal_protein_liability_class": "data_unavailable",
+        "tphp_vital_organ_liability_class": "data_unavailable",
+        "n_vital_organs_above_abundance_floor": 0,
+        "tphp_vital_organ_abundance": [],
         "n_adult_tissues_above_abundance_floor": 0,
         "abundance_floor_log2": ABUNDANCE_FLOOR_LOG2,
         "n_tissues_detected": 0,
@@ -219,6 +223,59 @@ def _empty_summary() -> dict:
         "per_tissue_abundance": [],
         "method_version": METHOD_VERSION,
     }
+
+
+# Canonical vital organs TPHP can represent (crosswalk non-None), each with its representative TPHP
+# organism-part. This is the SAFETY-facing view (dose-limiting-organ protein presence), distinct from
+# the pan-tissue BREADTH view (tphp_normal_protein_liability_class): a target can be narrow-breadth yet
+# abundant in a vital organ (a therapeutic-window flag the breadth class misses). TPHP fills nerve /
+# muscle / blood / adrenal / thyroid — organs HPA-IHC is blind to.
+_VITAL_ORGAN_TISSUE = {organ: tissue for organ, tissue in TPHP_CROSSWALK.items() if tissue}
+
+
+def _vital_organ_summary(per_tissue: list[dict]) -> tuple[list[dict], str, int]:
+    """Per-vital-organ protein abundance + a verdict-INERT liability class.
+
+    For each canonical vital organ TPHP can represent, look up the target's median_log2_abundance in
+    that organ's representative TPHP organism-part and flag `above_floor` against the SAME calibrated
+    ABUNDANCE_FLOOR_LOG2 the breadth class uses (no new threshold). The class keys on whether the target
+    is abundantly present in ANY dose-limiting organ — a therapeutic-window flag — reusing the existing
+    floor rather than an invented multi-cut:
+      * vital_organ_abundant   — >=1 vital organ at/above the abundance floor (window liability)
+      * vital_organ_low        — detected in >=1 vital organ but NONE at/above the floor (trace only)
+      * no_vital_organ_signal  — not detected in any vital organ (in the TPHP panel)
+    """
+    by_tissue = {t["tissue"]: t for t in per_tissue if t.get("tissue_class") != _FETAL_CLASS}
+    rows: list[dict] = []
+    n_above = 0
+    n_detected = 0
+    for organ, tissue in _VITAL_ORGAN_TISSUE.items():
+        rec = by_tissue.get(tissue)
+        med = rec.get("median_log2_abundance") if rec else None
+        detected = med is not None
+        above = detected and med >= ABUNDANCE_FLOOR_LOG2
+        if detected:
+            n_detected += 1
+        if above:
+            n_above += 1
+        rows.append(
+            {
+                "organ": organ,
+                "tissue": tissue,
+                "median_log2_abundance": med,
+                "detected": detected,
+                "above_abundance_floor": above,
+            }
+        )
+    # abundance-sorted (highest vital-organ presence first; undetected organs last)
+    rows.sort(key=lambda r: (r["median_log2_abundance"] is not None, r["median_log2_abundance"] or 0.0), reverse=True)
+    if n_above >= 1:
+        cls = "vital_organ_abundant"
+    elif n_detected >= 1:
+        cls = "vital_organ_low"
+    else:
+        cls = "no_vital_organ_signal"
+    return rows, cls, n_above
 
 
 def compute_summary(gene: str, rows: list[dict]) -> dict:
@@ -282,9 +339,15 @@ def compute_summary(gene: str, rows: list[dict]) -> dict:
     # uniprot_ac: 1:1 with the gene in this product (no ;-joined groups); take the first row's value.
     uniprot_ac = rows[0].get("uniprot_ac")
 
+    # T0-3: dose-limiting-organ protein view (safety-facing), reusing the calibrated abundance floor.
+    vital_organ_abundance, vital_organ_liability_class, n_vital_above = _vital_organ_summary(per_tissue)
+
     return {
         "normal_protein_breadth_class": _breadth_class(n_adult),
         "tphp_normal_protein_liability_class": _liability_class(n_adult, n_adult_above_floor),
+        "tphp_vital_organ_liability_class": vital_organ_liability_class,
+        "n_vital_organs_above_abundance_floor": n_vital_above,
+        "tphp_vital_organ_abundance": vital_organ_abundance,
         "n_adult_tissues_above_abundance_floor": n_adult_above_floor,
         "abundance_floor_log2": ABUNDANCE_FLOOR_LOG2,
         "n_tissues_detected": len(adult_tissues | fetal_tissues),
