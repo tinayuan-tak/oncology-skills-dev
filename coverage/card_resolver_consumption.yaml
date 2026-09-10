@@ -46,7 +46,6 @@ resolver_consumed_cards:
 - splice-exon-skip-landscape
 - structure-features-static
 - surface-abundance-density
-- synthetic-lethal-partners
 - target-clonality
 - tumor-scrna-celltype-expression
 - tumor-vs-normal-selectivity
@@ -60,6 +59,7 @@ detail:
     - isoform-dependent-modality-suppression
     - modality-ambiguous-insufficient
     - neither-viable-killer
+    - surface-annotation-only-unconfirmed-opposing
     - tce-preferred-supportive
   alteration-role:
     resolvers:
@@ -108,7 +108,6 @@ detail:
     - cooccurrence-modest-mutually-exclusive-neutral
     - cooccurrence-ns-neutral
     - cooccurrence-strong-supportive
-    - has-cooccurring-driver-supportive
     - strong-mutual-exclusivity-supportive
   copy-number-distribution:
     resolvers:
@@ -176,6 +175,8 @@ detail:
     - tractability_small_molecule
     rules:
     - known-drug-approved-antineoplastic-sm-supportive
+    - known-drug-approved-biologic-only-sm-not-supportive
+    - known-drug-approved-indirect-only-sm-weak
     - known-drug-druggable-category-sm-supportive
   measured-potency-tractability:
     resolvers:
@@ -307,7 +308,6 @@ detail:
     resolvers:
     - mechanism
     rules:
-    - has-pd-marker-supportive
     - mechanism-data-unavailable-insufficient
     - mechanism-partial-neutral
     - mechanism-sparse-warning
@@ -333,14 +333,6 @@ detail:
     rules:
     - ihc-not-detected-killer
     - surface-density-below-tce-floor-measured-downgrade
-  synthetic-lethal-partners:
-    resolvers:
-    - synthetic_lethal_partners
-    rules:
-    - sl-computational-partner-informational
-    - sl-data-unavailable-insufficient
-    - sl-experimental-partner-context-conditional
-    - sl-no-partner-neutral
   target-clonality:
     resolvers:
     - genomic_alteration

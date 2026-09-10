@@ -3,8 +3,8 @@ _doc: 'M5 rule-role partition (VERDICT_REPRESENTATION move #5). gating = referen
   figure input). Regenerate with build_rule_role_partition.py; --self-check gates drift.'
 counts:
   total: 414
-  gating: 129
-  display: 285
+  gating: 125
+  display: 289
 gating:
 - adc-preferred-supportive
 - alteration-role-gof-driver-supportive
@@ -112,10 +112,6 @@ gating:
 - sc-antigen-escape-patient-variable-tce-opposing
 - sc-normal-high-liability-bite-killer
 - shed-ectodomain-clinical-opposing
-- sl-computational-partner-informational
-- sl-data-unavailable-insufficient
-- sl-experimental-partner-context-conditional
-- sl-no-partner-neutral
 - snv-clonality-subclonal-opposing
 - snv-recurrence-top-driver-supportive
 - splice-exon-skip-driver-supportive
@@ -377,6 +373,10 @@ display:
 - shed-ectodomain-secretome-proxy-opposing
 - single-pass-type1-adc-supportive
 - single-pass-type2-adc-supportive
+- sl-computational-partner-informational
+- sl-data-unavailable-insufficient
+- sl-experimental-partner-context-conditional
+- sl-no-partner-neutral
 - spatial-immune-excluded-tce-opposing
 - spatial-immune-niche-colocalized-supportive
 - spatial-normal-epithelium-adjacent-opposing
