@@ -13,11 +13,6 @@ from _test_support import load_run_py
 
 rc = load_run_py(Path(__file__).resolve().parent.parent, "lra_run")
 
-# pubmed_search is now a standalone module (run.py retrieves via retrieval_lanes as rc.rl); import it
-# directly for the two unit tests that pin its gene-qualified query construction. load_run_py already put
-# the scripts dir on sys.path, so this real import registers pubmed_search (needed for its frozen dataclass).
-import pubmed_search as ps  # noqa: E402
-
 
 def test_containment_drops_pmids_not_in_corpus():
     retrieved = {"111", "222"}
@@ -116,19 +111,7 @@ def test_tool_schema_null_state_and_required():
     }
 
 
-# ── gene-symbol disambiguation (the AR→TG2 wrong-gene retrieval fix) ────────────────────────────
-def test_gene_search_term_disambiguates_ambiguous_symbol():
-    q = ps.gene_search_term("AR")
-    assert "[Gene]" in q and '"AR"[Title]' in q
-    assert q != "AR"  # never a bare free-text symbol
-    assert ps.gene_search_term("") == ""  # empty is a no-op
-
-
-def test_search_pubmed_queries_are_gene_qualified(monkeypatch):
-    seen = []
-    monkeypatch.setattr(ps, "_esearch", lambda query, **kw: seen.append(query) or [])
-    monkeypatch.setattr(ps.time, "sleep", lambda *a, **k: None)
-    ps.search_pubmed("AR", "crc", abstracts_per_category=3)
-    assert seen, "expected per-category esearch queries"
-    assert all("[Gene]" in q for q in seen)  # every category query is entity-qualified
-    assert not any("(AR)" in q for q in seen)  # never the bare free-text gene group
+# (test_gene_search_term_disambiguates + test_search_pubmed_queries_are_gene_qualified removed 2026-09-10:
+#  the retired ps.search_pubmed/gene_search_term single-lane keyword path was superseded by
+#  retrieval_lanes' entity-normalized retrieval — gene-symbol disambiguation is now covered by
+#  entity_search's @GENE_<entrez> resolution + its tests, not this free-text-qualification path.)

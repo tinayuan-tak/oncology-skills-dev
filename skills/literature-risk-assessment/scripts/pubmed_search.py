@@ -34,7 +34,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
@@ -109,41 +109,6 @@ def _cache_write(url: str, body: str) -> None:
         return
 
 
-# Six risk categories matching the workflow + the search-pattern column
-# of risk_assessment_template_{disease}.md. The {gene} and {disease}
-# placeholders get filled in at search time.
-SEARCH_PATTERNS_BY_CATEGORY = {
-    "biological": (
-        "({gene}) AND ({disease}) AND (validation OR knockdown OR knockout OR CRISPR OR genetic association)"
-    ),
-    "druggability": ("({gene}) AND (drug target OR inhibitor OR antibody OR small molecule OR crystal structure)"),
-    "translational": ("({gene}) AND ({disease}) AND (biomarker OR PDX OR organoid OR animal model)"),
-    "clinical": ("({gene}) AND ({disease}) AND (clinical trial OR patient OR phase I OR phase II)"),
-    "safety": ("({gene}) AND (toxicity OR adverse OR normal tissue OR knockout mouse)"),
-    "commercial": ("({gene}) AND ({disease}) AND (therapeutic OR drug development OR competitive)"),
-}
-
-# Disease search-term expansions for PubMed.
-DISEASE_TERMS = {
-    "crc": "CRC OR colorectal cancer OR colon cancer OR rectal cancer",
-    "nsclc": "NSCLC OR lung cancer OR lung adenocarcinoma OR LUAD OR LUSC",
-}
-
-
-def gene_search_term(gene: str) -> str:
-    """Disambiguated PubMed term for a gene symbol. A BARE symbol ('{gene}') is free-text and matches
-    any abstract that merely MENTIONS the token — catastrophic for short/ambiguous symbols (e.g. "AR"
-    pulls transglutaminase/TGM2 papers that say "AR transcriptional repression"). We require the paper
-    to be either NCBI-gene-annotated to this gene ([Gene], entity-resolved) OR to name the symbol in its
-    TITLE (a title mention is about the gene, not incidental) — precise without collapsing recall to the
-    subset PubMed has gene-tagged. Precision matters more than recall for this verdict-inert CONTEXT
-    read: a wrong-gene abstract is worse than a missed one."""
-    g = (gene or "").strip()
-    if not g:
-        return g
-    return f'({g}[Gene] OR "{g}"[Title])'
-
-
 @dataclass(frozen=True)
 class PubMedAbstract:
     """One abstract record from PubMed efetch."""
@@ -154,79 +119,6 @@ class PubMedAbstract:
     journal: str
     year: int | None
     category: str  # which of the 6 risk categories returned this PMID
-
-
-@dataclass(frozen=True)
-class PubMedSearchResult:
-    """Per-category search results for a single (gene, disease) query."""
-
-    gene: str
-    disease: str
-    abstracts_by_category: dict[str, list[PubMedAbstract]] = field(default_factory=dict)
-
-
-# ---------------------------------------------------------------------------
-# Public API
-# ---------------------------------------------------------------------------
-
-
-def search_pubmed(
-    gene: str,
-    disease: str,
-    *,
-    abstracts_per_category: int = 10,
-    request_delay_s: float = DEFAULT_REQUEST_DELAY_S,
-    timeout_s: float = 30.0,
-    mindate: str | None = None,
-    maxdate: str | None = None,
-) -> PubMedSearchResult:
-    """Run six per-category PubMed searches for (gene, disease).
-
-    Args:
-        gene: Gene symbol (e.g. "PCDH7"). Case-sensitive — NCBI is liberal.
-        disease: One of {'crc', 'nsclc'} — lower-case canonical disease key.
-        abstracts_per_category: Cap on number of abstracts per category.
-        request_delay_s: Inter-request delay to stay under NCBI's 3 req/s limit.
-        timeout_s: Per-request timeout.
-
-    Returns:
-        PubMedSearchResult with abstracts grouped by category. Categories
-        with zero results are still present as empty lists (so the
-        downstream LLM stage can render "no evidence found" cleanly).
-
-    Raises:
-        ValueError: if disease is not a canonical key.
-        urllib.error.URLError: if the network is unreachable. Caller
-            should surface a helpful message about VPN / connectivity.
-    """
-    disease = disease.strip().lower()
-    if disease not in DISEASE_TERMS:
-        raise ValueError(f"disease must be one of {sorted(DISEASE_TERMS)}; got {disease!r}")
-
-    disease_terms = DISEASE_TERMS[disease]
-    abstracts_by_cat: dict[str, list[PubMedAbstract]] = {}
-
-    gene_term = gene_search_term(gene)  # entity/title-qualified — never a bare ambiguous symbol
-    for category, pattern in SEARCH_PATTERNS_BY_CATEGORY.items():
-        query = pattern.format(gene=gene_term, disease=disease_terms)
-        # esearch → list of PMIDs
-        pmids = _esearch(query, retmax=abstracts_per_category, timeout_s=timeout_s, mindate=mindate, maxdate=maxdate)
-        time.sleep(request_delay_s)
-        if not pmids:
-            abstracts_by_cat[category] = []
-            continue
-        # efetch → abstract records
-        abstracts = _efetch_abstracts(pmids, category=category, timeout_s=timeout_s)
-        abstracts_by_cat[category] = abstracts
-        time.sleep(request_delay_s)
-
-    # `dataclass(frozen=True)` blocks attribute assignment, so build a
-    # fresh instance with the populated dict.
-    return PubMedSearchResult(
-        gene=gene,
-        disease=disease,
-        abstracts_by_category=abstracts_by_cat,
-    )
 
 
 # ---------------------------------------------------------------------------
