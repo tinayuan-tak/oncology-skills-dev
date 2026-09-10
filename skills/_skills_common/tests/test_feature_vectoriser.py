@@ -118,6 +118,33 @@ def test_harvest_absent_axis_is_omitted_then_masked():
         assert fv[f"{mt}::num::{vf}"] is None and fv[f"{mt}::num::{vf}::mask"] == 0.0
 
 
+def test_harvest_from_sub_results_mirrors_package():
+    """RUNTIME harvester reads the SAME two sources from sub_results (r['cards'].summary +
+    synthesis_facet.claim_vector atom.values) that the package harvester reads — so offline==runtime."""
+    from _skills_common.feature_vectoriser import numeric_values_from_sub_results
+
+    lo = _spec_field("gnomad_lof_constraint")
+    dep = _spec_field("crispr_lof_dependency")
+    pkg = {
+        "cards": [{"measurement_type": "gnomad_lof_constraint", "summary": {lo: 0.31}}],
+        "synthesis": {
+            "claim_vectors": {"dependency": {"claim_vector": {"DEP": {"evidence_atom": {"values": {dep: -0.46}}}}}}
+        },
+    }
+    sub_results = {
+        "safety": {
+            "cards": [{"measurement_type": "gnomad_lof_constraint", "summary": {lo: 0.31}}],
+            "synthesis_facet": {"claim_vector": {}},
+        },
+        "dependency": {
+            "cards": [],
+            "synthesis_facet": {"claim_vector": {"DEP": {"evidence_atom": {"values": {dep: -0.46}}}}},
+        },
+    }
+    assert numeric_values_from_sub_results(sub_results) == numeric_values_from_package(pkg)
+    assert numeric_values_from_sub_results(sub_results)["gnomad_lof_constraint"][lo] == 0.31
+
+
 def test_harvest_polarity_applied_in_build():
     lo = _spec_field("gnomad_lof_constraint")  # lower_is_stronger → negated in the feature
     pkg = {"cards": [{"measurement_type": "gnomad_lof_constraint", "summary": {lo: 0.31}}], "synthesis": {}}

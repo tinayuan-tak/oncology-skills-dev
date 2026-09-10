@@ -103,35 +103,63 @@ def numeric_values_from_package(pkg: dict) -> dict:
       3. synthesis.evidence_capsules[*].capsules[*].n_basis[value_field]                — capsule n_basis
     (median_chronos_panel, e.g., is not in the crispr card summary but is in its DEP atom / capsule n_basis.)
     Absent everywhere → the axis is simply not in the result (→ mask 0 downstream). Best-effort, pure."""
-    specs = numeric_feature_specs()
     pkg = pkg or {}
     syn = pkg.get("synthesis") or {}
-
-    # index card summaries by measurement_type
     cards = pkg.get("cards")
     clist = cards if isinstance(cards, list) else list(cards.values()) if isinstance(cards, dict) else []
-    summ_by_mt = {
-        c.get("measurement_type"): (c.get("summary") or {})
-        for c in clist
-        if isinstance(c, dict) and c.get("measurement_type")
-    }
-
-    # flatten every atom.values dict and every capsule n_basis dict once (value_field names are ~unique)
-    atom_values, n_basis = {}, {}
-    for entry in (syn.get("claim_vectors") or {}).values():
-        cv = entry.get("claim_vector") if isinstance(entry, dict) else None
-        for claim in (cv or {}).values():
-            vals = (claim or {}).get("evidence_atom", {}).get("values") if isinstance(claim, dict) else None
-            if isinstance(vals, dict):
-                atom_values.update(vals)
+    atom_values = _atom_values(
+        [e.get("claim_vector") for e in (syn.get("claim_vectors") or {}).values() if isinstance(e, dict)]
+    )
+    n_basis: dict = {}
     for entry in (syn.get("evidence_capsules") or {}).values():
         for cap in ((entry or {}).get("capsules") or {}).values():
             nb = (cap or {}).get("n_basis") if isinstance(cap, dict) else None
             if isinstance(nb, dict):
                 n_basis.update(nb)
+    return _resolve_numerics(_summaries_by_mt(clist), atom_values, n_basis)
 
+
+def numeric_values_from_sub_results(sub_results: dict) -> dict:
+    """RUNTIME twin of numeric_values_from_package: harvest {mt: {value_field: number}} from the in-process
+    fan-out `sub_results` (short -> r), mirroring the SAME two primary sources the package harvester uses so
+    offline build == runtime query — (1) each sub-skill's own cards[].summary (r['cards'], keyed by
+    measurement_type) and (2) its synthesis_facet.claim_vector[*].evidence_atom.values. Best-effort, pure."""
+    cards, cvs = [], []
+    for r in (sub_results or {}).values():
+        if not isinstance(r, dict):
+            continue
+        cards += [c for c in (r.get("cards") or []) if isinstance(c, dict)]
+        facet = r.get("synthesis_facet") or {}
+        if isinstance(facet.get("claim_vector"), dict):
+            cvs.append(facet["claim_vector"])
+    return _resolve_numerics(_summaries_by_mt(cards), _atom_values(cvs), {})
+
+
+def _summaries_by_mt(cards_list) -> dict:
+    """{measurement_type: summary} indexed from a cards list (the clean, keyed numeric source)."""
+    return {
+        c.get("measurement_type"): (c.get("summary") or {})
+        for c in cards_list
+        if isinstance(c, dict) and c.get("measurement_type")
+    }
+
+
+def _atom_values(claim_vectors) -> dict:
+    """Flatten every claim's evidence_atom.values across a list of claim_vector dicts (value_fields are
+    ~unique across claims, so a flat map is an adequate fallback lookup)."""
     out: dict = {}
-    for mt, (vf, _dir) in specs.items():
+    for cv in claim_vectors:
+        for claim in (cv or {}).values():
+            vals = (claim or {}).get("evidence_atom", {}).get("values") if isinstance(claim, dict) else None
+            if isinstance(vals, dict):
+                out.update(vals)
+    return out
+
+
+def _resolve_numerics(summ_by_mt: dict, atom_values: dict, n_basis: dict) -> dict:
+    """Per metered spec, take the first numeric of (its card summary value_field, atom.values, n_basis)."""
+    out: dict = {}
+    for mt, (vf, _dir) in numeric_feature_specs().items():
         val = _first_numeric(summ_by_mt.get(mt, {}).get(vf), atom_values.get(vf), n_basis.get(vf))
         if val is not None:
             out[mt] = {vf: val}

@@ -117,7 +117,15 @@ def vector_from_sub_results(sub_results: dict) -> dict:
             cv = facet.get("claim_vector")
         if isinstance(cv, dict) and cv:
             cvs[short] = cv
-    return claim_features(cvs)
+    # NUMERIC substrate (Phase 1d): merge polarity-signed numeric features + missingness masks harvested from
+    # the SAME sub_results (each sub-skill's cards[].summary + synthesis_facet.claim_vector atom.values), so
+    # the runtime query vector matches what build_atlas freezes (offline==runtime). Additive + byte-stable
+    # against the current frozen atlas: feature_order has no numeric keys yet, so _align_z_impute drops them
+    # until a re-freeze admits them. Local import avoids a module-load cycle (feature_vectoriser imports
+    # claim_features from this module).
+    from _skills_common.feature_vectoriser import build_feature_vector, numeric_values_from_sub_results
+
+    return build_feature_vector(cvs, numeric_values_from_sub_results(sub_results))
 
 
 def fired_rule_ids_from_sub_results(sub_results: dict) -> set:

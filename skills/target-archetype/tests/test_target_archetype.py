@@ -199,7 +199,14 @@ def test_vector_from_sub_results_reads_synthesis_facet_claim_vector():
     assert feat["safety::claim::LOF_CONSTRAINT::signal"] == 0.0
     assert feat["safety::claim::LOF_CONSTRAINT::corrob"] == 1.0  # low -> 1 (fixed map)
     cvs = {s: r["synthesis_facet"]["claim_vector"] for s, r in sr.items() if r.get("synthesis_facet")}
-    assert feat == claim_features(cvs)
+    # vector_from_sub_results now returns the EXTENDED vector: claim features (carried verbatim) merged
+    # with the numeric axes. This fixture supplies no cards/atoms, so every numeric axis is unmeasured
+    # (value None, mask 0.0) — the claim features must still match claim_features(cvs) exactly.
+    cf = claim_features(cvs)
+    assert {k: feat[k] for k in cf} == cf
+    extra = {k: v for k, v in feat.items() if k not in cf}
+    assert extra and all(k.split("::")[1] == "num" for k in extra)
+    assert all(v in (None, 0.0) for v in extra.values())
 
 
 def test_fired_rule_ids_from_sub_results_drops_none():
