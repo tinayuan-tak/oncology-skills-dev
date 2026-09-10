@@ -1,0 +1,90 @@
+# Card — CROSS-CONSORTIUM PARALOG-GI CORROBORATION (Dede 2020 zdLFC + in4mer 2024 normZ vs DepMap ParalogV2)
+#
+# A CORROBORATION facet for the CODEP axis: does an INDEPENDENT paralog dual-KO consortium AGREE that the
+# target has a synthetic-lethal paralog interaction? The primary combinatorial-dependency card reads DepMap
+# ParalogV2 (Chronos GI); this card asks whether Dede (zdLFC) and/or in4mer (normZ) — different libraries,
+# cell-line panels and analysis pipelines — ALSO call a constitutive/context buffering interaction. Reads
+# the two built-but-previously-unread derived products (gap T0-1); no new ingestion.
+#
+# tier: target (pan-line, indication-independent). Trusts each product's shared-label `interaction_class`
+# (constitutive_buffering / context_buffering = a paralog SL) — a 2nd/3rd opinion, not a re-derivation.
+#
+# Interpretation surface (cross_consortium_paralog_class is PRIMARY):
+#   corroborated_multi_consortium   → BOTH Dede and in4mer call a paralog SL — strongest corroboration
+#   single_consortium_corroboration → ONE orthogonal consortium corroborates the DepMap call
+#   no_cross_consortium_signal      → screened, but neither orthogonal consortium calls an SL
+#   not_screened_off_panel          → target absent from BOTH curated paralog libraries (coverage gap)
+#   data_unavailable                → read error on both legs
+#
+# CORROBORATION FACET (role: corroboration; reports_into: combination_vulnerability / CODEP). VERDICT-INERT:
+# it RAISES CODEP confidence when corroborated, NEVER fires a killer — mirrors cross-consortium-dependency /
+# crispr_rnai_concordance discipline. NOTE: paralog SL reproduces poorly across screens (the SL-repro
+# problem), so corroborated_multi_consortium is legitimately RARE and especially notable when present.
+
+card_id: cross-consortium-paralog-gi
+version: 1.0.0
+question: "Do the Dede + in4mer paralog dual-KO consortia CORROBORATE a synthetic-lethal paralog interaction for {target.symbol}?"
+
+tier: target
+
+# Co-applies with the primary CODEP card (combinatorial-dependency): corroboration is only meaningful
+# alongside the DepMap ParalogV2 call. The reader is off-panel-graceful (not_screened_off_panel) when
+# Dede/in4mer lack the target.
+applies_when:
+  - "context.data_sources.depmap_paralog_gi_available == true"
+
+required_inputs:
+  - product_id: dede-paralog-genetic-interaction-per-pair-v1
+    release_pin: "{release_pin}"
+  - product_id: in4mer-paralog-genetic-interaction-per-pair-v1
+    release_pin: "{release_pin}"
+
+methods:
+  - call: cross-consortium-paralog-gi
+    module: paralog_genetic_interaction
+    entrypoint: cross_consortium_paralog_gi_for_gene
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - cross_consortium_paralog_class             # PRIMARY categorical
+    - n_consortia_corroborating                  # 0/1/2 orthogonal consortia calling a paralog SL
+    - dede_class                                 # strongest Dede (zdLFC) interaction_class for the target
+    - dede_n_sl_partners
+    - in4mer_class                               # strongest in4mer (normZ) interaction_class for the target
+    - in4mer_n_sl_partners
+    - corroborating_partners                     # de-duped partner symbols called SL by >=1 consortium
+
+  summary_fields_vocabulary:
+    cross_consortium_paralog_class:
+      - corroborated_multi_consortium
+      - single_consortium_corroboration
+      - no_cross_consortium_signal
+      - not_screened_off_panel
+      - data_unavailable
+    dede_class:
+      - constitutive_buffering
+      - context_buffering
+      - suppressive
+      - no_interaction
+      - not_screened
+      - data_unavailable
+    in4mer_class:
+      - constitutive_buffering
+      - context_buffering
+      - suppressive
+      - no_interaction
+      - not_screened
+      - data_unavailable
+
+caveats:
+  - "CORROBORATION only (role: corroboration → CODEP CONFIDENCE), NEVER a verdict driver. A no-signal / single / not-screened read is a confidence caveat, not a veto — mirrors cross-consortium-dependency + crispr_rnai_concordance discipline."
+  - "Paralog SL reproduces POORLY across screens (Dede/in4mer/DepMap use different libraries, panels, pipelines): corroborated_multi_consortium is legitimately RARE and especially notable; a no_cross_consortium_signal does NOT overturn the DepMap CODEP call, it tempers confidence in it. E.g. the canonical SMARCA4↔SMARCA2 reads no_interaction (Dede) / suppressive (in4mer) in these pan-line aggregates."
+  - "Trusts each product's baked, shared-label interaction_class (a 2nd opinion) rather than re-thresholding on each product's native scale (zdLFC vs normZ vs Chronos) — the DepMap combinatorial-dependency card owns the reader-authoritative re-classification."
+  - "Indication-independent (tier: target): the same corroboration applies across indications."
+
+measurement_type: cross_consortium_paralog_gi
+modality_relevance: [small_molecule, degrader]
+entity_grains: [target]
+schema_version: 1

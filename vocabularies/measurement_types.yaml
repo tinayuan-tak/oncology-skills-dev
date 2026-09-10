@@ -671,6 +671,23 @@ measurement_types:
     providers:
       - {kind: dataset, source: depmap-consortium-26q1, evidence_tier: measured}
 
+  cross_consortium_paralog_gi:
+    claim: "Do the Dede + in4mer paralog dual-KO consortia corroborate a synthetic-lethal paralog interaction for the target?"
+    # T0-1 (2026-09-10): TARGET-grain CODEP CORROBORATION — realizes the "published CC-BY GI maps
+    # (Dede/in4mer) are a future corroboration leg" noted on combinatorial_ko_dependency. Orthogonal
+    # to DepMap ParalogV2 (different libraries/panels/pipelines); trusts each product's shared-label
+    # interaction_class. Verdict-inert (raises CODEP confidence, never a killer). corroborated_multi is
+    # rare — paralog SL reproduces poorly across screens.
+    modality_relevance: [small_molecule, degrader]
+    entity_grains: [target]
+    cards: [cross-consortium-paralog-gi]
+    # co-equal orthogonal consortia (neither dominant); the reader SURFACES both + their agreement
+    # (corroborated_multi / single / none), never averages — surface_discordance per Rule 5.
+    multi_provider_policy: surface_discordance
+    providers:
+      - {kind: dataset, source: dede-paralog-genetic-interaction-per-pair-v1, method: paralog_genetic_interaction, evidence_tier: measured}
+      - {kind: dataset, source: in4mer-paralog-genetic-interaction-per-pair-v1, method: paralog_genetic_interaction, evidence_tier: measured}
+
   alteration_role:
     claim: "Is target a functional cancer driver in the indication (activating GoF / loss-of-function LoF driver / predictive biomarker / passenger)?"
     # The typed FUNCTIONAL-ROLE call layered on the descriptive alteration cards — the primitive the
