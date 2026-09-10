@@ -28,7 +28,8 @@ applies_when:
   - "true"   # any target; data_unavailable-safe when absent from the Gygi panel or Chronos
 
 required_inputs:
-  - product_id: depmap-consortium-26q1-proteomics   # Gygi TMT MS protein abundance
+  - product_id: depmap-gygi-protein-abundance-per-protein-v1   # Gygi TMT-MS abundance — DERIVED per-protein pushdown (the actual live Gygi read; matches cis-feature-protein-coherence)
+  - product_id: depmap-consortium-26q1-proteomics   # Gygi source matrix — Olink-NPX fallback + uniprot map (still read on the fallback path)
   - product_id: depmap-consortium-26q1              # CRISPRGeneEffect (Chronos) + Model.csv lineage
 
 methods:
