@@ -21,6 +21,18 @@ COL_GENE = "gene_symbol"
 # IMvigor210 is metastatic urothelial carcinoma → only urothelial/bladder indications are in scope.
 _UROTHELIAL_INDICATIONS = frozenset({"BLCA", "UROTHELIAL", "BLADDER", "MIBC", "UCEC_UROTHELIAL", "UC"})
 
+# The IMvigor210 CoreBiologies object stores fData$symbol as PUBLISHED — for renamed genes the LEGACY
+# symbol is stored (e.g. NECTIN4 under its prev-symbol PVRL4), so a modern-HGNC query misses. Fold
+# current<->legacy so either symbol resolves. Interim reader-side fold (#1272); the durable fix
+# re-derives the product on the current HGNC symbol (data-catalog #549.4).
+_SYMBOL_ALIASES = {"NECTIN4": ("PVRL4",), "PVRL4": ("NECTIN4",)}
+
+
+def _gene_candidates(sym: str) -> list:
+    """Upper-cased query symbol + any legacy/current aliases, for a symbol-rename-tolerant read."""
+    return [sym, *_SYMBOL_ALIASES.get(sym, ())]
+
+
 _SUMMARY_FIELDS = (
     "ici_response_class",
     "log2fc_resp_vs_nonresp",
@@ -69,12 +81,14 @@ def read_target_summary(target: str, indication: Optional[str] = None) -> dict:
     if not indication or indication.upper().strip() not in _UROTHELIAL_INDICATIONS:
         # IMvigor210 is metastatic urothelial — do NOT read cross-indication (honest scope ceiling).
         return _empty(f"IMvigor210 is urothelial-only; indication {indication!r} out of scope")
+    import pyarrow as pa
     import pyarrow.compute as pc
     import pyarrow.parquet as pq
 
+    cands = _gene_candidates(sym)
     bucket, key = bucket_key_for(MANIFEST_ID)
     try:
-        tbl = pq.read_table(f"{bucket}/{key}", filesystem=_get_s3fs(), filters=[(COL_GENE, "=", sym)])
+        tbl = pq.read_table(f"{bucket}/{key}", filesystem=_get_s3fs(), filters=[(COL_GENE, "in", cands)])
     except Exception as e:  # noqa: BLE001
         if is_definitively_absent(e):
             return _empty(f"{MANIFEST_ID} not found (404)")
@@ -84,7 +98,7 @@ def read_target_summary(target: str, indication: Optional[str] = None) -> dict:
             "_data_source": MANIFEST_ID,
             "_live_read_error": f"imvigor210_ici_response read failed for {sym}: {type(e).__name__}: {e}",
         }
-    rows = tbl.filter(pc.equal(pc.utf8_upper(tbl[COL_GENE]), sym)).to_pylist()
+    rows = tbl.filter(pc.is_in(pc.utf8_upper(tbl[COL_GENE]), value_set=pa.array(cands))).to_pylist()
     if not rows:
         return _empty(f"{sym} absent from IMvigor210 product")
     r = rows[0]
