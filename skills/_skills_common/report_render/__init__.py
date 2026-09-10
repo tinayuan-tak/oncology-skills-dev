@@ -22,16 +22,18 @@ from typing import Optional
 
 from . import backends as _backends
 from .backends import backend_names, coverage, string_backend_names
-from .ir import ReportIR, build_ir, build_ir_for_skill
+from .ir import ReportIR, build_ir, build_ir_for_skill, build_layer_ir
 from .spec import PRESETS, ReportSpec, resolve_spec
 
 __all__ = [
     "render_report",
     "render_all",
     "render_skill_report",
+    "render_layer",
     "build_ir",
     "build_ir_for_skill",
     "build_ir_auto",
+    "build_layer_ir",
     "ReportIR",
     "ReportSpec",
     "PRESETS",
@@ -150,5 +152,31 @@ def render_skill_report(
         report, name = source, skill_name
     ir = build_ir_for_skill(
         report, spec, skill_name=name or skill_name, short=short, target=target, indication=indication
+    )
+    return _backends.render(ir, backend, asset_root=asset_root)
+
+
+def render_layer(
+    nomination: dict,
+    *,
+    card: Optional[str] = None,
+    question: Optional[str] = None,
+    datum: Optional[tuple] = None,
+    backend: str = "text",
+    spec: Optional[ReportSpec] = None,
+    level: str = "L3",
+    target: Optional[str] = None,
+    indication: Optional[str] = None,
+    asset_root=None,
+) -> str:
+    """Render a SINGLE layer of a composed target_report — a card panel (`card=cid`), a question panel
+    (`question=qid`), or one gauged datum (`datum=(cid, field)`). The layer-addressable dial: the same
+    IR/backends that render the whole target render one sub-block, so the same spec grammar drives a
+    one-liner → card panel → skill dashboard → composed dashboard. Defaults to L3 (full depth) for the
+    addressed layer. Raises ValueError if the address is not found."""
+    if spec is None:
+        spec = resolve_spec(None, level=level)
+    ir = build_layer_ir(
+        nomination, card=card, question=question, datum=datum, spec=spec, target=target, indication=indication
     )
     return _backends.render(ir, backend, asset_root=asset_root)

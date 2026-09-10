@@ -20,7 +20,7 @@ from typing import Any, Optional
 from .. import display_gloss as _dg  # plain-language readings (metric gloss + direction + card description)
 from ..risk_projection import AXIS_TO_DIM  # verdict-bearing subskill → risk dim crosswalk (the 6-dim spine)
 from . import vocab
-from .spec import SCOPE_ALL, SCOPE_GATING, ReportSpec
+from .spec import SCOPE_ALL, SCOPE_GATING, ReportSpec, resolve_spec
 
 
 @dataclass
@@ -2403,4 +2403,86 @@ def build_ir_for_skill(
     )
 
 
-__all__ = ["Block", "Section", "ReportIR", "build_ir", "build_ir_for_skill"]
+def _skill_reports_of(nomination: dict) -> dict:
+    """The {short: skill_report} spine off a nomination/target_report (either nesting), or {}."""
+    if not isinstance(nomination, dict):
+        return {}
+    tr = nomination.get("target_report") if isinstance(nomination.get("target_report"), dict) else nomination
+    sr = tr.get("skill_reports")
+    return sr if isinstance(sr, dict) else {}
+
+
+def build_layer_ir(
+    nomination: dict,
+    *,
+    card: Optional[str] = None,
+    question: Optional[str] = None,
+    datum: Optional[tuple] = None,
+    spec: Optional[ReportSpec] = None,
+    target: Optional[str] = None,
+    indication: Optional[str] = None,
+) -> ReportIR:
+    """Address a SINGLE layer of a composed target_report and render just it — a card panel (`card=cid`),
+    a question panel (`question=qid`), or one gauged datum (`datum=(cid, field)`). Locates the owning
+    sub-skill's evidence_graph, PRUNES it to the addressed element, then reuses `build_ir_for_skill` (so
+    every existing block builder + backend renders it unchanged). ADDITIVE — a new entry point; the
+    all/gating/tuple scopes and the composed/standalone paths are untouched.
+
+    Exactly one address must be given. Raises ValueError if the address is malformed or not found (an
+    explicit address should fail loudly, never silently render an empty page)."""
+    given = [a for a in (card, question, datum) if a is not None]
+    if len(given) != 1:
+        raise ValueError("build_layer_ir: pass exactly one of card=, question=, datum=")
+    spec = spec or resolve_spec(None, level="L3")
+    cid = card or (datum[0] if datum else None)
+    field = datum[1] if datum else None
+    reports = _skill_reports_of(nomination)
+    tgt = target or nomination.get("target")
+    ind = indication or nomination.get("indication")
+
+    def _ids(seq, key="id"):
+        return [x.get(key) for x in (seq or []) if isinstance(x, dict)]
+
+    for short, sr in reports.items():
+        if not isinstance(sr, dict):
+            continue
+        eg = sr.get("evidence_graph") or {}
+        cards = eg.get("cards") or []
+        questions = eg.get("questions") or []
+        if question is not None:
+            q = next((x for x in questions if isinstance(x, dict) and x.get("id") == question), None)
+            if q is None:
+                continue
+            keep_cids = set(q.get("card_ids") or [])
+            pruned = {**eg, "questions": [q], "cards": [c for c in cards if c.get("id") in keep_cids]}
+        else:
+            if cid not in _ids(cards):
+                continue
+            kept_cards = [c for c in cards if c.get("id") == cid]
+            if field is not None:  # datum: narrow the card's rulers to the addressed field
+                kc = dict(kept_cards[0])
+                ke = dict(kc.get("key_evidence") or {})
+                interp = [
+                    r
+                    for r in (ke.get("interpretation") or [])
+                    if isinstance(r, dict) and field in (r.get("value_field"), r.get("field"), r.get("metric"))
+                ]
+                if interp:
+                    ke["interpretation"] = interp
+                    kc["key_evidence"] = ke
+                kept_cards = [kc]
+            pruned = {
+                **eg,
+                "cards": kept_cards,
+                "questions": [q for q in questions if cid in (q.get("card_ids") or [])],
+            }
+        pruned_report = {**sr, "evidence_graph": pruned}
+        return build_ir_for_skill(pruned_report, spec, short=short, target=tgt, indication=ind)
+
+    addr = (
+        f"question={question!r}" if question is not None else f"card={cid!r}" + (f" field={field!r}" if field else "")
+    )
+    raise ValueError(f"build_layer_ir: {addr} not found in any sub-skill evidence_graph")
+
+
+__all__ = ["Block", "Section", "ReportIR", "build_ir", "build_ir_for_skill", "build_layer_ir"]
