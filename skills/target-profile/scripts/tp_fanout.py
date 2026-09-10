@@ -221,11 +221,25 @@ def _is_transient_synth(err: str) -> bool:
 
 
 def _synthesize_with_retry(
-    synth_fn, cards, fired, verdict_pair, target, indication, synthesis_model, *, max_attempts: int = 4
+    synth_fn,
+    cards,
+    fired,
+    verdict_pair,
+    target,
+    indication,
+    synthesis_model,
+    *,
+    max_attempts: int = 4,
+    literature_synthesis=None,
 ) -> dict:
     """Call a sub-skill's _llm_synthesis with backoff on TRANSIENT Bedrock errors (503/throttle),
     which are common when the concurrent fan-out fires all narrators at once. Best-effort +
     VERDICT-INERT: a persistent failure returns a {_synthesis_error} note; never raises.
+
+    `literature_synthesis` (optional) is the per-sub-skill literature lane computed BEFORE narration;
+    it is threaded into the decision the narrator reads (each hook sets
+    decision['literature_synthesis']) so the exec_bullets weave + cite the literature. None → the hook
+    narrates over an empty literature lane, byte-identical to the pre-reorder behaviour.
 
     Jittered exponential backoff spreads the retries so simultaneously-throttled narrators do not
     re-collide. A non-transient error (auth / bad request) fails fast — no point retrying."""
@@ -233,7 +247,16 @@ def _synthesize_with_retry(
     for attempt in range(max_attempts):
         try:
             with _SYNTH_LOCK:  # serialize the Bedrock call across the concurrent fan-out (anti-throttle)
-                result = synth_fn(cards, fired, verdict_pair, target, indication, synthesis_model, None)
+                result = synth_fn(
+                    cards,
+                    fired,
+                    verdict_pair,
+                    target,
+                    indication,
+                    synthesis_model,
+                    None,
+                    literature_synthesis=literature_synthesis,
+                )
         except Exception as e:  # noqa: BLE001 — narration must never break the fan-out
             last_err = f"{type(e).__name__}: {e}"
             result = None
@@ -1149,31 +1172,6 @@ def _run_sub_skills(
                 claim_record_shadow = _cr_fn(cards, fired, verdict_pair)
             except Exception:  # noqa: BLE001 — a shadow must never break the fan-out
                 claim_record_shadow = None
-        # OPTIONAL per-sub-skill single-lens LLM narration (--synthesize-subskills). Best-effort +
-        # VERDICT-INERT, same discipline as synthesis_facet: a narrator-bearing sub-skill exposes
-        # _llm_synthesis and hands the composed layer the SAME provenance-tagged block its standalone
-        # --synthesize run attaches; absence (7 non-narrator shorts) / failure (Bedrock auth) → None.
-        # This is the ONLY hook here that issues a network (Bedrock) call, gated on synthesize_subskills.
-        llm_synthesis = None
-        if synthesize_subskills:
-            _synth_fn = _load_sub_skill_synthesis_fn(skill_dir)
-            if _synth_fn is not None:
-                llm_synthesis = _synthesize_with_retry(
-                    _synth_fn, cards, fired, verdict_pair, target, indication, synthesis_model
-                )
-            else:
-                # central-lens narration fallback: a sub-skill WITHOUT a bespoke `_llm_synthesis` hook
-                # (only 6 declare one) still narrates through its OWN lens via make_synthesize_fn(<lens>) —
-                # the same narrator the standalone --synthesize run uses — so rich-embedded narrative is
-                # fleet-wide, not just the 6 hook-bearing skills. Best-effort + locked (Bedrock throttle).
-                _lens = _SKILL_LENS.get(skill_dir)
-                if _lens is not None:
-                    try:
-                        _n_decision = _reconstruct_decision(skill_dir, cards, fired, verdict_pair, target, indication)
-                        with _SYNTH_LOCK:
-                            llm_synthesis = make_synthesize_fn(_lens)(_n_decision, synthesis_model)
-                    except Exception:  # noqa: BLE001 — a display lane must never break the fan-out
-                        llm_synthesis = None
         # OPTIONAL per-sub-skill LITERATURE lane (--subskill-literature / --rich-embedded). Runs the SAME
         # make_literature_fn(<lens>) the standalone --literature run uses (EuropePMC/PubTator grounding +
         # verify_citations), attaching decision['literature_synthesis'] so the carried evidence_graph gets
@@ -1181,6 +1179,12 @@ def _run_sub_skills(
         # serialized behind _SYNTH_LOCK (shared with narration) to avoid the concurrent-Bedrock throttle.
         # Scope-gated: 'all' sub-skills, or 'gating' (the _SHORT_TO_GATE axes only). A skill with no lens
         # is skipped (honest). Lands on synthesis_facet['literature_synthesis'], read by the carry below.
+        # RUNS BEFORE NARRATION (the reorder): the literature it computes (`_lit`) is threaded into the
+        # decision the narrator reads (narrator_engine._render_literature reads decision['literature_
+        # synthesis']) so the per-sub-skill exec_bullets WEAVE + CITE the literature lane (citation_ids /
+        # PMIDs), matching the standalone --literature+--synthesize product. `_lit` stays None → the
+        # narrator prompt is byte-identical to a no-literature run.
+        _lit = None
         if (
             subskill_literature
             and isinstance(synthesis_facet, dict)
@@ -1196,7 +1200,44 @@ def _run_sub_skills(
                     if isinstance(_lit, dict) and _lit:
                         synthesis_facet["literature_synthesis"] = _lit
                 except Exception:  # noqa: BLE001 — a display lane must never break the fan-out
-                    pass
+                    _lit = None
+        # OPTIONAL per-sub-skill single-lens LLM narration (--synthesize-subskills). Best-effort +
+        # VERDICT-INERT, same discipline as synthesis_facet: a narrator-bearing sub-skill exposes
+        # _llm_synthesis and hands the composed layer the SAME provenance-tagged block its standalone
+        # --synthesize run attaches; absence (7 non-narrator shorts) / failure (Bedrock auth) → None.
+        # This is the ONLY hook here that issues a network (Bedrock) call, gated on synthesize_subskills.
+        # The literature lane above ran FIRST; its result (`_lit`) is threaded into the decision the
+        # narrator reads so the exec_bullets weave + cite the literature. None → today's behaviour.
+        llm_synthesis = None
+        if synthesize_subskills:
+            _synth_fn = _load_sub_skill_synthesis_fn(skill_dir)
+            if _synth_fn is not None:
+                llm_synthesis = _synthesize_with_retry(
+                    _synth_fn,
+                    cards,
+                    fired,
+                    verdict_pair,
+                    target,
+                    indication,
+                    synthesis_model,
+                    literature_synthesis=_lit,
+                )
+            else:
+                # central-lens narration fallback: a sub-skill WITHOUT a bespoke `_llm_synthesis` hook
+                # (only 6 declare one) still narrates through its OWN lens via make_synthesize_fn(<lens>) —
+                # the same narrator the standalone --synthesize run uses — so rich-embedded narrative is
+                # fleet-wide, not just the 6 hook-bearing skills. Best-effort + locked (Bedrock throttle).
+                _lens = _SKILL_LENS.get(skill_dir)
+                if _lens is not None:
+                    try:
+                        _n_decision = _reconstruct_decision(skill_dir, cards, fired, verdict_pair, target, indication)
+                        # Feed the pre-computed literature lane onto the decision the narrator reads so its
+                        # exec_bullets weave + cite the literature (verdict-inert; None → byte-identical).
+                        _n_decision["literature_synthesis"] = _lit
+                        with _SYNTH_LOCK:
+                            llm_synthesis = make_synthesize_fn(_lens)(_n_decision, synthesis_model)
+                    except Exception:  # noqa: BLE001 — a display lane must never break the fan-out
+                        llm_synthesis = None
         # PHASE 3 (tumor-presence): the EMITTED presence word is reconciled with the signal package in
         # _headline (stromal-only / protein↔RNA conflict / not-present demote to caveated tokens). The
         # facet carries that reconciled word; reflect it in the STORED sub-result verdict so the composed

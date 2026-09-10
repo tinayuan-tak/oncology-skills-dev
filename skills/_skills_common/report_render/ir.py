@@ -404,7 +404,7 @@ def _build_section(
     # an opt-in --synthesize trailer; absent → no block). Leads with the crisp bullets; rationale prose
     # is the demoted verbose read. Advisory / verdict-inert.
     if isinstance(eg, dict) and eff >= vocab.TIER[vocab.SYNTHESIS]:
-        nb = _skill_synthesis_block(eg.get("narrative") or {})
+        nb = _skill_synthesis_block(eg.get("narrative") or {}, eg.get("citations") or [])
         if nb is not None:
             blocks.append(nb)
     if eff >= vocab.TIER[vocab.PROVENANCE] and report.get("provenance"):
@@ -872,13 +872,33 @@ def _synthesis_block(nomination: dict, literature: Optional[dict] = None) -> Opt
     )
 
 
-def _skill_synthesis_block(narrative: dict) -> Optional[Block]:
+def _skill_synthesis_block(narrative: dict, citations: Optional[list] = None) -> Optional[Block]:
     """Build a SYNTHESIS block from a single-skill graph `narrative` (evidence_graph.narrative) — the
     Stage-2 exec_bullets lead + the demoted verbose prose (rationale). None when the narrative is empty
-    (no --synthesize). Reuses the SYNTHESIS backends (same as the composed report)."""
+    (no --synthesize). Reuses the SYNTHESIS backends (same as the composed report).
+
+    `citations` = the graph's citation registry (evidence_graph.citations). Each bullet's
+    `cites.citation_ids` that resolve to a real citation carrying a PMID are projected onto the bullet
+    as `resolved_citations` [{id,label,pmid,verified}] so the backend can render the PMID(s) inline as
+    cite-pills — the exec_bullets then WEAVE + CITE the literature lane. Verdict-inert / display-only."""
     if not isinstance(narrative, dict):
         return None
-    bullets = [b for b in (narrative.get("exec_bullets") or []) if isinstance(b, dict) and b.get("text")]
+    cites_by_id = {c.get("id"): c for c in (citations or []) if isinstance(c, dict)}
+    bullets = []
+    for b in narrative.get("exec_bullets") or []:
+        if not (isinstance(b, dict) and b.get("text")):
+            continue
+        cid_list = ((b.get("cites") or {}).get("citation_ids")) or []
+        resolved = []
+        for cid in cid_list:
+            c = cites_by_id.get(cid)
+            if isinstance(c, dict) and c.get("pmid"):
+                resolved.append(
+                    {"id": cid, "label": c.get("label"), "pmid": c.get("pmid"), "verified": bool(c.get("verified"))}
+                )
+        if resolved:
+            b = {**b, "resolved_citations": resolved}
+        bullets.append(b)
     verbose = narrative.get("rationale") or narrative.get("relevance")
     if not (bullets or verbose):
         return None

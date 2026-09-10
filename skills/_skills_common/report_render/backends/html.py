@@ -1698,14 +1698,34 @@ class HtmlBackend:
             for b in bullets:
                 pol = b.get("polarity")
                 anchors = b.get("cites") or {}
-                ids = (anchors.get("card_ids") or []) + (anchors.get("citation_ids") or [])
+                # citation_ids that resolved to a real PMID-bearing citation are rendered inline as
+                # cite-pills below; keep any UNRESOLVED citation_ids (+ all card_ids) in the bracket anchor.
+                resolved = b.get("resolved_citations") or []
+                resolved_ids = {r.get("id") for r in resolved if isinstance(r, dict)}
+                cid_list = [cid for cid in (anchors.get("citation_ids") or []) if cid not in resolved_ids]
+                ids = (anchors.get("card_ids") or []) + cid_list
                 anc = (f" <span class='ke-anchor'>[{_esc(', '.join(ids[:3]))}]</span>") if ids else ""
+                # resolve → PMID cite-pills (linked to PubMed), the weaved literature citation the
+                # narrator anchored the bullet on. Display-only / verdict-inert.
+                pills = ""
+                if resolved:
+                    _p = []
+                    for r in resolved[:3]:
+                        pmid = r.get("pmid")
+                        lbl = _esc(r.get("label") or f"PMID {pmid}")
+                        vf = " ✓" if r.get("verified") else ""
+                        inner = f"PMID {_esc(pmid)}{vf}"
+                        _p.append(
+                            f"<a class='cite-pill' href='https://pubmed.ncbi.nlm.nih.gov/{_esc(pmid)}/' "
+                            f"target='_blank' rel='noopener' title='{lbl}'>{inner}</a>"
+                        )
+                    pills = " " + "".join(_p)
                 # two-tone: the omics/deterministic clause reads --det, the literature clause --lit
                 # (verdict-inert; the split is a heuristic on the word "literature").
                 lis.append(
                     f"<li style='--b:{_POLCOL.get(pol, 'var(--neutral)')}'>"
                     f"<span class='{_CLS.get(pol, 'g-neu')}'>{_GLYPH.get(pol, '•')}</span> "
-                    f"{_two_tone(b.get('text'))}{anc}</li>"
+                    f"{_two_tone(b.get('text'))}{anc}{pills}</li>"
                 )
             out.append("<ul class='bullets exec-bullets'>" + "".join(lis) + "</ul>")
             out.append(

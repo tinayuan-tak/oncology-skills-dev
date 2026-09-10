@@ -1104,18 +1104,23 @@ def _emit_skill_figures(decision, figures_root):
     return list(emit_selectivity_hero(decision, figures_root)) + list(emit_headline_hero(decision, figures_root))
 
 
-def _llm_synthesis(cards, fired, verdict_pair, target, indication, model_id=None, subtype=None):
+def _llm_synthesis(
+    cards, fired, verdict_pair, target, indication, model_id=None, subtype=None, literature_synthesis=None
+):
     """Fan-out opt-in (mirrors _synthesis_facet): return this lens's provenance-tagged
     llm_synthesis block for the COMPOSED target-profile run. Builds the SAME minimal decision the
     narrator consumes standalone ({target, indication, headline, cards}) from the fan-out's already-
     resolved cards + this skill's _headline, then narrates through its OWN lens synthesizer. Best-
-    effort + VERDICT-INERT: never enters fired/verdict/cards — a failure is the caller's to swallow."""
+    effort + VERDICT-INERT: never enters fired/verdict/cards — a failure is the caller's to swallow.
+    `literature_synthesis` (optional, from the fan-out's pre-narration literature lane) is threaded
+    onto the decision the narrator reads so exec_bullets weave + cite it (None → byte-identical)."""
     headline = _headline(cards, fired, verdict_pair)
     decision = {
         "target": target,
         "indication": indication,
         "headline": headline,
         "cards": [{"card_id": c.get("card_id"), "summary": c.get("summary") or {}} for c in cards],
+        "literature_synthesis": literature_synthesis,
     }
     return make_synthesize_fn(_LENS)(decision, model_id, subtype)  # migrated to generic capsule-driven engine
 

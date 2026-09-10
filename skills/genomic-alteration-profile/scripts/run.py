@@ -27,7 +27,7 @@ SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common import card_summary, resolve_cards
-from _skills_common.card_preprocessors import (
+from _skills_common.card_preprocessors import (  # noqa: F401
     _bh_qvalues,
 )
 
@@ -38,7 +38,7 @@ from _skills_common.card_preprocessors import (
 from _skills_common.card_preprocessors import (  # noqa: F401
     apply_family_wise_fdr as _apply_family_wise_fdr,
 )
-from _skills_common.card_preprocessors import (
+from _skills_common.card_preprocessors import (  # noqa: F401
     apply_promiscuous_amplicon_fusion_demotion as _apply_amplicon_fusion_demotion,
 )
 from _skills_common.claim_record import assemble_claim_record
@@ -1126,12 +1126,16 @@ def _synthesis_facet(cards, fired, verdict_pair):
     return facet
 
 
-def _llm_synthesis(cards, fired, verdict_pair, target, indication, model_id=None, subtype=None):
+def _llm_synthesis(
+    cards, fired, verdict_pair, target, indication, model_id=None, subtype=None, literature_synthesis=None
+):
     """Fan-out opt-in (mirrors _synthesis_facet): return the genomic-alteration lens's provenance-
     tagged llm_synthesis block for the COMPOSED target-profile run. Rebuilds the headline from the
     fan-out-resolved (verdict, driving_rule) via _build_headline (exactly as _synthesis_facet does),
     then narrates through the genomic synthesizer. Best-effort + VERDICT-INERT (the subtype arg is
-    unused — genomic narrates whole-cohort; a failure is the caller's to swallow)."""
+    unused — genomic narrates whole-cohort; a failure is the caller's to swallow).
+    `literature_synthesis` (optional, from the fan-out's pre-narration literature lane) is threaded
+    onto the decision the narrator reads so exec_bullets weave + cite it (None → byte-identical)."""
     verdict, driving = verdict_pair or (None, None)
     headline = _build_headline(cards, verdict, driving, {}, fired=fired)
     # cards passed so the generic engine can build evidence capsules (bounded raw data layer).
@@ -1140,6 +1144,7 @@ def _llm_synthesis(cards, fired, verdict_pair, target, indication, model_id=None
         "indication": indication,
         "headline": headline,
         "cards": [{"card_id": c.get("card_id"), "summary": c.get("summary") or {}} for c in cards],
+        "literature_synthesis": literature_synthesis,
     }
     return _narrate(decision, _LENS, model_id)
 

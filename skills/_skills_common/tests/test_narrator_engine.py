@@ -405,3 +405,22 @@ def test_render_literature_still_empty_when_absent_or_errored():
     assert NE._render_literature({}) == ""
     assert NE._render_literature({"literature_synthesis": {"_literature_error": "boom"}}) == ""
     assert NE._render_literature({"literature_synthesis": {"axes": [], "blind_spots": []}}) == ""
+
+
+# ── (a) the narrator PROMPT weaves + cites literature when the DECISION carries it ─────────────────
+def test_build_capsule_prompt_weaves_literature_and_citation_when_decision_carries_it():
+    """The narrator prompt build must include the literature-lane text AND its citation id/PMID when
+    the decision carries `literature_synthesis` — so the exec_bullets can WEAVE + CITE it. When the
+    decision has NO literature lane, the prompt is byte-identical to a no-literature run (no section)."""
+    dec = _decision()
+    base = NE.build_capsule_prompt(dec, FUNCTIONAL_REQUIREMENT)
+    assert "LITERATURE LANE" not in base  # no literature attached → no section (byte-identical baseline)
+
+    dec_lit = {**dec, **_wrapped_lit()}  # attach literature_synthesis (axis A + citation PMID:16404434)
+    p = NE.build_capsule_prompt(dec_lit, FUNCTIONAL_REQUIREMENT)
+    assert "LITERATURE LANE" in p  # the lane now renders into the prompt
+    assert "PMID:16404434" in p  # the citation id/PMID reaches the prompt
+    assert "EpCAM abundant in CRC." in p  # the literature assertion text reaches the prompt
+    assert "strongly_supports" in p  # the per-axis literature read reaches the prompt
+    # and the prompt still instructs the narrator to weave/cite (anchor with citation_id)
+    assert "citation_id" in p
