@@ -1733,6 +1733,62 @@ def _kegloss(ke: Optional[dict]) -> Optional[dict]:
     }
 
 
+import re as _re_scope
+
+_PER_INDICATION_RE = _re_scope.compile(r"per[-_]indication", _re_scope.IGNORECASE)
+
+
+def _card_scope(c: dict, ke: Optional[dict], indication: Optional[str]) -> dict:
+    """Classify the SCOPE of ONE card's reading — pan-cancer vs the indication cohort vs a molecular
+    subtype — from the card's data grain, so the drill-down can chip each reading with WHERE it applies.
+    Signals, most specific first:
+      subtype  — key_evidence.subtype_axis (a subtype-restricted axis) OR a subtype/subgroup-stratified
+                 card (its id/measurement_type names a subtype/subgroup stratum);
+      indication — the reading LEADS with an indication stratum (key_evidence.top_strata role='indication',
+                 i.e. a per-indication-cohort restriction such as a TCGA/CPTAC/GENIE cohort or a
+                 lineage-restricted DepMap read) OR a `-per-indication` data product;
+      pan_cancer — the default: a pan-cell-line DepMap distribution / pan-cohort percentile, unrestricted.
+    Returns {'kind','label'} where label is the display token (the indication code, the subtype class, or
+    'pan-cancer'). Verdict-inert display classification — never changes a verdict."""
+    sub = (ke or {}).get("subtype_axis") or {}
+    if isinstance(sub, dict) and sub.get("restriction_class"):
+        lbl = _dg.humanize(sub.get("restriction_class")) or "subtype"
+        return {"kind": "subtype", "label": lbl}
+    cid = str(c.get("id") or "").lower()
+    mt = str(c.get("measurement_type") or "").lower()
+    if "subtype" in cid or "subtype" in mt or "subgroup" in cid or "subgroup" in mt:
+        return {"kind": "subtype", "label": "subtype-stratified"}
+    strata = (ke or {}).get("top_strata") or []
+    has_ind_stratum = any(isinstance(s, dict) and s.get("role") == "indication" for s in strata)
+    dsids = c.get("dataset_ids") or (c.get("chain") or {}).get("dataset_ids") or []
+    per_ind = any(_PER_INDICATION_RE.search(str(x)) for x in dsids)
+    if has_ind_stratum or per_ind:
+        return {"kind": "indication", "label": (indication or "indication")}
+    return {"kind": "pan_cancer", "label": "pan-cancer"}
+
+
+def _subtype_rollup(ke: Optional[dict]) -> Optional[dict]:
+    """The card's subtype-stratified breakdown, surfaced as its own drilldown line (3b). Reads
+    key_evidence.subtype_axis: the restriction class + the driving axis + a compact per-subtype line when
+    the axis carries one. None when the card carries no subtype axis."""
+    sub = (ke or {}).get("subtype_axis") if isinstance(ke, dict) else None
+    if not isinstance(sub, dict) or not sub.get("restriction_class"):
+        return None
+    per = []
+    for s in sub.get("per_subtype") or sub.get("strata") or []:
+        if not isinstance(s, dict):
+            continue
+        lbl = s.get("label") or s.get("subtype") or s.get("name")
+        val = s.get("value")
+        if lbl is not None:
+            per.append(f"{lbl}={_fmt_num(val)}" if val is not None else str(lbl))
+    return {
+        "restriction_class": _dg.humanize(sub.get("restriction_class")),
+        "driving_axis": sub.get("driving_axis"),
+        "per_subtype": per[:6],
+    }
+
+
 def _card_chain_block(eg: dict) -> Optional[Block]:
     """Per-card dataset→data→rule→verdict chains, grouped by the QUESTION each card answers (aligning
     the drill-down with the question-anchored fingerprint above), so a reader drills the question they
@@ -1778,6 +1834,9 @@ def _card_chain_block(eg: dict) -> Optional[Block]:
             # sandbox split metric-gloss (.kegloss text companion) + the top-strata table (.ketbl)
             "kegloss": _kegloss(ke),
             "top_strata": (ke or {}).get("top_strata") or [],
+            # per-reading SCOPE chip (pan-cancer / indication / subtype) + subtype-stratified rollup (3a/3b)
+            "scope": _card_scope(c, ke, indication),
+            "subtype_rollup": _subtype_rollup(ke),
         }
 
     # Group by the card's PRIMARY question (its first question_id) when the skill maps cards to
@@ -1857,7 +1916,26 @@ def _card_chain_block(eg: dict) -> Optional[Block]:
                 order.append(mt)
             layers[mt].append(_card(c))
         groups = [{"layer": mt.replace("_", " "), "cards": layers[mt]} for mt in order]
-    return Block(vocab.CARD_CHAIN, {"layers": groups, "grouped_by": "question" if by_question else "measurement_type"})
+    # skill-level SUBTYPE summary (3b): a one-line signal near the top when ANY card carries a subtype
+    # axis, so the subtype read is VISIBLE at the skill grain (not buried in one card). None otherwise.
+    subtype_summary = None
+    sub_cards = [c for grp in groups for c in grp["cards"] if isinstance(c.get("subtype_rollup"), dict)]
+    if sub_cards:
+        classes = []
+        for c in sub_cards:
+            rc = (c.get("subtype_rollup") or {}).get("restriction_class")
+            if rc and rc not in classes:
+                classes.append(rc)
+        subtype_summary = " · ".join(classes) if classes else None
+    return Block(
+        vocab.CARD_CHAIN,
+        {
+            "layers": groups,
+            "grouped_by": "question" if by_question else "measurement_type",
+            "indication": indication,
+            "subtype_summary": subtype_summary,
+        },
+    )
 
 
 def _literature_axes_block(eg: dict) -> Optional[Block]:

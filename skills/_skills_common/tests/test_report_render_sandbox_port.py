@@ -1,7 +1,7 @@
 """report_render — the standalone subskill dashboard renders the approved sandbox design
 (eg-sandbox-genomic.html) through the ONE renderer: the header headline + kv grid, the per-question
-meter/dots/qstrip/qkey drill summary, the split metric-gloss (.kegloss) + top-strata table (.ketbl),
-the two-tone (--det/--lit) narrative bullets, and the auto/light/dark theme toggle.
+meter/dots/qstrip/qkey drill summary, the consolidated card reading + labeled scale bar + top-strata
+table (.ketbl), the two-tone (--det/--lit) narrative bullets, and the auto/light/dark theme toggle.
 
 These are the sandbox signature classes that landed on top of #1240 (which shipped the question-grouped
 drill, role badges, litdot agreement glyph, litaxis border, table twin, ring-confidence heatmap). All
@@ -80,6 +80,22 @@ def _rich_graph() -> dict:
                     },
                     "n": 43,
                     "top_strata": [{"label": "Bowel", "role": "indication", "value": -1.73, "n": 43}],
+                    "interpretation": [
+                        {
+                            "metric": "median_chronos_hotspot_mutant",
+                            "value": -1.7287,
+                            "scale": "chronos",
+                            "direction": "lower_is_stronger",
+                            "frame": {
+                                "kind": "comparator_delta",
+                                "anchors": [
+                                    {"role": "comparator", "label": "hotspot_wildtype", "value": -0.5864},
+                                    {"role": "cut", "label": "strong_effect_delta", "value": -0.5},
+                                ],
+                            },
+                            "distance_to_cut": -1.142,
+                        }
+                    ],
                 },
             }
         ],
@@ -140,16 +156,18 @@ def test_header_headline_and_kv_bind_to_graph_verdict():
     h = _html()
     # the sandbox `.hdr` header structure (eg-sandbox-genomic.html): the accent .card.hdr, a `.titlerow`
     # with the skill eyebrow + `{TARGET} · {INDICATION}` h1 on the left and the polarity `.vchip` on the
-    # right, then the one-sentence headline, then the `.kv` grid with the verdict `.vline`.
+    # right, then the one-sentence headline, then the `.kv` grid — trimmed 2026-09-10 to the Tension row
+    # only (the Verdict + Driving rows were removed; verdict/call/driving/confidence live in the headline).
     assert "hdr" in h and 'class="titlerow"' in h  # accent header card + title row
     assert 'class="eyebrow"' in h and "<h1>KRAS · COADREAD</h1>" in h  # eyebrow + GENE · INDICATION h1
     assert 'class="vchip"' in h  # top-right polarity chip
     assert "stitle" not in h  # the OLD .stitle header line is gone
     assert 'class="headline"' in h  # one-sentence read inside the header
     assert "moderate-confidence supportive call" in h  # confidence + polarity clause
-    assert "mutant-strongly-dependent-supportive" in h  # driving rule surfaced
-    assert 'class="kv"' in h and "vline" in h  # verdict / driving / tension grid + verdict line
-    assert "coverage 4/4 axes" in h  # coverage bound
+    assert "mutant-strongly-dependent-supportive" in h  # driving rule surfaced (in the headline sentence)
+    # the trimmed kv carries the Tension row only (Verdict/Driving rows + the .vline verdict line removed).
+    assert 'class="kv"' in h and "<dt>Tension" in h
+    assert "<dt>Verdict" not in h and "<dt>Driving" not in h
     assert "No recurrent copy-number alteration" in h  # top_tension caveat
 
 
@@ -162,12 +180,15 @@ def test_question_summary_has_meter_dots_qstrip_and_key():
     assert "mutation-stratified mutant_strongly_dependent" in h  # evidence-ref key
 
 
-def test_card_split_metric_gloss_and_top_strata_table():
+def test_card_reading_scale_bar_and_top_strata_table():
     h = _html()
-    assert "kegloss" in h  # split metric-gloss text companion
-    assert "median CHRONOS in hotspot-mutant lines = -1.729" in h  # glossed metric = value
-    assert "lower = stronger" in h  # muted plain-language help line
-    assert "ketbl" in h and "kerole" in h and "Bowel" in h  # top-strata table
+    # 2026-09-10 de-clutter: the split metric-gloss (.kegloss) + separate KEY line are gone; the numeric
+    # reading is now carried ONCE by the labeled scale bar's caption, and the top-strata table remains.
+    assert "kegloss" not in h  # the redundant split gloss is removed
+    assert "class='scalebar'" in h and "class='sb-cap'>" in h  # the labeled scale bar + its reading caption
+    assert "median CHRONOS in hotspot-mutant lines -1.729" in h  # the reading (glossed metric + value)
+    assert "past the -0.5 cut" in h  # the cut reading in the caption
+    assert "ketbl" in h and "Bowel" in h  # top-strata table retained
 
 
 def test_two_tone_narrative_and_theme_toggle():
@@ -193,13 +214,13 @@ def test_render_skill_report_entrypoint_prints_all_sandbox_classes():
         'class="titlerow"',
         'class="eyebrow"',
         'class="vchip"',
-        "vline",
         'class="kv"',
         'class="qtab"',
         'details class="qr"',
         "meter",
         "mfill",
-        "kegloss",
+        "class='scalebar'",
+        "scope-chip",
         "qstrip",
         "fx-det",
     ):

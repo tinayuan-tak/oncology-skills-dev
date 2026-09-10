@@ -30,6 +30,18 @@ def _esc(x) -> str:
     return escape("" if x is None else str(x))
 
 
+def _fmt_html_num(v) -> str:
+    """Compact scalar display for scale-bar axis/tick labels — sig-figs for tiny magnitudes, else a short
+    decimal; passes non-numerics through as-is."""
+    if isinstance(v, bool) or not isinstance(v, (int, float)):
+        return "" if v is None else str(v)
+    if isinstance(v, float):
+        if v != 0 and abs(v) < 1e-3:
+            return f"{v:.2e}"
+        return f"{v:.4g}"
+    return str(v)
+
+
 _CSS = """
 :root {
   color-scheme:light;
@@ -277,16 +289,26 @@ details.skill-collapse > summary .phrase { margin:3px 0 0; }
 .chainline .sep { color:var(--muted); margin:0 4px; }
 .cdesc { font-size:11.5px; color:var(--ink2); line-height:1.5; margin:3px 0 5px; font-style:italic; }
 .cread { font-size:12.5px; color:var(--ink2); margin:3px 0 4px; } .cread b { font-weight:640; }
-.chainline.keyev .lab { background:var(--page); }
-.gauge { margin:3px 0 5px; }
-.gtrack { position:relative; height:16px; margin:9px 0 2px; }
-.gtrack .grail { position:absolute; top:7px; left:0; right:0; height:2px; background:var(--border); border-radius:2px; }
-.gtick { position:absolute; top:2px; width:1px; height:12px; background:var(--muted); transform:translateX(-50%); }
-.gtick.gcut { background:var(--ink2); height:14px; top:1px; }
-.gtick .gtlab { position:absolute; top:13px; left:50%; transform:translateX(-50%); font-size:8.5px; color:var(--muted); white-space:nowrap; }
-.gmark { position:absolute; top:3px; width:10px; height:10px; border-radius:50%; transform:translateX(-50%); border:1.5px solid var(--surface); box-shadow:0 0 0 1px currentColor; }
-.gmark.gcomp { width:8px; height:8px; top:4px; opacity:.55; }
-.gcap { font-size:11px; color:var(--ink2); }
+/* per-reading scope chip (3a) + legend + subtype rollup line (3b) */
+.scope-legend { font-size:11px; color:var(--muted); margin:4px 0 8px; display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+.scope-chip { display:inline-block; font-size:9.5px; font-weight:700; letter-spacing:.03em; border-radius:5px; padding:1px 7px; border:1px solid var(--border); white-space:nowrap; }
+.scope-chip.sc-pan { color:var(--muted); background:var(--page); }
+.scope-chip.sc-ind { color:#fff; background:var(--det); border-color:var(--det); }
+.scope-chip.sc-sub { color:var(--warning); background:var(--t-hold,var(--surface)); border-color:var(--warning); }
+.ccchip .scope-chip { margin-right:2px; }
+.subtypeln { font-size:11.5px; color:var(--ink2); margin:4px 0 2px; padding:3px 8px; border-left:3px solid var(--warning); border-radius:0 5px 5px 0; }
+.subtypeln .lab { color:var(--warning); text-transform:uppercase; font-size:9px; letter-spacing:.04em; font-weight:700; margin-right:4px; }
+.subtype-summary { font-size:12.5px; color:var(--ink2); margin:6px 0 2px; padding:4px 9px; border-left:3px solid var(--warning); border-radius:0 6px 6px 0; } .subtype-summary b { color:var(--warning); }
+/* labeled horizontal scale bar (one per key metric): min→max axis, cut tick+label, value dot, caption */
+.scalebar { margin:7px 0 8px; }
+.sb-track { position:relative; height:16px; margin:16px 0 2px; }
+.sb-rail { position:absolute; top:7px; left:0; right:0; height:3px; background:var(--page); border:1px solid var(--border); border-radius:3px; }
+.sb-cut { position:absolute; top:0; width:2px; height:18px; background:var(--ink2); transform:translateX(-50%); }
+.sb-cutlab { position:absolute; bottom:19px; left:50%; transform:translateX(-50%); font-size:9px; color:var(--ink2); white-space:nowrap; font-weight:600; }
+.sb-comp { position:absolute; top:3px; width:2px; height:12px; background:var(--muted); opacity:.6; transform:translateX(-50%); }
+.sb-val { position:absolute; top:2px; width:13px; height:13px; border-radius:50%; transform:translateX(-50%); background:currentColor; border:2px solid var(--surface); box-shadow:0 0 0 1px currentColor; }
+.sb-ends { display:flex; justify-content:space-between; font-size:9.5px; color:var(--muted); margin-top:1px; }
+.sb-cap { font-size:11.5px; color:var(--ink2); margin-top:3px; line-height:1.45; }
 .pill-drv { background:var(--t-good,rgba(12,163,12,.12)); color:var(--supportive); border:1px solid var(--border);
             border-radius:4px; padding:0 5px; font-size:9.5px; font-weight:700; }
 .pill-none { color:var(--muted); font-size:11px; font-style:italic; }
@@ -358,9 +380,7 @@ details.qr[open] > summary .qcaret::before { content:"▾"; } details.qr > summa
 .meter { width:66px; height:7px; border-radius:4px; background:var(--surface-2,var(--hair));
          overflow:hidden; border:1px solid var(--border); display:inline-block; vertical-align:middle; }
 .mfill { height:100%; display:block; }
-/* ── split metric-gloss (.kegloss text companion to the visual gauge) + top-strata table (.ketbl) */
-.kegloss { font-size:11.5px; color:var(--ink2); margin:3px 0; }
-.kegloss .m { color:var(--det); font-weight:600; } .kegloss .h { color:var(--muted); }
+/* ── key_evidence top-strata table (.ketbl): indication / strongest / weakest stratum rows */
 .ketbl { border-collapse:collapse; margin:4px 0; font-size:11.5px; width:100%; }
 .ketbl td { border-top:1px solid var(--hair); padding:2px 6px; } .ketbl td:first-child { color:var(--muted); }
 .kerole { display:inline-block; font-size:9.5px; text-transform:uppercase; color:var(--muted);
@@ -484,7 +504,6 @@ details.fold .foldbody .card { border:0; padding:4px 0 10px; }
 .blindnote { font-size:11.5px; color:var(--muted); padding:2px 0; }
 .flag { font-size:10px; color:var(--warning); font-weight:650; }
 /* CONVERGENCE LAYER */
-.analogs { font-size:11px; color:var(--muted); margin-top:5px; } .analogs b { color:var(--ink2); }
 .conv { display:flex; flex-direction:column; gap:12px; }
 /* single-line causal flow: short skill chips joined by → arrows, opposed-by caveat inline */
 .causal { display:flex; align-items:center; flex-wrap:wrap; gap:6px; font-size:12px; line-height:1.9; }
@@ -640,24 +659,33 @@ _SUBSKILL_CSS = """
 .skv .cread{font-size:12.5px;color:var(--ink2);margin:3px 0 4px;} .skv .cread b{font-weight:640;}
 .skv .chainline{font-size:11px;line-height:1.7;color:var(--ink2);}
 .skv .chainline .lab{color:var(--muted);text-transform:uppercase;font-size:9px;letter-spacing:.04em;margin-right:2px;}
-.skv .chainline .sep{color:var(--muted);margin:0 4px;} .skv .chainline.keyev .lab{background:var(--surface-2);}
-.skv .kegloss{font-size:11.5px;color:var(--ink2);margin:3px 0;} .skv .kegloss .m{color:var(--det);font-weight:600;} .skv .kegloss .h{color:var(--muted);}
+.skv .chainline .sep{color:var(--muted);margin:0 4px;}
+.skv .subtypeln{font-size:11.5px;color:var(--ink2);margin:4px 0 2px;padding:3px 8px;border-left:3px solid var(--warn);background:var(--warn-bg);border-radius:0 5px 5px 0;}
+.skv .subtypeln .lab{color:var(--warn);text-transform:uppercase;font-size:9px;letter-spacing:.04em;font-weight:700;margin-right:4px;}
+.skv .subtype-summary{font-size:12.5px;color:var(--ink2);margin:6px 4px 2px;padding:4px 9px;border-left:3px solid var(--warn);background:var(--warn-bg);border-radius:0 6px 6px 0;} .skv .subtype-summary b{color:var(--warn);}
+/* per-reading scope chip (3a) + legend — indication most prominent, pan-cancer muted, subtype warm */
+.skv .scope-legend{font-size:11px;color:var(--muted);margin:4px 4px 8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
+.skv .scope-chip{display:inline-block;font-size:9.5px;font-weight:700;letter-spacing:.03em;border-radius:5px;padding:1px 7px;border:1px solid var(--border);text-transform:none;white-space:nowrap;}
+.skv .scope-chip.sc-pan{color:var(--muted);background:var(--surface-2);}
+.skv .scope-chip.sc-ind{color:#fff;background:var(--det);border-color:var(--det);}
+.skv .scope-chip.sc-sub{color:var(--warn);background:var(--warn-bg);border-color:var(--warn);}
+.skv .ccchip .scope-chip{margin-right:2px;}
 .skv .ketbl{border-collapse:collapse;margin:4px 0;font-size:11.5px;width:100%;}
 .skv .ketbl td{border-top:1px solid var(--hair);padding:2px 6px;} .skv .ketbl td:first-child{color:var(--muted);}
 .skv .kerole{display:inline-block;font-size:9.5px;text-transform:uppercase;color:var(--muted);border:1px solid var(--border);border-radius:4px;padding:0 5px;margin-left:5px;}
 .skv .pill-drv{background:var(--supportive-bg);color:var(--supportive);border:1px solid var(--border);border-radius:4px;padding:0 5px;font-size:9.5px;font-weight:700;}
 .skv .pill-none{color:var(--muted);font-size:11px;font-style:italic;}
 .skv .cite-pill{display:inline-block;font-size:11px;color:var(--ink2);background:var(--surface-2);border:1px solid var(--border);border-radius:5px;padding:0 5px;margin:0 2px 2px 0;}
-/* reference-frame ruler gauge */
-.skv .gauge{margin:3px 0 5px;}
-.skv .gtrack{position:relative;height:16px;margin:9px 0 2px;}
-.skv .gtrack .grail{position:absolute;top:7px;left:0;right:0;height:2px;background:var(--border);border-radius:2px;}
-.skv .gtick{position:absolute;top:2px;width:1px;height:12px;background:var(--muted);transform:translateX(-50%);}
-.skv .gtick.gcut{background:var(--ink2);height:14px;top:1px;}
-.skv .gtick .gtlab{position:absolute;top:13px;left:50%;transform:translateX(-50%);font-size:8.5px;color:var(--muted);white-space:nowrap;}
-.skv .gmark{position:absolute;top:3px;width:10px;height:10px;border-radius:50%;transform:translateX(-50%);border:1.5px solid var(--surface);box-shadow:0 0 0 1px currentColor;}
-.skv .gmark.gcomp{width:8px;height:8px;top:4px;opacity:.55;}
-.skv .gcap{font-size:11px;color:var(--ink2);}
+/* labeled horizontal scale bar (one per key metric): min→max axis, cut tick+label, value dot, caption */
+.skv .scalebar{margin:7px 0 8px;}
+.skv .sb-track{position:relative;height:16px;margin:16px 0 2px;}
+.skv .sb-rail{position:absolute;top:7px;left:0;right:0;height:3px;background:var(--surface-2);border:1px solid var(--border);border-radius:3px;}
+.skv .sb-cut{position:absolute;top:0;width:2px;height:18px;background:var(--ink2);transform:translateX(-50%);}
+.skv .sb-cutlab{position:absolute;bottom:19px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--ink2);white-space:nowrap;font-weight:600;}
+.skv .sb-comp{position:absolute;top:3px;width:2px;height:12px;background:var(--muted);opacity:.6;transform:translateX(-50%);}
+.skv .sb-val{position:absolute;top:2px;width:13px;height:13px;border-radius:50%;transform:translateX(-50%);background:currentColor;border:2px solid var(--surface);box-shadow:0 0 0 1px currentColor;}
+.skv .sb-ends{display:flex;justify-content:space-between;font-size:9.5px;color:var(--muted);margin-top:1px;}
+.skv .sb-cap{font-size:11.5px;color:var(--ink2);margin-top:3px;line-height:1.45;}
 /* question drill-down (.qtab / details.qr) */
 .skv .qtab{border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--surface);margin:6px 0;}
 .skv details.qr{border-top:1px solid var(--hair);} .skv details.qr:first-child{border-top:none;}
@@ -1083,41 +1111,11 @@ class HtmlBackend:
         ]
         if arche_bits:
             left.append(f"<div class='h-arche'>{' · '.join(arche_bits)}</div>")
-        analogs = char.get("analogs") or []
-        if analogs:
-            al = " · ".join(f"<b>{_esc(a.get('target'))}</b>" for a in analogs[:3])
-            left.append(f"<div class='analogs'>nearest archetype analogs: {al}</div>")
-        lit = p.get("literature") if isinstance(p.get("literature"), dict) else None
-        if lit and (lit.get("total_comentions") or lit.get("cited_pmids")):
-            tot = lit.get("total_comentions")
-            rec_m = lit.get("recent_comentions")
-            txt = "cited co-mentions"
-            if tot is not None:
-                txt = f"<b>{int(tot):,}</b> cited co-mentions"
-                if rec_m is not None:
-                    txt += f" ({int(rec_m):,} recent)"
-            left.append(f"<div class='analogs'>Literature: {txt} — see Literature × omics view below</div>")
-        ap = p.get("addressable_population") if isinstance(p.get("addressable_population"), dict) else {}
-        prev = ap.get("biomarker_prevalence")
-        if prev is not None:
-            try:
-                prevpct = f"{float(prev) * 100:.3g}%"
-            except (TypeError, ValueError):
-                prevpct = _esc(prev)
-            meta = " · ".join(
-                x
-                for x in (
-                    _esc(ap.get("prevalence_source")) if ap.get("prevalence_source") else "",
-                    f"n={_esc(ap.get('n_samples_in_indication'))}" if ap.get("n_samples_in_indication") else "",
-                    _esc(ap.get("addressable_population_class")) if ap.get("addressable_population_class") else "",
-                )
-                if x
-            )
-            left.append(
-                f"<div class='h-pop'>Addressable population <b>{prevpct}</b>"
-                + (f" — {meta}" if meta else "")
-                + "</div>"
-            )
+        # (2026-09-10 hero trim) the nearest-archetype-analogs line, the literature co-mention stats line,
+        # and the addressable-population pill were REMOVED from the hero — they read as clutter above the
+        # standout headline. Analogs remain in the archetype fold; literature in the Literature × omics view;
+        # addressable population in the deciding-axis / population facet. The hero keeps title + verdict chip
+        # + clinical-precedent tag + the crafted headline only.
         cp = p.get("clinical_precedent") if isinstance(p.get("clinical_precedent"), dict) else None
         if cp:
             detail = []
@@ -1215,14 +1213,8 @@ class HtmlBackend:
             )
         elif p.get("deciding_title"):
             bits.append(f"Deciding axis: <b>{_esc(p['deciding_title'])}</b>.")
-        # ADDRESSABLE prevalence.
-        ap = p.get("addressable_population") if isinstance(p.get("addressable_population"), dict) else {}
-        prev = ap.get("biomarker_prevalence")
-        if prev is not None:
-            try:
-                bits.append(f"Addressable population <b>~{float(prev) * 100:.3g}%</b> of the indication.")
-            except (TypeError, ValueError):
-                pass
+        # (2026-09-10 hero trim) the "Addressable population ~X%" clause was dropped from the headline —
+        # the population facet lives in the deciding-axis / population view, not the standout sentence.
         return " ".join(bits).strip()
 
     _DIMMINI_CLASS = {3: "risk-high", 2: "risk-med", 1: "risk-low"}
@@ -1306,27 +1298,17 @@ class HtmlBackend:
         if tension and tension.get("text"):
             sent += f" <span class='caveat'>⚠ {_esc(tension['text'])}.</span>"
         out = [f'<div class="headline">{sent}</div>']
-        # kv grid
-        cov = g.get("coverage") if isinstance(g.get("coverage"), dict) else {}
-        drv_bits = []
-        if g.get("driving_rule_id"):
-            drv_bits.append(f"<code>{_esc(g['driving_rule_id'])}</code>")
-        if conf:
-            drv_bits.append(f"<span class='dots'>{_esc(conf)}</span>")
-        if g.get("confidence_basis"):
-            drv_bits.append(f"basis: {_esc(g['confidence_basis'])}")
-        if cov.get("n_measured") is not None and cov.get("n_axes") is not None:
-            ct = f"coverage {_esc(cov['n_measured'])}/{_esc(cov['n_axes'])} axes"
-            if cov.get("n_critical_measured") is not None:
-                ct += f" · {_esc(cov['n_critical_measured'])} critical"
-            drv_bits.append(ct)
-        drv_bits.append(f"{_esc(g.get('n_questions', 0))} q · {_esc(g.get('n_cards', 0))} cards")
-        rows = [("Verdict", f'<span class="vline">{_esc(call)}</span>'), ("Driving", " · ".join(drv_bits))]
+        # kv grid (2026-09-10 header trim): the Verdict + Driving rows are GONE — the verdict/call, the
+        # driving rule, and the confidence are already stated in the headline sentence above + the polarity
+        # chip; repeating them here read as clutter. Only the Tension row remains (the one datum the
+        # headline caveat should be able to hang beside the sentence); the cards carry coverage/driving.
+        rows = []
         if tension and tension.get("text"):
             sev = f" · sev {_esc(tension['severity'])}" if tension.get("severity") is not None else ""
             rows.append(("Tension", f"<span class='caveat'>⚠ {_esc(tension['text'])}{sev}</span>"))
-        kv = "".join(f"<dt>{_esc(k)}</dt><dd>{v}</dd>" for k, v in rows)
-        out.append(f'<dl class="kv">{kv}</dl>')
+        if rows:
+            kv = "".join(f"<dt>{_esc(k)}</dt><dd>{v}</dd>" for k, v in rows)
+            out.append(f'<dl class="kv">{kv}</dl>')
         return out
 
     def _confidence(self, p: dict) -> list:
@@ -2268,21 +2250,23 @@ class HtmlBackend:
         ]
 
     def _gauge(self, c: dict) -> str:
-        """Visual reference-frame ruler(s) for a card — one track per interpretation[] frame (a card may
-        carry >1: a pan-cancer rank AND a within-panel position). Each track has floor/cut/ceiling (or
-        comparator) ticks + a polarity-coloured value marker, captioned by the plain gauge words. '' when
-        the card has no ruler."""
+        """Labeled horizontal scale bar(s) for a card — ONE clean bar per interpretation[] ruler (a card may
+        carry >1: a pan-cancer rank AND a within-panel position). Each bar is a min→max axis with the cut
+        threshold marked by a tick+label, an optional muted comparator tick, a polarity-coloured value dot,
+        min/max end labels, and a plain-language caption beneath (the pre-gauged reading). '' when the card
+        has no ruler. Replaces the former tiny stacked multi-track SVG with legible reading-size bars."""
         interp = c.get("interpretation") or []
         words_all = c.get("gauges") or ([c.get("gauge")] if c.get("gauge") else [])
-        tracks = []
+        bars = []
         for i, gv in enumerate(interp):
             if isinstance(gv, dict):
-                tracks.append(self._gauge_track(c, gv, words_all[i] if i < len(words_all) else None))
-        return "".join(t for t in tracks if t)
+                bars.append(self._scalebar(c, gv, words_all[i] if i < len(words_all) else None))
+        return "".join(b for b in bars if b)
 
-    def _gauge_track(self, c: dict, gv: dict, words) -> str:
-        """One visual track for a single gauged_value (see _gauge). On a plain numeric axis (min→max of the
-        points) so the marker placement can't invert; the words carry the past/short-of-cut reading."""
+    def _scalebar(self, c: dict, gv: dict, words) -> str:
+        """One labeled horizontal scale bar for a single gauged_value (see _gauge). Plain numeric axis
+        (min→max of the points) so the value dot can't invert; the caption carries the past/short-of-cut
+        reading. Falls back to a caption-only reading line when there aren't ≥2 numeric points to draw."""
         if not gv or gv.get("value") is None:
             return ""
         val = gv.get("value")
@@ -2294,8 +2278,8 @@ class HtmlBackend:
         pts = ([val] if isinstance(val, (int, float)) and not isinstance(val, bool) else []) + [
             a["value"] for a in anchors
         ]
-        if len(pts) < 2:  # not enough to draw a track — words only
-            return f"<div class='gauge'><div class='gcap'>{_esc(words)}</div></div>" if words else ""
+        if len(pts) < 2:  # not enough to draw a bar — caption-only reading
+            return f"<div class='scalebar'><div class='sb-cap'>{_esc(words)}</div></div>" if words else ""
         lo, hi = min(pts), max(pts)
         span = (hi - lo) or 1.0
 
@@ -2305,30 +2289,31 @@ class HtmlBackend:
         def _alab(a):
             return str(a.get("label") or a.get("role") or "").replace("_", " ")
 
-        ticks = []
-        comp_mark = ""
+        marks = []
         for a in anchors:
             if a.get("role") == "comparator":
-                comp_mark = (
-                    f"<span class='gmark gcomp' style='left:{_pos(a['value']):.1f}%;"
-                    f"color:var(--muted)' title='{_esc(_alab(a))} {_esc(a['value'])}'></span>"
+                marks.append(
+                    f"<span class='sb-comp' style='left:{_pos(a['value']):.1f}%' "
+                    f"title='{_esc(_alab(a))} {_esc(_fmt_html_num(a['value']))}'></span>"
                 )
-                continue
-            cls = "gtick gcut" if a.get("role") == "cut" else "gtick"
-            ticks.append(
-                f"<span class='{cls}' style='left:{_pos(a['value']):.1f}%'>"
-                f"<span class='gtlab'>{_esc(_alab(a))}</span></span>"
-            )
+            elif a.get("role") == "cut":
+                marks.append(
+                    f"<span class='sb-cut' style='left:{_pos(a['value']):.1f}%'>"
+                    f"<span class='sb-cutlab'>{_esc(_alab(a))} {_esc(_fmt_html_num(a['value']))}</span></span>"
+                )
         key = "killer" if c.get("liability") else c.get("polarity")
         color = self._EG_POL_COLOR.get(key, "var(--neutral)")
-        mark = (
-            f"<span class='gmark' style='left:{_pos(val):.1f}%;color:{color}' "
-            f"title='{_esc(gv.get('metric'))} {_esc(val)}'></span>"
+        dot = (
+            f"<span class='sb-val' style='left:{_pos(val):.1f}%;color:{color}' "
+            f"title='{_esc(gv.get('metric'))} {_esc(_fmt_html_num(val))}'></span>"
         )
-        cap = f"<div class='gcap'>{_esc(words)}</div>" if words else ""
+        ends = (
+            f"<div class='sb-ends'><span>{_esc(_fmt_html_num(lo))}</span><span>{_esc(_fmt_html_num(hi))}</span></div>"
+        )
+        cap = f"<div class='sb-cap'>{_esc(words)}</div>" if words else ""
         return (
-            f"<div class='gauge'><div class='gtrack'><span class='grail'></span>"
-            f"{''.join(ticks)}{comp_mark}{mark}</div>{cap}</div>"
+            f"<div class='scalebar'><div class='sb-track'><span class='sb-rail'></span>"
+            f"{''.join(marks)}{dot}</div>{ends}{cap}</div>"
         )
 
     # meter width by the question's signal tier (the sandbox `.mfill` scale) — the bar length reads the
@@ -2340,11 +2325,38 @@ class HtmlBackend:
         n = n if isinstance(n, int) and 0 <= n <= 3 else 0
         return "●" * n + "○" * (3 - n)
 
+    _SCOPE_CLS = {"pan_cancer": "sc-pan", "indication": "sc-ind", "subtype": "sc-sub"}
+
+    def _scope_chip(self, c: dict) -> str:
+        """The per-reading SCOPE chip (3a): a small label naming WHERE the reading applies — pan-cancer
+        (muted) vs the indication (most prominent) vs a molecular subtype. Reads the ir-classified
+        `scope` ({kind,label}); '' when a card carries none."""
+        sc = c.get("scope")
+        if not isinstance(sc, dict) or not sc.get("label"):
+            return ""
+        cls = self._SCOPE_CLS.get(sc.get("kind"), "sc-pan")
+        return f"<span class='scope-chip {cls}' title='reading scope'>{_esc(sc.get('label'))}</span>"
+
+    def _subtype_line(self, c: dict) -> str:
+        """The card's subtype-stratified breakdown as its own labeled drilldown line (3b) — makes the
+        subtype read VISIBLE where today it is buried. '' when the card carries no subtype axis."""
+        st = c.get("subtype_rollup")
+        if not isinstance(st, dict) or not st.get("restriction_class"):
+            return ""
+        bits = [f"<b>{_esc(st.get('restriction_class'))}</b>"]
+        if st.get("driving_axis"):
+            bits.append(f"({_esc(st.get('driving_axis'))})")
+        per = st.get("per_subtype") or []
+        tail = f" — {_esc(' · '.join(per))}" if per else ""
+        return f"<div class='subtypeln'><span class='lab'>subtype</span> {' '.join(bits)}{tail}</div>"
+
     def _chain_card_row(self, c: dict) -> str:
         """One card's dataset→data→rule→verdict drill row (shared by the question-grouped `.qr` view and
-        the measurement-type `pklayer` fallback): role badge + signal glyph, plain description, Reads:
-        <class>, the visual gauge, the split metric-gloss (.kegloss) + top-strata table (.ketbl), and the
-        provenance chain line."""
+        the measurement-type `pklayer` fallback). De-cluttered (2026-09-10): role badge + signal glyph +
+        SCOPE chip, plain description, ONE consolidated reading line (glossed class + key_evidence reading),
+        the labeled scale bar(s), the top-strata table, the subtype rollup line, and the provenance chain
+        line. The former repeated Reads:/kegloss/KEY lines (the same number 4×) are folded into the one
+        reading + the scale-bar caption."""
         key = "killer" if c.get("liability") else c.get("polarity")
         gl, gcls = vocab.polarity_glyph(key), self._EG_POL_CLS.get(key, "g-neu")
         ds = " · ".join(c.get("dataset_ids") or []) or "—"
@@ -2355,22 +2367,24 @@ class HtmlBackend:
         else:
             rule = "<span class='pill-none'>display-only · no rule fired</span>"
         nfrag = f" · n={_esc(c.get('n'))}" if c.get("n") is not None else ""
-        # class-led plain-language order: description → Reads: <class> → gauge → split gloss → chain drill
+        # order: description → ONE reading line → scale bar(s) → top-strata table → subtype line → chain drill
         desc = c.get("description")
         desc_line = f"<div class='cdesc'>{_esc(desc)}</div>" if desc else ""
+        scalebar = self._gauge(c)  # the labeled scale bar(s) — carry the numeric reading in the caption
+        # ONE consolidated reading: the glossed CLASS (bold), then — when the scale bar does NOT already
+        # carry the numeric reading (categorical / no-ruler cards) — the key_evidence reading text. This
+        # replaces the former Reads:/kegloss/KEY triple that repeated the same effect number.
         reads = c.get("reads")
-        reads_line = f"<div class='cread'>Reads: <b class='{gcls}'>{_esc(reads)}</b></div>" if reads else ""
-        gauge = self._gauge(c)  # the reference-frame ruler (visual support layer)
-        kegloss = self._kegloss_html(c)  # the TEXT companion (metric label = value · n · stat + help)
-        ketbl = self._ketbl_html(c)  # the top-strata table
-        # the compact narrator-grounding key line (omnibus + categorical + subtype the effect-only
-        # kegloss doesn't carry) — kept as the comprehensive one-liner beside the split gloss.
         ke = c.get("key_evidence_summary")
-        ke_line = (
-            f"<div class='chainline keyev'><span class='lab'>key</span> <span class='mono'>{_esc(ke)}</span></div>"
-            if ke
-            else ""
-        )
+        read_extra = f" — {_esc(ke)}" if (ke and not scalebar) else ""
+        if reads or read_extra:
+            lead = f"<b class='{gcls}'>{_esc(reads)}</b>" if reads else ""
+            reads_line = f"<div class='cread'>{lead}{read_extra}</div>"
+        else:
+            reads_line = ""
+        ketbl = self._ketbl_html(c)  # the top-strata table (indication / strongest / weakest strata)
+        subtype_line = self._subtype_line(c)  # subtype rollup (3b)
+        scope_chip = self._scope_chip(c)  # per-reading scope chip (3a)
         if c.get("is_driving"):
             badge = "<span class='rbadge rb-drv'>drives verdict</span>"
         elif c.get("contributes"):
@@ -2381,27 +2395,12 @@ class HtmlBackend:
         mttag = f"<span class='mttag'>{_esc(str(mt).replace('_', ' '))}</span>" if mt else ""
         return (
             f"<div class='cardln'><div class='chead'><span>{badge}<b>{_esc(c.get('id'))}</b>{mttag}</span>"
-            f"<span class='ccchip'><span class='{gcls}'>{_esc(gl)}</span>{nfrag}</span></div>"
-            f"{desc_line}{reads_line}{gauge}{kegloss}{ketbl}{ke_line}"
+            f"<span class='ccchip'>{scope_chip}<span class='{gcls}'>{_esc(gl)}</span>{nfrag}</span></div>"
+            f"{desc_line}{reads_line}{scalebar}{ketbl}{subtype_line}"
             f"<div class='chainline'><span class='lab'>ds</span> <span class='mono'>{_esc(ds)}</span>"
             f" <span class='sep'>→</span> <span class='lab'>data</span> {data}"
             f" <span class='sep'>→</span> <span class='lab'>rule</span> {rule}</div></div>"
         )
-
-    def _kegloss_html(self, c: dict) -> str:
-        """The sandbox split metric-gloss: `<metric label> = <value> · n=… · <stat>=<value>` on the
-        omics tone (--det) + a muted plain-language help line. '' when the card carries no numeric effect
-        (the key_evidence_summary + gauge already cover the categorical cards)."""
-        kg = c.get("kegloss")
-        if not isinstance(kg, dict) or kg.get("value") is None:
-            return ""
-        head = f"<span class='m'>{_esc(kg.get('label'))} = {_esc(kg.get('value'))}</span>"
-        if kg.get("n") is not None:
-            head += f" · n={_esc(kg.get('n'))}"
-        if kg.get("stat") and kg.get("stat_value") is not None:
-            head += f" · {_esc(kg.get('stat'))}={_esc(kg.get('stat_value'))}"
-        help_line = f"<br><span class='h'>{_esc(kg.get('help'))}</span>" if kg.get("help") else ""
-        return f"<div class='kegloss'>{head}{help_line}</div>"
 
     def _ketbl_html(self, c: dict) -> str:
         """The key_evidence.top_strata table (.ketbl): indication / strongest / weakest stratum rows."""
@@ -2437,6 +2436,19 @@ class HtmlBackend:
         if not layers:
             return []
         out = ["<p class='section-label'>Cards — dataset → data → rule → verdict</p>"]
+        # (3b) skill-level subtype summary near the top of the cards section — makes a subtype signal
+        # VISIBLE at the skill grain when any card carries one; silent otherwise (honest — no fabrication).
+        if p.get("subtype_summary"):
+            out.append(f"<div class='subtype-summary'><b>Subtype:</b> {_esc(p['subtype_summary'])}</div>")
+        # (3a) the scope-chip legend: what the per-reading chips mean — pan-cancer (muted) vs the indication
+        # (prominent) vs a subtype. A key for the chips that ride each card reading below.
+        ind = _esc(p.get("indication")) or "indication"
+        out.append(
+            "<div class='scope-legend'>Scope of each reading: "
+            "<span class='scope-chip sc-pan'>pan-cancer</span>"
+            f"<span class='scope-chip sc-ind'>{ind}</span>"
+            "<span class='scope-chip sc-sub'>subtype</span></div>"
+        )
         by_question = p.get("grouped_by") == "question"
         if by_question:
             groups = []

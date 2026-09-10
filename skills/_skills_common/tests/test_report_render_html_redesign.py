@@ -119,8 +119,10 @@ def test_secondary_figures_collapse_into_details():
 
 
 def test_characterization_surfaces_nearest_analogs():
-    """Ph3b: the archetype 'what is this LIKE' anchor — nearest_analogs (self-anchor [0] skipped)
-    render in the header characterization."""
+    """Ph3b: the archetype 'what is this LIKE' anchor — nearest_analogs (self-anchor [0] skipped) are still
+    computed on the characterization and still surface in the archetype FOLD. (2026-09-10 hero trim: the
+    'nearest archetype analogs' line was removed from the sticky HERO — it read as clutter above the
+    standout headline — but the analogs remain in the archetype fold below.)"""
     from _skills_common.report_render.ir import _target_characterization
 
     nom = make_nomination()
@@ -135,13 +137,15 @@ def test_characterization_surfaces_nearest_analogs():
     c = _target_characterization(nom["target_report"])
     assert [(a["target"], a["indication"]) for a in c["analogs"]] == [("BRAF", "COADREAD"), ("CDK4", "LUAD")]
     h = render_report(nom, preset="full", backend="html")
-    assert "nearest archetype analogs" in h and "BRAF" in h and "CDK4" in h
+    assert "nearest archetype analogs" not in h  # removed from the hero
+    assert "Nearest analogs" in h and "BRAF" in h and "CDK4" in h  # still in the archetype fold
 
 
 def test_v6_hero_polish_crafted_headline_addressable_and_density():
     """Ph v6-hero-polish (2026-09-10 refine): the standout headline is a CRAFTED overall statement (call +
-    biology clause + deciding safety→modality caveat + cleared modality + addressable prevalence); the old
-    safety-reconciliation triplet is GONE; the addressable-population line + density toggle remain."""
+    biology clause + deciding safety→modality caveat + cleared modality); the old safety-reconciliation
+    triplet is GONE; the addressable-population pill + headline clause are now GONE too (hero trim); the
+    density toggle remains."""
     nom = make_nomination()
     nom["llm_synthesis"] = {
         "executive_summary": {"value": "KRAS is a coherent oncogene-addiction target in COADREAD. Second sentence."}
@@ -170,8 +174,10 @@ def test_v6_hero_polish_crafted_headline_addressable_and_density():
     assert "escapable by a mutant-selective" in h and "small molecule" in h  # deciding caveat + cleared modality
     # the old safety-reconciliation triplet (its unique markers) is removed entirely.
     assert "recon-box" not in body and "veto suppressed" not in body and "recon-arrow" not in body
-    # addressable population line + density toggle remain.
-    assert "Addressable population" in h and "43.5%" in h and "GENIE" in h
+    # (2026-09-10 hero trim) the addressable-population pill AND the "Addressable population ~X%" headline
+    # clause are removed from the hero — the population facet lives in the deciding-axis/population view.
+    assert "Addressable population" not in body
+    # density toggle remains.
     assert "density-bar" in h and "Compact" in h and "Expand all" in h
 
 

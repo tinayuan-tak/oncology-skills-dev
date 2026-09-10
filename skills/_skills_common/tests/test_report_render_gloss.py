@@ -107,10 +107,10 @@ def _ir(graph):
 
 def test_html_card_view_leads_with_reads_and_glossed_metric():
     h = be.render(_ir(_graph_with_gauged_card()), "html")
-    assert "class='cread'>Reads:" in h  # class-led plain reading
+    # ONE consolidated reading line (2026-09-10 de-clutter): the glossed class leads (no "Reads:" prefix),
+    # and — since this card carries no interpretation ruler / scale bar — the key_evidence reading follows.
+    assert "class='cread'>" in h
     assert "Lineage selective" in h  # humanized class value
-    # the KEY line reads the metric as gauged plain language (the raw field survives only in the
-    # low-level dataset→data drill, which is intended provenance, not the headline reading)
     assert "median CRISPR gene-effect (CHRONOS)" in h  # glossed metric label (not bare median_chronos)
     assert "lower = stronger" in h  # direction phrase consumed
     assert "cross-lineage omnibus p-value" in h  # omnibus stat glossed
@@ -160,8 +160,11 @@ def _graph_with_ruler() -> dict:
 
 def test_html_draws_the_gauge_ruler():
     h = be.render(_ir(_graph_with_ruler()), "html")
-    assert "class='gtrack'" in h and "gmark" in h  # visual ruler track + value marker
-    assert "gtick gcut" in h  # the cut tick
+    # the labeled horizontal scale bar (2026-09-10): a min→max axis track, a cut tick+label, a value dot,
+    # and the plain-language reading as the caption beneath.
+    assert "class='scalebar'" in h and "class='sb-track'" in h and "sb-val" in h  # bar track + value dot
+    assert "sb-cut" in h and "sb-cutlab" in h  # the cut tick + its label
+    assert "class='sb-cap'>" in h  # the reading caption
     assert "between controls —" in h  # gauge words caption
     assert "short of the -0.5 cut" in h
 
