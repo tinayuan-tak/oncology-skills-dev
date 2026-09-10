@@ -107,7 +107,7 @@ def test_none_verdict_open_world_with_guarded_certainty():
 
 def _schema():
     try:
-        from _skills_common.scope import DEFAULT_CONTRACTS_REPO
+        from _skills_common.paths import DEFAULT_CONTRACTS_REPO
         from jsonschema import Draft202012Validator  # noqa: F401
     except Exception:
         return None

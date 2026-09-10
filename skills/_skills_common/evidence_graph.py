@@ -889,7 +889,7 @@ def _load_schema(contracts_repo: Optional[str] = None):
         if contracts_repo:
             base = Path(contracts_repo)
         else:
-            from _skills_common.scope import DEFAULT_CONTRACTS_REPO
+            from _skills_common.paths import DEFAULT_CONTRACTS_REPO
 
             base = Path(DEFAULT_CONTRACTS_REPO)
         p = base / "schemas" / "evidence_graph.schema.json"

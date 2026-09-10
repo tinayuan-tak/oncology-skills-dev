@@ -28,15 +28,14 @@ is never allowed to break on a missing steer).
 
 from __future__ import annotations
 
-import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
-from _skills_common.paths import TARGET_CONTRACTS_ROOT_DEFAULT
+from _skills_common.paths import target_contracts_root
 
-# target-contracts is a sibling repo; allow override for tests / relocation.
-_DEFAULT_CONTRACTS_ROOT = os.environ.get("TARGET_CONTRACTS_ROOT", TARGET_CONTRACTS_ROOT_DEFAULT)
+# target-contracts is a sibling repo; paths.target_contracts_root() honors TARGET_CONTRACTS_ROOT.
+_DEFAULT_CONTRACTS_ROOT = str(target_contracts_root())
 _LOOKUP_REL = "vocabularies/target_biology_axis_lookup.yaml"
 _ENUM_REL = "vocabularies/biology_axis.enum.yaml"
 

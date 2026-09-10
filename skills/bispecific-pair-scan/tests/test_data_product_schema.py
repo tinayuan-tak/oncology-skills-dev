@@ -97,7 +97,7 @@ def _install_method_double(mp, scored: bool) -> None:
     if scored:
         # Keep the REAL analysis-methods `methods` package importable (for methods.catalog_query), then
         # override ONLY pair_selectivity_gate with the in-test double.
-        from _skills_common.envelope import ANALYSIS_METHODS_ROOT_DEFAULT
+        from _skills_common.paths import ANALYSIS_METHODS_ROOT_DEFAULT
 
         mp.syspath_prepend(os.environ.get("ANALYSIS_METHODS_ROOT", ANALYSIS_METHODS_ROOT_DEFAULT))
         live_readers._import_method = lambda name: None  # no-op: repo "already on path"

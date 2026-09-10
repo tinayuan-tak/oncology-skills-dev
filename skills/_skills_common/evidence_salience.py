@@ -924,7 +924,7 @@ def _crosswalk_entries(contracts_repo: str | None = None) -> tuple:
         if contracts_repo:
             base = Path(contracts_repo)
         else:
-            from _skills_common.scope import DEFAULT_CONTRACTS_REPO
+            from _skills_common.paths import DEFAULT_CONTRACTS_REPO
 
             base = DEFAULT_CONTRACTS_REPO
         path = Path(base) / "vocabularies" / "indication_crosswalk.yaml"

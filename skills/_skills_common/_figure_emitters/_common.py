@@ -9,16 +9,13 @@ CARD_FIGURE_EMITTERS, _plotly_from, _dge_cell_contrasts).
 
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path  # noqa: F401
 
-METHODS_REPO = Path(
-    os.environ.get("ANALYSIS_METHODS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods")
-)
-TARGET_CONTRACTS = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
-)
+from _skills_common.paths import analysis_methods_root, target_contracts_root
+
+METHODS_REPO = analysis_methods_root()
+TARGET_CONTRACTS = target_contracts_root()
 
 
 def _ensure_methods_path() -> None:

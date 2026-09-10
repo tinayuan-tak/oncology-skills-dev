@@ -19,16 +19,15 @@ stays in the test layer.
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 
-_DEFAULT_TC = "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
+from _skills_common.paths import target_contracts_root
 
 
 def schema_path(skill: str, suffix: str = "decision") -> Path:
     """Path to the per-skill schema. `suffix='decision'` (default) = the generated envelope schema;
     `suffix='emit'` = a hand-authored bespoke aux-skill emit schema."""
-    root = Path(os.environ.get("TARGET_CONTRACTS_ROOT", _DEFAULT_TC))
+    root = target_contracts_root()
     return root / "schemas" / "skills" / f"{skill}.{suffix}.schema.json"
 
 

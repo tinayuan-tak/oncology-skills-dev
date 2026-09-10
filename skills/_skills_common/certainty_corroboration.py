@@ -20,7 +20,7 @@ from typing import Optional
 
 import yaml
 
-from _skills_common.scope import DEFAULT_CONTRACTS_REPO
+from _skills_common.paths import DEFAULT_CONTRACTS_REPO
 
 
 def corroboration_cards(gate: str, contracts_root: Optional[Path] = None) -> frozenset:

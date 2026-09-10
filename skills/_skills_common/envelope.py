@@ -32,7 +32,7 @@ from __future__ import annotations
 import re
 from datetime import datetime, timezone
 
-from _skills_common.paths import ANALYSIS_METHODS_ROOT_DEFAULT
+from _skills_common.paths import analysis_methods_root
 
 
 def build_governance(data_mode: str, release_pin: str, validation_summary: dict) -> dict:
@@ -55,10 +55,9 @@ def _load_catalog_resolver():
     """Lazily import catalog_query.resolve_release + _family_of from the analysis-methods repo.
     Returns (resolve_release, _family_of) or (None, None) if unavailable — governance enrichment is
     best-effort and must NEVER block evidence-package emission."""
-    import os
     import sys
 
-    mrepo = os.environ.get("ANALYSIS_METHODS_ROOT", ANALYSIS_METHODS_ROOT_DEFAULT)
+    mrepo = str(analysis_methods_root())
     if mrepo not in sys.path:
         sys.path.insert(0, mrepo)
     try:
@@ -72,10 +71,9 @@ def _load_catalog_resolver():
 def _load_manifest_loader():
     """Lazily import catalog_query.load_manifest (analysis-methods) for md5 content-fingerprinting.
     (None) when unavailable — the content digest is best-effort and never blocks emission."""
-    import os
     import sys
 
-    mrepo = os.environ.get("ANALYSIS_METHODS_ROOT", ANALYSIS_METHODS_ROOT_DEFAULT)
+    mrepo = str(analysis_methods_root())
     if mrepo not in sys.path:
         sys.path.insert(0, mrepo)
     try:
@@ -98,10 +96,9 @@ def _known_manifest_ids() -> "set | None":
     catalog TWICE (~15s each: once in resolved_release_governance, once here). Passing the canonical
     roots explicitly makes this a cache HIT on the entry resolved_release_governance already populated.
     Result is byte-identical (same catalog); it just stops re-parsing it."""
-    import os
     import sys
 
-    mrepo = os.environ.get("ANALYSIS_METHODS_ROOT", ANALYSIS_METHODS_ROOT_DEFAULT)
+    mrepo = str(analysis_methods_root())
     if mrepo not in sys.path:
         sys.path.insert(0, mrepo)
     try:

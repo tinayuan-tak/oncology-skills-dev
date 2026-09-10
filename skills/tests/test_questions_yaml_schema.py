@@ -20,7 +20,7 @@ SKILLS_DIR = Path(__file__).resolve().parents[1]
 if str(SKILLS_DIR) not in sys.path:
     sys.path.insert(0, str(SKILLS_DIR))
 
-from _skills_common.scope import DEFAULT_CONTRACTS_REPO  # noqa: E402
+from _skills_common.paths import DEFAULT_CONTRACTS_REPO  # noqa: E402
 
 _CONTRACTS = Path(DEFAULT_CONTRACTS_REPO)
 _SCHEMA_PATH = _CONTRACTS / "schemas" / "questions.schema.json"

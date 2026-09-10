@@ -32,10 +32,8 @@ from _skills_common.literature_retrieval import default_retrieve, verify_citatio
 from _skills_common.literature_synthesis import make_literature_fn
 from _skills_common.narrator_engine import make_synthesize_fn
 from _skills_common.narrator_lenses import FUNCTIONAL_REQUIREMENT as _FR_LENS
+from _skills_common.paths import DEFAULT_CONTRACTS_REPO
 from _skills_common.resolver import resolve_or_raise
-
-# Read-only reuse of the shared target-contracts path (NOT modifying scope.py — collision-safe).
-from _skills_common.scope import DEFAULT_CONTRACTS_REPO
 from _skills_common.skill_report import ROLE_GATING, build_skill_report
 from _skills_common.subgroup_derivation import make_value_classifier
 
