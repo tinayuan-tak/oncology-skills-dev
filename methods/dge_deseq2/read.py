@@ -876,9 +876,17 @@ def _classify_selectivity_from_sensitivity(row: dict) -> str:
         gtex = _family_direction(row, _GTEX_CELLS)  # GTEx population-normal (C)
         c_lfc = row.get("log2fc_cell_c")
         gtex_strong_up = gtex == "up" and isinstance(c_lfc, (int, float)) and c_lfc >= 1.5
-        if gtex_strong_up and adj in (None, "down"):
-            # adjacent flat/down + GTEx strongly up = field cancerization; the GTEx (population)
-            # normal is the trustworthy reference here. Tumour-selective vs true normal, flagged.
+        # FIX 2b (#1013, EPCAM/COADREAD): a "mixed" adjacent family — raw cell A sig-down/flat but the
+        # ComBat cell B flipped sig-up — is field-affected, not a genuine conflict. Deweight the
+        # untrustworthy ComBat B for DIRECTION exactly as FIX 1 already does for MAGNITUDE, but only when
+        # the RAW cell A is not-up AND GTEx (C) is strongly up. Requiring raw A not-up uniquely selects the
+        # raw-down/ComBat-up shape (EPCAM) and leaves a GENUINE adjacent-up (raw A up, ComBat B down)
+        # discordant.
+        a_lfc = row.get("log2fc_cell_a")
+        a_not_up = isinstance(a_lfc, (int, float)) and a_lfc <= 0
+        if gtex_strong_up and (adj in (None, "down") or (adj == "mixed" and a_not_up)):
+            # adjacent flat/down (or raw-down + ComBat-up-flipped) + GTEx strongly up = field
+            # cancerization; the GTEx (population) normal is the trustworthy reference here.
             return "field_effect_tumor_selective"
         return "discordant_across_comparators"
 

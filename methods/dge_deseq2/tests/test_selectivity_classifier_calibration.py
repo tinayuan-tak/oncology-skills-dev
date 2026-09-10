@@ -127,6 +127,44 @@ def test_genuine_discordant_stays_discordant():
     assert dge._classify_selectivity_from_sensitivity(r) == "discordant_across_comparators"
 
 
+# --- FIX 2b (#1013): "mixed" adjacent family (raw down, ComBat up-flipped) is field-affected ---
+
+
+def test_mixed_adjacent_family_raw_down_combat_up_is_field_effect_1013():
+    # EPCAM/COADREAD live shape: raw cell A sig-DOWN (-0.33) + ComBat cell B sig-UP (+1.68) → "mixed"
+    # adjacent family; GTEx C strongly UP (+2.09). Deweight the untrustworthy ComBat B for DIRECTION →
+    # field-effect (was mis-read as discordant_across_comparators).
+    r = _row(
+        discordant=True,
+        dominant_direction="up",
+        log2fc_cell_a=-0.33,
+        q_value_cell_a=2.5e-4,
+        log2fc_cell_b=1.68,
+        q_value_cell_b=1.2e-3,
+        log2fc_cell_c=2.09,
+        q_value_cell_c=1.6e-72,
+        max_abs_log2fc=2.09,
+    )
+    assert dge._classify_selectivity_from_sensitivity(r) == "field_effect_tumor_selective"
+
+
+def test_mixed_adjacent_family_raw_UP_combat_down_stays_discordant_1013():
+    # reverse-mixed guard: raw cell A sig-UP + ComBat cell B sig-DOWN is a GENUINE adjacent-up conflict,
+    # NOT the raw-down/ComBat-up field-effect shape — must stay discordant even with GTEx strongly up.
+    r = _row(
+        discordant=True,
+        dominant_direction="up",
+        log2fc_cell_a=1.70,
+        q_value_cell_a=1.2e-3,
+        log2fc_cell_b=-0.33,
+        q_value_cell_b=2.5e-4,
+        log2fc_cell_c=2.09,
+        q_value_cell_c=1.6e-72,
+        max_abs_log2fc=2.09,
+    )
+    assert dge._classify_selectivity_from_sensitivity(r) == "discordant_across_comparators"
+
+
 def test_discordant_but_gtex_only_weakly_up_stays_discordant():
     # GTEx up but < 1.5 (not "strongly up") → not the field-effect rescue; stays discordant
     r = _row(
