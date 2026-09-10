@@ -926,8 +926,9 @@ def assert_evidence_graph_valid(
 
 def attach_evidence_graph(decision: dict, skill_dir) -> dict:
     """Build decision.headline.evidence_graph and attach it by reference. The SINGLE seam called from the
-    dispatcher, the hand-rolled genomic-alteration-profile main, and target-profile's tp_fanout
-    decision-reconstruction — so all three paths get an identical, governed graph. Fail-soft: on any fault
+    shared dispatcher (run_wired_skill — every wired skill, incl. genomic-alteration-profile since it
+    migrated off its hand-rolled main) and target-profile's tp_fanout decision-reconstruction — so both
+    paths get an identical, governed graph. Fail-soft: on any fault
     (or a referential-integrity error) it logs to headline['_enrichment_errors'] and NEVER raises, leaving
     the verdict spine untouched. Byte-stable in the happy path (no error key added)."""
     try:
