@@ -13,9 +13,11 @@
 #
 # METHOD: walk the 805 HCMI-CMDC DR45 case ClinicalData JSONs, crosswalk (GDC primary_site +
 # disease_type) -> framework indication (conservative, adenocarcinoma histologies only), count DISTINCT
-# patient-derived models per indication. Validated 2026-08-14 (live biology-gate): 376/805 models map to
-# the 4 TSS-core indications — COADREAD 209 (deep) / PAAD 115 (deep) / NSCLC 27 (moderate) / GC 25
-# (moderate); COADREAD deepest, consistent with HCMI's documented GI/colorectal-heavy composition.
+# patient-derived models per indication. Validated 2026-08-24 (live biology-gate, broadened to 12): 631/805
+# models map to 12 indications — COADREAD 209 (deep) / PAAD 115 (deep) / ESCA 96 (deep) / BRCA 69 (deep) /
+# SKCM 44 (moderate) / NSCLC 27 (moderate) / GC 25 (moderate) / OV 16 (moderate) / BLCA 11 (sparse) /
+# UCEC 10 (sparse) / HNSC 8 (sparse) / THCA 1 (sparse); COADREAD deepest, consistent with HCMI's
+# documented GI/colorectal-heavy composition.
 #
 # ROLE — verdict-INERT translational cohort-context facet (v1). Reaches the LLM/matrix/headline; drives
 # NO resolver rung. Model-availability DOWNGRADING a nomination's translational confidence (or the
@@ -55,7 +57,7 @@ outputs:
 caveats:
   - "INDICATION-LEVEL / TARGET-INDEPENDENT (v1): this is model coverage for the INDICATION, not for the specific target. The genotype-MATCHED signal (does an available model carry THIS target's alteration?) is the v2 refinement (HCMI WXS MAF join)."
   - "VERDICT-INERT translational cohort-context facet (v1): reaches the LLM / matrix / headline but drives NO resolver rung. Model-availability gating nomination confidence is a later, verdict-moving step gated by a backtest."
-  - "data_unavailable when the indication is not in the HCMI (primary_site, disease_type) crosswalk — never a fabricated count. Covers only the TSS-mapped indications materialized on the product (COADREAD / PAAD / NSCLC / GC); the crosswalk is conservative (adenocarcinoma histologies only), so a mis-histology model is left unmapped rather than mis-assigned."
+  - "data_unavailable when the indication is not in the HCMI (primary_site, disease_type) crosswalk — never a fabricated count. Covers the 12 indications materialized on the product (COADREAD / PAAD / ESCA / BRCA / SKCM / NSCLC / GC / OV / BLCA / UCEC / HNSC / THCA; broadened 2026-08-24); the crosswalk is conservative (adenocarcinoma histologies only), so a mis-histology model is left unmapped rather than mis-assigned."
 
 # No `thresholds:` block — verdict-INERT facet (no rule/predicate reads model_availability_class). The
 # class thresholds (deep >=50 / moderate >=15) are applied in the method and documented above; a future

@@ -25,11 +25,12 @@ tier: target   # signaling-network context is a property of the gene/protein, in
 applies_when:
   - "context.data_sources.signor_available == true"
 
-# The method composes on-read from the SIGNOR Jul2026 SOURCE release
-# (.../sources/signor/jul2026/SIGNOR_Jul2026_release.txt); there is no derived per-gene manifest, so
-# required_inputs points at the backing source manifest.
+# The reader's PRIMARY pushdown is the derived per-gene product signor-mechanism-network-per-gene-v1
+# (DERIVED_MANIFEST_ID in methods/signor_mechanism_network); the SIGNOR Jul2026 SOURCE release
+# (.../sources/signor/jul2026/SIGNOR_Jul2026_release.txt) is composed on-read for network refresh.
 required_inputs:
-  - product_id: signor-jul2026
+  - product_id: signor-mechanism-network-per-gene-v1   # derived per-gene product — primary pushdown
+  - product_id: signor-jul2026                         # SIGNOR source — composed on-read
 
 derived_from:
   - card_id: target-identity-summary  # UniProt-AC resolution
@@ -159,9 +160,10 @@ caveats:
     MoA-relevance + structural features + surface-topology to reach
     modality-fit conclusions.
   - |
-    Reproducibility: the network is composed on-read from the signor-jul2026 SOURCE release (there is
-    no derived per-gene manifest). A re-pull surfaces as a new dated SIGNOR release, giving consumers
-    an explicit version-bump signal.
+    Reproducibility: the per-gene network is served from the derived signor-mechanism-network-per-gene-v1
+    product (primary pushdown); the composed MoA/context layer is composed on-read from the signor-jul2026
+    SOURCE release. A source re-pull surfaces as a new dated SIGNOR release, giving consumers an explicit
+    version-bump signal.
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of the `signaling_network_mechanism` claim.
 measurement_type: signaling_network_mechanism

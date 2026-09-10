@@ -29,7 +29,8 @@ applies_when:
   - "context.indication in ['BRCA', 'KIRC', 'CCRCC', 'COADREAD', 'COAD', 'READ', 'GBM', 'HNSC', 'HNSCC', 'LUSC', 'LSCC', 'LUAD', 'OV', 'PAAD', 'PDAC', 'UCEC']"
 
 required_inputs:
-  - product_id: cptac-pdc-snapshot-2026-07-01    # cptac package harmonized phosphoproteomics [bcm] + proteomics [bcm]
+  - product_id: cptac-phospho-per-site-per-cohort-v1   # derived per-site/per-cohort product — reader's pushdown path
+  - product_id: cptac-pdc-snapshot-2026-07-01          # cptac package harmonized phosphoproteomics [bcm] + proteomics [bcm] (upstream source)
 
 methods:
   - call: phospho-pathway-activity
