@@ -187,7 +187,7 @@ def test_genuinely_blind_non_optin_gating_axis_still_blind():
 
 def test_hard_gates_flags_fail_closed_fire():
     forced, hits, supp = tp._gate_recommendation(_sub("dependency", "renamed_token"))
-    hg = tp._hard_gates_status(_sub("dependency", "renamed_token"), hits, supp)
+    tp._hard_gates_status(_sub("dependency", "renamed_token"), hits, supp)
     # the fail-closed clamp is recorded as a hit and forced the recommendation
     assert forced == "veto"
     assert any(h.get("_fail_closed") for h in hits)

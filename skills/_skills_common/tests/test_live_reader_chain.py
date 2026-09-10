@@ -340,8 +340,6 @@ def _iter_skill_card_pairs():
 
 import os  # noqa: E402
 
-import yaml  # noqa: E402
-
 _CONTRACTS_ROOT = Path(
     os.environ.get(
         "TARGET_CONTRACTS_ROOT",

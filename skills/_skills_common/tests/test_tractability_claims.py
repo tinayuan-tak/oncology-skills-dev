@@ -102,9 +102,6 @@ def test_atoms_absent_without_cards():
         assert "evidence_atom" not in vec[ax]
 
 
-from _skills_common.tractability_claims import small_molecule_key_signals  # noqa: E402
-
-
 def _discordant_cards():
     # A real chemical hit that is OFF-TARGET: activity + potency light up, but the concordance is
     # discordant, so the resolver lands druggability_snapshot=discordant (a NEGATIVE verdict).

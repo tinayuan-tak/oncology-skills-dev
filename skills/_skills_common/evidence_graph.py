@@ -661,7 +661,7 @@ def _build_literature(decision: dict, questions: list, q_by_id: dict) -> tuple:
             ids.append((c, _citation_id(c, taken)))
         return ids
 
-    citation_nodes, seen_pairs = [], {}
+    citation_nodes, _seen_pairs = [], {}
     axes_out = []
     for ax in axes_raw:
         if not isinstance(ax, dict):

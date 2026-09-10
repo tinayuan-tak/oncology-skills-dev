@@ -42,7 +42,7 @@ def render_subgroup_svg(subgroup_signals: dict, target: str, indication: str) ->
         reverse=True,
     )
     W, header_h = 640, 46
-    heights, bodies = [], []
+    heights, _bodies = [], []
     for name, sg in sgs:
         has_strat = bool(sg.get("by_stratum"))
         h = 92 + (46 if has_strat else 0)

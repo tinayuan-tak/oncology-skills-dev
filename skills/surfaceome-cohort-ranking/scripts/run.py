@@ -329,7 +329,7 @@ def main() -> int:
         "cards_missing": _cards_missing,
     }
 
-    written = write_package(
+    write_package(
         out_dir=args.out,
         decision=decision,
         card_outputs=card_outputs,

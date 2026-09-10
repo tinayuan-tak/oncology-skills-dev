@@ -54,7 +54,7 @@ def test_schema_is_wellformed():
 
 
 def test_static_golden_conforms():
-    jsonschema = pytest.importorskip("jsonschema")
+    pytest.importorskip("jsonschema")
     schema = _schema_or_gate()
     if not GOLDEN.exists():
         pytest.skip(f"no golden at {GOLDEN}")

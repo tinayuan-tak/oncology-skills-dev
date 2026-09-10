@@ -58,7 +58,7 @@ def test_schema_is_wellformed():
 def test_static_golden_conforms():
     """Validate the static golden only when it is a FULL decision; the tumor-selectivity kras golden is a
     trimmed fixture, so this skips and the fresh replay emit is the conformance target."""
-    jsonschema = pytest.importorskip("jsonschema")
+    pytest.importorskip("jsonschema")
     schema = _schema_or_gate()
     if not GOLDEN.exists():
         pytest.skip(f"no golden at {GOLDEN}")

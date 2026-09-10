@@ -21,7 +21,6 @@ from _skills_common import resolve_cards  # noqa: E402
 def test_smoke_seam_short_circuits_live_reads(monkeypatch):
     """With FRAMEWORK_HEALTH_SMOKE set, resolve_cards returns synthetic stubs and NEVER
     calls the live dispatcher (proves offline determinism)."""
-    called = {"live": False}
     # If the seam leaked, _import_dispatcher would be reached; make it explode to prove it isn't.
     import _skills_common as C
 

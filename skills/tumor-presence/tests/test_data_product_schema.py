@@ -65,7 +65,7 @@ def test_schema_is_wellformed():
 def test_static_golden_conforms():
     """Validate the static golden when it is a FULL decision; a trimmed golden is skipped (the fresh
     replay emit is the load-bearing conformance target)."""
-    jsonschema = pytest.importorskip("jsonschema")
+    pytest.importorskip("jsonschema")
     schema = _schema_or_gate()
     decision = json.loads(GOLDEN.read_text())
     if not is_full_decision(decision):

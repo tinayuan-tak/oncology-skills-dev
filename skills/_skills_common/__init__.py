@@ -44,7 +44,7 @@ import yaml
 
 from .composite_panel import render_composite_panel  # noqa: F401 — public re-export
 from .composition_schema import Composition, CompositionError, validate_skill_md  # noqa: F401 — public re-export
-from .composition_schema import validate as validate_composition
+from .composition_schema import validate as validate_composition  # noqa: F401 — public re-export
 from .llm import EVIDENCE_ONLY_DIRECTIVE, synthesize_structured  # noqa: F401 — public re-export
 from .placeholder import emit_placeholder  # noqa: F401 — public re-export
 from .resolver import load_resolver, resolve_or_raise, resolve_verdict, resolve_verdict_for_gate  # noqa: F401
