@@ -324,7 +324,7 @@ def _context(sym: str, klass: str, strongest: Optional[dict], n_screened: int) -
             f"beyond the additive single-KO expectation."
         )
     s = strongest or {}
-    pg, mg, ic = s.get("partner_gene"), s.get("mean_gi"), s.get("interaction_class")
+    pg, mg = s.get("partner_gene"), s.get("mean_gi")
     frac = s.get("frac_lines_strong_gi")
     minlin = s.get("min_gi_lineage")
     mg_str = f"{mg:.3f}" if mg is not None else "n/a"  # null-safe: a degenerate row must not crash the read
@@ -345,3 +345,144 @@ def _context(sym: str, klass: str, strongest: Optional[dict], n_screened: int) -
             f"co-loss is LESS lethal than additive (masking/epistasis)."
         )
     return None
+
+
+# ─────────────────────────────────────────────────────────────────────────────────────────────────
+# Cross-consortium paralog-GI corroboration (T0-1): does an ORTHOGONAL paralog dual-KO consortium
+# (Dede 2020 zdLFC, in4mer 2024 normZ) confirm the DepMap ParalogV2 CODEP call? A verdict-INERT
+# 2nd/3rd-opinion lane — analogous to cross-consortium-dependency (Broad↔Sanger). Trusts each product's
+# baked, shared-label `interaction_class` (constitutive_buffering / context_buffering / suppressive /
+# no_interaction): this is a corroboration read, not the primary re-classification the DepMap lane owns.
+# ─────────────────────────────────────────────────────────────────────────────────────────────────
+DEDE_MANIFEST_ID = "dede-paralog-genetic-interaction-per-pair-v1"
+IN4MER_MANIFEST_ID = "in4mer-paralog-genetic-interaction-per-pair-v1"
+DEDE_SUMMARY_FILENAME = "dede_gi_per_pair_summary.parquet"
+IN4MER_SUMMARY_FILENAME = "in4mer_gi_per_pair_summary.parquet"
+_SL_CLASSES = ("constitutive_buffering", "context_buffering")  # interaction_class values that ARE a paralog SL
+
+# Per-manifest success cache (parallel to _SUMMARY_CACHE; never latches a transient-failure None).
+_CONSORTIUM_CACHE: dict = {}
+
+
+def _read_consortium_summary(manifest_id: str, summary_filename: str, target: str) -> Optional[tuple]:
+    """Pushdown-read one consortium's per-pair SUMMARY rows for a target_gene. Same fail-soft contract
+    as _read_summary_rows: None on a GENUINE no-object (not cached), RAISES on transient/creds/broken-env
+    (not cached → retries), empty tuple if the gene is absent from the library (cached)."""
+    sym = (target or "").strip().upper()
+    ck = (manifest_id, sym)
+    if ck in _CONSORTIUM_CACHE:
+        return _CONSORTIUM_CACHE[ck]
+    try:
+        import sys as _sys
+
+        _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+        import pyarrow.fs as fs
+        import pyarrow.parquet as pq
+
+        from methods.catalog_query.read import bucket_key_for
+
+        bucket, per_line_key = bucket_key_for(manifest_id)
+        summary_key = per_line_key.rsplit("/", 1)[0] + "/" + summary_filename
+        tbl = pq.read_table(
+            f"{bucket}/{summary_key}",
+            filesystem=fs.S3FileSystem(),
+            filters=[("target_gene", "=", sym)],
+        )
+    except Exception as e:  # noqa: BLE001
+        from methods.target_id_sidecar import is_definitively_absent
+
+        if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
+            return None
+        raise
+    result = tuple() if tbl.num_rows == 0 else tuple(tbl.to_pylist())
+    _CONSORTIUM_CACHE[ck] = result
+    return result
+
+
+def _consortium_call(rows: Optional[tuple]) -> dict:
+    """Reduce one consortium's per-pair rows to a call: strongest shared-label class + SL-partner count.
+    rows None = read error (data_unavailable); () = target absent from that library (not_screened)."""
+    if rows is None:
+        return {"class": "data_unavailable", "n_sl_partners": 0, "sl_partners": []}
+    if not rows:
+        return {"class": "not_screened", "n_sl_partners": 0, "sl_partners": []}
+    sl = [r for r in rows if r.get("interaction_class") in _SL_CLASSES]
+    # strongest call: constitutive > context > (suppressive/no_interaction). Report the best SL if any.
+    if any(r.get("interaction_class") == "constitutive_buffering" for r in sl):
+        klass = "constitutive_buffering"
+    elif sl:
+        klass = "context_buffering"
+    else:
+        klass = "no_interaction"
+    return {
+        "class": klass,
+        "n_sl_partners": len(sl),
+        "sl_partners": [r.get("partner_gene") for r in sl if r.get("partner_gene")],
+    }
+
+
+def cross_consortium_paralog_gi_for_gene(
+    target: str, *, dede_rows: Optional[tuple] = None, in4mer_rows: Optional[tuple] = None
+) -> dict:
+    """Does an orthogonal paralog dual-KO consortium corroborate the DepMap ParalogV2 CODEP call?
+    Reads the Dede (zdLFC) + in4mer (normZ) per-pair summaries and emits a verdict-INERT corroboration
+    class. Row args injectable for tests (skip S3). Fail-soft: a per-consortium read blip degrades that
+    leg to data_unavailable + a breadcrumb, never propagates."""
+    sym = (target or "").strip().upper()
+    read_error = None
+
+    def _leg(rows, manifest_id, summary_filename):
+        nonlocal read_error
+        if rows is not None:
+            return rows
+        try:
+            return _read_consortium_summary(manifest_id, summary_filename, sym)
+        except Exception as e:  # noqa: BLE001 — graceful boundary; never propagate a read blip
+            read_error = f"{manifest_id} transient/creds/broken-env read failure: {e}"
+            return None
+
+    dede = _consortium_call(_leg(dede_rows, DEDE_MANIFEST_ID, DEDE_SUMMARY_FILENAME))
+    in4mer = _consortium_call(_leg(in4mer_rows, IN4MER_MANIFEST_ID, IN4MER_SUMMARY_FILENAME))
+
+    dede_sl = dede["class"] in _SL_CLASSES
+    in4mer_sl = in4mer["class"] in _SL_CLASSES
+    n_corroborating = int(dede_sl) + int(in4mer_sl)
+    both_unavailable = dede["class"] == "data_unavailable" and in4mer["class"] == "data_unavailable"
+    both_absent = dede["class"] == "not_screened" and in4mer["class"] == "not_screened"
+
+    if both_unavailable:
+        klass = "data_unavailable"
+    elif n_corroborating >= 2:
+        klass = "corroborated_multi_consortium"
+    elif n_corroborating == 1:
+        klass = "single_consortium_corroboration"
+    elif both_absent:
+        klass = "not_screened_off_panel"
+    else:
+        klass = "no_cross_consortium_signal"
+
+    # union of SL partners across consortia (for the corroboration table), de-duped, stable order.
+    corroborating = []
+    seen: set = set()
+    for src, leg in (("dede", dede), ("in4mer", in4mer)):
+        for p in leg["sl_partners"]:
+            if p and p not in seen:
+                seen.add(p)
+                corroborating.append(p)
+
+    out = {
+        "cross_consortium_paralog_class": klass,
+        "n_consortia_corroborating": n_corroborating,
+        "dede_class": dede["class"],
+        "dede_n_sl_partners": dede["n_sl_partners"],
+        "in4mer_class": in4mer["class"],
+        "in4mer_n_sl_partners": in4mer["n_sl_partners"],
+        "corroborating_partners": corroborating,
+        "method_version": METHOD_VERSION,
+        "_data_source": f"{DEDE_MANIFEST_ID}+{IN4MER_MANIFEST_ID}",
+    }
+    if klass == "data_unavailable":
+        out["_live_read_error"] = read_error or (
+            "cross-consortium paralog GI: genuine no-object (NoSuchKey/404) on BOTH dede + in4mer summaries"
+        )
+    return out
