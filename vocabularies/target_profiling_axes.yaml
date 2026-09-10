@@ -760,6 +760,7 @@ question_hierarchies:
       - id: codep_read
         measurement_types:
         - combinatorial_ko_dependency
+        - cross_consortium_paralog_gi        # T0-1: orthogonal Dede/in4mer corroboration of the CODEP call (verdict-inert)
     - id: COMBO
       questions:
       - id: combo_read
