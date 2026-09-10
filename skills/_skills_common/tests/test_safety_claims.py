@@ -122,6 +122,46 @@ def test_mutant_selective_gof_conditions_constraint_conflict():
     assert "NOT downgraded" in conflict  # scalar verdict is the raw concern
 
 
+def test_gof_driver_flags_germline_legs_as_not_lof_corroboration_993():
+    # #993 pt2: for an activating (GoF) driver the burden/dosage/clinvar germline legs are GoF-syndrome-
+    # associated (RASopathy/Noonan/activating-mosaic), NOT WT-LoF-intolerance — each carries a "do NOT
+    # count as LoF-corroboration / MODALITY-CONDITIONAL" conflict. Tiers are UNCHANGED (verdict-inert;
+    # the scalar safety verdict is the resolver's raw concern).
+    vec = safety_claim_vector(_headline(alteration_functional_direction="activating"), _cards())
+    for ax in ("BURDEN", "DOSAGE", "CLINVAR"):
+        assert vec[ax]["signal"] == "strong"  # tier byte-stable
+        conflict = vec[ax]["conflict"] or ""
+        assert "activating (GoF)" in conflict and "NOT" in conflict
+        assert "NOT downgraded" in conflict
+
+
+def test_lof_driver_germline_legs_have_no_gof_caveat_993():
+    # a genuine LoF target (the default): NO GoF direction caveat on the germline legs.
+    vec = safety_claim_vector(_headline(alteration_functional_direction="loss_of_function"), _cards())
+    for ax in ("BURDEN", "DOSAGE", "CLINVAR"):
+        assert not (vec[ax]["conflict"] or "")
+
+
+def test_impc_viability_surfaced_when_coarse_class_is_a_gap_1001():
+    # #1001: the coarse mouse_ko_phenotype_class reads a gap (insufficient / no_phenotype) but the IMPC
+    # preweaning screen recorded a lethal call → surface it + flag the COVERAGE GAP. Tier stays as the
+    # coarse class (NOT promoted — the verdict-moving promotion is deferred pending a panel backtest).
+    vec = safety_claim_vector(
+        _headline(mouse_ko_phenotype_class="insufficient", impc_viability_class="lethal_preweaning"),
+        _cards(),
+    )
+    mk = vec["MOUSE_KO"]
+    assert "IMPC-viability=lethal_preweaning" in mk["evidence"]
+    assert "COVERAGE GAP" in (mk["conflict"] or "")
+    assert mk["signal"] == "unmeasured"  # insufficient -> unmeasured; NOT promoted (verdict-inert)
+
+
+def test_impc_viable_adds_no_mouseko_gap_note_1001():
+    # a 'viable' / 'unmeasured' IMPC read adds no evidence line and no gap note.
+    vec = safety_claim_vector(_headline(impc_viability_class="viable"), _cards())
+    assert "IMPC-viability" not in (vec["MOUSE_KO"]["evidence"] or "")
+
+
 def test_atoms_absent_without_cards():
     vec = safety_claim_vector(_headline(), [])
     for ax in ("CONSTRAINT", "BURDEN", "DOSAGE", "CLINVAR", "MOUSE_KO"):

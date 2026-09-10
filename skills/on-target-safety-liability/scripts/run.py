@@ -540,6 +540,12 @@ def _headline(cards, fired, verdict_pair):
         # capsule projection ignored (class + top_lethal only). Folded into the MOUSE_KO claim evidence so
         # the narrator names WHICH organ systems a full KO perturbs. VERDICT-INERT.
         "mouse_ko_organ_systems": get_card_field(cards, "mouse-ko-phenotype", "organ_classes"),
+        # IMPC preweaning-viability screen (2026-09-10, #1001) — the fine-grained viability read
+        # (lethal_preweaning / subviable / viable / unmeasured) the coarse ko_phenotype_class collapses:
+        # a constitutive embryonic-lethal maps to developmental_only OR is ABSENT from IMPC
+        # (-> no_phenotype / insufficient), so the highest-WT-loss-liability genes read as a coverage GAP.
+        # Surfaced into the MOUSE_KO claim so the gap is not mistaken for "no phenotype". VERDICT-INERT.
+        "impc_viability_class": get_card_field(cards, "mouse-ko-phenotype", "impc_viability_class"),
         # ClinVar germline-pathogenicity
         "clinvar_pathogenic_class": get_card_field(cards, "clinvar-pathogenicity-safety", "clinvar_pathogenic_class"),
         "clinvar_top_disease": get_card_field(cards, "clinvar-pathogenicity-safety", "top_disease"),

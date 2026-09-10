@@ -189,10 +189,28 @@ def _constraint_corr(h, c):
     return base  # s_het indeterminate / absent → single-source base
 
 
+def _gof_germline_caveat(h, sig):
+    """#993 pt2: for an activating (GoF) driver, a germline-pathogenicity / population LoF-risk leg is
+    NOT WT-LoF-intolerance corroboration — the germline associations are with ACTIVATING variants (GoF
+    syndromes; e.g. RASopathy/Noonan, activating mosaic), not loss-of-function. Surfaced as a tension so
+    the leg is not counted as LoF-corroboration and the synthesis does not propagate the mislabel. Mirrors
+    the CONSTRAINT/PANESS mechanism-conditioning; verdict-INERT (tier unchanged — the scalar safety verdict
+    is the resolver's raw concern and is NOT downgraded; direction lives per-modality)."""
+    if sig_ge(sig, "moderate") and h.get("alteration_functional_direction") == "activating":
+        return (
+            "activating (GoF) driver: this germline / population LoF-risk association is with ACTIVATING "
+            "germline variants (GoF syndrome), NOT WT loss-of-function — do NOT count as LoF-intolerance "
+            "corroboration; any WT-loss reading is MODALITY-CONDITIONAL (see the per-modality safety "
+            "verdict). The scalar safety verdict is the raw concern and is NOT downgraded."
+        )
+    return None
+
+
 def _burden_signal(h, c):
     cls = h.get("burden_safety_class")
     ev = f"gene-burden: {cls or 'data_unavailable'}, min_p={h.get('burden_min_pvalue')}, disease={h.get('burden_top_disease')}"
-    return _BURDEN_SIGNAL.get(cls, "unmeasured"), ev, None
+    sig = _BURDEN_SIGNAL.get(cls, "unmeasured")
+    return sig, ev, _gof_germline_caveat(h, sig)
 
 
 def _burden_corr(h, c):
@@ -205,7 +223,8 @@ def _burden_corr(h, c):
 def _dosage_signal(h, c):
     cls = h.get("dosage_sensitivity_class")
     ev = f"ClinGen dosage: {cls or 'data_unavailable'}, inheritance={h.get('germline_inheritance_mode')}"
-    return _DOSAGE_SIGNAL.get(cls, "unmeasured"), ev, None
+    sig = _DOSAGE_SIGNAL.get(cls, "unmeasured")
+    return sig, ev, _gof_germline_caveat(h, sig)
 
 
 def _dosage_corr(h, c):
@@ -225,7 +244,8 @@ def _clinvar_signal(h, c):
     n = h.get("clinvar_n_pathogenic_germline_confident")
     if isinstance(n, int) and n > 0:
         ev += f", confident-germline-pathogenic-variants={n}"
-    return _CLINVAR_SIGNAL.get(cls, "unmeasured"), ev, None
+    sig = _CLINVAR_SIGNAL.get(cls, "unmeasured")
+    return sig, ev, _gof_germline_caveat(h, sig)
 
 
 def _clinvar_corr(h, c):
@@ -245,7 +265,25 @@ def _mouseko_signal(h, c):
     organs = h.get("mouse_ko_organ_systems")
     if organs:
         ev += f", organ-systems={list(organs) if not isinstance(organs, str) else organs}"
-    return _MOUSEKO_SIGNAL.get(cls, "unmeasured"), ev, None
+    sig = _MOUSEKO_SIGNAL.get(cls, "unmeasured")
+    conflict = None
+    # #1001: surface the IMPC preweaning-viability read. The coarse ko_phenotype_class collapses a
+    # constitutive embryonic-lethal to developmental_only, or the gene is simply ABSENT from IMPC
+    # (-> no_phenotype / insufficient) — so the highest-WT-loss-liability genes read as a COVERAGE GAP,
+    # not as a phenotype. When IMPC recorded a lethal/subviable call but the coarse class went
+    # unmeasured/no_phenotype/insufficient, surface it + flag the gap. VERDICT-INERT (tier unchanged; a
+    # verdict-moving 'essentiality_implied_lethal' promotion is deferred as it needs a panel backtest).
+    impc = h.get("impc_viability_class")
+    if impc and impc not in ("viable", "unmeasured"):
+        ev += f", IMPC-viability={impc}"
+        if sig == "unmeasured" or cls in ("no_phenotype", "insufficient"):
+            conflict = (
+                f"mouse-KO phenotype class reads '{cls or 'data_unavailable'}' but the IMPC preweaning "
+                f"screen is '{impc}': a constitutive embryonic-lethal is the hardest to phenotype, so this "
+                f"is a COVERAGE GAP — NOT evidence of no phenotype (the highest-WT-loss-liability genes "
+                f"read here)."
+            )
+    return sig, ev, conflict
 
 
 def _mouseko_corr(h, c):
