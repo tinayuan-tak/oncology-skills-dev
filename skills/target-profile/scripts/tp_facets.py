@@ -460,20 +460,61 @@ _SKILL_REPORT_POLARITY_RANK = {"killer": -3, "opposing": -1, "neutral": 0, "supp
 _POSITIVE_RECOMMENDATIONS = frozenset({"nominate", "go", "advance"})
 
 
-def build_skill_report_rollup(skill_reports_by_short: dict, target_call: "Optional[dict]" = None) -> dict:
+# A gating axis's modality-channel family — the channels whose axis-applicability governs whether the
+# axis's polarity is a real call or a category error. surface_modality is the biologics (ADC/TCE/antibody)
+# call; tractability_sm is the intracellular (small-molecule/degrader) call. When ALL of an axis's family
+# channels are masked `not_applicable_by_axis` in modality_fit_by_channel (a curated single-axis target —
+# e.g. biologics for an INTRACELLULAR target, or SM/degrader for a pure SURFACE antigen), the axis is a
+# category error for this target and its `killer` polarity must NOT count as an against-signal.
+_GATING_AXIS_CHANNEL_FAMILY = {
+    "surface_modality": ("adc", "bite_tce", "antibody"),
+    "tractability_sm": ("small_molecule", "degrader"),
+}
+
+
+def _axis_masked_not_applicable(short: str, modality_fit_by_channel: dict) -> bool:
+    """True when `short`'s whole modality-channel family is masked `not_applicable_by_axis` — i.e. the
+    axis is a category error for this target's curated biology axis (the same mask that turns biologics
+    into `not_applicable_by_axis` for an intracellular target in `_modality_fit_by_channel`)."""
+    channels = _GATING_AXIS_CHANNEL_FAMILY.get(short)
+    if not channels or not modality_fit_by_channel:
+        return False
+    fits = [(modality_fit_by_channel.get(c) or {}).get("fit") for c in channels]
+    present = [f for f in fits if f is not None]
+    return bool(present) and all(f == _NOT_APPLICABLE_BY_AXIS for f in present)
+
+
+def build_skill_report_rollup(
+    skill_reports_by_short: dict,
+    target_call: "Optional[dict]" = None,
+    modality_fit_by_channel: "Optional[dict]" = None,
+) -> dict:
     """VERDICT-INERT projection over the skill_report[] spine. Groups the per-skill reports by role
     (gating / descriptive / inert), records the GATING skills' canonical polarities + the peak
     (most-favorable) gating signal, and cross-checks target-level INV-6: the recommendation must not read
     MORE favorable than the gating signals support — a gating `killer` polarity alongside a POSITIVE
     recommendation is surfaced as `recommendation_exceeds_signals`. This is a coherence FLAG for the
-    reader; it NEVER mutates target_call (the sole recommendation owner)."""
+    reader; it NEVER mutates target_call (the sole recommendation owner).
+
+    biology-axis applicability mask (#1203): a gating axis whose whole modality-channel family is masked
+    `not_applicable_by_axis` (from `modality_fit_by_channel`) is a CATEGORY ERROR for the target — e.g.
+    surface_modality=`killer`/`neither_viable` on an INTRACELLULAR target, whose biologics channels are
+    correctly `not_applicable_by_axis`. Its `killer` polarity is relabeled `not_applicable` so it does not
+    count in `killer_axes` and cannot spuriously fire `recommendation_exceeds_signals` on a correct
+    `nominate`. Mirrors `_channel_applicable_for_axis`; no-op when `modality_fit_by_channel` is absent."""
+    mfc = modality_fit_by_channel or {}
     by_role: dict = {"gating": [], "descriptive": [], "inert": []}
     gating_polarities: dict = {}
+    axis_not_applicable: list = []
     for short, sr in (skill_reports_by_short or {}).items():
         role = sr.get("role")
-        by_role.setdefault(role, []).append({"short": short, "call": sr.get("call"), "polarity": sr.get("polarity")})
+        polarity = sr.get("polarity")
+        if polarity == "killer" and _axis_masked_not_applicable(short, mfc):
+            polarity = "not_applicable"  # category error for this target's biology axis — not an against-signal
+            axis_not_applicable.append(short)
+        by_role.setdefault(role, []).append({"short": short, "call": sr.get("call"), "polarity": polarity})
         if role == "gating":
-            gating_polarities[short] = sr.get("polarity")
+            gating_polarities[short] = polarity
     ranks = [_SKILL_REPORT_POLARITY_RANK[p] for p in gating_polarities.values() if p in _SKILL_REPORT_POLARITY_RANK]
     peak = max(ranks) if ranks else None  # most-favorable gating signal on the ordinal scale
     killer_axes = [s for s, p in gating_polarities.items() if p == "killer"]
@@ -484,6 +525,9 @@ def build_skill_report_rollup(skill_reports_by_short: dict, target_call: "Option
         "gating_polarities": gating_polarities,
         "peak_gating_rank": peak,
         "killer_axes": killer_axes,
+        # axes whose `killer` was relabeled `not_applicable` because their modality family is a category
+        # error for this target's curated biology axis (biology-axis applicability mask, #1203).
+        "axis_not_applicable": axis_not_applicable,
         "recommendation": rec,
         # INV-6 at the target level (verdict-inert coherence flag): a killer gating signal should have
         # forced a non-positive recommendation; surface — never silently allow — the mismatch.
@@ -1924,7 +1968,9 @@ def build_target_report(
         # the unified per-skill signals (docs/UNIFIED_OUTPUT_CONTRACT.md). Verdict-inert; the rollup carries
         # a target-level INV-6 coherence flag but never moves the recommendation (target_call owns it).
         "skill_reports": skill_reports,
-        "skill_report_rollup": (build_skill_report_rollup(skill_reports, target_call) if skill_reports else None),
+        "skill_report_rollup": (
+            build_skill_report_rollup(skill_reports, target_call, modality_fit_by_channel) if skill_reports else None
+        ),
         "target_call": target_call,  # DECISION (recommendation owner = target_call.gate)
         "risk_6dim": risk_rollup,  # ← risk_rollup (deterministic 6-dim; None w/o substrate)
         "axis_rollup": tr.get("axes"),  # ← target_rollup.axes (A/B/D/E bands)

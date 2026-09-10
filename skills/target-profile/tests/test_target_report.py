@@ -96,6 +96,63 @@ def test_rollup_flags_inv6_breach_when_recommendation_exceeds_a_killer_signal():
     assert tc["recommendation"] == "nominate"
 
 
+# ── #1203: biology-axis applicability mask — surface_modality "killer" on an intracellular target ────
+def _mfc_intracellular_masked():
+    """modality_fit_by_channel for a curated INTRACELLULAR target: biologics-family channels are masked
+    `not_applicable_by_axis` (category errors), SM/degrader remain live."""
+    na = {
+        "fit": "not_applicable_by_axis",
+        "limiting_axis": None,
+        "by_axis": {},
+        "masked_by_axis": "intracellular_intrinsic",
+    }
+    return {
+        "adc": na,
+        "bite_tce": na,
+        "antibody": na,
+        "biologics": na,
+        "small_molecule": {"fit": "favorable", "by_axis": {}},
+        "degrader": {"fit": "favorable", "by_axis": {}},
+    }
+
+
+def test_rollup_masks_surface_modality_killer_on_intracellular_target_1203():
+    reports = {
+        "safety": {"role": "gating", "call": "x", "polarity": "opposing"},
+        "surface_modality": {"role": "gating", "call": "neither_viable", "polarity": "killer"},
+        "tractability_sm": {"role": "gating", "call": "well_covered", "polarity": "supportive"},
+        "dependency": {"role": "gating", "call": "concordant_dependent", "polarity": "supportive"},
+    }
+    ru = build_skill_report_rollup(reports, {"recommendation": "nominate"}, _mfc_intracellular_masked())
+    # the surface_modality killer is a category error → relabeled not_applicable, dropped from killer_axes
+    assert ru["axis_not_applicable"] == ["surface_modality"]
+    assert ru["gating_polarities"]["surface_modality"] == "not_applicable"
+    assert ru["killer_axes"] == []
+    # so a correct nominate no longer trips the INV-6 breach
+    assert ru["recommendation_exceeds_signals"] is False
+
+
+def test_rollup_keeps_surface_modality_killer_on_surface_target_1203():
+    # a real surface antigen: biologics channels are NOT masked → killer stays a genuine against-signal.
+    reports = {
+        "surface_modality": {"role": "gating", "call": "neither_viable", "polarity": "killer"},
+        "dependency": {"role": "gating", "call": "x", "polarity": "supportive"},
+    }
+    mfc = {c: {"fit": "unfavorable"} for c in ("adc", "bite_tce", "antibody", "biologics")}
+    ru = build_skill_report_rollup(reports, {"recommendation": "nominate"}, mfc)
+    assert ru["axis_not_applicable"] == []
+    assert ru["killer_axes"] == ["surface_modality"]
+    assert ru["recommendation_exceeds_signals"] is True
+
+
+def test_rollup_without_mfc_is_backward_compatible_1203():
+    # no modality_fit_by_channel → no mask; the pre-#1203 behavior is preserved.
+    ru = build_skill_report_rollup(_reports(), {"recommendation": "nominate"})
+    assert ru["killer_axes"] == ["selectivity"]
+    assert ru["axis_not_applicable"] == []
+    assert ru["recommendation_exceeds_signals"] is True
+
+
 def test_skill_reports_by_short_reads_synthesis_facet_tolerantly():
     sub_results = {
         "safety": {"synthesis_facet": {"skill_report": {"role": "gating", "polarity": "opposing"}}},
