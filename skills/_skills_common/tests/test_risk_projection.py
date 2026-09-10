@@ -78,9 +78,41 @@ def test_commercial_bin_from_competitor_card():
 def test_engine_blind_dims_present_when_unfed():
     dims = deterministic_bins(_pkg({}), "small_molecule")
     assert set(dims) == {"safety", "biological", "druggability", "clinical", "commercial", "translational"}
-    # translational is ALWAYS engine-blind; clinical/commercial engine-blind when their card is absent
+    # translational / clinical / commercial are engine-blind when their feeding card is absent
     for d in ("translational", "clinical", "commercial"):
         assert dims[d]["bin"] == "ENGINE-BLIND"
+
+
+def test_translational_bin_from_readiness_cards():
+    # deep model coverage + a deep genotype-matched model = readily preclinically validatable = LOW
+    lo = _pkg(
+        {},
+        [
+            {"card_id": "target-model-availability", "summary": {"model_availability_class": "deep_model_coverage"}},
+            {"card_id": "target-genotype-matched-model", "summary": {"genotype_matched_class": "matched_deep"}},
+        ],
+    )
+    assert deterministic_bins(lo, "small_molecule")["translational"]["bin"] == "LOW"
+    # sparse coverage + no genotype-matched model = hard to validate = HIGH (worst-of the two legs)
+    hi = _pkg(
+        {},
+        [
+            {"card_id": "target-model-availability", "summary": {"model_availability_class": "sparse_model_coverage"}},
+            {"card_id": "target-genotype-matched-model", "summary": {"genotype_matched_class": "none"}},
+        ],
+    )
+    assert deterministic_bins(hi, "small_molecule")["translational"]["bin"] == "HIGH"
+    # a PDXE in-vivo objective responder caps an otherwise-HIGH readiness risk at MED
+    capped = _pkg(
+        {},
+        [
+            {"card_id": "target-model-availability", "summary": {"model_availability_class": "sparse_model_coverage"}},
+            {"card_id": "target-genotype-matched-model", "summary": {"genotype_matched_class": "none"}},
+            {"card_id": "target-pdx-drug-response", "summary": {"pdx_drug_response_class": "pdx_objective_responders"}},
+        ],
+    )
+    d = deterministic_bins(capped, "small_molecule")["translational"]
+    assert d["bin"] == "MED" and d["mitigation"]
 
 
 def test_raw_loeuf_surfaced_in_safety_chain():

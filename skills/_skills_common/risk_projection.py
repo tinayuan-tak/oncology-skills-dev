@@ -305,10 +305,56 @@ def deterministic_bins(pkg: dict, modality: str) -> dict:
             "blind_spots": ["market size / revenue / IP freedom-to-operate (unlicensed data)"],
         }
 
+    # TRANSLATIONAL — preclinical-validation readiness from the LIVE translational-readiness cards (HCMI
+    # model availability + genotype-matched models + PDXE in-vivo response). Risk = how hard it is to
+    # preclinically validate a nomination: no patient-derived models / no genotype-matched model = HIGH;
+    # deep coverage + a genotype-matched model = LOW. The model-coverage + genotype-match legs (the skill's
+    # critical axes) set the ordinal (worst-of); a PDXE objective responder is in-vivo validation precedent
+    # that CAPS the risk at MED. `differentiation` is NOT read here (its verdict is a co-mutation LANDSCAPE,
+    # not a readiness ordinal). All legs data_unavailable / absent → falls through to ENGINE-BLIND below.
+    tr_sig, tr_chain = None, []
+    for cid, field, mapping in [
+        (
+            "target-model-availability",
+            "model_availability_class",
+            {"deep_model_coverage": 0, "moderate_model_coverage": 1, "sparse_model_coverage": 2},
+        ),
+        (
+            "target-genotype-matched-model",
+            "genotype_matched_class",
+            {"matched_deep": 0, "matched_sparse": 1, "none": 2},
+        ),
+    ]:
+        _cls = _card(pkg, cid).get(field)
+        b = mapping.get(_cls)
+        if b is not None:
+            tr_sig = b if tr_sig is None else max(tr_sig, b)
+            tr_chain.append((cid, _cls, INV[b]))
+    tr_mit = None
+    if tr_sig is not None and _card(pkg, "target-pdx-drug-response").get("pdx_drug_response_class") == (
+        "pdx_objective_responders"
+    ):
+        tr_chain.append(("target-pdx-drug-response", "pdx_objective_responders (in-vivo validation precedent)", "LOW"))
+        if tr_sig > 1:
+            tr_sig = 1
+            tr_mit = "capped at MED by a PDXE in-vivo objective response"
+    if tr_sig is not None:
+        dims["translational"] = {
+            "pillar": "Right Patient (translational readiness / patient-selection)",
+            "bin": INV[tr_sig],
+            "chain": tr_chain,
+            "mitigation": tr_mit,
+            "blind_spots": [
+                "PD-assay / imaging-tracer / internal Takeda models (un-wired)",
+                "co-mutation patient-selection (literature-only)",
+            ],
+        }
+
     # engine-BLIND dims (literature-only via grounded/Tier-2) — set ONLY if not already engine-fed above.
-    # translational (patient-selection / readiness) is engine-blind: `differentiation` carries a
-    # co-mutation/patient-selection LANDSCAPE sub-verdict, not a risk ordinal, and the
-    # translational-readiness engine leg is still a placeholder — so the dim is honestly literature-only
+    # translational is engine-fed above WHEN the translational-readiness model/genotype cards are present;
+    # it falls here (literature-only) only when those cards are absent/data_unavailable. `differentiation`
+    # carries a co-mutation/patient-selection LANDSCAPE sub-verdict, not a translational risk ordinal, so it
+    # is deliberately NOT routed into a computed translational bin — the dim is honestly literature-only
     # until a translational engine bin exists. clinical/commercial fall here only when their card is
     # absent/insufficient. Grounded findings set the coarse literature bin in project() (lit-risk skill).
     for d, pil in [
