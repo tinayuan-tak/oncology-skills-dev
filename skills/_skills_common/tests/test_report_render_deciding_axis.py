@@ -96,8 +96,14 @@ def test_deciding_axis_no_named_axis_has_no_double_dash_placeholder_text():
 
 
 def test_deciding_axis_no_named_axis_html_has_no_empty_bold():
+    # the DECIDING_AXIS block is no longer emitted in the composed v6 HTML (it moved out with the
+    # decision-detail fold), so assert the HTML block-render capability directly.
+    from _skills_common.report_render.backends.html import HtmlBackend
+
     nom = make_nomination()
     nom["target_report"]["target_call"]["deciding_axis"] = _NO_NAME_DA
-    h = render_report(nom, preset="full", backend="html")
+    ir = build_ir(nom, resolve_spec("full"))
+    da = next(b for b in ir.overview if b.kind == vocab.DECIDING_AXIS)
+    h = "".join(HtmlBackend()._emit(da))
     assert "<b></b>" not in h and "<b>—</b> —" not in h
     assert "cannot decide" in h

@@ -565,8 +565,10 @@ _CONTEXT_DIM = {
     "cis_coherence": "biological",
     "combination_vulnerability": "biological",
     "target_intrinsic": "druggability",
+    # immune_context is the TCE effector-arm companion to surface-modality-fit → DRUGGABILITY (not
+    # clinical): it sits beside the surface/biologics modality call, not the clinical-precedent bin.
+    "immune_context": "druggability",
     "translational_readiness": "translational",
-    "immune_context": "clinical",
     "literature_context": "commercial",
 }
 
@@ -630,10 +632,11 @@ def _risk_6dim_block(
             "read": read,
             "context": context,
             "spark": None,  # display-only; populated only when a numeric distribution is already in-data
-            # SAME-PAGE anchor into the inlined subskill dashboard (`<section id="skill-{short}">`), so
-            # the `full ↗` link resolves when the composed target_profile.html is downloaded on its own —
-            # NOT an external `subskills/{short}/dashboard.html` file (which 404s outside the run dir).
-            "dashboard": f"#skill-{short}",
+            # EXTERNAL deep-link to the standalone `subskills/{short}/dashboard.html` page the
+            # --full-package run emits (tp_manifest writes it under subskills/<short>/). The composed HTML
+            # no longer inlines per-subskill dashboards, so the old same-page `#skill-{short}` anchors have
+            # no target — the `full ↗` link opens the standalone page instead.
+            "dashboard": f"subskills/{short}/dashboard.html",
             "fallback": fell_back,
         }
 
@@ -694,17 +697,33 @@ def _risk_6dim_block(
 
     def _emit(dim, v):
         b = str(v.get("bin") or "") if isinstance(v, dict) else (v if isinstance(v, str) else "")
-        blind_spots, mitigation = [], None
+        blind_spots, mitigation, grounded = [], None, []
         if isinstance(v, dict):
             blind_spots = v.get("blind_spots") or []
             mitigation = v.get("mitigation")
+            # dimension-level literature `grounded_findings` (e.g. the MACRO prognostic study on the
+            # engine-blind translational dim) — surfaced honestly even when no deterministic bin exists.
+            for f in v.get("grounded_findings") or []:
+                if isinstance(f, dict) and (f.get("finding") or "").strip():
+                    grounded.append(
+                        {
+                            "finding": str(f.get("finding")).strip(),
+                            "kind": (str(f.get("kind")).strip() if f.get("kind") else None),
+                            "severity": (str(f.get("severity")).strip() if f.get("severity") else None),
+                            "pmids": [str(p) for p in (f.get("cited_pmids") or f.get("pmids") or [])][:6],
+                        }
+                    )
+        b_up = b.upper()
         dims.append(
             {
                 "dim": dim,
                 "bin": b or None,
-                "rank": _RISK6_RANK.get(b.upper()),
+                "rank": _RISK6_RANK.get(b_up),
+                # ENGINE-BLIND (empty deterministic chain / unrouted bin): honest gap, not a low score.
+                "engine_blind": b_up in ("", "ENGINE-BLIND", "ENGINE_BLIND", "BLIND", "UNROUTED"),
                 "members": _dim_members(dim, v),
                 "literature": _literature(dim),
+                "grounded_findings": grounded,
                 "blind_spots": blind_spots,
                 "mitigation": mitigation,
             }
@@ -1972,19 +1991,55 @@ def _groundedness_summary(nomination: dict) -> Optional[dict]:
     return {"n_cited": av.get("n_cited"), "n_invented": av.get("n_invented") or 0}
 
 
-def _clinical_precedent_summary(risk_dims: list) -> Optional[dict]:
+def _clinical_precedent_card(skill_reports: dict) -> Optional[dict]:
+    """The differentiation-landscape `clinical-precedent` evidence-graph card — the source of the concrete
+    trial detail (trial count / active / agents-engaging-target / highest phase / drug names) for the v6
+    hero pill. None when differentiation carries no such card. Reads real fields only, never fabricates."""
+    diff = (skill_reports or {}).get("differentiation")
+    eg = diff.get("evidence_graph") if isinstance(diff, dict) else None
+    cards = eg.get("cards") if isinstance(eg, dict) else None
+    for c in cards or []:
+        if isinstance(c, dict) and c.get("id") == "clinical-precedent":
+            return c
+    return None
+
+
+def _clinical_precedent_summary(risk_dims: list, skill_reports: Optional[dict] = None) -> Optional[dict]:
     """Clinical-precedent read for the v6 hero green pill — the `highest_clinical_stage` parsed from the
-    Clinical risk dimension's clinical-precedent feeding member (display-placed context, verdict-inert).
-    None when the clinical dimension carries no precedent member."""
+    Clinical risk dimension's clinical-precedent feeding member (display-placed context, verdict-inert),
+    ENRICHED with the concrete trial detail (n_trials / n_active_trials / n_agents / highest phase / drug
+    names) read off the differentiation `clinical-precedent` card. None when neither source carries data."""
+    out: dict = {}
     for d in risk_dims or []:
         if d.get("dim") != "clinical":
             continue
         for m in d.get("members") or []:
-            read = str(m.get("read") or "")
-            sm = re.search(r"highest_clinical_stage=([A-Za-z0-9_]+)", read)
+            sm = re.search(r"highest_clinical_stage=([A-Za-z0-9_]+)", str(m.get("read") or ""))
             if sm:
-                return {"highest_stage": sm.group(1).replace("_", " ")}
-    return None
+                out["highest_stage"] = sm.group(1).replace("_", " ")
+    card = _clinical_precedent_card(skill_reports or {})
+    if isinstance(card, dict):
+        ke = card.get("key_evidence") if isinstance(card.get("key_evidence"), dict) else {}
+        nb = ke.get("n_basis") if isinstance(ke.get("n_basis"), dict) else {}
+        kf = card.get("key_fields") if isinstance(card.get("key_fields"), dict) else {}
+        # trial counts (real fields off the card; any subset may be present)
+        for src_key, dst in (
+            ("n_trials", "n_trials"),
+            ("n_active_trials", "n_active"),
+            ("n_agents_engaging_target", "n_agents"),
+        ):
+            v = nb.get(src_key)
+            if isinstance(v, (int, float)) and not isinstance(v, bool):
+                out[dst] = int(v)
+        # highest phase + representative drug names, if the card surfaces them (flexible key probing —
+        # these are absent on some runs, so they degrade gracefully to omitted).
+        phase = kf.get("highest_phase") or nb.get("highest_phase") or ke.get("highest_phase")
+        if phase:
+            out["highest_phase"] = str(phase)
+        drugs = kf.get("drug_names") or kf.get("drugs") or ke.get("drug_names") or nb.get("drug_names")
+        if isinstance(drugs, (list, tuple)) and drugs:
+            out["drugs"] = [str(x) for x in drugs][:4]
+    return out or None
 
 
 def build_ir(
@@ -2024,13 +2079,36 @@ def build_ir(
     # summary — a dedicated overall_statement field is preferred when the synthesizer emits one), and
     # the addressable-population framing (target×indication prevalence). Both verdict-inert display.
     _llm = nomination.get("llm_synthesis") or nomination.get("llm_output") or {}
-    _overall = _llm_val(_llm, "overall_statement") if isinstance(_llm, dict) else None
+    # a DEDICATED overall_statement / headline field (when the synthesizer emits one) is the crafted
+    # standout; else the hero assembles a crafted statement from the deterministic fields (call · biology
+    # clause · deciding caveat · cleared modality · addressable prevalence). Both verdict-inert display.
+    _overall = (_llm_val(_llm, "overall_statement") or _llm_val(_llm, "headline")) if isinstance(_llm, dict) else None
+    _dedicated_headline = bool(_overall)
+    _exec_lead = None
+    _exec = _llm_val(_llm, "executive_summary") if isinstance(_llm, dict) else None
+    if isinstance(_exec, str) and _exec.strip():
+        _exec_lead = re.split(r"(?<=[.!?])\s+", _exec.strip(), maxsplit=1)[0]
     if not _overall:
-        _exec = _llm_val(_llm, "executive_summary") if isinstance(_llm, dict) else None
-        if isinstance(_exec, str) and _exec.strip():
-            _overall = re.split(r"(?<=[.!?])\s+", _exec.strip(), maxsplit=1)[0]
+        _overall = _exec_lead
     if _overall:  # strip inline [rule_id] citations from the headline prose (same as the synthesis block)
         _overall = _strip_rule_citations(_overall)[0]
+    if _exec_lead:
+        _exec_lead = _strip_rule_citations(_exec_lead)[0]
+    # the deciding safety→modality reconciliation feeding the crafted headline caveat: a HIGH on-target
+    # safety concern SUPPRESSED because a spared (mutant-selective) modality exists. Real gate field only.
+    _safety_escape = None
+    for _v in (target_call.get("gate") or {}).get("suppressed_vetoes") or []:
+        if not isinstance(_v, dict):
+            continue
+        _by = _v.get("suppressed_by") or {}
+        _chans = _by.get("safe_channels") or []
+        _safety_escape = {
+            "short": _v.get("short") or "safety",
+            "verdict": _v.get("verdict"),
+            "channels": [str(c) for c in _chans] if _chans else [],
+            "kind": _by.get("kind"),
+        }
+        break
     # v6 single-scroll hero enrichment (verdict-inert display context): the 6-dim GLANCE reads the same
     # deterministic risk_6dim as the assessment spine (built once, shared), the coherence class frames the
     # archetype line, and the literature co-mention volume + clinical-precedent pill anchor the hero. None
@@ -2046,6 +2124,9 @@ def build_ir(
             "target": target,
             "indication": indication,
             "overall_statement": _overall,
+            "dedicated_headline": _dedicated_headline,
+            "exec_lead": _exec_lead,
+            "safety_escape": _safety_escape,
             "addressable_population": tr.get("addressable_population"),
             "thesis": _thesis_primary if _thesis_primary != "insufficient_thesis" else None,
             "coherence_class": _coherence_class,
@@ -2063,7 +2144,7 @@ def build_ir(
             # v6 hero right-column: the 6-dim glance (same dims as the assessment-view spine).
             "risk_dims": _risk_dims,
             "literature": _lit_comention,
-            "clinical_precedent": _clinical_precedent_summary(_risk_dims),
+            "clinical_precedent": _clinical_precedent_summary(_risk_dims, skill_reports),
             "groundedness": _groundedness_summary(nomination),
         },
     )

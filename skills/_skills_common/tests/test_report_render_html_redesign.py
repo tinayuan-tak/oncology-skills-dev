@@ -51,7 +51,8 @@ def test_signals_carry_rollup_provenance():
     ir = build_ir(make_nomination(), resolve_spec("full"))
     sov = _ov(ir, vocab.SIGNALS_OVERVIEW)
     assert all("n_cards" in r for r in sov.payload["rows"])
-    h = render_report(make_nomination(), preset="full", backend="html")
+    # the composed v6 HTML no longer emits the signals-overview fold inline — render the block directly.
+    h = "".join(HtmlBackend()._emit(sov))
     assert "rolled up from its" in h and "cards" in h  # the explanatory lede + per-row count
 
 
@@ -106,10 +107,13 @@ def test_oversized_svg_not_inlined(tmp_path):
 # -- primary-per-card grouping ------------------------------------------------------------------
 def test_secondary_figures_collapse_into_details():
     # dependency section has 1 primary + many secondary card figures → secondaries behind a <details>.
-    from _skills_common.report_render.backends import BACKENDS
+    # (Sections are no longer inlined in the composed HTML — render the section directly, the same
+    # _emit_standalone_section path the standalone subskill page uses.)
+    from _skills_common.report_render.backends.html import HtmlBackend
 
     ir = build_ir(make_nomination(), resolve_spec("full"))
-    h = BACKENDS["html"]().render(ir)
+    be = HtmlBackend()
+    h = "".join(be._emit_standalone_section(s) for s in ir.sections if s.short == "dependency")
     # the fixture's dependency card has a primary + a secondary SVG → a "more figure(s)" disclosure.
     assert "more figure(s)" in h
 
@@ -134,9 +138,10 @@ def test_characterization_surfaces_nearest_analogs():
     assert "nearest archetype analogs" in h and "BRAF" in h and "CDK4" in h
 
 
-def test_v6_hero_polish_headline_addressable_reconciliation_density():
-    """Ph v6-hero-polish: standout one-sentence statement + addressable-population line + safety
-    reconciliation triplet (magnitude→escapable_by→suppressed) + the density toggle."""
+def test_v6_hero_polish_crafted_headline_addressable_and_density():
+    """Ph v6-hero-polish (2026-09-10 refine): the standout headline is a CRAFTED overall statement (call +
+    biology clause + deciding safety→modality caveat + cleared modality + addressable prevalence); the old
+    safety-reconciliation triplet is GONE; the addressable-population line + density toggle remain."""
     nom = make_nomination()
     nom["llm_synthesis"] = {
         "executive_summary": {"value": "KRAS is a coherent oncogene-addiction target in COADREAD. Second sentence."}
@@ -158,13 +163,15 @@ def test_v6_hero_polish_headline_addressable_reconciliation_density():
         ]
     }
     h = render_report(nom, preset="full", backend="html")
-    # standout statement = first sentence
-    assert "class='headline'" in h and "coherent oncogene-addiction target in COADREAD." in h
-    # addressable population line
+    body = h.split("</style>", 1)[1]
+    # crafted headline: the recommendation lead + the biology clause + the safety→modality caveat.
+    assert "class='headline'" in h
+    assert "coherent oncogene-addiction target in COADREAD" in h  # biology lead clause (pre-colon)
+    assert "escapable by a mutant-selective" in h and "small molecule" in h  # deciding caveat + cleared modality
+    # the old safety-reconciliation triplet (its unique markers) is removed entirely.
+    assert "recon-box" not in body and "veto suppressed" not in body and "recon-arrow" not in body
+    # addressable population line + density toggle remain.
     assert "Addressable population" in h and "43.5%" in h and "GENIE" in h
-    # safety reconciliation triplet
-    assert "recon" in h and "escapable by" in h and "small_molecule" in h and "veto suppressed" in h
-    # density toggle
     assert "density-bar" in h and "Compact" in h and "Expand all" in h
 
 

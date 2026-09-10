@@ -52,11 +52,15 @@ def test_deciding_axis_resolves_from_deciding_axes_list_not_dash():
 
 def test_signals_strip_orders_killers_first():
     # the diverging strip must lead with the killer/opposing rows, matching the killers-first sections.
-    # Slice from the BODY div (class='signal-strip'), NOT h.index('signal-strip') which matches the CSS
-    # rule + the header's deciding mention first.
+    # The composed v6 HTML no longer emits the signals-overview fold inline, so render the SIGNALS_OVERVIEW
+    # HTML block directly and slice from the BODY div (class='signal-strip').
     import re
 
-    html = render_report(make_nomination(), preset="full", backend="html")
+    from _skills_common.report_render.backends.html import HtmlBackend
+
+    ir = build_ir(make_nomination(), resolve_spec("full"))
+    sov = next(b for b in ir.overview if b.kind == vocab.SIGNALS_OVERVIEW)
+    html = "".join(HtmlBackend()._emit(sov))
     _ss = html.index("class='signal-strip'")  # the diverging strip (a preceding scatter SVG may exist)
     strip = html[_ss : html.index("</svg>", _ss)]
     titles = re.findall(r"font-size='12.5'[^>]*>([^<]+)<", strip)  # row title labels, in SVG order

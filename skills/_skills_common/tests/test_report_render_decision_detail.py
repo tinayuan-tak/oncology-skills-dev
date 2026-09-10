@@ -56,7 +56,12 @@ def test_flip_conditions_present_first_and_rendered_clean():
     assert "H fix" not in t and "DEV NOTE" not in t  # dev-note text never rendered
     # load-bearing (present) framing vs counterfactual framing.
     assert "rests on" in t
-    h = render_report(make_nomination(), preset="full", backend="html")
+    # the composed v6 HTML no longer emits the flip-conditions fold inline — assert the HTML block-render
+    # capability directly (the block is still in the IR + rendered by the other backends).
+    from _skills_common.report_render.backends.html import HtmlBackend
+
+    ir = build_ir(make_nomination(), resolve_spec("full"))
+    h = "".join(HtmlBackend()._emit(_ov(ir, vocab.FLIP_CONDITIONS)))
     assert "What would change the call" in h and "DEV NOTE" not in h
 
 

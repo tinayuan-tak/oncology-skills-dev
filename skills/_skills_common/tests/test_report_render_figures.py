@@ -94,7 +94,13 @@ def test_medium_text_suppresses_the_image_but_keeps_the_caption():
 
 # -- backend embed -------------------------------------------------------------------------------
 def test_html_embeds_image_and_status_pill():
-    html = render_report(make_nomination(), preset="full", backend="html")
+    # per-subskill sections are no longer inlined in the composed v6 HTML — assert the HTML section-render
+    # capability directly (the standalone subskill page uses the same _emit_standalone_section path).
+    from _skills_common.report_render.backends.html import HtmlBackend
+
+    ir = build_ir(make_nomination(), resolve_spec("full"))
+    be = HtmlBackend()
+    html = "".join(be._emit_standalone_section(s) for s in ir.sections if s.short in ("dependency", "safety"))
     assert "<img src='figures/cards/pan-cancer-crispr-dependency-distribution/" in html
     assert "fig-badge sig-supportive" in html and "SUPPORTS" in html
     assert "fig-badge sig-killer" in html and "KILLER" in html

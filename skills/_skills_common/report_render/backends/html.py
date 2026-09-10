@@ -106,18 +106,12 @@ h3 { font-size:14px; font-weight:650; margin:0 0 6px; }
 .char-chip .w { color:var(--muted); font-variant-numeric:tabular-nums; font-size:12px; }
 .char-chip.lead { background:var(--t-blue); border-color:transparent; font-weight:600; }
 .char-analogs { font-size:12px; color:var(--muted); margin-top:4px; } .char-analogs .w { color:var(--muted); }
-/* v6 hero polish: standout statement · addressable-population line · safety-reconciliation triplet · density toggle */
+/* v6 hero polish: standout crafted headline · addressable-population line · clinical-precedent pill · density toggle */
 .headline { font-size:17px; line-height:1.5; font-weight:450; color:var(--ink); margin:12px 0 4px;
             padding:14px 18px; background:var(--surface); border:1px solid var(--border);
             border-left:4px solid var(--blue); border-radius:12px; } .headline b { font-weight:700; }
 .h-pop { font-size:13px; color:var(--ink2); background:var(--t-blue); border:1px solid var(--border);
          border-radius:8px; padding:6px 11px; display:inline-block; margin:2px 0 6px; } .h-pop b { color:var(--ink); }
-.recon { display:flex; flex-wrap:wrap; align-items:center; gap:2px; margin:8px 0; font-size:12.5px; }
-.recon-box { border:1px solid var(--border); border-radius:8px; padding:6px 11px; background:var(--surface); }
-.recon-box .rl { display:block; font-size:9.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); }
-.recon-box b { color:var(--ink); } .recon-box.hi b { color:var(--critical); }
-.recon-box.esc { background:var(--t-good); } .recon-box.esc b { color:var(--good); }
-.recon-arrow { color:var(--muted); padding:0 8px; }
 .density-bar { display:flex; justify-content:flex-end; gap:6px; align-items:center; font-size:12px; color:var(--muted); margin:0 0 10px; }
 .density-bar .seg { display:inline-flex; border:1px solid var(--border); border-radius:999px; overflow:hidden; }
 .density-bar button { border:0; background:var(--surface); color:var(--ink2); font-size:12px; padding:4px 11px; cursor:pointer; }
@@ -492,13 +486,14 @@ details.fold .foldbody .card { border:0; padding:4px 0 10px; }
 /* CONVERGENCE LAYER */
 .analogs { font-size:11px; color:var(--muted); margin-top:5px; } .analogs b { color:var(--ink2); }
 .conv { display:flex; flex-direction:column; gap:12px; }
-.causal { display:flex; align-items:stretch; flex-wrap:wrap; gap:2px; }
-.cnode { border:1px solid var(--border); border-radius:9px; background:var(--surface); padding:7px 11px; font-size:11.5px; max-width:180px; }
-.cnode .ct { font-size:9px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); } .cnode b { color:var(--ink); }
-.cnode.sup { border-left:3px solid var(--good); } .cnode.warn { border-left:3px solid var(--serious); }
-.cedge { display:flex; flex-direction:column; justify-content:center; align-items:center; color:var(--muted);
-         padding:0 7px; font-size:9px; text-transform:uppercase; letter-spacing:.03em; }
-.cedge .ar { font-size:16px; line-height:1; color:var(--ink2); }
+/* single-line causal flow: short skill chips joined by → arrows, opposed-by caveat inline */
+.causal { display:flex; align-items:center; flex-wrap:wrap; gap:6px; font-size:12px; line-height:1.9; }
+.cflow { display:inline-block; border:1px solid var(--border); border-radius:999px; background:var(--surface);
+         padding:3px 11px; font-weight:600; color:var(--ink); }
+.cflow.warn { border-color:var(--serious); color:var(--serious); }
+.causal .ar { color:var(--ink2); font-size:15px; padding:0 2px; }
+.cflow-opp { font-size:11px; color:var(--serious); border:1px dashed var(--serious); border-radius:8px;
+             padding:2px 9px; margin-left:4px; }
 .conv .trust { display:flex; flex-wrap:wrap; gap:16px; font-size:11.5px; color:var(--ink2); background:var(--page);
          border:1px solid var(--border); border-radius:9px; padding:8px 12px; }
 .trust { font-size:10.5px; color:var(--muted); margin-top:7px; }
@@ -516,9 +511,9 @@ details.fold .foldbody .card { border:0; padding:4px 0 10px; }
 .arche { display:grid; grid-template-columns:1.5fr 1fr 1fr; gap:18px; margin-top:6px; }
 .arche-h { font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); font-weight:700; margin-bottom:6px; }
 .arche-x { font-size:12px; color:var(--ink2); margin:0; line-height:1.45; }
-.mrowb, .anrow { display:grid; grid-template-columns:1fr 56px 34px; gap:7px; align-items:center; font-size:11px; color:var(--ink2); margin:3px 0; }
-.mt, .ad { position:relative; height:7px; background:var(--hair); border-radius:99px; } .mt i, .ad i { position:absolute; left:0; top:0; bottom:0; border-radius:99px; }
-.mt i { background:var(--blue); } .ad i { background:var(--muted); }
+.radar { display:block; margin:2px auto 0; }
+.anrow2 { display:grid; grid-template-columns:1fr auto; gap:8px; align-items:center; font-size:11.5px; color:var(--ink2); margin:4px 0; padding-bottom:4px; border-bottom:1px solid var(--hair); }
+.anrow2 .ad2 { color:var(--muted); font-variant-numeric:tabular-nums; }
 /* LIT x OMICS COHERENCE */
 table.cohtab { border-collapse:collapse; width:100%; font-size:12px; }
 table.cohtab th, table.cohtab td { border:1px solid var(--hair); padding:8px 10px; text-align:left; vertical-align:top; }
@@ -833,8 +828,9 @@ class HtmlBackend:
         """The approved redesign-v6 single-scroll layout, bound to the composed IR blocks. Assembles:
         sticky hero (report_header) → standout headline → archetype fold → convergence fold (synthesis) →
         3-view switch → 6-dim spine (risk_6dim) / modality (modality_matrix) / lit×omics (literature_risk).
-        Remaining decision-detail blocks + the 15 per-skill sections are appended as collapsed folds so no
-        composed content is lost. Verdict-inert display projection."""
+        The decision-detail blocks and the per-skill sections stay in the IR (rendered by the other
+        backends) but are NOT emitted here — the composed HTML is the v6 spine + convergence only, and the
+        6-dim `full ↗` links point at the standalone subskill pages. Verdict-inert display projection."""
         by_kind = {}
         for b in ir.overview:
             by_kind.setdefault(b.kind, b)
@@ -892,37 +888,18 @@ class HtmlBackend:
         lr = by_kind.get(vocab.LITERATURE_RISK)
         coh = "".join(self._emit(lr)) if lr is not None else ""
         parts.append(f"<section class='view' id='v-coherence'>{coh}</section>")
-        # decision-detail + per-skill evidence: appended as collapsed folds so nothing the composed IR
-        # carries is dropped from the HTML (the v6 look leads; the depth is one click away).
-        placed = {vocab.SYNTHESIS, vocab.RISK_6DIM, vocab.MODALITY_MATRIX, vocab.LITERATURE_RISK}
-        detail_blocks = [b for b in ir.overview if b.kind not in placed]
-        if detail_blocks:
-            inner = "".join(self._wrap_card("".join(self._emit(b))) for b in detail_blocks)
-            parts.append(
-                "<details class='fold'><summary>Decision detail "
-                "<span class='fx'>— at-a-glance grid · deciding axis · flip conditions · biomarker · "
-                f"subtype · coherence</span></summary><div class='foldbody'>{inner}</div></details>"
-            )
-        if ir.sections:
-            # SELF-CONTAINED: embed each subskill's FULL faithful dashboard INLINE (the SAME render the
-            # standalone subskill page produces), wrapped in `<section id="skill-{short}" class="skv">` so
-            # (a) the scoped sandbox stylesheet styles it exactly like the standalone page and (b) the
-            # 6-dimension `full ↗` links resolve as same-page `#skill-{short}` anchors — no external
-            # `subskills/{short}/dashboard.html` files that 404 when target_profile.html is downloaded alone.
-            secs = "".join(
-                f"<section id='skill-{_esc(sec.short)}' class='skv'>{self._emit_standalone_section(sec)}</section>"
-                for sec in ir.sections
-            )
-            parts.append(
-                "<details class='fold' open><summary>Per-subskill evidence "
-                f"<span class='fx'>— the {len(ir.sections)} embedded question-answering dashboards</span>"
-                f"</summary><div class='foldbody'>{secs}</div></details>"
-            )
+        # NOTE (2026-09-10 reviewer refine): the composed HTML no longer emits the "Decision detail" fold
+        # (at-a-glance grid · deciding axis · flip conditions · biomarker · subtype · coherence · signals
+        # overview/strip) NOR the "Per-subskill evidence" section (the 15 inlined dashboards). Those blocks
+        # remain in the IR (`ir.overview` / `ir.sections`) so text / markdown / json / pptx still render
+        # them, and the 6-dim `full ↗` links now point at the standalone `subskills/<short>/dashboard.html`
+        # pages the --full-package run emits. This keeps the composed page to the v6 spine + convergence.
         return "".join(parts)
 
     def _archetype_fold(self, hp: dict) -> str:
-        """v6 archetype fold: phenotype-class prose + soft-membership bars + nearest-analog bars, from the
-        header characterization (verdict-inert). '' when no archetype characterization is present."""
+        """v6 archetype fold: phenotype-class prose + a soft-membership RADAR (one spoke per phenotype
+        class) + the nearest-analog table, from the header characterization (verdict-inert). '' when no
+        archetype characterization is present."""
         char = hp.get("characterization") or {}
         membership = char.get("membership") or char.get("mixture") or []
         analogs = char.get("analogs") or []
@@ -940,33 +917,19 @@ class HtmlBackend:
         )
         if lead:
             prose = f"This target reads as <b>{_esc(lead)}</b>. " + prose
-        mrows = "".join(
-            f"<div class='mrowb'><span>{_esc(m.get('label'))}</span>"
-            f"<span class='mt'><i style='width:{max(2, int(round((m.get('weight') or 0) * 100)))}%'></i></span>"
-            f"<span>{int(round((m.get('weight') or 0) * 100))}%</span></div>"
-            for m in membership[:5]
-        )
-        # nearest-analog bars: smaller distance = more similar → longer bar. Scale to the max shown distance.
-        dists = [a.get("distance") for a in analogs if isinstance(a.get("distance"), (int, float))]
-        dmax = max(dists) if dists else None
+        radar = _radar_svg([(m.get("label"), m.get("weight")) for m in membership])
+        # nearest-analog table beside the radar (target · indication · distance; smaller = more similar).
         arows = []
         for a in analogs[:3]:
             name = _esc(a.get("target")) + (f" · {_esc(a.get('indication'))}" if a.get("indication") else "")
             d = a.get("distance")
-            if isinstance(d, (int, float)) and dmax:
-                width = max(6, int(round((1 - (d / (dmax * 1.15))) * 100)))
-                val = f"{d:g}"
-            else:
-                width, val = 40, "—"
-            arows.append(
-                f"<div class='anrow'><span>{name}</span>"
-                f"<span class='ad'><i style='width:{width}%'></i></span><span>{_esc(val)}</span></div>"
-            )
+            val = f"{d:g}" if isinstance(d, (int, float)) and not isinstance(d, bool) else "—"
+            arows.append(f"<div class='anrow2'><span>{name}</span><span class='ad2'>{_esc(val)}</span></div>")
         return (
             f"<details class='fold'><summary>Target archetype <span class='fx'>— {fx}</span></summary>"
             "<div class='foldbody'><div class='card arche'>"
             f"<div><div class='arche-h'>Phenotype class</div><p class='arche-x'>{prose}</p></div>"
-            f"<div><div class='arche-h'>Soft membership</div>{mrows}</div>"
+            f"<div><div class='arche-h'>Soft membership</div>{radar}</div>"
             "<div><div class='arche-h'>Nearest analogs <span style='font-weight:400;text-transform:none;"
             f"letter-spacing:0'>(smaller = more similar)</span></div>{''.join(arows)}</div>"
             "</div></div></details>"
@@ -1156,11 +1119,27 @@ class HtmlBackend:
                 + "</div>"
             )
         cp = p.get("clinical_precedent") if isinstance(p.get("clinical_precedent"), dict) else None
-        if cp and cp.get("highest_stage"):
-            left.append(
-                "<div class='h-pop' style='margin-top:6px;background:var(--t-good)'>Clinical precedent — "
-                f"highest stage <b>{_esc(cp['highest_stage'])}</b></div>"
-            )
+        if cp:
+            detail = []
+            if cp.get("n_trials") is not None:
+                t = f"<b>{int(cp['n_trials']):,}</b> trials"
+                if cp.get("n_active") is not None:
+                    t += f" ({int(cp['n_active']):,} active)"
+                detail.append(t)
+            if cp.get("highest_phase"):
+                detail.append(f"<b>{_esc(cp['highest_phase'])}</b>")
+            elif cp.get("highest_stage"):
+                detail.append(f"highest stage <b>{_esc(cp['highest_stage'])}</b>")
+            if cp.get("n_agents") is not None:
+                detail.append(f"<b>{int(cp['n_agents']):,}</b> agents engaging target")
+            if cp.get("drugs"):
+                detail.append(_esc(", ".join(cp["drugs"])))
+            if detail:
+                left.append(
+                    "<div class='h-pop' style='margin-top:6px;background:var(--t-good)'>Clinical precedent — "
+                    + " · ".join(detail)
+                    + "</div>"
+                )
         # CENTER: the verdict chip + confidence + groundedness stamp.
         rec = p.get("recommendation")
         center = []
@@ -1173,7 +1152,7 @@ class HtmlBackend:
             gr = p.get("groundedness") if isinstance(p.get("groundedness"), dict) else None
             if gr and gr.get("n_cited") is not None:
                 center.append(
-                    f"<div class='trust'>✓ synthesis grounded · {_esc(gr['n_cited'])} claims, "
+                    f"<div class='trust'>✓ <b>{_esc(gr['n_cited'])} synthesis claims grounded</b>, "
                     f"{_esc(gr.get('n_invented') or 0)} invented</div>"
                 )
         center_html = f"<div class='vblock'>{''.join(center)}</div>" if center else ""
@@ -1184,29 +1163,67 @@ class HtmlBackend:
             f"<div>{''.join(left)}</div>{center_html}{right_html}"
             "</div></header>"
         ]
-        # STANDOUT one-sentence statement, right below the hero.
-        if p.get("overall_statement"):
-            out.append(f"<p class='headline'>{_esc(p['overall_statement'])}</p>")
-        # safety-reconciliation TRIPLET (a HIGH-magnitude veto suppressed by a spared modality is ONE
-        # reconciled fact) — kept as a compact row under the headline.
-        gate = p.get("gate") if isinstance(p.get("gate"), dict) else {}
-        for v in gate.get("suppressed_vetoes") or []:
-            if not isinstance(v, dict):
-                continue
-            by = v.get("suppressed_by") or {}
-            chans = by.get("safe_channels") or []
-            chan_txt = ", ".join(_esc(c) for c in chans) if chans else _esc(by.get("kind") or "a spared modality")
-            out.append(
-                "<div class='recon'>"
-                f"<span class='recon-box hi'><span class='rl'>{_esc(v.get('short') or 'veto')} magnitude</span>"
-                f"<b>{_esc(_humanize(v.get('verdict')) or 'HIGH')}</b></span>"
-                "<span class='recon-arrow'>→</span>"
-                f"<span class='recon-box esc'><span class='rl'>escapable by</span><b>{chan_txt}</b></span>"
-                "<span class='recon-arrow'>→</span>"
-                "<span class='recon-box'><span class='rl'>gate</span><b>veto suppressed</b></span>"
-                "</div>"
-            )
+        # STANDOUT crafted headline, right below the hero — a dedicated synthesizer headline when present,
+        # else a crafted overall statement assembled from the deterministic fields (call · biology clause ·
+        # deciding caveat · cleared modality · addressable prevalence). Verdict-inert display.
+        hl = self._hero_headline(p)
+        if hl:
+            out.append(f"<p class='headline'>{hl}</p>")
         return out
+
+    def _hero_headline(self, p: dict) -> str:
+        """Assemble the crafted hero `.headline` (HTML with bold load-bearing bits). A DEDICATED synthesizer
+        headline (p['dedicated_headline']) is used verbatim; otherwise the statement is composed from the
+        recommendation, the biology clause (LLM exec lead / archetype lead), the deciding safety→modality
+        caveat, the cleared modality channel, and the addressable prevalence. Never fabricates a field."""
+        # dedicated synthesizer headline → verbatim (escaped).
+        if p.get("dedicated_headline") and p.get("overall_statement"):
+            return _esc(p["overall_statement"])
+        bits: list = []
+        # CALL / recommendation (capitalized to lead the sentence).
+        rec = p.get("recommendation")
+        if rec:
+            call = _humanize(rec)
+            call = call[:1].upper() + call[1:] if call else call
+            bits.append(f"<b>{_esc(call)}.</b>")
+        # BIOLOGY clause: prefer the LLM exec lead; else the archetype lead phenotype. Trimmed to a
+        # headline-length lead clause (up to the first colon; else capped) so the standout stays 1–2 lines.
+        bio = p.get("exec_lead") or p.get("overall_statement")
+        if not bio:
+            char = p.get("characterization") or {}
+            lead = (char.get("mixture") or [{}])[0].get("label") if char.get("mixture") else None
+            tgt, ind = p.get("target"), p.get("indication")
+            if lead and tgt:
+                bio = f"{tgt} reads as a {lead} target" + (f" in {ind}" if ind else "")
+        if bio:
+            bio = str(bio)
+            if ":" in bio:  # keep the lead clause before the first colon (drops the enumerated support)
+                bio = bio.split(":", 1)[0]
+            bio = bio.strip().rstrip(".")
+            if len(bio) > 180:
+                bio = bio[:177].rsplit(" ", 1)[0] + "…"
+            if bio:
+                bits.append(_esc(bio) + ".")
+        # DECIDING caveat + cleared MODALITY: the HIGH safety liability escapable by a spared modality.
+        esc = p.get("safety_escape") if isinstance(p.get("safety_escape"), dict) else None
+        if esc and esc.get("channels"):
+            chan = ", ".join(_humanize(c) for c in esc["channels"])
+            verdict_txt = _humanize(esc.get("verdict")) or "on-target-safety"
+            bits.append(
+                f"The deciding <b>{_esc(verdict_txt)}</b> liability is <b>escapable by a "
+                f"mutant-selective {_esc(chan)}</b>, clearing that modality."
+            )
+        elif p.get("deciding_title"):
+            bits.append(f"Deciding axis: <b>{_esc(p['deciding_title'])}</b>.")
+        # ADDRESSABLE prevalence.
+        ap = p.get("addressable_population") if isinstance(p.get("addressable_population"), dict) else {}
+        prev = ap.get("biomarker_prevalence")
+        if prev is not None:
+            try:
+                bits.append(f"Addressable population <b>~{float(prev) * 100:.3g}%</b> of the indication.")
+            except (TypeError, ValueError):
+                pass
+        return " ".join(bits).strip()
 
     _DIMMINI_CLASS = {3: "risk-high", 2: "risk-med", 1: "risk-low"}
     _DIMMINI_LV = {3: "HIGH", 2: "MED", 1: "LOW"}
@@ -1502,6 +1519,34 @@ class HtmlBackend:
                 )
             if d.get("mitigation"):
                 body += f"<div class='dimlit'>↪ reconciliation: {_esc(str(d.get('mitigation')))}</div>"
+            # dimension-level literature grounded_findings (e.g. the MACRO prognostic study on the
+            # engine-blind translational dim) — the honest text-mined findings that DID surface, even
+            # though the deterministic engine routed nothing into a bin.
+            grounded = d.get("grounded_findings") or []
+            for gf in grounded:
+                if not isinstance(gf, dict) or not gf.get("finding"):
+                    continue
+                meta = " · ".join(
+                    x
+                    for x in (
+                        _esc(gf.get("kind")) if gf.get("kind") else "",
+                        _esc(gf.get("severity")) if gf.get("severity") else "",
+                    )
+                    if x
+                )
+                cites = "".join(
+                    f" <a class='cite' href='https://pubmed.ncbi.nlm.nih.gov/{_esc(str(pmid))}' "
+                    f"target='_blank'>PMID {_esc(str(pmid))}</a>"
+                    for pmid in (gf.get("pmids") or [])
+                )
+                body += (
+                    "<div class='dimlit'>📄 Literature finding"
+                    + (f" <span class='so-foot'>({meta})</span>" if meta else "")
+                    + ": "
+                    + _esc(str(gf.get("finding")))
+                    + cites
+                    + "</div>"
+                )
             lit = d.get("literature")
             if isinstance(lit, dict) and lit.get("interpretation"):
                 cites = "".join(
@@ -1515,7 +1560,14 @@ class HtmlBackend:
                     + cites
                     + "</div>"
                 )
-            if not members and not bs and not d.get("mitigation") and not lit:
+            # ENGINE-BLIND honesty note: the dimension HAS feeding members/literature but the deterministic
+            # engine routed nothing into a risk bin. Never invent a bin — say so plainly.
+            if d.get("engine_blind") and (members or grounded or lit):
+                body += (
+                    "<div class='blindnote'>⚑ computed but not yet routed into the deterministic risk bin "
+                    "(engine-blind) — the readings above are surfaced honestly; no bin is inferred.</div>"
+                )
+            if not members and not bs and not d.get("mitigation") and not lit and not grounded:
                 body = "<div class='blindnote'>Engine-blind dimension — no feeding signal routed.</div>"
             out.append(
                 f'<details class="dim {cls}{blind}" id="{did}">{summary}<div class="dmembers">{body}</div></details>'
@@ -1535,30 +1587,39 @@ class HtmlBackend:
         return self._synthesis_convergence(p)
 
     def _synthesis_convergence(self, p: dict) -> list:
-        """The v6 convergence block (`.conv`): the cross-evidence causal chain (cnode → cedge → …), the
+        """The v6 convergence block (`.conv`): the cross-evidence causal chain (single-line `.cflow` flow), the
         integrator TRUST row, the LLM synthesis (`.exec` polarity bullets + `.tension` central tension),
         and the cited-literature `.litctx`. Verdict-inert — an advisory second read beside the spine."""
         conv = []
         ce = p.get("cross_evidence") or {}
         chain = ce.get("chain") or []
         if chain:
+            # CLEAN single-line flow: ordered short skill labels joined by → arrows, with any `contradicts`
+            # edge rendered as an inline "opposed-by" caveat rather than a boxed node graph (drop clutter).
             warn_nodes = {c.get("from") for c in chain if c.get("type") == "contradicts"} | {
                 c.get("to") for c in chain if c.get("type") == "contradicts"
             }
 
-            def _node(short):
-                ncls = "warn" if short in warn_nodes else "sup"
-                return f"<div class='cnode {ncls}'><div class='ct'></div><b>{_esc(vocab.skill_title(short))}</b></div>"
+            def _chip(short):
+                cls = "warn" if short in warn_nodes else "sup"
+                return f"<span class='cflow {cls}'>{_esc(vocab.skill_title(short))}</span>"
 
-            steps = []
+            # ordered node sequence (from…to), de-duplicated, preserving chain order.
+            seq: list = []
             for c in chain:
-                steps.append(_node(c.get("from")))
-                steps.append(
-                    f"<div class='cedge'><span class='ar'>→</span>{_esc(_humanize(c.get('type')) or '')}</div>"
+                for node in (c.get("from"), c.get("to")):
+                    if node and node not in seq:
+                        seq.append(node)
+            supportive = [n for n in seq if n not in warn_nodes]
+            opposed = [n for n in seq if n in warn_nodes]
+            flow = "<span class='ar'>→</span>".join(_chip(n) for n in supportive)
+            if opposed:
+                flow += (
+                    "<span class='cflow-opp'>opposed by "
+                    + ", ".join(_esc(vocab.skill_title(n)) for n in opposed)
+                    + "</span>"
                 )
-            if chain[-1].get("to"):
-                steps.append(_node(chain[-1].get("to")))
-            conv.append(f"<div class='causal'>{''.join(steps)}</div>")
+            conv.append(f"<div class='causal'>{flow}</div>")
         # TRUST row (cross-evidence defensibility + honest certainty divergence vs the spine).
         trust = []
         if ce.get("verdict"):
@@ -1567,7 +1628,7 @@ class HtmlBackend:
             tr = _esc(ce.get("traceable") or "—")
             cv = _esc(ce.get("coherence_violations") if ce.get("coherence_violations") is not None else "—")
             trust.append(
-                f"<span><span class='k'>Defensibility</span><span class='ok'>{tr} clauses traceable · "
+                f"<span><span class='k'>Defensibility</span><span class='ok'>{tr} causal clauses traceable · "
                 f"{cv} violations</span></span>"
             )
         if ce.get("certainty"):
@@ -2497,6 +2558,69 @@ def _two_tone(text) -> str:
     if not m:
         return f"<span class='fx-det'>{escape(s)}</span>"
     return f"<span class='fx-det'>{escape(s[: m.start()])}</span><span class='fx-lit'>{escape(s[m.start() :])}</span>"
+
+
+def _radar_svg(classes) -> str:
+    """A self-contained inline radar/spider SVG over the phenotype classes — one spoke per class, the
+    vertex placed at radius ∝ membership weight (0..1), the filled polygon = the soft-membership shape.
+    `classes` = [(label, weight), …]. No JS/CDN. '' when no usable class weights."""
+    import math
+
+    pts = [
+        (str(lbl), max(0.0, min(1.0, float(w))))
+        for lbl, w in (classes or [])
+        if isinstance(w, (int, float)) and not isinstance(w, bool)
+    ]
+    if not pts:
+        return ""
+    # degenerate guard: a polygon needs ≥3 vertices to read as a shape — pad with the same points so a
+    # 1–2 class mixture still renders a (small) closed polygon rather than a dot/line.
+    while len(pts) < 3:
+        pts = pts + pts
+        if len(pts) > 6:
+            break
+    n = len(pts)
+    cx, cy, R = 130.0, 108.0, 74.0
+    W, H = 260, 210
+
+    def _pt(i, r):
+        ang = -math.pi / 2 + (2 * math.pi * i / n)
+        return cx + r * math.cos(ang), cy + r * math.sin(ang)
+
+    # grid rings (0.25/0.5/0.75/1.0) + radial spokes.
+    grid = []
+    for ring in (0.25, 0.5, 0.75, 1.0):
+        poly = " ".join(f"{x:.1f},{y:.1f}" for x, y in (_pt(i, R * ring) for i in range(n)))
+        grid.append(f"<polygon points='{poly}' fill='none' stroke='var(--hair)' stroke-width='1'/>")
+    spokes = "".join(
+        f"<line x1='{cx:.1f}' y1='{cy:.1f}' x2='{x:.1f}' y2='{y:.1f}' stroke='var(--hair)' stroke-width='1'/>"
+        for x, y in (_pt(i, R) for i in range(n))
+    )
+    # the membership polygon.
+    data = " ".join(f"{x:.1f},{y:.1f}" for x, y in (_pt(i, R * w) for i, (_lbl, w) in enumerate(pts)))
+    dots = "".join(
+        f"<circle cx='{x:.1f}' cy='{y:.1f}' r='2.6' fill='var(--blue)'/>"
+        for x, y in (_pt(i, R * w) for i, (_lbl, w) in enumerate(pts))
+    )
+    # spoke labels (anchored by side so they don't overrun the plot box).
+    labels = []
+    for i, (lbl, w) in enumerate(pts):
+        lx, ly = _pt(i, R + 9)
+        anchor = "middle" if abs(lx - cx) < 6 else ("start" if lx > cx else "end")
+        short = escape(lbl if len(lbl) <= 22 else lbl[:20] + "…")
+        labels.append(
+            f"<text x='{lx:.1f}' y='{ly:.1f}' font-size='8.5' fill='var(--ink2)' "
+            f"text-anchor='{anchor}' dominant-baseline='middle'>{short} "
+            f"<tspan fill='var(--muted)'>{int(round(w * 100))}%</tspan></text>"
+        )
+    return (
+        f"<svg class='radar' viewBox='0 0 {W} {H}' width='100%' role='img' "
+        "aria-label='phenotype-class soft-membership radar' style='max-width:280px'>"
+        f"{''.join(grid)}{spokes}"
+        f"<polygon points='{data}' fill='var(--blue)' fill-opacity='0.16' "
+        "stroke='var(--blue)' stroke-width='1.5'/>"
+        f"{dots}{''.join(labels)}</svg>"
+    )
 
 
 def _scatter_svg(points, y_ticks, x_ticks) -> str:

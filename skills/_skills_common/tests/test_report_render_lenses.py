@@ -115,17 +115,19 @@ def test_json_exposes_lenses_and_banner():
     assert lids == list(vocab.LENS_ORDER)
 
 
-def test_per_subskill_sections_embed_full_dashboards_inline():
+def test_composed_html_drops_inline_subskill_sections_and_links_out():
+    # 2026-09-10 refine: the composed v6 HTML no longer inlines the 15 per-subskill dashboards, and the
+    # 6-dim `full ↗` links now point at the EXTERNAL standalone subskills/<short>/dashboard.html pages
+    # (the --full-package run emits them) — the old same-page `#skill-<short>` anchors are retired.
     h = render_report(make_nomination(), preset="full", backend="html")
-    # SELF-CONTAINED: each subskill's FULL faithful dashboard is embedded inline in a `.skv` section with
-    # a same-page anchor id (so the 6-dim `full ↗` #skill-<short> links resolve), NOT a collapsed
-    # skill-collapse row and NOT an external subskills/<short>/dashboard.html file.
-    assert "id='skill-safety'" in h and "class='skv'" in h
     body = h.split("</style>", 1)[1]  # ignore any dead CSS rule names; assert on the rendered DOM
-    assert "skill-collapse" not in body  # no collapsed per-skill rows — full dashboards are inline
-    assert "subskills/safety/dashboard.html" not in body
-    # the embedded detail (sub-group bands) is still in the DOM inside the inlined section.
-    assert "Sub-group bands" in h
+    assert "Per-subskill evidence" not in body  # the embedded-dashboards fold is gone
+    assert "id='skill-safety'" not in body  # no inlined per-subskill section
+    assert "href='#skill-" not in body and 'href="#skill-' not in body  # no same-page anchors
+    assert "subskills/safety/dashboard.html" in body  # external deep-link to the standalone page
+    # the sections remain in the IR (rendered by the other backends / the standalone page).
+    ir = build_ir(make_nomination(), resolve_spec("full"))
+    assert any(s.short == "safety" for s in ir.sections)
 
 
 def test_all_string_backends_render_new_blocks():

@@ -23,7 +23,7 @@ _V6_SIGNATURE = (
     "headline",
     "class='fold'",
     "causal",
-    "cnode",
+    "cflow",
     "ebul",
     "tension",
     "views",

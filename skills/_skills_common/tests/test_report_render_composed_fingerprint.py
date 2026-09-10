@@ -188,7 +188,12 @@ def test_unknown_lens_skill_trails_in_stable_bucket():
 
 # -- rendering ------------------------------------------------------------------------------------
 def test_html_renders_grid_deciding_and_dissent():
-    html = render_report(_nom_with_index(), preset="full", backend="html")
+    # the composed v6 HTML no longer emits the at-a-glance fingerprint fold inline; assert the HTML
+    # block-render capability directly (the block is still in the IR + rendered by the other backends).
+    from _skills_common.report_render.backends.html import HtmlBackend
+
+    blk = _fingerprint(build_ir(_nom_with_index(), resolve_spec("full")))
+    html = "".join(HtmlBackend()._emit(blk))
     assert "At a glance" in html
     assert "cfp-chip deciding" in html  # the deciding axis is outlined
     assert "cfp-dissent" in html and "Dissent" in html

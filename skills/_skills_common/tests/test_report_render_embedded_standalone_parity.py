@@ -38,11 +38,20 @@ def _standalone_html() -> str:
     return render_skill_report(_decision(with_graph=True), preset="full", backend="html")
 
 
-def test_rich_evidence_view_present_in_both_surfaces():
+def test_rich_evidence_view_shares_one_design_system():
+    """2026-09-10 refine: the composed v6 HTML no longer INLINES the per-subskill dashboards, but it still
+    bundles the SAME scoped subskill stylesheet, so the rich evidence-view design classes (fingerprint
+    heatmap / card chains / literature dots) resolve identically in both surfaces — proof they render
+    through the ONE renderer (report_render) + ONE design system, not divergent per-surface styles. The
+    STANDALONE subskill page additionally renders those classes as live DOM."""
     composed, standalone = _composed_html(), _standalone_html()
     for cls in _RICH_CLASSES:
-        assert cls in composed, f"composed embedded view missing {cls}"
+        assert cls in composed, f"composed page dropped the shared design class {cls}"
         assert cls in standalone, f"standalone dashboard missing {cls}"
+    # the standalone page renders them as real DOM (not only CSS) — the composed page no longer inlines
+    # the subskill sections, so it carries the design tokens without the embedded dashboards.
+    body = standalone.split("</style>", 1)[1]
+    assert any(c in body for c in _RICH_CLASSES), "standalone must render the rich view as DOM, not only CSS"
 
 
 def test_shared_design_system_two_tone_in_both():

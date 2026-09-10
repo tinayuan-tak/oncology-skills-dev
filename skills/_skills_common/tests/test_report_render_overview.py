@@ -16,6 +16,10 @@ def _overview_kinds(ir):
     return [b.kind for b in ir.overview]
 
 
+def _ov_block(ir, kind):
+    return next((b for b in ir.overview if b.kind == kind), None)
+
+
 def test_build_ir_emits_both_overview_blocks_at_full():
     ir = build_ir(make_nomination(), resolve_spec("full"))
     assert vocab.SIGNALS_OVERVIEW in _overview_kinds(ir)
@@ -44,8 +48,8 @@ def test_risk_6dim_has_ordered_dims_with_bins():
 def test_risk_6dim_spine_surfaces_feeding_members():
     """Each dimension enumerates its FULL member set — every AXIS_TO_DIM verdict-bearing subskill (present
     in the composed skill_reports) PLUS the gateless `context` companions — each carrying a rich
-    plain-language reading + a `full ↗` same-page anchor (#skill-<short>) into the inlined subskill
-    dashboard. Without skill_reports (a bare call) members fall back to the chain [source, read, level]."""
+    plain-language reading + a `full ↗` external deep-link (subskills/<short>/dashboard.html) to the
+    standalone page. Without skill_reports (a bare call) members fall back to the chain [source, read, level]."""
     from _skills_common.report_render.backends.html import HtmlBackend
     from _skills_common.report_render.ir import _risk_6dim_block
 
@@ -82,7 +86,9 @@ def test_risk_6dim_spine_surfaces_feeding_members():
     m_safety = {m["short"]: m for m in dims["safety"]["members"]}["safety"]
     assert m_safety["skill_dir"] == "on-target-safety-liability"  # short → skill-dir badge
     assert m_safety["read"] == "Highly LoF-constrained" and m_safety["fallback"] is False  # honest_phrase reading
-    assert m_safety["dashboard"] == "#skill-safety"  # same-page anchor into the inlined subskill dashboard
+    # EXTERNAL deep-link to the standalone subskills/<short>/dashboard.html page (composed HTML no longer
+    # inlines per-subskill dashboards, so the old same-page #skill-<short> anchors were retired).
+    assert m_safety["dashboard"] == "subskills/safety/dashboard.html"
     assert dims["safety"]["literature"]["interpretation"] == "gnomAD LoF-constrained"
     bio_members = {m["short"]: m for m in dims["biological"]["members"]}
     assert "dependency" in bio_members and "mechanism" in bio_members  # verdict-bearing
@@ -94,7 +100,7 @@ def test_risk_6dim_spine_surfaces_feeding_members():
     h = "".join(HtmlBackend()._risk_6dim(blk.payload))
     assert 'class="dim risk-high' in h and 'class="dim risk-low' in h  # per-dim tiles, LOW=green
     assert "dbar" in h and "dmembers" in h and "class='mem'" in h  # positioned bar + member rows
-    assert "class='full' href='#skill-safety'" in h  # working same-page anchor
+    assert "class='full' href='subskills/safety/dashboard.html'" in h  # external standalone-page deep-link
     assert "class='ctxtag'" in h and "blind spots" in h  # context tag + blind-spot line
     assert "text-mined" in h  # verdict-inert literature line
 
@@ -115,10 +121,20 @@ def test_single_skill_has_no_overview():
 
 
 def test_html_renders_svg_strip_and_risk_tiles():
-    html = render_report(make_nomination(), preset="full", backend="html")
+    # the diverging strip + risk-tiles are the SIGNALS_OVERVIEW block. The composed v6 HTML no longer emits
+    # the decision-detail fold that carried it, so assert the HTML block-render capability directly (the
+    # block is still in the IR + rendered by the other backends).
+    from _skills_common.report_render.backends.html import HtmlBackend
+
+    ir = build_ir(make_nomination(), resolve_spec("full"))
+    sov = _ov_block(ir, vocab.SIGNALS_OVERVIEW)
+    html = "".join(HtmlBackend()._emit(sov))
     assert "<svg" in html and "signal-strip" in html  # the diverging strip
-    assert "risk-tiles" in html and "risk-tile" in html  # the risk tiles
     assert "Signals across subskills" in html
+    # the risk-tile design tokens remain in the composed stylesheet (the tile ELEMENT is drawn by the
+    # 6-dim spine's own .dim tiles; the .risk-tile CSS is kept for the standalone/other surfaces).
+    full = render_report(make_nomination(), preset="full", backend="html")
+    assert "risk-tiles" in full and "risk-tile" in full
 
 
 def test_text_and_json_render_overview():
@@ -173,10 +189,15 @@ def test_dependency_negative_still_counts_against_intracellular_thesis():
 
 
 def test_reconciliation_note_reaches_backends():
+    from _skills_common.report_render.backends.html import HtmlBackend
+
     nom = _nom_with("opposing", "amplification_overexpression_antigen")
     txt = render_report(nom, preset="full", backend="text")
-    html = render_report(nom, preset="full", backend="html")
     assert "orthogonal to the ADC/TCE mechanism" in txt
+    # the composed v6 HTML no longer emits the signals-overview fold — assert the HTML block-render
+    # capability directly (the reconciliation note still reaches the SIGNALS_OVERVIEW block payload).
+    ir = build_ir(nom, resolve_spec("full"))
+    html = "".join(HtmlBackend()._emit(_ov_block(ir, vocab.SIGNALS_OVERVIEW)))
     assert "orthogonal to the ADC/TCE mechanism" in html
 
 

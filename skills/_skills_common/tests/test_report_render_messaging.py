@@ -24,7 +24,13 @@ def test_descriptive_skill_labeled_context_not_not_scored():
 
 
 def test_signal_strip_uses_plain_language_not_snake_case():
-    html = render_report(make_nomination(), preset="full", backend="html")
+    # the diverging strip is the SIGNALS_OVERVIEW block; the composed v6 HTML no longer emits it inline, so
+    # render the HTML block directly to assert its plain-language sublabels.
+    from _skills_common.report_render.backends.html import HtmlBackend
+
+    ir = build_ir(make_nomination(), resolve_spec("full"))
+    sov = next(b for b in ir.overview if b.kind == vocab.SIGNALS_OVERVIEW)
+    html = "".join(HtmlBackend()._emit(sov))
     _ss = html.index("class='signal-strip'")  # the diverging strip (a preceding scatter SVG may exist)
     strip = html[_ss : html.index("</svg>", _ss)]
     assert "Highly LoF-constrained" in strip  # honest_phrase, not the call token

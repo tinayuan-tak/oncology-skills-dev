@@ -27,7 +27,17 @@ def test_question_table_cells_render_label_not_dict_repr():
     # string-cell fixture masked. json is EXCLUDED: it legitimately serializes the structured row dicts.
     nom = make_nomination()
     for name in [b for b in string_backend_names() if b != "json"]:
-        out = render_report(nom, preset="reviewer-dossier", backend=name)
+        if name == "html":
+            # question tables live in the per-subskill sections, which the composed v6 HTML no longer
+            # inlines — render the sections directly (the standalone subskill page's _emit_standalone_section
+            # path) so the human-readable cell formatting is still exercised for HTML.
+            from _skills_common.report_render.backends.html import HtmlBackend
+
+            ir = build_ir(nom, resolve_spec("reviewer-dossier"))
+            be = HtmlBackend()
+            out = "".join(be._emit_standalone_section(s) for s in ir.sections)
+        else:
+            out = render_report(nom, preset="reviewer-dossier", backend=name)
         assert "Questions" in out or "question" in out.lower(), f"{name}: no question table rendered"
         assert "'tier'" not in out and '"tier":' not in out, f"{name}: raw dict repr leaked into cells"
         assert "'polarity'" not in out, f"{name}: raw dict repr leaked into cells"

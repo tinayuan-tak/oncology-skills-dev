@@ -52,7 +52,14 @@ def test_html_renders_parity_content():
     h = render_report(make_nomination(), preset="full", backend="html")
     assert "Modality fit" in h and "<table" in h
     assert "AI-generated" in h and "How the evidence converges" in h  # v6 convergence fold
-    assert "Literature × omics coherence" in h and "Deciding axis" in h
+    assert "Literature × omics coherence" in h
+    # the deciding-axis block is no longer emitted in the composed v6 HTML — assert the HTML block-render
+    # capability directly (the block is still in the IR + rendered by the other backends).
+    from _skills_common.report_render.backends.html import HtmlBackend
+
+    ir = build_ir(make_nomination(), resolve_spec("full"))
+    da = "".join(HtmlBackend()._emit(next(b for b in ir.overview if b.kind == vocab.DECIDING_AXIS)))
+    assert "Deciding axis" in da
 
 
 def test_text_and_json_render_parity():
