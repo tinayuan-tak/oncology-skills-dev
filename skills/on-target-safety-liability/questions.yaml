@@ -98,7 +98,7 @@ questions:
   text: Restricted normal-tissue footprint (no critical-organ liability)?
   axis_id: NORMAL_TISSUE
   role: verdict_bearing
-  measurement_types: [normal_tissue_protein_breadth, normal_tissue_rna_breadth]
+  measurement_types: [normal_tissue_protein_breadth, normal_tissue_rna_breadth, normal_tissue_protein_abundance]
 - id: pharmacovigilance_context
   seq: 8
   text: Do drugs engaging the target carry black-box / withdrawal warnings (on-target pharmacovigilance)?

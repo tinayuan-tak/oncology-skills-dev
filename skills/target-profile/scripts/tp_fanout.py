@@ -917,6 +917,9 @@ SUB_SKILL_CARDS = {
         # tissue protein HOLD (normal-tissue-protein-liability-safety-warning →
         # normal_tissue_protein_safety_concern) to fire IN COMPOSITION. Also
         # composed under surface-modality-fit (surface lens). (Also in run.py CARDS.)
+        "normal-tissue-protein-abundance-tphp",  # (T0-3 2026-09-10) — TPHP DIA-MS quantitative vital-organ
+        # PROTEIN, VERDICT-INERT safety display CONTEXT (fills nerve/muscle/blood/adrenal/thyroid HPA-IHC
+        # is blind to). Also composed under tumor-selectivity (its home lens). (Also in run.py CARDS.)
     ],
     "target-intrinsic": [  # GATELESS descriptive dossier (2026-08-17). Compose ONLY the
         # target-intrinsic-EXCLUSIVE cards — the ones NOT already composed under

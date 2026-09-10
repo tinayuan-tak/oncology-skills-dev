@@ -202,6 +202,9 @@ DIMENSION_CARDS: dict[str, frozenset[str]] = {
             # 2026-08-25 — OnSIDES drug-label ADE CONTEXT (verdict-inert display); added to
             # SUB_SKILL_CARDS[on-target-safety-liability], mirror must carry it.
             "onsides-adverse-event-safety",
+            # T0-3 2026-09-10 — TPHP DIA-MS quantitative vital-organ protein (verdict-inert safety
+            # context); added to SUB_SKILL_CARDS[on-target-safety-liability], mirror must carry it.
+            "normal-tissue-protein-abundance-tphp",
         }
     ),
     "selectivity": frozenset(

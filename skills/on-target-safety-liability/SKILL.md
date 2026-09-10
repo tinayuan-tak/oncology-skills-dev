@@ -29,7 +29,7 @@ description: |
   because two axes remain placeholder (see status note).
 
 metadata:
-  version: 1.18.0    # 1.18.0 (2026-09-07, CASE-009): +VERDICT-INERT pharmacovigilance_scope_caveat (drug_warning_class='no_warning' = no OT-registered FDA warning among engaging drugs, NOT absence of on-target toxicity — mechanism-based dose-limiting tox often not boxed; byte-stable). # 1.17.0 (2026-09-04): +OPTIONAL --literature lane (verdict-INERT LLM literature
+  version: 1.19.0    # 1.19.0 (2026-09-10, T0-3): +normal-tissue-protein-abundance-tphp — TPHP DIA-MS QUANTITATIVE vital-organ PROTEIN (tphp_vital_organ_liability_class), the quantitative-protein leg the safety substrate lacked (RNA+categorical-IHC only); resolves the endocrine/vascular/CNS organs HPA-IHC is blind to. VERDICT-INERT display CONTEXT (card rules are on the tumor-selectivity axis, NOT intracellular_intrinsic rules_scope) — scalar verdict byte-stable. # 1.18.0 (2026-09-07, CASE-009): +VERDICT-INERT pharmacovigilance_scope_caveat (drug_warning_class='no_warning' = no OT-registered FDA warning among engaging drugs, NOT absence of on-target toxicity — mechanism-based dose-limiting tox often not boxed; byte-stable). # 1.17.0 (2026-09-04): +OPTIONAL --literature lane (verdict-INERT LLM literature
                      # synthesis, Europe-PMC-grounded + PMID-verified via _skills_common.literature_synthesis;
                      # run_wired_skill one-liner) mirroring genomic #982 / FR #987 / TP #965 / TS #968.
                      # + VERDICT-INERT signal-surfacing of rich safety sub-fields the capsule projection
@@ -45,7 +45,7 @@ metadata:
 composition:
   data_mode: derived_read
   phase: [G]
-  cards_used:                          # synced to run.py CARDS (P5 human-genetics + data-util expansion grew this to 15)
+  cards_used:                          # synced to run.py CARDS (P5 human-genetics + data-util expansion grew this to 15; +tphp T0-3 = 16)
     - gnomad-lof-constraint            # Wired 2026-07-08 (Layer 6e)
     - shet-lof-intolerance             # 2026-08-28 — continuous GeneBayes s_het; VERDICT-INERT complement to gnomAD constraint
     - target-safety-prioritisation     # P5 composite safety-prioritisation
@@ -81,6 +81,11 @@ composition:
                                        # only on the surface axis): essential_tissue_flag==present fires
                                        # normal-tissue-protein-liability-safety-warning → normal_tissue_
                                        # protein_safety_concern HOLD.
+    - normal-tissue-protein-abundance-tphp  # (T0-3, 2026-09-10) TPHP DIA-MS QUANTITATIVE vital-organ PROTEIN —
+                                       # VERDICT-INERT display CONTEXT (NOT in rules_scope). The safety skill had
+                                       # RNA (GTEx) + categorical IHC (HPA) but no quantitative protein; this adds
+                                       # tphp_vital_organ_liability_class, resolving the endocrine/vascular/CNS organs
+                                       # HPA-IHC is blind to (nerve/muscle/blood/adrenal/thyroid).
     # NOTE: protein-surface-evidence was DROPPED from this skill — re-homed to
     # surface-modality-fit (LIVE there as surface_confirmation via the CSPA reader).
   # DATA_TO_SKILL_CONTRACT Rule 3 — the DISTINCT measurement_type claims this skill pulls, ONE per
@@ -105,6 +110,7 @@ composition:
     - functional_gene_state                    # functional-gene-state — rarely-altered guard (rule now ORPHAN; disqualifier moved to per-modality verdict)
     - crispr_lof_dependency                    # pan-cancer-crispr-dependency-distribution — pan-essential broad-tox (data-util expansion)
     - normal_tissue_protein_breadth            # normal-tissue-liability — HPA-IHC essential-tissue protein (data-util expansion)
+    - normal_tissue_protein_abundance          # normal-tissue-protein-abundance-tphp — TPHP DIA-MS quantitative vital-organ protein (T0-3, verdict-inert)
     - drug_warning_safety                      # drug-warning-safety — OT pharmacovigilance context (verdict-inert, 2026-08-21)
     - onsides_adverse_event_safety             # onsides-adverse-event-safety — OnSIDES drug-label ADE context (verdict-inert DISPLAY, 2026-08-25)
   # rules_scope = the CARDS whose rules enter the safety resolver (convention: card-ids, matching
@@ -176,7 +182,9 @@ downgrade was RETIRED v2.0.0):
 **Context / display (verdict-inert)**: 11. **target-safety-prioritisation** (OT composite priority),
 12. **shet-lof-intolerance** (continuous s_het, corroborates constraint), 13. **normal-tissue-liability-gtex**
 (GTEx-RNA breadth; emits per-modality signals only), 14. **drug-warning-safety** + 15. **onsides-adverse-event-safety**
-(pharmacovigilance CONTEXT; the CASE-009 `pharmacovigilance_scope_caveat` reads these — never a rung).
+(pharmacovigilance CONTEXT; the CASE-009 `pharmacovigilance_scope_caveat` reads these — never a rung),
+16. **normal-tissue-protein-abundance-tphp** (T0-3: TPHP DIA-MS quantitative vital-organ PROTEIN;
+`tphp_vital_organ_liability_class` resolves the endocrine/vascular/CNS organs HPA-IHC is blind to — verdict-inert, NOT a rung).
 
 The rules engine maps each card's categorical to per-modality safety signals (e.g. highly_constrained →
 warning for a full-KO modality; tolerant → supportive); the resolver combines them into the scalar
@@ -185,7 +193,7 @@ realised separately in `safety_verdict_by_modality`.
 
 ## What this skill does NOT do (yet) — why status is `partial`
 
-- **Not yet exercised end-to-end:** the 15 readers are BUILT and fire live; the
+- **Not yet exercised end-to-end:** the 16 readers are BUILT and fire live; the
   package-level dashboard_spec exercise is pending.
 - **Two normal-tissue legs:** this skill carries BOTH the GTEx-RNA breadth leg
   (`normal-tissue-liability-gtex`, per-modality signals only) AND — since the

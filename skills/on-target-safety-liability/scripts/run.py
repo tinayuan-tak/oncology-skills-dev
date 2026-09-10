@@ -70,7 +70,7 @@ from _skills_common.narrative import build_narrative
 from _skills_common.resolver import resolve_or_raise
 
 SKILL_NAME = "on-target-safety-liability"
-SKILL_VERSION = "1.18.0"  # 1.18.0 (2026-09-07, CASE-009 literature-discordance loop): +VERDICT-INERT pharmacovigilance_scope_caveat — clarifies drug_warning_class='no_warning' = no OT-registered FDA warning among engaging drugs, NOT absence of on-target toxicity (mechanism-based dose-limiting tox — TLS/cytopenias/neuropathy — often not boxed). Fires only on the measured-negative no_warning state; verdict/resolver/golden/replay byte-stable.
+SKILL_VERSION = "1.19.0"  # 1.19.0 (2026-09-10, T0-3): +normal-tissue-protein-abundance-tphp (TPHP DIA-MS QUANTITATIVE vital-organ PROTEIN — tphp_vital_organ_liability_class). The safety substrate had RNA (GTEx) + categorical IHC (HPA) but NO quantitative protein; this fills the endocrine/vascular/CNS organs HPA-IHC is blind to (nerve/muscle/blood/adrenal/thyroid). VERDICT-INERT display CONTEXT: the card's rules live on the tumor-selectivity axis, not this skill's intracellular_intrinsic rules_scope, so it fires no safety rung and the scalar verdict is byte-stable. Backtested SM/degrader gate rule is a deliberate follow-on.   # 1.18.0 (2026-09-07, CASE-009 literature-discordance loop): +VERDICT-INERT pharmacovigilance_scope_caveat — clarifies drug_warning_class='no_warning' = no OT-registered FDA warning among engaging drugs, NOT absence of on-target toxicity (mechanism-based dose-limiting tox — TLS/cytopenias/neuropathy — often not boxed). Fires only on the measured-negative no_warning state; verdict/resolver/golden/replay byte-stable.
 # 1.17.0 (2026-09-04): +OPTIONAL --literature lane (verdict-INERT LLM literature synthesis, Europe-PMC-grounded + PMID-verified via the shared _skills_common.literature_synthesis; run_wired_skill one-liner) mirroring genomic #982 / FR #987 / TP #965 / TS #968. + VERDICT-INERT signal-surfacing of the rich safety sub-fields the capsule projection ignored: a new PHARMACOVIGILANCE claim axis (on-target FDA warnings + toxicity classes of target-engaging drugs — OT drug-warning ⋈ MoA + OnSIDES boxed ADEs; confounded CONTEXT, corroboration capped, orients-not-holds), MOUSE_KO claim evidence += affected organ systems (organ_classes), CLINVAR claim evidence += confident germline-pathogenic variant count. PHARMACOVIGILANCE is LEFT OUT of the safety HeadlineSpec.axis_keys so headline_block/confidence/hero + the golden-oracle resolver + test_safety_replay verdict fixtures stay BYTE-STABLE. Verdict spine untouched.   # 1.16.0 (2026-08-28): + shet-lof-intolerance (continuous GeneBayes s_het, VERDICT-INERT complement to gnomAD constraint).   # 1.15.0: NET-NEW capsule-driven narrator (had none). Verdict-INERT.   # 1.14.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.  # 1.13.0 (2026-08-26): emit per-verdict `narrative` (movers/dissenters/
 # flip_conditions/rule_sentences) in the headline — VERDICT-INERT, best-effort
 # (Stage B of the interpretability workstream; safety pilot). Verdict byte-stable.
@@ -182,6 +182,13 @@ CARDS = [
     # drug-level + class-wide — cannot separate on- from off-target) and
     # per-MedDRA-TERM grain only (per-organ/SOC needs a MedDRA license).
     # ORIENTS, never HOLDs. Same posture as drug-warning-safety.
+    "normal-tissue-protein-abundance-tphp",  # (T0-3, 2026-09-10) — TPHP DIA-MS QUANTITATIVE vital-organ
+    # PROTEIN. The safety skill had RNA (GTEx) + categorical IHC (HPA) but NO quantitative protein; this
+    # adds the dose-limiting-organ protein read (tphp_vital_organ_liability_class), resolving the
+    # endocrine/vascular/CNS organs HPA-IHC is blind to (nerve/muscle/blood/adrenal/thyroid). VERDICT-INERT
+    # display CONTEXT: the card's rules live on the tumor-selectivity/surface axis, NOT this skill's
+    # intracellular_intrinsic rules_scope, so it fires no safety rung and the scalar verdict is byte-stable.
+    # A backtested SM/degrader gate rule is a deliberate follow-on.
 ]
 
 QUESTION = (
@@ -492,6 +499,16 @@ def _pharmacovigilance_scope_caveat(hl: dict) -> str | None:
     )
 
 
+def _cf(cards, card_id, field):
+    """Defensive get_card_field for OPTIONAL display cards — get_card_field RAISES on an absent card
+    (e.g. the tphp card whose applies_when gates on tphp_normal_proteome_available), and a verdict-INERT
+    display read must never abort the safety spine. Returns None on any absence/error."""
+    try:
+        return get_card_field(cards, card_id, field)
+    except Exception:  # noqa: BLE001 — optional display field; absence degrades to None, never aborts
+        return None
+
+
 def _headline(cards, fired, verdict_pair):
     v, drv = verdict_pair or ("insufficient", None)
     # Mechanism-conditioning context: when the verdict is the mutant-selective downgrade, surface WHY
@@ -567,6 +584,17 @@ def _headline(cards, fired, verdict_pair):
         "essential_tissue_flag": get_card_field(cards, "normal-tissue-liability", "essential_tissue_flag"),
         "essential_tissues_flagged": get_card_field(cards, "normal-tissue-liability", "essential_tissues_flagged"),
         "normal_tissue_breadth_class": get_card_field(cards, "normal-tissue-liability", "normal_tissue_breadth_class"),
+        # TPHP DIA-MS QUANTITATIVE vital-organ PROTEIN (T0-3) — VERDICT-INERT display CONTEXT. Orthogonal to
+        # HPA-IHC: resolves the endocrine/vascular/CNS organs HPA is blind to (nerve/muscle/blood/adrenal/
+        # thyroid). Read defensively — the card is absent for a target with no TPHP coverage. No resolver
+        # rung reads these (the card's rules are on the tumor-selectivity axis, not intracellular_intrinsic).
+        "tphp_vital_organ_liability_class": _cf(
+            cards, "normal-tissue-protein-abundance-tphp", "tphp_vital_organ_liability_class"
+        ),
+        "n_vital_organs_above_abundance_floor": _cf(
+            cards, "normal-tissue-protein-abundance-tphp", "n_vital_organs_above_abundance_floor"
+        ),
+        "tphp_vital_organ_abundance": _cf(cards, "normal-tissue-protein-abundance-tphp", "tphp_vital_organ_abundance"),
         # OT pharmacovigilance CONTEXT (verdict-inert): do drugs engaging the target carry black-box /
         # withdrawn warnings? Orients the reader; no resolver rung reads these.
         "drug_warning_class": get_card_field(cards, "drug-warning-safety", "drug_warning_class"),
@@ -684,6 +712,10 @@ _SYNTHESIS_FACET_KEYS = (
     "pan_essential_score",
     "essential_tissue_flag",
     "normal_tissue_breadth_class",
+    # TPHP DIA-MS quantitative vital-organ protein (T0-3) — VERDICT-INERT display context (fills the
+    # endocrine/vascular/CNS organs HPA-IHC is blind to). No resolver rung.
+    "tphp_vital_organ_liability_class",
+    "n_vital_organs_above_abundance_floor",
     "drug_warning_class",
     "drug_warning_has_black_box",
     "drug_warning_toxicity_classes",

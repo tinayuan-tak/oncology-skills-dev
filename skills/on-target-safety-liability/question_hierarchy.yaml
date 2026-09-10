@@ -47,3 +47,4 @@ sub_groups:
     measurement_types:
     - normal_tissue_protein_breadth
     - normal_tissue_rna_breadth
+    - normal_tissue_protein_abundance
