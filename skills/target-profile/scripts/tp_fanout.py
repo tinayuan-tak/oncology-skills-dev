@@ -653,6 +653,7 @@ SUB_SKILL_CARDS = {
     "combination-and-vulnerability": [  # CONSOLIDATED relational annex (wired 2026-08-20).
         "synthetic-lethal-partners",  # curated SynLethDB SL (summary → synthetic_lethal_summary atom)
         "combinatorial-dependency",  # measured paralog dual-KO GI (CODEP axis; target_pair atoms)
+        "cross-consortium-paralog-gi",  # T0-1: Dede/in4mer orthogonal corroboration of the CODEP call (verdict-inert)
         "combo-crispr-screen",  # combination co-targets under inhibition (COMBO axis)
         "combo-chemical-synergy",  # chemical drug×drug synergy (SYNERGY axis; Sanger 2022 Bliss)
         "resistance-emergence-signature",  # resistance mediators that rescue (RESISTANCE liability axis)

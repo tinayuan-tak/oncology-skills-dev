@@ -60,6 +60,7 @@ DIMENSION_CARDS: dict[str, frozenset[str]] = {
         {  # mirrors SUB_SKILL_CARDS[combination-and-vulnerability]
             "synthetic-lethal-partners",
             "combinatorial-dependency",
+            "cross-consortium-paralog-gi",  # T0-1: orthogonal Dede/in4mer corroboration of the CODEP call
             "combo-crispr-screen",
             "combo-chemical-synergy",
             "resistance-emergence-signature",

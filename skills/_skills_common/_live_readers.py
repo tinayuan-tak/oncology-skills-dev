@@ -1773,6 +1773,15 @@ def _dispatch_combinatorial_dependency(target: str, indication: str) -> Optional
     return mod.combinatorial_dependency_for_gene(target)
 
 
+def _dispatch_cross_consortium_paralog_gi(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: cross-consortium-paralog-gi card → methods/paralog_genetic_interaction/read.py
+    ::cross_consortium_paralog_gi_for_gene. Does an ORTHOGONAL paralog dual-KO consortium (Dede 2020
+    zdLFC / in4mer 2024 normZ) corroborate the DepMap ParalogV2 CODEP call? Per-target (indication not
+    consumed — pan-line panel property). Verdict-INERT corroboration (raises CODEP confidence)."""
+    mod = _import_method("paralog_genetic_interaction.read")
+    return mod.cross_consortium_paralog_gi_for_gene(target)
+
+
 def _dispatch_clinvar_pathogenicity(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: clinvar-pathogenicity-safety card -> methods/opentargets_clinvar/
     read.py::read_clinvar_pathogenic. ClinVar germline-pathogenic safety (somatic guardrailed out).
@@ -1932,6 +1941,7 @@ CARD_DISPATCHERS = {
     "adc-tce-modality-fit": _dispatch_adc_tce_modality_fit,
     "tumor-elevation-breadth": _dispatch_tumor_elevation_breadth,
     "combinatorial-dependency": _dispatch_combinatorial_dependency,
+    "cross-consortium-paralog-gi": _dispatch_cross_consortium_paralog_gi,
     "combo-crispr-screen": _dispatch_combo_crispr_screen,
     "resistance-emergence-signature": _dispatch_resistance_emergence_signature,
     "target-safety-prioritisation": _dispatch_target_safety_prioritisation,  # OT safety context
