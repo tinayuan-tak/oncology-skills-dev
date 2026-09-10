@@ -41,11 +41,13 @@ def test_lean_parse_matches_full_parse(path):
     full = yaml.load(path.read_text(), Loader=_SafeLoader) or {}
     files = full.pop("files", None) or []
     want_categories = sorted({fe.get("category") for fe in files if isinstance(fe, dict)} - {None})
+    want_formats = sorted({fe.get("format") for fe in files if isinstance(fe, dict)} - {None})
 
-    doc, categories = _lean_load_manifest(path)
+    doc, categories, formats = _lean_load_manifest(path)
 
     assert doc == full, f"{path.name}: lean doc (minus files) differs from full parse"
     assert categories == want_categories, f"{path.name}: lean category set differs from full parse"
+    assert formats == want_formats, f"{path.name}: lean format set differs from full parse"
 
 
 @pytest.mark.skipif(not _PATHS, reason="data-catalog not available in this environment")

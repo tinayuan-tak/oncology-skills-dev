@@ -46,6 +46,40 @@ def _render_search(records) -> str:
     return "\n".join(lines)
 
 
+_FACET_NAMES = [
+    "indications",
+    "measurement_class",
+    "measurement_type",
+    "molecular_grain",
+    "gene_key",
+    "sample_type",
+    "analytical_stage",
+    "reference_genome",
+    "license_class",
+    "tissue",
+    "platform",
+    "treatment",
+    "aggregation_recommendation",
+]
+
+
+def _fact_val(x):
+    return x.get("value") if isinstance(x, dict) else x
+
+
+def _render_facets(idx, names) -> str:
+    L = []
+    for n in names:
+        vals = idx.facet_values(n)
+        L.append(f"{n} ({len(vals)} distinct value(s)):")
+        for val, cnt in vals[:40]:
+            L.append(f"  {cnt:>5}  {val}")
+        if not vals:
+            L.append("  (none present)")
+        L.append("")
+    return "\n".join(L).rstrip()
+
+
 def _render_describe(d: dict) -> str:
     L = [f"{d['id']}   [{d['type']}]"]
     L.append(f"  s3_uri:        {d['s3_uri']}")
@@ -69,6 +103,39 @@ def _render_describe(d: dict) -> str:
         L.append(
             f"  query_optimization: sort={qo.get('sort_columns')} primary_filter={qo.get('primary_filter_column')}"
         )
+    if d.get("enrichment"):
+        parts = []
+        for fname, e in d["enrichment"].items():
+            val = e["value"]
+            val = ",".join(str(x) for x in val) if isinstance(val, list) else str(val)
+            parts.append(f"{fname}={'~' if e['source'] == 'inferred' else ''}{val}")
+        L.append("  classification: " + "  ".join(parts) + "   (~ = inferred fallback, else curated)")
+    if d.get("file_formats"):
+        L.append(f"  file formats:  {', '.join(d['file_formats'])}")
+    if d.get("pipeline"):
+        pp = d["pipeline"]
+        bits = [
+            f"{k}={pp[k]}" for k in ("name", "aligner", "quantifier", "reference_genome", "annotation") if pp.get(k)
+        ]
+        if bits:
+            L.append("  pipeline:      " + "  ".join(bits))
+    if d.get("has_resolver_sidecar"):
+        L.append(f"  resolver:      hgnc-id sidecar present (native_key={d.get('native_key_type')})")
+    sc = d.get("scale") or {}
+    scbits = [
+        f"{k}={_fact_val(sc.get(k))}" for k in ("n_samples", "n_donors", "n_cells", "n_genes") if _fact_val(sc.get(k))
+    ]
+    if scbits:
+        L.append("  scale:         " + "  ".join(scbits))
+    if d.get("aggregation_recommendation"):
+        L.append(f"  aggregation:   {d['aggregation_recommendation']}")
+    prov = [x for x in (d.get("entity_purity"), d.get("annotation_provenance"), d.get("access_tier")) if x]
+    if prov:
+        L.append("  quality:       " + " · ".join(prov))
+    if d.get("constituent_studies"):
+        keys = [s.get("key") for s in d["constituent_studies"] if s.get("key")][:8]
+        if keys:
+            L.append(f"  studies:       {', '.join(keys)}")
     if d.get("derived_from"):
         L.append(f"  derived_from:  {', '.join(d['derived_from'])}")
     if d.get("cited_by"):
@@ -132,6 +199,12 @@ def _render_audit(a: dict, sections: set[str]) -> str:
             f"*-dge-tumor-vs-normal-sensitivity-v* product):"
         )
         L.append("  " + (", ".join(gaps) if gaps else "(none — all configured indications covered)"))
+        gf = a.get("dge_coverage_gaps_by_field", [])
+        L.append(
+            f"\n  [field-based cross-check] indications with NO curated tumor_vs_normal_selectivity "
+            f"bulk_rna product ({len(gf)}); shrinks as the classification backfill proceeds:"
+        )
+        L.append("  " + (", ".join(gf) if gf else "(none)"))
     if "uncited" in sections:
         u = a["uncited_sources"]
         L.append(
@@ -144,6 +217,17 @@ def _render_audit(a: dict, sections: set[str]) -> str:
         s = a["superseded_still_present"]
         L.append(f"\nSuperseded-but-still-present manifests ({len(s)}):")
         L.append("  " + ("\n  ".join(s) if s else "(none)"))
+    if "overlaps" in sections:
+        ov = a.get("overlaps", {})
+        L.append(
+            f"\nCross-source study overlaps ({len(ov)} — same underlying study reachable via >1 "
+            f"manifest; double-count risk when merging):"
+        )
+        if ov:
+            for k in list(ov)[:20]:
+                L.append(f"  {k}: {', '.join(ov[k])}")
+        else:
+            L.append("  (none detected on shared study keys)")
     return "\n".join(L)
 
 
@@ -180,13 +264,69 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("search", help="find manifests by keyword + facets", parents=[common])
     s.add_argument("query", nargs="?", default=None, help="keyword (id/description/dataset/provider)")
     s.add_argument("--provider")
-    s.add_argument("--data-subject", choices=["cell-line", "tumor", "rwd", "reference-data"])
+    s.add_argument("--data-subject", choices=["cell-line", "tumor", "mixed", "rwd", "reference-data"])
     s.add_argument("--type", choices=["source-release", "derived"])
     s.add_argument("--category", help="a file category, e.g. mutation, expression, proteomics")
+    s.add_argument(
+        "--format",
+        dest="file_format",
+        action="append",
+        help="file format, e.g. fastq, bam, vcf, h5ad, parquet (raw-data triage). Repeatable (OR).",
+    )
     s.add_argument("--license", help="substring match on the license field")
     sor = s.add_mutually_exclusive_group()
     sor.add_argument("--system-of-record", dest="sor", action="store_true", default=None)
     sor.add_argument("--not-system-of-record", dest="sor", action="store_false")
+    # Scientific facets over the merged classification view (curated block ⊕ inferred profile).
+    # All are REPEATABLE (--indication A --indication B => OR within the facet); facets AND together.
+    s.add_argument("--indication", action="append", help="canonical indication code, e.g. COADREAD, NSCLC, pan-cancer")
+    s.add_argument(
+        "--measurement-class",
+        dest="measurement_class",
+        action="append",
+        help="modality, e.g. bulk_rna, scrna, proteomics_ms, wes, cnv, crispr_screen, drug_response, immunopeptidomics",
+    )
+    s.add_argument(
+        "--measurement-type",
+        dest="measurement_type",
+        action="append",
+        help="fine measurement_type registry key, e.g. tumor_vs_normal_selectivity, crispr_lof_dependency",
+    )
+    s.add_argument(
+        "--grain",
+        action="append",
+        help="molecular grain: gene | transcript | single_cell | pseudobulk | bulk_sample | protein | peptide | phospho_site | region | variant_site | cohort",
+    )
+    s.add_argument(
+        "--gene-key", dest="gene_key", action="append", help="join key: gene_symbol | hgnc_id | ensembl | uniprot | n/a"
+    )
+    s.add_argument(
+        "--sample-type",
+        dest="sample_type",
+        action="append",
+        help="sample material, e.g. cell-line, patient-tumor, organoid, pdx-xenograft, cdx-xenograft, adjacent-normal",
+    )
+    s.add_argument("--stage", action="append", help="analytical stage: raw | processed | summarized")
+    s.add_argument(
+        "--genome-build",
+        dest="genome_build",
+        action="append",
+        help="reference genome: GRCh37 | GRCh38 | T2T-CHM13 | n/a",
+    )
+    s.add_argument(
+        "--license-class",
+        dest="license_class",
+        action="append",
+        help="license class: public-open | public-attribution | public-share-alike | research-only | commercial-restricted | dua-gated",
+    )
+    s.add_argument("--platform", action="append", help="assay platform (substring), e.g. '10x', 'TMT', 'DIA'")
+    s.add_argument("--tissue", action="append", help="tissue / organ, e.g. colon, lung")
+    s.add_argument("--treatment", action="append", help="treatment context, e.g. anti-PD1, untreated")
+    s.add_argument(
+        "--aggregation",
+        action="append",
+        help="poolability doctrine: pool_donor_median | prefer_curated_atlas | use_individual | needs_integration | not_aggregable",
+    )
 
     d = sub.add_parser("describe", help="full detail for one manifest_id", parents=[common])
     d.add_argument("manifest_id")
@@ -196,10 +336,19 @@ def build_parser() -> argparse.ArgumentParser:
     ln.add_argument("--direction", choices=["upstream", "downstream", "both"], default="both")
     ln.add_argument("--depth", type=int, default=None)
 
-    a = sub.add_parser("audit", help="coverage gaps, superseded, uncited sources", parents=[common])
+    f = sub.add_parser("facets", help="list distinct values + counts for a facet (discovery)", parents=[common])
+    f.add_argument(
+        "facet",
+        nargs="?",
+        default=None,
+        help="which facet to enumerate (default: all). One of the scientific facet names.",
+    )
+
+    a = sub.add_parser("audit", help="coverage gaps, superseded, uncited sources, overlaps", parents=[common])
     a.add_argument("--coverage-gaps", action="store_true")
     a.add_argument("--uncited", action="store_true", help="source-releases with no citation edge")
     a.add_argument("--stale", action="store_true", help="superseded-but-still-present manifests")
+    a.add_argument("--overlaps", action="store_true", help="same study reachable via >1 manifest (double-count risk)")
     return p
 
 
@@ -214,8 +363,22 @@ def main(argv=None) -> int:
             data_subject=args.data_subject,
             type=args.type,
             category=args.category,
+            file_format=args.file_format,
             license=args.license,
             system_of_record=args.sor,
+            indication=args.indication,
+            measurement_class=args.measurement_class,
+            measurement_type=args.measurement_type,
+            grain=args.grain,
+            gene_key=args.gene_key,
+            sample_type=args.sample_type,
+            stage=args.stage,
+            genome_build=args.genome_build,
+            license_class=args.license_class,
+            platform=args.platform,
+            tissue=args.tissue,
+            treatment=args.treatment,
+            aggregation=args.aggregation,
         )
         if args.json:
             print(json.dumps([idx.describe(r.id) for r in recs], indent=2, default=str))
@@ -242,17 +405,26 @@ def main(argv=None) -> int:
             return 2
         print(json.dumps(r, indent=2, default=str) if args.json else _render_lineage(r))
 
+    elif args.command == "facets":
+        names = [args.facet] if args.facet else list(_FACET_NAMES)
+        if args.json:
+            print(json.dumps({n: dict(idx.facet_values(n)) for n in names}, indent=2, default=str))
+        else:
+            print(_render_facets(idx, names))
+
     elif args.command == "audit":
         a = idx.audit()
         if args.json:
             print(json.dumps(a, indent=2, default=str))
         else:
             # default: show everything if no section flag was passed
-            sections = {
-                k
-                for k, on in [("coverage-gaps", args.coverage_gaps), ("uncited", args.uncited), ("stale", args.stale)]
-                if on
-            } or {"coverage-gaps", "uncited", "stale"}
+            flags = [
+                ("coverage-gaps", args.coverage_gaps),
+                ("uncited", args.uncited),
+                ("stale", args.stale),
+                ("overlaps", args.overlaps),
+            ]
+            sections = {k for k, on in flags if on} or {"coverage-gaps", "uncited", "stale", "overlaps"}
             print(_render_audit(a, sections))
 
     return 0

@@ -70,19 +70,21 @@ def _yaml_load(fh):
 # tests/methods/catalog_query/test_lean_parse_equivalence.py.
 _FILES_KEY_RE = re.compile(r"^files:\s*(#.*)?$")
 _CATEGORY_RE = re.compile(r"^\s+(?:-\s+)?category:\s*(.+?)\s*(?:#.*)?$")
+_FORMAT_RE = re.compile(r"^\s+(?:-\s+)?format:\s*(.+?)\s*(?:#.*)?$")
 
 
 def _lean_load_manifest(path):
-    """Parse a manifest to (doc_without_files, sorted_categories) WITHOUT constructing the discarded
-    `files:` array. Strips the top-level (column-0) block-style `files:` block — its line plus every
-    following indented / column-0 sequence-item line up to the next column-0 key — and harvests each
-    entry's `category` scalar. A manifest with no block-style `files:` (or an inline `files: [...]`)
-    falls through to a normal parse; a defensive `doc.pop('files')` then matches load_catalog's
-    unconditional pop. Cost is negligible for the small manifests."""
+    """Parse a manifest to (doc_without_files, sorted_categories, sorted_formats) WITHOUT constructing
+    the discarded `files:` array. Strips the top-level (column-0) block-style `files:` block — its line
+    plus every following indented / column-0 sequence-item line up to the next column-0 key — and
+    harvests each entry's `category` AND `format` scalar (the two facets any query reads from files[]).
+    A manifest with no block-style `files:` (or an inline `files: [...]`) falls through to a normal
+    parse; a defensive `doc.pop('files')` then matches load_catalog's unconditional pop."""
     text = path.read_text()
     lines = text.splitlines()
     out: list[str] = []
     cats: set = set()
+    fmts: set = set()
     i, n = 0, len(lines)
     while i < n:
         line = lines[i]
@@ -96,6 +98,11 @@ def _lean_load_manifest(path):
                         v = m.group(1).strip().strip('"').strip("'")
                         if v:
                             cats.add(v)
+                    mf = _FORMAT_RE.match(l)
+                    if mf:
+                        vf = mf.group(1).strip().strip('"').strip("'")
+                        if vf:
+                            fmts.add(vf)
                     i += 1
                     continue
                 break
@@ -109,7 +116,7 @@ def _lean_load_manifest(path):
     # unconditional pop so `files` never leaks into raw (its categories would be unharvested, but no
     # such manifest exists in the catalog today — the equivalence guard test would catch a new one).
     doc.pop("files", None)
-    return doc, sorted(cats)
+    return doc, sorted(cats), sorted(fmts)
 
 
 # Repo roots — env-var-overridable with the local-dev default (matches gdc_somatic_hotspot's
@@ -430,6 +437,12 @@ class ManifestRecord:
         return self.raw.get("_categories", [])
 
     @property
+    def formats(self) -> list[str]:
+        """Distinct file formats present (fastq/bam/vcf/parquet/h5ad/...), harvested from files[] at
+        load time into raw['_formats']. The reprocessing-triage facet: 'which datasets have RAW reads'."""
+        return self.raw.get("_formats", [])
+
+    @property
     def parquet_schema(self) -> list[dict]:
         return self.raw.get("parquet_schema", []) or []
 
@@ -440,6 +453,46 @@ class ManifestRecord:
     @property
     def supersedes(self) -> Optional[str]:
         return self.raw.get("supersedes")
+
+
+# Merged-view field access for the curated `classification:` block. Each queryable field maps to
+# (classification_key on the manifest, path into the generated dataset-intelligence profile, is_list).
+# The manifest block is AUTHORITATIVE; the profile value (curated ⊕ inferred by dataset_intel_lib) is
+# the fallback so a filter still reaches the ~490 manifests not yet backfilled.
+# field -> (classification-block key, path into the dataset-intelligence profile, is_list).
+# is_list=True → merged_field normalizes to a list and search matches by membership. measurement_class
+# and analytical_stage are scalar-OR-array on the manifest (a multi-assay release lists all), so they
+# are membership-matched too. Fields with no classification key (aggregation_recommendation) resolve
+# from the profile only — .get(<key>) on the block simply returns None and falls through.
+_MERGED_FIELDS: dict[str, tuple[str, tuple[str, ...], bool]] = {
+    "indications": ("indications", ("biology", "indications", "value"), True),
+    "tissue": ("tissue", ("biology", "tissue", "value"), True),
+    "measurement_class": ("measurement_class", ("measurement", "measurement_class", "value"), True),
+    "measurement_type": ("measurement_type", ("measurement", "measurement_type", "value"), False),
+    "platform": ("platform", ("measurement", "platform", "value"), False),
+    "molecular_grain": ("molecular_grain", ("usage", "molecular_grain"), False),
+    "gene_key": ("gene_key", ("usage", "gene_key"), False),
+    "sample_type": ("sample_type", ("biology", "sample_type", "value"), True),
+    "analytical_stage": ("analytical_stage", ("measurement", "analytical_stage", "value"), True),
+    "reference_genome": ("reference_genome", ("measurement", "reference_genome", "value"), False),
+    "annotation": ("annotation", ("measurement", "annotation", "value"), False),
+    "license_class": ("license_class", ("quality", "license_class"), False),
+    "treatment": ("treatment", ("biology", "treatment", "value"), True),
+    "aggregation_recommendation": ("aggregation_recommendation", ("usage", "aggregation_recommendation"), False),
+}
+
+# Facets matched by case-insensitive substring rather than exact/membership (free-text values).
+_SUBSTRING_FACETS = {"annotation", "platform"}
+
+
+def _dig(d: Optional[dict], path: tuple[str, ...]):
+    """Walk a nested dict by key path; return None if any hop is missing/not-a-dict."""
+    cur = d
+    for k in path:
+        if not isinstance(cur, dict):
+            return None
+        cur = cur.get(k)
+    return cur
 
 
 @dataclass
@@ -453,8 +506,56 @@ class CatalogIndex:
     subgroup_citations: dict[str, list[str]]
     # indication code -> config dict from indication-configs/
     indication_configs: dict[str, dict]
+    # manifest_id -> generated dataset-intelligence profile (curated ⊕ inferred enrichment)
+    profiles: dict[str, dict] = field(default_factory=dict)
+
+    # ---- curated classification merged view ----
+    def _classification(self, rec: ManifestRecord) -> dict:
+        return rec.raw.get("classification") or {}
+
+    def merged_field(self, rec: ManifestRecord, field_name: str):
+        """The value of a classification field: the curated manifest block (authoritative) if present,
+        else the generated dataset-intelligence profile value (curated ⊕ inferred fallback), else None.
+        Returns a list for list-valued fields (indications, sample_type), a scalar otherwise."""
+        cls_key, ppath, is_list = _MERGED_FIELDS[field_name]
+        v = self._classification(rec).get(cls_key)
+        if v in (None, [], ""):
+            v = _dig(self.profiles.get(rec.id), ppath)  # inferred fallback
+        if is_list:  # normalize BOTH curated and inferred to a list so callers see one shape
+            return v if isinstance(v, list) else ([] if v in (None, "") else [v])
+        return v
+
+    def enrichment(self, rec: ManifestRecord) -> dict:
+        """Merged classification view for one manifest, each field tagged `manifest` (curated) vs
+        `inferred` (from the profile) so provenance is visible at the point of use."""
+        out: dict[str, dict] = {}
+        cls = self._classification(rec)
+        for field_name in _MERGED_FIELDS:
+            cls_key = _MERGED_FIELDS[field_name][0]
+            val = self.merged_field(rec, field_name)
+            if val in (None, []):
+                continue
+            out[field_name] = {
+                "value": val,
+                "source": "manifest" if cls.get(cls_key) not in (None, [], "") else "inferred",
+            }
+        return out
 
     # ---- capability 1: search ----
+    @staticmethod
+    def _facet_ok(wanted, have, substring: bool) -> bool:
+        """True if a facet passes. `wanted` may be a str or a list (OR within — any match passes);
+        `have` is the merged value (scalar or list). substring=True does case-insensitive contains
+        (free-text facets like annotation/platform), else exact membership."""
+        if not wanted:
+            return True
+        wl = wanted if isinstance(wanted, list) else [wanted]
+        haves = have if isinstance(have, list) else ([] if have in (None, "") else [have])
+        if substring:
+            hay = " ".join(str(h) for h in haves).lower()
+            return any(str(w).lower() in hay for w in wl)
+        return any(w in haves for w in wl)
+
     def search(
         self,
         query: Optional[str] = None,
@@ -463,16 +564,49 @@ class CatalogIndex:
         data_subject: Optional[str] = None,
         type: Optional[str] = None,
         category: Optional[str] = None,
+        file_format: Optional[str] = None,
         license: Optional[str] = None,
         system_of_record: Optional[bool] = None,
+        indication=None,
+        measurement_class=None,
+        measurement_type=None,
+        grain=None,
+        gene_key=None,
+        sample_type=None,
+        stage=None,
+        genome_build=None,
+        license_class=None,
+        platform=None,
+        tissue=None,
+        treatment=None,
+        aggregation=None,
     ) -> list[ManifestRecord]:
-        """Facet-filter + keyword match over the manifests. All filters AND together.
+        """Facet-filter + keyword match over the manifests. All facets AND together; a facet given a
+        LIST OR-matches within itself (e.g. indication=['LUAD','LUSC']).
 
-        `query` matches (case-insensitive substring) against id/description/
-        dataset/provider. Facets match exactly (category matches any file
-        category). Results are id-sorted for determinism.
+        `query` = case-insensitive substring over id/description/dataset/provider. Structural facets
+        (provider/data_subject/type/category/file_format/license/system_of_record) match manifest
+        fields. Scientific facets match the MERGED classification view — the curated `classification:`
+        block if present, else the dataset-intelligence profile (curated ⊕ inferred). annotation and
+        platform match by substring; the rest by exact membership. Results are id-sorted.
         """
         q = query.lower() if query else None
+        # scientific facet arg -> merged-view field name
+        sci = {
+            "indications": indication,
+            "measurement_class": measurement_class,
+            "measurement_type": measurement_type,
+            "molecular_grain": grain,
+            "gene_key": gene_key,
+            "sample_type": sample_type,
+            "analytical_stage": stage,
+            "reference_genome": genome_build,
+            "license_class": license_class,
+            "platform": platform,
+            "tissue": tissue,
+            "treatment": treatment,
+            "aggregation_recommendation": aggregation,
+        }
         out: list[ManifestRecord] = []
         for rec in self.manifests.values():
             if type and rec.type != type:
@@ -487,12 +621,30 @@ class CatalogIndex:
                 continue
             if category and category not in rec.categories:
                 continue
+            if file_format and not self._facet_ok(file_format, rec.formats, substring=False):
+                continue
+            if any(
+                not self._facet_ok(w, self.merged_field(rec, fn), fn in _SUBSTRING_FACETS) for fn, w in sci.items() if w
+            ):
+                continue
             if q:
                 hay = " ".join(str(x) for x in (rec.id, rec.description, rec.dataset, rec.provider) if x).lower()
                 if q not in hay:
                     continue
             out.append(rec)
         return sorted(out, key=lambda r: r.id)
+
+    def facet_values(self, field_name: str) -> list[tuple[str, int]]:
+        """Distinct merged values for a scientific facet + how many manifests carry each,
+        descending by count then value. Powers the `facets` discovery subcommand."""
+        from collections import Counter
+
+        c: Counter = Counter()
+        for rec in self.manifests.values():
+            v = self.merged_field(rec, field_name)
+            for item in v if isinstance(v, list) else ([v] if v not in (None, "") else []):
+                c[item] += 1
+        return sorted(c.items(), key=lambda kv: (-kv[1], str(kv[0])))
 
     # ---- capability 2: describe ----
     def describe(self, manifest_id: str) -> dict:
@@ -501,6 +653,8 @@ class CatalogIndex:
         Raises KeyError if unknown (callers surface a helpful message).
         """
         rec = self.manifests[manifest_id]
+        prof = self.profiles.get(manifest_id) or {}
+        tr = rec.raw.get("target_resolution") or {}
         return {
             "id": rec.id,
             "type": rec.type,
@@ -514,8 +668,23 @@ class CatalogIndex:
             "size_bytes": rec.size_bytes,
             "description": rec.description,
             "file_categories": rec.categories,
+            "file_formats": rec.formats,
             "parquet_schema": rec.parquet_schema,
             "query_optimization": rec.query_optimization,
+            "classification": self._classification(rec),  # the curated block as-authored (may be {})
+            "enrichment": self.enrichment(rec),  # merged view, each field tagged manifest|inferred
+            "pipeline": rec.raw.get("pipeline"),  # aligner/quantifier/annotation — reprocessing provenance
+            # resolver sidecar: does this product resolve to canonical hgnc_id (safe cross-source join)?
+            "has_resolver_sidecar": bool(tr.get("sidecar_s3_uri")),
+            "native_key_type": tr.get("native_key_type"),
+            # integration signals from the inferred profile (merge-triage)
+            "scale": prof.get("scale"),
+            "entity_purity": _dig(prof, ("quality", "entity_purity")),
+            "annotation_provenance": _dig(prof, ("quality", "annotation_provenance")),
+            "access_tier": _dig(prof, ("quality", "access_tier")),
+            "aggregation_recommendation": _dig(prof, ("usage", "aggregation_recommendation")),
+            "aggregation_rationale": _dig(prof, ("usage", "aggregation_rationale")),
+            "constituent_studies": prof.get("constituent_studies", []),
             "derived_from": rec.derived_from,
             "cited_by": rec.computed_cited_by,  # the COMPUTED reverse graph
             "consumed_by_products": self.consumers.get(manifest_id, []),
@@ -602,10 +771,37 @@ class CatalogIndex:
         }
         dge_gaps = sorted(code.lower() for code in self.indication_configs if code.lower() not in dge_present)
 
+        # Field-based DGE coverage: indications reachable via a curated tumor-vs-normal bulk_rna
+        # product (classification.measurement_type == 'tumor_vs_normal_selectivity'). Strictly more
+        # correct than the id-regex (catches a differently-named product; ignores a renamed one), but
+        # depends on the classification backfill — so during the rollout it runs ALONGSIDE the regex
+        # signal as a cross-check rather than replacing it.
+        dge_covered_field: set[str] = set()
+        for rec in self.manifests.values():
+            if "bulk_rna" in (self.merged_field(rec, "measurement_class") or []) and (
+                self._classification(rec).get("measurement_type") == "tumor_vs_normal_selectivity"
+            ):
+                dge_covered_field.update(str(i).upper() for i in (self.merged_field(rec, "indications") or []))
+        dge_gaps_field = sorted(c for c in self.indication_configs if c.upper() not in dge_covered_field)
+
+        # Cross-source overlaps: the same underlying study reachable through >1 manifest (double-count
+        # risk when merging). Inverts the profiles' constituent_studies dedup keys (doi:/geo:/pmid:/
+        # cxg:/3ca:) to study_key -> [manifest_id]; reports keys with more than one manifest. The
+        # dedup guard for honest pooling. Empty when the profile layer is absent.
+        study_to_manifests: dict[str, set[str]] = {}
+        for mid, prof in self.profiles.items():
+            for s in prof.get("constituent_studies") or []:
+                key = s.get("key")
+                if key and not key.startswith("manifest:"):  # a manifest:self key is not a shared study
+                    study_to_manifests.setdefault(key, set()).add(mid)
+        overlaps = {k: sorted(v) for k, v in study_to_manifests.items() if len(v) > 1}
+
         return {
             "uncited_sources": uncited_sources,
             "superseded_still_present": superseded_still_present,
             "dge_coverage_gaps": dge_gaps,
+            "dge_coverage_gaps_by_field": dge_gaps_field,
+            "overlaps": {k: overlaps[k] for k in sorted(overlaps)},
             "counts": {
                 "sources": sum(1 for r in self.manifests.values() if r.type == "source-release"),
                 "derived": sum(1 for r in self.manifests.values() if r.type == "derived"),
@@ -682,6 +878,28 @@ def _load_indication_configs(root: Path) -> dict[str, dict]:
     return configs
 
 
+def _load_profiles(root: Path) -> dict[str, dict]:
+    """inventories/dataset-intelligence.json -> {manifest_id: profile}.
+
+    The generated enrichment layer (curated `classification:` blocks merged with regex/slug
+    inference by data-catalog's dataset_intel_lib) that backs the merged search view for the
+    ~490 manifests without a curated block yet. Absent/unreadable is non-fatal — the engine
+    still runs on manifests alone (curated blocks read directly off `raw`).
+    """
+    import json
+
+    path = root / "inventories" / "dataset-intelligence.json"
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text())
+    except (ValueError, OSError):
+        return {}
+    if not isinstance(data, list):
+        return {}
+    return {p["manifest_id"]: p for p in data if isinstance(p, dict) and "manifest_id" in p}
+
+
 # --- disk-persisted CatalogIndex cache -------------------------------------------------------------
 # Building the index parses ALL ~442 manifest YAMLs (~0.85s cold). That parse dominates the ~1.1s
 # fixed post-read pipeline of EVERY skill run (envelope.py's governance block resolves the run's used
@@ -691,7 +909,7 @@ def _load_indication_configs(root: Path) -> dict[str, dict]:
 # a signature over every catalog input file's (path, size, mtime_ns): a matching cache unpickles in
 # ~0.02s instead of re-parsing 442 YAMLs. The cache is CORRECTNESS-SUBORDINATE — any signature miss
 # rebuilds, and any cache read/write error fails open to a fresh in-memory build.
-_CATALOG_INDEX_CACHE_VERSION = 1  # BUMP on any change to CatalogIndex/ManifestRecord shape or build logic
+_CATALOG_INDEX_CACHE_VERSION = 2  # BUMP on any change to CatalogIndex/ManifestRecord shape or build logic
 
 
 def _catalog_input_files(root: Path, contracts_root: Path) -> list[Path]:
@@ -710,6 +928,10 @@ def _catalog_input_files(root: Path, contracts_root: Path) -> list[Path]:
     products = contracts_root / "vocabularies" / "products.yaml"
     if products.exists():
         files.append(products)
+    # The generated enrichment layer feeds the merged classification view; a regen must invalidate.
+    intel = root / "inventories" / "dataset-intelligence.json"
+    if intel.exists():
+        files.append(intel)
     return files
 
 
@@ -816,10 +1038,11 @@ def _build_catalog_index(
             # thousands of rows) while harvesting the distinct `category` set — the only facet any
             # query reads from it. Byte-identical to _yaml_load + raw.pop('files') + the category set
             # (equivalence guard test), at ~10x less parse time on the big source manifests.
-            raw, categories = _lean_load_manifest(path)
+            raw, categories, formats = _lean_load_manifest(path)
             if not raw or "id" not in raw:
                 continue
             raw["_categories"] = categories
+            raw["_formats"] = formats
             mid = raw["id"]
             manifests[mid] = ManifestRecord(
                 id=mid,
@@ -849,4 +1072,5 @@ def _build_catalog_index(
         consumers=_load_products(contracts_root),
         subgroup_citations=subgroup_citations,
         indication_configs=_load_indication_configs(root),
+        profiles=_load_profiles(root),
     )
