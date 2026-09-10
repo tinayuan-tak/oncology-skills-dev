@@ -579,7 +579,7 @@ skill_objectives:
     role_note: "CONSOLIDATED relational (gene×gene) fan-out member (2026-08-20); absorbs the retired synthetic-lethal-partners / combinatorial-dependency / combo-and-resistance skills. Gateless (verdict=None); output = ranked_partner_table + SL/CODEP/COMBO/RESISTANCE claim_vector (target_pair atoms)."
     questions:
       - {q: "Is there a curated synthetic-lethal partner, and is the evidence experimental vs computational?", answered_by: [synthetic-lethal-partners]}
-      - {q: "Is there a measured dual-KO genetic interaction (constitutive / context / suppressive), and which paralog partner is strongest?", answered_by: [combinatorial-dependency]}
+      - {q: "Is there a measured dual-KO genetic interaction (constitutive / context / suppressive), and which paralog partner is strongest?", answered_by: [combinatorial-dependency, cross-consortium-paralog-gi]}
       - {q: "Which co-targets become MORE essential under inhibition (rational combination partners)?", answered_by: [combo-crispr-screen]}
       - {q: "Which partner DRUGS chemically synergize with a drug hitting the target (Bliss drug×drug synergy)?", answered_by: [combo-chemical-synergy]}
       - {q: "Which knockouts RESCUE the cell under inhibition (candidate resistance mediators — a monitoring liability)?", answered_by: [resistance-emergence-signature]}
