@@ -1,9 +1,0 @@
-synthetic-lethal-partners:
-  best_evidence_tier: null
-  has_experimental_partner: false
-  method_version: read-0.1.0
-  n_experimental_partners: 0
-  sl_partner_class: no_curated_sl_partner
-  sl_partner_count: 0
-  sl_partner_symbols: []
-  top_partners: []

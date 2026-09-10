@@ -138,16 +138,6 @@ _AXES = {
             "insufficient_cis_coherence",
         ],
     ),
-    "synthetic_lethal_partners": (
-        "synthetic-lethal-partners",
-        [
-            "has_experimental_sl_partner",
-            "has_computational_sl_partner",
-            "no_curated_sl_partner",
-            "insufficient",
-            "data_unavailable",
-        ],
-    ),
     "tumor_presence": (
         "tumor-presence",
         [
@@ -183,5 +173,7 @@ def test_render_equivalence_per_axis(axis):
 
 
 def test_every_verdict_bearing_axis_is_covered():
-    # 10 resolver gates + tumor_presence — the full M1 shadow set. A new axis must extend this proof.
-    assert len(_AXES) == 11
+    # 9 wired resolver-gated skills + tumor_presence — the full M1 shadow set. A new axis must extend this
+    # proof. (synthetic-lethal-partners was retired 2026-09-10; its resolver contract remains but has no
+    # wired skill emitting a claim_record, so it is no longer part of the shadow set.)
+    assert len(_AXES) == 10

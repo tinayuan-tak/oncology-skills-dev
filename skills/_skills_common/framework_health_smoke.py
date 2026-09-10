@@ -45,14 +45,11 @@ _FIX_INDICATION = "COADREAD"
 _SKIP_DIRS = {
     "_skills_common",
     "tests",
-    "compose-dashboard",
     "render-evidence-package",
     "query-target-evidence",
-    # DEPRECATED 2026-08-20 (retired from the fan-out → consolidated into
-    # combination-and-vulnerability). Runnable standalone but not active wired subskills.
-    "synthetic-lethal-partners",
-    "combinatorial-dependency",
-    "combo-and-resistance",
+    # (The synthetic-lethal-partners / combinatorial-dependency / combo-and-resistance /
+    # compose-dashboard skill dirs were retired 2026-09-10 — consolidated into
+    # combination-and-vulnerability / report_render — so no skip entry is needed.)
 }
 
 

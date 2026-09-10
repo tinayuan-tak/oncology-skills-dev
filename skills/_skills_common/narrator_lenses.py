@@ -2,9 +2,9 @@
 
 Each skill's narration is expressed as data here (thesis, axis labels, scope guardrails, polarity, output
 mode) instead of a bespoke synthesis_*.py module. Reference set: functional-requirement (verdict) +
-on-target-safety-liability (verdict, polarity-inverted). All 18 lenses now live in the LENSES registry
-below (the 14 hierarchy skills + target-archetype, literature-context, synthetic-lethal-partners, and
-combinatorial-dependency).
+on-target-safety-liability (verdict, polarity-inverted). All 16 lenses now live in the LENSES registry
+below (the 14 hierarchy skills + target-archetype and literature-context). The curated-SL / paralog-dual-KO
+relational signals are composed as CARDS under combination-and-vulnerability, not as standalone lenses.
 """
 
 from __future__ import annotations
@@ -890,110 +890,11 @@ LITERATURE_CONTEXT = LensConfig(
     # skill's run.py builds from the cited-literature-evidence card.
 )
 
-SYNTHETIC_LETHAL_PARTNERS = LensConfig(
-    name="synthetic-lethal-partners",
-    thesis="whether the target has a CURATED synthetic-lethal partner (SynLethDB) — an experimentally-supported "
-    "SL partner is a combination OPPORTUNITY (a co-target whose loss/inhibition is lethal only when the "
-    "target is lost), and its measured ABSENCE is neutral (not a negative for the target itself) — WHILE "
-    "distinguishing a CLINICALLY / FUNCTIONALLY VALIDATED, portable, druggable synthetic lethality "
-    "(BRCA↔PARP, WRN↔MSI, SMARCA4↔SMARCA2) from a COMPUTATIONAL-only / context-aggregated CURATED edge "
-    "that OVER-CALLS a validated druggable SL: a predicted SynLethDB edge is the lowest evidence tier, a "
-    "curated edge is aggregated across contexts and may not hold in THIS indication (the SL "
-    "reproducibility problem), and a genetic-KO-derived SL OVER-CALLS druggability (KO ≠ partial "
-    "pharmacological inhibition; a scaffold partner needs a DEGRADER).",
-    relevance_prompt="judge whether the target has a curated synthetic-lethal partner worth pursuing as a "
-    "combination opportunity, and whether the SL is clinically/functionally VALIDATED vs a "
-    "computational-only / context-aggregated curated edge.",
-    axis_labels={"SL": "curated synthetic-lethal partner"},
-    scope_exclusions=(
-        "the single-target dependency MAGNITUDE (owned by functional-requirement)",
-        "the MEASURED paralog dual-KO co-dependency (owned by combinatorial-dependency)",
-        "the druggability of the partner (owned by tractability-small-molecule / surface-modality-fit)",
-    ),
-    # NARRATOR RULE: an SL partner is an OPPORTUNITY (a partner SUPPORTS a combination strategy; absence is
-    # neutral, never a negative for the target). LEAD with clinically/functionally-VALIDATED vs computational/
-    # curated-context-unconfirmed, then name the inflation modes the curated edge cannot self-distinguish.
-    polarity_note=(
-        "signal = strength of the evidence FOR a curated synthetic-lethal partner (a combination OPPORTUNITY); "
-        "a partner SUPPORTS a combination strategy and its measured ABSENCE is NEUTRAL, never a negative for "
-        "the target itself, and this lens NEVER nominates the target (SL rides its own veto-suppressor sub-"
-        "skill). LEAD by stating whether the SL is CLINICALLY / FUNCTIONALLY VALIDATED (read "
-        "sl_partner_confidence_caveat / sl_partner_provenance: a validated_established_synthetic_lethal read — "
-        "a canonical BRCA↔PARP / WRN↔MSI / SMARCA4↔SMARCA2 SL — is NOT an over-call and must NOT be demoted) or "
-        "rests on a weaker curated signal. Then name the inflation modes: (a) COMPUTATIONAL-ONLY — a "
-        "has_computational_sl_partner class is a PREDICTED SynLethDB edge (Wang 2022 PMID 35562840), the lowest "
-        "evidence tier, not an experimentally-supported SL; (b) CURATED ≠ FUNCTIONAL-IN-CONTEXT — SynLethDB "
-        "aggregates SL edges ACROSS cell-line contexts, so a curated edge may not hold in THIS indication, and "
-        "SL is strongly context/genotype-dependent and frequently FAILS TO REPLICATE across screens (the SL "
-        "reproducibility problem — Ryan-Bajrami-Lord 2018 PMID 30292351); (c) KO ≠ INHIBITION — a curated SL "
-        "derived from genetic KO removes the ENTIRE protein whereas a drug inhibits ONE activity partially, so "
-        "a KO-SL OVER-CALLS druggability and a scaffold / non-catalytic partner (STAG1, SMARCA2, ARID1B) needs "
-        "a DEGRADER not an inhibitor. The single-target dependency MAGNITUDE is owned by functional-requirement "
-        "and the druggability call by tractability-small-molecule — breadcrumb, do not adjudicate them here. "
-        "NEVER invent a partner symbol, evidence tier, or PMID."
-    ),
-    mode="verdict",
-    verdict_key="sl_partner_verdict",  # the RESOLVED SL-partner verdict token (run.py headline key); else the
-    # collapsed-verdict fallback lands on the legacy <name>_verdict guess
-    # ("synthetic_lethal_partners_verdict") which MISSES the real key,
-    # then falls through to driving_rule_id (a rule-id string). Mirrors the
-    # presence/selectivity/FR/safety verdict-lens contract.
-)
-
-COMBINATORIAL_DEPENDENCY = LensConfig(
-    name="combinatorial-dependency",
-    thesis="whether the target is a MEASURED combinatorial (paralog dual-KO) dependency — a genetic-buffering "
-    "synthetic lethality where loss of one paralog makes the other essential — and whether it is "
-    "CONSTITUTIVE (broad, portable) or CONTEXT / GENOTYPE-CONDITIONAL, seeing paralog co-dependencies "
-    "(CDK4/CDK6-class, KAT6A/KAT6B, MARK2/MARK3) that single-KO screens MISS, WHILE distinguishing a "
-    "canonical, orthogonally-VALIDATED paralog SL (SMARCA4↔SMARCA2, STAG2↔STAG1, ARID1A↔ARID1B) from a "
-    "statistical DepMap ParalogV2 genetic-interaction score that OVER-CALLS a portable, druggable SL: a "
-    "GI can be a pan-essential core-fitness co-dependency, a lineage/context-restricted or single-screen "
-    "artifact, or a genetic-KO SL whose scaffold partner is undruggable (KO ≠ pharmacological inhibition).",
-    relevance_prompt="judge whether the target is a measured combinatorial (paralog dual-KO) dependency worth "
-    "pursuing, whether it is constitutive vs context-conditional, and whether it is an "
-    "orthogonally-validated paralog SL vs a statistical / pan-essential / cell-line GI.",
-    axis_labels={"CODEP": "paralog dual-KO co-dependency"},
-    scope_exclusions=(
-        "the single-gene dependency MAGNITUDE (owned by functional-requirement)",
-        "the CURATED SynLethDB SL annotation (owned by synthetic-lethal-partners)",
-        "the druggability of the partner (owned by tractability-small-molecule / surface-modality-fit)",
-    ),
-    # NARRATOR RULE: a paralog co-dependency is an OPPORTUNITY. LEAD with constitutive-vs-context-conditional +
-    # orthogonally-validated-vs-statistical, then name the inflation modes the raw GI score cannot self-distinguish.
-    polarity_note=(
-        "signal = strength of the evidence FOR a measured paralog dual-KO co-dependency (a combination "
-        "OPPORTUNITY); a co-dependency SUPPORTS a combination strategy and its absence is NEUTRAL. LEAD by "
-        "stating whether the interaction is CONSTITUTIVE (broad, portable across lineages) or CONTEXT / "
-        "GENOTYPE-CONDITIONAL, and whether it is an orthogonally-VALIDATED paralog SL (read "
-        "combinatorial_dependency_confidence_caveat / combinatorial_dependency_provenance: a "
-        "validated_paralog_synthetic_lethal read — SMARCA4↔SMARCA2, STAG2↔STAG1, ARID1A↔ARID1B — is NOT an "
-        "over-call and must NOT be demoted, EVEN IF DepMap ParalogV2 reads no_interaction for it: ParalogV2 "
-        "frequently UNDER-calls these canonical pairs, so the guard is data-blind-tolerant) or a statistical "
-        "score. Then name the inflation modes: (a) PAN-ESSENTIAL CO-FITNESS — a co-dependency with a "
-        "common-essential partner (ribosome/proteasome/spliceosome-class) is a CORE-FITNESS artifact expected "
-        "by construction, NOT a selective druggable SL (Hart 2015 PMID 26627737; Behan Project Score demotes "
-        "common-essentials PMID 30971826); (b) CONTEXT / LINEAGE-RESTRICTED — a context_buffering / 0-strong-"
-        "lineage interaction is a cell-line-restricted signal or a family-wide flat-GI artifact, not a portable "
-        "buffering SL, and DepMap is IMMORTALIZED 2D lines where SL frequently FAILS TO REPLICATE (the SL "
-        "reproducibility problem — Ryan-Bajrami-Lord 2018 PMID 30292351; Dempster 2019 PMID 31862961); (c) KO ≠ "
-        "INHIBITION — a dual-KO removes the ENTIRE paralog whereas a drug inhibits ONE activity partially, so a "
-        "scaffold / non-catalytic partner (STAG1, SMARCA2, ARID1B) needs a DEGRADER not an inhibitor. The "
-        "single-gene dependency MAGNITUDE is owned by functional-requirement and the druggability call by "
-        "tractability-small-molecule — breadcrumb, do not adjudicate them here. NEVER invent a paralog partner "
-        "symbol, GI score, lineage count, or PMID."
-    ),
-    mode="verdict",
-    verdict_key="combinatorial_dependency_verdict",  # the RESOLVED (self-contained) combinatorial verdict
-    # token; else the legacy <name>_verdict guess
-    # ("combinatorial_dependency_verdict") HAPPENS to match —
-    # declared for robustness/consistency with the fleet.
-)
-
 # Registry for the dispatcher / fan-out lookup by skill name — the 14 hierarchy skills + the NON-standard
-# companions: target-archetype (cardless META), literature-context (literature-native cited-evidence peer),
-# and the two STANDALONE relational skills whose cards feed the combination-and-vulnerability annex
-# (synthetic-lethal-partners: curated SynLethDB SL; combinatorial-dependency: measured paralog dual-KO GI).
+# companions: target-archetype (cardless META) and literature-context (literature-native cited-evidence peer).
+# The curated-SL / paralog-dual-KO relational signals are composed as CARDS under combination-and-vulnerability
+# (its COMBINATION_VULNERABILITY lens narrates them); the former standalone synthetic-lethal-partners /
+# combinatorial-dependency skills were retired 2026-09-10.
 LENSES = {
     L.name: L
     for L in (
@@ -1013,7 +914,5 @@ LENSES = {
         TRANSLATIONAL_READINESS,
         TARGET_ARCHETYPE,
         LITERATURE_CONTEXT,
-        SYNTHETIC_LETHAL_PARTNERS,
-        COMBINATORIAL_DEPENDENCY,
     )
 }
