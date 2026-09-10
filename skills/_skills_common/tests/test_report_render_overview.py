@@ -188,6 +188,46 @@ def test_dependency_negative_still_counts_against_intracellular_thesis():
     assert dep.get("expected_note") is None and dep.get("raw_polarity") is None
 
 
+def _nom_with_axis_na(surface_polarity, axis_not_applicable):
+    """A make_nomination() copy with a surface_modality gating skill_report + the #1203 rollup
+    `axis_not_applicable` mask set, for exercising the category-error de-escalation of the strip."""
+    import copy
+
+    nom = copy.deepcopy(make_nomination())
+    tr = nom["target_report"]
+    tr["skill_reports"]["surface_modality"] = {
+        "role": "gating",
+        "polarity": surface_polarity,
+        "call": "neither_viable",
+        "honest_phrase": "No viable biologics surface",
+        "claim_chips": [],
+        "provenance": {},
+    }
+    tr.setdefault("skill_report_rollup", {})["axis_not_applicable"] = list(axis_not_applicable)
+    return nom
+
+
+def test_surface_modality_killer_deescalated_when_axis_not_applicable_1271():
+    # #1271: an intracellular target — surface_modality reads killer but its biologics family is a
+    # category error (axis_not_applicable, from the #1203 rollup mask) → the strip de-escalates it to
+    # neutral + a note, so the tally does not count it against (matching the rollup killer_axes + the gate).
+    ir = build_ir(_nom_with_axis_na("killer", ["surface_modality"]), resolve_spec("full"))
+    row = next(r for r in _sov(ir).payload["rows"] if r["short"] == "surface_modality")
+    assert row["polarity"] == "neutral" and row["level"] == 0
+    assert row["raw_polarity"] == "killer"
+    assert row["expected_note"] and "category error" in row["expected_note"]
+    counts = _sov(ir).payload["counts"]
+    assert counts["against"] == sum(1 for r in _sov(ir).payload["rows"] if (r["level"] or 0) < 0)
+
+
+def test_surface_modality_killer_counts_against_when_not_masked_1271():
+    # SAME killer, but axis_not_applicable empty (a genuine surface target) → still counts against.
+    ir = build_ir(_nom_with_axis_na("killer", []), resolve_spec("full"))
+    row = next(r for r in _sov(ir).payload["rows"] if r["short"] == "surface_modality")
+    assert row["polarity"] == "killer" and (row["level"] or 0) < 0
+    assert row.get("expected_note") is None and row.get("raw_polarity") is None
+
+
 def test_reconciliation_note_reaches_backends():
     from _skills_common.report_render.backends.html import HtmlBackend
 
