@@ -26,7 +26,8 @@
 # Adding a modality-scoped killer here would regress that golden.
 
 enum_id: nomination_verdict_gate
-version: 1.16.0  # 1.16.0 (2026-09-08): biology_axis_scoped_veto_downgrade now admits curated `extrinsic` (TME/immune/stromal) + `mixed` axes (was surface_intrinsic/unknown only) → a checkpoint (PD-L1/CD274=mixed, PD-1/CTLA4=extrinsic) with a FAVORABLE surface fit has its dependency non_dependent VETO downgraded to HOLD, same as a surface antigen (engaged by blockade/binding, not a tumor-intrinsic dependency). Fixes a CURATION PENALTY: an uncurated checkpoint (unknown, e.g. LAG3) already got the downgrade but curated CD274/PDCD1/CTLA4 were locked out. Favorable-surface co-condition + intracellular_intrinsic exclusion BOTH unchanged (only the axis list grew), so a neither_viable/shed surface or an intracellular target still VETOes. veto→hold only. Live-verified panel: CD274/LUAD VETO→HOLD via this arm; PDCD1/CTLA4/VEGFA already non-vetoing via other paths (net effect = CD274 alone). Verdict-moving; golden regen + grounded verify.
+version: 1.17.0  # 1.17.0 (2026-09-11, Step 2b): NEW `thesis_axis_relevance` block — routes on the governed `thesis` (target_thesis.yaml) to make a dependency `non_dependent` VETO IRRELEVANT (dropped, not just downgraded) for theses whose biology does not live on the dependency axis (antigen_driven / tme_io / neomorphic_gof / partner_conditional_sl), so the target falls to its OWN thesis axis and can reach nominate — the ANY-OF fix for the 0/14-surface defect. Generalizes biology_axis_scoped_veto_downgrade (kept as the `unresolved`-path fallback until 2c). GUARDRAILS unchanged: never drops pan_essential_killer, never touches safety, `unresolved`→today byte-for-byte, routing cannot invent a GO (dropping a veto only falls to the LLM proposal, bounded above by the kill gate + below by the abstention lower-bound clamp). Verdict-moving; verified on the hermetic skills gate-tests.
+  # 1.16.0 (2026-09-08): biology_axis_scoped_veto_downgrade now admits curated `extrinsic` (TME/immune/stromal) + `mixed` axes (was surface_intrinsic/unknown only) → a checkpoint (PD-L1/CD274=mixed, PD-1/CTLA4=extrinsic) with a FAVORABLE surface fit has its dependency non_dependent VETO downgraded to HOLD, same as a surface antigen (engaged by blockade/binding, not a tumor-intrinsic dependency). Fixes a CURATION PENALTY: an uncurated checkpoint (unknown, e.g. LAG3) already got the downgrade but curated CD274/PDCD1/CTLA4 were locked out. Favorable-surface co-condition + intracellular_intrinsic exclusion BOTH unchanged (only the axis list grew), so a neither_viable/shed surface or an intracellular target still VETOes. veto→hold only. Live-verified panel: CD274/LUAD VETO→HOLD via this arm; PDCD1/CTLA4/VEGFA already non-vetoing via other paths (net effect = CD274 alone). Verdict-moving; golden regen + grounded verify.
 # 1.15.0 (2026-09-08): + surface-fit contradiction_reconciler — a FAVORABLE surface_modality fit (ADC/TCE surface antigen) RECONCILES (drops) the selectivity selective_but_broadly_normal KILL, because the therapeutic window is modality-engineered (payload/DAR/avidity), NOT the bulk tumor÷normal-organ RNA ratio. Fires on default/no-modality runs (favorable fit = the surface-antigen evidence). Reconciles ERBB3/TACSTD2/MUC17; STANDS for secreted (VEGFA) + intracellular (CDK2) targets (no viable surface arm). Drops the contradiction only (no positive_signal) → safety axis remains the guardrail → lands at hold, never a manufactured strong. Same INVERTED-FALLBACK contract as (1). Verdict-moving; golden regen + grounded verify.
 # 1.14.0 (2026-09-08): + contradiction_reconcilers block — a genomic biomarker_stratified_dependency RECONCILES (drops) the selectivity selective_but_broadly_normal CONTRADICTION (the no-window KILL is bulk-RNA÷critical-organ, which dilutes an amp/biomarker-selected window — HER2/FGFR2/HER3). Surfaced by the IDAS backtest (ERBB2/STAD = T-DXd APPROVED, vetoed on no-window). Applied at positive-tier strong-block + gate scorecard + synthesis role; keeps the KILL for no-amp housekeeping (TROP2/GAPDH). Verdict-moving; golden regen + grounded verify.
                  # 1.13.0 (2026-09-08): + modality_ambiguous to biology_axis_scoped_veto_downgrade.when_surface_verdict_in — IDAS-seed experiment found GPRC5D/MM (talquetamab, APPROVED) + CLDN18.2/STAD (zolbetuximab, APPROVED) HARD-VETOED on dependency:non_dependent because their surface fit reads modality_ambiguous (GPCR multi-TM / claudin topology the surface-fit can't resolve), which was NOT in the downgrade set. An ambiguous (not-dead) surface signal on an intracellular non-dependency should HOLD, not hard-veto — neither_viable/shed_dominant_opposed still veto (genuine surface-junk). Verdict-moving (GPRC5D/CLDN18.2 veto→hold); golden regen + backtest.
@@ -487,6 +488,50 @@ biology_axis_scoped_veto_downgrade:
       Fires without an explicit --modality; the favorable-surface co-condition prevents rescuing
       surface-junk. Downgrade is veto→hold (never nominate), so it cannot manufacture a false
       nomination. Does NOT touch pan_essential_killer.
+
+# ── THESIS ROUTING (Step 2b, 2026-09-11) — the per-thesis necessity conjunction ──────────────────
+# The core of the framework-architecture remediation. The gate implements dependency-AND-safety, but
+# the ontology (target_profiling_axes.yaml:55) declares necessity as ANY-OF: an antigen-driven target
+# carries no recurrent dependency, so a pooled `non_dependent` VETO adjudicates it on the WRONG axis
+# (measured: 0/14 surface antigens decided on surface biology). This block routes on the GOVERNED
+# `thesis` (vocabularies/target_thesis.yaml, derived from archetype_core's verdict-inert soft_membership
+# + the biology_axis fallback), making a dependency veto IRRELEVANT for the theses whose biology does
+# not live on the dependency axis — the target then falls to its OWN thesis's deciding axes
+# (surface / safety / genomic), reachable as a nominate rather than force-vetoed.
+#
+# GENERALIZES biology_axis_scoped_veto_downgrade (which keys on biology_axis + surface verdict): the
+# derived thesis is the co-condition (antigen_driven is minted only from a DOMINANT expression_surface
+# archetype mixture — itself the surface-antigen evidence — under the hard-margin rule). Whereas the
+# biology_axis block DOWNGRADES veto→hold (capped at hold), thesis routing makes the axis IRRELEVANT
+# (dropped), so the target's real thesis axis can DECIDE, up to nominate. That is the 2b enhancement.
+#
+# GUARDRAILS (unchanged from the proven pattern):
+#   • Only `non_dependent` is ever made irrelevant — NEVER `pan_essential_killer` (a broad-tox SAFETY
+#     liability, real regardless of thesis; pan_essential_buffered is its OWN thesis where the safety
+#     window decides, handled separately — it is NOT listed here).
+#   • SAFETY holds are NEVER touched by thesis routing (a thesis never makes safety irrelevant).
+#   • `thesis: unresolved` has NO entry → today's gate byte-for-byte + the existing epicycle blocks
+#     (veto_suppressors / biology_axis_scoped_veto_downgrade / … ) remain the unresolved-path fallback
+#     until Step 2c retires them.
+#   • Routing cannot invent a GO: dropping a veto only lets the target FALL to its other axes + the
+#     LLM's proposal, which stays bounded above by the kill gate and below by the abstention
+#     lower-bound clamp (an unbacked LLM negative → insufficient_evidence).
+thesis_axis_relevance:
+  - thesis: antigen_driven
+    irrelevant: [{sub_skill: dependency, verdict: non_dependent}]
+    rationale: "Surface antigen (ADC/TCE/mAb): engaged by antigen binding, carries no recurrent intracellular dependency by design. A pooled non_dependent is an irrelevant criterion; surface + selectivity + safety decide."
+  - thesis: tme_io
+    irrelevant: [{sub_skill: dependency, verdict: non_dependent}]
+    rationale: "TME/IO target (checkpoint/stromal): engaged by blockade/neutralization, not a tumor-intrinsic dependency. immune-context + safety decide."
+  - thesis: neomorphic_gof
+    irrelevant: [{sub_skill: dependency, verdict: non_dependent}]
+    rationale: "Neomorphic GoF (e.g. IDH1): a NEW activity, not a whole-gene-KO dependency — pooled non_dependent (a KO readout) is irrelevant; the genomic driver + tractability decide."
+  - thesis: partner_conditional_sl
+    irrelevant: [{sub_skill: dependency, verdict: non_dependent}]
+    rationale: "Synthetic-lethal / partner-conditional: the dependency is context-restricted, so the POOLED pan-cancer non_dependent is a dilution artifact — partner-conditional/SL evidence decides."
+  # oncogene_addiction, pan_essential_buffered, unresolved: NO entry — dependency stays a live veto
+  # (today's behaviour). oncogene_addiction is the thesis where the dependency axis legitimately decides;
+  # pan_essential_buffered keeps pan_essential_killer and is routed by its SAFETY window (a later 2b arm).
 
 # GoF-DRIVER-SCOPED dependency-veto DOWNGRADE (2026-08-25, round-2 gap: neomorphic GoF, e.g. IDH1).
 # Symmetric to biology_axis_scoped_veto_downgrade but keyed on the GENOMIC sub-verdict instead of the

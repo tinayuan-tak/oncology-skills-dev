@@ -331,3 +331,46 @@ def test_human_genetics_driving_rules_match_resolver_when_any():
         f"gate driving_rule_ids {sorted(gate_rules)} must equal the resolver's when_any_fired "
         f"{sorted(hg['when_any_fired'])} for full provenance"
     )
+
+
+# ── Thesis routing (Step 2b, v1.17.0) ──────────────────────────────────────────────────────────────
+def _thesis_enum():
+    import yaml as _y
+
+    p = REPO / "vocabularies" / "target_thesis.yaml"
+    return set(_y.safe_load(p.read_text())["theses"]) if p.exists() else None
+
+
+def test_thesis_axis_relevance_well_formed():
+    tar = _load().get("thesis_axis_relevance")
+    assert isinstance(tar, list) and tar, "thesis_axis_relevance must be a non-empty list"
+    enum = _thesis_enum()
+    for blk in tar:
+        assert blk["thesis"], "each block names a thesis"
+        if enum is not None:
+            assert blk["thesis"] in enum, f"{blk['thesis']} not in target_thesis.yaml enum"
+        assert blk["rationale"].strip(), "a human-reviewable rationale is mandatory"
+        assert blk["irrelevant"], "each block lists >=1 irrelevant (sub_skill, verdict)"
+        for ir in blk["irrelevant"]:
+            assert ir["sub_skill"] and ir["verdict"]
+
+
+def test_thesis_routing_never_drops_pan_essential_or_safety():
+    """SAFETY-CRITICAL guardrail: thesis routing may make a pooled `non_dependent` irrelevant, but it
+    must NEVER make pan_essential_killer (broad-tox) or any SAFETY hold irrelevant — those are real
+    regardless of thesis. Mirrors biology_axis_scoped_veto_downgrade's 'does NOT touch
+    pan_essential_killer' bound."""
+    for blk in _load()["thesis_axis_relevance"]:
+        for ir in blk["irrelevant"]:
+            assert not (ir["sub_skill"] == "dependency" and ir["verdict"] == "pan_essential_killer"), (
+                f"{blk['thesis']} must not drop pan_essential_killer (broad-tox liability)"
+            )
+            assert ir["sub_skill"] != "safety", f"{blk['thesis']} must not make a safety hold irrelevant"
+
+
+def test_oncogene_addiction_and_unresolved_have_no_thesis_entry():
+    """oncogene_addiction is where the dependency axis legitimately decides, and `unresolved` must
+    reproduce today's gate byte-for-byte — neither may appear in thesis_axis_relevance."""
+    routed = {blk["thesis"] for blk in _load()["thesis_axis_relevance"]}
+    assert "unresolved" not in routed, "unresolved must be today's gate — no thesis routing"
+    assert "oncogene_addiction" not in routed, "oncogene_addiction decides on dependency — not irrelevant"
