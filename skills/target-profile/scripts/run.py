@@ -102,6 +102,7 @@ from tp_gates import (  # names main() calls directly
     _gate_scorecard,
     _hard_gates_status,
     _positive_tier,
+    abstention_lower_bound_clamp,
 )
 from tp_manifest import *  # noqa: F401,F403
 from tp_manifest import write_full_package
@@ -1026,9 +1027,33 @@ def main() -> int:
                 file=sys.stderr,
             )
     else:
-        # NO kill fired → the positive tier may raise a deterministic confidence
-        # FLOOR. F1-safe: this branch is unreachable when a kill fired; it touches
-        # ONLY `confidence`, never `overall_recommendation` (never forces nominate).
+        # NO kill fired (the gate ABSTAINED). Two clamps live here:
+        #
+        # (a) LOWER-BOUND guard — the missing pessimism half of the one-directional clamp. With no
+        #     veto/hold rule fired, an LLM-authored NEGATIVE (veto/hold) has no rule behind it and
+        #     nothing in the audit spine to attribute it to, so it collapses to insufficient_evidence
+        #     (symmetric to "a nominate requires a positive tier"). The LLM narrative is preserved and
+        #     still explains the concern; only the composed recommendation VALUE is clamped. A
+        #     `nominate`/`insufficient_evidence` is not a negative and stands (nominate stays bounded
+        #     above by the kill gate).
+        rec = llm_output.get("overall_recommendation")
+        llm_value = rec.get("value") if isinstance(rec, dict) else rec
+        clamped_to, clamp_record = abstention_lower_bound_clamp(llm_value)
+        if clamped_to is not None:
+            recommendation_gate["lower_bound_clamp"] = clamp_record
+            if isinstance(rec, dict):
+                rec["value"] = clamped_to
+                rec["_gated"] = True  # rule-bounded, not free LLM choice
+                rec["_lower_bound_clamped"] = True
+            else:
+                llm_output["overall_recommendation"] = {"value": clamped_to, "_source": "abstention_lower_bound"}
+            print(
+                f"[target-profile] recommendation LOWER-BOUND clamp: LLM '{llm_value}' → "
+                f"'{clamped_to}' (gate abstained — no veto/hold rule fired)",
+                file=sys.stderr,
+            )
+        # (b) the positive tier may raise a deterministic confidence FLOOR. F1-safe: this branch is
+        #     unreachable when a kill fired; it touches ONLY `confidence`, never forces nominate.
         tier, pos_hits = _positive_tier(sub_results, modality=args.modality)
         confidence_tier = {"tier": tier, "hits": pos_hits}
         if tier:

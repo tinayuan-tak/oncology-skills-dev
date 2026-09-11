@@ -1798,12 +1798,13 @@ def build_target_call(
     gate_scorecard→`gate_scorecard`) and are NO LONGER emitted as top-level nomination keys — this retires
     the #932 dual-exposure scaffold, giving one canonical home. VERDICT-INERT: it recomputes nothing.
 
-    ⚠ recommendation VALUE ownership is CONDITIONAL, not absolute (known one-sided-clamp defect, found
-    2026-09-11): when a rule fires (`gate.fired == true`) the gate FORCES the value and owns it; when
-    the gate ABSTAINS the value is the LLM's, unclamped below — the gate owns nothing and
-    `deciding_axis.basis` reads `abstention_coverage_gaps`. The approved fix collapses an abstention
-    negative with no fired rule to `insufficient_evidence`. Until it lands, read `rec_val` as
-    rule-authoritative only when `gate.fired`. Adds two things no single spine object carries: the
+    recommendation VALUE clamp is now TWO-SIDED (the one-sided-clamp defect found 2026-09-11 is fixed):
+    when a veto/hold rule fires (`gate.fired == true`) the gate FORCES the value; when the gate ABSTAINS,
+    an LLM-authored NEGATIVE (veto/hold) is clamped to `insufficient_evidence` by the lower-bound guard
+    (run.py else-branch → tp_gates.abstention_lower_bound_clamp; recorded as `gate.lower_bound_clamp`),
+    so a negative recommendation always has a rule (or the honest abstention floor) behind it. The only
+    value the LLM still owns outright is a `nominate` on abstention — bounded ABOVE by the kill gate,
+    the intended one-directional optimism band. Adds two things no single spine object carries: the
     recommendation VALUE, and a `dissent` block naming where independent signals disagree with the
     gate (the honest 'why not higher / why not lower')."""
     rg = recommendation_gate or {}
@@ -1836,7 +1837,7 @@ def build_target_call(
         )
     return {
         "schema": "target_call.v1",
-        "recommendation": rec_val,  # gate-forced when gate.fired; else the LLM's value (see ⚠ in docstring)
+        "recommendation": rec_val,  # gate-forced when gate.fired; on abstention a negative is clamped to insufficient (LLM owns only an abstention nominate)
         "gate": rg,  # ← recommendation_gate (owns the value ONLY when gate.fired; abstention → LLM's)
         "confidence": confidence_tier,  # ← confidence_tier
         "deciding_axis": deciding_axis,  # ← deciding_axis

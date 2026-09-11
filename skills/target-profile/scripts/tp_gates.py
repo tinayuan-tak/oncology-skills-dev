@@ -674,6 +674,36 @@ def _gate_recommendation(
     return forced, hits, suppressions
 
 
+# The LLM recommendations that are NEGATIVE calls — the ones a fired rule must back.
+_ABSTENTION_NEGATIVE_RECS = frozenset({"veto", "hold"})
+
+
+def abstention_lower_bound_clamp(llm_recommendation: Optional[str]) -> tuple[Optional[str], Optional[dict]]:
+    """The missing LOWER half of the recommendation clamp (2026-09-11). It is called ONLY on gate
+    ABSTENTION — the else-branch of `_gate_recommendation` firing — i.e. when NO veto/hold rule fired.
+
+    The gate clamp is one-DIRECTIONAL (never forces `nominate`) but was one-SIDED: on abstention it
+    left `overall_recommendation` = the LLM's value unbounded below, so the LLM could author a
+    `veto`/`hold` with no rule behind it and nothing in the audit spine to attribute it to (measured:
+    41 of 120 run artifacts published a recommendation the gate did not produce; 5 LLM-authored vetoes
+    on approved drugs). This restores the symmetry: just as a `nominate` requires a positive tier, a
+    NEGATIVE requires a fired veto/hold rule — absent one, the honest deterministic floor is
+    `insufficient_evidence` (the framework's own grammar for "we could not decide"). The LLM narrative
+    is untouched and still explains the concern; only the composed recommendation VALUE is clamped.
+
+    Returns (clamped_value_or_None, record_or_None). A None value means NO clamp — the caller leaves
+    the LLM value (a `nominate` or `insufficient_evidence` on abstention is not a negative and stands;
+    `nominate` remains bounded above by the existing kill gate). Pure + deterministic — unit-tested."""
+    if llm_recommendation in _ABSTENTION_NEGATIVE_RECS:
+        return "insufficient_evidence", {
+            "applied": True,
+            "llm_recommendation": llm_recommendation,
+            "clamped_to": "insufficient_evidence",
+            "reason": "gate abstained (no veto/hold rule fired); an LLM-authored negative is unbacked by the audit spine",
+        }
+    return None, None
+
+
 def _hard_gates_status(
     sub_results: dict,
     hits: list[dict],
@@ -1060,6 +1090,7 @@ __all__ = [
     "_SCORECARD_STATUS_ORDER",
     "_TIER_TO_CONFIDENCE",
     "_V2_GATE_LISTS",
+    "abstention_lower_bound_clamp",
     "_flatten_gate_coverage",
     "_gate_recommendation",
     "_gate_scorecard",

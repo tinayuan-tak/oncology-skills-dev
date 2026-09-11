@@ -148,6 +148,50 @@ def test_clamp_semantics_on_wrapped_output():
 
 
 # ---------------------------------------------------------------------------
+# Abstention LOWER-BOUND guard (2026-09-11) — the missing pessimism half of the clamp.
+# When the gate abstains (no veto/hold rule fired), an LLM-authored negative (veto/hold) has no rule
+# behind it and collapses to insufficient_evidence. Nominate/insufficient stand.
+# ---------------------------------------------------------------------------
+
+
+def test_abstention_lower_bound_clamps_veto_and_hold():
+    for neg in ("veto", "hold"):
+        clamped, record = tp.abstention_lower_bound_clamp(neg)
+        assert clamped == "insufficient_evidence"
+        assert record["applied"] is True and record["llm_recommendation"] == neg
+        assert record["clamped_to"] == "insufficient_evidence"
+
+
+def test_abstention_lower_bound_leaves_positive_and_insufficient():
+    # a nominate is not a negative → stands (still bounded ABOVE by the kill gate elsewhere);
+    # insufficient_evidence is already the floor; unknown/None → no clamp.
+    for keep in ("nominate", "insufficient_evidence", None, "something_else"):
+        clamped, record = tp.abstention_lower_bound_clamp(keep)
+        assert clamped is None and record is None
+
+
+def test_abstention_clamp_semantics_on_wrapped_output():
+    """Simulate run.py's else-branch clamp: with the gate abstaining, an LLM 'veto' becomes
+    insufficient_evidence, the wrapped {value,_source,...} shape is preserved, and the value is marked
+    _gated + _lower_bound_clamped (rule-bounded, not free LLM choice)."""
+    llm_output = {
+        "overall_recommendation": {"value": "veto", "_source": "llm_synthesized", "_model_id": "x", "_prompt_hash": "y"}
+    }
+    # no kill fired → the gate abstains
+    gate_action, _hits, _sup = tp._gate_recommendation(_sub("dependency", "concordant_dependent", "some-rule"))
+    assert not gate_action
+    rec = llm_output["overall_recommendation"]
+    clamped_to, clamp_record = tp.abstention_lower_bound_clamp(rec["value"])
+    # replicate the run.py clamp block
+    assert clamped_to == "insufficient_evidence"
+    rec["value"] = clamped_to
+    rec["_gated"] = True
+    rec["_lower_bound_clamped"] = True
+    assert llm_output["overall_recommendation"]["value"] == "insufficient_evidence"
+    assert clamp_record["llm_recommendation"] == "veto"  # original preserved for the audit record
+
+
+# ---------------------------------------------------------------------------
 # Verdict-affecting subtype tier (2026-07-17)
 # ---------------------------------------------------------------------------
 
