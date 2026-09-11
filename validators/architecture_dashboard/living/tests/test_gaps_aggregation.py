@@ -28,3 +28,27 @@ def test_validators_were_wired():
     # cards + resolvers are the two we most rely on; require a healthy subset overall.
     assert "validate_cards" in run and "validate_resolvers" in run, f"core validators missing: {run}"
     assert len(run) >= 6, f"expected >=6 validators wired, got {len(run)}: {run}"
+
+
+def test_placeholder_cards_are_not_also_counted_as_orphans():
+    """A DECLARED placeholder is unconsumed BECAUSE it is a placeholder — one backlog item, not two.
+
+    2026-09-11: orphan_card was an exact subset of placeholder_card (the same 9 cards), so the same
+    staging backlog was reported twice and, with its 8 PRODUCT_ID_UNRESOLVED warns, inflated the
+    gap total ~3x. The orphan WARN now means only what it says: nobody consumes this card and nobody
+    declared it staged.
+    """
+    items = load_committed().get("gaps", {}).get("items", [])
+    orphans = {r["component_id"] for r in items if r["gap_type"] == "orphan_card"}
+    placeholders = {r["component_id"] for r in items if r["gap_type"] == "placeholder_card"}
+    both = orphans & placeholders
+    assert not both, f"cards double-counted as orphan AND placeholder: {sorted(both)}"
+
+
+def test_orphan_and_placeholder_records_are_one_per_card():
+    """No card may emit two records of the same gap_type (a dedup regression would be invisible in
+    the tally test, which only checks that the summary matches the item list)."""
+    items = load_committed().get("gaps", {}).get("items", [])
+    for gt in ("orphan_card", "placeholder_card"):
+        ids = [r["component_id"] for r in items if r["gap_type"] == gt]
+        assert len(ids) == len(set(ids)), f"duplicate {gt} records: {sorted(ids)}"

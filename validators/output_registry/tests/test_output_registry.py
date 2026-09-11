@@ -97,3 +97,83 @@ def test_probe_card_fires_in_any_defaults_to_governed(tmp_path):
     card2 = probe.probe_card("b", tmp_path, tmp_path, live_ids=set(), fired_ids={"a"})
     assert card2["fires_in_real_package"] is False
     assert card2["fires_in_any_run"] is False
+
+
+# --- exploratory harvest: BOTH run shapes, and misses are counted -----------------------
+#
+# 2026-09-11: the harvest read only decision.json, which FOCUSED skills emit. COMPOSED
+# (target-profile) runs emit evidence_package.json and no decision.json, so all 10 published
+# composed runs contributed nothing and n_exploratory_only was 0 — which then made the
+# framework-health drift feed report 8 cards as never-firing that those runs had proven live.
+def _fake_s3(monkeypatch, files: dict[str, dict]):
+    """Stub `aws s3 cp <uri>/<name> <dst>`: files maps "<run-leaf>/<name>" -> json payload."""
+
+    class _R:
+        def __init__(self, rc):
+            self.returncode = rc
+
+    def run(cmd, capture_output=True, text=True):
+        src, dst = cmd[3], cmd[4]
+        leaf, name = src.rstrip("/").rsplit("/", 2)[-2:]
+        payload = files.get(f"{leaf}/{name}")
+        if payload is None:
+            return _R(1)
+        Path(dst).write_text(json.dumps(payload))
+        return _R(0)
+
+    monkeypatch.setattr(R.subprocess, "run", run)
+
+
+def _entry(leaf: str) -> dict:
+    return {"s3_uri": f"s3://b/skill-runs/skill/T-I/{leaf}", "s3_key": f"skill-runs/skill/T-I/{leaf}"}
+
+
+def test_exploratory_harvest_reads_focused_decision_json(monkeypatch):
+    _fake_s3(monkeypatch, {"r1/decision.json": {"run_health": {"cards_fired": ["a", "b"]}}})
+    fired, rep = R._exploratory_card_firings([_entry("r1")])
+    assert set(fired) == {"a", "b"}
+    assert rep["n_from_decision"] == 1 and rep["n_from_package"] == 0
+    assert rep["unreadable_runs"] == []
+
+
+def test_exploratory_harvest_falls_back_to_composed_evidence_package(monkeypatch):
+    """The regression under test: no decision.json, so the card set must come from the package
+    using the SAME fired-state predicate the governed side applies."""
+    _fake_s3(
+        monkeypatch,
+        {
+            "r1/evidence_package.json": {
+                "cards": [
+                    {"card_id": "immune-context", "validation_state": "pass"},
+                    {"card_id": "x", "validation_state": "passed_with_warnings"},
+                    {"card_id": "skipped", "validation_state": "fail"},
+                    {"card_id": "none-state", "validation_state": None},
+                ]
+            }
+        },
+    )
+    fired, rep = R._exploratory_card_firings([_entry("r1")])
+    assert set(fired) == {"immune-context", "x"}, "fail/None states must not count as fired"
+    assert rep["n_from_package"] == 1 and rep["n_from_decision"] == 0
+
+
+def test_exploratory_harvest_counts_unreadable_runs(monkeypatch):
+    """A blinded harvest must be VISIBLE. Silently contributing nothing is indistinguishable from
+    'these cards never fired' — which is the very claim this index is used to make."""
+    _fake_s3(monkeypatch, {})  # neither artifact fetchable (creds/layout change)
+    fired, rep = R._exploratory_card_firings([_entry("r1"), _entry("r2")])
+    assert fired == {}
+    assert rep["n_runs"] == 2
+    assert rep["unreadable_runs"] == ["r1", "r2"]
+
+
+def test_card_firings_surfaces_the_harvest_report(monkeypatch, tmp_path):
+    _write_pkg(tmp_path, "BRAF", "SKCM", [("gov-only", "pass")])
+    _fake_s3(
+        monkeypatch, {"r1/evidence_package.json": {"cards": [{"card_id": "exp-only", "validation_state": "pass"}]}}
+    )
+    cf = R._card_firings(str(tmp_path), [_entry("r1")])
+    assert cf["fired_card_ids_governed"] == ["gov-only"]
+    assert cf["fired_card_ids_any"] == ["exp-only", "gov-only"]
+    assert cf["n_exploratory_only"] == 1
+    assert cf["exploratory_harvest"]["n_from_package"] == 1

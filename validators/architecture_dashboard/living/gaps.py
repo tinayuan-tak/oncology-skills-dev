@@ -243,18 +243,27 @@ def _graph_gaps(graph: dict) -> list:
     # health card flags: orphan / placeholder / broken
     for cid, c in (H.get("cards") or {}).items():
         ch = c.get("card_health")
-        if c.get("is_orphan"):
+        is_placeholder = ch in ("placeholder", "blocked")
+        # A DECLARED placeholder is unconsumed BECAUSE it is a placeholder — the two facts are one
+        # backlog item, not two gaps. Emitting both double-counted the same 9 cards (2026-09-11:
+        # orphan_card was an exact subset of placeholder_card), inflating the warn total and burying
+        # the orphans that are genuinely unexplained. Fold the orphan fact into the placeholder
+        # record and reserve the orphan WARN for a card nobody consumes and nobody declared staged.
+        if c.get("is_orphan") and not is_placeholder:
             records.append(
                 _rec("warn", "orphan_card", "card", cid, "card on disk but no skill consumes it", "framework_health")
             )
-        if ch in ("placeholder", "blocked"):
+        if is_placeholder:
+            reason = c.get("reason_text") or f"card health = {ch}"
+            if c.get("is_orphan"):
+                reason = f"{reason} (also unconsumed by any skill — expected while staged)"
             records.append(
                 _rec(
                     "info",
                     "placeholder_card",
                     "card",
                     cid,
-                    c.get("reason_text") or f"card health = {ch}",
+                    reason,
                     "framework_health",
                     code=f"card_{ch}",
                 )

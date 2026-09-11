@@ -551,6 +551,98 @@ def _data_catalog_manifest_ids() -> Optional[set[str]]:
 
 
 @functools.lru_cache(maxsize=1)
+def _manifest_declared_product_ids() -> set[str]:
+    """The Analysis-Product ids that data-catalog manifests declare via their own `product_id:` field.
+
+    A third legitimate namespace, and one this check used to be blind to. A manifest id is
+    version-pinned (`depmap-predictability-26q1-v3`); a handful of DERIVED manifests additionally
+    declare which registered Analysis Product they are an instance of (`product_id:
+    depmap-predictability`), a field data-catalog's own manifest schema permits only on derived
+    manifests and cross-validates against its products registry. Cards naming one of those ids were
+    reported as unresolvable typos while the manifest sitting next to them declared exactly that
+    string (see `dependency-predictability` → depmap-predictability-26q1-v3.yaml).
+
+    This is NOT the "unversioned alias" namespace — a release-pinned SOURCE manifest cannot declare
+    `product_id:` at all (its schema branch forbids it), so an unversioned ref like
+    `gdc-pancohort-somatic` resolves via _manifest_id_release_stems() instead.
+
+    Read with a cheap line scan rather than a full yaml.safe_load of every manifest: 509 manifests
+    is seconds of parse time in a check that runs on every card.
+    """
+    manifests = _DATA_CATALOG_REPO / "manifests"
+    if not manifests.is_dir():
+        return set()
+    found: set[str] = set()
+    for p in manifests.glob("*/*.yaml"):
+        try:
+            text = p.read_text()
+        except OSError:
+            continue
+        for line in text.splitlines():
+            if line.startswith("product_id:"):
+                pid = line[len("product_id:") :].strip().strip("\"'")
+                if pid:
+                    found.add(pid)
+    return found
+
+
+# A trailing manifest-id token that encodes a version/release rather than the product's identity.
+# Observed forms across the ~509 catalogued manifests: -v1, -v25-1, -26q1-v3, -dr45-0, -19-0.
+_VERSION_TOKEN_RE = re.compile(r"^(v\d+[a-z]*|\d+|dr\d+|\d+q\d+)$")
+
+
+@functools.lru_cache(maxsize=1)
+def _manifest_id_release_stems() -> set[str]:
+    """Manifest ids with their trailing version/release tokens stripped.
+
+    The namespace an UNVERSIONED, release-pinned card ref lives in. A card that wants "whatever the
+    current release of this dataset is" must name the release-free stem and supply `release_pin`
+    separately — pinning both would freeze the card to one release, which is precisely what
+    `mutation-hotspot-frequency` (`gdc-pancohort-somatic` + `release_pin: {release_pin}`) and
+    `lineage-restriction-evidence` (`hpa-normal-tissue-expression`) are avoiding. The catalog has no
+    field for this: `product_id:` means "instance of a registered Analysis Product" and is allowed
+    only on derived manifests, so the stem must be derived here from the manifest ids themselves.
+
+    Consulted ONLY for entries that carry a `release_pin` (see the caller). That restriction is what
+    keeps this from degenerating into prefix matching: an id may resolve to a stem only when the card
+    has explicitly said "the release is supplied elsewhere". A bare `hpa-normal-tissue-expression`
+    with no release_pin still warns, because nothing then pins it to a real artifact.
+    """
+    manifests = _data_catalog_manifest_ids()
+    if manifests is None:
+        return set()
+    stems: set[str] = set()
+    for mid in manifests:
+        parts = mid.split("-")
+        while len(parts) > 1 and _VERSION_TOKEN_RE.match(parts[-1]):
+            parts.pop()
+        stem = "-".join(parts)
+        if stem != mid:  # only ids that actually carried a version suffix contribute a stem
+            stems.add(stem)
+    return stems
+
+
+@functools.lru_cache(maxsize=1)
+def _catalog_class_input_ids() -> set[str]:
+    """Non-manifest data-catalog inputs a card may legitimately require.
+
+    `subgroup-catalog` is not a dataset and never had a manifest — it is the per-indication registry
+    at `data-catalog/subgroup-catalogs/<IND>/*.yaml` that the subgroup-stratified cards join against
+    to learn which strata exist. Six cards name it; all six fired in the 2026-09-11 panel. Resolved
+    against the directory actually being present, so this stays a real referential check (delete the
+    catalogs and the six warns come back) rather than a hardcoded allowlist.
+    """
+    ok: set[str] = set()
+    if (_DATA_CATALOG_REPO / "subgroup-catalogs").is_dir():
+        ok.add("subgroup-catalog")
+    # target-identity-summary requires the target-id resolver RELEASE — a versioned artifact of the
+    # data-catalog library at libs/target_id_resolver, not a dataset manifest.
+    if (_DATA_CATALOG_REPO / "libs" / "target_id_resolver").is_dir():
+        ok.add("target-id-resolver-release")
+    return ok
+
+
+@functools.lru_cache(maxsize=1)
 def _registered_product_ids() -> set[str]:
     """The product ids registered in vocabularies/products.yaml (the ~25-entry dimension-product
     registry). Empty set if the file is absent/malformed."""
@@ -570,32 +662,58 @@ def _registered_product_ids() -> set[str]:
 def _required_inputs_product_id_check(spec: dict, report: ValidationReport) -> None:
     """Referential integrity for required_inputs[].product_id (2026-09-06).
 
-    A product_id must resolve to EITHER a data-catalog manifest id OR a registered products.yaml
-    product id — the two legitimate namespaces. Template placeholders (containing '{') are skipped.
-    WARNING (not error): a typo'd / renamed / truncated manifest ref (e.g. `depmap-predictability`
-    for the real `depmap-predictability-26q1-v2`) or a reference to an un-materialized product is
-    otherwise silently undetectable in-repo — downstream the reader returns _live_read_error and the
-    verdict degrades to `insufficient` with no failing check. GRACEFUL-SKIP when the sibling
-    data-catalog is absent (checkout-only CI): without the manifest list a valid manifest id can't be
-    distinguished from a typo, so the check runs at preland / on a siblings-present runner and never
-    false-fails in isolation."""
+    A product_id must resolve to one of FIVE legitimate namespaces:
+      1. a data-catalog manifest id                    (`gdc-pancohort-somatic-dr45-0`)
+      2. a manifest's declared Analysis-Product id      (`depmap-predictability`)
+      3. a vocabularies/products.yaml product id        (the ~25-entry dimension-product registry)
+      4. a non-manifest catalog input                   (`subgroup-catalog`, `target-id-resolver-release`)
+      5. a release-stripped manifest-id stem, and ONLY when the entry supplies a `release_pin`
+                                                        (`gdc-pancohort-somatic` + release_pin)
+    Template placeholders (containing '{') are skipped.
+
+    Namespaces 2, 4 and 5 were added 2026-09-11 after an audit found 12 of 17 warns were false: the
+    check knew only (1) and (3), so it flagged cards whose product_id was declared verbatim by a
+    manifest, every card requiring the subgroup catalog, and every card correctly naming a logical
+    dataset with the release supplied separately. What remains flagged is real — un-materialized
+    products with no catalog record anywhere.
+
+    WARNING (not error): a typo'd / renamed / truncated manifest ref or a reference to an
+    un-materialized product is otherwise silently undetectable in-repo.
+
+    NOTE the consequence is provenance, not read failure. `required_inputs[].product_id` is copied
+    verbatim into a run's `provenance.input_manifest_ids` by _skills_common.card_input_manifest_ids
+    and is NOT used to route the read — a card can name an unresolvable id and still fire (verified:
+    mutation-hotspot-frequency names `gdc-pancohort-somatic`, validation_state=pass). So the cost of
+    an unresolved ref is a published audit trail that does not lead to the data, plus dropping out of
+    the envelope's data-family release resolution. An earlier version of this message claimed the
+    reader would return _live_read_error and degrade the verdict to insufficient; that was wrong.
+
+    GRACEFUL-SKIP when the sibling data-catalog is absent (checkout-only CI): without the manifest
+    list a valid manifest id can't be distinguished from a typo, so the check runs at preland / on a
+    siblings-present runner and never false-fails in isolation."""
     manifest_ids = _data_catalog_manifest_ids()
     if manifest_ids is None:
         return  # data-catalog sibling absent → cannot resolve manifest ids; skip (never false-fail)
-    known = manifest_ids | _registered_product_ids()
+    known = manifest_ids | _manifest_declared_product_ids() | _registered_product_ids() | _catalog_class_input_ids()
     for i, ri in enumerate(spec.get("required_inputs", []) or []):
         if not isinstance(ri, dict):
             continue
         pid = ri.get("product_id")
         if not isinstance(pid, str) or not pid or "{" in pid:
             continue  # missing/templated product_ids are handled by structural + compose-time checks
-        if pid not in known:
-            report.add_warning(
-                f"PRODUCT_ID_UNRESOLVED [required_inputs[{i}]]: product_id {pid!r} matches no "
-                f"data-catalog manifest id and no vocabularies/products.yaml product id — a "
-                f"typo/renamed/truncated manifest ref or an un-materialized product. A reader will "
-                f"return _live_read_error and the verdict will silently degrade to insufficient."
-            )
+        if pid in known:
+            continue
+        # Namespace 5, gated on the entry pinning its own release (see _manifest_id_release_stems).
+        if ri.get("release_pin") and pid in _manifest_id_release_stems():
+            continue
+        report.add_warning(
+            f"PRODUCT_ID_UNRESOLVED [required_inputs[{i}]]: product_id {pid!r} matches no "
+            f"data-catalog manifest id, no manifest-declared Analysis-Product id, no "
+            f"vocabularies/products.yaml product id, no catalog-class input and no "
+            f"release-stripped manifest stem — a typo/renamed/truncated ref or an un-materialized "
+            f"product. The card can still fire, but the id is published into run provenance where "
+            f"it resolves to nothing."
+        )
 
 
 def _composed_card_semantics_check(spec: dict, report: ValidationReport) -> None:

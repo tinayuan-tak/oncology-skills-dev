@@ -1,23 +1,23 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-09-11T17:23:57.294350+00:00",
+  "generated_at": "2026-09-11T18:44:58.072065+00:00",
   "roots": {
-    "contracts": "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
+    "contracts": "/tmp/wt/tc-health-honesty",
     "skills": "/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills",
     "methods": "/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods",
     "products": "/home/sagemaker-user/rnd-computational-biology-oncology-data-products",
     "catalog": "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"
   },
   "root_shas": {
-    "contracts": "6cfa81b",
-    "skills": "ba95ab6",
+    "contracts": "aa7c8c4",
+    "skills": "79400a3",
     "methods": "1977738",
-    "products": "7a3d852",
+    "products": "b45b9b2",
     "catalog": "7981965"
   },
   "delta": {
     "has_prior": true,
-    "prior_generated_at": "2026-09-11T17:07:13.804472+00:00",
+    "prior_generated_at": "2026-09-11T18:32:26.075598+00:00",
     "n_skills": 0,
     "n_cards": 0,
     "n_drift_flags": 0,
@@ -41,12 +41,12 @@
     },
     "n_runs_clean": 15,
     "n_runs_clean_error": 0,
-    "n_drift_flags": 6,
+    "n_drift_flags": 1,
     "n_error_drift": 0,
     "n_unregistered_skills": 0,
     "n_live_reader_cards": 63,
     "n_cards_firing_in_real_packages": 101,
-    "n_cards_firing_in_any_run": 101,
+    "n_cards_firing_in_any_run": 133,
     "n_cards": 148,
     "card_health_tally": {
       "live": 101,
@@ -313,7 +313,7 @@
           "method_has_read": true,
           "stale_method_label": false,
           "fires_in_real_package": false,
-          "fires_in_any_run": false,
+          "fires_in_any_run": true,
           "datasets": [
             {
               "product_id": "depmap-isoform-expression-per-gene-v1",
@@ -412,7 +412,7 @@
           "method_has_read": true,
           "stale_method_label": false,
           "fires_in_real_package": false,
-          "fires_in_any_run": false,
+          "fires_in_any_run": true,
           "datasets": [
             {
               "product_id": "depmap-consortium-26q1",
@@ -629,7 +629,7 @@
           "method_has_read": true,
           "stale_method_label": false,
           "fires_in_real_package": false,
-          "fires_in_any_run": false,
+          "fires_in_any_run": true,
           "datasets": [
             {
               "product_id": "sanger-drug-combination-synergy-per-target-v1",
@@ -693,7 +693,7 @@
           "method_has_read": true,
           "stale_method_label": false,
           "fires_in_real_package": false,
-          "fires_in_any_run": false,
+          "fires_in_any_run": true,
           "datasets": [
             {
               "product_id": "dede-paralog-genetic-interaction-per-pair-v1",
@@ -784,13 +784,7 @@
       "n_cards_live": 4,
       "n_p4_required": 5,
       "n_p4_declared": 5,
-      "drift_flags": [
-        {
-          "code": "card_registered_never_fires",
-          "severity": "info",
-          "detail": "consumed card(s) have a live reader but never fired in a real package: cross-consortium-paralog-gi"
-        }
-      ],
+      "drift_flags": [],
       "health_verdict": "partial",
       "health_reason": "skill-partial-declared",
       "reason_text": "declared partial and no stronger signal overrides it",
@@ -951,7 +945,7 @@
           "method_has_read": true,
           "stale_method_label": false,
           "fires_in_real_package": false,
-          "fires_in_any_run": false,
+          "fires_in_any_run": true,
           "datasets": [
             {
               "product_id": "aact-oncology-trial-precedent-per-condition-intervention-v1",
@@ -1015,7 +1009,7 @@
           "method_has_read": true,
           "stale_method_label": false,
           "fires_in_real_package": false,
-          "fires_in_any_run": false,
+          "fires_in_any_run": true,
           "datasets": [
             {
               "product_id": "opentargets-target-competitor-drugs-per-gene-v1",
@@ -1869,7 +1863,7 @@
           "method_has_read": true,
           "stale_method_label": false,
           "fires_in_real_package": false,
-          "fires_in_any_run": false,
+          "fires_in_any_run": true,
           "datasets": [
             {
               "product_id": "depmap-consortium-26q1",
@@ -2664,7 +2658,7 @@
           "method_has_read": true,
           "stale_method_label": false,
           "fires_in_real_package": false,
-          "fires_in_any_run": false,
+          "fires_in_any_run": true,
           "datasets": [
             {
               "product_id": "depmap-somatic-splice-variants-v1",
@@ -2772,7 +2766,7 @@
           "method_has_read": true,
           "stale_method_label": false,
           "fires_in_real_package": false,
-          "fires_in_any_run": false,
+          "fires_in_any_run": true,
           "datasets": [
             {
               "product_id": "gdc-pancohort-somatic",
@@ -2836,7 +2830,7 @@
           "method_has_read": true,
           "stale_method_label": false,
           "fires_in_real_package": false,
-          "fires_in_any_run": false,
+          "fires_in_any_run": true,
           "datasets": [
             {
               "product_id": "tcga-spliceseq-psi-per-gene-v1",
@@ -2865,7 +2859,7 @@
           "method_has_read": true,
           "stale_method_label": false,
           "fires_in_real_package": false,
-          "fires_in_any_run": false,
+          "fires_in_any_run": true,
           "datasets": [
             {
               "product_id": "mavedb-variant-effect-per-gene-v1",
@@ -2915,13 +2909,7 @@
       "n_cards_live": 20,
       "n_p4_required": 13,
       "n_p4_declared": 13,
-      "drift_flags": [
-        {
-          "code": "card_registered_never_fires",
-          "severity": "info",
-          "detail": "consumed card(s) have a live reader but never fired in a real package: splice-exon-skip-landscape"
-        }
-      ],
+      "drift_flags": [],
       "health_verdict": "production_ready",
       "health_reason": "skill-production-ready",
       "reason_text": "wired + tested, and \u22651 core card has fired in a real package (proven end-to-end)",
@@ -2999,7 +2987,7 @@
           "method_has_read": true,
           "stale_method_label": false,
           "fires_in_real_package": false,
-          "fires_in_any_run": false,
+          "fires_in_any_run": true,
           "datasets": [
             {
               "product_id": "sc-pseudobulk-caf-luo-pancancer-v1",
@@ -3088,7 +3076,7 @@
           "method_has_read": true,
           "stale_method_label": false,
           "fires_in_real_package": false,
-          "fires_in_any_run": false,
+          "fires_in_any_run": true,
           "datasets": [
             {
               "product_id": "gdc-pancanatlas-immune-2018",
@@ -3119,7 +3107,7 @@
           "method_has_read": true,
           "stale_method_label": false,
           "fires_in_real_package": false,
-          "fires_in_any_run": false,
+          "fires_in_any_run": true,
           "datasets": [
             {
               "product_id": "sc-pseudobulk-myeloid-cheng-v1",
@@ -3235,7 +3223,7 @@
           "method_has_read": true,
           "stale_method_label": false,
           "fires_in_real_package": false,
-          "fires_in_any_run": false,
+          "fires_in_any_run": true,
           "datasets": [
             {
               "product_id": "tcga-til-fraction-saltz-per-sample-v1",
@@ -3258,13 +3246,7 @@
       "n_cards_live": 1,
       "n_p4_required": 4,
       "n_p4_declared": 4,
-      "drift_flags": [
-        {
-          "code": "card_registered_never_fires",
-          "severity": "info",
-          "detail": "consumed card(s) have a live reader but never fired in a real package: immune-context"
-        }
-      ],
+      "drift_flags": [],
       "health_verdict": "partial",
       "health_reason": "skill-partial-core-gap",
       "reason_text": "a verdict-driving (core) card is placeholder/blocked/broken",
@@ -3334,7 +3316,7 @@
           "method_has_read": true,
           "stale_method_label": false,
           "fires_in_real_package": false,
-          "fires_in_any_run": false,
+          "fires_in_any_run": true,
           "datasets": [
             {
               "product_id": "opentargets-europepmc-evidence-per-target-v1",
@@ -3880,7 +3862,7 @@
           "method_has_read": true,
           "stale_method_label": false,
           "fires_in_real_package": false,
-          "fires_in_any_run": false,
+          "fires_in_any_run": true,
           "datasets": [
             {
               "product_id": "opentargets-26-06",
@@ -4126,7 +4108,7 @@
           "method_has_read": true,
           "stale_method_label": false,
           "fires_in_real_package": false,
-          "fires_in_any_run": false,
+          "fires_in_any_run": true,
           "datasets": [
             {
               "product_id": "normal-tissue-protein-abundance-per-gene-v1",
@@ -4158,7 +4140,7 @@
           "method_has_read": true,
           "stale_method_label": false,
           "fires_in_real_package": false,
-          "fires_in_any_run": false,
+          "fires_in_any_run": true,
           "datasets": [
             {
               "product_id": "onsides-adverse-event-per-gene-v1",
@@ -4219,7 +4201,7 @@
           "method_has_read": true,
           "stale_method_label": false,
           "fires_in_real_package": false,
-          "fires_in_any_run": false,
+          "fires_in_any_run": true,
           "datasets": [
             {
               "product_id": "shet-selection-per-gene-v1",
@@ -4724,7 +4706,7 @@
           "method_has_read": true,
           "stale_method_label": false,
           "fires_in_real_package": false,
-          "fires_in_any_run": false,
+          "fires_in_any_run": true,
           "datasets": [
             {
               "product_id": "iedb-epitope-mhc-per-protein-v1",
@@ -5180,7 +5162,7 @@
           "method_has_read": true,
           "stale_method_label": false,
           "fires_in_real_package": false,
-          "fires_in_any_run": false,
+          "fires_in_any_run": true,
           "datasets": [
             {
               "product_id": "bispecific-bulk-pair-selectivity-per-indication-v1",
@@ -5213,7 +5195,7 @@
           "method_has_read": true,
           "stale_method_label": false,
           "fires_in_real_package": false,
-          "fires_in_any_run": false,
+          "fires_in_any_run": true,
           "datasets": [
             {
               "product_id": "sc-samecell-coexpr-crc-coadread-v1",
@@ -5333,7 +5315,7 @@
           "method_has_read": true,
           "stale_method_label": false,
           "fires_in_real_package": false,
-          "fires_in_any_run": false,
+          "fires_in_any_run": true,
           "datasets": [
             {
               "product_id": "surfaceome-cohort-ranking-per-indication-v1",
@@ -5467,13 +5449,7 @@
       "n_cards_live": 20,
       "n_p4_required": 23,
       "n_p4_declared": 23,
-      "drift_flags": [
-        {
-          "code": "card_registered_never_fires",
-          "severity": "info",
-          "detail": "consumed card(s) have a live reader but never fired in a real package: surface-bulk-pair-selectivity, surface-colocalization-avidity"
-        }
-      ],
+      "drift_flags": [],
       "health_verdict": "partial",
       "health_reason": "skill-partial-core-gap",
       "reason_text": "a verdict-driving (core) card is placeholder/blocked/broken",
@@ -7311,7 +7287,7 @@
           "method_has_read": true,
           "stale_method_label": false,
           "fires_in_real_package": false,
-          "fires_in_any_run": false,
+          "fires_in_any_run": true,
           "datasets": [
             {
               "product_id": "depmap-consortium-26q1",
@@ -7349,7 +7325,7 @@
           "method_has_read": true,
           "stale_method_label": false,
           "fires_in_real_package": false,
-          "fires_in_any_run": false,
+          "fires_in_any_run": true,
           "datasets": [
             {
               "product_id": "gdc-pancohort-somatic",
@@ -7776,7 +7752,7 @@
           "method_has_read": true,
           "stale_method_label": false,
           "fires_in_real_package": false,
-          "fires_in_any_run": false,
+          "fires_in_any_run": true,
           "datasets": [
             {
               "product_id": "gdsc-drug-activity-per-gene-v1",
@@ -8115,7 +8091,7 @@
           "method_has_read": true,
           "stale_method_label": false,
           "fires_in_real_package": false,
-          "fires_in_any_run": false,
+          "fires_in_any_run": true,
           "datasets": [
             {
               "product_id": "hcmi-genotype-matched-model-per-gene-v1",
@@ -8144,7 +8120,7 @@
           "method_has_read": true,
           "stale_method_label": false,
           "fires_in_real_package": false,
-          "fires_in_any_run": false,
+          "fires_in_any_run": true,
           "datasets": [
             {
               "product_id": "hcmi-model-availability-per-indication-v1",
@@ -8173,7 +8149,7 @@
           "method_has_read": true,
           "stale_method_label": false,
           "fires_in_real_package": false,
-          "fires_in_any_run": false,
+          "fires_in_any_run": true,
           "datasets": [
             {
               "product_id": "pdxe-drug-response-per-gene-v1",
@@ -8330,7 +8306,7 @@
           "method_has_read": true,
           "stale_method_label": false,
           "fires_in_real_package": false,
-          "fires_in_any_run": false,
+          "fires_in_any_run": true,
           "datasets": [
             {
               "product_id": "procan-cellline-protein-abundance-per-protein-v1",
@@ -8517,7 +8493,7 @@
           "method_has_read": true,
           "stale_method_label": false,
           "fires_in_real_package": false,
-          "fires_in_any_run": false,
+          "fires_in_any_run": true,
           "datasets": [
             {
               "product_id": "hpa-pathology-cancer-ihc-per-gene-v1",
@@ -8829,7 +8805,7 @@
           "method_has_read": true,
           "stale_method_label": false,
           "fires_in_real_package": false,
-          "fires_in_any_run": false,
+          "fires_in_any_run": true,
           "datasets": [
             {
               "product_id": "cptac-protein-tumor-vs-normal-per-sample-v1",
@@ -9059,13 +9035,7 @@
       "n_cards_live": 14,
       "n_p4_required": 11,
       "n_p4_declared": 11,
-      "drift_flags": [
-        {
-          "code": "card_registered_never_fires",
-          "severity": "info",
-          "detail": "consumed card(s) have a live reader but never fired in a real package: tumor-protein-distribution-by-subtype"
-        }
-      ],
+      "drift_flags": [],
       "health_verdict": "production_ready",
       "health_reason": "skill-production-ready",
       "reason_text": "wired + tested, and \u22651 core card has fired in a real package (proven end-to-end)",
@@ -9236,7 +9206,7 @@
           "method_has_read": true,
           "stale_method_label": false,
           "fires_in_real_package": false,
-          "fires_in_any_run": false,
+          "fires_in_any_run": true,
           "datasets": [
             {
               "product_id": "normal-tissue-protein-abundance-per-gene-v1",
@@ -9827,7 +9797,7 @@
           "method_has_read": true,
           "stale_method_label": false,
           "fires_in_real_package": false,
-          "fires_in_any_run": false,
+          "fires_in_any_run": true,
           "datasets": [
             {
               "product_id": "tphp-tumor-vs-normal-protein-per-cohort-v1",
@@ -9899,7 +9869,7 @@
         {
           "code": "card_registered_never_fires",
           "severity": "info",
-          "detail": "consumed card(s) have a live reader but never fired in a real package: spatial-surface-protein-abundance, tumor-vs-normal-percentile-crossing-by-subtype"
+          "detail": "consumed card(s) have a live reader but never fired in any real run (governed or exploratory): spatial-surface-protein-abundance, tumor-vs-normal-percentile-crossing-by-subtype"
         }
       ],
       "health_verdict": "production_ready",
@@ -10273,7 +10243,7 @@
       "method_has_read": true,
       "stale_method_label": false,
       "fires_in_real_package": false,
-      "fires_in_any_run": false,
+      "fires_in_any_run": true,
       "datasets": [
         {
           "product_id": "sc-pseudobulk-caf-luo-pancancer-v1",
@@ -10353,7 +10323,7 @@
       "method_has_read": true,
       "stale_method_label": false,
       "fires_in_real_package": false,
-      "fires_in_any_run": false,
+      "fires_in_any_run": true,
       "datasets": [
         {
           "product_id": "depmap-isoform-expression-per-gene-v1",
@@ -10481,7 +10451,7 @@
       "method_has_read": true,
       "stale_method_label": false,
       "fires_in_real_package": false,
-      "fires_in_any_run": false,
+      "fires_in_any_run": true,
       "datasets": [
         {
           "product_id": "procan-cellline-protein-abundance-per-protein-v1",
@@ -10710,7 +10680,7 @@
       "method_has_read": true,
       "stale_method_label": false,
       "fires_in_real_package": false,
-      "fires_in_any_run": false,
+      "fires_in_any_run": true,
       "datasets": [
         {
           "product_id": "depmap-consortium-26q1",
@@ -10757,7 +10727,7 @@
       "method_has_read": true,
       "stale_method_label": false,
       "fires_in_real_package": false,
-      "fires_in_any_run": false,
+      "fires_in_any_run": true,
       "datasets": [
         {
           "product_id": "opentargets-europepmc-evidence-per-target-v1",
@@ -10840,7 +10810,7 @@
       "method_has_read": true,
       "stale_method_label": false,
       "fires_in_real_package": false,
-      "fires_in_any_run": false,
+      "fires_in_any_run": true,
       "datasets": [
         {
           "product_id": "aact-oncology-trial-precedent-per-condition-intervention-v1",
@@ -11048,7 +11018,7 @@
       "method_has_read": true,
       "stale_method_label": false,
       "fires_in_real_package": false,
-      "fires_in_any_run": false,
+      "fires_in_any_run": true,
       "datasets": [
         {
           "product_id": "sanger-drug-combination-synergy-per-target-v1",
@@ -11130,7 +11100,7 @@
       "method_has_read": true,
       "stale_method_label": false,
       "fires_in_real_package": false,
-      "fires_in_any_run": false,
+      "fires_in_any_run": true,
       "datasets": [
         {
           "product_id": "opentargets-target-competitor-drugs-per-gene-v1",
@@ -11353,7 +11323,7 @@
       "method_has_read": true,
       "stale_method_label": false,
       "fires_in_real_package": false,
-      "fires_in_any_run": false,
+      "fires_in_any_run": true,
       "datasets": [
         {
           "product_id": "dede-paralog-genetic-interaction-per-pair-v1",
@@ -11621,7 +11591,7 @@
       "method_has_read": true,
       "stale_method_label": false,
       "fires_in_real_package": false,
-      "fires_in_any_run": false,
+      "fires_in_any_run": true,
       "datasets": [
         {
           "product_id": "opentargets-26-06",
@@ -11996,7 +11966,7 @@
       "method_has_read": true,
       "stale_method_label": false,
       "fires_in_real_package": false,
-      "fires_in_any_run": false,
+      "fires_in_any_run": true,
       "datasets": [
         {
           "product_id": "gdsc-drug-activity-per-gene-v1",
@@ -12252,7 +12222,7 @@
       "method_has_read": true,
       "stale_method_label": false,
       "fires_in_real_package": false,
-      "fires_in_any_run": false,
+      "fires_in_any_run": true,
       "datasets": [
         {
           "product_id": "hpa-pathology-cancer-ihc-per-gene-v1",
@@ -12374,7 +12344,7 @@
       "method_has_read": true,
       "stale_method_label": false,
       "fires_in_real_package": false,
-      "fires_in_any_run": false,
+      "fires_in_any_run": true,
       "datasets": [
         {
           "product_id": "gdc-pancanatlas-immune-2018",
@@ -12932,7 +12902,7 @@
       "method_has_read": true,
       "stale_method_label": false,
       "fires_in_real_package": false,
-      "fires_in_any_run": false,
+      "fires_in_any_run": true,
       "datasets": [
         {
           "product_id": "sc-pseudobulk-myeloid-cheng-v1",
@@ -13056,7 +13026,7 @@
       "method_has_read": true,
       "stale_method_label": false,
       "fires_in_real_package": false,
-      "fires_in_any_run": false,
+      "fires_in_any_run": true,
       "datasets": [
         {
           "product_id": "normal-tissue-protein-abundance-per-gene-v1",
@@ -13136,7 +13106,7 @@
       "method_has_read": true,
       "stale_method_label": false,
       "fires_in_real_package": false,
-      "fires_in_any_run": false,
+      "fires_in_any_run": true,
       "datasets": [
         {
           "product_id": "onsides-adverse-event-per-gene-v1",
@@ -13643,7 +13613,7 @@
       "method_has_read": true,
       "stale_method_label": false,
       "fires_in_real_package": false,
-      "fires_in_any_run": false,
+      "fires_in_any_run": true,
       "datasets": [
         {
           "product_id": "iedb-epitope-mhc-per-protein-v1",
@@ -14537,7 +14507,7 @@
       "method_has_read": true,
       "stale_method_label": false,
       "fires_in_real_package": false,
-      "fires_in_any_run": false,
+      "fires_in_any_run": true,
       "datasets": [
         {
           "product_id": "shet-selection-per-gene-v1",
@@ -14841,7 +14811,7 @@
       "method_has_read": true,
       "stale_method_label": false,
       "fires_in_real_package": false,
-      "fires_in_any_run": false,
+      "fires_in_any_run": true,
       "datasets": [
         {
           "product_id": "depmap-somatic-splice-variants-v1",
@@ -15020,7 +14990,7 @@
       "method_has_read": true,
       "stale_method_label": false,
       "fires_in_real_package": false,
-      "fires_in_any_run": false,
+      "fires_in_any_run": true,
       "datasets": [
         {
           "product_id": "depmap-consortium-26q1",
@@ -15161,7 +15131,7 @@
       "method_has_read": true,
       "stale_method_label": false,
       "fires_in_real_package": false,
-      "fires_in_any_run": false,
+      "fires_in_any_run": true,
       "datasets": [
         {
           "product_id": "gdc-pancohort-somatic",
@@ -15296,7 +15266,7 @@
       "method_has_read": true,
       "stale_method_label": false,
       "fires_in_real_package": false,
-      "fires_in_any_run": false,
+      "fires_in_any_run": true,
       "datasets": [
         {
           "product_id": "bispecific-bulk-pair-selectivity-per-indication-v1",
@@ -15338,7 +15308,7 @@
       "method_has_read": true,
       "stale_method_label": false,
       "fires_in_real_package": false,
-      "fires_in_any_run": false,
+      "fires_in_any_run": true,
       "datasets": [
         {
           "product_id": "sc-samecell-coexpr-crc-coadread-v1",
@@ -15481,7 +15451,7 @@
       "method_has_read": true,
       "stale_method_label": false,
       "fires_in_real_package": false,
-      "fires_in_any_run": false,
+      "fires_in_any_run": true,
       "datasets": [
         {
           "product_id": "surfaceome-cohort-ranking-per-indication-v1",
@@ -15721,7 +15691,7 @@
       "method_has_read": true,
       "stale_method_label": false,
       "fires_in_real_package": false,
-      "fires_in_any_run": false,
+      "fires_in_any_run": true,
       "datasets": [
         {
           "product_id": "hcmi-genotype-matched-model-per-gene-v1",
@@ -15801,7 +15771,7 @@
       "method_has_read": true,
       "stale_method_label": false,
       "fires_in_real_package": false,
-      "fires_in_any_run": false,
+      "fires_in_any_run": true,
       "datasets": [
         {
           "product_id": "hcmi-model-availability-per-indication-v1",
@@ -15839,7 +15809,7 @@
       "method_has_read": true,
       "stale_method_label": false,
       "fires_in_real_package": false,
-      "fires_in_any_run": false,
+      "fires_in_any_run": true,
       "datasets": [
         {
           "product_id": "pdxe-drug-response-per-gene-v1",
@@ -15916,7 +15886,7 @@
       "method_has_read": true,
       "stale_method_label": false,
       "fires_in_real_package": false,
-      "fires_in_any_run": false,
+      "fires_in_any_run": true,
       "datasets": [
         {
           "product_id": "tcga-til-fraction-saltz-per-sample-v1",
@@ -16086,7 +16056,7 @@
       "method_has_read": true,
       "stale_method_label": false,
       "fires_in_real_package": false,
-      "fires_in_any_run": false,
+      "fires_in_any_run": true,
       "datasets": [
         {
           "product_id": "cptac-protein-tumor-vs-normal-per-sample-v1",
@@ -16382,7 +16352,7 @@
       "method_has_read": true,
       "stale_method_label": false,
       "fires_in_real_package": false,
-      "fires_in_any_run": false,
+      "fires_in_any_run": true,
       "datasets": [
         {
           "product_id": "tcga-spliceseq-psi-per-gene-v1",
@@ -16520,7 +16490,7 @@
       "method_has_read": true,
       "stale_method_label": false,
       "fires_in_real_package": false,
-      "fires_in_any_run": false,
+      "fires_in_any_run": true,
       "datasets": [
         {
           "product_id": "tphp-tumor-vs-normal-protein-per-cohort-v1",
@@ -16618,7 +16588,7 @@
       "method_has_read": true,
       "stale_method_label": false,
       "fires_in_real_package": false,
-      "fires_in_any_run": false,
+      "fires_in_any_run": true,
       "datasets": [
         {
           "product_id": "mavedb-variant-effect-per-gene-v1",
@@ -30627,40 +30597,10 @@
   },
   "drift_index": [
     {
-      "skill": "combination-and-vulnerability",
-      "code": "card_registered_never_fires",
-      "severity": "info",
-      "detail": "consumed card(s) have a live reader but never fired in a real package: cross-consortium-paralog-gi"
-    },
-    {
-      "skill": "genomic-alteration-profile",
-      "code": "card_registered_never_fires",
-      "severity": "info",
-      "detail": "consumed card(s) have a live reader but never fired in a real package: splice-exon-skip-landscape"
-    },
-    {
-      "skill": "immune-context",
-      "code": "card_registered_never_fires",
-      "severity": "info",
-      "detail": "consumed card(s) have a live reader but never fired in a real package: immune-context"
-    },
-    {
-      "skill": "surface-modality-fit",
-      "code": "card_registered_never_fires",
-      "severity": "info",
-      "detail": "consumed card(s) have a live reader but never fired in a real package: surface-bulk-pair-selectivity, surface-colocalization-avidity"
-    },
-    {
-      "skill": "tumor-presence",
-      "code": "card_registered_never_fires",
-      "severity": "info",
-      "detail": "consumed card(s) have a live reader but never fired in a real package: tumor-protein-distribution-by-subtype"
-    },
-    {
       "skill": "tumor-selectivity",
       "code": "card_registered_never_fires",
       "severity": "info",
-      "detail": "consumed card(s) have a live reader but never fired in a real package: spatial-surface-protein-abundance, tumor-vs-normal-percentile-crossing-by-subtype"
+      "detail": "consumed card(s) have a live reader but never fired in any real run (governed or exploratory): spatial-surface-protein-abundance, tumor-vs-normal-percentile-crossing-by-subtype"
     }
   ]
 }

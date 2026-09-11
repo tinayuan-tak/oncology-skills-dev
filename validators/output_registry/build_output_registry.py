@@ -149,32 +149,74 @@ def _governed_card_firings(dp_root: str) -> dict[str, list[str]]:
     return dict(out)
 
 
-def _exploratory_card_firings(run_entries: list[dict]) -> dict[str, list[str]]:
-    """{card_id: [run_id, ...]} harvested from each run's decision.json run_health.cards_fired.
+def _exploratory_card_firings(run_entries: list[dict]) -> tuple[dict[str, list[str]], dict]:
+    """({card_id: [run_id, ...]}, harvest_report) from the published exploratory skill-runs.
 
-    Best-effort: reads decision.json alongside each run's s3_uri; a run that can't be read
-    (creds/absent) contributes nothing rather than failing the whole build.
+    TWO run shapes, because the two skill tiers emit different artifacts and reading only one of
+    them silently loses the other's entire card set (2026-09-11: every target-profile run was
+    invisible here, so `n_exploratory_only` was 0 across 10 composed runs and 8 cards proven live
+    in them were still reported as never-firing):
+
+      FOCUSED  skills → decision.json      → run_health.cards_fired  (an explicit card_id list)
+      COMPOSED skills → evidence_package.json → cards[].validation_state, the SAME predicate
+                        _governed_card_firings applies, so the two tiers stay comparable.
+
+    decision.json is tried first (cheap — tens of KB vs the ~1.3MB package) and the package is only
+    fetched when it is absent. Still best-effort per run, but the misses are now COUNTED and
+    returned: a credential or layout change that blinds the harvest used to look exactly like
+    "these cards never fired", which is the failure this function itself was reporting.
     """
     out: dict[str, list[str]] = defaultdict(list)
+    report = {"n_runs": 0, "n_from_decision": 0, "n_from_package": 0, "unreadable_runs": []}
+
+    def _fetch(uri: str, name: str, dst: Path) -> bool:
+        res = subprocess.run(
+            ["aws", "s3", "cp", uri.rstrip("/") + "/" + name, str(dst)], capture_output=True, text=True
+        )
+        return res.returncode == 0 and dst.exists()
+
     with tempfile.TemporaryDirectory() as td:
         for r in run_entries:
             uri = r.get("s3_uri")
             if not uri:
                 continue
+            report["n_runs"] += 1
             rid = (r.get("s3_key") or uri).rstrip("/").split("/")[-1]
-            dst = Path(td) / "d.json"
-            res = subprocess.run(
-                ["aws", "s3", "cp", uri.rstrip("/") + "/decision.json", str(dst)], capture_output=True, text=True
-            )
-            if res.returncode != 0 or not dst.exists():
+            fired: list[str] = []
+
+            dst = Path(td) / "decision.json"
+            dst.unlink(missing_ok=True)
+            if _fetch(uri, "decision.json", dst):
+                try:
+                    rh = json.loads(dst.read_text()).get("run_health") or {}
+                    fired = [c for c in (rh.get("cards_fired") or []) if c]
+                    report["n_from_decision"] += 1
+                except (OSError, json.JSONDecodeError):
+                    fired = []
+
+            if not fired:
+                dst = Path(td) / "evidence_package.json"
+                dst.unlink(missing_ok=True)
+                if _fetch(uri, "evidence_package.json", dst):
+                    try:
+                        pkg = json.loads(dst.read_text())
+                        fired = [
+                            c["card_id"]
+                            for c in (pkg.get("cards") or [])
+                            if c.get("validation_state") in _FIRED_STATES and c.get("card_id")
+                        ]
+                        report["n_from_package"] += 1
+                    except (OSError, json.JSONDecodeError):
+                        fired = []
+
+            if not fired:
+                report["unreadable_runs"].append(rid)
                 continue
-            try:
-                rh = json.loads(dst.read_text()).get("run_health") or {}
-            except Exception:
-                continue
-            for cid in rh.get("cards_fired") or []:
+            for cid in fired:
                 out[cid].append(rid)
-    return dict(out)
+
+    report["unreadable_runs"] = sorted(report["unreadable_runs"])
+    return dict(out), report
 
 
 def _card_firings(dp_root: str, run_entries: list[dict]) -> dict:
@@ -182,7 +224,7 @@ def _card_firings(dp_root: str, run_entries: list[dict]) -> dict:
     framework_health.probe.fired_card_ids consumes (governed subset = byte-stable vs its glob;
     the exploratory tier is additive liveness signal)."""
     gov = _governed_card_firings(dp_root)
-    exp = _exploratory_card_firings(run_entries)
+    exp, harvest = _exploratory_card_firings(run_entries)
     all_cards = sorted(set(gov) | set(exp))
     index = {
         c: {
@@ -199,6 +241,10 @@ def _card_firings(dp_root: str, run_entries: list[dict]) -> dict:
         "fired_card_ids_any": all_cards,  # governed ∪ exploratory (the merged signal)
         "n_governed": len(gov),
         "n_exploratory_only": len(set(exp) - set(gov)),
+        # Provenance for the exploratory half: how many runs were read, via which artifact, and
+        # which contributed nothing. A non-empty unreadable_runs means fired_card_ids_any is a
+        # LOWER BOUND, and the reader should not treat a card's absence here as evidence.
+        "exploratory_harvest": harvest,
     }
 
 

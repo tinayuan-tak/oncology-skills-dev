@@ -228,16 +228,28 @@ def compute_drift(skill: dict, cards: list[dict]) -> list[dict]:
     if der["has_entrypoint"] and dec.get("status") is None and der["kind"] not in ("PLACEHOLDER",):
         add("missing_status_field", "no machine-readable status: field in SKILL.md frontmatter")
 
-    # card registered in live map but never fires (info-level, surfaced per skill)
+    # card registered in live map but never fires ANYWHERE (info-level, surfaced per skill).
+    #
+    # Reads fires_in_any_run (governed packages UNION exploratory skill-runs), NOT the governed-only
+    # fires_in_real_package. The claim this flag makes is "has a reader but has never been shown to
+    # work end-to-end", and a single exploratory run that emits the card with validation_state=pass
+    # falsifies exactly that. Using the governed-only signal reported 8 cards as dead that were
+    # provably live in the 2026-09-11 panel (immune-context → immune_intermediate, surface-bulk-pair-
+    # selectivity → selective_but_broad_tissue_liability, ...), and whose interpretation rules appear
+    # in that run's fired-rule list. fires_in_real_package stays governed-only and byte-stable for
+    # the coverage/promotion accounting that legitimately means "concurrence-reviewed".
     never = [
         c["card_id"]
         for c in cards
-        if c.get("has_live_reader") and not c.get("fires_in_real_package") and c.get("card_health") != "broken"
+        if c.get("has_live_reader")
+        and not (c.get("fires_in_any_run") or c.get("fires_in_real_package"))
+        and c.get("card_health") != "broken"
     ]
     if never:
         add(
             "card_registered_never_fires",
-            f"consumed card(s) have a live reader but never fired in a real package: {', '.join(sorted(never))}",
+            f"consumed card(s) have a live reader but never fired in any real run "
+            f"(governed or exploratory): {', '.join(sorted(never))}",
         )
 
     # Stale methods.call label: the card claims a method the dispatcher does not import.

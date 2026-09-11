@@ -1219,6 +1219,42 @@ def test_card_registered_never_fires_is_the_surviving_liveness_flag():
     assert "card_registered_never_fires" not in {f["code"] for f in rollup.compute_drift(skill, fired)}
 
 
+def test_never_fires_flag_is_cleared_by_an_exploratory_run():
+    """The flag must read fires_in_any_run (governed UNION exploratory), not governed-only.
+
+    2026-09-11: reading fires_in_real_package alone reported 8 cards as never-firing across 6 skills
+    while the published panel showed them emitting real calls with validation_state=pass
+    (immune-context → immune_intermediate, surface-bulk-pair-selectivity →
+    selective_but_broad_tissue_liability) and their interpretation rules in the run's fired list. A
+    card proven live ANYWHERE is not "registered but never fires"; whether it has reached a
+    concurrence-reviewed package is a promotion question that fires_in_real_package still answers.
+    """
+    skill = {
+        "declared": {"status": "wired", "prose_markers": []},
+        "derived": {"kind": "FOCUSED", "has_entrypoint": True, "cards_in_runpy": []},
+    }
+    exploratory_only = [
+        {
+            "card_id": "immune-context",
+            "card_yaml_exists": True,
+            "has_live_reader": True,
+            "fires_in_real_package": False,  # never promoted to a governed package
+            "fires_in_any_run": True,  # but demonstrably works
+        }
+    ]
+    dead = [
+        {
+            "card_id": "immune-context",
+            "card_yaml_exists": True,
+            "has_live_reader": True,
+            "fires_in_real_package": False,
+            "fires_in_any_run": False,
+        }
+    ]
+    assert "card_registered_never_fires" not in {f["code"] for f in rollup.compute_drift(skill, exploratory_only)}
+    assert "card_registered_never_fires" in {f["code"] for f in rollup.compute_drift(skill, dead)}
+
+
 def test_self_check_catches_bad_spec_flag(tmp_path):
     rep = _minimal_report()
     rep["cards"] = [
