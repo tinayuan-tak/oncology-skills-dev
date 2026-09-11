@@ -24,6 +24,64 @@
       "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
       "uniqueItems": true
     },
+    "post_resolver_clamp": {
+      "type": "object",
+      "description": "OPTIONAL. DECLARATION (not executed by this interpreter) of the sub-skill's POST-RESOLVER Python clamp — the ONE place decision logic legitimately lives outside the rung ladder, because the clamp is conditioned on the resolver's OUTPUT verdict (it only downgrades an already-selective axis-A call), which a rung firing on the fired-set alone cannot express. Declared here so the clamp's rule_id -> verdict mapping and precedence are PR-reviewable in the contract with the SAME legibility the rungs have, closing the 'one hole in the declarative decision spine' (framework-architecture assessment, finding 6). The executor (e.g. skills/_skills_common/selectivity_veto.py) is kept in lockstep with this block by a skills-side guard test; every clamp verdict here must also appear in `clamp_verdicts`.",
+      "additionalProperties": false,
+      "required": ["module", "direction", "applies_to_input_verdicts", "precedence"],
+      "properties": {
+        "module": {
+          "type": "string",
+          "description": "Repo-relative path of the Python executor that applies this clamp (for traceability)."
+        },
+        "direction": {
+          "enum": ["downgrade_only"],
+          "description": "One-directional guarantee. `downgrade_only`: the clamp can only make a selective axis-A verdict MORE conservative, never upgrade; it is a NO-OP on any input verdict not in `applies_to_input_verdicts`."
+        },
+        "applies_to_input_verdicts": {
+          "type": "array",
+          "description": "The resolver-output verdicts the downgrade may act on (the guard). A fired veto rule is a NO-OP unless the current verdict is one of these — which is exactly why this cannot be a rung.",
+          "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "precedence": {
+          "type": "array",
+          "description": "ORDERED veto arms — first arm whose `when_fired` rule is in the fired set wins the clamp verdict + driving label (worst-case conjunction with explicit precedence). Every `verdict` here MUST also be listed in `clamp_verdicts`.",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["when_fired", "verdict"],
+            "properties": {
+              "when_fired": {"type": "string", "description": "The veto rule_id whose firing triggers this arm."},
+              "verdict": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$", "description": "The clamp verdict this arm mints (also in clamp_verdicts)."}
+            }
+          }
+        },
+        "upgrade": {
+          "type": "object",
+          "description": "OPTIONAL companion one-directional UPGRADE clamp, applied BEFORE the downgrade precedence (so the downgrade arms can still act on the upgraded verdict). Lifts a rescue-eligible input verdict to `verdict` iff EVERY requirement group has >=1 fired member.",
+          "additionalProperties": false,
+          "required": ["applies_to_input_verdicts", "requires", "verdict"],
+          "properties": {
+            "applies_to_input_verdicts": {
+              "type": "array",
+              "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "requires": {
+              "type": "array",
+              "description": "Conjunction of groups; each inner group is satisfied by ANY of its fired rule_ids (AND-of-ORs).",
+              "minItems": 1,
+              "items": {"type": "array", "items": {"type": "string"}, "minItems": 1}
+            },
+            "verdict": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"}
+          }
+        }
+      }
+    },
     "resolve": {
       "type": "array",
       "description": "ORDERED precedence ladder — first matching rung wins (the precedence, now visible). Each rung fires a verdict when its fired-set predicate matches.",

@@ -43,3 +43,30 @@ clamp_verdicts:
   - selective_but_broadly_normal       # SAFE-axis KILL: no therapeutic / full-normal window (housekeeping, GAPDH/TROP2)
   - selective_with_normal_liability    # selectivity-PRESERVING: sc-normal critical-organ OR broad-abundant normal protein
   - selective_but_stromal_confound     # INT-axis KILL: the axis-A signal is in stromal/CAF cells, not malignant
+
+# POST-RESOLVER CLAMP — the FULL, PR-reviewable declaration of what selectivity_veto.py does after this
+# resolver runs. It is NOT executed by the resolver interpreter (which pattern-matches fired rule_ids
+# only); it is declared here because the clamp is conditioned on THIS resolver's OUTPUT verdict — it
+# only downgrades an already-selective axis-A call — which a rung firing on the fired-set alone cannot
+# express (Step 1c of the framework-architecture remediation: closes the "one hole in the declarative
+# decision spine", finding 6). selectivity_veto.py is kept byte-for-byte in lockstep with this block by
+# a skills-side guard test (tumor-selectivity/tests/test_verdict.py).
+post_resolver_clamp:
+  module: skills/_skills_common/selectivity_veto.py
+  direction: downgrade_only            # one-directional; NO-OP unless the current verdict is selective axis-A
+  applies_to_input_verdicts:           # the guard (_AXIS_A_SELECTIVE) — why this cannot be a rung
+    - strong_tumor_selective
+    - modest_tumor_selective
+    - field_effect_tumor_selective
+  precedence:                          # first firing arm wins the verdict + driving label (Option B order)
+    - {when_fired: tvn-stromal-confound-veto,                  verdict: selective_but_stromal_confound}  # INT-axis KILL (wrong cells) — outranks the SAFE-axis KILLs
+    - {when_fired: tvn-no-therapeutic-window-veto,             verdict: selective_but_broadly_normal}    # SAFE-axis KILL: no essential-organ window
+    - {when_fired: tvn-no-full-normal-window-veto,             verdict: selective_but_broadly_normal}    # SAFE-axis KILL: no pan-normal window
+    - {when_fired: tvn-sc-normal-critical-organ-veto,          verdict: selective_with_normal_liability} # selectivity-PRESERVING named-organ flag
+    - {when_fired: tvn-tphp-broad-abundant-normal-protein-veto, verdict: selective_with_normal_liability} # selectivity-PRESERVING normal-protein liability
+  upgrade:                             # #978 RESCUE — one-directional UP, applied BEFORE the downgrade precedence
+    applies_to_input_verdicts: [not_informative, discordant_across_comparators]
+    requires:                          # AND-of-ORs: CPTAC-protein-up AND population-normal-crossing-up
+      - [protein-strongly-up-supportive, protein-modestly-up-neutral]
+      - [tumor-vs-normal-crossing-strong-supportive]
+    verdict: field_effect_tumor_selective
