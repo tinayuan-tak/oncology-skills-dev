@@ -3680,6 +3680,52 @@ rules:
       lower presence is not an efficacy verdict — a low-but-present target can still be
       a valid modality substrate. subtype_fit_expression: neutral (context, no gate effect).
 
+  # ----------------------------------------------------------------------------
+  # SUBTYPE TIER — MUTATION-FREQUENCY (prevalence) context, 2026-09-11
+  # ----------------------------------------------------------------------------
+  # The genomic-prevalence analogue of the expression-context rules, on its OWN channel
+  # (subtype_fit_mutation). WHY THIS EXISTS: subgroup-stratified-mutation-frequency was
+  # resolved on EVERY --subtypes run but NO rule keyed on it, so it "resolved and fired
+  # nothing" — its per-subtype landscape reached only the render, never the fired-signal
+  # spine (deciding-axis coverage, provenance, the convergence facet's measured-axis set).
+  # This rule makes the card a first-class FIRING signal without misrepresenting the
+  # biology: mutation FREQUENCY in a subtype is PREVALENCE, not a dependency/efficacy claim
+  # (frequency != requirement), so — exactly like the expression-context rules — it emits a
+  # gate-INERT `neutral` signal on its own subtype_fit_mutation channel. The nomination gate
+  # has NO wiring for that channel; _subtype_verdict (which reads only subtype_fit_genomic /
+  # subtype_fit_selectivity) never sees it. It sharpens patient-selection ("this subtype is
+  # a mutation-enriched population"), it does not mint, oppose, or hold a nomination.
+  # Fires only on the RECURRENTLY-mutated band (class recurrently_mutated, freq >= 0.20) on a
+  # MEASURED + floor-cleared (n>=30) stratum — the clear "select these patients" prevalence
+  # signal; the occasionally/rarely bands are the descriptive default and get NO rule (the
+  # same discipline expression's subtype_uniform follows). Opt-in-by-scope: only fires under
+  # --subtypes; the pooled spine is byte-identical.
+  - rule_id: subtype-mutation-frequency-recurrent-context
+    when:
+      card_id: subgroup-stratified-mutation-frequency
+      field: per_subgroup_metrics
+      in_record:
+        class: recurrently_mutated
+        evidence_state: measured
+        subgroup_n_floor_met: true
+    signals:
+      subtype_fit_mutation: neutral
+    tier: subtype
+    subgroup_metadata_declared:
+      subtype_defining_data: genomic
+      subgroup_n_source: subgroup-assignments (per-stratum somatic-MAF sample count, subgroup_n)
+      min_n_required: 30
+    rationale: |
+      The target is RECURRENTLY mutated within this molecular subgroup (per-stratum somatic
+      frequency >= 0.20, on a MAF sample set that clears the subgroup-n floor of 30). Because
+      the stratum is measured + floor-cleared this is a trusted PREVALENCE signal: the subtype
+      is a candidate mutation-enriched patient-selection population. CONTEXT only
+      (subtype_fit_mutation: neutral): mutation frequency is prevalence, not efficacy or
+      requirement, so — like the expression-context rules — it sharpens WHERE to look, never
+      the nomination itself (the nomination gate has no wiring for this channel). The genomic-
+      alteration axis, not this panorama, owns any biomarker-stratified DEPENDENCY claim.
+      Subtype-scoped; opt-in-by-scope (--subtypes only).
+
   # ============================================================================
   # SYNTHETIC-LETHAL PARTNERS (SynLethDB v3, Gate-C step 2, 2026-07-20)
   # ============================================================================

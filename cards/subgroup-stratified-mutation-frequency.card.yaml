@@ -3,9 +3,13 @@
 # Enumerates {target}'s somatic mutation frequency ACROSS the molecular subgroups
 # of one indication (MSI/MSS, sidedness, and — via the GENIE registry MAF source —
 # line-of-therapy). This is the DESCRIPTIVE subgroup panorama: it shows the
-# landscape (positive AND negative stratifications, every stratum row) and emits
-# NO verdict signal. Distinct from the whole-cohort `mutation-hotspot-frequency`
-# card, which answers the indication-level question.
+# landscape (positive AND negative stratifications, every stratum row). It emits a
+# gate-INERT `subtype_fit_mutation: neutral` CONTEXT signal on a recurrently-mutated,
+# floor-cleared stratum (patient-selection prevalence, NOT an efficacy/dependency claim —
+# frequency != requirement; see rule subtype-mutation-frequency-recurrent-context) — the
+# nomination gate has no wiring for that channel, so it never mints/opposes/holds a verdict.
+# Distinct from the whole-cohort `mutation-hotspot-frequency` card, which answers the
+# indication-level question.
 #
 # Backed by a PER-SAMPLE stratified reader:
 #   methods/gdc_somatic_hotspot/read.py :: build_mutation_frequency_panorama
@@ -86,7 +90,7 @@ thresholds:
   min_subgroups_for_call: 2          # need ≥2 measured strata to speak to cross-subgroup variation
 
 caveats:
-  - "DESCRIPTIVE panorama only — emits no verdict signal; per-subgroup rows inform via render, not synthesis."
+  - "Emits ONLY a gate-inert subtype_fit_mutation:neutral CONTEXT signal (recurrently-mutated, floor-cleared strata) — patient-selection prevalence, never a verdict; mutation frequency is prevalence, not efficacy/requirement. The genomic-alteration axis owns any biomarker-stratified dependency claim."
   - "Underpowered strata (subgroup_n < SUBGROUP_N_FLOOR=30) are tagged `underpowered` and are INADMISSIBLE in comparative prose — a real negative (measured, floor-met, frequency ~0) is distinct from an underpowered unknown."
   - "Each row is tagged with its source_cohort (TCGA-MC3 vs GENIE-registry); rows from different cohorts are NOT merged — MSI-H-from-TCGA is a different sample universe than a GENIE LOT stratum."
   - "Line-of-therapy strata are available only via the GENIE-registry MAF source (RWD); TCGA-MC3 provides the molecular strata (MSI/MSS, sidedness)."
