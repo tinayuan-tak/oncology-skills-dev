@@ -140,3 +140,35 @@ def test_refinement_needs_sub_results_backward_compatible():
         contracts_repo=CONTRACTS,
     )
     assert r2["thesis"] == "oncogene_addiction"
+
+
+def test_partner_conditional_sl_derives_on_measured_arms():
+    """End-to-end (Step 2b): a pooled non_dependent target with a MEASURED biomarker-stratified OR
+    subtype-restricted dependency derives partner_conditional_sl (nominate-eligible)."""
+    ac = _ac(snv_driver=0.9, tsg_loss=0.1)
+    r1 = tp.derive_thesis(
+        ac,
+        "intracellular_intrinsic",
+        sub_results=_sr(genomic_alteration="biomarker_stratified_dependency", dependency="non_dependent"),
+        contracts_repo=CONTRACTS,
+    )
+    assert r1["thesis"] == "partner_conditional_sl" and r1["basis"] == "step_2b_refinement"
+    r2 = tp.derive_thesis(
+        ac,
+        "intracellular_intrinsic",
+        sub_results=_sr(subtype_fit="subtype_restricted_dependency", dependency="non_dependent"),
+        contracts_repo=CONTRACTS,
+    )
+    assert r2["thesis"] == "partner_conditional_sl"
+
+
+def test_partner_conditional_sl_needs_the_pooled_non_dependent():
+    """A biomarker-stratified target that is ALSO a pooled dependency (concordant) stays
+    oncogene_addiction — the refinement fires only on the dilution-artifact (non_dependent) case."""
+    r = tp.derive_thesis(
+        _ac(snv_driver=1.0),
+        "intracellular_intrinsic",
+        sub_results=_sr(genomic_alteration="biomarker_stratified_dependency", dependency="concordant_dependent"),
+        contracts_repo=CONTRACTS,
+    )
+    assert r["thesis"] == "oncogene_addiction"
