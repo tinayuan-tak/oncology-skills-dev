@@ -108,8 +108,12 @@ composition:
     - gene-ontology-annotation                 # GO BP/MF/CC term membership
     - reactome-pathway-membership              # Reactome pathway/geneset membership + rollup
     # Subtype tier — composed ONLY with --subtypes (verdict-affecting; omitted by default)
-    - subgroup-stratified-dependency           # opt-in via --subtypes
-    - subgroup-stratified-mutation-frequency   # opt-in via --subtypes
+    - subgroup-stratified-dependency           # opt-in via --subtypes; verdict-bearing (cell-line dependency)
+    - subgroup-stratified-mutation-frequency   # opt-in via --subtypes; display-only in this tier
+    # tumor-vs-normal-selectivity (declared above under selectivity) is ALSO composed in the subtype
+    # tier under --subtypes: DUAL-GRAIN, its per-subgroup selectivity panorama is verdict-bearing here
+    # (subtype_restricted_selectivity). 2026-09-11 STAD subtype-shard wiring. Not re-listed to avoid a
+    # duplicate cards_used entry.
   rules_scope:
     - all
   synthesis:
@@ -247,10 +251,19 @@ Unlike the lenses and fast modes above (which are verdict-inert), `--subtypes` *
 recommendation spine**:
 
 - `--subtypes <ids>` — comma-separated molecular subgroup ids (e.g. `MSI_H,MSS`). Activates the
-  subtype tier over the `subgroup-stratified-*` cards. It is NEGATIVE-SELECTION only: a MEASURED,
-  floor-cleared subtype that is NOT a dependency fires the subtype-non-dependence rule, which the
-  gate maps to `hold`. Omit for a whole-cohort profile — absent this flag the subtype cards are not
-  composed and the output is byte-identical to the pre-subtype behavior (backward-compatible).
+  subtype tier over the subtype cards. It is BI-DIRECTIONAL, negative-precedence, over MEASURED,
+  floor-cleared (n>=30) strata:
+    - NEGATIVE (precedence): a NOT-dependent subtype fires subtype-non-dependence → gate `hold`
+      (`subtype_specific_non_dependence`).
+    - POSITIVE (dependency): a STRONG-dependent subtype → `subtype_restricted_dependency` (a SUPPORTIVE
+      positive + `non_dependent` veto-suppressor; the precision-oncology channel).
+    - POSITIVE (tumor-tissue selectivity, 2026-09-11): a STRONG per-subtype tumor-vs-normal selectivity
+      stratum → `subtype_restricted_selectivity` (a SUPPORTIVE positive, NOT a veto-suppressor). The
+      tumor-tissue analogue that reaches indications whose DepMap subtype dependency channel is
+      data-blocked (STAD/ESCA carry 0 subtype-labeled DepMap lines).
+  Precedence when several fire: opposing HOLD > dependency-supportive > selectivity-supportive. Omit for
+  a whole-cohort profile — absent this flag the subtype cards are not composed and the output is
+  byte-identical to the pre-subtype behavior (backward-compatible).
 
 ## Provenance / instrumentation flags (verdict-inert)
 

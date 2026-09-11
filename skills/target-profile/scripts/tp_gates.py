@@ -177,6 +177,10 @@ _RECOGNIZED_GATING_VERDICTS: dict[str, frozenset[str]] = {
         {
             "subtype_specific_non_dependence",  # the hold
             "subtype_restricted_dependency",  # SUPPORTIVE positive + veto-suppressor
+            "subtype_restricted_selectivity",  # SUPPORTIVE positive (tumor-tissue selectivity; NOT a
+            #                                                               veto-suppressor) — 2026-09-11 STAD subtype-shard
+            #                                                               wiring. Non-gating: falls through as a permissive
+            #                                                               pass (like subtype_restricted_dependency).
             "insufficient",  # (vocab: positive_signals + veto_suppressors,
             #                                                               NOT gates/kill_capable → recognized, non-gating:
             #                                                               falls through as a permissive pass, never forces

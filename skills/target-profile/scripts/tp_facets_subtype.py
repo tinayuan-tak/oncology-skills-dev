@@ -12,6 +12,13 @@ _SUBTYPE_INPUTS = [
     ("expression", "tumor-rna-distribution-by-subtype", "expression"),
     ("dependency", "subgroup-stratified-dependency", "dependency"),
     ("genomic_alteration", "subgroup-stratified-mutation-frequency", "mutation_frequency"),
+    # tumor-tissue selectivity subtype axis (2026-09-11, STAD subtype-shard wiring). The DUAL-GRAIN
+    # tumor-vs-normal-selectivity card's per_subgroup_metrics resolve under the composed subtype tier
+    # (SUBTYPE_SHORT). Now that it MOVES the verdict (subtype_restricted_selectivity), it also
+    # participates in the cross-axis convergence facet so the render reflects the deciding axis. The
+    # whole-cohort `selectivity` sub-skill carries NO per_subgroup_metrics, so _subtype_rows falls
+    # through to the SUBTYPE_SHORT tier — the same source the rule fired on.
+    ("selectivity", "tumor-vs-normal-selectivity", "selectivity"),
 ]
 
 

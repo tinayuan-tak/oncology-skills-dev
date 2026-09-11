@@ -987,6 +987,16 @@ SUBTYPE_CARDS = [
     # run but emits no subtype-tier signal. Its subtype mutation
     # panorama is already surfaced descriptively in genomic-alteration-
     # profile. Kept here for the render panorama, NOT for the verdict.
+    "tumor-vs-normal-selectivity",  # VERDICT-BEARING in this tier (2026-09-11, STAD subtype-shard wiring).
+    # DUAL-GRAIN card: under subgroup_context it resolves via _dispatch_selectivity_by_subgroup
+    # (read_stratified_tumor_vs_normal_selectivity) → per_subgroup_metrics. Its
+    # subtype-restricted-selectivity-supportive rule fires on a MEASURED, floor-cleared (n>=30),
+    # strong_tumor_selective stratum → subtype_fit_selectivity: supportive → _subtype_verdict maps it
+    # to subtype_restricted_selectivity (a SUPPORTIVE positive). This is the TUMOR-TISSUE analogue of
+    # the dependency rung, reaching indications whose DepMap subtype channel is data-blocked (STAD/ESCA:
+    # 0 subtype-labeled DepMap lines). The card's WHOLE-COHORT selectivity_class rules key on a scalar
+    # field absent from the by-subgroup envelope, so they do NOT fire here (no double-count). Its pooled
+    # read stays in the `selectivity` sub-skill; this entry only adds the subtype-grain projection.
 ]
 
 
@@ -998,20 +1008,35 @@ def _subtype_verdict(fired: list[dict]) -> tuple[str, str | None] | None:
     floor-cleared, NOT-dependent stratum -> subtype_fit_genomic: opposing ->
     `subtype_specific_non_dependence` (the nomination gate maps it to a HOLD).
 
-    POSITIVE (new): subtype-restricted-dependency-supportive matches a MEASURED, floor-cleared,
-    STRONG-dependent stratum -> subtype_fit_genomic: supportive -> `subtype_restricted_dependency`
-    (the gate treats it as a SUPPORTIVE positive + a non_dependent veto-suppressor — the
-    precision-oncology channel: POU2F3/SCLC-P, CMS4/CRC).
+    POSITIVE — DEPENDENCY (2026-08-19): subtype-restricted-dependency-supportive matches a MEASURED,
+    floor-cleared, STRONG-dependent stratum -> subtype_fit_genomic: supportive ->
+    `subtype_restricted_dependency` (the gate treats it as a SUPPORTIVE positive + a non_dependent
+    veto-suppressor — the precision-oncology channel: POU2F3/SCLC-P, CMS4/CRC).
 
-    Precedence is CONSERVATIVE: if any opposing subtype fired, the HOLD wins. The positive fires
-    ONLY when a supportive subtype fired and NO opposing one did. Admissibility (n>=30 floor,
+    POSITIVE — TUMOR-TISSUE SELECTIVITY (2026-09-11, STAD subtype-shard wiring):
+    subtype-restricted-selectivity-supportive matches a MEASURED, floor-cleared, strong_tumor_selective
+    per-subgroup row on tumor-vs-normal-selectivity -> subtype_fit_selectivity: supportive ->
+    `subtype_restricted_selectivity` (a SUPPORTIVE positive; NOT a veto-suppressor). This is the
+    tumor-tissue analogue that reaches indications whose DepMap subtype dependency channel is
+    data-blocked (STAD/ESCA carry 0 subtype-labeled DepMap lines).
+
+    Precedence is CONSERVATIVE and RANKED: (1) any opposing subtype -> HOLD wins. Else (2) a dependency
+    supportive -> subtype_restricted_dependency (the STRONGER positive: KO-proven efficacy + veto-
+    suppressor). Else (3) a selectivity supportive -> subtype_restricted_selectivity. So a subtype with
+    BOTH strong dependency and strong selectivity reports the dependency verdict; selectivity-only
+    subtypes (the data-blocked-dependency case) get the selectivity verdict. Admissibility (n>=30 floor,
     measured) is enforced upstream at rule-fire time. Byte-stable: no --subtypes -> no subtype rule
-    fires -> None; existing opposing-only runs unchanged; only supportive-without-opposing is new.
+    fires -> None; existing opposing/dependency-only runs unchanged; only a selectivity-supportive
+    without any dependency/opposing signal is new.
     """
 
     def _sig(f: dict) -> str:
         # `or ''` guards subtype_fit_genomic: null (present key, None value) -> else `'x' in None` raises.
         return (f.get("signals") or {}).get("subtype_fit_genomic") or ""
+
+    def _sig_sel(f: dict) -> str:
+        # the tumor-tissue selectivity channel (distinct from the verdict-inert subtype_fit_expression).
+        return (f.get("signals") or {}).get("subtype_fit_selectivity") or ""
 
     subtype = [f for f in fired if f.get("tier") == "subtype"]
     opposing = [f for f in subtype if "opposing" in _sig(f)]
@@ -1019,7 +1044,11 @@ def _subtype_verdict(fired: list[dict]) -> tuple[str, str | None] | None:
         return ("subtype_specific_non_dependence", opposing[0].get("rule_id"))  # HOLD — precedence
     supportive = [f for f in subtype if "supportive" in _sig(f)]
     if supportive:
-        return ("subtype_restricted_dependency", supportive[0].get("rule_id"))  # SUPPORTIVE positive
+        return ("subtype_restricted_dependency", supportive[0].get("rule_id"))  # SUPPORTIVE positive (dependency)
+    sel_supportive = [f for f in subtype if "supportive" in _sig_sel(f)]
+    if sel_supportive:
+        # SUPPORTIVE positive (tumor-tissue selectivity) — the data-blocked-dependency channel.
+        return ("subtype_restricted_selectivity", sel_supportive[0].get("rule_id"))
     return None
 
 
