@@ -7,7 +7,7 @@ this file is the data-product spec.
 | | |
 |---|---|
 | **Skill** | `tumor-presence` |
-| **Skill code version** | 1.20.0 (see CONTRACT.md § Version history) |
+| **Skill code version** | 1.21.0 (see CONTRACT.md § Version history) |
 | **Contract version** | 1.0.0 (the emitted-output schema; versioned independently of the skill code — see §4) |
 | **Role** | `descriptive` (emits a real read; **not** a nomination gate — presence ∉ target-profile `_SHORT_TO_GATE`) |
 | **Verdict field** | `headline.presence_verdict` (collapsed) + `headline.presence_verdict_by_modality` (per-bucket) |
