@@ -132,6 +132,53 @@ def test_positive_signal_reports_admissible_but_silent_excluding_supporters():
     assert "genomic_alteration" in shorts
 
 
+# ---------- attribution_mismatch: non-necessity axis decided while necessity was mute (Step 1b) ----------
+
+
+def test_attribution_mismatch_flags_safety_hold_over_mute_necessity():
+    """The assessment's dominant failure: a SUFFICIENCY gate (safety) carries the hold while a
+    NECESSITY axis (dependency) was admissible and read a real verdict. Ontology-only, no thesis
+    typing — flagged=True with the mute necessity axis named."""
+    sr = _sr(safety="highly_constrained_safety_concern", dependency="concordant_dependent")
+    gate_hits = [
+        {
+            "short": "safety",
+            "verdict": "highly_constrained_safety_concern",
+            "action": "hold",
+            "driving_rule_id": "highly-constrained-safety-warning",
+        }
+    ]
+    da = tp._deciding_axis(sr, gate_action="hold", gate_hits=gate_hits, positive_hits=[], contracts_repo=CONTRACTS)
+    am = da["attribution_mismatch"]
+    assert am["flagged"] is True
+    assert "dependency" in am["silent_necessity_axes"]
+    assert "reason" in am and "non-necessity" in am["reason"]
+
+
+def test_attribution_mismatch_not_flagged_when_a_necessity_axis_decides():
+    """A necessity-axis decision (dependency veto) is NOT flagged — even though the ontology-only
+    signal cannot tell whether it is wrong for the target's thesis (that is Step 2's job). Documents
+    the deliberate scope bound."""
+    sr = _sr(dependency="non_dependent", selectivity="strong_tumor_selective")
+    gate_hits = [
+        {"short": "dependency", "verdict": "non_dependent", "action": "veto", "driving_rule_id": "non-dependent-killer"}
+    ]
+    da = tp._deciding_axis(sr, gate_action="veto", gate_hits=gate_hits, positive_hits=[], contracts_repo=CONTRACTS)
+    assert da["attribution_mismatch"]["flagged"] is False
+
+
+def test_attribution_mismatch_not_flagged_without_a_mute_necessity_axis():
+    """Safety decides but no necessity axis was admissible-but-silent (dependency produced no signal)
+    → nothing to mismatch against → not flagged."""
+    sr = _sr(safety="highly_constrained_safety_concern", dependency=None)
+    gate_hits = [
+        {"short": "safety", "verdict": "highly_constrained_safety_concern", "action": "hold", "driving_rule_id": "r"}
+    ]
+    da = tp._deciding_axis(sr, gate_action="hold", gate_hits=gate_hits, positive_hits=[], contracts_repo=CONTRACTS)
+    assert da["attribution_mismatch"]["flagged"] is False
+    assert da["attribution_mismatch"]["silent_necessity_axes"] == []
+
+
 # ---------- basis 2: a positive tier → strongest positive dimension is load-bearing ----------
 
 

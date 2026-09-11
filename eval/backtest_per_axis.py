@@ -166,8 +166,18 @@ def score_target(nom: dict, ref: dict) -> dict:
         # positive_signal is supported by a SET → a match on ANY supporting axis counts.
         "axis_attribution_match": (ref_family in fw_families) if deciding_shorts else None,
         # the honesty companion: axes admissible-but-mute this run (e.g. surface read adc_preferred
-        # while safety carried the hold) — the attribution-mismatch signal Step 1b keys on.
+        # while safety carried the hold).
         "admissible_but_silent": [s.get("short") for s in admissible_but_silent],
+        # Step 1b: did a non-necessity axis carry the call while a necessity axis was admissible-but-
+        # mute? Ontology-derived (no ground truth needed) — a per-run companion to axis_attribution_match.
+        "attribution_mismatch": bool(
+            (
+                ((nom.get("target_call") or {}).get("deciding_axis") or nom.get("deciding_axis") or {}).get(
+                    "attribution_mismatch"
+                )
+                or {}
+            ).get("flagged")
+        ),
         "per_axis_verdicts": per_axis,
     }
 

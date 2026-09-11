@@ -71,3 +71,15 @@ def test_gate_fired_wrong_axis_is_a_miss():
     row = bpa.score_target(_nom(da), {"deciding_axis": "E2_density_topology", "outcome": "approved_class"})
     assert row["ref_family"] == "surface" and row["fw_family"] == "safety"
     assert row["axis_attribution_match"] is False
+
+
+def test_backtest_surfaces_attribution_mismatch():
+    """Step 1b: the row carries the run-emitted attribution_mismatch flag (per-run honesty signal),
+    independent of the ground-truth axis_attribution_match."""
+    da = {"basis": "gate_fired", "deciding_axis": {"short": "safety"}, "attribution_mismatch": {"flagged": True}}
+    row = bpa.score_target(_nom(da), {"deciding_axis": "constrained_safety", "outcome": "approved_class"})
+    assert row["attribution_mismatch"] is True
+    # absent/False block → False, never None
+    da2 = {"basis": "gate_fired", "deciding_axis": {"short": "dependency"}}
+    row2 = bpa.score_target(_nom(da2), {"deciding_axis": "pan_essential", "outcome": "declined"})
+    assert row2["attribution_mismatch"] is False

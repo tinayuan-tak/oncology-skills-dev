@@ -90,6 +90,35 @@ def _admissible_but_silent(sub_results: dict, baseline: dict, exclude: set[str])
     return rows
 
 
+def _attribution_mismatch(deciding_rows: list[dict], silent_rows: list[dict]) -> dict:
+    """Ontology-derived honesty flag (Step 1b): was the call carried by an axis OUTSIDE the necessity
+    ANY-OF set ("is this real biology?") while a necessity axis was ADMISSIBLE but mute? That is the
+    attribution the architecture assessment found pervasive — surface antigens HELD on safety /
+    dependency, never adjudicated on surface biology (0/14 on the reference panel).
+
+    `band` is the ontology's necessity/sufficiency partition (target_profiling_axes.yaml, mirrored
+    into gate_coverage), so this needs NO per-target thesis typing and is independent of Step 2's
+    routing. Flags iff EVERY deciding axis is non-necessity AND >=1 admissible-but-silent axis is
+    necessity.
+
+    SCOPE BOUND (deliberate, ontology-only): it CANNOT flag a necessity-axis decision that is wrong
+    for the target's thesis — e.g. a dependency veto of an antigen-driven target that carries no
+    recurrent dependency (an ANY-OF violation). Distinguishing that needs per-target thesis typing,
+    which is Step 2. This is the subset detectable from the ontology alone; verdict-INERT either way."""
+    deciding_bands = {r.get("band") for r in deciding_rows}
+    silent_necessity = [r["short"] for r in silent_rows if r.get("band") == "necessity"]
+    flagged = bool(silent_necessity) and all(b != "necessity" for b in deciding_bands)
+    out: dict = {"flagged": flagged, "silent_necessity_axes": silent_necessity}
+    if flagged:
+        dec = sorted({r.get("short") for r in deciding_rows if r.get("short")})
+        out["reason"] = (
+            f"deciding axis {dec} is non-necessity (sufficiency/gating) while necessity axes "
+            f"{silent_necessity} were admissible but silent — the call may not rest on the target's "
+            f"thesis biology (ontology-only signal; per-target thesis is Step 2)."
+        )
+    return out
+
+
 def _deciding_axis(
     sub_results: dict,
     gate_action: Optional[str],
@@ -99,9 +128,11 @@ def _deciding_axis(
 ) -> dict:
     """Build the deciding_axis block (see module comment above). Deterministic; never predicts.
 
-    Every decided basis (gate_fired / positive_signal) also reports `admissible_but_silent`: the
-    other axes the framework could evidence this run but that did not carry the call — so the
-    attribution is auditable, not just "which axis won" but "which axes were in play and mute"."""
+    Every decided basis (gate_fired / positive_signal) also reports `admissible_but_silent` (the
+    other axes the framework could evidence this run but that did not carry the call) and
+    `attribution_mismatch` (did a non-necessity axis carry the call while a necessity axis was
+    admissible-but-mute?) — so the attribution is auditable, not just "which axis won" but "which
+    axes were in play and mute, and does the winner rest on the target's thesis biology"."""
     baseline, source = _load_gate_coverage(contracts_repo)
 
     def _row(short: str) -> dict:
@@ -134,11 +165,13 @@ def _deciding_axis(
             if _gname
             else f"the {top} gate"
         )
+        silent = _admissible_but_silent(sub_results, baseline, {top})
         return {
             "basis": "gate_fired",
             "coverage_source": source,
             "deciding_axis": row,
-            "admissible_but_silent": _admissible_but_silent(sub_results, baseline, {top}),
+            "admissible_but_silent": silent,
+            "attribution_mismatch": _attribution_mismatch([row], silent),
             "routing": f"decided by {_gate_label}: {top} forced '{gate_action}'.",
         }
 
@@ -158,11 +191,13 @@ def _deciding_axis(
             if _nec
             else "sufficiency / supporting evidence"
         )
+        silent = _admissible_but_silent(sub_results, baseline, set(shorts))
         return {
             "basis": "positive_signal",
             "coverage_source": source,
             "deciding_axes": rows,
-            "admissible_but_silent": _admissible_but_silent(sub_results, baseline, set(shorts)),
+            "admissible_but_silent": silent,
+            "attribution_mismatch": _attribution_mismatch(rows, silent),
             "routing": f"supported by {', '.join(shorts)} ({_kind}).",
         }
 
@@ -1761,10 +1796,16 @@ def build_target_call(
     FULL-NEST (2026-09-03): the four decision-spine objects nest UNDER target_call
     (recommendation_gate→`gate`, confidence_tier→`confidence`, deciding_axis→`deciding_axis`,
     gate_scorecard→`gate_scorecard`) and are NO LONGER emitted as top-level nomination keys — this retires
-    the #932 dual-exposure scaffold, giving one canonical home. VERDICT-INERT: it recomputes nothing;
-    `recommendation_gate` remains the SOLE owner of the recommendation VALUE. Adds two things no single
-    spine object carries: the authoritative recommendation VALUE, and a `dissent` block naming where
-    independent signals disagree with the gate (the honest 'why not higher / why not lower')."""
+    the #932 dual-exposure scaffold, giving one canonical home. VERDICT-INERT: it recomputes nothing.
+
+    ⚠ recommendation VALUE ownership is CONDITIONAL, not absolute (known one-sided-clamp defect, found
+    2026-09-11): when a rule fires (`gate.fired == true`) the gate FORCES the value and owns it; when
+    the gate ABSTAINS the value is the LLM's, unclamped below — the gate owns nothing and
+    `deciding_axis.basis` reads `abstention_coverage_gaps`. The approved fix collapses an abstention
+    negative with no fired rule to `insufficient_evidence`. Until it lands, read `rec_val` as
+    rule-authoritative only when `gate.fired`. Adds two things no single spine object carries: the
+    recommendation VALUE, and a `dissent` block naming where independent signals disagree with the
+    gate (the honest 'why not higher / why not lower')."""
     rg = recommendation_gate or {}
     rec_val = (
         overall_recommendation.get("value") if isinstance(overall_recommendation, dict) else overall_recommendation
@@ -1795,8 +1836,8 @@ def build_target_call(
         )
     return {
         "schema": "target_call.v1",
-        "recommendation": rec_val,  # authoritative (gate-forced or positive-floored LLM value)
-        "gate": rg,  # ← recommendation_gate (SOLE owner of the recommendation)
+        "recommendation": rec_val,  # gate-forced when gate.fired; else the LLM's value (see ⚠ in docstring)
+        "gate": rg,  # ← recommendation_gate (owns the value ONLY when gate.fired; abstention → LLM's)
         "confidence": confidence_tier,  # ← confidence_tier
         "deciding_axis": deciding_axis,  # ← deciding_axis
         "gate_scorecard": gate_scorecard,  # ← gate_scorecard
