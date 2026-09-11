@@ -120,6 +120,18 @@ def write_full_package(
         pkg_path = subskills_dir / short / "package.json"
         pkg_path.parent.mkdir(parents=True, exist_ok=True)
         pkg_path.write_text(json.dumps(pkg, indent=2, default=str))
+        # ALSO emit this sub-skill's slide-droppable per-card CSVs, via the SAME
+        # write_card_tables a standalone `run_wired_skill` run uses — so a composed run's
+        # tables are byte-identical to the standalone ones rather than a second emitter.
+        # Before this, tables/ existed ONLY on the standalone path, so no composed run had
+        # ever produced one. Best-effort: a table is a projection, never worth a run.
+        n_tables = 0
+        try:
+            from _skills_common.write_package import write_card_tables
+
+            n_tables = len(write_card_tables(subskills_dir / short / "tables", pkg["cards"]))
+        except Exception as e:  # noqa: BLE001 — additive projection; never break the bundle
+            print(f"[target-profile] --full-package: subskill tables {short} skipped ({type(e).__name__}: {e})")
         # ALSO render this sub-skill's standalone dashboard.html beside its package (dashboard
         # consolidation): the SAME report_render engine + design system as the composed
         # target_profile.html AND a live standalone subskill run — so a composed --full-package run
@@ -155,8 +167,10 @@ def write_full_package(
                 "driving_rule_id": pkg["driving_rule_id"],
                 "package": f"subskills/{short}/package.json",
                 "dashboard": dash_rel,
+                "tables": f"subskills/{short}/tables/" if n_tables else None,
                 "n_cards": pkg["n_cards"],
                 "n_figures": n_fig,
+                "n_tables": n_tables,
             }
         )
 
@@ -185,11 +199,17 @@ def write_full_package(
         "artifacts": {k: v for k, v in artifacts.items() if v is not None},
         "sub_skills": sub_index,
         "figures": {"n_files": n_fig_total, "dir": "figures/"},
+        "tables": {
+            "n_files": sum(s["n_tables"] for s in sub_index),
+            "dir": "subskills/<short>/tables/",
+        },
         "where_the_data_lives": (
             "Granular data is NOT under figures/ (those are figure inputs). The authoritative machine "
             "record is nomination.json (verdicts + facets) and evidence_package.json (per-card full "
             "summaries + per-sub-skill verdicts). Per-sub-skill packages under subskills/<short>/ "
-            "re-group that substrate by question, each with its cards' summaries + figure paths."
+            "re-group that substrate by question, each with its cards' summaries + figure paths, plus "
+            "subskills/<short>/tables/<card_id>_*.csv — the same slide-droppable per-card CSVs a "
+            "standalone sub-skill run emits."
         ),
     }
     manifest_json = out_dir / "MANIFEST.json"
@@ -219,17 +239,19 @@ def write_full_package(
         "",
         "## Sub-skill packages",
         "",
-        "| Sub-skill | Verdict | Driving rule | Cards | Figures | Package |",
-        "|---|---|---|---|---|---|",
+        "| Sub-skill | Verdict | Driving rule | Cards | Figures | Tables | Package |",
+        "|---|---|---|---|---|---|---|",
     ]
     for s in sub_index:
+        tbl = f"[{s['n_tables']} csv]({s['tables']})" if s["tables"] else "—"
         lines.append(
             f"| {s['sub_skill']} | {s['verdict'] or '—'} | {s['driving_rule_id'] or '—'} | "
-            f"{s['n_cards']} | {s['n_figures']} | [{s['package']}]({s['package']}) |"
+            f"{s['n_cards']} | {s['n_figures']} | {tbl} | [{s['package']}]({s['package']}) |"
         )
     lines += [
         "",
         f"Total figure files: {n_fig_total}",
+        f"Total table files: {manifest['tables']['n_files']}",
         "",
         "## Where the data lives",
         "",

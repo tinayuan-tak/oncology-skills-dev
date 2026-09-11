@@ -40,6 +40,59 @@ from typing import Optional
 import yaml
 
 
+def write_card_tables(tables_dir: Path, card_outputs: list[dict]) -> list[Path]:
+    """Emit the slide-droppable per-card CSVs into `tables_dir` → the paths written.
+
+    Factored out of write_package so BOTH output paths share one implementation: the
+    standalone data-package path (dispatcher.run_wired_skill → write_package) and the
+    COMPOSED target-profile fan-out (tp_manifest.write_full_package), which assembles
+    its packages itself and so never reached write_package — leaving every composed run
+    with no tables/ at all. Two emitters would drift; one cannot.
+
+    Depends on nothing but `[{card_id, summary}, ...]`, so any caller holding resolved
+    cards (or a persisted package.json) can emit the identical tables.
+    """
+    tables_dir = Path(tables_dir)
+    tables_dir.mkdir(parents=True, exist_ok=True)
+    written: list[Path] = []
+
+    # {card_id}_summary_stats.csv — scalar fields as k,v CSV
+    for card in card_outputs:
+        cid = card["card_id"]
+        s = card.get("summary") or {}
+        scalars = {
+            k: v for k, v in s.items() if not k.startswith("_") and isinstance(v, (int, float, str, bool, type(None)))
+        }
+        if not scalars:
+            continue
+        csv_path = tables_dir / f"{cid}_summary_stats.csv"
+        with csv_path.open("w", newline="") as f:
+            w = csv.writer(f)
+            w.writerow(["field", "value"])
+            for k, v in scalars.items():
+                w.writerow([k, "" if v is None else v])
+        written.append(csv_path)
+
+    # {card_id}_{field}.csv — list-of-dict fields (e.g. per_hotspot_stats)
+    for card in card_outputs:
+        cid = card["card_id"]
+        s = card.get("summary") or {}
+        for field_name, val in s.items():
+            if field_name.startswith("_"):
+                continue
+            if isinstance(val, list) and val and isinstance(val[0], dict):
+                csv_path = tables_dir / f"{cid}_{field_name}.csv"
+                keys = list(dict.fromkeys(k for row in val for k in row))
+                with csv_path.open("w", newline="") as f:
+                    w = csv.DictWriter(f, fieldnames=keys, extrasaction="ignore")
+                    w.writeheader()
+                    for row in val:
+                        w.writerow({k: row.get(k) for k in keys})
+                written.append(csv_path)
+
+    return written
+
+
 def write_package(
     out_dir: Path,
     decision: dict,
@@ -96,39 +149,7 @@ def write_package(
     summary_path.write_text(yaml.safe_dump(summary_doc, sort_keys=False))
     written["summary"] = summary_path
 
-    # tables/{card_id}_summary_stats.csv — scalar fields as k,v CSV
-    for card in card_outputs:
-        cid = card["card_id"]
-        s = card.get("summary") or {}
-        scalars = {
-            k: v for k, v in s.items() if not k.startswith("_") and isinstance(v, (int, float, str, bool, type(None)))
-        }
-        if not scalars:
-            continue
-        csv_path = tables_dir / f"{cid}_summary_stats.csv"
-        with csv_path.open("w", newline="") as f:
-            w = csv.writer(f)
-            w.writerow(["field", "value"])
-            for k, v in scalars.items():
-                w.writerow([k, "" if v is None else v])
-        written["tables"].append(csv_path)
-
-    # tables/{card_id}_top_hits.csv — list-of-dict fields (e.g. per_hotspot_stats)
-    for card in card_outputs:
-        cid = card["card_id"]
-        s = card.get("summary") or {}
-        for field_name, val in s.items():
-            if field_name.startswith("_"):
-                continue
-            if isinstance(val, list) and val and isinstance(val[0], dict):
-                csv_path = tables_dir / f"{cid}_{field_name}.csv"
-                keys = list(dict.fromkeys(k for row in val for k in row))
-                with csv_path.open("w", newline="") as f:
-                    w = csv.DictWriter(f, fieldnames=keys, extrasaction="ignore")
-                    w.writeheader()
-                    for row in val:
-                        w.writerow({k: row.get(k) for k in keys})
-                written["tables"].append(csv_path)
+    written["tables"] = write_card_tables(tables_dir, card_outputs)
 
     # figures/ — populated before write_package is called: either flat by a caller, or
     # (dispatcher --figures path) as figures/cards/<card_id>/figure_*.svg by the shared
