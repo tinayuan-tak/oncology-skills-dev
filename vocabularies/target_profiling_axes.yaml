@@ -479,6 +479,7 @@ skill_objectives:
       - {q: "Known-drug / pharmacology precedent?", answered_by: [known-drug-tractability]}
       - {q: "Degrader feasibility (E3 / PROTAC)?", answered_by: [degradation-feasibility]}
       - {q: "How predictable is the dependency (confidence)?", answered_by: [dependency-predictability]}
+      - {q: "Does an approved allele-selective drug cover the indication's DOMINANT mutant allele, or only a minority (#993 pt1 caveat context)?", answered_by: [mutation-hotspot-frequency]}
   - skill: surface-modality-fit
     objective: "Does surface biology support an ADC / TCE / antibody modality?"
     primary_axis: surface_modality
@@ -1082,6 +1083,11 @@ question_hierarchies:
       - id: drug_read
         measurement_types:
         - known_drug_tractability
+      context_types:
+      # #993 pt1: the indication's mutant-allele spectrum — CONTEXT for the drug read (the verdict-inert
+      # minority_allele_coverage_caveat: an approved allele-selective drug covering only a minority of the
+      # spectrum). Never a tractability question source; fires no rule.
+      - mutation_hotspot_frequency
     - id: DEGRADER
       questions:
       - id: degrader_read
