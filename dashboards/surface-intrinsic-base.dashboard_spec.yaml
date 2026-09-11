@@ -68,7 +68,7 @@ optional_cards:
     when: "context.data_sources.tcga_gtex_tpm_quantiles_available == true"
   # WIRED 2026-08-20: same-cell avidity + tumor-vs-NORMAL selectivity window for AND-gate bispecifics
   # (TCE/dual-ADC). Un-retired from a 2026-08-19 supersession that proved only partially true — the
-  # bispecific-pair-scan method covers tumor per-pair avidity only, NOT the normal selectivity window
+  # pair_selectivity_gate.samecell method covers tumor per-pair avidity only, NOT the normal window
   # this card uniquely provides (via pair_selectivity_gate.window on sc-samecell-coexpr-normal-v1).
   # Verdict-inert additive facet (its 5 rules are in no resolver); OPTIONAL + indication-gated to the
   # indications with a landed same-cell coexpr cube — resolves data_unavailable honestly elsewhere.

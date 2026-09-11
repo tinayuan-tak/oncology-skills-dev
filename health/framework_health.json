@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-09-11T05:05:23.217215+00:00",
+  "generated_at": "2026-09-11T06:32:29.923596+00:00",
   "roots": {
     "contracts": "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
     "skills": "/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills",
@@ -9,37 +9,46 @@
     "catalog": "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"
   },
   "root_shas": {
-    "contracts": "68b1899",
-    "skills": "a66047a",
+    "contracts": "ab0c027",
+    "skills": "10b37fc",
     "methods": "1977738",
     "products": "7a3d852",
-    "catalog": "338caed"
+    "catalog": "7981965"
   },
   "delta": {
     "has_prior": true,
-    "prior_generated_at": "2026-09-11T04:10:06.696992+00:00",
-    "n_skills": 0,
-    "n_cards": 0,
-    "n_drift_flags": -17,
+    "prior_generated_at": "2026-09-11T05:05:23.217215+00:00",
+    "n_skills": -2,
+    "n_cards": -1,
+    "n_drift_flags": 0,
     "n_error_drift": 0,
-    "verdict_tally": {},
-    "card_health_tally": {},
+    "verdict_tally": {
+      "partial": -2
+    },
+    "card_health_tally": {
+      "self_produced": -1
+    },
     "skills_added": [],
-    "skills_removed": [],
+    "skills_removed": [
+      "bispecific-pair-scan",
+      "surfaceome-cohort-ranking"
+    ],
     "cards_added": [],
-    "cards_removed": []
+    "cards_removed": [
+      "bispecific-pair-scan"
+    ]
   },
   "summary": {
-    "n_skills": 25,
+    "n_skills": 23,
     "verdict_tally": {
-      "partial": 19,
+      "partial": 17,
       "production_ready": 6
     },
     "runs_clean_tally": {
-      "clean": 17,
-      "unknown": 8
+      "unknown": 8,
+      "clean": 15
     },
-    "n_runs_clean": 17,
+    "n_runs_clean": 15,
     "n_runs_clean_error": 0,
     "n_drift_flags": 6,
     "n_error_drift": 0,
@@ -47,17 +56,15 @@
     "n_live_reader_cards": 63,
     "n_cards_firing_in_real_packages": 101,
     "n_cards_firing_in_any_run": 101,
-    "n_cards": 149,
+    "n_cards": 148,
     "card_health_tally": {
       "live": 101,
       "placeholder": 10,
-      "self_produced": 1,
       "wired": 37
     },
     "modality_routing_tally": {
       "not_required": 68,
-      "declared": 80,
-      "not_applicable": 1
+      "declared": 80
     },
     "n_p4_required_cards": 80,
     "n_p4_declared_cards": 80,
@@ -65,7 +72,7 @@
     "n_p4_drift_cards": 0,
     "n_orphan_cards": 0,
     "n_staged_orphan_cards": 9,
-    "n_cards_consumed_but_no_spec": 102,
+    "n_cards_consumed_but_no_spec": 101,
     "n_datasets": 519,
     "n_datasets_in_catalog": 513,
     "n_orphan_datasets": 332,
@@ -85,7 +92,6 @@
   "registry_drift": {
     "marketplace_exists": true,
     "registered": [
-      "bispecific-pair-scan",
       "catalog-query",
       "cis-feature-coherence",
       "combination-and-vulnerability",
@@ -102,7 +108,6 @@
       "query-target-evidence",
       "render-evidence-package",
       "surface-modality-fit",
-      "surfaceome-cohort-ranking",
       "target-archetype",
       "target-intrinsic",
       "target-profile",
@@ -112,7 +117,6 @@
       "tumor-selectivity"
     ],
     "on_disk": [
-      "bispecific-pair-scan",
       "catalog-query",
       "cis-feature-coherence",
       "combination-and-vulnerability",
@@ -129,7 +133,6 @@
       "query-target-evidence",
       "render-evidence-package",
       "surface-modality-fit",
-      "surfaceome-cohort-ranking",
       "target-archetype",
       "target-intrinsic",
       "target-profile",
@@ -141,84 +144,6 @@
     "unregistered": []
   },
   "skills": [
-    {
-      "name": "bispecific-pair-scan",
-      "declared": {
-        "status": "partial",
-        "phase": [
-          "F"
-        ],
-        "cards_used": [
-          "bispecific-pair-scan"
-        ],
-        "rules_scope": [
-          "bispecific-pair-scan"
-        ],
-        "prose_markers": [
-          "partial"
-        ],
-        "skill_md_exists": true,
-        "skill_md_parse_error": null
-      },
-      "derived": {
-        "has_entrypoint": true,
-        "entrypoint": "run.py",
-        "kind": "OTHER",
-        "resolver_gate": null,
-        "resolver_bound": false,
-        "fans_out": false,
-        "is_placeholder": false,
-        "cards_in_runpy": [],
-        "test_count": 2
-      },
-      "cards": [
-        {
-          "card_id": "bispecific-pair-scan",
-          "card_yaml_exists": false,
-          "is_self_produced_skill_card": true,
-          "is_placeholder": false,
-          "placeholder_reason": null,
-          "measurement_type": null,
-          "has_live_reader": false,
-          "method_call": null,
-          "dispatch_module": null,
-          "method_dir_exists": null,
-          "method_has_read": null,
-          "stale_method_label": false,
-          "fires_in_real_package": false,
-          "fires_in_any_run": false,
-          "datasets": [],
-          "modality_relevance": null,
-          "modality_routing": "not_applicable",
-          "card_health": "self_produced",
-          "health_reason": "card-self-produced-scan",
-          "reason_text": "self-produced scan-hook output card (card_id is a skill name; no contract YAML by design)"
-        }
-      ],
-      "n_core_cards": 1,
-      "n_cards": 1,
-      "n_cards_live": 0,
-      "n_p4_required": 0,
-      "n_p4_declared": 0,
-      "drift_flags": [],
-      "health_verdict": "partial",
-      "health_reason": "skill-partial-declared",
-      "reason_text": "declared partial and no stronger signal overrides it",
-      "gate_short": null,
-      "risk_category": null,
-      "framework_can_evidence": null,
-      "runs_clean": "clean",
-      "run_health": {
-        "status": "degraded",
-        "n_cards_consumed": 1,
-        "n_cards_resolved": 0,
-        "n_cards_fired": null,
-        "cards_fired": null,
-        "read_secs": null,
-        "compute_secs": null,
-        "total_secs": null
-      }
-    },
     {
       "name": "catalog-query",
       "declared": {
@@ -613,9 +538,9 @@
         "n_cards_resolved": 8,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.0509,
-        "compute_secs": 0.1799,
-        "total_secs": 0.2363
+        "read_secs": 0.054,
+        "compute_secs": 1.3152,
+        "total_secs": 1.3826
       }
     },
     {
@@ -888,9 +813,9 @@
         "n_cards_resolved": 6,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.0336,
-        "compute_secs": 0.165,
-        "total_secs": 0.2045
+        "read_secs": 0.0356,
+        "compute_secs": 0.1719,
+        "total_secs": 0.2137
       }
     },
     {
@@ -1321,9 +1246,9 @@
         "n_cards_resolved": 9,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.0453,
-        "compute_secs": 0.1996,
-        "total_secs": 0.2508
+        "read_secs": 0.0476,
+        "compute_secs": 0.2086,
+        "total_secs": 0.2625
       }
     },
     {
@@ -1997,9 +1922,9 @@
         "n_cards_resolved": 15,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.1014,
-        "compute_secs": 0.2596,
-        "total_secs": 0.3675
+        "read_secs": 0.1082,
+        "compute_secs": 0.2758,
+        "total_secs": 0.3909
       }
     },
     {
@@ -3019,9 +2944,9 @@
         "n_cards_resolved": 23,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.1451,
-        "compute_secs": 0.3332,
-        "total_secs": 0.4852
+        "read_secs": 0.1509,
+        "compute_secs": 0.3517,
+        "total_secs": 0.5097
       }
     },
     {
@@ -3362,9 +3287,9 @@
         "n_cards_resolved": 7,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.0333,
-        "compute_secs": 0.166,
-        "total_secs": 0.2034
+        "read_secs": 0.0349,
+        "compute_secs": 0.1726,
+        "total_secs": 0.2119
       }
     },
     {
@@ -3460,8 +3385,8 @@
         "n_cards_fired": 0,
         "cards_fired": [],
         "read_secs": 0.0052,
-        "compute_secs": 0.1218,
-        "total_secs": 0.1312
+        "compute_secs": 0.132,
+        "total_secs": 0.1419
       }
     },
     {
@@ -3731,9 +3656,9 @@
         "n_cards_resolved": 5,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.033,
-        "compute_secs": 0.2927,
-        "total_secs": 0.3319
+        "read_secs": 0.0354,
+        "compute_secs": 0.3251,
+        "total_secs": 0.3672
       }
     },
     {
@@ -4370,9 +4295,9 @@
         "n_cards_resolved": 16,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.0927,
-        "compute_secs": 0.3946,
-        "total_secs": 0.4952
+        "read_secs": 0.098,
+        "compute_secs": 0.4412,
+        "total_secs": 0.5475
       }
     },
     {
@@ -5571,94 +5496,9 @@
         "n_cards_resolved": 24,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.1638,
-        "compute_secs": 0.4395,
-        "total_secs": 0.6112
-      }
-    },
-    {
-      "name": "surfaceome-cohort-ranking",
-      "declared": {
-        "status": "wired",
-        "phase": [
-          "F"
-        ],
-        "cards_used": [
-          "surfaceome-cohort-ranking"
-        ],
-        "rules_scope": [
-          "surfaceome-cohort-ranking"
-        ],
-        "prose_markers": [
-          "wired"
-        ],
-        "skill_md_exists": true,
-        "skill_md_parse_error": null
-      },
-      "derived": {
-        "has_entrypoint": true,
-        "entrypoint": "run.py",
-        "kind": "OTHER",
-        "resolver_gate": null,
-        "resolver_bound": false,
-        "fans_out": false,
-        "is_placeholder": false,
-        "cards_in_runpy": [],
-        "test_count": 1
-      },
-      "cards": [
-        {
-          "card_id": "surfaceome-cohort-ranking",
-          "card_yaml_exists": true,
-          "is_self_produced_skill_card": false,
-          "is_placeholder": false,
-          "placeholder_reason": null,
-          "measurement_type": null,
-          "has_live_reader": false,
-          "method_call": "surfaceome-cohort-ranking",
-          "dispatch_module": null,
-          "method_dir_exists": true,
-          "method_has_read": true,
-          "stale_method_label": false,
-          "fires_in_real_package": false,
-          "fires_in_any_run": false,
-          "datasets": [
-            {
-              "product_id": "surfaceome-cohort-ranking-per-indication-v1",
-              "in_catalog": true,
-              "matched_by": "exact",
-              "resolved_id": "surfaceome-cohort-ranking-per-indication-v1"
-            }
-          ],
-          "modality_relevance": null,
-          "modality_routing": "not_required",
-          "card_health": "wired",
-          "health_reason": "card-generic-dispatch-never-fires",
-          "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint) \u2014 WIRED, awaiting its first governed firing (NOT a defect: verified generic-routed cards read fine, e.g. translational-readiness / tractability legs)"
-        }
-      ],
-      "n_core_cards": 1,
-      "n_cards": 1,
-      "n_cards_live": 0,
-      "n_p4_required": 0,
-      "n_p4_declared": 0,
-      "drift_flags": [],
-      "health_verdict": "partial",
-      "health_reason": "skill-default",
-      "reason_text": "no skill rule matched (fallback)",
-      "gate_short": null,
-      "risk_category": null,
-      "framework_can_evidence": null,
-      "runs_clean": "clean",
-      "run_health": {
-        "status": "degraded",
-        "n_cards_consumed": 1,
-        "n_cards_resolved": 0,
-        "n_cards_fired": 0,
-        "cards_fired": [],
-        "read_secs": null,
-        "compute_secs": null,
-        "total_secs": null
+        "read_secs": 0.1721,
+        "compute_secs": 0.4669,
+        "total_secs": 0.6473
       }
     },
     {
@@ -6455,9 +6295,9 @@
         "n_cards_resolved": 20,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.1109,
-        "compute_secs": 0.3549,
-        "total_secs": 0.472
+        "read_secs": 0.1174,
+        "compute_secs": 0.3812,
+        "total_secs": 0.5051
       }
     },
     {
@@ -8186,9 +8026,9 @@
         "n_cards_resolved": 9,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.0726,
-        "compute_secs": 0.2292,
-        "total_secs": 0.3082
+        "read_secs": 0.076,
+        "compute_secs": 0.2437,
+        "total_secs": 0.3266
       }
     },
     {
@@ -8377,9 +8217,9 @@
         "n_cards_resolved": 4,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.0203,
-        "compute_secs": 0.143,
-        "total_secs": 0.1685
+        "read_secs": 0.0217,
+        "compute_secs": 0.1491,
+        "total_secs": 0.1762
       }
     },
     {
@@ -9248,9 +9088,9 @@
         "n_cards_resolved": 17,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.1392,
-        "compute_secs": 0.3597,
-        "total_secs": 0.5054
+        "read_secs": 0.1473,
+        "compute_secs": 0.3884,
+        "total_secs": 0.5426
       }
     },
     {
@@ -10084,9 +9924,9 @@
         "n_cards_resolved": 13,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.1117,
-        "compute_secs": 0.3246,
-        "total_secs": 0.4435
+        "read_secs": 0.1191,
+        "compute_secs": 0.3421,
+        "total_secs": 0.4688
       }
     }
   ],
@@ -10427,37 +10267,6 @@
       "dashboard_specs": [],
       "in_dashboard_spec": false,
       "consumed_but_no_spec": false
-    },
-    {
-      "card_id": "bispecific-pair-scan",
-      "card_yaml_exists": false,
-      "is_self_produced_skill_card": true,
-      "is_placeholder": false,
-      "placeholder_reason": null,
-      "measurement_type": null,
-      "has_live_reader": false,
-      "method_call": null,
-      "dispatch_module": null,
-      "method_dir_exists": null,
-      "method_has_read": null,
-      "stale_method_label": false,
-      "fires_in_real_package": false,
-      "fires_in_any_run": false,
-      "datasets": [],
-      "modality_relevance": null,
-      "modality_routing": "not_applicable",
-      "card_health": "self_produced",
-      "health_reason": "card-self-produced-scan",
-      "reason_text": "self-produced scan-hook output card (card_id is a skill name; no contract YAML by design)",
-      "consumers": [
-        "bispecific-pair-scan"
-      ],
-      "n_consumers": 1,
-      "is_orphan": false,
-      "is_staged_orphan": false,
-      "dashboard_specs": [],
-      "in_dashboard_spec": false,
-      "consumed_but_no_spec": true
     },
     {
       "card_id": "caf-compartment-expression-luo",
@@ -15696,10 +15505,9 @@
       "health_reason": "card-generic-dispatch-never-fires",
       "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint) \u2014 WIRED, awaiting its first governed firing (NOT a defect: verified generic-routed cards read fine, e.g. translational-readiness / tractability legs)",
       "consumers": [
-        "surface-modality-fit",
-        "surfaceome-cohort-ranking"
+        "surface-modality-fit"
       ],
-      "n_consumers": 2,
+      "n_consumers": 1,
       "is_orphan": false,
       "is_staged_orphan": false,
       "dashboard_specs": [],
@@ -27718,14 +27526,6 @@
   "graph": {
     "nodes": [
       {
-        "id": "skill:bispecific-pair-scan",
-        "layer": "skill",
-        "label": "bispecific-pair-scan",
-        "health": "partial",
-        "kind": "OTHER",
-        "risk_category": null
-      },
-      {
         "id": "skill:catalog-query",
         "layer": "skill",
         "label": "catalog-query",
@@ -27854,14 +27654,6 @@
         "risk_category": null
       },
       {
-        "id": "skill:surfaceome-cohort-ranking",
-        "layer": "skill",
-        "label": "surfaceome-cohort-ranking",
-        "health": "partial",
-        "kind": "OTHER",
-        "risk_category": null
-      },
-      {
         "id": "skill:target-archetype",
         "layer": "skill",
         "label": "target-archetype",
@@ -27980,14 +27772,6 @@
         "health": "placeholder",
         "is_orphan": true,
         "measurement_type": "antigen_expressing_prevalence"
-      },
-      {
-        "id": "card:bispecific-pair-scan",
-        "layer": "card",
-        "label": "bispecific-pair-scan",
-        "health": "self_produced",
-        "is_orphan": false,
-        "measurement_type": null
       },
       {
         "id": "card:caf-compartment-expression-luo",
@@ -29746,11 +29530,6 @@
         "rel": "backed_by"
       },
       {
-        "src": "skill:bispecific-pair-scan",
-        "dst": "card:bispecific-pair-scan",
-        "rel": "consumes"
-      },
-      {
         "src": "skill:cis-feature-coherence",
         "dst": "card:abundance-dependency",
         "rel": "consumes"
@@ -30341,11 +30120,6 @@
         "rel": "consumes"
       },
       {
-        "src": "skill:surfaceome-cohort-ranking",
-        "dst": "card:surfaceome-cohort-ranking",
-        "rel": "consumes"
-      },
-      {
         "src": "skill:target-intrinsic",
         "dst": "card:clingen-dosage",
         "rel": "consumes"
@@ -30852,13 +30626,13 @@
       }
     ],
     "layer_counts": {
-      "skill": 25,
+      "skill": 23,
       "resolver": 0,
-      "card": 149,
+      "card": 148,
       "method": 54
     },
-    "n_nodes": 228,
-    "n_edges": 283
+    "n_nodes": 225,
+    "n_edges": 281
   },
   "drift_index": [
     {

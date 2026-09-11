@@ -581,13 +581,21 @@ def probe_card(
 ) -> dict:
     """Ground-truth signals for one card that a skill consumes.
 
-    Self-produced scan cards: a standalone SCAN-HOOK skill (bispecific-pair-scan,
-    surfaceome-cohort-ranking) emits a data-package card named after ITSELF, outside the
-    per-target card/resolver spine. When such a card has no cards/<id>.card.yaml (its
-    "product" is the skill's own live computation, not a landed derived manifest), it is
-    NOT a broken contract card — it is `self_produced`. Detected by card_id ∈ skill_names
-    (passed in) AND no YAML. (A scan skill WITH a backing product still authors a card YAML —
-    e.g. surfaceome-cohort-ranking — and is unaffected.)
+    Self-produced scan cards: a standalone SCAN-HOOK skill emits a data-package card named
+    after ITSELF, outside the per-target card/resolver spine. When such a card has no
+    cards/<id>.card.yaml (its "product" is the skill's own live computation, not a landed
+    derived manifest), it is NOT a broken contract card — it is `self_produced`. Detected by
+    card_id ∈ skill_names (passed in) AND no YAML.
+
+    As of 2026-09-11 this branch has NO live users and is retained as a classifier, not a
+    description of the fleet. Its only ever instance was bispecific-pair-scan, retired that
+    day along with the surfaceome-cohort-ranking SKILL (both hand-rolled main() outside the
+    spine and neither ever fired a card). Note the two names that remain are DIFFERENT objects:
+    cards/surfaceome-cohort-ranking.card.yaml is a normal, load-bearing contract card that
+    outlived the same-named skill dir — it authors a YAML, so it was never `self_produced` and
+    is untouched by that retirement. Keep this branch: a future scan-hook skill emitting a
+    self-named card would otherwise be misclassified `broken`, which is the false alarm the
+    branch exists to prevent.
 
     Method backing is resolved via the DISPATCHER's actual _import_method target
     (authoritative), NOT the card's methods.call label (which can be stale). The

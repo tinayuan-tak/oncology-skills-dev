@@ -7,7 +7,9 @@
 # the target and returns the best-partner call.
 #
 # WHY THIS CARD EXISTS: the same-cell cubes + the avidity method existed but NO card consumed them —
-# a wired-but-orphaned capability (the bispecific-pair-scan avidity gap). Bulk pair co-expression is
+# a wired-but-orphaned capability. (The only caller was the standalone bispecific-pair-scan SKILL,
+# which sat outside the card spine and never fired a card, so nothing reached a composed package;
+# that skill was retired 2026-09-11 and this card is now the sole route.) Bulk pair co-expression is
 # NECESSARY BUT NOT SUFFICIENT: two antigens can each be high in a tumor SAMPLE yet sit on DIFFERENT
 # cells, so an AND-gate bispecific never engages both. This card confirms same-CELL co-expression.
 #
@@ -18,12 +20,13 @@
 card_id: surface-colocalization-avidity
 version: 0.1.0
 # WIRED 2026-08-20 (reverses the 2026-08-19 dead-card RETIRE). The prior retirement claimed this card
-# was superseded-as-duplicate by bispecific-pair-scan's method (pair_selectivity_gate.samecell.
-# confirm_pair_samecell). Verification showed that claim is only PARTIALLY true: bispecific-pair-scan
+# was superseded-as-duplicate by the shared METHOD pair_selectivity_gate.samecell.
+# confirm_pair_samecell. Verification showed that claim is only PARTIALLY true: that method
 # covers the tumor-side, per-PAIR avidity call ONLY. This card additionally provides (a) the tumor-vs-
 # NORMAL selectivity WINDOW (window_verdict/selectivity_margin/normal_liability_locus, reading
-# sc-samecell-coexpr-normal-v1 via pair_selectivity_gate.window — the SAFETY half the skill never
-# invokes) and (b) the TARGET-centric best-partner rollup (samecell_avidity_class headline,
+# sc-samecell-coexpr-normal-v1 via pair_selectivity_gate.window — the SAFETY half the samecell
+# entrypoint does not cover) and (b) the TARGET-centric best-partner rollup (samecell_avidity_class
+# headline,
 # n_coordinated_partners). Those are unique, built + tested capability, not a duplicate — so the card
 # is wired (its dispatcher → cli.build_summary is the only route that delivers the normal window into a
 # composed evidence package). See surface-intrinsic-base.dashboard_spec.yaml (optional_cards).
