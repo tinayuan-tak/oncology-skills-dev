@@ -42,9 +42,19 @@ indications:
         strata: [MSI_H, MSS]
         cohorts: [tcga, depmap]          # the ONE COADREAD axis with DepMap cell-line members
         partition: mutually_exclusive
-      - axis: molecular_subtype          # Guinney 2015 CMS
+      - axis: molecular_subtype          # Guinney 2015 CMS (TCGA patient, directly-tagged)
         strata: [CMS1, CMS2, CMS3, CMS4]
-        cohorts: [tcga]                  # PATIENT-ONLY — 0 DepMap cell lines (expected_n_depmap: 0)
+        cohorts: [tcga]                  # PATIENT — the trusted Guinney labels (expected_n_depmap: 0 on THESE ids)
+        partition: mutually_exclusive
+      - axis: molecular_subtype_depmap   # CMS on DepMap Bowel lines (CMScaller NTP, method=cms_classifier).
+                                         # DISTINCT ids from the TCGA CMS (option B, CMS_CLASSIFIER_DESIGN.md):
+                                         # isolates the HYPOTHESIS-GENERATING cell-line call from the trusted
+                                         # TCGA labels. Shard depmap-subgroup-assignments-coadread-cms-v1
+                                         # (CMS1_depmap 17 / CMS2_depmap 41 / CMS3_depmap 19 / CMS4_depmap 33;
+                                         # 21 unclassifiable). CMS1/CMS4 (immune/mesenchymal) recover poorly
+                                         # on cell lines — lower confidence.
+        strata: [CMS1_depmap, CMS2_depmap, CMS3_depmap, CMS4_depmap]
+        cohorts: [depmap]
         partition: mutually_exclusive
       - axis: cimp_status
         strata: [CIMP_High, CIMP_Low, CIMP_Neg]
@@ -86,6 +96,27 @@ indications:
         to: CMS3
         relationship: enriched_in
         note: "Metabolic CMS3 KRAS-mutation-enriched."
+      # DepMap-CMS ↔ TCGA-CMS cohort bridges: the CMScaller cell-line call is the SAME CMS biology as
+      # the Guinney TCGA label, measured on a different cohort (co_defining — two axes partitioning the
+      # same subtype across cohorts). The coherence facet relates them as RELATED + cohort_bridge=true
+      # (DepMap vs TCGA), NEVER merges them — the hypothesis-generating cell-line call stays distinct
+      # from the trusted patient label.
+      - from: CMS1_depmap
+        to: CMS1
+        relationship: co_defining
+        note: "DepMap CMScaller CMS1 call is the CMS1 biology on cell lines (hypothesis-generating; CMS1 immune-defined, recovers poorly off-tissue). Cohort bridge to the TCGA Guinney CMS1."
+      - from: CMS2_depmap
+        to: CMS2
+        relationship: co_defining
+        note: "DepMap CMScaller CMS2 call ↔ TCGA Guinney CMS2 (canonical). Cohort bridge, same biology."
+      - from: CMS3_depmap
+        to: CMS3
+        relationship: co_defining
+        note: "DepMap CMScaller CMS3 call ↔ TCGA Guinney CMS3 (metabolic). Cohort bridge, same biology."
+      - from: CMS4_depmap
+        to: CMS4
+        relationship: co_defining
+        note: "DepMap CMScaller CMS4 call ↔ TCGA Guinney CMS4 (mesenchymal; stroma-defined, recovers poorly off-tissue — hypothesis-generating). Cohort bridge."
 
   # ============================================================================
   # NSCLC — histology + drivers + fusions (histology data_blocked pending clinical loader)
@@ -94,7 +125,10 @@ indications:
     axes:
       - axis: histology
         strata: [histology_Adeno, histology_SCC]
-        cohorts: [tcga]                  # data_blocked until clinical-field loader ships (see repoint runbook)
+        cohorts: [tcga, depmap]          # LUAD/LUSC. TCGA patient (tcga-subgroup-assignments-nsclc-v1:
+                                         # Adeno 230/SCC 178) + DepMap cell-line (depmap-subgroup-
+                                         # assignments-nsclc-v1: Adeno 118/SCC 32, from OncotreeSubtype).
+                                         # No longer data_blocked — both shards are materialized (2026-09-11).
         partition: co_defining
       - axis: driver_mutation
         strata: [EGFR_mut_ex19del, EGFR_mut_L858R, EGFR_mut_ex20ins, KRAS_G12C, KRAS_G12D, BRAF_V600E, MET_ex14, HER2_mut]
