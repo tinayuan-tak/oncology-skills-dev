@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-09-11T04:10:06.696992+00:00",
+  "generated_at": "2026-09-11T05:05:23.217215+00:00",
   "roots": {
     "contracts": "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
     "skills": "/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills",
@@ -9,18 +9,18 @@
     "catalog": "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"
   },
   "root_shas": {
-    "contracts": "924a2b3",
+    "contracts": "68b1899",
     "skills": "a66047a",
     "methods": "1977738",
     "products": "7a3d852",
-    "catalog": "bcacfef"
+    "catalog": "338caed"
   },
   "delta": {
     "has_prior": true,
-    "prior_generated_at": "2026-09-11T03:32:32.601819+00:00",
+    "prior_generated_at": "2026-09-11T04:10:06.696992+00:00",
     "n_skills": 0,
     "n_cards": 0,
-    "n_drift_flags": 0,
+    "n_drift_flags": -17,
     "n_error_drift": 0,
     "verdict_tally": {},
     "card_health_tally": {},
@@ -41,7 +41,7 @@
     },
     "n_runs_clean": 17,
     "n_runs_clean_error": 0,
-    "n_drift_flags": 23,
+    "n_drift_flags": 6,
     "n_error_drift": 0,
     "n_unregistered_skills": 0,
     "n_live_reader_cards": 63,
@@ -599,13 +599,7 @@
       "n_cards_live": 6,
       "n_p4_required": 5,
       "n_p4_declared": 5,
-      "drift_flags": [
-        {
-          "code": "card_consumed_but_no_spec",
-          "severity": "info",
-          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: abundance-dependency, amp-expr-stratified-dependency, cellline-isoform-expression, cellline-methylation-expression-coherence, cis-feature-expression-coherence, cis-feature-protein-coherence, patient-cis-coherence"
-        }
-      ],
+      "drift_flags": [],
       "health_verdict": "partial",
       "health_reason": "skill-partial-core-gap",
       "reason_text": "a verdict-driving (core) card is placeholder/blocked/broken",
@@ -879,11 +873,6 @@
           "code": "card_registered_never_fires",
           "severity": "info",
           "detail": "consumed card(s) have a live reader but never fired in a real package: cross-consortium-paralog-gi"
-        },
-        {
-          "code": "card_consumed_but_no_spec",
-          "severity": "info",
-          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: combinatorial-dependency, combo-chemical-synergy, combo-crispr-screen, cross-consortium-paralog-gi, resistance-emergence-signature, synthetic-lethal-partners"
         }
       ],
       "health_verdict": "partial",
@@ -1318,13 +1307,7 @@
       "n_cards_live": 7,
       "n_p4_required": 0,
       "n_p4_declared": 0,
-      "drift_flags": [
-        {
-          "code": "card_consumed_but_no_spec",
-          "severity": "info",
-          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: alteration-clinical-association, co-mutation-and-mutual-exclusivity, competitor-landscape, pathway-node-leverage, precog-prognostic-association, stemness-context, subtype-survival-association"
-        }
-      ],
+      "drift_flags": [],
       "health_verdict": "partial",
       "health_reason": "skill-partial-declared",
       "reason_text": "declared partial and no stronger signal overrides it",
@@ -2000,13 +1983,7 @@
       "n_cards_live": 15,
       "n_p4_required": 10,
       "n_p4_declared": 10,
-      "drift_flags": [
-        {
-          "code": "card_consumed_but_no_spec",
-          "severity": "info",
-          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: abundance-dependency, coessential-module, cross-consortium-dependency, genomic-event-model-match, organoid-crispr-dependency, paralog-buffering, partner-conditional-dependency, recommended-models"
-        }
-      ],
+      "drift_flags": [],
       "health_verdict": "production_ready",
       "health_reason": "skill-production-ready",
       "reason_text": "wired + tested, and \u22651 core card has fired in a real package (proven end-to-end)",
@@ -3027,11 +3004,6 @@
           "code": "card_registered_never_fires",
           "severity": "info",
           "detail": "consumed card(s) have a live reader but never fired in a real package: splice-exon-skip-landscape"
-        },
-        {
-          "code": "card_consumed_but_no_spec",
-          "severity": "info",
-          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: alteration-role, amp-expr-stratified-dependency, copy-number-stratified-dependency, cross-consortium-dependency, ddr-deficiency-context, functional-gene-state, fusion-rearrangement-landscape, fusion-stratified-dependency, genomic-event-model-match, genomic-instability-state, mutation-drug-response, mutational-signature-context, oncogenic-pathway-alteration, splice-exon-skip-landscape, subgroup-stratified-copy-number, subgroup-stratified-fusion, target-clonality, tumor-splice-dysregulation, variant-effect-mave-mavedb, variant-level-interpretation"
         }
       ],
       "health_verdict": "production_ready",
@@ -3375,11 +3347,6 @@
           "code": "card_registered_never_fires",
           "severity": "info",
           "detail": "consumed card(s) have a live reader but never fired in a real package: immune-context"
-        },
-        {
-          "code": "card_consumed_but_no_spec",
-          "severity": "info",
-          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: caf-compartment-expression-luo, ici-response-association, ici-response-imvigor210, immune-context, myeloid-compartment-expression-cheng, spatial-tumor-normal-colocalization, tcga-til-fraction-saltz"
         }
       ],
       "health_verdict": "partial",
@@ -3478,13 +3445,7 @@
       "n_cards_live": 0,
       "n_p4_required": 0,
       "n_p4_declared": 0,
-      "drift_flags": [
-        {
-          "code": "card_consumed_but_no_spec",
-          "severity": "info",
-          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: cited-literature-evidence"
-        }
-      ],
+      "drift_flags": [],
       "health_verdict": "partial",
       "health_reason": "skill-partial-core-gap",
       "reason_text": "a verdict-driving (core) card is placeholder/blocked/broken",
@@ -3756,13 +3717,7 @@
       "n_cards_live": 5,
       "n_p4_required": 1,
       "n_p4_declared": 1,
-      "drift_flags": [
-        {
-          "code": "card_consumed_but_no_spec",
-          "severity": "info",
-          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: pathway-activity-context, signaling-network-mechanism, tahoe-drug-perturbation"
-        }
-      ],
+      "drift_flags": [],
       "health_verdict": "partial",
       "health_reason": "skill-partial-core-gap",
       "reason_text": "a verdict-driving (core) card is placeholder/blocked/broken",
@@ -4401,13 +4356,7 @@
       "n_cards_live": 12,
       "n_p4_required": 8,
       "n_p4_declared": 8,
-      "drift_flags": [
-        {
-          "code": "card_consumed_but_no_spec",
-          "severity": "info",
-          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: alteration-role, clingen-dosage, clinvar-pathogenicity-safety, drug-warning-safety, functional-gene-state, gene-burden-safety, gnomad-lof-constraint, mouse-ko-phenotype, normal-tissue-liability-gtex, normal-tissue-protein-abundance-tphp, onsides-adverse-event-safety, shet-lof-intolerance, target-safety-prioritisation"
-        }
-      ],
+      "drift_flags": [],
       "health_verdict": "partial",
       "health_reason": "skill-partial-declared",
       "reason_text": "declared partial and no stronger signal overrides it",
@@ -5607,11 +5556,6 @@
           "code": "card_registered_never_fires",
           "severity": "info",
           "detail": "consumed card(s) have a live reader but never fired in a real package: surface-bulk-pair-selectivity, surface-colocalization-avidity"
-        },
-        {
-          "code": "card_consumed_but_no_spec",
-          "severity": "info",
-          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: cd-antigen-backbone, modality-exon-window, mutation-stratified-surface, pathway-stratified-surface, pmhc-epitope-evidence-iedb, pmhc-presentation, sc-normal-celltype-expression, sc-surface-normal-safety, sc-surface-rna-protein-concordance, structure-features-static, surface-abundance-density, surface-bulk-pair-selectivity, surfaceome-cohort-ranking"
         }
       ],
       "health_verdict": "partial",
@@ -5698,13 +5642,7 @@
       "n_cards_live": 0,
       "n_p4_required": 0,
       "n_p4_declared": 0,
-      "drift_flags": [
-        {
-          "code": "card_consumed_but_no_spec",
-          "severity": "info",
-          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: surfaceome-cohort-ranking"
-        }
-      ],
+      "drift_flags": [],
       "health_verdict": "partial",
       "health_reason": "skill-default",
       "reason_text": "no skill rule matched (fallback)",
@@ -6503,13 +6441,7 @@
       "n_cards_live": 20,
       "n_p4_required": 8,
       "n_p4_declared": 8,
-      "drift_flags": [
-        {
-          "code": "card_consumed_but_no_spec",
-          "severity": "info",
-          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: clingen-dosage, clinvar-pathogenicity-safety, domain-modality-relevance, gene-burden-safety, gene-ontology-annotation, gnomad-lof-constraint, measured-potency-tractability, mouse-ko-phenotype, paralog-buffering, ppi-interactome, protein-domains-class, reactome-pathway-membership, signaling-network-mechanism, structure-features-static, target-development-level, target-safety-prioritisation"
-        }
-      ],
+      "drift_flags": [],
       "health_verdict": "production_ready",
       "health_reason": "skill-production-ready",
       "reason_text": "wired + tested, and \u22651 core card has fired in a real package (proven end-to-end)",
@@ -7874,13 +7806,7 @@
       "n_cards_live": 35,
       "n_p4_required": 22,
       "n_p4_declared": 22,
-      "drift_flags": [
-        {
-          "code": "card_consumed_but_no_spec",
-          "severity": "info",
-          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: cis-feature-expression-coherence, co-mutation-and-mutual-exclusivity, combinatorial-dependency, domain-modality-relevance, fusion-rearrangement-landscape, gene-ontology-annotation, gnomad-lof-constraint, paralog-buffering, pathway-node-leverage, ppi-interactome, protein-domains-class, reactome-pathway-membership, signaling-network-mechanism, structure-features-static, surface-abundance-density, target-development-level"
-        }
-      ],
+      "drift_flags": [],
       "health_verdict": "partial",
       "health_reason": "skill-partial-core-gap",
       "reason_text": "a verdict-driving (core) card is placeholder/blocked/broken",
@@ -8246,13 +8172,7 @@
       "n_cards_live": 8,
       "n_p4_required": 7,
       "n_p4_declared": 7,
-      "drift_flags": [
-        {
-          "code": "card_consumed_but_no_spec",
-          "severity": "info",
-          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: degradation-feasibility, known-drug-tractability, measured-potency-tractability, structure-features-static"
-        }
-      ],
+      "drift_flags": [],
       "health_verdict": "partial",
       "health_reason": "skill-partial-core-gap",
       "reason_text": "a verdict-driving (core) card is placeholder/blocked/broken",
@@ -8443,13 +8363,7 @@
       "n_cards_live": 1,
       "n_p4_required": 1,
       "n_p4_declared": 1,
-      "drift_flags": [
-        {
-          "code": "card_consumed_but_no_spec",
-          "severity": "info",
-          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: organoid-crispr-dependency, target-genotype-matched-model, target-model-availability, target-pdx-drug-response"
-        }
-      ],
+      "drift_flags": [],
       "health_verdict": "partial",
       "health_reason": "skill-partial-core-gap",
       "reason_text": "a verdict-driving (core) card is placeholder/blocked/broken",
@@ -9319,11 +9233,6 @@
           "code": "card_registered_never_fires",
           "severity": "info",
           "detail": "consumed card(s) have a live reader but never fired in a real package: tumor-protein-distribution-by-subtype"
-        },
-        {
-          "code": "card_consumed_but_no_spec",
-          "severity": "info",
-          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: cellline-protein-abundance-procan, cellline-rna-distribution-by-subtype, hpa-pathology-cancer-ihc, sc-normal-celltype-expression, tumor-protein-distribution-by-subtype"
         }
       ],
       "health_verdict": "production_ready",
@@ -10160,11 +10069,6 @@
           "code": "card_registered_never_fires",
           "severity": "info",
           "detail": "consumed card(s) have a live reader but never fired in a real package: spatial-surface-protein-abundance, tumor-vs-normal-percentile-crossing-by-subtype"
-        },
-        {
-          "code": "card_consumed_but_no_spec",
-          "severity": "info",
-          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: normal-tissue-protein-abundance-tphp, sc-normal-celltype-expression, spatial-region-rna-expression, spatial-surface-protein-abundance, spatial-tumor-normal-colocalization, surface-abundance-density, tumor-vs-normal-percentile-crossing, tumor-vs-normal-percentile-crossing-by-subtype, tumor-vs-normal-protein-abundance-tphp"
         }
       ],
       "health_verdict": "production_ready",
@@ -30958,34 +30862,10 @@
   },
   "drift_index": [
     {
-      "skill": "cis-feature-coherence",
-      "code": "card_consumed_but_no_spec",
-      "severity": "info",
-      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: abundance-dependency, amp-expr-stratified-dependency, cellline-isoform-expression, cellline-methylation-expression-coherence, cis-feature-expression-coherence, cis-feature-protein-coherence, patient-cis-coherence"
-    },
-    {
       "skill": "combination-and-vulnerability",
       "code": "card_registered_never_fires",
       "severity": "info",
       "detail": "consumed card(s) have a live reader but never fired in a real package: cross-consortium-paralog-gi"
-    },
-    {
-      "skill": "combination-and-vulnerability",
-      "code": "card_consumed_but_no_spec",
-      "severity": "info",
-      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: combinatorial-dependency, combo-chemical-synergy, combo-crispr-screen, cross-consortium-paralog-gi, resistance-emergence-signature, synthetic-lethal-partners"
-    },
-    {
-      "skill": "differentiation-landscape",
-      "code": "card_consumed_but_no_spec",
-      "severity": "info",
-      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: alteration-clinical-association, co-mutation-and-mutual-exclusivity, competitor-landscape, pathway-node-leverage, precog-prognostic-association, stemness-context, subtype-survival-association"
-    },
-    {
-      "skill": "functional-requirement",
-      "code": "card_consumed_but_no_spec",
-      "severity": "info",
-      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: abundance-dependency, coessential-module, cross-consortium-dependency, genomic-event-model-match, organoid-crispr-dependency, paralog-buffering, partner-conditional-dependency, recommended-models"
     },
     {
       "skill": "genomic-alteration-profile",
@@ -30994,40 +30874,10 @@
       "detail": "consumed card(s) have a live reader but never fired in a real package: splice-exon-skip-landscape"
     },
     {
-      "skill": "genomic-alteration-profile",
-      "code": "card_consumed_but_no_spec",
-      "severity": "info",
-      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: alteration-role, amp-expr-stratified-dependency, copy-number-stratified-dependency, cross-consortium-dependency, ddr-deficiency-context, functional-gene-state, fusion-rearrangement-landscape, fusion-stratified-dependency, genomic-event-model-match, genomic-instability-state, mutation-drug-response, mutational-signature-context, oncogenic-pathway-alteration, splice-exon-skip-landscape, subgroup-stratified-copy-number, subgroup-stratified-fusion, target-clonality, tumor-splice-dysregulation, variant-effect-mave-mavedb, variant-level-interpretation"
-    },
-    {
       "skill": "immune-context",
       "code": "card_registered_never_fires",
       "severity": "info",
       "detail": "consumed card(s) have a live reader but never fired in a real package: immune-context"
-    },
-    {
-      "skill": "immune-context",
-      "code": "card_consumed_but_no_spec",
-      "severity": "info",
-      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: caf-compartment-expression-luo, ici-response-association, ici-response-imvigor210, immune-context, myeloid-compartment-expression-cheng, spatial-tumor-normal-colocalization, tcga-til-fraction-saltz"
-    },
-    {
-      "skill": "literature-context",
-      "code": "card_consumed_but_no_spec",
-      "severity": "info",
-      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: cited-literature-evidence"
-    },
-    {
-      "skill": "mechanism-and-pharmacology",
-      "code": "card_consumed_but_no_spec",
-      "severity": "info",
-      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: pathway-activity-context, signaling-network-mechanism, tahoe-drug-perturbation"
-    },
-    {
-      "skill": "on-target-safety-liability",
-      "code": "card_consumed_but_no_spec",
-      "severity": "info",
-      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: alteration-role, clingen-dosage, clinvar-pathogenicity-safety, drug-warning-safety, functional-gene-state, gene-burden-safety, gnomad-lof-constraint, mouse-ko-phenotype, normal-tissue-liability-gtex, normal-tissue-protein-abundance-tphp, onsides-adverse-event-safety, shet-lof-intolerance, target-safety-prioritisation"
     },
     {
       "skill": "surface-modality-fit",
@@ -31036,64 +30886,16 @@
       "detail": "consumed card(s) have a live reader but never fired in a real package: surface-bulk-pair-selectivity, surface-colocalization-avidity"
     },
     {
-      "skill": "surface-modality-fit",
-      "code": "card_consumed_but_no_spec",
-      "severity": "info",
-      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: cd-antigen-backbone, modality-exon-window, mutation-stratified-surface, pathway-stratified-surface, pmhc-epitope-evidence-iedb, pmhc-presentation, sc-normal-celltype-expression, sc-surface-normal-safety, sc-surface-rna-protein-concordance, structure-features-static, surface-abundance-density, surface-bulk-pair-selectivity, surfaceome-cohort-ranking"
-    },
-    {
-      "skill": "surfaceome-cohort-ranking",
-      "code": "card_consumed_but_no_spec",
-      "severity": "info",
-      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: surfaceome-cohort-ranking"
-    },
-    {
-      "skill": "target-intrinsic",
-      "code": "card_consumed_but_no_spec",
-      "severity": "info",
-      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: clingen-dosage, clinvar-pathogenicity-safety, domain-modality-relevance, gene-burden-safety, gene-ontology-annotation, gnomad-lof-constraint, measured-potency-tractability, mouse-ko-phenotype, paralog-buffering, ppi-interactome, protein-domains-class, reactome-pathway-membership, signaling-network-mechanism, structure-features-static, target-development-level, target-safety-prioritisation"
-    },
-    {
-      "skill": "target-profile",
-      "code": "card_consumed_but_no_spec",
-      "severity": "info",
-      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: cis-feature-expression-coherence, co-mutation-and-mutual-exclusivity, combinatorial-dependency, domain-modality-relevance, fusion-rearrangement-landscape, gene-ontology-annotation, gnomad-lof-constraint, paralog-buffering, pathway-node-leverage, ppi-interactome, protein-domains-class, reactome-pathway-membership, signaling-network-mechanism, structure-features-static, surface-abundance-density, target-development-level"
-    },
-    {
-      "skill": "tractability-small-molecule",
-      "code": "card_consumed_but_no_spec",
-      "severity": "info",
-      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: degradation-feasibility, known-drug-tractability, measured-potency-tractability, structure-features-static"
-    },
-    {
-      "skill": "translational-readiness",
-      "code": "card_consumed_but_no_spec",
-      "severity": "info",
-      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: organoid-crispr-dependency, target-genotype-matched-model, target-model-availability, target-pdx-drug-response"
-    },
-    {
       "skill": "tumor-presence",
       "code": "card_registered_never_fires",
       "severity": "info",
       "detail": "consumed card(s) have a live reader but never fired in a real package: tumor-protein-distribution-by-subtype"
     },
     {
-      "skill": "tumor-presence",
-      "code": "card_consumed_but_no_spec",
-      "severity": "info",
-      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: cellline-protein-abundance-procan, cellline-rna-distribution-by-subtype, hpa-pathology-cancer-ihc, sc-normal-celltype-expression, tumor-protein-distribution-by-subtype"
-    },
-    {
       "skill": "tumor-selectivity",
       "code": "card_registered_never_fires",
       "severity": "info",
       "detail": "consumed card(s) have a live reader but never fired in a real package: spatial-surface-protein-abundance, tumor-vs-normal-percentile-crossing-by-subtype"
-    },
-    {
-      "skill": "tumor-selectivity",
-      "code": "card_consumed_but_no_spec",
-      "severity": "info",
-      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: normal-tissue-protein-abundance-tphp, sc-normal-celltype-expression, spatial-region-rna-expression, spatial-surface-protein-abundance, spatial-tumor-normal-colocalization, surface-abundance-density, tumor-vs-normal-percentile-crossing, tumor-vs-normal-percentile-crossing-by-subtype, tumor-vs-normal-protein-abundance-tphp"
     }
   ]
 }

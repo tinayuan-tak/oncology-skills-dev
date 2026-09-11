@@ -506,10 +506,12 @@ def test_delta_ribbon_renders_moves_and_names():
 # ---------------------------------------------------------------------------
 # 6d. Fix-next punch list + actionability ordering + severity demotion
 # ---------------------------------------------------------------------------
-def test_consumed_but_no_spec_is_info_not_warn():
-    """Demoted 2026-08-05: it's a coverage/roadmap signal (fires on ~half the corpus),
-    not a defect — must not sit in the actionable warn tier."""
-    assert rollup.DRIFT_SEVERITY["card_consumed_but_no_spec"] == "info"
+def test_every_drift_code_is_conditioned_on_wiring_not_spec_membership():
+    """Supersedes test_consumed_but_no_spec_is_info_not_warn (demoted 2026-08-05, RETIRED
+    2026-09-11). The 2026-08-05 fix demoted the flag's SEVERITY without testing its PREMISE,
+    which is how a false claim survived seven weeks at info level while accounting for 17 of
+    23 open drift flags. Registering it at any severity is the regression to catch."""
+    assert "card_consumed_but_no_spec" not in rollup.DRIFT_SEVERITY
 
 
 def test_fix_next_only_actionable_and_ordered():
@@ -1170,25 +1172,51 @@ def test_dashboard_spec_card_ids_scan(tmp_path):
     assert got == {"c1": ["spec-a"], "c2": ["spec-a"]}
 
 
-def test_consumed_but_no_spec_drift(tmp_path):
-    # a real card, consumed by a skill, in no spec -> flagged; placeholder/missing not flagged
+def test_consumed_but_no_spec_raises_no_drift():
+    """RETIRED 2026-09-11 — dashboard_spec membership must NOT raise drift.
+
+    Replaces test_consumed_but_no_spec_drift, which pinned the opposite. The old flag asserted a
+    consumed card in no dashboard_spec "can never fire in an emitted package"; that premise was
+    false (the emitters read cards_used and stamp dashboard_spec_ref="skill:<name>";
+    load_dashboard_spec() has zero callers), and 67 of the 102 flagged cards had already fired
+    pass/passed_with_warnings inside real evidence packages. This test pins the retirement so the
+    false-alarm class cannot silently return.
+    """
     skill = {
         "declared": {"status": "wired", "prose_markers": []},
         "derived": {"kind": "FOCUSED", "has_entrypoint": True, "cards_in_runpy": []},
     }
     cards = [
+        # the falsifier: no spec, yet demonstrably fired in a real package
+        {
+            "card_id": "no-spec-but-fired",
+            "card_yaml_exists": True,
+            "is_placeholder": False,
+            "has_live_reader": True,
+            "fires_in_real_package": True,
+        },
         {"card_id": "in-spec", "card_yaml_exists": True, "is_placeholder": False},
-        {"card_id": "no-spec", "card_yaml_exists": True, "is_placeholder": False},
-        {"card_id": "placeholder-card", "card_yaml_exists": True, "is_placeholder": True},
     ]
-    spec_cards = {"in-spec": ["spec-a"]}
-    flags = rollup.compute_drift(skill, cards, spec_cards)
-    codes = {f["code"]: f for f in flags}
-    assert "card_consumed_but_no_spec" in codes
-    detail = codes["card_consumed_but_no_spec"]["detail"]
-    assert "no-spec" in detail
-    assert "in-spec" not in detail  # it IS in a spec
-    assert "placeholder-card" not in detail  # placeholder excluded
+    codes = {f["code"] for f in rollup.compute_drift(skill, cards)}
+    assert "card_consumed_but_no_spec" not in codes
+    assert "card_consumed_but_no_spec" not in rollup.DRIFT_SEVERITY
+
+
+def test_card_registered_never_fires_is_the_surviving_liveness_flag():
+    """The honest form of the question the retired flag was reaching for.
+
+    A card with a live reader that has NOT fired is real drift; the same card once it fires is
+    not. Conditioning on has_live_reader/fires_in_real_package — never on spec membership — is
+    what makes the remaining drift index trustworthy.
+    """
+    skill = {
+        "declared": {"status": "wired", "prose_markers": []},
+        "derived": {"kind": "FOCUSED", "has_entrypoint": True, "cards_in_runpy": []},
+    }
+    unfired = [{"card_id": "c", "card_yaml_exists": True, "has_live_reader": True, "fires_in_real_package": False}]
+    fired = [{"card_id": "c", "card_yaml_exists": True, "has_live_reader": True, "fires_in_real_package": True}]
+    assert "card_registered_never_fires" in {f["code"] for f in rollup.compute_drift(skill, unfired)}
+    assert "card_registered_never_fires" not in {f["code"] for f in rollup.compute_drift(skill, fired)}
 
 
 def test_self_check_catches_bad_spec_flag(tmp_path):
@@ -1381,7 +1409,7 @@ def test_modality_relevance_drift_flag_in_compute_drift():
         {"card_id": "b", "modality_routing": "drift", "card_yaml_exists": True, "is_placeholder": False},
         {"card_id": "c", "modality_routing": "declared", "card_yaml_exists": True, "is_placeholder": False},
     ]
-    flags = {f["code"]: f for f in rollup.compute_drift(skill, cards, {"a": ["s"], "b": ["s"], "c": ["s"]})}
+    flags = {f["code"]: f for f in rollup.compute_drift(skill, cards)}
     assert "modality_relevance_missing" in flags and "a" in flags["modality_relevance_missing"]["detail"]
     assert "modality_relevance_drift" in flags and "b" in flags["modality_relevance_drift"]["detail"]
     # both are WARN (not error) — never flip skill health to broken_or_drift

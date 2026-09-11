@@ -315,9 +315,15 @@ def probe_skill(skill_dir: Path) -> dict:
 # ===========================================================================
 def dashboard_spec_card_ids(contracts_root: Path) -> dict[str, list[str]]:
     """card_id -> [spec names that list it]. Scans dashboards/*.dashboard_spec.yaml
-    required_cards + optional_cards. A card consumed by a skill but absent from
-    EVERY spec can never fire in an emitted package (the emission path pulls from a
-    spec, not from a skill's cards_used) — the skill/spec coverage gap."""
+    required_cards + optional_cards.
+
+    DESCRIPTIVE ONLY. This used to be documented as "a card in no spec can never fire in an
+    emitted package (the emission path pulls from a spec, not from a skill's cards_used)".
+    That was FALSE and was retired 2026-09-11: the live emitters take their card set from
+    SUB_SKILL_CARDS / cards_used and stamp dashboard_spec_ref="skill:<name>";
+    `load_dashboard_spec()` has zero callers in any repo; and 67 cards in no spec had already
+    fired inside real evidence packages. Spec-driven admission belonged to compose-dashboard,
+    retired 2026-08-20 (#654). Full adjudication: rollup.DRIFT_SEVERITY's RETIRED note."""
     out: dict[str, list[str]] = {}
     ddir = contracts_root / "dashboards"
     if not ddir.is_dir():

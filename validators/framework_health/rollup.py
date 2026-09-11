@@ -31,14 +31,32 @@ DRIFT_SEVERITY = {
     "card_registered_never_fires": "info",
     "stale_method_label": "info",
     "dataset_ref_not_in_catalog": "warn",
-    # INFO, not warn (demoted 2026-08-05): "consumed by a skill but in no dashboard_spec"
-    # is a COVERAGE/roadmap signal, not a defect. It fires on ~half the card corpus
-    # (many are target-intrinsic / descriptive cards that legitimately don't belong in a
-    # PER-INDICATION spec), which at warn-severity drowned the genuinely-actionable warns
-    # (dataset_ref_not_in_catalog, declared_cards_mismatch_runpy). Surfaced instead as a
-    # spec-coverage metric on the Cards tab; kept in the drift index at info so it stays
-    # traceable without dominating the warn tier.
-    "card_consumed_but_no_spec": "info",
+    # RETIRED 2026-09-11 — `card_consumed_but_no_spec`. It was demoted warn->info on
+    # 2026-08-05 for drowning the actionable warns, but its PREMISE was never tested and is
+    # FALSE: it asserted a consumed card "can never fire in an emitted package until added to
+    # a dashboard_spec". Adjudicated against the live emission path, three ways:
+    #   1. FALSIFIED BY THE FEED'S OWN DATA — 67 of the 102 flagged cards carry
+    #      fires_in_real_package=true, i.e. they already validated pass/passed_with_warnings
+    #      inside committed evidence packages while in NO spec. The flag's claim is not merely
+    #      pessimistic, it contradicts observed firings.
+    #   2. NO EMISSION PATH READS A SPEC — `load_dashboard_spec()` has ZERO callers across all
+    #      five repos, and the live emitters (skills _skills_common/dispatcher.py and
+    #      target-profile/scripts/tp_evidence_package.py) stamp dashboard_spec_ref="skill:<name>",
+    #      a synthetic literal that is never a dashboard_id. Card-set determination comes from
+    #      SUB_SKILL_CARDS / cards_used.
+    #   3. THE PREMISE IS AN ARTIFACT OF A RETIRED ENGINE — spec-driven card admission belonged
+    #      to compose-dashboard (see skills _skills_common/compose_core.py's card-set-determination
+    #      note, and envelope.py on the axis_resolution/selected_base_dashboard structure "that
+    #      only compose-dashboard has"). compose-dashboard was retired 2026-08-20 (#654).
+    # The 35 flagged cards that have NOT fired are not emission gaps either: 33 are status:wired
+    # but not yet exercised (most without a live reader), 1 placeholder, 1 self-produced — a state
+    # already reported honestly by has_live_reader / fires_in_real_package / card_health, and by
+    # `card_registered_never_fires` above, which asks the same question with the CORRECT condition
+    # (has a live reader AND did not fire). So this code was redundant where it was right and
+    # wrong where it was loud: 17 of the framework's 23 open drift flags, all false.
+    # The DESCRIPTIVE card fields (in_dashboard_spec / dashboard_specs / consumed_but_no_spec) are
+    # retained — "this card is in no spec" is a true statement about spec coverage — but they no
+    # longer raise drift, and the Cards tab no longer claims they cannot fire.
     # P4 modality-vector lens. WARN (not error) deliberately: validate_cards.py already ENFORCES
     # these at commit time (missing=error, drift=warning) and blocks merge, so a healthy repo never
     # carries them. The dashboard is a VISIBILITY layer, not a second enforcer — warn surfaces P4
@@ -166,11 +184,16 @@ def roll_up_card(card_signals: dict, rules: dict) -> dict:
     return {**card_signals, "card_health": verdict, "health_reason": reason_id, "reason_text": reason_text}
 
 
-def compute_drift(skill: dict, cards: list[dict], spec_cards: dict | None = None) -> list[dict]:
-    """Declared-vs-derived mismatches. Each flag: {code, severity, detail}."""
+def compute_drift(skill: dict, cards: list[dict]) -> list[dict]:
+    """Declared-vs-derived mismatches. Each flag: {code, severity, detail}.
+
+    Took a `spec_cards` map until 2026-09-11, when the only flag that consumed it
+    (`card_consumed_but_no_spec`) was retired as a false-alarm class — see DRIFT_SEVERITY.
+    Dropped rather than left ignored so no future reader has to re-adjudicate whether it
+    is load-bearing. Spec coverage is still reported on the card nodes.
+    """
     flags: list[dict] = []
     dec, der = skill["declared"], skill["derived"]
-    spec_cards = spec_cards or {}
 
     def add(code: str, detail: str) -> None:
         flags.append({"code": code, "severity": DRIFT_SEVERITY.get(code, "info"), "detail": detail})
@@ -233,23 +256,11 @@ def compute_drift(skill: dict, cards: list[dict], spec_cards: dict | None = None
             f"consumed card(s) reference dataset product_id(s) not in the data-catalog: {', '.join(missing_ds)}",
         )
 
-    # Spec-coverage gap: cards this skill consumes that are in NO dashboard_spec, so
-    # they can never fire in an emitted package (the emission path pulls from a spec).
-    # Only flag cards that actually EXIST (a missing/placeholder card is a different
-    # problem already surfaced). This is the skill/spec divergence.
-    no_spec = sorted(
-        {
-            c["card_id"]
-            for c in cards
-            if c.get("card_yaml_exists") and not c.get("is_placeholder") and c["card_id"] not in spec_cards
-        }
-    )
-    if no_spec:
-        add(
-            "card_consumed_but_no_spec",
-            f"consumed card(s) are in NO dashboard_spec — cannot fire in an emitted "
-            f"package until added to a spec: {', '.join(no_spec)}",
-        )
+    # Spec-coverage: NO drift flag is raised for "consumed but in no dashboard_spec" — see the
+    # RETIRED note in DRIFT_SEVERITY for the adjudication (the emission path does not read a spec,
+    # and 67 of the 102 formerly-flagged cards had already fired inside real packages). Spec
+    # coverage is still REPORTED per card (in_dashboard_spec / dashboard_specs), and the honest
+    # "consumed but not proven live" question is asked by `card_registered_never_fires` above.
 
     # P4 modality-vector: a consumed card whose measurement_type ROUTES to a modality-fit gate
     # but does not declare modality_relevance is stranded on the biology axis (mirrors the
@@ -357,7 +368,9 @@ def build_health(roots: dict[str, Path]) -> dict:
     catalog = probe.catalog_manifests(roots["catalog"])  # product_id -> manifest meta
     catalog_ids = set(catalog)
     modality_types = probe.modality_relevant_types(roots["contracts"])  # P4: type -> routing set (None if vocab absent)
-    spec_cards = probe.dashboard_spec_card_ids(roots["contracts"])  # card_id -> [spec names]
+    # card_id -> [spec names]. DESCRIPTIVE ONLY (reported on the card nodes); it no longer
+    # feeds any drift flag — see the RETIRED note in DRIFT_SEVERITY.
+    spec_cards = probe.dashboard_spec_card_ids(roots["contracts"])
     run_health = probe.subskill_run_health(roots["skills"])  # skill_name -> "runs clean?" record ({} if absent)
 
     # probe_card is called from BOTH the per-skill loop and the card-universe loop,
@@ -394,7 +407,7 @@ def build_health(roots: dict[str, Path]) -> dict:
             set(sig["declared"].get("cards_used") or []) | set(sig["derived"].get("cards_in_runpy") or [])
         )
         cards = [roll_up_card(probe_card_cached(cid), rules) for cid in card_ids]
-        drift = compute_drift(sig, cards, spec_cards)
+        drift = compute_drift(sig, cards)
         node = roll_up_skill(sig, cards, drift, rules)
         # Attach risk_category / coverage via the short mapping (for matrix grouping).
         short = ss_map.get(name)
@@ -438,9 +451,10 @@ def build_health(roots: dict[str, Path]) -> dict:
         cn["is_staged_orphan"] = cn["is_orphan"] and bool(cn.get("is_placeholder"))
         cn["dashboard_specs"] = sorted(spec_cards.get(cid, []))
         cn["in_dashboard_spec"] = bool(cn["dashboard_specs"])
-        # Coverage gap: a card consumed by ≥1 skill but in NO dashboard_spec can
-        # never fire in an emitted package (emission pulls from a spec). Distinct
-        # from "unfired-but-in-spec" — this is a spec/skill divergence, not a run gap.
+        # Spec coverage, DESCRIPTIVE: consumed by >=1 skill but listed in no dashboard_spec.
+        # This says nothing about whether the card can fire — the emission path does not read a
+        # spec (see the RETIRED note in DRIFT_SEVERITY; 67 such cards have fired in real
+        # packages). "Can it fire?" is answered by fires_in_real_package / has_live_reader.
         cn["consumed_but_no_spec"] = cn["n_consumers"] > 0 and not cn["in_dashboard_spec"]
         card_nodes.append(cn)
 

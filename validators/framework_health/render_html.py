@@ -63,7 +63,10 @@ DRIFT_CODE_LABEL = {
     "card_registered_never_fires": "card is wired but has never fired in a real evidence package yet",
     "stale_method_label": "card’s method label differs from the method the dispatcher actually imports",
     "dataset_ref_not_in_catalog": "card references a dataset that isn’t registered in the data-catalog",
-    "card_consumed_but_no_spec": "a skill pulls this card, but no dashboard_spec does — so it can never fire",
+    # card_consumed_but_no_spec retired 2026-09-11 (false-alarm class — see rollup.DRIFT_SEVERITY).
+    # Gloss kept so an ARCHIVED feed still renders a legend entry rather than a bare code.
+    "card_consumed_but_no_spec": "RETIRED flag (2026-09-11): asserted a card in no dashboard_spec "
+    "“can never fire”, which was false — the emission path reads cards_used, not a spec",
     "modality_relevance_missing": "card routes to a modality-fit gate but declares no modality_relevance (P4)",
     "modality_relevance_drift": "card’s declared modality_relevance is outside its type’s routing set (P4)",
 }
@@ -638,10 +641,17 @@ def _cards_table(report: dict) -> str:
         )
         method = c.get("dispatch_module") or c.get("method_call") or "—"
         cls = " class='orphan'" if orphan else ""
-        # spec-coverage cell: which dashboard_spec(s) list it, or a red "no spec" flag
-        # for a consumed card that no spec pulls (can never fire in a package).
+        # spec-coverage cell: which dashboard_spec(s) list it, else a NEUTRAL "no spec" note.
+        # Was a RED alarm claiming "can't fire in a package" until 2026-09-11 — false, and the
+        # loudest wrong signal on this tab (see rollup.DRIFT_SEVERITY's RETIRED note). Spec
+        # membership is orthogonal to firing; the Fires column is the liveness answer.
         if c.get("consumed_but_no_spec"):
-            spec_cell = _chip("no spec", _RED, "consumed by a skill but in no dashboard_spec — can't fire in a package")
+            spec_cell = _chip(
+                "no spec",
+                _GREY,
+                "in no dashboard_spec (legacy compose-dashboard admission path). Does NOT "
+                "affect whether the card fires — see the Fires column.",
+            )
         elif c.get("in_dashboard_spec"):
             spec_cell = f"<span class='consumers'>{_esc(', '.join(c.get('dashboard_specs') or []))}</span>"
         else:
@@ -811,7 +821,9 @@ def _card_summary_cards(report: dict) -> str:
         ]
         + [
             ("orphan cards", s.get("n_orphan_cards", 0), _RED),
-            ("consumed, no spec", s.get("n_cards_consumed_but_no_spec", 0), _RED),
+            # GREY, not red (2026-09-11): spec membership is descriptive, not a defect — the
+            # emission path never reads a spec. See rollup.DRIFT_SEVERITY's RETIRED note.
+            ("consumed, no spec", s.get("n_cards_consumed_but_no_spec", 0), _GREY),
         ]
     )
 
