@@ -154,6 +154,13 @@ thresholds:
   strong_up_effect: 1.5
   modest_up_effect: 0.5
   significance_q: 0.05
+  # Cohen's-d |d| bands for protein_effect_standardized_class (variance-standardized effect SIZE):
+  # negligible <0.2 <= small <0.5 <= medium <0.8 <= large. Promoted from the summary_fields_vocabulary
+  # comments to named thresholds so the salience Cohen's-d ruler single-sources the SAME cuts the
+  # standardized-class band uses (mirrors the modest/strong_up_effect log2FC cuts above).
+  cohens_d_small: 0.2
+  cohens_d_medium: 0.5
+  cohens_d_large: 0.8
   # all-gene percentile-class cutoffs (method bins allgene_percentile → allgene_percentile_class)
   allgene_top_1_percentile: 99.0
   allgene_top_decile: 90.0
