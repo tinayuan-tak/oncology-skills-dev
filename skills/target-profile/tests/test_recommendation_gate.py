@@ -1058,3 +1058,65 @@ def test_hard_gates_status_reconciled_not_opposing(monkeypatch):
     subs2 = _merge(_sub("selectivity", "selective_but_broadly_normal"), _sub("surface_modality", "neither_viable"))
     rows2 = {(r["short"], r["verdict"]): r["status"] for r in tpg._hard_gates_status(subs2, [], [])}
     assert rows2[("selectivity", "selective_but_broadly_normal")] == "opposing"
+
+
+# ---------------------------------------------------------------------------
+# Thesis routing (Step 2b, v1.17.0) — a dependency `non_dependent` veto is IRRELEVANT for theses whose
+# biology does not live on the dependency axis. Verified hermetically (no Bedrock, no packages) against
+# the governed nomination_verdict_gate.thesis_axis_relevance block. Skips until contracts 2b lands.
+# ---------------------------------------------------------------------------
+_CONTRACTS = Path("/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+_HAS_THESIS_ROUTING = bool(tp._load_thesis_axis_relevance(_CONTRACTS))
+_thesis_skip = pytest.mark.skipif(
+    not _HAS_THESIS_ROUTING, reason="contracts thesis_axis_relevance absent (land 2b-contracts)"
+)
+
+
+@_thesis_skip
+def test_antigen_driven_makes_dependency_nondependent_irrelevant():
+    """The 0/14-surface fix: an antigen_driven target's pooled non_dependent VETO is DROPPED (not just
+    held) → the gate does not force a veto; it is recorded as a thesis suppression (never silent)."""
+    subs = _sub("dependency", "non_dependent", "non-dependent-killer")
+    action, hits, supps = tp._gate_recommendation(subs, thesis="antigen_driven")
+    assert action is None, "antigen_driven: dependency non_dependent must not force a veto"
+    assert any(s["suppressed_by"].get("kind") == "thesis_irrelevant_axis" for s in supps)
+    # today's behaviour without the thesis (unresolved) — the veto STILL fires
+    assert tp._gate_recommendation(subs, thesis="unresolved")[0] == "veto"
+    assert tp._gate_recommendation(subs)[0] == "veto"  # no thesis passed → today's gate
+
+
+@_thesis_skip
+def test_thesis_routing_never_drops_pan_essential_killer():
+    """SAFETY-CRITICAL: pan_essential_killer (broad-tox) still VETOes even for antigen_driven — the
+    vocab lists only non_dependent as irrelevant."""
+    subs = _sub("dependency", "pan_essential_killer", "pan-essential-killer")
+    assert tp._gate_recommendation(subs, thesis="antigen_driven")[0] == "veto"
+    assert tp._gate_recommendation(subs, thesis="tme_io")[0] == "veto"
+
+
+@_thesis_skip
+def test_thesis_routing_never_touches_safety_hold():
+    """A safety concern still HOLDs regardless of thesis; only the dependency veto is dropped, so a
+    surface antigen with a safety liability is still surfaced-with-hold, not a false GO."""
+    subs = _merge(
+        _sub("dependency", "non_dependent", "non-dependent-killer"),
+        _sub("safety", "highly_constrained_safety_concern", "highly-constrained-safety-warning"),
+    )
+    action, hits, supps = tp._gate_recommendation(subs, thesis="antigen_driven")
+    assert action == "hold", "safety hold must survive; only the dependency veto is dropped"
+    assert {h["short"] for h in hits} == {"safety"}
+
+
+@_thesis_skip
+def test_oncogene_addiction_keeps_dependency_veto():
+    """oncogene_addiction is where the dependency axis legitimately decides → the veto is UNCHANGED
+    (the KRAS-class guardrail: routing must not soften the addiction thesis)."""
+    subs = _sub("dependency", "non_dependent", "non-dependent-killer")
+    assert tp._gate_recommendation(subs, thesis="oncogene_addiction")[0] == "veto"
+
+
+@_thesis_skip
+def test_tme_io_and_partner_conditional_and_neomorphic_drop_nondependent():
+    for th in ("tme_io", "neomorphic_gof", "partner_conditional_sl"):
+        subs = _sub("dependency", "non_dependent", "non-dependent-killer")
+        assert tp._gate_recommendation(subs, thesis=th)[0] is None, f"{th}: non_dependent should be irrelevant"

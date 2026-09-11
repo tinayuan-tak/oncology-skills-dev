@@ -348,6 +348,26 @@ def _load_veto_suppressors(
         return [], [], [], [], "fallback"
 
 
+def _load_thesis_axis_relevance(contracts_repo: Path | None = None) -> dict[str, set[tuple[str, str]]]:
+    """Load the Step-2b `thesis_axis_relevance` block → {thesis: {(sub_skill, verdict), ...}}: the
+    (axis, verdict) gate hits a given thesis makes IRRELEVANT (dropped before the veto is forced).
+    CONSERVATIVE FALLBACK: any failure / absent block → EMPTY → NO thesis routing (today's gate). A
+    missing block can never disable a veto; only a present, PR-reviewed entry can."""
+    repo = contracts_repo or _CONTRACTS_REPO
+    path = repo / "vocabularies" / "nomination_verdict_gate.yaml"
+    try:
+        data = yaml.safe_load(path.read_text())
+        out: dict[str, set[tuple[str, str]]] = {}
+        for blk in data.get("thesis_axis_relevance", []) or []:
+            th = blk.get("thesis")
+            if not th:
+                continue
+            out[th] = {(ir["sub_skill"], ir["verdict"]) for ir in (blk.get("irrelevant") or []) if ir.get("sub_skill")}
+        return out
+    except Exception:  # noqa: BLE001 — absent/malformed → no thesis routing (veto stands)
+        return {}
+
+
 def _trigger_label(w: dict, present: set, sub_results: dict) -> Optional[str]:
     """Return a provenance label if the veto-suppressor `when_present` trigger `w` is satisfied,
     else None. Two trigger forms:
@@ -423,6 +443,7 @@ def _suppressed_gate_hits(
     modality: Optional[str],
     contracts_repo: Path | None = None,
     biology_axis: Optional[str] = None,
+    thesis: Optional[str] = None,
 ) -> tuple[list[dict], list[dict]]:
     """Apply v1.2.0 veto suppression to the fired gate hits. Returns
     (surviving_hits, suppression_records). A hit is suppressed when EITHER:
@@ -440,7 +461,11 @@ def _suppressed_gate_hits(
     Only `dependency` veto arms are ever suppressible (the vocab enforces this too).
     """
     ctx_supps, msvs, bavd, gdvd, src = _load_veto_suppressors(contracts_repo)
-    if not ctx_supps and not msvs and not bavd and not gdvd:
+    # Step 2b: the target's thesis may make an axis IRRELEVANT (drop the veto before it forces). Loaded
+    # here so a thesis can suppress even when the epicycle suppressors are empty (they are retired in 2c).
+    thesis_irrelevant = _load_thesis_axis_relevance(contracts_repo)
+    thesis_drop = thesis_irrelevant.get(thesis, set()) if thesis else set()
+    if not ctx_supps and not msvs and not bavd and not gdvd and not thesis_drop:
         return hits, []
     # The live surface_modality verdict, for the biology-axis downgrade (C) co-condition.
     _surf = sub_results.get("surface_modality", {}).get("verdict")
@@ -462,13 +487,21 @@ def _suppressed_gate_hits(
     for h in hits:
         key = (h["short"], h["verdict"])
         suppressed_by = None
+        # (0) THESIS ROUTING (Step 2b) — runs FIRST so it takes precedence + records the thesis
+        # attribution. The target's thesis makes this (axis, verdict) IRRELEVANT: an antigen_driven /
+        # tme_io / neomorphic_gof / partner_conditional_sl target's pooled `non_dependent` is not a
+        # trusted disqualifier. The vocab NEVER lists pan_essential_killer or a safety verdict, so this
+        # can only ever drop the pooled-dependency dilution arm. `unresolved`/oncogene_addiction have no
+        # entry → thesis_drop is empty → today's gate.
+        if key in thesis_drop:
+            suppressed_by = {"kind": "thesis_irrelevant_axis", "thesis": thesis}
         # (A) context-escape. A `when_present` trigger is EITHER a verdict-tuple form
         # ({sub_skill, verdict} — matched against the live sub-verdict set) OR a CARD-FIELD form
         # ({card_id, field, value} — matched against a composed card's summary field). The latter
         # (2026-08-21) lets a suppressor key on a signal that lives on a card under a GATELESS
         # sub-skill (verdict=None), e.g. the SL rescue after synthetic_lethal_partners consolidated
         # into combination_vulnerability. _trigger_label returns the match label or None.
-        for s in ctx_supps:
+        for s in ctx_supps if suppressed_by is None else ():
             sup = s.get("suppresses", {})
             if (sup.get("sub_skill"), sup.get("verdict")) != key:
                 continue
@@ -580,6 +613,7 @@ def _gate_recommendation(
     contracts_repo: Path | None = None,
     modality: Optional[str] = None,
     biology_axis: Optional[str] = None,
+    thesis: Optional[str] = None,
 ) -> tuple[Optional[str], list[dict], list[dict]]:
     """Deterministically derive a forced overall_recommendation from sub-verdicts.
 
@@ -662,7 +696,9 @@ def _gate_recommendation(
             )
     # v1.2.0: apply veto suppression (context-escape + modality-scoped) before
     # resolving the forced action. A suppressed veto does not force — but is recorded.
-    hits, suppressions = _suppressed_gate_hits(hits, sub_results, modality, contracts_repo, biology_axis=biology_axis)
+    hits, suppressions = _suppressed_gate_hits(
+        hits, sub_results, modality, contracts_repo, biology_axis=biology_axis, thesis=thesis
+    )
     if not hits:
         return None, [], suppressions
     # .get(a, 0): an action outside {veto, hold} (a vocab typo or a new action a product owner adds —
@@ -1156,6 +1192,7 @@ __all__ = [
     "abstention_lower_bound_clamp",
     "derive_thesis",
     "_load_target_thesis",
+    "_load_thesis_axis_relevance",
     "_flatten_gate_coverage",
     "_gate_recommendation",
     "_gate_scorecard",
