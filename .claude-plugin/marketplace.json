@@ -16,7 +16,6 @@
         "email": "ming-ju.tsai@takeda.com"
       },
       "skills": [
-        "./skills/bispecific-pair-scan",
         "./skills/catalog-query",
         "./skills/cis-feature-coherence",
         "./skills/combination-and-vulnerability",
@@ -33,7 +32,6 @@
         "./skills/query-target-evidence",
         "./skills/render-evidence-package",
         "./skills/surface-modality-fit",
-        "./skills/surfaceome-cohort-ranking",
         "./skills/target-archetype",
         "./skills/target-intrinsic",
         "./skills/target-profile",

@@ -86,7 +86,13 @@ _GRADUATION_RUN_EXEMPT = {
     "cross-evidence-hypothesis": "LLM reasoning skill (Bedrock) over a prebuilt evidence_package — not a card-dispatch data-package run.",
     "literature-risk-assessment": "LLM + PubMed retrieval skill (Bedrock/network) — non-reproducible, different CLI/shape.",
     "target-archetype": "atlas/scoring skill (frozen model over an evidence package) — different entrypoint, not a per-target card dispatch.",
-    "bispecific-pair-scan": "scan-hook background job (--gate, per-pair TCGA/GTEx compute) with a different CLI; covered by its own tests.",
+    # bispecific-pair-scan RETIRED 2026-09-11 (with surfaceome-cohort-ranking): the two standalone
+    # SCAN-HOOK skills. Both hand-rolled main() outside the card/resolver spine, so every harness
+    # needed a bespoke exemption for them (this dict, _SKIP_DIRS in framework_health_smoke) and
+    # neither ever fired a card in any run or emitted package. The physics survives where it belongs
+    # — methods/pair_selectivity_gate + methods/surfaceome_cohort_ranking — and the IN-SPINE cards
+    # that read it (surface-bulk-pair-selectivity, surface-colocalization-avidity,
+    # surfaceome-cohort-ranking, all consumed by surface-modality-fit) are untouched.
 }
 
 

@@ -406,9 +406,12 @@ CARDS = [
     # solid-tumor ADC/TCE antigens aren't CD molecules). ADDITIVE (no rung) → byte-stable.
     "surface-colocalization-avidity",  # wired 2026-08-20: same-cell avidity + tumor-vs-NORMAL selectivity WINDOW for
     # AND-gate bispecifics (TCE/dual-ADC). Un-retired from a partially-true 2026-08-19
-    # supersession — bispecific-pair-scan covers tumor per-pair avidity ONLY; this card
-    # uniquely adds the normal selectivity window (sc-samecell-coexpr-normal-v1 via
-    # pair_selectivity_gate.window) + target-centric best-partner rollup. Its 5 rules
+    # supersession — pair_selectivity_gate.samecell covers tumor per-pair avidity ONLY;
+    # this card uniquely adds the normal selectivity window (sc-samecell-coexpr-normal-v1
+    # via pair_selectivity_gate.window) + target-centric best-partner rollup. (The
+    # supersession was attributed to the bispecific-pair-scan SKILL, retired 2026-09-11;
+    # the method it wrapped is what this card shares, so the reasoning is unchanged and
+    # this is now the ONLY consumer of the pair physics inside the fan-out.) Its 5 rules
     # (samecell-*/selectivity-window-*) are in NO resolver → ADDITIVE, verdict
     # byte-stable. Indication-scoped (per-indication cube); data_unavailable elsewhere.
     "surfaceome-cohort-ranking",  # REVIVE (2026-08-20): per-target COHORT-PERCENTILE context — where

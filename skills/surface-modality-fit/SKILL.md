@@ -126,10 +126,12 @@ composition:
                                        # verdict byte-stable. Declared here 2026-08-11 (doc-drift fixed).
     - surface-colocalization-avidity   # (in run.py CARDS; wired 2026-08-20) same-cell avidity + tumor-vs-NORMAL
                                        # selectivity WINDOW for AND-gate bispecifics (TCE/dual-ADC). Un-retired from a
-                                       # 2026-08-19 supersession that proved only partially true: bispecific-pair-scan
-                                       # covers tumor per-pair avidity ONLY; this card uniquely adds the normal
+                                       # 2026-08-19 supersession that proved only partially true: pair_selectivity_gate.
+                                       # samecell covers tumor per-pair avidity ONLY; this card uniquely adds the normal
                                        # selectivity window (sc-samecell-coexpr-normal-v1 via pair_selectivity_gate.window)
-                                       # + the target-centric best-partner rollup. Its 5 rules (surface-intrinsic.rules)
+                                       # + the target-centric best-partner rollup. (The supersession named the
+                                       # bispecific-pair-scan SKILL, retired 2026-09-11 — the shared METHOD is what the
+                                       # reasoning was ever about, so it stands.) Its 5 rules (surface-intrinsic.rules)
                                        # are in NO resolver → ADDITIVE signal facet, verdict byte-stable (fit_class resolves
                                        # off adc-tce-modality-fit). LIVE for the 11 indications with a landed same-cell cube;
                                        # data_unavailable elsewhere (honest gap).

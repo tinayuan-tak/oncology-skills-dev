@@ -12,10 +12,25 @@ see _skills_common.resolve_cards) on a fixture target. Capture the run_health bl
 dispatcher emits into decision.json. Roll all subskills into ONE committed
 subskill_health.json that the target-contracts health probe reads.
 
-DETERMINISTIC + OFFLINE by construction: no network, no credentials, no live data. A
-subskill that runs clean on stubs is demonstrably executable end-to-end; a subskill that
-errors here has a real pipeline break the structural probe cannot see. This is the
-"runs clean?" tier of the two-tier liveness ladder (see the redesign design-doc).
+DETERMINISTIC + OFFLINE *because of the coverage predicate*, not by wishful assertion: the
+smoke flag is honoured inside `resolve_cards`, so a skill is offline under it ONLY if its run
+actually reaches `resolve_cards` — which is exactly what `_wired_subskills()` now requires (a
+real `run_wired_skill(` CALL, AST-checked). A subskill that runs clean on stubs is demonstrably
+executable end-to-end; a subskill that errors here has a real pipeline break the structural
+probe cannot see. This is the "runs clean?" tier of the two-tier liveness ladder (see the
+redesign design-doc).
+
+★ WHY THAT SENTENCE IS SO CAREFUL (2026-09-11): it used to read "OFFLINE by construction" and
+was FALSE. The predicate text-matched the string "run_wired_skill" anywhere in run.py — including
+comments that said the OPPOSITE ("this scan hand-rolls main() (no run_wired_skill)") — so the two
+standalone scan-hook skills were smoked despite never calling `resolve_cards`. For them the smoke
+flag was INERT and this "offline" harness was issuing live per-sample S3 reads. It reported
+smoke=clean for weeks (the reads happened to fail fast), then the 40-partner pair scan started
+completing and blew the 120s cap, and because `TimeoutExpired` is a `subprocess.SubprocessError`
+the harness recorded a FABRICATED smoke="error" — a machine-load artifact presented as a pipeline
+break, which turned release-gate step 2 red. Both defects are fixed below; both scan skills were
+retired the same day. The lesson worth keeping: a harness's offline/determinism claim must be
+ENFORCED by its coverage rule, or it is just a comment.
 
 Usage:
   python -m _skills_common.framework_health_smoke            # write subskill_health.json
@@ -25,6 +40,8 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import ast
+import copy
 import json
 import os
 import subprocess
@@ -35,39 +52,77 @@ from pathlib import Path
 SKILLS_DIR = Path(__file__).resolve().parents[1]  # .../skills
 _OUT = SKILLS_DIR / "_skills_common" / "subskill_health.json"
 
+# Per-subskill wall-clock cap. Every covered subskill resolves its cards to stubs (see the
+# predicate below), so a healthy run is seconds — this is ~10x headroom, not a budget. Exceeding
+# it is treated as an ENVIRONMENTAL condition (`timeout`), never as a pipeline break.
+_TIMEOUT_SECS = 120
+
 # Fixture invocation — a canonical target/indication that exercises indication-scoped AND
 # target-only skills. Values are irrelevant to the signal (readers are stubbed); they only
 # need to satisfy argparse + any indication-gated applies_when that runs in-process.
 _FIX_TARGET = "FIXTURE"
 _FIX_INDICATION = "COADREAD"
 
-# Non-run.py / non-wired skill dirs to skip (orchestration/retrieval/workflow + infra).
+# Infra / non-skill dirs to skip. Everything else is admitted or rejected by the CALL predicate
+# below — a skill that hand-rolls main() needs no skip entry, because it has no run_wired_skill(
+# call to find. (target-archetype used to be listed here; the call predicate excludes it for the
+# same reason it excludes every other hand-rolled entrypoint, so the special case is gone. The
+# synthetic-lethal-partners / combinatorial-dependency / combo-and-resistance / compose-dashboard
+# dirs were retired 2026-09-10, and the bispecific-pair-scan / surfaceome-cohort-ranking scan-hook
+# dirs on 2026-09-11 — none needs an entry either.)
 _SKIP_DIRS = {
     "_skills_common",
     "tests",
     "render-evidence-package",
     "query-target-evidence",
-    # target-archetype is a CARDLESS reduction-stage companion with a bespoke main() that
-    # requires --package-dir (it consumes a completed target-profile run, not a
-    # target/indication pair), so the fixture invocation below cannot smoke it. It is caught
-    # by _wired_subskills() only because its own header comment contains the words
-    # "not run_wired_skill" — smoking it reports a FALSE pipeline break. Skipped → the
-    # target-contracts rollup records it as runs_clean="unknown", the honest state.
-    "target-archetype",
-    # (The synthetic-lethal-partners / combinatorial-dependency / combo-and-resistance /
-    # compose-dashboard skill dirs were retired 2026-09-10 — consolidated into
-    # combination-and-vulnerability / report_render — so no skip entry is needed.)
 }
 
 
+def _calls_run_wired_skill(run_py: Path) -> bool:
+    """Does this run.py actually CALL run_wired_skill? — AST, not text.
+
+    The distinction is the whole coverage contract, not pedantry. `FRAMEWORK_HEALTH_SMOKE` is
+    honoured inside `resolve_cards`, which only the shared `run_wired_skill` dispatcher reaches;
+    a skill that hand-rolls main() and reads a method directly ignores the flag entirely, so
+    smoking it issues LIVE reads under a harness that advertises itself as offline.
+
+    The former predicate was `"run_wired_skill" in rp.read_text()`, which matched the name in
+    COMMENTS — including comments whose text was a denial ("this scan hand-rolls main() (no
+    run_wired_skill)"). Three skills were admitted that way: target-archetype (papered over with
+    a skip entry on 2026-09-10) and the two scan-hook skills, whose live 40-partner S3 scan
+    finally exceeded the timeout and fabricated a pipeline break. An AST walk cannot make that
+    mistake: a name inside a comment or docstring is not a Call node.
+
+    A run.py that fails to parse returns False — uncovered rather than falsely covered. That is
+    the fail-closed direction here: an unparseable entrypoint is caught by the structural probe
+    and by pytest collection, and reporting it as smoke-covered would be the lie this predicate
+    exists to prevent.
+    """
+    try:
+        tree = ast.parse(run_py.read_text())
+    except (OSError, SyntaxError):
+        return False
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        fn = node.func
+        name = fn.id if isinstance(fn, ast.Name) else (fn.attr if isinstance(fn, ast.Attribute) else None)
+        if name == "run_wired_skill":
+            return True
+    return False
+
+
 def _wired_subskills() -> list[str]:
-    """Skill dirs whose scripts/run.py calls run_wired_skill (the ones this harness covers)."""
+    """Skill dirs whose scripts/run.py CALLS run_wired_skill (the ones this harness can smoke
+    offline). Everything else — hand-rolled main(), scan-hooks, reduction-stage companions — is
+    left out, and the target-contracts rollup records it as runs_clean="unknown", the honest state
+    for "this tier has no measurement," rather than a fabricated clean or error."""
     out = []
     for d in sorted(p.name for p in SKILLS_DIR.iterdir() if p.is_dir()):
         if d.startswith(".") or d in _SKIP_DIRS:
             continue
         rp = SKILLS_DIR / d / "scripts" / "run.py"
-        if rp.exists() and "run_wired_skill" in rp.read_text():
+        if rp.exists() and _calls_run_wired_skill(rp):
             out.append(d)
     return out
 
@@ -87,9 +142,22 @@ def _smoke_one(skill: str) -> dict:
                 [sys.executable, str(rp), "--target", _FIX_TARGET, "--indication", _FIX_INDICATION, "--out", td],
                 capture_output=True,
                 text=True,
-                timeout=120,
+                timeout=_TIMEOUT_SECS,
                 env=env,
             )
+        except subprocess.TimeoutExpired:
+            # NOT an error. A timeout says the MACHINE was too slow to finish in the window; it
+            # says nothing about whether the compute path is broken. Folding it into `error` (which
+            # it was until 2026-09-11, because TimeoutExpired subclasses SubprocessError) let load
+            # on the box publish a fabricated pipeline break into a cross-repo health feed and turn
+            # the release gate red — the same false-signal class the no-spec drift flag was retired
+            # for that morning. Its own state, excluded from n_error, and dropped from the --check
+            # comparison (see _stable): absence of a measurement is not a changed measurement.
+            return {
+                "skill_name": skill,
+                "smoke": "timeout",
+                "smoke_reason": f"no exit within {_TIMEOUT_SECS}s — machine load, not a verdict on the compute path",
+            }
         except subprocess.SubprocessError as e:
             return {"skill_name": skill, "smoke": "error", "smoke_reason": f"subprocess: {type(e).__name__}: {e}"}
         dj = Path(td) / "decision.json"
@@ -149,32 +217,52 @@ def build() -> dict:
     n_clean = sum(1 for r in results if r["smoke"] == "clean")
     n_uninstrumented = sum(1 for r in results if r["smoke"] == "clean_uninstrumented")
     n_error = sum(1 for r in results if r["smoke"] == "error")
+    n_timeout = sum(1 for r in results if r["smoke"] == "timeout")
     return {
-        "schema_version": "1.0.0",
+        "schema_version": "1.1.0",  # 1.1.0: added the `timeout` smoke state + n_timeout
         "harness": "framework_health_smoke",
         "note": (
             "Deterministic offline 'runs clean?' smoke of each wired subskill's real "
             "run.py under FRAMEWORK_HEALTH_SMOKE=1 (card readers stubbed; NO live data). "
-            "smoke=clean → compute path executed + emitted run_health; clean_uninstrumented "
-            "→ ran clean but hand-rolls main() (no run_health); error → a real pipeline break."
+            "Coverage = run.py actually CALLS run_wired_skill (AST-checked), which is what "
+            "makes the offline guarantee true. smoke=clean → compute path executed + emitted "
+            "run_health; clean_uninstrumented → ran clean but hand-rolls main() (no run_health); "
+            "error → a real pipeline break; timeout → the machine ran out of time, NOT a verdict "
+            "on the skill (excluded from n_error and from the --check comparison)."
         ),
         "summary": {
             "n_subskills": len(skills),
             "n_clean": n_clean,
             "n_clean_uninstrumented": n_uninstrumented,
             "n_error": n_error,
+            "n_timeout": n_timeout,
         },
         "subskills": {r["skill_name"]: r for r in results},
     }
 
 
-def _stable(report: dict) -> str:
-    """Canonical projection dropping volatile timings — the --check basis (mirrors the
-    dashboard's stable_projection discipline: run-clean STATUS is stable, seconds are not)."""
-    import copy
+def _timed_out(report: dict) -> set[str]:
+    """Skills that produced NO measurement in this report (see _stable)."""
+    return {name for name, e in (report.get("subskills") or {}).items() if e.get("smoke") == "timeout"}
 
+
+def _stable(report: dict, unmeasured: set[str] = frozenset()) -> str:
+    """Canonical projection dropping volatile timings — the --check basis (mirrors the
+    dashboard's stable_projection discipline: run-clean STATUS is stable, seconds are not).
+
+    `unmeasured` drops those skills from BOTH sides of a --check comparison. A timed-out skill
+    yielded no reading, and comparing "no reading" against a committed `clean` would report the
+    file STALE — reddening the release gate — on nothing but machine load. Dropping it reports
+    the honest thing (nothing is known about that skill this run) and the caller names it in the
+    output instead. `summary` is dropped for the same reason: it is fully derivable from the
+    entries, so it adds no coverage, but its counts would disagree whenever a skill is excluded.
+    """
     r = copy.deepcopy(report)
-    for entry in r.get("subskills", {}).values():
+    r.pop("summary", None)
+    subskills = r.get("subskills") or {}
+    for name in unmeasured:
+        subskills.pop(name, None)
+    for entry in subskills.values():
         rh = entry.get("run_health") or {}
         for vol in ("read_secs", "compute_secs", "total_secs"):
             rh.pop(vol, None)
@@ -192,19 +280,36 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
 
     report = build()
-    fresh = _stable(report)
+    unmeasured = _timed_out(report)
+    fresh = _stable(report, unmeasured)
 
     if args.check:
         if not _OUT.exists():
             print(f"  MISSING {_OUT.name} — run without --check to generate.", file=sys.stderr)
             return 1
-        if _stable(json.loads(_OUT.read_text())) != fresh:
+        if unmeasured:
+            # Say so loudly: --check just verified LESS than the whole file.
+            print(f"  note: {len(unmeasured)} subskill(s) timed out and are excluded: {', '.join(sorted(unmeasured))}")
+        if _stable(json.loads(_OUT.read_text()), unmeasured) != fresh:
             print(
                 f"  STALE {_OUT.name} — committed subskill health differs from computed; regenerate.", file=sys.stderr
             )
             return 1
         print(f"  OK {_OUT.name} (fresh)")
         return 0
+
+    if unmeasured:
+        # Refuse to COMMIT a non-measurement. Writing `timeout` into the feed would publish "we
+        # don't know" as this subskill's standing health and make every later --check compare
+        # against it; the committed artifact must be a complete reading. Re-run on a quiet box.
+        for name in sorted(unmeasured):
+            print(f"    TIMEOUT {name}: {report['subskills'][name].get('smoke_reason')}", file=sys.stderr)
+        print(
+            f"  REFUSING to write {_OUT.name}: {len(unmeasured)} subskill(s) did not finish, so this "
+            f"is a PARTIAL reading, not a health record. Re-run on an unloaded machine.",
+            file=sys.stderr,
+        )
+        return 1
 
     _OUT.write_text(json.dumps(report, indent=2))
     s = report["summary"]
@@ -218,7 +323,8 @@ def main(argv=None) -> int:
         elif r["smoke"] == "clean_uninstrumented":
             print(f"    note {name}: {r.get('smoke_reason')}")
     # Only a real pipeline break (error) fails the harness; clean_uninstrumented is an honest,
-    # non-failing state (the skill runs — it's just off the run_health path).
+    # non-failing state (the skill runs — it's just off the run_health path). A timeout returns
+    # above without writing, so it can neither be committed nor silently pass.
     return 1 if s["n_error"] else 0
 
 

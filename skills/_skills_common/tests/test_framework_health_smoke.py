@@ -3,7 +3,15 @@
 The harness runs each wired subskill's real run.py under FRAMEWORK_HEALTH_SMOKE=1
 (card readers stubbed → NO live data) and records run_health into a committed rollup.
 These guard: the smoke seam short-circuits reads, the harness classifies clean vs
-error vs clean_uninstrumented, and the committed rollup stays fresh + self-consistent.
+error vs clean_uninstrumented vs timeout, and the committed rollup stays fresh +
+self-consistent.
+
+Two of them are regression guards for 2026-09-11, when the harness was found to be lying in
+both directions at once: its COVERAGE predicate text-matched "run_wired_skill" (admitting skills
+that never reach resolve_cards, for which the offline smoke flag is inert → live S3 reads), and
+its ERROR classification folded subprocess.TimeoutExpired into smoke="error" (publishing machine
+load as a pipeline break). See test_coverage_predicate_requires_a_call_not_a_mention and
+test_timeout_is_its_own_state_not_an_error.
 """
 
 from __future__ import annotations
@@ -52,6 +60,54 @@ def test_wired_subskills_discovered():
         assert skip not in skills
 
 
+def test_coverage_predicate_requires_a_call_not_a_mention(tmp_path):
+    """★ The 2026-09-11 root cause. The predicate was `"run_wired_skill" in read_text()`, so a
+    run.py that merely NAMED the dispatcher in a comment — even to deny using it — was admitted.
+    Those skills never reach resolve_cards, so FRAMEWORK_HEALTH_SMOKE is inert for them and the
+    "offline" harness silently issued live S3 reads. Coverage must key on a real CALL."""
+    mention_only = tmp_path / "mention.py"
+    mention_only.write_text(
+        '"""Mirrors the shared dispatcher\'s run_wired_skill argparse."""\n'
+        "# this scan hand-rolls main() (no run_wired_skill)\n"
+        "run_wired_skill = None\n"  # even a bare NAME reference is not a call
+        "def main():\n    return 0\n"
+    )
+    assert H._calls_run_wired_skill(mention_only) is False
+
+    real_call = tmp_path / "real.py"
+    real_call.write_text("from _skills_common import run_wired_skill\n\nrun_wired_skill(skill_name='x')\n")
+    assert H._calls_run_wired_skill(real_call) is True
+
+    attr_call = tmp_path / "attr.py"
+    attr_call.write_text("import _skills_common as C\n\nC.run_wired_skill(skill_name='x')\n")
+    assert H._calls_run_wired_skill(attr_call) is True
+
+    # Unparseable → uncovered, never falsely covered.
+    assert H._calls_run_wired_skill(tmp_path / "nope.py") is False
+    broken = tmp_path / "broken.py"
+    broken.write_text("run_wired_skill(  # unclosed\n")
+    assert H._calls_run_wired_skill(broken) is False
+
+
+def test_every_covered_subskill_actually_calls_the_dispatcher():
+    """The offline guarantee in the module docstring is only true if every covered skill routes
+    through run_wired_skill → resolve_cards (where the smoke flag lives). Assert it directly, so a
+    future hand-rolled entrypoint cannot re-enter coverage and start doing live reads under a
+    harness that advertises no network."""
+    for skill in H._wired_subskills():
+        rp = H.SKILLS_DIR / skill / "scripts" / "run.py"
+        assert H._calls_run_wired_skill(rp), f"{skill} is covered but never calls run_wired_skill"
+
+
+def test_retired_scan_hook_skills_are_gone():
+    """bispecific-pair-scan + surfaceome-cohort-ranking (retired 2026-09-11) were the two skills
+    the text predicate falsely admitted. Their dirs must stay gone — the physics lives in
+    analysis-methods and the in-spine cards that read it belong to surface-modality-fit."""
+    for retired in ("bispecific-pair-scan", "surfaceome-cohort-ranking"):
+        assert not (H.SKILLS_DIR / retired).exists(), f"{retired} was retired; do not re-add the skill dir"
+        assert retired not in H._wired_subskills()
+
+
 def test_stable_projection_drops_volatile_timings():
     """--check must ignore per-run seconds (volatile) but catch a status change."""
     base = {
@@ -75,6 +131,62 @@ def test_stable_projection_drops_volatile_timings():
     assert H._stable(base) != H._stable(broke)  # status change IS caught
 
 
+def test_timeout_is_its_own_state_not_an_error(monkeypatch):
+    """★ The second half of the 2026-09-11 fix. TimeoutExpired subclasses SubprocessError, so a
+    single `except subprocess.SubprocessError` recorded machine load as smoke="error" — a
+    fabricated pipeline break, published into a cross-repo feed, reddening release-gate step 2."""
+
+    def _timeout(*a, **k):
+        raise H.subprocess.TimeoutExpired(cmd="run.py", timeout=H._TIMEOUT_SECS)
+
+    monkeypatch.setattr(H.subprocess, "run", _timeout)
+    rec = H._smoke_one("tumor-presence")
+    assert rec["smoke"] == "timeout"
+    assert "machine load" in rec["smoke_reason"]
+
+    # A non-timeout SubprocessError is still a real error.
+    def _other(*a, **k):
+        raise H.subprocess.SubprocessError("boom")
+
+    monkeypatch.setattr(H.subprocess, "run", _other)
+    assert H._smoke_one("tumor-presence")["smoke"] == "error"
+
+
+def test_timeout_does_not_count_as_error_in_the_summary(monkeypatch):
+    monkeypatch.setattr(H, "_wired_subskills", lambda: ["a", "b"])
+    monkeypatch.setattr(
+        H, "_smoke_one", lambda s: {"skill_name": s, "smoke": "timeout" if s == "a" else "clean", "run_health": {}}
+    )
+    s = H.build()["summary"]
+    assert (s["n_timeout"], s["n_error"], s["n_clean"]) == (1, 0, 1)
+
+
+def test_timeout_is_dropped_from_the_check_comparison():
+    """A timed-out skill produced NO reading. Comparing 'no reading' against the committed 'clean'
+    would report the feed STALE on nothing but machine load, so it is excluded from BOTH sides —
+    while a genuine status change on a MEASURED skill is still caught."""
+    committed = {"subskills": {"s": {"smoke": "clean", "run_health": {"status": "ok"}}, "t": {"smoke": "clean"}}}
+    fresh = {"subskills": {"s": {"smoke": "timeout"}, "t": {"smoke": "clean"}}}
+    unmeasured = H._timed_out(fresh)
+    assert unmeasured == {"s"}
+    assert H._stable(committed, unmeasured) == H._stable(fresh, unmeasured)
+    # ... but a real change on the still-measured skill is NOT masked
+    regressed = {"subskills": {"s": {"smoke": "timeout"}, "t": {"smoke": "error"}}}
+    assert H._stable(committed, unmeasured) != H._stable(regressed, unmeasured)
+
+
+def test_a_partial_run_refuses_to_overwrite_the_committed_feed(monkeypatch, tmp_path, capsys):
+    """Writing `timeout` into the committed artifact would publish "we don't know" as a subskill's
+    standing health. A partial reading is not a health record — refuse, exit 1, write nothing."""
+    out = tmp_path / "subskill_health.json"
+    monkeypatch.setattr(H, "_OUT", out)
+    monkeypatch.setattr(H, "_wired_subskills", lambda: ["a"])
+    monkeypatch.setattr(H, "_smoke_one", lambda s: {"skill_name": s, "smoke": "timeout", "smoke_reason": "slow"})
+    assert H.main([]) == 1
+    assert not out.exists()
+    assert "REFUSING" in capsys.readouterr().err
+
+
 def test_committed_rollup_is_fresh_and_consistent():
     """The committed subskill_health.json must exist, be self-consistent, and pass --check
     (this is what a CI guard runs). If this fails, regenerate it."""
@@ -90,6 +202,8 @@ def test_committed_rollup_is_fresh_and_consistent():
     assert s["n_error"] == smokes.count("error")
     assert s["n_clean_uninstrumented"] == smokes.count("clean_uninstrumented")
     assert s["n_subskills"] == len(smokes)
+    # A committed feed must be a COMPLETE reading — main() refuses to write a partial one.
+    assert s.get("n_timeout", 0) == 0 and "timeout" not in smokes
     # every clean record carries a run_health status
     for r in rep["subskills"].values():
         if r["smoke"] == "clean":

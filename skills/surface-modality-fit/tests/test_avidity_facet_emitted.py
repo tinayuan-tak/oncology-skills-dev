@@ -1,8 +1,10 @@
 """Drift-guard: the surface-colocalization-avidity facet (same-cell avidity + tumor-vs-NORMAL
 selectivity window for AND-gate bispecifics) must keep flowing through surface-modality-fit's
 _headline, and must NEVER perturb the verdict. Wired 2026-08-20 (un-retiring a partially-true
-2026-08-19 supersession: bispecific-pair-scan covers tumor per-pair avidity ONLY; this card uniquely
-adds the normal selectivity window + target-centric best-partner rollup). Its 5 rules are in NO
+2026-08-19 supersession: pair_selectivity_gate.samecell covers tumor per-pair avidity ONLY; this card
+uniquely adds the normal selectivity window + target-centric best-partner rollup — the supersession
+named the bispecific-pair-scan SKILL, retired 2026-09-11, but it was always about the shared METHOD,
+which this card still reads). Its 5 rules are in NO
 resolver → additive signal facet, verdict byte-stable. Mirror of test_tahoe_facet_emitted.py.
 
 Offline: pure _headline over synthetic cards, no S3/reader. _headline reads several cards via
