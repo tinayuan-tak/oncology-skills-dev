@@ -14,7 +14,9 @@ for _p in (str(Path(__file__).resolve().parent), str(SKILLS_DIR)):
 
 
 SKILL_NAME = "target-profile"
-SKILL_VERSION = "1.2.0"  # 1.2.0: grounded-substrate chain (ground→risk→hypothesis) DEFAULT-ON (--no-substrate opts out)
+# 1.3.0: subtype_fit tier DEFAULT-ON — strata auto-resolved from the contracts subtype_crosswalk
+#        (--no-subtypes opts out). 1.2.0: grounded-substrate chain DEFAULT-ON (--no-substrate opts out)
+SKILL_VERSION = "1.3.0"
 
 
 def _framework_model_version() -> str | None:
@@ -32,6 +34,44 @@ def _framework_model_version() -> str | None:
 _CONTRACTS_REPO = Path(
     os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
 )
+
+
+def default_subtypes(indication: str) -> "tuple[list[str], str]":
+    """The molecular strata the subtype tier evaluates when --subtypes is not given.
+
+    Returns (strata_ids, source) where source is a short machine token recorded in the
+    artifact so a reader can always tell WHY the tier ran or did not:
+      auto:subtype_crosswalk  — resolved from the contracts registry (the normal path)
+      unavailable:no_registry — the vocabulary could not be read
+      unavailable:<CODE>      — the indication is not registered; run stays whole-cohort
+
+    WHY the CONTRACTS crosswalk and not the data-catalog subgroup catalog: the catalog is
+    the source of truth for stratum IDS, but its list is raw — for COADREAD it carries
+    `stage_I` / `stage_II` / `stage_resectable` (staging, not molecular biology) and the
+    source-duplicated `CMS1_depmap`..`CMS4_depmap` alongside `CMS1`..`CMS4`. The tier's
+    semantics are molecular ("a MEASURED, floor-cleared SUBTYPE that is not a dependency
+    holds the nomination"), so it defaults to the curated, axis-organized registry, whose
+    validator already asserts every id it lists exists in a catalog. Pass --subtypes
+    explicitly to scope to anything else, including staging strata.
+
+    Never raises: an unreadable or unlisted indication yields ([], reason) and the run
+    proceeds whole-cohort exactly as it did before this became the default.
+    """
+    path = _CONTRACTS_REPO / "vocabularies" / "subtype_crosswalk.yaml"
+    try:
+        import yaml
+
+        doc = yaml.safe_load(path.read_text()) or {}
+    except Exception:  # noqa: BLE001 — a missing vocab degrades to whole-cohort, never a crash
+        return [], "unavailable:no_registry"
+    code = (indication or "").strip().upper()
+    for entry in doc.get("indications") or []:
+        if str(entry.get("canonical_code", "")).upper() != code:
+            continue
+        # dict.fromkeys: dedupe while holding the registry's axis order (stable run ids)
+        strata = list(dict.fromkeys(s for axis in entry.get("axes") or [] for s in (axis.get("strata") or [])))
+        return strata, ("auto:subtype_crosswalk" if strata else f"unavailable:{code}")
+    return [], f"unavailable:{code or 'no_indication'}"
 
 
 # --- Rendering --------------------------------------------------------------
@@ -122,4 +162,5 @@ __all__ = [
     "_first_card_summary_field",
     "_fmt_metric",
     "_framework_model_version",
+    "default_subtypes",
 ]

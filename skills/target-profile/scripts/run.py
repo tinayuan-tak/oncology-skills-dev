@@ -7,7 +7,8 @@ genomic-alteration-profile, differentiation-landscape, tractability-small-molecu
 surface-modality-fit, immune-context, on-target-safety-liability, target-intrinsic,
 cis-feature-coherence, combination-and-vulnerability, translational-readiness,
 literature-context)
-+ an opt-in subtype_fit tier (--subtypes), collects their sub-verdicts + fired
++ a DEFAULT-ON subtype_fit tier (strata auto-resolved from the contracts
+subtype_crosswalk; --no-subtypes opts out), collects their sub-verdicts + fired
 rules, then invokes Bedrock (via _skills_common.llm) with a forced structured
 tool_use to produce executive_summary + tension_analysis + recommendation. The
 LLM's overall_recommendation is CLAMPED by the deterministic one-directional
@@ -57,7 +58,7 @@ from _skills_common.envelope import build_governance
 # here so `tp._risk_rows_from_rollup` stays available to the risk-parity guards that read it off this module.
 from _skills_common.risk_projection import _risk_rows_from_rollup  # noqa: F401
 from tp_common import *  # noqa: F401,F403
-from tp_common import SKILL_NAME, SKILL_VERSION, _framework_model_version
+from tp_common import SKILL_NAME, SKILL_VERSION, _framework_model_version, default_subtypes
 from tp_emit import *  # noqa: F401,F403
 from tp_emit import assert_write_set, write_artifact
 from tp_evidence_package import *  # noqa: F401,F403
@@ -262,10 +263,17 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         "--subtypes",
         default=None,
         help="Comma-separated molecular subgroup ids to scope the "
-        "profile to (e.g. 'MSI_H,MSS'). When set, the subtype "
-        "tier is evaluated: a MEASURED, floor-cleared subtype "
-        "that is NOT a dependency holds the nomination. Omit for "
-        "a whole-cohort profile (backward-compatible default).",
+        "profile to (e.g. 'MSI_H,MSS'). The subtype tier is then "
+        "evaluated: a MEASURED, floor-cleared subtype that is NOT "
+        "a dependency holds the nomination. DEFAULT (2026-09-11): "
+        "omitting this resolves the indication's full registered "
+        "stratum set from the contracts subtype_crosswalk; pass "
+        "--no-subtypes for a whole-cohort-only profile.",
+    )
+    ap.add_argument(
+        "--no-subtypes",
+        action="store_true",
+        help="Skip the subtype tier entirely (whole-cohort only). Overrides --subtypes. The pre-2026-09-11 default.",
     )
     ap.add_argument(
         "--modality",
@@ -668,7 +676,27 @@ def main() -> int:
         f"[target-profile] Running {len(SUB_SKILLS)} sub-skills for {args.target} in {args.indication}...",
         file=sys.stderr,
     )
-    subtypes = [s.strip() for s in args.subtypes.split(",") if s.strip()] if args.subtypes else None
+    # Subtype scope. DEFAULT-ON since 2026-09-11: an omitted --subtypes no longer means
+    # "whole-cohort only" — it resolves the indication's registered strata from the contracts
+    # crosswalk, so the subtype tier (subtype_specific_non_dependence / subtype_restricted_*)
+    # gets a chance to fire on EVERY run. WHY: the tier is verdict-bearing in both directions,
+    # and while it was opt-in, no published panel run ever evaluated it — a subtype-restricted
+    # dependency and a subtype-specific NON-dependence both read as whole-cohort silence.
+    # --no-subtypes restores the old behavior; an unregistered indication (MPN/AML) degrades to
+    # whole-cohort on its own, so this is a no-op there rather than a failure.
+    if args.no_subtypes:
+        subtypes, subtypes_source = None, "disabled:--no-subtypes"
+    elif args.subtypes:
+        subtypes = [s.strip() for s in args.subtypes.split(",") if s.strip()] or None
+        subtypes_source = "explicit:--subtypes"
+    else:
+        _auto, subtypes_source = default_subtypes(args.indication)
+        subtypes = _auto or None
+    print(
+        f"[target-profile] subtype tier: {len(subtypes or [])} strata ({subtypes_source})"
+        + (f" — {','.join(subtypes)}" if subtypes else " — whole-cohort only"),
+        file=sys.stderr,
+    )
     # Figure Stage 3 (offline seam activation): on a figures-emitting run, persist each card's plot_data
     # DURING resolution into figures/cards/<card_id>/ so the figure emitters render OFFLINE from it
     # instead of re-executing a SECOND live method read (the pre-2026-08-21 behavior: target-profile
@@ -1297,6 +1325,11 @@ def main() -> int:
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "governance": governance,
         "invoked_lenses": invoked_lenses,
+        # Mirrors provenance (below): the subtype tier is default-on, so nomination.json must say
+        # which strata were in scope — `subtype_fit` appearing in sub_verdicts is otherwise the only
+        # hint, and it is absent for an unregistered indication.
+        "scope_subtypes": list(subtypes or []),
+        "scope_subtypes_source": subtypes_source,
         "sub_verdicts": {
             short: {
                 "skill_dir": r["skill_dir"],
@@ -1441,6 +1474,11 @@ def main() -> int:
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "governance": governance,
         "invoked_lenses": invoked_lenses,
+        # Subtype scope PROVENANCE (2026-09-11, tier default-on). A reader must be able to tell an
+        # auto-resolved scope from an operator-chosen one, and "whole-cohort because the indication
+        # is unregistered" from "whole-cohort because --no-subtypes". See tp_common.default_subtypes.
+        "scope_subtypes": list(subtypes or []),
+        "scope_subtypes_source": subtypes_source,
         "sub_skills_ran": [s for s, _ in SUB_SKILLS],
         "recommendation_gate": recommendation_gate,
         "confidence_tier": confidence_tier,

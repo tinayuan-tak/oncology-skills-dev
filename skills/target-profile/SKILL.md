@@ -41,7 +41,7 @@ description: |
   "should we nominate MET in NSCLC?"
 
 metadata:
-  version: 1.2.0
+  version: 1.3.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -107,11 +107,12 @@ composition:
     - ppi-interactome                          # STRING functional network + CORUM complex membership
     - gene-ontology-annotation                 # GO BP/MF/CC term membership
     - reactome-pathway-membership              # Reactome pathway/geneset membership + rollup
-    # Subtype tier — composed ONLY with --subtypes (verdict-affecting; omitted by default)
-    - subgroup-stratified-dependency           # opt-in via --subtypes; verdict-bearing (cell-line dependency)
-    - subgroup-stratified-mutation-frequency   # opt-in via --subtypes; display-only in this tier
+    # Subtype tier — DEFAULT-ON (v1.3.0): strata auto-resolve from the contracts subtype_crosswalk;
+    # --no-subtypes opts out, and an unregistered indication degrades to whole-cohort on its own.
+    - subgroup-stratified-dependency           # verdict-bearing (cell-line dependency)
+    - subgroup-stratified-mutation-frequency   # display-only in this tier
     # tumor-vs-normal-selectivity (declared above under selectivity) is ALSO composed in the subtype
-    # tier under --subtypes: DUAL-GRAIN, its per-subgroup selectivity panorama is verdict-bearing here
+    # tier: DUAL-GRAIN, its per-subgroup selectivity panorama is verdict-bearing here
     # (subtype_restricted_selectivity). 2026-09-11 STAD subtype-shard wiring. Not re-listed to avoid a
     # duplicate cards_used entry.
   rules_scope:
@@ -245,13 +246,28 @@ synthesis already made a default run call Bedrock; this adds the PubMed retrieva
   summary and argument prioritization to hypothesis-relevant evidence.
   Sub-verdicts unchanged.
 
-## Verdict-affecting scope (`--subtypes`)
+## Verdict-affecting scope (`--subtypes` / `--no-subtypes`)
 
-Unlike the lenses and fast modes above (which are verdict-inert), `--subtypes` **can change the
-recommendation spine**:
+Unlike the lenses and fast modes above (which are verdict-inert), the subtype scope **can change the
+recommendation spine**.
 
-- `--subtypes <ids>` — comma-separated molecular subgroup ids (e.g. `MSI_H,MSS`). Activates the
-  subtype tier over the subtype cards. It is BI-DIRECTIONAL, negative-precedence, over MEASURED,
+**DEFAULT-ON (2026-09-11, v1.3.0).** The subtype tier now runs on every profile. When `--subtypes` is
+omitted, the run resolves the indication's registered stratum set from
+`target-contracts/vocabularies/subtype_crosswalk.yaml` (the curated, axis-organized registry — the
+data-catalog subgroup catalogs are the id source of truth but carry staging strata like `stage_I` and
+source-duplicated `CMS*_depmap` ids, which are wrong for a molecular tier). WHY the change: the tier is
+verdict-bearing in BOTH directions, yet while it was opt-in no published panel run ever evaluated it —
+a subtype-restricted dependency and a subtype-specific NON-dependence both read as whole-cohort
+silence. `provenance.scope_subtypes_source` records which path was taken (`auto:subtype_crosswalk`,
+`explicit:--subtypes`, `disabled:--no-subtypes`, `unavailable:<CODE>`).
+
+- `--no-subtypes` — skip the tier entirely (whole-cohort only); the pre-v1.3.0 default. Overrides
+  `--subtypes`.
+- An indication absent from the crosswalk (e.g. MPN, AML) resolves to zero strata and stays
+  whole-cohort — the tier is a no-op there rather than an error.
+- `--subtypes <ids>` — comma-separated molecular subgroup ids (e.g. `MSI_H,MSS`) to scope the tier to a
+  chosen subset (or to strata outside the curated registry, including staging). It is BI-DIRECTIONAL,
+  negative-precedence, over MEASURED,
   floor-cleared (n>=30) strata:
     - NEGATIVE (precedence): a NOT-dependent subtype fires subtype-non-dependence → gate `hold`
       (`subtype_specific_non_dependence`).
@@ -261,9 +277,7 @@ recommendation spine**:
       stratum → `subtype_restricted_selectivity` (a SUPPORTIVE positive, NOT a veto-suppressor). The
       tumor-tissue analogue that reaches indications whose DepMap subtype dependency channel is
       data-blocked (STAD/ESCA carry 0 subtype-labeled DepMap lines).
-  Precedence when several fire: opposing HOLD > dependency-supportive > selectivity-supportive. Omit for
-  a whole-cohort profile — absent this flag the subtype cards are not composed and the output is
-  byte-identical to the pre-subtype behavior (backward-compatible).
+  Precedence when several fire: opposing HOLD > dependency-supportive > selectivity-supportive.
 
 ## Provenance / instrumentation flags (verdict-inert)
 
@@ -308,7 +322,8 @@ When called as `/target-profile`, Claude should:
      --target <TARGET> --indication <INDICATION> --out <OUT_DIR>
    ```
    Add `--modality <M>`, `--therapeutic-hypothesis "<text>"`, and/or `--subtypes <ids>`
-   if supplied by the user (note `--subtypes` can change the verdict — see above). Add
+   if supplied by the user. The subtype tier runs by DEFAULT (strata auto-resolved) and can
+   change the verdict — pass `--subtypes` only to narrow it, `--no-subtypes` to skip it. Add
    `--emit evidence-package` when the user wants the machine-facing `evidence_package.json`
    envelope instead of the narrated profile (deterministic, LLM-free — no
    `AWS_PROFILE`/Bedrock needed).
