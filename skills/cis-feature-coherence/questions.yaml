@@ -29,7 +29,7 @@
 #                   context_types) + the card contracts (target-contracts/cards/<id>.card.yaml
 #                   measurement_type). The verdict-inert PROTEIN sibling legs (cis_protein_dosage_coupling
 #                   under CIS_DOSAGE, abundance_dependency_correlation under EXPR_DEP), the molecular-FORM
-#                   context cards (cell_line_isoform_dominance / cellline_isoform_expression under
+#                   context card (cellline_isoform_expression under
 #                   CIS_DOSAGE, per question_hierarchy context_types), and the cross-grain patient
 #                   corroboration facet (patient_cis_coherence under CONJOINT) all anchor to the leg they
 #                   corroborate so every standard-run card joins >=1 question (nothing orphans into "Other").
@@ -57,7 +57,7 @@ questions:
   axis_id: CIS_DOSAGE
   role: verdict_bearing
   measurement_types: [cis_dosage_coupling, cis_protein_dosage_coupling,
-    cell_line_isoform_dominance, cellline_isoform_expression]
+    cellline_isoform_expression]
 - id: silencing_read
   legacy_id: Q2
   seq: 2

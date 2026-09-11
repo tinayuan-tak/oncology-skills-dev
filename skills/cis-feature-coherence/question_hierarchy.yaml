@@ -11,7 +11,6 @@ sub_groups:
     - cis_protein_dosage_coupling
     - amp_expr_stratified_dependency
   context_types:
-  - cell_line_isoform_dominance
   - cellline_isoform_expression
 - id: SILENCING
   questions:

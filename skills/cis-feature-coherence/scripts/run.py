@@ -77,13 +77,13 @@ CARDS = [
     "patient-cis-coherence",  # VERDICT-INERT patient (TCGA) corroboration facet — fires NO
     # cis_coherence rule (verdict byte-stable); surfaced in the headline
     # as cross-grain agreement (does the cell-line call replicate in patients?)
-    # ── MOLECULAR-FORM facets (2) — VERDICT-INERT display (R10 homing 2026-08-20) ──────────────
+    # ── MOLECULAR-FORM facet (1) — VERDICT-INERT display (R10 homing 2026-08-20) ──────────────
     # WHICH transcript of the target is expressed — molecular-FORM context for the cis read (a specific
     # dominant isoform can change which transcript the CN→expression coupling acts on). Cell-line grain
     # (DepMap), matching this skill. Fire NO cis_coherence rule → verdict byte-stable. Previously orphaned
     # (created by #424, consumed by no skill); homed here rather than presence (no molecular-form bucket in
     # its measurement×sample_context taxonomy) or target-intrinsic (excludes cell-line observations).
-    "cellline-isoform-dominance",
+    # (The duplicate cellline-isoform-dominance was consolidated into this card 2026-09-10 — #704 6b.)
     "cellline-isoform-expression",
 ]
 

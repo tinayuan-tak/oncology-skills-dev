@@ -52,7 +52,6 @@ composition:
     - abundance-dependency                   # leg-2 (PROTEIN, reuse from dependency axis): protein → dependency; VERDICT-INERT here
     - amp-expr-stratified-dependency         # leg-2 (reuse): conjoint amp∩overexpr dependency
     - patient-cis-coherence                  # VERDICT-INERT patient (TCGA) corroboration facet (fires no rule)
-    - cellline-isoform-dominance             # R10 molecular-form facet (verdict-inert display)
     - cellline-isoform-expression            # R10 molecular-form facet (verdict-inert display)
   # DATA_TO_SKILL_CONTRACT Rule 3 — the measurement_type claims this skill PULLs.
   measurement_types_pulled:
@@ -63,7 +62,6 @@ composition:
     - abundance_dependency_correlation
     - amp_expr_stratified_dependency
     - patient_cis_coherence
-    - cell_line_isoform_dominance
     - cellline_isoform_expression
   rules_scope:
     - cis-coherence

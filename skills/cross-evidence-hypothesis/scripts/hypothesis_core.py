@@ -75,10 +75,9 @@ DIMENSION_CARDS: dict[str, frozenset[str]] = {
             "abundance-dependency",  # mRNA + PROTEIN leg-2
             "amp-expr-stratified-dependency",
             "patient-cis-coherence",
-            "cellline-isoform-dominance",
             "cellline-isoform-expression",
         }
-    ),  # +R10 molecular-form facets; mirrors SUB_SKILL_CARDS[cis-feature-coherence]
+    ),  # +R10 molecular-form facet; mirrors SUB_SKILL_CARDS[cis-feature-coherence]
     "dependency": frozenset(
         {
             "abundance-dependency",

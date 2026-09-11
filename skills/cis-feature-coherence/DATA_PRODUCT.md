@@ -15,18 +15,18 @@ in SKILL.md / run.py; this file is the data-product spec.
 
 ---
 
-## 1. Inputs — wired data (9 cards)
+## 1. Inputs — wired data (8 cards)
 
-Every card traces card → method → data-catalog manifest → materialized S3 product. **All 9 products LIVE.**
+Every card traces card → method → data-catalog manifest → materialized S3 product. **All 8 products LIVE.**
 `run.py` has no `CARD_CONTEXT` map.
 
 **Verdict-driving (4 → `cis_coherence.resolver.yaml`):** `cis-feature-expression-coherence` (leg-1 CN→RNA
 dosage; `depmap-consortium-26q1`), `cellline-methylation-expression-coherence` (LoF epigenetic silencing;
 CCLE-2019 RRBS), `expression-dependency-correlation` (leg-2 RNA→dep), `amp-expr-stratified-dependency` (leg-2 conjoint).
 
-**Inert display (5):** `cis-feature-protein-coherence` (Gygi), `abundance-dependency` (Gygi/Olink),
-`patient-cis-coherence` (TCGA CN+meth+TPM crosswalk), `cellline-isoform-dominance` + `cellline-isoform-expression`
-(both → the SAME `depmap-isoform-expression-per-gene-v1`).
+**Inert display (4):** `cis-feature-protein-coherence` (Gygi), `abundance-dependency` (Gygi/Olink),
+`patient-cis-coherence` (TCGA CN+meth+TPM crosswalk), `cellline-isoform-expression`
+(→ `depmap-isoform-expression-per-gene-v1`).
 
 ---
 
@@ -67,7 +67,5 @@ spine key → SHARED source (coordinate; major on rename); new facet → no sche
 - **Undeclared derived input:** `cellline-methylation-expression-coherence`'s reader uses derived
   `ccle-rrbs-promoter-methylation-mean-per-gene-v1` as primary, but the card `required_inputs` names only the
   source `depmap-consortium-ccle-2019` (lineage consistent; card understates wiring).
-- **Duplicate isoform cards:** `cellline-isoform-dominance` (#8) + `cellline-isoform-expression` (#9) resolve to
-  the identical product/method/entrypoint/vocabulary, differing only in `measurement_type` name — consolidation candidate.
 - **Protein product-id inconsistency:** #2 declares derived `depmap-gygi-protein-abundance-per-protein-v1`; #5
   declares source `depmap-consortium-26q1-proteomics` (same Gygi data) — granularity-convention mismatch.

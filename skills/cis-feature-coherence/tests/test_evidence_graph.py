@@ -29,7 +29,6 @@ DISPLAY_ONLY = {
     "cellline-methylation-expression-coherence",
     "abundance-dependency",
     "patient-cis-coherence",
-    "cellline-isoform-dominance",
     "cellline-isoform-expression",
 }
 ALL_CARDS = VERDICT_BEARING | DISPLAY_ONLY
@@ -91,12 +90,12 @@ def test_questions_registry_loads_four(eg_questions):
 
 
 # ── role partition (card-level: only rule-firing legs are verdict-bearing) ──────────────────────────
-def test_role_partition_3_verdict_bearing_6_display_only(eg_graph):
+def test_role_partition_3_verdict_bearing_5_display_only(eg_graph):
     vb = {c["id"] for c in eg_graph["cards"] if c["role"] == "verdict_bearing"}
     do = {c["id"] for c in eg_graph["cards"] if c["role"] == "display_only"}
     assert vb == VERDICT_BEARING
     assert do == DISPLAY_ONLY
-    assert len(vb) == 3 and len(do) == 6 and len(eg_graph["cards"]) == 9
+    assert len(vb) == 3 and len(do) == 5 and len(eg_graph["cards"]) == 8
 
 
 # ── reconstruction: questions with signal+confidence, each question's cards, no orphans ─────────────
@@ -113,7 +112,6 @@ def test_reconstruct_questions_signal_and_cards(eg_graph):
     assert set(qs["cis_dosage_read"]["card_ids"]) == {
         "cis-feature-expression-coherence",
         "cis-feature-protein-coherence",
-        "cellline-isoform-dominance",
         "cellline-isoform-expression",
     }
     assert set(qs["silencing_read"]["card_ids"]) == {"cellline-methylation-expression-coherence"}

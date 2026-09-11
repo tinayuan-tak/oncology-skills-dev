@@ -679,7 +679,6 @@ SUB_SKILL_CARDS = {
         # cards are HOME cards of other sub-skills; composing them here too
         # is byte-stable (same cards, different lens) — the cis_coherence
         # axis rules fire on their fields via card_id_filter.
-        "cellline-isoform-dominance",  # molecular-form facet (verdict-inert display)
         "cellline-isoform-expression",  # molecular-form facet (verdict-inert display)
     ],
     "mechanism-and-pharmacology": [

@@ -48,12 +48,6 @@
       ]
     },
     {
-      "card_id": "cellline-isoform-dominance",
-      "input_manifest_ids": [
-        "depmap-isoform-expression-per-gene-v1"
-      ]
-    },
-    {
       "card_id": "cellline-isoform-expression",
       "input_manifest_ids": [
         "depmap-isoform-expression-per-gene-v1"
@@ -156,35 +150,6 @@
           "provenance_keys": null,
           "sibling_caveats": null,
           "tier": null,
-          "top_k_strata": null
-        },
-        "cellline-isoform-dominance": {
-          "_complete": true,
-          "card_id": "cellline-isoform-dominance",
-          "categorical_anchors": null,
-          "class": "single_isoform_dominant",
-          "conflict_pairs": null,
-          "data_quality_flags": null,
-          "evidence_state": "measured",
-          "measurement_type": "cell_line_isoform_dominance",
-          "n_basis": {
-            "n_expressed_isoforms": 2,
-            "n_models": 2696
-          },
-          "numeric_anchors": [
-            {
-              "metric": "dominant_isoform_fraction",
-              "value": 0.9754
-            }
-          ],
-          "provenance_keys": [
-            {
-              "key": "_data_source",
-              "value": "depmap-consortium-26q1"
-            }
-          ],
-          "sibling_caveats": null,
-          "tier": "target",
           "top_k_strata": null
         },
         "cellline-isoform-expression": {
@@ -381,10 +346,6 @@
         },
         {
           "card_id": "amp-expr-stratified-dependency",
-          "status": "full"
-        },
-        {
-          "card_id": "cellline-isoform-dominance",
           "status": "full"
         },
         {

@@ -650,7 +650,6 @@
           "abundance-dependency",
           "amp-expr-stratified-dependency",
           "patient-cis-coherence",
-          "cellline-isoform-dominance",
           "cellline-isoform-expression"
         ],
         "cards_missing": []
@@ -970,36 +969,6 @@
           "data_quality_flags": null,
           "cited_statements": null
         },
-        "cellline-isoform-dominance": {
-          "card_id": "cellline-isoform-dominance",
-          "measurement_type": "cell_line_isoform_dominance",
-          "tier": "target",
-          "evidence_state": "measured",
-          "class": "single_isoform_dominant",
-          "numeric_anchors": [
-            {
-              "metric": "dominant_isoform_fraction",
-              "value": 0.9754
-            }
-          ],
-          "categorical_anchors": null,
-          "n_basis": {
-            "n_expressed_isoforms": 2,
-            "n_models": 2696
-          },
-          "_complete": true,
-          "top_k_strata": null,
-          "conflict_pairs": null,
-          "sibling_caveats": null,
-          "provenance_keys": [
-            {
-              "key": "_data_source",
-              "value": "depmap-consortium-26q1"
-            }
-          ],
-          "data_quality_flags": null,
-          "cited_statements": null
-        },
         "cellline-isoform-expression": {
           "card_id": "cellline-isoform-expression",
           "measurement_type": "cellline_isoform_expression",
@@ -1203,10 +1172,6 @@
           "status": "full"
         },
         {
-          "card_id": "cellline-isoform-dominance",
-          "status": "full"
-        },
-        {
           "card_id": "cellline-isoform-expression",
           "status": "full"
         },
@@ -1274,7 +1239,6 @@
           "card_ids": [
             "cis-feature-expression-coherence",
             "cis-feature-protein-coherence",
-            "cellline-isoform-dominance",
             "cellline-isoform-expression"
           ],
           "rule_ids": [
@@ -1293,12 +1257,6 @@
               "field": null,
               "value": "prot_dosage_coupled_moderate",
               "label": "cis-feature-protein-coherence prot_dosage_coupled_moderate"
-            },
-            {
-              "card_id": "cellline-isoform-dominance",
-              "field": null,
-              "value": "single_isoform_dominant",
-              "label": "cellline-isoform-dominance single_isoform_dominant"
             },
             {
               "card_id": "cellline-isoform-expression",
@@ -1933,66 +1891,6 @@
           }
         },
         {
-          "id": "cellline-isoform-dominance",
-          "measurement_type": "cell_line_isoform_dominance",
-          "tier": "target",
-          "role": "display_only",
-          "question_ids": [
-            "cis_dosage_read"
-          ],
-          "axis_id": "CIS_DOSAGE",
-          "signal": {
-            "tier": null,
-            "polarity": "neutral",
-            "label": "single_isoform_dominant",
-            "liability": false
-          },
-          "confidence": {
-            "level": "high",
-            "dots": 3,
-            "evidence_state": "measured",
-            "eco_id": "ECO:0000006",
-            "n": null
-          },
-          "class": {
-            "field": null,
-            "value": "single_isoform_dominant"
-          },
-          "dataset_ids": [
-            "depmap-isoform-expression-per-gene-v1"
-          ],
-          "rule_ids": [],
-          "chain": {
-            "dataset_ids": [
-              "depmap-isoform-expression-per-gene-v1"
-            ],
-            "data": [
-              {
-                "field": "dominant_isoform_fraction",
-                "value": 0.9754
-              }
-            ],
-            "rule_id": null,
-            "contributes_to_verdict": false,
-            "is_driving": false
-          },
-          "key_fields": {
-            "dominant_isoform_fraction": 0.9754
-          },
-          "key_evidence": {
-            "effect": {
-              "metric": "dominant_isoform_fraction",
-              "value": 0.9754,
-              "direction": null
-            },
-            "n": 2,
-            "n_basis": {
-              "n_expressed_isoforms": 2,
-              "n_models": 2696
-            }
-          }
-        },
-        {
           "id": "cellline-isoform-expression",
           "measurement_type": "cellline_isoform_expression",
           "tier": "target",
@@ -2354,23 +2252,6 @@
         "tcga-sample-id-crosswalk-v1",
         "tcga-sesame-promoter-methylation-v1",
         "tcga-patient-cn-per-sample-v1"
-      ]
-    },
-    {
-      "card_id": "cellline-isoform-dominance",
-      "summary": {
-        "isoform_expression_class": "single_isoform_dominant",
-        "dominant_isoform_fraction": 0.9754149505287986,
-        "n_expressed_isoforms": 2,
-        "dominant_isoform": "ENST00000311936.8",
-        "n_models": 2696,
-        "isoform_context": "KRAS: median dominant-isoform fraction 0.98 across 2696 DepMap cell lines (2 expressed isoforms median; top ENST00000311936.8) \u2014 MODEL isoform-expression, verdict-inert.",
-        "method_version": "0.1.0",
-        "_data_source": "depmap-consortium-26q1"
-      },
-      "_missing": false,
-      "input_manifest_ids": [
-        "depmap-isoform-expression-per-gene-v1"
       ]
     },
     {

@@ -58,7 +58,6 @@ def _cards():
             "card_id": "patient-cis-coherence",
             "summary": {"patient_cis_dosage_class": "cn_dosage_coupled_strong", "n_cases_expression": 300},
         },
-        {"card_id": "cellline-isoform-dominance", "summary": {}},
         {"card_id": "cellline-isoform-expression", "summary": {}},
     ]
 
