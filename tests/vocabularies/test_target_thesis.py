@@ -97,3 +97,19 @@ def test_neomorphic_refinement_matches_the_epicycle_it_subsumes(spec):
     assert rule["when_verdicts"]["dependency"] == ["non_dependent"]
     assert "antigen_driven" not in rule["from"] and "tme_io" not in rule["from"]
     assert rule.get("subsumes") == "gof_driver_scoped_veto_downgrade"
+
+
+def test_partner_conditional_sl_maps_only_the_measured_arms(spec):
+    """partner_conditional_sl refines on the two MEASURED veto_suppressors arms (biomarker-stratified /
+    subtype-restricted dependency), both requiring dependency=non_dependent. The ANNOTATION-only SL arm
+    (has_experimental_sl_partner) must NOT be mapped here (a plain drop would over-permit annotation)."""
+    rules = [r for r in spec["step_2b_refinement"] if r["to"] == "partner_conditional_sl"]
+    assert len(rules) == 2, "expected the biomarker-stratified + subtype-restricted arms"
+    for r in rules:
+        assert r["when_verdicts"].get("dependency") == ["non_dependent"]
+        assert "antigen_driven" not in r["from"] and "tme_io" not in r["from"]
+    triggers = {frozenset(k for k in r["when_verdicts"] if k != "dependency") for r in rules}
+    assert triggers == {frozenset({"genomic_alteration"}), frozenset({"subtype_fit"})}
+    # the annotation-only SL signal must NOT appear anywhere in the refinement rules
+    dumped = str(spec["step_2b_refinement"])
+    assert "has_experimental_sl_partner" not in dumped

@@ -122,8 +122,36 @@ step_2b_refinement:
       genomic+tractability) where the epicycle only HELD. KRAS is confirmed_driver but
       concordant_dependent (NOT non_dependent) → condition fails → stays oncogene_addiction (dependency
       decides), preserving the KRAS golden. LoF/TSG drivers are excluded (not in the verdict list).
-  # partner_conditional_sl + pan_essential_buffered: RESERVED for follow-on refinement rules. Their
-  # triggers are subtler — partner_conditional_sl must preserve the veto_suppressors measured-vs-
-  # annotation split (subtype_restricted_dependency → nominate-eligible; annotation-only SL →
-  # insufficient), and pan_essential_buffered needs the exists-safe-modality-window computation — so
-  # they are added once those conditions are expressed here, before their epicycles are retired.
+  # partner_conditional_sl — the MEASURED partner/context-conditional dependency (pooled non_dependent is
+  # a dilution artifact). Two rules (OR via first-match) mirror the two MEASURED arms of veto_suppressors,
+  # both nominate-eligible; the ANNOTATION-only SL arm (sl_partner_class=has_experimental_sl_partner →
+  # insufficient, NOT nominate) is DELIBERATELY NOT mapped here — a plain thesis drop would over-permit
+  # annotation, so that arm stays in veto_suppressors until a routing form that preserves the
+  # insufficient-cap is designed. Both require dependency=non_dependent (the veto being escaped) so a
+  # target that IS a pooled dependency stays oncogene_addiction.
+  - to: partner_conditional_sl
+    from: [oncogene_addiction, unresolved]
+    when_verdicts:
+      genomic_alteration: [biomarker_stratified_dependency, moderate_biomarker_dependency]
+      dependency: [non_dependent]
+    subsumes: "veto_suppressors (biomarker-stratified arm)"
+    rationale: |
+      A MEASURED biomarker-stratified dependency (EGFR-mut, IDH1-R132, FLT3-ITD) means the pooled
+      pan-cancer non_dependent is a dilution artifact — the target is required in its mutant-selected
+      stratum. The stratified read is the favorable measured co-condition; the partner/biomarker axis
+      decides. Exactly the veto_suppressors biomarker-stratified arm's trigger → routing subsumes it.
+  - to: partner_conditional_sl
+    from: [oncogene_addiction, unresolved]
+    when_verdicts:
+      subtype_fit: [subtype_restricted_dependency]
+      dependency: [non_dependent]
+    subsumes: "veto_suppressors (subtype_restricted_dependency arm)"
+    rationale: |
+      A MEASURED, floor-cleared strong dependency confined to a molecular subtype (POU2F3/SCLC-P;
+      CMS4/CRC) — the pooled non_dependent is a dilution artifact and the subtype is the patient-
+      selection population. The measured subtype-restricted read is the co-condition; the subtype axis
+      decides. Exactly the veto_suppressors subtype_restricted_dependency arm's trigger → subsumed.
+  # pan_essential_buffered: STILL RESERVED. It must soften a pan_essential_killer VETO when a therapeutic
+  # window exists (recovers BCL2/XPO1/PSMB5/CDK4-6) — which collides with the 2b guardrail "never drop
+  # pan_essential_killer" and needs the exists-safe-modality-window computation (safety_verdict_by_modality)
+  # + grounded verification on those 4 approved drugs. Deferred to its own careful cycle.
