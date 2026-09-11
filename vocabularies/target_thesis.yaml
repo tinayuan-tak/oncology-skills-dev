@@ -1,0 +1,97 @@
+# target_thesis.yaml — the governed THESIS-ROUTING vocabulary (Step 2a of the framework-architecture
+# remediation, 2026-09-11).
+#
+# WHY THIS EXISTS. The nomination gate implements dependency-AND-safety, but the ontology
+# (target_profiling_axes.yaml:55) declares necessity as ANY-OF: an antigen-driven target carries no
+# recurrent dependency, so vetoing it on `dependency` adjudicates it on the wrong axis (measured: 0/14
+# surface antigens decided on surface biology). The fix is to TYPE the target's thesis, then let THAT
+# thesis's admissible axis decide (Step 2b). This vocabulary is the governed routing key.
+#
+# GOVERNANCE (non-negotiable, mirrors archetype_core's contract). archetype_core stays strictly
+# VERDICT-INERT — it mints no recommendation and never enters the gate. The ROUTING is done by THIS
+# governed vocabulary + a deterministic derivation (skills/target-profile derive_thesis), which is
+# PR-reviewable like every other vocabulary. A data-derived signal (the archetype soft-membership
+# mixture) is READ, but the mapping to a thesis and the hard-margin rule are declared HERE.
+#
+# STEP 2a IS BYTE-STABLE. The derived `thesis` is EMITTED onto the composition (nomination.json) and
+# consumed by NOTHING yet — no gate block reads it until Step 2b. So this file + the derivation move
+# no verdict. `unresolved` reproduces today's gate exactly, by construction.
+
+version: 1.0.0
+schema_version: 1
+
+# ── The thesis enum ──────────────────────────────────────────────────────────────────────────────
+# Each thesis names the axis(es) that may legitimately DECIDE a target of that thesis (Step 2b fills in
+# the per-thesis necessity conjunctions in nomination_verdict_gate.yaml). `admissible_deciding_axes` is
+# ADVISORY documentation here (2b is the enforcing artifact); it is recorded so the routing key and the
+# gate blocks are reviewed together.
+theses:
+  antigen_driven:
+    describes: "Surface-antigen target for a biologics modality (ADC / TCE / mAb); carries NO recurrent somatic driver by design."
+    admissible_deciding_axes: [expression, selectivity, surface_modality, safety]
+    irrelevant_axes: [dependency]              # an unfired dependency must NOT read as failing necessity (ANY-OF)
+    exemplars: [FOLR1, DLL3, MSLN, CLDN18.2, TACSTD2, EPCAM, CDH3]
+  oncogene_addiction:
+    describes: "Classic oncogene the tumour is addicted to (GoF SNV or amplification); the genetic dependency decides. Today's default behaviour."
+    admissible_deciding_axes: [dependency, genomic_alteration, tractability_sm]
+    irrelevant_axes: []
+    exemplars: [KRAS, EGFR, ERBB2, BRAF, MET]
+  neomorphic_gof:
+    describes: "Neomorphic gain-of-function driver (a new activity, not just more of the WT); genomic driver + tractability decide, whole-gene-KO dependency is irrelevant."
+    admissible_deciding_axes: [genomic_alteration, tractability_sm]
+    irrelevant_axes: [dependency]
+    exemplars: [IDH1, MET-METex14]
+    derived_by: step_2b   # not archetype-membership-derivable — refined in 2b from the genomic axis (neomorphic verdicts)
+  partner_conditional_sl:
+    describes: "Synthetic-lethal / partner-conditional dependency (context-restricted); partner-conditional/SL evidence decides, pooled dependency is irrelevant."
+    admissible_deciding_axes: [dependency, combination_vulnerability]
+    irrelevant_axes: []
+    exemplars: [WRN, PRMT5, MAT2A]
+    derived_by: step_2b   # refined in 2b from a fired partner-conditional/SL dependency verdict
+  pan_essential_buffered:
+    describes: "Broadly essential but with a therapeutic-index window (buffered); the safety window decides. Recovers BCL2/XPO1/PSMB5/CDK4-6 from the pan-essential veto."
+    admissible_deciding_axes: [safety, dependency]
+    irrelevant_axes: []
+    exemplars: [BCL2, XPO1, PSMB5, CDK4, CDK6]
+    derived_by: step_2b   # refined in 2b from pan_essential + a measured safety window
+  tme_io:
+    describes: "Tumour-microenvironment / immuno-oncology target; immune-context becomes an admissible deciding axis (gateless today)."
+    admissible_deciding_axes: [immune_context, safety]
+    irrelevant_axes: [dependency]
+    exemplars: [PDCD1, CTLA4, CD274]
+  unresolved:
+    describes: "No dominant thesis (ambiguous mixture, or no signal). Routes to TODAY's gate byte-for-byte — the conservative fallback that guarantees no regression."
+    admissible_deciding_axes: []   # today's gate (dependency-veto + safety-hold) applies unchanged
+    irrelevant_axes: []
+
+# ── Derivation (Step 2a): archetype soft-membership → thesis, under a HARD-MARGIN rule ─────────────
+# archetype_core emits a convex `soft_membership` over its anchor labels. A thesis is assigned only
+# when ONE component clearly dominates; an ambiguous mixture is `unresolved` (→ today's gate). The
+# thresholds are conservative on purpose — when in doubt, DO NOT route.
+derivation:
+  source: archetype_companion.soft_membership     # computed by _skills_common/archetype_core (verdict-inert)
+  hard_margin:
+    dominant_weight_min: 0.50    # the top component must hold >= half the mixture mass
+    separation_min: 0.20         # and lead the 2nd component by >= this, else `unresolved`
+  # archetype anchor label -> thesis (the labels archetype_core's atlas actually emits)
+  archetype_label_to_thesis:
+    expression_surface: antigen_driven
+    snv_driver: oncogene_addiction          # GoF SNV; neomorphic_gof is a 2b refinement over the genomic axis
+    amp_driver: oncogene_addiction
+    dependency_essential: oncogene_addiction # a genetic dependency → the dependency axis decides
+    immune_checkpoint: tme_io
+    tsg_loss: unresolved                     # TSG-loss has no clean thesis in this enum yet → conservative
+    control_housekeeping: unresolved
+    control_absent: unresolved
+    "?": unresolved                          # derived/unknown anchor label
+
+# ── Fallback: the curated biology_axis lookup, used ONLY when the archetype mixture is `unresolved` ──
+# Guarantees the ~20 curated biology_axis targets still receive a thesis, so they never regress when the
+# data-derived mixture is ambiguous (the plan's explicit requirement). biology_axis values come from
+# vocabularies/target_biology_axis_lookup.yaml (enum: intracellular_intrinsic|surface_intrinsic|extrinsic|mixed).
+biology_axis_fallback:
+  surface_intrinsic: antigen_driven
+  intracellular_intrinsic: oncogene_addiction
+  extrinsic: tme_io
+  mixed: unresolved
+  unknown: unresolved        # uncurated target with an ambiguous mixture → today's gate (no routing)
