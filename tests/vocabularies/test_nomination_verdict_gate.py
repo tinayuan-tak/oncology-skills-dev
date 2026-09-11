@@ -84,6 +84,39 @@ def test_positive_tier_blocks_present_and_well_formed():
     assert any(p["weight"] == "dominant" for p in v["positive_signals"])
 
 
+def test_forces_nominate_only_at_strong():
+    """The positive path may force `nominate` (1.18.0) — but ONLY from the `strong` tier.
+
+    `strong` is the only threshold that already encodes the conjunction a nomination should
+    require (>= min_dimensions_for_strong independent lines after correlated-group collapse, a
+    `dominant` hit, and no unreconciled measured contradiction). `moderate` is reachable on a
+    SINGLE supportive hit — pointing this key at it would nominate on one weak signal.
+    Absent/null is legal and means "never nominate" (pre-1.18.0 behaviour).
+    """
+    cfg = _load()["positive_tier_config"]
+    tier = cfg.get("forces_nominate_at_tier")
+    assert tier in {"strong", None}, f"forces_nominate_at_tier must be 'strong' or absent, got {tier!r}"
+
+
+def test_nominate_is_not_a_gate_action():
+    """`nominate` must NEVER become a gate action — the restraint/positive split is structural.
+
+    `action_precedence` is the key function of a `max()` over the FIRED KILL hits in
+    tp_gates._gate_recommendation. A positive token in that ranking would be compared against, and
+    tie-break with, a veto/hold — i.e. a nomination could outrank (or be silently outranked by) a
+    restraint. The positive path forces `nominate` from its own else-branch instead, reachable only
+    when no kill fired. This test is the tripwire on that invariant; the companion assertions live in
+    claude-oncology-skills/skills/target-profile/tests/test_gate_vocab_skills_coupling.py.
+    """
+    v = _load()
+    assert "nominate" not in v["action_precedence"], (
+        "`nominate` was added to action_precedence — it must stay a positive-tier-only action; "
+        "see positive_tier_config.forces_nominate_at_tier"
+    )
+    for g in v["gates"]:
+        assert g["action"] != "nominate", f"gate {g['sub_skill']}:{g['verdict']} declares action: nominate"
+
+
 def test_positive_set_disjoint_from_kills_and_contradictions():
     """A verdict cannot be simultaneously a positive AND a kill AND/OR a contradiction
     — the three sets must be pairwise disjoint or the gate resolution is ambiguous."""

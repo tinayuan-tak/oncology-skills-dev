@@ -26,7 +26,7 @@
 # Adding a modality-scoped killer here would regress that golden.
 
 enum_id: nomination_verdict_gate
-version: 1.17.0  # 1.17.0 (2026-09-11, Step 2b): NEW `thesis_axis_relevance` block — routes on the governed `thesis` (target_thesis.yaml) to make a dependency `non_dependent` VETO IRRELEVANT (dropped, not just downgraded) for theses whose biology does not live on the dependency axis (antigen_driven / tme_io / neomorphic_gof / partner_conditional_sl), so the target falls to its OWN thesis axis and can reach nominate — the ANY-OF fix for the 0/14-surface defect. Generalizes biology_axis_scoped_veto_downgrade (kept as the `unresolved`-path fallback until 2c). GUARDRAILS unchanged: never drops pan_essential_killer, never touches safety, `unresolved`→today byte-for-byte, routing cannot invent a GO (dropping a veto only falls to the LLM proposal, bounded above by the kill gate + below by the abstention lower-bound clamp). Verdict-moving; verified on the hermetic skills gate-tests.
+version: 1.18.0  # 1.18.0 (2026-09-11, A1): positive_tier_config.forces_nominate_at_tier: strong — the positive path may now FORCE `nominate`, closing the asymmetry in which this gate could only veto/hold and EVERY nomination was therefore LLM-authored with no auditable rule behind it (measured on the 13-target panel: 10 hold / 2 veto / 17 abstain / 0 nominate; ERBB2/BRCA hit `strong` on 3 hits, all 3 `dominant`, and still resolved to None — and with --emit being LLM-free there was no confidence to floor, so the whole positive apparatus was unobservable in exactly the mode the eval harness scores, making its specificity arm vacuous). FAIL-CLOSED: missing key => pre-1.18.0 behaviour byte-for-byte. `nominate` deliberately stays OUT of action_precedence (that map keys a max() over fired KILL hits; a positive there could tie-break against a restraint) and out of every gate's `action:`. Still else-branch-only, so it cannot mask a kill. 1.17.0 (2026-09-11, Step 2b): NEW `thesis_axis_relevance` block — routes on the governed `thesis` (target_thesis.yaml) to make a dependency `non_dependent` VETO IRRELEVANT (dropped, not just downgraded) for theses whose biology does not live on the dependency axis (antigen_driven / tme_io / neomorphic_gof / partner_conditional_sl), so the target falls to its OWN thesis axis and can reach nominate — the ANY-OF fix for the 0/14-surface defect. Generalizes biology_axis_scoped_veto_downgrade (kept as the `unresolved`-path fallback until 2c). GUARDRAILS unchanged: never drops pan_essential_killer, never touches safety, `unresolved`→today byte-for-byte, routing cannot invent a GO (dropping a veto only falls to the LLM proposal, bounded above by the kill gate + below by the abstention lower-bound clamp). Verdict-moving; verified on the hermetic skills gate-tests.
   # 1.16.0 (2026-09-08): biology_axis_scoped_veto_downgrade now admits curated `extrinsic` (TME/immune/stromal) + `mixed` axes (was surface_intrinsic/unknown only) → a checkpoint (PD-L1/CD274=mixed, PD-1/CTLA4=extrinsic) with a FAVORABLE surface fit has its dependency non_dependent VETO downgraded to HOLD, same as a surface antigen (engaged by blockade/binding, not a tumor-intrinsic dependency). Fixes a CURATION PENALTY: an uncurated checkpoint (unknown, e.g. LAG3) already got the downgrade but curated CD274/PDCD1/CTLA4 were locked out. Favorable-surface co-condition + intracellular_intrinsic exclusion BOTH unchanged (only the axis list grew), so a neither_viable/shed surface or an intracellular target still VETOes. veto→hold only. Live-verified panel: CD274/LUAD VETO→HOLD via this arm; PDCD1/CTLA4/VEGFA already non-vetoing via other paths (net effect = CD274 alone). Verdict-moving; golden regen + grounded verify.
 # 1.15.0 (2026-09-08): + surface-fit contradiction_reconciler — a FAVORABLE surface_modality fit (ADC/TCE surface antigen) RECONCILES (drops) the selectivity selective_but_broadly_normal KILL, because the therapeutic window is modality-engineered (payload/DAR/avidity), NOT the bulk tumor÷normal-organ RNA ratio. Fires on default/no-modality runs (favorable fit = the surface-antigen evidence). Reconciles ERBB3/TACSTD2/MUC17; STANDS for secreted (VEGFA) + intracellular (CDK2) targets (no viable surface arm). Drops the contradiction only (no positive_signal) → safety axis remains the guardrail → lands at hold, never a manufactured strong. Same INVERTED-FALLBACK contract as (1). Verdict-moving; golden regen + grounded verify.
 # 1.14.0 (2026-09-08): + contradiction_reconcilers block — a genomic biomarker_stratified_dependency RECONCILES (drops) the selectivity selective_but_broadly_normal CONTRADICTION (the no-window KILL is bulk-RNA÷critical-organ, which dilutes an amp/biomarker-selected window — HER2/FGFR2/HER3). Surfaced by the IDAS backtest (ERBB2/STAD = T-DXd APPROVED, vetoed on no-window). Applied at positive-tier strong-block + gate scorecard + synthesis role; keeps the KILL for no-amp housekeeping (TROP2/GAPDH). Verdict-moving; golden regen + grounded verify.
@@ -70,8 +70,15 @@ version: 1.17.0  # 1.17.0 (2026-09-11, Step 2b): NEW `thesis_axis_relevance` blo
 description: |
   Deterministic (sub_skill, verdict) → forced overall_recommendation policy for
   the target-profile nomination gate. Precedence when multiple fire: veto > hold.
+  RESTRAINT actions only — `nominate` is forced by the POSITIVE TIER (see
+  positive_tier_config.forces_nominate_at_tier), never by a gate, and so never
+  appears in action_precedence or in a gate's `action:` field.
 
 # Forced-action precedence (higher wins when multiple gates fire).
+# RESTRAINT-ONLY BY DESIGN — do NOT add `nominate` here. This map is the key function of a
+# `max()` over the FIRED KILL hits, so a positive token would be ranked against, and tie-break
+# with, a veto/hold. The positive path forces `nominate` from its own branch instead
+# (positive_tier_config.forces_nominate_at_tier), reachable only when no kill fired.
 action_precedence:
   veto: 2
   hold: 1
@@ -559,15 +566,19 @@ gof_driver_scoped_veto_downgrade:
       touch pan_essential_killer (MYC).
 
 # ============================================================================
-# POSITIVE TIER (2026-07-17) — deterministic confidence FLOOR, never an action.
+# POSITIVE TIER (2026-07-17; forces `nominate` at `strong` since 1.18.0)
 # ============================================================================
 # Graded positives raise an AUDITABLE confidence tier (strong/moderate) instead of
 # being LLM-advisory only. STRICTLY F1-SAFE:
 #   - The positive tier is computed ONLY when NO kill (veto/hold) fired — the gate
 #     resolves kills first, positives in the else-branch. A positive can therefore
 #     never mask or subordinate a kill (structural, not policy).
-#   - It writes ONLY to the `confidence` field as a FLOOR (max with the LLM's
-#     confidence), never to `overall_recommendation`. It cannot force `nominate`.
+#   - It writes a confidence FLOOR (max with the LLM's confidence) and, at the tier
+#     named by `positive_tier_config.forces_nominate_at_tier` (= `strong`), it forces
+#     `overall_recommendation = nominate`. Before 1.18.0 it touched confidence ONLY and
+#     could not force `nominate` at all — which left every nomination LLM-authored with
+#     no rule behind it. See the forces_nominate_at_tier comment for the measurement
+#     that motivated the change and for why `nominate` is still NOT a gate action.
 #   - INVERTED FALLBACK vs the kill `gates`: if this file is missing/malformed the
 #     positive loader returns EMPTY (kill-only, LLM confidence stands) — it must
 #     NEVER mint a spurious `strong`. (The kill fallback is the opposite: conservative-
@@ -721,6 +732,35 @@ positive_contradictions:
 positive_tier_config:
   min_dimensions_for_strong: 2    # analog of compose-dashboard MIN_IN_SCOPE_FOR_STRONG
   require_dominant_for_strong: true
+  # THE TIER AT WHICH THE POSITIVE PATH FORCES `nominate` (1.18.0, 2026-09-11 — the A1 fix).
+  #
+  # Until now this gate could ONLY veto or hold: `action_precedence` has no `nominate`, the positive
+  # path wrote a confidence FLOOR and nothing else, and so EVERY nomination in the framework was
+  # LLM-authored with no auditable rule behind it. Measured on the 13-target known panel (grounded
+  # re-emit 2026-09-11): 10 hold / 2 veto / 17 abstain / 0 nominate. ERBB2/BRCA reached the `strong`
+  # tier on THREE hits, ALL THREE `dominant`, and still resolved to recommendation=None; EGFR/LUAD the
+  # same. And because `--emit` is LLM-free there was no confidence value to floor, so in exactly the
+  # mode the eval harness scores, the entire positive apparatus was UNOBSERVABLE — which in turn made
+  # the panel's specificity arm vacuous (every assertion is `reco != "nominate"`, a branch that could
+  # not be taken; see eval/run_known_target_panel.py).
+  #
+  # `strong` is deliberately the ONLY sane threshold: it is already the conjunction a nomination should
+  # require — >= min_dimensions_for_strong INDEPENDENT lines (after correlated_dimension_groups collapse
+  # the double-counts), a `dominant` hit, and NO unreconciled MEASURED contradiction. Setting this to
+  # `moderate` would nominate on a single supportive hit; don't.
+  #
+  # FAIL-CLOSED and F1-SAFE, on the same structural grounds as the confidence floor it sits beside:
+  #   - MISSING/null key => no nomination (pre-1.18.0 behaviour byte-for-byte). The skills loader
+  #     treats an unreadable file as "no positive signals at all", so a broken vocab cannot mint a GO.
+  #   - Still computed ONLY in the no-kill else-branch, so it can never mask or outrank a veto/hold.
+  #   - This is NOT a gate action: `nominate` stays OUT of `action_precedence` and out of every gate's
+  #     `action:` field ON PURPOSE. action_precedence feeds a `max()` over FIRED KILL hits; a positive
+  #     token in that ranking would let a nomination be compared against — and tie-break with — a
+  #     restraint. The positive path is a separate branch, not a competing kill.
+  #   - The skills side additionally WITHHOLDS the nomination when the abstention lower-bound clamp
+  #     fired (i.e. the LLM authored a veto/hold with no rule behind it). Nominating over the narrative
+  #     printed beside it would be worse than abstaining; that case records `nominate_withheld`.
+  forces_nominate_at_tier: strong
   # min_dimensions_for_strong counts INDEPENDENT lines of evidence. Some positive axes are NOT
   # independent — they are two reads of the same underlying measurement, so counting both toward the
   # "2 dimensions" bar double-counts one line. Each group below collapses to ONE dimension for the
