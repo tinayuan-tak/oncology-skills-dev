@@ -74,3 +74,26 @@ def test_archetype_crosswalk_covers_the_anchor_labels():
     crosswalk = set(yaml.safe_load(THESIS.read_text())["derivation"]["archetype_label_to_thesis"])
     missing = anchor_labels - crosswalk
     assert not missing, f"atlas anchor labels with no thesis mapping: {sorted(missing)}"
+
+
+def test_step_2b_refinement_well_formed(spec):
+    """The refinement rules promote a coarse thesis to a finer one from axis verdicts. Every `to`/`from`
+    thesis must be a declared thesis; `from` must never include a surface/immune thesis being refined
+    away incorrectly; each rule carries a when_verdicts condition + a rationale."""
+    enum = set(spec["theses"])
+    for rule in spec.get("step_2b_refinement", []) or []:
+        assert rule["to"] in enum, f"refinement to={rule['to']} not a declared thesis"
+        assert set(rule["from"]) <= enum, f"refinement from={rule['from']} has an undeclared thesis"
+        assert rule["when_verdicts"], "a refinement must key on >=1 sub-skill verdict"
+        assert rule["rationale"].strip()
+
+
+def test_neomorphic_refinement_matches_the_epicycle_it_subsumes(spec):
+    """neomorphic_gof must fire on exactly the gof_driver_scoped_veto_downgrade trigger (confirmed_driver
+    /multi_class_driver + non_dependent) so thesis routing subsumes it, and must refine only from
+    oncogene_addiction/unresolved (never from antigen_driven/tme_io)."""
+    rule = next(r for r in spec["step_2b_refinement"] if r["to"] == "neomorphic_gof")
+    assert set(rule["when_verdicts"]["genomic_alteration"]) == {"confirmed_driver", "multi_class_driver"}
+    assert rule["when_verdicts"]["dependency"] == ["non_dependent"]
+    assert "antigen_driven" not in rule["from"] and "tme_io" not in rule["from"]
+    assert rule.get("subsumes") == "gof_driver_scoped_veto_downgrade"

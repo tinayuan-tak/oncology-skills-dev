@@ -95,3 +95,35 @@ biology_axis_fallback:
   extrinsic: tme_io
   mixed: unresolved
   unknown: unresolved        # uncurated target with an ambiguous mixture → today's gate (no routing)
+
+# ── Step 2b REFINEMENT: promote a coarse thesis to a FINER one from AXIS SIGNALS ───────────────────
+# The archetype mixture types the COARSE thesis (surface/oncogene/immune). The finer theses cannot come
+# from the mixture — the atlas has no anchor for them — so they are a SECOND stage keyed on the fired
+# sub-skill VERDICTS, reusing the exact triggers the corresponding epicycle block uses so that thesis
+# routing genuinely SUBSUMES it (Step 2c can then retire the epicycle). Applied AFTER the coarse
+# derivation; first matching rule wins. A rule fires only when the coarse thesis is in `from` (so a
+# surface/immune thesis is never overridden) AND every (sub_skill → verdict∈list) in `when_verdicts`
+# holds against the run's sub-verdicts.
+step_2b_refinement:
+  - to: neomorphic_gof
+    from: [oncogene_addiction, unresolved]
+    when_verdicts:
+      genomic_alteration: [confirmed_driver, multi_class_driver]   # a confirmed GoF/activating driver
+      dependency: [non_dependent]                                  # whose pooled whole-gene KO is non_dependent
+    subsumes: gof_driver_scoped_veto_downgrade
+    rationale: |
+      Neomorphic GoF (IDH1 R132): a confirmed GoF/activating oncogenic driver whose POOLED pan-cancer
+      CRISPR reads `non_dependent` — the drug (ivosidenib) inhibits the mutant's GAINED activity, not a
+      whole-gene dependency, so the pooled non-dependence is an IRRELEVANT criterion. The favorable
+      GENOMIC-driver read is the 2d co-condition that justifies making the dependency veto irrelevant
+      (dropped → the genomic + tractability axes decide). Exactly the fire condition of
+      gof_driver_scoped_veto_downgrade (confirmed_driver/multi_class_driver + the non_dependent it
+      downgrades), so thesis routing subsumes that epicycle — but DROPS (nominate-eligible via
+      genomic+tractability) where the epicycle only HELD. KRAS is confirmed_driver but
+      concordant_dependent (NOT non_dependent) → condition fails → stays oncogene_addiction (dependency
+      decides), preserving the KRAS golden. LoF/TSG drivers are excluded (not in the verdict list).
+  # partner_conditional_sl + pan_essential_buffered: RESERVED for follow-on refinement rules. Their
+  # triggers are subtler — partner_conditional_sl must preserve the veto_suppressors measured-vs-
+  # annotation split (subtype_restricted_dependency → nominate-eligible; annotation-only SL →
+  # insufficient), and pan_essential_buffered needs the exists-safe-modality-window computation — so
+  # they are added once those conditions are expressed here, before their epicycles are retired.
