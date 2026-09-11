@@ -1,7 +1,7 @@
 """depmap_cn_distribution — pan-cancer copy-number distribution analysis method.
 
-Consumes DepMap 26Q1 OmicsCNGeneMC_WES.csv (preferred) + OmicsCNGeneWGS.csv
-(fallback when target gene is absent from WES panel) + Model.csv (for
+Consumes DepMap 26Q1 OmicsCNGeneWGS.csv (canonical, preferred) + OmicsCNGeneMC_WES.csv
+(legacy fallback when the target gene is absent from the WGS matrix) + Model.csv (for
 ModelConditionID → ModelID + lineage bridge). Emits gene-level CN distribution
 stats, lineage stratification, and a descriptive copy_number_class label.
 

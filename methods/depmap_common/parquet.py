@@ -235,7 +235,8 @@ def get_tpm_column(target_symbol: str, release_pin: str = "26q1"):
 
 @lru_cache(maxsize=128)
 def get_cn_column_wes(target_symbol: str, release_pin: str = "26q1"):
-    """CN WES target column. Returns DataFrame or None (fall back to WGS if None)."""
+    """CN WES target column — LEGACY fallback (used only when the gene is absent from the
+    canonical WGS matrix; see load_cn_files, #704 6a). Returns DataFrame or None."""
     return _read_wide_target_column(
         "OmicsCNGeneMC_WES.parquet", target_symbol, id_col_hints=("ModelConditionID",), release_pin=release_pin
     )
@@ -243,7 +244,8 @@ def get_cn_column_wes(target_symbol: str, release_pin: str = "26q1"):
 
 @lru_cache(maxsize=128)
 def get_cn_column_wgs(target_symbol: str, release_pin: str = "26q1"):
-    """CN WGS target column (fallback for genes absent from WES panel)."""
+    """CN WGS target column — the CANONICAL / primary CN read (26Q1 WES CN is legacy; see
+    load_cn_files, #704 6a). Returns DataFrame or None (then falls back to legacy WES)."""
     return _read_wide_target_column(
         "OmicsCNGeneWGS.parquet", target_symbol, id_col_hints=("ModelConditionID",), release_pin=release_pin
     )

@@ -4,14 +4,22 @@
 Mirrors the depmap_chronos_distribution + depmap_expression_distribution sibling
 methods structurally; differences are documented inline.
 
-LOAD STRATEGY (WES-primary + WGS-fallback):
-  1. Try OmicsCNGeneMC_WES.csv first (n=1954 cell lines, 15391 genes from WES panel).
-  2. If target gene is ABSENT from WES matrix, fall back to OmicsCNGeneWGS.csv
-     (n=~800 cell lines, ~19000 genes — full genome). This closes the gap for
-     genes outside the WES probe panel (e.g. MYC, BRAF in 26Q1).
+LOAD STRATEGY (WGS-primary + WES-fallback) — migrated 2026-09-11, #704 6a:
+  1. Try OmicsCNGeneWGS.csv first — the DepMap-CANONICAL CN pipeline (26Q1 WES CN is
+     marked LEGACY in the data-catalog manifest; DepMap now derives CN from WGS).
+     26Q1 WGS covers MORE cell lines than WES (n=2219 vs 1954) and is genome-wide.
+  2. If target gene is ABSENT from the WGS matrix, fall back to OmicsCNGeneMC_WES.csv
+     (n=1954 cell lines, 15391 genes from the WES probe panel) — a rare event since
+     WGS is genome-wide.
   3. Returned summary's cn_assay_used field documents which source was used.
 
-MATRIX SHAPE: WES CN matrix is cell-line-rows × gene-columns (similar to CRISPR).
+  SCALE-COMPATIBILITY (why the flip needs no threshold recalibration): both matrices
+  are DepMap RELATIVE copy number on the SAME convention (diploid median ~1.0, NOT
+  log2). Empirically verified 2026-09-11 across a control+amplified panel — near-
+  identical focal-amp fractions (frac>1.5) for ERBB2/EGFR/MDM2/TP53 — so the
+  focal-amp (1.5) and HIGH-amp (2.0) thresholds carry over unchanged.
+
+MATRIX SHAPE: the CN matrix is cell-line-rows × gene-columns (similar to CRISPR).
   - First column: ModelConditionID
   - Second column: IsDefaultEntryForMC
   - Rest: gene columns named "SYMBOL (entrez_id)"
@@ -89,12 +97,12 @@ def _find_target_col(columns, target_symbol: str) -> Optional[str]:
 
 
 def load_cn_files(release_pin: str, target_symbol: str) -> tuple[dict, dict, str, list]:
-    """Load CN data for target_symbol, trying WES first then falling back to WGS.
+    """Load CN data for target_symbol, trying the canonical WGS first then falling back to legacy WES.
 
     Returns:
         cn_by_model_id: {model_id (ACH-XXXXXX) -> relative_cn (float)}
         model_metadata_by_id: {model_id -> metadata_dict (OncotreeLineage, etc.)}
-        assay_used: 'wes' | 'wgs' | 'data_unavailable'
+        assay_used: 'wgs' (primary) | 'wes' (fallback) | 'data_unavailable'
         load_errors: list of structured error dicts (empty on success)
     """
     import pandas as pd
@@ -116,27 +124,30 @@ def load_cn_files(release_pin: str, target_symbol: str) -> tuple[dict, dict, str
         try:
             from methods.depmap_common.parquet import get_cn_column_wes, get_cn_column_wgs
 
-            wes_df = get_cn_column_wes(target_symbol, release_pin)
-            if wes_df is not None:
-                assay_used = "wes"
-                chosen_df = wes_df
+            # WGS-primary (canonical), WES-fallback — #704 6a (2026-09-11).
+            wgs_df = get_cn_column_wgs(target_symbol, release_pin)
+            if wgs_df is not None:
+                assay_used = "wgs"
+                chosen_df = wgs_df
                 target_col = next(
-                    (c for c in wes_df.columns if c not in ("ModelConditionID", "IsDefaultEntryForMC")), None
+                    (c for c in wgs_df.columns if c not in ("ModelConditionID", "IsDefaultEntryForMC")), None
                 )
             else:
-                wgs_df = get_cn_column_wgs(target_symbol, release_pin)
-                if wgs_df is not None:
-                    click.echo(f"  Target {target_symbol!r} absent from WES parquet; using WGS", err=True)
-                    assay_used = "wgs"
-                    chosen_df = wgs_df
+                wes_df = get_cn_column_wes(target_symbol, release_pin)
+                if wes_df is not None:
+                    click.echo(
+                        f"  Target {target_symbol!r} absent from WGS parquet; falling back to legacy WES", err=True
+                    )
+                    assay_used = "wes"
+                    chosen_df = wes_df
                     target_col = next(
-                        (c for c in wgs_df.columns if c not in ("ModelConditionID", "IsDefaultEntryForMC")), None
+                        (c for c in wes_df.columns if c not in ("ModelConditionID", "IsDefaultEntryForMC")), None
                     )
                 else:
                     load_errors.append(
                         {
                             "_live_read_error": "target_not_in_cn_panel",
-                            "detail": f"Target {target_symbol!r} not found in WES or WGS gene-level CN matrices",
+                            "detail": f"Target {target_symbol!r} not found in WGS or WES gene-level CN matrices",
                             "remediation": "Confirm HGNC symbol spelling; this gene may not be captured by either CN platform.",
                         }
                     )
@@ -145,29 +156,30 @@ def load_cn_files(release_pin: str, target_symbol: str) -> tuple[dict, dict, str
             # Parquet not available → fall through to CSV path
             s3 = boto3.client("s3")
             bucket = "onc-compbio"
-            wes_key = f"{_DEPMAP_KEY_PREFIX}/OmicsCNGeneMC_WES.csv"
-            click.echo(f"  Fetching s3://{bucket}/{wes_key}", err=True)
-            wes_obj = s3.get_object(Bucket=bucket, Key=wes_key)
-            wes_df = pd.read_csv(BytesIO(wes_obj["Body"].read()))
-            target_col = _find_target_col(wes_df.columns, target_symbol)
-            assay_used = "wes"
-            chosen_df = wes_df
+            # WGS-primary (canonical), WES-fallback — #704 6a (2026-09-11).
+            wgs_key = f"{_DEPMAP_KEY_PREFIX}/OmicsCNGeneWGS.csv"
+            click.echo(f"  Fetching s3://{bucket}/{wgs_key}", err=True)
+            wgs_obj = s3.get_object(Bucket=bucket, Key=wgs_key)
+            wgs_df = pd.read_csv(BytesIO(wgs_obj["Body"].read()))
+            target_col = _find_target_col(wgs_df.columns, target_symbol)
+            assay_used = "wgs"
+            chosen_df = wgs_df
             if target_col is None:
-                wgs_key = f"{_DEPMAP_KEY_PREFIX}/OmicsCNGeneWGS.csv"
-                click.echo(f"  Target {target_symbol!r} absent from WES; falling back to WGS", err=True)
-                wgs_obj = s3.get_object(Bucket=bucket, Key=wgs_key)
-                wgs_df = pd.read_csv(BytesIO(wgs_obj["Body"].read()))
-                target_col = _find_target_col(wgs_df.columns, target_symbol)
+                wes_key = f"{_DEPMAP_KEY_PREFIX}/OmicsCNGeneMC_WES.csv"
+                click.echo(f"  Target {target_symbol!r} absent from WGS; falling back to legacy WES", err=True)
+                wes_obj = s3.get_object(Bucket=bucket, Key=wes_key)
+                wes_df = pd.read_csv(BytesIO(wes_obj["Body"].read()))
+                target_col = _find_target_col(wes_df.columns, target_symbol)
                 if target_col is None:
                     load_errors.append(
                         {
                             "_live_read_error": "target_not_in_cn_panel",
-                            "detail": f"Target {target_symbol!r} not found in WES or WGS gene-level CN matrices",
+                            "detail": f"Target {target_symbol!r} not found in WGS or WES gene-level CN matrices",
                         }
                     )
                     return {}, {}, "data_unavailable", load_errors
-                assay_used = "wgs"
-                chosen_df = wgs_df
+                assay_used = "wes"
+                chosen_df = wes_df
     except ImportError as e:
         load_errors.append({"_live_read_error": "boto3_not_available", "detail": str(e)})
         return {}, {}, "data_unavailable", load_errors

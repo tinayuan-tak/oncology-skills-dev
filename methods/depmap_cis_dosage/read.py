@@ -77,7 +77,7 @@ def read_cis_dosage(
     # Pan-panel correlation → the honest scope is pan_no_indication (within-lineage cis-dosage is a
     # later refinement; the cis_coherence resolver does not gate on evidence_scope at Stage 0).
     summary["evidence_scope"] = "pan_no_indication"
-    summary["_cn_assay_used"] = assay_used  # WES (primary) or WGS (fallback), provenance
+    summary["_cn_assay_used"] = assay_used  # WGS (primary) or WES (fallback), provenance
 
     # Figure Stage 6: persist the merged CN×TPM frame during resolution so the figure renders offline
     # from it (no second CN+expression load at figure time). Best-effort, verdict-inert.

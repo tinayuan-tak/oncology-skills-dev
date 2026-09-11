@@ -83,7 +83,7 @@ PRECOMPUTE_TARGETS = [
         "output_name": "OmicsCNGeneWGS.parquet",
         "orientation": "wide_with_metadata",
         "index_col_name": "ModelConditionID",
-        "notes": "WGS gene-level CN; fallback panel for genes absent from WES",
+        "notes": "WGS gene-level CN — the CANONICAL CN pipeline / primary read (WES CN is legacy; #704 6a)",
     },
     {
         "source_key": f"{DEPMAP_SOURCE_PREFIX_RNAI}/D2_combined_gene_dep_scores.csv",

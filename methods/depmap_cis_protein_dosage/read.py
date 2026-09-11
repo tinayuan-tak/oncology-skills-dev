@@ -99,7 +99,7 @@ def read_cis_protein_dosage(target: str, indication: Optional[str] = None, relea
     summary["abundance_layer"] = "protein_gygi_ms"
     summary["n_protein_detected_models"] = len(prot_by_model)
     summary["protein_panel_size"] = panel_size
-    summary["_cn_assay_used"] = assay_used  # WES (primary) or WGS (fallback), provenance
+    summary["_cn_assay_used"] = assay_used  # WGS (primary) or WES (fallback), provenance
     # Comparison hook: the mRNA arm lives on cis-feature-expression-coherence; the skill's _headline
     # divides this leg's slope by that leg's cn_expr_slope_log2tpm_per_cn to get the dosage-buffering ratio.
     summary["mrna_arm_card"] = "cis-feature-expression-coherence"

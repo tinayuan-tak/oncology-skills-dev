@@ -114,5 +114,5 @@ def read_amp_expr_dependency(target: str, indication: Optional[str] = None, rele
         return _cli.compute_amp_expr_stratification(c, cn, t)
 
     summary = apply_lineage_ladder(_compute, "amp_expr_stratification_class", model_metadata, indication)
-    summary["_cn_assay_used"] = assay_used  # WES (primary) or WGS (fallback), provenance
+    summary["_cn_assay_used"] = assay_used  # WGS (primary) or WES (fallback), provenance
     return summary

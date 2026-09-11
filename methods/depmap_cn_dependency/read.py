@@ -89,5 +89,5 @@ def read_cn_stratified_dependency(target: str, indication: Optional[str] = None)
         return _cli.compute_cn_stratification(c, cn)
 
     summary = apply_lineage_ladder(_compute, "cn_stratification_class", model_metadata, indication)
-    summary["_cn_assay_used"] = assay_used  # WES (primary) or WGS (fallback), provenance
+    summary["_cn_assay_used"] = assay_used  # WGS (primary) or WES (fallback), provenance
     return summary
