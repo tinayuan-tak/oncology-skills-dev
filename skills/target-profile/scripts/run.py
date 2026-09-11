@@ -1035,7 +1035,17 @@ def main() -> int:
             f"{[s['short'] + ':' + s['verdict'] + ' via ' + s['suppressed_by']['kind'] for s in gate_suppressions]}",
             file=sys.stderr,
         )
-    confidence_tier = {"tier": None}
+    # confidence_tier is computed the SAME WAY in BOTH gate branches (2026-09-11, CDH3 review): the
+    # positive tier + its supporting hits are resolved unconditionally, so the object carries an
+    # identical {tier, hits} shape and meaning whether or not a kill gate fired. Previously the gated
+    # branch left {"tier": None} with no `hits` key, so a vetoed run's confidence object meant something
+    # different from an abstaining run's (CDH3 was the first target to publish that branch). The
+    # confidence FLOOR (raising the LLM's confidence to the tier's floor) is applied ONLY on abstention
+    # below — a kill gate owns the recommendation and never has its confidence RAISED — but the tier
+    # itself is now reported on gated runs too (confidence and recommendation are orthogonal: one can be
+    # highly confident that a target should be vetoed).
+    tier, pos_hits = _positive_tier(sub_results, modality=args.modality)
+    confidence_tier = {"tier": tier, "hits": pos_hits}
     if gate_action:
         rec = llm_output.get("overall_recommendation")
         llm_value = rec.get("value") if isinstance(rec, dict) else rec
@@ -1089,10 +1099,10 @@ def main() -> int:
                 f"'{clamped_to}' (gate abstained — no veto/hold rule fired)",
                 file=sys.stderr,
             )
-        # (b) the positive tier may raise a deterministic confidence FLOOR. F1-safe: this branch is
-        #     unreachable when a kill fired; it touches ONLY `confidence`, never forces nominate.
-        tier, pos_hits = _positive_tier(sub_results, modality=args.modality)
-        confidence_tier = {"tier": tier, "hits": pos_hits}
+        # (b) the positive tier (computed above, before the branch) may raise a deterministic confidence
+        #     FLOOR. F1-safe: this branch is unreachable when a kill fired; it touches ONLY `confidence`,
+        #     never forces nominate. The tier/hits are already on confidence_tier; only the floor is
+        #     abstention-scoped (a killed target is never confidence-RAISED).
         if tier:
             floor = _TIER_TO_CONFIDENCE[tier]  # strong→high, moderate→medium
             conf = llm_output.get("confidence")

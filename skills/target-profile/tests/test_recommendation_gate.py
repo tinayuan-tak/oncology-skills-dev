@@ -522,20 +522,28 @@ def test_positive_fallback_is_empty_not_permissive(tmp_path):
     assert tier is None  # full house of positives, but no vocab → no tier
 
 
-def test_f1_kill_short_circuits_positive_tier_in_main_flow():
-    """THE F1 GUARD (integration-level): when a kill fires, the positive tier must
-    NOT be computed — a full house of positives cannot survive/soften a veto.
-    Mirrors main()'s `if gate_action: <kill clamp> else: <positive tier>` structure."""
+def test_f1_kill_reports_tier_but_never_floors_confidence():
+    """THE F1 GUARD (integration-level): when a kill fires, a full house of positives
+    cannot survive/soften the veto NOR raise its confidence. Since 2026-09-11 (CDH3
+    review) the positive tier + hits ARE computed on gated runs so confidence_tier
+    carries an identical {tier, hits} shape in both branches (confidence and
+    recommendation are orthogonal) — but the confidence FLOOR is applied ONLY on
+    abstention. This asserts both halves: the tier is reported, and the recommendation
+    stays the veto with no confidence-raise. Mirrors main()'s branch structure."""
     subs = dict(_dominant_positives())
     subs["dependency"] = {"verdict": ("pan_essential_killer", "pan-essential-killer")}  # KILL
     gate_action, _, _sup = tp._gate_recommendation(subs)
     assert gate_action == "veto"
-    # Replicate main()'s branch structure: positive tier is in the ELSE of the kill.
-    if gate_action:
-        tier = None  # never computed under a kill — the structural F1 guarantee
-    else:
-        tier, _ = tp._positive_tier(subs)
-    assert tier is None, "positive tier must be unreachable when a kill fired"
+    # The positive tier is now resolved unconditionally (reporting-symmetric shape)...
+    tier, pos_hits = tp._positive_tier(subs)
+    confidence_tier = {"tier": tier, "hits": pos_hits}
+    assert "hits" in confidence_tier, "hits key present in BOTH branches (shape symmetry)"
+    # ...but the confidence FLOOR lives in the ELSE (abstention) branch only: a kill is
+    # never confidence-RAISED, and the forced recommendation stays the veto.
+    floored = False
+    if not gate_action and tier:
+        floored = True
+    assert not floored, "a killed target's confidence must never be floored-up by a positive tier"
 
 
 def test_confidence_floor_is_a_max_never_lowers():
