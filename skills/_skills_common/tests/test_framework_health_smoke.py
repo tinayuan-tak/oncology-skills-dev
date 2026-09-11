@@ -101,10 +101,17 @@ def test_every_covered_subskill_actually_calls_the_dispatcher():
 
 def test_retired_scan_hook_skills_are_gone():
     """bispecific-pair-scan + surfaceome-cohort-ranking (retired 2026-09-11) were the two skills
-    the text predicate falsely admitted. Their dirs must stay gone — the physics lives in
-    analysis-methods and the in-spine cards that read it belong to surface-modality-fit."""
+    the text predicate falsely admitted. They must stay retired — the physics lives in
+    analysis-methods and the in-spine cards that read it belong to surface-modality-fit.
+
+    Asserts the SKILL is gone (no SKILL.md, no run.py, out of coverage), not that the path holds
+    zero bytes: `git rm` leaves an untracked __pycache__ husk behind in any checkout that ran the
+    old suite, so a bare `.exists()` here passes in CI's fresh clone and fails on every working
+    tree — retired `skills/compose-dashboard/` (#654) is the standing precedent for such a husk."""
     for retired in ("bispecific-pair-scan", "surfaceome-cohort-ranking"):
-        assert not (H.SKILLS_DIR / retired).exists(), f"{retired} was retired; do not re-add the skill dir"
+        d = H.SKILLS_DIR / retired
+        assert not (d / "SKILL.md").exists(), f"{retired} was retired; do not re-add the skill"
+        assert not (d / "scripts" / "run.py").exists(), f"{retired} was retired; do not re-add its entrypoint"
         assert retired not in H._wired_subskills()
 
 
