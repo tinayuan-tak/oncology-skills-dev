@@ -104,6 +104,7 @@ from tp_gates import (  # names main() calls directly
     _hard_gates_status,
     _positive_tier,
     abstention_lower_bound_clamp,
+    derive_thesis,
 )
 from tp_manifest import *  # noqa: F401,F403
 from tp_manifest import write_full_package
@@ -891,6 +892,14 @@ def main() -> int:
 
     axis_info = resolve_biology_axis(args.target)
 
+    # THESIS TYPING (Step 2a). Derive the target's thesis from archetype_core's verdict-inert
+    # soft_membership under the governed hard-margin rule (target_thesis.yaml), falling back to the
+    # curated biology_axis lookup when ambiguous. VERDICT-INERT: emitted onto nomination.json and
+    # consumed by NO gate block until Step 2b — recommendation + confidence are byte-identical.
+    # `unresolved` reproduces today's gate exactly.
+    thesis = derive_thesis(archetype_companion, axis_info.get("biology_axis"))
+    print(f"[target-profile] thesis [{thesis['basis']}]: {thesis['thesis']}", file=sys.stderr)
+
     # M4 modality-fit-by-channel: roll up the records' modality_scope into a PER-CHANNEL favorability
     # (worst-case conjunction) so the nomination can express per-modality calls — nominable as an
     # allele-selective SM, hold as a degrader — instead of one scalar. VERDICT-INERT. The biology-axis
@@ -1405,6 +1414,11 @@ def main() -> int:
         # _SHORT_TO_GATE and this never touches the recommendation/gate/confidence. None when the atlas is
         # absent or the companion could not be computed (best-effort — see the computation site above).
         "archetype_companion": archetype_companion,
+        # THESIS (Step 2a, 2026-09-11): the governed thesis-routing key derived from archetype_companion's
+        # verdict-inert soft_membership (target_thesis.yaml hard-margin rule + biology_axis fallback).
+        # VERDICT-INERT — consumed by NO gate block until Step 2b; emitted for review + as the input the
+        # per-thesis gate will read. `unresolved` reproduces today's gate.
+        "thesis": thesis,
         # D1 nomination-readiness SCORECARD (2026-08-28): glass-box, archetype-conditioned per-axis score +
         # driving/limiting axes + route-conditioned counterfactual gap. DESCRIPTIVE / verdict-inert — never
         # touches the recommendation/gate/confidence. None when the atlas is absent or it could not be

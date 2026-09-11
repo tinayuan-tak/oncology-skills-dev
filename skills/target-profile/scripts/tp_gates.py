@@ -854,6 +854,69 @@ def _load_gate_coverage(contracts_repo: Path | None = None) -> tuple[dict, str]:
         return {}, "none"
 
 
+def _load_target_thesis(contracts_repo: Path | None = None) -> Optional[dict]:
+    """Load the governed thesis-routing vocab (target_thesis.yaml). Returns the spec dict, or None if
+    absent/malformed → derive_thesis then yields `unresolved` (today's gate). Fail-soft: a missing vocab
+    must never fabricate a thesis."""
+    repo = contracts_repo or _CONTRACTS_REPO
+    path = repo / "vocabularies" / "target_thesis.yaml"
+    try:
+        spec = yaml.safe_load(path.read_text())
+        if not spec or "theses" not in spec or "derivation" not in spec:
+            raise ValueError("missing theses/derivation")
+        return spec
+    except Exception:  # noqa: BLE001 — absent/malformed → None (derive_thesis falls to unresolved)
+        return None
+
+
+def derive_thesis(
+    archetype_companion: Optional[dict],
+    biology_axis: Optional[str],
+    contracts_repo: Path | None = None,
+) -> dict:
+    """Derive the target's THESIS (Step 2a) from archetype_core's verdict-inert soft_membership under
+    the governed hard-margin rule, falling back to the curated biology_axis lookup when the mixture is
+    ambiguous. VERDICT-INERT: emitted onto the composition and consumed by NO gate block until Step 2b,
+    so it moves no recommendation. `unresolved` reproduces today's gate by construction.
+
+    Returns {thesis, basis, ...evidence}. basis ∈ {archetype_mixture, biology_axis_fallback,
+    unresolved, no_vocab}. Governance: archetype_core mints nothing; THIS deterministic function + the
+    PR-reviewable target_thesis.yaml do the typing."""
+    spec = _load_target_thesis(contracts_repo)
+    if spec is None:
+        return {"thesis": "unresolved", "basis": "no_vocab"}
+    deriv = spec["derivation"]
+    cross = deriv.get("archetype_label_to_thesis") or {}
+    hm = deriv.get("hard_margin") or {}
+    dom_min = hm.get("dominant_weight_min", 0.5)
+    sep_min = hm.get("separation_min", 0.2)
+
+    sm = (archetype_companion or {}).get("soft_membership") or {}
+    if sm:
+        ranked = sorted(sm.items(), key=lambda kv: (-kv[1], kv[0]))  # weight desc, label asc (deterministic)
+        dom_label, dom_w = ranked[0]
+        second_w = ranked[1][1] if len(ranked) > 1 else 0.0
+        if dom_w >= dom_min and (dom_w - second_w) >= sep_min:
+            thesis = cross.get(dom_label, "unresolved")
+            if thesis != "unresolved":
+                return {
+                    "thesis": thesis,
+                    "basis": "archetype_mixture",
+                    "dominant_label": dom_label,
+                    "dominant_weight": round(dom_w, 3),
+                    "margin": round(dom_w - second_w, 3),
+                }
+
+    # ambiguous mixture (or no membership) → the curated biology_axis fallback (never regress the ~20)
+    fb = spec.get("biology_axis_fallback") or {}
+    thesis = fb.get(biology_axis, "unresolved") if biology_axis else "unresolved"
+    return {
+        "thesis": thesis,
+        "basis": "biology_axis_fallback" if thesis != "unresolved" else "unresolved",
+        "biology_axis": biology_axis,
+    }
+
+
 def _sub_result_has_signal(r: dict) -> bool:
     """A sub-result 'evidenced its gate' iff it produced a non-sentinel verdict OR fired any
     rule on a card that returned real (non-missing) data. Absence of both = we could not look."""
@@ -1091,6 +1154,8 @@ __all__ = [
     "_TIER_TO_CONFIDENCE",
     "_V2_GATE_LISTS",
     "abstention_lower_bound_clamp",
+    "derive_thesis",
+    "_load_target_thesis",
     "_flatten_gate_coverage",
     "_gate_recommendation",
     "_gate_scorecard",
