@@ -30,7 +30,7 @@ data-catalog        →   analysis-methods    →   target-contracts    →   cl
 | **data-catalog** | Manifests pointing at S3 data (sources + derived products); subgroup catalogs | The card catalog — *where* everything is |
 | **analysis-methods** | Deterministic Python readers/computers (`read_*`, `build_*`) | The lab instruments — *how* you measure |
 | **target-contracts** | Cards (what evidence), rules (what signals), vocabularies (controlled verdicts), schemas + validators | Lab protocols + the peer-review board — *what* claims are legitimate |
-| **claude-oncology-skills** | Skills that compose cards → synthesis; two engines; renderers | The scientist writing the report — *how* it's answered |
+| **claude-oncology-skills** | Skills that compose cards → resolver ladders → the nomination gate → synthesis; renderers | The scientist writing the report — *how* it's answered |
 
 **The dependency arrow never reverses.** methods read from catalog; contracts
 reference methods + catalog; skills reference contracts. A skill never touches
@@ -143,62 +143,82 @@ So the accurate statement is: **every card produces an output, but not every
 output fires a verdict-affecting rule** — and a null dataset specifically fires an
 `insufficient` rule that is reported as a coverage gap, never as a negative.
 
-**Two verdict backstops** (`skills/compose-dashboard/scripts/_synthesis.py`):
-- **Killer short-circuit** — any `killer` signal forces `fit_level = "not_viable"`
-  (~L219), uniformly whether from a Tier-2 rule or a modality `killer_condition`.
-- **Insufficient-evidence floor / refuse-to-answer** — `primary_total_in_scope ==
-  0` → `insufficient_evidence` (~L227); and at the headline level,
-  `n_not_informative_or_excluded >= 3` → *"Insufficient evidence for evaluation…"*
-  (~L374-382). This is the collective answer to "what if the data is null": enough
-  nulls and the framework **declines to answer** rather than fabricate a call.
-  (`MIN_IN_SCOPE_FOR_STRONG = 2`: a single in-scope card caps the fit at
-  "moderate" — honesty about sparsity.)
+**Two verdict backstops** (both intrinsic to the single spine — the per-skill
+resolver ladder + the nomination gate; see the next section):
+- **Killer short-circuit** — any `killer` signal short-circuits its axis to
+  `not_viable`/veto, uniformly whether from a Tier-2 rule or a modality
+  `killer_condition`. This is not a property of any one aggregator; it is how the
+  signal grammar itself is defined (the `killer` row above), so it holds in every
+  resolver and in the nomination gate's max-severity reduction alike.
+- **Insufficient-evidence floor / refuse-to-answer** — when a skill's in-scope
+  evidence is empty or too thin, its resolver returns an honest negative rather
+  than a fabricated call: the composed `adc-tce-modality-fit.fit_class`, for
+  instance, emits `neither_viable` (or degrades to `insufficient`) when upstream
+  is thin, and the nomination gate maps a run with no admissible positive to
+  `insufficient` rather than inventing one. This is the collective answer to "what
+  if the data is null": enough nulls and the framework **declines to answer**
+  rather than fabricate a call.
 
-**Tie-back to the nomination gate (Engine B).** The same discipline is why the
+**Tie-back to the nomination gate.** The same discipline is why the
 verdict-affecting subtype rule fires only on `subgroup_n_floor_met: true`: an
 underpowered subtype is `insufficient` / inadmissible, never `opposing` — a thin
 subtype cohort can never manufacture a subtype-specific no-go.
 
 ---
 
-## The two synthesis engines (know which does what)
+## One aggregation engine (the nomination gate)
 
-There are **two** aggregation engines. Knowing which produces the nomination
-verdict is the single most important fact for future work.
+There is **one** aggregation into a decision: the target-profile fan-out →
+per-skill resolver ladders → the nomination gate. Knowing that this gate is the
+sole place a verdict is composed is the single most important fact for future
+work.
 
-| Engine | File | Produces | Gating |
-|--------|------|----------|--------|
-| **A — compose-dashboard** | `skills/compose-dashboard/scripts/_synthesis.py :: synthesize()` | per-**modality** `fit_level` (ADC-viable? small-molecule-viable?) | rule-gated: killer short-circuit + dominant-plus-confirmation |
-| **B — target-profile** | `skills/target-profile/scripts/run.py :: _gate_recommendation()` | the **nomination verdict** (`nominate`/`hold`/`veto`/`insufficient`) | LLM synthesis + a deterministic clamp gate |
+```
+target-profile fans out to 15 sub-skills (in parallel, in-process)
+        |  each skill resolves its cards through a declarative ladder
+        |  (_skills_common/resolver.py :: resolve_verdict) -> a sub-verdict tuple
+        v
+  nomination gate  (target-profile/scripts/tp_gates.py :: _gate_recommendation,
+                    policy in vocabularies/nomination_verdict_gate.yaml)
+        |  max-severity reduction over the ~8 verdict-bearing sub-verdicts
+        v
+  the nomination verdict  (nominate / hold / veto / insufficient)
+```
 
-Key properties of Engine B's gate (the nomination gate):
+Key properties of the gate:
 - **One-directional** — it can only force a verdict *more* conservative
   (`veto` > `hold`), never force `nominate`. A killer/negative signal ratchets
   down; nothing ratchets up. Policy lives in
   `vocabularies/nomination_verdict_gate.yaml`, conservative hardcoded fallback
   on load failure (never permissive).
-- **This is what made the subtype layer safe on one engine** — a subtype signal
-  can never subordinate a pan-cancer safety killer, because the gate takes
-  max-severity across all fired sub-verdicts.
+- **This is what makes the subtype layer safe** — a subtype signal can never
+  subordinate a pan-cancer safety killer, because the gate takes max-severity
+  across all fired sub-verdicts.
 
-**The engines are NOT unified.** They duplicate the killer-gating pattern with
-different inputs (card `interpretation_call`s vs. skill verdict tuples).
-Unifying them is a known, deferred refactor. Any future work touching *both*
-modality-fit and nomination should weigh doing it.
+**Modality-fit is not a second engine.** It once was: a separate
+`compose-dashboard` aggregator scored a per-modality `fit_level` in its own
+`_synthesis.py`, duplicating the killer-gating pattern over a different input.
+That engine was **retired 2026-08-20 (#654)** — the skills `CLAUDE.md` instructs
+"disregard any lingering reference to it." Its work now flows through the single
+spine like every other card: modality substrate is the **composed
+`adc-tce-modality-fit` card** (its `fit_class` fused at compose time from
+surfaceome-family + topology + structure), resolved inside the
+`surface-modality-fit` sub-skill of the fan-out above. There is no longer a
+"two-engine unification" to do; there is one engine, and modality-fit is one of
+its inputs.
 
 ---
 
 ## The LLM synthesis layer (where judgment enters — and where it doesn't)
 
 The framework is deterministic up to the very end. There is **exactly one LLM
-call** in the whole target-profile pipeline (Engine B), and it is tightly boxed:
-it writes the narrative, proposes a recommendation from a fixed enum, and is then
-overridden by the deterministic gate below it. Engine A (compose-dashboard) is
-**fully deterministic** — no LLM in its `fit_level` scoring (it has synthesis
-prompt hooks in the dashboard_spec, but the modality-fit call is rule-scored).
+call** in the whole target-profile pipeline, and it is tightly boxed: it writes
+the narrative, proposes a recommendation from a fixed enum, and is then
+overridden by the deterministic gate below it. Everything feeding it — including
+the modality `fit_class` — is rule-scored, not LLM-scored.
 
 ```
-9 sub-skills fire rules -> sub_results (deterministic verdict tuples)
+fan-out sub-skills fire rules -> sub_results (deterministic verdict tuples)
         |
         v
   _build_user_prompt()            packages evidence as TEXT (no data/tool access)
@@ -251,7 +271,8 @@ discard every LLM word and the verdict + driving rules remain.
   `{value, _source: llm_synthesized, _model_id, _prompt_hash}`, so `nomination.json`
   is field-by-field auditable (machine-reasoned vs. rule-derived).
 - Model: Bedrock `ModelConfig.from_env().synthesis_model` — **Opus by default**
-  (`us.anthropic.claude-opus-4-7`), env-overridable.
+  (`FRAMEWORK_SYNTHESIS_MODEL = us.anthropic.claude-opus-4-8` in
+  `_skills_common/bedrock_client.py`), env-overridable via `ANTHROPIC_MODEL`.
 
 **Known limitation (deferred hardening).** The prompt-*hash* is stable across runs
 for identical inputs, but the LLM *prose* can still drift run-to-run (see
@@ -266,8 +287,8 @@ until it lands, treat the prose as a skin over the invariant spine.
 ## What is wired today (two milestones, both merged)
 
 **Milestone 1 — Descriptive subgroup panorama.** The full seam
-**catalog → dashboard-spec admission → dispatch → per-sample builder →
-evidence_state render** for 2 live cards
+**catalog → card admission (`cards_used` / `SUB_SKILL_CARDS`) → dispatch →
+per-sample builder → evidence_state render** for 2 live cards
 (`subgroup-stratified-mutation-frequency`, `subgroup-stratified-dependency`).
 Plus a **grain/tier validator** (`validators/validate_cards.py ::
 _grain_and_tier_check`) that makes the "claims-stratification-it-can't-honestly-
@@ -331,8 +352,20 @@ Use `tier: target` for the second; never say "target-intrinsic."
 - **Make something verdict-affecting** → author a rule that fires a channel, add
   a `(sub_skill, verdict) → action` row to `nomination_verdict_gate.yaml`. Stay
   one-directional unless you deliberately design otherwise.
-- **Biggest latent debt** → the two-engine unification. Any feature needing
-  subtype-awareness in *modality-fit* (Engine A) forces it.
+- **Biggest architectural debt** → the gate does not implement the ontology's
+  necessity model. `vocabularies/target_profiling_axes.yaml` declares necessity
+  as **ANY-OF** (an antigen-driven target carries no recurrent somatic
+  alteration, so an unfired `genomic_alteration` must not read as failing
+  necessity), but `nomination_verdict_gate.yaml` operates as
+  **dependency-AND-safety** — 2 vetoes, both on `dependency`, plus safety holds,
+  with a growing lookup table of per-(archetype × axis × modality) exceptions
+  papering over the gap. The consequence is measured, not hypothetical: 0/14
+  surface antigens in the reference panel are adjudicated on surface biology, and
+  the composed panel emits 0 nominate. The remediation is a **thesis-routed
+  gate** — type the target's thesis, then let *that thesis's* admissible axis
+  decide (co-conditioned on a favorable *measured* verdict, so routing can never
+  invent a GO). See the 2026-09-11 architecture assessment
+  (`~/dev/framework-runs/2026-09-11-framework-architecture-review/ASSESSMENT.md`).
 - **Current frontier** → the verdict-affecting subtype layer is *latent on real
   data*: today's subgroup dependency cohorts are underpowered (e.g. COADREAD
   MSI-H dependency is n=17 < 30, so the floor guard correctly blocks it). The
@@ -346,7 +379,7 @@ Use `tier: target` for the second; never say "target-intrinsic."
 |-------|------|
 | Wired + firing on real data | Descriptive panorama (mutation-freq + dependency across MSI/MSS, COADREAD) |
 | Wired, latent on real data | Verdict-affecting subtype gate (needs a well-powered subtype negative to fire) |
-| Deferred by design | Engine A subtype parity; two-engine unification; F3/F5 emitter fields (driver-alignment, noise-floor); F6 nomination immutability manifest; F7 nominate/browse mode; raised floors; tumor-cohort (non-cell-line) subgroup dependency |
+| Deferred by design | Thesis-routed gate (the biggest debt above); modality-fit subtype parity; F3/F5 emitter fields (driver-alignment, noise-floor); F6 nomination immutability manifest; F7 nominate/browse mode; raised floors; tumor-cohort (non-cell-line) subgroup dependency |
 
 ## Cross-references
 
