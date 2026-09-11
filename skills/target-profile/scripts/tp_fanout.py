@@ -983,13 +983,16 @@ SUBTYPE_CARDS = [
     "subgroup-stratified-dependency",  # VERDICT-BEARING in this tier: its subtype-non-dependence-
     # opposing rule is what _subtype_verdict reads → one-directional
     # negative HOLD (subtype_specific_non_dependence).
-    "subgroup-stratified-mutation-frequency",  # DISPLAY-ONLY within this tier (subtype-verdict-shifting review
-    # ): NO interpretation rule keys on it, so _subtype_verdict
-    # (which only inspects subtype_fit_genomic from the dependency
-    # card) can never see it — it is resolved+fired every --subtypes
-    # run but emits no subtype-tier signal. Its subtype mutation
-    # panorama is already surfaced descriptively in genomic-alteration-
-    # profile. Kept here for the render panorama, NOT for the verdict.
+    "subgroup-stratified-mutation-frequency",  # CONTEXT-SIGNAL within this tier (2026-09-11): the rule
+    # subtype-mutation-frequency-recurrent-context fires on a measured,
+    # floor-cleared, recurrently_mutated stratum → subtype_fit_mutation:
+    # neutral. GATE-INERT (like the expression-context rules): mutation
+    # FREQUENCY is prevalence, not efficacy/requirement, so _subtype_verdict
+    # (which reads only subtype_fit_genomic / subtype_fit_selectivity) never
+    # maps it to a verdict. No longer "fires nothing" — it now reaches the
+    # fired-signal spine (provenance / convergence measured-axis set) as
+    # patient-selection context, NOT the verdict. The genomic-alteration axis
+    # owns any biomarker-stratified DEPENDENCY claim.
     "tumor-vs-normal-selectivity",  # VERDICT-BEARING in this tier (2026-09-11, STAD subtype-shard wiring).
     # DUAL-GRAIN card: under subgroup_context it resolves via _dispatch_selectivity_by_subgroup
     # (read_stratified_tumor_vs_normal_selectivity) → per_subgroup_metrics. Its
@@ -1001,6 +1004,35 @@ SUBTYPE_CARDS = [
     # field absent from the by-subgroup envelope, so they do NOT fire here (no double-count). Its pooled
     # read stays in the `selectivity` sub-skill; this entry only adds the subtype-grain projection.
 ]
+
+# Per-card SERVING COHORTS: which cohort(s) back each subtype card's panorama read. Used to filter
+# each card's stratum scope to the strata the subtype_crosswalk marks as CARRIED by that cohort
+# (2026-09-11, CDH3 subtype-dispatch review). WHY: the crosswalk already records, per stratum, the
+# `cohorts:` that actually have members (CMS/CIMP/sidedness are cohorts:[tcga] — PATIENT-ONLY), but the
+# dispatcher sent the WHOLE resolved stratum set to EVERY card. So a patient-only stratum was routed
+# into the DepMap CELL-LINE dependency card, which structurally cannot serve it → an evidence_state:
+# absent, subgroup_n:0 row per stratum (the n>=30 floor suppresses them, so verdict-inert, but each run
+# still fanned 15 dead strata into a card that can never carry them). Filtering by the registry cohort
+# keeps each stratum on the card(s) that CAN serve it — CMS drops from dependency, stays for the
+# TCGA-backed selectivity card. A stratum with NO cohorts recorded is left unfiltered (graceful).
+_SUBTYPE_CARD_COHORTS: dict[str, set[str]] = {
+    "subgroup-stratified-dependency": {"depmap"},  # DepMap cell-line CRISPR/RNAi
+    # patient mutation frequency: TCGA-MC3 + GENIE molecular shards AND the GENIE-BPC line-of-therapy shard
+    "subgroup-stratified-mutation-frequency": {"tcga", "depmap", "genie", "genie_bpc"},
+    "tumor-vs-normal-selectivity": {"tcga"},  # TCGA/GTEx tumor-vs-normal DESeq2 by subgroup
+}
+
+
+def _strata_for_card(card_id: str, subtypes: list[str], cohorts_of: dict[str, list[str]]) -> list[str]:
+    """The subset of `subtypes` this card's backing cohort can serve, per the subtype_crosswalk
+    `cohorts:` field (see _SUBTYPE_CARD_COHORTS). A stratum is kept when its registry cohorts intersect
+    the card's serving cohorts; a stratum the registry does not enumerate (no cohorts recorded) is kept
+    unfiltered so an unregistered stratum is never silently dropped. A card with no declared serving
+    cohorts (defensive) keeps every stratum. Order-preserving."""
+    serving = _SUBTYPE_CARD_COHORTS.get(card_id)
+    if serving is None:
+        return list(subtypes)
+    return [s for s in subtypes if not cohorts_of.get(s) or (set(cohorts_of[s]) & serving)]
 
 
 def _subtype_verdict(fired: list[dict]) -> tuple[str, str | None] | None:
@@ -1387,10 +1419,25 @@ def _run_sub_skills(
     # the resolved strata + assignments shard threaded via subgroup_context; the
     # subtype rule fires in_record on measured, floor-cleared, not-dependent rows.
     if subtypes:
-        subgroup_context = {"resolved_strata_ids": list(subtypes), "catalog_status": "resolved_active"}
-        sub_cards = resolve_cards(
-            SUBTYPE_CARDS, target, indication, subgroup_context=subgroup_context, plot_data_root=plot_data_root
-        )
+        # Per-card cohort filtering (2026-09-11, CDH3 subtype-dispatch review): resolve each card with
+        # ONLY the strata its backing cohort can serve (see _SUBTYPE_CARD_COHORTS / _strata_for_card),
+        # rather than fanning the whole stratum set into every card. A patient-only stratum
+        # (CMS/CIMP/sidedness) no longer reaches the DepMap cell-line dependency card as a dead
+        # subgroup_n:0 row; it still reaches the TCGA-backed selectivity card that can carry it.
+        # VERDICT-INERT: the dropped rows were floor-suppressed absences that fired no subtype rule.
+        # A card left with NO servable stratum is skipped (no empty-scope panorama read).
+        from tp_facets_subtype import _load_subtype_crosswalk
+
+        cohorts_of = _load_subtype_crosswalk(indication).get("cohorts_of", {})
+        sub_cards = []
+        for _card_id in SUBTYPE_CARDS:
+            _card_strata = _strata_for_card(_card_id, subtypes, cohorts_of)
+            if not _card_strata:
+                continue
+            _ctx = {"resolved_strata_ids": _card_strata, "catalog_status": "resolved_active"}
+            sub_cards.extend(
+                resolve_cards([_card_id], target, indication, subgroup_context=_ctx, plot_data_root=plot_data_root)
+            )
         sub_fired: list[dict] = []
         for axis in axes:
             sub_fired.extend(fired_rules(sub_cards, axis=axis, card_id_filter=SUBTYPE_CARDS))
