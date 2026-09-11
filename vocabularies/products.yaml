@@ -7,7 +7,7 @@
 #
 # Three layers (per spec section "Analysis Products Framework"):
 #   DIMENSION      category       (12 dimensions enumerated in evidence.schema.json)
-#     PRODUCT      named method   (this registry; ~25 entries below)
+#     PRODUCT      named method   (this registry; ~26 entries below)
 #       INSTANCE   parameterized  (gene × indication × subgroup × release)
 #
 # Field semantics:
@@ -215,7 +215,7 @@ products:
     status: compute-ready
 
   # ============================================================
-  # DIMENSION: dependency  (2 products)
+  # DIMENSION: dependency  (3 products)
   # ============================================================
 
   - id: dependency-depmap-chronos
@@ -256,6 +256,38 @@ products:
       Used as an orthogonal CHECK on Chronos calls. Discrepancies
       flag potential CRISPR-vs-RNAi mechanism differences (e.g.,
       catalytic-vs-scaffold vulnerabilities).
+
+  # Registered in data-catalog's copy of this registry by DC #67 but never
+  # mirrored here, so the two registries disagreed by exactly this entry until
+  # 2026-09-11. Latent rather than breaking: dependency-predictability.card.yaml
+  # resolves its input through the manifest-id namespace
+  # (depmap-predictability-26q1-v3), not through this registry, so the omission
+  # produced no PRODUCT_ID_UNRESOLVED. The two contracts-only fields below
+  # (core_artifact_path_template, requires_subgroup) are required by
+  # tests/schemas/ and have no counterpart in the catalog copy — which is why a
+  # naive re-sync in either direction reddens CI on one side.
+  - id: depmap-predictability
+    dimension: dependency
+    title: "DepMap Chronos-dependency predictability from target-own multi-omics + lineage"
+    comparison_type: cell_line_predictability_regression
+    indication_scope: pan_cancer
+    sources:
+      - depmap-consortium-26q1
+    method:
+      family: random_forest_regressor
+      features: ["own_expression", "own_copy_number", "own_mut_hotspot", "own_mut_damaging", "lineage_one_hot"]
+      cv: "5_fold_out_of_fold_pearson_r2"
+      classification_thresholds: {r2_high: 0.5, r2_moderate: 0.3}
+    result_schema_ref: products/depmap-predictability.result.schema.json
+    core_artifact_path_template: "s3://onc-compbio/core-artifacts/PAN_CANCER/all/{gene}/dependency/depmap-predictability.evidence.json"
+    requires_subgroup: false
+    requires_target_resolution_sidecar: false
+    status: compute-ready
+    notes: |
+      Per-gene RandomForestRegressor predicting Chronos essentiality from
+      target-own omics + OncotreeLineage. Classifies each gene as
+      own_omics_driven, lineage_driven, weakly_predictable, or unpredictable.
+      Consumed by the dependency-predictability evidence-card.
 
   # ============================================================
   # DIMENSION: perturbation-response  (3 products)
