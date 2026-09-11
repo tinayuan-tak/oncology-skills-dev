@@ -15,6 +15,8 @@
 
 card_id: caf-compartment-expression-luo
 version: 0.1.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
 question: "Across pan-cancer tumour cancer-associated-fibroblast states (Luo atlas), in how many CAF subtypes is {target.symbol} detected, and which CAF state (myCAF / iCAF / apCAF / ...) carries it?"
 
 tier: target   # pan-cancer stromal readout; a property of the target, indication-independent

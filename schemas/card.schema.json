@@ -607,6 +607,15 @@
         "subtype"
       ]
     },
+    "interpretation": {
+      "type": "string",
+      "enum": [
+        "rules_pending",
+        "informational",
+        "descriptive"
+      ],
+      "description": "Authored interpretation INTENT (2026-09-11). REQUIRED exactly when no interpretation rule keys on this card (no `when.card_id` match in any interpretation-rules/*.rules.yaml), FORBIDDEN when rules exist \u2014 the rules are ground truth, so declaring intent alongside them can only contradict them. Before this field the rule-less cards were one undifferentiated bucket and the health feed could not report interpretation debt because it could not see it. `rules_pending` = the card's categorical class is a substantive claim about the TARGET (expression, selectivity, dependency, safety, tractability, translational readiness) that an axis should consume; tracked debt, and the published debt count. `informational` = the class describes the EVIDENCE BASE (annotation completeness, assay/literature coverage) or the INDICATION COHORT rather than the target; per target_profiling_axes.yaml conditioner axes 'refine the questions but are not themselves questions', so no target verdict may key on them. `descriptive` = the card emits no categorical class at all (no outputs.summary_fields_vocabulary), so there is nothing for a rule's `equals:`/`in:` to match. ENFORCEMENT: validate_cards.py _interpretation_declaration_check."
+    },
     "status": {
       "type": "string",
       "description": "Card build/wiring state (2026-08-12). `wired` (the default when OMITTED) = has a live method + dispatcher + landed product. `placeholder_not_wired` = declared in the contract but no method/product yet (compose-dashboard surfaces it in excluded_at_compose, exclusion_source=data_blocked_at_compose; SK#373). `dormant_pending_data` = a method exists but the card is gated off because its data source has not landed (applies_when-excluded at runtime). `superseded` (added 2026-08-19) = the card's capability is provided elsewhere (e.g. wired at the method level in another skill), so the card is retired-as-duplicate but NOT hard-deleted (card_id is a data contract); it must be consumed by no skill/dashboard and carries a `superseded_by` note in caveats. ENFORCEMENT (validate_cards.py): a card whose status is NOT `wired` MUST NOT appear in any dashboard_spec `required_cards` \u2014 it belongs in `placeholder_cards`. This keeps `required_cards` meaning 'must produce' rather than 'may be silently not_wired'.",

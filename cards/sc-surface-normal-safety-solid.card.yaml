@@ -20,6 +20,8 @@
 
 card_id: sc-surface-normal-safety-solid
 version: 0.1.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
 question: "Is {target.symbol}'s SURFACE protein displayed on normal SOLID-tissue safety-essential cell types (kidney/heart/spleen/thymus/lymph-node) at single-cell CITE-seq resolution — the biologics-deciding on-target/off-tumor floor beyond the immune compartment?"
 
 tier: target   # normal-tissue SURFACE footprint is a per-target property, indication-independent. Never stratifies.

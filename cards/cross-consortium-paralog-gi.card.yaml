@@ -23,6 +23,8 @@
 
 card_id: cross-consortium-paralog-gi
 version: 1.0.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
 question: "Do the Dede + in4mer paralog dual-KO consortia CORROBORATE a synthetic-lethal paralog interaction for {target.symbol}?"
 
 tier: target

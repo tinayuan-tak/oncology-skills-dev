@@ -15,6 +15,8 @@
 
 card_id: gene-ontology-annotation
 version: 1.0.0
+# interpretation (informational): annotation_class is well_annotated/partial/sparse — GO annotation completeness.
+interpretation: informational
 question: "Which Gene Ontology terms (biological process / molecular function / cellular component) is {target.symbol} annotated with?"
 
 tier: target   # GO annotation is a property of the gene, independent of indication

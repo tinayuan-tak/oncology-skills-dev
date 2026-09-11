@@ -25,6 +25,8 @@
 
 card_id: variant-level-interpretation
 version: 0.1.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
 question: "For {target.symbol}, which specific variants are oncogenic (vs VUS/benign), and which confer therapy resistance — the per-variant call the gene-level role and recurrence axes can't make?"
 
 tier: target   # per-variant oncogenicity + resistance are properties of the gene's variants, indication-independent

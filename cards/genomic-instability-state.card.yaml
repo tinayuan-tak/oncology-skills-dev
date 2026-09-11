@@ -21,6 +21,8 @@
 
 card_id: genomic-instability-state
 version: 0.6.0   # + PATIENT HRD genomic-SCAR arm (ABSOLUTE segtabs, Myriad myChoice >= 42); on top of MODEL signature/MSI, patient MSI, WGD
+# interpretation (informational): aneuploidy/WGD/MSI/HRD classes describe the cohort's genome.
+interpretation: informational
 question: "How chromosomally unstable is the {indication.label} cohort — highly aneuploid, intermediate, or a quiet genome; how prevalent are whole-genome doubling and microsatellite instability — and where does its genome-instability burden sit?"
 
 tier: indication

@@ -22,6 +22,8 @@
 
 card_id: target-safety-prioritisation
 version: 1.0.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
 question: "How does Open Targets prioritise {target.symbol} on its engineered safety-relevant scores (safety-event, genetic constraint, mouse-KO), as orienting context?"
 
 tier: target   # scope-invariant: OT target_prioritisation is one row per human gene, indication- and subgroup-agnostic. Never stratifies.

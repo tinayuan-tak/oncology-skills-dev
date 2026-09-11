@@ -21,6 +21,8 @@
 
 card_id: oncogenic-pathway-alteration
 version: 1.0.0
+# interpretation (informational): oncogenic_pathway_class frequently_altered/profiled is cohort-level.
+interpretation: informational
 question: "Which oncogenic signaling pathways are frequently altered in the {indication.label} cohort, and is {target.symbol} a member of any of them?"
 
 tier: indication   # per-indication cohort property; target-independent (target adds pathway-membership only).

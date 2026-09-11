@@ -18,6 +18,8 @@
 
 card_id: cellline-rna-distribution-by-subtype
 version: 0.1.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
 question: "How does {target.symbol} RNA expression DISTRIBUTE across the driver-mutation / molecular subtypes of {indication.label} DepMap cell lines — which strata are enriched or depleted vs the within-lineage pooled distribution?"
 
 tier: subtype

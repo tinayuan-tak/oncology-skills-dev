@@ -142,6 +142,9 @@ _RULES_DIR = Path(__file__).resolve().parent.parent / "interpretation-rules"
 # The 5 modality lenses a rule's signals{} dict can carry (matches card.schema.json modality_relevance
 # enum + the per-rule signal keys in interpretation-rules/*.rules.yaml).
 _MODALITY_SIGNAL_KEYS = frozenset({"small_molecule", "degrader", "adc", "bite_tce", "antibody"})
+# The authored `interpretation:` values (mirrors card.schema.json). See
+# _interpretation_declaration_check for what each one asserts and how it is enforced.
+_INTERPRETATION_DECLARATIONS = frozenset({"rules_pending", "informational", "descriptive"})
 
 
 @functools.lru_cache(maxsize=1)
@@ -742,6 +745,81 @@ def _composed_card_semantics_check(spec: dict, report: ValidationReport) -> None
         )
 
 
+def _interpretation_declaration_check(spec: dict, report: ValidationReport) -> None:
+    """Layer 2k (interpretation-intent honesty, 2026-09-11) — a card that NO rule keys on must
+    declare WHY.
+
+    Every rule in interpretation-rules/*.rules.yaml keys on a `(when.card_id, when.field)` pair, so a
+    card only reaches a verdict if some rule names it. 57 of 148 cards are named by no rule. Before
+    this check they were ONE undifferentiated bucket: a card that deliberately emits context only was
+    indistinguishable from a card that computes a categorical judgement nothing consumes. The health
+    feed could not report interpretation debt because it could not see it. The measured split is 35
+    rules_pending / 12 informational / 10 descriptive — i.e. 35 cards compute a class about the target
+    that no axis reads, which is the real number the bucket was hiding.
+
+    `interpretation:` is REQUIRED exactly when no rule keys on the card, and FORBIDDEN when rules
+    exist (the rules are ground truth; a declaration next to them can only contradict them).
+
+    Fail-closed in both directions:
+      - `descriptive` on a card that DOES declare outputs.summary_fields_vocabulary is an error, and
+        conversely `rules_pending`/`informational` on a card with NO vocabulary is an error. Both
+        directions matter because the vocabulary declaration is known-incomplete: two rule-bearing
+        cards (subgroup-stratified-dependency, subgroup-stratified-mutation-frequency) carry rules
+        keying on fields absent from their declared vocabulary. Deriving the classification from the
+        vocabulary alone would silently inherit that hole, which is exactly why this is an AUTHORED
+        field and not a computed one.
+
+    Graceful-skip when the rules dir is absent (mirrors the other cross-ref checks) — with no rules
+    corpus to read, EVERY card would look rule-less and the check would fire 148 times.
+    """
+    declared = spec.get("interpretation")
+    if declared is not None and declared not in _INTERPRETATION_DECLARATIONS:
+        return  # the schema enum already errored; don't double-report
+    rule_bearing = _card_modality_signals()
+    if rule_bearing is None:
+        return  # no interpretation-rules/ in this checkout
+    card_id = spec.get("card_id")
+    has_rules = card_id in rule_bearing
+    has_vocabulary = bool((spec.get("outputs") or {}).get("summary_fields_vocabulary"))
+
+    if has_rules:
+        if declared is not None:
+            report.add_error(
+                f"INTERPRETATION_DECLARED_WITH_RULES [interpretation]: card declares "
+                f"interpretation: {declared!r} but interpretation-rules/ already carries rule(s) "
+                f"keying on when.card_id == {card_id!r}. The rules are ground truth — drop the "
+                f"field. It is required only for cards no rule names."
+            )
+        return
+
+    if declared is None:
+        report.add_warning(
+            f"INTERPRETATION_UNDECLARED [interpretation]: no interpretation rule keys on "
+            f"when.card_id == {card_id!r}, so this card reaches no verdict, and the card does not "
+            f"say whether that is intended. Declare interpretation: rules_pending (its class is a "
+            f"substantive target claim an axis should consume — tracked debt), informational (the "
+            f"class describes the evidence base or the indication cohort, not the target), or "
+            f"descriptive (the card emits no categorical class at all)."
+        )
+        return
+
+    if declared == "descriptive" and has_vocabulary:
+        vocab = sorted((spec["outputs"])["summary_fields_vocabulary"])
+        report.add_error(
+            f"INTERPRETATION_CONTRADICTED [interpretation]: declared 'descriptive' (emits no "
+            f"categorical class) but outputs.summary_fields_vocabulary declares {vocab} — a rule's "
+            f"`equals:`/`in:` CAN match those. Use 'informational' if the class deliberately bears "
+            f"no verdict, or 'rules_pending' if it owes one."
+        )
+    elif declared in {"rules_pending", "informational"} and not has_vocabulary:
+        report.add_error(
+            f"INTERPRETATION_CONTRADICTED [interpretation]: declared {declared!r}, which asserts the "
+            f"card emits a categorical class, but outputs.summary_fields_vocabulary is absent — there "
+            f"is no enumerated value for a rule to key on. Declare the vocabulary, or use "
+            f"'descriptive'."
+        )
+
+
 def _interpretation_summary_field_check(spec: dict, report: ValidationReport) -> None:
     """Layer 2c (best-effort): each interpretation_hints.if SHOULD reference at least one
     declared summary_field. This catches the failure mode where an interpretation rule
@@ -1146,6 +1224,7 @@ def validate_card_file(path: str | Path, schema: dict | None = None) -> Validati
         _threshold_ref_check(spec, report)
         _shallow_predicate_check(spec, report)
         _interpretation_summary_field_check(spec, report)
+        _interpretation_declaration_check(spec, report)
         _composed_card_semantics_check(spec, report)
         _required_inputs_product_id_check(spec, report)
         _grain_and_tier_check(spec, report)
@@ -1257,6 +1336,43 @@ def validate_verdict_card_summary_schema_coverage(cards_dir: Path) -> list[str]:
                 f"Generate it: python validators/gen_summary_schemas.py --only {c}"
             )
     return problems
+
+
+def interpretation_debt_summary(cards_dir: Path) -> Optional[str]:
+    """The published interpretation-debt meter (2026-09-11). One aggregate line, not one gap per card.
+
+    Deliberately NOT a per-card warning. `rules_pending` is DECLARED debt, and the framework's
+    convention for declared debt (KNOWN_FIGURE_DEBT) is that declaring it stops it counting as a gap —
+    emitting 35 warnings here would inflate the atlas gap count for cards whose authors have already
+    said what they owe. The gap-worthy state is UNDECLARED intent, which
+    _interpretation_declaration_check reports per card.
+
+    Returns None when there is nothing to report (no cards, or no rules dir to compare against)."""
+    cards_dir = Path(cards_dir)
+    rule_bearing = _card_modality_signals()
+    if rule_bearing is None:
+        return None
+    counts: dict[str, int] = {}
+    n_rule_less = 0
+    for p in sorted(cards_dir.glob("*.card.yaml")):
+        try:
+            doc = yaml.safe_load(p.read_text()) or {}
+        except yaml.YAMLError:
+            continue
+        if doc.get("card_id") in rule_bearing:
+            continue
+        n_rule_less += 1
+        counts[str(doc.get("interpretation"))] = counts.get(str(doc.get("interpretation")), 0) + 1
+    if not n_rule_less:
+        return None
+    return (
+        f"Interpretation debt: {counts.get('rules_pending', 0)} card(s) compute a categorical class "
+        f"about the target that no interpretation rule reads (rules_pending); "
+        f"{counts.get('informational', 0)} report the evidence base or the indication cohort "
+        f"(informational); {counts.get('descriptive', 0)} emit no class at all (descriptive); "
+        f"{counts.get('None', 0)} undeclared. {n_rule_less} of "
+        f"{len(list(cards_dir.glob('*.card.yaml')))} cards are named by no rule."
+    )
 
 
 def validate_dashboard_required_cards(cards_dir: Path) -> list[str]:
@@ -1398,6 +1514,12 @@ def main(argv: list[str] | None = None) -> int:
         if target.is_dir()
         else []
     )
+    if target.is_dir():
+        debt = interpretation_debt_summary(target)
+        if debt:
+            print()
+            print(debt)
+
     dash_errors = [p for p in dashboard_problems if p.startswith("[ERROR]")]
     dash_warnings = [p for p in dashboard_problems if p.startswith("[WARNING]")]
     if dashboard_problems:

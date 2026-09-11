@@ -13,6 +13,8 @@
 # (kept for now; de-duping the parent sub-call is a deliberate follow-on).
 card_id: cellline-isoform-expression
 version: 0.1.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
 status: wired
 question: "Which transcript isoform carries {target.symbol}'s expression across cancer cell lines — single-isoform-dominant or isoform-diverse?"
 tier: target

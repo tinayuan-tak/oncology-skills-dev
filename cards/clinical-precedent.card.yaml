@@ -13,6 +13,8 @@
 
 card_id: clinical-precedent
 version: 1.1.0
+# interpretation (descriptive): emits no categorical class.
+interpretation: descriptive
 status: wired
 question: "What is the clinical precedent for {target.symbol} {context.modality if specified else 'across modalities'} in {indication.label}?"
 

@@ -27,6 +27,8 @@
 
 card_id: cited-literature-evidence
 version: 1.0.0
+# interpretation (informational): cited_evidence_status is ok/insufficient/no_evidence — literature availability.
+interpretation: informational
 question: "For {target.symbol} in {indication.label}, what does the literature say — co-occurrence volume/recency, the top cited statements, and typed relation direction (associate/cause/inhibit/…), with citations?"
 
 tier: indication   # gene×indication cited-literature context (mirrors target-genotype-matched-model's target_indication-grain facet)

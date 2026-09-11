@@ -28,6 +28,8 @@
 
 card_id: target-model-availability
 version: 1.0.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
 question: "In {indication.label}, how many patient-derived (HCMI) models exist to preclinically validate a nominated target?"
 
 tier: indication   # indication-level, target-INDEPENDENT cohort context (model coverage is a property of the indication)

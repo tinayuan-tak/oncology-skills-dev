@@ -22,6 +22,8 @@
 
 card_id: coessential-module
 version: 1.0.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
 # DEAD-CARD RESOLUTION 2026-08-19 → WIRED 2026-09-10 (#652): Co-essentiality = a measured co-dependency →
 # the natural first measured member of the `combination_vulnerability` axis (the combination-and-
 # vulnerability relational tier). Its method (depmap_coessentiality) + product (depmap-coessentiality-26q1-v1)

@@ -17,6 +17,8 @@
 
 card_id: ici-response-association
 version: 0.1.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
 question: "Is baseline {target.symbol} expression higher in melanoma patients who RESPONDED to an anti-PD-1 immune-checkpoint inhibitor than in non-responders (open-GEO cohorts + cross-cohort Stouffer rollup)?"
 
 tier: target   # a per-gene ICI-response association (melanoma-scoped); target-grain

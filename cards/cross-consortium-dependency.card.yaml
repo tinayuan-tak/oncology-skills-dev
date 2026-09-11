@@ -22,6 +22,8 @@
 
 card_id: cross-consortium-dependency
 version: 1.0.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
 question: "Do the Broad Achilles and Sanger Project Score CRISPR consortia AGREE on whether {target.symbol} is a dependency?"
 
 tier: target

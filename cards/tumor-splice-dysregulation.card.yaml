@@ -5,6 +5,8 @@
 # tcga-spliceseq-psi method (no new emitter). VERDICT-INERT.
 card_id: tumor-splice-dysregulation
 version: 1.0.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
 schema_version: 1
 
 question: "Is {target.symbol} alternatively spliced / splice-dysregulated in {indication} patient tumours (transcript FORM — which splice isoform — not expression level)?"

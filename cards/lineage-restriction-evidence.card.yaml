@@ -37,6 +37,8 @@
 
 card_id: lineage-restriction-evidence
 version: 1.0.0
+# interpretation (descriptive): emits no categorical class.
+interpretation: descriptive
 status: dormant_pending_data   # applies_when-gated off (hpa_mirror_available) until the hpa-normal-tissue-expression product lands — dormant-by-design. Belongs in placeholder_cards, not required_cards.
 question: "Across adult human tissues, in how many tissues is {target.symbol} expressed at clinically relevant levels?"
 

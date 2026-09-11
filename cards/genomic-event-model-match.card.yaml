@@ -26,6 +26,8 @@
 
 card_id: genomic-event-model-match
 version: 0.1.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
 question: "Which DepMap models carry the same functional genomic event in {target.symbol} as {indication.label} tumors, and which of those genotype-matched models are dependent (positive screen lines)?"
 
 tier: indication

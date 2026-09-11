@@ -22,6 +22,8 @@
 
 card_id: stemness-context
 version: 1.0.0
+# interpretation (informational): stemness_class describes the cohort's mRNAsi, not the target.
+interpretation: informational
 question: "How stem-like / dedifferentiated is the {indication.label} cohort (tumor mRNAsi stemness), as a prognostic/aggressiveness prior?"
 
 tier: indication   # per-indication cohort property; target-independent. Never stratifies by target.

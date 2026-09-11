@@ -11,6 +11,8 @@
 
 card_id: ici-response-imvigor210
 version: 1.0.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
 question: "In IMvigor210 (atezolizumab, metastatic urothelial), is baseline {target.symbol} expression higher in anti-PD-L1 RESPONDERS than non-responders, and in which desert/excluded/inflamed immune phenotype is it enriched?"
 
 tier: target   # per-gene ICI-response association; urothelial scope via applies_when (mirrors ici-response-association)

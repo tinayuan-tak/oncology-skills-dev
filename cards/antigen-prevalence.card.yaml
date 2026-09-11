@@ -5,6 +5,8 @@
 
 card_id: antigen-prevalence
 version: 1.0.0
+# interpretation (descriptive): emits no categorical class.
+interpretation: descriptive
 status: placeholder_not_wired   # no prevalence-aggregator method built yet; compose surfaces it in excluded_at_compose (exclusion_source=data_blocked_at_compose). Belongs in placeholder_cards, not required_cards.
 question: "What fraction of {indication.label} tumors express {target.symbol} at clinically relevant levels?"
 

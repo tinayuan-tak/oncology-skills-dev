@@ -22,6 +22,8 @@
 
 card_id: shet-lof-intolerance
 version: 1.0.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
 question: "What is {target.symbol}'s continuous dominant-LoF selection coefficient (s_het, GeneBayes), and does it corroborate or sharpen the binary gnomAD constraint call for on-target safety?"
 
 tier: target   # scope-invariant: s_het is a property of the human gene, not of any tumor subgroup. Never stratifies.

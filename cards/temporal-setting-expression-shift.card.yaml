@@ -17,6 +17,8 @@
 
 card_id: temporal-setting-expression-shift
 version: 1.0.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
 status: placeholder_not_wired   # no method/product yet; setting-annotated per-sample RNA cohorts not landed. compose surfaces it in excluded_at_compose (exclusion_source=data_blocked_at_compose); belongs in placeholder_cards, not required_cards.
 question: "Does {target.symbol} expression shift between primary and metastatic (or treatment-naive vs post-treatment/relapsed) {indication.label} tumours — i.e. is the target still expressed in the disease setting where the drug would be used?"
 

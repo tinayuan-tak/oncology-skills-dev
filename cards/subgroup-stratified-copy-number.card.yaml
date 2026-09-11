@@ -16,6 +16,8 @@
 
 card_id: subgroup-stratified-copy-number
 version: 1.0.0
+# interpretation (descriptive): emits no categorical class.
+interpretation: descriptive
 question: "How does {target.symbol} patient copy-number prevalence vary across the molecular subgroups of {indication.label}?"
 
 tier: subtype

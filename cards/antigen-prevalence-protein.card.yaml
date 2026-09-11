@@ -15,6 +15,8 @@
 
 card_id: antigen-prevalence-protein
 version: 1.0.0
+# interpretation (descriptive): emits no categorical class.
+interpretation: descriptive
 status: placeholder_not_wired   # no protein-prevalence-aggregator method / product yet; belongs in placeholder_cards
 question: "What fraction of {indication.label} tumors express {target.symbol} at the PROTEIN level above an ADC/TCE-relevant threshold (not the RNA upper bound)?"
 

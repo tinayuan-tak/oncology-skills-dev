@@ -19,6 +19,8 @@
 
 card_id: tumor-protein-distribution-by-subtype
 version: 0.1.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
 question: "How does {target.symbol} tumor protein abundance (CPTAC TMT) DISTRIBUTE across the molecular subtypes of {indication.label} — which strata are enriched or depleted vs the pooled cohort?"
 
 tier: subtype

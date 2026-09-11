@@ -19,6 +19,8 @@
 
 card_id: competitor-landscape
 version: 1.0.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
 status: wired
 question: "Who is developing a drug against {target.symbol} {context.modality if specified else 'across modalities'} in {indication.label}, at what modality and clinical stage?"
 

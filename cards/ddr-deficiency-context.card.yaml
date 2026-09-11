@@ -23,6 +23,8 @@
 
 card_id: ddr-deficiency-context
 version: 1.0.0
+# interpretation (informational): ddr_context_class describes the cohort's HRD enrichment.
+interpretation: informational
 question: "How HRD/DDR-deficient is the {indication.label} cohort — is it an HRD-enriched (PARPi-relevant) indication, intermediate, or DDR-proficient?"
 
 tier: indication   # per-indication cohort property; target-independent. Never stratifies by target.

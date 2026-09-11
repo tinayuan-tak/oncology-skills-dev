@@ -26,6 +26,8 @@
 
 card_id: mutational-signature-context
 version: 1.0.0
+# interpretation (informational): signature classes describe the cohort's mutational processes.
+interpretation: informational
 question: "Which mutational processes (APOBEC / MMR-deficiency / HRD / tobacco / UV / POLE / clock) shaped the {indication.label} cohort, and which dominates?"
 
 # Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a

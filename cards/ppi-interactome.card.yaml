@@ -15,6 +15,8 @@
 
 card_id: ppi-interactome
 version: 1.0.0
+# interpretation (informational): interactome_class hub/sparse tracks STRING annotation density (study-volume biased).
+interpretation: informational
 question: "How connected is {target.symbol} in the STRING functional network, and is it a member of any CORUM protein complex?"
 
 tier: target   # the interactome is a property of the protein, independent of indication

@@ -25,6 +25,8 @@
 
 card_id: pathway-activity-context
 version: 1.0.0
+# interpretation (informational): pathway_activity_class relatively_high/profiled is cohort-level.
+interpretation: informational
 question: "Which PROGENy cancer-signaling pathways are relatively active in the {indication.label} cohort, and is {target.symbol} a responsive gene of any of them?"
 
 tier: indication   # per-indication cohort property; target-independent (target adds pathway-membership only).

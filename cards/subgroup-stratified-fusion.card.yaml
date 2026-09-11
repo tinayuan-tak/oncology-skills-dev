@@ -20,6 +20,8 @@
 
 card_id: subgroup-stratified-fusion
 version: 1.0.0
+# interpretation (descriptive): emits no categorical class.
+interpretation: descriptive
 question: "How does {target.symbol} fusion recurrence vary across the molecular subgroups of {indication.label}?"
 
 tier: subtype

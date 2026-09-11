@@ -34,6 +34,8 @@
 
 card_id: cis-feature-protein-coherence
 version: 1.0.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
 question: "Across DepMap cell lines, does {target.symbol}'s own relative copy-number predict its own Gygi-MS protein abundance (protein cis-dosage coupling)? — i.e. is the amplification dosage-effect preserved at the protein level, or post-transcriptionally buffered?"
 
 applies_when:

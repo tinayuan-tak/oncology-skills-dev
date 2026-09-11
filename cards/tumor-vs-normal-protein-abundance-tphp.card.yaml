@@ -23,6 +23,8 @@
 
 card_id: tumor-vs-normal-protein-abundance-tphp
 version: 1.0.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
 question: "Does {target.symbol}'s tumor-vs-adjacent-normal PROTEIN differential hold at the protein layer in {indication.label} (TPHP DIA-MS) — the RNA→protein corroboration of tumor-vs-normal selectivity?"
 
 tier: indication   # indication-scoped tumor-vs-normal protein contrast (per TPHP carcinoma cohort).

@@ -27,6 +27,8 @@
 
 card_id: patient-cis-coherence
 version: 1.0.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
 question: "In TCGA {indication} tumours, does {target.symbol}'s own copy-number track its own expression (amplification cis-dosage) and do promoter-methylated patients express it lower (silencing) — i.e. does the cell-line cis-coherence call replicate in patients?"
 
 applies_when:

@@ -21,6 +21,8 @@
 
 card_id: cellline-protein-abundance-procan
 version: 1.0.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
 question: "Across the ProCan-DepMapSanger cell-line panel (DIA/SWATH MaxLFQ), what is the protein-abundance distribution of {target.symbol}?"
 
 # Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a

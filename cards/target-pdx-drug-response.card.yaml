@@ -27,6 +27,8 @@
 
 card_id: target-pdx-drug-response
 version: 0.1.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
 question: "In vivo (Novartis PDXE PDX population trials), do treatments that name {target.symbol} as their target produce tumour regression — and what is the objective-responder fraction + most-active treatment?"
 
 tier: target   # per-gene in-vivo drug-response rollup; target-grain (no per-indication split in this product)

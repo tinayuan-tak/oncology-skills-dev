@@ -24,6 +24,8 @@
 
 card_id: target-genotype-matched-model
 version: 1.0.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
 question: "In {indication.label}, do available patient-derived (HCMI) models carry a functional coding alteration in {target.symbol} — is there a genotype-matched model to validate the nomination?"
 
 tier: indication   # indication-level cohort context (patient-derived model coverage), refined to THIS target's genotype

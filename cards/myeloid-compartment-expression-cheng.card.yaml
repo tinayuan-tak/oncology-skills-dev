@@ -17,6 +17,8 @@
 
 card_id: myeloid-compartment-expression-cheng
 version: 0.1.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
 question: "Across pan-cancer tumour-infiltrating myeloid cell states (Cheng atlas), in how many myeloid subtypes is {target.symbol} detected, and is it a myeloid-target / suppressive-TAM antigen (CSF1R-axis / TREM2 / SPP1 / SIRPA)?"
 
 tier: target   # pan-cancer myeloid readout; a property of the target, indication-independent

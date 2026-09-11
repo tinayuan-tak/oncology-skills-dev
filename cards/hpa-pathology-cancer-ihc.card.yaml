@@ -19,6 +19,8 @@
 
 card_id: hpa-pathology-cancer-ihc
 version: 1.0.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
 question: "By antibody IHC (HPA Pathology), is {target.symbol} protein present in {indication} tumour tissue, and at what staining fraction/intensity?"
 
 tier: indication   # per-(gene x cancer-type) IHC; indication-scoped via the OncoTree->HPA-cancer-type map

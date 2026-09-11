@@ -23,6 +23,8 @@
 
 card_id: precog-prognostic-association
 version: 1.0.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
 question: "Across 166 datasets (~18k patients), does {target.symbol} expression track overall survival in {indication.label} (pan-cancer meta-analytic prognostic prior)?"
 
 # Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a

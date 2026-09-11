@@ -28,6 +28,8 @@
 
 card_id: variant-effect-mave-mavedb
 version: 0.1.0
+# interpretation (informational): mave_evidence_class grades how extensively variants have been assayed.
+interpretation: informational
 question: "For {target.symbol}, how extensively have its variants been functionally ASSAYED in multiplexed variant-effect experiments (MAVE / deep mutational scanning), and what is the measured functional-score distribution — the MEASURED functional axis CIViC's clinical interpretation can't supply?"
 
 tier: target   # a gene's MAVE functional-assay footprint is a property of the gene's variants, indication-independent

@@ -24,6 +24,8 @@
 
 card_id: antigen-internalization
 version: 1.0.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
 status: placeholder_not_wired   # no internalization/turnover product materialized; belongs in placeholder_cards, not required_cards
 question: "Is {target.symbol}'s surface antigen INTERNALIZED upon antibody binding (receptor-mediated endocytosis efficient enough for ADC payload delivery), and what is its surface turnover — the measured axis distinguishing ADC-viable from TCE-only?"
 

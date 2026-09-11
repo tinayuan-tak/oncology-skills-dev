@@ -22,6 +22,8 @@
 
 card_id: gdsc-drug-activity
 version: 1.0.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
 question: "Across the Sanger GDSC1+GDSC2 dose-response panel, is there a compound annotated as targeting {target.symbol}, and how potent is the most-sensitive agent (a 2nd, independent platform corroborating PRISM)?"
 
 tier: target   # pan-cancer / indication-independent: cell lines are Sanger SIDM ids with no OncoTree/lineage crosswalk, so there is no indication or lineage axis (unlike PRISM's per_lineage_activity).

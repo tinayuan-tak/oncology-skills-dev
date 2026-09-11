@@ -5,6 +5,8 @@
 
 card_id: rwd-stratified-expression
 version: 1.1.0
+# interpretation (descriptive): emits no categorical class.
+interpretation: descriptive
 status: placeholder_not_wired   # Tempus RWD is commercial/unlanded; compose surfaces it in excluded_at_compose (exclusion_source=data_blocked_at_compose). Already in optional_cards (not required) — status added for consistency.
 question: "How does {target.symbol} expression vary across treatment-line strata in real-world {indication.label} RWD?"
 

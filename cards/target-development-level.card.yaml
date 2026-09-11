@@ -20,6 +20,8 @@
 
 card_id: target-development-level
 version: 1.0.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
 question: "What is {target.symbol}'s Target Development Level (Pharos/IDG TDL) — clinically drugged, chemically probed, biologically studied, or dark — and its target family?"
 
 tier: target   # indication-independent property of the gene/protein (target-intrinsic)

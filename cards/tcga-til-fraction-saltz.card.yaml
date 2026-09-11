@@ -14,6 +14,8 @@
 
 card_id: tcga-til-fraction-saltz
 version: 1.0.0
+# interpretation (informational): til_fraction_class describes the cohort's immune infiltrate.
+interpretation: informational
 question: "By H&E deep-learning (Saltz 2018), what is the absolute tumor-infiltrating-lymphocyte fraction in {indication}, and does it corroborate the CIBERSORT CD8 hot/cold call?"
 
 tier: indication   # per-TCGA-study absolute TIL fraction; indication-scoped (target-independent)

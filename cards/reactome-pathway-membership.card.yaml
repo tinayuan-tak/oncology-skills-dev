@@ -16,6 +16,8 @@
 
 card_id: reactome-pathway-membership
 version: 1.0.0
+# interpretation (informational): pathway_class is well_annotated/partial/sparse — Reactome curation completeness.
+interpretation: informational
 question: "Which curated Reactome pathways is {target.symbol} a member of, and under which top-level pathway parents?"
 
 tier: target   # pathway membership is a property of the gene, independent of indication

@@ -29,6 +29,8 @@
 
 card_id: tahoe-drug-perturbation
 version: 1.0.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
 status: wired   # method + dispatcher (_live_readers.py) + LANDED product (tahoe-drug-perturbation-per-gene-v1, materialized) — the schema definition of `wired`. Consumed live by mechanism-and-pharmacology (in me.CARDS, fields emitted; drift-guarded by test_tahoe_facet_emitted.py) as a VERDICT-INERT MoA facet. The applies_when data_sources gate below is the standard declarative idiom (identical to combo-crispr-screen / resistance-emergence-signature) — compose-dashboard does not yet enforce it (iter-1b), so it neither gates nor enables; not required_cards.
 question: "Which small molecules significantly move {target.symbol}'s expression (suppress or induce), and in how many cancer lines (single-cell drug-perturbation MoA)?"
 

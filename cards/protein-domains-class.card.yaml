@@ -13,6 +13,8 @@
 
 card_id: protein-domains-class
 version: 1.0.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
 question: "What is {target.symbol}'s curated domain architecture, and what molecular protein class(es) does it belong to?"
 
 # Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a

@@ -13,6 +13,8 @@
 
 card_id: drug-warning-safety
 version: 1.0.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
 question: "Have drugs that ENGAGE {target.symbol} carried FDA black-box warnings or been withdrawn, and for what toxicity classes (pharmacovigilance safety context)?"
 
 tier: target   # scope-invariant: drug-warning history is a property of the target's pharmacology, indication- and subgroup-agnostic. Never stratifies.
