@@ -30,5 +30,15 @@ run "pytest framework_discrimination"    python -m pytest tests/calibration/test
 run "pytest card_concept_discipline"     python -m pytest tests/validators/test_card_concept_discipline.py -q
 run "pytest nomination-gate+subtype-tier" python -m pytest tests/vocabularies/test_nomination_verdict_gate.py tests/validators/test_subtype_tier_rules.py -q
 run "pytest target-profiling-axes ontology" python -m pytest tests/vocabularies/test_target_profiling_axes.py tests/vocabularies/test_question_hierarchies.py -q
+# --- ADVISORY (non-fatal): cross-repo dashboard-feed drift. The framework-health-cross-repo CI job is
+#     PARKED (its token PAT lacks skills + data-products access); this surfaces the same framework_health
+#     --check locally. NON-FATAL because local sibling clones may lag origin. For the authoritative
+#     both-guards gate run `make drift-check`; regen a stale feed with `make atlas` + the health build. ---
+if out=$(python validators/framework_health/build_framework_health.py --check --json-only 2>&1); then
+  echo "PASS  drift(framework_health) [advisory]"
+else
+  echo "WARN  drift(framework_health) [advisory] — committed health/ feed differs from local wiring; run 'make drift-check' + regenerate before landing feed-moving changes"
+  echo "$out" | tail -n 5 | sed 's/^/      /'
+fi
 [ $fail -eq 0 ] && echo "ALL GATES PASS" || echo "GATES FAILED"
 exit $fail

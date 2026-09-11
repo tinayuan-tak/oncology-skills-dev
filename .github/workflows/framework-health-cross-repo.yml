@@ -17,12 +17,23 @@ name: framework-health-cross-repo
 # no flags (the working-directory'd contracts checkout's parent IS the workspace).
 #
 # TOKEN: needs read access to the sibling repos — repo/org secret CROSS_REPO_TOKEN (a PAT or GitHub
-# App token), mirroring skills-validate.yml. Without it the sibling checkouts 403 and the job cannot run.
+# App token), mirroring skills-validate.yml. Without it the sibling checkouts 403/404 and the job dies
+# before the --check ever runs.
 #
-# EXPECT RED until the committed feeds are regenerated: as of this workflow's addition BOTH feeds are
-# STALE (verified 2026-09-06, behind ~22 verdict-moving contract commits). Regenerate + commit via
-# `make atlas` and `python validators/framework_health/build_framework_health.py` (see Makefile). A red
-# run here is the guard doing its job — surfacing drift that previously shipped silently.
+# PARKED TO workflow_dispatch-ONLY (2026-09-11): the `push` + `schedule` triggers are removed so this
+# stops firing RED on every merge. ROOT CAUSE of the 100%-since-inception red was NOT drift — the
+# `skills-reposet` fine-grained PAT backing CROSS_REPO_TOKEN is scoped to only 3 sibling repos
+# (data-catalog / analysis-methods / target-contracts) and is MISSING claude-oncology-skills +
+# data-products, so the very first sibling checkout (skills) 404s ("Repository not found"). That is
+# also why skills-validate.yml is green (it needs exactly those 3) while this job never started.
+#   TO RE-ENABLE: widen the skills-reposet PAT to add claude-oncology-skills + data-products
+#   (Contents: Read), confirm the CROSS_REPO_TOKEN secret is exposed to THIS repo, then restore the
+#   `push`/`schedule` triggers below. You can `workflow_dispatch` this job to test the token first.
+# MEANWHILE the SAME two --check guards run token-free against the local side-by-side clones via
+# `make drift-check` (and are surfaced advisory-only by scripts/preland.sh). Committed feeds are also
+# known STALE (~22 contract commits as of 2026-09-06); regen with `make atlas` +
+# `python validators/framework_health/build_framework_health.py` before re-enabling, or this returns red
+# for the (real) drift reason.
 
 # Least-privilege token: this job only reads (checks out repos + runs the --check guards, writes
 # nothing back). The sibling-repo checkouts authenticate via CROSS_REPO_TOKEN, not this token.
@@ -30,20 +41,11 @@ permissions:
   contents: read
 
 on:
-  schedule:
-    - cron: "0 7 * * *"        # daily 07:00 UTC backstop
+  # PARKED: manual-only until the CROSS_REPO_TOKEN PAT is widened (see header). Restore the
+  # `schedule` + `push` (paths: cards/ interpretation-rules/ resolvers/ schemas/ vocabularies/
+  # health/ + this file) blocks together with the token fix. `make drift-check` is the interim
+  # token-free local gate.
   workflow_dispatch: {}
-  push:
-    branches: [main]
-    paths:
-      # a change to any of these can move what the dashboards should say → re-check drift on merge
-      - "cards/**"
-      - "interpretation-rules/**"
-      - "resolvers/**"
-      - "schemas/**"
-      - "vocabularies/**"
-      - "health/**"
-      - ".github/workflows/framework-health-cross-repo.yml"
 
 jobs:
   cross-repo-staleness:
