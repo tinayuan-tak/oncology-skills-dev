@@ -47,6 +47,13 @@ _SKIP_DIRS = {
     "tests",
     "render-evidence-package",
     "query-target-evidence",
+    # target-archetype is a CARDLESS reduction-stage companion with a bespoke main() that
+    # requires --package-dir (it consumes a completed target-profile run, not a
+    # target/indication pair), so the fixture invocation below cannot smoke it. It is caught
+    # by _wired_subskills() only because its own header comment contains the words
+    # "not run_wired_skill" — smoking it reports a FALSE pipeline break. Skipped → the
+    # target-contracts rollup records it as runs_clean="unknown", the honest state.
+    "target-archetype",
     # (The synthetic-lethal-partners / combinatorial-dependency / combo-and-resistance /
     # compose-dashboard skill dirs were retired 2026-09-10 — consolidated into
     # combination-and-vulnerability / report_render — so no skip entry is needed.)

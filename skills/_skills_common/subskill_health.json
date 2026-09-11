@@ -3,24 +3,38 @@
   "harness": "framework_health_smoke",
   "note": "Deterministic offline 'runs clean?' smoke of each wired subskill's real run.py under FRAMEWORK_HEALTH_SMOKE=1 (card readers stubbed; NO live data). smoke=clean \u2192 compute path executed + emitted run_health; clean_uninstrumented \u2192 ran clean but hand-rolls main() (no run_health); error \u2192 a real pipeline break.",
   "summary": {
-    "n_subskills": 14,
-    "n_clean": 13,
-    "n_clean_uninstrumented": 1,
+    "n_subskills": 17,
+    "n_clean": 17,
+    "n_clean_uninstrumented": 0,
     "n_error": 0
   },
   "subskills": {
+    "bispecific-pair-scan": {
+      "skill_name": "bispecific-pair-scan",
+      "smoke": "clean",
+      "run_health": {
+        "status": "degraded",
+        "n_cards_consumed": 1,
+        "n_cards_resolved": 0,
+        "n_cards_fired": null,
+        "cards_fired": null,
+        "read_secs": null,
+        "compute_secs": null,
+        "total_secs": null
+      }
+    },
     "cis-feature-coherence": {
       "skill_name": "cis-feature-coherence",
       "smoke": "clean",
       "run_health": {
         "status": "ok",
-        "n_cards_consumed": 9,
-        "n_cards_resolved": 9,
+        "n_cards_consumed": 8,
+        "n_cards_resolved": 8,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.055,
-        "compute_secs": 0.1288,
-        "total_secs": 0.1838
+        "read_secs": 0.0509,
+        "compute_secs": 0.1799,
+        "total_secs": 0.2363
       }
     },
     "combination-and-vulnerability": {
@@ -28,13 +42,13 @@
       "smoke": "clean",
       "run_health": {
         "status": "ok",
-        "n_cards_consumed": 5,
-        "n_cards_resolved": 5,
+        "n_cards_consumed": 6,
+        "n_cards_resolved": 6,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.03,
-        "compute_secs": 0.0977,
-        "total_secs": 0.1277
+        "read_secs": 0.0336,
+        "compute_secs": 0.165,
+        "total_secs": 0.2045
       }
     },
     "differentiation-landscape": {
@@ -46,9 +60,9 @@
         "n_cards_resolved": 9,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.0485,
-        "compute_secs": 0.1465,
-        "total_secs": 0.195
+        "read_secs": 0.0453,
+        "compute_secs": 0.1996,
+        "total_secs": 0.2508
       }
     },
     "functional-requirement": {
@@ -60,28 +74,51 @@
         "n_cards_resolved": 15,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.1067,
-        "compute_secs": 0.2096,
-        "total_secs": 0.3163
+        "read_secs": 0.1014,
+        "compute_secs": 0.2596,
+        "total_secs": 0.3675
       }
     },
     "genomic-alteration-profile": {
       "skill_name": "genomic-alteration-profile",
-      "smoke": "clean_uninstrumented",
-      "smoke_reason": "ran clean but hand-rolls main() (no run_wired_skill) \u2192 no run_health"
+      "smoke": "clean",
+      "run_health": {
+        "status": "ok",
+        "n_cards_consumed": 23,
+        "n_cards_resolved": 23,
+        "n_cards_fired": 0,
+        "cards_fired": [],
+        "read_secs": 0.1451,
+        "compute_secs": 0.3332,
+        "total_secs": 0.4852
+      }
     },
     "immune-context": {
       "skill_name": "immune-context",
       "smoke": "clean",
       "run_health": {
         "status": "ok",
-        "n_cards_consumed": 6,
-        "n_cards_resolved": 6,
+        "n_cards_consumed": 7,
+        "n_cards_resolved": 7,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.0289,
-        "compute_secs": 0.0857,
-        "total_secs": 0.1146
+        "read_secs": 0.0333,
+        "compute_secs": 0.166,
+        "total_secs": 0.2034
+      }
+    },
+    "literature-context": {
+      "skill_name": "literature-context",
+      "smoke": "clean",
+      "run_health": {
+        "status": "ok",
+        "n_cards_consumed": 1,
+        "n_cards_resolved": 1,
+        "n_cards_fired": 0,
+        "cards_fired": [],
+        "read_secs": 0.0052,
+        "compute_secs": 0.1218,
+        "total_secs": 0.1312
       }
     },
     "mechanism-and-pharmacology": {
@@ -93,9 +130,9 @@
         "n_cards_resolved": 5,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.0334,
-        "compute_secs": 0.2503,
-        "total_secs": 0.2837
+        "read_secs": 0.033,
+        "compute_secs": 0.2927,
+        "total_secs": 0.3319
       }
     },
     "on-target-safety-liability": {
@@ -103,13 +140,13 @@
       "smoke": "clean",
       "run_health": {
         "status": "ok",
-        "n_cards_consumed": 15,
-        "n_cards_resolved": 15,
+        "n_cards_consumed": 16,
+        "n_cards_resolved": 16,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.0884,
-        "compute_secs": 0.3517,
-        "total_secs": 0.4401
+        "read_secs": 0.0927,
+        "compute_secs": 0.3946,
+        "total_secs": 0.4952
       }
     },
     "surface-modality-fit": {
@@ -121,9 +158,23 @@
         "n_cards_resolved": 24,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.1637,
-        "compute_secs": 0.3764,
-        "total_secs": 0.5402
+        "read_secs": 0.1638,
+        "compute_secs": 0.4395,
+        "total_secs": 0.6112
+      }
+    },
+    "surfaceome-cohort-ranking": {
+      "skill_name": "surfaceome-cohort-ranking",
+      "smoke": "clean",
+      "run_health": {
+        "status": "degraded",
+        "n_cards_consumed": 1,
+        "n_cards_resolved": 0,
+        "n_cards_fired": 0,
+        "cards_fired": [],
+        "read_secs": null,
+        "compute_secs": null,
+        "total_secs": null
       }
     },
     "target-intrinsic": {
@@ -135,9 +186,9 @@
         "n_cards_resolved": 20,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.1135,
-        "compute_secs": 0.3148,
-        "total_secs": 0.4284
+        "read_secs": 0.1109,
+        "compute_secs": 0.3549,
+        "total_secs": 0.472
       }
     },
     "tractability-small-molecule": {
@@ -145,13 +196,13 @@
       "smoke": "clean",
       "run_health": {
         "status": "ok",
-        "n_cards_consumed": 8,
-        "n_cards_resolved": 8,
+        "n_cards_consumed": 9,
+        "n_cards_resolved": 9,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.0649,
-        "compute_secs": 0.1461,
-        "total_secs": 0.211
+        "read_secs": 0.0726,
+        "compute_secs": 0.2292,
+        "total_secs": 0.3082
       }
     },
     "translational-readiness": {
@@ -163,9 +214,9 @@
         "n_cards_resolved": 4,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.0213,
-        "compute_secs": 0.0868,
-        "total_secs": 0.1081
+        "read_secs": 0.0203,
+        "compute_secs": 0.143,
+        "total_secs": 0.1685
       }
     },
     "tumor-presence": {
@@ -177,9 +228,9 @@
         "n_cards_resolved": 17,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.1426,
-        "compute_secs": 0.3027,
-        "total_secs": 0.4453
+        "read_secs": 0.1392,
+        "compute_secs": 0.3597,
+        "total_secs": 0.5054
       }
     },
     "tumor-selectivity": {
@@ -191,9 +242,9 @@
         "n_cards_resolved": 13,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.108,
-        "compute_secs": 0.2622,
-        "total_secs": 0.3703
+        "read_secs": 0.1117,
+        "compute_secs": 0.3246,
+        "total_secs": 0.4435
       }
     }
   }
