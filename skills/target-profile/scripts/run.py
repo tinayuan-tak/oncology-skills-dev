@@ -26,6 +26,7 @@ import argparse
 import json
 import os
 import sys
+import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -899,13 +900,49 @@ def main() -> int:
             file=sys.stderr,
         )
         # ABSORB (feed-only): the advisory synthesis NARRATES the deterministic 6-dim governance risk
-        # roll-up. Computed here as a DETERMINISTIC-only view (grounded_by_axis=None, no file write) — it
-        # is grounding-INVARIANT (grounding never moves a bin since the 2026-09-03 demotion), so this
-        # pre-synthesis view has bins identical to the artifact risk_rollup computed post-grounding below.
-        # Best-effort (None on failure → the prompt simply omits the block). VERDICT-INERT.
+        # roll-up. #992/#1279: FEED the GROUNDED risk_6dim so exec_summary / tension_analysis cannot omit an
+        # indication-scoped HIGH-severity literature finding that CONTRADICTS a deterministic bin (the
+        # KRAS-CRC non-translation crux). Grounding NEVER moves a bin (locked #937) — it only attaches
+        # escalate-only findings + engine_literature_discordance, so the BINS are byte-identical to the
+        # pre-grounding view; only the surfaced findings are added. Best-effort (any failure → the prompt
+        # omits the findings). VERDICT-INERT.
         from tp_grounding import build_risk_6dim
 
-        risk_6dim_for_synthesis = build_risk_6dim(sub_results, args.modality, None, out_dir=None)
+        # Ground EARLY (synthesis path only) off the LEAN package (assemble_risk_package = the same
+        # sub_verdicts+cards ground_axis reads), so the recommendation-gate / evidence_package-write /
+        # build_target_call ordering is UNCHANGED downstream (evidence_package.json byte-stable). Skip when
+        # grounding was pre-supplied (--grounded-dir already populated grounded_by_axis) or is off; the
+        # post-gate auto_ground below is guarded to not re-ground. Uses a throwaway temp pkg file (not an
+        # emitted artifact) so the write-set is unchanged; the real grounded_<axis>.json still land in --out.
+        if run_ground and not grounded_by_axis and args.out:
+            try:
+                from _skills_common.risk_projection import assemble_risk_package
+                from tp_grounding import auto_ground, resolve_axes
+
+                _ground_ind = args.ground_indication or args.indication
+                Path(args.out).mkdir(parents=True, exist_ok=True)
+                with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as _tf:
+                    json.dump(assemble_risk_package(sub_results), _tf, default=str)
+                    _lean_pkg = _tf.name
+                try:
+                    grounded_by_axis.update(
+                        auto_ground(args.target, _ground_ind, _lean_pkg, args.out, resolve_axes(ground_spec))
+                    )
+                finally:
+                    os.unlink(_lean_pkg)
+                print(
+                    f"[target-profile] pre-synthesis grounding {sorted(grounded_by_axis)} → fed into the "
+                    "synthesis 6-dim risk block (verdict-inert; bins unchanged)",
+                    file=sys.stderr,
+                )
+            except Exception as e:  # noqa: BLE001 — grounding is advisory context, never blocks synthesis
+                print(
+                    f"[target-profile] WARN: pre-synthesis grounding failed ({type(e).__name__}: {e}); "
+                    "synthesis proceeds without grounded findings",
+                    file=sys.stderr,
+                )
+
+        risk_6dim_for_synthesis = build_risk_6dim(sub_results, args.modality, grounded_by_axis, out_dir=None)
         tool_schema = _build_synthesis_tool()
         user_prompt = _build_user_prompt(
             args.target,
@@ -1100,7 +1137,10 @@ def main() -> int:
     # (an OncoTree code retrieves ~nothing); default to --indication otherwise. Shared by grounding +
     # the 6-dim literature risk read below.
     ground_ind = args.ground_indication or args.indication
-    if run_ground and ep_path is not None:
+    # #1279: skip when grounding already ran (pre-synthesis early-grounding on the --synthesis path, or a
+    # pre-supplied --grounded-dir) — grounded_by_axis already populated. On --no-synthesis this is empty,
+    # so this block runs exactly as before (byte-identical). Prevents a double PubMed/Bedrock grounding pass.
+    if run_ground and ep_path is not None and not grounded_by_axis:
         try:
             from tp_grounding import auto_ground, resolve_axes
 
