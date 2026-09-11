@@ -105,6 +105,42 @@ def test_risk_6dim_spine_surfaces_feeding_members():
     assert "text-mined" in h  # verdict-inert literature line
 
 
+def test_risk_6dim_surfaces_literature_discordance_badge_992():
+    # #992 SURFACE-not-move: a dim flagged engine_literature_discordance carries a non-mutating flag on the
+    # IR dim (bin/rank UNCHANGED) + a badge on the HTML dim header.
+    from _skills_common.report_render.backends.html import HtmlBackend
+    from _skills_common.report_render.ir import _risk_6dim_block
+
+    r6 = {
+        "biological": {
+            "bin": "LOW",
+            "chain": [["dependency", "lineage_selective", "LOW"]],
+            "engine_literature_discordance": True,
+            "grounded_findings": [
+                {"finding": "does not translate to CRC efficacy", "severity": "high", "cited_pmids": ["32430388"]}
+            ],
+        },
+        "safety": {"bin": "HIGH", "chain": [["on-target-safety", "constrained", "HIGH"]]},
+    }
+    blk = _risk_6dim_block(r6)
+    dims = {d["dim"]: d for d in blk.payload["dims"]}
+    assert dims["biological"]["engine_literature_discordance"] is True
+    assert dims["biological"]["bin"] == "LOW" and dims["biological"]["rank"] == 1  # bin NOT moved
+    assert dims["safety"]["engine_literature_discordance"] is False
+    h = "".join(HtmlBackend()._risk_6dim(blk.payload))
+    assert "litdisc" in h and "literature-discordant" in h
+
+
+def test_risk_6dim_no_discordance_badge_when_absent_992():
+    from _skills_common.report_render.backends.html import HtmlBackend
+    from _skills_common.report_render.ir import _risk_6dim_block
+
+    blk = _risk_6dim_block({"biological": {"bin": "LOW", "chain": [["dependency", "x", "LOW"]]}})
+    assert blk.payload["dims"][0]["engine_literature_discordance"] is False
+    h = "".join(HtmlBackend()._risk_6dim(blk.payload))
+    assert "litdisc" not in h  # byte-stable — no badge when not discordant
+
+
 def test_level_gates_overview():
     # signals_overview is L0 (the lead); risk_6dim is L1+
     l0 = _overview_kinds(build_ir(make_nomination(), resolve_spec(level="L0")))

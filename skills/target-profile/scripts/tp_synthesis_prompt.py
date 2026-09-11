@@ -67,7 +67,12 @@ _SYSTEM_PROMPT = (
     "discuss modality, RESPECT it — do not propose ADC/T-cell-engager/CAR for an intracellular target "
     "(or small-molecule-occupancy for a purely surface antigen) unless a fired rule overrides the axis. "
     "The block keeps modality talk biologically honest; it does NOT make modality the lead, and it never "
-    "changes the deterministic verdict or recommendation (the gate owns those)." + _EVIDENCE_ONLY_DIRECTIVE
+    "changes the deterministic verdict or recommendation (the gate owns those). "
+    "Note (literature discordance): when the 6-dim roll-up marks a dim `⚠ literature-discordant`, a "
+    "HIGH-severity indication-scoped grounded finding CONTRADICTS that deterministic bin. The bin does not "
+    "move (grounding never re-bins), but the contradiction is decision-relevant — you MUST surface it (with "
+    "its PMID[s]) in the executive summary and tension analysis rather than letting a clean-looking bin hide "
+    "it." + _EVIDENCE_ONLY_DIRECTIVE
 )
 
 # Cross-cutting plain-language legend for the metrics the COMPOSED synthesis may cite across lenses.
@@ -188,7 +193,9 @@ def _build_synthesis_tool() -> dict:
                     "the (up to 10) sub-verdicts collectively imply for this (target, indication). CITE the "
                     "load-bearing driver(s) inline in square brackets — [rule_id] "
                     "and/or [card_id] — using ONLY anchors from the Per-verdict "
-                    "narrative block."
+                    "narrative block. If the 6-dim roll-up flags any dim `⚠ literature-discordant` (a "
+                    "HIGH-severity indication-scoped finding contradicts the deterministic bin), you MUST "
+                    "surface that contradiction here with its PMID(s) — it is the crux; do NOT omit it."
                 ),
             },
             "tension_analysis": {
@@ -199,6 +206,9 @@ def _build_synthesis_tool() -> dict:
                     "requirement says lineage_selective. Ground each tension in "
                     "the specific dissenting / flip anchor inline in [brackets] "
                     "([rule_id]/[card_id]) from the Per-verdict narrative block. "
+                    "A `⚠ literature-discordant` dim in the 6-dim roll-up (a HIGH-severity indication-scoped "
+                    "finding contradicting the deterministic bin) is a REQUIRED tension — name it with its "
+                    "PMID(s) even though the bin is unchanged. "
                     "If there's no meaningful tension, say so briefly (do not invent)."
                 ),
             },
@@ -587,8 +597,19 @@ def _render_risk_6dim_block(risk_6dim: Optional[dict]) -> Optional[str]:
         label = "insufficient_evidence (engine-blind — a gap, not low risk)" if b == "ENGINE-BLIND" else b
         chain = c.get("chain") or []
         driver = f"{chain[0][0]}: {chain[0][1]}" if chain and len(chain[0]) >= 2 else (c.get("pillar") or "")
-        disc = " ⚠ literature-discordant" if c.get("engine_literature_discordance") else ""
+        discordant = bool(c.get("engine_literature_discordance"))
+        disc = " ⚠ literature-discordant" if discordant else ""
         rows.append(f"- **{d}**: `{label}`{disc} — {driver}")
+        # #992: on a literature-DISCORDANT dim, surface the HIGH-severity grounded findings (text + PMIDs)
+        # so the synthesis cannot omit an indication-scoped fact that CONTRADICTS the deterministic bin.
+        # SURFACE-only: the bin is unchanged (the finding is a tension to reconcile, never a re-bin).
+        if discordant:
+            for f in c.get("grounded_findings") or []:
+                if not isinstance(f, dict) or str(f.get("severity", "")).lower() != "high":
+                    continue
+                pmids = ", ".join(str(p) for p in (f.get("cited_pmids") or []))
+                cite = f" [PMID: {pmids}]" if pmids else ""
+                rows.append(f"    - ⚠ HIGH-severity literature CONTRADICTS this bin: {f.get('finding')}{cite}")
     if not rows:
         return None
     return (
@@ -596,7 +617,10 @@ def _render_risk_6dim_block(risk_6dim: Optional[dict]) -> Optional[str]:
         "Governance-category (AstraZeneca 5R) view of the SAME deterministic sub-verdicts, worst-case "
         "per category. VERDICT-INERT — use it to frame WHERE the residual risk concentrates and to "
         "structure the tension analysis; it NEVER moves the recommendation (`target_call` owns that). "
-        "`insufficient_evidence` = no wired engine leg (an honest gap), NOT low risk.\n" + "\n".join(rows)
+        "`insufficient_evidence` = no wired engine leg (an honest gap), NOT low risk. Where a dim is "
+        "`⚠ literature-discordant`, a HIGH-severity indication-scoped finding CONTRADICTS the deterministic "
+        "bin: the bin stays as computed, but you MUST surface that contradiction in the executive summary "
+        "and tension analysis (it is the crux, not a footnote).\n" + "\n".join(rows)
     )
 
 

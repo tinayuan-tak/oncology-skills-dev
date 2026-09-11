@@ -495,6 +495,7 @@ details.fold .foldbody .card { border:0; padding:4px 0 10px; }
 .mem .mn { color:var(--ink); font-weight:600; } .mem .mn small { display:block; color:var(--muted); font-weight:400; font-size:10.5px; }
 .mem .full { font-size:11px; color:var(--blue); text-decoration:none; white-space:nowrap; } .mem .full:hover { text-decoration:underline; }
 .ctxtag { font-size:9px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); background:var(--t-neutral); border-radius:5px; padding:0 5px; margin-left:5px; }
+.litdisc { font-size:9.5px; font-weight:640; color:var(--serious); background:var(--t-neutral); border-radius:5px; padding:0 5px; margin-left:8px; white-space:nowrap; }
 .chip { display:inline-flex; gap:5px; font-size:11px; color:var(--ink2); background:var(--page); border:1px solid var(--border); border-radius:999px; padding:1px 8px; margin:1px 3px 0 0; }
 .chip b { color:var(--ink); font-weight:640; } .chip.pos b { color:var(--good); } .chip.neg b { color:var(--kill); }
 .spark { display:inline-block; position:relative; width:70px; height:12px; background:var(--hair); border-radius:3px; vertical-align:middle; }
@@ -1483,12 +1484,21 @@ class HtmlBackend:
             name = _esc(str(d.get("dim")).title())
             role = _esc(str(d.get("dim")))
             did = f"dim-{role}"
+            # #992: a non-mutating literature-discordance badge on the dim header (bin/level unchanged) — a
+            # HIGH-severity indication-scoped finding contradicts this deterministic bin. Surfaces the
+            # discordance at a glance instead of only inside the collapsed detail.
+            disc_badge = (
+                "<span class='litdisc' title='a HIGH-severity indication-scoped literature finding "
+                "contradicts this deterministic bin (bin unchanged)'>⚠ literature-discordant</span>"
+                if d.get("engine_literature_discordance")
+                else ""
+            )
             summary = (
                 f"<summary><span class='caret'>▸</span>"
                 f"<span class='dn'>{name}<span class='rr'>{role}</span></span>"
                 "<span class='dbar'><span class='track'><i></i></span>"
                 "<span class='scale'><span>low</span><span>med</span><span>high</span></span></span>"
-                f"<span class='dlevel'>{_esc(level)}</span></summary>"
+                f"{disc_badge}<span class='dlevel'>{_esc(level)}</span></summary>"
             )
             members = d.get("members") or []
             body = "".join(self._mem_row(m) for m in members)

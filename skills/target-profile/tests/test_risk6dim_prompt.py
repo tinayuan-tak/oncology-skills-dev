@@ -77,6 +77,41 @@ def test_build_user_prompt_includes_risk_block_when_passed():
     assert "6-dimension risk roll-up" not in without  # additive — absent when not supplied
 
 
+def _dims_discordant():
+    d = _dims()
+    d["biological"]["engine_literature_discordance"] = True
+    d["biological"]["grounded_findings"] = [
+        {
+            "finding": "KRAS dependency does not translate to CRC drug efficacy (EGFR feedback)",
+            "kind": "efficacy",
+            "severity": "high",
+            "cited_pmids": ["32430388", "39762482"],
+        },
+        {"finding": "a moderate aside", "severity": "moderate", "cited_pmids": ["1"]},
+    ]
+    return d
+
+
+def test_risk_block_surfaces_high_severity_grounded_findings_on_discordant_dim_992():
+    # #992 SURFACE-not-move: a discordant dim shows the marker + the HIGH-severity finding text + PMIDs,
+    # while the BIN is unchanged (MED, not re-binned) and the synthesis is instructed to surface it.
+    block = _render_risk_6dim_block(_dims_discordant())
+    assert "literature-discordant" in block
+    assert "does not translate to CRC drug efficacy" in block
+    assert "32430388" in block and "39762482" in block
+    assert "a moderate aside" not in block  # HIGH only
+    assert "**biological**: `MED`" in block  # bin NOT moved
+    assert "surface" in block.lower() and "crux" in block.lower()  # synthesis directive
+
+
+def test_risk_block_findings_not_forced_when_not_discordant_992():
+    # grounded findings present but the dim is NOT flagged discordant → not force-surfaced as a contradiction.
+    d = _dims()
+    d["biological"]["grounded_findings"] = [{"finding": "x", "severity": "high", "cited_pmids": ["1"]}]
+    block = _render_risk_6dim_block(d)
+    assert "CONTRADICTS this bin" not in block
+
+
 # (test_md_recommendation_is_advisory_and_surfaces_gate_disagreement was removed with the retirement of
 # tp_render_md 2026-09-03 — it asserted the md renderer's advisory-recommendation + LLM↔gate-disagreement
 # wording. That advisory framing is now report_render's responsibility (contract §llm_synthesis); flagged

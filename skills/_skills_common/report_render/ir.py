@@ -753,6 +753,10 @@ def _risk_6dim_block(
                 "members": _dim_members(dim, v),
                 "literature": _literature(dim),
                 "grounded_findings": grounded,
+                # #992: non-mutating literature-discordance flag (a HIGH-severity indication-scoped finding
+                # contradicts this deterministic bin). The bin/rank/level are UNCHANGED — this only lets the
+                # renderer surface the discordance on the dim header instead of burying it in the detail.
+                "engine_literature_discordance": bool(v.get("engine_literature_discordance")),
                 "blind_spots": blind_spots,
                 "mitigation": mitigation,
             }
