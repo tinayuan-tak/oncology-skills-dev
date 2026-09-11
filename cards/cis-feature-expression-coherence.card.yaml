@@ -24,11 +24,12 @@
 #   - near-diploid-panel target       : no CN variance      → cn_invariant_panel         (untestable)
 #
 # Inputs (DepMap 26Q1 — co-resident, ZERO new ingest):
-#   - OmicsCNGeneMC_WES.csv (relative CN, primary; WGS fallback) — the cis feature term.
-#     NOTE (#704 6a): WES CN is DepMap-LEGACY (deprecated in favor of the now-canonical
-#     OmicsCNGeneWGS.csv); the shared reader depmap_cn_distribution.load_cn_files still selects
-#     WES-primary/WGS-fallback. The WES→WGS migration is a reader + threshold-recalibration +
-#     golden-regen + backtest task, NOT a card edit.
+#   - OmicsCNGeneWGS.csv (relative CN, primary; legacy WES fallback) — the cis feature term.
+#     NOTE (#704 6a): migrated 2026-09-11 — depmap_cn_distribution.load_cn_files now selects the
+#     DepMap-CANONICAL WGS CN as primary (WES CN is LEGACY, kept only as a fallback for genes absent
+#     from the WGS matrix). WGS and WES share the SAME relative-CN scale (diploid ~1.0), verified
+#     empirically, so the focal-amp thresholds carry over unchanged; WGS also has broader coverage
+#     (n=2219 vs 1954 cell lines). The reader change lives in analysis-methods.
 #   - OmicsExpressionTPMLogp1HumanProteinCodingGenes.csv (log2TPM) — the own-expression term
 #   - Model.csv — lineage metadata for the ladder
 
