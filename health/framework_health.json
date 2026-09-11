@@ -1,93 +1,91 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-09-06T16:22:09.629788+00:00",
+  "generated_at": "2026-09-11T03:32:32.601819+00:00",
   "roots": {
-    "contracts": "/tmp/wt/rnd-computational-biology-oncology-target-contracts__chore-regen-dashboard-feeds",
+    "contracts": "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
     "skills": "/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills",
     "methods": "/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods",
     "products": "/home/sagemaker-user/rnd-computational-biology-oncology-data-products",
     "catalog": "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"
   },
   "root_shas": {
-    "contracts": "e3b8ad1",
-    "skills": "48da31b",
-    "methods": "d204279",
-    "products": "5c4a0ea",
-    "catalog": "8dfc698"
+    "contracts": "4de098b",
+    "skills": "5daf9ea",
+    "methods": "1977738",
+    "products": "7a3d852",
+    "catalog": "15a8560"
   },
   "delta": {
     "has_prior": true,
-    "prior_generated_at": "2026-09-02T12:17:10.879424+00:00",
-    "n_skills": 0,
+    "prior_generated_at": "2026-09-06T16:22:09.629788+00:00",
+    "n_skills": -2,
     "n_cards": 1,
-    "n_drift_flags": 1,
+    "n_drift_flags": -1,
     "n_error_drift": 0,
-    "verdict_tally": {},
+    "verdict_tally": {
+      "partial": -1,
+      "production_ready": -1
+    },
     "card_health_tally": {
       "wired": 1
     },
-    "skills_added": [
-      "literature-context"
-    ],
+    "skills_added": [],
     "skills_removed": [
-      "combo-and-resistance"
+      "combinatorial-dependency",
+      "synthetic-lethal-partners"
     ],
     "cards_added": [
-      "cited-literature-evidence",
-      "splice-exon-skip-landscape"
+      "cross-consortium-paralog-gi"
     ],
-    "cards_removed": [
-      "tumor-splice-expression"
-    ]
+    "cards_removed": []
   },
   "summary": {
-    "n_skills": 27,
+    "n_skills": 25,
     "verdict_tally": {
-      "partial": 20,
-      "production_ready": 7
+      "partial": 19,
+      "production_ready": 6
     },
     "runs_clean_tally": {
-      "unknown": 13,
-      "clean": 13,
-      "clean_uninstrumented": 1
+      "clean": 17,
+      "unknown": 8
     },
-    "n_runs_clean": 13,
+    "n_runs_clean": 17,
     "n_runs_clean_error": 0,
-    "n_drift_flags": 24,
+    "n_drift_flags": 23,
     "n_error_drift": 0,
     "n_unregistered_skills": 0,
-    "n_live_reader_cards": 62,
+    "n_live_reader_cards": 63,
     "n_cards_firing_in_real_packages": 101,
     "n_cards_firing_in_any_run": 101,
-    "n_cards": 148,
+    "n_cards": 149,
     "card_health_tally": {
       "live": 101,
       "placeholder": 10,
       "self_produced": 1,
-      "wired": 36
+      "wired": 37
     },
     "modality_routing_tally": {
       "not_required": 68,
-      "declared": 79,
+      "declared": 80,
       "not_applicable": 1
     },
-    "n_p4_required_cards": 79,
-    "n_p4_declared_cards": 79,
+    "n_p4_required_cards": 80,
+    "n_p4_declared_cards": 80,
     "n_p4_missing_cards": 0,
     "n_p4_drift_cards": 0,
-    "n_orphan_cards": 9,
+    "n_orphan_cards": 0,
     "n_staged_orphan_cards": 9,
-    "n_cards_consumed_but_no_spec": 101,
-    "n_datasets": 516,
-    "n_datasets_in_catalog": 510,
-    "n_orphan_datasets": 333,
+    "n_cards_consumed_but_no_spec": 102,
+    "n_datasets": 519,
+    "n_datasets_in_catalog": 513,
+    "n_orphan_datasets": 332,
     "n_broken_dataset_refs": 0,
     "n_pending_placeholder_refs": 6,
     "n_datasets_high_access_cost": 2,
     "n_datasets_missing_sort_key": 0,
     "access_cost_tally": {
-      "low": 190,
-      "moderate_unused": 22,
+      "low": 191,
+      "moderate_unused": 24,
       "unknown": 289,
       "high_unused": 7,
       "moderate": 6,
@@ -101,7 +99,6 @@
       "catalog-query",
       "cis-feature-coherence",
       "combination-and-vulnerability",
-      "combinatorial-dependency",
       "cross-evidence-hypothesis",
       "differentiation-landscape",
       "example-gallery",
@@ -116,7 +113,6 @@
       "render-evidence-package",
       "surface-modality-fit",
       "surfaceome-cohort-ranking",
-      "synthetic-lethal-partners",
       "target-archetype",
       "target-intrinsic",
       "target-profile",
@@ -130,7 +126,6 @@
       "catalog-query",
       "cis-feature-coherence",
       "combination-and-vulnerability",
-      "combinatorial-dependency",
       "cross-evidence-hypothesis",
       "differentiation-landscape",
       "example-gallery",
@@ -145,7 +140,6 @@
       "render-evidence-package",
       "surface-modality-fit",
       "surfaceome-cohort-ranking",
-      "synthetic-lethal-partners",
       "target-archetype",
       "target-intrinsic",
       "target-profile",
@@ -223,8 +217,17 @@
       "gate_short": null,
       "risk_category": null,
       "framework_can_evidence": null,
-      "runs_clean": "unknown",
-      "run_health": null
+      "runs_clean": "clean",
+      "run_health": {
+        "status": "degraded",
+        "n_cards_consumed": 1,
+        "n_cards_resolved": 0,
+        "n_cards_fired": null,
+        "cards_fired": null,
+        "read_secs": null,
+        "compute_secs": null,
+        "total_secs": null
+      }
     },
     {
       "name": "catalog-query",
@@ -289,6 +292,7 @@
           "cis-coherence"
         ],
         "prose_markers": [
+          "graduated",
           "not_wired",
           "wired"
         ],
@@ -332,6 +336,12 @@
           "fires_in_real_package": true,
           "fires_in_any_run": true,
           "datasets": [
+            {
+              "product_id": "depmap-gygi-protein-abundance-per-protein-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "depmap-gygi-protein-abundance-per-protein-v1"
+            },
             {
               "product_id": "depmap-consortium-26q1-proteomics",
               "in_catalog": true,
@@ -595,7 +605,7 @@
         }
       ],
       "n_core_cards": 0,
-      "n_cards": 9,
+      "n_cards": 8,
       "n_cards_live": 6,
       "n_p4_required": 5,
       "n_p4_declared": 5,
@@ -615,13 +625,13 @@
       "runs_clean": "clean",
       "run_health": {
         "status": "ok",
-        "n_cards_consumed": 9,
-        "n_cards_resolved": 9,
+        "n_cards_consumed": 8,
+        "n_cards_resolved": 8,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.055,
-        "compute_secs": 0.1288,
-        "total_secs": 0.1838
+        "read_secs": 0.0509,
+        "compute_secs": 0.1799,
+        "total_secs": 0.2363
       }
     },
     {
@@ -635,6 +645,7 @@
         "cards_used": [
           "synthetic-lethal-partners",
           "combinatorial-dependency",
+          "cross-consortium-paralog-gi",
           "combo-crispr-screen",
           "combo-chemical-synergy",
           "resistance-emergence-signature"
@@ -664,6 +675,7 @@
         "cards_in_runpy": [
           "synthetic-lethal-partners",
           "combinatorial-dependency",
+          "cross-consortium-paralog-gi",
           "combo-crispr-screen",
           "combo-chemical-synergy",
           "resistance-emergence-signature"
@@ -768,6 +780,44 @@
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
         },
         {
+          "card_id": "cross-consortium-paralog-gi",
+          "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "cross_consortium_paralog_gi",
+          "has_live_reader": true,
+          "method_call": "cross-consortium-paralog-gi",
+          "dispatch_module": "paralog_genetic_interaction.read",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "fires_in_any_run": false,
+          "datasets": [
+            {
+              "product_id": "dede-paralog-genetic-interaction-per-pair-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "dede-paralog-genetic-interaction-per-pair-v1"
+            },
+            {
+              "product_id": "in4mer-paralog-genetic-interaction-per-pair-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "in4mer-paralog-genetic-interaction-per-pair-v1"
+            }
+          ],
+          "modality_relevance": [
+            "small_molecule",
+            "degrader"
+          ],
+          "modality_routing": "declared",
+          "card_health": "wired",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a bespoke live reader but has not fired passed/warned in any real package yet \u2014 WIRED, awaiting its first governed firing (NOT a defect)"
+        },
+        {
           "card_id": "resistance-emergence-signature",
           "card_yaml_exists": true,
           "is_self_produced_skill_card": false,
@@ -830,15 +880,20 @@
         }
       ],
       "n_core_cards": 5,
-      "n_cards": 5,
+      "n_cards": 6,
       "n_cards_live": 4,
-      "n_p4_required": 4,
-      "n_p4_declared": 4,
+      "n_p4_required": 5,
+      "n_p4_declared": 5,
       "drift_flags": [
+        {
+          "code": "card_registered_never_fires",
+          "severity": "info",
+          "detail": "consumed card(s) have a live reader but never fired in a real package: cross-consortium-paralog-gi"
+        },
         {
           "code": "card_consumed_but_no_spec",
           "severity": "info",
-          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: combinatorial-dependency, combo-chemical-synergy, combo-crispr-screen, resistance-emergence-signature, synthetic-lethal-partners"
+          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: combinatorial-dependency, combo-chemical-synergy, combo-crispr-screen, cross-consortium-paralog-gi, resistance-emergence-signature, synthetic-lethal-partners"
         }
       ],
       "health_verdict": "partial",
@@ -850,101 +905,14 @@
       "runs_clean": "clean",
       "run_health": {
         "status": "ok",
-        "n_cards_consumed": 5,
-        "n_cards_resolved": 5,
+        "n_cards_consumed": 6,
+        "n_cards_resolved": 6,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.03,
-        "compute_secs": 0.0977,
-        "total_secs": 0.1277
+        "read_secs": 0.0336,
+        "compute_secs": 0.165,
+        "total_secs": 0.2045
       }
-    },
-    {
-      "name": "combinatorial-dependency",
-      "declared": {
-        "status": "deprecated",
-        "phase": [
-          "C"
-        ],
-        "cards_used": [
-          "combinatorial-dependency"
-        ],
-        "rules_scope": [
-          "combinatorial-dependency"
-        ],
-        "prose_markers": [
-          "not_wired"
-        ],
-        "skill_md_exists": true,
-        "skill_md_parse_error": null
-      },
-      "derived": {
-        "has_entrypoint": true,
-        "entrypoint": "run.py",
-        "kind": "FOCUSED",
-        "resolver_gate": null,
-        "resolver_bound": false,
-        "fans_out": false,
-        "is_placeholder": false,
-        "cards_in_runpy": [
-          "combinatorial-dependency"
-        ],
-        "test_count": 3
-      },
-      "cards": [
-        {
-          "card_id": "combinatorial-dependency",
-          "card_yaml_exists": true,
-          "is_self_produced_skill_card": false,
-          "is_placeholder": false,
-          "placeholder_reason": null,
-          "measurement_type": "combinatorial_ko_dependency",
-          "has_live_reader": true,
-          "method_call": "paralog-genetic-interaction",
-          "dispatch_module": "paralog_genetic_interaction.read",
-          "method_dir_exists": true,
-          "method_has_read": true,
-          "stale_method_label": false,
-          "fires_in_real_package": true,
-          "fires_in_any_run": true,
-          "datasets": [
-            {
-              "product_id": "depmap-paralog-genetic-interaction-per-pair-v1",
-              "in_catalog": true,
-              "matched_by": "exact",
-              "resolved_id": "depmap-paralog-genetic-interaction-per-pair-v1"
-            }
-          ],
-          "modality_relevance": [
-            "small_molecule",
-            "degrader"
-          ],
-          "modality_routing": "declared",
-          "card_health": "live",
-          "health_reason": "card-live-fired",
-          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
-        }
-      ],
-      "n_core_cards": 1,
-      "n_cards": 1,
-      "n_cards_live": 1,
-      "n_p4_required": 1,
-      "n_p4_declared": 1,
-      "drift_flags": [
-        {
-          "code": "card_consumed_but_no_spec",
-          "severity": "info",
-          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: combinatorial-dependency"
-        }
-      ],
-      "health_verdict": "production_ready",
-      "health_reason": "skill-production-ready",
-      "reason_text": "wired + tested, and \u22651 core card has fired in a real package (proven end-to-end)",
-      "gate_short": null,
-      "risk_category": null,
-      "framework_can_evidence": null,
-      "runs_clean": "unknown",
-      "run_health": null
     },
     {
       "name": "cross-evidence-hypothesis",
@@ -1380,9 +1348,9 @@
         "n_cards_resolved": 9,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.0485,
-        "compute_secs": 0.1465,
-        "total_secs": 0.195
+        "read_secs": 0.0453,
+        "compute_secs": 0.1996,
+        "total_secs": 0.2508
       }
     },
     {
@@ -1511,6 +1479,12 @@
           "fires_in_any_run": true,
           "datasets": [
             {
+              "product_id": "depmap-gygi-protein-abundance-per-protein-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "depmap-gygi-protein-abundance-per-protein-v1"
+            },
+            {
               "product_id": "depmap-consortium-26q1-proteomics",
               "in_catalog": true,
               "matched_by": "exact",
@@ -1533,8 +1507,8 @@
           "card_id": "coessential-module",
           "card_yaml_exists": true,
           "is_self_produced_skill_card": false,
-          "is_placeholder": true,
-          "placeholder_reason": "status:dormant_pending_data",
+          "is_placeholder": false,
+          "placeholder_reason": null,
           "measurement_type": "coessential_module",
           "has_live_reader": false,
           "method_call": "coessential-module",
@@ -2040,7 +2014,7 @@
         {
           "code": "card_consumed_but_no_spec",
           "severity": "info",
-          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: abundance-dependency, cross-consortium-dependency, genomic-event-model-match, organoid-crispr-dependency, paralog-buffering, partner-conditional-dependency, recommended-models"
+          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: abundance-dependency, coessential-module, cross-consortium-dependency, genomic-event-model-match, organoid-crispr-dependency, paralog-buffering, partner-conditional-dependency, recommended-models"
         }
       ],
       "health_verdict": "production_ready",
@@ -2056,9 +2030,9 @@
         "n_cards_resolved": 15,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.1067,
-        "compute_secs": 0.2096,
-        "total_secs": 0.3163
+        "read_secs": 0.1014,
+        "compute_secs": 0.2596,
+        "total_secs": 0.3675
       }
     },
     {
@@ -3076,8 +3050,17 @@
       "gate_short": null,
       "risk_category": null,
       "framework_can_evidence": null,
-      "runs_clean": "clean_uninstrumented",
-      "run_health": null
+      "runs_clean": "clean",
+      "run_health": {
+        "status": "ok",
+        "n_cards_consumed": 23,
+        "n_cards_resolved": 23,
+        "n_cards_fired": 0,
+        "cards_fired": [],
+        "read_secs": 0.1451,
+        "compute_secs": 0.3332,
+        "total_secs": 0.4852
+      }
     },
     {
       "name": "immune-context",
@@ -3092,7 +3075,8 @@
           "caf-compartment-expression-luo",
           "ici-response-association",
           "tcga-til-fraction-saltz",
-          "ici-response-imvigor210"
+          "ici-response-imvigor210",
+          "spatial-tumor-normal-colocalization"
         ],
         "rules_scope": [
           "surface_intrinsic"
@@ -3117,7 +3101,8 @@
           "caf-compartment-expression-luo",
           "ici-response-association",
           "ici-response-imvigor210",
-          "tcga-til-fraction-saltz"
+          "tcga-til-fraction-saltz",
+          "spatial-tumor-normal-colocalization"
         ],
         "test_count": 9
       },
@@ -3272,6 +3257,93 @@
           "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint) \u2014 WIRED, awaiting its first governed firing (NOT a defect: verified generic-routed cards read fine, e.g. translational-readiness / tractability legs)"
         },
         {
+          "card_id": "spatial-tumor-normal-colocalization",
+          "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "spatial_colocalization",
+          "has_live_reader": true,
+          "method_call": "spatial-tumor-normal-colocalization",
+          "dispatch_module": "spatial_colocalization.cli",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": true,
+          "fires_in_any_run": true,
+          "datasets": [
+            {
+              "product_id": "spatial-coloc-tumor-crc-coadread-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "spatial-coloc-tumor-crc-coadread-v1"
+            },
+            {
+              "product_id": "spatial-coloc-tumor-stad-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "spatial-coloc-tumor-stad-v1"
+            },
+            {
+              "product_id": "spatial-coloc-tumor-paad-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "spatial-coloc-tumor-paad-v1"
+            },
+            {
+              "product_id": "spatial-coloc-tumor-hnsc-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "spatial-coloc-tumor-hnsc-v1"
+            },
+            {
+              "product_id": "spatial-coloc-tumor-nsclc-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "spatial-coloc-tumor-nsclc-v1"
+            },
+            {
+              "product_id": "spatial-coloc-tumor-crc-gse280318-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "spatial-coloc-tumor-crc-gse280318-v1"
+            },
+            {
+              "product_id": "spatial-coloc-tumor-crc-gse335552-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "spatial-coloc-tumor-crc-gse335552-v1"
+            },
+            {
+              "product_id": "spatial-coloc-tumor-paad-gse313662-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "spatial-coloc-tumor-paad-gse313662-v1"
+            },
+            {
+              "product_id": "spatial-coloc-tumor-paad-gse310352-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "spatial-coloc-tumor-paad-gse310352-v1"
+            },
+            {
+              "product_id": "spatial-coloc-tumor-nsclc-gse319755-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "spatial-coloc-tumor-nsclc-gse319755-v1"
+            }
+          ],
+          "modality_relevance": [
+            "adc",
+            "bite_tce",
+            "antibody"
+          ],
+          "modality_routing": "declared",
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
+        },
+        {
           "card_id": "tcga-til-fraction-saltz",
           "card_yaml_exists": true,
           "is_self_produced_skill_card": false,
@@ -3304,10 +3376,10 @@
         }
       ],
       "n_core_cards": 0,
-      "n_cards": 6,
-      "n_cards_live": 0,
-      "n_p4_required": 3,
-      "n_p4_declared": 3,
+      "n_cards": 7,
+      "n_cards_live": 1,
+      "n_p4_required": 4,
+      "n_p4_declared": 4,
       "drift_flags": [
         {
           "code": "card_registered_never_fires",
@@ -3317,7 +3389,7 @@
         {
           "code": "card_consumed_but_no_spec",
           "severity": "info",
-          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: caf-compartment-expression-luo, ici-response-association, ici-response-imvigor210, immune-context, myeloid-compartment-expression-cheng, tcga-til-fraction-saltz"
+          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: caf-compartment-expression-luo, ici-response-association, ici-response-imvigor210, immune-context, myeloid-compartment-expression-cheng, spatial-tumor-normal-colocalization, tcga-til-fraction-saltz"
         }
       ],
       "health_verdict": "partial",
@@ -3329,13 +3401,13 @@
       "runs_clean": "clean",
       "run_health": {
         "status": "ok",
-        "n_cards_consumed": 6,
-        "n_cards_resolved": 6,
+        "n_cards_consumed": 7,
+        "n_cards_resolved": 7,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.0289,
-        "compute_secs": 0.0857,
-        "total_secs": 0.1146
+        "read_secs": 0.0333,
+        "compute_secs": 0.166,
+        "total_secs": 0.2034
       }
     },
     {
@@ -3429,8 +3501,17 @@
       "gate_short": null,
       "risk_category": null,
       "framework_can_evidence": null,
-      "runs_clean": "unknown",
-      "run_health": null
+      "runs_clean": "clean",
+      "run_health": {
+        "status": "ok",
+        "n_cards_consumed": 1,
+        "n_cards_resolved": 1,
+        "n_cards_fired": 0,
+        "cards_fired": [],
+        "read_secs": 0.0052,
+        "compute_secs": 0.1218,
+        "total_secs": 0.1312
+      }
     },
     {
       "name": "literature-risk-assessment",
@@ -3460,7 +3541,7 @@
         "fans_out": false,
         "is_placeholder": false,
         "cards_in_runpy": [],
-        "test_count": 6
+        "test_count": 14
       },
       "cards": [],
       "n_core_cards": 0,
@@ -3594,6 +3675,12 @@
           "fires_in_any_run": true,
           "datasets": [
             {
+              "product_id": "cptac-phospho-per-site-per-cohort-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "cptac-phospho-per-site-per-cohort-v1"
+            },
+            {
               "product_id": "cptac-pdc-snapshot-2026-07-01",
               "in_catalog": true,
               "matched_by": "exact",
@@ -3622,6 +3709,12 @@
           "fires_in_real_package": true,
           "fires_in_any_run": true,
           "datasets": [
+            {
+              "product_id": "signor-mechanism-network-per-gene-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "signor-mechanism-network-per-gene-v1"
+            },
             {
               "product_id": "signor-jul2026",
               "in_catalog": true,
@@ -3693,9 +3786,9 @@
         "n_cards_resolved": 5,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.0334,
-        "compute_secs": 0.2503,
-        "total_secs": 0.2837
+        "read_secs": 0.033,
+        "compute_secs": 0.2927,
+        "total_secs": 0.3319
       }
     },
     {
@@ -3720,7 +3813,8 @@
           "pan-cancer-crispr-dependency-distribution",
           "drug-warning-safety",
           "onsides-adverse-event-safety",
-          "normal-tissue-liability"
+          "normal-tissue-liability",
+          "normal-tissue-protein-abundance-tphp"
         ],
         "rules_scope": [
           "gnomad-lof-constraint",
@@ -3765,9 +3859,10 @@
           "pan-cancer-crispr-dependency-distribution",
           "normal-tissue-liability",
           "drug-warning-safety",
-          "onsides-adverse-event-safety"
+          "onsides-adverse-event-safety",
+          "normal-tissue-protein-abundance-tphp"
         ],
-        "test_count": 10
+        "test_count": 11
       },
       "cards": [
         {
@@ -4157,6 +4252,38 @@
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
         },
         {
+          "card_id": "normal-tissue-protein-abundance-tphp",
+          "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "normal_tissue_protein_abundance",
+          "has_live_reader": false,
+          "method_call": "tphp-normal-protein",
+          "dispatch_module": null,
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "fires_in_any_run": false,
+          "datasets": [
+            {
+              "product_id": "normal-tissue-protein-abundance-per-gene-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "normal-tissue-protein-abundance-per-gene-v1"
+            }
+          ],
+          "modality_relevance": [
+            "adc",
+            "bite_tce"
+          ],
+          "modality_routing": "declared",
+          "card_health": "wired",
+          "health_reason": "card-generic-dispatch-never-fires",
+          "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint) \u2014 WIRED, awaiting its first governed firing (NOT a defect: verified generic-routed cards read fine, e.g. translational-readiness / tractability legs)"
+        },
+        {
           "card_id": "onsides-adverse-event-safety",
           "card_yaml_exists": true,
           "is_self_produced_skill_card": false,
@@ -4280,15 +4407,15 @@
         }
       ],
       "n_core_cards": 10,
-      "n_cards": 15,
+      "n_cards": 16,
       "n_cards_live": 12,
-      "n_p4_required": 7,
-      "n_p4_declared": 7,
+      "n_p4_required": 8,
+      "n_p4_declared": 8,
       "drift_flags": [
         {
           "code": "card_consumed_but_no_spec",
           "severity": "info",
-          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: alteration-role, clingen-dosage, clinvar-pathogenicity-safety, drug-warning-safety, functional-gene-state, gene-burden-safety, gnomad-lof-constraint, mouse-ko-phenotype, normal-tissue-liability-gtex, onsides-adverse-event-safety, shet-lof-intolerance, target-safety-prioritisation"
+          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: alteration-role, clingen-dosage, clinvar-pathogenicity-safety, drug-warning-safety, functional-gene-state, gene-burden-safety, gnomad-lof-constraint, mouse-ko-phenotype, normal-tissue-liability-gtex, normal-tissue-protein-abundance-tphp, onsides-adverse-event-safety, shet-lof-intolerance, target-safety-prioritisation"
         }
       ],
       "health_verdict": "partial",
@@ -4300,13 +4427,13 @@
       "runs_clean": "clean",
       "run_health": {
         "status": "ok",
-        "n_cards_consumed": 15,
-        "n_cards_resolved": 15,
+        "n_cards_consumed": 16,
+        "n_cards_resolved": 16,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.0884,
-        "compute_secs": 0.3517,
-        "total_secs": 0.4401
+        "read_secs": 0.0927,
+        "compute_secs": 0.3946,
+        "total_secs": 0.4952
       }
     },
     {
@@ -4461,7 +4588,7 @@
           "surface-bulk-pair-selectivity",
           "pmhc-epitope-evidence-iedb"
         ],
-        "test_count": 18
+        "test_count": 19
       },
       "cards": [
         {
@@ -5510,9 +5637,9 @@
         "n_cards_resolved": 24,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.1637,
-        "compute_secs": 0.3764,
-        "total_secs": 0.5402
+        "read_secs": 0.1638,
+        "compute_secs": 0.4395,
+        "total_secs": 0.6112
       }
     },
     {
@@ -5594,93 +5721,17 @@
       "gate_short": null,
       "risk_category": null,
       "framework_can_evidence": null,
-      "runs_clean": "unknown",
-      "run_health": null
-    },
-    {
-      "name": "synthetic-lethal-partners",
-      "declared": {
-        "status": "deprecated",
-        "phase": [
-          "C"
-        ],
-        "cards_used": [
-          "synthetic-lethal-partners"
-        ],
-        "rules_scope": [
-          "sl-experimental-partner-context-conditional",
-          "sl-computational-partner-informational",
-          "sl-no-partner-neutral",
-          "sl-data-unavailable-insufficient"
-        ],
-        "prose_markers": [],
-        "skill_md_exists": true,
-        "skill_md_parse_error": null
-      },
-      "derived": {
-        "has_entrypoint": true,
-        "entrypoint": "run.py",
-        "kind": "FOCUSED",
-        "resolver_gate": null,
-        "resolver_bound": false,
-        "fans_out": false,
-        "is_placeholder": false,
-        "cards_in_runpy": [
-          "synthetic-lethal-partners"
-        ],
-        "test_count": 6
-      },
-      "cards": [
-        {
-          "card_id": "synthetic-lethal-partners",
-          "card_yaml_exists": true,
-          "is_self_produced_skill_card": false,
-          "is_placeholder": false,
-          "placeholder_reason": null,
-          "measurement_type": "synthetic_lethal_partner",
-          "has_live_reader": false,
-          "method_call": "synleth-partner-lookup",
-          "dispatch_module": null,
-          "method_dir_exists": true,
-          "method_has_read": true,
-          "stale_method_label": false,
-          "fires_in_real_package": true,
-          "fires_in_any_run": true,
-          "datasets": [
-            {
-              "product_id": "synlethdb-sl-partners-per-gene-v1",
-              "in_catalog": true,
-              "matched_by": "exact",
-              "resolved_id": "synlethdb-sl-partners-per-gene-v1"
-            }
-          ],
-          "modality_relevance": null,
-          "modality_routing": "not_required",
-          "card_health": "live",
-          "health_reason": "card-live-fired",
-          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
-        }
-      ],
-      "n_core_cards": 0,
-      "n_cards": 1,
-      "n_cards_live": 1,
-      "n_p4_required": 0,
-      "n_p4_declared": 0,
-      "drift_flags": [
-        {
-          "code": "card_consumed_but_no_spec",
-          "severity": "info",
-          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: synthetic-lethal-partners"
-        }
-      ],
-      "health_verdict": "partial",
-      "health_reason": "skill-partial-core-gap",
-      "reason_text": "a verdict-driving (core) card is placeholder/blocked/broken",
-      "gate_short": null,
-      "risk_category": null,
-      "framework_can_evidence": null,
-      "runs_clean": "unknown",
-      "run_health": null
+      "runs_clean": "clean",
+      "run_health": {
+        "status": "degraded",
+        "n_cards_consumed": 1,
+        "n_cards_resolved": 0,
+        "n_cards_fired": 0,
+        "cards_fired": [],
+        "read_secs": null,
+        "compute_secs": null,
+        "total_secs": null
+      }
     },
     {
       "name": "target-archetype",
@@ -6280,6 +6331,12 @@
           "fires_in_any_run": true,
           "datasets": [
             {
+              "product_id": "signor-mechanism-network-per-gene-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "signor-mechanism-network-per-gene-v1"
+            },
+            {
               "product_id": "signor-jul2026",
               "in_catalog": true,
               "matched_by": "exact",
@@ -6476,9 +6533,9 @@
         "n_cards_resolved": 20,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.1135,
-        "compute_secs": 0.3148,
-        "total_secs": 0.4284
+        "read_secs": 0.1109,
+        "compute_secs": 0.3549,
+        "total_secs": 0.472
       }
     },
     {
@@ -6553,7 +6610,7 @@
         "fans_out": false,
         "is_placeholder": false,
         "cards_in_runpy": [],
-        "test_count": 61
+        "test_count": 62
       },
       "cards": [
         {
@@ -7431,6 +7488,12 @@
           "fires_in_any_run": true,
           "datasets": [
             {
+              "product_id": "signor-mechanism-network-per-gene-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "signor-mechanism-network-per-gene-v1"
+            },
+            {
               "product_id": "signor-jul2026",
               "in_catalog": true,
               "matched_by": "exact",
@@ -7852,7 +7915,8 @@
           "known-drug-tractability",
           "measured-potency-tractability",
           "degradation-feasibility",
-          "gdsc-drug-activity"
+          "gdsc-drug-activity",
+          "mutation-hotspot-frequency"
         ],
         "rules_scope": [
           "all"
@@ -7879,9 +7943,10 @@
           "known-drug-tractability",
           "measured-potency-tractability",
           "degradation-feasibility",
-          "gdsc-drug-activity"
+          "gdsc-drug-activity",
+          "mutation-hotspot-frequency"
         ],
-        "test_count": 13
+        "test_count": 15
       },
       "cards": [
         {
@@ -8050,6 +8115,41 @@
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
         },
         {
+          "card_id": "mutation-hotspot-frequency",
+          "card_yaml_exists": true,
+          "is_self_produced_skill_card": false,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "mutation_hotspot_frequency",
+          "has_live_reader": false,
+          "method_call": "gdc-somatic-hotspot",
+          "dispatch_module": null,
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": true,
+          "fires_in_any_run": true,
+          "datasets": [
+            {
+              "product_id": "gdc-pancohort-somatic",
+              "in_catalog": true,
+              "matched_by": "prefix",
+              "resolved_id": "gdc-pancohort-somatic-dr45-0"
+            },
+            {
+              "product_id": "pooled-snv-recurrence-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "pooled-snv-recurrence-v1"
+            }
+          ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
+        },
+        {
           "card_id": "prism-compound-activity",
           "card_yaml_exists": true,
           "is_self_produced_skill_card": false,
@@ -8152,8 +8252,8 @@
         }
       ],
       "n_core_cards": 0,
-      "n_cards": 8,
-      "n_cards_live": 7,
+      "n_cards": 9,
+      "n_cards_live": 8,
       "n_p4_required": 7,
       "n_p4_declared": 7,
       "drift_flags": [
@@ -8172,13 +8272,13 @@
       "runs_clean": "clean",
       "run_health": {
         "status": "ok",
-        "n_cards_consumed": 8,
-        "n_cards_resolved": 8,
+        "n_cards_consumed": 9,
+        "n_cards_resolved": 9,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.0649,
-        "compute_secs": 0.1461,
-        "total_secs": 0.211
+        "read_secs": 0.0726,
+        "compute_secs": 0.2292,
+        "total_secs": 0.3082
       }
     },
     {
@@ -8373,9 +8473,9 @@
         "n_cards_resolved": 4,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.0213,
-        "compute_secs": 0.0868,
-        "total_secs": 0.1081
+        "read_secs": 0.0203,
+        "compute_secs": 0.143,
+        "total_secs": 0.1685
       }
     },
     {
@@ -9249,9 +9349,9 @@
         "n_cards_resolved": 17,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.1426,
-        "compute_secs": 0.3027,
-        "total_secs": 0.4453
+        "read_secs": 0.1392,
+        "compute_secs": 0.3597,
+        "total_secs": 0.5054
       }
     },
     {
@@ -10090,9 +10190,9 @@
         "n_cards_resolved": 13,
         "n_cards_fired": 0,
         "cards_fired": [],
-        "read_secs": 0.108,
-        "compute_secs": 0.2622,
-        "total_secs": 0.3703
+        "read_secs": 0.1117,
+        "compute_secs": 0.3246,
+        "total_secs": 0.4435
       }
     }
   ],
@@ -10113,6 +10213,12 @@
       "fires_in_real_package": true,
       "fires_in_any_run": true,
       "datasets": [
+        {
+          "product_id": "depmap-gygi-protein-abundance-per-protein-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "depmap-gygi-protein-abundance-per-protein-v1"
+        },
         {
           "product_id": "depmap-consortium-26q1-proteomics",
           "in_catalog": true,
@@ -11155,8 +11261,8 @@
       "card_id": "coessential-module",
       "card_yaml_exists": true,
       "is_self_produced_skill_card": false,
-      "is_placeholder": true,
-      "placeholder_reason": "status:dormant_pending_data",
+      "is_placeholder": false,
+      "placeholder_reason": null,
       "measurement_type": "coessential_module",
       "has_live_reader": false,
       "method_call": "coessential-module",
@@ -11225,10 +11331,9 @@
       "reason_text": "fires passed/passed_with_warnings in at least one real evidence package",
       "consumers": [
         "combination-and-vulnerability",
-        "combinatorial-dependency",
         "target-profile"
       ],
-      "n_consumers": 3,
+      "n_consumers": 2,
       "is_orphan": false,
       "is_staged_orphan": false,
       "dashboard_specs": [],
@@ -11534,6 +11639,53 @@
         "genomic-alteration-profile"
       ],
       "n_consumers": 2,
+      "is_orphan": false,
+      "is_staged_orphan": false,
+      "dashboard_specs": [],
+      "in_dashboard_spec": false,
+      "consumed_but_no_spec": true
+    },
+    {
+      "card_id": "cross-consortium-paralog-gi",
+      "card_yaml_exists": true,
+      "is_self_produced_skill_card": false,
+      "is_placeholder": false,
+      "placeholder_reason": null,
+      "measurement_type": "cross_consortium_paralog_gi",
+      "has_live_reader": true,
+      "method_call": "cross-consortium-paralog-gi",
+      "dispatch_module": "paralog_genetic_interaction.read",
+      "method_dir_exists": true,
+      "method_has_read": true,
+      "stale_method_label": false,
+      "fires_in_real_package": false,
+      "fires_in_any_run": false,
+      "datasets": [
+        {
+          "product_id": "dede-paralog-genetic-interaction-per-pair-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "dede-paralog-genetic-interaction-per-pair-v1"
+        },
+        {
+          "product_id": "in4mer-paralog-genetic-interaction-per-pair-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "in4mer-paralog-genetic-interaction-per-pair-v1"
+        }
+      ],
+      "modality_relevance": [
+        "small_molecule",
+        "degrader"
+      ],
+      "modality_routing": "declared",
+      "card_health": "wired",
+      "health_reason": "card-reader-never-fires",
+      "reason_text": "has a bespoke live reader but has not fired passed/warned in any real package yet \u2014 WIRED, awaiting its first governed firing (NOT a defect)",
+      "consumers": [
+        "combination-and-vulnerability"
+      ],
+      "n_consumers": 1,
       "is_orphan": false,
       "is_staged_orphan": false,
       "dashboard_specs": [],
@@ -12891,9 +13043,10 @@
       "reason_text": "fires passed/passed_with_warnings in at least one real evidence package",
       "consumers": [
         "genomic-alteration-profile",
-        "target-profile"
+        "target-profile",
+        "tractability-small-molecule"
       ],
-      "n_consumers": 2,
+      "n_consumers": 3,
       "is_orphan": false,
       "is_staged_orphan": false,
       "dashboard_specs": [
@@ -13227,9 +13380,10 @@
       "health_reason": "card-generic-dispatch-never-fires",
       "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint) \u2014 WIRED, awaiting its first governed firing (NOT a defect: verified generic-routed cards read fine, e.g. translational-readiness / tractability legs)",
       "consumers": [
+        "on-target-safety-liability",
         "tumor-selectivity"
       ],
-      "n_consumers": 1,
+      "n_consumers": 2,
       "is_orphan": false,
       "is_staged_orphan": false,
       "dashboard_specs": [],
@@ -13751,6 +13905,12 @@
       "fires_in_real_package": true,
       "fires_in_any_run": true,
       "datasets": [
+        {
+          "product_id": "cptac-phospho-per-site-per-cohort-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "cptac-phospho-per-site-per-cohort-v1"
+        },
         {
           "product_id": "cptac-pdc-snapshot-2026-07-01",
           "in_catalog": true,
@@ -14727,6 +14887,12 @@
       "fires_in_any_run": true,
       "datasets": [
         {
+          "product_id": "signor-mechanism-network-per-gene-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "signor-mechanism-network-per-gene-v1"
+        },
+        {
           "product_id": "signor-jul2026",
           "in_catalog": true,
           "matched_by": "exact",
@@ -14957,9 +15123,10 @@
       "health_reason": "card-live-fired",
       "reason_text": "fires passed/passed_with_warnings in at least one real evidence package",
       "consumers": [
+        "immune-context",
         "tumor-selectivity"
       ],
-      "n_consumers": 1,
+      "n_consumers": 2,
       "is_orphan": false,
       "is_staged_orphan": false,
       "dashboard_specs": [],
@@ -15720,10 +15887,9 @@
       "health_reason": "card-live-fired",
       "reason_text": "fires passed/passed_with_warnings in at least one real evidence package",
       "consumers": [
-        "combination-and-vulnerability",
-        "synthetic-lethal-partners"
+        "combination-and-vulnerability"
       ],
-      "n_consumers": 2,
+      "n_consumers": 1,
       "is_orphan": false,
       "is_staged_orphan": false,
       "dashboard_specs": [],
@@ -18821,9 +18987,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 2,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "phospho-pathway-activity"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -19075,9 +19243,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 1,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "cross-consortium-paralog-gi"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -19120,7 +19290,7 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "all_consumers_placeholder": true,
+      "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
       "is_pending_ref": false,
@@ -19458,10 +19628,11 @@
       "system_of_record": null,
       "n_derived_from": 1,
       "consumed_by_cards": [
+        "abundance-dependency",
         "cellline-protein-abundance",
         "cis-feature-protein-coherence"
       ],
-      "n_consumers": 2,
+      "n_consumers": 3,
       "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
@@ -22039,9 +22210,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 1,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "cross-consortium-paralog-gi"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -22702,6 +22875,66 @@
       "is_broken_ref": false,
       "is_pending_ref": false,
       "access_cost": "unknown",
+      "missing_sort_key": false
+    },
+    {
+      "product_id": "omicsoft-oncoland-ccle-b38-gc33-2025r3",
+      "in_catalog": true,
+      "kind": "source",
+      "provider": "omicsoft-oncoland",
+      "version": "CCLE_B38_GC33_20250901_2025R3",
+      "size_bytes": 1763430904,
+      "file_count": 10,
+      "system_of_record": false,
+      "n_derived_from": 0,
+      "consumed_by_cards": [],
+      "n_consumers": 0,
+      "is_orphan": true,
+      "all_consumers_placeholder": false,
+      "has_sort_key": false,
+      "is_broken_ref": false,
+      "is_pending_ref": false,
+      "access_cost": "low",
+      "missing_sort_key": false
+    },
+    {
+      "product_id": "omicsoft-oncoland-gtex-b38-gc33-2025r3",
+      "in_catalog": true,
+      "kind": "source",
+      "provider": "omicsoft-oncoland",
+      "version": "GTEx_B38_GC33_20250901_2025R3",
+      "size_bytes": 8619341141,
+      "file_count": 7,
+      "system_of_record": false,
+      "n_derived_from": 0,
+      "consumed_by_cards": [],
+      "n_consumers": 0,
+      "is_orphan": true,
+      "all_consumers_placeholder": false,
+      "has_sort_key": false,
+      "is_broken_ref": false,
+      "is_pending_ref": false,
+      "access_cost": "moderate_unused",
+      "missing_sort_key": false
+    },
+    {
+      "product_id": "omicsoft-oncoland-tcga-b38-gc33-2025r3",
+      "in_catalog": true,
+      "kind": "source",
+      "provider": "omicsoft-oncoland",
+      "version": "TCGA_B38_GC33_20250901_2025R3",
+      "size_bytes": 15508883821,
+      "file_count": 9,
+      "system_of_record": false,
+      "n_derived_from": 0,
+      "consumed_by_cards": [],
+      "n_consumers": 0,
+      "is_orphan": true,
+      "all_consumers_placeholder": false,
+      "has_sort_key": false,
+      "is_broken_ref": false,
+      "is_pending_ref": false,
+      "access_cost": "moderate_unused",
       "missing_sort_key": false
     },
     {
@@ -25642,9 +25875,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 1,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "signaling-network-mechanism"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -27621,14 +27856,6 @@
         "risk_category": null
       },
       {
-        "id": "skill:combinatorial-dependency",
-        "layer": "skill",
-        "label": "combinatorial-dependency",
-        "health": "production_ready",
-        "kind": "FOCUSED",
-        "risk_category": null
-      },
-      {
         "id": "skill:cross-evidence-hypothesis",
         "layer": "skill",
         "label": "cross-evidence-hypothesis",
@@ -27738,14 +27965,6 @@
         "label": "surfaceome-cohort-ranking",
         "health": "partial",
         "kind": "OTHER",
-        "risk_category": null
-      },
-      {
-        "id": "skill:synthetic-lethal-partners",
-        "layer": "skill",
-        "label": "synthetic-lethal-partners",
-        "health": "partial",
-        "kind": "FOCUSED",
         "risk_category": null
       },
       {
@@ -28075,6 +28294,14 @@
         "health": "live",
         "is_orphan": false,
         "measurement_type": "cross_consortium_dependency"
+      },
+      {
+        "id": "card:cross-consortium-paralog-gi",
+        "layer": "card",
+        "label": "cross-consortium-paralog-gi",
+        "health": "wired",
+        "is_orphan": false,
+        "measurement_type": "cross_consortium_paralog_gi"
       },
       {
         "id": "card:ddr-deficiency-context",
@@ -29375,6 +29602,11 @@
         "rel": "backed_by"
       },
       {
+        "src": "card:cross-consortium-paralog-gi",
+        "dst": "method:paralog_genetic_interaction",
+        "rel": "backed_by"
+      },
+      {
         "src": "card:degradation-feasibility",
         "dst": "method:degradation_feasibility",
         "rel": "backed_by"
@@ -29681,17 +29913,17 @@
       },
       {
         "src": "skill:combination-and-vulnerability",
+        "dst": "card:cross-consortium-paralog-gi",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:combination-and-vulnerability",
         "dst": "card:resistance-emergence-signature",
         "rel": "consumes"
       },
       {
         "src": "skill:combination-and-vulnerability",
         "dst": "card:synthetic-lethal-partners",
-        "rel": "consumes"
-      },
-      {
-        "src": "skill:combinatorial-dependency",
-        "dst": "card:combinatorial-dependency",
         "rel": "consumes"
       },
       {
@@ -29976,6 +30208,11 @@
       },
       {
         "src": "skill:immune-context",
+        "dst": "card:spatial-tumor-normal-colocalization",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:immune-context",
         "dst": "card:tcga-til-fraction-saltz",
         "rel": "consumes"
       },
@@ -30062,6 +30299,11 @@
       {
         "src": "skill:on-target-safety-liability",
         "dst": "card:normal-tissue-liability-gtex",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:on-target-safety-liability",
+        "dst": "card:normal-tissue-protein-abundance-tphp",
         "rel": "consumes"
       },
       {
@@ -30207,11 +30449,6 @@
       {
         "src": "skill:surfaceome-cohort-ranking",
         "dst": "card:surfaceome-cohort-ranking",
-        "rel": "consumes"
-      },
-      {
-        "src": "skill:synthetic-lethal-partners",
-        "dst": "card:synthetic-lethal-partners",
         "rel": "consumes"
       },
       {
@@ -30526,6 +30763,11 @@
       },
       {
         "src": "skill:tractability-small-molecule",
+        "dst": "card:mutation-hotspot-frequency",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:tractability-small-molecule",
         "dst": "card:prism-compound-activity",
         "rel": "consumes"
       },
@@ -30716,13 +30958,13 @@
       }
     ],
     "layer_counts": {
-      "skill": 27,
+      "skill": 25,
       "resolver": 0,
       "card": 149,
       "method": 54
     },
-    "n_nodes": 229,
-    "n_edges": 280
+    "n_nodes": 228,
+    "n_edges": 283
   },
   "drift_index": [
     {
@@ -30733,15 +30975,15 @@
     },
     {
       "skill": "combination-and-vulnerability",
-      "code": "card_consumed_but_no_spec",
+      "code": "card_registered_never_fires",
       "severity": "info",
-      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: combinatorial-dependency, combo-chemical-synergy, combo-crispr-screen, resistance-emergence-signature, synthetic-lethal-partners"
+      "detail": "consumed card(s) have a live reader but never fired in a real package: cross-consortium-paralog-gi"
     },
     {
-      "skill": "combinatorial-dependency",
+      "skill": "combination-and-vulnerability",
       "code": "card_consumed_but_no_spec",
       "severity": "info",
-      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: combinatorial-dependency"
+      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: combinatorial-dependency, combo-chemical-synergy, combo-crispr-screen, cross-consortium-paralog-gi, resistance-emergence-signature, synthetic-lethal-partners"
     },
     {
       "skill": "differentiation-landscape",
@@ -30753,7 +30995,7 @@
       "skill": "functional-requirement",
       "code": "card_consumed_but_no_spec",
       "severity": "info",
-      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: abundance-dependency, cross-consortium-dependency, genomic-event-model-match, organoid-crispr-dependency, paralog-buffering, partner-conditional-dependency, recommended-models"
+      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: abundance-dependency, coessential-module, cross-consortium-dependency, genomic-event-model-match, organoid-crispr-dependency, paralog-buffering, partner-conditional-dependency, recommended-models"
     },
     {
       "skill": "genomic-alteration-profile",
@@ -30777,7 +31019,7 @@
       "skill": "immune-context",
       "code": "card_consumed_but_no_spec",
       "severity": "info",
-      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: caf-compartment-expression-luo, ici-response-association, ici-response-imvigor210, immune-context, myeloid-compartment-expression-cheng, tcga-til-fraction-saltz"
+      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: caf-compartment-expression-luo, ici-response-association, ici-response-imvigor210, immune-context, myeloid-compartment-expression-cheng, spatial-tumor-normal-colocalization, tcga-til-fraction-saltz"
     },
     {
       "skill": "literature-context",
@@ -30795,7 +31037,7 @@
       "skill": "on-target-safety-liability",
       "code": "card_consumed_but_no_spec",
       "severity": "info",
-      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: alteration-role, clingen-dosage, clinvar-pathogenicity-safety, drug-warning-safety, functional-gene-state, gene-burden-safety, gnomad-lof-constraint, mouse-ko-phenotype, normal-tissue-liability-gtex, onsides-adverse-event-safety, shet-lof-intolerance, target-safety-prioritisation"
+      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: alteration-role, clingen-dosage, clinvar-pathogenicity-safety, drug-warning-safety, functional-gene-state, gene-burden-safety, gnomad-lof-constraint, mouse-ko-phenotype, normal-tissue-liability-gtex, normal-tissue-protein-abundance-tphp, onsides-adverse-event-safety, shet-lof-intolerance, target-safety-prioritisation"
     },
     {
       "skill": "surface-modality-fit",
@@ -30814,12 +31056,6 @@
       "code": "card_consumed_but_no_spec",
       "severity": "info",
       "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: surfaceome-cohort-ranking"
-    },
-    {
-      "skill": "synthetic-lethal-partners",
-      "code": "card_consumed_but_no_spec",
-      "severity": "info",
-      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: synthetic-lethal-partners"
     },
     {
       "skill": "target-intrinsic",
