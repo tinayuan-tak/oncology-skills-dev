@@ -35,14 +35,24 @@ def test_coadread_resolves_the_curated_molecular_strata():
     assert {"CMS1", "CMS2", "CMS3", "CMS4"} <= set(strata)
 
 
-def test_curated_registry_excludes_staging_and_source_duplicated_ids():
+def test_curated_registry_excludes_staging_but_includes_the_depmap_cms_axis():
     """The reason this defaults to the CONTRACTS crosswalk and not the data-catalog subgroup
     catalog: the catalog's raw COADREAD list carries `stage_I`/`stage_II`/`stage_resectable`
-    (staging, not molecular biology) and `CMS1_depmap`..`CMS4_depmap` alongside `CMS1`..`CMS4`.
-    The tier's semantics are molecular, so an auto-resolved scope must not include those."""
+    (staging, not molecular biology), which the curated crosswalk omits — so an auto-resolved
+    scope must not include those.
+
+    (2026-09-11, NSCLC/DepMap-CMS shard wiring) `CMS1_depmap`..`CMS4_depmap` are NO LONGER
+    treated as source-duplicates of `CMS1`..`CMS4`: they are a DISTINCT DepMap-cohort axis
+    (molecular_subtype_depmap), materialized by CMScaller NTP on cell lines. They ARE curated
+    in the crosswalk and auto-resolve, because the per-card cohort filter routes them to the
+    DepMap dependency card (which the TCGA CMS ids can't serve) — the opposite of a duplicate.
+    So the scope carries BOTH the TCGA CMS and the DepMap CMS, on different cards."""
     strata = set(default_subtypes("COADREAD")[0])
-    assert not {s for s in strata if s.startswith("stage_")}
-    assert not {s for s in strata if s.endswith("_depmap")}
+    assert not {s for s in strata if s.startswith("stage_")}  # staging still excluded (not in crosswalk)
+    # the DepMap-CMS axis is now a legitimate, curated part of the scope
+    assert {"CMS1_depmap", "CMS2_depmap", "CMS3_depmap", "CMS4_depmap"} <= strata
+    # ...and distinct from the trusted TCGA Guinney CMS ids (both present, not collapsed)
+    assert {"CMS1", "CMS2", "CMS3", "CMS4"} <= strata
 
 
 def test_strata_are_deduped_and_order_stable():

@@ -484,7 +484,121 @@ _MUTATION_LOT_ASSIGNMENTS_MANIFEST = {
 _LOT_STRATUM_PREFIX = "LOT_"
 _DEPENDENCY_ASSIGNMENTS_MANIFEST = {
     "COADREAD": "depmap-subgroup-assignments-coadread-v1",
+    "NSCLC": "depmap-subgroup-assignments-nsclc-v1",  # histology_Adeno/SCC (LUAD/LUSC) cell-line dependency
 }
+
+# ── MULTI-SHARD assignments (2026-09-11, NSCLC/DepMap-CMS wiring) ────────────────────────────────
+# Reality is MULTIPLE assignments shards per (indication, cohort), partitioned by DERIVATION METHOD —
+# one shard cannot be both directly-tagged AND classifier-run AND maf-filtered. The single-shard maps
+# above cover only the primary; these registries list the FULL shard set for a panorama family, each
+# with the DISJOINT stratum set it carries (the shard is the authoritative "what's servable" — more
+# precise than the crosswalk cohort: e.g. the NSCLC DepMap shard carries ONLY histology, not the
+# EGFR/KRAS mutation-status strata the crosswalk marks depmap). The dispatcher routes each requested
+# stratum to the shard that carries it, calls the builder once per populated shard, and MERGES; strata
+# no shard carries get an honest data-note (never a fabricated absent row). An indication absent here →
+# single-shard behaviour (the primary manifest read_live_summary passed).
+#
+# DEPENDENCY (DepMap cell-line): COADREAD has an MSI shard + a CMScaller CMS shard; NSCLC has one
+# histology shard.
+_DEPENDENCY_ASSIGNMENTS_SHARDS = {
+    "COADREAD": [
+        ("depmap-subgroup-assignments-coadread-v1", {"MSI_H", "MSS"}),
+        ("depmap-subgroup-assignments-coadread-cms-v1", {"CMS1_depmap", "CMS2_depmap", "CMS3_depmap", "CMS4_depmap"}),
+    ],
+    "NSCLC": [
+        ("depmap-subgroup-assignments-nsclc-v1", {"histology_Adeno", "histology_SCC"}),
+    ],
+}
+# MUTATION-FREQUENCY molecular (non-LOT) TCGA-patient shards: NSCLC splits a directly-tagged
+# histology/fusion/TMB shard + a MAF mutation-status shard. (COADREAD stays single-shard via the
+# _MUTATION_ASSIGNMENTS_MANIFEST primary — its maf-status strata are a separate pre-existing gap.)
+_MUTATION_MOLECULAR_ASSIGNMENTS_SHARDS = {
+    "NSCLC": [
+        (
+            "tcga-subgroup-assignments-nsclc-v1",
+            {"histology_Adeno", "histology_SCC", "ALK_fusion", "ROS1_fusion", "RET_fusion", "TMB_high"},
+        ),
+        (
+            "tcga-subgroup-assignments-nsclc-maf-v1",
+            {
+                "EGFR_mut_ex19del",
+                "EGFR_mut_L858R",
+                "EGFR_mut_ex20ins",
+                "KRAS_G12C",
+                "KRAS_G12D",
+                "BRAF_V600E",
+                "MET_ex14",
+                "HER2_mut",
+            },
+        ),
+    ],
+}
+
+
+def _merge_panoramas(panoramas: list[dict], *, reducer_metric: str, reducer_label: str) -> dict:
+    """Merge N per_subgroup_metrics panoramas into one, re-reducing the cross-stratum scalars over the
+    union (a single-shard panorama carries the reducer scalars, but a naive concat drops them — see the
+    molecular+LOT merge). Concatenates rows, joins any data-notes, and re-runs the SAME delta_reducer
+    the builder uses. Order-preserving in `panoramas` order."""
+    panoramas = [p for p in panoramas if p]
+    if not panoramas:
+        return {"per_subgroup_metrics": []}
+    if len(panoramas) == 1:
+        return panoramas[0]
+    merged: list = []
+    notes: list[str] = []
+    for p in panoramas:
+        merged.extend(p.get("per_subgroup_metrics") or [])
+        if p.get("_data_note"):
+            notes.append(p["_data_note"])
+    delta_reducer = _import_method("subgroup_common.panorama").delta_reducer
+    out = {"per_subgroup_metrics": merged}
+    out.update(delta_reducer(merged, metric_key=reducer_metric, label=reducer_label))
+    if notes:
+        out["_data_note"] = " | ".join(notes)
+    return out
+
+
+def _route_strata_to_shards(
+    builder,
+    *,
+    target: str,
+    indication: str,
+    subgroups: list,
+    shards: list,
+    reducer_metric: str,
+    reducer_label: str,
+    **builder_kwargs,
+) -> dict:
+    """Route each requested stratum to the shard (of `shards` = [(manifest, {strata})]) that carries it,
+    call `builder(target=, indication=, subgroups=<carried subset>, subgroup_assignments_manifest=<shard>,
+    **builder_kwargs)` once per populated shard, and merge (re-reducing over the union). Strata no shard
+    carries get an honest data-note — never a fabricated row. Preserves requested-order within a shard."""
+    panoramas: list[dict] = []
+    covered: set = set()
+    for manifest, carried in shards:
+        sub = [s for s in subgroups if s in carried]
+        if sub:
+            panoramas.append(
+                builder(
+                    target=target,
+                    indication=indication,
+                    subgroups=sub,
+                    subgroup_assignments_manifest=manifest,
+                    **builder_kwargs,
+                )
+            )
+            covered.update(sub)
+    uncovered = [s for s in subgroups if s not in covered]
+    if uncovered:
+        panoramas.append(
+            {
+                "per_subgroup_metrics": [],
+                "_data_note": f"strata {uncovered} requested but carried by no "
+                f"assignments shard for indication={indication!r}",
+            }
+        )
+    return _merge_panoramas(panoramas, reducer_metric=reducer_metric, reducer_label=reducer_label)
 
 
 def _dispatch_subgroup_stratified_mutation_frequency(
@@ -515,12 +629,37 @@ def _dispatch_subgroup_stratified_mutation_frequency(
     molecular_strata = [s for s in subgroups if not str(s).startswith(_LOT_STRATUM_PREFIX)]
 
     panoramas: list[dict] = []
-    # Molecular axis → the TCGA shard passed in by read_live_summary (tcga_mc3 default).
+    # Molecular axis → the TCGA shard(s). Multi-shard indications (NSCLC: directly-tagged histology/
+    # fusion/TMB shard + a MAF mutation-status shard) route each stratum to the shard that carries it;
+    # single-shard indications (COADREAD) use the primary passed by read_live_summary. Each per-shard
+    # panorama is appended to `panoramas`; the final merge below re-reduces over the union (molecular +
+    # LOT), so the multi-shard split is invisible downstream.
     if molecular_strata:
-        if subgroup_assignments_manifest is None:
-            # No molecular/TCGA shard for this indication (e.g. NSCLC ships only a GENIE-BPC LOT
-            # shard) — emit an honest per-axis data-note instead of calling the builder with a
-            # null manifest; the LOT arm below still serves the LOT_* strata.
+        mol_shards = _MUTATION_MOLECULAR_ASSIGNMENTS_SHARDS.get(indication)
+        if mol_shards:
+            covered: set = set()
+            for manifest, carried in mol_shards:
+                sub = [s for s in molecular_strata if s in carried]
+                if sub:
+                    panoramas.append(
+                        hotspot_module.build_mutation_frequency_panorama(
+                            target=target, indication=indication, subgroups=sub, subgroup_assignments_manifest=manifest
+                        )
+                    )
+                    covered.update(sub)
+            uncovered = [s for s in molecular_strata if s not in covered]
+            if uncovered:
+                panoramas.append(
+                    {
+                        "per_subgroup_metrics": [],
+                        "_data_note": f"molecular strata {uncovered} requested but carried by no molecular "
+                        f"subgroup-assignments shard for indication={indication!r}",
+                    }
+                )
+        elif subgroup_assignments_manifest is None:
+            # No molecular/TCGA shard for this indication (e.g. an indication shipping only a GENIE-BPC
+            # LOT shard) — emit an honest per-axis data-note instead of calling the builder with a null
+            # manifest; the LOT arm below still serves the LOT_* strata.
             panoramas.append(
                 {
                     "per_subgroup_metrics": [],
@@ -599,6 +738,19 @@ def _dispatch_subgroup_stratified_dependency(
     WITHIN each stratum's cell-line member-set. Descriptive — no signal.
     """
     chronos_module = _import_method("depmap_chronos")
+    shards = _DEPENDENCY_ASSIGNMENTS_SHARDS.get(indication)
+    if shards:
+        # Multi-shard indication (COADREAD MSI+CMS; NSCLC histology): route each stratum to the shard
+        # that carries it + merge. Single-entry registries (NSCLC) route through the same path harmlessly.
+        return _route_strata_to_shards(
+            chronos_module.build_dependency_panorama,
+            target=target,
+            indication=indication,
+            subgroups=subgroups,
+            shards=shards,
+            reducer_metric="median_chronos",
+            reducer_label="dependency",
+        )
     return chronos_module.build_dependency_panorama(
         target=target,
         indication=indication,
