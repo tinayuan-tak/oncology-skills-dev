@@ -559,6 +559,114 @@ def test_confidence_floor_is_a_max_never_lowers():
 
 
 # ===========================================================================
+# POSITIVE NOMINATION (A1, 2026-09-11, gate vocab 1.18.0)
+#
+# Before this, the gate could ONLY veto/hold — measured on the known-target panel: 10 hold,
+# 2 veto, 17 abstain, ZERO nominate, with ERBB2/BRCA sitting at `strong` on 3 hits (all 3
+# `dominant`) and still resolving to no recommendation. Every `nominate` was LLM-authored,
+# which is what made the panel's specificity arm (must_not_nominate + 2 decoys) vacuous.
+# ===========================================================================
+
+
+def _vocab_with(tmp_path, **positive_cfg):
+    """Write a minimal gate vocab into tmp_path/vocabularies and return the repo root.
+    Mirrors test_positive_tier_absent_from_vocab_yields_no_tier's fixture shape."""
+    import yaml as _yaml
+
+    voc = tmp_path / "vocabularies"
+    voc.mkdir(exist_ok=True)
+    (voc / "nomination_verdict_gate.yaml").write_text(
+        _yaml.safe_dump(
+            {
+                "enum_id": "nomination_verdict_gate",
+                "version": "1.18.0",
+                "action_precedence": {"veto": 2, "hold": 1},
+                "positive_signals": [
+                    {"sub_skill": "dependency", "verdict": "selective_dependency", "weight": "dominant"},
+                ],
+                "positive_contradictions": [],
+                "positive_tier_config": {"min_dimensions_for_strong": 2, "require_dominant_for_strong": True}
+                | positive_cfg,
+                "gates": [
+                    {
+                        "sub_skill": "dependency",
+                        "verdict": "non_dependent",
+                        "action": "veto",
+                        "rationale": "x",
+                        "driving_rule_ids": ["non-dependent-killer"],
+                    }
+                ],
+            }
+        )
+    )
+    return tmp_path
+
+
+def test_positive_tier_nominates_reads_the_threshold_from_the_vocab(tmp_path):
+    """The nomination bar is POLICY, not code: it comes from
+    positive_tier_config.forces_nominate_at_tier so a product owner can move it without a code
+    change, exactly like the veto/hold policy."""
+    repo = _vocab_with(tmp_path, forces_nominate_at_tier="strong")
+    assert tp._positive_tier_nominates("strong", contracts_repo=repo) is True
+    # `moderate` is reachable on a SINGLE supportive hit — it must never mint a GO.
+    assert tp._positive_tier_nominates("moderate", contracts_repo=repo) is False
+    assert tp._positive_tier_nominates(None, contracts_repo=repo) is False
+
+
+def test_positive_tier_nominates_fails_closed_without_the_key(tmp_path):
+    """FAIL-CLOSED and backward-compatible: a vocab with no forces_nominate_at_tier (every version
+    before 1.18.0) nominates nothing, reproducing pre-A1 behaviour. This is the INVERTED fallback of
+    the kill path — a broken kill vocab must still FIRE vetoes, a broken positive vocab must never
+    MINT a GO. Non-vacuous by construction: the sibling test above proves the True branch exists."""
+    repo = _vocab_with(tmp_path)  # no forces_nominate_at_tier
+    assert tp._positive_tier_nominates("strong", contracts_repo=repo) is False
+    assert tp._positive_tier_nominates("moderate", contracts_repo=repo) is False
+
+
+def test_forced_nominate_is_not_a_gate_action():
+    """The nomination is deliberately NOT in action_precedence. That map is the key function of a
+    `max()` over the FIRED KILL hits, so a positive token in it could be ranked against — and
+    tie-break with — a veto/hold. `nominate` therefore lives in its own branch, reachable only on
+    abstention, and can never appear as a _gate_recommendation action."""
+    import tp_gates
+
+    assert "nominate" not in tp_gates._GATE_ACTION_RANK, tp_gates._GATE_ACTION_RANK
+    assert "nominate" not in tp_gates._FALLBACK_GATE_ACTION_RANK
+    subs = dict(_dominant_positives())
+    gate_action, hits, _sup = tp._gate_recommendation(subs)
+    assert gate_action is None, "a full house of positives must not produce a GATE action"
+    assert all(h["action"] != "nominate" for h in hits)
+
+
+def test_f1_forced_nominate_unreachable_when_a_kill_fired():
+    """THE F1 GUARD for the positive half: the nomination branch is inside the ELSE of
+    `if gate_action:`, so a full house of positives (strong tier, all dominant) cannot mint a
+    nominate over a fired veto. Mirrors main()'s branch structure, like its confidence-floor
+    sibling above."""
+    subs = dict(_dominant_positives())
+    subs["dependency"] = {"verdict": ("pan_essential_killer", "pan-essential-killer")}  # KILL
+    gate_action, _, _sup = tp._gate_recommendation(subs)
+    assert gate_action == "veto"
+    tier, _ = tp._positive_tier(subs)
+    nominated = (not gate_action) and tp._positive_tier_nominates(tier)
+    assert not nominated, "a vetoed target was nominated by the positive tier"
+
+
+def test_nominate_withheld_when_the_llm_authored_a_rule_less_negative():
+    """THE INTERLOCK: on abstention an LLM-authored veto/hold has no rule behind it, so the
+    lower-bound clamp demotes the VALUE to insufficient_evidence — but the narrative still argues
+    against the target. Forcing `nominate` on top of that would publish a positive call beside prose
+    arguing the opposite. Mirrors main()'s abstention branch: clamp fired ⇒ withhold."""
+    clamped_to, _rec = tp.abstention_lower_bound_clamp("veto")
+    assert clamped_to == "insufficient_evidence", "clamp precondition (a) must fire on an LLM veto"
+    # ...and with the clamp fired, the nomination is withheld even at the nominating tier.
+    withheld = clamped_to is not None
+    assert withheld, "an LLM-authored negative must block the forced nominate"
+    # Control: a non-negative LLM value does NOT clamp, so the nomination is free to fire.
+    assert tp.abstention_lower_bound_clamp("nominate")[0] is None
+
+
+# ===========================================================================
 # Veto suppression (v1.2.0, 2026-07-17) — backtest-driven gate-C correction.
 # Exercises the two suppression policies against the approved-drug false-negatives
 # the 16-target backtest found (EGFR/IDH1/FLT3 via context-escape; CD19/TROP2/DLL3

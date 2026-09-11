@@ -103,6 +103,7 @@ from tp_gates import (  # names main() calls directly
     _gate_scorecard,
     _hard_gates_status,
     _positive_tier,
+    _positive_tier_nominates,
     abstention_lower_bound_clamp,
     derive_thesis,
 )
@@ -1099,10 +1100,10 @@ def main() -> int:
                 f"'{clamped_to}' (gate abstained — no veto/hold rule fired)",
                 file=sys.stderr,
             )
-        # (b) the positive tier (computed above, before the branch) may raise a deterministic confidence
-        #     FLOOR. F1-safe: this branch is unreachable when a kill fired; it touches ONLY `confidence`,
-        #     never forces nominate. The tier/hits are already on confidence_tier; only the floor is
-        #     abstention-scoped (a killed target is never confidence-RAISED).
+        # (b) the positive tier (computed above, before the branch) raises a deterministic confidence
+        #     FLOOR and, at the tier the vocab names, FORCES `nominate` (see (c)). F1-safe: this branch
+        #     is unreachable when a kill fired. The tier/hits are already on confidence_tier; only the
+        #     floor is abstention-scoped (a killed target is never confidence-RAISED).
         if tier:
             floor = _TIER_TO_CONFIDENCE[tier]  # strong→high, moderate→medium
             conf = llm_output.get("confidence")
@@ -1122,6 +1123,66 @@ def main() -> int:
                 f"confidence floor {floor}",
                 file=sys.stderr,
             )
+        # (c) POSITIVE NOMINATION (A1, 2026-09-11). At the tier the vocab names
+        #     (positive_tier_config.forces_nominate_at_tier = `strong`), the positive path FORCES
+        #     `nominate` — the mirror of what a kill gate does, and the half of the gate that was
+        #     missing. Until now this gate could only veto/hold, so every nomination was LLM-authored
+        #     with no rule to attribute it to (measured on the known panel: 10 hold / 2 veto / 17
+        #     abstain / 0 nominate — ERBB2/BRCA hit `strong` on 3 hits, ALL 3 `dominant`, and still
+        #     resolved to None). `strong` is the right bar because it already means: >= min_dimensions
+        #     INDEPENDENT lines, a `dominant` hit, and no unreconciled MEASURED contradiction.
+        #
+        #     Structurally F1-safe for the same reason the floor above is: unreachable when a kill
+        #     fired, so a nomination can never mask or outrank a veto/hold. Fail-closed on the vocab
+        #     (missing key => no nomination; a broken vocab cannot mint a GO).
+        #
+        #     ONE INTERLOCK — we do NOT nominate over an LLM-authored negative. If clamp (a) fired, the
+        #     narrative argues veto/hold while having no rule behind it; the clamp already demoted the
+        #     VALUE to insufficient_evidence, but the prose is still printed beside the call. Forcing
+        #     `nominate` on top of it would publish a positive call next to a narrative arguing against
+        #     it — worse than abstaining. Record the withholding instead of doing it silently.
+        if _positive_tier_nominates(tier, modality=args.modality):
+            if clamped_to is not None:
+                recommendation_gate["nominate_withheld"] = {
+                    "tier": tier,
+                    "reason": "llm_authored_negative",
+                    "llm_recommendation": llm_value,
+                    "detail": (
+                        "positive tier reached the nominating tier, but the LLM authored a "
+                        "rule-less negative (clamped by the abstention lower bound) — refusing to "
+                        "publish a positive call beside a narrative arguing against it"
+                    ),
+                }
+                print(
+                    f"[target-profile] positive tier {tier} reached the nominating tier but "
+                    f"nominate WITHHELD: LLM authored a rule-less negative ('{llm_value}')",
+                    file=sys.stderr,
+                )
+            else:
+                recommendation_gate["forced_recommendation"] = "nominate"
+                # `forced_by` disambiguates the two ways this key can now be written. `fired` is left
+                # alone ON PURPOSE: consumers read it as "a RESTRAINT gate fired" (e.g.
+                # cross-evidence-hypothesis maps fired+no-suppression to `declined`), so setting it
+                # here would invert a nomination into a kill. `positive_gate_fired` is the additive
+                # positive-side signal.
+                recommendation_gate["forced_by"] = "positive_tier"
+                recommendation_gate["positive_gate_fired"] = True
+                recommendation_gate["llm_recommendation"] = llm_value
+                recommendation_gate["overridden"] = llm_value != "nominate"
+                recommendation_gate["triggered_by"] = [
+                    {**h, "action": "nominate", "policy_source": "positive_tier"} for h in pos_hits
+                ]
+                if isinstance(rec, dict):
+                    rec["value"] = "nominate"
+                    rec["_gated"] = True  # rule-forced, not LLM-chosen
+                else:
+                    llm_output["overall_recommendation"] = {"value": "nominate", "_source": "positive_tier"}
+                print(
+                    f"[target-profile] positive gate FIRED: forced 'nominate' at tier {tier} "
+                    f"(LLM said '{llm_value}') via "
+                    f"{[h['short'] + ':' + h['verdict'] for h in pos_hits]}",
+                    file=sys.stderr,
+                )
 
     # Gate-complete ceiling: attach the COMPLETE declared hard-gate set with per-gate
     # fired/suppressed/excluded/blind status. Additive — reads the resolved gate state, forces
@@ -1269,7 +1330,9 @@ def main() -> int:
     if args.emit == "evidence-package":
         assert_write_set(args, _written)  # envelope-only write-set (evidence_package recorded above)
         print(f"[target-profile] wrote {ep_path} (evidence-package; deterministic, LLM-free)")
-        print(f"Recommendation: {gate_action or '(no gate fired)'}")
+        # gate_action carries only the KILL actions; a strong-tier forced `nominate` lives on
+        # recommendation_gate.forced_recommendation (A1) — read both or the console under-reports it.
+        print(f"Recommendation: {gate_action or recommendation_gate.get('forced_recommendation') or '(no gate fired)'}")
         _restore_run_log()
         return 0
 

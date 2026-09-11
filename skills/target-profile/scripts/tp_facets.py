@@ -1802,9 +1802,14 @@ def build_target_call(
     when a veto/hold rule fires (`gate.fired == true`) the gate FORCES the value; when the gate ABSTAINS,
     an LLM-authored NEGATIVE (veto/hold) is clamped to `insufficient_evidence` by the lower-bound guard
     (run.py else-branch → tp_gates.abstention_lower_bound_clamp; recorded as `gate.lower_bound_clamp`),
-    so a negative recommendation always has a rule (or the honest abstention floor) behind it. The only
-    value the LLM still owns outright is a `nominate` on abstention — bounded ABOVE by the kill gate,
-    the intended one-directional optimism band. Adds two things no single spine object carries: the
+    so a negative recommendation always has a rule (or the honest abstention floor) behind it.
+
+    POSITIVE side (A1, 2026-09-11, gate vocab 1.18.0): on abstention the STRONG positive tier now also
+    FORCES `nominate` (`gate.forced_recommendation` = "nominate" with `gate.forced_by` = "positive_tier";
+    `gate.fired` deliberately stays false — it means "a KILL fired"). So the LLM owns a `nominate`
+    outright only BELOW that tier — bounded above by the kill gate and now bounded below by the tier.
+    A nomination withheld by the LLM-authored-negative interlock is recorded as `gate.nominate_withheld`.
+    Adds two things no single spine object carries: the
     recommendation VALUE, and a `dissent` block naming where independent signals disagree with the
     gate (the honest 'why not higher / why not lower')."""
     rg = recommendation_gate or {}
@@ -1837,8 +1842,8 @@ def build_target_call(
         )
     return {
         "schema": "target_call.v1",
-        "recommendation": rec_val,  # gate-forced when gate.fired; on abstention a negative is clamped to insufficient (LLM owns only an abstention nominate)
-        "gate": rg,  # ← recommendation_gate (owns the value ONLY when gate.fired; abstention → LLM's)
+        "recommendation": rec_val,  # gate-forced when gate.fired OR gate.forced_by=="positive_tier"; on abstention a negative is clamped to insufficient
+        "gate": rg,  # ← recommendation_gate (owns the value when gate.fired or the strong positive tier forced a nominate)
         "confidence": confidence_tier,  # ← confidence_tier
         "deciding_axis": deciding_axis,  # ← deciding_axis
         "gate_scorecard": gate_scorecard,  # ← gate_scorecard

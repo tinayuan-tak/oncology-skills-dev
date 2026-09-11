@@ -171,8 +171,13 @@ def score_decoys(decoys: dict, pkg_dir: Path) -> dict:
             rows.append({**row, "status": "no_package", "reco": None})
             continue
         reco = _forced_reco(pkg)
-        # pass = did NOT nominate (the specificity guard held). --emit is LLM-free so a clean target
-        # is reco=None; a decoy should be held/vetoed by a gate, or at worst None — never `nominate`.
+        # pass = did NOT nominate (the specificity guard held). A decoy should be held/vetoed by a
+        # gate, or at worst None — never `nominate`.
+        # NOTE (A1, 2026-09-11): this arm used to be VACUOUS. --emit is LLM-free and the gate could
+        # only veto/hold, so `nominate` was unreachable in this mode by construction and every decoy
+        # passed for free. Since gate vocab 1.18.0 the strong positive tier FORCES `nominate` into
+        # recommendation_gate.forced_recommendation (which _forced_reco already reads), so reco=None
+        # now means "measured, and did not clear the bar" rather than "cannot be positive here".
         hit = reco != "nominate"
         rows.append({**row, "status": "scored", "reco": reco, "hit": hit})
     scored = [r for r in rows if r["status"] == "scored"]

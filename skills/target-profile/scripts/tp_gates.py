@@ -1113,6 +1113,31 @@ def _positive_tier(
     return tier, hits
 
 
+def _positive_tier_nominates(
+    tier: Optional[str], contracts_repo: Path | None = None, modality: str | None = None
+) -> bool:
+    """True when `tier` is the tier the VOCAB says forces `nominate`.
+
+    The policy lives in nomination_verdict_gate.yaml
+    (`positive_tier_config.forces_nominate_at_tier`, v1.18.0), not here — product owners set the
+    nomination bar without a code change, same as the veto/hold policy.
+
+    FAIL-CLOSED: a missing/null/unreadable key returns False (no nomination), which reproduces
+    pre-1.18.0 behaviour byte-for-byte. This is the INVERTED fallback the positive loader already
+    uses — a broken vocab must never MINT a GO, whereas a broken kill vocab must still FIRE vetoes.
+    `tier=None` (no positive signal at all) is likewise never a nomination.
+
+    Note this is deliberately NOT routed through `_GATE_ACTION_RANK`/`action_precedence`: that map
+    keys a `max()` over FIRED KILL hits, so putting a positive token in it would let a nomination be
+    ranked against — and tie-broken with — a restraint. `nominate` is a separate branch, reachable
+    only on abstention; see the caller in run.py.
+    """
+    if not tier:
+        return False
+    _, _, cfg, _ = _load_positive_signals(contracts_repo, modality=modality)
+    return bool(cfg.get("forces_nominate_at_tier")) and cfg["forces_nominate_at_tier"] == tier
+
+
 # --- Gate scorecard (deterministic; category × status × finding) ------------
 #
 # The top-of-report glanceable grid: one row per QUESTION-GATE (A Present … H Translational),
@@ -1230,6 +1255,7 @@ __all__ = [
     "_load_positive_signals",
     "_load_veto_suppressors",
     "_positive_tier",
+    "_positive_tier_nominates",
     "_run_coverage_for_short",
     "_sub_result_has_signal",
     "_suppressed_gate_hits",

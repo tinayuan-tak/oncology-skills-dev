@@ -444,7 +444,11 @@ def _write_evidence_package(
     # (see nomination.json)". Labeling it "insufficient" mislabeled a strong POSITIVE target (a machine
     # consumer reading synthesis.headline saw "insufficient (strong confidence)" — incoherent, and it
     # disagreed with the same run's nomination.json). Use an honest neutral term for the no-kill case.
-    recommendation = gate_action or "no_deterministic_kill"
+    # A1 (2026-09-11): `gate_action` carries only the KILL actions (veto/hold). The positive path
+    # writes its forced `nominate` to recommendation_gate.forced_recommendation instead (it is
+    # deliberately not a gate action — see nomination_verdict_gate.yaml action_precedence), so read
+    # it here or --emit would keep publishing "no_deterministic_kill" for a strong-tier nomination.
+    recommendation = gate_action or recommendation_gate.get("forced_recommendation") or "no_deterministic_kill"
     tier = confidence_tier.get("tier")
     headline = f"{args.target} in {args.indication}: {recommendation}" + (f" ({tier} confidence)" if tier else "")
     synthesis_block = {

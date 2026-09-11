@@ -801,7 +801,8 @@ def _render_biomarker_facet_block(bf: dict) -> list[str]:
     lines.append(
         "  NOTE: this facet may RAISE CONFIDENCE (corroboration) or define the "
         "patient-selection population (stratification); it must NEVER by itself justify "
-        "a `nominate` — the deterministic gate owns the recommendation."
+        "a `nominate` — the deterministic gate BOUNDS the recommendation (it forces veto/hold "
+        "when a kill rule fires, and forces `nominate` only from the strong positive tier)."
     )
     return lines
 

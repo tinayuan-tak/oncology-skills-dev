@@ -261,7 +261,7 @@ def test_envelope_is_llm_free(tmp_path, monkeypatch):
 # ── the two previously-UNCOVERED branches (2026-08-14 critical-issues sweep) ──────────────────────
 
 
-def _emit(tmp_path, monkeypatch, *, gate_action, identity_ok, emit=None):
+def _emit(tmp_path, monkeypatch, *, gate_action, identity_ok, emit=None, recommendation_gate=None):
     """Drive _write_evidence_package with configurable gate_action + whether target-identity resolves.
     Returns the parsed envelope. The loud schema-validation failure (SystemExit) is now SCOPED to the
     machine-emit mode (emit="evidence-package"); on a default/nomination run (emit=None) a schema-invalid
@@ -294,7 +294,7 @@ def _emit(tmp_path, monkeypatch, *, gate_action, identity_ok, emit=None):
         args=args,
         sub_results=sub_results,
         gate_action=gate_action,
-        recommendation_gate={"fired": bool(gate_action)},
+        recommendation_gate=({"fired": bool(gate_action)} if recommendation_gate is None else recommendation_gate),
         confidence_tier={"tier": "strong"},
         deciding_axis={
             "basis": "gate_fired",
@@ -387,6 +387,51 @@ def test_no_killer_recommendation_is_coherent_not_insufficient(tmp_path, monkeyp
     assert "insufficient" not in headline, (
         f"headline still mislabels a no-killer positive as 'insufficient': {headline!r}"
     )
+
+
+def test_positive_forced_nominate_reaches_the_headline(tmp_path, monkeypatch):
+    """A1 (2026-09-11): the positive path forces `nominate` WITHOUT it being a gate action, so it is
+    written to recommendation_gate.forced_recommendation while gate_action stays None (that variable
+    carries only kill actions). The envelope must publish the nomination, not 'no_deterministic_kill'.
+
+    This is the exact regression the pre-A1 code had in the mode the eval harness scores: --emit is
+    LLM-free, so the positive tier's ONLY observable output was a `floored_to` confidence string —
+    a strong-tier target with 3/3 dominant hits (ERBB2/BRCA) published no recommendation at all."""
+    ep = _emit(
+        tmp_path,
+        monkeypatch,
+        gate_action=None,
+        identity_ok=True,
+        recommendation_gate={
+            "fired": False,  # NOT a kill — `fired` must stay False or consumers read it as `declined`
+            "forced_recommendation": "nominate",
+            "forced_by": "positive_tier",
+            "positive_gate_fired": True,
+        },
+    )
+    headline = ep["synthesis"]["headline"]
+    assert "nominate" in headline, f"headline={headline!r}"
+    assert "no_deterministic_kill" not in headline, f"forced nominate lost in emit: {headline!r}"
+    rg = ep["synthesis"]["recommendation_gate"]
+    assert rg["fired"] is False and rg["forced_by"] == "positive_tier"
+
+
+def test_withheld_nomination_does_not_reach_the_headline(tmp_path, monkeypatch):
+    """The interlock's other side: when the nomination was WITHHELD (LLM authored a rule-less
+    negative), only `nominate_withheld` is recorded — no forced_recommendation — so the envelope
+    must fall back to the honest neutral term rather than publishing a positive call."""
+    ep = _emit(
+        tmp_path,
+        monkeypatch,
+        gate_action=None,
+        identity_ok=True,
+        recommendation_gate={
+            "fired": False,
+            "nominate_withheld": {"tier": "strong", "reason": "llm_authored_negative"},
+        },
+    )
+    headline = ep["synthesis"]["headline"]
+    assert "no_deterministic_kill" in headline and "nominate" not in headline, f"headline={headline!r}"
 
 
 # ── DECISION FACETS + modality×safety seam (2026-08-24, cross-evidence alignment) ─────────────────
