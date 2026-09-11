@@ -383,6 +383,39 @@ def test_emitted_verdict_enum_equals_resolver_rungs_plus_declared_clamp():
     )
 
 
+def test_declared_post_resolver_clamp_matches_selectivity_veto():
+    """Step 1c: selectivity_veto.py is the one decision stage OUTSIDE the rung ladder (it clamps on the
+    resolver's OUTPUT verdict, which a rung cannot). The resolver now DECLARES it as a `post_resolver_clamp`
+    stage; this pins the executor byte-for-byte to that declaration — the whole rule_id -> verdict mapping,
+    the precedence ORDER, the downgrade guard (input classes) and the #978 rescue — not just the output
+    verdict set. Drift either way fails here, so the declaration is a trustworthy single source of truth
+    (the 'same legibility the rungs have' the remediation asked for). Skips until the contracts-side block
+    has landed."""
+    import _skills_common.selectivity_veto as sv
+
+    spec = _contracts_yaml("resolvers/selectivity.resolver.yaml")
+    if spec is None:
+        pytest.skip("target-contracts checkout absent")
+    prc = spec.get("post_resolver_clamp")
+    if not prc:
+        pytest.skip("contracts predates selectivity.resolver.yaml post_resolver_clamp (land contracts-first)")
+
+    assert prc["direction"] == "downgrade_only"
+    # the guard — the resolver-output verdicts the downgrade may act on (why this cannot be a rung)
+    assert set(prc["applies_to_input_verdicts"]) == set(sv._AXIS_A_SELECTIVE)
+    # precedence ORDER (first firing wins) must match the executor's tuple exactly
+    assert [arm["when_fired"] for arm in prc["precedence"]] == list(sv._SELECTIVITY_VETO_PRECEDENCE)
+    # and each arm's rule_id -> clamp verdict must match
+    assert {arm["when_fired"]: arm["verdict"] for arm in prc["precedence"]} == dict(sv._VETO_RULE_VERDICT)
+    # every declared clamp verdict is a real emitted outcome
+    assert {arm["verdict"] for arm in prc["precedence"]} == set(sv._VETO_OUTCOMES)
+    # the #978 one-directional rescue UP clamp
+    up = prc["upgrade"]
+    assert set(up["applies_to_input_verdicts"]) == set(sv._RESCUE_ELIGIBLE)
+    assert up["verdict"] == "field_effect_tumor_selective"
+    assert {frozenset(g) for g in up["requires"]} == {frozenset(sv._CPTAC_UP_RULES), frozenset(sv._POP_NORMAL_UP_RULES)}
+
+
 def test_clamp_kills_are_declared_contradictions_in_the_nomination_gate():
     """The two clamp KILLs must be in the nomination gate vocab (kill_capable_verdicts.selectivity +
     positive_contradictions) so a COMPOSED selectivity KILL blocks `strong` (the advisory→silent-
