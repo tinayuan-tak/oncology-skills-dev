@@ -31,7 +31,7 @@ CARDS = Path(__file__).resolve().parents[2] / "cards"
 
 # measurement_types whose OWN concept IS molecular-form (transcript identity/form) — a card of one of
 # these types legitimately carries isoform/splice fields (Phase 3b landed the dedicated cards).
-_MOLECULAR_FORM_TYPES: set = {"cell_line_isoform_dominance", "tumor_splice_dysregulation"}
+_MOLECULAR_FORM_TYPES: set = {"cellline_isoform_expression", "tumor_splice_dysregulation"}
 
 # molecular-form field tokens — isoform dominance + splice dysregulation. Deliberately specific so it
 # does NOT match survival "n_events" or genomic "fusion event" fields (which live on non-bulk_rna cards

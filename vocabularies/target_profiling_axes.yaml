@@ -594,7 +594,7 @@ skill_objectives:
       - {q: "LoF leg-1: does promoter methylation drive the target's LOW expression (epigenetic silencing)?", answered_by: [cellline-methylation-expression-coherence]}
       - {q: "Leg-2: does the target's expression / protein abundance predict its OWN dependency (correlation + amp∩overexpr conjoint addiction)?", answered_by: [expression-dependency-correlation, amp-expr-stratified-dependency, abundance-dependency]}
       - {q: "Does the TCGA patient arm replicate the cell-line cis call (cross-grain corroboration)?", answered_by: [patient-cis-coherence]}
-      - {q: "Which transcript / isoform is expressed (molecular-form context for the cis read)?", answered_by: [cellline-isoform-dominance, cellline-isoform-expression]}
+      - {q: "Which transcript / isoform is expressed (molecular-form context for the cis read)?", answered_by: [cellline-isoform-expression]}
 
 # ===========================================================================
 # CANDIDATE EDGES — cross-axis edge cards the objective NEEDS but that DO NOT EXIST yet. First
@@ -730,7 +730,6 @@ question_hierarchies:
         - cis_protein_dosage_coupling
         - amp_expr_stratified_dependency
       context_types:
-      - cell_line_isoform_dominance
       - cellline_isoform_expression
     - id: SILENCING
       questions:

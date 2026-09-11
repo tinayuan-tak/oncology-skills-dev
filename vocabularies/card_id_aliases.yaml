@@ -42,3 +42,14 @@ aliases:
     to: cellline-rna-protein-concordance
     renamed_date: '2026-08-04'
     reason: "cell-line RNA-vs-protein concordance (the -tumor sibling is the tumor arm)"
+
+  # 2026-09-10 (#704 6b) — duplicate isoform-card consolidation. cellline-isoform-dominance and
+  # cellline-isoform-expression resolved to IDENTICAL product/method/entrypoint/vocabulary, differing
+  # only in measurement_type. Retired -dominance (measurement_type cell_line_isoform_dominance); kept
+  # cellline-isoform-expression (status: wired, measurement_type cellline_isoform_expression). Not a
+  # naming-cleanup rename — a de-duplication — but the same forward-alias contract lets any stored
+  # package that baked the old card_id resolve to the surviving card.
+  - from: cellline-isoform-dominance
+    to: cellline-isoform-expression
+    renamed_date: '2026-09-10'
+    reason: "duplicate molecular-form card consolidated into cellline-isoform-expression (same product/method; differed only in measurement_type)"

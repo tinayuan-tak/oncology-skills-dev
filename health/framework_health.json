@@ -59,15 +59,15 @@
     "n_live_reader_cards": 62,
     "n_cards_firing_in_real_packages": 101,
     "n_cards_firing_in_any_run": 101,
-    "n_cards": 149,
+    "n_cards": 148,
     "card_health_tally": {
       "live": 101,
       "placeholder": 10,
       "self_produced": 1,
-      "wired": 37
+      "wired": 36
     },
     "modality_routing_tally": {
-      "not_required": 69,
+      "not_required": 68,
       "declared": 79,
       "not_applicable": 1
     },
@@ -75,9 +75,9 @@
     "n_p4_declared_cards": 79,
     "n_p4_missing_cards": 0,
     "n_p4_drift_cards": 0,
-    "n_orphan_cards": 0,
+    "n_orphan_cards": 9,
     "n_staged_orphan_cards": 9,
-    "n_cards_consumed_but_no_spec": 102,
+    "n_cards_consumed_but_no_spec": 101,
     "n_datasets": 516,
     "n_datasets_in_catalog": 510,
     "n_orphan_datasets": 333,
@@ -283,7 +283,6 @@
           "abundance-dependency",
           "amp-expr-stratified-dependency",
           "patient-cis-coherence",
-          "cellline-isoform-dominance",
           "cellline-isoform-expression"
         ],
         "rules_scope": [
@@ -312,7 +311,6 @@
           "abundance-dependency",
           "amp-expr-stratified-dependency",
           "patient-cis-coherence",
-          "cellline-isoform-dominance",
           "cellline-isoform-expression"
         ],
         "test_count": 8
@@ -384,35 +382,6 @@
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
-        },
-        {
-          "card_id": "cellline-isoform-dominance",
-          "card_yaml_exists": true,
-          "is_self_produced_skill_card": false,
-          "is_placeholder": false,
-          "placeholder_reason": null,
-          "measurement_type": "cell_line_isoform_dominance",
-          "has_live_reader": false,
-          "method_call": "depmap-isoform-expression",
-          "dispatch_module": null,
-          "method_dir_exists": true,
-          "method_has_read": true,
-          "stale_method_label": false,
-          "fires_in_real_package": false,
-          "fires_in_any_run": false,
-          "datasets": [
-            {
-              "product_id": "depmap-isoform-expression-per-gene-v1",
-              "in_catalog": true,
-              "matched_by": "exact",
-              "resolved_id": "depmap-isoform-expression-per-gene-v1"
-            }
-          ],
-          "modality_relevance": null,
-          "modality_routing": "not_required",
-          "card_health": "wired",
-          "health_reason": "card-generic-dispatch-never-fires",
-          "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint) \u2014 WIRED, awaiting its first governed firing (NOT a defect: verified generic-routed cards read fine, e.g. translational-readiness / tractability legs)"
         },
         {
           "card_id": "cellline-isoform-expression",
@@ -634,7 +603,7 @@
         {
           "code": "card_consumed_but_no_spec",
           "severity": "info",
-          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: abundance-dependency, amp-expr-stratified-dependency, cellline-isoform-dominance, cellline-isoform-expression, cellline-methylation-expression-coherence, cis-feature-expression-coherence, cis-feature-protein-coherence, patient-cis-coherence"
+          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: abundance-dependency, amp-expr-stratified-dependency, cellline-isoform-expression, cellline-methylation-expression-coherence, cis-feature-expression-coherence, cis-feature-protein-coherence, patient-cis-coherence"
         }
       ],
       "health_verdict": "partial",
@@ -10571,44 +10540,6 @@
       "consumed_but_no_spec": true
     },
     {
-      "card_id": "cellline-isoform-dominance",
-      "card_yaml_exists": true,
-      "is_self_produced_skill_card": false,
-      "is_placeholder": false,
-      "placeholder_reason": null,
-      "measurement_type": "cell_line_isoform_dominance",
-      "has_live_reader": false,
-      "method_call": "depmap-isoform-expression",
-      "dispatch_module": null,
-      "method_dir_exists": true,
-      "method_has_read": true,
-      "stale_method_label": false,
-      "fires_in_real_package": false,
-      "fires_in_any_run": false,
-      "datasets": [
-        {
-          "product_id": "depmap-isoform-expression-per-gene-v1",
-          "in_catalog": true,
-          "matched_by": "exact",
-          "resolved_id": "depmap-isoform-expression-per-gene-v1"
-        }
-      ],
-      "modality_relevance": null,
-      "modality_routing": "not_required",
-      "card_health": "wired",
-      "health_reason": "card-generic-dispatch-never-fires",
-      "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint) \u2014 WIRED, awaiting its first governed firing (NOT a defect: verified generic-routed cards read fine, e.g. translational-readiness / tractability legs)",
-      "consumers": [
-        "cis-feature-coherence"
-      ],
-      "n_consumers": 1,
-      "is_orphan": false,
-      "is_staged_orphan": false,
-      "dashboard_specs": [],
-      "in_dashboard_spec": false,
-      "consumed_but_no_spec": true
-    },
-    {
       "card_id": "cellline-isoform-expression",
       "card_yaml_exists": true,
       "is_self_produced_skill_card": false,
@@ -19550,11 +19481,10 @@
       "system_of_record": null,
       "n_derived_from": 2,
       "consumed_by_cards": [
-        "cellline-isoform-dominance",
         "cellline-isoform-expression",
         "cellline-rna-distribution"
       ],
-      "n_consumers": 3,
+      "n_consumers": 2,
       "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
@@ -27963,14 +27893,6 @@
         "measurement_type": "cd_antigen_backbone"
       },
       {
-        "id": "card:cellline-isoform-dominance",
-        "layer": "card",
-        "label": "cellline-isoform-dominance",
-        "health": "wired",
-        "is_orphan": false,
-        "measurement_type": "cell_line_isoform_dominance"
-      },
-      {
         "id": "card:cellline-isoform-expression",
         "layer": "card",
         "label": "cellline-isoform-expression",
@@ -29714,11 +29636,6 @@
       },
       {
         "src": "skill:cis-feature-coherence",
-        "dst": "card:cellline-isoform-dominance",
-        "rel": "consumes"
-      },
-      {
-        "src": "skill:cis-feature-coherence",
         "dst": "card:cellline-isoform-expression",
         "rel": "consumes"
       },
@@ -30804,15 +30721,15 @@
       "card": 149,
       "method": 54
     },
-    "n_nodes": 230,
-    "n_edges": 281
+    "n_nodes": 229,
+    "n_edges": 280
   },
   "drift_index": [
     {
       "skill": "cis-feature-coherence",
       "code": "card_consumed_but_no_spec",
       "severity": "info",
-      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: abundance-dependency, amp-expr-stratified-dependency, cellline-isoform-dominance, cellline-isoform-expression, cellline-methylation-expression-coherence, cis-feature-expression-coherence, cis-feature-protein-coherence, patient-cis-coherence"
+      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: abundance-dependency, amp-expr-stratified-dependency, cellline-isoform-expression, cellline-methylation-expression-coherence, cis-feature-expression-coherence, cis-feature-protein-coherence, patient-cis-coherence"
     },
     {
       "skill": "combination-and-vulnerability",

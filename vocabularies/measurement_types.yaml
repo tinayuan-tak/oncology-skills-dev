@@ -138,14 +138,9 @@ measurement_types:
 
   # MOLECULAR-FORM (transcript identity/form) — a DIFFERENT claim from the expression-abundance types
   # above: WHICH transcript, not how much. Split out of the expression cards (presence-coherence
-  # Phase 3b) so a card owns one concept. Verdict-inert.
-  cell_line_isoform_dominance:
-    claim: "Which transcript isoform dominates the target's mRNA across DepMap cell lines (transcript identity, not level)?"
-    entity_grains: [target]
-    cards: [cellline-isoform-dominance]
-    providers:
-      - {kind: dataset, source: depmap-isoform-expression-per-gene-v1, evidence_tier: measured}
-
+  # Phase 3b) so a card owns one concept. Verdict-inert. The cell-line isoform type lives at
+  # cellline_isoform_expression (below); the former duplicate cell_line_isoform_dominance was
+  # consolidated into it 2026-09-10 (#704 6b — card_id_aliases: cellline-isoform-dominance).
   tumor_splice_dysregulation:
     claim: "Is the target alternatively spliced / splice-dysregulated in the patient tumor (transcript form, not level)?"
     entity_grains: [target_indication]
