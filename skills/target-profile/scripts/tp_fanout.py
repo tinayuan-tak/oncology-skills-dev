@@ -818,6 +818,9 @@ SUB_SKILL_CARDS = {
         # composed here for composer-consistency + DIMENSION_CARDS parity.
         # VERDICT-INERT (fires no rule, no resolver rung) — the composed
         # tractability sub-verdict is byte-stable with or without it.
+        "mutation-hotspot-frequency",  # #993 pt1: the indication's mutant-allele spectrum, read ONLY by
+        # the verdict-INERT minority_allele_coverage_caveat. In tractability-small-molecule/run.py CARDS;
+        # composed here for composer-consistency (facet claim_vector). Fires no rule, no resolver rung.
     ],
     "surface-modality-fit": [  # split: biologics-modality half
         "surface-topology-and-ptm",

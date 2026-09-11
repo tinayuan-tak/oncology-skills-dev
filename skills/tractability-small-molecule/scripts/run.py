@@ -32,6 +32,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import yaml
+
 SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
@@ -398,6 +400,69 @@ def _directness_caveat(
     )
 
 
+# #993 pt1 — approved allele-selective SM drugs → the mutant allele(s) they cover (curated, skill-dir).
+_APPROVED_DRUG_ALLELE_PATH = Path(__file__).resolve().parent.parent / "approved_drug_target_allele.yaml"
+_APPROVED_DRUG_ALLELE_CACHE: dict | None = None
+
+
+def _norm_allele(a) -> str:
+    """Upper-case + strip a leading 'p.' so a curated allele matches a hotspot `protein_change` token."""
+    s = str(a or "").strip().upper()
+    return s[2:] if s.startswith("P.") else s
+
+
+def _approved_drug_target_allele() -> dict:
+    """{GENE: {covered_alleles, approved_drugs, note}} from the curated skill-dir map (lazy, cached)."""
+    global _APPROVED_DRUG_ALLELE_CACHE
+    if _APPROVED_DRUG_ALLELE_CACHE is None:
+        try:
+            data = yaml.safe_load(_APPROVED_DRUG_ALLELE_PATH.read_text()) or {}
+            _APPROVED_DRUG_ALLELE_CACHE = data.get("entries") or {}
+        except Exception:  # noqa: BLE001 — a missing/broken curated file must never abort a run
+            _APPROVED_DRUG_ALLELE_CACHE = {}
+    return _APPROVED_DRUG_ALLELE_CACHE
+
+
+def _minority_allele_coverage_caveat(snapshot, target, hotspot_frequencies) -> str | None:
+    """#993 pt1 — VERDICT-INERT: flag a POSITIVE SM-tractability snapshot that rests on an approved
+    ALLELE-SELECTIVE drug which only covers a MINORITY of the INDICATION's mutant-allele spectrum — i.e.
+    the indication's DOMINANT hotspot allele is NOT one the approved drug covers (KRAS/COADREAD:
+    sotorasib/adagrasib are G12C-only but G12D/G12V/G13D dominate). Reports WHY the positive call
+    over-states the tractable slice; NEVER changes it (the resolver/golden are byte-stable). Returns None
+    unless the pattern holds → indication-conditioned by construction (KRAS/LUAD, where G12C IS dominant,
+    does NOT fire; BRAF/SKCM V600E-dominant does not; a gene with no curated allele-selective entry —
+    e.g. EGFR — never fires)."""
+    if snapshot not in _TRACTABILITY_POSITIVE:
+        return None
+    entry = _approved_drug_target_allele().get(str(target or "").strip().upper())
+    if not isinstance(entry, dict):
+        return None
+    covered = {_norm_allele(a) for a in (entry.get("covered_alleles") or [])}
+    if not covered:
+        return None
+    rows = [
+        r
+        for r in (hotspot_frequencies or [])
+        if isinstance(r, dict) and isinstance(r.get("frequency"), (int, float)) and r.get("protein_change")
+    ]
+    if not rows:
+        return None  # no indication allele spectrum → cannot condition (graceful)
+    top = max(rows, key=lambda r: r["frequency"])
+    if _norm_allele(top.get("protein_change")) in covered:
+        return None  # the approved drug covers the indication's DOMINANT allele → not a minority concern
+    covered_freq = sum(r["frequency"] for r in rows if _norm_allele(r.get("protein_change")) in covered)
+    total_freq = sum(r["frequency"] for r in rows) or 1.0
+    drugs = ", ".join(entry.get("approved_drugs") or []) or "the approved drug"
+    return (
+        f"The positive snapshot ('{snapshot}') is allele-BLIND: the approved small molecule ({drugs}) is "
+        f"selective for {sorted(covered)}, but this indication's dominant mutant allele is "
+        f"{top.get('protein_change')} ({top['frequency'] * 100:.1f}% of hotspot mutants) — NOT covered. "
+        f"The approved drug covers only ~{covered_freq / total_freq * 100:.0f}% of the indication's "
+        "mutant-allele spectrum, so read this as well_covered_for_minority_allele — tractable for a "
+        "minority genotype, not broadly de-risked. Patient selection is allele-restricted."
+    )
+
+
 def _sm_modality_mismatch_caveat(hl: dict, target=None) -> str | None:
     """Name the MODALITY-mismatch on the DRUG axis (VERDICT-INERT surface): for a target whose approved
     agent is a BIOLOGIC (ADC/TCE/CAR), DGIdb's has_approved_drug is modality-blind and can credit the
@@ -541,7 +606,7 @@ def _build_headline_block(headline: dict) -> dict:
 
 
 SKILL_NAME = "tractability-small-molecule"
-SKILL_VERSION = "3.11.1"  # 3.11.1 (2026-09-07, CASE-008 #07): _sm_modality_mismatch_caveat fallback now reads the biologics-only modality map LIVE from biologics_precedent_targets.yaml (_biologics_only_modalities → _live_readers._load_biologics_precedent_modalities, keyed on biologics_only: true) instead of the hardcoded _BIOLOGICS_APPROVED_NONSM (demoted to a last-resort fail-safe). New vocab entries covered automatically. VERDICT-INERT (caveat is a headline field; spine/resolver/golden byte-stable).
+SKILL_VERSION = "3.12.0"  # 3.12.0 (2026-09-10, #993 pt1): VERDICT-INERT minority_allele_coverage_caveat — a positive SM snapshot resting on an approved ALLELE-SELECTIVE drug (curated approved_drug_target_allele.yaml) that covers only a MINORITY of the indication's mutant-allele spectrum (dominant hotspot uncovered; KRAS/COADREAD G12C-only) reads well_covered_for_minority_allele. Adds mutation-hotspot-frequency to CARDS (verdict-inert context, read only by the caveat). Spine/resolver/golden byte-stable; indication-conditioned (KRAS/LUAD G12C-dominant does NOT fire).   # 3.11.1 (2026-09-07, CASE-008 #07): _sm_modality_mismatch_caveat fallback now reads the biologics-only modality map LIVE from biologics_precedent_targets.yaml (_biologics_only_modalities → _live_readers._load_biologics_precedent_modalities, keyed on biologics_only: true) instead of the hardcoded _BIOLOGICS_APPROVED_NONSM (demoted to a last-resort fail-safe). New vocab entries covered automatically. VERDICT-INERT (caveat is a headline field; spine/resolver/golden byte-stable).
 # 3.11.0 (2026-09-07, CASE-008 graduation, VERDICT-MOVING signal-vector): consume the new AM/TC modality gate — reader emits approved_drug_modality + approved_biologic_only; resolver v1.6.0 rung known-drug-approved-biologic-only-sm-not-supportive routes a biologics-only approved antigen's DRUG axis to annotation_only_indirect (stops the SM-supportive approved-drug rung). _sm_modality_mismatch_caveat now keys on the reader's authoritative approved_drug_modality (curated set = fallback) and becomes a CONFIRMATION when the gate fired. Legacy oracle mirrors the new rung. DRUG-axis fired signal moves for biologics antigens (CEACAM5/DLL3/FOLR1/NECTIN4); top-line verdict STABLE for the calibration set (STRUCT/e7-driven). Golden/replay regenerated.
 # 3.10.0 (2026-09-07, CASE-008 literature-discordance loop): VERDICT-INERT sm_modality_mismatch_caveat — a biologics-approved antigen (ADC/TCE/CAR; curated _BIOLOGICS_APPROVED_NONSM seeded from biologics_precedent_targets.yaml) whose modality-blind DGIdb known-drug annotation can inflate the DRUG axis into SM tractability. Fires on has_approved_drug + curated target; spine/resolver/golden byte-stable. target signature-introspected in _headline/_synthesis_facet.
 # 3.9.1 (2026-09-04): VERDICT-INERT — set structural_ligandability_class + has_druggable_pocket + ligandability_disorder_class in _headline (declared-but-unset facet debt).     # 3.9.0 (2026-09-04): VERDICT-MOVING annotation_only_indirect — consume the resolver v1.5.0 directness gate (approved-drug rung now requires DIRECT engagement; indirect/sparse DGIdb roster → annotation_only_indirect). Depends AM dgidb v0.2.0 + TC resolver v1.5.0.     # 3.8.0 (2026-09-04): --literature lane + verdict-INERT surfacing (directness_caveat = DGIdb/ChEMBL druggability-inflation flag; chemical_genetic_agreement arm; TRACTABILITY_SM thesis + polarity_note). Spine byte-stable.     # 3.7.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.     # 3.6.0 (2026-08-27): tuned signals-first sub-group reader (tractability vocab). Verdict-INERT.
@@ -561,6 +626,9 @@ CARDS = [
     "gdsc-drug-activity",  # 2nd drug-response platform (Sanger GDSC1/2) — ORTHOGONAL corroboration of
     # PRISM. DISPLAY-ONLY / verdict-INERT: fires no rule, feeds no resolver rung,
     # so druggability_snapshot is byte-stable (the ProCan->Gygi analog).
+    "mutation-hotspot-frequency",  # #993 pt1: the indication's mutant-allele spectrum — read ONLY by the
+    # verdict-INERT _minority_allele_coverage_caveat (an approved allele-selective drug covering a
+    # minority of the spectrum). Fires no rule, feeds no resolver rung → druggability_snapshot byte-stable.
 ]
 
 QUESTION = (
@@ -785,6 +853,9 @@ def _headline(cards, fired, verdict_pair, target=None):
         ),
         "approved_drug_modality": get_card_field(cards, "known-drug-tractability", "approved_drug_modality"),
         "approved_drug_modality_tag": get_card_field(cards, "known-drug-tractability", "approved_drug_modality_tag"),
+        # #993 pt1: the indication's mutant-allele spectrum (verdict-INERT context) — read ONLY by
+        # _minority_allele_coverage_caveat below. None when the indication lacks a hotspot card → no caveat.
+        "hotspot_frequencies": get_card_field(cards, "mutation-hotspot-frequency", "hotspot_frequencies"),
     }
     # verdict-INERT claim-vector projection (6th concrete) — POTENCY/ACTIVITY/STRUCT/DRUG/DEGRADER
     # signal decomposition + citable atoms the composed fan-out lifts to the cross-evidence agent.
@@ -813,6 +884,12 @@ def _headline(cards, fired, verdict_pair, target=None):
     # Verdict-INERT (a headline key; never enters fired/resolver). target is signature-introspected by the
     # dispatcher + fan-out (mirrors differentiation).
     hl["sm_modality_mismatch_caveat"] = _sm_modality_mismatch_caveat(hl, target=target)
+    # (4) minority_allele_coverage_caveat (#993 pt1): a positive snapshot carried by an approved
+    # ALLELE-SELECTIVE drug that covers only a MINORITY of the indication's mutant-allele spectrum (the
+    # dominant hotspot allele is uncovered — KRAS/COADREAD sotorasib/adagrasib G12C-only). VERDICT-INERT;
+    # None unless the pattern holds → byte-stable (KRAS/LUAD where G12C dominates, BRAF/SKCM, and any
+    # gene without a curated allele-selective entry are untouched).
+    hl["minority_allele_coverage_caveat"] = _minority_allele_coverage_caveat(v, target, hl.get("hotspot_frequencies"))
 
     # The canonical HEADLINE block is a verdict-INERT projection over the claim_vector / key_signals just
     # built. Run it best-effort: a formatting/read fault must NEVER discard the druggability spine already
@@ -881,6 +958,7 @@ _SYNTHESIS_FACET_KEYS = (
     # verdict-INERT surfacing flags (2026-09-04): the DGIdb/ChEMBL druggability-inflation caveat + the
     # explicit chemical-genetic AGREEMENT arm (mirrors FR measurement_caveat / concordance_scope_note).
     "directness_caveat",
+    "minority_allele_coverage_caveat",
     "chemical_genetic_agreement",
     # CASE-008: modality-mismatch druggability-inflation (biologics-approved antigen; verdict-INERT)
     "sm_modality_mismatch_caveat",

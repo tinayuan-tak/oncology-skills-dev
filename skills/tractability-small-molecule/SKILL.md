@@ -16,7 +16,7 @@ description: |
   dependency?"
 
 metadata:
-  version: 3.11.1  # +CASE-008 #07: _sm_modality_mismatch_caveat fallback reads biologics_precedent_targets.yaml LIVE (_biologics_only_modalities, keyed on biologics_only: true) instead of the hardcoded _BIOLOGICS_APPROVED_NONSM (now a last-resort fail-safe); new vocab entries covered automatically; VERDICT-INERT.
+  version: 3.12.0  # +#993 pt1: VERDICT-INERT minority_allele_coverage_caveat + mutation-hotspot-frequency added to cards_used (context, read only by the caveat).   # 3.11.1 +CASE-008 #07: _sm_modality_mismatch_caveat fallback reads biologics_precedent_targets.yaml LIVE (_biologics_only_modalities, keyed on biologics_only: true) instead of the hardcoded _BIOLOGICS_APPROVED_NONSM (now a last-resort fail-safe); new vocab entries covered automatically; VERDICT-INERT.
                    # 3.11.0  +VERDICT-MOVING modality gate (CASE-008 graduation): consume the AM v0.3.0 / TC v1.6.0 modality signal — a biologics-only approved antigen (biologics_precedent_targets.yaml biologics_only: true) resolves approved_drug_engagement_class=approved_biologic_only, firing known-drug-approved-biologic-only-sm-not-supportive → annotation_only_indirect instead of the SM-supportive approved-drug rung (osimertinib-guarded: EGFR/ERBB2/MET unaffected); _sm_modality_mismatch_caveat now keys on the reader's approved_drug_modality (curated set = fallback) + reads as a CONFIRMATION when the gate fired; verdict-STABLE for the calibration set (STRUCT/e7-driven), golden/replay regenerated;
                    # 3.10.0  +VERDICT-INERT sm_modality_mismatch_caveat (CASE-008: biologics-approved antigen ADC/TCE/CAR whose modality-blind DGIdb known-drug annotation inflates the DRUG axis into SM tractability; curated _BIOLOGICS_APPROVED_NONSM); +set structural_ligandability_class/has_druggable_pocket/ligandability_disorder_class in _headline (facet-debt fix, verdict-inert); +VERDICT-MOVING annotation_only_indirect (resolver v1.5.0 directness gate: approved-drug rung requires DIRECT engagement; indirect/sparse DGIdb roster → annotation_only_indirect); +--literature lane + verdict-INERT surfacing (directness_caveat, chemical_genetic_agreement, TRACTABILITY_SM thesis+polarity_note); +tuned signals-first sub-group reader; +question_table emitted into headline; +known-drug (#272) +degradation (#266) +T1/T3.1
   owner: ryan.abo@takeda.com
@@ -38,6 +38,9 @@ composition:
     - gdsc-drug-activity             # 2nd drug-response platform (Sanger GDSC1/2), ORTHOGONAL corroboration of
                                      # PRISM. DISPLAY-ONLY / verdict-INERT — fires no rule, NOT in rules_scope;
                                      # a 2nd provider of the prism_compound_activity claim (the ProCan->Gygi analog)
+    - mutation-hotspot-frequency     # #993 pt1: the indication's mutant-allele spectrum. CONTEXT / verdict-INERT —
+                                     # fires no rule, NOT in rules_scope; read ONLY by the minority_allele_coverage_caveat
+                                     # (an approved allele-selective drug covering a minority of the spectrum)
   # DATA_TO_SKILL_CONTRACT Rule 3 — measurement_type claims pulled. chemical_genetic_concordance is
   # the derived on-target-engagement type this gate shares with functional-requirement (flow-pattern 2:
   # one atom, two gate-views). dependency_predictability had no puller before this — now claimed here.
@@ -49,6 +52,7 @@ composition:
     - known_drug_tractability        # E-known-drug: DGIdb pharmacology leg (approved-drug -> chemically_active; druggable-category -> structurally_ligandable)
     - measured_potency_tractability  # E-measured-potency (T3.1): ChEMBL/BindingDB (potent series -> measured_potent_ligand)
     - degradation_feasibility        # E3 slice 3: target degradability (degrader-lens only; SM verdict byte-stable)
+    - mutation_hotspot_frequency     # #993 pt1: indication mutant-allele spectrum — CONTEXT for the minority_allele_coverage_caveat (verdict-inert; fires no rule)
   rules_scope:
     - all
   synthesis:

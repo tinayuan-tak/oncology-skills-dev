@@ -28,6 +28,7 @@ _ALL_CARD_IDS = [
     "known-drug-tractability",
     "degradation-feasibility",
     "gdsc-drug-activity",
+    "mutation-hotspot-frequency",  # #993 pt1: read by _minority_allele_coverage_caveat
 ]  # 2026-08-25: _headline now reads the GDSC 2nd-platform display card
 
 

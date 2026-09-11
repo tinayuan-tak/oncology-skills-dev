@@ -301,6 +301,9 @@ DIMENSION_CARDS: dict[str, frozenset[str]] = {
             "prism-compound-activity",
             "prism-crispr-concordance",
             "structure-features-static",
+            # #993 pt1: mutant-allele spectrum context for the minority_allele_coverage_caveat
+            # (verdict-inert). Mirrors SUB_SKILL_CARDS[tractability-small-molecule] (drift guard).
+            "mutation-hotspot-frequency",
         }
     ),
     # 2026-08-31 — translational-readiness wired into the fan-out as a GATELESS DESCRIPTIVE peer

@@ -1,0 +1,34 @@
+# Curated approved allele-selective small-molecule oncology drugs → the mutant allele(s) their label
+# covers (#993 pt1). Used by _minority_allele_coverage_caveat to flag a VERDICT-INERT caveat when a
+# positive small-molecule tractability snapshot rests on an approved drug that only covers a MINORITY
+# of the INDICATION's mutant-allele spectrum (the drug's covered allele is not the indication's dominant
+# hotspot). Example: KRAS in COADREAD is G12D/G12V/G13D-dominant with G12C ~3%, yet the approved KRAS
+# drugs (sotorasib/adagrasib) are G12C-only — so "well_covered" over-reads the tractable slice.
+#
+# CURATION DISCIPLINE (conservative): list ONLY drugs whose effective allele set is a small set of CLEAN
+# POINT mutations that string-match the mutation-hotspot-frequency `protein_change` tokens (e.g. "G12C").
+# Genes whose approved SM is broadly effective across their activating spectrum are DELIBERATELY OMITTED
+# (no entry -> the caveat never fires for them):
+#   - EGFR: TKIs cover the classical activating spectrum (ex19del + L858R) + T790M — indels do not
+#     string-match hotspot tokens cleanly and it is not a minority-allele concern; omitted by design.
+#   - KIT/PDGFRA (imatinib etc.): broad multi-exon activity; omitted.
+# Matching is exact on the upper-cased protein_change token (a "p." prefix is stripped before compare).
+#
+# schema: {gene_symbol: {covered_alleles: [str], approved_drugs: [str], note: str}}
+entries:
+  KRAS:
+    covered_alleles: [G12C]
+    approved_drugs: [sotorasib, adagrasib]
+    note: "G12C-only covalent inhibitors (switch-II pocket); no approved pan-KRAS or G12D/G12V SM."
+  BRAF:
+    covered_alleles: [V600E, V600K, V600D]
+    approved_drugs: [vemurafenib, dabrafenib, encorafenib]
+    note: "V600-selective (class I); non-V600 (class II/III) are not covered by the approved V600 inhibitors."
+  IDH1:
+    covered_alleles: [R132C, R132H, R132G, R132S, R132L]
+    approved_drugs: [ivosidenib, olutasidenib]
+    note: "R132-mutant-selective."
+  IDH2:
+    covered_alleles: [R140Q, R172K]
+    approved_drugs: [enasidenib]
+    note: "R140/R172-mutant-selective."

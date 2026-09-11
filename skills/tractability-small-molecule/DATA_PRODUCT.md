@@ -15,9 +15,9 @@ logic + history live in SKILL.md / run.py; this file is the data-product spec.
 
 ---
 
-## 1. Inputs — wired data (8 cards) — CLEAN
+## 1. Inputs — wired data (9 cards) — CLEAN
 
-Every card traces card → method → data-catalog manifest → materialized S3 product. **All 8 products LIVE**;
+Every card traces card → method → data-catalog manifest → materialized S3 product. **All 9 products LIVE**;
 no placeholders, no stale refs, no stale-metadata skew. `run.py` has no `CARD_CONTEXT` map.
 
 **Verdict-driving (5 → `tractability_small_molecule.resolver.yaml`):**
@@ -26,10 +26,12 @@ top-precedence on-target rungs), `structure-features-static` (`structure-liganda
 `pdb-alphafold-structure-features-per-uniprot-v1`), `known-drug-tractability` (`dgidb-drug-gene-per-gene-v1`
 + directional), `measured-potency-tractability` (`chembl-bioactivity-per-protein-v1` + `bindingdb-affinity-per-protein-v1`).
 
-**Display / SM-verdict-inert (3):** `dependency-predictability` (confidence only), `gdsc-drug-activity`
+**Display / SM-verdict-inert (4):** `dependency-predictability` (confidence only), `gdsc-drug-activity`
 (2nd-platform, verdict-inert), `degradation-feasibility` (fires **degrader-channel-only** rules —
 drives `degrader_snapshot` + the `.degrader` arm, never the SM scalar; `ubibrowser-e3-substrate-per-gene-v1`
-+ `surfaceome-family-classification-per-uniprot-v1`).
++ `surfaceome-family-classification-per-uniprot-v1`), `mutation-hotspot-frequency` (`gdc-somatic-hotspot`
+→ GDC-MC3; **#993 pt1** context — the indication's mutant-allele spectrum, read ONLY by the verdict-inert
+`minority_allele_coverage_caveat`; fires no rule, feeds no resolver rung).
 
 ---
 
