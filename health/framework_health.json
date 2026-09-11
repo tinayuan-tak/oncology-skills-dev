@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-09-11T06:32:29.923596+00:00",
+  "generated_at": "2026-09-11T17:07:13.804472+00:00",
   "roots": {
     "contracts": "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
     "skills": "/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills",
@@ -9,34 +9,25 @@
     "catalog": "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"
   },
   "root_shas": {
-    "contracts": "ab0c027",
-    "skills": "10b37fc",
+    "contracts": "f65a4e3",
+    "skills": "bf31a3e",
     "methods": "1977738",
     "products": "7a3d852",
     "catalog": "7981965"
   },
   "delta": {
     "has_prior": true,
-    "prior_generated_at": "2026-09-11T05:05:23.217215+00:00",
-    "n_skills": -2,
-    "n_cards": -1,
+    "prior_generated_at": "2026-09-11T06:32:29.923596+00:00",
+    "n_skills": 0,
+    "n_cards": 0,
     "n_drift_flags": 0,
     "n_error_drift": 0,
-    "verdict_tally": {
-      "partial": -2
-    },
-    "card_health_tally": {
-      "self_produced": -1
-    },
+    "verdict_tally": {},
+    "card_health_tally": {},
     "skills_added": [],
-    "skills_removed": [
-      "bispecific-pair-scan",
-      "surfaceome-cohort-ranking"
-    ],
+    "skills_removed": [],
     "cards_added": [],
-    "cards_removed": [
-      "bispecific-pair-scan"
-    ]
+    "cards_removed": []
   },
   "summary": {
     "n_skills": 23,
@@ -4563,7 +4554,7 @@
           "measurement_type": "exon_window",
           "has_live_reader": true,
           "method_call": "exon-window",
-          "dispatch_module": "exon_window",
+          "dispatch_module": "exon_window.read",
           "method_dir_exists": true,
           "method_has_read": true,
           "stale_method_label": false,
@@ -4596,7 +4587,7 @@
           "measurement_type": "modality_window",
           "has_live_reader": true,
           "method_call": "modality-therapeutic-window",
-          "dispatch_module": "tcga_gtex_tpm_quantiles",
+          "dispatch_module": "tcga_gtex_tpm_quantiles.window",
           "method_dir_exists": true,
           "method_has_read": true,
           "stale_method_label": false,
@@ -6372,7 +6363,7 @@
         "fans_out": false,
         "is_placeholder": false,
         "cards_in_runpy": [],
-        "test_count": 62
+        "test_count": 63
       },
       "cards": [
         {
@@ -9207,7 +9198,7 @@
           "measurement_type": "modality_window",
           "has_live_reader": true,
           "method_call": "modality-therapeutic-window",
-          "dispatch_module": "tcga_gtex_tpm_quantiles",
+          "dispatch_module": "tcga_gtex_tpm_quantiles.window",
           "method_dir_exists": true,
           "method_has_read": true,
           "stale_method_label": false,
@@ -12541,7 +12532,7 @@
       "measurement_type": "exon_window",
       "has_live_reader": true,
       "method_call": "exon-window",
-      "dispatch_module": "exon_window",
+      "dispatch_module": "exon_window.read",
       "method_dir_exists": true,
       "method_has_read": true,
       "stale_method_label": false,
@@ -12583,7 +12574,7 @@
       "measurement_type": "modality_window",
       "has_live_reader": true,
       "method_call": "modality-therapeutic-window",
-      "dispatch_module": "tcga_gtex_tpm_quantiles",
+      "dispatch_module": "tcga_gtex_tpm_quantiles.window",
       "method_dir_exists": true,
       "method_has_read": true,
       "stale_method_label": false,
