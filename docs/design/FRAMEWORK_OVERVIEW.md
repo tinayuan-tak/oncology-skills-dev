@@ -39,25 +39,30 @@ chain is what makes any single claim auditable back to a specific data file.
 
 **Determinism vs. judgment is split by layer.** Everything up to and including
 rule-firing is deterministic and reproducible. Only the *final synthesis
-narrative* is LLM-generated. The nomination verdict is rule-gated **from above and,
-when a rule fires, absolutely** — but see the honest caveat below: the gate's clamp
-is currently one-*sided*, so on **abstention** (no rule fires) the LLM's
-recommendation stands unbounded below. A fix is approved and pending. Where a rule
-does fire, the audit spine is invariant even when prose drifts run-to-run.
+narrative* is LLM-generated. The nomination verdict is rule-gated on **both** sides:
+a fired veto/hold rule forces the recommendation, and — as of the 2026-09-11
+lower-bound fix — on **abstention** (no rule fires) an LLM-authored `veto`/`hold`
+collapses to `insufficient_evidence`, so a negative recommendation always has a rule
+(or the honest abstention floor) behind it. The only value the LLM still owns
+outright is a `nominate` on abstention, which stays bounded *above* by the kill gate.
+The audit spine is invariant even when prose drifts run-to-run.
 
-> **⚠ Known defect (found 2026-09-11, fix approved, pending).** The clamp
-> (`run.py`, gate branch) forces the recommendation to the rule verdict *only when a
-> veto/hold rule fires*; the abstention branch touches only `confidence`, leaving
+> **✅ Resolved defect (found + fixed 2026-09-11).** The clamp (`run.py`, gate branch)
+> used to be one-*sided*: it forced the recommendation only when a veto/hold rule
+> fired; the abstention branch touched only `confidence`, leaving
 > `overall_recommendation` = the LLM's value with **no lower bound**. So on the ~half
-> of runs where the gate abstains, the LLM can author a `veto`/`hold` with no rule
+> of runs where the gate abstained, the LLM could author a `veto`/`hold` with no rule
 > behind it and nothing in the audit spine to attribute it to (measured: 41 of 120
-> run artifacts published a recommendation the gate did not produce; 5 of the
-> LLM-authored vetoes land on approved drugs). This bounds optimism (a `nominate`
-> requires a positive tier) but not pessimism — the side of the framework's measured
-> failure mode. **Approved fix:** the missing lower half — an abstention `veto`/`hold`
-> with no fired rule collapses to `insufficient_evidence`. Until it lands, treat a
-> recommendation as rule-authoritative **only when `target_call.gate.fired == true`**;
-> otherwise it is the LLM's, and `deciding_axis.basis` will read
+> run artifacts published a recommendation the gate did not produce; 5 LLM-authored
+> vetoes landed on approved drugs). It bounded optimism (a `nominate` requires a
+> positive tier) but not pessimism — the side of the framework's measured failure
+> mode. **Fix (landed):** the missing lower half — an abstention `veto`/`hold` with no
+> fired rule collapses to `insufficient_evidence` (`tp_gates.abstention_lower_bound_clamp`,
+> recorded as `gate.lower_bound_clamp`). Replayed over the corpus it moved 14 of 43
+> runs (9 hold + 5 veto, incl. 4 approved-drug vetoes) to `insufficient_evidence`. A
+> recommendation is now rule-authoritative whenever it is a negative; where
+> `target_call.gate.fired == false` and the value is `insufficient_evidence`,
+> `deciding_axis.basis` will read
 > `abstention_coverage_gaps`.
 
 ---
@@ -272,22 +277,21 @@ absence of any data reach.
 prose; if it fails to call the tool, `synthesize_structured` raises (no silent
 prose fallback).
 
-**The recommendation is advisory within a gated band — but the band is currently
-bounded on ONE side only.** The LLM proposes a recommendation from the enum, and
-`_gate_recommendation` runs *after*: a fired killer / subtype-non-dependence
-sub-verdict forces `veto`/`hold` regardless of the LLM's choice (override recorded,
-LLM value preserved for audit), and no positive tier can force `nominate`. So the LLM
-can never override a safety/efficacy killer and can never manufacture a GO. **But when
-NO rule fires (the gate abstains — roughly half of runs), the band is unbounded
-below**: the abstention branch clamps only `confidence`, so the LLM's `veto`/`hold`
-flows straight into `target_call.recommendation` with no rule behind it. In that case
-the "discard every LLM word and the verdict remains" invariant does **not** hold — the
-verdict *is* the LLM word. It holds only when `target_call.gate.fired == true`. The
-approved fix (see the ⚠ box in *The model in one sentence*) collapses an abstention
-negative with no fired rule to `insufficient_evidence`, at which point the invariant
-becomes unconditional again. Sub-verdicts (deterministic, rule-fired) always live in
-separate schema slots from the LLM narrative, so the *sub-verdict* spine is invariant
-regardless — it is only the composed *recommendation* that the abstention gap affects.
+**The recommendation is advisory within a gated band that is now bounded on BOTH
+sides.** The LLM proposes a recommendation from the enum, and `_gate_recommendation`
+runs *after*: a fired killer / subtype-non-dependence sub-verdict forces `veto`/`hold`
+regardless of the LLM's choice (override recorded, LLM value preserved for audit), and
+no positive tier can force `nominate`. So the LLM can never override a safety/efficacy
+killer and can never manufacture a GO. **And when NO rule fires (the gate abstains —
+roughly half of runs), an LLM-authored `veto`/`hold` is clamped to
+`insufficient_evidence`** (`tp_gates.abstention_lower_bound_clamp`, recorded as
+`gate.lower_bound_clamp`; the 2026-09-11 lower-bound fix), so a negative recommendation
+always has a fired rule — or the honest abstention floor — behind it. The only value the
+LLM still owns outright is a `nominate` on abstention, bounded above by the kill gate.
+With both sides bounded, "discard every LLM word and the verdict remains" holds for every
+verdict except an abstention `nominate`. Sub-verdicts (deterministic, rule-fired) always
+live in separate schema slots from the LLM narrative, so the *sub-verdict* spine is
+invariant regardless.
 
 **Provenance + reproducibility** (`_skills_common/llm.py`):
 - `_prompt_hash` — SHA-256 over `(system + user + tool_schema + model_id)`, tool
