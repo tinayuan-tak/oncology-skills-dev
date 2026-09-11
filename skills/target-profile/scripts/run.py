@@ -897,7 +897,7 @@ def main() -> int:
     # curated biology_axis lookup when ambiguous. VERDICT-INERT: emitted onto nomination.json and
     # consumed by NO gate block until Step 2b — recommendation + confidence are byte-identical.
     # `unresolved` reproduces today's gate exactly.
-    thesis = derive_thesis(archetype_companion, axis_info.get("biology_axis"))
+    thesis = derive_thesis(archetype_companion, axis_info.get("biology_axis"), sub_results=sub_results)
     print(f"[target-profile] thesis [{thesis['basis']}]: {thesis['thesis']}", file=sys.stderr)
 
     # M4 modality-fit-by-channel: roll up the records' modality_scope into a PER-CHANNEL favorability

@@ -81,3 +81,62 @@ def test_control_labels_do_not_route():
     fall back to biology_axis."""
     r = tp.derive_thesis(_ac(control_housekeeping=0.9, snv_driver=0.1), "mixed", contracts_repo=CONTRACTS)
     assert r["thesis"] == "unresolved"
+
+
+# ── Step 2b refinement: coarse thesis → finer thesis from axis signals ─────────────────────────────
+def _sr(**verdicts):
+    """sub_results shaped {short: {'verdict': (v, rule)}}."""
+    return {s: {"verdict": (v, f"{s}-rule")} for s, v in verdicts.items()}
+
+
+def test_neomorphic_gof_refinement_fires_on_gof_driver_plus_nondependent():
+    """IDH1-class: snv_driver archetype → oncogene_addiction coarse; a confirmed GoF driver whose pooled
+    KO is non_dependent refines to neomorphic_gof (subsumes gof_driver_scoped_veto_downgrade)."""
+    ac = _ac(snv_driver=1.0)
+    for gv in ("confirmed_driver", "multi_class_driver"):
+        r = tp.derive_thesis(
+            ac,
+            "intracellular_intrinsic",
+            sub_results=_sr(genomic_alteration=gv, dependency="non_dependent"),
+            contracts_repo=CONTRACTS,
+        )
+        assert r["thesis"] == "neomorphic_gof" and r["basis"] == "step_2b_refinement"
+        assert r["refined_from"] == "oncogene_addiction"
+
+
+def test_kras_stays_oncogene_addiction_not_neomorphic():
+    """KRAS guardrail: confirmed_driver but concordant_dependent (NOT non_dependent) → the refinement
+    condition fails → stays oncogene_addiction (dependency decides; KRAS golden preserved)."""
+    r = tp.derive_thesis(
+        _ac(snv_driver=1.0),
+        "intracellular_intrinsic",
+        sub_results=_sr(genomic_alteration="confirmed_driver", dependency="concordant_dependent"),
+        contracts_repo=CONTRACTS,
+    )
+    assert r["thesis"] == "oncogene_addiction"
+
+
+def test_refinement_never_overrides_a_surface_thesis():
+    """A surface antigen (antigen_driven) is NOT refined to neomorphic_gof even if it happens to carry a
+    genomic driver + non_dependent — antigen_driven is not in the rule's `from`."""
+    r = tp.derive_thesis(
+        _ac(expression_surface=0.9, snv_driver=0.1),
+        "surface_intrinsic",
+        sub_results=_sr(genomic_alteration="confirmed_driver", dependency="non_dependent"),
+        contracts_repo=CONTRACTS,
+    )
+    assert r["thesis"] == "antigen_driven"
+
+
+def test_refinement_needs_sub_results_backward_compatible():
+    """Without sub_results the coarse thesis stands (the 2a callers keep working)."""
+    r = tp.derive_thesis(_ac(snv_driver=1.0), "intracellular_intrinsic", contracts_repo=CONTRACTS)
+    assert r["thesis"] == "oncogene_addiction" and r["basis"] == "archetype_mixture"
+    # a partial signal (driver present but dependency not non_dependent) also does not refine
+    r2 = tp.derive_thesis(
+        _ac(snv_driver=1.0),
+        "intracellular_intrinsic",
+        sub_results=_sr(genomic_alteration="confirmed_driver"),
+        contracts_repo=CONTRACTS,
+    )
+    assert r2["thesis"] == "oncogene_addiction"

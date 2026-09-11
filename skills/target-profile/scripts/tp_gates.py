@@ -905,19 +905,33 @@ def _load_target_thesis(contracts_repo: Path | None = None) -> Optional[dict]:
         return None
 
 
+def _refinement_matches(when_verdicts: dict, sub_results: dict) -> bool:
+    """True iff EVERY (sub_skill → allowed-verdict-list) in `when_verdicts` holds against the run's
+    sub-verdicts (AND). A missing/None sub-verdict never matches — a refinement needs a MEASURED signal."""
+    for short, allowed in (when_verdicts or {}).items():
+        v = (sub_results.get(short) or {}).get("verdict")
+        vs = v[0] if isinstance(v, (list, tuple)) and v and isinstance(v[0], str) else None
+        if vs not in set(allowed):
+            return False
+    return True
+
+
 def derive_thesis(
     archetype_companion: Optional[dict],
     biology_axis: Optional[str],
+    sub_results: Optional[dict] = None,
     contracts_repo: Path | None = None,
 ) -> dict:
-    """Derive the target's THESIS (Step 2a) from archetype_core's verdict-inert soft_membership under
-    the governed hard-margin rule, falling back to the curated biology_axis lookup when the mixture is
-    ambiguous. VERDICT-INERT: emitted onto the composition and consumed by NO gate block until Step 2b,
-    so it moves no recommendation. `unresolved` reproduces today's gate by construction.
+    """Derive the target's THESIS from archetype_core's verdict-inert soft_membership under the governed
+    hard-margin rule (Step 2a COARSE typing), then apply the Step-2b axis-signal REFINEMENT to promote a
+    coarse thesis to a finer one (e.g. oncogene_addiction → neomorphic_gof on a confirmed GoF driver whose
+    pooled KO is non_dependent). Falls back to the curated biology_axis lookup when the mixture is
+    ambiguous. `unresolved` reproduces today's gate by construction.
 
-    Returns {thesis, basis, ...evidence}. basis ∈ {archetype_mixture, biology_axis_fallback,
-    unresolved, no_vocab}. Governance: archetype_core mints nothing; THIS deterministic function + the
-    PR-reviewable target_thesis.yaml do the typing."""
+    Returns {thesis, basis, ...evidence}. basis ∈ {archetype_mixture, biology_axis_fallback, unresolved,
+    no_vocab, step_2b_refinement}. Governance: archetype_core mints nothing; THIS deterministic function
+    + the PR-reviewable target_thesis.yaml do the typing. `sub_results` is required only for the finer
+    refinement; without it the coarse thesis stands (backward-compatible)."""
     spec = _load_target_thesis(contracts_repo)
     if spec is None:
         return {"thesis": "unresolved", "basis": "no_vocab"}
@@ -927,30 +941,43 @@ def derive_thesis(
     dom_min = hm.get("dominant_weight_min", 0.5)
     sep_min = hm.get("separation_min", 0.2)
 
+    # ── COARSE typing (Step 2a) ──
+    coarse: dict = {"thesis": "unresolved", "basis": "unresolved", "biology_axis": biology_axis}
     sm = (archetype_companion or {}).get("soft_membership") or {}
     if sm:
         ranked = sorted(sm.items(), key=lambda kv: (-kv[1], kv[0]))  # weight desc, label asc (deterministic)
         dom_label, dom_w = ranked[0]
         second_w = ranked[1][1] if len(ranked) > 1 else 0.0
-        if dom_w >= dom_min and (dom_w - second_w) >= sep_min:
-            thesis = cross.get(dom_label, "unresolved")
-            if thesis != "unresolved":
-                return {
-                    "thesis": thesis,
-                    "basis": "archetype_mixture",
-                    "dominant_label": dom_label,
-                    "dominant_weight": round(dom_w, 3),
-                    "margin": round(dom_w - second_w, 3),
-                }
+        if dom_w >= dom_min and (dom_w - second_w) >= sep_min and cross.get(dom_label, "unresolved") != "unresolved":
+            coarse = {
+                "thesis": cross[dom_label],
+                "basis": "archetype_mixture",
+                "dominant_label": dom_label,
+                "dominant_weight": round(dom_w, 3),
+                "margin": round(dom_w - second_w, 3),
+            }
+    if coarse["basis"] in ("unresolved",):  # mixture ambiguous / no membership → curated biology_axis fallback
+        fb = spec.get("biology_axis_fallback") or {}
+        th = fb.get(biology_axis, "unresolved") if biology_axis else "unresolved"
+        coarse = {
+            "thesis": th,
+            "basis": "biology_axis_fallback" if th != "unresolved" else "unresolved",
+            "biology_axis": biology_axis,
+        }
 
-    # ambiguous mixture (or no membership) → the curated biology_axis fallback (never regress the ~20)
-    fb = spec.get("biology_axis_fallback") or {}
-    thesis = fb.get(biology_axis, "unresolved") if biology_axis else "unresolved"
-    return {
-        "thesis": thesis,
-        "basis": "biology_axis_fallback" if thesis != "unresolved" else "unresolved",
-        "biology_axis": biology_axis,
-    }
+    # ── Step 2b REFINEMENT: promote to a finer thesis from AXIS SIGNALS (needs sub_results) ──
+    if sub_results:
+        for rule in spec.get("step_2b_refinement", []) or []:
+            if coarse["thesis"] not in set(rule.get("from") or []):
+                continue
+            if _refinement_matches(rule.get("when_verdicts") or {}, sub_results):
+                return {
+                    "thesis": rule["to"],
+                    "basis": "step_2b_refinement",
+                    "refined_from": coarse["thesis"],
+                    "when_verdicts": rule.get("when_verdicts"),
+                }
+    return coarse
 
 
 def _sub_result_has_signal(r: dict) -> bool:
