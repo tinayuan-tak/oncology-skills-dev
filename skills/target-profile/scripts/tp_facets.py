@@ -50,6 +50,46 @@ from tp_gates import (
 )
 
 
+def _admissible_but_silent(sub_results: dict, baseline: dict, exclude: set[str]) -> list[dict]:
+    """The axes the framework COULD evidence this run (per-run framework_can_evidence in
+    captured/partial) that produced a signal but did NOT carry the call — the honesty companion to
+    the deciding axis. This is what makes a HOLD auditable: "held on safety; surface was ADMISSIBLE
+    and read `adc_preferred`" instead of a bare "held". `exclude` = the deciding short(s), so the
+    winner is not also listed as silent. A purely descriptive/gateless axis (no gate + no band) is
+    not admissible-to-DECIDE, so it is omitted (it is context, not a silent decider). Deterministic:
+    necessity-band first, then strongest coverage, then short — no run-to-run reordering."""
+    rows = []
+    for short, r in sub_results.items():
+        if short in exclude or short not in baseline:
+            continue
+        if not _sub_result_has_signal(r):
+            continue
+        cov = _run_coverage_for_short(short, r, baseline)
+        if cov not in ("captured", "partial"):
+            continue
+        b = baseline.get(short, {})
+        if not (b.get("gate") or b.get("gate_name") or b.get("band")):
+            continue  # descriptive/gateless axis — not an admissible decider
+        v = r.get("verdict")
+        rows.append(
+            {
+                "short": short,
+                "gate": b.get("gate"),
+                "band": b.get("band"),
+                "framework_can_evidence": cov,
+                "verdict": v[0] if v else None,
+            }
+        )
+    rows.sort(
+        key=lambda x: (
+            x.get("band") != "necessity",
+            -_COVERAGE_RANK.get(x.get("framework_can_evidence"), 0),
+            x.get("short") or "",
+        )
+    )
+    return rows
+
+
 def _deciding_axis(
     sub_results: dict,
     gate_action: Optional[str],
@@ -57,7 +97,11 @@ def _deciding_axis(
     positive_hits: list[dict],
     contracts_repo: Path | None = None,
 ) -> dict:
-    """Build the deciding_axis block (see module comment above). Deterministic; never predicts."""
+    """Build the deciding_axis block (see module comment above). Deterministic; never predicts.
+
+    Every decided basis (gate_fired / positive_signal) also reports `admissible_but_silent`: the
+    other axes the framework could evidence this run but that did not carry the call — so the
+    attribution is auditable, not just "which axis won" but "which axes were in play and mute"."""
     baseline, source = _load_gate_coverage(contracts_repo)
 
     def _row(short: str) -> dict:
@@ -94,6 +138,7 @@ def _deciding_axis(
             "basis": "gate_fired",
             "coverage_source": source,
             "deciding_axis": row,
+            "admissible_but_silent": _admissible_but_silent(sub_results, baseline, {top}),
             "routing": f"decided by {_gate_label}: {top} forced '{gate_action}'.",
         }
 
@@ -117,6 +162,7 @@ def _deciding_axis(
             "basis": "positive_signal",
             "coverage_source": source,
             "deciding_axes": rows,
+            "admissible_but_silent": _admissible_but_silent(sub_results, baseline, set(shorts)),
             "routing": f"supported by {', '.join(shorts)} ({_kind}).",
         }
 

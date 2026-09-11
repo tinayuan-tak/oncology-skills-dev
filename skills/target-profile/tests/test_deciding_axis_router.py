@@ -78,6 +78,60 @@ def test_veto_axis_without_lettered_gate_does_not_render_gate_none():
         assert (f"the {gname} gate" in routing) if gname else ("the safety gate" in routing)
 
 
+# ---------- admissible-but-silent: the honesty companion to the deciding axis (Step 1a) ----------
+
+
+def test_gate_fired_reports_admissible_but_silent_axes():
+    """A HOLD must be auditable: 'held on dependency; selectivity + expression were ADMISSIBLE and
+    read <verdict>'. The winner is excluded; each silent row carries its verdict so the attribution
+    story is legible without re-deriving it."""
+    sr = _sr(dependency="non_dependent", selectivity="strong_tumor_selective", expression="broadly_high")
+    gate_hits = [
+        {"short": "dependency", "verdict": "non_dependent", "action": "veto", "driving_rule_id": "non-dependent-killer"}
+    ]
+    da = tp._deciding_axis(sr, gate_action="veto", gate_hits=gate_hits, positive_hits=[], contracts_repo=CONTRACTS)
+    silent = da["admissible_but_silent"]
+    shorts = {s["short"] for s in silent}
+    assert "dependency" not in shorts, "the deciding axis must not also be listed as silent"
+    assert {"selectivity", "expression"} <= shorts
+    row = next(s for s in silent if s["short"] == "selectivity")
+    assert row["verdict"] == "strong_tumor_selective"  # the silent axis's own reading is carried
+    assert set(row) == {"short", "gate", "band", "framework_can_evidence", "verdict"}
+    assert row["framework_can_evidence"] in ("captured", "partial")
+
+
+def test_admissible_but_silent_excludes_blind_and_signalless_axes():
+    """An axis the framework could NOT look at this run (per-run coverage DOWNGRADED to blind because
+    every card came back missing) is not 'admissible', and an axis that produced no signal is not 'in
+    play' — neither is silent-but-admissible."""
+    sr = _sr(dependency="non_dependent", safety=None)  # safety: no signal → excluded
+    # selectivity present-and-signalling but every card missing this run → per-run coverage blind.
+    sr["selectivity"] = {
+        "skill_dir": "selectivity",
+        "cards": [{"card_id": "sel-card", "_missing": True}],
+        "fired": [{"rule_id": "sel-rule"}],
+        "verdict": ("strong_tumor_selective", "sel-rule"),
+    }
+    gate_hits = [
+        {"short": "dependency", "verdict": "non_dependent", "action": "veto", "driving_rule_id": "non-dependent-killer"}
+    ]
+    da = tp._deciding_axis(sr, gate_action="veto", gate_hits=gate_hits, positive_hits=[], contracts_repo=CONTRACTS)
+    shorts = {s["short"] for s in da["admissible_but_silent"]}
+    assert "selectivity" not in shorts, "a per-run-blind axis (all cards missing) is not admissible-to-decide"
+    assert "safety" not in shorts, "an axis with no signal is not in play"
+
+
+def test_positive_signal_reports_admissible_but_silent_excluding_supporters():
+    sr = _sr(
+        dependency="concordant_dependent", selectivity="strong_tumor_selective", genomic_alteration="recurrent_driver"
+    )
+    pos_hits = [{"short": "dependency"}, {"short": "selectivity"}]
+    da = tp._deciding_axis(sr, gate_action=None, gate_hits=[], positive_hits=pos_hits, contracts_repo=CONTRACTS)
+    shorts = {s["short"] for s in da["admissible_but_silent"]}
+    assert not ({"dependency", "selectivity"} & shorts), "supporting axes are the deciders, not silent"
+    assert "genomic_alteration" in shorts
+
+
 # ---------- basis 2: a positive tier → strongest positive dimension is load-bearing ----------
 
 

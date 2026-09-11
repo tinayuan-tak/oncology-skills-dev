@@ -96,21 +96,52 @@ def _load_reference_profiles(cal_path: str | Path) -> dict:
     return (yaml.safe_load(Path(cal_path).read_text()) or {}).get("reference_profiles") or {}
 
 
+def _emitted_attribution(nom: dict) -> tuple[list[str], str | None, list[dict]]:
+    """Read the AUTHORITATIVE deciding-axis attribution the run itself emitted (target-profile's
+    tp_facets._deciding_axis), instead of RECONSTRUCTING it from gate.triggered_by.
+
+    Why this is the fix (Step 1a): the reconstruction below was lossy — gate.triggered_by is empty
+    for a positive_signal call (no veto/hold fired), so the old code fell to suppressed_vetoes or
+    None and silently DROPPED every nominate/positive target from axis-attribution scoring (verified:
+    33 of 86 decided runs in the framework-runs corpus had recon != emitted, 10 of them recon=None
+    while the emitted block named a real axis). The run computes the deciding axis once, from the
+    gate + coverage baseline; the backtest must READ that, not guess.
+
+    Returns (deciding_shorts, basis, admissible_but_silent). deciding_shorts is a LIST: a
+    positive_signal call is supported by a SET of axes, and the call is attributed correctly if the
+    ground-truth axis is ANY of them. Empty on abstention (no axis carried the call → unscored)."""
+    da = (nom.get("target_call") or {}).get("deciding_axis") or nom.get("deciding_axis")
+    if not isinstance(da, dict):
+        return [], None, []
+    basis = da.get("basis")
+    silent = da.get("admissible_but_silent") or []
+    if basis == "gate_fired":
+        short = (da.get("deciding_axis") or {}).get("short")
+        return ([short] if short else []), basis, silent
+    if basis == "positive_signal":
+        return [r["short"] for r in (da.get("deciding_axes") or []) if r.get("short")], basis, silent
+    return [], basis, silent  # abstention_coverage_gaps → no axis carried the call
+
+
 def score_target(nom: dict, ref: dict) -> dict:
     """One per-axis backtest row for a target, given its composed nomination.json + reference_profiles entry."""
     tc = nom.get("target_call") or {}
     gate = tc.get("gate") or {}
     sub = nom.get("sub_verdicts") or {}
-    # framework's composed DECIDING axis (the sub-skill that forced the recommendation), if any
-    deciding_short = None
-    for x in gate.get("triggered_by") or []:
-        deciding_short = x.get("short")
-        break
-    if deciding_short is None:  # passed: no veto/hold fired
-        for x in gate.get("suppressed_vetoes") or []:
-            deciding_short = x.get("short")  # the axis that WOULD have fired but was suppressed
+    # framework's composed DECIDING axis/axes — AUTHORITATIVE from the emitted block (Step 1a).
+    deciding_shorts, basis, admissible_but_silent = _emitted_attribution(nom)
+    if not deciding_shorts and basis is None:
+        # LEGACY fallback (pre-1a nomination.json with no emitted deciding_axis block): reconstruct.
+        for x in gate.get("triggered_by") or []:
+            deciding_shorts = [x.get("short")]
             break
-    fw_family = _SHORT_FAMILY.get(deciding_short, f"none/{deciding_short}")
+        if not deciding_shorts:  # passed: no veto/hold fired
+            for x in gate.get("suppressed_vetoes") or []:
+                deciding_shorts = [x.get("short")]  # the axis that WOULD have fired but was suppressed
+                break
+    deciding_short = deciding_shorts[0] if deciding_shorts else None  # primary, for the display column
+    fw_families = {_SHORT_FAMILY.get(s, f"none/{s}") for s in deciding_shorts}
+    fw_family = _SHORT_FAMILY.get(deciding_short, f"none/{deciding_short}") if deciding_short else None
     ref_family = _family_of_descriptor(ref.get("deciding_axis"))
     rec = gate.get("forced_recommendation")  # hold/veto/None
     pol = _outcome_polarity(ref.get("outcome"))
@@ -128,9 +159,15 @@ def score_target(nom: dict, ref: dict) -> dict:
         "ref_coverage": ref.get("deciding_axis_coverage"),
         "composed_recommendation": rec,
         "composed_deciding_short": deciding_short,
+        "composed_deciding_shorts": deciding_shorts,
+        "composed_basis": basis,
         "fw_family": fw_family,
         # THE per-axis test: did the framework decide on the same axis FAMILY as ground truth?
-        "axis_attribution_match": (fw_family == ref_family) if deciding_short else None,
+        # positive_signal is supported by a SET → a match on ANY supporting axis counts.
+        "axis_attribution_match": (ref_family in fw_families) if deciding_shorts else None,
+        # the honesty companion: axes admissible-but-mute this run (e.g. surface read adc_preferred
+        # while safety carried the hold) — the attribution-mismatch signal Step 1b keys on.
+        "admissible_but_silent": [s.get("short") for s in admissible_but_silent],
         "per_axis_verdicts": per_axis,
     }
 
