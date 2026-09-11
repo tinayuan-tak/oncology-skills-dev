@@ -47,6 +47,42 @@ def test_family_strip():
     assert _family_of("sc-pseudobulk-donor-celltype-coadread-v2") == "sc-pseudobulk-donor-celltype-coadread"
 
 
+def test_family_strip_dotted_release():
+    """A release with a minor component writes the dot as a hyphen. Leaving the trailing `-0`/`-1` in
+    the family key meant a card declaring the release-free logical id (the CORRECT shape when the card
+    supplies its own release_pin) found no members, and the run published a resolution_error instead
+    of a head + staleness verdict."""
+    assert _family_of("gdc-pancohort-somatic-dr45-0") == "gdc-pancohort-somatic"
+    assert _family_of("tcga-gdc-dr45-0") == "tcga-gdc"
+    assert _family_of("genie-public-v19-0") == "genie-public"
+    assert _family_of("hpa-v25-1") == "hpa"
+    assert _family_of("toxcast-invitrodb-v3-3") == "toxcast-invitrodb"
+
+
+def test_family_strip_does_not_eat_a_descriptive_tail():
+    """Over-stripping is the dangerous direction: it would merge unrelated products into one family
+    and silently change which manifest resolves as the head. Only version/release-SHAPED tokens go."""
+    for mid in (
+        "sc-pseudobulk-donor-celltype-coadread",  # bare logical id — already a family
+        "hpa-rna-tissue-consensus",
+        "mc3-public",
+        "gdc-pancohort-somatic",  # the stem itself must be a fixed point
+    ):
+        assert _family_of(mid) == mid, f"_family_of stripped a real word from {mid!r}"
+
+
+def test_dotted_release_family_change_moves_no_head():
+    """The 13 ids whose family changed are all SINGLETONS, so no family gained or lost members and no
+    head selection moved. Guards the regex against a future widening that silently re-points a
+    resolved release — the failure mode would be a verdict change with no code change near it."""
+    idx = load_catalog()
+    members = [m for m in idx.manifests if _family_of(m) == "gdc-pancohort-somatic"]
+    assert members == ["gdc-pancohort-somatic-dr45-0"], members
+    # a fully-pinned declaration still resolves, via the `family in idx.manifests` fallback
+    assert resolve_release("gdc-pancohort-somatic-dr45-0", "latest_approved") == "gdc-pancohort-somatic-dr45-0"
+    assert resolve_release("gdc-pancohort-somatic", "latest_approved") == "gdc-pancohort-somatic-dr45-0"
+
+
 def test_latest_approved_picks_head(multi_members):
     """latest_approved resolves to a real member and is >= every other member by id sort
     (newest release wins when there are no supersedes edges)."""

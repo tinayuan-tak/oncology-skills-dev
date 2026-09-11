@@ -242,8 +242,21 @@ def _family_of(manifest_id: str) -> str:
     """The logical family of a manifest id = the id with a trailing version/release suffix
     stripped. Convention in this catalog: `<family>-<release>-v<N>` or `<family>-v<N>` — new
     releases are new SIBLINGS (ids never renamed), so the family is the stable join key.
-    Strips trailing `-v<N>` and a trailing release token if present (e.g. `-26q1`)."""
-    mid = re.sub(r"-v\d+$", "", manifest_id)  # drop -v2
+
+    DOTTED releases (2026-09-11): a release whose own version has a minor component is written with
+    the dot as a hyphen — `gdc-pancohort-somatic-dr45-0` (GDC DR45.0), `genie-public-v19-0` (GENIE
+    19.0), `hpa-v25-1` (HPA v25.1), `toxcast-invitrodb-v3-3`. The single-token patterns left that
+    trailing `-0` / `-1` in the family key, so a card declaring the release-free logical id — which
+    is what a card with a separate `release_pin` MUST declare, or it freezes to one release — found
+    no family members and the run published
+    `resolution_error: No manifest in family 'gdc-pancohort-somatic'` instead of a real head and
+    staleness verdict. Measured on the 509-manifest catalog: 13 ids change family and NO family's
+    member count changes (all 13 are singletons before and after), so no head selection moves.
+    Declaring the fully-pinned id still works — resolve_release falls back to
+    `if family in idx.manifests: return family`.
+    """
+    mid = re.sub(r"-dr\d+(?:-\d+)?$", "", manifest_id, flags=re.IGNORECASE)  # drop -dr45 / -dr45-0
+    mid = re.sub(r"-v\d+(?:-\d+)?$", "", mid, flags=re.IGNORECASE)  # drop -v2 / -v25-1
     mid = re.sub(r"-\d{2}q\d+$", "", mid, flags=re.IGNORECASE)  # drop -26q1 / -26q10 release token
     return mid
 
