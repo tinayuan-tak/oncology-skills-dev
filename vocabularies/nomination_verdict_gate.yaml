@@ -561,6 +561,17 @@ positive_signals:
   # negative HOLD) — this closes the framework's population-DEFINITION asymmetry (genomic subgroups could
   # already positively nominate via biomarker_stratified_dependency; transcriptional ones could only hold).
   - {sub_skill: subtype_fit,     verdict: subtype_restricted_dependency,  weight: supportive}
+  # Subtype-restricted TUMOR-TISSUE SELECTIVITY (2026-09-11, STAD subtype-shard wiring): a MEASURED,
+  # floor-cleared (n>=30 tumors) STRONG per-subtype tumor-vs-normal selectivity stratum (from the
+  # per-subgroup DESeq2 sensitivity product; STAD ships MSI_H/GS/CIN/HER2_amp). The tumor-tissue
+  # analogue of subtype_restricted_dependency, added to reach the SAME population-definition asymmetry
+  # for indications where the cell-line dependency subtype channel is DATA-BLOCKED (STAD/ESCA carry 0
+  # subtype-labeled DepMap lines, so subtype_restricted_dependency can never fire there). SUPPORTIVE,
+  # never dominant. DELIBERATELY WEAKER than the dependency rung: NOT a non_dependent veto-suppressor
+  # (see veto_suppressors — deliberately omitted) because selectivity is tumor-vs-normal PRESENCE
+  # selectivity, not proof of on-target dependency, so it must not rescue a measured dependency veto.
+  # OPT-IN-BY-SCOPE (fires only under --subtypes); the pooled spine is byte-identical without it.
+  - {sub_skill: subtype_fit,     verdict: subtype_restricted_selectivity, weight: supportive}
   - {sub_skill: selectivity,     verdict: strong_tumor_selective,        weight: dominant}
   - {sub_skill: selectivity,     verdict: modest_tumor_selective,        weight: supportive}
   # 2026-07-21: target-INTRINSIC expression positive. strongly_upregulated_in_tumor comes from the

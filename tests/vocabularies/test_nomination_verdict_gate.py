@@ -144,11 +144,14 @@ def test_positives_only_from_cross_target_axes():
     assert expr_pos <= {"strongly_upregulated_in_tumor"}, (
         f"only the target-intrinsic expression verdict may be a positive; got {expr_pos}"
     )
-    # subtype_fit is positive-eligible ONLY for the measured subtype-restricted dependency (the
-    # negative subtype hold must never leak into positives — same guard shape as expression).
+    # subtype_fit is positive-eligible ONLY for the measured subtype-restricted POSITIVES — the
+    # cell-line dependency rung (subtype_restricted_dependency) and its tumor-tissue analogue
+    # (subtype_restricted_selectivity, 2026-09-11, added to reach indications whose DepMap subtype
+    # channel is data-blocked, e.g. STAD/ESCA). The negative subtype hold (subtype_specific_non_dependence)
+    # must never leak into positives — same guard shape as expression.
     subtype_pos = {p["verdict"] for p in v["positive_signals"] if p["sub_skill"] == "subtype_fit"}
-    assert subtype_pos <= {"subtype_restricted_dependency"}, (
-        f"only subtype_restricted_dependency may be a subtype_fit positive; got {subtype_pos}"
+    assert subtype_pos <= {"subtype_restricted_dependency", "subtype_restricted_selectivity"}, (
+        f"only subtype_restricted_dependency / subtype_restricted_selectivity may be a subtype_fit positive; got {subtype_pos}"
     )
     excl = {(e["sub_skill"], e["verdict"]) for e in v["excluded_positive_modality_scoped"]}
     # the modality-scoped/advisory positives are explicitly documented as excluded.

@@ -3545,6 +3545,56 @@ rules:
       The subtype label (+ its classifier assay) is the patient-selection biomarker. Subtype-scoped:
       nominates FOR this subtype, not pan-subtype.
 
+  # POSITIVE subtype-restricted TUMOR-TISSUE SELECTIVITY (2026-09-11, STAD subtype-shard wiring) — the
+  # tumor-tissue analogue of subtype-restricted-dependency-supportive, for the population-definition
+  # asymmetry that rule could not reach. The dependency rule keys on subgroup-stratified-dependency,
+  # a DepMap CELL-LINE panorama; for indications whose DepMap subtype labels are unresolved (STAD/ESCA
+  # carry 0 subtype-labeled DepMap lines — depmap-subgroup-assignments-stad-v1 emits is_member=null on
+  # every stratum), that channel is DATA-BLOCKED and a genuine per-subtype signal could never move the
+  # verdict. This rule reads the TUMOR-TISSUE selectivity panorama instead: a MEASURED, floor-cleared
+  # (n>=30 tumors) STRONG tumor-vs-normal selectivity stratum from the per-subgroup DESeq2 sensitivity
+  # product ({ind}-dge-tumor-vs-normal-sensitivity-by-subgroup-v1; STAD ships MSI_H/GS/CIN/HER2_amp),
+  # surfaced on the DUAL-GRAIN tumor-vs-normal-selectivity card's per_subgroup_metrics when strata are
+  # in scope. Emits subtype_fit_selectivity: supportive → _subtype_verdict maps it to
+  # subtype_restricted_selectivity → the nomination gate treats it as a SUPPORTIVE positive.
+  #
+  # DELIBERATELY WEAKER THAN THE DEPENDENCY RUNG — two ways: (1) NOT a non_dependent veto-suppressor
+  # (subtype_restricted_dependency is; see nomination_verdict_gate.veto_suppressors). Selectivity is
+  # tumor-vs-normal PRESENCE selectivity, NOT proof the subtype is dependent on the target — it must not
+  # rescue a measured dependency veto. (2) Fires only on the strong band (strong_tumor_selective), never
+  # field_effect_tumor_selective. Opt-in-by-scope: only under --subtypes; pooled spine byte-identical.
+  - rule_id: subtype-restricted-selectivity-supportive
+    when:
+      card_id: tumor-vs-normal-selectivity
+      field: per_subgroup_metrics
+      in_record:
+        selectivity_class: strong_tumor_selective
+        evidence_state: measured
+        subgroup_n_floor_met: true
+    signals:
+      subtype_fit_selectivity: supportive
+    tier: subtype
+    subgroup_metadata_declared:
+      # composite: the strata this rung spans are defined by mixed data — genomically/molecularly
+      # (STAD EBV/MSI/GS/CIN, COADREAD msi_status) AND transcriptionally (COADREAD cms). The SIGNAL it
+      # emits is tumor-vs-normal expression selectivity; the subtype MEMBERSHIP is composite.
+      subtype_defining_data: composite
+      subgroup_n_source: tcga-subgroup-assignments (per-stratum tumor sample count, subgroup_n_tumor)
+      min_n_required: 30
+    rationale: |
+      The queried molecular subtype shows a MEASURED strong tumor-vs-normal selectivity for the target
+      (selectivity_class strong_tumor_selective, on a per-subgroup DESeq2 fit whose tumor set clears the
+      subgroup-n floor of 30). Because the stratum is floor-cleared this is a trusted positive: within
+      this subtype the target is selectively elevated in tumor over matched normal — a patient-selection
+      signal (the subtype label + its classifier assay are the biomarker). SUPPORTIVE, and DELIBERATELY
+      weaker than the dependency rung: (a) it is NOT a non_dependent veto-suppressor — selectivity is
+      PRESENCE selectivity, not proof of on-target dependency, so it must never rescue a measured
+      dependency veto; (b) it fires only on the strong band. Its value is closing the population-
+      definition asymmetry for indications where the cell-line dependency subtype channel is data-blocked
+      (STAD/ESCA have 0 subtype-labeled DepMap lines): a real per-subtype tumor-selectivity finding can
+      now raise confidence / rescue a diluted pooled read, where before it stayed purely descriptive.
+      Subtype-scoped: supports FOR this subtype, not pan-subtype. Opt-in-by-scope (--subtypes only).
+
   # ----------------------------------------------------------------------------
   # SUBTYPE TIER — EXPRESSION (presence) context, 2026-07-22
   # ----------------------------------------------------------------------------

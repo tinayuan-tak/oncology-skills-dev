@@ -62,6 +62,7 @@
         "indication_fit_single",
         "subtype_fit_genomic",
         "subtype_fit_expression",
+        "subtype_fit_selectivity",
         "subtype_fit_immune",
         "small_molecule",
         "degrader",

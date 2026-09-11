@@ -43,7 +43,7 @@
 #   `data_unavailable`        → sensitivity product not accessible
 
 card_id: tumor-vs-normal-selectivity
-version: 3.7.0    # 2026-08-18 extend subgroup coverage: +cms (COADREAD) +STAD tcga_molecular_subtype
+version: 3.8.0    # 2026-09-11 subtype grain is now VERDICT-AFFECTING in the composed target-profile --subtypes tier: +summary_fields_record_schemas.per_subgroup_metrics (unblocks the in_record rule) — a MEASURED, floor-cleared (n>=30) strong_tumor_selective stratum fires subtype-restricted-selectivity-supportive → subtype_restricted_selectivity (SUPPORTIVE positive; NOT a veto-suppressor). Closes the population-definition asymmetry where cell-line dependency subtyping is data-blocked (STAD/ESCA). Opt-in-by-scope; pooled spine byte-stable.  # 2026-08-18 extend subgroup coverage: +cms (COADREAD) +STAD tcga_molecular_subtype
 question: "How selectively is {target.symbol} expressed in {indication.label} tumor tissue, and how robust is that selectivity across the three independent tumor-vs-normal comparators (TCGA-adjacent raw + ComBat, GTEx-population raw)?"
 
 # Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
@@ -96,6 +96,13 @@ subgroup_stratification:
       axes: [tcga_molecular_subtype]
       assignments_manifest: tcga-subgroup-assignments-stad-v1
   rationale: "Selectivity recomputed within each stratum's tumor set by a full per-subgroup DESeq2 fit (emit-time), against the shared whole-cohort normals — an honest per-stratum contrast, not a re-sliced aggregate. Live for COADREAD (msi_status, cms) + STAD (tcga_molecular_subtype)."
+  # VERDICT ROLE (2026-09-11): DESCRIPTIVE in the FOCUSED tumor-selectivity skill, but in the composed
+  # target-profile --subtypes tier a MEASURED, floor-cleared (n>=30) strong_tumor_selective stratum
+  # fires subtype-restricted-selectivity-supportive (interpretation-rules/intracellular-intrinsic.rules.yaml)
+  # → subtype_fit_selectivity: supportive → subtype_restricted_selectivity (SUPPORTIVE positive, one-
+  # directional, never a veto-suppressor). This is the tumor-tissue analogue of the cell-line
+  # subtype-restricted-dependency rung, reaching indications whose DepMap subtype channel is data-blocked
+  # (STAD/ESCA have 0 subtype-labeled DepMap lines). Opt-in-by-scope (--subtypes); pooled spine unchanged.
 
 applies_when:
   - "context.data_sources.recount3_tcga_gtex_available == true"
@@ -160,8 +167,10 @@ outputs:
 
     # --- SUBTYPE GRAIN (2026-08-18) — per-subgroup panorama, emitted only when a
     # per-subgroup sensitivity product exists for the indication (else absent).
-    # DESCRIPTIVE (shows the landscape across strata; emits no signal / verdict change).
-    # Produced by read_stratified_tumor_vs_normal_selectivity.
+    # Produced by read_stratified_tumor_vs_normal_selectivity. DESCRIPTIVE in the focused skill;
+    # VERDICT-AFFECTING in the composed target-profile --subtypes tier (2026-09-11) — see
+    # subgroup_stratification (subtype-restricted-selectivity-supportive). subgroup_n_floor_met +
+    # evidence_state + selectivity_class per stratum are the rule's admissibility + signal inputs.
     - per_subgroup_metrics                      # LIST — one record per stratum: {stratum, subgroup_n,
                                                 #   subgroup_n_floor_met, evidence_state, selectivity_class,
                                                 #   comparator_concordance, dominant_direction, max_abs_log2fc,
@@ -231,6 +240,40 @@ outputs:
       - mid
       - bottom_decile                       # <= selectivity_allgene_bottom_decile cutoff — tumor-DEPLETED relative to other genes
       - data_unavailable
+
+  summary_fields_record_schemas:
+    # Per-stratum selectivity record (SUBTYPE grain), emitted by
+    # methods/dge_deseq2/read.py::read_stratified_tumor_vs_normal_selectivity → _stratum_row_to_card_fields
+    # ONLY when strata are in scope (the DUAL_GRAIN by-subgroup panorama; product
+    # {indication}-dge-tumor-vs-normal-sensitivity-by-subgroup-v1). Each stratum's selectivity_class is
+    # recomputed from a full per-subgroup DESeq2 fit via the SAME classifier as the whole-cohort card, so
+    # it means exactly what it means whole-cohort. VERDICT ROLE (2026-09-11): in the composed
+    # target-profile --subtypes subtype tier, subtype-restricted-selectivity-supportive fires on a
+    # MEASURED, floor-cleared (n>=30), strong_tumor_selective stratum → subtype_fit_selectivity: supportive
+    # → subtype_restricted_selectivity (a SUPPORTIVE positive; see intracellular-intrinsic.rules.yaml).
+    # selectivity_class here lists only the per-subgroup CLASSIFIER outputs (the skill-layer conjunction
+    # clamps — selective_but_broadly_normal / _with_normal_liability / _but_stromal_confound — are applied
+    # to the whole-cohort scalar, not to per-stratum rows).
+    per_subgroup_metrics:
+      stratum: string
+      selectivity_class: {enum: [strong_tumor_selective, modest_tumor_selective, field_effect_tumor_selective, discordant_across_comparators, not_selective, not_informative, data_unavailable], type: string}
+      comparator_concordance: {enum: [concordant, discordant, single_comparator], type: string}
+      evidence_state: {enum: [measured, underpowered, absent], type: string}
+      dominant_direction: {enum: [up, down, none], type: string}
+      subgroup_n: integer
+      subgroup_n_floor_met: boolean
+      max_abs_log2fc: number
+      cells_supporting: integer
+      cells_ran: integer
+      sig_all_cells: boolean
+      discordant: boolean
+      log2fc_cell_a: number
+      log2fc_cell_b: number
+      log2fc_cell_c: number
+      q_value_cell_a: number
+      q_value_cell_b: number
+      q_value_cell_c: number
+      source_cohort: string
 
   figures:
     - id: tumor_vs_normal_selectivity_4panel
