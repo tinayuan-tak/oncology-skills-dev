@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import os
 import sys
+import threading
 from pathlib import Path
 from typing import Optional
 
@@ -136,12 +137,41 @@ def _load_surface_secreted_antigens_cached(contracts_root: str) -> frozenset:
         return frozenset()
 
 
+# Serializes method-module imports across the resolver's worker threads. RLock (not Lock)
+# because a method module's own top-level imports re-enter _import_method on the SAME thread.
+_IMPORT_LOCK = threading.RLock()
+
+
 def _import_method(method_name: str):
     """Import a method module from methods repo by name. Adds the methods repo
-    to sys.path on first call (idempotent)."""
-    if str(METHODS_REPO) not in sys.path:
-        sys.path.insert(0, str(METHODS_REPO))
-    return __import__(f"methods.{method_name}", fromlist=["*"])
+    to sys.path on first call (idempotent).
+
+    THREAD-SAFE (2026-09-11). Cards resolve on a ThreadPoolExecutor
+    (_skills_common.resolve_cards), and target-profile nests a second pool over the 15
+    sub-skills (tp_fanout), so several worker threads reach a FIRST import of the
+    `methods.*` package concurrently. Two things then went wrong:
+
+      1. CPython takes a per-module import lock. When thread A held
+         `methods.depmap_chronos.cli` and waited on `methods.depmap_common.loaders` while
+         thread B held the reverse, importlib raised
+         `_DeadlockError: deadlock detected by _ModuleLock(...)`. The card's read handler
+         caught it and the card was emitted `availability_state: read_error` — an
+         operational failure that reads as a coverage gap in every rollup. This was NOT
+         intermittent: the same cards died on every composed run
+         (dependency-lineage-selectivity, copy-number-stratified-dependency,
+         pathway-node-leverage, recommended-models = 14 interpretation rules per run).
+      2. `sys.path.insert` under a concurrent membership test is itself a race — two
+         threads could both insert METHODS_REPO.
+
+    Holding ONE lock across the path mutation and the import means no two threads are ever
+    inside `__import__` at once, so no cross-thread import cycle can form. Cost is bounded:
+    imports are one-time per module (sys.modules serves the rest) and the readers' actual
+    S3/parquet work stays fully parallel — it happens outside this function.
+    """
+    with _IMPORT_LOCK:
+        if str(METHODS_REPO) not in sys.path:
+            sys.path.insert(0, str(METHODS_REPO))
+        return __import__(f"methods.{method_name}", fromlist=["*"])
 
 
 def _import_data_catalog_lib(lib_name: str):
@@ -154,9 +184,11 @@ def _import_data_catalog_lib(lib_name: str):
     correctly when the package lives inside the data-catalog tree.
     """
     pkg_path = DATA_CATALOG_LIBS / lib_name
-    if str(pkg_path) not in sys.path:
-        sys.path.insert(0, str(pkg_path))
-    return __import__(lib_name, fromlist=["*"])
+    # same lock as _import_method: resolver imports also happen on resolve_cards worker threads
+    with _IMPORT_LOCK:
+        if str(pkg_path) not in sys.path:
+            sys.path.insert(0, str(pkg_path))
+        return __import__(lib_name, fromlist=["*"])
 
 
 def _dispatch_expression_tumor_vs_adjacent(target: str, indication: str) -> Optional[dict]:
@@ -544,7 +576,8 @@ def _dispatch_subgroup_stratified_mutation_frequency(
     # dropped them — so run.py read delta=None and collapsed the SNV subtype_axis to 'not_informative'
     # on any mixed molecular+LOT call. Recompute the SAME delta_reducer the builder uses (over
     # overall_mutation_frequency, label='frequency') across the union so the reducer scalars survive.
-    from methods.subgroup_common.panorama import delta_reducer  # methods repo already on sys.path
+    # via _import_method so the import is serialized with every other methods.* import
+    delta_reducer = _import_method("subgroup_common.panorama").delta_reducer
 
     out = {"per_subgroup_metrics": merged_metrics}
     out.update(delta_reducer(merged_metrics, metric_key="overall_mutation_frequency", label="frequency"))
@@ -1417,9 +1450,7 @@ def _dispatch_pmhc_presentation(target: str, indication: str) -> Optional[dict]:
     accepted for the dispatcher contract, not consumed. An absent target is a WEAK-negative
     (not_observed), never data_unavailable (MS asymmetry).
     """
-    _import_method("pmhc_presentation")  # ensures the analysis-methods repo is on sys.path
-    from methods.pmhc_presentation import read_pmhc_presentation
-
+    read_pmhc_presentation = _import_method("pmhc_presentation").read_pmhc_presentation
     return read_pmhc_presentation(target=target, indication=indication)
 
 
@@ -1430,9 +1461,9 @@ def _dispatch_modality_therapeutic_window(target: str, indication: str) -> Optio
     liability). WIRED 2026-08-07 — the card+method+rules shipped in the window arc but this dispatcher
     was never added, so the 3 window rules never fired and window_class was null in every headline.
     """
-    _import_method("tcga_gtex_tpm_quantiles")  # ensures the analysis-methods repo is on sys.path
-    from methods.tcga_gtex_tpm_quantiles import window as _window
-
+    # the SUBMODULE (…​.window) must itself go through _import_method — importing only the
+    # parent package leaves the submodule import to race on a worker thread.
+    _window = _import_method("tcga_gtex_tpm_quantiles.window")
     return _window.read_modality_window(target=target, indication=indication)
 
 
@@ -1443,9 +1474,7 @@ def _dispatch_exon_window(target: str, indication: str) -> Optional[dict]:
     an isoform-identity call — per-exon coverage can't resolve CLDN18.2 from CLDN18.1. WIRED 2026-08-07
     with the card+method+rules; without this dispatcher exon_window_class would be null in the headline.
     """
-    _import_method("exon_window")  # ensures the analysis-methods repo is on sys.path
-    from methods.exon_window import read as _exon
-
+    _exon = _import_method("exon_window.read")
     return _exon.read_exon_window(target=target, indication=indication)
 
 
@@ -1863,8 +1892,7 @@ def _dispatch_immune_context(target: str, indication: str) -> Optional[dict]:
     mod = _import_method("immune_context")
     out = dict(mod.read_immune_context(indication=indication))
     try:
-        from methods.immune_context.antigen_conditioned import read_antigen_conditioned
-
+        read_antigen_conditioned = _import_method("immune_context.antigen_conditioned").read_antigen_conditioned
         ac = read_antigen_conditioned(target, indication)
         for k in (
             "antigen_conditioned_call",

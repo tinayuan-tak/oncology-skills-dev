@@ -41,7 +41,16 @@ class _FakeHotspot:
 
 def _patch(monkeypatch):
     fake = _FakeHotspot()
-    monkeypatch.setattr(L, "_import_method", lambda name: fake)
+    real = L._import_method
+    # Only the hotspot panorama BUILDER is faked. The merge path also needs the real
+    # `subgroup_common.panorama.delta_reducer`, which now routes through _import_method
+    # too (every methods.* import is serialized behind one lock — see
+    # test_method_import_thread_safety), so dispatch by name instead of a blanket stub.
+    monkeypatch.setattr(
+        L,
+        "_import_method",
+        lambda name: real(name) if name == "subgroup_common.panorama" else fake,
+    )
     return fake
 
 
