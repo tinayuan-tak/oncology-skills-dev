@@ -15,6 +15,7 @@ SKILLS = Path(__file__).resolve().parents[2]
 if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
 
+from _skills_common.display_gloss import gauge_string  # noqa: E402
 from _skills_common.evidence_salience import SALIENCE_SPECS, build_interpretation  # noqa: E402
 
 
@@ -65,12 +66,20 @@ _MULTIFRAME = {
         },
     ),
     "tumor_protein_abundance": (
-        [("protein_effect_size", "distance_to_cut"), ("allgene_percentile", "distance_to_cut")],
+        # 3 frames: raw-logFC primary (batch meter) + pan-cancer allgene-percentile companion +
+        # variance-standardized Cohen's-d graded_band (sample-size-independent effect SIZE).
+        [
+            ("protein_effect_size", "distance_to_cut"),
+            ("allgene_percentile", "distance_to_cut"),
+            ("protein_effect_cohens_d", "graded_band"),
+        ],
         {
             "protein_effect_size": 1.05,
             "protein_expression_class": "elevated",
             "allgene_percentile": 91.0,
             "allgene_percentile_class": "top_decile",
+            "protein_effect_cohens_d": 0.92,
+            "protein_effect_standardized_class": "large",
         },
     ),
     "tumor_vs_adjacent_expression": (
@@ -115,3 +124,16 @@ def test_comparator_delta_carries_the_microenvironment_baseline():
     comp = next(g for g in gvs if g["frame"]["kind"] == "comparator_delta")
     anchors = {a["role"]: a["value"] for a in comp["frame"]["anchors"]}
     assert anchors.get("comparator") == 0.30, "malignant fraction must be gauged vs the microenvironment"
+
+
+def test_cptac_cohens_d_cuts_single_source_from_the_card():
+    """The Cohen's-d graded_band must resolve its 0.2/0.5/0.8 cuts from the card's `thresholds:` block
+    (cohens_d_small/medium/large) — a rename in target-contracts would drop the anchors, which this
+    catches. d=0.92 reads 'past the 0.8 large cut'."""
+    _, summary = _MULTIFRAME["tumor_protein_abundance"]
+    gvs = build_interpretation({}, summary, SALIENCE_SPECS["tumor_protein_abundance"], None)
+    band = next(g for g in gvs if g["metric"] == "protein_effect_cohens_d")
+    cuts = sorted(a["value"] for a in band["frame"]["anchors"] if a["role"] == "cut")
+    assert cuts == [0.2, 0.5, 0.8], f"Cohen's-d cuts must single-source from the card, got {cuts}"
+    assert band["position"] == "large"  # position_field read verbatim
+    assert "past the 0.8 large cut" in gauge_string(band)

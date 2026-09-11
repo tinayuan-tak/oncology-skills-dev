@@ -913,7 +913,27 @@ _SECONDARY_FRAMES = {
             {"role": "ceiling", "field": "p95_log2_abundance_panel", "label": "panel_p95"},
         ],
     },
-    "tumor_protein_abundance": _allgene_percentile_frame("tumor-protein-abundance-cptac"),
+    # tumor_protein_abundance: the raw-logFC primary (batch meter) reads protein_effect_size vs the 0.5
+    # modest cut — but that RAW effect over-reads a large-n `small_effect` (cleared q via cohort size, not
+    # biology). So we append TWO secondaries: the pan-cancer allgene-percentile companion, AND a
+    # variance-standardized Cohen's-d graded_band (sample-size-INDEPENDENT effect SIZE) whose cuts
+    # single-source the card's cohens_d_small/medium/large thresholds and whose position is the
+    # protein_effect_standardized_class band read verbatim. frame[0] stays protein_effect_size → the atlas
+    # numeric feature is byte-stable. DISPLAY-ONLY / verdict-INERT.
+    "tumor_protein_abundance": [
+        _allgene_percentile_frame("tumor-protein-abundance-cptac"),
+        {
+            "kind": "graded_band",
+            "value_field": "protein_effect_cohens_d",
+            "scale": "cohens_d",
+            "position_field": "protein_effect_standardized_class",
+            "cuts": [
+                {"card_id": "tumor-protein-abundance-cptac", "threshold": "cohens_d_small", "label": "small"},
+                {"card_id": "tumor-protein-abundance-cptac", "threshold": "cohens_d_medium", "label": "medium"},
+                {"card_id": "tumor-protein-abundance-cptac", "threshold": "cohens_d_large", "label": "large"},
+            ],
+        },
+    ],
     "tumor_vs_adjacent_expression": _allgene_percentile_frame("tumor-rna-vs-adjacent"),
     "sc_tumor_celltype_expression": {
         "kind": "comparator_delta",
