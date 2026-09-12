@@ -26,6 +26,7 @@ companion only — NOT a classifier freeze. Anchor labels reuse the archetype vo
 consumes the mixture unchanged. Ship n as-is (no silent drop of hard pairs)."""
 
 import argparse
+import functools
 import glob
 import json
 import os
@@ -53,7 +54,30 @@ ANCHOR_SETS = {
     "amp_driver": [("ERBB2", "BRCA"), ("CCND1", "BRCA"), ("MYC", "COADREAD"), ("MET", "LUAD")],
     "expression_surface": [("EPCAM", "COADREAD"), ("CEACAM6", "COADREAD"), ("MSLN", "PAAD"), ("FOLR1", "OV")],
     "dependency_essential": [("AURKA", "BRCA"), ("PLK1", "LUAD"), ("BIRC5", "LUAD"), ("WEE1", "OV")],
-    "immune_checkpoint": [("PDCD1", "LUAD"), ("CD28", "BRCA"), ("ICOSLG", "BRCA")],  # immune-synapse set
+    # immune-synapse set — grown 2026-09-13 with 5 canonical checkpoints (CTLA4/PD-L1/LAG3/TIGIT/TIM3) so
+    # the corner no longer rests on 3 points. immune_context signal is indication-level (non-discriminative),
+    # so this anchor separates on the surface-receptor-with-immune-role profile, not the immune signal.
+    "immune_checkpoint": [
+        ("PDCD1", "LUAD"),
+        ("CD28", "BRCA"),
+        ("ICOSLG", "BRCA"),
+        ("CTLA4", "LUAD"),
+        ("CD274", "LUAD"),
+        ("LAG3", "BRCA"),
+        ("TIGIT", "COADREAD"),
+        ("HAVCR2", "STAD"),
+    ],
+    # synthetic-lethal / partner-conditional phenotype — ⚠️ DEFERRED 2026-09-13 (evidenced, like fusion_driver
+    # above). A separation test was run: 10 canonical SL/checkpoint exemplars (WRN/PARP1/ATR/POLQ/MAT2A/RAD51)
+    # were regenerated + a synthetic_lethal anchor built. It DID NOT separate: the SL centroid sat WITHIN the
+    # p90 NN scale (~6.30) of BOTH dependency_essential (5.94) and tsg_loss (5.37); only 3/6 exemplars
+    # recovered (WRN→tsg_loss 37%, PARP1→amp_driver 36% mislanded), and DDR dependencies bled in (CHEK1 FLIPPED
+    # to synthetic_lethal 54%, WEE1 38%). ROOT CAUSE: the SL claim signal is ubiquitous (129/213) and
+    # dependency::COND is 2-3/213, so the feature space does not encode SL as a distinct phenotype — an SL
+    # target's placement is driven by its dependency/genome-instability reads, not the SL window. Activating
+    # cleanly needs the partner-conditional signal made SEPARABLE first (a curated SL-window feature, not more
+    # exemplars) — the same lesson as fusion_driver. The 10 exemplar runs remain in the corpus as unlabeled
+    # cloud points. See project_atlas_rebuild_strategy_2026_09_06 + the separation-test log.
     "control_housekeeping": [("GAPDH", "LUAD"), ("ACTB", "COADREAD"), ("RPL13A", "OV")],
     # fusion/rearrangement-driver phenotype. Members were LIVE-verified to read `fusion:
     # recurrent_fusion_driver` (strong FUS) in their canonical fusion indication (RET/NSCLC + NTRK1/LUAD
@@ -84,6 +108,14 @@ ANCHOR_SETS = {
     ],
 }
 
+# Anchors that must NOT activate even when their exemplars are present in the corpus — DEFERRED by an
+# EVIDENCED separation failure (they bleed into a neighbouring corner), distinct from the "absent exemplars"
+# skip. fusion_driver: the 2026-09-02 activation bled RTK-ness into non-fusion RTKs; its members (RET/THCA,
+# NTRK1/THCA) re-entered the corpus with the 2026-09-13 diverse expansion, so it now needs this explicit
+# guard rather than relying on absence. synthetic_lethal is deferred too but simply carries no ANCHOR_SETS
+# entry (see the comment there). Re-activate only after a re-run separation test PASSES.
+DEFERRED_ANCHORS = frozenset({"fusion_driver"})
+
 # Claim namespaces/keys EXCLUDED from the frozen feature space BY DECISION (atlas data-package lockdown):
 # maturity/study-depth-confounded axes (literature_context, translational_readiness, safety
 # PHARMACOVIGILANCE) and a single-gene constant (genomic SPL = METex14). These keys are still EMITTED by
@@ -98,6 +130,46 @@ EXCLUDED_NAMESPACES = (
     "safety::claim::PHARMACOVIGILANCE::",
     "genomic_alteration::claim::SPL::",
 )
+
+
+@functools.lru_cache(maxsize=1)
+def _live_rule_ids() -> frozenset:
+    """Every rule_id currently defined in target-contracts' rule files — the set a FRESH run can still emit.
+    Used to drop DEAD fingerprint ids (renamed/retired rungs) from the frozen precedent overlay: a rename
+    like #1326 (`phospho-not-phosphoprotein-neutral` retired) otherwise leaves a token in ~112 CACHED corpus
+    packages that no live query can match, quietly deflating those targets' rule-fingerprint jaccard. A
+    re-freeze from cache would preserve it; a string remap is invalid (the retired rung SPLIT 3 ways). So the
+    freeze filters fingerprints to what's still emittable. Fail-OPEN: contracts unreachable/unparseable →
+    empty set → NO filtering (never silently blank the fingerprints)."""
+    try:
+        import yaml
+        from _skills_common.paths import target_contracts_root
+
+        root = target_contracts_root()
+    except Exception:  # noqa: BLE001
+        return frozenset()
+    ids: set = set()
+
+    def _walk(o):
+        if isinstance(o, dict):
+            v = o.get("rule_id")
+            if isinstance(v, str):
+                ids.add(v)
+            for x in o.values():
+                _walk(x)
+        elif isinstance(o, list):
+            for x in o:
+                _walk(x)
+
+    try:
+        for f in Path(root).rglob("*.yaml"):
+            try:
+                _walk(yaml.safe_load(f.read_text()))
+            except Exception:  # noqa: BLE001 — skip an unparseable file, never abort the build
+                continue
+    except Exception:  # noqa: BLE001
+        return frozenset()
+    return frozenset(ids)
 
 
 def _load_panel(path: Path) -> dict:
@@ -161,22 +233,44 @@ def build(runs_dirs, panel_path: Path, build_date: str, emb_dim: int = 16) -> di
             for v in sub_verdicts.values():
                 if isinstance(v, dict):
                     rules.update(v.get("fired_rule_ids") or [])
+            # drop DEAD rungs (renamed/retired since these — possibly cached — packages were generated) so the
+            # frozen precedent overlay carries only ids a live query can still match. Fail-open (empty live
+            # set ⇒ keep all).
+            live = _live_rule_ids()
+            fp = sorted(r for r in rules if r in live) if live else sorted(rules)
             seen.add((tgt, ind))
             feats.append(feat)
             targets.append(tgt)
             indications.append(ind)
             labels.append(panel.get((tgt, ind), "?"))
-            fingerprints.append(sorted(rules))
+            fingerprints.append(fp)
 
     # feature_order = union of claim keys measured in >=2 targets (drop all-NaN/singleton columns)
     cand = sorted({k for f in feats for k in f})
     feature_order = [k for k in cand if sum(1 for f in feats if f.get(k) is not None) >= 2]
+    # A `::mask` column is ALWAYS 0/1 (never None), so the sparsity rule above can never drop it — even when
+    # the value column it describes IS dropped. That left an ORPHAN mask in the 2026-09-12 freeze
+    # (tumor_protein_abundance::num::protein_effect_size::mask, whose value column was clobbered at harvest):
+    # a constant-0 column that spends a feature slot, adds no signal, and reads as a live axis to any consumer
+    # walking feature_order. Drop a mask with its value column.
+    kept = set(feature_order)
+    feature_order = [k for k in feature_order if not (k.endswith("::mask") and k[: -len("::mask")] not in kept)]
     dropped = len(cand) - len(feature_order)
     X = [[f.get(k) for k in feature_order] for f in feats]
     Xn = np.array([[np.nan if v is None else v for v in row] for row in X], dtype=float)
     mu = np.nanmean(Xn, axis=0)
     sd = np.nanstd(Xn, axis=0)
     sd = np.where(sd == 0, 1.0, sd)
+    # per-column MEASURED fraction (non-null over all corpus targets), aligned to feature_order. A column
+    # that is mostly unmeasured is not a trustworthy REFERENCE distribution — a rank/percentile/surprisal
+    # read against it over-claims. Frozen so any label-free consumer (cohort meters, a salience surprisal
+    # probe) can gate on reference quality (e.g. require >= 0.6) FROM the artifact, auditably, instead of
+    # recomputing it per read. Descriptive / verdict-INERT.
+    n_rows = Xn.shape[0] if Xn.size else 0
+    reference_mask_fraction = [
+        round(float(np.count_nonzero(~np.isnan(Xn[:, j])) / n_rows), 4) if n_rows else 0.0
+        for j in range(len(feature_order))
+    ]
 
     # LINEAR embedding: z-score vs mu/sd, mean-impute missing -> 0 (EXACT runtime transform), then PCA.
     from sklearn.decomposition import PCA
@@ -192,6 +286,16 @@ def build(runs_dirs, panel_path: Path, build_date: str, emb_dim: int = 16) -> di
     anchors = []
     skipped_anchors = []
     for label, members in ANCHOR_SETS.items():
+        if label in DEFERRED_ANCHORS:
+            # DEFERRED by an evidenced separation failure (not mere absence): its exemplars may now be in the
+            # corpus (e.g. the 2026-09-13 expansion added RET/THCA + NTRK1/THCA, which are fusion_driver
+            # members), but activating it would ship a known-BLEEDING anchor without a passing separation
+            # test. Skip regardless of member presence until a re-freeze re-runs + PASSES its separation test.
+            skipped_anchors.append(label)
+            print(
+                f"WARN: anchor '{label}' DEFERRED (evidenced non-separation) — skipped despite members", file=sys.stderr
+            )
+            continue
         present = [(t, i) for (t, i) in members if (t, i) in idx_of]
         if not present:
             # An ASPIRATIONAL anchor (its exemplars are not yet in the corpus, e.g. fusion_driver awaiting
@@ -234,6 +338,9 @@ def build(runs_dirs, panel_path: Path, build_date: str, emb_dim: int = 16) -> di
 
     doc = {
         "feature_order": feature_order,
+        # per-column measured fraction (aligned to feature_order) — reference-distribution quality for
+        # label-free rank/percentile/surprisal consumers to gate on (verdict-INERT).
+        "reference_mask_fraction": reference_mask_fraction,
         "mu": [round(float(x), 6) for x in mu],
         "sd": [round(float(x), 6) for x in sd],
         "X": X,

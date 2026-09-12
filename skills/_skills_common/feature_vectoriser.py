@@ -27,6 +27,7 @@ query (build_atlas and Atlas._embed will both call this); verdict-INERT (a proje
 
 from __future__ import annotations
 
+import math
 from typing import Optional
 
 from _skills_common.archetype_core import claim_features
@@ -100,7 +101,12 @@ def _num(v) -> Optional[float]:
         f = float(v)
     except (TypeError, ValueError):
         return None
-    return f if f == f else None  # drop NaN
+    # drop any NON-FINITE value → None (unmeasured). NaN was already dropped (f == f is False for NaN) but
+    # ±inf slipped through (inf == inf is True): CPTAC ships protein_effect_size = +inf for genes with no
+    # estimable normal contrast (protein_median_log2_normal = NaN), which is UNESTIMABLE, not a measured
+    # effect — admitting it poisons the atlas column (nanmean → inf, PCA rejects) AND falsely sets the
+    # measured-mask to 1. A non-finite number is not a feature value.
+    return f if math.isfinite(f) else None
 
 
 def numeric_features(numeric_values: dict) -> dict:

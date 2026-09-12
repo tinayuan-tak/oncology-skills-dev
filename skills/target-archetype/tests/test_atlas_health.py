@@ -160,12 +160,12 @@ def test_numeric_drift_is_reported_and_is_independent_of_the_claim_verdict():
     drift = vocabulary_drift(atlas, {short: {claim: {"signal": "strong", "corroboration": "high"}}})
     assert drift["covered"] is True  # claims all known
     assert drift["claim_covered"] is True
-    # TODAY'S STATE, not a permanent invariant: SALIENCE_SPECS declares more numerics than the atlas froze
-    # (the 2026-09-12 card-ruler additions). Flip to `is True` in the re-freeze commit that lands them.
-    assert drift["numeric_covered"] is False, "a re-freeze landed → update this pin and the WARN test below"
-    assert drift["missing_numeric_keys"], "numeric_covered False must name the keys"
-    assert all("::num::" in k for k in drift["missing_numeric_keys"])
-    assert drift["n_declared_numeric"] >= len(drift["missing_numeric_keys"])
+    # FLIPPED at the 2026-09-13 re-freeze that froze every declared numeric (the harvest fix landed
+    # tumor_protein_abundance + the corpus grew to 297 crossing sparse columns over the min-N threshold).
+    # The claim/numeric split is still exercised — they remain SEPARATE fields that CAN disagree (the stub
+    # tests above/below drive both directions); today the shipped atlas simply covers both.
+    assert drift["numeric_covered"] is True
+    assert drift["missing_numeric_keys"] == []
 
 
 def test_numeric_drift_is_empty_when_every_declared_numeric_is_frozen():
@@ -184,22 +184,36 @@ def test_numeric_drift_is_empty_when_every_declared_numeric_is_frozen():
     assert drift["orphan_mask_keys"] == []  # no masks at all in the stub order
 
 
-def test_orphan_mask_detected_in_the_shipped_atlas():
-    """A frozen `{key}::mask` with no `{key}` value column is a column that can only ever say 'unmeasured' —
-    build_atlas dropped the value (measured in <2 targets) and kept the mask. The shipped atlas has one."""
+def test_shipped_atlas_has_no_orphan_mask():
+    """A frozen `{key}::mask` with no `{key}` value column can only ever say 'unmeasured' — build_atlas would
+    drop the value (measured in <2 targets) yet keep the mask. The 2026-09-13 re-freeze added the orphan-mask
+    filter (drop a mask with its value column), so the SHIPPED atlas must carry NONE. (Was
+    test_orphan_mask_detected...: pre-fix the shipped atlas had one — tumor_protein_abundance's mask, whose
+    value column was clobbered at harvest; the harvest fix + filter cleared it. The detection LOGIC is still
+    exercised by the stub tests above.)"""
     atlas = Atlas.load(ATLAS)
-    orphans = vocabulary_drift(atlas, {})["orphan_mask_keys"]
-    assert orphans, "shipped atlas lost its known orphan mask — if build_atlas was fixed, drop this pin"
-    assert all(k.endswith("::mask") for k in orphans)
-    assert all(k[: -len("::mask")] not in set(atlas.feature_order) for k in orphans)
+    assert vocabulary_drift(atlas, {})["orphan_mask_keys"] == []
 
 
 def test_numeric_drift_check_warns_without_failing_the_gate():
     """atlas_health must SURFACE the numeric gap (the docstring promises a WARN) and must NOT go red for it:
     an unfrozen numeric costs the geometry an axis, it does not corrupt it. Runs with NO --package-dir, since
     the declared numeric set is read from the code, not from a live run."""
+    # Uses a STUB atlas missing ONE declared numeric — the shipped atlas now freezes every numeric (2026-09-13
+    # re-freeze), so the WARN state has to be constructed rather than read from disk. Row-less X isolates the
+    # vocabulary check from the embedding check (see the passes-test note).
+    from _skills_common.feature_vectoriser import numeric_feature_specs
+
     m = _mod()
-    results, ok = m.check(Atlas.load(ATLAS))
+    declared = [f"{mt}::num::{f}" for mt, (f, _d) in numeric_feature_specs().items()]
+
+    class _Stub:
+        feature_order = declared[1:]  # drop one declared numeric → an unfrozen-numeric WARN state
+        X: list = []
+        corpus_emb: list = []
+        meta = dict.fromkeys(m._PROV_FIELDS, "x")
+
+    results, ok = m.check(_Stub())
     nd = [r for r in results if r["check"] == "numeric_vocabulary_drift"]
     assert nd, f"numeric_vocabulary_drift check missing: {[r['check'] for r in results]}"
     assert nd[0]["status"] == "WARN", nd

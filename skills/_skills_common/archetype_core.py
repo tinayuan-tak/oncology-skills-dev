@@ -685,6 +685,10 @@ ARCH_W = {
         "dependency": 0.2,
         "tractability_sm": 0.2,
     },
+    # NOTE: a synthetic_lethal weight profile was trialed 2026-09-13 but the anchor DID NOT separate from
+    # dependency_essential/tsg_loss in the frozen embedding (separation test: SL centroid within p90 NN of
+    # both; 3/6 exemplars mislanded; DDR dependencies bled in). The anchor is DEFERRED (see
+    # build_atlas.ANCHOR_SETS), so no synthetic_lethal weight profile ships — it would be dead vocabulary.
 }
 ARCH_W = {k: {ax: v.get(ax, DEFAULT_AX_W) for ax in SCORECARD_AXES} for k, v in ARCH_W.items()}
 

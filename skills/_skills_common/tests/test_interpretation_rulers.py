@@ -231,8 +231,9 @@ def test_surface_density_copies_per_cell_distance_to_cut_ruler():
         SALIENCE_SPECS["surface_density"],
         card_id="surface-abundance-density",
     )
-    assert len(interp) == 1
-    gv = interp[0]
+    # + a fleet cohort ruler once surface_density's atlas column crosses n>=20 (it did at the 297-target
+    # re-freeze; it was sparse before). Locate the cut ruler by kind rather than pinning the count.
+    gv = next(g for g in interp if g["frame"]["kind"] == "distance_to_cut")
     assert gv["metric"] == "absolute_copies_per_cell" and gv["value"] == 5000 and gv["scale"] == "copies_per_cell"
     assert gv["position"] == "tce_viable" and gv["position_source"] == "surface_density_class"
     if contract_threshold("surface-abundance-density", "tce_viability_copies_per_cell") is not None:
