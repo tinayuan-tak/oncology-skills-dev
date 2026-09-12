@@ -67,7 +67,37 @@ ANCHOR_SETS = {
     # (e.g. FUS-feature up-weighting in the embedding) first, not just adding exemplars. See
     # project_target_archetype_augment memory.
     "fusion_driver": [("ALK", "LUAD"), ("ROS1", "LUAD"), ("RET", "THCA"), ("FGFR2", "CHOL"), ("NTRK1", "THCA")],
+    # NULL/floor corner (added at the 2026-09-11 re-freeze). The panel has carried 8 curated
+    # `control_absent` targets since the first build, but with no anchor to absorb them every
+    # not-really-a-target profile had to distribute its mass over the SEVEN POSITIVE corners —
+    # which is why `immune_checkpoint` accumulated 29 soft-labels while holding ZERO curated
+    # members. A floor corner is what makes "this target is absent/undruggable-looking" sayable.
+    "control_absent": [
+        ("RHO", "LUAD"),
+        ("CNGB3", "OV"),
+        ("GFAP", "COADREAD"),
+        ("MYF5", "COADREAD"),
+        ("MYH2", "PAAD"),
+        ("MYH6", "BRCA"),
+        ("NPHS2", "STAD"),
+        ("OTX2", "LUSC"),
+    ],
 }
+
+# Claim namespaces/keys EXCLUDED from the frozen feature space BY DECISION (atlas data-package lockdown):
+# maturity/study-depth-confounded axes (literature_context, translational_readiness, safety
+# PHARMACOVIGILANCE) and a single-gene constant (genomic SPL = METex14). These keys are still EMITTED by
+# every run — the vector is a shared artifact, so dropping them at the source would blind other consumers
+# and the drift guard alike (see atlas_health._DEFAULT_EXCLUDED_NAMESPACES, which is the SAME list). The
+# filter belongs HERE, at the freeze: admitting them would let study-depth ride into the phenotype geometry
+# as if it were biology. Stamped into meta.atlas_excluded_namespaces so the guard reads the built model's
+# own list rather than its default.
+EXCLUDED_NAMESPACES = (
+    "literature_context::",
+    "translational_readiness::",
+    "safety::claim::PHARMACOVIGILANCE::",
+    "genomic_alteration::claim::SPL::",
+)
 
 
 def _load_panel(path: Path) -> dict:
@@ -124,6 +154,7 @@ def build(runs_dirs, panel_path: Path, build_date: str, emb_dim: int = 16) -> di
             # build_feature_vector merges ordinal claims (claim_features) with the polarity-signed numerics.
             numeric_values = numeric_values_from_package(pkg) if pkg else {}
             feat = build_feature_vector(cvs, numeric_values)
+            feat = {k: v for k, v in feat.items() if not k.startswith(EXCLUDED_NAMESPACES)}
             if not feat:
                 continue
             rules = set()
@@ -230,7 +261,15 @@ def build(runs_dirs, panel_path: Path, build_date: str, emb_dim: int = 16) -> di
             "corpus": "+".join(os.path.basename(str(r)) for r in runs_dirs),
             "build_date": build_date,
             "build_git_sha": _git_sha(),
-            "vectoriser": "archetype_core.claim_features (corroboration low/mod/high fixed)",
+            # feature_schema_version distinguishes the ORDINAL-ONLY freeze (v1, 108 features, claim tiers
+            # only) from the richer substrate (v2 = ordinal claims + polarity-signed metered numerics +
+            # measured-vs-unmeasured masks). A consumer that must know whether numerics are in the frozen
+            # space reads this instead of counting columns.
+            "feature_schema_version": "2.0.0",
+            "atlas_excluded_namespaces": list(EXCLUDED_NAMESPACES),
+            "n_numeric_features": sum(1 for k in feature_order if "::num::" in k and not k.endswith("::mask")),
+            "n_mask_features": sum(1 for k in feature_order if k.endswith("::mask")),
+            "vectoriser": "feature_vectoriser.build_feature_vector (ordinal claims + metered numerics + masks)",
             "note": (
                 "DESCRIPTIVE phenotype-landscape atlas; provisional partly-circular panel labels; NOT "
                 "a classifier freeze. Anchored convex mixture over curated canonical exemplars. The "

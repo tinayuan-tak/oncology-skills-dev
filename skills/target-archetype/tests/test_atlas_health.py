@@ -16,9 +16,15 @@ FIXTURE = Path(__file__).resolve().parent / "fixtures" / "mini_evidence_package"
 
 
 def _known_short_claim(atlas):
-    """A (short, claim) pair guaranteed present in the frozen feature_order."""
-    parts = atlas.feature_order[0].split("::")  # e.g. ['cis_coherence','claim','CIS_DOSAGE','signal']
-    return parts[0], parts[2]
+    """A (short, claim) pair guaranteed present in the frozen feature_order. Selects the first ORDINAL
+    `short::claim::NAME::signal` key — NOT feature_order[0], which since the v2 substrate re-freeze can be a
+    `::num::` metered-numeric key (they sort ahead of `::claim::` alphabetically) whose middle token is a
+    measurement field, not a claim name."""
+    for k in atlas.feature_order:
+        parts = k.split("::")
+        if len(parts) >= 4 and parts[1] == "claim" and parts[3] == "signal":
+            return parts[0], parts[2]
+    raise AssertionError("no ordinal claim::*::signal key in feature_order")
 
 
 def _write_evidence_package(tmp_path, claim_vectors: dict):
@@ -48,8 +54,7 @@ def test_shipped_atlas_passes_health():
 def test_vocabulary_drift_detects_new_claim_key():
     atlas = Atlas.load(ATLAS)
     # a live vector using ONLY existing claims → no drift
-    existing = atlas.feature_order[0].split("::")  # e.g. ['cis_coherence','claim','CIS_DOSAGE','signal']
-    short, claim = existing[0], existing[2]
+    short, claim = _known_short_claim(atlas)
     ok_vec = {short: {claim: {"signal": "strong", "corroboration": "high"}}}
     assert vocabulary_drift(atlas, ok_vec)["covered"] is True
     # a live vector introducing a NEW claim key (future substrate) → flagged, axis surfaced
@@ -86,8 +91,7 @@ def test_check_passes_on_nonempty_harvest_of_known_claims(tmp_path):
     the guard did run and found no drift."""
     m = _mod()
     atlas = Atlas.load(ATLAS)
-    parts = atlas.feature_order[0].split("::")  # e.g. ['cis_coherence','claim','CIS_DOSAGE','signal']
-    short, claim = parts[0], parts[2]
+    short, claim = _known_short_claim(atlas)
     pkg = tmp_path / "subskills" / short
     pkg.mkdir(parents=True)
     (pkg / "package.json").write_text(
