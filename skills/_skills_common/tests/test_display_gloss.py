@@ -1,13 +1,20 @@
 """display_gloss — the plain-language reading registry (interpretation-encoding Stage 1).
 
 CONTRACT (coverage): every salience-promoted metric field (SALIENCE_SPECS effect/significance/omnibus/
-extra_scalars) MUST have a METRIC_GLOSS entry, so no verdict-bearing card metric renders as a bare
+n_field/extra_scalars) MUST have a METRIC_GLOSS entry, so no verdict-bearing card metric renders as a bare
 snake_case field. Plus the primitives (direction phrase normalization, affix backstop, card description
 interpolation) behave.
+
+`n_field` joined that set on 2026-09-12. It had been omitted since the check was written, so the check was
+VACUOUS for the whole denominator family — no fleet n_field was glossed and `n_lethal` rendered "n lethal",
+`n_paired_models` rendered "n paired models" (paired on WHAT?). Same vacuity class as the gaugeability
+invariant: ask what the check does NOT enumerate.
 """
 
 import sys
 from pathlib import Path
+
+import pytest
 
 SKILLS = Path(__file__).resolve().parents[2]
 if str(SKILLS) not in sys.path:
@@ -20,7 +27,7 @@ from _skills_common.evidence_salience import SALIENCE_SPECS
 def _salience_metric_fields() -> set:
     fields = set()
     for s in SALIENCE_SPECS.values():
-        for k in ("effect_field", "significance_field", "omnibus_field"):
+        for k in ("effect_field", "significance_field", "omnibus_field", "n_field"):
             if s.get(k):
                 fields.add(s[k])
         for e in s.get("extra_scalars") or []:
@@ -31,6 +38,22 @@ def _salience_metric_fields() -> set:
 def test_every_salience_metric_has_a_gloss_entry():
     missing = sorted(f for f in _salience_metric_fields() if f not in dg.METRIC_GLOSS)
     assert not missing, f"salience metric fields missing a METRIC_GLOSS entry: {missing}"
+
+
+def test_every_n_field_label_says_what_it_counts():
+    """The coverage test above only demands an ENTRY; a denominator also has to earn it. The affix backstop
+    already supplies 'count' for n_*, so an entry whose label is just the humanized field name adds nothing
+    — the label must name the arm/cohort/pairing being counted."""
+    bare = []
+    for spec in SALIENCE_SPECS.values():
+        f = spec.get("n_field")
+        if not f:
+            continue
+        label, units = dg.gloss(f)
+        if label.strip().lower() == f.replace("_", " "):
+            bare.append(f)
+        assert units == "count", f"{f}: a denominator's units must be 'count', got {units!r}"
+    assert not bare, f"n_field gloss labels that only humanize the field name: {bare}"
 
 
 def test_gloss_entries_are_well_formed():
@@ -68,6 +91,82 @@ def test_affix_backstop_and_fallback():
     # pure fallback: no affix match -> humanized label, no units
     label, units = dg.gloss("totally_novel_thing")
     assert label == "totally novel thing" and units is None
+
+
+# ── the affix backstop's two mislabel classes (2026-09-12) ──────────────────────────────────────────
+def test_pli_units_need_a_pli_TOKEN_not_a_substring():
+    """`pli` was a substring rule, so every am-PLI-fied / s-PLI-ce field claimed pLI units (20 real
+    contract summary_fields, all 20 wrong). Both directions pinned: the token still resolves, the words
+    that merely contain it do not."""
+    assert dg.gloss("pli")[1] == "pLI"
+    assert dg.gloss("gnomad_pli")[1] == "pLI"
+    assert dg.gloss("pli_score")[1] == "pLI"
+    # the 20 false positives — each now gets its own honest units (or none), never pLI
+    assert dg.gloss("n_amplified")[1] == "count"
+    assert dg.gloss("n_amplified_overexpressed")[1] == "count"
+    assert dg.gloss("patient_amplified_fraction")[1] == "fraction"
+    assert dg.gloss("cn_fraction_focal_amplification")[1] == "fraction"
+    assert dg.gloss("n_splice_events")[1] == "count"
+    assert dg.gloss("amplification_threshold_relative_cn")[1] is None
+    assert dg.gloss("redirects_applied")[1] is None
+
+
+def test_categorical_suffixes_get_no_units_but_their_numeric_siblings_keep_theirs():
+    """A class/label value with units reads as nonsense ('splice_exon_skip_class = exon_skip (pLI)'). The
+    guard must be surgical: the numeric sibling of each categorical name keeps its units, and a count that
+    happens to end in a plural noun is untouched."""
+    for f in (
+        "allgene_percentile_class",
+        "selectivity_allgene_percentile_context",
+        "subtype_effect_size_class",
+        "lineage_omnibus_effect_size_class",
+        "pan_essential_fraction_call",
+        "til_fraction_class",
+        "modality_implication_basis",
+        "wgd_context",
+    ):
+        assert dg.gloss(f)[1] is None, f
+    # falsifier — the same rules still label the NUMERIC forms
+    assert dg.gloss("allgene_percentile")[1] == "%ile"
+    assert dg.gloss("subtype_effect_size")[1] == "effect size"
+    assert dg.gloss("til_fraction")[1] == "fraction"
+    assert dg.gloss("n_enriched_lineages")[1] == "count"  # a real count, not a category
+
+
+def test_no_vocabulary_declared_contract_field_gets_units():
+    """Contract-grounded sweep, not a hand list: any field a card declares in `summary_fields_vocabulary`
+    has an ENUMERATED value set, so units on it are always wrong. 10 such fields were mislabelled before
+    the guard (%ile / effect size / fraction / pLI)."""
+    import os
+
+    import yaml
+
+    root = os.environ.get(
+        "TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
+    )
+    cards = Path(root) / "cards"
+    if not cards.is_dir():
+        pytest.skip("target-contracts checkout absent")
+
+    vocab_fields: set = set()
+
+    def _walk(node):
+        if isinstance(node, dict):
+            for k, v in node.items():
+                if k == "summary_fields_vocabulary" and isinstance(v, dict):
+                    vocab_fields.update(v.keys())
+                else:
+                    _walk(v)
+        elif isinstance(node, list):
+            for v in node:
+                _walk(v)
+
+    for p in sorted(cards.glob("*.card.yaml")):
+        _walk(yaml.safe_load(p.read_text()) or {})
+    assert len(vocab_fields) > 100, f"vocabulary harvest looks broken: {len(vocab_fields)} fields"
+
+    with_units = sorted(f for f in vocab_fields if dg.gloss(f)[1])
+    assert not with_units, f"categorical (vocabulary-declared) fields carrying units: {with_units}"
 
 
 def test_significance_fields_share_the_q_p_convention():

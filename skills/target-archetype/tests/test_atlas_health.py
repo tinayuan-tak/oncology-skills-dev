@@ -146,6 +146,92 @@ def test_excluded_namespace_key_is_not_drift(tmp_path):
     assert "excluded-by-decision" in vd["detail"], vd
 
 
+# ── the ::num:: half of the drift guard (2026-09-12) ───────────────────────────────────────────────────
+
+
+def test_numeric_drift_is_reported_and_is_independent_of_the_claim_verdict():
+    """`covered` is claim-only ON PURPOSE and `numeric_covered` is its ::num:: twin. Pinned together because
+    the whole point of the split is that they can DISAGREE: a live claim key with no frozen column is a break
+    (the substrate says something the geometry cannot hear), whereas an unfrozen numeric is additive and
+    self-gating (the runtime drops the key; the cohort_percentile ruler that reads the column self-drops).
+    Collapsing the two would either red-fail every card-ruler PR or blind the claim gate."""
+    atlas = Atlas.load(ATLAS)
+    short, claim = _known_short_claim(atlas)
+    drift = vocabulary_drift(atlas, {short: {claim: {"signal": "strong", "corroboration": "high"}}})
+    assert drift["covered"] is True  # claims all known
+    assert drift["claim_covered"] is True
+    # TODAY'S STATE, not a permanent invariant: SALIENCE_SPECS declares more numerics than the atlas froze
+    # (the 2026-09-12 card-ruler additions). Flip to `is True` in the re-freeze commit that lands them.
+    assert drift["numeric_covered"] is False, "a re-freeze landed → update this pin and the WARN test below"
+    assert drift["missing_numeric_keys"], "numeric_covered False must name the keys"
+    assert all("::num::" in k for k in drift["missing_numeric_keys"])
+    assert drift["n_declared_numeric"] >= len(drift["missing_numeric_keys"])
+
+
+def test_numeric_drift_is_empty_when_every_declared_numeric_is_frozen():
+    """The other direction — the check CAN say PASS. Uses a stub atlas (vocabulary_drift reads only
+    feature_order) whose frozen order contains exactly the declared numeric set."""
+    from _skills_common.feature_vectoriser import numeric_feature_specs
+
+    declared = [f"{mt}::num::{f}" for mt, (f, _d) in numeric_feature_specs().items()]
+
+    class _Stub:
+        feature_order = declared
+
+    drift = vocabulary_drift(_Stub(), {})
+    assert drift["missing_numeric_keys"] == []
+    assert drift["numeric_covered"] is True
+    assert drift["orphan_mask_keys"] == []  # no masks at all in the stub order
+
+
+def test_orphan_mask_detected_in_the_shipped_atlas():
+    """A frozen `{key}::mask` with no `{key}` value column is a column that can only ever say 'unmeasured' —
+    build_atlas dropped the value (measured in <2 targets) and kept the mask. The shipped atlas has one."""
+    atlas = Atlas.load(ATLAS)
+    orphans = vocabulary_drift(atlas, {})["orphan_mask_keys"]
+    assert orphans, "shipped atlas lost its known orphan mask — if build_atlas was fixed, drop this pin"
+    assert all(k.endswith("::mask") for k in orphans)
+    assert all(k[: -len("::mask")] not in set(atlas.feature_order) for k in orphans)
+
+
+def test_numeric_drift_check_warns_without_failing_the_gate():
+    """atlas_health must SURFACE the numeric gap (the docstring promises a WARN) and must NOT go red for it:
+    an unfrozen numeric costs the geometry an axis, it does not corrupt it. Runs with NO --package-dir, since
+    the declared numeric set is read from the code, not from a live run."""
+    m = _mod()
+    results, ok = m.check(Atlas.load(ATLAS))
+    nd = [r for r in results if r["check"] == "numeric_vocabulary_drift"]
+    assert nd, f"numeric_vocabulary_drift check missing: {[r['check'] for r in results]}"
+    assert nd[0]["status"] == "WARN", nd
+    assert "re-freeze" in nd[0]["detail"] or "orphan" in nd[0]["detail"], nd
+    assert ok, "a WARN must not fail the gate"
+
+
+def test_numeric_drift_check_passes_when_the_atlas_carries_every_numeric():
+    """Falsifies the WARN above: the SAME check reports PASS on an atlas whose frozen order carries every
+    declared numeric and no orphan mask, so the WARN is data-driven and not a constant.
+
+    A row-less STUB rather than the real atlas mutated: feature_order cannot simply be EXTENDED, because
+    `_embed` z-scores the whole order against the frozen means/stds and then dots against `components` — a
+    longer order makes z wider than the loadings and raises IndexError. An empty X is the honest way to
+    isolate the vocabulary check from the embedding check."""
+    from _skills_common.feature_vectoriser import numeric_feature_specs
+
+    m = _mod()
+
+    class _Stub:
+        feature_order = [f"{mt}::num::{f}" for mt, (f, _d) in numeric_feature_specs().items()]
+        X: list = []
+        corpus_emb: list = []
+        meta = dict.fromkeys(m._PROV_FIELDS, "x")
+
+    results, ok = m.check(_Stub())
+    nd = [r for r in results if r["check"] == "numeric_vocabulary_drift"][0]
+    assert nd["status"] == "PASS", nd
+    assert "no orphan masks" in nd["detail"]
+    assert ok
+
+
 def test_genuine_non_excluded_new_key_still_fails(tmp_path):
     """The allowlist must NOT over-suppress: a NEW claim on a MODELLED axis (not an excluded prefix) is
     real drift → FAIL → re-freeze trigger. Guards the allowlist from masking genuine substrate movement."""

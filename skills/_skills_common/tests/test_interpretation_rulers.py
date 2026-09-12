@@ -352,3 +352,30 @@ def test_cohort_ruler_fleet_wide_and_liability_phrasing():
     interp2 = build_interpretation({}, {"rnai_median_dep_score": -0.8}, SALIENCE_SPECS["rnai_lof_dependency"], None)
     coh2 = {g["frame"]["kind"]: g for g in interp2}.get("cohort_percentile")
     assert coh2 is not None and "stronger than" in coh2["position"]
+
+
+def test_atlas_numeric_optout_axes_get_no_cohort_ruler_but_keep_their_own():
+    """The fleet roll appends a cohort_percentile to every metered axis, keyed off the PRIMARY frame's atlas
+    numeric — so an axis that opts OUT of the atlas numeric (atlas_numeric: False) must not get one. Such a
+    frame would be dead by construction (the atlas column it reads is never built, so cohort_percentile
+    returns None and build_interpretation drops it), and pinning it keeps a vacuous frame out of the registry.
+    The axis's OWN distance_to_cut ruler must survive — that is the whole point of the opt-out."""
+    optouts = [
+        (mt, s)
+        for mt, s in SALIENCE_SPECS.items()
+        if isinstance(s.get("reference_frame"), (dict, list))
+        and (
+            (s["reference_frame"][0] if isinstance(s["reference_frame"], list) else s["reference_frame"]).get(
+                "atlas_numeric"
+            )
+            is False
+        )
+    ]
+    assert optouts, "no atlas_numeric: False axis left — the opt-out went inert"
+    for mt, spec in optouts:
+        rf = spec["reference_frame"]
+        frames = rf if isinstance(rf, list) else [rf]
+        kinds = [f.get("kind") for f in frames]
+        assert "cohort_percentile" not in kinds, f"{mt}: got a cohort ruler off an atlas column that is never built"
+        assert kinds, f"{mt}: opt-out stripped the axis of every frame"
+        assert all(k == "distance_to_cut" for k in kinds), f"{mt}: unexpected frame kinds {kinds}"

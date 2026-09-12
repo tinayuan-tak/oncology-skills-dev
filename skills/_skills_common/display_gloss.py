@@ -171,6 +171,33 @@ METRIC_GLOSS: dict = {
     "fusion_frequency": ("fusion frequency in the indication", "fraction"),
     "genie_sv_frequency": ("GENIE structural-variant frequency", "fraction"),
     "genie_sv_recurrence_percentile": ("GENIE SV recurrence percentile", "%ile"),
+    # ── genomic card-data rulers (2026-09-12): the three formerly spec-LESS verdict-bearing types ──
+    # CN: the two arms of copy-number-distribution's classifier are NOT interchangeable (the deletion score
+    # is shallow-inclusive and clears its cut for 60.1% of genes genome-wide vs 2.9% for amplification), so
+    # each label says WHICH event and WHICH cohort — cell-line panel vs patient GISTIC — it is counting.
+    "cn_recurrent_amplification_score": ("recurrent focal-amplification fraction (cell lines)", "fraction"),
+    "cn_recurrent_deletion_score": ("recurrent deletion fraction, shallow-inclusive (cell lines)", "fraction"),
+    "cn_fraction_high_amplification": ("cell-line fraction with high-level amplification", "fraction"),
+    "cn_fraction_deep_deletion": ("cell-line fraction with deep (biallelic) deletion", "fraction"),
+    "cn_median_panel": ("median relative copy number (panel)", "log2 ratio"),
+    "patient_high_amp_fraction": ("patient fraction with high-level focal amplification (GISTIC +2)", "fraction"),
+    "patient_homdel_fraction": ("patient fraction with homozygous deletion (GISTIC -2)", "fraction"),
+    # variant-class spectrum: SHAPE of the somatic spectrum, not recurrence — the labels say "share of"
+    # so a high value is not misread as evidence of selection (>=0.70 missense is the no-selection
+    # expectation of the genetic code, and it fires for both negative controls).
+    "mut_mutation_rate": ("share of panel cell lines mutated", "fraction"),
+    "mut_n_cell_lines_total": ("cell lines evaluated for mutations", "count"),
+    "mut_total_mutations": ("total mutations observed across the panel", "count"),
+    # clonality
+    "clonal_fraction": ("share of mutant samples with a clonal mutation", "fraction"),
+    "median_ccf": ("median cancer-cell fraction of the mutation", "CCF"),
+    # n_fields of the three new specs. The coverage test above checks effect/significance/omnibus/
+    # extra_scalars but NOT n_field, so these are glossed by hand: the affix backstop turns the two
+    # prefixed ones into "cn n cell lines evaluated" / "mut n cell lines mutated", which is worse than the
+    # unprefixed fleet n_fields it handles acceptably (n_lethal -> "n lethal").
+    "cn_n_cell_lines_evaluated": ("cell lines with copy-number data", "count"),
+    "mut_n_cell_lines_mutated": ("cell lines carrying a mutation", "count"),
+    "n_mutant_samples": ("mutant patient samples", "count"),
     # differentiation: survival log-rank + medians
     "logrank_p": ("survival log-rank p-value", "p"),
     "logrank_chi2": ("survival log-rank χ²", "χ²"),
@@ -215,6 +242,44 @@ METRIC_GLOSS: dict = {
     "media_mean_npx": ("measured shed antigen (Olink conditioned media)", "NPX"),
     "media_panel_high_npx": ("shed-panel high NPX", "NPX"),
     "serum_marker": ("clinical serum shed marker", None),
+    # ── fleet n_fields / denominators (2026-09-12) ───────────────────────────────────────────────────
+    # `n_field` is the DENOMINATOR the card's effect is read against, and the affix backstop only ever
+    # supplies its units ("count") — never the noun. Un-glossed, `n_paired_models` renders "n paired
+    # models = 41", which does not say paired on WHAT, so a reader cannot tell whether 41 is the whole
+    # panel or the sliver with both layers measured. Labels therefore name the arm/cohort/pairing. Where
+    # one field name serves cards with different units of analysis (n_mutant is cell lines in
+    # mutation-drug-response but patient samples in mutation-stratified-surface, n_cell_lines_evaluated
+    # spans 12 cards of which only some are paired) the label stays deliberately arm-neutral rather than
+    # asserting a pairing that does not hold everywhere.
+    "n_paired_models": ("cell-line models with both layers measured", "count"),
+    "n_paired_models_cn_protein": ("cell lines with both relative CN and protein measured", "count"),
+    "n_paired_samples": ("tumors with both expression and purity measured", "count"),
+    "n_paired_tumors": ("tumors with both RNA and protein measured", "count"),
+    "n_patients": ("patients with survival follow-up", "count"),
+    "n_patients_joined": ("patients in the antigen × T-cell join", "count"),
+    "n_patients_cn_expr": ("patients with both copy number and expression", "count"),
+    "n_patients_total": ("patients in the detection denominator", "count"),
+    "n_cell_lines_evaluated": ("cell lines evaluated", "count"),
+    "n_cell_lines_panel": ("cell lines in the dependency panel", "count"),
+    "n_tumor_samples": ("tumor samples evaluated", "count"),
+    "n_amplified": ("amplified cell lines (stratified arm)", "count"),
+    "n_amplified_overexpressed": ("cell lines both amplified and overexpressing", "count"),
+    "n_hotspot_mutant": ("cell lines carrying the target hotspot mutation", "count"),
+    "n_fusion_positive": ("cell lines carrying a fusion of the target", "count"),
+    "n_mutant": ("mutant cell lines or patient samples (stratified arm)", "count"),
+    "n_samples_with_fusion": ("samples with the fusion detected", "count"),
+    "n_covered_pooled": ("samples covered, pooled across cohorts", "count"),
+    "n_depmap_carriers": ("DepMap cell lines carrying the event", "count"),
+    "n_interpreted_variants": ("single-variant profiles with curated evidence", "count"),
+    "n_pathogenic_germline": ("pathogenic / likely-pathogenic germline variants", "count"),
+    "n_lethal": ("lethal-labelled knockout phenotype rows", "count"),
+    "n_cohorts_tested": ("cohorts the target was quantified in", "count"),
+    "n_tissues_detectable": ("normal tissues with detectable expression", "count"),
+    "n_essential_tissues_with_expression": ("essential normal tissues with expression", "count"),
+    "n_celltypes_surface_displaying": ("normal cell types displaying the target on the surface", "count"),
+    "n_synergy_partners": ("partner drugs passing the synergy threshold", "count"),
+    "sl_partner_count": ("synthetic-lethal partners passing threshold", "count"),
+    "media_n_lines_detected": ("cell lines with a detected conditioned-media value", "count"),
 }
 
 # ── affix backstop for the raw L3 tail (fields NOT in the salience registry) ─────────────────────────
@@ -231,7 +296,8 @@ _AFFIX_RULES: list = [
     ("pchembl", "pChEMBL"),
     ("neglog_m", "-log10 M"),
     ("loeuf", "LOEUF"),
-    ("pli", "pLI"),
+    ("log2abundance", "log2"),
+    ("log2_abundance", "log2"),
     ("odds_ratio", "log2 OR"),
     ("effect_size", "effect size"),
     ("_q_value", "q"),
@@ -245,9 +311,33 @@ _AFFIX_RULES: list = [
     ("_tpm", "TPM"),
 ]
 
+# TOKEN rules: same idea, but matched against the `_`-split tokens instead of the raw string. Reserved for
+# short affixes that occur INSIDE unrelated words — `pli` was a substring rule and so claimed pLI units for
+# every field naming an am-PLI-fied arm or a s-PLI-ce event (20 real contract summary_fields, 20/20 wrong:
+# n_amplified, patient_amplified_fraction, splice_exon_skip_class, modality_implication_basis, …). Audited
+# the other 20 substring rules by hand at the same time; `pli` is the only one that mislabels.
+_TOKEN_RULES: list = [
+    ("pli", "pLI"),
+]
+
+# Fields whose VALUE is a class/label/prose, not a number: ANY units we attach is nonsense
+# ("splicing_dysregulation_class = exon_skip_dominant (pLI)"). Checked BEFORE the affix rules, because the
+# affix matches the numeric noun buried in a categorical name (`allgene_percentile_class` → '%ile',
+# `subtype_effect_size_class` → 'effect size', `pan_essential_fraction_call` → 'fraction'). Grounded in the
+# contracts, not guessed: every field a card declares in `summary_fields_vocabulary` (i.e. every field with
+# an enumerated value set) ends in one of these, and test_display_gloss pins that none of them gets units.
+# NOT a suffix list for counts — `n_enriched_lineages` is a real count and keeps its 'count'.
+_CATEGORICAL_SUFFIXES = ("_class", "_basis", "_call", "_context")
+
 
 def _affix_units(field: str) -> Optional[str]:
     f = field.lower()
+    if f.endswith(_CATEGORICAL_SUFFIXES):
+        return None
+    tokens = set(f.split("_"))
+    for tok, units in _TOKEN_RULES:
+        if tok in tokens:
+            return units
     for sub, units in _AFFIX_RULES:
         if sub in f:
             return units

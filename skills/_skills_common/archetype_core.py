@@ -497,19 +497,52 @@ def vocabulary_drift(atlas: "Atlas", subskill_claim_vectors: dict) -> dict:
     genomic splice class) degrades the atlas invisibly. This surfaces that: given a live set of claim
     vectors, report the feature keys present LIVE but MISSING from the atlas (→ 're-freeze the atlas').
 
-    Returns {missing_keys, missing_axes, covered, note}. missing_keys empty ⇒ atlas vocabulary is current."""
+    NUMERIC FAMILY (2026-09-12): this checked ONLY claim keys, so the `::num::` half of the schema-2.0.0
+    feature space could drift invisibly — and it already had. Every SALIENCE_SPECS axis carrying a
+    `reference_frame` declares an atlas numeric (feature_vectoriser.numeric_feature_specs), so ADDING A CARD
+    RULER silently adds a feature the frozen order lacks, which _align_z_impute then drops. Measured at the
+    time this was written: 26 numerics declared vs 25 frozen, with
+    `tumor_protein_abundance::num::protein_effect_size` absent and NOTHING failing — plus 26 frozen masks for
+    25 frozen values, the fingerprint of a numeric whose column build_atlas dropped while its mask survived.
+    The declared numeric set is read from the code, not from the live run, so this half needs no
+    `subskill_claim_vectors` and is reported even when a live package is not supplied.
+
+    `covered` DELIBERATELY stays claim-only, so the existing atlas_health gate keeps its meaning. A live
+    claim key with no frozen column is a BREAK (the substrate says something the geometry cannot hear); a
+    newly declared numeric is additive and self-gating (the runtime drops the unknown key, and the
+    cohort_percentile ruler that reads its atlas column self-drops when the column is absent), so it is a
+    "re-freeze to GAIN this feature" signal, not a correctness failure. It is reported as `numeric_covered`
+    and surfaced by atlas_health as a WARN.
+
+    Returns {missing_keys, missing_axes, covered, note} plus the numeric fields."""
+    from _skills_common.feature_vectoriser import numeric_feature_specs
+
     live = set(claim_features(subskill_claim_vectors).keys())
     frozen = set(atlas.feature_order)
     missing = sorted(live - frozen)
+    declared_num = {f"{mt}::num::{field}" for mt, (field, _dir) in numeric_feature_specs().items()}
+    missing_num = sorted(declared_num - frozen)
+    # a mask frozen without its value column: build_atlas dropped the value (measured in <2 targets) but
+    # kept the all-zero mask, so the atlas carries a column that can only ever say "unmeasured".
+    orphan_masks = sorted(k for k in frozen if k.endswith("::mask") and k[: -len("::mask")] not in frozen)
     return {
         "missing_keys": missing,
         "missing_axes": sorted({k.split("::")[0] for k in missing}),
-        "covered": not missing,
+        "missing_numeric_keys": missing_num,
+        "missing_numeric_axes": sorted({k.split("::")[0] for k in missing_num}),
+        "orphan_mask_keys": orphan_masks,
+        "covered": not missing,  # claim-only ON PURPOSE — see the docstring
+        "claim_covered": not missing,
+        "numeric_covered": not missing_num,
         "n_live": len(live),
         "n_frozen": len(frozen),
+        "n_declared_numeric": len(declared_num),
         "note": (
             "live claim keys absent from the frozen feature_order are dropped from the embedding; "
-            "a non-empty missing_keys means the substrate drifted → re-freeze via build_atlas.py"
+            "a non-empty missing_keys means the substrate drifted → re-freeze via build_atlas.py. "
+            "missing_numeric_keys is the same failure for the ::num:: family: a SALIENCE_SPECS "
+            "reference_frame declares an atlas numeric, so a new card ruler needs a re-freeze to reach "
+            "the geometry. orphan_mask_keys are frozen masks whose value column was dropped at build."
         ),
     }
 

@@ -13,6 +13,14 @@ nonzero exit so it can gate CI:
      auditable).
   3. VOCABULARY DRIFT (optional) — given a live full-package run dir (--package-dir), report claim keys the
      skills now emit that are ABSENT from the frozen feature_order (→ re-freeze). Skipped if not provided.
+  4. NUMERIC VOCABULARY DRIFT — the `::num::` half of the same guard, WARN not FAIL. Every SALIENCE_SPECS
+     axis carrying a reference_frame declares an atlas numeric, so adding a card ruler mints a feature the
+     frozen order lacks; the runtime drops it and the cohort_percentile ruler that reads it self-drops, so
+     this is a "re-freeze to GAIN the feature" signal, not a correctness break. Needs no --package-dir (the
+     declared set is read from the code). Also reports orphan masks — a frozen `::mask` whose value column
+     build_atlas dropped, i.e. a column that can only ever say "unmeasured".
+
+WARN does not fail the gate; only FAIL does.
 
 Usage:
   python3 atlas_health.py [--atlas atlas/atlas.json] [--package-dir <full-package-run>] [--tol 1e-3]
@@ -97,8 +105,11 @@ def check(atlas: Atlas, package_dir: Path | None = None, tol: float = 1e-3) -> t
     # subskills/*/package.json, or a package-layout change that silently breaks _read_claim_vectors'
     # glob) must be a FAIL, not a free PASS — otherwise a layout drift disables the staleness guard
     # invisibly (the exact fail-open this check exists to prevent).
+    # vocabulary_drift's numeric half reads the DECLARED numeric set from the code, so it needs no live
+    # package; compute the drift dict once and use the claim half only when a package dir was supplied.
+    drift = vocabulary_drift(atlas, _read_claim_vectors(package_dir) if package_dir is not None else {})
+
     if package_dir is not None:
-        drift = vocabulary_drift(atlas, _read_claim_vectors(package_dir))
         if drift["n_live"] == 0:
             results.append(
                 {
@@ -132,7 +143,31 @@ def check(atlas: Atlas, package_dir: Path | None = None, tol: float = 1e-3) -> t
                 }
             )
 
-    ok = all(r["status"] == "PASS" for r in results)
+    # 4. NUMERIC vocabulary drift + orphan masks — WARN. See the module docstring for why this is not a FAIL:
+    # an unfrozen numeric is dropped by _align_z_impute and its cohort_percentile ruler self-drops, so the
+    # geometry stays correct and merely stays BLIND to the new axis until the next re-freeze. Making it red
+    # would mean every card-ruler PR has to ship an atlas re-freeze in the same commit.
+    missing_num = drift["missing_numeric_keys"]
+    orphans = drift["orphan_mask_keys"]
+    notes = []
+    if missing_num:
+        notes.append(
+            f"{len(missing_num)}/{drift['n_declared_numeric']} declared numerics absent from atlas "
+            f"(axes: {drift['missing_numeric_axes']}) → re-freeze to GAIN them"
+        )
+    if orphans:
+        notes.append(f"{len(orphans)} orphan masks (value column dropped at build): {orphans}")
+    results.append(
+        {
+            "check": "numeric_vocabulary_drift",
+            "status": "PASS" if not notes else "WARN",
+            "detail": "; ".join(notes)
+            if notes
+            else f"all {drift['n_declared_numeric']} declared numerics frozen, no orphan masks",
+        }
+    )
+
+    ok = not any(r["status"] == "FAIL" for r in results)  # WARN is advisory, never red
     return results, ok
 
 

@@ -171,10 +171,31 @@ SALIENCE_SPECS: dict = {
         "n_field": "n_lethal",
         "categorical": ["ko_phenotype_class", "impc_ko_phenotype_class", "evidence_tier"],
     },
+    # alteration-role had NO numeric anchor at all: no effect_field, no n_field, and its one number sat in
+    # `significance_field`, which the capsule's numeric selectors do not promote — measured as class=None +
+    # ZERO anchors on 26 of 26 genomic review-panel runs, for the card that supplies the driver ROLE the
+    # resolver's role rungs key on. The ruler gauges IntOGen's best q against the card's own driver_qvalue
+    # cut, which is the only numeric cut the contract declares.
+    #
+    # atlas_numeric: False — the value is degenerate as a phenotype coordinate. Every gene with a driver
+    # call has q at or below 0.05 and most sit many orders of magnitude below it (KRAS 1e-30), while genes
+    # WITHOUT one have no value at all, so the ::mask already carries the whole signal and the signed value
+    # would contribute a near-constant column. Displayed as a ruler, kept out of the geometry.
     "alteration_role": {
         "significance_field": "intogen_min_qvalue",
-        "categorical": ["alteration_role"],
+        "direction": "lower_is_stronger",
+        "categorical": ["alteration_role", "functional_direction", "oncokb_gene_type"],
         "extra_scalars": ["intogen_max_pct_samples"],
+        "reference_frame": {
+            "kind": "distance_to_cut",
+            "value_field": "intogen_min_qvalue",
+            "scale": "qvalue",
+            "atlas_numeric": False,
+            # no position_field ON PURPOSE: alteration_role is banded on the OncoKB x IntOGen role JOIN,
+            # not on this q-value, so reading it as the gauge's ordinal position would assert a
+            # correspondence the contract does not make.
+            "cut": {"card_id": "alteration-role", "threshold": "driver_qvalue", "label": "driver_tier_cut"},
+        },
     },
     "mutation_stratified_dependency": {
         "effect_field": "median_chronos_hotspot_mutant",
@@ -621,9 +642,126 @@ SALIENCE_SPECS: dict = {
         "direction": "higher_is_stronger",
         "categorical": ["cooccurrence_class"],
     },
+    # ── GENOMIC CARD-DATA RULERS (2026-09-12) — the "later, threshold-named add" the 09-10 verdict-tail
+    #    block below deferred, plus the three genomic verdict-bearing types that had NO spec at all.
+    #
+    #    MEASURED GAP: of the 23 measurement_types behind genomic-alteration-profile's 26 cards, 12 had no
+    #    SALIENCE_SPEC and only 2 carried a reference_frame — so the subskill that decides driver status
+    #    shipped almost no gauged numbers. Three of the 12 are VERDICT-BEARING (named by a gating rule in
+    #    coverage/rule_role_partition.yaml): copy_number_alteration and mutation_variant_class_spectrum both
+    #    key resolver rungs, and mutation_clonality gates the clonality read.
+    #
+    #    Every value_field + threshold below is single-sourced from the named card's `thresholds:` block and
+    #    pinned by skills/tests/test_reference_frame_governance.py. Where a card declares NO numeric
+    #    threshold there is deliberately NO ruler (fusion-rearrangement-landscape, splice-exon-skip-landscape,
+    #    variant-level-interpretation, target-clonality): a gauge needs a contract-declared cut, and inventing
+    #    one skills-side is exactly the re-hardcoding the governance test forbids. Those stay declared debt —
+    #    they need a contracts-side threshold first.
+    "copy_number_alteration": {
+        "effect_field": "cn_recurrent_amplification_score",
+        "n_field": "cn_n_cell_lines_evaluated",
+        "direction": "higher_is_stronger",
+        "categorical": [
+            "copy_number_class",
+            "patient_copy_number_class",
+            "patient_focal_cn_class",
+            "cn_distribution_shape",
+            "cn_homozygous_deletion_recurrent",
+        ],
+        "extra_scalars": [
+            "cn_recurrent_deletion_score",
+            "cn_fraction_deep_deletion",
+            "cn_fraction_high_amplification",
+            "patient_high_amp_fraction",
+            "patient_homdel_fraction",
+            "cn_median_panel",
+        ],
+        # TWO rulers on the same cut, because the two arms of this classifier have a measured 20-40x
+        # specificity gap and the reader must SEE which arm is talking. Over 1433 random gene columns
+        # (card header, 2026-09-12): the amplification score clears 0.20 for 2.9% of genes genome-wide,
+        # the deletion score for 60.1% — the deletion cut sits BELOW the genomic median, so a bare
+        # "recurrently deleted" call is mostly reading the aneuploid cell-line background. Gauging both
+        # against the SAME recurrent_event_fraction makes that asymmetry legible on the card instead of
+        # only in the resolver's rung choice (resolver >= 1.9.0 keys its deletion rungs elsewhere).
+        "reference_frame": [
+            {
+                "kind": "distance_to_cut",
+                "value_field": "cn_recurrent_amplification_score",
+                "scale": "event_fraction",
+                "position_field": "copy_number_class",
+                "cut": {
+                    "card_id": "copy-number-distribution",
+                    "threshold": "recurrent_event_fraction",
+                    "label": "recurrent_event_cut",
+                },
+            },
+            {
+                "kind": "distance_to_cut",
+                "value_field": "cn_recurrent_deletion_score",
+                "scale": "event_fraction",
+                "position_field": "copy_number_class",
+                "cut": {
+                    "card_id": "copy-number-distribution",
+                    "threshold": "recurrent_event_fraction",
+                    "label": "recurrent_event_cut",
+                },
+            },
+        ],
+    },
+    "mutation_variant_class_spectrum": {
+        "n_field": "mut_n_cell_lines_mutated",
+        "direction": "higher_is_stronger",
+        "categorical": ["mut_dominant_mutation_class", "mutation_landscape_class"],
+        "extra_scalars": ["mut_mutation_rate", "mut_n_cell_lines_total", "mut_total_mutations"],
+        # SHAPE, not strength — and the whole point of gauging it is to show how UNDISCRIMINATING the cut
+        # is. mut-missense-dominant-supportive fires for 62% of the 26-target genomic review panel
+        # INCLUDING both negative controls (GAPDH, ACTB), because most genes' somatic spectra are
+        # missense-dominant by base-substitution statistics alone; resolver 1.9.0 demoted the shape rungs
+        # below patient SNV recurrence for exactly that reason. A distance-to-cut ruler puts GAPDH's
+        # fraction next to KRAS's instead of collapsing both to "missense_dominant".
+        #
+        # atlas_numeric: False — no single polarity exists. A high missense fraction reads DRIVER for an
+        # oncogene and PASSENGER for a tumour suppressor, so signing it with a fixed _DIR_SIGN would be
+        # wrong for whichever half of the corpus it is not describing. Displayed, never embedded.
+        "reference_frame": [
+            {
+                "kind": "distance_to_cut",
+                "value_field": "mut_fraction_missense",
+                "scale": "mutation_fraction",
+                "position_field": "mut_dominant_mutation_class",
+                "atlas_numeric": False,
+                "cut": {
+                    "card_id": "mutation-type-counts",
+                    "threshold": "missense_dominant_fraction",
+                    "label": "missense_dominant_cut",
+                },
+            },
+            {
+                "kind": "distance_to_cut",
+                "value_field": "mut_fraction_lof",
+                "scale": "mutation_fraction",
+                "position_field": "mut_dominant_mutation_class",
+                "atlas_numeric": False,
+                "cut": {
+                    "card_id": "mutation-type-counts",
+                    "threshold": "lof_dominant_fraction",
+                    "label": "lof_dominant_cut",
+                },
+            },
+        ],
+    },
+    # target-clonality declares NO numeric thresholds, so this is a spec WITHOUT a ruler — the class is the
+    # ruler (governance invariant 1 accepts a non-empty `categorical` as gaugeable). clonal_fraction and
+    # median_ccf are surfaced as numbers; what is missing is a contract-declared clonal cut to gauge against.
+    "mutation_clonality": {
+        "effect_field": "clonal_fraction",
+        "n_field": "n_mutant_samples",
+        "direction": "higher_is_stronger",
+        "categorical": ["clonality_class"],
+        "extra_scalars": ["median_ccf"],
+    },
     # ── verdict-tail specs (2026-09-10): field names VERIFIED against each card's outputs.summary_fields.
-    #    No reference_frame (the key_evidence enrichment is effect/significance/n/categorical/strata); frames
-    #    are a later, threshold-named add. ADDITIVE + display-only. ──────────────────────────────────────
+    #    Rulers added 2026-09-12 (see the block above) where the card declares a numeric cut. ────────────
     # genomic-alteration-profile
     "cn_stratified_dependency": {
         "effect_field": "delta_chronos_amplified_vs_neutral",
@@ -632,6 +770,23 @@ SALIENCE_SPECS: dict = {
         "direction": "lower_is_stronger",
         "categorical": ["cn_stratification_class", "evidence_scope"],
         "extra_scalars": ["median_chronos_amplified", "median_chronos_neutral", "cn_stratification_effect_size"],
+        # graded_band on the amplified-vs-neutral CHRONOS delta against the card's own two-step effect
+        # ladder (moderate -0.2 / strong -0.5) — the exact cuts cn_stratification_class is banded on, so
+        # the read-verbatim position can never contradict the gauge.
+        "reference_frame": {
+            "kind": "graded_band",
+            "value_field": "delta_chronos_amplified_vs_neutral",
+            "scale": "chronos_delta",
+            "position_field": "cn_stratification_class",
+            "cuts": [
+                {
+                    "card_id": "copy-number-stratified-dependency",
+                    "threshold": "moderate_effect_delta",
+                    "label": "moderate",
+                },
+                {"card_id": "copy-number-stratified-dependency", "threshold": "strong_effect_delta", "label": "strong"},
+            ],
+        },
     },
     "amp_expr_stratified_dependency": {
         "effect_field": "delta_chronos_amp_expr_vs_rest",
@@ -640,6 +795,20 @@ SALIENCE_SPECS: dict = {
         "direction": "lower_is_stronger",
         "categorical": ["amp_expr_stratification_class", "evidence_scope"],
         "extra_scalars": ["median_chronos_amp_expr", "median_chronos_comparator", "amp_expr_effect_size"],
+        "reference_frame": {
+            "kind": "graded_band",
+            "value_field": "delta_chronos_amp_expr_vs_rest",
+            "scale": "chronos_delta",
+            "position_field": "amp_expr_stratification_class",
+            "cuts": [
+                {
+                    "card_id": "amp-expr-stratified-dependency",
+                    "threshold": "moderate_effect_delta",
+                    "label": "moderate",
+                },
+                {"card_id": "amp-expr-stratified-dependency", "threshold": "strong_effect_delta", "label": "strong"},
+            ],
+        },
     },
     "fusion_stratified_dependency": {
         "effect_field": "delta_chronos_fusion_positive_vs_negative",
@@ -648,6 +817,16 @@ SALIENCE_SPECS: dict = {
         "direction": "lower_is_stronger",
         "categorical": ["fusion_stratification_class", "fusion_stratification_confound", "evidence_scope"],
         "extra_scalars": ["median_chronos_fusion_positive", "median_chronos_fusion_negative"],
+        "reference_frame": {
+            "kind": "graded_band",
+            "value_field": "delta_chronos_fusion_positive_vs_negative",
+            "scale": "chronos_delta",
+            "position_field": "fusion_stratification_class",
+            "cuts": [
+                {"card_id": "fusion-stratified-dependency", "threshold": "moderate_effect_delta", "label": "moderate"},
+                {"card_id": "fusion-stratified-dependency", "threshold": "strong_effect_delta", "label": "strong"},
+            ],
+        },
     },
     "mutation_hotspot_frequency": {
         "effect_field": "overall_mutation_frequency",
@@ -655,6 +834,21 @@ SALIENCE_SPECS: dict = {
         "direction": "higher_is_stronger",
         "categorical": ["pooled_driver_recurrence_class", "driver_recurrence_class", "genie_driver_recurrence_class"],
         "extra_scalars": ["pooled_driver_recurrence_percentile", "genie_mutation_frequency", "n_mutated_pooled"],
+        # The ruler for the rung resolver 1.9.0 PROMOTED to the top of the SNV arm. The gauged value is the
+        # POOLED percentile (the field pooled_driver_recurrence_class is banded on — not the indication-only
+        # driver_recurrence_percentile), against the top-1% cut the rung keys on. This is the number the
+        # verdict now turns on, and until now it was an unlabelled entry in extra_scalars.
+        "reference_frame": {
+            "kind": "distance_to_cut",
+            "value_field": "pooled_driver_recurrence_percentile",
+            "scale": "percentile",
+            "position_field": "pooled_driver_recurrence_class",
+            "cut": {
+                "card_id": "mutation-hotspot-frequency",
+                "threshold": "driver_recurrence_top_1pct",
+                "label": "top_1pct_cut",
+            },
+        },
     },
     "mutation_drug_response": {
         "effect_field": "delta_log2auc_mut_vs_wt",
@@ -663,6 +857,19 @@ SALIENCE_SPECS: dict = {
         "direction": "lower_is_stronger",
         "categorical": ["drug_response_stratification_class"],
         "extra_scalars": ["drug_response_ppv", "drug_response_effect_size", "median_log2auc_mutant"],
+        # NOTE the effect ladder on this card is an order of magnitude tighter than the CHRONOS cards'
+        # (-0.08 / -0.2 in log2 AUC vs -0.2 / -0.5 in CHRONOS) — which is precisely why the delta needs a
+        # scale and a named cut rather than being read as a bare number next to a dependency delta.
+        "reference_frame": {
+            "kind": "graded_band",
+            "value_field": "delta_log2auc_mut_vs_wt",
+            "scale": "log2auc_delta",
+            "position_field": "drug_response_stratification_class",
+            "cuts": [
+                {"card_id": "mutation-drug-response", "threshold": "moderate_effect_delta", "label": "moderate"},
+                {"card_id": "mutation-drug-response", "threshold": "strong_effect_delta", "label": "strong"},
+            ],
+        },
     },
     "splice_exon_skip": {  # curated-event card: categorical + carrier count, no numeric effect
         "n_field": "n_depmap_carriers",
@@ -1004,12 +1211,22 @@ for _mt, _extra in _SECONDARY_FRAMES.items():
 # (archetype_core.cohort_percentile) returns None when the atlas column is absent or under-powered (n<20),
 # so build_interpretation silently drops the frame — a sparse axis carries no cohort ruler until the atlas
 # grows, and no per-axis min-N bookkeeping is needed here. Skips the pilot axes already carrying one.
+#
+# OPT-OUT (2026-09-12): a frame carrying `atlas_numeric: False` is a DISPLAY-ONLY ruler and gets no cohort
+# ruler either. The registry is shared — numeric_feature_specs() mints an atlas feature from every PRIMARY
+# frame — so before this flag existed, adding a display ruler to a card whose gauged value is NOT monotone
+# with "more supportive" (a mutation-SHAPE fraction: high missense reads driver for an oncogene and
+# passenger for a TSG) also minted a polarity-ambiguous atlas feature, and _DIR_SIGN would have baked the
+# wrong sign into the phenotype geometry for half the corpus. A cohort_percentile on such an axis is dead
+# by construction (its atlas column is never built), so skipping it here avoids a vacuous frame too.
 for _mt, _spec in SALIENCE_SPECS.items():
     _rf = _spec.get("reference_frame")
     _frames = _rf if isinstance(_rf, list) else ([_rf] if isinstance(_rf, dict) else [])
     if not _frames or any(isinstance(f, dict) and f.get("kind") == "cohort_percentile" for f in _frames):
         continue
     _primary = _frames[0]
+    if _primary.get("atlas_numeric") is False:
+        continue
     _vf, _scale = _primary.get("value_field"), _primary.get("scale")
     if not (_vf and _scale):
         continue
