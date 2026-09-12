@@ -414,6 +414,14 @@ def gauge_string(gv: dict) -> str:
     if kind == "percentile":
         return f"{_fmt_num(value)}th percentile ({label})" if label else f"{_fmt_num(value)}th percentile"
 
+    if kind == "cohort_percentile":
+        # "{value} {scale} — stronger than 82% of 210 known targets" (position pre-composed by _project_frame)
+        seg = f"{_fmt_num(value)}"
+        if gv.get("scale"):
+            seg += f" {gv['scale']}"
+        pos = gv.get("position")
+        return f"{seg} — {pos}" if pos else seg
+
     # no / unknown frame → the glossed reading alone
     return metric_reading(gv.get("metric"), value, direction)
 

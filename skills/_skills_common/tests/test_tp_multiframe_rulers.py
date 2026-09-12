@@ -38,12 +38,14 @@ _MULTIFRAME = {
         },
     ),
     "tumor_expression_distribution": (
-        # 3 frames: pan-cancer rank + within-tumor median (both fire on the main card) + subtype ε²
-        # graded_band (fires only on the by-subtype card). This synthetic summary carries all three fields.
+        # 4 frames: pan-cancer rank + within-tumor median (both fire on the main card) + subtype ε²
+        # graded_band (fires only on the by-subtype card) + the known-target cohort ruler appended LAST
+        # (Phase 2). This synthetic summary carries all four fields.
         [
             ("allgene_percentile", "distance_to_cut"),
             ("median_log2tpm", "distance_to_cut"),
             ("subtype_variance_explained", "graded_band"),
+            ("allgene_percentile", "cohort_percentile"),
         ],
         {
             "allgene_percentile": 99.9,

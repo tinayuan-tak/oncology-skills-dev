@@ -29,8 +29,8 @@ def _crispr_summary():
 
 def test_crispr_floor_cut_ceiling_ruler_from_summary():
     interp = build_interpretation({}, _crispr_summary(), SALIENCE_SPECS["crispr_lof_dependency"])
-    assert len(interp) == 1
-    gv = interp[0]
+    frames = {g["frame"]["kind"]: g for g in interp}
+    gv = frames["floor_cut_ceiling"]
     assert gv["metric"] == "median_chronos_panel" and gv["value"] == -0.4574 and gv["scale"] == "chronos"
     assert gv["direction"] == "lower_is_stronger"
     assert gv["position"] == "between_controls"  # READ VERBATIM
@@ -39,6 +39,10 @@ def test_crispr_floor_cut_ceiling_ruler_from_summary():
     assert roles["floor"] == -0.038 and roles["ceiling"] == -1.499
     assert roles.get("cut") == -0.5  # single-sourced from card thresholds:
     assert gv["frame"]["kind"] == "floor_cut_ceiling"
+    # + cohort ruler: the same panel-median gauged against the known-target cohort (Phase 2)
+    coh = frames["cohort_percentile"]
+    assert coh["metric"] == "median_chronos_panel" and coh["cohort_n"] >= 20
+    assert 0.0 <= coh["cohort_percentile"] <= 100.0 and "known targets" in coh["position"]
 
 
 def test_crispr_ruler_reads_floor_ceiling_from_capsule_when_summary_stripped():
@@ -130,11 +134,14 @@ def test_gnomad_loeuf_distance_to_cut_ruler():
     interp = build_interpretation(
         {}, _gnomad_summary(), SALIENCE_SPECS["gnomad_lof_constraint"], card_id="gnomad-lof-constraint"
     )
-    assert len(interp) == 1
-    gv = interp[0]
+    frames = {g["frame"]["kind"]: g for g in interp}
+    gv = frames["distance_to_cut"]
     assert gv["metric"] == "loeuf_score" and gv["value"] == 0.32 and gv["scale"] == "loeuf"
     assert gv["direction"] == "lower_is_stronger"
     assert gv["position"] == "highly_constrained"  # constraint_class READ VERBATIM
+    # + cohort ruler: a low LOEUF (0.32, strong LoF) is polarity-signed so it reads HIGH on the cohort
+    coh = frames["cohort_percentile"]
+    assert coh["metric"] == "loeuf_score" and coh["cohort_n"] >= 20 and coh["cohort_percentile"] >= 50.0
     assert gv["position_source"] == "constraint_class"
     assert gv["frame"]["kind"] == "distance_to_cut"
     # cut single-sources from the card's high_loeuf threshold (already a NAMED threshold — no lockstep)
@@ -282,14 +289,56 @@ def test_measured_potency_distance_to_cut_ruler():
         SALIENCE_SPECS["measured_potency_tractability"],
         card_id="measured-potency-tractability",
     )
-    assert len(interp) == 1
-    gv = interp[0]
+    frames = {g["frame"]["kind"]: g for g in interp}
+    gv = frames["distance_to_cut"]
     assert gv["metric"] == "best_measured_potency_neglog_m" and gv["value"] == 7.2 and gv["scale"] == "neglog_M"
     assert gv["position"] == "potent_measured_ligand" and gv["position_source"] == "measured_bioactivity_class"
     assert gv["frame"]["kind"] == "distance_to_cut"
+    # + cohort ruler: potency vs the known targets that carry a measured potency
+    coh = frames["cohort_percentile"]
+    assert coh["metric"] == "best_measured_potency_neglog_m" and coh["cohort_n"] >= 20
     # cut single-sources from the card's potent_neglog_m (contracts #666); assert only once it resolves
     # (green through the cross-repo lockstep window until #666 lands to main)
     cut = contract_threshold("measured-potency-tractability", "potent_neglog_m")
     if cut is not None:
         assert cut == 6.0
         assert {a["role"]: a["value"] for a in gv["frame"]["anchors"]}.get("cut") == 6.0
+
+
+# ── KNOWN-TARGET COHORT PERCENTILE meters (Phase 2; reads the re-frozen atlas, verdict-INERT) ─────────
+def test_cohort_percentile_reader_polarity_and_gate():
+    from _skills_common.archetype_core import cohort_percentile
+
+    KEY = "gnomad_lof_constraint::num::loeuf_score"  # lower_is_stronger → atlas stores -loeuf
+    # a strongly-constrained target (raw loeuf 0.12 → signed -0.12) sits ABOVE most of the cohort
+    strong = cohort_percentile(KEY, -0.12)
+    weak = cohort_percentile(KEY, -1.4)
+    assert strong and weak and strong["percentile"] > weak["percentile"]
+    assert strong["n"] >= 20 and 0.0 <= strong["percentile"] <= 100.0
+    # unknown key and None value → no frame (never a bare/over-claimed number)
+    assert cohort_percentile("not_a_measurement::num::nope", -0.12) is None
+    assert cohort_percentile(KEY, None) is None
+    # under-powered cohort is gated
+    assert cohort_percentile(KEY, -0.12, min_n=10_000) is None
+
+
+def test_cohort_percentile_gauge_string_renders():
+    from _skills_common.display_gloss import gauge_string
+
+    gv = {
+        "frame": {"kind": "cohort_percentile"},
+        "value": 0.12,
+        "scale": "loeuf",
+        "position": "stronger than 98% of 210 known targets",
+    }
+    s = gauge_string(gv)
+    assert "0.12 loeuf" in s and "stronger than 98% of 210 known targets" in s
+
+
+def test_cohort_meters_are_verdict_inert_display_only():
+    # the cohort frame carries no signal/verdict keys — it is a display gauge, never a gate input
+    interp = build_interpretation(
+        {}, _gnomad_summary(), SALIENCE_SPECS["gnomad_lof_constraint"], card_id="gnomad-lof-constraint"
+    )
+    coh = {g["frame"]["kind"]: g for g in interp}["cohort_percentile"]
+    assert not ({"signal", "verdict", "fired", "recommendation"} & set(coh))

@@ -52,21 +52,30 @@ SALIENCE_SPECS: dict = {
         # STAGE-2 PILOT ruler: floor_cut_ceiling. The gauged value is the PANEL median (median_chronos_panel)
         # — the field dep_control_position_class was banded on — NOT the effect_field stratum value
         # (median_chronos), so the read-verbatim position never contradicts a recomputed band.
-        "reference_frame": {
-            "kind": "floor_cut_ceiling",
-            "value_field": "median_chronos_panel",
-            "scale": "chronos",
-            "position_field": "dep_control_position_class",
-            "anchors": [
-                {"role": "floor", "field": "dep_control_non_essential_floor", "label": "non_essential_floor"},
-                {"role": "ceiling", "field": "dep_control_pan_essential_ceiling", "label": "pan_essential_ceiling"},
-            ],
-            "cut": {
-                "card_id": "pan-cancer-crispr-dependency-distribution",
-                "threshold": "moderately_dependent_threshold_chronos",
-                "label": "dependency_cut",
+        "reference_frame": [
+            {
+                "kind": "floor_cut_ceiling",
+                "value_field": "median_chronos_panel",
+                "scale": "chronos",
+                "position_field": "dep_control_position_class",
+                "anchors": [
+                    {"role": "floor", "field": "dep_control_non_essential_floor", "label": "non_essential_floor"},
+                    {"role": "ceiling", "field": "dep_control_pan_essential_ceiling", "label": "pan_essential_ceiling"},
+                ],
+                "cut": {
+                    "card_id": "pan-cancer-crispr-dependency-distribution",
+                    "threshold": "moderately_dependent_threshold_chronos",
+                    "label": "dependency_cut",
+                },
             },
-        },
+            # + cohort ruler: panel-median dependency vs the 213 known targets.
+            {
+                "kind": "cohort_percentile",
+                "value_field": "median_chronos_panel",
+                "scale": "chronos",
+                "cohort_key": "crispr_lof_dependency::num::median_chronos_panel",
+            },
+        ],
     },
     "rnai_lof_dependency": {
         "effect_field": "rnai_median_dep_score",
@@ -126,13 +135,22 @@ SALIENCE_SPECS: dict = {
         # gnomAD v4-recommended) — no contracts round-trip needed (the named threshold already exists).
         # First SAFETY-axis reference_frame; the scalar loeuf now reads gauged ("LOEUF 0.32, past the 0.45
         # constraint cut") instead of bare. DISPLAY-ONLY / verdict-INERT.
-        "reference_frame": {
-            "kind": "distance_to_cut",
-            "value_field": "loeuf_score",
-            "scale": "loeuf",
-            "position_field": "constraint_class",
-            "cut": {"card_id": "gnomad-lof-constraint", "threshold": "high_loeuf", "label": "loeuf_constraint_cut"},
-        },
+        "reference_frame": [
+            {
+                "kind": "distance_to_cut",
+                "value_field": "loeuf_score",
+                "scale": "loeuf",
+                "position_field": "constraint_class",
+                "cut": {"card_id": "gnomad-lof-constraint", "threshold": "high_loeuf", "label": "loeuf_constraint_cut"},
+            },
+            # + cohort ruler: where this LOEUF sits among the 210 known targets that carry it.
+            {
+                "kind": "cohort_percentile",
+                "value_field": "loeuf_score",
+                "scale": "loeuf",
+                "cohort_key": "gnomad_lof_constraint::num::loeuf_score",
+            },
+        ],
     },
     "normal_tissue_rna_breadth": {
         "effect_field": "highest_tissue_median",
@@ -484,13 +502,26 @@ SALIENCE_SPECS: dict = {
         # STAGE-2 ruler (cross-repo): distance_to_cut on the CROSS-SOURCE max potency (best_measured_potency_neglog_m,
         # -log10 M; HIGHER = more potent), gauged against the potent_neglog_m cut (6.0 = <=1 uM) NAMED on the card
         # (contracts #666). position = measured_bioactivity_class READ VERBATIM. DISPLAY-ONLY / verdict-INERT.
-        "reference_frame": {
-            "kind": "distance_to_cut",
-            "value_field": "best_measured_potency_neglog_m",
-            "scale": "neglog_M",
-            "position_field": "measured_bioactivity_class",
-            "cut": {"card_id": "measured-potency-tractability", "threshold": "potent_neglog_m", "label": "potent_cut"},
-        },
+        "reference_frame": [
+            {
+                "kind": "distance_to_cut",
+                "value_field": "best_measured_potency_neglog_m",
+                "scale": "neglog_M",
+                "position_field": "measured_bioactivity_class",
+                "cut": {
+                    "card_id": "measured-potency-tractability",
+                    "threshold": "potent_neglog_m",
+                    "label": "potent_cut",
+                },
+            },
+            # + cohort ruler: best measured potency vs the 150 known targets with a measured potency.
+            {
+                "kind": "cohort_percentile",
+                "value_field": "best_measured_potency_neglog_m",
+                "scale": "neglog_M",
+                "cohort_key": "measured_potency_tractability::num::best_measured_potency_neglog_m",
+            },
+        ],
     },
     "structure_druggability": {
         "categorical": [
@@ -902,6 +933,13 @@ _SECONDARY_FRAMES = {
                 {"card_id": "tumor-rna-distribution-by-subtype", "threshold": "subtype_effect_large", "label": "large"},
             ],
         },
+        # + cohort ruler (Phase 2): pan-cancer allgene percentile vs the known-target cohort (appended LAST).
+        {
+            "kind": "cohort_percentile",
+            "value_field": "allgene_percentile",
+            "scale": "percentile",
+            "cohort_key": "tumor_expression_distribution::num::allgene_percentile",
+        },
     ],
     "cell_line_protein_abundance": {
         "kind": "floor_cut_ceiling",
@@ -1028,6 +1066,33 @@ def _project_frame(rf: dict, cap: dict, summary: dict, direction, card_id, contr
     (value ⇒ scale). Extracted so build_interpretation can iterate a LIST of frames on one card."""
     if not isinstance(rf, dict):
         return None
+    # COHORT-PERCENTILE (Phase 2 meter): position the card value WITHIN the frozen known-target cohort read
+    # from the re-frozen atlas (`cohort_key` = `{measurement_type}::num::{value_field}`), instead of only
+    # against a fixed card cut. The value is polarity-signed to match the atlas convention (higher ==
+    # stronger) via the spec's `direction`, so a larger percentile always means "stronger than more known
+    # targets". Under-powered/absent columns drop the frame (never a bare or over-claimed number).
+    # DISPLAY-ONLY / verdict-INERT — reads the shipped atlas artifact, feeds no gate.
+    if rf.get("kind") == "cohort_percentile":
+        raw = _read_num_field(rf.get("value_field"), summary, cap)
+        scale = rf.get("scale")
+        if raw is None or not scale:
+            return None
+        from _skills_common.archetype_core import cohort_percentile
+        from _skills_common.feature_vectoriser import _DIR_SIGN
+
+        res = cohort_percentile(rf.get("cohort_key"), _DIR_SIGN.get(direction, 1.0) * raw)
+        if res is None:
+            return None
+        return {
+            "metric": rf.get("value_field"),
+            "value": sig_round(raw),
+            "scale": scale,
+            "direction": direction,
+            "frame": {"kind": "cohort_percentile", "anchors": []},
+            "position": f"stronger than {res['percentile']:g}% of {res['n']} known targets",
+            "cohort_percentile": res["percentile"],
+            "cohort_n": res["n"],
+        }
     value = _read_num_field(rf.get("value_field"), summary, cap)
     scale = rf.get("scale")
     if value is None or not scale:  # no bare frame without a value+scale

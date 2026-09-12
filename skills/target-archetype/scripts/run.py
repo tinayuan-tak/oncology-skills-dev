@@ -217,6 +217,29 @@ def _build_decision(companion: dict, scorecard: dict, target, indication) -> dic
     }
 
 
+def _build_skill_report(companion: dict, scorecard: dict, target, indication) -> dict:
+    """Project the deterministic companion + scorecard onto the canonical UNIFIED_OUTPUT_CONTRACT
+    `skill_report` spine, so target-archetype speaks the SAME output shape as the 14 fan-out sub-skills and
+    target_report can roll it up off the spine (claim_chips / honest_phrase) instead of a bespoke companion
+    reach-in. role=DESCRIPTIVE + call=None: this layer is a landscape companion, never a gate (governance).
+    Cardless → no fired rules / cards. Reuses _build_decision so the report's claim_chips + honest_phrase are
+    byte-consistent with the narrator/literature lanes."""
+    from _skills_common.skill_report import ROLE_DESCRIPTIVE, build_skill_report
+
+    decision = _build_decision(companion, scorecard, target, indication)
+    ks = decision["headline"]["key_signals"]
+    hb = {"headline_text": ks.get("headline"), "top_tension": ks.get("caveat")}
+    return build_skill_report(
+        role=ROLE_DESCRIPTIVE,
+        verdict=None,  # descriptive companion — never a call
+        claim_vector=decision["headline"]["claim_vector"],
+        headline_block=hb,
+        fired_rule_ids=[],  # cardless, ruleless META layer
+        cards_used=[],
+        cards_missing=[],
+    )
+
+
 def _run_literature(decision: dict, model_id):
     from _skills_common.literature_retrieval import default_retrieve, verify_citations
     from _skills_common.literature_synthesis import make_literature_fn
@@ -277,6 +300,9 @@ def main():
         "verdict": None,  # governance: descriptive companion
         "companion": companion,
         "nomination_scorecard": scorecard,  # D1 glass-box readiness (verdict-inert)
+        # canonical UNIFIED_OUTPUT_CONTRACT spine — same output shape as the fan-out sub-skills, so a
+        # consumer reads claim_chips / honest_phrase off the report rather than reaching into `companion`.
+        "skill_report": _build_skill_report(companion, scorecard, target, indication),
     }
 
     # OPTIONAL verdict-INERT LLM lanes (bespoke seam mirroring the dispatcher: literature BEFORE synthesize so

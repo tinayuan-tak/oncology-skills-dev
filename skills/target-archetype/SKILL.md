@@ -34,7 +34,9 @@ composition:
   synthesis:
     - none                  # verdict=None (governance: companion, never a gate)
   output_shape:
-    - data_package
+    - data_package            # the emitted companion.json — which now CARRIES the canonical
+                              # `skill_report` spine (role=descriptive, call=None) inside it, exactly as
+                              # the fan-out sub-skills carry theirs on synthesis_facet.skill_report.
   steps_covered: [1, 2, 6]
   status: wired
 ---

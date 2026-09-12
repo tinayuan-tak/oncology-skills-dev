@@ -496,3 +496,32 @@ def test_scorecard_value_of_information(atlas: Atlas):
     gains = [v["projected_score_gain"] for v in voi]
     assert gains == sorted(gains, reverse=True)
     assert "surface_modality" in {v["axis"] for v in voi}  # the dropped axis is an acquisition candidate
+
+
+# ── skill_report output shape (UNIFIED_OUTPUT_CONTRACT spine; role=descriptive, verdict-INERT) ────────
+def _run_module():
+    import importlib.util
+
+    p = Path(__file__).resolve().parents[1] / "scripts" / "run.py"
+    spec = importlib.util.spec_from_file_location("ta_run", p)
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    return m
+
+
+def test_emits_canonical_skill_report(atlas: Atlas):
+    # a real claim-vector -> companion -> the report the skill now emits alongside the data_package
+    feat = {k: v for k, v in zip(atlas.feature_order, atlas.X[0]) if v is not None}
+    comp = atlas.companion(feat, k=8)
+    sc = ac.nomination_scorecard(feat, comp.get("soft_membership"), atlas)
+    ac._attach_archetype_caveats(comp, target="T", indication="IND")
+    sr = _run_module()._build_skill_report(comp, sc, "T", "IND")
+    # governance: descriptive companion, never a call
+    assert sr["call"] is None and sr["role"] == "descriptive"
+    assert sr["_contract"] == "docs/UNIFIED_OUTPUT_CONTRACT.md"
+    # the phenotype-landscape claim vector projects onto chips + an honest phrase
+    keys = {c["key"] for c in sr["claim_chips"]}
+    assert {"PHENOTYPE", "ANALOG", "PRECEDENT", "NOVELTY", "READINESS"} <= keys
+    assert isinstance(sr["honest_phrase"], str) and sr["honest_phrase"]
+    # cardless / ruleless META layer
+    assert sr["provenance"]["fired_rule_ids"] == [] and sr["provenance"]["cards_used"] == []

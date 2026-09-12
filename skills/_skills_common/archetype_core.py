@@ -37,6 +37,8 @@ uses its own low/moderate/high vocabulary (the prior "only-moderate" encoding bu
 
 from __future__ import annotations
 
+import bisect
+import functools
 import json
 import math
 from pathlib import Path
@@ -1011,3 +1013,49 @@ def archetype_provenance(companion: dict, target=None, indication=None) -> Optio
             "dedicated anchor and blends into snv_driver / amp_driver."
         ),
     }
+
+
+# ── KNOWN-TARGET COHORT RULERS (Phase 2 meters, verdict-INERT) ───────────────────────────────────────
+# The re-frozen atlas (feature_schema_version 2.0.0) stores, per metered numeric `{mt}::num::{field}`, the
+# POLARITY-SIGNED value for every corpus target in `X` — i.e. it IS the known-target cohort distribution.
+# These helpers let a subskill meter position a single card value as its percentile WITHIN that cohort
+# ("stronger LoF-constraint than 82% of known targets") instead of only against a fixed card cut. Values in
+# X are already sign-normalised by feature_vectoriser (_DIR_SIGN: higher == more supportive), so the caller
+# passes an ALREADY-SIGNED value and a larger percentile always means "stronger". DISPLAY-ONLY: nothing here
+# feeds a verdict or gate — it reads the shipped atlas artifact and returns a position string's inputs.
+_SHIPPED_ATLAS = Path(__file__).resolve().parents[1] / "target-archetype" / "atlas" / "atlas.json"
+
+
+@functools.lru_cache(maxsize=1)
+def _shipped_atlas_or_none() -> Optional["Atlas"]:
+    try:
+        return Atlas.load(_SHIPPED_ATLAS) if _SHIPPED_ATLAS.exists() else None
+    except Exception:  # noqa: BLE001 — display-only; a missing/corrupt atlas must never break a render
+        return None
+
+
+@functools.lru_cache(maxsize=512)
+def _cohort_sorted_column(atlas_key: str) -> tuple:
+    """The frozen corpus column for one metered numeric key, sorted, Nones dropped. () when absent."""
+    a = _shipped_atlas_or_none()
+    if a is None or atlas_key not in a.feature_order:
+        return ()
+    j = a.feature_order.index(atlas_key)
+    return tuple(sorted(r[j] for r in a.X if j < len(r) and r[j] is not None))
+
+
+def cohort_percentile(atlas_key: str, signed_value: Optional[float], min_n: int = 20) -> Optional[dict]:
+    """Empirical percentile of a POLARITY-SIGNED value within the frozen known-target cohort column for
+    `atlas_key` (higher == stronger, uniformly). Returns {'percentile','n'} or None when the value is
+    absent, the column is unknown, or the cohort is under-powered (n < min_n) — a gauge with too few known
+    targets behind it would over-claim. Percentile = midpoint of the tie block ⇒ stable for repeated values."""
+    if signed_value is None:
+        return None
+    col = _cohort_sorted_column(atlas_key)
+    n = len(col)
+    if n < min_n:
+        return None
+    lo = bisect.bisect_left(col, signed_value)
+    hi = bisect.bisect_right(col, signed_value)
+    pct = round((lo + hi) / 2.0 / n * 100.0, 1)
+    return {"percentile": pct, "n": n}

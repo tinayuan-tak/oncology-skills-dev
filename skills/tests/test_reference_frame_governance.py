@@ -78,11 +78,18 @@ def test_reference_frame_is_wellformed(mt):
             "distance_to_cut",
             "graded_band",
             "count_of_total",
+            "cohort_percentile",
         ), f"{mt}: unknown frame kind {rf.get('kind')!r}"
         if rf.get("kind") == "graded_band":
             assert len(_cuts(rf)) >= 2, f"{mt}: graded_band needs >=2 cut anchors (the ladder)"
         if rf.get("kind") == "count_of_total":
             assert rf.get("total_field"), f"{mt}: count_of_total needs a total_field (the denominator)"
+        if rf.get("kind") == "cohort_percentile":
+            # the atlas feature key whose corpus column IS the known-target cohort; keyed as
+            # {measurement_type}::num::{value_field} so it matches the atlas numeric feature.
+            assert rf.get("cohort_key") == f"{mt}::num::{rf['value_field']}", (
+                f"{mt}: cohort_percentile needs cohort_key '{mt}::num::{rf['value_field']}', got {rf.get('cohort_key')!r}"
+            )
 
 
 @pytest.mark.parametrize("mt", sorted(mt for mt, s in SALIENCE_SPECS.items() if s.get("reference_frame")))

@@ -87,7 +87,11 @@ from _skills_common.feature_vectoriser import numeric_values_from_package  # noq
 
 
 def _spec_field(mt):
-    return SALIENCE_SPECS[mt]["reference_frame"]["value_field"]
+    # reference_frame may be a dict OR a list of frames (multi-ruler); the atlas numeric keys off the
+    # PRIMARY (first) frame's value_field — mirror feature_vectoriser.numeric_feature_specs.
+    rf = SALIENCE_SPECS[mt]["reference_frame"]
+    primary = rf[0] if isinstance(rf, list) else rf
+    return primary["value_field"]
 
 
 def test_harvest_reads_all_three_numeric_locations():
