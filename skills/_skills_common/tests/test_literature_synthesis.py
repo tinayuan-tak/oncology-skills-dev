@@ -343,3 +343,30 @@ def test_prompt_omits_subtype_block_when_no_subtype_axis():
     # byte-stable for lenses / runs with no claim_vector_by_subtype (the block is fully omitted)
     p = lit.build_literature_prompt(_decision(), LENS)
     assert "SUBTYPE ENRICHMENT" not in p
+
+
+def test_prompt_surfaces_partner_conditional_as_measured():
+    # GENERALIZATION (WRN×MSI-H): a MEASURED partner/genotype-conditional dependency lives OUTSIDE the
+    # pooled axes; surface it [MEASURED] so the lane reads agree/extends, not omics_blind.
+    d = _decision()
+    d["target"] = "WRN"
+    d["headline"]["partner_conditional_class"] = "partner_conditional_moderately_dependent"
+    d["headline"]["n_partner_deficient"] = 91
+    d["headline"]["partner_stratification_q"] = 8.8e-12
+    p = lit.build_literature_prompt(d, LENS)
+    assert "CONDITIONAL SIGNAL [MEASURED]" in p
+    assert "partner_conditional_moderately_dependent" in p
+    assert "n_partner_deficient=91" in p and "NOT" in p and "omics_blind" in p
+
+
+def test_conditional_block_omitted_when_absent_or_negative():
+    # byte-stable when no conditional field, and a NON-dependent conditional class must NOT render
+    assert "CONDITIONAL SIGNAL" not in lit.build_literature_prompt(_decision(), LENS)
+    d = _decision()
+    d["headline"]["partner_conditional_class"] = "not_partner_stratified"
+    assert "CONDITIONAL SIGNAL" not in lit.build_literature_prompt(d, LENS)
+
+
+def test_conditional_signal_lines_helper():
+    assert lit._conditional_signal_lines({}) == []
+    assert lit._conditional_signal_lines({"partner_conditional_class": "partner_conditional_strongly_dependent"})

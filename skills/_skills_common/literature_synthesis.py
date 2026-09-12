@@ -189,6 +189,48 @@ def axis_measured_state(decision: dict, lens: LensConfig) -> dict:
     return out
 
 
+# ── GENERIC conditional/stratified-signal surfacing ─────────────────────────────────────────────────
+# A subskill's per-axis claim_vector is POOLED. A signal that is CONDITIONAL on a genotype/subtype
+# stratum (partner-conditional dependency, mutation-stratified dependency, …) therefore lives in a
+# SEPARATE headline field, invisible to the pooled axes — so the literature lane, reading only the
+# pooled axes, mislabels a real measured conditional signal as an omics_blind spot (the WRN×MSI-H case:
+# verdict correctly partner_conditional_dependent, but the lane read the pooled SEL axis as
+# "no lineage enrichment" and flagged contradicts). This generalizes the subtype-enrichment block
+# above: a small declarative registry of conditional-signal fields, each rendered [MEASURED] when
+# present+positive on the headline so the model classifies it agree/extends, not omics_blind.
+# LENS-AGNOSTIC + guarded → byte-stable for a headline that carries none. Extend by adding a spec.
+_CONDITIONAL_SIGNAL_SPECS: tuple = (
+    {
+        "class_field": "partner_conditional_class",  # functional-requirement (depmap_partner_conditional_dependency)
+        "label": "partner/genotype-conditional dependency",
+        "is_positive": lambda v: isinstance(v, str) and "conditional" in v and "dependent" in v,
+        "detail_fields": (
+            ("n_partner_deficient", "n_partner_deficient"),
+            ("partner_stratification_q", "stratification_q"),
+        ),
+    },
+)
+
+
+def _conditional_signal_lines(h: dict) -> list:
+    """Render one `· CONDITIONAL SIGNAL [MEASURED] …` line per positive conditional-signal spec present
+    on the headline. [] when none (byte-stable)."""
+    out = []
+    for spec in _CONDITIONAL_SIGNAL_SPECS:
+        cls = h.get(spec["class_field"])
+        if not spec["is_positive"](cls):
+            continue
+        details = ", ".join(f"{short}={h.get(key)}" for key, short in spec["detail_fields"] if h.get(key) is not None)
+        out.append(
+            f"  · CONDITIONAL SIGNAL [MEASURED]: {spec['label']} = {cls}"
+            + (f" ({details})" if details else "")
+            + ". This IS a measured genotype/subtype-CONDITIONAL signal (it lives outside the pooled axes "
+            "above) — classify a conditional/biomarker-stratified literature read as agree/extends, NOT "
+            "omics_blind."
+        )
+    return out
+
+
 def build_literature_prompt(decision: dict, lens: LensConfig) -> str:
     h = decision.get("headline", {}) or {}
     target, indication = decision.get("target"), decision.get("indication")
@@ -236,6 +278,9 @@ def build_literature_prompt(decision: dict, lens: LensConfig) -> str:
             "per-subtype presence signal — a subtype/biomarker-specific presence pattern is agree/extends, "
             "NOT omics_blind; reserve omics_blind for a subtype signal NOT in this list."
         )
+    # GENERIC conditional/stratified signals (partner-conditional, mutation-stratified, …) that live
+    # outside the pooled axes — the WRN×MSI-H class (see _conditional_signal_lines).
+    lines += _conditional_signal_lines(h)
     lines += [
         "",
         "TASK: using the tool, for EACH axis above report the published-literature read + an assertion "
