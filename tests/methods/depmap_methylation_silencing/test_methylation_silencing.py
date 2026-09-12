@@ -216,3 +216,124 @@ def test_methylation_for_gene_falls_back_to_live_when_product_unreachable(monkey
     monkeypatch.setattr(R, "_load_ccle_methylation_for_gene", _fake_live)
     methyl, err = R._methylation_for_gene("GENEA", {"AAA": "ACH-A"})
     assert calls["n"] == 1 and methyl == {"ACH-X": 0.5} and err is None
+
+
+# --- LINEAGE-COLLAPSE guard + broad-path effect floor (round-2 panel calibration 2026-09-12) -----------
+
+
+def _lineage_confounded_silencing_panel(seed=41):
+    """CDH1-analog: the hypermethylated group is simply the lineage that does not express the gene.
+
+    Live CDH1 (26Q1): hypermethylated-vs-unmethylated median delta -4.44 log2TPM, WITHIN lineage -0.45
+    (collapse ratio 0.10). MET -4.99 -> -0.85 (0.17) and EGFR -4.32 -> -0.11 (0.03) are the same shape.
+    """
+    import random
+
+    rng = random.Random(seed)
+    meth, tpm, lineage = {}, {}, {}
+    i = 0
+    for _ in range(60):  # hypermethylated AND non-expressing, one lineage
+        m = f"ACH-{i:05d}"
+        meth[m], tpm[m], lineage[m] = rng.uniform(0.6, 0.95), 1.0 + rng.uniform(-0.3, 0.3), "Lymphoid"
+        i += 1
+    for _ in range(40):  # SAME lineage, unmethylated, ALSO non-expressing → within-lineage delta ~0
+        m = f"ACH-{i:05d}"
+        meth[m], tpm[m], lineage[m] = rng.uniform(0.05, 0.4), 1.2 + rng.uniform(-0.3, 0.3), "Lymphoid"
+        i += 1
+    for _ in range(200):  # the expressing lineage, unmethylated → it creates the whole pan-panel delta
+        m = f"ACH-{i:05d}"
+        meth[m], tpm[m], lineage[m] = rng.uniform(0.05, 0.4), 7.0 + rng.uniform(-0.5, 0.5), "Epithelial"
+        i += 1
+    return meth, tpm, lineage
+
+
+def test_subset_silencing_reported_as_lineage_confounded_when_the_effect_collapses():
+    """REGRESSION (CDH1/MET/EGFR 2026-09-12): a large, significant subset delta that VANISHES within
+    lineage is lineage separation, not promoter silencing → silencing_lineage_confounded (measured, and
+    explicitly NOT interpretable as cis silencing) instead of silencing_coupled_strong."""
+    meth, tpm, lineage = _lineage_confounded_silencing_panel()
+    s = compute_methylation_silencing(meth, tpm, lineage_by_model=lineage)
+    assert s["subset_median_delta_log2tpm"] <= -1.0  # the pan-panel delta IS large
+    assert s["lineage_collapse_ratio"] < 0.35  # and it collapses within lineage
+    assert s["methylation_silencing_class"] == "silencing_lineage_confounded"
+    assert s["silencing_driver"] == "subset_hypermethylation"
+    assert s["hypermethylated_dominant_lineage_fraction"] == 1.0  # all hypermethylated lines, one lineage
+
+
+def test_collapse_guard_is_only_applied_when_lineage_labels_are_supplied():
+    """No lineage labels → the classes are exactly as in v0.1.0, with the guard fields left None."""
+    meth, tpm, _lineage = _lineage_confounded_silencing_panel()
+    s = compute_methylation_silencing(meth, tpm)
+    assert s["methylation_silencing_class"] == "silencing_coupled_strong"
+    assert s["subset_within_lineage_delta_log2tpm"] is None
+    assert s["lineage_collapse_ratio"] is None
+
+
+def test_genuine_subset_silencing_survives_the_lineage_control():
+    """MLH1-analog: hypermethylated lines are silenced WITHIN their own lineage (live MLH1 -4.62 pan ->
+    -3.92 within, ratio 0.85; MGMT 0.84; CDKN2A 1.80; SOX10 0.88). Guards against over-correction."""
+    import random
+
+    rng = random.Random(43)
+    meth, tpm, lineage = {}, {}, {}
+    i = 0
+    for lin in ("Bowel", "Lung", "Breast"):
+        for _ in range(10):  # silenced subset inside each lineage
+            m = f"ACH-{i:05d}"
+            meth[m], tpm[m], lineage[m] = rng.uniform(0.6, 0.95), 1.5 + rng.uniform(-0.3, 0.3), lin
+            i += 1
+        for _ in range(40):
+            m = f"ACH-{i:05d}"
+            meth[m], tpm[m], lineage[m] = rng.uniform(0.05, 0.4), 7.0 + rng.uniform(-0.5, 0.5), lin
+            i += 1
+    s = compute_methylation_silencing(meth, tpm, lineage_by_model=lineage)
+    assert s["methylation_silencing_class"] == "silencing_coupled_strong"
+    assert s["lineage_collapse_ratio"] >= 0.35
+    assert s["subset_n_lineages_compared"] == 3
+
+
+def test_broad_path_requires_an_effect_size_not_just_significance():
+    """REGRESSION (AR/PRAD + PDGFRA/GBM 2026-09-12): the pan-panel correlation path had NO effect-size
+    floor, so a significant r on a vanishing expression difference read silencing_coupled_moderate (AR
+    live: r=-0.38, p<1e-25, median hypermethylated-vs-unmethylated delta -0.075 log2TPM) and drove a
+    coherent_epigenetic_silencing verdict. A monotone-but-tiny methylation effect must stay uncoupled."""
+    import random
+
+    rng = random.Random(47)
+    meth, tpm = {}, {}
+    for i in range(400):
+        f = 0.05 + 0.4 * (i / 399)  # broad methylation variation, NO >0.5 hypermethylated subset
+        m = f"ACH-{i:05d}"
+        meth[m] = f
+        tpm[m] = 6.0 - 0.5 * f + rng.uniform(-0.02, 0.02)  # monotone, significant, but ~0.2 log2 total
+    s = compute_methylation_silencing(meth, tpm)
+    assert s["methyl_expr_spearman_r"] <= -0.4 and s["methyl_expr_spearman_p"] <= 0.01
+    assert s["n_hypermethylated"] == 0  # no subset → the broad path is the only candidate
+    assert s["broad_quartile_delta_log2tpm"] > -0.5  # vacuous effect size
+    assert s["methylation_silencing_class"] == "methylation_uncoupled"
+    assert s["silencing_driver"] is None
+
+
+def test_powered_subset_test_that_fails_the_floor_vetoes_the_broad_path():
+    """The direct test wins: with a POWERED hypermethylated subset whose delta fails the moderate floor,
+    a diluted panel-wide correlation must not resurrect the call (AR live: 164 hypermethylated lines,
+    subset delta -0.08, yet r=-0.38 promoted it). The broad path is a fallback for genes with no subset."""
+    import random
+
+    rng = random.Random(53)
+    meth, tpm = {}, {}
+    i = 0
+    for _ in range(60):  # powered hypermethylated subset, but expression barely differs
+        m = f"ACH-{i:05d}"
+        meth[m], tpm[m] = rng.uniform(0.55, 0.95), 5.9 + rng.uniform(-0.05, 0.05)
+        i += 1
+    for _ in range(300):  # unmethylated comparator, monotone tail that carries the correlation
+        m = f"ACH-{i:05d}"
+        f = 0.05 + 0.4 * (i / 300)
+        meth[m], tpm[m] = f, 6.6 - 1.6 * f + rng.uniform(-0.05, 0.05)
+        i += 1
+    s = compute_methylation_silencing(meth, tpm)
+    assert s["n_hypermethylated"] >= MIN_HYPERMETHYLATED  # the subset IS powered
+    assert s["subset_median_delta_log2tpm"] > -0.5  # and it FAILS the moderate silencing floor
+    assert s["methyl_expr_spearman_r"] <= -0.25 and s["methyl_expr_spearman_p"] <= 0.01  # r would qualify
+    assert s["methylation_silencing_class"] == "methylation_uncoupled"

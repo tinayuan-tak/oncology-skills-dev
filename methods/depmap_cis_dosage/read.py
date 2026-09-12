@@ -73,7 +73,27 @@ def read_cis_dosage(
             remediation="Method cannot reach DepMap 26Q1 expression; verify local cache or AWS credentials.",
         )
 
-    summary = _cli.compute_cis_dosage(cn_by_model, tpm_by_model)
+    # 3. Lineage labels — a CONTROL, not an input: they gate the focal-amplification subset escape on a
+    # WITHIN-lineage delta so a lineage-restricted gene cannot pass on a lineage contrast (CDH1). If
+    # Model.csv is unreachable the read degrades to the uncontrolled (legacy) escape rather than failing:
+    # the CN and expression legs are the measurement, the lineage labels only sharpen it.
+    lineage_by_model = None
+    try:
+        from methods.depmap_common import load_model_csv
+
+        model_df = load_model_csv(release_pin)
+        id_col = "ModelID" if "ModelID" in model_df.columns else model_df.columns[0]
+        lin_col = "OncotreeLineage" if "OncotreeLineage" in model_df.columns else None
+        if lin_col:
+            lineage_by_model = {
+                str(mid): (str(lin) if isinstance(lin, str) else "unknown")
+                for mid, lin in zip(model_df[id_col], model_df[lin_col])
+            }
+    except Exception:  # noqa: BLE001 — lineage is a control; its absence must not break the read
+        lineage_by_model = None
+
+    summary = _cli.compute_cis_dosage(cn_by_model, tpm_by_model, lineage_by_model=lineage_by_model)
+    summary["_lineage_control_applied"] = bool(lineage_by_model)
     # Pan-panel correlation → the honest scope is pan_no_indication (within-lineage cis-dosage is a
     # later refinement; the cis_coherence resolver does not gate on evidence_scope at Stage 0).
     summary["evidence_scope"] = "pan_no_indication"

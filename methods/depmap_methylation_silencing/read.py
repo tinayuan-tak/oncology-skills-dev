@@ -254,6 +254,18 @@ def read_methylation_silencing(target: str, indication: Optional[str] = None, re
             tpm_errs[0].get("_live_read_error", "expression_read_failed") if tpm_errs else "no_expression_for_target"
         )
 
-    summary = _cli.compute_methylation_silencing(methyl_by_model, tpm_by_model)
+    # 4. Lineage labels for the collapse guard — model_df is already loaded above, so this is free. A
+    #    lineage-restricted gene's "hypermethylated" group is every non-expressing lineage, so without
+    #    this control the subset contrast can measure lineage separation instead of promoter silencing.
+    lineage_by_model = None
+    id_col = "ModelID" if "ModelID" in model_df.columns else None
+    if id_col and "OncotreeLineage" in model_df.columns:
+        lineage_by_model = {
+            str(mid): (str(lin) if isinstance(lin, str) else "unknown")
+            for mid, lin in zip(model_df[id_col], model_df["OncotreeLineage"])
+        }
+
+    summary = _cli.compute_methylation_silencing(methyl_by_model, tpm_by_model, lineage_by_model=lineage_by_model)
     summary["evidence_scope"] = "pan_no_indication"  # pan-panel; within-lineage deferred
+    summary["_lineage_control_applied"] = bool(lineage_by_model)
     return summary

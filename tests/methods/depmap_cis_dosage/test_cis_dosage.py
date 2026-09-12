@@ -213,3 +213,155 @@ def test_build_merged_data_intersects_and_attaches_lineage():
     assert [m["cell_line_id"] for m in merged] == ["ACH-1", "ACH-2"]  # sorted intersection
     assert merged[0]["lineage"] == "Bowel" and merged[1]["lineage"] == "unknown"
     assert merged[0]["relative_cn"] == 2.0 and merged[0]["tpm_logp1"] == 8.0
+
+
+# --- LINEAGE-CONFOUND control + cis_dosage_direction (round-2 panel calibration 2026-09-12) ------------
+
+
+def _lineage_confounded_amp_panel(seed=21):
+    """CDH1-analog: the amplified lines are ONE lineage that expresses the gene highly anyway.
+
+    Live CDH1 (26Q1): pan-panel amplified-vs-neutral median delta +3.26 log2TPM, but the WITHIN-lineage
+    delta is -0.70 — the 56 CN-gained lines are epithelial and the comparator largely is not.
+    """
+    import random
+
+    rng = random.Random(seed)
+    cn, tpm, lineage = {}, {}, {}
+    i = 0
+    for _ in range(30):  # amplified, all epithelial, high expression
+        m = f"ACH-{i:05d}"
+        cn[m], tpm[m], lineage[m] = rng.uniform(2.0, 5.0), 9.0 + rng.uniform(-0.4, 0.4), "Epithelial"
+        i += 1
+    for _ in range(40):  # SAME lineage, copy-neutral, expression just as high → within-lineage delta ~0
+        m = f"ACH-{i:05d}"
+        cn[m], tpm[m], lineage[m] = rng.uniform(0.8, 1.4), 8.9 + rng.uniform(-0.4, 0.4), "Epithelial"
+        i += 1
+    for _ in range(300):  # other lineages: copy-neutral AND non-expressing (they create the pan delta)
+        m = f"ACH-{i:05d}"
+        cn[m], tpm[m], lineage[m] = rng.uniform(0.8, 1.4), 5.0 + rng.uniform(-0.8, 0.8), "Other"
+        i += 1
+    return cn, tpm, lineage
+
+
+def test_focal_amp_escape_blocked_when_subset_delta_is_lineage_confounded():
+    """REGRESSION (CDH1 2026-09-12): the escape must NOT fire on a lineage-restriction artifact.
+
+    Pan-panel the amplified subset over-expresses hugely, but within lineage the delta vanishes, so the
+    contrast measured LINEAGE, not cis-dosage. CDH1 read cn_dosage_coupled_strong /
+    focal_amplification_subset on exactly this shape.
+    """
+    cn, tpm, lineage = _lineage_confounded_amp_panel()
+    s = compute_cis_dosage(cn, tpm, lineage_by_model=lineage)
+    assert s["subset_delta_log2tpm_amplified_vs_neutral"] >= 1.0  # the pan-panel delta IS large
+    assert s["subset_within_lineage_delta_log2tpm"] < 1.0  # but it collapses within lineage
+    assert s["cis_dosage_class"] == "cn_dosage_uncoupled"
+    assert s["cis_dosage_driver"] is None
+    assert s["cis_dosage_direction"] is None  # direction is only meaningful for a coupled class
+
+
+def test_lineage_control_is_only_applied_when_labels_are_supplied():
+    """No lineage labels → the escape behaves exactly as in v0.1.0 (no silent behaviour change).
+
+    Same confounded panel as above: without labels the method cannot see the confound and honestly
+    reports the uncontrolled call, with the control fields left None.
+    """
+    cn, tpm, _lineage = _lineage_confounded_amp_panel()
+    s = compute_cis_dosage(cn, tpm)
+    assert s["cis_dosage_driver"] == "focal_amplification_subset"
+    assert s["cis_dosage_class"] in ("cn_dosage_coupled_strong", "cn_dosage_coupled_moderate")
+    assert s["subset_within_lineage_delta_log2tpm"] is None
+    assert s["subset_n_lineages_compared"] is None
+
+
+def test_focal_amp_escape_survives_lineage_control_for_a_genuine_amplicon():
+    """ERBB2-analog: the amplified subset over-expresses WITHIN every lineage (+1.70 within vs +1.64 pan
+    live), so the lineage-controlled escape must still promote it. Guards against over-correction."""
+    import random
+
+    rng = random.Random(23)
+    cn, tpm, lineage = {}, {}, {}
+    i = 0
+    for lin, base in (("Lung", 5.0), ("Breast", 6.0), ("Bowel", 4.0)):
+        for _ in range(15):  # amplified in each lineage, +2 log2TPM over its OWN lineage baseline
+            m = f"ACH-{i:05d}"
+            cn[m], tpm[m], lineage[m] = rng.uniform(2.0, 6.0), base + 2.0 + rng.uniform(-0.3, 0.3), lin
+            i += 1
+        for _ in range(60):
+            m = f"ACH-{i:05d}"
+            cn[m], tpm[m], lineage[m] = rng.uniform(0.8, 1.45), base + rng.uniform(-0.3, 0.3), lin
+            i += 1
+    s = compute_cis_dosage(cn, tpm, lineage_by_model=lineage)
+    assert s["cis_dosage_class"] in ("cn_dosage_coupled_strong", "cn_dosage_coupled_moderate")
+    assert s["subset_within_lineage_delta_log2tpm"] >= 1.0
+    assert s["subset_n_lineages_compared"] == 3
+    assert s["cis_dosage_direction"] == "amplification_coupled"
+    assert s["cis_dosage_direction_basis"] == "amplified_vs_deleted_contrast"
+
+
+def test_direction_is_deletion_coupled_for_a_deleted_suppressor():
+    """DIRECTION leg (round-2 panel: BRCA1/APC/STK11/NF1/CDH1/RASSF1 all read cn_dosage_coupled_* while
+    the literature calls them LOSS-of-function). A panel whose coupling is carried by DELETED lines
+    under-expressing (CDKN2A live: amp +1.46 / del -4.04 within lineage) must read deletion_coupled."""
+    import random
+
+    rng = random.Random(29)
+    cn, tpm = {}, {}
+    i = 0
+    for _ in range(120):  # deleted lines, strongly under-expressed
+        m = f"ACH-{i:05d}"
+        cn[m], tpm[m] = rng.uniform(0.1, 0.7), 2.0 + rng.uniform(-0.4, 0.4)
+        i += 1
+    for _ in range(200):  # copy-neutral body
+        m = f"ACH-{i:05d}"
+        cn[m], tpm[m] = rng.uniform(0.8, 1.45), 6.0 + rng.uniform(-0.4, 0.4)
+        i += 1
+    s = compute_cis_dosage(cn, tpm)
+    assert s["cis_dosage_class"] in ("cn_dosage_coupled_strong", "cn_dosage_coupled_moderate")
+    assert s["cis_dosage_direction"] == "deletion_coupled"
+    assert s["n_deleted"] == 120
+    assert s["deleted_subset_delta_log2tpm"] <= -1.0
+    assert s["deleted_subset_mannwhitney_p"] <= 0.01
+
+
+def test_direction_weighs_effect_by_arm_prevalence():
+    """When BOTH arms carry a same-signed effect, the winner is |delta| * sqrt(n_arm) — the arms' own
+    Mann-Whitney z scaling. Magnitude alone mislabels PTEN (+1.06 on 15 amplified vs -0.76 on 338
+    deleted); n alone mislabels MITF (2.30 on 60 vs -0.70 on 369). Here the small-but-larger amplified
+    arm (delta ~2, n=25) must LOSE to the prevalent deleted arm (delta ~-1, n=400)."""
+    import random
+
+    rng = random.Random(31)
+    cn, tpm = {}, {}
+    i = 0
+    for _ in range(25):
+        m = f"ACH-{i:05d}"
+        cn[m], tpm[m] = rng.uniform(2.0, 4.0), 8.0 + rng.uniform(-0.3, 0.3)
+        i += 1
+    for _ in range(400):
+        m = f"ACH-{i:05d}"
+        cn[m], tpm[m] = rng.uniform(0.2, 0.7), 5.0 + rng.uniform(-0.3, 0.3)
+        i += 1
+    for _ in range(200):
+        m = f"ACH-{i:05d}"
+        cn[m], tpm[m] = rng.uniform(0.8, 1.45), 6.0 + rng.uniform(-0.3, 0.3)
+        i += 1
+    s = compute_cis_dosage(cn, tpm)
+    assert s["subset_delta_log2tpm_amplified_vs_neutral"] > 1.0  # amplified arm has the BIGGER delta
+    assert s["deleted_subset_delta_log2tpm"] < -0.5  # deleted arm is smaller but far more prevalent
+    assert s["cis_dosage_direction"] == "deletion_coupled"
+
+
+def test_direction_falls_back_to_cn_distribution_asymmetry_when_no_arm_is_powered():
+    """A coupled panel with neither a 20-line amplified nor a 20-line deleted arm (CN varies only in the
+    0.8-1.45 band) still needs a direction; it comes from which CN tail carries the variation, measured
+    off the panel MEDIAN so the fallback is scale-free (relative CN ~1.0, TCGA GISTIC ~0)."""
+    cn, tpm = {}, {}
+    for i in range(140):
+        m = f"ACH-{i:05d}"
+        c = 0.8 + 0.65 * (i / 139)
+        cn[m], tpm[m] = c, 4.0 * c
+    s = compute_cis_dosage(cn, tpm)
+    assert s["n_amplified"] == 0 and s["n_deleted"] == 0
+    assert s["cis_dosage_direction_basis"] == "cn_distribution_asymmetry"
+    assert s["cis_dosage_direction"] in ("amplification_coupled", "deletion_coupled")
