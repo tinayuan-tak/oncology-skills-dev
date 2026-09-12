@@ -52,6 +52,15 @@ INDICATION_TO_SPATIAL_COLOC = {
     "READ": _CRC,
     "STAD": "spatial-coloc-tumor-stad-v1",  # gastric — CosMx (GSE308624); net-new indication (Phase 2)
     "PAAD": _PAAD,  # pancreatic — GI facet (Phase 4) + depth
+    # PDAC = the framework alias for the SAME TCGA-PAAD cohort, and the immune lane
+    # (methods.immune_context.read.INDICATION_TO_TCGA_STUDIES) resolves BOTH spellings. Adding it here
+    # was found by the 20-target panel (2026-09-13): MSLN/PDAC and CSF1R/PAAD read the identical
+    # 183-sample cohort, yet PDAC silently LOST its spatial lane — and the spatial lane is what caps
+    # bite_tce and drives immune-context confidence, so the same tumour asked by its other name came
+    # back at `moderate` instead of `strong`. An indication ALIAS must never change the evidence base.
+    # This is the only such gap between the two maps (measured, not assumed: 23 immune keys vs 9 spatial,
+    # PDAC is the sole code that shares an immune-lane study set with a spatially-covered sibling).
+    "PDAC": _PAAD,
     "HNSC": "spatial-coloc-tumor-hnsc-v1",  # head&neck — Xenium (GSE300147); INFERRED compartments (mode C, lower tier)
     "NSCLC": _NSCLC,  # lung — adeno+squamous; INFERRED (mode C) + depth
     "LUAD": _NSCLC,  # covered by the NSCLC product(s) (both histologies)
@@ -120,7 +129,14 @@ def read_target_neighbor_rows(target: str, indication: str):
     s3fs = fs.S3FileSystem(region="us-east-1")
     filters = [("gene_symbol", "==", str(target).upper().strip())]
 
+    # PRODUCT-ABSENCE vs TARGET-ABSENCE (2026-09-12). Skipping a 404 per product is right, but if EVERY
+    # listed product 404s the loop fell through to the empty-frame return and the caller reported
+    # "<target> absent from the spatial panel" — a claim about the TARGET's biology derived from an
+    # infrastructure gap. Count the products that actually answered so the two are distinguishable.
+    n_readable = 0
+
     def _read_tier(tier_prods):
+        nonlocal n_readable
         frames = []
         for prod in tier_prods:
             key = bucket_key_for(prod)[1]  # resolved from the product manifest (single source of truth)
@@ -128,6 +144,7 @@ def read_target_neighbor_rows(target: str, indication: str):
                 tbl = pq.read_table(f"{S3_BUCKET}/{key}", filesystem=s3fs, filters=filters, columns=_PARQUET_COLS)
             except FileNotFoundError:
                 continue  # a listed product not yet on S3 — skip, don't fail the read
+            n_readable += 1
             df = tbl.to_pandas()
             if not df.empty:
                 frames.append(df)
@@ -137,6 +154,9 @@ def read_target_neighbor_rows(target: str, indication: str):
         df = _read_tier([p for p in prods if _tier_of(p) == tier])
         if df is not None and not df.empty:
             return df, tier
+    if n_readable == 0:
+        # every listed product 404'd — indistinguishable from "no product landed", NOT from "not on panel"
+        return None, None
     # products exist for the indication, but the target is on no panel of either tier
     return pd.DataFrame(columns=_PARQUET_COLS), None
 
@@ -152,8 +172,9 @@ def read_spatial_colocalization(target: str, indication: str) -> dict:
         return _data_unavailable(
             target,
             indication,
-            note=f"No spatial co-localization product landed for indication "
-            f"{indication}; spatial_transcriptomics is a named capability gap here.",
+            note=f"No READABLE spatial co-localization product for indication {indication} (none mapped, "
+            f"or every mapped product is absent from S3); spatial_transcriptomics is a named capability "
+            f"gap here. This is a PRODUCT gap, not a statement about {target}.",
         )
     if rows.empty:
         return _data_unavailable(

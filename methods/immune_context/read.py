@@ -12,6 +12,11 @@ to the immune-context summary (median CD8 T-cell fraction across POOLED samples 
 
 Credential discipline: AWS_PROFILE=cbg. Manifest ID → bucket/key via catalog_query.
 Reuses the canonical dge_deseq2 INDICATION_TO_TCGA_STUDIES map (no new indication map).
+
+NOTE for whoever extends INDICATION_TO_TCGA_STUDIES: adding a hematologic / lymphoid-organ study is
+now SAFE — classify.has_lymphoid_denominator fails the read closed on LAML/DLBC/THYM instead of
+publishing a confident nonsense class. Before that guard, this map's omissions were the only thing
+preventing it, which is not a safety property.
 """
 
 from __future__ import annotations
@@ -97,6 +102,15 @@ def read_immune_context(indication: str, product_path=None) -> dict:
             "tumor_studies": None,
             "_data_note": f"indication {ind} has no TCGA study mapping (immune context is TCGA-based)",
         }
+    # The LYMPHOID-DENOMINATOR guard fires on the resolved STUDY codes, BEFORE the read. Not merely an
+    # optimisation: it means no code path in this module can compute a median for one of those cohorts,
+    # so the guard cannot be defeated by a future caller that reduces the frame itself.
+    if _classify.has_lymphoid_denominator(studies):
+        return {
+            **_classify.summarize_immune_context([], studies=studies),
+            "indication": ind,
+            "tumor_studies": studies,
+        }
     df = _read_samples_for_studies(studies, product_path=product_path)
     if df is None:
         return {
@@ -105,7 +119,7 @@ def read_immune_context(indication: str, product_path=None) -> dict:
             "tumor_studies": studies,
             "_data_note": "CIBERSORT product unreadable (pancanatlas-cibersort-lm22-per-sample-v1)",
         }
-    out = _classify.summarize_immune_context(df)
+    out = _classify.summarize_immune_context(df, studies=studies)
     out["indication"] = ind
     out["tumor_studies"] = studies
     return out

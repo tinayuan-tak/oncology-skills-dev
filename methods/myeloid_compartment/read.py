@@ -43,6 +43,14 @@ _BROADLY_DETECTED_MIN = 0.5  # a myeloid state expressing in >= 50% of its cells
 _SUBSET_DETECTED_MIN = 0.10  # a real expressing myeloid-cell subset
 _EXPRESSING_MIN = 0.25  # a (subtype, cancer) group counts as "expressing" this gene
 
+# GROUP-SIZE FLOOR (2026-09-12). Every statistic here is a MAX over (cancer_type x myeloid_subtype)
+# groups, and `n_cells` — the only thing that says whether a group's detection fraction is estimated
+# from 500 cells or from 6 — was pulled from the parquet and never used. A detection fraction of 1.0 in
+# a 3-cell group is noise that WINS an argmax, so the max-of-N picked the flimsiest group by
+# construction. Groups below the floor are excluded from the argmax and from the expressing counts; if
+# that leaves nothing, the read abstains rather than reporting the best of the noise.
+_MIN_CELLS_PER_GROUP = 20
+
 # Canonical myeloid / suppressive-TAM target-antigen family (the lens this product exists to serve:
 # CSF1R-axis, TREM2, SPP1, SIRPA/CD47-axis, ...). Presence flags the gene as a myeloid-target antigen;
 # absence is not a negative signal. Verdict-inert.
@@ -71,8 +79,18 @@ _MYELOID_TARGET_FAMILY = frozenset(
 
 def _summarize(rows) -> dict:
     """Roll the per-(cancer_type, myeloid_subtype) rows for one gene up to a per-gene myeloid-state
-    summary. `rows` is a non-empty pandas DataFrame with _PARQUET_COLS."""
+    summary. `rows` is a non-empty pandas DataFrame with _PARQUET_COLS. Groups thinner than
+    _MIN_CELLS_PER_GROUP are dropped first (they would otherwise win the argmax on noise); returns None
+    when the floor leaves nothing, so the caller can abstain instead of reporting the best of the noise."""
     df = rows
+    if "n_cells" in df.columns:
+        admissible = df[df["n_cells"].astype("float64").fillna(0) >= _MIN_CELLS_PER_GROUP]
+        n_excluded = int(len(df) - len(admissible))
+        if admissible.empty:
+            return None
+        df = admissible
+    else:
+        n_excluded = 0
     det = df["detection_fraction"].astype(float)
     idx_max = det.idxmax()
     max_det = float(det.loc[idx_max])
@@ -97,6 +115,10 @@ def _summarize(rows) -> dict:
         "n_myeloid_groups_measured": int(len(df)),
         "n_cancer_types_expressing": int(expressing["cancer_type"].astype(str).nunique()),
         "expressing_myeloid_subtypes": expressing_subtypes,
+        # provenance for the max-of-N: how many cells back the winning group, and how many groups the
+        # floor removed. Without these, `max_detection_fraction` is an unfalsifiable number.
+        "max_detection_n_cells": (int(df.loc[idx_max, "n_cells"]) if "n_cells" in df.columns else None),
+        "n_myeloid_groups_below_cell_floor": n_excluded,
     }
 
 
@@ -140,6 +162,14 @@ def read_target_summary(target: str, indication: Optional[str] = None) -> dict:
             note=f"{str(target).upper().strip()} absent from {MANIFEST_ID} (not measured in the Cheng myeloid atlas).",
         )
     out = _summarize(rows)
+    if out is None:
+        return _data_unavailable(
+            target,
+            ind,
+            note=f"{str(target).upper().strip()} is measured in {MANIFEST_ID} but every "
+            f"(cancer_type x myeloid_subtype) group has < {_MIN_CELLS_PER_GROUP} cells — a detection "
+            f"fraction from a handful of cells would win the pan-cancer argmax on noise.",
+        )
     out["myeloid_target_family_flag"] = str(target).upper().strip() in _MYELOID_TARGET_FAMILY
     out["indication"] = ind
     out["product_id"] = MANIFEST_ID
@@ -160,6 +190,8 @@ def _data_unavailable(target: str, indication: Optional[str], note: str) -> dict
         "n_myeloid_groups_measured": 0,
         "n_cancer_types_expressing": 0,
         "expressing_myeloid_subtypes": [],
+        "max_detection_n_cells": None,
+        "n_myeloid_groups_below_cell_floor": 0,
         "myeloid_target_family_flag": str(target).upper().strip() in _MYELOID_TARGET_FAMILY,
         "indication": indication,
         "product_id": MANIFEST_ID,

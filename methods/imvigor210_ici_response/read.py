@@ -33,6 +33,21 @@ def _gene_candidates(sym: str) -> list:
     return [sym, *_SYMBOL_ALIASES.get(sym, ())]
 
 
+# VOCABULARY FOLD (2026-09-12). `measurement_type: ici_response_expression` is carried by TWO cards —
+# ici-response-imvigor210 (this reader) and ici-response-association (methods/ici_response) — and a
+# measurement_type is the DATA_TO_SKILL_CONTRACT unit: one type must mean ONE vocabulary, or a consumer
+# reads the same claim differently depending on which card answered. The two diverged on the null class,
+# because each was individually honest about its own product: methods/ici_response MINTS
+# `no_ici_association` in Python, whereas the IMvigor210 product mints `no_association` in the R derive
+# script (data-catalog scripts/derive_imvigor210_ici_response.R) and this reader passed it through
+# verbatim. Nothing failed — no interpretation rule keys on ici_response_class at all today — so the
+# cost would have landed on the first rule author, whose `equals:` would be permanently DEAD on one of
+# the two cards while looking authored. Folded HERE (reader-side) rather than by re-deriving the product,
+# because the product's own token is correct in its own namespace; the skill contract is what needs one
+# spelling. The corresponding target-contracts vocabulary-divergence allowlist entry is deleted once
+# this ships.
+_CLASS_ALIASES = {"no_association": "no_ici_association"}
+
 _SUMMARY_FIELDS = (
     "ici_response_class",
     "log2fc_resp_vs_nonresp",
@@ -74,6 +89,26 @@ def _empty(note: str) -> dict:
     }
 
 
+def _rows_for_candidates(cands: list) -> list:
+    """S3 seam: the product rows for any of the candidate gene symbols. Extracted so the SUMMARY path
+    (which is where the vocabulary fold lives) is testable without credentials — it previously had no
+    hermetic coverage at all, which is exactly why the token divergence was invisible.
+
+    Raises on a transient/creds fault; `is_definitively_absent` 404s surface as FileNotFoundError."""
+    import pyarrow as pa
+    import pyarrow.compute as pc
+    import pyarrow.parquet as pq
+
+    bucket, key = bucket_key_for(MANIFEST_ID)
+    try:
+        tbl = pq.read_table(f"{bucket}/{key}", filesystem=_get_s3fs(), filters=[(COL_GENE, "in", cands)])
+    except Exception as e:  # noqa: BLE001
+        if is_definitively_absent(e):
+            raise FileNotFoundError(f"{MANIFEST_ID} not found (404)") from e
+        raise
+    return tbl.filter(pc.is_in(pc.utf8_upper(tbl[COL_GENE]), value_set=pa.array(cands))).to_pylist()
+
+
 def read_target_summary(target: str, indication: Optional[str] = None) -> dict:
     sym = (target or "").upper().strip()
     if not sym:
@@ -81,28 +116,24 @@ def read_target_summary(target: str, indication: Optional[str] = None) -> dict:
     if not indication or indication.upper().strip() not in _UROTHELIAL_INDICATIONS:
         # IMvigor210 is metastatic urothelial — do NOT read cross-indication (honest scope ceiling).
         return _empty(f"IMvigor210 is urothelial-only; indication {indication!r} out of scope")
-    import pyarrow as pa
-    import pyarrow.compute as pc
-    import pyarrow.parquet as pq
-
     cands = _gene_candidates(sym)
-    bucket, key = bucket_key_for(MANIFEST_ID)
     try:
-        tbl = pq.read_table(f"{bucket}/{key}", filesystem=_get_s3fs(), filters=[(COL_GENE, "in", cands)])
+        rows = _rows_for_candidates(cands)
+    except FileNotFoundError:
+        return _empty(f"{MANIFEST_ID} not found (404)")
     except Exception as e:  # noqa: BLE001
-        if is_definitively_absent(e):
-            return _empty(f"{MANIFEST_ID} not found (404)")
         return {
             "ici_response_class": "data_unavailable",
             "method_version": METHOD_VERSION,
             "_data_source": MANIFEST_ID,
             "_live_read_error": f"imvigor210_ici_response read failed for {sym}: {type(e).__name__}: {e}",
         }
-    rows = tbl.filter(pc.is_in(pc.utf8_upper(tbl[COL_GENE]), value_set=pa.array(cands))).to_pylist()
     if not rows:
         return _empty(f"{sym} absent from IMvigor210 product")
     r = rows[0]
     out = {k: r.get(k) for k in _SUMMARY_FIELDS}
+    # fold the product's null-class spelling onto the shared measurement_type vocabulary (see _CLASS_ALIASES)
+    out["ici_response_class"] = _CLASS_ALIASES.get(out["ici_response_class"], out["ici_response_class"])
     out["ici_response_context"] = (
         f"IMvigor210 (atezolizumab mUC): {sym} {out['ici_response_class']} "
         f"(log2FC resp-vs-nonresp {out.get('log2fc_resp_vs_nonresp')}, BH-q {out.get('bh_q')}); "

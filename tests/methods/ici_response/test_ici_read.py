@@ -76,6 +76,7 @@ def test_summary_shape_and_rollup_direction(monkeypatch):
         "min_mannwhitney_p",
         "cohorts",
         "ici_agents",
+        "indication_scope",  # 2026-09-12: product coverage, separated from the `indication` ASKED
         "indication",
         "product_id",
     }
@@ -124,3 +125,32 @@ def test_gene_absent_and_no_product(monkeypatch):
     assert R.read_target_summary("ZZZ", indication="SKCM")["ici_response_class"] == "data_unavailable"
     monkeypatch.setattr(R, "_read_gene_rows", lambda target: None)
     assert R.read_target_summary("CD8A", indication="SKCM")["ici_response_class"] == "data_unavailable"
+
+
+# ── scope ceiling: FAIL-CLOSED on a missing indication (2026-09-12) ───────────
+def test_missing_indication_is_out_of_scope_not_a_stamped_skcm_read(monkeypatch):
+    """Pre-fix the gate read `if ind is not None and ind not in _MELANOMA_INDICATIONS`, so a call with
+    NO indication skipped the melanoma gate entirely and the result was then stamped
+    `indication: "SKCM"` — a fabricated indication claim manufactured from a missing argument. A ceiling
+    a missing argument walks through is not a ceiling."""
+    monkeypatch.setattr(R, "_read_gene_rows", lambda target: _cd8_like())
+    out = R.read_target_summary("CD8A", indication=None)
+    assert out["ici_response_class"] == "data_unavailable"
+    assert out.get("indication") is None  # nothing stamped in
+    assert "out of scope" in out["_data_note"]
+
+
+def test_in_scope_read_separates_what_was_asked_from_what_the_product_covers(monkeypatch):
+    """`indication` = the ask; `indication_scope` = the product's coverage. Same field name the sibling
+    imvigor210 reader uses for the same measurement_type."""
+    monkeypatch.setattr(R, "_read_gene_rows", lambda target: _cd8_like())
+    out = R.read_target_summary("CD8A", indication="SKCM")
+    assert out["indication"] == "SKCM"
+    assert out["indication_scope"] == "SKCM"
+
+
+def test_the_gate_is_not_vacuous(monkeypatch):
+    """The rows fixture MUST be able to produce a scored read, or the two assertions above pass for the
+    wrong reason (everything data_unavailable regardless of the gate)."""
+    monkeypatch.setattr(R, "_read_gene_rows", lambda target: _cd8_like())
+    assert R.read_target_summary("CD8A", indication="SKCM")["ici_response_class"] != "data_unavailable"

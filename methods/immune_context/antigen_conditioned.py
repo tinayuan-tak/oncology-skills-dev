@@ -126,6 +126,20 @@ def read_antigen_conditioned(target: str, indication: str) -> dict:
     with MIN_JOIN_FRACTION; data_unavailable (with coverage) if the join is too thin, the indication
     is unmapped, or a product is unreadable — never a correlation on accidental matches."""
     ind = str(indication).upper().strip()
+    # Same LYMPHOID-DENOMINATOR guard as the primary read: conditioning a meaningless CD8 share on
+    # antigen expression yields a meaningless conditioned share. Fails closed on the study codes.
+    from . import read as _ic
+
+    _studies = _ic.INDICATION_TO_TCGA_STUDIES.get(ind)
+    if _classify.has_lymphoid_denominator(_studies):
+        return {
+            **antigen_conditioned_summary([]),
+            "target": target,
+            "indication": ind,
+            "_data_note": f"{sorted(_studies)} is a hematologic / lymphoid-organ cohort — the CIBERSORT "
+            f"leukocyte denominator is the malignant clone or normal lymphoid tissue, so no CD8 share "
+            f"(conditioned or not) is interpretable",
+        }
     cd8_by_case = _cibersort_cd8_by_barcode(ind)
     if cd8_by_case is None:
         return {

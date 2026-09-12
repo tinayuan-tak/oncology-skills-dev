@@ -229,3 +229,97 @@ def test_cross_donor_median_not_dominated_by_one_donor():
     rows = _rows([("d1", "s1", "Macro", 1.0, 0.1), ("d2", "s1", "Macro", 2.0, 0.1)])
     ns = ST.neighbor_summary(rows)
     assert ns["Macro"]["median_enrichment"] == 1.5
+
+
+# ── PRODUCT absence vs TARGET absence (2026-09-12) ───────────────────────────
+def _fake_pq(monkeypatch, obj):
+    """Substitute the reader's `import pyarrow.parquet as pq`. Patching sys.modules ALONE is not enough:
+    `import a.b as c` resolves `getattr(a, "b")` first and only falls back to sys.modules, so once any
+    earlier test in the session has imported the real pyarrow.parquet (which sets the attribute on the
+    pyarrow package), a sys.modules-only patch is silently bypassed and the read goes LIVE to S3. That
+    made these two tests pass alone and fail on ACCESS_DENIED in the full suite. Patch both."""
+    import pyarrow
+
+    monkeypatch.setitem(sys.modules, "pyarrow.parquet", obj)
+    monkeypatch.setattr(pyarrow, "parquet", obj, raising=False)
+
+
+def test_every_product_404_reads_as_a_product_gap_not_as_target_absence(monkeypatch):
+    """The per-product `except FileNotFoundError: continue` is right, but when EVERY listed product 404s
+    the loop fell through to the empty-frame return and the caller reported "<target> absent from the
+    spatial panel" — a claim about the TARGET's biology manufactured from an infrastructure gap. Both
+    paths still yield spatial_coloc_class=data_unavailable (verdict-inert); what changes is whether the
+    note blames the gene or the product."""
+
+    class _Boom:
+        def read_table(self, *a, **k):
+            raise FileNotFoundError("no such key")
+
+    monkeypatch.setattr(SC, "bucket_key_for", lambda prod: ("onc-compbio", f"k/{prod}.parquet"))
+    _fake_pq(monkeypatch, _Boom())
+    rows, tier = SC.read_target_neighbor_rows("EPCAM", "COADREAD")
+    assert rows is None and tier is None  # "no readable product", NOT an empty frame
+    out = SC.read_spatial_colocalization("EPCAM", "COADREAD")
+    assert out["spatial_coloc_class"] == "data_unavailable"
+    assert "PRODUCT gap" in out["_data_note"]
+    assert "absent from the spatial panel" not in out["_data_note"]
+
+
+def test_a_readable_product_that_lacks_the_gene_still_reads_as_target_absence(monkeypatch):
+    """The other side of the same distinction — the check above must not have collapsed both cases into
+    'product gap', or it would be a vacuous pass."""
+    import pandas as pd
+    import pyarrow as pa
+
+    class _Empty:
+        def read_table(self, *a, **k):
+            return pa.Table.from_pandas(pd.DataFrame(columns=SC._PARQUET_COLS))
+
+    monkeypatch.setattr(SC, "bucket_key_for", lambda prod: ("onc-compbio", f"k/{prod}.parquet"))
+    _fake_pq(monkeypatch, _Empty())
+    rows, tier = SC.read_target_neighbor_rows("ZZZ9", "COADREAD")
+    assert rows is not None and rows.empty and tier is None
+    out = SC.read_spatial_colocalization("ZZZ9", "COADREAD")
+    assert out["spatial_coloc_class"] == "data_unavailable"
+    assert "absent from the spatial panel" in out["_data_note"]
+
+
+# ── indication ALIAS parity with the immune lane (2026-09-13, found by the panel) ──
+def test_the_pdac_alias_resolves_to_the_same_spatial_products_as_paad():
+    """MSLN/PDAC and CSF1R/PAAD read the identical 183-sample TCGA-PAAD cohort in the immune lane, but
+    PDAC used to resolve NO spatial product — and the spatial lane is what caps bite_tce and drives
+    immune-context confidence, so the same tumour asked by its other name came back a confidence rung
+    lower. An indication ALIAS must never change the evidence base."""
+    assert SC.INDICATION_TO_SPATIAL_COLOC["PDAC"] == SC.INDICATION_TO_SPATIAL_COLOC["PAAD"]
+
+
+def test_no_immune_lane_alias_silently_loses_its_spatial_lane():
+    """The durable form of the check above, so the next alias added to the immune lane cannot reopen the
+    gap. For every set of TCGA studies the immune lane resolves, if ANY of the codes mapping to that
+    study set is spatially covered, they ALL must be — otherwise two spellings of one cohort disagree
+    about what evidence exists. (Codes with no spatial product at all are fine; the asymmetry is what
+    is forbidden.)"""
+    from methods.immune_context.read import INDICATION_TO_TCGA_STUDIES as IC
+
+    by_studies = {}
+    for code, studies in IC.items():
+        by_studies.setdefault(tuple(sorted(studies)), []).append(code)
+    gaps = {}
+    for studies, codes in by_studies.items():
+        covered = [c for c in codes if c in SC.INDICATION_TO_SPATIAL_COLOC]
+        missing = [c for c in codes if c not in SC.INDICATION_TO_SPATIAL_COLOC]
+        if covered and missing:
+            gaps[studies] = {"covered": covered, "missing": missing}
+    assert not gaps, f"indication aliases that lose the spatial lane: {gaps}"
+
+
+def test_the_alias_parity_check_is_not_vacuous():
+    """It must be comparing something: the immune lane has to contain at least one study set reached by
+    two different codes AND at least one code the spatial map covers."""
+    from methods.immune_context.read import INDICATION_TO_TCGA_STUDIES as IC
+
+    by_studies = {}
+    for code, studies in IC.items():
+        by_studies.setdefault(tuple(sorted(studies)), []).append(code)
+    assert any(len(codes) > 1 for codes in by_studies.values())
+    assert set(IC) & set(SC.INDICATION_TO_SPATIAL_COLOC)

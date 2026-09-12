@@ -140,11 +140,18 @@ def read_target_summary(target: str, indication: Optional[str] = None) -> dict:
     ICI-biomarker lens). VERDICT-INERT display facet. MELANOMA (SKCM) scope only — a non-melanoma
     indication resolves data_unavailable (honest scope ceiling)."""
     ind = str(indication).upper().strip() if indication else None
-    if ind is not None and ind not in _MELANOMA_INDICATIONS:
+    # SCOPE CEILING, FAIL-CLOSED (2026-09-12). This used to read `if ind is not None and ind not in ...`,
+    # so a call with NO indication skipped the melanoma gate entirely and then stamped
+    # `"indication": "SKCM"` on the result below — a fabricated indication claim from a missing argument.
+    # A ceiling a missing argument walks through is not a ceiling. Unreachable in production (the
+    # ici-response-association card's applies_when is `context.indication in ['SKCM']` and it passes
+    # `{indication}`), so this is defence in depth — and it aligns the None handling with the sibling
+    # imvigor210 reader, which has always treated a missing indication as out of scope.
+    if ind not in _MELANOMA_INDICATIONS:
         return _data_unavailable(
             ind,
             note=f"ICI-response product ({MANIFEST_ID}) covers melanoma (SKCM) "
-            f"open-GEO anti-PD-1 cohorts only; indication {ind} out of scope.",
+            f"open-GEO anti-PD-1 cohorts only; indication {ind!r} out of scope.",
         )
     rows = _read_gene_rows(target)
     if rows is None:
@@ -155,7 +162,9 @@ def read_target_summary(target: str, indication: Optional[str] = None) -> dict:
             note=f"{str(target).upper().strip()} absent from {MANIFEST_ID} (not measured in the melanoma ICI cohorts).",
         )
     out = _summarize(rows)
-    out["indication"] = "SKCM"  # product scope (both cohorts are melanoma)
+    out["indication"] = ind  # what was ASKED (gated to melanoma above) — never a stamped-in default
+    out["indication_scope"] = "SKCM"  # what the PRODUCT covers (both cohorts are melanoma); cf. the
+    # sibling imvigor210 reader's indication_scope: "BLCA" — same measurement_type, same field name
     out["product_id"] = MANIFEST_ID
     return out
 

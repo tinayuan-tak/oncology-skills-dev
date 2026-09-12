@@ -68,10 +68,14 @@ def test_summary_shape_and_class_broadly_detected(monkeypatch):
         "n_myeloid_groups_measured",
         "n_cancer_types_expressing",
         "expressing_myeloid_subtypes",
+        "max_detection_n_cells",  # 2026-09-12: provenance for the max-of-N (n_cells was fetched-and-unused)
+        "n_myeloid_groups_below_cell_floor",
         "myeloid_target_family_flag",
         "indication",
         "product_id",
     }
+    assert out["max_detection_n_cells"] == 120
+    assert out["n_myeloid_groups_below_cell_floor"] == 0
 
 
 def test_class_subset_detected(monkeypatch):
@@ -104,3 +108,53 @@ def test_no_product_is_data_unavailable(monkeypatch):
     out = R.read_target_summary("CSF1R")
     assert out["myeloid_expression_class"] == "data_unavailable"
     assert out["product_id"] == R.MANIFEST_ID
+
+
+# ── group-size floor on a pan-cancer MAX (2026-09-12) ────────────────────────
+def _grp(subtype, cancer, det, n_cells, ab=1.0):
+    return {
+        "gene_symbol": "CSF1R",
+        "myeloid_subtype": subtype,
+        "cancer_type": cancer,
+        "n_cells": n_cells,
+        "detection_fraction": det,
+        "abundance_log1p_cp10k": ab,
+    }
+
+
+def test_a_three_cell_group_no_longer_wins_the_pan_cancer_argmax(monkeypatch):
+    """Every statistic here is a MAX over (cancer_type x myeloid_subtype) groups, and `n_cells` was
+    pulled from the parquet and never used — so a detection fraction of 1.0 in a 3-cell group beat a
+    well-powered 0.6, i.e. the max-of-N picked the flimsiest group BY CONSTRUCTION."""
+    rows = pd.DataFrame([_grp("TAM-noise", "OV-FTC", 1.0, 3), _grp("TAM-C1QC", "PAAD", 0.60, 800)])
+    monkeypatch.setattr(R, "_read_gene_rows", lambda target: rows)
+    out = R.read_target_summary("CSF1R", "PAAD")
+    assert out["max_detection_fraction"] == 0.6
+    assert out["max_detection_myeloid_subtype"] == "TAM-C1QC"
+    assert out["max_detection_n_cells"] == 800  # the argmax is now falsifiable
+    assert out["n_myeloid_groups_below_cell_floor"] == 1
+
+
+def test_all_groups_below_the_floor_abstains_rather_than_reporting_the_best_noise(monkeypatch):
+    rows = pd.DataFrame([_grp("TAM-a", "OV-FTC", 1.0, 4), _grp("TAM-b", "ESCA", 0.9, 2)])
+    monkeypatch.setattr(R, "_read_gene_rows", lambda target: rows)
+    out = R.read_target_summary("CSF1R", "PAAD")
+    assert out["myeloid_expression_class"] == "data_unavailable"
+    assert out["max_detection_fraction"] is None
+    assert str(R._MIN_CELLS_PER_GROUP) in out["_data_note"]
+
+
+def test_the_floor_does_not_touch_a_well_powered_read(monkeypatch):
+    rows = pd.DataFrame([_grp("TAM-C1QC", "PAAD", 0.72, 500), _grp("Mono", "ESCA", 0.30, 300)])
+    monkeypatch.setattr(R, "_read_gene_rows", lambda target: rows)
+    out = R.read_target_summary("CSF1R", "PAAD")
+    assert out["myeloid_expression_class"] == "myeloid_broadly_detected"
+    assert out["n_myeloid_groups_below_cell_floor"] == 0
+
+
+def test_abstain_and_scored_payloads_share_a_key_set(monkeypatch):
+    monkeypatch.setattr(R, "_read_gene_rows", lambda target: pd.DataFrame([_grp("TAM", "PAAD", 0.7, 500)]))
+    scored = R.read_target_summary("CSF1R", "PAAD")
+    monkeypatch.setattr(R, "_read_gene_rows", lambda target: pd.DataFrame([_grp("TAM", "PAAD", 0.7, 2)]))
+    abstained = R.read_target_summary("CSF1R", "PAAD")
+    assert set(scored) - set(abstained) == set(), set(scored) - set(abstained)
