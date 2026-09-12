@@ -10,8 +10,19 @@ on log2(TPM+1) rather than DESeq2 on counts. These tests pin three things:
      in for the two long-TPM reads).
   3. The emitted rows classify correctly through the REAL downstream classifier
      (`dge_deseq2.read._classify_selectivity_from_sensitivity`) — an up/sig gene
-     → strong_tumor_selective; a flat gene → not_informative. This guards the
-     cell-C-only `tvn_gtex_only` regime end-to-end.
+     → modest_tumor_selective (see below); a flat gene → not_informative. This
+     guards the cell-C-only `tvn_gtex_only` regime end-to-end.
+
+Updated 2026-09-12 (dge_deseq2 FIX 4b, comparator independence): this file used to assert that an
+up/sig cell-C row lands `strong_tumor_selective`. SCLC's product declares log2fc_A/log2fc_B columns
+whose values are entirely NaN — there is no adjacent-normal arm — so that `strong` rested on the
+TCGA-vs-GTEx contrast ALONE, the arm cell D was retired for carrying a platform/batch confound, and
+the nomination gate weights `strong` DOMINANT. The classifier now requires the adjacent family to
+have measured the gene before it will mint `strong`; a GTEx-only up-call reads
+`modest_tumor_selective` and is labelled `selectivity_evidence_independence=population_normal_only`.
+DLL3 remains axis-A SELECTIVE — the demotion is about the evidence being single-armed, not about the
+biology. See methods/dge_deseq2/read.py::_classify_selectivity_from_sensitivity (FIX 4) and
+tests/methods/dge_deseq2/test_comparator_independence.py.
 """
 
 from __future__ import annotations
@@ -158,8 +169,9 @@ def test_compute_cell_c_drops_unmapped_symbols(monkeypatch):
 # 3. Emitted rows classify correctly through the REAL downstream classifier
 # ---------------------------------------------------------------------------
 def test_emitted_rows_classify_downstream(monkeypatch):
-    """A cell-C-only up/sig row must land as strong_tumor_selective; a flat row as
-    not_informative — via the real dge_deseq2 classifier, in the tvn_gtex_only regime."""
+    """A cell-C-only up/sig row must land as MODEST (not strong — there is no adjacent arm to
+    corroborate it, dge_deseq2 FIX 4b); a flat row as not_informative — via the real dge_deseq2
+    classifier, in the tvn_gtex_only regime."""
     read = pytest.importorskip("methods.dge_deseq2.read")
     tumor, gtex = _fixture_frames()
 
@@ -188,5 +200,16 @@ def test_emitted_rows_classify_downstream(monkeypatch):
             "q_value_cell_c": r["padj_C"],
         }
 
-    assert read._classify_selectivity_from_sensitivity(to_reader_row("DLL3")) == "strong_tumor_selective"
+    dll3 = to_reader_row("DLL3")
+    assert read._classify_selectivity_from_sensitivity(dll3) == "modest_tumor_selective"
     assert read._classify_selectivity_from_sensitivity(to_reader_row("GAPDH")) == "not_informative"
+    # And the demotion must be LEGIBLE, not just quieter: the product declares A/B columns, so a
+    # schema-level check would report an adjacent arm. Only a value-level check sees that it is all
+    # NaN — pin that the emitted provenance says so.
+    assert read._family_ran(dll3, read._ADJACENT_CELLS) is False
+    assert read._independence_fields(dll3) == {
+        "comparator_families_ran": 1,
+        "comparator_families_supporting": 1,
+        "adjacent_arm_measured": False,
+        "selectivity_evidence_independence": "population_normal_only",
+    }

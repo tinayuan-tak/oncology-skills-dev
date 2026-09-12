@@ -9,6 +9,13 @@ future edit to the magnitude gate or the field-effect rescue can't silently regr
 
 Row shape mirrors the reader's internal sensitivity row-dict: log2fc_cell_{a,b,c},
 q_value_cell_{a,b,c}, cells_supporting, cells_ran, dominant_direction, discordant.
+
+2026-09-12 (FIX 4, comparator independence): the fixtures below now carry q_value_cell_* wherever
+they claim support. They previously asserted support through `cells_supporting=3` while leaving every
+q-value None — a shape the producer NEVER emits (a significant cell always has a padj), so the
+assertions rode on a field the real product always populates and the classifier no longer reads.
+The classifier now derives support from the two comparator FAMILIES via their q-values, which made
+the omission load-bearing and surfaced it. Take fixture values from shapes the producer can emit.
 """
 
 from __future__ import annotations
@@ -42,45 +49,80 @@ def _row(**kw):
 
 # ── core ladder ─────────────────────────────────────────────────────────────
 def test_strong_requires_full_support_and_raw_magnitude():
-    # 3/3 up, raw cell A & C both >= 1.5 → strong
-    r = _row(log2fc_cell_a=1.8, log2fc_cell_c=2.0)
+    # both comparator families sig-up, raw cell A & C both >= 1.5 → strong
+    r = _row(log2fc_cell_a=1.8, q_value_cell_a=1e-6, log2fc_cell_c=2.0, q_value_cell_c=1e-6)
     assert classify(r) == "strong_tumor_selective"
 
 
-def test_modest_at_two_thirds_and_half_magnitude():
-    r = _row(cells_supporting=2, log2fc_cell_a=0.8, log2fc_cell_c=0.6)
+def test_modest_at_full_family_support_and_half_magnitude():
+    # Both families agree, but the raw magnitude sits in [0.5, 1.5) → modest, not strong.
+    # (Was `test_modest_at_two_thirds_and_half_magnitude`: with a two-FAMILY denominator the
+    # fraction can only be 0, 1/2 or 1, so there is no 2/3 tier to land on — the modest band is now
+    # unanimity at sub-strong magnitude. The old 2/3 was cells A+B, one comparator counted twice.)
+    r = _row(log2fc_cell_a=0.8, q_value_cell_a=1e-6, log2fc_cell_c=0.6, q_value_cell_c=1e-6)
     assert classify(r) == "modest_tumor_selective"
 
 
 def test_down_direction_full_support_is_not_selective():
-    r = _row(dominant_direction="down", log2fc_cell_a=-2.0, log2fc_cell_c=-1.9)
+    r = _row(
+        dominant_direction="down", log2fc_cell_a=-2.0, q_value_cell_a=1e-6, log2fc_cell_c=-1.9, q_value_cell_c=1e-6
+    )
     assert classify(r) == "not_selective"
 
 
-def test_low_support_is_not_informative():
-    r = _row(cells_supporting=1, log2fc_cell_a=2.0, log2fc_cell_c=2.0)
+def test_one_of_two_families_is_not_support():
+    # The adjacent family is sig-up but the GTEx family RAN and did not concur → 1/2, not support.
+    # This is the 12,492 shipped rows that used to reach `modest` on cells A+B with cell C measured
+    # and dissenting: one comparator, counted twice, clearing a 2/3 bar.
+    r = _row(
+        log2fc_cell_a=2.0,
+        q_value_cell_a=1e-6,
+        log2fc_cell_b=1.9,
+        q_value_cell_b=1e-6,
+        log2fc_cell_c=0.1,
+        q_value_cell_c=0.80,  # GTEx measured this gene and saw nothing
+    )
     assert classify(r) == "not_informative"
 
 
 def test_empty_or_missing_is_data_unavailable():
     assert classify({}) == "data_unavailable"
-    assert classify(_row(cells_ran=0)) == "data_unavailable"
-    assert classify(_row(cells_supporting=None)) == "data_unavailable"
+    # data_unavailable now means NO comparator family produced an estimate — not "cells_ran is 0".
+    # cells_ran / cells_supporting are provenance only; they no longer drive the class, so a row
+    # with real per-cell estimates must NOT read data_unavailable however they are set.
+    assert classify(_row(log2fc_cell_a=None, log2fc_cell_c=None)) == "data_unavailable"
+    assert classify(_row(cells_ran=0, cells_supporting=None, log2fc_cell_c=2.0, q_value_cell_c=1e-6)) != (
+        "data_unavailable"
+    )
 
 
 # ── FIX 1 (ComBat de-weight): cell B alone cannot confer strong/modest ───────
 def test_combat_cellB_alone_does_NOT_confer_strong():
     # GAPDH/COADREAD archetype: raw A & C modest (<1.5), ComBat cell B artifactually inflated to 4.8.
     # The magnitude gate keys on raw A/C only → B's 4.8 is excluded → NOT strong.
-    r = _row(log2fc_cell_a=1.0, log2fc_cell_c=1.2, log2fc_cell_b=4.8)
+    r = _row(
+        log2fc_cell_a=1.0,
+        q_value_cell_a=1e-6,
+        log2fc_cell_c=1.2,
+        q_value_cell_c=1e-6,
+        log2fc_cell_b=4.8,
+        q_value_cell_b=1e-6,
+    )
     assert classify(r) != "strong_tumor_selective"  # the housekeeping false-strong is blocked
-    # A=1.0/C=1.2 still clear the modest gate (>=0.5, 3/3 up) — that's the raw-comparator call
+    # A=1.0/C=1.2 still clear the modest gate (>=0.5, both families up) — the raw-comparator call
     assert classify(r) == "modest_tumor_selective"
 
 
 def test_combat_cellB_cannot_manufacture_magnitude_from_flat_raw():
     # raw A & C both flat (<0.5); only ComBat B is large → below the modest raw floor → not strong/modest
-    r = _row(log2fc_cell_a=0.2, log2fc_cell_c=0.3, log2fc_cell_b=4.8)
+    r = _row(
+        log2fc_cell_a=0.2,
+        q_value_cell_a=1e-6,
+        log2fc_cell_c=0.3,
+        q_value_cell_c=1e-6,
+        log2fc_cell_b=4.8,
+        q_value_cell_b=1e-6,
+    )
     assert classify(r) not in ("strong_tumor_selective", "modest_tumor_selective")
 
 

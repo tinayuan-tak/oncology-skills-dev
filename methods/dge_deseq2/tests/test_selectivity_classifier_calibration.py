@@ -79,8 +79,43 @@ def test_raw_cell_A_high_still_strong():
     assert dge._classify_selectivity_from_sensitivity(r) == "strong_tumor_selective"
 
 
-def test_raw_cell_C_high_still_strong():
-    # GTEx-only single-cell strong (FOLR1/MSLN pattern): C high, A/B absent → strong
+def test_raw_cell_C_high_confers_magnitude_when_the_adjacent_arm_ALSO_ran():
+    # Fix 1's raw-magnitude gate accepts cell C as a RAW comparator — a high C is real magnitude, not
+    # a ComBat artefact. Pin that with the adjacent family also measured and agreeing, so this test
+    # isolates MAGNITUDE (Fix 1) from EVIDENCE BASE (Fix 4b, below).
+    r = _row(
+        cells_ran=3,
+        cells_supporting=3,
+        dominant_direction="up",
+        log2fc_cell_a=1.1,
+        q_value_cell_a=1e-8,
+        log2fc_cell_b=1.2,
+        q_value_cell_b=1e-8,
+        log2fc_cell_c=9.9,
+        q_value_cell_c=1e-50,
+        max_abs_log2fc=9.9,
+    )
+    assert dge._classify_selectivity_from_sensitivity(r) == "strong_tumor_selective"
+
+
+def test_gtex_only_no_adjacent_arm_is_modest_NOT_strong_fix4b():
+    """REVERSES a 2026-08-07 pin (#221, e36fef6), deliberately.
+
+    That commit asserted `GTEx-only single-cell strong (FOLR1/MSLN pattern): C high, A/B absent →
+    strong`. Measured 2026-09-12 across all 29 shipped sensitivity products: that path mints 32,784
+    `strong` calls in 7 indications (ACC, LGG, OV, SCLC, SKCM, TGCT, UCS) that have NO adjacent-normal
+    arm at all — every row scores cells_ran=1 / cells_supporting=1 → frac 1.0 → strong on the
+    TCGA-vs-GTEx contrast ALONE, which is the platform/batch confound cell D was RETIRED for. The
+    nomination gate weights `strong` DOMINANT, so an unreplicated single-arm result was driving
+    verdicts.
+
+    The demotion is to `modest`, not to nothing: the biology is frequently real (FOLR1/OV C=+9.95,
+    CLDN6/OV C=+12.18, DLL3/SCLC C=+5.02 all remain axis-A selective). What changes is the CLAIM —
+    single-armed evidence may not read as the framework's strongest band. Note FOLR1 is one of the
+    2026-08-07 backtest's own ground-truth antigens, and the same FIX 4 PROMOTES MSLN/PAAD, the
+    other one, from modest to strong (a non-significant ComBat cell B had been diluting a genuine
+    cell-A + cell-C agreement); the backtest anchors do not all move the same way.
+    """
     r = _row(
         cells_ran=1,
         cells_supporting=1,
@@ -89,7 +124,7 @@ def test_raw_cell_C_high_still_strong():
         q_value_cell_c=1e-50,
         max_abs_log2fc=9.9,
     )
-    assert dge._classify_selectivity_from_sensitivity(r) == "strong_tumor_selective"
+    assert dge._classify_selectivity_from_sensitivity(r) == "modest_tumor_selective"
 
 
 # --- FIX 2: field-effect-aware discordant ---
@@ -233,15 +268,35 @@ def test_field_effect_adjacent_flat_requires_gtex_significance():
 
 
 def test_down_all_cells_not_selective():
-    r = _row(cells_supporting=3, dominant_direction="down", log2fc_cell_a=-2.0, log2fc_cell_c=-1.8, max_abs_log2fc=2.0)
+    # q-values added 2026-09-12: the fixture claimed 3/3 support with every padj None, a shape the
+    # producer never emits. The classifier now reads the families' q-values (FIX 4a), not the count.
+    r = _row(
+        cells_supporting=3,
+        dominant_direction="down",
+        log2fc_cell_a=-2.0,
+        q_value_cell_a=1e-8,
+        log2fc_cell_c=-1.8,
+        q_value_cell_c=1e-8,
+        max_abs_log2fc=2.0,
+    )
     assert dge._classify_selectivity_from_sensitivity(r) == "not_selective"
 
 
 def test_low_support_not_informative():
-    r = _row(cells_supporting=1, dominant_direction="up", log2fc_cell_a=0.8, log2fc_cell_c=0.5, max_abs_log2fc=0.8)
+    # adjacent sig-up, GTEx measured and NOT concurring → 1/2 families → not_informative
+    r = _row(
+        cells_supporting=1,
+        dominant_direction="up",
+        log2fc_cell_a=0.8,
+        q_value_cell_a=1e-8,
+        log2fc_cell_c=0.5,
+        q_value_cell_c=0.77,
+        max_abs_log2fc=0.8,
+    )
     assert dge._classify_selectivity_from_sensitivity(r) == "not_informative"
 
 
 def test_empty_and_missing():
     assert dge._classify_selectivity_from_sensitivity({}) == "data_unavailable"
+    # No family produced an estimate (all per-cell log2fc None) → data_unavailable.
     assert dge._classify_selectivity_from_sensitivity(_row(cells_supporting=None)) == "data_unavailable"
