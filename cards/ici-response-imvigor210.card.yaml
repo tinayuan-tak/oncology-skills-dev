@@ -53,6 +53,15 @@ outputs:
     ici_response_class:
       - higher_in_responders             # baseline expression higher in atezolizumab responders (BH-q<=0.1)
       - higher_in_nonresponders          # higher in non-responders
+      # VOCABULARY DIVERGENCE (filed): the sibling `ici-response-association` card shares this
+      # measurement_type and this field but spells the null class `no_ici_association`. Both cards are
+      # individually HONEST — this token is minted by the R derive script for
+      # imvigor210-ici-response-per-gene-v1 and read through verbatim, while the melanoma reader mints
+      # `no_ici_association` in Python. No interpretation rule keys on either token today, so nothing
+      # mis-fires yet; the trap is that the next rule author picks one spelling and silently never
+      # matches the other card. Durable fix = an alias-fold in the imvigor210 reader
+      # (analysis-methods) so one measurement_type has one vocabulary, then this token becomes
+      # `no_ici_association` here. Allowlisted meanwhile in validators/validate_cards.py.
       - no_association                   # no significant directional difference
       - data_unavailable                 # non-urothelial indication, no product, or gene absent
     immune_phenotype_enriched_in:

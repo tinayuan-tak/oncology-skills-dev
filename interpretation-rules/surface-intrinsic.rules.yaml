@@ -2203,9 +2203,11 @@ rules:
   # ── Block J — SPATIAL tumour–normal co-localization (in-situ neighbourhood) ────────────────────────
   # spatial_coloc_class = the in-situ neighbourhood pattern of the target's MALIGNANT cells (imaging
   # single-cell; spatial-tumor-normal-colocalization card). The tissue-architecture axis dissociated
-  # scRNA is blind to. immune_niche/stromal_niche/endothelial_niche_colocalized + no_spatial_preference
-  # + other_niche_colocalized emit nothing (neutral / measured-vs-null). Only the two decision-relevant
-  # negatives + the TCE-favourable positive carry a signal.
+  # scRNA is blind to. Three classes carry a signal: the two decision-relevant NEGATIVES
+  # (immune_excluded, normal_epithelium_adjacent) and the TCE-favourable POSITIVE
+  # (immune_niche_colocalized, J-3 below — bite_tce supportive/important). The remaining classes —
+  # stromal_niche_colocalized, endothelial_niche_colocalized, other_niche_colocalized,
+  # no_spatial_preference — emit nothing (neutral / measured-vs-null).
   - rule_id: spatial-immune-excluded-tce-opposing
     when:
       card_id: spatial-tumor-normal-colocalization

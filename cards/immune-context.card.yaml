@@ -5,10 +5,16 @@
 # redirected. Surface-antigen presence (surface-modality-fit) answers "is there a target?"; THIS card
 # answers the orthogonal "is there an effector population?" — immune-hot vs immune-cold.
 #
-# v1 is per-indication, target-INDEPENDENT (the immune landscape of the indication), from CIBERSORT
-# LM22 per-sample leukocyte composition (Thorsson 2018 / gdc-pancanatlas-immune-2018). The sharper
-# antigen-CONDITIONED read (are the ANTIGEN-HIGH patients also T-cell-high?) is a deferred v2 facet —
-# it needs a per-sample antigen-expression join on TCGA barcode (a sample-id-join trap).
+# The primary call is per-indication, target-INDEPENDENT (the immune landscape of the indication), from
+# CIBERSORT LM22 per-sample leukocyte composition (Thorsson 2018 / gdc-pancanatlas-immune-2018). The
+# sharper antigen-CONDITIONED read (are the ANTIGEN-HIGH patients also T-cell-high?) SHIPPED as an
+# additive verdict-inert facet in skills v1.6.1 — see the antigen-conditioned summary_fields below. It
+# still degrades to data_unavailable when the CIBERSORT-barcode <-> expression-UUID join is thin.
+#
+# READ THE CLASS TOKEN AS A PAN-CANCER RANK, NOT AN ABSOLUTE DENSITY. The two thresholds below ARE the
+# 33-study Q3/Q1 of this statistic, so ~9 studies are hot and ~9 cold BY CONSTRUCTION, whatever the
+# absolute infiltrate. Clinically-cold PRAD (0.1312) reads immune_hot; ICI-approved BLCA (0.1103),
+# LUAD (0.0876) and LUSC (0.0974) read immune_intermediate. See the rank caveat.
 #
 # Interpretation surface (immune_context_class is PRIMARY):
 #   immune_hot          → CD8 T-cell fraction >= pan-cancer Q3 — ample effector pool, TCE-favorable
@@ -17,7 +23,8 @@
 #   data_unavailable    → indication not in CIBERSORT / no TCGA study (abstain, never a false 'cold')
 
 card_id: immune-context
-version: 1.0.0
+version: 1.1.0   # 2026-09-12: applies_when +CESC +PDAC (was 21 of the method's 23 keys);
+                 # immune_context_class + lymphoid_denominator_unreliable; rank + denominator caveats.
 question: "For {indication.label}, is the tumor immune-hot or immune-cold — is there a CD8 T-cell effector population present for a T-cell engager to redirect?"
 
 # Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
@@ -30,11 +37,18 @@ capsule:
     - antigen_conditioned_call
     - antigen_high_immune_context_class
 
-tier: indication   # the per-indication immune landscape; target-independent (v1). Antigen-conditioned = v2.
+tier: indication   # the per-indication immune landscape; the PRIMARY call is target-independent. The
+                   # antigen-conditioned facet is per-target but additive and verdict-INERT.
 
 applies_when:
   # needs the indication to map to a TCGA study present in the CIBERSORT CancerType vocabulary.
-  - "context.indication in ['COADREAD', 'COAD', 'READ', 'LUAD', 'LUSC', 'NSCLC', 'BRCA', 'PAAD', 'SKCM', 'STAD', 'PRAD', 'OV', 'KIRC', 'HNSC', 'BLCA', 'LIHC', 'ESCA', 'UCEC', 'GBM', 'LGG', 'SARC']"
+  # MUST stay in sync with methods.immune_context.read.INDICATION_TO_TCGA_STUDIES (23 keys) — a code the
+  # method RESOLVES but this list omits is a card that refuses to run on data that exists. CESC and PDAC
+  # were missing until 2026-09-12.
+  # DO NOT ADD A HEMATOLOGIC OR LYMPHOID-ORGAN INDICATION (LAML/DLBC/THYM/TGCT, or any leukemia/lymphoma
+  # alias) until the method's fail-closed denominator guard ships — see the DENOMINATOR CEILING caveat.
+  # This list is the ONLY thing standing between the reader and a confident nonsense TCE call there.
+  - "context.indication in ['COADREAD', 'COAD', 'READ', 'LUAD', 'LUSC', 'NSCLC', 'BRCA', 'PAAD', 'PDAC', 'SKCM', 'STAD', 'PRAD', 'OV', 'KIRC', 'CESC', 'HNSC', 'BLCA', 'LIHC', 'ESCA', 'UCEC', 'GBM', 'LGG', 'SARC']"
 
 required_inputs:
   - product_id: gdc-pancanatlas-immune-2018   # CIBERSORT LM22 per-sample leukocyte composition (Thorsson 2018)
@@ -52,8 +66,9 @@ outputs:
     - median_total_t_cell_fraction               # median summed T-cell (CD8+CD4+Treg+gd) fraction
     - n_samples                                  # CIBERSORT samples in the indication's TCGA study/studies
     - tumor_studies                              # TCGA study code(s) pooled
-    # --- antigen-CONDITIONED facet (v2): are the ANTIGEN-HIGH patients also T-cell-high? Additive
-    #     per-target facet; does NOT drive the primary immune_context_class (per-indication) call. ---
+    # --- antigen-CONDITIONED facet (SHIPPED, skills v1.6.1): are the ANTIGEN-HIGH patients also
+    #     T-cell-high? Additive per-target facet; does NOT drive the primary immune_context_class
+    #     (per-indication) call. ---
     - antigen_conditioned_call                   # antigen_high_immune_{hot,intermediate,cold} | antigen_high_is_colder | data_unavailable
     - cd8_fraction_antigen_high                  # median CD8 fraction in the antigen-HIGH (top-tertile) patients
     - cd8_fraction_antigen_low                   # median CD8 fraction in the antigen-LOW patients
@@ -67,6 +82,12 @@ outputs:
       - immune_hot                               # CD8 fraction >= pan-cancer Q3 (TCE-favorable effector pool)
       - immune_intermediate                      # between Q1 and Q3
       - immune_cold                              # CD8 fraction <= pan-cancer Q1 (T-cell-excluded)
+      # DENOMINATOR fail-closed: a leukemia / lymphoma / lymphoid-organ cohort where the LEUKOCYTE
+      # denominator IS the malignant clone, so the CD8 SHARE is arithmetically valid but biologically
+      # uninterpretable. Distinct from data_unavailable (which means "no cohort") because the REASON
+      # matters to the reader: there IS a cohort, its denominator is wrong. Declared here ahead of the
+      # emitting guard (vocabulary is a permissive superset; the mirror guard checks emitted-in-declared).
+      - lymphoid_denominator_unreliable
       - data_unavailable                         # no CIBERSORT coverage / no TCGA study (abstain)
     antigen_conditioned_call:
       - antigen_high_immune_hot                  # the ideal: the targetable (antigen-high) patients are ALSO inflamed
@@ -89,10 +110,23 @@ warning_predicates:
 
 caveats:
   - |
-    v1 is target-INDEPENDENT: the immune landscape of the INDICATION, not conditioned on the target
-    antigen. The sharper question — are the ANTIGEN-HIGH patients also T-cell-high? — is a deferred v2
-    facet (needs a per-sample antigen-expression join on TCGA barcode). Read v1 as the baseline effector
-    context for the indication, not a per-target claim.
+    The PRIMARY call is target-INDEPENDENT: the immune landscape of the INDICATION, not conditioned on
+    the target antigen. The sharper question — are the ANTIGEN-HIGH patients also T-cell-high? — is
+    answered by the additive antigen-conditioned facet, which is verdict-INERT and degrades to
+    data_unavailable on a thin barcode join. Read the primary class as the baseline effector context for
+    the indication, not a per-target claim.
+  - |
+    THE CLASS IS A PAN-CANCER RANK, NOT AN ABSOLUTE DENSITY. The cuts ARE the 33-study Q3 (0.113) and Q1
+    (0.084), so ~a quarter of studies are hot and a quarter cold BY CONSTRUCTION — the token says where the
+    indication ranks among cancers, not that there are enough T cells. Clinically-cold PRAD (0.1312) reads
+    hot; ICI-APPROVED BLCA (0.1103) and LUAD (0.0876) read intermediate. Show the frame (share, LEUKOCYTE
+    denominator, n_samples, both cuts) beside the token.
+  - |
+    DENOMINATOR CEILING (hematologic / lymphoid cohorts). LM22 reports the CD8 share OF THE LEUKOCYTE
+    COMPARTMENT, so in a leukemia, lymphoma or lymphoid organ the denominator IS the malignant clone —
+    arithmetically valid, biologically meaningless, yet confidently classed (LAML 0.0216 cold, DLBC 0.1142
+    hot, THYM 0.2782 hot). Those studies are excluded only because the indication map omits them — one
+    crosswalk edit from a confident nonsense read on TCE-VALIDATED DLBCL.
   - |
     CIBERSORT LM22 gives RELATIVE leukocyte fractions (composition of the immune compartment), not
     absolute infiltrate density. A high CD8 FRACTION in a lymphocyte-poor tumor is fewer absolute CD8

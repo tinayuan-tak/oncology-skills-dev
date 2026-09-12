@@ -1338,6 +1338,88 @@ def validate_verdict_card_summary_schema_coverage(cards_dir: Path) -> list[str]:
     return problems
 
 
+# Annotated exceptions to the shared-measurement_type vocabulary check below. Key = (measurement_type,
+# field); value = the WHY. An entry here is a claim that the divergence is INTENDED and the two cards mean
+# genuinely different things by their differing tokens — not a mute button. Keep the reason specific
+# enough that the next reader can tell whether it still holds.
+_VOCABULARY_DIVERGENCE_ALLOWED = {
+    ("rna_protein_concordance", "rna_as_biomarker"): (
+        "the divergent tokens are SOURCE-SPECIFIC insufficiency reasons — insufficient_paired_models "
+        "(cell lines), insufficient_paired_tumors (tumors), indeterminate (single-cell surface). The "
+        "graded core (adequate_proxy / partial_proxy / poor_proxy / data_unavailable) IS shared, and "
+        "collapsing the reasons would lose which pairing was missing."
+    ),
+    ("ici_response_expression", "ici_response_class"): (
+        "TRANSITIONAL (filed 2026-09-12): the null class is `no_ici_association` on "
+        "ici-response-association (minted in Python by methods/ici_response) and `no_association` on "
+        "ici-response-imvigor210 (minted by the R derive script for "
+        "imvigor210-ici-response-per-gene-v1 and read through verbatim). Each card honestly declares "
+        "its own product, so neither can be edited alone. Durable fix = an alias-fold in the "
+        "imvigor210 reader (analysis-methods), then align the token here and DELETE this entry. No "
+        "interpretation rule keys on either token today, so nothing mis-fires yet."
+    ),
+}
+
+
+def validate_shared_measurement_type_vocabularies(cards_dir: Path) -> list[str]:
+    """Two cards under ONE measurement_type must not spell the SAME summary field's vocabulary
+    differently (2026-09-12).
+
+    A measurement_type is the DATA_TO_SKILL_CONTRACT unit — the promise that consumers can read one
+    claim the same way whichever card carries it. When two cards diverge on a shared field's
+    vocabulary, that promise breaks SILENTLY: the divergence lives in two files that are never diffed
+    against each other, nothing fails, and the cost lands later on whoever writes the first
+    interpretation rule for the field. They pick one spelling, it matches one card, and the rule is
+    permanently dead on the other — a dead rule that looks authored, which is the worst failure shape
+    the corpus has (an `equals:` that can never be true reads as coverage).
+
+    Found the `ici_response_expression :: ici_response_class` null-class divergence
+    (no_ici_association vs no_association). Intended divergences go in
+    _VOCABULARY_DIVERGENCE_ALLOWED with a reason, so this check stays an ERROR rather than a warning
+    nobody reads."""
+    cards_dir = Path(cards_dir)
+    # measurement_type -> field -> card_id -> frozenset(tokens)
+    by_type: dict[str, dict[str, dict[str, frozenset]]] = {}
+    for p in sorted(cards_dir.glob("*.card.yaml")):
+        try:
+            doc = yaml.safe_load(p.read_text()) or {}
+        except yaml.YAMLError:
+            continue
+        mt, cid = doc.get("measurement_type"), doc.get("card_id")
+        if not mt or not cid:
+            continue
+        vocab = (doc.get("outputs") or {}).get("summary_fields_vocabulary") or {}
+        for sf, tokens in vocab.items():
+            if not isinstance(tokens, list):
+                continue
+            by_type.setdefault(str(mt), {}).setdefault(str(sf), {})[str(cid)] = frozenset(map(str, tokens))
+
+    problems: list[str] = []
+    for mt in sorted(by_type):
+        for sf in sorted(by_type[mt]):
+            per_card = by_type[mt][sf]
+            if len(per_card) < 2 or len(set(per_card.values())) == 1:
+                continue
+            allowed = _VOCABULARY_DIVERGENCE_ALLOWED.get((mt, sf))
+            shared = frozenset.intersection(*per_card.values())
+            detail = "; ".join(
+                f"{cid} adds {sorted(tokens - shared)}" for cid, tokens in sorted(per_card.items()) if tokens - shared
+            )
+            if allowed:
+                problems.append(f"[WARNING] VOCABULARY_DIVERGENCE_ALLOWED [{mt}::{sf}]: {detail}. Annotated: {allowed}")
+            else:
+                problems.append(
+                    f"[ERROR] VOCABULARY_DIVERGENCE [{mt}::{sf}]: cards sharing measurement_type "
+                    f"'{mt}' declare different vocabularies for the SAME summary sf '{sf}' — "
+                    f"{detail} (shared: {sorted(shared)}). A rule keying on one spelling is "
+                    f"permanently dead on the other card. Align the tokens (fixing the emitting "
+                    f"reader/product if it is the one that is wrong), or — if the divergence is "
+                    f"genuinely intended — add ('{mt}', '{sf}') to "
+                    f"_VOCABULARY_DIVERGENCE_ALLOWED in validators/validate_cards.py with the reason."
+                )
+    return problems
+
+
 def interpretation_debt_summary(cards_dir: Path) -> Optional[str]:
     """The published interpretation-debt meter (2026-09-11). One aggregate line, not one gap per card.
 
@@ -1510,6 +1592,7 @@ def main(argv: list[str] | None = None) -> int:
             + validate_modality_module_card_refs(target)
             + validate_derived_from_refs(target)
             + validate_verdict_card_summary_schema_coverage(target)
+            + validate_shared_measurement_type_vocabularies(target)
         )
         if target.is_dir()
         else []
@@ -1524,7 +1607,10 @@ def main(argv: list[str] | None = None) -> int:
     dash_warnings = [p for p in dashboard_problems if p.startswith("[WARNING]")]
     if dashboard_problems:
         print()
-        print("Cross-card checks (required_cards<->status, modality-module refs, derived_from reachability):")
+        print(
+            "Cross-card checks (required_cards<->status, modality-module refs, derived_from "
+            "reachability, shared-measurement_type vocabularies):"
+        )
         for p in dashboard_problems:
             print(f"  {p}")
 

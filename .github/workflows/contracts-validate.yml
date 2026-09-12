@@ -150,6 +150,14 @@ jobs:
       - name: Card concept-discipline ratchet
         run: python -m pytest tests/validators/test_card_concept_discipline.py -q
 
+      # 2026-09-12: shared-measurement_type VOCABULARY ratchet. A measurement_type is the
+      # DATA_TO_SKILL_CONTRACT unit, so two cards carrying it must not spell the same summary field's
+      # vocabulary differently — the divergence lives in two files nothing diffs, nothing fails, and the
+      # cost lands on the first rule author, whose `equals:` is then permanently dead on one card.
+      # Gated explicitly (this dir is curated, not run wholesale) or the ratchet would never run in CI.
+      - name: Shared-measurement_type vocabulary ratchet
+        run: python -m pytest tests/validators/test_shared_measurement_type_vocabularies.py -q
+
       # 2026-08-20 (CI-gap closure): the nomination-gate CURATION invariants (veto set, positive-axis
       # discipline, disjointness, provenance completeness) + the subtype-tier ADMISSIBILITY guard were
       # fully tested but gated by NO workflow — so a positive_signal graduation (cis_coherence) drifted
