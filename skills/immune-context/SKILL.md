@@ -32,7 +32,7 @@ description: |
   indication a T-cell desert?"
 
 metadata:
-  version: 1.9.2
+  version: 1.10.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -220,6 +220,84 @@ The verdict spine is **byte-stable** (still a direct read of `immune_context_cla
 - **Deferred (filed, out of branch scope):** a `reference_frame` entry in `evidence_salience.py`'s
   `immune_context` SALIENCE_SPEC (collides with PR #1309 `feat/cohort-percentile-meters`); the S1 lymphoid
   DENOMINATOR guard, the `n_samples` floor and the CD8:Treg / CD8:M2 ratios (analysis-methods).
+
+## v1.10.0 (2026-09-12) — a whole card was being fetched and dropped
+
+`ici-response-imvigor210` has been in this skill's `CARDS` list since v1.4.0, and **not one of its 17
+`summary_fields` was read by any consumer** — not even its own primary categorical `ici_response_class`.
+Every run resolved it, wrote it to a display CSV, and dropped it. One level up from the v1.9.0 finding:
+that was six unread *fields*, this is an unread *card*.
+
+The field that belongs on this axis is `immune_phenotype_enriched_in`, now surfaced as a fourth frame
+scalar **`antigen_phenotype_frame`**.
+
+### Why it is NOT a third orthogonal platform
+
+It shares the `desert | excluded | inflamed` vocabulary with `spatial_immune_phenotype`, which makes it
+look like a third platform for `_orthogonal_check`. Wiring it there would be a **category error** — the
+referents differ:
+
+| field | asks | referent |
+|---|---|---|
+| `spatial_immune_phenotype` | is **the tumour** inflamed or excluded? | a cohort property |
+| `immune_phenotype_enriched_in` | in which IHC stratum is **the target gene** highest? | an argmax over 3 strata |
+
+`excluded` from the first means "effectors are shut out of the nest"; from the second it means "this gene
+is highest in excluded tumours". Same three words, unrelated claims.
+
+### What it IS an instrument for
+
+The card's **existing** antigen-conditioning axis (v1.6.1) — "are the antigen-high patients
+effector-poorer?" — where it is the better-anchored of the two instruments:
+
+- `cd8_high_minus_low` splits TCGA on target expression, then diffs a **relative** CIBERSORT CD8
+  fraction. Continuous split, deconvolved outcome, no p-value.
+- `immune_phenotype_enriched_in` groups by Genentech's **IHC-adjudicated, spatially-resolved** strata,
+  then compares expression, **with** a Kruskal-Wallis p.
+
+IHC phenotype is the right instrument for "is this tumour immune-excluded" — the exact call
+`_spatial_localization_caveat` concedes a bulk fraction cannot make.
+
+Measured on NECTIN4/BLCA the two instruments **disagree in strength, and the wired one is the null one**:
+
+| instrument | reads |
+|---|---|
+| `cd8_high_minus_low` (wired) | `-0.0132`, call `antigen_high_immune_intermediate` — no change |
+| `immune_phenotype_enriched_in` (unread) | `desert`, **monotone** 7.2356 > 6.8364 > 6.3127 log2CPM (1.9×), kw_p **0.007** |
+
+NECTIN4 is expressed highest exactly where T cells are absent — an effector-escape pattern that was
+sitting in a CSV no interpretation read.
+
+### Two abstentions — and one that was wrong
+
+1. no card / no phenotype call → `unmeasured`. This is also the out-of-scope path: IMvigor210 is
+   metastatic urothelial only and the reader's own guard resolves `data_unavailable` outside it, so a
+   non-urothelial query never reaches a phenotype token (verified live on LUAD/EGFR).
+2. `kw_p` above the **0.05** gate → `NOT SEPARATED`, because an argmax over three group means always
+   returns a token.
+
+**Scope is handled by attribution, not by a third abstention.** The first draft abstained whenever the
+asked indication did not string-match `indication_scope`. Live synonym runs falsified it:
+`--indication urothelial` and `--indication bladder` both resolve the product correctly (phenotype
+`desert`, scope `BLCA`, kw 0.007) and were **silently suppressed**, because the framework's indication
+vocabulary is fragmented and `"UROTHELIAL" != "BLCA"` as a string. That guard second-guessed a decision the
+reader's own resolver had already made, using a weaker instrument, and turned a real finding into silence.
+
+The trap the card emits `indication_scope` for is a scoped answer being *relabelled* as the caller's
+indication — and the defence against relabelling is naming the cohort, not refusing to speak. So when the
+spellings differ the claim stands and the prose says whose cohort it is: *"asked as UROTHELIAL; the read is
+the BLCA-scoped IMvigor210 cohort, not a UROTHELIAL-specific one"*. A false abstention is worse than no
+guard.
+
+### Non-gating, and modality-specific
+
+Non-gating like the other frames: one cohort (n=298), one indication, one platform, and no pan-cancer
+distribution of phenotype-stratified expression to gauge the effect **size** against. Reported, never
+allowed to demote the class.
+
+And explicitly **modality-specific**: a desert-enriched antigen is a **TCE-efficacy** caveat, not a
+target-quality one — an ADC against the same antigen needs no effectors at all, and enfortumab vedotin is
+approved in this exact target/indication pair. Verdict spine byte-stable.
 
 ## v1.9.2 (2026-09-12) — the declared figure now exists
 

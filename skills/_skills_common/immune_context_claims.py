@@ -16,10 +16,12 @@ cohort for the indication, OR a cohort whose LEUKOCYTE denominator is the malign
 the nomination gate (verdict-bearing but gateless, pending calibration) — this projection is the
 citable-atom surface for the cross-evidence reasoner.
 
-THREE FRAME SCALARS gauge the class token, because it is a cohort MEDIAN of a RELATIVE fraction and each
+FOUR FRAME SCALARS gauge the class token, because it is a cohort MEDIAN of a RELATIVE fraction and each
 of those three words hides something: `reference_frame` (the pan-cancer Q1/Q3 rank the token encodes),
-`heterogeneity_frame` (the PREVALENCE of hot samples the median averages away) and `suppression_frame`
-(the Treg/M2 load a bare hot call ignores). All descriptive; none gates.
+`heterogeneity_frame` (the PREVALENCE of hot samples the median averages away), `suppression_frame`
+(the Treg/M2 load a bare hot call ignores) and `antigen_phenotype_frame` (whether the TARGET is
+expressed where the effectors are — the IHC-anchored antigen-conditioning read). All descriptive;
+none gates.
 """
 
 from __future__ import annotations
@@ -51,6 +53,11 @@ _FRAME_INAPPLICABLE = "lymphoid_denominator_unreliable"
 
 _C_IMM = "immune-context"
 _E_IMM = {"measurement_type": "immune_context", "grain": "indication"}
+# The IMvigor210 ICI card. immune-context has FETCHED it since v1.4.0 and read NONE of its 17
+# summary_fields — not even its own primary `ici_response_class`. `immune_phenotype_enriched_in` is the
+# field that belongs on this axis; see `_antigen_phenotype_frame` for why it is NOT an orthogonal
+# platform for the cohort class.
+_C_ICI = "ici-response-imvigor210"
 
 _INFORMS = (
     "TCE effector context — is the indication immune-hot (CD8 T cells present to redirect)? "
@@ -222,10 +229,12 @@ _DISCLAIMER = (
     "target veto — CIBERSORT is relative + non-spatial); `unmeasured` = no cohort. Never feeds a verdict. "
     "CORROBORATION is the orthogonal-platform ruler, not a constant: `high` = an ABSOLUTE H&E-DL TIL "
     "(Saltz) or SPATIAL co-localization read AGREES; `moderate` = CIBERSORT alone (no orthogonal check "
-    "for this indication); `low` = an orthogonal platform CONTRADICTS (and `conflict` names it). Three "
+    "for this indication); `low` = an orthogonal platform CONTRADICTS (and `conflict` names it). FOUR "
     "FRAME scalars qualify the token — reference_frame (pan-cancer rank), heterogeneity_frame (hot-sample "
-    "PREVALENCE vs the cohort median) and suppression_frame (CD8:Treg / CD8:M2) — all descriptive, none "
-    "gating: no pan-cancer distribution exists for a prevalence or a suppressor ratio yet."
+    "PREVALENCE vs the cohort median), suppression_frame (CD8:Treg / CD8:M2) and antigen_phenotype_frame "
+    "(is the TARGET expressed where the effectors are — IHC-stratified, Kruskal-Wallis-gated, urothelial "
+    "scope only) — all descriptive, none gating: no pan-cancer distribution exists for a prevalence, a "
+    "suppressor ratio or a phenotype-stratified expression spread yet."
 )
 
 
@@ -357,6 +366,135 @@ def _suppression_frame(h, c) -> str:
     )
 
 
+# ── the ANTIGEN-PHENOTYPE frame (2026-09-12) ──────────────────────────────────────────────────────
+# `immune_phenotype_enriched_in` (ici-response-imvigor210) was declared, emitted and read by NOTHING.
+# It shares the `desert | excluded | inflamed` vocabulary with `spatial_immune_phenotype`, which makes
+# it LOOK like a third orthogonal platform for the cohort class. It is not, and wiring it that way
+# would be a category error: the two tokens have DIFFERENT REFERENTS.
+#
+#   spatial_immune_phenotype        — is THE TUMOUR inflamed or excluded?  (a property of the cohort)
+#   immune_phenotype_enriched_in    — in which IHC-defined patient stratum is THE TARGET GENE most
+#                                     expressed?                          (an argmax over 3 strata)
+#
+# So `excluded` from one means "effectors are shut out of the nest"; `excluded` from the other means
+# "this gene is highest in excluded tumours". Feeding the second into `_orthogonal_check` would let a
+# statement about a gene's expression corroborate or contradict a statement about a cohort's immune
+# architecture. Same three words, unrelated claims.
+#
+# What it IS an instrument for is the card's EXISTING antigen-CONDITIONING axis (v1.6.1:
+# antigen_conditioned_call / cd8_high_minus_low) — "are the antigen-HIGH patients effector-POORER?" —
+# and it is the BETTER-ANCHORED of the two instruments on that axis:
+#
+#   cd8_high_minus_low            splits TCGA on target expression, then diffs a RELATIVE CIBERSORT CD8
+#                                 fraction. Continuous split, noisy deconvolved outcome, no p-value.
+#   immune_phenotype_enriched_in  groups by Genentech's IHC-adjudicated, spatially-resolved
+#                                 desert/excluded/inflamed strata, then compares expression, WITH a
+#                                 Kruskal-Wallis p across the three.
+#
+# IHC phenotype is the instrument for "is this tumour immune-excluded" — precisely the call
+# `_spatial_localization_caveat` concedes a bulk fraction cannot make. Measured on NECTIN4/BLCA
+# (2026-09-12) the two instruments disagree in STRENGTH, and the one that was wired is the null one:
+# cd8_high_minus_low = -0.0132 with call `antigen_high_immune_intermediate` (i.e. no change), while
+# the unread field reads `desert` MONOTONICALLY (desert 7.2356 > excluded 6.8364 > inflamed 6.3127
+# log2CPM, a 1.9x spread) at kw_p = 0.007. The framework surfaced the null instrument and dropped the
+# significant one.
+#
+# NON-GATING, like the other frames: ONE cohort (n=298), ONE indication, ONE platform, and no
+# pan-cancer distribution of phenotype-stratified expression to gauge the effect SIZE against. Reported,
+# never allowed to demote the class.
+_ANTIGEN_PHENOTYPE_KW_MAX = 0.05  # an argmax over 3 group means ALWAYS returns a token; the KW p is the gate
+_EFFECTOR_POOR_PHENOTYPES = ("desert", "excluded")
+_PHENOTYPE_MEAN_FIELDS = (
+    ("desert", "mean_logcpm_desert"),
+    ("excluded", "mean_logcpm_excluded"),
+    ("inflamed", "mean_logcpm_inflamed"),
+)
+
+
+def _antigen_phenotype_frame(h, c) -> str:
+    """Is the TARGET expressed where the EFFECTORS are? IHC-stratified expression, KW-gated.
+
+    Abstains in TWO distinct ways rather than one, because they are not the same statement:
+      * no card / no phenotype call -> "unmeasured". This is also the OUT-OF-SCOPE path: IMvigor210 is
+        metastatic urothelial only and the reader's own scope guard resolves data_unavailable outside it,
+        so a non-urothelial query never reaches a phenotype token (verified live on LUAD).
+      * the three strata are NOT SEPARATED (kw_p above the gate) -> reports the argmax as non-significant,
+        because an argmax over three means always returns something.
+
+    SCOPE is handled by ATTRIBUTION, not by a second abstention. The trap the card emits
+    `indication_scope` for is a scoped product's answer being RELABELLED as the caller's indication; the
+    defence against relabelling is naming the cohort, which `basis` does unconditionally. An earlier draft
+    abstained when the asked indication did not string-match `indication_scope`, and live synonym runs
+    falsified it: `--indication urothelial` and `--indication bladder` both resolve the product correctly
+    (phenotype `desert`, scope `BLCA`, kw 0.007) yet were suppressed, because the framework's indication
+    vocabulary is fragmented and "UROTHELIAL" != "BLCA" as a string. That guard second-guessed a decision
+    the READER had already made with its own resolver, using a weaker instrument, and turned a real
+    finding into silence — a false abstention is worse than no guard. When the spelling differs, say so
+    and keep the claim.
+    """
+    s = c.get(_C_ICI) or {}
+    pheno = s.get("immune_phenotype_enriched_in")
+    if not pheno:
+        return "unmeasured"
+
+    # The ASKED indication comes off the skill's OWN primary card, which emits it. The ICI card's
+    # `indication` echo is not relied on: the card documents it as landing 2026-09-13, and today's live
+    # summary carries only `indication_scope`.
+    scope = s.get("indication_scope")
+    asked = h.get("indication") or (c.get(_C_IMM) or {}).get("indication") or s.get("indication") or ""
+    asked = str(asked).strip().upper()
+    # Named only when the spellings differ — on a BLCA query it would restate the scope twice.
+    as_asked = (
+        f" (asked as {asked}; the read is the {scope}-scoped IMvigor210 cohort, not a {asked}-specific one)"
+        if scope and asked and asked != str(scope).strip().upper()
+        else ""
+    )
+
+    means = {lab: s.get(f) for lab, f in _PHENOTYPE_MEAN_FIELDS if s.get(f) is not None}
+    spread = (
+        "; ".join(f"{lab} {means[lab]}" for lab, _ in _PHENOTYPE_MEAN_FIELDS if lab in means)
+        if means
+        else "per-stratum means unavailable"
+    )
+    kw = s.get("kw_p_phenotype")
+    basis = (
+        f"target expression across the IHC-adjudicated desert/excluded/inflamed strata of IMvigor210 "
+        f"(n={s.get('n_responder')}+{s.get('n_nonresponder')} baseline mUC, {scope or 'urothelial'}{as_asked}; "
+        f"mean log2CPM {spread})"
+    )
+
+    if kw is None or float(kw) > _ANTIGEN_PHENOTYPE_KW_MAX:
+        return (
+            f"NOT SEPARATED: highest mean is `{pheno}` but the three strata do not differ significantly "
+            f"(Kruskal-Wallis p={kw}, gate <={_ANTIGEN_PHENOTYPE_KW_MAX}) — an argmax over three group "
+            f"means always returns a token, so read no antigen-conditioning from this one. {basis}"
+        )
+
+    if pheno in _EFFECTOR_POOR_PHENOTYPES:
+        where = (
+            "T cells are ABSENT from the tumour entirely"
+            if pheno == "desert"
+            else "T cells are present in the tumour but SHUT OUT of the malignant nest"
+        )
+        return (
+            f"ANTIGEN-EFFECTOR MISMATCH: the target is expressed HIGHEST in `{pheno}` tumours, where "
+            f"{where} (Kruskal-Wallis p={kw}). The patients with the most antigen are the ones with the "
+            f"least redirectable effector context — an effector-ESCAPE pattern a cohort median cannot "
+            f"see. MODALITY-SPECIFIC: this is a TCE-efficacy caveat, NOT a target-quality one — an ADC "
+            f"against the same antigen needs no effectors at all (enfortumab vedotin is approved in "
+            f"exactly this target/indication pair). DESCRIPTIVE and verdict-INERT: one cohort, one "
+            f"indication, one platform, and no pan-cancer distribution of phenotype-stratified "
+            f"expression exists to gauge the effect SIZE — reported, never allowed to demote the class. "
+            f"{basis}"
+        )
+    return (
+        f"ANTIGEN-EFFECTOR CO-LOCALIZATION: the target is expressed HIGHEST in `inflamed` tumours "
+        f"(Kruskal-Wallis p={kw}) — the antigen-rich patients are also the effector-rich ones, the "
+        f"favourable configuration for a TCE. Descriptive and verdict-INERT (one cohort, one indication; "
+        f"no pan-cancer frame for the effect size). {basis}"
+    )
+
+
 def immune_context_claim_vector(headline: dict, cards: list) -> dict:
     vec = build_claim_vector(IMMUNE_CONTEXT_CLAIM_SPEC, headline, cards, _DISCLAIMER)
     # NON-ATOM scalars (no `signal` key) — chips skip them, `skill_report.claim_scalars` carries them onto
@@ -365,6 +503,7 @@ def immune_context_claim_vector(headline: dict, cards: list) -> dict:
     vec["reference_frame"] = _reference_frame(headline, _c)
     vec["heterogeneity_frame"] = _heterogeneity_frame(headline, _c)
     vec["suppression_frame"] = _suppression_frame(headline, _c)
+    vec["antigen_phenotype_frame"] = _antigen_phenotype_frame(headline, _c)
     return vec
 
 
