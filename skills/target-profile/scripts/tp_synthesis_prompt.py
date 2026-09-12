@@ -542,6 +542,24 @@ def _render_narrative_block(narrative_by_axis: Optional[dict]) -> list[str]:
     for short, n in narrative_by_axis.items():
         if not isinstance(n, dict):
             continue
+        # A GATELESS DESCRIPTIVE axis has no verdict BY DESIGN (verdict_fn=None). Rendering it through the
+        # verdict template printed "- **intrinsic**: `None`" under a header promising "what SET the verdict"
+        # — which reads as a FAILED axis and invites the model to treat the absence as a negative. Name the
+        # gatelessness instead and report what the axis DID conclude; movers/dissenters/flips are
+        # structurally empty here (no call to move), so skip the rest of the template.
+        if n.get("role") == "descriptive":
+            phrase = n.get("honest_phrase") or "descriptive read available"
+            conf = n.get("confidence")
+            out.append(
+                f"- **{short}**: NO VERDICT — gateless descriptive axis (emits none by design, so its "
+                f"silence is NOT a negative and must never be read as one). Its own read: {phrase}"
+                + (f" (confidence: {conf})" if conf else "")
+            )
+            for g in n.get("gaps") or []:
+                if g.get("kind") == "acquire":
+                    cids = ", ".join(c.get("card_id") for c in (g.get("missing_cards") or []) if c.get("card_id"))
+                    out.append(f"    · GAP (acquire — held by ignorance): {cids or 'missing data'}")
+            continue
         v, drv = n.get("verdict"), n.get("driving_rule_id")
         out.append(f"- **{short}**: `{v}`" + (f" — set by [{drv}]" if drv else ""))
         if n.get("reconciled_contradiction"):
@@ -689,6 +707,75 @@ def _render_subskill_key_evidence(sub_results: dict) -> str:
         "### KEY EVIDENCE (per sub-skill — the decisive grounded data points behind the sub-verdicts; "
         "LEAD each exec_bullet with these, carrying the effect WITH its q/p + the omnibus)\n" + "\n".join(lines)
     )
+
+
+def _render_descriptive_claim_block(sub_results: dict) -> list[str]:
+    """The GATELESS DESCRIPTIVE peers' own reads — their `claim_vector` axes + any confirmation caveat.
+
+    WHY (2026-09-12): a gateless descriptive sub-skill (target-intrinsic, translational-readiness,
+    literature-context, combination-vulnerability) emits `verdict=None` BY DESIGN — it can never move the
+    nomination spine. The prompt therefore showed it as one line, `no rule-fired verdict (skill relies on
+    raw metrics)`, plus its raw card summaries. But these skills DO compute an interpreted read: a
+    `claim_vector` (per-axis signal + corroboration + a cited evidence atom) and, for target-intrinsic, the
+    verdict-INERT `intrinsic_confirmation_caveat` that adjudicates whether an actionability-relevant
+    property is EXPERIMENTALLY CONFIRMED or a prediction/homology over-call. All of it was carried into
+    `synthesis_facet` and then dropped: `_build_user_prompt` read the facet for only the reconciled,
+    measurement-applicability and key-evidence blocks, so the integrator had to re-derive from raw fields
+    what the sub-skill had already computed — and never saw the over-call caveat at all.
+
+    VERDICT-INERT + PROMPT-ONLY: rendered for narration/routing CONTEXT. These axes carry no `gates`
+    action and are absent from _SHORT_TO_GATE, so the recommendation, gate and audited confidence tier are
+    untouched. Only shorts whose sub-verdict is None are rendered — a verdict-bearing skill's read already
+    reaches the prompt through its sub-verdict + narrative trace."""
+    axes_lines: list[str] = []
+    caveat_lines: list[str] = []
+    for short, r in (sub_results or {}).items():
+        if not isinstance(r, dict) or r.get("verdict") is not None:
+            continue  # verdict-bearing: its read arrives via the sub-verdict + narrative trace
+        facet = r.get("synthesis_facet")
+        if not isinstance(facet, dict):
+            continue
+        cv = facet.get("claim_vector")
+        if isinstance(cv, dict):
+            for axis, blk in cv.items():
+                if not isinstance(blk, dict):
+                    continue
+                atom = blk.get("evidence_atom") if isinstance(blk.get("evidence_atom"), dict) else {}
+                cite = (atom.get("cite") or {}).get("card_id") if isinstance(atom.get("cite"), dict) else None
+                bits = [f"signal `{blk.get('signal')}`"]
+                if blk.get("corroboration"):
+                    bits.append(f"corroboration {blk.get('corroboration')}")
+                if blk.get("conflict"):
+                    bits.append(f"⚠ CONFLICT: {blk.get('conflict')}")
+                axes_lines.append(
+                    f"  · [{short}] {axis}: " + "; ".join(bits) + (f"  (read: {atom.get('read')})" if atom else "")
+                )
+                if blk.get("informs"):
+                    axes_lines.append(f"      informs: {blk['informs']}" + (f" [{cite}]" if cite else ""))
+        # Any verdict-inert *_caveat the facet carries (target-intrinsic's experimental-vs-predicted
+        # inflation adjudication today). Swept by suffix so a sibling skill's caveat is picked up too.
+        for key, val in facet.items():
+            if not key.endswith("_caveat") or not isinstance(val, dict) or not val.get("reason"):
+                continue
+            caveat_lines.append(f"  · [{short}] {key} = `{val['reason']}`")
+            for b in val.get("basis") or []:
+                caveat_lines.append(f"      basis: {b}")
+    if not axes_lines and not caveat_lines:
+        return []
+    out = [
+        "",
+        "### Descriptive peers' OWN reads (gateless — CONTEXT for routing, never a gate)",
+        "These sub-skills emit no verdict by design, so they carry no gate and cannot move the "
+        "recommendation. Their interpreted claim axes are below — USE them to route modality and to "
+        "calibrate how much a raw field is worth; do NOT convert one into a Go/No-Go.",
+    ]
+    if axes_lines:
+        out.extend(axes_lines)
+    if caveat_lines:
+        out.append("  CONFIRMATION CAVEATS (is the actionability-relevant property MEASURED or PREDICTED?):")
+        out.extend(caveat_lines)
+    out.append("")
+    return out
 
 
 def _render_presence_facet_block(pf: dict) -> list[str]:
@@ -998,6 +1085,10 @@ def _build_user_prompt(
     lines.append("")
     lines.extend(_render_reconciled_block(sub_results))
     lines.extend(_render_measurement_applicability_block(sub_results))
+    # The gateless descriptive peers' interpreted reads (claim axes + confirmation caveats). Placed
+    # right after the sub-verdicts so the integrator reads "no verdict" TOGETHER with what that
+    # skill did compute, instead of falling back to the raw card block far below.
+    lines.extend(_render_descriptive_claim_block(sub_results))
     _ke_block = _render_subskill_key_evidence(sub_results)
     if _ke_block:
         lines.append(_ke_block)

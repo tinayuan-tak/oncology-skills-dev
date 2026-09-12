@@ -1221,6 +1221,50 @@ def _narrative_by_axis(
                 "rule_sentences": {},
                 "_basis": "blind/underpowered axis — acquire/strengthen gap only; verdict-INERT",
             }
+
+    # GATELESS DESCRIPTIVE axes (2026-09-12). The loop above iterates the FRAGILITY facet's per_axis,
+    # whose membership is `decision_shorts` = the shorts the gate / positive / contradiction vocabularies
+    # name. A gateless skill (verdict_fn=None — target-intrinsic) appears in NONE of them by design, so it
+    # got NO narrative entry at all: the dashboard "why this verdict" panel and the Tier-3 narrative block
+    # simply had no row for it, and a reader saw the axis only as an absence — indistinguishable from an
+    # axis that failed or was never run. That is the wrong read for ROUTING: these skills computed a real
+    # interpreted answer (honest_phrase, confidence, claim chips, per-question table), they just do not
+    # gate on it. Emit that answer in the SAME narrative shape, with the verdict slots explicitly null and
+    # a `_basis` naming gatelessness as the reason.
+    #
+    # Sourced from the skill_report[] SPINE (role == descriptive), NOT from the fragility facet — which is
+    # deliberately left untouched, since it feeds target_index / recommendation_fragility_index and a new
+    # member there would move a published number. movers / dissenters / flip_conditions stay EMPTY: there
+    # is no call to move or flip. VERDICT-INERT; skips any short the loop above already narrated.
+    for short, sr in _skill_reports_by_short(sub_results).items():
+        if short in out or sr.get("role") != "descriptive":
+            continue
+        out[short] = {
+            "axis": short,
+            "gate": None,  # structurally gateless — absent from _SHORT_TO_GATE, not merely unresolved
+            "verdict": None,
+            "driving_rule_id": None,
+            "scan_depth": "not_applicable",
+            "movers": [],
+            "dissenters": [],
+            "flip_conditions": [],
+            "gaps": gaps_by_axis.get(short) or [],
+            "rule_sentences": {},
+            # what the axis DID compute — its own interpreted read, for routing/calibration only
+            "role": "descriptive",
+            "polarity": sr.get("polarity"),
+            "honest_phrase": sr.get("honest_phrase"),
+            "confidence": sr.get("confidence"),
+            "top_tension": sr.get("top_tension"),
+            "claim_chips": sr.get("claim_chips") or [],
+            "question_table": sr.get("question_table") or [],
+            "cards_used": ((sr.get("provenance") or {}).get("cards_used")) or [],
+            "_basis": (
+                "gateless DESCRIPTIVE axis — emits no verdict BY DESIGN (verdict_fn=None), so there is no "
+                "call to move or flip; the interpreted read is CONTEXT for routing, never a gate. "
+                "verdict-INERT"
+            ),
+        }
     return out
 
 

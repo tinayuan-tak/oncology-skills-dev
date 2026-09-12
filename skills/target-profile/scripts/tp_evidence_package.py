@@ -360,6 +360,10 @@ def _write_evidence_package(
     from _skills_common.envelope import assemble_evidence_package
     from _skills_common.gitmeta import skills_repo_sha
 
+    # Function-local: tp_facets imports tp_fanout/tp_gates, and run.py imports THIS module before
+    # tp_facets — keep the module-import order it already relies on unperturbed.
+    from tp_facets import _skill_reports_by_short, build_skill_report_rollup
+
     # 1. Union the sub-skills' cards by card_id (a card may compose under >1 lens; keep first),
     #    splitting present (normalized) vs reasoned-absence (card_unavailable).
     seen: set = set()
@@ -449,6 +453,16 @@ def _write_evidence_package(
     # deliberately not a gate action — see nomination_verdict_gate.yaml action_precedence), so read
     # it here or --emit would keep publishing "no_deterministic_kill" for a strong-tier nomination.
     recommendation = gate_action or recommendation_gate.get("forced_recommendation") or "no_deterministic_kill"
+    # The per-skill skill_report[] spine. It reached ONLY nomination.json (target_report.skill_reports)
+    # even though the cross-evidence-hypothesis integrator consumes THIS artifact — so every report slot
+    # a sub-skill emits (role / polarity / call / driving_rule_id / question_table / subgroup_signals /
+    # evidence_graph / confidence / modality_scope) was absent from the machine package. That silently
+    # erased the GATELESS descriptive axes: target-intrinsic's `sub_verdicts` entry is all-null
+    # (gate/verdict/driving_rule_id) and its `claim_vectors` entry carries no role, so the integrator
+    # could not distinguish "no verdict BECAUSE gateless-by-design (role=descriptive,
+    # polarity=not_scored)" from "no verdict because the axis failed / had no data" — the exact
+    # distinction routing needs. Carried verbatim (no re-derivation) + its role-grouped projection.
+    skill_reports = _skill_reports_by_short(sub_results)
     tier = confidence_tier.get("tier")
     headline = f"{args.target} in {args.indication}: {recommendation}" + (f" ({tier} confidence)" if tier else "")
     synthesis_block = {
@@ -467,6 +481,17 @@ def _write_evidence_package(
         "additional_gate_verdicts": additional_blocks,
         # full per-sub-skill grouping
         "sub_verdicts": sub_verdicts,
+        # verdict-INERT per-skill skill_report[] SPINE (see the `skill_reports` derivation above) plus its
+        # role-grouped projection. The rollup's INV-6 coherence flag is cross-checked against the
+        # recommendation THIS package publishes (`recommendation`), not nomination.json's narrated call, so
+        # the flag describes the artifact the reader is holding. Both default-empty → a run whose skills
+        # emit no reports stays BYTE-STABLE. NEVER moves the spine (sub_verdicts / recommendation_gate).
+        "skill_reports": skill_reports,
+        "skill_report_rollup": (
+            build_skill_report_rollup(skill_reports, {"recommendation": recommendation}, modality_fit_by_channel)
+            if skill_reports
+            else {}
+        ),
         # verdict-INERT claim-vector signal facets — the SIGNAL decomposition + citable
         # evidence atoms per sub-skill, for downstream cross-evidence reasoning (not just the label).
         "claim_vectors": _claim_vectors_from_sub_results(sub_results),

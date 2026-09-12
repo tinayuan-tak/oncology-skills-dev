@@ -191,6 +191,55 @@ def _load_sub_skill_claim_record_fn(skill_dir_name: str) -> Any:
     return getattr(module, "_claim_record", None) if module is not None else None
 
 
+# Module-level literal NAMES a sub-skill declares to tune its own sub-group panel, discovered by
+# CONVENTION (suffix) rather than a per-skill registry. Every one of the 12 panel-tuning skills follows
+# it exactly — `_<SHORT>_VALUE_TIERS` (the value→tier map) and, where the first-`*_class` heuristic is
+# ambiguous, `_<SHORT>_SUBGROUP_READER` (the explicit per-measurement_type field spec).
+_SUBGROUP_TIERS_SUFFIX = "_VALUE_TIERS"
+_SUBGROUP_READER_SUFFIX = "_SUBGROUP_READER"
+
+
+def _load_sub_skill_subgroup_reader(skill_dir_name: str) -> tuple[Optional[dict], Optional[Any]]:
+    """Return the `(reader_spec, classify)` pair a sub-skill's STANDALONE run uses for its sub-group panel.
+
+    WHY (2026-09-12): the composed panel was built by a bare `subgroup_signals_for(skill_dir, cards)` —
+    NO reader_spec, NO classify — so it fell back to `_heuristic_reader` (binds the FIRST `*_class` key in
+    summary DICT ORDER) and the lens-blind `default_classify` (substring heuristic; anything without a
+    strong/moderate/weak keyword reads `absent`). Meanwhile 12 sub-skills DO tune their standalone panel
+    (11 pass `subgroup_classify=` to run_wired_skill, genomic-alteration-profile calls
+    `subgroup_signals_for` itself), and target-intrinsic + functional-requirement also pass an explicit
+    `subgroup_reader_spec=`. ALL of it was dropped in composition, so the embedded lens view in the
+    composed dashboard showed DIFFERENT sub-group tiers than the standalone skill report from the SAME
+    evidence — e.g. target-intrinsic's `potent_measured_ligand` (its strongest tractability precedent)
+    read `absent` composed and `strong` standalone.
+
+    Discovery is by the module-literal naming CONVENTION above, not a hand-maintained map, so a new
+    panel-tuning skill is picked up automatically. `test_subgroup_reader_parity.py` AST-verifies, per
+    skill, that what this returns is exactly what that skill's own standalone call passes — the guard
+    that keeps a convention from silently drifting into a divergence.
+
+    Reads the prewarmed module cache like the sibling `_load_sub_skill_*` hooks; a skill that tunes
+    nothing pays no cost and gets `(None, None)` (the framework default). VERDICT-INERT: the panel is a
+    display projection — it never enters `fired`, the resolver, or the nomination sub_verdicts."""
+    module = _SUBSKILL_MODULE_CACHE.get(skill_dir_name)
+    if module is None:
+        _load_sub_skill_verdict_fn(skill_dir_name)  # populate the module cache
+        module = _SUBSKILL_MODULE_CACHE.get(skill_dir_name)
+    if module is None:
+        return None, None
+    reader_spec = classify = None
+    for name, val in vars(module).items():
+        if not name.startswith("_") or not isinstance(val, dict):
+            continue
+        if name.endswith(_SUBGROUP_READER_SUFFIX):
+            reader_spec = val
+        elif name.endswith(_SUBGROUP_TIERS_SUFFIX):
+            from _skills_common.subgroup_derivation import make_value_classifier
+
+            classify = make_value_classifier(val)
+    return reader_spec, classify
+
+
 import random  # noqa: E402 — used only by the best-effort synthesis retry below
 import threading  # noqa: E402
 
@@ -1327,21 +1376,28 @@ def _run_sub_skills(
         # hooks above stay on the raw verdict_pair. Verdict-INERT (presence ∉ _SHORT_TO_GATE); no-op for
         # every other sub-skill (only presence's facet carries presence_verdict).
         # EMBEDDED SUB-SKILL VIEW (subgroup_signals propagation): compute the hierarchy sub-group signals
-        # centrally (default heuristic reader; a facet-supplied claim_vector sharpens the overlay) and
-        # attach them to the skill_report on the spine, so the composed report can render each skill's
-        # embedded view (sub-group bands + signal×confidence scatter) — the same detail the standalone
-        # sub-skill report shows. Best-effort + VERDICT-INERT: any fault (or target-contracts absent) →
-        # {} → skipped; never touches verdict/fired/cards. Per-skill tuned reader specs are a follow-up
-        # (one-skill-per-branch); the default heuristic is the baseline. Mirrors the dispatcher, which
+        # centrally and attach them to the skill_report on the spine, so the composed report can render
+        # each skill's embedded view (sub-group bands + signal×confidence scatter) — the same detail the
+        # standalone sub-skill report shows. Best-effort + VERDICT-INERT: any fault (or target-contracts
+        # absent) → {} → skipped; never touches verdict/fired/cards. Mirrors the dispatcher, which
         # attaches subgroup_signals to the standalone headline.
+        # (2026-09-12) Now passes the sub-skill's OWN reader spec + value→tier classifier — the pair its
+        # standalone run uses — instead of the framework default. This was the "per-skill tuned reader
+        # specs are a follow-up" note: 12 skills tune their panel and composition dropped ALL of it, so
+        # the embedded view showed different tiers than the standalone report from the same evidence
+        # (see _load_sub_skill_subgroup_reader). A facet-supplied claim_vector still sharpens the overlay.
         if isinstance(synthesis_facet, dict):
             _sr = synthesis_facet.get("skill_report")
             if isinstance(_sr, dict) and not _sr.get("subgroup_signals"):
                 try:
                     _cv = synthesis_facet.get("claim_vector")
-                    _sg = subgroup_signals_for(
-                        SKILLS_DIR / skill_dir, cards, claim_vector=_cv if isinstance(_cv, dict) else None
-                    )
+                    _spec, _classify = _load_sub_skill_subgroup_reader(skill_dir)
+                    _sg_kwargs = {"claim_vector": _cv if isinstance(_cv, dict) else None}
+                    if _spec is not None:
+                        _sg_kwargs["reader_spec"] = _spec
+                    if _classify is not None:
+                        _sg_kwargs["classify"] = _classify
+                    _sg = subgroup_signals_for(SKILLS_DIR / skill_dir, cards, **_sg_kwargs)
                     if _sg:
                         _sr["subgroup_signals"] = _sg
                 except Exception:  # noqa: BLE001 — verdict-inert; never break the fan-out
