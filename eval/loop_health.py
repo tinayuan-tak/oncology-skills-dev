@@ -11,6 +11,11 @@ you when to tighten the containment guard.
 precision_strict      = (fixed + real_deferred) / n_sharp
 precision_incl_scope  = (fixed + real_deferred + dismissed_scope) / n_sharp   # scope caveats are honest wins
 noise_rate            = (dismissed_concordant + dismissed_data_absent) / n_sharp
+
+ALSO reports the `eval/dispositions.jsonl` reviewer ledger, as a SEPARATE section. The two sources
+answer different questions — the YAML asks "was the flagged gap REAL?" (this lane's precision), the
+JSONL asks "was the framework's OUTPUT right?" — so they are never pooled and `precision_strict`
+stays defined on the YAML rows alone. Pooling them would produce a number with no referent.
 """
 
 from __future__ import annotations
@@ -72,7 +77,98 @@ def compute(dispositions: dict) -> dict:
     }
 
 
-def render_md(m: dict) -> str:
+def load_reviewer_ledger(path: str | Path) -> dict:
+    """Summarize `eval/dispositions.jsonl`, or return an empty marker when it does not exist yet.
+
+    Fail-soft on absence (a fresh clone has no ledger) but NOT on malformation — `dispositions.load`
+    re-validates every row, so a hand-edited token surfaces here instead of being counted.
+    """
+    import sys as _sys
+
+    _here = str(Path(__file__).resolve().parent)
+    if _here not in _sys.path:
+        _sys.path.insert(0, _here)
+    import dispositions  # type: ignore
+
+    p = Path(path)
+    if not p.exists():
+        return {"present": False, "n": 0}
+    s = dispositions.summarize(dispositions.load(p))
+    s["present"] = True
+    return s
+
+
+def render_reviewer_md(s: dict) -> list[str]:
+    """The reviewer-ledger section. Reports per-grain agreement; never a pooled precision scalar."""
+    if not s.get("present"):
+        return [
+            "",
+            "## Reviewer disposition ledger (`eval/dispositions.jsonl`)",
+            "",
+            "_Not yet created. Until it has rows, the only correctness signal in the framework is the "
+            "29 sharp rows above — against ~45,878 golden/stability rows that only assert "
+            "self-agreement._",
+        ]
+    L = [
+        "",
+        "## Reviewer disposition ledger (`eval/dispositions.jsonl`)",
+        "",
+        "_A SEPARATE question from the precision above: not `was the flagged gap real?` but `was the "
+        "framework's output right?`. Never pooled with the YAML rows — one average over two different "
+        "questions has no referent._",
+        "",
+        f"- **rows:** {s['n']}  (replicates: {s['n_replicate_rows']})",
+    ]
+    # COUNTS for everything filed — deliberately not a rate. A ratio over reviewer-chosen rows would be
+    # a number with no frame, and a name outlives any caveat printed next to it.
+    for grain, r in sorted((s.get("per_grain_filed_counts_all_selections") or {}).items()):
+        L.append(
+            f"- **{grain}** (all selections): n={r['n']}, of which judged correct={r['n_correct']} — counts, not a rate"
+        )
+    n_sampled = s.get("n_sampled", 0)
+    if n_sampled < s["n"]:
+        L += [
+            "",
+            f"> ⚠ **No framework-accuracy figure is available yet.** Only {n_sampled} of {s['n']} rows "
+            f"were filed with `--selection sampled`; the rest are `targeted` — chosen while chasing a "
+            "defect already known, i.e. selected ON being wrong. A ratio over those measures the "
+            "reviewer's attention, not the framework, so none is computed. A quotable rate needs rows "
+            "drawn from a frame (a target list fixed before reading any output).",
+        ]
+    if n_sampled:
+        L += ["", "_Agreement over `sampled` rows — the only quotable rate here:_"]
+        for grain, r in sorted((s.get("per_grain_agreement_sampled") or {}).items()):
+            agr = "n/a (a preference has no correct pole)" if r.get("agreement") is None else r["agreement"]
+            L.append(f"- **{grain}**: n={r['n']}, agreement={agr}")
+    if s.get("intra_rater_agreement") is not None:
+        L.append(
+            f"- **intra-rater self-agreement:** {s['intra_rater_agreement']} "
+            f"over {s['n_repeated_facts']} re-judged fact(s) — the ceiling any learned comparator "
+            f"can be scored against"
+        )
+    else:
+        L.append(
+            "- **intra-rater self-agreement:** not yet measurable (no fact judged twice by the same "
+            "rater). File ~10% of judgments with `--replicate` or a comparator's CV score has an "
+            "unknown ceiling."
+        )
+    if s.get("by_measuredness"):
+        L += [
+            "",
+            "| measuredness | n |",
+            "|---|---|",
+            *[f"| {k} | {v} |" for k, v in sorted(s["by_measuredness"].items())],
+        ]
+    if s.get("by_grain"):
+        L += ["", "| grain | judgments |", "|---|---|"]
+        for g, c in sorted(s["by_grain"].items()):
+            L.append(f"| {g} | {', '.join(f'{k}:{v}' for k, v in sorted(c.items()))} |")
+    if s.get("unknown_judgment"):
+        L += ["", f"> ⚠ judgment tokens illegal for their grain: {s['unknown_judgment']}"]
+    return L
+
+
+def render_md(m: dict, reviewer: dict | None = None) -> str:
     L = [
         "# Discordance loop health — precision of the candidate-gap flagging",
         "",
@@ -128,22 +224,45 @@ def render_md(m: dict) -> str:
         "Every discordance fix to date landed via the card/rule/method channel + the ground-truth "
         "calibration set, never the literature lane. Do not flip the stance until (1),(2),(5) are met.",
     ]
+    L += render_reviewer_md(reviewer or {"present": False, "n": 0})
     return "\n".join(L) + "\n"
 
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--dispositions", default=str(Path(__file__).resolve().parent / "loop_dispositions.yaml"))
+    ap.add_argument("--ledger", default=str(Path(__file__).resolve().parent / "dispositions.jsonl"))
     ap.add_argument("--out", default=None, help="write the LOOP_HEALTH.md report here")
     a = ap.parse_args(argv)
     m = compute(load_dispositions(a.dispositions))
-    md = render_md(m)
+    reviewer = load_reviewer_ledger(a.ledger)
+    md = render_md(m, reviewer)
     if a.out:
         Path(a.out).write_text(md)
     print(
         f"[loop-health] n_sharp={m['n_sharp']} precision_strict={m['precision_strict']} "
         f"incl_scope={m['precision_incl_scope']} noise_rate={m['noise_rate']} counts={m['counts']}"
     )
+    if reviewer.get("present"):
+        counts = {
+            g: f"{r['n_correct']}/{r['n']}"
+            for g, r in sorted((reviewer.get("per_grain_filed_counts_all_selections") or {}).items())
+        }
+        sampled = {
+            g: r.get("agreement") for g, r in sorted((reviewer.get("per_grain_agreement_sampled") or {}).items())
+        }
+        print(
+            f"[reviewer-ledger] n={reviewer['n']} filed_correct_counts={counts} "
+            f"n_sampled={reviewer.get('n_sampled', 0)} sampled_agreement={sampled or 'n/a'} "
+            f"intra_rater={reviewer.get('intra_rater_agreement')}"
+        )
+        if reviewer.get("n_sampled", 0) < reviewer["n"]:
+            print(
+                "[reviewer-ledger] no accuracy rate reported — "
+                f"{reviewer['n'] - reviewer.get('n_sampled', 0)} row(s) are `targeted` (selected on being wrong)"
+            )
+    else:
+        print("[reviewer-ledger] absent — no reviewer judgments captured yet")
     return 0
 
 
