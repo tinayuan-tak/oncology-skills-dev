@@ -9,9 +9,9 @@ description: |
 
   Consumes the immune-context card (CIBERSORT LM22 T-cell infiltration from
   gdc-pancanatlas-immune-2018 / Thorsson 2018). Emits immune_context_verdict:
-  immune_hot | immune_intermediate | immune_cold | insufficient — from the
-  indication's median CD8 T-cell fraction of the leukocyte compartment, anchored
-  to pan-cancer quartiles.
+  immune_hot | immune_intermediate | immune_cold | lymphoid_denominator_unreliable
+  | insufficient — from the indication's median CD8 T-cell fraction of the
+  leukocyte compartment, anchored to pan-cancer quartiles.
 
   STANDALONE skill, NOT part of surface-modality-fit: immune context is the
   effector axis, orthogonal to surface biology. It composes into the TCE story
@@ -32,7 +32,7 @@ description: |
   indication a T-cell desert?"
 
 metadata:
-  version: 1.8.0
+  version: 1.9.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -66,7 +66,8 @@ composition:
   output_shape:
     - data_package
   steps_covered: [1, 2, 3, 4, 6]
-  status: partial             # verdict is per-indication; open = lymphoid-denominator guard + absolute desert threshold
+  status: partial             # verdict is per-indication; open = absolute desert threshold + pan-cancer
+                              # cuts for the suppression ratios (the lymphoid-denominator guard SHIPPED v1.9.0)
 ---
 
 # immune-context
@@ -109,9 +110,12 @@ Both are now CHECKED rather than merely conceded — the corroboration ruler dem
 confidence to `weak` when the orthogonal absolute (Saltz H&E-DL TIL) or spatial
 (GeoMx/Xenium/CosMx co-localization) platform contradicts the CIBERSORT call.
 The antigen-conditioned join (T-cell infiltration among antigen-HIGH patients)
-SHIPPED in v1.6.1; the open layer is a lymphoid-DENOMINATOR guard (in a leukemia or
-a normal lymphoid organ CIBERSORT's leukocyte denominator IS the malignant clone) and
-an absolute-density desert threshold in the analysis-methods classifier.
+SHIPPED in v1.6.1 and the lymphoid-DENOMINATOR guard in v1.9.0 (in a leukemia or a
+normal lymphoid organ CIBERSORT's leukocyte denominator IS the malignant clone, so the
+median is WITHHELD and the verdict is `lymphoid_denominator_unreliable` — an absent
+MEASUREMENT, distinct from "no cohort"). The open layers are an absolute-density desert
+threshold in the analysis-methods classifier and pan-cancer cuts for the suppression
+ratios (surfaced in v1.9.0, deliberately non-gating until then).
 
 **Read the class token as a pan-cancer RANK.** `immune_hot`/`immune_cold` are the Q3
 (0.113) / Q1 (0.084) cuts of the 33-study distribution, so ~9 studies are hot and ~9
@@ -216,3 +220,51 @@ The verdict spine is **byte-stable** (still a direct read of `immune_context_cla
 - **Deferred (filed, out of branch scope):** a `reference_frame` entry in `evidence_salience.py`'s
   `immune_context` SALIENCE_SPEC (collides with PR #1309 `feat/cohort-percentile-meters`); the S1 lymphoid
   DENOMINATOR guard, the `n_samples` floor and the CD8:Treg / CD8:M2 ratios (analysis-methods).
+
+## v1.9.0 (2026-09-12) — the six INVISIBLE fields + the fourth class token
+
+Two gaps of the same shape: something the pipeline already produced that no consumer read.
+
+- **Six `summary_fields` were emitted and consumed by NOTHING.** The card has declared and the reader has
+  emitted `cd8_hot_sample_fraction`, `cd8_treg_ratio`, `cd8_m2_ratio` and the Treg / M2 / M1 medians since
+  card v1.2.0 — and they appeared in no headline, no citable atom, no synthesis facet. **The mirror guard
+  cannot catch this**: `test_card_output_emission.py` runs card-DECLARES → reader-must-EMIT, so a field the
+  reader emits and no consumer consumes is structurally invisible to it. They are now on the headline, the
+  IMMUNE atom, `_SYNTHESIS_FACET_KEYS` and `immune_provenance`, plus **two new frame scalars**:
+  - `heterogeneity_frame` — gauges the cohort MEDIAN against the PREVALENCE of samples clearing the *same*
+    hot cut. The median is a poor summary of a BIMODAL cohort: MSI-H colorectal (~15% of CRC) is strongly
+    infiltrated and the other ~85% is not, so the pooled median reads `immune_intermediate` and the
+    population a TCE would actually be developed FOR is invisible in the token. Names the two divergent
+    shapes explicitly (a not-hot median with a substantial hot minority; a hot median where fewer than half
+    of patients clear the cut).
+  - `suppression_frame` — CD8:Treg and CD8:M2 (ratios OF MEDIANS, recomputable from the medians printed
+    beside them). Effector PRESENCE is half a TCE read: inflamed-but-SUPPRESSED is a different proposition
+    from a bare hot call. ABSTAINS when a suppressor median sits at the LM22 noise floor (an *absent*
+    denominator, not a small one — GBM's median Treg of 0.0002 otherwise turned CD8:Treg into 176 in an
+    indication whose own class token says `immune_cold`).
+
+  **Both are DESCRIPTIVE and NON-GATING, deliberately.** `0.113`/`0.084` are the 33-study Q3/Q1 of the CD8
+  *share*; no equivalent pan-cancer distribution has been derived for a hot-sample prevalence or a
+  CD8:suppressor ratio. A demote cut here would be an unanchored number wearing a threshold's clothes —
+  derive one from the same 11,373-sample product first. The panel gives an observed CD8:Treg range
+  (2.6–13.8), which is a range, not a percentile.
+
+- **`lymphoid_denominator_unreliable` is now a first-class verdict.** It was declared on the card and
+  emitted by the reader with **no rule** and no `_RULE_TO_VERDICT` entry, so it fired nothing and fell
+  through to a bare `insufficient` **indistinguishable from "no CIBERSORT cohort"** — collapsing the
+  specific answer ("there IS a cohort and its reference frame does not apply") onto the generic one, on
+  TCE-VALIDATED indications (glofitamab / mosunetuzumab in DLBCL) where that is the whole point. Now: its
+  own verdict phrase, **NEUTRAL** polarity (never red — an absent MEASUREMENT is not measured effector
+  absence, and a TCE-risk badge here would be backwards), `unmeasured` signal, its own `reference_frame`
+  line instead of the bare sentinel, a severity-2 `top_tension`, and `modality_scope` **SILENT** (`na`,
+  matching the rule's `bite_tce: neutral`).
+
+  Requires target-contracts #747 (the rule + `applies_when`) and analysis-methods #610 (the indication map),
+  which is what makes the guard reachable at all. The verdict spine MOVES for lymphoid indications by
+  design; byte-stable everywhere else.
+
+- **Known, not fixed (in-code note + filed).** The sub-group presence ladder (`strong/moderate/weak/absent`
+  in `subgroup_derivation._TIERV`) has **no abstention rung**, so both `lymphoid_denominator_unreliable`
+  and the long-standing `data_unavailable` fall to `default_classify` and are tiered `absent` — reading
+  "could not measure" as "no effectors". Mapping them to a presence tier here would only pick which wrong
+  answer to give; the fix is a fifth rung in the shared fleet file, out of this branch's scope.

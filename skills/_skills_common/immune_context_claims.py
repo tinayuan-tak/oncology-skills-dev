@@ -11,8 +11,15 @@ DESCRIPTIVE (the effector-context call is INDICATION-level and target-INDEPENDEN
 fires for every target in the indication; direction/meaning in the atom). A strong signal = immune-hot
 (favourable for a TCE). `immune_cold` is `absent` — a MEASURED effector-absence (a TCE-efficacy RISK,
 NOT a target-level veto; CIBERSORT is a RELATIVE, non-spatial screen). `unmeasured` = no CIBERSORT
-cohort for the indication. Kept out of the nomination gate (verdict-bearing but gateless, pending
-calibration) — this projection is the citable-atom surface for the cross-evidence reasoner.
+cohort for the indication, OR a cohort whose LEUKOCYTE denominator is the malignant clone
+(`lymphoid_denominator_unreliable` — an absent MEASUREMENT, never read as measured absence). Kept out of
+the nomination gate (verdict-bearing but gateless, pending calibration) — this projection is the
+citable-atom surface for the cross-evidence reasoner.
+
+THREE FRAME SCALARS gauge the class token, because it is a cohort MEDIAN of a RELATIVE fraction and each
+of those three words hides something: `reference_frame` (the pan-cancer Q1/Q3 rank the token encodes),
+`heterogeneity_frame` (the PREVALENCE of hot samples the median averages away) and `suppression_frame`
+(the Treg/M2 load a bare hot call ignores). All descriptive; none gates.
 """
 
 from __future__ import annotations
@@ -29,8 +36,18 @@ _IMMUNE_SIGNAL = {
     "immune_hot": "strong",
     "immune_intermediate": "moderate",
     "immune_cold": "absent",  # MEASURED effector-absence (TCE-efficacy risk, not a veto)
+    # UNMEASURED, explicitly — the leukocyte DENOMINATOR is the malignant clone (leukaemia / lymphoma /
+    # lymphoid organ), so the CD8 SHARE is arithmetically valid and biologically uninterpretable. It maps
+    # to `unmeasured` and NOT to `absent`: `absent` is a MEASURED effector-absence, and reading a missing
+    # MEASUREMENT as measured absence would manufacture a TCE-efficacy risk in exactly the malignancies
+    # where TCEs are the validated modality (glofitamab / mosunetuzumab in DLBCL). It is listed rather
+    # than left to the `.get` default so the mapping is a stated decision a test can pin.
+    "lymphoid_denominator_unreliable": "unmeasured",
     "data_unavailable": "unmeasured",
 }
+# The class tokens whose reference frame does not apply at all — no median is published for them, so
+# every frame/gauge surface must say WHY rather than emit a bare "unmeasured".
+_FRAME_INAPPLICABLE = "lymphoid_denominator_unreliable"
 
 _C_IMM = "immune-context"
 _E_IMM = {"measurement_type": "immune_context", "grain": "indication"}
@@ -142,8 +159,16 @@ def _orthogonal_check(h, signal):
 
 
 def _immune_signal(h, c):
-    cls = (c.get(_C_IMM) or {}).get("immune_context_class")
-    ev = f"{_C_IMM}: {cls or 'data_unavailable'} (median CD8 frac={(c.get(_C_IMM) or {}).get('median_cd8_fraction')})"
+    s = c.get(_C_IMM) or {}
+    cls = s.get("immune_context_class")
+    ev = f"{_C_IMM}: {cls or 'data_unavailable'} (median CD8 frac={s.get('median_cd8_fraction')}"
+    # the two QUALIFIERS of the cohort median ride the EVIDENCE string (hence the key_signals support line
+    # and every atom that quotes it) — the median alone is the weakest part of this axis.
+    if s.get("cd8_hot_sample_fraction") is not None:
+        ev += f"; {round(float(s['cd8_hot_sample_fraction']) * 100, 1)}% of samples at/above the hot cut"
+    if s.get("cd8_treg_ratio") is not None:
+        ev += f"; CD8:Treg={s['cd8_treg_ratio']}"
+    ev += ")"
     signal = _IMMUNE_SIGNAL.get(cls, "unmeasured")
     return signal, ev, _orthogonal_check(h, signal)[1]
 
@@ -163,6 +188,17 @@ def _immune_atom(h, c):
             "median_total_t_cell_fraction",
             "n_samples",
             "tumor_studies",
+            # HETEROGENEITY + SUPPRESSION (2026-09-12). The card has emitted these six since v1.2.0 and
+            # NOTHING downstream read them — the mirror guard only checks card-declares -> reader-EMITS, so
+            # it is structurally blind to a field the reader emits and no consumer consumes. They belong on
+            # the CITABLE atom, not just in display prose: the cohort MEDIAN is the weakest part of this
+            # axis, and these are the two fields that qualify it. All ADDITIVE and verdict-INERT.
+            "cd8_hot_sample_fraction",  # PREVALENCE at the hot cut — the bimodal-cohort answer (MSI-H CRC)
+            "cd8_treg_ratio",  # suppression: inflamed-but-SUPPRESSED != a bare hot call
+            "cd8_m2_ratio",
+            "median_treg_fraction",  # printed so a reader can see WHY a ratio abstained (noise floor)
+            "median_m2_macrophage_fraction",
+            "median_m1_macrophage_fraction",
         )
         if s.get(k) is not None
     }
@@ -186,7 +222,10 @@ _DISCLAIMER = (
     "target veto — CIBERSORT is relative + non-spatial); `unmeasured` = no cohort. Never feeds a verdict. "
     "CORROBORATION is the orthogonal-platform ruler, not a constant: `high` = an ABSOLUTE H&E-DL TIL "
     "(Saltz) or SPATIAL co-localization read AGREES; `moderate` = CIBERSORT alone (no orthogonal check "
-    "for this indication); `low` = an orthogonal platform CONTRADICTS (and `conflict` names it)."
+    "for this indication); `low` = an orthogonal platform CONTRADICTS (and `conflict` names it). Three "
+    "FRAME scalars qualify the token — reference_frame (pan-cancer rank), heterogeneity_frame (hot-sample "
+    "PREVALENCE vs the cohort median) and suppression_frame (CD8:Treg / CD8:M2) — all descriptive, none "
+    "gating: no pan-cancer distribution exists for a prevalence or a suppressor ratio yet."
 )
 
 
@@ -206,9 +245,28 @@ _REFERENCE_FRAME_BASIS = (
 
 
 def _reference_frame(h, c) -> str:
-    """One honest line gauging the CD8 read against its own frame. "unmeasured" when no cohort."""
+    """One honest line gauging the CD8 read against its own frame. "unmeasured" when no cohort.
+
+    The LYMPHOID token gets its OWN line rather than the bare "unmeasured" sentinel: those two abstentions
+    are NOT the same claim. `data_unavailable` means there is no cohort; the lymphoid token means there IS
+    a cohort and its reference frame does not apply — the very distinction the token was minted to carry,
+    which collapsing onto "unmeasured" would throw away here after the card and the rule both preserved it."""
     s = c.get(_C_IMM) or {}
     cls, val = s.get("immune_context_class"), s.get("median_cd8_fraction")
+    if cls == _FRAME_INAPPLICABLE:
+        studies = s.get("tumor_studies")
+        where = (
+            "/".join(str(x) for x in studies)
+            if isinstance(studies, (list, tuple))
+            else (studies or "lymphoid TCGA study")
+        )
+        return (
+            f"frame DOES NOT APPLY: the cohort exists ({where}, n={s.get('n_samples')}) but "
+            f"its LEUKOCYTE denominator IS the malignant clone (leukaemia / lymphoma / lymphoid organ), so a "
+            f"CD8 SHARE of that compartment is arithmetically valid and biologically uninterpretable. The "
+            f"median is WITHHELD by design (not missing); {_REFERENCE_FRAME_BASIS} cannot gauge it. This is an "
+            f"absent MEASUREMENT, NOT a measured effector absence — read no TCE-efficacy risk from it"
+        )
     if not cls or cls == "data_unavailable" or val is None:
         return "unmeasured"
     return (
@@ -219,11 +277,89 @@ def _reference_frame(h, c) -> str:
     )
 
 
+# ── the HETEROGENEITY and SUPPRESSION frames (2026-09-12) ─────────────────────────────────────────
+# Two named weaknesses of the primary read, each with a card field that answers it and no consumer that
+# read it. Both are FRAME scalars in the `reference_frame` mould — prose that gauges the class token — and
+# both are deliberately NON-GATING: no pan-cancer distribution exists for a hot-PREVALENCE or a CD8:Treg
+# ratio the way 0.113/0.084 are the 33-study Q1/Q3 of the CD8 share, so any cut here would be an
+# unanchored number wearing a threshold's clothes. Surface + frame now; derive cuts from the same
+# 11,373-sample product before anything is allowed to demote on them.
+_HOT_PREVALENCE_DIVERGENCE = 0.20  # |prevalence - median-implied| worth NAMING (not a gate; see above)
+
+
+def _heterogeneity_frame(h, c) -> str:
+    """Gauge the cohort MEDIAN against the PREVALENCE of hot samples inside the same cohort.
+
+    The median is a poor summary of a BIMODAL cohort: MSI-H colorectal (~15% of CRC) is strongly
+    infiltrated and the other ~85% is not, so the pooled median reads `immune_intermediate` and the
+    patient population a TCE would actually be developed FOR is invisible in the token. Same threshold as
+    the class, read as prevalence instead of central tendency."""
+    s = c.get(_C_IMM) or {}
+    cls, prev = s.get("immune_context_class"), s.get("cd8_hot_sample_fraction")
+    if cls == _FRAME_INAPPLICABLE:
+        return "unmeasured — the cohort's leukocyte denominator is uninterpretable (see reference_frame)"
+    if not cls or cls == "data_unavailable" or prev is None:
+        return "unmeasured"
+    line = (
+        f"{round(float(prev) * 100, 1)}% of the {s.get('n_samples')} samples sit AT/ABOVE the same hot cut "
+        f"({_CD8_HOT_MIN}) that produced `{cls}` from the cohort MEDIAN — prevalence, not central tendency"
+    )
+    # The cases worth naming: a cohort the median calls not-hot that still has a substantial hot MINORITY
+    # (the MSI-H CRC shape — a real TCE population the token hides), and its mirror.
+    if cls != "immune_hot" and float(prev) >= _HOT_PREVALENCE_DIVERGENCE:
+        return (
+            f"{line}. The median does NOT read hot yet a substantial MINORITY of patients does — a "
+            f"selectable TCE population the cohort-median token hides. Descriptive: this does NOT move "
+            f"`{cls}` (no pan-cancer prevalence distribution exists to gauge it against yet)"
+        )
+    if cls == "immune_hot" and float(prev) < 0.5:
+        return (
+            f"{line}. The cohort ranks hot on its MEDIAN while FEWER THAN HALF of individual patients clear "
+            f"the cut — read the hot token as a cohort rank, not as per-patient effector presence"
+        )
+    return line
+
+
+def _suppression_frame(h, c) -> str:
+    """Effector PRESENCE is only half a TCE-efficacy read: an inflamed-but-SUPPRESSED TME (Treg-high /
+    M2-high) is a different proposition from a bare hot call. Ratios OF MEDIANS, so the two medians are
+    printed beside them; NULL when the denominator median is at the LM22 noise floor (< 0.005) — an ABSENT
+    denominator, not a small one (GBM's median Treg of 0.0002 otherwise turned CD8:Treg into 176 in an
+    indication whose own class token says immune_cold)."""
+    s = c.get(_C_IMM) or {}
+    cls = s.get("immune_context_class")
+    if cls == _FRAME_INAPPLICABLE:
+        return "unmeasured — the cohort's leukocyte denominator is uninterpretable (see reference_frame)"
+    if not cls or cls == "data_unavailable":
+        return "unmeasured"
+    treg, m2 = s.get("cd8_treg_ratio"), s.get("cd8_m2_ratio")
+    parts = []
+    if treg is not None:
+        parts.append(f"CD8:Treg={treg} (median Treg {s.get('median_treg_fraction')})")
+    if m2 is not None:
+        parts.append(f"CD8:M2={m2} (median M2 {s.get('median_m2_macrophage_fraction')})")
+    if not parts:
+        return (
+            f"suppression unmeasurable for `{cls}`: BOTH suppressor medians (Treg "
+            f"{s.get('median_treg_fraction')}, M2 {s.get('median_m2_macrophage_fraction')}) sit at the LM22 "
+            f"noise floor, so the ratios ABSTAIN rather than divide by an absent denominator"
+        )
+    return (
+        f"suppression context for `{cls}`: " + "; ".join(parts) + ". Ratios OF MEDIANS within the same "
+        f"LM22 leukocyte compartment (recomputable from the medians printed beside them). DESCRIPTIVE and "
+        f"verdict-INERT — no pan-cancer distribution exists for these ratios yet, so a high suppressor load "
+        f"is REPORTED, never allowed to demote `{cls}`"
+    )
+
+
 def immune_context_claim_vector(headline: dict, cards: list) -> dict:
     vec = build_claim_vector(IMMUNE_CONTEXT_CLAIM_SPEC, headline, cards, _DISCLAIMER)
-    # A NON-ATOM scalar (no `signal` key) — chips skip it, `skill_report.claim_scalars` carries it onto
-    # the spine losslessly, so every consumer of the report sees the frame next to the class token.
-    vec["reference_frame"] = _reference_frame(headline, cards_by_id(cards))
+    # NON-ATOM scalars (no `signal` key) — chips skip them, `skill_report.claim_scalars` carries them onto
+    # the spine losslessly, so every consumer of the report sees the frames next to the class token.
+    _c = cards_by_id(cards)
+    vec["reference_frame"] = _reference_frame(headline, _c)
+    vec["heterogeneity_frame"] = _heterogeneity_frame(headline, _c)
+    vec["suppression_frame"] = _suppression_frame(headline, _c)
     return vec
 
 

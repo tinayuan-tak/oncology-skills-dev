@@ -62,10 +62,17 @@ _IMMUNE_VALUE_TIERS = {
     "immune_desert": "absent",
     "caf_subset_detected": "moderate",
     "caf_dominant": "moderate",
+    # NOT mapped here, and NOT an oversight: `lymphoid_denominator_unreliable` and `data_unavailable` are
+    # ABSTENTIONS, and this ladder has only strong/moderate/weak/absent — no abstention rung (see
+    # subgroup_derivation._TIERV). Both therefore fall to default_classify's heuristic, which returns
+    # `absent` — reading "we could not measure" as "no effectors". Mapping them to a presence tier here
+    # would only choose WHICH wrong answer to give; the fix is a 5th rung in the shared ladder, which is a
+    # fleet-wide change to subgroup_derivation.py (out of this branch's scope, filed). Verdict-INERT
+    # display path, so the cost today is a mis-tiered sub-group row, not a mis-scored spine.
 }
 
 SKILL_NAME = "immune-context"
-SKILL_VERSION = "1.8.0"  # 1.8.0 (2026-09-12): CARD-DATA RULER pass — the confidence ladder was VACUOUS and the modality read was off the spine. (F2) `_immune_corr` returned the CONSTANT "moderate" for every measured indication and the IMMUNE atom never carried a `conflict`, so headline_block/skill_report confidence was a CONSTANT — `strong`/`weak` UNREACHABLE and derive_confidence's conflict cap + coverage floor dead code (a discordant PRAD read exactly as confidently as a corroborated SKCM). Now an ORTHOGONAL-PLATFORM ruler: high=absolute H&E-DL TIL (Saltz) or SPATIAL co-localization AGREES -> strong; moderate=CIBERSORT alone; low=an orthogonal platform CONTRADICTS -> weak + a first-class `conflict`. (F4) spatial_immune_phenotype=excluded on a POSITIVE bulk read is now a CONTRADICTION (effectors in the leukocyte compartment but DEPLETED from the target-positive nest) and caps bite_tce at `conditional` (DEMOTE-ONLY; never promotes). (F1) `modality_scope` now on the skill_report SPINE, not only the legacy claim_record_shadow. (S2) new `reference_frame` claim SCALAR names the pan-cancer Q1/Q3 frame so the class token cannot be read as an absolute T-cell density. Three duplicate discordance-prose builders collapsed onto ONE `orthogonal_discordance_text` (claim conflict == key_signals caveat == headline top_tension, cannot drift). Verdict spine BYTE-STABLE (gateless; verdict still a direct read of immune_context_class) — confidence + modality_scope MOVE by design.   # 1.7.0 (2026-09-10): T0-4 — wire spatial-tumor-normal-colocalization (GeoMx/Xenium/CosMx) into the IMMUNE spine. VERDICT-INERT: adds spatial_immune_phenotype (inflamed / excluded / spatial_immune_indeterminate) — the spatial resolution of the inflamed-vs-excluded TCE call the bulk CD8 FRACTION structurally cannot make (the exact gap _spatial_localization_caveat concedes); the spatial bite_tce rules are NOT in _RULE_TO_VERDICT so the gateless immune_context_verdict spine stays byte-stable. data_unavailable outside the ~6 coloc-covered indication families (degrades honestly). Clean three-way inflamed/excluded/DESERT needs an absolute-adjacency desert threshold in the analysis-methods classifier (fast-follow).   # 1.6.1 (2026-09-04): VERDICT-INERT display follow-ups — Saltz median_number_of_clusters spatial-aggregation hint (clustered-vs-dispersed TIL, a first spatial proxy the CD8 FRACTION lacks) into immune_provenance; SURFACE the immune-context card's antigen-CONDITIONED join (antigen_conditioned_call / cd8_high_minus_low / antigen_high_immune_context_class — the ONLY target-dependent display fields; addresses the cohort-median heterogeneity blind spot = are the antigen-HIGH patients T-cell-POORER = effector escape) via _cf() defensive getter; data_unavailable when the join is thin. Verdict spine byte-stable. NOTE: the ici-response-imvigor210 display card MISSES a legacy-symbol target (NECTIN4->PVRL4 in the genentech eSet) — a data-product resolver gap, verdict-inert (filed, cross-repo).   # 1.6.0 (2026-09-04): --literature lane (make_literature_fn(IMMUNE_CONTEXT)) + VERDICT-INERT surfacing of the bulk-CD8-fraction annotation-INFLATION (immune_confirmation_caveat: a positive bulk CIBERSORT read resting on a RELATIVE/non-spatial/function-blind fraction w/o spatial or orthogonal-absolute-TIL confirmation — tiers bulk_fraction_til_discordant / bulk_fraction_spatially_unconfirmed / orthogonally_corroborated[false-demote guard]; spatial_localization_caveat inflamed-vs-excluded-vs-desert; immune_provenance quorum) + IMMUNE_CONTEXT thesis + polarity_note (was NONE). Spine byte-stable (gateless; verdict = direct read of immune_context_class).   # 1.4.0 (2026-08-28): + tcga-til-fraction-saltz (absolute H&E-DL TIL corroborator, VERDICT-INERT).   # 1.3.0: capsule-driven narrator via generic engine.   # 1.2.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.   # 1.1.0: + canonical HEADLINE block (verdict + confidence + top tension) &
+SKILL_VERSION = "1.9.0"  # 1.9.0 (2026-09-12): TWO invisible-surface gaps. (A) The card's SIX heterogeneity + suppression summary_fields (cd8_hot_sample_fraction, cd8_treg_ratio, cd8_m2_ratio, median_treg/m2/m1_macrophage_fraction) were emitted by the reader since card v1.2.0 and read by NOTHING downstream — not the headline, not the citable atom, not the synthesis facet. The mirror guard is structurally blind to this (it runs card-DECLARES -> reader-EMITS, so a field nothing CONSUMES is invisible), which is why it survived a full review. Now on the headline, the IMMUNE atom, the facet and immune_provenance, plus TWO new frame scalars: `heterogeneity_frame` gauges the cohort MEDIAN against the PREVALENCE of hot samples at the same cut (the bimodal-cohort blind spot: MSI-H CRC is ~15% strongly infiltrated and the pooled median reads intermediate, hiding the population a TCE would be developed FOR), and `suppression_frame` reports CD8:Treg / CD8:M2 (inflamed-but-SUPPRESSED != a bare hot call), abstaining when a suppressor median sits at the LM22 noise floor. Both DESCRIPTIVE and NON-GATING by design: 0.113/0.084 are the 33-study Q3/Q1 of the CD8 SHARE and no equivalent pan-cancer distribution exists for a prevalence or a suppressor ratio, so a cut here would be unanchored — derive one from the same 11,373-sample product first. (B) The FOURTH class token `lymphoid_denominator_unreliable` was declared + emitted with NO rule and NO entry here, so it fired nothing and fell through to a bare `insufficient` INDISTINGUISHABLE from "no cohort" — collapsing "there IS a cohort and its reference frame does not apply" onto the generic abstention on TCE-VALIDATED indications (glofitamab/mosunetuzumab in DLBCL). Now a first-class verdict (TC rule immune-context-lymphoid-denominator-uninterpretable, bite_tce NEUTRAL): own phrase, NEUTRAL polarity (never red — an absent MEASUREMENT is not measured effector absence), `unmeasured` signal, its own reference_frame line instead of the bare sentinel, a severity-2 top_tension, and modality_scope SILENT (na). Verdict spine MOVES for lymphoid indications only, by design (AM #610 made those indications resolvable at all); byte-stable everywhere else.   # 1.8.0 (2026-09-12): CARD-DATA RULER pass — the confidence ladder was VACUOUS and the modality read was off the spine. (F2) `_immune_corr` returned the CONSTANT "moderate" for every measured indication and the IMMUNE atom never carried a `conflict`, so headline_block/skill_report confidence was a CONSTANT — `strong`/`weak` UNREACHABLE and derive_confidence's conflict cap + coverage floor dead code (a discordant PRAD read exactly as confidently as a corroborated SKCM). Now an ORTHOGONAL-PLATFORM ruler: high=absolute H&E-DL TIL (Saltz) or SPATIAL co-localization AGREES -> strong; moderate=CIBERSORT alone; low=an orthogonal platform CONTRADICTS -> weak + a first-class `conflict`. (F4) spatial_immune_phenotype=excluded on a POSITIVE bulk read is now a CONTRADICTION (effectors in the leukocyte compartment but DEPLETED from the target-positive nest) and caps bite_tce at `conditional` (DEMOTE-ONLY; never promotes). (F1) `modality_scope` now on the skill_report SPINE, not only the legacy claim_record_shadow. (S2) new `reference_frame` claim SCALAR names the pan-cancer Q1/Q3 frame so the class token cannot be read as an absolute T-cell density. Three duplicate discordance-prose builders collapsed onto ONE `orthogonal_discordance_text` (claim conflict == key_signals caveat == headline top_tension, cannot drift). Verdict spine BYTE-STABLE (gateless; verdict still a direct read of immune_context_class) — confidence + modality_scope MOVE by design.   # 1.7.0 (2026-09-10): T0-4 — wire spatial-tumor-normal-colocalization (GeoMx/Xenium/CosMx) into the IMMUNE spine. VERDICT-INERT: adds spatial_immune_phenotype (inflamed / excluded / spatial_immune_indeterminate) — the spatial resolution of the inflamed-vs-excluded TCE call the bulk CD8 FRACTION structurally cannot make (the exact gap _spatial_localization_caveat concedes); the spatial bite_tce rules are NOT in _RULE_TO_VERDICT so the gateless immune_context_verdict spine stays byte-stable. data_unavailable outside the ~6 coloc-covered indication families (degrades honestly). Clean three-way inflamed/excluded/DESERT needs an absolute-adjacency desert threshold in the analysis-methods classifier (fast-follow).   # 1.6.1 (2026-09-04): VERDICT-INERT display follow-ups — Saltz median_number_of_clusters spatial-aggregation hint (clustered-vs-dispersed TIL, a first spatial proxy the CD8 FRACTION lacks) into immune_provenance; SURFACE the immune-context card's antigen-CONDITIONED join (antigen_conditioned_call / cd8_high_minus_low / antigen_high_immune_context_class — the ONLY target-dependent display fields; addresses the cohort-median heterogeneity blind spot = are the antigen-HIGH patients T-cell-POORER = effector escape) via _cf() defensive getter; data_unavailable when the join is thin. Verdict spine byte-stable. NOTE: the ici-response-imvigor210 display card MISSES a legacy-symbol target (NECTIN4->PVRL4 in the genentech eSet) — a data-product resolver gap, verdict-inert (filed, cross-repo).   # 1.6.0 (2026-09-04): --literature lane (make_literature_fn(IMMUNE_CONTEXT)) + VERDICT-INERT surfacing of the bulk-CD8-fraction annotation-INFLATION (immune_confirmation_caveat: a positive bulk CIBERSORT read resting on a RELATIVE/non-spatial/function-blind fraction w/o spatial or orthogonal-absolute-TIL confirmation — tiers bulk_fraction_til_discordant / bulk_fraction_spatially_unconfirmed / orthogonally_corroborated[false-demote guard]; spatial_localization_caveat inflamed-vs-excluded-vs-desert; immune_provenance quorum) + IMMUNE_CONTEXT thesis + polarity_note (was NONE). Spine byte-stable (gateless; verdict = direct read of immune_context_class).   # 1.4.0 (2026-08-28): + tcga-til-fraction-saltz (absolute H&E-DL TIL corroborator, VERDICT-INERT).   # 1.3.0: capsule-driven narrator via generic engine.   # 1.2.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.   # 1.1.0: + canonical HEADLINE block (verdict + confidence + top tension) &
 # headline hero — a verdict-INERT projection over the effector-context
 # claim_vector / key_signals. Spine byte-stable (gateless; verdict unchanged).
 
@@ -100,10 +107,19 @@ QUESTION = (
 # this skill's effector-context verdict. The skill's verdict IS the immune-context class, resolved from
 # the FIRED rule (the standard framework pattern — the categorical drives a rule, the rule drives the
 # verdict), so the signal is also visible to any downstream composer, not just this skill.
+#
+# The FOURTH token (2026-09-12). `lymphoid_denominator_unreliable` was declared on the card and emitted by
+# the reader while NO rule read it and this map did not carry it — so it arrived here, fired nothing, and
+# fell through to a bare `insufficient` INDISTINGUISHABLE from "no CIBERSORT cohort". That collapsed the
+# specific, useful answer ("there IS a cohort and its reference frame does not apply") onto the generic
+# one, on TCE-VALIDATED indications (glofitamab / mosunetuzumab in DLBCL) where the distinction is the
+# whole point. The rule now exists (target-contracts surface-intrinsic.rules.yaml, bite_tce: NEUTRAL) and
+# the verdict is its own token, so every downstream consumer can tell the two abstentions apart.
 _RULE_TO_VERDICT = {
     "immune-context-hot-tce-supportive": "immune_hot",
     "immune-context-intermediate-tce-neutral": "immune_intermediate",
     "immune-context-cold-tce-opposing": "immune_cold",
+    "immune-context-lymphoid-denominator-uninterpretable": "lymphoid_denominator_unreliable",
 }
 
 
@@ -140,11 +156,18 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
 #   * immune_hot   → CD8 effector context present → TCE-favourable → "positive" (blue);
 #   * immune_cold  → MEASURED effector absence → a TCE-efficacy RISK (NOT a target veto; CIBERSORT is a
 #                    relative, non-spatial screen) → "negative" (red);
-#   * immune_intermediate + coverage gaps (insufficient / no cohort) → "neutral" (grey).
+#   * immune_intermediate + coverage gaps (insufficient / no cohort / uninterpretable denominator) →
+#     "neutral" (grey). The lymphoid token is EMPHATICALLY not "negative": it is an absent MEASUREMENT,
+#     and a red badge would read as measured effector absence in the malignancies where TCEs work.
 _IMMUNE_VERDICT_PHRASE = {
     "immune_hot": "Immune-hot — CD8 effector context present (TCE-favourable)",
     "immune_intermediate": "Immune-intermediate — partial effector context",
     "immune_cold": "Immune-cold — effector absence (TCE-efficacy risk)",
+    # NOT "insufficient": the cohort EXISTS, its leukocyte denominator is the malignant clone. Phrased so a
+    # reader can tell this apart from the no-cohort abstention below at a glance.
+    "lymphoid_denominator_unreliable": (
+        "Not interpretable — the cohort's leukocyte denominator IS the malignancy (no effector read)"
+    ),
     "insufficient": "Insufficient — no CIBERSORT cohort for this indication",
 }
 
@@ -182,6 +205,22 @@ def _immune_tension_extra(headline: dict):
     discord = _til_discordance_text(headline)
     if discord:
         return {"text": discord, "source": "til_cibersort_agreement", "severity": 3}
+    # The DENOMINATOR tension, ahead of the immune_cold one: on a lymphoid cohort the immune_cold branch
+    # can never fire (the class is withheld), and a silent top_tension here would let the neutral badge read
+    # as "nothing notable" when the notable thing is that the axis cannot speak at all.
+    if headline.get("immune_context_verdict") == "lymphoid_denominator_unreliable":
+        return {
+            "text": (
+                "the CIBERSORT cohort EXISTS but its LEUKOCYTE denominator is the malignant clone "
+                "(leukaemia / lymphoma / lymphoid organ), so a CD8 SHARE of that compartment is "
+                "arithmetically valid and biologically uninterpretable — the median is WITHHELD. This is an "
+                "absent MEASUREMENT, not a measured effector absence: read NO TCE-efficacy risk from it "
+                "(TCEs are the validated modality in these indications). An absolute or spatial effector "
+                "read is the way in, not bulk leukocyte deconvolution."
+            ),
+            "source": "immune_context_class",
+            "severity": 2,
+        }
     if headline.get("immune_context_verdict") == "immune_cold":
         return {
             "text": (
@@ -437,6 +476,28 @@ def _immune_provenance(headline: dict) -> dict:
             "cd8_high_minus_low": headline.get("cd8_high_minus_low"),  # negative => antigen-high patients T-cell-POORER
             "antigen_high_immune_context_class": headline.get("antigen_high_immune_context_class"),
         },
+        # the TARGET-INDEPENDENT half of the same heterogeneity question, and the one that needs no join:
+        # what fraction of patients in this cohort actually clear the hot cut the MEDIAN was scored against?
+        # (the antigen-conditioned block above degrades to data_unavailable on a thin barcode<->UUID join;
+        # this one is always available where the class is.) Plus the SUPPRESSION load a bare hot call ignores.
+        "cohort_heterogeneity": {
+            "cd8_hot_sample_fraction": headline.get("cd8_hot_sample_fraction"),
+            "frame": (headline.get("claim_vector") or {}).get("heterogeneity_frame"),
+        },
+        "suppression": {
+            "cd8_treg_ratio": headline.get("cd8_treg_ratio"),
+            "cd8_m2_ratio": headline.get("cd8_m2_ratio"),
+            "median_treg_fraction": headline.get("median_treg_fraction"),
+            "median_m2_macrophage_fraction": headline.get("median_m2_macrophage_fraction"),
+            "median_m1_macrophage_fraction": headline.get("median_m1_macrophage_fraction"),
+            "frame": (headline.get("claim_vector") or {}).get("suppression_frame"),
+            # DESCRIPTIVE ONLY, and this is a deliberate scope limit, not an oversight: 0.113/0.084 are the
+            # 33-study Q3/Q1 of the CD8 SHARE, and no equivalent pan-cancer distribution has been derived
+            # for a hot-sample PREVALENCE or a CD8:suppressor ratio. A demote cut here would be an
+            # unanchored number wearing a threshold's clothes. Derive it from the same 11,373-sample
+            # product before anything is allowed to gate on these.
+            "gating": "none — no pan-cancer distribution derived for these ratios yet",
+        },
         "confirmed_tumor_nest_infiltration": False,  # NEVER confirmed by bulk deconvolution alone
         "note": (
             "A bulk CIBERSORT CD8 fraction is RELATIVE, non-spatial and function-blind; a positive read "
@@ -458,6 +519,17 @@ def _headline(cards, fired, verdict_pair):
         "median_total_t_cell_fraction": get_card_field(cards, "immune-context", "median_total_t_cell_fraction"),
         "n_samples": get_card_field(cards, "immune-context", "n_samples"),
         "tumor_studies": get_card_field(cards, "immune-context", "tumor_studies"),
+        # HETEROGENEITY + SUPPRESSION (2026-09-12). The card has emitted these six since v1.2.0 and NOTHING
+        # downstream read them — not the headline, not the atom, not the facet. The mirror guard cannot catch
+        # that: it runs card-DECLARES -> reader-EMITS, so a field the reader emits and no consumer consumes
+        # is invisible to it. `_cf` (not the strict getter) because a pre-1.2.0 card must degrade to None.
+        # Verdict-INERT: they feed the two new frame scalars and the provenance block, never the verdict.
+        "cd8_hot_sample_fraction": _cf(cards, "immune-context", "cd8_hot_sample_fraction"),
+        "cd8_treg_ratio": _cf(cards, "immune-context", "cd8_treg_ratio"),
+        "cd8_m2_ratio": _cf(cards, "immune-context", "cd8_m2_ratio"),
+        "median_treg_fraction": _cf(cards, "immune-context", "median_treg_fraction"),
+        "median_m2_macrophage_fraction": _cf(cards, "immune-context", "median_m2_macrophage_fraction"),
+        "median_m1_macrophage_fraction": _cf(cards, "immune-context", "median_m1_macrophage_fraction"),
         # Saltz H&E-DL absolute TIL corroborator (2026-08-28) — VERDICT-INERT. An orthogonal (morphology,
         # not RNA-deconvolution) TIL read on the SAME TCGA participants; til_cibersort_agreement HARDENS
         # confidence in the CD8 hot/cold call (never creates/overrides it).
@@ -572,6 +644,16 @@ _SYNTHESIS_FACET_KEYS = (
     "antigen_conditioned_call",
     "cd8_high_minus_low",
     "antigen_high_immune_context_class",
+    # v1.9.0 (VERDICT-INERT): the card's HETEROGENEITY + SUPPRESSION fields, which no consumer read before.
+    # cd8_hot_sample_fraction is the target-INDEPENDENT half of the cohort-median blind spot (no barcode
+    # join needed, so it is available wherever the class is); the ratios say whether a hot cohort is also a
+    # SUPPRESSED one. Their gauged prose rides claim_vector.{heterogeneity,suppression}_frame.
+    "cd8_hot_sample_fraction",
+    "cd8_treg_ratio",
+    "cd8_m2_ratio",
+    "median_treg_fraction",
+    "median_m2_macrophage_fraction",
+    "median_m1_macrophage_fraction",
     # VERDICT-INERT bulk-CD8-fraction annotation-INFLATION surface (bulk fraction != spatial localization
     # != CD8 function) — the surface_confirmation_caveat / mechanism_confirmation_caveat analog.
     "immune_confirmation_caveat",
@@ -618,7 +700,11 @@ _IMMUNE_TCE_FIT = {  # immune verdict → bite_tce favorability (modality_fit vo
     "immune_intermediate": "conditional",  # partial effector context
     "immune_cold": "conditional",  # effector absence = TCE-EFFICACY RISK, but NOT a veto
     # (CIBERSORT is a relative, non-spatial screen) → caveat, not kill
-}  # insufficient / no cohort → silent (na)
+    # DELIBERATELY ABSENT: `lymphoid_denominator_unreliable`. An uninterpretable denominator must contribute
+    # NOTHING to the bite_tce channel — silence (na), exactly like the no-cohort case. Both a `conditional`
+    # and an `unfavorable` here would be this skill asserting a TCE read it has explicitly disclaimed, in
+    # precisely the indications where TCEs are the validated modality. Matches the rule's bite_tce: neutral.
+}  # insufficient / no cohort / uninterpretable denominator → silent (na)
 
 
 def _immune_modality_scope(verdict: "str | None", orthogonal: "dict | None" = None) -> "dict | None":

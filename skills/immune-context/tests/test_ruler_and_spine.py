@@ -221,3 +221,162 @@ def test_reference_frame_ruler_names_the_pan_cancer_percentile():
 def test_reference_frame_is_not_an_atom_and_does_not_become_a_chip():
     hl = _headline([_imm("immune_hot", 0.1312)], _HOT_RULE)
     assert [c["key"] for c in hl["skill_report"]["claim_chips"]] == ["IMMUNE"]
+
+
+# ── v1.9.0: the SIX previously-invisible card fields ──────────────────────────────────────────────
+# The bug: the card declared and the reader emitted these six since card v1.2.0, and NO consumer read
+# them. The mirror guard (test_card_output_emission.py) runs card-DECLARES -> reader-EMITS, so a field the
+# reader emits and nothing consumes is structurally invisible to it — which is why a full review missed it.
+_SIX_CARD_FIELDS = (
+    "cd8_hot_sample_fraction",
+    "cd8_treg_ratio",
+    "cd8_m2_ratio",
+    "median_treg_fraction",
+    "median_m2_macrophage_fraction",
+    "median_m1_macrophage_fraction",
+)
+
+
+def _imm_full(cls, cd8, *, hot_frac=0.31, treg=6.4, m2=1.9, treg_med=0.024, m2_med=0.081, m1_med=0.012):
+    card = _imm(cls, cd8)
+    card["summary"].update(
+        {
+            "cd8_hot_sample_fraction": hot_frac,
+            "cd8_treg_ratio": treg,
+            "cd8_m2_ratio": m2,
+            "median_treg_fraction": treg_med,
+            "median_m2_macrophage_fraction": m2_med,
+            "median_m1_macrophage_fraction": m1_med,
+        }
+    )
+    return card
+
+
+@pytest.mark.parametrize("field", _SIX_CARD_FIELDS)
+def test_every_emitted_card_field_reaches_a_consumer(field):
+    """Each of the six must land on the headline AND on the citable claim atom. A field on the card that
+    no consumer reads is data the framework paid to compute and then threw away."""
+    hl = _headline([_imm_full("immune_intermediate", 0.0981)], _INT_RULE)
+    assert hl.get(field) is not None, f"{field} never reaches the headline"
+    atom = hl["claim_vector"]["IMMUNE"]["evidence_atom"]
+    assert field in atom["values"], f"{field} is not on the citable atom"
+    assert field in atom["cite"]["fields"], f"{field} is on the atom but not CITABLE"
+    assert field in ic._SYNTHESIS_FACET_KEYS, f"{field} is absent from the composed synthesis facet"
+
+
+def test_heterogeneity_frame_names_the_hot_minority_the_median_hides():
+    """The MSI-H CRC shape and the reason this field exists: the pooled median reads intermediate while a
+    substantial minority of patients clears the hot cut — the population a TCE would be developed FOR."""
+    hl = _headline([_imm_full("immune_intermediate", 0.0981, hot_frac=0.31)], _INT_RULE)
+    frame = hl["skill_report"]["claim_scalars"]["heterogeneity_frame"]
+    assert "31.0%" in frame  # prevalence, stated as a percentage of samples
+    assert "0.113" in frame  # gauged against the SAME cut that produced the class
+    assert "MINORITY" in frame
+    assert "does NOT move" in frame  # the non-gating promise, in the text the reader sees
+
+
+def test_heterogeneity_frame_flags_a_hot_cohort_most_patients_do_not_clear():
+    hl = _headline([_imm_full("immune_hot", 0.154, hot_frac=0.42)], _HOT_RULE)
+    frame = hl["skill_report"]["claim_scalars"]["heterogeneity_frame"]
+    assert "FEWER THAN HALF" in frame
+
+
+def test_suppression_frame_abstains_at_the_lm22_noise_floor_rather_than_dividing():
+    """The GBM shape: a suppressor median at the noise floor (0.0002) is an ABSENT denominator, not a small
+    one. The reader nulls the ratio; the frame must say so and NOT invent a suppression read."""
+    hl = _headline(
+        [_imm_full("immune_cold", 0.052, treg=None, m2=None, treg_med=0.0002, m2_med=0.0009)],
+        _COLD_RULE,
+    )
+    frame = hl["skill_report"]["claim_scalars"]["suppression_frame"]
+    assert "noise floor" in frame and "ABSTAIN" in frame
+    assert "176" not in frame  # the number the un-floored ratio would have produced
+
+
+def test_suppression_frame_reports_but_never_demotes():
+    """Non-gating is the whole scope of this PR: no pan-cancer distribution exists for these ratios, so a
+    high suppressor load is REPORTED and the verdict + bite_tce channel are untouched."""
+    heavy = _headline([_imm_full("immune_hot", 0.154, treg=1.2, m2=0.4)], _HOT_RULE)
+    light = _headline([_imm_full("immune_hot", 0.154, treg=13.8, m2=6.0)], _HOT_RULE)
+    assert "CD8:Treg=1.2" in heavy["skill_report"]["claim_scalars"]["suppression_frame"]
+    assert heavy["immune_context_verdict"] == light["immune_context_verdict"] == "immune_hot"
+    assert heavy["skill_report"]["modality_scope"] == light["skill_report"]["modality_scope"]
+    assert heavy["headline_block"]["confidence"]["level"] == light["headline_block"]["confidence"]["level"]
+
+
+def test_the_new_frames_are_scalars_not_chips():
+    hl = _headline([_imm_full("immune_hot", 0.154)], _HOT_RULE)
+    assert [c["key"] for c in hl["skill_report"]["claim_chips"]] == ["IMMUNE"]
+    for k in ("reference_frame", "heterogeneity_frame", "suppression_frame"):
+        assert isinstance(hl["skill_report"]["claim_scalars"][k], str)
+
+
+# ── v1.9.0: the FOURTH class token ────────────────────────────────────────────────────────────────
+_LYMPHOID_RULE = [{"rule_id": "immune-context-lymphoid-denominator-uninterpretable"}]
+
+
+def _lymphoid_card():
+    """What the reader actually emits for DLBC/LAML/THYM: the class token, the median WITHHELD."""
+    return {
+        "card_id": "immune-context",
+        "summary": {
+            "immune_context_class": "lymphoid_denominator_unreliable",
+            "median_cd8_fraction": None,
+            "median_total_t_cell_fraction": None,
+            "n_samples": 48,
+            "tumor_studies": ["DLBC"],
+        },
+    }
+
+
+def test_the_lymphoid_token_is_its_own_verdict_not_a_bare_insufficient():
+    """The bug: with no rule and no _RULE_TO_VERDICT entry the token fired nothing and fell through to
+    `insufficient` — INDISTINGUISHABLE from "no cohort". The whole value of the token is that distinction."""
+    hl = _headline([_lymphoid_card()], _LYMPHOID_RULE)
+    assert hl["immune_context_verdict"] == "lymphoid_denominator_unreliable"
+    assert hl["driving_rule_id"] == "immune-context-lymphoid-denominator-uninterpretable"
+    no_cohort = _headline([_imm("data_unavailable", None)], [])
+    assert hl["immune_context_verdict"] != no_cohort["immune_context_verdict"]
+    assert hl["headline_block"]["verdict"]["phrase"] != no_cohort["headline_block"]["verdict"]["phrase"]
+
+
+def test_the_lymphoid_token_is_never_read_as_measured_effector_absence():
+    """An uninterpretable DENOMINATOR is an absent MEASUREMENT. Reading it as effector absence would
+    manufacture a TCE-efficacy risk in exactly the malignancies where TCEs are the validated modality
+    (glofitamab / mosunetuzumab in DLBCL) — so: `unmeasured` not `absent`, neutral badge not red, and NO
+    contribution to the bite_tce channel (matching the rule's own bite_tce: neutral)."""
+    hl = _headline([_lymphoid_card()], _LYMPHOID_RULE)
+    assert hl["claim_vector"]["IMMUNE"]["signal"] == "unmeasured"
+    assert hl["headline_block"]["verdict"]["polarity"] == "neutral"
+    assert hl["skill_report"]["modality_scope"] is None
+    cold = _headline([_imm("immune_cold", 0.052)], _COLD_RULE)
+    assert cold["skill_report"]["modality_scope"] is not None  # the non-vacuity partner: cold DOES speak
+
+
+def test_the_lymphoid_frame_says_why_instead_of_the_bare_unmeasured_sentinel():
+    """`data_unavailable` -> "unmeasured" (no cohort). The lymphoid token -> a cohort EXISTS and its frame
+    does not apply. Collapsing the second onto the first here would discard, at the last surface, exactly
+    the distinction the card vocabulary and the rule both went to the trouble of preserving."""
+    scalars = _headline([_lymphoid_card()], _LYMPHOID_RULE)["skill_report"]["claim_scalars"]
+    frame = scalars["reference_frame"]
+    assert frame != "unmeasured"
+    assert "DOES NOT APPLY" in frame and "WITHHELD" in frame
+    assert "absent MEASUREMENT" in frame
+    for k in ("heterogeneity_frame", "suppression_frame"):
+        assert "uninterpretable" in scalars[k], f"{k} must not gauge a withheld median"
+
+
+def test_the_lymphoid_verdict_raises_a_tension_rather_than_reading_as_nothing_notable():
+    """A neutral badge with a silent top_tension reads as "nothing notable" when the notable thing is that
+    the axis cannot speak at all. The immune_cold branch can never fire here (the class is withheld)."""
+    tension = _headline([_lymphoid_card()], _LYMPHOID_RULE)["headline_block"]["top_tension"]
+    assert tension and "uninterpretable" in tension["text"]
+    assert "not a measured effector absence" in tension["text"]
+
+
+def test_the_lymphoid_verdict_leaves_the_positive_read_caveats_silent():
+    """The bulk-inflation and spatial-localization caveats argue about a POSITIVE bulk read. On a withheld
+    median they must stay None rather than reason about a number that does not exist."""
+    hl = _headline([_lymphoid_card()], _LYMPHOID_RULE)
+    assert hl["immune_confirmation_caveat"] is None
+    assert hl["spatial_localization_caveat"] is None
