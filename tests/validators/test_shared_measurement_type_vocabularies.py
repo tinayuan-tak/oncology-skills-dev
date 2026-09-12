@@ -7,7 +7,8 @@ the first interpretation rule for the field: they pick one spelling, it matches 
 permanently dead on the other. A dead `equals:` that looks authored is the worst failure shape in the
 corpus, because it reads as coverage.
 
-Found `ici_response_expression :: ici_response_class` (no_ici_association vs no_association).
+Found `ici_response_expression :: ici_response_class` (no_ici_association vs no_association), now FIXED
+at the source — see `test_the_ici_response_null_class_is_spelled_one_way_across_both_cards`.
 
 Hermetic: every behavioural test builds its own two-card directory, so nothing here depends on the live
 corpus. `test_live_corpus_has_no_unannotated_divergence` is the ONE deliberate live-corpus test — it is
@@ -144,6 +145,27 @@ def test_live_corpus_has_no_unannotated_divergence():
     problems = VC.validate_shared_measurement_type_vocabularies(REPO / "cards")
     errors = [p for p in problems if p.startswith("[ERROR]")]
     assert not errors, "unannotated shared-measurement_type vocabulary divergence:\n" + "\n".join(errors)
+
+
+def test_the_ici_response_null_class_is_spelled_one_way_across_both_cards():
+    """The divergence that motivated this whole check, pinned by NAME so its fix cannot silently regress.
+
+    The live ratchet above would also catch a re-divergence, but only as an anonymous ERROR. This says
+    which tokens are correct: `no_ici_association` on BOTH cards, and `no_association` on NEITHER. The
+    R derive script for imvigor210-ici-response-per-gene-v1 still emits `no_association` — the alignment
+    lives in the reader's alias fold (analysis-methods methods/imvigor210_ici_response/read.py), so a
+    future reader rewrite that drops the fold must fail here rather than quietly re-splitting the
+    vocabulary."""
+    vocabs = {}
+    for cid in ("ici-response-association", "ici-response-imvigor210"):
+        doc = yaml.safe_load((REPO / "cards" / f"{cid}.card.yaml").read_text())
+        assert doc["measurement_type"] == "ici_response_expression", cid
+        vocabs[cid] = set((doc["outputs"]["summary_fields_vocabulary"])["ici_response_class"])
+    a, b = vocabs.values()
+    assert a == b, vocabs
+    for cid, v in vocabs.items():
+        assert "no_ici_association" in v, cid
+        assert "no_association" not in v, f"{cid} re-introduced the diverging spelling"
 
 
 def test_the_live_check_is_not_vacuous():

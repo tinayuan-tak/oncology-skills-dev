@@ -23,7 +23,9 @@
 #   data_unavailable    → indication not in CIBERSORT / no TCGA study (abstain, never a false 'cold')
 
 card_id: immune-context
-version: 1.1.0   # 2026-09-12: applies_when +CESC +PDAC (was 21 of the method's 23 keys);
+version: 1.2.0   # 2026-09-13: declare the 6 heterogeneity + suppression summary_fields the reader now
+                 # emits (cd8_hot_sample_fraction, the 2 CD8:suppressor ratios, the 3 medians).
+                 # 1.1.0 — 2026-09-12: applies_when +CESC +PDAC (was 21 of the method's 23 keys);
                  # immune_context_class + lymphoid_denominator_unreliable; rank + denominator caveats.
 question: "For {indication.label}, is the tumor immune-hot or immune-cold — is there a CD8 T-cell effector population present for a T-cell engager to redirect?"
 
@@ -66,6 +68,23 @@ outputs:
     - median_total_t_cell_fraction               # median summed T-cell (CD8+CD4+Treg+gd) fraction
     - n_samples                                  # CIBERSORT samples in the indication's TCGA study/studies
     - tumor_studies                              # TCGA study code(s) pooled
+    # --- HETEROGENEITY. The cohort MEDIAN is a poor summary of a BIMODAL cohort: MSI-H colorectal
+    #     (~15% of CRC) is strongly infiltrated and the other 85% is not, so the pooled median reads
+    #     immune_intermediate and the patient population a TCE would actually be developed for is
+    #     invisible. Same threshold as the class, read as PREVALENCE instead of central tendency. ---
+    - cd8_hot_sample_fraction                    # fraction of SAMPLES at/above the hot cut (pan-cancer Q3)
+    # --- SUPPRESSION. Effector PRESENCE is only half a TCE-efficacy read: an inflamed-but-SUPPRESSED
+    #     TME (Treg-high / M2-high) is a different proposition from a bare hot call. Ratios OF MEDIANS,
+    #     so a reader can recompute them from the two medians printed beside them. NULL when the
+    #     denominator median is at the LM22 noise floor (< 0.005 of the leukocyte compartment) — an
+    #     absent denominator, not a small one: GBM's median Treg of 0.0002 otherwise turned CD8:Treg
+    #     into 176 in an indication whose own class token says immune_cold. Additive and verdict-INERT:
+    #     these never move immune_context_class. ---
+    - cd8_treg_ratio                             # median CD8 / median Treg fraction (null below the floor)
+    - cd8_m2_ratio                               # median CD8 / median M2-macrophage fraction (null below the floor)
+    - median_treg_fraction                       # so the reader can see WHY a ratio abstained
+    - median_m2_macrophage_fraction
+    - median_m1_macrophage_fraction              # M1 for the M1:M2 polarization read the two medians allow
     # --- antigen-CONDITIONED facet (SHIPPED, skills v1.6.1): are the ANTIGEN-HIGH patients also
     #     T-cell-high? Additive per-target facet; does NOT drive the primary immune_context_class
     #     (per-indication) call. ---

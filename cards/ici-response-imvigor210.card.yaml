@@ -10,7 +10,8 @@
 # UROTHELIAL scope only → a non-urothelial query resolves data_unavailable (honest scope ceiling).
 
 card_id: ici-response-imvigor210
-version: 1.0.0
+version: 1.1.0   # 2026-09-13: null class aligned to `no_ici_association` (one measurement_type, one
+                 # vocabulary — the reader now folds the product token); + indication_scope.
 # interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
 interpretation: rules_pending
 question: "In IMvigor210 (atezolizumab, metastatic urothelial), is baseline {target.symbol} expression higher in anti-PD-L1 RESPONDERS than non-responders, and in which desert/excluded/inflamed immune phenotype is it enriched?"
@@ -47,22 +48,27 @@ outputs:
     - mean_logcpm_excluded
     - mean_logcpm_inflamed
     - ici_response_context               # narrative (audit)
+    # `indication` echoes what was ASKED; `indication_scope` names what the PRODUCT covers (BLCA). The
+    # two are declared separately because collapsing them is how a scoped product's answer gets
+    # relabelled as the caller's indication — the reader emits both since 2026-09-13.
+    - indication_scope                   # BLCA — IMvigor210 is metastatic urothelial only
     - method_version
 
   summary_fields_vocabulary:
     ici_response_class:
       - higher_in_responders             # baseline expression higher in atezolizumab responders (BH-q<=0.1)
       - higher_in_nonresponders          # higher in non-responders
-      # VOCABULARY DIVERGENCE (filed): the sibling `ici-response-association` card shares this
-      # measurement_type and this field but spells the null class `no_ici_association`. Both cards are
-      # individually HONEST — this token is minted by the R derive script for
-      # imvigor210-ici-response-per-gene-v1 and read through verbatim, while the melanoma reader mints
-      # `no_ici_association` in Python. No interpretation rule keys on either token today, so nothing
-      # mis-fires yet; the trap is that the next rule author picks one spelling and silently never
-      # matches the other card. Durable fix = an alias-fold in the imvigor210 reader
-      # (analysis-methods) so one measurement_type has one vocabulary, then this token becomes
-      # `no_ici_association` here. Allowlisted meanwhile in validators/validate_cards.py.
-      - no_association                   # no significant directional difference
+      # VOCABULARY DIVERGENCE RESOLVED (2026-09-13). This card used to spell the null class
+      # `no_association` while the sibling `ici-response-association` card — same measurement_type, same
+      # field — spelled it `no_ici_association`. Both were individually honest: this token is minted by
+      # the R derive script for imvigor210-ici-response-per-gene-v1 and was read through verbatim, while
+      # the melanoma reader mints `no_ici_association` in Python. The trap was that the first rule author
+      # to key on the field would pick one spelling and be permanently dead on the other card. The
+      # durable fix landed in the reader (analysis-methods, methods/imvigor210_ici_response/read.py
+      # `_CLASS_ALIASES`), which now folds the product's `no_association` onto the canonical token at the
+      # framework boundary — verified live on NECTIN4/BLCA. One measurement_type, one vocabulary; the
+      # allowlist entry in validators/validate_cards.py is deleted.
+      - no_ici_association               # no significant directional difference
       - data_unavailable                 # non-urothelial indication, no product, or gene absent
     immune_phenotype_enriched_in:
       - desert

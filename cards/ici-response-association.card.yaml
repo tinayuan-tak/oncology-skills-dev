@@ -16,7 +16,8 @@
 #   data_unavailable.
 
 card_id: ici-response-association
-version: 0.1.0
+version: 0.2.0   # 2026-09-13: `indication` is the indication ASKED, not the product's hardcoded scope;
+                 # + indication_scope.
 # interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
 interpretation: rules_pending
 question: "Is baseline {target.symbol} expression higher in melanoma patients who RESPONDED to an anti-PD-1 immune-checkpoint inhibitor than in non-responders (open-GEO cohorts + cross-cohort Stouffer rollup)?"
@@ -52,7 +53,12 @@ outputs:
     - min_mannwhitney_p              # smallest per-cohort Mann-Whitney p
     - cohorts                        # list<str> — contributing per-cohort ids
     - ici_agents                     # list<str> — the anti-PD-1 agents (nivolumab / pembrolizumab)
-    - indication                     # SKCM (product scope)
+    # `indication` used to be a hardcoded "SKCM" — i.e. the PRODUCT's scope wearing the caller's field
+    # name, so a non-melanoma query got a melanoma answer labelled as its own indication. Since
+    # 2026-09-13 the reader echoes what was ASKED here and names what the product COVERS separately (and
+    # its scope gate is fail-CLOSED, so a non-melanoma indication resolves data_unavailable).
+    - indication                     # the indication ASKED (echoed back)
+    - indication_scope               # SKCM — what the melanoma ICI product actually covers
     - product_id                     # provenance
 
   summary_fields_vocabulary:

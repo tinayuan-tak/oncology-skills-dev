@@ -1349,15 +1349,13 @@ _VOCABULARY_DIVERGENCE_ALLOWED = {
         "graded core (adequate_proxy / partial_proxy / poor_proxy / data_unavailable) IS shared, and "
         "collapsing the reasons would lose which pairing was missing."
     ),
-    ("ici_response_expression", "ici_response_class"): (
-        "TRANSITIONAL (filed 2026-09-12): the null class is `no_ici_association` on "
-        "ici-response-association (minted in Python by methods/ici_response) and `no_association` on "
-        "ici-response-imvigor210 (minted by the R derive script for "
-        "imvigor210-ici-response-per-gene-v1 and read through verbatim). Each card honestly declares "
-        "its own product, so neither can be edited alone. Durable fix = an alias-fold in the "
-        "imvigor210 reader (analysis-methods), then align the token here and DELETE this entry. No "
-        "interpretation rule keys on either token today, so nothing mis-fires yet."
-    ),
+    # ("ici_response_expression", "ici_response_class") was the SECOND entry and is DELETED (2026-09-13):
+    # the durable fix shipped rather than the annotation being renewed. methods/imvigor210_ici_response
+    # now folds the R derive script's `no_association` onto the canonical `no_ici_association` at the
+    # framework boundary (verified live on NECTIN4/BLCA), and ici-response-imvigor210 v1.1.0 declares the
+    # aligned token — so the two cards under ici_response_expression once again share one vocabulary and
+    # the check passes for the RIGHT reason. Kept as a comment because the deletion is the point: an
+    # allowlist entry is a debt, and this is what paying it looks like.
 }
 
 
@@ -1374,7 +1372,8 @@ def validate_shared_measurement_type_vocabularies(cards_dir: Path) -> list[str]:
     the corpus has (an `equals:` that can never be true reads as coverage).
 
     Found the `ici_response_expression :: ici_response_class` null-class divergence
-    (no_ici_association vs no_association). Intended divergences go in
+    (no_ici_association vs no_association), which has since been FIXED at the source (the imvigor210
+    reader folds the product token) rather than annotated forever. Genuinely intended divergences go in
     _VOCABULARY_DIVERGENCE_ALLOWED with a reason, so this check stays an ERROR rather than a warning
     nobody reads."""
     cards_dir = Path(cards_dir)
