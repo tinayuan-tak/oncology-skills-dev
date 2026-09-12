@@ -417,7 +417,10 @@ KNOWN_FIGURE_DEBT = {
     # registered in compose-dashboard _figure_emitters.py CARD_FIGURE_EMITTERS. Tracked viz-debt.
     "combo-crispr-screen",  # figure emitter not yet registered in compose-dashboard _figure_emitters.py
     "combinatorial-dependency",  # figure emitter not yet registered in compose-dashboard _figure_emitters.py
-    "immune-context",  # figure emitter not yet registered in compose-dashboard _figure_emitters.py (pre-existing)
+    # immune-context CLEARED 2026-09-12 (SK #1332): _emit_immune_context_leukocyte_composition is
+    # registered in CARD_FIGURE_EMITTERS (_figure_emitters/_immune.py) — the card declared
+    # `figure: immune_context_leukocyte_composition` from v1.0 (2026-08-08) and every run since
+    # attached NOTHING — the silence this waiver is designed to track. Now passes, not waived.
     "pmhc-presentation",  # figure emitter not yet registered in compose-dashboard _figure_emitters.py (pre-existing)
 }
 
