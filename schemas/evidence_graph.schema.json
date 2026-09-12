@@ -310,12 +310,14 @@
         "position": {"type": ["string", "null"], "description": "Categorical band (e.g. between_controls, above_ceiling) READ VERBATIM from a resolver *_class field — never computed from value vs anchors."},
         "position_source": {"type": ["string", "null"], "description": "The resolver summary field `position` was read from (e.g. dep_control_position_class), for provenance + the align-value-with-band check."},
         "distance_to_cut": {"type": ["number", "integer", "null"], "description": "Signed offset from the decision cut (or a comparator baseline). PREFER surfacing the summary's own delta/distance field over computing value-anchor; compute only from two pinned sig_round'd numbers."},
+        "cohort_percentile": {"type": ["number", "integer", "null"], "description": "For frame.kind=cohort_percentile: the value's empirical percentile within the known-target reference cohort (0-100, polarity-signed so higher == stronger). DISPLAY-ONLY."},
+        "cohort_n": {"type": ["integer", "null"], "description": "For frame.kind=cohort_percentile: the number of known targets behind the percentile (the cohort basis; min-N gated)."},
         "frame": {
           "type": ["object", "null"],
           "additionalProperties": false,
-          "description": "The reference frame the value is placed on. kind selects which anchors are meaningful: percentile (min/max implicit) | floor_cut_ceiling (floor/cut/ceiling, uses `position`) | comparator_delta (comparator baseline, offset = distance_to_cut = the delta) | distance_to_cut (cut, signed offset) | graded_band (>=2 ordered cut anchors, e.g. modest+strong, value read against the ladder) | count_of_total (value is a count, a `total` anchor gives the denominator + a `cut` anchor the count threshold, e.g. elevated in 4 of 6 cohorts past the 3 cut).",
+          "description": "The reference frame the value is placed on. kind selects which anchors are meaningful: percentile (min/max implicit) | floor_cut_ceiling (floor/cut/ceiling, uses `position`) | comparator_delta (comparator baseline, offset = distance_to_cut = the delta) | distance_to_cut (cut, signed offset) | graded_band (>=2 ordered cut anchors, e.g. modest+strong, value read against the ladder) | count_of_total (value is a count, a `total` anchor gives the denominator + a `cut` anchor the count threshold, e.g. elevated in 4 of 6 cohorts past the 3 cut) | cohort_percentile (value placed as its percentile within the known-target reference cohort; cohort_percentile + cohort_n carry the position, no anchors).",
           "properties": {
-            "kind": {"type": ["string", "null"], "enum": ["percentile", "floor_cut_ceiling", "comparator_delta", "distance_to_cut", "graded_band", "count_of_total", null]},
+            "kind": {"type": ["string", "null"], "enum": ["percentile", "floor_cut_ceiling", "comparator_delta", "distance_to_cut", "graded_band", "count_of_total", "cohort_percentile", null]},
             "anchors": {
               "type": "array",
               "description": "The named reference points on the frame (a floor, a cut, a ceiling, a comparator baseline, a total denominator). role is the frame slot; value is sig_round'd.",
