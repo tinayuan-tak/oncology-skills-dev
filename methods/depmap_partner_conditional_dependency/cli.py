@@ -37,7 +37,7 @@ METHOD_VERSION = "0.1.0"
 # Classification thresholds — mirror depmap_cn_dependency / depmap_mutation_dependency exactly,
 # EXCEPT the rung that fires the rescue keys on MODERATE (see module docstring / card).
 STRONG_EFFECT_DELTA = -0.5  # partner-deficient median Chronos - neutral <= -0.5 → strongly dependent
-MODERATE_EFFECT_DELTA = -0.2  # median-delta path to MODERATE (WRN×MSI = -0.41 clears strong)
+MODERATE_EFFECT_DELTA = -0.2  # median-delta path to MODERATE (WRN×MSI = -0.41 clears THIS, not strong)
 # EFFECT-SIZE path to MODERATE (2026-08-24). The median-delta floors above were mirrored from the
 # oncogene mutant-vs-WT stratified paths, where addiction produces large Chronos deltas. Synthetic-
 # lethal / collateral-lethality effects (MTAP→PRMT5, SMARCA4→SMARCA2) are REAL but modest in raw
@@ -50,6 +50,32 @@ MODERATE_EFFECT_RB = 0.3  # rank-biserial ≥ 0.30 (conventional "moderate") + f
 STRATIFICATION_ALPHA = 0.05
 MIN_PARTNER_DEFICIENT_CELLS = 5  # mirror min_mutant
 MIN_NEUTRAL_CELLS = 30  # mirror min_wildtype
+
+# ABSOLUTE-DEPTH REFERENCE for the partner-deficient stratum (2026-09-12). DISCLOSURE ONLY — it does
+# NOT gate the classification, deliberately. Every threshold above is a CONTRAST between strata; none
+# asks whether the deficient stratum is dependent in absolute terms. Measured across all 10 curated
+# pairs (26Q1), three clear the contrast on a deficient stratum that is NOT dependent by any framework
+# cut:
+#     EPAS1×VHL       deficient median -0.056 (delta -0.066; admitted on rank-biserial 0.315 alone)
+#     SMARCA2×SMARCA4 deficient median -0.070 (delta -0.122, rb 0.337) — BOTH strata neutral
+#     TEAD1×NF2       deficient median -0.387
+# WHY NO FLOOR IS ENFORCED: all three are VALIDATED drug targets whose mechanism pooled CRISPR
+# Chronos is structurally blind to — belzutifan in VHL-null ccRCC (EPAS1), SMARCA4-mutant SMARCA2
+# degraders (a protein-level SL a mono-KO screen understates), TEAD palmitoylation inhibitors in
+# NF2-mutant mesothelioma. EPAS1 is moreover a LOCKED must_not_veto calibration anchor
+# (target-contracts known_target_calibration_set.yaml, CASE-014, expected_verdict_not_in:
+# [non_dependent, ...]) resolved by exactly this rung. A -0.5 floor here produces three false
+# NEGATIVES and breaks that anchor.
+#
+# THE LOAD-BEARING REASON the loose threshold is sound: partner_map.yaml is CURATED, so the prior is
+# that the SL is already established — the statistics CONFIRM a hypothesis rather than screen for one,
+# and a shallow-but-clean stratification is legitimate corroboration of curated biology.
+#
+# ==> THIS COUPLES THE THRESHOLD TO THE MAP. If partner_map.yaml is ever grown into a SCREEN (scanning
+# uncurated partner candidates) the prior vanishes and this floor MUST be enforced first, or shape-only
+# separations between two non-dependent strata will start rescuing vetoes. The audit field
+# `partner_deficient_absolute_depth_cleared` exists so that day is visible in the data, not a surprise.
+PARTNER_DEFICIENT_ABSOLUTE_DEPTH = -0.5
 
 _MAP_PATH = Path(__file__).resolve().parent / "partner_map.yaml"
 
@@ -141,6 +167,7 @@ def compute_partner_stratification(
     moderate_effect_rb: float = MODERATE_EFFECT_RB,
     min_deficient: int = MIN_PARTNER_DEFICIENT_CELLS,
     min_neutral: int = MIN_NEUTRAL_CELLS,
+    deficient_absolute_depth: float = PARTNER_DEFICIENT_ABSOLUTE_DEPTH,
 ) -> dict:
     """Compute the partner-conditional-dependency summary_fields.
 
@@ -162,6 +189,15 @@ def compute_partner_stratification(
     delta = res.get("delta_mut_vs_wt")
     effect_size = res.get("effect_size")  # rank-biserial magnitude (forward direction within the q<alpha branch)
 
+    median_deficient = res.get("median_mutant")
+    # Is the partner-deficient stratum dependent in ABSOLUTE terms? Reported, NOT gated on — see the
+    # PARTNER_DEFICIENT_ABSOLUTE_DEPTH block for why enforcing it here would break real targets.
+    depth_cleared = (
+        median_deficient is not None
+        and median_deficient == median_deficient  # not NaN
+        and float(median_deficient) <= deficient_absolute_depth
+    )
+
     def _classify() -> str:
         if res.get("_insufficient_data"):
             return "insufficient_partner_deficient_rate"
@@ -169,11 +205,15 @@ def compute_partner_stratification(
             return "not_partner_stratified"
         # FORWARD: partner-deficient more dependent (significant + negative delta).
         if q is not None and q < stratification_alpha:
-            if delta <= strong_effect_delta:
-                return "partner_conditional_strongly_dependent"
+            contrast_strong = delta <= strong_effect_delta
             # MODERATE via EITHER the median-delta floor OR a moderate rank-biserial effect size — the
             # latter recovers real-but-modest-delta SL (collateral lethality) the -0.2 floor discards.
-            if delta <= moderate_effect_delta or (effect_size is not None and effect_size >= moderate_effect_rb):
+            contrast_moderate = delta <= moderate_effect_delta or (
+                effect_size is not None and effect_size >= moderate_effect_rb
+            )
+            if contrast_strong:
+                return "partner_conditional_strongly_dependent"
+            if contrast_moderate:
                 return "partner_conditional_moderately_dependent"
         # REVERSE second-pass: neutral lines more dependent (verdict-inert, mirrors A1a).
         if q_reverse is not None and q_reverse < stratification_alpha and delta >= -strong_effect_delta:
@@ -195,6 +235,9 @@ def compute_partner_stratification(
         "partner_stratification_mannwhitney_q_reverse": q_reverse,
         "partner_stratification_effect_size": res.get("effect_size"),
         "partner_stratification_class": cls,
+        # Audit field for the absolute-depth floor: lets a reader tell "no contrast" from "real
+        # contrast, non-dependent strata" without recomputing the cut.
+        "partner_deficient_absolute_depth_cleared": bool(depth_cleared),
         "_uncomputable": bool(res.get("_uncomputable")),
     }
 

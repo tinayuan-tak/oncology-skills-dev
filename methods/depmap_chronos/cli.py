@@ -251,6 +251,50 @@ INDICATION_LINEAGE = {
 }
 
 
+def _lineage_depth_cleared(
+    record: dict,
+    dependency_cut: float,
+    sublineage_stats: list = None,
+    min_n: int = 5,
+) -> tuple:
+    """Does an enrichment record reach the absolute dependency cut at ANY adequately-powered grain?
+
+    The admissibility half of the lineage-selectivity call (see compute_lineage_summary). Returns
+    (cleared, grain, cleared_sublineages).
+
+    WHY TWO GRAINS AND NOT JUST THE LINEAGE MEDIAN (panel-established 2026-09-12): a coarse
+    OncotreeLineage median DILUTES a sublineage-restricted dependency, because the lineage pools
+    tumour types that do not share the dependency. A flat cut on the lineage median alone discards
+    four separately-validated lineage dependencies on a 44-gene panel:
+        IRF4   Lymphoid -0.455  but PCM (plasma-cell myeloma) -2.041 (n=19) — the canonical
+               myeloma dependency (Shaffer 2008); the Lymphoid pool is mostly leukaemia/lymphoma
+        SPI1   Myeloid  -0.364  but AML     -0.552 (n=39)
+        RUNX1  Myeloid  -0.486  but AML     -0.510 (n=39), AMLNOS -1.369 (n=5)
+        GATA3  PNS      -0.430  but NBL     -0.553 (n=45) — neuroblastoma core regulatory circuitry
+        PAX8   Uterus   -0.470  but UCEC    -0.677 (n=20)
+    So the floor is satisfied by EITHER the lineage's own median OR any constituent OncotreeCode
+    with n >= min_n. `min_n` mirrors the enrichment table's own admissibility floor, so a sublineage
+    cannot rescue a lineage on 1-2 lines. A missing median is NOT cleared — an unmeasurable depth
+    cannot license a positive verdict.
+    """
+    cleared_subs = [
+        s
+        for s in (sublineage_stats or [])
+        if s.get("oncotree_lineage") == record.get("lineage")
+        and s.get("n") is not None
+        and int(s["n"]) >= min_n
+        and s.get("median_chronos") is not None
+        and s["median_chronos"] == s["median_chronos"]
+        and float(s["median_chronos"]) <= dependency_cut
+    ]
+    median = record.get("median_chronos")
+    if median is not None and median == median and float(median) <= dependency_cut:
+        return True, "lineage", cleared_subs
+    if cleared_subs:
+        return True, "oncotree_code", cleared_subs
+    return False, None, []
+
+
 def compute_lineage_summary(
     chronos_by_model: dict,
     model_metadata: dict,
@@ -267,7 +311,9 @@ def compute_lineage_summary(
     Returns:
       - panel-wide stats (n_cell_lines_panel, median_chronos_panel)
       - per_lineage_stats: full ranked table for ALL lineages with n ≥ min_n_lineage
-      - enriched_lineages: lineages significantly more dependent than the rest (BH-corrected)
+      - enriched_lineages: lineages significantly more dependent than the rest (BH-corrected) AND
+        dependent in ABSOLUTE terms (own median Chronos <= moderate_threshold) — the verdict-bearing set
+      - relative_only_enriched_lineages: significant vs rest but NOT absolutely dependent (verdict-inert)
       - enrichment_class: categorical describing the SHAPE of lineage variation
 
     DECOUPLED FROM INDICATION (Decision 2A): the `indication` parameter is kept for
@@ -299,6 +345,8 @@ def compute_lineage_summary(
             "n_lineages_evaluated": 0,
             "enriched_lineages": [],
             "n_enriched_lineages": 0,
+            "relative_only_enriched_lineages": [],
+            "n_relative_only_enriched_lineages": 0,
             "enrichment_class": "data_unavailable",
             "per_oncotree_code_stats": [],
             "n_oncotree_codes_evaluated": 0,
@@ -326,8 +374,10 @@ def compute_lineage_summary(
     # ADDITIVE per-OncotreeCode SUBLINEAGE table (2026-08-19) — the substrate for disambiguating the
     # SHARED coarse lineages an indication reduction confounds (Esophagus/Stomach → STAD/ESCA/ESCC;
     # Lung → LUAD/SCLC/LUSC/…). Same descriptive shape as per_lineage_stats, keyed by OncotreeCode +
-    # its parent OncotreeLineage. VERDICT-INERT: additive field; per_lineage_stats / enriched_lineages /
-    # enrichment_class (the verdict-driving outputs) are untouched. The indication→OncotreeCode-set
+    # its parent OncotreeLineage. NO LONGER VERDICT-INERT (2026-09-12): this table is now also the
+    # finer-grain substrate for the absolute-depth admissibility floor on enriched_lineages, so a
+    # sublineage-restricted dependency (IRF4/PCM inside Lymphoid) can clear a floor its diluted
+    # coarse-lineage median misses — see _lineage_depth_cleared. The indication→OncotreeCode-set
     # aggregation (e.g. NSCLC = LUAD+LUSC+NSCLC+LCLC+LUAS) is a CONSUMER concern (skill reduction +
     # crosswalk), NOT computed here — this emits the granular per-code stats so the consumer can sum them.
     per_oncotree_code_stats = []
@@ -353,6 +403,7 @@ def compute_lineage_summary(
     # one-sided (alternative: lineage more dependent = lower Chronos). BH multiple-
     # testing correction across all evaluated lineages.
     enriched_lineages = []
+    relative_only_enriched_lineages = []
     if n_lineages_evaluated >= 2:
         p_values = []
         records = []
@@ -410,10 +461,51 @@ def compute_lineage_summary(
             rec["q_value"] = float(min(1.0, q_unordered[i]))
 
         # Filter to significantly enriched (q < α AND meaningful effect AND delta is negative i.e. more dependent)
-        enriched_lineages = [
+        relatively_enriched = [
             r for r in records if r["q_value"] < enrichment_alpha and r["delta_vs_rest"] <= -enrichment_effect_size_min
         ]
+        # ABSOLUTE-DEPTH ADMISSIBILITY (2026-09-12). Both tests above are RELATIVE: `q_value` asks
+        # "is this lineage's Chronos distribution shifted below the rest of the panel?" and
+        # `delta_vs_rest` measures that shift. NEITHER asks whether the enriched lineage is dependent
+        # AT ALL — so nothing structurally prevents a lineage sitting at Chronos ~= -0.2 from being
+        # called "significantly more dependent" than a panel sitting at ~= 0.0, and since
+        # `lineage_selective` outranks the `non_dependent` veto in dependency.resolver.yaml, such a
+        # hit would license a POSITIVE selective-dependency verdict on no absolute signal.
+        #
+        # This is HARDENING, not a live-bug fix: on a 44-gene panel every admitted hit was already
+        # genuinely dependent in its lineage (shallowest: TEAD1/Pleura -0.541, SHOC2/Eye -0.570).
+        # NOTE the correct frame — a near-zero POOLED panel median is NOT evidence against a lineage
+        # call, it IS what selectivity looks like (TP63 pools to -0.033 while Head and Neck sits at
+        # -0.705). The floor is therefore applied to the ENRICHED LINEAGE's depth, never the panel's.
+        #
+        # Depth is evaluated at the finest ADEQUATELY-POWERED grain (lineage median OR any
+        # constituent OncotreeCode with n >= min_n_lineage) because coarse lineage medians dilute
+        # sublineage-restricted dependencies — see _lineage_depth_cleared for the four validated
+        # targets (IRF4/PCM, SPI1/AML, RUNX1/AML, GATA3/NBL) a flat coarse cut would discard.
+        #
+        # Relative-only hits are NOT discarded: they move to `relative_only_enriched_lineages`
+        # (additive, verdict-inert) so a real-but-shallow lineage skew stays visible to a reader and
+        # to the synthesis layer. When every hit is relative-only, `enrichment_class` falls through to
+        # the existing `broadly_lineage_dependent` / `no_lineage_enrichment` branches — no new enum
+        # value, and the pooled veto survives, which is the correct read.
+        for r in relatively_enriched:
+            cleared, grain, cleared_subs = _lineage_depth_cleared(
+                r, moderate_threshold, per_oncotree_code_stats, min_n_lineage
+            )
+            if cleared:
+                r["depth_cleared_at_grain"] = grain
+                if grain == "oncotree_code":
+                    # Name the sublineage(s) that carried the call — without this the reader sees a
+                    # positive lineage verdict whose lineage median looks non-dependent.
+                    r["depth_cleared_sublineages"] = [
+                        {"oncotree_code": s["oncotree_code"], "n": s["n"], "median_chronos": s["median_chronos"]}
+                        for s in cleared_subs
+                    ]
+                enriched_lineages.append(r)
+            else:
+                relative_only_enriched_lineages.append(r)
         enriched_lineages.sort(key=lambda r: r["q_value"])
+        relative_only_enriched_lineages.sort(key=lambda r: r["q_value"])
 
     n_enriched = len(enriched_lineages)
 
@@ -452,6 +544,12 @@ def compute_lineage_summary(
         "enriched_lineages": enriched_lineages,
         "n_enriched_lineages": n_enriched,
         "enrichment_class": enrichment_class,
+        # Relative-only enrichment: significant + meaningful delta_vs_rest, but the lineage's own
+        # median Chronos does NOT clear the absolute dependency cut. VERDICT-INERT disclosure — a
+        # shallow-but-real lineage skew a reader should see, which must not license a positive
+        # dependency verdict on its own (see the admissibility note in compute_lineage_summary).
+        "relative_only_enriched_lineages": relative_only_enriched_lineages,
+        "n_relative_only_enriched_lineages": len(relative_only_enriched_lineages),
         # ADDITIVE per-OncotreeCode sublineage table (verdict-inert) — disambiguates shared coarse
         # lineages (STAD/ESCA, NSCLC/SCLC) for a consumer-side indication reduction; see above.
         "per_oncotree_code_stats": per_oncotree_code_stats,
