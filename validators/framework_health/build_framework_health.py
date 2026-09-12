@@ -115,10 +115,33 @@ def stable_projection(report: dict) -> str:
     `delta` joins generated_at/roots/root_shas as volatile: it is a diff against the
     PRIOR artifact, so it legitimately changes run-to-run and must not make --check
     (which asks "is the committed derived-truth stale?") false-positive.
+
+    `derived.test_count` is projected to the boolean the verdict actually consumes.
+    The raw count is a `len(glob("test_*.py"))` over `skills/<skill>/tests/` in the
+    SKILLS repo, so it increments whenever a skills-repo session adds a test file —
+    sibling churn no target-contracts change caused, the same property that made
+    `roots`/`md_path` poison the atlas guard. But the count is verdict-inert except
+    through `has_tests = test_count > 0` (rollup.build_skill → health_rules.yaml);
+    only the 1↔0 transition can move a health verdict. So the projection keeps that
+    transition's teeth and drops the rest: 12→13 no longer reports STALE, 1→0 still
+    does. The raw count stays in the committed artifact for display (render_html,
+    the atlas dashboard) — this narrows the drift BASIS, not the artifact.
     """
     volatile = {"generated_at", "roots", "root_shas", "delta"}
     projected = {k: v for k, v in report.items() if k not in volatile}
+    projected["skills"] = [_project_skill(s) for s in projected.get("skills", [])]
     return json.dumps(projected, indent=2, sort_keys=True, default=str)
+
+
+def _project_skill(skill: dict) -> dict:
+    """Reduce a skill entry to its drift-relevant shape: `derived.test_count` → the
+    consumed `has_tests` boolean. Copy-on-write so the caller's report is untouched."""
+    der = skill.get("derived")
+    if not isinstance(der, dict) or "test_count" not in der:
+        return skill
+    der = {k: v for k, v in der.items() if k != "test_count"}
+    der["has_tests"] = (skill["derived"].get("test_count") or 0) > 0
+    return {**skill, "derived": der}
 
 
 # Enums the committed artifact must conform to (kept in sync with health_rules.yaml).

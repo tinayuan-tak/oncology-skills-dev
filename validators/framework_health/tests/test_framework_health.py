@@ -443,6 +443,49 @@ def test_stable_projection_excludes_delta():
     assert stable_projection(a) == stable_projection(b)  # differing deltas don't move the projection
 
 
+def _skill_with_test_count(n: int) -> dict:
+    return {
+        "name": "s",
+        "declared": {},
+        "derived": {"kind": "FOCUSED", "resolver_bound": True, "test_count": n},
+        "cards": [],
+    }
+
+
+def test_stable_projection_ignores_test_count_above_zero():
+    """`derived.test_count` counts `test_*.py` files in the SKILLS repo, so it increments on
+    sibling churn no target-contracts change caused. Two positive counts must project equal —
+    this was a live STALE on trunk (cross-evidence-hypothesis 12→13 from skills#1328, the sole
+    delta vs a fresh build). Same class as `roots` in the atlas guard (TC#756)."""
+    base = {"schema_version": "1.0.0", "generated_at": "t", "roots": {}, "root_shas": {}}
+    a = {**base, "skills": [_skill_with_test_count(12)]}
+    b = {**base, "skills": [_skill_with_test_count(13)]}
+    # non-vacuity: the raw reports MUST differ, or the equality below proves nothing
+    assert json.dumps(a, sort_keys=True) != json.dumps(b, sort_keys=True)
+    assert stable_projection(a) == stable_projection(b)
+
+
+def test_stable_projection_still_sees_tests_going_to_zero():
+    """The teeth that stay: `has_tests = test_count > 0` is the ONLY thing the health verdict
+    consumes (rollup.build_skill → health_rules.yaml), and 1→0 flips it. A skill losing its last
+    test IS a real health change and must still make the committed feed STALE."""
+    base = {"schema_version": "1.0.0", "generated_at": "t", "roots": {}, "root_shas": {}}
+    has = {**base, "skills": [_skill_with_test_count(1)]}
+    none = {**base, "skills": [_skill_with_test_count(0)]}
+    assert stable_projection(has) != stable_projection(none)
+
+
+def test_stable_projection_test_count_boolean_is_the_consumed_predicate():
+    """Pin the projection to the SAME predicate the verdict uses. If rollup ever changed
+    `has_tests` to e.g. `test_count >= 2`, this projection would silently stop matching it and
+    the guard would drift from the rule — so assert the boundary explicitly at 0/1."""
+    base = {"schema_version": "1.0.0", "generated_at": "t", "roots": {}, "root_shas": {}}
+    proj0 = stable_projection({**base, "skills": [_skill_with_test_count(0)]})
+    proj1 = stable_projection({**base, "skills": [_skill_with_test_count(1)]})
+    assert '"has_tests": false' in proj0 and '"test_count"' not in proj0
+    assert '"has_tests": true' in proj1 and '"test_count"' not in proj1
+
+
 # ---------------------------------------------------------------------------
 # 6c. Trend/delta — diff vs the prior committed artifact
 # ---------------------------------------------------------------------------
