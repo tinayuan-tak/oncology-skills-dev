@@ -36,6 +36,76 @@ Dangerous false-positives to keep pinned: ADAR1, CLDN18.2_LRRC15, EGFR_cMET_VEGF
 
 ## Open cases
 
+### GENOMIC-ALTERATION 20-pair literature panel baseline (2026-09-12) — 20/20 emitted, 71 ledger rows, 6 SHARP (3 calibration + 3 verdict_rule), all on the CN axis
+
+Ran `--panel genomic-alteration-profile-20 --literature-scope gating` (registered in
+`eval/harvest_literature.py::_PANELS` by this PR) → `eval/discordance_ledger.genomic20.json` (gitignored).
+Six strata: SNV recurrent-driver + controls, CN-amplification drivers, fusion drivers, the MET/LUAD
+METex14 splice driver (exercises the SPL axis just split from FUS in #757/#1339), biomarker-stratified
+dependency / mutation-drug-response (IDH1/2, FLT3, PIK3CA), and CN-deletion TSGs + three negative antigen
+controls (CD19/DLL3/FOLR1). All 20 indication codes resolve in the crosswalk. by_gap_class:
+`{calibration:3, verdict_rule:3, blind_spot:51, staleness:14}`. Every one of the 6 SHARP rows carries ≥1
+VERIFIED citation (confabulation_risk=False) and lands on the **CN axis** — the panel discriminates (it is
+not blunt: the controls KRAS/COADREAD + BRAF/SKCM read `agree` across all axes).
+
+**★ ROOT CAUSE (one gap explains 5 of the 6, live-probed).** The SNV claim signal (`genomic_claims._snv_signal`)
+is keyed on tumor-level `pooled_driver_recurrence_class` from `gdc_somatic_hotspot`, whose MC3 hotspot
+product (`data-catalog tcga-mc3-hotspot-frequency-v1`) ships **only 4 indications: COADREAD, NSCLC, GC,
+PAAD** (v1). Direct probe: `read_hotspot_summary` returns `data_unavailable` / `n_samples_mutated=0` for
+IDH2/AML, IDH1/GBM, FLT3/AML — all canonical high-recurrence drivers — while KRAS/COADREAD reads `top_1pct`
+(42%, 235 samples). So for every indication off those 4, the SNV recurrence axis is BLIND, and the
+multi-class collapse fills the vacuum from a lower axis. This is a data-coverage gap, not a skill bug — but
+it has a verdict-moving downstream (CASE-028).
+
+### CASE-028 — IDH2/AML reads `confirmed_driver` DRIVEN BY A CELL-LINE FOCAL DELETION of an activating oncogene (verdict_rule_gap) — CONFIRMED
+
+- **Surfaced by:** genomic-20 panel, CN axis, `contradicts` vs Abou Dalle 2018 (verified). Literature: IDH2
+  is an activating R140/R172 SNV driver in AML (enasidenib-actionable); recurrent focal DELETION is not a
+  described mechanism.
+- **Determination (live-probed):** claim_vector for IDH2/AML = SNV `unmeasured` (root cause above),
+  CN `moderate`, ROLE `strong`; verdict `confirmed_driver`, **driving_rule `cn-recurrently-deleted-supportive`**.
+  The resolver rung is `genomic_alteration.resolver.yaml:100` —
+  `{when_all_fired: [cn-recurrently-deleted-supportive, alteration-role-gof-driver-supportive], verdict:
+  confirmed_driver, driving: cn-recurrently-deleted-supportive, priority: 30}`. A recurrent DELETION paired
+  with a **GoF/activating** role is contradictory: a deletion is not the activating mechanism of an
+  oncogene, so promoting it to `confirmed_driver` (over the blind SNV axis) is a false-positive driver. The
+  LoF sibling (`:101`, `alteration-role-lof-driver-neutral → confirmed_lof_driver`) is correct — deletion
+  IS the mechanism for a TSG; only the GoF pairing is wrong.
+- **Fix (verdict-MOVING, needs calibration backtest + golden regen + full suite):** gate rung `:100` so a
+  recurrent deletion does not confer `confirmed_driver` on a GoF-role gene (demote to a
+  passenger/`data_unavailable`-scoped read, or require the deletion class to agree with a LoF/neutral role).
+  Anchor IDH2/AML in the calibration set. HELD pending the fix-scope decision.
+- **Status:** CONFIRMED real verdict-rule gap. FGFR3/BLCA and MDM2/LGG (both verdict_rule_gap) are the same
+  family — CN-deletion contradicting an activation/amplification literature while SNV is unmeasured.
+
+### CASE-029 — SNV recurrence axis BLIND outside 4 indications → IDH1/GBM `mixed_pattern`, canonical R132 driver invisible (calibration_gap) — CONFIRMED
+
+- **Surfaced by:** genomic-20 panel; the mixed_pattern gap flagged earlier for IDH1/GBM.
+- **Determination:** IDH1/GBM claim_vector SNV `unmeasured` (GBM absent from the MC3 hotspot product),
+  CN/FUS/SPL/DEP all `absent`, ROLE `strong` → verdict `mixed_pattern`, driving `mut-mixed-neutral`. IDH1
+  R132 is THE defining LGG/GBM driver; the skill cannot see it. Same root as CASE-028; here it produces a
+  false-NEGATIVE / uninformative read rather than a false driver.
+- **Fix (DATA layer, large):** build the MC3 (and/or GENIE `genie_panel_recurrence`) hotspot aggregates for
+  the missing indications — at minimum AML, GBM, then BRCA/OV/SKCM/LGG/DLBC/BLCA/HNSC/THCA/PRAD — via
+  `gdc_somatic_hotspot/cli.py::aggregate_indication`, register in data-catalog
+  `tcga-mc3-hotspot-frequency-v1`, re-emit. A data-catalog workstream; the durable root fix that also
+  resolves CASE-029 and de-fangs CASE-028's vacuum.
+- **Status:** CONFIRMED coverage gap. `blind_spot_gap`/`staleness` counts (51/14) are the fleet-wide tail
+  of the same limitation.
+
+### CASE-030 — MET/LUAD CN axis reads `absent` though MET focal amplification is a validated recurrent LUAD driver (calibration_gap) — CONFIRMED
+
+- **Surfaced by:** genomic-20 panel, CN axis, `contradicts` vs Zeng 2026 + Sheng 2025 (verified). NSCLC IS
+  one of the 4 covered indications, so unlike CASE-028/029 the SNV axis here reads `moderate` — and the SPL
+  fix works (verdict `splice_exon_skip_driver`, driving `splice-exon-skip-driver-supportive`; MET METex14 is
+  correctly the driver). But the CO-OCCURRING focal amplification (de novo + EGFR-TKI resistance) reads
+  CN `absent`.
+- **Fix (probe first):** reproduce the CN read for MET/LUAD (`copy_number_class`) to decide threshold vs
+  scope vs data — MET amp may be sub-threshold in the cell-line CN card, or the LUAD tumor-CN comparator is
+  the missing leg. Not yet probed at the card level. HELD.
+- **Status:** CONFIRMED false-negative on a co-occurring class; lower-severity than CASE-028 (the primary
+  driver call is correct via SPL).
+
 ### MECHANISM 20-pair literature panel baseline (2026-09-12) — 20/20 emitted, 73 ledger rows, **0 contradicts**
 
 Ran `--panel mechanism-and-pharmacology-20 --literature-scope gating` (registered in

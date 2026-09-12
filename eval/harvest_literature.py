@@ -306,6 +306,61 @@ _PANELS: dict[str, dict] = {
             ("ALK", "LUAD"),  # fusion-activated RTK; 0 phosphosites in ALL 10 CPTAC cohorts
         ],
     },
+    # ── The 20-pair GENOMIC-ALTERATION discordance panel (2026-09-12) ─────────────────────────────
+    # Registers the panel exercising genomic-alteration-profile after the SPL-out-of-FUS split (TC #757
+    # + skills #1339) and the F9 DEP-axis routing (#1336). The skill answers a MULTI-CLASS question —
+    # which alteration class (SNV/indel · copy-number · fusion · splice · biomarker-stratified
+    # dependency) DRIVES — so it fails in a distinct way from a single-verdict skill: not "wrong
+    # yes/no" but "names the wrong DRIVING CLASS", or reads a non-mutated but amplification-/fusion-/
+    # splice-driven target as "not a driver". Six strata target exactly those failure modes, and — per
+    # the confidence-rung pre-check (a panel that lands every row on one rung measures nothing) — they
+    # deliberately span recurrent drivers, amp-only drivers, fusions, an exon-skip driver, and true
+    # genomic negatives, so `contradicts==0` would mean the instrument discriminates, not that it is blunt.
+    # Every indication code is a resolvable canonical_code/alias in indication_crosswalk.yaml (an
+    # unresolvable code silently degrades that pair to a PAN-SCOPE read — the EPAS1/RCC failure above).
+    #   (1) SNV/indel recurrent-driver base case + CONTROLS (prose must stay byte-stable).
+    #   (2) COPY-NUMBER-amplification drivers — the "reads NOT a driver because unmutated" trap the
+    #       skill's multi-class framing exists to prevent (ERBB2/MYC/MDM2/CCND1 are amp, not SNV).
+    #   (3) FUSION drivers — the LIVE tcga-fusion-consensus lane; the class must be read as fusion, not
+    #       dismissed as a low SNV frequency.
+    #   (4) SPLICE driver — MET/LUAD METex14, the exact axis the SPL split just made scorable on its own
+    #       axis; a genomic run here must read SPL, not lift FUS.
+    #   (5) BIOMARKER-STRATIFIED dependency / mutation-drug-response — the F9 DEP axis: an SNV whose
+    #       action is a stratified drug response (PIK3CA, IDH1/2, FLT3-ITD), not a bare recurrence count.
+    #   (6) TSG copy-number DELETION + NEGATIVE antigen controls: SMARCA4/PTEN loss must read as a
+    #       deletion driver; CD19/DLL3/FOLR1 carry NO recurrent somatic alteration, so genomic SHOULD
+    #       read no-driver and a literature "contradicts" there is a modality mismatch, not a gap.
+    "genomic-alteration-profile-20": {
+        "skills": ["genomic-alteration-profile"],
+        "pairs": [
+            # (1) SNV/indel recurrent-driver base + controls
+            ("KRAS", "COADREAD"),  # CONTROL: canonical recurrent SNV driver; the replay anchor
+            ("BRAF", "SKCM"),  # CONTROL: V600E hotspot driver; prose must stay stable
+            ("EGFR", "LUAD"),  # recurrent driver AND a stratified drug-response axis (overlaps stratum 5)
+            # (2) copy-number-amplification drivers (must NOT read "not a driver")
+            ("ERBB2", "BRCA"),  # focal amplification, rarely SNV — the multi-class touchstone
+            ("MYC", "BRCA"),  # amplification-driven transcription factor, never a recurrent SNV
+            ("MDM2", "LGG"),  # focal amplification in glioma; TP53-axis, no recurrent MDM2 SNV
+            ("CCND1", "HNSC"),  # 11q13 amplification driver
+            # (3) fusion drivers (LIVE tcga-fusion-consensus)
+            ("ALK", "LUAD"),  # EML4-ALK fusion; low SNV frequency must not read as passenger
+            ("NTRK1", "THCA"),  # TRK fusion driver
+            ("FGFR3", "BLCA"),  # FGFR3-TACC3 fusion + activating SNV mix
+            # (4) splice driver — exercises the just-split SPL axis
+            ("MET", "LUAD"),  # METex14 exon-skipping driver; must score SPL, not lift FUS
+            # (5) biomarker-stratified dependency / mutation-drug-response (F9 DEP axis)
+            ("PIK3CA", "BRCA"),  # hotspot + alpelisib stratified response
+            ("IDH1", "GBM"),  # neomorphic R132; the mixed_pattern gap candidate
+            ("IDH2", "AML"),  # neomorphic R140/R172 + enasidenib response
+            ("FLT3", "AML"),  # FLT3-ITD; midostaurin/quizartinib stratified drug response
+            # (6) TSG copy-number deletion + negative antigen controls
+            ("SMARCA4", "LUAD"),  # LoF/deletion driver (not amp)
+            ("PTEN", "PRAD"),  # deletion/LoF TSG
+            ("CD19", "DLBC"),  # NEGATIVE: validated CAR-T antigen, NO recurrent somatic alteration
+            ("DLL3", "SCLC"),  # NEGATIVE: ADC/TCE antigen driven by ASCL1 lineage, not a genomic driver
+            ("FOLR1", "OV"),  # NEGATIVE: ADC antigen, no recurrent alteration
+        ],
+    },
 }
 
 
