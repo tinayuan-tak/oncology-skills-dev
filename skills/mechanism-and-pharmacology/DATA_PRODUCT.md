@@ -6,7 +6,7 @@ in SKILL.md / run.py; this file is the data-product spec.
 | | |
 |---|---|
 | **Skill** | `mechanism-and-pharmacology` |
-| **Skill code version** | 1.10.0 |
+| **Skill code version** | 1.10.1 |
 | **Contract version** | 1.0.0 (emitted-output schema; versioned independently — see §4) |
 | **Role** | `gating` (verdict = a signaling-network **characterization** class; polarity STATICALLY neutral — annotation density is not target quality) |
 | **Verdict field** | `headline.mechanism_verdict` (resolves on `network_class` alone; the has_pd_marker rung was removed as structurally dead, resolver v1.2.0) |
@@ -30,9 +30,9 @@ composed lanes) are LIVE.** `run.py` has no `CARD_CONTEXT` map (mechanism is ind
 | `dependency-predictability` | `depmap_predictability` (`depmap-predictability` alias → `-26q1-v3`) | `depmap-predictability-26q1-v3` | display-only |
 
 **MoA composition (what feeds `network_class`):** SIGNOR (Jul2026) + CollecTRI curated-edge union **only**.
-Reactome is layered as pathway **context** (not counted in the edge total, despite SKILL.md prose).
+Reactome is layered as pathway **context** (not counted in the edge total).
 Kinome-atlas predictions + DepMap co-essentiality are carried **alongside** (`kinome_atlas_predictions` /
-`coessentiality_context`), **never merged** into `network_class`/`has_actionable_moa`. MoA ontology = 21-class.
+`coessentiality_context`), **never merged** into `network_class`/`has_actionable_moa`. MoA ontology = 31-class (v1.0.0).
 
 ---
 
@@ -71,12 +71,13 @@ source (coordinate; major on rename); new facet → no schema change.
 
 ## 5. Known gaps & notes (non-blocking)
 
-- **`signaling-network-mechanism.card.yaml` provenance is STALE:** its `required_inputs` lists only
-  `signor-jul2026` (source) and its caveat asserts "no derived per-gene manifest exists," but
-  `signor-mechanism-network-per-gene-v1` IS built + materialized and is the **primary read path**. Fix the
-  card's `required_inputs` + caveat (a target-contracts `cards/` change). (The composed
-  `mechanism-composed-*` product is genuinely on-read — that part of the caveat is correct.)
 - **`phospho-pathway-activity` declares the CPTAC source** as `required_inputs` but reads the derived
   `cptac-phospho-per-site-per-cohort-v1` — a provenance-declaration gap (both materialized; not broken).
-- **SKILL.md prose says "SIGNOR + CollecTRI + Reactome"** for `network_class`, but Reactome is pathway
-  context only (not in the edge total) — doc reconciliation.
+- **`has_actionable_moa` / `has_pd_marker` are count-of-mapped-edge flags** (2026-09-12 method fix): True
+  iff >=1 curated upstream (resp. downstream) edge carries a MAPPED MoA class. They do NOT assert the MoA
+  is indication-operative or directly druggable — a curated edge is a context-free literature aggregate.
+  The skill surfaces this via the verdict-inert `mechanism_confirmation_caveat`; directness is owned by
+  tractability-small-molecule.
+- **`network_class` thresholds (>=3 each arm / <=1 total) are annotation-density heuristics**, not
+  biological cutoffs, and are applied to DEDUPED distinct-(partner, direction) union counts — so
+  composition is non-monotonic vs a single source's raw-row count. Documented in `_classify_network`.

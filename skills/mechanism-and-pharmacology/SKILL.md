@@ -4,7 +4,7 @@ description: |
   Phase-D skill — signaling-network mechanism + candidate MoA hooks + PD-
   marker suggestions for a target. Consumes the signaling-network-mechanism
   evidence card — a directed signaling network composed from curated sources
-  (SIGNOR + CollecTRI + Reactome) and classified into a 21-class MoA ontology.
+  (SIGNOR + CollecTRI + Reactome) and classified into a 31-class MoA ontology.
 
   The network is composed on-read (methods/mechanism_composed) from the SIGNOR
   Jul2026 source release plus the CollecTRI curated edge set; the `network_class`
@@ -19,7 +19,7 @@ description: |
   candidate hooks for small-molecule / degrader / molecular-glue programs?
 
 metadata:
-  version: 1.10.0
+  version: 1.10.1
   owner: ryan.abo@takeda.com
   requires_preflight: false
   method_version_pins:
@@ -77,7 +77,7 @@ Given a target + indication:
   1. Loads the target's composed signaling network (SIGNOR + CollecTRI +
      Reactome) on-read via methods/mechanism_composed, keyed on the target's
      UniProt-AC.
-  2. Classifies each edge under the 21-class MoA ontology
+  2. Classifies each edge under the 31-class MoA ontology
      (methods/signor_mechanism_network/moa_ontology.py v1.0.0).
   3. Emits a MoA opportunities table (upstream regulators, per-edge
      mechanism, MoA class, modality relevance) + a PD-marker opportunities

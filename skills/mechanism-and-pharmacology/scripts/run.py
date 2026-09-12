@@ -3,7 +3,7 @@
 
 Signaling-network mechanism + candidate MoA hooks + PD-marker suggestions.
 Consumes the signaling-network-mechanism card (a directed network composed
-from SIGNOR + CollecTRI + Reactome, classified into a 21-class MoA ontology).
+from SIGNOR + CollecTRI + Reactome, classified into a 31-class MoA ontology).
 Emits a data-package output tree with rule-derived per-modality signals.
 
 Refactor (2026-07-09): now uses the shared
@@ -56,7 +56,7 @@ _MECHANISM_VALUE_TIERS = {
 
 
 SKILL_NAME = "mechanism-and-pharmacology"
-SKILL_VERSION = "1.10.0"  # 1.10.0 (2026-09-04): VERDICT-INERT prediction_lane_caveat MATERIALITY gate — fires only when the non-curated (kinome-prediction + co-essentiality) lanes are at least as large as the curated network, so it goes quiet on curated-dominant hubs (MYC/TP53) where firing on ~every target was noise. Spine byte-stable.   # 1.9.0 (2026-09-04): --literature lane (run_wired_skill make_literature_fn(MECHANISM_PHARMACOLOGY)) + VERDICT-INERT actionable-MoA INFLATION surfacing (mechanism_confirmation_caveat = has_actionable_moa off a CONTEXT-FREE curated edge without indication-operative validation, clinically-precedented false-demote guard; prediction_lane_caveat = kinome-atlas/co-essentiality lanes carried alongside but never merged; curation_gap_note; mechanism_provenance quorum summary; MECHANISM_PHARMACOLOGY thesis + polarity_note). Spine byte-stable (resolver keys only on network_class).   # 1.8.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.7.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.                       # stamped into provenance.yaml — MUST equal SKILL.md metadata.version
+SKILL_VERSION = "1.10.1"  # 1.10.1 (2026-09-12): mapped-MoA guard note — has_actionable_moa/has_pd_marker now require a MAPPED MoA class (method fix); confirmation-caveat note text + docs updated (31-class ontology, Reactome=context). Verdict-inert; spine byte-stable.   # 1.10.0 (2026-09-04): VERDICT-INERT prediction_lane_caveat MATERIALITY gate — fires only when the non-curated (kinome-prediction + co-essentiality) lanes are at least as large as the curated network, so it goes quiet on curated-dominant hubs (MYC/TP53) where firing on ~every target was noise. Spine byte-stable.   # 1.9.0 (2026-09-04): --literature lane (run_wired_skill make_literature_fn(MECHANISM_PHARMACOLOGY)) + VERDICT-INERT actionable-MoA INFLATION surfacing (mechanism_confirmation_caveat = has_actionable_moa off a CONTEXT-FREE curated edge without indication-operative validation, clinically-precedented false-demote guard; prediction_lane_caveat = kinome-atlas/co-essentiality lanes carried alongside but never merged; curation_gap_note; mechanism_provenance quorum summary; MECHANISM_PHARMACOLOGY thesis + polarity_note). Spine byte-stable (resolver keys only on network_class).   # 1.8.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.7.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.                       # stamped into provenance.yaml — MUST equal SKILL.md metadata.version
 #        facet (verdict-inert; SIGNOR cross-referenced)
 # 1.5.0: pathway-activity-context (PROGENy)
 # 1.4.0: + tahoe-drug-perturbation MoA facet (verdict-inert)
@@ -140,7 +140,7 @@ def _claim_record(cards, fired=None, verdict_pair=None) -> dict:
     """M1 shadow builder — standalone, mirrors the other axes' hook.
 
     Record-enrichment (review move #3): populate mechanism.classes from the signaling-network card's
-    `moa_classes_present` (the 21-class MoA ontology). This puts the WHY / candidate-MoA-hook onto the
+    `moa_classes_present` (the 31-class MoA ontology). This puts the WHY / candidate-MoA-hook onto the
     chart (mechanism.classes was empty everywhere) — a legitimate DISPLAY coordinate on the mechanism
     axis's own record. It does NOT wire the ontology into any resolver/gate (the adversarial review's
     caution: keep MoA rule-wiring speculative until a specific class drives a specific decision)."""
@@ -275,12 +275,13 @@ def _mechanism_verdict_polarity(v) -> str:
 #    / surface `surface_confirmation_caveat`). The mechanism resolver keys ONLY on network_class, so NONE of
 #    these fields can move mechanism_verdict — they name WHY a has_actionable_moa=True call may be inflated.
 #
-# THE TRAP: upstream `has_actionable_moa` is composed as (n_upstream_curated_edges >= 1) — it fires off ANY
-# curated upstream edge, so it reads True for a validated-drugged kinase (BRAF/EGFR) AND for an undruggable
-# pleiotropic hub / metabolic enzyme (MYC/MTAP) alike. A curated SIGNOR/Reactome/CollecTRI edge is a
-# CONTEXT-FREE literature aggregate; its presence does NOT prove the MoA is OPERATIVE/DRIVING or DIRECTLY
-# DRUGGABLE in THIS indication. Small-molecule DIRECTNESS is owned by tractability-small-molecule — the
-# caveat is a breadcrumb to it, never a verdict move here.
+# THE TRAP: upstream `has_actionable_moa` is composed as (>=1 curated upstream edge carrying a MAPPED MoA
+# class) — as of the 2026-09-12 method fix it no longer fires off an all-'unmapped' edge set, but it STILL
+# fires off ANY curated upstream edge with a classified mechanism, so it reads True for a validated-drugged
+# kinase (BRAF/EGFR) AND for an undruggable pleiotropic hub / metabolic enzyme (MYC/MTAP) alike. A curated
+# SIGNOR/CollecTRI edge is a CONTEXT-FREE literature aggregate; its presence does NOT prove the MoA is
+# OPERATIVE/DRIVING or DIRECTLY DRUGGABLE in THIS indication. Small-molecule DIRECTNESS is owned by
+# tractability-small-molecule — the caveat is a breadcrumb to it, never a verdict move here.
 
 # FALSE-DEMOTE GUARD: targets whose actionable MoA rests on an APPROVED / registrational DIRECTLY-ACTING
 # agent are NOT annotation over-calls (the surface DLL3 / tractability BRAF analog). Small, disclaimed,
@@ -381,7 +382,7 @@ def _mechanism_confirmation_caveat(
     return {
         "reason": reason,
         "note": (
-            f"has_actionable_moa=True is composed as (>=1 curated upstream edge) off MoA classes "
+            f"has_actionable_moa=True is composed as (>=1 curated upstream edge with a MAPPED MoA class) off MoA classes "
             f"[{', '.join(moa_list) or 'curated upstream edges'}] — a CONTEXT-FREE curated aggregate "
             f"({prov}). Presence of a curated edge does NOT prove the MoA is OPERATIVE/DRIVING or "
             "DIRECTLY DRUGGABLE in this indication: for a pleiotropic hub / undruggable TF or metabolic "
