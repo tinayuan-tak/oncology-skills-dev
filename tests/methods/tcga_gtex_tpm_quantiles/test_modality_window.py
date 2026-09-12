@@ -186,3 +186,181 @@ def test_therapeutic_window_class_not_expressed_guard():
     rows = _rows({"COAD": 0.3}, {"LUNG": 0.1})  # tumor below expression floor
     r = compute_window_from_rows(rows, "COADREAD", MODALITY_TIER_THRESHOLD["bite_tce"])
     assert r["therapeutic_window_class"] == "not_expressed_in_cohort"
+
+
+# ══════════════════════════════════════════════════════════════════════════════════════════════
+# SUBSTRATE CORRECTIONS (2026-09-12 denominator audit). Every test below FAILS on the pre-fix
+# scorer — the pre-existing suite could not detect either change because its synthetic frames
+# never made BONE_MARROW or TESTIS the argmax.
+# ══════════════════════════════════════════════════════════════════════════════════════════════
+from methods.tcga_gtex_tpm_quantiles.marrow import (  # noqa: E402
+    MARROW_ORGAN_LABEL,
+    SUBSTRATE_GENE_ABSENT,
+    SUBSTRATE_PRIMARY,
+    SUBSTRATE_UNAVAILABLE,
+)
+from methods.tcga_gtex_tpm_quantiles.window import (  # noqa: E402
+    CELL_LINE_GTEX_GROUPS,
+    ESSENTIAL_GTEX_TISSUES,
+    PRIVILEGED_NORMAL_SITES,
+)
+
+
+# ── 1. the K-562 label: excluded as SUBSTRATE, still named as an essential ORGAN ──────────────
+def test_bone_marrow_is_an_essential_organ_but_not_a_valid_substrate():
+    """The two sets are deliberately overlapping: marrow IS life-critical (so the shared canonical
+    vital-organ crosswalk keeps it), but the product's GTEx rows for it are a cell line."""
+    assert "BONE_MARROW" in ESSENTIAL_GTEX_TISSUES  # policy: marrow is essential
+    assert "BONE_MARROW" in CELL_LINE_GTEX_GROUPS  # substrate: these rows are K-562
+    assert "TESTIS" not in ESSENTIAL_GTEX_TISSUES  # privileged-site scoping is full-normal-ONLY
+
+
+def test_gtex_bone_marrow_rows_can_never_set_the_essential_denominator():
+    # K-562 signature: absurdly high (HBG1 reads 11,161 TPM there). Pre-fix this was the argmax and
+    # drove the ratio to ~0.02 → no_therapeutic_window. It must now be invisible to both denominators.
+    rows = _rows({"COAD": 200.0}, {"BONE_MARROW": 9000.0, "LUNG": 1.0})
+    r = compute_window_from_rows(rows, "COADREAD", MODALITY_TIER_THRESHOLD["bite_tce"])
+    assert r["max_essential_normal_organ"] == "LUNG"
+    assert r["max_essential_normal_tpm"] == pytest.approx(1.0, rel=0.01)
+    assert r["therapeutic_window_class"] == "clean_window"  # was no_therapeutic_window pre-fix
+    assert r["excluded_cell_line_groups"] == ["BONE_MARROW"]
+
+
+def test_gtex_bone_marrow_rows_can_never_set_the_full_normal_denominator():
+    rows = _rows({"COAD": 200.0}, {"BONE_MARROW": 9000.0, "SKIN": 3.0})
+    r = compute_window_from_rows(rows, "COADREAD", MODALITY_TIER_THRESHOLD["bite_tce"])
+    assert r["max_full_normal_organ"] == "SKIN"
+    assert r["full_normal_window_class"] == "clean_full_normal_window"
+    # ...and not smuggled in through the privileged-site companion either
+    assert r["max_full_normal_organ_incl_privileged"] == "SKIN"
+    assert r["n_gtex_tissues"] == 1  # SKIN only — BONE_MARROW is not counted as a tissue
+
+
+# ── 2. the repoint: primary marrow, injected, DOES gate ───────────────────────────────────────
+def test_primary_marrow_sets_the_essential_denominator_when_it_is_the_worst_organ():
+    """The CLEC12A/AML archetype: window 4.55 on K-562 → 0.76 on primary marrow (nTPM 75.3).
+    This is the liability the cell-line substrate hid, and it must now bite."""
+    rows = _rows({"BRCA": 55.0}, {"LUNG": 1.0, "BONE_MARROW": 0.1})
+    r = compute_window_from_rows(
+        rows,
+        "BRCA",
+        MODALITY_TIER_THRESHOLD["bite_tce"],
+        marrow_tpm=75.3,
+        marrow_substrate=SUBSTRATE_PRIMARY,
+    )
+    assert r["max_essential_normal_organ"] == MARROW_ORGAN_LABEL
+    assert r["max_essential_normal_tpm"] == pytest.approx(75.3, rel=0.01)
+    assert r["window_ratio_essential"] < 1.0
+    assert r["therapeutic_window_class"] == "no_therapeutic_window"
+    assert r["marrow_tpm"] == pytest.approx(75.3, rel=0.01)
+    assert r["marrow_substrate"] == SUBSTRATE_PRIMARY
+    assert r["n_essential_organs"] == 2  # LUNG + BONE_MARROW_PRIMARY (the K-562 rows do not count)
+
+
+def test_primary_marrow_also_enters_the_full_normal_denominator():
+    rows = _rows({"BRCA": 55.0}, {"LUNG": 1.0, "SKIN": 2.0})
+    r = compute_window_from_rows(
+        rows,
+        "BRCA",
+        MODALITY_TIER_THRESHOLD["bite_tce"],
+        marrow_tpm=75.3,
+        marrow_substrate=SUBSTRATE_PRIMARY,
+    )
+    assert r["max_full_normal_organ"] == MARROW_ORGAN_LABEL
+    assert r["full_normal_window_class"] == "no_full_normal_window"
+
+
+def test_primary_marrow_participates_in_the_absolute_modality_tier_gate():
+    """Not only the ratio: marrow must be able to trip the legacy absolute-tier liability call."""
+    rows = _rows({"BRCA": 5000.0}, {"LUNG": 0.1})
+    r = compute_window_from_rows(
+        rows,
+        "BRCA",
+        MODALITY_TIER_THRESHOLD["adc"],  # tier 5.0
+        marrow_tpm=30.6,
+        marrow_substrate=SUBSTRATE_PRIMARY,  # CD33-like
+    )
+    assert r["window_class"] == "essential_tissue_liability"  # marrow 30.6 >= 5.0
+    assert r["therapeutic_window_class"] == "clean_window"  # ratio is still huge — both are true
+
+
+def test_marrow_organ_label_is_distinguishable_from_the_discredited_gtex_group():
+    """An archived run must be attributable to a substrate. `BONE_MARROW_PRIMARY` != `BONE_MARROW`."""
+    assert MARROW_ORGAN_LABEL != "BONE_MARROW"
+    assert MARROW_ORGAN_LABEL not in ESSENTIAL_GTEX_TISSUES
+
+
+# ── 3. absent marrow is HONEST, never a silent zero ───────────────────────────────────────────
+def test_absent_marrow_substrate_is_never_scored_as_zero():
+    """marrow == 0 would read as a CLEAN window on the framework's most safety-critical organ. An
+    unavailable substrate must instead shrink the declared organ count and say so."""
+    rows = _rows({"BRCA": 55.0}, {"LUNG": 1.0})
+    r = compute_window_from_rows(rows, "BRCA", MODALITY_TIER_THRESHOLD["bite_tce"])
+    assert r["marrow_tpm"] is None  # NOT 0.0
+    assert r["marrow_substrate"] == SUBSTRATE_UNAVAILABLE
+    assert r["n_essential_organs"] == 1  # LUNG only — the shortfall is VISIBLE
+    assert r["max_essential_normal_organ"] == "LUNG"
+
+
+def test_definitive_marrow_absence_is_reported_distinctly_from_a_read_failure():
+    rows = _rows({"BRCA": 55.0}, {"LUNG": 1.0})
+    absent = compute_window_from_rows(
+        rows, "BRCA", marrow_substrate=SUBSTRATE_GENE_ABSENT, marrow_note="not in HPA consensus"
+    )
+    assert absent["marrow_substrate"] == SUBSTRATE_GENE_ABSENT
+    assert absent["_marrow_note"] == "not in HPA consensus"
+    assert absent["marrow_substrate"] != SUBSTRATE_UNAVAILABLE  # transient vs definitive, not fused
+
+
+def test_data_unavailable_still_carries_the_substrate_provenance():
+    r = compute_window_from_rows(pd.DataFrame(), "COADREAD")
+    assert r["marrow_substrate"] == SUBSTRATE_UNAVAILABLE
+    assert r["excluded_cell_line_groups"] == ["BONE_MARROW"]
+    assert r["privileged_normal_sites_excluded"] == ["TESTIS"]
+
+
+# ── 4. TESTIS: out of the pan-normal KILL denominator, still fully reported ────────────────────
+def test_testis_does_not_gate_the_full_normal_kill():
+    """The cancer-testis antigen archetype (CTAG1B/NY-ESO-1 full-normal 0.17, MAGEA4 0.04, PRAME
+    0.28 — all testis-driven). Testis sits behind the blood-testis barrier: real, reported, but
+    not dose-limiting the way liver/marrow are, so it must not mint the pan-normal KILL."""
+    rows = _rows({"SKCM": 30.0}, {"TESTIS": 400.0, "LUNG": 0.5, "SKIN": 1.0})
+    r = compute_window_from_rows(rows, "SKCM", MODALITY_TIER_THRESHOLD["bite_tce"])
+    assert r["max_full_normal_organ"] == "SKIN"  # NOT TESTIS
+    assert r["window_ratio_full_normal"] > 5.0
+    assert r["full_normal_window_class"] == "clean_full_normal_window"  # was no_full_normal_window
+
+
+def test_testis_is_still_reported_both_ways():
+    """ "Excluded from the KILL denominator, still report it" — the excluded value and the window it
+    WOULD have produced are both emitted, so nothing is hidden from the card or the narrative."""
+    rows = _rows({"SKCM": 30.0}, {"TESTIS": 400.0, "LUNG": 0.5, "SKIN": 1.0})
+    r = compute_window_from_rows(rows, "SKCM", MODALITY_TIER_THRESHOLD["bite_tce"])
+    assert r["privileged_normal_sites_excluded"] == ["TESTIS"]
+    assert r["privileged_normal_tpm"]["TESTIS"] == pytest.approx(400.0, rel=0.01)
+    assert r["max_full_normal_organ_incl_privileged"] == "TESTIS"
+    assert r["max_full_normal_tpm_incl_privileged"] == pytest.approx(400.0, rel=0.01)
+    assert r["window_ratio_full_normal_incl_privileged"] < 1.0  # the suppressed KILL is auditable
+
+
+def test_testis_exclusion_does_not_touch_the_essential_window():
+    """TESTIS was never in the essential set, so window_ratio_essential must be byte-identical."""
+    rows = _rows({"SKCM": 30.0}, {"TESTIS": 400.0, "LUNG": 0.5})
+    r = compute_window_from_rows(rows, "SKCM", MODALITY_TIER_THRESHOLD["bite_tce"])
+    assert r["max_essential_normal_organ"] == "LUNG"
+    assert r["window_ratio_essential"] == pytest.approx((30.0 + 1.0) / (0.5 + 1.0), rel=0.01)
+
+
+def test_privileged_exclusion_cannot_hide_a_non_privileged_liability():
+    """Guard against over-reach: TROP2's salivary/skin liability must still mint the pan-normal KILL
+    even when testis is higher still. The exclusion removes ONE site, not the arm's teeth."""
+    rows = _rows({"BRCA": 40.0}, {"TESTIS": 900.0, "SALIVARY_GLAND": 460.0, "LUNG": 1.0})
+    r = compute_window_from_rows(rows, "BRCA", MODALITY_TIER_THRESHOLD["adc"])
+    assert r["max_full_normal_organ"] == "SALIVARY_GLAND"
+    assert r["full_normal_window_class"] == "no_full_normal_window"
+
+
+def test_privileged_set_is_exactly_testis():
+    """Scope pin: this decision covered TESTIS only. Adding a site here is a verdict-moving change
+    that needs its own measurement, so the set is asserted exactly, not just for membership."""
+    assert PRIVILEGED_NORMAL_SITES == frozenset({"TESTIS"})
