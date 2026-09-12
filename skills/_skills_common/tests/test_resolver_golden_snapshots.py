@@ -119,13 +119,19 @@ def test_coemission_is_reachable_subset(gate):
         )
 
 
-def test_tractability_full_rule_set_is_frozen():
+def test_tractability_listed_rule_set_is_fully_enumerated():
     """REGRESSION for the D5 motivation: tractability_small_molecule previously could not freeze its
-    full rule set (a core subset + a SEPARATE live 2**n oracle, because the full power set was 127 MB >
-    GitHub's 100 MB). The co-emission table freezes ALL of it in-file. Assert its table equals the full
-    co-emission enumeration over all its rule_ids (not a truncated subset). Count is 20 as of the
-    CASE-008 modality gate (2026-09-07): the 19 directness-gate rungs + known-drug-approved-biologic-only-
-    sm-not-supportive (the second annotation_only_indirect rung, keyed on approved_biologic_only)."""
+    rule set in-file (a core subset + a SEPARATE live 2**n oracle, because the full power set was
+    127 MB > GitHub's 100 MB). The co-emission table freezes the whole LISTED set in-file. Assert
+    its table equals the full co-emission enumeration over its rule_ids (not a truncated subset).
+
+    RENAMED + RESCOPED 2026-09-12. The old name ("full_rule_set") over-claimed: `rule_ids` carries
+    20 ids while the resolver REFERENCES 22 (measured-potent-ligand-sm-supportive,
+    measured-weak-ligand-sm-supportive), so two rungs are not enumerated here. That gap is declared,
+    with its measured row cost, in test_resolver_golden_rule_id_coverage.RULE_ID_COVERAGE_DEBT --
+    which is where it can be tracked and shrunk. The `== 20` below is a DRIFT PIN on the listed
+    count, not evidence of completeness: it fails if someone edits the list without re-baselining,
+    and the coverage guard is what fails if a rung goes unlisted."""
     gate = "tractability_small_molecule"
     assert gate in _GOLDEN
     assert len(_GOLDEN[gate]["rule_ids"]) == 20

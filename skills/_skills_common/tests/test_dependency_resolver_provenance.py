@@ -6,14 +6,17 @@ provenance, from "no dependency rule fired at all" (the card never ran). v1.1.0 
 bottom rung (above default) mapping those data-unavailable rule_ids to `insufficient` WITH a
 naming provenance anchor.
 
-These tests pin the fix WITHOUT the 2^20 golden-snapshot explosion that adding the 5 new
-rule_ids to the exhaustive table would cause (they are a strict, low-precedence addition):
+These tests pin the fix directly on the rungs (fast, readable, independent of the frozen table):
   1. each data-unavailable rule, fired alone, → ('insufficient', <that rule_id>) — named, not null;
   2. the bare default (NO rule fired) still → ('insufficient', None) — the honest "nothing ran";
   3. the new rung NEVER outranks a real signal (a positive/veto co-firing wins);
-  4. the frozen golden snapshot (the 15 pre-existing rule_ids) is unaffected — proven by the
-     sibling test_resolver_golden_snapshots test; here we just assert the new rule_ids are
-     absent from that frozen table's dimension (so no silent table drift).
+  4. the 5 rule_ids ARE carried in the golden snapshot's dependency dimension, so those rungs are
+     actually exercised by the frozen table.
+
+(4) was the OPPOSITE assertion until 2026-09-12 — it required the ids to be ABSENT, to dodge a
+2**20 power-set explosion that the D5 co-emission migration had already eliminated. Keeping them
+out left 5 of 18 rungs invisible to the oracle. See the inverted test's docstring and
+test_resolver_golden_rule_id_coverage.py.
 """
 
 from __future__ import annotations
@@ -65,8 +68,10 @@ def test_bare_default_still_null_provenance():
 
 
 def test_data_unavailable_rung_never_outranks_a_real_signal():
-    """First-match-wins + bottom placement: a real positive or veto co-firing with a
-    data-unavailable rule always wins (the rung is a strict, low-precedence addition)."""
+    """Lowest-`priority`-wins + bottom placement: a real positive or veto co-firing with a
+    data-unavailable rule always wins (the rung is a strict, low-precedence addition). Note the
+    resolver is NOT first-match-wins — precedence is the explicit `priority:` field, so rung order
+    in the YAML is irrelevant."""
     # CRISPR data-unavailable + a concordant-dependent positive → the positive wins
     v, drv = _resolver.resolve_verdict(
         [{"rule_id": "data-unavailable-insufficient"}, {"rule_id": "concordant-dependent-supportive-dominant"}], _SPEC
@@ -79,15 +84,30 @@ def test_data_unavailable_rung_never_outranks_a_real_signal():
     assert v2 == "non_dependent"
 
 
-def test_new_rule_ids_absent_from_frozen_golden_table_dimension():
-    """The 5 new rule_ids must NOT be in the frozen golden snapshot's dependency rule_ids
-    (that is what keeps the frozen table's rule dimension valid + unchanged — the new rungs are a
-    strict, low-precedence addition that never fires on the old 15). Guards against someone silently
-    widening the frozen dimension. (Since D5 the table is co-emission-aware, not the full power set,
-    but the dependency dimension is still the 15 pre-existing rule_ids.)"""
+def test_new_rule_ids_are_in_the_frozen_golden_table_dimension():
+    """INVERTED 2026-09-12. This test previously asserted the 5 data-unavailable rule_ids were
+    ABSENT from the golden's dependency rule_ids, to avoid a 2**20 power-set explosion.
+
+    Two things made that reasoning obsolete and then harmful:
+      1. D5 (2026-08-09) replaced power-set enumeration with co-emission enumeration. The 5 ids
+         cost 840 -> 8,640 rows (with the 2 partner-conditional ids), not 2**20. The explosion the
+         exclusion was defending against no longer exists.
+      2. The exclusion hardened into policy. It kept 5 of 18 rungs UNEXERCISED by the oracle, and
+         the same reasoning left the 2 partner-conditional ids (Track PC, 2026-08-09) unlisted too
+         — so `partner_conditional_dependent`, a shipped verdict and a `dominant` nomination-gate
+         positive_signal, appeared on ZERO frozen rows. Resolver v1.4.0 raised those rungs above
+         `discordant`: 4/840 rows moved in the committed table vs 374/8,640 with the ids listed.
+         A verdict-moving precedence change read as near-inert.
+
+    So the ids are now REQUIRED to be present, and the rung-behaviour tests above (which pin the
+    same rungs directly, and do not depend on the table) remain as the fast, readable spec.
+    See test_resolver_golden_rule_id_coverage.py for the general guard across all gates.
+    """
     golden = json.loads((SKILLS / "_skills_common" / "tests" / "resolver_golden_snapshots.json").read_text())
     frozen_ids = set(golden["dependency"]["rule_ids"])
-    for rid in _DATA_UNAVAILABLE_RULES:
-        assert rid not in frozen_ids, (
-            f"{rid} leaked into the frozen golden dimension — it would widen the frozen rule set"
-        )
+    missing = [rid for rid in _DATA_UNAVAILABLE_RULES if rid not in frozen_ids]
+    assert not missing, (
+        f"data-unavailable rule_ids missing from the golden dependency dimension: {missing} — "
+        f"their rungs are unexercised by the frozen table; add them and re-run "
+        f"regenerate_resolver_golden.py"
+    )
