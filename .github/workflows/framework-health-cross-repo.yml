@@ -31,15 +31,24 @@ name: framework-health-cross-repo
 #   `push`/`schedule` triggers below. You can `workflow_dispatch` this job to test the token first.
 # MEANWHILE the SAME two --check guards run token-free against the local side-by-side clones via
 # `make drift-check` (and are surfaced advisory-only by scripts/preland.sh).
-#   DRIFT PRECONDITION CLEARED (2026-09-12): both committed feeds were regenerated and both --check
-#   guards now pass locally, so the second re-enable blocker (the ~22-commit staleness noted here on
-#   2026-09-06) is gone. The PAT scope above is the only remaining blocker. Note that the atlas
-#   --check was ALSO reporting STALE for a reason a regen could never fix: stable_projection compared
-#   per-skill `version`/`status`/`health`/`md_path`, which move on sibling churn alone — so the feed
-#   went stale again minutes after any regen, and `md_path` being absolute made the guard's verdict
-#   depend on which checkout it ran from. Fixed in build_living_doc.stable_projection; if you
-#   re-enable the `push` trigger and see STALE, check whether it is real wiring drift before
-#   assuming another regen will clear it.
+#   DRIFT PRECONDITION (2026-09-12, corrected): both committed feeds were regenerated and the
+#   ~22-commit staleness noted here on 2026-09-06 is gone, so the PAT scope above is the only
+#   remaining blocker. An earlier revision of this comment claimed both --check guards "now pass
+#   locally"; that was FALSE when written and is worth spelling out, because a header asserting a
+#   cleared precondition is how the next person concludes the PAT is the sole problem and re-enables
+#   the `push` trigger into a red job. The atlas --check was STALE on trunk the whole time.
+#   Two distinct causes, both since fixed in build_living_doc.stable_projection:
+#     1. it compared per-skill `version`/`status`/`health`/`md_path`, which move on sibling churn
+#        alone, so the feed went stale again minutes after any regen; and `md_path` being absolute
+#        made the guard's verdict depend on which checkout it ran from.
+#     2. `roots` — the absolute path of each sibling checkout — was still in the drift basis. After
+#        #754 that was the SOLE delta between the committed and a fresh projection (regenerated
+#        from a /tmp worktree that no longer exists), i.e. the guard was reporting drift caused by
+#        nothing but its own build location. Dropped outright rather than basenamed like `md_path`,
+#        because worktrees are named `<repo>__<branch>` so the basename moves too.
+#   If you re-enable the `push` trigger and see STALE, check whether it is real wiring drift before
+#   assuming another regen will clear it — and run `--check` from BOTH the primary checkout and a
+#   worktree, since a location-dependent basis is what both bugs above had in common.
 
 # Least-privilege token: this job only reads (checks out repos + runs the --check guards, writes
 # nothing back). The sibling-repo checkouts authenticate via CROSS_REPO_TOKEN, not this token.

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import copy
 import json
+from pathlib import Path
 
 import pytest
 from _util import builder, load_committed
@@ -89,6 +90,47 @@ def test_projection_ignores_the_checkout_root_of_md_path():
     assert _proj(base) == _proj(moved), "stable_projection depends on the checkout root of md_path"
 
 
+def test_projection_ignores_the_checkout_roots_map():
+    """`roots` records the absolute path each sibling checkout was built from, so it is the same
+    defect as `md_path` above, one field over — and it was the SOLE reason the committed atlas
+    read STALE on trunk after #754 (regenerated from `/tmp/wt/…__fix-threshold-roles-…`, a
+    worktree since deleted). A recursive diff of the two projections showed exactly one delta:
+    `roots.target_contracts`. Every card, rule, resolver, skill and concept was identical.
+    """
+    base = load_committed()
+    roots = base.get("roots") or {}
+    assert roots, "committed atlas has no 'roots' — test is vacuous"
+    moved = copy.deepcopy(base)
+    moved["roots"] = {k: "/some/other/checkout" + str(v) for k, v in roots.items()}
+    assert json.dumps(base, sort_keys=True) != json.dumps(moved, sort_keys=True), (
+        "no root was rewritten — test is vacuous"
+    )
+    assert _proj(base) == _proj(moved), (
+        "stable_projection is sensitive to the checkout roots; --check will report STALE for "
+        "nothing but the directory the last regen happened to run from"
+    )
+
+
+def test_projection_ignores_a_worktree_shaped_root():
+    """Why `roots` is DROPPED and not basenamed like `md_path`. Worktrees are created as
+    `<repo>__<branch>`, so the basename differs between the primary checkout and every
+    worktree — reducing a root to `Path(...).name` would leave the guard location-dependent
+    for precisely the case that broke it. Identity lives in `root_shas`, not in the path.
+    """
+    base = load_committed()
+    roots = base.get("roots") or {}
+    assert roots, "committed atlas has no 'roots' — test is vacuous"
+    as_worktree = copy.deepcopy(base)
+    as_worktree["roots"] = {k: f"/tmp/wt/{Path(str(v)).name}__some-branch" for k, v in roots.items()}
+    # the discriminating part: the rewrite changes the BASENAME too, not just the parent dir
+    assert {Path(str(v)).name for v in roots.values()} != {Path(str(v)).name for v in as_worktree["roots"].values()}, (
+        "rewrite left basenames intact — this test would also pass under a basename-only fix"
+    )
+    assert _proj(base) == _proj(as_worktree), (
+        "stable_projection still depends on the root basename, so a worktree regen would make the committed atlas STALE"
+    )
+
+
 def test_projection_still_sees_an_md_rename():
     """The other half of the md_path decision: the basename is kept, because a skill's md being
     renamed IS a wiring change. Reduced to a basename, not dropped."""
@@ -137,7 +179,7 @@ def test_projection_strips_top_level_snapshots():
     """Regression fence on the keys the projection already stripped, including the two whose
     per-skill copies were the actual leak (`health`)."""
     out = json.loads(_proj(load_committed()))
-    for key in ("generated_at", "root_shas", "health_overlay_at", "health", "coverage", "gaps"):
+    for key in ("generated_at", "roots", "root_shas", "health_overlay_at", "health", "coverage", "gaps"):
         assert key not in out, f"stable_projection leaked time-varying top-level '{key}'"
     for s in (out.get("skills") or {}).values():
         for key in _VOLATILE_SKILL_FIELDS:

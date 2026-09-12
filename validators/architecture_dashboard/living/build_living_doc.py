@@ -75,9 +75,27 @@ def assemble(tc: Path, sk: Path, dc: Path, dp: Path, out_dir: Path, compute_heal
 
 def stable_projection(graph: dict) -> str:
     """The drift-guarded projection for --check: WIRING + CONCEPTS structure only. Strip
-    time-varying snapshots (health, coverage, gaps, timestamps, shas)."""
+    time-varying snapshots (health, coverage, gaps, timestamps, shas) and the checkout roots.
+
+    `roots` is the absolute path of each sibling checkout the build ran from, so leaving it in
+    the basis made the guard's verdict depend on WHERE it ran — the same defect already fixed
+    for per-skill `md_path` below, one field over. It cannot be fixed the same way: `md_path`
+    was reduced to its basename because a skill md rename IS wiring, but a worktree directory
+    is named `<repo>__<branch>`, so basenaming a root still differs between the primary
+    checkout and every worktree. Repo IDENTITY is already carried by `root_shas`, which this
+    projection strips as volatile — so `roots` is pure provenance and is dropped outright."""
     g2 = json.loads(json.dumps(graph, default=str))
-    for k in ("generated_at", "root_shas", "health_overlay_at", "health", "coverage", "gaps", "narrative", "glossary"):
+    for k in (
+        "generated_at",
+        "roots",
+        "root_shas",
+        "health_overlay_at",
+        "health",
+        "coverage",
+        "gaps",
+        "narrative",
+        "glossary",
+    ):
         g2.pop(k, None)
     # Concepts: guard the contract-derived STRUCTURE only. The example VALUES and inventory
     # counts are harvested live from the sibling repos (a manifest's git_commit, an evidence
