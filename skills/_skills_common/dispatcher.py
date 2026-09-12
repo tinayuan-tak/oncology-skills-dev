@@ -581,6 +581,7 @@ def run_wired_skill(
     axis: str,
     question: str,
     verdict_fn: Optional[VerdictFn] = None,
+    verdict_modality_aware: bool = False,
     headline_fn: Optional[HeadlineFn] = None,
     on_dependency_status: Optional[dict[str, str]] = None,
     partial_status_note: Optional[str] = None,
@@ -610,8 +611,13 @@ def run_wired_skill(
             "surface_intrinsic").
         question: template string with {target} + {indication} placeholders.
         verdict_fn: optional callback (fired) → (verdict_str, driving_rule_id).
-            Skills without a verdict function (e.g. tumor-selectivity, which
-            uses selectivity_class directly) can omit this.
+            Skills without a verdict function can omit this.
+        verdict_modality_aware: when True the callback is invoked as
+            (fired, modality=args.modality) instead of (fired). For a skill whose
+            verdict consults the fired rules' per-modality `signals` block —
+            today only tumor-selectivity, whose normal-breadth KILL arms are
+            declared `adc: neutral` in target-contracts. Default False keeps the
+            1-arg contract every other skill uses.
         headline_fn: optional callback (cards, fired, verdict_pair) → dict.
             When omitted, a minimal default headline is emitted.
         on_dependency_status: dependency-status behavior map card_id → behavior. Passed
@@ -738,7 +744,19 @@ def run_wired_skill(
     fired = fired_rules(card_outputs, axis=axis, card_id_filter=surviving_card_ids)
 
     # 4. Verdict (optional callback) — the PRIMARY `axis` alone drives the verdict.
-    verdict_pair = verdict_fn(fired) if verdict_fn else None
+    # `verdict_modality_aware` skills additionally receive the --modality lens AND the resolved cards,
+    # because their clamp consults the fired rules' OWN per-modality `signals` (tumor-selectivity: a KILL
+    # arm the contract declares neutral for the chosen modality must not KILL) and gates that waiver on a
+    # PRECONDITION that is a measured class no rule in the lens fires on (an affirmatively clean
+    # essential-organ window — see selectivity_veto._CLEAN_ESSENTIAL_WINDOW_CLASSES). Every other skill
+    # keeps the 1-arg contract, and a modality-aware skill called WITHOUT --modality gets modality=None
+    # — so both paths are byte-identical to the pre-2026-09-12 behavior.
+    if verdict_fn is None:
+        verdict_pair = None
+    elif verdict_modality_aware:
+        verdict_pair = verdict_fn(fired, modality=args.modality, cards=card_outputs)
+    else:
+        verdict_pair = verdict_fn(fired)
 
     # 4a. Extra AUDIT axes (optional). A skill may fire a SECOND, self-contained axis (e.g.
     # combo-and-resistance's resistance_emergence) whose rules belong in the emitted audit spine
@@ -808,6 +826,12 @@ def run_wired_skill(
             # gated like target/indication, so every existing headline_fn is called byte-identically.
             if "preprocess_provenance" in _hf_params:
                 _hf_kwargs["preprocess_provenance"] = preprocess_provenance
+            # A headline_fn may OPTIONALLY declare `modality` to receive the --modality lens — needed
+            # when the lens changes the VERDICT (tumor-selectivity's modality-conditional KILL
+            # suppression) so the headline can name which veto arm was waived for which modality
+            # instead of a suppressed KILL going silently absent. Same signature gating.
+            if "modality" in _hf_params:
+                _hf_kwargs["modality"] = args.modality
         except (ValueError, TypeError):  # unintrospectable callable → 3-arg call (byte-identical)
             _hf_kwargs = {}
         headline = headline_fn(_headline_cards, fired, verdict_pair, **_hf_kwargs)

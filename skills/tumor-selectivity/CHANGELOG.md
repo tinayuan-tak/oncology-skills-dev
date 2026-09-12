@@ -4,6 +4,60 @@ The `version` in [SKILL.md](SKILL.md) and `SKILL_VERSION` in
 [scripts/run.py](scripts/run.py) must always match (guarded by
 `skills/tests/test_version_parity.py`); bump both together and add an entry here.
 
+## 1.24.0
+- **Modality-conditional normal-breadth KILL suppression (VERDICT-MOVING, `--modality` runs only).**
+  The five selectivity veto rules in target-contracts have always declared per-modality `signals:`, and
+  three of them declare `adc: neutral` deliberately — `tvn-no-full-normal-window-veto` carries the
+  comment *"the TROP2/TACSTD2 salivary-gland archetype: broad-LOW normal (clean vs the essential set) is
+  ADC-tolerable — sacituzumab/Dato-DXd are validated ADCs here"*. But `apply_normal_breadth_veto` took
+  **no modality argument** and mapped every fired arm straight to its verdict, so the framework issued
+  the housekeeping KILL (`selective_but_broadly_normal`) for validated ADC antigens **in their approved
+  indication**, on evidence its own contract calls neutral for that modality. The clamp now reads the
+  fired rule's OWN `signals[modality]` — contract-driven, no Python-side modality table, so a new arm's
+  lens is honoured with no code change here.
+- **The waiver requires the essential-organ axis to be affirmatively CLEAN** (`modality-therapeutic-
+  window.therapeutic_window_class == clean_window`) — the *"clean vs the essential set"* clause of the
+  contract's own ADC-neutrality comment. Waiving on the `adc: neutral` declaration alone was measured on
+  the 36-target panel to let designed true negatives ESCAPE: **RPL13A/COADREAD** (a ribosomal
+  housekeeping decoy — tumor 641.4 TPM vs BONE_MARROW 617.5, essential ratio 1.04) and **MUC1/BRCA**
+  (182.3 vs LUNG 133.8, ratio 1.36) both rose from the housekeeping KILL to the selectivity-PRESERVING
+  `selective_with_normal_liability`. Both are `narrow_window` on the essential axis, and `narrow_window`
+  fires **no rung** in the intracellular lens, so the full-normal KILL was the only thing holding a
+  600-TPM-everywhere gene down. Every non-clean value (narrow / no-window / not-expressed /
+  data_unavailable / absent card) now fails CLOSED. `_verdict` and `_headline` receive the resolved
+  `cards` from the dispatcher to read this field, and both apply the precondition identically so the
+  headline can never claim a waiver the verdict did not grant.
+- **MEASURED panel effect: ZERO on today's data (36/36 unchanged, both lenses).** With the precondition
+  in force the waiver is currently unreachable: the full-normal KILL fires on 20/36 panel targets and
+  *none* of them has a clean essential window (16 are `no_therapeutic_window` — already KILLed by the
+  ADC-`opposing` essential arm — and 4 are `narrow_window`). So this release does **not** rescue
+  TACSTD2, NECTIN4, CLDN18 or EGFR in their approved indications: the max-of-15/31 window **denominator**
+  is what blocks them, and that fix is tracked separately. What lands here is the mechanism plus its
+  guards; it becomes live when a clean essential window can co-occur with a broad-but-low pan-normal one.
+- **Scope is deliberately narrow.** (a) Only the two KILL outcomes can be suppressed; the
+  selectivity-PRESERVING `selective_with_normal_liability` always stands (its arms also declare
+  `adc: neutral`, and suppressing it would DELETE safety signal rather than unblock a nomination).
+  (b) Suppression **falls through** to the next arm in precedence, so an arm that is `opposing` for the
+  chosen modality still KILLs — `tvn-no-therapeutic-window-veto` (tumor below a VITAL organ) is
+  `opposing` for all four modalities, so an ADC lens never rescues a target failing that arm.
+  (c) Only an explicit `neutral`/`supportive` suppresses; a missing/unknown signal and `insufficient`
+  (a coverage-gap token, not a safety judgement) keep the KILL.
+- **Byte-identical without `--modality`.** `modality=None` reproduces the pre-change worst-case clamp
+  exactly, which covers every default run plus the composed (`compose_core.resolve_gate_spine`) and
+  `flip_analysis` paths.
+- **A waived arm stays VISIBLE.** New `modality_suppressed_kill_arms()` helper + three headline fields
+  (`verdict_modality_lens`, `modality_suppressed_veto_arms`, `modality_suppressed_veto_note`) name which
+  arm fired and was waived for which modality, and state that the liability is real and arbitrated by
+  payload/bystander buffering + density (owned by on-target-safety-liability and modality-fit) rather
+  than dismissed. A suppressed KILL must never read as an arm that never fired. The three keys are
+  emitted **only under a lens** and OMITTED (not present-and-`null`) otherwise — three always-present
+  nulls would churn every golden/replay snapshot and every consumer schema to say "no lens was used",
+  which their absence already says, and would break the byte-identity claim above.
+- **Plumbing.** `run_wired_skill(verdict_modality_aware=True)` calls `verdict_fn(fired, modality=…)`;
+  every other skill keeps the 1-arg `VerdictFn` contract. `_headline` receives `modality` through the
+  existing signature-gated optional-kwargs mechanism (same pattern as `target` / `indication` /
+  `preprocess_provenance`), so no other `headline_fn` changes behavior.
+
 ## 1.23.0
 - **sc-normal essential-liability SEVERITY grade (W3c, VERDICT-INERT).** A fired critical-organ /
   origin-tissue liability is now graded `high_severity | moderate_severity | low_severity` from the

@@ -416,6 +416,46 @@ def test_declared_post_resolver_clamp_matches_selectivity_veto():
     assert {frozenset(g) for g in up["requires"]} == {frozenset(sv._CPTAC_UP_RULES), frozenset(sv._POP_NORMAL_UP_RULES)}
 
 
+def test_declared_modality_conditional_block_matches_the_executor():
+    """The 2026-09-12 modality lens is a REAL decision dimension of the clamp, so it must be declared
+    with the same legibility as the precedence walk — otherwise the resolver reads as if every fired arm
+    always maps straight to its verdict, which is no longer true. Pins the four things that change the
+    outcome (which signals waive, which verdicts are waivable, which are never waived, and that a waiver
+    FALLS THROUGH rather than ending the walk) to the executor's constants. Skips until contracts land."""
+    import _skills_common.selectivity_veto as sv
+
+    spec = _contracts_yaml("resolvers/selectivity.resolver.yaml")
+    if spec is None:
+        pytest.skip("target-contracts checkout absent")
+    prc = spec.get("post_resolver_clamp") or {}
+    mc = prc.get("modality_conditional")
+    if not mc:
+        pytest.skip("contracts predates the modality_conditional declaration (land contracts-first)")
+
+    # the fired rule's OWN signals block is the source of truth — NOT a Python-side modality table
+    assert mc["signal_source"] == "interpretation_rules.signals"
+    assert set(mc["suppressing_signals"]) == set(sv._NON_OPPOSING_MODALITY_SIGNALS)
+    # `insufficient` must NOT be a waiver (a coverage token is not a safety judgement)
+    assert "insufficient" not in set(mc["suppressing_signals"])
+    # ONLY the KILLs are waivable; the PRESERVING outcome always stands
+    assert set(mc["suppressible_verdicts"]) == set(sv._KILL_VERDICTS)
+    assert set(mc["never_suppressed_verdicts"]) == set(sv._VETO_OUTCOMES) - set(sv._KILL_VERDICTS)
+    # the PRECONDITION: the waiver is void unless the essential-organ axis is affirmatively clean
+    pre = mc["requires_essential_window_class"]
+    assert pre["card_id"] == sv._ESSENTIAL_WINDOW_CARD
+    assert pre["field"] == sv._ESSENTIAL_WINDOW_FIELD
+    assert set(pre["one_of"]) == set(sv._CLEAN_ESSENTIAL_WINDOW_CLASSES)
+    # a waiver hands the walk to the next arm — an `opposing` arm still KILLs
+    assert mc["on_suppression"] == "fall_through_to_next_arm"
+    assert mc["no_modality_behavior"] == "worst_case_identical"
+    # the provenance fields the headline must carry so a waived KILL is visible
+    assert set(mc["provenance_fields"]) == {
+        "modality_suppressed_veto_arms",
+        "modality_suppressed_veto_note",
+        "verdict_modality_lens",
+    }
+
+
 def test_clamp_kills_are_declared_contradictions_in_the_nomination_gate():
     """The two clamp KILLs must be in the nomination gate vocab (kill_capable_verdicts.selectivity +
     positive_contradictions) so a COMPOSED selectivity KILL blocks `strong` (the advisory→silent-
@@ -686,3 +726,272 @@ def test_rescue_then_stromal_confound_veto_still_downgrades_FAP_safety_net():
         _fire_ids("tvn-discordant-neutral-flagged", _CPTAC, _POP, "tvn-stromal-confound-veto")[0]
         == "selective_but_stromal_confound"
     )
+
+
+# --- MODALITY-CONDITIONAL KILL SUPPRESSION (v1.24.0) ------------------------------------------
+# The veto rules declare PER-MODALITY signals and three of the five arms declare `adc: neutral` on
+# purpose (tvn-no-full-normal-window-veto names sacituzumab/Dato-DXd). The clamp used to ignore that
+# lens entirely, so a validated ADC antigen was KILLED on evidence the contract calls ADC-neutral.
+# These pin the fix in BOTH directions: the waiver happens where the contract says it should, and the
+# arms the contract calls `opposing` still KILL.
+
+_FULL_NORMAL = "tvn-no-full-normal-window-veto"
+_SC_NORMAL = "tvn-sc-normal-critical-organ-veto"
+_TPHP = "tvn-tphp-broad-abundant-normal-protein-veto"
+_STROMAL = "tvn-stromal-confound-veto"
+
+
+def _rule_signals(rule_id):
+    """The rule's REAL `signals:` block, loaded from the live target-contracts rules file. Using the
+    contract rather than synthetic signals is the point: these tests fail if the contract's modality
+    lens is edited, which is exactly when the clamp's behavior changes."""
+    from _skills_common import load_interpretation_rules
+
+    for r in load_interpretation_rules("intracellular_intrinsic") or []:
+        if r.get("rule_id") == rule_id:
+            return r.get("signals") or {}
+    return None
+
+
+def _fire_real(axis_a_rule, *veto_rule_ids, modality=None, window_class="clean_window"):
+    """Fire an axis-A rule + veto arms carrying their REAL contract signals, through _verdict.
+
+    ``window_class`` is the measured essential-organ `therapeutic_window_class` the waiver PRECONDITION
+    reads. It defaults to `clean_window` — the only value that satisfies the precondition — so these
+    tests exercise the waiver path; the tests that pin the precondition itself pass a non-clean value
+    explicitly."""
+    fired = [{"rule_id": axis_a_rule, "signals": _rule_signals(axis_a_rule) or {}}]
+    for rid in veto_rule_ids:
+        sig = _rule_signals(rid)
+        if sig is None:
+            pytest.skip(f"rule {rid} absent from the target-contracts checkout")
+        fired.append({"rule_id": rid, "signals": sig})
+    cards = [{"card_id": "modality-therapeutic-window", "summary": {"therapeutic_window_class": window_class}}]
+    return ts._verdict(fired, modality=modality, cards=cards)
+
+
+def test_contract_still_declares_the_modality_lens_this_clamp_relies_on():
+    """ANTI-TAUTOLOGY guard. The whole fix rests on two contract facts: the pan-normal window arm is
+    ADC-NEUTRAL (the TROP2/sacituzumab archetype) and the ESSENTIAL-organ arm is opposing for EVERY
+    modality (tumor below a vital organ is not payload-buffered). If either is edited, the suppression
+    semantics change and this test — not a downstream verdict surprise — reports it."""
+    full = _rule_signals(_FULL_NORMAL)
+    ess = _rule_signals(_VETO)
+    if full is None or ess is None:
+        pytest.skip("target-contracts checkout absent")
+    assert full.get("adc") == "neutral", f"{_FULL_NORMAL} adc lens changed: {full.get('adc')!r}"
+    assert full.get("bite_tce") == "opposing", "a TCE has no payload buffer — broad normal must oppose"
+    for modality in ("small_molecule", "degrader", "adc", "bite_tce"):
+        assert ess.get(modality) == "opposing", (
+            f"{_VETO} must stay opposing for {modality}: tumor BELOW a vital organ has no window for any modality"
+        )
+
+
+def test_adc_lens_waives_the_pan_normal_kill_the_contract_calls_neutral():
+    """The TACSTD2/TROP2 archetype under an ADC lens: the pan-normal window arm fires, the contract
+    declares it ADC-neutral, so the selective axis-A call SURVIVES instead of being KILLed."""
+    assert _fire_real("tvn-strong-selective-supportive", _FULL_NORMAL, modality="adc") == (
+        "strong_tumor_selective",
+        "tvn-strong-selective-supportive",
+    )
+
+
+def test_tce_lens_keeps_the_pan_normal_kill():
+    """Same evidence, `bite_tce` lens: the contract calls it opposing (no payload buffer), so the KILL
+    stands. Proves the waiver is read off the contract, not applied to every modality."""
+    assert _fire_real("tvn-strong-selective-supportive", _FULL_NORMAL, modality="bite_tce") == (
+        "selective_but_broadly_normal",
+        _FULL_NORMAL,
+    )
+
+
+def test_no_modality_lens_is_byte_identical_worst_case():
+    """Every default run: modality=None → the pre-1.24.0 worst-case clamp, KILL intact."""
+    assert _fire_real("tvn-strong-selective-supportive", _FULL_NORMAL)[0] == "selective_but_broadly_normal"
+    assert ts._verdict([{"rule_id": "tvn-strong-selective-supportive"}, {"rule_id": _FULL_NORMAL}])[0] == (
+        "selective_but_broadly_normal"
+    )
+
+
+def test_adc_lens_does_NOT_waive_the_essential_organ_kill():
+    """The arm the contract keeps opposing for all four modalities. An ADC lens must NOT rescue a target
+    whose tumor sits below a VITAL organ — this is the safety floor the whole waiver rests on."""
+    assert _fire_real("tvn-strong-selective-supportive", _VETO, modality="adc") == (
+        "selective_but_broadly_normal",
+        _VETO,
+    )
+
+
+def test_adc_lens_waiver_falls_through_to_the_next_opposing_arm():
+    """Suppression is a FALL-THROUGH, not an abort: with both window arms fired under an ADC lens, the
+    ADC-neutral pan-normal arm is skipped and the ADC-OPPOSING essential arm still KILLs and owns the
+    driving label. (This is the measured TACSTD2/BRCA + TACSTD2/LUAD shape — full-normal 0.51/0.45 AND
+    essential 0.62/0.55, i.e. both arms fail — so the modality thread alone does NOT rescue them; the
+    max-of-N essential DENOMINATOR is the separate defect.)"""
+    assert _fire_real("tvn-strong-selective-supportive", _VETO, _FULL_NORMAL, modality="adc") == (
+        "selective_but_broadly_normal",
+        _VETO,
+    )
+
+
+def test_adc_lens_waiver_falls_through_to_the_preserving_liability_arm():
+    """Pan-normal (ADC-neutral) + sc-normal critical-organ under an ADC lens: the KILL is waived, and
+    precedence falls through to the PRESERVING arm — so the call is not silently promoted to a clean
+    `strong`, it carries the named normal liability."""
+    assert _fire_real("tvn-strong-selective-supportive", _FULL_NORMAL, _SC_NORMAL, modality="adc") == (
+        "selective_with_normal_liability",
+        _SC_NORMAL,
+    )
+
+
+def test_preserving_arms_are_never_modality_suppressed():
+    """Both preserving arms also declare `adc: neutral`, but a named normal liability blocks nothing and
+    is informative for every modality — suppressing it would DELETE safety signal, not unblock a
+    nomination. FOLR1 (kidney tubule → mirvetuximab) must keep its flag under an ADC lens."""
+    for arm in (_SC_NORMAL, _TPHP):
+        assert _fire_real("tvn-strong-selective-supportive", arm, modality="adc") == (
+            "selective_with_normal_liability",
+            arm,
+        ), f"{arm} must not be modality-suppressed"
+
+
+def test_stromal_confound_kill_is_never_waived_because_the_contract_opposes_all_modalities():
+    """FAP/POSTN/COL1A1: the antigen is not on the tumor cells at all. Opposing for every modality, so
+    no lens waives it."""
+    for modality in (None, "adc", "bite_tce", "small_molecule", "degrader"):
+        assert _fire_real("tvn-strong-selective-supportive", _STROMAL, modality=modality)[0] == (
+            "selective_but_stromal_confound"
+        )
+
+
+def test_unknown_or_missing_modality_signal_does_not_suppress():
+    """Only an EXPLICIT neutral/supportive waives. A modality the rule does not declare, and the
+    `insufficient` coverage-gap token, keep the KILL — a data-availability token is not a safety
+    judgement."""
+    from _skills_common.selectivity_veto import apply_normal_breadth_veto
+
+    for signal in ({}, {"adc": "opposing"}, {"adc": "insufficient"}, {"adc": None}, {"other": "neutral"}):
+        fired = [{"rule_id": "tvn-strong-selective-supportive"}, {"rule_id": _FULL_NORMAL, "signals": signal}]
+        # window_class is CLEAN here on purpose: the precondition is satisfied, so the only thing that can
+        # keep the KILL is the signal itself. Without this the assertion would pass vacuously.
+        assert apply_normal_breadth_veto(
+            "strong_tumor_selective", "x", fired, modality="adc", window_class="clean_window"
+        ) == (
+            "selective_but_broadly_normal",
+            _FULL_NORMAL,
+        ), f"signals={signal!r} must not suppress"
+
+
+def test_modality_lens_is_still_one_directional_never_manufactures_selectivity():
+    """The waiver only removes a downgrade; it can never lift a non-selective verdict."""
+    for v in ("tvn-not-selective-neutral", "tvn-discordant-neutral-flagged"):
+        before = ts._verdict([{"rule_id": v}])[0]
+        assert _fire_real(v, _FULL_NORMAL, modality="adc")[0] == before
+
+
+def test_suppressed_arms_are_reported_for_provenance():
+    """A waived KILL must be VISIBLE — `modality_suppressed_kill_arms` names it, and reports nothing on
+    a modality-less run or for an arm the contract opposes."""
+    from _skills_common.selectivity_veto import modality_suppressed_kill_arms
+
+    fired = [{"rule_id": _FULL_NORMAL, "signals": _rule_signals(_FULL_NORMAL) or {"adc": "neutral"}}]
+    assert modality_suppressed_kill_arms(fired, "adc", "clean_window") == [_FULL_NORMAL]
+    assert modality_suppressed_kill_arms(fired, None, "clean_window") == []
+    assert modality_suppressed_kill_arms(fired, "bite_tce", "clean_window") == []
+    # and it must report NOTHING when the essential-window precondition is unmet — otherwise the headline
+    # would claim a waiver the verdict never granted (the RPL13A/MUC1 shape)
+    for wc in ("narrow_window", "no_therapeutic_window", "not_expressed_in_cohort", "data_unavailable", None):
+        assert modality_suppressed_kill_arms(fired, "adc", wc) == [], f"window_class={wc!r} must not waive"
+    # the preserving arms are not KILLs, so they are never reported as suppressed
+    sc = [{"rule_id": _SC_NORMAL, "signals": _rule_signals(_SC_NORMAL) or {"adc": "neutral"}}]
+    assert modality_suppressed_kill_arms(sc, "adc", "clean_window") == []
+
+
+def test_headline_names_the_waived_arm_and_the_lens():
+    """The output package must state that the arm fired and was waived for THIS modality — never let a
+    suppressed KILL read as an arm that never fired."""
+    sig = _rule_signals(_FULL_NORMAL) or {"adc": "neutral"}
+    cards = [
+        {"card_id": "tumor-vs-normal-selectivity", "summary": {"selectivity_class": "strong_tumor_selective"}},
+        {"card_id": "tumor-vs-normal-percentile-crossing", "summary": {}},
+        {
+            "card_id": "modality-therapeutic-window",
+            "summary": {
+                "full_normal_window_class": "no_full_normal_window",
+                "therapeutic_window_class": "clean_window",  # the waiver PRECONDITION
+            },
+        },
+        {"card_id": "sc-normal-celltype-expression", "summary": {}},
+        {"card_id": "expression-purity-confound", "summary": {}},
+    ]
+    fired = [{"rule_id": _FULL_NORMAL, "signals": sig}]
+    hl = ts._headline(cards, fired, ("strong_tumor_selective", "tvn-strong-selective-supportive"), modality="adc")
+    assert hl["verdict_modality_lens"] == "adc"
+    assert hl["modality_suppressed_veto_arms"] == [_FULL_NORMAL]
+    assert _FULL_NORMAL in hl["modality_suppressed_veto_note"]
+    assert "adc" in hl["modality_suppressed_veto_note"]
+    # ... and a modality-less headline over the same evidence OMITS all three keys entirely — not
+    # present-and-null. Three always-emitted nulls would churn every golden/replay snapshot and every
+    # consumer schema to say "no lens was used", which the absence already says; omitting them is what
+    # makes a default run byte-identical to 1.23.0.
+    hl0 = ts._headline(cards, fired, ("selective_but_broadly_normal", _FULL_NORMAL))
+    for k in ("verdict_modality_lens", "modality_suppressed_veto_arms", "modality_suppressed_veto_note"):
+        assert k not in hl0, f"{k} leaked into a modality-less headline (breaks byte-identity)"
+
+
+# --- The waiver PRECONDITION: "clean vs the essential set" (found by the 36-target panel, 2026-09-12).
+# Waiving on the rule's `adc: neutral` declaration ALONE let designed true negatives escape the KILL,
+# because `narrow_window` fires NO rung in the intracellular lens — so the full-normal arm was the only
+# thing holding a 600-TPM-everywhere gene down. These two are MEASURED shapes, not hypotheticals. ---
+
+
+def test_adc_lens_does_NOT_waive_when_the_essential_window_is_merely_narrow():
+    """RPL13A/COADREAD, measured: a ribosomal HOUSEKEEPING decoy, tumor 641.4 TPM vs BONE_MARROW 617.5
+    (essential ratio 1.04 → `narrow_window`), full-normal OVARY 808.7 (ratio 0.79 → the KILL fires).
+    Under the ADC lens without the precondition this rose to `selective_with_normal_liability` — a
+    selectivity-PRESERVING verdict for a gene expressed at 600-800 TPM in every normal tissue. A narrow
+    window against a VITAL organ is not payload-buffered, so the KILL must stand."""
+    assert _fire_real(
+        "tvn-modest-selective-supportive",
+        _FULL_NORMAL,
+        _SC_NORMAL,
+        _TPHP,
+        modality="adc",
+        window_class="narrow_window",
+    ) == ("selective_but_broadly_normal", _FULL_NORMAL)
+
+
+def test_precondition_fails_CLOSED_for_every_non_clean_essential_window_class():
+    """Every other value the window method can emit — including the absent card — keeps the KILL. Only an
+    affirmative `clean_window` waives. (MUC1/BRCA measured: 182.3 TPM vs LUNG 133.8, ratio 1.36 →
+    `narrow_window`, and it escaped the same way before this guard.)"""
+    for wc in ("narrow_window", "no_therapeutic_window", "not_expressed_in_cohort", "data_unavailable", None, ""):
+        assert _fire_real("tvn-strong-selective-supportive", _FULL_NORMAL, modality="adc", window_class=wc) == (
+            "selective_but_broadly_normal",
+            _FULL_NORMAL,
+        ), f"window_class={wc!r} must fail closed"
+    # ... and the affirmative value DOES waive, so the loop above is not vacuous
+    assert _fire_real("tvn-strong-selective-supportive", _FULL_NORMAL, modality="adc", window_class="clean_window") == (
+        "strong_tumor_selective",
+        "tvn-strong-selective-supportive",
+    )
+
+
+def test_essential_window_class_reads_the_declared_card_field():
+    """The precondition is read from the card the contract's `requires_essential_window_class` block
+    names — a rename on either side must fail here, not silently disable the waiver (or silently enable
+    it)."""
+    from _skills_common.selectivity_veto import (
+        _ESSENTIAL_WINDOW_CARD,
+        _ESSENTIAL_WINDOW_FIELD,
+        essential_window_class,
+    )
+
+    cards = [
+        {"card_id": "tumor-vs-normal-selectivity", "summary": {"therapeutic_window_class": "clean_window"}},
+        {"card_id": _ESSENTIAL_WINDOW_CARD, "summary": {_ESSENTIAL_WINDOW_FIELD: "narrow_window"}},
+    ]
+    assert essential_window_class(cards) == "narrow_window", "must read the WINDOW card, not any card"
+    assert essential_window_class([]) is None
+    assert essential_window_class(None) is None
+    assert essential_window_class([{"card_id": _ESSENTIAL_WINDOW_CARD, "summary": {}}]) is None

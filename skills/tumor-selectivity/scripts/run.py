@@ -91,12 +91,14 @@ from _skills_common.selectivity_veto import (  # noqa: F401
     _WINDOW_VETO_RULE,
     apply_normal_breadth_veto,
     apply_protein_population_rescue,
+    essential_window_class,
+    modality_suppressed_kill_arms,
 )
 
 SKILL_NAME = "tumor-selectivity"
 # This constant is stamped into provenance.yaml and MUST equal SKILL.md metadata.version
 # (tests/test_version_parity.py guards the equality). Bump both together; log the change in CHANGELOG.md.
-SKILL_VERSION = "1.23.0"  # 1.23.0 (2026-09-04, W3c): VERDICT-INERT sc-normal essential-liability SEVERITY grade (det x consistency x n_datasets, derived from the already-emitted per-driver fields — no new card field) surfaced in sc_normal_liability_detail + a new headline/synthesis facet; + an explicit "single-cell critical-organ safety UNASSESSED" tension when sc_normal_safety_essential_class == data_unavailable on a clean axis-A selective call (the blind arm already feeds _sel_unknown_mass numerically — this names it so a coverage gap is not read as a clean pass). Resolver/veto spine byte-stable; CEACAM5/TACSTD2 replay verdicts unchanged.   # 1.22.0 (2026-09-04, #978): protein+population RESCUE clamp — a flat/discordant matched-ADJACENT RNA arm (CEA/EpCAM class: adjacent normal also expresses the antigen) does NOT sink a selectivity call the INDEPENDENT CPTAC-protein + population-normal arms support; one-directional UPGRADE of a not_informative/discordant RNA verdict to field_effect_tumor_selective, applied BEFORE the normal-breadth veto (stromal/no-window safety nets preserved) + a verdict-inert selectivity_comparator_note. Byte-stable DEFENSIVE guard: inert on the current panel (CEACAM5 already field_effect via classifier FIX2; EPCAM's CPTAC not up — a separate mixed-adjacent classifier fix). # 1.21.0 (2026-09-03): VERDICT-INERT measurement_caveat — a coverage-gap class token (not_informative/insufficient/data_unavailable) that actually rests on a decisive MEASURED signal (e.g. FAP/PDAC stroma-driven false window) is named so the composed profile need not treat it as an unmeasured gap. Additive headline field + synthesis-facet key; resolver/veto spine byte-stable.   # 1.20.0 (2026-09-03): --literature retriever -> default_retrieve (Europe PMC -> PubTator3 fallback chain; lens-specific query variations) so a transient single-source outage no longer collapses grounding to unverified. Shared _skills_common change.   # 1.19.0 (2026-09-03): OPTIONAL verdict-INERT LLM --literature lane (Europe-PMC-grounded + PMID-verified; decision['literature_synthesis'] fed to the --synthesize narrator), scoped to the WIN/DIST/INT/SAFE axes; reuses the shared _skills_common literature lane. Spine byte-stable.   # 1.18.0 (2026-09-03): multi-platform corroboration folded into the claim vector (VERDICT-INERT): WIN protein quorum (CPTAC+TPHP caps an un-corroborated RNA window) + INT in-situ-spatial quorum + WIN field-effect signature; LensConfig thesis + narrator rule lead with cross-platform corroboration.   # 1.17.0 (2026-08-31): INT-axis stromal-confound veto (verdict-MOVING, backtest-gated): stromal_confound_class == stromal_confounded → selective_but_stromal_confound (Option B: outranks the window KILL).   # 1.16.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.
+SKILL_VERSION = "1.24.0"  # 1.24.0 (2026-09-12): MODALITY-CONDITIONAL normal-breadth KILL suppression (verdict-MOVING, --modality runs ONLY). The veto rules in target-contracts have always declared per-modality signals and three of the five arms declare `adc: neutral` on purpose — tvn-no-full-normal-window-veto names sacituzumab/Dato-DXd — but apply_normal_breadth_veto took no modality argument and mapped every fired arm straight to its verdict, so validated ADC antigens were downgraded to the housekeeping KILL on evidence the contract itself calls neutral for ADCs. The clamp now reads the FIRED RULE'S OWN signals[modality] (contract-driven, no Python modality table): a KILL arm declared neutral/supportive for the chosen modality is SKIPPED and precedence falls through, so an arm that is `opposing` for that modality (the essential-organ window veto, ALL modalities) still KILLs. Selectivity-PRESERVING arms are never suppressed and modality=None is worst-case, so every run without --modality is byte-identical. Threaded via dispatcher verdict_modality_aware + the existing signature-gated headline kwargs; new headline fields verdict_modality_lens / modality_suppressed_veto_arms / modality_suppressed_veto_note keep a waived arm VISIBLE.   # 1.23.0 (2026-09-04, W3c): VERDICT-INERT sc-normal essential-liability SEVERITY grade (det x consistency x n_datasets, derived from the already-emitted per-driver fields — no new card field) surfaced in sc_normal_liability_detail + a new headline/synthesis facet; + an explicit "single-cell critical-organ safety UNASSESSED" tension when sc_normal_safety_essential_class == data_unavailable on a clean axis-A selective call (the blind arm already feeds _sel_unknown_mass numerically — this names it so a coverage gap is not read as a clean pass). Resolver/veto spine byte-stable; CEACAM5/TACSTD2 replay verdicts unchanged.   # 1.22.0 (2026-09-04, #978): protein+population RESCUE clamp — a flat/discordant matched-ADJACENT RNA arm (CEA/EpCAM class: adjacent normal also expresses the antigen) does NOT sink a selectivity call the INDEPENDENT CPTAC-protein + population-normal arms support; one-directional UPGRADE of a not_informative/discordant RNA verdict to field_effect_tumor_selective, applied BEFORE the normal-breadth veto (stromal/no-window safety nets preserved) + a verdict-inert selectivity_comparator_note. Byte-stable DEFENSIVE guard: inert on the current panel (CEACAM5 already field_effect via classifier FIX2; EPCAM's CPTAC not up — a separate mixed-adjacent classifier fix). # 1.21.0 (2026-09-03): VERDICT-INERT measurement_caveat — a coverage-gap class token (not_informative/insufficient/data_unavailable) that actually rests on a decisive MEASURED signal (e.g. FAP/PDAC stroma-driven false window) is named so the composed profile need not treat it as an unmeasured gap. Additive headline field + synthesis-facet key; resolver/veto spine byte-stable.   # 1.20.0 (2026-09-03): --literature retriever -> default_retrieve (Europe PMC -> PubTator3 fallback chain; lens-specific query variations) so a transient single-source outage no longer collapses grounding to unverified. Shared _skills_common change.   # 1.19.0 (2026-09-03): OPTIONAL verdict-INERT LLM --literature lane (Europe-PMC-grounded + PMID-verified; decision['literature_synthesis'] fed to the --synthesize narrator), scoped to the WIN/DIST/INT/SAFE axes; reuses the shared _skills_common literature lane. Spine byte-stable.   # 1.18.0 (2026-09-03): multi-platform corroboration folded into the claim vector (VERDICT-INERT): WIN protein quorum (CPTAC+TPHP caps an un-corroborated RNA window) + INT in-situ-spatial quorum + WIN field-effect signature; LensConfig thesis + narrator rule lead with cross-platform corroboration.   # 1.17.0 (2026-08-31): INT-axis stromal-confound veto (verdict-MOVING, backtest-gated): stromal_confound_class == stromal_confounded → selective_but_stromal_confound (Option B: outranks the window KILL).   # 1.16.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.
 
 # ── Cards consumed, grouped by the role each plays in the answer ──────────────────────────────────
 # The selectivity RESOLVER is keyed only to the aggregate tumor-vs-normal-selectivity card (the
@@ -207,15 +209,22 @@ QUESTION = (
 )
 
 
-def _verdict(fired: list[dict]) -> tuple[str, str | None]:
+def _verdict(fired: list[dict], modality: str | None = None, cards: list[dict] | None = None) -> tuple[str, str | None]:
     """Tumor-vs-normal selectivity verdict.
 
     Delegates to the shared declarative resolver (resolvers/selectivity.resolver.yaml in
     target-contracts, evaluated by the one interpreter both engines call), then applies the shared
     normal-breadth veto clamp. A missing resolver spec raises — the resolver is the single source of
     truth, with no silent fallback to a stale copy. Guarded by tests/test_verdict.py (resolver mapping
-    + all three veto arms) and _skills_common/tests/test_compose_core.py (the engine applies the same
-    clamp)."""
+    + all five veto arms + the modality lens) and _skills_common/tests/test_compose_core.py (the engine
+    applies the same clamp).
+
+    `modality` is the optional --modality lens and `cards` the resolved card list, both threaded by the
+    dispatcher because this skill declares `verdict_modality_aware=True`. The lens ONLY affects the KILL
+    arms whose target-contracts rule declares the modality non-opposing (`tvn-no-full-normal-window-veto`
+    is `adc: neutral`), and ONLY when the measured essential-organ window is affirmatively `clean_window`
+    — the "clean vs the essential set" precondition, which needs `cards` because `narrow_window` fires no
+    rung in this lens. None modality → worst-case, identical to every pre-lens run."""
     verdict, driving = resolve_or_raise(fired, "selectivity")
     # #978 PROTEIN + POPULATION-NORMAL RESCUE (one-directional UPGRADE) — applied BEFORE the veto: a flat/
     # mixed matched-ADJACENT RNA arm (a CEA/EpCAM-class antigen whose adjacent normal ALSO expresses the
@@ -229,7 +238,15 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     # fold-change. This one-directional clamp downgrades a selective axis-A call to
     # selective_but_broadly_normal when any normal-breadth veto rule fired. Runs AFTER the rescue so a
     # rescued field_effect call is still subject to the stromal-confound / no-window safety nets.
-    return apply_normal_breadth_veto(verdict, driving, fired)
+    # MODALITY-CONDITIONAL: a KILL arm the contract declares neutral for `modality` (the ADC lens on
+    # tvn-no-full-normal-window-veto — the sacituzumab/Dato-DXd archetype) falls through to the next arm,
+    # but ONLY when the essential-organ axis is affirmatively clean. That precondition is the contract's
+    # own "clean vs the essential set" clause; without it the 36-target panel measured RPL13A (ribosomal
+    # decoy, essential ratio 1.04) and MUC1/BRCA (1.36) escaping the KILL, because `narrow_window` fires
+    # no rung in this lens and the full-normal arm was the only thing holding them down.
+    return apply_normal_breadth_veto(
+        verdict, driving, fired, modality=modality, window_class=essential_window_class(cards)
+    )
 
 
 def _rna_protein_tvn_concordance(rna_direction, protein_effect_size, protein_q):
@@ -698,7 +715,7 @@ def _claim_record(cards, fired=None, verdict_pair=None) -> dict:
     )
 
 
-def _headline(cards, fired, verdict_pair):
+def _headline(cards, fired, verdict_pair, modality=None):
     # Fetch each card summary once (card_summary scans the card list, so look up by id, not position —
     # robust to card order — and reuse the result rather than re-scanning per field).
     def _summary(cid):
@@ -747,10 +764,42 @@ def _headline(cards, fired, verdict_pair):
         )
     else:
         _comparator_note = None
+    # MODALITY-CONDITIONAL KILL suppression provenance (2026-09-12). When a --modality lens is supplied,
+    # a KILL arm the CONTRACT declares neutral/supportive for that modality is waived (ADC neutrality on
+    # tvn-no-full-normal-window-veto — the TROP2/sacituzumab archetype). Name the waived arms explicitly:
+    # a suppressed KILL must READ as "this arm fired and was waived for this modality", never as an arm
+    # that never fired. Empty list on every modality-less run → the field is None and nothing changes.
+    # Passes the SAME essential-window precondition _verdict does — a headline that claimed a waiver the
+    # verdict never granted would be worse than silence.
+    _suppressed_kill_arms = modality_suppressed_kill_arms(fired or [], modality, essential_window_class(cards))
+    _modality_waiver_note = (
+        (
+            f"normal-breadth KILL arm(s) {', '.join(sorted(a for a in _suppressed_kill_arms if a))} fired but are "
+            f"declared non-opposing for modality '{modality}' in target-contracts, so they do not downgrade the "
+            "selectivity call under this lens. The liability is REAL — it is arbitrated by "
+            "payload/bystander buffering + density (owned by on-target-safety-liability and modality-fit), "
+            "not dismissed. Re-run without --modality for the worst-case call."
+        )
+        if _suppressed_kill_arms
+        else None
+    )
     hl = {
         "selectivity_class": resolved_verdict,  # RESOLVED (post-veto) — the audit spine
         "driving_rule_id": resolved_driving,  # the rule that set it (e.g. the veto rule)
         "selectivity_comparator_note": _comparator_note,  # #978 verdict-inert multi-arm comparator note
+        # Modality lens actually applied to the VERDICT + the arms it waived. Emitted ONLY under a lens:
+        # three always-present `null` keys would churn every golden/replay snapshot and every consumer
+        # schema to say "no lens was used", which the absence already says. Omitting them keeps a
+        # default (no --modality) headline byte-identical to 1.23.0 — the claim the CHANGELOG makes.
+        **(
+            {
+                "verdict_modality_lens": modality,
+                "modality_suppressed_veto_arms": _suppressed_kill_arms or None,
+                "modality_suppressed_veto_note": _modality_waiver_note,
+            }
+            if modality
+            else {}
+        ),
         "axis_a_selectivity_class": tvn.get("selectivity_class"),  # raw tumor-vs-origin class (pre-veto)
         "cells_supporting": tvn.get("cells_supporting"),
         "cells_ran": tvn.get("cells_ran"),
@@ -1134,6 +1183,10 @@ if __name__ == "__main__":
             axis="intracellular_intrinsic",
             question=QUESTION,
             verdict_fn=_verdict,
+            # The normal-breadth KILL arms carry a PER-MODALITY lens in target-contracts (the ADC
+            # neutrality on tvn-no-full-normal-window-veto — the TROP2/sacituzumab archetype), so the
+            # clamp needs --modality. Opt-in: without the flag modality=None and the clamp is worst-case.
+            verdict_modality_aware=True,
             headline_fn=_headline,
             # Opt-in --synthesize narrates through the SELECTIVITY lens (its own tool schema + prompt).
             # Two-slot / verdict-inert.
