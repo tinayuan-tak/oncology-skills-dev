@@ -316,3 +316,30 @@ def test_narrator_renders_dict_shaped_axes_after_coerce():
     )
     prompt = ne.build_capsule_prompt(d, LENS)
     assert "LITERATURE LANE" in prompt and "EpCAM marks CRC stem cells" in prompt and "PMID:17548814" in prompt
+
+
+def test_prompt_surfaces_subtype_enrichment_as_measured():
+    # FACET 2: a MEASURED subtype enrichment (CD274/MSI-H) must reach the lit prompt tagged [MEASURED],
+    # so the lane classifies a subtype-specific presence pattern as agree/extends, not omics_blind.
+    d = _decision()
+    d["target"] = "CD274"
+    d["headline"]["claim_vector_by_subtype"] = {
+        "stratification_class": "subtype_enriched",
+        "subtype_variance_explained": 0.28,
+        "subtype_effect_size_class": "large",
+        "enriched_subtypes": [
+            {"stratum": "MSI_H", "subtype_signal": "subtype_enriched", "median_log2tpm": 2.51},
+            {"stratum": "CMS1", "subtype_signal": "subtype_enriched", "median_log2tpm": 2.29},
+        ],
+        "top_enriched_subtype": "MSI_H",
+    }
+    p = lit.build_literature_prompt(d, LENS)
+    assert "SUBTYPE ENRICHMENT [MEASURED" in p
+    assert "MSI_H(subtype_enriched)" in p and "top=MSI_H" in p
+    assert "NOT omics_blind" in p
+
+
+def test_prompt_omits_subtype_block_when_no_subtype_axis():
+    # byte-stable for lenses / runs with no claim_vector_by_subtype (the block is fully omitted)
+    p = lit.build_literature_prompt(_decision(), LENS)
+    assert "SUBTYPE ENRICHMENT" not in p

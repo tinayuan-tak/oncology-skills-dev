@@ -219,6 +219,23 @@ def build_literature_prompt(decision: dict, lens: LensConfig) -> str:
     ks = h.get("key_signals") or {}
     if ks.get("caveat"):
         lines.append(f"  omics caveat: {ks['caveat']}")
+    # SUBTYPE-GRAIN presence signal (lens-agnostic; only present for by-subtype-capable lenses e.g.
+    # tumor-presence). The per-axis claim_vector above is POOLED, so without this a MEASURED subtype
+    # enrichment (e.g. CD274/PD-L1 concentrated in MSI_H) is invisible to the lane and gets mislabeled a
+    # blind_spot. Surfacing the enriched-stratum identities as [MEASURED] lets the model classify a
+    # subtype/biomarker-specific presence pattern as agree/extends, not omics_blind. Byte-stable for lenses
+    # that carry no claim_vector_by_subtype (block omitted).
+    cvs = h.get("claim_vector_by_subtype") or {}
+    enriched = cvs.get("enriched_subtypes") if isinstance(cvs, dict) else None
+    if enriched:
+        names = ", ".join(f"{e.get('stratum')}({e.get('subtype_signal')})" for e in enriched[:5] if isinstance(e, dict))
+        lines.append(
+            f"  · SUBTYPE ENRICHMENT [MEASURED, class={cvs.get('stratification_class')}, "
+            f"ε²={cvs.get('subtype_variance_explained')} {cvs.get('subtype_effect_size_class')}]: "
+            f"present-enriched in {names} (top={cvs.get('top_enriched_subtype')}). This IS a measured "
+            "per-subtype presence signal — a subtype/biomarker-specific presence pattern is agree/extends, "
+            "NOT omics_blind; reserve omics_blind for a subtype signal NOT in this list."
+        )
     lines += [
         "",
         "TASK: using the tool, for EACH axis above report the published-literature read + an assertion "

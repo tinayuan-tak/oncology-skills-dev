@@ -799,12 +799,40 @@ def presence_claim_vector_by_subtype(cards: list) -> Optional[dict]:
             },
             "n_tumor_samples": n,
         }
+    # ENRICHED-SUBTYPE IDENTITIES (verdict-INERT legibility): the reader computes a per-stratum
+    # subtype_signal (subtype_enriched / subtype_restricted) but the rollup previously surfaced only the
+    # COUNT (n_subtypes_enriched) + the single argmax-ε² axis (which_subtypes_separate) — so a consumer of
+    # the spine could not answer "which subtype(s) is the target enriched in?" without reaching into
+    # per_subgroup_metrics (cf. CD274/COADREAD: n_subtypes_enriched=3 but the identities MSI_H/CMS1/CIMP_High
+    # were unnamed, and spotlight_subtype is a --subtype query-echo, None on a whole-cohort run). Project the
+    # positive-selection identities here, ranked by stratum median (highest = most enriched). `top_enriched_subtype`
+    # is the DATA-DRIVEN highlight, distinct from the query-echo `spotlight_subtype`.
+    _POS_SELECTION_SIGNALS = ("subtype_enriched", "subtype_restricted")
+    enriched_subtypes = sorted(
+        (
+            {
+                "stratum": r.get("stratum_id"),
+                "subtype_signal": r.get("subtype_signal"),
+                "median_log2tpm": r.get("median_log2tpm"),
+                "n_tumor_samples": r.get("n_tumor_samples"),
+            }
+            for r in (s.get("per_subgroup_metrics") or [])
+            if isinstance(r, dict)
+            and r.get("stratum_id")
+            and r.get("subtype_signal") in _POS_SELECTION_SIGNALS
+            and r.get("evidence_state") == "measured"
+        ),
+        key=lambda e: (e["median_log2tpm"] is None, -(e["median_log2tpm"] or 0.0)),
+    )
     return {
         "stratification_class": s.get("subtype_stratification_class"),
         "subtype_variance_explained": s.get("subtype_variance_explained"),
         "subtype_effect_size_class": s.get("subtype_effect_size_class"),
         "which_subtypes_separate": s.get("which_subtypes_separate"),
         "n_subtypes_measured": s.get("n_subtypes_measured"),
+        # the enriched/restricted stratum IDENTITIES (ranked), + the data-driven top pick
+        "enriched_subtypes": enriched_subtypes,
+        "top_enriched_subtype": (enriched_subtypes[0]["stratum"] if enriched_subtypes else None),
         "multiplicity_strata_tested": k_tested,
         "strata": strata,
         "_indication_grain_claims": "C (single-cell malignant) and protein-confirmation are NOT stratified "
