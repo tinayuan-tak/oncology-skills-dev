@@ -94,7 +94,36 @@ def _report_lines(rep):
 
 
 def _validator_gaps(tc: Path, dc: Path | None) -> tuple[list, list]:
-    """Run the wired validators in-process. Returns (records, validators_run)."""
+    """Run the wired validators in-process. Returns (records, validators_run).
+
+    `tc` MUST be a real target-contracts checkout. A wrong root does not fail — every adapter
+    globs an empty tree and emits nothing, so the result is `validators_run: [...]` with ZERO
+    findings: a confident clean bill of health computed from a directory containing no cards.
+    Measured on the live tree: the real root yields 131 records / 129 card_structural / 9
+    validators, a nonexistent root yields 4 / 0 / 7.
+
+    That is reachable, not hypothetical. `build_gaps`/`build_glossary` resolve their root as
+    `roots.get("target_contracts") or graph.get("roots", {}).get("target_contracts") or "."`,
+    so any caller that omits live roots lands on a cwd-relative `"."`.
+
+    ★ The dominant variable is CWD, not the import cache. `_import_validators` leans on
+    `sys.path`, which contains `''`, so the validators import successfully whenever cwd
+    happens to be a contracts checkout — independent of module warmth. The trap for anyone
+    testing this: with cwd AT the repo root, `Path(".")` returns fully CORRECT results (131 /
+    129 / 9), so a test that does not pin cwd demonstrates the bug working as a feature.
+    """
+    if not any((tc / "cards").glob("*.card.yaml")):
+        # Fail loud. Returning an empty gap set here is indistinguishable from "the framework
+        # has no gaps", and the atlas --check drift guard is not a required check on main, so
+        # nothing downstream would catch it. Checked by GLOB rather than `is_dir()` on purpose:
+        # an existing-but-empty cards/ produces the identical silent zero, so the directory
+        # existing is not the property that matters — having something to validate is.
+        raise ValueError(
+            f"_validator_gaps: {tc!s} is not a target-contracts checkout "
+            f"(no cards/*.card.yaml). Refusing to report an empty gap set, which would read as "
+            f"a clean bill of health. Pass a real root — callers resolving `roots` fall back to "
+            f"a cwd-relative '.'."
+        )
     mods = _import_validators(tc)
     records: list = []
     run: list = []
