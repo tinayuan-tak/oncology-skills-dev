@@ -32,7 +32,7 @@ description: |
   indication a T-cell desert?"
 
 metadata:
-  version: 1.9.0
+  version: 1.9.1
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -220,6 +220,18 @@ The verdict spine is **byte-stable** (still a direct read of `immune_context_cla
 - **Deferred (filed, out of branch scope):** a `reference_frame` entry in `evidence_salience.py`'s
   `immune_context` SALIENCE_SPEC (collides with PR #1309 `feat/cohort-percentile-meters`); the S1 lymphoid
   DENOMINATOR guard, the `n_samples` floor and the CD8:Treg / CD8:M2 ratios (analysis-methods).
+
+## v1.9.1 (2026-09-12) — the lymphoid frame no longer refutes its own first clause
+
+Found by a LIVE DLBCL run, not by the suite. The v1.9.0 lymphoid `reference_frame` line rendered
+*"frame DOES NOT APPLY: the cohort exists (DLBC, **n=0**)"* — the parenthesis contradicting the claim
+immediately before it. `n_samples` is **0** for these cohorts by design: the denominator guard fires on the
+resolved STUDY CODES *before* the per-sample read, so no rows are ever loaded and the summariser is handed an
+empty list. That 0 is a **not-read sentinel, not a cohort size**, and must never be rendered as one. The line
+now cites the study codes — which is what the "a cohort EXISTS" claim actually rests on — and quotes no count.
+
+The unit fixture was the reason no test caught it: it asserted `n_samples: 48` (DLBC's true size), a shape the
+reader never emits. It now carries the live `0`, and a new test forbids any `n=` from the lymphoid frame.
 
 ## v1.9.0 (2026-09-12) — the six INVISIBLE fields + the fourth class token
 

@@ -19,6 +19,7 @@ Two defects these tests exist to keep fixed:
 from __future__ import annotations
 
 import importlib.util
+import re
 from pathlib import Path
 
 import pytest
@@ -316,14 +317,19 @@ _LYMPHOID_RULE = [{"rule_id": "immune-context-lymphoid-denominator-uninterpretab
 
 
 def _lymphoid_card():
-    """What the reader actually emits for DLBC/LAML/THYM: the class token, the median WITHHELD."""
+    """What the reader actually emits for DLBC/LAML/THYM: the class token, the median WITHHELD.
+
+    n_samples is 0 because that is what a LIVE DLBCL run emits, verified 2026-09-12 — the guard fires on the
+    resolved study codes BEFORE the per-sample read, so no rows are ever loaded and the summariser is handed
+    an empty list. An earlier draft of this fixture said 48 (DLBC's true cohort size), which is exactly why
+    no test caught the frame rendering "the cohort exists (DLBC, n=0)" against the real reader."""
     return {
         "card_id": "immune-context",
         "summary": {
             "immune_context_class": "lymphoid_denominator_unreliable",
             "median_cd8_fraction": None,
             "median_total_t_cell_fraction": None,
-            "n_samples": 48,
+            "n_samples": 0,
             "tumor_studies": ["DLBC"],
         },
     }
@@ -364,6 +370,19 @@ def test_the_lymphoid_frame_says_why_instead_of_the_bare_unmeasured_sentinel():
     assert "absent MEASUREMENT" in frame
     for k in ("heterogeneity_frame", "suppression_frame"):
         assert "uninterpretable" in scalars[k], f"{k} must not gauge a withheld median"
+
+
+def test_the_lymphoid_frame_never_quotes_a_sample_count_beside_the_cohort_exists_claim():
+    """Caught by a live DLBCL run, not by this suite: the frame asserted "the cohort exists (DLBC, n=0)" and
+    then refuted itself in the same parenthesis. n_samples is a NOT-READ sentinel for these cohorts (the
+    guard precedes the read by design), so it is not a cohort size and must never be rendered as one. The
+    "cohort EXISTS" claim rests on the STUDY CODES resolving, which is what the line may cite."""
+    frame = _headline([_lymphoid_card()], _LYMPHOID_RULE)["skill_report"]["claim_scalars"]["reference_frame"]
+    assert not re.search(r"\bn\s*=", frame), f"no sample count belongs in the lymphoid frame: {frame}"
+    assert "0 samples" not in frame
+    # ...and the claim itself survives, resting on the study codes rather than on a count (case-insensitive:
+    # this test is about the number, not about how the sentence is capitalised).
+    assert "exists" in frame.lower() and "DLBC" in frame
 
 
 def test_the_lymphoid_verdict_raises_a_tension_rather_than_reading_as_nothing_notable():

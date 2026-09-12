@@ -260,8 +260,13 @@ def _reference_frame(h, c) -> str:
             if isinstance(studies, (list, tuple))
             else (studies or "lymphoid TCGA study")
         )
+        # No sample count is printed here, and n_samples is NOT consulted. The guard fires on the RESOLVED
+        # study codes BEFORE the per-sample read, so nothing is ever loaded for these cohorts and the summary
+        # carries n_samples=0 — a not-read sentinel, not a cohort size. Rendering it beside "the cohort exists"
+        # would have this line refute its own first clause ("the cohort exists (DLBC, n=0)").
         return (
-            f"frame DOES NOT APPLY: the cohort exists ({where}, n={s.get('n_samples')}) but "
+            f"frame DOES NOT APPLY: a cohort EXISTS for this indication ({where}; its size is deliberately "
+            f"not read, so no count is quoted) but "
             f"its LEUKOCYTE denominator IS the malignant clone (leukaemia / lymphoma / lymphoid organ), so a "
             f"CD8 SHARE of that compartment is arithmetically valid and biologically uninterpretable. The "
             f"median is WITHHELD by design (not missing); {_REFERENCE_FRAME_BASIS} cannot gauge it. This is an "
