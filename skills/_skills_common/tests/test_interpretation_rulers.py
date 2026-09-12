@@ -72,8 +72,7 @@ def _genomic_summary():
 
 def test_genomic_comparator_delta_ruler():
     interp = build_interpretation({}, _genomic_summary(), SALIENCE_SPECS["mutation_stratified_dependency"])
-    assert len(interp) == 1
-    gv = interp[0]
+    gv = next(g for g in interp if g["frame"]["kind"] == "comparator_delta")  # + a fleet cohort ruler
     assert gv["metric"] == "median_chronos_hotspot_mutant" and gv["value"] == -1.729
     assert gv["distance_to_cut"] == -1.142  # SURFACED, not recomputed
     roles = {a["role"]: a["value"] for a in gv["frame"]["anchors"]}
@@ -214,8 +213,7 @@ def test_selectivity_log2fc_distance_to_cut_ruler():
         SALIENCE_SPECS["tumor_vs_normal_selectivity"],
         card_id="tumor-vs-normal-selectivity",
     )
-    assert len(interp) == 1
-    gv = interp[0]
+    gv = next(g for g in interp if g["frame"]["kind"] == "distance_to_cut")  # + a fleet cohort ruler
     assert gv["metric"] == "log2fc_cell_a" and gv["value"] == 2.1 and gv["scale"] == "log2FC"
     assert gv["direction"] == "higher_is_stronger"
     assert gv["position"] == "strongly_selective" and gv["position_source"] == "selectivity_class"
@@ -252,8 +250,7 @@ def test_percentile_crossing_fraction_distance_to_cut_ruler_no_position():
         SALIENCE_SPECS["tumor_vs_normal_percentile_crossing"],
         card_id="tumor-vs-normal-percentile-crossing",
     )
-    assert len(interp) == 1
-    gv = interp[0]
+    gv = next(g for g in interp if g["frame"]["kind"] == "distance_to_cut")  # + a fleet cohort ruler
     assert gv["metric"] == "fraction_tumor_above_normal_p95" and gv["value"] == 0.72 and gv["scale"] == "fraction"
     assert "position" not in gv  # this spec has no categorical
     if contract_threshold("tumor-vs-normal-percentile-crossing", "strong_frac_p95") is not None:
@@ -342,3 +339,16 @@ def test_cohort_meters_are_verdict_inert_display_only():
     )
     coh = {g["frame"]["kind"]: g for g in interp}["cohort_percentile"]
     assert not ({"signal", "verdict", "fired", "recommendation"} & set(coh))
+
+
+def test_cohort_ruler_fleet_wide_and_liability_phrasing():
+    # fleet roll: every metered axis with a populated atlas cohort column gets a cohort ruler.
+    # a higher_is_worse axis (normal-tissue breadth) must NOT be mislabeled "stronger" — it's a liability.
+    interp = build_interpretation({}, {"highest_tissue_median": 7.5}, SALIENCE_SPECS["normal_tissue_rna_breadth"], None)
+    coh = {g["frame"]["kind"]: g for g in interp}.get("cohort_percentile")
+    assert coh is not None, "normal_tissue_rna_breadth should carry a cohort ruler (fleet roll)"
+    assert "higher-liability than" in coh["position"] and "stronger than" not in coh["position"]
+    # a stronger-is-better axis keeps the 'stronger than' phrasing
+    interp2 = build_interpretation({}, {"rnai_median_dep_score": -0.8}, SALIENCE_SPECS["rnai_lof_dependency"], None)
+    coh2 = {g["frame"]["kind"]: g for g in interp2}.get("cohort_percentile")
+    assert coh2 is not None and "stronger than" in coh2["position"]

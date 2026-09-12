@@ -996,6 +996,34 @@ for _mt, _extra in _SECONDARY_FRAMES.items():
     else:
         _spec["reference_frame"] = [_rf, *_new]
 
+# FLEET-WIDE cohort ruler (Phase 2, fleet roll after the 4-meter pilot): every axis that carries a numeric
+# reference_frame ALSO gets a `cohort_percentile` frame appended LAST — the card value placed as its
+# percentile within the known-target cohort read from the re-frozen target-archetype atlas. The atlas
+# numeric feature is keyed off the PRIMARY frame's value_field (feature_vectoriser.numeric_feature_specs),
+# so the cohort_key is `{mt}::num::{primary.value_field}`. VERDICT-INERT + SELF-GATING: the reader
+# (archetype_core.cohort_percentile) returns None when the atlas column is absent or under-powered (n<20),
+# so build_interpretation silently drops the frame — a sparse axis carries no cohort ruler until the atlas
+# grows, and no per-axis min-N bookkeeping is needed here. Skips the pilot axes already carrying one.
+for _mt, _spec in SALIENCE_SPECS.items():
+    _rf = _spec.get("reference_frame")
+    _frames = _rf if isinstance(_rf, list) else ([_rf] if isinstance(_rf, dict) else [])
+    if not _frames or any(isinstance(f, dict) and f.get("kind") == "cohort_percentile" for f in _frames):
+        continue
+    _primary = _frames[0]
+    _vf, _scale = _primary.get("value_field"), _primary.get("scale")
+    if not (_vf and _scale):
+        continue
+    _cohort_frame = {
+        "kind": "cohort_percentile",
+        "value_field": _vf,
+        "scale": _scale,
+        "cohort_key": f"{_mt}::num::{_vf}",
+    }
+    if isinstance(_rf, list):
+        _rf.append(_cohort_frame)
+    else:
+        _spec["reference_frame"] = [_rf, _cohort_frame]
+
 
 def spec_for(measurement_type):
     return SALIENCE_SPECS.get(measurement_type) if measurement_type else None
@@ -1083,15 +1111,21 @@ def _project_frame(rf: dict, cap: dict, summary: dict, direction, card_id, contr
         res = cohort_percentile(rf.get("cohort_key"), _DIR_SIGN.get(direction, 1.0) * raw)
         if res is None:
             return None
+        # Direction-aware phrasing: the percentile is always "signed value exceeds X% of the cohort".
+        # For a stronger-is-better axis that reads "stronger than X%"; for a higher_is_worse LIABILITY axis
+        # (e.g. normal-tissue breadth) the same rank is a worse liability, so say "higher-liability than X%"
+        # rather than mislabel a safety risk "stronger".
+        pct, n = res["percentile"], res["n"]
+        rel = "higher-liability than" if direction == "higher_is_worse" else "stronger than"
         return {
             "metric": rf.get("value_field"),
             "value": sig_round(raw),
             "scale": scale,
             "direction": direction,
             "frame": {"kind": "cohort_percentile", "anchors": []},
-            "position": f"stronger than {res['percentile']:g}% of {res['n']} known targets",
-            "cohort_percentile": res["percentile"],
-            "cohort_n": res["n"],
+            "position": f"{rel} {pct:g}% of {n} known targets",
+            "cohort_percentile": pct,
+            "cohort_n": n,
         }
     value = _read_num_field(rf.get("value_field"), summary, cap)
     scale = rf.get("scale")

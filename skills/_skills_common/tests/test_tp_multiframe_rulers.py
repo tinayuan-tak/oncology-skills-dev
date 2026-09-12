@@ -38,14 +38,13 @@ _MULTIFRAME = {
         },
     ),
     "tumor_expression_distribution": (
-        # 4 frames: pan-cancer rank + within-tumor median (both fire on the main card) + subtype ε²
-        # graded_band (fires only on the by-subtype card) + the known-target cohort ruler appended LAST
-        # (Phase 2). This synthetic summary carries all four fields.
+        # 3 TP-specific frames: pan-cancer rank + within-tumor median (both on the main card) + subtype ε²
+        # graded_band (by-subtype card only). The fleet cohort_percentile ruler is appended universally and
+        # filtered out of these TP-multiframe assertions (it is covered in test_interpretation_rulers).
         [
             ("allgene_percentile", "distance_to_cut"),
             ("median_log2tpm", "distance_to_cut"),
             ("subtype_variance_explained", "graded_band"),
-            ("allgene_percentile", "cohort_percentile"),
         ],
         {
             "allgene_percentile": 99.9,
@@ -107,14 +106,16 @@ _MULTIFRAME = {
 def test_each_tp_card_has_two_frames_in_the_expected_order():
     for mt, (expected, _summary) in _MULTIFRAME.items():
         frames = _frames(mt)
-        got = [(f.get("value_field"), f.get("kind")) for f in frames]
+        # the fleet cohort_percentile ruler is a universal appendage (tested separately) — filter it out so
+        # these assertions stay focused on the TP-specific multi-frame rulers.
+        got = [(f.get("value_field"), f.get("kind")) for f in frames if f.get("kind") != "cohort_percentile"]
         assert got == expected, f"{mt}: frames {got} != expected {expected}"
 
 
 def test_builder_emits_both_rulers_when_both_values_present():
     for mt, (expected, summary) in _MULTIFRAME.items():
         gvs = build_interpretation({}, summary, SALIENCE_SPECS[mt], None)
-        got = [(g["metric"], g["frame"]["kind"]) for g in gvs]
+        got = [(g["metric"], g["frame"]["kind"]) for g in gvs if g["frame"]["kind"] != "cohort_percentile"]
         assert got == expected, f"{mt}: emitted {got} != expected {expected}"
         for g in gvs:  # no bare numbers
             assert g["value"] is not None and g["scale"]

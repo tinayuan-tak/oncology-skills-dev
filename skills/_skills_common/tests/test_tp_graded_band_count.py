@@ -49,11 +49,11 @@ def test_count_of_total_reads_count_over_total_past_cut():
         spec,
         None,
     )
-    assert len(gv) == 1 and gv[0]["frame"]["kind"] == "count_of_total"
-    assert gv[0]["value"] == 4
-    roles = {a["role"]: a["value"] for a in gv[0]["frame"]["anchors"]}
+    cot = next(g for g in gv if g["frame"]["kind"] == "count_of_total")  # + a fleet cohort ruler
+    assert cot["value"] == 4
+    roles = {a["role"]: a["value"] for a in cot["frame"]["anchors"]}
     assert roles.get("total") == 6 and roles.get("cut") == 3
-    assert "4 of 6 cohorts" in gauge_string(gv[0]) and "past the 3 cut" in gauge_string(gv[0])
+    assert "4 of 6 cohorts" in gauge_string(cot) and "past the 3 cut" in gauge_string(cot)
 
 
 def test_new_distance_to_cut_cards_gauge_and_read_position():
