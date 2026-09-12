@@ -23,7 +23,11 @@
 #   6. CN-only and fusion-landscape recurrent drivers — landscape recurrence with no dependency line.
 #   7. mixed / passenger fallback, guarded so a double data-gap reads insufficient, not passenger.
 gate: genomic_alteration
-version: 1.8.0   # 2026-09-02: splice_exon_skip_driver rung (CASE-002) — a curated exon-skip driver (METex14)
+version: 1.9.0   # 2026-09-12: a CN DELETION is a driver class only for a LoF/neutral role (CASE-028, genomic-20
+                 # panel). GoF+deletion multi_class rungs removed (fall to single-class confirmed_driver);
+                 # GoF+deletion confirmed_driver rungs → mixed_pattern (a deletion is not a GoF mechanism —
+                 # IDH2/AML read a false confirmed_driver off a passenger cell-line deletion while SNV was blind).
+                 # 1.8.0 2026-09-02: splice_exon_skip_driver rung (CASE-002) — a curated exon-skip driver (METex14)
                  # oncogenic in-indication + live DepMap carriers fires splice-exon-skip-driver-supportive →
                  # splice_exon_skip_driver (priority 36, above drug_response + the variant-class-shape rungs), so a splice-
                  # skipping oncogene reads a driver-class call not a neutral missense_dominant_pattern.
@@ -69,23 +73,29 @@ resolve:
   #    NOTE: multi_class rungs keyed on a mutant-*-dependent rule are intentionally absent — the
   #    stratified-dependency rungs above are a subset of their condition and always win first-match, so
   #    a mutation-DEPENDENCY + CN gene resolves to the biomarker verdict (the nomination-load-bearing one).
+  #    A DELETION is a driver CLASS only for a LoF/neutral role (a TSG's mechanism). For a GoF/activating
+  #    oncogene the activating mechanism is amplification / mutation / fusion, so a co-occurring recurrent
+  #    (or patient-focal) DELETION is a PASSENGER, not a second driver class — the four GoF+deletion
+  #    multi_class rungs are therefore ABSENT (a GoF gene with a mutation driver + a deletion falls through
+  #    to the single-class confirmed_driver rung below, crediting only the real class). The GoF+AMPLIFICATION
+  #    multi_class rungs remain (amplification IS a GoF mechanism); the LoF+deletion multi_class rungs remain
+  #    (deletion IS the TSG mechanism). Surfaced by the genomic-20 panel: FGFR3/BLCA read multi_class_driver
+  #    off [missense + a cell-line deletion + GoF role], over-crediting the passenger deletion as a class.
+  #    See eval/CASE_LOG CASE-028.
   - {verdict: multi_class_driver, when_all_fired: [mut-lof-dominant-supportive, cn-recurrently-amplified-supportive, alteration-role-gof-driver-supportive], driving_rule: mut-lof-dominant-supportive, priority: 8}
   - {verdict: multi_class_lof_driver, when_all_fired: [mut-lof-dominant-supportive, cn-recurrently-amplified-supportive, alteration-role-lof-driver-neutral], driving_rule: mut-lof-dominant-supportive, priority: 9}
-  - {verdict: multi_class_driver, when_all_fired: [mut-lof-dominant-supportive, cn-recurrently-deleted-supportive, alteration-role-gof-driver-supportive], driving_rule: mut-lof-dominant-supportive, priority: 10}
   - {verdict: multi_class_lof_driver, when_all_fired: [mut-lof-dominant-supportive, cn-recurrently-deleted-supportive, alteration-role-lof-driver-neutral], driving_rule: mut-lof-dominant-supportive, priority: 11}
   - {verdict: multi_class_driver, when_all_fired: [mut-missense-dominant-supportive, cn-recurrently-amplified-supportive, alteration-role-gof-driver-supportive], driving_rule: mut-missense-dominant-supportive, priority: 12}
   - {verdict: multi_class_lof_driver, when_all_fired: [mut-missense-dominant-supportive, cn-recurrently-amplified-supportive, alteration-role-lof-driver-neutral], driving_rule: mut-missense-dominant-supportive, priority: 13}
-  - {verdict: multi_class_driver, when_all_fired: [mut-missense-dominant-supportive, cn-recurrently-deleted-supportive, alteration-role-gof-driver-supportive], driving_rule: mut-missense-dominant-supportive, priority: 14}
   - {verdict: multi_class_lof_driver, when_all_fired: [mut-missense-dominant-supportive, cn-recurrently-deleted-supportive, alteration-role-lof-driver-neutral], driving_rule: mut-missense-dominant-supportive, priority: 15}
   #    Patient-focal CN twins: a mutation-class driver + role that is patient-focal amplified/deleted
-  #    (but cell-line-CN-neutral) also reads multi_class — a rescue, never a downgrade.
+  #    (but cell-line-CN-neutral) also reads multi_class — a rescue, never a downgrade. GoF+deletion twins
+  #    are likewise absent (a patient-focal deletion is a passenger for a GoF gene).
   - {verdict: multi_class_driver, when_all_fired: [mut-lof-dominant-supportive, cn-patient-focal-amplified-supportive, alteration-role-gof-driver-supportive], driving_rule: mut-lof-dominant-supportive, priority: 16}
   - {verdict: multi_class_lof_driver, when_all_fired: [mut-lof-dominant-supportive, cn-patient-focal-amplified-supportive, alteration-role-lof-driver-neutral], driving_rule: mut-lof-dominant-supportive, priority: 17}
-  - {verdict: multi_class_driver, when_all_fired: [mut-lof-dominant-supportive, cn-patient-focal-deleted-supportive, alteration-role-gof-driver-supportive], driving_rule: mut-lof-dominant-supportive, priority: 18}
   - {verdict: multi_class_lof_driver, when_all_fired: [mut-lof-dominant-supportive, cn-patient-focal-deleted-supportive, alteration-role-lof-driver-neutral], driving_rule: mut-lof-dominant-supportive, priority: 19}
   - {verdict: multi_class_driver, when_all_fired: [mut-missense-dominant-supportive, cn-patient-focal-amplified-supportive, alteration-role-gof-driver-supportive], driving_rule: mut-missense-dominant-supportive, priority: 20}
   - {verdict: multi_class_lof_driver, when_all_fired: [mut-missense-dominant-supportive, cn-patient-focal-amplified-supportive, alteration-role-lof-driver-neutral], driving_rule: mut-missense-dominant-supportive, priority: 21}
-  - {verdict: multi_class_driver, when_all_fired: [mut-missense-dominant-supportive, cn-patient-focal-deleted-supportive, alteration-role-gof-driver-supportive], driving_rule: mut-missense-dominant-supportive, priority: 22}
   - {verdict: multi_class_lof_driver, when_all_fired: [mut-missense-dominant-supportive, cn-patient-focal-deleted-supportive, alteration-role-lof-driver-neutral], driving_rule: mut-missense-dominant-supportive, priority: 23}
 
   # ── 3. confirmed_driver — a single-class driver corroborated by a typed driver role ──────────────
@@ -97,11 +107,22 @@ resolve:
   - {verdict: confirmed_lof_driver, when_all_fired: [mut-missense-dominant-supportive, alteration-role-lof-driver-neutral], driving_rule: mut-missense-dominant-supportive, priority: 27}
   - {verdict: confirmed_driver, when_all_fired: [cn-recurrently-amplified-supportive, alteration-role-gof-driver-supportive], driving_rule: cn-recurrently-amplified-supportive, priority: 28}
   - {verdict: confirmed_lof_driver, when_all_fired: [cn-recurrently-amplified-supportive, alteration-role-lof-driver-neutral], driving_rule: cn-recurrently-amplified-supportive, priority: 29}
-  - {verdict: confirmed_driver, when_all_fired: [cn-recurrently-deleted-supportive, alteration-role-gof-driver-supportive], driving_rule: cn-recurrently-deleted-supportive, priority: 30}
+  #    GoF role + a DELETION (recurrent or patient-focal) as the SOLE altered class is INCOHERENT: a
+  #    deletion is not the activating mechanism of an oncogene, so it cannot confirm a GoF driver. It reads
+  #    mixed_pattern (signals present — a driver ROLE and a deletion — but no coherent driver call), NOT
+  #    confirmed_driver, and NOT the bare recurrent_deletion_driver rescue below (that is for a NO-role
+  #    deletion of an unknown gene). Surfaced by the genomic-20 panel: IDH2/AML read confirmed_driver off a
+  #    cell-line focal DELETION of an R140/R172-activated gene while its SNV recurrence axis was
+  #    data_unavailable (the deletion filled the vacuum). The LoF+deletion twins below are the TSG case and
+  #    stay confirmed_lof_driver. A GoF gene with a real activating class (missense/amp/fusion) matches one
+  #    of those higher-priority confirmed rungs FIRST, so this only catches the deletion-ONLY GoF case.
+  #    See eval/CASE_LOG CASE-028. driving_rule names the deletion so the audit trail shows the (uncredited)
+  #    signal that was present.
+  - {verdict: mixed_pattern, when_all_fired: [cn-recurrently-deleted-supportive, alteration-role-gof-driver-supportive], driving_rule: cn-recurrently-deleted-supportive, priority: 30}
   - {verdict: confirmed_lof_driver, when_all_fired: [cn-recurrently-deleted-supportive, alteration-role-lof-driver-neutral], driving_rule: cn-recurrently-deleted-supportive, priority: 31}
   - {verdict: confirmed_driver, when_all_fired: [cn-patient-focal-amplified-supportive, alteration-role-gof-driver-supportive], driving_rule: cn-patient-focal-amplified-supportive, priority: 32}
   - {verdict: confirmed_lof_driver, when_all_fired: [cn-patient-focal-amplified-supportive, alteration-role-lof-driver-neutral], driving_rule: cn-patient-focal-amplified-supportive, priority: 33}
-  - {verdict: confirmed_driver, when_all_fired: [cn-patient-focal-deleted-supportive, alteration-role-gof-driver-supportive], driving_rule: cn-patient-focal-deleted-supportive, priority: 34}
+  - {verdict: mixed_pattern, when_all_fired: [cn-patient-focal-deleted-supportive, alteration-role-gof-driver-supportive], driving_rule: cn-patient-focal-deleted-supportive, priority: 34}
   - {verdict: confirmed_lof_driver, when_all_fired: [cn-patient-focal-deleted-supportive, alteration-role-lof-driver-neutral], driving_rule: cn-patient-focal-deleted-supportive, priority: 35}
 
   # ── 3b. splice_exon_skip_driver — curated exon-skipping driver (CASE-002 substrate fidelity) ─────

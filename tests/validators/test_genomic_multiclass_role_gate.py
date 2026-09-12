@@ -20,6 +20,10 @@ RESOLVER = Path(__file__).resolve().parents[2] / "resolvers" / "genomic_alterati
 # multi_class rungs are shadowed-dead under the N1 precedence hoist, so they're exempt).
 _SHAPE_DRIVER_RULES = {"mut-lof-dominant-supportive", "mut-missense-dominant-supportive"}
 _ROLE_RULES = {"alteration-role-gof-driver-supportive", "alteration-role-lof-driver-neutral"}
+_GOF_ROLE = "alteration-role-gof-driver-supportive"
+_DELETION_RULES = {"cn-recurrently-deleted-supportive", "cn-patient-focal-deleted-supportive"}
+# verdicts that assert the gene IS a driver via its listed alteration classes
+_DRIVER_VERDICTS = {"multi_class_driver", "multi_class_lof_driver", "confirmed_driver", "confirmed_lof_driver"}
 
 
 def test_shape_driven_multiclass_rungs_require_alteration_role():
@@ -34,6 +38,50 @@ def test_shape_driven_multiclass_rungs_require_alteration_role():
             f"alteration-role driver co-signal — a passenger (missense-dominant shape, no driver role) "
             f"could be called multi_class_driver. Add gof-driver-supportive / lof-driver-neutral."
         )
+
+
+def test_a_deletion_never_confers_a_driver_verdict_on_a_gof_role():
+    """CASE-028 (genomic-20 panel): a copy-number DELETION is a driver CLASS only for a LoF/neutral role
+    (a TSG's mechanism). For a GoF/activating oncogene the driver mechanism is amplification / mutation /
+    fusion, so a co-occurring deletion is a PASSENGER — it must never, on its own or as a second class,
+    produce a driver verdict paired with the GoF role.
+
+    Two failure modes this pins, both live-observed:
+      * single-class: IDH2/AML fired [cn-recurrently-deleted + GoF role] with its SNV axis data_unavailable
+        and read confirmed_driver off the deletion. The deletion+GoF rungs now read mixed_pattern.
+      * multi-class: FGFR3/BLCA fired [missense + cn-recurrently-deleted + GoF role] and read
+        multi_class_driver, over-crediting the deletion as a second class. The GoF+deletion multi_class
+        rungs are removed; such a gene falls through to the single-class confirmed_driver (missense only).
+
+    A regression here re-opens the "a passenger deletion drives / co-drives a GoF oncogene" false-positive.
+    """
+    rungs = yaml.safe_load(RESOLVER.read_text())["resolve"]
+    offenders = [
+        r
+        for r in rungs
+        if r.get("verdict") in _DRIVER_VERDICTS
+        and _DELETION_RULES & set(r.get("when_all_fired", []) or ([r["when_fired"]] if r.get("when_fired") else []))
+        and _GOF_ROLE in set(r.get("when_all_fired", []))
+    ]
+    assert not offenders, (
+        "genomic resolver rung(s) let a copy-number DELETION confer a DRIVER verdict on a GoF/activating "
+        f"role — a deletion is not a GoF driver mechanism, so this is a passenger being credited: {offenders}"
+    )
+
+
+def test_deletion_still_confers_a_driver_on_a_lof_role():
+    """The other side of the gate: a deletion IS the mechanism for a TSG, so LoF+deletion rungs must remain
+    (else this fix would blind the framework to real deletion drivers like PTEN/SMARCA4). Anti-vacuity for
+    the guard above — proves it removed only the GoF pairing, not the deletion-driver concept."""
+    rungs = yaml.safe_load(RESOLVER.read_text())["resolve"]
+    lof_deletion_driver = [
+        r
+        for r in rungs
+        if r.get("verdict") in _DRIVER_VERDICTS
+        and _DELETION_RULES & set(r.get("when_all_fired", []))
+        and "alteration-role-lof-driver-neutral" in set(r.get("when_all_fired", []))
+    ]
+    assert lof_deletion_driver, "LoF+deletion driver rungs vanished — a real TSG deletion driver would now be missed"
 
 
 def test_multiclass_precedes_confirmed_driver():
