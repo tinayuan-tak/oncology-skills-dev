@@ -9,7 +9,6 @@ sub_groups:
     measurement_types:
     - cis_dosage_coupling
     - cis_protein_dosage_coupling
-    - amp_expr_stratified_dependency
   context_types:
   - cellline_isoform_expression
 - id: SILENCING
@@ -27,4 +26,5 @@ sub_groups:
   questions:
   - id: conjoint_read
     measurement_types:
+    - amp_expr_stratified_dependency
     - patient_cis_coherence

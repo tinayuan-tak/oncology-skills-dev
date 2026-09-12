@@ -11,7 +11,7 @@ in SKILL.md / run.py; this file is the data-product spec.
 | **Verdict field** | `headline.cis_coherence_verdict` (a locus→expression→dependency coherence CLASS; `skill_report.call` carries this inert string, by contract not a nomination call) |
 | **Output shape** | `data_package` |
 | **Emitted schema** | `target-contracts/schemas/skills/cis-feature-coherence.decision.schema.json` (generated, self-contained) |
-| **Conformance target** | a FROZEN FULL emit `fixtures/cis_full_coadread_decision.json` (real KRAS·COADREAD run → `coherent_cis_driver`, role=inert) — no replay harness |
+| **Conformance target** | a FROZEN FULL emit `fixtures/cis_full_emit.json` (real KRAS·COADREAD run → `coherent_cis_driver`, role=inert) — no replay harness |
 
 ---
 
@@ -60,9 +60,14 @@ spine key → SHARED source (coordinate; major on rename); new facet → no sche
 
 ## 5. Known gaps & notes (non-blocking)
 
-- **STALE-METADATA — deprecated legacy CN matrix (3 cards):** cards #1/#2/#6 use `OmicsCNGeneMC_WES.csv` as the
-  primary relative-CN term, which the `depmap-consortium-26q1` manifest marks LEGACY/deprecated (canonical
-  26Q1 CN is now WGS). Intentional (tied to the relative-CN focal-amp convention) but worth re-evaluating.
+- **CN matrix — WGS-primary (migrated #598/#704 6a, 2026-09-11):** the CN-consuming cards (#1 cis-dosage,
+  #2 cis-protein-dosage, #6 amp-expr) now read the DepMap-CANONICAL `OmicsCNGeneWGS` matrix as primary via
+  `depmap_cn_distribution.load_cn_files` (legacy `OmicsCNGeneMC_WES` is fallback-only for genes absent from
+  WGS). Same relative-CN scale; focal-amp thresholds carry over unchanged.
+- **cis-dosage focal-amplification subset escape (2026-09-12):** the pan-panel Spearman dilutes focal-amp
+  oncogenes (ERBB2 r=0.23) below the moderate gate; the method now PROMOTES an uncoupled call to coupled
+  when the amplified subset over-expresses strongly + significantly (`cis_dosage_driver=focal_amplification_subset`).
+  Paired with methylation `MIN_HYPERMETHYLATED` 10→20 (power floor). Fixes the ERBB2/MET-class silencing-override.
 - **Stale source:** CCLE-2019 RRBS methylation is 2018-era hg19, name-keyed (cross-build) to hg38/26q1 expression.
 - **Undeclared derived input:** `cellline-methylation-expression-coherence`'s reader uses derived
   `ccle-rrbs-promoter-methylation-mean-per-gene-v1` as primary, but the card `required_inputs` names only the

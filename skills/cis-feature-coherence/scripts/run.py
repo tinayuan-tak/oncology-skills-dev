@@ -431,6 +431,7 @@ def _causal_attribution_caveat(hl: dict) -> dict | None:
     if not (hl.get("cis_dosage_class") or "").startswith("cn_dosage_coupled"):
         return None
     return {
+        "cis_dosage_driver": hl.get("cis_dosage_driver"),
         "mrna_vs_protein_dosage_slope_ratio": hl.get("mrna_vs_protein_dosage_slope_ratio"),
         "cis_protein_dosage_class": hl.get("cis_protein_dosage_class"),
         "cn_expr_slope_log2tpm_per_cn": hl.get("cn_expr_slope_log2tpm_per_cn"),
@@ -495,6 +496,7 @@ def _cis_coherence_provenance(hl: dict, target=None, indication=None) -> dict | 
         "cis_coherence_verdict": v,
         "n_legs_coherent": sum(1 for x in legs_coherent.values() if x),
         "legs_coherent": legs_coherent,
+        "cis_dosage_driver": hl.get("cis_dosage_driver"),
         "mrna_vs_protein_dosage_slope_ratio": hl.get("mrna_vs_protein_dosage_slope_ratio"),
         "cis_protein_dosage_class": hl.get("cis_protein_dosage_class"),
         "relative_cn_iqr": hl.get("relative_cn_iqr"),
@@ -550,11 +552,17 @@ def _headline(cards, fired, verdict_pair, target=None, indication=None):
         "n_hypermethylated": meth.get("n_hypermethylated"),
         # GoF leg-1: feature → own-expression (the new measurement)
         "cis_dosage_class": cis.get("cis_dosage_class"),
+        # which path established a coupled call: pan_panel_correlation | focal_amplification_subset. The
+        # focal_amplification_subset driver marks a focal-amp oncogene (ERBB2) whose pan-panel Spearman is
+        # diluted below the moderate gate but whose amplified subset over-expresses — a cis-DRIVER read the
+        # bare rank-correlation would have under-called as cn_dosage_uncoupled (calibration 2026-09-12).
+        "cis_dosage_driver": cis.get("cis_dosage_driver"),
         "cn_expr_spearman_r": cis.get("cn_expr_spearman_r"),
         "cn_expr_spearman_p": cis.get("cn_expr_spearman_p"),
         "cn_expr_slope_log2tpm_per_cn": cis.get("cn_expr_slope_log2tpm_per_cn"),
         "relative_cn_iqr": cis.get("relative_cn_iqr"),
         "delta_log2tpm_amplified_vs_neutral": cis.get("delta_log2tpm_amplified_vs_neutral"),
+        "subset_delta_log2tpm_amplified_vs_neutral": cis.get("subset_delta_log2tpm_amplified_vs_neutral"),
         "n_amplified": cis.get("n_amplified"),
         "cis_dosage_evidence_scope": cis.get("evidence_scope"),
         # GoF leg-1 (PROTEIN): CN → own-PROTEIN cis-dosage (VERDICT-INERT). The mRNA-vs-protein slope
@@ -661,6 +669,7 @@ _SYNTHESIS_FACET_KEYS = (
     "cis_coherence_verdict",
     "driving_rule_id",
     "cis_dosage_class",
+    "cis_dosage_driver",
     "methylation_silencing_class",
     "expression_dependency_correlation_class",
     "amp_expr_stratification_class",
