@@ -16,7 +16,8 @@ Reuses the canonical dge_deseq2 INDICATION_TO_TCGA_STUDIES map (no new indicatio
 NOTE for whoever extends INDICATION_TO_TCGA_STUDIES: adding a hematologic / lymphoid-organ study is
 now SAFE — classify.has_lymphoid_denominator fails the read closed on LAML/DLBC/THYM instead of
 publishing a confident nonsense class. Before that guard, this map's omissions were the only thing
-preventing it, which is not a safety property.
+preventing it, which is not a safety property. LAML/DLBC/THYM were added on 2026-09-12 for exactly that
+reason: the guard now fires on a REAL query instead of being unreachable (see _LYMPHOID_SUPPLEMENT).
 """
 
 from __future__ import annotations
@@ -42,7 +43,25 @@ except Exception:  # noqa: BLE001
 # UCEC/SARC are first-class TCGA studies the immune-context card advertises; the dge_deseq2 map omits
 # them, but the CIBERSORT product covers all 33 TCGA studies, so add them here (self-mapped) so they
 # resolve rather than silently returning data_unavailable.
-_UMBRELLA_SUPPLEMENT = {"NSCLC": ["LUAD", "LUSC"], "UCEC": ["UCEC"], "SARC": ["SARC"]}
+#
+# LYMPHOID COHORTS (2026-09-12). LAML/DLBC/THYM are added DELIBERATELY, and the point is NOT to publish
+# a class for them — `has_lymphoid_denominator` fails the read closed on exactly these three studies.
+# The point is REACHABILITY. Until now the fail-closed guard could not fire from any real query: this map
+# had no lymphoid key, so DLBCL resolved to NOTHING and the skill returned `data_unavailable` — the
+# generic "no cohort" answer — for a TCE-VALIDATED indication (glofitamab, mosunetuzumab) where a cohort
+# demonstrably exists (DLBC n=48, median CD8 share 0.1142). A guard nothing can reach is a guard that
+# reassures without protecting; it also cannot be falsified by a panel run. With the keys present the
+# reader now answers the honest thing — there IS a cohort and its DENOMINATOR is the malignant clone —
+# and the guard is on a live path where the 20-target panel can exercise it. Aliases (AML/DLBCL) resolve
+# to the same study so the guard is keyed on the STUDY, never on how the caller spelled the indication.
+_LYMPHOID_SUPPLEMENT = {
+    "LAML": ["LAML"],
+    "AML": ["LAML"],
+    "DLBC": ["DLBC"],
+    "DLBCL": ["DLBC"],
+    "THYM": ["THYM"],
+}
+_UMBRELLA_SUPPLEMENT = {"NSCLC": ["LUAD", "LUSC"], "UCEC": ["UCEC"], "SARC": ["SARC"], **_LYMPHOID_SUPPLEMENT}
 INDICATION_TO_TCGA_STUDIES = {**_UMBRELLA_SUPPLEMENT, **_DGE_MAP}  # _DGE_MAP wins on any shared key
 
 
