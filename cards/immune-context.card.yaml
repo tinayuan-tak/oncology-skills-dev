@@ -23,8 +23,10 @@
 #   data_unavailable    → indication not in CIBERSORT / no TCGA study (abstain, never a false 'cold')
 
 card_id: immune-context
-version: 1.2.0   # 2026-09-13: declare the 6 heterogeneity + suppression summary_fields the reader now
-                 # emits (cd8_hot_sample_fraction, the 2 CD8:suppressor ratios, the 3 medians).
+version: 1.3.0   # 2026-09-12: applies_when +LAML/AML +DLBC/DLBCL +THYM — the fail-closed denominator
+                 # guard has SHIPPED, so the prohibition below is lifted and the token is now REACHABLE.
+                 # 1.2.0 — 2026-09-12: declare the 6 heterogeneity + suppression summary_fields the reader
+                 # now emits (cd8_hot_sample_fraction, the 2 CD8:suppressor ratios, the 3 medians).
                  # 1.1.0 — 2026-09-12: applies_when +CESC +PDAC (was 21 of the method's 23 keys);
                  # immune_context_class + lymphoid_denominator_unreliable; rank + denominator caveats.
 question: "For {indication.label}, is the tumor immune-hot or immune-cold — is there a CD8 T-cell effector population present for a T-cell engager to redirect?"
@@ -44,13 +46,24 @@ tier: indication   # the per-indication immune landscape; the PRIMARY call is ta
 
 applies_when:
   # needs the indication to map to a TCGA study present in the CIBERSORT CancerType vocabulary.
-  # MUST stay in sync with methods.immune_context.read.INDICATION_TO_TCGA_STUDIES (23 keys) — a code the
+  # MUST stay in sync with methods.immune_context.read.INDICATION_TO_TCGA_STUDIES (28 keys) — a code the
   # method RESOLVES but this list omits is a card that refuses to run on data that exists. CESC and PDAC
   # were missing until 2026-09-12.
-  # DO NOT ADD A HEMATOLOGIC OR LYMPHOID-ORGAN INDICATION (LAML/DLBC/THYM/TGCT, or any leukemia/lymphoma
-  # alias) until the method's fail-closed denominator guard ships — see the DENOMINATOR CEILING caveat.
-  # This list is the ONLY thing standing between the reader and a confident nonsense TCE call there.
-  - "context.indication in ['COADREAD', 'COAD', 'READ', 'LUAD', 'LUSC', 'NSCLC', 'BRCA', 'PAAD', 'PDAC', 'SKCM', 'STAD', 'PRAD', 'OV', 'KIRC', 'CESC', 'HNSC', 'BLCA', 'LIHC', 'ESCA', 'UCEC', 'GBM', 'LGG', 'SARC']"
+  #
+  # HEMATOLOGIC / LYMPHOID INDICATIONS (LAML/AML, DLBC/DLBCL, THYM) — PROHIBITION LIFTED 2026-09-12.
+  # This list used to carry a DO-NOT-ADD warning, correctly: LM22's CD8 share is arithmetically valid and
+  # biologically uninterpretable where the LEUKOCYTE denominator IS the malignancy, and omission was the
+  # only thing preventing a confident nonsense call. The method's fail-closed guard
+  # (classify.has_lymphoid_denominator → `lymphoid_denominator_unreliable`, with the median WITHHELD) has
+  # now shipped, so omission is no longer load-bearing — and keeping it had a cost. Omission meant TCE-
+  # VALIDATED DLBCL (glofitamab, mosunetuzumab) got the generic "no cohort" abstention from a skill that
+  # knows the specific truth: there IS a cohort, and its reference frame does not apply. It also left the
+  # guard UNREACHABLE, so no panel run could exercise or falsify it. Adding these codes routes the honest
+  # token instead. It is NOT an invitation to publish a class here — if the guard is ever narrowed, this
+  # list must narrow with it.
+  # TGCT stays out: seminoma has genuine brisk TIL, so its denominator is real infiltrate — it is not a
+  # lymphoid-denominator case and does not belong to either the guard or this exception.
+  - "context.indication in ['COADREAD', 'COAD', 'READ', 'LUAD', 'LUSC', 'NSCLC', 'BRCA', 'PAAD', 'PDAC', 'SKCM', 'STAD', 'PRAD', 'OV', 'KIRC', 'CESC', 'HNSC', 'BLCA', 'LIHC', 'ESCA', 'UCEC', 'GBM', 'LGG', 'SARC', 'LAML', 'AML', 'DLBC', 'DLBCL', 'THYM']"
 
 required_inputs:
   - product_id: gdc-pancanatlas-immune-2018   # CIBERSORT LM22 per-sample leukocyte composition (Thorsson 2018)
@@ -143,9 +156,9 @@ caveats:
   - |
     DENOMINATOR CEILING (hematologic / lymphoid cohorts). LM22 reports the CD8 share OF THE LEUKOCYTE
     COMPARTMENT, so in a leukemia, lymphoma or lymphoid organ the denominator IS the malignant clone —
-    arithmetically valid, biologically meaningless, yet confidently classed (LAML 0.0216 cold, DLBC 0.1142
-    hot, THYM 0.2782 hot). Those studies are excluded only because the indication map omits them — one
-    crosswalk edit from a confident nonsense read on TCE-VALIDATED DLBCL.
+    arithmetically valid, biologically meaningless, yet confidently classed (LAML 0.0216, DLBC 0.1142,
+    THYM 0.2782). Those three now RESOLVE and are answered by `lymphoid_denominator_unreliable`, which
+    WITHHOLDS the median — on TCE-validated DLBCL, "a cohort exists but its frame does not apply".
   - |
     CIBERSORT LM22 gives RELATIVE leukocyte fractions (composition of the immune compartment), not
     absolute infiltrate density. A high CD8 FRACTION in a lymphocyte-poor tumor is fewer absolute CD8

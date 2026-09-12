@@ -2,9 +2,9 @@ _doc: 'M5 rule-role partition (VERDICT_REPRESENTATION move #5). gating = referen
   (verdict-driving); display = referenced by NO resolver (annotation-only: claim-vector / key-signal /
   figure input). Regenerate with build_rule_role_partition.py; --self-check gates drift.'
 counts:
-  total: 416
+  total: 417
   gating: 125
-  display: 291
+  display: 292
 gating:
 - adc-preferred-supportive
 - alteration-role-gof-driver-supportive
@@ -240,6 +240,7 @@ display:
 - immune-context-cold-tce-opposing
 - immune-context-hot-tce-supportive
 - immune-context-intermediate-tce-neutral
+- immune-context-lymphoid-denominator-uninterpretable
 - insufficient-mutation-rate-insufficient
 - isoform-selective-warning-modality-suppression
 - kinase-surface-adc-supportive

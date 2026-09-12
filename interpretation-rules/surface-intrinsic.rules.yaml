@@ -1811,6 +1811,37 @@ rules:
       combinations or a switch to an ADC (T-cell-independent payload) can still make the target viable.
       data_unavailable fires nothing (abstain — never a false cold).
 
+  # The FOURTH class token (2026-09-12). `lymphoid_denominator_unreliable` is NOT a measurement — it is
+  # the reader refusing to publish one. LM22 reports the CD8 share OF THE LEUKOCYTE COMPARTMENT, so in a
+  # leukemia / lymphoma / lymphoid organ that denominator IS the malignant clone (LAML, DLBC) or normal
+  # lymphoid tissue (THYM): the share is arithmetically valid and biologically uninterpretable.
+  #
+  # WHY THIS TOKEN NEEDS A RULE OF ITS OWN, rather than being left to fire nothing like data_unavailable.
+  # The two abstentions are NOT the same statement and the difference is decision-relevant. `data_unavailable`
+  # means "no cohort — ask elsewhere". This means "there IS a cohort (DLBC n=48, median CD8 share 0.1142,
+  # ABOVE the hot cut) and the reference frame does not apply to it". Firing nothing would collapse the
+  # honest answer onto the generic one and hand a reader of TCE-VALIDATED DLBCL (glofitamab, mosunetuzumab)
+  # a shrug where the skill actually knows something specific. NEUTRAL, deliberately: an uninterpretable
+  # denominator is neither a green light nor a program-killer on the effector axis, and treating it as
+  # `opposing` would manufacture a TCE risk signal out of a measurement gap — precisely backwards in
+  # haematologic malignancy, where TCEs are the validated modality.
+  - rule_id: immune-context-lymphoid-denominator-uninterpretable
+    when:
+      card_id: immune-context
+      field: immune_context_class
+      equals: lymphoid_denominator_unreliable
+    signals:
+      bite_tce: neutral
+    rationale: |
+      The indication resolves to a hematologic or lymphoid-organ TCGA cohort (LAML / DLBC / THYM), where
+      CIBERSORT LM22's LEUKOCYTE denominator is the malignant clone or normal lymphoid tissue rather than
+      tumor-infiltrating immunity. A CD8 SHARE is still computable there and would class confidently
+      (DLBC's 0.1142 reads immune-hot), so the reader withholds it instead of publishing it with a caveat.
+      NEUTRAL for bite_tce: this is an absent MEASUREMENT, not measured effector absence — no TCE
+      inference either way. Read it as "this axis does not speak to this indication"; the effector question
+      needs a platform whose denominator is not the tumor (e.g. absolute IHC/flow on the tissue).
+      Distinct from data_unavailable ON PURPOSE: there IS a cohort, and its reference frame is wrong.
+
   # ============================================================================
   # O — Peptide-centric HLA presentation (biologics enrichment E1, 2026-08-07)
   # ============================================================================
