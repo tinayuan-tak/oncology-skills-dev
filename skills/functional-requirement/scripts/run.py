@@ -320,6 +320,15 @@ _NON_CALL_VERDICTS = frozenset(
 )
 
 
+# The NEGATIVE-polarity subset of _DEPENDENCY_CALL_VERDICTS: determinate calls that the target is
+# NOT a dependency here. These are real calls (so they DO get a confidence annotation), but their
+# annotation must be phrased — and corroborated — in the direction of the veto. Before 2026-09-12 the
+# note text was polarity-blind, so a `non_dependent` verdict emitted a note BYTE-IDENTICAL to
+# `concordant_dependent`'s ("the dependency sits in a coherent co-essential module", "independently
+# corroborated across consortia") — affirming the very dependency the verdict denies.
+_NEGATIVE_CALL_VERDICTS = frozenset({"non_dependent", "non_dependent_paralog_buffered"})
+
+
 # Confidence ladder (low→high) for the cross-consortium corroboration lift below.
 _CONFIDENCE_LADDER = ("unknown", "standard", "moderate", "high")
 
@@ -348,6 +357,16 @@ def _dependency_confidence_note(
          standard/unknown to moderate); `isolated_dependency` appends a caveat. Same corroboration
          discipline — never a verdict move.
 
+    POLARITY (2026-09-12 fix). The note text and both corroboration arms are scored against the DIRECTION of the
+    verdict, not against the word "dependent":
+      - AGREEMENT (positive verdict × concordant_dependent, or negative verdict ×
+        concordant_non_dependent) is corroboration → lifts a bare standard/unknown to moderate.
+      - CONTRADICTION (either polarity crossed) is a CAVEAT and NEVER lifts. Previously a
+        `non_dependent` verdict alongside `concordant_dependent` — a flat contradiction — was
+        LIFTED and captioned "independently corroborated", and `concordant_non_dependent` (the
+        strongest corroboration a veto can have) was not handled at all.
+    The verdict itself is untouched either way; only `confidence` + `note` move.
+
     Returns {confidence, note} where confidence ∈ {high, moderate, standard, unknown}. Annotates only
     on an actual dependency call (_DEPENDENCY_CALL_VERDICTS); otherwise `standard` with no meta-claim."""
     if verdict not in _DEPENDENCY_CALL_VERDICTS:
@@ -355,53 +374,91 @@ def _dependency_confidence_note(
             "confidence": "standard",
             "note": "Predictability annotation applies only to an actual dependency call.",
         }
+    negative = verdict in _NEGATIVE_CALL_VERDICTS
+    # What the call asserts, in words that survive both polarities.
+    subject = "non-dependence call" if negative else "dependency"
+
     pc = predictability_class
     if pc == "own_omics_driven":
         conf = "high"
         note = (
-            "Dependency is predictable from the target's own omics "
+            f"The {subject} is predictable from the target's own omics "
             "(biomarker-hypothesis-bearing) — higher confidence in the call."
         )
     elif pc == "context_or_driver_dependent":
         conf = "moderate"
         note = (
-            "Dependency is omics-predictable, but from lineage/driver context rather "
+            f"The {subject} is omics-predictable, but from lineage/driver context rather "
             "than the target's own features — the biomarker is the context."
         )
     elif pc in ("weakly_predictable", "unpredictable"):
         conf = "standard"
         note = (
-            "Dependency is not well explained by omics — the call rests on the genetic "
+            f"The {subject} is not well explained by omics — the call rests on the genetic "
             "evidence itself; no omics biomarker handle (not a verdict downgrade)."
         )
     else:  # data_unavailable or absent
         conf = "unknown"
         note = "Predictability not computed for this target (E5 precompute coverage gap)."
 
-    # Independent cross-consortium corroboration (Broad Achilles vs Sanger Project Score).
-    if cross_consortium_class == "concordant_dependent":
+    def _lift() -> None:
+        nonlocal conf
         if _CONFIDENCE_LADDER.index(conf) < _CONFIDENCE_LADDER.index("moderate"):
-            conf = "moderate"  # independent-consortium replication is itself a confidence handle
-        note += " Independently corroborated across consortia (Broad Achilles + Sanger Project Score agree)."
+            conf = "moderate"
+
+    # Independent cross-consortium corroboration (Broad Achilles vs Sanger Project Score), scored
+    # against the verdict's DIRECTION.
+    agreeing_class = "concordant_non_dependent" if negative else "concordant_dependent"
+    opposing_class = "concordant_dependent" if negative else "concordant_non_dependent"
+    if cross_consortium_class == agreeing_class:
+        _lift()  # independent-consortium replication is itself a confidence handle
+        note += (
+            " Independently corroborated across consortia — Broad Achilles + Sanger Project Score "
+            f"agree on {'non-dependence' if negative else 'dependence'}."
+        )
+    elif cross_consortium_class == opposing_class:
+        note += (
+            " CAUTION: the two consortia agree with each other but AGAINST this verdict "
+            f"(Broad Achilles + Sanger Project Score both read {'dependent' if negative else 'NOT dependent'} "
+            "pan-cancer). A confidence caveat, not a verdict move — the resolver owns the verdict, and "
+            "an indication-restricted call can legitimately diverge from a pan-cancer one."
+        )
     elif cross_consortium_class == "discordant":
         note += (
             " CAUTION: an independent consortium (Sanger Project Score) does NOT corroborate "
-            "the Broad dependency call — a confidence caveat, not a veto."
+            "the Broad call — a confidence caveat, not a veto."
         )
+    # `single_consortium_only` / `data_unavailable` / None stay SILENT by design: absence of
+    # corroboration is not evidence either way, and the silence is pinned by
+    # test_no_corroboration_signal_is_backward_compatible (byte-stability for existing runs).
 
-    # Co-essential-module coherence (mechanism-anchoring corroboration).
+    # Co-essential-module coherence (mechanism-anchoring corroboration). Module coherence anchors a
+    # POSITIVE dependency's mechanism; on a veto it is a tension (the gene is co-essential with a
+    # coherent module elsewhere, yet not required here), so it caveats and never lifts.
     if coessential_module_class == "in_coherent_module":
-        if _CONFIDENCE_LADDER.index(conf) < _CONFIDENCE_LADDER.index("moderate"):
-            conf = "moderate"  # a module-anchored dependency is itself a mechanism-credibility handle
-        note += (
-            " Module-anchored — the dependency sits in a coherent co-essential module "
-            "(complex/pathway partners co-essential across cell lines)."
-        )
+        if negative:
+            note += (
+                " Tension: the gene DOES sit in a coherent co-essential module (complex/pathway "
+                "partners co-essential across cell lines) yet is not required in this context — "
+                "consistent with context-restricted non-dependence, but worth checking coverage."
+            )
+        else:
+            _lift()  # a module-anchored dependency is itself a mechanism-credibility handle
+            note += (
+                " Module-anchored — the dependency sits in a coherent co-essential module "
+                "(complex/pathway partners co-essential across cell lines)."
+            )
     elif coessential_module_class == "isolated_dependency":
-        note += (
-            " Note: the dependency is NOT co-essential with a coherent module "
-            "(isolated) — a mechanism-anchoring caveat, not a veto."
-        )
+        if negative:
+            note += (
+                " The gene is not co-essential with a coherent module (isolated), which is "
+                "consistent with the non-dependence call but is weak corroboration on its own."
+            )
+        else:
+            note += (
+                " Note: the dependency is NOT co-essential with a coherent module "
+                "(isolated) — a mechanism-anchoring caveat, not a veto."
+            )
     return {"confidence": conf, "note": note}
 
 
@@ -1234,7 +1291,9 @@ def _headline(cards, fired, verdict_pair):
         "n_positive_models_in_lineage": get_card_field(cards, "recommended-models", "n_positive_models_in_lineage"),
         # GENOTYPE-matched patient↔model facet (2026-08-19) — complements the expression-similarity
         # model_correspondence above with genotype IDENTITY (does an available model carry THIS target's
-        # event?). Render facet; verdict-inert (event-correspondence rules are genomic, not dependency-*).
+        # event?). Render facet ONLY: the card is declared `interpretation: rules_pending` and no
+        # interpretation rule in any lane reads event_correspondence_class (verified 2026-09-12), so it
+        # is UNINTERPRETED rather than interpreted in the genomic lane, as this comment used to imply.
         "event_correspondence_class": get_card_field(cards, "genomic-event-model-match", "event_correspondence_class"),
         # Q7 protein abundance → dependency (render facet, biomarker-assay comparison vs the RNA arm):
         "abundance_dependency_class": get_card_field(cards, "abundance-dependency", "abundance_dependency_class"),

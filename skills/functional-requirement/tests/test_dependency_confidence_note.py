@@ -168,3 +168,96 @@ def test_isolated_module_is_a_caveat_not_a_downgrade():
 def test_coessential_module_inert_on_non_call_verdict():
     note = fr._dependency_confidence_note("insufficient", None, None, "in_coherent_module")
     assert note["confidence"] == "standard" and "Module-anchored" not in note["note"]
+
+
+# --- POLARITY (2026-09-12): the annotation must not affirm a dependency the verdict DENIES -----
+# Before this fix the note text was polarity-blind and both corroboration arms keyed on the literal
+# token `concordant_dependent`, so a `non_dependent` verdict emitted a note BYTE-IDENTICAL to
+# `concordant_dependent`'s ("Independently corroborated across consortia", "the dependency sits in a
+# coherent co-essential module") and was CONFIDENCE-LIFTED by evidence that contradicts it, while
+# `concordant_non_dependent` — the strongest corroboration a veto can have — was ignored entirely.
+
+_NEGATIVE = ("non_dependent", "non_dependent_paralog_buffered")
+
+
+def test_negative_verdicts_are_a_declared_subset_of_the_call_set():
+    """The negative-polarity set must be a real subset of the call set — a token in neither, or in
+    the negative set only, would silently take the positive-phrasing branch."""
+    assert fr._NEGATIVE_CALL_VERDICTS <= fr._DEPENDENCY_CALL_VERDICTS
+    assert fr._NEGATIVE_CALL_VERDICTS == frozenset(_NEGATIVE)
+
+
+def test_negative_verdict_note_never_asserts_a_dependency():
+    """The regression that shipped: for a veto the note must not claim the dependency is
+    predictable, corroborated, or module-anchored."""
+    for v in _NEGATIVE:
+        note = fr._dependency_confidence_note(v, "own_omics_driven", "concordant_dependent", "in_coherent_module")[
+            "note"
+        ]
+        assert "non-dependence call" in note
+        assert "Independently corroborated" not in note
+        assert "Module-anchored" not in note
+        assert "the dependency sits in a coherent co-essential module" not in note
+
+
+def test_negative_and_positive_notes_are_not_identical():
+    """The exact symptom: `non_dependent` and `concordant_dependent` produced the same bytes."""
+    args = ("own_omics_driven", "concordant_dependent", "in_coherent_module")
+    assert (
+        fr._dependency_confidence_note("non_dependent", *args)["note"]
+        != fr._dependency_confidence_note("concordant_dependent", *args)["note"]
+    )
+
+
+def test_concordant_non_dependent_corroborates_a_veto():
+    """Two independent consortia agreeing on NON-dependence is the strongest corroboration a veto
+    can have — it must lift a bare confidence and say so. Previously unhandled (no lift, no note)."""
+    for v in _NEGATIVE:
+        c = fr._dependency_confidence_note(v, "unpredictable", "concordant_non_dependent")
+        assert c["confidence"] == "moderate"
+        assert "Independently corroborated across consortia" in c["note"]
+        assert "agree on non-dependence" in c["note"]
+
+
+def test_contradicting_consortia_caveat_and_never_lift():
+    """A cross-polarity consortium call CONTRADICTS the verdict: caveat, and confidence must not move."""
+    # negative verdict × consortia both say dependent
+    base_neg = fr._dependency_confidence_note("non_dependent", "unpredictable")
+    neg = fr._dependency_confidence_note("non_dependent", "unpredictable", "concordant_dependent")
+    assert neg["confidence"] == base_neg["confidence"] == "standard"  # was wrongly lifted to moderate
+    assert "CAUTION" in neg["note"] and "AGAINST this verdict" in neg["note"]
+    # positive verdict × consortia both say NOT dependent (was silently ignored)
+    base_pos = fr._dependency_confidence_note("selective_dependent", "unpredictable")
+    pos = fr._dependency_confidence_note("selective_dependent", "unpredictable", "concordant_non_dependent")
+    assert pos["confidence"] == base_pos["confidence"] == "standard"
+    assert "CAUTION" in pos["note"] and "AGAINST this verdict" in pos["note"]
+
+
+def test_coherent_module_on_a_veto_is_a_tension_not_a_lift():
+    """A gene co-essential with a coherent module elsewhere but not required here is a TENSION;
+    it must not lift the veto's confidence or read as mechanism corroboration."""
+    for v in _NEGATIVE:
+        base = fr._dependency_confidence_note(v, "unpredictable")
+        c = fr._dependency_confidence_note(v, "unpredictable", None, "in_coherent_module")
+        assert c["confidence"] == base["confidence"] == "standard"  # was wrongly lifted to moderate
+        assert "Tension" in c["note"] and "not required in this context" in c["note"]
+
+
+def test_isolated_module_on_a_veto_is_consistent_but_weak():
+    for v in _NEGATIVE:
+        c = fr._dependency_confidence_note(v, "unpredictable", None, "isolated_dependency")
+        assert "consistent with the non-dependence call" in c["note"]
+        assert "weak corroboration" in c["note"]
+
+
+def test_positive_polarity_behaviour_is_unchanged():
+    """Byte-stability guard for the arm that was already correct: every positive call verdict with
+    the previously-handled inputs keeps its exact confidence AND its exact phrases."""
+    positives = sorted(fr._DEPENDENCY_CALL_VERDICTS - fr._NEGATIVE_CALL_VERDICTS)
+    assert positives, "no positive call verdicts to check"
+    for v in positives:
+        c = fr._dependency_confidence_note(v, "own_omics_driven", "concordant_dependent", "in_coherent_module")
+        assert c["confidence"] == "high"
+        assert "Independently corroborated across consortia" in c["note"]
+        assert "Module-anchored" in c["note"]
+        assert "own omics" in c["note"]

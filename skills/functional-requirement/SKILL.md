@@ -45,7 +45,7 @@ composition:
     # Biomarker-facet render cards (ADDITIVE, verdict-inert — feed NO resolver ladder). Grouped:
     - expression-dependency-correlation  # RNA arm: mRNA predicts dependency (was in run.py CARDS, missing here)
     - recommended-models                 # Q4 patient↔model correspondence: model-backed-dependency (was in run.py CARDS, missing here)
-    - genomic-event-model-match          # GENOTYPE-matched patient↔model facet (Track C cross-wire, 2026-08-19): complements recommended-models (expression-similarity) with genotype IDENTITY. Built/homed in genomic-alteration-profile; ADDITIVE, verdict-inert (event-correspondence rules are genomic, not dependency-*)
+    - genomic-event-model-match          # GENOTYPE-matched patient↔model facet (Track C cross-wire, 2026-08-19): complements recommended-models (expression-similarity) with genotype IDENTITY. Built/homed in genomic-alteration-profile; ADDITIVE, verdict-inert — and verdict-inert here means UNINTERPRETED, not "interpreted elsewhere": the card is declared `interpretation: rules_pending` and NO interpretation rule in ANY lane reads `event_correspondence_class` (verified 2026-09-12). It reaches the output only as the render facet `headline.event_correspondence_class`. Same for the two other rule-less dependency-lane cards, `cross-consortium-dependency` and `coessential-module` — both are consumed by run.py's `dependency_confidence_note` in Python, not by a rule.
     - abundance-dependency               # Q7 PROTEIN arm: protein abundance predicts dependency (2026-07-22)
     - organoid-crispr-dependency         # Organoid-native Chronos facet (2026-08-18): dependency in patient-derived 3D organoids (GI-dominated n~114). ADDITIVE, verdict-inert — corroborates a positive call but is never a trusted veto
     - coessential-module                 # Co-essential-module CONFIDENCE facet (2026-08-19): is the dependency embedded in a coherent co-essential module (complex/pathway partners) or isolated? ADDITIVE, verdict-inert — folds into dependency_confidence_note (sibling of cross-consortium + predictability); the enrichment-review #1 item (depmap-coessentiality-26q1-v1 was orphaned)
@@ -101,9 +101,11 @@ composition:
 - Emits `decision.json` with:
   - `headline`: `dependency_verdict` (pan_essential_killer / concordant_dependent /
     lineage_selective / selective_dependent / chemical_genetic_confirmed_dependent /
-    discordant / non_dependent / non_dependent_paralog_buffered / broadly_dependent /
-    insufficient*), plus the driving CRISPR + RNAi calls and the predictability
-    confidence annotation.
+    partner_conditional_dependent / discordant / non_dependent /
+    non_dependent_paralog_buffered / broadly_dependent / insufficient*), plus the
+    driving CRISPR + RNAi calls and the predictability confidence annotation.
+    All 13 tokens with their precedence are under "Verdict resolution" below; that list and
+    `resolvers/dependency.resolver.yaml` are the authoritative enum.
   - `fired_rules`: which of the dep-* rules matched.
   - `modality_lenses`: optional SM+degrader tally (`--modality`).
 
@@ -253,6 +255,13 @@ When called as `/functional-requirement`, Claude should:
    ```
    Add `--synthesize` when the user wants a narrative synthesis (attaches
    `decision['llm_synthesis']`; the deterministic verdict is unchanged).
-4. Read `<OUT_DIR>/decision.json`, present the `dependency_verdict` + the
-   `driving_rule_id` + the `dep_control_position_class` (selective vs
-   pan-essential) inline, and offer to open the full JSON if the user wants details.
+4. Read `<OUT_DIR>/decision.json` and present, inline, the three fields that sit at
+   the TOP of `headline`: `dependency_verdict`, `driving_rule_id`, and
+   `dependency_confidence` + `dependency_confidence_note` (the verdict-inert
+   predictability / cross-consortium / co-essential-module annotation; on a
+   `non_dependent*` verdict the note is phrased in the direction of the veto).
+   Then offer to open the full JSON if the user wants details.
+   Selective-vs-pan-essential positioning is NOT a top-level headline field: it is
+   `dep_control_position_class`, nested at
+   `headline.subgroup_signals.DEP.claims[*].evidence_atom.values` — quote it only if
+   you actually read it from there.
