@@ -107,6 +107,24 @@ def test_genuine_amplification_addiction_wins_over_silencing():
     assert resolve(DOSAGE_COUPLED, DEP_CONJOINT, SILENCING)[0] == "coherent_cis_driver"
 
 
+def test_trans_driven_dependency_wins_over_silencing():
+    """PANEL CALIBRATION (2026-09-12, v1.2.0): a gene that is cis-dosage-UNCOUPLED but has a real
+    dependency leg AND (via a minority-subset, lineage-confounded methylation signal) fires the silencing
+    rung must name dependency_without_cis_dosage, NOT coherent_epigenetic_silencing — a self-dependency is
+    by definition not a silenced-off gene. This is the FGFR1/LUSC + NKX2-1/LUAD discordance the 20-target
+    panel surfaced (dosage-uncoupled + expr-dep-coupled + silencing was wrongly resolving to silencing)."""
+    assert resolve(DOSAGE_UNCOUPLED, DEP_CORR, SILENCING) == ("dependency_without_cis_dosage", DOSAGE_UNCOUPLED)
+    assert resolve(DOSAGE_UNCOUPLED, DEP_CONJOINT, SILENCING) == ("dependency_without_cis_dosage", DOSAGE_UNCOUPLED)
+
+
+def test_silenced_tsg_without_dependency_leg_still_names_silencing():
+    """Guard against over-correction: a validated silenced TSG (MLH1/MGMT/CDKN2A) carries NO coupled
+    dependency leg, so with only the silencing leg (or silencing + a dependency-ABSENT leg) it still names
+    coherent_epigenetic_silencing — the reorder does not regress the LoF arm."""
+    assert resolve(SILENCING) == ("coherent_epigenetic_silencing", SILENCING)
+    assert resolve(DOSAGE_COUPLED, DEP_ABSENT, SILENCING)[0] == "coherent_epigenetic_silencing"
+
+
 def test_nothing_fired_is_default_insufficient():
     assert resolve() == ("insufficient_cis_coherence", None)
 

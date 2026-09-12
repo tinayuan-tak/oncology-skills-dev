@@ -87,6 +87,27 @@
         "null"
       ]
     },
+    "subset_delta_log2tpm_amplified_vs_neutral": {
+      "type": [
+        "null"
+      ]
+    },
+    "subset_mannwhitney_p": {
+      "type": [
+        "null"
+      ]
+    },
+    "cis_dosage_driver": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "pan_panel_correlation",
+        "focal_amplification_subset",
+        null
+      ]
+    },
     "cis_dosage_class": {
       "type": [
         "string",

@@ -17,9 +17,11 @@
 # panel via the shared lineage ladder; per-indication cis-dosage is a downstream synthesis question.
 # Consumed by cis_coherence.resolver.yaml as the leg-1 signal; VERDICT-INERT at the composed layer.
 #
-# Expected demonstration cases (live-verify at calibration — Stage-0 gate, NOT yet run here):
-#   - ERBB2 / MYC : CN strongly predicts expression        → cn_dosage_coupled_strong  (cis-driven)
-#   - KRAS        : amplified subset over-expresses         → cn_dosage_coupled_*        (cis-driven)
+# Expected demonstration cases (live-verified 2026-09-12):
+#   - ERBB2       : pan-panel Spearman r=0.23 is DILUTED by the diploid body, but the amplified subset
+#                   over-expresses (+1.64 median log2TPM) → cn_dosage_coupled_moderate via the
+#                   focal_amplification_subset driver (cis-driven; see the focal-amp subset escape below)
+#   - KRAS / MYC  : pan-panel CN predicts expression        → cn_dosage_coupled_* (pan_panel_correlation)
 #   - a lineage-TF (trans-regulated) : expressed, CN-flat   → cn_dosage_uncoupled        (NOT cis)
 #   - near-diploid-panel target       : no CN variance      → cn_invariant_panel         (untestable)
 #
@@ -75,6 +77,10 @@ outputs:
     - mean_log2tpm_neutral
     - delta_log2tpm_amplified_vs_neutral         # positive = amplified cells over-express (dosage effect)
     - amplification_threshold_relative_cn        # FOCAL_AMP cutoff used (provenance)
+    # === Focal-amplification SUBSET escape (the amplified-tail path the pan-panel Spearman dilutes) ===
+    - subset_delta_log2tpm_amplified_vs_neutral  # median log2TPM (amplified - neutral); the focal-amp subset driver
+    - subset_mannwhitney_p                       # one-sided Mann-Whitney (amplified > neutral) for the subset escape
+    - cis_dosage_driver                          # which path drove the coupled call (pan_panel_correlation | focal_amplification_subset)
     # === Categorical (Tier-2 vocabulary; drives cis-coherence.rules.yaml) ===
     - cis_dosage_class
     # Indication-conditioning provenance (mirrors amp-expr-stratified-dependency):
@@ -82,11 +88,14 @@ outputs:
 
   summary_fields_vocabulary:
     cis_dosage_class:
-      - cn_dosage_coupled_strong                 # spearman r >= 0.4 AND p <= 0.01 — amplification strongly drives expression
-      - cn_dosage_coupled_moderate               # spearman r >= 0.25 AND p <= 0.01 — moderate cis-dosage
+      - cn_dosage_coupled_strong                 # pan-panel spearman r >= 0.4, OR focal-amp subset median Δ >= 2.0 log2TPM (both p <= 0.01)
+      - cn_dosage_coupled_moderate               # pan-panel spearman r >= 0.25, OR focal-amp subset median Δ >= 1.0 log2TPM (both p <= 0.01)
       - cn_dosage_uncoupled                      # CN varies across panel but does NOT predict expression (trans-regulated)
       - cn_invariant_panel                       # relative_cn_p10_p90_spread < min — no CN variation to test cis-dosage (untestable, honest)
       - data_unavailable
+    cis_dosage_driver:                           # which path established a coupled call (null when uncoupled/invariant/unavailable)
+      - pan_panel_correlation                    # the pan-panel CN↔expression Spearman crossed the gate
+      - focal_amplification_subset               # pan-panel Spearman diluted below the gate, but the amplified subset over-expresses (ERBB2 archetype)
     evidence_scope: [within_indication, within_indication_mut_vs_pan_wt, pan_lineage_evidence_only, pan_no_indication]
 
   figures:
@@ -108,6 +117,15 @@ thresholds:
                                                  # signal (ERBB2 live: IQR 0.18, p90-p10 0.55, Spearman r=0.26 p=1e-15). Gating on
                                                  # IQR wrongly called ERBB2 invariant (calibration fix 2026-08-20).
   amplification_threshold: 1.5                   # FOCAL_AMP — reused from depmap_cn_distribution (relative CN; diploid ~ 1.0)
+  # Focal-amplification SUBSET escape (2026-09-12): a focal-amp oncogene is bulk-diploid with an amplified
+  # TAIL, so the pan-panel Spearman is diluted below the moderate gate (ERBB2 r=0.23) even though the
+  # amplified subset over-expresses. When the pan-panel r is sub-gate but the amplified subset (relative
+  # CN > amplification_threshold) over-expresses strongly + significantly, classify coupled via the subset
+  # path (cis_dosage_driver=focal_amplification_subset). Only ever PROMOTES an otherwise-uncoupled call.
+  min_amplified_for_subset: 20                   # min amplified lines to run the focal-amp subset contrast
+  min_neutral_comparator: 30                     # min non-amplified comparator lines
+  strong_focal_amp_delta: 2.0                    # amplified-neutral median log2TPM → cn_dosage_coupled_strong
+  moderate_focal_amp_delta: 1.0                  # amplified-neutral median log2TPM → cn_dosage_coupled_moderate
 
 warning_predicates:
   - warning_id: low_n_cell_lines

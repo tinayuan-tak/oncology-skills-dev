@@ -729,7 +729,6 @@ question_hierarchies:
         measurement_types:
         - cis_dosage_coupling
         - cis_protein_dosage_coupling
-        - amp_expr_stratified_dependency
       context_types:
       - cellline_isoform_expression
     - id: SILENCING
@@ -746,7 +745,12 @@ question_hierarchies:
     - id: CONJOINT
       questions:
       - id: conjoint_read
+        # amp_expr_stratified_dependency IS the conjoint amp∩overexpr-addiction signal (its rule is
+        # cis-conjoint-dependent-supportive; the skill's CONJOINT axis_label is "amp∩overexpr addiction"),
+        # so it belongs here, NOT under CIS_DOSAGE (corrected 2026-09-12 — was mis-grouped, diverging from
+        # the skill's own questions.yaml which already had it under CONJOINT).
         measurement_types:
+        - amp_expr_stratified_dependency
         - patient_cis_coherence
   combination-and-vulnerability:
     axis: combination_vulnerability
