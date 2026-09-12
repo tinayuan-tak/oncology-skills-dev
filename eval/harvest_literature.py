@@ -253,6 +253,59 @@ _PANELS: dict[str, dict] = {
         "skills": ["tractability-small-molecule"],
         "pairs": [("DLL3", "SCLC"), ("STEAP1", "PRAD"), ("FOLR1", "OV"), ("NECTIN4", "BLCA"), ("CEACAM5", "NSCLC")],
     },
+    # ── The 20-pair MECHANISM discordance panel (2026-09-12) ─────────────────────────────────────
+    # Registers the panel that produced discordances D1-D5 in the mechanism-and-pharmacology
+    # production-finalize pass. That pass ran the 20 pairs AD HOC (skill CLI per target, report written
+    # to /tmp), so the assessment was neither reproducible nor ledgered — and, because an ad-hoc run
+    # never touches _PANELS, it also BYPASSED the two guards below (skills-are-real-dirs and
+    # indications-resolve). This entry puts the pairs back under both. The strata probe where a CURATED
+    # SIGNALING NETWORK is least able to describe the operative mechanism — the class the skill is
+    # structurally most likely to get wrong:
+    #   (1) RTK / kinase hubs (the well-served base case, and the CONTROLS — prose must not move).
+    #   (2) NON-SIGNALING drivers: metabolic/neomorphic (IDH1), LoF TSG actionable only via SL (TP53),
+    #       transcriptional/epigenetic (MYC, EZH2, CTNNB1, TEAD1), apoptotic (BCL2). SIGNOR+CollecTRI
+    #       under-read these by construction → the D1 class.
+    #   (3) SURFACE ANTIGENS (CEACAM5, MSLN): target of an ADC/CAR, mechanism is DELIVERY not signaling
+    #       → a thin network is the CORRECT read, and the gap-note must not over-call it (the D5 fix).
+    #   (4) SL / paralog (WRN, SMARCA2): mechanism lives in a PARTNER's genotype, not the target's edges.
+    #   (5) PHOSPHO-PD readability (ALK, CDK4): the D2 class — a fusion-activated RTK whose CPTAC
+    #       phospho coverage is a FLOOR, not a biological negative.
+    # ★ INDICATION CODES ARE CORRECTED HERE. The ad-hoc run used HGSOC, PLMESO (x2) and DLBCL (x2),
+    # none of which is a canonical_code or alias in indication_crosswalk.yaml — precisely the silent
+    # pan-scope degradation the EPAS1/RCC note above documents, and it hit 5 of the 20 pairs, 4 of them
+    # in the D1 "non-signaling driver under-read" stratum whose disposition was therefore read off a
+    # degraded scope. Corrected: HGSOC->OV, PLMESO->MESO, DLBCL->DLBC (COAD->COADREAD normalized from
+    # alias to canonical). test_panel_indications_resolve_in_the_crosswalk now covers all 20.
+    "mechanism-and-pharmacology-20": {
+        "skills": ["mechanism-and-pharmacology"],
+        "pairs": [
+            # (1) RTK / kinase-hub base case + controls
+            ("EGFR", "LUAD"),  # CONTROL: the best-served shape (dense curated network, approved drugs)
+            ("BRAF", "SKCM"),  # CONTROL: prose must stay stable
+            ("KRAS", "PAAD"),  # CONTROL: well_characterized hub, 71 upstream regulators
+            ("MET", "LUAD"),
+            ("ERBB2", "BRCA"),
+            ("PIK3CA", "BRCA"),
+            ("CDK4", "LUAD"),  # cell-cycle kinase; 0 phosphosites in 9/10 CPTAC cohorts (D2-adjacent)
+            ("AR", "PRAD"),  # nuclear receptor: ligand-driven, not a kinase cascade
+            # (2) non-signaling drivers — the D1 class
+            ("IDH1", "LGG"),  # metabolic / neomorphic: n_dn~0 by construction
+            ("TP53", "OV"),  # LoF TSG, actionable only via SL (WEE1/DDR), never direct  [was HGSOC]
+            ("MYC", "BRCA"),  # transcriptional hub, undruggable directly
+            ("CTNNB1", "COADREAD"),  # WNT/TF output  [was COAD, an alias — normalized]
+            ("TEAD1", "MESO"),  # HIPPO transcriptional output  [was PLMESO]
+            ("EZH2", "DLBC"),  # epigenetic writer  [was DLBCL]
+            ("BCL2", "DLBC"),  # apoptotic effector, not a signaling node  [was DLBCL]
+            # (3) surface antigens — mechanism is DELIVERY (the D5 gap-note false-positive class)
+            ("CEACAM5", "LUAD"),
+            ("MSLN", "MESO"),  # [was PLMESO]
+            # (4) SL / paralog — mechanism lives in a partner's genotype
+            ("WRN", "COADREAD"),  # MSI-H SL  [was COAD, an alias — normalized]
+            ("SMARCA2", "LUAD"),  # SMARCA4-mutant SL
+            # (5) phospho-PD readability — the D2 class this arc retired `not_phosphoprotein` for
+            ("ALK", "LUAD"),  # fusion-activated RTK; 0 phosphosites in ALL 10 CPTAC cohorts
+        ],
+    },
 }
 
 

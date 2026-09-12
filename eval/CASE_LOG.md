@@ -36,6 +36,135 @@ Dangerous false-positives to keep pinned: ADAR1, CLDN18.2_LRRC15, EGFR_cMET_VEGF
 
 ## Open cases
 
+### MECHANISM 20-pair literature panel baseline (2026-09-12) — 20/20 emitted, 73 ledger rows, **0 contradicts**
+
+Ran `--panel mechanism-and-pharmacology-20 --literature-scope gating` (registered in
+`eval/harvest_literature.py::_PANELS` by this PR) and built `eval/discordance_ledger_mech20.json`
+(gitignored). The panel is 5 deliberate strata: RTK/kinase hubs + controls, non-signaling drivers,
+surface antigens, SL/paralog, and phospho-PD readability.
+
+| dimension | result |
+|---|---|
+| verdicts | 15 `well_characterized`, 5 `partial` |
+| `overall_consistency` | 16 `concordant`, 4 `partially_concordant`, 0 `discordant` |
+| axis reads (100) | 74 `agree`, 13 `extends`, 13 `omics_unavailable`, **0 `contradicts`** |
+| ledger | 73 rows, **all** `blind_spot_gap`, all severity 3; 0 `calibration_gap`, 0 `verdict_rule_gap`, 0 `confabulation_or_unverified` |
+
+**The panel's real predecessor was an AD-HOC run**, launched outside `_PANELS` from `/tmp/mech_panel`.
+It produced discordances D1–D5, and D2 became the phospho-token retirement (target-contracts #746 →
+analysis-methods #608 → skills #1326). Registering it is what makes the assessment repeatable — and
+what put its pairs back under the two guards in `eval/tests/test_harvest_literature.py`. Dispositions
+of the original five, re-read against this registered run:
+
+- **D1** (non-signaling drivers under-read) — **still open, but for the first time trustworthy**: see CASE-023.
+- **D2** (ALK phospho floor) — **CLEARED**: see CASE-024.
+- **D3** (`has_actionable_moa` true on 20/20) — **reconfirmed and reclassified**: see CASE-027.
+- **D4** (clinically-precedented guard) — **holds**: `has-pd-marker-supportive` fired 16/20 and every
+  precedented target kept its supportive rung; nothing to file.
+- **D5** (`curation_gap_note` false-positive on CEACAM5/MSLN) — **CLEARED**: the note is absent on all
+  20 records including both surface antigens, confirming skills #1319 live.
+
+**Zero `contradicts` in 100 axis reads is not self-evidently good news.** The token is reachable —
+the FR panel produced 5 of 80 on the same harness — and the enum is not stuck here (13 `extends`,
+13 `omics_unavailable`). The honest reading is that this panel has almost no discriminating power for
+this skill: mechanism-and-pharmacology reads curated pathway/network facts about famous drivers, so
+literature agreement is the expected outcome. A panel that cannot fail teaches nothing. The next
+revision needs adversarial pairs — poorly-characterized or contested-mechanism targets — before its
+concordance rate should be quoted as evidence of anything.
+
+### CASE-023 — the ad-hoc mechanism panel read 5 of 20 pairs at DEGRADED PAN-SCOPE, and 4 of them were D1's evidence (2026-09-12)
+- **Surfaced by:** registering the panel, not by running it. Five of the ad-hoc run's pairs used
+  indication codes that are neither a `canonical_code` nor an alias in
+  `target-contracts/vocabularies/indication_crosswalk.yaml`: `HGSOC`, `PLMESO` (×2), `DLBCL` (×2).
+- **Why that is not cosmetic:** an unresolvable code resolves **no DepMap lineage** and the read
+  quietly degrades to **pan-scope** — the documented EPAS1/RCC precedent — rather than erroring. The
+  verdict still publishes, and it looks like a lineage read.
+- **The damage:** four of the five sit in the D1 "non-signaling driver under-read" stratum, so **D1's
+  original disposition was derived from degraded reads.** The finding may still be right; the evidence
+  for it was not.
+- **The guard already existed and had teeth.** `test_panel_indications_resolve_in_the_crosswalk`
+  fails on exactly this shape (falsified by injecting `("ALK", "LUADX")`). The ad-hoc run bypassed it
+  by never touching `_PANELS` — the guard is attached to the registry, not to the harvest path.
+- **Fixed here:** codes corrected on registration (`HGSOC→OV`, `PLMESO→MESO`, `DLBCL→DLBC`,
+  `COAD→COADREAD`) and the panel registered, which is what re-arms the guard.
+- **Residual, OPEN:** `harvest_literature.py` itself still accepts an unresolvable `--pairs` code
+  silently. The guard protects registered panels only, so any ad-hoc run remains free to publish a
+  pan-scope read as a lineage read. The durable fix is for the harvest path to refuse (or loudly tag)
+  a code that does not resolve, independent of `_PANELS`.
+- **Status:** the crosswalk half FIXED; the ad-hoc-path half OPEN. **General lesson: a guard bound to
+  a registry cannot protect the code path that skips the registry.**
+
+### CASE-024 — D2 phospho-token retirement VERIFIED LIVE, but the distinction it bought is invisible downstream (2026-09-12)
+- **Cleared:** `phospho-not-phosphoprotein-neutral` fires on **0 of 20** pairs. The retired token
+  asserted biology (*this gene is not a phosphoprotein*) from a coverage floor. Replacement rungs
+  distribute sensibly: 8 `phospho-data-unavailable-insufficient`, 6 `phospho-present-supportive`,
+  4 `phospho-not-detected-neutral`, 1 `phospho-active-supportive`, 1 `phospho-low-neutral`.
+- **ALK/LUAD, the original D2 case, is fixed end to end:** it now reads `data_unavailable`, its
+  phospho axis returns `agreement_vs_omics: omics_unavailable` instead of a fabricated disagreement,
+  and the pair moved `partially_concordant → concordant`.
+- **The residual:** `data_unavailable` now covers **8 of 20 pairs (40%)** — AR/PRAD, BCL2/DLBC,
+  BRAF/SKCM, EZH2/DLBC, IDH1/LGG, MSLN/MESO, TEAD1/MESO, ALK/LUAD — and **the record carries no
+  reason**. Two very different states are collapsed: *CPTAC has no cohort for this indication at all*
+  (PRAD, DLBC, MESO, LGG, SKCM are simply not CPTAC cohorts) versus *the cohort exists and the target's
+  total protein is undetected in it* (the ALK/LUAD shape the fix was built for). The reader emits
+  `phospho_axis_uninformative_reason` to separate them; nothing downstream reads it (CASE-025).
+- **Status:** D2 CLOSED. The reason-collapse is OPEN and is really CASE-025's consequence.
+
+### CASE-025 — the 4 summary_fields minted by the D2 fix are consumed by NOTHING in the skills repo (2026-09-12)
+- **The mirror is one-directional.** target-contracts #746 declared and analysis-methods #608 emits
+  `total_protein_detected_in_cohort`, `n_cohorts_with_phosphosites`,
+  `phosphoprotein_detected_in_other_cohorts` and `phospho_axis_uninformative_reason`. A grep of
+  `skills/` and `docs/` on trunk (excluding tests) returns **zero** references to any of the four.
+  The card→reader guard checks *reader emits what card declares*; it is structurally blind to
+  *nobody consumes what the reader emits*.
+- **Concretely:** `claim_vector.PHOSPHO.evidence_atom.values` passes through `phospho_activity_class`
+  and `n_phosphosites` only. So the harvested record — and therefore the ledger, the literature lane
+  and any cross-evidence consumer — sees a bare `data_unavailable` on 8 of 20 pairs with no way to
+  tell a missing cohort from an undetected protein. **The fix is correct at the reader and inert at
+  the skill.**
+- **Proposed fix:** propagate the four fields into the PHOSPHO `evidence_atom` values and narrate
+  `phospho_axis_uninformative_reason` on the mechanism confidence caveat. Verdict-INERT.
+- **Status:** OPEN, its own PR. Third instance of this exact shape (immune-context's six
+  suppression/heterogeneity fields, TC #745/AM #607, is the second) — which argues for a **fleet-level
+  emits→consumed guard**, not a third one-off patch.
+
+### CASE-026 — axis_key NONDETERMINISM makes every per-axis panel statistic unsound, including the FR panel's (2026-09-12)
+- **Surfaced by:** aggregating axis reads across the 20 records. **15 of 20 pairs** return the named
+  axis keys (`NETWORK`, `PATHWAY`, `PERTURBATION`, `PHOSPHO`, `PREDICTABILITY`); the other **5 return
+  generic `A`, `B`, `C`, `D`, `E`** — ALK/LUAD, CDK4/LUAD, CEACAM5/LUAD, CTNNB1/COADREAD, KRAS/PAAD.
+  The lane's LLM is inventing ordinal keys instead of echoing the axis names on a quarter of pairs;
+  nothing validates the key set.
+- **Why it matters:** any per-axis roll-up silently under-counts. ALK/LUAD's phospho read is filed
+  under `B`, so a query for "which pairs disagree on PHOSPHO" misses it and 4 others — a 25% blind
+  spot that looks like a clean answer. This is the vacuous-statistic shape: the number computes, the
+  denominator is wrong, and nothing fails.
+- **It is not confined to this panel.** The FR panel baseline above quotes "80 axis reads — 41 agree,
+  27 extends, 7 omics_unavailable, 5 contradicts" aggregated the same way, so those tallies carry the
+  same defect. The per-pair verdicts are unaffected; only cross-pair per-axis aggregation is.
+- **Proposed fix:** pin the axis key set in the lane's response schema and validate it on parse —
+  reject/repair a record whose `axis_key` set is not the skill's declared axis enum, the same way
+  citation verification already post-processes the lane. Cheap and mechanical.
+- **Status:** OPEN. Blocks quoting per-axis concordance for any skill until fixed.
+
+### CASE-027 — D1 persists on corrected codes (5 of 20 `partial`), and D3's `has_actionable_moa` is INVARIANT at 20/20 (2026-09-12)
+- **D1, re-read cleanly:** 5 pairs read `mechanism-partial-neutral` — CEACAM5/LUAD, IDH1/LGG,
+  MSLN/MESO, SMARCA2/LUAD, WRN/COADREAD. Every one is a non-signaling driver, a surface antigen, or an
+  SL/paralog target; every kinase and pathway hub in the panel reads `well_characterized`. So the
+  original D1 shape survives correction of the indication codes (CASE-023) — the skill's confidence
+  scale is calibrated to **signaling** mechanism evidence, and reads a metabolic neomorph (IDH1), an
+  antigen (CEACAM5, MSLN) or a synthetic-lethal partner (WRN, SMARCA2) as under-characterized when it
+  is merely characterized in a different currency. IDH1/LGG is the sharpest instance: ivosidenib is
+  approved and the 2-HG mechanism is textbook.
+- **D3, reclassified:** `has_actionable_moa` is `true` on **20 of 20**. Zero variance means the field
+  cannot discriminate on this panel, so it can neither support nor oppose anything — the vacuous-field
+  shape. It may be defensible (all 20 are drugged or drug-adjacent), but it is then a *panel selection*
+  artifact and the panel needs undrugged targets before the field's behaviour is observable at all.
+- **Proposed fix (D1):** the mechanism confidence rungs need a mechanism-CLASS conditioning input so
+  "well characterized" is judged against the evidence currency the target actually has (enzymatic /
+  antigen-expression / partner-conditional), rather than against phospho-signaling evidence a
+  non-kinase will never produce. Same family as CASE-018's `mechanism_mismatch`.
+- **Status:** both OPEN. D1 is ranked #1 of this panel; D3 is a panel-design fix, not a code fix.
+
 ### FR 20-pair literature panel baseline (2026-09-12) — 20/20 emitted, 65 ledger rows / 62 actionable
 
 Ran the `--literature` lane over 20 functional-requirement (target, indication) pairs spanning every
