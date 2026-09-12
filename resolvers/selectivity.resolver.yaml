@@ -3,7 +3,7 @@
 # Verdict strings are the selectivity_class values verbatim (the risk-table _biological()
 # reshape keys off strong_tumor_selective / not_selective without translation).
 gate: selectivity
-version: 1.1.0
+version: 1.2.0
 description: Tumor-vs-normal selectivity precedence (first match wins).
 resolve:
   - verdict: strong_tumor_selective
@@ -107,13 +107,22 @@ post_resolver_clamp:
     on_suppression: fall_through_to_next_arm      # NOT "verdict stands" — the next arm still gets its turn
     # `selective_but_broadly_normal` is minted by TWO arms with OPPOSITE lens behaviour — the
     # full-normal arm is waivable (`adc: neutral`), the no-therapeutic-window arm is not — which is why
-    # suppressibility is declared per-VERDICT here and evaluated per-ARM by the executor. Consequence:
-    # validate_resolvers.py emits MODALITY_LENS_INERT_ARM warnings (not errors) for the
-    # no-therapeutic-window and stromal-confound arms. Those warnings are EXPECTED and are the check
-    # working: they name exactly the arms no lens may waive.
-    # So an arm that is `opposing` for the chosen modality still KILLs: tvn-no-therapeutic-window-veto
-    # (tumor below a VITAL organ — not payload-buffered) and tvn-stromal-confound-veto (the antigen is not
-    # on the tumor cells) are `opposing` for all four modalities, and no lens waives them.
+    # suppressibility is declared per-VERDICT here and evaluated per-ARM by the executor. An arm that is
+    # `opposing` for the chosen modality therefore still KILLs, and two arms are opposing for ALL FOUR
+    # modalities by design. Naming them here is what makes that a CHECKED claim rather than a comment:
+    # validate_resolvers stops warning about these two specifically, keeps warning about any OTHER inert
+    # arm, and ERRORS if either of these ever becomes waivable (STALE_EXPECTED_INERT_ARM) — the warning
+    # used to fire permanently, which made it indistinguishable from one nobody had read.
+    expected_inert_arms:
+      - rule_id: tvn-no-therapeutic-window-veto
+        reason: >-
+          Tumor expression sits BELOW a vital normal organ. No payload, valency or affinity choice
+          buys back a window that is inverted at the antigen level, so every modality is opposing.
+      - rule_id: tvn-stromal-confound-veto
+        reason: >-
+          The signal is attributable to stroma, not to the tumor cells — the antigen is not on the
+          cell any modality would have to bind, so this is a target-identity failure, not a
+          tolerability one that a modality lens could trade against.
     no_modality_behavior: worst_case_identical    # `--modality` absent (default, and every composed/
     # flip-analysis path today) reproduces the pre-2026-09-12 walk byte-for-byte.
     provenance_fields:                            # a waived KILL must be VISIBLE, never silently absent

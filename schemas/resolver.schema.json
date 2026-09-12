@@ -116,6 +116,21 @@
               "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
               "uniqueItems": true
             },
+            "expected_inert_arms": {
+              "type": "array",
+              "description": "OPTIONAL. Arms that are inert BY DESIGN: the arm mints a verdict listed in `suppressible_verdicts`, but the arm's own rule is `opposing` for every modality, so no lens can ever waive it. This happens legitimately when one verdict is minted by SEVERAL arms with opposite lens behaviour — suppressibility is declared per-VERDICT and evaluated per-ARM. Declaring the arm here waives validate_resolvers' MODALITY_LENS_INERT_ARM warning for that arm ONLY, and the declaration is itself checked: it must name a real precedence arm minting a suppressible verdict, and if the arm later BECOMES waivable the declaration is a STALE_EXPECTED_INERT_ARM error, because it would then document the opposite of the safety behaviour. It can never waive VACUOUS_MODALITY_LENS — if no arm at all is reachable the whole block is still an error.",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["rule_id", "reason"],
+                "properties": {
+                  "rule_id": {"type": "string", "description": "The `when_fired` rule_id of the precedence arm that is inert by design."},
+                  "reason": {"type": "string", "minLength": 25, "description": "WHY no modality can waive this arm, in mechanism terms — not 'by design'. The reason is the reviewable part: an unexplained entry is a silencer."}
+                }
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            },
             "requires_essential_window_class": {
               "type": "object",
               "description": "OPTIONAL PRECONDITION gating every suppression on a card field rather than on the fired set — e.g. modality tolerance of broad-LOW normal expression holds only when the target is CLEAN against the essential-organ set, so a merely narrow essential window must still KILL. Read from the named card's summary; anything outside `one_of` (including a missing card or field) FAILS CLOSED.",

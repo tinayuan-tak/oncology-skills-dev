@@ -259,3 +259,152 @@ def test_unknown_signal_source_is_rejected_structurally(tmp_path):
     r = VR.validate_resolver_file(_write(tmp_path, spec), _KNOWN, None, _SIGNALS)
     assert not r.ok
     assert any("STRUCTURAL" in e for e in r.errors), r.errors
+
+
+# --- expected_inert_arms: the declaration that silences ONE named warning, checked both ways ---
+#
+# An arm can be inert BY DESIGN (a verdict minted by several arms with opposite lens behaviour),
+# so MODALITY_LENS_INERT_ARM fired permanently for two selectivity arms — and a warning that
+# always fires is indistinguishable from one nobody read. `expected_inert_arms` makes the
+# expectation declarable. That is only safe if the declaration cannot become a blanket silencer,
+# which is what the tests below pin: it silences the NAMED arm and nothing else, it must name a
+# real suppressible arm, it errors when it goes stale, and it can never reach VACUOUS_MODALITY_LENS.
+
+_EXPECTED_INERT = [
+    {
+        "rule_id": "tvn-no-therapeutic-window-veto",
+        "reason": "tumor below a VITAL normal organ — no payload or valency choice buys back an inverted window",
+    }
+]
+
+
+def test_declared_expected_inert_arm_silences_its_own_warning(tmp_path):
+    spec = _clamp_base(modality_conditional=_mc(expected_inert_arms=_EXPECTED_INERT))
+    r = VR.validate_resolver_file(_write(tmp_path, spec), _KNOWN, None, _SIGNALS)
+    assert r.ok, r.errors
+    assert not r.warnings, r.warnings
+
+
+def test_declaring_one_arm_does_not_silence_another(tmp_path):
+    """The failure mode this guard exists to prevent: a declaration that quiets the whole check.
+    tvn-stromal-confound-veto is inert for the same reason and is NOT declared here, so it must
+    still warn."""
+    spec = _clamp_base(
+        precedence=[
+            {"when_fired": "tvn-no-therapeutic-window-veto", "verdict": "selective_but_broadly_normal"},
+            {"when_fired": "tvn-stromal-confound-veto", "verdict": "selective_but_broadly_normal"},
+            {"when_fired": "tvn-no-full-normal-window-veto", "verdict": "selective_but_broadly_normal"},
+        ],
+        modality_conditional=_mc(expected_inert_arms=_EXPECTED_INERT),
+    )
+    r = VR.validate_resolver_file(_write(tmp_path, spec), _KNOWN, None, _SIGNALS)
+    assert r.ok, r.errors
+    assert any("MODALITY_LENS_INERT_ARM" in w and "tvn-stromal-confound-veto" in w for w in r.warnings), r.warnings
+    assert not any("tvn-no-therapeutic-window-veto" in w for w in r.warnings), r.warnings
+
+
+def test_expected_inert_arm_that_is_not_a_precedence_arm_fails(tmp_path):
+    """A declaration naming a rule the clamp does not walk waives a warning that could never
+    have been emitted — the same dead-declaration class as a renamed rung."""
+    spec = _clamp_base(
+        modality_conditional=_mc(
+            expected_inert_arms=[{"rule_id": "tvn-renamed-away", "reason": "x" * 30}],
+        )
+    )
+    r = VR.validate_resolver_file(_write(tmp_path, spec), _KNOWN, None, _SIGNALS)
+    assert not r.ok
+    assert any("DANGLING_EXPECTED_INERT_ARM" in e and "tvn-renamed-away" in e for e in r.errors), r.errors
+
+
+def test_expected_inert_arm_minting_an_unsuppressible_verdict_fails(tmp_path):
+    """`expectedly inert` is only meaningful for an arm a lens was allowed to waive. Declaring it
+    for a never_suppressed verdict claims to waive a warning the check never emits there."""
+    spec = _clamp_base(
+        precedence=[
+            {"when_fired": "tvn-no-therapeutic-window-veto", "verdict": "selective_but_broadly_normal"},
+            {"when_fired": "tvn-sc-normal-critical-organ-veto", "verdict": "selective_with_normal_liability"},
+        ],
+        modality_conditional=_mc(
+            never_suppressed_verdicts=["selective_with_normal_liability"],
+            expected_inert_arms=[
+                {"rule_id": "tvn-sc-normal-critical-organ-veto", "reason": "y" * 30},
+            ],
+        ),
+    )
+    spec["clamp_verdicts"] = ["selective_but_broadly_normal", "selective_with_normal_liability"]
+    r = VR.validate_resolver_file(_write(tmp_path, spec), _KNOWN, None, _SIGNALS)
+    assert not r.ok
+    assert any("MISDECLARED_EXPECTED_INERT_ARM" in e for e in r.errors), r.errors
+
+
+def test_stale_expected_inert_declaration_is_an_ERROR(tmp_path):
+    """The ratchet in the other direction, and the reason this is safe to add: if the arm BECOMES
+    waivable the declaration now documents the opposite of the safety behaviour, so it must fail
+    loudly rather than sit there as a stale comment. tvn-no-full-normal-window-veto declares
+    `adc: neutral`, i.e. it IS waivable."""
+    spec = _clamp_base(
+        modality_conditional=_mc(
+            expected_inert_arms=[{"rule_id": "tvn-no-full-normal-window-veto", "reason": "z" * 30}],
+        )
+    )
+    r = VR.validate_resolver_file(_write(tmp_path, spec), _KNOWN, None, _SIGNALS)
+    assert not r.ok
+    assert any("STALE_EXPECTED_INERT_ARM" in e and "tvn-no-full-normal-window-veto" in e for e in r.errors), r.errors
+
+
+def test_declaring_every_arm_expected_inert_still_fails_the_whole_block(tmp_path):
+    """The escape hatch must not become an escape from the vacuity check itself: if NO arm is
+    reachable the lens is a claim the executor cannot honour, however well documented."""
+    spec = _clamp_base(
+        precedence=[
+            {"when_fired": "tvn-no-therapeutic-window-veto", "verdict": "selective_but_broadly_normal"},
+        ],
+        modality_conditional=_mc(expected_inert_arms=_EXPECTED_INERT),
+    )
+    r = VR.validate_resolver_file(_write(tmp_path, spec), _KNOWN, None, _SIGNALS)
+    assert not r.ok
+    assert any("VACUOUS_MODALITY_LENS" in e for e in r.errors), r.errors
+
+
+def test_duplicate_expected_inert_declaration_fails(tmp_path):
+    """The schema's `uniqueItems` only catches byte-identical entries. Two entries for the SAME
+    arm with DIFFERENT reasons slip past it, and then one of the two reasons is a fiction — which
+    is exactly the thing the reason field exists to prevent."""
+    spec = _clamp_base(
+        modality_conditional=_mc(
+            expected_inert_arms=[
+                {"rule_id": "tvn-no-therapeutic-window-veto", "reason": "a" * 30},
+                {"rule_id": "tvn-no-therapeutic-window-veto", "reason": "b" * 30},
+            ]
+        ),
+    )
+    r = VR.validate_resolver_file(_write(tmp_path, spec), _KNOWN, None, _SIGNALS)
+    assert not r.ok
+    assert any("DUPLICATE_EXPECTED_INERT_ARM" in e for e in r.errors), r.errors
+
+
+def test_expected_inert_arm_requires_a_substantive_reason_structurally(tmp_path):
+    """Schema-level: the reason is the reviewable part, so an entry without one (or with a
+    placeholder) is rejected before any semantic check runs."""
+    schema = VR._load_schema() if hasattr(VR, "_load_schema") else None
+    if schema is None:
+        import json
+
+        schema = json.loads((REPO / "schemas" / "resolver.schema.json").read_text())
+    for bad, needle in (
+        ({"rule_id": "tvn-no-therapeutic-window-veto"}, "reason"),
+        ({"rule_id": "tvn-no-therapeutic-window-veto", "reason": "by design"}, "expected_inert_arms.0.reason"),
+    ):
+        spec = _clamp_base(modality_conditional=_mc(expected_inert_arms=[bad]))
+        r = VR.validate_resolver_file(_write(tmp_path, spec), _KNOWN, schema, _SIGNALS)
+        assert not r.ok, f"schema accepted {bad}"
+        # the needle keeps this from being satisfied by a blanket unknown-property rejection
+        assert any("STRUCTURAL" in e and needle in e for e in r.errors), r.errors
+
+
+def test_shipped_selectivity_resolver_emits_no_warnings_at_all():
+    """The point of the change: the two permanent warnings are gone, and the resolver is clean
+    rather than perpetually WARN — so a NEW inert arm would now stand out."""
+    r = VR.validate_resolver_file(REPO / "resolvers" / "selectivity.resolver.yaml", _KNOWN, None, _SIGNALS)
+    assert r.ok, r.errors
+    assert not r.warnings, r.warnings

@@ -1,23 +1,23 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-09-12T14:36:41.214918+00:00",
+  "generated_at": "2026-09-12T15:10:36.293556+00:00",
   "roots": {
-    "contracts": "/tmp/wt/rnd-computational-biology-oncology-target-contracts__chore-regen-health-feeds",
+    "contracts": "/tmp/wt/rnd-computational-biology-oncology-target-contracts__fix-inert-arm-declared-expected",
     "skills": "/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills",
     "methods": "/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods",
     "products": "/home/sagemaker-user/rnd-computational-biology-oncology-data-products",
     "catalog": "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"
   },
   "root_shas": {
-    "contracts": "10e38f0",
+    "contracts": "9aebe39",
     "skills": "c02fb1d1",
-    "methods": "dba45eb",
+    "methods": "a598315",
     "products": "b45b9b2",
     "catalog": "83d7136"
   },
   "delta": {
     "has_prior": true,
-    "prior_generated_at": "2026-09-12T13:53:02.084936+00:00",
+    "prior_generated_at": "2026-09-12T14:36:41.214918+00:00",
     "n_skills": 0,
     "n_cards": 0,
     "n_drift_flags": 0,

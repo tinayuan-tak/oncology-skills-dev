@@ -31,10 +31,28 @@ import yaml
 # Repo roots (siblings by default; override via --tc/--sk/--dc).
 # ---------------------------------------------------------------------------
 HOME = Path.home()
+# `tc` is derived from THIS FILE, not from $HOME: <tc>/validators/architecture_dashboard/<this>.
+# It used to be hard-coded to ~/rnd-...-target-contracts, which meant `make atlas` run from a
+# /tmp worktree read the PRIMARY checkout's cards/rules/resolvers while writing the feed into the
+# worktree — so a branch could regenerate the committed atlas and silently publish TRUNK's wiring,
+# and `--check` would compare trunk against trunk and report fresh. Deriving it makes the build
+# describe the tree it is run from. Siblings default to the parent dir (the layout
+# framework_health.probe and framework-health-cross-repo.yml already assume, and which
+# new-worktree populates with symlinks), so the same derivation carries them.
+# Siblings are additionally .resolve()d: new-worktree seeds them as SYMLINKS to the canonical
+# clones, and paths harvested from them land in the committed feed (skills[].md_path), so leaving
+# them unresolved would write the ephemeral worktree path into a published artifact.
+_TC_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _sibling(name: str) -> Path:
+    return (_TC_ROOT.parent / f"rnd-computational-biology-oncology-{name}").resolve()
+
+
 DEFAULTS = {
-    "tc": HOME / "rnd-computational-biology-oncology-target-contracts",
-    "sk": HOME / "rnd-computational-biology-oncology-claude-oncology-skills",
-    "dc": HOME / "rnd-computational-biology-oncology-data-catalog",
+    "tc": _TC_ROOT,
+    "sk": _sibling("claude-oncology-skills"),
+    "dc": _sibling("data-catalog"),
 }
 
 

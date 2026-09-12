@@ -165,6 +165,41 @@ def _validate_post_resolver_clamp(
             "exists — admitting it would waive KILLs on missing data."
         )
 
+    # An arm can be inert BY DESIGN: `selective_but_broadly_normal` is minted by two arms with
+    # opposite lens behaviour, so suppressibility is declared per-VERDICT and evaluated per-ARM,
+    # and the no-therapeutic-window / stromal-confound arms are `opposing` for every modality
+    # deliberately. Those two warnings were therefore permanent, and a warning that always fires
+    # is indistinguishable from one nobody has read — it sat in the atlas gap feed as
+    # `dangling_rung` forever. So the expectation becomes DECLARABLE, with the declaration itself
+    # checked in both directions: an undeclared inert arm still warns, and a declaration that has
+    # gone stale (the arm became waivable) is an ERROR, because it now documents the opposite of
+    # the safety behaviour. `expected_inert_arms` can silence a NAMED arm; it can never silence the
+    # whole-block VACUOUS_MODALITY_LENS check below, which is computed from `reachable` alone.
+    expected_inert: dict[str, str] = {}
+    for i, entry in enumerate(mc.get("expected_inert_arms") or []):
+        rid = (entry or {}).get("rule_id")
+        if not rid:
+            continue
+        if rid in expected_inert:
+            report.add_error(
+                f"DUPLICATE_EXPECTED_INERT_ARM [post_resolver_clamp.modality_conditional."
+                f"expected_inert_arms[{i}]]: `{rid}` declared twice."
+            )
+        expected_inert[rid] = (entry or {}).get("reason") or ""
+        if rid not in arm_verdict:
+            report.add_error(
+                f"DANGLING_EXPECTED_INERT_ARM [post_resolver_clamp.modality_conditional."
+                f"expected_inert_arms[{i}]]: `{rid}` is not a clamp precedence arm, so the "
+                f"declaration waives a warning that could never have been emitted."
+            )
+        elif arm_verdict[rid] not in suppressible:
+            report.add_error(
+                f"MISDECLARED_EXPECTED_INERT_ARM [post_resolver_clamp.modality_conditional."
+                f"expected_inert_arms[{i}]]: `{rid}` mints `{arm_verdict[rid]}`, which is not "
+                f"in `suppressible_verdicts` — an arm no lens may waive in the first place "
+                f"cannot be 'expectedly inert'."
+            )
+
     if rule_signals is None:
         return
     # VACUITY: a lens that no arm can actually trigger is a claim the executor cannot honour.
@@ -177,11 +212,20 @@ def _validate_post_resolver_clamp(
         hits = sorted(m for m, s in declared.items() if s in suppressing)
         if hits:
             reachable.append(f"{rid}({','.join(hits)})")
-        elif rid in rule_signals:
+            if rid in expected_inert:
+                report.add_error(
+                    f"STALE_EXPECTED_INERT_ARM [{rid}]: declared in `expected_inert_arms` as "
+                    f"never waivable, but the rule now declares a {sorted(suppressing)} signal "
+                    f"for {hits} — a modality lens CAN waive this arm, so the declared reason "
+                    f"({expected_inert[rid] or '(none given)'}) no longer describes the "
+                    f"behaviour. Remove the entry, or make the arm opposing again."
+                )
+        elif rid in rule_signals and rid not in expected_inert:
             report.add_warning(
                 f"MODALITY_LENS_INERT_ARM [{rid}]: verdict `{verdict}` is declared "
                 f"suppressible but the rule declares no {sorted(suppressing)} signal "
-                f"for any modality, so no lens can ever waive this arm."
+                f"for any modality, so no lens can ever waive this arm. If that is BY "
+                f"DESIGN, declare it in `expected_inert_arms` with a reason."
             )
     if not reachable:
         report.add_error(

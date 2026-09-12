@@ -80,7 +80,9 @@ def test_projection_ignores_the_checkout_root_of_md_path():
     moved = copy.deepcopy(base)
     for s in _skills(moved).values():
         if s.get("md_path"):
-            s["md_path"] = str(s["md_path"]).replace("/home/", "/tmp/wt/some-other-checkout/home/")
+            # re-root, prefix-agnostically: the committed root has changed before (a $HOME clone
+            # vs a /tmp worktree), and a rewrite keyed to one spelling silently perturbs nothing.
+            s["md_path"] = "/some/other/checkout" + str(s["md_path"])
     assert json.dumps(base, sort_keys=True) != json.dumps(moved, sort_keys=True), (
         "no md_path was rewritten — test is vacuous"
     )
