@@ -1,0 +1,4525 @@
+{
+  "cards": [
+    {
+      "_missing": false,
+      "card_id": "target-identity-summary",
+      "input_manifest_ids": [
+        "target-id-resolver-release"
+      ],
+      "summary": {
+        "biology_axis_curated": "intracellular_intrinsic",
+        "biology_axis_source": "curated_lookup",
+        "input_value": "EGFR",
+        "redirects_applied": [],
+        "resolution_status": "resolved",
+        "resolved_ensembl_id": "ENSG00000146648.0",
+        "resolved_hgnc_id": 3236,
+        "resolved_hgnc_symbol": "EGFR",
+        "resolved_uniprot_canonical": "P00533",
+        "resolver_release_pin": "resolver_v0.1.0-alpha"
+      }
+    },
+    {
+      "_missing": false,
+      "card_id": "gnomad-lof-constraint",
+      "input_manifest_ids": [
+        "gnomad-constraint-per-gene-v1"
+      ],
+      "summary": {
+        "constraint_class": "moderately_constrained",
+        "exp_hom_lof_count": 0.00096233,
+        "exp_lof_count": 143.01,
+        "gene_length_bp": null,
+        "human_ko_context": "EGFR: no observed homozygous LoF in gnomAD v2.1.1 \u2014 uninformative in a ~125k cohort (hom-LoF is rare even for tolerant genes); defer to the constraint class.",
+        "human_ko_observed_class": "no_natural_ko",
+        "loeuf_score": 0.50469,
+        "method_version": "0.3.0",
+        "mis_z_score": 2.9194,
+        "obs_hom_lof_count": 0,
+        "obs_lof_count": 58,
+        "pli_score": 0.38907,
+        "syn_z_score": -0.45414
+      }
+    },
+    {
+      "_missing": false,
+      "card_id": "gene-burden-safety",
+      "input_manifest_ids": [
+        "opentargets-26-06"
+      ],
+      "summary": {
+        "_note": "evidence_gene_burden entity not available",
+        "burden_safety_class": "insufficient",
+        "ensembl_gene_id": "ENSG00000146648",
+        "method_version": "0.1.0",
+        "pvalue_cutoff": 1e-06,
+        "source": "opentargets-26-06/evidence_gene_burden",
+        "target": "EGFR"
+      }
+    },
+    {
+      "_missing": false,
+      "card_id": "clingen-dosage",
+      "input_manifest_ids": [
+        "opentargets-26-06"
+      ],
+      "summary": {
+        "allelic_requirements": [
+          "AD"
+        ],
+        "dosage_sensitivity_class": "autosomal_dominant_loss",
+        "ensembl_gene_id": "ENSG00000146648",
+        "germline_inheritance_mode": "dominant",
+        "inheritance_allelic_requirements": [
+          "AD"
+        ],
+        "method_version": "0.1.0",
+        "n_autosomal_dominant": 1,
+        "n_autosomal_recessive": 0,
+        "n_high_confidence": 1,
+        "n_total_rows": 1,
+        "source": "opentargets-26-06/evidence_clingen",
+        "target": "EGFR",
+        "top_confidence": "Definitive",
+        "top_disease": "non-small cell lung carcinoma"
+      }
+    },
+    {
+      "_missing": false,
+      "card_id": "clinvar-pathogenicity-safety",
+      "input_manifest_ids": [
+        "opentargets-26-06"
+      ],
+      "summary": {
+        "clinvar_pathogenic_class": "germline_pathogenic",
+        "ensembl_gene_id": "ENSG00000146648",
+        "method_version": "0.1.0",
+        "n_pathogenic_germline": 118,
+        "n_pathogenic_germline_confident": 109,
+        "n_pathogenic_somatic": 0,
+        "n_rows": 6828,
+        "source": "opentargets-26-06/evidence_eva",
+        "target": "EGFR",
+        "top_disease": "EGFR-related lung cancer"
+      }
+    },
+    {
+      "_missing": false,
+      "card_id": "mouse-ko-phenotype",
+      "input_manifest_ids": [
+        "opentargets-26-06",
+        "impc-ko-phenotype-per-gene-v1"
+      ],
+      "summary": {
+        "ensembl_gene_id": "ENSG00000146648",
+        "evidence_tier": "inferred",
+        "impc_ko_phenotype_class": "severe_organ_phenotype",
+        "impc_orthology_confidence": 1.0,
+        "impc_top_level_systems": "immune system phenotype,hematopoietic system phenotype",
+        "impc_viability_class": "unknown",
+        "ko_phenotype_class": "lethal_ko",
+        "lethal_stages": [
+          "adult",
+          "developmental"
+        ],
+        "method_version": "0.1.0",
+        "n_adult_lethal": 2,
+        "n_developmental_lethal": 11,
+        "n_lethal": 13,
+        "n_rows": 181,
+        "organ_classes": [
+          "cardiovascular system phenotype",
+          "digestive/alimentary phenotype",
+          "endocrine/exocrine gland phenotype",
+          "hematopoietic system phenotype",
+          "immune system phenotype",
+          "liver/biliary system phenotype",
+          "nervous system phenotype",
+          "renal/urinary system phenotype",
+          "respiratory system phenotype"
+        ],
+        "source": "opentargets-26-06/mouse_phenotype",
+        "target": "EGFR",
+        "top_lethal_label": "postnatal lethality, complete penetrance"
+      }
+    },
+    {
+      "_missing": false,
+      "card_id": "target-safety-prioritisation",
+      "input_manifest_ids": [
+        "opentargets-26-06"
+      ],
+      "summary": {
+        "_encoding_note": "OT-normalized prioritisation scores (~[-1,1], higher=more favorable); NOT raw facts. Authoritative per-fact reads live in the dedicated cards.",
+        "ensembl_gene_id": "ENSG00000146648",
+        "genetic_constraint_band": "unfavorable",
+        "has_safety_event_band": "unfavorable",
+        "method_version": "0.1.0",
+        "mouse_ko_score_band": "unfavorable",
+        "ot_scores": {
+          "celltypeSpecificity": -0.2262,
+          "geneticConstraint": -0.714,
+          "hasHighQualityChemicalProbes": 1.0,
+          "hasLigand": 1.0,
+          "hasPocket": 1.0,
+          "hasSafetyEvent": -1.0,
+          "hasSmallMoleculeBinder": 1.0,
+          "hasTEP": null,
+          "isCancerDriverGene": -1.0,
+          "isInMembrane": 1.0,
+          "isSecreted": 1.0,
+          "maxClinicalStage": 1.0,
+          "mouseKOScore": -0.9856,
+          "paralogMaxIdentityPercentage": 0.0,
+          "tissueSpecificity": -0.09
+        },
+        "prioritisation_status": "scored",
+        "source": "opentargets-26-06/target_prioritisation",
+        "target": "EGFR"
+      }
+    },
+    {
+      "_missing": false,
+      "card_id": "surfaceome-family-classification",
+      "input_manifest_ids": [
+        "surfaceome-family-classification-per-uniprot-v1"
+      ],
+      "summary": {
+        "_data_source": "surfaceome-family-classification-per-uniprot-v1",
+        "family_class": "kinase_surface",
+        "fusion_provenance": [
+          "surfy:surface",
+          "hpa:surface,Kinase",
+          "uniprot_ec:2.7.10.1"
+        ],
+        "hpa_protein_class_verbatim": "Cancer-related genes, Disease related genes, Enzymes, FDA approved drug targets, Human disease related genes, Metabolic proteins, Plasma proteins, Predicted membrane proteins, Predicted secreted proteins, RAS pathway related proteins, Transporters",
+        "is_surface_protein": true,
+        "method_version": "0.1.0",
+        "source_hpa_plasma_membrane": true,
+        "source_iuphar_family": "",
+        "source_surfy_positive": true,
+        "source_uniprot_ec_number": "2.7.10.1",
+        "surface_protein_family": "Kinase",
+        "surfaceome_confidence_score": 1.0
+      }
+    },
+    {
+      "_missing": false,
+      "card_id": "structure-features-static",
+      "input_manifest_ids": [
+        "structure-ligandability-per-protein-v1",
+        "pdb-alphafold-structure-features-per-uniprot-v1"
+      ],
+      "summary": {
+        "_data_source": "pdb-alphafold-structure-features-per-uniprot-v1",
+        "_ligandability_source": "structure-ligandability-per-protein-v1",
+        "alphafold_confidence_class": "moderate",
+        "alphafold_plddt_mean": 75.95,
+        "alphafold_plddt_min": 23.81,
+        "alphafold_plddt_min_domain": 36.69,
+        "disordered_fraction": 0.2281,
+        "has_annotated_binding_site": true,
+        "has_cryptic_site": true,
+        "has_druggable_pocket": true,
+        "has_experimental_cocrystal": true,
+        "has_virtual_screen_hit": true,
+        "hotspot_pocket_adjacency_call": "adjacent",
+        "is_foldable": true,
+        "ligandability_disorder_class": "partially_disordered",
+        "method_version": "0.2.0",
+        "mutation_hotspot_in_druggable_pocket": true,
+        "n_domains_low_plddt": 7,
+        "n_ligandability_axes": 5,
+        "pdb_best_method": "X-ray diffraction",
+        "pdb_best_resolution_angstrom": 1.07,
+        "pdb_coverage_class": "strong",
+        "pdb_ids_available": "__omitted_from_fixture__ (list, 391 items)",
+        "structural_ligandability_class": "experimental_ligandable"
+      }
+    },
+    {
+      "_missing": false,
+      "card_id": "shed-ectodomain-liability",
+      "input_manifest_ids": [
+        "hpa-v25-1",
+        "depmap-consortium-26q1-proteomics"
+      ],
+      "summary": {
+        "hpa_secretome_location": "Secreted to blood",
+        "measured_shed_class": "media_shed_low",
+        "media_mean_npx": 0.835,
+        "media_n_lines_detected": 390,
+        "media_panel_high_npx": 1.358,
+        "media_uniprot": "P00533",
+        "method_version": "0.2.0",
+        "serum_marker": null,
+        "shed_evidence_tier": "secretome_proxy",
+        "shed_liability_class": "secretome_proxy_shed",
+        "shed_product": null,
+        "shedding_protease": null,
+        "source_citation": null
+      }
+    },
+    {
+      "_missing": false,
+      "card_id": "gene-ontology-annotation",
+      "input_manifest_ids": [
+        "gene-ontology-release-2026-05-19"
+      ],
+      "summary": {
+        "_data_source": "gene-ontology-release-2026-05-19",
+        "annotation_class": "well_annotated",
+        "method_version": "1.0.0",
+        "n_biological_process": 43,
+        "n_cellular_component": 27,
+        "n_go_terms_experimental": 66,
+        "n_go_terms_total": 91,
+        "n_molecular_function": 21,
+        "top_biological_process": [
+          {
+            "evidence": "IDA",
+            "go_id": "GO:0001934",
+            "name": "positive regulation of protein phosphorylation"
+          },
+          {
+            "evidence": "IDA",
+            "go_id": "GO:0007165",
+            "name": "signal transduction"
+          },
+          {
+            "evidence": "IDA",
+            "go_id": "GO:0007166",
+            "name": "cell surface receptor signaling pathway"
+          },
+          {
+            "evidence": "IDA",
+            "go_id": "GO:0007173",
+            "name": "epidermal growth factor receptor signaling pathway"
+          },
+          {
+            "evidence": "IDA",
+            "go_id": "GO:0008284",
+            "name": "positive regulation of cell population proliferation"
+          },
+          {
+            "evidence": "IDA",
+            "go_id": "GO:0016242",
+            "name": "negative regulation of macroautophagy"
+          },
+          {
+            "evidence": "IDA",
+            "go_id": "GO:0030307",
+            "name": "positive regulation of cell growth"
+          },
+          {
+            "evidence": "IMP",
+            "go_id": "GO:0030335",
+            "name": "positive regulation of cell migration"
+          }
+        ],
+        "top_cellular_component": [
+          {
+            "evidence": "IDA",
+            "go_id": "GO:0005634",
+            "name": "nucleus"
+          },
+          {
+            "evidence": "IDA",
+            "go_id": "GO:0005737",
+            "name": "cytoplasm"
+          },
+          {
+            "evidence": "IDA",
+            "go_id": "GO:0005768",
+            "name": "endosome"
+          },
+          {
+            "evidence": "EXP",
+            "go_id": "GO:0005789",
+            "name": "endoplasmic reticulum membrane"
+          },
+          {
+            "evidence": "IDA",
+            "go_id": "GO:0005794",
+            "name": "Golgi apparatus"
+          },
+          {
+            "evidence": "IDA",
+            "go_id": "GO:0005886",
+            "name": "plasma membrane"
+          },
+          {
+            "evidence": "HDA",
+            "go_id": "GO:0005925",
+            "name": "focal adhesion"
+          },
+          {
+            "evidence": "IDA",
+            "go_id": "GO:0009986",
+            "name": "cell surface"
+          }
+        ],
+        "top_molecular_function": [
+          {
+            "evidence": "IDA",
+            "go_id": "GO:0003682",
+            "name": "chromatin binding"
+          },
+          {
+            "evidence": "IMP",
+            "go_id": "GO:0004713",
+            "name": "protein tyrosine kinase activity"
+          },
+          {
+            "evidence": "IDA",
+            "go_id": "GO:0004888",
+            "name": "transmembrane signaling receptor activity"
+          },
+          {
+            "evidence": "IDA",
+            "go_id": "GO:0005006",
+            "name": "epidermal growth factor receptor activity"
+          },
+          {
+            "evidence": "IPI",
+            "go_id": "GO:0005515",
+            "name": "protein binding"
+          },
+          {
+            "evidence": "IPI",
+            "go_id": "GO:0019899",
+            "name": "enzyme binding"
+          },
+          {
+            "evidence": "IPI",
+            "go_id": "GO:0019900",
+            "name": "kinase binding"
+          },
+          {
+            "evidence": "IPI",
+            "go_id": "GO:0019903",
+            "name": "protein phosphatase binding"
+          }
+        ],
+        "uniprot_ac_resolved": "P00533"
+      }
+    },
+    {
+      "_missing": false,
+      "card_id": "signaling-network-mechanism",
+      "input_manifest_ids": [
+        "signor-mechanism-network-per-gene-v1",
+        "signor-jul2026"
+      ],
+      "summary": {
+        "_data_source": "mechanism-composed (composed card; no direct S3 product \u2014 see sources_wired)",
+        "coessentiality_context": {
+          "data_available": true,
+          "method_version": "0.1.0",
+          "n_cell_lines": 1538,
+          "n_partners": 25,
+          "source_note": "DepMap 26Q1 CRISPR Chronos pan-cancer co-essentiality (1,538 cell lines)",
+          "substrate_uri": "s3://onc-compbio/data-catalog/derived/depmap-coessentiality-26q1-v1/coessentiality_edges.parquet",
+          "top_partners": [
+            {
+              "abs_rank": 1,
+              "direction": "co-essential",
+              "pearson_r": 0.4279,
+              "symbol": "GRB2"
+            },
+            {
+              "abs_rank": 2,
+              "direction": "co-essential",
+              "pearson_r": 0.4194,
+              "symbol": "GAB1"
+            },
+            {
+              "abs_rank": 3,
+              "direction": "co-essential",
+              "pearson_r": 0.4113,
+              "symbol": "SHC1"
+            },
+            {
+              "abs_rank": 4,
+              "direction": "co-essential",
+              "pearson_r": 0.3785,
+              "symbol": "ITGB1"
+            },
+            {
+              "abs_rank": 5,
+              "direction": "anti-correlated",
+              "pearson_r": -0.3528,
+              "symbol": "CDS2"
+            },
+            {
+              "abs_rank": 6,
+              "direction": "co-essential",
+              "pearson_r": 0.3526,
+              "symbol": "ARHGEF7"
+            },
+            {
+              "abs_rank": 7,
+              "direction": "co-essential",
+              "pearson_r": 0.3372,
+              "symbol": "ITGA3"
+            },
+            {
+              "abs_rank": 8,
+              "direction": "co-essential",
+              "pearson_r": 0.3354,
+              "symbol": "KLF5"
+            },
+            {
+              "abs_rank": 9,
+              "direction": "co-essential",
+              "pearson_r": 0.3278,
+              "symbol": "PTPN11"
+            },
+            {
+              "abs_rank": 10,
+              "direction": "co-essential",
+              "pearson_r": 0.3244,
+              "symbol": "TP63"
+            },
+            {
+              "abs_rank": 11,
+              "direction": "co-essential",
+              "pearson_r": 0.3153,
+              "symbol": "ANKRD49"
+            },
+            {
+              "abs_rank": 12,
+              "direction": "co-essential",
+              "pearson_r": 0.3118,
+              "symbol": "FERMT1"
+            },
+            {
+              "abs_rank": 13,
+              "direction": "co-essential",
+              "pearson_r": 0.3109,
+              "symbol": "GRK2"
+            },
+            {
+              "abs_rank": 14,
+              "direction": "co-essential",
+              "pearson_r": 0.2951,
+              "symbol": "GAREM1"
+            },
+            {
+              "abs_rank": 15,
+              "direction": "co-essential",
+              "pearson_r": 0.2943,
+              "symbol": "GMPPB"
+            },
+            {
+              "abs_rank": 16,
+              "direction": "co-essential",
+              "pearson_r": 0.2937,
+              "symbol": "LANCL2"
+            },
+            {
+              "abs_rank": 17,
+              "direction": "anti-correlated",
+              "pearson_r": -0.2722,
+              "symbol": "GPX4"
+            },
+            {
+              "abs_rank": 18,
+              "direction": "anti-correlated",
+              "pearson_r": -0.2675,
+              "symbol": "PCF11"
+            },
+            {
+              "abs_rank": 19,
+              "direction": "anti-correlated",
+              "pearson_r": -0.2674,
+              "symbol": "ATP1B3"
+            },
+            {
+              "abs_rank": 20,
+              "direction": "anti-correlated",
+              "pearson_r": -0.2671,
+              "symbol": "CDAN1"
+            },
+            {
+              "abs_rank": 21,
+              "direction": "co-essential",
+              "pearson_r": 0.2649,
+              "symbol": "MPI"
+            },
+            {
+              "abs_rank": 22,
+              "direction": "co-essential",
+              "pearson_r": 0.2637,
+              "symbol": "STXBP3"
+            },
+            {
+              "abs_rank": 23,
+              "direction": "co-essential",
+              "pearson_r": 0.2624,
+              "symbol": "WTAP"
+            },
+            {
+              "abs_rank": 24,
+              "direction": "anti-correlated",
+              "pearson_r": -0.2623,
+              "symbol": "SEPSECS"
+            },
+            {
+              "abs_rank": 25,
+              "direction": "anti-correlated",
+              "pearson_r": -0.2618,
+              "symbol": "CBFB"
+            }
+          ]
+        },
+        "downstream_effectors": "__omitted_from_fixture__ (list, 74 items)",
+        "has_actionable_moa": true,
+        "has_pd_marker": true,
+        "high_confidence_edges_count": 4,
+        "kinome_atlas_predictions": "__omitted_from_fixture__ (dict, 6 items)",
+        "moa_classes_present": [
+          "molecular_glue_disruptor",
+          "unmapped",
+          "upstream_dub_modulation",
+          "upstream_inhibitor",
+          "upstream_kinase_modulation",
+          "upstream_ppase_modulation",
+          "upstream_stimulator",
+          "upstream_transcriptional_activator",
+          "upstream_transcriptional_modulation",
+          "upstream_transcriptional_repressor",
+          "upstream_ubl_modulation"
+        ],
+        "moa_ontology_unmapped_fraction": 0.04220779220779221,
+        "moa_ontology_version": "1.0.0",
+        "n_downstream_effectors": 74,
+        "n_upstream_regulators": 147,
+        "network_class": "well_characterized",
+        "pd_marker_classes_present": [
+          "downstream_activation_readout",
+          "downstream_pd_kinase",
+          "downstream_pd_marker",
+          "transcriptional_pd_marker"
+        ],
+        "reactome_pathway_context": {
+          "is_signaling": true,
+          "pathway_class": "well_annotated",
+          "pathway_count": 82,
+          "top_level_pathways": [
+            "Developmental Biology",
+            "Disease",
+            "Gene expression (Transcription)",
+            "Signal Transduction",
+            "Vesicle-mediated transport"
+          ]
+        },
+        "source_counts": {
+          "collectri": 90,
+          "depmap_coessentiality": 25,
+          "kinome_atlas_prediction": 855,
+          "reactome": 82,
+          "signor": 218
+        },
+        "sources_wired": [
+          "signor",
+          "collectri",
+          "reactome",
+          "kinome_atlas_prediction",
+          "depmap_coessentiality"
+        ],
+        "upstream_regulators": "__omitted_from_fixture__ (list, 147 items)"
+      }
+    },
+    {
+      "_missing": false,
+      "card_id": "reactome-pathway-membership",
+      "input_manifest_ids": [
+        "reactome-v96"
+      ],
+      "summary": {
+        "_data_source": "reactome-pathway-context-per-gene-v1",
+        "_data_source_upstream": "reactome-v96",
+        "is_signaling": true,
+        "pathway_class": "well_annotated",
+        "pathway_count": 82,
+        "specific_pathways": [
+          {
+            "evidence_code": "TAS",
+            "pathway_id": "R-HSA-1227986",
+            "pathway_name": "Signaling by ERBB2"
+          },
+          {
+            "evidence_code": "IEA",
+            "pathway_id": "R-HSA-1227986",
+            "pathway_name": "Signaling by ERBB2"
+          },
+          {
+            "evidence_code": "TAS",
+            "pathway_id": "R-HSA-1227990",
+            "pathway_name": "Signaling by ERBB2 in Cancer"
+          },
+          {
+            "evidence_code": "TAS",
+            "pathway_id": "R-HSA-1236382",
+            "pathway_name": "Constitutive Signaling by Ligand-Responsive EGFR Cancer Variants"
+          },
+          {
+            "evidence_code": "TAS",
+            "pathway_id": "R-HSA-1236394",
+            "pathway_name": "Signaling by ERBB4"
+          },
+          {
+            "evidence_code": "IEA",
+            "pathway_id": "R-HSA-1250196",
+            "pathway_name": "SHC1 events in ERBB2 signaling"
+          },
+          {
+            "evidence_code": "TAS",
+            "pathway_id": "R-HSA-1250196",
+            "pathway_name": "SHC1 events in ERBB2 signaling"
+          },
+          {
+            "evidence_code": "IEA",
+            "pathway_id": "R-HSA-1251932",
+            "pathway_name": "PLCG1 events in ERBB2 signaling"
+          },
+          {
+            "evidence_code": "TAS",
+            "pathway_id": "R-HSA-1257604",
+            "pathway_name": "PIP3 activates AKT signaling"
+          },
+          {
+            "evidence_code": "TAS",
+            "pathway_id": "R-HSA-1266738",
+            "pathway_name": "Developmental Biology"
+          },
+          {
+            "evidence_code": "TAS",
+            "pathway_id": "R-HSA-157118",
+            "pathway_name": "Signaling by NOTCH"
+          },
+          {
+            "evidence_code": "TAS",
+            "pathway_id": "R-HSA-162582",
+            "pathway_name": "Signal Transduction"
+          },
+          {
+            "evidence_code": "IEA",
+            "pathway_id": "R-HSA-162582",
+            "pathway_name": "Signal Transduction"
+          },
+          {
+            "evidence_code": "TAS",
+            "pathway_id": "R-HSA-1643685",
+            "pathway_name": "Disease"
+          },
+          {
+            "evidence_code": "TAS",
+            "pathway_id": "R-HSA-1643713",
+            "pathway_name": "Signaling by EGFR in Cancer"
+          },
+          {
+            "evidence_code": "TAS",
+            "pathway_id": "R-HSA-177929",
+            "pathway_name": "Signaling by EGFR"
+          },
+          {
+            "evidence_code": "TAS",
+            "pathway_id": "R-HSA-179812",
+            "pathway_name": "GRB2 events in EGFR signaling"
+          },
+          {
+            "evidence_code": "TAS",
+            "pathway_id": "R-HSA-180292",
+            "pathway_name": "GAB1 signalosome"
+          },
+          {
+            "evidence_code": "TAS",
+            "pathway_id": "R-HSA-180336",
+            "pathway_name": "SHC1 events in EGFR signaling"
+          },
+          {
+            "evidence_code": "TAS",
+            "pathway_id": "R-HSA-182971",
+            "pathway_name": "EGFR downregulation"
+          }
+        ],
+        "top_level_pathways": [
+          "Developmental Biology",
+          "Disease",
+          "Gene expression (Transcription)",
+          "Signal Transduction",
+          "Vesicle-mediated transport"
+        ],
+        "uniprot_ac_resolved": "P00533"
+      }
+    },
+    {
+      "_missing": false,
+      "card_id": "ppi-interactome",
+      "input_manifest_ids": [
+        "string-v12-human-snapshot-2026-06-30",
+        "corum-5-3",
+        "biogrid-physical-interactions-per-gene-v1"
+      ],
+      "summary": {
+        "_data_source": "string-v12-human-snapshot-2026-06-30+corum-5-3+biogrid-physical-interactions-per-gene-v1",
+        "corum_complexes": [
+          {
+            "complex_name": "EGFR-TNK2 complex",
+            "corum_id": "10106"
+          },
+          {
+            "complex_name": "EGFR-SLC5A1 complex",
+            "corum_id": "10534"
+          },
+          {
+            "complex_name": "EGF-EGFR-ERBB2 complex",
+            "corum_id": "10836"
+          },
+          {
+            "complex_name": "EGFR-SSTR5 complex",
+            "corum_id": "10837"
+          },
+          {
+            "complex_name": "EGFR-SSTR1 complex",
+            "corum_id": "10838"
+          },
+          {
+            "complex_name": "EGFR-SNX1 complex",
+            "corum_id": "1095"
+          },
+          {
+            "complex_name": "EGF-EGFR-ERBB3 complex",
+            "corum_id": "11457"
+          },
+          {
+            "complex_name": "EGFR-ERBB3-NRG1 complex",
+            "corum_id": "11458"
+          },
+          {
+            "complex_name": "EGF-EGFR complex",
+            "corum_id": "11481"
+          },
+          {
+            "complex_name": "AREG-EGFR complex",
+            "corum_id": "11484"
+          },
+          {
+            "complex_name": "BTC-EGFR complex",
+            "corum_id": "11485"
+          },
+          {
+            "complex_name": "EGFR-HBEGF complex",
+            "corum_id": "11486"
+          },
+          {
+            "complex_name": "EGFR-TGFA complex",
+            "corum_id": "11487"
+          },
+          {
+            "complex_name": "EGFR-EREG complex",
+            "corum_id": "11488"
+          },
+          {
+            "complex_name": "EGFR-EPGN complex",
+            "corum_id": "11489"
+          }
+        ],
+        "in_protein_complex": true,
+        "interactome_class": "hub",
+        "method_version": "1.1.0",
+        "n_corum_complexes": 43,
+        "n_high_confidence_interactors": 506,
+        "n_physical_interactors": 1736,
+        "physical_interactome_class": "physical_hub",
+        "string_protein_id": null,
+        "top_interactors": [
+          {
+            "combined_score": 999,
+            "partner": "PTPN11"
+          },
+          {
+            "combined_score": 999,
+            "partner": "HBEGF"
+          },
+          {
+            "combined_score": 999,
+            "partner": "NRG1"
+          },
+          {
+            "combined_score": 999,
+            "partner": "TGFA"
+          },
+          {
+            "combined_score": 999,
+            "partner": "ERBB2"
+          },
+          {
+            "combined_score": 999,
+            "partner": "DCN"
+          },
+          {
+            "combined_score": 999,
+            "partner": "SHC1"
+          },
+          {
+            "combined_score": 999,
+            "partner": "SOS1"
+          },
+          {
+            "combined_score": 999,
+            "partner": "PIK3CA"
+          },
+          {
+            "combined_score": 999,
+            "partner": "ERBB3"
+          },
+          {
+            "combined_score": 999,
+            "partner": "GRB2"
+          },
+          {
+            "combined_score": 999,
+            "partner": "EPGN"
+          },
+          {
+            "combined_score": 999,
+            "partner": "CAV1"
+          },
+          {
+            "combined_score": 999,
+            "partner": "MUC1"
+          },
+          {
+            "combined_score": 999,
+            "partner": "BTC"
+          }
+        ],
+        "top_physical_partners": [
+          {
+            "n_experiments": 130,
+            "n_publications": 110,
+            "partner": "CBL"
+          },
+          {
+            "n_experiments": 69,
+            "n_publications": 56,
+            "partner": "GRB2"
+          },
+          {
+            "n_experiments": 48,
+            "n_publications": 41,
+            "partner": "SHC1"
+          },
+          {
+            "n_experiments": 29,
+            "n_publications": 22,
+            "partner": "ERBB2"
+          },
+          {
+            "n_experiments": 28,
+            "n_publications": 21,
+            "partner": "SRC"
+          },
+          {
+            "n_experiments": 24,
+            "n_publications": 18,
+            "partner": "STAT3"
+          },
+          {
+            "n_experiments": 16,
+            "n_publications": 14,
+            "partner": "CBLB"
+          },
+          {
+            "n_experiments": 17,
+            "n_publications": 13,
+            "partner": "ERRFI1"
+          },
+          {
+            "n_experiments": 14,
+            "n_publications": 13,
+            "partner": "PIK3R1"
+          },
+          {
+            "n_experiments": 13,
+            "n_publications": 13,
+            "partner": "SOS1"
+          },
+          {
+            "n_experiments": 15,
+            "n_publications": 12,
+            "partner": "CAV1"
+          },
+          {
+            "n_experiments": 13,
+            "n_publications": 12,
+            "partner": "EGF"
+          },
+          {
+            "n_experiments": 11,
+            "n_publications": 11,
+            "partner": "PTPN11"
+          },
+          {
+            "n_experiments": 12,
+            "n_publications": 10,
+            "partner": "SH3KBP1"
+          },
+          {
+            "n_experiments": 12,
+            "n_publications": 10,
+            "partner": "GAB1"
+          }
+        ]
+      }
+    },
+    {
+      "_missing": false,
+      "card_id": "protein-domains-class",
+      "input_manifest_ids": [
+        "uniprot-protein-features-v1",
+        "interpro-109-0-snapshot-2026-08-05"
+      ],
+      "summary": {
+        "_data_source": "uniprot-protein-features-v1+interpro-109-0-snapshot-2026-08-05",
+        "domain_architecture": "Protein kinase",
+        "domain_evidence": "both",
+        "domain_names": [
+          "Protein kinase"
+        ],
+        "interpro_domain_architecture": "Receptor L-domain; Furin-like cysteine-rich domain; Receptor L-domain; Growth factor receptor domain 4; Epidermal growth factor receptor-like, transmembrane-juxtamembrane segment; Protein kinase domain; Tyrosine-protein kinase, catalytic domain; Serine-threonine/tyrosine-protein kinase, catalytic domain",
+        "interpro_domain_names": [
+          "Receptor L-domain",
+          "Furin-like cysteine-rich domain",
+          "Receptor L-domain",
+          "Growth factor receptor domain 4",
+          "Epidermal growth factor receptor-like, transmembrane-juxtamembrane segment",
+          "Protein kinase domain",
+          "Tyrosine-protein kinase, catalytic domain",
+          "Serine-threonine/tyrosine-protein kinase, catalytic domain"
+        ],
+        "interpro_n_domains": 8,
+        "method_version": "1.1.0",
+        "n_domains": 1,
+        "protein_class": [
+          "kinase",
+          "receptor",
+          "transferase"
+        ],
+        "protein_class_primary": "kinase",
+        "protein_features_class": "single_domain",
+        "uniprot_ac": "P00533"
+      }
+    },
+    {
+      "_missing": false,
+      "card_id": "target-development-level",
+      "input_manifest_ids": [
+        "pharos-idg-tcrd-snapshot-2026-08-10"
+      ],
+      "summary": {
+        "_method_version": "0.1.1",
+        "_source": "Pharos/IDG TCRD (Target Development Level); verdict-inert target-intrinsic druggability/novelty tier",
+        "novelty_score": 7.274e-05,
+        "target": "EGFR",
+        "target_family": "Kinase",
+        "tdl_class": "Tclin",
+        "tdl_meaning": "clinically drugged (approved drug acts via this target's mode)"
+      }
+    },
+    {
+      "_missing": false,
+      "card_id": "measured-potency-tractability",
+      "input_manifest_ids": [
+        "chembl-bioactivity-per-protein-v1",
+        "bindingdb-affinity-per-protein-v1"
+      ],
+      "summary": {
+        "_data_source": "chembl-bioactivity-per-protein-v1 + bindingdb-affinity-per-protein-v1",
+        "best_measured_potency_neglog_m": 11.699,
+        "bindingdb_best_p_affinity": 11.699,
+        "bindingdb_n_potent_ligands": 22078,
+        "chembl_approved_engagement_class": "approved_direct",
+        "chembl_best_pchembl": 11.0,
+        "chembl_clinical_phase_class": "approved",
+        "chembl_max_clinical_phase": 4.0,
+        "chembl_n_potent_ligands": 16683,
+        "measured_bioactivity_class": "potent_measured_ligand",
+        "measured_potency_context": "EGFR: a POTENT measured small-molecule ligand exists (best 11.7 -log10 M, <= 1 uM) (ChEMBL/BindingDB). A real sub-micromolar chemical start point \u2014 stronger than a predicted pocket or a bare drug catalogue entry.",
+        "method_version": "0.3.0",
+        "n_direct_interactions": 157
+      }
+    },
+    {
+      "_missing": false,
+      "card_id": "domain-modality-relevance",
+      "input_manifest_ids": [
+        "uniprot-protein-features-v1",
+        "interpro-109-0-snapshot-2026-08-05"
+      ],
+      "summary": {
+        "_primary_source_doi": "10.1038/onc.2013.497",
+        "functional_domains": [
+          "Protein kinase (catalytic \u2014 the TKI target)",
+          "Extracellular / dimerization (ligand-independent kinase-independent signalling)"
+        ],
+        "method_version": "0.2.0",
+        "modality_context": "EGFR has documented KINASE-INDEPENDENT pro-survival functions (glucose transporter stabilization, autophagy modulation) beyond its catalytic activity, so full removal (degrader / antibody-mediated downregulation) can differ from TKI inhibition in some contexts. But the dominant oncogenic driver in EGFR-mutant NSCLC IS the kinase, where TKIs are validated \u2014 hence context_dependent, not removal_required.",
+        "modality_implication_basis": "curated",
+        "modality_implication_class": "context_dependent",
+        "n_domains": 1,
+        "protein_class": [
+          "kinase",
+          "receptor",
+          "transferase"
+        ],
+        "scaffolding_function": false
+      }
+    },
+    {
+      "_missing": false,
+      "card_id": "paralog-buffering",
+      "input_manifest_ids": [
+        "depmap-paralog-buffering-per-gene-v1"
+      ],
+      "summary": {
+        "_data_source": "depmap-paralog-buffering-per-gene-v1",
+        "_data_source_upstream": "depmap-consortium-26q1-paralogs",
+        "functional_paralogs": [
+          {
+            "buffering_class": "strong",
+            "dep_delta_paired_vs_max_single": 0.7349442161035772,
+            "median_dual_ko_effect": -0.8979129739110495,
+            "ohnolog": false,
+            "partner_gene_symbol": "PTK2",
+            "single_ko_effect": -0.16296875780747233
+          },
+          {
+            "buffering_class": "partial",
+            "dep_delta_paired_vs_max_single": 0.4973844358502384,
+            "median_dual_ko_effect": -0.3964497513615337,
+            "ohnolog": false,
+            "partner_gene_symbol": "ZAP70",
+            "single_ko_effect": -0.16296875780747233
+          },
+          {
+            "buffering_class": "partial",
+            "dep_delta_paired_vs_max_single": 0.4545778325199577,
+            "median_dual_ko_effect": -0.5928219832843642,
+            "ohnolog": true,
+            "partner_gene_symbol": "ERBB3",
+            "single_ko_effect": -0.16296875780747233
+          },
+          {
+            "buffering_class": "partial",
+            "dep_delta_paired_vs_max_single": 0.4367834299414943,
+            "median_dual_ko_effect": -0.4475496025175254,
+            "ohnolog": false,
+            "partner_gene_symbol": "TNK1",
+            "single_ko_effect": -0.16296875780747233
+          },
+          {
+            "buffering_class": "partial",
+            "dep_delta_paired_vs_max_single": 0.3651534343949944,
+            "median_dual_ko_effect": -0.42637551657675415,
+            "ohnolog": true,
+            "partner_gene_symbol": "ERBB2",
+            "single_ko_effect": -0.16296875780747233
+          },
+          {
+            "buffering_class": "partial",
+            "dep_delta_paired_vs_max_single": 0.32977034560395013,
+            "median_dual_ko_effect": -0.2761391128118623,
+            "ohnolog": false,
+            "partner_gene_symbol": "TNK2",
+            "single_ko_effect": -0.16296875780747233
+          },
+          {
+            "buffering_class": "partial",
+            "dep_delta_paired_vs_max_single": 0.311762440764819,
+            "median_dual_ko_effect": -0.2188417813949904,
+            "ohnolog": false,
+            "partner_gene_symbol": "SYK",
+            "single_ko_effect": -0.16296875780747233
+          },
+          {
+            "buffering_class": "partial",
+            "dep_delta_paired_vs_max_single": 0.2994439319259597,
+            "median_dual_ko_effect": -0.3814786483756866,
+            "ohnolog": true,
+            "partner_gene_symbol": "ERBB4",
+            "single_ko_effect": -0.16296875780747233
+          },
+          {
+            "buffering_class": "partial",
+            "dep_delta_paired_vs_max_single": 0.28725901915876617,
+            "median_dual_ko_effect": -0.27017318088618997,
+            "ohnolog": false,
+            "partner_gene_symbol": "PTK2B",
+            "single_ko_effect": -0.16296875780747233
+          }
+        ],
+        "method_version": "0.3.1",
+        "n_paralogs_annotated": 9,
+        "n_paralogs_functionally_buffering": 9,
+        "paralog_buffering_class": "strong",
+        "strongest_paralog_delta": 0.7349442161035772,
+        "strongest_paralog_ohnolog": false,
+        "strongest_paralog_ohnolog_status": "annotated",
+        "strongest_paralog_symbol": "PTK2"
+      }
+    },
+    {
+      "_missing": false,
+      "card_id": "normal-tissue-liability",
+      "input_manifest_ids": [
+        "hpa-v25-1"
+      ],
+      "summary": {
+        "essential_tissue_flag": "present",
+        "essential_tissues_flagged": [],
+        "hpa_tissue_distribution": "Detected in all",
+        "hpa_tissue_specificity": "Low tissue specificity",
+        "method_version": "0.2.0",
+        "n_essential_tissues_with_expression": 0,
+        "n_specific_tissues": 0,
+        "normal_tissue_breadth_class": "broad_normal_expression",
+        "safety_tissue_flags": [
+          "essential_from_broad_detection",
+          "broad"
+        ],
+        "specific_tissues": []
+      }
+    }
+  ],
+  "consolidation": {
+    "discordant": false,
+    "driving_role": "neutral",
+    "masked_conflict": false,
+    "n_cards_contributing": 10,
+    "n_rules_fired": 14,
+    "overruled_opposing_rules": [],
+    "roles_present": [
+      "neutral",
+      "positive"
+    ],
+    "single_card_passthrough": false
+  },
+  "fired_rules": [
+    {
+      "card_id": "structure-features-static",
+      "dominant": true,
+      "field": "mutation_hotspot_in_druggable_pocket",
+      "rationale_summary": "A known TCGA mutation hotspot sits in a druggable pocket \u2192 small-molecule",
+      "rule_id": "hotspot-in-druggable-pocket-sm-supportive-e8",
+      "value": true
+    },
+    {
+      "card_id": "structure-features-static",
+      "dominant": false,
+      "field": "hotspot_pocket_adjacency_call",
+      "rationale_summary": "A mutation hotspot sits ADJACENT to a resolved pocket (PDB or high-confidence",
+      "rule_id": "structure-pocket-adjacent-sm-supportive",
+      "value": "adjacent"
+    },
+    {
+      "card_id": "structure-features-static",
+      "dominant": true,
+      "field": "structural_ligandability_class",
+      "rationale_summary": "A real experimental ligand-bound co-crystal exists (PLINDER) \u2014 the strongest possible",
+      "rule_id": "ligandability-experimental-sm-supportive",
+      "value": "experimental_ligandable"
+    },
+    {
+      "card_id": "measured-potency-tractability",
+      "dominant": true,
+      "field": "measured_bioactivity_class",
+      "rationale_summary": "A potent (<=1 uM) MEASURED small-molecule ligand SERIES exists (>=10 potent ligands in ChEMBL",
+      "rule_id": "measured-potent-ligand-sm-supportive",
+      "value": "potent_measured_ligand"
+    },
+    {
+      "card_id": "measured-potency-tractability",
+      "dominant": false,
+      "field": "chembl_approved_engagement_class",
+      "rationale_summary": "A drug that reached APPROVAL (ChEMBL max_clinical_phase >= 4) is catalogued against this target \u2014",
+      "rule_id": "measured-chembl-approved-sm-supportive",
+      "value": "approved_direct"
+    },
+    {
+      "card_id": "signaling-network-mechanism",
+      "dominant": false,
+      "field": "network_class",
+      "rationale_summary": ">= 3 upstream regulators AND >= 3 downstream effectors in the composed",
+      "rule_id": "mechanism-well-characterized-supportive",
+      "value": "well_characterized"
+    },
+    {
+      "card_id": "signaling-network-mechanism",
+      "dominant": false,
+      "field": "has_pd_marker",
+      "rationale_summary": "At least one downstream effector identified. PD-marker candidates",
+      "rule_id": "has-pd-marker-supportive",
+      "value": true
+    },
+    {
+      "card_id": "paralog-buffering",
+      "dominant": true,
+      "field": "paralog_buffering_class",
+      "rationale_summary": "Target has a strongly-buffering paralog (dep_delta > 0.5). Small-",
+      "rule_id": "strong-paralog-buffering-degrader-preferred",
+      "value": "strong"
+    },
+    {
+      "card_id": "gnomad-lof-constraint",
+      "dominant": false,
+      "field": "constraint_class",
+      "rationale_summary": "Target sits in the MIDDLE gnomAD constraint band (between highly_constrained",
+      "rule_id": "moderately-constrained-safety-neutral",
+      "value": "moderately_constrained"
+    },
+    {
+      "card_id": "clingen-dosage",
+      "dominant": true,
+      "field": "dosage_sensitivity_class",
+      "rationale_summary": "ClinGen shows single-copy loss is pathogenic (a high-confidence autosomal-dominant gene-disease",
+      "rule_id": "clingen-dominant-loss-safety-warning",
+      "value": "autosomal_dominant_loss"
+    },
+    {
+      "card_id": "mouse-ko-phenotype",
+      "dominant": false,
+      "field": "ko_phenotype_class",
+      "rationale_summary": "Mouse ADULT/postnatal knockout is lethal \u2014 an adult-essential-function signal (death after",
+      "rule_id": "mouse-ko-lethal-safety-warning",
+      "value": "lethal_ko"
+    },
+    {
+      "card_id": "clinvar-pathogenicity-safety",
+      "dominant": false,
+      "field": "clinvar_pathogenic_class",
+      "rationale_summary": "ClinVar carries confident GERMLINE pathogenic variants \u2014 curated evidence that losing/altering",
+      "rule_id": "clinvar-germline-pathogenic-safety-warning",
+      "value": "germline_pathogenic"
+    },
+    {
+      "card_id": "domain-modality-relevance",
+      "dominant": false,
+      "field": "modality_implication_class",
+      "rationale_summary": "The inhibitor-vs-removal choice depends on the specific pathway/indication (curated",
+      "rule_id": "domain-modality-context-dependent-degrader-neutral",
+      "value": "context_dependent"
+    },
+    {
+      "card_id": "normal-tissue-liability",
+      "dominant": true,
+      "field": "essential_tissue_flag",
+      "rationale_summary": "HPA immunohistochemistry detects the target protein in >=1 curated ESSENTIAL normal tissue",
+      "rule_id": "normal-tissue-protein-liability-safety-warning",
+      "value": "present"
+    }
+  ],
+  "generated_at": "2026-09-12T03:24:13+00:00",
+  "headline": {
+    "alphafold_confidence_class": "moderate",
+    "best_measured_potency_neglog_m": 11.699,
+    "cards_available": 20,
+    "cards_missing": [],
+    "chembl_n_potent_ligands": 16683,
+    "claim_vector": {
+      "MODALITY_ROUTING": {
+        "conflict": null,
+        "corroboration": "high",
+        "evidence": "domain-modality-relevance: context_dependent (basis=curated)",
+        "evidence_atom": {
+          "cite": {
+            "card_id": "domain-modality-relevance",
+            "fields": [
+              "modality_context",
+              "modality_implication_basis",
+              "modality_implication_class",
+              "scaffolding_function"
+            ]
+          },
+          "entity": {
+            "grain": "target",
+            "measurement_type": "domain_modality_relevance"
+          },
+          "read": "context_dependent",
+          "values": {
+            "modality_context": "EGFR has documented KINASE-INDEPENDENT pro-survival functions (glucose transporter stabilization, autophagy modulation) beyond its catalytic activity, so full removal (degrader / antibody-mediated downregulation) can differ from TKI inhibition in some contexts. But the dominant oncogenic driver in EGFR-mutant NSCLC IS the kinase, where TKIs are validated \u2014 hence context_dependent, not removal_required.",
+            "modality_implication_basis": "curated",
+            "modality_implication_class": "context_dependent",
+            "scaffolding_function": false
+          }
+        },
+        "informs": "domain\u2192modality implication \u2014 inhibitor-sufficient vs removal-required (degrader/scaffolding); a MODALITY-FIT routing hint (direction in the atom)",
+        "signal": "weak"
+      },
+      "TRACTABILITY_PRECEDENT": {
+        "conflict": null,
+        "corroboration": "moderate",
+        "evidence": "target-development-level: Tclin",
+        "evidence_atom": {
+          "cite": {
+            "card_id": "target-development-level",
+            "fields": [
+              "novelty_score",
+              "target_family",
+              "tdl_class",
+              "tdl_meaning"
+            ]
+          },
+          "entity": {
+            "grain": "target",
+            "measurement_type": "target_development_level"
+          },
+          "read": "Tclin",
+          "values": {
+            "novelty_score": 7.274e-05,
+            "target_family": "Kinase",
+            "tdl_class": "Tclin",
+            "tdl_meaning": "clinically drugged (approved drug acts via this target's mode)"
+          }
+        },
+        "informs": "Pharos/IDG development level \u2014 strength of drug-development PRECEDENT for the target's mode (Tdark = understudied, not adverse)",
+        "signal": "strong"
+      },
+      "_disclaimer": "Modality-blind, verdict-INERT projection of the two target-intrinsic fields that carry a defensible signal (MODALITY_ROUTING / TRACTABILITY_PRECEDENT) \u2014 the dossier's safety/structure/mechanism facts are claim-decomposed under their OWNING subskills, not here. DESCRIPTIVE: MODALITY_ROUTING's tier is the CONVICTION of the routing call (inhibitor-vs-removal DIRECTION in the atom); TRACTABILITY_PRECEDENT's tier is drug-development precedent strength (Tdark = understudied, `absent` not adverse). Claims are NOT averaged; target-intrinsic is gateless \u2014 this never feeds a verdict."
+    },
+    "clingen_dosage_class": "autosomal_dominant_loss",
+    "clinvar_pathogenic_class": "germline_pathogenic",
+    "domain_architecture": "Protein kinase",
+    "evidence_capsules": {
+      "capsules": {
+        "clingen-dosage": {
+          "_complete": true,
+          "card_id": "clingen-dosage",
+          "categorical_anchors": null,
+          "cited_statements": null,
+          "class": "autosomal_dominant_loss",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "dosage_sensitivity_safety",
+          "n_basis": {
+            "n_autosomal_dominant": 1,
+            "n_autosomal_recessive": 0,
+            "n_high_confidence": 1
+          },
+          "numeric_anchors": null,
+          "provenance_keys": null,
+          "sibling_caveats": null,
+          "tier": "target",
+          "top_k_strata": null
+        },
+        "clinvar-pathogenicity-safety": {
+          "_complete": true,
+          "card_id": "clinvar-pathogenicity-safety",
+          "categorical_anchors": null,
+          "cited_statements": null,
+          "class": "germline_pathogenic",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "clinvar_germline_pathogenicity_safety",
+          "n_basis": {
+            "n_pathogenic_germline": 118,
+            "n_pathogenic_germline_confident": 109,
+            "n_pathogenic_somatic": 0
+          },
+          "numeric_anchors": null,
+          "provenance_keys": null,
+          "sibling_caveats": null,
+          "tier": "target",
+          "top_k_strata": null
+        },
+        "domain-modality-relevance": {
+          "_complete": true,
+          "card_id": "domain-modality-relevance",
+          "categorical_anchors": null,
+          "cited_statements": null,
+          "class": "context_dependent",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "domain_modality_relevance",
+          "n_basis": {
+            "n_domains": 1
+          },
+          "numeric_anchors": null,
+          "provenance_keys": [
+            {
+              "key": "_primary_source_doi",
+              "value": "10.1038/onc.2013.497"
+            }
+          ],
+          "sibling_caveats": null,
+          "tier": "target",
+          "top_k_strata": null
+        },
+        "gene-burden-safety": {
+          "_complete": true,
+          "card_id": "gene-burden-safety",
+          "categorical_anchors": null,
+          "cited_statements": null,
+          "class": "insufficient",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "human_genetic_safety",
+          "n_basis": null,
+          "numeric_anchors": [
+            {
+              "metric": "pvalue_cutoff",
+              "value": 0.0
+            }
+          ],
+          "provenance_keys": null,
+          "sibling_caveats": null,
+          "tier": "target",
+          "top_k_strata": null
+        },
+        "gene-ontology-annotation": {
+          "_complete": true,
+          "card_id": "gene-ontology-annotation",
+          "categorical_anchors": null,
+          "cited_statements": null,
+          "class": "well_annotated",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "gene_ontology_annotation",
+          "n_basis": {
+            "n_biological_process": 43,
+            "n_cellular_component": 27,
+            "n_go_terms_experimental": 66
+          },
+          "numeric_anchors": null,
+          "provenance_keys": [
+            {
+              "key": "_data_source",
+              "value": "gene-ontology-release-2026-05-19"
+            }
+          ],
+          "sibling_caveats": null,
+          "tier": "target",
+          "top_k_strata": null
+        },
+        "gnomad-lof-constraint": {
+          "_complete": true,
+          "card_id": "gnomad-lof-constraint",
+          "categorical_anchors": null,
+          "cited_statements": null,
+          "class": "moderately_constrained",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "gnomad_lof_constraint",
+          "n_basis": {
+            "syn_z_score": -0.45414
+          },
+          "numeric_anchors": null,
+          "provenance_keys": null,
+          "sibling_caveats": null,
+          "tier": "target",
+          "top_k_strata": null
+        },
+        "measured-potency-tractability": {
+          "_complete": true,
+          "card_id": "measured-potency-tractability",
+          "categorical_anchors": [
+            {
+              "field": "measured_bioactivity_class",
+              "value": "potent_measured_ligand"
+            },
+            {
+              "field": "chembl_clinical_phase_class",
+              "value": "approved"
+            }
+          ],
+          "cited_statements": null,
+          "class": "potent_measured_ligand",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "measured_potency_tractability",
+          "n_basis": {
+            "best_measured_potency_neglog_m": 11.699,
+            "bindingdb_n_potent_ligands": 22078,
+            "chembl_n_potent_ligands": 16683
+          },
+          "numeric_anchors": [
+            {
+              "metric": "chembl_best_pchembl",
+              "value": 11.0
+            }
+          ],
+          "provenance_keys": [
+            {
+              "key": "_data_source",
+              "value": "chembl-bioactivity-per-protein-v1 + bindingdb-affinity-per-protein-v1"
+            }
+          ],
+          "sibling_caveats": null,
+          "tier": "target",
+          "top_k_strata": null
+        },
+        "mouse-ko-phenotype": {
+          "_complete": true,
+          "card_id": "mouse-ko-phenotype",
+          "categorical_anchors": [
+            {
+              "field": "ko_phenotype_class",
+              "value": "lethal_ko"
+            },
+            {
+              "field": "impc_ko_phenotype_class",
+              "value": "severe_organ_phenotype"
+            },
+            {
+              "field": "evidence_tier",
+              "value": "inferred"
+            }
+          ],
+          "cited_statements": null,
+          "class": "lethal_ko",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "mouse_ko_phenotype_safety",
+          "n_basis": {
+            "n_adult_lethal": 2,
+            "n_developmental_lethal": 11,
+            "n_lethal": 13
+          },
+          "numeric_anchors": null,
+          "provenance_keys": null,
+          "sibling_caveats": null,
+          "tier": "target",
+          "top_k_strata": null
+        },
+        "normal-tissue-liability": {
+          "_complete": true,
+          "card_id": "normal-tissue-liability",
+          "categorical_anchors": null,
+          "cited_statements": null,
+          "class": "broad_normal_expression",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "normal_tissue_protein_breadth",
+          "n_basis": {
+            "n_essential_tissues_with_expression": 0,
+            "n_specific_tissues": 0
+          },
+          "numeric_anchors": null,
+          "provenance_keys": null,
+          "sibling_caveats": null,
+          "tier": "target",
+          "top_k_strata": null
+        },
+        "paralog-buffering": {
+          "_complete": true,
+          "card_id": "paralog-buffering",
+          "categorical_anchors": null,
+          "cited_statements": null,
+          "class": "strong",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "paralog_buffering",
+          "n_basis": {
+            "n_paralogs_annotated": 9,
+            "n_paralogs_functionally_buffering": 9
+          },
+          "numeric_anchors": null,
+          "provenance_keys": [
+            {
+              "key": "_data_source",
+              "value": "depmap-paralog-buffering-per-gene-v1"
+            },
+            {
+              "key": "_data_source_upstream",
+              "value": "depmap-consortium-26q1-paralogs"
+            }
+          ],
+          "sibling_caveats": {
+            "n_paralogs_functionally_buffering": 9,
+            "paralog_buffering_class": "strong"
+          },
+          "tier": "target",
+          "top_k_strata": null
+        },
+        "ppi-interactome": {
+          "_complete": true,
+          "card_id": "ppi-interactome",
+          "categorical_anchors": null,
+          "cited_statements": null,
+          "class": "hub",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "ppi_interactome",
+          "n_basis": {
+            "in_protein_complex": true,
+            "n_corum_complexes": 43,
+            "n_high_confidence_interactors": 506
+          },
+          "numeric_anchors": null,
+          "provenance_keys": [
+            {
+              "key": "_data_source",
+              "value": "string-v12-human-snapshot-2026-06-30+corum-5-3+biogrid-physical-interactions-per-gene-v1"
+            }
+          ],
+          "sibling_caveats": null,
+          "tier": "target",
+          "top_k_strata": null
+        },
+        "protein-domains-class": {
+          "_complete": true,
+          "card_id": "protein-domains-class",
+          "categorical_anchors": [
+            {
+              "field": "protein_features_class",
+              "value": "single_domain"
+            },
+            {
+              "field": "protein_class",
+              "value": [
+                "kinase",
+                "receptor",
+                "transferase"
+              ]
+            },
+            {
+              "field": "protein_class_primary",
+              "value": "kinase"
+            },
+            {
+              "field": "domain_evidence",
+              "value": "both"
+            }
+          ],
+          "cited_statements": null,
+          "class": "single_domain",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "protein_domains_class",
+          "n_basis": {
+            "interpro_n_domains": 8,
+            "n_domains": 1
+          },
+          "numeric_anchors": null,
+          "provenance_keys": [
+            {
+              "key": "_data_source",
+              "value": "uniprot-protein-features-v1+interpro-109-0-snapshot-2026-08-05"
+            }
+          ],
+          "sibling_caveats": null,
+          "tier": "target",
+          "top_k_strata": null
+        },
+        "reactome-pathway-membership": {
+          "_complete": true,
+          "card_id": "reactome-pathway-membership",
+          "categorical_anchors": null,
+          "cited_statements": null,
+          "class": "well_annotated",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "reactome_pathway_membership",
+          "n_basis": null,
+          "numeric_anchors": null,
+          "provenance_keys": [
+            {
+              "key": "_data_source",
+              "value": "reactome-pathway-context-per-gene-v1"
+            },
+            {
+              "key": "_data_source_upstream",
+              "value": "reactome-v96"
+            }
+          ],
+          "sibling_caveats": null,
+          "tier": "target",
+          "top_k_strata": null
+        },
+        "shed-ectodomain-liability": {
+          "_complete": true,
+          "card_id": "shed-ectodomain-liability",
+          "categorical_anchors": [
+            {
+              "field": "shed_liability_class",
+              "value": "secretome_proxy_shed"
+            },
+            {
+              "field": "shed_evidence_tier",
+              "value": "secretome_proxy"
+            },
+            {
+              "field": "measured_shed_class",
+              "value": "media_shed_low"
+            }
+          ],
+          "cited_statements": null,
+          "class": "secretome_proxy_shed",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "shed_ectodomain_liability",
+          "n_basis": {
+            "media_mean_npx": 0.835,
+            "media_n_lines_detected": 390,
+            "media_panel_high_npx": 1.358
+          },
+          "numeric_anchors": null,
+          "provenance_keys": null,
+          "sibling_caveats": {
+            "measured_shed_class": "media_shed_low",
+            "shed_evidence_tier": "secretome_proxy",
+            "shed_liability_class": "secretome_proxy_shed"
+          },
+          "tier": "target",
+          "top_k_strata": null
+        },
+        "signaling-network-mechanism": {
+          "_complete": true,
+          "card_id": "signaling-network-mechanism",
+          "categorical_anchors": null,
+          "cited_statements": null,
+          "class": "well_characterized",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "signaling_network_mechanism",
+          "n_basis": {
+            "n_downstream_effectors": 74,
+            "n_upstream_regulators": 147
+          },
+          "numeric_anchors": [
+            {
+              "metric": "moa_ontology_unmapped_fraction",
+              "value": 0.0422
+            }
+          ],
+          "provenance_keys": [
+            {
+              "key": "_data_source",
+              "value": "mechanism-composed (composed card; no direct S3 product \u2014 see sources_wired)"
+            }
+          ],
+          "sibling_caveats": null,
+          "tier": "target",
+          "top_k_strata": null
+        },
+        "structure-features-static": {
+          "_complete": true,
+          "card_id": "structure-features-static",
+          "categorical_anchors": [
+            {
+              "field": "structural_ligandability_class",
+              "value": "experimental_ligandable"
+            },
+            {
+              "field": "hotspot_pocket_adjacency_call",
+              "value": "adjacent"
+            },
+            {
+              "field": "has_experimental_cocrystal",
+              "value": true
+            },
+            {
+              "field": "has_druggable_pocket",
+              "value": true
+            },
+            {
+              "field": "has_cryptic_site",
+              "value": true
+            },
+            {
+              "field": "pdb_coverage_class",
+              "value": "strong"
+            },
+            {
+              "field": "alphafold_confidence_class",
+              "value": "moderate"
+            }
+          ],
+          "cited_statements": null,
+          "class": "experimental_ligandable",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "structure_druggability",
+          "n_basis": {
+            "alphafold_plddt_min_domain": 36.69,
+            "has_virtual_screen_hit": true,
+            "mutation_hotspot_in_druggable_pocket": true
+          },
+          "numeric_anchors": [
+            {
+              "metric": "disordered_fraction",
+              "value": 0.2281
+            }
+          ],
+          "provenance_keys": [
+            {
+              "key": "_data_source",
+              "value": "pdb-alphafold-structure-features-per-uniprot-v1"
+            },
+            {
+              "key": "_ligandability_source",
+              "value": "structure-ligandability-per-protein-v1"
+            }
+          ],
+          "sibling_caveats": {
+            "pdb_coverage_class": "strong"
+          },
+          "tier": "target",
+          "top_k_strata": null
+        },
+        "surfaceome-family-classification": {
+          "_complete": true,
+          "card_id": "surfaceome-family-classification",
+          "categorical_anchors": null,
+          "cited_statements": null,
+          "class": "kinase_surface",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "surfaceome_family",
+          "n_basis": null,
+          "numeric_anchors": null,
+          "provenance_keys": [
+            {
+              "key": "_data_source",
+              "value": "surfaceome-family-classification-per-uniprot-v1"
+            }
+          ],
+          "sibling_caveats": null,
+          "tier": "target",
+          "top_k_strata": null
+        },
+        "target-development-level": {
+          "_complete": true,
+          "card_id": "target-development-level",
+          "categorical_anchors": null,
+          "cited_statements": null,
+          "class": "Tclin",
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "target_development_level",
+          "n_basis": null,
+          "numeric_anchors": null,
+          "provenance_keys": [
+            {
+              "key": "_source",
+              "value": "Pharos/IDG TCRD (Target Development Level); verdict-inert target-intrinsic druggability/novelty tier"
+            }
+          ],
+          "sibling_caveats": null,
+          "tier": "target",
+          "top_k_strata": null
+        },
+        "target-identity-summary": {
+          "_complete": true,
+          "card_id": "target-identity-summary",
+          "categorical_anchors": null,
+          "cited_statements": null,
+          "class": null,
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "target_identity",
+          "n_basis": null,
+          "numeric_anchors": null,
+          "provenance_keys": [
+            {
+              "key": "biology_axis_source",
+              "value": "curated_lookup"
+            },
+            {
+              "key": "resolver_release_pin",
+              "value": "resolver_v0.1.0-alpha"
+            }
+          ],
+          "sibling_caveats": null,
+          "tier": "target",
+          "top_k_strata": null
+        },
+        "target-safety-prioritisation": {
+          "_complete": true,
+          "card_id": "target-safety-prioritisation",
+          "categorical_anchors": null,
+          "cited_statements": null,
+          "class": null,
+          "conflict_pairs": null,
+          "data_quality_flags": null,
+          "evidence_state": "measured",
+          "measurement_type": "target_safety_prioritisation",
+          "n_basis": null,
+          "numeric_anchors": null,
+          "provenance_keys": null,
+          "sibling_caveats": null,
+          "tier": "target",
+          "top_k_strata": null
+        }
+      },
+      "manifest": [
+        {
+          "card_id": "clingen-dosage",
+          "status": "full"
+        },
+        {
+          "card_id": "clinvar-pathogenicity-safety",
+          "status": "full"
+        },
+        {
+          "card_id": "domain-modality-relevance",
+          "status": "full"
+        },
+        {
+          "card_id": "gene-burden-safety",
+          "status": "full"
+        },
+        {
+          "card_id": "gene-ontology-annotation",
+          "status": "full"
+        },
+        {
+          "card_id": "gnomad-lof-constraint",
+          "status": "full"
+        },
+        {
+          "card_id": "measured-potency-tractability",
+          "status": "full"
+        },
+        {
+          "card_id": "mouse-ko-phenotype",
+          "status": "full"
+        },
+        {
+          "card_id": "normal-tissue-liability",
+          "status": "full"
+        },
+        {
+          "card_id": "paralog-buffering",
+          "status": "full"
+        },
+        {
+          "card_id": "ppi-interactome",
+          "status": "full"
+        },
+        {
+          "card_id": "protein-domains-class",
+          "status": "full"
+        },
+        {
+          "card_id": "reactome-pathway-membership",
+          "status": "full"
+        },
+        {
+          "card_id": "shed-ectodomain-liability",
+          "status": "full"
+        },
+        {
+          "card_id": "signaling-network-mechanism",
+          "status": "full"
+        },
+        {
+          "card_id": "structure-features-static",
+          "status": "full"
+        },
+        {
+          "card_id": "surfaceome-family-classification",
+          "status": "full"
+        },
+        {
+          "card_id": "target-development-level",
+          "status": "full"
+        },
+        {
+          "card_id": "target-identity-summary",
+          "status": "full"
+        },
+        {
+          "card_id": "target-safety-prioritisation",
+          "status": "full"
+        }
+      ]
+    },
+    "evidence_graph": {
+      "cards": [
+        {
+          "axis_id": "MODALITY_ROUTING",
+          "chain": {
+            "contributes_to_verdict": false,
+            "data": [],
+            "dataset_ids": [
+              "target-id-resolver-release"
+            ],
+            "is_driving": false,
+            "rule_id": null
+          },
+          "class": {
+            "field": null,
+            "value": null
+          },
+          "confidence": {
+            "dots": 3,
+            "eco_id": "ECO:0000006",
+            "evidence_state": "measured",
+            "level": "high",
+            "n": null
+          },
+          "dataset_ids": [
+            "target-id-resolver-release"
+          ],
+          "id": "target-identity-summary",
+          "key_evidence": null,
+          "key_fields": {},
+          "measurement_type": "target_identity",
+          "question_ids": [
+            "biology_context"
+          ],
+          "role": "display_only",
+          "rule_ids": [],
+          "signal": {
+            "label": null,
+            "liability": false,
+            "polarity": "neutral",
+            "tier": null
+          },
+          "tier": "target"
+        },
+        {
+          "axis_id": null,
+          "chain": {
+            "contributes_to_verdict": true,
+            "data": [],
+            "dataset_ids": [
+              "gnomad-constraint-per-gene-v1"
+            ],
+            "is_driving": false,
+            "rule_id": "moderately-constrained-safety-neutral"
+          },
+          "class": {
+            "field": "constraint_class",
+            "value": "moderately_constrained"
+          },
+          "confidence": {
+            "dots": 3,
+            "eco_id": "ECO:0000006",
+            "evidence_state": "measured",
+            "level": "high",
+            "n": null
+          },
+          "dataset_ids": [
+            "gnomad-constraint-per-gene-v1"
+          ],
+          "id": "gnomad-lof-constraint",
+          "key_evidence": {
+            "categorical": [
+              {
+                "field": "constraint_class",
+                "value": "moderately_constrained"
+              }
+            ],
+            "effect": {
+              "direction": "lower_is_stronger",
+              "metric": "loeuf_score",
+              "value": 0.5047
+            },
+            "interpretation": [
+              {
+                "direction": "lower_is_stronger",
+                "frame": {
+                  "anchors": [
+                    {
+                      "label": "loeuf_constraint_cut",
+                      "role": "cut",
+                      "value": 0.45
+                    }
+                  ],
+                  "kind": "distance_to_cut"
+                },
+                "metric": "loeuf_score",
+                "position": "moderately_constrained",
+                "position_source": "constraint_class",
+                "scale": "loeuf",
+                "value": 0.5047
+              }
+            ],
+            "n_basis": {
+              "syn_z_score": -0.45414
+            },
+            "significance": {
+              "stat": "pli_score",
+              "value": 0.3891
+            }
+          },
+          "key_fields": {},
+          "measurement_type": "gnomad_lof_constraint",
+          "question_ids": [
+            "safety_genetics"
+          ],
+          "role": "verdict_bearing",
+          "rule_ids": [
+            "moderately-constrained-safety-neutral"
+          ],
+          "signal": {
+            "label": "moderately_constrained",
+            "liability": false,
+            "polarity": "supportive",
+            "tier": null
+          },
+          "tier": "target"
+        },
+        {
+          "axis_id": null,
+          "chain": {
+            "contributes_to_verdict": false,
+            "data": [
+              {
+                "field": "pvalue_cutoff",
+                "value": 0.0
+              }
+            ],
+            "dataset_ids": [
+              "opentargets-26-06"
+            ],
+            "is_driving": false,
+            "rule_id": null
+          },
+          "class": {
+            "field": null,
+            "value": "insufficient"
+          },
+          "confidence": {
+            "dots": 3,
+            "eco_id": "ECO:0000006",
+            "evidence_state": "measured",
+            "level": "high",
+            "n": null
+          },
+          "dataset_ids": [
+            "opentargets-26-06"
+          ],
+          "id": "gene-burden-safety",
+          "key_evidence": {
+            "effect": {
+              "direction": null,
+              "metric": "pvalue_cutoff",
+              "value": 0.0
+            }
+          },
+          "key_fields": {
+            "pvalue_cutoff": 0.0
+          },
+          "measurement_type": "human_genetic_safety",
+          "question_ids": [
+            "safety_genetics"
+          ],
+          "role": "display_only",
+          "rule_ids": [],
+          "signal": {
+            "label": "insufficient",
+            "liability": false,
+            "polarity": "neutral",
+            "tier": null
+          },
+          "tier": "target"
+        },
+        {
+          "axis_id": null,
+          "chain": {
+            "contributes_to_verdict": true,
+            "data": [],
+            "dataset_ids": [
+              "opentargets-26-06"
+            ],
+            "is_driving": false,
+            "rule_id": "clingen-dominant-loss-safety-warning"
+          },
+          "class": {
+            "field": "dosage_sensitivity_class",
+            "value": "autosomal_dominant_loss"
+          },
+          "confidence": {
+            "dots": 3,
+            "eco_id": "ECO:0000006",
+            "evidence_state": "measured",
+            "level": "high",
+            "n": null
+          },
+          "dataset_ids": [
+            "opentargets-26-06"
+          ],
+          "id": "clingen-dosage",
+          "key_evidence": {
+            "n": 1,
+            "n_basis": {
+              "n_autosomal_dominant": 1,
+              "n_autosomal_recessive": 0,
+              "n_high_confidence": 1
+            }
+          },
+          "key_fields": {},
+          "measurement_type": "dosage_sensitivity_safety",
+          "question_ids": [
+            "safety_genetics"
+          ],
+          "role": "verdict_bearing",
+          "rule_ids": [
+            "clingen-dominant-loss-safety-warning"
+          ],
+          "signal": {
+            "label": "autosomal_dominant_loss",
+            "liability": false,
+            "polarity": "supportive",
+            "tier": null
+          },
+          "tier": "target"
+        },
+        {
+          "axis_id": null,
+          "chain": {
+            "contributes_to_verdict": true,
+            "data": [],
+            "dataset_ids": [
+              "opentargets-26-06"
+            ],
+            "is_driving": false,
+            "rule_id": "clinvar-germline-pathogenic-safety-warning"
+          },
+          "class": {
+            "field": "clinvar_pathogenic_class",
+            "value": "germline_pathogenic"
+          },
+          "confidence": {
+            "dots": 3,
+            "eco_id": "ECO:0000006",
+            "evidence_state": "measured",
+            "level": "high",
+            "n": null
+          },
+          "dataset_ids": [
+            "opentargets-26-06"
+          ],
+          "id": "clinvar-pathogenicity-safety",
+          "key_evidence": {
+            "n": 118,
+            "n_basis": {
+              "n_pathogenic_germline": 118,
+              "n_pathogenic_germline_confident": 109,
+              "n_pathogenic_somatic": 0
+            }
+          },
+          "key_fields": {},
+          "measurement_type": "clinvar_germline_pathogenicity_safety",
+          "question_ids": [
+            "safety_genetics"
+          ],
+          "role": "verdict_bearing",
+          "rule_ids": [
+            "clinvar-germline-pathogenic-safety-warning"
+          ],
+          "signal": {
+            "label": "germline_pathogenic",
+            "liability": false,
+            "polarity": "supportive",
+            "tier": null
+          },
+          "tier": "target"
+        },
+        {
+          "axis_id": null,
+          "chain": {
+            "contributes_to_verdict": true,
+            "data": [],
+            "dataset_ids": [
+              "opentargets-26-06",
+              "impc-ko-phenotype-per-gene-v1"
+            ],
+            "is_driving": false,
+            "rule_id": "mouse-ko-lethal-safety-warning"
+          },
+          "class": {
+            "field": "ko_phenotype_class",
+            "value": "lethal_ko"
+          },
+          "confidence": {
+            "dots": 3,
+            "eco_id": "ECO:0000006",
+            "evidence_state": "measured",
+            "level": "high",
+            "n": null
+          },
+          "dataset_ids": [
+            "opentargets-26-06",
+            "impc-ko-phenotype-per-gene-v1"
+          ],
+          "id": "mouse-ko-phenotype",
+          "key_evidence": {
+            "categorical": [
+              {
+                "field": "ko_phenotype_class",
+                "value": "lethal_ko"
+              },
+              {
+                "field": "impc_ko_phenotype_class",
+                "value": "severe_organ_phenotype"
+              },
+              {
+                "field": "evidence_tier",
+                "value": "inferred"
+              }
+            ],
+            "n": 13,
+            "n_basis": {
+              "n_adult_lethal": 2,
+              "n_developmental_lethal": 11,
+              "n_lethal": 13
+            }
+          },
+          "key_fields": {},
+          "measurement_type": "mouse_ko_phenotype_safety",
+          "question_ids": [
+            "safety_genetics"
+          ],
+          "role": "verdict_bearing",
+          "rule_ids": [
+            "mouse-ko-lethal-safety-warning"
+          ],
+          "signal": {
+            "label": "lethal_ko",
+            "liability": false,
+            "polarity": "supportive",
+            "tier": null
+          },
+          "tier": "target"
+        },
+        {
+          "axis_id": null,
+          "chain": {
+            "contributes_to_verdict": false,
+            "data": [],
+            "dataset_ids": [
+              "opentargets-26-06"
+            ],
+            "is_driving": false,
+            "rule_id": null
+          },
+          "class": {
+            "field": null,
+            "value": null
+          },
+          "confidence": {
+            "dots": 3,
+            "eco_id": "ECO:0000006",
+            "evidence_state": "measured",
+            "level": "high",
+            "n": null
+          },
+          "dataset_ids": [
+            "opentargets-26-06"
+          ],
+          "id": "target-safety-prioritisation",
+          "key_evidence": null,
+          "key_fields": {},
+          "measurement_type": "target_safety_prioritisation",
+          "question_ids": [
+            "safety_genetics"
+          ],
+          "role": "display_only",
+          "rule_ids": [],
+          "signal": {
+            "label": null,
+            "liability": false,
+            "polarity": "neutral",
+            "tier": null
+          },
+          "tier": "target"
+        },
+        {
+          "axis_id": "MODALITY_ROUTING",
+          "chain": {
+            "contributes_to_verdict": false,
+            "data": [],
+            "dataset_ids": [
+              "surfaceome-family-classification-per-uniprot-v1"
+            ],
+            "is_driving": false,
+            "rule_id": null
+          },
+          "class": {
+            "field": null,
+            "value": "kinase_surface"
+          },
+          "confidence": {
+            "dots": 3,
+            "eco_id": "ECO:0000006",
+            "evidence_state": "measured",
+            "level": "high",
+            "n": null
+          },
+          "dataset_ids": [
+            "surfaceome-family-classification-per-uniprot-v1"
+          ],
+          "id": "surfaceome-family-classification",
+          "key_evidence": null,
+          "key_fields": {},
+          "measurement_type": "surfaceome_family",
+          "question_ids": [
+            "modality_route"
+          ],
+          "role": "display_only",
+          "rule_ids": [],
+          "signal": {
+            "label": "kinase_surface",
+            "liability": false,
+            "polarity": "neutral",
+            "tier": "strong"
+          },
+          "tier": "target"
+        },
+        {
+          "axis_id": "MODALITY_ROUTING",
+          "chain": {
+            "contributes_to_verdict": true,
+            "data": [
+              {
+                "field": "disordered_fraction",
+                "value": 0.2281
+              }
+            ],
+            "dataset_ids": [
+              "structure-ligandability-per-protein-v1",
+              "pdb-alphafold-structure-features-per-uniprot-v1"
+            ],
+            "is_driving": false,
+            "rule_id": "hotspot-in-druggable-pocket-sm-supportive-e8"
+          },
+          "class": {
+            "field": "mutation_hotspot_in_druggable_pocket",
+            "value": true
+          },
+          "confidence": {
+            "dots": 3,
+            "eco_id": "ECO:0000006",
+            "evidence_state": "measured",
+            "level": "high",
+            "n": null
+          },
+          "dataset_ids": [
+            "structure-ligandability-per-protein-v1",
+            "pdb-alphafold-structure-features-per-uniprot-v1"
+          ],
+          "id": "structure-features-static",
+          "key_evidence": {
+            "categorical": [
+              {
+                "field": "structural_ligandability_class",
+                "value": "experimental_ligandable"
+              },
+              {
+                "field": "hotspot_pocket_adjacency_call",
+                "value": "adjacent"
+              },
+              {
+                "field": "alphafold_confidence_class",
+                "value": "moderate"
+              }
+            ],
+            "effect": {
+              "direction": null,
+              "metric": "disordered_fraction",
+              "value": 0.2281
+            },
+            "n_basis": {
+              "alphafold_plddt_min_domain": 36.69,
+              "has_virtual_screen_hit": true,
+              "mutation_hotspot_in_druggable_pocket": true
+            }
+          },
+          "key_fields": {
+            "disordered_fraction": 0.2281
+          },
+          "measurement_type": "structure_druggability",
+          "question_ids": [
+            "modality_route"
+          ],
+          "role": "verdict_bearing",
+          "rule_ids": [
+            "hotspot-in-druggable-pocket-sm-supportive-e8",
+            "structure-pocket-adjacent-sm-supportive",
+            "ligandability-experimental-sm-supportive"
+          ],
+          "signal": {
+            "label": "experimental_ligandable",
+            "liability": false,
+            "polarity": "supportive",
+            "tier": "strong"
+          },
+          "tier": "target"
+        },
+        {
+          "axis_id": "MODALITY_ROUTING",
+          "chain": {
+            "contributes_to_verdict": false,
+            "data": [],
+            "dataset_ids": [
+              "hpa-v25-1",
+              "depmap-consortium-26q1-proteomics"
+            ],
+            "is_driving": false,
+            "rule_id": null
+          },
+          "class": {
+            "field": "shed_liability_class",
+            "value": "secretome_proxy_shed"
+          },
+          "confidence": {
+            "dots": 3,
+            "eco_id": "ECO:0000006",
+            "evidence_state": "measured",
+            "level": "high",
+            "n": null
+          },
+          "dataset_ids": [
+            "hpa-v25-1",
+            "depmap-consortium-26q1-proteomics"
+          ],
+          "id": "shed-ectodomain-liability",
+          "key_evidence": {
+            "categorical": [
+              {
+                "field": "shed_liability_class",
+                "value": "secretome_proxy_shed"
+              },
+              {
+                "field": "shed_evidence_tier",
+                "value": "secretome_proxy"
+              }
+            ],
+            "effect": {
+              "direction": "higher_is_worse",
+              "metric": "media_mean_npx",
+              "value": 0.835
+            },
+            "n": 390,
+            "n_basis": {
+              "media_mean_npx": 0.835,
+              "media_n_lines_detected": 390,
+              "media_panel_high_npx": 1.358
+            }
+          },
+          "key_fields": {},
+          "measurement_type": "shed_ectodomain_liability",
+          "question_ids": [
+            "modality_route"
+          ],
+          "role": "display_only",
+          "rule_ids": [],
+          "signal": {
+            "label": "secretome_proxy_shed",
+            "liability": false,
+            "polarity": "neutral",
+            "tier": "moderate"
+          },
+          "tier": "target"
+        },
+        {
+          "axis_id": "MODALITY_ROUTING",
+          "chain": {
+            "contributes_to_verdict": false,
+            "data": [],
+            "dataset_ids": [
+              "gene-ontology-release-2026-05-19"
+            ],
+            "is_driving": false,
+            "rule_id": null
+          },
+          "class": {
+            "field": null,
+            "value": "well_annotated"
+          },
+          "confidence": {
+            "dots": 3,
+            "eco_id": "ECO:0000006",
+            "evidence_state": "measured",
+            "level": "high",
+            "n": 27
+          },
+          "dataset_ids": [
+            "gene-ontology-release-2026-05-19"
+          ],
+          "id": "gene-ontology-annotation",
+          "key_evidence": {
+            "n": 43,
+            "n_basis": {
+              "n_biological_process": 43,
+              "n_cellular_component": 27,
+              "n_go_terms_experimental": 66
+            }
+          },
+          "key_fields": {},
+          "measurement_type": "gene_ontology_annotation",
+          "question_ids": [
+            "biology_context"
+          ],
+          "role": "display_only",
+          "rule_ids": [],
+          "signal": {
+            "label": "well_annotated",
+            "liability": false,
+            "polarity": "neutral",
+            "tier": "strong"
+          },
+          "tier": "target"
+        },
+        {
+          "axis_id": "MODALITY_ROUTING",
+          "chain": {
+            "contributes_to_verdict": true,
+            "data": [
+              {
+                "field": "moa_ontology_unmapped_fraction",
+                "value": 0.0422
+              }
+            ],
+            "dataset_ids": [
+              "signor-mechanism-network-per-gene-v1",
+              "signor-jul2026"
+            ],
+            "is_driving": false,
+            "rule_id": "mechanism-well-characterized-supportive"
+          },
+          "class": {
+            "field": "network_class",
+            "value": "well_characterized"
+          },
+          "confidence": {
+            "dots": 3,
+            "eco_id": "ECO:0000006",
+            "evidence_state": "measured",
+            "level": "high",
+            "n": 74
+          },
+          "dataset_ids": [
+            "signor-mechanism-network-per-gene-v1",
+            "signor-jul2026"
+          ],
+          "id": "signaling-network-mechanism",
+          "key_evidence": {
+            "categorical": [
+              {
+                "field": "network_class",
+                "value": "well_characterized"
+              }
+            ],
+            "effect": {
+              "direction": null,
+              "metric": "moa_ontology_unmapped_fraction",
+              "value": 0.0422
+            },
+            "n": 74,
+            "n_basis": {
+              "n_downstream_effectors": 74,
+              "n_upstream_regulators": 147
+            }
+          },
+          "key_fields": {
+            "moa_ontology_unmapped_fraction": 0.0422
+          },
+          "measurement_type": "signaling_network_mechanism",
+          "question_ids": [
+            "biology_context"
+          ],
+          "role": "verdict_bearing",
+          "rule_ids": [
+            "mechanism-well-characterized-supportive",
+            "has-pd-marker-supportive"
+          ],
+          "signal": {
+            "label": "well_characterized",
+            "liability": false,
+            "polarity": "supportive",
+            "tier": "strong"
+          },
+          "tier": "target"
+        },
+        {
+          "axis_id": "MODALITY_ROUTING",
+          "chain": {
+            "contributes_to_verdict": false,
+            "data": [],
+            "dataset_ids": [
+              "reactome-v96"
+            ],
+            "is_driving": false,
+            "rule_id": null
+          },
+          "class": {
+            "field": null,
+            "value": "well_annotated"
+          },
+          "confidence": {
+            "dots": 3,
+            "eco_id": "ECO:0000006",
+            "evidence_state": "measured",
+            "level": "high",
+            "n": null
+          },
+          "dataset_ids": [
+            "reactome-v96"
+          ],
+          "id": "reactome-pathway-membership",
+          "key_evidence": null,
+          "key_fields": {},
+          "measurement_type": "reactome_pathway_membership",
+          "question_ids": [
+            "biology_context"
+          ],
+          "role": "display_only",
+          "rule_ids": [],
+          "signal": {
+            "label": "well_annotated",
+            "liability": false,
+            "polarity": "neutral",
+            "tier": "strong"
+          },
+          "tier": "target"
+        },
+        {
+          "axis_id": "MODALITY_ROUTING",
+          "chain": {
+            "contributes_to_verdict": false,
+            "data": [],
+            "dataset_ids": [
+              "string-v12-human-snapshot-2026-06-30",
+              "corum-5-3",
+              "biogrid-physical-interactions-per-gene-v1"
+            ],
+            "is_driving": false,
+            "rule_id": null
+          },
+          "class": {
+            "field": null,
+            "value": "hub"
+          },
+          "confidence": {
+            "dots": 3,
+            "eco_id": "ECO:0000006",
+            "evidence_state": "measured",
+            "level": "high",
+            "n": null
+          },
+          "dataset_ids": [
+            "string-v12-human-snapshot-2026-06-30",
+            "corum-5-3",
+            "biogrid-physical-interactions-per-gene-v1"
+          ],
+          "id": "ppi-interactome",
+          "key_evidence": {
+            "n": 43,
+            "n_basis": {
+              "in_protein_complex": true,
+              "n_corum_complexes": 43,
+              "n_high_confidence_interactors": 506
+            }
+          },
+          "key_fields": {},
+          "measurement_type": "ppi_interactome",
+          "question_ids": [
+            "biology_context"
+          ],
+          "role": "display_only",
+          "rule_ids": [],
+          "signal": {
+            "label": "hub",
+            "liability": false,
+            "polarity": "neutral",
+            "tier": "strong"
+          },
+          "tier": "target"
+        },
+        {
+          "axis_id": "MODALITY_ROUTING",
+          "chain": {
+            "contributes_to_verdict": false,
+            "data": [],
+            "dataset_ids": [
+              "uniprot-protein-features-v1",
+              "interpro-109-0-snapshot-2026-08-05"
+            ],
+            "is_driving": false,
+            "rule_id": null
+          },
+          "class": {
+            "field": "protein_features_class",
+            "value": "single_domain"
+          },
+          "confidence": {
+            "dots": 3,
+            "eco_id": "ECO:0000006",
+            "evidence_state": "measured",
+            "level": "high",
+            "n": null
+          },
+          "dataset_ids": [
+            "uniprot-protein-features-v1",
+            "interpro-109-0-snapshot-2026-08-05"
+          ],
+          "id": "protein-domains-class",
+          "key_evidence": {
+            "categorical": [
+              {
+                "field": "protein_features_class",
+                "value": "single_domain"
+              },
+              {
+                "field": "protein_class",
+                "value": [
+                  "kinase",
+                  "receptor",
+                  "transferase"
+                ]
+              },
+              {
+                "field": "protein_class_primary",
+                "value": "kinase"
+              },
+              {
+                "field": "domain_evidence",
+                "value": "both"
+              }
+            ],
+            "n": 1,
+            "n_basis": {
+              "interpro_n_domains": 8,
+              "n_domains": 1
+            }
+          },
+          "key_fields": {},
+          "measurement_type": "protein_domains_class",
+          "question_ids": [
+            "modality_route"
+          ],
+          "role": "display_only",
+          "rule_ids": [],
+          "signal": {
+            "label": "single_domain",
+            "liability": false,
+            "polarity": "neutral",
+            "tier": "moderate"
+          },
+          "tier": "target"
+        },
+        {
+          "axis_id": "TRACTABILITY_PRECEDENT",
+          "chain": {
+            "contributes_to_verdict": false,
+            "data": [],
+            "dataset_ids": [
+              "pharos-idg-tcrd-snapshot-2026-08-10"
+            ],
+            "is_driving": false,
+            "rule_id": null
+          },
+          "class": {
+            "field": null,
+            "value": "Tclin"
+          },
+          "confidence": {
+            "dots": 3,
+            "eco_id": "ECO:0000006",
+            "evidence_state": "measured",
+            "level": "high",
+            "n": null
+          },
+          "dataset_ids": [
+            "pharos-idg-tcrd-snapshot-2026-08-10"
+          ],
+          "id": "target-development-level",
+          "key_evidence": null,
+          "key_fields": {},
+          "measurement_type": "target_development_level",
+          "question_ids": [
+            "tractability_precedent"
+          ],
+          "role": "display_only",
+          "rule_ids": [],
+          "signal": {
+            "label": "Tclin",
+            "liability": false,
+            "polarity": "neutral",
+            "tier": "strong"
+          },
+          "tier": "target"
+        },
+        {
+          "axis_id": "TRACTABILITY_PRECEDENT",
+          "chain": {
+            "contributes_to_verdict": true,
+            "data": [
+              {
+                "field": "chembl_best_pchembl",
+                "value": 11.0
+              }
+            ],
+            "dataset_ids": [
+              "chembl-bioactivity-per-protein-v1",
+              "bindingdb-affinity-per-protein-v1"
+            ],
+            "is_driving": false,
+            "rule_id": "measured-potent-ligand-sm-supportive"
+          },
+          "class": {
+            "field": "measured_bioactivity_class",
+            "value": "potent_measured_ligand"
+          },
+          "confidence": {
+            "dots": 3,
+            "eco_id": "ECO:0000006",
+            "evidence_state": "measured",
+            "level": "high",
+            "n": 22078
+          },
+          "dataset_ids": [
+            "chembl-bioactivity-per-protein-v1",
+            "bindingdb-affinity-per-protein-v1"
+          ],
+          "id": "measured-potency-tractability",
+          "key_evidence": {
+            "categorical": [
+              {
+                "field": "measured_bioactivity_class",
+                "value": "potent_measured_ligand"
+              },
+              {
+                "field": "chembl_clinical_phase_class",
+                "value": "approved"
+              }
+            ],
+            "effect": {
+              "direction": "higher_is_stronger",
+              "metric": "chembl_best_pchembl",
+              "value": 11.0
+            },
+            "interpretation": [
+              {
+                "direction": "higher_is_stronger",
+                "frame": {
+                  "anchors": [
+                    {
+                      "label": "potent_cut",
+                      "role": "cut",
+                      "value": 6.0
+                    }
+                  ],
+                  "kind": "distance_to_cut"
+                },
+                "metric": "best_measured_potency_neglog_m",
+                "position": "potent_measured_ligand",
+                "position_source": "measured_bioactivity_class",
+                "scale": "neglog_M",
+                "value": 11.7
+              }
+            ],
+            "n_basis": {
+              "best_measured_potency_neglog_m": 11.699,
+              "bindingdb_n_potent_ligands": 22078,
+              "chembl_n_potent_ligands": 16683
+            }
+          },
+          "key_fields": {
+            "chembl_best_pchembl": 11.0
+          },
+          "measurement_type": "measured_potency_tractability",
+          "question_ids": [
+            "tractability_precedent"
+          ],
+          "role": "verdict_bearing",
+          "rule_ids": [
+            "measured-potent-ligand-sm-supportive",
+            "measured-chembl-approved-sm-supportive"
+          ],
+          "signal": {
+            "label": "potent_measured_ligand",
+            "liability": false,
+            "polarity": "supportive",
+            "tier": "strong"
+          },
+          "tier": "target"
+        },
+        {
+          "axis_id": "MODALITY_ROUTING",
+          "chain": {
+            "contributes_to_verdict": true,
+            "data": [],
+            "dataset_ids": [
+              "uniprot-protein-features-v1",
+              "interpro-109-0-snapshot-2026-08-05"
+            ],
+            "is_driving": false,
+            "rule_id": "domain-modality-context-dependent-degrader-neutral"
+          },
+          "class": {
+            "field": "modality_implication_class",
+            "value": "context_dependent"
+          },
+          "confidence": {
+            "dots": 3,
+            "eco_id": "ECO:0000006",
+            "evidence_state": "measured",
+            "level": "high",
+            "n": null
+          },
+          "dataset_ids": [
+            "uniprot-protein-features-v1",
+            "interpro-109-0-snapshot-2026-08-05"
+          ],
+          "id": "domain-modality-relevance",
+          "key_evidence": {
+            "n": 1,
+            "n_basis": {
+              "n_domains": 1
+            }
+          },
+          "key_fields": {},
+          "measurement_type": "domain_modality_relevance",
+          "question_ids": [
+            "modality_route"
+          ],
+          "role": "verdict_bearing",
+          "rule_ids": [
+            "domain-modality-context-dependent-degrader-neutral"
+          ],
+          "signal": {
+            "label": "context_dependent",
+            "liability": false,
+            "polarity": "supportive",
+            "tier": "weak"
+          },
+          "tier": "target"
+        },
+        {
+          "axis_id": null,
+          "chain": {
+            "contributes_to_verdict": true,
+            "data": [],
+            "dataset_ids": [
+              "depmap-paralog-buffering-per-gene-v1"
+            ],
+            "is_driving": false,
+            "rule_id": "strong-paralog-buffering-degrader-preferred"
+          },
+          "class": {
+            "field": "paralog_buffering_class",
+            "value": "strong"
+          },
+          "confidence": {
+            "dots": 3,
+            "eco_id": "ECO:0000006",
+            "evidence_state": "measured",
+            "level": "high",
+            "n": null
+          },
+          "dataset_ids": [
+            "depmap-paralog-buffering-per-gene-v1"
+          ],
+          "id": "paralog-buffering",
+          "key_evidence": {
+            "n": 9,
+            "n_basis": {
+              "n_paralogs_annotated": 9,
+              "n_paralogs_functionally_buffering": 9
+            }
+          },
+          "key_fields": {},
+          "measurement_type": "paralog_buffering",
+          "question_ids": [
+            "normal_context"
+          ],
+          "role": "verdict_bearing",
+          "rule_ids": [
+            "strong-paralog-buffering-degrader-preferred"
+          ],
+          "signal": {
+            "label": "strong",
+            "liability": false,
+            "polarity": "supportive",
+            "tier": null
+          },
+          "tier": "target"
+        },
+        {
+          "axis_id": null,
+          "chain": {
+            "contributes_to_verdict": true,
+            "data": [],
+            "dataset_ids": [
+              "hpa-v25-1"
+            ],
+            "is_driving": false,
+            "rule_id": "normal-tissue-protein-liability-safety-warning"
+          },
+          "class": {
+            "field": "essential_tissue_flag",
+            "value": "present"
+          },
+          "confidence": {
+            "dots": 3,
+            "eco_id": "ECO:0000006",
+            "evidence_state": "measured",
+            "level": "high",
+            "n": null
+          },
+          "dataset_ids": [
+            "hpa-v25-1"
+          ],
+          "id": "normal-tissue-liability",
+          "key_evidence": {
+            "categorical": [
+              {
+                "field": "normal_tissue_breadth_class",
+                "value": "broad_normal_expression"
+              },
+              {
+                "field": "hpa_tissue_specificity",
+                "value": "Low tissue specificity"
+              }
+            ],
+            "n": 0,
+            "n_basis": {
+              "n_essential_tissues_with_expression": 0,
+              "n_specific_tissues": 0
+            }
+          },
+          "key_fields": {},
+          "measurement_type": "normal_tissue_protein_breadth",
+          "question_ids": [
+            "normal_context"
+          ],
+          "role": "verdict_bearing",
+          "rule_ids": [
+            "normal-tissue-protein-liability-safety-warning"
+          ],
+          "signal": {
+            "label": "broad_normal_expression",
+            "liability": false,
+            "polarity": "supportive",
+            "tier": null
+          },
+          "tier": "target"
+        }
+      ],
+      "citations": [],
+      "datasets": [
+        {
+          "id": "bindingdb-affinity-per-protein-v1",
+          "license": null,
+          "s3_uri": null
+        },
+        {
+          "id": "biogrid-physical-interactions-per-gene-v1",
+          "license": null,
+          "s3_uri": null
+        },
+        {
+          "id": "chembl-bioactivity-per-protein-v1",
+          "license": null,
+          "s3_uri": null
+        },
+        {
+          "id": "corum-5-3",
+          "license": null,
+          "s3_uri": null
+        },
+        {
+          "id": "depmap-consortium-26q1-proteomics",
+          "license": null,
+          "s3_uri": null
+        },
+        {
+          "id": "depmap-paralog-buffering-per-gene-v1",
+          "license": null,
+          "s3_uri": null
+        },
+        {
+          "id": "gene-ontology-release-2026-05-19",
+          "license": null,
+          "s3_uri": null
+        },
+        {
+          "id": "gnomad-constraint-per-gene-v1",
+          "license": null,
+          "s3_uri": null
+        },
+        {
+          "id": "hpa-v25-1",
+          "license": null,
+          "s3_uri": null
+        },
+        {
+          "id": "impc-ko-phenotype-per-gene-v1",
+          "license": null,
+          "s3_uri": null
+        },
+        {
+          "id": "interpro-109-0-snapshot-2026-08-05",
+          "license": null,
+          "s3_uri": null
+        },
+        {
+          "id": "opentargets-26-06",
+          "license": null,
+          "s3_uri": null
+        },
+        {
+          "id": "pdb-alphafold-structure-features-per-uniprot-v1",
+          "license": null,
+          "s3_uri": null
+        },
+        {
+          "id": "pharos-idg-tcrd-snapshot-2026-08-10",
+          "license": null,
+          "s3_uri": null
+        },
+        {
+          "id": "reactome-v96",
+          "license": null,
+          "s3_uri": null
+        },
+        {
+          "id": "signor-jul2026",
+          "license": null,
+          "s3_uri": null
+        },
+        {
+          "id": "signor-mechanism-network-per-gene-v1",
+          "license": null,
+          "s3_uri": null
+        },
+        {
+          "id": "string-v12-human-snapshot-2026-06-30",
+          "license": null,
+          "s3_uri": null
+        },
+        {
+          "id": "structure-ligandability-per-protein-v1",
+          "license": null,
+          "s3_uri": null
+        },
+        {
+          "id": "surfaceome-family-classification-per-uniprot-v1",
+          "license": null,
+          "s3_uri": null
+        },
+        {
+          "id": "target-id-resolver-release",
+          "license": null,
+          "s3_uri": null
+        },
+        {
+          "id": "uniprot-protein-features-v1",
+          "license": null,
+          "s3_uri": null
+        }
+      ],
+      "indication": "PANCANCER",
+      "literature": {},
+      "narrative": {},
+      "questions": [
+        {
+          "axis_id": "MODALITY_ROUTING",
+          "card_ids": [
+            "surfaceome-family-classification",
+            "structure-features-static",
+            "shed-ectodomain-liability",
+            "protein-domains-class",
+            "domain-modality-relevance"
+          ],
+          "confidence": {
+            "dots": 3,
+            "label": "corroboration: high",
+            "level": "high"
+          },
+          "evidence_refs": [
+            {
+              "card_id": "surfaceome-family-classification",
+              "field": null,
+              "label": "surfaceome-family-classification kinase_surface",
+              "value": "kinase_surface"
+            },
+            {
+              "card_id": "structure-features-static",
+              "field": "mutation_hotspot_in_druggable_pocket",
+              "label": "structure-features-static True",
+              "value": true
+            },
+            {
+              "card_id": "shed-ectodomain-liability",
+              "field": "shed_liability_class",
+              "label": "shed-ectodomain-liability secretome_proxy_shed",
+              "value": "secretome_proxy_shed"
+            },
+            {
+              "card_id": "protein-domains-class",
+              "field": "protein_features_class",
+              "label": "protein-domains-class single_domain",
+              "value": "single_domain"
+            },
+            {
+              "card_id": "domain-modality-relevance",
+              "field": "modality_implication_class",
+              "label": "domain-modality-relevance context_dependent",
+              "value": "context_dependent"
+            }
+          ],
+          "id": "modality_route",
+          "literature_axis_ids": [],
+          "prose": {
+            "primary": "domain-modality-relevance: context_dependent (basis=curated)",
+            "support": ""
+          },
+          "role": "display_only",
+          "rule_ids": [
+            "hotspot-in-druggable-pocket-sm-supportive-e8",
+            "structure-pocket-adjacent-sm-supportive",
+            "ligandability-experimental-sm-supportive",
+            "domain-modality-context-dependent-degrader-neutral"
+          ],
+          "seq": 1,
+          "signal": {
+            "label": "weak",
+            "polarity": "informs",
+            "tier": "weak"
+          },
+          "text": "Do the target's domains / family / structure imply a modality route (SM / degrader / biologic)?"
+        },
+        {
+          "axis_id": "TRACTABILITY_PRECEDENT",
+          "card_ids": [
+            "target-development-level",
+            "measured-potency-tractability"
+          ],
+          "confidence": {
+            "dots": 2,
+            "label": "corroboration: moderate",
+            "level": "moderate"
+          },
+          "evidence_refs": [
+            {
+              "card_id": "target-development-level",
+              "field": null,
+              "label": "target-development-level Tclin",
+              "value": "Tclin"
+            },
+            {
+              "card_id": "measured-potency-tractability",
+              "field": "measured_bioactivity_class",
+              "label": "measured-potency-tractability potent_measured_ligand",
+              "value": "potent_measured_ligand"
+            }
+          ],
+          "id": "tractability_precedent",
+          "literature_axis_ids": [],
+          "prose": {
+            "primary": "target-development-level: Tclin",
+            "support": ""
+          },
+          "role": "display_only",
+          "rule_ids": [
+            "measured-potent-ligand-sm-supportive",
+            "measured-chembl-approved-sm-supportive"
+          ],
+          "seq": 2,
+          "signal": {
+            "label": "strong",
+            "polarity": "informs",
+            "tier": "strong"
+          },
+          "text": "What is the target's development-level precedent + measured chemical matter?"
+        },
+        {
+          "axis_id": "MODALITY_ROUTING",
+          "card_ids": [
+            "target-identity-summary",
+            "gene-ontology-annotation",
+            "signaling-network-mechanism",
+            "reactome-pathway-membership",
+            "ppi-interactome"
+          ],
+          "confidence": {
+            "dots": null,
+            "label": null,
+            "level": null
+          },
+          "evidence_refs": [
+            {
+              "card_id": "gene-ontology-annotation",
+              "field": null,
+              "label": "gene-ontology-annotation well_annotated",
+              "value": "well_annotated"
+            },
+            {
+              "card_id": "signaling-network-mechanism",
+              "field": "network_class",
+              "label": "signaling-network-mechanism well_characterized",
+              "value": "well_characterized"
+            },
+            {
+              "card_id": "reactome-pathway-membership",
+              "field": null,
+              "label": "reactome-pathway-membership well_annotated",
+              "value": "well_annotated"
+            },
+            {
+              "card_id": "ppi-interactome",
+              "field": null,
+              "label": "ppi-interactome hub",
+              "value": "hub"
+            }
+          ],
+          "id": "biology_context",
+          "literature_axis_ids": [],
+          "prose": {
+            "primary": null,
+            "support": null
+          },
+          "role": "display_only",
+          "rule_ids": [
+            "mechanism-well-characterized-supportive",
+            "has-pd-marker-supportive"
+          ],
+          "seq": 3,
+          "signal": {
+            "label": null,
+            "polarity": null,
+            "tier": null
+          },
+          "text": "What is the target's identity, molecular function, pathway role, and interactome?"
+        },
+        {
+          "axis_id": null,
+          "card_ids": [
+            "gnomad-lof-constraint",
+            "gene-burden-safety",
+            "clingen-dosage",
+            "clinvar-pathogenicity-safety",
+            "mouse-ko-phenotype",
+            "target-safety-prioritisation"
+          ],
+          "confidence": {
+            "dots": null,
+            "label": null,
+            "level": null
+          },
+          "evidence_refs": [
+            {
+              "card_id": "gnomad-lof-constraint",
+              "field": "constraint_class",
+              "label": "gnomad-lof-constraint moderately_constrained",
+              "value": "moderately_constrained"
+            },
+            {
+              "card_id": "gene-burden-safety",
+              "field": null,
+              "label": "gene-burden-safety insufficient",
+              "value": "insufficient"
+            },
+            {
+              "card_id": "clingen-dosage",
+              "field": "dosage_sensitivity_class",
+              "label": "clingen-dosage autosomal_dominant_loss",
+              "value": "autosomal_dominant_loss"
+            },
+            {
+              "card_id": "clinvar-pathogenicity-safety",
+              "field": "clinvar_pathogenic_class",
+              "label": "clinvar-pathogenicity-safety germline_pathogenic",
+              "value": "germline_pathogenic"
+            },
+            {
+              "card_id": "mouse-ko-phenotype",
+              "field": "ko_phenotype_class",
+              "label": "mouse-ko-phenotype lethal_ko",
+              "value": "lethal_ko"
+            }
+          ],
+          "id": "safety_genetics",
+          "literature_axis_ids": [],
+          "prose": {
+            "primary": null,
+            "support": null
+          },
+          "role": "display_only",
+          "rule_ids": [
+            "moderately-constrained-safety-neutral",
+            "clingen-dominant-loss-safety-warning",
+            "clinvar-germline-pathogenic-safety-warning",
+            "mouse-ko-lethal-safety-warning"
+          ],
+          "seq": 4,
+          "signal": {
+            "label": null,
+            "polarity": null,
+            "tier": null
+          },
+          "text": "Is the gene loss-of-function intolerant in humans (germline safety genetics)?"
+        },
+        {
+          "axis_id": null,
+          "card_ids": [
+            "paralog-buffering",
+            "normal-tissue-liability"
+          ],
+          "confidence": {
+            "dots": null,
+            "label": null,
+            "level": null
+          },
+          "evidence_refs": [
+            {
+              "card_id": "paralog-buffering",
+              "field": "paralog_buffering_class",
+              "label": "paralog-buffering strong",
+              "value": "strong"
+            },
+            {
+              "card_id": "normal-tissue-liability",
+              "field": "essential_tissue_flag",
+              "label": "normal-tissue-liability present",
+              "value": "present"
+            }
+          ],
+          "id": "normal_context",
+          "literature_axis_ids": [],
+          "prose": {
+            "primary": null,
+            "support": null
+          },
+          "role": "display_only",
+          "rule_ids": [
+            "strong-paralog-buffering-degrader-preferred",
+            "normal-tissue-protein-liability-safety-warning"
+          ],
+          "seq": 5,
+          "signal": {
+            "label": null,
+            "polarity": null,
+            "tier": null
+          },
+          "text": "What is the target's normal-tissue footprint and paralog redundancy?"
+        }
+      ],
+      "rules": [
+        {
+          "card_id": "structure-features-static",
+          "dominant": true,
+          "field": "mutation_hotspot_in_druggable_pocket",
+          "id": "hotspot-in-druggable-pocket-sm-supportive-e8",
+          "is_driving": false,
+          "rationale": "A known TCGA mutation hotspot sits in a druggable pocket \u2192 small-molecule",
+          "value": true
+        },
+        {
+          "card_id": "structure-features-static",
+          "dominant": false,
+          "field": "hotspot_pocket_adjacency_call",
+          "id": "structure-pocket-adjacent-sm-supportive",
+          "is_driving": false,
+          "rationale": "A mutation hotspot sits ADJACENT to a resolved pocket (PDB or high-confidence",
+          "value": "adjacent"
+        },
+        {
+          "card_id": "structure-features-static",
+          "dominant": true,
+          "field": "structural_ligandability_class",
+          "id": "ligandability-experimental-sm-supportive",
+          "is_driving": false,
+          "rationale": "A real experimental ligand-bound co-crystal exists (PLINDER) \u2014 the strongest possible",
+          "value": "experimental_ligandable"
+        },
+        {
+          "card_id": "measured-potency-tractability",
+          "dominant": true,
+          "field": "measured_bioactivity_class",
+          "id": "measured-potent-ligand-sm-supportive",
+          "is_driving": false,
+          "rationale": "A potent (<=1 uM) MEASURED small-molecule ligand SERIES exists (>=10 potent ligands in ChEMBL",
+          "value": "potent_measured_ligand"
+        },
+        {
+          "card_id": "measured-potency-tractability",
+          "dominant": false,
+          "field": "chembl_approved_engagement_class",
+          "id": "measured-chembl-approved-sm-supportive",
+          "is_driving": false,
+          "rationale": "A drug that reached APPROVAL (ChEMBL max_clinical_phase >= 4) is catalogued against this target \u2014",
+          "value": "approved_direct"
+        },
+        {
+          "card_id": "signaling-network-mechanism",
+          "dominant": false,
+          "field": "network_class",
+          "id": "mechanism-well-characterized-supportive",
+          "is_driving": false,
+          "rationale": ">= 3 upstream regulators AND >= 3 downstream effectors in the composed",
+          "value": "well_characterized"
+        },
+        {
+          "card_id": "signaling-network-mechanism",
+          "dominant": false,
+          "field": "has_pd_marker",
+          "id": "has-pd-marker-supportive",
+          "is_driving": false,
+          "rationale": "At least one downstream effector identified. PD-marker candidates",
+          "value": true
+        },
+        {
+          "card_id": "paralog-buffering",
+          "dominant": true,
+          "field": "paralog_buffering_class",
+          "id": "strong-paralog-buffering-degrader-preferred",
+          "is_driving": false,
+          "rationale": "Target has a strongly-buffering paralog (dep_delta > 0.5). Small-",
+          "value": "strong"
+        },
+        {
+          "card_id": "gnomad-lof-constraint",
+          "dominant": false,
+          "field": "constraint_class",
+          "id": "moderately-constrained-safety-neutral",
+          "is_driving": false,
+          "rationale": "Target sits in the MIDDLE gnomAD constraint band (between highly_constrained",
+          "value": "moderately_constrained"
+        },
+        {
+          "card_id": "clingen-dosage",
+          "dominant": true,
+          "field": "dosage_sensitivity_class",
+          "id": "clingen-dominant-loss-safety-warning",
+          "is_driving": false,
+          "rationale": "ClinGen shows single-copy loss is pathogenic (a high-confidence autosomal-dominant gene-disease",
+          "value": "autosomal_dominant_loss"
+        },
+        {
+          "card_id": "mouse-ko-phenotype",
+          "dominant": false,
+          "field": "ko_phenotype_class",
+          "id": "mouse-ko-lethal-safety-warning",
+          "is_driving": false,
+          "rationale": "Mouse ADULT/postnatal knockout is lethal \u2014 an adult-essential-function signal (death after",
+          "value": "lethal_ko"
+        },
+        {
+          "card_id": "clinvar-pathogenicity-safety",
+          "dominant": false,
+          "field": "clinvar_pathogenic_class",
+          "id": "clinvar-germline-pathogenic-safety-warning",
+          "is_driving": false,
+          "rationale": "ClinVar carries confident GERMLINE pathogenic variants \u2014 curated evidence that losing/altering",
+          "value": "germline_pathogenic"
+        },
+        {
+          "card_id": "domain-modality-relevance",
+          "dominant": false,
+          "field": "modality_implication_class",
+          "id": "domain-modality-context-dependent-degrader-neutral",
+          "is_driving": false,
+          "rationale": "The inhibitor-vs-removal choice depends on the specific pathway/indication (curated",
+          "value": "context_dependent"
+        },
+        {
+          "card_id": "normal-tissue-liability",
+          "dominant": true,
+          "field": "essential_tissue_flag",
+          "id": "normal-tissue-protein-liability-safety-warning",
+          "is_driving": false,
+          "rationale": "HPA immunohistochemistry detects the target protein in >=1 curated ESSENTIAL normal tissue",
+          "value": "present"
+        }
+      ],
+      "schema_version": "1.0",
+      "skill": "target-intrinsic",
+      "target": "EGFR",
+      "verdict": {
+        "call": "Target-intrinsic modality/tractability context present.",
+        "confidence": {
+          "coverage": {
+            "n_axes": 2,
+            "n_critical_measured": 2,
+            "n_measured": 2
+          },
+          "level": "moderate"
+        },
+        "driving_rule_id": null,
+        "id": null,
+        "polarity": "neutral",
+        "top_tension": null
+      }
+    },
+    "gene_burden_safety_class": "insufficient",
+    "gnomad_constraint_class": "moderately_constrained",
+    "go_annotation_class": "well_annotated",
+    "go_n_biological_process": 43,
+    "go_n_cellular_component": 27,
+    "go_n_molecular_function": 21,
+    "go_n_terms_total": 91,
+    "has_druggable_pocket": true,
+    "has_experimental_cocrystal": true,
+    "has_virtual_screen_hit": true,
+    "headline_block": {
+      "_disclaimer": "Canonical headline (verdict + confidence + top-tension) \u2014 a verdict-INERT projection over the computed decision. Confidence is weakest-link over the claim vector's corroboration (measured axes), capped by conflict and coverage; it never moves the verdict.",
+      "confidence": {
+        "basis": "weakest-link corroboration = moderate",
+        "coverage": {
+          "n_axes": 2,
+          "n_critical_measured": 2,
+          "n_measured": 2
+        },
+        "level": "moderate"
+      },
+      "headline_text": "Target-intrinsic modality/tractability context present \u2014 moderate confidence.",
+      "hero": {
+        "axes": [
+          {
+            "conflict": false,
+            "corroboration": "high",
+            "key": "MODALITY_ROUTING",
+            "label": "domain\u2192modality implication",
+            "signal": "weak"
+          },
+          {
+            "conflict": false,
+            "corroboration": "moderate",
+            "key": "TRACTABILITY_PRECEDENT",
+            "label": "Pharos/IDG development level",
+            "signal": "strong"
+          }
+        ],
+        "confidence": {
+          "coverage": {
+            "n_axes": 2,
+            "n_critical_measured": 2,
+            "n_measured": 2
+          },
+          "level": "moderate"
+        },
+        "kind": "headline_hero",
+        "tension": null,
+        "verdict": {
+          "call": null,
+          "gate": "target_intrinsic",
+          "phrase": "Target-intrinsic modality/tractability context present.",
+          "polarity": "neutral"
+        }
+      },
+      "provenance": [
+        {
+          "axis": "MODALITY_ROUTING",
+          "card_id": "domain-modality-relevance",
+          "fields": [
+            "modality_context",
+            "modality_implication_basis",
+            "modality_implication_class",
+            "scaffolding_function"
+          ]
+        },
+        {
+          "axis": "TRACTABILITY_PRECEDENT",
+          "card_id": "target-development-level",
+          "fields": [
+            "novelty_score",
+            "target_family",
+            "tdl_class",
+            "tdl_meaning"
+          ]
+        }
+      ],
+      "top_tension": null,
+      "verdict": {
+        "call": null,
+        "driving_rule_id": null,
+        "gate": "target_intrinsic",
+        "phrase": "Target-intrinsic modality/tractability context present.",
+        "polarity": "neutral"
+      }
+    },
+    "in_protein_complex": true,
+    "interactome_class": "hub",
+    "intrinsic_confirmation_caveat": {
+      "basis": [
+        "experimental co-crystal / strong PDB coverage (structural_ligandability_class=experimental_ligandable)",
+        "EGFR carries an approved / clinically-validated directly-acting agent (_VALIDATED_INTRINSIC_PROPERTY crosswalk)"
+      ],
+      "note": "The actionability-relevant intrinsic property is EXPERIMENTALLY CONFIRMED (experimental co-crystal / strong PDB coverage (structural_ligandability_class=experimental_ligandable); EGFR carries an approved / clinically-validated directly-acting agent (_VALIDATED_INTRINSIC_PROPERTY crosswalk)) \u2014 NOT a prediction / homology over-call, and explicitly NOT demoted (false-demote guard: BRAF / EGFR / KRAS-G12C class). Note experimental structure \u2260 proven DIRECT druggability / indication-fit (owned by tractability-small-molecule); a solved fold + co-crystal is a confirmed intrinsic property, not a nomination. Orientation: the OT prioritisation composite double-counts the dedicated gnomad-lof-constraint + mouse-ko-phenotype cards \u2014 not an independent vote.",
+      "reason": "experimentally_confirmed_intrinsic_property"
+    },
+    "intrinsic_provenance": {
+      "alphafold_confidence_class": "moderate",
+      "chembl_n_potent_ligands": 16683,
+      "disordered_fraction": 0.2281,
+      "experimentally_confirmed_actionable_property": true,
+      "gnomad_constraint_class": "moderately_constrained",
+      "go_annotation_class": "well_annotated",
+      "has_druggable_pocket": true,
+      "has_experimental_cocrystal": true,
+      "has_virtual_screen_hit": true,
+      "interactome_class": "hub",
+      "is_surface_protein": true,
+      "ligandability_disorder_class": "partially_disordered",
+      "measured_bioactivity_class": "potent_measured_ligand",
+      "n_ligandability_axes": 5,
+      "ot_composite_double_counts_dedicated_cards": true,
+      "ot_prioritisation_status": "scored",
+      "pdb_coverage_class": "strong",
+      "source_hpa_plasma_membrane": true,
+      "source_surfy_positive": true,
+      "structural_ligandability_class": "experimental_ligandable",
+      "surface_protein_family": "kinase_surface",
+      "surfaceome_confidence_score": 1.0,
+      "tdl_class": "Tclin",
+      "validated_intrinsic_property_crosswalk_hit": true
+    },
+    "is_surface_protein": true,
+    "key_signals": {
+      "caveat": null,
+      "headline": "Target-intrinsic modality/tractability context present.",
+      "supports": [
+        "TRACTABILITY_PRECEDENT: strong (target-development-level: Tclin)"
+      ]
+    },
+    "ligandability_disorder_class": "partially_disordered",
+    "measured_bioactivity_class": "potent_measured_ligand",
+    "modality_implication_basis": "curated",
+    "modality_implication_class": "context_dependent",
+    "modality_implication_context": "EGFR has documented KINASE-INDEPENDENT pro-survival functions (glucose transporter stabilization, autophagy modulation) beyond its catalytic activity, so full removal (degrader / antibody-mediated downregulation) can differ from TKI inhibition in some contexts. But the dominant oncogenic driver in EGFR-mutant NSCLC IS the kinase, where TKIs are validated \u2014 hence context_dependent, not removal_required.",
+    "modality_scaffolding_function": false,
+    "mouse_ko_phenotype_class": "lethal_ko",
+    "n_corum_complexes": 43,
+    "n_domains": 1,
+    "n_downstream_effectors": 74,
+    "n_high_confidence_interactors": 506,
+    "n_ligandability_axes": 5,
+    "n_paralogs_annotated": 9,
+    "n_upstream_regulators": 147,
+    "network_class": "well_characterized",
+    "normal_tissue_breadth_class": "broad_normal_expression",
+    "ot_genetic_constraint_band": "unfavorable",
+    "ot_has_safety_event_band": "unfavorable",
+    "ot_mouse_ko_score_band": "unfavorable",
+    "paralog_buffering_class": "strong",
+    "pathway_class": "well_annotated",
+    "pathway_count": 82,
+    "pdb_coverage_class": "strong",
+    "protein_class": [
+      "kinase",
+      "receptor",
+      "transferase"
+    ],
+    "protein_features_class": "single_domain",
+    "question_table": [
+      {
+        "confidence": {
+          "dots": 3,
+          "label": "corroboration: high",
+          "tier": "high"
+        },
+        "id": "Q1",
+        "primary": "domain-modality-relevance: context_dependent (basis=curated)",
+        "question": "Do the target's domains / family imply a modality route (SM / degrader / biologic)?",
+        "signal": {
+          "fill": 2,
+          "label": "weak",
+          "polarity": "informs",
+          "tier": "weak"
+        },
+        "support": ""
+      },
+      {
+        "confidence": {
+          "dots": 2,
+          "label": "corroboration: moderate",
+          "tier": "moderate"
+        },
+        "id": "Q2",
+        "primary": "target-development-level: Tclin",
+        "question": "What is the target's development-level precedent (Pharos / IDG Tclin\u2192Tdark)?",
+        "signal": {
+          "fill": 5,
+          "label": "strong",
+          "polarity": "informs",
+          "tier": "strong"
+        },
+        "support": ""
+      }
+    ],
+    "shed_liability_class": "secretome_proxy_shed",
+    "skill_report": {
+      "_contract": "docs/UNIFIED_OUTPUT_CONTRACT.md",
+      "call": null,
+      "claim_chips": [
+        {
+          "cite": {
+            "card_id": "domain-modality-relevance",
+            "fields": [
+              "modality_context",
+              "modality_implication_basis",
+              "modality_implication_class",
+              "scaffolding_function"
+            ]
+          },
+          "cites": [
+            {
+              "card_id": "domain-modality-relevance",
+              "fields": [
+                "modality_context",
+                "modality_implication_basis",
+                "modality_implication_class",
+                "scaffolding_function"
+              ],
+              "role": "signal"
+            }
+          ],
+          "conflict": null,
+          "corroboration": "high",
+          "evidence": "domain-modality-relevance: context_dependent (basis=curated)",
+          "key": "MODALITY_ROUTING",
+          "label": "domain\u2192modality implication \u2014 inhibitor-sufficient vs removal-required (degrader/scaffolding); a MODALITY-FIT routing hint (direction in the atom)",
+          "signal": "weak"
+        },
+        {
+          "cite": {
+            "card_id": "target-development-level",
+            "fields": [
+              "novelty_score",
+              "target_family",
+              "tdl_class",
+              "tdl_meaning"
+            ]
+          },
+          "cites": [
+            {
+              "card_id": "target-development-level",
+              "fields": [
+                "novelty_score",
+                "target_family",
+                "tdl_class",
+                "tdl_meaning"
+              ],
+              "role": "signal"
+            }
+          ],
+          "conflict": null,
+          "corroboration": "moderate",
+          "evidence": "target-development-level: Tclin",
+          "key": "TRACTABILITY_PRECEDENT",
+          "label": "Pharos/IDG development level \u2014 strength of drug-development PRECEDENT for the target's mode (Tdark = understudied, not adverse)",
+          "signal": "strong"
+        }
+      ],
+      "claim_chips_by_subtype": null,
+      "claim_scalars": {},
+      "confidence": {
+        "basis": "weakest-link corroboration = moderate",
+        "coverage": {
+          "n_axes": 2,
+          "n_critical_measured": 2,
+          "n_measured": 2
+        },
+        "level": "moderate"
+      },
+      "figures": [],
+      "honest_phrase": "Target-intrinsic modality/tractability context present.",
+      "modality_scope": null,
+      "per_phase_metrics": [],
+      "polarity": "not_scored",
+      "provenance": {
+        "cards_missing": [],
+        "cards_used": [
+          "target-identity-summary",
+          "gnomad-lof-constraint",
+          "gene-burden-safety",
+          "clingen-dosage",
+          "clinvar-pathogenicity-safety",
+          "mouse-ko-phenotype",
+          "target-safety-prioritisation",
+          "surfaceome-family-classification",
+          "structure-features-static",
+          "shed-ectodomain-liability",
+          "gene-ontology-annotation",
+          "signaling-network-mechanism",
+          "reactome-pathway-membership",
+          "ppi-interactome",
+          "protein-domains-class",
+          "target-development-level",
+          "measured-potency-tractability",
+          "domain-modality-relevance",
+          "paralog-buffering",
+          "normal-tissue-liability"
+        ],
+        "driving_rule_id": null,
+        "fired_rule_ids": [
+          "hotspot-in-druggable-pocket-sm-supportive-e8",
+          "structure-pocket-adjacent-sm-supportive",
+          "ligandability-experimental-sm-supportive",
+          "measured-potent-ligand-sm-supportive",
+          "measured-chembl-approved-sm-supportive",
+          "mechanism-well-characterized-supportive",
+          "has-pd-marker-supportive",
+          "strong-paralog-buffering-degrader-preferred",
+          "moderately-constrained-safety-neutral",
+          "clingen-dominant-loss-safety-warning",
+          "mouse-ko-lethal-safety-warning",
+          "clinvar-germline-pathogenic-safety-warning",
+          "domain-modality-context-dependent-degrader-neutral",
+          "normal-tissue-protein-liability-safety-warning"
+        ]
+      },
+      "question_table": [
+        {
+          "confidence": {
+            "dots": 3,
+            "label": "corroboration: high",
+            "tier": "high"
+          },
+          "id": "Q1",
+          "primary": "domain-modality-relevance: context_dependent (basis=curated)",
+          "question": "Do the target's domains / family imply a modality route (SM / degrader / biologic)?",
+          "signal": {
+            "fill": 2,
+            "label": "weak",
+            "polarity": "informs",
+            "tier": "weak"
+          },
+          "support": ""
+        },
+        {
+          "confidence": {
+            "dots": 2,
+            "label": "corroboration: moderate",
+            "tier": "moderate"
+          },
+          "id": "Q2",
+          "primary": "target-development-level: Tclin",
+          "question": "What is the target's development-level precedent (Pharos / IDG Tclin\u2192Tdark)?",
+          "signal": {
+            "fill": 5,
+            "label": "strong",
+            "polarity": "informs",
+            "tier": "strong"
+          },
+          "support": ""
+        }
+      ],
+      "role": "descriptive",
+      "subgroup_signals": null,
+      "top_tension": null
+    },
+    "strongest_paralog_symbol": "PTK2",
+    "structural_ligandability_class": "experimental_ligandable",
+    "structure_disordered_fraction": 0.2281,
+    "structure_pocket_call": "adjacent",
+    "subgroup_signals": {
+      "MODALITY_ROUTING": {
+        "claims": [
+          {
+            "axis": "MODALITY_ROUTING",
+            "corroboration": "high",
+            "evidence": "domain-modality-relevance: context_dependent (basis=curated)",
+            "evidence_atom": {
+              "cite": {
+                "card_id": "domain-modality-relevance",
+                "fields": [
+                  "modality_context",
+                  "modality_implication_basis",
+                  "modality_implication_class",
+                  "scaffolding_function"
+                ]
+              },
+              "entity": {
+                "grain": "target",
+                "measurement_type": "domain_modality_relevance"
+              },
+              "read": "context_dependent",
+              "values": {
+                "modality_context": "EGFR has documented KINASE-INDEPENDENT pro-survival functions (glucose transporter stabilization, autophagy modulation) beyond its catalytic activity, so full removal (degrader / antibody-mediated downregulation) can differ from TKI inhibition in some contexts. But the dominant oncogenic driver in EGFR-mutant NSCLC IS the kinase, where TKIs are validated \u2014 hence context_dependent, not removal_required.",
+                "modality_implication_basis": "curated",
+                "modality_implication_class": "context_dependent",
+                "scaffolding_function": false
+              }
+            },
+            "signal": "weak"
+          }
+        ],
+        "confidence": "moderate",
+        "conflict": false,
+        "n_agree": 8,
+        "n_sources": 9,
+        "power": "moderate",
+        "signal": "weak",
+        "signal_source": "claim_vector",
+        "sources": [
+          {
+            "card": "surfaceome-family-classification",
+            "conflict": false,
+            "label": "family",
+            "n": null,
+            "tier": "strong",
+            "value": "kinase_surface"
+          },
+          {
+            "card": "structure-features-static",
+            "conflict": false,
+            "label": "pdb coverage",
+            "n": null,
+            "tier": "strong",
+            "value": "strong"
+          },
+          {
+            "card": "shed-ectodomain-liability",
+            "conflict": false,
+            "label": "shed liability",
+            "n": null,
+            "tier": "moderate",
+            "value": "secretome_proxy_shed"
+          },
+          {
+            "card": "gene-ontology-annotation",
+            "conflict": false,
+            "label": "annotation",
+            "n": 27,
+            "tier": "strong",
+            "value": "well_annotated"
+          },
+          {
+            "card": "signaling-network-mechanism",
+            "conflict": false,
+            "label": "network",
+            "n": 74,
+            "tier": "strong",
+            "value": "well_characterized"
+          },
+          {
+            "card": "reactome-pathway-membership",
+            "conflict": false,
+            "label": "pathway",
+            "n": null,
+            "tier": "strong",
+            "value": "well_annotated"
+          },
+          {
+            "card": "ppi-interactome",
+            "conflict": false,
+            "label": "interactome",
+            "n": null,
+            "tier": "strong",
+            "value": "hub"
+          },
+          {
+            "card": "protein-domains-class",
+            "conflict": false,
+            "label": "protein features",
+            "n": null,
+            "tier": "moderate",
+            "value": "single_domain"
+          },
+          {
+            "card": "domain-modality-relevance",
+            "conflict": false,
+            "label": "modality implication",
+            "n": null,
+            "tier": "weak",
+            "value": "context_dependent"
+          }
+        ]
+      },
+      "TRACTABILITY_PRECEDENT": {
+        "claims": [
+          {
+            "axis": "TRACTABILITY_PRECEDENT",
+            "corroboration": "moderate",
+            "evidence": "target-development-level: Tclin",
+            "evidence_atom": {
+              "cite": {
+                "card_id": "target-development-level",
+                "fields": [
+                  "novelty_score",
+                  "target_family",
+                  "tdl_class",
+                  "tdl_meaning"
+                ]
+              },
+              "entity": {
+                "grain": "target",
+                "measurement_type": "target_development_level"
+              },
+              "read": "Tclin",
+              "values": {
+                "novelty_score": 7.274e-05,
+                "target_family": "Kinase",
+                "tdl_class": "Tclin",
+                "tdl_meaning": "clinically drugged (approved drug acts via this target's mode)"
+              }
+            },
+            "signal": "strong"
+          }
+        ],
+        "confidence": "high",
+        "conflict": false,
+        "n_agree": 2,
+        "n_sources": 2,
+        "power": "high",
+        "signal": "strong",
+        "signal_source": "claim_vector",
+        "sources": [
+          {
+            "card": "target-development-level",
+            "conflict": false,
+            "label": "tdl",
+            "n": null,
+            "tier": "strong",
+            "value": "Tclin"
+          },
+          {
+            "card": "measured-potency-tractability",
+            "conflict": false,
+            "label": "measured bioactivity",
+            "n": 22078,
+            "tier": "strong",
+            "value": "potent_measured_ligand"
+          }
+        ]
+      }
+    },
+    "surface_protein_family": "kinase_surface",
+    "surface_source_hpa_plasma_membrane": true,
+    "surface_source_surfy_positive": true,
+    "surfaceome_confidence_score": 1.0,
+    "target_ensembl_id": "ENSG00000146648.0",
+    "target_safety_prioritisation": "scored",
+    "target_symbol": "EGFR",
+    "tdl_class": "Tclin",
+    "tdl_novelty_score": 7.274e-05,
+    "tdl_target_family": "Kinase",
+    "top_level_pathways": [
+      "Developmental Biology",
+      "Disease",
+      "Gene expression (Transcription)",
+      "Signal Transduction",
+      "Vesicle-mediated transport"
+    ]
+  },
+  "indication": "PANCANCER",
+  "provenance": {
+    "data_mode": "live",
+    "release_pin": "unpinned",
+    "resolved_content_digest": "8b988c89a0c5168d",
+    "resolved_release_digest": "988dc071031ce986",
+    "resolved_releases": {
+      "bindingdb-affinity-per-protein": {
+        "head": "bindingdb-affinity-per-protein-v1",
+        "is_stale": false,
+        "used": [
+          "bindingdb-affinity-per-protein-v1"
+        ]
+      },
+      "biogrid-physical-interactions-per-gene": {
+        "head": "biogrid-physical-interactions-per-gene-v1",
+        "is_stale": false,
+        "used": [
+          "biogrid-physical-interactions-per-gene-v1"
+        ]
+      },
+      "chembl-bioactivity-per-protein": {
+        "head": "chembl-bioactivity-per-protein-v1",
+        "is_stale": false,
+        "used": [
+          "chembl-bioactivity-per-protein-v1"
+        ]
+      },
+      "corum-5-3": {
+        "head": "corum-5-3",
+        "is_stale": false,
+        "used": [
+          "corum-5-3"
+        ]
+      },
+      "depmap-consortium-26q1-proteomics": {
+        "head": "depmap-consortium-26q1-proteomics",
+        "is_stale": false,
+        "used": [
+          "depmap-consortium-26q1-proteomics"
+        ]
+      },
+      "depmap-paralog-buffering-per-gene": {
+        "head": "depmap-paralog-buffering-per-gene-v1",
+        "is_stale": false,
+        "used": [
+          "depmap-paralog-buffering-per-gene-v1"
+        ]
+      },
+      "gene-ontology-release-2026-05-19": {
+        "head": "gene-ontology-release-2026-05-19",
+        "is_stale": false,
+        "used": [
+          "gene-ontology-release-2026-05-19"
+        ]
+      },
+      "gnomad-constraint-per-gene": {
+        "head": "gnomad-constraint-per-gene-v1",
+        "is_stale": false,
+        "used": [
+          "gnomad-constraint-per-gene-v1"
+        ]
+      },
+      "hpa": {
+        "head": "hpa-v25-1",
+        "is_stale": false,
+        "used": [
+          "hpa-v25-1"
+        ]
+      },
+      "impc-ko-phenotype-per-gene": {
+        "head": "impc-ko-phenotype-per-gene-v1",
+        "is_stale": false,
+        "used": [
+          "impc-ko-phenotype-per-gene-v1"
+        ]
+      },
+      "interpro-109-0-snapshot-2026-08-05": {
+        "head": "interpro-109-0-snapshot-2026-08-05",
+        "is_stale": false,
+        "used": [
+          "interpro-109-0-snapshot-2026-08-05"
+        ]
+      },
+      "opentargets-26-06": {
+        "head": "opentargets-26-06",
+        "is_stale": false,
+        "used": [
+          "opentargets-26-06"
+        ]
+      },
+      "pdb-alphafold-structure-features-per-uniprot": {
+        "head": "pdb-alphafold-structure-features-per-uniprot-v1",
+        "is_stale": false,
+        "used": [
+          "pdb-alphafold-structure-features-per-uniprot-v1"
+        ]
+      },
+      "pharos-idg-tcrd-snapshot-2026-08-10": {
+        "head": "pharos-idg-tcrd-snapshot-2026-08-10",
+        "is_stale": false,
+        "used": [
+          "pharos-idg-tcrd-snapshot-2026-08-10"
+        ]
+      },
+      "reactome": {
+        "head": "reactome-v96",
+        "is_stale": false,
+        "used": [
+          "reactome-v96"
+        ]
+      },
+      "signor-jul2026": {
+        "head": "signor-jul2026",
+        "is_stale": false,
+        "used": [
+          "signor-jul2026"
+        ]
+      },
+      "signor-mechanism-network-per-gene": {
+        "head": "signor-mechanism-network-per-gene-v1",
+        "is_stale": false,
+        "used": [
+          "signor-mechanism-network-per-gene-v1"
+        ]
+      },
+      "string-v12-human-snapshot-2026-06-30": {
+        "head": "string-v12-human-snapshot-2026-06-30",
+        "is_stale": false,
+        "used": [
+          "string-v12-human-snapshot-2026-06-30"
+        ]
+      },
+      "structure-ligandability-per-protein": {
+        "head": "structure-ligandability-per-protein-v1",
+        "is_stale": false,
+        "used": [
+          "structure-ligandability-per-protein-v1"
+        ]
+      },
+      "surfaceome-family-classification-per-uniprot": {
+        "head": "surfaceome-family-classification-per-uniprot-v1",
+        "is_stale": false,
+        "used": [
+          "surfaceome-family-classification-per-uniprot-v1"
+        ]
+      },
+      "target-id-resolver-release": {
+        "head": null,
+        "resolution_error": "ReleaseResolutionError: No manifest in family 'target-id-resolver-release' (data_mode='latest_approved'). Known families are the id-prefixes under manifests/{sources,derived}/, or a product_id from target-contracts/vocabularies/products.yaml.",
+        "used": [
+          "target-id-resolver-release"
+        ]
+      },
+      "uniprot-protein-features": {
+        "head": "uniprot-protein-features-v1",
+        "is_stale": false,
+        "used": [
+          "uniprot-protein-features-v1"
+        ]
+      }
+    },
+    "resolver_release_pin": "resolver_v0.1.0-alpha",
+    "skills_repo_sha": "fcb1a04"
+  },
+  "question": "What is known about EGFR INDEPENDENT of indication \u2014 its identity, on-target-safety genetics, protein-class/structure/modality biophysics, functional annotation, mechanism + pathway role, interactome, domain architecture + domain\u2192modality implication, and paralog buffering?",
+  "run_health": {
+    "cards_fired": [
+      "clingen-dosage",
+      "clinvar-pathogenicity-safety",
+      "domain-modality-relevance",
+      "gnomad-lof-constraint",
+      "measured-potency-tractability",
+      "mouse-ko-phenotype",
+      "normal-tissue-liability",
+      "paralog-buffering",
+      "signaling-network-mechanism",
+      "structure-features-static"
+    ],
+    "cards_missing": [],
+    "cards_skipped_a4": [],
+    "compute_secs": 1.0126,
+    "n_cards_consumed": 20,
+    "n_cards_fired": 10,
+    "n_cards_resolved": 20,
+    "provenance_warnings": [
+      {
+        "error": "ReleaseResolutionError: No manifest in family 'target-id-resolver-release' (data_mode='latest_approved'). Known families are the id-prefixes under manifests/{sources,derived}/, or a product_id from target-contracts/vocabularies/products.yaml.",
+        "family": "target-id-resolver-release"
+      }
+    ],
+    "read_secs": 0.3019,
+    "skill_name": "target-intrinsic",
+    "skill_version": "1.6.1",
+    "status": "ok",
+    "total_secs": 1.3376
+  },
+  "skill": "target-intrinsic",
+  "target": "EGFR"
+}

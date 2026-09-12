@@ -5,10 +5,10 @@ SKILL.md / run.py; this file is the data-product spec.
 
 | | |
 |---|---|
-| **Skill** | `target-intrinsic` · v1.6.0 |
+| **Skill** | `target-intrinsic` · v1.6.1 |
 | **Contract version** | 1.0.0 (emitted-output schema; versioned independently — see §4) |
 | **Role** | `descriptive` — **GATELESS** (`verdict_fn=None` → `skill_report.call` null; `polarity: not_scored`); **indication-INDEPENDENT** |
-| **Verdict field** | none — a multi-field target-biology dossier (~60 headline fields, one+ per sub-axis); `headline_block.verdict.call` is null |
+| **Verdict field** | none — a multi-field target-biology dossier (72 headline fields on the EGFR reference emit, 21 of them `*_class`; one+ per sub-axis); `headline_block.verdict.call` is null |
 | **Output shape** | `data_package` |
 | **Emitted schema** | `target-contracts/schemas/skills/target-intrinsic.decision.schema.json` (generated, self-contained) |
 | **Conformance target** | the FRESH replay emit (`test_target_intrinsic_replay.py`; EGFR → call=null, role=descriptive); `indication` emits the `"PANCANCER"` sentinel standalone (verbatim when supplied) |
@@ -21,7 +21,9 @@ Every card is `tier: target` (target/gene grain, scope-invariant). **All 20 prod
 placeholder, zero stale, zero stale-metadata.** `run.py` `CARDS` ≡ `SKILL.md composition.cards_used` (20).
 
 Grouped by biology dimension:
-- **Identity:** `target-identity-summary` (resolver-release alias `target-id-resolver-release` → `resolver_v1.0.0`).
+- **Identity:** `target-identity-summary` (declares the logical resolver-release alias
+  `target-id-resolver-release`; see §5 — the alias does NOT resolve today and the emitted pin is
+  `resolver_v0.1.0-alpha`).
 - **Human-genetics safety (indication-agnostic legs):** `gnomad-lof-constraint`, `gene-burden-safety`,
   `clingen-dosage`, `clinvar-pathogenicity-safety`, `mouse-ko-phenotype`, `target-safety-prioritisation` (all
   Open Targets 26.06 / gnomAD / IMPC).
@@ -55,7 +57,10 @@ MODALITY_ROUTING (domain-modality-relevance) + TRACTABILITY_PRECEDENT (target-de
 `output_shape: data_package` → the standard `write_package` tree. `decision.json` top-level:
 `skill · target · indication(=PANCANCER sentinel standalone) · question · generated_at · headline · cards ·
 fired_rules · provenance · run_health` (+ optional synthesis). The headline is a multi-field dossier
-(~60 `*_class` fields, no single verdict); `headline_block.verdict.call` = null. The `skill_report` spine:
+(72 fields on the EGFR reference emit, 21 `*_class`; no single verdict); `headline_block.verdict.call` = null.
+The committed `tests/fixtures/target_intrinsic_egfr_full_decision.json` is that reference emit — regenerated
+offline from the frozen card fixture by `tests/freeze_golden_decision.py`, and schema-validated by
+`test_data_product_schema.py::test_static_golden_conforms_if_full`. The `skill_report` spine:
 `role: descriptive`, `polarity: not_scored`, `call: null`, `driving_rule_id: null`; `claim_vector`
 (MODALITY_ROUTING / TRACTABILITY_PRECEDENT), `key_signals`. All `*_class` fields schema-open.
 
@@ -73,9 +78,19 @@ to contractual → add as a named property + minor bump.
 ## 5. Known gaps & notes (non-blocking)
 
 - **No stale-metadata / placeholder** — the cleanest data product in the fleet (all 20 cards materialized).
-- **Logical alias:** `target-id-resolver-release` (`release_pin: {release_pin}`) resolves at read time to
-  `resolver_v1.0.0` (which pins hgnc-2026-q2 / ensembl-116 / uniprot-2026-02 / ncbi-2026-06-18); structure/
-  surfaceome cards key on `{target.uniprot_canonical}` resolved through the same resolver.
+- **Logical alias UNRESOLVED (verified 2026-09-12 on a live EGFR run):** the card declares
+  `target-id-resolver-release` (`release_pin: {release_pin}`), but the release resolver reports
+  `ReleaseResolutionError: No manifest in family 'target-id-resolver-release'` — so `resolved_releases`
+  carries `head: null` for it and the emitted `provenance.resolver_release_pin` is
+  **`resolver_v0.1.0-alpha`**, NOT the `resolver_v1.0.0` this doc previously claimed. Identity itself
+  resolves fine (the resolver runs in-process); it is the RELEASE PIN that is not manifest-backed, so the
+  identity leg is effectively unpinned for reproducibility. Registering the family in data-catalog (then
+  re-asserting the pin here) is the fix; structure/surfaceome cards key on `{target.uniprot_canonical}`
+  resolved through the same in-process resolver.
+- **`gene-burden-safety` is a coverage gap, not a negative (verified 2026-09-12):** the reader returns
+  `burden_safety_class: insufficient` with `_note: evidence_gene_burden entity not available` for EGFR —
+  the OT 26.06 `evidence_gene_burden` entity is not reachable through the current product path. The
+  card still resolves (so it is not `_missing`), which is why the roster reads 20/20.
 - **License caveat** (CORUM non-commercial, ChEMBL share-alike) is the main productization note.
 - **`target-safety-prioritisation` is orientation-only** — its safety dims double-count gnomad-lof + mouse-ko
   (flagged via `intrinsic_provenance.ot_composite_double_counts_dedicated_cards`).

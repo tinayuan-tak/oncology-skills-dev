@@ -47,11 +47,10 @@ domain-modality-relevance:
   - transferase
   scaffolding_function: false
 gene-burden-safety:
-  _note: ENSG00000146648 has no rare-variant burden rows in OT 26.06
-  burden_safety_class: no_burden_signal
+  _note: evidence_gene_burden entity not available
+  burden_safety_class: insufficient
   ensembl_gene_id: ENSG00000146648
   method_version: 0.1.0
-  n_total_rows: 0
   pvalue_cutoff: 1.0e-06
   source: opentargets-26-06/evidence_gene_burden
   target: EGFR
@@ -156,9 +155,30 @@ gnomad-lof-constraint:
   obs_lof_count: 58
   pli_score: 0.38907
   syn_z_score: -0.45414
+measured-potency-tractability:
+  _data_source: chembl-bioactivity-per-protein-v1 + bindingdb-affinity-per-protein-v1
+  best_measured_potency_neglog_m: 11.699
+  bindingdb_best_p_affinity: 11.699
+  bindingdb_n_potent_ligands: 22078
+  chembl_approved_engagement_class: approved_direct
+  chembl_best_pchembl: 11.0
+  chembl_clinical_phase_class: approved
+  chembl_max_clinical_phase: 4.0
+  chembl_n_potent_ligands: 16683
+  measured_bioactivity_class: potent_measured_ligand
+  measured_potency_context: "EGFR: a POTENT measured small-molecule ligand exists\
+    \ (best 11.7 -log10 M, <= 1 uM) (ChEMBL/BindingDB). A real sub-micromolar chemical\
+    \ start point \u2014 stronger than a predicted pocket or a bare drug catalogue\
+    \ entry."
+  method_version: 0.3.0
+  n_direct_interactions: 157
 mouse-ko-phenotype:
   ensembl_gene_id: ENSG00000146648
   evidence_tier: inferred
+  impc_ko_phenotype_class: severe_organ_phenotype
+  impc_orthology_confidence: 1.0
+  impc_top_level_systems: immune system phenotype,hematopoietic system phenotype
+  impc_viability_class: unknown
   ko_phenotype_class: lethal_ko
   lethal_stages:
   - adult
@@ -182,15 +202,16 @@ mouse-ko-phenotype:
   target: EGFR
   top_lethal_label: postnatal lethality, complete penetrance
 normal-tissue-liability:
-  essential_tissue_flag: absent
+  essential_tissue_flag: present
   essential_tissues_flagged: []
   hpa_tissue_distribution: Detected in all
   hpa_tissue_specificity: Low tissue specificity
-  method_version: 0.1.0
+  method_version: 0.2.0
   n_essential_tissues_with_expression: 0
   n_specific_tissues: 0
   normal_tissue_breadth_class: broad_normal_expression
   safety_tissue_flags:
+  - essential_from_broad_detection
   - broad
   specific_tissues: []
 paralog-buffering:
@@ -701,7 +722,7 @@ surfaceome-family-classification:
   surface_protein_family: Kinase
   surfaceome_confidence_score: 1.0
 target-development-level:
-  _method_version: 0.1.0
+  _method_version: 0.1.1
   _source: Pharos/IDG TCRD (Target Development Level); verdict-inert target-intrinsic
     druggability/novelty tier
   novelty_score: 7.274e-05
@@ -710,6 +731,8 @@ target-development-level:
   tdl_class: Tclin
   tdl_meaning: clinically drugged (approved drug acts via this target's mode)
 target-identity-summary:
+  biology_axis_curated: intracellular_intrinsic
+  biology_axis_source: curated_lookup
   input_value: EGFR
   redirects_applied: []
   resolution_status: resolved

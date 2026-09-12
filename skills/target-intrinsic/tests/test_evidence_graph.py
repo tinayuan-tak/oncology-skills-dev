@@ -78,6 +78,16 @@ _SYNTH_LIT = {
 
 
 # ── Phase 0 registry sanity ──────────────────────────────────────────────────────────────────────
+def test_ground_truth_fixture_is_the_kras_decision(eg_decision):
+    """The shared `eg_decision` fixture (skills/conftest.py) resolves `sorted(glob("*decision*.json"))[0]`
+    — so a NEW fixture whose name sorts before `kras_…` would silently swap this module's ground truth
+    (every VERDICT_BEARING / DISPLAY_ONLY assertion below is KRAS-specific). Pin it."""
+    assert eg_decision.get("target") == "KRAS", (
+        f"eg_decision resolved to target={eg_decision.get('target')!r}, not KRAS — a fixture added under "
+        f"tests/fixtures/ sorts ahead of kras_target_intrinsic_decision.json and hijacked the glob."
+    )
+
+
 def test_questions_registry_loads_five(eg_questions):
     ids = [q["id"] for q in eg_questions]
     assert ids == ["modality_route", "tractability_precedent", "biology_context", "safety_genetics", "normal_context"]

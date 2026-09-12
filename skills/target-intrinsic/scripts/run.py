@@ -85,11 +85,84 @@ _TARGET_INTRINSIC_VALUE_TIERS = {
     "immune_receptor": "strong",
     "other_surface": "strong",
     "not_surface": "absent",
+    # MEASURED chemical matter (measured-potency-tractability measured_bioactivity_class) — a measured
+    # potent binder is the STRONGEST tractability-precedent signal this roster carries; without the map it
+    # fell through to the default (no "strong"/"high" substring → `absent`), inverting the panel read.
+    "potent_measured_ligand": "strong",
+    "weak_measured_ligand": "moderate",
+    "no_measured_activity": "absent",
+    # shed ectodomain (shed-ectodomain-liability shed_liability_class). Tiered on SIGNAL STRENGTH of the
+    # liability read (the panel is a signal meter, not a desirability meter): a clinically documented shed
+    # ectodomain is a strong, well-evidenced intrinsic property; the secretome proxy is a weaker inference;
+    # a membrane-retained call is a confident negative for the liability (no signal to route on).
+    "clinically_shed": "strong",
+    "secretome_proxy_shed": "moderate",
+    "not_shed_membrane_retained": "absent",
+    # structure ligandability coverage (structure-features-static pdb_coverage_class). "strong" and
+    # "partial" are already tiered above; the two model-only / empty tokens carry no experimental structure.
+    "af_only": "weak",
+    "none": "absent",
+    # interactome (ppi-interactome interactome_class); hub / connected / sparse tiered above
+    "no_high_confidence_interactors": "absent",
+    # EXPLICIT gap token, emitted by several readers when the gene is outside the source's coverage.
+    # `absent` is a LOSSY encoding — _TIERV (strong/moderate/weak/absent) has no "unmeasured" rung, so a
+    # coverage gap is indistinguishable from a measured negative in the panel. Mapped explicitly anyway so
+    # the vocabulary guard passes deliberately rather than by silent default; a gap≠absent distinction needs
+    # a 5th _TIERV rung in _skills_common/subgroup_derivation.py (tracked, out of scope here).
+    "data_unavailable": "absent",
+}
+
+# EXPLICIT sub-group reader spec {measurement_type: {"class", "n", "label"}} — which field of each source
+# card the panel reads. Without it, derive_subgroups falls back to `_heuristic_reader`, which picks the
+# FIRST `*_class` key in the summary DICT ORDER. That made the binding ORDER-DEPENDENT and therefore
+# NON-REPRODUCIBLE: a live run (reader insertion order) bound `shed_liability_class` +
+# `measured_bioactivity_class`, while the offline replay of the same run (fixture re-serialized with
+# sort_keys=True) bound `measured_shed_class` + `chembl_approved_engagement_class` — a DIFFERENT panel from
+# identical evidence, and the offline guard could not see the live tokens. Declaring the fields pins both
+# paths to the same read. Bindings + `n` field orders are transcribed from the LIVE heuristic result on the
+# EGFR reference run, so the live panel is byte-stable; only the replay converges onto it.
+# (Deferred, deliberately not changed here: whether `structure_druggability` should read the contract's
+# `capsule.primary_class` = structural_ligandability_class instead of pdb_coverage_class, and whether GO's
+# power should key on n_go_terms_total rather than the first-ranked n_cellular_component. Both would move
+# emitted panel values and belong in their own reviewed change.)
+_TARGET_INTRINSIC_SUBGROUP_READER = {
+    "surfaceome_family": {"class": "family_class", "n": [], "label": "family"},
+    "structure_druggability": {"class": "pdb_coverage_class", "n": [], "label": "pdb coverage"},
+    "shed_ectodomain_liability": {"class": "shed_liability_class", "n": [], "label": "shed liability"},
+    "gene_ontology_annotation": {
+        "class": "annotation_class",
+        "n": [
+            "n_cellular_component",
+            "n_biological_process",
+            "n_go_terms_experimental",
+            "n_go_terms_total",
+            "n_molecular_function",
+        ],
+        "label": "annotation",
+    },
+    "signaling_network_mechanism": {
+        "class": "network_class",
+        "n": ["n_downstream_effectors", "n_upstream_regulators"],
+        "label": "network",
+    },
+    "reactome_pathway_membership": {"class": "pathway_class", "n": [], "label": "pathway"},
+    "ppi_interactome": {"class": "interactome_class", "n": [], "label": "interactome"},
+    "protein_domains_class": {"class": "protein_features_class", "n": [], "label": "protein features"},
+    "domain_modality_relevance": {"class": "modality_implication_class", "n": [], "label": "modality implication"},
+    "target_development_level": {"class": "tdl_class", "n": [], "label": "tdl"},
+    "measured_potency_tractability": {
+        "class": "measured_bioactivity_class",
+        "n": ["bindingdb_n_potent_ligands", "chembl_n_potent_ligands", "n_direct_interactions"],
+        "label": "measured bioactivity",
+    },
+    # target_identity carries no *_class field — it is not a signal source (the heuristic bound nothing
+    # either). A falsy spec states that explicitly instead of relying on the fallback finding nothing.
+    "target_identity": None,
 }
 
 
 SKILL_NAME = "target-intrinsic"
-SKILL_VERSION = "1.6.0"  # 1.6.0 (2026-09-04): --literature lane (run_wired_skill make_literature_fn(TARGET_INTRINSIC); None-indication path via _indication_phrase->'cancer') + VERDICT-INERT experimental-vs-predicted INFLATION surfacing (intrinsic_confirmation_caveat = an AlphaFold/computational or homology-annotated actionable property [predicted_ligandable / annotation_ligandable pocket, predicted-surface, family-by-homology] over-calling a co-crystal-confirmed one, OR a meta-score / OT-composite double-count; experimentally_confirmed_intrinsic_property false-demote guard, pan-target gene-level BRAF/EGFR/KRAS-G12C; intrinsic_provenance quorum). Built on BOTH _headline AND the self-contained _synthesis_facet (fan-out carrier). TARGET_INTRINSIC thesis extend + ADD polarity_note. Gateless (verdict_fn=None) — dossier byte-stable.   # 1.5.1 (2026-09-02): _TARGET_INTRINSIC_VALUE_TIERS aligned to live card vocab (dead keys removed; positive subgroup signals no longer flip to `absent`). Verdict-INERT (subgroup --figures only).   # 1.4.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.3.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.   # stamped into provenance.yaml — MUST equal SKILL.md metadata.version
+SKILL_VERSION = "1.6.1"  # 1.6.1 (2026-09-12): _TARGET_INTRINSIC_VALUE_TIERS COMPLETED against the live card vocabulary — measured_bioactivity_class (potent/weak/no_measured_activity), shed_liability_class (clinically_shed/secretome_proxy_shed/not_shed_membrane_retained), pdb_coverage_class af_only/none, no_high_confidence_interactors, explicit data_unavailable->absent. Two live EGFR signals (potent_measured_ligand, secretome_proxy_shed) were being flipped to `absent` by the lens-blind default_classify fallback. VERDICT-INERT (--figures sub-group panel only; spine/claim_vector/narrator byte-stable). + data-driven vocabulary-coverage guard (test_subgroup_value_tiers.py), 20/20 re-frozen egfr.yaml, and a full-decision golden.   # 1.6.0 (2026-09-04): --literature lane (run_wired_skill make_literature_fn(TARGET_INTRINSIC); None-indication path via _indication_phrase->'cancer') + VERDICT-INERT experimental-vs-predicted INFLATION surfacing (intrinsic_confirmation_caveat = an AlphaFold/computational or homology-annotated actionable property [predicted_ligandable / annotation_ligandable pocket, predicted-surface, family-by-homology] over-calling a co-crystal-confirmed one, OR a meta-score / OT-composite double-count; experimentally_confirmed_intrinsic_property false-demote guard, pan-target gene-level BRAF/EGFR/KRAS-G12C; intrinsic_provenance quorum). Built on BOTH _headline AND the self-contained _synthesis_facet (fan-out carrier). TARGET_INTRINSIC thesis extend + ADD polarity_note. Gateless (verdict_fn=None) — dossier byte-stable.   # 1.5.1 (2026-09-02): _TARGET_INTRINSIC_VALUE_TIERS aligned to live card vocab (dead keys removed; positive subgroup signals no longer flip to `absent`). Verdict-INERT (subgroup --figures only).   # 1.4.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.3.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.   # stamped into provenance.yaml — MUST equal SKILL.md metadata.version
 
 CARDS = [
     # STRICT MOLECULAR-INTRINSIC only: properties true of the MOLECULE (protein/gene), independent of
@@ -701,6 +774,9 @@ if __name__ == "__main__":
             # Additive / display-only; the descriptive dossier is byte-stable without it.
             skill_figures_fn=emit_headline_hero,
             # Signals-first: tuned sub-group reader for the target-intrinsic vocabulary. Verdict-INERT.
+            # The reader spec pins WHICH field each source card contributes (order-independent, so a live
+            # run and its offline replay bind the same one); the classifier pins the value→tier map.
+            subgroup_reader_spec=_TARGET_INTRINSIC_SUBGROUP_READER,
             subgroup_classify=make_value_classifier(_TARGET_INTRINSIC_VALUE_TIERS),
         )
     )

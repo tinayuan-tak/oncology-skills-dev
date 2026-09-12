@@ -50,10 +50,10 @@ def _real_summary(s) -> bool:
     return isinstance(s, dict) and bool(s) and not s.get("_freeze_error") and not s.get("_dispatcher_returned_none")
 
 
-@pytest.fixture(scope="module")
-def egfr_decision(tmp_path_factory):
-    """Run the ACTUAL run.py end-to-end on EGFR with the live dispatcher replaced by the frozen
-    fixture; return the parsed decision.json."""
+def replay_decision(out_dir: Path, target: str = "EGFR") -> dict:
+    """Run the ACTUAL run.py end-to-end with the live dispatcher replaced by the frozen fixture; return
+    the parsed decision.json. Importable so freeze_golden_decision.py regenerates the committed
+    full-decision golden through the SAME offline path this test exercises (no second wiring to drift)."""
     frozen = _load_fixture()
 
     import _skills_common as skc
@@ -67,34 +67,61 @@ def egfr_decision(tmp_path_factory):
 
         return _read_live
 
-    out_dir = tmp_path_factory.mktemp("ti-egfr-replay")
     mp = pytest.MonkeyPatch()
     # FRAMEWORK_HEALTH_SMOKE would short-circuit resolve_cards to synthetic empties — force it off so
     # we exercise the real resolve→headline path over the frozen summaries.
     mp.delenv("FRAMEWORK_HEALTH_SMOKE", raising=False)
     mp.setattr(skc, "_import_dispatcher", _fake_dispatcher_factory)
-    mp.setattr(sys, "argv", ["run.py", "--target", "EGFR", "--out", str(out_dir)])
+    mp.setattr(sys, "argv", ["run.py", "--target", target, "--out", str(out_dir)])
     try:
         runpy.run_path(str(RUN_PY), run_name="__main__")
     except SystemExit as e:  # run.py ends in sys.exit(run_wired_skill(...))
-        assert e.code in (0, None), f"run.py exited non-zero ({e.code}) on the frozen EGFR replay"
+        assert e.code in (0, None), f"run.py exited non-zero ({e.code}) on the frozen {target} replay"
     finally:
         mp.undo()
 
     decision_path = out_dir / "decision.json"
-    assert decision_path.exists(), "run.py wrote no decision.json on the frozen EGFR replay"
+    assert decision_path.exists(), f"run.py wrote no decision.json on the frozen {target} replay"
     return json.loads(decision_path.read_text())
 
 
-def test_fixture_is_nonvacuous():
-    """Guard against a stale/broken freeze reading green: the committed fixture must carry a real
-    summary for the BULK of the roster (>=12), matching the live golden's drift-floor gate. A freeze
-    that silently produced mostly errors/empties must fail here, not pass by vacuity."""
+@pytest.fixture(scope="module")
+def egfr_decision(tmp_path_factory):
+    """The frozen-fixture replay emit (module-scoped: one run.py execution per test session)."""
+    return replay_decision(tmp_path_factory.mktemp("ti-egfr-replay"))
+
+
+def _cards_from_runpy() -> list[str]:
+    """run.py's CARDS literal (AST-parsed — no import, no dispatcher)."""
+    import ast
+
+    tree = ast.parse(RUN_PY.read_text())
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(getattr(t, "id", None) == "CARDS" for t in node.targets):
+            return [e.value for e in node.value.elts if isinstance(e, ast.Constant) and isinstance(e.value, str)]
+    raise AssertionError("CARDS literal not found in run.py")
+
+
+def test_fixture_covers_the_whole_roster():
+    """The fixture must carry a REAL summary for EVERY card in CARDS — no silent partial freeze.
+
+    Replaces the old `>= 12 real` floor, which let a stale snapshot pass while missing whole cards: the
+    fixture shipped 19/20 (no `measured-potency-tractability`) for ~3 weeks, so the offline replay never
+    exercised that card's headline reads or its sub-group panel source at all. EGFR resolves 20/20 live,
+    so anything less means a stale or broken freeze (re-run freeze_fixture.py with AWS_PROFILE=cbg).
+    A card that becomes legitimately unresolvable for EGFR is a DATA regression to chase, not to tolerate
+    here."""
     frozen = _load_fixture()
-    real = [cid for cid, s in frozen.items() if _real_summary(s)]
-    assert len(real) >= 12, (
-        f"only {len(real)}/{len(frozen)} frozen cards carry a real summary — refreeze against live "
-        f"S3 (freeze_fixture.py). Real cards: {sorted(real)}"
+    cards = _cards_from_runpy()
+    missing = [c for c in cards if c not in frozen]
+    assert not missing, (
+        f"frozen fixture is missing {len(missing)} of the {len(cards)} wired cards: {missing} — re-freeze "
+        f"(AWS_PROFILE=cbg pixi run python skills/target-intrinsic/tests/freeze_fixture.py)."
+    )
+    not_real = [c for c in cards if not _real_summary(frozen.get(c))]
+    assert not not_real, (
+        f"{len(not_real)}/{len(cards)} frozen cards carry no real summary: {not_real} — re-freeze, or "
+        f"chase the reader/data regression that made them unresolvable for EGFR."
     )
 
 
@@ -172,6 +199,53 @@ def test_replay_headline_block_descriptive_and_verdict_inert(egfr_decision):
     assert blk["confidence"]["level"] in ("strong", "moderate", "weak", "insufficient")
     assert [a["key"] for a in blk["hero"]["axes"]] == ["MODALITY_ROUTING", "TRACTABILITY_PRECEDENT"]
     assert blk["headline_text"].endswith(".")
+
+
+def test_replay_subgroup_panel_reads_the_spec_declared_fields(egfr_decision):
+    """DETERMINISM guard for the signals-first panel: every sub-group source must carry the value of the
+    field run.py's `_TARGET_INTRINSIC_SUBGROUP_READER` declares — not whichever `*_class` key happened to
+    come first in the summary dict.
+
+    The regression this pins: with no explicit spec, derive_subgroups used `_heuristic_reader` (first
+    `*_class` in DICT ORDER), so the live run bound `shed_liability_class` / `measured_bioactivity_class`
+    while this replay — same evidence, fixture re-serialized sorted — bound `measured_shed_class` /
+    `chembl_approved_engagement_class`. Two different panels from identical data, and the offline guard
+    could not see the tokens the live panel actually shows."""
+    import ast
+
+    frozen = _load_fixture()
+    tree = ast.parse(RUN_PY.read_text())
+    spec_by_mt = next(
+        ast.literal_eval(n.value)
+        for n in tree.body
+        if isinstance(n, ast.Assign)
+        and any(getattr(t, "id", None) == "_TARGET_INTRINSIC_SUBGROUP_READER" for t in n.targets)
+    )
+    from _skills_common.subgroup_derivation import _card_meta
+
+    field_by_card = {}
+    for cid in frozen:
+        mt, _tier = _card_meta(cid)
+        spec = spec_by_mt.get(mt)
+        if spec:
+            field_by_card[cid] = spec["class"]
+
+    panel = (egfr_decision.get("headline") or {}).get("subgroup_signals") or {}
+    checked = 0
+    for sg, block in panel.items():
+        if not isinstance(block, dict):
+            continue
+        for src in block.get("sources") or []:
+            cid = src.get("card")
+            field = field_by_card.get(cid)
+            assert field, f"{sg} source {cid} has no reader-spec entry — it bound via the heuristic fallback."
+            assert src.get("value") == (frozen.get(cid) or {}).get(field), (
+                f"{sg}/{cid}: panel value {src.get('value')!r} != frozen {field}="
+                f"{(frozen.get(cid) or {}).get(field)!r} — the panel is reading a different field than the "
+                f"reader spec declares."
+            )
+            checked += 1
+    assert checked == 11, f"expected 11 panel sources on the EGFR replay, checked {checked}"
 
 
 def test_replay_intrinsic_confirmation_caveat_guards_egfr(egfr_decision):

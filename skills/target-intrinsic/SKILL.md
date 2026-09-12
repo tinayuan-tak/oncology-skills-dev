@@ -25,7 +25,7 @@ description: |
   grain level.
 
 metadata:
-  version: 1.6.0
+  version: 1.6.1
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:

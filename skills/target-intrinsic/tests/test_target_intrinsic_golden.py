@@ -16,6 +16,7 @@ When it lands, this can be refactored to reuse it.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -24,6 +25,19 @@ import pytest
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
 RUN_PY = SKILL_DIR / "scripts" / "run.py"
+
+# Live reads DECLARED by the environment: the skill's contracted profile (SKILL.md
+# metadata.environment: AWS_PROFILE=cbg — the one that reaches the onc-compbio bucket), or an explicit
+# force. When declared, a PARTIAL roster is a REGRESSION to fail on, not a data-availability skip.
+# Otherwise every floor below skips: the SageMaker image exports AWS_PROFILE=cmp-dev by default, under
+# which EGFR resolves only 8/20 — so "AWS_PROFILE is set" is NOT a usable liveness signal here.
+_LIVE_DECLARED = os.environ.get("AWS_PROFILE") == "cbg" or bool(os.environ.get("TI_GOLDEN_REQUIRE_LIVE"))
+
+
+def _skip_or_fail(reason: str) -> None:
+    if _LIVE_DECLARED:
+        pytest.fail(reason + " [live reads declared: AWS_PROFILE=cbg / TI_GOLDEN_REQUIRE_LIVE]")
+    pytest.skip(reason)
 
 
 def _card_available(cards: list, card_id: str) -> bool:
@@ -89,7 +103,7 @@ def test_egfr_headline_resolves_broadly(egfr_decision):
     cards = egfr_decision.get("cards") or []
     available = [c for c in cards if not c.get("_missing")]
     if len(available) < 12:
-        pytest.skip(f"only {len(available)} cards available for EGFR — partial S3; skip the drift floor")
+        _skip_or_fail(f"only {len(available)} cards available for EGFR — partial S3; skip the drift floor")
     headline = egfr_decision.get("headline") or {}
     non_null = [k for k, v in headline.items() if v not in (None, "", [], "data_unavailable")]
     assert len(non_null) >= 12, (
@@ -97,3 +111,15 @@ def test_egfr_headline_resolves_broadly(egfr_decision):
         f"{len(available)} cards are available — suspect a reader field-name drift "
         f"(g('card','field') -> None). Non-null keys: {sorted(non_null)}"
     )
+
+
+def test_egfr_resolves_the_whole_roster_when_live(egfr_decision):
+    """With live reads declared, EGFR must resolve ALL 20 cards — the same floor the committed offline
+    fixture is held to (test_target_intrinsic_replay::test_fixture_covers_the_whole_roster). A card that
+    goes _missing for the fleet's most-characterized target is an upstream data/reader regression, and it
+    is also what silently staled the fixture at 19/20."""
+    if not _LIVE_DECLARED:
+        pytest.skip("live reads not declared (AWS_PROFILE != cbg) — roster completeness is not testable")
+    cards = egfr_decision.get("cards") or []
+    missing = sorted(c.get("card_id") or c.get("id") for c in cards if c.get("_missing"))
+    assert not missing, f"{len(missing)}/{len(cards)} cards _missing for EGFR on a live run: {missing}"

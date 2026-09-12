@@ -6,13 +6,22 @@ S3-free — parses the run.py CARDS literal + the SKILL.md composition + the car
 from __future__ import annotations
 
 import ast
+import sys
 from pathlib import Path
 
 import yaml
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
 SKILLS_ROOT = SKILL_DIR.parent
-CONTRACTS = SKILLS_ROOT.parent.parent / "rnd-computational-biology-oncology-target-contracts"
+if str(SKILLS_ROOT) not in sys.path:
+    sys.path.insert(0, str(SKILLS_ROOT))
+
+from _skills_common.paths import target_contracts_root  # noqa: E402
+
+# Env-aware (TARGET_CONTRACTS_ROOT, else the canonical sibling checkout). The former
+# `SKILLS_ROOT.parent.parent / "…target-contracts"` derivation resolved to /tmp/… from a git WORKTREE,
+# so the grain guard below silently SKIPPED in exactly the environment every workstream runs in.
+CONTRACTS = target_contracts_root()
 
 
 def _cards_from_runpy() -> list[str]:
