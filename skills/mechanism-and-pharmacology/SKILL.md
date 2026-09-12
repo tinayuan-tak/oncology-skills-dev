@@ -19,7 +19,7 @@ description: |
   candidate hooks for small-molecule / degrader / molecular-glue programs?
 
 metadata:
-  version: 1.10.1
+  version: 1.10.2
   owner: ryan.abo@takeda.com
   requires_preflight: false
   method_version_pins:

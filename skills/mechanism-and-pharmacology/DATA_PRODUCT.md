@@ -6,7 +6,7 @@ in SKILL.md / run.py; this file is the data-product spec.
 | | |
 |---|---|
 | **Skill** | `mechanism-and-pharmacology` |
-| **Skill code version** | 1.10.1 |
+| **Skill code version** | 1.10.2 |
 | **Contract version** | 1.0.0 (emitted-output schema; versioned independently — see §4) |
 | **Role** | `gating` (verdict = a signaling-network **characterization** class; polarity STATICALLY neutral — annotation density is not target quality) |
 | **Verdict field** | `headline.mechanism_verdict` (resolves on `network_class` alone; the has_pd_marker rung was removed as structurally dead, resolver v1.2.0) |

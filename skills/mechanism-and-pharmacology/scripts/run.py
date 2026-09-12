@@ -56,7 +56,7 @@ _MECHANISM_VALUE_TIERS = {
 
 
 SKILL_NAME = "mechanism-and-pharmacology"
-SKILL_VERSION = "1.10.1"  # 1.10.1 (2026-09-12): mapped-MoA guard note — has_actionable_moa/has_pd_marker now require a MAPPED MoA class (method fix); confirmation-caveat note text + docs updated (31-class ontology, Reactome=context). Verdict-inert; spine byte-stable.   # 1.10.0 (2026-09-04): VERDICT-INERT prediction_lane_caveat MATERIALITY gate — fires only when the non-curated (kinome-prediction + co-essentiality) lanes are at least as large as the curated network, so it goes quiet on curated-dominant hubs (MYC/TP53) where firing on ~every target was noise. Spine byte-stable.   # 1.9.0 (2026-09-04): --literature lane (run_wired_skill make_literature_fn(MECHANISM_PHARMACOLOGY)) + VERDICT-INERT actionable-MoA INFLATION surfacing (mechanism_confirmation_caveat = has_actionable_moa off a CONTEXT-FREE curated edge without indication-operative validation, clinically-precedented false-demote guard; prediction_lane_caveat = kinome-atlas/co-essentiality lanes carried alongside but never merged; curation_gap_note; mechanism_provenance quorum summary; MECHANISM_PHARMACOLOGY thesis + polarity_note). Spine byte-stable (resolver keys only on network_class).   # 1.8.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.7.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.                       # stamped into provenance.yaml — MUST equal SKILL.md metadata.version
+SKILL_VERSION = "1.10.2"  # 1.10.2 (2026-09-12): curation_gap_note signal-specificity split (20-target lit-panel) — target-specific (phospho/co-essentiality) vs indication/expression-level (PROGENy/tahoe) signals; context-level-only thin targets get thin_network_context_level_signal_only (no curation-gap over-call for surface antigens like CEACAM5/MSLN). Verdict-inert.   # 1.10.1 (2026-09-12): mapped-MoA guard note — has_actionable_moa/has_pd_marker now require a MAPPED MoA class (method fix); confirmation-caveat note text + docs updated (31-class ontology, Reactome=context). Verdict-inert; spine byte-stable.   # 1.10.0 (2026-09-04): VERDICT-INERT prediction_lane_caveat MATERIALITY gate — fires only when the non-curated (kinome-prediction + co-essentiality) lanes are at least as large as the curated network, so it goes quiet on curated-dominant hubs (MYC/TP53) where firing on ~every target was noise. Spine byte-stable.   # 1.9.0 (2026-09-04): --literature lane (run_wired_skill make_literature_fn(MECHANISM_PHARMACOLOGY)) + VERDICT-INERT actionable-MoA INFLATION surfacing (mechanism_confirmation_caveat = has_actionable_moa off a CONTEXT-FREE curated edge without indication-operative validation, clinically-precedented false-demote guard; prediction_lane_caveat = kinome-atlas/co-essentiality lanes carried alongside but never merged; curation_gap_note; mechanism_provenance quorum summary; MECHANISM_PHARMACOLOGY thesis + polarity_note). Spine byte-stable (resolver keys only on network_class).   # 1.8.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.7.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.                       # stamped into provenance.yaml — MUST equal SKILL.md metadata.version
 #        facet (verdict-inert; SIGNOR cross-referenced)
 # 1.5.0: pathway-activity-context (PROGENy)
 # 1.4.0: + tahoe-drug-perturbation MoA facet (verdict-inert)
@@ -442,31 +442,68 @@ def _prediction_lane_caveat(kinome_atlas, coessentiality, curated_edge_count=Non
 
 
 def _curation_gap_note(network_class, phospho, pathway_activity, tahoe, coess_partners) -> dict | None:
-    """Fire when the CONTEXT-FREE curated network UNDER-reads an indication-operative mechanism: a thin
-    curated shape co-occurring with measured operative activity (phospho / PROGENy / drug-perturbation) or a
-    functional co-essentiality signal. VERDICT-INERT; None otherwise. (Cannot detect a fusion-rewired driver
-    from these fields — the narrator + literature lane cover that gap.)"""
+    """Fire when a thin curated network CO-OCCURS with an independent signal. VERDICT-INERT; None otherwise.
+
+    SIGNAL-SPECIFICITY SPLIT (2026-09-12, 20-target literature-panel refinement): the panel showed the
+    former note over-called a CURATION GAP for genuinely NON-signaling targets (e.g. the surface adhesion
+    molecule CEACAM5), because it treated INDICATION-level PROGENy pathway activity + drug-perturbation
+    EXPRESSION engagement as if they were target-specific mechanism evidence. They are not:
+      - PROGENy pathway_activity is a per-INDICATION cohort readout (the tumor's pathways are active), NOT a
+        signal that THIS target carries an uncaptured signaling mechanism — it is ~always high in an
+        active-pathway indication and fires on nearly every thin target.
+      - tahoe drug-perturbation is an EXPRESSION response (drugs move the target's mRNA), not a signaling
+        edge the curation missed.
+    Only measured target PHOSPHO-activity and DepMap CO-ESSENTIALITY partners are TARGET-SPECIFIC functional
+    signals. So we split the corroboration and set the strength accordingly:
+      - >=1 target-specific signal → 'curated_network_under_reads_operative_signal' (likely curation gap;
+        the IDH1/WRN pattern — a real mechanism tissue-agnostic curation misses).
+      - ONLY indication/expression-level signals → 'thin_network_context_level_signal_only' (the thin
+        network may reflect a GENUINELY non-signaling target — surface antigen / metabolic / structural
+        protein — as readily as a curation gap; do NOT assert a gap). This keeps the honest hypothesis
+        without over-claiming a mechanism CEACAM5/MSLN-type surface antigens do not have."""
     thin = network_class in {"sparse", "partial", "data_unavailable"}  # set, not tuple (drift-guard)
-    operative = []
-    if phospho in ("phospho_active", "phospho_present"):
-        operative.append(f"measured phospho-activity ({phospho})")
-    if pathway_activity == "relatively_high":
-        operative.append("elevated pathway activity (PROGENy)")
-    if tahoe in ("drug_suppressed", "drug_induced", "bidirectionally_perturbed"):
-        operative.append(f"drug-perturbation engagement ({tahoe})")
-    if (coess_partners or 0) > 0:
-        operative.append(f"{coess_partners} DepMap co-essential partners")
-    if not (thin and operative):
+    if not thin:
         return None
+    target_specific = []
+    context_level = []
+    if phospho in ("phospho_active", "phospho_present"):
+        target_specific.append(f"measured target phospho-activity ({phospho})")
+    if (coess_partners or 0) > 0:
+        target_specific.append(f"{coess_partners} DepMap co-essential partners")
+    if pathway_activity == "relatively_high":
+        context_level.append("elevated PROGENy pathway activity (INDICATION-level, not target-specific)")
+    if tahoe in ("drug_suppressed", "drug_induced", "bidirectionally_perturbed"):
+        context_level.append(f"drug-perturbation EXPRESSION engagement ({tahoe}; expression, not a signaling edge)")
+    if not (target_specific or context_level):
+        return None
+    if target_specific:
+        signals = target_specific + context_level
+        return {
+            "reason": "curated_network_under_reads_operative_signal",
+            "target_specific_signals": target_specific,
+            "context_level_signals": context_level,
+            "note": (
+                f"The curated signaling network is thin (network_class={network_class}) yet TARGET-SPECIFIC "
+                "functional signals suggest an operative mechanism this context-free curation under-reads: "
+                + "; ".join(signals)
+                + ". An indication-operative mechanism (e.g. a neomorphic-metabolic / epigenetic driver like "
+                "IDH1, a synthetic-lethal-exploited dependency, or a fusion-rewired driver) can be missing "
+                "from tissue-agnostic curated edges — read a thin network_class as a likely CURATION gap "
+                "here, not proof of no mechanism."
+            ),
+        }
     return {
-        "reason": "curated_network_under_reads_operative_signal",
+        "reason": "thin_network_context_level_signal_only",
+        "context_level_signals": context_level,
         "note": (
-            f"The curated signaling network is thin (network_class={network_class}) yet independent "
-            "signals suggest an operative mechanism this context-free curation under-reads: "
-            + "; ".join(operative)
-            + ". An indication-operative mechanism (e.g. a fusion-rewired driver "
-            "or a context-conditional dependency) can be missing from tissue-agnostic curated edges — "
-            "read a thin network_class as a possible CURATION gap here, not proof of no mechanism."
+            f"The curated signaling network is thin (network_class={network_class}); the only co-occurring "
+            "signals are INDICATION / EXPRESSION-level, not target-specific: "
+            + "; ".join(context_level)
+            + ". With no target-specific mechanism signal (phospho-activity / co-essentiality), the thin "
+            "network may reflect a GENUINELY non-signaling target — a lineage-restricted surface antigen "
+            "(CEACAM5/MSLN), a metabolic or structural protein — as readily as a curation gap. Do NOT read "
+            "this as evidence of an uncaptured signaling mechanism; confirm the target's biology via the "
+            "literature lane (--literature)."
         ),
     }
 
