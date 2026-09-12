@@ -632,6 +632,49 @@ SALIENCE_SPECS: dict = {
         "n_field": "n_patients_joined",
         "direction": "higher_is_stronger",
         "categorical": ["immune_context_class", "antigen_conditioned_call", "antigen_high_immune_context_class"],
+        # The gauge is on median_cd8_fraction, NOT on the spec's effect_field: cd8_high_minus_low is a
+        # DELTA (antigen-high minus antigen-low) and is not comparable to fraction cuts — the scale
+        # mismatch that made the 09-10 batch rollout skip this axis (see _BATCH_DISTANCE_TO_CUT_METERS).
+        # median_cd8_fraction IS the quantity the card's own two thresholds cut, so it gauges cleanly.
+        #
+        # ★ WHAT THIS RULER MEASURES IS A RANK, NOT A DENSITY. cd8_fraction_cold_max (0.084) and
+        # cd8_fraction_hot_min (0.113) are the Q1 and Q3 of the CD8 share across the 33 TCGA studies, so
+        # `immune_hot` means "top-quartile CD8 share AMONG INDICATIONS", not "heavily infiltrated" in any
+        # absolute sense. The band is therefore pan-cancer-relative and NOT an ICI-response predictor:
+        # ICI-refractory PRAD (0.1312) reads immune_hot, while ICI-approved BLCA/LUAD/LUSC sit in
+        # `intermediate`. The METRIC_GLOSS label carries that framing to every renderer — a bare 0.11 next
+        # to a "hot" label reads as a density claim, which is the misread this gauge exists to prevent.
+        # DISPLAY-ONLY / verdict-INERT: no rule reads the frame, and it omits when the value is absent.
+        #
+        # ★★ atlas_numeric: False — a THIRD reason for the opt-out, distinct from the two recorded on
+        # numeric_feature_specs (non-monotone polarity; degenerate value). Here the value is not a property
+        # of the entity the atlas indexes AT ALL: this card's primary call is target-INDEPENDENT (its own
+        # caveat says so — it is the immune landscape of the INDICATION, not conditioned on the target
+        # antigen), so median_cd8_fraction is IDENTICAL for every target in a given indication. Minting an
+        # atlas numeric from it would make known targets cluster by indication rather than by biology, and
+        # "stronger than X% of known targets" would be phrasing an indication property as a target property.
+        # The target-DEPENDENT quantity on this card is the antigen-conditioned delta (cd8_high_minus_low) —
+        # which is exactly the field that cannot carry this ruler, since fraction cuts do not gauge a delta.
+        # So the axis gets a DISPLAY ruler and no atlas feature; that is the honest split, not an omission.
+        "reference_frame": {
+            "kind": "graded_band",
+            "value_field": "median_cd8_fraction",
+            "scale": "fraction",
+            "atlas_numeric": False,
+            "position_field": "immune_context_class",
+            "cuts": [
+                {
+                    "card_id": "immune-context",
+                    "threshold": "cd8_fraction_cold_max",
+                    "label": "cold ceiling (pan-cancer Q1)",
+                },
+                {
+                    "card_id": "immune-context",
+                    "threshold": "cd8_fraction_hot_min",
+                    "label": "hot floor (pan-cancer Q3)",
+                },
+            ],
+        },
     },
     # differentiation-landscape (§3.11)
     "mutation_cooccurrence": {

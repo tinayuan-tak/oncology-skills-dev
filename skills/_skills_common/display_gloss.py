@@ -96,7 +96,19 @@ METRIC_GLOSS: dict = {
     "chembl_best_pchembl": ("best measured potency (ChEMBL)", "pChEMBL"),
     "median_log2auc": ("median PRISM compound activity", "log2 AUC"),
     "cd8_high_minus_low": ("CD8 infiltration delta (antigen high vs low)", "delta fraction"),
+    # The label says "pan-cancer rank" because the cuts that band this value (0.084 / 0.113) are the Q1/Q3
+    # of the CD8 share across the 33 TCGA studies — so `immune_hot` means top-quartile AMONG INDICATIONS,
+    # not "heavily infiltrated", and it is not an ICI-response read (refractory PRAD 0.1312 lands hot while
+    # ICI-approved BLCA/LUAD/LUSC land intermediate). Without that phrase a bare 0.11 beside a "hot" label
+    # reads as an absolute density. Units stay "fraction": the number IS a leukocyte fraction; it is the
+    # BAND around it that is rank-derived.
+    "median_cd8_fraction": ("median CD8 share of leukocytes (banded by pan-cancer rank)", "fraction"),
     "log2_odds_ratio": ("co-mutation odds ratio", "log2 OR"),
+    # ── ruler value_fields that predate the gloss-coverage fix (they were gauged but unglossed) ──
+    "delta_chronos_hotspot_mut_vs_wt": ("dependency gap, hotspot-mutant vs wild-type", "delta CHRONOS"),
+    "mut_fraction_missense": ("missense share of observed mutations", "fraction"),
+    "mut_fraction_lof": ("loss-of-function share of observed mutations", "fraction"),
+    "protein_effect_cohens_d": ("tumor-vs-normal protein effect (variance-standardized)", "Cohen's d"),
     "activity_z": ("pathway activity", "z-score"),
     "mean_gi": ("mean genetic interaction (dual-KO)", "GI score"),
     "mean_effect_shift": ("mean dependency shift under perturbation", "delta effect"),

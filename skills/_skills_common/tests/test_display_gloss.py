@@ -32,6 +32,17 @@ def _salience_metric_fields() -> set:
                 fields.add(s[k])
         for e in s.get("extra_scalars") or []:
             fields.add(e)
+        # A reference_frame's value_field is the metric a GAUGE renders (_project_frame sets
+        # gv["metric"] = value_field), so it needs a gloss for exactly the same reason an effect_field does
+        # — and it was missing from this set, which is a DIRECTION gap, not an oversight about one field:
+        # this guard only ever looked at the spec's scalar keys, so every ruler value_field that was not
+        # also an effect_field could ship unglossed and render as the humanized field name with no units
+        # ("median cd8 fraction"). Four did. distance_field/total_field are deliberately NOT included:
+        # they surface as a distance number and an anchor label, not as the metric name.
+        rf = s.get("reference_frame")
+        for f in rf if isinstance(rf, list) else [rf]:
+            if isinstance(f, dict) and f.get("value_field"):
+                fields.add(f["value_field"])
     return fields
 
 

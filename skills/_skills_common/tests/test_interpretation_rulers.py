@@ -355,12 +355,27 @@ def test_cohort_ruler_fleet_wide_and_liability_phrasing():
     assert coh2 is not None and "stronger than" in coh2["position"]
 
 
+# the card-data ruler kinds an axis can draw itself — everything the governance test admits EXCEPT
+# cohort_percentile, which is the fleet-appended atlas ruler and never a card's own frame.
+_DISPLAY_RULER_KINDS = frozenset(
+    {"percentile", "floor_cut_ceiling", "comparator_delta", "distance_to_cut", "graded_band", "count_of_total"}
+)
+
+
 def test_atlas_numeric_optout_axes_get_no_cohort_ruler_but_keep_their_own():
     """The fleet roll appends a cohort_percentile to every metered axis, keyed off the PRIMARY frame's atlas
     numeric — so an axis that opts OUT of the atlas numeric (atlas_numeric: False) must not get one. Such a
     frame would be dead by construction (the atlas column it reads is never built, so cohort_percentile
     returns None and build_interpretation drops it), and pinning it keeps a vacuous frame out of the registry.
-    The axis's OWN distance_to_cut ruler must survive — that is the whole point of the opt-out."""
+    The axis's OWN ruler must survive — that is the whole point of the opt-out.
+
+    (2026-09-12) This test used to assert every opt-out frame was specifically `distance_to_cut`. That was
+    an accident of the only two axes that had opted out, not the invariant: the opt-out governs whether an
+    ATLAS NUMERIC is minted, which is orthogonal to which display ruler the axis draws. immune_context opts
+    out with a `graded_band` (it bands median_cd8_fraction on the card's pan-cancer Q1/Q3 cuts, and its
+    value is target-INDEPENDENT so it must not become an atlas coordinate). Pinning the kind would have
+    forced a wrong frame kind to satisfy a test. What is asserted instead is the actual property — no cohort
+    ruler, and the axis still draws at least one ruler of its own."""
     optouts = [
         (mt, s)
         for mt, s in SALIENCE_SPECS.items()
@@ -379,4 +394,5 @@ def test_atlas_numeric_optout_axes_get_no_cohort_ruler_but_keep_their_own():
         kinds = [f.get("kind") for f in frames]
         assert "cohort_percentile" not in kinds, f"{mt}: got a cohort ruler off an atlas column that is never built"
         assert kinds, f"{mt}: opt-out stripped the axis of every frame"
-        assert all(k == "distance_to_cut" for k in kinds), f"{mt}: unexpected frame kinds {kinds}"
+        # every surviving frame is a real DISPLAY ruler (not a null kind, not a cohort ruler by another name)
+        assert all(k in _DISPLAY_RULER_KINDS for k in kinds), f"{mt}: unexpected frame kinds {kinds}"
