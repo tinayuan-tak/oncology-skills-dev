@@ -93,12 +93,44 @@ def _load_paralog_indexed() -> tuple[dict, dict]:
 
     Buffering metric (aligns reader to the card + rules contract):
     the buffering signal is NOT the dual-KO effect alone — it is how much MORE
-    lethal the dual KO is than the best single KO:
-        dep_delta_paired_vs_max_single(A,B) = median_dual(A,B) - max(single(A), single(B))
-    A strongly-negative delta means each paralog rescues the other (true buffering),
-    distinct from a pair that is essential simply because one member is a
-    baseline-essential gene. Single-KO baselines are the bare-gene-symbol columns in
-    the SAME ParalogGeneEffect.csv (4547 present), previously skipped.
+    lethal the dual KO is than the STRONGEST single KO:
+        dep_delta_paired_vs_max_single(A,B) = strongest_single(A,B) - median_dual(A,B)
+    where strongest_single = the MOST LETHAL of the two singles = min() on the Chronos
+    scale (more-negative = more lethal). A large positive delta means each paralog
+    rescues the other (true buffering), distinct from a pair that is essential simply
+    because one member is a baseline-essential gene. Single-KO baselines are the
+    bare-gene-symbol columns in the SAME ParalogGeneEffect.csv (4547 present).
+
+    WHY min() AND NOT max() (fix 2026-09-12; the FR 20-target literature panel).
+    This used `max(single_a, single_b)`, which on the Chronos scale selects the LEAST
+    lethal single. For any pair with ONE baseline-essential member the delta then
+    collapses to that member's own essentiality — no genetic interaction required:
+        ERBB2(-0.061) + PTK2(-0.637), dual -0.793
+          max-baseline: -0.061 - (-0.793) = +0.731 -> "strong"   (= PTK2's own essentiality)
+          min-baseline: -0.637 - (-0.793) = +0.156 -> "none"     (PTK2 buffers nothing)
+        PRMT5(-1.616) + PRMT8(+0.059), dual -1.753
+          max-baseline: +1.812 -> "strong"    min-baseline: +0.138 -> "none"
+    i.e. exactly the artifact the paragraph above says the metric exists to exclude.
+    The bias is one-directional (max >= min, so the delta was never under-stated) and
+    it inflates hardest on essential — therefore druggable — partners, so it
+    manufactured buffering on the highest-value targets. Measured over the full 26Q1
+    library: 2726/7627 pairs (35.7%) and 1782/4475 genes (39.8%) were over-classified,
+    ALL as downgrades once corrected; `strong` genes 836 -> 281, `partial` 1710 -> 814;
+    1384 genes (30.9%) named the WRONG strongest_paralog_symbol. Canonical paralog-SL
+    anchors are preserved at `strong` (VPS4A/VPS4B 1.55->1.38, ASF1A/ASF1B 1.82->1.82,
+    MAGOH/MAGOHB 1.40->0.70, STAG1/STAG2 1.02->0.82, MAPK1/MAPK3 0.86->0.59,
+    KRAS/NRAS 0.97->0.72), while the v1 manifest's advertised "top pair"
+    PSPC1/SFPQ (2.87) demotes to partial (0.42) — SFPQ's own single effect is -2.71,
+    so that headline number was a core-essential gene, not a buffering pair.
+    Thresholds are NOT retuned here: what changed is WHICH QUANTITY is measured, and
+    the existing 0.5/0.2 cuts still separate the canonical anchors correctly. Two real
+    SL pairs do land just under the strong cut on the corrected metric
+    (ARID1A/ARID1B 0.24, RPL22/RPL22L1 0.41) — both are substratum-restricted SLs that
+    a pooled panel dilutes, so `partial` is the honest pooled read; any cut change is a
+    separate question needing its own backtest.
+
+    The field NAME (`dep_delta_paired_vs_max_single`) is kept for wire compatibility —
+    it reads as "vs the maximum single-KO EFFECT", which is what min() computes.
 
     Returns:
       (pair_delta_index, per_gene_pair_index)
@@ -180,23 +212,29 @@ def _load_paralog_indexed() -> tuple[dict, dict]:
     dual_median = {k: statistics.median(v) for k, v in pair_effects.items() if v}
     single_median = {g: statistics.median(v) for g, v in single_effects.items() if v}
 
-    # Compute the buffering delta per pair: median_dual - max(single_a, single_b).
+    # Compute the buffering delta per pair.
     # Single-KO baseline missing for a member → that member's single effect is
     # treated as unavailable (None); delta falls back to None (NOT to 0, which would
     # fabricate a baseline — measured-vs-null discipline).
     # SIGN CONVENTION (matches the card contract): dep_delta_paired_vs_max_single is
-    # the POSITIVE additional lethality of the dual KO over the best single KO =
-    #   max(single_a, single_b) - median_dual.
-    # On the Chronos scale (more-negative = more lethal), a dual KO that is more
-    # lethal than either single → max_single (less negative) minus median_dual (more
-    # negative) → POSITIVE delta. strong → delta > 0.5; partial → 0.2-0.5; none → <0.2.
+    # the POSITIVE additional lethality of the dual KO over the STRONGEST single KO =
+    #   min(single_a, single_b) - median_dual.
+    # On the Chronos scale (more-negative = more lethal) the strongest single is min(),
+    # so a dual KO that is more lethal than the stronger single → POSITIVE delta.
+    # strong → delta > 0.5; partial → 0.2-0.5; none → <0.2.
+    # min(), NOT max(): max() picks the LEAST lethal single, which reduces the delta to
+    # an essential member's own gene effect whenever one member is baseline-essential
+    # (worked numbers + the measured fleet-wide impact in _load_paralog_indexed's docstring).
+    # When only ONE member has a single-KO baseline the delta is computed against it —
+    # the unmeasured member cannot be assumed neutral (that is the same fabricated-baseline
+    # error as defaulting to 0), so this stays a one-sided lower bound on the buffering.
     pair_delta_index: dict[tuple, dict] = {}
     for (a, b), med_dual in dual_median.items():
         sa = single_median.get(a)
         sb = single_median.get(b)
         singles = [s for s in (sa, sb) if s is not None]
-        max_single = max(singles) if singles else None
-        delta = (max_single - med_dual) if max_single is not None else None
+        strongest_single = min(singles) if singles else None
+        delta = (strongest_single - med_dual) if strongest_single is not None else None
         pair_delta_index[(a, b)] = {
             "median_dual": med_dual,
             "single_a": sa,
@@ -212,8 +250,19 @@ def _load_paralog_indexed() -> tuple[dict, dict]:
     return pair_delta_index, per_gene_pair_index
 
 
+def _strongest_single(*singles) -> Optional[float]:
+    """The most lethal measured single-KO effect = min() on the Chronos scale (more-negative =
+    more lethal). None when no member has a single-KO baseline — never 0.0, which would fabricate
+    a viable baseline. Used by BOTH read paths so `single_ko_effect - median_dual_ko_effect`
+    reproduces the published delta on either one."""
+    measured = [s for s in singles if s is not None]
+    return min(measured) if measured else None
+
+
 # Card-contract thresholds (paralog-buffering.card.yaml:60-61) on the POSITIVE
-# dep_delta_paired_vs_max_single (dual-KO additional lethality over the best single).
+# dep_delta_paired_vs_max_single (dual-KO additional lethality over the STRONGEST single).
+# Unchanged by the 2026-09-12 baseline fix: that changed which quantity is measured, not the
+# cuts, and the canonical paralog-SL anchors still separate correctly under them.
 _STRONG_DELTA = 0.5
 _PARTIAL_DELTA = 0.2
 
@@ -221,8 +270,10 @@ _PARTIAL_DELTA = 0.2
 def _classify_buffering(delta: Optional[float]) -> str:
     """Buffering class from dep_delta_paired_vs_max_single (card contract).
 
-    delta = max(single_a, single_b) - median_dual (positive = dual KO is more lethal
-    than either single = the paralogs buffer each other). Card vocab: strong/partial/
+    delta = min(single_a, single_b) - median_dual, i.e. the dual KO's additional lethality
+    over the STRONGEST single KO (min = most negative = most lethal on the Chronos scale).
+    Positive = the dual KO is more lethal than the stronger single = the paralogs buffer each
+    other. NOT max(): see _load_paralog_indexed. Card vocab: strong/partial/
     none. A missing delta (no single-KO baseline for either member) is NOT classified
     as `none` — it is genuinely unmeasured; callers treat a None delta as excluded
     from the buffering call (measured-vs-null discipline), never as a confirmed no-buffer.
@@ -244,6 +295,35 @@ def _classify_buffering(delta: Optional[float]) -> str:
 # raw-CSV recompute (_read_from_raw_csv) is retained as a graceful FALLBACK when the product
 # is unreachable (network/auth/absent) — same buffering math, minus the ohnolog annotation.
 DERIVED_PRODUCT_MANIFEST_ID = "depmap-paralog-buffering-per-gene-v1"
+
+# The delta definition this reader implements. The materialized product carries the delta
+# PRE-COMPUTED, so a product built under a superseded definition cannot be corrected by fixing
+# the reader — it would keep serving the inflated max()-baseline deltas on the PREFERRED path
+# while the fallback served the corrected ones. So the product is only trusted when its manifest
+# declares THIS definition; otherwise the reader falls back to the raw-CSV recompute (slower —
+# it parses the cached 69 MB CSV — but correct).
+#
+# FAIL-CLOSED, NOT fail-open: an unparseable / definition-less manifest is treated as stale.
+# The whole point is that a stale product is silently plausible, so "can't tell" must not pass.
+_DELTA_DEFINITION_TOKEN = "min(single_a, single_b) - median_dual_ko"
+
+
+def _product_delta_definition_matches() -> bool:
+    """True when the derived product was built with the delta definition this module implements.
+
+    Compared against the manifest's `parameters.delta_definition`, which the emitter (cli.py)
+    stamps into the product summary and the catalog manifest records. Rebuilding the product
+    under the corrected metric requires updating that manifest string in lock-step — that
+    coupling is deliberate: it is what makes the staleness detectable at all.
+    """
+    try:
+        from methods.catalog_query.read import load_manifest
+
+        doc = load_manifest(DERIVED_PRODUCT_MANIFEST_ID) or {}
+        declared = ((doc.get("parameters") or {}).get("delta_definition") or "").strip()
+    except Exception:  # noqa: BLE001 — manifest unreadable → cannot certify the product → stale
+        return False
+    return _DELTA_DEFINITION_TOKEN in declared
 
 
 def _derived_parquet_uri() -> Optional[str]:
@@ -287,6 +367,11 @@ def _read_from_derived_product(target: str) -> Optional[dict]:
     """
     import json as _json
 
+    # Staleness gate FIRST: a product built under the superseded max()-baseline delta must not be
+    # preferred over the corrected live recompute (see _DELTA_DEFINITION_TOKEN).
+    if not _product_delta_definition_matches():
+        return None
+
     uri = _derived_parquet_uri()
     if not uri:
         return None
@@ -306,7 +391,12 @@ def _read_from_derived_product(target: str) -> Optional[dict]:
         {
             "partner_gene_symbol": p.get("partner_symbol"),
             "median_dual_ko_effect": p.get("median_dual_ko_effect"),
-            "single_ko_effect": p.get("single_ko_target"),
+            # The baseline the delta is measured against = the STRONGEST single of the pair.
+            # Was p["single_ko_target"] (the TARGET's own single), which disagreed with the
+            # fallback path's max-of-pair AND left the published delta unverifiable from the
+            # record whenever the partner was the stronger single. Both paths now report the
+            # same quantity, so single_ko_effect - median_dual_ko_effect == the delta.
+            "single_ko_effect": _strongest_single(p.get("single_ko_target"), p.get("single_ko_partner")),
             "dep_delta_paired_vs_max_single": p.get("dep_delta_paired_vs_max_single"),
             "buffering_class": p.get("buffering_class"),
             "ohnolog": p.get("ohnolog_flag"),
@@ -332,7 +422,7 @@ def _read_from_derived_product(target: str) -> Optional[dict]:
         # there is never confused with a genuine False by the strong_ohnolog_paralog predicate.
         "strongest_paralog_ohnolog_status": "annotated",
         "strongest_paralog_delta": row.get("strongest_delta"),
-        "method_version": "0.3.1",  # 0.3.1: + ohnolog_status tri-state + strongest-paralog semantics doc
+        "method_version": "0.4.0",  # 0.4.0: buffering delta vs the STRONGEST single (min, not max)   # 0.3.1: + ohnolog_status tri-state + strongest-paralog semantics doc
         "_data_source": DERIVED_PRODUCT_MANIFEST_ID,
         "_data_source_upstream": PARALOG_SOURCE_MANIFEST_ID,
     }
@@ -388,14 +478,15 @@ def _read_from_raw_csv(target: str) -> dict:
     functional_paralogs = []
     for partner, rec in pairs:
         delta = rec["delta_vs_max_single"]
-        # max single-KO effect of the pair (the baseline the delta is measured against)
-        singles = [s for s in (rec["single_a"], rec["single_b"]) if s is not None]
-        max_single = max(singles) if singles else None
+        # The baseline the delta is measured against = the STRONGEST (most lethal) single of the
+        # pair. Was max(), i.e. the LEAST lethal single — the same inverted baseline the delta
+        # itself carried (see _load_paralog_indexed).
+        strongest_single = _strongest_single(rec["single_a"], rec["single_b"])
         functional_paralogs.append(
             {
                 "partner_gene_symbol": partner,
                 "median_dual_ko_effect": rec["median_dual"],
-                "single_ko_effect": max_single,
+                "single_ko_effect": strongest_single,
                 "dep_delta_paired_vs_max_single": delta,
                 "buffering_class": _classify_buffering(delta),
             }
@@ -434,7 +525,7 @@ def _read_from_raw_csv(target: str) -> dict:
         "strongest_paralog_ohnolog": None,
         "strongest_paralog_ohnolog_status": "unknown_fallback",
         "strongest_paralog_delta": strongest["dep_delta_paired_vs_max_single"],
-        "method_version": "0.3.1-fallback-raw-csv",  # fallback recompute (product unreachable)
+        "method_version": "0.4.0-fallback-raw-csv",  # fallback recompute (product unreachable)
         # PROVENANCE: this FALLBACK recomputes buffering LIVE from the RAW source CSV
         # (ParalogGeneEffect.csv) — report exactly that, and name the derived product as the
         # preferred source the primary path reads instead.

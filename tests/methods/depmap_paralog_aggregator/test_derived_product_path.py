@@ -17,7 +17,22 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO))
 
+import pytest  # noqa: E402
+
 import methods.depmap_paralog_aggregator.read as R  # noqa: E402
+
+
+@pytest.fixture
+def certified_product(monkeypatch):
+    """Certify the derived product as built under the CURRENT delta definition.
+
+    _read_from_derived_product gates on _product_delta_definition_matches() before anything else
+    (2026-09-12): a product built under the superseded max()-baseline delta must not be preferred
+    over the corrected live recompute. Without this stub these product-MAPPING tests silently fall
+    through to the raw-CSV path — and because that path reads the real ~/.cache, they were passing
+    or failing on LIVE DepMap numbers rather than on the synthetic row they set up.
+    """
+    monkeypatch.setattr(R, "_product_delta_definition_matches", lambda: True)
 
 
 def _product_row(symbol="VPS4A", partner="VPS4B", delta=1.55, ohnolog=True, buffering_class="strong"):
@@ -57,7 +72,7 @@ def _product_row(symbol="VPS4A", partner="VPS4B", delta=1.55, ohnolog=True, buff
     }
 
 
-def test_primary_path_populates_real_ohnolog(monkeypatch):
+def test_primary_path_populates_real_ohnolog(monkeypatch, certified_product):
     """The product read maps columns → card fields AND populates strongest_paralog_ohnolog
     from the strongest partner's ohnolog_flag (the whole point of materializing the product)."""
     monkeypatch.setattr(R, "_derived_parquet_uri", lambda: "s3://fake/paralog.parquet")
@@ -72,16 +87,20 @@ def test_primary_path_populates_real_ohnolog(monkeypatch):
     fp = res["functional_paralogs"][0]
     assert fp["partner_gene_symbol"] == "VPS4B"
     assert fp["ohnolog"] is True
+    # single_ko_effect = the STRONGEST single of the PAIR (min on the Chronos scale), i.e. the
+    # baseline the product's delta was measured against — was single_ko_target (-0.05), which
+    # disagreed with the raw-CSV path and left the delta unverifiable from the record.
+    assert fp["single_ko_effect"] == -0.05  # min(-0.05 target, -0.02 partner)
 
 
-def test_primary_path_non_ohnolog(monkeypatch):
+def test_primary_path_non_ohnolog(monkeypatch, certified_product):
     monkeypatch.setattr(R, "_derived_parquet_uri", lambda: "s3://fake/paralog.parquet")
     monkeypatch.setattr(R, "_fetch_derived_row", lambda uri, gene: _product_row(ohnolog=False))
     res = R.read_target_summary("VPS4A")
     assert res["strongest_paralog_ohnolog"] is False
 
 
-def test_absent_gene_in_product_is_data_unavailable(monkeypatch):
+def test_absent_gene_in_product_is_data_unavailable(monkeypatch, certified_product):
     """Gene not in the product → data_unavailable (NOT a fallback to raw CSV — the product IS
     reachable, the gene just isn't in it)."""
     monkeypatch.setattr(R, "_derived_parquet_uri", lambda: "s3://fake/paralog.parquet")
@@ -113,6 +132,63 @@ def test_unreachable_product_falls_back_to_raw_csv(monkeypatch, tmp_path):
     assert "ParalogGeneEffect.csv" in res["_data_source"]  # raw-CSV fallback stamp
     assert res["strongest_paralog_ohnolog"] is None  # no ohnolog on fallback
     R._load_paralog_indexed.cache_clear()
+
+
+# --- The staleness gate (2026-09-12) -----------------------------------------------------------
+
+
+def test_stale_product_definition_forces_the_live_recompute(monkeypatch, tmp_path):
+    """A product whose manifest still declares the SUPERSEDED max()-baseline delta must NOT be
+    served: the reader falls back to the corrected live recompute instead.
+
+    Without this gate, fixing the arithmetic would have been cosmetic — the PREFERRED path serves
+    `dep_delta_paired_vs_max_single` PRE-COMPUTED from the parquet, so the inflated v1 deltas would
+    have kept flowing while only the (rarely-taken) fallback was corrected.
+    """
+    monkeypatch.setattr(R, "_product_delta_definition_matches", lambda: False)
+    monkeypatch.setattr(R, "_derived_parquet_uri", lambda: "s3://fake/paralog.parquet")
+    monkeypatch.setattr(R, "_fetch_derived_row", lambda uri, gene: pytest.fail("stale product must not be fetched"))
+    import csv
+
+    csv_path = tmp_path / "ParalogGeneEffect.csv"
+    with csv_path.open("w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["ModelID", "GA", "GB", "GA_GB"])
+        w.writerow(["ACH-1", 0.0, 0.05, -1.20])
+        w.writerow(["ACH-2", 0.02, 0.0, -1.25])
+    monkeypatch.setattr(R, "_ensure_paralog_cached", lambda: csv_path)
+    R._load_paralog_indexed.cache_clear()
+    res = R.read_target_summary("GA")
+    assert "ParalogGeneEffect.csv" in res["_data_source"]  # the live recompute, not the product
+    R._load_paralog_indexed.cache_clear()
+
+
+def test_delta_definition_gate_matches_on_the_token_and_fails_closed(monkeypatch):
+    """The gate is a substring check on the manifest's parameters.delta_definition, and ANY read
+    failure fails CLOSED (unreadable manifest → cannot certify → treat as stale)."""
+    import methods.catalog_query.read as CQ
+
+    monkeypatch.setattr(
+        CQ, "load_manifest", lambda mid: {"parameters": {"delta_definition": R._DELTA_DEFINITION_TOKEN + " (x)"}}
+    )
+    assert R._product_delta_definition_matches() is True
+    # the SUPERSEDED v1 string must not certify
+    monkeypatch.setattr(
+        CQ,
+        "load_manifest",
+        lambda mid: {
+            "parameters": {"delta_definition": "max(single_a, single_b) - median_dual_ko (positive = buffering)"}
+        },
+    )
+    assert R._product_delta_definition_matches() is False
+    monkeypatch.setattr(CQ, "load_manifest", lambda mid: {})  # no parameters block
+    assert R._product_delta_definition_matches() is False
+
+    def _boom(mid):
+        raise RuntimeError("manifest unreadable")
+
+    monkeypatch.setattr(CQ, "load_manifest", _boom)
+    assert R._product_delta_definition_matches() is False  # fail-closed
 
 
 def test_fetch_derived_row_parses_s3_uri(monkeypatch):

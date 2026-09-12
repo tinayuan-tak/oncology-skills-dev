@@ -4,8 +4,16 @@ PR-B' (2026-07-17): the reader was aligned to the card + rule contract. Previous
 emitted strong/moderate/weak/none off the RAW dual-KO Chronos effect (conflating
 buffering with baseline essentiality); moderate/weak matched no rule and the
 `partial` rule was dead. Now it emits strong/partial/none off
-    delta = max(single_a, single_b) - median_dual
-(the additional lethality of the dual KO over the best single = true buffering).
+    delta = min(single_a, single_b) - median_dual
+(the additional lethality of the dual KO over the STRONGEST single = true buffering;
+min = most negative = most lethal on the Chronos scale).
+
+2026-09-12 (FR 20-target literature panel): the baseline was `max(...)` — the LEAST
+lethal single — so for any pair with one baseline-ESSENTIAL member the delta collapsed
+to that member's own gene effect and manufactured buffering with no genetic interaction
+(ERBB2+PTK2, PRMT5+PRMT8, AR+ESRRA; 35.7% of the 26Q1 library over-classified). Every
+case in the original fixture gave BOTH singles ~0, where max() == min(), so these tests
+could not fail on the bug: the GI/GJ/GK block below is the guard that can.
 
 Hermetic: monkeypatches _ensure_paralog_cached to a synthetic CSV in tmp — the real
 ~/.cache is never touched (cache-pollution discipline).
@@ -48,6 +56,15 @@ def reader(tmp_path, monkeypatch):
       GC/GD: PARTIAL — singles ~0, dual ~-0.35 → delta ~0.35
       GE/GF: NONE — singles ~0, dual ~0 → delta ~0
       GG/GH: dual present but NO single-KO column for either → delta unmeasured
+
+      ESSENTIAL-PARTNER block (the max()-baseline regression — the ERBB2/PTK2 shape).
+      GI is viable (~-0.06); GJ is baseline-ESSENTIAL on its own (~-0.64); GK is viable
+      (~-0.02). Two duals:
+        GI_GJ ~-0.79  -> min-baseline: -0.64-(-0.79) = +0.15 -> NONE
+                         max-baseline: -0.06-(-0.79) = +0.73 -> "strong" (= GJ's own essentiality)
+        GI_GK ~-0.40  -> min-baseline: -0.06-(-0.40) = +0.34 -> PARTIAL (a real interaction)
+      So the baseline decides BOTH the class (none vs strong) AND which partner is named
+      strongest (GK vs GJ). Under max() these assertions fail; that is the point.
     """
     header = [
         "ModelID",
@@ -57,16 +74,22 @@ def reader(tmp_path, monkeypatch):
         "GD",
         "GE",
         "GF",  # single-KO baselines (~0 = viable)
+        "GI",
+        "GJ",
+        "GK",  # single-KO baselines for the essential-partner block (GJ is essential)
         "GA_GB",
         "GC_GD",
         "GE_GF",
         "GG_GH",  # dual-KO pairs
+        "GI_GJ",
+        "GI_GK",  # essential-partner duals
         "AAVS1_chr2",  # control — must be skipped
     ]
     rows = [
-        ["ACH-1", 0.0, 0.05, -0.02, 0.0, 0.01, 0.0, -1.20, -0.34, 0.01, -1.4, -0.5],
-        ["ACH-2", 0.02, 0.0, 0.0, -0.03, 0.0, 0.02, -1.25, -0.36, -0.01, -1.5, -0.6],
-        ["ACH-3", 0.0, 0.01, 0.01, 0.0, -0.01, 0.0, -1.18, -0.35, 0.00, -1.3, -0.4],
+        # GA   GB    GC     GD     GE     GF   GI     GJ     GK  |GA_GB GC_GD GE_GF GG_GH|GI_GJ GI_GK|ctl
+        ["ACH-1", 0.0, 0.05, -0.02, 0.0, 0.01, 0.0, -0.05, -0.64, -0.02, -1.20, -0.34, 0.01, -1.4, -0.79, -0.40, -0.5],
+        ["ACH-2", 0.02, 0.0, 0.0, -0.03, 0.0, 0.02, -0.06, -0.66, 0.0, -1.25, -0.36, -0.01, -1.5, -0.80, -0.41, -0.6],
+        ["ACH-3", 0.0, 0.01, 0.01, 0.0, -0.01, 0.0, -0.07, -0.62, -0.03, -1.18, -0.35, 0.00, -1.3, -0.78, -0.39, -0.4],
     ]
     csv_path = _write_csv(tmp_path, header, rows)
     monkeypatch.setattr(R, "_ensure_paralog_cached", lambda: csv_path)
@@ -97,8 +120,8 @@ def test_no_buffering_pair(reader):
 
 
 def test_delta_sign_convention(reader):
-    """delta = max(single) - median_dual → POSITIVE when the dual KO is more lethal
-    than either single (Chronos: more-negative = more lethal)."""
+    """delta = min(single) - median_dual → POSITIVE when the dual KO is more lethal
+    than the STRONGEST single (Chronos: more-negative = more lethal)."""
     res = reader.read_target_summary("GA")
     fp = res["functional_paralogs"][0]
     assert fp["median_dual_ko_effect"] < 0  # dual KO is lethal
@@ -124,6 +147,55 @@ def test_class_vocab_matches_card_contract(reader):
     for g in ("GA", "GC", "GE", "GG", "NOSUCHGENE"):
         emitted.add(reader.read_target_summary(g)["paralog_buffering_class"])
     assert emitted <= {"strong", "partial", "none", "data_unavailable"}
+
+
+# --- The max()-vs-min() baseline regression (2026-09-12) ---------------------------------------
+# These four are the ONLY tests in this file that can fail if the baseline reverts to max():
+# every other case has both singles ~0, where max() == min().
+
+
+def test_essential_partner_does_not_manufacture_buffering(reader):
+    """GI/GJ: the dual KO is barely more lethal than GJ alone, so the pair does NOT buffer.
+
+    Under the superseded max() baseline the delta was GI's (viable) effect minus the dual =
+    +0.73 -> `strong`, i.e. GJ's own essentiality re-labelled as redundancy. This is the
+    ERBB2/PTK2, PRMT5/PRMT8 and AR/ESRRA artifact in miniature.
+    """
+    fps = {p["partner_gene_symbol"]: p for p in reader.read_target_summary("GI")["functional_paralogs"]}
+    gj = fps["GJ"]
+    assert gj["dep_delta_paired_vs_max_single"] == pytest.approx(0.15, abs=0.03)
+    assert gj["buffering_class"] == "none"
+
+
+def test_strongest_partner_is_not_the_essential_one(reader):
+    """The named strongest paralog must be the one with the real genetic interaction (GK, delta ~0.34),
+    not the baseline-essential member whose inflated delta topped the max()-baseline ranking (GJ).
+    Fleet-wide this mis-named strongest_paralog_symbol for 1384/4475 genes (30.9%)."""
+    res = reader.read_target_summary("GI")
+    assert res["strongest_paralog_symbol"] == "GK"
+    assert res["paralog_buffering_class"] == "partial"
+    assert res["strongest_paralog_delta"] == pytest.approx(0.34, abs=0.03)
+
+
+def test_baseline_is_the_most_lethal_single_not_the_least(reader):
+    """single_ko_effect is the baseline the delta is measured against, and it must be the MOST
+    lethal single of the pair. For GI/GJ that is GJ (~-0.64), not GI (~-0.06)."""
+    fps = {p["partner_gene_symbol"]: p for p in reader.read_target_summary("GI")["functional_paralogs"]}
+    gj = fps["GJ"]
+    assert gj["single_ko_effect"] == pytest.approx(-0.64, abs=0.03)
+    # the identity holds on BOTH read paths (see _strongest_single)
+    assert gj["dep_delta_paired_vs_max_single"] == pytest.approx(
+        gj["single_ko_effect"] - gj["median_dual_ko_effect"], abs=1e-6
+    )
+
+
+def test_one_sided_baseline_uses_the_measured_member(reader):
+    """GG/GH has NO single for either member -> unmeasured (never `none`). The one-sided case is
+    the complement: a delta computed against the single member that IS measured, which stays a
+    LOWER bound — the unmeasured member is not assumed neutral."""
+    assert reader._strongest_single(-0.64, None) == pytest.approx(-0.64)
+    assert reader._strongest_single(None, -0.06) == pytest.approx(-0.06)
+    assert reader._strongest_single(None, None) is None  # NOT 0.0 — no fabricated viable baseline
 
 
 # --- AM-3 (2026-08-05): RAW-CSV FALLBACK path — honest provenance + ohnolog=None ---

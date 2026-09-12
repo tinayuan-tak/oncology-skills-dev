@@ -56,7 +56,12 @@ _S3_BUCKET_IDMAP, _ENSEMBL_IDMAP_PREFIX = bucket_prefix_for(ENSEMBL_ID_MAP_MANIF
 ENSEMBL_ID_MAP_S3_KEY = f"{_ENSEMBL_IDMAP_PREFIX}hsapiens_gene_id_map_release-116.tsv"
 ENSEMBL_ID_MAP_CACHE_TSV = ENSEMBL_CACHE_DIR / "hsapiens_gene_id_map_release-116.tsv"
 
-METHOD_VERSION = "1.0.0"
+# 2.0.0 (2026-09-12): BREAKING metric change — the buffering delta is now measured against the
+# STRONGEST single KO (min on the Chronos scale), not the least-lethal one (max). A v1 product is
+# NOT comparable to a v2 product: 35.7% of pairs reclassify, all downgrades. read.py's
+# _product_delta_definition_matches() refuses to serve any product whose manifest still declares the
+# v1 delta_definition, so a rebuild MUST be accompanied by the manifest edit below.
+METHOD_VERSION = "2.0.0"
 
 
 def _ensure_ensembl_cached() -> Path | None:
@@ -300,7 +305,12 @@ def main(out: Path, no_ensembl: bool):
         "buffering_thresholds": {
             "strong_delta_threshold": 0.5,
             "partial_delta_threshold": 0.2,
-            "delta_definition": "max(single_a, single_b) - median_dual_ko (positive = buffering)",
+            # Token-matched by read.py:_DELTA_DEFINITION_TOKEN — the catalog manifest's
+            # parameters.delta_definition must contain this exact substring or the derived
+            # product is treated as stale and the reader recomputes live. Do not reword the
+            # "min(single_a, single_b) - median_dual_ko" fragment without updating that constant.
+            "delta_definition": "min(single_a, single_b) - median_dual_ko (positive = buffering; "
+            "min = the MOST LETHAL single KO on the Chronos scale)",
         },
         "ohnolog_annotation_source": (
             "ensembl-compara-release-116; LCA in {Vertebrata, Bilateria, Opisthokonta, Eukaryota}"
