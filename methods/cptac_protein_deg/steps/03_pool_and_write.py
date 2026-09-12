@@ -33,13 +33,22 @@ import pyarrow.parquet as pq
 
 CPTAC_COHORTS = ["BRCA", "CCRCC", "COAD", "GBM", "HNSCC", "LSCC", "LUAD", "OV", "PDAC", "UCEC"]
 
-METHOD_VERSION = "1.2.0"  # 2026-08-20: variance-aware classify (G7) — negligible Cohen's d → small_effect
+METHOD_VERSION = "1.3.0"  # 2026-09-12: unestimable contrast (log2FC=+/-Inf) → data_unavailable, not not_significant
 STAT_TEST_USED = "msstatstmt_limma_ebayes_moderated"
 
 # Below this |Cohen's d| the standardized (sample-size-independent) effect is negligible — a call that
 # cleared significance via cohort size / low variance rather than a real per-sample tumor-vs-normal
 # difference. Conventional small-effect floor (Cohen 1988). Mirrors read.py _cohens_d_class.
 NEGLIGIBLE_COHENS_D = 0.2
+
+
+def _is_finite(x) -> bool:
+    """True only for a real, computable number. `pd.isna` rejects NaN/None but ADMITS +/-Inf, which is
+    exactly how MSstatsTMT reports an unestimable contrast — see the note in classify()."""
+    try:
+        return x is not None and not pd.isna(x) and math.isfinite(float(x))
+    except (TypeError, ValueError):
+        return False
 
 
 def _cohens_d(logfc, se, n_tumor, n_normal, p_value=None):
@@ -52,7 +61,7 @@ def _cohens_d(logfc, se, n_tumor, n_normal, p_value=None):
     try:
         if not (n_tumor and n_normal and float(n_tumor) > 0 and float(n_normal) > 0):
             return None
-        if pd.isna(logfc):
+        if not _is_finite(logfc):  # +/-Inf (unestimable contrast) as well as NaN — see classify()
             return None
         t = None
         if se is not None and not pd.isna(se) and float(se) > 0:
@@ -68,8 +77,17 @@ def _cohens_d(logfc, se, n_tumor, n_normal, p_value=None):
         return None
 
 
+OK_ISSUES = frozenset({"", "ok", "none", "nan", "na"})
+
+
 def classify(
-    logfc: float, q: float, se: float = None, n_tumor: int = None, n_normal: int = None, p_value: float = None
+    logfc: float,
+    q: float,
+    se: float = None,
+    n_tumor: int = None,
+    n_normal: int = None,
+    p_value: float = None,
+    issue: str = None,
 ) -> str:
     # 2026-08-14 multi-pair review (finding #5): the former single `ns` bucket conflated TWO
     # distinct outcomes — "tested, not statistically significant" (q >= 0.05) and "significant but
@@ -87,7 +105,24 @@ def classify(
     # VERDICT-SAFE: not_significant + small_effect are OUTSIDE _ELEVATED_CLASSES ({strong_up, modest_up}),
     # so this can only MOVE a call OUT of the elevated set (never fabricate an up-call); breadth/coverage
     # rollups and the tumor-presence M2 present-but-flat rescue are preserved.
-    if pd.isna(logfc) or pd.isna(q):
+    #
+    # 2026-09-12 (W4): UNESTIMABLE != FLAT. MSstatsTMT does not emit NA for a protein quantified in only
+    # ONE condition — it emits log2FC = +/-Inf with NA pvalue/adj.pvalue/SE (its `oneConditionMissing`
+    # issue). `Inf` is not `NaN`, so the isna() guard below fell through to the `q >= 0.05` arm and
+    # labelled 1,618 rows of the shipped v1.2.0 product `not_significant` — asserting "tested, no
+    # tumor-vs-normal difference" about a ratio that has no denominator. BRCA: 1,613 of 10,491 (15.4%);
+    # GBM: 5. STEAP1/BRCA (85 tumor aliquots, 0 normal) is the motivating case. `data_unavailable` is
+    # already in the card's protein_expression_class vocabulary, so this is a vocabulary-legal move; it is
+    # also OUT of _ELEVATED_CLASSES, so it cannot fabricate an up-call. Deliberately NOT rescued upward:
+    # zero quantifications across 18 normal aliquots does not let whole-proteome TMT assert absence.
+    # The upstream `issue` column (stage 02) is now authoritative when it flags anything — this is where
+    # MSstatsTMT's own oneConditionMissing / completeMissing reaches the product instead of being dropped.
+    # Finiteness is the independent backstop, so an older TSV with no issue column is still handled.
+    if issue is not None and not pd.isna(issue) and str(issue).strip().lower() not in OK_ISSUES:
+        return "data_unavailable"
+    if not _is_finite(logfc):
+        return "data_unavailable"
+    if pd.isna(q):
         return "not_significant"
     if q >= 0.05:
         return "not_significant"
@@ -172,12 +207,13 @@ def main() -> int:
                 # significant-by-n call to small_effect. SE column is NaN-filled when the upstream lacks it
                 # (→ classify falls back to the raw-logFC bands).
                 "protein_expression_class": [
-                    classify(f, q, se, n_tumor, n_normal, p_value=p)
-                    for f, q, se, p in zip(
+                    classify(f, q, se, n_tumor, n_normal, p_value=p, issue=iss)
+                    for f, q, se, p, iss in zip(
                         df["logFC"],
                         df["adj.pvalue"],
                         (df["SE"] if "SE" in df.columns else [None] * len(df)),
                         (df["pvalue"] if "pvalue" in df.columns else [None] * len(df)),
+                        (df["issue"] if "issue" in df.columns else [None] * len(df)),
                     )
                 ],
                 "stat_test_used": STAT_TEST_USED,

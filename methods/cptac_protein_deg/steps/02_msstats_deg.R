@@ -158,6 +158,26 @@ res$Protein <- as.character(res$Protein)
 med$Protein <- as.character(med$Protein)
 res <- dplyr::left_join(res, med, by = "Protein")
 
+# `issue` — 2026-09-12 (W4). The former `ifelse(is.na(res$log2FC), "no_estimate", "ok")` MISSED the
+# dominant unestimable case and labelled it "ok". groupComparisonTMT does NOT return NA for a protein
+# quantified in only one condition: it returns log2FC = +/-Inf (and NA pvalue/adj.pvalue/SE), flagged in
+# its OWN `issue` column as `oneConditionMissing`. `is.na(Inf)` is FALSE, so 1,618 rows of the shipped
+# v1.2.0 product (BRCA 1,613 of 10,491 = 15.4%; GBM 5) were stamped "ok" here and then labelled
+# `not_significant` downstream — a claim of "tested, no difference" about an unestimable ratio.
+# Fix: carry MSstatsTMT's own issue verbatim when it has one, and make the locally-computed fallback
+# test FINITENESS rather than NA. Order matters: upstream wins, because it distinguishes
+# oneConditionMissing from completeMissing and we must not flatten that.
+upstream_issue <- if ("issue" %in% names(res)) as.character(res$issue) else rep(NA_character_, nrow(res))
+local_issue <- ifelse(is.na(res$log2FC), "no_estimate",
+                      ifelse(is.finite(res$log2FC), "ok", "one_condition_missing"))
+issue_col <- ifelse(!is.na(upstream_issue) & nzchar(upstream_issue), upstream_issue, local_issue)
+
+n_unest <- sum(!is.na(res$log2FC) & !is.finite(res$log2FC))
+if (n_unest > 0) {
+  message(sprintf("[02_msstats %s] UNESTIMABLE contrasts (log2FC=+/-Inf, one condition missing): %d of %d",
+                  cohort, n_unest, nrow(res)))
+}
+
 out <- data.frame(
   cohort = cohort,
   gene_symbol = res$Protein,
@@ -169,7 +189,7 @@ out <- data.frame(
   med_log2_normal = res$med_log2_Normal,
   n_tumor = n_tumor,
   n_normal = n_normal,
-  issue = ifelse(is.na(res$log2FC), "no_estimate", "ok"),
+  issue = issue_col,
   stringsAsFactors = FALSE
 )
 

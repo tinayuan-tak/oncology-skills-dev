@@ -34,6 +34,26 @@ def _is_num(x) -> bool:
     return isinstance(x, (int, float)) and not (isinstance(x, float) and math.isnan(x))
 
 
+def _is_finite_num(x) -> bool:
+    """`_is_num` rejects ONLY NaN — it admits +/-Inf. MSstatsTMT signals an UNESTIMABLE contrast with
+    log2FC = +/-Inf (see `_unestimable_reason`), so every guard whose job is to reject a non-computable
+    effect needs THIS predicate. The distinction is not academic: on the shipped v1.2.0 product 1,618
+    rows carry +/-Inf, and `isna()`-shaped guards let all 1,618 through as if they were measurements."""
+    return _is_num(x) and math.isfinite(float(x))
+
+
+def _finite_effect_or_nan(row) -> float:
+    """|protein_effect_size| for RANKING, with a non-finite effect ranked LAST (never first).
+
+    `abs(float(inf))` is `inf`, so an `max(..., key=abs-effect)` argmax over a target's cohort rows
+    lets an UNESTIMABLE row beat every real measurement. Measured on the shipped product: 1,564 of the
+    1,618 affected genes had their pan-cancer row hijacked by BRCA's unestimable contrast, and 32 of
+    those shadowed a genuine strong_up call in another cohort (ESCO2 reported BRCA/unestimable instead
+    of LUAD +3.30; CMTM3 instead of GBM +2.94; ADAM12 instead of GBM +2.37)."""
+    v = row.get("protein_effect_size")
+    return abs(float(v)) if _is_finite_num(v) else -1.0
+
+
 def _cohens_d_class(d: float) -> str:
     ad = abs(d)
     if ad >= 0.8:
@@ -246,12 +266,79 @@ def _load_indexed():
     return df, cohort_gene_idx, gene_idx
 
 
+def _unestimable_reason(row) -> Optional[str]:
+    """Is this row's tumor-vs-normal contrast UNESTIMABLE rather than flat? Returns an audit reason, or
+    None when the contrast was genuinely estimated.
+
+    MSstatsTMT's `groupComparisonTMT` does not emit NA for a protein quantified in only ONE condition —
+    it emits log2FC = +/-Inf with NA p-value / NA adj.pvalue / NA SE (its own `oneConditionMissing`
+    issue). `Inf` is not `NaN`, so the `pd.isna(logfc) or pd.isna(q)` guard in
+    steps/03_pool_and_write.py::classify falls through to its `q >= 0.05` arm and labels the row
+    `not_significant` — "we tested this protein and found no tumor-vs-normal difference". That is the
+    opposite of the truth: the ratio has no denominator, so no difference was ever tested.
+
+    Measured on the shipped v1.2.0 product (101,013 rows): 1,618 rows are affected — BRCA 1,613 of
+    10,491 (15.4%) and GBM 5 — and ALL 1,618 carry NaN q AND NaN SE, so finiteness of the effect size is
+    a complete and sufficient discriminator. 1,616 lack the NORMAL median (quantified in zero normal
+    aliquots) and 2 lack the TUMOR median. STEAP1/BRCA is the motivating case: quantified in 85 tumor
+    aliquots and 0 of the cohort's normal aliquots, shipped as `not_significant`.
+
+    Deliberately NOT rescued UPWARD to an elevated call. Zero quantifications across 18 (BRCA) normal
+    aliquots is consistent with a tumor-restricted antigen, but whole-proteome TMT cannot assert
+    per-gene absence at that n — the same reason the card's G2a note removed `not_detected` from this
+    card's vocabulary. `data_unavailable` is the honest posture: absence of a measurement, carried as
+    ignorance (it drops out of the certainty min and into unknown_mass) rather than as agreement."""
+    eff = row.get("protein_effect_size")
+    if _is_finite_num(eff):
+        return None
+    if not _is_num(eff):
+        return "unestimable_contrast: no protein_effect_size (contrast not computed)"
+    # +/-Inf: name the SIDE of the contrast that had no quantification, from the surviving median.
+    if not _is_num(row.get("protein_median_log2_normal")):
+        side = "quantified in ZERO normal aliquots"
+    elif not _is_num(row.get("protein_median_log2_tumor")):
+        side = "quantified in ZERO tumor aliquots"
+    else:
+        side = "one condition entirely missing"
+    n_t, n_n = row.get("n_tumor_samples"), row.get("n_normal_samples")
+    return (
+        f"unestimable_contrast: MSstatsTMT log2FC={float(eff):+.0f} ({side}; cohort "
+        f"n_tumor={n_t}, n_normal={n_n}) — no tumor-vs-normal difference was tested"
+    )
+
+
 def _row_to_summary(
     row: dict, matched_cohort: str, allgene_percentile: float = None, allgene_percentile_class: str = "data_unavailable"
 ) -> dict:
+    # UNESTIMABLE CONTRAST -> data_unavailable, NOT `not_significant`. Every downstream numeric field is
+    # nulled: an +Inf effect size is not JSON-serializable, distorts the all-gene percentile null, and
+    # wins any |effect| argmax. The medians are PRESERVED — the one side that WAS quantified is a real
+    # measurement and the only evidence a reader has about why the contrast failed.
+    unestimable = _unestimable_reason(row)
+    if unestimable:
+        out = _empty(unestimable)
+        out["cohort"] = matched_cohort
+        out["protein_contrast_estimable"] = False
+        # The median for the side that HAD no quantification is NaN. Carry the surviving one and null the
+        # other: NaN is no more JSON-serializable than Inf, and `None` is the honest "not measured".
+        med_t, med_n = row.get("protein_median_log2_tumor"), row.get("protein_median_log2_normal")
+        out["protein_median_log2_tumor"] = float(med_t) if _is_finite_num(med_t) else None
+        out["protein_median_log2_normal"] = float(med_n) if _is_finite_num(med_n) else None
+        out["n_tumor_samples"] = row.get("n_tumor_samples")
+        out["n_normal_samples"] = row.get("n_normal_samples")
+        out["stat_test_used"] = row.get("stat_test_used", "msstatstmt_limma_ebayes_moderated")
+        out["method_version"] = row.get("method_version", "1.0.0")
+        out["_data_source"] = DERIVED_MANIFEST_ID
+        # Keep the card-declared percentile trio present (declared-field mirror guard) but null — there is
+        # no effect size to rank against the cohort null.
+        out["allgene_percentile"] = None
+        out["allgene_percentile_class"] = "data_unavailable"
+        out["allgene_percentile_context"] = None
+        return out
     return {
         "cohort": matched_cohort,
         "protein_expression_class": row.get("protein_expression_class", "not_significant"),
+        "protein_contrast_estimable": True,
         "protein_effect_size": row.get("protein_effect_size"),
         # All-gene percentile null (additive, display + companion categorical): where the
         # target's protein_effect_size falls among ALL genes tested in THIS cohort.
@@ -288,6 +375,9 @@ def _empty(note: str) -> dict:
     return {
         "cohort": None,
         "protein_expression_class": "data_unavailable",
+        # None = "no row at all" (target/cohort absent); False = a row exists but its contrast is
+        # unestimable (see _unestimable_reason); True = a real tumor-vs-normal estimate.
+        "protein_contrast_estimable": None,
         "protein_effect_size": None,
         "protein_bh_q_value": None,
         "protein_p_value": None,
@@ -344,7 +434,9 @@ def read_target_summary(target: str, indication: str = None) -> dict:
         present = [(c, cohort_gene_idx[(c, sym)]) for c in cohorts if (c, sym) in cohort_gene_idx]
         if not present:
             return _empty(f"target_not_in_cptac_cohort_{'+'.join(cohorts)}")
-        best_c, best_idx = max(present, key=lambda ci: abs(float(df.iloc[ci[1]].get("protein_effect_size", 0) or 0)))
+        # Rank by |effect| with UNESTIMABLE rows last (_finite_effect_or_nan): +Inf otherwise wins every
+        # argmax. Matters for a multi-cohort umbrella (NSCLC -> LUAD+LSCC); harmless for a single cohort.
+        best_c, best_idx = max(present, key=lambda ci: _finite_effect_or_nan(df.iloc[ci[1]]))
         row = df.iloc[best_idx].to_dict()
         pct, pct_class = _allgene_effect_percentile(df, best_c, row.get("protein_effect_size"))
         summ = _row_to_summary(row, matched_cohort=best_c, allgene_percentile=pct, allgene_percentile_class=pct_class)
@@ -371,7 +463,9 @@ def read_target_summary(target: str, indication: str = None) -> dict:
         return _empty("target_not_in_any_cptac_cohort")
 
     rows = df.iloc[indices].to_dict(orient="records")
-    best_row = max(rows, key=lambda r: abs(float(r.get("protein_effect_size", 0) or 0)))
+    # Unestimable rows rank LAST — this is the path where +Inf did the most damage (1,564 genes reported
+    # BRCA/unestimable instead of their real best cohort; see _finite_effect_or_nan).
+    best_row = max(rows, key=_finite_effect_or_nan)
     best_cohort = str(best_row.get("cohort", "")).upper()
     pct, pct_class = _allgene_effect_percentile(df, best_cohort, best_row.get("protein_effect_size"))
     return _row_to_summary(
@@ -390,6 +484,10 @@ def _allgene_effect_percentile(df, cohort: str, effect_size):
         null_vals = df.loc[df["cohort"].str.upper() == cohort, "protein_effect_size"].tolist()
     except Exception:
         return None, "data_unavailable"
+    # NOT affected by the unestimable-contrast defect, and deliberately left alone: percentile_null
+    # already drops non-finite values from the null (percentile_null._finite) and already returns None for
+    # a non-finite VALUE, so the +Inf mass never entered a percentile and never deflated a real gene.
+    # Pinned by test_unestimable_contrast.py so a percentile_null refactor cannot silently regress it.
     pct = percentile_rank(effect_size, null_vals)
     return pct, classify_percentile(pct)
 
@@ -412,7 +510,7 @@ def read_all_cohorts(target: str) -> list[dict]:
     rows = [
         _row_to_summary(df.iloc[i].to_dict(), matched_cohort=str(df.iloc[i]["cohort"]).strip().upper()) for i in indices
     ]
-    rows.sort(key=lambda r: abs(float(r.get("protein_effect_size") or 0)), reverse=True)
+    rows.sort(key=_finite_effect_or_nan, reverse=True)
     return rows
 
 
@@ -610,7 +708,8 @@ def read_tumor_elevation_breadth(target: str) -> dict:
           median_effect_across_elevated,   # median protein_effect_size over elevated cohorts
           most_elevated_cohorts,           # [{cohort, protein_expression_class, protein_effect_size,
                                            #   protein_bh_q_value}] effect-desc, elevated only
-          cohorts_tested,                  # sorted list of all cohort codes tested (provenance)
+          cohorts_tested,                  # sorted cohort codes with an ESTIMATED contrast (the denominator)
+          cohorts_unestimable,             # sorted cohort codes present but with an UNESTIMABLE contrast
         }
     breadth_class ladder (default thresholds; interpretation lives in the card/rules but the
     class is computed here mirroring read_target_summary's protein_expression_class pattern):
@@ -618,10 +717,19 @@ def read_tumor_elevation_breadth(target: str) -> dict:
         multi_tumor_elevated    -> n_cohorts_elevated >= 2
         single_tumor_elevated   -> n_cohorts_elevated == 1
         not_tumor_elevated      -> n_cohorts_tested >= 1 AND n_cohorts_elevated == 0
-        data_unavailable        -> n_cohorts_tested == 0 (target absent / product unavailable)
+        data_unavailable        -> n_cohorts_tested == 0 (target absent, product unavailable, OR every
+                                   cohort row present is an UNESTIMABLE contrast — `not_tumor_elevated`
+                                   would be a positive claim of non-elevation drawn from no test)
     """
     rows = read_all_cohorts(target)
-    n_tested = len(rows)
+    # DENOMINATOR = cohorts where the contrast was actually ESTIMATED. A cohort row whose contrast is
+    # unestimable (protein_contrast_estimable is False) can never enter the elevated numerator, so
+    # counting it as "tested" deflates fraction_elevated and can demote broadly_ -> multi_tumor_elevated
+    # on a coverage artifact. It stays in `rows` (and in cohorts_unestimable below) so the loss is
+    # LEGIBLE rather than dropped.
+    estimable = [row for row in rows if row.get("protein_contrast_estimable") is not False]
+    unestimable = [row for row in rows if row.get("protein_contrast_estimable") is False]
+    n_tested = len(estimable)
     if n_tested == 0:
         return {
             "tumor_elevation_breadth_class": "data_unavailable",
@@ -631,9 +739,10 @@ def read_tumor_elevation_breadth(target: str) -> dict:
             "median_effect_across_elevated": None,
             "most_elevated_cohorts": [],
             "cohorts_tested": [],
+            "cohorts_unestimable": sorted(str(row.get("cohort")) for row in unestimable),
         }
 
-    elevated = [row for row in rows if _cohort_elevated(row)]
+    elevated = [row for row in estimable if _cohort_elevated(row)]
     n_elevated = len(elevated)
     fraction = n_elevated / n_tested
     # Legibility (G6, no silent cap): cohorts that WERE significance-gated-up but were stripped from the
@@ -684,7 +793,8 @@ def read_tumor_elevation_breadth(target: str) -> dict:
         "fraction_elevated": fraction,
         "median_effect_across_elevated": median_effect,
         "most_elevated_cohorts": most_elevated,
-        "cohorts_tested": sorted(str(row.get("cohort")) for row in rows),
+        "cohorts_tested": sorted(str(row.get("cohort")) for row in estimable),
+        "cohorts_unestimable": sorted(str(row.get("cohort")) for row in unestimable),
     }
 
 

@@ -35,8 +35,20 @@ def test_not_significant_when_q_high():
     assert _m.classify(3.0, 0.20) == "not_significant"  # large fc but q>=0.05 → still not significant
 
 
-def test_not_significant_when_stats_missing():
-    assert _m.classify(np.nan, 0.01) == "not_significant"
+def test_missing_estimate_is_data_unavailable_missing_q_is_not_significant():
+    """W4 (2026-09-12) corrected an ASYMMETRY this test previously pinned.
+
+    A missing EFFECT ESTIMATE and a missing Q-VALUE are not the same thing:
+      - no logFC (NaN, or +/-Inf when MSstatsTMT has only one condition) -> nothing was estimated, so
+        `not_significant` ("tested, no difference") is a claim the data cannot support -> data_unavailable.
+      - a logFC with no q -> an effect WAS estimated but significance could not be assessed; the
+        conservative `not_significant` is right (it keeps the row out of the elevated classes).
+    Zero rows of the shipped v1.2.0 product have a NaN logFC (all 1,618 unestimable rows are +/-Inf), so
+    the NaN half of this change is behavior-neutral on real data; it removes the conflation that let the
+    Inf half ship as `not_significant`. See test_unestimable_contrast.py."""
+    assert _m.classify(np.nan, 0.01) == "data_unavailable"
+    assert _m.classify(np.inf, np.nan) == "data_unavailable"
+    assert _m.classify(-np.inf, np.nan) == "data_unavailable"
     assert _m.classify(0.8, np.nan) == "not_significant"
 
 
@@ -99,7 +111,10 @@ def test_no_se_and_no_pvalue_falls_back_to_raw_bands():
 def test_old_ns_union_preserved_and_not_elevated():
     """Everything that used to be `ns` is now not_significant OR small_effect, and NEITHER is an
     elevated class — the verdict-safety invariant for breadth/coverage rollups."""
-    old_ns_cases = [(0.1, 0.9), (3.0, 0.20), (np.nan, 0.01), (0.5, 1e-4), (0.0, 1e-6)]
+    old_ns_cases = [(0.1, 0.9), (3.0, 0.20), (0.5, 1e-4), (0.0, 1e-6)]
     labels = {_m.classify(fc, q) for fc, q in old_ns_cases}
     assert labels <= {"not_significant", "small_effect"}
     assert labels.isdisjoint({"strong_up", "modest_up"})  # never elevated
+    # (np.nan, 0.01) moved out of this union in W4 -> data_unavailable, which is likewise never elevated.
+    # That is the invariant this test exists to protect, so it is asserted here rather than dropped.
+    assert _m.classify(np.nan, 0.01) not in {"strong_up", "modest_up"}
