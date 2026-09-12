@@ -6,6 +6,7 @@ unchanged. (The pq read below already carries its own discriminant.)
 
 from __future__ import annotations
 
+import functools
 import sys
 from pathlib import Path
 
@@ -18,6 +19,29 @@ if str(REPO) not in sys.path:
 
 import methods.catalog_query.read as cq  # noqa: E402
 from methods.genie_panel_recurrence import read as gen  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _clear_module_caches():
+    """Both guards below monkeypatch a DEPENDENCY of an @lru_cache'd loader. A warm cache short-
+    circuits the loader body, so the patched resolver is never reached and the assertions become
+    vacuous -- they fail (or, in the mirror case, pass) purely on test ORDER. Cleared before AND
+    after: before so the guards can actually fire, after so this file's tmp_path-scoped results
+    (notably a cached None for COADREAD) do not leak into downstream tests.
+
+    Swept generically off the module rather than by name: a fourth @lru_cache added to read.py
+    later would otherwise silently re-open the hole.
+    """
+
+    def _clear():
+        for name in dir(gen):
+            fn = getattr(gen, name, None)
+            if isinstance(fn, functools._lru_cache_wrapper):
+                fn.cache_clear()
+
+    _clear()
+    yield
+    _clear()
 
 
 def _nosuchkey():
