@@ -37,6 +37,40 @@ def test_axis_mapped_and_auxiliary_split():
         assert QH[s]["axis"] in AXIS_SHORTS
 
 
+def test_genomic_exon_skip_is_its_own_sub_group_not_fusion():
+    """`splice_exon_skip` is a SPL sub-group of its own, never a FUS measurement_type.
+
+    Sub-group `measurement_types` are what `derive_subgroups` (skills `_skills_common`) SCORES per
+    sub-group; `context_types` are deliberately NOT scored. While `splice_exon_skip` sat under FUS, a
+    METex14 exon-skipping read was scored into the FUSION signal — but the skill computes and publishes a
+    SEPARATE exon-skip driver claim (its own resolver rung `splice-exon-skip-driver-supportive`, its own
+    scope-map entry, its own `genomic_claims._spl_signal`, its own `splice_driver` question on axis SPL in
+    `genomic-alteration-profile/questions.yaml`). One nomination therefore carried a fusion signal lifted
+    by splice evidence alongside an independent splice claim.
+
+    `tumor_splice_dysregulation` is a `context_type` here, not a measurement_type, and that is load-bearing
+    twice over: it is a splice-FORM read that must not be scored on ANY axis (it was scored into FUS for the
+    same reason), and the skill routes it to an axis-LESS `display_only` question so it stays out of the SPL
+    literature crosswalk. Omitting it from the hierarchy entirely is NOT the alternative — the skills-side
+    connectivity guard would then flag its card as a same-question orphan.
+    """
+    sgs = {sg["id"]: sg for sg in QH["genomic-alteration-profile"]["sub_groups"]}
+    assert set(sgs) == {"SNV", "CN", "FUS", "SPL", "DEP"}
+    spl_scored = {mt for q in sgs["SPL"]["questions"] for mt in q["measurement_types"]}
+    assert spl_scored == {"splice_exon_skip"}
+    assert sgs["SPL"]["context_types"] == ["tumor_splice_dysregulation"]
+    fus_scored = {mt for q in sgs["FUS"]["questions"] for mt in q["measurement_types"]}
+    assert fus_scored == {"fusion_rearrangement", "fusion_stratified_dependency"}
+    for sg_id, sg in sgs.items():
+        scored = {mt for q in sg["questions"] for mt in q["measurement_types"]}
+        assert "tumor_splice_dysregulation" not in scored, (
+            f"tumor_splice_dysregulation is a splice-FORM display read; scoring it under {sg_id} makes it "
+            "evidence for a driver call it does not measure"
+        )
+        if sg_id != "SPL":
+            assert "splice_exon_skip" not in scored | set(sg.get("context_types") or [])
+
+
 def test_claim_axes_optional_and_listlike():
     for skill, spec in QH.items():
         for sg in spec["sub_groups"]:

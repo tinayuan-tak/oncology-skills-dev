@@ -875,8 +875,13 @@ question_hierarchies:
         measurement_types:
         - fusion_rearrangement
         - fusion_stratified_dependency
+    - id: SPL
+      questions:
+      - id: spl_read
+        measurement_types:
         - splice_exon_skip
-        - tumor_splice_dysregulation
+      context_types:
+      - tumor_splice_dysregulation
     - id: DEP
       questions:
       - id: dep_read
