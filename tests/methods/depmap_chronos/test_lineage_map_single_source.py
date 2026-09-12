@@ -66,11 +66,18 @@ MODEL_CSV_26Q1_LINEAGES = frozenset(
     }
 )
 
-# The full framework indication vocabulary — target-contracts
-# vocabularies/indication_crosswalk.yaml `canonical_code` (CML is deferred_iter1b but
-# still a first-class code). EVERY one must resolve to a real lineage through the
-# single canonical map (no silent pan-lineage fallback for a supported indication).
-FRAMEWORK_INDICATION_CODES = (
+# The framework indication vocabulary lives in target-contracts
+# vocabularies/indication_crosswalk.yaml. EVERY code with a non-null `depmap_lineage` must resolve to a
+# real lineage through the single canonical map (no silent pan-lineage fallback for a supported
+# indication).
+#
+# This USED to be a hand-copied 9-code tuple whose comment claimed to be "the full framework indication
+# vocabulary" — while the crosswalk carried 35 codes. So the completeness guard measured completeness
+# against a stale subset and passed while BCC, NBL and UVM were missing from the map entirely (each a
+# first-class crosswalk indication with a real lineage, each silently degrading to pan-scope). Reading
+# the vocabulary file directly is the only form of this check that can actually fail; the frozen tuple
+# below is retained ONLY as an offline floor for when the sibling repo is absent.
+_OFFLINE_FLOOR_INDICATION_CODES = (
     "COADREAD",
     "NSCLC",
     "SCLC",
@@ -81,6 +88,35 @@ FRAMEWORK_INDICATION_CODES = (
     "AML",
     "CML",
 )
+
+# Codes legitimately absent from the map: DepMap 26Q1 has no such lineage, so the crosswalk carries
+# depmap_lineage: null and no scoping is possible. Keyed on the crosswalk's own null, not hardcoded here.
+
+
+def _crosswalk_indications() -> dict | None:
+    """canonical_code -> depmap_lineage from the sibling target-contracts crosswalk, aliases folded in.
+    None when the repo or yaml isn't available (caller falls back to the offline floor)."""
+    xw = (
+        REPO.parent
+        / "rnd-computational-biology-oncology-target-contracts"
+        / "vocabularies"
+        / "indication_crosswalk.yaml"
+    )
+    if not xw.exists():
+        return None
+    try:
+        import yaml
+    except ImportError:
+        return None
+    doc = yaml.safe_load(xw.read_text()) or {}
+    by_code = {
+        e["canonical_code"]: e.get("depmap_lineage") for e in doc.get("indications", []) if e.get("canonical_code")
+    }
+    for e in doc.get("indications", []):
+        for a in e.get("aliases") or []:
+            by_code[str(a)] = by_code[e["canonical_code"]]
+    return by_code or None
+
 
 # The four depmap method modules that were consolidated onto the canonical map.
 _CONSOLIDATED_MODULES = (
@@ -199,10 +235,38 @@ def test_only_canonical_module_holds_a_scalar_literal():
 
 
 def test_every_framework_indication_resolves_to_a_real_lineage():
+    """Read the ACTUAL vocabulary file: every crosswalk code with a non-null depmap_lineage must resolve
+    through the canonical map. A code the crosswalk supports but the map lacks is a silent pan-lineage
+    fallback for a first-class indication (how BCC/NBL/UVM hid until 2026-09-12)."""
+    xw = _crosswalk_indications()
+    if xw is None:
+        pytest.skip("sibling target-contracts crosswalk not readable; see the offline-floor test")
+    supported = {c for c, lin in xw.items() if lin}  # null lineage => DepMap has no such lineage
+    unresolved = sorted(c for c in supported if INDICATION_TO_DEPMAP_LINEAGE.get(c) not in MODEL_CSV_26Q1_LINEAGES)
+    assert not unresolved, (
+        "crosswalk indications with no / bogus lineage in the canonical map (each degrades to a silent "
+        f"pan-lineage read): {unresolved}"
+    )
+
+
+def test_offline_floor_indications_resolve_without_the_sibling_repo():
+    """Unconditional floor so this file still asserts something when target-contracts is absent."""
     unresolved = [
-        c for c in FRAMEWORK_INDICATION_CODES if INDICATION_TO_DEPMAP_LINEAGE.get(c) not in MODEL_CSV_26Q1_LINEAGES
+        c for c in _OFFLINE_FLOOR_INDICATION_CODES if INDICATION_TO_DEPMAP_LINEAGE.get(c) not in MODEL_CSV_26Q1_LINEAGES
     ]
     assert not unresolved, f"framework indication codes with no / bogus lineage mapping: {unresolved}"
+
+
+def test_map_does_not_contradict_the_crosswalk_on_a_null_lineage():
+    """The converse leg: if the crosswalk says a code has NO DepMap lineage, the map must not invent one
+    (THYM is the only such code in 26Q1). Catches a well-meant 'fill in the blank' that fabricates scope."""
+    xw = _crosswalk_indications()
+    if xw is None:
+        pytest.skip("sibling target-contracts crosswalk not readable")
+    fabricated = {
+        c: INDICATION_TO_DEPMAP_LINEAGE[c] for c, lin in xw.items() if not lin and c in INDICATION_TO_DEPMAP_LINEAGE
+    }
+    assert not fabricated, f"map asserts a lineage the crosswalk declares absent in DepMap: {fabricated}"
 
 
 # ---- (d) no silent pan-lineage fallback: evidence_scope is ALWAYS explicit ----------

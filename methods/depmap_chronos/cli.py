@@ -248,6 +248,18 @@ INDICATION_LINEAGE = {
     "THCA": "Thyroid",
     "UCS": "Uterus",
     "MESO": "Pleura",
+    # Discovery-register codes the 2026-09-09 expansion MISSED (added 2026-09-12). All three are
+    # first-class canonical_codes in the crosswalk with a non-null depmap_lineage, so their absence here
+    # was a silent pan-lineage fallback: apply_lineage_ladder resolves the indication through THIS map,
+    # so `--indication NBL` produced pan-scope evidence rather than a within-indication read. That is
+    # decision-relevant — NBL is one of the panel's genuine lineage-selective dependencies (GATA3/NBL
+    # median Chronos -0.553, n=45) and UVM's Eye lineage carries MDM2 -1.61 / CDK4 -1.10 / SHOC2 -0.57.
+    # The cross-repo agreement guard could not see the gap because it only iterated the CROSSWALK; it is
+    # now bidirectional (target-contracts #737), and the coverage guard below reads the crosswalk itself
+    # instead of a hand-copied code list.
+    "BCC": "Skin",
+    "NBL": "Peripheral Nervous System",
+    "UVM": "Eye",  # crosswalk repaired from null in target-contracts #737 (26Q1 Eye: UM=16, RBL=6)
 }
 
 
