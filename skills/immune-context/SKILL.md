@@ -32,7 +32,7 @@ description: |
   indication a T-cell desert?"
 
 metadata:
-  version: 1.9.1
+  version: 1.9.2
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -220,6 +220,37 @@ The verdict spine is **byte-stable** (still a direct read of `immune_context_cla
 - **Deferred (filed, out of branch scope):** a `reference_frame` entry in `evidence_salience.py`'s
   `immune_context` SALIENCE_SPEC (collides with PR #1309 `feat/cohort-percentile-meters`); the S1 lymphoid
   DENOMINATOR guard, the `n_samples` floor and the CD8:Treg / CD8:M2 ratios (analysis-methods).
+
+## v1.9.2 (2026-09-12) — the declared figure now exists
+
+The card has declared `figure: immune_context_leukocyte_composition` since v1.0 with **no emitter
+registered**, so every live run attached nothing. target-contracts' `FIGURE_DECLARED_NOT_EMITTED` check
+would have errored on this, but `immune-context` is one of 44 cards on its `KNOWN_FIGURE_DEBT` waiver, which
+downgrades it to a warning — a declared-not-emitted gap that had been reported on every validation run.
+
+`_skills_common/_figure_emitters/_immune.py` emits it, self-contained on the summary (no method re-run).
+**Two** panels, because either alone misleads:
+
+- **composition** — the LM22 medians (total T / CD8 / Treg / M1 / M2) as fractions **of the leukocyte
+  pool**. LM22 is a RELATIVE deconvolution, so the axis label says so: these are shares of the infiltrate,
+  not densities per unit tumour. A suppressor median the card judged to be at the LM22 noise floor is drawn
+  **hollow and annotated** — read off the card's own NULLED ratio rather than a third copy of the 0.005 cut,
+  so a bar too short to trust cannot read as a confident small value.
+- **rank** — the CD8 median against the pan-cancer Q1/Q3 cuts, plus `cd8_hot_sample_fraction`. This panel is
+  the point of the figure: `immune_hot`/`immune_cold` are positions in the 33-study distribution, so a bare
+  composition bar invites reading the class token as an absolute effector density (the review's finding that
+  ICI-approved BLCA sits at `immune_intermediate`). The prevalence number is there because a cohort median
+  hides bimodality (MSI-H CRC).
+
+The figure **abstains wherever the class abstains**. `data_unavailable` has no medians to draw; the more
+important case is `lymphoid_denominator_unreliable`, where the medians *are* arithmetically defined and that
+is exactly the trap — the leukocyte denominator IS the malignant clone, so "CD8 is 11% of leukocytes"
+describes the tumour, not a redirectable effector pool. A bar chart states that as fact with no room for the
+caveat the prose carries, so no figure is drawn.
+
+Display-only; the verdict spine is untouched. Clearing `immune-context` from target-contracts'
+`KNOWN_FIGURE_DEBT` is a follow-on TC PR that must land **after** this one (that validator reads the skills
+checkout, so dropping the waiver first would error).
 
 ## v1.9.1 (2026-09-12) — the lymphoid frame no longer refutes its own first clause
 

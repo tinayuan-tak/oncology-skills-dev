@@ -48,6 +48,7 @@ from ._genomic import (
     _emit_genomic_event_model_match,
     _emit_phospho_pathway_activity,
 )
+from ._immune import _emit_immune_context_leukocyte_composition
 from ._protein_safety import (
     _emit_gnomad_lof_constraint,
     _emit_normal_tissue_liability,
@@ -98,6 +99,10 @@ CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = 
     # ORGANOID tier (2026-08-19): per-lineage dependency bar from the organoid card's
     # per_lineage_stats (no method re-run — self-contained on the summary).
     "organoid-crispr-dependency": _emit_organoid_crispr_dependency,
+    # IMMUNE / TME tier (2026-09-12): closes the figure debt — immune-context has DECLARED
+    # `figure: immune_context_leukocyte_composition` since card v1.0 with no emitter registered
+    # here, so every run silently attached nothing. Self-contained on the summary.
+    "immune-context": _emit_immune_context_leukocyte_composition,
 }
 
 
