@@ -11,9 +11,17 @@ ACTIVITY / activation state that TOTAL abundance (Q1/Q5) misses.
   - phospho_present           → phosphosites detected, but at/below the abundance expectation (present,
                                 not clearly hyper-activated).
   - phospho_low               → few/no phosphosites detected despite the gene being in the panel.
-  - not_phosphoprotein        → the gene has no phosphosites in the CPTAC panel (not a phosphoprotein,
-                                or not captured) — an honest "this axis doesn't apply".
-  - data_unavailable          → no CPTAC cohort for the indication, or read failure.
+  - phospho_not_detected      → NO phosphosites for the gene in this cohort's panel, while its TOTAL
+                                PROTEIN *is* detected in the same cohort — a MEASURED no-detection.
+  - data_unavailable          → no CPTAC cohort for the indication, a read failure, or the gene's total
+                                protein is not detected in this cohort either (axis UNINFORMATIVE).
+
+TOKEN RETIREMENT (1.2.0, 2026-09-12): `not_phosphoprotein` claimed a biological state from a COVERAGE
+FLOOR — the phospho panel covers ~4.7-6.1k genes per cohort vs ~7.4-11.5k for total protein, so ~48-55%
+of protein-detected genes per cohort have zero phosphosites and ~1.7-2.3k of those DO carry sites in
+another CPTAC cohort. ALK (0 sites in all 10 cohorts), CDK4, MET and KRAS all read "not a phosphoprotein"
+somewhere. Replaced by phospho_not_detected + the total_protein_detected_in_cohort /
+n_cohorts_with_phosphosites / phosphoprotein_detected_in_other_cohorts evidence fields.
 
 ZERO new ingestion — reads the `cptac` PYTHON PACKAGE's harmonized `phosphoproteomics` [bcm]
 dataframe (Patient_ID × (gene, site, peptide, ENSG) multiindex) + `proteomics` [bcm] for the

@@ -21,11 +21,16 @@ from typing import Optional
 
 from methods.catalog_query.read import bucket_key_for
 
-METHOD_VERSION = "1.1.0"  # 1.1.0 (2026-08-05): real phospho-vs-protein cross-layer statistic
+METHOD_VERSION = "1.2.0"  # 1.2.0 (2026-09-12): not_phosphoprotein retired -> phospho_not_detected + protein probe
 DEFAULT_AWS_PROFILE = "cbg"
 PHOSPHO_PRODUCT_MANIFEST = "cptac-phospho-per-site-per-cohort-v1"
 # bucket + key resolved from the data-catalog manifest (single source of truth).
 S3_BUCKET, PHOSPHO_PRODUCT_KEY = bucket_key_for(PHOSPHO_PRODUCT_MANIFEST)
+
+# TOTAL-PROTEIN detection probe (1.2.0). Same CPTAC cohorts, UPPER-CASED cohort keys (BRCA/CCRCC/COAD/
+# GBM/HNSCC/LSCC/LUAD/OV/PDAC/UCEC) vs this product's lower-cased ones — `.upper()` maps all 10 exactly.
+PROTEIN_PRODUCT_MANIFEST = "cptac-protein-tumor-vs-normal-per-cohort-v1"
+PROTEIN_S3_BUCKET, PROTEIN_PRODUCT_KEY = bucket_key_for(PROTEIN_PRODUCT_MANIFEST)
 
 # indication → cptac cohort key (lower-cased; matches the product's `cohort` column). Unchanged map.
 INDICATION_TO_CPTAC = {
@@ -57,22 +62,43 @@ MIN_PAIRED_TUMORS = 20
 
 
 def classify_phospho_activity(
-    n_sites: int, max_site_detection_fraction: Optional[float], phospho_over_protein: Optional[bool], n_tumors: int
+    n_sites: int,
+    max_site_detection_fraction: Optional[float],
+    phospho_over_protein: Optional[bool],
+    n_tumors: int,
+    total_protein_detected_in_cohort: Optional[bool] = None,
 ) -> str:
-    """Pure classifier — phospho-activity class. No I/O. (Unchanged contract.)
+    """Pure classifier — phospho-activity class. No I/O.
 
-    not_phosphoprotein   — the gene has NO phosphosites in the panel (n_sites == 0)
-    data_unavailable      — too few tumors (handled mostly by caller)
     phospho_active        — a site detected in >= DETECTED_FRACTION_ACTIVE of tumors AND phospho
                             exceeds the total-protein expectation (or protein unavailable but
                             detection is high)
     phospho_present       — sites detected at substantial fraction but not exceeding abundance
     phospho_low           — sites exist in the panel but detected in few tumors
+    phospho_not_detected  — NO phosphosites for the gene in this cohort's panel, while the gene's
+                            TOTAL PROTEIN *is* detected in the same cohort → a measured no-detection
+    data_unavailable      — too few tumors, OR n_sites == 0 with the total protein NOT detected in the
+                            cohort either → the axis is UNINFORMATIVE, not negative
+
+    TOKEN RETIREMENT (1.2.0, 2026-09-12). `not_phosphoprotein` used to be returned for every n_sites==0
+    gene, asserting a BIOLOGICAL state ("not a phosphoprotein; this axis does not apply") from what is
+    really a COVERAGE FLOOR. Measured across the two products: the phospho panel covers ~4.7-6.1k genes
+    per cohort vs ~7.4-11.5k for total protein, so ~48-55% of protein-detected genes in EVERY cohort
+    have zero phosphosites, and ~1.7-2.3k of those per cohort DO carry sites in another CPTAC cohort
+    (i.e. are demonstrated phosphoproteins). Live false calls: ALK (0 sites in all 10 cohorts — an RTK
+    defined by autophosphorylation), CDK4 (0 in 9/10 despite the canonical T172 site), MET (0 in
+    brca/hnscc, 8 in ccrcc), KRAS (0 in coad but 2 in ccrcc — the example the old caveat cited).
+
+    `total_protein_detected_in_cohort=None` means the probe could not be run; it FAILS SOFT to
+    phospho_not_detected rather than silently demoting the axis to data_unavailable.
     """
     if n_tumors < MIN_TUMORS:
         return "data_unavailable"
     if n_sites == 0:
-        return "not_phosphoprotein"
+        # protein NOT detected in this cohort → phosphopeptide absence is unreadable (uninformative).
+        if total_protein_detected_in_cohort is False:
+            return "data_unavailable"
+        return "phospho_not_detected"
     if max_site_detection_fraction is None:
         return "data_unavailable"
     if max_site_detection_fraction < 0.10:
@@ -160,7 +186,79 @@ def _cohort_n_tumors(cohort: str, product_path: Optional[str] = None) -> Optiona
         raise
 
 
-def read_phospho_pathway_activity(target: str, indication: str, product_path: Optional[str] = None) -> dict:
+def _protein_detected_in_cohort(gene: str, cohort: str, protein_product_path: Optional[str] = None) -> Optional[bool]:
+    """Is `gene`'s TOTAL PROTEIN detected in this CPTAC cohort's MS? (1.2.0)
+
+    True/False = probed answer; None = the probe could not be run (product genuinely absent) → the
+    caller FAILS SOFT to phospho_not_detected rather than demoting the axis. Mirrors the absence
+    discipline of the other readers: genuine 404/NoSuchKey/FileNotFoundError → None, a transient /
+    creds / broken-env failure RE-RAISES so the live-read seam tags _live_read_error.
+    """
+    import pyarrow.parquet as pq
+
+    flt = [("gene_symbol", "==", gene), ("cohort", "==", cohort.upper())]
+    try:
+        if protein_product_path is not None:
+            tbl = pq.read_table(protein_product_path, filters=flt, columns=["gene_symbol"])
+        else:
+            if "AWS_PROFILE" not in os.environ:
+                os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
+            import pyarrow.fs as fs
+
+            tbl = pq.read_table(
+                f"{PROTEIN_S3_BUCKET}/{PROTEIN_PRODUCT_KEY}",
+                filesystem=fs.S3FileSystem(region="us-east-1"),
+                filters=flt,
+                columns=["gene_symbol"],
+            )
+    except Exception as e:  # noqa: BLE001
+        from methods.target_id_sidecar import is_definitively_absent
+
+        if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
+            return None
+        raise
+    return tbl.num_rows > 0
+
+
+def _phosphosite_cohorts(gene: str, product_path: Optional[str] = None) -> Optional[list[str]]:
+    """Which CPTAC cohorts carry >= 1 phosphosite for `gene`? (1.2.0)
+
+    The cross-cohort evidence that separates "this cohort did not detect it" from "CPTAC never detects
+    it": a gene with sites in ANOTHER cohort is a DEMONSTRATED phosphoprotein, so a zero here is a
+    detection gap, not biology. None = probe unavailable (same absence discipline as above).
+    """
+    import pyarrow.parquet as pq
+
+    flt = [("gene_symbol", "==", gene)]
+    try:
+        if product_path is not None:
+            tbl = pq.read_table(product_path, filters=flt, columns=["cohort"])
+        else:
+            if "AWS_PROFILE" not in os.environ:
+                os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
+            import pyarrow.fs as fs
+
+            tbl = pq.read_table(
+                f"{S3_BUCKET}/{PHOSPHO_PRODUCT_KEY}",
+                filesystem=fs.S3FileSystem(region="us-east-1"),
+                filters=flt,
+                columns=["cohort"],
+            )
+    except Exception as e:  # noqa: BLE001
+        from methods.target_id_sidecar import is_definitively_absent
+
+        if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
+            return None
+        raise
+    return sorted({str(c) for c in tbl.column("cohort").to_pylist()})
+
+
+def read_phospho_pathway_activity(
+    target: str,
+    indication: str,
+    product_path: Optional[str] = None,
+    protein_product_path: Optional[str] = None,
+) -> dict:
     """Q8 — target phosphorylation summary from the CPTAC phospho product for a (target, indication)."""
     sym = target.upper().strip()
     base = {
@@ -211,7 +309,7 @@ def read_phospho_pathway_activity(target: str, indication: str, product_path: Op
         )
 
     # cohort tumor count: from the gene's own rows if present, else a cohort probe so a
-    # no-phosphosite gene is classified not_phosphoprotein rather than data_unavailable.
+    # no-phosphosite gene can be classified from the panel rather than as data_unavailable.
     if len(df):
         n_tumors = int(df["n_tumors_cohort"].iloc[0])
     else:
@@ -220,9 +318,55 @@ def read_phospho_pathway_activity(target: str, indication: str, product_path: Op
 
     n_sites = int(len(df))
     base["n_phosphosites"] = n_sites
+
+    # 1.2.0 DETECTION-CONTEXT probes, emitted on EVERY path so the axis is never read without them —
+    #   (a) is the gene's TOTAL PROTEIN detected in this cohort? A zero-site gene whose protein is also
+    #       undetected has an UNINFORMATIVE phospho axis (data_unavailable), not a negative one:
+    #       phosphopeptide absence is unreadable without protein detection. This is the ALK/LUAD case
+    #       (fusion-activated RTK below bulk-MS detection) that used to read "not a phosphoprotein".
+    #   (b) how many CPTAC cohorts carry sites for the gene? Sites in ANOTHER cohort make it a
+    #       DEMONSTRATED phosphoprotein, so a zero here is a detection gap (KRAS: 0 in coad, 2 in ccrcc).
+    # Both probes FAIL SOFT (None → no demotion, no claim); neither can turn into a biology claim.
+    # LOCALITY: the protein probe follows the phospho product's locality. An offline caller (product_path
+    # set) that supplies no protein fixture gets None — the probe must NEVER silently reach S3 from an
+    # offline read, which would make a "no-network" test do a live credentialed fetch.
+    protein_detected = (
+        None
+        if (product_path is not None and protein_product_path is None)
+        else _protein_detected_in_cohort(sym, cohort, protein_product_path)
+    )
+    site_cohorts = _phosphosite_cohorts(sym, product_path)
+    base["total_protein_detected_in_cohort"] = protein_detected
+    base["n_cohorts_with_phosphosites"] = None if site_cohorts is None else len(site_cohorts)
+    base["phosphoprotein_detected_in_other_cohorts"] = (
+        None if site_cohorts is None else bool([c for c in site_cohorts if c != cohort])
+    )
+    base["phospho_axis_uninformative_reason"] = None
+
     if n_sites == 0:
-        base["phospho_activity_class"] = classify_phospho_activity(0, None, None, n_tumors)
-        base["_data_note"] = f"{sym} has no phosphosites in the CPTAC {cohort} phospho panel"
+        cls = classify_phospho_activity(0, None, None, n_tumors, total_protein_detected_in_cohort=protein_detected)
+        base["phospho_activity_class"] = cls
+        if cls == "data_unavailable" and n_tumors >= MIN_TUMORS:
+            base["phospho_axis_uninformative_reason"] = "total_protein_not_detected_in_cohort"
+            base["_data_note"] = (
+                f"{sym} has no phosphosites in the CPTAC {cohort} phospho panel AND its total protein is "
+                f"not detected in the {cohort.upper()} proteome — the phospho axis is UNINFORMATIVE here "
+                f"(absence of phosphopeptides is unreadable without protein detection), NOT negative"
+            )
+        else:
+            elsewhere = base.get("phosphoprotein_detected_in_other_cohorts")
+            base["_data_note"] = (
+                f"{sym} has no phosphosites in the CPTAC {cohort} phospho panel (total protein "
+                f"{'detected' if protein_detected else 'detection unprobed'}); this is a MEASURED "
+                f"no-detection, not a claim that {sym} is unphosphorylatable"
+                + (
+                    f" — {sym} DOES carry phosphosites in "
+                    f"{len([c for c in (site_cohorts or []) if c != cohort])} other CPTAC cohort(s), so "
+                    f"this cohort's zero is a DETECTION gap"
+                    if elsewhere
+                    else ""
+                )
+            )
         return base
 
     det = df["detection_fraction"].astype(float)

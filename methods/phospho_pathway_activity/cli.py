@@ -18,7 +18,7 @@ _CLASS_COLORS = {
     "phospho_active": ("#0a2540", "#061829"),  # active signaling
     "phospho_present": ("#4a7c9e", "#2f5670"),
     "phospho_low": ("#c07a20", "#8f5810"),
-    "not_phosphoprotein": ("#bbbbbb", "#8f8f8f"),  # axis doesn't apply
+    "phospho_not_detected": ("#bbbbbb", "#8f8f8f"),  # measured no-detection (NOT "not a phosphoprotein")
     "data_unavailable": ("#d9dbdd", "#a9adb1"),
 }
 
@@ -42,7 +42,7 @@ def _load_style(contracts_dir):
 
 def emit_svg(target: str, indication: str, summary: dict, out_dir: Path, contracts_dir=DEFAULT_TARGET_CONTRACTS):
     """Tier-3 SVG: phospho-activity evidence card (class + top phosphosites by detection). None if
-    not a phosphoprotein / data_unavailable."""
+    no phosphosites were detected / data_unavailable (nothing to plot)."""
     import matplotlib
 
     matplotlib.use("Agg")
@@ -50,7 +50,7 @@ def emit_svg(target: str, indication: str, summary: dict, out_dir: Path, contrac
 
     _load_style(contracts_dir)
     cls = summary.get("phospho_activity_class")
-    if cls in (None, "data_unavailable", "not_phosphoprotein"):
+    if cls in (None, "data_unavailable", "phospho_not_detected"):
         return None
     out_path = Path(out_dir) / "figure_phospho_pathway_activity.svg"
     fill, line = _CLASS_COLORS.get(cls, _CLASS_COLORS["data_unavailable"])
