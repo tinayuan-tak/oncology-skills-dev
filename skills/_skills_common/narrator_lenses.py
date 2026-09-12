@@ -583,13 +583,30 @@ CIS_FEATURE_COHERENCE = LensConfig(
         "facet is the corroboration (context_generalization_caveat). The alteration FREQUENCY + class is owned "
         "by genomic-alteration-profile, the dependency MAGNITUDE by functional-requirement, and the "
         "expression/abundance PRESENCE by tumor-presence — verdict-inert breadcrumbs here. Every coherence class "
-        "is a DESCRIPTIVE pattern, not a drug call; this lens never mints or moves a nomination."
+        "is a DESCRIPTIVE pattern, not a drug call; this lens never mints or moves a nomination. "
+        "DIRECTION IS PART OF THE CLAIM (cis-dosage card v1.1.0): cis_dosage_direction says WHICH CN arm carries "
+        "the coupling, and the two readings are different biology, not two shades of one. amplification_coupled "
+        "= gain drives expression UP (the oncogene/amplicon reading; supports a direct-inhibition thesis). "
+        "deletion_coupled = loss drives expression DOWN, which is a LOSS-of-function statement — a synthetic-"
+        "lethal / re-expression / loss-biomarker hypothesis, NOT a reason to inhibit the target, and the "
+        "coherent_cis_loss_of_function verdict must never be narrated as a driver signal. Never say "
+        "'amplification-driven' for a deletion_coupled target. When cis_dosage_direction_basis is "
+        "cn_distribution_asymmetry, NEITHER CN arm was powered enough to set the direction and it was inferred "
+        "from which CN tail is longer — weak evidence: report the direction as provisional and quote the arm "
+        "deltas. LINEAGE-CONFOUNDED SILENCING is a THIRD state, not a negative: methylation_silencing_class = "
+        "silencing_lineage_confounded means a large, significant hypermethylated-vs-rest contrast COLLAPSED once "
+        "conditioned on lineage (lineage_collapse_ratio < 0.35) — the hypermethylated group was simply the "
+        "lineages that do not express the gene. Narrate it as 'measured, and not interpretable as cis silencing' "
+        "and do NOT narrate it either as silencing or as evidence AGAINST silencing: a within-lineage-powered "
+        "test has not been run. Likewise distinguish methylation_uncoupled (TESTED, not silenced) from "
+        "methylation_invariant_panel (untestable) — they are not interchangeable ways of saying 'no signal'."
     ),
     mode="descriptive",
     # DESCRIPTIVE mode STILL builds a COLLAPSED VERDICT prompt line, and — unlike combination-and-vulnerability
     # / target-intrinsic (truly tokenless) — this skill supplies verdict_fn=_verdict and emits a RESOLVED token
-    # `cis_coherence_verdict` (coherent_cis_driver / coherent_epigenetic_silencing / expressed_cis_coupled_inert
-    # / dependency_without_cis_dosage / cis_uncoupled_no_dependency / insufficient_cis_coherence) in the
+    # `cis_coherence_verdict` (coherent_cis_driver / coherent_epigenetic_silencing /
+    # coherent_cis_loss_of_function / expressed_cis_coupled_inert / dependency_without_cis_dosage /
+    # cis_uncoupled_no_dependency / insufficient_cis_coherence — resolver v1.3.0) in the
     # headline; top-level decision["verdict"] is None (verdict-INERT at nomination — never a gate). Without a
     # declared verdict_key the fallback lands on the legacy `<name>_verdict` guess
     # ("cis_feature_coherence_verdict"), which MISSES the real headline key `cis_coherence_verdict`, then falls

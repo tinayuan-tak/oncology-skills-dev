@@ -128,12 +128,73 @@ def test_confidence_guard_outranks_buffered_protein_precedence():
     )
 
 
+# ── the coherent_cis_loss_of_function tier (resolver v1.3.0) ────────────────────────────────────
+def test_confidence_lof_verdict_gets_its_own_tier():
+    """coherent_cis_loss_of_function ALWAYS carries its own caveat: the verdict is a deletion-coupled
+    expression drop with no dependency leg, so there is no configuration of it that is a direct-inhibition
+    positive. It must NOT reuse the driver/silencing text (which is written about amplification addiction)."""
+    hl = {
+        "cis_coherence_verdict": "coherent_cis_loss_of_function",
+        "cis_dosage_direction": "deletion_coupled",
+        "cis_dosage_direction_basis": "amplified_vs_deleted_contrast",
+        "n_deleted": 41,
+    }
+    c = _cis_coherence_confidence_caveat(hl, target="APC", indication="COADREAD")
+    assert c["reason"] == "cis_loss_of_function_not_a_direct_inhibition_target"
+    assert c["tier"] == "milder" and c["false_demote_guarded"] is False
+    assert c["cis_dosage_direction"] == "deletion_coupled"
+    assert c["direction_basis_is_provisional"] is False
+    assert c["n_deleted"] == 41
+
+
+def test_confidence_lof_flags_a_provisional_direction_basis():
+    """A direction inferred from the CN distribution's SHAPE (one arm underpowered) is weaker than a
+    measured amplified-vs-deleted contrast — the caveat says so instead of asserting the arm flatly."""
+    hl = {
+        "cis_coherence_verdict": "coherent_cis_loss_of_function",
+        "cis_dosage_direction": "deletion_coupled",
+        "cis_dosage_direction_basis": "cn_distribution_asymmetry",
+    }
+    c = _cis_coherence_confidence_caveat(hl, target="STK11", indication="LUAD")
+    assert c["direction_basis_is_provisional"] is True
+    assert "provisional" in c["detail"]
+
+
+def test_confidence_lof_is_not_guarded_by_the_validated_silencing_set():
+    """PTEN/RB1 are in _VALIDATED_SILENCING, but the guard is about SILENCING calls. A deletion-coupled LoF
+    read still gets the LoF framing — the guard must not silently suppress it."""
+    hl = {"cis_coherence_verdict": "coherent_cis_loss_of_function", "cis_dosage_direction": "deletion_coupled"}
+    for gene in ("PTEN", "RB1"):
+        c = _cis_coherence_confidence_caveat(hl, target=gene, indication="BRCA")
+        assert c["reason"] == "cis_loss_of_function_not_a_direct_inhibition_target"
+
+
 # ── causal_attribution_caveat ───────────────────────────────────────────────────────────────────
 def test_causal_attribution_fires_on_coupled_cis_dosage():
     c = _causal_attribution_caveat(
         {"cis_dosage_class": "cn_dosage_coupled_strong", "mrna_vs_protein_dosage_slope_ratio": 0.9}
     )
     assert c is not None and c["mrna_vs_protein_dosage_slope_ratio"] == 0.9
+
+
+def test_causal_attribution_carries_direction_and_the_within_lineage_delta():
+    """The lineage confound is the round-2 find: a pan-panel amplified-vs-neutral gap can be lineage
+    separation, so the caveat must quote the WITHIN-lineage contrast and which arm the coupling came off."""
+    c = _causal_attribution_caveat(
+        {
+            "cis_dosage_class": "cn_dosage_coupled_moderate",
+            "cis_dosage_direction": "amplification_coupled",
+            "cis_dosage_direction_basis": "amplified_vs_deleted_contrast",
+            "subset_within_lineage_delta_log2tpm": 1.34,
+            "subset_n_lineages_compared": 6,
+            "amplified_dominant_lineage_fraction": 0.31,
+        }
+    )
+    assert c["cis_dosage_direction"] == "amplification_coupled"
+    assert c["direction_basis_is_provisional"] is False
+    assert c["subset_within_lineage_delta_log2tpm"] == 1.34
+    assert c["amplified_dominant_lineage_fraction"] == 0.31
+    assert "DIRECTION" in c["detail"] and "subset_within_lineage_delta_log2tpm" in c["detail"]
 
 
 def test_causal_attribution_none_when_cis_dosage_uncoupled():
@@ -176,3 +237,37 @@ def test_provenance_counts_coherent_legs_and_curated_flags():
     assert p["legs_coherent"]["expression_to_dependency"] is True
     assert p["n_legs_coherent"] == 3
     assert p["validated_cis_driver_flag"] is True
+
+
+def test_provenance_names_the_direction_and_its_basis():
+    hl = {
+        "cis_coherence_verdict": "coherent_cis_driver",
+        "cis_dosage_class": "cn_dosage_coupled_strong",
+        "cis_dosage_direction": "amplification_coupled",
+        "cis_dosage_direction_basis": "cn_distribution_asymmetry",
+        "subset_within_lineage_delta_log2tpm": 0.92,
+    }
+    p = _cis_coherence_provenance(hl, target="MITF", indication="SKCM")
+    assert p["cis_dosage_direction"] == "amplification_coupled"
+    assert p["direction_basis_is_provisional"] is True
+    assert p["subset_within_lineage_delta_log2tpm"] == 0.92
+
+
+def test_provenance_distinguishes_a_confounded_silencing_leg_from_a_negative_one():
+    """legs_coherent.methylation_to_expression is False for BOTH methylation_uncoupled (tested, negative)
+    and silencing_lineage_confounded (measured, not interpretable). The flag is what tells them apart —
+    without it a confounded leg reads as evidence against silencing."""
+    base = {"cis_coherence_verdict": "cis_uncoupled_no_dependency", "cis_dosage_class": "cn_dosage_uncoupled"}
+    confounded = _cis_coherence_provenance(
+        {**base, "methylation_silencing_class": "silencing_lineage_confounded", "lineage_collapse_ratio": 0.1},
+        target="CDH1",
+        indication="BRCA",
+    )
+    negative = _cis_coherence_provenance(
+        {**base, "methylation_silencing_class": "methylation_uncoupled"}, target="AR", indication="PRAD"
+    )
+    assert confounded["legs_coherent"]["methylation_to_expression"] is False
+    assert confounded["methylation_lineage_confounded"] is True
+    assert confounded["lineage_collapse_ratio"] == 0.1
+    assert negative["legs_coherent"]["methylation_to_expression"] is False
+    assert negative["methylation_lineage_confounded"] is False

@@ -18,7 +18,9 @@ description: |
                    subset more dependent? (the conjoint dependency lens)
 
   Emits a data-package with a self-contained cis_coherence_verdict resolved from the
-  shared declarative cis_coherence resolver (a deterministic 2×2 cross-tab).
+  shared declarative cis_coherence resolver (v1.3.0) — a deterministic cross-tab of the
+  cis-dosage leg, its DIRECTION (amplification- vs deletion-coupled) and the dependency
+  leg, so an amplicon oncogene and a deleted tumour suppressor never read identically.
 
   Use for questions like "is ERBB2 an amplification-driven cis-driver in this indication?",
   "is MYC over-expression copy-number-driven or trans-regulated?", "is this target's
@@ -36,7 +38,7 @@ description: |
   only, never recommendation_fragility_index / contested).
 
 metadata:
-  version: 1.4.0
+  version: 1.5.0
   owner: ryan.abo@takeda.com
   requires_preflight: false
 
@@ -89,24 +91,44 @@ Given a target (+ optional indication):
   1. Loads THREE cards over DepMap 26Q1 (zero new ingest — CN + expression + Chronos co-resident):
      - `cis-feature-expression-coherence` (leg-1, NEW): `cis_dosage_class` — does the target's own
        relative copy-number predict its own log2TPM? (`cn_dosage_coupled_strong|moderate` /
-       `cn_dosage_uncoupled` / `cn_invariant_panel` / `data_unavailable`). Method `depmap_cis_dosage`.
+       `cn_dosage_uncoupled` / `cn_invariant_panel` / `data_unavailable`) — plus, from card v1.1.0, the
+       DIRECTION of that coupling: `cis_dosage_direction` (`amplification_coupled` / `deletion_coupled`)
+       and `cis_dosage_direction_basis` (`amplified_vs_deleted_contrast`, both arms measured, or
+       `cn_distribution_asymmetry`, the provisional fallback when one arm is underpowered).
+       Method `depmap_cis_dosage`.
      - `expression-dependency-correlation` (leg-2, reuse): `correlation_class`.
      - `amp-expr-stratified-dependency` (leg-2, reuse): `amp_expr_stratification_class`.
   2. Fires the `cis-coherence` rule subset (axis `cis_coherence`) and resolves a self-contained
-     `cis_coherence_verdict` via the shared `cis_coherence` resolver — a deterministic 2×2 cross-tab
-     of leg-1 (cis-dosage coupling) × leg-2 (dependency coupling):
+     `cis_coherence_verdict` via the shared `cis_coherence` resolver (v1.3.0) — a deterministic cross-tab
+     of leg-1 (cis-dosage coupling, DIRECTION-resolved) × leg-2 (dependency coupling):
 
-     |                 | leg-2 dependency-coupled       | leg-2 dependency-absent            |
-     |-----------------|--------------------------------|------------------------------------|
-     | leg-1 coupled   | `coherent_cis_driver`          | `expressed_cis_coupled_inert`      |
-     | leg-1 uncoupled | `dependency_without_cis_dosage`| `cis_uncoupled_no_dependency`      |
+     |                        | leg-2 dependency-coupled        | leg-2 dependency-absent            |
+     |------------------------|---------------------------------|------------------------------------|
+     | leg-1 coupled, AMP     | `coherent_cis_driver`           | `expressed_cis_coupled_inert`      |
+     | leg-1 coupled, DEL     | `dependency_without_cis_dosage` | `coherent_cis_loss_of_function`    |
+     | leg-1 uncoupled        | `dependency_without_cis_dosage` | `cis_uncoupled_no_dependency`      |
 
-     Any leg untestable/unmeasured → `insufficient_cis_coherence` (honest abstention).
+     A methylation-silencing token (from the LoF leg below) routes to `coherent_epigenetic_silencing`,
+     but only BELOW the amplification-coupled inert rung: a gene whose expression rises with copy gain is
+     not a silenced gene (the MET-class collapse resolver v1.3.0 closed). CDKN2A — deletion-coupled AND
+     methylated — still lands on the silencing rung.
+
+     Any leg untestable/unmeasured → `insufficient_cis_coherence` (honest abstention). A coupled
+     `cis_dosage_class` with NO direction token also abstains rather than assuming amplification.
 
 ## Verdict semantics
 
-- `coherent_cis_driver` — the amplification-driven oncogene-addiction chain is intact (CN drives
-  expression drives dependency). The strongest cis-nomination support.
+- `coherent_cis_driver` — the amplification-driven oncogene-addiction chain is intact (copy GAIN drives
+  expression drives dependency). The strongest cis-nomination support. Requires
+  `cis_dosage_direction == amplification_coupled`.
+- `coherent_epigenetic_silencing` — promoter methylation coherently explains the target's LOW expression
+  (MLH1, MGMT, CDKN2A). Therapeutically INVERSE: an SL / re-expression hypothesis, not direct inhibition.
+- `coherent_cis_loss_of_function` — the DELETED arm carries the coupling (loss → low expression) with no
+  dependency leg: APC / STK11 / NF1. Coherent, but a loss-of-function statement — SL or re-expression,
+  never a direct-inhibition read, and part of the expression drop is mechanical gene dosage, so it is not
+  by itself evidence of biallelic inactivation. Deliberately UNREGISTERED in
+  `nomination_verdict_gate.yaml` (neither a positive_signal nor a positive_contradiction — registering it
+  as the latter would block `strong` for every deleted suppressor the framework profiles).
 - `expressed_cis_coupled_inert` — present and cis-driven, but NOT more required where more abundant.
   The **abundance-laundering guard**: a bare abundance steer would mis-read this as "expected
   non-dependency"; naming it is the point.
@@ -118,7 +140,15 @@ Given a target (+ optional indication):
 ## Boundaries
 
 cis-dosage coupling is CORRELATIONAL, not a formal mediation test — a co-amplified neighbour or a
-shared trans-regulator can mimic it (leg-1 caveat). Cell-line coherence is necessary but not
+shared trans-regulator can mimic it (leg-1 caveat). The other confound is LINEAGE: a pan-panel
+amplified-vs-neutral (or hypermethylated-vs-rest) gap can simply be the lineages carrying the feature
+also being the lineages that express the gene. Both legs therefore also report the same contrast computed
+WITHIN lineage — `subset_within_lineage_delta_log2tpm` — and the methylation leg reports the collapse
+RATIO (within ÷ pan). A contrast that collapses within lineage is classed
+`silencing_lineage_confounded` (CDH1 −4.44 → −0.45; MET −4.99 → −0.85), a THIRD state that is neither a
+silencing claim nor a refutation of one: it is recorded, routed to no verdict rung, and must not be read
+as evidence against silencing (that is `methylation_uncoupled` — tested and negative) nor as missing data
+(`methylation_invariant_panel` / `data_unavailable`). Cell-line coherence is necessary but not
 sufficient for a patient cis-driver claim; the patient CN↔expression join and the patient
 epigenetic-silencing arm (promoter methylation → expression) are now LIVE via the
 `patient-cis-coherence` card, which joins patient CN + methylation to patient expression at the

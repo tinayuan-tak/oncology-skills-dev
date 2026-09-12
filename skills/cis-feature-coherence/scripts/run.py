@@ -60,7 +60,7 @@ _CIS_VALUE_TIERS = {
 
 
 SKILL_NAME = "cis-feature-coherence"
-SKILL_VERSION = "1.4.0"  # 1.4.0 (2026-09-04): --literature lane (make_literature_fn one-liner) + VERDICT-INERT cis-coherence CONFIDENCE surface (cis_coherence_confidence_caveat 3-tier [statistical_cis_correlation_causally_unconfirmed / amplicon_passenger_or_lineage_confounded / validated_cis_driver_or_silencing false-demote guard] + causal_attribution_caveat + context_generalization_caveat + cis_coherence_provenance) + CIS_FEATURE_COHERENCE thesis/polarity_note. Gates on already-emitted headline fields; cis_coherence_verdict + driving_rule_id + resolver golden + replay byte-stable.   # 1.3.0 (2026-08-28): PROTEIN legs (cis-feature-protein-coherence CN→protein + abundance-dependency protein→dep) + mRNA-vs-protein dosage slope ratio. VERDICT-INERT.   # 1.2.0 (2026-08-28): capsule-driven narrator via generic engine.
+SKILL_VERSION = "1.5.0"  # 1.5.0 (2026-09-12): cis-dosage DIRECTION (amplification_coupled vs deletion_coupled + its basis) and the LINEAGE-controlled provenance (within-lineage deltas, lineage_collapse_ratio, deleted arm) surfaced into the headline / synthesis facet / provenance / causal-attribution caveat; new verdict coherent_cis_loss_of_function (resolver v1.3.0) gets its own phrase + its own confidence tier (cis_loss_of_function_not_a_direct_inhibition_target) and the silencing_lineage_confounded third state is narrated as "measured, not interpretable" rather than absent. Still VERDICT-INERT.   # 1.4.0 (2026-09-04): --literature lane (make_literature_fn one-liner) + VERDICT-INERT cis-coherence CONFIDENCE surface (cis_coherence_confidence_caveat 3-tier [statistical_cis_correlation_causally_unconfirmed / amplicon_passenger_or_lineage_confounded / validated_cis_driver_or_silencing false-demote guard] + causal_attribution_caveat + context_generalization_caveat + cis_coherence_provenance) + CIS_FEATURE_COHERENCE thesis/polarity_note. Gates on already-emitted headline fields; cis_coherence_verdict + driving_rule_id + resolver golden + replay byte-stable.   # 1.3.0 (2026-08-28): PROTEIN legs (cis-feature-protein-coherence CN→protein + abundance-dependency protein→dep) + mRNA-vs-protein dosage slope ratio. VERDICT-INERT.   # 1.2.0 (2026-08-28): capsule-driven narrator via generic engine.
 
 CARDS = [
     "cis-feature-expression-coherence",  # GoF leg-1: CN → own-expression cis-dosage (amplification, mRNA)
@@ -157,8 +157,9 @@ def _claim_record(cards, fired=None, verdict_pair=None) -> dict:
 # signal that supports the target). No class is a clear UNfavorable call (an inert/uncoupled read is
 # informative, not adverse), so everything else stays neutral.
 _CIS_COHERENCE_VERDICT_PHRASE = {
-    "coherent_cis_driver": "Coherent cis-driven addiction (CN → expression → dependency)",
+    "coherent_cis_driver": "Coherent cis-driven addiction (amplification → expression → dependency)",
     "coherent_epigenetic_silencing": "Coherent epigenetic silencing (promoter methylation → low expression)",
+    "coherent_cis_loss_of_function": "Coherent cis loss-of-function (deletion → low expression, not required)",
     "expressed_cis_coupled_inert": "Expressed via cis-dosage, but dependency-inert",
     "dependency_without_cis_dosage": "Dependency without cis-dosage coupling (trans-regulated)",
     "cis_uncoupled_no_dependency": "Cis-uncoupled, no dependency",
@@ -311,6 +312,13 @@ _CIMP_LINEAGE_INDICATIONS = frozenset(
 # The two COHERENT positive verdicts the over-call caveat applies to (the uncoupled / inert / insufficient
 # classes carry no coherent-cis-driver over-call to flag).
 _CIS_COHERENT_POSITIVE = frozenset({"coherent_cis_driver", "coherent_epigenetic_silencing"})
+# The coherent LoF verdict (resolver v1.3.0): deletion-coupled expression WITHOUT a dependency leg. Coherent,
+# but its over-call is a DIFFERENT one — a deletion→low-mRNA coupling is partly MECHANICAL gene dosage, and
+# the read is an SL / re-expression hypothesis, never a direct-inhibition target. Its own caveat tier below.
+_CIS_COHERENT_LOF = frozenset({"coherent_cis_loss_of_function"})
+# cis_dosage_direction_basis (card v1.1.0) whose direction call is INFERRED from the CN distribution's shape
+# rather than measured as an amplified-vs-deleted expression contrast → provisional, quote it as such.
+_WEAK_DIRECTION_BASIS = frozenset({"cn_distribution_asymmetry"})
 # Protein-dosage class read as BUFFERED (CN varies but protein flat = the co-amplified-passenger fingerprint).
 _PROT_BUFFERED = frozenset({"prot_dosage_uncoupled"})
 # expression→dependency correlation classes that count as a COHERENT dependency leg (negative Chronos
@@ -322,14 +330,59 @@ def _norm_ind(indication) -> str:
     return (indication or "").upper().strip()
 
 
+def _cis_lof_caveat(hl: dict, target=None) -> dict:
+    """The coherent-cis-LOSS-OF-FUNCTION tier (verdict coherent_cis_loss_of_function, resolver v1.3.0).
+    ALWAYS fires when that verdict is reached — unlike the driver/silencing tiers there is no configuration
+    of this verdict that is an honest direct-inhibition positive, because the verdict itself is defined by a
+    DELETION-coupled expression drop with NO dependency leg. Milder tier: it is not a demotion of a positive
+    call, it is a re-framing of what the coherence means (SL / re-expression hypothesis)."""
+    gene = (target or "").upper().strip()
+    basis = hl.get("cis_dosage_direction_basis")
+    return {
+        "reason": "cis_loss_of_function_not_a_direct_inhibition_target",
+        "tier": "milder",
+        "false_demote_guarded": False,
+        "cis_dosage_direction": hl.get("cis_dosage_direction"),
+        "cis_dosage_direction_basis": basis,
+        "direction_basis_is_provisional": basis in _WEAK_DIRECTION_BASIS,
+        "deleted_subset_delta_log2tpm": hl.get("deleted_subset_delta_log2tpm"),
+        "deleted_within_lineage_delta_log2tpm": hl.get("deleted_within_lineage_delta_log2tpm"),
+        "n_deleted": hl.get("n_deleted"),
+        "detail": (
+            f"{gene or 'the target'} is DELETION-coupled (loss of the locus tracks LOW expression) with no "
+            "expression→dependency leg — coherent, but a LOSS-of-function statement: the therapeutic reading "
+            "is synthetic lethality against the loss, or re-expression, NOT inhibition of this target "
+            "(recurrent deletions mark tumour suppressors, Beroukhim 2010 PMID 20164920; Zack 2013 PMID "
+            "24071852; two-hit inactivation Knudson 1971 PMID 5279523). Two specific over-reads to avoid: "
+            "(a) part of the expression drop is MECHANICAL gene dosage (one fewer copy ⇒ less mRNA), so a "
+            "coupled CN↔mRNA slope is not by itself evidence of functional silencing or of biallelic loss — "
+            "confirm the second hit (mutation / methylation / LOH); (b) the ABSENT dependency leg is expected "
+            "here and is not evidence the gene is dispensable in tumours that RETAIN it. The direction call's "
+            f"basis is cis_dosage_direction_basis={basis}"
+            + (
+                " — inferred from the CN distribution's asymmetry rather than a measured amplified-vs-deleted "
+                "contrast, so treat the direction itself as provisional."
+                if basis in _WEAK_DIRECTION_BASIS
+                else " (a measured amplified-vs-deleted expression contrast)."
+            )
+        ),
+    }
+
+
 def _cis_coherence_confidence_caveat(hl: dict, target=None, indication=None) -> dict | None:
     """CONSOLIDATED statistical-vs-causal cis-coherence confidence call (VERDICT-INERT). A coherent cis-DRIVER
     / targeted-SILENCING call resting on a STATISTICAL correlation WITHOUT causal / protein-dosage / patient
     confirmation. Fires ONLY on the two COHERENT positive verdicts; the uncoupled / inert / insufficient
     classes → None (byte-stable negative path). Precedence: (iii) MILDER validated-guard FIRST (a canonical
     cis-driver / silencing is never demoted, even with a buffered protein slope) > (ii) SHARP amplicon-
-    passenger / CIMP-lineage confound > (i) SHARP statistical-correlation-causally-unconfirmed > None."""
+    passenger / CIMP-lineage confound > (i) SHARP statistical-correlation-causally-unconfirmed > None.
+
+    coherent_cis_loss_of_function (resolver v1.3.0) is coherent too, but its over-call is a different claim
+    entirely, so it gets its OWN tier ahead of the driver/silencing ladder rather than being folded into a
+    text written about amplification addiction."""
     v = hl.get("cis_coherence_verdict")
+    if v in _CIS_COHERENT_LOF:
+        return _cis_lof_caveat(hl, target=target)
     if v not in _CIS_COHERENT_POSITIVE:
         return None
     gene = (target or "").upper().strip()
@@ -430,8 +483,19 @@ def _causal_attribution_caveat(hl: dict) -> dict | None:
     an uncoupled / unmeasured cis-dosage leg (no cis-coupling to attribute) → byte-stable."""
     if not (hl.get("cis_dosage_class") or "").startswith("cn_dosage_coupled"):
         return None
+    basis = hl.get("cis_dosage_direction_basis")
     return {
         "cis_dosage_driver": hl.get("cis_dosage_driver"),
+        # WHICH CN arm carries the coupling (card v1.1.0) + how that was established. Reported alongside the
+        # correlational caveat because a direction read off the CN distribution's SHAPE
+        # (cn_distribution_asymmetry) is weaker evidence than a measured amplified-vs-deleted contrast, and
+        # the LINEAGE-controlled within-lineage delta is what separates cis dosage from lineage separation.
+        "cis_dosage_direction": hl.get("cis_dosage_direction"),
+        "cis_dosage_direction_basis": basis,
+        "direction_basis_is_provisional": basis in _WEAK_DIRECTION_BASIS,
+        "subset_within_lineage_delta_log2tpm": hl.get("subset_within_lineage_delta_log2tpm"),
+        "subset_n_lineages_compared": hl.get("subset_n_lineages_compared"),
+        "amplified_dominant_lineage_fraction": hl.get("amplified_dominant_lineage_fraction"),
         "mrna_vs_protein_dosage_slope_ratio": hl.get("mrna_vs_protein_dosage_slope_ratio"),
         "cis_protein_dosage_class": hl.get("cis_protein_dosage_class"),
         "cn_expr_slope_log2tpm_per_cn": hl.get("cn_expr_slope_log2tpm_per_cn"),
@@ -444,7 +508,14 @@ def _causal_attribution_caveat(hl: dict) -> dict | None:
             "both mRNA and protein, ERBB2-like), ≪1 = post-transcriptionally BUFFERED passenger (mRNA "
             "up, protein flat; Gonçalves 2017 PMID 29032074). A FOCAL amplicon peak (GISTIC) localizes "
             "the driver far better than a broad/arm-level segment (Zack 2013 PMID 24071852; Mermel 2011 "
-            "PMID 21527027); relative_cn_iqr indexes the CN amplitude available to test dosage."
+            "PMID 21527027); relative_cn_iqr indexes the CN amplitude available to test dosage. DIRECTION "
+            "is part of the claim: cis_dosage_direction says which arm carries the coupling, and only "
+            "amplification_coupled supports a gain-driven addiction reading — deletion_coupled is a "
+            "loss-of-function statement. The other confound is LINEAGE: a pan-panel amplified-vs-neutral "
+            "gap can simply be the lineages that carry the amplicon also being the lineages that express "
+            "the gene, so subset_within_lineage_delta_log2tpm (the same contrast computed WITHIN lineage) "
+            "is the one that has to survive; amplified_dominant_lineage_fraction indexes how concentrated "
+            "the amplified group is in a single lineage."
         ),
     }
 
@@ -485,6 +556,7 @@ def _cis_coherence_provenance(hl: dict, target=None, indication=None) -> dict | 
         return None
     gene = (target or "").upper().strip()
     ind = _norm_ind(indication)
+    meth_cls = hl.get("methylation_silencing_class")
     legs_coherent = {
         "cn_to_mrna": (hl.get("cis_dosage_class") or "").startswith("cn_dosage_coupled"),
         "cn_to_protein": (hl.get("cis_protein_dosage_class") or "").startswith("prot_dosage_coupled"),
@@ -497,6 +569,18 @@ def _cis_coherence_provenance(hl: dict, target=None, indication=None) -> dict | 
         "n_legs_coherent": sum(1 for x in legs_coherent.values() if x),
         "legs_coherent": legs_coherent,
         "cis_dosage_driver": hl.get("cis_dosage_driver"),
+        # DIRECTION of the CN→mRNA leg + how it was established (card v1.1.0). A coherent chain that does not
+        # say WHICH arm carries it is the collapse resolver v1.3.0 closed, so the provenance names it.
+        "cis_dosage_direction": hl.get("cis_dosage_direction"),
+        "cis_dosage_direction_basis": hl.get("cis_dosage_direction_basis"),
+        "direction_basis_is_provisional": hl.get("cis_dosage_direction_basis") in _WEAK_DIRECTION_BASIS,
+        "subset_within_lineage_delta_log2tpm": hl.get("subset_within_lineage_delta_log2tpm"),
+        # THIRD state of the silencing leg (card v1.1.0): a large pan-panel contrast that COLLAPSES within
+        # lineage. Not a silencing claim and not a refutation of one — recorded so it cannot be laundered
+        # into coherent_epigenetic_silencing, and so `legs_coherent.methylation_to_expression: false` above
+        # is readable as "confounded", not "tested and negative".
+        "methylation_lineage_confounded": meth_cls == "silencing_lineage_confounded",
+        "lineage_collapse_ratio": hl.get("lineage_collapse_ratio"),
         "mrna_vs_protein_dosage_slope_ratio": hl.get("mrna_vs_protein_dosage_slope_ratio"),
         "cis_protein_dosage_class": hl.get("cis_protein_dosage_class"),
         "relative_cn_iqr": hl.get("relative_cn_iqr"),
@@ -550,6 +634,16 @@ def _headline(cards, fired, verdict_pair, target=None, indication=None):
         "methylation_silencing_driver": meth.get("silencing_driver"),
         "methylation_subset_median_delta_log2tpm": meth.get("subset_median_delta_log2tpm"),
         "n_hypermethylated": meth.get("n_hypermethylated"),
+        # LINEAGE-CONTROLLED silencing provenance (card v1.1.0). The pan-panel hypermethylated-vs-rest
+        # contrast is confounded by lineage — CDH1 -4.44 pan → -0.45 within lineage, MET -4.99 → -0.85 — so
+        # the reader now also emits the within-lineage delta and the collapse RATIO (within/pan). A ratio
+        # below the card's max_lineage_collapse_ratio is the silencing_lineage_confounded class.
+        "methylation_subset_within_lineage_delta_log2tpm": meth.get("subset_within_lineage_delta_log2tpm"),
+        "methylation_subset_n_lineages_compared": meth.get("subset_n_lineages_compared"),
+        "hypermethylated_dominant_lineage_fraction": meth.get("hypermethylated_dominant_lineage_fraction"),
+        "lineage_collapse_ratio": meth.get("lineage_collapse_ratio"),
+        "broad_quartile_delta_log2tpm": meth.get("broad_quartile_delta_log2tpm"),
+        "broad_quartile_within_lineage_delta_log2tpm": meth.get("broad_quartile_within_lineage_delta_log2tpm"),
         # GoF leg-1: feature → own-expression (the new measurement)
         "cis_dosage_class": cis.get("cis_dosage_class"),
         # which path established a coupled call: pan_panel_correlation | focal_amplification_subset. The
@@ -565,6 +659,23 @@ def _headline(cards, fired, verdict_pair, target=None, indication=None):
         "subset_delta_log2tpm_amplified_vs_neutral": cis.get("subset_delta_log2tpm_amplified_vs_neutral"),
         "n_amplified": cis.get("n_amplified"),
         "cis_dosage_evidence_scope": cis.get("evidence_scope"),
+        # leg-1 DIRECTION (card v1.1.0) — which CN arm carries the coupling, and how that was established.
+        # cis_dosage_class alone cannot separate an ERBB2-class amplicon from a PTEN-class deleted
+        # suppressor; the resolver (v1.3.0) needs the direction token, so the headline must carry it.
+        # amplified_vs_deleted_contrast = measured on both arms; cn_distribution_asymmetry = the fallback
+        # read off the CN distribution's shape when one arm is underpowered → PROVISIONAL.
+        "cis_dosage_direction": cis.get("cis_dosage_direction"),
+        "cis_dosage_direction_basis": cis.get("cis_dosage_direction_basis"),
+        # LINEAGE-CONTROLLED dosage provenance: the amplified-vs-neutral contrast recomputed WITHIN lineage
+        # (the focal-amplification escape now has to survive it) + how concentrated the amplified group is.
+        "subset_within_lineage_delta_log2tpm": cis.get("subset_within_lineage_delta_log2tpm"),
+        "subset_n_lineages_compared": cis.get("subset_n_lineages_compared"),
+        "amplified_dominant_lineage_fraction": cis.get("amplified_dominant_lineage_fraction"),
+        # the DELETED arm (card v1.1.0) — the other half of the direction contrast
+        "n_deleted": cis.get("n_deleted"),
+        "deleted_subset_delta_log2tpm": cis.get("deleted_subset_delta_log2tpm"),
+        "deleted_within_lineage_delta_log2tpm": cis.get("deleted_within_lineage_delta_log2tpm"),
+        "deleted_subset_mannwhitney_p": cis.get("deleted_subset_mannwhitney_p"),
         # GoF leg-1 (PROTEIN): CN → own-PROTEIN cis-dosage (VERDICT-INERT). The mRNA-vs-protein slope
         # RATIO is the dosage-buffering fingerprint: ~1 = dosage-sensitive cis-driver (CN raises both
         # mRNA and protein, ERBB2/MYC/MDM2); ≪1 = post-transcriptionally BUFFERED passenger.
@@ -670,6 +781,10 @@ _SYNTHESIS_FACET_KEYS = (
     "driving_rule_id",
     "cis_dosage_class",
     "cis_dosage_driver",
+    # DIRECTION travels with the class in the synthesis facet: a consumer that sees only
+    # cn_dosage_coupled_* cannot tell an amplicon driver from a deleted suppressor (resolver v1.3.0).
+    "cis_dosage_direction",
+    "cis_dosage_direction_basis",
     "methylation_silencing_class",
     "expression_dependency_correlation_class",
     "amp_expr_stratification_class",

@@ -43,7 +43,7 @@ CCLE-2019 RRBS), `expression-dependency-correlation` (leg-2 RNA→dep), `amp-exp
 
 `output_shape: data_package` → the standard `write_package` tree. `decision.json` top-level:
 `skill · target · indication · question · generated_at · headline · cards · fired_rules · provenance ·
-run_health` (+ optional synthesis). Contractual headline fields: `cis_coherence_verdict` (pinned 6-value
+run_health` (+ optional synthesis). Contractual headline fields: `cis_coherence_verdict` (pinned 7-value
 enum), the `skill_report` spine (`role: inert`, `polarity: not_scored`, `call` = the inert
 `cis_coherence_verdict` string), `headline_block`, `claim_vector`, `key_signals`. All else schema-open.
 
@@ -52,7 +52,7 @@ enum), the `skill_report` spine (`role: inert`, `polarity: not_scored`, `call` =
 ## 4. Contract & versioning (what is locked)
 
 Pinned by the generated, self-contained `cis-feature-coherence.decision.schema.json` (inert-scalar pins:
-`role: inert` + `polarity: not_scored` const + the 6-value `cis_coherence_verdict`/`call` enum =
+`role: inert` + `polarity: not_scored` const + the 7-value `cis_coherence_verdict`/`call` enum =
 `cis_coherence.resolver.yaml` = `_CIS_COHERENCE_VERDICT_PHRASE`; no run.py mints). CI: full-emit conformance
 (`tests/test_data_product_schema.py` against the frozen full golden, CI-fail-not-skip), cross-skill coverage
 ratchet, target-contracts schema meta-test. Change policy: new verdict token → pins enum + regenerate (minor);
@@ -68,6 +68,22 @@ spine key → SHARED source (coordinate; major on rename); new facet → no sche
   oncogenes (ERBB2 r=0.23) below the moderate gate; the method now PROMOTES an uncoupled call to coupled
   when the amplified subset over-expresses strongly + significantly (`cis_dosage_driver=focal_amplification_subset`).
   Paired with methylation `MIN_HYPERMETHYLATED` 10→20 (power floor). Fixes the ERBB2/MET-class silencing-override.
+- **DIRECTION + lineage-confound round-2 (2026-09-12, cards v1.1.0 / resolver v1.3.0 / methods 0.2.0):**
+  three additions, all VERDICT-relevant on the cis-dosage leg and all mirrored card→reader→resolver.
+  (a) `cis_dosage_direction` (+ `_basis`) says WHICH CN arm carries the coupling; the coherent-driver rungs
+  now require `amplification_coupled`, the deleted arm routes to the new `coherent_cis_loss_of_function`
+  (dependency-absent) or `dependency_without_cis_dosage` (dependency present), and a coupled class with no
+  direction ABSTAINS. `basis=cn_distribution_asymmetry` marks a direction inferred from the CN
+  distribution's shape (one arm underpowered) = provisional; the skill flags it as such.
+  (b) the focal-amp escape is now gated WITHIN lineage (`subset_within_lineage_delta_log2tpm`), so an
+  amplicon that is really a lineage marker no longer escapes.
+  (c) the methylation leg gained a lineage-collapse guard: a large pan-panel contrast whose
+  within-lineage version collapses (`lineage_collapse_ratio` < 0.35) is classed
+  `silencing_lineage_confounded` — a THIRD state, routed to no rung, and NOT read as absence of silencing.
+  Accepted residuals: BRCA1 reads `amplification_coupled` (its within-lineage amp arm genuinely beats the
+  deletion arm; verdict unchanged either way) and ERBB2's methylation leg stays `silencing_coupled_strong`
+  via the broad-quartile path (tightening the ratio would kill RASSF1; ERBB2's verdict comes from the
+  dosage leg regardless).
 - **Stale source:** CCLE-2019 RRBS methylation is 2018-era hg19, name-keyed (cross-build) to hg38/26q1 expression.
 - **Undeclared derived input:** `cellline-methylation-expression-coherence`'s reader uses derived
   `ccle-rrbs-promoter-methylation-mean-per-gene-v1` as primary, but the card `required_inputs` names only the

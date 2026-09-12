@@ -5,7 +5,7 @@ corroboration) claims with citable atoms.
 A concrete claim_vector_core instance. The cis_coherence VERDICT is a 2×2 INTERACTION (cross-tab
 of separable legs), so the claim_vector is the LEG DECOMPOSITION — NOT a verdict echo. Four axes:
 
-  CIS_DOSAGE   leg-1 GoF: CN → own-expression cis-dosage       (cis-feature-expression-coherence)
+  CIS_DOSAGE   leg-1:     CN → own-expression cis-dosage       (cis-feature-expression-coherence)
   SILENCING    leg-1 LoF: promoter methylation → LOW expression (cellline-methylation-expression-coherence)
   EXPR_DEP     leg-2:     expression → dependency correlation    (expression-dependency-correlation)
   CONJOINT     leg-2:     amp∩overexpr conjoint addiction        (amp-expr-stratified-dependency)
@@ -19,6 +19,13 @@ VALENCE: CIS_DOSAGE / EXPR_DEP / CONJOINT are positive (cis-driven addiction); S
 meaning in the atom). `absent` = measured uncoupled / no-correlation; `negative` = a MEASURED wrong-
 direction read (positive_anomaly / amp_expr_negative_more_dependent — paralog compensation / masking);
 `unmeasured` = invariant/untestable panel or gap (the resolver ABSTAINS here — never `absent`).
+
+DIRECTION (card v1.1.0): CIS_DOSAGE's tier says leg-1 is intact, not which CN arm carries it — an amplicon
+oncogene and a deleted suppressor both read cn_dosage_coupled_*. The direction (`cis_dosage_direction` +
+its basis) travels in the CIS_DOSAGE atom and is what makes the tier's GoF reading legitimate; only
+amplification_coupled is a gain-driven addiction claim, so the axis label stays direction-neutral here and
+the atom carries the arm. SILENCING gained a third state, `silencing_lineage_confounded` → `unmeasured`
+(measured, but not interpretable as cis silencing — see _SILENCING_SIGNAL).
 
 Verdict-INERT: reads the already-computed _headline (+ source cards) and never feeds resolve_or_raise.
 """
@@ -38,7 +45,14 @@ _CIS_DOSAGE_SIGNAL = {
 _SILENCING_SIGNAL = {
     "silencing_coupled_strong": "strong",
     "silencing_coupled_moderate": "moderate",
-    "methylation_uncoupled": "absent",
+    "methylation_uncoupled": "absent",  # MEASURED negative: tested within lineage, not silenced
+    # card v1.1.0 THIRD state: a large pan-panel hypermethylated-vs-rest contrast that COLLAPSES once
+    # conditioned on lineage (CDH1 -4.44 → -0.45; MET -4.99 → -0.85), i.e. what was measured is lineage
+    # separation, not promoter silencing. `unmeasured`, NOT `absent`: a within-lineage-POWERED silencing test
+    # has not been run, so this is neither a silencing claim nor a refutation of one, and calling it a
+    # measured floor would let it read as evidence against silencing. The tier is a gap; the atom's read
+    # string still names the class, so it stays distinguishable from data_unavailable in the output.
+    "silencing_lineage_confounded": "unmeasured",
     "methylation_invariant_panel": "unmeasured",
     "data_unavailable": "unmeasured",
 }
@@ -60,7 +74,11 @@ _CONJOINT_SIGNAL = {
 }
 
 _INFORMS = {
-    "CIS_DOSAGE": "leg-1 GoF — CN→own-expression cis-dosage coupling (amplification-driven expression)",
+    "CIS_DOSAGE": (
+        "leg-1 — CN→own-expression cis-dosage coupling, DIRECTION-resolved (amplification_coupled = "
+        "gain-driven expression, the GoF/addiction reading; deletion_coupled = loss-driven low expression, "
+        "an LoF reading that cannot support a direct-inhibition claim)"
+    ),
     "SILENCING": (
         "leg-1 LoF — promoter-methylation→LOW-expression silencing (therapeutically INVERSE: "
         "SL/reactivation hypothesis, not direct inhibition)"
@@ -152,11 +170,19 @@ CIS_COHERENCE_CLAIM_SPEC = [
             "cis_dosage_class",
             (
                 "cis_dosage_class",
+                # DIRECTION + basis (card v1.1.0): the class alone cannot separate an amplicon driver from a
+                # deleted suppressor, so the citable atom carries which arm the coupling came off.
+                "cis_dosage_direction",
+                "cis_dosage_direction_basis",
                 "cn_expr_spearman_r",
                 "cn_expr_spearman_p",
                 "cn_expr_slope_log2tpm_per_cn",
                 "delta_log2tpm_amplified_vs_neutral",
+                # the LINEAGE-controlled version of that contrast — the one a cis claim has to survive
+                "subset_within_lineage_delta_log2tpm",
                 "n_amplified",
+                "deleted_subset_delta_log2tpm",
+                "n_deleted",
                 "relative_cn_iqr",
                 "evidence_scope",
                 "n_cell_lines_evaluated",
@@ -179,8 +205,14 @@ CIS_COHERENCE_CLAIM_SPEC = [
                 "methylation_silencing_class",
                 "silencing_driver",
                 "subset_median_delta_log2tpm",
+                # the LINEAGE-controlled contrast + the collapse RATIO (within/pan) that produced the
+                # silencing_lineage_confounded class (card v1.1.0) — cited so a reader can see whether the
+                # pan-panel delta survived conditioning on lineage.
+                "subset_within_lineage_delta_log2tpm",
+                "lineage_collapse_ratio",
                 "subset_mannwhitney_p",
                 "methyl_expr_spearman_r",
+                "broad_quartile_delta_log2tpm",
                 "n_hypermethylated",
             ),
             _E_METH,
