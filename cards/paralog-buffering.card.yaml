@@ -15,12 +15,23 @@
 # Interpretation surface (paralog_buffering_class is PRIMARY):
 #   `strong`  → at least 1 paralog with dep_delta_paired_vs_max_single > 0.5
 #   `partial` → at least 1 paralog with 0.2-0.5 delta
-#   `none`    → paralogs annotated but no buffering signal
-#   `no_paralog` → no functional paralogs in Ensembl compara
-#   `data_unavailable` → target not in the DepMap 26Q1 dual-KO paralog screen
+#   `none`    → paralogs annotated AND measured, but no buffering signal
+#   `data_unavailable` → no MEASURED buffering call is derivable (see the
+#                        data_unavailable caveat: this token is AMBIGUOUS by
+#                        construction on a screen-only substrate)
+#
+# `no_paralog` was declared here until v1.2.0 and was emitted by NOTHING
+# (depmap_paralog_aggregator's reachable set is {strong, partial, none,
+# data_unavailable}). It was unreachable by construction, not by omission: the
+# only substrate is a dual-KO SCREEN, and a gene with no paralogs is simply
+# absent from the PARIS library — indistinguishable, on this data, from a gene
+# that has paralogs but was not screened. Reinstating it requires joining a
+# genome-wide paralog ANNOTATION (Ensembl Compara) at read time, which the
+# reader does not have; the product build's Compara join covers ohnolog
+# ancestry of already-screened PAIRS only. See the data_unavailable caveat.
 
 card_id: paralog-buffering
-version: 1.1.0
+version: 1.2.0
 question: "Does {target.symbol} have functional paralogs that buffer its dependency, and does single-agent inhibition risk paralog-mediated escape?"
 
 tier: target   # paralog buffering is a property of the gene family (sequence paralogs + measured dual-KO buffering), independent of indication.
@@ -55,16 +66,42 @@ outputs:
     - method_version
 
   summary_fields_vocabulary:
+    # EXACTLY the reachable set of depmap_paralog_aggregator.read_target_summary. Pinned by
+    # tests/methods/depmap_paralog_aggregator/test_card_vocabulary_reachable.py (analysis-methods):
+    # a token added here with no emitter is a dead interpretation branch, and a token emitted
+    # without being declared here silently escapes validate_interpretation_rules' reachability check.
     paralog_buffering_class:
       - strong
       - partial
       - none
-      - no_paralog
       - data_unavailable
     strongest_paralog_ohnolog_status:
       - annotated          # primary derived-product read — the ohnolog flag is a real Ensembl-Compara annotation
       - unknown_fallback   # raw-CSV fallback (product unreachable) — ohnolog NOT computable; flag is UNKNOWN, not False
       - data_unavailable   # no paralog data at all — nothing to annotate
+
+  summary_fields_record_schemas:
+    # functional_paralogs was declared as a bare `list<struct>` with no record shape, so its
+    # per-partner `buffering_class` escaped every vocabulary check — and the reader's
+    # _classify_buffering returns a FIFTH token there, `unmeasured`, which appears in NO card
+    # vocabulary. It is reachable and emitted: partners whose pair has no single-KO baseline
+    # (dep_delta_paired_vs_max_single == null) are deliberately RETAINED in the ranked list
+    # (sorted last) rather than dropped, so the reader never presents a partner it could not
+    # measure as a confirmed no-buffer. Declared here so a consumer matching this field against
+    # the scalar paralog_buffering_class vocabulary cannot silently bucket `unmeasured` as `none`.
+    functional_paralogs:
+      partner_gene_symbol: string
+      median_dual_ko_effect: number
+      # The STRONGEST (most lethal = most negative Chronos) single of the pair — the baseline the
+      # delta is measured against, so single_ko_effect - median_dual_ko_effect == the delta.
+      single_ko_effect: number
+      dep_delta_paired_vs_max_single: number   # null when neither member has a single-KO baseline
+      buffering_class: {enum: [strong, partial, none, unmeasured], type: string}
+      # PRIMARY path only. The raw-CSV FALLBACK omits this key entirely (the Ensembl-Compara join
+      # exists solely in the offline product build), so read it with .get() — a missing key means
+      # UNKNOWN, never "not an ohnolog". Mirrors the scalar strongest_paralog_ohnolog_status
+      # tri-state, which is how a consumer tells the two paths apart.
+      ohnolog: boolean
 
   figure: paralog_buffering_forest_with_ohnolog_flag
 
@@ -90,6 +127,16 @@ warning_predicates:
   - warning_id: data_unavailable_common_target
     if: "paralog_buffering_class == 'data_unavailable' && n_paralogs_annotated > 0"
     message: "{target.symbol} has annotated paralogs but was not screened in the DepMap 26Q1 dual-KO paralog screen. The gene is a plausible paralog-buffering candidate but the empirical evidence is missing — flag for future screen coverage."
+  # The COMPLEMENTARY branch. The predicate above covers data_unavailable WITH annotated partners
+  # (unambiguously a screen-coverage gap). With ZERO annotated partners the token was silent, and
+  # silence reads as "nothing to say" when in fact TWO very different situations are being merged:
+  # a genuinely paralog-free gene (a real NEGATIVE for paralog-mediated escape — the strongest
+  # version of what `none` reports, which earns small_molecule:supportive) and a gene absent from
+  # the PARIS library or an unreadable substrate (a true unknown). On a screen-only substrate the
+  # reader cannot separate them, so the card must SAY so rather than let a consumer infer either.
+  - warning_id: paralog_absence_indistinguishable_from_coverage_gap
+    if: "paralog_buffering_class == 'data_unavailable' && n_paralogs_annotated == 0"
+    message: "{target.symbol} has NO annotated paralog partner in the DepMap 26Q1 dual-KO screen. AMBIGUOUS — evidence for NEITHER reading: genuinely paralog-free (a real negative) OR absent from the PARIS library. The substrate is a screen, not a paralog annotation. Resolve with an Ensembl Compara lookup."
 
 caveats:
   - |
@@ -104,6 +151,22 @@ caveats:
     Sanger Paralog Screen 2023 is NOT in v1 (no-resale clause; legal review
     pending) — v2 will add it plus cross-screen concordance. Genes absent from
     the dual-KO library return paralog_buffering_class='data_unavailable'.
+  - |
+    `data_unavailable` is AMBIGUOUS BY CONSTRUCTION, never a negative. It merges
+    (a) gene absent from the PARIS library, (b) partners screened with no
+    single-KO baseline, (c) product AND raw-CSV fallback unreadable, and (d) a
+    genuinely paralog-free gene. Only (d) is a real negative, and the one case
+    this substrate cannot identify: a dual-KO SCREEN is not a paralog
+    annotation, so a paralog-free gene is absent from the library.
+    n_paralogs_annotated > 0 isolates (b); at 0 the rest are inseparable.
+  - |
+    Consequence of the line above, stated plainly: `none` (annotated, measured,
+    no buffering) earns small_molecule:supportive via
+    no-paralog-buffering-sm-supportive, while the STRONGER form of that same
+    conclusion — no paralogs at all — earns nothing. Honest given the substrate,
+    not a scoring bug. Closing it needs a genome-wide Ensembl Compara paralog
+    join at READ time; the product build's join covers ohnolog ancestry of
+    already-screened PAIRS only, so it cannot supply gene-level absence.
   - |
     Ohnolog flag (whole-genome-duplication ancestry) is stricter than the
     general 'paralog' annotation — ohnologs share cell-type-specific

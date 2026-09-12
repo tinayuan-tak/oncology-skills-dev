@@ -16,7 +16,6 @@
         "strong",
         "partial",
         "none",
-        "no_paralog",
         "data_unavailable",
         null
       ]
@@ -32,9 +31,55 @@
       ]
     },
     "functional_paralogs": {
-      "type": [
-        "null"
-      ]
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "partner_gene_symbol": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "median_dual_ko_effect": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "single_ko_effect": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "dep_delta_paired_vs_max_single": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "buffering_class": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "strong",
+              "partial",
+              "none",
+              "unmeasured",
+              null
+            ]
+          },
+          "ohnolog": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        }
+      }
     },
     "strongest_paralog_symbol": {
       "type": [

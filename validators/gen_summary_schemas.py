@@ -72,11 +72,30 @@ def _json_type(value) -> str | list[str]:
     return "string"
 
 
-def _harvest_observed(fixtures_dir: Path) -> dict[str, dict[str, set]]:
-    """{card_id -> {field -> set(observed json-type tokens)}} across all stub fixtures."""
+def _harvest_observed(fixtures_dir: Path, allow_missing: bool = False) -> dict[str, dict[str, set]]:
+    """{card_id -> {field -> set(observed json-type tokens)}} across all stub fixtures.
+
+    FAILS LOUDLY when the fixtures directory is absent (2026-09-12). This used to return {}
+    silently, and the widening source is now GONE — skills/compose-dashboard/tests/fixtures/stubs/
+    does not exist in the sibling skills repo any more. The silent path made a full regeneration
+    DESTRUCTIVE and plausible-looking at the same time: every non-enum, non-record property
+    collapsed from e.g. ["integer","null","number"] to ["null"], i.e. the committed schema started
+    asserting that a real integer field must be null, with no error and a normal-looking summary
+    line. Callers that genuinely have no fixtures must say so with --allow-missing-fixtures and
+    accept that only cards whose committed schema carries no observed types can be safely rewritten.
+    """
     observed: dict[str, dict[str, set]] = {}
     if not fixtures_dir or not fixtures_dir.is_dir():
-        return observed
+        if allow_missing:
+            return observed
+        raise SystemExit(
+            f"gen_summary_schemas: fixtures dir not found: {fixtures_dir}\n"
+            "  Observed-type widening is the ONLY source of non-enum property types; without it every\n"
+            "  such property regenerates as {'type': ['null']}, silently DEGRADING any committed\n"
+            "  schema that has real types. Point --fixtures at a stub directory, or pass\n"
+            "  --allow-missing-fixtures if you have verified the cards you are regenerating carry no\n"
+            "  observed-derived types (diff the result before committing)."
+        )
     for fx in sorted(fixtures_dir.glob("*.yaml")):
         try:
             doc = yaml.safe_load(fx.read_text()) or {}
@@ -98,9 +117,9 @@ def _prop_schema(field: str, vocab: dict, records: dict, observed_types: set[str
     # Enum fields (categorical) — from summary_fields_vocabulary.
     if field in vocab and isinstance(vocab[field], list):
         return {"type": ["string", "null"], "enum": list(vocab[field]) + [None]}
-    # List-of-record fields — from summary_fields_record_schemas (key -> type map).
+    # List-of-record fields — from summary_fields_record_schemas (key -> value spec).
     if field in records and isinstance(records[field], dict):
-        item_props = {k: {"type": _map_declared_type(v)} for k, v in records[field].items()}
+        item_props = {k: _record_key_schema(v) for k, v in records[field].items()}
         return {"type": "array", "items": {"type": "object", "properties": item_props}}
     # Otherwise widen from observed types (+ null, which summaries use liberally for "n/a").
     types = set(observed_types) if observed_types else set()
@@ -111,7 +130,52 @@ def _prop_schema(field: str, vocab: dict, records: dict, observed_types: set[str
     return {"type": sorted(types)}
 
 
+def _record_key_schema(decl) -> dict:
+    """Property schema for ONE key of a record in summary_fields_record_schemas.
+
+    card.schema.json permits three value-spec forms per key, and the generator honoured only the
+    first (2026-09-12 fix). `_map_declared_type` coerces via `str(decl)`, so a dict spec stringified
+    to its repr, missed every mapping entry, and fell through to the "string" default — SILENTLY
+    discarding the declared enum AND mistyping the key. 13 of the 15 record-schema-bearing cards use
+    the dict form (every subgroup-stratified-* `class`/`evidence_state`, genomic-event-model-match
+    `model_state`/`screen_role`, ...), so every record-key enum in this directory was being dropped.
+
+      1. bare type string            'string' | 'number' | 'integer' | 'boolean' | 'int' | ...
+      2. bare enum list              [strong, partial, none]
+      3. object                      {enum: [...], type: string}   <- was lost
+
+    Nullability: record keys are nullable in practice (a subgroup with evidence_state=absent emits
+    null metrics; an unmeasured paralog partner emits a null delta), and the declaration has no way
+    to say otherwise, so every key is widened with null — matching how scalar enum fields are
+    already widened on line 100. Without this a schema built from a correct declaration would REJECT
+    correctly-emitted data.
+    """
+    if isinstance(decl, dict):
+        enum = decl.get("enum")
+        jtype = _map_declared_type(decl.get("type", "string"))
+        if isinstance(enum, list) and enum:
+            return {"type": [jtype, "null"], "enum": list(enum) + [None]}
+        return {"type": [jtype, "null"]}
+    if isinstance(decl, list) and decl:
+        return {"type": ["string", "null"], "enum": list(decl) + [None]}
+    return {"type": [_map_declared_type(decl), "null"]}
+
+
+_JSON_TYPES = frozenset({"string", "number", "integer", "boolean", "array", "object", "null"})
+
+
 def _map_declared_type(decl: str) -> str:
+    """Card-declared type token -> JSON-schema type name.
+
+    The alias map covers PYTHON spellings only. card.schema.json's bare-type enum for a record key
+    is the JSON-SCHEMA spelling — ["integer", "boolean", "string", "number"] — and none of those
+    four were in the map, so `number` and `boolean` fell through to the "string" default and every
+    bare-typed record key in every card was generated as a string (2026-09-12 fix). Pass the native
+    names through unchanged; keep the aliases for cards that use them.
+    """
+    token = str(decl)
+    if token in _JSON_TYPES:
+        return token
     return {
         "int": "integer",
         "float": "number",
@@ -119,7 +183,7 @@ def _map_declared_type(decl: str) -> str:
         "bool": "boolean",
         "list": "array",
         "dict": "object",
-    }.get(str(decl), "string")
+    }.get(token, "string")
 
 
 def build_schema(card_id: str, card_spec: dict, observed: dict[str, set]) -> dict:
@@ -176,14 +240,27 @@ def main() -> int:
         default=None,
         help="Restrict generation to these card_ids (repeatable). Default: all cards.",
     )
+    ap.add_argument(
+        "--allow-missing-fixtures",
+        action="store_true",
+        help="Proceed with NO observed-type widening. Only safe for cards whose committed schema "
+        "already carries no observed-derived types — diff before committing.",
+    )
+    ap.add_argument(
+        "--allow-new",
+        action="store_true",
+        help="Also create schemas for cards that have none committed yet (default: refresh only "
+        "existing files, so a full run does not emit ~100 untracked files).",
+    )
     args = ap.parse_args()
 
-    observed_all = _harvest_observed(args.fixtures)
+    observed_all = _harvest_observed(args.fixtures, allow_missing=args.allow_missing_fixtures)
     args.out.mkdir(parents=True, exist_ok=True)
 
     card_files = sorted(args.cards.glob("*.card.yaml"))
     only = set(args.only) if args.only else None
     n_written = 0
+    n_skipped_new = 0
     for cf in card_files:
         card_id = cf.name[: -len(".card.yaml")]
         if only and card_id not in only:
@@ -193,8 +270,15 @@ def main() -> int:
         except yaml.YAMLError as e:
             print(f"[gen] SKIP {card_id}: YAML error {e}")
             continue
-        schema = build_schema(card_id, card_spec, observed_all.get(card_id, {}))
         out_path = args.out / f"{card_id}.summary.schema.json"
+        # The committed set is the VERDICT-BEARING subset (the validate_cards ratchet requires a
+        # schema only for resolver-consumed cards), but this loop walks all ~148 cards. Writing them
+        # all buries the intended diff under ~100 untracked new files. Default to refreshing what is
+        # already committed; --allow-new is the deliberate way to extend coverage.
+        if not out_path.exists() and not args.allow_new:
+            n_skipped_new += 1
+            continue
+        schema = build_schema(card_id, card_spec, observed_all.get(card_id, {}))
         out_path.write_text(json.dumps(schema, indent=2) + "\n")
         n_written += 1
         print(
@@ -202,6 +286,8 @@ def main() -> int:
             f"required={schema['required']}, observed={'yes' if card_id in observed_all else 'no'}"
         )
     print(f"\nWrote {n_written} summary schema(s) → {args.out}")
+    if n_skipped_new:
+        print(f"Skipped {n_skipped_new} card(s) with no committed schema (pass --allow-new to create them).")
     return 0
 
 
