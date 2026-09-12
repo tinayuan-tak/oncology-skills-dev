@@ -166,12 +166,17 @@ def test_run_matching_modality_has_no_mismatch(tmp_path):
 
 def test_run_confidence_tier_divergence_recorded(tmp_path):
     """When the spine's confidence_tier diverges from the integrator's discounted certainty, the
-    divergence is recorded in cap_reasons (informational; never overrides the spine)."""
+    divergence is recorded in its OWN field (informational; never overrides the spine, and never listed
+    among the caps — it lowers nothing)."""
     pkg = _pkg()
     pkg["synthesis"]["confidence_tier"] = {"tier": "high"}  # spine says high
     p = tmp_path / "ep.json"
     p.write_text(json.dumps(pkg))
     # no dossier/risk → degraded inputs cap the integrator's certainty at low → diverges from 'high'
     r = R.run(str(p), None, "small-molecule drug target", "small_molecule", None, synthesize_fn=_stub)
-    assert r["uncertainty"]["overall_certainty"] != "high"
-    assert any("diverges from spine confidence_tier 'high'" in reason for reason in r["uncertainty"]["cap_reasons"])
+    u = r["uncertainty"]
+    assert u["overall_certainty"] != "high"
+    assert "diverges from spine confidence_tier 'high'" in (u["spine_tier_divergence"] or "")
+    # and NOT smuggled back into the cap list: a non-cap in `cap_reasons` asserts a causal role it
+    # does not have, and would leave the list unexplainable against `cap_ceiling`.
+    assert not any("diverges from spine" in reason for reason in u["cap_reasons"])

@@ -146,7 +146,7 @@ def test_run_surfaces_cross_gate_shared_evidence(tmp_path):
     cgse = r["evidence_independence"]["cross_gate_shared_evidence"]
     assert cgse["correlated_gate_pairs"] == [["safety", "genomic_alteration"]]
     # the substrate-unit certainty basis is untouched (additive surfacing, not a discount rewrite)
-    assert "n_independent_units" in r["evidence_independence"]
+    assert "n_independent_substrate_units" in r["evidence_independence"]
 
 
 def test_run_without_facets_leaves_cross_gate_empty(tmp_path):

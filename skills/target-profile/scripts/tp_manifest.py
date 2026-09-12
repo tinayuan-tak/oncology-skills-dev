@@ -87,6 +87,29 @@ def _subskill_package(short: str, r: dict, figures_dir: Path) -> dict:
     }
 
 
+def write_subskill_package(out_dir: Path, short: str, sub_result: dict) -> Optional[Path]:
+    """Materialize ONE sub-skill's package.json, ahead of (and independent of) the full bundle.
+
+    Why this is separable from write_full_package: the [3B] cross-evidence-hypothesis leg reads
+    `subskills/target_intrinsic/package.json` as its indication-independent target-biology dossier, but
+    write_full_package runs at the very END of a run (it indexes artifacts the later render stages
+    produce). So at [3B] time subskills/ did not exist yet, `dossier_path.exists()` was ALWAYS False,
+    and EVERY default-on chain run reported `degraded inputs: ['dossier']` — capping certainty `low`
+    unconditionally, a panel-wide constant that cannot rank targets. This writes just that one
+    projection from the same in-memory carrier; write_full_package later rewrites it (with the figure
+    paths joined, which only exist by then) and wins. Best-effort: a dossier is context for a
+    verdict-inert leg, never worth a run. Returns the path written, or None."""
+    try:
+        pkg = _subskill_package(short, sub_result, out_dir / "figures")
+        pkg_path = out_dir / "subskills" / short / "package.json"
+        pkg_path.parent.mkdir(parents=True, exist_ok=True)
+        pkg_path.write_text(json.dumps(pkg, indent=2, default=str))
+        return pkg_path
+    except Exception as e:  # noqa: BLE001 — projection side-artifact; never break the run
+        print(f"[target-profile] early sub-skill package {short} skipped ({type(e).__name__}: {e})")
+        return None
+
+
 def write_full_package(
     out_dir: Path,
     *,

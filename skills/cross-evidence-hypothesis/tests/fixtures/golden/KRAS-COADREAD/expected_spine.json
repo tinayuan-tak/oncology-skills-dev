@@ -3,6 +3,8 @@
   "gate_ceiling": "advanceable",
   "gate_reason": "no fired/blind hard gate on the deterministic spine",
   "was_clamped": false,
+  "promotion_capped": false,
+  "verdict_after_gate": "conditional_on_biomarker",
   "gate_clamp_tension_present": false,
   "gate_fail_closed": false,
   "hard_gates_present": false,
@@ -19,13 +21,40 @@
   "base_certainty": "moderate",
   "certainty_capped": true,
   "cap_reasons": [
-    "degraded inputs: ['dossier', 'risk']"
+    "degraded inputs: ['dossier', 'risk']",
+    "evidence_substrate tagging sparse \u2014 independence read covers a minority of cards"
   ],
+  "cap_ceiling": "low",
+  "spine_tier_divergence_present": false,
   "limiting_dimension": "expression",
+  "limiting_dimension_scope": "all_scored_in_scope_axes",
   "data_gaps": [],
+  "not_scored_axes": [],
+  "axis_roles_present": false,
+  "n_axes_by_level": {
+    "low": 0,
+    "moderate": 10,
+    "high": 0
+  },
+  "n_gating_axes_by_level": null,
   "correlated_evidence_discounted": false,
   "correlated_groups": {},
-  "n_independent_units": 80,
+  "n_independent_substrate_units": 0,
+  "effective_independent_units": 0,
+  "independence_unit_kind": "substrate",
+  "substrate_tagged_fraction": 0.0,
+  "tagging_sparse": true,
+  "independence_view_authoritative": false,
+  "independence_cap_binding": false,
+  "skill_report_role": "descriptive",
+  "skill_report_call": "conditional_on_biomarker",
+  "skill_report_polarity": "not_scored",
+  "skill_report_chip_signals": {
+    "gate_agreement": "supportive",
+    "clause_traceability": "supportive",
+    "intra_package_coherence": "supportive",
+    "evidence_independence": "insufficient"
+  },
   "prompt_template_hash": "17e6398cee81cb123025415a40f915cb354f514a6fcad206976921ecafc19127",
   "model_id": "offline:offline_replay",
   "llm_mode": "offline_replay"

@@ -43,16 +43,21 @@ CASES = sorted(p.name for p in GOLDEN.iterdir() if (p / "expected_spine.json").e
 DRIFT_FLOAT_TOL = 1e-9
 
 
-def _run_offline(case_dir: Path, case: dict) -> dict:
-    """Replay the frozen canned LLM response through the real deterministic spine — no Bedrock."""
+def _run_offline(case_dir: Path, case: dict, pkg: str | None = None) -> dict:
+    """Replay the frozen canned LLM response through the real deterministic spine — no Bedrock.
+
+    Every optional input a case carries is threaded (risk / dossier / substrate). A case that ships a
+    dossier.json + substrate/ replays the DEFAULT-ON production chain rather than the bare-package path,
+    so the degradation caps the integrator applies when an input is missing are themselves frozen."""
     return R.run(
-        case["pkg"],
+        pkg or case["pkg"],
         case["risk"],
         case["meta"]["objective"],
         case["meta"]["modality"],
         case["dossier"],
         synthesize_fn=R.replay_synthesize(case["replay"]),
         llm_mode="offline_replay",
+        substrate=case["substrate"],
     )
 
 
@@ -116,16 +121,7 @@ def test_perturbing_a_deterministic_output_is_detected():
     tmp = GOLDEN / case_name / "_perturbed_pkg.json"
     tmp.write_text(json.dumps(pkg))
     try:
-        r = R.run(
-            str(tmp),
-            case["risk"],
-            case["meta"]["objective"],
-            case["meta"]["modality"],
-            case["dossier"],
-            synthesize_fn=R.replay_synthesize(case["replay"]),
-            llm_mode="offline_replay",
-        )
-        perturbed = dg.deterministic_spine_subset(r)
+        perturbed = dg.deterministic_spine_subset(_run_offline(GOLDEN / case_name, case, pkg=str(tmp)))
         assert perturbed != case["expected"], (
             "perturbing a veto-capable sub-verdict did NOT change the frozen spine — guard is vacuous"
         )

@@ -40,6 +40,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -54,9 +55,17 @@ import hypothesis_core as hc  # noqa: E402
 # biology, which is exactly the prior-knowledge-leak (KRAS blinding) case the directive was written
 # for; append it to both generation prompts. Offline-safe (llm.py imports only stdlib at module level).
 from _skills_common.llm import EVIDENCE_ONLY_DIRECTIVE  # noqa: E402
+from _skills_common.skill_report import ROLE_DESCRIPTIVE, build_skill_report  # noqa: E402
 
 SKILL_NAME = "cross-evidence-hypothesis"
-SKILL_VERSION = "0.5.0"  # 0.4.0→0.5.0: P4 reconciliation — the spine's cross-gate correlation
+SKILL_VERSION = "0.6.0"  # 0.5.0→0.6.0: UNIFIED_OUTPUT_CONTRACT `skill_report` emitted top-level;
+# axis ROLES consumed from synthesis.skill_reports (a gateless descriptive lens is no longer a data gap
+# and can no longer be named the limiting axis); certainty DISTRIBUTION alongside the weakest-link
+# scalar; independence discount made reachable (tagged substrates only + graded caps + tagging_sparse);
+# retrieve-don't-recall no longer reads n=/coordinates/TPM as PMIDs; modality scope resolves a card by
+# its OWNING dimensions (multi-lens cards); immune_context in scope for adc + antibody; the scalar
+# safety cap yields to a spine-DISPOSED hard-gate row.
+# 0.4.0→0.5.0: P4 reconciliation — the spine's cross-gate correlation
 # (independent decision-gate groups) tightens the certainty discount as the
 # MORE conservative unit count (min with card-substrate); never more permissive.
 # 0.3.0→0.4.0: consume the remaining decision_facets — cross_gate_shared_evidence
@@ -650,6 +659,161 @@ def _render_decision_facets(panel: dict) -> str:
     )
 
 
+# --- UNIFIED_OUTPUT_CONTRACT skill_report ---------------------------------------------------------
+# The integrator's four OWN measured signals. These are not biology cards — they are the deterministic
+# spine's readings of the hypothesis itself (is it clamped, is every clause traceable, is it internally
+# coherent, is its corroboration independent), which is exactly what a reviewer needs as chips.
+_SR_AXIS_LABELS = {
+    "gate_agreement": "hypothesis vs deterministic gate ceiling",
+    "clause_traceability": "every clause resolves to the package",
+    "intra_package_coherence": "no positive clause on a contradicted signal",
+    "evidence_independence": "corroboration is not one measurement re-displayed",
+}
+
+
+def _build_skill_report(
+    *,
+    computed,
+    gate,
+    cert,
+    cert_dist,
+    traceability,
+    n_clauses,
+    n_clean,
+    coherence_v,
+    substrate,
+    gate_ind,
+    promotable,
+    promotion_blockers,
+    tensions,
+    gaps,
+    not_scored,
+    limiting,
+    modality_resolved,
+    gate_clamped,
+    promotion_capped,
+    verdict_after_gate,
+    proposed,
+) -> dict:
+    """The integrator's UNIFIED_OUTPUT_CONTRACT `skill_report`, emitted TOP-LEVEL.
+
+    WHY it exists: without it the integrator's output is unreadable by the shared report/rollup layer —
+    `_skill_reports_by_short` / `build_skill_report_rollup` / the dashboard convergence reader all key off
+    `skill_report`, so the framework's terminal synthesis was the one artifact that could not be consumed
+    the way every sub-skill is. Emitting it makes the integrator a first-class citizen of the same
+    contract it reads off the spine.
+
+    WHY `role = descriptive`, given the verdict is a real call: `gating` means the verdict CAN MOVE THE
+    NOMINATION RECOMMENDATION (the short is in the composer's gate map). This integrator sits ABOVE the
+    nomination — it is downstream of the gate, and feeding it back would violate the load-bearing
+    invariant that it ENRICHES and never OVERRIDES the spine. `descriptive` is the contract's word for a
+    REAL read that is deliberately excluded from gate math, so `polarity` correctly resolves to
+    `not_scored` while `call` still carries the clamped verdict for rendering.
+
+    WHY it is TOP-LEVEL, not under `headline`: `data_product_contract.is_full_decision` keys off
+    `headline.skill_report`, and this skill is BESPOKE (a single `hypothesis.json`, no `write_package`
+    tree, no `run_health`). Putting the report at the top level gives the unified reader its object
+    without silently reclassifying the artifact as a full fan-out decision."""
+    tension_stmts = [t.get("statement") for t in (tensions or []) if isinstance(t, dict) and t.get("statement")]
+    n_coh = sum(len(v) for v in (coherence_v or {}).values())
+    eff_units = cert["effective_independent_units"]
+
+    def _atom(signal, corrob, evidence, informs):
+        return {"signal": signal, "corroboration": corrob, "evidence": evidence, "informs": informs}
+
+    claim_vector = {
+        # keyed off the GATE clamp alone. This atom answers one question — did the model's proposal
+        # exceed what the spine permits — so a promotion cap (the hypothesis's own citation hygiene)
+        # must not move it: that defect is already the `clause_traceability` atom's to report, and
+        # letting it fire here too double-counted it in a four-atom vector.
+        "gate_agreement": _atom(
+            "opposing" if gate_clamped else "supportive",
+            "high" if gate["hard_gates_present"] else "low",
+            (
+                (
+                    f"proposed '{proposed}' → gate-clamped to '{verdict_after_gate}' "
+                    f"(ceiling '{gate['ceiling']}': {gate['reason']})"
+                    if gate_clamped
+                    else f"proposed '{proposed}' sits at or below the gate ceiling '{gate['ceiling']}'"
+                )
+                + (f"; then promotion-capped to '{computed}' (not the gate)" if promotion_capped else "")
+            ),
+            _SR_AXIS_LABELS["gate_agreement"],
+        ),
+        "clause_traceability": _atom(
+            "supportive" if traceability == 1.0 else ("insufficient" if traceability is None else "opposing"),
+            "high" if n_clauses else "low",
+            f"{n_clean}/{n_clauses} clauses fully traceable to the package",
+            _SR_AXIS_LABELS["clause_traceability"],
+        ),
+        "intra_package_coherence": _atom(
+            "supportive" if not n_coh else "opposing",
+            "moderate",
+            f"{n_coh} intra-package coherence violation(s)",
+            _SR_AXIS_LABELS["intra_package_coherence"],
+        ),
+        "evidence_independence": _atom(
+            # `insufficient` — not `supportive` — when no unit view was authoritative: an unmeasured
+            # independence read must not read as a passing one.
+            (
+                "insufficient"
+                if not cert["independence_view_authoritative"]
+                else ("supportive" if eff_units >= 3 else ("neutral" if eff_units == 2 else "opposing"))
+            ),
+            "low" if substrate.get("tagging_sparse") else "moderate",
+            (
+                f"{eff_units} independent {cert['independence_unit_kind']}(s)"
+                + (
+                    f"; evidence_substrate tagging covers {substrate.get('substrate_tagged_fraction')} of cards"
+                    if substrate.get("tagging_sparse")
+                    else ""
+                )
+            ),
+            _SR_AXIS_LABELS["evidence_independence"],
+        ),
+        # NON-atom scalars — carried losslessly for a rollup that reads a coordinate off the report.
+        "certainty": cert["final"],
+        "n_axes_by_level": cert_dist["n_axes_by_level"],
+        "n_gating_axes_by_level": cert_dist["n_gating_axes_by_level"],
+        "n_data_gaps": len(gaps),
+        "n_not_scored_axes": len(not_scored),
+        "limiting_gating_axis": limiting,
+        "promotable": promotable,
+        "modality": modality_resolved,
+        "_disclaimer": (
+            "these are the INTEGRATOR's readings of its own hypothesis (gate agreement, traceability, "
+            "coherence, independence) — not biology-card signals; role=descriptive, excluded from gate math"
+        ),
+    }
+    headline_block = {
+        "verdict": {"phrase": f"{computed} (gate ceiling {gate['ceiling']})", "polarity": None},
+        "confidence": cert["final"],
+        "top_tension": tension_stmts[0] if tension_stmts else None,
+    }
+    return build_skill_report(
+        role=ROLE_DESCRIPTIVE,
+        verdict=computed,
+        driving_rule_id=None,  # composes no cards, fires no rules (data_mode: catalog_read)
+        headline_block=headline_block,
+        claim_vector=claim_vector,
+        axis_labels=_SR_AXIS_LABELS,
+        question_table=[
+            {"question": "Does the hypothesis exceed what the spine permits?", "answer": gate["reason"]},
+            {
+                "question": "Is it promotable?",
+                "answer": ("yes" if promotable else f"no — {', '.join(promotion_blockers)}"),
+            },
+            {
+                "question": "What limits certainty?",
+                "answer": "; ".join(cert["cap_reasons"]) or "nothing beyond the weakest in-scope axis",
+            },
+        ],
+        fired_rule_ids=[],
+        cards_used=[],
+        cards_missing=[],
+    )
+
+
 def run(
     pkg_path: str,
     risk_path=None,
@@ -719,9 +883,10 @@ def run(
     # --- deterministic FAIL-CLOSED GATE-COMPLETE clamp (the ceiling; the model never overrides) ---
     gate = hc.gate_ceiling(panel["pkg"], modality=modality_resolved)
     proposed = hc._scalar(out.get("proposed_verdict"))
-    computed, was_clamped = hc.clamp(proposed, gate["ceiling"])
+    computed, gate_clamped = hc.clamp(proposed, gate["ceiling"])
+    verdict_after_gate = computed
     gate_tension = None
-    if was_clamped:
+    if gate_clamped:
         gate_tension = (
             f"HYPOTHESIS proposed '{proposed}' but the deterministic gate caps at "
             f"'{gate['ceiling']}' ({gate['reason']}). The evidence read is not permitted "
@@ -731,23 +896,52 @@ def run(
     # --- clause traceability WITH TEETH ---
     surface = panel["citation_surface"]
     clause_cites = _all_clause_citations(out)
-    untraceable = {
-        k: bad for k, bad in ((k, hc.check_traceability(v, surface)) for k, v in clause_cites.items()) if bad
-    }
+    # ONE check_traceability pass per clause — the previous form called it twice for every clause (once
+    # for the untraceable map, once for the clean count) on a check that walks the whole citation surface.
+    trace_by_clause = {k: hc.check_traceability(v, surface) for k, v in clause_cites.items()}
+    untraceable = {k: bad for k, bad in trace_by_clause.items() if bad}
     n_clauses = len(clause_cites)
-    n_clean = sum(1 for k, v in clause_cites.items() if not hc.check_traceability(v, surface))
+    n_clean = sum(1 for bad in trace_by_clause.values() if not bad)
     traceability = round(n_clean / n_clauses, 3) if n_clauses else None
+
+    # --- AXIS ROLES (UNIFIED_OUTPUT_CONTRACT skill_report): which in-scope axes actually GATE the
+    # decision, and which are GATELESS BY DESIGN (role ∈ {descriptive, inert}, `polarity: not_scored`).
+    # A gateless lens has verdict None, so without this it lands in data_gaps and can be named the
+    # limiting axis — the gateless-tier conflation. `present=False` for a pre-#1310 package → every
+    # consumer below falls back to its previous behaviour. ---
+    reports = hc.parse_skill_reports(panel["pkg"])
 
     # --- uncertainty / gaps (orthogonal clamp: bounds CONFIDENCE) + substrate + degradation discount
     conviction = panel["conviction"]
     oos = hc.out_of_scope_dims(modality_resolved)
     in_scope = [d for d in conviction if d not in oos]
-    gaps = hc.data_gaps({d: conviction[d] for d in in_scope})
+    not_scored = [d for d in reports["not_scored_axes"] if d in set(in_scope)]
+    # SCORED in-scope axes = the axes that can carry a verdict at all. Gaps, the weakest-link certainty
+    # base and the minimum-inputs count are all computed over THESE, not over every in-scope lens.
+    scored_in_scope = [d for d in in_scope if d not in set(not_scored)]
+    gaps = hc.data_gaps({d: conviction[d] for d in in_scope}, not_scored=not_scored)
     # Per-axis certainty: consume the spine's CERTAINTY_MODEL sidecar (synthesis.decision_facets.
     # certainty_by_axis) as the weakest-link base for axes that opted in, so the integrator AGREES with
     # the spine rather than re-deriving; axes without a sidecar fall back to the binary proxy.
     certainty_by_axis = hc.parse_certainty_by_axis(panel["pkg"])
-    base_certainty, limiting = hc.weakest_link_certainty(conviction, in_scope, certainty_by_axis)
+    # None (not []) when the package carries no roles: "roles unknown" must not be reported as "nothing
+    # gates". Downstream, None selects the fallback pool (every scored in-scope axis) for the limiting-axis
+    # attribution and suppresses the gating histogram entirely.
+    gating_axes = [d for d in reports["gating_axes"] if d in set(scored_in_scope)] if reports["present"] else None
+    base_certainty, limiting = hc.weakest_link_certainty(
+        conviction, scored_in_scope, certainty_by_axis, gating_axes=gating_axes
+    )
+    # the DISTRIBUTION behind the weakest-link scalar. The scalar is a conjunctive minimum and reads
+    # `low` on essentially every real package, so it cannot separate targets; the histogram (and its
+    # gating-only slice) is what a portfolio reviewer can actually rank on.
+    cert_dist = hc.certainty_distribution(conviction, scored_in_scope, certainty_by_axis, gating_axes=gating_axes)
+    # F18: `base_certainty` minimises over EVERY scored in-scope axis while `limiting` is restricted to
+    # gating axes, so the two can name different levels — ERBB2/BRCA shipped `low` beside
+    # `limiting_dimension: mechanism` when mechanism was moderate and the binding axis was the non-gating
+    # `subtype_fit`. Both halves are deliberate; the disagreement was just undisclosed. Attribution only.
+    binding = hc.binding_axis_attribution(
+        conviction, scored_in_scope, certainty_by_axis, gating_axes=gating_axes, roles=reports.get("roles")
+    )
 
     degraded_inputs = []
     if not panel["dossier_present"]:
@@ -759,33 +953,55 @@ def run(
     # (non-gap) in-scope decision gates → independent-gate-group count. Feeds the discount as the MORE
     # CONSERVATIVE unit count (min with the card-substrate view); None when the facet is absent → the
     # substrate discount stands alone (byte-stable for older packages).
-    supporting_gates = [d for d in in_scope if conviction.get(d) not in hc.GAP_VERDICTS]
+    supporting_gates = [d for d in scored_in_scope if conviction.get(d) not in hc.GAP_VERDICTS]
     gate_ind = hc.gate_independence(panel.get("cross_gate_shared_evidence"), supporting_gates)
     cert = hc.discounted_certainty(
         base_certainty,
         substrate["n_independent_units"],
         degraded_inputs,
         n_independent_gate_groups=gate_ind["n_independent_gate_groups"],
+        tagging_sparse=substrate.get("tagging_sparse", False),
     )
     # confidence_tier CROSS-CHECK (quick win; no emit-side dependency): the spine emits its OWN
     # composed confidence tier. When the integrator's discounted certainty DIVERGES from it, record the
     # divergence (informational — the integrator's certainty is weakest-link + independence-discounted, a
     # deliberately more conservative read; never silently overrides the spine's tier).
+    #
+    # It gets its OWN field, not a `cap_reasons` entry. The divergence lowers nothing — it is an
+    # observation about two reads disagreeing — so listing it among the caps asserted a causal role it
+    # does not have, and (now that `cap_ceiling` is emitted) would leave a reason list of three beside a
+    # ceiling explained by two of them.
     spine_tier = ((panel["pkg"].get("synthesis") or {}).get("confidence_tier") or {}).get("tier")
+    tier_divergence = None
     if spine_tier and str(spine_tier).lower() != cert["final"]:
-        cert["cap_reasons"] = list(cert["cap_reasons"]) + [
+        tier_divergence = (
             f"diverges from spine confidence_tier '{spine_tier}' (integrator certainty is weakest-link + "
             "independence-discounted)"
-        ]
+        )
 
     # absence-discipline WITH TEETH: a SUPPORTING clause may not cite a gap-line sub-verdict.
-    gapset = set(gaps)
+    #
+    # Matching is NORMALIZED + phrase-aware, mirroring how check_traceability resolves a non-PMID token.
+    # The exact `tok in gapset` this replaces was asymmetric teeth: traceability CREDITED
+    # "expression sub-verdict (expression)" for embedding a known token, while absence-discipline only
+    # caught a citation that was the bare string "expression" — so the same phrasing that made a citation
+    # traceable let it cite a GAP line for free. A gap axis named inside the citation phrase is a
+    # violation regardless of the surrounding prose.
+    # Boundary chars EXCLUDE `_` so the axis name must stand as its own token in the normalized citation:
+    # "expression sub-verdict (expression)" is a violation, while the CARD "expression-and-specificity"
+    # (normalized `expression_and_specificity`) is not the AXIS `expression` and does not match.
+    gap_res = {g: re.compile(rf"(?<![a-z0-9_]){re.escape(hc._norm(g))}(?![a-z0-9_])") for g in gaps}
     support_clauses = ("causal_rationale", "therapeutic_hypothesis", "population", "therapeutic_window")
+
+    def _cited_gap_axes(tok) -> list:
+        tn = hc._norm(tok)
+        return sorted(g for g, rx in gap_res.items() if rx.search(tn))
+
     absence_violations = {}
     for key in support_clauses:
         c = hc._uv(out.get(key)) or {}
         c = c if isinstance(c, dict) else {}
-        cited_gaps = [tok for tok in (c.get("citations") or []) if tok in gapset]
+        cited_gaps = sorted({f"{tok}→{g}" for tok in (c.get("citations") or []) for g in _cited_gap_axes(tok)})
         if cited_gaps:
             absence_violations[key] = cited_gaps
 
@@ -863,8 +1079,10 @@ def run(
         ]
         out["tensions"] = tensions
 
-    # --- minimum-inputs gate: enough non-gap in-scope decision lines to reason over? ---
-    n_supporting = sum(1 for d in in_scope if conviction.get(d) not in hc.GAP_VERDICTS)
+    # --- minimum-inputs gate: enough non-gap, SCORED, in-scope decision lines to reason over? A gateless
+    # descriptive lens is real context but it is not a decision line, so it neither counts toward the
+    # minimum nor (via data_gaps above) against it. Counted over scored_in_scope. ---
+    n_supporting = sum(1 for d in scored_in_scope if conviction.get(d) not in hc.GAP_VERDICTS)
     minimum_inputs_met = n_supporting >= 2
 
     # --- promotion gate (teeth): untraceable / absence-violation / coherence / below-minimum BLOCK ---
@@ -878,10 +1096,46 @@ def run(
     if not minimum_inputs_met:
         promotion_blockers.append("insufficient_inputs")
     promotable = not promotion_blockers
-    # a non-promotable hypothesis can never present a permissive verdict — cap at advanceable_flagged
+    # a non-promotable hypothesis can never present a permissive verdict — cap at advanceable_flagged.
+    #
+    # This is a DIFFERENT mechanism from the gate clamp and must be reported as one. It fires on the
+    # hypothesis's OWN hygiene (untraceable citations, absence-discipline, coherence, too few supporting
+    # axes), not on disagreement with the spine. Folding it into `was_clamped` — as this did — made the
+    # live KRAS-COADREAD run emit `was_clamped: true` beside `gate_ceiling == proposed_by_agent` and
+    # `gate_clamp_tension: null`: three fields in one object contradicting each other, reading as "the
+    # deterministic gate overruled the model" when the model had agreed with the gate exactly and was
+    # demoted for citation hygiene. It also made ONE defect (22/25 traceable clauses) fire TWO of the
+    # four skill_report claim atoms, double-counting it for any rollup that averages the vector.
+    promotion_capped = False
     if not promotable and hc.VERDICT_RANK[computed] > hc.VERDICT_RANK["advanceable_flagged"]:
         computed = "advanceable_flagged"
-        was_clamped = True
+        promotion_capped = True
+
+    # --- UNIFIED_OUTPUT_CONTRACT skill_report (top-level). Built AFTER the promotion cap so `call` is
+    # the FINAL computed verdict. See _build_skill_report for why role == descriptive. ---
+    skill_report = _build_skill_report(
+        computed=computed,
+        gate=gate,
+        cert=cert,
+        cert_dist=cert_dist,
+        traceability=traceability,
+        n_clauses=n_clauses,
+        n_clean=n_clean,
+        coherence_v=coherence_v,
+        substrate=substrate,
+        gate_ind=gate_ind,
+        promotable=promotable,
+        promotion_blockers=promotion_blockers,
+        tensions=tensions,
+        gaps=gaps,
+        not_scored=not_scored,
+        limiting=limiting,
+        modality_resolved=modality_resolved,
+        gate_clamped=gate_clamped,
+        promotion_capped=promotion_capped,
+        verdict_after_gate=verdict_after_gate,
+        proposed=proposed,
+    )
 
     result = {
         "skill": SKILL_NAME,
@@ -908,7 +1162,13 @@ def run(
         "verdict": {
             "proposed_by_agent": proposed,
             "computed": computed,
-            "was_clamped": was_clamped,
+            # TWO independent demotion mechanisms, reported apart (see the promotion cap above).
+            # `was_clamped` is the GATE clamp only — did the spine's ceiling lower the model's proposal.
+            # `promotion_capped` is the hypothesis's own hygiene cap. `verdict_after_gate` is the value
+            # between them, so a reader can attribute the drop from `proposed_by_agent` to `computed`.
+            "was_clamped": gate_clamped,
+            "promotion_capped": promotion_capped,
+            "verdict_after_gate": verdict_after_gate,
             "gate_ceiling": gate["ceiling"],
             "gate_reason": gate["reason"],
             "gate_fail_closed": gate["fail_closed"],
@@ -923,6 +1183,11 @@ def run(
             # blanket hold-grade cap (== the spine's exists_safe_modality suppression, mirrored).
             "safety_modality_action": gate.get("safety_modality_action"),
             "safety_modality_cleared": gate.get("safety_modality_cleared", False),
+            # the spine's OWN per-run disposition of its safety hard-gate row(s). When it reads
+            # `suppressed`/`excluded` the integrator does NOT re-derive a hold from the scalar safety
+            # token — re-imposing an adjudicated gate would OVERRIDE the spine.
+            "safety_gate_status": gate.get("safety_gate_status"),
+            "safety_gate_disposed_by_spine": gate.get("safety_gate_disposed_by_spine", False),
         },
         "defensibility": {
             "clause_traceability": traceability,
@@ -943,17 +1208,66 @@ def run(
             "overall_certainty": cert["final"],
             "base_certainty": cert["base"],
             "certainty_capped": cert["capped"],
+            # every cap CONSIDERED, plus the level they jointly permit. Read as one statement:
+            # base / cap_ceiling / overall_certainty / certainty_capped. When the base is already the
+            # weakest rung the listed caps bind nothing, and `cap_ceiling` makes that legible instead of
+            # leaving a reader to suspect a listed cap silently lowered the answer.
             "cap_reasons": cert["cap_reasons"],
+            "cap_ceiling": cert["cap_ceiling"],
+            # NOT a cap — the spine's own composed tier disagreeing with this integrator's read.
+            "spine_tier_divergence": tier_divergence,
+            # the LIMITING axis is restricted to role=gating axes when the spine carries roles, so the
+            # decision is never reported as limited by a lens that gates nothing.
             "limiting_dimension": limiting,
+            "limiting_dimension_scope": "gating_axes" if gating_axes else "all_scored_in_scope_axes",
+            # F18 attribution: `limiting_dimension` is the gating-restricted NAME, `binding_axis` is what
+            # actually set the level. `limiting_dimension_is_binding: false` means read `binding_axis`
+            # instead — the named axis sits ABOVE the reported certainty and acting on it will not move it.
+            # `binding_axis_role: null` means that axis is absent from synthesis.skill_reports entirely
+            # (a #1310 producer gap, distinct from a declared descriptive/inert role). Disclosure only.
+            **binding,
+            # the DISTRIBUTION the weakest-link scalar hides — this is the discriminating read.
+            "certainty_by_axis": cert_dist["by_axis"],
+            "n_axes_by_level": cert_dist["n_axes_by_level"],
+            "gating_certainty_by_axis": cert_dist["gating_by_axis"],
+            "n_gating_axes_by_level": cert_dist["n_gating_axes_by_level"],
+            "certainty_axes_from_spine_sidecar": cert_dist["axes_from_spine_sidecar"],
+            "certainty_axes_from_proxy": cert_dist["axes_from_proxy"],
             "data_gaps": gaps,
+            # GATELESS BY DESIGN (skill_report role ∈ {descriptive, inert}) — declared absence of
+            # scoring, NOT missing data. Excluded from data_gaps / the certainty base / the minimum-input
+            # count, and reported here so the exclusion is auditable rather than invisible.
+            "not_scored_axes": sorted(not_scored),
+            "axis_roles": reports["roles"],
+            "axis_roles_present": reports["present"],
             "absence_discipline_violations": absence_violations,
         },
         "evidence_independence": {
             "correlated_evidence_discounted": substrate["correlated_evidence_discounted"],
             "correlated_groups": substrate["correlated_groups"],
-            "n_independent_units": substrate["n_independent_units"],
+            # NAMED BY VIEW. The old `n_independent_units` was the CARD-SUBSTRATE count sitting beside
+            # `effective_independent_units` (the binding view) under a name that claimed to be the
+            # authoritative one; on live KRAS-COADREAD they read 2 and 3 and a reader had no way to tell
+            # they measure different things. Every unit count below now says which view it is.
+            "n_independent_substrate_units": substrate["n_independent_units"],
             "n_distinct_substrates": substrate["n_distinct_substrates"],
             "n_untagged_cards": substrate["n_untagged_cards"],
+            # TAGGING COVERAGE the independence read rests on. Independent units are the DISTINCT TAGGED
+            # substrates only (an untagged card is missing provenance, not proven independence); when
+            # tagging covers a minority of the package the discount says so (`tagging_sparse`) and caps
+            # certainty at `moderate` rather than passing silently.
+            "n_tagged_cards": substrate["n_tagged_cards"],
+            "substrate_tagged_fraction": substrate["substrate_tagged_fraction"],
+            "tagging_sparse": substrate["tagging_sparse"],
+            # F17 — WHY tagging is sparse, because on the 2026-09-12 panel it was sparse on 15/15 targets
+            # and a flag that cannot be False cannot inform anyone. `substrate_vocabulary_limited: true`
+            # means the emitter stamped every card it could and the `evidence_substrates` vocab simply
+            # names no substrate for this evidence (a target-contracts measurement_types.yaml gap) — NOT
+            # that this run lost provenance. `n_untagged_no_measurement_type` is the separate, per-card
+            # registry back-ref debt. Disclosure only: no cap or unit count reads these.
+            "n_untagged_vocabulary_gap": substrate["n_untagged_vocabulary_gap"],
+            "n_untagged_no_measurement_type": substrate["n_untagged_no_measurement_type"],
+            "substrate_vocabulary_limited": substrate["substrate_vocabulary_limited"],
             # P4 — the spine's AUTHORITATIVE cross-gate correlation, now RECONCILED into the certainty
             # discount: independent decision-gate groups over the supporting gates (spine
             # cross_gate_shared_evidence) + the effective unit count actually used (the more conservative
@@ -964,6 +1278,13 @@ def run(
             "gate_independence_present": gate_ind["present"],
             "effective_independent_units": cert["effective_independent_units"],
             "independence_unit_kind": cert["independence_unit_kind"],
+            # TWO questions, two flags. `_view_authoritative` is False when NO unit view could speak
+            # (substrate tagging sparse AND no spine gate facet) — the check ABSTAINED rather than
+            # capping on a metadata gap. `_cap_binding` is whether the unit count actually lowered the
+            # certainty ceiling; an authoritative view finding >= 3 units caps nothing, which the single
+            # old `independence_cap_applied: true` misreported as a cap that had been applied.
+            "independence_view_authoritative": cert["independence_view_authoritative"],
+            "independence_cap_binding": cert["independence_cap_binding"],
         },
         "subtype_resolved": {
             "present": panel["subtype"]["present"],
@@ -978,7 +1299,12 @@ def run(
             "grounded_substrate_present": panel.get("grounded_substrate_present", False),
             "degraded_inputs": degraded_inputs,
             "minimum_inputs_met": minimum_inputs_met,
+            # counted over the SCORED in-scope axes only — a gateless descriptive lens is context, not a
+            # decision line, so it neither supports nor blocks the minimum.
             "n_supporting_in_scope_lines": n_supporting,
+            "n_scored_in_scope_lines": len(scored_in_scope),
+            "n_in_scope_lines": len(in_scope),
+            "n_not_scored_in_scope_lines": len(not_scored),
             # composed-modality seam: the modality the package was composed under + whether it mismatches
             # this run's resolved modality (the ceiling was frozen for the composed channel).
             "composed_modality": composed_modality,
@@ -1001,6 +1327,11 @@ def run(
         # post-check (scripts/adversarial_survival.py, needs Bedrock) is run; the deterministic
         # coherence guard above is the always-on, offline sibling of that skeptic pass. ---
         "quality": {"adversarial_survival": None},
+        # --- UNIFIED_OUTPUT_CONTRACT: the ONE shape every skill shares, so the integrator's terminal
+        # synthesis is readable by the shared report/rollup layer (`_skill_reports_by_short`,
+        # `build_skill_report_rollup`, the dashboard convergence reader) exactly like a sub-skill's.
+        # TOP-LEVEL (not under `headline`) — this skill's emit is bespoke; see _build_skill_report. ---
+        "skill_report": skill_report,
         # --- drift-guard provenance: the two PINS the golden-set drift-CI freezes ---
         "provenance": {
             "skill": SKILL_NAME,

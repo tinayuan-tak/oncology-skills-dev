@@ -325,6 +325,16 @@ _DIM_CARD_NORMS: dict[str, frozenset[str]] = {
     for dim, cards in DIMENSION_CARDS.items()
     for _n in (dim.replace("-", "_").lower(),)
 }
+# REVERSE index card_norm -> {dim_norm}. A card frequently belongs to MORE THAN ONE sub-verdict
+# dimension (multi-lens: `modality-therapeutic-window` is both a surface_modality and a tumor-SELECTIVITY
+# card; `structure-features-static` is both tractability_sm and surface_modality). The modality-scope
+# exclusion must therefore ask whether EVERY dimension owning the card is out of scope — see
+# token_out_of_scope. Built off the same DIMENSION_CARDS the drift guard pins.
+_CARD_DIM_NORMS: dict[str, frozenset[str]] = {}
+for _dim, _cards in DIMENSION_CARDS.items():
+    for _c in _cards:
+        _cn = _c.replace("-", "_").lower()
+        _CARD_DIM_NORMS[_cn] = _CARD_DIM_NORMS.get(_cn, frozenset()) | {_dim.replace("-", "_").lower()}
 
 # coverage-gap verdicts: a line in one of these states carries NO evidentiary weight (absence-discipline)
 GAP_VERDICTS = {
@@ -395,9 +405,15 @@ MODALITY_SCOPE: dict[str, set] = {
     # `dependency:non_dependent` (or SL/combinatorial) reading must NOT veto a surface target (e.g. an
     # approved ADC/TCE antigen like DLL3/NECTIN4 that is not itself a fitness dependency). tractability_sm
     # (small-molecule chemistry) is likewise out-of-scope.
-    "adc": {"tractability_sm", "dependency", "combination_vulnerability", "immune_context"},
+    # IMMUNE CONTEXT is IN SCOPE for all three antibody-derived channels, not just bite_tce: an
+    # unconjugated antibody's efficacy mechanism is frequently ADCC / CDC / immune-effector recruitment,
+    # and an ADC payload induces immunogenic cell death — so the TME's immune phenotype (the
+    # inflamed/excluded/desert read + the ICI-response cards) speaks to whether the channel can work.
+    # It stays OUT of scope for the cell-intrinsic small-molecule family (small_molecule / degrader /
+    # molecular_glue / rna_therapeutic), whose mechanism does not route through an immune effector.
+    "adc": {"tractability_sm", "dependency", "combination_vulnerability"},
     "bite_tce": {"tractability_sm", "dependency", "combination_vulnerability"},
-    "antibody": {"tractability_sm", "dependency", "combination_vulnerability", "immune_context"},
+    "antibody": {"tractability_sm", "dependency", "combination_vulnerability"},
     "modality_agnostic": set(),
 }
 
@@ -485,11 +501,28 @@ _MODALITY_DIMENSION_CARD_TOKENS: dict[str, tuple] = {
 
 def token_out_of_scope(norm_token: str, oos_dims: set) -> bool:
     """A normalized card/dimension token is OUT OF SCOPE for the modality if it IS an out-of-scope
-    sub-verdict dimension, OR it is a CARD belonging to one (matched via _MODALITY_DIMENSION_CARD_TOKENS).
-    `oos_dims` is the pre-normalized out-of-scope dimension set."""
-    if norm_token in oos_dims:
+    sub-verdict dimension, or it is a CARD every one of whose owning dimensions is out of scope.
+
+    MULTI-LENS CORRECTNESS: a card can be owned by several dimensions, so the OWNERSHIP index
+    (`_CARD_DIM_NORMS`, derived from the drift-pinned DIMENSION_CARDS) is consulted FIRST and is
+    AUTHORITATIVE — a card with at least one IN-SCOPE owner is in scope. Blind substring matching used to
+    exclude `modality-therapeutic-window` / `surface-abundance-density` / `spatial-surface-protein-abundance`
+    for a small_molecule objective (all three are tumor-SELECTIVITY cards, an in-scope dimension — so a
+    coherence violation resting on the therapeutic-WINDOW card was silently exempted for the framework's
+    most common modality), and `structure-features-static` / `measured-potency-tractability` for adc /
+    antibody (surface_modality + target_intrinsic cards).
+
+    `_MODALITY_DIMENSION_CARD_TOKENS` remains the FALLBACK for a token absent from DIMENSION_CARDS (a
+    card the mirror has not caught up with, or a free-text token the LLM coined), where a name-shape match
+    is the only signal available. `oos_dims` is the out-of-scope dimension set (normalized here, so a raw
+    or pre-normalized set both work)."""
+    oos_norm = {_norm(d) for d in oos_dims}
+    if norm_token in oos_norm:
         return True
-    for dim in oos_dims:
+    owners = _CARD_DIM_NORMS.get(norm_token)
+    if owners:  # KNOWN card — ownership decides; out of scope only when NO owner is in scope
+        return owners <= oos_norm
+    for dim in oos_norm:  # UNKNOWN token — fall back to the name-shape map
         if any(tok in norm_token for tok in _MODALITY_DIMENSION_CARD_TOKENS.get(dim, ())):
             return True
     return False
@@ -602,6 +635,8 @@ def gate_ceiling(pkg: dict, modality: Optional[str] = None) -> dict:
             "safety_verdict": None,
             "safety_modality_action": None,
             "safety_modality_cleared": False,
+            "safety_gate_status": None,
+            "safety_gate_disposed_by_spine": False,
         }
     sv = syn["sub_verdicts"]
     safety = _sv_verdict(sv, "safety")
@@ -617,6 +652,9 @@ def gate_ceiling(pkg: dict, modality: Optional[str] = None) -> dict:
 
     signals: list[tuple[int, str]] = []  # (ceiling_rank, reason)
     active_vetoes, blind_gates, opposing, excluded = [], [], [], []
+    # statuses the spine assigned to the SAFETY rows of its own hard-gate set, keyed by the gate verdict.
+    # Consumed by the scalar safety cap below so the integrator cannot re-impose a hold the spine DISPOSED.
+    safety_gate_status: dict = {}
 
     if isinstance(hard_gates, list) and hard_gates:
         for row in hard_gates:
@@ -627,6 +665,8 @@ def gate_ceiling(pkg: dict, modality: Optional[str] = None) -> dict:
             disp = row.get("disposition")
             status = row.get("status")
             tag = f"{short}:{verdict}"
+            if short == "safety":
+                safety_gate_status[str(verdict)] = str(status)
             axis_oos = short in oos  # e.g. dependency is out-of-scope for a surface/ligand biologic
             if status == "fired":
                 if axis_oos:
@@ -689,7 +729,18 @@ def gate_ceiling(pkg: dict, modality: Optional[str] = None) -> dict:
     # (== conditional / allele-selective escape, the spine's exists_safe_modality logic), the blanket
     # scalar cap does NOT apply — the integrator would otherwise re-impose a hold the spine suppressed for
     # this exact channel. Fail-closed: no block / a non-clearing action keeps the cap.
-    if (safety in SAFETY_HOLD or safety in SAFETY_KILL) and not safety_modality_cleared:
+    #
+    # SPINE-DISPOSED: when the spine's OWN hard-gate row for this exact safety verdict carries a
+    # disposition status of `suppressed` or `excluded`, the spine has already ADJUDICATED that gate for
+    # this run — suppressed means it evaluated the gate and released it (observed on KRAS/COADREAD, where
+    # the run was rescued only incidentally by safety_action == conditional). Re-deriving the hold from
+    # the SCALAR sub-verdict token then OVERRIDES the spine's per-run adjudication with a coarser read,
+    # which is the one thing this integrator must never do ("it ENRICHES; it never OVERRIDES"). A row
+    # that FIRED or went BLIND already contributed its own signal in the loop above, so skipping the
+    # scalar cap for a disposed row cannot lose a real hold. Fail-closed: an ABSENT hard-gates block, or
+    # a safety verdict with no matching row, keeps the scalar cap.
+    safety_gate_disposed = safety_gate_status.get(str(safety)) in {"suppressed", "excluded"}
+    if (safety in SAFETY_HOLD or safety in SAFETY_KILL) and not safety_modality_cleared and not safety_gate_disposed:
         signals.append((VERDICT_RANK["advanceable_flagged"], f"safety hold-grade ({safety})"))
 
     if not signals:
@@ -708,6 +759,8 @@ def gate_ceiling(pkg: dict, modality: Optional[str] = None) -> dict:
         "safety_verdict": safety,
         "safety_modality_action": safety_action,
         "safety_modality_cleared": safety_modality_cleared,
+        "safety_gate_status": safety_gate_status or None,
+        "safety_gate_disposed_by_spine": safety_gate_disposed,
     }
 
 
@@ -718,6 +771,78 @@ def clamp(proposed: Optional[str], ceiling: str) -> tuple:
     if VERDICT_RANK[p] > VERDICT_RANK[ceiling]:
         return ceiling, True
     return p, False
+
+
+# --- the UNIFIED skill_report SPINE (synthesis.skill_reports) ---------------------------------
+# The framework's ONE per-skill output object (docs/UNIFIED_OUTPUT_CONTRACT.md,
+# _skills_common/skill_report.build_skill_report). The spine carries it into the evidence_package
+# specifically so THIS integrator can read it, and it is the ONLY place the package states each axis's
+# ROLE. Without it the integrator reads a bare `sub_verdicts` map in which a GATELESS-BY-DESIGN lens is
+# indistinguishable from a BLIND gate: both present as `verdict: None`.
+#
+# That conflation was live and load-bearing. On all five 2026-09-10 finalized packages, `data_gaps`
+# listed `target_intrinsic`, `combination_vulnerability`, `translational_readiness` and
+# `literature_context` — the four verdict_fn=None DESCRIPTIVE lenses — as coverage gaps, and on
+# EGFR/NSCLC `limiting_dimension` came back as `target_intrinsic`, which the dashboard's
+# `_cross_evidence_summary` renders verbatim. The integrator was telling a reviewer that the limiting
+# evidence line was a lens that has no verdict by design, and `go_forth` was being pointed at four
+# non-gaps.
+#
+# ROLE taxonomy (skill_report.ROLES): `gating` = the verdict can move the nomination; `descriptive` = a
+# real read with no gate; `inert` = verdict-SHAPED but explicitly not a call (cis_coherence). Only a
+# GATING axis is a decision line for certainty purposes; a descriptive/inert axis with no call is
+# NOT_SCORED, which is a different thing from a gap.
+_NOT_SCORED_ROLES = frozenset({"descriptive", "inert"})
+ROLE_GATING = "gating"
+
+
+def parse_skill_reports(pkg: dict) -> dict:
+    """Project `synthesis.skill_reports` into the integrator's axis-ROLE view.
+
+    Returns {present, by_short, roles, gating_axes, not_scored_axes, polarity, rollup}:
+      - `roles`           {short: role} for every axis carrying a report;
+      - `gating_axes`     the shorts whose verdict can move the nomination (role == gating);
+      - `not_scored_axes` the shorts that are GATELESS BY DESIGN — role ∈ {descriptive, inert} AND no
+                          `call`. These must NOT be counted as coverage gaps and must NOT limit
+                          certainty; `polarity == not_scored` is the spine's own word for them.
+      - `rollup`          `synthesis.skill_report_rollup` verbatim (role grouping + the INV-6
+                          recommendation-vs-signals coherence flag), surfaced for the panel.
+
+    `present=False` for a package that predates the spine carry — every downstream consumer then falls
+    back to its previous behaviour, so an older package stays byte-stable."""
+    syn = pkg.get("synthesis") or {}
+    reports = syn.get("skill_reports")
+    if not isinstance(reports, dict) or not reports:
+        return {
+            "present": False,
+            "by_short": {},
+            "roles": {},
+            "gating_axes": [],
+            "not_scored_axes": [],
+            "polarity": {},
+            "rollup": {},
+        }
+    roles, polarity, not_scored, gating = {}, {}, [], []
+    for short, rec in reports.items():
+        if not isinstance(rec, dict):
+            continue
+        role = rec.get("role")
+        roles[short] = role
+        polarity[short] = rec.get("polarity")
+        if role == ROLE_GATING:
+            gating.append(short)
+        elif role in _NOT_SCORED_ROLES and rec.get("call") in (None, ""):
+            # gateless BY DESIGN — a real read that simply does not carry a verdict. Not a gap.
+            not_scored.append(short)
+    return {
+        "present": True,
+        "by_short": reports,
+        "roles": roles,
+        "gating_axes": sorted(gating),
+        "not_scored_axes": sorted(not_scored),
+        "polarity": polarity,
+        "rollup": syn.get("skill_report_rollup") or {},
+    }
 
 
 # --- subtype-resolved parse ------------------------------------------------------------------
@@ -751,7 +876,13 @@ def parse_subtype_resolved(pkg: dict) -> dict:
             if isinstance(adata, dict):
                 floor_ok[ax] = bool(adata.get("subgroup_n_floor_met"))
         strata_summary.append({"stratum": st, "axes": axes, "n_floor_met_by_axis": floor_ok})
-    # also allow citing the requested/available stratum names + the axis names
+        # the PER-STRATUM AXIS names are citable too. The comment here used to claim they were added and
+        # the code never added them, so a clause citing a stratum axis that is not ALSO a top-level
+        # sub-verdict short was scored untraceable — teeth biting a claim the package does support.
+        if isinstance(axes, dict):
+            for ax in axes:
+                stratum_tokens.add(str(ax))
+    # also allow citing the requested/available stratum names
     for s in block.get("requested_strata") or []:
         stratum_tokens.add(str(s))
     for s in block.get("available_strata") or []:
@@ -767,16 +898,44 @@ def parse_subtype_resolved(pkg: dict) -> dict:
 
 
 # --- evidence-substrate correlated-evidence discount ---------
+# Below this tagged fraction the substrate view is a MINORITY read of the package and the discount is
+# reported as `tagging_sparse` — the check declares its own blind spot instead of passing silently.
+# 0.5 = "the substrate lens can see at least half the cards"; production packages sit near 0.11.
+#
+# ★ F17: this floor is currently UNREACHABLE, and that is a property of the VOCABULARY, not of any target.
+# `evidence_substrate` is declared on MEASUREMENT_TYPES (target-contracts vocabularies/measurement_types.yaml),
+# and as of 2026-09-12 the `evidence_substrates` vocab has exactly TWO entries
+# (recount3_tcga_gtex_bulk_rna, depmap_crispr_chronos) carried by 16 of 140 types, reaching 24 of 147 cards.
+# So `tagged_fraction` tops out near 0.14 and `tagging_sparse` is hardwired True on every target the panel
+# has ever run (15/15). A flag that cannot be False is not a flag — the same vacuous-constant defect the
+# rest of this module exists to remove, one level up.
+#
+# The fix is NOT to lower the floor (that would fabricate confidence in a lens that genuinely sees 14% of
+# the package) and NOT to read the registry from here (this module is the reproducible spine; a
+# TARGET_CONTRACTS_ROOT read would make these fields env-dependent and the drift goldens flaky). It is to
+# make the sparsity ATTRIBUTABLE from the package alone, so a reader can tell the two remedies apart:
+#   * the card carries a `measurement_type` but that type declares no substrate → VOCABULARY debt, fixed in
+#     target-contracts; no amount of per-run care moves it.
+#   * the card carries no `measurement_type` at all → registry BACK-REF debt for that card.
+# Both are stamped onto every card entry by _skills_common.envelope, so the decomposition is package-local
+# and deterministic. Disclosure only: `tagging_sparse` and every unit count keep their exact prior values.
+_SUBSTRATE_TAGGING_FLOOR = 0.5
+
+
 def substrate_independence(pkg: dict) -> dict:
     """Group present cards by their declared `evidence_substrate`. Cards that SHARE a substrate
     are the same underlying measurement re-displayed (e.g. the recount3 TCGA/GTEx bulk-RNA
     tumor/normal cluster, or the DepMap-Chronos dependency cluster) and must count ONCE toward
-    certainty — this is the certainty-discount half. Untagged cards are conservatively treated as
-    their own independent unit (we cannot prove correlation). Returns the grouping + the effective
-    independent-unit count the certainty ceiling consumes."""
+    certainty — this is the certainty-discount half. Returns the grouping + the effective
+    independent-unit count the certainty ceiling consumes, plus the TAGGING COVERAGE the count
+    rests on (`substrate_tagged_fraction` / `tagging_sparse`)."""
     cards = pkg.get("cards") or []
     by_substrate: dict = {}
     untagged: list = []
+    # F17 attribution of the untagged remainder — see _SUBSTRATE_TAGGING_FLOOR. Split by WHY the card is
+    # untagged, because the two causes have different owners and only one of them is a per-run problem.
+    untagged_vocab_gap: list = []  # has a measurement_type; that type declares no evidence_substrate
+    untagged_no_type: list = []  # no measurement_type at all — registry `cards:` back-ref missing
     for c in cards:
         if not isinstance(c, dict):
             continue
@@ -788,24 +947,70 @@ def substrate_independence(pkg: dict) -> dict:
             by_substrate.setdefault(sub, []).append(cid)
         else:
             untagged.append(cid)
+            (untagged_vocab_gap if c.get("measurement_type") else untagged_no_type).append(cid)
     correlated_groups = {s: cids for s, cids in by_substrate.items() if len(cids) > 1}
     n_distinct_substrates = len(by_substrate)
-    # effective independent units: each substrate counts once + each untagged card its own unit
-    n_independent = n_distinct_substrates + len(untagged)
+    n_tagged = sum(len(v) for v in by_substrate.values())
+    n_cards = n_tagged + len(untagged)
+    # INDEPENDENT UNITS = the DISTINCT TAGGED SUBSTRATES only.
+    #
+    # This used to be `n_distinct_substrates + len(untagged)` — one independent unit per untagged card —
+    # which made the whole discount VACUOUS in production: `evidence_substrate` tagging is sparse (119 of
+    # 134 cards untagged on the 2026-09-10 KRAS/COADREAD package), so the count came out at 121-125 on
+    # every real target and the `< 2` cap in discounted_certainty could never be reached. The guard
+    # SKILL.md advertises "WITH TEETH" had no reachable failing branch.
+    #
+    # An untagged card is NOT evidence of independence — it is evidence of MISSING PROVENANCE, and
+    # inflating the count with it is conservative in exactly the wrong direction (it raises certainty).
+    # So untagged cards are DISCLOSED (`n_untagged_cards`, `substrate_tagged_fraction`,
+    # `tagging_sparse`) and excluded from the count; `tagging_sparse` makes the guard's own blindness a
+    # first-class, auditable field rather than a silently inert check.
+    n_independent = n_distinct_substrates
+    tagged_fraction = round(n_tagged / n_cards, 3) if n_cards else None
+    tagging_sparse = bool(n_cards) and (tagged_fraction or 0) < _SUBSTRATE_TAGGING_FLOOR
+    # F17: is the sparsity STRUCTURAL (the vocabulary names no substrate for this evidence) or a per-run
+    # provenance loss? Structural when the untagged remainder is dominated by cards whose measurement_type
+    # simply declares no substrate — the emitter did stamp them, there was nothing to stamp. This is the
+    # field that stops `tagging_sparse: true` from being read as "this target has poor provenance".
+    # Can be False: a package whose untagged cards are mostly un-migrated (no measurement_type) sets it
+    # False, and it is False whenever tagging is not sparse at all.
+    vocabulary_limited = tagging_sparse and len(untagged_vocab_gap) > len(untagged_no_type)
     return {
         "by_substrate": by_substrate,
         "correlated_groups": correlated_groups,
         "untagged_cards": untagged,
         "n_distinct_substrates": n_distinct_substrates,
         "n_untagged_cards": len(untagged),
+        "n_tagged_cards": n_tagged,
+        "n_cards": n_cards,
+        "substrate_tagged_fraction": tagged_fraction,
+        # the substrate view cannot see most of the package → say so, do not silently pass
+        "tagging_sparse": tagging_sparse,
+        # WHY it is sparse, so the reader knows which repo the remedy lives in (see the module comment on
+        # _SUBSTRATE_TAGGING_FLOOR). These are disclosure only — no unit count or cap consumes them.
+        "n_untagged_vocabulary_gap": len(untagged_vocab_gap),
+        "n_untagged_no_measurement_type": len(untagged_no_type),
+        "substrate_vocabulary_limited": vocabulary_limited,
         "n_independent_units": n_independent,
         "correlated_evidence_discounted": bool(correlated_groups),
     }
 
 
 # --- data gaps + weakest-link certainty (ported) + substrate/degradation discount -------------------
-def data_gaps(conviction: dict) -> list:
-    return sorted(d for d, v in conviction.items() if v in GAP_VERDICTS)
+def data_gaps(conviction: dict, not_scored=()) -> list:
+    """The in-play axes whose verdict is a GAP.
+
+    `not_scored` excludes axes the spine itself declares UNSCORED — a `role=descriptive` / `role=inert`
+    lens (skill_report.role) has `verdict: None` BY DESIGN: it is a context lens, not a decision gate, so
+    it can never be a data GAP. Without this, all four gateless lenses (combination_vulnerability,
+    literature_context, target_intrinsic, translational_readiness) were reported as data gaps on EVERY
+    target, which (a) inflated `data_gaps` by four on every run, (b) under-counted
+    `n_supporting_in_scope_lines` by four, and (c) let the LIMITING axis be attributed to a lens that
+    gates nothing — EGFR/NSCLC reported `limiting_dimension: target_intrinsic`, rendered verbatim into
+    the dashboard convergence layer. A descriptive lens with no verdict is DECLARED absence of scoring,
+    not MISSING data; conflating the two is the gateless-tier conflation the role field exists to end."""
+    skip = {_norm(d) for d in (not_scored or ())}
+    return sorted(d for d, v in conviction.items() if v in GAP_VERDICTS and _norm(d) not in skip)
 
 
 def _dim_certainty(verdict) -> str:
@@ -836,23 +1041,148 @@ def parse_certainty_by_axis(pkg: dict) -> dict:
     return out
 
 
-def weakest_link_certainty(conviction: dict, in_scope: list, certainty_by_axis: dict = None) -> tuple:
+def weakest_link_certainty(conviction: dict, in_scope: list, certainty_by_axis: dict = None, gating_axes=None) -> tuple:
     """Overall certainty bounded by the weakest decision-relevant line.
 
     Per-axis base: prefer the spine's own CERTAINTY_MODEL level (`certainty_by_axis[short]`, normalized to
     the integrator rank) so the integrator agrees with the spine instead of re-deriving; fall back to the
     binary `_dim_certainty` proxy for axes that have NOT opted into the sidecar. A spine-supplied `high`
     is honoured here (the old proxy never emitted `high`) but breadth/independence can still LOWER it via
-    discounted_certainty — the independence cap keeps single-substrate corroboration from shipping `high`."""
+    discounted_certainty — the independence cap keeps single-substrate corroboration from shipping `high`.
+
+    The HEADLINE stays the CONJUNCTIVE weakest link over every in-scope axis: a decision is only as good
+    as its worst decision-relevant line, and averaging would let a wall of strong descriptive axes bury one
+    fatal gap. But the weakest-link SCALAR is near-constant across targets in production (every 2026-09-10
+    package reports `low`, because expression/selectivity report `low` universally), so the scalar alone
+    carries no discrimination — `certainty_distribution` below is what actually separates targets, and the
+    LIMITING axis is restricted to `gating_axes` when supplied.
+
+    `gating_axes` (role=gating shorts, from parse_skill_reports) narrows WHICH axis is named as limiting.
+    Without it the limiting axis is whatever axis happened to be weakest, which on EGFR/NSCLC named
+    `target_intrinsic` — a DESCRIPTIVE lens that gates nothing — and the dashboard convergence layer
+    renders that verbatim, telling a reviewer the decision is limited by a lens that cannot limit it. The
+    headline value is UNCHANGED by this argument; only the attribution is."""
     if not in_scope:
         return "low", None
     cba = certainty_by_axis or {}
-    worst, limiting = "high", None
-    for dim in in_scope:
-        c = cba.get(dim) or _dim_certainty(conviction.get(dim))
-        if CERTAINTY_RANK[c] < CERTAINTY_RANK[worst]:
-            worst, limiting = c, dim
+    levels = {dim: (cba.get(dim) or _dim_certainty(conviction.get(dim))) for dim in in_scope}
+    worst = min(levels.values(), key=lambda c: CERTAINTY_RANK[c])
+    # attribute the limit to a GATING axis when we know the roles; fall back to all in-scope axes when
+    # no gating axis is in scope (or roles are unavailable) so the field is never silently dropped.
+    pool = [d for d in in_scope if d in set(gating_axes)] if gating_axes else list(in_scope)
+    if not pool:
+        pool = list(in_scope)
+    limiting = min(pool, key=lambda d: (CERTAINTY_RANK[levels[d]], list(in_scope).index(d)))
+    if CERTAINTY_RANK[levels[limiting]] >= CERTAINTY_RANK["high"]:
+        limiting = None  # nothing is limiting when every axis in the pool is `high`
     return worst, limiting
+
+
+def binding_axis_attribution(
+    conviction: dict, in_scope: list, certainty_by_axis: dict = None, gating_axes=None, roles: dict = None
+) -> dict:
+    """★ F18: WHICH axis actually set the headline, versus which one `limiting_dimension` names.
+
+    `weakest_link_certainty` is deliberately asymmetric, and it says so: the headline `worst` is the
+    conjunctive minimum over EVERY scored in-scope axis, while the LIMITING attribution is restricted to
+    `role=gating` (F1/#1310 — a descriptive lens that gates nothing must not be rendered to a reviewer as
+    the thing limiting the decision). Both halves are right on their own.
+
+    What was missing is that the two can disagree, and nothing said so. On the 2026-09-12 panel
+    ERBB2/BRCA emitted `overall_certainty: low` beside `limiting_dimension: mechanism` — and mechanism was
+    MODERATE. The axis that actually bound was `subtype_fit`, which is not a gating axis and so was
+    correctly excluded from the attribution pool, leaving the artifact naming a non-binding axis with no
+    indication it was non-binding. A reviewer who acts on `limiting_dimension` there funds mechanism work
+    and the certainty does not move. DATA_PRODUCT.md claimed these fields "read as one coherent
+    statement"; on that target they did not.
+
+    Only 1 of 20 targets showed the symptom, but that is LUCK, not safety: a non-gating axis sat at the
+    minimum in 15 of 58 (axis, target) instances (7 role-unknown, 5 descriptive, 3 inert) and was merely
+    TIED with a gating axis on the other 19 targets, which masks the disagreement. It surfaces whenever a
+    non-gating axis is the STRICT unique minimum.
+
+    Note the THIRD role state this exposes. F1 handles `role=gating` and excludes `descriptive`/`inert`,
+    but an axis absent from `synthesis.skill_reports` altogether has `role=None` — neither gating nor
+    declared gateless — and `subtype_fit` is in that state on 12 of 20 targets. It is not in
+    `not_scored_axes` (which requires a declared descriptive/inert role), so it is silently treated as
+    eligible for the headline minimum. That is a #1310 PRODUCER gap (the axis emits no skill_report), not
+    something this integrator can fix; naming the role here is what makes it visible.
+
+    DISCLOSURE ONLY — the headline level is unchanged, and no cap, unit count or verdict reads any of
+    these. Fixing the NUMBER would mean either dropping non-gating axes from the conjunctive minimum
+    (which would let a wall of strong gating axes bury a real gap the spine scored `low`) or widening the
+    attribution pool back to every axis (the F1 regression). Neither is right; the incoherence is real and
+    belongs on the artifact where a reader can see it."""
+    cba = certainty_by_axis or {}
+    if not in_scope:
+        return {
+            "binding_axis": None,
+            "binding_axis_role": None,
+            "binding_axis_level": None,
+            "limiting_dimension_is_binding": None,
+            "n_binding_axes": 0,
+            "binding_axis_is_gating": None,
+        }
+    levels = {dim: (cba.get(dim) or _dim_certainty(conviction.get(dim))) for dim in in_scope}
+    worst = min(levels.values(), key=lambda c: CERTAINTY_RANK[c])
+    # every axis AT the minimum, in in_scope order — the count matters, because a lone non-gating axis at
+    # the minimum is the case that makes the attribution misleading, while a tie with a gating axis does not
+    at_min = [d for d in in_scope if levels[d] == worst]
+    binding = at_min[0]
+    gating = set(gating_axes) if gating_axes else set()
+    # mirror weakest_link_certainty's pool selection EXACTLY, or this reports a disagreement with an axis
+    # that function never actually named
+    pool = [d for d in in_scope if d in gating] if gating_axes else list(in_scope)
+    if not pool:
+        pool = list(in_scope)
+    limiting = min(pool, key=lambda d: (CERTAINTY_RANK[levels[d]], list(in_scope).index(d)))
+    limiting_is_binding = CERTAINTY_RANK[levels[limiting]] == CERTAINTY_RANK[worst]
+    return {
+        "binding_axis": binding,
+        # None here is INFORMATIVE: the axis is absent from synthesis.skill_reports entirely (role unknown),
+        # which is a different claim from a declared descriptive/inert role.
+        "binding_axis_role": (roles or {}).get(binding),
+        "binding_axis_level": worst,
+        "n_binding_axes": len(at_min),
+        "binding_axis_is_gating": (binding in gating) if gating_axes else None,
+        # the headline claim: does the axis named as limiting sit AT the level the headline reports?
+        "limiting_dimension_is_binding": limiting_is_binding,
+    }
+
+
+def certainty_distribution(conviction: dict, in_scope: list, certainty_by_axis: dict = None, gating_axes=None) -> dict:
+    """The per-axis certainty DISTRIBUTION behind the weakest-link headline.
+
+    The scalar `overall_certainty` is a conjunctive minimum and is therefore `low` on essentially every
+    real package — true, but useless for ranking targets against each other. This emits the shape it
+    hides: `by_axis` (every in-scope axis → level), `n_axes_by_level` (the histogram), and the same split
+    restricted to GATING axes, which is the read a portfolio reviewer actually wants ("9 axes, 2 low, both
+    descriptive" is a very different target from "9 axes, 2 low, both gating").
+
+    `gating_axes=None` means the ROLES ARE UNKNOWN (a pre-#1310 package with no `synthesis.skill_reports`),
+    which is NOT the same claim as "no axis gates". The gating slice is then emitted as None: an all-zero
+    histogram would read as a package whose every axis is decorative, and a reviewer would act on it."""
+    cba = certainty_by_axis or {}
+    by_axis = {dim: (cba.get(dim) or _dim_certainty(conviction.get(dim))) for dim in in_scope}
+
+    def _hist(d):
+        return {lvl: sum(1 for v in d.values() if v == lvl) for lvl in ("low", "moderate", "high")}
+
+    roles_known = gating_axes is not None
+    gate_axis = {d: lvl for d, lvl in by_axis.items() if d in set(gating_axes)} if roles_known else None
+    return {
+        "by_axis": dict(sorted(by_axis.items())),
+        "n_axes_by_level": _hist(by_axis),
+        "n_axes_scored": len(by_axis),
+        "gating_roles_known": roles_known,
+        "gating_by_axis": dict(sorted(gate_axis.items())) if roles_known else None,
+        "n_gating_axes_by_level": _hist(gate_axis) if roles_known else None,
+        "n_gating_axes_scored": len(gate_axis) if roles_known else None,
+        # spine-sourced vs proxy-derived: a level the sidecar supplied is authoritative, the rest is the
+        # binary gap/non-gap proxy — the reader must be able to tell them apart.
+        "axes_from_spine_sidecar": sorted(d for d in by_axis if d in cba),
+        "axes_from_proxy": sorted(d for d in by_axis if d not in cba),
+    }
 
 
 def gate_independence(cross_gate_shared_evidence: Optional[dict], supporting_gates) -> dict:
@@ -889,58 +1219,155 @@ def gate_independence(cross_gate_shared_evidence: Optional[dict], supporting_gat
 
 
 def discounted_certainty(
-    base: str, n_independent_units: int, degraded_inputs: list, n_independent_gate_groups: Optional[int] = None
+    base: str,
+    n_independent_units: int,
+    degraded_inputs: list,
+    n_independent_gate_groups: Optional[int] = None,
+    tagging_sparse: bool = False,
 ) -> dict:
     """Apply the orthogonal certainty caps AFTER the weakest-link base (
     'the correlated-evidence discount is applied before certainty is reported'):
-      - independence cap: < 2 independent EVIDENCE units → cap `low` (all corroboration is one
-        measurement). The unit count is the MORE CONSERVATIVE of the card-substrate discount
-        (n_independent_units) and — when the spine's authoritative cross-gate view is available — the
-        decision-gate-group count (n_independent_gate_groups): min() so the spine's view can only TIGHTEN
-        the discount, never loosen it (never more permissive than before). When the gate view is absent
-        (older package) the substrate count stands alone → behaviour is unchanged.
-      - degradation cap: a missing optional input (dossier / risk) → cap `low` (a missing
-        input must never inflate certainty)."""
+
+      - independence cap, GRADED: <= 1 independent EVIDENCE unit → cap `low` (all corroboration is
+        ONE measurement); exactly 2 → cap `moderate` (two measurements cannot underwrite `high`).
+        A graded ladder is what makes the control REACHABLE: with the old single `< 2` rung and the
+        old untagged-cards-are-independent count, production packages reported 121-125 units and the
+        cap could never fire on any real target.
+
+        The cap runs over the AUTHORITATIVE unit views only, taking the most conservative:
+          * the card-substrate view (`n_independent_units`) counts ONLY when `tagging_sparse` is False.
+            A package where `evidence_substrate` is mostly/entirely unpopulated has a METADATA gap, not
+            a demonstrated lack of independent measurement — capping `low` on it would swap one constant
+            (the old vacuous 121-unit pass) for the opposite constant (a universal `low`), which is just
+            as undiscriminating and blames the target for a pipeline gap.
+          * the spine's decision-gate-group view (`n_independent_gate_groups`) counts whenever the
+            spine emitted the facet; it is derived from FIRED CARDS, so it is populated on real packages
+            and is the rung that actually bites.
+        With no authoritative view, the unit count is still REPORTED but caps nothing
+        (`independence_view_authoritative: False`) — the check declares that it abstained. That flag
+        answers "was the independence read ABLE to speak", NOT "did it lower anything": a view can be
+        authoritative and still find >= 3 units, capping nothing. `independence_cap_binding` is the
+        separate answer to the second question. Naming the two apart matters because the live KRAS run
+        reported an authoritative view, three gate groups, and no cap — under the old single flag that
+        read as a cap a reviewer would go looking for.
+
+    `cap_reasons` lists every cap CONSIDERED, whether or not it bound. `cap_ceiling` is the certainty
+    level those caps jointly permit, so `base` / `cap_ceiling` / `final` / `capped` are readable as one
+    coherent statement: caps that permit `moderate` over a `low` base leave `final: low, capped: False`,
+    and a reviewer can see the base bound rather than suspecting a listed cap silently did.
+
+      - degradation cap: a missing optional input (dossier / risk) → cap `low` (a missing input must
+        never inflate certainty).
+
+      - tagging-sparsity cap: `tagging_sparse` itself caps at `moderate`. Certainty may not claim `high`
+        on an independence read that cannot see most of the package. This is the declared-blindness
+        rung: the guard says what it could not see instead of passing silently."""
     cap = CERTAINTY_RANK["high"]
     reasons = []
-    effective_units = n_independent_units
-    unit_kind = "substrate"
-    if n_independent_gate_groups is not None and n_independent_gate_groups < effective_units:
-        effective_units = n_independent_gate_groups
-        unit_kind = "decision-gate-group"
-    if effective_units < 2:
-        cap = min(cap, CERTAINTY_RANK["low"])
-        reasons.append(f"only {effective_units} independent evidence {unit_kind}(s)")
+    # candidate unit views, each (kind, count) — only the AUTHORITATIVE ones may cap.
+    views: list[tuple[str, int]] = []
+    if not tagging_sparse:
+        views.append(("substrate", n_independent_units))
+    if n_independent_gate_groups is not None:
+        views.append(("decision-gate-group", n_independent_gate_groups))
+    unit_cap_binding = False
+    if views:
+        unit_kind, effective_units = min(views, key=lambda kv: kv[1])
+        view_authoritative = True
+        if effective_units <= 1:
+            cap = min(cap, CERTAINTY_RANK["low"])
+            unit_cap_binding = True
+            reasons.append(f"only {effective_units} independent evidence {unit_kind}(s)")
+        elif effective_units == 2:
+            cap = min(cap, CERTAINTY_RANK["moderate"])
+            unit_cap_binding = True
+            reasons.append(f"only {effective_units} independent evidence {unit_kind}s (cannot underwrite high)")
+    else:
+        unit_kind, effective_units, view_authoritative = "substrate", n_independent_units, False
     if degraded_inputs:
         cap = min(cap, CERTAINTY_RANK["low"])
         reasons.append(f"degraded inputs: {sorted(degraded_inputs)}")
+    if tagging_sparse:
+        cap = min(cap, CERTAINTY_RANK["moderate"])
+        reasons.append("evidence_substrate tagging sparse — independence read covers a minority of cards")
     final_rank = min(CERTAINTY_RANK.get(base, 0), cap)
     return {
         "base": base,
         "final": RANK_CERTAINTY[final_rank],
         "capped": final_rank < CERTAINTY_RANK.get(base, 0),
         "cap_reasons": reasons,
+        # the level the caps jointly PERMIT, independent of the base — see the docstring on why this is
+        # emitted alongside `capped` rather than left to be inferred from the reason list.
+        "cap_ceiling": RANK_CERTAINTY[cap],
         "effective_independent_units": effective_units,
         "independence_unit_kind": unit_kind,
+        "independence_view_authoritative": view_authoritative,
+        "independence_cap_binding": unit_cap_binding,
+        "tagging_sparse": bool(tagging_sparse),
     }
 
 
 # --- retrieve-don't-recall + clause-traceability WITH TEETH ------------------------------
-_PMID_RE = re.compile(r"\b\d{6,9}\b")
+# WHAT COUNTS AS A PMID CLAIM. The bare `\b\d{6,9}\b` this replaces read ANY 6-9 digit run as an
+# asserted PMID, which is FALSE for the numbers the framework's own prompt asks the agent to quote:
+# `n=123456` (cohort size), `chr7:140453136` (a genomic coordinate), `TPM 1000000`, `p=0.000123456`, an
+# ENSG suffix, a p-value exponent. Each of those became an "unretrieved PMID", which sets
+# `promotable: false` and CAPS the verdict at `advanceable_flagged` — the teeth biting well-behaved
+# output. Two shapes, and only two, are read as a claim:
+#  1. an EXPLICIT pmid/pubmed cue (`PMID: 12345678`) — always a claim, never an escape from the
+#     exact-membership check, whatever the digits are glued to; and
+#  2. a citation the agent PRESENTED as a bare identifier list — nothing but digit runs and separators
+#     once the PMID label is stripped ("12345678", "PMIDs 12345678, 34567890").
+# Space-delimited digits inside PROSE are indistinguishable from a bare PMID by shape alone
+# (`TPM 1000000`), so they are NOT claims. That costs no teeth: an uncued digit run stays in the
+# residual, and the residual must itself resolve to a retrieved spine token, so a confabulated
+# "Smith et al. 34567890" is still rejected — as an unresolvable citation rather than as a bad PMID.
+_PMID_CUE_RE = re.compile(r"(?:pmids?|pubmed(?:\s*ids?)?)\s*[:#=]?\s*(\d{6,9})", re.IGNORECASE)
+# label noise that is legitimately part of a PMID citation and resolves to nothing on its own; stripped
+# from the residual so "PMID 12345678" with 12345678 retrieved does not fail on the leftover word "PMID".
+_PMID_LABEL_RE = re.compile(r"\b(?:pmids?|pubmed(?:\s*id)?|doi|et\s+al\.?)\b[\s:#=,;]*", re.IGNORECASE)
+_RESIDUAL_NOISE_RE = re.compile(r"^[\s\-–—:;,.()\[\]/&+|]*$")
+_PMID_LIST_SHAPED_RE = re.compile(r"^[\s\d\-–—:;,.#=/&+|()\[\]]*$")
 
 
 def _norm(s):
     return str(s).replace("-", "_").lower()
 
 
+def pmid_claims(text: str) -> list:
+    """The digit runs in `text` that constitute a PMID CLAIM, de-duplicated in order of appearance.
+
+    Cue-bearing runs (`PMID: 12345678`) always count; UNCUED runs count only in a bare identifier list.
+    See the two shapes above. This is the single definition of "the agent asserted a PMID", used by the
+    traceability check and its tests."""
+    text = text or ""
+    stripped = _PMID_LABEL_RE.sub(" ", text)
+    bare = []
+    if _PMID_LIST_SHAPED_RE.match(stripped):
+        # inside a bare list there is no prose to confuse, so every separator-delimited 6-9 digit run is
+        # a claim. Leading zeros are excluded: no PMID has one, but a decimal tail like 0.000123456 does.
+        bare = [t for t in re.split(r"\D+", stripped) if 6 <= len(t) <= 9 and not t.startswith("0")]
+    seen, out = set(), []
+    for p in _PMID_CUE_RE.findall(text) + bare:
+        if p not in seen:
+            seen.add(p)
+            out.append(p)
+    return out
+
+
 def check_traceability(clause_citations: list, surface: dict) -> list:
     """Return the atomic citation tokens that do NOT resolve to THIS package's deterministic spine.
 
-    RETRIEVE-DON'T-RECALL: any PMID-shaped token (a standalone 6–9 digit number) must be an
-    EXACT member of the risk agent's retrieved `allowed_pmids` — NO substring/any() escape for
-    PMIDs (a self-invented PMID is confabulation). Non-PMID tokens (card_ids / sub-verdict names /
-    rule_ids / dossier fields / stratum tokens) may match by normalized-exact or by embedding a
-    known specific (>=6 char) token, so a legit phrase like "copy-number-distribution card" passes."""
+    RETRIEVE-DON'T-RECALL: any PMID CLAIM (see `pmid_claims`) must be an EXACT member of the risk
+    agent's retrieved `allowed_pmids` — NO substring/any() escape for PMIDs (a self-invented PMID is
+    confabulation). Non-PMID tokens (card_ids / sub-verdict names / rule_ids / dossier fields / stratum
+    tokens) may match by normalized-exact or by embedding a known specific (>=6 char) token, so a legit
+    phrase like "copy-number-distribution card" passes.
+
+    The residual left after removing the PMIDs is stripped of PMID LABEL NOISE and pure punctuation
+    before it is required to resolve: "PMID 12345678" used to fail even with 12345678 retrieved, because
+    the leftover word "PMID" matched no spine field — the check rejected the EXACT citation format the
+    prompt asks for."""
     valid = (
         surface["card_ids"]
         | surface["sub_verdicts"]
@@ -954,23 +1381,24 @@ def check_traceability(clause_citations: list, surface: dict) -> list:
     bad = []
     for c in clause_citations or []:
         cstr = str(c)
-        # 1. PMID tokens — exact membership only.
-        pmids_in = _PMID_RE.findall(cstr)
-        pmid_ok = True
+        # 1. PMID claims — exact membership only.
+        pmids_in = pmid_claims(cstr)
+        unretrieved = next((p for p in pmids_in if p not in allowed_pmids), None)
+        if unretrieved is not None:
+            bad.append(f"{cstr} (unretrieved PMID {unretrieved})")
+            continue
+        # 2. Residual after the (retrieved) PMIDs + their label noise + punctuation are removed. Empty
+        #    residual ⇒ the citation WAS a PMID citation and it resolved.
+        residual = cstr
         for p in pmids_in:
-            if p not in allowed_pmids:
-                pmid_ok = False
-                bad.append(f"{cstr} (unretrieved PMID {p})")
-                break
-        if not pmid_ok:
+            residual = residual.replace(p, " ")
+        residual = _PMID_LABEL_RE.sub(" ", residual)
+        if _RESIDUAL_NOISE_RE.match(residual):
             continue
-        # 2. If the citation IS purely a PMID (all its atoms were PMIDs), and they passed, it's fine.
-        residual = _PMID_RE.sub(" ", cstr).strip()
-        if not residual:
-            continue
-        # 3. Non-PMID residual — normalized-exact or embeds a known specific token.
-        cn = _norm(cstr)
-        if cn in valid_norm:
+        # 3. Non-PMID residual — normalized-exact or embeds a known specific token. Match on the
+        #    RESIDUAL, not the raw string, so a retrieved-PMID prefix cannot mask an unresolvable tail.
+        cn = _norm(residual.strip())
+        if cn in valid_norm or _norm(cstr) in valid_norm:
             continue
         if any(tok in cn for tok in valid_sub):
             continue
@@ -1311,15 +1739,32 @@ def assemble(
     card_ids = {c.get("card_id") for c in pkg.get("cards", []) if isinstance(c, dict)}
 
     # target-intrinsic dossier (indication-INDEPENDENT target biology). Optional.
+    #
+    # TWO SHAPES are accepted, because the dossier arrives two ways and reading only one made the
+    # degradation cap fire on the path production actually takes. A STANDALONE fan-out `decision.json`
+    # carries `headline`. A target-profile run instead composes target_intrinsic INTO the profile and
+    # writes `subskills/target_intrinsic/package.json` — same biology, no `headline`, content in
+    # `claim_vector` + `key_signals`. Reading only the first shape meant every default-on chain run
+    # reported `degraded inputs: ['dossier']` and capped certainty `low`, making the scalar a panel-wide
+    # CONSTANT on live packages — the same undiscriminating-by-construction failure the independence cap
+    # had, arriving by a different route.
     dossier, dossier_fields, dossier_present = {}, set(), False
     if dossier_path and Path(dossier_path).exists():
         dd = json.loads(Path(dossier_path).read_text())
-        dossier = {
-            k: _uv(v) for k, v in (dd.get("headline") or {}).items() if k not in ("cards_available", "cards_missing")
-        }
+        if dd.get("headline"):
+            dossier = {k: _uv(v) for k, v in dd["headline"].items() if k not in ("cards_available", "cards_missing")}
+        elif dd.get("sub_skill"):
+            cv = dd.get("claim_vector") or {}
+            dossier = {k: _uv(v) for k, v in cv.items() if not k.startswith("_")}
+            ks = dd.get("key_signals") or {}
+            for k in ("headline", "supports", "caveat"):
+                if ks.get(k):
+                    dossier[f"key_signals.{k}"] = _uv(ks[k])
         dossier_fields = set(dossier.keys())
         card_ids |= {c.get("card_id") for c in dd.get("cards", []) if isinstance(c, dict)}
-        dossier_present = True
+        # presence is EARNED, not asserted by the file existing. An unreadable or empty dossier that set
+        # `present=True` would LIFT the degradation cap while contributing no citable field — fail-open.
+        dossier_present = bool(dossier)
 
     rule_ids: set = set()
     for v in sv.values():

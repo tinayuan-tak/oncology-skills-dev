@@ -299,10 +299,9 @@ def test_survival_gate_pass():
 
 # =============================== (scope-aware) out-of-scope-modality exclusion =====================
 def test_token_out_of_scope_maps_cards_to_dimensions():
-    oos = {hc._norm(d) for d in hc.out_of_scope_dims("small_molecule")}  # {"surface_modality"}
-    # surface/biologics CARDS belong to the out-of-scope surface_modality dimension
+    oos = {hc._norm(d) for d in hc.out_of_scope_dims("small_molecule")}  # {"surface_modality", ...}
+    # surface/biologics CARDS belong ONLY to the out-of-scope surface_modality dimension
     assert hc.token_out_of_scope(hc._norm("adc-tce-modality-fit"), oos) is True
-    assert hc.token_out_of_scope(hc._norm("modality-therapeutic-window"), oos) is True
     assert hc.token_out_of_scope(hc._norm("surface_modality"), oos) is True
     # dependency / SL / genomic cards stay IN scope (never excluded → MARK2-style primary preserved)
     for keep in (
@@ -314,9 +313,47 @@ def test_token_out_of_scope_maps_cards_to_dimensions():
     ):
         assert hc.token_out_of_scope(hc._norm(keep), oos) is False
     # for an ADC objective, tractability (small-molecule) cards are the out-of-scope ones
-    oos_adc = {hc._norm(d) for d in hc.out_of_scope_dims("adc")}  # {"tractability_sm"}
+    oos_adc = {hc._norm(d) for d in hc.out_of_scope_dims("adc")}  # {"tractability_sm", ...}
     assert hc.token_out_of_scope(hc._norm("known-drug-tractability"), oos_adc) is True
     assert hc.token_out_of_scope(hc._norm("adc-tce-modality-fit"), oos_adc) is False
+
+
+def test_multi_lens_card_in_scope_when_any_owning_dimension_is():
+    """A card owned by MORE THAN ONE sub-verdict dimension is out of scope only when EVERY owner is.
+
+    This test previously asserted the OPPOSITE for `modality-therapeutic-window` (that it is out of
+    scope for a small molecule), pinning a defect: the old substring rule matched the card's `modality`
+    token against the out-of-scope `surface_modality` dimension, but the card ALSO belongs to
+    tumor-SELECTIVITY — which is very much in scope for a small molecule. The consequence was that a
+    coherence violation resting on a selectivity liability was silently excused as "wrong modality",
+    which is the exact class of teeth-blunting the guard exists to prevent."""
+    oos_sm = {hc._norm(d) for d in hc.out_of_scope_dims("small_molecule")}
+    # MULTI-lens: surface_modality (out of scope) AND selectivity (in scope) → IN SCOPE
+    for multi in ("modality-therapeutic-window", "surface-abundance-density"):
+        owners = hc._CARD_DIM_NORMS[hc._norm(multi)]
+        assert len(owners) > 1, f"{multi} is expected to be a multi-lens card, owners={sorted(owners)}"
+        assert hc.token_out_of_scope(hc._norm(multi), oos_sm) is False
+    # SINGLE-lens, WHOLLY in scope: owned only by `selectivity`, yet the old substring rule excluded it
+    # for a small molecule because the card NAME contains "surface". Ownership, not name shape, decides.
+    assert hc._CARD_DIM_NORMS[hc._norm("spatial-surface-protein-abundance")] == frozenset({"selectivity"})
+    assert hc.token_out_of_scope(hc._norm("spatial-surface-protein-abundance"), oos_sm) is False
+    # and symmetrically for the biologics channels: structure/potency cards also serve surface_modality,
+    # so an ADC/antibody run (where tractability_sm is out of scope) must not exclude them either
+    for chan in ("adc", "antibody"):
+        oos_ch = {hc._norm(d) for d in hc.out_of_scope_dims(chan)}
+        for multi in ("structure-features-static", "measured-potency-tractability"):
+            assert hc.token_out_of_scope(hc._norm(multi), oos_ch) is False, f"{multi} excluded for {chan}"
+
+
+def test_immune_context_in_scope_for_antibody_derived_channels():
+    """immune_context is IN scope for every antibody-derived channel (adc / bite_tce / antibody) — an
+    unconjugated antibody's mechanism is frequently ADCC/CDC, and an ADC payload induces immunogenic
+    cell death, so the TME immune phenotype speaks to whether the channel can work. It stays OUT of
+    scope for the cell-intrinsic small-molecule family."""
+    for chan in ("adc", "bite_tce", "antibody"):
+        assert "immune_context" not in hc.out_of_scope_dims(chan), chan
+    for chan in ("small_molecule", "degrader", "molecular_glue", "rna_therapeutic"):
+        assert "immune_context" in hc.out_of_scope_dims(chan), chan
 
 
 def test_out_of_scope_card_violation_not_flagged_but_in_scope_is():

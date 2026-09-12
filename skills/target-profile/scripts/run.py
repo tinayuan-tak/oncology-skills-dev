@@ -108,7 +108,7 @@ from tp_gates import (  # names main() calls directly
     derive_thesis,
 )
 from tp_manifest import *  # noqa: F401,F403
-from tp_manifest import write_full_package
+from tp_manifest import write_full_package, write_subskill_package
 from tp_synthesis_prompt import *  # noqa: F401,F403
 from tp_synthesis_prompt import (
     _METRIC_LEGEND,
@@ -1324,11 +1324,25 @@ def main() -> int:
         from tp_grounding import auto_hypothesis
 
         risk_path = Path(args.out) / "risk_assessment.json"
+        # the indication-INDEPENDENT target-biology dossier: this run composed target_intrinsic as a
+        # fan-out member, so the dossier is a projection of a carrier already in memory. Not passing it
+        # left the integrator reporting `degraded inputs: ['dossier']` on EVERY default-on chain run,
+        # which caps its certainty `low` unconditionally — a panel-wide constant that cannot rank
+        # targets. The integrator accepts this composed shape (no `headline`) as well as a standalone
+        # decision.json.
+        # ORDERING: subskills/ is written by write_full_package at the very END of the run, so simply
+        # pointing at the path was NOT enough — `.exists()` was False here on every run and the caveat
+        # persisted. Materialize the one projection [3B] needs now; the full-package write later
+        # rewrites the same file (with figure joins) and wins.
+        dossier_path = Path(args.out) / "subskills" / "target_intrinsic" / "package.json"
+        if not dossier_path.exists() and isinstance(sub_results.get("target_intrinsic"), dict):
+            write_subskill_package(Path(args.out), "target_intrinsic", sub_results["target_intrinsic"])
         hypothesis = auto_hypothesis(
             ep_path,
             args.out,
             modality=args.modality,
             risk_path=(str(risk_path) if risk_assessment is not None else None),
+            dossier_path=(str(dossier_path) if dossier_path.exists() else None),
             grounded_by_axis=grounded_by_axis,
         )
 

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Optional
 
 # The evidence-package fields the integrator actually reads (assemble + gate_ceiling +
 # parse_subtype_resolved + substrate_independence). Trimming to these keeps the golden fixture small
@@ -37,6 +38,17 @@ def trim_evidence_package(pkg: dict) -> dict:
             "sub_verdicts": syn.get("sub_verdicts", {}),  # full: verdict + fired_rule_ids
             "recommendation_gate": syn.get("recommendation_gate", {}),  # full: fired/hard_gates/...
             "claim_vectors": syn.get("claim_vectors", {}),  # Stage 2a: signal facets + citable atoms
+            # decision_facets drives certainty_by_axis / composed_modality / cross_gate_shared_evidence /
+            # fragility / competitor_crossref — all declared in SKILL.md reads_spine_fields. The trim used
+            # to DROP the whole block, so the drift golden could not see any of it (the frozen fixtures
+            # predate the facets, so nothing failed — a vacuous pass).
+            "decision_facets": syn.get("decision_facets", {}),
+            # #1310 UNIFIED_OUTPUT_CONTRACT: the per-axis ROLE view. Without it the integrator falls back
+            # to treating a gateless descriptive lens as a data gap, so it must be in the trim for the
+            # golden to pin role-aware gaps / certainty.
+            "skill_reports": syn.get("skill_reports", {}),
+            "skill_report_rollup": syn.get("skill_report_rollup", {}),
+            "confidence_tier": syn.get("confidence_tier", {}),
         },
         "cards": [
             {k: c.get(k) for k in _CARD_KEEP if k in c}
@@ -59,7 +71,11 @@ def deterministic_spine_subset(r: dict) -> dict:
         "computed_verdict": v["computed"],
         "gate_ceiling": v["gate_ceiling"],
         "gate_reason": v["gate_reason"],
+        # the two demotion mechanisms frozen APART: a regression that re-conflates the promotion cap with
+        # the gate clamp moves `was_clamped` without moving `verdict_after_gate`, and the guard sees it.
         "was_clamped": v["was_clamped"],
+        "promotion_capped": v["promotion_capped"],
+        "verdict_after_gate": v["verdict_after_gate"],
         "gate_clamp_tension_present": bool(v["gate_clamp_tension"]),
         "gate_fail_closed": v["gate_fail_closed"],
         "hard_gates_present": v["hard_gates_present"],
@@ -78,16 +94,51 @@ def deterministic_spine_subset(r: dict) -> dict:
         "base_certainty": u["base_certainty"],
         "certainty_capped": u["certainty_capped"],
         "cap_reasons": u["cap_reasons"],
+        "cap_ceiling": u["cap_ceiling"],
+        "spine_tier_divergence_present": bool(u["spine_tier_divergence"]),
         "limiting_dimension": u["limiting_dimension"],
+        "limiting_dimension_scope": u["limiting_dimension_scope"],
         "data_gaps": sorted(u["data_gaps"]),
+        # role-aware gap/certainty split (#1310): which axes are GATELESS BY DESIGN, and the per-axis
+        # certainty histogram behind the weakest-link scalar. Frozen so a role-read regression is visible.
+        "not_scored_axes": sorted(u["not_scored_axes"]),
+        "axis_roles_present": u["axis_roles_present"],
+        "n_axes_by_level": u["n_axes_by_level"],
+        "n_gating_axes_by_level": u["n_gating_axes_by_level"],
         "correlated_evidence_discounted": ei["correlated_evidence_discounted"],
         "correlated_groups": {k: sorted(vv) for k, vv in ei["correlated_groups"].items()},
-        "n_independent_units": ei["n_independent_units"],
+        "n_independent_substrate_units": ei["n_independent_substrate_units"],
+        "effective_independent_units": ei["effective_independent_units"],
+        "independence_unit_kind": ei["independence_unit_kind"],
+        "substrate_tagged_fraction": ei["substrate_tagged_fraction"],
+        "tagging_sparse": ei["tagging_sparse"],
+        # abstention and cap-binding frozen APART — see the emit block. Freezing only one of them let a
+        # view that spoke and capped nothing be indistinguishable from a view that capped.
+        "independence_view_authoritative": ei["independence_view_authoritative"],
+        "independence_cap_binding": ei["independence_cap_binding"],
+        # --- UNIFIED_OUTPUT_CONTRACT skill_report: the deterministic parts (prose-free) ---
+        "skill_report_role": r["skill_report"]["role"],
+        "skill_report_call": r["skill_report"]["call"],
+        "skill_report_polarity": r["skill_report"]["polarity"],
+        "skill_report_chip_signals": {c["key"]: c["signal"] for c in r["skill_report"]["claim_chips"]},
         # --- provenance PINS (drift on prompt/model flips these) ---
         "prompt_template_hash": prov["prompt_template_hash"],
         "model_id": prov["model_id"],
         "llm_mode": prov["llm_mode"],
     }
+
+
+def load_golden_substrate(case_dir: Path) -> Optional[dict]:
+    """`substrate/<axis>.json` → the axis→ground_axis-block dict run() takes, or None if absent.
+
+    A case WITHOUT a substrate dir exercises the bare-package path; a case WITH one exercises the
+    grounded chain production actually runs (ground_axis → risk_rollup → integrator). Both matter, so
+    this is per-case rather than global."""
+    d = case_dir / "substrate"
+    if not d.is_dir():
+        return None
+    blocks = {p.stem: json.loads(p.read_text()) for p in sorted(d.glob("*.json"))}
+    return blocks or None
 
 
 def load_golden_case(case_dir: Path) -> dict:
@@ -101,6 +152,7 @@ def load_golden_case(case_dir: Path) -> dict:
         "pkg": str(case_dir / "evidence_package.json"),
         "risk": _opt("risk.json"),
         "dossier": _opt("dossier.json"),
+        "substrate": load_golden_substrate(case_dir),
         "replay": json.loads((case_dir / "llm_replay.json").read_text()),
         "meta": json.loads((case_dir / "meta.json").read_text()),
         "expected": json.loads((case_dir / "expected_spine.json").read_text()),

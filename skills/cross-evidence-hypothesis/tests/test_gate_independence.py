@@ -113,7 +113,7 @@ def test_run_without_facet_leaves_gate_independence_inert(tmp_path):
     ei = r["evidence_independence"]
     assert ei["gate_independence_present"] is False
     assert ei["n_independent_gate_groups"] is None
-    assert ei["effective_independent_units"] == ei["n_independent_units"]
+    assert ei["effective_independent_units"] == ei["n_independent_substrate_units"]
     assert ei["independence_unit_kind"] == "substrate"
 
 
