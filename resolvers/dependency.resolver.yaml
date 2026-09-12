@@ -1,11 +1,19 @@
 # Dependency gate verdict resolver (gap #5, 2026-07-20).
 #
 # Declarative transcription of skills/functional-requirement/scripts/run.py::_verdict.
-# ORDERED precedence — first match wins. This is the framework's hardest-won, most
-# opinionated dependency biology, now VISIBLE and PR-reviewable instead of buried in a
-# per-skill if-chain. A single shared interpreter (_skills_common/resolver.py) evaluates
-# it; the golden-oracle migration asserts this spec == the Python _verdict byte-for-byte
-# (verdict + driving_rule_id) across the calibration set before the if-chain is deleted.
+# Precedence is the explicit `priority:` field, LOWEST WINS — rung ORDER in this list is
+# irrelevant (_skills_common/resolver.py returns the matching rung of MINIMUM priority; R6
+# order-independence). The list is nonetheless kept in roughly-descending-precedence order,
+# and grouped by theme, for readability; where the two diverge, `priority:` is the truth.
+# LAYOUT (2026-09-12): every `priority:` now sits IMMEDIATELY UNDER its own `- verdict:`.
+# It previously trailed the rung's other keys, so it read as if it belonged to the NEXT
+# rung — an off-by-one-rung trap for anyone editing precedence (`priority: 17` sat under
+# the `default:` comment). Placement only; the priority↔rung binding is unchanged.
+#
+# This is the framework's hardest-won, most opinionated dependency biology, now VISIBLE and
+# PR-reviewable instead of buried in a per-skill if-chain. A single shared interpreter
+# (_skills_common/resolver.py) evaluates it; the golden-oracle migration asserts this spec ==
+# the Python _verdict byte-for-byte (verdict + driving_rule_id) across the calibration set.
 #
 # GUARDRAIL: pattern-matching over fired rule IDs ONLY. The two admissibility guards
 # (underpowered pan-essential, underpowered non-dependent) and the paralog suppressor are
@@ -13,7 +21,31 @@
 # the analysis-methods classifier; the labels live in the cards).
 
 gate: dependency
-version: 1.3.0   # 1.2.0 (2026-08-08): RNAi-asymmetry fix — RNAi-alone can no longer fire pan_essential_killer
+version: 1.4.0   # 1.4.0 (2026-09-12): MEASURED-POSITIVE-OVER-AMBIGUITY precedence fix. The four
+                #        partner_conditional_dependent rungs move from 11-14 to 8-11, above
+                #        non_dependent_paralog_buffered (12), discordant (13) and
+                #        insufficient_underpowered (14). Surfaced by the FR 20-target literature panel:
+                #        PRMT5/MESO fired BOTH concordance-discordant-warning AND a partner
+                #        stratification at q=4.6e-24 over n_partner_deficient=392 — the strongest
+                #        measured signal on the panel — and the resolver returned `discordant`,
+                #        discarding it. `discordant` only means the two POOLED channels (CRISPR vs
+                #        RNAi) disagree, which is the EXPECTED signature of a conditional dependency
+                #        (each pooled median depends on how many partner-deficient lines the screen
+                #        happens to contain); it is not evidence against the stratified measurement.
+                #        The rung-7 comment's own justification for outranking a pooled negative
+                #        ("the pooled call is the false-negative-prone one") applies with MORE force
+                #        here. VERDICT-MOVING → golden snapshot regenerated. GATE CONSEQUENCE, stated
+                #        deliberately: `discordant` is a positive_contradiction AND a kill_capable
+                #        contradiction, while partner_conditional_dependent is a DOMINANT
+                #        positive_signal, so an affected package drops a contradiction and gains a
+                #        dominant positive — enough (with one supportive dimension) to reach `strong`
+                #        and therefore `nominate`. That is the intended reading for the anchor cases
+                #        (PRMT5 in MTAP-deleted MESO, WRN×MSI); it is licensed by the two
+                #        partner-conditional rules' own q<alpha requirement, which is why they may also
+                #        outrank insufficient_underpowered — that verdict is a statement about the
+                #        POOLED cohort's power, not about the stratified test, which cleared
+                #        significance on its own n.
+                # 1.3.0 / 1.2.0 (2026-08-08): RNAi-asymmetry fix — RNAi-alone can no longer fire pan_essential_killer
                 #        (rung 2) or selective_dependent (rung 5). Both now require CRISPR (RNAi seed-effect
                 #        false-positive risk); honors the two RNAi rules' own "needs CRISPR cross-check"
                 #        rationales + the "CRISPR-beats-RNAi" invariant. VERDICT-MOVING → golden snapshot regenerated.
@@ -30,6 +62,7 @@ resolve:
   # Pan-essential ADMISSIBILITY guard — BEFORE the pan-essential killer (H fix): a
   # >=85% call on an underpowered panel is a tiny-panel artifact, escapes the veto.
   - verdict: insufficient_underpowered_pan_essential
+    priority: 0
     when_any_fired:
       - common-essential-underpowered-insufficient
       - rnai-common-essential-underpowered-insufficient
@@ -43,8 +76,8 @@ resolve:
   # RNAi-alone pan-essential now falls through (typically to broadly_dependent or insufficient), where
   # its seed-effect risk cannot mask a real selective dependency. See rnai-pan-essential-killer-with-
   # crispr below for the explicit both-agree corroboration path.
-    priority: 0
   - verdict: pan_essential_killer
+    priority: 1
     when_fired: pan-essential-killer
 
   # Both-agree RNAi pan-essential corroboration: RNAi pan-essential is admissible as a killer ONLY when
@@ -52,18 +85,18 @@ resolve:
   # non-dominant, exactly as its rule rationale requires. (CRISPR pan-essential already fires the rung
   # above; this catches CRISPR broadly-dependent + RNAi pan-essential — a consistent broad-essential
   # picture — without letting RNAi-alone kill.)
-    priority: 1
   - verdict: pan_essential_killer
+    priority: 2
     when_all_fired:
       - rnai-pan-essential-killer
       - broadly-dependent-neutral
 
-    priority: 2
   - verdict: concordant_dependent
+    priority: 3
     when_fired: concordant-dependent-supportive-dominant
 
-    priority: 3
   - verdict: lineage_selective
+    priority: 4
     when_fired: lineage-selective-supportive
 
   # selective_dependent — CRISPR-DRIVEN, OR RNAi-selective WITH CRISPR corroboration (2026-08-08
@@ -73,12 +106,12 @@ resolve:
   # ONLY when CRISPR also reads a dependency signal (selective or broadly-dependent) — orthogonal-LOF
   # corroboration, never RNAi-alone. RNAi-selective-alone (CRISPR non-dependent / data-unavailable)
   # falls through rather than minting a selective call on the seed-effect-prone assay.
-    priority: 4
   - verdict: selective_dependent
+    priority: 5
     when_fired: strongly-selective-supportive
 
-    priority: 5
   - verdict: selective_dependent
+    priority: 6
     when_all_fired:
       - rnai-strongly-selective-supportive
       - broadly-dependent-neutral
@@ -102,25 +135,31 @@ resolve:
   # It can never CREATE a veto: PRISM absence is `no_compounds_found` → neutral, never a
   # killer (not-yet-drugged ≠ undruggable). Ranks BELOW the genetic positives — it
   # CONFIRMS a dependency, it is not a stronger call than a direct genetic dependency.
-    priority: 6
   - verdict: chemical_genetic_confirmed_dependent
+    priority: 7
     when_fired: e7-triangulated-target-engaged-supportive
 
-    priority: 7
+  # CRISPR-vs-RNAi POOLED disagreement. Deliberately BELOW the four partner-conditional rungs and
+  # below non_dependent_paralog_buffered (v1.4.0): this rung reports that the two pooled channels do
+  # not agree, which is an absence of resolution, not a measurement against the target. Whenever a
+  # rung above it has an actual measurement (a significant partner stratification, a measured paralog
+  # buffer), that measurement is the better estimator and the disagreement is usually its expected
+  # side-effect. Still ABOVE insufficient_underpowered (a pure power statement) and the veto.
   - verdict: discordant
+    priority: 13
     when_fired: concordance-discordant-warning
 
   # DepMap-power admissibility guard (bottom-rail): below-floor pooled negative
   # contradicted by a concentrated-dependent well-sampled lineage → escapes the veto.
-    priority: 8
   - verdict: insufficient_underpowered
+    priority: 14
     when_fired: non-dependent-underpowered-insufficient
 
   # Paralog-buffering veto-suppressor (COMPOUND): a pooled non-dependence AND a strong
   # paralog buffer → buffering artifact, escapes the veto. driving_rule names the buffer
   # rule as the provenance anchor (matches the if-chain's return).
-    priority: 9
   - verdict: non_dependent_paralog_buffered
+    priority: 12
     when_all_fired:
       - non-dependent-killer
       - strong-paralog-buffering-degrader-preferred
@@ -131,38 +170,49 @@ resolve:
   # pooled non_dependent is a context-conditional FALSE NEGATIVE (the target IS required, in the
   # partner-deficient subset). Escapes the veto → distinct verdict partner_conditional_dependent
   # (NOT biomarker_stratified_dependency: partner-SL != own-oncogene addiction). One-directional:
-  # rescues a veto, never vetoes. Placed ABOVE the non_dependent rung so it intercepts (mirrors the
-  # paralog-buffered rescue). BOTH tiers (strong + moderate) rescue: for partner-conditional SL the
-  # MODERATE tier IS the real signal (WRN×MSI = -0.41). driving_rule names the partner rule.
+  # rescues a veto, never vetoes. BOTH tiers (strong + moderate) rescue: for partner-conditional SL
+  # the MODERATE tier IS the real signal (WRN×MSI = -0.41). driving_rule names the partner rule.
   # Also fires WITHOUT a pooled veto (a partner-conditional dependency is a positive relevance signal
-  # in its own right); the when_fired rungs below the compound catch that case.
-    priority: 10
+  # in its own right); the bare when_fired rungs catch that case.
+  #
+  # PRECEDENCE (v1.4.0, 2026-09-12): these four are the highest-priority rungs after the genetic and
+  # chemical-genetic positives — they outrank non_dependent (15, the veto they rescue) AND the three
+  # rungs that merely FAIL TO RESOLVE a pooled reading: non_dependent_paralog_buffered (12),
+  # discordant (13), insufficient_underpowered (14). Ordering principle: a MEASURED, significance-
+  # gated positive stratification beats (a) a mechanism-naming explanation of a pooled negative,
+  # (b) a disagreement BETWEEN pooled channels, and (c) a statement that the POOLED cohort was
+  # underpowered. All three of those are about the pooled scalar, which is definitionally the wrong
+  # estimator for a context-conditional dependency; none of them contradicts the stratified test.
+  # The two rules require q < alpha, so this rung cannot be reached by an underpowered stratification.
+  # paralog_buffered is kept ABOVE discordant for the same reason at lower strength: it at least
+  # NAMES a mechanism (a measured buffer) for the pooled negative, where discordant names none.
   - verdict: partner_conditional_dependent
+    priority: 8
     when_all_fired:
       - non-dependent-killer
       - partner-conditional-strongly-dependent-supportive
     driving_rule: partner-conditional-strongly-dependent-supportive
-    priority: 11
   - verdict: partner_conditional_dependent
+    priority: 9
     when_all_fired:
       - non-dependent-killer
       - partner-conditional-moderately-dependent-supportive
     driving_rule: partner-conditional-moderately-dependent-supportive
-    priority: 12
   - verdict: partner_conditional_dependent
+    priority: 10
     when_fired: partner-conditional-strongly-dependent-supportive
-    priority: 13
   - verdict: partner_conditional_dependent
+    priority: 11
     when_fired: partner-conditional-moderately-dependent-supportive
 
   # non_dependent → gate VETO. Only CRISPR non-dependence qualifies (RNAi-only
   # non-dependence is neutral, falls through to insufficient — false-negative-prone).
-    priority: 14
   - verdict: non_dependent
+    priority: 15
     when_fired: non-dependent-killer
 
-    priority: 15
   - verdict: broadly_dependent
+    priority: 16
     when_any_fired:
       - broadly-dependent-neutral
       - rnai-broadly-dependent-neutral
@@ -176,8 +226,8 @@ resolve:
   # provenance anchor. Placed at the BOTTOM (above default): it fires ONLY when no positive,
   # veto, admissibility-guard, or neutral rung above it matched — so it can never outrank a
   # real signal. when_any_fired order = deterministic tie-break; CRISPR (the backbone) first.
-    priority: 16
   - verdict: insufficient
+    priority: 17
     when_any_fired:
       - data-unavailable-insufficient                      # pan-cancer-crispr
       - concordance-partially-assayed-insufficient         # crispr-rnai-concordance (one assay only)
@@ -187,6 +237,5 @@ resolve:
 
 # default fires ONLY when NOT EVEN a data-unavailable rule fired (i.e. no dependency card
 # produced any rule at all) → insufficient with null provenance, the honest "nothing ran" state.
-    priority: 17
 default: insufficient
 evaluation: match_all_reduce
