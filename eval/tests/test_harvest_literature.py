@@ -248,3 +248,51 @@ def test_panel_skills_are_real_sub_skill_dirs():
     for name, p in hl._PANELS.items():
         for sk in p["skills"]:
             assert sk in dirs, f"panel {name}: '{sk}' is not a SUB_SKILLS dir id {sorted(dirs)}"
+
+
+def _crosswalk_indication_codes():
+    """Every indication STRING a panel may legitimately pass — canonical_codes plus the aliases lane
+    (target-contracts indication_crosswalk.yaml v1.4.0+). None when the sibling repo isn't on disk."""
+    import yaml
+
+    # Resolve via the canonical helper (honours TARGET_CONTRACTS_ROOT, then the sibling checkout) rather
+    # than counting `parents` off this file: in a /tmp worktree a relative hop lands in /tmp/wt, which
+    # holds no sibling repos, so the guard would SKIP exactly where it is being developed.
+    sys.path.insert(0, str(_EVAL.parents[1] / "skills"))
+    from _skills_common.paths import target_contracts_root
+
+    xw = target_contracts_root() / "vocabularies" / "indication_crosswalk.yaml"
+    if not xw.exists():
+        return None
+    doc = yaml.safe_load(xw.read_text()) or {}
+    codes = set()
+    for e in doc.get("indications", []):
+        if e.get("canonical_code"):
+            codes.add(str(e["canonical_code"]))
+        codes |= {str(a) for a in (e.get("aliases") or [])}
+    return codes or None
+
+
+def test_panel_indications_resolve_in_the_crosswalk():
+    """The MIRROR of test_panel_skills_are_real_sub_skill_dirs, for the other half of a pair.
+
+    A panel indication that is not a crosswalk canonical_code or alias does NOT fail loudly — the skill
+    resolves no DepMap lineage and quietly returns a PAN-SCOPE read, so the panel silently stops probing
+    the indication it names. That is how ("EPAS1", "RCC") survived here: the codes are KIRC/KIRP/KICH, and
+    the skills side was guarded while the indication side was not. Anything genuinely un-curated must be
+    added to the crosswalk (or the panel), never left to degrade silently.
+    """
+    codes = _crosswalk_indication_codes()
+    if codes is None:
+        import pytest
+
+        pytest.skip("sibling target-contracts crosswalk not readable")
+    bad = {
+        name: sorted({ind for _t, ind in p["pairs"] if ind not in codes})
+        for name, p in hl._PANELS.items()
+        if any(ind not in codes for _t, ind in p["pairs"])
+    }
+    assert not bad, (
+        "panel indications that resolve to NO DepMap lineage (each silently degrades that pair to a "
+        f"pan-scope read instead of the within-indication probe the panel intends): {bad}"
+    )

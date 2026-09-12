@@ -4,4 +4,8 @@ known-target-packages/
 # Live harvest artifacts — non-reproducible Opus lane output + derived ledgers.
 # Snapshots are pinned corpora produced on demand (harvest_literature.py), not source.
 literature-snapshots/
-discordance_ledger.json
+# Glob, not the bare default name: --ledger-out is a CLI knob, so a panel-scoped run
+# (e.g. discordance_ledger_fr20.json) is the SAME class of non-source artifact and must not
+# become committable just because it was named after the panel it came from. The BASELINE
+# (discordance_baseline.json) is deliberately NOT matched — that one IS source.
+discordance_ledger*.json

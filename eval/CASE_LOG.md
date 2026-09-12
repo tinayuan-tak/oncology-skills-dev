@@ -36,6 +36,167 @@ Dangerous false-positives to keep pinned: ADAR1, CLDN18.2_LRRC15, EGFR_cMET_VEGF
 
 ## Open cases
 
+### FR 20-pair literature panel baseline (2026-09-12) — 20/20 emitted, 65 ledger rows / 62 actionable
+
+Ran the `--literature` lane over 20 functional-requirement (target, indication) pairs spanning every
+gate-C verdict family, then built the ledger (`eval/discordance_ledger_fr20.json`, gitignored) and
+diffed it against `eval/discordance_baseline.json`. Verdicts as harvested:
+
+| verdict | pairs |
+|---|---|
+| `lineage_selective` | EGFR/LUAD, BRAF/COADREAD, KRAS/COADREAD, MDM2/UVM, GATA3/NBL, IRF4/DLBC, SPI1/AML, STAG2/BLCA, MAPK1/COADREAD, SOX10/SKCM |
+| `partner_conditional_dependent` | WRN/COADREAD, SMARCA2/LUAD, EPAS1/KIRC |
+| `non_dependent` (gate VETO) | PARP1/BRCA, AR/PRAD, CD19/DLBC |
+| `pan_essential_killer` | PLK1/OV, RBM39/AML |
+| `discordant` | PRMT5/MESO — **now `partner_conditional_dependent`** under resolver v1.4.0 (TC #743); the snapshot predates the merge |
+| `non_dependent_paralog_buffered` | ERBB2/BRCA — the inflated-paralog case, see FIX 1 |
+
+Axis reads: 80 total — 41 `agree`, 27 `extends`, 7 `omics_unavailable`, **5 `contradicts`**. Ledger:
+1 `calibration_gap`, 3 `verdict_rule_gap`, 58 `blind_spot_gap`, 2 `staleness_gap`, 1
+`confabulation_or_unverified`. All 5 `contradicts` rows are accounted for below (3 = CASE-017,
+1 = CASE-018, 1 = CASE-020) — the panel produced no unexplained contradiction.
+
+**Fixes already landed off this panel:** FIX 1 = the paralog-buffering `max()`-baseline defect
+(CASE-022; analysis-methods #606 + data-catalog #593); FIX 2 = `partner_conditional_dependent`
+raised above `discordant` / `insufficient_underpowered` / `non_dependent_paralog_buffered`
+(target-contracts #743 resolver v1.4.0 + skills #1322 golden, 374/8,640 frozen rows moved). FIX 3 =
+the ledger-diff scope guard in this PR (CASE-021).
+
+### CASE-017 — AR/PRAD is the panel's only fully DISCORDANT lane: 3 of 4 axes contradict a `non_dependent` VETO on an approved target (2026-09-12)
+- **Surfaced by:** the FR 20-pair literature panel. AR/PRAD reads `non_dependent` via
+  `non-dependent-killer` (a gate VETO) while the lane returns `overall_consistency: discordant` with
+  DEP, SEL and CHEM all `contradicts` — DEP and SEL at `confidence: high`, and every citation
+  VERIFIED (3/3, 2/2, 3/3). No other pair in the panel contradicts on more than one axis.
+- **Why the framework is not simply wrong:** AR in DepMap CRISPR is genuinely not a strong pooled
+  dependency — most PRAD lines are cultured androgen-independent, so the screen measures a
+  ligand-deprived state the clinic does not. The lane is reading the CLINICAL dependency (enzalutamide,
+  abiraterone, AR degraders) which is real and approved. Both are correct about different states.
+- **The gap:** there is no rung for "dependency conditional on an EXOGENOUS LIGAND / culture context".
+  `partner_conditional_dependent` requires a genetic partner stratification; AR needs a
+  *hormone/microenvironment-conditional* stratification. Absent that, the pooled negative wins and the
+  gate VETOES an approved target on its best-established axis.
+- **Proposed fix:** a `context_conditional_dependent` rung keyed on a ligand-dependence card
+  (androgen/estrogen/growth-factor withdrawal arms exist in the CRISPR metadata), sibling to the
+  partner-conditional rungs and at the same precedence — i.e. above `non_dependent`. Do NOT reach for
+  a curated AR exemption; that is the single-example overfit this loop exists to avoid.
+- **Status:** OPEN, ranked #1 of the panel. Blocked on a ligand-context card (no data build yet). The
+  3 rows are NEW sharp gaps in the ledger diff and are deliberately left in the queue, not baselined.
+
+### CASE-018 — PARP1/BRCA + CD19/DLBC: a MECHANISM-MISMATCH class the lens vetoes instead of naming (2026-09-12)
+- **Surfaced by:** the same panel. `non-dependent-killer` (gate VETO) fired on 3 of 20 pairs, twice on
+  clinically validated targets, for two DISTINCT reasons that share one shape.
+- **PARP1/BRCA** (`calibration_gap`, COND axis, `contradicts` at high confidence, 3/3 verified
+  citations): the claim vector reads `not_partner_stratified` even though `PARP1: [BRCA1, BRCA2]` IS
+  curated. This is genuine biology, not a lookup miss — PARPi is DNA-trapping, a gain-of-toxic-function
+  that whole-gene KO does not phenocopy, so the CRISPR partner-stratification test correctly finds
+  nothing. The framework is right about the KO and wrong about the drug.
+- **CD19/DLBC**: a surface antigen whose therapeutic mechanism is redirected cytotoxicity. Cell-intrinsic
+  essentiality is not the deciding axis at all; the same family as CASE-001/CASE-003.
+- **The shared shape:** the modality's mechanism is NOT "loss of function of this gene." A KO-derived
+  dependency scalar is the wrong estimator, and the honest output is *mechanism_mismatch — this axis
+  does not adjudicate this modality*, not a veto.
+- **Proposed fix:** a `mechanism_mismatch` disposition on gate C that SUPPRESSES the dependency veto
+  (rather than inverting it to a positive) when the target's modality thesis is trapping / degrader-
+  neomorph / redirected-cytotoxicity. Sits next to the existing `modality_scoped` suppression, and
+  reuses `_fr_modality_fit`. Fails safe: suppression yields `hold`, never `nominate`.
+- **Status:** OPEN. Two named instances plus the CASE-001/003/006 family; the strongest argument yet
+  for making mechanism class a first-class input to gate C rather than a caveat string.
+
+### CASE-019 — `lineage_selective` published alongside claim_vector DEP `absent` on 4 of 10 lineage pairs — REPORTABLE RISK, not a bug (2026-09-12)
+- **Surfaced by:** the panel. GATA3/NBL, SPI1/AML, STAG2/BLCA and MAPK1/COADREAD all publish verdict
+  `lineage_selective` while their claim-vector DEP atom reads `absent`.
+- **Verified as designed:** the two slots answer different questions — DEP carries the POOLED
+  dependency scalar (correctly `absent`), the verdict carries the LINEAGE-CONDITIONAL read. The split
+  is intentional and each slot is individually honest.
+- **The risk:** a reader (human or a downstream consumer keying on the claim vector) sees
+  "selectively dependent" and "no dependency" in one package with nothing stating they are
+  compatible. Two consumers already read the DEP atom directly (the discordance ledger's
+  `claim_measured` test; the composed claim-vector spine).
+- **Proposed fix:** emit the reconciliation explicitly — a note on the lineage rungs stating the DEP
+  atom is the pooled estimator and is EXPECTED to read `absent` under lineage-conditional selectivity.
+  Cheap, verdict-inert, and kills a whole class of misread. No resolver change.
+- **Status:** OPEN (documentation/interpretation, low cost, no data dependency). Also the cleanest
+  small win in the panel.
+
+### CASE-020 — the literature lane's citation verification is RECENCY-BIASED: IRF4/DLBC's only high-confidence contradiction rests on two UNVERIFIED papers (2026-09-12)
+- **Surfaced by:** the panel's `confabulation_or_unverified` row. IRF4/DLBC DEP is the panel's only
+  DEP `contradicts` at `confidence: high` — and BOTH its citations (Yang 2012; Shaffer 2008) carry
+  `pmid: None, verified: False`, while every other citation in the panel is a verified 2025/2026 paper.
+- **Why it matters:** IRF4 in DLBC is textbook (the "IRF4 addiction" literature is foundational and
+  pre-2015). The containment guard correctly demoted the row to `confabulation_or_unverified` — but for
+  the WRONG reason. The claim is true; the verifier could not resolve an old citation. So the guard
+  systematically discounts exactly the well-established biology, while a 2026 preprint passes.
+- **Consequence for the loop:** every `contradicts` on a foundational mechanism lands in the discard
+  tier. That is a silent, class-wide false-negative in the review queue itself — the instrument, not
+  the framework.
+- **Proposed fix:** measure it before fixing it — sample the lane's pre-2015 citations and compute the
+  verification rate by publication year. If the bias is confirmed, either widen the resolver (title +
+  first-author + journal/year lookup, not PMID-only) or split the class into
+  `unverified_recent` (discard) vs `unverified_historical` (review), so an old-but-real citation is
+  triaged rather than dropped.
+- **Status:** OPEN, instrument-level. Same family as the CASE-005/RBM39 instrument self-catch — the
+  panel again finding a flaw in its own measuring device.
+
+### CASE-021 — the ledger diff reported 33 of 33 baseline gaps RESOLVED because it had no notion of the run's SCOPE — FIXED (2026-09-12)
+- **Surfaced by:** diffing this FR-only panel ledger against the fleet baseline.
+  `diff_discordance_ledger.py` computed `RESOLVED = baseline_keys - new_keys` over the whole baseline,
+  so **all 33** baseline keys read as resolved: 28 belonged to skills this ledger never ran
+  (tractability-small-molecule 15, on-target-safety 4, differentiation 3, surface-modality 3,
+  tumor-selectivity 2, mechanism 1) and the other 5 to FR pairs outside the panel (CEACAM5/NSCLC,
+  HIF2A/RCC ×2, PARP1/OV, STEAP1/prostate). **Zero were real.** The coarse trend was equally
+  meaningless (`blind_spot_gap −1071`, `staleness_gap −127`).
+- **Worse, `--write-baseline` compounded it:** it rebuilt the baseline wholesale from whatever ledger
+  it was handed, so one scoped run would DELETE every out-of-scope key — destroying the review
+  provenance the baseline exists to hold, and re-reporting all of it as NEW next full run.
+- **Root cause:** a concordant pair emits zero rows, so the ROWS cannot distinguish "examined and
+  clean" from "never in the corpus" — and nothing else recorded the corpus's scope.
+- **Fix (this PR):** `build_discordance_ledger` now emits `covered` — the (skill, target, indication)
+  triples the lane actually compared (schema v2.1), including concordant pairs and EXCLUDING
+  skipped/errored lanes (a failed lane examined nothing). `diff_discordance_ledger` restricts RESOLVED
+  to that scope, reports the rest as a new `UNCOVERED` class, marks the coarse delta comparable only
+  at equal scope, and `--write-baseline` now MERGES (carrying out-of-scope keys forward) with
+  `--replace-baseline` as the explicit opt-in for the old behaviour. Re-run: **RESOLVED 33 → 0,
+  UNCOVERED 33, NEW 4** (the 3 AR/PRAD rows + PARP1/BRCA).
+- **Ratchet:** `test_a_scoped_run_reports_out_of_scope_baseline_keys_as_UNCOVERED_not_resolved`,
+  `test_write_baseline_merges_by_default_and_replaces_only_on_demand`,
+  `test_covered_scope_includes_concordant_pairs_and_excludes_failed_lanes` and
+  `test_covered_scope_predicate_is_shared_with_build_rows` — the last of which caught a real hole in
+  the first cut of the fix (`literature_synthesis: None` read as "examined").
+- **Status:** FIXED in this PR. The 4 NEW sharp gaps are deliberately NOT baselined — they are
+  CASE-017 and CASE-018, and baselining them would silence the two findings the panel was run to find.
+
+### CASE-022 — paralog buffering measured against the LEAST-lethal single KO: 35.7% of pairs over-classified, and it was DECIDING ERBB2/BRCA — FIXED (2026-09-12)
+- **Surfaced by:** the panel. ERBB2/BRCA read `non_dependent_paralog_buffered` via
+  `strong-paralog-buffering-degrader-preferred` — driven by a PTK2 "buffering" delta of **+0.731**.
+- **Root cause:** the metric used `max(single_ko_a, single_ko_b) - median_dual_ko`. On the DepMap
+  Chronos scale more-negative = more lethal, so `max()` selects the **LEAST** lethal single KO. For any
+  pair with one baseline-essential member the delta collapses to that member's own essentiality and
+  reports buffering where there is NO genetic interaction — the exact artifact a paired-vs-single delta
+  exists to remove. ERBB2's +0.731 was PTK2's own gene effect (−0.637); corrected it is +0.156 = `none`.
+- **Measured cohort impact** (same input bytes, only the baseline changed): **2,726/7,627 pairs (35.7%)**
+  and **1,782/4,475 genes (39.8%)** reclassify, every change a DOWNGRADE. strong 836 → 281, partial
+  1,710 → 814, none 1,929 → 3,380. **1,384 genes (30.9%)** named the wrong `strongest_partner`. Even the
+  product manifest's own `validation_anchor` was contaminated: PSPC1/SFPQ delta 2.87 was SFPQ's
+  essentiality (−2.71) and corrects to 0.42. True-redundancy anchors survive (VPS4A/VPS4B 1.55 → 1.38,
+  ASF1A/ASF1B 1.82, STAG1/STAG2 1.02 → 0.82) — the fix does not break real paralog biology.
+- **Fix:** `min()` baseline in `depmap_paralog_aggregator` (analysis-methods #606, reader 0.4.0, emitter
+  `METHOD_VERSION` 2.0.0 — a MAJOR bump because v1 and v2 rows are not comparable). The reader gained a
+  fail-closed staleness gate keyed on the manifest's `parameters.delta_definition`, so while the shared
+  S3 product still declares `max()` every read falls back to a corrected live recompute — correctness
+  without a rebuild.
+- **The shared product is deliberately NOT rebuilt** (data-catalog #593): v1's manifest keeps every field
+  describing the bytes truthfully, with a boxed SUPERSEDED-METRIC header and an explicit *do not "fix"
+  `delta_definition` in place* warning — editing that string without new bytes would certify the stale
+  parquet and re-inflate every downstream read. v2 build spec: `specs/depmap-paralog-buffering-v2.md`,
+  **pending explicit authorization** to upload.
+- **Consequence, deliberately taken:** ERBB2/BRCA loses its paralog rescue and falls to a flat
+  `non_dependent` veto. That EXPOSES a real gap — no HER2-amplification-conditional stratification rung
+  — rather than hiding it behind an inflated metric. Same shape as CASE-017/018.
+- **Also fixed:** the vacuous `test_paired_vs_single_delta.py`, which could not fail (it asserted the
+  delta against the same `max()` expression it was testing).
+- **Status:** FIXED (analysis-methods #606 and data-catalog #593 both merged). Residual = the v2
+  rebuild authorization and the HER2-conditional rung.
+
 ### CASE-016 — Takeda ONC composed backtest Phase 3 (surface/biologics): the gate's decision-attribution is dependency+safety-dominated; surface biology MODULATES but never DECIDES (2026-09-08)
 - **Surfaced by:** the per-axis backtest (CASE-015 tool) over the surface/biologics cohort (14 targets, composed
   `--verdict-only`). **Axis-attribution match = 0.0 (0/14)**: the ground-truth `deciding_axis` is `surface`

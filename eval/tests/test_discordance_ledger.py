@@ -118,6 +118,49 @@ def test_skipped_or_errored_lane_yields_no_rows():
     assert bdl.build_rows(_record(literature_synthesis={"_literature_error": "x"})) == []
 
 
+def test_covered_scope_includes_concordant_pairs_and_excludes_failed_lanes():
+    """`covered` is the RUN'S SCOPE — what a diff may call resolved. A concordant pair emitted no
+    row but WAS examined (so it belongs); a skipped/errored lane examined nothing (so it does not).
+    Getting the second half wrong would let a lane FAILURE read as a fix."""
+    concordant = _record(target="CLEAN")
+    concordant["literature_synthesis"]["axes"] = [_axis("agree")]
+    with_gap = _record(target="GAPPY")
+    with_gap["literature_synthesis"]["axes"] = [_axis("contradicts")]
+    records = [
+        concordant,
+        with_gap,
+        _record(target="SKIPPED", literature_synthesis={"_literature_skipped": "x"}),
+        _record(target="ERRORED", literature_synthesis={"_literature_error": "x"}),
+    ]
+    covered = bdl.covered_scope(records)
+    assert covered == [
+        ["functional-requirement", "CLEAN", "COADREAD"],
+        ["functional-requirement", "GAPPY", "COADREAD"],
+    ]
+
+
+def test_covered_scope_predicate_is_shared_with_build_rows():
+    """One predicate, so the two cannot drift: anything build_rows refuses to project rows for must
+    also be absent from `covered`."""
+    for bad in ({"_literature_skipped": "x"}, {"_literature_error": "x"}, None, "not-a-dict"):
+        rec = _record(literature_synthesis=bad)
+        assert bdl.lane_produced_a_comparison(rec) is False
+        assert bdl.build_rows(rec) == []
+        assert bdl.covered_scope([rec]) == []
+
+
+def test_build_ledger_records_its_covered_scope(tmp_path):
+    corpus = [_record(target="A"), _record(target="B", literature_synthesis={"_literature_skipped": "x"})]
+    corpus[0]["literature_synthesis"]["axes"] = [_axis("contradicts")]
+    p = tmp_path / "corpus.json"
+    p.write_text(json.dumps(corpus))
+    ledger = bdl.build_ledger(p)
+    assert ledger["n_records"] == 2  # both records were loaded...
+    assert ledger["n_covered"] == 1  # ...but only one was actually compared
+    assert ledger["covered"] == [["functional-requirement", "A", "COADREAD"]]
+    assert ledger["schema"] == "discordance_ledger/v2.1"
+
+
 def test_input_record_is_never_mutated():
     """The aggregator is pure: it must not touch the verdict, cards, or any input field."""
     rec = _record()

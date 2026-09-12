@@ -27,7 +27,15 @@ INPUT is a NORMALIZED HARVEST RECORD (decoupled from how the harvest is produced
 A corpus is a JSON list of records, or a directory of per-record JSON files, or a single
 record. See `load_corpus`.
 
-OUTPUT `eval/discordance_ledger.json`: ranked rows + a per-class / per-skill summary.
+OUTPUT `eval/discordance_ledger.json`: ranked rows + a per-class / per-skill summary + `covered`,
+the (skill, target, indication) triples the lane ACTUALLY compared.
+
+WHY `covered` (2026-09-12). A concordant pair yields ZERO rows, so the rows alone cannot tell
+"this pair was examined and is clean" from "this pair was never in the corpus". The monitored-
+cadence diff needs exactly that distinction: a baseline gap key may only be called RESOLVED if
+this run actually re-examined its pair. Without `covered`, a SCOPED ledger (one skill, one panel)
+diffed against a full-fleet baseline reported every other skill's key as resolved. `covered`
+deliberately EXCLUDES records whose lane was skipped or errored — a failed lane examined nothing.
 """
 
 from __future__ import annotations
@@ -193,12 +201,44 @@ def _classify(
     return "", ""
 
 
+def lane_produced_a_comparison(record: dict) -> bool:
+    """True iff the --literature lane actually ran and returned a synthesis for this record.
+
+    The single source of truth for "was this pair examined": `build_rows` uses it to decide
+    whether to project any rows, and `covered_scope` uses it to decide whether the pair counts as
+    covered. Keeping ONE predicate is the point — if they drifted, a pair whose lane errored could
+    be reported as examined-and-clean, and the diff would call its open gaps resolved.
+
+    The RAW field is tested, not `field or {}`: a missing / None / EMPTY synthesis means the lane
+    returned nothing for this pair — the same "not examined" state as an explicit `_literature_error`,
+    just failing silently instead of loudly. (build_rows yielded no rows in that state anyway, having
+    no axes to project, so routing it through this predicate is behaviour-preserving there and only
+    makes the reason explicit.)"""
+    lit = record.get("literature_synthesis")
+    return (
+        bool(lit) and isinstance(lit, dict) and not lit.get("_literature_skipped") and not lit.get("_literature_error")
+    )
+
+
+def covered_scope(records: Iterable[dict]) -> list[list[str]]:
+    """The sorted (skill, target, indication) triples the lane actually compared.
+
+    Includes CONCORDANT pairs (zero rows but genuinely examined — the whole reason this exists) and
+    excludes skipped/errored pairs (no comparison happened, so nothing about them can be resolved)."""
+    triples = {
+        (str(r.get("skill") or r.get("skill_dir") or "?"), str(r.get("target")), str(r.get("indication")))
+        for r in records
+        if lane_produced_a_comparison(r)
+    }
+    return [list(t) for t in sorted(triples)]
+
+
 def build_rows(record: dict, calibration_targets: set[str] | None = None) -> list[dict]:
     """Project one harvest record into zero-or-more candidate-gap rows. Concordant axes yield
     no row. Never mutates `record`."""
     calibration_targets = calibration_targets or set()
     lit = record.get("literature_synthesis") or {}
-    if not isinstance(lit, dict) or lit.get("_literature_skipped") or lit.get("_literature_error"):
+    if not lane_produced_a_comparison(record):
         return []
     target = record.get("target")
     indication = record.get("indication")
@@ -327,14 +367,21 @@ def build_ledger(corpus_path: str | Path, calibration_targets: set[str] | None =
         by_class[r["gap_class"]] = by_class.get(r["gap_class"], 0) + 1
         by_skill[r["skill"]] = by_skill.get(r["skill"], 0) + 1
     actionable = [r for r in rows if r["gap_class"] in (GAP_CALIBRATION, GAP_VERDICT_RULE, GAP_BLIND_SPOT)]
+    covered = covered_scope(records)
     return {
-        "schema": "discordance_ledger/v2",  # v2: claim-vector-axis aligned (per-axis claim match, not verdict)
+        # v2.1: + `covered` (the examined (skill,target,indication) triples). v2 consumers keep working;
+        # the diff degrades to a conservative rows-derived scope when the field is absent.
+        "schema": "discordance_ledger/v2.1",  # claim-vector-axis aligned (per-axis claim match, not verdict)
         "generated_at": _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds"),
         "corpus": str(corpus_path),
         "corpus_fingerprint": _corpus_fingerprint(corpus_path),
         "n_records": len(records),
         "n_rows": len(rows),
         "n_actionable": len(actionable),
+        # SCOPE of this run: what a diff is entitled to call RESOLVED. n_covered < n_records when a
+        # record's lane was skipped/errored.
+        "covered": covered,
+        "n_covered": len(covered),
         "summary": {"by_gap_class": by_class, "by_skill": by_skill},
         "governance": "escalate-only; annotation-only; literature not citable in nominations "
         "(RISK_ASSESSMENT_INTEGRATION.md). This ledger is a review queue.",

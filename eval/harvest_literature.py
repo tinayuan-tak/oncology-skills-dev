@@ -189,9 +189,64 @@ _PANELS: dict[str, dict] = {
         "pairs": [("CD274", "COADREAD"), ("HLA-DRA", "COADREAD"), ("CDX2", "COADREAD"), ("MUC2", "COADREAD")],
     },
     # biomarker-conditional dependency false-negatives (the EPAS1×VHL / SMARCA2 class).
+    # NOTE: EPAS1's indication was "RCC", which is NOT a canonical_code (nor an alias) in the
+    # target-contracts indication_crosswalk — the codes are KIRC/KIRP/KICH. So the FR run resolved no
+    # DepMap lineage and silently produced a PAN-SCOPE read for what the panel name calls a within-RCC
+    # probe. (run_known_target_panel.py:118 remaps "RCC"->"COADREAD" for the NOMINATION harness, but
+    # that remap is local to that file and never reached the harvest lane.) Corrected to KIRC — clear-cell
+    # RCC is the VHL-mutant histology the EPAS1×VHL hypothesis is about, and it resolves to Kidney.
     "functional-requirement-conditional": {
         "skills": ["functional-requirement"],
-        "pairs": [("EPAS1", "RCC"), ("SMARCA2", "LUAD"), ("MET", "LUAD"), ("WRN", "COADREAD")],
+        "pairs": [("EPAS1", "KIRC"), ("SMARCA2", "LUAD"), ("MET", "LUAD"), ("WRN", "COADREAD")],
+    },
+    # ── The 20-pair FR discordance panel (2026-09-12) ────────────────────────────────────────────
+    # Built to exercise the dependency lens where it is most likely to be WRONG, across the breadth of
+    # cancer targets rather than one motivating example. Every indication code below is a resolvable
+    # canonical_code or alias (checked against indication_crosswalk.yaml — an unresolvable code is
+    # exactly the silent pan-scope failure the EPAS1/RCC entry above shows, so this is not optional).
+    # Six deliberate strata:
+    #   (1) VERDICT-PROVENANCE coverage — the four branches skills#1315 keyed indication_scope_note on.
+    #       BRAF/COADREAD and KRAS/COADREAD are CONTROLS: their prose must not move.
+    #   (2) COARSE-LINEAGE DILUTION — the class AM#600's absolute-depth floor addresses, where an
+    #       OncotreeLineage median hides a sublineage-restricted dependency (IRF4 Lymphoid -0.455 vs
+    #       myeloma -2.041; SPI1 Myeloid -0.364 vs AML -0.552).
+    #   (3) PAN-ESSENTIAL / BROAD-TOX — literature calls these great targets; the lens must read them as
+    #       a therapeutic-window LIABILITY, not support (the "oncogene reads pan-essential" trap inverted).
+    #   (4) PARALOG BUFFERING — single-gene KO under-calls a real, redundancy-masked dependency.
+    #   (5) PARTNER-CONDITIONAL SL — the pooled-median-dilutes-a-substratum trap #1315 fixed.
+    #   (6) VALIDATED LINEAGE ADDICTIONS + one NEGATIVE control (CD19: a validated CAR-T target that is
+    #       NOT a genetic dependency — FR SHOULD read non_dependent, and a literature "contradicts" here
+    #       is a modality mismatch the lens must not chase into the verdict).
+    "functional-requirement-20": {
+        "skills": ["functional-requirement"],
+        "pairs": [
+            # (1) provenance coverage
+            ("WRN", "COADREAD"),  # stratified: MSI-H colorectal SL; pooled Bowel median only -0.17
+            ("EGFR", "LUAD"),  # KNOWN discordance: dependency confined to an EGFR-MUTANT substratum
+            ("BRAF", "COADREAD"),  # CONTROL: genuinely Skin-enriched → prose must stay byte-identical
+            ("KRAS", "COADREAD"),  # CONTROL: dependent_not_enriched; the replay anchor
+            ("MDM2", "UVM"),  # newly-repaired Eye path (n=8) — TP53-WT-conditional, inverse polarity
+            ("GATA3", "NBL"),  # admitted via the NBL sublineage despite a diluted coarse PNS median
+            # (2) coarse-lineage dilution
+            ("IRF4", "DLBC"),  # Lymphoid dilution; ABC-DLBCL IRF4 addiction
+            ("SPI1", "AML"),  # Myeloid dilution
+            # (3) pan-essential / broad-tox liability
+            ("PLK1", "OV"),  # heavily-drugged in the literature, pan-essential in DepMap
+            ("RBM39", "AML"),  # the pan_essential_killer restraint (indisulam)
+            # (4) paralog buffering
+            ("SMARCA2", "LUAD"),  # SMARCA4-mutant SL, buffered by SMARCA4 itself
+            ("STAG2", "BLCA"),  # STAG1 paralog SL
+            ("MAPK1", "COADREAD"),  # MAPK1/MAPK3 redundancy
+            # (5) partner-conditional synthetic lethality
+            ("PARP1", "BRCA"),  # HRD-conditional; the canonical pooled-vs-stratified trap
+            ("PRMT5", "MESO"),  # MTAP-deletion-conditional
+            ("EPAS1", "KIRC"),  # VHL-conditional (CASE-014 precedent, now correctly scoped)
+            # (6) validated lineage addictions + negative control
+            ("ERBB2", "BRCA"),  # approved; amplification-conditional
+            ("SOX10", "SKCM"),  # melanocytic lineage-survival TF
+            ("AR", "PRAD"),  # validated, but few prostate lines → power, not biology, may decide
+            ("CD19", "DLBC"),  # NEGATIVE: validated CAR-T target, NOT a genetic dependency
+        ],
     },
     # biologics-approved → small-molecule druggability INFLATION (CASE-008 modality-blindness).
     "tractability-sm-inflation": {
