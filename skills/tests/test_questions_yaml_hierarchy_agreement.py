@@ -48,25 +48,63 @@ _NO_HIERARCHY = {"literature-context", "translational-readiness"}
 # = the reverse. A move between axes therefore shows up as TWO triples, which is what makes each one
 # individually retirable.
 #
-# Three distinct causes, all of them fixes to the GOVERNED SOURCE (target-contracts
+# All of these need a fix to the GOVERNED SOURCE (target-contracts
 # `vocabularies/target_profiling_axes.yaml`) plus a `sync_question_hierarchies.py --write` re-run — not
-# fixable from this repo, which is why they are exemptions and not edits:
+# fixable from this repo, which is why they are exemptions and not edits.
+#
+# NOT ALL DRIFT CAN CAUSE THE DEFECT THIS GUARD EXISTS FOR, and the difference is measurable. A
+# display/claim contradiction needs the type to be SCORED on at least one side — i.e. listed in a
+# hierarchy `questions[].measurement_types` (which `derive_subgroups` reads) or on a questions.yaml
+# question whose role is not `display_only`. A type that is a hierarchy `context_type` AND lives on a
+# `display_only` (or absent) questions.yaml question is off-signal on BOTH sides: it is a bookkeeping
+# mismatch, reported only because this guard unions `context_types` into the axis — which it must, or it
+# would stop catching the real ones. Measured over this ledger: **40 of 59 triples are scored on at least
+# one side; 19 are off-signal on both.** The off-signal-both-sides 19 are all of
+# on-target-safety-liability (8), all of target-intrinsic (8), differentiation-landscape (2) and
+# tractability-small-molecule (1).
+#
+# Four causes:
 #
 #   (1) questions.yaml is deliberately FINER — it has an axis the hierarchy has not learned, so the
-#       hierarchy leaves those types on the parent axis:
-#         genomic-alteration-profile  SPL split out of FUS. `splice_exon_skip` has its own resolver rung
-#                                     (`splice-exon-skip-driver-supportive`), its own scope-map entry, and
-#                                     its own claim signal (`genomic_claims._spl_signal`), so the exon-skip
-#                                     DRIVER call is a separate axis from fusion. questions.yaml is right.
-#         on-target-safety-liability  PHARMACOVIGILANCE split out of CONSTRAINT.
+#       hierarchy leaves those types on the parent axis.
+#         on-target-safety-liability  PHARMACOVIGILANCE split out of CONSTRAINT. Off-signal on BOTH sides
+#                                     (hierarchy `context_type` ↔ `role: display_only`), so nothing is
+#                                     mis-scored. Deliberately NOT fixed in contracts: a sub_group needs at
+#                                     least one scored question (`validate_question_hierarchies.py`), so
+#                                     giving pharmacovigilance its own sub-group would start publishing a
+#                                     graded signal tier for black-box-warning evidence the skill marks
+#                                     display_only — a semantics change, not bookkeeping. See
+#                                     target-contracts #757.
+#       genomic-alteration-profile's SPL-out-of-FUS split WAS this, and is now fixed (contracts #757):
+#       `splice_exon_skip` was a FUS measurement_type, so `derive_subgroups` scored a METex14 exon-skip read
+#       into the FUSION signal while the skill published an independent SPL driver claim from the same read.
+#       The one triple left for it is cause (4).
 #   (2) axis VOCABULARY does not correspond at all — tumor-presence questions.yaml uses positional axis
 #       letters A/B/C/D while the hierarchy uses semantic ids (abundance / generality /
-#       malignant_intrinsic). No axis is shared, so every type reads as drift. A naming reconciliation,
-#       not a routing bug; listed exhaustively anyway so a real routing change inside it cannot hide.
+#       malignant_intrinsic). No axis is shared, so every type reads as drift. This is NOT merely a naming
+#       reconciliation: every one of its 26 triples is scored on both sides, so the A-vs-abundance signal is
+#       computed from genuinely different card sets while display and claim use different axis names.
+#       Listed exhaustively so a real routing change inside it cannot hide.
 #   (3) genuine per-axis disagreement about where a type belongs — one side is wrong and it takes a
 #       contracts decision to say which: combination-and-vulnerability, differentiation-landscape,
 #       functional-requirement, target-intrinsic (the hierarchy's MODALITY_ROUTING carries the whole safety
 #       block), tractability-small-molecule, tumor-selectivity (DIST/INT/SAFE/WIN reshuffle).
+#       ★ Two of these are the SAME SHAPE as the splice bug and are the best next candidates:
+#       tumor-selectivity INT scores `surface_density`, `spatial_colocalization` and `spatial_surface_protein`
+#       from the hierarchy while questions.yaml marks all three `display_only`; and
+#       combination-and-vulnerability scores `cross_consortium_paralog_gi` into CODEP while questions.yaml
+#       does not carry it at all — scored but never displayed.
+#   (4) questions.yaml CANNOT express "on this axis, but off the literature crosswalk". Its single
+#       `axis_id` field serves both routing and the crosswalk, so a type that belongs to an axis but must
+#       stay out of its crosswalk has to sit on an axis-LESS question, which `_axis_map` skips.
+#         genomic-alteration-profile  `tumor_splice_dysregulation` is an SPL `context_type` in the
+#                                     hierarchy (on-axis, never scored — correct) and sits on the axis-less
+#                                     `display_only` `splice_dysregulation` question here. It must stay
+#                                     axis-less: giving it `axis_id: SPL` would pull it into the SPL
+#                                     crosswalk, which must stay SPL -> [splice_driver] so that "no
+#                                     exon-skip driver" stops reading as contradicted by present splice
+#                                     dysregulation. Retiring this triple means teaching `_axis_map` to
+#                                     model context_type ↔ axis-less-display_only, not moving either file.
 _KNOWN_DRIFT: dict[str, set[tuple[str, str, str]]] = {
     "combination-and-vulnerability": {
         ("CODEP", "hierarchy_only", "cross_consortium_paralog_gi"),
@@ -81,9 +119,10 @@ _KNOWN_DRIFT: dict[str, set[tuple[str, str, str]]] = {
         ("SEL", "questions_only", "crispr_lof_dependency"),
     },
     "genomic-alteration-profile": {
-        ("FUS", "hierarchy_only", "splice_exon_skip"),
-        ("FUS", "hierarchy_only", "tumor_splice_dysregulation"),
-        ("SPL", "questions_only", "splice_exon_skip"),
+        # cause (4) only. The SPL-out-of-FUS split landed in contracts #757, retiring
+        # ("FUS", "hierarchy_only", "splice_exon_skip"), ("FUS", "hierarchy_only",
+        # "tumor_splice_dysregulation") and ("SPL", "questions_only", "splice_exon_skip").
+        ("SPL", "hierarchy_only", "tumor_splice_dysregulation"),
     },
     "on-target-safety-liability": {
         ("CONSTRAINT", "hierarchy_only", "alteration_role"),
@@ -254,6 +293,27 @@ def test_genomic_dependency_types_are_on_the_dependency_axis():
     # The three contextual types DO belong to SNV: the hierarchy carries them as SNV `context_types`.
     for mt in ("genomic_instability_state", "ddr_deficiency_context", "mutational_signature_context"):
         assert mt in q["SNV"], f"{mt} is an SNV context_type and must stay on the SNV axis"
+
+
+def test_genomic_exon_skip_is_scored_on_its_own_axis_not_fusion():
+    """The mirror half of target-contracts #757, pinned here because this is where it is CONSUMED.
+
+    `derive_subgroups` builds its type -> sub_group map from `questions[].measurement_types` only, so while
+    `splice_exon_skip` sat under FUS a METex14 exon-skip read was SCORED into the fusion signal — even though
+    the skill computes an independent exon-skip driver claim from it (`genomic_claims._spl_signal`, rung
+    `splice-exon-skip-driver-supportive`, question `splice_driver` on axis SPL). `tumor_splice_dysregulation`
+    stays a `context_type`: on-axis, deliberately never scored, because it is a splice-FORM read and not
+    evidence for a driver call. The hierarchy is GENERATED, so a regression here means contracts regressed.
+    """
+    h = yaml.safe_load((SKILLS / "genomic-alteration-profile" / "question_hierarchy.yaml").read_text())
+    sgs = {sg["id"]: sg for sg in h["sub_groups"]}
+    assert "SPL" in sgs, "SPL sub-group is gone — re-run tools/sync_question_hierarchies.py --write"
+    scored = {i: {mt for q in sg["questions"] for mt in q["measurement_types"]} for i, sg in sgs.items()}
+    assert scored["SPL"] == {"splice_exon_skip"}
+    assert scored["FUS"] == {"fusion_rearrangement", "fusion_stratified_dependency"}
+    assert sgs["SPL"].get("context_types") == ["tumor_splice_dysregulation"]
+    for sg_id, mts in scored.items():
+        assert "tumor_splice_dysregulation" not in mts, f"scored under {sg_id}; it must stay a context_type"
 
 
 def test_skills_without_a_hierarchy_are_the_expected_ones():
