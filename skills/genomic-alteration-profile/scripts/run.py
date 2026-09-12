@@ -348,6 +348,17 @@ _INDICATION_ANCHORED_RULES = {
     # `unclassified` the scope map returned before the splice rung was added here. Verdict-inert (scope
     # decomposition never feeds a resolver rung). Surfaced by the MET/LUAD validation pass.
     "splice-exon-skip-driver-supportive",
+    # `target-clonality` is `tier: indication` and asks "In {indication.label}, is the driver mutation
+    # CLONAL or SUBCLONAL?" — patient-tissue read WITHIN the queried indication, so an OPPOSING rung is
+    # indication-anchored just as the supportive ones are. Scope is a property of the evidence SOURCE, not
+    # of the rung's polarity; classifying it by the card is what makes an opposing verdict's scope legible.
+    "snv-clonality-subclonal-opposing",
+}
+# Driving rules for which NO scope is classifiable because no evidence was read: the rung fired precisely
+# BECAUSE the measurement was unavailable. These are separated from `unclassified` (= a rule this map has
+# not been taught) so the two cannot be confused: one is an honest absence, the other is map drift.
+_NO_EVIDENCE_RULES = {
+    "cn-data-unavailable-insufficient",
 }
 # ... vs pan-cancer cell-line landscape / variant-shape / pharmacology rungs.
 _PAN_CANCER_RULES = {
@@ -356,6 +367,13 @@ _PAN_CANCER_RULES = {
     "mutation-drug-response-strongly-sensitive-supportive",
     "mut-lof-dominant-supportive",
     "mut-missense-dominant-supportive",
+    # All four `mut-*` rungs read the SAME card — `mutation-type-counts`, whose question begins "Across
+    # DepMap cell lines" — so all four are pan-cancer cell-line reads. Only the two supportive tiers were
+    # mapped, which left the neutral tiers of one card scoped differently from its supportive tiers: a
+    # `mixed_pattern` / `passenger_pattern` verdict read `unclassified` while `lof_dominant` off the same
+    # field read `pan_cancer_extrapolation`. These two complete the card.
+    "mut-mixed-neutral",
+    "mut-no-mutations-neutral",
 }
 
 
@@ -365,11 +383,22 @@ def _scope_of_driving_verdict(card_by_id: dict, driving_rule: str | None) -> str
       - `indication_anchored`      — driving signal is within the queried indication's lineage/tissue
       - `pan_cancer_extrapolation` — driving signal is a pan-cancer/pan-lineage cell-line call
       - `mixed`                    — pan-cancer driving signal WITH indication-native corroboration
-      - `not_applicable`           — no verdict fired
-      - `unclassified`             — driving rule not mapped (defensive)
+      - `not_applicable`           — no scope is classifiable: either no verdict fired, or the rung fired
+                                     BECAUSE the measurement was unavailable (`_NO_EVIDENCE_RULES`), so
+                                     there is no evidence whose scope could be read
+      - `unclassified`             — NOT merely defensive; two reachable causes, deliberately not split
+                                     because both mean "the scope could not be determined":
+                                     (a) map DRIFT — the resolver named a driving rule this map has never
+                                         learned. `test_every_resolver_driving_rule_is_scoped` reads the
+                                         driving rules from the resolver and fails the moment that
+                                         happens, so (a) should not survive to a published run.
+                                     (b) a mapped DEPENDENCY rung whose stratified card is absent, or
+                                         carries an `evidence_scope` outside the two known sets — the rung
+                                         fired, so evidence exists, but it cannot be localised.
     A dependency rung reads its card's `evidence_scope`; landscape/shape/pharmacology rungs are statically
-    indication-native vs pan-cancer. Verdict-inert (never feeds a resolver rung)."""
-    if not driving_rule:
+    indication-native vs pan-cancer, taken from the SOURCE CARD rather than the rung's polarity — so every
+    tier of one card scopes the same way. Verdict-inert (never feeds a resolver rung)."""
+    if not driving_rule or driving_rule in _NO_EVIDENCE_RULES:
         return "not_applicable"
 
     def _f(card_id, field):

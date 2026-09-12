@@ -198,6 +198,7 @@ def _narrative_cites(text: str, card_ids: set, rule_ids: set) -> tuple:
 
 
 # ── key_evidence promotion (the decisive-data-point substrate) ──────────────────────────────────────
+from _skills_common.display_gloss import fill_placeholders  # noqa: E402
 from _skills_common.evidence_salience import (  # noqa: E402
     SUBTYPE_SPECS,
     build_interpretation,
@@ -426,6 +427,10 @@ def build_evidence_graph(decision: dict, questions: Optional[list] = None) -> di
     decision = decision or {}
     h = decision.get("headline") or {}
     questions = questions or []
+    # Bound once, up here, because they are needed BOTH by the emitted request echo at the bottom and by
+    # the question-text interpolation in the middle. They were only ever read at the bottom, which is how
+    # the templates below went un-substituted while the values sat in the same return dict.
+    g_target, g_indication = decision.get("target"), decision.get("indication")
     caps = ((h.get("evidence_capsules") or {}).get("capsules")) or {}
     cards_list = decision.get("cards") or []
     fired_rules = decision.get("fired_rules") or []
@@ -550,7 +555,11 @@ def build_evidence_graph(decision: dict, questions: Optional[list] = None) -> di
             {
                 "id": qid,
                 "seq": q.get("seq"),
-                "text": q.get("text") or row.get("question"),
+                # Interpolate the request into the authored template. The registry text is a TEMPLATE
+                # (`{target.symbol}` / `{indication.label}`); passing it through raw shipped the literal
+                # placeholder to every consumer of the graph. `target`/`indication` are the same values
+                # this function already emits at the top of its own return dict.
+                "text": fill_placeholders(q.get("text"), g_target, g_indication) or row.get("question"),
                 "axis_id": q.get("axis_id"),
                 "role": q.get("role"),
                 "signal": _question_signal(row),
@@ -621,8 +630,8 @@ def build_evidence_graph(decision: dict, questions: Optional[list] = None) -> di
     return {
         "schema_version": SCHEMA_VERSION,
         "skill": decision.get("skill"),
-        "target": decision.get("target"),
-        "indication": decision.get("indication"),
+        "target": g_target,
+        "indication": g_indication,
         "verdict": verdict_node,
         "questions": q_nodes,
         "cards": card_nodes,

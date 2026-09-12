@@ -138,15 +138,23 @@ def test_reconstruct_questions_and_cards(eg_graph):
     assert set(qs["splice_driver"]["card_ids"]) == {"splice-exon-skip-landscape"}
     # tumor-splice-expression was a duplicate collapsed into tumor-splice-dysregulation (2026-09-06)
     assert set(qs["splice_dysregulation"]["card_ids"]) == {"tumor-splice-dysregulation"}
+    # The mutation-stratified dependency + its drug-response card route HERE, not to the SNV question.
+    # They were on SNV until 2026-09-12, which is what made the SNV row display 13 cards while
+    # subgroup_signals — reading the GENERATED question_hierarchy.yaml, where both types sit under DEP —
+    # scored the SNV axis from 8. The two files disagreed inside one published nomination.json; the
+    # hierarchy is the governed side, and `run.py`'s own `_DEP_RULE_SCOPE_CARD` already treated
+    # `mutation-stratified-dependency` as a dependency rung. Guarded fleet-wide by
+    # skills/tests/test_questions_yaml_hierarchy_agreement.py.
     assert set(qs["alteration_conferred_dependency"]["card_ids"]) == {
+        "mutation-stratified-dependency",
+        "mutation-drug-response",
         "cross-consortium-dependency",
         "dependency-predictability",
         "genomic-event-model-match",
     }
-    # the SNV question anchors the driving mutation-stratified-dependency card + the mutation facets
-    assert {"mutation-stratified-dependency", "mutation-type-counts", "mutation-hotspot-frequency"} <= set(
-        qs["snv_indel_class"]["card_ids"]
-    )
+    # the SNV question anchors the mutation facets; the dependency cards above are NOT among them
+    assert {"mutation-type-counts", "mutation-hotspot-frequency"} <= set(qs["snv_indel_class"]["card_ids"])
+    assert not {"mutation-stratified-dependency", "mutation-drug-response"} & set(qs["snv_indel_class"]["card_ids"])
     # every card joins at least one question (nothing collapses into the "Other" layer)
     assert all(c["question_ids"] for c in eg_graph["cards"])
 

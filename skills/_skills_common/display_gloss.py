@@ -581,19 +581,34 @@ def indication_label(indication: Optional[str]) -> Optional[str]:
     return indication
 
 
-def card_description(card_id: str, target: Optional[str] = None, indication: Optional[str] = None) -> Optional[str]:
-    """The card `question:` with {target.symbol} / {indication.label} filled in (never left as a raw
-    placeholder — an un-interpolated description reads broken). None when the card carries no question."""
-    q = card_question(card_id)
-    if not q:
+def fill_placeholders(text: Optional[str], target: Optional[str] = None, indication: Optional[str] = None):
+    """Substitute the request into a corpus-authored template — `{target.symbol}` / `{indication.label}`
+    (plus the historical `{target}` / `{indication}` spellings) — collapsing the whitespace an empty
+    substitution leaves behind. None/empty in → None out.
+
+    Authored prose in this fleet is templated in TWO places: the 148 card contracts carrying a
+    `question:` (read by `card_description`) and the per-skill `questions.yaml` registry (read by
+    `evidence_graph.build_evidence_graph`). Only the card path ever substituted, so the skill path
+    shipped the literal `{target.symbol}` all the way to the dashboard, `target_profile.md` and
+    `nomination.json`. Both paths now share this one helper, so a placeholder can only be missed by a
+    caller that never interpolates at all — and `test_no_unresolved_placeholders` asserts the absence of
+    that failure across the whole corpus rather than the presence of the fix in one path.
+
+    Deliberately an exact-token replace, not `str.format`: the prose contains unrelated braces (units,
+    ranges, set notation) that `format` would raise on."""
+    if not text:
         return None
     tsym = target or ""
     ilab = indication_label(indication) or (indication or "")
-    # exact-token replace (robust to stray braces elsewhere in the prose; safer than str.format)
-    q = q.replace("{target.symbol}", tsym).replace("{indication.label}", ilab)
-    # a couple of historical placeholder spellings seen in the corpus
-    q = q.replace("{target}", tsym).replace("{indication}", ilab)
-    return re.sub(r"\s{2,}", " ", q).strip() or None
+    text = text.replace("{target.symbol}", tsym).replace("{indication.label}", ilab)
+    text = text.replace("{target}", tsym).replace("{indication}", ilab)
+    return re.sub(r"\s{2,}", " ", text).strip() or None
+
+
+def card_description(card_id: str, target: Optional[str] = None, indication: Optional[str] = None) -> Optional[str]:
+    """The card `question:` with {target.symbol} / {indication.label} filled in (never left as a raw
+    placeholder — an un-interpolated description reads broken). None when the card carries no question."""
+    return fill_placeholders(card_question(card_id), target, indication)
 
 
 __all__ = [
@@ -605,5 +620,6 @@ __all__ = [
     "METRIC_GLOSS",
     "card_question",
     "card_description",
+    "fill_placeholders",
     "indication_label",
 ]

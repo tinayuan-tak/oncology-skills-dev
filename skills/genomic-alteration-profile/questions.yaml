@@ -53,10 +53,26 @@ questions:
   text: Recurrent SNV/indel driver, or biomarker-stratified dependency?
   axis_id: SNV
   role: verdict_bearing
+  # `mutation_stratified_dependency` + `mutation_drug_response` were listed HERE, which put this row at 13
+  # cards while the governed hierarchy scored the SNV axis from 8 — the two live on the DEP axis in
+  # question_hierarchy.yaml, so on the KRAS-COADREAD run evidence_graph DISPLAYED them under SNV while
+  # subgroup_signals SCORED them under DEP, in the same nomination.json. They now sit on
+  # `alteration_conferred_dependency` (axis DEP) with the rest of the dependency evidence; the framework's
+  # own `_DEP_RULE_SCOPE_CARD` already treated `mutation-stratified-dependency` as a dependency rung.
+  #
+  # The TEXT deliberately keeps its "or biomarker-stratified dependency" clause even though the routing
+  # moved. This row is JOINED ONTO the emitted `headline.question_table` SNV row by `legacy_id`, and that
+  # row's Signal/Confidence are genuinely lifted by `stratified_dependency_class`
+  # (genomic_question_table._class_signal / _class_conf), so the emitted row really does answer both halves
+  # and its label says so. Rewording only this copy would make the same row carry two different questions
+  # in one dashboard — the display/claim split this whole change exists to close.
+  #
+  # The three *_context types stay: the hierarchy carries them as SNV `context_types` (contextual evidence
+  # for this axis that deliberately does NOT feed its signal), so they belong to axis SNV, not to DEP.
   measurement_types: [mutation_variant_class_spectrum, mutation_hotspot_frequency, mutation_clonality,
     variant_level_interpretation, variant_functional_effect_mave, functional_gene_state, alteration_role,
     oncogenic_pathway_alteration, genomic_instability_state, mutational_signature_context,
-    ddr_deficiency_context, mutation_stratified_dependency, mutation_drug_response]
+    ddr_deficiency_context]
 - id: copy_number_driver
   legacy_id: CN
   seq: 2
@@ -85,7 +101,12 @@ questions:
   measurement_types: [tumor_splice_dysregulation]
 - id: alteration_conferred_dependency
   seq: 6
-  text: Is the alteration-conferred dependency corroborated (cross-consortium · predictability · model-matched)?
+  text: Is the alteration-stratified dependency real and corroborated (biomarker-stratified · drug response
+    · cross-consortium · predictability · model-matched)?
   axis_id: DEP
   role: verdict_bearing
-  measurement_types: [cross_consortium_dependency, dependency_predictability, genomic_event_model_match]
+  # `mutation_stratified_dependency` + `mutation_drug_response` moved here from `snv_indel_class`, matching
+  # question_hierarchy.yaml's DEP sub_group. They are the PRIMARY mutation-stratified dependency evidence —
+  # the other three corroborate it — so this row now leads with them.
+  measurement_types: [mutation_stratified_dependency, mutation_drug_response, cross_consortium_dependency,
+    dependency_predictability, genomic_event_model_match]
