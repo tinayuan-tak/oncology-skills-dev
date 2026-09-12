@@ -7,8 +7,23 @@
 #                           signal exceeds the total-protein expectation → active signaling.
 #   - phospho_present     → detected but tracking abundance (present, not clearly hyper-activated).
 #   - phospho_low         → few phosphosites detected despite the gene being in the panel.
-#   - not_phosphoprotein  → the gene has NO phosphosites in the CPTAC panel — an honest "this axis
-#                           doesn't apply" (e.g. KRAS, a GTPase regulated by nucleotide exchange).
+#   - phospho_not_detected → NO phosphosites for the target in this cohort's phospho panel, but the
+#                           target's TOTAL PROTEIN *is* detected in the same cohort's MS. A measured
+#                           no-detection, NOT a claim that the target is unphosphorylatable.
+#   - data_unavailable    → no CPTAC cohort for the indication, a read failure, OR the target's total
+#                           protein is not detected in this cohort either (the axis is uninformative:
+#                           absence of phosphopeptides is unreadable when the protein itself is absent).
+#
+# 2026-09-12 TOKEN RETIREMENT — `not_phosphoprotein` (v0.1.0) asserted a BIOLOGICAL state ("the target
+# is not a phosphoprotein; this axis genuinely does not apply") from what is actually a COVERAGE FLOOR.
+# Measured against the products: the phospho panel covers ~4.7-6.1k genes per cohort while total protein
+# covers ~7.4-11.5k, so ~48-55% of protein-detected genes in EVERY cohort have zero phosphosites — and
+# ~1.7-2.3k of those per cohort DO carry phosphosites in another CPTAC cohort, i.e. are demonstrably
+# phosphoproteins. Concrete false calls under the old token: ALK (0 sites in all 10 cohorts — an RTK
+# defined by autophosphorylation), CDK4 (0 sites in 9/10 despite the canonical T172 activating site),
+# MET (0 in brca/hnscc, 8 in ccrcc), and KRAS itself (0 in coad but 2 in ccrcc) — the very example the
+# retired caveat used to justify the claim. Replaced by `phospho_not_detected` + the protein-detection
+# and cross-cohort evidence fields, which state what was measured without asserting the negative.
 #
 # ZERO new ingestion — reads the cptac PYTHON PACKAGE's harmonized phosphoproteomics [bcm]
 # (Patient_ID x (gene, site, peptide, ENSG) multiindex) + proteomics [bcm] for the phospho-vs-total
@@ -19,8 +34,8 @@
 # kinases/signaling targets this is the SHARPEST presence signal (phospho-activity > total abundance).
 
 card_id: phospho-pathway-activity
-version: 0.1.0
-question: "Is {target.symbol} phosphorylated (pathway-activity proxy) in {indication.label} tumors, and beyond its total abundance — or is it not a phosphoprotein?"
+version: 0.2.0
+question: "Is {target.symbol} phosphorylated (pathway-activity proxy) in {indication.label} tumors, and beyond its total abundance — or is no phosphorylation detected?"
 
 tier: indication
 
@@ -30,6 +45,7 @@ applies_when:
 
 required_inputs:
   - product_id: cptac-phospho-per-site-per-cohort-v1   # derived per-site/per-cohort product — reader's pushdown path
+  - product_id: cptac-protein-tumor-vs-normal-per-cohort-v1  # TOTAL-PROTEIN detection probe: separates a measured no-phospho (protein detected) from an uninformative axis (protein absent too)
   - product_id: cptac-pdc-snapshot-2026-07-01          # cptac package harmonized phosphoproteomics [bcm] + proteomics [bcm] (upstream source)
 
 methods:
@@ -48,6 +64,10 @@ outputs:
     - top_site_phospho_minus_protein      # top site's mean(phospho log-ratio − gene total-protein log-ratio) across paired tumors
     - n_phospho_protein_paired            # paired tumors backing the top site's phospho-vs-protein residual
     - top_phosphosites                    # top sites by detection (record list)
+    - total_protein_detected_in_cohort    # is the target's TOTAL protein detected in this cohort's MS? (null = probe unavailable)
+    - n_cohorts_with_phosphosites         # how many of the product's 10 CPTAC cohorts carry >=1 phosphosite for the target
+    - phosphoprotein_detected_in_other_cohorts  # true = the target IS a phosphoprotein elsewhere in CPTAC ⇒ this cohort's zero is a detection gap
+    - phospho_axis_uninformative_reason   # why data_unavailable, when it is not a missing cohort (e.g. total_protein_not_detected_in_cohort)
     - n_tumors
     - cptac_cohort
     - substrate
@@ -56,7 +76,7 @@ outputs:
       site: string
       detection_fraction: number
   summary_fields_vocabulary:
-    phospho_activity_class: [phospho_active, phospho_present, phospho_low, not_phosphoprotein, data_unavailable]
+    phospho_activity_class: [phospho_active, phospho_present, phospho_low, phospho_not_detected, data_unavailable]
   figure: phospho_pathway_activity_card
 
 thresholds:
@@ -65,7 +85,8 @@ thresholds:
   min_tumors: 20                      # below → data_unavailable
 
 caveats:
-  - "not_phosphoprotein is a REAL biological state (the gene has no phosphosites in the CPTAC panel), NOT a coverage gap — e.g. KRAS, a GTPase regulated by nucleotide exchange rather than phosphorylation. Distinct from data_unavailable (no CPTAC cohort / read failure)."
+  - "phospho_not_detected is a MEASURED no-detection, NOT a claim the target is unphosphorylatable. The phospho panel covers ~4.7-6.1k genes/cohort vs ~7.4-11.5k for total protein, so ~48-55% of protein-detected genes have zero phosphosites, and ~1.7-2.3k of those per cohort DO carry sites in another CPTAC cohort. Read phosphoprotein_detected_in_other_cohorts before inferring biology: true means this cohort's zero is a DETECTION gap (e.g. KRAS 0 in coad but 2 in ccrcc; MET 0 in brca, 8 in ccrcc)."
+  - "When the target's total protein is not detected in the same cohort, the class is data_unavailable with phospho_axis_uninformative_reason=total_protein_not_detected_in_cohort — phosphopeptide absence is unreadable when the protein itself is undetected (e.g. ALK in LUAD, a fusion-activated RTK below bulk-MS detection). Never read that as evidence against phosphorylation."
   - "phospho_exceeds_abundance compares mean phospho z-score to mean total-protein z-score across tumors; a target can be abundantly phosphorylated simply because it is abundant (phospho_present) vs hyper-phosphorylated beyond abundance (phospho_active). Interpret with the abundance cards (Q1/Q5)."
   - "Detection fraction reflects MS coverage (a phosphosite below the MS detection limit reads as absent); low detection is not proof of no phosphorylation. Phosphosite-level stoichiometry is not resolved."
   - "The phospho signal is total across the target's sites (mean); a SPECIFIC activating site (e.g. an autophosphorylation site) is not singled out — top_phosphosites lists the most-detected sites for follow-up but does not assert which is functionally activating."

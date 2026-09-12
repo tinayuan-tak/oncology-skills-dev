@@ -4365,19 +4365,27 @@ rules:
       Neutral (MS detection-limit may undercount; low detection is not proof of no phosphorylation),
       not opposing.
 
-  - rule_id: phospho-not-phosphoprotein-neutral
+  # RETOKENIZED 2026-09-12: was `phospho-not-phosphoprotein-neutral` on `not_phosphoprotein`. That token
+  # asserted a BIOLOGICAL negative ("not a phosphoprotein; the axis does not apply") off a COVERAGE
+  # FLOOR — the phospho panel covers roughly half the genes total protein does, so ~48-55% of
+  # protein-detected genes per cohort had zero phosphosites and ~1.7-2.3k of those per cohort carry
+  # sites in ANOTHER CPTAC cohort. ALK, CDK4, MET and KRAS all read "not a phosphoprotein" somewhere.
+  - rule_id: phospho-not-detected-neutral
     when:
       card_id: phospho-pathway-activity
       field: phospho_activity_class
-      equals: not_phosphoprotein
+      equals: phospho_not_detected
     signals:
       small_molecule: neutral
       degrader: neutral
     rationale: |
-      The target has NO phosphosites in the CPTAC panel — it is not a phosphoprotein (e.g. a GTPase
-      like KRAS, regulated by nucleotide exchange). The phospho axis genuinely DOES NOT APPLY; neutral
-      (informational — read presence from the total-protein + RNA cards instead), NEVER opposing. A
-      real biological fact, distinct from data_unavailable.
+      NO phosphosites detected for the target in this cohort's phospho panel, while its TOTAL PROTEIN
+      IS detected in the same cohort — a measured no-detection on the phospho axis. Neutral
+      (informational — read presence from the total-protein + RNA cards instead), NEVER opposing, and
+      NEVER an assertion that the target is unphosphorylatable: the phospho panel's gene coverage is
+      about half the total-protein panel's, so absence here is dominated by detection, not biology.
+      The card's phosphoprotein_detected_in_other_cohorts / n_cohorts_with_phosphosites fields say
+      whether the target is a demonstrated phosphoprotein elsewhere in CPTAC (⇒ a detection gap).
 
   - rule_id: phospho-data-unavailable-insufficient
     when:
@@ -4388,7 +4396,10 @@ rules:
       small_molecule: insufficient
       degrader: insufficient
     rationale: |
-      No CPTAC cohort for the indication, or a phospho read failure. Coverage gap; not opposing evidence.
+      No CPTAC cohort for the indication, a phospho read failure, or — added 2026-09-12 — the target's
+      TOTAL PROTEIN is not detected in this cohort either, which makes the phospho axis uninformative
+      rather than negative (phosphopeptide absence is unreadable when the protein itself is undetected;
+      see phospho_axis_uninformative_reason). Coverage gap; not opposing evidence.
 
   # ============================================================================
   # P5 Slice 2 — gene-burden-safety card (human-genetics LoF-tolerance)

@@ -295,7 +295,7 @@ display:
 - phospho-active-supportive
 - phospho-data-unavailable-insufficient
 - phospho-low-neutral
-- phospho-not-phosphoprotein-neutral
+- phospho-not-detected-neutral
 - phospho-present-supportive
 - pmhc-restricted-presentation-tce-supportive
 - predictability-biomarker-hypothesis-supportive
