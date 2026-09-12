@@ -160,9 +160,16 @@ def _union_edges(signor_edges: list[dict], collectri_edges: list[dict]) -> list[
 
 
 def _classify_network(n_up: int, n_down: int) -> str:
-    """Same classification as SIGNOR/CollecTri readers for cross-source
-    consistency. When unioned, the counts are HIGHER, so the classification
-    may promote from partial→well_characterized after union.
+    """Classify network shape from DEDUPED union counts (distinct (partner, direction)).
+
+    Same thresholds as the SIGNOR/CollecTri readers for cross-source consistency,
+    but note the counts here are distinct-PARTNER counts (the union dedups on
+    (partner_symbol, direction)), whereas the per-source readers count raw edge
+    rows. Unioning two sources usually RAISES the distinct-partner count (may
+    promote partial→well_characterized), but for a target reached by many
+    mechanisms to FEW partners the deduped union count can be LOWER than a single
+    source's raw-row count — so composition is not monotonic. Thresholds are
+    annotation-density heuristics (≥3 each arm / ≤1 total), not biological cutoffs.
     """
     if n_up == 0 and n_down == 0:
         return "data_unavailable"
@@ -272,6 +279,15 @@ def read_target_summary(target: str, indication: str = None) -> dict:
     moa_classes_present = sorted({e.get("moa_class") for e in union_upstream if e.get("moa_class")})
     pd_classes_present = sorted({e.get("moa_class") for e in union_downstream if e.get("moa_class")})
 
+    # has_actionable_moa / has_pd_marker require at least one edge carrying a MAPPED MoA class
+    # (moa_class present and != "unmapped"). The field name promises a CLASSIFIED mechanism / PD
+    # hook — a purely count-based (>= 1 edge) predicate over-called it True even when EVERY edge
+    # fell to the ontology's 'unmapped' bucket (no actionable MoA class, empty modality_relevance).
+    # ~4.2% of curated edges are unmapped, so this only flips all-unmapped-arm targets; the composed
+    # network_class (verdict axis) and the EGFR/CEACAM5 replay fixtures are byte-stable.
+    def _has_mapped_moa(edges: list[dict]) -> bool:
+        return any(e.get("moa_class") and e.get("moa_class") != "unmapped" for e in edges)
+
     # Aggregated unmapped fraction (weighted)
     signor_total_edges = len(signor_up) + len(signor_dn)
     collectri_total_edges = len(collectri_up) + len(collectri_dn)
@@ -291,8 +307,8 @@ def read_target_summary(target: str, indication: str = None) -> dict:
         "downstream_effectors": union_downstream,
         "moa_classes_present": moa_classes_present,
         "pd_marker_classes_present": pd_classes_present,
-        "has_actionable_moa": n_up >= 1,
-        "has_pd_marker": n_dn >= 1,
+        "has_actionable_moa": _has_mapped_moa(union_upstream),
+        "has_pd_marker": _has_mapped_moa(union_downstream),
         "high_confidence_edges_count": high_conf_edges,
         "moa_ontology_version": ONTOLOGY_VERSION,
         "moa_ontology_unmapped_fraction": unmapped_frac,

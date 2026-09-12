@@ -38,6 +38,7 @@ import threading
 from functools import lru_cache
 
 from methods.catalog_query.read import bucket_key_for
+from methods.signor_mechanism_network.moa_ontology import ONTOLOGY_VERSION
 
 DEFAULT_AWS_PROFILE = "cbg"
 DERIVED_MANIFEST_ID = "kinome-atlas-long-edges-v1"
@@ -272,7 +273,7 @@ def read_target_summary(target: str, indication: str = None) -> dict:
         "pd_marker_classes_present": pd_present,
         "has_actionable_moa": n_up >= 1,
         "has_pd_marker": n_down >= 1,
-        "moa_ontology_version": "1.0.0",
+        "moa_ontology_version": ONTOLOGY_VERSION,
         "moa_ontology_unmapped_fraction": 0.0,
         "_data_source": DERIVED_MANIFEST_ID,
         "_source_note": (
@@ -296,7 +297,7 @@ def _empty_result(note: str) -> dict:
         "pd_marker_classes_present": [],
         "has_actionable_moa": False,
         "has_pd_marker": False,
-        "moa_ontology_version": "1.0.0",
+        "moa_ontology_version": ONTOLOGY_VERSION,
         "moa_ontology_unmapped_fraction": 0.0,
         "_data_note": note,
     }

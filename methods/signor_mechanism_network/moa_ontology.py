@@ -1,6 +1,6 @@
 """moa_ontology — SIGNOR-mechanism → MoA-class classification table.
 
-Every SIGNOR-tagged edge in OmniPath's interactions.tsv carries an `effect`
+Every edge in the SIGNOR Jul2026 source release (read directly — OmniPath is NOT read) carries an `effect`
 column (e.g. "phosphorylation", "binding", "gtpase-activating protein",
 "transcriptional regulation"). This module maps each raw mechanism string
 to a curated MoA class + modality-relevance tags, so the downstream
@@ -21,7 +21,7 @@ Ontology discipline:
      profile downstream can trace which ontology snapshot fired.
 
 Design note (why not adopt the raw SIGNOR mechanism strings verbatim?):
-  Raw strings vary by capitalization, punctuation, and OmniPath-vs-SIGNOR
+  Raw strings vary by capitalization, punctuation, and SIGNOR release
   edit history. A rule-engine consumer needs stable enum values it can
   match against, not free-text. The curated ontology also encodes
   modality-relevance (which MoA classes make what modality actionable) —
@@ -188,7 +188,7 @@ def classify_edge(mechanism: str, direction: str) -> Optional[MoAClassification]
     """Classify one SIGNOR edge by (mechanism, direction).
 
     Args:
-        mechanism: Raw SIGNOR mechanism string from OmniPath's interactions.tsv.
+        mechanism: Raw SIGNOR mechanism string from the SIGNOR release.
             Case-insensitive lookup; whitespace-trimmed.
         direction: 'upstream' (something → target) or 'downstream'
             (target → something). Case-insensitive.
@@ -227,7 +227,7 @@ def known_mechanisms(direction: Optional[str] = None) -> set[str]:
     """Return the set of raw SIGNOR mechanism strings the ontology covers.
 
     Useful for the ontology-coverage verification test to detect drift
-    when upstream OmniPath adds new mechanism vocabulary.
+    when a new SIGNOR release adds new mechanism vocabulary.
     """
     if direction is None or direction.lower() == "upstream":
         u = {row[0].lower().strip() for row in UPSTREAM_ROWS}
