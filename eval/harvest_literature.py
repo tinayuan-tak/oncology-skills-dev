@@ -68,7 +68,12 @@ def _canonical_symbol(target: str) -> str:
 
 
 def harvest_pair(
-    target: str, indication: str, *, literature_scope: str = "all", model: str | None = None
+    target: str,
+    indication: str,
+    *,
+    literature_scope: str = "all",
+    model: str | None = None,
+    skills: "list[str] | None" = None,
 ) -> list[dict]:
     """Run the fan-out with the --literature lane ON and project each sub-skill into a
     normalized harvest record. Records are only produced for sub-skills whose lane actually
@@ -87,6 +92,7 @@ def harvest_pair(
         subskill_literature=True,
         subskill_literature_scope=literature_scope,
         synthesis_model=model,
+        skills=skills,  # None → full fan-out; else only the named sub-skills' lanes run (compute subset)
     )
     records: list[dict] = []
     for short, res in sub_results.items():
@@ -170,6 +176,31 @@ def _snapshot_path(snapshot_dir: Path, target: str, indication: str) -> Path:
     return snapshot_dir / f"{target}__{indication}.json"
 
 
+# ── Curated GAP-ENRICHED PANELS (skill-scoped discordance loops) ─────────────────────────────────
+# A panel binds a small (target, indication) list to the sub-skill(s) whose KNOWN weak-spot class it
+# is chosen to exercise (sourced from the CASE_LOG history). Running a panel harvests ONLY those
+# skills' lanes over those pairs — a cheap, targeted enrichment for gaps in one skill rather than a
+# blind fleet sweep. `--panel <name>` sources both `pairs` and `skills` (either overridable on the CLI).
+_PANELS: dict[str, dict] = {
+    # measured subtype signal → legibility / omics-blind (the CD274/MSI-H class). COADREAD is the
+    # pinned by-subtype axis, so the panel is COADREAD antigens with real subtype structure.
+    "tumor-presence-subtype": {
+        "skills": ["tumor-presence"],
+        "pairs": [("CD274", "COADREAD"), ("HLA-DRA", "COADREAD"), ("CDX2", "COADREAD"), ("MUC2", "COADREAD")],
+    },
+    # biomarker-conditional dependency false-negatives (the EPAS1×VHL / SMARCA2 class).
+    "functional-requirement-conditional": {
+        "skills": ["functional-requirement"],
+        "pairs": [("EPAS1", "RCC"), ("SMARCA2", "LUAD"), ("MET", "LUAD"), ("WRN", "COADREAD")],
+    },
+    # biologics-approved → small-molecule druggability INFLATION (CASE-008 modality-blindness).
+    "tractability-sm-inflation": {
+        "skills": ["tractability-small-molecule"],
+        "pairs": [("DLL3", "SCLC"), ("STEAP1", "PRAD"), ("FOLR1", "OV"), ("NECTIN4", "BLCA"), ("CEACAM5", "NSCLC")],
+    },
+}
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--pairs", default=None, help="comma list of TARGET/INDICATION (e.g. KRAS/COADREAD,MET/LUAD)")
@@ -183,6 +214,18 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="derive the pair list from --calibration-set (else --pairs is the source)",
     )
+    ap.add_argument(
+        "--panel",
+        choices=sorted(_PANELS),
+        default=None,
+        help="curated gap-enriched panel — sources pairs + skills for a skill-scoped loop (see _PANELS)",
+    )
+    ap.add_argument(
+        "--skills",
+        default=None,
+        help="comma list of sub-skill dir/short names — harvest ONLY these lanes (compute subset). "
+        "Overrides the panel's skills. Omit for the full fan-out.",
+    )
     ap.add_argument("--literature-scope", choices=["all", "gating"], default="all")
     ap.add_argument("--model", default=None, help="override the lane's Bedrock model id")
     ap.add_argument("--snapshot-dir", default="eval/literature-snapshots")
@@ -190,21 +233,32 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--ledger-out", default="eval/discordance_ledger.json")
     a = ap.parse_args(argv)
 
-    if a.use_calibration_pairs and a.calibration_set:
+    panel = _PANELS[a.panel] if a.panel else None
+    # pair source precedence: explicit --pairs > --use-calibration-pairs > --panel
+    if a.pairs:
+        pairs = _parse_pairs(a.pairs)
+    elif a.use_calibration_pairs and a.calibration_set:
         pairs = _pairs_from_calibration(a.calibration_set)
+    elif panel:
+        pairs = list(panel["pairs"])
     else:
-        pairs = _parse_pairs(a.pairs or "")
+        pairs = []
     if not pairs:
-        ap.error("no (target, indication) pairs — pass --pairs or --use-calibration-pairs with --calibration-set")
+        ap.error("no (target, indication) pairs — pass --pairs, --panel, or --use-calibration-pairs+--calibration-set")
+    # skill subset: --skills wins, else the panel's skills, else None (full fan-out)
+    skills = [s.strip() for s in a.skills.split(",") if s.strip()] if a.skills else (panel["skills"] if panel else None)
 
     snapshot_dir = Path(a.snapshot_dir)
     snapshot_dir.mkdir(parents=True, exist_ok=True)
 
+    print(f"[harvest] {len(pairs)} pair(s); skills={skills or 'ALL (full fan-out)'}", flush=True)
     total = 0
     for target, indication in pairs:
         print(f"[harvest] {target}/{indication} (scope={a.literature_scope}) ...", flush=True)
         try:
-            records = harvest_pair(target, indication, literature_scope=a.literature_scope, model=a.model)
+            records = harvest_pair(
+                target, indication, literature_scope=a.literature_scope, model=a.model, skills=skills
+            )
         except Exception as e:  # noqa: BLE001 — one pair failing must not lose the others
             print(f"[harvest] !! {target}/{indication} failed: {e}", file=sys.stderr)
             continue

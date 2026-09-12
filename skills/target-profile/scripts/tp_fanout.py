@@ -10,7 +10,7 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Iterable, Optional
 
 _SCRIPTS_DIR = str(Path(__file__).resolve().parent)
 if _SCRIPTS_DIR not in sys.path:
@@ -1112,6 +1112,19 @@ def _skipped_synthesis_output() -> dict:
     }
 
 
+def _select_active_sub_skills(skills: "Optional[Iterable[str]]") -> list:
+    """The (skill_dir, short) pairs to run: all of SUB_SKILLS when `skills` is None (byte-stable full
+    fan-out), else only those whose DIR id OR short name is named. Raises if the subset matches nothing
+    (a typo must fail loud, not silently run everything). Module-level so it is unit-testable."""
+    if skills is None:
+        return list(SUB_SKILLS)
+    want = {s.strip() for s in skills if s and s.strip()}
+    active = [(sd, sh) for sd, sh in SUB_SKILLS if sd in want or sh in want]
+    if not active:
+        raise ValueError(f"skills={sorted(want)} matched no sub-skill (dir or short) in SUB_SKILLS")
+    return active
+
+
 def _run_sub_skills(
     target: str,
     indication: str,
@@ -1122,6 +1135,7 @@ def _run_sub_skills(
     subskill_literature: bool = False,
     subskill_literature_scope: str = "all",
     synthesis_model: Optional[str] = None,
+    skills: "Optional[Iterable[str]]" = None,
 ) -> dict:
     """Invoke each sub-skill's verdict logic in-process. Returns dict keyed
     by short name (`expression`, `selectivity`, ...) with:
@@ -1405,15 +1419,20 @@ def _run_sub_skills(
     #   2. Re-assemble `results` in SUB_SKILLS order (NOT completion order) — every downstream
     #      reduction (_ordinal_matrix / _gate_recommendation / _deciding_axis / scorecard) + the
     #      nomination.json sub_verdicts iterate this dict; insertion order must match the serial run.
+    # OPTIONAL skill SUBSET (skill-scoped discordance harvest): run only the named sub-skills' lanes
+    # instead of the whole fan-out. None → the full fan-out (byte-stable default; the composed-profile /
+    # nomination path never passes this). A COMPUTE subset for the eval loop, NOT a composition change —
+    # a subset run is not a valid nomination package (the gate needs the full axis set).
+    _active = _select_active_sub_skills(skills)
     _prewarm_sub_skill_imports()
     completed: dict = {}
-    with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(SUB_SKILLS), _FANOUT_MAX_WORKERS)) as ex:
-        futures = {ex.submit(_one_sub_skill, sd, sh): sh for sd, sh in SUB_SKILLS}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(_active), _FANOUT_MAX_WORKERS)) as ex:
+        futures = {ex.submit(_one_sub_skill, sd, sh): sh for sd, sh in _active}
         for fut in concurrent.futures.as_completed(futures):
             short, res = fut.result()  # a sub-skill exception propagates here (fail-loud, as serial did)
             completed[short] = res
     # deterministic re-order: rebuild in SUB_SKILLS order (byte-stability guard #2)
-    results: dict = {short: completed[short] for _, short in SUB_SKILLS}
+    results: dict = {short: completed[short] for _, short in _active}
 
     # Subtype tier — ONLY when a subtype scope was requested. Panorama cards need
     # the resolved strata + assignments shard threaded via subgroup_context; the

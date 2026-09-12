@@ -180,3 +180,71 @@ def test_pairs_from_calibration_dict_keyed(tmp_path):
     assert ("MET", "LUAD") in pairs
     assert not any(t == "CDK4_6" for t, _ in pairs)  # composite skipped
     assert not any(i == "multi" for _, i in pairs)  # non-specific indication skipped
+
+
+def test_harvest_pair_threads_skills_subset(monkeypatch):
+    """--skills / panel skills must reach _run_sub_skills as the `skills` kwarg (the compute subset)."""
+    seen = {}
+
+    def _capture(target, indication, **kw):
+        seen["skills"] = kw.get("skills")
+        return {}
+
+    stub = types.ModuleType("tp_fanout")
+    stub._run_sub_skills = _capture
+    monkeypatch.setitem(sys.modules, "tp_fanout", stub)
+    hl.harvest_pair("CD274", "COADREAD", skills=["tumor-presence"])
+    assert seen["skills"] == ["tumor-presence"]
+
+
+def test_panels_registry_is_wellformed():
+    """Every curated panel binds a non-empty skills list to a list of (target, indication) pairs."""
+    assert _known_panels(), "no panels registered"
+    for name, p in hl._PANELS.items():
+        assert isinstance(p.get("skills"), list) and p["skills"], f"{name}: skills must be a non-empty list"
+        assert isinstance(p.get("pairs"), list) and p["pairs"], f"{name}: pairs must be a non-empty list"
+        for pair in p["pairs"]:
+            assert isinstance(pair, tuple) and len(pair) == 2 and all(pair), f"{name}: bad pair {pair}"
+
+
+def _known_panels():
+    return set(hl._PANELS)
+
+
+def test_select_active_sub_skills_filters(monkeypatch):
+    """_select_active_sub_skills(skills) → only the named sub-skills (dir OR short); None → all
+    (byte-stable full fan-out); an unmatched subset raises. Pure over SUB_SKILLS (no live read)."""
+    import importlib
+
+    import pytest
+
+    tpf = importlib.import_module("tp_fanout")
+    monkeypatch.setattr(
+        tpf,
+        "SUB_SKILLS",
+        [
+            ("tumor-presence", "expression"),
+            ("functional-requirement", "dependency"),
+            ("tumor-selectivity", "selectivity"),
+        ],
+        raising=True,
+    )
+    assert tpf._select_active_sub_skills(["tumor-presence"]) == [("tumor-presence", "expression")]  # by dir
+    assert {sh for _, sh in tpf._select_active_sub_skills(["dependency", "selectivity"])} == {
+        "dependency",
+        "selectivity",
+    }  # by short
+    assert len(tpf._select_active_sub_skills(None)) == 3  # None → full fan-out (byte-stable)
+    with pytest.raises(ValueError):
+        tpf._select_active_sub_skills(["no-such-skill"])
+
+
+def test_panel_skills_are_real_sub_skill_dirs():
+    """Each panel's skills must be real SUB_SKILLS dir ids (so --panel actually selects a lane)."""
+    import importlib
+
+    tpf = importlib.import_module("tp_fanout")
+    dirs = {sd for sd, _ in tpf.SUB_SKILLS}
+    for name, p in hl._PANELS.items():
+        for sk in p["skills"]:
+            assert sk in dirs, f"panel {name}: '{sk}' is not a SUB_SKILLS dir id {sorted(dirs)}"
