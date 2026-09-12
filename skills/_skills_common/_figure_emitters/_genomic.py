@@ -158,14 +158,14 @@ def _emit_phospho_pathway_activity(
     indication: str,
 ) -> list[dict]:
     """Emit the phospho-pathway-activity figure (Q8): activity class + top phosphosites. Gated on the
-    target being a phosphoprotein with data (not_phosphoprotein / data_unavailable → []). On
+    target having detected phosphosites (phospho_not_detected / data_unavailable → nothing to plot → []). On
     _live_read_error → []."""
     if _has_live_read_error(summary):
         return []
     if not summary:
         return []
     cls = summary.get("phospho_activity_class")
-    if cls in (None, "data_unavailable", "not_phosphoprotein"):
+    if cls in (None, "data_unavailable", "phospho_not_detected"):
         return []
     _ensure_methods_path()
     from methods.phospho_pathway_activity import cli as ppa

@@ -80,7 +80,7 @@ DATA_UNAVAILABLE_MARKERS = {
     "no_partner_mapped",
     "no_target_event",
     "not_surface_density_whole_cell_estimate",
-    "not_phosphoprotein",  # phospho-pathway-activity abstains here (target has no CPTAC phosphosites)
+    "phospho_not_detected",  # phospho-pathway-activity abstains here (no phosphosites detected for the target)
 }
 
 
@@ -100,7 +100,7 @@ DEFAULT_TARGET = ("KRAS", "COADREAD")
 TARGET_OVERRIDES: dict[str, tuple[str, str]] = {
     "surface-abundance-density": ("MSLN", "PAAD"),
     "partner-conditional-dependency": ("WRN", "COADREAD"),
-    # KRAS is not a phosphoprotein (→ not_phosphoprotein abstain, minimal dict); EGFR/LUAD is a
+    # KRAS has no detected phosphosites in coad (→ phospho_not_detected abstain, minimal dict); EGFR/LUAD is a
     # CPTAC phosphoprotein that exercises the real emission path (all phospho summary_fields).
     "phospho-pathway-activity": ("EGFR", "LUAD"),
 }

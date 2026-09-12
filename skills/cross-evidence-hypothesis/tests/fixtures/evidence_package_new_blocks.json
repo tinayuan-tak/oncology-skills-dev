@@ -79,7 +79,7 @@
     "fired_rule_ids": [
      "mechanism-well-characterized-supportive",
      "has-pd-marker-supportive",
-     "phospho-not-phosphoprotein-neutral"
+     "phospho-not-detected-neutral"
     ]
    },
    "genomic_alteration": {

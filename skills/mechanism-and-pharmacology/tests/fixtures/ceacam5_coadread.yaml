@@ -90,7 +90,7 @@ phospho-pathway-activity:
   method_version: 0.1.0
   n_phosphosites: 0
   n_tumors: 198
-  phospho_activity_class: not_phosphoprotein
+  phospho_activity_class: phospho_not_detected
   substrate: cptac_phosphoproteomics_bcm
   target: CEACAM5
 signaling-network-mechanism:

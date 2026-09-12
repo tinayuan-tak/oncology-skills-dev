@@ -221,7 +221,7 @@ def _classify_biomarker_best_roles(corroboration: dict, stratification: dict, qu
         )
 
     # PHARMACODYNAMIC — a pathway-activity readout usable as a PD marker (not patient-selection).
-    if _live(phospho) and phospho not in ("not_phosphoprotein",):
+    if _live(phospho) and phospho not in ("phospho_not_detected",):
         hyps.append(
             {
                 "intended_use": "pharmacodynamic",

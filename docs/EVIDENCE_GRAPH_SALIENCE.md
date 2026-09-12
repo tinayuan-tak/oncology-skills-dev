@@ -519,7 +519,7 @@ n_field: n_upstream_regulators  categorical: [network_class, has_actionable_moa,
 ```
 
 #### Other mechanism types (specs)
-- **phospho_pathway_activity** (VB): `phospho_activity_class`=not_phosphoprotein (verdict fact, unranked);
+- **phospho_pathway_activity** (VB): `phospho_activity_class`=phospho_not_detected (verdict fact, unranked);
   `n_phosphosites`=0, `n_tumors`=250. `categorical: [phospho_activity_class]`.
 - **pathway_activity_context**: `per_pathway` (TGFb activity_z=2.26, EGFR 1.96), `pathway_activity_class`=relatively_high.
   `strata_array: per_pathway · effect_field: activity_z`.
@@ -536,8 +536,10 @@ graph says nothing about mechanism; `phospho_activity_class` verdict unrepresent
 - △ **Well-characterized actionable hub (KRAS·PAAD)** — 71 upstream regulators / 12 downstream effectors
   (network_class=well_characterized, 0% MoA-unmapped); actionable classes incl. upstream_gap_modulation
   (e.g. DAB2IP), upstream_gef_modulation, molecular_glue_disruptor. [signaling-network-mechanism]
-- ◆ **No direct phospho-PD readout** — CPTAC PAAD (250 tumors) detects 0 phosphosites on KRAS
-  (not_phosphoprotein) → a phospho-PD marker is unavailable for this target. [phospho-pathway-activity]
+- ◆ **No direct phospho-PD readout** — CPTAC PAAD (250 tumors) detects 0 phosphosites on KRAS while its
+  total protein IS detected (phospho_not_detected — a measured no-detection, not a claim that KRAS is
+  unphosphorylatable; it does carry sites in other CPTAC cohorts) → no phospho-PD marker is available for
+  this target *in this cohort's panel*. [phospho-pathway-activity]
 
 ### 3.9 combination-and-vulnerability (KRAS·COADREAD + BRCA2·BRCA)
 

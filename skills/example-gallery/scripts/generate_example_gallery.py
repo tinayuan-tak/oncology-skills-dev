@@ -563,7 +563,7 @@ _WEAK = {
     "not_informative",
     "no_curated_domain",
     "data_unavailable",
-    "not_phosphoprotein",
+    "phospho_not_detected",
     "no_high_confidence_interactors",
     "neutral_uninformative",
     "argues_against",

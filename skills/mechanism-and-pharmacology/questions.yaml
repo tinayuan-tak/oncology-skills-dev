@@ -28,7 +28,7 @@
 # axis->question crosswalk resolves all FIVE lens axes. (NB: at the CARD level build_evidence_graph
 # derives role from fired rules, so the three cards that FIRE a rule — signaling-network-mechanism
 # [mechanism-well-characterized-supportive + has-pd-marker-supportive], phospho-pathway-activity
-# [phospho-not-phosphoprotein-neutral], dependency-predictability [predictability-biomarker-hypothesis-
+# [phospho-not-detected-neutral], dependency-predictability [predictability-biomarker-hypothesis-
 # supportive] — project as verdict_bearing CARDS, a fired-rule fact independent of the question role;
 # tahoe-drug-perturbation + pathway-activity-context fire no rule and project display_only.)
 #

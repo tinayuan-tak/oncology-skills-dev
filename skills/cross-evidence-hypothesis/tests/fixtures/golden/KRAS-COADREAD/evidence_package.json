@@ -88,7 +88,7 @@
         "fired_rule_ids": [
           "mechanism-well-characterized-supportive",
           "has-pd-marker-supportive",
-          "phospho-not-phosphoprotein-neutral"
+          "phospho-not-detected-neutral"
         ]
       },
       "genomic_alteration": {
@@ -304,7 +304,7 @@
     },
     {
       "card_id": "phospho-pathway-activity",
-      "interpretation_call": "not_phosphoprotein"
+      "interpretation_call": "phospho_not_detected"
     },
     {
       "card_id": "pathway-activity-context",

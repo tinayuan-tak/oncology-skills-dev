@@ -115,7 +115,7 @@ def test_reconstruct_questions_signal_and_cards(eg_graph):
     # DESCRIPTIVE skill's question_table polarity is `informs` (never supports/opposes a nomination).
     assert qs["network_read"]["signal"]["tier"] == "moderate"
     assert qs["network_read"]["signal"]["polarity"] == "informs"
-    assert qs["phospho_read"]["signal"]["tier"] == "absent"  # not_phosphoprotein
+    assert qs["phospho_read"]["signal"]["tier"] == "absent"  # phospho_not_detected
     # the card join (measurement_type membership) — the 5 cards map 1:1 onto the 5 axes.
     assert set(qs["network_read"]["card_ids"]) == {"signaling-network-mechanism"}
     assert set(qs["phospho_read"]["card_ids"]) == {"phospho-pathway-activity"}

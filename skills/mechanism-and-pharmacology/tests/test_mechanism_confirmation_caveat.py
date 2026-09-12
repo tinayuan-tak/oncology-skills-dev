@@ -120,7 +120,7 @@ def test_prediction_lane_coessentiality_only():
 def test_curation_gap_fires_on_thin_network_with_operative_signal():
     """MTAP-like: thin (partial) curated network but a functional co-essentiality signal + drug-perturbation
     engagement → the curated network under-reads an operative mechanism."""
-    c = RUN._curation_gap_note("partial", "not_phosphoprotein", None, "drug_suppressed", 4)
+    c = RUN._curation_gap_note("partial", "phospho_not_detected", None, "drug_suppressed", 4)
     assert c is not None and c["reason"] == "curated_network_under_reads_operative_signal"
     assert "co-essential" in c["note"]
 
@@ -141,7 +141,7 @@ def test_curation_gap_context_level_only_does_not_assert_gap():
     (no target-specific phospho / co-essentiality) → the softer context-level reason, NOT a curation-gap
     over-call. The panel showed the old note wrongly asserted an 'operative mechanism' for genuinely
     non-signaling surface antigens."""
-    c = RUN._curation_gap_note("partial", "not_phosphoprotein", "relatively_high", "bidirectionally_perturbed", 0)
+    c = RUN._curation_gap_note("partial", "phospho_not_detected", "relatively_high", "bidirectionally_perturbed", 0)
     assert c is not None and c["reason"] == "thin_network_context_level_signal_only"
     assert not c.get("target_specific_signals")
     assert c["context_level_signals"]
@@ -151,7 +151,7 @@ def test_curation_gap_context_level_only_does_not_assert_gap():
 def test_curation_gap_target_specific_wins_over_context_level():
     """When BOTH a target-specific (co-essentiality) and context-level signal are present, the strong
     curation-gap reason fires and the context-level signal is carried as additional context."""
-    c = RUN._curation_gap_note("partial", "not_phosphoprotein", "relatively_high", "drug_suppressed", 3)
+    c = RUN._curation_gap_note("partial", "phospho_not_detected", "relatively_high", "drug_suppressed", 3)
     assert c["reason"] == "curated_network_under_reads_operative_signal"
     assert c["target_specific_signals"] and c["context_level_signals"]
 

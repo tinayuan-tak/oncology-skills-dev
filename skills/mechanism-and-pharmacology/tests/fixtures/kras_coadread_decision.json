@@ -29,10 +29,10 @@
       "rationale_summary": "At least one downstream effector identified. PD-marker candidates"
     },
     {
-      "rule_id": "phospho-not-phosphoprotein-neutral",
+      "rule_id": "phospho-not-detected-neutral",
       "card_id": "phospho-pathway-activity",
       "field": "phospho_activity_class",
-      "value": "not_phosphoprotein",
+      "value": "phospho_not_detected",
       "dominant": false,
       "rationale_summary": "The target has NO phosphosites in the CPTAC panel \u2014 it is not a phosphoprotein (e.g. a GTPase"
     }
@@ -165,7 +165,7 @@
           "measurement_type": "phospho_pathway_activity",
           "tier": "indication",
           "evidence_state": "measured",
-          "class": "not_phosphoprotein",
+          "class": "phospho_not_detected",
           "numeric_anchors": null,
           "categorical_anchors": null,
           "n_basis": {
@@ -278,7 +278,7 @@
       {
         "id": "Q2",
         "question": "Phospho-activity \u2014 measured activation / signaling-state (beyond abundance)?",
-        "primary": "phospho-pathway-activity: not_phosphoprotein",
+        "primary": "phospho-pathway-activity: phospho_not_detected",
         "support": "",
         "signal": {
           "tier": "absent",
@@ -596,7 +596,7 @@
             "n": 198,
             "label": "phospho activity",
             "conflict": false,
-            "value": "not_phosphoprotein"
+            "value": "phospho_not_detected"
           }
         ],
         "signal_source": "claim_vector",
@@ -605,11 +605,11 @@
             "axis": "PHOSPHO",
             "signal": "absent",
             "corroboration": "moderate",
-            "evidence": "phospho-pathway-activity: not_phosphoprotein",
+            "evidence": "phospho-pathway-activity: phospho_not_detected",
             "evidence_atom": {
-              "read": "not_phosphoprotein",
+              "read": "phospho_not_detected",
               "values": {
-                "phospho_activity_class": "not_phosphoprotein",
+                "phospho_activity_class": "phospho_not_detected",
                 "n_phosphosites": 0
               },
               "cite": {

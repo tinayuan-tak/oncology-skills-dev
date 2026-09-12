@@ -14,7 +14,8 @@ MOSTLY DESCRIPTIVE (differentiation-style, direction/meaning in the atom). The o
 decision-grade POSITIVE signal is PHOSPHO (measured activation beyond abundance). HONESTY TRAP:
 NETWORK's `network_class` is an ANNOTATION-DENSITY measure (SIGNOR edge count = curation, not target
 biology), so it is deliberately CAPPED at `moderate` — never `strong`. `absent` = a measured
-"axis-doesn't-apply" / no-standout (e.g. `not_phosphoprotein` for a GTPase — a real biological N/A);
+"axis-doesn't-apply" / no-standout (e.g. `phospho_not_detected` — no phosphosites detected while the
+target's total protein IS detected: a MEASURED no-signal, not a coverage gap);
 `unmeasured` = a coverage gap. No axis has a natural `negative` tier.
 
 Verdict-INERT: the mechanism resolver keys ONLY on signaling-network-mechanism (network_class +
@@ -47,7 +48,11 @@ _PHOSPHO_SIGNAL = {
     "phospho_active": "strong",
     "phospho_present": "moderate",
     "phospho_low": "weak",
-    "not_phosphoprotein": "absent",  # MEASURED biological N/A (e.g. a GTPase) — not a gap
+    # MEASURED no-detection: zero phosphosites while total protein IS detected in the cohort. NOT a
+    # claim the target is unphosphorylatable (2026-09-12: `not_phosphoprotein` retired — it asserted
+    # that from a coverage floor; ~half of protein-detected genes per cohort have zero sites). When the
+    # protein is undetected too, the reader emits data_unavailable → "unmeasured" below.
+    "phospho_not_detected": "absent",
     "data_unavailable": "unmeasured",
 }
 _PATHWAY_SIGNAL = {

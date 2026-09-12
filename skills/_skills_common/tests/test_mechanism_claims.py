@@ -1,6 +1,6 @@
 """Unit tests for mechanism-and-pharmacology's claim vector (skills/_skills_common/mechanism_claims.py),
 the ELEVENTH concrete. Pins the NETWORK annotation-density CAP (never strong), PHOSPHO as the real
-positive signal, the not_phosphoprotein=absent (measured N/A) discipline, and citable atoms. Pure."""
+positive signal, the phospho_not_detected=absent (measured no-detection) discipline, and citable atoms. Pure."""
 
 from __future__ import annotations
 
@@ -71,11 +71,11 @@ def test_atoms_present_and_citable():
     assert vec["PERTURBATION"]["evidence_atom"]["values"]["strongest_mover_drug"] == "trametinib"
 
 
-def test_not_phosphoprotein_is_absent_gap_is_unmeasured():
+def test_phospho_not_detected_is_absent_gap_is_unmeasured():
     vec = mechanism_claim_vector(
         {},
         [
-            {"card_id": "phospho-pathway-activity", "summary": {"phospho_activity_class": "not_phosphoprotein"}},
+            {"card_id": "phospho-pathway-activity", "summary": {"phospho_activity_class": "phospho_not_detected"}},
             {"card_id": "signaling-network-mechanism", "summary": {"network_class": "data_unavailable"}},
         ],
     )
