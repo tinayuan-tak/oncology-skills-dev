@@ -93,6 +93,12 @@ DERIVED_PRODUCT_VERSION = "0.4.1"  # 2026-08-08: triangulated/confirmed calls no
 # panel. Positive Spearman = compound tracks with genetic dependency (target-
 # engaged). Weak/no Spearman = compound activity doesn't track knockout →
 # likely off-target.
+# AUTHORITATIVE COPY of the concordance cuts. These classify `crispr_prism_concordance_class` HERE, at
+# build time, and the result is frozen into the parquet — the reader never re-derives it. Two mirrors
+# exist and are read by no classifier: depmap_prism_crispr_concordance/cli.py (figure reference lines +
+# legend) and cards/prism-crispr-concordance.card.yaml `thresholds:` (documentation). Changing a number
+# here requires a PARQUET REBUILD to take effect; all three copies are pinned equal by
+# tests/methods/depmap_prism_crispr_concordance/test_threshold_mirror_guard.py.
 MIN_LINES_FOR_CONCORDANCE = 20  # need ≥20 intersected lines for meaningful Spearman
 CONCORDANCE_STRONG_SPEARMAN = 0.30  # rho ≥ this → target-engaged call
 CONCORDANCE_WEAK_SPEARMAN = 0.10  # 0.1 ≤ rho < 0.3 → mixed / partial engagement

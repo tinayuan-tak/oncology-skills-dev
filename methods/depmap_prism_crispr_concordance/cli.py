@@ -54,6 +54,13 @@ CONCORDANCE_OFF_TARGET = "discordant_off_target_likely"
 CONCORDANCE_THIN = "thin_evidence"
 CONCORDANCE_DATA_UNAVAILABLE = "data_unavailable"
 
+# DISPLAY MIRROR ONLY — these draw the figure's reference lines and the legend text ("both ≥ 0.30").
+# `crispr_prism_concordance_class` is classified at PRECOMPUTE time and frozen into the parquet; this
+# reader does `row.get("crispr_prism_concordance_class")` and never re-derives it. Editing these two
+# numbers therefore changes the PICTURE and nothing else — retuning the CALL means editing
+# depmap_prism_precompute/cli.py (the authoritative copy) AND rebuilding the parquet. Pinned equal to
+# the precompute's by tests/methods/depmap_prism_crispr_concordance/test_threshold_mirror_guard.py, so
+# the reference lines cannot drift off the boundary the frozen classes were cut at.
 CONCORDANCE_STRONG_SPEARMAN = 0.30
 CONCORDANCE_WEAK_SPEARMAN = 0.10
 
