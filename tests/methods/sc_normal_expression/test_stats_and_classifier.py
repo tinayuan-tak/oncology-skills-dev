@@ -194,6 +194,90 @@ def test_safety_essential_class_critical_organ_vs_origin_tissue():
     assert r3["sc_normal_safety_essential_class"] == "critical_organ_liability"
 
 
+def test_norm_tissue_folds_shard_key_and_census_separators():
+    """The shard-key vocabulary (UNDERSCORED, needed to build the S3 product id) and the CELLxGENE
+    Census `tissue` column (SPACED) must compare equal after normalization."""
+    for key, census in (
+        ("prostate_gland", "prostate gland"),
+        ("bladder_organ", "bladder organ"),
+        ("bone_marrow", "bone marrow"),
+        ("adrenal_gland", "adrenal gland"),
+        ("small_intestine", "small intestine"),
+        ("large_intestine", "Large  Intestine"),
+    ):
+        assert S._norm_tissue(key) == S._norm_tissue(census)
+    # single-word tissues are unaffected (which is why the defect went unnoticed — every existing
+    # organ-aware test used colon/lung/liver/heart/kidney/pancreas)
+    assert S._norm_tissue("colon") == S._norm_tissue("Colon ")
+    # hyphens fold too, so a future hyphenated label cannot silently reintroduce the mismatch
+    assert S._norm_tissue("bone-marrow") == "bone marrow"
+
+
+def test_multiword_origin_tissue_is_not_read_as_off_origin_critical_organ():
+    """REGRESSION: `origin_tissues` arrives as UNDERSCORED shard keys (read.py INDICATION_TO_TISSUES:
+    PRAD -> prostate_gland, BLCA -> bladder_organ) while the per-row `tissue` column carries the SPACED
+    Census value, so the raw `row_tissue in origin` test never matched for ANY multi-word origin and the
+    tumor's OWN organ was scored as an off-origin critical-organ liability — the hard-veto class both
+    consumers key on (tvn-sc-normal-critical-organ-veto and the surface-modality-fit BiTE killer both
+    `equals: critical_organ_liability`). Measured on the panel: KLK3/PRAD and KLK2/PRAD fired on
+    `prostate gland` cells."""
+    rows = _tier1_rows([("endothelial cell", 10, 0.56, 0.60)], tissue="prostate gland")
+    r = S.classify_sc_normal_expression(rows, origin_tissues=["prostate_gland"])
+    assert r["sc_normal_safety_essential_class"] == "origin_tissue_liability"
+    assert r["sc_normal_essential_max_tissue"] == "prostate gland"
+    # same for bladder (BLCA), and the off-origin case still hard-vetoes
+    rows_bl = _tier1_rows([("endothelial cell", 10, 0.56, 0.60)], tissue="bladder organ")
+    assert (
+        S.classify_sc_normal_expression(rows_bl, origin_tissues=["bladder_organ"])["sc_normal_safety_essential_class"]
+        == "origin_tissue_liability"
+    )
+    assert (
+        S.classify_sc_normal_expression(rows_bl, origin_tissues=["colon"])["sc_normal_safety_essential_class"]
+        == "critical_organ_liability"
+    )
+
+
+def test_origin_only_driver_is_never_an_off_origin_cell():
+    """The NAMED driver of an origin_tissue_liability must be an ON-ORIGIN cell. The origin-only branch
+    used to pool ALL essential records, so an argmax over the sub-floor (0.05-0.20) OFF-ORIGIN hits that
+    deliberately did NOT flip the class could out-rank the origin hit that DID — naming a cell in the
+    wrong organ. Measured live on CD274/LUAD ('brain L5 ... cortical neuron' for a lung-origin
+    liability) and UPK1B/BLCA."""
+    rows = pd.concat(
+        [
+            _tier1_rows([("pulmonary alveolar type 1 cell", 10, 0.11, 0.30)], tissue="lung"),  # origin, fired
+            _tier1_rows([("neuron", 110, 0.14, 0.30)], tissue="brain"),  # off-origin, SUB-FLOOR, inert
+        ],
+        ignore_index=True,
+    )
+    r = S.classify_sc_normal_expression(rows, origin_tissues=["lung"])
+    assert r["sc_normal_safety_essential_class"] == "origin_tissue_liability"
+    assert r["sc_normal_essential_max_tissue"] == "lung"
+    assert r["sc_normal_essential_max_cell_type"] == "pulmonary alveolar type 1 cell"
+    # the off-origin sub-floor hit is still RECORDED for transparency, it just cannot be the driver
+    assert "neuron" in r["safety_essential_flags"]
+
+
+def test_origin_normalization_never_creates_a_critical_organ_liability():
+    """Monotonicity in the HARD-VETO direction: reclassifying a hit as origin can only REMOVE an
+    off-origin contribution, so no spelling of `origin_tissues` may turn a non-critical class critical.
+    (It is NOT globally monotonic — origin hits keep the lower 0.05 floor, so a 0.05-0.20 own-organ hit
+    can move `none` -> origin_tissue_liability. That is the honest, window-arbitrated class.)"""
+    rows = _tier1_rows([("endothelial cell", 10, 0.30, 0.60)], tissue="prostate gland")
+    for origin in (["prostate_gland"], ["prostate gland"], ["PROSTATE_GLAND"], ["prostate-gland"]):
+        assert (
+            S.classify_sc_normal_expression(rows, origin_tissues=origin)["sc_normal_safety_essential_class"]
+            == "origin_tissue_liability"
+        ), origin
+    # sub-floor own-organ hit: `none` -> origin_tissue_liability once the origin match works
+    sub = _tier1_rows([("endothelial cell", 10, 0.07, 0.20)], tissue="bladder organ")
+    assert S.classify_sc_normal_expression(sub, origin_tissues=[])["sc_normal_safety_essential_class"] == "none"
+    assert (
+        S.classify_sc_normal_expression(sub, origin_tissues=["bladder_organ"])["sc_normal_safety_essential_class"]
+        == "origin_tissue_liability"
+    )
+
+
 def test_safety_essential_flags_includes_above_floor():
     """Entries above the 0.05 flag floor appear in safety_essential_flags for transparency — but a
     marginal off-origin hit (0.08, below the 0.20 off-origin critical floor) does NOT flip to

@@ -138,6 +138,35 @@ def _is_safety_essential(cell_type: str) -> bool:
     return any(pat.search(ct) for pat in _SAFETY_ESSENTIAL_PATTERNS)
 
 
+def _norm_tissue(tissue) -> str:
+    """Canonicalize a tissue label so the SHARD-KEY vocabulary and the CENSUS `tissue` COLUMN compare
+    equal. These are two different vocabularies that were being compared raw:
+
+      * read.py's TISSUE_TO_PRODUCT / INDICATION_TO_TISSUES keys are the hyphen-free, UNDERSCORED
+        shard names required to build the S3 product id ("prostate_gland" → the
+        sc-normal-celltype-expression-prostate-gland-v1 product), and those same keys are what the
+        caller hands us as `origin_tissues`.
+      * the per-row `tissue` column carries the raw CELLxGENE Census value, which is SPACED
+        ("prostate gland", "bladder organ", "bone marrow", "adrenal gland", "small intestine").
+
+    So `row_tissue in origin` never matched for ANY multi-word origin tissue and the tumor's OWN organ
+    was scored as an OFF-ORIGIN critical-organ liability — the hard-veto class. Measured on the
+    36-target panel: KLK3/PRAD fired the veto on "prostate gland endothelial cell", i.e. prostate
+    endothelium read as a critical off-target for prostate cancer. Reachable affected indications via
+    INDICATION_TO_TISSUES are PRAD (prostate_gland) and BLCA (bladder_organ); every single-word origin
+    (colon/lung/liver/kidney/brain/...) compared fine, which is why every existing test passed.
+
+    Normalizing at COMPARISON time (not by respelling the shard keys) keeps the S3 product lookup intact.
+    It is monotonic in the HARD-VETO direction only: reclassifying a hit as origin can only REMOVE an
+    off-origin contribution, so it can never create or sustain a critical_organ_liability. It is NOT
+    globally monotonic, because origin hits keep the lower 0.05 flag floor while off-origin hits need
+    0.20 — so a 0.05–0.20 hit in the tumor's own organ moves `none` → origin_tissue_liability (the
+    honest, window-arbitrated class). Measured: UPK1B/BLCA, where bladder urothelial expression of a
+    uroplakin was previously invisible because the origin comparison failed and the hit then fell into
+    the off-origin ambient band."""
+    return re.sub(r"[\s_-]+", " ", str(tissue).lower()).strip()
+
+
 def classify_sc_normal_expression(rows: pd.DataFrame, origin_tissues=None) -> dict:
     """Classify normal-tissue liability from a Tier-1 gene rows DataFrame.
 
@@ -184,7 +213,10 @@ def classify_sc_normal_expression(rows: pd.DataFrame, origin_tissues=None) -> di
     has_datasets = "n_datasets_reliable" in reliable.columns
     _e_abund_col = "median_abund" if "median_abund" in reliable.columns else None
     _e_frac = frac_col in reliable.columns
-    origin = {str(t).lower().strip() for t in (origin_tissues or [])}
+    # NORMALIZED on both sides — `origin_tissues` are UNDERSCORED shard keys, the `tissue` column is
+    # SPACED Census values. See _norm_tissue for the defect this closes (PRAD/BLCA read their own organ
+    # as an off-origin critical liability).
+    origin = {_norm_tissue(t) for t in (origin_tissues or []) if str(t).strip()}
     essential_off_origin = False  # a hit in a critical organ that is NOT the tumor's tissue-of-origin
     essential_origin_only = False  # essential hits, but ALL in the tissue-of-origin
     # Per-essential-cell records so the veto's NAMED driver (organ/cell/detection/atlas-count) can be
@@ -196,7 +228,7 @@ def classify_sc_normal_expression(rows: pd.DataFrame, origin_tissues=None) -> di
         det_val = float(row[det_col])
         if _is_safety_essential(str(row["cell_type"])) and det_val > SAFETY_FLAG_FLOOR:
             safety_flags[str(row["cell_type"])] = det_val
-            row_tissue = str(row["tissue"]).lower().strip() if has_tissue else None
+            row_tissue = _norm_tissue(row["tissue"]) if has_tissue else None
             is_origin = bool(row_tissue is not None and origin and row_tissue in origin)
             if is_origin:
                 essential_origin_only = True
@@ -274,7 +306,14 @@ def classify_sc_normal_expression(rows: pd.DataFrame, origin_tissues=None) -> di
             if e["is_off_origin"] and e["median_detection_fraction"] > CRITICAL_ORGAN_OFF_ORIGIN_DET_FLOOR
         ]
     elif essential_origin_only:
-        _driver_pool = essential_records
+        # ON-ORIGIN records ONLY. This branch used to pool ALL essential_records, so an argmax over the
+        # sub-floor OFF-ORIGIN hits (the 0.05–0.20 ambient band that deliberately did NOT flip the class)
+        # could out-rank the origin hit that DID fire it — naming a cell in the wrong organ for an
+        # origin_tissue_liability. Measured live: CD274/LUAD reported "brain L5 extratelencephalic
+        # projecting glutamatergic cortical neuron (det 0.140)" as the driver of a LUNG-origin liability,
+        # and UPK1B/BLCA named the same brain neuron (0.167) for bladder urothelium. Contradicted this
+        # block's own comment ("name the origin cell") and the whole point of the named-driver field.
+        _driver_pool = [e for e in essential_records if not e["is_off_origin"]]
     else:
         _driver_pool = []
     essential_driver = max(_driver_pool, key=lambda e: e["median_detection_fraction"]) if _driver_pool else None
