@@ -2,13 +2,14 @@
 #
 # Emits a directed signaling-network summary keyed on the target's UniProt-AC.
 # The network is COMPOSED (methods/mechanism_composed.read_target_summary) from a
-# UNION of curated sources — SIGNOR (Jul2026 source release; curator-tight, causal;
-# primary), CollecTRI, and Reactome — whose edges set network_class. A kinome-atlas
+# UNION of curated edges — SIGNOR (Jul2026 source release; curator-tight, causal;
+# primary) + CollecTRI ONLY — whose edges set network_class. Reactome is layered as
+# pathway CONTEXT (membership/MoA), NOT counted in the edge total. A kinome-atlas
 # PREDICTION lane and a DepMap co-essentiality FUNCTIONAL lane are carried alongside
 # (surfaced in source_counts/sources_wired, weighted lower, never merged into
-# network_class). This card does NOT read OmniPath. The 21-class MoA ontology
-# (methods/signor_mechanism_network/moa_ontology.py) maps each curated edge to a
-# rules-firing MoA class + modality-relevance tuple.
+# network_class). This card does NOT read OmniPath. The versioned MoA ontology
+# (methods/signor_mechanism_network/moa_ontology.py; 31 classes at v1.0.0) maps each
+# curated edge to a rules-firing MoA class + modality-relevance tuple.
 #
 # Interpretation surface (network_class is the PRIMARY categorical for rules):
 #   `well_characterized` → >= 3 upstream regulators AND >= 3 downstream effectors
@@ -141,8 +142,9 @@ caveats:
   - |
     PROVENANCE / COMPOSITION. methods.call=signor-mechanism-network names SIGNOR as the primary
     curated source, but the live dispatch composes the network via the mechanism_composed method:
-    a UNION of curated sources — SIGNOR (Jul2026 source release; curator-tight, causally-directed,
-    ~30k human interactions) + CollecTRI + Reactome — whose edges set network_class.
+    a UNION of curated edges — SIGNOR (Jul2026 source release; curator-tight, causally-directed,
+    ~30k human interactions) + CollecTRI ONLY — whose edges set network_class. Reactome is layered
+    as pathway CONTEXT (reactome_pathway_context), NOT counted in the network_class edge total.
   - |
     Alongside the curated edges, kinome-atlas PREDICTION and DepMap co-essentiality FUNCTIONAL lanes
     are surfaced in source_counts/sources_wired (weighted lower, never merged into network_class), so
