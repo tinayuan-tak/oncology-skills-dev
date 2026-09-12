@@ -14,10 +14,18 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from _skills_common.paths import target_contracts_root
 from _test_support import load_run_py
 
 _RUN = Path(__file__).resolve().parent.parent / "scripts" / "run.py"
-_CONTRACTS = _RUN.resolve().parents[3] / "rnd-computational-biology-oncology-target-contracts"
+# Use the canonical resolver (honours TARGET_CONTRACTS_ROOT, then the sibling checkout) rather than
+# counting `parents`. This WAS `_RUN.resolve().parents[3] / "rnd-...-target-contracts"`, which is
+# off by one: parents[3] is the skills REPO ROOT, so the path pointed at
+# <skills-repo>/rnd-...-target-contracts and could never exist — in a worktree, a home checkout, or CI.
+# test_model_ref_points_at_an_existing_doc therefore skipped unconditionally and had never once
+# verified that `_model_ref` names a real doc, which is the one thing it exists to check (the sibling
+# test at test_headline_fields_exist_in_cards.py:26 already used the correct depth).
+_CONTRACTS = target_contracts_root()
 
 rc = load_run_py(_RUN.parent.parent, "fr_run_sidecar")
 

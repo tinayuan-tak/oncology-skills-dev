@@ -657,35 +657,67 @@ def _claim_record(cards, fired=None, verdict_pair=None) -> dict:
 # no resolver rung is touched.
 _LINEAGE_DEPENDENCY_CUT = -0.5  # DepMap-standard Chronos threshold for "dependent" (median)
 _LINEAGE_UNDERPOWER_FLOOR = 5  # mirrors the card's min_cell_lines_in_lineage
-# DepMap coarse lineages SHARED by >1 iDAS indication → a coarse-lineage read confounds them; the true
-# split needs depmap_oncotree_lineage (per-oncotree-sublineage stats — analysis-methods follow-on). We
-# reduce at coarse lineage and TAG the caveat rather than pretend precision we don't have.
-_SHARED_DEPMAP_LINEAGES = {"Lung", "Esophagus/Stomach"}  # SCLC/NSCLC ; STAD/ESCA
 
 
 @functools.lru_cache(maxsize=1)
 def _indication_lineage_map() -> dict:
-    """canonical_code -> {depmap_lineage, depmap_oncotree_lineage, depmap_oncotree_codes} from
-    target-contracts' indication_crosswalk.yaml. Read-only; {} if unavailable (the by-scope layer then
+    """indication code -> {depmap_lineage, depmap_oncotree_lineage, depmap_oncotree_codes, canonical_code}
+    from target-contracts' indication_crosswalk.yaml. Read-only; {} if unavailable (the by-scope layer then
     degrades to a typed-empty indication rung — honest, never a crash). `depmap_oncotree_codes` is the
-    OncotreeCode SET present ONLY for shared-lineage indications (STAD/ESCA, NSCLC/SCLC) — it drives the
-    sublineage-aware reduction that de-confounds the shared coarse DepMap lineage; absent otherwise."""
+    OncotreeCode SET present for indications whose coarse DepMap lineage merges >1 disease — it drives the
+    sublineage-aware reduction that de-confounds that lineage; absent when the lineage is already pure.
+
+    ALIASES (crosswalk v1.4.0): sub-indication and synonym codes resolve to their canonical entry's lanes.
+    Without this, `--indication LUAD` fell through to `{}` and the indication rung reported
+    data_unavailable — while SKILL.md advertises LUAD as a worked example, and the analysis-methods
+    canonical lineage map has always resolved it. The alias key inherits the canonical entry's lineage
+    (LUAD/LUSC → NSCLC → Lung; COAD/READ → COADREAD → Bowel), which is exactly what that map asserts.
+    `canonical_code` is carried through so a caller can report WHICH indication actually answered.
+    """
     try:
         import yaml
 
         path = DEFAULT_CONTRACTS_REPO / "vocabularies" / "indication_crosswalk.yaml"
         data = yaml.safe_load(path.read_text()) or {}
-        return {
-            e["canonical_code"]: {
+        out = {}
+        for e in data.get("indications", []):
+            code = e.get("canonical_code")
+            if not code:
+                continue
+            out[code] = {
                 "depmap_lineage": e.get("depmap_lineage"),
                 "depmap_oncotree_lineage": e.get("depmap_oncotree_lineage"),
                 "depmap_oncotree_codes": e.get("depmap_oncotree_codes"),
+                "canonical_code": code,
             }
-            for e in data.get("indications", [])
-            if e.get("canonical_code")
-        }
+        # Second pass so an alias never shadows a canonical code (the crosswalk guards forbid the
+        # collision, but resolution order should not depend on that).
+        for e in data.get("indications", []):
+            code = e.get("canonical_code")
+            for alias in e.get("aliases") or []:
+                if str(alias) not in out:
+                    out[str(alias)] = dict(out[code])
+        return out
     except Exception:  # noqa: BLE001 — additive/verdict-inert; absence must not break the spine
         return {}
+
+
+def _lineage_is_shared(xw: dict) -> bool:
+    """Does the indication's coarse DepMap lineage merge more than one disease?
+
+    DERIVED from the crosswalk rather than hardcoded. This used to be
+    `_SHARED_DEPMAP_LINEAGES = {"Lung", "Esophagus/Stomach"}` — a hand-maintained 2-element set that went
+    stale the moment another shared lineage was wired. It was wrong for at least two live indications:
+    Bowel is 133/146 colorectal adenocarcinoma but also carries anal squamous, small-bowel, appendiceal
+    and GI-neuroendocrine models, and Eye is 16/29 uveal melanoma alongside retinoblastoma and
+    non-cancerous retinal lines. Both reported shared_lineage_caveat: false on a genuinely confounded
+    coarse read.
+
+    The crosswalk already encodes the fact directly: `depmap_oncotree_codes` is present exactly when the
+    indication is a STRICT SUBSET of its coarse lineage and therefore needs a sublineage reduction. Keying
+    on its presence means wiring a new code set automatically corrects the caveat.
+    """
+    return bool(xw.get("depmap_oncotree_codes"))
 
 
 def _sublineage_read(cards, codes: list) -> dict | None:
@@ -758,13 +790,29 @@ def _indication_lineage_read(cards, indication) -> dict:
     xw = _indication_lineage_map().get(indication) or {}
     lineage = xw.get("depmap_lineage")
     read["depmap_lineage"] = lineage
-    if not lineage:
-        read["_note"] = f"no DepMap lineage crosswalk for indication {indication}"
+    # Distinguish the two ways an indication yields no lineage — they mean opposite things to a reader.
+    # UNKNOWN: the code is not in the vocabulary at all (typo, or an indication the framework has not
+    # curated) → the indication answer is MISSING, and the pooled verdict must not be read as one.
+    # NO-LINEAGE: the code IS curated but DepMap has no such lineage (THYM), so no scoping is possible
+    # however good the query — a permanent data boundary, not a lookup failure.
+    if not xw:
+        read["_note"] = (
+            f"indication '{indication}' is not in the framework indication vocabulary "
+            "(indication_crosswalk.yaml canonical_code or aliases) — no indication-scoped read is possible; "
+            "the pooled verdict is TARGET-GRAIN and must not be read as an answer for this indication"
+        )
         return read
-    read["shared_lineage_caveat"] = lineage in _SHARED_DEPMAP_LINEAGES
+    if not lineage:
+        read["_note"] = (
+            f"indication {indication} is curated but DepMap has no corresponding lineage, so no "
+            "indication-scoped dependency read is possible from this panel"
+        )
+        return read
+    read["shared_lineage_caveat"] = _lineage_is_shared(xw)
 
     # SUBLINEAGE de-confounding (Phase 3b): when the indication maps to a SHARED coarse lineage (STAD/ESCA
-    # → Esophagus/Stomach; NSCLC/SCLC → Lung) AND the crosswalk supplies its OncotreeCode set, reduce at
+    # → Esophagus/Stomach; NSCLC/SCLC → Lung; COADREAD ⊂ Bowel; UVM ⊂ Eye) AND the crosswalk supplies its
+    # OncotreeCode set, reduce at
     # the SUBLINEAGE grain (per_oncotree_code_stats aggregated over the code-set) instead of the confounded
     # coarse lineage — this RESOLVES the shared_lineage_caveat rather than merely flagging it. Falls back to
     # the coarse-lineage path when the field or code-set is unavailable (e.g. the offline fixture).
@@ -1052,30 +1100,90 @@ _POSITIVE_POOLED_VERDICTS = _DEP_STRONG_POS | _DEP_MOD_POS
 _INDICATION_MISMATCH_CLASSES = frozenset({"not_dependent_in_indication", "not_in_panel"})
 
 
+# Positive verdicts whose evidence is LINEAGE enrichment — for these, and only these, a shallow
+# coarse-lineage read genuinely licenses "the signal is in a DIFFERENT lineage".
+_LINEAGE_DERIVED_VERDICTS = frozenset({"lineage_selective"})
+# Positive verdicts whose evidence is a SUBSTRATUM within a lineage (partner-deficiency / biomarker
+# stratification), not a lineage contrast. Here a shallow ALL-lineage median is the EXPECTED shape and
+# says nothing about the indication — see the note body.
+_STRATIFIED_VERDICTS = frozenset({"partner_conditional_dependent"})
+
+
 def _indication_scope_note(verdict, by_scope) -> str | None:
-    """Indication-SCOPE divergence flag: the pooled dependency_verdict is TARGET-GRAIN (lineage_selective
-    et al. fire on ANY enriched lineage), so a POSITIVE pooled call can be enriched OUTSIDE the queried
-    indication while the indication's own lineage reads non-dependent. Surface it so a consumer keying on
-    the one-word verdict token does not over-read a target-grain positive as an indication-specific
-    dependency — the honest indication answer already lives in dependency_verdict_by_scope.indication
-    (Phase-3). Fires ONLY on a positive pooled verdict + an indication-mismatch by_scope read (e.g.
-    BRAF/COADREAD: lineage_selective pan-cancer, but Bowel not_dependent_in_indication — enriched in
-    melanoma, not CRC); None otherwise → byte-stable where the indication IS the enriched lineage
-    (KRAS/COADREAD: selective_in_indication → no flag). VERDICT-INERT: the pooled verdict is unchanged."""
+    """Indication-SCOPE divergence flag: the pooled dependency_verdict is TARGET-GRAIN, so a POSITIVE
+    pooled call need not be an answer for the queried indication. Surface that so a consumer keying on the
+    one-word verdict token does not over-read it — the honest indication answer lives in
+    dependency_verdict_by_scope.indication (Phase-3). VERDICT-INERT: the pooled verdict is unchanged.
+
+    The note BRANCHES ON VERDICT PROVENANCE (2026-09-12), because one prose for all positives was actively
+    false for stratified verdicts:
+
+      lineage-derived (lineage_selective, resolver rung 4 / lineage-selective-supportive) — the original
+        case, and correct. BRAF/COADREAD: lineage_selective pan-cancer but Bowel not_dependent_in_indication,
+        because BRAF is enriched in Skin. "Enriched outside this indication" is exactly right.
+
+      stratified (partner_conditional_dependent, rungs 11-14) — the verdict comes from a partner-deficiency
+        SUBSTRATUM, not a lineage contrast, so the coarse-lineage median is the WRONG comparator and a
+        shallow value is the expected shape rather than a divergence. The old prose told the reader
+        WRN/COADREAD was "enriched OUTSIDE this indication" on a Bowel median of -0.14 — but WRN x MSI is
+        the canonical MSI-H COLORECTAL synthetic lethality, so the note pointed away from the one indication
+        that matters. Same error class as scoring a selective dependency against a pooled median.
+
+      other positives (concordant_dependent, selective_dependent, broadly_dependent,
+        chemical_genetic_confirmed_dependent) — panel-level magnitude calls. The divergence is real and
+        worth flagging, but attributing it to enrichment in another lineage is unfounded, so the note
+        states the divergence without inventing a cause.
+
+    Also fires when the indication could not be resolved at all: a positive pooled verdict plus a MISSING
+    indication read was previously silent (returned None), so `--indication LUAD` reported lineage_selective
+    with no indication answer and nothing in the headline saying so.
+    """
     if verdict not in _POSITIVE_POOLED_VERDICTS:
         return None
     ind = (by_scope or {}).get("indication") or {}
-    if ind.get("class") not in _INDICATION_MISMATCH_CLASSES:
+    cls = ind.get("class")
+    indication = ind.get("indication") or "this indication"
+
+    # UNRESOLVED indication: no lineage to compare against. Say so rather than staying silent.
+    if cls == "data_unavailable" and not ind.get("depmap_lineage"):
+        why = ind.get("_note") or "the indication did not resolve to a DepMap lineage"
+        return (
+            f"The pooled dependency_verdict ('{verdict}') is TARGET-GRAIN, and NO indication-scoped read "
+            f"was possible for {indication}: {why}. Treat the pooled token as a target-level statement "
+            "only — this package contains no evidence about the dependency within this indication."
+        )
+
+    if cls not in _INDICATION_MISMATCH_CLASSES:
         return None
     lineage = ind.get("depmap_lineage") or "the queried lineage"
-    indication = ind.get("indication") or "this indication"
     med = ind.get("median_chronos")
     med_s = f" (median Chronos {med:.2f})" if isinstance(med, (int, float)) else ""
+
+    if verdict in _STRATIFIED_VERDICTS:
+        return (
+            f"The pooled dependency_verdict ('{verdict}') is STRATIFIED — it rests on a dependency within a "
+            f"partner-deficient SUBSTRATUM, not on a lineage contrast. The unstratified {lineage} lineage "
+            f"read is `{cls}`{med_s}, which is the EXPECTED shape for a conditional dependency and neither "
+            f"confirms nor refutes it for {indication}: the substratum is a minority of the lineage's cell "
+            "lines, so pooling them dilutes the effect. Do NOT read this as the dependency lying outside "
+            "this indication. The decision-relevant evidence is the partner-conditional stratification "
+            "(see the partner-conditional-dependency card) applied WITHIN the indication."
+        )
+
+    if verdict in _LINEAGE_DERIVED_VERDICTS:
+        return (
+            f"The pooled dependency_verdict ('{verdict}') is TARGET-GRAIN — selective to SOME lineage, not "
+            f"necessarily {indication}. For the queried {lineage} lineage the dependency reads "
+            f"`{cls}`{med_s}: the pooled positive is enriched OUTSIDE this indication. Read the "
+            "indication answer from dependency_verdict_by_scope.indication, NOT the target-grain token."
+        )
+
     return (
-        f"The pooled dependency_verdict ('{verdict}') is TARGET-GRAIN — selective to SOME lineage, not "
-        f"necessarily {indication}. For the queried {lineage} lineage the dependency reads "
-        f"`{ind.get('class')}`{med_s}: the pooled positive is enriched OUTSIDE this indication. Read the "
-        "indication answer from dependency_verdict_by_scope.indication, NOT the target-grain token."
+        f"The pooled dependency_verdict ('{verdict}') is a PANEL-LEVEL call, not an indication-specific "
+        f"one. For the queried {lineage} lineage the dependency reads `{cls}`{med_s}, which diverges from "
+        f"the pooled positive. The evidence does not say WHY (this verdict rests on panel-wide magnitude, "
+        f"not on a lineage contrast), so do not assume enrichment in another lineage. Read the "
+        f"{indication} answer from dependency_verdict_by_scope.indication, NOT the target-grain token."
     )
 
 

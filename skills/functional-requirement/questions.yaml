@@ -17,8 +17,23 @@
 #   axis_id         unified claim/literature axis (DEP|SEL|COND|CHEM); null = no axis
 #   role            verdict_bearing | corroboration | display_only  (editorial question role)
 #   measurement_types  the card-join key: a card joins this question when its measurement_type is in this
-#                   list. Sourced from question_hierarchy.yaml (sub_groups->measurement_types) + the card
-#                   contracts (target-contracts/cards/<id>.card.yaml measurement_type).
+#                   list. Sourced from the card contracts (target-contracts/cards/<id>.card.yaml
+#                   measurement_type); every one of FR's 15 whole-cohort cards is anchored here, and this
+#                   file lists no measurement_type that no FR card carries (verified 2026-09-12 — neither
+#                   an orphaned card nor a phantom empty row).
+#
+#                   This registry is INTENTIONALLY NOT a mirror of question_hierarchy.yaml, despite an
+#                   earlier version of this comment claiming to source from it. The two answer different
+#                   questions and legitimately group one measurement_type differently:
+#                     - question_hierarchy.yaml is a GENERATED mirror of the governed contracts source
+#                       (target_profiling_axes.yaml question_hierarchies) and drives SUBGROUP DERIVATION —
+#                       which measurement types can be stratified. Edit it there, never here.
+#                     - this file drives evidence-graph question anchoring + the literature axis crosswalk.
+#                   The one live divergence is paralog_buffering: DEP in the hierarchy, COND here. COND is
+#                   correct FOR THIS FILE'S PURPOSE — paralog redundancy is the buffering-conditional read,
+#                   and the FR narrator lens itself routes it there ("the SMARCA4->SMARCA2 SL class — check
+#                   the COND axis", narrator_lenses.py FUNCTIONAL_REQUIREMENT.polarity_note). Do NOT
+#                   "reconcile" the two by moving it; that would decouple the card from the lens.
 #
 # The literature axis->question crosswalk is DERIVED, not stored:
 #   question_ids(axis) = [q.id for q where q.axis_id == axis and q.role != "corroboration"]

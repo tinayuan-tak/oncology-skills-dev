@@ -46,9 +46,18 @@ FUNCTIONAL_REQUIREMENT = LensConfig(
         "concordance alongside both distributions reading a selective class is a POOLED-SCOPE selective "
         "signature (concordance_scope_note), not a modality contradiction; (2) a decisive single-arm signal "
         "held at a coverage-gap verdict (measurement_caveat) is decisive-but-unconfirmed, not measured-"
-        "absent; (3) the pooled verdict is TARGET-GRAIN — when indication_scope_note is present the queried "
-        "indication is NOT the enriched lineage, so report the indication-scope answer "
-        "(dependency_verdict_by_scope.indication), not the target-grain token."
+        "absent; (3) the pooled verdict is TARGET-GRAIN, so when indication_scope_note is present READ THE "
+        "NOTE — it does NOT always mean the dependency lies outside the queried indication. The note is "
+        "keyed on the verdict's PROVENANCE and carries four distinct meanings: a LINEAGE-DERIVED verdict "
+        "(lineage_selective) genuinely rests on a lineage contrast the queried indication lost, so report "
+        "dependency_verdict_by_scope.indication instead of the target-grain token; a STRATIFIED verdict "
+        "(partner_conditional_dependent) rests on a dependency inside a partner-deficient SUBSTRATUM and is "
+        "scored against a POOLED indication median that DILUTES it, so a shallow indication median is NOT "
+        "evidence the dependency lies elsewhere (WRN×MSI is a colorectal synthetic lethality whose pooled "
+        "Bowel median is ~-0.14) — report the substratum, not the pooled median; a PANEL-MAGNITUDE verdict "
+        "diverges from the indication read without an identified cause, so state the divergence and do not "
+        "invent one; and an UNRESOLVED indication means NO indication-scoped read exists at all — there is "
+        "no by_scope.indication answer to report, and the pooled verdict must not be passed off as one."
     ),
     mode="verdict",
     verdict_key="dependency_verdict",  # the RESOLVED dependency verdict token; else the collapsed-verdict
