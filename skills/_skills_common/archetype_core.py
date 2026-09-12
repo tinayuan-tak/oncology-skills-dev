@@ -1059,3 +1059,147 @@ def cohort_percentile(atlas_key: str, signed_value: Optional[float], min_n: int 
     hi = bisect.bisect_right(col, signed_value)
     pct = round((lo + hi) / 2.0 / n * 100.0, 1)
     return {"percentile": pct, "n": n}
+
+
+# ── companion → canonical skill_report (shared by the STANDALONE target-archetype run.py AND the COMPOSED
+#    target-profile fan-out, so both emit a byte-identical descriptive spine) ──────────────────────────
+def _ac_tier(x, hi: float, mid: float, *, order: str = "pos") -> str:
+    """Ordinal tier from a scalar. order='pos' → strong/moderate/weak; 'corr' → high/moderate/low."""
+    if x is None:
+        return "unmeasured"
+    if order == "corr":
+        return "high" if x >= hi else "moderate" if x >= mid else "low"
+    return "strong" if x >= hi else "moderate" if x >= mid else "weak"
+
+
+def _ac_short_detail(caveat, *, cap: int = 260) -> str:
+    d = (caveat or {}).get("detail") or ""
+    return (d[:cap].rsplit(" ", 1)[0] + "…") if len(d) > cap else d
+
+
+def archetype_claim_vector(companion: dict, scorecard: dict) -> dict:
+    """The PHENOTYPE/ANALOG/PRECEDENT/NOVELTY/READINESS claim_vector, sourced entirely from the deterministic
+    companion + scorecard (cardless META layer). Shared vectoriser for the narrator lens, the literature
+    lane, and the skill_report chips — so all three read one coordinate system."""
+    mix = companion.get("soft_membership") or {}
+    dom = max(mix, key=mix.get) if mix else None
+    dom_mass = mix.get(dom) if dom else None
+    top3 = ", ".join(f"{k} {v:.0%}" for k, v in list(mix.items())[:3])
+    stab = (companion.get("mixture_uncertainty") or {}).get("stability")
+    miss = companion.get("missingness") or {}
+    n_meas, n_tot = miss.get("n_features_measured"), miss.get("n_features_total")
+    unmeasured = miss.get("unmeasured_axes") or []
+    analogs = companion.get("nearest_analogs") or []
+    top = analogs[0] if analogs else {}
+    nov = companion.get("novelty") or {}
+    prec = companion.get("rule_precedent") or []
+    cc = companion.get("archetype_confidence_caveat") or {}
+    sc_caveat = (scorecard or {}).get("scorecard_confidence_caveat") or {}
+    score = (scorecard or {}).get("score")
+    coverage = (scorecard or {}).get("coverage")
+    cf = (scorecard or {}).get("counterfactual_gap") or {}
+    driving = ", ".join(a["axis"] for a in ((scorecard or {}).get("driving_axes") or [])[:3])
+
+    cv: dict = {}
+    cv["PHENOTYPE"] = {
+        "signal": _ac_tier(dom_mass, 0.5, 0.3),
+        "corroboration": _ac_tier(stab, 0.7, 0.4, order="corr"),
+        "evidence": (
+            f"dominant={dom} {dom_mass:.0%}; mixture[{top3}]; jackknife stability={stab}; "
+            f"measured {n_meas}/{n_tot} atlas features; unmeasured axes={unmeasured or 'none'} "
+            "(soft DISTRIBUTION, not a hard label)"
+        ),
+        "conflict": (
+            _ac_short_detail(cc)
+            if cc.get("reason") == "phenotype_mixture_low_stability_or_missingness_distorted"
+            else None
+        ),
+    }
+    an = "; ".join(
+        f"{a['target']}({a['archetype_label']}{'~DERIVED' if a.get('label_is_derived') else ''},d={a['distance']})"
+        for a in analogs[:3]
+    )
+    cv["ANALOG"] = {
+        "signal": "moderate",
+        "corroboration": "low" if top.get("label_is_derived") else ("high" if top else "unmeasured"),
+        "evidence": f"nearest analogs: {an or 'none'}",
+        "conflict": _ac_short_detail(cc) if cc.get("reason") == "analog_or_label_circular" else None,
+    }
+    if prec:
+        p = prec[0]
+        cv["PRECEDENT"] = {
+            "signal": _ac_tier(p.get("weighted_jaccard"), 0.4, 0.2),
+            "corroboration": "moderate",
+            "evidence": (
+                f"top rule-fingerprint precedent: {p['target']}({p['archetype_label']}, "
+                f"weighted_jaccard={p['weighted_jaccard']}); shared rungs={p.get('top_shared_rules')}"
+            ),
+        }
+    else:
+        cv["PRECEDENT"] = {
+            "signal": "unmeasured",
+            "corroboration": "unmeasured",
+            "evidence": "no fired-rule fingerprint supplied (query_rules empty for this run)",
+        }
+    cv["NOVELTY"] = {
+        "signal": ("strong" if nov.get("inconsistent_flag") else "moderate" if nov.get("multimodal") else "absent"),
+        "corroboration": "moderate",
+        "evidence": (
+            f"inconsistent_flag={nov.get('inconsistent_flag')} "
+            f"(scale-invariant rel_residual={nov.get('hull_residual_relative')}); "
+            f"multimodal={nov.get('multimodal')}(n_dominant={nov.get('n_dominant_phenotypes')}); "
+            f"mixture_entropy={nov.get('mixture_entropy')}; "
+            f"local_density_flag={nov.get('local_density_flag')}"
+        ),
+    }
+    cv["READINESS"] = {
+        "signal": _ac_tier(score, 0.6, 0.4),
+        "corroboration": _ac_tier(coverage, 0.7, 0.4, order="corr"),
+        "evidence": (
+            f"D1 nomination-readiness score={score} (coverage={coverage}); phenotype route="
+            f"{(scorecard or {}).get('dominant_archetype_soft')}; driving axes={driving or 'n/a'}; "
+            f"route-limiting axis={cf.get('limiting_axis')}. ILLUSTRATIVE weights (SHOWN, not learned)"
+        ),
+        "conflict": _ac_short_detail(sc_caveat) if sc_caveat else None,
+    }
+    return cv
+
+
+def companion_headline_phrase(companion: dict, scorecard: dict, target, indication) -> str:
+    """The one-line honest phrase for the companion (dominant mixture + top analogs + stability + coverage +
+    D1 readiness), with the DESCRIPTIVE-not-a-nomination disclaimer. Shared by the narrator decision + the
+    skill_report honest_phrase."""
+    mix = companion.get("soft_membership") or {}
+    dom = max(mix, key=mix.get) if mix else None
+    stab = (companion.get("mixture_uncertainty") or {}).get("stability")
+    miss = companion.get("missingness") or {}
+    an = ", ".join(a["target"] for a in (companion.get("nearest_analogs") or [])[:2])
+    return (
+        f"{target}/{indication}: phenotype mixture dominated by '{dom}' "
+        f"({mix.get(dom, 0):.0%}); most like {an or 'n/a'}; jackknife stability {stab}, "
+        f"{miss.get('n_features_measured')}/{miss.get('n_features_total')} atlas features measured; "
+        f"D1 readiness {(scorecard or {}).get('score')}. DESCRIPTIVE signature LANDSCAPE — a soft mixture, "
+        "NOT a classification or nomination."
+    )
+
+
+def companion_skill_report(companion: dict, scorecard: dict, target, indication) -> dict:
+    """Project the deterministic companion + scorecard onto the canonical UNIFIED_OUTPUT_CONTRACT
+    skill_report spine. role=descriptive, call=None — a landscape companion, never a gate (governance).
+    Cardless/ruleless → empty provenance. Used by BOTH the standalone target-archetype run.py AND the
+    composed target-profile fan-out so the two emit a byte-identical spine (offline==composed)."""
+    from _skills_common.skill_report import ROLE_DESCRIPTIVE, build_skill_report
+
+    cc = companion.get("archetype_confidence_caveat") or {}
+    sc_caveat = (scorecard or {}).get("scorecard_confidence_caveat") or {}
+    caveat = _ac_short_detail(cc, cap=400) if cc else (_ac_short_detail(sc_caveat, cap=400) if sc_caveat else None)
+    hb = {"headline_text": companion_headline_phrase(companion, scorecard, target, indication), "top_tension": caveat}
+    return build_skill_report(
+        role=ROLE_DESCRIPTIVE,
+        verdict=None,
+        claim_vector=archetype_claim_vector(companion, scorecard),
+        headline_block=hb,
+        fired_rule_ids=[],
+        cards_used=[],
+        cards_missing=[],
+    )

@@ -39,9 +39,16 @@ sys.path.insert(0, str(SKILLS_DIR))
 from _skills_common.archetype_core import (  # noqa: E402
     Atlas,
     _attach_archetype_caveats,
+    archetype_claim_vector,
     claim_features,
+    companion_headline_phrase,
+    companion_skill_report,
     nomination_scorecard,
 )
+
+# Back-compat alias: the claim-vector builder now lives in archetype_core (shared with the composed
+# target-profile fan-out so both emit the SAME skill_report). Tests + _build_decision reference this name.
+_archetype_claim_vector = archetype_claim_vector
 
 SKILL_NAME = "target-archetype"
 SKILL_VERSION = "0.6.0"  # 0.6.0 (2026-09-05, literature-and-claims arc, FIRST non-fan-out skill): CREATE
@@ -78,109 +85,9 @@ def _read_package_dir(pkg_dir: Path) -> tuple[dict, set, str, str]:
 
 
 # ── decision-shaped dict for the bespoke --synthesize / --literature lanes ──────────────────────────
-def _tier(x, hi: float, mid: float, *, order="pos") -> str:
-    """Ordinal tier from a scalar. order='pos' → strong/moderate/weak; 'corr' → high/moderate/low."""
-    if x is None:
-        return "unmeasured"
-    if order == "corr":
-        return "high" if x >= hi else "moderate" if x >= mid else "low"
-    return "strong" if x >= hi else "moderate" if x >= mid else "weak"
-
-
 def _short_detail(caveat, *, cap: int = 260) -> str:
     d = (caveat or {}).get("detail") or ""
     return (d[:cap].rsplit(" ", 1)[0] + "…") if len(d) > cap else d
-
-
-def _archetype_claim_vector(companion: dict, scorecard: dict) -> dict:
-    """Build the PHENOTYPE/ANALOG/PRECEDENT/NOVELTY/READINESS claim_vector the TARGET_ARCHETYPE lens narrates
-    + the literature lane grounds — sourced entirely from the deterministic companion + scorecard (numbers the
-    LLM can cite, no capsule/card data since this layer is cardless)."""
-    mix = companion.get("soft_membership") or {}
-    dom = max(mix, key=mix.get) if mix else None
-    dom_mass = mix.get(dom) if dom else None
-    top3 = ", ".join(f"{k} {v:.0%}" for k, v in list(mix.items())[:3])
-    mu = companion.get("mixture_uncertainty") or {}
-    stab = mu.get("stability")
-    miss = companion.get("missingness") or {}
-    n_meas, n_tot = miss.get("n_features_measured"), miss.get("n_features_total")
-    unmeasured = miss.get("unmeasured_axes") or []
-    analogs = companion.get("nearest_analogs") or []
-    top = analogs[0] if analogs else {}
-    nov = companion.get("novelty") or {}
-    prec = companion.get("rule_precedent") or []
-    cc = companion.get("archetype_confidence_caveat") or {}
-    sc_caveat = (scorecard or {}).get("scorecard_confidence_caveat") or {}
-    score = (scorecard or {}).get("score")
-    coverage = (scorecard or {}).get("coverage")
-    cf = (scorecard or {}).get("counterfactual_gap") or {}
-    driving = ", ".join(a["axis"] for a in ((scorecard or {}).get("driving_axes") or [])[:3])
-
-    cv: dict = {}
-    cv["PHENOTYPE"] = {
-        "signal": _tier(dom_mass, 0.5, 0.3),
-        "corroboration": _tier(stab, 0.7, 0.4, order="corr"),
-        "evidence": (
-            f"dominant={dom} {dom_mass:.0%}; mixture[{top3}]; jackknife stability={stab}; "
-            f"measured {n_meas}/{n_tot} atlas features; unmeasured axes={unmeasured or 'none'} "
-            "(soft DISTRIBUTION, not a hard label)"
-        ),
-        "conflict": (
-            _short_detail(cc)
-            if cc.get("reason") == "phenotype_mixture_low_stability_or_missingness_distorted"
-            else None
-        ),
-    }
-    an = "; ".join(
-        f"{a['target']}({a['archetype_label']}{'~DERIVED' if a.get('label_is_derived') else ''},d={a['distance']})"
-        for a in analogs[:3]
-    )
-    cv["ANALOG"] = {
-        "signal": "moderate",
-        "corroboration": "low" if top.get("label_is_derived") else ("high" if top else "unmeasured"),
-        "evidence": f"nearest analogs: {an or 'none'}",
-        "conflict": _short_detail(cc) if cc.get("reason") == "analog_or_label_circular" else None,
-    }
-    if prec:
-        p = prec[0]
-        cv["PRECEDENT"] = {
-            "signal": _tier(p.get("weighted_jaccard"), 0.4, 0.2),
-            "corroboration": "moderate",
-            "evidence": (
-                f"top rule-fingerprint precedent: {p['target']}({p['archetype_label']}, "
-                f"weighted_jaccard={p['weighted_jaccard']}); shared rungs={p.get('top_shared_rules')}"
-            ),
-        }
-    else:
-        cv["PRECEDENT"] = {
-            "signal": "unmeasured",
-            "corroboration": "unmeasured",
-            "evidence": "no fired-rule fingerprint supplied (query_rules empty for this run)",
-        }
-    cv["NOVELTY"] = {
-        "signal": ("strong" if nov.get("inconsistent_flag") else "moderate" if nov.get("multimodal") else "absent"),
-        "corroboration": "moderate",
-        "evidence": (
-            f"inconsistent_flag={nov.get('inconsistent_flag')} "
-            f"(scale-invariant rel_residual={nov.get('hull_residual_relative')}); "
-            f"multimodal={nov.get('multimodal')}(n_dominant={nov.get('n_dominant_phenotypes')}); "
-            f"mixture_entropy={nov.get('mixture_entropy')}; "
-            f"local_density_flag={nov.get('local_density_flag')}"
-        ),
-    }
-    cv["READINESS"] = {
-        "signal": _tier(score, 0.6, 0.4),
-        "corroboration": _tier(coverage, 0.7, 0.4, order="corr"),
-        "evidence": (
-            f"D1 nomination-readiness score={score} (coverage={coverage}); phenotype route="
-            f"{(scorecard or {}).get('dominant_archetype_soft')}; driving axes={driving or 'n/a'}; "
-            f"route-limiting axis={cf.get('limiting_axis')}. ILLUSTRATIVE weights (SHOWN, not learned)"
-        ),
-        # ALWAYS surface the illustrative-not-learned caveat as a CONFLICT flag on READINESS (the score
-        # orients, never nominates — the RETIRED-D2/D3 lesson).
-        "conflict": _short_detail(sc_caveat) if sc_caveat else None,
-    }
-    return cv
 
 
 def _build_decision(companion: dict, scorecard: dict, target, indication) -> dict:
@@ -189,19 +96,6 @@ def _build_decision(companion: dict, scorecard: dict, target, indication) -> dic
     NUMBERS ride in the claim_vector evidence strings, which lead the narration (signals-first)."""
     cc = companion.get("archetype_confidence_caveat") or {}
     sc_caveat = (scorecard or {}).get("scorecard_confidence_caveat") or {}
-    mix = companion.get("soft_membership") or {}
-    dom = max(mix, key=mix.get) if mix else None
-    analogs = companion.get("nearest_analogs") or []
-    an = ", ".join(a["target"] for a in analogs[:2])
-    stab = (companion.get("mixture_uncertainty") or {}).get("stability")
-    miss = companion.get("missingness") or {}
-    headline_phrase = (
-        f"{target}/{indication}: phenotype mixture dominated by '{dom}' "
-        f"({mix.get(dom, 0):.0%}); most like {an or 'n/a'}; jackknife stability {stab}, "
-        f"{miss.get('n_features_measured')}/{miss.get('n_features_total')} atlas features measured; "
-        f"D1 readiness {(scorecard or {}).get('score')}. DESCRIPTIVE signature LANDSCAPE — a soft mixture, "
-        "NOT a classification or nomination."
-    )
     # the PRIMARY caveat surfaced to the narrator + literature lane (read from key_signals.caveat): the
     # confidence caveat if it fired (over-call concern), else the always-present illustrative-weight note.
     caveat = _short_detail(cc, cap=400) if cc else (_short_detail(sc_caveat, cap=400) if sc_caveat else None)
@@ -209,8 +103,13 @@ def _build_decision(companion: dict, scorecard: dict, target, indication) -> dic
         "target": target,
         "indication": indication,
         "headline": {
-            "claim_vector": _archetype_claim_vector(companion, scorecard),
-            "key_signals": {"headline": headline_phrase, "caveat": caveat},
+            # claim_vector + headline phrase are the SHARED builders (archetype_core), so the narrator
+            # decision, the skill_report chips, and the composed spine all read one coordinate system.
+            "claim_vector": archetype_claim_vector(companion, scorecard),
+            "key_signals": {
+                "headline": companion_headline_phrase(companion, scorecard, target, indication),
+                "caveat": caveat,
+            },
             "evidence_capsules": {"capsules": {}, "manifest": []},  # cardless META layer — no card capsules
         },
         "cards": [],
@@ -218,26 +117,10 @@ def _build_decision(companion: dict, scorecard: dict, target, indication) -> dic
 
 
 def _build_skill_report(companion: dict, scorecard: dict, target, indication) -> dict:
-    """Project the deterministic companion + scorecard onto the canonical UNIFIED_OUTPUT_CONTRACT
-    `skill_report` spine, so target-archetype speaks the SAME output shape as the 14 fan-out sub-skills and
-    target_report can roll it up off the spine (claim_chips / honest_phrase) instead of a bespoke companion
-    reach-in. role=DESCRIPTIVE + call=None: this layer is a landscape companion, never a gate (governance).
-    Cardless → no fired rules / cards. Reuses _build_decision so the report's claim_chips + honest_phrase are
-    byte-consistent with the narrator/literature lanes."""
-    from _skills_common.skill_report import ROLE_DESCRIPTIVE, build_skill_report
-
-    decision = _build_decision(companion, scorecard, target, indication)
-    ks = decision["headline"]["key_signals"]
-    hb = {"headline_text": ks.get("headline"), "top_tension": ks.get("caveat")}
-    return build_skill_report(
-        role=ROLE_DESCRIPTIVE,
-        verdict=None,  # descriptive companion — never a call
-        claim_vector=decision["headline"]["claim_vector"],
-        headline_block=hb,
-        fired_rule_ids=[],  # cardless, ruleless META layer
-        cards_used=[],
-        cards_missing=[],
-    )
+    """The canonical UNIFIED_OUTPUT_CONTRACT `skill_report` spine — delegated to the SHARED builder in
+    archetype_core so the standalone companion.json and the composed target-profile fan-out emit a
+    byte-identical descriptive spine. Kept as a thin wrapper for the standalone emit + the test surface."""
+    return companion_skill_report(companion, scorecard, target, indication)
 
 
 def _run_literature(decision: dict, model_id):

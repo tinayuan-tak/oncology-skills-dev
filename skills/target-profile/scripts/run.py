@@ -868,6 +868,10 @@ def main() -> int:
     # → score + driving/limiting axes + a route-conditioned counterfactual gap. Reuses the companion's
     # phenotype mixture. DESCRIPTIVE / verdict-inert (never a gate), same governance as the companion.
     nomination_scorecard_facet = None
+    # Canonical skill_report spine for the archetype facet — built from the SAME companion + scorecard via the
+    # SHARED archetype_core builder, so the composed spine is byte-identical to the standalone
+    # target-archetype companion.json. role=descriptive / call=None (verdict-inert). None when no companion.
+    archetype_skill_report = None
     # NOTE: the former outcome-trained approval-propensity score (D2/D3) was RETIRED — an ablation showed its
     # signal was carried by advancement/study-depth features, not disease biology (the pure-biology residual
     # did not beat a genetics baseline), so the honest product is the descriptive phenotype landscape above.
@@ -882,9 +886,13 @@ def main() -> int:
             nomination_scorecard_facet = archetype_core.scorecard_from_sub_results(
                 sub_results, _atlas, companion=archetype_companion
             )
+            archetype_skill_report = archetype_core.companion_skill_report(
+                archetype_companion, nomination_scorecard_facet, args.target, args.indication
+            )
     except Exception:
         archetype_companion = None  # verdict-inert facets — never fail the flagship on an error
         nomination_scorecard_facet = None
+        archetype_skill_report = None
 
     # Biology-axis (resolved early so it can also MASK the per-modality view below). Curated axis +
     # plausible modalities; uncurated → axis=unknown. NEVER raises. SLOT-2 emphasis only; the
@@ -1487,6 +1495,11 @@ def main() -> int:
         # _SHORT_TO_GATE and this never touches the recommendation/gate/confidence. None when the atlas is
         # absent or the companion could not be computed (best-effort — see the computation site above).
         "archetype_companion": archetype_companion,
+        # Canonical UNIFIED_OUTPUT_CONTRACT spine for the archetype facet (role=descriptive, call=None) —
+        # the same skill_report shape the fan-out sub-skills carry + the standalone target-archetype
+        # companion.json emits, built from the SAME companion + scorecard via the shared archetype_core
+        # builder (offline==composed). VERDICT-INERT. None when the atlas/companion is absent.
+        "archetype_skill_report": archetype_skill_report,
         # THESIS (Step 2a, 2026-09-11): the governed thesis-routing key derived from archetype_companion's
         # verdict-inert soft_membership (target_thesis.yaml hard-margin rule + biology_axis fallback).
         # VERDICT-INERT — consumed by NO gate block until Step 2b; emitted for review + as the input the
